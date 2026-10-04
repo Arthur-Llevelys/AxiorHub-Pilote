@@ -1,0 +1,9 @@
+services:
+  app:
+    networks:
+      - default
+      - axiorhub-audio
+
+networks:
+  axiorhub-audio:
+    external: true

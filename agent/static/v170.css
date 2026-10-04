@@ -1,0 +1,7 @@
+/* 1.7.0 — structured legal memory and unified source-bound timeline. */
+.section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.section-heading form{margin:0}.memory-card{background:#fff;border:1px solid #c9d9e9;border-left:5px solid #2d7fd3;border-radius:10px;padding:16px;margin:12px 0}
+.memory-card.suggested{border-left-color:#e2a12d}.memory-card.validated{border-left-color:#35ad69}.memory-card.pinned{border-left-color:#2475ca}.memory-card.conflict{border-left-color:#d75b52;background:#fff9f8}
+.memory-card h3{margin:7px 0}.memory-card .prose{margin:8px 0;max-height:260px}.memory-card details{margin-top:10px}.memory-card .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.memory-card .actions form{margin:0}
+.memory-card textarea{width:100%;box-sizing:border-box}.timeline article small{white-space:pre-line}
+@media(max-width:780px){.section-heading{display:block}.section-heading form{margin-top:10px}.memory-card .actions{display:grid;grid-template-columns:1fr 1fr}.memory-card .actions button{width:100%}}

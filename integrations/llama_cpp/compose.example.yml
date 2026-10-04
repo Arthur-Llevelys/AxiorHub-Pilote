@@ -1,0 +1,35 @@
+services:
+  llama-test:
+    image: "${LLAMA_IMAGE:?Set the official Vulkan image RepoDigest}"
+    container_name: axiorhub-llama-test
+    restart: "no"
+    ports:
+      - "127.0.0.1:8081:8080"
+    devices:
+      - /dev/dri:/dev/dri
+    volumes:
+      - /opt/axiorhub-llama-test/models:/models:ro
+      - ./llama-token:/run/secrets/llama-token:ro
+    command:
+      - --model
+      - "/models/${LLAMA_MODEL:?Set the exact GGUF filename}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+      - --ctx-size
+      - "8192"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - "99"
+      - --split-mode
+      - layer
+      - --jinja
+      - --api-key-file
+      - /run/secrets/llama-token
+    networks:
+      - llama-test
+networks:
+  llama-test:
+    name: axiorhub-llama-test

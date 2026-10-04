@@ -1,0 +1,25 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Données personnelles et secrets
+        run: python3 scripts/privacy-scan.py
+      - name: Outils PDF et OCR
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-fra
+      - name: Tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Archive vérifiée
+        run: python3 scripts/build-release.py /tmp/axiorhub.tar.gz

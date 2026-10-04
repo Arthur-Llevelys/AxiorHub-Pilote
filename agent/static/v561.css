@@ -1,0 +1,29 @@
+/* AxiorHub 5.6.1 — survol lisible, volet de relecture, détail des travaux de l'agent. */
+
+/* Survol : un bouton ou un lien stylé garde ses propres couleurs (les anciennes règles génériques ne visent plus que les boutons sans classe). */
+button[class]:not(:disabled):hover{filter:brightness(.97)}
+a.ax-btn:hover,a.ax-btn:focus-visible{color:var(--ax-accent-ink,#fff)}
+a.ax-btn.ghost:hover,a.ax-btn.ghost:focus-visible,button.ax-btn.ghost:hover{color:var(--ax-accent,#1769cf);background:var(--ws-accent-soft,#eaf3ff)}
+.ax-btn.danger:hover,.ax-btn.danger:focus-visible{color:var(--ax-bad,#b42318);background:color-mix(in srgb,var(--ax-bad,#b42318) 8%,transparent)}
+.c530-item:hover,.c530-item:focus-visible{color:var(--ws-ink,#181a20)}
+
+/* Volet : l'arrière-plan est un calque semi-transparent, jamais un bouton coloré. */
+.c530-backdrop,.c530-backdrop:hover{position:absolute;inset:0;background:rgba(15,20,30,.38);filter:none;cursor:default}
+
+/* « Ce que fait l'agent » : chaque travail s'ouvre. */
+.c530-act.c561-clickable{cursor:pointer;border-radius:6px}
+.c530-act.c561-clickable:hover{background:var(--ws-surface-alt,#f5f8fd)}
+.c561-open{all:unset;font-weight:700;line-height:1.35;color:var(--ws-ink,#181a20);cursor:pointer;overflow-wrap:anywhere}
+.c561-open:hover,.c561-open:focus-visible{text-decoration:underline;color:var(--ws-accent,#1769cf)}
+.c561-open:focus-visible{outline:2px solid var(--ws-accent,#1769cf);outline-offset:2px;border-radius:3px}
+.c561-dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 14px;margin:0 0 14px}
+.c561-dl dt{font-weight:700;color:var(--ws-muted,#575d67)}
+.c561-dl dd{margin:0;overflow-wrap:anywhere}
+.c561-dl .ax-btn{margin:6px 6px 0 0}
+.c561-steps{margin:0 0 14px;padding-left:18px}
+.c561-steps li{margin:3px 0}
+.c530-warn{color:var(--ax-bad,#b42318);font-weight:650}
+@media (max-width:640px){.c561-dl{grid-template-columns:1fr}.c561-dl dt{margin-top:6px}}
+
+/* Lien « Aller au contenu » : texte clair conservé au survol. */
+.cf-skip:hover,.cf-skip:focus,.cf-skip:focus-visible{color:var(--ax-accent-ink,#fff)}

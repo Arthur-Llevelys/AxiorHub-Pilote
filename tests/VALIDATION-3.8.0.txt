@@ -1,0 +1,17 @@
+AxiorHub 3.8.0 — validation de la livraison
+Date UTC : 2026-09-27
+
+- Compilation Python : OK
+- Syntaxe JavaScript et shell : OK
+- Suite unittest : 435 tests OK, 6 ignorés car dépendants d’outils absents
+- Tests spécifiques 3.8.0 : centre Aujourd’hui, graphe, playbooks, API
+  d’écosystème, banc d’évaluation, interface, licence et SBOM : OK
+- Analyse de confidentialité : OK
+- SBOM CycloneDX JSON : OK
+- Fichiers Docker Compose : YAML OK
+- Texte LICENSE identique au texte AGPL-3.0 officiel récupéré : OK
+
+Limites de l’environnement de construction : le moteur Docker et PHP ne sont pas
+installés. L’image n’a donc pas été construite et le plugin Roundcube n’a pas été
+validé par le linter PHP dans cet environnement. Ces deux contrôles restent à
+exécuter sur le serveur de recette avant publication ou déploiement.

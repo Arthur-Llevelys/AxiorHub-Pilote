@@ -1,0 +1,12 @@
+/* 1.8.0 — strategic workspace, evidence matrix and act projects. */
+.strategy-intro{background:linear-gradient(135deg,#eaf4ff,#f4fbff);border-left:4px solid #2780d9}
+.strategy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:16px 0}
+.strategy-option{border:1px solid #cbddee;border-top:4px solid #4d9ce8;border-radius:10px;padding:15px;background:#fff}
+.strategy-option.preferred,.recommendation{border-color:#48b978;background:#effcf5}
+.strategy-option.avoid{border-color:#e17b7b;background:#fff5f5}
+.strategy-option h4{margin:.7rem 0 .25rem}.strategy-option ul{margin:.25rem 0;padding-left:1.2rem}
+.status{display:inline-block;padding:5px 9px;border-radius:999px;background:#e6eef7}.status.validated{background:#d9f6e5;color:#17653a}
+.matrix-table{overflow:auto}.matrix-table table{min-width:1100px}.matrix-table td{white-space:pre-line;vertical-align:top}.matrix-table td:first-child{min-width:280px}.matrix-table strong,.matrix-table small{display:block}
+.proof{display:inline-block;padding:4px 7px;border-radius:6px;background:#edf2f7}.proof.documented{background:#d9f6e5}.proof.contradicted{background:#ffe0e0}.proof.alleged{background:#fff1cf}
+.compact-actions form{margin:3px 0}.compact-actions button{padding:6px 9px}.act-project pre{max-height:680px;overflow:auto;white-space:pre-wrap;background:#f8fafc}
+@media(max-width:800px){.strategy-grid{grid-template-columns:1fr}.matrix-table table{min-width:900px}}

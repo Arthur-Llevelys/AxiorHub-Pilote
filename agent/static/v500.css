@@ -1,0 +1,31 @@
+/* AxiorHub 5.0.0 — fonctions métier : temps et honoraires, rendez-vous, conflits, prescription, pilotage. */
+.m5-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.m5-tabs a{padding:7px 13px;border:1px solid var(--ax-line);border-radius:999px;background:var(--ax-card);color:var(--ax-accent);text-decoration:none;font-size:14px}
+.m5-tabs a[aria-current="page"]{background:var(--ax-accent);color:var(--ax-accent-ink);border-color:var(--ax-accent)}
+.m5-form{display:grid;gap:10px;background:var(--ax-card);border:1px solid var(--ax-line);border-radius:12px;padding:14px;margin:10px 0;max-width:760px}
+.m5-form.m5-inline{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:end;max-width:none;padding:8px 10px;margin:6px 0}
+.m5-form.m5-mini{border:0;padding:0;background:none;margin:0}
+.m5-field{display:grid;gap:3px;font-weight:600;font-size:13px;min-width:0}
+.m5-field input,.m5-field select,.m5-field textarea,.m5-party-row input,.m5-party-row select{width:100%;box-sizing:border-box;font:inherit;font-weight:400;padding:8px 10px;border:1px solid var(--ax-line);border-radius:8px;background:var(--ax-bg);color:var(--ax-ink)}
+.m5-field textarea{resize:vertical;min-height:90px}
+.m5-party-row{display:grid;grid-template-columns:2fr 1.2fr 1.6fr;gap:8px}
+.m5-tiles,.m5-cards,.m5-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:10px 0}
+.m5-tile,.m5-card,.m5-block,.m5-proposal{background:var(--ax-card);border:1px solid var(--ax-line);border-radius:12px;padding:12px 14px}
+.m5-tile-v{display:block;font-size:24px;font-weight:700;color:var(--ax-ink)}
+.m5-tile-l{display:block;font-size:12.5px;color:var(--ax-mute)}
+.m5-alert{border-left:4px solid var(--ax-bad);background:var(--ax-soft);padding:10px 12px;border-radius:8px;margin:8px 0}
+.m5-warn{border-left:4px solid var(--ax-warn);background:var(--ax-soft);padding:8px 12px;border-radius:8px;margin:8px 0}
+.m5-confirm{border-left:4px solid var(--ax-accent);background:var(--ax-soft);padding:8px 12px;border-radius:8px;margin:8px 0}
+.m5-warn ul,.m5-confirm ul{margin:4px 0 0;padding-left:20px}
+.m5-limits{font-size:13px;color:var(--ax-mute);border-top:1px dashed var(--ax-line);padding-top:8px;margin-top:10px}
+.m5-steps{padding-left:22px}.m5-steps li{margin:3px 0}
+.m5-result{white-space:pre-wrap;margin:8px 0;min-height:1px}
+.m5-result:empty{display:none}
+.m5-flag{font-weight:600;color:var(--ax-warn)}
+.m5-rules summary,.m5-log summary{cursor:pointer;font-weight:600;margin:8px 0}
+.m5-decision,.m5-radio,.m5-check{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.m5-form button[disabled]{opacity:.6;cursor:wait}
+@media (max-width:640px){.m5-party-row{grid-template-columns:1fr}.m5-form{padding:10px}.m5-tabs a{padding:8px 11px}}
+:root[data-theme=dark] .m5-alert{background:#3a1d1b}
+:root[data-theme=dark] .m5-warn{background:#33290f}
+.m5-card a,.m5-alert a,.m5-block a{color:var(--ax-accent)}.m5-card ul{padding-left:18px}

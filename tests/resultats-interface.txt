@@ -1,0 +1,7 @@
+La validation d’interface 2.4.0 est incluse dans resultats-validation.txt.
+La page « Recherche juridique » expose les dernières écritures, le registre des
+décisions et les empreintes des pièces ; l’outil Open WebUI expose en plus le
+flux MCP anonymisé en deux temps et les contrôles de provenance.
+Les contrôles couvrent aussi la page « Projets en attente », les contrôles
+bloquants, les propositions locales, les formulaires protégés et l’absence de
+rafraîchissement automatique pendant une saisie.

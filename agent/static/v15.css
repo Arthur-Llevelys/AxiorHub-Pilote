@@ -1,0 +1,4 @@
+.stats{flex-wrap:wrap}
+.stats article{flex:1 1 180px}
+.actions a{align-self:center}
+@media(max-width:1100px){main{padding-right:24px}.table{max-width:100%}}

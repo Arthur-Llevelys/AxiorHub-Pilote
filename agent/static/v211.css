@@ -1,0 +1,13 @@
+/* 2.1.1 — Agenda CalDAV, tâches Nextcloud et planning supervisé */
+.planning-fields{display:grid;grid-template-columns:repeat(3,minmax(170px,1fr));gap:12px}
+.plan-review{border-left:5px solid #2780d9}
+.week-load{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+.week-load article{background:#eef6ff;border:1px solid #bdd9f5;border-radius:10px;padding:12px}
+.week-load strong,.week-load span{display:block}
+.plan-task,.task-row{background:#fff;border:1px solid #cbdceb;border-radius:10px;padding:14px;margin:10px 0}
+.plan-task small,.task-row small{display:block;color:#506b82;margin-top:5px}
+.task-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.approval-code{background:#e7f7ed;border:2px solid #38ad6a;border-radius:10px;padding:14px;font-size:18px}
+.approval-code strong{font-size:24px;letter-spacing:.15em;color:#14743b}
+code{background:#e8eef5;border-radius:4px;padding:2px 5px}
+@media(max-width:850px){.planning-fields{grid-template-columns:1fr}.task-row{display:block}.task-row .actions{margin-top:10px}}

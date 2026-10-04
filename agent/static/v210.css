@@ -1,0 +1,19 @@
+/* 2.1.0 — Portefeuille actif */
+.portfolio-hero{background:linear-gradient(135deg,#eaf4ff,#eefcf4);border-color:#8ac2ff}
+.portfolio-hero form button,.portfolio-head form button{font-size:1rem;padding:.85rem 1.1rem}
+.portfolio-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin:1rem 0 1.4rem}
+.portfolio-stats a{display:flex;flex-direction:column;gap:.25rem;padding:1rem;border:1px solid #bfd3e9;border-radius:12px;background:#fff;text-decoration:none;color:#12324f}
+.portfolio-stats strong{font-size:1.7rem}.portfolio-stats span{font-weight:700}
+.portfolio-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;background:#fff;border:1px solid #c8dced;border-radius:12px;padding:1rem;margin-bottom:1rem}
+.portfolio-head h2{margin-top:0}.portfolio-head p{margin-bottom:0}
+.portfolio-tabs{margin-bottom:1rem}
+.portfolio-state{display:inline-flex;align-items:center;padding:.26rem .55rem;border-radius:999px;font-size:.82rem;font-weight:750;white-space:nowrap}
+.portfolio-state.active{background:#dcfce7;color:#136c37}
+.portfolio-state.dormant{background:#fff4ce;color:#7a5500}
+.portfolio-state.archived{background:#edf2f7;color:#52616f}
+.portfolio-state.to_confirm{background:#ffedd5;color:#9a4d00}
+.association-group{border-left:4px solid #2f82db}
+.association-group>small{display:block;color:#4e6880;margin-bottom:.35rem}
+.today-summary{margin:1rem 0;padding:1rem 1.2rem;border:1px solid #b9d8ff;border-radius:12px;background:#edf6ff}
+.today-summary h2{margin-top:0}.recommended-actions{padding-left:1.4rem}.recommended-actions li{margin:.55rem 0}
+@media(max-width:900px){.portfolio-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.portfolio-head{align-items:flex-start;flex-direction:column}}

@@ -1,0 +1,21 @@
+/* AxiorHub 5.1.0 — Pièces et bordereaux. */
+.p5-section{background:var(--ax-card);border:1px solid var(--ax-line);border-radius:12px;padding:12px 16px;margin:12px 0}
+.p5-section>summary{cursor:pointer;list-style:none}.p5-section>summary h2{display:inline;margin:0;font-size:18px}
+.p5-section>summary::before{content:'▸ ';color:var(--ax-accent)}.p5-section[open]>summary::before{content:'▾ '}
+.p5-profile{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start}
+.p5-stamp{margin:10px 0;text-align:center}.p5-stamp-img svg{max-width:100%;height:auto}
+.p5-stamp figcaption{font-size:13px;color:var(--ax-mute);display:grid;gap:6px;justify-items:center}
+.p5-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.p5-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:8px 0}
+.p5-scroll{overflow-x:auto}
+.p5-table td{vertical-align:top}.p5-table input.p5-title{width:100%;min-width:260px}
+.p5-table .p5-num{font-weight:700;text-align:center;width:3em}
+.p5-table .p5-move button{padding:2px 7px;margin:1px;min-height:28px}
+.p5-table tr.p5-off td{opacity:.55}
+.p5-file{font-size:13px;max-width:280px;word-break:break-word}
+.p5-issues{list-style:none;padding:0}.p5-issues li{margin:4px 0}
+.p5-drafts{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px 14px}.p5-drafts li[aria-current] a{font-weight:700}
+.p5-plan{border-top:1px dashed var(--ax-line);margin-top:10px;padding-top:6px}
+.p5-draft-title{margin-top:22px}
+@media (max-width:760px){.p5-profile{grid-template-columns:1fr}.p5-table input.p5-title{min-width:180px}}
+:root[data-theme=dark] .p5-stamp-img svg rect:first-child{fill:#fff}

@@ -1,0 +1,24 @@
+:root,:root[data-theme=light]{color-scheme:light;--ws-paper:#f7f8fa;--ws-surface:#fff;--ws-surface-alt:#f7f8fa;--ws-ink:#181a20;--ws-muted:#575d67;--ws-accent:#1769cf;--ws-accent-hover:#1054ac;--ws-accent-soft:#eaf3ff;--ws-border:#cfddf0;--ws-hero:linear-gradient(120deg,#f6f9ff,#e8f2ff);--ws-sidebar:#17191e;--ws-sidebar-border:#303a46;--ws-sidebar-text:#fff;--ink:var(--ws-ink);--accent:var(--ws-accent);--paper:var(--ws-paper)}
+:root[data-theme=dark]{color-scheme:dark;--ws-paper:#111318;--ws-surface:#202329;--ws-surface-alt:#292d34;--ws-ink:#f5f6f8;--ws-muted:#bac2cf;--ws-accent:#87baff;--ws-accent-hover:#bad9ff;--ws-accent-soft:#27374b;--ws-border:#3d526c;--ws-hero:linear-gradient(120deg,#202833,#182a3b);--ws-sidebar:#111216;--ws-sidebar-border:#354254;--ws-sidebar-text:#f5f6f8;--ink:var(--ws-ink);--accent:var(--ws-accent);--paper:var(--ws-paper)}
+body{background:#f7f8fa;color:#181a20}
+#ws-sidebar{background:var(--ws-sidebar);color:#f5f6f8}
+#ws-sidebar a,#ws-sidebar summary{color:#f5f6f8}
+#ws-sidebar a[aria-current=page]{background:#303b4b;color:#fff}
+aside .ws-secondary summary,aside .ws-secondary details a{color:#f5f6f8!important}
+.ws-heading,.ws-settings,.card,.ws-calendar,.matter-hero{border-color:var(--ws-border)}
+button,.button,.actions button{background:#1769cf;color:#fff;border-color:#1769cf}
+button:not([class]):hover,.button:hover{background:#1054ac;color:#fff}
+:root[data-theme=dark] button:not([class]),:root[data-theme=dark] .tabs a.active,:root[data-theme=dark] .matter-hero .primary-actions>a{background:#1769cf;color:#fff}
+.tabs a.active,.matter-hero .primary-actions>a{background:#1769cf;color:#fff}
+input,select,textarea{border-color:#aac7ec;border-radius:9px}
+input:focus,select:focus,textarea:focus{outline:2px solid #1769cf;outline-offset:1px}
+#ws-main form:not(.ws-inline) label,#ws-main form:not(.ws-inline) input,#ws-main form:not(.ws-inline) textarea,#ws-main form:not(.ws-inline) select{max-width:none}
+#ws-main .ws-hearing form,#ws-main .assistant-upload,#ws-main .ws-settings{max-width:none;width:100%}
+#ws-main .ws-hearing-uploads{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:12px;margin:20px 0}
+#ws-main .ws-hearing-uploads label{display:block;max-width:none}
+#ws-main .ws-hearing-uploads input{display:block;width:100%;max-width:none}
+#ws-main .ws-hearing-uploads p{grid-column:span 1;margin:0;color:var(--ws-muted);overflow-wrap:anywhere}
+.ws-mail-fold{width:100%;max-width:none}
+.ws-mail-fold summary{cursor:pointer;padding:12px;border:1px solid var(--ws-border);border-radius:10px;margin:12px 0}
+.ws-mail-fold iframe{width:100%;max-width:none;min-width:0}
+:root[data-theme=dark] input,:root[data-theme=dark] textarea,:root[data-theme=dark] select{background:#202329;color:#f5f6f8;border-color:#5575a2}

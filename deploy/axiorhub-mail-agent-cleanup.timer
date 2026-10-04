@@ -1,0 +1,10 @@
+[Unit]
+Description=Expiration quotidienne des rapports AxiorHub
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=axiorhub-mail-agent-cleanup.service
+
+[Install]
+WantedBy=timers.target

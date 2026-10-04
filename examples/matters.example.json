@@ -1,0 +1,19 @@
+[
+  {
+    "id": "DEMO-001",
+    "client_name": "Client Démo",
+    "path": "/Dossiers-IA/DEMO-001",
+    "aliases": [
+      "Client Démo"
+    ],
+    "references": [
+      "DEMO-001"
+    ],
+    "correspondents": [
+      {
+        "email": "client-demo@example.test",
+        "role": "client"
+      }
+    ]
+  }
+]

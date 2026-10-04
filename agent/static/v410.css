@@ -1,0 +1,23 @@
+/* AxiorHub 4.1 — navigation concise, apprentissage métier et banc juridique. */
+.hub410-hero,.learn410-hero,.eval410-hero{border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:18px;background:var(--surface)}
+.hub410-hero h1,.learn410-hero h1,.eval410-hero h1{margin:.25rem 0 .5rem;font-size:clamp(1.55rem,2.5vw,2.35rem)}
+.hub410-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.hub410-grid article{position:relative;min-height:180px;border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:20px;display:flex;flex-direction:column;align-items:flex-start}
+.hub410-grid article>span{font-size:1.5rem;color:var(--accent)}
+.hub410-grid article h2{font-size:1.05rem;margin:.75rem 0 .35rem}
+.hub410-grid article p{flex:1;color:var(--muted);line-height:1.45}
+.hub410-grid article a{border:1px solid var(--accent);border-radius:10px;padding:.6rem .85rem;text-decoration:none}
+.hub410-external{margin:-10px 0 24px}
+.learn410-kpis,.eval410-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.learn410-kpis article,.eval410-kpis article{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:4px}
+.learn410-kpis strong,.eval410-kpis strong{font-size:1.65rem;color:var(--accent)}
+.learn410-grid,.eval410-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.learn410-rules,.eval410-cases{display:grid;gap:12px}
+.learn410-rules article,.eval410-cases article{border:1px solid var(--border);border-radius:14px;padding:16px;background:var(--surface)}
+.learn410-rules article{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+.learn410-rules .is-paused{opacity:.72}
+.learn410-create textarea,.eval410-hero+* textarea{width:100%}
+#ws-sidebar .ws-primary{display:flex;flex-direction:column;gap:4px}
+#ws-sidebar .ws-primary a{min-height:42px}
+@media(max-width:1050px){.hub410-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.learn410-kpis,.eval410-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.hub410-grid,.learn410-grid,.eval410-grid,.learn410-kpis,.eval410-kpis{grid-template-columns:1fr}.learn410-rules article{display:block}.learn410-rules .actions{margin-top:12px}}

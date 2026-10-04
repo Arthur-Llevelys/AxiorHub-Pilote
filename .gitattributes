@@ -1,0 +1,8 @@
+# Fins de ligne Unix partout (scripts shell, configuration Apache, Python) ; fichiers binaires intacts
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.docx binary
+*.pdf binary
+*.gz binary

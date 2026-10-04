@@ -1,0 +1,30 @@
+[Unit]
+Description=AxiorHub Assistant vivant — IMAP IDLE et surveillance périodique
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/axiorhub-mail-agent/config.json
+
+[Service]
+Type=simple
+User=axiorhub-mail
+Group=axiorhub-mail
+WorkingDirectory=/opt/axiorhub-mail-agent/current
+ExecStart=/usr/bin/python3 /opt/axiorhub-mail-agent/current/web.py watch
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/axiorhub-mail-agent
+MemoryMax=512M
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

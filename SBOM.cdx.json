@@ -1,0 +1,254 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:2ed51ba2-6191-4d94-b0ef-380000000001",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-01T00:00:00Z",
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:generic/axiorhub@5.0.0",
+      "name": "AxiorHub",
+      "version": "5.6.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-or-later"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "axiorhub.sbom.scope",
+          "value": "source and direct declared runtime dependencies"
+        },
+        {
+          "name": "axiorhub.trademark.policy",
+          "value": "TRADEMARKS.md"
+        },
+        {
+          "name": "axiorhub.logo.license",
+          "value": "LOGO-LICENSE.md"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/htmx.org@2.0.8",
+      "name": "htmx.org",
+      "version": "2.0.8",
+      "purl": "pkg:npm/htmx.org@2.0.8",
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD"
+          }
+        }
+      ]
+    },
+    {
+      "type": "framework",
+      "bom-ref": "pkg:pypi/waitress@3.0.2",
+      "name": "waitress",
+      "version": "3.0.2",
+      "purl": "pkg:pypi/waitress@3.0.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "ZPL-2.1"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/poppler-utils",
+      "name": "poppler-utils",
+      "version": "resolved-at-build",
+      "purl": "pkg:deb/debian/poppler-utils",
+      "licenses": [
+        {
+          "license": {
+            "id": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/tesseract-ocr",
+      "name": "tesseract-ocr",
+      "version": "resolved-at-build",
+      "purl": "pkg:deb/debian/tesseract-ocr",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/tesseract-ocr-fra",
+      "name": "tesseract-ocr-fra",
+      "version": "resolved-at-build",
+      "purl": "pkg:deb/debian/tesseract-ocr-fra",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/libreoffice-writer",
+      "name": "libreoffice-writer",
+      "version": "resolved-at-build",
+      "purl": "pkg:deb/debian/libreoffice-writer",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/curl",
+      "name": "curl",
+      "version": "resolved-at-build",
+      "purl": "pkg:deb/debian/curl",
+      "licenses": [
+        {
+          "license": {
+            "name": "curl"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/tini",
+      "name": "tini",
+      "version": "resolved-at-build",
+      "purl": "pkg:deb/debian/tini",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:deb/debian/minisign",
+      "name": "minisign",
+      "version": "resolved-at-build",
+      "purl": "pkg:deb/debian/minisign",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/fastapi@0.116.1",
+      "name": "fastapi",
+      "version": "0.116.1",
+      "purl": "pkg:pypi/fastapi@0.116.1",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/gradio-client@1.13.3",
+      "name": "gradio_client",
+      "version": "1.13.3",
+      "purl": "pkg:pypi/gradio-client@1.13.3",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/python-multipart@0.0.20",
+      "name": "python-multipart",
+      "version": "0.0.20",
+      "purl": "pkg:pypi/python-multipart@0.0.20",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/uvicorn@0.35.0",
+      "name": "uvicorn",
+      "version": "0.35.0",
+      "purl": "pkg:pypi/uvicorn@0.35.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pypdf@4.3.1",
+      "name": "pypdf",
+      "version": "4.3.1",
+      "purl": "pkg:pypi/pypdf@4.3.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/axiorhub@5.0.0",
+      "dependsOn": [
+        "pkg:npm/htmx.org@2.0.8",
+        "pkg:pypi/waitress@3.0.2",
+        "pkg:deb/debian/poppler-utils",
+        "pkg:deb/debian/tesseract-ocr",
+        "pkg:deb/debian/tesseract-ocr-fra",
+        "pkg:deb/debian/libreoffice-writer",
+        "pkg:deb/debian/curl",
+        "pkg:deb/debian/tini",
+        "pkg:deb/debian/minisign"
+      ]
+    }
+  ]
+}

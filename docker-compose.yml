@@ -1,0 +1,72 @@
+services:
+  axiorhub:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: axiorhub-agent
+    restart: unless-stopped
+    ports:
+      - "${AXIORHUB_BIND_ADDRESS:-127.0.0.1}:${AXIORHUB_PORT:-8626}:8626"
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  watcher:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["python3", "/app/web.py", "watch", "--config", "/data/config.json"]
+    depends_on:
+      axiorhub:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["python3", "/app/web.py", "worker", "--config", "/data/config.json"]
+    depends_on:
+      axiorhub:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  worker2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["python3", "/app/web.py", "worker", "--worker-id", "2", "--config", "/data/config.json"]
+    depends_on:
+      axiorhub:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]

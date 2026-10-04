@@ -1,0 +1,12 @@
+.hybrid400-hero{display:flex;justify-content:space-between;gap:24px;align-items:center;padding:26px;border:1px solid var(--ws-border);border-radius:18px;background:linear-gradient(135deg,var(--ws-surface),var(--ws-accent-soft));margin-bottom:18px}
+.hybrid400-hero h1{max-width:850px;margin:4px 0 8px}.hybrid400-mode{padding:10px 14px;border-radius:999px;background:var(--ws-accent);color:#fff;font-weight:700;white-space:nowrap}
+.hybrid400-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.hybrid400-kpis article{padding:18px;border:1px solid var(--ws-border);border-radius:15px;background:var(--ws-surface)}
+.hybrid400-kpis strong{display:block;font-size:1.65rem;color:var(--ws-accent)}.hybrid400-kpis span{display:block;margin-top:5px}
+.hybrid400-flow ol{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;list-style:none;padding:0;counter-reset:route}.hybrid400-flow li{padding:15px;border:1px solid var(--ws-border);border-radius:14px;counter-increment:route}
+.hybrid400-flow li:before{content:counter(route);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--ws-accent);color:#fff;font-weight:700;margin-bottom:10px}
+.hybrid400-flow li strong,.hybrid400-flow li span{display:block}.hybrid400-flow li span{margin-top:6px;color:var(--ws-muted)}
+.hybrid400-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.hybrid400-two label{min-width:0}.hybrid400-two input,.hybrid400-two select{width:100%}
+.hybrid400-consent{padding:13px;border:1px solid var(--ws-warning,#d97706);border-radius:12px}.hybrid400-mode+*{min-width:0}
+.hybrid400-preview{margin-top:18px;padding:18px;border:1px solid var(--ws-accent);border-radius:14px;background:var(--ws-accent-soft)}.hybrid400-preview pre{max-height:420px;overflow:auto;padding:14px;border-radius:10px;background:var(--ws-surface);border:1px solid var(--ws-border);white-space:pre-wrap;word-break:break-word}
+@media(max-width:900px){.hybrid400-kpis,.hybrid400-flow ol{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){.hybrid400-hero{align-items:flex-start;flex-direction:column}.hybrid400-kpis,.hybrid400-flow ol,.hybrid400-two{grid-template-columns:1fr}}

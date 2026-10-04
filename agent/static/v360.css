@@ -1,0 +1,27 @@
+.ws-calendar{margin:18px 0 32px;background:var(--ws-surface);color:var(--ws-ink);border:1px solid var(--ws-border);border-radius:14px;padding:22px}
+.ws-calendar-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.ws-calendar-nav a{padding:9px 12px;border:1px solid var(--ws-border);border-radius:9px;background:var(--ws-surface-alt);color:var(--ws-accent)}
+.ws-calendar-nav a[aria-current=page]{background:var(--ws-accent);color:var(--ws-paper)}
+.ws-calendar-nav strong{padding:8px}
+.ws-calendar-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px}
+.ws-calendar-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.ws-calendar-list{display:grid;gap:10px;max-width:960px}
+.ws-calendar-day{min-width:0;padding:12px;background:var(--ws-surface-alt);border:1px solid var(--ws-border);border-radius:10px}
+.ws-calendar-day h3{font-size:.88rem;margin:0 0 9px;color:var(--ws-ink)}
+.ws-calendar-outside{opacity:.7}
+.ws-calendar-event{display:flex;flex-direction:column;overflow-wrap:anywhere;gap:4px;margin:6px 0;padding:9px;border:1px solid var(--ws-border);background:var(--ws-surface);border-radius:8px;font-size:.86rem}
+.ws-calendar-event time,.ws-calendar-event small{color:var(--ws-muted)}
+.ws-calendar-event a{color:var(--ws-accent)}
+.assistant-upload{max-width:850px;margin:12px 0}
+.assistant-upload input{display:block}
+.ws-roundcube-frame{display:block;width:100%;height:80vh;min-height:620px;max-height:960px;min-width:0;border:1px solid var(--ws-border);border-radius:12px;background:var(--ws-surface)}
+.ws-roundcube-container{width:100%;min-width:0;max-width:none}
+.ws-brand-lockup{display:flex;align-items:center;gap:10px}
+aside .brand .ws-brand-lockup img{display:block;width:38px;height:38px;flex:none;object-fit:contain}
+.ws-collapsed aside .brand::before{content:none}
+.ws-collapsed aside .brand .ws-brand-lockup{justify-content:center}
+.ws-collapsed aside .brand .ws-brand-lockup img{width:44px;height:44px}
+.ws-result h3,.portfolio-head h2,.matter-hero h2{overflow-wrap:anywhere}
+@media(max-width:1250px){.ws-calendar-week,.ws-calendar-month{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.ws-calendar-week,.ws-calendar-month{grid-template-columns:1fr}}
+@media(max-width:650px){.ws-roundcube-frame{height:75vh;min-height:480px}}

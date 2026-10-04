@@ -1,0 +1,5 @@
+Validation locale de la distribution 3.1.1
+- 352 tests recensés : 346 réussis, 6 ignorés, 0 échec.
+- Contrôles de relecture IMAP du brouillon, absence de doublon après dépôt incertain, visibilité des erreurs et mise à jour/retour arrière sur installation simulée.
+- Aucune connexion à la messagerie, à Nextcloud ni au serveur de production du cabinet n'a été établie pour cette validation.
+- La recette sur le serveur est décrite dans MISE-A-JOUR-3.1.1.md.

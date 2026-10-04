@@ -1,0 +1,37 @@
+/* AxiorHub 5.5.0 — « Mon style », carte du poste de pilotage, menu plus robuste. Variables du thème commun (clair et sombre). */
+
+/* Volet « Rubriques » du menu : jamais de fond blanc hérité des anciennes feuilles (texte clair illisible). */
+aside#ws-sidebar details.ws-rubriques{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:6px 0 0!important}
+aside#ws-sidebar details.ws-rubriques>summary{background:transparent!important;color:var(--ws-sidebar-text,#e8f2f3)!important;padding:9px 13px!important;
+  border:0!important;font-weight:600;opacity:.9}
+aside#ws-sidebar details.ws-rubriques>summary:focus-visible{outline:2px solid var(--ws-outline,#ffbc55);outline-offset:2px}
+aside#ws-sidebar details.ws-rubriques nav.ws-sub{background:transparent!important;border:0!important;padding:0 0 0 6px!important;margin:0!important}
+aside#ws-sidebar details.ws-rubriques nav.ws-sub a{color:var(--ws-sidebar-text,#e8f2f3)!important;background:transparent;padding:7px 13px!important;font-size:.92rem}
+aside#ws-sidebar details.ws-rubriques nav.ws-sub a[aria-current=page]{background:rgba(255,255,255,.12)!important}
+
+/* Poste de pilotage : statistiques et habitudes */
+.c530-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:4px 0 12px}
+.c530-stats div{background:var(--ws-surface-alt,#f5f7fa);border-radius:8px;padding:10px}
+.c530-stats strong{display:block;font-size:1.3rem}
+.c530-stats span{font-size:.78rem;color:var(--ws-muted,#556070)}
+.c530-habit{border-top:1px solid var(--ws-border,#edf0f4);padding:10px 2px}
+.c530-habit p{margin:6px 0 2px;font-size:.88rem;line-height:1.45}
+.c530 .c530-actions .ax-btn{margin-top:6px}
+
+/* Page « Mon style » */
+.s550{display:flex;flex-direction:column;gap:16px;max-width:1300px}
+.s550 h1{margin:0}
+.s550-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.s550-big{font-size:.95rem}.s550-big strong{font-size:1.5rem}
+.s550-counts{list-style:none;padding:0;margin:8px 0;display:flex;flex-wrap:wrap;gap:6px}
+.s550-counts li{background:var(--ws-surface-alt,#f1f5f9);border-radius:999px;padding:3px 10px;font-size:.82rem}
+.s550-habit{border-top:1px solid var(--ws-border,#edf0f4);padding:12px 2px}
+.s550-habit p{margin:6px 0}
+.s550-habit textarea{width:100%;box-sizing:border-box;margin-top:6px;border:1px solid var(--ws-border,#d5dbe4);border-radius:8px;padding:8px 10px;font:inherit;
+  background:var(--ws-paper,#fff);color:inherit}
+.s550-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.s550-ev{font-size:.8rem;color:var(--ws-muted,#556070)}
+.s550-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.s550-ok{background:#16a34a!important}
+.s550-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.s550-habit .dictation-bar{display:none!important}

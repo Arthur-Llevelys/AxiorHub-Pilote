@@ -1,0 +1,36 @@
+AxiorHub Pilote — agent IA d'exécution pour cabinets d'avocats
+Copyright (c) 2026 Timo RAINIO, avocat au Barreau de Lyon, auteur et créateur d'AxiorHub Pilote.
+
+Code source : GNU Affero General Public License v3.0 ou ultérieure.
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+Mention d'auteur — condition additionnelle au sens de l'article 7 b) de l'AGPL-3.0
+----------------------------------------------------------------------------------
+Toute copie, version modifiée ou œuvre dérivée d'AxiorHub Pilote, distribuée ou mise à la
+disposition d'utilisateurs à travers un réseau, doit conserver de manière raisonnablement
+visible la mention d'auteur suivante :
+
+    « AxiorHub Pilote — créé par Timo RAINIO »
+
+- dans le présent fichier NOTICE ;
+- dans l'interface utilisateur : page « À propos » et pied du menu latéral
+  (agent/about560.py, agent/shell501.py, agent/standalone_auth.py), ou, si l'interface est
+  remplacée, à un emplacement équivalent accessible à tout utilisateur.
+
+Cette mention n'implique aucune approbation de l'auteur pour une version modifiée. Une
+version modifiée doit être signalée comme telle et porter son propre nom (TRADEMARKS.md).
+
+Marque et logo
+--------------
+Le nom AxiorHub et ses signes distinctifs relèvent de TRADEMARKS.md.
+Le logo (agent/static/axiorhub-icon.png) relève de LOGO-LICENSE.md ; il n'est pas placé sous AGPL.
+
+Composants tiers
+----------------
+Les composants tiers et leurs licences sont listés dans THIRD_PARTY_NOTICES.md et SBOM.cdx.json.
+
+Absence de garantie
+-------------------
+AxiorHub prépare des travaux internes. Toute sortie produite par le logiciel doit être
+contrôlée par un professionnel avant envoi, signature, dépôt ou communication à un tiers.
+Le logiciel est fourni « en l'état », sans garantie, dans les limites de l'AGPL-3.0.

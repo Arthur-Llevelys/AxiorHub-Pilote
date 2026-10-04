@@ -1,0 +1,6 @@
+/* AxiorHub 5.6.0 — membre connecté (distribution autonome) et mention d'auteur dans le menu. */
+aside#ws-sidebar .ws-user{margin:10px 8px 0;padding:10px 12px;border-top:1px solid rgba(255,255,255,.14);color:var(--ws-sidebar-text,#e8f2f3);font-size:.85rem;
+  display:flex;flex-direction:column;gap:2px}
+aside#ws-sidebar .ws-user small{opacity:.75}
+aside#ws-sidebar .ws-user a{color:var(--ws-sidebar-text,#e8f2f3)!important;text-decoration:underline;padding:0!important;background:none!important;display:inline}
+aside#ws-sidebar .ws-about a{color:var(--ws-sidebar-text,#e8f2f3)!important;text-decoration:underline;padding:0!important;background:none!important;display:inline}

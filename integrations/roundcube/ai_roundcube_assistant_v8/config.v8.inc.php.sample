@@ -1,0 +1,52 @@
+<?php
+
+// Ajoutez ces lignes au config.inc.php déjà présent du plugin.
+// Ne remplacez pas les paramètres existants et ne placez aucun secret ici.
+
+// Repli des boutons Summarize/Actions vers l’API IA commune AxiorHub lorsque
+// Open WebUI/Ollama est indisponible. Le fichier est créé par
+// install-roundcube-ai-bridge.py avec les permissions root:www-data 0640.
+$config['ai_axiorhub_api_url'] = 'https://courriel.example.com/agent-courriel/api/v1/ai/chat/completions';
+$config['ai_axiorhub_token_file'] = '/etc/roundcube/axiorhub-api.token';
+
+$config['ai_invoice_ninja_url'] = 'https://facturation.example.com';
+$config['ai_invoice_ninja_token_file'] = '/etc/roundcube/ai-invoice-ninja.token';
+$config['ai_invoice_ninja_timeout'] = 30;
+
+// Accès WebDAV en lecture aux fichiers Nextcloud importés dans les bases.
+// Utilisez l’URL de l’instance, sans /index.php/apps/files ni /apps/calendar.
+$config['ai_nextcloud_url'] = 'https://cloud.example.com';
+$config['ai_nextcloud_username'] = 'COMPTE_NEXTCLOUD_DEDIE';
+$config['ai_nextcloud_password_file'] = '/etc/roundcube/ai-nextcloud.token';
+$config['ai_nextcloud_timeout'] = 60;
+
+// V8 — registre transactionnel et journal d’audit PostgreSQL.
+// Le mot de passe reste exclusivement dans le fichier secret indiqué.
+$config['ai_v8_pg_dsn'] = 'pgsql:host=127.0.0.1;port=5432;dbname=ai_roundcube_v8;sslmode=prefer';
+$config['ai_v8_pg_user'] = 'ai_roundcube_v8';
+$config['ai_v8_pg_password_file'] = '/etc/roundcube/ai-v8-postgresql.token';
+
+// Clé aléatoire de 32 octets minimum utilisée pour chiffrer et authentifier
+// les nœuds opaques du navigateur Nextcloud. Elle ne doit être ni un mot de
+// passe Nextcloud ni une clé Open WebUI.
+$config['ai_v8_signing_key_file'] = '/etc/roundcube/ai-v8-signing.key';
+
+// Le navigateur et l’import refusent tout chemin extérieur à ces racines.
+// Utilisez les chemins tels qu’ils apparaissent dans « Fichiers » Nextcloud.
+$config['ai_nextcloud_allowed_roots'] = [
+    '/Dossiers clients',
+    '/Modèles Cabinet',
+];
+$config['ai_nextcloud_denied_names'] = [
+    '.trashbin',
+    '.versions',
+    '.git',
+    'Secrets',
+];
+$config['ai_nextcloud_allowed_extensions'] = [
+    'pdf', 'doc', 'docx', 'odt', 'txt', 'rtf',
+    'eml', 'msg', 'xlsx', 'xls', 'csv',
+    'png', 'jpg', 'jpeg', 'tif', 'tiff',
+];
+$config['ai_nextcloud_browser_max_depth'] = 5;
+$config['ai_nextcloud_calendar_name'] = 'CABINET EXEMPLE';

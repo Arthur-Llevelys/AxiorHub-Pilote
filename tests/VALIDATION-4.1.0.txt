@@ -1,0 +1,20 @@
+Validation AxiorHub 4.1.0 — Apprentissage métier et banc juridique
+Date : 1er octobre 2026
+
+Commandes :
+python3 -m unittest discover -s tests -p 'test_v410.py' -q
+python3 -m unittest discover -s tests -p 'test_*.py' -q
+
+Résultats :
+Ran 9 tests
+OK
+
+Ran 498 tests
+OK (skipped=6)
+
+Contrôles 4.1 : règles métier versionnées et réversibles, portée cabinet/type de
+dossier/client/dossier, comparaison des paragraphes, motifs de rejet, attribution
+des corrections au modèle producteur, documents fiables par empreinte, contexte
+transversal borné, cas juridiques anonymisés, huit dimensions de score, coût,
+temps, volume de corrections, API 4.1, navigation à six entrées et migration
+réversible depuis la 4.0.0.

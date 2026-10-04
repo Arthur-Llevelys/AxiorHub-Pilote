@@ -1,0 +1,18 @@
+.ex-item{background:var(--ax-card);border:1px solid var(--ax-line);border-radius:12px;margin-bottom:10px}
+.ex-item summary{padding:12px 14px;cursor:pointer;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.ex-item.st-a_confirmer{border-left:4px solid var(--ax-warn)}.ex-item.st-confirmee,.ex-item.st-manuel{border-left:4px solid var(--ax-accent)}
+.ex-item.st-a_completer{border-left:4px solid var(--ax-bad)}.ex-item.st-terminee,.ex-item.st-annulee{opacity:.65}
+.ex-due{font-size:16px;min-width:210px}.ex-rule-name{font-weight:600}
+.ex-badge{font-size:12px;border-radius:999px;padding:1px 9px;background:var(--ax-soft);color:var(--ax-accent)}
+.ex-badge.warn{color:var(--ax-warn)}.ex-badge.bad{background:#fdecea;color:#7a1710}.ex-badge.st{background:transparent;border:1px solid var(--ax-line);color:var(--ax-mute)}
+.ex-body{padding:0 16px 16px}.ex-body dl{display:grid;grid-template-columns:170px 1fr;gap:4px 12px;margin:8px 0}.ex-body dt{color:var(--ax-mute)}.ex-body dd{margin:0}
+.ex-body blockquote{margin:6px 0 0;padding:6px 10px;border-left:3px solid var(--ax-line);color:var(--ax-mute);font-size:13px}
+.ex-steps li{margin:2px 0}.ex-warn{color:var(--ax-warn);font-size:13px}.ex-log{font-size:13px;color:var(--ax-mute)}
+.ex-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:10px}
+.ex-actions fieldset,.ex-form{border:1px solid var(--ax-line);border-radius:10px;padding:10px 12px}.ex-actions label,.ex-form label{display:block;margin-bottom:8px;font-size:13px}
+.ex-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 14px;margin-bottom:10px}
+.ex-anomalies{border-left:4px solid var(--ax-bad)}.ex-anomalies ul{margin:6px 0 0 18px;padding:0}
+#ex-preview-out ol{margin:10px 0 0 18px}#ex-preview-out .ex-result{font-size:17px;font-weight:600;margin-top:10px}
+.ex-actions input:not([type=checkbox]),.ex-actions select,.ex-form input:not([type=checkbox]),.ex-form select{display:block;width:100%;margin-top:3px;padding:8px 10px;border:1px solid var(--ax-line);border-radius:8px;background:var(--ax-bg);color:var(--ax-ink);font:inherit}
+.ex-actions fieldset{min-width:0}.ex-actions legend{font-weight:600;padding:0 6px}
+.ex-actions .ax-actions{margin-top:6px}

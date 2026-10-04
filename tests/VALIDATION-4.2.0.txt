@@ -1,0 +1,28 @@
+Validation AxiorHub 4.3.0 — Production utile et mesurée
+Date : 1er octobre 2026
+
+Commande :
+python3 -m unittest discover -s tests -p 'test_*.py' -q
+
+Résultat :
+Ran 515 tests in 20.097s
+OK (skipped=6)
+
+509 tests exécutés avec succès. Les 6 tests ignorés nécessitent des composants
+facultatifs absents de l’environnement de préparation.
+
+Garanties 4.2 contrôlées :
+- succès vert seulement après relecture de la destination IMAP ou Nextcloud ;
+- incident non masqué et relançable ;
+- progression métier en sept étapes ;
+- Aujourd’hui limité aux quatre zones utiles ;
+- Studio relié aux producteurs existants ;
+- règles apprises mesurées sans généralisation ni désactivation silencieuse ;
+- routage guidé par le banc métier et préférence locale ;
+- coût OpenRouter agrégé et ventilé sans journaliser les contenus ;
+- migration 0420 transactionnelle ;
+- mise à niveau directe depuis 4.1.1 et retour arrière ;
+- canal stable/test et signature Minisign obligatoire.
+
+Les services externes sont simulés. Une recette réelle IMAP, Nextcloud, Ollama
+et OpenRouter reste nécessaire sur le serveur du cabinet.

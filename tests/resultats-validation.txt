@@ -1,0 +1,122 @@
+Validation AxiorHub Mail Agent 4.3.0
+Date : 1er octobre 2026
+
+Commande :
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+Résultat :
+Ran 515 tests
+OK (skipped=6)
+
+Suite complète : 509 tests exécutés avec succès et 6 ignorés le 1er octobre 2026.
+Contrôles propres à la production utile 4.3.0 : 11 réussis.
+
+- brouillons comptés uniquement après relecture IMAP ;
+- fichiers Nextcloud relistés, téléchargés et contrôlés par SHA-256 ;
+- quatre zones métier, Studio unifié et dossier intelligent ;
+- migrations SQLite numérotées et API 4.2 ;
+- politique stable/test avec signature Minisign obligatoire ;
+- mise à niveau directe et réversible depuis 4.1.1 ;
+- configuration et secrets conservés pendant mise à jour et retour arrière.
+
+Contrôles d’apprentissage métier hérités de la version 4.1.0 : 9 réussis.
+
+- mode local par défaut et absence d’appel externe silencieux ;
+- OpenRouter réservé aux fonctions et dossiers autorisés ;
+- consentement, ZDR, anonymisation, taille et budgets contrôlés avant réseau ;
+- estimation et aperçu anonymisé sans transmission ;
+- repli local et escalade après un échec local admissible ;
+- modèle de contrôle distinct et décision explicable ;
+- journal sans prompt, réponse, secret ni identifiant de dossier en clair ;
+- API, outil Open WebUI et console graphique validés.
+
+Contrôles hérités de la version 3.9.3 : 9 réussis.
+
+- diagnostic Open WebUI exécutable avec les permissions requises ;
+- contrôle global des services, secrets, index et modèles ;
+- détection des traitements trop anciens et des boucles ;
+- reprise bornée et annulation contrôlée ;
+- motif réel de chaque erreur récente ;
+- relecture IMAP et Nextcloud avant tout statut vert ;
+- test OpenRouter limité à `GET /models`, sans donnée de dossier ;
+- page unique « État du système » ;
+- compteur de brouillons fondé uniquement sur les preuves de destination.
+
+Historique conservé ci-dessous.
+
+Validation AxiorHub Mail Agent 3.1.0
+Date : 15 septembre 2026
+
+- lecture bornée des UID récents lus ou non lus, avec clé UIDVALIDITY/UID stable ;
+- reprise d’un ancien arrêt « déjà lu » sans duplication ;
+- thème contrasté et cockpit avec diagnostic en français ;
+- correspondance Open WebUI limitée à l’instance configurée ;
+- cache Invoice Ninja alimenté uniquement par GET ;
+- accès Nextcloud/OnlyOffice par identifiant de fichier ;
+- dictée rapide avertie et dictée Vocal locale, sans démarrage automatique ;
+- garanties de non-envoi de courriel et de non-écrasement documentaire.
+
+Contrôles historiques propres à la version 2.6.0 : 6 réussis.
+
+- dernières conclusions distinctes et figées pour chaque partie ;
+- blocage des versions ex æquo et comparaison déterministe des dispositifs ;
+- prévisualisation d’audience sans écriture et cinq fichiers après confirmation ;
+- refus de tout écrasement et reprise après perte d’accusé WebDAV ;
+- plans de plaidoirie de 5, 10 et 20 minutes et matrice contradictoire ;
+- conservation de la structure, des styles, numérotations, en-têtes et pieds DOCX ;
+- version propre et version comparée avec suivi natif des modifications ;
+- bordereau par empreinte et rapport des modifications ;
+- confirmation Word créant quatre fichiers nouveaux sans modifier la source ;
+- inventaire WebDAV paginé, déterministe et reprenable ;
+- aucune suppression d’un document local avant la fin complète de l’inventaire.
+
+Contrôles propres à la version 2.4.0 : 8 réussis.
+
+- sélection et empreinte des dernières écritures, avec blocage des ex æquo ;
+- anonymisation locale obligatoire avant la passerelle MCP ;
+- liaison stricte entre requête préparée, fournisseur et résultats importés ;
+- vérification effective du texte officiel, de l’identifiant et de l’extrait exact ;
+- registre des pistes et des jurisprudences vérifiées ou rejetées ;
+- registre SHA-256 des pièces et doublons octet pour octet ;
+- provenance exacte de chaque paragraphe proposé ;
+- contrôleur déterministe indépendant du LLM, API, Open WebUI et migration.
+
+Contrôles propres à la version 2.3.0 : 12 réussis.
+
+- surveillance dédupliquée des courriels déjà traités et pièces jointes ;
+- mise en file bornée de prévisualisations sans écriture Nextcloud ;
+- contrôleur indépendant approuvant ou bloquant avant confirmation ;
+- mémoire opérationnelle versionnée et actualisable ;
+- proposition de facturation sans montant, facture ni tâche créée ;
+- migration expirant les projets 2.2 en attente non contrôlés ;
+- API, Open WebUI et tableau des projets en attente.
+- progression d'un lot borné vers les courriels plus anciens ;
+- réutilisation du brouillon d'une préparation automatique identique ;
+- reprise fichier par fichier après perte d'accusé WebDAV, avec contrôle SHA-256.
+- blocage d'une prévisualisation automatique si le dossier est ambigu ou trop proche d'un concurrent ;
+- rejet immédiat d'un projet sans écriture Nextcloud.
+
+Contrôles documentaires hérités de la version 2.2.0 : 7 réussis.
+
+- préparation et prévisualisation sans écriture Nextcloud ;
+- confirmation créant uniquement trois nouveaux fichiers ;
+- blocage si le fichier source a changé ;
+- blocage si un nom de destination existe déjà ;
+- choix du document substantiellement le plus récent, même en PDF ;
+- création WebDAV protégée par `If-None-Match: *` ;
+- présence exacte des dix outils documentaires et absence d’outil d’envoi.
+
+- lecture de période et maintien des événements sans dossier ;
+- retrait local d’un événement supprimé de la période distante ;
+- analyse VTODO avec dates, état, priorité et avancement ;
+- extraction des durées, dossiers, dépendances et actions interdites ;
+- planning borné par l’agenda, les horaires et la charge maximale ;
+- confirmation groupée avant toute création de tâche ou de créneau ;
+- séparation des brouillons, projets internes et opérations manuelles ;
+- synchronisation des états et exposition bornée dans API, interface et Open WebUI.
+
+La suite vérifie également les protections héritées : aucune fonction d’envoi,
+de paiement, de dépôt, de signature ou de commande système ; cloisonnement des
+dossiers et rôles ; contrôle des sources ; Bearer, CSRF et contrôle d’origine.
+
+Les connecteurs externes sont simulés. Une recette sur le serveur reste nécessaire.

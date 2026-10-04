@@ -1,0 +1,32 @@
+[Unit]
+Description=AxiorHub worker complémentaire %i
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/axiorhub-mail-agent/config.json
+
+[Service]
+Type=simple
+User=axiorhub-mail
+Group=axiorhub-mail
+WorkingDirectory=/opt/axiorhub-mail-agent/current
+ExecStart=/usr/bin/python3 /opt/axiorhub-mail-agent/current/web.py worker --worker-id %i
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/axiorhub-mail-agent
+MemoryMax=2G
+CPUQuota=100%
+Nice=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

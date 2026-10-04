@@ -1,0 +1,11 @@
+.ws-task-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.ws-task-actions form{margin:0;width:auto;max-width:none}.ws-task-actions button{margin:0}
+.ws-task-editor{margin-top:12px;border-top:1px solid var(--ws-border);padding-top:10px}
+.ws-task-editor summary{cursor:pointer;font-weight:650;color:var(--ws-accent)}
+.ws-task-editor form{max-width:none;width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end;margin:12px 0}
+.ws-task-editor form button{width:max-content}
+.ws-command-center{margin:18px 0;padding:20px;border:1px solid var(--ws-border);border-radius:14px;background:var(--ws-surface)}
+.ws-command-center .actions{display:flex;flex-wrap:wrap;gap:10px}.ws-command-center form{margin:0;width:auto}
+.ws-coverage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:14px 0}
+.ws-coverage-grid p{padding:14px;border:1px solid var(--ws-border);border-radius:12px;background:var(--ws-surface-alt)}
+@media(max-width:700px){.ws-task-actions form,.ws-task-actions button{width:100%}.ws-task-editor form{grid-template-columns:1fr}}

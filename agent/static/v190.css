@@ -1,0 +1,7 @@
+.daily-hero{display:flex;align-items:center;justify-content:space-between;gap:1.25rem;padding:1.35rem;margin-bottom:1.25rem;background:linear-gradient(135deg,#e9f4ff,#f6fbff);border:1px solid #a9d4ff;border-radius:14px}
+.daily-hero h2{margin:.15rem 0}.priority-list{display:grid;gap:.85rem;margin-bottom:1.5rem}
+.signal{display:flex;justify-content:space-between;gap:1.25rem;padding:1rem 1.1rem;margin:.75rem 0;background:#fff;border:1px solid #d7e3ef;border-left:6px solid #52a8ff;border-radius:12px;box-shadow:0 2px 8px rgba(25,70,110,.05)}
+.signal.high{border-left-color:#f2a51a}.signal.critical{border-left-color:#df3d45;background:#fff9f9}.signal.low{border-left-color:#97a9ba}
+.signal h2,.signal h3{margin:.2rem 0 .4rem}.signal p{margin:.35rem 0}.signal-actions{display:flex;align-items:flex-start;gap:.45rem;flex-wrap:wrap;min-width:240px;justify-content:flex-end}
+.signal-actions form{margin:0}.signal-actions button{white-space:nowrap}.daily-hero .actions{justify-content:flex-end}
+@media(max-width:850px){.daily-hero,.signal{display:block}.signal-actions{justify-content:flex-start;min-width:0;margin-top:.8rem}}

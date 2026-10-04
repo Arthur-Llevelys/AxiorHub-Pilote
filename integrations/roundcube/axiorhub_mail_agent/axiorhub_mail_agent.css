@@ -1,0 +1,12 @@
+#taskmenu a.button-agent-ia:before,
+#taskmenu .button-agent-ia:before {
+  content: "🤖" !important;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif !important;
+  font-size: 1.35rem !important;
+  line-height: 1 !important;
+}
+
+#taskmenu .button-agent-ia span.button-inner:before,
+#taskmenu .button-agent-ia span.inner:before {
+  content: none !important;
+}

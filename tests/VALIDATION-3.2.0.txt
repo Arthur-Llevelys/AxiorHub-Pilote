@@ -1,0 +1,8 @@
+Validation locale de la distribution AxiorHub 3.2.0
+
+- 358 tests recensés : 352 réussis, 6 ignorés, 0 échec.
+- Recherche locale bornée et sourcée, filtres et échappement HTML ; pages du poste de travail ; associations de correspondants confirmées ; factures inconnues sans synchronisation ; bascule clair/sombre et repli du menu exécutés dans un DOM simulé par Node.js.
+- Mise à jour et retour arrière vérifiés sur une installation simulée avec préservation de la configuration et de l’état.
+- Validation syntaxique Python et JavaScript effectuée ; manifeste du paquet contrôlé avant livraison.
+- Les cas facultatifs ignorés sont signalés par unittest selon les dépendances/environnement. Aucune connexion à la messagerie, à Nextcloud, à CardDAV ou au serveur de production du cabinet n’a été établie.
+- La recette réelle des trois dossiers pilotes, des droits, du clavier, du mobile et de l’accessibilité est décrite dans MISE-A-JOUR-3.2.0.md.

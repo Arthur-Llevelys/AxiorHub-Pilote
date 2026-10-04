@@ -1,0 +1,14 @@
+Validation AxiorHub 4.0.0 — Routage hybride
+Date : 30 septembre 2026
+
+Commande :
+python3 -m unittest discover -s tests -p 'test_*.py' -q
+
+Résultat :
+Ran 488 tests
+OK (skipped=6)
+
+Contrôles 4.0 : 11 réussis.
+Mode local par défaut, OpenRouter conditionnel, budgets, exclusions par dossier,
+anonymisation de la charge utile, aperçu sans transmission, repli local, escalade
+après échec admissible, journal sans contenu et API/Open WebUI validés.

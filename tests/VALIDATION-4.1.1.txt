@@ -1,0 +1,18 @@
+Validation AxiorHub 4.1.1 — Installation autonome cumulative
+Date : 1er octobre 2026
+
+Commandes :
+python3 -m unittest discover -s tests -p 'test_installer.py' -q
+python3 -m unittest discover -s tests -p 'test_*.py' -q
+
+Résultats :
+Ran 4 tests
+OK
+
+Ran 503 tests
+OK (skipped=6)
+
+Le paquet installe une release neuve sans configurer de faux secret, refuse un
+état partiel, migre directement depuis 4.1.0 et ne nettoie que les anciennes
+releases authentifiées en conservant l’active et la cible de retour arrière.
+Tout fichier ajouté hors manifeste est également refusé.

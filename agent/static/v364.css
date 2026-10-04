@@ -1,0 +1,6 @@
+.ws-provider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:18px 0}
+.ws-provider{border:1px solid var(--ws-border);border-radius:14px;background:var(--ws-surface);padding:18px;min-width:0}
+.ws-provider h3{margin-top:0}.ws-provider form{max-width:none;width:100%}.ws-provider input,.ws-provider select{width:100%}
+.ws-provider .ws-check{display:flex;align-items:flex-start;gap:9px}.ws-provider .ws-check input{width:auto;margin-top:3px}
+@media(max-width:700px){.ws-provider-grid{grid-template-columns:1fr}}
+.ws-extension details{margin:10px 0}.ws-extension .actions{display:flex;flex-wrap:wrap;gap:10px}.ws-extension fieldset{border:1px solid var(--ws-border);border-radius:12px;margin:12px 0;padding:12px}

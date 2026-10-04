@@ -1,0 +1,11 @@
+AxiorHub 3.8.1 — validation du correctif d’exploitation
+
+- liens du centre Aujourd’hui préfixés
+- opérations techniques exclues de Réalisé
+- URL Open WebUI et CSP issues de la configuration
+- états de brouillons IMAP explicités
+- pont Roundcube, CSS et ancienne tâche contrôlés
+- service worker autonome neutralisé
+- tests complets, manifeste et confidentialité contrôlés
+
+Suite complète : 440 tests, 434 réussis, 6 ignorés (composants facultatifs).

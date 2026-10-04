@@ -1,0 +1,11 @@
+[Unit]
+Description=Préparation périodique des brouillons AxiorHub
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+AccuracySec=30s
+Unit=axiorhub-mail-agent.service
+
+[Install]
+WantedBy=timers.target

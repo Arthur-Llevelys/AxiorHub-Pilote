@@ -1,0 +1,143 @@
+# AxiorHub 5.6.0 — ensemble complet pour un VPS (un serveur = un cabinet).
+#
+# Services : AxiorHub (interface, travaux, surveillance), Nextcloud (+ MariaDB, Redis, tâches planifiées), Roundcube (webmail),
+# OnlyOffice (édition des documents) et, en option, Ollama (profil « ollama », IA locale : serveur puissant requis).
+# Chaque service n'écoute que sur 127.0.0.1 : seul Apache (sur l'hôte, avec Let's Encrypt) est exposé à Internet.
+#
+# Utilisation : deploy/vps/install-vps.sh (conseillé), ou manuellement :
+#   cp deploy/vps/env.example deploy/vps/.env && editor deploy/vps/.env
+#   docker compose -f deploy/vps/docker-compose.yml --env-file deploy/vps/.env up -d --build
+
+name: axiorhub
+
+x-axiorhub: &axiorhub
+  build:
+    context: ../..
+    dockerfile: docker/Dockerfile
+  image: axiorhub:5.6.1
+  restart: unless-stopped
+  env_file: .env
+  volumes:
+    - ./data/axiorhub:/data
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+services:
+  axiorhub:
+    <<: *axiorhub
+    container_name: axiorhub-agent
+    ports:
+      - "127.0.0.1:${AXIORHUB_PORT:-8626}:8626"
+
+  axiorhub-worker:
+    <<: *axiorhub
+    entrypoint: ["python3", "/app/web.py", "worker", "--config", "/data/config.json"]
+    depends_on:
+      axiorhub: {condition: service_healthy}
+    healthcheck: {disable: true}
+
+  axiorhub-worker2:
+    <<: *axiorhub
+    entrypoint: ["python3", "/app/web.py", "worker", "--worker-id", "2", "--config", "/data/config.json"]
+    depends_on:
+      axiorhub: {condition: service_healthy}
+    healthcheck: {disable: true}
+
+  axiorhub-watcher:
+    <<: *axiorhub
+    entrypoint: ["python3", "/app/web.py", "watch", "--config", "/data/config.json"]
+    depends_on:
+      axiorhub: {condition: service_healthy}
+    healthcheck: {disable: true}
+
+  nextcloud-db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?à définir dans .env}
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?à définir dans .env}
+    volumes:
+      - ./data/mariadb:/var/lib/mysql
+
+  nextcloud-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  nextcloud:
+    image: nextcloud:30-apache
+    restart: unless-stopped
+    depends_on: [nextcloud-db, nextcloud-redis]
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      MYSQL_HOST: nextcloud-db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: nextcloud-redis
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-admin}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD:?à définir dans .env}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${DOMAIN_CLOUD}
+      OVERWRITEPROTOCOL: https
+      OVERWRITECLIURL: https://${DOMAIN_CLOUD}
+      TRUSTED_PROXIES: 127.0.0.1 172.16.0.0/12
+      APACHE_DISABLE_REWRITE_IP: "1"
+      PHP_MEMORY_LIMIT: 1G
+      PHP_UPLOAD_LIMIT: 2G
+      TZ: ${TZ:-Europe/Paris}
+    volumes:
+      - ./data/nextcloud:/var/www/html
+
+  nextcloud-cron:
+    image: nextcloud:30-apache
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    depends_on: [nextcloud]
+    volumes:
+      - ./data/nextcloud:/var/www/html
+
+  roundcube:
+    image: roundcube/roundcubemail:latest-apache
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:80"
+    environment:
+      ROUNDCUBEMAIL_DEFAULT_HOST: ssl://${IMAP_HOST:?serveur IMAP du cabinet}
+      ROUNDCUBEMAIL_DEFAULT_PORT: ${IMAP_PORT:-993}
+      ROUNDCUBEMAIL_SMTP_SERVER: tls://${SMTP_HOST:?serveur SMTP du cabinet}
+      ROUNDCUBEMAIL_SMTP_PORT: ${SMTP_PORT:-587}
+      ROUNDCUBEMAIL_DB_TYPE: sqlite
+      ROUNDCUBEMAIL_SKIN: elastic
+      ROUNDCUBEMAIL_PLUGINS: archive,zipdownload
+      ROUNDCUBEMAIL_UPLOAD_MAX_FILESIZE: 25M
+    volumes:
+      - ./data/roundcube:/var/roundcube/db
+
+  onlyoffice:
+    # Serveur de documents compatible OnlyOffice. Une image dérivée (par exemple une édition européenne compatible) peut la remplacer
+    # si elle expose la même interface ; adaptez alors « image ».
+    image: onlyoffice/documentserver:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:80"
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?à définir dans .env}
+      JWT_HEADER: Authorization
+    volumes:
+      - ./data/onlyoffice/data:/var/www/onlyoffice/Data
+      - ./data/onlyoffice/logs:/var/log/onlyoffice
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    profiles: ["ollama"]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ./data/ollama:/root/.ollama

@@ -1,0 +1,8 @@
+Validation locale de la distribution AxiorHub 3.3.0
+
+- 364 tests recensés : 358 réussis, 6 ignorés, 0 échec.
+- Modèle Word fictif avec balises coupées entre segments Word, en-tête et logo, tableau, pied de page, styles ; parties Word non concernées byte à byte intactes et document de test rendu par LibreOffice.
+- Import authentifié et CSRF vérifiés, aperçu PNG protégé, validation explicite du modèle, préparation et code, refus d'une collision, refus d'une source Nextcloud modifiée, fichier exclusif et relu, reprise d'écriture incertaine sans nouveau PUT, puis copie de la version éditée.
+- Rendu visuel de la page DOCX de test inspecté localement (en-tête, logo, tableau, corps, pied de page). Syntaxe Python et JavaScript vérifiée. Migration et retour arrière testés sur une installation simulée, avec état et secrets inchangés.
+- Les six tests ignorés dépendent des capacités et dépendances de l'environnement. Le test de rendu réel de ce lot a été exécuté ici ; sur le serveur, exécuter la suite après installation de LibreOffice Writer et Poppler.
+- Aucun accès à la messagerie, au vrai modèle du cabinet, à Nextcloud, à OnlyOffice ou au serveur de production n'a été effectué. La validation de la mise en page et des permissions effectives relève de la recette décrite dans MISE-A-JOUR-3.3.0.md.

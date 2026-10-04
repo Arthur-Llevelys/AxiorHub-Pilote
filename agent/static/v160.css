@@ -1,0 +1,17 @@
+/* 1.6.0 — dashboard and conversational workspace. No remote assets. */
+aside nav a{display:flex;align-items:center;gap:.55rem;font-size:.96rem}
+.dashboard-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;margin:1rem 0 2rem}
+.action-card{display:flex;align-items:center;gap:1rem;padding:1.1rem 1.25rem;background:#fff;border:1px solid #bed7f3;border-radius:13px;text-decoration:none;color:#0759b6;box-shadow:0 3px 14px rgba(34,119,210,.07)}
+.action-card strong{font-size:1.8rem;color:#237bd2}.action-card span{font-weight:650}
+.matter-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;padding:1rem 1.15rem;margin:.7rem 0;background:#fff;border:1px solid #d7e4f2;border-radius:12px}
+.matter-row h3,.matter-row p{margin:.1rem 0}.matter-row small{white-space:nowrap;color:#55708c}
+.conversation{max-width:1000px;margin:1.3rem 0}.conversation .card{margin-bottom:1rem}
+.assistant-message,.conversation article{padding:1rem 1.2rem;margin:.8rem 0;border-radius:14px;border:1px solid #d7e4f2;background:#fff}
+.conversation article.user{margin-left:12%;background:#eaf4ff;border-color:#bbd8f7}
+.conversation article.assistant{margin-right:7%;border-left:4px solid #38b875}
+.thread-list{max-width:1000px;background:#fff;border:1px solid #d7e4f2;border-radius:12px;padding:.4rem 1rem}
+.thread-list p{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;margin:0;border-bottom:1px solid #edf3f9}
+.thread-list p:last-child{border-bottom:0}.thread-list small{color:#55708c}
+.badge.processing,.badge.drafting{background:#eaf4ff;color:#0759b6}
+button{display:inline-flex;align-items:center;justify-content:center;gap:.35rem}
+@media(max-width:780px){.matter-row{grid-template-columns:1fr}.matter-row small{white-space:normal}.conversation article.user{margin-left:0}.conversation article.assistant{margin-right:0}.thread-list p{display:block}}
