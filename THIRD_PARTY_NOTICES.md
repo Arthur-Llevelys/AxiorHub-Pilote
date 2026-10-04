@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.2
+# Composants tiers et compatibilité — AxiorHub 5.6.3
 
 Date de l’audit direct : 1er octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -11,6 +11,7 @@ pont vocal optionnel. Les paquets transitifs exacts de l’image de base doivent
 |---|---:|---|---|---|
 | Python | image `python:3.12-slim` | PSF-2.0 | environnement | compatible |
 | Waitress | 3.0.2 | ZPL-2.1 | serveur WSGI | compatible |
+| cryptography | 44.0.0 | Apache-2.0 OR BSD-3-Clause | signature des notifications mobiles (VAPID), image Docker | compatible |
 | HTMX | 2.0.8 | 0BSD | formulaires dynamiques, copie locale | texte inclus dans `agent/static/HTMX-LICENSE.txt` |
 | pypdf | 4.3.1 | BSD-3-Clause | lecture, tampon et assemblage des PDF de pièces (5.1.0), copie locale sans dépendance | texte inclus dans `agent/_vendor/pypdf/LICENSE` ; imports rendus relatifs, code non modifié par ailleurs |
 | Poppler / `poppler-utils` | paquet Debian | GPL-2.0-or-later et licences de fichiers | processus séparé d’extraction PDF | redistribuable avec notices et sources correspondantes selon le paquet |

@@ -136,9 +136,19 @@ def documents_check(desk,dav=None):
     cursor=int(desk.settings('live430:document_cursor',0))%len(matters);changed=0;partial=0
     selected=matters[cursor:cursor+3]
     progress(desk,'Surveillance Nextcloud · '+str(len(selected))+' dossiers dans ce lot')
+    failed=0
     for matter in selected:
         mid=matter['id'];setting='live430:scan:'+mid
-        scan,complete=client.inventory_step(matter['path'],desk.settings(setting,None))
+        try:
+            scan,complete=client.inventory_step(matter['path'],desk.settings(setting,None))
+        except Stop as ex:
+            # 5.6.3 : un dossier illisible est signalé et passé ; il ne suspend plus la surveillance de tout le cabinet.
+            failed+=1;desk.setting(setting,None)
+            emit(desk,'documents','Dossier non lu ('+str(ex)[:60]+') : '+str(matter.get('path',''))[-120:],getattr(desk,'active_job_id',None),mid)
+            continue
+        for href in getattr(client,'refused',[])[:5]:
+            emit(desk,'documents','Fichier au nom ambigu ignoré : '+href,getattr(desk,'active_job_id',None),mid,dedupe='refused-'+href)
+        client.refused=[]
         if not complete:
             desk.setting(setting,scan);partial+=1;continue
         desk.setting(setting,None)
@@ -167,7 +177,8 @@ def documents_check(desk,dav=None):
     # Finish a whole sweep in bounded lots, yielding to replies between each lot.
     more=next_cursor!=0 or bool(partial)
     heartbeat(desk,'documents','active','Lot '+str(cursor+1)+'–'+str(cursor+len(selected))+' / '+str(len(matters))+' dossiers · '+str(partial)+' inventaires partiels',time.time()+300)
-    return {'changed':changed,'partial':partial,'continue_scan':more,'remote_write':False}
+    if failed and failed==len(selected):raise Stop('dossiers_illisibles')
+    return {'changed':changed,'partial':partial,'failed':failed,'continue_scan':more,'remote_write':False}
 
 
 def perform(desk,kind,args):

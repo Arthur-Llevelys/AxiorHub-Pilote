@@ -47,7 +47,10 @@
   var thread = $('.c530-thread');
   if (thread && !thread.parentNode.classList.contains('c530-thread-wrap')) {
     var wrap = document.createElement('div'); wrap.className = 'c530-thread-wrap';
-    thread.parentNode.insertBefore(wrap, thread); wrap.appendChild(thread);
+    var tools = thread.previousElementSibling;      // 5.6.3 : « Effacer la discussion » est rafraîchi avec le fil
+    thread.parentNode.insertBefore(wrap, thread);
+    if (tools && tools.classList.contains('c561-thread-tools')) wrap.appendChild(tools);
+    wrap.appendChild(thread);
     thread.scrollTop = thread.scrollHeight;
   }
 
@@ -158,6 +161,30 @@
       call('m530/retry', { job: r.getAttribute('data-retry') }).then(function (res) {
         toast(res.message); part('feed', '#c530-feed'); if (r.closest('#c530-drawer')) closeDrawer();
       }).catch(function (err) { toast(err.message, true); busy(r, false); });
+      return;
+    }
+    // 5.6.3 : arrêter une tâche demandée, effacer la discussion, annuler un travail depuis son détail
+    var st = t.closest('[data-stop]');
+    if (st) {
+      busy(st, true);
+      call('m530/stop', { ref: st.getAttribute('data-stop') }).then(function (res) { toast(res.message); part('thread', '.c530-thread-wrap'); part('feed', '#c530-feed'); })
+        .catch(function (err) { toast(err.message, true); busy(st, false); });
+      return;
+    }
+    var cl = t.closest('[data-clear]');
+    if (cl) {
+      if (!confirm('Effacer la discussion affichée ? Les travaux en cours, documents et brouillons ne sont pas touchés.')) return;
+      busy(cl, true);
+      call('m530/clear', {}).then(function (res) { toast(res.message); part('thread', '.c530-thread-wrap'); })
+        .catch(function (err) { toast(err.message, true); busy(cl, false); });
+      return;
+    }
+    var cj = t.closest('[data-cancel-job]');
+    if (cj) {
+      if (!confirm('Annuler ce travail ? Un document déjà déposé reste conservé.')) return;
+      busy(cj, true);
+      call('m530/cancel', { job: cj.getAttribute('data-cancel-job') }).then(function (res) { toast(res.message); closeDrawer(); part('feed', '#c530-feed'); })
+        .catch(function (err) { toast(err.message, true); busy(cj, false); });
       return;
     }
     // 5.6.1 : ouvrir dans Nextcloud le fichier produit ou analysé (fenêtre ouverte tout de suite pour ne pas être bloquée)

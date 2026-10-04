@@ -178,6 +178,8 @@ def _follow_up(desk, prefix, ref):
                 (' (peut-être : %s)' % cands) if cands else '')), False
         if row['status'] == 'echec':
             return e('Je n’ai pas pu préparer ce document : %s' % _reason(res.get('error', 'action_interrompue'))), False
+        if row['status'] == 'annule':
+            return e('Demande arrêtée à votre demande.'), False
         return e('Rédaction en cours…' if row['status'] == 'en_cours' else 'En file d’attente…'), True
     if kind == 'ask':
         thread, _, mid = rest.partition(':')
@@ -191,6 +193,8 @@ def _follow_up(desk, prefix, ref):
             text = answer['content'] or ''
             return e(text[:3000] + ('…' if len(text) > 3000 else '')), False
         q = desk.db.execute('SELECT status FROM assistant_messages WHERE id=?', (mid,)).fetchone()
+        if q and q['status'] == 'cancelled':
+            return e('Question arrêtée à votre demande.'), False
         if q and q['status'] == 'error':
             return e('Je n’ai pas pu répondre (voir « Pourquoi rien n’est produit ? »).'), False
         return e('Je cherche…'), True
@@ -210,8 +214,69 @@ def thread_html(desk, prefix):
             continue
         extra, pending = _follow_up(desk, prefix, r['ref']) if r['ref'] else ('', False)
         waiting = waiting or pending
-        out.append('<div class="c530-msg agent"><p>%s</p>%s</div>' % (e(r['text']), ('<p class="c530-follow%s">%s</p>' % (' pending' if pending else '', extra)) if extra else ''))
-    return '<div class="c530-thread" data-waiting="%s" aria-live="polite">%s</div>' % ('1' if waiting else '0', ''.join(out))
+        stop = ('<button type="button" class="ax-btn ghost c530-small c561-stop" data-stop="%s">Arrêter</button>' % e(r['ref'], quote=True)) if pending else ''
+        out.append('<div class="c530-msg agent"><p>%s</p>%s%s</div>' % (e(r['text']), ('<p class="c530-follow%s">%s</p>' % (' pending' if pending else '', extra)) if extra else '', stop))
+    tools = ('<div class="c561-thread-tools"><button type="button" class="ax-btn ghost c530-small" data-clear="1" title="Efface les messages affichés ; '
+             'les travaux et documents ne sont pas touchés">Effacer la discussion</button></div>') if rows else ''
+    return '%s<div class="c530-thread" data-waiting="%s" aria-live="polite">%s</div>' % (tools, '1' if waiting else '0', ''.join(out))
+
+
+def job_of(desk, ref):
+    """Travail de la file correspondant à une demande du fil (« docreq:… » ou « ask:… »), ou 0."""
+    kind, _, rest = str(ref or '').partition(':')
+    if kind == 'docreq':
+        row = desk.db.execute('SELECT job_id FROM docreq520 WHERE id=?', (rest,)).fetchone() if _table(desk, 'docreq520') else None
+        return int(row['job_id'] or 0) if row else 0
+    if kind == 'ask':
+        try:
+            mid = int(rest.partition(':')[2])
+        except ValueError:
+            return 0
+        row = desk.db.execute('SELECT job_id FROM assistant_messages WHERE id=?', (mid,)).fetchone()
+        return int(row['job_id'] or 0) if row else 0
+    return 0
+
+
+def stop(desk, data):
+    """Arrête la tâche demandée dans le fil : annulée si elle attend, arrêt demandé si elle a commencé."""
+    ref = str(data.get('ref') or '')
+    job = job_of(desk, ref)
+    if not job:
+        raise Stop('travail_invalide')
+    try:
+        out = desk.cancel_job(job)
+    except Stop as ex:
+        if str(ex) == 'operation_deja_terminee':
+            return {'message': 'Cette tâche est déjà terminée.'}
+        raise
+    kind, _, rest = ref.partition(':')
+    if out['status'] == 'cancelled':
+        if kind == 'docreq':
+            desk.db.execute("UPDATE docreq520 SET status='annule', updated=? WHERE id=?", (desk.now(), rest))
+        else:
+            desk.db.execute("UPDATE assistant_messages SET status='cancelled', updated=? WHERE id=?", (desk.now(), int(rest.partition(':')[2])))
+        desk.db.commit()
+        return {'message': 'Tâche arrêtée avant son démarrage.'}
+    return {'message': 'Arrêt demandé : le travail en cours s’arrête sans être relancé (un document déjà déposé reste conservé).'}
+
+
+def clear(desk):
+    """Efface la discussion affichée (les travaux, documents et brouillons ne sont pas touchés)."""
+    ensure_schema(desk)
+    n = desk.db.execute('DELETE FROM cockpit530_messages').rowcount
+    desk.db.commit()
+    desk.audit('cockpit530_discussion_effacee', {'messages': n})
+    return {'message': 'Discussion effacée.'}
+
+
+def cancel(desk, data):
+    """Annule un travail depuis son détail (« Ce que fait l'agent »)."""
+    try:
+        jid = int(data.get('job'))
+    except (TypeError, ValueError):
+        raise Stop('travail_invalide') from None
+    out = desk.cancel_job(jid)
+    return {'message': 'Travail annulé.' if out['status'] == 'cancelled' else 'Arrêt demandé : le travail en cours s’arrête sans être relancé.'}
 
 
 def greeting_text(desk):
@@ -825,6 +890,12 @@ def handle(desk, name, data, method='POST', args=None):
         return revise(desk, data)
     if n == 'retry':
         return retry(desk, data)
+    if n == 'stop':
+        return stop(desk, data)
+    if n == 'clear':
+        return clear(desk)
+    if n == 'cancel':
+        return cancel(desk, data)
     if n == 'task':
         return toggle_task(desk, data)
     if n == 'routine':

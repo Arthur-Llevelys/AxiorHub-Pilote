@@ -41,7 +41,7 @@ class Supervision200Tests(unittest.TestCase):
         self.assertEqual(self.d.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],before)
 
     def test_api_exposes_capabilities_and_supervision_but_no_send(self):
-        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.2')
+        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.3')
         limits=dispatch(self.d,'/capabilities','GET')
         self.assertIn('send_email',limits['never']);self.assertNotIn('send_email',limits['can'])
         item=dispatch(self.d,'/supervision/drafts','POST',{'mail_key':self.key,'instruction':'Répondre.'})

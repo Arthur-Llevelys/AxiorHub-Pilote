@@ -52,7 +52,15 @@ class DAV:
             for ps in response.findall(D+'propstat'):
                 if ' 200 ' in ps.findtext(D+'status', ''): prop = ps.find(D+'prop'); break
             if prop is None: raise Stop('entree_dav_inaccessible')
-            p = self.href_path(href)
+            try:
+                p = self.href_path(href)
+            except Stop as ex:
+                # 5.6.3 : un nom de fichier ambigu (« %41 », antislash, caractère de contrôle) est ignoré et signalé, jamais accepté ;
+                # il ne bloque plus la lecture du reste du dossier.
+                if str(ex) != 'chemin_refuse':
+                    raise
+                self.refused = getattr(self, 'refused', []) + [href[-120:]]
+                continue
             if p == clean_path(path): continue
             if not under(p, path): raise Stop('reponse_dav_hors_dossier')
             if any(s.startswith('.') or fold(s) in {'secrets','mots de passe'} for s in p.split('/') if s): continue

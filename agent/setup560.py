@@ -33,7 +33,11 @@ def _write_cfg(auth, cfg):
 def _secrets_dir(cfg):
     current = (cfg.get('mail') or {}).get('password_file') or ''
     base = Path(current).parent if current else Path(cfg.get('state_dir', '/data/state')).parent / 'secrets'
-    base.mkdir(parents=True, exist_ok=True)
+    base.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        os.chmod(base, 0o700)                 # 5.6.3 : dossier des secrets réservé au service
+    except OSError:
+        pass
     return base
 
 

@@ -17,6 +17,8 @@ import hashlib
 import hmac
 from html import escape
 from io import BytesIO
+import re
+import time
 import json
 import os
 from pathlib import Path
@@ -28,15 +30,22 @@ from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles')
-ADMIN_API = ('m540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings')
+ADMIN_API = ('m540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
-                 'set_agenda_personal_edit', 'save_reminders520'}
+                 'set_agenda_personal_edit', 'save_reminders520',
+                 # 5.6.3 : réglages du cabinet qui manquaient (autonomie, services, extensions, profil du cabinet, correspondance des dossiers)
+                 'set_automation_level370', 'save_ecosystem_service380', 'register_lawve_extension', 'test_openrouter393',
+                 'save_cabinet_profile', 'save_workspace_mapping'}
 # Ce qu'un(e) assistant(e) peut faire en écriture ; tout autre envoi de formulaire lui est refusé.
-ASSISTANT_API = ('m530/ask', 'm530/task', 'm530/routine', 'm510/scan', 'm510/table', 'm510/check', 'm510/plan', 'm510/case', 'm520/check/')
+ASSISTANT_API = ('m530/ask', 'm530/task', 'm530/routine', 'm530/stop', 'm530/clear', 'm510/scan', 'm510/table', 'm510/check', 'm510/plan', 'm510/case', 'm520/check/')
 ASSISTANT_ACTIONS = {'create_agenda_event', 'edit_agenda_event', 'update_work_task', 'edit_work_task', 'schedule_work_task', 'confirm_task',
                      'create_local_task', 'sync_caldav_tasks', 'assistant_ask', 'edit_personal_event', 'edit_personal_task'}
 ASSISTANT_PATHS = ('/assistant/attachment',)
+# 5.6.3 : seuls ces chemins sont servis sans connexion (feuilles de style, scripts, icônes ; page « À propos »).
+PUBLIC_PATH = re.compile(r'^/static/[A-Za-z0-9][A-Za-z0-9._-]{0,80}$')
+SESSION_HOURS = 12
+LOGIN_LIMITS = {'email': (5, 900), 'ip': (20, 900), 'reset': (3, 3600)}     # échecs permis par fenêtre (secondes)
 
 
 def _b64(raw): return base64.urlsafe_b64encode(raw).decode().rstrip('=')
@@ -48,6 +57,12 @@ def allowed(role, method, path, action=''):
     """Contrôle des droits d'un rôle sur une requête (sans état, testable)."""
     if role == 'administrateur':
         return True
+    path = normalize(path)
+    if path is None:
+        return False
+    path = path.rstrip('/') or '/'
+    if path.startswith('/api/') and method not in ('GET', 'HEAD'):
+        return False                       # 5.6.3 : API d'intégration en écriture réservée à l'administrateur
     api = path[len('/api440/'):] if path.startswith('/api440/') else ''
     if any(path == p or path.startswith(p + '/') or path.startswith(p + '?') for p in ADMIN_PATHS) or path in ('/installation', '/comptes'):
         return False
@@ -64,6 +79,35 @@ def allowed(role, method, path, action=''):
             return action in ASSISTANT_ACTIONS
         return path in ASSISTANT_PATHS
     return False
+
+
+def normalize(path):
+    """Chemin sans « // » (barre finale conservée) ; None pour un chemin ambigu (« .. », « . », antislash, caractères de contrôle)."""
+    path = str(path or '/')
+    if '\\' in path or any(ord(c) < 32 for c in path):
+        return None
+    parts = [p for p in path.split('/') if p]
+    if any(p in ('.', '..') for p in parts):
+        return None
+    return '/' + '/'.join(parts) + ('/' if parts and path.endswith('/') else '')
+
+
+class _Passthrough:
+    """Réponse transmise au fil de l'eau (flux SSE, fichiers) : jamais mise en mémoire, fermée proprement."""
+
+    def __init__(self, first, rest, result):
+        self.first, self.rest, self.result = first, rest, result
+
+    def __iter__(self):
+        if self.first:
+            yield self.first
+        for chunk in self.rest:
+            yield chunk
+
+    def close(self):
+        close = getattr(self.result, 'close', None)
+        if close:
+            close()
 
 
 class StandaloneAuth:
@@ -90,7 +134,18 @@ class StandaloneAuth:
             if first:
                 self.db.execute("UPDATE users SET role='administrateur' WHERE id=?", (first['id'],))
         self.db.execute('CREATE TABLE IF NOT EXISTS account_log(id INTEGER PRIMARY KEY, at TEXT, actor TEXT, event TEXT, target TEXT)')
+        # 5.6.3 : sessions enregistrées sur le serveur (déconnexion et révocation réelles) ; tentatives de connexion limitées.
+        self.db.executescript('''CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, created TEXT NOT NULL,
+            expires TEXT NOT NULL);
+          CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+          CREATE TABLE IF NOT EXISTS login_attempts(id INTEGER PRIMARY KEY, scope TEXT NOT NULL, at REAL NOT NULL);
+          CREATE INDEX IF NOT EXISTS login_attempts_scope ON login_attempts(scope, at);''')
         self.db.commit()
+        for target, mode in ((self.state, 0o700), (self.state / 'users.sqlite3', 0o600)):
+            try:
+                os.chmod(target, mode)
+            except OSError:
+                pass
         key = self.state / 'session.key'
         if not key.exists():
             key.write_bytes(secrets.token_bytes(32))
@@ -102,30 +157,58 @@ class StandaloneAuth:
         return hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1).hex()
 
     def _session(self, user_id):
-        payload = json.dumps({'uid': user_id, 'exp': int((_now() + timedelta(hours=12)).timestamp())}, separators=(',', ':')).encode()
-        return _b64(payload) + '.' + _b64(hmac.new(self.key, payload, hashlib.sha256).digest())
+        """Nouvelle session : jeton aléatoire remis au navigateur, seule son empreinte est conservée (révocable à tout moment)."""
+        token = secrets.token_urlsafe(32)
+        now = _now()
+        self.db.execute('DELETE FROM sessions WHERE expires<?', (now.isoformat(),))
+        self.db.execute('INSERT INTO sessions VALUES (?,?,?,?)', (hashlib.sha256(token.encode()).hexdigest(), int(user_id), now.isoformat(),
+                                                               (now + timedelta(hours=SESSION_HOURS)).isoformat()))
+        self.db.commit()
+        return token
 
-    def _csrf(self, user):
-        return hmac.new(self.key, ('csrf-comptes:%d' % user['id']).encode(), hashlib.sha256).hexdigest()[:40]
+    def _revoke(self, user_id, keep=''):
+        self.db.execute('DELETE FROM sessions WHERE user_id=? AND token_hash<>?', (int(user_id), keep or ''))
+        self.db.commit()
 
-    def _user(self, env):
-        cookies = {}
+    @staticmethod
+    def _cookie(env):
         for part in env.get('HTTP_COOKIE', '').split(';'):
             if '=' in part:
                 k, v = part.strip().split('=', 1)
-                cookies[k] = v
-        try:
-            raw, sig = cookies['axiorhub_session'].split('.', 1)
-            payload = _unb64(raw)
-            if not hmac.compare_digest(hmac.new(self.key, payload, hashlib.sha256).digest(), _unb64(sig)):
-                return None
-            data = json.loads(payload)
-            uid = int(data['uid'])
-            if int(data['exp']) < int(_now().timestamp()):
-                return None
-            return self.db.execute('SELECT * FROM users WHERE id=? AND active=1', (uid,)).fetchone()
-        except (KeyError, ValueError, TypeError, UnicodeError):
+                if k == 'axiorhub_session':
+                    return v
+        return ''
+
+    def _csrf(self, user):
+        # Lié à la session : un jeton de formulaire ne survit pas à la déconnexion.
+        return hmac.new(self.key, ('csrf-comptes:%s:%s' % (user['id'], user.get('session', ''))).encode(), hashlib.sha256).hexdigest()[:40]
+
+    def _user(self, env):
+        token = self._cookie(env)
+        if not token or len(token) > 200:
             return None
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        row = self.db.execute('SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>? AND u.active=1',
+                              (token_hash, _now().isoformat())).fetchone()
+        if not row:
+            return None
+        user = dict(row)
+        user['session'] = token_hash
+        return user
+
+    def _client(self, env):
+        return (env.get('REMOTE_ADDR') or 'inconnu')[:64]
+
+    def _limited(self, scope, kind):
+        count, window = LOGIN_LIMITS[kind]
+        since = time.time() - window
+        self.db.execute('DELETE FROM login_attempts WHERE at<?', (time.time() - 86400,))
+        return self.db.execute('SELECT COUNT(*) FROM login_attempts WHERE scope=? AND at>=?', (scope, since)).fetchone()[0] >= count
+
+    def _attempt(self, *scopes):
+        for scope in scopes:
+            self.db.execute('INSERT INTO login_attempts(scope, at) VALUES (?,?)', (scope, time.time()))
+        self.db.commit()
 
     def _form(self, env, limit=20000):
         length = int(env.get('CONTENT_LENGTH', '0') or 0)
@@ -154,6 +237,7 @@ class StandaloneAuth:
     def _respond(self, start, status, body, headers=None, kind='text/html; charset=utf-8'):
         raw = body.encode()
         start(status, [('Content-Type', kind), ('Content-Length', str(len(raw))), ('Cache-Control', 'no-store'), ('X-Content-Type-Options', 'nosniff'),
+                       ('Referrer-Policy', 'no-referrer'), ('X-Frame-Options', 'DENY'),
                        ('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")]
               + (headers or []))
         return [raw]
@@ -268,6 +352,8 @@ class StandaloneAuth:
             self.db.execute('UPDATE users SET active=? WHERE id=?', (1 if op == 'enable' else 0, target['id']))
             self._log(user['email'], op, target['email'])
             self.db.commit()
+            if op == 'disable':
+                self._revoke(target['id'])
             return '<p class="ok">Compte %s.</p>' % ('activé' if op == 'enable' else 'désactivé')
         if op == 'reset':
             temp = secrets.token_urlsafe(12)
@@ -275,6 +361,7 @@ class StandaloneAuth:
             self.db.execute('UPDATE users SET password_hash=?,salt=?,must_change=1 WHERE id=?', (self._hash(temp, salt), salt, target['id']))
             self._log(user['email'], 'mot_de_passe', target['email'])
             self.db.commit()
+            self._revoke(target['id'])
             return '<p class="ok">Nouveau mot de passe provisoire pour %s (affiché une seule fois) : <strong><code>%s</code></strong></p>' % (escape(target['email']), escape(temp))
         return '<p class="warn">Action inconnue.</p>'
 
@@ -290,6 +377,7 @@ class StandaloneAuth:
                 salt = secrets.token_bytes(16).hex()
                 self.db.execute('UPDATE users SET password_hash=?,salt=?,must_change=0 WHERE id=?', (self._hash(form['password'], salt), salt, user['id']))
                 self.db.commit()
+                self._revoke(user['id'], keep=user['session'])          # les autres appareils sont déconnectés
                 self._log(user['email'], 'mot_de_passe_change', user['email'])
                 return self._respond(start, '303 See Other', '', [('Location', '/')])
         body = (('<p class="warn">%s</p>' % escape(error)) if error else '<p class="notice">Choisissez votre mot de passe personnel.</p>') + (
@@ -300,7 +388,13 @@ class StandaloneAuth:
 
     # ------------------------------------------------------------------ requêtes
     def __call__(self, env, start):
-        path = env.get('PATH_INFO', '/')
+        # En-têtes réservés à l'application interne : jamais acceptés du navigateur.
+        for key in [k for k in env if k.startswith('HTTP_X_AXIORHUB_')]:
+            del env[key]
+        path = normalize(env.get('PATH_INFO', '/'))
+        if path is None:
+            return self._respond(start, '400 Bad Request', self._page('Adresse refusée', '<p class="warn">Adresse invalide.</p>'))
+        env['PATH_INFO'] = path
         if path == '/healthz':
             raw = b'ok'
             start('200 OK', [('Content-Type', 'text/plain'), ('Content-Length', '2')])
@@ -312,10 +406,13 @@ class StandaloneAuth:
             start('200 OK', [('Content-Type', 'application/javascript; charset=utf-8'), ('Content-Length', str(len(raw))),
                              ('Cache-Control', 'no-store, max-age=0'), ('Service-Worker-Allowed', '/')])
             return [raw]
-        if path.startswith('/static/') or path == '/a-propos':
+        if (PUBLIC_PATH.match(path) or path == '/a-propos') and env.get('REQUEST_METHOD', 'GET') in ('GET', 'HEAD'):
             return self._proxy(env, start, None)
         user = self._user(env)
         if path == '/logout':
+            if user:
+                self.db.execute('DELETE FROM sessions WHERE token_hash=?', (user['session'],))
+                self.db.commit()
             return self._respond(start, '303 See Other', '', [('Location', '/login'), ('Set-Cookie', 'axiorhub_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax')])
         if path == '/signup':
             return self._signup(env, start)
@@ -330,6 +427,8 @@ class StandaloneAuth:
         if path == '/mot-de-passe':
             return self.change_password_page(env, start, user)
         role = user['role'] or 'avocat'
+        if path.rstrip('/') in ('/comptes', '/installation') and path != path.rstrip('/'):
+            path = env['PATH_INFO'] = path.rstrip('/')
         if path == '/comptes':
             if role != 'administrateur':
                 return self._forbidden(start)
@@ -339,7 +438,8 @@ class StandaloneAuth:
                 return self._forbidden(start)
             from . import setup560
             return setup560.handle(self, env, start, user)
-        if not self._installed() and env.get('REQUEST_METHOD', 'GET') == 'GET' and not path.startswith('/api'):
+        # Flux d'activité, API et instantanés ne sont jamais redirigés vers l'assistant (5.6.3 : le flux restait vide pendant l'installation).
+        if not self._installed() and env.get('REQUEST_METHOD', 'GET') == 'GET' and not path.startswith(('/api', '/live/')):
             if role == 'administrateur':
                 return self._respond(start, '303 See Other', '', [('Location', '/installation')])
             return self._respond(start, '200 OK', self._page('Installation en cours', '<p class="notice">L’administrateur du cabinet termine l’installation. '
@@ -379,10 +479,26 @@ class StandaloneAuth:
         def capture(status, headers, exc_info=None):
             captured['status'], captured['headers'] = status, headers
             return lambda data: None
-        body = b''.join(self.app(env, capture))
+        result = self.app(env, capture)
+        rest = iter(result)
+        try:
+            first = next(rest) if 'status' not in captured else b''
+        except StopIteration:
+            first = b''
         headers = captured.get('headers', [])
         kind = dict((k.lower(), v) for k, v in headers).get('content-type', '')
-        if kind.startswith('text/html') and b'</aside>' in body:
+        if not kind.startswith('text/html'):
+            # 5.6.3 : flux SSE et fichiers transmis au fil de l'eau (avant, la réponse entière était attendue : le flux d'activité
+            # n'arrivait qu'à sa fermeture et occupait un fil d'exécution pendant ce temps).
+            start(captured.get('status', '500 Internal Server Error'), headers)
+            return _Passthrough(first, rest, result)
+        try:
+            body = first + b''.join(rest)
+        finally:
+            close = getattr(result, 'close', None)
+            if close:
+                close()
+        if b'</aside>' in body:
             bar = ('<div class="ws-user"><span>%s</span><small>%s</small><span class="ws-user-links">%s<a href="/logout">Se déconnecter</a></span></div>' % (
                 escape(user['name'] or user['email']), escape(ROLES.get(user['role'], user['role'])),
                 '<a href="/comptes">Comptes</a> · ' if user['role'] == 'administrateur' else '')).encode()
@@ -396,12 +512,23 @@ class StandaloneAuth:
         error = ''
         if path == '/login' and env.get('REQUEST_METHOD') == 'POST':
             form = self._form(env)
-            row = self.db.execute('SELECT * FROM users WHERE email=? AND active=1', (form.get('email', '').strip().lower(),)).fetchone()
-            if row and hmac.compare_digest(row['password_hash'], self._hash(form.get('password', ''), row['salt'])):
+            email = form.get('email', '').strip().lower()[:200]
+            scopes = ('email:' + email, 'ip:' + self._client(env))
+            if self._limited(scopes[0], 'email') or self._limited(scopes[1], 'ip'):
+                self._log(email or '?', 'connexion_bloquee', self._client(env))
+                return self._respond(start, '429 Too Many Requests', self._page('Connexion', '<p class="warn">Trop de tentatives. Réessayez dans '
+                                                                                '15 minutes, ou demandez un nouveau mot de passe à l’administrateur.</p>'),
+                                     [('Retry-After', '900')])
+            row = self.db.execute('SELECT * FROM users WHERE email=? AND active=1', (email,)).fetchone()
+            # Même calcul que le compte existe ou non : la durée de réponse ne révèle pas les adresses enregistrées.
+            computed = self._hash(form.get('password', ''), row['salt'] if row else '00' * 16)
+            if row and hmac.compare_digest(row['password_hash'], computed):
                 self.db.execute('UPDATE users SET last_login=? WHERE id=?', (_now().isoformat(), row['id']))
+                self.db.execute('DELETE FROM login_attempts WHERE scope=?', (scopes[0],))
                 self.db.commit()
                 return self._respond(start, '303 See Other', '', [('Location', '/'), ('Set-Cookie', 'axiorhub_session=' + self._session(row['id'])
-                                                                                         + '; Path=/; Max-Age=43200; HttpOnly; Secure; SameSite=Lax')])
+                                                                                         + '; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Lax' % (SESSION_HOURS * 3600))])
+            self._attempt(*scopes)
             error = 'Identifiants incorrects.'
         count = self.db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
         body = (('<p class="notice">' + escape(error) + '</p>') if error else '') + (
@@ -451,8 +578,10 @@ class StandaloneAuth:
     def _forgot(self, env, start):
         if env.get('REQUEST_METHOD') == 'POST':
             form = self._form(env)
-            row = self.db.execute('SELECT * FROM users WHERE email=? AND active=1', (form.get('email', '').strip().lower(),)).fetchone()
-            if row:
+            email = form.get('email', '').strip().lower()[:200]
+            row = self.db.execute('SELECT * FROM users WHERE email=? AND active=1', (email,)).fetchone()
+            if row and not self._limited('reset:' + email, 'reset') and not self._limited('ip:' + self._client(env), 'ip'):
+                self._attempt('reset:' + email)
                 token = secrets.token_urlsafe(32)
                 self.db.execute('INSERT INTO reset_tokens VALUES (?,?,?,0)', (hashlib.sha256(token.encode()).hexdigest(), row['id'], (_now() + timedelta(minutes=30)).isoformat()))
                 self.db.commit()
@@ -468,16 +597,19 @@ class StandaloneAuth:
     def _reset(self, env, start):
         token = parse_qs(env.get('QUERY_STRING', '')).get('token', [''])[0]
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        row = self.db.execute('SELECT * FROM reset_tokens WHERE token_hash=? AND used=0', (token_hash,)).fetchone()
-        valid = row and datetime.fromisoformat(row['expires']) > _now()
+        row = self.db.execute('SELECT t.* FROM reset_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.used=0 AND u.active=1',
+                              (token_hash,)).fetchone() if token else None
+        valid = bool(row) and datetime.fromisoformat(row['expires']) > _now()
         if env.get('REQUEST_METHOD') == 'POST' and valid:
             form = self._form(env)
             password = form.get('password', '')
             if len(password) >= 12:
                 salt = secrets.token_bytes(16).hex()
                 self.db.execute('UPDATE users SET password_hash=?,salt=?,must_change=0 WHERE id=?', (self._hash(password, salt), salt, row['user_id']))
-                self.db.execute('UPDATE reset_tokens SET used=1 WHERE token_hash=?', (token_hash,))
+                self.db.execute('UPDATE reset_tokens SET used=1 WHERE user_id=?', (row['user_id'],))     # tous les liens en cours
                 self.db.commit()
+                self._revoke(row['user_id'])
+                self._log('lien', 'mot_de_passe_reinitialise', str(row['user_id']))
                 return self._respond(start, '303 See Other', '', [('Location', '/login')])
         body = '<p>Lien invalide ou expiré.</p>' if not valid else (
             '<form method="post" action="/reset-password?token=' + escape(token, quote=True) + '"><label>Nouveau mot de passe<input name="password" type="password" '

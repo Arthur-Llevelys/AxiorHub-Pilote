@@ -19,7 +19,23 @@ jobs:
         run: python3 scripts/privacy-scan.py
       - name: Outils PDF et OCR
         run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-fra
+      - name: Dépendances Python (identiques à l'image Docker)
+        run: python3 -m pip install --quiet waitress==3.0.2 cryptography==44.0.0
       - name: Tests
-        run: python3 -m unittest discover -s tests -p 'test_*.py' -q
+        run: |
+          set -o pipefail
+          python3 -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee /tmp/tests.log
+      - name: Motifs des échecs (annotations lisibles sans connexion)
+        if: failure()
+        run: python3 scripts/ci-annotate.py /tmp/tests.log
       - name: Archive vérifiée
         run: python3 scripts/build-release.py /tmp/axiorhub.tar.gz
+      - name: Tests exécutés depuis l'archive livrée
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/archive && tar -xzf /tmp/axiorhub.tar.gz -C /tmp/archive
+          cd /tmp/archive/axiorhub-mail-agent-*
+          python3 -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee /tmp/archive-tests.log
+      - name: Motifs des échecs de l'archive
+        if: failure()
+        run: python3 scripts/ci-annotate.py /tmp/archive-tests.log

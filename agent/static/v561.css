@@ -25,5 +25,8 @@ a.ax-btn.ghost:hover,a.ax-btn.ghost:focus-visible,button.ax-btn.ghost:hover{colo
 .c530-warn{color:var(--ax-bad,#b42318);font-weight:650}
 @media (max-width:640px){.c561-dl{grid-template-columns:1fr}.c561-dl dt{margin-top:6px}}
 
+.c561-thread-tools{display:flex;justify-content:flex-end;margin:0 0 6px}
+.c530-msg.agent .c561-stop{margin-top:6px;align-self:flex-start}
+
 /* Lien « Aller au contenu » : texte clair conservé au survol. */
 .cf-skip:hover,.cf-skip:focus,.cf-skip:focus-visible{color:var(--ax-accent-ink,#fff)}

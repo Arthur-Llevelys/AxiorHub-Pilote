@@ -360,6 +360,39 @@ def matter_overview(c,desk,state,matter):
             'memory_conflicts':conflict_rows}
 
 
+def live_cursor(raw):
+    """5.6.3 : identifiant du dernier événement reçu (en-tête Last-Event-ID) ; toute valeur non numérique vaut 0 au lieu d'une erreur 500."""
+    try:
+        return min(max(int(str(raw).strip()), 0), 2**63 - 1)
+    except (TypeError, ValueError):
+        return 0
+
+
+class LiveStream:
+    """5.6.3 : flux SSE dont la place est rendue à la fermeture, même si le navigateur coupe avant le premier envoi.
+
+    Un générateur jamais démarré n'exécute pas son bloc « finally » : la place restait prise et, après quelques coupures, le serveur
+    répondait « Flux actifs trop nombreux ». Le serveur WSGI appelle toujours close() : la place est rendue une seule fois.
+    """
+
+    def __init__(self, events, release):
+        self.events, self.release, self.done = events, release, False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.events)
+
+    def close(self):
+        try:
+            self.events.close()
+        finally:
+            if not self.done:
+                self.done = True
+                self.release()
+
+
 class App:
     def __init__(self, config_path, auth_path):
         self.config_path, self.auth_path = config_path, auth_path
@@ -453,15 +486,12 @@ class App:
                         headers=[(n,_r440['csp'] if n=='Content-Security-Policy' else v) for n,v in headers]
                 elif path=='/live/events' and env['REQUEST_METHOD']=='GET':
                     from .live430 import stream
-                    after=min(max(int(env.get('HTTP_LAST_EVENT_ID') or args.get('after') or 0),0),2**63-1)
+                    after=live_cursor(env.get('HTTP_LAST_EVENT_ID') or args.get('after') or 0)
                     live_desk=Desk(cfg);live_desk.db.close()
                     if not self.live_slots.acquire(blocking=False):
                         start_response('429 Too Many Requests',headers+[('Content-Type','text/plain'),('Retry-After','15')]);return [b'Flux actifs trop nombreux.']
-                    def limited_stream():
-                        try:yield from stream(cfg,after)
-                        finally:self.live_slots.release()
                     start_response('200 OK',headers+[('Content-Type','text/event-stream; charset=utf-8'),('X-Accel-Buffering','no')])
-                    return limited_stream()
+                    return LiveStream(stream(cfg,after),self.live_slots.release)
                 elif path=='/live/snapshot' and env['REQUEST_METHOD']=='GET':
                     from .live430 import snapshot
                     live_desk=Desk(cfg)
@@ -1908,7 +1938,8 @@ def fold_for_search(value):
 
 def serve(config_path,auth_path):
     from waitress import serve as waitress_serve
-    waitress_serve(App(config_path,auth_path),host='127.0.0.1',port=8769,threads=24,
+    # send_bytes=1 : chaque écriture part tout de suite (sinon Waitress retient ~18 Ko et les événements du flux SSE restent en attente).
+    waitress_serve(App(config_path,auth_path),host='127.0.0.1',port=8769,threads=24,send_bytes=1,
                    max_request_body_size=20_100_000,trusted_proxy='127.0.0.1',
                    trusted_proxy_headers={'x-forwarded-proto','x-forwarded-for'},clear_untrusted_proxy_headers=True)
 

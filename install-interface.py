@@ -37,6 +37,13 @@ RedirectMatch 302 ^/agent-courriel$ /agent-courriel/
     Header always unset Permissions-Policy
     Header always set Permissions-Policy "camera=(), microphone=(self), geolocation=()"
 </Location>
+# Flux d'activité (SSE) : transmis événement par événement, jamais compressé ni retenu par Apache.
+<Location "/agent-courriel/live/events">
+    Require expr "%{{HTTPS}} == 'on' && %{{HTTP_HOST}} == '{host}'"
+    ProxyPass "http://127.0.0.1:8769/live/events" connectiontimeout=5 timeout=60 flushpackets=on
+    SetEnv no-gzip 1
+    RequestHeader set X-Forwarded-Proto "https"
+</Location>
 '''
 
 
@@ -61,7 +68,7 @@ def main():
     if os.geteuid()!=0:raise RuntimeError('Exécuter avec sudo python3 install-interface.py')
     os.umask(0o077)
     verify(BASE.resolve())
-    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2'}
+    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3'}
     if BASE.resolve().name not in supported:
         raise RuntimeError('Version active non prise en charge par l’installateur d’interface.')
     existing=json.loads(AUTH.read_text()) if AUTH.exists() else None

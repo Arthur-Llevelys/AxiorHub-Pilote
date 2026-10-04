@@ -149,7 +149,8 @@ def job_html(desk, prefix, job_id):
     if _has(desk, 'live_events_v430'):
         steps = [dict(x) for x in desk.db.execute('SELECT at, message FROM live_events_v430 WHERE job_id=? ORDER BY id DESC LIMIT 15', (jid,))][::-1]
     done = results(desk, prefix, jid, row['status'], row['result'])
-    retry = ('<button type="button" class="ax-btn" data-retry="%d" data-close-after="1">Relancer</button>' % jid) if row['status'] == 'error' else ''
+    retry = ('<button type="button" class="ax-btn" data-retry="%d" data-close-after="1">Relancer</button>' % jid) if row['status'] == 'error' else (
+        ('<button type="button" class="ax-btn danger" data-cancel-job="%d">Annuler ce travail</button>' % jid) if row['status'] in ('pending', 'running') else '')
     origin = 'votre demande' if int(row['priority'] if 'priority' in keys and row['priority'] is not None else 50) < 40 else 'automatique'
     body = ('<dl class="c561-dl">%s</dl>' % ''.join('<dt>%s</dt><dd>%s</dd>' % (e(k), v) for k, v in what)) if what else (
         '<p class="c530-sub">Travail général, sans dossier ni fichier particulier.</p>')

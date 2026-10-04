@@ -22,6 +22,13 @@ from fake_imap440 import FakeIMAP
 from test_v440_drafts import raw_draft, raw_inbound
 from test_v440_web import WebWorkshopTests as Base0
 
+try:
+    import cryptography  # noqa: F401  (notifications : dépendance de l'image Docker, absente d'un Python nu)
+    HAS_CRYPTO = True
+except ImportError:
+    HAS_CRYPTO = False
+NEEDS_CRYPTO = unittest.skipUnless(HAS_CRYPTO, 'bibliothèque cryptography absente : notifications indisponibles')
+
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / 'agent' / 'static'
 TODAY = date(2026, 10, 3)
@@ -415,6 +422,7 @@ class Mobile(SendBase):
                     'https://fcm.googleapis.com/' + 'a' * 1100):
             self.assertFalse(mobile490.endpoint_ok(bad), bad)
 
+    @NEEDS_CRYPTO
     def test_subscription_needs_consent_and_is_bounded(self):
         with self.assertRaises(Stop) as ctx:
             mobile490.subscribe(self.desk, 'https://fcm.googleapis.com/fcm/send/a', 'tel', '')
@@ -429,6 +437,7 @@ class Mobile(SendBase):
         self.assertEqual(mobile490.unsubscribe(self.desk, everything=True)['subscriptions'], 0)
         self.assertFalse(mobile490.status(self.desk)['enabled'])
 
+    @NEEDS_CRYPTO
     def test_vapid_signature_is_valid_and_push_is_empty(self):
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.asymmetric import ec
@@ -444,6 +453,7 @@ class Mobile(SendBase):
                       (head + '.' + claims).encode(), ec.ECDSA(hashes.SHA256()))       # lève si la signature est fausse
         self.assertEqual(oct(Path(self.f.c['state_dir'], 'vapid490.pem').stat().st_mode & 0o777), '0o600')
 
+    @NEEDS_CRYPTO
     def test_dispatch_only_on_increase_sends_no_payload_and_prunes_dead_endpoints(self):
         calls = []
 
@@ -467,6 +477,7 @@ class Mobile(SendBase):
             self.assertEqual(set(headers), {'Authorization', 'TTL', 'Urgency'})
             self.assertNotRegex(json.dumps(headers) + url, r'SECRETCO|CONFIDENTIEL|DEMO')
 
+    @NEEDS_CRYPTO
     def test_without_the_cryptography_package_the_app_still_works(self):
         with patch.object(mobile490, 'vapid_available', lambda: False):
             self.assertFalse(mobile490.status(self.desk)['available'])
