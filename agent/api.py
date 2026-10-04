@@ -12,7 +12,7 @@ def openapi(origin, prefix='/agent-courriel'):
     base=origin.rstrip('/')+prefix+'/api/v1'
     return {
       'openapi':'3.0.3',
-      'info':{'title':'AxiorHub Avocat','version':'5.6.3',
+      'info':{'title':'AxiorHub Avocat','version':'5.6.4',
               'description':'Assistant vivant : surveillance IMAP IDLE et périodique, file persistante, progression et livrables vérifiés.'},
       'servers':[{'url':base}],
       'components':{'securitySchemes':{'BearerAuth':{'type':'http','scheme':'bearer'}},
@@ -552,7 +552,7 @@ def dispatch(desk, path, method, payload=None, query=None):
         return {'job_id':desk.enqueue(practice_jobs[path],payload,priority=0),'status':'queued',
           'warning':'Projet interne supervisé : contrôler sources, paramètres et résultat ; aucune action externe.'}
     if path=='/capabilities' and method=='GET':return {
-      'version':'5.6.3','mode':'local_first_business_learning','draft_folder':desk.c['mail']['drafts'],
+      'version':'5.6.4','mode':'local_first_business_learning','draft_folder':desk.c['mail']['drafts'],
       'can':['search_cabinet','read_matters','ask_with_sources','monitor','analyze_strategy',
              'build_evidence_matrix','prepare_internal_act','propose_email_draft',
              'classify_active_portfolio','group_mail_associations','reconcile_work_queue',

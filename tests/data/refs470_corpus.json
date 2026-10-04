@@ -1,0 +1,645 @@
+{
+ "as_of": "2026-09-30",
+ "articles": [
+  {
+   "code": "Code civil",
+   "number": "1240",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000100",
+     "start": "2016-10-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Tout fait quelconque de l'homme, qui cause à autrui un dommage, oblige celui par la faute duquel il est arrivé à le réparer.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000100"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1103",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000101",
+     "start": "2016-10-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Les contrats légalement formés tiennent lieu de loi à ceux qui les ont faits.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000101"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1104",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000102",
+     "start": "2016-10-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Les contrats doivent être négociés, formés et exécutés de bonne foi.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000102"
+    }
+   ]
+  },
+  {
+   "code": "Code de procédure civile",
+   "number": "700",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000103",
+     "start": "2001-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Le juge condamne la partie tenue aux dépens ou qui perd son procès à payer à l'autre partie la somme qu'il détermine.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000103"
+    }
+   ]
+  },
+  {
+   "code": "Code de commerce",
+   "number": "L441-10",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000104",
+     "start": "2001-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Les conditions de règlement doivent obligatoirement préciser les conditions d application et le taux des pénalités de retard.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000104"
+    }
+   ]
+  },
+  {
+   "code": "Code de procédure civile",
+   "number": "56",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000105",
+     "start": "2001-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "L'assignation contient à peine de nullité les mentions prescrites par l'article 54.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000105"
+    }
+   ]
+  },
+  {
+   "code": "Code de procédure civile",
+   "number": "768",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000106",
+     "start": "2001-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Les conclusions comprennent distinctement un exposé des faits et de la procédure.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000106"
+    }
+   ]
+  },
+  {
+   "code": "Code de commerce",
+   "number": "L110-3",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000107",
+     "start": "2001-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "A l'égard des commerçants, les actes de commerce peuvent se prouver par tous moyens.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000107"
+    }
+   ]
+  },
+  {
+   "code": "Code du travail",
+   "number": "L1234-1",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000108",
+     "start": "2001-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Lorsque le licenciement n est pas motivé par une faute grave, le salarié a droit à un préavis.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000108"
+    }
+   ]
+  },
+  {
+   "code": "Code de la consommation",
+   "number": "L212-1",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000109",
+     "start": "2001-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Dans les contrats conclus entre professionnels et consommateurs, sont abusives les clauses qui créent un déséquilibre significatif.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000109"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1382",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000200",
+     "start": "1804-03-21",
+     "end": "2016-10-01",
+     "state": "ABROGE",
+     "text": "Tout fait quelconque de l'homme, qui cause à autrui un dommage, oblige celui par la faute duquel il est arrivé à le réparer.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000200"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1134",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000201",
+     "start": "1804-03-21",
+     "end": "2016-10-01",
+     "state": "ABROGE",
+     "text": "Les conventions légalement formées tiennent lieu de loi à ceux qui les ont faites.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000201"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1147",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000202",
+     "start": "1804-03-21",
+     "end": "2016-10-01",
+     "state": "ABROGE",
+     "text": "Le débiteur est condamné au paiement de dommages et intérêts en cas d'inexécution.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000202"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1383",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000203",
+     "start": "1804-03-21",
+     "end": "2016-10-01",
+     "state": "ABROGE",
+     "text": "Chacun est responsable du dommage qu'il a causé non seulement par son fait, mais encore par sa négligence.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000203"
+    }
+   ]
+  },
+  {
+   "code": "Code de commerce",
+   "number": "L441-6",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000204",
+     "start": "2001-01-01",
+     "end": "2019-07-01",
+     "state": "ABROGE",
+     "text": "Les conditions de règlement précisent les pénalités applicables.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000204"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1165",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000205",
+     "start": "1804-03-21",
+     "end": "2016-10-01",
+     "state": "ABROGE",
+     "text": "Les conventions n'ont d'effet qu'entre les parties contractantes.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000205"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1315",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000206",
+     "start": "1804-03-21",
+     "end": "2016-10-01",
+     "state": "ABROGE",
+     "text": "Celui qui réclame l'exécution d'une obligation doit la prouver.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000206"
+    }
+   ]
+  },
+  {
+   "code": "Code civil",
+   "number": "1184",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000207",
+     "start": "1804-03-21",
+     "end": "2016-10-01",
+     "state": "ABROGE",
+     "text": "La condition résolutoire est toujours sous-entendue dans les contrats synallagmatiques.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000207"
+    }
+   ]
+  },
+  {
+   "code": "Code de procédure civile",
+   "number": "1317",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000208",
+     "start": "2001-01-01",
+     "end": "2019-07-01",
+     "state": "ABROGE",
+     "text": "Ancienne rédaction fictive.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000208"
+    }
+   ]
+  },
+  {
+   "code": "Code du travail",
+   "number": "L1233-3",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000209",
+     "start": "2001-01-01",
+     "end": "2019-07-01",
+     "state": "ABROGE",
+     "text": "Ancienne rédaction fictive du licenciement économique.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000209"
+    }
+   ]
+  },
+  {
+   "code": "Code de commerce",
+   "number": "L123-1",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000300",
+     "start": "2001-01-01",
+     "end": "2020-01-01",
+     "state": "MODIFIE",
+     "text": "Rédaction ancienne de L123-1.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000300"
+    },
+    {
+     "id": "LEGIARTI000000000301",
+     "start": "2020-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Rédaction actuelle de L123-1.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000301"
+    }
+   ]
+  },
+  {
+   "code": "Code du travail",
+   "number": "L1221-1",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000302",
+     "start": "2001-01-01",
+     "end": "2020-01-01",
+     "state": "MODIFIE",
+     "text": "Rédaction ancienne de L1221-1.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000302"
+    },
+    {
+     "id": "LEGIARTI000000000303",
+     "start": "2020-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Rédaction actuelle de L1221-1.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000303"
+    }
+   ]
+  },
+  {
+   "code": "Code de procédure civile",
+   "number": "54",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000304",
+     "start": "2001-01-01",
+     "end": "2020-01-01",
+     "state": "MODIFIE",
+     "text": "Rédaction ancienne de 54.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000304"
+    },
+    {
+     "id": "LEGIARTI000000000305",
+     "start": "2020-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Rédaction actuelle de 54.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000305"
+    }
+   ]
+  },
+  {
+   "code": "Code de commerce",
+   "number": "L145-1",
+   "versions": [
+    {
+     "id": "LEGIARTI000000000306",
+     "start": "2001-01-01",
+     "end": "2020-01-01",
+     "state": "MODIFIE",
+     "text": "Rédaction ancienne de L145-1.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000306"
+    },
+    {
+     "id": "LEGIARTI000000000307",
+     "start": "2020-01-01",
+     "end": "",
+     "state": "VIGUEUR",
+     "text": "Rédaction actuelle de L145-1.",
+     "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000000000307"
+    }
+   ]
+  }
+ ],
+ "decisions": [
+  {
+   "id": "JURITEXT000000000000",
+   "court": "cass",
+   "chamber": "civ1",
+   "date": "2015-01-03",
+   "pourvoi": "15-10.100",
+   "title": "Décision fictive 0",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000000"
+  },
+  {
+   "id": "JURITEXT000000000001",
+   "court": "cass",
+   "chamber": "civ2",
+   "date": "2016-02-04",
+   "pourvoi": "16-11.107",
+   "title": "Décision fictive 1",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000001"
+  },
+  {
+   "id": "JURITEXT000000000002",
+   "court": "cass",
+   "chamber": "civ3",
+   "date": "2017-03-05",
+   "pourvoi": "17-12.114",
+   "title": "Décision fictive 2",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000002"
+  },
+  {
+   "id": "JURITEXT000000000003",
+   "court": "cass",
+   "chamber": "com",
+   "date": "2018-04-06",
+   "pourvoi": "18-13.121",
+   "title": "Décision fictive 3",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000003"
+  },
+  {
+   "id": "JURITEXT000000000004",
+   "court": "cass",
+   "chamber": "soc",
+   "date": "2019-05-07",
+   "pourvoi": "19-14.128",
+   "title": "Décision fictive 4",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000004"
+  },
+  {
+   "id": "JURITEXT000000000005",
+   "court": "cass",
+   "chamber": "crim",
+   "date": "2020-06-08",
+   "pourvoi": "20-15.135",
+   "title": "Décision fictive 5",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000005"
+  },
+  {
+   "id": "JURITEXT000000000006",
+   "court": "cass",
+   "chamber": "civ1",
+   "date": "2021-07-09",
+   "pourvoi": "21-16.142",
+   "title": "Décision fictive 6",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000006"
+  },
+  {
+   "id": "JURITEXT000000000007",
+   "court": "cass",
+   "chamber": "civ2",
+   "date": "2022-08-10",
+   "pourvoi": "22-17.149",
+   "title": "Décision fictive 7",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000007"
+  },
+  {
+   "id": "JURITEXT000000000008",
+   "court": "cass",
+   "chamber": "civ3",
+   "date": "2023-09-11",
+   "pourvoi": "23-18.156",
+   "title": "Décision fictive 8",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000008"
+  },
+  {
+   "id": "JURITEXT000000000009",
+   "court": "cass",
+   "chamber": "com",
+   "date": "2015-10-12",
+   "pourvoi": "15-10.163",
+   "title": "Décision fictive 9",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000009"
+  },
+  {
+   "id": "JURITEXT000000000010",
+   "court": "cass",
+   "chamber": "soc",
+   "date": "2016-11-13",
+   "pourvoi": "16-11.170",
+   "title": "Décision fictive 10",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000010"
+  },
+  {
+   "id": "JURITEXT000000000011",
+   "court": "cass",
+   "chamber": "crim",
+   "date": "2017-12-14",
+   "pourvoi": "17-12.177",
+   "title": "Décision fictive 11",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000011"
+  },
+  {
+   "id": "JURITEXT000000000012",
+   "court": "cass",
+   "chamber": "civ1",
+   "date": "2018-01-15",
+   "pourvoi": "18-13.184",
+   "title": "Décision fictive 12",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000012"
+  },
+  {
+   "id": "JURITEXT000000000013",
+   "court": "cass",
+   "chamber": "civ2",
+   "date": "2019-02-16",
+   "pourvoi": "19-14.191",
+   "title": "Décision fictive 13",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000013"
+  },
+  {
+   "id": "JURITEXT000000000014",
+   "court": "cass",
+   "chamber": "civ3",
+   "date": "2020-03-17",
+   "pourvoi": "20-15.198",
+   "title": "Décision fictive 14",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000014"
+  },
+  {
+   "id": "JURITEXT000000000015",
+   "court": "cass",
+   "chamber": "com",
+   "date": "2021-04-18",
+   "pourvoi": "21-16.205",
+   "title": "Décision fictive 15",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000015"
+  },
+  {
+   "id": "JURITEXT000000000016",
+   "court": "cass",
+   "chamber": "soc",
+   "date": "2022-05-19",
+   "pourvoi": "22-17.212",
+   "title": "Décision fictive 16",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000016"
+  },
+  {
+   "id": "JURITEXT000000000017",
+   "court": "cass",
+   "chamber": "crim",
+   "date": "2023-06-20",
+   "pourvoi": "23-18.219",
+   "title": "Décision fictive 17",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000017"
+  },
+  {
+   "id": "JURITEXT000000000018",
+   "court": "cass",
+   "chamber": "civ1",
+   "date": "2015-07-21",
+   "pourvoi": "15-10.226",
+   "title": "Décision fictive 18",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000018"
+  },
+  {
+   "id": "JURITEXT000000000019",
+   "court": "cass",
+   "chamber": "civ2",
+   "date": "2016-08-22",
+   "pourvoi": "16-11.233",
+   "title": "Décision fictive 19",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000019"
+  },
+  {
+   "id": "JURITEXT000000000020",
+   "court": "cass",
+   "chamber": "civ3",
+   "date": "2017-09-23",
+   "pourvoi": "17-12.240",
+   "title": "Décision fictive 20",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000020"
+  },
+  {
+   "id": "JURITEXT000000000021",
+   "court": "cass",
+   "chamber": "com",
+   "date": "2018-10-24",
+   "pourvoi": "18-13.247",
+   "title": "Décision fictive 21",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000021"
+  },
+  {
+   "id": "JURITEXT000000000022",
+   "court": "cass",
+   "chamber": "soc",
+   "date": "2019-11-25",
+   "pourvoi": "19-14.254",
+   "title": "Décision fictive 22",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000022"
+  },
+  {
+   "id": "JURITEXT000000000023",
+   "court": "cass",
+   "chamber": "crim",
+   "date": "2020-12-26",
+   "pourvoi": "20-15.261",
+   "title": "Décision fictive 23",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000023"
+  },
+  {
+   "id": "JURITEXT000000000024",
+   "court": "cass",
+   "chamber": "civ1",
+   "date": "2021-01-27",
+   "pourvoi": "21-16.268",
+   "title": "Décision fictive 24",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000024"
+  },
+  {
+   "id": "JURITEXT000000000025",
+   "court": "cass",
+   "chamber": "civ2",
+   "date": "2022-02-03",
+   "pourvoi": "22-17.275",
+   "title": "Décision fictive 25",
+   "url": "https://www.courdecassation.fr/decision/JURITEXT000000000025"
+  },
+  {
+   "id": "CA000000000000",
+   "court": "ca",
+   "chamber": "",
+   "date": "2021-01-10",
+   "rg": "19/01100",
+   "title": "Arrêt fictif CA",
+   "url": ""
+  },
+  {
+   "id": "CA000000000001",
+   "court": "ca",
+   "chamber": "",
+   "date": "2021-02-11",
+   "rg": "19/02101",
+   "title": "Arrêt fictif CA",
+   "url": ""
+  },
+  {
+   "id": "CA000000000002",
+   "court": "ca",
+   "chamber": "",
+   "date": "2021-03-12",
+   "rg": "19/03102",
+   "title": "Arrêt fictif CA",
+   "url": ""
+  },
+  {
+   "id": "CA000000000003",
+   "court": "ca",
+   "chamber": "",
+   "date": "2021-04-13",
+   "rg": "19/04103",
+   "title": "Arrêt fictif CA",
+   "url": ""
+  }
+ ]
+}

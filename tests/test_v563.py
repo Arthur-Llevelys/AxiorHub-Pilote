@@ -139,12 +139,15 @@ class Sse(Base):
     @unittest.skipUnless(waitress, 'Waitress absent (installé dans l’image Docker et sur GitHub)')
     def test_waitress_sends_each_event_immediately(self):
         from waitress.server import create_server
-        server = create_server(self.app, host='127.0.0.1', port=0, threads=4, send_bytes=1)
+        # mêmes réglages qu'en production (agent/web.py : serve) : mandataire local de confiance, envois non retenus
+        server = create_server(self.app, host='127.0.0.1', port=0, threads=4, send_bytes=1, trusted_proxy='127.0.0.1',
+                               trusted_proxy_headers={'x-forwarded-proto', 'x-forwarded-for'}, clear_untrusted_proxy_headers=True)
         threading.Thread(target=server.run, daemon=True).start()
         self.addCleanup(server.close)
         import base64
         basic = 'Basic ' + base64.b64encode(('admin:' + self.password).encode()).decode()
-        delay, status = first_event(server.effective_port, '/agent-courriel/live/events', {'Authorization': basic, 'Host': 'cabinet.example.test', 'X-Forwarded-Proto': 'https'})
+        delay, status = first_event(server.effective_port, '/agent-courriel/live/events', {'Authorization': basic, 'Host': 'cabinet.example.test',
+                                                                                         'X-Forwarded-Proto': 'https', 'X-Forwarded-For': '127.0.0.1'})
         self.assertEqual(status, 200)
         self.assertIsNotNone(delay)
         self.assertLess(delay, 3.0)

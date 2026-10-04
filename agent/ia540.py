@@ -120,7 +120,7 @@ def page(desk, prefix, shell, csrf):
             'audiences, documents et Roundcube via l’API choisie.</p>%s</article>'
             '<article><h3>Hybride</h3><p>Local par défaut, bascule vers OpenRouter pour les seules tâches complexes, avec plafonds de coût.</p>'
             '<a class="ax-btn ghost" href="%s">Régler le routage hybride</a></article></div></section>'
-            '<section class="ax-card"><h2>Aperçu de ce qui part</h2><p class="ax-muted">Collez un texte (courriel, extrait de pièce) : vous voyez exactement ce que '
+            '%s<section class="ax-card"><h2>Aperçu de ce qui part</h2><p class="ax-muted">Collez un texte (courriel, extrait de pièce) : vous voyez exactement ce que '
             'le fournisseur recevrait et la table de correspondance, qui reste sur le serveur. Rien n’est envoyé.</p>'
             '<form class="m5-form" id="p540-form" data-api="m540/preview"><label class="m5-field">Texte<textarea name="text" rows="7" maxlength="60000" required></textarea></label>'
             '<label class="m5-field">Dossier (facultatif)<select name="matter"><option value="">—</option>%s</select></label>'
@@ -135,11 +135,16 @@ def page(desk, prefix, shell, csrf):
             '<li>Les noms écrits en minuscules ou les prénoms rares sans civilité peuvent échapper à la détection : vérifiez l’aperçu sur vos textes types.</li>'
             '<li>Préférez un fournisseur avec engagement de non-conservation ou hébergement européen, et un contrat de traitement des données.</li></ul></section>'
             '</div><script defer src="%s"></script>') % (
-        e(cur['label']), mixed, e(prefix + '/routage-hybride'), matter_opts,
+        e(cur['label']), mixed, e(prefix + '/routage-hybride'), secours_html(desk, prefix), matter_opts,
         ('<table class="vf-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>Modèle</th><th>Fonction</th><th>Remplacements</th><th>Caractères</th><th></th></tr></thead>'
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ok">Aucun envoi externe sur les 7 derniers jours.</p>',
         e(prefix + '/static/v540.js'))
     return shell('IA externe sûre', body, prefix, csrf, '/ia-externe')
+
+
+def secours_html(desk, prefix):
+    from .secours564 import section_html
+    return section_html(desk, prefix)
 
 
 def _matters(desk):
@@ -171,6 +176,9 @@ def handle(desk, name, data, method='POST', args=None):
         except ValueError:
             raise Stop('envoi_inconnu') from None
         return {'text': pseudo540.sample(desk.c['state_dir'], ident)}
+    if n == 'secours' and method == 'POST':
+        from .secours564 import save
+        return save(desk, data)
     if n == 'mode' and method == 'POST':
         mode = str(data.get('mode') or '')
         if mode == 'local':

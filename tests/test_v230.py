@@ -210,7 +210,7 @@ class Autonomy230Tests(unittest.TestCase):
         row=self.d.db.execute("SELECT priority FROM jobs WHERE kind='autonomy_mail_sweep'").fetchone()
         self.assertEqual(row['priority'],40)
         spec=openapi('https://cabinet.test')
-        self.assertEqual(spec['info']['version'],'5.6.3')
+        self.assertEqual(spec['info']['version'],'5.6.4')
         self.assertIn('/autonomy/pending',spec['paths'])
         self.assertIn('/matters/{matter_id}/operational-memory',spec['paths'])
         caps=dispatch(self.d,'/capabilities','GET')
@@ -243,7 +243,7 @@ class Web230Tests(unittest.TestCase):
         page=self.request('/projets')['body']
         self.assertIn('Travail préparé automatiquement',page)
         self.assertIn('Contrôles bloquants',page)
-        self.assertIn('Version 5.6.3',page)
+        self.assertIn('Version 5.6.4',page)
         self.assertNotIn('http-equiv="refresh"',page)
 
 

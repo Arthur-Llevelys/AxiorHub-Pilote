@@ -1,9 +1,9 @@
 # Secrets et données de cabinet : ne jamais publier
-.env
-deploy/vps/.env
-data/
-deploy/vps/data/
-secrets/
+/.env
+/deploy/vps/.env
+/data/
+/deploy/vps/data/
+/secrets/
 *.secret
 *.sqlite3
 *.sqlite3-shm

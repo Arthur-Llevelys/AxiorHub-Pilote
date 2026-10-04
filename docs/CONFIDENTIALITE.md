@@ -31,6 +31,8 @@ distantes sont désactivées tant que vous ne les configurez pas, et elles sont 
   Limite : une pseudonymisation n'est pas une anonymisation ; un détail factuel peut encore permettre une
   réidentification. Réservez l'IA externe aux fournisseurs dont les engagements contractuels vous conviennent.
 - **Mixte** : la locale traite le tri et les tâches courtes ; l'externe pseudonymisée traite les rédactions longues.
+- **Secours externe** (désactivé par défaut) : seulement pour les rédactions et les demandes de l'avocat, quand le modèle local
+  dépasse le délai réglé ; fournisseurs autorisés uniquement, dans l'ordre choisi, envois pseudonymisés et journalisés.
 
 Vérifiez les conditions contractuelles du fournisseur (absence d'entraînement sur vos données, localisation,
 conservation) et inscrivez le traitement à votre registre (RGPD, article 30).

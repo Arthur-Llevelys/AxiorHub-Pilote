@@ -472,6 +472,9 @@ def routed_config(config, purpose):
             base['hybrid_config']=config
             base['display_provider']='hybride · Ollama/OpenRouter'
             base['display_model']=str(base.get('model',''))+' → '+str(candidate.get('model',''))
+    if 'ollama' in config:
+        from .secours564 import attach
+        base=attach(base,config,purpose)          # 5.6.4 : secours externe si le modèle local est trop lent
     return base
 ATTACHMENT_REVIEW_PROMPT="""Analyse les textes extraits des pièces jointes pour l'avocat.
 Évalue seulement leur lisibilité technique, jamais leur conformité juridique. Résume,
@@ -704,7 +707,34 @@ class Model:
         record(config,decision,'external_selected' if decision['external'] else 'local_selected')
         return decision
 
+    def _secours(self,method,*args):
+        """5.6.4 : génération locale bornée par le délai, puis fournisseurs externes dans l'ordre (toujours pseudonymisés)."""
+        from . import secours564
+        from .hybrid400 import ESCALATABLE_LOCAL_ERRORS
+        sec=self.cfg['secours'];local={k:v for k,v in self.cfg.items() if k!='secours'}
+        local['timeout_seconds']=sec['delay'];first=None
+        if secours564.waited()>=sec['delay']:
+            reason='attente'
+        else:
+            try:
+                self.last_provider='ollama';self.last_model=str(self.cfg.get('model') or '')
+                return self._call_child(local,method,*args)
+            except Stop as error:
+                if str(error) not in ESCALATABLE_LOCAL_ERRORS:raise
+                reason,first=str(error),error
+        for candidate in sec['candidates']:
+            try:
+                value=self._call_child(candidate,method,*args)
+            except Stop as error:
+                secours564.record(self.cfg.get('state_dir',''),candidate,reason,'error',str(error));continue
+            self.last_provider=candidate['provider_id'];self.last_model=str(candidate.get('model') or '')
+            secours564.record(self.cfg.get('state_dir',''),candidate,reason,'ok');return value
+        if first is not None:raise first
+        return self._call_child(local,method,*args)        # aucun fournisseur joignable : le modèle local termine le travail
+
     def complete(self,messages,temperature=0,max_tokens=3500,json_schema=None):
+        if self.cfg.get('secours') and self.provider_type=='ollama':
+            return self._secours('complete',messages,temperature,max_tokens,json_schema)
         decision=self._hybrid_choice('completion',messages=messages,max_tokens=max_tokens)
         if decision is not None:
             if decision['external']:
@@ -853,6 +883,8 @@ class Model:
         return content.strip()
 
     def ask(self, stage, data):
+        if self.cfg.get('secours') and self.provider_type=='ollama':
+            return self._secours('ask',stage,data)
         self._trace=(stage,data)
         decision=self._hybrid_choice(stage,payload=data,max_tokens=7000)
         if decision is not None:

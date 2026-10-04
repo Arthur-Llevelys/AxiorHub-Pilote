@@ -149,6 +149,16 @@ def job_html(desk, prefix, job_id):
     if _has(desk, 'live_events_v430'):
         steps = [dict(x) for x in desk.db.execute('SELECT at, message FROM live_events_v430 WHERE job_id=? ORDER BY id DESC LIMIT 15', (jid,))][::-1]
     done = results(desk, prefix, jid, row['status'], row['result'])
+    try:
+        from .secours564 import for_job, REASONS
+        for x in for_job(desk, jid):
+            if x['status'] == 'ok':
+                text = 'Secours externe : %s (%s) — %s' % (x['provider'], x['model'], REASONS.get(x['reason'], x['reason']))
+            else:
+                text = 'Secours externe : %s indisponible (%s)' % (x['provider'], x['error'][:80])
+            done.append(e(text))
+    except Exception:
+        pass
     retry = ('<button type="button" class="ax-btn" data-retry="%d" data-close-after="1">Relancer</button>' % jid) if row['status'] == 'error' else (
         ('<button type="button" class="ax-btn danger" data-cancel-job="%d">Annuler ce travail</button>' % jid) if row['status'] in ('pending', 'running') else '')
     origin = 'votre demande' if int(row['priority'] if 'priority' in keys and row['priority'] is not None else 50) < 40 else 'automatique'

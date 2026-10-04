@@ -1,0 +1,802 @@
+[
+ {
+  "n": 1,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article 1240 du Code civil.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 2,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article 1103 du Code civil.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 3,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article 1104 du Code civil.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 4,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article 700 du Code de procédure civile.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 5,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article L441-10 du Code de commerce.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 6,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article 56 du Code de procédure civile.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 7,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article 768 du Code de procédure civile.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 8,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article L110-3 du Code de commerce.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 9,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article L1234-1 du Code du travail.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 10,
+  "kind": "article_exact",
+  "text": "Le demandeur invoque l'article L212-1 du Code de la consommation.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 11,
+  "kind": "article_exact_version_actuelle",
+  "text": "Il se fonde sur l'article L123-1 du Code de commerce.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 12,
+  "kind": "article_exact_version_actuelle",
+  "text": "Il se fonde sur l'article L1221-1 du Code du travail.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 13,
+  "kind": "article_exact_version_actuelle",
+  "text": "Il se fonde sur l'article 54 du Code de procédure civile.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 14,
+  "kind": "article_exact_version_actuelle",
+  "text": "Il se fonde sur l'article L145-1 du Code de commerce.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 15,
+  "kind": "article_exact_citation",
+  "text": "L'article 1240 du Code civil dispose : « Tout fait quelconque de l'homme, qui cause à autrui un dommage, oblige celui par la faute duquel il est arrivé à le réparer ».",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": "citation textuelle exacte"
+ },
+ {
+  "n": 16,
+  "kind": "article_exact_citation",
+  "text": "L'article 1103 du Code civil dispose : « Les contrats légalement formés tiennent lieu de loi à ceux qui les ont faits ».",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": "citation textuelle exacte"
+ },
+ {
+  "n": 17,
+  "kind": "article_exact_citation",
+  "text": "L'article 1104 du Code civil dispose : « Les contrats doivent être négociés, formés et exécutés de bonne foi ».",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": "citation textuelle exacte"
+ },
+ {
+  "n": 18,
+  "kind": "article_exact_citation",
+  "text": "L'article 700 du Code de procédure civile dispose : « Le juge condamne la partie tenue aux dépens ou qui perd son procès à payer à l'autre partie la somme qu'il détermine ».",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": "citation textuelle exacte"
+ },
+ {
+  "n": 19,
+  "kind": "article_exact_citation",
+  "text": "L'article L441-10 du Code de commerce dispose : « Les conditions de règlement doivent obligatoirement préciser les conditions d application et le taux des pénalités de retard ».",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": "citation textuelle exacte"
+ },
+ {
+  "n": 20,
+  "kind": "article_exact_citation",
+  "text": "L'article 56 du Code de procédure civile dispose : « L'assignation contient à peine de nullité les mentions prescrites par l'article 54 ».",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": "citation textuelle exacte"
+ },
+ {
+  "n": 21,
+  "kind": "article_abroge_applicable_aux_faits",
+  "text": "Aux termes de l'article 1382 du Code civil.",
+  "fact_date": "2010-05-04",
+  "expected": "verifiee",
+  "why": "abrogé mais applicable aux faits de 2010"
+ },
+ {
+  "n": 22,
+  "kind": "article_abroge_applicable_aux_faits",
+  "text": "Aux termes de l'article 1134 du Code civil.",
+  "fact_date": "2010-05-04",
+  "expected": "verifiee",
+  "why": "abrogé mais applicable aux faits de 2010"
+ },
+ {
+  "n": 23,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 1re, 3/01/2015, n° 15-10.100.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 24,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 2e, 4/02/2016, n° 16-11.107.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 25,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 3e, 5/03/2017, n° 17-12.114.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 26,
+  "kind": "decision_exacte",
+  "text": "Cass. com., 6/04/2018, n° 18-13.121.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 27,
+  "kind": "decision_exacte",
+  "text": "Cass. soc., 7/05/2019, n° 19-14.128.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 28,
+  "kind": "decision_exacte",
+  "text": "Cass. crim., 8/06/2020, n° 20-15.135.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 29,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 1re, 9/07/2021, n° 21-16.142.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 30,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 2e, 10/08/2022, n° 22-17.149.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 31,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 3e, 11/09/2023, n° 23-18.156.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 32,
+  "kind": "decision_exacte",
+  "text": "Cass. com., 12/10/2015, n° 15-10.163.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 33,
+  "kind": "decision_exacte",
+  "text": "Cass. soc., 13/11/2016, n° 16-11.170.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 34,
+  "kind": "decision_exacte",
+  "text": "Cass. crim., 14/12/2017, n° 17-12.177.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 35,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 1re, 15/01/2018, n° 18-13.184.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 36,
+  "kind": "decision_exacte",
+  "text": "Cass. civ. 2e, 16/02/2019, n° 19-14.191.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 37,
+  "kind": "decision_ca_exacte",
+  "text": "CA Lyon, 10/01/2021, RG n° 19/01100.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 38,
+  "kind": "decision_ca_exacte",
+  "text": "CA Lyon, 11/02/2021, RG n° 19/02101.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 39,
+  "kind": "decision_ca_exacte",
+  "text": "CA Lyon, 12/03/2021, RG n° 19/03102.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 40,
+  "kind": "decision_ca_exacte",
+  "text": "CA Lyon, 13/04/2021, RG n° 19/04103.",
+  "fact_date": "",
+  "expected": "verifiee",
+  "why": ""
+ },
+ {
+  "n": 41,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1382 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 42,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1134 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 43,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1147 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 44,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1383 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 45,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article L441-6 du Code de commerce.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 46,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1165 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 47,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1315 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 48,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1184 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 49,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article 1317 du Code de procédure civile.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 50,
+  "kind": "article_abroge",
+  "text": "Le défendeur se prévaut de l'article L1233-3 du Code du travail.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "abrogé, aucune date des faits"
+ },
+ {
+  "n": 51,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9000 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 52,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9013 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 53,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9026 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 54,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9039 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 55,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9052 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 56,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9065 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 57,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9078 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 58,
+  "kind": "article_inexistant",
+  "text": "Voir l'article 9091 du Code civil.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "article inexistant"
+ },
+ {
+  "n": 59,
+  "kind": "article_citation_alteree",
+  "text": "L'article 1240 du Code civil dispose : « Toute personne qui cause un préjudice quelconque à autrui est dispensée de toute réparation en toutes circonstances ».",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "citation textuelle altérée"
+ },
+ {
+  "n": 60,
+  "kind": "article_citation_alteree",
+  "text": "L'article 1103 du Code civil dispose : « Toute personne qui cause un préjudice quelconque à autrui est dispensée de toute réparation en toutes circonstances ».",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "citation textuelle altérée"
+ },
+ {
+  "n": 61,
+  "kind": "article_citation_alteree",
+  "text": "L'article 1104 du Code civil dispose : « Toute personne qui cause un préjudice quelconque à autrui est dispensée de toute réparation en toutes circonstances ».",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "citation textuelle altérée"
+ },
+ {
+  "n": 62,
+  "kind": "article_citation_alteree",
+  "text": "L'article 700 du Code de procédure civile dispose : « Toute personne qui cause un préjudice quelconque à autrui est dispensée de toute réparation en toutes circonstances ».",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "citation textuelle altérée"
+ },
+ {
+  "n": 63,
+  "kind": "article_citation_alteree",
+  "text": "L'article L441-10 du Code de commerce dispose : « Toute personne qui cause un préjudice quelconque à autrui est dispensée de toute réparation en toutes circonstances ».",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "citation textuelle altérée"
+ },
+ {
+  "n": 64,
+  "kind": "article_citation_alteree",
+  "text": "L'article 56 du Code de procédure civile dispose : « Toute personne qui cause un préjudice quelconque à autrui est dispensée de toute réparation en toutes circonstances ».",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "citation textuelle altérée"
+ },
+ {
+  "n": 65,
+  "kind": "article_avant_entree_en_vigueur",
+  "text": "Aux termes de l'article 1240 du Code civil.",
+  "fact_date": "1995-06-01",
+  "expected": "flag",
+  "why": "non en vigueur à la date des faits"
+ },
+ {
+  "n": 66,
+  "kind": "article_avant_entree_en_vigueur",
+  "text": "Aux termes de l'article 1103 du Code civil.",
+  "fact_date": "1995-06-01",
+  "expected": "flag",
+  "why": "non en vigueur à la date des faits"
+ },
+ {
+  "n": 67,
+  "kind": "article_avant_entree_en_vigueur",
+  "text": "Aux termes de l'article 1104 du Code civil.",
+  "fact_date": "1995-06-01",
+  "expected": "flag",
+  "why": "non en vigueur à la date des faits"
+ },
+ {
+  "n": 68,
+  "kind": "article_avant_entree_en_vigueur",
+  "text": "Aux termes de l'article 56 du Code de procédure civile.",
+  "fact_date": "1995-06-01",
+  "expected": "flag",
+  "why": "non en vigueur à la date des faits"
+ },
+ {
+  "n": 69,
+  "kind": "article_avant_entree_en_vigueur",
+  "text": "Aux termes de l'article 768 du Code de procédure civile.",
+  "fact_date": "1995-06-01",
+  "expected": "flag",
+  "why": "non en vigueur à la date des faits"
+ },
+ {
+  "n": 70,
+  "kind": "article_avant_entree_en_vigueur",
+  "text": "Aux termes de l'article L110-3 du Code de commerce.",
+  "fact_date": "1995-06-01",
+  "expected": "flag",
+  "why": "non en vigueur à la date des faits"
+ },
+ {
+  "n": 71,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-10.900.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 72,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-11.901.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 73,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-12.902.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 74,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-13.903.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 75,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-14.904.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 76,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-15.905.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 77,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-16.906.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 78,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-17.907.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 79,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-18.908.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 80,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-19.909.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 81,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-20.910.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 82,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-21.911.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 83,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-22.912.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 84,
+  "kind": "pourvoi_inexistant",
+  "text": "Cass. com., 12/03/2019, n° 77-23.913.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "pourvoi inexistant"
+ },
+ {
+  "n": 85,
+  "kind": "date_fausse",
+  "text": "Cass. civ. 1re, 3/01/2014, n° 15-10.100.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 86,
+  "kind": "date_fausse",
+  "text": "Cass. civ. 3e, 5/03/2016, n° 17-12.114.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 87,
+  "kind": "date_fausse",
+  "text": "Cass. soc., 7/05/2018, n° 19-14.128.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 88,
+  "kind": "date_fausse",
+  "text": "Cass. civ. 1re, 9/07/2020, n° 21-16.142.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 89,
+  "kind": "date_fausse",
+  "text": "Cass. civ. 3e, 11/09/2022, n° 23-18.156.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 90,
+  "kind": "date_fausse",
+  "text": "Cass. soc., 13/11/2015, n° 16-11.170.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 91,
+  "kind": "date_fausse",
+  "text": "Cass. civ. 1re, 15/01/2017, n° 18-13.184.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 92,
+  "kind": "date_fausse",
+  "text": "Cass. civ. 3e, 17/03/2019, n° 20-15.198.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 93,
+  "kind": "date_fausse",
+  "text": "Cass. soc., 19/05/2021, n° 22-17.212.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 94,
+  "kind": "date_fausse",
+  "text": "Cass. civ. 1re, 21/07/2014, n° 15-10.226.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "date fausse"
+ },
+ {
+  "n": 95,
+  "kind": "chambre_fausse",
+  "text": "Cass. civ. 2e, 3/01/2015, n° 15-10.100.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "chambre fausse"
+ },
+ {
+  "n": 96,
+  "kind": "chambre_fausse",
+  "text": "Cass. com., 5/03/2017, n° 17-12.114.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "chambre fausse"
+ },
+ {
+  "n": 97,
+  "kind": "chambre_fausse",
+  "text": "Cass. crim., 7/05/2019, n° 19-14.128.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "chambre fausse"
+ },
+ {
+  "n": 98,
+  "kind": "chambre_fausse",
+  "text": "Cass. civ. 2e, 9/07/2021, n° 21-16.142.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "chambre fausse"
+ },
+ {
+  "n": 99,
+  "kind": "chambre_fausse",
+  "text": "Cass. com., 11/09/2023, n° 23-18.156.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "chambre fausse"
+ },
+ {
+  "n": 100,
+  "kind": "chambre_fausse",
+  "text": "Cass. crim., 13/11/2016, n° 16-11.170.",
+  "fact_date": "",
+  "expected": "flag",
+  "why": "chambre fausse"
+ }
+]

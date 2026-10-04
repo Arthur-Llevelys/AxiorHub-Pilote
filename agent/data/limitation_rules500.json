@@ -1,0 +1,647 @@
+{
+ "version": "5.0.0",
+ "scope": "Prescriptions extinctives et délais de forclusion courants ; liste non exhaustive.",
+ "general": {
+  "verified_on": "2026-10-02",
+  "verified_with": "Base de textes Légifrance (consolidation lue le 2 octobre 2026) ; à revérifier à chaque usage important.",
+  "butoir": {
+   "years": 20,
+   "article": "C. civ. art. 2232",
+   "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000033033506/2016-08-10"
+  },
+  "transition_date": "2008-06-19",
+  "transition_text": "Le fait est antérieur au 19 juin 2008 (loi n° 2008-561 portant réforme de la prescription) : les règles transitoires de l’article 26 de cette loi sont à examiner ; la date calculée ne vaut pas sans cet examen.",
+  "articles": {
+   "2228": "La prescription se compte par jours, et non par heures.",
+   "2229": "Elle est acquise lorsque le dernier jour du terme est accompli.",
+   "2231": "L’interruption efface le délai de prescription acquis. Elle fait courir un nouveau délai de même durée que l’ancien.",
+   "2234": "La prescription ne court pas ou est suspendue contre celui qui est dans l’impossibilité d’agir.",
+   "2238": "Suspension pendant la médiation, la conciliation ou la procédure participative ; le délai recommence à courir pour une durée qui ne peut être inférieure à six mois.",
+   "2240": "La reconnaissance par le débiteur du droit de celui contre lequel il prescrivait interrompt le délai de prescription.",
+   "2241": "La demande en justice, même en référé, interrompt le délai de prescription ainsi que le délai de forclusion (même devant une juridiction incompétente).",
+   "2243": "L’interruption est non avenue si le demandeur se désiste, laisse périmer l’instance ou si sa demande est définitivement rejetée.",
+   "2244": "Une mesure conservatoire ou un acte d’exécution forcée interrompt le délai de prescription ou de forclusion."
+  },
+  "event_types": {
+   "demande_en_justice": {
+    "label": "Demande en justice (assignation, requête, même en référé)",
+    "effect": "interruption",
+    "applies": [
+     "prescription",
+     "forclusion"
+    ],
+    "article": "C. civ. art. 2241"
+   },
+   "reconnaissance": {
+    "label": "Reconnaissance du droit par le débiteur",
+    "effect": "interruption",
+    "applies": [
+     "prescription"
+    ],
+    "article": "C. civ. art. 2240"
+   },
+   "mesure_execution": {
+    "label": "Mesure conservatoire ou acte d’exécution forcée",
+    "effect": "interruption",
+    "applies": [
+     "prescription",
+     "forclusion"
+    ],
+    "article": "C. civ. art. 2244"
+   },
+   "mediation": {
+    "label": "Médiation, conciliation ou procédure participative",
+    "effect": "suspension",
+    "applies": [
+     "prescription"
+    ],
+    "article": "C. civ. art. 2238"
+   },
+   "impossibilite_agir": {
+    "label": "Impossibilité d’agir (loi, convention, force majeure)",
+    "effect": "suspension",
+    "applies": [
+     "prescription"
+    ],
+    "article": "C. civ. art. 2234"
+   }
+  },
+  "start_events": {
+   "fait_generateur": "Fait générateur",
+   "connaissance": "Connaissance des faits",
+   "exigibilite": "Exigibilité de la créance",
+   "mise_en_demeure": "Mise en demeure",
+   "reception": "Réception des travaux",
+   "consolidation": "Consolidation du dommage",
+   "decouverte_vice": "Découverte du vice",
+   "evenement": "Événement générateur",
+   "notification_rupture": "Notification de la rupture",
+   "fait_dommageable": "Fait dommageable",
+   "fin_mission": "Fin de mission",
+   "titre_executoire": "Titre exécutoire"
+  },
+  "mise_en_demeure_note": "Une mise en demeure n’interrompt ni ne suspend la prescription (seuls une demande en justice, une mesure d’exécution ou une reconnaissance de dette le font). Elle ne peut servir de point de départ que si la créance n’était exigible qu’à compter de cette mise en demeure."
+ },
+ "uncovered": [
+  "Prescription pénale et fiscale",
+  "Prescriptions propres à l’état des personnes",
+  "Délais de recours administratifs",
+  "Prescriptions spéciales non listées (à ajouter après vérification des textes)"
+ ],
+ "rules": [
+  {
+   "id": "droit_commun_2224",
+   "label": "Action personnelle ou mobilière — droit commun (5 ans)",
+   "domain": "Droit commun",
+   "articles": [
+    "C. civ. art. 2224"
+   ],
+   "amount": 5,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "connaissance",
+     "label": "Date à laquelle le titulaire du droit a connu (ou aurait dû connaître) les faits"
+    },
+    {
+     "key": "fait_generateur",
+     "label": "Date des faits (fait générateur)"
+    },
+    {
+     "key": "exigibilite",
+     "label": "Date d’exigibilité de la créance (échéance impayée)"
+    },
+    {
+     "key": "mise_en_demeure",
+     "label": "Date de la mise en demeure (créance exigible à vue ou sans échéance)"
+    }
+   ],
+   "valid_from": "2008-06-19",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000019017112/2008-06-19",
+   "note": "Cinq ans à compter du jour où le titulaire du droit a connu ou aurait dû connaître les faits lui permettant de l’exercer.",
+   "to_confirm": [
+    "Justifier la date de connaissance retenue (pièce, courriel).",
+    "Vérifier qu’aucune prescription spéciale, plus courte ou plus longue, ne s’applique à ce type d’action."
+   ]
+  },
+  {
+   "id": "commercial_L110_4",
+   "label": "Obligations entre commerçants, ou entre commerçants et non-commerçants (5 ans)",
+   "domain": "Commercial",
+   "articles": [
+    "C. com. art. L110-4, I"
+   ],
+   "amount": 5,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "exigibilite",
+     "label": "Date d’exigibilité de la créance (échéance impayée)"
+    },
+    {
+     "key": "fait_generateur",
+     "label": "Date des faits (fait générateur)"
+    },
+    {
+     "key": "connaissance",
+     "label": "Date à laquelle le titulaire du droit a connu (ou aurait dû connaître) les faits"
+    },
+    {
+     "key": "mise_en_demeure",
+     "label": "Date de la mise en demeure (créance exigible à vue ou sans échéance)"
+    }
+   ],
+   "valid_from": "2008-06-19",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000027725867/2013-06-17",
+   "note": "Cinq ans pour les obligations nées à l’occasion de leur commerce, si elles ne sont pas soumises à des prescriptions spéciales plus courtes.",
+   "to_confirm": [
+    "Vérifier la qualité de commerçant et que l’obligation est née à l’occasion du commerce.",
+    "Écarter les prescriptions spéciales plus courtes (par exemple L110-4, II : un an après la réception de certains ouvrages)."
+   ]
+  },
+  {
+   "id": "consommation_L218_2",
+   "label": "Action d’un professionnel contre un consommateur (2 ans)",
+   "domain": "Consommation",
+   "articles": [
+    "C. conso. art. L218-2"
+   ],
+   "amount": 2,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "exigibilite",
+     "label": "Date d’exigibilité de la créance (échéance impayée)"
+    },
+    {
+     "key": "fait_generateur",
+     "label": "Date des faits (fait générateur)"
+    },
+    {
+     "key": "mise_en_demeure",
+     "label": "Date de la mise en demeure (créance exigible à vue ou sans échéance)"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000032226897/2016-07-01",
+   "note": "Deux ans pour l’action des professionnels, pour les biens ou services fournis aux consommateurs.",
+   "to_confirm": [
+    "Vérifier la qualité de consommateur (personne physique agissant hors activité professionnelle).",
+    "Déterminer la date d’exigibilité de chaque échéance impayée (la première échéance non payée sert souvent de départ)."
+   ]
+  },
+  {
+   "id": "dommage_corporel_2226",
+   "label": "Responsabilité pour dommage corporel (10 ans)",
+   "domain": "Responsabilité",
+   "articles": [
+    "C. civ. art. 2226"
+   ],
+   "amount": 10,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "consolidation",
+     "label": "Date de consolidation du dommage (initial ou aggravé)"
+    }
+   ],
+   "valid_from": "2008-06-19",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": false,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000019017259/2008-06-19",
+   "note": "Dix ans à compter de la consolidation (vingt ans pour certaines violences sur mineur). Le plafond de vingt ans de l’article 2232 ne s’applique pas.",
+   "to_confirm": [
+    "Fixer la date de consolidation par une pièce médicale.",
+    "Vérifier si le cas relève du délai de vingt ans (tortures, actes de barbarie, violences ou agressions sexuelles contre un mineur)."
+   ]
+  },
+  {
+   "id": "vices_caches_1648",
+   "label": "Garantie des vices cachés (2 ans)",
+   "domain": "Vente",
+   "articles": [
+    "C. civ. art. 1648"
+   ],
+   "amount": 2,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "decouverte_vice",
+     "label": "Date de découverte du vice"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000020466328/2009-03-28",
+   "note": "Deux ans à compter de la découverte du vice. La jurisprudence enferme en outre l’action dans le délai de l’article 2232 (vingt ans à compter de la vente).",
+   "to_confirm": [
+    "Justifier la date de découverte du vice (expertise, constat).",
+    "Vérifier le plafond de vingt ans à compter de la vente initiale."
+   ]
+  },
+  {
+   "id": "decennale_1792_4_1",
+   "label": "Garantie décennale des constructeurs (10 ans)",
+   "domain": "Construction",
+   "articles": [
+    "C. civ. art. 1792 à 1792-2",
+    "C. civ. art. 1792-4-1"
+   ],
+   "amount": 10,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "reception",
+     "label": "Date de réception des travaux"
+    }
+   ],
+   "valid_from": "2008-06-19",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000019017055/2008-06-19",
+   "note": "Décharge des responsabilités et garanties après dix ans à compter de la réception des travaux.",
+   "to_confirm": [
+    "Fixer la date de réception (procès-verbal, réception tacite ou judiciaire).",
+    "Vérifier la qualification du désordre (gravité, impropriété à destination)."
+   ]
+  },
+  {
+   "id": "biennale_1792_3",
+   "label": "Garantie de bon fonctionnement des éléments d’équipement (2 ans)",
+   "domain": "Construction",
+   "articles": [
+    "C. civ. art. 1792-3"
+   ],
+   "amount": 2,
+   "unit": "ans",
+   "nature": "forclusion",
+   "start_events": [
+    {
+     "key": "reception",
+     "label": "Date de réception des travaux"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": false,
+   "butoir": false,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006443534/2005-06-09",
+   "note": "Garantie de bon fonctionnement d’une durée minimale de deux ans à compter de la réception.",
+   "to_confirm": [
+    "Fixer la date de réception.",
+    "Vérifier que l’élément d’équipement est dissociable de l’ouvrage."
+   ]
+  },
+  {
+   "id": "parfait_achevement_1792_6",
+   "label": "Garantie de parfait achèvement (1 an)",
+   "domain": "Construction",
+   "articles": [
+    "C. civ. art. 1792-6"
+   ],
+   "amount": 1,
+   "unit": "ans",
+   "nature": "forclusion",
+   "start_events": [
+    {
+     "key": "reception",
+     "label": "Date de réception des travaux"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": false,
+   "butoir": false,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006443552/1979-01-01",
+   "note": "Un an à compter de la réception pour les désordres signalés par réserves ou par notification écrite.",
+   "to_confirm": [
+    "Fixer la date de réception.",
+    "Vérifier que les désordres ont été signalés dans l’année (réserves ou notification écrite)."
+   ]
+  },
+  {
+   "id": "sous_traitant_1792_4_2",
+   "label": "Action contre le sous-traitant — dommages de l’ouvrage (10 ans)",
+   "domain": "Construction",
+   "articles": [
+    "C. civ. art. 1792-4-2"
+   ],
+   "amount": 10,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "reception",
+     "label": "Date de réception des travaux"
+    }
+   ],
+   "valid_from": "2008-06-19",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000019017048/2008-06-19",
+   "note": "Dix ans à compter de la réception des travaux (deux ans pour les éléments d’équipement de l’article 1792-3).",
+   "to_confirm": [
+    "Fixer la date de réception.",
+    "Si l’élément est un équipement dissociable, utiliser le délai de deux ans."
+   ]
+  },
+  {
+   "id": "assurance_L114_1",
+   "label": "Action dérivant d’un contrat d’assurance (2 ans)",
+   "domain": "Assurance",
+   "articles": [
+    "C. assur. art. L114-1"
+   ],
+   "amount": 2,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "evenement",
+     "label": "Événement qui donne naissance à l’action (sinistre, refus de garantie…)"
+    },
+    {
+     "key": "connaissance",
+     "label": "Date à laquelle le titulaire du droit a connu (ou aurait dû connaître) les faits"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000044607740/2021-12-30",
+   "note": "Deux ans à compter de l’événement qui donne naissance à l’action ; points de départ spéciaux (réticence, sinistre ignoré, recours d’un tiers).",
+   "to_confirm": [
+    "Vérifier les points de départ spéciaux de l’article L114-1 (réticence, sinistre ignoré, recours d’un tiers).",
+    "Vérifier les délais particuliers (dix ans en assurance-vie ou accidents corporels avec bénéficiaires distincts ; cinq ans pour certains sinistres de sécheresse).",
+    "Vérifier l’interruption spéciale de l’article L114-2 (lettre recommandée de l’assureur ou de l’assuré)."
+   ]
+  },
+  {
+   "id": "salaires_L3245_1",
+   "label": "Paiement ou répétition du salaire (3 ans)",
+   "domain": "Travail",
+   "articles": [
+    "C. trav. art. L3245-1"
+   ],
+   "amount": 3,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "connaissance",
+     "label": "Date à laquelle le titulaire du droit a connu (ou aurait dû connaître) les faits"
+    },
+    {
+     "key": "exigibilite",
+     "label": "Date d’exigibilité de la créance (échéance impayée)"
+    }
+   ],
+   "valid_from": "2013-06-17",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000027566295/2013-06-17",
+   "note": "Trois ans à compter du jour où le salarié a connu ou aurait dû connaître les faits ; la demande porte sur les trois dernières années (ou les trois années précédant la rupture).",
+   "to_confirm": [
+    "Vérifier la période réclamable (trois dernières années avant la demande, ou avant la rupture du contrat)."
+   ]
+  },
+  {
+   "id": "execution_travail_L1471_1",
+   "label": "Exécution du contrat de travail (2 ans)",
+   "domain": "Travail",
+   "articles": [
+    "C. trav. art. L1471-1, al. 1"
+   ],
+   "amount": 2,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "connaissance",
+     "label": "Date à laquelle le titulaire du droit a connu (ou aurait dû connaître) les faits"
+    },
+    {
+     "key": "fait_generateur",
+     "label": "Date des faits (fait générateur)"
+    }
+   ],
+   "valid_from": "2017-09-23",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000036762126/2018-04-01",
+   "note": "Deux ans à compter du jour où l’action a pu être exercée. Exceptions : dommage corporel, salaire, discrimination et harcèlement.",
+   "to_confirm": [
+    "Vérifier que l’action n’entre pas dans les exceptions de l’article L1471-1 (salaire, dommage corporel, discrimination, harcèlement) ni dans un délai plus court.",
+    "Prescription en cours avant le 23 septembre 2017 : règles transitoires de l’ordonnance n° 2017-1387 à examiner."
+   ]
+  },
+  {
+   "id": "rupture_travail_L1471_1",
+   "label": "Rupture du contrat de travail (12 mois)",
+   "domain": "Travail",
+   "articles": [
+    "C. trav. art. L1471-1, al. 2"
+   ],
+   "amount": 12,
+   "unit": "mois",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "notification_rupture",
+     "label": "Date de notification de la rupture"
+    }
+   ],
+   "valid_from": "2017-09-23",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000036762126/2018-04-01",
+   "note": "Douze mois à compter de la notification de la rupture.",
+   "to_confirm": [
+    "Vérifier la date de première présentation de la lettre de rupture.",
+    "Vérifier les délais spéciaux plus courts du Code du travail (L1233-67, L1234-20, L1235-7, L1237-14)."
+   ]
+  },
+  {
+   "id": "bail_commercial_L145_60",
+   "label": "Actions en matière de baux commerciaux (2 ans)",
+   "domain": "Baux commerciaux",
+   "articles": [
+    "C. com. art. L145-60"
+   ],
+   "amount": 2,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "fait_generateur",
+     "label": "Date des faits (fait générateur)"
+    },
+    {
+     "key": "connaissance",
+     "label": "Date à laquelle le titulaire du droit a connu (ou aurait dû connaître) les faits"
+    },
+    {
+     "key": "exigibilite",
+     "label": "Date d’exigibilité de la créance (échéance impayée)"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006222196/2000-09-21",
+   "note": "Toutes les actions exercées en vertu du statut des baux commerciaux se prescrivent par deux ans.",
+   "to_confirm": [
+    "Vérifier que l’action relève du chapitre du statut des baux commerciaux (et non du droit commun du bail).",
+    "Vérifier le point de départ propre à l’action (refus de renouvellement, congé, fixation du loyer)."
+   ]
+  },
+  {
+   "id": "gerant_sarl_L223_23",
+   "label": "Responsabilité des gérants de SARL (3 ans)",
+   "domain": "Sociétés",
+   "articles": [
+    "C. com. art. L223-23"
+   ],
+   "amount": 3,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "fait_dommageable",
+     "label": "Date du fait dommageable (ou de sa révélation s’il a été dissimulé)"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006223149/2000-09-21",
+   "note": "Trois ans à compter du fait dommageable ou, s’il a été dissimulé, de sa révélation ; dix ans si le fait est qualifié crime.",
+   "to_confirm": [
+    "Vérifier si le fait a été dissimulé (départ à la révélation) ou est qualifié crime (dix ans)."
+   ]
+  },
+  {
+   "id": "administrateur_sa_L225_254",
+   "label": "Responsabilité des administrateurs et du directeur général de SA (3 ans)",
+   "domain": "Sociétés",
+   "articles": [
+    "C. com. art. L225-254"
+   ],
+   "amount": 3,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "fait_dommageable",
+     "label": "Date du fait dommageable (ou de sa révélation s’il a été dissimulé)"
+    }
+   ],
+   "valid_from": null,
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006226359/2001-05-16",
+   "note": "Trois ans à compter du fait dommageable ou de sa révélation ; dix ans si le fait est qualifié crime.",
+   "to_confirm": [
+    "Vérifier si le fait a été dissimulé ou est qualifié crime."
+   ]
+  },
+  {
+   "id": "responsabilite_avocat_2225",
+   "label": "Responsabilité des personnes ayant représenté ou assisté en justice (5 ans)",
+   "domain": "Responsabilité",
+   "articles": [
+    "C. civ. art. 2225"
+   ],
+   "amount": 5,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "fin_mission",
+     "label": "Date de fin de la mission"
+    }
+   ],
+   "valid_from": "2008-06-19",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": true,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000019017110/2008-06-19",
+   "note": "Cinq ans à compter de la fin de la mission.",
+   "to_confirm": [
+    "Fixer la date de fin de mission (décision définitive, dessaisissement, lettre de fin de mission)."
+   ]
+  },
+  {
+   "id": "execution_titre_L111_4",
+   "label": "Exécution d’un titre exécutoire (10 ans)",
+   "domain": "Recouvrement",
+   "articles": [
+    "CPCE art. L111-4"
+   ],
+   "amount": 10,
+   "unit": "ans",
+   "nature": "prescription",
+   "start_events": [
+    {
+     "key": "titre_executoire",
+     "label": "Date du titre exécutoire (ou de sa force exécutoire)"
+    }
+   ],
+   "valid_from": "2012-06-01",
+   "valid_to": null,
+   "interruptible": true,
+   "suspendable": true,
+   "butoir": false,
+   "source_url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000025025648/2012-06-01",
+   "note": "L’exécution des titres exécutoires de l’article L111-3 (1° à 3°) ne peut être poursuivie que pendant dix ans, sauf créance à délai plus long. Le plafond de vingt ans de l’article 2232 ne s’applique pas.",
+   "to_confirm": [
+    "Vérifier la nature du titre (L111-3, 1° à 3°) et si la créance se prescrit par un délai plus long.",
+    "Vérifier les actes d’exécution accomplis (ils interrompent le délai)."
+   ]
+  }
+ ]
+}

@@ -306,7 +306,7 @@ def save_route(desk, purpose, provider_id, model):
 
 
 def load_runtime_settings(desk):
-    _load_rows(desk.c,desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid'"))
+    _load_rows(desk.c,desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid' OR key='ai:secours'"))
 
 
 def _load_rows(config,rows):
@@ -323,6 +323,8 @@ def _load_rows(config,rows):
             routing[row['key'].split(':', 2)[-1]] = value
         elif row['key']=='ai:hybrid' and isinstance(value,dict):
             config['hybrid_routing']=value
+        elif row['key']=='ai:secours' and isinstance(value,dict):
+            config['secours_routing']=value
 
 
 def load_config_settings(config):
@@ -331,7 +333,7 @@ def load_config_settings(config):
     if not path.is_file():return
     try:
         db=sqlite3.connect(path,timeout=2);db.row_factory=sqlite3.Row
-        rows=db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid'").fetchall()
+        rows=db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid' OR key='ai:secours'").fetchall()
         _load_rows(config,rows)
     except sqlite3.Error:
         return

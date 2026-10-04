@@ -8,7 +8,7 @@ Apache. Pour un serveur neuf, préférez le [VPS clé en main](INSTALLATION-VPS.
 Depuis une copie du dépôt :
 
 ```bash
-python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.3.tar.gz
+python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.4.tar.gz
 ```
 
 L'archive contient un manifeste `MANIFEST.sha256` ; l'installateur refuse toute archive modifiée.
@@ -16,11 +16,11 @@ L'archive contient un manifeste `MANIFEST.sha256` ; l'installateur refuse toute 
 ## 2. Installer ou mettre à jour
 
 ```bash
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.3.tar.gz && cd axiorhub-mail-agent-5.6.3
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.4.tar.gz && cd axiorhub-mail-agent-5.6.4
 sudo bash install.sh
 ```
 
-- **Serveur neuf** : le code est copié dans `/opt/axiorhub-mail-agent/releases/5.6.3`, la configuration dans
+- **Serveur neuf** : le code est copié dans `/opt/axiorhub-mail-agent/releases/5.6.4`, la configuration dans
   `/etc/axiorhub-mail-agent/` (secrets en 600), l'état dans `/var/lib/axiorhub-mail-agent/`, et les services systemd
   `axiorhub-mail-*` sont installés.
 - **Mise à jour** (depuis 3.5.0 ou plus récent, sans passer par les versions intermédiaires) : les fichiers sont

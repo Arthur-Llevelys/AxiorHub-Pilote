@@ -77,6 +77,7 @@ def human(code):
     """Readable French messages for the codes users meet in the workshop."""
     table = {
         'duree_invalide': 'La durée indiquée est invalide (en minutes, entre 1 et 1 440).',
+        'secours_sans_fournisseur': 'Aucun fournisseur externe n’est prêt : activez-en un, autorisez l’envoi et indiquez un modèle dans Paramètres › IA.',
         'fichier_hors_dossier': 'Ce fichier n’appartient à aucun dossier du cabinet : il ne peut pas être ouvert d’ici.',
         'travail_invalide': 'Ce travail n’existe plus dans la file (il a pu être nettoyé). Actualisez la page.',
         'mode_honoraires_invalide': 'Choisissez un mode d’honoraires : horaire, forfait ou mixte.',

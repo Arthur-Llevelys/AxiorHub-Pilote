@@ -17,7 +17,9 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_DIRS = {'.git', 'data', '__pycache__', '.pytest_cache', 'dist', 'build', '_vendor'}  # _vendor : bibliothèques tierces (auteurs publics)
+EXCLUDED_DIRS = {'.git', '__pycache__', '.pytest_cache', 'dist', 'build', '_vendor'}  # _vendor : bibliothèques tierces (auteurs publics)
+# Données d'exploitation (jamais publiées) : seulement les dossiers « data » de la racine et du VPS ; agent/data et tests/data sont contrôlés.
+EXCLUDED_ROOTS = ('data/', 'deploy/vps/data/')
 EXCLUDED_FILES = {'scripts/privacy-scan.py', '.privacy-denylist', 'MANIFEST.sha256', 'SBOM.cdx.json'}
 BINARY = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.tgz', '.woff', '.woff2', '.ttf', '.sqlite3'}
 OFFICE = {'.docx', '.xlsx', '.pptx', '.odt', '.ods'}
@@ -109,7 +111,7 @@ def scan(root=ROOT):
     findings = []
     for path in sorted(root.rglob('*')):
         rel = path.relative_to(root).as_posix()
-        if not path.is_file() or set(path.relative_to(root).parts) & EXCLUDED_DIRS or rel in EXCLUDED_FILES:
+        if not path.is_file() or set(path.relative_to(root).parts) & EXCLUDED_DIRS or rel in EXCLUDED_FILES or rel.startswith(EXCLUDED_ROOTS):
             continue
         if path.name == '.env':
             findings.append(rel + ' : fichier .env (secrets) — ne doit pas être publié')

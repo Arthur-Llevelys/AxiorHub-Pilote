@@ -808,6 +808,7 @@ class Desk:
         self.db.execute("UPDATE jobs SET status='running',started=?,worker=?,attempts=attempts+1 WHERE id=? AND status='pending'",(now(),worker_id,row['id']))
         self.db.commit()
         self.active_job_id=row['id']
+        from . import secours564;secours564.begin(row['id'],row['created'],row['kind'])
         try:
             _args=json.loads(row['args'] or '{}');_args=_args if isinstance(_args,dict) else {}
         except (ValueError,TypeError):_args={}
@@ -840,7 +841,7 @@ class Desk:
                     heartbeat(self,'courriels','active',str(result.get('examined',0))+' courriels examinés',time.time()+300)
                 if result.get('busy'):
                     self.db.execute("UPDATE jobs SET status='pending' WHERE id=?",(row['id'],));self.db.commit()
-                    self.active_job_id=None;trace480.end()
+                    self.active_job_id=None;trace480.end();secours564.end()
                     return False
             elif row['kind'] in ('live_calendar430','live_documents430'):
                 from .watch430 import perform
@@ -865,7 +866,7 @@ class Desk:
         except Stop as e:
             if str(e)=='traitement_deja_en_cours':
                 self.db.execute("UPDATE jobs SET status='pending' WHERE id=?",(row['id'],));self.db.commit()
-                self.active_job_id=None;trace480.end()
+                self.active_job_id=None;trace480.end();secours564.end()
                 return False
             result={'erreur':str(e)};status='error'
         except Exception:
@@ -919,7 +920,7 @@ class Desk:
         outcome=self.db.execute('SELECT status,business_message FROM production_deliverables_v420 WHERE job_id=? ORDER BY updated DESC LIMIT 1',(row['id'],)).fetchone()
         message=outcome['business_message'] if outcome else ('Traitement terminé ; résultat disponible.' if status=='done' else 'Traitement interrompu ; consultez le motif et relancez après contrôle.')
         emit(self,'produced' if outcome and outcome['status']=='verified' and row['kind'] not in ('run','live_mail430') else status,message,row['id'])
-        self.active_job_id=None;trace480.end()
+        self.active_job_id=None;trace480.end();secours564.end()
         if status=='done' and row['kind']=='live_documents430' and result.get('continue_scan'):
             self.enqueue('live_documents430',priority=70)
         if status=='done' and result.get('messages_remis_en_attente',0):
