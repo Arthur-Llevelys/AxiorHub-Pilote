@@ -93,6 +93,14 @@ def _error_from_result(raw):
     return json.dumps(value,ensure_ascii=False)[:1500] or 'erreur_non_detaillee'
 
 
+def _automatic(kind, priority):
+    try:
+        from .queue521 import automatic
+        return automatic(kind, priority)
+    except Exception:
+        return False
+
+
 def job_health(desk, current=None):
     """Detect stale work and repeated failures without exposing job payloads."""
     ensure_schema(desk);current=current or datetime.now(timezone.utc)
@@ -110,7 +118,9 @@ def job_health(desk, current=None):
         if item['status'] in ('pending','running','cancel_requested') and (age is None or age>threshold):
             item['stale']=True;stale.append(item)
         recent.append(item)
-        if row['status']=='error' and created and current-created<=timedelta(hours=24):
+        # 5.6.2 : une interruption par redémarrage du service n'est pas une boucle pour un contrôle automatique (il reprend seul).
+        interrupted=item['error_reason']=='service_redemarre_verifier_avant_relance' and _automatic(row['kind'],row['priority'])
+        if row['status']=='error' and not interrupted and created and current-created<=timedelta(hours=24):
             payload=_json(row['args'],{})
             if isinstance(payload,dict):
                 payload={k:v for k,v in payload.items() if k not in ('retry_of','retry_attempt')}
@@ -193,8 +203,18 @@ def _configured_files(config):
     return sorted(found)
 
 
+def _optional_files(config):
+    """5.6.2 : fichiers dont l'absence est normale (intégration Open WebUI non installée, mises à jour distantes désactivées)."""
+    optional={'/etc/axiorhub-mail-agent/openwebui-api-token','/etc/axiorhub-mail-agent/axiorhub_openwebui_tool.py',
+              '/etc/axiorhub-mail-agent/SYSTEM-PROMPT-AXIORHUB.md'}
+    updates=config.get('updates') or {}
+    if not str(updates.get('metadata_url') or '').strip() and updates.get('minisign_public_key_file'):
+        optional.add(str(updates['minisign_public_key_file']))
+    return optional
+
+
 def permission_health(desk):
-    rows=[]
+    rows=[];optional=_optional_files(desk.c)
     for name in _configured_files(desk.c):
         path=Path(name);secret=any(x in path.name.casefold() for x in ('secret','password','token','auth'))
         try:
@@ -207,10 +227,13 @@ def permission_health(desk):
                          'uid':info.st_uid,'gid':info.st_gid,'secret':secret,
                          'reason':'' if status=='verified' else 'type_ou_permissions_inadaptees'})
         except FileNotFoundError:
-            rows.append({'path':str(path),'status':'error','secret':secret,'reason':'fichier_absent'})
+            if name in optional or str(path) in optional:
+                rows.append({'path':str(path),'status':'optional','secret':secret,'reason':'fichier_facultatif_absent'})
+            else:
+                rows.append({'path':str(path),'status':'error','secret':secret,'reason':'fichier_absent'})
         except PermissionError:
             rows.append({'path':str(path),'status':'unknown','secret':secret,'reason':'permission_stat_refusee'})
-    bad=[x for x in rows if x['status']!='verified']
+    bad=[x for x in rows if x['status'] not in ('verified','optional')]
     status='verified' if rows and not bad else ('error' if any(x['status']=='error' for x in bad) else 'unknown')
     check=_store_check(desk,'permissions','security',status,
       ('Permissions des fichiers relues sans exposer leur contenu.' if status=='verified' else

@@ -390,7 +390,7 @@ def feedback(desk,args):
     SentMemory(desk.c).apply_feedback(report.get('memory_examples_used',[]),category)
     if category=='wrong_matter' and report.get('matter') and report.get('sender'):
         path=Path(desk.c['state_dir'])/'match-feedback.json'
-        try:rows=json.loads(path.read_text()) if path.exists() else []
+        try:rows=json.loads(path.read_text(encoding='utf-8')) if path.exists() else []
         except (ValueError,OSError):rows=[]
         item={'sender':report['sender'],'matter':report['matter'],'created':desk.now(),'source_key':key}
         rows=[x for x in rows if (x.get('sender'),x.get('matter'))!=(item['sender'],item['matter'])]+[item]
@@ -406,7 +406,7 @@ def add_rule(desk,args):
     elif kind=='subject':value=fold(report.get('subject',''))
     else:raise Stop('regle_invalide')
     if not value or len(value)>500:raise Stop('regle_invalide')
-    path=Path(desk.c['state_dir'])/'custom-rules.json';rows=json.loads(path.read_text()) if path.exists() else []
+    path=Path(desk.c['state_dir'])/'custom-rules.json';rows=json.loads(path.read_text(encoding='utf-8')) if path.exists() else []
     item={'id':digest(kind+'|'+value),'kind':kind,'value':value,'active':True,'created':desk.now(),'source_key':args['key']}
     rows=[x for x in rows if x['id']!=item['id']]+[item];private_json(path,rows[-500:])
     return {'regle':'ajoutee','portee':kind}
@@ -415,7 +415,7 @@ def add_rule(desk,args):
 def custom_exclusion(c,mail):
     path=Path(c['state_dir'])/'custom-rules.json'
     if not path.exists():return ''
-    try:rows=json.loads(path.read_text())
+    try:rows=json.loads(path.read_text(encoding='utf-8'))
     except (ValueError,OSError):return ''
     for item in rows:
         if not item.get('active'):continue

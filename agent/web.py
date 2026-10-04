@@ -405,7 +405,7 @@ class App:
                  ('Content-Security-Policy',"default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; form-action 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
         status='200 OK';kind='text/html; charset=utf-8'
         try:
-            auth=json.loads(Path(self.auth_path).read_text())
+            auth=json.loads(Path(self.auth_path).read_text(encoding='utf-8'))
             origin=urlsplit(auth['origin'])
             if env.get('HTTP_HOST','')!=origin.netloc:
                 raise Stop('hote_refuse')
@@ -1898,7 +1898,7 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
-        return enhance('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
 def fold_for_search(value):

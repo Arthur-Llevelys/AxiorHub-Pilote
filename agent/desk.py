@@ -153,7 +153,7 @@ def report_for(c, key):
     p = Path(c['state_dir'])/'reports'/(key+'.json')
     if not p.is_file():
         raise Stop('rapport_absent_ou_expire')
-    report = json.loads(p.read_text())
+    report = json.loads(p.read_text(encoding='utf-8'))      # 5.6.2 : rapports écrits en UTF-8, relus en UTF-8 quel que soit le système
     account = digest(c['mail']['username']+'@'+c['mail']['host'])
     if report.get('account_key') not in (None, account):
         raise Stop('rapport_autre_compte')
@@ -471,7 +471,7 @@ class Desk:
         save_matter(self.c,matter)
         feedback_path=Path(self.c['state_dir'])/'match-feedback.json'
         if feedback_path.exists():
-            try:blocked=json.loads(feedback_path.read_text())
+            try:blocked=json.loads(feedback_path.read_text(encoding='utf-8'))
             except (ValueError,OSError):blocked=[]
             kept=[x for x in blocked if (x.get('sender'),x.get('matter'))!=(email,matter['id'])]
             if kept!=blocked:private_json(feedback_path,kept)

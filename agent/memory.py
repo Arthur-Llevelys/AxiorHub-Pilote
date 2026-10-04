@@ -129,7 +129,7 @@ class SentMemory:
         # Reports are local and contain the exact validated proposal and source MID.
         for path in (Path(self.c['state_dir'])/'reports').glob('*.json'):
             try:
-                r = json.loads(path.read_text())
+                r = json.loads(path.read_text(encoding='utf-8'))
                 if r.get('status')=='drafted' and r.get('account_key')==self.account() and r.get('incoming_message_id') and r.get('draft_body'):
                     found.append(r)
             except (ValueError, OSError):

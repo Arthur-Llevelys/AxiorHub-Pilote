@@ -26,6 +26,34 @@ def _reason(code, reasons):
     return reasons.get(str(code),str(code or 'Erreur sans motif exploitable.'))
 
 
+PERMISSION_REASONS={'fichier_absent':'fichier absent',
+  'type_ou_permissions_inadaptees':'droits trop ouverts ou type inattendu (conseillé : sudo chmod 600, propriétaire root, groupe du service)',
+  'permission_stat_refusee':'le service ne peut pas lire les droits de ce fichier'}
+
+
+def _detail(desk, key, current, reasons):
+    """5.6.2 : ce qui est en cause sous une carte en incident (chemins et motifs, jamais le contenu des fichiers)."""
+    items=[]
+    if key=='permissions':
+        for f in (current.get('files') or []):
+            if f.get('status') not in ('verified','optional'):
+                items.append('<code>'+e(f.get('path',''))+'</code> — '+e(PERMISSION_REASONS.get(f.get('reason'),f.get('reason') or ''))+
+                             (' (droits '+e(f['mode'])+')' if f.get('mode') else ''))
+    elif key=='nextcloud_outputs':
+        evidence=current.get('evidence') or {}
+        for code in (evidence.get('errors') or [])[:5]:
+            items.append('Erreur Nextcloud : '+e(_reason(code,reasons)))
+        try:
+            rows=desk.db.execute("SELECT target_path,status FROM reliability_verifications_v393 WHERE target_kind='nextcloud_file' "
+                                 "AND status IN ('missing','error') ORDER BY checked DESC LIMIT 8").fetchall()
+        except Exception:
+            rows=[]
+        for r in rows:
+            items.append('<code>'+e(r['target_path'])+'</code> — '+('absent de Nextcloud (déplacé, renommé ou supprimé)' if r['status']=='missing' else 'dossier illisible'))
+    if not items:return ''
+    return '<details class="rel-detail"><summary>Voir le détail</summary><ul>'+''.join('<li>'+x+'</li>' for x in items[:10])+'</ul></details>'
+
+
 def page(desk, args, form, link, reasons, job_labels):
     info=status_snapshot(desk);jobs=info['jobs'];checks={x['check_key']:x for x in info['checks']}
     cards=[]
@@ -37,7 +65,8 @@ def page(desk, args, form, link, reasons, job_labels):
       ('openrouter','OpenRouter',checks.get('openrouter'))):
         if current:
             cards.append('<article class="rel-card">'+_badge(current.get('status','unknown'))+
-              '<h3>'+e(label)+'</h3><p>'+e(current.get('summary',''))+'</p><small>Contrôlé : '+
+              '<h3>'+e(label)+'</h3><p>'+e(current.get('summary',''))+'</p>'+
+              (_detail(desk,key,current,reasons) if current.get('status') not in ('verified',) else '')+'<small>Contrôlé : '+
               _stamp(current.get('checked_at') or current.get('checked'))+'</small></article>')
         else:
             cards.append('<article class="rel-card">'+_badge('unknown')+'<h3>'+e(label)+

@@ -135,7 +135,7 @@ class HTTP:
 
 
 def load_config(path):
-    c = json.loads(Path(path).read_text())
+    c = json.loads(Path(path).read_text(encoding='utf-8'))
     if c.get('mode') not in ('observe', 'drafts'):
         raise Stop('mode_invalide')
     if not c.get('mail', {}).get('own_addresses'):
@@ -202,14 +202,14 @@ def matter_display(matter):
 
 
 def load_matters(c):
-    rows = json.loads(Path(c['matters_file']).read_text())
+    rows = json.loads(Path(c['matters_file']).read_text(encoding='utf-8'))
     if not isinstance(rows, list):
         raise Stop('registre_dossiers_invalide')
     # Browser-approved changes are separate from the administrator's original file.
     overlay = Path(c['state_dir']) / 'registry-web.json'
     if overlay.exists():
         merged = {r['id']: r for r in rows}
-        for row in json.loads(overlay.read_text()):
+        for row in json.loads(overlay.read_text(encoding='utf-8')):
             merged[row['id']] = row
         rows = list(merged.values())
     ids = set()

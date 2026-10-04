@@ -99,6 +99,9 @@ def guess(desk, text):
     text = str(text or '')[:4000]
     if len(text.strip()) < 3:
         return {'matter': '', 'label': '', 'how': 'en attente', 'candidates': []}
+    from . import maildigest562
+    if maildigest562.detect(text, datetime.now(tz(desk)).date()):
+        return {'matter': '', 'label': '', 'how': 'question sur les courriels reçus : tout le cabinet', 'candidates': []}
     matter, candidates = find_matter(desk, text)
     if matter:
         return {'matter': matter['id'], 'label': matter_display(matter), 'how': 'deviné par l’agent', 'candidates': []}
@@ -124,6 +127,16 @@ def ask(desk, data):
     matters = _matters(desk)
     if chosen and chosen not in matters:
         raise Stop('dossier_absent')
+    if str(data.get('mode') or '') != 'document' and not files:
+        from . import maildigest562
+        digest = maildigest562.answer(desk, text, matter=chosen)
+        if digest is not None:
+            now = desk.now()
+            desk.db.execute('INSERT INTO cockpit530_messages(role,text,matter,ref,created) VALUES(?,?,?,?,?)', ('user', text, chosen, '', now))
+            desk.db.execute('INSERT INTO cockpit530_messages(role,text,matter,ref,created) VALUES(?,?,?,?,?)', ('agent', digest, chosen, '', now))
+            desk.db.commit()
+            desk.audit('cockpit530_instruction', {'matter': chosen, 'kind': 'resume_courriels', 'attachments': 0})
+            return {'message': 'Résumé des courriels prêt.', 'matter': chosen, 'ref': ''}
     g = guess(desk, text)
     mid = chosen or g['matter']
     label = matter_display(matters[mid]) if mid else ''

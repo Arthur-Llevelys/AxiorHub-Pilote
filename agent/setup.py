@@ -230,7 +230,7 @@ def save_admin(path, data):
 
 def discover(c):
     dav = DAV(c['nextcloud'])
-    rows = json.loads(Path(c['matters_file']).read_text())
+    rows = json.loads(Path(c['matters_file']).read_text(encoding='utf-8'))
     existing = {r['path'] for r in rows}
     count = 0
     for root in c['nextcloud']['roots']:
@@ -246,7 +246,7 @@ def discover(c):
 
 
 def link(c):
-    rows = json.loads(Path(c['matters_file']).read_text())
+    rows = json.loads(Path(c['matters_file']).read_text(encoding='utf-8'))
     term = ask('Nom ou référence du dossier à rechercher').lower()
     selected = [r for r in rows if term in (r['client_name']+' '+r['id']+' '+r['path']).lower()]
     if not selected:

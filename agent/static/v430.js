@@ -24,7 +24,14 @@
     const button=form.querySelector('button[type="submit"],button:not([type])');
     let state=form.querySelector('.live-receipt');
     if(!state){state=document.createElement('span');state.className='live-receipt';state.setAttribute('role','status');form.append(state);}
-    if(!job){if(button){button.textContent='Enregistré ✓';button.disabled=true;}state.textContent='Modification enregistrée.';return;}
+    // 5.6.2 : action immédiate (sans travail en file) : « Fait ✓ » puis bouton rétabli ; page rechargée pour afficher le nouveau résultat.
+    if(!job){
+      if(button){const orig=button.dataset.origLabel||button.textContent;button.dataset.origLabel=orig;button.textContent='Fait ✓';button.disabled=true;
+        setTimeout(()=>{if(button.isConnected){button.textContent=orig;button.disabled=false;}},3000);}
+      state.textContent='Action effectuée.';
+      if(form.querySelector('[name="back"]'))setTimeout(()=>window.location.reload(),900);
+      return;
+    }
     const active=['pending','running','cancel_requested'].includes(job.status);
     const action=form.querySelector('[name="action"]')?.value;
     if(button){button.disabled=active||job.status==='done'||job.status==='cancelled';

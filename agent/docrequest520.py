@@ -146,6 +146,13 @@ def _set(desk, rid, status, path='', result=None, matter=None):
 
 
 # ---------------------------------------------------------------------------------------- dossier
+# 5.6.2 : mots trop courants dans les noms de dossiers (et dans les demandes) pour désigner un dossier.
+GENERIC_WORDS = {'mail', 'mails', 'email', 'emails', 'courriel', 'courriels', 'message', 'messages', 'piece', 'pieces', 'dossier', 'dossiers',
+                 'procedure', 'correspondance', 'correspondances', 'projet', 'projets', 'livrable', 'livrables', 'administratif', 'administratifs',
+                 'assistance', 'conseil', 'contentieux', 'divers', 'document', 'documents', 'facture', 'factures', 'note', 'notes', 'client',
+                 'clients', 'cabinet', 'archive', 'archives', 'modele', 'modeles', 'courrier', 'courriers', 'audience', 'audiences'}
+
+
 def find_matter(desk, text):
     """(dossier, candidats) d'après la demande : nom de dossier, client, alias, références ou numéro."""
     f = ' ' + re.sub(r'[^a-z0-9]+', ' ', fold(text)) + ' '
@@ -161,12 +168,13 @@ def find_matter(desk, text):
             t = re.sub(r'[^a-z0-9]+', ' ', fold(str(term))).strip()
             if len(t) >= 3 and ' ' + t + ' ' in f:
                 score += 40 + min(len(t), 30)
-        words = [w for w in folder.split() if len(w) >= 4 and not w.isdigit()]
+        words = [w for w in folder.split() if len(w) >= 4 and not w.isdigit() and w not in GENERIC_WORDS]
         score += 8 * sum(1 for w in set(words) if ' ' + w + ' ' in f)
         if score:
             scored.append((score, m))
     scored.sort(key=lambda x: -x[0])
-    if scored and (len(scored) == 1 or scored[0][0] >= scored[1][0] + 25):
+    # 5.6.2 : un seul mot du nom de dossier ne suffit plus à choisir le dossier d'office (il reste proposé comme candidat).
+    if scored and scored[0][0] >= 16 and (len(scored) == 1 or scored[0][0] >= scored[1][0] + 25):
         return scored[0][1], []
     return None, [m for _, m in scored[:6]]
 

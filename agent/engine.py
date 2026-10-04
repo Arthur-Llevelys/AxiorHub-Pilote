@@ -69,7 +69,7 @@ class Engine:
                 if box.find_own_draft(draft_mid):
                     previous = self.state.directory / 'reports' / (key + '.json')
                     if previous.is_file():
-                        saved_report = json.loads(previous.read_text())
+                        saved_report = json.loads(previous.read_text(encoding='utf-8'))
                         headers=saved_report.get('draft_expected_headers')
                         if not headers:raise Stop('brouillon_attendu_a_controler')
                         from email.message import EmailMessage
@@ -170,7 +170,7 @@ class Engine:
             rejected_path=Path(cfg['state_dir'])/'match-feedback.json'
             if rejected_path.exists():
                 try:
-                    for item in json.loads(rejected_path.read_text()):
+                    for item in json.loads(rejected_path.read_text(encoding='utf-8')):
                         if item.get('sender')==mail.sender and item.get('matter'):
                             matching_evidence.setdefault(item['matter'],[]).append(
                                 {'signal':'association_rejetee','weight':-100,'value':mail.sender})
