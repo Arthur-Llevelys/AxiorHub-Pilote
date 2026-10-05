@@ -86,7 +86,7 @@ class Reliability393(unittest.TestCase):
         class Missing(Dav):
             def list_folder(self,parent):return []
         with patch('agent.reliability393.DAV',Missing):report=verify_nextcloud_outputs(self.d)
-        self.assertEqual(report['status'],'error')
+        self.assertEqual(report['status'],'warning')     # 5.6.6 : fichier supprimé ou déplacé = à vérifier, pas un incident
 
     def test_service_green_is_read_from_systemd(self):
         class Result:
@@ -109,7 +109,7 @@ class Reliability393(unittest.TestCase):
 
     def test_api_exposes_status_retry_and_version(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.5')
+        self.assertEqual(spec['info']['version'],'5.6.6')
         for path in ('/system/status','/system/checks/run','/system/openrouter-test','/jobs/{job_id}/retry'):
             self.assertIn(path,spec['paths'])
         status=dispatch(self.d,'/system/status','GET')
@@ -123,7 +123,7 @@ class Browser393(unittest.TestCase):
     def test_single_system_status_page_has_controls_and_green_policy(self):
         body=self.request('/etat-systeme')['body']
         for value in ('État du système','Contrôler maintenant','Tester OpenRouter sans donnée de dossier',
-                      'Traitements récents','Preuves de destination','app520.css','Version 5.6.5'):
+                      'Traitements récents','Preuves de destination','app520.css','Version 5.6.6'):
             self.assertIn(value,body)
 
 

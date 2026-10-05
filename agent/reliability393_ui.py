@@ -41,15 +41,15 @@ def _detail(desk, key, current, reasons):
                              (' (droits '+e(f['mode'])+')' if f.get('mode') else ''))
     elif key=='nextcloud_outputs':
         evidence=current.get('evidence') or {}
-        for code in (evidence.get('errors') or [])[:5]:
+        for code in sorted(set(evidence.get('errors') or []))[:5]:
             items.append('Erreur Nextcloud : '+e(_reason(code,reasons)))
         try:
-            rows=desk.db.execute("SELECT target_path,status FROM reliability_verifications_v393 WHERE target_kind='nextcloud_file' "
-                                 "AND status IN ('missing','error') ORDER BY checked DESC LIMIT 8").fetchall()
+            rows=desk.db.execute("SELECT target_path,MIN(status) AS status FROM reliability_verifications_v393 WHERE target_kind='nextcloud_file' "
+                                 "AND status IN ('missing','error') GROUP BY target_path ORDER BY MAX(checked) DESC LIMIT 8").fetchall()
         except Exception:
             rows=[]
         for r in rows:
-            items.append('<code>'+e(r['target_path'])+'</code> — '+('absent de Nextcloud (déplacé, renommé ou supprimé)' if r['status']=='missing' else 'dossier illisible'))
+            items.append('<code>'+e(r['target_path'])+'</code> — '+('absent de Nextcloud (déplacé, renommé ou supprimé)' if r['status']=='missing' else 'lecture Nextcloud impossible'))
     if not items:return ''
     return '<details class="rel-detail"><summary>Voir le détail</summary><ul>'+''.join('<li>'+x+'</li>' for x in items[:10])+'</ul></details>'
 

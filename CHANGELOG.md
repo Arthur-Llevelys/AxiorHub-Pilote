@@ -3,6 +3,17 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.6 — État du système fiable
+
+- **Page rechargée toutes les deux secondes** : un bouton déjà utilisé une fois (par ex. « Contrôler maintenant ») retrouvait son
+  ancienne demande à chaque mise à jour du flux d'activité et rechargeait la page sans fin. Seul l'envoi que l'avocat vient de faire
+  recharge désormais la page, une fois.
+- **Invoice Ninja désactivé** : son jeton absent n'est plus signalé.
+- **Ollama lancé hors de `ollama.service`** (Docker, autre unité) : plus d'alerte « inactive » si l'API Ollama répond ; un Ollama
+  réellement arrêté reste signalé.
+- **Fichiers Nextcloud** : un brouillon dont le dossier a été supprimé ou déplacé est « absent » (carte à vérifier), et non plus
+  « dossier illisible » avec une « Erreur Nextcloud » ; chaque fichier n'apparaît qu'une fois dans le détail.
+
 ## 5.6.5 — File fluide et relecture plus claire
 
 - **La file ne bloque plus vos demandes** : les travaux automatiques (surveillance, indexation, recherche de faits…) ont leur propre

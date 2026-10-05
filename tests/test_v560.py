@@ -273,7 +273,7 @@ class Identity(t510.Base):
         self.assertIn('AGPL', about)
         home = self.request('/')['body']
         self.assertIn('AxiorHub Pilote — créé par Timo RAINIO', home)
-        self.assertIn('Version 5.6.5', home)
+        self.assertIn('Version 5.6.6', home)
         with patch.dict(os.environ, {'AXIORHUB_SOURCE_URL': 'https://git.example.test/axiorhub'}):
             self.assertIn('href="https://git.example.test/axiorhub"', self.request('/a-propos')['body'])
 
@@ -401,8 +401,8 @@ class Paths(unittest.TestCase):
     def test_version(self):
         import upgrade
         from agent import __version__
-        self.assertEqual(__version__, '5.6.5')
-        self.assertEqual(upgrade.VERSION, '5.6.5')
+        self.assertEqual(__version__, '5.6.6')
+        self.assertEqual(upgrade.VERSION, '5.6.6')
         self.assertIn('5.5.0', upgrade.SUPPORTED_PREVIOUS)
 
 

@@ -9,7 +9,7 @@
       "type": "application",
       "bom-ref": "pkg:generic/axiorhub@5.0.0",
       "name": "AxiorHub",
-      "version": "5.6.5",
+      "version": "5.6.6",
       "licenses": [
         {
           "license": {

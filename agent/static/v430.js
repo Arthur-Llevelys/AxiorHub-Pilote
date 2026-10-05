@@ -19,7 +19,9 @@
   }
   toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden));refreshPanel();});
   document.querySelector('#ws-live-close')?.addEventListener('click',()=>{panel.hidden=true;toggle.setAttribute('aria-expanded','false');});
-  function receipt(form,job,target){
+  // 5.6.6 : « fresh » = réponse à l'envoi que l'avocat vient de faire. Seul ce cas recharge la page ; avant, chaque mise à jour du flux
+  // retrouvait l'ancienne demande d'un bouton (même empreinte) et rechargeait la page toutes les deux secondes, sans fin.
+  function receipt(form,job,target,fresh){
     if(!form||!form.isConnected)return;
     const button=form.querySelector('button[type="submit"],button:not([type])');
     let state=form.querySelector('.live-receipt');
@@ -29,7 +31,7 @@
       if(button){const orig=button.dataset.origLabel||button.textContent;button.dataset.origLabel=orig;button.textContent='Fait ✓';button.disabled=true;
         setTimeout(()=>{if(button.isConnected){button.textContent=orig;button.disabled=false;}},3000);}
       state.textContent='Action effectuée.';
-      if(form.querySelector('[name="back"]'))setTimeout(()=>window.location.reload(),900);
+      if(fresh===true&&form.querySelector('[name="back"]'))setTimeout(()=>window.location.reload(),900);
       return;
     }
     const active=['pending','running','cancel_requested'].includes(job.status);
@@ -87,11 +89,16 @@
       const seen=new Set();
       for(const item of data.requests){
         if(seen.has(item.fingerprint))continue;seen.add(item.fingerprint);
+        const job=byId.get(item.job_id);if(!job)continue;          // demande ancienne ou action immédiate déjà affichée : rien à rejouer
         document.querySelectorAll('form[data-live-key="'+item.fingerprint+'"]').forEach(form=>{
-          receipt(form,byId.get(item.job_id),prefix+item.target);tracked.set(form,item);
+          receipt(form,job,prefix+item.target);tracked.set(form,item);
         });
       }
-      for(const [form,item] of tracked){if(!form.isConnected){tracked.delete(form);continue;}receipt(form,byId.get(item.job_id),prefix+item.target);}
+      for(const [form,item] of tracked){
+        const job=byId.get(item.job_id);
+        if(!form.isConnected||!job){tracked.delete(form);continue;}
+        receipt(form,job,prefix+item.target);
+      }
       refreshPanel();
     }catch(_error){summary.textContent='Connexion interrompue · reconnexion automatique';}
     finally{queued=false;}
@@ -127,7 +134,7 @@
   document.body.addEventListener('live-action',event=>{
     const form=event.target.closest('form'), data=event.detail;
     if(form){form.dataset.liveKey=data.fingerprint;tracked.set(form,{job_id:data.job_id,target:data.url.startsWith(prefix)?data.url.slice(prefix.length):data.url});
-      receipt(form,data.job_id?{status:'pending',label:'Demande enregistrée',id:data.job_id}:null,data.url);}
+      receipt(form,data.job_id?{status:'pending',label:'Demande enregistrée',id:data.job_id}:null,data.url,true);}
     snapshot();refreshBoard();
   });
   document.body.addEventListener('htmx:afterRequest',event=>{
