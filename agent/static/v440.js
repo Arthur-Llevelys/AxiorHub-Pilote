@@ -61,6 +61,12 @@
       row.classList.add('on');
       openDraft(row.getAttribute('data-uid'));
     });
+    // 5.6.5 : « Ouvrir dans Courriels à relire » ouvre directement le brouillon demandé (?uid=…)
+    var wanted = new URLSearchParams(location.search).get('uid');
+    if (wanted && /^\d{1,12}$/.test(wanted)) {
+      var target = document.querySelector('.ax-row[data-uid="' + wanted + '"]');
+      if (target) target.click();
+    }
 
     function dirty() {
       if (!current) return false;

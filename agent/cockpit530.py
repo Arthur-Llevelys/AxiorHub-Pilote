@@ -170,8 +170,15 @@ def _follow_up(desk, prefix, ref):
         res = json.loads(row['result'] or '{}')
         if row['status'] == 'cree':
             name = PurePosixPath(row['path']).name
-            return ('Document « %s » prêt : il vous attend dans « À relire ». <a href="%s">Modifier</a>' % (
-                e(name), e(prefix + '/documents/edit?' + urlencode({'path': row['path'], 'matter': row['matter']})))), False
+            # 5.6.5 : où le document a été enregistré (dossier › sous-dossier) et modification directe dans Nextcloud.
+            root = (_matters(desk).get(row['matter']) or {}).get('path', '')
+            rel = row['path'][len(root):].lstrip('/') if root and row['path'].startswith(root) else row['path']
+            folder = str(PurePosixPath(rel).parent)
+            where = _labels(desk).get(row['matter'], '') + ((' › ' + folder.replace('/', ' › ')) if folder not in ('', '.') else '')
+            return ('Document « %s » prêt : il vous attend dans « À relire ». Enregistré dans %s. <button type="button" class="ax-btn ghost c530-small" data-open-path="%s" '
+                    'data-open-matter="%s">Modifier le document</button> <a href="%s">Éditeur AxiorHub</a>' % (
+                e(name), e(where or 'le dossier'), e(row['path'], quote=True), e(row['matter'], quote=True),
+                e(prefix + '/documents/edit?' + urlencode({'path': row['path'], 'matter': row['matter']})))), False
         if row['status'] == 'dossier_a_choisir':
             cands = ', '.join(c['label'] for c in res.get('candidates', [])[:4])
             return e('Je n’ai pas trouvé le dossier avec certitude%s. Précisez-le avec « Corriger » puis renvoyez la demande.' % (
@@ -424,10 +431,18 @@ def item_html(desk, prefix, item):
         d = drafts440.get_draft(desk.c['mail'], uid, validity)
         body = d['body']
         meta = '<p class="c530-meta">À : %s</p>' % e(d['to'])
-        if d.get('source'):
-            sources.append('Courriel de %s : « %s »' % (d['source']['sender'], d['source']['subject']))
-        revise = bool(d.get('source') and d['source'].get('key'))
-        actions = ('<a class="ax-btn ghost" href="%s">Ouvrir dans Courriels à relire</a>' % e(prefix + '/courriels') +
+        src = d.get('source') or {}
+        if src:
+            sources.append('Courriel de %s : « %s »' % (src['sender'], src['subject']))
+            # 5.6.5 : le courriel d'origine est visible ici et s'ouvre dans la messagerie.
+            meta += ('<details class="c565-origin" open><summary>Courriel d’origine : %s — %s</summary><p class="c530-meta">« %s »</p>'
+                     '<pre class="c565-excerpt">%s</pre>%s</details>') % (
+                e(src.get('sender', '')), e(_local(desk, src.get('date', ''), '%d/%m %H:%M')), e(src.get('subject', '')),
+                e(str(src.get('text', ''))[:1500] + ('…' if len(str(src.get('text', ''))) > 1500 else '')),
+                _mail_link(desk, src.get('mailbox', ''), src.get('uid', ''), 'show', 'Ouvrir le courriel d’origine dans la messagerie'))
+        revise = bool(src.get('key'))
+        actions = ('<a class="ax-btn ghost" href="%s">Ouvrir dans Courriels à relire</a>' % e(prefix + '/courriels?' + urlencode({'uid': d.get('uid', uid)})) +
+                   _mail_link(desk, desk.c['mail'].get('drafts', 'Drafts'), d.get('uid', uid), 'edit', 'Brouillon dans la messagerie') +
                    '<button type="button" class="ax-btn" data-act="relu">Marquer comme relu</button>')
         hidden = '<input type="hidden" name="key" value="%s">' % e(d['source']['key'], quote=True) if revise else ''
     else:
@@ -448,9 +463,16 @@ def item_html(desk, prefix, item):
             url = client.file_web_url(x['path'])
         except Exception:
             pass
-        actions = ('<a class="ax-btn ghost" href="%s">Modifier dans l’éditeur</a>' % e(prefix + '/documents/edit?' + urlencode({'path': x['path'], 'matter': x['matter']})) +
-                   ((' <a class="ax-btn ghost" target="_blank" rel="noopener noreferrer" href="%s">Nextcloud</a>' % e(url, quote=True)) if url.startswith('https://') else '') +
-                   '<button type="button" class="ax-btn" data-act="valide">Valider le projet</button>')
+        # 5.6.5 : emplacement exact du document et modification directe (Nextcloud / OnlyOffice en premier).
+        folder = str(PurePosixPath(x['dest']).parent) if '/' in x['dest'] else ''
+        meta = ('<p class="c565-where"><strong>Emplacement :</strong> %s%s › <strong>%s</strong></p>' % (
+            e(x['matter_label'] or 'dossier non identifié'), (' › ' + e(folder.replace('/', ' › '))) if folder and folder != '.' else '',
+            e(PurePosixPath(x['path']).name)))
+        actions = (('<a class="ax-btn" target="_blank" rel="noopener noreferrer" href="%s">Modifier le document</a>' % e(url, quote=True)) if url.startswith('https://') else
+                   '<button type="button" class="ax-btn" data-open-path="%s" data-open-matter="%s">Modifier le document</button>' % (
+                       e(x['path'], quote=True), e(x['matter'], quote=True))) + (
+                   '<a class="ax-btn ghost" href="%s">Éditeur AxiorHub</a>' % e(prefix + '/documents/edit?' + urlencode({'path': x['path'], 'matter': x['matter']}))) + (
+                   '<button type="button" class="ax-btn ghost" data-act="valide">Valider le projet</button>')
         revise, hidden = True, ''
     revise_html = ('<div class="c530-revise">%s<label class="c530-sr" for="c530-rev">Faire modifier par l’IA</label><input id="c530-rev" name="instruction" maxlength="2000" '
                    'placeholder="Faire modifier par l’IA : ex. ton plus ferme, ajouter la date d’audience"><button type="button" class="ax-btn ghost" data-act="revise">'
@@ -462,6 +484,21 @@ def item_html(desk, prefix, item):
         e(body[:15000] + ('\n…' if len(body) > 15000 else '')),
         ('<h3>Sources</h3><ul>%s</ul>' % ''.join('<li>%s</li>' % e(s) for s in sources)) if sources else '',
         e(item, quote=True), revise_html, actions)
+
+
+def _mail_link(desk, mailbox, uid, action, label):
+    """Lien Roundcube vers un message précis (lecture du courriel d'origine ou édition du brouillon) ; rien si le webmail n'est pas configuré."""
+    from urllib.parse import quote
+    try:
+        from .workstation import external_links
+        base = external_links(desk).get('roundcube') or ''
+    except Exception:
+        base = ''
+    uid = re.sub(r'\D', '', str(uid or ''))[:12]
+    if not base.startswith('https://') or not uid or not mailbox:
+        return ''
+    url = '%s?_task=mail&_mbox=%s&_uid=%s&_action=%s' % (base.split('?', 1)[0], quote(str(mailbox), safe=''), uid, action)
+    return '<a class="ax-btn ghost" target="_blank" rel="noopener noreferrer" href="%s">%s</a>' % (e(url, quote=True), e(label))
 
 
 def review(desk, data):

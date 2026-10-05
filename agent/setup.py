@@ -265,7 +265,8 @@ def link(c):
     email = ask('Adresse exacte du correspondant').lower()
     if not re.fullmatch(r'[^\s@]+@[^\s@]+',email): raise Stop('adresse_invalide')
     role = ask('Rôle : client, confrere_adverse, tiers ou prospect','client')
-    if role not in ('client','confrere_adverse','tiers','prospect'): raise Stop('role_invalide')
+    from .common import VALID_ROLES
+    if role not in VALID_ROLES: raise Stop('role_invalide')
     m['correspondents'] = [p for p in m['correspondents'] if p['email']!=email] + [{'email':email,'role':role}]
     refs = split(ask('Références figurant dans les objets des mails, séparées par virgules'))
     m['references'] = list(dict.fromkeys(m.get('references',[])+refs))

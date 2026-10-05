@@ -220,9 +220,13 @@ def load_matters(c):
         if not any(under(r['path'], p) for p in c['nextcloud']['roots']):
             raise Stop('dossier_hors_racines')
         for person in r.get('correspondents', []):
-            if person.get('role') not in ('client', 'confrere_adverse', 'tiers', 'prospect'):
+            if person.get('role') not in VALID_ROLES:
                 raise Stop('role_correspondant_invalide')
     return rows
+
+
+VALID_ROLES = ('client', 'confrere_adverse', 'tiers', 'prospect', 'juridiction', 'expert', 'administration', 'commissaire_justice',
+               'autre_partie', 'personnel')
 
 
 def matter_scope_conflicts(matters):

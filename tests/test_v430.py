@@ -138,7 +138,7 @@ class Live430Tests(unittest.TestCase):
         class Dav:
             def inventory_step(self,*args):return ({'files':{'/Dossiers/DEMO/a.pdf':{'etag':'v1'}}},True)
         with patch.object(self.d,'enqueue',side_effect=Stop('file_attente_pleine')):
-            with self.assertRaises(Stop):documents_check(self.d,Dav())
+            documents_check(self.d,Dav())             # 5.6.5 : file pleine = analyse reportée, pas d'échec de la surveillance
         self.assertEqual(self.d.db.execute('SELECT COUNT(*) FROM live_dirty_v430').fetchone()[0],1)
         self.assertEqual(documents_check(self.d,Dav())['changed'],1)
         self.assertEqual(self.d.db.execute('SELECT COUNT(*) FROM live_dirty_v430').fetchone()[0],0)

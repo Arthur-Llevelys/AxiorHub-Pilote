@@ -20,8 +20,15 @@ from .mailbox import Mailbox, addresses, exclusion
 from .state import State
 from . import trace480
 
+# 5.6.5 : juridictions, experts, administrations, commissaires de justice, autres parties et contacts personnels.
 ROLES = {'client': 'Client', 'confrere_adverse': 'Conseil adverse',
-         'tiers': 'Tiers / confrère partenaire', 'prospect': 'Prospect'}
+         'tiers': 'Tiers / confrère partenaire', 'prospect': 'Prospect',
+         'juridiction': 'Juridiction / greffe', 'expert': 'Expert judiciaire ou amiable',
+         'administration': 'Administration / organisme public', 'commissaire_justice': 'Commissaire de justice (huissier)',
+         'autre_partie': 'Autre partie (assureur, caution, mandataire…)', 'personnel': 'Contact personnel (hors dossier)'}
+# Destinataires à qui rien d'issu du dossier n'est communiqué sans validation de l'avocat (seuls les rendez-vous restent automatiques).
+THIRD_PARTY_ROLES = frozenset(('confrere_adverse', 'tiers', 'juridiction', 'expert', 'administration', 'commissaire_justice',
+                               'autre_partie', 'personnel'))
 JOBS = {'sync', 'approve', 'reject', 'associate', 'remove_contact', 'retry',
         'retry_matter', 'index', 'review', 'forget', 'run', 'learn',
         'discover', 'browse', 'register_matter', 'chat', 'forget_chat', 'index_all',
@@ -115,6 +122,12 @@ NORMAL_JOBS |= {'set_learning_rule392'}
 NORMAL_JOBS |= {'verify_deliverable420','snapshot_metrics420'}
 NORMAL_JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460'}
 NORMAL_JOBS |= {'search_index490'}
+
+
+AUTOMATIC_PRIORITY=30      # en deçà : demande de l'avocat ; au-delà : travail automatique (surveillance, indexation…)
+AUTOMATIC_LIMIT=60         # travaux automatiques en attente, tous types confondus
+AUTOMATIC_PER_KIND=8       # par type (ex. indexation) : au-delà, la surveillance repassera au cycle suivant
+USER_LIMIT=500             # garde-fou absolu pour les demandes
 
 
 def job_priority(kind):
@@ -293,7 +306,12 @@ class Desk:
 
     def now(self):return now()
 
-    def enqueue(self, kind, args=None, priority=None):
+    def _then(self, kind, args=None, priority=None):
+        """5.6.5 : suite d'un travail qui vient de se terminer (lot suivant, étape suivante). Elle remplace le travail fini et ne
+        grossit donc pas la file : le plafond des travaux automatiques ne s'applique pas, seul le garde-fou absolu demeure."""
+        return self.enqueue(kind, args, priority, chained=True)
+
+    def enqueue(self, kind, args=None, priority=None, chained=False):
         if kind not in JOBS:
             raise Stop('action_inconnue')
         if args and args.get('matter'):
@@ -311,10 +329,18 @@ class Desk:
         if old:
             self.db.commit()
             return old[0]
-        if self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]>=100:
+        priority=job_priority(kind) if priority is None else max(0,min(int(priority),100))
+        # 5.6.5 : les travaux automatiques (priorité 30 et plus) ont leur propre plafond ; ils ne peuvent plus remplir la file au point de
+        # refuser une demande de l'avocat (avant : 100 travaux en attente, quels qu'ils soient, et plus rien n'entrait).
+        if priority>=AUTOMATIC_PRIORITY and not chained:
+            automatic=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending' AND priority>=?",(AUTOMATIC_PRIORITY,)).fetchone()[0]
+            same=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending' AND kind=? AND priority>=?",(kind,AUTOMATIC_PRIORITY)).fetchone()[0]
+            if automatic>=AUTOMATIC_LIMIT or same>=AUTOMATIC_PER_KIND:
+                self.db.rollback()
+                raise Stop('file_attente_pleine')
+        elif self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]>=USER_LIMIT:
             self.db.rollback()
             raise Stop('file_attente_pleine')
-        priority=job_priority(kind) if priority is None else max(0,min(int(priority),100))
         cur = self.db.execute('''INSERT INTO jobs
             (kind,args,status,created,finished,result,priority) VALUES (?,?,?, ?,NULL,NULL,?)''',
             (kind,raw,'pending',now(),priority))
@@ -691,7 +717,8 @@ class Desk:
             remaining=[m for m in cases if m['id']>args.get('after','')]
             pending=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]
             selected=remaining[:max(0,min(10,98-pending))]
-            for m in selected:self.enqueue('index',{'matter':m['id']})
+            if remaining and not selected:raise Stop('file_attente_pleine')     # 5.6.5 : pas de relance en boucle
+            for m in selected:self.enqueue('index',{'matter':m['id']},chained=True)   # demande explicite : lot borné à 10
             return {'dossiers_mis_en_attente':len(selected),
                     'suite':len(remaining)>len(selected),
                     'after':selected[-1]['id'] if selected else args.get('after','')}
@@ -922,53 +949,53 @@ class Desk:
         emit(self,'produced' if outcome and outcome['status']=='verified' and row['kind'] not in ('run','live_mail430') else status,message,row['id'])
         self.active_job_id=None;trace480.end();secours564.end()
         if status=='done' and row['kind']=='live_documents430' and result.get('continue_scan'):
-            self.enqueue('live_documents430',priority=70)
+            self._then('live_documents430',priority=70)
         if status=='done' and result.get('messages_remis_en_attente',0):
-            self.enqueue('run')
+            self._then('run')
         if status=='done' and row['kind']=='index' and result.get('en_attente',0):
             # Continue in bounded batches, allowing other queued jobs between lots.
-            self.enqueue('index',json.loads(row['args']))
+            self._then('index',json.loads(row['args']))
         if status=='done' and row['kind']=='index' and result.get('contenu_modifie') and not result.get('en_attente'):
-            self.enqueue('refresh_brief',json.loads(row['args']))
+            self._then('refresh_brief',json.loads(row['args']))
         if status=='done' and row['kind']=='refresh_brief':
-            self.enqueue('sync_legal_memory',json.loads(row['args']))
+            self._then('sync_legal_memory',json.loads(row['args']))
         autonomy_active=self.settings('automation:autonomy_enabled',
           self.c.get('autonomy',{}).get('enabled',False))
         orchestrator_active=self.settings('automation:orchestrator_enabled',
           self.c.get('orchestrator',{}).get('enabled',False))
         if orchestrator_active and status=='done' and row['kind'] in ('run','sync','live_mail430'):
-            self.enqueue('orchestrator_mail_sweep',priority=40)
+            self._then('orchestrator_mail_sweep',priority=40)
         elif autonomy_active and status=='done' and row['kind'] in ('run','sync','live_mail430'):
-            self.enqueue('autonomy_mail_sweep',priority=40)
+            self._then('autonomy_mail_sweep',priority=40)
         if autonomy_active and status=='done' and row['kind']=='prepare_document_project':
             parameters=json.loads(row['args'])
             if parameters.get('automatic')=='yes':
                 from .autonomy import record_automatic_project
                 record_automatic_project(self,parameters,result)
             if result.get('matter',{}).get('id'):
-                self.enqueue('refresh_operational_memory',{'matter':result['matter']['id']},priority=55)
+                self._then('refresh_operational_memory',{'matter':result['matter']['id']},priority=55)
         if autonomy_active and status=='done' and row['kind'] in ('index','refresh_brief','sync_legal_memory'):
             parameters=json.loads(row['args'])
             if parameters.get('matter'):
-                self.enqueue('refresh_operational_memory',{'matter':parameters['matter']},priority=55)
+                self._then('refresh_operational_memory',{'matter':parameters['matter']},priority=55)
         if (status=='done' and row['kind']=='index' and
             result.get('embeddings',{}).get('pending',0) and
             not result.get('embeddings',{}).get('error')):
-            self.enqueue('index',json.loads(row['args']))
+            self._then('index',json.loads(row['args']))
         if status=='done' and row['kind'] in ('sync','discover') and result.get('parcours_partiel'):
-            self.enqueue('discover')
+            self._then('discover')
         if status=='done' and row['kind']=='index_all' and result.get('suite'):
-            self.enqueue('index_all',{'after':result['after']})
+            self._then('index_all',{'after':result['after']})
         if status=='done' and row['kind']=='memory_all' and result.get('suite'):
-            self.enqueue('memory_all',{'after':result['after']})
+            self._then('memory_all',{'after':result['after']})
         if status=='done' and row['kind']=='monitor_all' and result.get('suite'):
-            self.enqueue('monitor_all',{'after':result['after']})
+            self._then('monitor_all',{'after':result['after']})
         if status=='done' and row['kind']=='monitor_all' and not result.get('suite'):
-            self.enqueue('build_daily_dashboard')
+            self._then('build_daily_dashboard')
         if status=='done' and row['kind']=='organize_cabinet' and result.get('suite'):
-            self.enqueue('organize_cabinet')
+            self._then('organize_cabinet')
         if status=='done' and row['kind'] in ('organize_cabinet','reconcile_inbox','classify_portfolio') and not result.get('suite'):
-            self.enqueue('build_daily_dashboard')
+            self._then('build_daily_dashboard')
         return True
 
 

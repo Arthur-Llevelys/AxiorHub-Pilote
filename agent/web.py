@@ -34,7 +34,7 @@ LABELS = {'review':'À vérifier','drafted':'Brouillon dans la messagerie',
           'append_uncertain':'Dépôt à vérifier', 'pending':'En attente',
           'running':'En cours','cancel_requested':'Annulation demandée',
           'done':'Terminé','cancelled':'Annulé'}
-REASONS = {
+REASONS = {'contact_personnel_hors_dossier': 'Contact personnel : aucun brouillon n’est préparé à partir du dossier.',
  'intervention_avocat_ordali':'Décision ou analyse juridique nécessaire. Aucun transfert vers Ordali.',
  'autonomie_proposer_seulement':'Niveau d’autonomie « proposer seulement » : aucun brouillon écrit. Réglable dans la page Autonomie.',
  'confirmation_autonomie_requise':'Passer une tâche au niveau « agir » exige de cocher la confirmation.',

@@ -956,5 +956,11 @@ a.ax-btn.ghost:hover,a.ax-btn.ghost:focus-visible,button.ax-btn.ghost:hover{colo
 .c561-thread-tools{display:flex;justify-content:flex-end;margin:0 0 6px}
 .c530-msg.agent .c561-stop{margin-top:6px;align-self:flex-start}
 
+.c565-origin{margin:8px 0 0;border:1px solid var(--ws-border,#dbe4f0);border-radius:8px;padding:6px 10px}
+.c565-origin summary{cursor:pointer;font-weight:650}
+.c565-excerpt{white-space:pre-wrap;font:inherit;font-size:.9rem;max-height:220px;overflow:auto;margin:6px 0;color:var(--ws-muted,#575d67)}
+.c565-origin .ax-btn{margin:4px 0}
+.c565-where{margin:6px 0 0;overflow-wrap:anywhere}
+
 /* Lien « Aller au contenu » : texte clair conservé au survol. */
 .cf-skip:hover,.cf-skip:focus,.cf-skip:focus-visible{color:var(--ax-accent-ink,#fff)}

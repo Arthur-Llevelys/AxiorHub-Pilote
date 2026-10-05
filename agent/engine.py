@@ -293,7 +293,10 @@ class Engine:
                 return finish('review', 'intention_non_prise_en_charge')
             if not matter and (triage['needs_documents'] or triage['intent'] in ('status','documents')):
                 return finish('review', 'correspondant_ou_dossier_a_confirmer')
-            if role in ('confrere_adverse', 'tiers') and (triage['needs_documents'] or triage['intent'] != 'appointment'):
+            from .desk import THIRD_PARTY_ROLES
+            if role == 'personnel':
+                return finish('review', 'contact_personnel_hors_dossier')
+            if role in THIRD_PARTY_ROLES and (triage['needs_documents'] or triage['intent'] != 'appointment'):
                 return finish('review', 'divulgation_a_un_tiers_a_valider')
             from . import trace480
             trace480.set_matter(matter['id'] if matter else '')

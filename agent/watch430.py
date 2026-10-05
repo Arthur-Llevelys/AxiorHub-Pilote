@@ -130,6 +130,26 @@ def calendar_check(desk,dav=None):
     return {'events_checked':len(events),'changed':changed,'remote_write':False}
 
 
+RECENT_DAYS=30
+
+
+def recent_change(items,days=RECENT_DAYS):
+    """5.6.5 : au moins un fichier modifié ces derniers jours (date Nextcloud) ; sinon, le changement ne justifie aucune analyse.
+    Une date absente ou illisible compte comme récente : dans le doute, le dossier est analysé."""
+    from email.utils import parsedate_to_datetime
+    limit=datetime.now(timezone.utc)-timedelta(days=days)
+    for item in (items or {}).values():
+        try:
+            when=parsedate_to_datetime(str(item.get('modified') or ''))
+        except (TypeError,ValueError,IndexError):
+            return True
+        if when is None:
+            return True
+        if when and (when if when.tzinfo else when.replace(tzinfo=timezone.utc))>=limit:
+            return True
+    return False
+
+
 def documents_check(desk,dav=None):
     client=dav or DAV(desk.c['nextcloud']);matters=indexable_matters(desk.c)
     if not matters:return {'abstention':'Aucun dossier indexable.'}
@@ -168,11 +188,21 @@ def documents_check(desk,dav=None):
             emit(desk,'documents','Analyse des échéances impossible : '+str(ex)[:120],getattr(desk,'active_job_id',None),mid)
         if state!='unchanged':
             from .improvements36 import matter_option
+            if not recent_change(items):
+                # 5.6.5 : dossier ancien (aucun fichier modifié depuis 30 jours) lu pour la première fois ou réorganisé : simple point de
+                # départ. Avant, chaque dossier lu pour la première fois (y compris ceux de 2019) était indexé, surveillé et analysé.
+                acknowledged(desk,'documents',mid)
+                continue
             changed+=1;emit(desk,'documents','Inventaire initial ou documents modifiés dans '+matter_option(matter),getattr(desk,'active_job_id',None),mid)
-            desk.enqueue('index',{'matter':mid},priority=50)
-            desk.enqueue('monitor_matter',{'matter':mid},priority=55)
-            desk.enqueue('extract_facts460',{'matter':mid},priority=58)
-            acknowledged(desk,'documents',mid)
+            try:
+                desk.enqueue('index',{'matter':mid},priority=50)
+                desk.enqueue('monitor_matter',{'matter':mid},priority=55)
+                desk.enqueue('extract_facts460',{'matter':mid},priority=58)
+                acknowledged(desk,'documents',mid)
+            except Stop as ex:
+                # file automatique pleine : le dossier reste « à traiter » et sera repris au prochain passage, sans échec de la surveillance
+                emit(desk,'documents','Analyse reportée ('+str(ex)+') : '+matter_option(matter),getattr(desk,'active_job_id',None),mid,
+                     dedupe='report-'+mid+'-'+time.strftime('%Y%m%d%H'))
     next_cursor=(cursor+len(selected))%len(matters);desk.setting('live430:document_cursor',next_cursor)
     # Finish a whole sweep in bounded lots, yielding to replies between each lot.
     more=next_cursor!=0 or bool(partial)

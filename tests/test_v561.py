@@ -100,9 +100,9 @@ class Cockpit(t530.Base):
         with patch('agent.drafts440.get_draft', return_value={'body': 'Madame', 'to': 'client@example.test'}):
             item = ck.review_items(self.desk)[0]['id']
             html = ck.handle(self.desk, 'm530/item', {}, 'GET', {'id': item, 'prefix': '/agent-courriel'})['html']
-            self.assertIn('href="/agent-courriel/courriels"', html)
+            self.assertIn('href="/agent-courriel/courriels?uid=12"', html)
             html = ck.handle(self.desk, 'm530/item', {}, 'GET', {'id': item, 'prefix': 'javascript:alert(1)//'})['html']
-            self.assertIn('href="/courriels"', html)
+            self.assertIn('href="/courriels?uid=12"', html)
         js = (STATIC / 'v530.js').read_text(encoding='utf-8')
         self.assertIn("'&prefix=' + encodeURIComponent(prefix)", js)
         self.assertIn("call('m530/job?id='", js)

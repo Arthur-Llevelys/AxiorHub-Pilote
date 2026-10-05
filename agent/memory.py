@@ -28,7 +28,8 @@ def authored(text):
     return result
 
 
-ALLOWED_ROLES = frozenset(('client', 'confrere_adverse', 'tiers', 'prospect'))
+ALLOWED_ROLES = frozenset(('client', 'confrere_adverse', 'tiers', 'prospect', 'juridiction', 'expert', 'administration',
+                           'commissaire_justice', 'autre_partie'))     # « personnel » : jamais d'apprentissage
 POLICY_VERSION = 'roles-separated-v2'
 
 
