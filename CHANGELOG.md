@@ -3,6 +3,53 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.9 — Économe, réactif, décisions à portée de clic
+
+- **Régime économe** (activé d'office, réglable dans « IA externe sûre ») : contrôles périodiques espacés, quota journalier des
+  analyses automatiques (vos demandes ne sont jamais limitées), contrôle par un second modèle réservé aux textes destinés à des tiers,
+  comptabilité des jetons locaux et externes par fonction, profil « plus petit modèle local » pour le tri et le contrôle.
+- **« À décider » sur Aujourd'hui** : documents au dossier ambigu (avec les dossiers suggérés), dates à prouver, suites bloquées et
+  engagements à préciser, résolus sur place. Sous-dossier de classement au choix (PROCEDURE, PIECES, CORRESPONDANCES, EXPERTISES, HONORAIRES).
+- **Voix** : lecture phrase par phrase pendant que la suite se prépare, tours plus courts ; conversation par tours, pas de duplex intégral.
+- **Accueil téléphonique conversationnel administratif** (Twilio, activation et consentement explicites) : motifs fermés, deux questions
+  au plus, tâche enregistrée ; aucun conseil juridique.
+- **Invoice Ninja en écriture** après validation : facture en brouillon à partir des temps validés, temps transmis comme tâches ;
+  rien n'est envoyé au client.
+- **Mise en service** : écran et commande `manage.py readiness` (services réels, dossier Envoyés, transcription, synthèse, intégrations),
+  test du micro et du HTTPS dans le navigateur, repères Docker.
+- Corrections 5.6.8 : icône /favicon.ico, menu replié par défaut sur téléphone, requête de profil en double, relectures pilotées par
+  le flux en direct, lectures de fichiers en UTF-8 (relance automatique), scripts d'installation importables hors Linux.
+
+Détail : [CHANGELOG-5.6.9.md](CHANGELOG-5.6.9.md).
+
+## 5.6.7 — Missions, voix locale et exploitation contrôlée
+
+- Missions persistantes depuis le robot transversal : contexte de dossier et documents,
+  demande unique, plan, résultat, suspension et reprise. Préparation interne ou suggestion.
+- Dictée par le pont local, lecture des réponses et du briefing par eSpeak-NG,
+  préférences personnelles explicites de ton, longueur et initiative.
+- Connexions IMAP/Nextcloud/Invoice Ninja/SMTP/Ollama modifiables avec validation,
+  révision et coffre chiffré ; inventaire Docker sous forme de plan non exécuté.
+- Même politique de confidentialité avant les secours externes, budgets réservés
+  atomiquement, permissions fermées par défaut, bootstrap administrateur protégé,
+  API Bearer et callbacks OnlyOffice préservés.
+- Relecture SHA-256 et reprise du dépôt Word à destination stable, verrous par dossier
+  sur les producteurs ciblés, récupération bornée des jobs après redémarrage.
+- Sources longues sélectionnées transmises à l’analyse progressive, refus des pages
+  non extraites, cache tenant compte des réglages ; révision Word par fragments complets.
+- Scores d’évaluation manquants affichés non évalués ; corrections avant/après
+  conservées jusqu’à la limite explicite de 120 000 caractères.
+- Factures actives et ouvertes filtrées, pagination Invoice Ninja contrôlée ; connecteur
+  toujours en lecture seule. Sondes d’interface et de workers distinguées.
+- Accueil Twilio par touches et réception officielle WhatsApp Business entrants,
+  signés et dédupliqués, créant uniquement des tâches administratives. Désactivés par défaut.
+- Archive sur liste publique de fichiers, sauvegarde VPS avec producteurs arrêtés
+  et vérification des SQLite extraites ; diagnostic/import Open WebUI remis à jour.
+
+Les limites et la recette sur services réels sont explicitées dans `RECETTE-5.6.7.md`.
+L’image Docker, la qualité juridique et les comptes téléphoniques réels ne sont pas
+certifiés par les tests locaux.
+
 ## 5.6.6 — État du système fiable
 
 - **Page rechargée toutes les deux secondes** : un bouton déjà utilisé une fois (par ex. « Contrôler maintenant ») retrouvait son

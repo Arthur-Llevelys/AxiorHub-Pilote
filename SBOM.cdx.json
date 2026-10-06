@@ -4,12 +4,12 @@
   "serialNumber": "urn:uuid:2ed51ba2-6191-4d94-b0ef-380000000001",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-01T00:00:00Z",
+    "timestamp": "2026-10-06T00:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:generic/axiorhub@5.0.0",
-      "name": "AxiorHub",
-      "version": "5.6.6",
+      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.9",
+      "name": "AxiorHub Pilote",
+      "version": "5.6.9",
       "licenses": [
         {
           "license": {
@@ -242,6 +242,20 @@
       "licenses": [
         {
           "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "name": "espeak-ng",
+      "bom-ref": "pkg:deb/debian/espeak-ng",
+      "purl": "pkg:deb/debian/espeak-ng",
+      "version": "resolved-at-build",
+      "licenses": [
+        {
+          "license": {
+            "id": "GPL-3.0-or-later"
+          }
         }
       ]
     }

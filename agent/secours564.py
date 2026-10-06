@@ -53,7 +53,8 @@ def candidates(config, purpose):
                 continue
             item = dict(p)
             item.update({'provider_id': pid, 'provider_type': kind, 'purpose': purpose, 'state_dir': config.get('state_dir', ''),
-                         'pseudo': pseudo_sources(config), 'skill_instructions': active_skill_instructions(config, purpose)})
+                         'pseudo': pseudo_sources(config), 'skill_instructions': active_skill_instructions(config, purpose),
+                         'external_policy_config': config})
             out.append(item)
     return out
 
@@ -163,7 +164,7 @@ def section_html(desk, prefix):
             '<p class="vf-note">Un fournisseur est « prêt » quand il est activé, autorisé (« J’autorise l’envoi… ») et qu’un modèle est indiqué, dans '
             '<a href="%s">Paramètres › IA</a>.</p>'
             '<form class="m5-form" data-api="m540/secours" data-reload="1">'
-            '<label class="m5-field"><span><input type="checkbox" name="enabled" value="yes"%s style="width:auto"> Activer le secours externe</span></label>'
+            '<label class="m5-field"><span><input type="checkbox" name="enabled" value="yes"%s class="m5-check"> Activer le secours externe</span></label>'
             '<label class="m5-field">Délai avant bascule (secondes, 60 à 900)<input name="delay" type="number" min="60" max="900" step="30" value="%d"></label>'
             '<button class="ax-btn" type="submit">Enregistrer</button></form>'
             '%s</section>') % (rows, e(prefix + '/parametres?tab=ia'), ' checked' if s['enabled'] else '', s['delay'],

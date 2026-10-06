@@ -5,13 +5,25 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.6</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.9</p>
 
 <p align="center"><img src="docs/captures/01-poste-de-pilotage.png" alt="Poste de pilotage d'AxiorHub Pilote" width="900"></p>
 
 ---
 
 ## En une phrase
+
+**Livraison 5.6.9 :** consulter [le guide d’installation cumulatif](INSTALLATION-5.6.9.md)
+et [la recette avec ses limites](RECETTE-5.6.9.md). Les captures historiques ne
+représentent pas toutes les nouvelles pages. Le cahier des charges est réalisé
+par étapes ; les appels téléphoniques conversationnels et les écritures Invoice
+Ninja ne font pas partie de cette livraison.
+
+La 5.6.9 rend l’agent plus économe et plus réactif : régime économe (quota d’analyses automatiques, contrôles périodiques espacés, second modèle réservé aux envois), bloc « À décider » sur Aujourd’hui, lecture vocale phrase par phrase, accueil téléphonique conversationnel administratif, factures en brouillon et temps passés dans Invoice Ninja après validation, écran « Mise en service ». La 5.6.8 ajoute le suivi des engagements dans les courriels envoyés, les suites
+persistantes de missions, les salons Talk privés, la veille officielle du matin et
+la conversation vocale par tours avec lecture locale ou ElevenLabs explicitement
+autorisé. Les neuf rôles partagent les producteurs existants ; aucun déploiement
+de neuf modèles permanents n’est nécessaire. Les paramètres permettent aussi de créer des agents documentaires en français, de les simuler et de les activer, avec classement dans PROCEDURE, agendas Nextcloud/CalDAV/Google et brouillons vérifiés. Voir [les changements](CHANGELOG-5.6.8.md).
 
 AxiorHub Pilote lit la messagerie et les dossiers du cabinet, comprend ce qui arrive et **prépare le travail** :
 brouillons de réponse, projets d'actes, bordereaux de pièces, échéances, tâches. Il n'envoie rien, ne signe rien et
@@ -331,8 +343,10 @@ AxiorHub Pilote lit la boîte du cabinet et y dépose des **brouillons** (rien n
 
 #### Étape 10 — Créer le compte administrateur et suivre l'assistant
 
-1. Ouvrez `https://agent.votre-cabinet.fr/signup` : **le premier compte créé est administrateur**. Les inscriptions
-   publiques se ferment ensuite.
+1. Lire avec `sudo cat deploy/vps/data/axiorhub/auth/bootstrap-token` le code privé
+   de première inscription, puis ouvrir `https://agent.votre-cabinet.fr/signup`.
+   **Le code est obligatoire pour créer le premier administrateur**. Les inscriptions
+   publiques restent fermées ensuite.
 2. L'**assistant d'installation** s'ouvre :
    - **Cabinet** : nom, barreau, adresse, téléphone, courriel, domaine d'activité. Ces informations servent à la
      signature et à la présentation donnée à l'IA ;
@@ -413,7 +427,7 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.6.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.9.tar.gz
 ```
 
 Python 3.11 ou plus récent, bibliothèque standard pour le cœur, Waitress pour le serveur web ; Poppler, Tesseract et

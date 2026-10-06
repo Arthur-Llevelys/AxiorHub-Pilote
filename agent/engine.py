@@ -152,6 +152,12 @@ class Engine:
             if not reason:
                 from .intelligence import custom_exclusion
                 reason=custom_exclusion(cfg,mail)
+            # 5.6.8 : une notification procédurale est à vérifier, même automatisée.
+            # Cela n'autorise ni le calcul d'un délai non établi ni un dépôt RPVA.
+            procedural=bool(re.search(r'\b(?:rpva|e.?barreau)\b',fold(mail.subject)) and
+                            re.search(r'notification|accuse|avis|audience',fold(mail.subject)))
+            if procedural and reason in ('notification_rpva','message_automatique','adresse_automatique','liste_diffusion','envoi_en_masse'):
+                return finish('review','notification_procedurale_a_verifier')
             if reason: return finish('ignored', reason)
             reason=message_issue(mail,cfg['mail'])
             if reason:return finish('review',reason)

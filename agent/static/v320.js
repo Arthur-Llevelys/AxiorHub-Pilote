@@ -11,7 +11,9 @@
   const keySidebar = 'axiorhub-sidebar-v320';
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
   let chosen = read(keyTheme);
-  let collapsed = read(keySidebar) === 'collapsed';
+  // 5.6.9 : sans préférence enregistrée, le menu est replié sur un petit écran (il occupait tout le haut de chaque page).
+  const storedSidebar = read(keySidebar);
+  let collapsed = storedSidebar ? storedSidebar === 'collapsed' : window.matchMedia('(max-width: 850px)').matches;
 
   function theme() {
     const dark = (chosen === 'dark') || (chosen !== 'light' && systemDark.matches);

@@ -85,10 +85,10 @@ def now():
 
 
 # ---------------------------------------------------------------------------------------- demande
-def submit(desk, request, matter='', kind='auto', revision_of='', attachments=None, revision_path=''):
+def submit(desk, request, matter='', kind='auto', revision_of='', attachments=None, revision_path='', mission_id='', selected_documents=None):
     ensure_schema(desk)
     request = re.sub(r'[ \t]+', ' ', str(request or '')).strip()
-    if not 8 <= len(request) <= 4000:
+    if not 8 <= len(request) <= 12000:
         raise Stop('demande_document_invalide')
     if kind not in KINDS:
         raise Stop('type_document_invalide')
@@ -115,13 +115,18 @@ def submit(desk, request, matter='', kind='auto', revision_of='', attachments=No
         from .improvements36 import attachment_source
         for ident in attachments:
             attachment_source(desk, ident, matter)
-    rid = digest('docreq520|%s|%s|%s' % (matter, request, now()))[:32]
-    args = {'request': rid}
+    rid = digest('docreq520|mission|'+mission_id)[:32] if mission_id else digest('docreq520|%s|%s|%s' % (matter, request, now()))[:32]
+    args = {'request': rid, 'mission_id': mission_id, 'selected_documents': selected_documents or []}
     if matter:
         args['matter'] = matter                       # le contrôle « conflits d'intérêts » s'applique dès la mise en file
+    old=desk.db.execute('SELECT job_id FROM docreq520 WHERE id=?',(rid,)).fetchone()
+    if old and old[0]:return {'request':rid,'job_id':old[0]}
+    if not old:
+        desk.db.execute('INSERT INTO docreq520(id,matter,request,kind,status,path,revision_of,job_id,result,created,updated,attachments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (rid,matter,request,kind,'en_file','',revision_of,None,'{}',now(),now(),json.dumps(attachments)))
+        desk.db.commit()
     job = desk.enqueue('docrequest520', args, priority=0)
-    desk.db.execute('INSERT INTO docreq520(id,matter,request,kind,status,path,revision_of,job_id,result,created,updated,attachments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (rid, matter, request, kind, 'en_file', '', revision_of, job, '{}', now(), now(), json.dumps(attachments)))
+    desk.db.execute('UPDATE docreq520 SET job_id=? WHERE id=?',(job,rid))
     desk.db.commit()
     desk.audit('document_520_demande', {'request': rid, 'matter': matter, 'kind': kind, 'revision': bool(revision_of)})
     return {'request': rid, 'job_id': job}
@@ -180,20 +185,40 @@ def find_matter(desk, text):
 
 
 # ---------------------------------------------------------------------------------------- contexte
-def context(desk, matter, request, dav=None, attachments=()):
+def context(desk, matter, request, dav=None, attachments=(), selected_documents=()):
     from .document_projects import _dav, _inventory
     ctx = {'dossier': matter_display(matter), 'client': matter.get('client_name', ''), 'fichiers': [], 'extraits': [], 'courriels': [],
            'agenda': [], 'faits': [], 'pieces_jointes': []}
     notes = []
-    for n, ident in enumerate(attachments or (), 1):
-        try:
-            from .improvements36 import attachment_parts
-            source, parts, _meta = attachment_parts(desk, ident, matter['id'])
-            text = ''.join(p['excerpt'] for p in parts) if parts else source.get('excerpt', '')
-            ctx['pieces_jointes'].append({'source': 'J%d' % n, 'fichier': source.get('path', ''), 'texte': text[:20000]})
-        except Stop:
-            notes.append('Une pièce jointe n’a pas pu être relue (expirée ou ajoutée pour un autre dossier).')
     client = dav or _dav(desk)
+    from .improvements36 import attachment_parts
+    from .long_documents365 import pages_from_text, analyze_pages
+    from .live430 import progress
+    sources=[]
+    for ident in attachments or ():
+        source, parts, meta = attachment_parts(desk,ident,matter['id'])
+        if meta.get('legacy_partial'):
+            raise Stop('piece_ancienne_incomplete_reteleverser')
+        text=''.join(p['excerpt'] for p in parts) if parts else source.get('excerpt','')
+        sources.append((source['id'],source.get('path',''),text))
+    for path in selected_documents or ():
+        path=clean_path(str(path))
+        if not under(path,matter['path']):raise Stop('source_mission_autre_dossier')
+        from .documents import extract
+        raw=client.download(client.stat(path))
+        text=extract(raw,PurePosixPath(path).name,{**desk.c.get('documents',{}),'max_document_chars':2_000_000})
+        if not isinstance(text,str):text=text.get('text','')
+        if not text.strip():raise Stop('document_sans_texte_exploitable')
+        sources.append(('selection-'+digest(path)[:16],path,text))
+    for n,(sid,path,text) in enumerate(sources,1):
+        pages=pages_from_text(text)
+        progress(desk,'Analyse progressive du document %d/%d : %d page(s) ou section(s)' % (n,len(sources),len(pages)),matter['id'])
+        if len(text)>6000 or len(pages)>1:
+            model=_model(desk,matter['id'])
+            analyzed,coverage=analyze_pages(desk,pages,sid,path,request,model,68000,purpose='document_drafting')
+            ctx['pieces_jointes'].append({'source':'J%d'%n,'fichier':path,'analyses':analyzed,'couverture':coverage})
+        else:
+            ctx['pieces_jointes'].append({'source':'J%d'%n,'fichier':path,'texte':text})
     try:
         items = [x for x in _inventory(client, matter['path']) if not x.get('directory')]
         items.sort(key=lambda x: str(x.get('modified', '')), reverse=True)
@@ -255,18 +280,20 @@ SYSTEM = ('Tu rédiges des projets de documents pour %s, en français juridique 
           'respecte ces habitudes d’écriture (formules, plan, longueur) sauf si la demande les contredit.')
 
 
-def _model(desk):
+def _model(desk,matter_id=''):
     from .model import Model, routed_config
     try:
-        return Model(routed_config(desk.c, 'document_drafting'))
+        cfg=routed_config(desk.c,'document_drafting');cfg['external_context']={'matter':matter_id}
+        return Model(cfg)
     except Stop:
-        return Model(routed_config(desk.c, 'assistant'))
+        cfg=routed_config(desk.c,'assistant');cfg['purpose']='document_drafting';cfg['external_context']={'matter':matter_id}
+        return Model(cfg)
 
 
 def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
     task = ('Réécris intégralement le document ci-dessous selon la demande de modification, en conservant ce qui n’est pas visé.'
             if previous_text else 'Rédige le document demandé.')
-    payload = {'demande': request, 'type': KINDS.get(kind, kind), 'dossier': ctx, 'document_actuel': previous_text[:30000] if previous_text else ''}
+    payload = {'demande': request, 'matter':matter_id,'type': KINDS.get(kind, kind), 'dossier': ctx, 'document_actuel': previous_text}
     # 5.5.0 : style du cabinet (habitudes validées, plans types) et règles métier approuvées par l'avocat.
     try:
         from .style550 import drafting_context
@@ -283,10 +310,19 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
     except Exception:
         pass
     from .cabinet560 import writer_intro
-    raw = _model(desk).complete([{'role': 'system', 'content': SYSTEM % writer_intro(desk)},
+    from .assistant567 import drafting_preferences
+    payload['preferences']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
+    model=_model(desk,matter_id)
+    from .composition567 import compact_context, revise
+    payload['dossier']=compact_context(desk,ctx,request,matter_id,model)
+    if len(previous_text)>16000:
+        return revise(desk,{**payload,'document_actuel':''},previous_text,model,SYSTEM % writer_intro(desk),SCHEMA_OUT)
+    serialized=json.dumps(payload,ensure_ascii=False)
+    if len(serialized)>90000:raise Stop('configuration_styles_ou_instruction_depasse_contexte')
+    raw = model.complete([{'role': 'system', 'content': SYSTEM % writer_intro(desk)},
                                  {'role': 'user', 'content': task + ' Réponds en JSON : titre, nom_fichier (court, sans extension), paragraphes '
                                   '(style titre/intertitre/texte/liste), sources (identifiants P1, C2… réellement utilisés), a_completer.\n\n' +
-                                  json.dumps(payload, ensure_ascii=False)[:90000]}],
+                                  serialized}],
                                 temperature=0, max_tokens=7000, json_schema=SCHEMA_OUT)
     out = json.loads(raw)
     paras = [p for p in out.get('paragraphes', []) if str(p.get('texte', '')).strip()]
@@ -374,6 +410,20 @@ def run(desk, args, dav=None):
     row = desk.db.execute('SELECT * FROM docreq520 WHERE id=?', (rid,)).fetchone()
     if not row:
         raise Stop('demande_document_absente')
+    if row['status'] == 'cree' and row['path']:
+        from .document_projects import _dav
+        client = dav or _dav(desk)
+        stored = json.loads(row['result'] or '{}')
+        meta = client.stat(row['path'])
+        readback = client.download(meta)
+        if hashlib.sha256(readback).hexdigest() != stored.get('sha256'):
+            raise Stop('document_deja_produit_modifie')
+        return {'request': rid, 'message': 'Document déjà produit, retrouvé sans nouvelle rédaction.',
+                'created_files': [{'path': row['path'], 'edit_url': stored.get('url', '')}]}
+    if row['status'] == 'depot_en_cours':
+        from .document_projects import _dav
+        from .deposits567 import finish
+        return finish(desk,row,dav or _dav(desk),args)
     matters = {m['id']: m for m in load_matters(desk.c)}
     matter = matters.get(row['matter'])
     if not matter:
@@ -395,7 +445,7 @@ def run(desk, args, dav=None):
             prev_path = desk.db.execute('SELECT path FROM docreq520 WHERE id=?', (row['revision_of'],)).fetchone()['path']
         raw = client.download({**client.stat(prev_path), 'path': prev_path})
         from .documents import extract
-        previous_text = extract(raw, PurePosixPath(prev_path).name, {**desk.c.get('documents', {}), 'max_document_chars': 200000})
+        previous_text = extract(raw, PurePosixPath(prev_path).name, {**desk.c.get('documents', {}), 'max_document_chars': 2_000_000})
         if not isinstance(previous_text, str):
             previous_text = previous_text.get('text', '')
         folder = str(PurePosixPath(prev_path).parent)
@@ -405,7 +455,7 @@ def run(desk, args, dav=None):
         attached = json.loads(row['attachments'] or '[]')
     except (ValueError, IndexError, KeyError):
         attached = []
-    ctx, notes = context(desk, matter, row['request'], client, attached)
+    ctx, notes = context(desk, matter, row['request'], client, attached,args.get('selected_documents',[]))
     try:
         doc = draft(desk, row['request'], row['kind'], ctx, previous_text, matter['id'])
     except Exception as ex:
@@ -428,19 +478,14 @@ def run(desk, args, dav=None):
         path = _free_path(client, folder, base)
     if not under(path, matter['path']):
         raise Stop('dossier_hors_racines')
-    client.put_file(path, data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    if int(client.stat(path).get('size', 0)) != len(data):
-        raise Stop('fichier_document_non_verifie')
-    try:
-        url = client.file_web_url(path)
-    except Exception:
-        url = ''
-    result = {'title': doc['titre'], 'to_complete': doc['a_completer'], 'sources': doc['sources'], 'notes': notes, 'url': url,
-              'sha256': hashlib.sha256(data).hexdigest(), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)}}
-    _set(desk, rid, 'cree', path, result)
-    desk.audit('document_520_cree', {'request': rid, 'matter': matter['id']})
-    return {'request': rid, 'message': 'Document « %s » enregistré dans le dossier %s.' % (PurePosixPath(path).name, matter_display(matter)),
-            'created_files': [{'path': path, 'edit_url': url}]}
+    from .deposits567 import stage, finish
+    result = {'title': doc['titre'], 'to_complete': doc['a_completer'], 'sources': doc['sources'], 'notes': notes,
+              'url': '', 'revision_coverage':doc.get('revision_coverage',{}), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)}}
+    stage(desk,rid,path,data,result)
+    saved = desk.db.execute('SELECT * FROM docreq520 WHERE id=?',(rid,)).fetchone()
+    outcome = finish(desk,saved,client,args)
+    desk.audit('document_520_cree', {'request': rid, 'matter': matter['id'], 'readback': True})
+    return outcome
 
 
 def perform(desk, kind, args):
@@ -449,7 +494,7 @@ def perform(desk, kind, args):
             return run(desk, args)
         except Stop as ex:
             row = desk.db.execute('SELECT status,result FROM docreq520 WHERE id=?', (str(args.get('request', '')),)).fetchone()
-            if row and row['status'] not in ('cree', 'dossier_a_choisir'):
+            if row and row['status'] not in ('cree', 'dossier_a_choisir', 'depot_en_cours'):
                 previous = json.loads(row['result'] or '{}')
                 _set(desk, str(args.get('request', '')), 'echec', result={**previous, 'error': str(ex)})
             raise

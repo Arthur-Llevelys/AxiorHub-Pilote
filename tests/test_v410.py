@@ -105,30 +105,30 @@ class LegalBenchmark410Tests(unittest.TestCase):
 
     def test_api_exposes_41_learning_and_benchmark(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.6')
+        self.assertEqual(spec['info']['version'],'5.6.9')
         for path in ('/learning/business-rules','/evaluations/legal',
                      '/evaluations/legal/cases','/evaluations/legal/run'):
             self.assertIn(path,spec['paths'])
-        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.6')
+        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.9')
 
 
 class Browser410Tests(unittest.TestCase):
     setUp=test_desk.WebTests.setUp
     request=test_desk.WebTests.request
 
-    def test_sidebar_has_exactly_ten_primary_entries(self):
+    def test_sidebar_has_exactly_six_primary_entries(self):
         # 5.3.0 : quatre entrées principales ; les rubriques historiques restent dans le volet « Rubriques ».
         body=self.request('/parametres')['body']
         nav=re.search(r'<nav aria-label="Navigation principale".*?</nav>',body,re.S).group(0)
-        self.assertEqual(nav.count('<a '),4)
+        self.assertEqual(nav.count('<a '),6)
         sub=re.search(r'<nav aria-label="Rubriques".*?</nav>',body,re.S).group(0)
-        self.assertEqual(sub.count('<a '),7)
-        for label in ('Aujourd’hui','Dossiers','Mon style','Paramètres'):
+        self.assertEqual(sub.count('<a '),5)
+        for label in ('Aujourd’hui','Dossiers','Courriels','Agenda et tâches','Produire','Paramètres'):
             self.assertIn(label,nav)
-        for label in ('Courriels à relire','Documents','Échéances','Agenda et tâches','Produire','Recherche','Cabinet'):
+        for label in ('Documents','Échéances','Recherche','Cabinet','Apprentissage et modèles'):
             self.assertIn(label,sub)
         self.assertIn('Apprentissage métier',body);self.assertIn('Banc juridique',body)
-        self.assertIn('Version 5.6.6',body)
+        self.assertIn('Version 5.6.9',body)
 
     def test_produce_hub_contains_the_six_expected_outputs(self):
         body=self.request('/production')['body']

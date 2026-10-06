@@ -453,6 +453,7 @@ def routed_config(config, purpose):
     if not base.get('model'):raise Stop('modele_fournisseur_absent')
     base['provider_id']=provider_id;base['provider_type']=provider_type
     base['purpose']=purpose;base['temperature']=float(routes.get(role+'_temperature',0)) if routes else 0
+    base['external_policy_config']=config
     if config.get('state_dir'):base['state_dir']=config['state_dir']
     base['pseudo']=pseudo_sources(config)
     from .extensions364 import active_skill_instructions
@@ -650,7 +651,7 @@ class Model:
         self.usage_cost_usd=0.0
         self.usage_cost_known=(self.provider_type=='ollama' or bool(cfg.get('input_usd_per_million') or cfg.get('output_usd_per_million')))
         if self.provider_type == 'ollama':
-            self.http = HTTP(cfg['url'], local_only=True, timeout=cfg.get('timeout_seconds', 240))
+            self.http = HTTP(cfg['url'], local_only=True, timeout=cfg.get('timeout_seconds', 240), local_hosts=cfg.get('local_hosts', ()))
             shown = self.http.json('POST', '/api/show', {'model': cfg['model']})
             if shown.get('remote_host') or shown.get('remote_model'):
                 raise Stop('modele_distant_refuse')
@@ -689,6 +690,13 @@ class Model:
           ('hybrid_external','hybrid_config','display_provider','display_model')}
 
     def _call_child(self,cfg,method,*args):
+        cfg=dict(cfg)
+        if self.cfg.get('external_policy_config'):
+            cfg['external_policy_config']=self.cfg['external_policy_config']
+        cfg['external_context']=getattr(self,'_external_context',self.cfg.get('external_context'))
+        if cfg.get('provider_type',cfg.get('type','ollama'))!='ollama':
+            from .policy567 import check_external
+            check_external(cfg,payload=args)
         child=Model(cfg)
         try:return getattr(child,method)(*args)
         finally:
@@ -733,6 +741,8 @@ class Model:
         return self._call_child(local,method,*args)        # aucun fournisseur joignable : le modèle local termine le travail
 
     def complete(self,messages,temperature=0,max_tokens=3500,json_schema=None):
+        self._external_context={'payload':getattr(self,'_trace',('',None))[1],
+                                'messages':messages,'inherited':self.cfg.get('external_context')}
         if self.cfg.get('secours') and self.provider_type=='ollama':
             return self._secours('complete',messages,temperature,max_tokens,json_schema)
         decision=self._hybrid_choice('completion',messages=messages,max_tokens=max_tokens)
@@ -801,9 +811,16 @@ class Model:
             if result.get('done') is not True or result.get('done_reason')=='length':
                 raise Stop('generation_ia_incomplete')
             message=result.get('message',{})
+            try:   # 5.6.9 : jetons et durée de la génération locale, par fonction (aucun texte conservé)
+                from .economie569 import record_local_usage
+                record_local_usage(self.cfg,result)
+            except Exception:
+                pass
             if message.get('tool_calls'):raise Stop('appel_outil_ia_refuse')
             content=message.get('content')
         else:
+            from .policy567 import check_external
+            check_external(self.cfg,payload=getattr(self,'_external_context',None),messages=messages)
             # 5.4.0 : tout envoi hors du serveur est pseudonymisé ici (mode manuel, mixte ou hybride), puis la réponse est
             # rétablie localement. La table de correspondance ne quitte jamais la mémoire du serveur.
             from .pseudo540 import Pseudonymizer,log_transmission
@@ -883,6 +900,7 @@ class Model:
         return content.strip()
 
     def ask(self, stage, data):
+        self._external_context=data
         if self.cfg.get('secours') and self.provider_type=='ollama':
             return self._secours('ask',stage,data)
         self._trace=(stage,data)

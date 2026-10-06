@@ -182,7 +182,7 @@ def service_health(desk, runner=None):
         except (OSError,subprocess.SubprocessError,IndexError):state='unknown'
         active=state=='active'
         if not active and unit=='ollama.service' and _ollama_answers(desk):
-            # 5.6.6 : Ollama lancé autrement (Docker, autre unité, autre machine) : l'API répond, le service n'est pas en cause.
+            # 5.6.7 : Ollama lancé autrement (Docker, autre unité, autre machine) : l'API répond, le service n'est pas en cause.
             active=True;state='API Ollama joignable (lancé hors de ollama.service)'
         rows.append({'unit':unit,'label':label,'state':state,'required':required,'verified':active})
     failed=[x for x in rows if x['required'] and not x['verified']]
@@ -222,7 +222,7 @@ def _optional_files(config):
     updates=config.get('updates') or {}
     if not str(updates.get('metadata_url') or '').strip() and updates.get('minisign_public_key_file'):
         optional.add(str(updates['minisign_public_key_file']))
-    # 5.6.6 : Invoice Ninja désactivé (réglage par défaut) : son jeton n'a pas à exister.
+    # 5.6.7 : Invoice Ninja désactivé (réglage par défaut) : son jeton n'a pas à exister.
     invoice=config.get('invoice_ninja') or {}
     if not invoice.get('enabled') and invoice.get('api_token_file'):
         optional.add(str(invoice['api_token_file']))
@@ -378,7 +378,7 @@ def verify_nextcloud_outputs(desk, limit=100):
         if parent not in folders:
             try:folders[parent]={x['path']:x for x in client.list_folder(parent)}
             except Stop as error:
-                # 5.6.6 : dossier de destination supprimé ou déplacé (404) = fichiers absents, pas une erreur de lecture Nextcloud.
+                # 5.6.7 : dossier de destination supprimé ou déplacé (404) = fichiers absents, pas une erreur de lecture Nextcloud.
                 if str(error)=='http_404':folders[parent]={}
                 else:folders[parent]=error;errors.append(str(error))
         listing=folders[parent]
@@ -399,7 +399,7 @@ def verify_nextcloud_outputs(desk, limit=100):
         desk.db.execute('UPDATE production_flows_v391 SET status=?,updated=? WHERE job_id IN (SELECT job_id FROM production_outputs_v390 WHERE id=?)',
                         (output_status,checked,output_id))
     desk.db.commit()
-    # 5.6.6 : un fichier produit puis supprimé ou déplacé par l'avocat est signalé (« à vérifier »), sans incident ; seules les erreurs de
+    # 5.6.7 : un fichier produit puis supprimé ou déplacé par l'avocat est signalé (« à vérifier »), sans incident ; seules les erreurs de
     # lecture Nextcloud mettent la carte en incident.
     status='error' if errors else ('warning' if missing else 'verified')
     summary=(f'{verified} fichier(s) relu(s) dans Nextcloud.' if status=='verified' else

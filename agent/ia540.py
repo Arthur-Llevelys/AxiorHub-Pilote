@@ -139,6 +139,8 @@ def page(desk, prefix, shell, csrf):
         ('<table class="vf-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>Modèle</th><th>Fonction</th><th>Remplacements</th><th>Caractères</th><th></th></tr></thead>'
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ok">Aucun envoi externe sur les 7 derniers jours.</p>',
         e(prefix + '/static/v540.js'))
+    from . import economie569
+    body = economie569.section_html(desk, prefix) + body
     return shell('IA externe sûre', body, prefix, csrf, '/ia-externe')
 
 
@@ -179,6 +181,12 @@ def handle(desk, name, data, method='POST', args=None):
     if n == 'secours' and method == 'POST':
         from .secours564 import save
         return save(desk, data)
+    if n == 'economie' and method == 'POST':
+        from . import economie569
+        return economie569.save(desk, data)
+    if n == 'economie/profil' and method == 'POST':
+        from . import economie569
+        return economie569.apply_model_profile(desk)
     if n == 'mode' and method == 'POST':
         mode = str(data.get('mode') or '')
         if mode == 'local':

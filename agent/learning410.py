@@ -136,7 +136,8 @@ def record_review(desk, output_id, matter, purpose, decision, original='', corre
                   rejection_reason='', rule=None):
     ensure_schema(desk)
     if decision not in DECISIONS: raise Stop('decision_livrable_invalide')
-    original = str(original or '')[:12000]; corrected = str(corrected or '')[:12000]
+    original = str(original or ''); corrected = str(corrected or '')
+    if max(len(original),len(corrected))>120000:raise Stop('correction_trop_volumineuse_120000_maximum')
     rejection_reason = str(rejection_reason or '')[:3000]
     added, deleted = _paragraph_diff(original, corrected) if decision == 'modified' else ([], [])
     rule_id = None

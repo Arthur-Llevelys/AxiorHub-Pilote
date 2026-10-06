@@ -25,12 +25,14 @@ from pathlib import Path
 import secrets
 import smtplib
 import sqlite3
+import threading
 from email.message import EmailMessage
 from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles')
-ADMIN_API = ('m540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme')
+ADMIN_API = ('settings/', 'send/settings', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
+             'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
                  'set_agenda_personal_edit', 'save_reminders520',
@@ -55,6 +57,8 @@ def _now(): return datetime.now(timezone.utc)
 
 def allowed(role, method, path, action=''):
     """Contrôle des droits d'un rôle sur une requête (sans état, testable)."""
+    if role not in ROLES:
+        return False
     if role == 'administrateur':
         return True
     path = normalize(path)
@@ -64,17 +68,25 @@ def allowed(role, method, path, action=''):
     if path.startswith('/api/') and method not in ('GET', 'HEAD'):
         return False                       # 5.6.3 : API d'intégration en écriture réservée à l'administrateur
     api = path[len('/api440/'):] if path.startswith('/api440/') else ''
-    if any(path == p or path.startswith(p + '/') or path.startswith(p + '?') for p in ADMIN_PATHS) or path in ('/installation', '/comptes'):
+    if path not in ('/parametres/assistant','/parametres/proactivite','/parametres/agents','/parametres/agendas') and (any(path == p or path.startswith(p + '/') or path.startswith(p + '?') for p in ADMIN_PATHS) or path in ('/installation', '/comptes')):
         return False
-    if method != 'POST':
+    if method in ('GET', 'HEAD'):
         return True
+    if method != 'POST':
+        return False
     if api.startswith(ADMIN_API) or action in ADMIN_ACTIONS:
         return False
     if role == 'avocat':
-        return True
+        from .permissions567 import WORK_API, WORK_ACTIONS
+        if api:
+            return api in WORK_API or api == 'm567/speech'
+        if path == '/action':
+            return action in WORK_ACTIONS and not action.startswith(('save_update_', 'save_live', 'save_external_', 'save_local_'))
+        return path in ('/assistant/attachment', '/dictation', '/documents/edit')
     if role == 'assistant':
         if api:
-            return api.startswith(ASSISTANT_API)
+            from .permissions567 import WORK_API
+            return (api in WORK_API and api.startswith(ASSISTANT_API)) or api in ('m567/mission/create', 'm567/mission/control', 'm567/profile', 'm567/speech', 'm568/voice/turn', 'm568/speech', 'm568/speech/preview')
         if path == '/action':
             return action in ASSISTANT_ACTIONS
         return path in ASSISTANT_PATHS
@@ -111,13 +123,20 @@ class _Passthrough:
 
 
 class StandaloneAuth:
+    @property
+    def db(self):
+        """Une connexion par thread WSGI : aucune transaction partagée entre deux comptes."""
+        if not hasattr(self._connections, 'db'):
+            self._connections.db = sqlite3.connect(self.state / 'users.sqlite3', timeout=15)
+            self._connections.db.row_factory = sqlite3.Row
+        return self._connections.db
+
     def __init__(self, app, state_dir, public_url):
         self.app = app
         self.state = Path(state_dir)
         self.public_url = public_url.rstrip('/')
         self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self.db = sqlite3.connect(self.state / 'users.sqlite3', check_same_thread=False, timeout=10)
-        self.db.row_factory = sqlite3.Row
+        self._connections = threading.local()
         self.db.executescript('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE,
           password_hash TEXT,salt TEXT,active INTEGER,created TEXT);
           CREATE TABLE IF NOT EXISTS reset_tokens(token_hash TEXT PRIMARY KEY,user_id INTEGER,expires TEXT,used INTEGER);''')
@@ -147,10 +166,21 @@ class StandaloneAuth:
             except OSError:
                 pass
         key = self.state / 'session.key'
-        if not key.exists():
-            key.write_bytes(secrets.token_bytes(32))
-            os.chmod(key, 0o600)
+        try:
+            with key.open('xb') as stream:
+                os.chmod(key, 0o600)
+                stream.write(secrets.token_bytes(32))
+        except FileExistsError:
+            pass
         self.key = key.read_bytes()
+        self.bootstrap = self.state / 'bootstrap-token'
+        if not self.db.execute('SELECT 1 FROM users').fetchone():
+            try:
+                with self.bootstrap.open('x') as stream:
+                    os.chmod(self.bootstrap, 0o600)
+                    stream.write(secrets.token_urlsafe(32))
+            except FileExistsError:
+                pass
 
     # ------------------------------------------------------------------ outils
     def _hash(self, password, salt):
@@ -247,19 +277,28 @@ class StandaloneAuth:
         self.db.commit()
 
     def _send_reset(self, email, token):
-        host = os.environ.get('AXIORHUB_SMTP_HOST', '')
+        from .common import read_secret
+        try:
+            cfg=json.loads(Path(self.app.config_path).read_text(encoding='utf-8')).get('smtp',{})
+        except (OSError,AttributeError,ValueError):cfg={}
+        configured=bool(cfg.get('enabled'))
+        host = cfg.get('host','') if configured else os.environ.get('AXIORHUB_SMTP_HOST', '')
         if not host:
             return False
         message = EmailMessage()
         message['Subject'] = 'Réinitialisation de votre accès AxiorHub'
-        message['From'] = os.environ.get('AXIORHUB_SMTP_FROM', 'no-reply@example.com')
+        message['From'] = cfg.get('from_address') if configured else os.environ.get('AXIORHUB_SMTP_FROM', 'no-reply@example.com')
         message['To'] = email
         message.set_content('Ouvrez ce lien pendant 30 minutes : ' + self.public_url + '/reset-password?token=' + token)
-        with smtplib.SMTP(host, int(os.environ.get('AXIORHUB_SMTP_PORT', '587')), timeout=20) as smtp:
-            if os.environ.get('AXIORHUB_SMTP_STARTTLS', 'true').lower() == 'true':
+        secure=cfg.get('security','starttls') if configured else ('starttls' if os.environ.get('AXIORHUB_SMTP_STARTTLS','true').lower()=='true' else 'ssl')
+        smtp_class=smtplib.SMTP_SSL if secure=='ssl' else smtplib.SMTP
+        with smtp_class(host, int(cfg.get('port',587) if configured else os.environ.get('AXIORHUB_SMTP_PORT', '587')), timeout=20) as smtp:
+            if secure=='starttls':
                 smtp.starttls()
-            if os.environ.get('AXIORHUB_SMTP_USERNAME'):
-                smtp.login(os.environ['AXIORHUB_SMTP_USERNAME'], os.environ.get('AXIORHUB_SMTP_PASSWORD', ''))
+            username=cfg.get('username','') if configured else os.environ.get('AXIORHUB_SMTP_USERNAME','')
+            if username:
+                password=read_secret(cfg['password_file']) if configured else os.environ.get('AXIORHUB_SMTP_PASSWORD','')
+                smtp.login(username,password)
             smtp.send_message(message)
         return True
 
@@ -395,9 +434,19 @@ class StandaloneAuth:
         if path is None:
             return self._respond(start, '400 Bad Request', self._page('Adresse refusée', '<p class="warn">Adresse invalide.</p>'))
         env['PATH_INFO'] = path
-        if path == '/healthz':
-            raw = b'ok'
-            start('200 OK', [('Content-Type', 'text/plain'), ('Content-Length', '2')])
+        # Le backend valide lui-même Bearer et JWT OnlyOffice. Ne remplacer
+        # aucun jeton de service par le privilège de l'interface.
+        if path.startswith('/api/') and env.get('HTTP_AUTHORIZATION', '').startswith('Bearer '):
+            return self._proxy(env, start, None, preserve_authorization=True)
+        if re.fullmatch(r'/office/(file|callback)/[A-Za-z0-9._-]{16,2048}', path):
+            return self._proxy(env, start, None, preserve_authorization=True)
+        if path in ('/reception567/twilio','/reception567/whatsapp'):
+            return self._proxy(env,start,None,preserve_authorization=True)
+        if path in ('/healthz','/readyz'):
+            from .health567 import check
+            result=check(getattr(self.app,'config_path',''),readiness=path=='/readyz')
+            raw=json.dumps(result).encode()
+            start('200 OK' if result['ok'] else '503 Service Unavailable', [('Content-Type', 'application/json'), ('Content-Length',str(len(raw))),('Cache-Control','no-store')])
             return [raw]
         if path == '/service-worker.js':
             # Remplace un service worker resté d'une autre application qui occupait le même nom de domaine.
@@ -420,6 +469,10 @@ class StandaloneAuth:
             return self._forgot(env, start)
         if path == '/reset-password':
             return self._reset(env, start)
+        if not user and path.startswith(('/api', '/live/')):
+            raw = b'{"error":"authentification_requise"}'
+            start('401 Unauthorized', [('Content-Type', 'application/json'), ('Content-Length', str(len(raw)))])
+            return [raw]
         if path == '/login' or not user:
             return self._login(env, start, path)
         if user['must_change'] and path != '/mot-de-passe':
@@ -439,7 +492,8 @@ class StandaloneAuth:
             from . import setup560
             return setup560.handle(self, env, start, user)
         # Flux d'activité, API et instantanés ne sont jamais redirigés vers l'assistant (5.6.3 : le flux restait vide pendant l'installation).
-        if not self._installed() and env.get('REQUEST_METHOD', 'GET') == 'GET' and not path.startswith(('/api', '/live/')):
+        setup_settings=role=='administrateur' and path in ('/parametres','/parametres/connexions','/ia-externe','/routage-hybride')
+        if not self._installed() and env.get('REQUEST_METHOD', 'GET') == 'GET' and not (path.startswith(('/api', '/live/')) or setup_settings):
             if role == 'administrateur':
                 return self._respond(start, '303 See Other', '', [('Location', '/installation')])
             return self._respond(start, '200 OK', self._page('Installation en cours', '<p class="notice">L’administrateur du cabinet termine l’installation. '
@@ -465,9 +519,10 @@ class StandaloneAuth:
         return self._respond(start, '403 Forbidden', self._page('Accès réservé', '<p class="warn">Cette page ou cette action est réservée à un autre rôle du cabinet '
                                                                  '(administrateur ou avocat).</p><p><a href="/">← Retour</a></p>'))
 
-    def _proxy(self, env, start, user):
+    def _proxy(self, env, start, user, preserve_authorization=False):
         # L'application interne est authentifiée par son jeton privé ; l'identité du membre est transmise pour l'affichage.
-        env['HTTP_AUTHORIZATION'] = 'Bearer ' + os.environ.get('AXIORHUB_INTERNAL_API_TOKEN', '')
+        if not preserve_authorization:
+            env['HTTP_AUTHORIZATION'] = 'Bearer ' + os.environ.get('AXIORHUB_INTERNAL_API_TOKEN', '')
         env['HTTP_HOST'] = self.public_url.split('://', 1)[-1].split('/', 1)[0]
         env['HTTP_X_FORWARDED_PROTO'] = 'https' if self.public_url.startswith('https://') else 'http'
         if user is None:
@@ -553,23 +608,41 @@ class StandaloneAuth:
                 error = 'Adresse valide et mot de passe de 12 caractères minimum requis.'
             else:
                 salt = secrets.token_bytes(16).hex()
-                first = count == 0
                 try:
+                    self.db.execute('BEGIN IMMEDIATE')
+                    first = self.db.execute('SELECT COUNT(*) FROM users').fetchone()[0] == 0
+                    if first:
+                        expected = self.bootstrap.read_text(encoding='utf-8').strip() if self.bootstrap.exists() else ''
+                        if not expected or not hmac.compare_digest(form.get('bootstrap_token', ''), expected):
+                            self.db.rollback()
+                            error = 'Le code d’installation privé est requis pour le premier compte.'
+                    elif not open_signup:
+                        self.db.rollback()
+                        error = 'Les inscriptions sont fermées.'
+                    if error:
+                        raise ValueError(error)
                     self.db.execute('INSERT INTO users(email,password_hash,salt,active,created,role,name) VALUES (?,?,?,?,?,?,?)',
                                     (email, self._hash(password, salt), salt, 1 if first else 0, _now().isoformat(),
                                      'administrateur' if first else 'assistant', name))
                     self.db.commit()
                 except sqlite3.IntegrityError:
+                    self.db.rollback()
                     error = 'Ce compte existe déjà.'
+                except ValueError:
+                    self.db.rollback()
                 else:
+                    if first:
+                        self.bootstrap.unlink(missing_ok=True)
                     self._log(email, 'inscription', 'administrateur' if first else 'en attente')
                     if first:
                         return self._respond(start, '303 See Other', '', [('Location', '/login')])
                     return self._respond(start, '200 OK', self._page('Demande enregistrée', '<p class="ok">Votre demande est enregistrée : un administrateur du '
                                                                      'cabinet doit activer votre compte.</p><p><a href="/login">Connexion</a></p>'))
-        intro = ('<p class="notice">Premier compte : il sera <strong>administrateur</strong> du cabinet. Les autres membres seront créés ensuite '
+        intro = ('<p class="notice">Premier compte : il sera <strong>administrateur</strong> du cabinet. Un code privé du serveur est nécessaire '
+                 '(fichier auth/bootstrap-token dans le volume de données). Les autres membres seront créés ensuite '
                  'depuis la page « Comptes ».</p>') if count == 0 else '<p class="notice">Le compte restera inactif jusqu’à son activation par un administrateur.</p>'
-        body = (('<p class="warn">' + escape(error) + '</p>') if error else '') + ((intro + '<form method="post"><label>Nom<input name="name" maxlength="80" required></label>'
+        bootstrap_field = '<label>Code d’installation privé<input name="bootstrap_token" type="password" required autocomplete="off"></label>' if count == 0 else ''
+        body = (('<p class="warn">' + escape(error) + '</p>') if error else '') + ((intro + '<form method="post">' + bootstrap_field + '<label>Nom<input name="name" maxlength="80" required></label>'
                 '<label>Adresse électronique<input name="email" type="email" required></label><label>Mot de passe (12 caractères minimum)'
                 '<input name="password" type="password" minlength="12" required autocomplete="new-password"></label><button>Créer le compte</button></form>')
                if allowed_now else '<p>Les inscriptions sont fermées : demandez un accès à l’administrateur du cabinet.</p>') + '<div class="links"><a href="/login">Connexion</a></div>'

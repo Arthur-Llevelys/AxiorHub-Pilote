@@ -1,0 +1,66 @@
+/* AxiorHub 5.6.9 : bloc « À décider » (Aujourd'hui) et page « Mise en service ». Mêmes API authentifiées que les autres pages. */
+(() => {
+  'use strict';
+  const box = document.querySelector('#c569-decisions');
+  const meta = name => document.querySelector('meta[name="' + name + '"]')?.content || '';
+  const prefix = meta('axiorhub-prefix'), csrf = meta('axiorhub-csrf');
+  const status = document.querySelector('#c569-status');
+  const note = text => { if (status) status.textContent = text; };
+  async function call(route, data) {
+    const r = await fetch(prefix + '/api440/m568/' + route, {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: JSON.stringify(data)});
+    const v = await r.json();
+    if (!r.ok) throw new Error(v.message || v.error || 'Demande refusée.');
+    return v;
+  }
+  const runButton = document.querySelector('[data-readiness569-run]');
+  runButton?.addEventListener('click', async () => {
+    const out = document.querySelector('#readiness569-status');
+    runButton.disabled = true; out.textContent = 'Contrôles en cours…';
+    try { await call('readiness/run', {}); location.reload(); }
+    catch (e) { out.textContent = e.message; runButton.disabled = false; }
+  });
+  const mic = document.querySelector('#readiness569-mic');
+  mic?.querySelector('[data-mic-test]')?.addEventListener('click', async () => {
+    const out = mic.querySelector('[data-mic-result]');
+    if (!window.isSecureContext) { out.textContent = 'Page non sécurisée : le navigateur refuse le micro hors HTTPS (sauf localhost).'; return; }
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !window.AudioContext) { out.textContent = 'Navigateur sans getUserMedia, MediaRecorder ou AudioContext.'; return; }
+    let stream = null, context = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      context = new AudioContext(); await context.resume();
+      const analyser = context.createAnalyser(); context.createMediaStreamSource(stream).connect(analyser);
+      const data = new Float32Array(analyser.fftSize); let peak = 0; const started = Date.now();
+      out.textContent = 'Parlez…';
+      await new Promise(resolve => { const timer = setInterval(() => {
+        analyser.getFloatTimeDomainData(data);
+        for (const v of data) peak = Math.max(peak, Math.abs(v));
+        if (Date.now() - started > 2500) { clearInterval(timer); resolve(); }
+      }, 100); });
+      out.textContent = peak > 0.01 ? 'Micro fonctionnel : niveau capté ' + peak.toFixed(2) + '. Aucun son transmis.'
+        : 'Micro autorisé mais aucun son capté en 2,5 s : vérifiez l’entrée audio du système.';
+    } catch (e) { out.textContent = 'Micro refusé ou indisponible : ' + e.message; }
+    finally { stream?.getTracks().forEach(t => t.stop()); context?.close().catch(() => {}); }
+  });
+  if (!box) return;
+  box.addEventListener('click', async event => {
+    const button = event.target.closest('button[data-act]');
+    if (!button) return;
+    const item = button.closest('.c569-item'), act = button.dataset.act, id = item.dataset.id;
+    const field = name => item.querySelector('[data-field="' + name + '"]')?.value?.trim() || '';
+    button.disabled = true;
+    try {
+      if (act === 'plan-resume') await call('plan/control', {id, action: 'resume'});
+      else if (act === 'resolve') {
+        const payload = {id, action: 'resolve'};
+        if (field('matter')) payload.matter = field('matter');
+        if (field('created')) { payload.created = field('created'); payload.proof = field('proof'); }
+        if (!payload.matter && !payload.created) throw new Error('Choisissez un dossier ou indiquez la date de création avec sa preuve.');
+        await call('document/control', payload);
+      } else await call('document/control', {id, action: act});
+      note('Décision enregistrée ; l’agent reprend.');
+      item.remove();
+      if (!box.querySelector('.c569-item')) setTimeout(() => location.reload(), 600);
+    } catch (e) { note(e.message); button.disabled = false; }
+  });
+})();

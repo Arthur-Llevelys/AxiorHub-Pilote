@@ -149,13 +149,13 @@ class UnifiedInterface(Base):
                 body = r['body']
                 self.assertIn('<aside id="ws-sidebar">', body, path)
                 nav = re.search(r'<nav aria-label="Navigation principale".*?</nav>', body, re.S).group(0)
-                self.assertEqual(nav.count('<a '), 4, path)                                   # 5.3.0 : menu réduit
+                self.assertEqual(nav.count('<a '), 6, path)                                   # 5.3.0 : menu réduit
                 self.assertIn('<nav aria-label="Rubriques"', body, path)
                 self.assertNotIn('class="ax-top"', body, path)
                 self.assertIn('id="ws-ai-launcher"', body, path)
 
     def test_active_entry_follows_the_page(self):
-        expected = {'/courriels': 'Courriels à relire', '/documents': 'Documents', '/echeances': 'Échéances', '/cabinet': 'Cabinet',
+        expected = {'/courriels': 'Courriels', '/documents': 'Documents', '/echeances': 'Échéances', '/cabinet': 'Cabinet',
                     '/conflits': 'Cabinet', '/dossiers': 'Dossiers', '/production': 'Produire'}
         for path, label in expected.items():
             body = self.request(path)['body']

@@ -24,6 +24,7 @@ STAGES = (
 )
 
 JOB_META = {
+    'followup568_prepare': ('mail_draft', 'Brouillon de relance neutre'),
     'prepare_reply': ('mail_draft', 'Projet de réponse'),
     'analyze_notice440': ('mail_draft', 'Avis de procédure'),
     'prepare_document_project': ('document_project', 'Projet documentaire'),
@@ -155,11 +156,12 @@ def _history(matter, status, controlled=False, deposited=False, informed=False):
 
 def _business_message(kind, matter, status, result, paths):
     name = matter or 'le cabinet'
-    if status == 'verified' and kind == 'prepare_reply':
+    if status == 'verified' and kind in ('prepare_reply','followup568_prepare'):
         verification = result.get('draft_verified') or {}
         folder = verification.get('folder') or result.get('dossier') or 'Drafts'
         at = verification.get('verified_at') or ''
-        return 'Projet de réponse préparé pour '+name+'. Brouillon relu dans '+folder+((' à '+at) if at else '')+'.'
+        title='Relance neutre préparée pour ' if kind=='followup568_prepare' else 'Projet de réponse préparé pour '
+        return title+name+'. Brouillon relu dans '+folder+((' à '+at) if at else '')+'.'
     if status == 'verifying':
         return str(len(paths))+' fichier(s) déposé(s) pour '+name+' ; relecture distante en attente.'
     if status == 'verified':

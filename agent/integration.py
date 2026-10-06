@@ -128,7 +128,8 @@ def _page_context(value, selected_matter=''):
     return context
 
 
-def submit_question(desk, question, matter='', mail_key='', thread_id='', attachment_id='', attachment_ids=None, page_context=None):
+def submit_question(desk, question, matter='', mail_key='', thread_id='', attachment_id='', attachment_ids=None, page_context=None, mission_id='', purpose='assistant'):
+    if purpose not in ('assistant','voice_conversation'):raise Stop('fonction_ia_invalide')
     from .workspace import chat_scope
     question = (question or '').strip()
     if not question or len(question) > 12000:
@@ -162,10 +163,11 @@ def submit_question(desk, question, matter='', mail_key='', thread_id='', attach
     message_id = cur.lastrowid
     safe_context=_page_context(page_context,selected['id'] if selected else '')
     job = desk.enqueue('assistant_answer', {'message': message_id, 'thread': thread_id,
+                                             'mission_id':mission_id,
                                              'matter': matter, 'key': mail_key,
                                              'attachment_id':attachments[0] if attachments else '',
                                              'attachment_ids':attachments,
-                                             'page_context':safe_context})
+                                             'page_context':safe_context,'purpose':purpose})
     desk.db.execute('UPDATE assistant_messages SET job_id=? WHERE id=?', (job, message_id))
     desk.db.execute('UPDATE assistant_threads SET updated=? WHERE id=?', (desk.now(), thread_id))
     desk.db.commit()
@@ -187,6 +189,8 @@ def answer_question(desk, args):
                           (message_id,)).fetchone()
     if not row or row['thread_id'] != args.get('thread'):
         raise Stop('message_assistant_absent')
+    if row['status']=='done':
+        return {'thread_id':row['thread_id'],'status':'done','message':'Réponse déjà préparée ; aucune nouvelle inférence.'}
     desk.db.execute('UPDATE assistant_messages SET status=?,updated=? WHERE id=?',
                     ('running', desk.now(), message_id)); desk.db.commit()
     matter = args.get('matter', '')
@@ -198,7 +202,7 @@ def answer_question(desk, args):
                              'attachment_ids':args.get('attachment_ids',[]),
                              'page_context':_page_context(args.get('page_context'),matter)},
                       DAV(desk.c['nextcloud']) if matter else None,
-                      Model(routed_config(desk.c,'assistant')), box, return_result=True)
+                      Model(routed_config(desk.c,args.get('purpose','assistant'))), box, return_result=True)
     except Exception:
         desk.db.execute('UPDATE assistant_messages SET status=?,updated=? WHERE id=?',
                         ('error', desk.now(), message_id)); desk.db.commit()

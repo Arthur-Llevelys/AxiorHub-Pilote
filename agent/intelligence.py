@@ -246,7 +246,7 @@ def prepare_draft(desk,args):
     key=args.get('key','');style=args.get('style','prudent')
     if style not in STYLES:raise Stop('style_invalide')
     instruction=args.get('instruction','').strip()
-    if len(instruction)>3000:raise Stop('instruction_trop_longue')
+    if len(instruction)>12000:raise Stop('instruction_trop_longue_12000_maximum')
     box=Mailbox(desk.c['mail'])
     try:
         report,mail=fetch_source(desk,key,box);m=matter(desk.c,report.get('matter',''))
@@ -269,6 +269,8 @@ def prepare_draft(desk,args):
                  'dossier':{'id':m['id'],'nom':m['client_name']},
                  'recipient_role':report.get('recipient_role',''),'reply_recipients':recipients,'sources':sources,
                  'available_slots':slots,'coverage':coverage}
+        from .assistant567 import drafting_preferences
+        payload['preferences_assistant']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
         from .relevance370 import correction_guidance
         payload['corrections_approuvees']=correction_guidance(desk,m['id'])
         from .learning392 import learning_context
@@ -375,6 +377,8 @@ def prepare_reply(desk,args):
     if not prepared['depot_autorise']:
         return {**prepared,'message':'Une réponse prudente est préparée, mais elle attend votre décision avant dépôt.'}
     progress(desk,'Contrôle réussi ; dépôt du brouillon et relecture IMAP',str(args.get('matter','')),str(args.get('key','')))
+    from .missions567 import check_authority
+    check_authority(desk,args)
     deposited=deposit_draft(desk,{'key':args.get('key',''),'confirm':'yes'})
     progress(desk,'Brouillon effectivement relu dans le dossier Brouillons configuré',str(args.get('matter','')),str(args.get('key','')))
     return {**prepared,**deposited,'message':'1 brouillon retrouvé et vérifié dans la messagerie.'}

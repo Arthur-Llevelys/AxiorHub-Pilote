@@ -85,10 +85,10 @@ def settings(desk):
 def jwt_secret(desk):
     path = _secret_path(desk)
     if path.is_file():
-        return path.read_text().strip()
+        return path.read_text(encoding='utf-8').strip()
     fallback = desk.c.get('office', {}).get('jwt_secret_file', '') if isinstance(desk.c.get('office'), dict) else ''
     if fallback and Path(fallback).is_file():
-        return Path(fallback).read_text().strip()
+        return Path(fallback).read_text(encoding='utf-8').strip()
     return ''
 
 

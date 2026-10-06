@@ -75,14 +75,16 @@ class OneClickReplyTests(unittest.TestCase):
         prepared={'projet_prepare':True,'depot_autorise':True}
         with patch('agent.intelligence.prepare_draft',return_value=prepared),\
              patch('agent.intelligence.deposit_draft',return_value={'brouillon_imap':'cree'}) as deposit:
-            result=prepare_reply(object(),{'key':'a'*64})
+            from types import SimpleNamespace
+            result=prepare_reply(SimpleNamespace(),{'key':'a'*64})
         self.assertEqual(result['brouillon_imap'],'cree');deposit.assert_called_once()
 
     def test_legal_decision_keeps_prudent_text_without_deposit(self):
         prepared={'projet_prepare':True,'depot_autorise':False}
         with patch('agent.intelligence.prepare_draft',return_value=prepared),\
              patch('agent.intelligence.deposit_draft') as deposit:
-            result=prepare_reply(object(),{'key':'a'*64})
+            from types import SimpleNamespace
+            result=prepare_reply(SimpleNamespace(),{'key':'a'*64})
         self.assertIn('décision',result['message']);deposit.assert_not_called()
 
 

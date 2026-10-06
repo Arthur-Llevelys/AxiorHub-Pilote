@@ -113,6 +113,8 @@ class External(unittest.TestCase):
     def route_all(self, provider, model):
         with patch('agent.ia540.Model', create=True):
             ia540.apply_mixed(self.d, provider, model, 'test-local', test=False)
+        from support567 import authorize_external
+        authorize_external(self.f.c)
 
     def test_manual_route_to_openai_is_pseudonymised_and_answer_restored(self):
         self.route_all('openai', 'gpt-5')

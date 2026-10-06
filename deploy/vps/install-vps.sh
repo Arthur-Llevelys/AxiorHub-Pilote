@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AxiorHub 5.6.0 — installation complète sur un VPS Debian 12 / Ubuntu 22.04-24.04 (OVH ou autre).
+# AxiorHub 5.6.9 — installation complète sur un VPS Debian 12 / Ubuntu 22.04-24.04 (OVH ou autre).
 #
 #   sudo bash deploy/vps/install-vps.sh
 #
@@ -81,7 +81,9 @@ say "5/7 · Apache (hôtes virtuels)"
 a2enmod -q proxy proxy_http proxy_wstunnel headers rewrite ssl >/dev/null
 install_site() {
   local tpl="$1" domain="$2" name="$3"
-  sed "s|__DOMAIN__|$domain|g" "$HERE/apache/$tpl" > "/etc/apache2/sites-available/$name.conf"
+  [[ "$domain" =~ ^[A-Za-z0-9.-]+$ ]] || die "nom de domaine invalide."
+  [[ "$AXIORHUB_PORT" =~ ^[0-9]+$ ]] && ((AXIORHUB_PORT>=1 && AXIORHUB_PORT<=65535)) || die "port AxiorHub invalide."
+  sed -e "s|__DOMAIN__|$domain|g" -e "s|__PORT__|$AXIORHUB_PORT|g" "$HERE/apache/$tpl" > "/etc/apache2/sites-available/$name.conf"
   a2ensite -q "$name" >/dev/null
 }
 install_site axiorhub.conf "$DOMAIN_AGENT" axiorhub
@@ -111,6 +113,7 @@ bash "$HERE/nextcloud-post-install.sh" || echo "Réglages Nextcloud à terminer 
 say "Installation terminée"
 cat <<EOF
   AxiorHub   : https://$DOMAIN_AGENT  → créez le compte administrateur (/signup), puis suivez l'assistant d'installation.
+  Code privé de première inscription : $HERE/data/axiorhub/auth/bootstrap-token (lecture avec sudo cat ; ne pas publier).
   Nextcloud  : https://$DOMAIN_CLOUD  → compte « $NEXTCLOUD_ADMIN_USER », mot de passe dans $ENV_FILE (NEXTCLOUD_ADMIN_PASSWORD).
                Créez-y un compte technique « axiorhub » et un mot de passe d'application pour l'assistant d'AxiorHub.
   Webmail    : https://$DOMAIN_MAIL

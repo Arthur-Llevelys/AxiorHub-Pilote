@@ -79,6 +79,8 @@ def schedule(desk,stamp=None):
         emit(desk,'detected','Contrôle quotidien approfondi des dossiers mis en file.')
     from .activity431 import maintenance
     maintenance(desk,stamp)
+    from .proactive568 import schedule as schedule568
+    jobs.extend(schedule568(desk,stamp))
     heartbeat(desk,'surveillance','active','Contrôle périodique et réveil IMAP',stamp+max(0,300-(stamp-float(desk.settings('live430:last:live_mail430',0)))))
     return jobs
 
@@ -105,7 +107,10 @@ def calendar_check(desk,dav=None):
         heartbeat(desk,'agenda','unconfigured','Aucun calendrier configuré');return {'abstention':'Agenda non configuré.'}
     client=dav or DAV(desk.c['nextcloud']);now=datetime.now(timezone.utc)
     progress(desk,'Consultation de l’agenda · échéances et audiences à venir')
-    events=client.events(urls,now-timedelta(days=1),now+timedelta(days=int(cc.get('horizon_days',90))),cc.get('timezone','Europe/Paris'))
+    parameters=(urls,now-timedelta(days=1),now+timedelta(days=int(cc.get('horizon_days',90))),cc.get('timezone','Europe/Paris'))
+    events=client.events(*parameters,include_cancelled=True) if isinstance(client,DAV) else client.events(*parameters)
+    from .proactive568 import calendar_events
+    calendar_events(desk,events)
     changed=0;dirty=[]
     for event in events:
         # UID + occurrence, not moving query boundaries, avoids recurrent noise.
@@ -176,14 +181,17 @@ def documents_check(desk,dav=None):
         items=scan.get('files',{})
         rows=sorted([(path,x.get('etag',''),x.get('modified','')) for path,x in items.items()])
         state=observe(desk,'documents',mid,rows)
+        from .automation568 import observe as observe_agents
+        managed=observe_agents(desk,matter,items)
+        legacy_items={path:meta for path,meta in items.items() if path not in managed}
         try:
             from .notices440 import observe_inventory
-            observe_inventory(desk,mid,items)
+            observe_inventory(desk,mid,legacy_items)
         except Exception as ex:
             emit(desk,'documents','Analyse des avis impossible : '+str(ex)[:120],getattr(desk,'active_job_id',None),mid)
         try:
             from .echeances450 import observe_inventory as observe_deadlines
-            observe_deadlines(desk,mid,items)
+            observe_deadlines(desk,mid,legacy_items)
         except Exception as ex:
             emit(desk,'documents','Analyse des échéances impossible : '+str(ex)[:120],getattr(desk,'active_job_id',None),mid)
         if state!='unchanged':
@@ -194,10 +202,14 @@ def documents_check(desk,dav=None):
                 acknowledged(desk,'documents',mid)
                 continue
             changed+=1;emit(desk,'documents','Inventaire initial ou documents modifiés dans '+matter_option(matter),getattr(desk,'active_job_id',None),mid)
+            from .proactive568 import document_events
+            document_events(desk,matter,legacy_items)
             try:
                 desk.enqueue('index',{'matter':mid},priority=50)
                 desk.enqueue('monitor_matter',{'matter':mid},priority=55)
-                desk.enqueue('extract_facts460',{'matter':mid},priority=58)
+                from . import economie569
+                if economie569.quota_ok(desk,'extract_facts460'):desk.enqueue('extract_facts460',{'matter':mid},priority=58)
+                else:emit(desk,'documents','Recherche de faits reportée (quota journalier du régime économe) : '+matter_option(matter),getattr(desk,'active_job_id',None),mid,dedupe='econome-facts-'+mid+'-'+time.strftime('%Y%m%d'))
                 acknowledged(desk,'documents',mid)
             except Stop as ex:
                 # file automatique pleine : le dossier reste « à traiter » et sera repris au prochain passage, sans échec de la surveillance

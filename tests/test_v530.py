@@ -97,7 +97,7 @@ class Page(Base):
         self.assertIn('Audiences et rendez-vous', self.request('/aujourdhui', query='vue=essentiel')['body'])     # écran 5.2 conservé
         self.assertEqual(body.count('<h1'), 1)                                                     # un seul titre
         nav = self.request('/aujourdhui')['body']
-        self.assertIn('aria-label="Mon style"', nav)
+        self.assertIn('aria-label="Apprentissage et modèles"', nav)
         self.assertIn('<nav aria-label="Rubriques"', nav)
 
     def test_guess_and_document_request_from_the_composer(self):

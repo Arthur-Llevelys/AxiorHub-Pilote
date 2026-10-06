@@ -1,0 +1,30 @@
+/* 5.6.8 : suites de missions et conversation, mêmes variables de thème. */
+.proactive568-heading{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-bottom:1.5rem}
+.proactive568-heading h1,.proactive568-heading p{width:100%;margin:.25rem 0}
+#proactive568-settings{max-width:none;display:grid;gap:1rem}
+#proactive568-settings details{border:1px solid var(--border,#c9d8ef);border-radius:14px;padding:1rem}
+#proactive568-settings summary{font-weight:650;cursor:pointer}
+.proactive568-check{display:flex!important;gap:.65rem;align-items:center;flex-wrap:wrap;margin:.5rem 0}
+.proactive568-check input{width:auto!important;flex:0 0 auto}.proactive568-check small{width:100%;padding-left:2rem}
+#proactive568-summary{padding:1rem;border-radius:12px;background:var(--panel,#eef4ff);margin:1rem 0}
+#events568-list,#commitments568-list{display:grid;gap:.75rem;padding:1rem 0}
+.proactive568-steps{display:grid;gap:.75rem;padding-left:1.25rem}.proactive568-steps li p{margin:.25rem 0}
+.proactive568-steps pre,.voice568-answer pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+.proactive568-pulse{display:block;font-size:.85rem;padding:.6rem .9rem;margin:1rem 0;border:1px solid var(--border,#c9d8ef);border-radius:12px;text-decoration:none}
+.voice568-launch{position:fixed;right:18px;bottom:100px;z-index:990;width:48px;height:48px;border-radius:50%;background:#1d65d8;color:white;border:2px solid white;box-shadow:0 4px 16px #0003;font-size:22px}
+.voice568-panel{position:fixed;right:78px;bottom:20px;width:min(520px,calc(100vw - 105px));max-height:88vh;overflow:auto;z-index:1100;background:var(--bg,#fff);color:var(--text,#152b47);border:1px solid #3984ff;border-radius:20px;padding:1.25rem;box-shadow:0 14px 50px #0004;display:grid;gap:.7rem}
+.voice568-panel[hidden]{display:none!important}.voice568-panel header{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.voice568-panel header button{padding:.25rem .75rem;font-size:24px}.voice568-panel textarea,.voice568-panel select{width:100%;box-sizing:border-box}
+.voice568-panel p{margin:.25rem 0;font-size:.9rem}.voice568-status{font-weight:600}.voice568-answer{max-height:35vh;overflow:auto}
+html[data-theme="dark"] .voice568-panel,body.dark .voice568-panel{background:#181a1d;color:#f3f4f6}
+html[data-theme="dark"] #proactive568-summary,body.dark #proactive568-summary{background:#252a34}
+@media(max-width:640px){.voice568-launch{right:12px;bottom:90px}.voice568-panel{right:8px;left:8px;bottom:8px;width:auto;max-height:85vh}.proactive568-heading{gap:.65rem}}
+/* Agents en langage naturel : formulaires larges, preuves repliables. */
+.doc568-editor{padding:1rem;border:1px solid var(--border,#8ab4ed);border-radius:16px;margin-block:1rem}
+.doc568-editor textarea,.doc568-editor input:not([type=checkbox]),.doc568-editor select,#doc568-case select,#doc568-calendar input{max-width:none;width:100%;box-sizing:border-box}
+#doc568-rule fieldset{border:1px solid var(--border,#8ab4ed);border-radius:12px;margin-top:1rem;padding:1rem}
+#doc568-recipe[hidden]{display:none}
+#doc568-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:1rem}
+#doc568-runs pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:30rem;overflow:auto}
+#doc568-runs .actions details{flex:1;min-width:min(100%,260px)}
+#doc568-runs .actions input,#doc568-runs .actions select{display:block;width:100%;margin-block:.5rem}

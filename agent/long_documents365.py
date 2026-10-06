@@ -12,6 +12,14 @@ from .model import CHAT, validate
 def _sha(value):return hashlib.sha256(str(value).encode()).hexdigest()
 
 
+def analysis_signature(desk,model,limit,purpose):
+    from .extensions364 import active_skill_instructions
+    relevant=[tuple(r) for r in desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:%' OR key LIKE 'learning%' OR key LIKE 'style%' OR key LIKE 'extensions:%' OR key LIKE 'assistant567:profile:%' ORDER BY key")]
+    return _sha(json.dumps({'model':getattr(model,'cfg',{}),'config':desk.c,
+             'settings':relevant,'pipeline':'5.6.7-2','limit':limit,'purpose':purpose,
+             'skills':active_skill_instructions(desk.c,purpose)[:6000]},sort_keys=True,default=str))
+
+
 def pages_from_text(text):
     """Recover real PDF page markers emitted by documents.extract."""
     text=str(text or '')
@@ -23,8 +31,8 @@ def pages_from_text(text):
     for index,hit in enumerate(hits):
         end=hits[index+1].start() if index+1<len(hits) else len(text)
         value=text[hit.end():end].strip()
-        if value:pages.append({'page':int(hit.group(1)),'label':'p. '+hit.group(1),
-          'text':value,'extraction':'text','citation_kind':'page'})
+        pages.append({'page':int(hit.group(1)),'label':'p. '+hit.group(1),
+          'text':value,'extraction':'text' if value else 'unreadable','citation_kind':'page'})
     return pages
 
 
@@ -122,7 +130,10 @@ def _merge(model,question,items,limit,source_id,level,number,skill_guidance=''):
 
 def analyze_pages(desk,pages,source_id,path,question,model,limit,purpose='hearing'):
     """Analyze every page, cache each fragment, and resume incomplete work."""
-    _schema(desk);pages=[dict(x) for x in pages if str(x.get('text','')).strip()]
+    _schema(desk);pages=[dict(x) for x in pages]
+    if any(not str(x.get('text','')).strip() and x.get('extraction')!='blank_verified' for x in pages):
+        raise Stop('document_pages_non_extraites_ocr_requis')
+    pages=[x for x in pages if x.get('extraction')!='blank_verified']
     if not pages:raise Stop('document_sans_texte_exploitable')
     if len(pages)>int(desk.c.get('documents',{}).get('max_pdf_pages_long',400)):
         raise Stop('document_long_depasse_pages_autorisees')
@@ -136,9 +147,12 @@ def analyze_pages(desk,pages,source_id,path,question,model,limit,purpose='hearin
     # No extension script is executed and page sources remain authoritative.
     skill_guidance=active_skill_instructions(desk.c,purpose)[:6000]
     model_fp=json.dumps({'provider':getattr(model,'cfg',{}).get('provider_id','ollama'),
-      'model':getattr(model,'cfg',{}).get('model',''),'extensions':extensions},sort_keys=True)
+      'model':getattr(model,'cfg',{}).get('model',''),'extensions':extensions,
+      'pipeline':'5.6.7-1','skills_sha256':_sha(skill_guidance),'limit':limit,'purpose':purpose,
+      'config_sha256':_sha(json.dumps(desk.c,sort_keys=True,default=str)),
+      'settings_sha256':_sha(json.dumps([tuple(r) for r in desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:%' OR key LIKE 'learning%' OR key LIKE 'style%' OR key LIKE 'extensions:%' OR key LIKE 'assistant567:profile:%' ORDER BY key")],sort_keys=True))},sort_keys=True)
     document_sha=_sha('\n'.join(str(x['page'])+'\0'+str(x['text']) for x in pages))
-    run_id=digest('|'.join([document_sha,source_id,_sha(question),_sha(model_fp)]))
+    run_id=digest('|'.join([document_sha,source_id,_sha(path),_sha(question),_sha(model_fp),analysis_signature(desk,model,limit,purpose)]))
     stamp=desk.now();citations=[{'page':x['page'],'label':x.get('label','p. '+str(x['page'])),
       'citation_kind':x.get('citation_kind','page'),'extraction':x.get('extraction',''),
       'sha256':_sha(x['text']),'characters':len(x['text'])} for x in pages]

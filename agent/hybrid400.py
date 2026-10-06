@@ -140,7 +140,7 @@ def _benchmark_recommendation(config, purpose):
         rows=list(db.execute('''SELECT r.provider,r.model,ROUND(AVG(r.total_score),1) score,
           COUNT(*) samples,SUM(r.hallucination_count) hallucinations
           FROM legal_benchmark_results_v410 r JOIN legal_benchmark_cases_v410 c ON c.id=r.case_id
-          WHERE r.status='done' AND c.task_kind IN ('''+placeholders+''')
+          WHERE r.status='done' AND r.scorer_version=567 AND c.task_kind IN ('''+placeholders+''')
           GROUP BY r.provider,r.model ORDER BY score DESC,hallucinations,samples DESC''',tasks))
     except sqlite3.Error:return {}
     finally:db.close()
@@ -316,7 +316,7 @@ def external_config(config, decision):
     result = dict(provider); result['model'] = decision['model']
     result.update({'provider_id': decision['provider'], 'provider_type': 'openrouter',
       'purpose': decision['purpose'], 'state_dir': config.get('state_dir', ''),
-      '_hybrid_decision_done': True})
+      '_hybrid_decision_done': True, 'external_policy_config': config})
     from .extensions364 import active_skill_instructions
     result['skill_instructions'] = active_skill_instructions(config, decision['purpose'])
     return result

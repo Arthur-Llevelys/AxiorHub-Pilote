@@ -148,6 +148,7 @@ def honoraires_page(desk, auth, prefix, args, shell):
 
 
 def _matter_detail(desk, matter, prefix):
+    from . import facturation569   # 5.6.9 : écritures Invoice Ninja après validation
     s = time500.summary(desk, matter)
     t = s['terms']
     label = m5.matter_label(desk, matter)
@@ -169,17 +170,19 @@ def _matter_detail(desk, matter, prefix):
     # temps validés
     html += '<h3>Temps validés</h3>'
     if s['entries']:
-        html += '<table class="vf-table"><thead><tr><th>Jour</th><th>Durée</th><th>Taux</th><th>Valeur HT</th><th>Libellé</th><th>Origine</th><th>Annuler</th></tr></thead><tbody>'
+        html += '<table class="vf-table"><thead><tr><th>Jour</th><th>Durée</th><th>Taux</th><th>Valeur HT</th><th>Libellé</th><th>Origine</th><th>Annuler</th><th>Invoice Ninja</th></tr></thead><tbody>'
         for en in s['entries']:
-            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
+            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
                 e(en['day']), e(m5.hours(en['minutes'])), e(m5.euros(en['rate_cents']) if en['rate_cents'] else 'non défini'), e(m5.euros(en['amount_cents'])), e(en['label']),
                 e('Proposition validée' if en['origin'] == 'proposition_validee' else 'Saisie'),
-                _form('m500/time/cancel', _hidden(id=en['id']) + _field('Motif', 'reason', '', 'text', 'required minlength="5" maxlength="300"'), 'Annuler', cls='m5-inline m5-mini'))
+                _form('m500/time/cancel', _hidden(id=en['id']) + _field('Motif', 'reason', '', 'text', 'required minlength="5" maxlength="300"'), 'Annuler', cls='m5-inline m5-mini'),
+                facturation569.task_button_html(desk, en))
         html += '</tbody></table>'
     else:
         html += '<p class="vf-note">Aucun temps validé pour ce dossier.</p>'
     html += _form('m500/time/add', _hidden(matter=matter) + _field('Jour', 'day', date.today().isoformat(), 'date', 'required') + _field('Minutes', 'minutes', '', 'number', 'min="1" max="1440" required') +
                   _field('Libellé', 'label', '', 'text', 'maxlength="200"'), 'Saisir un temps (validé d’emblée)', cls='m5-inline')
+    html += facturation569.section_html(desk, matter, prefix)
     # rapprochement
     rec = time500.reconcile(desk, matter)
     html += '<h3>Rapprochement avec la facturation</h3><p>%s</p>' % e(rec['text'])
@@ -551,6 +554,12 @@ def handle(desk, name, data, method='POST', args=None):
     # ---- écritures
     if n == 'time/estimate':
         return time500.estimate(desk, _s(data, 'matter'), _s(data, 'since'), _s(data, 'until'))
+    if n == 'invoice_ninja/draft':
+        from .facturation569 import draft_invoice
+        return draft_invoice(desk, _s(data, 'matter'), note=_s(data, 'note'), confirm=data.get('confirm'))
+    if n == 'invoice_ninja/task':
+        from .facturation569 import log_time
+        return log_time(desk, _s(data, 'id'), confirm=data.get('confirm'))
     if n == 'time/validate':
         return time500.validate(desk, _s(data, 'id'), data.get('minutes'), _s(data, 'label'), data.get('rate'))
     if n == 'time/reject':

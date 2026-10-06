@@ -109,7 +109,7 @@ class PublicPackage370(unittest.TestCase):
                   'CONTENT_LENGTH':str(len(raw)),'wsgi.input':io.BytesIO(raw)}
                 body=b''.join(app(env,lambda status,headers:capture.update(status=status,headers=headers)))
                 return capture,body
-            call('/signup','POST',{'email':'lawyer@example.com','password':'a-long-password-123'})
+            call('/signup','POST',{'email':'lawyer@example.com','password':'a-long-password-123','bootstrap_token':app.bootstrap.read_text().strip()})
             response,_=call('/login','POST',{'email':'lawyer@example.com','password':'a-long-password-123'})
             cookie=next(v for k,v in response['headers'] if k=='Set-Cookie')
             self.assertIn('HttpOnly',cookie);self.assertIn('Secure',cookie);self.assertIn('SameSite=Lax',cookie)

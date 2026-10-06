@@ -3,6 +3,7 @@
   const launcher=document.querySelector('#ws-ai-launcher'), dock=document.querySelector('#ws-ai-dock');
   if(!launcher||!dock)return;
   const config=JSON.parse(document.querySelector('#ws-ai-config')?.textContent||'{}');
+  if(config.mission_api)return;
   const prefix=config.prefix||''; const csrf=config.csrf||'';
   const question=dock.querySelector('#ws-ai-question'), matter=dock.querySelector('#ws-ai-matter');
   const due=dock.querySelector('#ws-ai-due'), autonomy=dock.querySelector('#ws-ai-autonomy');

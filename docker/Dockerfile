@@ -1,10 +1,10 @@
 FROM python:3.12-slim
 LABEL org.opencontainers.image.title="AxiorHub Pilote" \
-      org.opencontainers.image.version="5.6.6" \
+      org.opencontainers.image.version="5.6.9" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.authors="Timo RAINIO" \
       org.opencontainers.image.description="Production juridique utile, déposée et vérifiée pour cabinets d’avocats"
-RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-fra libreoffice-writer curl tini minisign && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-fra libreoffice-writer curl tini minisign espeak-ng && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir waitress==3.0.2 cryptography==44.0.0
 RUN useradd --system --uid 10001 --create-home axiorhub
 WORKDIR /app

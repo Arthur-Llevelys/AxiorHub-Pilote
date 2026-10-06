@@ -7,7 +7,7 @@ from pathlib import Path
 import py_compile
 import tempfile
 
-from upgrade import verify, atomic
+from upgrade import verify, atomic, SUPPORTED_PREVIOUS, VERSION
 
 
 BASE=Path('/opt/axiorhub-mail-agent/current')
@@ -20,8 +20,7 @@ PROMPT=Path('/etc/axiorhub-mail-agent/SYSTEM-PROMPT-AXIORHUB.md')
 def main():
     if os.geteuid()!=0:raise RuntimeError('Exécuter avec sudo python3 install-openwebui-tool.py')
     verify(BASE.resolve())
-    supported=('3.1.0','3.1.1','3.2.0','3.3.0','3.4.0','3.5.0','3.5.1',
-               '3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0')
+    supported=('3.1.0','3.1.1','3.2.0','3.3.0','3.4.0',*SUPPORTED_PREVIOUS,VERSION)
     if BASE.resolve().name not in supported:
         raise RuntimeError('Version active non prise en charge par l’installateur Open WebUI.')
     if not AUTH.is_file() or not TOKEN.is_file():

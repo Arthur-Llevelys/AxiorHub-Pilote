@@ -850,8 +850,9 @@ def header_html(desk):
     return '<span class="c530-status"><span class="c530-live" aria-hidden="true"></span>%d en cours · %d en file%s</span>%s' % (running, pending, e(nxt), alert)
 
 
-def page(desk, prefix, csrf=''):
+def page(desk, prefix, csrf='', owner='cabinet'):
     ensure_schema(desk)
+    from .decisions569 import html as decisions_html   # 5.6.9 : « À décider » en tête de page
     z = tz(desk)
     days = ('lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche')
     months = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')
@@ -874,7 +875,7 @@ def page(desk, prefix, csrf=''):
             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>'
             '<button type="button" class="ax-btn c530-send" id="c530-send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
             '<path d="M4 12l16-8-6 16-2-7z"/></svg>Envoyer</button></div></div>'
-            '<p class="c530-note">L’agent continue son travail automatique pendant la conversation. Rien n’est envoyé, déposé ni signé sans vous. Ctrl+Entrée pour envoyer.</p></section>'
+            '<p class="c530-note">L’agent continue son travail automatique pendant la conversation. Rien n’est envoyé, déposé ni signé sans vous. Ctrl+Entrée pour envoyer.</p></section>%s'
             '<div class="c530-cols"><section class="c530-card" id="c530-review" aria-labelledby="c530-t-review">%s</section>'
             '<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>'
             '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section></div>'
@@ -885,7 +886,7 @@ def page(desk, prefix, csrf=''):
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
             '<div id="c530-drawer-content"></div></div></div></div>') % (
-        e(prefix, quote=True), e(when), header, thread_html(desk, prefix), options,
+        e(prefix, quote=True), e(when), header, thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
         review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix), routines_html(desk, prefix), style_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
 

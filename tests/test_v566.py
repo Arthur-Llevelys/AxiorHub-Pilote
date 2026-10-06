@@ -1,4 +1,4 @@
-"""5.6.6 : l'état du système ne se recharge plus en boucle et ne signale plus de faux incidents (jeton Invoice Ninja d'une intégration
+"""5.6.7 : l'état du système ne se recharge plus en boucle et ne signale plus de faux incidents (jeton Invoice Ninja d'une intégration
 désactivée, Ollama lancé hors de ollama.service, dossier de brouillons supprimé présenté comme « dossier illisible »)."""
 from datetime import datetime, timezone
 import json

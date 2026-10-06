@@ -60,7 +60,7 @@ def configure(path):
             if not value: return str(dest)
         elif reuse and Path(reuse).is_file():
             value = getpass.getpass('Mot de passe '+name+' (Entrée pour reprendre le secret de la V8) : ')
-            if not value: value = Path(reuse).read_text().strip()
+            if not value: value = Path(reuse).read_text(encoding='utf-8').strip()
         else: value = getpass.getpass('Mot de passe '+name+' (saisie masquée) : ')
         if not value or '\n' in value or '\r' in value: raise Stop('secret_vide_ou_invalide')
         fd = os.open(dest, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0o600)
@@ -79,7 +79,7 @@ def configure(path):
     mail['own_addresses'] = list(dict.fromkeys([mail['from_address']] + split(ask('Autres adresses du cabinet reçues dans cette boîte, séparées par virgules'))))
     mail['from_name'] = ask('Nom d’expédition','Maître Exemple')
     signature_path = ask('Fichier de votre signature texte existante (Entrée pour une signature simple)')
-    mail['signature'] = Path(signature_path).read_text() if signature_path else 'Maître Exemple\nAvocat au Barreau de Lyon'
+    mail['signature'] = Path(signature_path).read_text(encoding='utf-8') if signature_path else 'Maître Exemple\nAvocat au Barreau de Lyon'
     box = Mailbox(mail)
     try:
         names = mailbox_names(box)

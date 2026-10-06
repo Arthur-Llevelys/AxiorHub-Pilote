@@ -75,6 +75,7 @@ def daily_digest(desk):
 
 
 def automation_tick(desk):
+    from . import economie569   # 5.6.9 : contrôles périodiques espacés en régime économe
     cfg=desk.c.get('automation',{});now_ts=datetime.now(timezone.utc).timestamp()
     schedules=[('health','health_interval_minutes',30),('sync','sync_interval_minutes',30),
       ('reconcile_inbox','reconcile_interval_minutes',15),
@@ -90,7 +91,7 @@ def automation_tick(desk):
             from . import autonomy480
             if not autonomy480.allows(desk,'classement','agir'):continue
         last=desk.settings('auto:'+job,0)
-        if now_ts-last>=int(cfg.get(key,default))*60:
+        if now_ts-last>=economie569.interval(desk,job,int(cfg.get(key,default)))*60:
             # Reconciliation and portfolio refresh are background hygiene. They
             # must never overtake a draft or a question explicitly requested by
             # the lawyer.
@@ -99,7 +100,7 @@ def automation_tick(desk):
             desk.enqueue(job,priority=priority);desk.setting('auto:'+job,now_ts)
     proactive=desk.c.get('proactive',{})
     if desk.settings('automation:proactive_enabled',proactive.get('enabled',True)):
-        minutes=max(5,int(proactive.get('monitor_interval_minutes',30)))
+        minutes=economie569.interval(desk,'monitor_all',max(5,int(proactive.get('monitor_interval_minutes',30))))
         last=desk.settings('auto:monitor_all',0)
         if now_ts-last>=minutes*60:
             desk.enqueue('monitor_all');desk.setting('auto:monitor_all',now_ts)
@@ -125,12 +126,12 @@ def automation_tick(desk):
             desk.setting('auto:autonomy_mail_sweep',now_ts)
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):
-        minutes=max(5,int(pilot.get('refresh_interval_minutes',30)))
+        minutes=economie569.interval(desk,'refresh_cabinet_pilotage',max(5,int(pilot.get('refresh_interval_minutes',30))))
         last=desk.settings('auto:refresh_cabinet_pilotage',0)
         if now_ts-last>=minutes*60:
             desk.enqueue('refresh_cabinet_pilotage',priority=65)
             desk.setting('auto:refresh_cabinet_pilotage',now_ts)
-        test_minutes=max(15,int(pilot.get('continuous_tests_interval_minutes',60)))
+        test_minutes=economie569.interval(desk,'run_continuous_business_tests',max(15,int(pilot.get('continuous_tests_interval_minutes',60))))
         last_test=desk.settings('auto:run_continuous_business_tests',0)
         if now_ts-last_test>=test_minutes*60:
             desk.enqueue('run_continuous_business_tests',priority=90)
@@ -139,7 +140,7 @@ def automation_tick(desk):
     schedule(desk)
     production=desk.c.get('production',{})
     if desk.settings('automation:production_enabled',production.get('enabled',True)):
-        minutes=max(5,int(production.get('interval_minutes',5)))
+        minutes=economie569.interval(desk,'production_cycle391',max(5,int(production.get('interval_minutes',5))))
         last=desk.settings('auto:production_cycle391',0)
         if now_ts-last>=minutes*60:
             desk.enqueue('production_cycle391',{'limit':int(production.get('batch_size',20))},priority=35)

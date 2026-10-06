@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install AxiorHub 5.6.6 from one archive, on a new or existing server."""
+"""Install AxiorHub 5.6.9 from one archive, on a new or existing server."""
 import argparse
 import grp
 import json
@@ -15,7 +15,7 @@ import uuid
 import upgrade
 
 
-VERSION = '5.6.6'
+VERSION = '5.6.9'
 BASE = Path('/opt/axiorhub-mail-agent')
 CONFIG_DIR = Path('/etc/axiorhub-mail-agent')
 STATE = Path('/var/lib/axiorhub-mail-agent')
@@ -48,7 +48,7 @@ def _copy_release(source, base, uid=0, gid=0):
     if release.exists():
         upgrade.verify(release)
         if (release/'MANIFEST.sha256').read_bytes() != (source/'MANIFEST.sha256').read_bytes():
-            raise RuntimeError('Une autre version 5.6.6 existe déjà.')
+            raise RuntimeError('Une autre version 5.6.9 existe déjà.')
         return release
     staging=releases/('.'+VERSION+'-'+uuid.uuid4().hex)
     try:
@@ -102,14 +102,14 @@ def _install_dependencies():
     subprocess.run(['apt-get','update'],check=True)
     subprocess.run(['apt-get','install','-y','--no-install-recommends',
       'python3','python3-venv','poppler-utils','tesseract-ocr','tesseract-ocr-fra',
-      'libreoffice-writer','minisign'],check=True)
+      'libreoffice-writer','minisign','python3-cryptography','espeak-ng'],check=True)
 
 
 def fresh_install(source):
     _install_dependencies();uid,gid=_ensure_account()
     release=provision_files(source,service_uid=uid,service_gid=gid)
     subprocess.run(['systemctl','daemon-reload'],check=True)
-    print('Installation autonome 5.6.6 terminée. Aucun secret fictif n’a été créé.')
+    print('Installation autonome 5.6.9 terminée. Aucun secret fictif n’a été créé.')
     print('Étape suivante : sudo axiorhub-mail configure')
     print('Puis : sudo python3 '+str(release/'install-interface.py'))
     print('Enfin : sudo systemctl enable --now axiorhub-mail-agent.timer axiorhub-mail-agent-cleanup.timer')
@@ -148,7 +148,7 @@ def prune_old_releases(base=BASE, keep=2):
 
 
 def main():
-    parser=argparse.ArgumentParser(description='Installation cumulative AxiorHub 5.6.6')
+    parser=argparse.ArgumentParser(description='Installation cumulative AxiorHub 5.6.9')
     parser.add_argument('--prune-old-releases',action='store_true')
     parser.add_argument('--keep',type=int,default=2)
     args=parser.parse_args()

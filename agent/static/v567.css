@@ -1,0 +1,19 @@
+/* Missions : composants sobres, clavier et mobile, pas d'activité décorative. */
+.mission567-heading {display:flex;flex-wrap:wrap;align-items:center;gap:.8rem;margin-bottom:1.5rem;}
+.mission567-heading h1,.mission567-heading p {flex-basis:100%;margin:.3rem 0;}
+.mission567-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr));gap:1rem;}
+.mission567-card {border:1px solid var(--ws-border,#b8d0ee);border-radius:1rem;padding:1.25rem;background:var(--ws-card,#fff);color:var(--ws-text,#172b40);min-width:0;}
+.mission567-card h3 {font-size:1.05rem;line-height:1.5;overflow-wrap:anywhere;}
+.mission567-card pre,#ws-ai-result pre {white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6;}
+.mission567-state {font-size:.82rem;font-weight:700;border-radius:2rem;background:var(--ws-soft,#eef4fd);color:var(--ws-text,#172b40);display:inline-block;padding:.35rem .7rem;}
+.mission567-card details {margin-top:.9rem;}
+.mission567-card summary {cursor:pointer;padding:.4rem 0;}
+.mission567-card select {width:100%;}
+.mission567-audio {display:flex;gap:.5rem;flex-wrap:wrap;margin:.75rem 0;}
+.mission567-audio button {font-size:.85rem;padding:.5rem .75rem;}
+#assistant567-preferences,#connections567-form {max-width:none;width:100%;}
+#assistant567-preferences input:not([type=checkbox]),#assistant567-preferences textarea,#assistant567-preferences select {width:100%;max-width:none;}
+[data-mission-control]:disabled,#ws-ai-send:disabled {opacity:.65;cursor:progress;}
+.mission567-card button,.mission567-card .btn {min-height:2.75rem;}
+@media(prefers-reduced-motion:reduce) {.mission567-card,*[data-mission-id] {animation:none!important;transition:none!important;}}
+@media(max-width:640px) {#ws-ai-dock {width:calc(100vw - 1rem);right:.5rem;max-height:90dvh;} .mission567-heading button {flex:1 1 auto;}}

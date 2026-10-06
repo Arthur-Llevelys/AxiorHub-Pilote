@@ -77,6 +77,8 @@ JOBS |= {'live_mail430','live_calendar430','live_documents430'}
 JOBS |= {'pieces_scan510','pieces_create510'}
 JOBS |= {'edit_personal_event','edit_personal_task'}
 JOBS |= {'routine520','docrequest520','deck530_sync','style550_scan'}
+JOBS |= {'document568_run','document568_scan','document568_compile'}
+JOBS |= {'sent568_scan','received568_scan','followup568_prepare','proactive568_cycle','talk568_prepare','news568_collect'}
 
 USER_JOBS = {'prepare_reply','deposit_draft','associate','approve','retry','retry_matter',
              'run','chat','assistant_answer','review','prepare_draft','execute_actions',
@@ -308,7 +310,15 @@ class Desk:
 
     def _then(self, kind, args=None, priority=None):
         """5.6.5 : suite d'un travail qui vient de se terminer (lot suivant, étape suivante). Elle remplace le travail fini et ne
-        grossit donc pas la file : le plafond des travaux automatiques ne s'applique pas, seul le garde-fou absolu demeure."""
+        grossit donc pas la file : le plafond des travaux automatiques ne s'applique pas, seul le garde-fou absolu demeure.
+        5.6.9 : une analyse automatique appelant le modèle respecte le quota journalier du régime économe (reportée, jamais perdue :
+        la surveillance la relancera lors d'un prochain changement)."""
+        from . import economie569
+        if kind in economie569.AUTOMATIC_LLM and not economie569.quota_ok(self, kind):
+            from .live430 import emit
+            emit(self, 'documents', 'Analyse automatique reportée (quota journalier du régime économe) : ' + kind,
+                 getattr(self, 'active_job_id', None), str((args or {}).get('matter', '')), dedupe='econome-' + kind + '-' + now()[:10])
+            return None
         return self.enqueue(kind, args, priority, chained=True)
 
     def enqueue(self, kind, args=None, priority=None, chained=False):
@@ -319,7 +329,7 @@ class Desk:
             if kind in conflicts500.GATED_KINDS:
                 conflicts500.gate(self, str(args['matter']))
         raw = json.dumps(args or {}, sort_keys=True)
-        maximum=120000 if kind=='prepare_transcript_report' else (60000 if kind in ('prepare_document_project','prepare_hearing','prepare_word_project','prepare_legal_opinion','coach_hearing35','record_call35') else (24000 if kind in ('propose_work_plan','prepare_cabinet_letter') else
+        maximum=120000 if kind=='prepare_transcript_report' else (60000 if kind in ('assistant_answer','prepare_document_project','prepare_hearing','prepare_word_project','prepare_legal_opinion','coach_hearing35','record_call35') else (24000 if kind in ('propose_work_plan','prepare_cabinet_letter') else
           (120000 if kind=='import_mcp_legal_results' else
           (16000 if kind in ('legal_research','verify_official_decision') else 8000))))
         if len(raw)>maximum:
@@ -570,6 +580,18 @@ class Desk:
         return {'note_interne':'disponible','brouillon_imap_cree':False}
 
     def perform(self, kind, args):
+        if kind=='document568_run':
+            from .procedure568 import execute
+            return execute(self,str(args.get('run') or ''),str(args.get('owner') or 'cabinet'))
+        if kind=='document568_scan':
+            from .automation568 import incoming_scan
+            return incoming_scan(self,str(args.get('owner') or 'cabinet'))
+        if kind=='document568_compile':
+            from .automation568 import compile_instruction
+            return compile_instruction(self,args.get('instruction',''),str(args.get('owner') or 'cabinet'))
+        if kind in {'sent568_scan','received568_scan','followup568_prepare','proactive568_cycle','talk568_prepare','news568_collect'}:
+            from .proactive568 import perform
+            return perform(self,kind,args)
         if kind=='search_index490':
             from .search490 import job
             return job(self,args)
@@ -823,7 +845,7 @@ class Desk:
         # write lock: read-only surveillance can still progress independently.
         busy=False
         with open(Path(self.c['state_dir'])/'run.lock','a') as probe:
-            try:fcntl.flock(probe,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            try:fcntl.flock(probe,fcntl.LOCK_SH|fcntl.LOCK_NB)
             except BlockingIOError:busy=True
         row=self.db.execute("SELECT * FROM jobs WHERE status='pending'"+
           (" AND kind IN ('live_calendar430','live_documents430','automation_setting')" if busy else '')+
@@ -842,6 +864,8 @@ class Desk:
         trace480.begin(row['id'],row['kind'],_args.get('matter') or _args.get('matter_id') or '')
         try:
             from .live430 import progress
+            from .missions567 import check_authority
+            check_authority(self,_args)
             progress(self,'Traitement démarré')
             self.audit('job_started',{'job_id':row['id'],'kind':row['kind'],
               'args_sha256':digest(row['args'])})
@@ -878,7 +902,8 @@ class Desk:
                 result=self.perform(row['kind'],json.loads(row['args']))
             else:
                 from .queue521 import note_holder
-                with run_lock(self.c):
+                from .queue567 import producer_lock
+                with producer_lock(self.c,row['kind'],_args):
                     note_holder(self.c['state_dir'],'Travail n° %s (%s)'%(row['id'],row['kind']))
                     result=self.perform(row['kind'],json.loads(row['args']))
             if isinstance(result,dict):
@@ -1008,10 +1033,8 @@ def worker(c,worker_id='1'):
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         desk=Desk(c)
         desk.worker_id=str(worker_id)
-        recovered=desk.db.execute("UPDATE jobs SET status='error',finished=?,result=? WHERE status IN ('running','cancel_requested') AND (worker=? OR (worker IS NULL AND ?='1'))",
-                        (now(),json.dumps({'erreur':'service_redemarre_verifier_avant_relance'}),str(worker_id),str(worker_id))).rowcount
-        desk.db.commit()
-        if recovered:desk.audit('jobs_interrupted_on_restart',{'count':recovered,'automatic_replay':False})
+        from .queue567 import recover
+        recover(desk,worker_id)
         stop=threading.Event()
         def pulse():
             db=sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3',timeout=10)

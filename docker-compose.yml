@@ -31,7 +31,11 @@ services:
       axiorhub:
         condition: service_healthy
     healthcheck:
-      disable: true
+      test: ["CMD", "python3", "/app/docker/health.py", "surveillance"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
   worker:
@@ -49,7 +53,11 @@ services:
       axiorhub:
         condition: service_healthy
     healthcheck:
-      disable: true
+      test: ["CMD", "python3", "/app/docker/health.py", "worker-1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
   worker2:
@@ -67,6 +75,10 @@ services:
       axiorhub:
         condition: service_healthy
     healthcheck:
-      disable: true
+      test: ["CMD", "python3", "/app/docker/health.py", "worker-2"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]

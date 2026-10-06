@@ -2,6 +2,7 @@
 import base64
 import io
 import json
+from pathlib import Path
 import sqlite3
 import threading
 import unittest
@@ -45,7 +46,8 @@ class Live430Tests(unittest.TestCase):
                 apply(holder)
                 return holder.db.execute('SELECT COUNT(*) FROM schema_migrations').fetchone()[0]
             finally:holder.db.close()
-        with ThreadPoolExecutor(max_workers=2) as pool:self.assertEqual(list(pool.map(migrate,range(2))),[3,3])
+        expected=len(list((Path(__file__).parents[1]/'agent/migrations').glob('*.sql')))
+        with ThreadPoolExecutor(max_workers=2) as pool:self.assertEqual(list(pool.map(migrate,range(2))),[expected,expected])
 
     def test_atomic_queue_deduplication_with_two_connections(self):
         gate=threading.Barrier(2)

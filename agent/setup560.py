@@ -20,7 +20,8 @@ def _cfg(auth):
 
 
 def _write_cfg(auth, cfg):
-    path = Path(auth.app.config_path)
+    from .config567 import _path
+    path = _path({'axiorhub.config_path':auth.app.config_path})
     tmp = path.with_suffix('.tmp')
     tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     try:
@@ -42,13 +43,8 @@ def _secrets_dir(cfg):
 
 
 def _secret(cfg, name, value):
-    path = _secrets_dir(cfg) / (name + '.secret')
-    path.write_text(value.strip() + '\n', encoding='utf-8')
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
-    return str(path)
+    from .vault567 import write
+    return write(_secrets_dir(cfg)/(name+'.secret'),value)
 
 
 def _clean(value, maximum=200):
@@ -62,58 +58,63 @@ def _desk(auth):
 
 
 def save(auth, form):
-    """Enregistre les six parties ; renvoie la liste des remarques."""
+    """Le formulaire initial utilise les mêmes validations que les connexions."""
+    from .config567 import save as save_connections
     cfg = _cfg(auth)
-    notes = []
-    mail = cfg.setdefault('mail', {})
-    for key, field in (('host', 'imap_host'), ('username', 'imap_user'), ('drafts', 'imap_drafts'), ('sent', 'imap_sent'),
-                       ('from_address', 'from_address'), ('from_name', 'from_name')):
-        if form.get(field):
-            mail[key] = _clean(form[field], 200)
-    if form.get('imap_port'):
-        try:
-            mail['port'] = max(1, min(int(form['imap_port']), 65535))
-        except ValueError:
-            notes.append('Port IMAP invalide : 993 conservé.')
-    if form.get('imap_password'):
-        mail['password_file'] = _secret(cfg, 'imap', form['imap_password'])
-    if mail.get('from_address'):
-        mail['own_addresses'] = sorted(set([mail['from_address']] + [a for a in mail.get('own_addresses', []) if a and 'example.com' not in a]))
-    if mail.get('drafts') in (mail.get('inbox'), mail.get('sent')):
-        notes.append('Le dossier des brouillons doit être distinct de la boîte de réception et des messages envoyés.')
-    nc = cfg.setdefault('nextcloud', {})
-    if form.get('nc_url'):
-        url = _clean(form['nc_url'], 300).rstrip('/')
-        if not url.startswith('https://'):
-            notes.append('L’adresse Nextcloud doit commencer par https://')
-        else:
-            nc['url'] = url
-    if form.get('nc_user'):
-        nc['username'] = _clean(form['nc_user'], 120)
-    if form.get('nc_password'):
-        nc['password_file'] = _secret(cfg, 'nextcloud', form['nc_password'])
+    pairs = {'imap_host':'mail.host','imap_port':'mail.port','imap_user':'mail.username',
+             'imap_drafts':'mail.drafts','imap_sent':'mail.sent','from_address':'mail.from_address',
+             'from_name':'mail.from_name','imap_password':'mail.password_file',
+             'nc_url':'nextcloud.url','nc_user':'nextcloud.username','nc_password':'nextcloud.password_file',
+             'ollama_url':'ollama.url','ollama_model':'ollama.model'}
+    values = {key: form[field] for field,key in pairs.items() if form.get(field)}
     if form.get('nc_root'):
-        root = '/' + _clean(form['nc_root'], 300).strip('/')
-        nc['roots'] = [root]
-        nc['matter_roots'] = [root]
-    cfg['mode'] = 'drafts' if form.get('mode') == 'drafts' else 'observe'
-    ai = form.get('ai', 'local')
-    if form.get('ollama_url'):
-        cfg.setdefault('ollama', {})['url'] = _clean(form['ollama_url'], 300)
-    if form.get('ollama_model'):
-        cfg.setdefault('ollama', {})['model'] = _clean(form['ollama_model'], 120)
-    cfg.setdefault('installation', {})['ai_choice'] = ai if ai in ('local', 'mixte', 'externe') else 'local'
-    _write_cfg(auth, cfg)
-    # profil de l'avocat, IA : réglages applicatifs (base d'AxiorHub)
+        root = '/' + str(form['nc_root']).strip('/')
+        values.update({'nextcloud.roots':[root], 'nextcloud.matter_roots':[root]})
+    notes = []
+    desk = None
     try:
         desk = _desk(auth)
-    except Exception as ex:                                   # configuration encore incomplète
-        notes.append('Configuration incomplète pour l’instant (%s) : complétez la messagerie.' % str(ex)[:80])
-        return notes
+        if values:
+            save_connections(desk, {'revision':cfg.get('config_revision567',0), 'values':values},
+                             {'axiorhub.config_path':str(auth.app.config_path)})
+    except Exception as ex:
+        from .common import Stop
+        message = str(ex) if isinstance(ex, Stop) else 'configuration_non_validee'
+        return ['Réglages non enregistrés : ' + message.replace('_',' ') + '.']
+    finally:
+        if desk is not None: desk.db.close()
+    cfg = _cfg(auth)
+    cfg['mode'] = 'drafts' if form.get('mode') == 'drafts' else 'observe'
+    ai = form.get('ai', 'local')
+    cfg.setdefault('installation', {})['ai_choice'] = ai if ai in ('local','mixte','externe') else 'local'
+    _write_cfg(auth, cfg)
+    desk = _desk(auth)
     try:
         return _save_app(desk, cfg, form, ai, notes)
     finally:
         desk.db.close()
+
+
+def _connection_fingerprint(cfg):
+    import hashlib
+    from .common import read_secret
+    values = {}
+    for name in ('mail','nextcloud','ollama'):
+        part = dict(cfg.get(name) or {})
+        for key,value in list(part.items()):
+            if key.endswith('_file'):
+                try: part[key] = hashlib.sha256(read_secret(value).encode()).hexdigest()
+                except Exception: part[key] = 'non-lisible'
+        values[name] = part
+    return hashlib.sha256(json.dumps(values,sort_keys=True).encode()).hexdigest()
+
+
+def _receipt(auth, what, ok):
+    cfg = _cfg(auth)
+    cfg.setdefault('installation',{}).setdefault('connection_tests567',{})[what] = {
+        'ok':bool(ok), 'fingerprint':_connection_fingerprint(cfg),
+        'at':datetime.now(timezone.utc).isoformat()}
+    _write_cfg(auth,cfg)
 
 
 def _save_app(desk, cfg, form, ai, notes):
@@ -151,21 +152,24 @@ def test(auth, what):
         desk = _desk(auth)
         if what == 'imap':
             from .web520 import check_imap
-            return True, check_imap(desk)['message']
+            message = check_imap(desk)['message']
+            _receipt(auth, what, True)
+            return True, message
         if what == 'nextcloud':
             from .dav import DAV
             client = DAV(desk.c['nextcloud'])
             client.list_folder(desk.c['nextcloud']['roots'][0])
             cals = client.calendars()
             urls = [c['url'] for c in cals if 'VEVENT' in c['components']]
-            cfg = _cfg(auth)
-            cfg.setdefault('calendar', {})['urls'] = urls
-            _write_cfg(auth, cfg)
-            return True, 'Nextcloud joignable ; dossier des dossiers lisible ; %d agenda(s) trouvé(s) et retenu(s).' % len(urls)
+            _receipt(auth, what, True)
+            return True, 'Nextcloud joignable ; dossier des dossiers lisible ; %d agenda(s) découvert(s). Choisissez les agendas autorisés dans les connexions ; aucun n’a été retenu automatiquement.' % len(urls)
         if what == 'ia':
             from .queue521 import check_ai
-            return True, check_ai(desk)['message']
+            message = check_ai(desk)['message']
+            _receipt(auth, what, True)
+            return True, message
     except Exception as ex:
+        _receipt(auth, what, False)
         from .web440 import human
         return False, 'Échec : %s' % human(str(ex)) if str(ex) else 'Échec du test.'
     finally:
@@ -183,6 +187,14 @@ def finish(auth, user):
         missing.append('Nextcloud')
     if missing:
         return False, 'À compléter avant de terminer : ' + ', '.join(missing) + '.'
+    from datetime import timedelta
+    fp = _connection_fingerprint(cfg)
+    tests = cfg.get('installation',{}).get('connection_tests567',{})
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    untested = [key for key in ('imap','nextcloud','ia') if not tests.get(key,{}).get('ok')
+                or tests[key].get('fingerprint') != fp or tests[key].get('at','') < cutoff]
+    if untested:
+        return False, 'Tests récents à effectuer avant de terminer : ' + ', '.join(untested) + '. Une adresse renseignée ne prouve pas que la connexion fonctionne.'
     cfg.setdefault('installation', {}).update({'done': True, 'at': datetime.now(timezone.utc).isoformat(), 'by': user['email']})
     _write_cfg(auth, cfg)
     return True, 'Installation terminée.'
@@ -245,6 +257,7 @@ def page(auth, user, notes=(), result=''):
         radio('mixte', 'Mixte', 'Tri et lecture des pièces en local, rédaction et analyse via l’API choisie, avec pseudonymisation.'),
         radio('externe', 'Tout via l’API', 'Pour un VPS sans carte graphique : toutes les fonctions via le fournisseur choisi, avec pseudonymisation.'),
         v(ol.get('url')), v(ol.get('model')), providers, ' checked' if cfg.get('mode') != 'drafts' else '', ' checked' if cfg.get('mode') == 'drafts' else '')
+    body += '<p>Pour une IA externe, renseignez ses tarifs, ses plafonds et les fonctions autorisées avant le test : <a href="/ia-externe">Fournisseurs et budgets</a> · <a href="/routage-hybride">Politique de routage</a>. Ces écrans sont accessibles à l’administrateur avant la fin de l’installation.</p>'
     return auth._page('Installation d’AxiorHub Pilote', body, wide=True)
 
 

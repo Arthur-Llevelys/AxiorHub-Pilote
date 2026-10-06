@@ -1,0 +1,18 @@
+{
+  "version": "5.6.9",
+  "base": "5.6.8 livrée",
+  "date_utc": "2026-10-06T09:34:02.864437+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1413,
+    "failures": 4,
+    "errors": 60,
+    "skipped": 42,
+    "duration_seconds": 832.062,
+    "note": "Les échecs sont les particularités Windows déjà connues pour 5.6.4–5.6.8 (modules POSIX pwd/grp/fcntl, verrous, chemins, encodage cp1252 du poste) ; la seule différence relevée (version du fichier outil Open WebUI) a été corrigée avant la construction finale. L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v569.py (27 scénarios : régime économe, interface, portabilité, règles et décisions, accueil conversationnel, voix, Invoice Ninja, mise en service)",
+  "privacy_scan": "OK",
+  "installer_check": "OK"
+}

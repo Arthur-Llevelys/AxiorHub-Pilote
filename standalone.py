@@ -14,9 +14,11 @@ public=os.environ.get('AXIORHUB_PUBLIC_URL','https://agent.example.com')
 application=StandaloneAuth(App(config,auth),state,public)
 
 if __name__=='__main__':
-    serve(application,host='0.0.0.0',port=int(os.environ.get('AXIORHUB_PORT','8626')),
+    from agent.network567 import trusted_proxy
+    proxy=trusted_proxy(os.environ.get('AXIORHUB_TRUSTED_PROXY','127.0.0.1'))
+    serve(application,host='0.0.0.0',port=int(os.environ.get('AXIORHUB_LISTEN_PORT','8626')),
           threads=max(24,int(os.environ.get('AXIORHUB_THREADS','24'))),max_request_body_size=25_000_000,
           send_bytes=1,                       # flux SSE : chaque événement part immédiatement
-          trusted_proxy='*',trusted_proxy_count=1,
+          trusted_proxy=proxy,trusted_proxy_count=1,
           trusted_proxy_headers={'x-forwarded-for','x-forwarded-proto','x-forwarded-host'},
           clear_untrusted_proxy_headers=True)

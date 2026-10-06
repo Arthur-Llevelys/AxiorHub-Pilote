@@ -34,5 +34,17 @@ a.ax-btn.ghost:hover,a.ax-btn.ghost:focus-visible,button.ax-btn.ghost:hover{colo
 .c565-origin .ax-btn{margin:4px 0}
 .c565-where{margin:6px 0 0;overflow-wrap:anywhere}
 
+.m5-strong{font-weight:700}
+.m5-field input.m5-check{width:auto;display:inline-block;margin-right:6px}
+.r569-list{list-style:none;padding:0}.r569-list li{padding:8px 0;border-top:1px solid var(--ws-border,#dbe4f0)}.r569-list li:first-child{border-top:0}
+.r569-ok strong{color:#1f7a3f}.r569-bad strong{color:#b42318}.r569-muted strong{color:var(--ws-muted,#575d67)}.r569-list em{display:block;color:#b42318;font-style:normal}
+.c569-decisions{border-left:4px solid var(--ws-accent,#6331c9)}
+.c569-list{list-style:none;margin:0;padding:0}
+.c569-item{padding:10px 0;border-top:1px solid var(--ws-border,#dbe4f0)}
+.c569-item:first-child{border-top:0}
+.c569-why{margin:4px 0 8px;color:var(--ws-muted,#575d67)}
+.c569-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.c569-actions select,.c569-actions input{width:auto;max-width:280px;margin:0}
+
 /* Lien « Aller au contenu » : texte clair conservé au survol. */
 .cf-skip:hover,.cf-skip:focus,.cf-skip:focus-visible{color:var(--ax-accent-ink,#fff)}

@@ -1,0 +1,19 @@
+# Extension facultative. Exemple :
+# docker compose -f docker-compose.yml -f docker-compose.voice568.yml up -d --build
+# Renseigner ensuite Connexions > Voix : kokoro, http://kokoro:8880, ff_siwis.
+services:
+  kokoro:
+    image: ${KOKORO_IMAGE:-ghcr.io/remsky/kokoro-fastapi-cpu:v0.1.4}
+    restart: unless-stopped
+    expose:
+      - "8880"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8880/v1/models', timeout=4).read()"]
+      start_period: 120s
+      interval: 30s
+      timeout: 5s
+      retries: 3

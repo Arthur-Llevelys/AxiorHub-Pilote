@@ -3,9 +3,11 @@
 This module is deliberately read-only toward external services.  It keeps
 local mappings and a bounded cache of unpaid Invoice Ninja invoices.  It never
 sends email, creates an invoice, edits a remote document, or drives OnlyOffice.
+(5.6.9 : les écritures Invoice Ninja — brouillons de facture, temps passés — vivent dans facturation569, après validation explicite.)
 """
 from datetime import datetime, timezone, timedelta
 import json
+from decimal import Decimal, InvalidOperation
 import re
 from urllib.parse import urlencode, urlsplit
 
@@ -76,6 +78,9 @@ def ensure_schema(desk):
     columns={r[1] for r in desk.db.execute('PRAGMA table_info(invoice_ninja_cache_v310)')}
     if 'currency' not in columns:
         desk.db.execute("ALTER TABLE invoice_ninja_cache_v310 ADD COLUMN currency TEXT NOT NULL DEFAULT ''")
+    for name in ('amount_exact','balance_exact'):
+        if name not in columns:
+            desk.db.execute(f"ALTER TABLE invoice_ninja_cache_v310 ADD COLUMN {name} TEXT NOT NULL DEFAULT ''")
     desk.db.commit()
 
 
@@ -96,6 +101,7 @@ def _configured_url(desk, key):
     defaults.update({key:address for key,_,address in CABINET_SITES})
     stored = desk.settings('workstation:url:' + key, None)
     candidate = stored if stored is not None else desk.c.get('workstation', {}).get(key + '_url', defaults.get(key, ''))
+    if key in desk.c.get('interfaces',{}):candidate=desk.c['interfaces'][key]
     if stored is None and key == 'invoice_ninja' and not str(candidate or '').strip():
         invoice = desk.c.get('invoice_ninja', {})
         candidate = invoice.get('web_url') or invoice.get('base_url') or ''
@@ -173,53 +179,59 @@ def link_invoice_client(desk, matter, client_id):
 
 
 def refresh_unpaid_invoices(desk, http=None):
-    """Bounded, GET-only Invoice Ninja synchronization."""
+    """Invoice Ninja v5 : GET paginé, soldes décimaux, aucune écriture distante."""
     ensure_schema(desk)
     cfg = desk.c.get('invoice_ninja', {})
-    if not cfg.get('enabled', False):
+    if not cfg.get('enabled', False) or not cfg.get('base_url') or not cfg.get('api_token_file'):
         raise Stop('invoice_ninja_non_configure')
-    base = str(cfg.get('base_url', '')).rstrip('/')
-    token_file = str(cfg.get('api_token_file', ''))
-    if not base or not token_file:
-        raise Stop('invoice_ninja_non_configure')
-    client = http or HTTP(base, timeout=min(60, max(5, int(cfg.get('timeout_seconds', 30)))))
+    client = http or HTTP(str(cfg['base_url']).rstrip('/'), timeout=min(60, max(5, int(cfg.get('timeout_seconds', 30)))))
     if http is None:
-        client.headers.update({'X-API-TOKEN': read_secret(token_file), 'X-Requested-With': 'XMLHttpRequest',
-                               'Accept': 'application/json'})
-    rows = []
-    max_pages = min(5, max(1, int(cfg.get('max_pages', 3))))
+        client.headers.update({'X-API-TOKEN': read_secret(cfg['api_token_file']), 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'})
+    rows, seen, complete = [], set(), False
+    max_pages = min(100, max(1, int(cfg.get('max_pages', 30))))
+    def money(value):
+        try:
+            result=Decimal(str(value or 0))
+            if not result.is_finite():raise InvalidOperation()
+            return result
+        except (InvalidOperation, ValueError):raise Stop('invoice_ninja_montant_invalide') from None
     for page in range(1, max_pages + 1):
-        query = urlencode({'client_status': 'unpaid,overdue', 'per_page': 100, 'page': page})
-        raw = client.request('GET', client.base + '/api/v1/invoices?' + query,
-                             headers={'Accept': 'application/json'}, limit=4_000_000)
-        try: payload = json.loads(raw)
-        except (ValueError, UnicodeError): raise Stop('invoice_ninja_reponse_invalide') from None
-        data = payload.get('data', []) if isinstance(payload, dict) else []
-        if not isinstance(data, list): raise Stop('invoice_ninja_reponse_invalide')
-        for item in data[:100]:
-            if not isinstance(item, dict): continue
-            iid = str(item.get('id', ''))
-            if not iid: continue
+        # Les versions de l'API divergent sur client_status : filtre local
+        # explicite d'après status_id et balance, jamais unpaid,overdue.
+        query = urlencode({'status':'active','per_page':100,'page':page})
+        raw = client.request('GET', client.base + '/api/v1/invoices?' + query, headers={'Accept':'application/json'}, limit=4_000_000)
+        try:payload = json.loads(raw,parse_float=Decimal)
+        except (ValueError, UnicodeError):raise Stop('invoice_ninja_reponse_invalide') from None
+        data = payload.get('data',[]) if isinstance(payload,dict) else None
+        if not isinstance(data,list) or len(data)>100:raise Stop('invoice_ninja_reponse_invalide')
+        for item in data:
+            if not isinstance(item,dict) or not item.get('id'):raise Stop('invoice_ninja_reponse_invalide')
+            iid=str(item['id'])
+            if iid in seen:raise Stop('invoice_ninja_pagination_repetee')
+            seen.add(iid)
+            amount,balance=money(item.get('amount')),money(item.get('balance'))
+            status=str(item.get('status_id',item.get('status','')))
+            if balance<=0 or status not in ('2','3','-1','-2') or item.get('is_deleted') or item.get('is_archived'):continue
             currency=item.get('currency_code') or item.get('currency') or ''
             if isinstance(currency,dict):currency=currency.get('code','')
             currency=str(currency).upper()
             if not re.fullmatch(r'[A-Z]{3}',currency):currency=''
-            rows.append((iid, str(item.get('client_id', '')), str(item.get('number', '')),
-                         str(item.get('status_id', item.get('status', ''))),
-                         float(item.get('amount', 0) or 0), float(item.get('balance', 0) or 0),
-                         str(item.get('due_date', '') or ''), str(item.get('invitations', [{}])[0].get('link', '')
-                         if isinstance(item.get('invitations'), list) and item.get('invitations') else ''), desk.now(),currency))
-        if len(data) < 100: break
-    desk.db.execute('DELETE FROM invoice_ninja_cache_v310')
-    desk.db.executemany('''INSERT INTO invoice_ninja_cache_v310
-      (id,client_id,number,status,amount,balance,due_date,invoice_url,updated,currency)
-      VALUES(?,?,?,?,?,?,?,?,?,?)''', rows)
-    desk.db.execute('INSERT OR REPLACE INTO workstation_refresh_v310 VALUES(?,?,?,?)',
-                    ('invoice_ninja', 'ok', '', desk.now()))
+            invitations=item.get('invitations') or []
+            url=str(invitations[0].get('link','')) if isinstance(invitations,list) and invitations and isinstance(invitations[0],dict) else ''
+            rows.append((iid,str(item.get('client_id','')),str(item.get('number','')),status,float(amount),float(balance),str(item.get('due_date') or ''),url,desk.now(),currency,str(amount),str(balance)))
+        pagination=(payload.get('meta') or {}).get('pagination') or {}
+        total_pages=pagination.get('total_pages')
+        if total_pages is not None:
+            try:complete=page>=int(total_pages)
+            except (TypeError,ValueError):raise Stop('invoice_ninja_pagination_invalide') from None
+        else:complete=len(data)<100
+        if complete:break
+    if complete:desk.db.execute('DELETE FROM invoice_ninja_cache_v310')
+    desk.db.executemany('INSERT OR REPLACE INTO invoice_ninja_cache_v310 (id,client_id,number,status,amount,balance,due_date,invoice_url,updated,currency,amount_exact,balance_exact) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', rows)
+    desk.db.execute('INSERT OR REPLACE INTO workstation_refresh_v310 VALUES(?,?,?,?)', ('invoice_ninja','ok' if complete else 'partial','' if complete else 'Plafond de pagination atteint ; cache partiel, anciennes lignes conservées.',desk.now()))
     desk.db.commit()
-    desk.audit('invoice_ninja_unpaid_refreshed', {'count': len(rows), 'method': 'GET', 'writes': 0})
-    return {'unpaid_invoices': len(rows), 'external_method': 'GET', 'invoice_created': False,
-            'payment_created': False}
+    desk.audit('invoice_ninja_unpaid_refreshed',{'count':len(rows),'method':'GET','writes':0,'complete':complete,'pages':page})
+    return {'unpaid_invoices':len(rows),'external_method':'GET','invoice_created':False,'payment_created':False,'complete':complete,'pages':page,'message':'Lecture complète.' if complete else 'Lecture partielle : augmenter le plafond des pages puis actualiser.'}
 
 
 def unpaid_summary(desk, matter=''):
@@ -236,16 +248,17 @@ def unpaid_summary(desk, matter=''):
     rows = [dict(x) for x in desk.db.execute(sql + ' ORDER BY due_date,number LIMIT 100', params)]
     grouped={}
     for row in rows:
-        grouped.setdefault(row['currency'] or 'devise inconnue',0)
-        grouped[row['currency'] or 'devise inconnue']+=float(row['balance'])
-    grouped={k:round(v,2) for k,v in grouped.items()}
+        grouped.setdefault(row['currency'] or 'devise inconnue',Decimal(0))
+        grouped[row['currency'] or 'devise inconnue']+=Decimal(row.get('balance_exact') or str(row['balance']))
+    exact={k:str(v.quantize(Decimal('0.01'))) for k,v in grouped.items()}
+    grouped={k:float(v.quantize(Decimal('0.01'))) for k,v in grouped.items()}
     single=len(rows)==1 or (len(grouped)==1 and 'devise inconnue' not in grouped)
-    balance=round(sum(float(x['balance']) for x in rows),2) if single or not rows else None
+    balance=float(sum((Decimal(x.get('balance_exact') or str(x['balance'])) for x in rows),Decimal(0)).quantize(Decimal('0.01'))) if single or not rows else None
     label=(f'{balance:.2f} '+next(iter(grouped)) if single and grouped else
            ('0,00 (aucune facture)' if not rows else 'Montants par devise : '+', '.join(
                f'{amount:.2f} {currency}' for currency,amount in sorted(grouped.items()))))
     return {'count':len(rows),'balance':balance,'balance_display':label,
-            'balance_by_currency':grouped,'invoices':rows,
+            'balance_by_currency':grouped,'balance_exact_by_currency':exact,'invoices':rows,
             'linked':True if matter else None,**freshness}
 
 

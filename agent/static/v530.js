@@ -252,5 +252,6 @@
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !drawer.hidden) closeDrawer(); });
 
   // ---------------------------------------------------------------- actualisation douce (pas quand l'onglet est caché)
-  state.timer = setInterval(function () { if (!document.hidden) refresh(); }, 20000);
+  // 5.6.9 : relecture de secours espacée quand le flux en direct est connecté (il déclenche déjà les mises à jour).
+  (function tick() { state.timer = setTimeout(function () { if (!document.hidden) refresh(); tick(); }, window.axiorhubLive?.connected ? 60000 : 20000); })();
 })();

@@ -61,8 +61,9 @@ def analyze_attachment(desk,ident,question,matter,key,model,limit):
     analyzed=[]
     for part in parts:
         n=part['ordinal'];sid=source['id']+'-part-'+str(n)
+        from .long_documents365 import analysis_signature
         fingerprint=_digest('|'.join([meta['text_sha256'],question,
-            str(getattr(model,'cfg',{}).get('model','')),str(n)]))
+            analysis_signature(desk,model,limit,'assistant'),str(n)]))
         cached=desk.db.execute('SELECT answer FROM assistant_attachment_analysis_v363 WHERE attachment_id=? AND fingerprint=? AND ordinal=?',
             (ident,fingerprint,n)).fetchone()
         item={'id':sid,'kind':'piece_jointe_locale','path':source['path']+' · caractères '+str(part['char_start']+1)+'–'+str(part['char_end']),
@@ -112,7 +113,9 @@ def analyze_writing(text,source_id,path,question,model,limit,desk=None):
         desk.db.execute('''CREATE TABLE IF NOT EXISTS hearing_writing_analysis_v363(
           fingerprint TEXT NOT NULL, ordinal INTEGER NOT NULL, answer TEXT NOT NULL,
           PRIMARY KEY(fingerprint,ordinal))''');desk.db.commit()
-    fingerprint=_digest('|'.join([_digest(text),question,str(getattr(model,'cfg',{}).get('model',''))]))
+    from .long_documents365 import analysis_signature
+    signature=analysis_signature(desk,model,limit,'hearing') if desk is not None else json.dumps(getattr(model,'cfg',{}),sort_keys=True,default=str)
+    fingerprint=_digest('|'.join([_digest(text),question,signature,path]))
     analyzed=[]
     for n,(start,end,excerpt) in enumerate(parts,1):
         item={'id':source_id+'-part-'+str(n),'kind':'latest_writing',

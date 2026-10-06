@@ -44,7 +44,10 @@ def read_secret(path):
     p = Path(path)
     if not p.is_file() or p.stat().st_mode & 0o027:
         raise Stop('secret_absent_ou_permissions_trop_larges')
-    value = p.read_text().strip()
+    if p.stat().st_size>16384:raise Stop('secret_invalide')
+    value = p.read_text(encoding='utf-8').strip()
+    from .vault567 import decrypt
+    value = decrypt(p,value)
     if not value or len(value) > 4096 or '\n' in value or '\r' in value:
         raise Stop('secret_invalide')
     return value
@@ -80,7 +83,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class HTTP:
-    def __init__(self, base, username=None, password=None, local_only=False, timeout=45):
+    def __init__(self, base, username=None, password=None, local_only=False, timeout=45, local_hosts=()):
         p = urllib.parse.urlsplit(base)
         if p.username or p.password or p.query or p.fragment or p.scheme not in ('https', 'http'):
             raise Stop('url_invalide')
@@ -88,9 +91,10 @@ class HTTP:
             loopback = ipaddress.ip_address(p.hostname).is_loopback
         except ValueError:
             loopback = p.hostname in ('localhost','host.docker.internal')
-        if local_only and not loopback:
+        approved = p.hostname in set(local_hosts) if local_only else False
+        if local_only and not (loopback or approved):
             raise Stop('ollama_doit_etre_local')
-        if p.scheme != 'https' and not loopback:
+        if p.scheme != 'https' and not (loopback or approved):
             raise Stop('https_obligatoire')
         self.base, self.origin = base.rstrip('/'), (p.scheme, p.netloc)
         self.timeout = timeout

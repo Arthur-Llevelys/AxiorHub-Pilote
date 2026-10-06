@@ -31,6 +31,9 @@ def ensure_schema(desk):
       ON legal_benchmark_results_v410(provider,model,created);
     ''')
     desk.db.commit()
+    if 'scorer_version' not in {r[1] for r in desk.db.execute('PRAGMA table_info(legal_benchmark_results_v410)')}:
+        desk.db.execute('ALTER TABLE legal_benchmark_results_v410 ADD COLUMN scorer_version INTEGER NOT NULL DEFAULT 0')
+        desk.db.commit()
 
 
 def _now(): return datetime.now(timezone.utc).isoformat()
@@ -80,7 +83,7 @@ def _norm(values): return {fold(str(x)).strip() for x in values if str(x).strip(
 
 def _coverage(expected, actual):
     wanted=_norm(expected);found=_norm(actual)
-    return 100.0 if not wanted else round(100*len(wanted & found)/len(wanted),1)
+    return None if not wanted else round(100*len(wanted & found)/len(wanted),1)
 
 
 def score_response(expected, response):
@@ -89,20 +92,24 @@ def score_response(expected, response):
     permitted=_norm(expected.get('permitted_claims',[]));claims=_norm(response.get('claims',[]))
     hallucinations=sorted(claims-permitted) if permitted else sorted(claims)
     scores={
-      'matter_linking':100.0 if not expected.get('matter_id') or str(response.get('matter_id',''))==str(expected['matter_id']) else 0.0,
+      'matter_linking':None if not expected.get('matter_id') else (100.0 if str(response.get('matter_id',''))==str(expected['matter_id']) else 0.0),
       'dates':_coverage(expected.get('dates',[]),response.get('dates',[])),
       'citations':_coverage(expected.get('citations',[]),response.get('citations',[])),
       'adverse_arguments':_coverage(expected.get('adverse_arguments',[]),response.get('adverse_arguments',[])),
       'pieces':_coverage(expected.get('pieces',[]),response.get('pieces',[])),
       'mail_quality':_coverage(expected.get('mail_required',[]),[x for x in expected.get('mail_required',[]) if fold(x) in fold(text)]),
       'word_template':_coverage(expected.get('word_markers',[]),[x for x in expected.get('word_markers',[]) if fold(x) in fold(word)]),
-      'no_hallucination':max(0.0,100.0-25.0*len(hallucinations)),
+      'no_hallucination':max(0.0,100.0-25.0*len(hallucinations)) if permitted and claims else None,
     }
     forbidden=sum(1 for x in expected.get('mail_forbidden',[]) if fold(x) in fold(text))
-    scores['mail_quality']=max(0.0,scores['mail_quality']-25.0*forbidden)
-    total=round(sum(scores.values())/len(scores),1)
+    if scores['mail_quality'] is not None or forbidden:
+        scores['mail_quality']=max(0.0,(scores['mail_quality'] or 0)-25.0*forbidden)
+    measured = [v for v in scores.values() if v is not None]
+    total=round(sum(measured)/len(measured),1) if measured else 0.0
     return {'scores':scores,'total_score':total,'hallucinations':hallucinations,
-            'hallucination_count':len(hallucinations)}
+            'hallucination_count':len(hallucinations), 'measured_criteria':len(measured),
+            'eligible_for_routing':bool(measured) and scores['no_hallucination'] is not None,
+            'warning':'Contrôles déterministes de critères fournis ; les affirmations non déclarées restent à relire.'}
 
 
 BENCHMARK_PROMPT='''Tu participes à un banc d’évaluation juridique ANONYMISÉ. N’utilise aucune connaissance d’un dossier réel et n’appelle aucun outil. Extrais ou rédige uniquement à partir du cas fourni. Retourne un objet JSON avec exactement ces clés : matter_id (texte), dates (liste), citations (liste), adverse_arguments (liste), pieces (liste), draft_email (texte), word_document (texte), claims (liste des affirmations factuelles présentes dans ta réponse). N’invente rien ; une valeur absente reste vide.'''
@@ -132,7 +139,7 @@ def run_benchmark(desk, models):
     from .ai_gateway import usage_snapshot
     for provider_id,model,cfg in targets:
       cfg.update({'model':model,'provider_id':provider_id,'provider_type':cfg.get('type','ollama'),
-        'purpose':'control','state_dir':desk.c['state_dir'],'temperature':0})
+        'purpose':'control','state_dir':desk.c['state_dir'],'temperature':0,'external_policy_config':desk.c})
       from .model import pseudo_sources
       cfg['pseudo']=pseudo_sources(desk.c)
       if cfg.get('type')=='openrouter':cfg['zdr_required']=True
@@ -142,15 +149,18 @@ def run_benchmark(desk, models):
         try:
             raw=Model(cfg).complete([{'role':'system','content':BENCHMARK_PROMPT},{'role':'user','content':case['prompt']}],temperature=0,max_tokens=3500)
             response=json.loads(raw);scored=score_response(json.loads(case['expected']),response)
+            if not scored['eligible_for_routing']:status='incomplete'
         except (Stop,ValueError,TypeError) as exc:
             status='error';error=str(exc)[:160]
         after=sum(float(x['cost_usd']) for x in usage_snapshot(desk,provider_id))
         latency=round((time.monotonic()-started)*1000)
         desk.db.execute('''INSERT INTO legal_benchmark_results_v410
+          (run_id,case_id,provider,model,status,scores,total_score,hallucination_count,latency_ms,cost_usd,error,response_sha256,created)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',(rid,case['id'],provider_id,model,status,
           json.dumps(scored.get('scores',{}),ensure_ascii=False),scored.get('total_score',0),
           scored.get('hallucination_count',0),latency,max(0,after-before),error,
           digest(raw),_now()))
+        desk.db.execute('UPDATE legal_benchmark_results_v410 SET scorer_version=567 WHERE run_id=? AND case_id=? AND provider=? AND model=?',(rid,case['id'],provider_id,model))
         desk.db.commit()
     desk.db.execute("UPDATE legal_benchmark_runs_v410 SET status='done',finished=? WHERE id=?",(_now(),rid));desk.db.commit()
     desk.audit('banc_juridique_410_termine',{'run_id':rid,'models':len(targets),'cases':len(cases)})
@@ -164,7 +174,7 @@ def dashboard(desk):
       ROUND(AVG(total_score),1) score, SUM(hallucination_count) hallucinations,
       ROUND(AVG(latency_ms)) latency_ms, ROUND(SUM(cost_usd),6) cost_usd,
       MAX(created) last_run FROM legal_benchmark_results_v410
-      WHERE status='done' GROUP BY provider,model ORDER BY score DESC,hallucinations,cost_usd'''):
+      WHERE status='done' AND scorer_version=567 GROUP BY provider,model ORDER BY score DESC,hallucinations,cost_usd'''):
         rows.append(dict(r))
     runs=[dict(x) for x in desk.db.execute('SELECT * FROM legal_benchmark_runs_v410 ORDER BY created DESC LIMIT 20')]
     from .learning410 import snapshot as learning_snapshot

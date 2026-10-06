@@ -27,6 +27,9 @@ def produce_hub(link, pdf_url=''):
 
 def settings_hub(link):
     items=[
+      ('/parametres/connexions','⚙','Connexions et secrets','IMAP, Nextcloud, Invoice Ninja, SMTP, voix locale et plan Docker.','Régler'),
+      ('/parametres/assistant','◉','Voix et comportement','Briefing lu, dictée, ton, longueur et initiative.','Personnaliser'),
+      ('/accueil-administratif','☎','Accueil administratif','Appels par touches et messages WhatsApp Business entrants.','Consulter'),
       ('/apprentissage','↻','Apprentissage métier','Règles, corrections, formulations et documents fiables.','Configurer'),
       ('/evaluations','✓','Banc juridique','Comparer les modèles sur les cas anonymisés du cabinet.','Évaluer'),
       ('/routage-hybride','⇄','Routage hybride','Local, externe contrôlé, budgets et contrôle contradictoire.','Configurer'),

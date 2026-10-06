@@ -12,7 +12,7 @@ def dictate(config,raw,content_type):
     extension={'audio/webm':'webm','audio/ogg':'ogg','audio/mp4':'m4a','audio/wav':'wav'}[content_type]
     boundary='axiorhub'+secrets.token_hex(20)
     body=(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="dictation.{extension}"\r\nContent-Type: {content_type}\r\n\r\n').encode()+raw+f'\r\n--{boundary}--\r\n'.encode()
-    client=HTTP(audio.get('bridge_base_url','http://127.0.0.1:9011'),local_only=True,
+    client=HTTP(audio.get('bridge_base_url','http://127.0.0.1:9011'),local_only=True,local_hosts=audio.get('local_hosts',()),
                 timeout=min(240,int(audio.get('dictation_timeout_seconds',180))))
     result=client.request('POST',client.base+'/v1/audio/transcriptions',body,
       {'Authorization':'Bearer '+read_secret(audio['bridge_token_file']),

@@ -67,7 +67,10 @@ class Version364(unittest.TestCase):
                 if path=='/models':return {'data':[{'id':'gpt-test'}]}
                 return {'choices':[{'message':{'content':'Réponse contrôlée.'},'finish_reason':'stop'}]}
         cfg={'provider_id':'openai','provider_type':'openai','type':'openai','url':'https://api.openai.com/v1',
-             'model':'gpt-test','external_data_allowed':True,'secret_file':str(path)}
+             'model':'gpt-test','external_data_allowed':True,'secret_file':str(path),'purpose':'assistant','state_dir':self.f.c['state_dir'],
+             'monthly_budget_usd':10,'per_request_budget_usd':1,'input_usd_per_million':1,'output_usd_per_million':1}
+        from support567 import authorize_external
+        cfg['external_policy_config']=authorize_external(self.f.c)
         with patch('agent.model.HTTP',HTTP):
             result=Model(cfg).complete([{'role':'user','content':'Test'}])
         self.assertEqual(result,'Réponse contrôlée.')
@@ -138,7 +141,7 @@ class Browser364(unittest.TestCase):
         self.assertIn('save_ai_route',body)
         self.assertIn('Boutons IA de Roundcube',body)
         self.assertIn('app520.css',body)
-        self.assertIn('Version 5.6.6',body)
+        self.assertIn('Version 5.6.9',body)
 
     def test_lawve_extensions_settings_are_visible(self):
         body=self.request('/parametres',query='tab=extensions')['body']

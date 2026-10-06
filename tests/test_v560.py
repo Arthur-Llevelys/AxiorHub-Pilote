@@ -73,7 +73,7 @@ class Accounts(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.tmp = Path(tmp.name)
-        env = patch.dict(os.environ, {'AXIORHUB_ALLOW_SIGNUP': 'false', 'AXIORHUB_INTERNAL_API_TOKEN': 'jeton-interne-test'})
+        env = patch.dict(os.environ, {'AXIORHUB_ALLOW_SIGNUP': 'false', 'AXIORHUB_INTERNAL_API_TOKEN': 'jeton-interne-test-uniquement-synthetique-567'})
         env.start()
         self.addCleanup(env.stop)
         self.inner = Inner()
@@ -81,7 +81,10 @@ class Accounts(unittest.TestCase):
         self.addCleanup(self.app.db.close)
 
     def call(self, path, method='GET', data=None, cookie='', query=''):
-        raw = urlencode(data or {}).encode()
+        data = dict(data or {})
+        if path == '/signup' and not self.app.db.execute('SELECT 1 FROM users').fetchone():
+            data.setdefault('bootstrap_token', self.app.bootstrap.read_text().strip())
+        raw = urlencode(data).encode()
         out = {}
         env = {'PATH_INFO': path, 'REQUEST_METHOD': method, 'QUERY_STRING': query, 'HTTP_COOKIE': cookie,
                'CONTENT_LENGTH': str(len(raw)), 'wsgi.input': io.BytesIO(raw), 'HTTP_ORIGIN': 'https://agent.example.test'}
@@ -144,7 +147,7 @@ class Accounts(unittest.TestCase):
         self.assertTrue(ok['status'].startswith('200'))
         last = self.inner.seen[-1]
         self.assertEqual((last['HTTP_X_AXIORHUB_USER'], last['HTTP_X_AXIORHUB_ROLE']), ('assistant@example.test', 'assistant'))
-        self.assertEqual(last['HTTP_AUTHORIZATION'], 'Bearer jeton-interne-test')
+        self.assertEqual(last['HTTP_AUTHORIZATION'], 'Bearer jeton-interne-test-uniquement-synthetique-567')
         self.assertIn('Assistant(e)', ok['body'])
         self.assertNotIn('href="/comptes"', ok['body'])
         self.assertIn('href="/comptes"', self.call('/', cookie=admin)['body'])
@@ -174,18 +177,18 @@ class Installation(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.addCleanup(tmp.cleanup)
         self.data = Path(tmp.name) / 'data'
-        env = dict(os.environ, AXIORHUB_DATA_DIR=str(self.data), AXIORHUB_INTERNAL_API_TOKEN='jeton-interne-test')
+        env = dict(os.environ, AXIORHUB_DATA_DIR=str(self.data), AXIORHUB_INTERNAL_API_TOKEN='jeton-interne-test-uniquement-synthetique-567')
         subprocess.run([sys.executable, str(ROOT / 'docker' / 'bootstrap.py')], env=env, check=True, capture_output=True)
         cfg = json.loads((self.data / 'config.json').read_text())
         cfg['state_dir'] = str(self.data / 'state')
         (self.data / 'config.json').write_text(json.dumps(cfg))
-        patcher = patch.dict(os.environ, {'AXIORHUB_ALLOW_SIGNUP': 'false', 'AXIORHUB_INTERNAL_API_TOKEN': 'jeton-interne-test'})
+        patcher = patch.dict(os.environ, {'AXIORHUB_ALLOW_SIGNUP': 'false', 'AXIORHUB_INTERNAL_API_TOKEN': 'jeton-interne-test-uniquement-synthetique-567'})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.inner = Inner(self.data / 'config.json')
         self.app = StandaloneAuth(self.inner, self.data / 'auth', 'https://agent.example.test')
         self.addCleanup(self.app.db.close)
-        Accounts.call(self, '/signup', 'POST', {'name': 'Camille', 'email': 'admin@example.test', 'password': 'motdepasse-solide-1'})
+        Accounts.call(self, '/signup', 'POST', {'bootstrap_token': self.app.bootstrap.read_text().strip(), 'name': 'Camille', 'email': 'admin@example.test', 'password': 'motdepasse-solide-1'})
         self.admin = Accounts.login(self, 'admin@example.test', 'motdepasse-solide-1')
 
     call = Accounts.call
@@ -222,8 +225,8 @@ class Installation(unittest.TestCase):
         self.assertEqual(cfg['nextcloud']['roots'], ['/Dossiers'])
         self.assertEqual(cfg['mode'], 'observe')
         self.assertNotIn('secret-imap', json.dumps(cfg))
-        self.assertEqual(Path(cfg['mail']['password_file']).read_text().strip(), 'secret-imap')
-        self.assertEqual(Path(cfg['nextcloud']['password_file']).read_text().strip(), 'secret-nextcloud')
+        self.assertEqual(__import__('agent.common',fromlist=['read_secret']).read_secret(cfg['mail']['password_file']), 'secret-imap')
+        self.assertEqual(__import__('agent.common',fromlist=['read_secret']).read_secret(cfg['nextcloud']['password_file']), 'secret-nextcloud')
         from agent.common import load_config
         from agent.desk import Desk
         desk = Desk(load_config(str(self.data / 'config.json')))
@@ -234,7 +237,15 @@ class Installation(unittest.TestCase):
         self.assertTrue(ident['configured'])
         # formulaire forgé ailleurs : refusé
         self.assertTrue(self.call('/installation', 'POST', dict(form, csrf='faux'), cookie=self.admin)['status'].startswith('400'))
-        # fin de l'installation
+        # fin de l'installation : la recette impose des lectures de connexion réelles.
+        from agent import setup560
+        with patch('agent.web520.check_imap', return_value={'message':'Dossiers IMAP relus'}), \
+             patch('agent.dav.DAV') as dav, \
+             patch('agent.queue521.check_ai', return_value={'message':'Réponse IA testée'}):
+            dav.return_value.list_folder.return_value = []
+            dav.return_value.calendars.return_value = []
+            for connector in ('imap','nextcloud','ia'):
+                self.assertTrue(setup560.test(self.app,connector)[0])
         csrf = re.search(r'name="csrf" value="([^"]+)"', self.call('/installation', cookie=self.admin)['body']).group(1)
         done = self.call('/installation', 'POST', dict(form, csrf=csrf, op='finish', ai='local'), cookie=self.admin)
         self.assertTrue(done['status'].startswith('303'), done['body'][:400])
@@ -273,7 +284,7 @@ class Identity(t510.Base):
         self.assertIn('AGPL', about)
         home = self.request('/')['body']
         self.assertIn('AxiorHub Pilote — créé par Timo RAINIO', home)
-        self.assertIn('Version 5.6.6', home)
+        self.assertIn('Version 5.6.9', home)
         with patch.dict(os.environ, {'AXIORHUB_SOURCE_URL': 'https://git.example.test/axiorhub'}):
             self.assertIn('href="https://git.example.test/axiorhub"', self.request('/a-propos')['body'])
 
@@ -356,7 +367,12 @@ class VPS(unittest.TestCase):
             self.assertIn('<VirtualHost *:80>', conf)
             self.assertIn('ServerName __DOMAIN__', conf)
             self.assertIn('ProxyPass /.well-known/acme-challenge !', conf)
-            self.assertIn('http://127.0.0.1:%s/' % port, conf)
+            if name=='axiorhub.conf':
+                self.assertIn('http://127.0.0.1:__PORT__/',conf)
+                self.assertIn('http://127.0.0.1:9126/',conf.replace('__PORT__','9126'))
+                self.assertIn('s|__PORT__|$AXIORHUB_PORT|g',(self.base/'install-vps.sh').read_text())
+            else:
+                self.assertIn('http://127.0.0.1:%s/' % port, conf)
             self.assertIn('X-Forwarded-Proto "https"', conf)
         self.assertIn('ws://127.0.0.1:8082/', (self.base / 'apache' / 'office.conf').read_text(encoding='utf-8'))
         self.assertIn('caldav', (self.base / 'apache' / 'nextcloud.conf').read_text(encoding='utf-8'))
@@ -401,8 +417,8 @@ class Paths(unittest.TestCase):
     def test_version(self):
         import upgrade
         from agent import __version__
-        self.assertEqual(__version__, '5.6.6')
-        self.assertEqual(upgrade.VERSION, '5.6.6')
+        self.assertEqual(__version__, '5.6.9')
+        self.assertEqual(upgrade.VERSION, '5.6.9')
         self.assertIn('5.5.0', upgrade.SUPPORTED_PREVIOUS)
 
 

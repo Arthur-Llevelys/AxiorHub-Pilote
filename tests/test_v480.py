@@ -2,7 +2,7 @@
 import json
 import sqlite3
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -647,9 +647,10 @@ class Trace(Base):
         self.assertEqual(doc['destinations'], ['api.example-ia.test', 'local'])
         self.assertTrue(doc['first_seen'] <= doc['last_seen'])
         self.assertEqual(trace480.matter_view(self.desk, 'DOS-002')['summary']['calls'], 0)
-        future = (date.today() + timedelta(days=3)).isoformat()
+        today_utc=datetime.now(timezone.utc).date()
+        future = (today_utc + timedelta(days=3)).isoformat()
         self.assertEqual(trace480.matter_view(self.desk, 'DOS-001', since=future)['summary']['calls'], 0)
-        self.assertEqual(trace480.matter_view(self.desk, 'DOS-001', until=date.today().isoformat())['summary']['calls'], 4)
+        self.assertEqual(trace480.matter_view(self.desk, 'DOS-001', until=today_utc.isoformat())['summary']['calls'], 4)
         for bad in (dict(matter=''), dict(matter='../x'), dict(matter='DOS-001', since='hier')):
             with self.assertRaises(Stop):
                 trace480.matter_view(self.desk, **bad)

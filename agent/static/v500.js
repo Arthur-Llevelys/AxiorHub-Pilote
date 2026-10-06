@@ -139,7 +139,7 @@
       busy(pv, true);
       call('m500/limitation/preview?' + q.toString()).then(function (c) {
         while (out.firstChild) out.removeChild(out.firstChild);
-        add('p', 'Dernier jour utile : ' + (c.due_label || c.due || '—')).style.fontWeight = '700';
+        add('p', 'Dernier jour utile : ' + (c.due_label || c.due || '—')).classList.add('m5-strong');
         var ol = add('ol', '', 'm5-steps'); (c.steps || []).forEach(function (s) { var li = document.createElement('li'); li.textContent = s; ol.appendChild(li); });
         [['warnings', 'Attention', 'm5-warn'], ['to_confirm', 'Reste à confirmer', 'm5-confirm']].forEach(function (k) {
           if (c[k[0]] && c[k[0]].length) { var box = add('div', '', k[2]); var st = document.createElement('strong'); st.textContent = k[1]; box.appendChild(st);

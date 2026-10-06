@@ -8,12 +8,11 @@ from html import escape as e
 import threading
 
 # 5.3.0 : menu réduit au poste de pilotage ; les rubriques historiques restent à un clic, regroupées.
-PRIMARY = (('/aujourdhui', '◎', 'Aujourd’hui'), ('/dossiers', '▦', 'Dossiers'), ('/mon-style', '✎', 'Mon style'), ('/parametres', '⚙', 'Paramètres'))
-RUBRIQUES = (('/courriels', '✉', 'Courriels à relire'), ('/documents', '▤', 'Documents'), ('/echeances', '⚖', 'Échéances'),
-             ('/planning', '◷', 'Agenda et tâches'), ('/production', '＋', 'Produire'), ('/recherche', '⌕', 'Recherche'), ('/cabinet', '▣', 'Cabinet'))
+PRIMARY = (('/aujourdhui', '◎', 'Aujourd’hui'), ('/dossiers', '▦', 'Dossiers'), ('/courriels', '✉', 'Courriels'), ('/planning', '◷', 'Agenda et tâches'), ('/production', '＋', 'Produire'), ('/parametres', '⚙', 'Paramètres'))
+RUBRIQUES = (('/documents','▤','Documents'),('/echeances','⚖','Échéances'),('/recherche','⌕','Recherche'),('/cabinet','▣','Cabinet'),('/mon-style','✎','Apprentissage et modèles'))
 
 # Pages secondaires : l'entrée du menu qui reste surlignée.
-ACTIVE = {'/': '/', '/mail': '/', '/planning': '/planning', '/agenda': '/planning', '/taches': '/planning',
+ACTIVE = {'/mise-en-service':'/parametres', '/parametres/agents':'/parametres', '/parametres/agendas':'/parametres', '/agents-documents':'/production', '/parametres/proactivite':'/parametres', '/engagements':'/aujourdhui', '/veille':'/production', '/': '/', '/mail': '/', '/planning': '/planning', '/agenda': '/planning', '/taches': '/planning',
           '/verification': '/production', '/sources': '/production', '/modeles': '/production',
           '/progres': '/mon-style', '/mon-style': '/mon-style', '/autonomie': '/cabinet', '/tracabilite': '/cabinet', '/confort': '/parametres',
           '/atelier/reglages': '/parametres', '/fiche': '/dossiers', '/chronologie': '/dossiers', '/documents/edit': '/documents',
@@ -21,7 +20,13 @@ ACTIVE = {'/': '/', '/mail': '/', '/planning': '/planning', '/agenda': '/plannin
           '/pilotage-mensuel': '/cabinet', '/rechercher': '/recherche', '/pieces': '/production', '/diagnostic': '/aujourdhui', '/ia-externe': '/parametres'}
 
 # Pages d'atelier sans entrée principale : regroupées sous « Outils » pour rester accessibles depuis tout écran.
-TOOLS = (('/diagnostic', 'Pourquoi rien n’est produit ?', 'Services, erreurs, dossiers bloqués, connexions, recette'),
+TOOLS = (('/mise-en-service', 'Mise en service', 'Services réels, micro, Docker : contrôles et correctifs'),
+         ('/parametres/agents', 'Agents et règles', 'Missions documentaires en langage naturel'),
+         ('/agents-documents', 'Résultats des agents', 'Classement, agendas, brouillons et reprise'),
+         ('/parametres/agendas', 'Agendas et procédure', 'Google, Nextcloud, CalDAV et rôle au dossier'), ('/parametres/proactivite', 'Initiatives et voix', 'Engagements, rôles spécialisés, Talk et veille'),
+         ('/engagements', 'Engagements et suites', 'Promesses sourcées et missions en étapes'),
+         ('/veille', 'Veille juridique', 'Nouveautés officielles datées'),
+         ('/diagnostic', 'Pourquoi rien n’est produit ?', 'Services, erreurs, dossiers bloqués, connexions, recette'),
          ('/ia-externe', 'IA externe sûre', 'Mode local ou mixte, aperçu de ce qui part, journal des envois pseudonymisés'),
          ('/pieces', 'Pièces et bordereaux', 'Bordereau, pièces numérotées et tamponnées'),
          ('/verification', 'Vérifier', 'Citations juridiques, mentions obligatoires, relecture contradictoire'),
@@ -29,7 +34,7 @@ TOOLS = (('/diagnostic', 'Pourquoi rien n’est produit ?', 'Services, erreurs, 
          ('/confort', 'Confort', 'Dictée, envoi facultatif, application mobile, raccourcis'),
          ('/modeles-word', 'Documents du cabinet', 'Modèles Word et livrables'),
          ('/atelier/reglages', 'Réglages de l’atelier', 'Éditeur de documents, avis de procédure, rôle par dossier'))
-TOOL_PAGES = {'/diagnostic', '/ia-externe', '/pieces', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/confort', '/modeles-word', '/atelier/reglages'}
+TOOL_PAGES = {'/mise-en-service', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/parametres/proactivite', '/engagements', '/veille', '/diagnostic', '/ia-externe', '/pieces', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/confort', '/modeles-word', '/atelier/reglages'}
 
 AX_CSS = ('v440.css', 'v470.css', 'v480.css', 'v500.css')
 ENHANCE_CSS = ('v300.css', 'v320.css', 'v330.css', 'v360.css', 'v363.css', 'v365.css', 'v370.css', 'v420.css', 'v430.css', 'v490.css')
@@ -37,7 +42,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -89,7 +94,7 @@ def topbar_html(prefix, title):
             'aria-controls="ws-sidebar" aria-expanded="true" aria-label="Replier le menu" title="Replier le menu"><span aria-hidden="true">☰</span></button>'
             '<span>Espace de travail / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
             'id="ws-theme-toggle" aria-label="Activer le thème sombre" title="Activer le thème sombre"><span aria-hidden="true">☾</span></button>'
-            '<a href="' + e(prefix + '/rechercher') + '">⌕ Rechercher dans le cabinet</a></div></header>')
+            '<a href="' + e(prefix + '/missions') + '">Missions</a><a href="' + e(prefix + '/rechercher') + '">⌕ Rechercher dans le cabinet</a></div></header>')
 
 
 def head_html(title, prefix, css=(), head=''):

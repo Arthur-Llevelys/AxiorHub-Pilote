@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-02",
+  "version": "2026-10-06",
   "scope": "civil_commercial_droit_commun",
   "source": "Code de procédure civile, texte vérifié sur Légifrance (octobre 2026). À faire valider par l'avocat avant usage en production.",
   "start_events": {
@@ -14,54 +14,222 @@
     "avis_fixation_bref_delai": "Avis de fixation à bref délai"
   },
   "rules": [
-    {"id": "appel_jugement_contentieux", "label": "Appel d'un jugement contradictoire (matière contentieuse)", "articles": ["CPC art. 538", "CPC art. 528"],
-     "amount": 1, "unit": "mois", "start_event": "signification_jugement", "distance": true, "valid_from": "1976-01-01", "valid_to": null,
-     "note": "Le délai court à compter de la signification du jugement (art. 528). Sans signification, il ne court pas."},
-    {"id": "appel_jugement_gracieux", "label": "Appel d'un jugement rendu en matière gracieuse", "articles": ["CPC art. 538"],
-     "amount": 15, "unit": "jours", "start_event": "signification_jugement", "distance": true, "valid_from": "1976-01-01", "valid_to": null,
-     "note": "Quinze jours en matière gracieuse."},
-    {"id": "appel_ordonnance_refere", "label": "Appel d'une ordonnance de référé", "articles": ["CPC art. 490"],
-     "amount": 15, "unit": "jours", "start_event": "signification_ordonnance_refere", "distance": true, "valid_from": "1976-01-01", "valid_to": null,
-     "note": "Quinze jours à compter de la signification de l'ordonnance."},
-    {"id": "opposition_jugement_defaut", "label": "Opposition à un jugement par défaut", "articles": ["CPC art. 538", "CPC art. 571"],
-     "amount": 1, "unit": "mois", "start_event": "signification_jugement", "distance": true, "valid_from": "1976-01-01", "valid_to": null,
-     "note": "Délai d'un mois (art. 538) ; vérifier que la voie de l'opposition est ouverte (art. 572 et suivants)."},
-    {"id": "pourvoi_cassation", "label": "Pourvoi en cassation (matière civile)", "articles": ["CPC art. 612"],
-     "amount": 2, "unit": "mois", "start_event": "signification_decision_cassation", "distance": true, "valid_from": "1976-01-01", "valid_to": null,
-     "note": "Deux mois à compter de la notification de la décision attaquée."},
-    {"id": "constitution_intime", "label": "Constitution de l'intimé (appel)", "articles": ["CPC art. 902"],
-     "amount": 15, "unit": "jours", "start_event": "signification_declaration_appel", "distance": false, "valid_from": "2024-09-01", "valid_to": null,
-     "regime": true,
-     "note": "Quinze jours à compter de la signification de la déclaration d'appel (régime des appels formés à compter du 1er septembre 2024)."},
-    {"id": "signification_da_appelant", "label": "Signification de la déclaration d'appel par l'appelant", "articles": ["CPC art. 902"],
-     "amount": 1, "unit": "mois", "start_event": "avis_greffe_circuit", "distance": false, "valid_from": "2024-09-01", "valid_to": null,
-     "regime": true,
-     "note": "Un mois à compter de l'avis du greffe, sous peine de caducité de la déclaration d'appel."},
-    {"id": "conclusions_appelant", "label": "Conclusions de l'appelant", "articles": ["CPC art. 906-2", "CPC art. 908"],
-     "amount": 3, "unit": "mois", "start_event": "declaration_appel", "distance": false, "valid_from": "2024-09-01", "valid_to": null,
-     "regime": true,
-     "note": "Trois mois à compter de la déclaration d'appel, sous peine de caducité. Voir la règle de bref délai si l'affaire est fixée selon l'art. 905."},
-    {"id": "conclusions_intime", "label": "Conclusions de l'intimé", "articles": ["CPC art. 909"],
-     "amount": 3, "unit": "mois", "start_event": "conclusions_appelant", "distance": false, "valid_from": "2024-09-01", "valid_to": null,
-     "regime": true,
-     "note": "Trois mois à compter de la notification des conclusions de l'appelant."},
-    {"id": "appel_incident_intime", "label": "Appel incident ou provoqué de l'intimé / conclusions des intervenants", "articles": ["CPC art. 910"],
-     "amount": 3, "unit": "mois", "start_event": "conclusions_appelant", "distance": false, "valid_from": "2024-09-01", "valid_to": null,
-     "regime": true,
-     "note": "Trois mois à compter de la notification des conclusions à laquelle il est répondu."},
-    {"id": "bref_delai_appelant", "label": "Conclusions de l'appelant (circuit à bref délai)", "articles": ["CPC art. 906-2"],
-     "amount": 2, "unit": "mois", "start_event": "avis_fixation_bref_delai", "distance": false, "valid_from": "2024-09-01", "valid_to": null,
-     "regime": true,
-     "note": "Deux mois à compter de l'avis de fixation à bref délai."},
-    {"id": "bref_delai_intime", "label": "Conclusions de l'intimé (circuit à bref délai)", "articles": ["CPC art. 906-2"],
-     "amount": 2, "unit": "mois", "start_event": "conclusions_appelant", "distance": false, "valid_from": "2024-09-01", "valid_to": null,
-     "regime": true,
-     "note": "Deux mois à compter de la notification des conclusions de l'appelant."}
+    {
+      "id": "appel_jugement_contentieux",
+      "label": "Appel d'un jugement contradictoire (matière contentieuse)",
+      "articles": [
+        "CPC art. 538",
+        "CPC art. 528"
+      ],
+      "amount": 1,
+      "unit": "mois",
+      "start_event": "signification_jugement",
+      "distance": true,
+      "valid_from": "1976-01-01",
+      "valid_to": null,
+      "note": "Le délai court à compter de la signification du jugement (art. 528). Sans signification, il ne court pas."
+    },
+    {
+      "id": "appel_jugement_gracieux",
+      "label": "Appel d'un jugement rendu en matière gracieuse",
+      "articles": [
+        "CPC art. 538"
+      ],
+      "amount": 15,
+      "unit": "jours",
+      "start_event": "signification_jugement",
+      "distance": true,
+      "valid_from": "1976-01-01",
+      "valid_to": null,
+      "note": "Quinze jours en matière gracieuse."
+    },
+    {
+      "id": "appel_ordonnance_refere",
+      "label": "Appel d'une ordonnance de référé",
+      "articles": [
+        "CPC art. 490"
+      ],
+      "amount": 15,
+      "unit": "jours",
+      "start_event": "signification_ordonnance_refere",
+      "distance": true,
+      "valid_from": "1976-01-01",
+      "valid_to": null,
+      "note": "Quinze jours à compter de la signification de l'ordonnance."
+    },
+    {
+      "id": "opposition_jugement_defaut",
+      "label": "Opposition à un jugement par défaut",
+      "articles": [
+        "CPC art. 538",
+        "CPC art. 571"
+      ],
+      "amount": 1,
+      "unit": "mois",
+      "start_event": "signification_jugement",
+      "distance": true,
+      "valid_from": "1976-01-01",
+      "valid_to": null,
+      "note": "Délai d'un mois (art. 538) ; vérifier que la voie de l'opposition est ouverte (art. 572 et suivants)."
+    },
+    {
+      "id": "pourvoi_cassation",
+      "label": "Pourvoi en cassation (matière civile)",
+      "articles": [
+        "CPC art. 612"
+      ],
+      "amount": 2,
+      "unit": "mois",
+      "start_event": "signification_decision_cassation",
+      "distance": true,
+      "valid_from": "1976-01-01",
+      "valid_to": null,
+      "note": "Deux mois à compter de la notification de la décision attaquée."
+    },
+    {
+      "id": "constitution_intime",
+      "label": "Constitution de l'intimé (appel)",
+      "articles": [
+        "CPC art. 902"
+      ],
+      "amount": 15,
+      "unit": "jours",
+      "start_event": "signification_declaration_appel",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Quinze jours à compter de la signification de la déclaration d'appel (régime des appels formés à compter du 1er septembre 2024)."
+    },
+    {
+      "id": "signification_da_appelant",
+      "label": "Signification de la déclaration d'appel par l'appelant",
+      "articles": [
+        "CPC art. 902"
+      ],
+      "amount": 1,
+      "unit": "mois",
+      "start_event": "avis_greffe_circuit",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Un mois à compter de l'avis du greffe, sous peine de caducité de la déclaration d'appel."
+    },
+    {
+      "id": "conclusions_appelant",
+      "label": "Conclusions de l'appelant",
+      "articles": [
+        "CPC art. 908"
+      ],
+      "amount": 3,
+      "unit": "mois",
+      "start_event": "declaration_appel",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Circuit ordinaire avec mise en état : trois mois à compter de la déclaration. Le circuit à bref délai relève de 906-2. Vérifier interruptions, délais abrégés et majorations 915-3 et 915-4."
+    },
+    {
+      "id": "conclusions_intime",
+      "label": "Conclusions de l'intimé",
+      "articles": [
+        "CPC art. 909"
+      ],
+      "amount": 3,
+      "unit": "mois",
+      "start_event": "conclusions_appelant",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Trois mois à compter de la notification des conclusions de l'appelant."
+    },
+    {
+      "id": "appel_incident_intime",
+      "label": "Appel incident ou provoqué de l'intimé / conclusions des intervenants",
+      "articles": [
+        "CPC art. 910"
+      ],
+      "amount": 3,
+      "unit": "mois",
+      "start_event": "conclusions_appelant",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Trois mois à compter de la notification des conclusions à laquelle il est répondu."
+    },
+    {
+      "id": "bref_delai_appelant",
+      "label": "Conclusions de l'appelant (circuit à bref délai)",
+      "articles": [
+        "CPC art. 906-2"
+      ],
+      "amount": 2,
+      "unit": "mois",
+      "start_event": "avis_fixation_bref_delai",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Deux mois à compter de l'avis de fixation à bref délai."
+    },
+    {
+      "id": "bref_delai_intime",
+      "label": "Conclusions de l'intimé (circuit à bref délai)",
+      "articles": [
+        "CPC art. 906-2"
+      ],
+      "amount": 2,
+      "unit": "mois",
+      "start_event": "conclusions_appelant",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Deux mois à compter de la notification des conclusions de l'appelant."
+    },
+    {
+      "id": "signification_da_bref",
+      "label": "Signification de la déclaration d’appel (circuit à bref délai)",
+      "articles": [
+        "CPC art. 906-1"
+      ],
+      "amount": 20,
+      "unit": "jours",
+      "start_event": "avis_fixation_bref_delai",
+      "distance": false,
+      "valid_from": "2024-09-01",
+      "valid_to": null,
+      "regime": true,
+      "note": "Vingt jours à compter de la réception prouvée de l’avis de fixation, si l’intimé n’a pas constitué avocat. Notification à l’avocat constitué sinon. Vérifier les majorations 915-4."
+    }
   ],
-  "uncovered_scopes": ["prud_hommes", "administratif", "penal", "famille_jaf", "procedures_collectives", "autre"],
-  "distance": {"outre_mer": 1, "etranger": 2, "articles": ["CPC art. 643"]},
+  "uncovered_scopes": [
+    "prud_hommes",
+    "administratif",
+    "penal",
+    "famille_jaf",
+    "procedures_collectives",
+    "autre"
+  ],
+  "distance": {
+    "outre_mer": 1,
+    "etranger": 2,
+    "articles": [
+      "CPC art. 643"
+    ]
+  },
   "notes": [
     "Jours et mois : CPC art. 640 à 642 (le jour de l'événement n'est pas compté ; fin reportée au premier jour ouvrable).",
     "Les appels formés avant le 1er septembre 2024 relèvent d'un régime différent : non couverts."
-  ]
+  ],
+  "sources_verifiees_568": {
+    "902": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006411517",
+    "906-1": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048852558",
+    "906-2": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048852560",
+    "908": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048869023"
+  }
 }

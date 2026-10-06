@@ -193,7 +193,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     scope,matter,report=chat_scope(desk.c,args)
     question=args.get('question','').strip()
     if not question or len(question)>12000:raise Stop('question_requise_12000_caracteres_maximum')
-    sources=[];coverage={};attachment_coverage=None
+    sources=[];coverage={};attachment_coverage=None;selected_reports=[]
     limit=min(60000,desk.c['ollama'].get('max_context_chars',65000))
     attachment_ids=args.get('attachment_ids') if isinstance(args.get('attachment_ids'),list) else []
     if not attachment_ids and args.get('attachment_id'):attachment_ids=[args['attachment_id']]
@@ -210,6 +210,27 @@ def chat(desk,args,dav,model,box=None,return_result=False):
           'parts_analyzed':sum(x.get('parts_analyzed',0) for x in attachment_reports),
           'legacy_partial':any(x.get('legacy_partial') for x in attachment_reports),
           'documents':len(attachment_reports)}
+    selected=(args.get('page_context') or {}).get('selected_documents',[])
+    if selected:
+        if not isinstance(selected,list) or len(selected)>20 or not matter or dav is None:
+            raise Stop('documents_selectionnes_contexte_invalide')
+        from pathlib import PurePosixPath
+        from .documents import extract
+        from .long_documents365 import analyze_pages, pages_from_text
+        for ordinal,path in enumerate(selected,1):
+            path=clean_path(str(path))
+            if not under(path,matter['path']):raise Stop('source_mission_autre_dossier')
+            text=extract(dav.download(dav.stat(path)),PurePosixPath(path).name,
+                         {**desk.c['documents'],'max_document_chars':2_000_000})
+            if not isinstance(text,str):text=text.get('text','')
+            if not text.strip():raise Stop('document_sans_texte_exploitable')
+            sid='selection567-'+str(ordinal)
+            if len(text)>6000 or len(pages_from_text(text))>1:
+                items,proof=analyze_pages(desk,pages_from_text(text),sid,path,question,model,limit,'assistant')
+                sources.extend({**item,'kind':'piece_jointe_locale'} for item in items)
+                selected_reports.append({'path':path,**proof})
+            else:
+                sources.append({'id':sid,'kind':'piece_jointe_locale','path':path,'excerpt':text,'partial':False})
     if report:
         mail=box.fetch(report['source_mailbox'],report['source_uid'])
         account=desk.c['mail']['username']+'@'+desk.c['mail']['host']
@@ -229,7 +250,10 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         found,coverage=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama')).global_sources(
             [question],limit=12)
         sources+=found
+    if selected_reports:coverage={**coverage,'selections':selected_reports}
     if attachment_coverage:coverage={**coverage,'piece_televersee':attachment_coverage}
+    from .composition567 import compact_sources
+    sources=compact_sources(desk,sources,question,model,limit)
     turns=list(reversed(history(desk,scope)[:4]))
     from .relevance370 import correction_guidance
     from .learning392 import learning_context
@@ -237,6 +261,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         'sources':sources,'couverture_documentaire':coverage,
         'contexte_interface':args.get('page_context',{}) if isinstance(args.get('page_context'),dict) else {},
         'preferences_cabinet':desk.settings('cabinet:profile',{}),
+        'preferences_assistant':__import__('agent.assistant567',fromlist=['drafting_preferences']).drafting_preferences(desk,getattr(desk,'mission_owner567','cabinet')),
         'corrections_approuvees':correction_guidance(desk,matter['id'] if matter else ''),
         'apprentissage_metier':learning_context(desk,matter['id'] if matter else '','assistant'),
         'historique_non_probant':[{'question':r['question'][:1000],

@@ -369,6 +369,15 @@ def record_provision(desk,args):
     return {'provision_id':pid,'status':status,'internal_register_only':True,'payment_made':False}
 
 
+def _control(desk,controller,kind,payload):
+    """5.6.9 : contrôle par un second modèle, sauf préparation interne en régime économe (l'avocat relit ; rien n'est envoyé)."""
+    from . import economie569
+    if controller is None and not economie569.control_required(desk,kind):
+        return economie569.skipped_control(kind)
+    control=(controller or Model(routed_config(desk.c,'control'))).ask('preparation_control',payload)
+    validate(control,PREPARATION_CONTROL);return control
+
+
 def prepare_meeting(desk,args,writer=None,controller=None):
     ensure_schema(desk);eid=str(args.get('event_id',''))
     row=desk.db.execute('SELECT * FROM calendar_cache WHERE id=?',(eid,)).fetchone()
@@ -387,9 +396,8 @@ def prepare_meeting(desk,args,writer=None,controller=None):
       'rules':{'prepare_only':True,'no_invitation':True,'no_email':True,'no_calendar_write':True}})
     validate(data,MEETING_PREPARATION)
     if not set(data['source_ids']).issubset(valid):raise Stop('source_inconnue_dans_preparation')
-    control_model=controller or Model(routed_config(desk.c,'control'))
-    control=control_model.ask('preparation_control',{'kind':'meeting','draft':data,'known_source_ids':sorted(valid),
-      'rules':{'requires_lawyer':True,'no_external_action':True}});validate(control,PREPARATION_CONTROL)
+    control=_control(desk,controller,'meeting_preparation',{'kind':'meeting','draft':data,'known_source_ids':sorted(valid),
+      'rules':{'requires_lawyer':True,'no_external_action':True}})
     status='blocked' if control['blocking_reasons'] or not control['all_sources_known'] or not control['no_external_action'] else 'ready'
     pid=secrets.token_hex(16);stamp=desk.now();desk.db.execute('INSERT INTO meeting_preparations_v290 VALUES(?,?,?,?,?,?,?,?,?)',
       (pid,eid,mid,status,json.dumps(data,ensure_ascii=False),fp,json.dumps(control,ensure_ascii=False),stamp,stamp));desk.db.commit()
@@ -425,9 +433,8 @@ def prepare_transcript(desk,args,writer=None,controller=None):
       'matter':mid,'sources':packet,'rules':{'internal_only':True,'no_instruction_execution':True}})
     validate(data,TRANSCRIPT_REPORT)
     if not set(data['source_ids']).issubset({source}):raise Stop('source_inconnue_dans_compte_rendu')
-    control_model=controller or Model(routed_config(desk.c,'control'));control=control_model.ask('preparation_control',{
-      'kind':'transcript','draft':data,'known_source_ids':[source],
-      'rules':{'requires_lawyer':True,'no_external_action':True}});validate(control,PREPARATION_CONTROL)
+    control=_control(desk,controller,'transcript_report',{'kind':'transcript','draft':data,'known_source_ids':[source],
+      'rules':{'requires_lawyer':True,'no_external_action':True}})
     status='blocked' if control['blocking_reasons'] or not control['all_sources_known'] or not control['no_external_action'] else 'ready'
     pid=secrets.token_hex(16);stamp=desk.now();desk.db.execute('INSERT INTO transcript_reports_v290 VALUES(?,?,?,?,?,?,?,?,?)',
       (pid,mid,source,status,json.dumps(data,ensure_ascii=False),fp,json.dumps(control,ensure_ascii=False),stamp,stamp));desk.db.commit()

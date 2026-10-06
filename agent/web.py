@@ -35,6 +35,18 @@ LABELS = {'review':'À vérifier','drafted':'Brouillon dans la messagerie',
           'running':'En cours','cancel_requested':'Annulation demandée',
           'done':'Terminé','cancelled':'Annulé'}
 REASONS = {'contact_personnel_hors_dossier': 'Contact personnel : aucun brouillon n’est préparé à partir du dossier.',
+           'quota_econome_journalier': 'Quota journalier des analyses automatiques atteint (régime économe) : reportée.',
+           'invoice_ninja_ecriture_desactivee': 'Écriture Invoice Ninja désactivée : activez-la dans Paramètres › Connexions › Invoice Ninja.',
+           'client_invoice_ninja_non_lie': 'Associez d’abord le dossier à un client Invoice Ninja.',
+           'aucun_temps_a_facturer': 'Aucun temps validé restant à facturer pour ce dossier.',
+           'taux_horaire_manquant': 'Un taux horaire est requis pour chaque temps validé (conditions du dossier).',
+           'facture_deja_creee_verifier_invoice_ninja': 'Cette facture a déjà été créée : vérifiez dans Invoice Ninja avant toute nouvelle tentative.',
+           'facture_incertaine_verifier_invoice_ninja': 'Création incertaine : vérifiez dans Invoice Ninja ; aucune nouvelle tentative automatique.',
+           'facture_relecture_impossible': 'Facture créée mais relecture impossible : vérifiez dans Invoice Ninja.',
+           'temps_deja_transmis': 'Ce temps a déjà été transmis à Invoice Ninja.',
+           'temps_incertain_verifier_invoice_ninja': 'Transmission incertaine : vérifiez dans Invoice Ninja ; aucune nouvelle tentative automatique.',
+           'confirmation_requise': 'Confirmation explicite requise.',
+           'profil_modeles_indisponible': 'Ollama ne répond pas ou aucun modèle local n’est installé.',
  'intervention_avocat_ordali':'Décision ou analyse juridique nécessaire. Aucun transfert vers Ordali.',
  'autonomie_proposer_seulement':'Niveau d’autonomie « proposer seulement » : aucun brouillon écrit. Réglable dans la page Autonomie.',
  'confirmation_autonomie_requise':'Passer une tâche au niveau « agir » exige de cocher la confirmation.',
@@ -209,6 +221,17 @@ JOB_LABELS.update({'coach_hearing35':'Coaching de plaidoirie',
   'prepare_call35':'Préparation de l’appel','record_call35':'Compte rendu d’appel',
   'calculate35':'Calcul contrôlable','billing_review35':'Facturation à relire',
   'classify_comparable35':'Comparaison de la jurisprudence'})
+
+
+JOB_LABELS.update({'sent568_scan':'Lecture des envois et suivi des engagements',
+  'document568_scan':'Recherche de nouveaux documents correspondant à vos règles',
+  'document568_compile':'Interprétation de votre mission en règle modifiable',
+  'document568_run':'Analyse, classement et préparation des suites du document',
+  'received568_scan':'Vérification des réponses aux engagements',
+  'followup568_prepare':'Préparation et relecture IMAP d’une relance neutre',
+  'proactive568_cycle':'Progression des suites de missions',
+  'talk568_prepare':'Préparation et contrôle d’un salon Talk privé',
+  'news568_collect':'Veille des flux juridiques officiels'})
 
 
 def inbox_bucket(status, reason):
@@ -435,10 +458,12 @@ class App:
                  # Fetch serializes their Origin as null, which we must reject.
                  ('Referrer-Policy','same-origin'),('X-Frame-Options','DENY'),
                  ('Permissions-Policy','camera=(), microphone=(self), geolocation=()'),
-                 ('Content-Security-Policy',"default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; form-action 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
+                 ('Content-Security-Policy',"default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; form-action 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
         status='200 OK';kind='text/html; charset=utf-8'
         try:
             auth=json.loads(Path(self.auth_path).read_text(encoding='utf-8'))
+            from .web567 import actor
+            auth['owner']=actor(env)[0]   # 5.6.9 : utilisateur courant pour les blocs personnels des pages (« À décider »)
             origin=urlsplit(auth['origin'])
             if env.get('HTTP_HOST','')!=origin.netloc:
                 raise Stop('hote_refuse')
@@ -450,6 +475,17 @@ class App:
             if _path.startswith('/office/'):
                 from .web440 import public as _pub440
                 _public=_pub440(env,load_config(self.config_path),_path,env['REQUEST_METHOD'])
+            elif _path in ('/reception567/twilio','/reception567/whatsapp'):
+                from .reception567 import webhook
+                _desk567=Desk(load_config(self.config_path))
+                try:
+                    _public=webhook(_desk567,env,_path)
+                except Stop as ex:
+                    code=str(ex)
+                    _public={'status':'403 Forbidden' if code=='signature_accueil_refusee' else '400 Bad Request','kind':'application/json','body':json.dumps({'error':code})}
+                except (KeyError,ValueError,TypeError,UnicodeError):
+                    _public={'status':'400 Bad Request','kind':'application/json','body':json.dumps({'error':'accueil_configuration_ou_message_invalide'})}
+                finally:_desk567.db.close()
             elif _path=='/pwa/manifest.webmanifest' and env['REQUEST_METHOD'] in ('GET','HEAD'):
                 # Le manifeste ne contient aucune donnée de dossier : nom, icône, adresses de démarrage.
                 from .mobile490 import manifest as _manifest490
@@ -462,6 +498,8 @@ class App:
             elif not self.authenticate(env,auth):
                 status='401 Unauthorized';headers.append(('WWW-Authenticate','Basic realm="AxiorHub Cabinet", charset="UTF-8"'))
                 body='<p>Connectez-vous avec le compte défini à l’installation.</p>'
+                if _path.startswith(('/api','/live/')):
+                    kind='application/json; charset=utf-8';body=json.dumps({'error':'authentification_requise'})
             else:
                 cfg=load_config(self.config_path)
                 # The iframe origin is configuration, never a compiled example
@@ -472,16 +510,18 @@ class App:
                 openwebui_parts=urlsplit(configured_openwebui)
                 frame_origin=(openwebui_parts.scheme+'://'+openwebui_parts.netloc
                   if openwebui_parts.scheme=='https' and openwebui_parts.netloc else '')
-                csp="default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; form-action 'self'; frame-src 'self'"+((' '+frame_origin) if frame_origin else '')+"; frame-ancestors 'none'; base-uri 'none'"
+                csp="default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; form-action 'self'; frame-src 'self'"+((' '+frame_origin) if frame_origin else '')+"; frame-ancestors 'none'; base-uri 'none'"
                 headers=[(name,csp if name=='Content-Security-Policy' else value) for name,value in headers]
                 prefix=auth.get('prefix','/agent-courriel')
                 path=env.get('PATH_INFO','/')
                 if path.startswith(prefix+'/'):path=path[len(prefix):]
                 args={k:v[0] for k,v in parse_qs(env.get('QUERY_STRING',''),max_num_fields=30).items()}
+                env['axiorhub.config_path']=self.config_path
                 from .web440 import route as _route440
                 _r440=_route440(env,cfg,auth,prefix,path,args,env['REQUEST_METHOD'])
                 if _r440 is not None:
                     status=_r440['status'];kind=_r440['kind'];body=_r440['body']
+                    headers.extend(_r440.get('headers',[]))
                     if _r440.get('csp'):
                         headers=[(n,_r440['csp'] if n=='Content-Security-Policy' else v) for n,v in headers]
                 elif path=='/live/events' and env['REQUEST_METHOD']=='GET':
@@ -947,7 +987,8 @@ class App:
                     body=(Path(__file__).parent/'static'/path.rsplit('/',1)[-1]).read_text(encoding='utf-8');kind=('text/javascript' if path.endswith('.js') else 'text/css')+'; charset=utf-8'
                 elif path in ('/static/v430.js','/static/v430.css','/static/htmx.min.js'):
                     body=(Path(__file__).parent/'static'/path.rsplit('/',1)[-1]).read_text(encoding='utf-8');kind=('text/javascript' if path.endswith('.js') else 'text/css')+'; charset=utf-8'
-                elif path=='/static/axiorhub-icon.png':
+                elif path in ('/static/axiorhub-icon.png','/favicon.ico'):
+                    # 5.6.9 : /favicon.ico est demandé d'office par les navigateurs ; il répondait 400 à chaque page.
                     body=(Path(__file__).parent/'static/axiorhub-icon.png').read_bytes();kind='image/png'
                 else:
                     body=self.page(cfg,auth,path,args)
@@ -1070,9 +1111,9 @@ class App:
             else:
                 # 5.3.0 : poste de pilotage (conversation avec l'agent, à relire, activité, journée Nextcloud).
                 from .cockpit530 import page as cockpit_page
-                main+=(cockpit_page(desk,prefix)+'<div id="ax-toast" role="status" aria-live="polite"></div>'
+                main+=(cockpit_page(desk,prefix,owner=str(auth.get('owner') or 'cabinet'))+'<div id="ax-toast" role="status" aria-live="polite"></div>'
                        '<script defer src="'+e(prefix)+'/static/v500.js"></script><script defer src="'+e(prefix)+'/static/v530.js"></script>'
-                       '<script defer src="'+e(prefix)+'/static/v550.js"></script>')
+                       '<script defer src="'+e(prefix)+'/static/v550.js"></script><script defer src="'+e(prefix)+'/static/v569.js"></script>')
         elif path=='/studio':
             from .production420_ui import studio_page
             main+=studio_page(desk,args,form,link)

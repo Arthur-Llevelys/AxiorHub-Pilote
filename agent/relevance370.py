@@ -251,6 +251,9 @@ def review_result(desk, job_id, job_kind, result):
         return None
     if not desk.settings('automation:second_model_control_enabled', True):
         return None
+    from . import economie569   # 5.6.9 : analyses internes dispensées en régime économe (actes et documents toujours contrôlés)
+    if not economie569.control_required(desk, job_kind):
+        return None
     existing = desk.db.execute('SELECT result FROM quality_reviews_v370 WHERE job_id=?',
                                (int(job_id),)).fetchone()
     if existing:

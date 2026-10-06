@@ -111,7 +111,7 @@ def main():
     p = argparse.ArgumentParser(description='Assistant de courriels AxiorHub — brouillons uniquement')
     p.add_argument('--config', default='/etc/axiorhub-mail-agent/config.json')
     sub = p.add_subparsers(dest='command',required=True)
-    for cmd in ['configure','doctor','run','discover','link','index','status','purge-index','learn','memory-status','mail-folders','draft-status']: sub.add_parser(cmd)
+    for cmd in ['configure','doctor','readiness','run','discover','link','index','status','purge-index','learn','memory-status','mail-folders','draft-status']: sub.add_parser(cmd)
     set_url=sub.add_parser('set-url')
     set_url.add_argument('key',choices=['roundcube','roundcube_drafts','openwebui','nextcloud','onlyoffice','invoice_ninja'])
     set_url.add_argument('value')
@@ -126,6 +126,10 @@ def main():
         configure(args.config); return 0
     c = load_config(args.config)
     if args.command=='doctor': return doctor(c)
+    if args.command=='readiness':   # 5.6.9 : mise en service, même rapport que l'écran Outils › Mise en service
+        from agent.desk import Desk
+        from agent.readiness569 import run, text
+        print(text(run(Desk(c))));return 0
     if args.command=='set-url':
         from agent.desk import Desk
         from agent.workstation import save_external_url

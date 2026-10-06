@@ -14,6 +14,8 @@ import hashlib
 import io
 from pathlib import Path
 import re
+import json
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -30,15 +32,42 @@ def version():
 
 
 def files():
+    # Une copie de travail peut contenir des comptes, sauvegardes ou secrets.
+    # Seuls les chemins publiés sont admissibles, jamais un rglob du serveur.
+    try:
+        names = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '-z'], stderr=subprocess.DEVNULL).decode().split('\0')
+        if not (ROOT / '.git').exists():
+            raise OSError('archive sans git')
+    except (OSError, subprocess.CalledProcessError):
+        listing = ROOT / 'RELEASE-FILES.json'
+        if not listing.is_file():
+            raise SystemExit('ARRÊT : index Git ou RELEASE-FILES.json nécessaire pour une livraison sans données privées')
+        names = json.loads(listing.read_text())
+    if not isinstance(names, list):
+        raise SystemExit('ARRÊT : liste de livraison invalide')
     out = {}
-    for path in sorted(ROOT.rglob('*')):
-        rel = path.relative_to(ROOT).as_posix()
-        if not path.is_file() or path.is_symlink() or set(path.relative_to(ROOT).parts) & EXCLUDE_DIRS or rel in EXCLUDE_FILES or rel.endswith('.pyc'):
+    for rel in sorted(set(names)):
+        if not rel:
+            continue
+        parts = Path(rel).parts
+        if Path(rel).is_absolute() or '..' in parts or '\\' in rel:
+            raise SystemExit('ARRÊT : chemin de livraison invalide')
+        path = ROOT / rel
+        forbidden = (set(parts) & EXCLUDE_DIRS) or (parts[0] in {'data','state','secrets','outbox567','uploads','backups','auth'})
+        private = path.name == '.env' or path.name.startswith('.env.') and path.name != '.env.example'
+        private |= path.suffix.lower() in {'.secret','.key','.pem','.sqlite3','.sqlite','.db','.log','.wav','.tar','.gz','.zip','.minisig'}
+        private |= path.name in {'config.json','internal-auth.json','session.key','bootstrap-token','users.sqlite3'}
+        if forbidden or private:
+            raise SystemExit('ARRÊT : fichier privé ou état d’exécution dans l’index de livraison : ' + rel)
+        if path.is_symlink():
+            raise SystemExit('ARRÊT : lien symbolique dans la livraison : ' + rel)
+        if not path.is_file() or rel in EXCLUDE_FILES or rel.endswith('.pyc') or rel == 'RELEASE-FILES.json':
             continue
         data = path.read_bytes()
         if path.suffix.lower() in TEXT:
             data = data.replace(b'\r\n', b'\n')
         out[rel] = data
+    out['RELEASE-FILES.json'] = (json.dumps(sorted(out),ensure_ascii=False,indent=2)+'\n').encode()
     return out
 
 

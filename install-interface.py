@@ -6,6 +6,10 @@ import grp
 import hashlib
 import json
 import os
+try:
+    import pwd
+except ImportError:   # 5.6.9 : module POSIX ; le script reste importable ailleurs (tests), l'installation reste Linux
+    pwd=None
 from pathlib import Path
 import re
 import secrets
@@ -68,7 +72,7 @@ def main():
     if os.geteuid()!=0:raise RuntimeError('Exécuter avec sudo python3 install-interface.py')
     os.umask(0o077)
     verify(BASE.resolve())
-    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6'}
+    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8'}
     if BASE.resolve().name not in supported:
         raise RuntimeError('Version active non prise en charge par l’installateur d’interface.')
     existing=json.loads(AUTH.read_text()) if AUTH.exists() else None
@@ -102,15 +106,22 @@ def main():
                   'csrf':secrets.token_urlsafe(32),'origin':'https://'+host,'prefix':'/agent-courriel'}
     # Runtime code must be readable/executable by the unprivileged service user.
     os.umask(0o022)
+    from agent.runtime_config567 import enable as enable_runtime_configuration
+    account=pwd.getpwnam('axiorhub-mail')
+    enable_runtime_configuration(Path('/etc/axiorhub-mail-agent/config.json'),Path('/var/lib/axiorhub-mail-agent'),account.pw_uid,account.pw_gid)
+    system_crypto=subprocess.run(['/usr/bin/python3','-c','import cryptography'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    if system_crypto.returncode:
+        run('apt-get','update')
+        run('apt-get','install','-y','--no-install-recommends','python3-cryptography')
     if not (VENV/'bin/python').exists():
         run('apt-get','update')
         run('apt-get','install','-y','--no-install-recommends','python3-venv')
         run('/usr/bin/python3','-m','venv',str(VENV))
     check=subprocess.run([str(VENV/'bin/python'),'-c',
-        "from importlib.metadata import version; assert version('waitress')=='3.0.2'"],
+        "from importlib.metadata import version; assert version('waitress')=='3.0.2'; import cryptography"],
         stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     if check.returncode:
-        run(str(VENV/'bin/python'),'-m','pip','install','waitress==3.0.2')
+        run(str(VENV/'bin/python'),'-m','pip','install','waitress==3.0.2','cryptography==44.0.0')
     os.umask(0o077)
     run('a2enmod','proxy','proxy_http','headers','alias')
     api_created=False

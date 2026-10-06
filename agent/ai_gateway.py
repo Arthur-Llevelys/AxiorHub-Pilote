@@ -7,6 +7,7 @@ root-managed secret can still point a provider at an external 0640 secret file.
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -37,6 +38,7 @@ PURPOSES = {
     'attachment_review': ('Lecture des pièces jointes', 'fast'),
     'mail_drafting': ('Rédaction des courriels', 'complex'),
     'assistant': ('Assistant du cabinet', 'complex'),
+    'voice_conversation': ('Conversation vocale rapide', 'fast'),
     'legal_analysis': ('Analyse juridique et stratégie', 'complex'),
     'hearing': ('Préparation des audiences', 'complex'),
     'document_drafting': ('Rédaction et révision de documents', 'complex'),
@@ -67,20 +69,8 @@ def save_secret(desk, provider_id, value):
     value = str(value or '').strip()
     if len(value) < 8 or len(value) > 4096 or '\n' in value or '\r' in value or '\x00' in value:
         raise Stop('secret_fournisseur_invalide')
-    path = secret_path(desk, provider_id)
-    temporary = path.with_name(path.name + '.new')
-    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
-            stream.write(value + '\n')
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-        os.chmod(path, 0o600)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
-    return str(path)
+    from .vault567 import write
+    return write(secret_path(desk,provider_id),value)
 
 
 def _https_url(value, provider_type):
@@ -159,7 +149,7 @@ def save_provider(desk, provider_id, provider_type, url, model, api_key='',
         monthly_budget_usd=float(monthly_budget_usd or 0);per_request_budget_usd=float(per_request_budget_usd or 0)
         input_usd_per_million=float(input_usd_per_million or 0);output_usd_per_million=float(output_usd_per_million or 0)
     except (TypeError,ValueError):raise Stop('budget_fournisseur_invalide') from None
-    if any(x<0 or x>100000 for x in (monthly_budget_usd,per_request_budget_usd,input_usd_per_million,output_usd_per_million)):
+    if any(not math.isfinite(x) or x<0 or x>100000 for x in (monthly_budget_usd,per_request_budget_usd,input_usd_per_million,output_usd_per_million)):
         raise Stop('budget_fournisseur_invalide')
     if provider_type=='openrouter' and enabled and (not monthly_budget_usd or not per_request_budget_usd):
         raise Stop('plafonds_openrouter_requis')
@@ -216,23 +206,9 @@ def _usage_db(state_dir):
 
 
 def estimate_and_check_budget(cfg, messages, max_tokens):
-    """Refuse an external call before transmission when a configured cap is exceeded."""
-    if cfg.get('provider_type')=='ollama':return 0.0
-    chars=sum(len(str(x.get('content') or '')) for x in messages)
-    input_tokens=max(1,(chars+3)//4);output_tokens=max(0,int(max_tokens))
-    estimated=(input_tokens*float(cfg.get('input_usd_per_million',0) or 0)+
-               output_tokens*float(cfg.get('output_usd_per_million',0) or 0))/1_000_000
-    per_request=float(cfg.get('per_request_budget_usd',0) or 0)
-    if per_request and estimated>per_request:raise Stop('budget_requete_fournisseur_depasse')
-    monthly=float(cfg.get('monthly_budget_usd',0) or 0)
-    if monthly and cfg.get('state_dir'):
-        db=_usage_db(cfg['state_dir'])
-        try:
-            prefix=datetime.now(timezone.utc).strftime('%Y-%m-')+'%'
-            used=float(db.execute("SELECT COALESCE(SUM(estimated_cost_usd),0) FROM ai_usage_v391 WHERE provider=? AND at LIKE ? AND status='done'",(cfg.get('provider_id',''),prefix)).fetchone()[0])
-        finally:db.close()
-        if used+estimated>monthly:raise Stop('budget_mensuel_fournisseur_depasse')
-    return estimated
+    """Réserve les plafonds en transaction avant de transmettre quoi que ce soit."""
+    from .budget567 import reserve
+    return reserve(cfg,messages,max_tokens,_usage_db)
 
 
 def record_usage(cfg, result, estimated, status='done', messages=None):
@@ -246,6 +222,7 @@ def record_usage(cfg, result, estimated, status='done', messages=None):
     if not cfg.get('state_dir'):return cost
     db=_usage_db(cfg['state_dir'])
     try:
+        db.execute('BEGIN IMMEDIATE')
         stamp=datetime.now(timezone.utc).isoformat()
         db.execute('INSERT INTO ai_usage_v391(at,provider,purpose,model,input_tokens,output_tokens,estimated_cost_usd,status) VALUES(?,?,?,?,?,?,?,?)',
           (stamp,cfg.get('provider_id',''),cfg.get('purpose',''),cfg.get('model',''),input_tokens,output_tokens,cost,status))
@@ -258,6 +235,8 @@ def record_usage(cfg, result, estimated, status='done', messages=None):
               (stamp,cfg.get('provider_id',''),cfg.get('purpose',''),cfg.get('model',''),
                hashlib.sha256(canonical.encode()).hexdigest(),len(canonical),
                json.dumps(roles,ensure_ascii=False),json.dumps(policy,sort_keys=True),status))
+        from .budget567 import settle
+        settle(db,cfg,status)
         db.commit()
     finally:db.close()
     return cost

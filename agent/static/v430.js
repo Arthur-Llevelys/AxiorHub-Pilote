@@ -5,6 +5,8 @@
   const summary=document.querySelector('#ws-live-summary'), panel=document.querySelector('#ws-live-panel');
   const toggle=document.querySelector('#ws-live-toggle'), toast=document.querySelector('#ws-live-toast');
   let cursor=0, stream, queued=false, connected=false, boardTimer, lastBoard=0;
+  // 5.6.9 : les autres scripts lisent l'état du flux pour espacer leurs relectures de secours quand il est connecté.
+  window.axiorhubLive={get connected(){return connected;},every(fast,slow){return connected?slow:fast;}};
   const tracked=new Map();
   function notify(text){toast.textContent=text;toast.hidden=false;setTimeout(()=>toast.hidden=true,7000);}
   let panelBusy=false;
@@ -19,7 +21,7 @@
   }
   toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden));refreshPanel();});
   document.querySelector('#ws-live-close')?.addEventListener('click',()=>{panel.hidden=true;toggle.setAttribute('aria-expanded','false');});
-  // 5.6.6 : « fresh » = réponse à l'envoi que l'avocat vient de faire. Seul ce cas recharge la page ; avant, chaque mise à jour du flux
+  // 5.6.7 : « fresh » = réponse à l'envoi que l'avocat vient de faire. Seul ce cas recharge la page ; avant, chaque mise à jour du flux
   // retrouvait l'ancienne demande d'un bouton (même empreinte) et rechargeait la page toutes les deux secondes, sans fin.
   function receipt(form,job,target,fresh){
     if(!form||!form.isConnected)return;
@@ -151,6 +153,7 @@
     stream.onerror=()=>{connected=false;};
     stream.addEventListener('activity',event=>{
       const item=JSON.parse(event.data);cursor=Math.max(cursor,item.id);snapshot();
+      document.dispatchEvent(new CustomEvent('axiorhub:activity',{detail:{kind:item.kind,id:item.id}}));
       if(item.kind==='produced')notify(item.message);
       if(['produced','done','error','queued','detected','calendar','documents'].includes(item.kind))refreshBoard();
     });
@@ -158,5 +161,6 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden){stream?.close();connected=false;}else{snapshot();connect();}});
   document.addEventListener('htmx:afterSwap',event=>{if(event.detail.target?.id==='ws-live-board')snapshot();});
   window.addEventListener('pagehide',()=>stream?.close());
-  snapshot().then(connect);setInterval(()=>{snapshot();if(!connected)refreshBoard();},15000);
+  snapshot().then(connect);
+  (function tick(){setTimeout(()=>{snapshot();if(!connected)refreshBoard();tick();},connected?45000:15000);})();
 })();

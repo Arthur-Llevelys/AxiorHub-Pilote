@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+STATIC = {'/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -265,7 +265,7 @@ def route(env, cfg, auth, prefix, path, args, method):
         name = path.rsplit('/', 1)[1]
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
-    if not (path in ('/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos') or path in _pages500() or path.startswith('/api440/')):
+    if not (path in ('/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos') or path in _pages500() or path.startswith('/api440/')):
         return None
     from . import shell501
     shell501.set_context(cfg)
@@ -275,6 +275,18 @@ def route(env, cfg, auth, prefix, path, args, method):
             return api(env, desk, auth, prefix, path[len('/api440/'):], args, method)
         if method != 'GET':
             return {'status': '405 Method Not Allowed', 'kind': 'text/plain; charset=utf-8', 'body': 'Méthode refusée.'}
+        if path in ('/parametres/agents','/parametres/agendas','/agents-documents'):
+            from .web_rules568 import page
+            return page_out(page(desk,auth,prefix,env,path,args))
+        if path in ('/engagements','/veille','/parametres/proactivite','/mise-en-service'):
+            from .web568 import page
+            return page_out(page(desk,auth,prefix,env,path))
+        if path in ('/accueil-administratif','/missions','/parametres/assistant','/parametres/connexions'):
+            from . import web567
+            if path == '/accueil-administratif':return page_out(web567.reception_page(desk,auth,prefix,env))
+            if path == '/missions':return page_out(web567.page(desk,auth,prefix,env))
+            if path == '/parametres/connexions':return page_out(web567.connections_page(desk,auth,prefix,env))
+            return page_out(web567.preferences_page(desk,auth,prefix,env))
         if path == '/courriels':
             return page_out(drafts_page(desk, auth, prefix, args))
         if path == '/documents':
@@ -341,6 +353,16 @@ def route(env, cfg, auth, prefix, path, args, method):
 
 def api(env, desk, auth, prefix, name, args, method):
     from . import drafts440, office440, notices440
+    if name.startswith('m568/'):
+        from .web568 import api as api568, human as human568
+        try:return api568(env,desk,auth,prefix,name,args,method)
+        except Stop as error:return json_out({'error':str(error),'message':human568(str(error))},'400 Bad Request')
+    if name.startswith('m567/'):
+        from .web567 import api as api567
+        try:
+            return api567(env,desk,auth,prefix,name,args,method)
+        except Stop as error:
+            return json_out({'error':str(error),'message':human(str(error))},'400 Bad Request')
     mail = desk.c['mail']
     try:
         if method == 'GET':
@@ -408,14 +430,21 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out(result)
         if name == 'draft/assist':
             from .integration import submit_question
-            instruction = str(data.get('instruction', '')).strip()[:1500]
-            body = str(data.get('body', ''))[:7000]
+            instruction = str(data.get('instruction', '')).strip()
+            body = str(data.get('body', ''))
             if not instruction or not body.strip():
                 raise Stop('instruction_et_texte_requis')
             question = ('Réécris ce projet de courriel d’avocat selon cette consigne : ' + instruction +
                         '\nNe renvoie que le texte complet du courriel corrigé, en français, sans commentaire, '
                         'sans inventer de fait ni de date absents du projet ou du dossier.\n\nProjet actuel :\n' + body)
-            submitted = submit_question(desk, question, str(data.get('matter', '')), str(data.get('source_key', '')))
+            attachments=[]
+            if len(question)>12000:
+                from .improvements36 import upload_attachment
+                attached=upload_attachment(desk,body.encode('utf-8'),'brouillon-a-reviser.txt',
+                  matter=str(data.get('matter','')),key=str(data.get('source_key','')))
+                attachments=[attached['attachment_id']]
+                question='Réécris le projet joint selon cette consigne, sans changer les faits ni les dates : '+instruction
+            submitted = submit_question(desk,question,str(data.get('matter','')),str(data.get('source_key','')),attachment_ids=attachments)
             return json_out({'job_id': submitted['job_id'], 'thread': submitted['thread_id']})
         if name == 'settings/office':
             result = office440.save_settings(desk, data.get('server_url', ''), data.get('secret', ''),

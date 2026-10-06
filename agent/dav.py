@@ -43,7 +43,7 @@ class DAV:
         return relative
 
     def list_folder(self, path):
-        body = '<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getetag/><d:getlastmodified/><d:getcontentlength/></d:prop></d:propfind>'
+        body = '<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getetag/><d:creationdate/><d:getlastmodified/><d:getcontentlength/></d:prop></d:propfind>'
         root = self.request_xml('PROPFIND', self.file_url(path) + '/', body)
         out = []
         for response in root.findall(D+'response'):
@@ -67,6 +67,7 @@ class DAV:
             out.append({'path': p, 'directory': prop.find('.//'+D+'collection') is not None,
                         'etag': prop.findtext(D+'getetag', ''),
                         'modified': prop.findtext(D+'getlastmodified', ''),
+                        'created': prop.findtext(D+'creationdate', ''),
                         'size': int(prop.findtext(D+'getcontentlength', '0') or 0)})
         return out
 
@@ -158,7 +159,7 @@ class DAV:
                 if item['directory']:
                     if depth>=self.cfg.get('max_depth',8):raise Stop('dossier_trop_profond')
                     pending.append([item['path'],depth+1,0])
-                else:files[item['path']]={'etag':item.get('etag',''),'modified':item.get('modified',''),'error':''}
+                else:files[item['path']]={'etag':item.get('etag',''),'modified':item.get('modified',''),'created':item.get('created',''),'size':item.get('size',0),'error':''}
             budget-=len(selected)
             if offset+len(selected)<len(children):pending.insert(0,[folder,depth,offset+len(selected)])
             else:visited+=1
@@ -187,7 +188,7 @@ class DAV:
     def stat(self, path):
         """Return metadata for one file (ETag, size, date, Nextcloud file id)."""
         body = ('<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:prop>'
-                '<d:resourcetype/><d:getetag/><d:getlastmodified/><d:getcontentlength/><oc:fileid/></d:prop></d:propfind>')
+                '<d:resourcetype/><d:getetag/><d:creationdate/><d:getlastmodified/><d:getcontentlength/><oc:fileid/></d:prop></d:propfind>')
         root = self.request_xml('PROPFIND', self.file_url(path), body, depth='0')
         response = root.find(D+'response')
         if response is None: raise Stop('fichier_nextcloud_introuvable')
@@ -197,6 +198,7 @@ class DAV:
                 if prop.find('.//'+D+'collection') is not None: raise Stop('chemin_est_un_dossier')
                 return {'path': clean_path(path), 'etag': prop.findtext(D+'getetag', ''),
                         'modified': prop.findtext(D+'getlastmodified', ''),
+                        'created': prop.findtext(D+'creationdate', ''),
                         'size': int(prop.findtext(D+'getcontentlength', '0') or 0),
                         'fileid': prop.findtext(OC+'fileid', '')}
         raise Stop('fichier_nextcloud_introuvable')
@@ -281,7 +283,7 @@ class DAV:
         if '..' in U.unquote(p.path).split('/'): raise Stop('calendrier_invalide')
         return url.rstrip('/') + '/'
 
-    def events(self, urls, start, end, tz):
+    def events(self, urls, start, end, tz, include_cancelled=False):
         if not urls: raise Stop('agenda_non_configure')
         fmt = lambda d: d.astimezone(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         a, b = fmt(start), fmt(end)
@@ -301,7 +303,7 @@ class DAV:
                     if data is not None:
                         href=response.findtext(D+'href','')
                         etag=ps.findtext('.//'+D+'getetag','')
-                        for event in parse_events(data, tz):
+                        for event in parse_events(data, tz,include_cancelled):
                             event.update(source_url=self.calendar_url(url),href=href,etag=etag)
                             out.append(event)
                         ok = True
@@ -402,7 +404,7 @@ def parse_ical_date(key, value, tz):
     except (ValueError, KeyError): raise Stop('date_agenda_non_lisible') from None
 
 
-def parse_events(ics, tz):
+def parse_events(ics, tz, include_cancelled=False):
     lines = re.sub(r'\r?\n[ \t]', '', ics).splitlines()
     events, fields, depth = [], None, 0
     for line in lines:
@@ -413,7 +415,12 @@ def parse_events(ics, tz):
             # server returns the recurring master unchanged, treating it as one
             # occurrence would silently hide later audiences: fail closed.
             if 'RRULE' in fields or 'RDATE' in fields:raise Stop('recurrence_non_developpee')
-            if fields.get('STATUS', ('', ''))[1] == 'CANCELLED': fields = None; continue
+            if fields.get('STATUS', ('', ''))[1] == 'CANCELLED':
+                if not include_cancelled:fields=None;continue
+                if 'DTSTART' not in fields:
+                    events.append({'uid':fields.get('UID',('',''))[1],'recurrence_id':fields.get('RECURRENCE-ID',('',''))[1],
+                                   'summary':fields.get('SUMMARY',('',''))[1],'status':'CANCELLED','start':'','end':'','busy':False})
+                    fields=None;continue
             if 'DTSTART' not in fields: raise Stop('debut_evenement_absent')
             start, all_day = parse_ical_date(*fields['DTSTART'], tz)
             if 'DTEND' in fields: end, _ = parse_ical_date(*fields['DTEND'], tz)
@@ -427,7 +434,7 @@ def parse_events(ics, tz):
             if end <= start: raise Stop('duree_agenda_invalide')
             value = lambda k: fields.get(k, ('', ''))[1].replace('\\n', '\n').replace('\\,', ',').replace('\\;', ';')
             events.append({'uid': value('UID'), 'start': start.isoformat(), 'end': end.isoformat(),
-                           'summary': value('SUMMARY'), 'description': value('DESCRIPTION'),
+                           'summary': value('SUMMARY'), 'description': value('DESCRIPTION'), 'all_day':all_day,
                            'location':value('LOCATION'),'status':value('STATUS') or 'CONFIRMED',
                            'recurrence_id':value('RECURRENCE-ID'),
                            'busy': value('TRANSP') != 'TRANSPARENT'})

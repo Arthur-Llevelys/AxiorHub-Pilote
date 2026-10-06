@@ -1,0 +1,85 @@
+{
+  "version": "5.6.8",
+  "base": "5.6.7 livrée",
+  "date_utc": "2026-10-06T07:13:29.371365+00:00",
+  "regression": {
+    "command": "PYTHONPATH=tests:. python3 -m unittest discover -s tests -q",
+    "status": "OK",
+    "total": 1393,
+    "passed": 1387,
+    "skipped": 6,
+    "errors": 0,
+    "failures": 0,
+    "duration_seconds": 166.001,
+    "waitress": "3.0.2 (dépendance de test isolée, identique à celle du Dockerfile)",
+    "skipped_details": [
+      {
+        "test": "test_v300_local.BridgeHTTPTests.test_busy_does_not_queue_second_audio",
+        "reason": "Install integrations/vocal_bridge/requirements.txt and httpx for HTTP tests"
+      },
+      {
+        "test": "test_v300_local.BridgeHTTPTests.test_failure_sanitized",
+        "reason": "Install integrations/vocal_bridge/requirements.txt and httpx for HTTP tests"
+      },
+      {
+        "test": "test_v300_local.BridgeHTTPTests.test_gradio_54_parameters_match_supplied_contract",
+        "reason": "Install integrations/vocal_bridge/requirements.txt and httpx for HTTP tests"
+      },
+      {
+        "test": "test_v300_local.BridgeHTTPTests.test_invalid_auth_and_public_peers_never_call_vocal",
+        "reason": "Install integrations/vocal_bridge/requirements.txt and httpx for HTTP tests"
+      },
+      {
+        "test": "test_v300_local.BridgeHTTPTests.test_post_compatible_json_and_defaults",
+        "reason": "Install integrations/vocal_bridge/requirements.txt and httpx for HTTP tests"
+      },
+      {
+        "test": "test_v300_local.BridgeHTTPTests.test_size_guard_before_spooling",
+        "reason": "Install integrations/vocal_bridge/requirements.txt and httpx for HTTP tests"
+      }
+    ]
+  },
+  "document_agents": {
+    "total": 63,
+    "status": "OK",
+    "duration_seconds": 4.532,
+    "areas": [
+      "règles en français et actions fermées",
+      "création WebDAV et ancienneté",
+      "portée et rattachement",
+      "analyse progressive de toutes les pages",
+      "reprise du MOVE sans écrasement",
+      "brouillon IMAP relu et reprise APPEND",
+      "déduplication CalDAV et Google",
+      "OAuth lié à l’utilisateur, PKCE et rejeu",
+      "coffre et absence de secrets publics",
+      "dates explicites, réception procédurale et profils d’appel",
+      "authentification et CSRF",
+      "migrations et état persistant"
+    ]
+  },
+  "checks": {
+    "python_compilation": "OK",
+    "javascript_syntax": "OK",
+    "css_bundle": "OK (40 feuilles)",
+    "privacy_scan": "OK",
+    "git_diff_whitespace": "OK"
+  },
+  "migrations": [
+    "0568_proactivity.sql",
+    "0569_document_agents.sql"
+  ],
+  "not_executed": [
+    "Construction et lancement réel des images Docker AxiorHub/Kokoro",
+    "Connexion à un compte IMAP, Nextcloud, CalDAV ou Google réel",
+    "Microphone, synthèse vocale, navigateur mobile et latence sur matériel réel",
+    "Recette juridique sur des dossiers réels et régimes procéduraux particuliers"
+  ],
+  "service_tests": "Doubles de protocoles avec lecture, effet, relecture et simulations de coupure ; HTTP WSGI réel sur localhost.",
+  "publication": "Archive cumulative locale ; aucune publication GitHub ni installation sur le serveur de l’utilisateur.",
+  "guides": [
+    "INSTALLATION-5.6.8.md",
+    "RECETTE-5.6.8.md",
+    "CHANGELOG-5.6.8.md"
+  ]
+}
