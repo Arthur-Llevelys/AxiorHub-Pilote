@@ -177,7 +177,7 @@ class Rules(t530.Base):
         self.assertNotIn('id="c569-decisions"', self.request('/aujourdhui')['body'])
 
 
-class Reception(t530.Base):
+class ReceptionBase(t530.Base):
     def setUp(self):
         super().setUp()
         import base64, hashlib, hmac, io
@@ -198,6 +198,9 @@ class Reception(t530.Base):
             return reception567.webhook(self.desk, env, '/reception567/twilio')
         self.phone = phone
 
+
+
+class Reception(ReceptionBase):
     def test_conversational_reception_records_a_closed_intent_in_two_questions(self):
         from agent import reception567
         self.assertEqual(reception567.capabilities(self.desk)['phone_conversation'], 'administrative_speech')

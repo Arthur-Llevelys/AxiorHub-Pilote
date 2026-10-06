@@ -3,6 +3,16 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.10 — Accueil téléphonique : information de l'appelant
+
+- **Annonce complète** lue avant toute reconnaissance vocale : accueil automatisé utilisant une intelligence artificielle, paroles
+  transcrites par un prestataire (Twilio), aucun enregistrement audio conservé par le cabinet, aucun conseil juridique par téléphone,
+  touche 0 pour refuser et utiliser le clavier, rappel aux horaires d'ouverture pour parler à une personne.
+- **Texte modifiable** dans Paramètres › Connexions › Accueil administratif (« Annonce lue à l'appelant »), sous la responsabilité du
+  cabinet en tant que responsable du traitement ; le texte par défaut s'applique tant que le champ est vide.
+- **Touche 0** : bascule immédiate vers l'accueil par touches, sans reconnaissance vocale ; la suite de l'appel suit le flux classique.
+- **Traçabilité** : la tâche créée mentionne « accueil automatisé avec IA ; transcription Twilio, non vérifiée ».
+
 ## 5.6.9 — Économe, réactif, décisions à portée de clic
 
 - **Régime économe** (activé d'office, réglable dans « IA externe sûre ») : contrôles périodiques espacés, quota journalier des

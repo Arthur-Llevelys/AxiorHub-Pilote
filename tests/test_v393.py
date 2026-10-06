@@ -109,7 +109,7 @@ class Reliability393(unittest.TestCase):
 
     def test_api_exposes_status_retry_and_version(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.9')
+        self.assertEqual(spec['info']['version'],'5.6.10')
         for path in ('/system/status','/system/checks/run','/system/openrouter-test','/jobs/{job_id}/retry'):
             self.assertIn(path,spec['paths'])
         status=dispatch(self.d,'/system/status','GET')
@@ -123,7 +123,7 @@ class Browser393(unittest.TestCase):
     def test_single_system_status_page_has_controls_and_green_policy(self):
         body=self.request('/etat-systeme')['body']
         for value in ('État du système','Contrôler maintenant','Tester OpenRouter sans donnée de dossier',
-                      'Traitements récents','Preuves de destination','app520.css','Version 5.6.9'):
+                      'Traitements récents','Preuves de destination','app520.css','Version 5.6.10'):
             self.assertIn(value,body)
 
 

@@ -27,7 +27,25 @@ ANNOUNCEMENT="Vous êtes en relation avec l’accueil automatique du cabinet, un
 SPEECH_ANNOUNCEMENT=("Vous êtes en relation avec l’accueil automatique du cabinet, un assistant informatique. Aucun conseil juridique ni "
  "information sur un dossier ne sera donné. Dites en quelques mots l’objet de votre appel : un rappel, un document à transmettre, un "
  "rendez-vous ou un message. Vous pouvez aussi taper 1 pour un rappel ou 2 pour un document.")
+# 5.6.10 : annonce d'information (règlement IA, art. 50 ; RGPD) lue avant toute reconnaissance vocale ; modifiable par le cabinet.
+DEFAULT_NOTICE=("Cet accueil est automatisé et utilise une intelligence artificielle. Vos paroles sont transcrites par un prestataire, "
+ "Twilio ; le cabinet ne conserve aucun enregistrement audio. Aucun conseil juridique n’est donné par téléphone. Pour refuser, "
+ "utilisez le clavier et tapez 0. Pour parler à une personne, rappelez aux horaires d’ouverture.")
+SPEECH_PROMPT="Sinon, dites en quelques mots l’objet de votre appel : un rappel, un document à transmettre, un rendez-vous ou un message."
 HINTS='rappel, rappeler, document, pièce, transmettre, rendez-vous, message, urgent'
+
+
+def notice(cfg):
+    """Texte de l'annonce : réglage reception.speech_notice (lignes jointes) ou texte par défaut."""
+    value=cfg.get('speech_notice')
+    if isinstance(value,list):value=' '.join(str(x).strip() for x in value if str(x).strip())
+    value=str(value or '').strip()
+    return value[:1500] if value else DEFAULT_NOTICE
+
+
+def _keypad(callback):
+    return ('<Response><Gather input="dtmf" numDigits="1" timeout="8" action="'+escape(callback,{'"':'&quot;'})+'" method="POST"><Say language="fr-FR">'
+            +ANNOUNCEMENT+'</Say></Gather><Say language="fr-FR">Sans choix, veuillez rappeler le cabinet pendant ses horaires d’ouverture.</Say><Hangup/></Response>')
 INTENTS={'callback':('rappel','rappeler','rappelle','joindre','contacter','appeler','telephone'),
          'document':('document','piece','pieces','transmettre','envoyer','envoi','courrier','justificatif','attestation'),
          'appointment':('rendez','rdv','rencontre','consultation','disponibilit','horaire')}
@@ -58,8 +76,10 @@ def _conversation(desk,cfg,callback,query,values):
     params=dict(parse_qsl(query)) if query else {};step=params.get('step','0')
     said=str(values.get('SpeechResult') or '').strip()[:500];digits=str(values.get('Digits') or '').strip()
     if step=='0':
-        return _reply('application/xml',_gather(SPEECH_ANNOUNCEMENT,callback+'?step=1',HINTS))
+        if 'Digits' in values:return None          # suite de l'accueil par touches (touche 0 choisie) : flux classique
+        return _reply('application/xml',_gather(notice(cfg)+' '+SPEECH_PROMPT,callback+'?step=1',HINTS))
     if step=='1':
+        if digits=='0':return _reply('application/xml',_keypad(callback))   # refus de la reconnaissance vocale
         if not said and not digits:
             return _reply('application/xml',_gather('Je n’ai pas compris. Dites simplement : rappel, document, rendez-vous ou message.',callback+'?step=1',HINTS))
         intent=classify(said,digits)
@@ -68,7 +88,7 @@ def _conversation(desk,cfg,callback,query,values):
     intent=params.get('intent','message');intent=intent if intent in INTENT_LABELS else 'message'
     urgent='urgen' in fold(said)
     label=INTENT_LABELS[intent]+(' — signalé urgent' if urgent else '')
-    text=label+(' — propos de l’appelant (transcription Twilio, non vérifiée) : « '+said+' »' if said else ' — sans précision.')
+    text=label+(' — propos de l’appelant (accueil automatisé avec IA ; transcription Twilio, non vérifiée) : « '+said+' »' if said else ' — sans précision (accueil automatisé avec IA).')
     out=_record(desk,'telephone',values.get('CallSid',''),values.get('From',''),text,label=label)
     return _reply('application/xml','<Response><Say language="fr-FR">Merci. Votre demande est enregistrée et sera examinée par le cabinet. '
                   'Aucun délai n’est garanti et aucun conseil juridique n’est donné par cet accueil. Au revoir.</Say><Hangup/></Response>')
@@ -150,9 +170,11 @@ def webhook(desk,env,path):
         payload=callback+('?'+query if query else '')+''.join(k+values[k] for k in sorted(values))
         signature=base64.b64encode(hmac.new(read_secret(cfg['twilio_auth_token_file']).encode(),payload.encode(),hashlib.sha1).digest()).decode()
         if not hmac.compare_digest(env.get('HTTP_X_TWILIO_SIGNATURE',''),signature):raise Stop('signature_accueil_refusee')
-        if speech_enabled(cfg):return _conversation(desk,cfg,callback,query,values)
+        if speech_enabled(cfg):
+            out=_conversation(desk,cfg,callback,query,values)
+            if out is not None:return out
         if 'Digits' not in values:
-            return _reply('application/xml','<Response><Gather input="dtmf" numDigits="1" timeout="8" action="'+escape(callback,{'"':'&quot;'})+'" method="POST"><Say language="fr-FR">'+ANNOUNCEMENT+'</Say></Gather><Say language="fr-FR">Sans choix, veuillez rappeler le cabinet pendant ses horaires d’ouverture.</Say><Hangup/></Response>')
+            return _reply('application/xml',_keypad(callback))
         digits=values['Digits']
         if digits not in ('1','2'):
             return _reply('application/xml','<Response><Say language="fr-FR">Cette demande nécessite l’accueil humain du cabinet. Merci de rappeler pendant les horaires d’ouverture.</Say><Hangup/></Response>')

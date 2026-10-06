@@ -145,7 +145,7 @@ class LegalResearch240Tests(unittest.TestCase):
           '/document-projects/{project_id}/provenance','/matters/{matter_id}/exhibits'):
             self.assertIn(path,spec['paths'])
         caps=dispatch(self.d,'/capabilities','GET')
-        self.assertEqual(caps['version'],'5.6.9')
+        self.assertEqual(caps['version'],'5.6.10')
         self.assertIn('deterministic_document_control',caps['can'])
         tool=(Path(__file__).parents[1]/'integrations/openwebui/axiorhub_tool.py').read_text()
         self.assertIn('def preparer_une_requete_mcp_juridique_anonymisee(',tool)

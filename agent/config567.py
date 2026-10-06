@@ -79,6 +79,7 @@ FIELDS = (
  ('reception.telephone_enabled','Activer Twilio Voice entrant','bool',False,'Accueil administratif'),
  ('reception.telephone_speech_enabled','Accueil conversationnel : l’appelant parle (motifs fermés, deux questions au plus)','bool',False,'Accueil administratif'),
  ('reception.speech_external_approved','J’accepte que la voix de l’appelant soit transcrite par Twilio (service externe payant, ≈ 0,02 $ par 15 s)','bool',False,'Accueil administratif'),
+ ('reception.speech_notice','Annonce lue à l’appelant avant la reconnaissance vocale (IA, transcription Twilio, aucun enregistrement, aucun conseil juridique, touche 0 pour le clavier) — texte sous votre responsabilité','lines',[],'Accueil administratif'),
  ('reception.twilio_callback_url','URL HTTPS exacte du webhook /reception567/twilio','url','https://agent.example.com/reception567/twilio','Accueil administratif'),
  ('reception.twilio_auth_token_file','Auth Token Twilio pour vérifier la signature','secret','','Accueil administratif'),
  ('reception.whatsapp_enabled','Activer les messages WhatsApp Business Cloud entrants','bool',False,'Accueil administratif'),

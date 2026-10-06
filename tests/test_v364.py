@@ -141,7 +141,7 @@ class Browser364(unittest.TestCase):
         self.assertIn('save_ai_route',body)
         self.assertIn('Boutons IA de Roundcube',body)
         self.assertIn('app520.css',body)
-        self.assertIn('Version 5.6.9',body)
+        self.assertIn('Version 5.6.10',body)
 
     def test_lawve_extensions_settings_are_visible(self):
         body=self.request('/parametres',query='tab=extensions')['body']
