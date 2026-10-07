@@ -21,8 +21,16 @@ INTERVALS = {'health': (30, 120), 'refresh_cabinet_pilotage': (30, 120), 'run_co
 AUTOMATIC_LLM = frozenset(('refresh_brief', 'sync_legal_memory', 'extract_facts460', 'refresh_operational_memory',
                            'analyze_notice440', 'analyze_deadline450'))
 # Contrôles par un second modèle dispensés en régime économe : analyses internes relues par l'avocat, jamais envoyées telles quelles.
-INTERNAL_REVIEWS = frozenset(('meeting_preparation', 'transcript_report', 'assistant_answer', 'analyze_strategy',
-                              'prepare_hearing', 'coach_hearing35'))
+# 5.6.12 (audit F09) : le contrôle reste proportionné au risque juridique — audience et stratégie restent contrôlées.
+INTERNAL_REVIEWS = frozenset(('meeting_preparation', 'transcript_report', 'assistant_answer'))
+# Banc rapide d'un modèle candidat : respect du JSON, fiabilité d'une date, tri d'un courriel. Aucune donnée de dossier.
+BENCH = (
+    ('json', 'Réponds uniquement par un objet JSON avec les clés "categorie" (texte) et "urgent" (vrai ou faux), sans autre texte, pour ce '
+             'courriel : « Bonjour Maître, l’audience est fixée au 12 novembre 2026, merci de confirmer votre présence. »'),
+    ('date', 'Quelle est la date, au format AAAA-MM-JJ et rien d’autre, mentionnée dans la phrase : « le délai expire le 3 mars 2027 » ?'),
+    ('tri', 'Classe ce courriel par un seul mot parmi : publicite, procedure, client. Courriel : « -70 % sur toute la collection, dernière chance '
+            'ce week-end ! » Réponds par le mot seul.'),
+)
 
 
 def enabled(desk):
@@ -178,19 +186,83 @@ def model_profile(desk):
             'models': [{'name': n, 'size_gb': round(s / 1e9, 1)} for s, n in sorted(models)]}
 
 
-def apply_model_profile(desk):
-    """Route le tri, la lecture des pièces jointes, la conversation vocale et le contrôle vers le plus petit modèle local."""
+def _bench_check(name, answer):
+    text = str(answer or '').strip()
+    if name == 'json':
+        body = text.strip('`').strip()
+        if body.lower().startswith('json'):
+            body = body[4:].strip()
+        try:
+            data = json.loads(body[body.index('{'):body.rindex('}') + 1])
+        except (ValueError, TypeError):
+            return False
+        return isinstance(data, dict) and isinstance(data.get('categorie'), str) and isinstance(data.get('urgent'), bool)
+    if name == 'date':
+        return '2027-03-03' in text
+    if name == 'tri':
+        from .common import fold
+        folded = fold(text)
+        return 'publicite' in folded and 'procedure' not in folded and 'client' not in folded
+    return False
+
+
+def bench_model(desk, name, model=None):
+    """5.6.12 (audit F09) : un modèle candidat doit passer trois épreuves déterministes avant de recevoir le tri et le contrôle."""
+    import time
+    name = str(name or '').strip()
+    if not name:
+        raise Stop('modele_requis')
+    if model is None:
+        from .model import Model, routed_config
+        base = routed_config(desk.c, 'mail_triage')
+        if base.get('provider_type', 'ollama') != 'ollama':
+            raise Stop('banc_modele_local_requis')
+        model = Model({**base, 'model': name, 'purpose': 'bench569'})
+    results = []
+    for key, prompt in BENCH:
+        started = time.monotonic()
+        try:
+            answer = model.complete([{'role': 'user', 'content': prompt}], temperature=0, max_tokens=80)
+            ok = _bench_check(key, answer)
+            error = ''
+        except Stop as ex:
+            answer, ok, error = '', False, str(ex)
+        results.append({'test': key, 'ok': bool(ok), 'answer': str(answer)[:200], 'error': error, 'seconds': round(time.monotonic() - started, 1)})
+    report = {'model': name, 'at': desk.now(), 'passed': all(r['ok'] for r in results), 'results': results}
+    desk.setting('ai:economy_bench:' + name, report)
+    desk.audit('economie569_banc_modele', {'model': name, 'passed': report['passed'], 'failed': [r['test'] for r in results if not r['ok']]})
+    report['message'] = ('Banc réussi pour %s : JSON, date et tri corrects.' % name) if report['passed'] else \
+        'Banc non réussi pour %s : %s. Ce modèle ne reçoit pas le tri ni le contrôle.' % (name, ', '.join(r['test'] for r in results if not r['ok']))
+    return report
+
+
+def bench_status(desk, name):
+    return desk.settings('ai:economy_bench:' + str(name or ''), None)
+
+
+def apply_model_profile(desk, force=False):
+    """Route le tri, la lecture des pièces jointes, la conversation vocale et, s'il est distinct du rédacteur, le contrôle vers le plus
+    petit modèle local — à condition qu'il ait passé le banc (5.6.12)."""
     from .ai_gateway import PURPOSES
     from .ia540 import _write_routes
+    from .model import routed_config
     profile = model_profile(desk)
     if not profile['available']:
         raise Stop('profil_modeles_indisponible')
-    purposes = sorted(p for p, (_, role) in PURPOSES.items() if role in ('fast', 'control'))
-    _write_routes(desk, {p: {'provider': 'ollama', 'model': profile['suggested']} for p in purposes})
-    desk.audit('economie569_profil_modeles', {'model': profile['suggested'], 'purposes': purposes})
-    return {'model': profile['suggested'], 'purposes': purposes,
-            'message': 'Profil économe appliqué : %s pour %d fonction(s) rapides et de contrôle. Les rédactions gardent leur modèle.'
-                       % (profile['suggested'], len(purposes))}
+    name = profile['suggested']
+    bench = bench_status(desk, name)
+    if not force and not (bench and bench.get('passed')):
+        raise Stop('profil_modeles_banc_requis' if not bench else 'profil_modeles_banc_echoue')
+    writer = str(routed_config(desk.c, 'mail_drafting').get('model') or '')
+    purposes = sorted(p for p, (_, role) in PURPOSES.items() if role == 'fast')
+    distinct = name != writer
+    if distinct:
+        purposes = sorted(purposes + [p for p, (_, role) in PURPOSES.items() if role == 'control'])
+    _write_routes(desk, {p: {'provider': 'ollama', 'model': name} for p in purposes})
+    desk.audit('economie569_profil_modeles', {'model': name, 'purposes': purposes, 'control_distinct': distinct, 'forced': bool(force)})
+    return {'model': name, 'purposes': purposes, 'control_distinct': distinct,
+            'message': 'Profil économe appliqué : %s pour %d fonction(s) rapides%s. Les rédactions gardent leur modèle.'
+                       % (name, len(purposes), ' et de contrôle' if distinct else ' ; le contrôle garde un modèle distinct du rédacteur')}
 
 
 def save(desk, data):
@@ -216,11 +288,21 @@ def section_html(desk, prefix):
         r['minutes'], ('%.2f $' % r['cost_usd']) if r['external'] else '—') for r in rows)
     profile = model_profile(desk)
     if profile['available']:
-        suggestion = ('<p>Plus petit modèle installé : <strong>%s</strong> (%s Go).</p>'
+        bench = bench_status(desk, profile['suggested'])
+        if bench:
+            verdict = ('<p class="ok">Banc réussi le %s : JSON, date et tri corrects.</p>' % e(str(bench.get('at', ''))[:16].replace('T', ' '))) if bench.get('passed') else \
+                ('<p class="notice">Banc non réussi (%s) : ce modèle ne reçoit pas le tri ni le contrôle.</p>'
+                 % e(', '.join(r['test'] for r in bench.get('results', []) if not r.get('ok'))))
+        else:
+            verdict = '<p class="vf-note">Banc non encore passé : testez le modèle avant de l’appliquer (trois épreuves, aucune donnée de dossier).</p>'
+        suggestion = ('<p>Plus petit modèle installé : <strong>%s</strong> (%s Go).</p>%s'
+                      '<form class="m5-form m5-inline" data-api="m540/economie/banc" data-reload="1">'
+                      '<button type="submit">Tester le modèle (banc rapide)</button></form> '
                       '<form class="m5-form m5-inline" data-api="m540/economie/profil" data-reload="1" '
-                      'data-confirm="Router le tri, la lecture des pièces jointes, la conversation vocale et le contrôle vers %s ?">'
-                      '<button type="submit">Appliquer le profil économe de modèles</button></form>'
-                      % (e(profile['suggested']), profile['size_gb'], e(profile['suggested'], quote=True)))
+                      'data-confirm="Router le tri, la lecture des pièces jointes, la conversation vocale et, s’il est distinct du rédacteur, le contrôle vers %s ?">'
+                      '<button type="submit"%s>Appliquer le profil économe de modèles</button></form>'
+                      % (e(profile['suggested']), profile['size_gb'], verdict, e(profile['suggested'], quote=True),
+                         '' if bench and bench.get('passed') else ' disabled'))
     else:
         suggestion = '<p class="vf-note">Ollama ne répond pas ou aucun modèle n’est installé : profil de modèles indisponible.</p>'
     if rows:

@@ -18,6 +18,9 @@
 .voice568-panel p{margin:.25rem 0;font-size:.9rem}.voice568-status{font-weight:600}.voice568-answer{max-height:35vh;overflow:auto}
 html[data-theme="dark"] .voice568-panel,body.dark .voice568-panel{background:#181a1d;color:#f3f4f6}
 html[data-theme="dark"] #proactive568-summary,body.dark #proactive568-summary{background:#252a34}
+.voice568-embedded{position:static!important;right:auto;bottom:auto;width:auto;max-height:none;box-shadow:none;border-radius:12px;padding:.75rem;margin:.5rem 0}
+.voice568-embedded header strong{font-size:.95rem}.ws-ai-voice[hidden]{display:none}
+.ws-ai-turn{border-top:1px solid var(--border,#c9d8ef);padding:.5rem 0}.ws-ai-turn-me{font-weight:600;margin:.25rem 0}.ws-ai-turn pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:.25rem 0}
 @media(max-width:640px){.voice568-launch{right:12px;bottom:90px}.voice568-panel{right:8px;left:8px;bottom:8px;width:auto;max-height:85vh}.proactive568-heading{gap:.65rem}}
 /* Agents en langage naturel : formulaires larges, preuves repliables. */
 .doc568-editor{padding:1rem;border:1px solid var(--border,#8ab4ed);border-radius:16px;margin-block:1rem}

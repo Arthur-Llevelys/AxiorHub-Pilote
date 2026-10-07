@@ -15,8 +15,9 @@ def _sha(value):return hashlib.sha256(str(value).encode()).hexdigest()
 def analysis_signature(desk,model,limit,purpose):
     from .extensions364 import active_skill_instructions
     relevant=[tuple(r) for r in desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:%' OR key LIKE 'learning%' OR key LIKE 'style%' OR key LIKE 'extensions:%' OR key LIKE 'assistant567:profile:%' ORDER BY key")]
-    return _sha(json.dumps({'model':getattr(model,'cfg',{}),'config':desk.c,
-             'settings':relevant,'pipeline':'5.6.7-2','limit':limit,'purpose':purpose,
+    # 5.6.12 (audit F13) : seuls les réglages qui changent le résultat entrent dans la signature.
+    return _sha(json.dumps({'model':getattr(model,'cfg',{}),'config':{k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},
+             'settings':relevant,'pipeline':'5.6.12-2','limit':limit,'purpose':purpose,
              'skills':active_skill_instructions(desk.c,purpose)[:6000]},sort_keys=True,default=str))
 
 
@@ -148,8 +149,9 @@ def analyze_pages(desk,pages,source_id,path,question,model,limit,purpose='hearin
     skill_guidance=active_skill_instructions(desk.c,purpose)[:6000]
     model_fp=json.dumps({'provider':getattr(model,'cfg',{}).get('provider_id','ollama'),
       'model':getattr(model,'cfg',{}).get('model',''),'extensions':extensions,
-      'pipeline':'5.6.7-1','skills_sha256':_sha(skill_guidance),'limit':limit,'purpose':purpose,
-      'config_sha256':_sha(json.dumps(desk.c,sort_keys=True,default=str)),
+      'pipeline':'5.6.12-1','skills_sha256':_sha(skill_guidance),'limit':limit,'purpose':purpose,
+      # 5.6.12 (audit F13) : seuls les réglages qui changent le résultat invalident le cache, pas toute la configuration.
+      'config_sha256':_sha(json.dumps({k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},sort_keys=True,default=str)),
       'settings_sha256':_sha(json.dumps([tuple(r) for r in desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:%' OR key LIKE 'learning%' OR key LIKE 'style%' OR key LIKE 'extensions:%' OR key LIKE 'assistant567:profile:%' ORDER BY key")],sort_keys=True))},sort_keys=True)
     document_sha=_sha('\n'.join(str(x['page'])+'\0'+str(x['text']) for x in pages))
     run_id=digest('|'.join([document_sha,source_id,_sha(path),_sha(question),_sha(model_fp),analysis_signature(desk,model,limit,purpose)]))
@@ -189,21 +191,31 @@ def analyze_pages(desk,pages,source_id,path,question,model,limit,purpose='hearin
           'excerpt':answer,'page_start':chunk['page'],'page_end':chunk['page'],
           'citation':citation,'char_start':chunk['char_start'],'char_end':chunk['char_end'],
           'sha256':chunk['sha256'],'partial':False})
-    level=0
+    level=0;merged_from_cache=0
     while len(analyzed)>6:
         level+=1;merged=[]
         for start in range(0,len(analyzed),5):
-            merged.append(_merge(model,question,analyzed[start:start+5],limit,source_id,
-                                 level,start//5+1,skill_guidance))
+            items=analyzed[start:start+5];number=start//5+1
+            # 5.6.12 (audit F13) : une fusion est mise en cache par l'empreinte de ses entrées, comme les fragments.
+            key='merge-L'+str(level)+'-'+str(number)+'-'+_sha('\n'.join(x['id']+'\0'+_sha(x['excerpt']) for x in items)+'\0'+_sha(question))[:12]
+            row=desk.db.execute("SELECT answer FROM long_document_chunks_v365 WHERE run_id=? AND chunk_id=? AND status='done'",(run_id,key)).fetchone()
+            if row:
+                try:merged.append(json.loads(row['answer']));merged_from_cache+=1;continue
+                except ValueError:pass
+            result=_merge(model,question,items,limit,source_id,level,number,skill_guidance)
+            desk.db.execute('''INSERT OR REPLACE INTO long_document_chunks_v365 VALUES
+              (?,?,?,?,?,?,?,?,?,?,?,?,?)''',(run_id,key,0,level,0,0,_sha(json.dumps([x['id'] for x in items])),'done',1,
+              json.dumps(result,ensure_ascii=False),json.dumps([x['id'] for x in items]),'',desk.now()));desk.db.commit()
+            merged.append(result)
         analyzed=merged
-    done=desk.db.execute("SELECT COUNT(*) FROM long_document_chunks_v365 WHERE run_id=? AND status='done'",(run_id,)).fetchone()[0]
+    done=desk.db.execute("SELECT COUNT(*) FROM long_document_chunks_v365 WHERE run_id=? AND status='done' AND chunk_id NOT LIKE 'merge-%'",(run_id,)).fetchone()[0]
     complete=done==len(chunks) and {x['page'] for x in chunks}=={x['page'] for x in pages}
     status='complete' if complete else 'partial'
     desk.db.execute('UPDATE long_document_runs_v365 SET status=?,chunks_done=?,updated=?,error=? WHERE id=?',
                     (status,done,desk.now(),'' if complete else 'couverture_incomplete',run_id));desk.db.commit()
     coverage={'run_id':run_id,'status':status,'complete':complete,'resumable':True,
       'pages_total':len(pages),'pages_analyzed':len({x['page'] for x in chunks}) if complete else 0,
-      'chunks_total':len(chunks),'chunks_analyzed':done,'chunks_from_cache':cached_count,
+      'chunks_total':len(chunks),'chunks_analyzed':done,'chunks_from_cache':cached_count,'merges_from_cache':merged_from_cache,
       'extracted_chars':chars,'citations':citations,'extensions_used':extensions,
       'document_sha256':document_sha}
     if not complete:raise Stop('analyse_document_couverture_incomplete')

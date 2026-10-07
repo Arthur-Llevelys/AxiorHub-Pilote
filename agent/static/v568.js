@@ -118,7 +118,11 @@
   }
 
   // Voice sessions use the same authenticated mission API. Audio never reaches a provider key in the browser.
-  const launch=el('button','🎙','voice568-launch');launch.type='button';launch.title='Conversation vocale avec l’assistant IA';launch.setAttribute('aria-label',launch.title);launch.setAttribute('aria-expanded','false');launch.setAttribute('aria-controls','voice568-panel');
+  // 5.6.12 : un seul panneau Pilote. La conversation vocale vit dans le panneau de l'assistant (bouton « Dialoguer ») ;
+  // le bouton flottant n'existe plus que sur une page sans panneau.
+  const dockVoice=document.querySelector('#ws-ai-voice'),talkButton=document.querySelector('#ws-ai-talk'),dockEl=document.querySelector('#ws-ai-dock');
+  const launch=talkButton||el('button','🎙','voice568-launch');
+  if(!talkButton){launch.type='button';launch.title='Conversation vocale avec l’assistant IA';launch.setAttribute('aria-label',launch.title);launch.setAttribute('aria-expanded','false');launch.setAttribute('aria-controls','voice568-panel');}
   const pane=el('aside',undefined,'voice568-panel');pane.id='voice568-panel';pane.hidden=true;pane.setAttribute('aria-label','Conversation vocale');
   const header=el('header'),name=el('strong','Pilote · assistant IA vocal'),close=el('button','×');close.type='button';close.setAttribute('aria-label','Arrêter et replier la conversation');header.append(name,close);
   const mode=el('select');mode.setAttribute('aria-label','Mode vocal');mode.append(new Option('Discuter et obtenir une réponse','conversation'),new Option('Préparer les missions internes demandées','mission'));
@@ -127,7 +131,7 @@
   const answer=el('div',undefined,'voice568-answer');answer.setAttribute('aria-live','polite');
   const transmission=el('details'),transmissionTitle=el('summary','Données de lecture vocale'),transmissionText=el('pre');transmission.append(transmissionTitle,transmissionText);
   const start=el('button','Démarrer le dialogue'),stop=el('button','Arrêter'),send=el('button','Envoyer le texte corrigé');[start,stop,send].forEach(b=>{b.type='button';});
-  pane.append(header,context,mode,el('p','La discussion donne des réponses. Le mode mission autorise les préparations internes ; aucun envoi ni invitation automatique.'),status,transcript,send,answer,transmission,start,stop);document.body.append(launch,pane);
+  pane.append(header,context,mode,el('p','La discussion donne des réponses. Le mode mission autorise les préparations internes ; aucun envoi ni invitation automatique.'),status,transcript,send,answer,transmission,start,stop);if(dockVoice){pane.classList.add('voice568-embedded');dockVoice.append(pane);}else document.body.append(launch,pane);
   let running=false,stream=null,rec=null,chunks=[],bytes=0,audioContext=null,analyser=null,vad=null,lastSound=0,turnStart=0,voiced=false,processing=false,speaking=null,audioURL='',scope='',parent='',generation=0;
   let controller=null,lastPayload=null;
   const token=()=>crypto.randomUUID();
@@ -193,6 +197,9 @@
       }
       if(g!==generation)return;
       const text=m.result?.text||((m.exceptions||[]).map(x=>x.message).join(' '))||m.label;answer.replaceChildren(el('pre',text));
+      // 5.6.12 : le tour vocal rejoint le fil commun du panneau (continuité texte / voix)
+      const thread=document.querySelector('#ws-ai-result');
+      if(thread){const turn=el('article',undefined,'ws-ai-turn');turn.append(el('p','🎙 '+payload.instruction,'ws-ai-turn-me'),el('pre',text));thread.prepend(turn);}
       const link=el('a','Ouvrir cette mission');link.href=prefix+'/missions';answer.append(link);voiceNote(m.label);
       if(running)await read(text,g);
     }catch(e){if(e.name!=='AbortError')voiceNote(e.message+' Le texte reste disponible.');}
@@ -234,8 +241,12 @@
       },100);
     }catch(e){if(g===generation){stopSession();voiceNote(e.message);}}
   }
-  launch.addEventListener('click',()=>{pane.hidden=!pane.hidden;launch.setAttribute('aria-expanded',String(!pane.hidden));if(pane.hidden)stopSession();else startSession();});
-  close.addEventListener('click',()=>{stopSession();pane.hidden=true;launch.setAttribute('aria-expanded','false');launch.focus();});
+  function showVoice(visible){pane.hidden=!visible;if(dockVoice)dockVoice.hidden=!visible;launch.setAttribute('aria-expanded',String(visible));}
+  launch.addEventListener('click',()=>{
+    if(dockEl&&dockEl.hidden)document.querySelector('#ws-ai-launcher')?.click();   // même panneau que le texte et les documents
+    const visible=pane.hidden;showVoice(visible);if(visible)startSession();else stopSession();
+  });
+  close.addEventListener('click',()=>{stopSession();showVoice(false);launch.focus();});
   start.addEventListener('click',startSession);stop.addEventListener('click',stopSession);
   send.addEventListener('click',()=>{if(processing)return;if(!running){voiceNote('Démarrez le dialogue avant d’envoyer le texte corrigé.');return;}if(rec){rec.skipTranscript=true;rec.stop();rec=null;}submit(transcript.value,generation);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!pane.hidden){stopSession();pane.hidden=true;launch.setAttribute('aria-expanded','false');}});

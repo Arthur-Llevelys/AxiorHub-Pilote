@@ -3,6 +3,19 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.12 — Un seul panneau Pilote, banc du modèle économe, cache des fusions
+
+- **Un seul panneau Pilote** : le bouton robot ouvre l'unique panneau ; « 🎙 Dicter » dicte l'instruction, « 💬 Dialoguer » lance la
+  conversation vocale par tours dans ce même panneau, avec le même dossier, les mêmes documents et le même fil (chaque tour vocal
+  rejoint l'historique des résultats). Plus de bouton micro flottant sur les pages qui ont le panneau.
+- **Banc du modèle économe (audit F09)** : avant de recevoir le tri, la lecture des pièces jointes et la conversation vocale, le plus
+  petit modèle local doit réussir trois épreuves déterministes (objet JSON exact, date au format demandé, tri d'un courriel
+  publicitaire), sans donnée de dossier. Le contrôle ne lui est confié que s'il est distinct du modèle de rédaction. Les contrôles
+  de la préparation d'audience et de l'analyse stratégique sont maintenus en régime économe.
+- **Cache des fusions (audit F13)** : les synthèses intermédiaires des documents longs sont mises en cache par l'empreinte de leurs
+  entrées, comme les fragments ; une relecture ne recalcule rien. Seuls les réglages qui changent le résultat (documents, modèles,
+  routage) invalident le cache, plus toute la configuration.
+
 ## 5.6.11 — Courriels du cabinet et affaires anciennes
 
 - **Un courriel envoyé par le cabinet n'est jamais une demande** : l'adresse d'expédition et l'identifiant de connexion comptent

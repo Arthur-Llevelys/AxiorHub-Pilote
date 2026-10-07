@@ -187,6 +187,9 @@ def handle(desk, name, data, method='POST', args=None):
     if n == 'economie/profil' and method == 'POST':
         from . import economie569
         return economie569.apply_model_profile(desk)
+    if n == 'economie/banc' and method == 'POST':
+        from . import economie569
+        return economie569.bench_model(desk, economie569.model_profile(desk).get('suggested'))
     if n == 'mode' and method == 'POST':
         mode = str(data.get('mode') or '')
         if mode == 'local':

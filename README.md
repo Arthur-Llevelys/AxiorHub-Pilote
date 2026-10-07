@@ -5,7 +5,7 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.11</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.12</p>
 
 <p align="center"><img src="docs/captures/01-poste-de-pilotage.png" alt="Poste de pilotage d'AxiorHub Pilote" width="900"></p>
 
@@ -13,13 +13,13 @@ Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre 
 
 ## En une phrase
 
-**Livraison 5.6.11 :** consulter [le guide d’installation cumulatif](INSTALLATION-5.6.9.md)
+**Livraison 5.6.12 :** consulter [le guide d’installation cumulatif](INSTALLATION-5.6.9.md)
 et [la recette avec ses limites](RECETTE-5.6.9.md). Les captures historiques ne
 représentent pas toutes les nouvelles pages. Le cahier des charges est réalisé
 par étapes ; les appels téléphoniques conversationnels et les écritures Invoice
 Ninja ne font pas partie de cette livraison.
 
-La 5.6.11 corrige les balayages automatiques : les courriels envoyés par le cabinet ne sont jamais traités comme des demandes et seuls les courriels récents (14 jours, réglable) donnent lieu à des propositions. La 5.6.10 complète l’accueil téléphonique : annonce d’information (IA, transcription Twilio, aucun enregistrement, aucun conseil juridique) modifiable par le cabinet, touche 0 pour l’accueil par touches. La 5.6.9 rend l’agent plus économe et plus réactif : régime économe (quota d’analyses automatiques, contrôles périodiques espacés, second modèle réservé aux envois), bloc « À décider » sur Aujourd’hui, lecture vocale phrase par phrase, accueil téléphonique conversationnel administratif, factures en brouillon et temps passés dans Invoice Ninja après validation, écran « Mise en service ». La 5.6.8 ajoute le suivi des engagements dans les courriels envoyés, les suites
+La 5.6.12 réunit texte, documents et voix dans un seul panneau Pilote, soumet le modèle économe à un banc avant de lui confier le tri et le contrôle, et met en cache les fusions des documents longs. La 5.6.11 corrige les balayages automatiques : les courriels envoyés par le cabinet ne sont jamais traités comme des demandes et seuls les courriels récents (14 jours, réglable) donnent lieu à des propositions. La 5.6.10 complète l’accueil téléphonique : annonce d’information (IA, transcription Twilio, aucun enregistrement, aucun conseil juridique) modifiable par le cabinet, touche 0 pour l’accueil par touches. La 5.6.9 rend l’agent plus économe et plus réactif : régime économe (quota d’analyses automatiques, contrôles périodiques espacés, second modèle réservé aux envois), bloc « À décider » sur Aujourd’hui, lecture vocale phrase par phrase, accueil téléphonique conversationnel administratif, factures en brouillon et temps passés dans Invoice Ninja après validation, écran « Mise en service ». La 5.6.8 ajoute le suivi des engagements dans les courriels envoyés, les suites
 persistantes de missions, les salons Talk privés, la veille officielle du matin et
 la conversation vocale par tours avec lecture locale ou ElevenLabs explicitement
 autorisé. Les neuf rôles partagent les producteurs existants ; aucun déploiement
@@ -427,7 +427,7 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.11.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.12.tar.gz
 ```
 
 Python 3.11 ou plus récent, bibliothèque standard pour le cœur, Waitress pour le serveur web ; Poppler, Tesseract et

@@ -75,7 +75,7 @@ class Economy(t530.Base):
         with patch('agent.economie569.HTTP', Http):
             profile = eco.model_profile(self.desk)
             self.assertEqual(profile['suggested'], 'qwen3:4b')
-            out = eco.apply_model_profile(self.desk)
+            out = eco.apply_model_profile(self.desk, force=True)   # 5.6.12 : sans banc réussi, seul « force » applique le profil
         self.assertIn('mail_triage', out['purposes']);self.assertIn('control', out['purposes']);self.assertNotIn('mail_drafting', out['purposes'])
         self.assertEqual(self.desk.c['model_routing']['mail_triage'], {'provider': 'ollama', 'model': 'qwen3:4b'})
         self.assertNotEqual(self.desk.c['model_routing'].get('mail_drafting', {}).get('model'), 'qwen3:4b')

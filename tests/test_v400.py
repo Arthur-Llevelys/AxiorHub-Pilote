@@ -143,7 +143,7 @@ class Hybrid400(unittest.TestCase):
         self.assertNotIn('prompt',columns);self.assertNotIn('content',columns);self.assertNotIn('response',columns)
 
     def test_api_exposes_policy_and_safe_simulation(self):
-        spec=openapi('https://agent.example.com');self.assertEqual(spec['info']['version'],'5.6.11')
+        spec=openapi('https://agent.example.com');self.assertEqual(spec['info']['version'],'5.6.12')
         self.assertIn('/ai/routing',spec['paths']);self.assertIn('/ai/routing/simulate',spec['paths'])
         self.assertIn('policy',dispatch(self.d,'/ai/routing','GET'))
         result=dispatch(self.d,'/ai/routing/simulate','POST',{'purpose':'assistant','input_characters':1000})
@@ -157,7 +157,7 @@ class Browser400(unittest.TestCase):
     def test_routing_console_is_visible_and_local_by_default(self):
         body=self.request('/routage-hybride')['body']
         for value in ('ROUTAGE HYBRIDE','Local uniquement','Score de complexité',
-          'Estimer sans transmettre','Voir avant transmission','app520.css','Version 5.6.11'):
+          'Estimer sans transmettre','Voir avant transmission','app520.css','Version 5.6.12'):
             self.assertIn(value,body)
 
 

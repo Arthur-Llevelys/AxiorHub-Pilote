@@ -124,13 +124,15 @@ class Audit(t530.Base):
         self.assertTrue(all('level' in x for x in report['checks']))
 
     def test_pwa_icons_match_their_declared_sizes(self):
-        from PIL import Image
+        import struct
         from agent.mobile490 import manifest
         icons = manifest('/p')['icons']
         self.assertEqual([i['sizes'] for i in icons], ['192x192', '512x512', '512x512']);self.assertEqual(icons[2]['purpose'], 'maskable')
         for icon in icons:
             name = icon['src'].rsplit('/', 1)[-1];size = int(icon['sizes'].split('x')[0])
-            self.assertEqual(Image.open(ROOT / 'agent' / 'static' / name).size, (size, size), name)
+            head = (ROOT / 'agent' / 'static' / name).read_bytes()[:24]          # en-tête PNG : largeur et hauteur du bloc IHDR, sans dépendance
+            self.assertEqual(head[:8], bytes([137]) + b'PNG' + bytes([13, 10, 26, 10]), name)
+            self.assertEqual(struct.unpack('>II', head[16:24]), (size, size), name)
         self.assertIn("'/static/axiorhub-icon-maskable.png'", (ROOT / 'agent' / 'web.py').read_text(encoding='utf-8'))
 
     def test_upgrade_message_is_generated_from_the_supported_list(self):
