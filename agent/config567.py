@@ -31,6 +31,8 @@ FIELDS = (
  ('mail.from_address','Adresse du cabinet','email','','Courriels'),
  ('mail.from_name','Nom de l’expéditeur','text','Cabinet','Courriels'),
  ('mail.own_addresses','Autres adresses du cabinet (une par ligne)','lines',[],'Courriels'),
+ ('orchestrator.lookback_days','Orchestrateur : antériorité maximale des courriels examinés (jours)','integer',14,'Courriels'),
+ ('autonomy.lookback_days','Autonomie : antériorité maximale des courriels examinés (jours)','integer',14,'Courriels'),
  ('nextcloud.url','URL Nextcloud HTTPS','url','https://nextcloud.example.com','Nextcloud'),
  ('nextcloud.username','Identifiant Nextcloud','text','','Nextcloud'),
  ('nextcloud.password_file','Mot de passe d’application Nextcloud','secret','','Nextcloud'),

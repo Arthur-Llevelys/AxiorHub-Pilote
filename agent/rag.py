@@ -4,7 +4,10 @@ import math
 from .common import HTTP,Stop,digest,fold
 
 
-def chunks(text,size=3500,overlap=350):
+CHUNK_LIMIT=2000   # 5.6.11 : 7 Mo de texte environ ; avant, tout document était coupé à 200 fragments sans avertissement
+
+
+def chunks(text,size=3500,overlap=350,maximum=CHUNK_LIMIT):
     text=text.replace('\x00','').strip();out=[];start=0
     while start<len(text):
         end=min(len(text),start+size)
@@ -15,7 +18,7 @@ def chunks(text,size=3500,overlap=350):
         if part:out.append(part)
         if end>=len(text):break
         start=max(start+1,end-overlap)
-    return out[:200]
+    return out[:max(1,int(maximum))]
 
 
 class Embedder:

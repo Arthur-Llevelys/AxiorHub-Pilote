@@ -6,6 +6,12 @@ import test_agent as fixtures
 import test_desk
 from test_v220 import DocumentDAV
 
+
+def _recent():
+    """5.6.11 : les balayages n'examinent que les courriels récents ; le courriel fictif est daté de la veille."""
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+
 from agent.api import dispatch, openapi
 from agent.autonomy import (billing_proposals, change_proposal,
     diligence_proposals, observe_mail, operational_memory, refresh_memory)
@@ -62,7 +68,7 @@ class Autonomy230Tests(unittest.TestCase):
         key=digest('mail-autonomy-230-'+suffix);state=State(self.f.c['state_dir'])
         state.set(key,'<mail-autonomy-'+suffix+'@example.test>','thread-'+suffix,'observed','lecture_seule')
         state.report(key,{'matter':'DOS-001','subject':'Conclusions : nouvelles pièces reçues '+suffix,
-          'sender':'client@example.test','received_at':'2026-09-12T15:00:00+00:00',
+          'sender':'client@example.test','received_at':_recent(),
           'status':'observed','reason':'analyse interne',
           'matter_scores':scores or [{'matter':'DOS-001','score':96,'role':'client','reasons':[]}],
           'triage':{'intent':'legal','needs_reply':True,'ambiguous':ambiguous,'reason':'Nouveaux arguments',
@@ -210,7 +216,7 @@ class Autonomy230Tests(unittest.TestCase):
         row=self.d.db.execute("SELECT priority FROM jobs WHERE kind='autonomy_mail_sweep'").fetchone()
         self.assertEqual(row['priority'],40)
         spec=openapi('https://cabinet.test')
-        self.assertEqual(spec['info']['version'],'5.6.10')
+        self.assertEqual(spec['info']['version'],'5.6.11')
         self.assertIn('/autonomy/pending',spec['paths'])
         self.assertIn('/matters/{matter_id}/operational-memory',spec['paths'])
         caps=dispatch(self.d,'/capabilities','GET')
@@ -243,7 +249,7 @@ class Web230Tests(unittest.TestCase):
         page=self.request('/projets')['body']
         self.assertIn('Travail préparé automatiquement',page)
         self.assertIn('Contrôles bloquants',page)
-        self.assertIn('Version 5.6.10',page)
+        self.assertIn('Version 5.6.11',page)
         self.assertNotIn('http-equiv="refresh"',page)
 
 

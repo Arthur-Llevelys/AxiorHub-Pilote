@@ -237,10 +237,9 @@ def sweep(desk,args):
     from .integration import sync_work_items
     sync_work_items(desk);cfg=desk.c.get('orchestrator',{})
     limit=max(1,min(int(args.get('limit',cfg.get('mail_batch_size',20))),100))
-    rows=desk.db.execute("""SELECT w.mail_key FROM work_items w
-      LEFT JOIN mail_orchestrations_v260 o ON o.mail_key=w.mail_key
-      WHERE w.matter<>'' AND w.source_status NOT IN ('ignored','appending','append_uncertain')
-      ORDER BY CASE WHEN o.mail_key IS NULL THEN 0 ELSE 1 END,w.received DESC LIMIT ?""",(limit*5,)).fetchall()
+    # 5.6.11 : courriels récents seulement (fenêtre réglable), jamais ceux envoyés par le cabinet lui-même.
+    from .balayage5611 import recent_work_items
+    rows=recent_work_items(desk,cfg,'orchestrator',limit*5)
     done=[];warnings=[]
     for row in rows:
         if len(done)>=limit:break

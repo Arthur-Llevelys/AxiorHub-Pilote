@@ -114,14 +114,24 @@ class Portfolio210Tests(unittest.TestCase):
           subject='Recrutements - profil juriste droit des affaires en recherche active')
         self.assertEqual(exclusion(mail,self.f.c['mail']),'sollicitation_recrutement')
 
-    def test_administrative_request_can_be_drafted_without_matter(self):
+    def test_administrative_request_without_matter_is_drafted_only_for_a_known_correspondent(self):
+        # 5.6.11 : un expéditeur inconnu de tous les dossiers, sans dossier identifié, n'a jamais de brouillon automatique
+        # (démarchage, lettre d'information) ; un correspondant connu d'un dossier garde l'accusé de réception sans dossier.
         self.f.model.intent='administrative'
         mail=fixtures.mail(sender='administratif@example.test',subject='Demande de confirmation')
         mail.msg.set_content('Bonjour Maître, pouvez-vous accuser réception de mon message ?')
         key=self.f.engine.process(mail)
+        self.assertEqual(self.f.status(key),'review')
+        report=json.loads((Path(self.f.c['state_dir'])/'reports'/(key+'.json')).read_text(encoding='utf-8'))
+        self.assertEqual(report['reason'],'expediteur_inconnu_sans_dossier');self.assertEqual(self.f.box.appended,[])
+        # Le même expéditeur, une fois enregistré comme client d'un dossier, est rattaché à ce dossier et reçoit l'accusé de réception.
+        self.f.engine.matters[0].setdefault('correspondents',[]).append({'email':'administratif@example.test','role':'client'})
+        from agent.common import private_json
+        private_json(self.f.matter_file,self.f.engine.matters)   # le registre sur disque doit correspondre à l'analyse
+        mail=fixtures.mail(uid='2',sender='administratif@example.test',subject='Demande de confirmation bis')
+        mail.msg.set_content('Bonjour Maître, pouvez-vous accuser réception de mon message ?')
+        key=self.f.engine.process(mail)
         self.assertEqual(self.f.status(key),'drafted')
-        report=json.loads((Path(self.f.c['state_dir'])/'reports'/(key+'.json')).read_text())
-        self.assertIsNone(report['matter'])
         self.assertEqual(self.f.box.appended[0]['To'],'administratif@example.test')
 
     def test_engine_records_unique_reference_as_automatic_case_link(self):
@@ -144,7 +154,7 @@ class Portfolio210Tests(unittest.TestCase):
         self.assertTrue(all(x['id']!='2017010101' for x in data['recent_matters']))
 
     def test_api_and_openwebui_expose_portfolio_without_send(self):
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.10')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.11')
         self.assertIn('summary',dispatch(self.d,'/portfolio','GET',query={}))
         queued=dispatch(self.d,'/portfolio/organize','POST',{})
         self.assertEqual(queued['status'],'queued')
@@ -166,7 +176,7 @@ class Web210Tests(unittest.TestCase):
         self.assertIn('Aujourd’hui',dashboard_page)
         self.assertIn('Actifs',dossiers);self.assertIn('Archivés',dossiers)
         self.assertIn('Arriéré',inbox)
-        self.assertIn('Version 5.6.10',dashboard_page)
+        self.assertIn('Version 5.6.11',dashboard_page)
         self.assertNotIn('http-equiv="refresh"',dashboard_page+dossiers+inbox)
 
 

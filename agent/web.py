@@ -35,7 +35,9 @@ LABELS = {'review':'À vérifier','drafted':'Brouillon dans la messagerie',
           'running':'En cours','cancel_requested':'Annulation demandée',
           'done':'Terminé','cancelled':'Annulé'}
 REASONS = {'contact_personnel_hors_dossier': 'Contact personnel : aucun brouillon n’est préparé à partir du dossier.',
-           'quota_econome_journalier': 'Quota journalier des analyses automatiques atteint (régime économe) : reportée.',
+           'quota_econome_journalier': 'Quota journalier des analyses automatiques atteint (régime économe) : différée au lendemain.',
+           'expediteur_inconnu_sans_dossier': 'Expéditeur inconnu de tout dossier et aucun dossier identifié : à qualifier, aucun brouillon automatique.',
+           'facture_deposee_non_verifiee': 'Facture déposée dans Invoice Ninja mais conformité non vérifiée : contrôlez-la avant tout envoi.',
            'invoice_ninja_ecriture_desactivee': 'Écriture Invoice Ninja désactivée : activez-la dans Paramètres › Connexions › Invoice Ninja.',
            'client_invoice_ninja_non_lie': 'Associez d’abord le dossier à un client Invoice Ninja.',
            'aucun_temps_a_facturer': 'Aucun temps validé restant à facturer pour ce dossier.',
@@ -987,9 +989,10 @@ class App:
                     body=(Path(__file__).parent/'static'/path.rsplit('/',1)[-1]).read_text(encoding='utf-8');kind=('text/javascript' if path.endswith('.js') else 'text/css')+'; charset=utf-8'
                 elif path in ('/static/v430.js','/static/v430.css','/static/htmx.min.js'):
                     body=(Path(__file__).parent/'static'/path.rsplit('/',1)[-1]).read_text(encoding='utf-8');kind=('text/javascript' if path.endswith('.js') else 'text/css')+'; charset=utf-8'
-                elif path in ('/static/axiorhub-icon.png','/favicon.ico'):
-                    # 5.6.9 : /favicon.ico est demandé d'office par les navigateurs ; il répondait 400 à chaque page.
-                    body=(Path(__file__).parent/'static/axiorhub-icon.png').read_bytes();kind='image/png'
+                elif path in ('/static/axiorhub-icon.png','/favicon.ico','/static/axiorhub-icon-192.png','/static/axiorhub-icon-512.png','/static/axiorhub-icon-maskable.png'):
+                    # 5.6.9 : /favicon.ico est demandé d'office par les navigateurs ; 5.6.11 : vraies tailles d'icônes PWA (192, 512, maskable).
+                    name='axiorhub-icon.png' if path=='/favicon.ico' else path.rsplit('/',1)[-1]
+                    body=(Path(__file__).parent/'static'/name).read_bytes();kind='image/png'
                 else:
                     body=self.page(cfg,auth,path,args)
         except Stop as ex:

@@ -9,8 +9,12 @@ import time
 from .common import HTTP, Stop
 
 
-def _item(key, label, ok, message, fix=''):
-    return {'key': key, 'label': label, 'ok': ok, 'message': str(message)[:400], 'fix': fix}
+LEVELS = {True: 'fonctionnel', False: 'en échec', None: 'non testé'}
+
+
+def _item(key, label, ok, message, fix='', level=''):
+    """ok : True (vérifié), False (échec), None (non activé ou non testé). level précise : configuré, accessible, authentifié, fonctionnel."""
+    return {'key': key, 'label': label, 'ok': ok, 'message': str(message)[:400], 'fix': fix, 'level': level or LEVELS[ok]}
 
 
 def _connector(desk, kind):
@@ -23,15 +27,20 @@ def run(desk):
     """Exécute tous les contrôles (jusqu'à une minute) et mémorise le rapport. ok : True, False, ou None (non activé)."""
     checks = []
     # 1. services systemd et workers
-    try:
-        from .reliability393 import service_health
-        s = service_health(desk)
-        failed = [x['label'] for x in s['services'] if x['required'] and not x['verified']]
-        checks.append(_item('services', 'Services AxiorHub', not failed,
-                            'Tous les services requis sont actifs.' if not failed else 'Inactifs : ' + ', '.join(failed),
-                            'sudo systemctl restart axiorhub-mail-ui axiorhub-mail-desk-worker axiorhub-mail-watch' if failed else ''))
-    except Exception as ex:
-        checks.append(_item('services', 'Services AxiorHub', None, 'État systemd non lisible ici (%s) : normal sous Docker.' % str(ex)[:80]))
+    import shutil
+    if shutil.which('systemctl'):
+        try:
+            from .reliability393 import service_health
+            s = service_health(desk)
+            failed = [x['label'] for x in s['services'] if x['required'] and not x['verified']]
+            checks.append(_item('services', 'Services AxiorHub (systemd)', not failed,
+                                'Tous les services requis sont actifs.' if not failed else 'Inactifs : ' + ', '.join(failed),
+                                'sudo systemctl restart axiorhub-mail-ui axiorhub-mail-desk-worker axiorhub-mail-watch' if failed else ''))
+        except Exception as ex:
+            checks.append(_item('services', 'Services AxiorHub (systemd)', None, 'État systemd non lisible (%s).' % str(ex)[:80], level='non testé'))
+    else:
+        checks.append(_item('services', 'Services AxiorHub (systemd)', None, 'Sans systemd (Docker) : l’état des services se lit au signe de vie du moteur ci-dessous.',
+                            level='non applicable'))
     try:
         rows = desk.db.execute("SELECT name,heartbeat FROM live_services_v430 WHERE name LIKE 'worker-%'").fetchall()
         alive = any(time.time() - float(r[1]) < 90 for r in rows)
@@ -55,12 +64,19 @@ def run(desk):
     if audio.get('enabled'):
         try:
             HTTP(str(audio.get('bridge_base_url') or 'http://127.0.0.1:9011'), local_only=True, local_hosts=audio.get('local_hosts', ()), timeout=4).request('GET', str(audio.get('bridge_base_url') or 'http://127.0.0.1:9011').rstrip('/') + '/', limit=20000)
-            checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', True, 'Passerelle vocale joignable.'))
+            checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', True, 'Passerelle vocale joignable (réponse HTTP valide).', level='accessible'))
         except Stop as ex:
-            reachable = str(ex).startswith('http_') and str(ex) not in ('http_502', 'http_503', 'http_504')
-            checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', reachable,
-                                'Passerelle joignable (réponse %s).' % str(ex) if reachable else 'Passerelle injoignable : ' + str(ex),
-                                '' if reachable else 'sudo systemctl status axiorhub-vocal-bridge ; python3 install-vocal-bridge.py'))
+            code = str(ex)
+            if code in ('http_401', 'http_403'):
+                checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', None,
+                                    'Passerelle joignable mais authentification refusée (%s) : vérifier le jeton de la passerelle.' % code,
+                                    'Paramètres › Connexions › Voix (jeton de la passerelle)', level='accessible, non authentifié'))
+            elif code.startswith('http_') and code not in ('http_502', 'http_503', 'http_504'):
+                checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', None, 'Passerelle joignable (réponse %s) ; transcription non testée ici.' % code,
+                                    '', level='accessible, non testé'))
+            else:
+                checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', False, 'Passerelle injoignable : ' + code,
+                                    'sudo systemctl status axiorhub-vocal-bridge ; python3 install-vocal-bridge.py'))
     else:
         checks.append(_item('dictation', 'Transcription locale (dictée, conversation)', None, 'Non activée : la conversation vocale requiert la passerelle Whisper locale.',
                             'Paramètres › Connexions › Voix'))
@@ -84,9 +100,18 @@ def run(desk):
         checks.append(_item('invoice_ninja', 'Invoice Ninja', None, 'Non activé.'))
     g = desk.c.get('google_calendar568', {})
     configured = bool(g.get('client_id') and g.get('client_secret_file') and str(g.get('redirect_uri') or '').startswith('https://'))
-    checks.append(_item('google', 'Google Calendar (OAuth)', True if configured else None,
-                        'Client OAuth configuré ; autorisez le compte dans Agendas et procédure.' if configured else 'Non configuré (facultatif).',
-                        '' if configured else 'Paramètres › Connexions › Google Calendar'))
+    authorized = False
+    if configured:
+        try:
+            authorized = bool(desk.db.execute("SELECT 1 FROM google_tokens568 LIMIT 1").fetchone())
+        except Exception:
+            authorized = False
+    checks.append(_item('google', 'Google Calendar (OAuth)', None,
+                        ('Client OAuth configuré et compte autorisé ; écriture non testée ici (Agendas et procédure › Tester).' if authorized else
+                         'Client OAuth configuré, mais aucun compte autorisé : Agendas et procédure › Autoriser Google Calendar.') if configured
+                        else 'Non configuré (facultatif).',
+                        '' if authorized else ('Agendas et procédure › Autoriser Google Calendar' if configured else 'Paramètres › Connexions › Google Calendar'),
+                        level=('configuré, autorisé, non testé' if authorized else 'configuré, non autorisé') if configured else 'non activé'))
     try:
         from .settings568 import profile
         from .web567 import actor
@@ -135,7 +160,7 @@ def text(report):
     lines = ['Mise en service AxiorHub — ' + str(report.get('at', ''))[:19]]
     for x in report['checks']:
         mark = {True: 'OK', False: 'KO', None: '--'}[x['ok']]
-        lines.append('[%s] %s — %s' % (mark, x['label'], x['message']) + ((' → ' + x['fix']) if x['fix'] and x['ok'] is False else ''))
+        lines.append('[%s] %s (%s) — %s' % (mark, x['label'], x.get('level', ''), x['message']) + ((' → ' + x['fix']) if x['fix'] and x['ok'] is not True else ''))
     lines.append('Résultat : ' + ('prêt' if report['ok'] else 'des corrections sont nécessaires'))
     return '\n'.join(lines)
 
@@ -147,8 +172,8 @@ def page(desk, auth, prefix, env):
     if report:
         for x in report['checks']:
             cls = {True: 'ok', False: 'bad', None: 'muted'}[x['ok']]
-            rows += ('<li class="r569-%s"><strong>%s</strong> — %s%s</li>' % (
-                cls, e(x['label']), e(x['message']), (' <em>Correctif : %s</em>' % e(x['fix'])) if x['fix'] and x['ok'] is False else ''))
+            rows += ('<li class="r569-%s"><strong>%s</strong> <span class="vf-badge muted">%s</span> — %s%s</li>' % (
+                cls, e(x['label']), e(x.get('level', '')), e(x['message']), (' <em>Correctif : %s</em>' % e(x['fix'])) if x['fix'] and x['ok'] is not True else ''))
     body = ('<h1>Mise en service</h1><p>Un seul écran pour vérifier les services réels du cabinet, le micro et le démarrage. '
             'Les contrôles lisent les services configurés ; ils n’écrivent rien et n’envoient rien.</p>'
             '<div class="actions"><button type="button" class="ax-btn" data-readiness569-run>Lancer les contrôles (jusqu’à une minute)</button>'

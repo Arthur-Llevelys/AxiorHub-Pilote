@@ -77,6 +77,12 @@ def daily_digest(desk):
 def automation_tick(desk):
     from . import economie569   # 5.6.9 : contrôles périodiques espacés en régime économe
     cfg=desk.c.get('automation',{});now_ts=datetime.now(timezone.utc).timestamp()
+    try:economie569.resume_deferred(desk)   # 5.6.11 : travaux différés par le quota, repris à leur échéance
+    except Exception:pass
+    try:
+        from .reception567 import purge   # 5.6.11 : conservation des messages d'accueil appliquée chaque jour, pas seulement à l'ouverture de la liste
+        purge(desk)
+    except Exception:pass
     schedules=[('health','health_interval_minutes',30),('sync','sync_interval_minutes',30),
       ('reconcile_inbox','reconcile_interval_minutes',15),
       ('classify_portfolio','portfolio_interval_minutes',360),

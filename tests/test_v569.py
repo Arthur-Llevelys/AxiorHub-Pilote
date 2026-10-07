@@ -263,7 +263,7 @@ class FakeNinja:
         if path == '/api/v1/invoices':
             return {'data': {'id': 'INV1', 'number': '2026-0042', 'status_id': '1', 'amount': 375.0}}
         if path.startswith('/api/v1/invoices/'):
-            return {'data': {'id': 'INV1', 'number': '2026-0042', 'status_id': '1', 'amount': 375.0}}
+            return {'data': {'id': 'INV1', 'number': '2026-0042', 'status_id': '1', 'amount': 375.0, 'client_id': 'CLT42', 'line_items': [{'cost': 375.0, 'quantity': 1}]}}
         if path == '/api/v1/tasks':
             return {'data': {'id': 'TSK1'}}
         if path.startswith('/api/v1/tasks/'):
@@ -287,7 +287,7 @@ class Facturation(t530.Base):
         self.assertEqual((out['number'], out['draft'], out['sent'], out['entries'], out['amount_ht']), ('2026-0042', True, False, 1, 375.0))
         post = next(c for c in http.calls if c[0] == 'POST')
         self.assertEqual(post[1], '/api/v1/invoices');self.assertNotIn('send_email', post[1]);self.assertNotIn('mark_sent', post[1])
-        self.assertEqual(post[2]['client_id'], 'CLT42');self.assertEqual(post[2]['line_items'][0]['quantity'], 1.5);self.assertEqual(post[2]['line_items'][0]['cost'], 250.0)
+        self.assertEqual(post[2]['client_id'], 'CLT42');self.assertEqual(post[2]['line_items'][0]['quantity'], 1);self.assertEqual(post[2]['line_items'][0]['cost'], 375.0)   # 5.6.11 : montant exact
         self.assertEqual([c[0] for c in http.calls], ['POST', 'GET'])
         self.assertEqual(fac.writes(self.desk, '20240101001')[0]['state'], 'verified')
         with self.assertRaises(Stop):

@@ -130,8 +130,8 @@ def exclusion(mail, cfg, allow_seen=False):
     if '\\Seen' in mail.flags and not allow_seen: return 'deja_lu'
     if '\\Answered' in mail.flags: return 'deja_repondu'
     if '\\Deleted' in mail.flags: return 'marque_supprime'
-    own = {x.lower() for x in cfg['own_addresses']}
-    if mail.sender in own: return 'message_du_cabinet'
+    own = own_addresses(cfg)
+    if str(mail.sender or '').lower() in own: return 'message_du_cabinet'
     sender = mail.sender
     if sender in {x.lower() for x in cfg.get('excluded_senders', [])}: return 'expediteur_exclu'
     if sender.rsplit('@', 1)[-1] in cfg.get('excluded_domains', []): return 'domaine_exclu'
@@ -169,10 +169,21 @@ def message_issue(mail, cfg):
     return ''
 
 
+def own_addresses(cfg):
+    """5.6.11 : adresses du cabinet = « own_addresses » + adresse d'expédition + identifiant de connexion s'il est une adresse.
+    Un courriel que l'avocat s'envoie depuis son adresse principale n'est jamais une demande à traiter."""
+    own = {str(x).strip().lower() for x in cfg.get('own_addresses', []) if str(x).strip()}
+    for key in ('from_address', 'username'):
+        value = str(cfg.get(key) or '').strip().lower()
+        if '@' in value:
+            own.add(value)
+    return own
+
+
 def recipient_issue(mail, cfg, allowed_recipients=()):
     reason=message_issue(mail,cfg)
     if reason:return reason
-    own = {x.lower() for x in cfg['own_addresses']}
+    own = own_addresses(cfg)
     recipients = addresses(mail.msg.get('To', '')) + addresses(mail.msg.get('Cc', ''))
     if not own.intersection(recipients): return 'destinataire_cabinet_non_etabli'
     if any(x not in own and x != mail.sender and x not in allowed_recipients for x in recipients):
@@ -349,7 +360,7 @@ class Mailbox:
         reason = exclusion(current, self.cfg, allow_seen=allow_seen)
         if reason: return reason
         if self.existing_draft(mail, draft_mid): return 'brouillon_existant'
-        own = {a.lower() for a in self.cfg['own_addresses']}
+        own = own_addresses(self.cfg)
         for m in self.thread(mail):
             if m.timestamp >= mail.timestamp:
                 if m.sender in own: return 'reponse_envoyee_depuis'

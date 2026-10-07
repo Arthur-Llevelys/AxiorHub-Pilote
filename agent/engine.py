@@ -32,6 +32,23 @@ def render_slots(slots):
     return 'Je peux vous proposer les créneaux suivants (heure de Paris), sous réserve de confirmation :\n'+'\n'.join(lines)+'\n\nMerci de m’indiquer celui qui vous conviendrait.'
 
 
+def known_correspondent(cfg, sender, matters=None):
+    """5.6.11 : l'adresse figure parmi les correspondants d'au moins un dossier (ou est une adresse du cabinet)."""
+    sender = str(sender or '').strip().lower()
+    if not sender:
+        return False
+    try:
+        from .mailbox import own_addresses
+        if sender in own_addresses(cfg.get('mail', {})):
+            return True
+        for m in (matters if matters is not None else load_matters(cfg)):
+            if any(str(p.get('email') or '').strip().lower() == sender for p in m.get('correspondents', [])):
+                return True
+    except Stop:
+        return False
+    return False
+
+
 class Engine:
     def __init__(self, config, mailbox=None, dav=None, model=None, state=None):
         self.c = config
@@ -253,7 +270,8 @@ class Engine:
             elif recipient_warning:
                 return finish('review',recipient_warning)
             extra=set(addresses(mail.msg.get('To',''))+addresses(mail.msg.get('Cc','')))
-            own={x.lower() for x in cfg['mail']['own_addresses']}
+            from .mailbox import own_addresses
+            own=own_addresses(cfg['mail'])
             reply_cc=sorted((extra & allowed)-{mail.sender}-own)
             reply_recipients=[mail.sender]+reply_cc
             report['reply_recipients']=reply_recipients
@@ -299,6 +317,10 @@ class Engine:
                 return finish('review', 'intention_non_prise_en_charge')
             if not matter and (triage['needs_documents'] or triage['intent'] in ('status','documents')):
                 return finish('review', 'correspondant_ou_dossier_a_confirmer')
+            if not matter and not known_correspondent(cfg, mail.sender, self.matters):
+                # 5.6.11 : aucun dossier et expéditeur inconnu de tout dossier (prospection, lettre d'information, démarchage…) :
+                # à qualifier par l'avocat, jamais un brouillon automatique.
+                return finish('review', 'expediteur_inconnu_sans_dossier')
             from .desk import THIRD_PARTY_ROLES
             if role == 'personnel':
                 return finish('review', 'contact_personnel_hors_dossier')

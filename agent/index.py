@@ -7,7 +7,7 @@ import uuid
 
 from .common import Stop,digest
 from .documents import extract
-from .rag import Embedder,chunks,cosine,lexical_terms
+from .rag import CHUNK_LIMIT,Embedder,chunks,cosine,lexical_terms
 
 
 class DocumentIndex:
@@ -57,8 +57,11 @@ class DocumentIndex:
         if row and row[0]==etag:return source_id,False
         self.remove_knowledge(mid,source_id)
         stamp=datetime.now(timezone.utc).isoformat();parts=chunks(text)
+        meta=dict(meta or {})
+        if len(parts)>=CHUNK_LIMIT:   # 5.6.11 : couverture partielle signalée dans les métadonnées, jamais silencieuse
+            meta['coverage']='partial';meta['indexed_chunks']=len(parts)
         for i,part in enumerate(parts):
-            values=(mid,source_id,path,etag,modified,kind,i,part,json.dumps(meta or {},ensure_ascii=False),stamp)
+            values=(mid,source_id,path,etag,modified,kind,i,part,json.dumps(meta,ensure_ascii=False),stamp)
             self.db.execute('INSERT INTO knowledge_chunks VALUES (?,?,?,?,?,?,?,?,?,?)',values)
             self.db.execute('INSERT INTO knowledge_fts VALUES (?,?,?,?,?)',(mid,source_id,i,path,part))
         self.db.commit();return source_id,True
@@ -170,7 +173,7 @@ class DocumentIndex:
             try:
                 for row in self.db.execute('''SELECT c.*,bm25(knowledge_fts) FROM knowledge_fts
                   JOIN knowledge_chunks c ON c.matter=knowledge_fts.matter AND c.source_id=knowledge_fts.source_id
-                  AND c.chunk_no=knowledge_fts.chunk_no WHERE knowledge_fts MATCH ? AND c.matter=? LIMIT 60''',(query,mid)):
+                  AND c.chunk_no=knowledge_fts.chunk_no WHERE knowledge_fts MATCH ? AND c.matter=? ORDER BY bm25(knowledge_fts) LIMIT 60''',(query,mid)):
                     key=(row[1],row[6]);rows[key]=row;scores[key]=scores.get(key,0)+1/(1+max(0,row[-1]+20))
             except sqlite3.OperationalError:pass
         semantic_error=''

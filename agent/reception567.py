@@ -66,8 +66,10 @@ def speech_enabled(cfg):
     return bool(cfg.get('telephone_speech_enabled')) and bool(cfg.get('speech_external_approved'))
 
 
-def _gather(prompt,action,hints=''):
-    return ('<Response><Gather input="speech dtmf" language="fr-FR" speechTimeout="auto" numDigits="1" timeout="6"'+(' hints="'+escape(hints,{'"':'&quot;'})+'"' if hints else '')+
+def _gather(prompt,action,hints='',announcement=''):
+    """5.6.11 : l'annonce d'information est lue hors du Gather, donc entièrement, avant que la parole ou le clavier soient acceptés."""
+    return ('<Response>'+(('<Say language="fr-FR">'+escape(announcement)+'</Say>') if announcement else '')+
+            '<Gather input="speech dtmf" language="fr-FR" speechTimeout="auto" numDigits="1" timeout="6"'+(' hints="'+escape(hints,{'"':'&quot;'})+'"' if hints else '')+
             ' action="'+escape(action,{'"':'&quot;'})+'" method="POST"><Say language="fr-FR">'+escape(prompt)+'</Say></Gather>'
             '<Say language="fr-FR">Je n’ai rien entendu. Merci de rappeler le cabinet pendant ses horaires d’ouverture.</Say><Hangup/></Response>')
 
@@ -77,7 +79,7 @@ def _conversation(desk,cfg,callback,query,values):
     said=str(values.get('SpeechResult') or '').strip()[:500];digits=str(values.get('Digits') or '').strip()
     if step=='0':
         if 'Digits' in values:return None          # suite de l'accueil par touches (touche 0 choisie) : flux classique
-        return _reply('application/xml',_gather(notice(cfg)+' '+SPEECH_PROMPT,callback+'?step=1',HINTS))
+        return _reply('application/xml',_gather(SPEECH_PROMPT,callback+'?step=1',HINTS,announcement=notice(cfg)))
     if step=='1':
         if digits=='0':return _reply('application/xml',_keypad(callback))   # refus de la reconnaissance vocale
         if not said and not digits:
@@ -85,6 +87,7 @@ def _conversation(desk,cfg,callback,query,values):
         intent=classify(said,digits)
         return _reply('application/xml',_gather('Compris : '+INTENT_LABELS[intent].lower()+'. Indiquez maintenant votre nom et, si vous le souhaitez, '
             'la référence ou le nom du dossier concerné, puis patientez.',callback+'?step=2&intent='+intent))
+    if digits=='0':return _reply('application/xml',_keypad(callback))   # refus possible à chaque étape
     intent=params.get('intent','message');intent=intent if intent in INTENT_LABELS else 'message'
     urgent='urgen' in fold(said)
     label=INTENT_LABELS[intent]+(' — signalé urgent' if urgent else '')
@@ -199,9 +202,18 @@ def webhook(desk,env,path):
     return _reply('application/json',json.dumps({'received':count,'external_messages_sent':0}))
 
 
-def listing(desk):
+def purge(desk):
+    """5.6.11 : conservation appliquée aux messages ET au numéro figurant dans le titre des tâches, chaque jour (pas seulement à l'ouverture)."""
     desk.db.executescript(SCHEMA)
     retention=max(1,min(int(desk.c.get('reception',{}).get('retention_days',30)),90))
     cutoff=(datetime.now(timezone.utc)-timedelta(days=retention)).isoformat()
+    rows=desk.db.execute("SELECT id,task_id,caller FROM reception_v567 WHERE at<? AND caller<>''",(cutoff,)).fetchall()
+    for r in rows:
+        desk.db.execute("UPDATE tasks SET title=replace(title,?,'numéro purgé') WHERE id=?",(r['caller'],r['task_id']))
     desk.db.execute("UPDATE reception_v567 SET caller='',text='',provider_reference='' WHERE at<?",(cutoff,));desk.db.commit()
+    return len(rows)
+
+
+def listing(desk):
+    purge(desk)
     return [dict(r) for r in desk.db.execute('SELECT * FROM reception_v567 ORDER BY at DESC LIMIT 50')]

@@ -132,8 +132,9 @@
   let controller=null,lastPayload=null;
   const token=()=>crypto.randomUUID();
   function voiceNote(text){status.textContent=text;}
-  let speechGeneration=0;
-  function stopSpeech(){speechGeneration++;speaking?.pause();speaking=null;if(audioURL)URL.revokeObjectURL(audioURL);audioURL='';}
+  let speechGeneration=0,playResolve=null;
+  // 5.6.11 : une interruption (parole, Arrêter, fermeture) résout aussi l'attente de lecture en cours : la conversation revient à l'écoute.
+  function stopSpeech(){speechGeneration++;speaking?.pause();speaking=null;if(audioURL)URL.revokeObjectURL(audioURL);audioURL='';const r=playResolve;playResolve=null;if(r)r();}
   // 5.6.9 : lecture phrase par phrase. La première phrase est lue pendant que les suivantes se préparent ; une interruption
   // (parole, Arrêter, fermeture) vide la file. Le texte complet reste visible.
   function sentences(text){
@@ -152,9 +153,10 @@
   function playBlob(blob,g,sg){
     return new Promise(resolve=>{
       if(g!==generation||sg!==speechGeneration||!running){resolve();return;}
+      playResolve=resolve;
       audioURL=URL.createObjectURL(blob);speaking=new Audio(audioURL);
-      speaking.onended=()=>{if(sg===speechGeneration){URL.revokeObjectURL(audioURL);audioURL='';speaking=null;}resolve();};
-      speaking.onerror=()=>resolve();speaking.play().catch(()=>resolve());
+      speaking.onended=()=>{if(sg===speechGeneration){URL.revokeObjectURL(audioURL);audioURL='';speaking=null;}playResolve=null;resolve();};
+      speaking.onerror=()=>{playResolve=null;resolve();};speaking.play().catch(()=>{playResolve=null;resolve();});
     });
   }
   function stopSession(){running=false;generation++;processing=false;controller?.abort();controller=null;clearInterval(vad);vad=null;

@@ -218,7 +218,9 @@ def manifest(prefix, theme='#17324d'):
     return {'name': 'AxiorHub Pilote', 'short_name': 'AxiorHub Pilote', 'description': 'Courriels à valider, échéances et recherche du cabinet',
             'lang': 'fr', 'dir': 'ltr', 'start_url': prefix + '/aujourdhui', 'scope': prefix + '/', 'id': prefix + '/',
             'display': 'standalone', 'orientation': 'any', 'background_color': '#ffffff', 'theme_color': theme,
-            'icons': [{'src': prefix + '/static/axiorhub-icon.png', 'sizes': '192x192 512x512', 'type': 'image/png', 'purpose': 'any'}],
+            'icons': [{'src': prefix + '/static/axiorhub-icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+                      {'src': prefix + '/static/axiorhub-icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+                      {'src': prefix + '/static/axiorhub-icon-maskable.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}],
             'shortcuts': [{'name': 'Courriels à relire', 'url': prefix + '/courriels'},
                           {'name': 'Échéances', 'url': prefix + '/echeances'},
                           {'name': 'Recherche', 'url': prefix + '/recherche'}]}

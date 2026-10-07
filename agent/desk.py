@@ -316,7 +316,8 @@ class Desk:
         from . import economie569
         if kind in economie569.AUTOMATIC_LLM and not economie569.quota_ok(self, kind):
             from .live430 import emit
-            emit(self, 'documents', 'Analyse automatique reportée (quota journalier du régime économe) : ' + kind,
+            economie569.defer(self, kind, args)   # 5.6.11 : reprise durable le lendemain
+            emit(self, 'documents', 'Analyse automatique différée au lendemain (quota journalier du régime économe) : ' + kind,
                  getattr(self, 'active_job_id', None), str((args or {}).get('matter', '')), dedupe='econome-' + kind + '-' + now()[:10])
             return None
         return self.enqueue(kind, args, priority, chained=True)

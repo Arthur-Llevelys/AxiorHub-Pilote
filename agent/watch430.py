@@ -209,7 +209,9 @@ def documents_check(desk,dav=None):
                 desk.enqueue('monitor_matter',{'matter':mid},priority=55)
                 from . import economie569
                 if economie569.quota_ok(desk,'extract_facts460'):desk.enqueue('extract_facts460',{'matter':mid},priority=58)
-                else:emit(desk,'documents','Recherche de faits reportée (quota journalier du régime économe) : '+matter_option(matter),getattr(desk,'active_job_id',None),mid,dedupe='econome-facts-'+mid+'-'+time.strftime('%Y%m%d'))
+                else:
+                    economie569.defer(desk,'extract_facts460',{'matter':mid})   # 5.6.11 : différée, reprise le lendemain
+                    emit(desk,'documents','Recherche de faits différée au lendemain (quota journalier du régime économe) : '+matter_option(matter),getattr(desk,'active_job_id',None),mid,dedupe='econome-facts-'+mid+'-'+time.strftime('%Y%m%d'))
                 acknowledged(desk,'documents',mid)
             except Stop as ex:
                 # file automatique pleine : le dossier reste « à traiter » et sera repris au prochain passage, sans échec de la surveillance

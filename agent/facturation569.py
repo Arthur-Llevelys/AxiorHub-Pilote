@@ -1,14 +1,18 @@
-"""5.6.9 : écritures Invoice Ninja, toujours après validation explicite de l'avocat.
+"""5.6.9 → 5.6.11 : écritures Invoice Ninja, toujours après validation explicite de l'avocat.
 
 - Facture en **brouillon** créée à partir des temps validés d'un dossier (jamais envoyée : aucun paramètre send_email, mark_sent
   ou paid n'est utilisé ; l'envoi au client reste fait par l'avocat dans Invoice Ninja).
 - Temps passés transmis comme tâches (time_log) pour les temps validés.
 
-Chaque écriture est enregistrée localement avec une clé d'idempotence, relue par GET avant d'être dite « vérifiée », et jamais
-répétée. Le réglage invoice_ninja.write_enabled reste désactivé par défaut ; la lecture des impayés (5.3) ne change pas.
+5.6.11 (audit F01–F03) : montants calculés en centimes (une ligne = quantité 1 × montant convenu ; durée et taux dans le libellé),
+réservation atomique de la clé d'idempotence avant tout appel distant (deux demandes simultanées ne créent plus deux factures),
+relecture distante rapprochée (identifiant, client, statut brouillon, lignes et montant) ; un écart donne l'état « déposée, conformité
+non vérifiée », jamais « vérifiée ». Le réglage invoice_ninja.write_enabled reste désactivé par défaut.
 """
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 import json
+import sqlite3
 from urllib.parse import quote
 
 from .common import HTTP, Stop, digest, load_matters, matter_display, read_secret
@@ -19,6 +23,10 @@ SCHEMA = '''CREATE TABLE IF NOT EXISTS invoice_ninja_writes_v569(
  proof TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, updated TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS invoice_ninja_writes_matter_v569 ON invoice_ninja_writes_v569(matter,kind,state);'''
 CONFIRM = ('yes', 'oui', '1', 'true')
+# États qui réservent les temps concernés (aucune nouvelle écriture tant que l'avocat n'a pas vérifié dans Invoice Ninja).
+RESERVED = ('verified', 'uncertain', 'sending', 'deposited_unverified')
+STATE_LABELS = {'verified': 'vérifiée', 'uncertain': 'à vérifier dans Invoice Ninja', 'sending': 'en cours',
+                'deposited_unverified': 'déposée, conformité non vérifiée'}
 
 
 def ensure_schema(desk):
@@ -62,11 +70,24 @@ def _matter(desk, matter):
     return row
 
 
-def _save(desk, key, kind, matter, client_id, local_ref, state, proof, remote_id='', number='', amount=''):
+def _reserve(desk, key, kind, matter, client_id, local_ref, proof, amount='', conflict='facture_deja_creee_verifier_invoice_ninja'):
+    """Réservation atomique : une seule écriture possible par clé, même sous deux demandes simultanées (INSERT, jamais REPLACE)."""
     now = desk.now()
-    desk.db.execute('INSERT OR REPLACE INTO invoice_ninja_writes_v569 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (key, kind, str(matter), client_id, local_ref, remote_id, number, amount, state,
-                     json.dumps(proof, ensure_ascii=False), now, now))
+    try:
+        if not desk.db.in_transaction:
+            desk.db.execute('BEGIN IMMEDIATE')
+        desk.db.execute('INSERT INTO invoice_ninja_writes_v569 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (key, kind, str(matter), client_id, local_ref, '', '', amount, 'sending', json.dumps(proof, ensure_ascii=False), now, now))
+        desk.db.commit()
+    except sqlite3.IntegrityError:
+        desk.db.rollback()
+        raise Stop(conflict) from None
+
+
+def _update(desk, key, state, proof, remote_id='', number=''):
+    desk.db.execute("UPDATE invoice_ninja_writes_v569 SET state=?,proof=?,remote_id=COALESCE(NULLIF(?,''),remote_id),"
+                    "number=COALESCE(NULLIF(?,''),number),updated=? WHERE id=?",
+                    (state, json.dumps(proof, ensure_ascii=False), remote_id, number, desk.now(), key))
     desk.db.commit()
 
 
@@ -89,8 +110,8 @@ def writes(desk, matter=''):
 
 def _billed_entries(desk, matter):
     billed = set()
-    for r in desk.db.execute("SELECT proof FROM invoice_ninja_writes_v569 WHERE matter=? AND kind='invoice' AND state IN ('verified','uncertain','sending')",
-                             (str(matter),)):
+    for r in desk.db.execute("SELECT proof FROM invoice_ninja_writes_v569 WHERE matter=? AND kind='invoice' AND state IN (%s)"
+                             % ','.join('?' * len(RESERVED)), (str(matter), *RESERVED)):
         billed.update(json.loads(r['proof'] or '{}').get('entries', []))
     return billed
 
@@ -99,6 +120,48 @@ def billable_entries(desk, matter):
     ensure_schema(desk)
     billed = _billed_entries(desk, matter)
     return [dict(r) for r in desk.db.execute('SELECT * FROM time500_entries WHERE matter=? ORDER BY day', (str(matter),)) if r['id'] not in billed]
+
+
+def _euros(cents):
+    return float(Decimal(int(cents)) / 100)
+
+
+def _lines(entries):
+    """Une ligne par temps validé : quantité 1, prix = montant convenu en euros exacts (jamais d'arrondi sur les heures)."""
+    out = []
+    for x in entries:
+        minutes = int(x['minutes'])
+        out.append({'product_key': 'Honoraires', 'quantity': 1, 'cost': _euros(x['amount_cents']),
+                    'notes': '%s — %s — %d h %02d à %s €/h' % (x['day'], str(x['label'])[:160], minutes // 60, minutes % 60,
+                                                              ('%.2f' % _euros(x['rate_cents'])).replace('.', ','))})
+    return out
+
+
+def _check_invoice(checked, remote_id, client_id, total_cents, line_count):
+    """Rapprochement de la relecture distante avec la demande ; chaque écart est nommé, rien n'est supposé."""
+    issues = []
+    if str(checked.get('id')) != str(remote_id):
+        issues.append('identifiant différent')
+    if checked.get('client_id') is not None and str(checked.get('client_id')) != client_id:
+        issues.append('client différent')
+    status = checked.get('status_id')
+    if status is None:
+        issues.append('statut absent')
+    elif str(status) != '1':
+        issues.append('statut non brouillon (%s)' % status)
+    items = checked.get('line_items')
+    if isinstance(items, list):
+        if len(items) != line_count:
+            issues.append('nombre de lignes différent (%d au lieu de %d)' % (len(items), line_count))
+        try:
+            remote_cents = sum(int(round(Decimal(str(i.get('cost', 0))) * Decimal(str(i.get('quantity', 1))) * 100)) for i in items)
+            if remote_cents != int(total_cents):
+                issues.append('montant des lignes différent (%.2f au lieu de %.2f)' % (remote_cents / 100, total_cents / 100))
+        except (ValueError, ArithmeticError):
+            issues.append('lignes illisibles')
+    else:
+        issues.append('lignes non relues')
+    return issues
 
 
 def draft_invoice(desk, matter, note='', confirm=False, entry_ids=None, http=None):
@@ -113,52 +176,52 @@ def draft_invoice(desk, matter, note='', confirm=False, entry_ids=None, http=Non
         wanted = {str(x) for x in entry_ids}
         entries = [x for x in entries if x['id'] in wanted]
     if not entries:
-        pending = desk.db.execute("SELECT 1 FROM invoice_ninja_writes_v569 WHERE matter=? AND kind='invoice' AND state IN ('uncertain','sending')",
+        pending = desk.db.execute("SELECT 1 FROM invoice_ninja_writes_v569 WHERE matter=? AND kind='invoice' AND state IN ('uncertain','sending','deposited_unverified')",
                                   (str(matter),)).fetchone()
         raise Stop('facture_deja_creee_verifier_invoice_ninja' if pending else 'aucun_temps_a_facturer')
     if any(int(x['rate_cents']) <= 0 for x in entries):
         raise Stop('taux_horaire_manquant')
     key = digest('invoice569|' + str(matter) + '|' + '|'.join(sorted(x['id'] for x in entries)))
-    old = desk.db.execute('SELECT state FROM invoice_ninja_writes_v569 WHERE id=?', (key,)).fetchone()
-    if old and old['state'] in ('verified', 'uncertain', 'sending'):
-        raise Stop('facture_deja_creee_verifier_invoice_ninja')
     total_cents = sum(int(x['amount_cents']) for x in entries)
-    lines = [{'product_key': 'Honoraires', 'quantity': round(int(x['minutes']) / 60, 2), 'cost': round(int(x['rate_cents']) / 100, 2),
-              'notes': '%s — %s' % (x['day'], str(x['label'])[:180])} for x in entries]
+    lines = _lines(entries)
     body = {'client_id': client_id, 'date': date.today().isoformat(), 'line_items': lines,
-            'public_notes': str(note or '')[:1000], 'private_notes': ('AxiorHub — dossier ' + matter_display(row))[:300]}
-    proof = {'entries': [x['id'] for x in entries], 'total_cents': total_cents}
+            'public_notes': str(note or '')[:1000], 'private_notes': ('AxiorHub — dossier ' + matter_display(row) + ' — réf. ' + key[:16])[:300]}
+    proof = {'entries': [x['id'] for x in entries], 'total_cents': total_cents, 'reference': key[:16]}
     client = _client(desk, http)   # réglages et autorisation vérifiés avant toute trace locale
-    _save(desk, key, 'invoice', matter, client_id, 'entries:%d' % len(entries), 'sending', proof, amount='%.2f' % (total_cents / 100))
+    _reserve(desk, key, 'invoice', matter, client_id, 'entries:%d' % len(entries), proof, amount='%.2f' % (total_cents / 100))
     try:
         created = _data(client.json('POST', '/api/v1/invoices', body))
     except Exception as ex:
-        # L'écriture a pu aboutir sans réponse : on ne rejoue pas, l'avocat vérifie dans Invoice Ninja.
-        _save(desk, key, 'invoice', matter, client_id, 'entries:%d' % len(entries), 'uncertain', {**proof, 'error': str(ex)[:200]},
-              amount='%.2f' % (total_cents / 100))
+        # L'écriture a pu aboutir sans réponse : on ne rejoue pas, l'avocat vérifie dans Invoice Ninja (réf. dans les notes privées).
+        _update(desk, key, 'uncertain', {**proof, 'error': str(ex)[:200]})
         raise Stop('facture_incertaine_verifier_invoice_ninja') from None
     remote_id = str(created['id'])
     try:
         checked = _data(client.json('GET', '/api/v1/invoices/' + quote(remote_id, safe='')))
     except Exception as ex:
-        _save(desk, key, 'invoice', matter, client_id, 'entries:%d' % len(entries), 'uncertain', {**proof, 'error': str(ex)[:200]},
-              remote_id=remote_id, amount='%.2f' % (total_cents / 100))
+        _update(desk, key, 'uncertain', {**proof, 'error': str(ex)[:200]}, remote_id=remote_id)
         raise Stop('facture_relecture_impossible') from None
     number = str(checked.get('number') or created.get('number') or '')
-    status_id = str(checked.get('status_id') or '1')
-    proof.update({'status_id': status_id, 'remote_amount': checked.get('amount'), 'verified_at': desk.now()})
-    _save(desk, key, 'invoice', matter, client_id, 'entries:%d' % len(entries), 'verified', proof, remote_id=remote_id, number=number,
-          amount='%.2f' % (total_cents / 100))
-    try:
-        from .time500 import add_invoice
-        add_invoice(desk, str(matter), number or ('IN-' + remote_id), date.today().isoformat(), '%.2f' % (total_cents / 100))
-    except Exception:
-        pass   # le rapprochement local reste facultatif ; l'écriture distante est déjà vérifiée
-    desk.audit('invoice_ninja_facture_brouillon', {'matter': str(matter), 'remote_id': remote_id, 'number': number,
-                                                   'entries': len(entries), 'draft': status_id == '1', 'sent': False})
+    issues = _check_invoice(checked, remote_id, client_id, total_cents, len(lines))
+    state = 'verified' if not issues else 'deposited_unverified'
+    proof.update({'status_id': checked.get('status_id'), 'remote_amount': checked.get('amount'), 'issues': issues, 'checked_at': desk.now()})
+    _update(desk, key, state, proof, remote_id=remote_id, number=number)
+    if state == 'verified':
+        try:
+            from .time500 import add_invoice
+            add_invoice(desk, str(matter), number or ('IN-' + remote_id), date.today().isoformat(), '%.2f' % (total_cents / 100))
+        except Exception:
+            pass   # le rapprochement local reste facultatif ; l'écriture distante est déjà vérifiée
+    desk.audit('invoice_ninja_facture_brouillon', {'matter': str(matter), 'remote_id': remote_id, 'number': number, 'entries': len(entries),
+                                                   'state': state, 'issues': issues, 'sent': False})
+    if issues:
+        return {'invoice_id': remote_id, 'number': number, 'amount_ht': round(total_cents / 100, 2), 'entries': len(entries),
+                'draft': str(checked.get('status_id')) == '1', 'sent': False, 'verified': False, 'issues': issues,
+                'message': 'Facture %s déposée dans Invoice Ninja, conformité non vérifiée (%s) : contrôlez-la avant tout envoi.'
+                           % (number or remote_id, ' ; '.join(issues))}
     return {'invoice_id': remote_id, 'number': number, 'amount_ht': round(total_cents / 100, 2), 'entries': len(entries),
-            'draft': status_id == '1', 'sent': False,
-            'message': 'Facture %s créée en brouillon dans Invoice Ninja (%d temps, %.2f € HT). Rien n’a été envoyé au client.'
+            'draft': True, 'sent': False, 'verified': True, 'issues': [],
+            'message': 'Facture %s créée en brouillon dans Invoice Ninja et relue (%d temps, %.2f € HT). Rien n’a été envoyé au client.'
                        % (number or remote_id, len(entries), total_cents / 100)}
 
 
@@ -171,33 +234,40 @@ def log_time(desk, entry_id, confirm=False, http=None):
     if not entry:
         raise Stop('temps_absent')
     key = digest('task569|' + str(entry_id))
-    old = desk.db.execute('SELECT state FROM invoice_ninja_writes_v569 WHERE id=?', (key,)).fetchone()
-    if old and old['state'] in ('verified', 'uncertain', 'sending'):
-        raise Stop('temps_deja_transmis')
     client_id = _link(desk, entry['matter'])
     try:
         start = datetime.fromisoformat(str(entry['day'])).replace(hour=9, minute=0, tzinfo=timezone.utc)
     except ValueError:
         raise Stop('jour_invalide') from None
     end = start + timedelta(minutes=int(entry['minutes']))
-    body = {'client_id': client_id, 'description': str(entry['label'])[:500],
+    description = str(entry['label'])[:500]
+    body = {'client_id': client_id, 'description': description,
             'time_log': json.dumps([[int(start.timestamp()), int(end.timestamp())]])}
     if int(entry['rate_cents']) > 0:
-        body['rate'] = round(int(entry['rate_cents']) / 100, 2)
+        body['rate'] = _euros(entry['rate_cents'])
     proof = {'entry': entry['id'], 'minutes': int(entry['minutes'])}
     client = _client(desk, http)
-    _save(desk, key, 'task', entry['matter'], client_id, entry['id'], 'sending', proof)
+    _reserve(desk, key, 'task', entry['matter'], client_id, entry['id'], proof, conflict='temps_deja_transmis')
     try:
         created = _data(client.json('POST', '/api/v1/tasks', body))
         remote_id = str(created['id'])
-        _data(client.json('GET', '/api/v1/tasks/' + quote(remote_id, safe='')))
+        checked = _data(client.json('GET', '/api/v1/tasks/' + quote(remote_id, safe='')))
     except Exception as ex:
-        _save(desk, key, 'task', entry['matter'], client_id, entry['id'], 'uncertain', {**proof, 'error': str(ex)[:200]})
+        _update(desk, key, 'uncertain', {**proof, 'error': str(ex)[:200]})
         raise Stop('temps_incertain_verifier_invoice_ninja') from None
-    _save(desk, key, 'task', entry['matter'], client_id, entry['id'], 'verified', {**proof, 'verified_at': desk.now()}, remote_id=remote_id)
-    desk.audit('invoice_ninja_temps_transmis', {'matter': entry['matter'], 'remote_id': remote_id, 'minutes': int(entry['minutes'])})
-    return {'task_id': remote_id, 'minutes': int(entry['minutes']),
-            'message': 'Temps de %d min transmis à Invoice Ninja (tâche %s).' % (int(entry['minutes']), remote_id)}
+    issues = []
+    if str(checked.get('id')) != remote_id:
+        issues.append('identifiant différent')
+    if checked.get('client_id') is not None and str(checked.get('client_id')) != client_id:
+        issues.append('client différent')
+    if checked.get('description') is not None and str(checked.get('description')) != description:
+        issues.append('description différente')
+    state = 'verified' if not issues else 'deposited_unverified'
+    _update(desk, key, state, {**proof, 'issues': issues, 'checked_at': desk.now()}, remote_id=remote_id)
+    desk.audit('invoice_ninja_temps_transmis', {'matter': entry['matter'], 'remote_id': remote_id, 'minutes': int(entry['minutes']), 'state': state})
+    return {'task_id': remote_id, 'minutes': int(entry['minutes']), 'verified': not issues, 'issues': issues,
+            'message': ('Temps de %d min transmis à Invoice Ninja (tâche %s).' % (int(entry['minutes']), remote_id)) if not issues else
+                       'Temps transmis (tâche %s), conformité non vérifiée : %s.' % (remote_id, ' ; '.join(issues))}
 
 
 def section_html(desk, matter, prefix):
@@ -215,7 +285,8 @@ def section_html(desk, matter, prefix):
     rows = writes(desk, matter)
     table = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
         e(r['created'][:10]), e('Facture brouillon' if r['kind'] == 'invoice' else 'Temps transmis'), e(r['number'] or r['remote_id'] or '—'),
-        e(r['amount'] or ''), e({'verified': 'vérifiée', 'uncertain': 'à vérifier dans Invoice Ninja', 'sending': 'en cours'}.get(r['state'], r['state'])))
+        e(r['amount'] or ''), e(STATE_LABELS.get(r['state'], r['state']) + ((' — ' + ' ; '.join(json.loads(r['proof'] or '{}').get('issues', [])))
+                                                                           if r['state'] == 'deposited_unverified' else '')))
         for r in rows)
     form = ('<form class="m5-form m5-inline" data-api="m500/invoice_ninja/draft" data-reload="1" '
             'data-confirm="Créer une facture en brouillon dans Invoice Ninja pour %d temps (%.2f € HT) ? Rien ne sera envoyé au client.">'
@@ -224,8 +295,8 @@ def section_html(desk, matter, prefix):
             '<button class="ax-btn" type="submit">Créer la facture en brouillon (%d temps, %.2f € HT)</button></form>'
             % (len(entries), total / 100, e(str(matter), quote=True), len(entries), total / 100)) if entries else \
         '<p class="vf-note">Aucun temps validé restant à facturer.</p>'
-    return ('<h3>Invoice Ninja (écriture après validation)</h3><p class="vf-note">La facture est créée en brouillon ; vous la relisez et l’envoyez '
-            'depuis Invoice Ninja. Chaque temps peut aussi être transmis comme tâche.</p>%s%s' % (
+    return ('<h3>Invoice Ninja (écriture après validation)</h3><p class="vf-note">La facture est créée en brouillon puis relue (client, statut, '
+            'lignes, montant) ; vous la relisez et l’envoyez depuis Invoice Ninja. Chaque temps peut aussi être transmis comme tâche.</p>%s%s' % (
                 form, ('<table class="vf-table"><thead><tr><th>Date</th><th>Écriture</th><th>Référence</th><th>Montant HT</th><th>État</th></tr></thead>'
                        '<tbody>%s</tbody></table>' % table) if rows else ''))
 
@@ -237,7 +308,7 @@ def task_button_html(desk, entry):
     ensure_schema(desk)
     key = digest('task569|' + str(entry['id']))
     old = desk.db.execute('SELECT state FROM invoice_ninja_writes_v569 WHERE id=?', (key,)).fetchone()
-    if old and old['state'] in ('verified', 'uncertain', 'sending'):
+    if old and old['state'] in RESERVED:
         return '<span class="vf-badge muted">transmis</span>'
     from html import escape as e
     return ('<form class="m5-form m5-inline m5-mini" data-api="m500/invoice_ninja/task" data-reload="1" data-confirm="Transmettre ce temps à Invoice Ninja ?">'

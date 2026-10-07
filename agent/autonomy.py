@@ -204,10 +204,9 @@ def observe_mail(desk,args):
     limit=max(1,min(int(cfg.get('mail_batch_size',20)),100))
     index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
     scan=max(500,limit*10)
-    rows=desk.db.execute('''SELECT w.* FROM work_items w
-      LEFT JOIN autonomy_mail_observations_v230 o ON o.mail_key=w.mail_key
-      WHERE w.matter<>'' AND w.source_status NOT IN ('ignored','appending','append_uncertain')
-      ORDER BY CASE WHEN o.mail_key IS NULL THEN 0 ELSE 1 END,w.received DESC LIMIT ?''',(scan,)).fetchall()
+    # 5.6.11 : courriels récents seulement (fenêtre réglable), jamais ceux envoyés par le cabinet lui-même.
+    from .balayage5611 import recent_work_items
+    rows=recent_work_items(desk,cfg,'autonomy',scan)
     observed=projects=diligences=billings=0;memory=set();warnings=[]
     for row in rows:
         if observed>=limit:break

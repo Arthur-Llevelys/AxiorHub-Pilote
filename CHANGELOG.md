@@ -3,6 +3,27 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.11 — Courriels du cabinet et affaires anciennes
+
+- **Un courriel envoyé par le cabinet n'est jamais une demande** : l'adresse d'expédition et l'identifiant de connexion comptent
+  comme adresses du cabinet même s'ils ne figurent pas dans « Autres adresses du cabinet » (un courriel que l'avocat s'envoie à
+  lui-même ne donne plus lieu à un projet de réponse).
+- **Balayages automatiques limités aux courriels récents** : l'orchestrateur et l'autonomie n'examinaient pas seulement les nouveaux
+  courriels mais, par lots, tout l'historique rattaché à un dossier, et proposaient des réponses, projets et actes pour des affaires
+  traitées des semaines plus tôt. Désormais : fenêtre de 14 jours (réglable dans Paramètres › Connexions › Courriels) et jamais les
+  courriels envoyés par le cabinet. Ce n'est pas le modèle (local ou externe) qui manquait de pertinence : la sélection des courriels
+  à examiner ne tenait pas compte de leur âge.
+- **Expéditeur inconnu sans dossier** (démarchage, lettre d'information, prospect) : plus de brouillon automatique ; le courriel est
+  présenté « à qualifier ».
+- **Audit 5.6.10, lot fiabilité** : facturation Invoice Ninja en centimes exacts (une ligne = montant convenu), réservation atomique
+  (deux demandes simultanées ne créent plus deux factures), relecture rapprochée (identifiant, client, statut brouillon, lignes,
+  montant) avec l'état « déposée, conformité non vérifiée » en cas d'écart ; index documentaire porté à 2 000 fragments avec couverture
+  signalée et classement BM25 avant la limite ; interruption vocale qui rend bien la parole ; analyses différées par le quota conservées
+  et reprises le lendemain ; diagnostic de mise en service à niveaux (configuré, accessible, authentifié, fonctionnel, non testé) et
+  adapté à Docker ; icônes PWA aux vraies tailles (192, 512, maskable) ; annonce téléphonique lue entièrement avant toute saisie,
+  touche 0 à chaque étape, conservation appliquée chaque jour jusqu'au titre des tâches ; bloc « À décider » sans rechargement ;
+  message de version généré ; volet « document introuvable » explicite au lieu de « http 404 ».
+
 ## 5.6.10 — Accueil téléphonique : information de l'appelant
 
 - **Annonce complète** lue avant toute reconnaissance vocale : accueil automatisé utilisant une intelligence artificielle, paroles

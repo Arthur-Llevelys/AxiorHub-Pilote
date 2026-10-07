@@ -449,7 +449,18 @@ def item_html(desk, prefix, item):
         from .document_projects import _dav
         from .documents import extract
         client = _dav(desk)
-        raw = client.download({**client.stat(x['path']), 'path': x['path']})
+        try:
+            raw = client.download({**client.stat(x['path']), 'path': x['path']})
+        except Stop as ex:
+            # 5.6.11 : un document déplacé ou supprimé dans Nextcloud s'explique au lieu d'afficher « http 404 ».
+            missing = str(ex) in ('http_404', 'fichier_nextcloud_introuvable')
+            return ('<div class="c530-drawer-head"><span class="c530-type doc">%s</span><h2 id="c530-drawer-title">%s</h2><p class="c530-sub">%s</p></div>'
+                    '<div class="c530-drawer-body"><p class="notice">%s</p><p class="c530-meta">Emplacement attendu : %s</p></div>'
+                    '<div class="c530-drawer-foot" data-item="%s"><div class="c530-actions"><button type="button" class="ax-btn ghost" data-act="ecarte">Ignorer</button></div></div>') % (
+                e(x['type']), e(x['title']), e(x['matter_label'] or 'dossier non identifié'),
+                e('Ce document n’est plus à cet emplacement dans Nextcloud (déplacé, renommé ou supprimé). S’il a été rangé ailleurs, rien n’est perdu ; sinon, demandez-le à nouveau.'
+                  if missing else 'Nextcloud n’a pas pu fournir ce document (%s). Réessayez dans un instant.' % str(ex).replace('_', ' ')),
+                e(x['path']), e(item, quote=True))
         text = extract(raw, PurePosixPath(x['path']).name, {**desk.c.get('documents', {}), 'max_document_chars': 60000})
         body = text if isinstance(text, str) else text.get('text', '')
         if x.get('request'):

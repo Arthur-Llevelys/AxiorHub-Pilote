@@ -75,7 +75,7 @@ class Proactive190Tests(unittest.TestCase):
         self.assertEqual(job['kind'],'monitor_matter');self.assertGreater(job['priority'],0)
 
     def test_api_and_openwebui_expose_monitoring_without_send(self):
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.10')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.11')
         job=dispatch(self.d,'/matters/DOS-001/monitor','POST',{})
         self.assertEqual(job['status'],'queued')
         self.assertIn('signals',dispatch(self.d,'/signals','GET',query={}))
@@ -97,7 +97,7 @@ class Web190Tests(unittest.TestCase):
     def test_daily_dashboard_and_surveillance_are_intuitive_and_static(self):
         dashboard=self.request('/dashboard')['body'];watch=self.request('/surveillance')['body']
         self.assertIn('VOTRE JOURNÉE',dashboard);self.assertIn('Surveillance proactive',watch)
-        self.assertIn('Surveiller tous les dossiers',watch);self.assertIn('Version 5.6.10',watch)
+        self.assertIn('Surveiller tous les dossiers',watch);self.assertIn('Version 5.6.11',watch)
         self.assertNotIn('http-equiv="refresh"',dashboard+watch)
 
 

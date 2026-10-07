@@ -60,7 +60,9 @@
       } else await call('document/control', {id, action: act});
       note('Décision enregistrée ; l’agent reprend.');
       item.remove();
-      if (!box.querySelector('.c569-item')) setTimeout(() => location.reload(), 600);
+      const badge = box.querySelector('#c569-title .c530-badge'), left = box.querySelectorAll('.c569-item').length;
+      if (badge) badge.textContent = String(left);
+      if (!left) setTimeout(() => box.remove(), 800);   // 5.6.11 : plus de rechargement complet
     } catch (e) { note(e.message); button.disabled = false; }
   });
 })();

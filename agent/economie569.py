@@ -6,6 +6,7 @@ fonction. Activé d'office ; l'avocat revient au régime complet dans « IA exte
 """
 from datetime import datetime, timedelta, timezone
 from html import escape as e
+import json
 
 from .common import HTTP, Stop
 
@@ -67,6 +68,52 @@ def quota_ok(desk, kind):
     if not enabled(desk) or kind not in AUTOMATIC_LLM:
         return True
     return used_today(desk) < quota(desk)
+
+
+DEFERRED_SCHEMA = '''CREATE TABLE IF NOT EXISTS deferred_jobs569(
+ id TEXT PRIMARY KEY, kind TEXT NOT NULL, args TEXT NOT NULL, matter TEXT NOT NULL, reason TEXT NOT NULL,
+ created TEXT NOT NULL, resume_after TEXT NOT NULL);'''
+
+
+def _deferred_schema(desk):
+    desk.db.executescript(DEFERRED_SCHEMA)
+    desk.db.commit()
+
+
+def defer(desk, kind, args, reason='quota_econome_journalier'):
+    """5.6.11 (audit F07) : une analyse reportée est conservée comme travail différé, reprise le lendemain même sans nouveau changement."""
+    from .common import digest
+    _deferred_schema(desk)
+    args = dict(args or {})
+    key = digest('deferred569|' + kind + '|' + json.dumps(args, sort_keys=True, ensure_ascii=False))
+    tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=5, second=0, microsecond=0).isoformat()
+    desk.db.execute('INSERT OR IGNORE INTO deferred_jobs569 VALUES(?,?,?,?,?,?,?)',
+                    (key, kind, json.dumps(args, ensure_ascii=False), str(args.get('matter') or ''), reason, desk.now(), tomorrow))
+    desk.db.commit()
+    return key
+
+
+def deferred(desk):
+    _deferred_schema(desk)
+    return [dict(r) for r in desk.db.execute('SELECT * FROM deferred_jobs569 ORDER BY resume_after,created LIMIT 200')]
+
+
+def resume_deferred(desk, limit=20):
+    """Relance les travaux différés arrivés à échéance, dans la limite du quota du jour ; les autres attendent le lendemain."""
+    _deferred_schema(desk)
+    now = datetime.now(timezone.utc).isoformat()
+    resumed = 0
+    for r in desk.db.execute('SELECT * FROM deferred_jobs569 WHERE resume_after<=? ORDER BY resume_after,created LIMIT ?', (now, limit)).fetchall():
+        if not quota_ok(desk, r['kind']):
+            break
+        try:
+            desk.enqueue(r['kind'], json.loads(r['args']), priority=55)
+        except Stop:
+            continue
+        desk.db.execute('DELETE FROM deferred_jobs569 WHERE id=?', (r['id'],))
+        desk.db.commit()
+        resumed += 1
+    return resumed
 
 
 def _ensure(db):
@@ -189,6 +236,6 @@ def section_html(desk, prefix):
             '<label class="m5-field"><input type="checkbox" name="enabled" value="1"%s> Régime économe</label>'
             '<label class="m5-field">Analyses automatiques par jour <input type="number" name="daily_jobs" min="1" max="500" value="%d"></label>'
             '<button type="submit">Enregistrer</button></form>'
-            '<p class="vf-note">Aujourd’hui : %d analyse(s) automatique(s) lancée(s) sur %d.</p>%s'
+            '<p class="vf-note">Aujourd’hui : %d analyse(s) automatique(s) lancée(s) sur %d · %d différée(s) (reprise automatique le lendemain).</p>%s'
             '<h3>Consommation des 7 derniers jours</h3>%s</section>') % (
-        ' checked' if on else '', quota(desk), used_today(desk), quota(desk), suggestion, consumption_html)
+        ' checked' if on else '', quota(desk), used_today(desk), quota(desk), len(deferred(desk)), suggestion, consumption_html)
