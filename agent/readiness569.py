@@ -165,6 +165,11 @@ def text(report):
     return '\n'.join(lines)
 
 
+def recette_html(desk):
+    from .recette5613 import section_html   # 5.6.13
+    return section_html(desk)
+
+
 def page(desk, auth, prefix, env):
     from .web440 import shell
     report = last(desk)
@@ -183,11 +188,11 @@ def page(desk, auth, prefix, env):
             '<section class="ax-card" id="readiness569-mic"><h2>Micro et HTTPS (ce navigateur)</h2>'
             '<p>Le test écoute le micro deux secondes et mesure le niveau sur place ; aucun son n’est transmis.</p>'
             '<button type="button" class="ax-btn ghost" data-mic-test>Tester le micro</button><p data-mic-result role="status"></p></section>'
-            '<section class="ax-card"><h2>Docker</h2><p>Installation Docker : <code>docker compose ps</code> doit montrer le service <code>axiorhub</code> '
+            '%s<section class="ax-card"><h2>Docker</h2><p>Installation Docker : <code>docker compose ps</code> doit montrer le service <code>axiorhub</code> '
             '« healthy » ; <code>docker compose exec axiorhub python3 docker/health.py</code> affiche la raison si ce n’est pas le cas, et '
             '<code>docker compose exec axiorhub python3 manage.py readiness</code> imprime ce rapport. Option vocale : '
             '<code>docker compose -f docker-compose.yml -f docker-compose.voice568.yml up -d --build</code>.</p></section>'
             '<script defer src="%s/static/v569.js"></script>') % (
         e(prefix), e(prefix), (' (%s)' % e(str(report['at'])[:16].replace('T', ' '))) if report else '',
-        ('<ul class="r569-list">%s</ul>' % rows) if report else '<p class="vf-note">Aucun contrôle lancé pour l’instant.</p>', e(prefix))
+        ('<ul class="r569-list">%s</ul>' % rows) if report else '<p class="vf-note">Aucun contrôle lancé pour l’instant.</p>', recette_html(desk), e(prefix))
     return shell('Mise en service', body, prefix, auth['csrf'], '/parametres')

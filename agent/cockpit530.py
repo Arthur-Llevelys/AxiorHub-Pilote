@@ -873,7 +873,8 @@ def page(desk, prefix, csrf='', owner='cabinet'):
     header = header_html(desk).replace('href="diagnostic"', 'href="%s"' % e(prefix + '/diagnostic', quote=True))
     return ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>'
-            '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent">%s'
+            '<section class="c530-card c530-pilot-slot" id="c530-pilot-slot" aria-label="Pilote"><p class="c530-note" data-pilot-fallback>Le panneau Pilote (texte, documents, voix) s’affiche ici.</p></section>'
+            '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer>%s'
             '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
             '<textarea id="c530-text" rows="3" maxlength="4000" placeholder="Demandez à l’agent… ex. « Prépare la réponse au confrère sur le calendrier de procédure dans le dossier LEROY »"></textarea>'
             '<div class="c530-bar2"><div class="c530-dossier"><span class="c530-sub">Dossier :</span> <strong id="c530-dossier-label">à deviner d’après votre demande</strong> '

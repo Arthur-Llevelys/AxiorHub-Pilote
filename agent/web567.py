@@ -24,6 +24,13 @@ def api(env, desk, auth, prefix, name, args, method):
         if name == 'm567/briefing':
             from .voice568 import briefing
             return json_out(briefing(desk, owner))
+        if name == 'm567/matters':      # 5.6.13 : sélection du dossier (client, adversaire, référence, alias ; récents en premier)
+            from .pilote5613 import matters_listing
+            return json_out({'matters': matters_listing(desk)})
+        if name == 'm567/attachments':   # 5.6.13 : liste commune texte–voix des pièces jointes
+            from .pilote5613 import attachments_listing
+            idents = [x for x in str(args.get('ids', '')).split(',') if x]
+            return json_out({'attachments': attachments_listing(desk, idents, str(args.get('matter') or ''), str(args.get('key') or ''))})
         if name == 'm567/capabilities':
             from .reception567 import capabilities
             return json_out({'missions': True, 'speech_local': bool(shutil.which('espeak-ng')),
@@ -41,8 +48,18 @@ def api(env, desk, auth, prefix, name, args, method):
         if role == 'assistant' and str((data.get('context') or {}).get('mail_key') or ''):
             raise Stop('depot_brouillon_role_insuffisant')
         return json_out(missions567.create(desk, data, owner))
+    if name == 'm567/mission/intent':   # 5.6.13 : résultat attendu annoncé avant de démarrer
+        from .pilote5613 import preview
+        return json_out(preview(desk, data, owner))
     if name == 'm567/mission/control':
+        if str(data.get('action') or '') == 'validate' and role not in ('administrateur', 'avocat'):
+            raise Stop('role_insuffisant')
         return json_out(missions567.control(desk, data, owner, role == 'administrateur'))
+    if name == 'm567/rule/decide':      # 5.6.13 : règle proposée après une correction
+        if role not in ('administrateur', 'avocat'):
+            raise Stop('role_insuffisant')
+        from .pilote5613 import decide_rule
+        return json_out(decide_rule(desk, str(data.get('id') or ''), str(data.get('action') or '')))
     if name == 'm567/profile':
         return json_out(assistant567.save_profile(desk, data, owner))
     if name == 'm567/speech':

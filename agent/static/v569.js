@@ -13,6 +13,27 @@
     if (!r.ok) throw new Error(v.message || v.error || 'Demande refusée.');
     return v;
   }
+  async function call567(route, data) {   // 5.6.13 : missions et règles (même authentification, préfixe m567)
+    const r = await fetch(prefix + '/api440/m567/' + route, {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: JSON.stringify(data)});
+    const v = await r.json();
+    if (!r.ok) throw new Error(v.message || v.error || 'Demande refusée.');
+    return v;
+  }
+  const recette = document.querySelector('[data-recette5613-run]');
+  recette?.addEventListener('click', async () => {
+    const out = document.querySelector('#recette5613-status');
+    if (recette.dataset.confirm && !window.confirm(recette.dataset.confirm)) return;
+    recette.disabled = true; out.textContent = 'Recette en cours (dépôt Nextcloud, brouillon IMAP)…';
+    try {
+      const v = await call('readiness/production', {});
+      out.textContent = v.ok ? 'Recette réussie.' : 'Recette avec échec(s) : voir le rapport.';
+      const list = document.createElement('ul'); list.className = 'r569-list';
+      v.steps.forEach(s => { const li = document.createElement('li'); li.className = 'r569-' + (s.ok === true ? 'ok' : s.ok === false ? 'bad' : 'muted'); li.textContent = s.label + ' — ' + s.message; list.append(li); });
+      recette.closest('section').querySelector('ul.r569-list')?.remove(); recette.closest('section').append(list); recette.disabled = false;
+    }
+    catch (e) { out.textContent = e.message; recette.disabled = false; }
+  });
   const runButton = document.querySelector('[data-readiness569-run]');
   runButton?.addEventListener('click', async () => {
     const out = document.querySelector('#readiness569-status');
@@ -51,6 +72,12 @@
     button.disabled = true;
     try {
       if (act === 'plan-resume') await call('plan/control', {id, action: 'resume'});
+      else if (act === 'mission-resolve') {
+        if (!field('matter')) throw new Error('Choisissez le dossier de cette mission.');
+        await call567('mission/control', {id, action: 'resolve', matter: field('matter')});
+      } else if (act === 'mission-resume') await call567('mission/control', {id, action: 'resume'});
+      else if (act === 'docreq-resolve') await call('docreq/control', {id, matter: field('matter')});
+      else if (act.startsWith('rule-')) await call567('rule/decide', {id, action: act === 'rule-adopt' ? 'adopt' : act === 'rule-adopt-matter' ? 'adopt_matter' : 'ignore'});
       else if (act === 'resolve') {
         const payload = {id, action: 'resolve'};
         if (field('matter')) payload.matter = field('matter');

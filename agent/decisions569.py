@@ -46,6 +46,63 @@ def items(desk, owner='cabinet', prefix='', limit=20):
                     'matter': c['matter'], 'matter_label': labels.get(c['matter'], ''),
                     'explanation': ('Condition à confirmer : ' + c['condition_text'][:200]) if c['state'] == 'conditional' else 'Dossier ou échéance à préciser.',
                     'candidates': [], 'url': prefix + '/engagements'})
+    out += _extra_items(desk, owner, prefix, labels, limit)
+    return out
+
+
+def _extra_items(desk, owner, prefix, labels, limit):
+    """5.6.13 : missions manuelles bloquées, demandes de document sans dossier ou en échec, courriels à rattacher, règles proposées."""
+    out = []
+    linked = set()
+    try:
+        from .missions567 import get as mission_get, ensure_schema
+        ensure_schema(desk)
+        rows = desk.db.execute("SELECT id,ref FROM missions_v567 WHERE owner=? AND state IN ('decision','error','creating','queued','running') ORDER BY updated DESC LIMIT ?",
+                               (owner, limit * 3)).fetchall()
+        for r in rows:
+            if r['ref'].startswith('docreq:'):
+                linked.add(r['ref'][7:])
+        for r in rows:
+            m = mission_get(desk, r['id'], owner, prefix=prefix)
+            if m['state'] not in ('decision', 'error'):
+                continue
+            candidates = []
+            for x in m.get('exceptions', []):
+                candidates += [c for c in x.get('candidates', []) if c.get('id') in labels]
+            explanation = ' '.join(x.get('message', '') for x in m.get('exceptions', [])) or (m.get('job') or {}).get('error', '') or 'Traitement interrompu.'
+            out.append({'kind': 'mission', 'id': m['id'], 'state': m['state'], 'title': 'Mission : ' + m['instruction'][:160], 'matter': m['matter'],
+                        'matter_label': m.get('matter_label', ''), 'explanation': explanation[:300],
+                        'candidates': [{'id': c['id'], 'label': c.get('label') or labels.get(c['id'], c['id'])} for c in candidates[:8]], 'url': prefix + '/missions'})
+    except sqlite3.OperationalError:
+        pass
+    try:
+        from .docrequest520 import ensure_schema as docreq_schema
+        docreq_schema(desk)
+        for r in desk.db.execute("SELECT id,matter,request,status,result FROM docreq520 WHERE status IN ('dossier_a_choisir','echec') ORDER BY updated DESC LIMIT ?", (limit,)):
+            if r['id'] in linked:
+                continue
+            res = json.loads(r['result'] or '{}')
+            out.append({'kind': 'docreq', 'id': r['id'], 'state': r['status'], 'title': 'Document demandé : ' + r['request'][:160], 'matter': r['matter'],
+                        'matter_label': labels.get(r['matter'], 'Dossier à préciser'),
+                        'explanation': 'Dossier à préciser pour rédiger ce document.' if r['status'] == 'dossier_a_choisir' else 'Dépôt ou rédaction en échec : ' + str(res.get('error', 'action_interrompue'))[:160],
+                        'candidates': [c for c in res.get('candidates', []) if c.get('id') in labels][:8], 'url': prefix + '/aujourdhui'})
+    except sqlite3.OperationalError:
+        pass
+    try:
+        from .state import State
+        n = State(desk.c['state_dir']).db.execute("SELECT COUNT(*) FROM messages WHERE status='review' AND (reason LIKE '%correspondant%' OR reason LIKE '%dossier%')").fetchone()[0]
+        if n:
+            out.append({'kind': 'mails', 'id': 'mails', 'state': 'review', 'title': '%d courriel(s) à rattacher à un dossier ou à un correspondant' % n, 'matter': '',
+                        'matter_label': '', 'explanation': 'Sans rattachement, aucun brouillon n’est préparé pour ces courriels.', 'candidates': [], 'url': prefix + '/associations'})
+    except Exception:
+        pass
+    try:
+        from .pilote5613 import rule_proposals
+        for p in rule_proposals(desk)[:limit]:
+            out.append({'kind': 'rule', 'id': p['id'], 'state': 'proposed', 'title': 'Règle proposée après votre correction', 'matter': p['matter'],
+                        'matter_label': labels.get(p['matter'], ''), 'explanation': p['instruction'][:300], 'candidates': [], 'url': prefix + '/progres'})
+    except sqlite3.OperationalError:
+        pass
     return out
 
 
@@ -78,6 +135,24 @@ def html(desk, owner='cabinet', prefix=''):
                 e(x['id'], quote=True), e(x['id'], quote=True), _matter_options(labels, x['candidates'], x['matter']))
         elif x['kind'] == 'plan':
             actions = '<button type="button" class="ax-btn" data-act="plan-resume">Reprendre la suite</button>'
+        elif x['kind'] == 'mission':
+            if x['state'] == 'decision':
+                actions = ('<label class="c530-sr" for="c569-m-%s">Dossier</label><select id="c569-m-%s" data-field="matter">%s</select>'
+                           '<button type="button" class="ax-btn" data-act="mission-resolve">Préciser et démarrer</button>') % (
+                    e(x['id'], quote=True), e(x['id'], quote=True), _matter_options(labels, x['candidates'], x['matter']))
+            else:
+                actions = '<button type="button" class="ax-btn" data-act="mission-resume">Relancer</button>'
+        elif x['kind'] == 'docreq':
+            actions = ('<label class="c530-sr" for="c569-m-%s">Dossier</label><select id="c569-m-%s" data-field="matter">%s</select>'
+                       '<button type="button" class="ax-btn" data-act="docreq-resolve">%s</button>') % (
+                e(x['id'], quote=True), e(x['id'], quote=True), _matter_options(labels, x['candidates'], x['matter']),
+                'Choisir le dossier et rédiger' if x['state'] == 'dossier_a_choisir' else 'Relancer')
+        elif x['kind'] == 'mails':
+            actions = '<a class="ax-btn" href="%s">Rattacher</a>' % e(x['url'], quote=True)
+        elif x['kind'] == 'rule':
+            actions = ('<button type="button" class="ax-btn" data-act="rule-adopt">Adopter pour le cabinet</button>'
+                       + ('<button type="button" class="ax-btn ghost" data-act="rule-adopt-matter">Pour ce dossier seulement</button>' if x['matter'] else '')
+                       + '<button type="button" class="ax-btn ghost" data-act="rule-ignore">Ignorer</button>')
         else:
             actions = ''
         parts.append('<li class="c569-item" data-kind="%s" data-id="%s">%s<div class="c569-actions">%s<a class="ax-btn ghost" href="%s">Détail</a></div></li>'

@@ -3,6 +3,49 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.13 — Résultat annoncé, rédaction libre convergente, texte et voix unifiés
+
+Corrections prioritaires
+
+- **Rédaction libre convergente** : une demande directe de document reprend le modèle Word approuvé du cabinet (en-têtes, pieds de
+  page, styles ; choix par le libellé du modèle ou le réglage `docreq5613:templates`), une révision conserve le document d'origine
+  au lieu d'un Word générique reconstruit, et chaque projet passe par le contrôle juridique (mentions obligatoires, citations, relecture
+  par un second modèle distinct du rédacteur). Trois états distincts sont affichés : « Dépôt vérifié », « Contrôle juridique effectué »,
+  « Validation de l'avocat » (bouton « Valider ce projet »).
+- **Une question ne crée plus de document** : l'intention (Réponse / Analyse dans le fil / Word dans ce dossier / Brouillon dans
+  Drafts) est annoncée avant de démarrer, modifiable, et n'est plus déduite d'un mot comme « contrat » ou « audience ». « Prépare un
+  courriel au confrère » sans courriel sélectionné produit un brouillon dans Drafts (destinataire à renseigner), jamais un Word.
+- **Texte et voix unifiés** : même dossier, mêmes pièces jointes (liste commune avec nom, extraction, pages lisibles, retrait), même
+  courriel, même mission courante et même fil ; le rafraîchissement du résultat ne remplace plus l'historique des tours.
+- **Replier le panneau arrête le dialogue vocal** (micro et lecture) ; indicateur permanent « Micro actif » avec arrêt immédiat.
+- **Banc du petit modèle par fonction** : onze épreuves à critères fermés (JSON exact, date unique, tri publicité / procédure, dossier
+  ambigu, pièce incomplète, montants contradictoires, instruction malveillante dans une pièce, abstention attendue) ; un modèle admis
+  au tri ne reçoit pas la lecture des pièces ni le contrôle ; le résultat est lié à l'empreinte (digest) du modèle et devient périmé
+  si les poids changent.
+- **Cache des analyses longues** : la signature ne contient plus que les paramètres utilisés (modèle, réglages documents/Ollama/
+  routage, consignes d'extension) ; un banc ou un quota enregistré n'invalide plus rien. « Analyse réutilisée » ou le motif précis
+  du recalcul est affiché.
+- **« À décider » complet** : missions manuelles bloquées (dossier à préciser, erreur), demandes de document sans dossier ou en
+  échec (reprise avec le dossier choisi, même identifiant), courriels à rattacher, règles proposées ; chaque blocage a son action.
+
+Interface
+
+- Zone d'instruction unique : le panneau Pilote est monté dans « Aujourd'hui » (même composant, même historique, mêmes limites).
+- Sélection du dossier par client, adversaire, référence et alias, nom complet, dossiers récents en premier.
+- Mode élargi du panneau pour les analyses longues ; résultat produit avec emplacement, modèle utilisé, contrôles effectués, points à
+  compléter ; activité de l'agent regroupée par dossier, tâches techniques dans les détails ; rubrique « Intelligence artificielle »
+  réunissant modèles locaux, routage, régime économe, consommation et IA externe sûre.
+
+Fonctionnalités
+
+- Manifeste des sources (conclusions retenues et leur version, pièces, extraits lus, courriels, fichiers non lus) joint à chaque projet.
+- Comparaison des versions lors d'une révision : paragraphes ajoutés et retirés, montants, dates, demandes et dispositif modifiés.
+- Fiche d'audience par dossier (Outils › Fiche d'audience, `/audience`) : audiences à venir, dernières conclusions, pièces et tâches
+  attendues, notes de plaidoirie, questions probables, projets à relire.
+- Règle proposée après une correction (réversible : adoption pour le cabinet ou le dossier, ou ignorée).
+- Recette de production réelle (Mise en service, `manage.py recette-production`) : Word lisible, respect du modèle, dépôt Nextcloud relu
+  dans `_RECETTE_AXIORHUB`, reprise après interruption, brouillon IMAP retrouvé.
+
 ## 5.6.12 — Un seul panneau Pilote, banc du modèle économe, cache des fusions
 
 - **Un seul panneau Pilote** : le bouton robot ouvre l'unique panneau ; « 🎙 Dicter » dicte l'instruction, « 💬 Dialoguer » lance la

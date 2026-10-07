@@ -76,7 +76,7 @@ JOBS |= {'verify_deliverable420','retry_deliverable420','studio_prepare420',
 JOBS |= {'live_mail430','live_calendar430','live_documents430'}
 JOBS |= {'pieces_scan510','pieces_create510'}
 JOBS |= {'edit_personal_event','edit_personal_task'}
-JOBS |= {'routine520','docrequest520','deck530_sync','style550_scan'}
+JOBS |= {'routine520','docrequest520','deck530_sync','style550_scan','maildraft5613'}
 JOBS |= {'document568_run','document568_scan','document568_compile'}
 JOBS |= {'sent568_scan','received568_scan','followup568_prepare','proactive568_cycle','talk568_prepare','news568_collect'}
 
@@ -90,7 +90,7 @@ USER_JOBS |= {'propose_work_plan','sync_caldav_tasks','apply_work_plan','update_
 USER_JOBS |= {'prepare_document_project','create_document_files'}
 USER_JOBS |= {'pieces_scan510','pieces_create510'}
 USER_JOBS |= {'edit_personal_event','edit_personal_task'}
-USER_JOBS |= {'routine520','docrequest520'}
+USER_JOBS |= {'routine520','docrequest520','maildraft5613'}
 USER_JOBS |= {'review_autonomy_proposal'}
 USER_JOBS |= {'legal_research','import_mcp_legal_results','verify_official_decision','identify_latest_writings','refresh_exhibit_registry'}
 USER_JOBS |= {'identify_party_writings','compare_devices','prepare_hearing','create_hearing_files',
@@ -683,6 +683,9 @@ class Desk:
         if kind=='docrequest520':
             from .docrequest520 import perform
             return perform(self,kind,args)
+        if kind=='maildraft5613':
+            from .maildraft5613 import perform
+            return perform(self,args)
         if kind=='routine520':
             from .routines520 import perform
             return perform(self,kind,args)

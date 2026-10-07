@@ -100,6 +100,8 @@ def submit(desk, request, matter='', kind='auto', revision_of='', attachments=No
         if not row or row['status'] != 'cree':
             raise Stop('document_a_modifier_absent')
         matter = row['matter']
+        if kind == 'auto':
+            kind = row['kind']        # 5.6.13 : une révision garde le type du document d'origine (modèle, contrôle, règle proposée)
     elif revision_path:
         # 5.3.0 : « Faire modifier par l'IA » sur un document du dossier qu'AxiorHub n'a pas créé lui-même.
         path = clean_path(revision_path)
@@ -119,8 +121,11 @@ def submit(desk, request, matter='', kind='auto', revision_of='', attachments=No
     args = {'request': rid, 'mission_id': mission_id, 'selected_documents': selected_documents or []}
     if matter:
         args['matter'] = matter                       # le contrôle « conflits d'intérêts » s'applique dès la mise en file
-    old=desk.db.execute('SELECT job_id FROM docreq520 WHERE id=?',(rid,)).fetchone()
-    if old and old[0]:return {'request':rid,'job_id':old[0]}
+    old=desk.db.execute('SELECT job_id,status FROM docreq520 WHERE id=?',(rid,)).fetchone()
+    if old and old[0] and old[1] not in ('dossier_a_choisir','echec'):return {'request':rid,'job_id':old[0]}
+    if old:
+        # 5.6.13 : une demande bloquée (dossier à choisir, échec) est reprise avec le dossier précisé, sous le même identifiant.
+        _set(desk,rid,'en_file',result={},matter=matter or None)
     if not old:
         desk.db.execute('INSERT INTO docreq520(id,matter,request,kind,status,path,revision_of,job_id,result,created,updated,attachments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
                         (rid,matter,request,kind,'en_file','',revision_of,None,'{}',now(),now(),json.dumps(attachments)))
@@ -334,6 +339,29 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
 
 def build_docx(doc, ctx, request):
     """Document Word autonome (styles simples : titre, intertitres, texte justifié, listes)."""
+    body = _body_xml(doc, ctx, request)
+    document = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="%s"><w:body>%s'
+                '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr></w:body></w:document>') % (W, body)
+    styles = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="%s"><w:docDefaults><w:rPrDefault><w:rPr>'
+              '<w:rFonts w:ascii="Garamond" w:hAnsi="Garamond" w:cs="Garamond"/><w:sz w:val="24"/><w:lang w:val="fr-FR"/></w:rPr></w:rPrDefault>'
+              '</w:docDefaults></w:styles>') % W
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                   '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+                   '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+                   '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>')
+        z.writestr('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+        z.writestr('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>')
+        z.writestr('word/document.xml', document)
+        z.writestr('word/styles.xml', styles)
+    return out.getvalue()
+
+
+def _body_xml(doc, ctx, request):
+    """5.6.13 : paragraphes WordprocessingML du projet, réutilisés tels quels dans un document d'origine conservé (révision)."""
     def run(text, bold=False, size=None):
         props = ('<w:b/>' if bold else '') + ('<w:sz w:val="%d"/>' % size if size else '')
         return '<w:r>%s<w:t xml:space="preserve">%s</w:t></w:r>' % (('<w:rPr>%s</w:rPr>' % props) if props else '', escape(str(text), quote=False))
@@ -364,24 +392,7 @@ def build_docx(doc, ctx, request):
     if refs:
         body.append(para('Sources utilisées :', 'texte'))
         body += [para('%s — %s' % (r['source'], r.get('fichier') or ('courriel de %s du %s : %s' % (r['de'], r['date'], r['objet']))), 'liste') for r in refs]
-    document = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="%s"><w:body>%s'
-                '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr></w:body></w:document>') % (W, ''.join(body))
-    styles = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="%s"><w:docDefaults><w:rPrDefault><w:rPr>'
-              '<w:rFonts w:ascii="Garamond" w:hAnsi="Garamond" w:cs="Garamond"/><w:sz w:val="24"/><w:lang w:val="fr-FR"/></w:rPr></w:rPrDefault>'
-              '</w:docDefaults></w:styles>') % W
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
-        z.writestr('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-                   '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
-                   '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
-                   '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>')
-        z.writestr('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
-        z.writestr('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>')
-        z.writestr('word/document.xml', document)
-        z.writestr('word/styles.xml', styles)
-    return out.getvalue()
+    return ''.join(body)
 
 
 def _safe_name(text):
@@ -437,7 +448,7 @@ def run(desk, args, dav=None):
     from .document_projects import _dav
     client = dav or _dav(desk)
     previous_text, folder = '', clean_path(matter['path'])
-    prev_path = ''
+    prev_path, raw = '', b''
     if row['revision_of']:
         if row['revision_of'].startswith('/'):
             prev_path = row['revision_of']
@@ -456,12 +467,40 @@ def run(desk, args, dav=None):
     except (ValueError, IndexError, KeyError):
         attached = []
     ctx, notes = context(desk, matter, row['request'], client, attached,args.get('selected_documents',[]))
+    from . import pilote5613
+    ctx['manifeste'] = pilote5613.manifest(ctx)        # 5.6.13 : ce que la rédaction a réellement reçu, et ce qui n'a pas été lu
+    for piece in ctx.get('pieces_jointes', []):
+        reuse = (piece.get('couverture') or {}).get('reuse') or {}
+        if reuse.get('message'):
+            notes.append('%s : %s' % (PurePosixPath(str(piece.get('fichier', ''))).name, reuse['message']))
     try:
         doc = draft(desk, row['request'], row['kind'], ctx, previous_text, matter['id'])
     except Exception as ex:
         _set(desk, rid, 'echec', result={'error': str(ex)[:120], 'notes': notes})
         raise Stop('redaction_document_impossible') from None
-    data = build_docx(doc, ctx, row['request'])
+    text = pilote5613.plain_text(doc)
+    control = pilote5613.control_document(desk, row['kind'], text, matter['id'])     # 5.6.13 : contrôle juridique de la rédaction libre
+    template_info = {'id': '', 'label': 'Word générique'}
+    data = b''
+    if row['revision_of'] and prev_path.lower().endswith('.docx') and raw.startswith(b'PK'):
+        try:
+            data = pilote5613.replace_body(raw, _body_xml(doc, ctx, row['request']))
+            template_info = {'id': 'previous', 'label': 'Document d’origine conservé (en-têtes, pieds de page, styles)'}
+        except Stop:
+            data = b''
+    elif not row['revision_of']:
+        trow, traw = pilote5613.template_for_kind(desk, row['kind'])
+        if trow:
+            try:
+                data = pilote5613.build_from_template(desk, traw, doc, ctx, row['request'], matter)
+                template_info = {'id': trow['id'], 'label': trow['label'], 'sha256': trow['sha256']}
+            except Stop as ex:
+                notes.append('Modèle « %s » non utilisable (%s) : Word générique.' % (trow['label'], ex))
+                data = b''
+    if not data:
+        data = build_docx(doc, ctx, row['request'])
+    diff = pilote5613.revision_diff(previous_text, text) if row['revision_of'] else None
+    proposal = pilote5613.propose_rule(desk, row['kind'], row['request'], matter['id'], rid) if row['revision_of'] else None
     if row['revision_of']:
         stem = PurePosixPath(prev_path).stem
         stem = re.sub(r' v\d+$', '', stem)
@@ -480,12 +519,50 @@ def run(desk, args, dav=None):
         raise Stop('dossier_hors_racines')
     from .deposits567 import stage, finish
     result = {'title': doc['titre'], 'to_complete': doc['a_completer'], 'sources': doc['sources'], 'notes': notes,
-              'url': '', 'revision_coverage':doc.get('revision_coverage',{}), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)}}
+              'url': '', 'revision_coverage':doc.get('revision_coverage',{}), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)},
+              'control': control, 'template': template_info, 'manifest': ctx['manifeste'], 'revision_diff': diff, 'rule_proposal': proposal,
+              'text_sha256': hashlib.sha256(text.encode()).hexdigest()}
     stage(desk,rid,path,data,result)
     saved = desk.db.execute('SELECT * FROM docreq520 WHERE id=?',(rid,)).fetchone()
     outcome = finish(desk,saved,client,args)
     desk.audit('document_520_cree', {'request': rid, 'matter': matter['id'], 'readback': True})
     return outcome
+
+
+def resolve(desk, rid, matter=''):
+    """5.6.13 (« À décider ») : reprend une demande bloquée — dossier à choisir ou échec — avec le dossier précisé, sans doublon."""
+    ensure_schema(desk)
+    rid = str(rid or '')
+    row = desk.db.execute('SELECT * FROM docreq520 WHERE id=?', (rid,)).fetchone()
+    if not row:
+        raise Stop('demande_document_absente')
+    if row['status'] not in ('dossier_a_choisir', 'echec'):
+        raise Stop('demande_document_non_reprenante')
+    matters = {m['id']: m for m in load_matters(desk.c)}
+    matter = str(matter or '')
+    if matter and matter not in matters:
+        raise Stop('dossier_absent')
+    if not matter and row['status'] == 'dossier_a_choisir':
+        raise Stop('dossier_requis')
+    mid = matter or row['matter']
+    _set(desk, rid, 'en_file', result={}, matter=mid)
+    args = {'request': rid}
+    if mid:
+        args['matter'] = mid
+    try:
+        mission = desk.db.execute('SELECT id FROM missions_v567 WHERE ref=?', ('docreq:' + rid,)).fetchone()
+    except Exception:
+        mission = None
+    if mission:
+        args['mission_id'] = mission['id']
+        desk.db.execute("UPDATE missions_v567 SET matter=?,state='queued',exceptions='[]',updated=? WHERE id=?", (mid, now(), mission['id']))
+    job = desk.enqueue('docrequest520', args, priority=0)
+    desk.db.execute('UPDATE docreq520 SET job_id=? WHERE id=?', (job, rid))
+    if mission:
+        desk.db.execute('UPDATE missions_v567 SET job_id=? WHERE id=?', (job, mission['id']))
+    desk.db.commit()
+    desk.audit('document_520_reprise', {'request': rid, 'matter': mid, 'job': job})
+    return {'request': rid, 'job_id': job, 'message': 'Demande reprise dans le dossier choisi.'}
 
 
 def perform(desk, kind, args):

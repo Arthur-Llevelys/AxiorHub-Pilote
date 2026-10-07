@@ -163,7 +163,7 @@
       speaking.onerror=()=>{playResolve=null;resolve();};speaking.play().catch(()=>{playResolve=null;resolve();});
     });
   }
-  function stopSession(){running=false;generation++;processing=false;controller?.abort();controller=null;clearInterval(vad);vad=null;
+  function stopSession(){window.axiorhubPilot?.setMic(false);running=false;generation++;processing=false;controller?.abort();controller=null;clearInterval(vad);vad=null;
     if(rec&&rec.state!=='inactive')rec.stop();rec=null;stream?.getTracks().forEach(t=>t.stop());stream=null;audioContext?.close().catch(()=>{});audioContext=null;stopSpeech();mode.disabled=false;start.disabled=false;voiceNote('Microphone et lecture arrêtés. Une mission déjà confiée garde son état dans Missions.');}
   async function read(text,g){
     if(!text||g!==generation||!running)return;stopSpeech();
@@ -185,8 +185,12 @@
     if(!text.trim()||g!==generation){if(g===generation){processing=false;if(running&&!rec)recordTurn();}return;}
     if(lastPayload&&lastPayload.instruction!==text.trim()){voiceNote('Une demande précédente attend un accusé. Réessayez son texte avant de confier une autre demande, ou consultez Missions.');processing=false;if(running&&!rec)recordTurn();return;}
     processing=true;controller=new AbortController();stopSpeech();
-    const selectedDocs=[...document.querySelectorAll('input[data-document-path]:checked')].map(x=>x.dataset.documentPath).slice(0,20);
-    const payload=lastPayload||{request_key:token(),instruction:text.trim(),matter:scope,mode:mode.value,autonomy:'prepare',channel:'voice',context:{page:cfg.path||'/',selected_documents:selectedDocs,mission_id:parent}};
+    // 5.6.13 : même état de conversation que le texte — dossier, pièces jointes téléversées, documents sélectionnés, courriel, mission courante
+    const pilot=window.axiorhubPilot;
+    const selectedDocs=pilot?pilot.selectedDocuments():[...document.querySelectorAll('input[data-document-path]:checked')].map(x=>x.dataset.documentPath).slice(0,20);
+    const currentMission=pilot?.current();const parentId=parent||((currentMission&&currentMission.matter===scope)?currentMission.id:'');
+    const payload=lastPayload||{request_key:token(),instruction:text.trim(),matter:scope,mode:mode.value,autonomy:'prepare',channel:'voice',attachments:pilot?pilot.attachments():[],
+      context:{page:cfg.path||'/',selected_documents:selectedDocs,mission_id:parentId,mail_key:pilot?pilot.mailKey():''}};
     lastPayload=payload;
     try{
       voiceNote('Demande transmise · '+(scope||'cabinet'));let m=await api('voice/turn',payload,controller.signal);lastPayload=null;parent=m.id;
@@ -197,9 +201,9 @@
       }
       if(g!==generation)return;
       const text=m.result?.text||((m.exceptions||[]).map(x=>x.message).join(' '))||m.label;answer.replaceChildren(el('pre',text));
-      // 5.6.12 : le tour vocal rejoint le fil commun du panneau (continuité texte / voix)
-      const thread=document.querySelector('#ws-ai-result');
-      if(thread){const turn=el('article',undefined,'ws-ai-turn');turn.append(el('p','🎙 '+payload.instruction,'ws-ai-turn-me'),el('pre',text));thread.prepend(turn);}
+      // 5.6.12 / 5.6.13 : le tour vocal rejoint le fil commun et devient la mission courante du panneau (continuité texte / voix)
+      if(window.axiorhubPilot){window.axiorhubPilot.addTurn(payload.instruction,text,'voice');try{window.axiorhubPilot.show(m);}catch(e){}}
+      else{const thread=document.querySelector('#ws-ai-result');if(thread){const turn=el('article',undefined,'ws-ai-turn');turn.append(el('p','🎙 '+payload.instruction,'ws-ai-turn-me'),el('pre',text));thread.prepend(turn);}}
       const link=el('a','Ouvrir cette mission');link.href=prefix+'/missions';answer.append(link);voiceNote(m.label);
       if(running)await read(text,g);
     }catch(e){if(e.name!=='AbortError')voiceNote(e.message+' Le texte reste disponible.');}
@@ -225,14 +229,14 @@
   }
   async function startSession(){
     if(running)return;if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder||!window.AudioContext){voiceNote('La conversation requiert HTTPS, microphone, MediaRecorder et AudioContext.');return;}
-    const g=++generation;start.disabled=true;scope=document.querySelector('#ws-ai-matter')?.value||cfg.selected_matter||'';parent='';lastPayload=null;
+    const g=++generation;start.disabled=true;scope=(window.axiorhubPilot?window.axiorhubPilot.matter():document.querySelector('#ws-ai-matter')?.value)||cfg.selected_matter||'';parent='';lastPayload=null;
     context.textContent='Contexte de la session : '+(scope||'tout le cabinet')+'. Arrêtez puis redémarrez pour changer de dossier.';
     try{
       const capabilities=await api('capabilities');if(!capabilities.dictation)throw new Error('Configurez d’abord la transcription locale dans Paramètres › Connexions › Voix.');
       const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
       if(g!==generation){s.getTracks().forEach(t=>t.stop());return;}
       stream=s;audioContext=new AudioContext();await audioContext.resume();analyser=audioContext.createAnalyser();analyser.fftSize=1024;audioContext.createMediaStreamSource(s).connect(analyser);
-      running=true;mode.disabled=true;start.disabled=true;voiceNote('Microphone actif · parlez, puis laissez une courte pause.');recordTurn();
+      running=true;mode.disabled=true;start.disabled=true;window.axiorhubPilot?.setMic(true);voiceNote('Microphone actif · parlez, puis laissez une courte pause.');recordTurn();
       const data=new Float32Array(analyser.fftSize);
       vad=setInterval(()=>{
         if(!running||!analyser)return;analyser.getFloatTimeDomainData(data);const rms=Math.sqrt(data.reduce((sum,x)=>sum+x*x,0)/data.length),now=Date.now();
@@ -242,6 +246,8 @@
     }catch(e){if(g===generation){stopSession();voiceNote(e.message);}}
   }
   function showVoice(visible){pane.hidden=!visible;if(dockVoice)dockVoice.hidden=!visible;launch.setAttribute('aria-expanded',String(visible));}
+  // 5.6.13 : la fermeture générale du panneau (×, Échap, bouton « Arrêter » de l'indicateur Micro actif) arrête le micro et la lecture
+  window.axiorhubVoice={stop:()=>{stopSession();showVoice(false);},running:()=>running};
   launch.addEventListener('click',()=>{
     if(dockEl&&dockEl.hidden)document.querySelector('#ws-ai-launcher')?.click();   // même panneau que le texte et les documents
     const visible=pane.hidden;showVoice(visible);if(visible)startSession();else stopSession();

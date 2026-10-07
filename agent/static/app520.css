@@ -1030,3 +1030,45 @@ html[data-theme="dark"] #proactive568-summary,body.dark #proactive568-summary{ba
 #doc568-runs pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:30rem;overflow:auto}
 #doc568-runs .actions details{flex:1;min-width:min(100%,260px)}
 #doc568-runs .actions input,#doc568-runs .actions select{display:block;width:100%;margin-block:.5rem}
+/* ==== v5613.css ==== */
+/* AxiorHub 5.6.13 : panneau Pilote partagé (Aujourd'hui + panneau), mode élargi, micro actif, pièces jointes, états d'un document. */
+.ws-ai-dock--wide{width:min(62vw,960px)!important;max-width:none!important}
+.ws-ai-dock--wide .ws-ai-body{max-height:calc(100vh - 120px)}
+.ws-ai-dock--wide .ws-ai-tools{position:sticky;top:0;background:inherit;z-index:2;padding:.25rem 0}
+.ws-ai-dock--embedded{position:static!important;width:100%!important;max-width:none!important;height:auto!important;max-height:none!important;box-shadow:none!important;border:0!important;margin:0!important;transform:none!important}
+.ws-ai-dock--embedded .ws-ai-body{max-height:none;overflow:visible}
+.ws-ai-dock--embedded #ws-ai-close,.ws-ai-dock--embedded #ws-ai-wide{display:none}
+.c530-pilot-slot[data-empty]{display:none}
+#ws-ai-mic{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;padding:.15rem .5rem;border-radius:999px;background:#fde8e8;color:#8a1c1c;margin-right:.5rem}
+#ws-ai-mic[hidden]{display:none}
+#ws-ai-mic .ws-ai-mic-dot{width:.6rem;height:.6rem;border-radius:50%;background:#d12f2f;animation:ws-ai-pulse 1.2s infinite}
+#ws-ai-mic button{font-size:.8rem;padding:.1rem .45rem}
+@keyframes ws-ai-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+#ws-ai-wide{background:none;border:0;cursor:pointer;font-size:1rem;margin-right:.25rem}
+#ws-ai-matter-search{display:block;width:100%;margin-bottom:.25rem}
+.ws-ai-intent{display:flex;flex-direction:column;gap:.2rem;margin:.35rem 0}
+.ws-ai-plan{margin:0;font-size:.85rem;padding:.3rem .5rem;border-left:3px solid #17324d;background:#f3f6f9}
+.ws-ai-plan[hidden]{display:none}
+.ws-ai-files{list-style:none;margin:.3rem 0;padding:0;font-size:.85rem}
+.ws-ai-files[hidden]{display:none}
+.ws-ai-files li{display:flex;justify-content:space-between;gap:.5rem;align-items:center;padding:.15rem 0;border-bottom:1px dotted #cfd8e3}
+.ws-ai-files li.ko{color:#8a1c1c}
+.ws-ai-files button{font-size:.8rem}
+.ws-ai-checks{display:flex;flex-wrap:wrap;gap:.35rem;margin:.3rem 0}
+.ws-ai-check{font-size:.8rem;padding:.1rem .5rem;border-radius:999px;border:1px solid #cfd8e3}
+.ws-ai-check.ok{background:#e6f4ea;border-color:#9bd1aa;color:#1b5e20}
+.ws-ai-check.ko{background:#f6f7f9;color:#5b6773}
+.ws-ai-result-meta{font-size:.85rem;margin:.2rem 0}
+.ws-ai-history{margin-top:.6rem;border-top:1px solid #e1e6ec;padding-top:.4rem}
+.ws-ai-history h4{margin:.2rem 0;font-size:.85rem;color:#5b6773}
+.ws-ai-turn{border-left:3px solid #cfd8e3;padding:.2rem .5rem;margin:.3rem 0}
+.ws-ai-turn-me{font-weight:600;margin:0 0 .2rem}
+.ws-ai-turn pre{white-space:pre-wrap;margin:0;font:inherit}
+.ws-ai-diff ul{margin:.2rem 0 .2rem 1rem}
+.live-group{margin:.6rem 0 .2rem;font-size:.9rem;color:#17324d;border-bottom:1px solid #e1e6ec}
+.live-technical{margin-top:.6rem}
+.live-technical summary{cursor:pointer;color:#5b6773}
+.ia540-sub{margin-top:1.2rem}
+@media (max-width:850px){.ws-ai-dock--wide{width:100%!important}}
+.ws-ai-plan,.ws-ai-plan strong{color:#17324d}
+.ws-ai-plan small{color:#5b6773}

@@ -144,7 +144,7 @@ class WorkPlanning211Tests(unittest.TestCase):
 
     def test_api_and_openwebui_expose_supervised_planning_without_external_actions(self):
         spec=openapi('https://cabinet.test')
-        self.assertEqual(spec['info']['version'],'5.6.12')
+        self.assertEqual(spec['info']['version'],'5.6.13')
         self.assertIn('/calendar/events',spec['paths']);self.assertIn('/planning/proposals',spec['paths'])
         capabilities=dispatch(self.d,'/capabilities','GET')
         self.assertIn('read_calendar_period',capabilities['can'])
@@ -163,7 +163,7 @@ class Web211Tests(unittest.TestCase):
     def test_planning_page_is_visible_static_and_explains_group_confirmation(self):
         page=self.request('/planning',query='vue=organiser')['body']
         self.assertIn('Agenda et tâches',page);self.assertIn('créer ce programme dans Nextcloud',page)
-        self.assertIn('Version 5.6.12',page);self.assertNotIn('http-equiv="refresh"',page)
+        self.assertIn('Version 5.6.13',page);self.assertNotIn('http-equiv="refresh"',page)
 
 
 if __name__=='__main__':unittest.main()

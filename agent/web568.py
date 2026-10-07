@@ -42,6 +42,9 @@ def api(env,desk,auth,prefix,name,args,method):
         if route=='readiness':
             from .readiness569 import last
             return json_out(last(desk) or {'checks':[],'ok':None})
+        if route=='audience':   # 5.6.13 : fiche de préparation par dossier
+            from .audience5613 import sheet
+            return json_out(sheet(desk,str(args.get('matter') or '')))
         if route=='capabilities':
             return json_out({'tts':desk.c.get('speech568',{}).get('provider','espeak'),'dictation':bool(desk.c.get('audio',{}).get('enabled')),
                     'continuous_turns':True,'progressive_speech':True,'full_duplex_streaming':False,'talk':settings568.profile(desk,owner)['talk_enabled'],
@@ -81,6 +84,14 @@ def api(env,desk,auth,prefix,name,args,method):
         if not admin:raise Stop('role_insuffisant')
         from .readiness569 import run
         return json_out(run(desk))
+    if route=='readiness/production':   # 5.6.13 : recette de production réelle (données fictives, services réels)
+        if not admin:raise Stop('role_insuffisant')
+        from .recette5613 import run as recette
+        return json_out(recette(desk))
+    if route=='docreq/control':         # 5.6.13 : « À décider » — demande de document bloquée reprise avec le dossier choisi
+        if role not in ('administrateur','avocat'):raise Stop('role_insuffisant')
+        from .docrequest520 import resolve
+        return json_out(resolve(desk,str(data.get('id') or ''),str(data.get('matter') or '')))
     if route in ('test/talk','test/voice'):
         if not admin:raise Stop('role_insuffisant')
         if route=='test/talk':
@@ -96,6 +107,9 @@ def page(desk,auth,prefix,env,path):
     if path=='/mise-en-service':
         from .readiness569 import page as readiness_page   # 5.6.9
         return readiness_page(desk,auth,prefix,env)
+    if path=='/audience':
+        from .audience5613 import page as audience_page    # 5.6.13
+        return audience_page(desk,auth,prefix,env,env.get('axiorhub.args',{}))
     if path=='/veille':
         body='<h1>Veille juridique</h1><p>Flux officiels datés correspondant aux domaines configurés. Chaque extrait conserve sa source ; ce classement ne remplace pas la lecture ni l’analyse de la décision.</p><button type="button" data-run568="news/collect">Actualiser la veille</button><a href="'+e(prefix)+'/parametres/proactivite">Domaines et sources</a><p id="proactive568-status" role="status"></p><div id="news568-list"></div>'
         return shell('Veille',body,prefix,auth['csrf'],'/production')

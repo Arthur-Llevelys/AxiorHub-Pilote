@@ -70,7 +70,7 @@ class Operating380(unittest.TestCase):
 
     def test_shared_api_exposes_the_five_deliverables(self):
         schema=openapi('https://agent.example.com')
-        self.assertEqual(schema['info']['version'],'5.6.12')
+        self.assertEqual(schema['info']['version'],'5.6.13')
         for path in ('/operating/today','/playbooks','/matters/{matter_id}/graph',
                      '/ecosystem/actions','/evaluations','/relevance/metrics'):
             self.assertIn(path,schema['paths'])
@@ -105,7 +105,7 @@ class PublicPackage380(unittest.TestCase):
         self.assertIn('GNU AFFERO GENERAL PUBLIC LICENSE',(root/'LICENSE').read_text())
         self.assertIn('AGPL-3.0-or-later',(root/'THIRD_PARTY_NOTICES.md').read_text())
         sbom=json.loads((root/'SBOM.cdx.json').read_text())
-        self.assertEqual(sbom['bomFormat'],'CycloneDX');self.assertEqual(sbom['metadata']['component']['version'],'5.6.12')
+        self.assertEqual(sbom['bomFormat'],'CycloneDX');self.assertEqual(sbom['metadata']['component']['version'],'5.6.13')
 
 
 if __name__=='__main__':unittest.main()

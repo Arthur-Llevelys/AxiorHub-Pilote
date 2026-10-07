@@ -27,14 +27,15 @@ TOOLS = (('/mise-en-service', 'Mise en service', 'Services réels, micro, Docker
          ('/engagements', 'Engagements et suites', 'Promesses sourcées et missions en étapes'),
          ('/veille', 'Veille juridique', 'Nouveautés officielles datées'),
          ('/diagnostic', 'Pourquoi rien n’est produit ?', 'Services, erreurs, dossiers bloqués, connexions, recette'),
-         ('/ia-externe', 'IA externe sûre', 'Mode local ou mixte, aperçu de ce qui part, journal des envois pseudonymisés'),
+         ('/ia-externe', 'Intelligence artificielle', 'Modèles locaux, routage, régime économe, consommation, IA externe sûre'),
+         ('/audience', 'Fiche d’audience', 'Conclusions, pièces attendues, note de plaidoirie, questions probables, projets à relire'),
          ('/pieces', 'Pièces et bordereaux', 'Bordereau, pièces numérotées et tamponnées'),
          ('/verification', 'Vérifier', 'Citations juridiques, mentions obligatoires, relecture contradictoire'),
          ('/progres', 'Progrès', 'Apprentissage, tons par destinataire, règles, autonomie et traçabilité'),
          ('/confort', 'Confort', 'Dictée, envoi facultatif, application mobile, raccourcis'),
          ('/modeles-word', 'Documents du cabinet', 'Modèles Word et livrables'),
          ('/atelier/reglages', 'Réglages de l’atelier', 'Éditeur de documents, avis de procédure, rôle par dossier'))
-TOOL_PAGES = {'/mise-en-service', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/parametres/proactivite', '/engagements', '/veille', '/diagnostic', '/ia-externe', '/pieces', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/confort', '/modeles-word', '/atelier/reglages'}
+TOOL_PAGES = {'/mise-en-service', '/audience', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/parametres/proactivite', '/engagements', '/veille', '/diagnostic', '/ia-externe', '/pieces', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/confort', '/modeles-word', '/atelier/reglages'}
 
 AX_CSS = ('v440.css', 'v470.css', 'v480.css', 'v500.css')
 ENHANCE_CSS = ('v300.css', 'v320.css', 'v330.css', 'v360.css', 'v363.css', 'v365.css', 'v370.css', 'v420.css', 'v430.css', 'v490.css')
@@ -42,7 +43,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()

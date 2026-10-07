@@ -12,13 +12,41 @@ from .model import CHAT, validate
 def _sha(value):return hashlib.sha256(str(value).encode()).hexdigest()
 
 
+def _model_fingerprint(model):
+    cfg=getattr(model,'cfg',{}) or {}
+    return {k:cfg.get(k) for k in ('provider_id','provider_type','model','num_ctx','temperature','base_url') if k in cfg}
+
+
 def analysis_signature(desk,model,limit,purpose):
+    """5.6.13 (audit F13) : seuls les paramètres effectivement utilisés par l'analyse entrent dans la signature — modèle, réglages
+    documents/Ollama/routage, consignes des extensions actives, limite et fonction. Plus aucun réglage « ai:* » (bancs, quotas, régime)
+    ni réglage d'apprentissage ou de style, qui n'interviennent pas dans l'analyse d'un document long."""
     from .extensions364 import active_skill_instructions
-    relevant=[tuple(r) for r in desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:%' OR key LIKE 'learning%' OR key LIKE 'style%' OR key LIKE 'extensions:%' OR key LIKE 'assistant567:profile:%' ORDER BY key")]
-    # 5.6.12 (audit F13) : seuls les réglages qui changent le résultat entrent dans la signature.
-    return _sha(json.dumps({'model':getattr(model,'cfg',{}),'config':{k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},
-             'settings':relevant,'pipeline':'5.6.12-2','limit':limit,'purpose':purpose,
+    return _sha(json.dumps({'model':_model_fingerprint(model),'config':{k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},
+             'pipeline':'5.6.13-1','limit':limit,'purpose':purpose,
              'skills':active_skill_instructions(desk.c,purpose)[:6000]},sort_keys=True,default=str))
+
+
+def _reuse_schema(desk):
+    desk.db.executescript("""CREATE TABLE IF NOT EXISTS long_document_signatures5613(
+      run_id TEXT PRIMARY KEY, document_sha TEXT NOT NULL, source_id TEXT NOT NULL, question_sha TEXT NOT NULL,
+      model_fp_sha TEXT NOT NULL, signature TEXT NOT NULL, created TEXT NOT NULL);""")
+
+
+def _reuse_reason(desk,document_sha,question_sha,model_fp_sha,signature):
+    """Motif précis d'un recalcul (ou réutilisation) par rapport à la dernière analyse du même document."""
+    _reuse_schema(desk)
+    previous=desk.db.execute('SELECT * FROM long_document_signatures5613 WHERE document_sha=? ORDER BY created DESC LIMIT 1',(document_sha,)).fetchone()
+    if not previous:return 'nouveau_document'
+    if previous['question_sha']!=question_sha:return 'question_differente'
+    if previous['model_fp_sha']!=model_fp_sha:return 'modele_ou_reglages_modifies'
+    if previous['signature']!=signature:return 'reglages_modifies'
+    return 'reutilisee'
+
+
+REUSE_MESSAGES={'reutilisee':'Analyse réutilisée (fragments et fusions en cache).','nouveau_document':'Première analyse de ce document.',
+  'question_differente':'Recalcul : question ou consigne différente.','modele_ou_reglages_modifies':'Recalcul : modèle ou réglages de l’analyse modifiés.',
+  'reglages_modifies':'Recalcul : réglages de l’analyse modifiés.','partiel':'Analyse reprise : fragments manquants recalculés.'}
 
 
 def pages_from_text(text):
@@ -147,14 +175,15 @@ def analyze_pages(desk,pages,source_id,path,question,model,limit,purpose='hearin
     # A reviewed skill/plugin guides the method as bounded declarative text.
     # No extension script is executed and page sources remain authoritative.
     skill_guidance=active_skill_instructions(desk.c,purpose)[:6000]
-    model_fp=json.dumps({'provider':getattr(model,'cfg',{}).get('provider_id','ollama'),
-      'model':getattr(model,'cfg',{}).get('model',''),'extensions':extensions,
-      'pipeline':'5.6.12-1','skills_sha256':_sha(skill_guidance),'limit':limit,'purpose':purpose,
-      # 5.6.12 (audit F13) : seuls les réglages qui changent le résultat invalident le cache, pas toute la configuration.
-      'config_sha256':_sha(json.dumps({k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},sort_keys=True,default=str)),
-      'settings_sha256':_sha(json.dumps([tuple(r) for r in desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:%' OR key LIKE 'learning%' OR key LIKE 'style%' OR key LIKE 'extensions:%' OR key LIKE 'assistant567:profile:%' ORDER BY key")],sort_keys=True))},sort_keys=True)
-    document_sha=_sha('\n'.join(str(x['page'])+'\0'+str(x['text']) for x in pages))
-    run_id=digest('|'.join([document_sha,source_id,_sha(path),_sha(question),_sha(model_fp),analysis_signature(desk,model,limit,purpose)]))
+    model_fp=json.dumps({'model':_model_fingerprint(model),'extensions':extensions,
+      'pipeline':'5.6.13-1','skills_sha256':_sha(skill_guidance),'limit':limit,'purpose':purpose,
+      # 5.6.13 (audit F13) : uniquement les paramètres utilisés par l'analyse ; plus aucun réglage « ai:* » (bancs, quotas).
+      'config_sha256':_sha(json.dumps({k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},sort_keys=True,default=str))},sort_keys=True)
+    document_sha=_sha(chr(10).join(str(x['page'])+chr(0)+str(x['text']) for x in pages))
+    signature=analysis_signature(desk,model,limit,purpose)
+    run_id=digest('|'.join([document_sha,source_id,_sha(path),_sha(question),_sha(model_fp),signature]))
+    reuse_reason=_reuse_reason(desk,document_sha,_sha(question),_sha(model_fp),signature)
+    desk.db.execute('INSERT OR IGNORE INTO long_document_signatures5613 VALUES(?,?,?,?,?,?,?)',(run_id,document_sha,source_id,_sha(question),_sha(model_fp),signature,desk.now()))
     stamp=desk.now();citations=[{'page':x['page'],'label':x.get('label','p. '+str(x['page'])),
       'citation_kind':x.get('citation_kind','page'),'extraction':x.get('extraction',''),
       'sha256':_sha(x['text']),'characters':len(x['text'])} for x in pages]
@@ -217,11 +246,21 @@ def analyze_pages(desk,pages,source_id,path,question,model,limit,purpose='hearin
       'pages_total':len(pages),'pages_analyzed':len({x['page'] for x in chunks}) if complete else 0,
       'chunks_total':len(chunks),'chunks_analyzed':done,'chunks_from_cache':cached_count,'merges_from_cache':merged_from_cache,
       'extracted_chars':chars,'citations':citations,'extensions_used':extensions,
-      'document_sha256':document_sha}
+      'document_sha256':document_sha,
+      'reuse':_reuse_info(reuse_reason,cached_count,len(chunks))}
     if not complete:raise Stop('analyse_document_couverture_incomplete')
     desk.audit('long_document_analysis_complete',{'run':run_id,'source':source_id,
       'pages':len(pages),'chunks':len(chunks),'cached':cached_count})
     return analyzed,coverage
+
+
+def _reuse_info(reason,cached,total):
+    """« Analyse réutilisée » quand aucun fragment n'a été recalculé ; sinon le motif précis du recalcul."""
+    if total and cached==total:
+        return {'reused':True,'reason':'reutilisee','message':REUSE_MESSAGES['reutilisee']}
+    if reason=='reutilisee':
+        return {'reused':False,'reason':'partiel','message':REUSE_MESSAGES['partiel']}
+    return {'reused':False,'reason':reason,'message':REUSE_MESSAGES.get(reason,reason)}
 
 
 def run_status(desk,run_id):

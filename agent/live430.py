@@ -145,44 +145,67 @@ def stream(config,after=0,duration=25):
     finally:db.close()
 
 
+TECHNICAL_KINDS={'health','index_all','monitor_all','refresh_cabinet_pilotage','run_continuous_business_tests','production_cycle391','classify_portfolio',
+  'reconcile_inbox','snapshot_metrics420','live_calendar430','live_documents430','deck530_sync','style550_scan','search_index490','sync_legal_memory',
+  'memory_all','refresh_brief','daily_digest','verify_deliverable420','sent568_scan','received568_scan','proactive568_cycle','news568_collect','document568_scan','automation_setting'}
+
+
 def panel(desk,prefix,csrf):
     from .web import JOB_LABELS
     esc=lambda x:escape(str('' if x is None else x),quote=True)
     data=snapshot(desk);html='<div id="ws-live-panel-content"><p>'+str(data['running'])+' en cours · '+str(data['pending'])+' en attente</p>'
+    # 5.6.13 : regroupement par dossier et résultat attendu ; les tâches techniques passent dans les détails.
+    groups={};technical=[]
     for item in data['jobs']:
         if item['status'] not in ('pending','running','cancel_requested','error') and not item['outputs'] and not item.get('can_restore'):continue
-        html+='<article class="live-job" data-live-job="'+str(item['id'])+'"><strong>'+esc(JOB_LABELS.get(item['kind'],'Travail du cabinet'))+'</strong><small>'+esc(item['matter'])+'</small><p>'+esc(item['progress'] or item['label'])+'</p>'
-        html+='<small>'+esc('Bloqué' if item['blocked'] or item['status']=='error' else 'Produit' if item.get('outcome')=='verified' else 'En cours' if item['status']=='running' else 'Détecté')+' · '+esc(item['elapsed_seconds'])+' s écoulées</small>'
-        if item['blocked']:html+='<p class="live-error">Worker non confirmé ou durée excessive ; contrôler l’état du système avant toute relance.</p>'
-        for output in item['outputs']:
-            detail=output['details'];v=detail.get('verification') or {}
-            html+='<p>'+esc(output['message'])+'</p><small>Livrable attendu : '+esc(detail.get('expected'))+' · '+esc(detail.get('source_count'))+' sources rassemblées</small>'
-            counts=detail.get('source_counts') or {}
-            html+='<small>'+esc(counts.get('email_history',0))+' courriels du fil · '+esc(counts.get('document',0))+' documents · '+esc(counts.get('calendar_event',0))+' événements retenus</small>'
-            html+='<small>Agenda : '+('consulté' if detail.get('calendar_checked') else 'non requis ou non consulté')+' · documents : '+('consultés' if detail.get('documents_checked') else 'non consultés')+'</small>'
-            for model in detail.get('models',[]):html+='<small>'+esc(model.get('function'))+' : '+esc(model.get('provider'))+' · '+esc(model.get('model'))+'</small>'
-            if detail.get('sources'):
-                html+='<details><summary>Sources rassemblées</summary><ul>'+''.join('<li>'+esc(x.get('path') or x.get('id'))+' · '+esc(x.get('kind'))+(' · page '+esc(x['page']) if x.get('page') else '')+'</li>' for x in detail['sources'])+'</ul></details>'
-            cost=detail.get('external_cost_usd')
-            html+='<small>Coût externe : '+(esc(cost)+' $ calculés selon les tarifs configurés ; hors facture fournisseur.' if cost is not None else 'non mesuré ; voir le journal de routage.')+'</small>'
-            if v.get('uid'):html+='<small>'+esc(v.get('folder'))+' · UID '+esc(v.get('uid'))+' · UIDVALIDITY '+esc(v.get('uidvalidity'))+' · '+esc(v.get('verified_at'))+'</small>'
-            html+='<a href="'+esc(prefix)+'/mail?key='+esc(output['source_key'])+'">'+('Ouvrir le brouillon' if output['status']=='produced' else 'Examiner le courriel')+'</a>'
-        if item['steps']:
-            html+='<details><summary>Étapes et déclencheur</summary><ol>'+''.join('<li>'+esc(x['at'][11:19])+' · '+esc(x['message'])+'</li>' for x in item['steps'])+'</ol></details>'
-        if item['position']:html+='<small>Position '+str(item['position'])+' · depuis '+esc(item['created'])+'</small>'
-        if item['error']:html+='<p class="live-error">'+esc(item['error'])+' <code>'+esc(item.get('error_code'))+'</code></p>'
-        action='retry_job393' if item['status']=='error' else 'cancel_job'
-        if item['status'] in ('pending','running','error'):
-            html+='<form method="post" action="'+esc(prefix)+'/action" hx-post="'+esc(prefix)+'/action" hx-swap="none"><input type="hidden" name="csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="'+action+'"><input type="hidden" name="job" value="'+str(item['id'])+'"><button>'+('Relancer' if item['status']=='error' else 'Annuler')+'</button></form>'
-        if item.get('can_restore'):
-            html+='<form method="post" action="'+esc(prefix)+'/action" hx-post="'+esc(prefix)+'/action" hx-swap="none"><input type="hidden" name="csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="review_action380"><input type="hidden" name="action_id" value="'+esc(item['action_id'])+'"><input type="hidden" name="state" value="restored"><button>Rétablir l’action écartée</button></form>'
-        html+='<a href="'+esc(prefix+item['href'])+'">Ouvrir</a></article>'
+        (technical if item['kind'] in TECHNICAL_KINDS else groups.setdefault(item['matter'] or '',[])).append(item)
+    ordered=[]
+    for matter,items in sorted(groups.items(),key=lambda kv:(kv[0]=='',kv[0].casefold())):
+        html+='<h3 class="live-group">'+esc(matter or 'Cabinet (sans dossier)')+'</h3>'
+        ordered+=items
+    if technical:
+        html+='<details class="live-technical"><summary>Tâches techniques ('+str(len(technical))+')</summary>'
+        ordered+=[{**x,'_technical':True} for x in technical]
+    for item in ordered:
+        html+=_job_article(item,prefix,csrf,JOB_LABELS,esc)
+    if technical:html+='</details>'
     html+='<h3>Journal métier</h3><ol class="live-timeline">'
     for event in recent(desk):
         html+='<li><time>'+esc(event['at'][11:19])+' UTC</time> '+esc(event['message'])
         if re.fullmatch('[a-f0-9]{64}',event['source_key']):html+=' <a href="'+esc(prefix)+'/mail?key='+event['source_key']+'">Ouvrir le courriel</a>'
         html+='</li>'
     return html+'</ol></div>'
+
+
+def _job_article(item,prefix,csrf,JOB_LABELS,esc):
+    html=''
+    html+='<article class="live-job" data-live-job="'+str(item['id'])+'"><strong>'+esc(JOB_LABELS.get(item['kind'],'Travail du cabinet'))+'</strong><small>'+esc(item['matter'])+'</small><p>'+esc(item['progress'] or item['label'])+'</p>'
+    html+='<small>'+esc('Bloqué' if item['blocked'] or item['status']=='error' else 'Produit' if item.get('outcome')=='verified' else 'En cours' if item['status']=='running' else 'Détecté')+' · '+esc(item['elapsed_seconds'])+' s écoulées</small>'
+    if item['blocked']:html+='<p class="live-error">Worker non confirmé ou durée excessive ; contrôler l’état du système avant toute relance.</p>'
+    for output in item['outputs']:
+        detail=output['details'];v=detail.get('verification') or {}
+        html+='<p>'+esc(output['message'])+'</p><small>Livrable attendu : '+esc(detail.get('expected'))+' · '+esc(detail.get('source_count'))+' sources rassemblées</small>'
+        counts=detail.get('source_counts') or {}
+        html+='<small>'+esc(counts.get('email_history',0))+' courriels du fil · '+esc(counts.get('document',0))+' documents · '+esc(counts.get('calendar_event',0))+' événements retenus</small>'
+        html+='<small>Agenda : '+('consulté' if detail.get('calendar_checked') else 'non requis ou non consulté')+' · documents : '+('consultés' if detail.get('documents_checked') else 'non consultés')+'</small>'
+        for model in detail.get('models',[]):html+='<small>'+esc(model.get('function'))+' : '+esc(model.get('provider'))+' · '+esc(model.get('model'))+'</small>'
+        if detail.get('sources'):
+            html+='<details><summary>Sources rassemblées</summary><ul>'+''.join('<li>'+esc(x.get('path') or x.get('id'))+' · '+esc(x.get('kind'))+(' · page '+esc(x['page']) if x.get('page') else '')+'</li>' for x in detail['sources'])+'</ul></details>'
+        cost=detail.get('external_cost_usd')
+        html+='<small>Coût externe : '+(esc(cost)+' $ calculés selon les tarifs configurés ; hors facture fournisseur.' if cost is not None else 'non mesuré ; voir le journal de routage.')+'</small>'
+        if v.get('uid'):html+='<small>'+esc(v.get('folder'))+' · UID '+esc(v.get('uid'))+' · UIDVALIDITY '+esc(v.get('uidvalidity'))+' · '+esc(v.get('verified_at'))+'</small>'
+        html+='<a href="'+esc(prefix)+'/mail?key='+esc(output['source_key'])+'">'+('Ouvrir le brouillon' if output['status']=='produced' else 'Examiner le courriel')+'</a>'
+    if item['steps']:
+        html+='<details><summary>Étapes et déclencheur</summary><ol>'+''.join('<li>'+esc(x['at'][11:19])+' · '+esc(x['message'])+'</li>' for x in item['steps'])+'</ol></details>'
+    if item['position']:html+='<small>Position '+str(item['position'])+' · depuis '+esc(item['created'])+'</small>'
+    if item['error']:html+='<p class="live-error">'+esc(item['error'])+' <code>'+esc(item.get('error_code'))+'</code></p>'
+    action='retry_job393' if item['status']=='error' else 'cancel_job'
+    if item['status'] in ('pending','running','error'):
+        html+='<form method="post" action="'+esc(prefix)+'/action" hx-post="'+esc(prefix)+'/action" hx-swap="none"><input type="hidden" name="csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="'+action+'"><input type="hidden" name="job" value="'+str(item['id'])+'"><button>'+('Relancer' if item['status']=='error' else 'Annuler')+'</button></form>'
+    if item.get('can_restore'):
+        html+='<form method="post" action="'+esc(prefix)+'/action" hx-post="'+esc(prefix)+'/action" hx-swap="none"><input type="hidden" name="csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="review_action380"><input type="hidden" name="action_id" value="'+esc(item['action_id'])+'"><input type="hidden" name="state" value="restored"><button>Rétablir l’action écartée</button></form>'
+    html+='<a href="'+esc(prefix+item['href'])+'">Ouvrir</a></article>'
+    return html
 
 
 def enhance_forms(html,prefix):

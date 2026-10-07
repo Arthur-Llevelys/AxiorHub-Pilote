@@ -110,9 +110,10 @@ def page(desk, prefix, shell, csrf):
         e(', '.join('%s : %d' % (pseudo540.LABELS.get(k, k), n) for k, n in x['counts'].items()) or 'aucun remplacement'), x['characters'], x['id']) for x in log)
     labels = sorted(((m['id'], matter_display(m)) for m in _matters(desk)), key=lambda x: x[1].lower())
     matter_opts = ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in labels)
-    body = ('<div class="ia540"><h1>IA externe sûre</h1>'
-            '<p class="ax-muted">Ce que l’agent envoie hors du serveur, quand et sous quelle forme. Tout envoi à un fournisseur non local est '
-            '<strong>pseudonymisé sur le serveur</strong>, puis la réponse est rétablie localement.</p>'
+    body = ('<div class="ia540"><h1>Intelligence artificielle</h1>'
+            '<p class="ax-muted">Une seule rubrique : modèles locaux, routage par fonction, régime économe et consommation, puis l’IA externe sûre. '
+            'Tout envoi à un fournisseur non local est <strong>pseudonymisé sur le serveur</strong>, puis la réponse est rétablie localement.</p>'
+            '%s<h2 class="ia540-sub">IA externe sûre</h2><p class="ax-muted">Ce que l’agent envoie hors du serveur, quand et sous quelle forme.</p>'
             '<section class="ax-card"><h2>Mode d’utilisation</h2><p><strong>Actuellement :</strong> %s</p>'
             '<div class="ia540-modes"><article><h3>Tout en local</h3><p>Modèle Ollama du serveur pour tout. Confidentialité maximale ; vitesse limitée par le serveur.</p>'
             '<form class="m5-form m5-inline" data-api="m540/mode" data-reload="1"><input type="hidden" name="mode" value="local"><button class="ax-btn ghost" type="submit">Tout en local</button></form></article>'
@@ -135,13 +136,36 @@ def page(desk, prefix, shell, csrf):
             '<li>Les noms écrits en minuscules ou les prénoms rares sans civilité peuvent échapper à la détection : vérifiez l’aperçu sur vos textes types.</li>'
             '<li>Préférez un fournisseur avec engagement de non-conservation ou hébergement européen, et un contrat de traitement des données.</li></ul></section>'
             '</div><script defer src="%s"></script>') % (
-        e(cur['label']), mixed, e(prefix + '/routage-hybride'), secours_html(desk, prefix), matter_opts,
+        local_models_html(desk, prefix), e(cur['label']), mixed, e(prefix + '/routage-hybride'), secours_html(desk, prefix), matter_opts,
         ('<table class="vf-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>Modèle</th><th>Fonction</th><th>Remplacements</th><th>Caractères</th><th></th></tr></thead>'
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ok">Aucun envoi externe sur les 7 derniers jours.</p>',
         e(prefix + '/static/v540.js'))
     from . import economie569
-    body = economie569.section_html(desk, prefix) + body
-    return shell('IA externe sûre', body, prefix, csrf, '/ia-externe')
+    body = body.replace('<h2 class="ia540-sub">IA externe sûre</h2>', economie569.section_html(desk, prefix) + '<h2 class="ia540-sub">IA externe sûre</h2>', 1)
+    return shell('Intelligence artificielle', body, prefix, csrf, '/ia-externe')
+
+
+def local_models_html(desk, prefix):
+    """5.6.13 : modèles locaux et routage par fonction, au même endroit que le régime économe et l'IA externe."""
+    from .ai_gateway import PURPOSES
+    from .model import routed_config
+    from . import economie569
+    cfg = desk.c.get('ollama') or {}
+    profile = economie569.model_profile(desk)
+    installed = ', '.join('%s (%s Go)' % (e(m['name']), m['size_gb']) for m in profile.get('models', [])) if profile.get('available') else 'Ollama ne répond pas ou aucun modèle installé'
+    rows = ''
+    for purpose, (label, role) in PURPOSES.items():
+        try:
+            r = routed_config(desk.c, purpose)
+            where = ('local · ' if r.get('provider_type', 'ollama') == 'ollama' or r.get('provider_id', 'ollama') == 'ollama' else 'externe · ') + str(r.get('model', ''))
+        except Stop as ex:
+            where = 'non routé (%s)' % ex
+        rows += '<tr><td>%s</td><td>%s</td><td>%s</td></tr>' % (e(label), e({'fast': 'rapide', 'complex': 'complexe', 'control': 'contrôle'}.get(role, role)), e(where))
+    return ('<section class="ax-card" id="ia5613-local"><h2>Modèles locaux et routage</h2>'
+            '<p>Ollama : <code>%s</code> · modèle par défaut <strong>%s</strong> · fenêtre de contexte %s jetons. '
+            '<a href="%s/parametres/connexions">Modifier (Connexions › Intelligence artificielle)</a></p><p>Modèles installés : %s.</p>'
+            '<table class="vf-table"><thead><tr><th>Fonction</th><th>Rôle</th><th>Modèle utilisé</th></tr></thead><tbody>%s</tbody></table></section>') % (
+        e(str(cfg.get('url', ''))), e(str(cfg.get('model', ''))), e(str(cfg.get('num_ctx', ''))), e(prefix), installed, rows)
 
 
 def secours_html(desk, prefix):

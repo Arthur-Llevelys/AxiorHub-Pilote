@@ -111,7 +111,7 @@ def main():
     p = argparse.ArgumentParser(description='Assistant de courriels AxiorHub — brouillons uniquement')
     p.add_argument('--config', default='/etc/axiorhub-mail-agent/config.json')
     sub = p.add_subparsers(dest='command',required=True)
-    for cmd in ['configure','doctor','readiness','run','discover','link','index','status','purge-index','learn','memory-status','mail-folders','draft-status']: sub.add_parser(cmd)
+    for cmd in ['configure','doctor','readiness','run','discover','link','index','status','purge-index','learn','memory-status','mail-folders','draft-status','recette-production']: sub.add_parser(cmd)
     set_url=sub.add_parser('set-url')
     set_url.add_argument('key',choices=['roundcube','roundcube_drafts','openwebui','nextcloud','onlyoffice','invoice_ninja'])
     set_url.add_argument('value')
@@ -130,6 +130,12 @@ def main():
         from agent.desk import Desk
         from agent.readiness569 import run, text
         print(text(run(Desk(c))));return 0
+    if args.command=='recette-production':   # 5.6.13 : recette reelle (donnees fictives, services reels), meme rapport que Mise en service
+        from agent.desk import Desk
+        from agent.recette5613 import run
+        report=run(Desk(c))
+        for s in report['steps']:print(('OK  ' if s['ok'] else 'N/A ' if s['ok'] is None else 'KO  ')+s['label']+' : '+s['message'])
+        return 0 if report['ok'] else 1
     if args.command=='set-url':
         from agent.desk import Desk
         from agent.workstation import save_external_url

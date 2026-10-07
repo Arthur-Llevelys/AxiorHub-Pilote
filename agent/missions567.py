@@ -30,7 +30,7 @@ ACTIVE = {'creating', 'queued', 'running', 'cancel_requested'}
 LABELS = {'creating': 'Demande enregistrée', 'queued': 'En attente', 'running': 'Préparation en cours',
           'suggested':'Plan proposé, préparation non lancée',
           'cancel_requested': 'Arrêt demandé', 'paused': 'Suspendue', 'decision': 'Une précision est nécessaire',
-          'prepared': 'Projet préparé', 'verified': 'Livrable déposé et relu', 'answered': 'Réponse disponible',
+          'prepared': 'Projet préparé', 'verified': 'Dépôt vérifié', 'answered': 'Réponse disponible',
           'abstained': 'Aucune production nécessaire', 'error': 'Traitement interrompu'}
 
 
@@ -157,21 +157,23 @@ def create(desk, data, owner='cabinet'):
                            'candidates': [{'id': m['id'], 'label': matter_display(m)} for m in candidates]})
     ctx = _context(desk, data, matters.get(chosen), owner)
     f = fold(text)
-    from .cockpit530 import is_document_request
-    kind = 'mail' if ctx['mail_key'] and re.search(r'\b(repond|reponds|repondre|reponse|brouillon)\b', f) else \
-           ('document' if is_document_request(text) or any(word in f for word in ('plaidoirie', 'audience', 'conclusions', 'contrat')) else 'question')
-    if data.get('analysis_only') is True:
-        kind = 'question'
+    # 5.6.13 : l'intention (Question / Analyse / Document / Brouillon de courriel) est explicite ou classée par pilote5613,
+    # jamais déduite d'un seul mot comme « contrat » ou « audience » ; une question ne crée plus de document.
+    from .pilote5613 import resolve_intent, DELIVERABLES
+    intent = resolve_intent(text, 'analysis' if data.get('analysis_only') is True else (data.get('intent') or 'auto'), ctx['mail_key'])
+    kind = {'question': 'question', 'analysis': 'question', 'document': 'document', 'mail': 'mail'}[intent['intent']]
     if kind == 'document' and not chosen and not exceptions:
         exceptions.append({'code': 'dossier_requis', 'message': 'Choisissez le dossier où préparer ce document.',
                            'candidates': [{'id': m['id'], 'label': matter_display(m)} for m in list(matters.values())[:100]]})
     if desk.settings('missions567:pause', False):
         exceptions.append({'code': 'preparation_suspendue', 'message': 'La préparation de nouvelles missions est suspendue par l’administrateur.'})
-    plan = {'objective': text, 'deliverable': {'mail': 'Brouillon IMAP', 'document': 'Projet Word dans Nextcloud', 'question': 'Réponse sourcée'}[kind],
+    plan = {'objective': text, 'deliverable': DELIVERABLES[intent['intent']],
+            'intent': intent['intent'], 'intent_reasons': intent['reasons'], 'intent_explicit': intent['explicit'],
             'steps': ['Identifier le dossier et les sources', 'Consulter les sources autorisées et l’agenda',
                       'Préparer le résultat', 'Contrôler et relire le dépôt' if kind != 'question' else 'Présenter la réponse et ses sources'],
             'restrictions': ['Aucun envoi de courriel', 'Aucun dépôt auprès d’un tiers', 'Aucune signature ni facture définitive'],
-            'document_kind': 'note' if 'plaidoirie' in f or 'audience' in f else guess_kind(text)}
+            'document_kind': 'note' if 'plaidoirie' in f or 'audience' in f else guess_kind(text),
+            'new_mail': kind == 'mail' and not ctx['mail_key']}
     from .assistant567 import profile
     autonomy = str(data.get('autonomy') or ('suggest' if profile(desk,owner)['initiative']=='proposer' else 'prepare'))
     if autonomy not in ('prepare','suggest'):
@@ -204,7 +206,12 @@ def create(desk, data, owner='cabinet'):
 def _launch(desk, row):
     ctx, plan = json.loads(row['context']), json.loads(row['plan'])
     try:
-        if row['kind'] == 'mail':
+        if row['kind'] == 'mail' and not ctx.get('mail_key'):
+            # 5.6.13 : courriel demandé sans courriel sélectionné → brouillon neuf dans Drafts (jamais un Word par défaut)
+            job = desk.enqueue('maildraft5613', {'instruction': row['instruction'], 'matter': row['matter'], 'mission_id': row['id'],
+                               'attachments': ctx.get('attachments', []), 'selected_documents': ctx.get('selected_documents', [])}, priority=0)
+            ref = 'newmail:' + row['id']
+        elif row['kind'] == 'mail':
             job = desk.enqueue('prepare_reply', {'key': ctx['mail_key'], 'matter': row['matter'],
                                'instruction': row['instruction'], 'mission_id': row['id']}, priority=0)
             ref = 'mail:' + ctx['mail_key']
@@ -233,7 +240,7 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
     if not row['job_id'] and row['state'] in ('creating','error'):
         orphan=desk.db.execute("SELECT id,kind,args FROM jobs WHERE json_valid(args) AND json_extract(args,'$.mission_id')=? ORDER BY id LIMIT 1",(ident,)).fetchone()
         if orphan:
-            a=json.loads(orphan['args']);ref='docreq:'+a['request'] if orphan['kind']=='docrequest520' else ('ask:'+a['thread'] if orphan['kind']=='assistant_answer' else 'mail:'+a.get('key',''))
+            a=json.loads(orphan['args']);ref='docreq:'+a['request'] if orphan['kind']=='docrequest520' else ('ask:'+a['thread'] if orphan['kind']=='assistant_answer' else ('newmail:'+ident if orphan['kind']=='maildraft5613' else 'mail:'+a.get('key','')))
             desk.db.execute("UPDATE missions_v567 SET job_id=?,ref=?,state='queued' WHERE id=?",(orphan['id'],ref,ident));desk.db.commit()
             row.update(job_id=orphan['id'],ref=ref,state='queued')
     for key in ('context', 'plan', 'exceptions'):
@@ -246,7 +253,12 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
             state = {'pending': 'queued', 'running': 'running', 'error': 'error', 'cancelled': 'paused', 'cancel_requested': 'cancel_requested'}.get(job['status'], row['state'])
             if job['status'] == 'done':
                 state = 'prepared'
-                if row['kind'] == 'mail':
+                if row['kind'] == 'mail' and row['ref'].startswith('newmail:'):
+                    state = 'verified' if result.get('brouillon_imap') == 'verifie' else 'prepared'
+                    row['result'] = {'message': result.get('message', ''), 'proof': 'Brouillon relu dans ' + str(result.get('folder', '')) if result.get('brouillon_imap') == 'verifie' else '',
+                                     'subject': result.get('subject', ''), 'to_complete': result.get('to_complete', []), 'manifest': result.get('manifest', {}),
+                                     'location': 'Brouillons IMAP (%s) · destinataire à renseigner' % result.get('folder', ''), 'open_url': prefix + '/courriels'}
+                elif row['kind'] == 'mail':
                     state = 'verified' if result.get('brouillon_imap') == 'verifie' else ('prepared' if result.get('projet_prepare') else 'abstained')
                     row['result'] = {'message': result.get('message', ''), 'proof': result.get('brouillon_imap', ''),
                                      'open_url': prefix + '/mail?' + urlencode({'key': row['context']['mail_key']})}
@@ -255,11 +267,25 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                     if doc and doc['status'] == 'cree':
                         proof = json.loads(doc['result'] or '{}')
                         state = 'verified' if proof.get('readback_sha256') == proof.get('sha256') and proof.get('sha256') else 'prepared'
+                        from .pilote5613 import document_checks   # 5.6.13 : trois états distincts
+                        checks = document_checks(desk, doc, proof)
+                        root = next((m['path'] for m in load_matters(desk.c) if m['id'] == row['matter']), '')
+                        rel = doc['path'][len(root):].lstrip('/') if root and doc['path'].startswith(root) else doc['path']
                         row['result'] = {'message': 'Projet Word disponible dans le dossier.', 'path': doc['path'], 'sources': proof.get('sources', []),
                                          'to_complete': proof.get('to_complete', []), 'proof': proof.get('readback_sha256', ''),
-                                         'open_url': prefix + '/documents/edit?' + urlencode({'path': doc['path']})}
+                                         'open_url': prefix + '/documents/edit?' + urlencode({'path': doc['path']}),
+                                         'location': rel, 'checks': checks, 'control': (proof.get('control') or {}).get('summary', ''),
+                                         'template': (proof.get('template') or {}).get('label', ''), 'manifest': proof.get('manifest', {}),
+                                         'revision_diff': proof.get('revision_diff'), 'rule_proposal': proof.get('rule_proposal'), 'notes': proof.get('notes', [])}
+                        if row['result']['rule_proposal']:
+                            from .pilote5613 import rule_proposal
+                            current = rule_proposal(desk, row['result']['rule_proposal']['id'])
+                            row['result']['rule_proposal']['state'] = current['state'] if current else 'proposed'
                     elif doc and doc['status'] == 'dossier_a_choisir':
                         state = 'decision'
+                        proof = json.loads(doc['result'] or '{}')
+                        if not row['exceptions']:
+                            row['exceptions'] = [{'code': 'dossier_ambigu', 'message': 'Quel dossier concerne cette demande ?', 'candidates': proof.get('candidates', [])}]
                 elif row['kind'] == 'question' and row['ref'].startswith('ask:'):
                     answer = desk.db.execute("SELECT content,sources FROM assistant_messages WHERE thread_id=? AND role='assistant' ORDER BY id DESC LIMIT 1", (row['ref'][4:],)).fetchone()
                     if answer:
@@ -312,6 +338,13 @@ def control(desk, data, owner='cabinet', admin=False):
         if not claimed.rowcount:
             return get(desk, row['id'], owner, admin)
         _launch(desk, _row(desk, row['id'], owner, admin))
+    elif action == 'validate':
+        # 5.6.13 : validation de l'avocat, distincte du dépôt vérifié et du contrôle juridique.
+        if row['kind'] != 'document' or current['state'] not in ('verified', 'prepared') or not current['result'].get('path'):
+            raise Stop('mission_sans_projet_a_valider')
+        from .cockpit530 import review
+        from .common import digest
+        review(desk, {'item': 'doc:' + digest(current['result']['path'])[:24], 'decision': 'valide'})
     elif action == 'resume':
         if current['state'] not in ('error', 'paused','suggested'):
             raise Stop('mission_non_reprenante')

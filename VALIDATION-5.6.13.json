@@ -1,0 +1,18 @@
+{
+  "version": "5.6.13",
+  "base": "5.6.12 livrée",
+  "date_utc": "2026-10-07T20:05:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1463,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 46,
+    "duration_seconds": 789.253,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.12) : sockets IMAP simulés, os.fchmod, installeur Linux. L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5613.py (intention explicite, rédaction libre convergente et trois états, brouillon de courriel sans courriel sélectionné, « À décider » complet, cache borné aux paramètres utilisés, banc par fonction lié à l’empreinte, panneau Pilote partagé, fiche d’audience, recette de production réelle) ; tests/test_v5612.py mis à jour pour le banc par fonction",
+  "privacy_scan": "OK",
+  "installer_check": "OK"
+}
