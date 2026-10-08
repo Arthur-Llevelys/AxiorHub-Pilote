@@ -881,6 +881,9 @@ def page(desk, prefix, csrf='', owner='cabinet'):
     header = header_html(desk).replace('href="diagnostic"', 'href="%s"' % e(prefix + '/diagnostic', quote=True))
     return ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
+            # 5.6.17 : le cadre « Routines du cabinet » (briefing, tri, bilan, documents) est en tête de page, avant le Pilote.
+            '<div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section>'
+            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section></div>'
             '<section class="c530-card c530-pilot-slot" id="c530-pilot-slot" aria-label="Pilote"><p class="c530-note" data-pilot-fallback>Le panneau Pilote (texte, documents, voix) s’affiche ici.</p></section>'
             '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer>%s'
             '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
@@ -899,15 +902,14 @@ def page(desk, prefix, csrf='', owner='cabinet'):
             '<div class="c530-cols"><section class="c530-card" id="c530-review" aria-labelledby="c530-t-review">%s</section>'
             '<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>'
             '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section></div>'
-            '<div class="c530-split"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section>'
-            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section></div>'
             '<p class="c530-note"><a href="%s">Vue « essentiel du jour » (5.2)</a> · <a href="%s">Ancien cockpit</a></p>'
             '<div class="c530-drawer" id="c530-drawer" hidden><div class="c530-backdrop" data-close="1" aria-hidden="true"></div>'
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
             '<div id="c530-drawer-content"></div></div></div></div>') % (
-        e(prefix, quote=True), e(when), header, routines_bar_html(desk, prefix), thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
-        review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix), routines_html(desk, prefix), style_html(desk, prefix),
+        e(prefix, quote=True), e(when), header, routines_bar_html(desk, prefix), routines_html(desk, prefix), style_html(desk, prefix),
+        thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
+        review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
 
 

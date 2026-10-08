@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AxiorHub 5.6.16 — installation complète sur un VPS Debian 12 / Ubuntu 22.04-24.04 (OVH ou autre).
+# AxiorHub 5.6.17 — installation complète sur un VPS Debian 12 / Ubuntu 22.04-24.04 (OVH ou autre).
 #
 #   sudo bash deploy/vps/install-vps.sh
 #

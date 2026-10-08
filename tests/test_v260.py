@@ -137,9 +137,9 @@ class Version260Tests(unittest.TestCase):
               'run_research':'no','critique_first_instance':'yes'},model=OpinionModel(),control_model=OpinionModel(),dav=self.f.dav)
 
     def test_api_openwebui_and_upgrade_contract(self):
-        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.16')
+        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.17')
         for path in ('/orchestrations','/legal-opinions','/orchestrator/run'):self.assertIn(path,spec['paths'])
-        caps=dispatch(self.d,'/capabilities','GET');self.assertEqual(caps['version'],'5.6.16')
+        caps=dispatch(self.d,'/capabilities','GET');self.assertEqual(caps['version'],'5.6.17')
         tool=Path('integrations/openwebui/axiorhub_tool.py').read_text()
         for name in ('analyser_un_courriel_avec_son_dossier','preparer_un_avis_juridique_et_une_simulation'):
             self.assertIn('def '+name,tool)

@@ -1124,3 +1124,6 @@ html[data-theme="dark"] #proactive568-summary,body.dark #proactive568-summary{ba
 .c5614-card{color:#1f2a36}
 .c5614-card header strong,.c5614-q{color:#17324d}
 .c5614-panel header h3{color:#17324d}
+/* 5.6.17 */
+#ws-ai-launcher[hidden]{display:none}
+.c530-split--top{margin-bottom:16px}

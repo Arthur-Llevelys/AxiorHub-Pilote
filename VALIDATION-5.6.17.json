@@ -1,0 +1,24 @@
+{
+  "version": "5.6.17",
+  "base": "5.6.16 livrée",
+  "date_utc": "2026-10-09T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1506,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 51,
+    "duration_seconds": 1162.5,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.16) : sockets IMAP simulés, os.fchmod, installeur Linux, rendu LibreOffice. L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5617.py (WAV de flux aux tailles fictives accepté après réparation, WAV tronqué ou factice refusé, demande Kokoro sans flux ; page « Aujourd’hui » : cadre des routines et style avant le Pilote, bouton robot menant au Pilote, launcher masqué malgré la règle globale)",
+  "corrections": [
+    "Kokoro : réponse demandée en fichier complet (stream: false) et réparation de l’en-tête RIFF d’un flux avant vérification.",
+    "Bouton robot sur « Aujourd’hui » : visible sans effet depuis la 5.6.13 ; mène désormais au Pilote monté dans la page.",
+    "« Routines du cabinet » et « Style du cabinet » placés en tête de la page « Aujourd’hui »."
+  ],
+  "limits": [
+    "La synthèse Kokoro a été validée contre le format produit par Kokoro-FastAPI (WAV PCM 16 bits) ; un conteneur configuré pour un autre format (mp3, opus) reste refusé."
+  ]
+}

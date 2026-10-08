@@ -36,12 +36,17 @@
   const embedded = !!slot;
   if (embedded) {
     slot.querySelector('[data-pilot-fallback]')?.remove(); slot.append(dock); dock.hidden = false; dock.classList.add('ws-ai-dock--embedded');
-    launcher.hidden = true; document.querySelector('[data-legacy-composer]')?.setAttribute('hidden', '');
+    document.querySelector('[data-legacy-composer]')?.setAttribute('hidden', '');
+    // 5.6.17 : le bouton robot reste visible et mène au Pilote monté dans la page (la règle globale button{display} rendait « hidden » inopérant).
+    launcher.title = 'Aller au Pilote'; launcher.setAttribute('aria-expanded', 'true');
   }
   function stopVoice() { try { window.axiorhubVoice?.stop(); } catch {} stopAudio(); if (recorder?.state !== 'inactive') recorder?.stop(); }
   function open() {dock.hidden = false; launcher.setAttribute('aria-expanded', 'true'); question.focus(); refreshCurrent(); loadMatters();}
   function close() {stopVoice(); if (embedded) return; dock.hidden = true; launcher.setAttribute('aria-expanded', 'false'); launcher.focus();}
-  launcher.addEventListener('click', () => dock.hidden ? open() : close());
+  launcher.addEventListener('click', () => {
+    if (embedded) { dock.scrollIntoView({behavior: 'smooth', block: 'start'}); question.focus({preventScroll: true}); refreshCurrent(); return; }
+    dock.hidden ? open() : close();
+  });
   dock.querySelector('#ws-ai-close').addEventListener('click', close);
   wide?.addEventListener('click', () => {const on = dock.classList.toggle('ws-ai-dock--wide'); wide.setAttribute('aria-pressed', String(on));});
   document.addEventListener('keydown', event => {

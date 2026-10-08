@@ -3,6 +3,17 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.17 — Kokoro, bouton robot et routines en tête d’« Aujourd’hui »
+
+- **Kokoro : « audio synthèse invalide »** : Kokoro-FastAPI répond par défaut en flux, avec un en-tête WAV aux tailles fictives que
+  la vérification refusait. La demande précise désormais un fichier complet (`stream: false`) et, par sécurité, un en-tête de flux
+  est réparé d’après la longueur réelle avant vérification des échantillons.
+- **Bouton robot** : sur « Aujourd’hui », où le Pilote est monté dans la page, le bouton flottant restait affiché sans effet (la règle
+  globale `button{display}` rendait son masquage inopérant). Il mène désormais au Pilote (défilement et focus sur l’instruction) ;
+  ailleurs il ouvre et replie le panneau comme avant.
+- **Routines du cabinet en tête** : le cadre complet (briefing du matin, tri des courriels, bilan de la semaine, documents à préparer)
+  et « Style du cabinet » sont placés juste sous la barre des routines, avant le Pilote, au lieu du bas de page.
+
 ## 5.6.16 — Correctif : installateur d’interface
 
 - **install-interface.py** : son contrôle de version n’admettait que les versions précédentes, jamais la version active ; depuis

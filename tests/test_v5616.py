@@ -14,7 +14,8 @@ class InterfaceInstaller(unittest.TestCase):
         self.assertIn("from agent import __version__ as active_version",src)
         self.assertIn("if BASE.resolve().name not in supported|{active_version}:",src)
         # Les versions précédentes restent listées ; la version active ne dépend plus d'un ajout manuel.
-        self.assertIn("'5.6.15'}",src);self.assertNotIn("'"+agent.__version__+"'",src.split('supported=')[1].split('}')[0])
+        listed=src.split('supported=')[1].split('}')[0]
+        self.assertIn("'5.6.15'",listed);self.assertNotIn("'"+agent.__version__+"'",listed)   # précédentes listées, active ajoutée automatiquement
 
     def test_installer_module_still_loads_without_root(self):
         spec=importlib.util.spec_from_file_location('interface_installer_5616',ROOT/'install-interface.py')

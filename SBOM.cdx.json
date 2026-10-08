@@ -7,9 +7,9 @@
     "timestamp": "2026-10-06T00:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.16",
+      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.17",
       "name": "AxiorHub Pilote",
-      "version": "5.6.16",
+      "version": "5.6.17",
       "licenses": [
         {
           "license": {

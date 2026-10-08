@@ -75,15 +75,38 @@ def _reserve(desk,owner,text):
     except BaseException:desk.db.rollback();raise
 
 
+def _repair_riff(raw):
+    """5.6.16 : un WAV émis en flux (Kokoro-FastAPI avec stream, eSpeak) porte des tailles RIFF/data fictives (0 ou maximales) ;
+    on les réécrit d'après la longueur réelle, sans toucher aux échantillons. Retourne raw inchangé si rien n'est réparable."""
+    if not raw.startswith(b'RIFF') or raw[8:12]!=b'WAVE':return raw
+    pos=12
+    while pos+8<=len(raw):
+        cid=raw[pos:pos+4];size=int.from_bytes(raw[pos+4:pos+8],'little')
+        if cid==b'data':
+            data_len=len(raw)-(pos+8)
+            if data_len<=0:return raw
+            return b'RIFF'+(len(raw)-8).to_bytes(4,'little')+raw[8:pos+4]+data_len.to_bytes(4,'little')+raw[pos+8:]
+        pos+=8+size+(size&1)
+    return raw
+
+
+def _parse_wav(raw):
+    with wave.open(io.BytesIO(raw),'rb') as w:
+        if w.getnchannels() not in (1,2) or w.getsampwidth()!=2 or not 8000<=w.getframerate()<=96000 or w.getnframes()==0:raise ValueError()
+        # Validate actual bytes, not only a RIFF header.
+        if len(w.readframes(w.getnframes()))!=w.getnframes()*w.getnchannels()*2:raise ValueError()
+
+
 def _wav(raw):
     if len(raw)>32_000_000 or not raw.startswith(b'RIFF'):raise Stop('audio_synthese_invalide')
     try:
-        with wave.open(io.BytesIO(raw),'rb') as w:
-            if w.getnchannels() not in (1,2) or w.getsampwidth()!=2 or not 8000<=w.getframerate()<=96000 or w.getnframes()==0:raise ValueError()
-            # Validate actual bytes, not only a RIFF header.
-            if len(w.readframes(w.getnframes()))!=w.getnframes()*w.getnchannels()*2:raise ValueError()
+        _parse_wav(raw);return raw
+    except (wave.Error,EOFError,ValueError):
+        repaired=_repair_riff(raw)
+        if repaired is raw:raise Stop('audio_synthese_invalide') from None
+    try:
+        _parse_wav(repaired);return repaired
     except (wave.Error,EOFError,ValueError):raise Stop('audio_synthese_invalide') from None
-    return raw
 
 
 def synthesize(desk,text,owner='cabinet',matter=''):
@@ -108,7 +131,7 @@ def synthesize(desk,text,owner='cabinet',matter=''):
             if secret:http.headers['Authorization']='Bearer '+read_secret(secret)
             body={'input':text,'model':cfg.get('model') or ('kokoro' if provider=='kokoro' else 'chatterbox'),
                   'voice':cfg.get('voice') or ('ff_siwis' if provider=='kokoro' else 'default'),
-                  'response_format':'wav','speed':p['speech_rate']}
+                  'response_format':'wav','speed':p['speech_rate'],'stream':False}   # 5.6.16 : fichier complet, pas de flux
             raw=http.request('POST',http.base+'/v1/audio/speech',json.dumps(body).encode(),{'Content-Type':'application/json'},32_000_000);raw=_wav(raw)
         else:
             voice=str(cfg.get('voice') or '')
