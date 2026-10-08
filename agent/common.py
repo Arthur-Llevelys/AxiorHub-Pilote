@@ -29,15 +29,27 @@ def fold(value):
 
 def private_json(path, value):
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    tmp = path.with_name(path.name + '.tmp')
+    # 5.6.15 : si le chemin est un lien symbolique (pont de configuration runtime de l'installation systemd),
+    # l'écriture se fait dans sa cible, en conservant propriétaire et droits ; le lien lui-même n'est jamais remplacé.
+    linked = path.is_symlink()
+    target = path.resolve() if linked else path
+    target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    tmp = target.with_name(target.name + '.tmp')
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
         json.dump(value, f, ensure_ascii=False, indent=2)
         f.write('\n')
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp, path)
+    if linked:
+        try:
+            st = target.stat()
+            os.chmod(tmp, st.st_mode & 0o777)
+            if getattr(os, 'geteuid', lambda: 1)() == 0:
+                os.chown(tmp, st.st_uid, st.st_gid)
+        except OSError:
+            pass
+    os.replace(tmp, target)
 
 
 def read_secret(path):

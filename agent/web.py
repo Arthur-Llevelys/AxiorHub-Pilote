@@ -34,7 +34,8 @@ LABELS = {'review':'À vérifier','drafted':'Brouillon dans la messagerie',
           'append_uncertain':'Dépôt à vérifier', 'pending':'En attente',
           'running':'En cours','cancel_requested':'Annulation demandée',
           'done':'Terminé','cancelled':'Annulé'}
-REASONS = {'contact_personnel_hors_dossier': 'Contact personnel : aucun brouillon n’est préparé à partir du dossier.',
+REASONS = {'configuration_non_inscriptible': 'Le service ne peut pas écrire le fichier de configuration (lien /etc/axiorhub-mail-agent/config.json remplacé par un fichier ordinaire). Lancez « sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py » puis réessayez.',
+           'contact_personnel_hors_dossier': 'Contact personnel : aucun brouillon n’est préparé à partir du dossier.',
            'quota_econome_journalier': 'Quota journalier des analyses automatiques atteint (régime économe) : différée au lendemain.',
            'expediteur_inconnu_sans_dossier': 'Expéditeur inconnu de tout dossier et aucun dossier identifié : à qualifier, aucun brouillon automatique.',
            'facture_deposee_non_verifiee': 'Facture déposée dans Invoice Ninja mais conformité non vérifiée : contrôlez-la avant tout envoi.',
@@ -1000,8 +1001,9 @@ class App:
                     body=self.page(cfg,auth,path,args)
         except Stop as ex:
             status='400 Bad Request'
-            if kind.startswith('application/json'):
-                body=json.dumps({'error':str(ex)},ensure_ascii=False)
+            if wants_json(env,kind):
+                kind='application/json; charset=utf-8'   # 5.6.15 : jamais de page HTML dans une réponse attendue en JSON
+                body=json.dumps({'error':str(ex),'message':REASONS.get(str(ex),str(ex).replace('_',' '))},ensure_ascii=False)
             else:
                 body='<h1>Action non effectuée</h1><p>'+e(REASONS.get(str(ex),str(ex).replace('_',' ')))+'</p>'
                 if str(ex) in ('conflit_a_examiner','dossier_decline_conflit'):
@@ -1011,8 +1013,7 @@ class App:
                 else:body+='<p>Revenez à la page précédente.</p>'
         except Exception:
             status='500 Internal Server Error'
-            body=(json.dumps({'error':'interface_indisponible'}) if kind.startswith('application/json')
-                  else '<h1>Interface indisponible</h1><p>Vérifiez les services et les fichiers de configuration locaux.</p>')
+            kind,body=internal_error(env,kind)
         raw=body if isinstance(body,bytes) else body.encode('utf-8')
         start_response(status,headers+[('Content-Type',kind),('Content-Length',str(len(raw)))])
         return [raw]
@@ -1981,6 +1982,30 @@ class App:
 def fold_for_search(value):
     from .common import fold
     return fold(value)
+
+
+INTERNAL_ERROR_MESSAGE=('Erreur interne du service : la demande n’a pas abouti. La trace est inscrite dans le journal du service '
+                        '(sudo journalctl -u axiorhub-mail-ui.service -n 50).')
+
+
+JSON_ROUTES=('/api440/','/api/v1','/live/snapshot','/live/board','/dictation','/templates/upload','/assistant/attachment',
+             '/hearing/upload','/extensions/upload')
+
+
+def wants_json(env,kind):
+    """5.6.15 : routes appelées par fetch() et lues avec response.json() — un refus ou une erreur y est renvoyé en JSON."""
+    if kind.startswith('application/json'):return True
+    path=str((env or {}).get('PATH_INFO',''))
+    return any(marker in path for marker in JSON_ROUTES)
+
+
+def internal_error(env,kind):
+    """5.6.15 : une erreur interne sur une route d'API renvoie du JSON lisible ; la trace va au journal, jamais au navigateur."""
+    import traceback
+    traceback.print_exc()
+    if wants_json(env,kind):
+        return 'application/json; charset=utf-8',json.dumps({'error':'interface_indisponible','message':INTERNAL_ERROR_MESSAGE},ensure_ascii=False)
+    return kind,'<h1>Interface indisponible</h1><p>Vérifiez les services et les fichiers de configuration locaux.</p>'
 
 
 def serve(config_path,auth_path):

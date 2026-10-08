@@ -21,14 +21,21 @@ def _cfg(auth):
 
 def _write_cfg(auth, cfg):
     from .config567 import _path
+    from .common import Stop
     path = _path({'axiorhub.config_path':auth.app.config_path})
     tmp = path.with_suffix('.tmp')
-    tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     try:
-        os.chmod(tmp, 0o600)
-    except OSError:
-        pass
-    os.replace(tmp, path)
+        tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            pass
+        os.replace(tmp, path)
+    except PermissionError:
+        raise Stop('configuration_non_inscriptible') from None
+    except OSError as error:   # 5.6.15 : /etc en lecture seule pour le service (lien de configuration remplacé)
+        if error.errno in (30, 13, 1):raise Stop('configuration_non_inscriptible') from None
+        raise
 
 
 def _secrets_dir(cfg):

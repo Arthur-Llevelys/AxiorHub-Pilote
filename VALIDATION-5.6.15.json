@@ -1,0 +1,26 @@
+{
+  "version": "5.6.15",
+  "base": "5.6.14 livrée",
+  "date_utc": "2026-10-08T21:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1498,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 49,
+    "duration_seconds": 1159.7,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.14) : sockets IMAP simulés, os.fchmod, installeur Linux, rendu LibreOffice ; deux tests supplémentaires ignorés (liens symboliques et root). L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5615.py (écriture à travers le lien de configuration sans le remplacer, choix de la copie la plus récente lisible et sauvegarde de l’autre, rétablissement du lien par install-interface.py (root), refus lisible « configuration non inscriptible » pour PermissionError et EROFS sans mutation du fichier, propagation des autres erreurs, erreur interne en JSON sur /api440 avec trace au journal et page HTML conservée ailleurs, reconnaissance de toutes les routes fetch() pour les refus en JSON)",
+  "corrections": [
+    "Enregistrement des paramètres : « Unexpected token '<' … is not valid JSON » remplacé par un refus lisible avec la commande de réparation.",
+    "private_json / save_admin : écriture à travers le lien /etc → copie runtime, propriétaire et droits de la cible conservés.",
+    "runtime_config567.enable : rétablit le lien quand une copie runtime existe déjà (plus récente conservée, autre sauvegardée).",
+    "web.internal_error : JSON sur les routes /api440/, trace dans le journal du service."
+  ],
+  "limits": [
+    "Le rétablissement du lien exige d’exécuter install-interface.py (root) après l’installation.",
+    "Le test du rétablissement s’exécute seulement sous root (ignoré sur le poste de validation et dans l’intégration continue)."
+  ]
+}

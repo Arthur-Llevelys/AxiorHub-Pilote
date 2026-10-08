@@ -224,6 +224,7 @@ def configure(path):
 def save_admin(path, data):
     if os.geteuid() != 0: raise Stop('modification_configuration_necessite_sudo')
     private_json(path,data)
+    if Path(path).is_symlink(): return   # 5.6.15 : pont runtime ; la cible garde son propriétaire (service) et ses droits
     os.chown(path,0,grp.getgrnam('axiorhub-mail').gr_gid)
     os.chmod(path,0o640)
 

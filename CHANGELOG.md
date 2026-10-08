@@ -3,6 +3,23 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.15 — Correctif : enregistrement des paramètres et pont de configuration
+
+- **Enregistrement des paramètres** : sur l’installation systemd, lorsque le lien `/etc/axiorhub-mail-agent/config.json` vers la copie
+  runtime avait été remplacé par un fichier ordinaire (après `axiorhub-mail mode …` ou `configure`), le service confiné en lecture
+  seule sur `/etc` ne pouvait plus écrire et le navigateur affichait « Unexpected token '<' … is not valid JSON ». L’enregistrement
+  renvoie désormais un refus lisible (« configuration non inscriptible ») avec la commande de réparation.
+- **Pont de configuration préservé** : `axiorhub-mail mode` et toute écriture administrative passent à travers le lien (écriture dans la
+  cible, propriétaire et droits conservés) au lieu de le remplacer.
+- **Réparation automatique** : `install-interface.py` rétablit le lien quand une copie runtime existe déjà : la plus récente des deux
+  configurations est conservée, l’autre est sauvegardée (`configuration567/config-remplace-*.json` et `backups/config-fichier-*.json`).
+- **Erreurs internes lisibles** : une erreur interne sur une route `/api440/` renvoie du JSON (message en français) et inscrit la trace
+  dans le journal du service (`journalctl -u axiorhub-mail-ui.service`) ; plus de page HTML dans une réponse attendue en JSON.
+- **Même vérification sur les autres routes appelées par le navigateur** : un refus (dictée, pièces jointes de l’assistant, modèles
+  Word, conclusions d’audience, extensions, flux en direct, API v1) est renvoyé en JSON avec son motif au lieu de la page
+  « Action non effectuée » ; l’assistant d’installation (première mise en service) signale lui aussi « configuration non
+  inscriptible » au lieu d’une erreur brute.
+
 ## 5.6.14 — Missions complexes et préparation juridique vérifiable
 
 Missions et sous-tâches (M01–M09, C18–C20)

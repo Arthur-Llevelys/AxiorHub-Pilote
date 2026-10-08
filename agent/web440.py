@@ -76,6 +76,7 @@ def err_text(ex):
 def human(code):
     """Readable French messages for the codes users meet in the workshop."""
     table = {
+        'configuration_non_inscriptible': 'Le service ne peut pas écrire le fichier de configuration : le lien /etc/axiorhub-mail-agent/config.json a probablement été remplacé par un fichier ordinaire (commande « axiorhub-mail mode » ou « configure » d’une version précédente). Lancez « sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py », qui rétablit le pont de configuration, puis réessayez.',
         'duree_invalide': 'La durée indiquée est invalide (en minutes, entre 1 et 1 440).',
         'secours_sans_fournisseur': 'Aucun fournisseur externe n’est prêt : activez-en un, autorisez l’envoi et indiquez un modèle dans Paramètres › IA.',
         'fichier_hors_dossier': 'Ce fichier n’appartient à aucun dossier du cabinet : il ne peut pas être ouvert d’ici.',

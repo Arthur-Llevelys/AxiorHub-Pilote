@@ -6,6 +6,7 @@ exécutés par le processus web. Aucun secret existant n'est renvoyé au navigat
 from copy import deepcopy
 from datetime import datetime, timezone
 from contextlib import contextmanager
+import errno
 import fcntl
 import hashlib
 import json
@@ -228,7 +229,7 @@ def _validate(kind,value,key):
     return value
 
 
-def save(desk,data,env):
+def _save(desk,data,env):
     path=_path(env);incoming=data.get('values') or {}
     if not isinstance(incoming,dict) or any(k not in INDEX for k in incoming):raise Stop('champ_configuration_inconnu')
     if not incoming:raise Stop('configuration_vide')
@@ -284,6 +285,18 @@ def save(desk,data,env):
             if os.path.exists(temp):os.unlink(temp)
     desk.audit('configuration567_appliquee',{'revision':revision+1,'fields':sorted(incoming),'secrets_replaced':len(secrets_to_write)})
     return {'revision':revision+1,'applied':True,'restart_required':False,'message':'Réglages enregistrés. Les nouveaux traitements les reprendront ; les traitements en cours conservent leur instantané.'}
+
+
+def save(desk,data,env):
+    """5.6.15 : le service confiné (ProtectSystem=strict) devant un fichier ordinaire dans /etc, ou une cible appartenant
+    à root, reçoit un refus explicite ; la commande de réparation est donnée par le message (install-interface.py)."""
+    try:
+        return _save(desk,data,env)
+    except PermissionError:
+        raise Stop('configuration_non_inscriptible') from None
+    except OSError as error:
+        if error.errno in (errno.EROFS,errno.EACCES,errno.EPERM):raise Stop('configuration_non_inscriptible') from None
+        raise
 
 
 def test(desk,data):

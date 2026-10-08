@@ -66,7 +66,7 @@ def today_page(desk, form, link):
     todo=[x for x in center['cards'] if x['bucket']=='urgent'][:30]
     decisions=[x for x in center['cards'] if x['bucket']=='decision'][:30]+data['decisions'][:30]
     ready=[x for x in center['cards'] if x['bucket']=='ready'][:30]+data['ready'][:40];incidents=data['incidents'][:30]+live_incidents
-    out='<section class="today420-hero"><div><p class="eyebrow">5.6.14 · ASSISTANT VIVANT</p><h1>Ce qui exige réellement votre attention</h1><p>Les succès techniques sont masqués. Chaque carte correspond à une échéance, un livrable utilisable, une décision ou un incident relançable.</p></div>'+form('production_cycle391','Préparer tout le travail interne disponible',{'limit':'30'})+'</section>'
+    out='<section class="today420-hero"><div><p class="eyebrow">5.6.15 · ASSISTANT VIVANT</p><h1>Ce qui exige réellement votre attention</h1><p>Les succès techniques sont masqués. Chaque carte correspond à une échéance, un livrable utilisable, une décision ou un incident relançable.</p></div>'+form('production_cycle391','Préparer tout le travail interne disponible',{'limit':'30'})+'</section>'
     # Stable vocabulary remains machine-readable for bookmarks, accessibility
     # helpers and installations upgraded from the 3.9 views. It is not a fifth
     # visible zone in the 4.2 interface.
