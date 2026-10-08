@@ -3,6 +3,80 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.14 — Missions complexes et préparation juridique vérifiable
+
+Missions et sous-tâches (M01–M09, C18–C20)
+
+- **Mission principale et sous-tâches** : parcours « assignation » (T01–T16, sections explicites par dépendance) et « conclusions en
+  réponse » (C01–C18) ; tâches identifiées avec parent, dépendances explicites, contrat de sortie (type de résultat) ; cycles rejetés ;
+  bornes configurables (64 tâches, profondeur 4, 3 travaux simultanés, budget d'appels) ; entrées trop volumineuses traitées par lots puis
+  consolidées, jamais perdues en silence.
+- **Dépendances fondées sur un résultat accepté** : une abstention ou un blocage reste visible et bloque ; une branche facultative peut être
+  omise avec motif ; le parent ne se termine pas sans livrable obligatoire. Tous les résultats parents sont transmis par références
+  d'artefacts (type, version, hash), plus un seul texte tronqué.
+- **Reprise sans double effet** : tâche persistée avant exécution, bail renouvelable, numéro de génération (une tentative ancienne ne
+  publie pas) ; dépôt Word par journal d'opérations (préparé, en cours, incertain, confirmé, conflit) rapproché avant toute répétition.
+- **Rôles et modèles** : superviseur, documentaliste, analystes des faits et de procédure, chercheur, rédacteur, contrôleur, gestion ;
+  fonction de modèle réellement routée et tracée par tâche ; un rôle désactivé bloque avec alternative explicite.
+- **Plan révisable** : « Compléter les instructions » ou « Reprends uniquement … » crée une révision du plan et ne relance que les
+  tâches visées et leurs dépendantes ; décisions regroupées (champs manquants, procédure ambiguë, écritures à sélectionner, réserves,
+  budget) ; pause et annulation propagées, fichiers conservés ; validation attachée au hash de la version.
+- **Paquet final** : Word sans note interne, bordereau, inventaire, rapport des sources, fiche de contrôle séparée, décisions résiduelles.
+- Migration des plans 5.6.8 en groupes plats (sens inchangé) ; une abstention ne débloque plus une étape suivante (C12).
+
+Profils, sources et contrôle (M11–M15, A05–A07, C04–C06)
+
+- **Registre daté des profils procéduraux** (JEX, référés TJ/TC/TAE, TJ au fond avec ou sans avocat, TC/TAE au fond) : conditions
+  d'emploi, références à vérifier, mentions, formalités, modèle Word ; qualification sur juridiction, voie, représentation et montant ;
+  ambiguïté = décision ; hors couverture = déclaré ; approbation explicite de l'avocat (Outils › Profils procéduraux).
+- **Chaîne de preuve des sources** : instantané figé (identifiant stable, version distante, hash, pages lues, blanches, illisibles,
+  exclusions motivées, homonymes distincts, total réel) ; delta des sources.
+- **Contrôle par assertion** : montants, dates, pièces, demandes et références extraits et confrontés aux sources ; cohérence
+  discussion/dispositif ; relecture indépendante par blocs sur le texte entier avec les sources utiles ; exécution (non exécuté, partiel,
+  exécuté) distincte du résultat (réussi, réserves, bloqué, indisponible) ; badges « Contrôle juridique réussi / avec réserves /
+  bloquant » ; correction ciblée bornée (deux passages) puis décision.
+
+Corrections de fiabilité (C01–C03, C07–C11, C13–C17)
+
+- Reprise IMAP sans duplication (rapprochement par identifiant de message avant tout nouvel APPEND) ; relecture complète du brouillon
+  (sujet, expéditeur, destinataires, corps, drapeau) et état « modifié » si l'avocat l'a changé ; route mail_drafting ; aucune note
+  technique dans le corps du courriel.
+- Révision Word par blocs : paragraphes inchangés conservés avec leurs styles, tableaux et contrôles de contenu à leur place ; mode de
+  réécriture complète explicite ; rapport de révision.
+- Comparaison des versions normalisée (€, euros, décimales, espaces insécables, dates françaises et ISO) et ordonnée (ajout, retrait,
+  modification, déplacement, doublon supprimé).
+- Fiche d'audience : questions probables lues au schéma canonique (likely_questions), erreurs SQL ou Nextcloud visibles, liens encodés,
+  « en réponse » n'est plus classé adverse.
+- Modèles Word : affectation explicite, champs manquants marqués et listés, « cabinet » n'est plus un repli générique.
+- Cache des analyses longues : digest des poids du modèle, routage global retiré de la signature.
+- Recette de production : trois niveaux (connexion, transport, mission), vrai producteur, contrôle avec erreur injectée, interruption
+  après écriture puis reprise sans second dépôt, modèle comparé ; prérequis non testé = pas de succès global.
+- Invoice Ninja : rapprochement complet des factures (client exigé, lignes, taxes, totaux Decimal, remise, devise, échéance), temps
+  fidèles (intervalle mesuré ou durée déclarée signalée, identifiant conservé si la relecture échoue), réservation transactionnelle de
+  chaque temps.
+- MCP : initialisation, notification, identifiant de session conservé, tools/list paginé, arguments construits d'après le schéma réel
+  (champs imbriqués), diagnostic en trois niveaux (connexion, recherche, récupération du texte).
+
+Invoice Ninja (N01–N09)
+
+- Adaptateur unique (société, pagination complète, 401/403/422/429 traduits, Decimal, identifiants opaques, liste d'opérations permises :
+  aucun envoi, paiement ni conversion) ; journal des opérations avec rapprochement après réponse incertaine ; correspondances locales ↔
+  distantes par société.
+- Clients et contacts (recherche avant création, homonyme = choix, contacts préservés), projet rattaché au dossier (un par dossier,
+  reprise sans doublon), devis en brouillon avec aperçu (HT, taxes, TTC), synchronisation périodique des statuts et paiements (un temps
+  facturé depuis Invoice Ninja n'est plus facturable), parcours Pilote « Prépare le devis… » avec données manquantes en une carte.
+
+Interface (U01–U06)
+
+- Routines en tête d'« Aujourd'hui » (dernier lancement, état, accès, lancement sans double clic, pause des automatismes).
+- Centre « À décider » compact : résumé replié, panneau latéral, cartes avec contexte, question, recommandation, sources, conséquence et
+  actions Valider, Modifier, Compléter les instructions, Reporter, Annuler ; focus et état préservés.
+- Agenda en semaine par défaut, préférence explicite conservée. Commandes de contexte du Pilote (Préparer audience, Répondre, Comparer,
+  Réviser, Assignation, Devis) ; intentions « mission » et « facturation » ; vue de mission complexe (arbre, filtres blocages / résultats).
+- Mise en service : capture, transcription, synthèse et repli eSpeak distingués ; fiche de contrôle séparée du document.
+
+Voir CONFORMITE-5.6.14.md pour la matrice exigence par exigence (livré, partiel, non livré).
+
 ## 5.6.13 — Résultat annoncé, rédaction libre convergente, texte et voix unifiés
 
 Corrections prioritaires

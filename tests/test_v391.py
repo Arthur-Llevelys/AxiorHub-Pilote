@@ -59,7 +59,7 @@ class Production391(unittest.TestCase):
         self.assertNotIn('content',columns);self.assertNotIn('prompt',columns)
 
     def test_api_exposes_391_pipeline(self):
-        spec=openapi('https://agent.example.com');self.assertEqual(spec['info']['version'],'5.6.13')
+        spec=openapi('https://agent.example.com');self.assertEqual(spec['info']['version'],'5.6.14')
         for path in ('/production/retry','/production/review'):self.assertIn(path,spec['paths'])
         result=dispatch(self.d,'/production/dashboard','GET');self.assertIn('flows',result)
 

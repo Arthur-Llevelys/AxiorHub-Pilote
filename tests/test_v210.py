@@ -154,7 +154,7 @@ class Portfolio210Tests(unittest.TestCase):
         self.assertTrue(all(x['id']!='2017010101' for x in data['recent_matters']))
 
     def test_api_and_openwebui_expose_portfolio_without_send(self):
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.13')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.14')
         self.assertIn('summary',dispatch(self.d,'/portfolio','GET',query={}))
         queued=dispatch(self.d,'/portfolio/organize','POST',{})
         self.assertEqual(queued['status'],'queued')
@@ -176,7 +176,7 @@ class Web210Tests(unittest.TestCase):
         self.assertIn('Aujourd’hui',dashboard_page)
         self.assertIn('Actifs',dossiers);self.assertIn('Archivés',dossiers)
         self.assertIn('Arriéré',inbox)
-        self.assertIn('Version 5.6.13',dashboard_page)
+        self.assertIn('Version 5.6.14',dashboard_page)
         self.assertNotIn('http-equiv="refresh"',dashboard_page+dossiers+inbox)
 
 

@@ -86,7 +86,22 @@ def run(desk):
         ok = bool(d.get('ok', d.get('local_available', True)))
         checks.append(_item('tts', 'Synthèse vocale (lecture)', ok, str(d.get('message') or d.get('provider') or d)[:300], '' if ok else 'sudo apt-get install -y espeak-ng'))
     except Exception as ex:
+        ok = False
         checks.append(_item('tts', 'Synthèse vocale (lecture)', False, str(ex)[:200], 'sudo apt-get install -y espeak-ng'))
+    try:
+        # 5.6.14 (section 32) : repli local effectif, distinct du moteur configuré ; capture = navigateur, transcription = passerelle
+        sp = desk.c.get('speech568', {})
+        fallback_ok = bool(shutil.which('espeak-ng'))
+        if sp.get('provider', 'espeak') != 'espeak':
+            checks.append(_item('tts_fallback', 'Repli de synthèse (eSpeak NG local)', fallback_ok if sp.get('fallback_local', True) else None,
+                                'eSpeak NG présent : lecture possible si %s est indisponible.' % sp.get('provider') if fallback_ok else 'eSpeak NG absent : aucune lecture si le moteur configuré ne répond pas.',
+                                '' if fallback_ok else 'sudo apt-get install -y espeak-ng', level='fonctionnel' if fallback_ok else 'en échec'))
+        checks.append(_item('voice_summary', 'Voix : capture / transcription / synthèse', None,
+                            'Capture : testée dans le navigateur (bouton Tester le micro) · Transcription : %s · Synthèse : %s (moteur %s%s).' % (
+                                'passerelle activée' if audio.get('enabled') else 'désactivée', 'opérationnelle' if ok else 'indisponible', sp.get('provider', 'espeak'),
+                                ', repli eSpeak' if sp.get('fallback_local', True) and sp.get('provider', 'espeak') != 'espeak' else ''), level='informatif'))
+    except Exception as ex:
+        checks.append(_item('voice_summary', 'Voix : capture / transcription / synthèse', None, 'Résumé indisponible : ' + str(ex)[:120], level='informatif'))
     # 4. intégrations facultatives
     invoice = desk.c.get('invoice_ninja', {})
     if invoice.get('enabled'):

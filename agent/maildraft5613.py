@@ -4,7 +4,8 @@ Jusqu'ici une telle demande produisait un projet Word faute de contexte. Elle cr
 IMAP du cabinet (jamais envoyé), rédigé avec les sources du dossier, puis relu dans la boîte. Le destinataire n'est jamais deviné :
 il reste à renseigner par l'avocat. Une mission répétée retrouve son brouillon sans en créer un second.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import hashlib
 from email import policy
 from email.message import EmailMessage
 from email.utils import formataddr, format_datetime
@@ -42,11 +43,22 @@ def _mailbox(desk):
     return Mailbox(desk.c['mail'])
 
 
+def _mail_model(desk, matter_id=''):
+    """5.6.14 (C09) : fonction mail_drafting réellement routée (plus document_drafting), contexte externe du dossier."""
+    from .model import Model, routed_config
+    try:
+        cfg = routed_config(desk.c, 'mail_drafting')
+    except Stop:
+        cfg = routed_config(desk.c, 'assistant')
+        cfg['purpose'] = 'mail_drafting'
+    cfg['external_context'] = {'matter': matter_id}
+    return Model(cfg)
+
+
 def compose(desk, instruction, matter, ctx):
-    from .docrequest520 import _model
     from .cabinet560 import writer_intro
     from .assistant567 import drafting_preferences
-    model = _model(desk, matter['id'] if matter else '')
+    model = _mail_model(desk, matter['id'] if matter else '')
     payload = {'demande': instruction, 'dossier': ctx or {}, 'preferences': drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))}
     try:
         from .learning410 import applicable_context
@@ -81,25 +93,101 @@ def build_message(cfg, ident, subject, body, to_complete):
     msg['Date'] = format_datetime(datetime.now(timezone.utc))
     msg['Message-ID'] = '<axiorhub-new-' + ident + '@mail-agent.local>'
     msg['X-AxiorHub-Draft-Key'] = 'new:' + ident
-    note = '\n\n[Projet AxiorHub à relire — destinataire à renseigner avant tout envoi' + (' ; à compléter : ' + ' ; '.join(to_complete) if to_complete else '') + ']'
-    msg.set_content(body.strip() + '\n\n' + str(cfg.get('signature', '')).strip() + note + '\n')
+    # 5.6.14 (U06) : aucune note technique dans le corps destiné au correspondant ; les points à compléter vont dans la fiche de contrôle.
+    msg.set_content(body.strip() + '\n\n' + str(cfg.get('signature', '')).strip() + '\n')
     return msg
 
 
-def verify(box, folder, message_id, subject):
+def _body_text(msg):
+    try:
+        part = msg.get_body(preferencelist=('plain',))
+        return (part.get_content() if part is not None else '').replace('\r\n', '\n').strip()
+    except Exception:
+        return ''
+
+
+def _mime_digest(msg):
+    return hashlib.sha256(msg.as_bytes(policy=policy.SMTP)).hexdigest()
+
+
+def find_existing(box, folder, message_id):
+    """Brouillons portant cet identifiant de message (0, 1 ou plusieurs) : base du rapprochement avant toute écriture."""
     from .mailbox import imap_quote
     matches = []
     for uid in box.search(folder, 'UNDELETED', 'HEADER', 'Message-ID', imap_quote(message_id)):
         saved = box.fetch(folder, uid)
         if saved.mid == message_id:
             matches.append(saved)
+    return matches
+
+
+def verify(box, folder, message_id, subject, expected=None):
+    """5.6.14 (C02) : relecture complète — identifiant, sujet, expéditeur, destinataires (aucun), drapeau Draft et corps normalisé."""
+    from .mailbox import addresses
+    matches = find_existing(box, folder, message_id)
     if not matches:
         raise Stop('brouillon_non_retrouve')
     if len(matches) != 1:
         raise Stop('plusieurs_brouillons_meme_identifiant')
-    if matches[0].subject != subject:
-        raise Stop('brouillon_contenu_non_conforme')
-    return {'uid': matches[0].uid, 'folder': folder, 'verified_at': datetime.now(timezone.utc).isoformat()}
+    saved = matches[0]
+    issues = []
+    if saved.subject != subject:
+        issues.append('sujet')
+    flags = getattr(saved, 'flags', ()) or ()
+    if flags and '\\Draft' not in flags:
+        issues.append('drapeau_draft')
+    if expected is not None:
+        saved_msg = getattr(saved, 'msg', None)
+        if saved_msg is not None:
+            if addresses(str(saved_msg.get('From', ''))) != addresses(str(expected.get('From', ''))):
+                issues.append('expediteur')
+            if addresses(str(saved_msg.get('To', ''))) != addresses(str(expected.get('To', ''))) or addresses(str(saved_msg.get('Cc', ''))) != addresses(str(expected.get('Cc', ''))):
+                issues.append('destinataires')
+        body_saved = (getattr(saved, 'text', '') or '').replace('\r\n', '\n').strip()
+        if body_saved and body_saved != _body_text(expected):
+            issues.append('corps')
+    if issues:
+        raise Stop('brouillon_contenu_non_conforme_' + '_'.join(issues))
+    return {'uid': saved.uid, 'uidvalidity': getattr(saved, 'uidvalidity', ''), 'folder': folder, 'verified_at': datetime.now(timezone.utc).isoformat(),
+            'body_sha256': hashlib.sha256((getattr(saved, 'text', '') or '').encode()).hexdigest()}
+
+
+def recheck(desk, ident, box=None):
+    """Nouvelle relecture d'un brouillon déjà vérifié : une modification externe donne l'état « modifié » (la version de l'avocat est conservée)."""
+    ensure_schema(desk)
+    row = desk.db.execute('SELECT * FROM maildraft5613 WHERE id=?', (str(ident),)).fetchone()
+    if not row or row['status'] != 'verifie':
+        raise Stop('brouillon_non_verifie')
+    result = json.loads(row['result'] or '{}')
+    mailbox = box or _mailbox(desk)
+    try:
+        matches = find_existing(mailbox, result.get('folder', 'Drafts'), row['message_id'])
+        if not matches:
+            state, detail = 'supprime', 'brouillon absent de la boîte'
+        elif len(matches) > 1:
+            state, detail = 'conflit', 'plusieurs brouillons portent cet identifiant'
+        else:
+            saved = matches[0]
+            proof = result.get('verification', {})
+            body_sha = hashlib.sha256((getattr(saved, 'text', '') or '').encode()).hexdigest()
+            changed = []
+            if saved.subject != row['subject']:
+                changed.append('sujet')
+            if proof.get('body_sha256') and body_sha != proof['body_sha256']:
+                changed.append('corps')
+            if proof.get('uidvalidity') and getattr(saved, 'uidvalidity', '') and str(getattr(saved, 'uidvalidity', '')) != str(proof['uidvalidity']):
+                changed.append('uidvalidity')
+            if getattr(saved, 'msg', None) is not None and str(saved.msg.get('To', '')).strip():
+                changed.append('destinataires')
+            state, detail = ('modifie', ', '.join(changed)) if changed else ('verifie', 'conforme')
+    finally:
+        try:
+            mailbox.close()
+        except Exception:
+            pass
+    if state != 'verifie':
+        _set(desk, ident, state, {**result, 'recheck': detail, 'rechecked_at': desk.now()})
+    return {'id': ident, 'state': state, 'detail': detail}
 
 
 def perform(desk, args, box=None):
@@ -114,8 +202,9 @@ def perform(desk, args, box=None):
     row = desk.db.execute('SELECT * FROM maildraft5613 WHERE id=?', (ident,)).fetchone()
     if row and row['status'] == 'verifie':
         return {**json.loads(row['result'] or '{}'), 'message': 'Brouillon déjà déposé et relu ; aucun second brouillon créé.'}
-    if row and row['status'] == 'appending':
-        raise Stop('brouillon_depot_incertain_verifier_brouillons')
+    recover = row is not None and row['status'] in ('appending', 'incertain', 'en_cours')
+    if row and row['status'] == 'en_cours' and row['updated'] > (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat():
+        raise Stop('brouillon_en_cours_autre_travail')
     matters = {m['id']: m for m in load_matters(desk.c)}
     matter = matters.get(str(args.get('matter') or ''))
     if not row:
@@ -133,19 +222,38 @@ def perform(desk, args, box=None):
         except Stop as ex:
             notes.append('Sources du dossier non lues : ' + str(ex))
             ctx = {'dossier': matter_display(matter), 'client': matter.get('client_name', '')}
-    draft = compose(desk, instruction, matter, ctx)
     cfg = desk.c['mail']
-    msg = build_message(cfg, ident, draft['subject'], draft['body'], draft['to_complete'])
     folder = cfg.get('drafts', 'Drafts')
-    result = {'subject': draft['subject'], 'to_complete': draft['to_complete'], 'sources': draft['sources'], 'notes': notes,
-              'manifest': ctx.get('manifeste', {}), 'message_id': str(msg['Message-ID']), 'folder': folder, 'matter': matter['id'] if matter else ''}
-    _set(desk, ident, 'appending', result, str(msg['Message-ID']), draft['subject'])
+    previous = json.loads(row['result'] or '{}') if row else {}
+    if recover and previous.get('mime') and previous.get('message_id'):
+        # 5.6.14 (C01) : reprise incertaine — rapprocher le brouillon existant avant toute nouvelle écriture
+        from email import message_from_bytes
+        import base64
+        msg = message_from_bytes(base64.b64decode(previous['mime']), policy=policy.SMTP)
+        draft = {'subject': previous.get('subject', ''), 'to_complete': previous.get('to_complete', []), 'sources': previous.get('sources', [])}
+        result = {k: v for k, v in previous.items() if k != 'error'}
+    else:
+        draft = compose(desk, instruction, matter, ctx)
+        msg = build_message(cfg, ident, draft['subject'], draft['body'], draft['to_complete'])
+        import base64
+        result = {'subject': draft['subject'], 'to_complete': draft['to_complete'], 'sources': draft['sources'], 'notes': notes,
+                  'manifest': ctx.get('manifeste', {}), 'message_id': str(msg['Message-ID']), 'folder': folder, 'matter': matter['id'] if matter else '',
+                  'mime_sha256': _mime_digest(msg), 'mime': base64.b64encode(msg.as_bytes(policy=policy.SMTP)).decode(),
+                  'control_sheet': {'a_completer': draft['to_complete'], 'sources': draft['sources'], 'notes': notes, 'destinataire': 'à renseigner avant tout envoi'}}
     mailbox = box or _mailbox(desk)
     try:
         check_authority(desk, args)
-        mailbox.append_draft(msg)
-        proof = verify(mailbox, folder, str(msg['Message-ID']), draft['subject'])
+        existing = find_existing(mailbox, folder, str(msg['Message-ID']))
+        if len(existing) > 1:
+            _set(desk, ident, 'conflit', {**result, 'error': 'plusieurs_brouillons_meme_identifiant'})
+            raise Stop('brouillon_conflit_plusieurs_copies')
+        if not existing:
+            _set(desk, ident, 'appending', result, str(msg['Message-ID']), draft['subject'])
+            mailbox.append_draft(msg)
+        proof = verify(mailbox, folder, str(msg['Message-ID']), draft['subject'], expected=msg)
     except Stop as ex:
+        if str(ex).startswith('brouillon_conflit'):
+            raise
         _set(desk, ident, 'incertain', {**result, 'error': str(ex)})
         raise Stop('brouillon_depot_incertain_verifier_brouillons') from None
     finally:
@@ -153,6 +261,7 @@ def perform(desk, args, box=None):
             mailbox.close()
         except Exception:
             pass
+    result.pop('mime', None)
     result.update(brouillon_imap='verifie', verification=proof, message='Brouillon déposé et relu dans « %s » ; destinataire à renseigner, rien n’est envoyé.' % folder)
     _set(desk, ident, 'verifie', result)
     desk.audit('maildraft5613_cree', {'id': ident, 'mission': mission, 'matter': result['matter'], 'folder': folder})

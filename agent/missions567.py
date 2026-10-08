@@ -161,6 +161,23 @@ def create(desk, data, owner='cabinet'):
     # jamais déduite d'un seul mot comme « contrat » ou « audience » ; une question ne crée plus de document.
     from .pilote5613 import resolve_intent, DELIVERABLES
     intent = resolve_intent(text, 'analysis' if data.get('analysis_only') is True else (data.get('intent') or 'auto'), ctx['mail_key'])
+    if intent['intent'] == 'mission':      # 5.6.14 : mission complexe (parcours par tâches)
+        from . import taches5614
+        from .parcours5614 import detect
+        if not chosen:
+            raise Stop('dossier_requis_pour_mission_complexe')
+        m = taches5614.create(desk, {'instruction': text, 'matter': chosen, 'parcours': str(data.get('parcours') or detect(text) or 'assignation'), 'request_key': token,
+                                     'answers': data.get('answers') or {}, 'autonomy': data.get('autonomy') or 'prepare'}, owner)
+        return complex_shim(m)
+    if intent['intent'] == 'facturation':  # 5.6.14 : parcours de facturation — aperçu et données manquantes, aucune écriture sans validation
+        from .facturation5614 import missing_for
+        if not chosen:
+            raise Stop('dossier_requis_pour_facturation')
+        info = missing_for(desk, chosen, 'quote')
+        return {'id': 'facturation-' + chosen, 'kind': 'facturation', 'state': 'decision' if info['missing'] else 'prepared', 'label': 'Données manquantes' if info['missing'] else 'Prêt : créer le projet ou le devis depuis Honoraires',
+                'instruction': text, 'matter': chosen, 'matter_label': matter_display(matters[chosen]), 'exceptions': [{'code': 'facturation', 'message': 'À renseigner : ' + ', '.join(info['missing'])}] if info['missing'] else [],
+                'plan': {'deliverable': 'Facturation Invoice Ninja', 'steps': ['Vérifier société, client facturé et tarif', 'Créer ou rattacher le projet', 'Préparer le devis en brouillon (aperçu)', 'Relire dans Invoice Ninja'], 'restrictions': ['Aucun envoi', 'Aucune conversion', 'Aucun paiement']},
+                'result': {'message': 'Parcours de facturation : ' + ('données manquantes à compléter.' if info['missing'] else 'tout est prêt.'), 'open_url': '/honoraires?' + urlencode({'matter': chosen}), 'missing': info['missing']}, 'context': ctx, 'job': None}
     kind = {'question': 'question', 'analysis': 'question', 'document': 'document', 'mail': 'mail'}[intent['intent']]
     if kind == 'document' and not chosen and not exceptions:
         exceptions.append({'code': 'dossier_requis', 'message': 'Choisissez le dossier où préparer ce document.',
@@ -300,6 +317,16 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
     row['label'] = LABELS.get(row['state'], row['state'])
     row['matter_label'] = next((matter_display(m) for m in load_matters(desk.c) if m['id'] == row['matter']), '')
     return row
+
+
+def complex_shim(m):
+    """Présentation d'une mission complexe dans le panneau Pilote (même carte que les missions simples)."""
+    return {'id': m['id'], 'kind': 'mission5614', 'state': {'active': 'running', 'decision': 'decision', 'a_valider': 'prepared', 'validee': 'verified', 'terminee': 'prepared', 'annulee': 'paused',
+                                                       'suspendue': 'paused', 'suspendue_budget': 'decision', 'bloquee': 'error', 'suggested': 'suggested'}.get(m['state'], 'running'),
+            'label': m['label'], 'instruction': m['objective'], 'matter': m['matter'], 'matter_label': m['matter_label'], 'exceptions': [{'code': d['kind'], 'message': d['question']} for d in m['decisions']],
+            'plan': {'deliverable': 'Mission complexe : ' + m['title'], 'steps': [t['code'] + ' ' + t['title'] + ' — ' + (t['outcome_label'] if t['run_state'] == 'terminee' else t['label']) for t in m['tasks']],
+                     'restrictions': ['Aucun envoi', 'Aucune signification', 'Validation du contenu par l’avocat'], 'intent_reasons': [m['next_action']]},
+            'result': {'message': m['next_action'], 'open_url': m['url'], 'location': m['deliverable'] or ''}, 'context': {}, 'job': {'id': 0, 'status': m['state'], 'progress': '%d/%d livrables acceptés' % (m['progress']['accepted'], m['progress']['required']), 'error': ''}, 'complex': True}
 
 
 def listing(desk, owner='cabinet', admin=False, prefix=''):

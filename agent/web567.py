@@ -18,7 +18,13 @@ def api(env, desk, auth, prefix, name, args, method):
         if name == 'm567/missions':
             return json_out({'missions': missions567.listing(desk, owner, role == 'administrateur', prefix)})
         if name == 'm567/mission':
-            return json_out(missions567.get(desk, args.get('id', ''), owner, role == 'administrateur', prefix))
+            try:
+                return json_out(missions567.get(desk, args.get('id', ''), owner, role == 'administrateur', prefix))
+            except Stop as ex:
+                if str(ex) != 'mission_absente':
+                    raise
+                from . import taches5614   # 5.6.14 : mission complexe affichée dans le même panneau
+                return json_out(missions567.complex_shim(taches5614.get(desk, args.get('id', ''), owner, role == 'administrateur', prefix)))
         if name == 'm567/profile':
             return json_out(assistant567.profile(desk, owner))
         if name == 'm567/briefing':

@@ -10,16 +10,20 @@ import json
 from pathlib import PurePosixPath
 import re
 import sqlite3
+from urllib.parse import urlencode
 
 from .common import Stop, fold, load_matters, matter_display
 
 HEARING_WORDS = ('audience', 'plaidoirie', 'plaid', 'comparution', 'refere', 'référé', 'mise en etat', 'mise en état', 'delibere', 'délibéré')
 
 
-def _rows(desk, sql, args=()):
+def _rows(desk, sql, args=(), errors=None):
+    """5.6.14 (C08) : une erreur SQL n'est plus masquée par une liste vide ; elle est rendue visible dans la fiche."""
     try:
         return [dict(r) for r in desk.db.execute(sql, args)]
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as ex:
+        if errors is not None and 'no such table' not in str(ex):   # une table jamais créée (fonction non utilisée) n'est pas une panne
+            errors.append(str(ex)[:120])
         return []
 
 
@@ -29,8 +33,9 @@ def sheet(desk, matter_id, dav=None):
     if not matter:
         raise Stop('dossier_absent')
     now = datetime.now(timezone.utc).isoformat()
-    out = {'matter': matter['id'], 'label': matter_display(matter), 'generated_at': now, 'notes': []}
-    events = [x for x in _rows(desk, 'SELECT id,title,starts,location FROM calendar_cache WHERE matter=? AND starts>=? ORDER BY starts LIMIT 40', (matter['id'], now))
+    out = {'matter': matter['id'], 'label': matter_display(matter), 'generated_at': now, 'notes': [], 'unavailable': [], 'status': 'disponible'}
+    errors = out['unavailable']
+    events = [x for x in _rows(desk, 'SELECT id,title,starts,location FROM calendar_cache WHERE matter=? AND starts>=? ORDER BY starts LIMIT 40', (matter['id'], now), errors)
               if any(w in fold(x['title']) for w in HEARING_WORDS)]
     out['hearings'] = [{'id': x['id'], 'title': x['title'][:160], 'starts': x['starts'][:16].replace('T', ' '), 'location': (x.get('location') or '')[:120]} for x in events[:3]]
     files = []
@@ -38,12 +43,13 @@ def sheet(desk, matter_id, dav=None):
         from .document_projects import _dav, _inventory
         client = dav or _dav(desk)
         files = [x for x in _inventory(client, matter['path']) if not x.get('directory')]
-    except Exception:
-        out['notes'].append('Dossier Nextcloud non lu : la liste des conclusions vient du dernier inventaire connu.')
+    except Exception as ex:
+        errors.append('Nextcloud : ' + str(ex)[:80])
+        out['notes'].append('Dossier Nextcloud indisponible : aucune liste de conclusions (aucun inventaire de repli n’est inventé).')
     conclusions = [x for x in files if 'conclusion' in fold(PurePosixPath(x['path']).name)]
     conclusions.sort(key=lambda x: str(x.get('modified', '')), reverse=True)
     out['conclusions'] = [{'path': x['path'], 'name': PurePosixPath(x['path']).name, 'modified': str(x.get('modified', ''))[:16],
-                           'side': 'adverse' if re.search(r'advers|en reponse|intim|defend', fold(PurePosixPath(x['path']).name)) else 'à qualifier'} for x in conclusions[:8]]
+                           'side': 'adverse' if re.search(r'advers|adverse', fold(PurePosixPath(x['path']).name)) else 'à qualifier'} for x in conclusions[:8]]
     for w in _rows(desk, "SELECT w.side,w.path,w.modified FROM hearing_writings_v250 w JOIN hearing_projects_v250 p ON p.id=w.project_id "
                         "WHERE p.matter=? ORDER BY w.selected_at DESC LIMIT 4", (matter['id'],)):
         for c in out['conclusions']:
@@ -58,26 +64,34 @@ def sheet(desk, matter_id, dav=None):
                              _rows(desk, "SELECT label,target,updated FROM production_deliverables_v420 WHERE matter=? AND status='verified' ORDER BY updated DESC LIMIT 20", (matter['id'],))
                              if any(w in fold(r['label']) for w in HEARING_WORDS)]
     questions, last_prep = [], None
-    for p in _rows(desk, 'SELECT id,status,instruction,data,created FROM hearing_projects_v250 WHERE matter=? ORDER BY created DESC LIMIT 1', (matter['id'],)):
+    for p in _rows(desk, 'SELECT id,status,instruction,data,created FROM hearing_projects_v250 WHERE matter=? ORDER BY created DESC LIMIT 1', (matter['id'],), errors):
         last_prep = {'id': p['id'], 'status': p['status'], 'instruction': p['instruction'][:200], 'created': p['created'][:16]}
         try:
             data = json.loads(p['data'] or '{}')
         except ValueError:
             data = {}
-        for key in ('questions_probables', 'probable_questions', 'questions', 'anticipated_questions'):
-            value = data.get(key) if isinstance(data, dict) else None
-            if isinstance(value, list):
-                questions = [str(x.get('question') if isinstance(x, dict) else x)[:300] for x in value][:12]
-                break
+        # 5.6.14 (C08) : schéma canonique de hearing.py (preparation.likely_questions : question + réponse proposée) ; anciens formats migrés
+        prep = data.get('preparation') if isinstance(data, dict) else None
+        value = prep.get('likely_questions') if isinstance(prep, dict) else None
+        if not isinstance(value, list):
+            value = next((data.get(k) for k in ('likely_questions', 'questions_probables', 'probable_questions', 'questions') if isinstance(data.get(k), list)), None) if isinstance(data, dict) else None
+        if isinstance(value, list):
+            questions = [{'question': str(x.get('question', ''))[:300], 'answer': str(x.get('proposed_answer', ''))[:400]} if isinstance(x, dict) else {'question': str(x)[:300], 'answer': ''} for x in value][:12]
     out['last_preparation'] = last_prep
     out['probable_questions'] = questions
-    reviewed = {r['item'] for r in _rows(desk, 'SELECT item FROM cockpit530_reviewed')}
+    reviewed = {r['item'] for r in _rows(desk, 'SELECT item FROM cockpit530_reviewed', (), errors)}
     from .common import digest
     out['drafts_to_review'] = [{'request': r['id'], 'path': r['path'], 'name': PurePosixPath(r['path']).name, 'updated': r['updated'][:16]}
                                for r in _rows(desk, "SELECT id,path,updated FROM docreq520 WHERE matter=? AND status='cree' ORDER BY updated DESC LIMIT 20", (matter['id'],))
                                if 'doc:' + digest(r['path'])[:24] not in reviewed][:10]
+    if errors:
+        out['status'] = 'indisponible'
     if not out['hearings']:
         out['notes'].append('Aucune audience à venir dans l’agenda synchronisé pour ce dossier.')
+    try:
+        desk.setting('audience5614:' + matter['id'], {'at': now, 'status': out['status']})
+    except Exception:
+        pass
     if not questions:
         out['notes'].append('Questions probables : disponibles après une préparation d’audience complète (Audiences › Préparer).')
     return out
@@ -106,9 +120,12 @@ def page(desk, auth, prefix, env, args):
         body += block('Pièces et tâches attendues', s['missing_pieces'] + [{'title': t['title'] + (' — pour le ' + t['due'] if t['due'] else ''), 'detail': ''} for t in s['tasks']],
                       lambda x: e(x['title']) + (('<br><small>' + e(x['detail']) + '</small>') if x.get('detail') else ''), 'Rien d’attendu dans le registre.')
         body += block('Notes de plaidoirie produites', s['pleading_notes'], lambda x: '%s <small>%s</small>' % (e(x['label']), e(x['updated'])), 'Aucune note de plaidoirie vérifiée.')
-        body += block('Questions probables', s['probable_questions'], lambda x: e(x), 'Disponibles après une préparation d’audience complète.')
+        body += block('Questions probables', s['probable_questions'], lambda x: e(x['question']) + (('<br><small>Réponse proposée : ' + e(x['answer']) + '</small>') if x.get('answer') else ''),
+                      'Disponibles après une préparation d’audience complète.')
         body += block('Projets à relire', s['drafts_to_review'], lambda x: '<a href="%s">%s</a> <small>%s</small>' % (
-            e(prefix + '/documents/edit?path=' + x['path'] + '&matter=' + s['matter'], quote=True), e(x['name']), e(x['updated'])), 'Aucun projet en attente de relecture.')
+            e(prefix + '/documents/edit?' + urlencode({'path': x['path'], 'matter': s['matter']}), quote=True), e(x['name']), e(x['updated'])), 'Aucun projet en attente de relecture.')
+        if s.get('unavailable'):
+            body += '<p class="notice">Fiche partiellement indisponible : %s</p>' % e(' ; '.join(s['unavailable']))
         if s['notes']:
             body += '<p class="vf-note">%s</p>' % ' '.join(e(n) for n in s['notes'])
         body += '<p><a class="ax-btn" href="%s/audiences-word?matter=%s">Préparer la plaidoirie (analyse complète)</a></p>' % (e(prefix, quote=True), e(s['matter'], quote=True))

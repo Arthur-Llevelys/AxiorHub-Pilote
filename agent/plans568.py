@@ -7,7 +7,9 @@ import secrets
 from .common import Stop, load_matters
 from . import missions567, settings568
 
-DONE={'verified','answered','abstained'}
+DONE={'verified','answered'}
+# 5.6.14 (C12) : une abstention reste visible et bloque la dépendance ; elle n'équivaut pas à un résultat exploitable.
+ABSTAINED={'abstained'}
 
 
 def _row(desk,ident,owner,admin=False):
@@ -69,7 +71,7 @@ def advance(desk,ident):
         if s['mission_id']:
             m=missions567.get(desk,s['mission_id'],row['owner']);states[s['position']]=m['state']
             desk.db.execute('UPDATE plan_steps_v568 SET state=?,updated=? WHERE plan_id=? AND position=?',(m['state'],desk.now(),ident,s['position']));desk.db.commit()
-            blocked=blocked or m['state'] in ('error','decision','paused','prepared')
+            blocked=blocked or m['state'] in ('error','decision','paused','prepared','abstained')
             continue
         enabled=settings568.profile(desk,row['owner'])['roles']
         if s['role'] not in enabled:

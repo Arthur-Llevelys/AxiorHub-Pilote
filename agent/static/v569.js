@@ -63,7 +63,7 @@
     } catch (e) { out.textContent = 'Micro refusé ou indisponible : ' + e.message; }
     finally { stream?.getTracks().forEach(t => t.stop()); context?.close().catch(() => {}); }
   });
-  if (!box) return;
+  if (!box || document.querySelector('#c5614-panel')) return;   // 5.6.14 : le centre « À décider » compact est pris en charge par v5614.js
   box.addEventListener('click', async event => {
     const button = event.target.closest('button[data-act]');
     if (!button) return;

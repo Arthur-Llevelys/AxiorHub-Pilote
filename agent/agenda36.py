@@ -14,8 +14,16 @@ def e(value):return escape(str(value if value is not None else ''),quote=True)
 
 
 def page(desk,args,link,url,form=None):
-    view=args.get('view','list')
-    if view not in ('list','week','month'):view='list'
+    # 5.6.14 (U03) : semaine par défaut ; une vue choisie explicitement devient la préférence de l'utilisateur
+    explicit=args.get('view','')
+    if explicit in ('list','week','month'):
+        view=explicit
+        try:
+            if desk.settings('agenda5614:view','week')!=view:desk.setting('agenda5614:view',view)
+        except Exception:pass
+    else:
+        view=desk.settings('agenda5614:view','week')
+        if view not in ('list','week','month'):view='week'
     try:day=date.fromisoformat(args.get('date','') or datetime.now(ZoneInfo('Europe/Paris')).date().isoformat())
     except ValueError:raise Stop('date_agenda_invalide') from None
     if view=='week':

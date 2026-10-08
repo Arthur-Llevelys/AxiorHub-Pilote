@@ -1,0 +1,51 @@
+/* AxiorHub 5.6.14 : routines en tête, « À décider » compact, missions complexes. */
+.c5614-routines{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem .9rem;margin:.4rem 0 .8rem;padding:.45rem .7rem;border:1px solid #e1e6ec;border-radius:10px;background:#f8fafc}
+.c5614-bar{display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:center}
+.c5614-routine{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;font-size:.9rem}
+.c5614-routine .c5614-state{color:#5b6773;font-size:.82rem}
+.c5614-routine .ax-btn{padding:.1rem .5rem;font-size:.8rem}
+.c5614-side{display:flex;gap:.4rem;align-items:center}
+.c5614-side .ax-btn.warn{background:#fde8e8;color:#8a1c1c;border-color:#e3b4b4}
+.c5614-decisions{padding:.6rem .9rem}
+.c5614-summary{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1rem}
+.c5614-summary h2{margin:0}
+.c5614-summary .c530-sub{flex:1 1 320px;margin:0}
+.c5614-urgent{font-size:.78rem;padding:.05rem .45rem;border-radius:999px;background:#fde8e8;color:#8a1c1c;margin-left:.3rem}
+.c5614-panel{position:fixed;top:0;right:0;left:auto;bottom:auto;margin:0;height:100vh;width:min(520px,92vw);background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,.18);z-index:60;display:flex;flex-direction:column}
+.c5614-panel[hidden]{display:none}
+.c5614-panel header{display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;border-bottom:1px solid #e1e6ec}
+.c5614-panel header h3{margin:0;font-size:1rem}
+.c5614-list{overflow:auto;padding:.6rem .9rem;flex:1}
+.c5614-card{border:1px solid #e1e6ec;border-radius:10px;padding:.55rem .7rem;margin-bottom:.6rem;background:#fff}
+.c5614-card:focus{outline:2px solid #17324d;outline-offset:2px}
+.c5614-card header strong{font-size:.95rem}
+.c5614-q{margin:.3rem 0;font-weight:600}
+.c5614-reco,.c5614-cons{margin:.2rem 0;font-size:.86rem;color:#2f3b47}
+.c5614-actions{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin-top:.4rem}
+.c5614-actions select,.c5614-actions input,.c5614-actions textarea{max-width:100%;font-size:.85rem}
+.c5614-field{display:flex;flex-direction:column;font-size:.8rem;gap:.1rem;min-width:140px}
+.c5614-more{width:100%}
+.c5614-more summary{cursor:pointer;font-size:.85rem;color:#17324d}
+.c5614-more textarea,.c5614-more input{width:100%;margin:.2rem 0}
+.m5614-page .m5614-mission{border:1px solid #e1e6ec;border-radius:10px;padding:.7rem .9rem;margin-bottom:.8rem;background:#fff}
+.m5614-tree{list-style:none;margin:.4rem 0;padding-left:0}
+.m5614-tree ul{list-style:none;padding-left:1.2rem;border-left:2px solid #e1e6ec;margin:.2rem 0}
+.m5614-task{display:flex;flex-wrap:wrap;gap:.3rem .6rem;align-items:baseline;padding:.2rem 0}
+.m5614-task[hidden]{display:none}
+.m5614-code{font-family:ui-monospace,monospace;font-size:.8rem;color:#5b6773}
+.m5614-state{font-size:.78rem;padding:.05rem .45rem;border-radius:999px;border:1px solid #cfd8e3;background:#f6f7f9}
+.m5614-state.accepte{background:#e6f4ea;border-color:#9bd1aa;color:#1b5e20}
+.m5614-state.reserves{background:#fff6e0;border-color:#f0d58c;color:#7a5200}
+.m5614-state.bloque,.m5614-state.en_erreur{background:#fde8e8;border-color:#e3b4b4;color:#8a1c1c}
+.m5614-state.en_cours{background:#e3eefc;border-color:#9fc0ea;color:#17324d}
+.m5614-filters{display:flex;gap:.4rem;margin:.4rem 0}
+.m5614-progress{height:8px;background:#e1e6ec;border-radius:999px;overflow:hidden;margin:.3rem 0}
+.m5614-progress span{display:block;height:100%;background:#2e7d32}
+.m5614-next{font-weight:600;margin:.3rem 0}
+@media (max-width:850px){.c5614-panel{width:100vw}.c5614-routines{padding:.4rem}}
+.ws-ai-chips{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0}
+.ws-ai-chip{font-size:.8rem;padding:.15rem .55rem;border-radius:999px;border:1px solid #cfd8e3;background:#f6f7f9;cursor:pointer}
+.ws-ai-chip:hover{background:#e3eefc}
+.c5614-card{color:#1f2a36}
+.c5614-card header strong,.c5614-q{color:#17324d}
+.c5614-panel header h3{color:#17324d}

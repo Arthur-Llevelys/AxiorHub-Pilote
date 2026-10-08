@@ -49,6 +49,11 @@
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && document.activeElement === question) {event.preventDefault(); send.click();}
   });
   dock.querySelectorAll('[data-ai-example]').forEach(b => b.addEventListener('click', () => {question.value = b.dataset.aiExample; question.focus(); schedulePlan();}));
+  // 5.6.14 (U04) : commandes de contexte (Préparer audience, Répondre, Comparer, Réviser, Assignation, Devis)
+  dock.querySelectorAll('[data-ai-chip]').forEach(b => b.addEventListener('click', () => {
+    question.value = b.dataset.aiChip; if (intentSelect && b.dataset.aiIntent) intentSelect.value = b.dataset.aiIntent; else if (intentSelect) intentSelect.value = 'auto';
+    question.focus(); schedulePlan();
+  }));
   document.querySelectorAll('[data-mission-open]').forEach(b => b.addEventListener('click', open));
   // 5.6.13 : sélection du dossier — recherche par client, adversaire, référence, alias ; nom complet ; récents en premier
   let mattersLoaded = false, mattersData = [];
@@ -111,7 +116,7 @@
     try {
       const p = await api('mission/intent', {instruction: text, matter: matter.value, intent: intentSelect?.value || 'auto', attachments,
         context: {mail_key: q.get('key') || '', selected_documents: selectedDocuments()}});
-      plan.replaceChildren(el('strong', '→ ' + p.label), el('span', ' · ' + (p.matter_label || (p.needs_matter || p.ambiguous ? 'dossier à préciser' : 'tout le cabinet'))
+      plan.replaceChildren(el('strong', '→ ' + p.label + (p.parcours ? ' · ' + p.parcours : '') + (p.facturation && p.facturation.missing?.length ? ' · manque : ' + p.facturation.missing.join(', ') : '')), el('span', ' · ' + (p.matter_label || (p.needs_matter || p.ambiguous ? 'dossier à préciser' : 'tout le cabinet'))
         + ' · sources : ' + p.sources.selected_documents + ' document(s) du dossier, ' + p.sources.attachments + ' pièce(s) jointe(s)' + (p.sources.mail ? ', courriel sélectionné' : '')),
         el('small', ' ' + (p.reasons || []).join(' ')));
       plan.hidden = false; plan.dataset.intent = p.intent;
@@ -147,8 +152,9 @@
       p.append(a, ' ', i); c.append(p);
     }
     if (r.open_url && r.open_url.startsWith(prefix + '/') && !r.open_url.startsWith('//')) {
-      const a = el('a', m.kind === 'mail' ? 'Relire le brouillon' : 'Ouvrir le projet', 'btn'); a.href = r.open_url; c.append(a);
+      const a = el('a', m.kind === 'mail' ? 'Relire le brouillon' : m.complex ? 'Ouvrir la mission complexe' : m.kind === 'facturation' ? 'Ouvrir Honoraires' : 'Ouvrir le projet', 'btn'); a.href = r.open_url; c.append(a);
     }
+    if (r.missing?.length) c.append(el('p', 'À renseigner : ' + r.missing.join(', '), 'warn'));
     if (m.kind === 'document' && r.checks && !r.checks.lawyer_validation && r.path) {
       const b = el('button', 'Valider ce projet (avocat)'); b.type = 'button'; b.dataset.missionControl = 'validate'; c.append(' ', b);
     }

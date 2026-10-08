@@ -124,7 +124,7 @@ def ensure_board(desk, deck, s):
 
 
 # ---------------------------------------------------------------------------------------- ce que le tableau doit montrer
-PRODUCTION = {'docrequest520', 'maildraft5613', 'prepare_reply', 'prepare_draft', 'prepare_document_project', 'prepare_word_project', 'prepare_legal_opinion',
+PRODUCTION = {'docrequest520', 'maildraft5613', 'task5614', 'prepare_reply', 'prepare_draft', 'prepare_document_project', 'prepare_word_project', 'prepare_legal_opinion',
               'draft_act', 'pieces_create510', 'studio_prepare420', 'prepare_hearing', 'prepare_cabinet_letter'}
 
 

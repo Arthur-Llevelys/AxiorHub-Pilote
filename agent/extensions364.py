@@ -270,23 +270,24 @@ def _parse_mcp(raw):
     except (ValueError,UnicodeError):raise Stop('reponse_mcp_invalide') from None
 
 
+_SESSIONS={}
+
+
 def _mcp_call(item, method, params=None):
-    validate_endpoint(item.get('endpoint',''), resolve=True)
-    http=HTTP(item['endpoint'],timeout=30)
-    if item.get('auth_type') in ('bearer','oauth2') and item.get('secret_file'):
-        http.headers['Authorization']='Bearer '+read_secret(item.get('secret_file',''))
-    headers={'Content-Type':'application/json','Accept':'application/json, text/event-stream',
-             'MCP-Protocol-Version':'2025-06-18'}
-    payload={'jsonrpc':'2.0','id':1,'method':method}
-    if params is not None:payload['params']=params
-    raw=http.request('POST',item['endpoint'],json.dumps(payload).encode(),headers,2_000_000)
-    result=_parse_mcp(raw)
-    if not isinstance(result,dict) or result.get('jsonrpc')!='2.0':raise Stop('reponse_mcp_invalide')
-    if result.get('error'):raise Stop('erreur_mcp_distante')
-    return result.get('result',{})
+    """5.6.14 (C17) : appel JSON-RPC au travers d'une session MCP conservée par connecteur (initialize, notifications/initialized,
+    identifiant Mcp-Session-Id renvoyé à chaque appel, flux d'événements acceptés)."""
+    from . import mcp5614
+    key=str(item.get('endpoint',''))+'|'+str(item.get('secret_file',''))
+    session=_SESSIONS.get(key)
+    if session is None or method=='initialize':
+        session=mcp5614.Session(item);_SESSIONS[key]=session
+    if method=='initialize':return session.initialize()
+    if method=='notifications/initialized':return {}
+    if not session.protocol:session.initialize()
+    return session.call(method,params)
 
 
-def test_item(desk, extension_id, transport=None):
+def test_item(desk, extension_id, transport=None, deep=False):
     extension_id=_identifier(extension_id)
     item=desk.settings('lawve:item:'+extension_id)
     if not item:raise Stop('extension_lawve_absente')
@@ -302,21 +303,23 @@ def test_item(desk, extension_id, transport=None):
                     'message':'Endpoint enregistré. Une autorisation OAuth 2.1 interactive reste nécessaire ; aucune donnée dossier n’a été envoyée.',
                     'endpoint':item['endpoint'],'latency_ms':0}
         else:
-            initialized=_mcp_call(item,'initialize',{
-              'protocolVersion':'2025-06-18','capabilities':{},
-              'clientInfo':{'name':'AxiorHub','version':'4.2.0'}})
-            tools=_mcp_call(item,'tools/list',{})
-            rows=tools.get('tools',[]) if isinstance(tools,dict) else []
-            if not isinstance(rows,list):raise Stop('liste_outils_mcp_invalide')
-            result={'status':'ok','message':'Connexion MCP établie ; aucun outil n’a été exécuté et aucune donnée dossier n’a été envoyée.',
-                    'protocol_version':initialized.get('protocolVersion',''),
-                    'server':initialized.get('serverInfo',{}),'tools_count':len(rows),
+            # 5.6.14 (C17) : test de connexion = initialize + tools/list paginé via la session ; aucun outil exécuté. Les niveaux
+            # « recherche » et « récupération du texte » sont testés séparément (deep=True, requête d'échantillon neutre).
+            from . import mcp5614
+            session=mcp5614.CallSession(item,_mcp_call)
+            initialized=session.initialize();rows=session.list_tools()
+            levels={'connection':'ok','search':'untested','text':'untested'}
+            if deep:
+                probe=mcp5614.diagnostic(item,call=_mcp_call)
+                levels={k:probe[k] for k in ('connection','search','text')}
+            result={'status':'ok','message':'Connexion MCP établie ; aucun outil n’a été exécuté et aucune donnée dossier n’a été envoyée.' if not deep else
+                      'Connexion MCP établie ; recherche : %s ; récupération du texte : %s (requête d’échantillon neutre, aucune donnée dossier).' % (levels['search'],levels['text']),
+                    'protocol_version':initialized.get('protocolVersion','') if isinstance(initialized,dict) else '',
+                    'server':initialized.get('serverInfo',{}) if isinstance(initialized,dict) else {},'tools_count':len(rows),
                     'tools':[str(x.get('name',''))[:100] for x in rows[:100] if isinstance(x,dict)],
-                    'tool_specs':[{'name':str(x.get('name',''))[:100],
-                      'description':str(x.get('description',''))[:500],
-                      'inputSchema':x.get('inputSchema',{}) if isinstance(x.get('inputSchema',{}),dict) else {}}
-                      for x in rows[:100] if isinstance(x,dict)],
-                    'latency_ms':round((__import__('time').monotonic()-started)*1000)}
+                    'tool_specs':[{'name':str(x.get('name',''))[:100],'description':str(x.get('description',''))[:500],
+                      'inputSchema':x.get('inputSchema',{}) if isinstance(x.get('inputSchema',{}),dict) else {}} for x in rows[:100] if isinstance(x,dict)],
+                    'levels':levels,'latency_ms':round((__import__('time').monotonic()-started)*1000)}
     except Stop as error:
         code=str(error)
         messages={'http_401':'Authentification refusée ou autorisation OAuth requise.',
@@ -414,31 +417,13 @@ def legal_connector_search(desk,anonymous_query,limit=8):
         if not provider:
             results.append({'connector':item.get('id',''),'provider':'','status':'skipped',
               'error':'connecteur_non_associe_a_un_fournisseur_juridique_verifiable','rows':[]});continue
-        specs=item.get('last_test',{}).get('tool_specs',[]);chosen=None
-        for spec in specs:
-            name=str(spec.get('name',''))
-            if re.search(r'(?i)(search|recherche|find).*(decision|juris|law|legal)|'
-                         r'(decision|juris|law|legal).*(search|recherche|find)',name):
-                chosen=spec;break
-        if not chosen:
-            results.append({'connector':item.get('id',''),'provider':provider,'status':'skipped',
-              'error':'outil_recherche_juridique_absent','rows':[]});continue
-        schema=chosen.get('inputSchema',{});properties=schema.get('properties',{}) if isinstance(schema,dict) else {}
-        field=next((x for x in ('query','q','search','text','keywords') if x in properties),None)
-        if not field:
-            results.append({'connector':item.get('id',''),'provider':provider,'status':'skipped',
-              'error':'champ_requete_mcp_non_reconnu','rows':[]});continue
-        arguments={field:anonymous_query}
-        for candidate in ('limit','max_results','top_k'):
-            if candidate in properties:arguments[candidate]=limit;break
-        try:
-            response=_mcp_call(item,'tools/call',{'name':chosen['name'],'arguments':arguments})
-            rows=_tool_result_rows(response)[:limit]
-            results.append({'connector':item.get('id',''),'provider':provider,'status':'ok',
-              'tool':chosen['name'],'rows':rows})
-        except Stop as error:
-            results.append({'connector':item.get('id',''),'provider':provider,'status':'error',
-              'error':str(error),'rows':[]})
+        # 5.6.14 (C17, M13) : outil choisi et arguments construits d'après le schéma réel (champs imbriqués, pas de « query » supposé),
+        # appel au travers de la session MCP du connecteur ; les schémas viennent du dernier test de connexion.
+        from . import mcp5614
+        specs=item.get('last_test',{}).get('tool_specs',[])
+        found=mcp5614.search(item,anonymous_query,limit,call=_mcp_call,tools=specs if specs else None)
+        results.append({'connector':item.get('id',''),'provider':provider,'status':found['status'],
+          'tool':found.get('tool',''),'rows':found.get('rows',[]),'error':found.get('error',''),'session':found.get('session',False)})
     return results
 
 

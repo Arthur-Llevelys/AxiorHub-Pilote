@@ -99,6 +99,7 @@ class HTTP:
         self.base, self.origin = base.rstrip('/'), (p.scheme, p.netloc)
         self.timeout = timeout
         self.headers = {}
+        self.last_headers = {}
         if username is not None:
             self.headers['Authorization'] = 'Basic ' + base64.b64encode(
                 (username + ':' + password).encode()).decode()
@@ -114,6 +115,7 @@ class HTTP:
                                      headers={**self.headers, **(headers or {})})
         try:
             with self.opener.open(req, timeout=self.timeout) as r:
+                self.last_headers = {k: v for k, v in r.headers.items()}   # 5.6.14 : en-têtes de réponse (session MCP)
                 raw = r.read(limit + 1)
                 if len(raw) > limit:
                     raise Stop('reponse_trop_volumineuse')

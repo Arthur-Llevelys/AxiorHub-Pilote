@@ -63,7 +63,8 @@ class Docs(t510.Base):
         self.assertTrue(row['path'].endswith('Courrier renvoi.docx'))
         text = zipfile.ZipFile(io.BytesIO(self.docs.files[row['path']])).read('word/document.xml').decode()
         self.assertIn('Je sollicite le renvoi', text)
-        self.assertIn('Sources utilisées', text)
+        self.assertNotIn('Sources utilisées', text)                       # 5.6.14 (U06) : notes internes dans la fiche de contrôle, pas dans le corps
+        self.assertEqual(row['result']['control_sheet']['sources'], ['P1', 'C1'])
         ctx = self.model.payloads[0]['dossier']
         self.assertTrue(ctx['fichiers'])
         self.assertEqual(ctx['agenda'][0]['evenement'], 'Audience TJ Lyon ALPHA')

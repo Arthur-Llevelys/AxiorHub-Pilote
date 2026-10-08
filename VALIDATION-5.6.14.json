@@ -1,0 +1,19 @@
+{
+  "version": "5.6.14",
+  "base": "5.6.13 livrée",
+  "date_utc": "2026-10-08T18:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1490,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 47,
+    "duration_seconds": 1111.2,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.13) : sockets IMAP simulés, os.fchmod, installeur Linux, rendu LibreOffice. L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5614.py (graphe borné et hiérarchie, exécution complète d’une assignation avec parents transmis et rôle tracé, recherche bloquante, décisions regroupées, bail/génération/budget/pause/annulation/révision, dépôt repris sans second écrit, lots d’entrées, migration des plans 5.6.8, profils procéduraux, contrôle par assertion et exécution ≠ résultat, instantané et manifeste des sources, reprise IMAP sans doublon et relecture complète, révision Word par blocs, diff normalisé, modèles et validation attachée au contenu, fiche d’audience, Invoice Ninja (clients, projets, devis, réservation par temps, temps fidèles, synchronisation), MCP (session, pagination, schémas, trois niveaux), interface (routines, À décider compact, agenda semaine, Pilote, missions complexes), mise en service voix et recette avec erreur injectée) ; tests 5.6.13 et 5.2.0 ajustés (intentions mission/facturation, fiche de contrôle séparée, recette à trois niveaux)",
+  "conformity_matrix": "CONFORMITE-5.6.14.md",
+  "privacy_scan": "OK",
+  "installer_check": "OK"
+}

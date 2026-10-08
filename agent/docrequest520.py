@@ -337,9 +337,9 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
             'sources': [str(x)[:20] for x in out.get('sources', [])][:60], 'a_completer': [str(x)[:300] for x in out.get('a_completer', [])][:40]}
 
 
-def build_docx(doc, ctx, request):
+def build_docx(doc, ctx, request, internal_notes=False):
     """Document Word autonome (styles simples : titre, intertitres, texte justifié, listes)."""
-    body = _body_xml(doc, ctx, request)
+    body = _body_xml(doc, ctx, request, internal_notes)
     document = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="%s"><w:body>%s'
                 '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr></w:body></w:document>') % (W, body)
     styles = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="%s"><w:docDefaults><w:rPrDefault><w:rPr>'
@@ -360,8 +360,9 @@ def build_docx(doc, ctx, request):
     return out.getvalue()
 
 
-def _body_xml(doc, ctx, request):
-    """5.6.13 : paragraphes WordprocessingML du projet, réutilisés tels quels dans un document d'origine conservé (révision)."""
+def _body_xml(doc, ctx, request, internal_notes=False):
+    """5.6.13 : paragraphes WordprocessingML du projet, réutilisés tels quels dans un document d'origine conservé (révision).
+    5.6.14 (U06) : sans note interne dans le corps sauf demande explicite ; la fiche de contrôle est séparée."""
     def run(text, bold=False, size=None):
         props = ('<w:b/>' if bold else '') + ('<w:sz w:val="%d"/>' % size if size else '')
         return '<w:r>%s<w:t xml:space="preserve">%s</w:t></w:r>' % (('<w:rPr>%s</w:rPr>' % props) if props else '', escape(str(text), quote=False))
@@ -384,6 +385,8 @@ def _body_xml(doc, ctx, request):
     used = set(doc.get('sources', []))
     refs = ([x for x in ctx.get('extraits', []) if x['source'] in used] + [x for x in ctx.get('pieces_jointes', []) if x['source'] in used] +
             [x for x in ctx.get('courriels', []) if x['source'] in used])
+    if not internal_notes:
+        return ''.join(body)
     body.append(para('Projet préparé par AxiorHub Pilote le %s — à relire et compléter par l’avocat.' % datetime.now().strftime('%d/%m/%Y'), 'intertitre'))
     body.append(para('Demande : ' + request[:600], 'texte'))
     if doc.get('a_completer'):
@@ -481,25 +484,35 @@ def run(desk, args, dav=None):
     text = pilote5613.plain_text(doc)
     control = pilote5613.control_document(desk, row['kind'], text, matter['id'])     # 5.6.13 : contrôle juridique de la rédaction libre
     template_info = {'id': '', 'label': 'Word générique'}
+    internal = bool(desk.settings('docreq5614:internal_notes_in_body', False))
     data = b''
+    revision_report = None
     if row['revision_of'] and prev_path.lower().endswith('.docx') and raw.startswith(b'PK'):
         try:
-            data = pilote5613.replace_body(raw, _body_xml(doc, ctx, row['request']))
-            template_info = {'id': 'previous', 'label': 'Document d’origine conservé (en-têtes, pieds de page, styles)'}
+            if str(args.get('rewrite') or '') == 'complet':
+                data = pilote5613.replace_body(raw, _body_xml(doc, ctx, row['request'], internal))
+                template_info = {'id': 'previous', 'label': 'Document d’origine conservé, corps réécrit intégralement (mode explicite)'}
+            else:
+                data, revision_report = pilote5613.revise_body(raw, _body_xml(doc, ctx, row['request'], internal))   # 5.6.14 (C03) : révision par blocs
+                template_info = {'id': 'previous', 'label': 'Document d’origine conservé : ' + revision_report['summary']}
         except Stop:
             data = b''
     elif not row['revision_of']:
         trow, traw = pilote5613.template_for_kind(desk, row['kind'])
         if trow:
             try:
-                data = pilote5613.build_from_template(desk, traw, doc, ctx, row['request'], matter)
-                template_info = {'id': trow['id'], 'label': trow['label'], 'sha256': trow['sha256']}
+                data, tinfo = pilote5613.build_from_template_ex(desk, traw, doc, ctx, row['request'], matter, internal)
+                template_info = {'id': trow['id'], 'label': trow['label'], 'sha256': trow['sha256'], 'missing_fields': tinfo['missing_fields'], 'provenance': tinfo['provenance']}
+                if tinfo['missing_fields']:
+                    notes.append('Champs du modèle à compléter : ' + ', '.join(pilote5613.FIELD_LABELS.get(f, f) for f in tinfo['missing_fields']))
             except Stop as ex:
                 notes.append('Modèle « %s » non utilisable (%s) : Word générique.' % (trow['label'], ex))
                 data = b''
     if not data:
-        data = build_docx(doc, ctx, row['request'])
+        data = build_docx(doc, ctx, row['request'], internal)
     diff = pilote5613.revision_diff(previous_text, text) if row['revision_of'] else None
+    if diff is not None and revision_report:
+        diff['structure'] = revision_report
     proposal = pilote5613.propose_rule(desk, row['kind'], row['request'], matter['id'], rid) if row['revision_of'] else None
     if row['revision_of']:
         stem = PurePosixPath(prev_path).stem
@@ -521,7 +534,10 @@ def run(desk, args, dav=None):
     result = {'title': doc['titre'], 'to_complete': doc['a_completer'], 'sources': doc['sources'], 'notes': notes,
               'url': '', 'revision_coverage':doc.get('revision_coverage',{}), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)},
               'control': control, 'template': template_info, 'manifest': ctx['manifeste'], 'revision_diff': diff, 'rule_proposal': proposal,
-              'text_sha256': hashlib.sha256(text.encode()).hexdigest()}
+              'text_sha256': hashlib.sha256(text.encode()).hexdigest(),
+              # 5.6.14 (U06) : fiche de contrôle séparée du document destiné au correspondant
+              'control_sheet': {'demande': row['request'][:600], 'sources': doc['sources'], 'a_completer': doc['a_completer'], 'controle': control.get('summary', ''),
+                                'modele': template_info.get('label', ''), 'champs_manquants': template_info.get('missing_fields', []), 'notes': notes}}
     stage(desk,rid,path,data,result)
     saved = desk.db.execute('SELECT * FROM docreq520 WHERE id=?',(rid,)).fetchone()
     outcome = finish(desk,saved,client,args)

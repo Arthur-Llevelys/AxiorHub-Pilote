@@ -519,6 +519,14 @@ def review(desk, data):
     x = _find(desk, item)
     desk.db.execute('INSERT OR REPLACE INTO cockpit530_reviewed VALUES(?,?,?,?)', (item, decision, ('%s — %s' % (x['title'], x['matter_label']))[:250], desk.now()))
     desk.db.commit()
+    if x.get('request'):   # 5.6.14 (C12) : validation attachée au hash du contenu
+        try:
+            from .pilote5613 import record_validation
+            row = desk.db.execute('SELECT result FROM docreq520 WHERE id=?', (x['request'],)).fetchone()
+            sha = json.loads(row['result'] or '{}').get('sha256', '') if row else ''
+            record_validation(desk, item, x.get('path', ''), sha, decision)
+        except Exception:
+            pass
     try:
         from .learning410 import record_review
         record_review(desk, item, x['matter'], 'mail_drafting' if x['type'] == 'Courriel' else 'document_drafting',
@@ -863,7 +871,7 @@ def header_html(desk):
 
 def page(desk, prefix, csrf='', owner='cabinet'):
     ensure_schema(desk)
-    from .decisions569 import html as decisions_html   # 5.6.9 : « À décider » en tête de page
+    from .aujourdhui5614 import decisions_html, routines_bar_html   # 5.6.14 (U01, U02) : routines en tête, « À décider » compact
     z = tz(desk)
     days = ('lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche')
     months = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')
@@ -872,7 +880,7 @@ def page(desk, prefix, csrf='', owner='cabinet'):
     options = ''.join('<option value="%s">%s</option>' % (e(mid, quote=True), e(label)) for mid, label in sorted(_labels(desk).items(), key=lambda kv: fold(kv[1])))
     header = header_html(desk).replace('href="diagnostic"', 'href="%s"' % e(prefix + '/diagnostic', quote=True))
     return ('<div class="c530" id="c530" data-prefix="%s">'
-            '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>'
+            '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
             '<section class="c530-card c530-pilot-slot" id="c530-pilot-slot" aria-label="Pilote"><p class="c530-note" data-pilot-fallback>Le panneau Pilote (texte, documents, voix) s’affiche ici.</p></section>'
             '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer>%s'
             '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
@@ -898,7 +906,7 @@ def page(desk, prefix, csrf='', owner='cabinet'):
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
             '<div id="c530-drawer-content"></div></div></div></div>') % (
-        e(prefix, quote=True), e(when), header, thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
+        e(prefix, quote=True), e(when), header, routines_bar_html(desk, prefix), thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
         review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix), routines_html(desk, prefix), style_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
 

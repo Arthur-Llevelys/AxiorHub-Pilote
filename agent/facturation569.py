@@ -119,6 +119,8 @@ def _billed_entries(desk, matter):
 def billable_entries(desk, matter):
     ensure_schema(desk)
     billed = _billed_entries(desk, matter)
+    from .facturation5614 import reserved_entries   # 5.6.14 (C16) : réservations par entrée, y compris les temps facturés depuis Invoice Ninja
+    billed |= reserved_entries(desk)
     return [dict(r) for r in desk.db.execute('SELECT * FROM time500_entries WHERE matter=? ORDER BY day', (str(matter),)) if r['id'] not in billed]
 
 
@@ -137,13 +139,25 @@ def _lines(entries):
     return out
 
 
-def _check_invoice(checked, remote_id, client_id, total_cents, line_count):
-    """Rapprochement de la relecture distante avec la demande ; chaque écart est nommé, rien n'est supposé."""
+def _check_invoice(checked, remote_id, client_id, total_cents, line_count, body=None):
+    """5.6.14 (C14) : rapprochement sur tous les champs utiles — identifiant, client exigé, statut, chaque ligne normalisée (libellé, quantité,
+    coût, taxe), totaux Decimal, remise, devise ; chaque écart est nommé, rien n'est supposé."""
     issues = []
     if str(checked.get('id')) != str(remote_id):
         issues.append('identifiant différent')
-    if checked.get('client_id') is not None and str(checked.get('client_id')) != client_id:
+    if not checked.get('client_id'):
+        issues.append('client absent de la relecture')
+    elif str(checked.get('client_id')) != client_id:
         issues.append('client différent')
+    if body is not None:
+        from .facturation5614 import check_lines
+        issues += [i for i in check_lines(checked, {**body, 'expected_amount': None}, client_id, Decimal(int(total_cents)) / 100) if i not in issues]
+        if body.get('public_notes') is not None and checked.get('public_notes') is not None and str(checked.get('public_notes')) != str(body['public_notes']):
+            issues.append('notes publiques différentes')
+        if checked.get('currency_id') and body.get('currency_id') and str(checked['currency_id']) != str(body['currency_id']):
+            issues.append('devise différente')
+        if checked.get('due_date') and body.get('due_date') and str(checked['due_date'])[:10] != str(body['due_date'])[:10]:
+            issues.append('échéance différente')
     status = checked.get('status_id')
     if status is None:
         issues.append('statut absent')
@@ -183,12 +197,18 @@ def draft_invoice(desk, matter, note='', confirm=False, entry_ids=None, http=Non
         raise Stop('taux_horaire_manquant')
     key = digest('invoice569|' + str(matter) + '|' + '|'.join(sorted(x['id'] for x in entries)))
     total_cents = sum(int(x['amount_cents']) for x in entries)
+    from .facturation5614 import reserve_entries, confirm_entries, release_entries
     lines = _lines(entries)
     body = {'client_id': client_id, 'date': date.today().isoformat(), 'line_items': lines,
             'public_notes': str(note or '')[:1000], 'private_notes': ('AxiorHub — dossier ' + matter_display(row) + ' — réf. ' + key[:16])[:300]}
     proof = {'entries': [x['id'] for x in entries], 'total_cents': total_cents, 'reference': key[:16]}
     client = _client(desk, http)   # réglages et autorisation vérifiés avant toute trace locale
-    _reserve(desk, key, 'invoice', matter, client_id, 'entries:%d' % len(entries), proof, amount='%.2f' % (total_cents / 100))
+    reserve_entries(desk, [x['id'] for x in entries], key)   # 5.6.14 (C16) : chaque temps est réservé individuellement (deux sélections qui se recoupent ne peuvent pas facturer le même temps)
+    try:
+        _reserve(desk, key, 'invoice', matter, client_id, 'entries:%d' % len(entries), proof, amount='%.2f' % (total_cents / 100))
+    except Stop:
+        release_entries(desk, key, 'cle_facture_deja_reservee')
+        raise
     try:
         created = _data(client.json('POST', '/api/v1/invoices', body))
     except Exception as ex:
@@ -202,7 +222,8 @@ def draft_invoice(desk, matter, note='', confirm=False, entry_ids=None, http=Non
         _update(desk, key, 'uncertain', {**proof, 'error': str(ex)[:200]}, remote_id=remote_id)
         raise Stop('facture_relecture_impossible') from None
     number = str(checked.get('number') or created.get('number') or '')
-    issues = _check_invoice(checked, remote_id, client_id, total_cents, len(lines))
+    issues = _check_invoice(checked, remote_id, client_id, total_cents, len(lines), body)
+    confirm_entries(desk, key, remote_invoice=remote_id)
     state = 'verified' if not issues else 'deposited_unverified'
     proof.update({'status_id': checked.get('status_id'), 'remote_amount': checked.get('amount'), 'issues': issues, 'checked_at': desk.now()})
     _update(desk, key, state, proof, remote_id=remote_id, number=number)
@@ -235,26 +256,31 @@ def log_time(desk, entry_id, confirm=False, http=None):
         raise Stop('temps_absent')
     key = digest('task569|' + str(entry_id))
     client_id = _link(desk, entry['matter'])
+    from .facturation5614 import time_log as _time_log, reserve_entries, confirm_entries, release_entries
     try:
-        start = datetime.fromisoformat(str(entry['day'])).replace(hour=9, minute=0, tzinfo=timezone.utc)
+        log, representation = _time_log(dict(entry))   # 5.6.14 (C15) : intervalle mesuré transmis tel quel ; durée déclarée signalée, aucune heure fabriquée
     except ValueError:
         raise Stop('jour_invalide') from None
-    end = start + timedelta(minutes=int(entry['minutes']))
-    description = str(entry['label'])[:500]
-    body = {'client_id': client_id, 'description': description,
-            'time_log': json.dumps([[int(start.timestamp()), int(end.timestamp())]])}
+    description = (str(entry['label'])[:420] + ' [' + representation + ']')[:500]
+    body = {'client_id': client_id, 'description': description, 'time_log': json.dumps(log)}
     if int(entry['rate_cents']) > 0:
         body['rate'] = _euros(entry['rate_cents'])
-    proof = {'entry': entry['id'], 'minutes': int(entry['minutes'])}
+    proof = {'entry': entry['id'], 'minutes': int(entry['minutes']), 'representation': representation, 'time_log': log}
     client = _client(desk, http)
     _reserve(desk, key, 'task', entry['matter'], client_id, entry['id'], proof, conflict='temps_deja_transmis')
+    remote_id = ''
     try:
         created = _data(client.json('POST', '/api/v1/tasks', body))
         remote_id = str(created['id'])
-        checked = _data(client.json('GET', '/api/v1/tasks/' + quote(remote_id, safe='')))
     except Exception as ex:
         _update(desk, key, 'uncertain', {**proof, 'error': str(ex)[:200]})
         raise Stop('temps_incertain_verifier_invoice_ninja') from None
+    try:
+        checked = _data(client.json('GET', '/api/v1/tasks/' + quote(remote_id, safe='')))
+    except Exception as ex:
+        # 5.6.14 (C15) : l'identifiant obtenu au POST est conservé pour le rapprochement même si la relecture échoue
+        _update(desk, key, 'uncertain', {**proof, 'error': 'relecture: ' + str(ex)[:160]}, remote_id=remote_id)
+        raise Stop('temps_relecture_impossible_identifiant_conserve') from None
     issues = []
     if str(checked.get('id')) != remote_id:
         issues.append('identifiant différent')
@@ -262,8 +288,28 @@ def log_time(desk, entry_id, confirm=False, http=None):
         issues.append('client différent')
     if checked.get('description') is not None and str(checked.get('description')) != description:
         issues.append('description différente')
+    try:
+        remote_log = json.loads(checked['time_log']) if isinstance(checked.get('time_log'), str) else checked.get('time_log')
+        if remote_log is not None and [[int(a), int(b)] for a, b in remote_log] != log:
+            issues.append('intervalle de temps différent')
+        if remote_log is not None and sum(int(b) - int(a) for a, b in remote_log) != int(entry['minutes']) * 60:
+            issues.append('durée différente')
+    except (ValueError, TypeError, KeyError):
+        issues.append('time_log illisible')
+    if body.get('rate') is not None and checked.get('rate') is not None and abs(float(checked['rate']) - float(body['rate'])) > 0.005:
+        issues.append('taux différent')
+    if checked.get('project_id') and body.get('project_id') and str(checked['project_id']) != str(body['project_id']):
+        issues.append('projet différent')
     state = 'verified' if not issues else 'deposited_unverified'
     _update(desk, key, state, {**proof, 'issues': issues, 'checked_at': desk.now()}, remote_id=remote_id)
+    try:
+        from .facturation5614 import InvoiceNinjaClient
+        InvoiceNinjaClient(desk, http)._map('task', 'entry:' + entry['id'], remote_id)
+        # 5.6.14 (C16) : un temps exporté comme tâche ne peut plus être facturé localement en parallèle
+        reserve_entries(desk, [entry['id']], key)
+        confirm_entries(desk, key, remote_task=remote_id)
+    except Stop:
+        pass
     desk.audit('invoice_ninja_temps_transmis', {'matter': entry['matter'], 'remote_id': remote_id, 'minutes': int(entry['minutes']), 'state': state})
     return {'task_id': remote_id, 'minutes': int(entry['minutes']), 'verified': not issues, 'issues': issues,
             'message': ('Temps de %d min transmis à Invoice Ninja (tâche %s).' % (int(entry['minutes']), remote_id)) if not issues else

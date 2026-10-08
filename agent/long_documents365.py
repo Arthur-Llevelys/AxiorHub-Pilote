@@ -12,9 +12,17 @@ from .model import CHAT, validate
 def _sha(value):return hashlib.sha256(str(value).encode()).hexdigest()
 
 
-def _model_fingerprint(model):
+def _model_fingerprint(model,desk=None):
     cfg=getattr(model,'cfg',{}) or {}
-    return {k:cfg.get(k) for k in ('provider_id','provider_type','model','num_ctx','temperature','base_url') if k in cfg}
+    out={k:cfg.get(k) for k in ('provider_id','provider_type','model','num_ctx','temperature','base_url') if k in cfg}
+    # 5.6.14 (C11) : digest effectif des poids pour un modèle local — un même tag avec d'autres poids invalide le cache.
+    if desk is not None and cfg.get('provider_type','ollama')=='ollama' and cfg.get('model'):
+        try:
+            from .economie569 import model_digest
+            out['digest']=model_digest(desk,str(cfg['model']))
+        except Exception:
+            out['digest']=''
+    return out
 
 
 def analysis_signature(desk,model,limit,purpose):
@@ -22,8 +30,8 @@ def analysis_signature(desk,model,limit,purpose):
     documents/Ollama/routage, consignes des extensions actives, limite et fonction. Plus aucun réglage « ai:* » (bancs, quotas, régime)
     ni réglage d'apprentissage ou de style, qui n'interviennent pas dans l'analyse d'un document long."""
     from .extensions364 import active_skill_instructions
-    return _sha(json.dumps({'model':_model_fingerprint(model),'config':{k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},
-             'pipeline':'5.6.13-1','limit':limit,'purpose':purpose,
+    return _sha(json.dumps({'model':_model_fingerprint(model,desk),'config':{k:desk.c.get(k) for k in ('documents','ollama')},
+             'pipeline':'5.6.14-1','limit':limit,'purpose':purpose,
              'skills':active_skill_instructions(desk.c,purpose)[:6000]},sort_keys=True,default=str))
 
 
@@ -175,10 +183,10 @@ def analyze_pages(desk,pages,source_id,path,question,model,limit,purpose='hearin
     # A reviewed skill/plugin guides the method as bounded declarative text.
     # No extension script is executed and page sources remain authoritative.
     skill_guidance=active_skill_instructions(desk.c,purpose)[:6000]
-    model_fp=json.dumps({'model':_model_fingerprint(model),'extensions':extensions,
-      'pipeline':'5.6.13-1','skills_sha256':_sha(skill_guidance),'limit':limit,'purpose':purpose,
-      # 5.6.13 (audit F13) : uniquement les paramètres utilisés par l'analyse ; plus aucun réglage « ai:* » (bancs, quotas).
-      'config_sha256':_sha(json.dumps({k:desk.c.get(k) for k in ('documents','ollama','model_routing','hybrid_routing')},sort_keys=True,default=str))},sort_keys=True)
+    model_fp=json.dumps({'model':_model_fingerprint(model,desk),'extensions':extensions,
+      'pipeline':'5.6.14-1','skills_sha256':_sha(skill_guidance),'limit':limit,'purpose':purpose,
+      # 5.6.13 / 5.6.14 (F13, C11) : uniquement les paramètres consommés (modèle + digest, documents, Ollama) ; ni réglages « ai:* » ni routage global.
+      'config_sha256':_sha(json.dumps({k:desk.c.get(k) for k in ('documents','ollama')},sort_keys=True,default=str))},sort_keys=True)
     document_sha=_sha(chr(10).join(str(x['page'])+chr(0)+str(x['text']) for x in pages))
     signature=analysis_signature(desk,model,limit,purpose)
     run_id=digest('|'.join([document_sha,source_id,_sha(path),_sha(question),_sha(model_fp),signature]))

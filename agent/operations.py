@@ -83,6 +83,13 @@ def automation_tick(desk):
         from .reception567 import purge   # 5.6.11 : conservation des messages d'accueil appliquée chaque jour, pas seulement à l'ouverture de la liste
         purge(desk)
     except Exception:pass
+    try:   # 5.6.14 (N07) : relecture périodique des statuts et paiements Invoice Ninja (lecture seule)
+        ninja=desk.c.get('invoice_ninja',{})
+        if ninja.get('enabled') and ninja.get('api_token_file') and now_ts-desk.settings('auto:ninja_sync5614',0)>=economie569.interval(desk,'index_all',int(ninja.get('sync_interval_minutes',120)))*60:
+            desk.setting('auto:ninja_sync5614',now_ts)
+            from .facturation5614 import pull
+            pull(desk)
+    except Exception:pass
     schedules=[('health','health_interval_minutes',30),('sync','sync_interval_minutes',30),
       ('reconcile_inbox','reconcile_interval_minutes',15),
       ('classify_portfolio','portfolio_interval_minutes',360),

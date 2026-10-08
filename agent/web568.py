@@ -45,6 +45,18 @@ def api(env,desk,auth,prefix,name,args,method):
         if route=='audience':   # 5.6.13 : fiche de préparation par dossier
             from .audience5613 import sheet
             return json_out(sheet(desk,str(args.get('matter') or '')))
+        if route=='mission5614':
+            from . import taches5614
+            return json_out(taches5614.get(desk,str(args.get('id') or ''),owner,admin,prefix))
+        if route=='mission5614/list':
+            from . import taches5614
+            return json_out({'missions':taches5614.listing(desk,owner,admin,prefix)})
+        if route=='profils':
+            from . import profils5614
+            return json_out({'profiles':profils5614.listing(desk)})
+        if route=='ninja/missing':
+            from . import facturation5614
+            return json_out(facturation5614.missing_for(desk,str(args.get('matter') or ''),str(args.get('what') or 'quote')))
         if route=='capabilities':
             return json_out({'tts':desk.c.get('speech568',{}).get('provider','espeak'),'dictation':bool(desk.c.get('audio',{}).get('enabled')),
                     'continuous_turns':True,'progressive_speech':True,'full_duplex_streaming':False,'talk':settings568.profile(desk,owner)['talk_enabled'],
@@ -88,6 +100,55 @@ def api(env,desk,auth,prefix,name,args,method):
         if not admin:raise Stop('role_insuffisant')
         from .recette5613 import run as recette
         return json_out(recette(desk))
+    if route.startswith('mission5614/'):   # 5.6.14 : missions complexes
+        if role not in ('administrateur','avocat'):raise Stop('role_insuffisant')
+        from . import taches5614
+        sub=route[len('mission5614/'):]
+        if sub=='create':
+            answers={k:data[k] for k in ('juridiction','voie','representation','montant_cents') if data.get(k)}
+            payload={**data,'answers':{**(data.get('answers') or {}),**answers},'request_key':str(data.get('request_key') or '').strip() or __import__('secrets').token_hex(12)}
+            if not payload.get('parcours'):
+                from .parcours5614 import detect
+                payload['parcours']=detect(str(data.get('instruction') or '')) or 'assignation'
+            return json_out(taches5614.create(desk,payload,owner))
+        if sub=='control':return json_out(taches5614.control(desk,data,owner,admin))
+        if sub=='decide':return json_out(taches5614.decide(desk,data,owner,admin))
+        if sub=='run':
+            m=taches5614.get(desk,str(data.get('id') or ''),owner,admin)
+            taches5614.advance(desk,m['id'])
+            return json_out({'executed':taches5614.run_pending(desk,m['id']),'mission':taches5614.get(desk,m['id'],owner,admin,prefix)})
+        if sub=='migrate':return json_out(taches5614.migrate_plan(desk,str(data.get('plan') or ''),owner))
+        raise Stop('route_inconnue')
+    if route=='decision/defer':
+        from .aujourdhui5614 import defer
+        kind=str(data.get('kind') or '')
+        if kind=='mission5614':
+            from . import taches5614
+            from datetime import datetime,timedelta,timezone
+            until=(datetime.now(timezone.utc)+timedelta(days=max(1,min(int(data.get('days') or 1),30)))).replace(hour=7,minute=0,second=0,microsecond=0).isoformat()
+            return json_out(taches5614.decide(desk,{'id':str(data.get('id') or ''),'action':'defer','until':until},owner,admin) and {'deferred':True,'until':until})
+        return json_out(defer(desk,str(data.get('key') or ''),int(data.get('days') or 1)))
+    if route=='automatismes/pause':
+        if role not in ('administrateur','avocat'):raise Stop('role_insuffisant')
+        paused=bool(data.get('paused'))
+        desk.setting('missions567:pause',paused);desk.audit('automatismes5614_pause',{'paused':paused})
+        return json_out({'paused':paused,'message':'Automatismes en pause : aucune nouvelle mission ni tâche ne démarre.' if paused else 'Automatismes repris.'})
+    if route.startswith('profils/'):
+        if not admin and role!='avocat':raise Stop('role_insuffisant')
+        from . import profils5614
+        if route=='profils/approve':return json_out(profils5614.approve(desk,str(data.get('id') or ''),str(data.get('ack') or '')))
+        if route=='profils/revoke':return json_out(profils5614.revoke(desk,str(data.get('id') or '')))
+        raise Stop('route_inconnue')
+    if route.startswith('ninja/'):
+        if role not in ('administrateur','avocat'):raise Stop('role_insuffisant')
+        from . import facturation5614
+        if route=='ninja/client':return json_out(facturation5614.ensure_client(desk,str(data.get('matter') or ''),data,confirm=bool(data.get('confirm'))))
+        if route=='ninja/clients/search':return json_out({'clients':facturation5614.search_clients(desk,str(data.get('name') or ''),str(data.get('email') or ''),str(data.get('siren') or ''))})
+        if route=='ninja/project':return json_out(facturation5614.ensure_project(desk,str(data.get('matter') or ''),data))
+        if route=='ninja/quote/preview':return json_out(facturation5614.preview_quote(desk,str(data.get('matter') or ''),data.get('items') or [],str(data.get('terms') or ''),data.get('validity_days') or 30,str(data.get('note') or '')))
+        if route=='ninja/quote':return json_out(facturation5614.draft_quote(desk,str(data.get('matter') or ''),data.get('items') or [],confirm=data.get('confirm'),terms=str(data.get('terms') or ''),validity_days=data.get('validity_days') or 30,note=str(data.get('note') or '')))
+        if route=='ninja/sync':return json_out({'changes':facturation5614.pull(desk),'message':'Statuts et paiements relus depuis Invoice Ninja.'})
+        raise Stop('route_inconnue')
     if route=='docreq/control':         # 5.6.13 : « À décider » — demande de document bloquée reprise avec le dossier choisi
         if role not in ('administrateur','avocat'):raise Stop('role_insuffisant')
         from .docrequest520 import resolve
@@ -110,6 +171,12 @@ def page(desk,auth,prefix,env,path):
     if path=='/audience':
         from .audience5613 import page as audience_page    # 5.6.13
         return audience_page(desk,auth,prefix,env,env.get('axiorhub.args',{}))
+    if path=='/missions-complexes':
+        from .missions5614_ui import page as missions_page   # 5.6.14
+        return missions_page(desk,auth,prefix,env,env.get('axiorhub.args',{}))
+    if path=='/profils':
+        from .missions5614_ui import profils_page   # 5.6.14
+        return profils_page(desk,auth,prefix,env)
     if path=='/veille':
         body='<h1>Veille juridique</h1><p>Flux officiels datés correspondant aux domaines configurés. Chaque extrait conserve sa source ; ce classement ne remplace pas la lecture ni l’analyse de la décision.</p><button type="button" data-run568="news/collect">Actualiser la veille</button><a href="'+e(prefix)+'/parametres/proactivite">Domaines et sources</a><p id="proactive568-status" role="status"></p><div id="news568-list"></div>'
         return shell('Veille',body,prefix,auth['csrf'],'/production')

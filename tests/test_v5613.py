@@ -118,7 +118,7 @@ class Intent(Base):
         self.assertEqual((p['intent'], p['label'], p['matter']), ('document', 'Word dans ce dossier', ALPHA))
         self.assertEqual(p['sources']['selected_documents'], 1);self.assertIn('Word dans ce dossier', p['summary'])
         p = pilot.preview(self.desk, {'instruction': 'Quels délais pour faire appel ?'})
-        self.assertEqual((p['intent'], p['needs_matter']), ('question', False));self.assertEqual([o['intent'] for o in p['options']], ['question', 'analysis', 'document', 'mail'])
+        self.assertEqual((p['intent'], p['needs_matter']), ('question', False));self.assertEqual([o['intent'] for o in p['options']], ['question', 'analysis', 'document', 'mail', 'mission', 'facturation'])
         r = self.request('/api440/m567/mission/intent', 'POST', {}, origin=self.origin)
         self.assertTrue(r['status'].startswith('4'))     # JSON et CSRF exigés comme pour les autres routes
 
@@ -129,7 +129,7 @@ class Intent(Base):
         self.assertTrue(job);self.assertFalse(self.desk.db.execute("SELECT COUNT(*) FROM jobs WHERE kind='docrequest520'").fetchone()[0])
         box = FakeMailbox()
         from agent import maildraft5613
-        with patch('agent.docrequest520._model', return_value=MailModel()), patch('agent.maildraft5613._mailbox', return_value=box):
+        with patch('agent.maildraft5613._mail_model', return_value=MailModel()), patch('agent.maildraft5613._mailbox', return_value=box):
             out = maildraft5613.perform(self.desk, json.loads(job['args']))
             again = maildraft5613.perform(self.desk, json.loads(job['args']))
         self.assertEqual(out['brouillon_imap'], 'verifie');self.assertEqual(len(box.msgs), 1);self.assertIn('aucun second brouillon', again['message'])
@@ -165,7 +165,7 @@ class FreeDrafting(Base):
         after = missions.control(self.desk, {'id': m['id'], 'action': 'validate'})
         self.assertTrue(after['result']['checks']['lawyer_validation']);self.assertEqual(after['result']['checks']['lawyer_validation_label'], 'Validé par l’avocat')
         html = pilot.checks_html(after['result']['checks'])
-        self.assertIn('✓ Dépôt vérifié', html);self.assertIn('✓ Contrôle juridique effectué', html);self.assertIn('✓ Validé par l’avocat', html)
+        self.assertIn('✓ Dépôt vérifié', html);self.assertIn('✓ Contrôle juridique réussi', html);self.assertIn('✓ Validé par l’avocat', html)
 
     def test_control_is_explicit_when_the_second_model_is_not_independent(self):
         self.desk.c['model_routing'].pop('control')
@@ -186,7 +186,7 @@ class FreeDrafting(Base):
         names, xml = docx_text(self.docs.files[row['path']])
         self.assertIn('word/header1.xml', names);self.assertIn('(révisé)', xml);self.assertNotIn('{{', xml)
         self.assertEqual(res['template']['id'], 'previous')
-        self.assertIn('paragraphe(s) ajouté(s)', res['revision_diff']['summary']);self.assertIn('added_count', res['revision_diff'])
+        self.assertIn('ajouté(s)', res['revision_diff']['summary']);self.assertIn('added_count', res['revision_diff'])
         self.assertEqual(res['rule_proposal']['state'], 'proposed');self.assertEqual(res['rule_proposal']['rule_type'], 'style')
         self.assertTrue(res['rule_proposal']['instruction'].startswith('Pour les courrier / lettre : '))
         decided = pilot.decide_rule(self.desk, res['rule_proposal']['id'], 'adopt')
@@ -201,7 +201,7 @@ class FreeDrafting(Base):
         after = 'Il est demandé 1 500 euros.\nAudience du 12/03/2027.\nPAR CES MOTIFS\nCondamner X à payer 1 500 euros.\nDébouter Y.'
         d = pilot.revision_diff(before, after)
         self.assertEqual(sorted(d['alerts']), ['demande(s) modifiée(s)', 'dispositif modifié', 'montant(s) modifié(s)'])
-        self.assertEqual(d['amounts']['added'], ['1500euros']);self.assertEqual(d['dates']['added'], [])
+        self.assertEqual(d['amounts']['added'], ['1500.00']);self.assertEqual(d['dates']['added'], [])
         same = pilot.revision_diff(before, before)
         self.assertEqual(same['alerts'], []);self.assertIn('ni montant', same['summary'])
 
@@ -353,10 +353,10 @@ class Pages(Base):
         report = recette5613.run(self.desk, dav=self.docs, box=FakeMailbox(), stamp='T1')
         by = {s['id']: s for s in report['steps']}
         self.assertTrue(by['word']['ok']);self.assertIsNone(by['template']['ok']);self.assertTrue(by['deposit']['ok']);self.assertTrue(by['resume']['ok']);self.assertTrue(by['draft']['ok'])
-        self.assertTrue(report['ok']);self.assertIn('/Dossiers/_RECETTE_AXIORHUB/recette-T1.docx', self.docs.files);self.assertIn('/Dossiers/_RECETTE_AXIORHUB/recette-T1-reprise.docx', self.docs.files)
+        self.assertFalse(report['ok']);self.assertTrue(report['incomplete']);self.assertIn('/Dossiers/_RECETTE_AXIORHUB/recette-T1.docx', self.docs.files);self.assertIn('/Dossiers/_RECETTE_AXIORHUB/recette-T1-reprise.docx', self.docs.files)
         install_template(self.desk)
         report = recette5613.run(self.desk, dav=self.docs, box=FakeMailbox(), stamp='T2')
-        self.assertTrue(next(s for s in report['steps'] if s['id'] == 'template')['ok'])
+        self.assertTrue(next(s for s in report['steps'] if s['id'] == 'template')['ok']);self.assertTrue(report['ok'])
         body = self.request('/mise-en-service')['body']
         self.assertIn('data-recette5613-run', body);self.assertIn('Modèle Word du cabinet', body)
 
