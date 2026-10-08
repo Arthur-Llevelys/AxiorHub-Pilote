@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+"""AxiorHub Pilote — avant retrait du paquet Debian (5.6.18).
+
+Sur « remove », les services et minuteries sont arrêtés et désactivés ; les versions installées sous /opt, la configuration
+sous /etc et les données sous /var/lib sont conservées (voir postrm). Sur « upgrade », rien : postinst de la nouvelle
+version arrête et relance lui-même les services autour de la bascule.
+"""
+import os
+import subprocess
+import sys
+
+DRY = os.environ.get('AXIORHUB_DEB_DRY_RUN') == '1'
+UNITS = ('axiorhub-mail-agent.timer', 'axiorhub-mail-agent-cleanup.timer', 'axiorhub-mail-ui.service',
+         'axiorhub-mail-desk-worker.service', 'axiorhub-mail-watch.service', 'axiorhub-mail-desk-worker@2.service',
+         'axiorhub-mail-agent.service')
+
+
+def main(argv):
+    action = argv[1] if len(argv) > 1 else ''
+    if action != 'remove':
+        return 0
+    for unit in UNITS:
+        print('axiorhub-pilote : systemctl disable --now ' + unit, flush=True)
+        if not DRY:
+            subprocess.run(['systemctl', 'disable', '--now', unit], check=False)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

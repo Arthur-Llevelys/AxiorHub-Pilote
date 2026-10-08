@@ -1,0 +1,14 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: AxiorHub Pilote
+Upstream-Contact: Timo RAINIO <101706410+Arthur-Llevelys@users.noreply.github.com>
+Source: https://github.com/Arthur-Llevelys/AxiorHub-Pilote
+
+Files: *
+Copyright: Timo RAINIO
+License: AGPL-3.0-or-later
+ This program is free software: you can redistribute it and/or modify it under
+ the terms of the GNU Affero General Public License as published by the Free
+ Software Foundation, either version 3 of the License, or (at your option) any
+ later version. The full text is in /opt/axiorhub-mail-agent/current/LICENSE
+ and in the LICENSE file of the source repository. Names and logos are covered
+ by TRADEMARKS.md and LOGO-LICENSE.md of the same tree.

@@ -24,7 +24,7 @@ EXCLUDED_FILES = {'scripts/privacy-scan.py', '.privacy-denylist', 'MANIFEST.sha2
 BINARY = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.tgz', '.woff', '.woff2', '.ttf', '.sqlite3'}
 OFFICE = {'.docx', '.xlsx', '.pptx', '.odt', '.ods'}
 # L'auteur est nommé volontairement (attribution, licence AGPL §7 b) dans ces fichiers seulement.
-AUTHOR_FILES = {'NOTICE', 'AUTHORS.md', 'README.md', 'CHANGELOG.md', 'LOGO-LICENSE.md', 'TRADEMARKS.md', 'SECURITY.md', 'CONTRIBUTING.md',
+AUTHOR_FILES = {'NOTICE', 'AUTHORS.md', 'deploy/debian/copyright', 'scripts/build-deb.py', 'README.md', 'CHANGELOG.md', 'LOGO-LICENSE.md', 'TRADEMARKS.md', 'SECURITY.md', 'CONTRIBUTING.md',
                 'agent/about560.py', 'agent/standalone_auth.py', 'tests/test_v560.py', 'docker/Dockerfile'}
 AUTHOR = re.compile(r'\b(?:' + '|'.join(['ti' + 'mo', 'rai' + 'nio']) + r')\b', re.I)
 PRIVATE_NAMES = re.compile(r'\b(?:' + '|'.join(['lle' + 'velys', 'more' + 'stin', 'resto' + 'group', 'bodi' + 'kian', 'jul' + 'lien', 'bu' + 'vat']) + r')\b', re.I)
@@ -67,7 +67,8 @@ def denylist(root=ROOT):
 
 
 # Adresse publique du dépôt de référence (nom du compte GitHub choisi par l'auteur) : seule exception au contrôle des noms.
-PUBLIC_URLS = ('github.com/' + 'Arthur-Lle' + 'velys/AxiorHub-Pilote',)
+PUBLIC_URLS = ('github.com/' + 'Arthur-Lle' + 'velys/AxiorHub-Pilote',
+               '101706410+Arthur-Lle' + 'velys@users.noreply.github.com')   # 5.6.18 : adresse d'attribution publique (commits, paquet Debian)
 
 
 def scan_text(rel, text, deny=None):

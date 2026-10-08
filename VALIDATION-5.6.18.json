@@ -1,0 +1,24 @@
+{
+  "version": "5.6.18",
+  "base": "5.6.17 livrée",
+  "date_utc": "2026-10-09T02:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1510,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 53,
+    "duration_seconds": 1210.4,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.17). L’installation à blanc du paquet (scripts de maintenance Linux, liens symboliques) s’exécute dans l’intégration continue GitHub sous Linux, pas sur le poste Windows."
+  },
+  "new_tests": "tests/test_v5618.py (paquet : membres ar, control, scripts exécutables avec version substituée, md5sums, propriétaire root, chemins sous /usr/share, reproductibilité, charge utile altérée refusée ; installation à blanc Linux : neuve puis mise à niveau cumulative, version précédente conservée, reçu de retour arrière, sauvegarde de configuration, aucun secret, retrait sans suppression des données)",
+  "corrections": [
+    "Paquet Debian axiorhub-pilote construit en local par scripts/build-deb.py ; post-installation reprenant install.sh (installation neuve ou mise à niveau cumulative)."
+  ],
+  "limits": [
+    "L’installation réelle du paquet (dpkg, compte de service, systemd) n’a pas été exécutée sur un serveur avant livraison : elle est à faire par l’utilisateur selon la note, avec retour arrière documenté.",
+    "install-interface.py reste une étape manuelle après le paquet (mot de passe de l’interface, Apache).",
+    "Un retour à une version antérieure se fait par upgrade.py --rollback, pas par apt (pas de rétrogradation de paquet)."
+  ]
+}

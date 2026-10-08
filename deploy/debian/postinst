@@ -1,0 +1,137 @@
+#!/usr/bin/python3
+"""AxiorHub Pilote — post-installation du paquet Debian (5.6.18).
+
+Reprend exactement la logique d'install.sh : installation neuve (installer.provision_files) ou mise à niveau cumulative
+(upgrade.upgrade) à partir de la charge utile /usr/share/axiorhub-pilote/axiorhub-mail-agent-@VERSION@.tar.gz.
+Les versions précédentes restent sous /opt/axiorhub-mail-agent/releases (retour arrière possible), aucun secret n'est
+créé, données et configuration sont conservées. Les dépendances système sont apportées par apt, pas par ce script.
+
+Installation à blanc (tests) : AXIORHUB_DEB_ROOT=<racine simulée> AXIORHUB_DEB_DRY_RUN=1 — les fichiers sont réellement
+écrits sous la racine simulée, mais systemctl, la création du compte et les changements de propriétaire sont seulement
+consignés dans <racine>/opt/axiorhub-mail-agent/deb-@VERSION@.json.
+"""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+
+VERSION = '@VERSION@'
+ROOT = Path(os.environ.get('AXIORHUB_DEB_ROOT', '/')).resolve()
+DRY = os.environ.get('AXIORHUB_DEB_DRY_RUN') == '1'
+PAYLOAD = ROOT / 'usr/share/axiorhub-pilote' / ('axiorhub-mail-agent-' + VERSION + '.tar.gz')
+BASE = ROOT / 'opt/axiorhub-mail-agent'
+CONFIG_DIR = ROOT / 'etc/axiorhub-mail-agent'
+STATE = ROOT / 'var/lib/axiorhub-mail-agent'
+LAUNCHER = ROOT / 'usr/local/bin/axiorhub-mail'
+SYSTEMD = ROOT / 'etc/systemd/system'
+UNITS = ('axiorhub-mail-ui.service', 'axiorhub-mail-desk-worker.service', 'axiorhub-mail-watch.service',
+         'axiorhub-mail-desk-worker@2.service', 'axiorhub-mail-agent.service')
+TIMERS = ('axiorhub-mail-agent.timer', 'axiorhub-mail-agent-cleanup.timer')
+JOURNAL = []
+
+
+def note(message):
+    JOURNAL.append(message)
+    print('axiorhub-pilote : ' + message, flush=True)
+
+
+def systemctl(*args, check=True):
+    note('systemctl ' + ' '.join(args))
+    if DRY:
+        return 0
+    return subprocess.run(['systemctl', *args], check=check).returncode
+
+
+def is_active(unit):
+    if DRY:
+        return False
+    return subprocess.run(['systemctl', 'is-active', '--quiet', unit]).returncode == 0
+
+
+def extract():
+    if not PAYLOAD.is_file():
+        raise SystemExit('Charge utile absente : ' + str(PAYLOAD))
+    BASE.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix='.deb-' + VERSION + '-', dir=BASE))
+    with tarfile.open(PAYLOAD) as tar:
+        for member in tar.getmembers():
+            parts = Path(member.name).parts
+            if member.issym() or member.islnk() or member.name.startswith('/') or '..' in parts or member.isdev():
+                raise SystemExit('Charge utile refusée : ' + member.name)
+        if hasattr(tarfile, 'data_filter'):
+            tar.extractall(staging, filter='data')
+        else:
+            tar.extractall(staging)
+    inner = [p for p in staging.iterdir()]
+    if len(inner) != 1 or not inner[0].is_dir():
+        raise SystemExit('Charge utile inattendue : un seul dossier de version attendu.')
+    return staging, inner[0]
+
+
+def main(argv):
+    action = argv[1] if len(argv) > 1 else 'configure'
+    if action != 'configure':
+        return 0
+    if os.geteuid() != 0 and not DRY:
+        raise SystemExit('postinst exige root.')
+    if DRY:   # installation à blanc : les changements de propriétaire sont consignés, jamais appliqués
+        os.chown = lambda *a, **k: JOURNAL.append('chown ' + str(a[0]))
+        os.fchown = lambda *a, **k: None
+    staging, source = extract()
+    try:
+        sys.path.insert(0, str(source))
+        import installer, upgrade
+        upgrade.verify(source)
+        if DRY:
+            uid, gid = os.getuid(), os.getgid()
+            note('compte de service axiorhub-mail : vérification consignée (installation à blanc)')
+        else:
+            uid, gid = installer._ensure_account()
+        root_uid, root_gid = (os.getuid(), os.getgid()) if DRY else (0, 0)
+        state = installer.installation_state(BASE, CONFIG_DIR)
+        if state == 'fresh':
+            note('installation neuve ' + VERSION)
+            release = installer.provision_files(source, BASE, CONFIG_DIR, STATE, LAUNCHER, SYSTEMD, uid, gid, root_uid, root_gid)
+            systemctl('daemon-reload')
+            note('Étape suivante : sudo axiorhub-mail configure, puis sudo python3 ' + str(release / 'install-interface.py')
+                 + ', enfin sudo systemctl enable --now axiorhub-mail-agent.timer axiorhub-mail-agent-cleanup.timer')
+        elif state == 'upgrade':
+            note('mise à niveau cumulative vers ' + VERSION)
+            active_units = [u for u in UNITS if is_active(u)]
+            active_timers = [t for t in TIMERS if is_active(t)]
+            stopped = []
+
+            def quiesce():
+                for unit in active_timers + active_units:
+                    systemctl('stop', unit)
+                    stopped.append(unit)
+            try:
+                upgrade.upgrade(source, BASE, CONFIG_DIR / 'config.json', STATE, quiesce=quiesce)
+            finally:
+                systemctl('daemon-reload', check=False)
+                for unit in stopped:
+                    systemctl('start', unit, check=False)
+            note('Puis : sudo python3 ' + str(BASE / 'current' / 'install-interface.py')
+                 + ' (lien de configuration, unités, environnement de l’interface), et sudo python3 '
+                 + str(BASE / 'current' / 'manage.py') + ' readiness')
+        else:
+            raise SystemExit('Installation AxiorHub partielle détectée : aucun fichier modifié.')
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        try:
+            (BASE / ('deb-' + VERSION + '.json')).write_text(json.dumps({'version': VERSION, 'dry_run': DRY, 'journal': JOURNAL},
+                                                                      ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        except OSError:
+            pass
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main(sys.argv))
+    except RuntimeError as exc:
+        sys.exit('axiorhub-pilote : ' + str(exc))

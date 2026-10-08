@@ -3,6 +3,21 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.18 — Paquet Debian
+
+- **Paquet `axiorhub-pilote_5.6.18_all.deb`** : construit en local par `scripts/build-deb.py` à partir de l’archive de livraison
+  contrôlée, sans dpkg ni Linux (format ar et tar écrits en Python). Installation ou mise à niveau par
+  `sudo apt install ./axiorhub-pilote_5.6.18_all.deb` : apt apporte les dépendances système (python3, python3-cryptography,
+  poppler, tesseract-ocr-fra, LibreOffice Writer, minisign, eSpeak NG ; Apache recommandé).
+- **Même logique qu’install.sh** : le script de post-installation reprend `installer.provision_files` (installation neuve) ou
+  `upgrade.upgrade` (mise à niveau cumulative avec sauvegardes et reçu) sur la charge utile `/usr/share/axiorhub-pilote/…tar.gz` ;
+  les versions précédentes restent sous `/opt/axiorhub-mail-agent/releases`, le retour arrière (`upgrade.py --rollback`) et le
+  nettoyage (`install.sh --prune-old-releases`) sont inchangés. Aucun secret créé ; `install-interface.py` reste l’étape suivante.
+- **Retrait** : `apt remove` arrête et désactive les services ; versions, configuration, secrets et données sont conservés et le
+  message indique comment les retirer volontairement.
+- **Tests** : structure du paquet (membres ar, control, md5sums, droits, reproductibilité, charge utile altérée refusée) et
+  installation à blanc sous une racine simulée (neuve puis mise à niveau, retrait) sans dpkg ni root.
+
 ## 5.6.17 — Kokoro, bouton robot et routines en tête d’« Aujourd’hui »
 
 - **Kokoro : « audio synthèse invalide »** : Kokoro-FastAPI répond par défaut en flux, avec un en-tête WAV aux tailles fictives que

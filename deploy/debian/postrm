@@ -1,0 +1,22 @@
+#!/usr/bin/python3
+"""AxiorHub Pilote — après retrait du paquet Debian (5.6.18).
+
+Ni « remove » ni « purge » ne suppriment les versions installées (/opt/axiorhub-mail-agent), la configuration et les
+secrets (/etc/axiorhub-mail-agent) ou les données (/var/lib/axiorhub-mail-agent) : ils contiennent le travail du
+cabinet. Le message indique comment les retirer volontairement.
+"""
+import sys
+
+
+def main(argv):
+    action = argv[1] if len(argv) > 1 else ''
+    if action in ('remove', 'purge'):
+        print('axiorhub-pilote : versions, configuration, secrets et données conservés dans /opt/axiorhub-mail-agent, '
+              '/etc/axiorhub-mail-agent et /var/lib/axiorhub-mail-agent. Pour les supprimer volontairement, après sauvegarde : '
+              'sudo rm -rf /opt/axiorhub-mail-agent /etc/axiorhub-mail-agent /var/lib/axiorhub-mail-agent '
+              '/usr/local/bin/axiorhub-mail /etc/systemd/system/axiorhub-mail-*', flush=True)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
