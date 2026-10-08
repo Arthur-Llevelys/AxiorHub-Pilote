@@ -1,0 +1,22 @@
+{
+  "version": "5.6.16",
+  "base": "5.6.15 livrée",
+  "date_utc": "2026-10-08T23:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1501,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 50,
+    "duration_seconds": 1144.6,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.15) : sockets IMAP simulés, os.fchmod, installeur Linux, rendu LibreOffice. L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5616.py (la version active est toujours admise par install-interface.py sans ajout manuel ; le module reste chargeable sans root)",
+  "corrections": [
+    "install-interface.py : contrôle de version qui refusait la version active (« Version active non prise en charge ») et empêchait le rétablissement du lien de configuration ainsi que la mise à jour des unités systemd et d’Apache."
+  ],
+  "limits": [
+    "Le rétablissement du lien exige d’exécuter install-interface.py (root) après install.sh, ou la commande directe donnée dans la note."
+  ]
+}

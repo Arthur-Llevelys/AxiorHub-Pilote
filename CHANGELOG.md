@@ -3,6 +3,14 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.16 — Correctif : installateur d’interface
+
+- **install-interface.py** : son contrôle de version n’admettait que les versions précédentes, jamais la version active ; depuis
+  plusieurs versions il s’arrêtait sur « Version active non prise en charge » sans rétablir le lien de configuration, ni mettre à
+  jour les unités systemd et la configuration Apache. La version active (celle du script) est désormais toujours admise.
+- **Réparation du lien sans l’installateur** : la fonction `agent.runtime_config567.enable` peut être appelée directement
+  (commande donnée dans la note de mise à jour) ; elle est idempotente.
+
 ## 5.6.15 — Correctif : enregistrement des paramètres et pont de configuration
 
 - **Enregistrement des paramètres** : sur l’installation systemd, lorsque le lien `/etc/axiorhub-mail-agent/config.json` vers la copie
