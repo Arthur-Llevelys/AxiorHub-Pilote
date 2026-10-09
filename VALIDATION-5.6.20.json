@@ -1,0 +1,25 @@
+{
+  "version": "5.6.20",
+  "base": "5.6.19 livrée",
+  "date_utc": "2026-10-09T14:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1522,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 56,
+    "duration_seconds": 1144.9,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.19). Le démarrage réel des services en sous-processus (fcntl, signaux) s’exécute dans l’intégration continue GitHub sous Linux, pas sur le poste Windows."
+  },
+  "new_tests": "tests/test_v5620.py (premier lancement : configuration sans secret validée par load_config, compte local scrypt en 0600, origine mise à jour sans toucher au mot de passe ; port de l’interface ; entrée de menu, lanceur et unité utilisateur ; services Linux : interface locale répondant 401 puis 200 avec le compte local, worker et veille vivants, arrêt complet ; paquet « poste » amd64 : dépendances GTK/WebKit, lanceur exécutable, entrée de menu, icône, unité utilisateur, arbre complet, md5sums, paquet serveur inchangé)",
+  "corrections": [
+    "Mode poste : poste.py (services en sous-processus, fenêtre WebKitGTK, compte local), deploy/poste (entrée de menu, lanceur, unité utilisateur), variante amd64 de build-deb.py.",
+    "Interface : port et hôte paramétrables (web.py serve --port)."
+  ],
+  "limits": [
+    "La fenêtre WebKitGTK n’est pas testée automatiquement (pas d’affichage dans l’intégration continue) : à vérifier sur le poste Ubuntu 24.04.",
+    "Ollama et Kokoro restent à installer séparément sur le poste ; l’assistant d’installation de l’interface renseigne la messagerie, Nextcloud et Ollama.",
+    "L’installation réelle du paquet poste n’a pas été exécutée avant livraison."
+  ]
+}

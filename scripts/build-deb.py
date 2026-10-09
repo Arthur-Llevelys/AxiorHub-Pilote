@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Construit le paquet Debian d'AxiorHub Pilote à partir d'une archive de livraison déjà contrôlée, sans dpkg ni Linux.
+"""Construit les paquets Debian d'AxiorHub Pilote à partir d'une archive de livraison déjà contrôlée, sans dpkg ni Linux.
 
-  python3 scripts/build-deb.py SORTIE.deb --archive axiorhub-mail-agent-X.Y.Z.tar.gz
+  python3 scripts/build-deb.py SORTIE.deb --archive axiorhub-mail-agent-X.Y.Z.tar.gz [--variant serveur|poste]
 
-- le paquet « axiorhub-pilote » transporte l'archive telle quelle (/usr/share/axiorhub-pilote/) : le script de
-  post-installation reprend install.sh (installation neuve ou mise à niveau cumulative), les versions précédentes restent
-  sous /opt/axiorhub-mail-agent/releases et le retour arrière reste possible ;
-- apt apporte les dépendances système (python3, python3-cryptography, poppler, tesseract, LibreOffice, minisign, eSpeak NG) ;
-- l'archive est extraite dans un dossier temporaire et contrôlée par ``upgrade.verify`` avant d'être empaquetée ;
+- variante « serveur » (défaut, paquet « axiorhub-pilote », Architecture all) : transporte l'archive telle quelle
+  (/usr/share/axiorhub-pilote/) ; le script de post-installation reprend install.sh (installation neuve ou mise à niveau
+  cumulative), les versions précédentes restent sous /opt/axiorhub-mail-agent/releases et le retour arrière reste possible ;
+- variante « poste » (5.6.20, paquet « axiorhub-pilote-poste », Architecture amd64) : arbre complet déployé sous
+  /usr/lib/axiorhub-pilote/current, lanceur /usr/bin/axiorhub-pilote, entrée de menu, icône et unité systemd utilisateur ;
+  aucun script de maintenance, les données vivent dans le dossier personnel (poste.py) ;
+- apt apporte les dépendances système ; l'archive est extraite dans un dossier temporaire et contrôlée par ``upgrade.verify`` ;
 - le paquet produit est relu (format ar, control, md5sums, droits) et, si dpkg-deb est présent, contrôlé par lui.
 """
 import argparse
@@ -36,6 +38,19 @@ DESCRIPTION = ('Agent IA local pour cabinet d\'avocat : courriels, dossiers, act
                'AxiorHub Pilote lit la messagerie et les dossiers du cabinet, prépare brouillons, projets d\'actes, bordereaux,',
                'échéances et tâches, sans rien envoyer ni signer. Le paquet installe ou met à niveau la version sous',
                '/opt/axiorhub-mail-agent et conserve configuration, secrets, données et versions précédentes.')
+VARIANTS = {
+    'serveur': {'package': PACKAGE, 'architecture': 'all', 'depends': DEPENDS, 'recommends': RECOMMENDS, 'description': DESCRIPTION},
+    'poste': {'package': PACKAGE + '-poste', 'architecture': 'amd64',
+              'depends': ('python3 (>= 3.10)', 'python3-waitress', 'python3-cryptography', 'python3-gi', 'gir1.2-gtk-3.0', 'gir1.2-webkit2-4.1',
+                          'poppler-utils', 'tesseract-ocr', 'tesseract-ocr-fra', 'libreoffice-writer', 'espeak-ng', 'xdg-utils'),
+              'recommends': ('gir1.2-ayatanaappindicator3-0.1',),
+              'description': ('Agent IA local pour cabinet d\'avocat, application de bureau Ubuntu',
+                              'AxiorHub Pilote sur un poste de travail : fenêtre WebKitGTK, services locaux (interface sur 127.0.0.1,',
+                              'worker, veille IMAP, passages périodiques), données et configuration dans le dossier personnel.',
+                              'Lancer « AxiorHub Pilote » depuis le menu, ou « axiorhub-pilote » ; services seuls : systemctl --user',
+                              'enable --now axiorhub-pilote. Ollama et Kokoro s\'installent séparément.')},
+}
+POSTE_ROOT = './usr/lib/axiorhub-pilote/current/'
 
 
 def version_of(archive):
@@ -66,12 +81,25 @@ def extract_verified(archive, destination):
     return inner[0]
 
 
-def control_text(version, installed_kib):
-    lines = ['Package: ' + PACKAGE, 'Version: ' + version, 'Section: misc', 'Priority: optional', 'Architecture: all',
-             'Maintainer: ' + MAINTAINER, 'Installed-Size: ' + str(installed_kib), 'Depends: ' + ', '.join(DEPENDS),
-             'Recommends: ' + ', '.join(RECOMMENDS), 'Homepage: ' + HOMEPAGE, 'Description: ' + DESCRIPTION[0]]
-    lines += [' ' + line for line in DESCRIPTION[1:]]
+def control_text(version, installed_kib, variant):
+    v = VARIANTS[variant]
+    lines = ['Package: ' + v['package'], 'Version: ' + version, 'Section: misc', 'Priority: optional', 'Architecture: ' + v['architecture'],
+             'Maintainer: ' + MAINTAINER, 'Installed-Size: ' + str(installed_kib), 'Depends: ' + ', '.join(v['depends']),
+             'Recommends: ' + ', '.join(v['recommends']), 'Homepage: ' + HOMEPAGE, 'Description: ' + v['description'][0]]
+    lines += [' ' + line for line in v['description'][1:]]
     return '\n'.join(lines) + '\n'
+
+
+def _with_dirs(files):
+    """Ajoute les entrées de dossier (./a/, ./a/b/) nécessaires aux fichiers donnés, dans l'ordre."""
+    dirs = []
+    for name, _, _ in files:
+        parts = name[2:].split('/')[:-1]
+        for i in range(1, len(parts) + 1):
+            d = './' + '/'.join(parts[:i]) + '/'
+            if d not in dirs:
+                dirs.append(d)
+    return [('./', None, 0o755)] + [(d, None, 0o755) for d in sorted(dirs)] + list(files)
 
 
 def _tar_bytes(entries, mtime):
@@ -110,41 +138,53 @@ def _ar(members):
     return bytes(out)
 
 
-def build(output, archive, mtime=None):
+def build(output, archive, mtime=None, variant='serveur'):
+    if variant not in VARIANTS:
+        raise RuntimeError('Variante inconnue : ' + str(variant))
     archive = Path(archive)
     version = version_of(archive)
+    package = VARIANTS[variant]['package']
+    if mtime is None:
+        mtime = int(os.environ.get('SOURCE_DATE_EPOCH') or archive.stat().st_mtime)
+    scripts, data_files = {}, []
     with tempfile.TemporaryDirectory() as tmp:
         tree = extract_verified(archive, tmp)
         templates = tree / 'deploy' / 'debian'
-        scripts = {}
-        for name in SCRIPTS:
-            scripts[name] = (templates / name).read_text(encoding='utf-8').replace('@VERSION@', version).encode('utf-8')
-            if not scripts[name].startswith(b'#!/usr/bin/python3'):
-                raise RuntimeError('Script de maintenance sans interpréteur : ' + name)
         copyright_text = (templates / 'copyright').read_bytes()
-        changelog = ('axiorhub-pilote (' + version + ') stable; urgency=medium\n\n  * Voir CHANGELOG.md de la version.\n\n -- '
-                     + MAINTAINER + '  ' + time.strftime('%a, %d %b %Y %H:%M:%S +0000', time.gmtime(mtime or archive.stat().st_mtime)) + '\n').encode('utf-8')
-    if mtime is None:
-        mtime = int(os.environ.get('SOURCE_DATE_EPOCH') or archive.stat().st_mtime)
-    payload = archive.read_bytes()
-    payload_name = 'axiorhub-mail-agent-' + version + '.tar.gz'
-    data_files = [('./usr/share/axiorhub-pilote/' + payload_name, payload, 0o644),
-                  ('./usr/share/doc/axiorhub-pilote/copyright', copyright_text, 0o644),
-                  ('./usr/share/doc/axiorhub-pilote/changelog.Debian', changelog, 0o644)]
-    data_entries = [('./', None, 0o755), ('./usr/', None, 0o755), ('./usr/share/', None, 0o755), ('./usr/share/axiorhub-pilote/', None, 0o755),
-                    ('./usr/share/doc/', None, 0o755), ('./usr/share/doc/axiorhub-pilote/', None, 0o755)] + data_files
+        if variant == 'serveur':
+            for name in SCRIPTS:
+                scripts[name] = (templates / name).read_text(encoding='utf-8').replace('@VERSION@', version).encode('utf-8')
+                if not scripts[name].startswith(b'#!/usr/bin/python3'):
+                    raise RuntimeError('Script de maintenance sans interpréteur : ' + name)
+            data_files.append(('./usr/share/axiorhub-pilote/axiorhub-mail-agent-' + version + '.tar.gz', archive.read_bytes(), 0o644))
+        else:
+            poste = tree / 'deploy' / 'poste'
+            for path in sorted(p for p in tree.rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc'):
+                data_files.append((POSTE_ROOT + path.relative_to(tree).as_posix(), path.read_bytes(), 0o644))
+            launcher = (poste / 'axiorhub-pilote').read_bytes()
+            if not launcher.startswith(b'#!/bin/sh'):
+                raise RuntimeError('Lanceur sans interpréteur.')
+            data_files += [('./usr/bin/axiorhub-pilote', launcher, 0o755),
+                           ('./usr/share/applications/axiorhub-pilote.desktop', (poste / 'axiorhub-pilote.desktop').read_bytes(), 0o644),
+                           ('./usr/share/icons/hicolor/512x512/apps/axiorhub-pilote.png', (tree / 'agent' / 'static' / 'axiorhub-icon-512.png').read_bytes(), 0o644),
+                           ('./usr/lib/systemd/user/axiorhub-pilote.service', (poste / 'axiorhub-pilote.service').read_bytes(), 0o644)]
+    changelog = (package + ' (' + version + ') stable; urgency=medium\n\n  * Voir CHANGELOG.md de la version.\n\n -- '
+                 + MAINTAINER + '  ' + time.strftime('%a, %d %b %Y %H:%M:%S +0000', time.gmtime(mtime)) + '\n').encode('utf-8')
+    data_files += [('./usr/share/doc/' + package + '/copyright', copyright_text, 0o644),
+                   ('./usr/share/doc/' + package + '/changelog.Debian', changelog, 0o644)]
+    data_entries = _with_dirs(data_files)
     installed_kib = max(1, sum(len(d) for _, d, _ in data_files) // 1024 + 1)
     md5sums = ''.join(hashlib.md5(data).hexdigest() + '  ' + name[2:] + '\n' for name, data, _ in data_files)
-    control_entries = [('./', None, 0o755), ('./control', control_text(version, installed_kib).encode('utf-8'), 0o644),
+    control_entries = [('./', None, 0o755), ('./control', control_text(version, installed_kib, variant).encode('utf-8'), 0o644),
                        ('./md5sums', md5sums.encode('ascii'), 0o644)]
-    control_entries += [('./' + name, scripts[name], 0o755) for name in SCRIPTS]
+    control_entries += [('./' + name, scripts[name], 0o755) for name in SCRIPTS if name in scripts]
     deb = _ar([('debian-binary', b'2.0\n', mtime), ('control.tar.gz', _tar_bytes(control_entries, mtime), mtime),
                ('data.tar.gz', _tar_bytes(data_entries, mtime), mtime)])
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(deb)
-    check(output, payload)
-    return {'package': PACKAGE, 'version': version, 'path': str(output), 'size': len(deb), 'sha256': hashlib.sha256(deb).hexdigest()}
+    check(output, archive.read_bytes() if variant == 'serveur' else None)
+    return {'package': package, 'version': version, 'variant': variant, 'path': str(output), 'size': len(deb), 'sha256': hashlib.sha256(deb).hexdigest()}
 
 
 def read_deb(path):
@@ -175,9 +215,9 @@ def read_deb(path):
         return out
     control = entries(members[1][1])
     data = entries(members[2][1])
-    fields = {}
+    fields, last = {}, None
     for line in control['./control']['data'].decode('utf-8').splitlines():
-        if line.startswith(' '):
+        if line.startswith(' ') and last:
             fields[last] += '\n' + line
         else:
             last, _, value = line.partition(': ')
@@ -191,6 +231,7 @@ def read_deb(path):
 
 def check(path, payload=None):
     info = read_deb(path)
+    poste = info['fields'].get('Package', '').endswith('-poste')
     for name, digest in info['md5sums'].items():
         entry = info['data'].get('./' + name)
         if entry is None or hashlib.md5(entry['data']).hexdigest() != digest:
@@ -198,15 +239,30 @@ def check(path, payload=None):
     for name, entry in list(info['data'].items()) + list(info['control'].items()):
         if entry['uid'] or entry['gid'] or entry['mode'] & 0o022 or entry['type'] not in (tarfile.REGTYPE, tarfile.DIRTYPE):
             raise RuntimeError('Entrée refusée (propriétaire, droits ou type) : ' + name)
-    for name in info['data']:   # tarfile relit les dossiers sans barre finale ('.', './usr', './usr/share')
-        if not name.startswith('./usr/share/') and name not in ('.', './usr', './usr/share'):
-            raise RuntimeError('Fichier hors /usr/share : ' + name)
-    for name in SCRIPTS:
-        if info['control']['./' + name]['mode'] != 0o755:
-            raise RuntimeError('Script de maintenance non exécutable : ' + name)
-    payload_entry = next(v for k, v in info['data'].items() if k.endswith('.tar.gz'))
-    if payload is not None and payload_entry['data'] != payload:
-        raise RuntimeError('La charge utile diffère de l’archive.')
+    allowed = ('./usr/lib/axiorhub-pilote/', './usr/bin/', './usr/share/', './usr/lib/systemd/user/') if poste else ('./usr/share/',)
+    roots = {'.', './usr', './usr/share', './usr/lib', './usr/lib/systemd', './usr/bin'}
+    for name, entry in info['data'].items():   # tarfile relit les dossiers sans barre finale
+        probe = name + ('/' if entry['dir'] else '')
+        if not probe.startswith(allowed) and name not in roots:
+            raise RuntimeError('Fichier hors des emplacements admis : ' + name)
+        if not entry['dir'] and name[2:] not in info['md5sums']:
+            raise RuntimeError('Fichier absent de md5sums : ' + name)
+    if poste:
+        for required in (POSTE_ROOT + 'poste.py', POSTE_ROOT + 'MANIFEST.sha256', './usr/bin/axiorhub-pilote',
+                         './usr/share/applications/axiorhub-pilote.desktop', './usr/lib/systemd/user/axiorhub-pilote.service'):
+            if required not in info['data']:
+                raise RuntimeError('Fichier du paquet poste absent : ' + required)
+        if info['data']['./usr/bin/axiorhub-pilote']['mode'] != 0o755:
+            raise RuntimeError('Lanceur non exécutable.')
+        if any('./' + s in info['control'] for s in SCRIPTS):
+            raise RuntimeError('Le paquet poste ne doit pas avoir de script de maintenance.')
+    else:
+        for name in SCRIPTS:
+            if info['control']['./' + name]['mode'] != 0o755:
+                raise RuntimeError('Script de maintenance non exécutable : ' + name)
+        payload_entry = next(v for k, v in info['data'].items() if k.endswith('.tar.gz'))
+        if payload is not None and payload_entry['data'] != payload:
+            raise RuntimeError('La charge utile diffère de l’archive.')
     if shutil.which('dpkg-deb'):
         subprocess.run(['dpkg-deb', '--info', str(path)], check=True, stdout=subprocess.DEVNULL)
         subprocess.run(['dpkg-deb', '--contents', str(path)], check=True, stdout=subprocess.DEVNULL)
@@ -214,12 +270,13 @@ def check(path, payload=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Paquet Debian AxiorHub Pilote')
+    parser = argparse.ArgumentParser(description='Paquets Debian AxiorHub Pilote')
     parser.add_argument('output')
     parser.add_argument('--archive', required=True)
+    parser.add_argument('--variant', choices=sorted(VARIANTS), default='serveur')
     args = parser.parse_args()
-    result = build(args.output, args.archive)
-    print('%s : %s %s, %d octets, SHA-256 %s' % (result['path'], result['package'], result['version'], result['size'], result['sha256']))
+    result = build(args.output, args.archive, variant=args.variant)
+    print('%s : %s %s (%s), %d octets, SHA-256 %s' % (result['path'], result['package'], result['version'], result['variant'], result['size'], result['sha256']))
 
 
 if __name__ == '__main__':

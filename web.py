@@ -10,10 +10,11 @@ if __name__=='__main__':
     p.add_argument('--worker-id',default='1')
     p.add_argument('--config',default='/etc/axiorhub-mail-agent/config.json')
     p.add_argument('--auth',default='/etc/axiorhub-mail-agent/ui-auth.json')
+    p.add_argument('--port',type=int,default=8769)   # 5.6.20 : mode poste
     args=p.parse_args()
     if args.mode=='serve':
         from agent.web import serve
-        serve(args.config,args.auth)
+        serve(args.config,args.auth,args.port)
     elif args.mode=='worker':
         from agent.desk import worker
         worker(load_config(args.config),args.worker_id)

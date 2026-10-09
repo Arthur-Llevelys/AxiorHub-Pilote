@@ -3,6 +3,22 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.20 — Mode poste : application de bureau Ubuntu 24.04
+
+- **`poste.py`** : AxiorHub sur un poste de travail, sans root ni Apache. Données, configuration et secrets dans
+  `~/.local/share/axiorhub-pilote`, journaux dans `~/.local/state/axiorhub-pilote`. Premier lancement : configuration sans secret
+  (même modèle que le conteneur Docker, Ollama et Kokoro sur 127.0.0.1) et compte local « admin » avec mot de passe aléatoire en
+  0600 ; l’assistant d’installation de l’interface prend ensuite le relais. Les services sont ceux du serveur, lancés comme
+  sous-processus : interface (127.0.0.1 seulement, port réglable), worker, veille IMAP, passage périodique de l’agent.
+- **Fenêtre d’application** WebKitGTK (python3-gi, Gtk 3, WebKit2 4.1) avec authentification locale automatique ; à défaut,
+  ouverture du navigateur. `--no-window` pour l’unité systemd utilisateur, `--stop`, `--status`, `--print-password`.
+- **Paquet Debian « poste »** : `scripts/build-deb.py … --variant poste` produit `axiorhub-pilote-poste_<version>_amd64.deb` :
+  arbre complet sous `/usr/lib/axiorhub-pilote/current`, lanceur `/usr/bin/axiorhub-pilote`, entrée de menu, icône, unité
+  utilisateur `axiorhub-pilote.service` ; dépendances apt (python3-gi, WebKitGTK, waitress, cryptography, LibreOffice Writer,
+  Tesseract, Poppler, eSpeak NG). Pas de script de maintenance : rien n’est écrit hors du paquet, les données restent dans le
+  dossier personnel.
+- **Interface** : `web.py serve --port` ; `agent.web.serve(config, auth, port, host)`.
+
 ## 5.6.19 — Pilote simplifié
 
 - **Un bouton « Envoyer l’instruction »**, placé sous le résultat attendu, au libellé stable (plus de « Démarrer la mission » /

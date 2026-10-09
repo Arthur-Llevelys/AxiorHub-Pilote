@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=AxiorHub Pilote
+Comment=Agent IA local du cabinet : courriels, dossiers, actes et agenda
+Exec=axiorhub-pilote
+Icon=axiorhub-pilote
+Terminal=false
+Categories=Office;
+Keywords=avocat;cabinet;courriel;dossier;
+StartupNotify=true

@@ -1,0 +1,14 @@
+[Unit]
+Description=AxiorHub Pilote — services du mode poste (interface locale, worker, veille, passages périodiques)
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/axiorhub-pilote/current/poste.py --no-window
+ExecStop=/usr/bin/python3 /usr/lib/axiorhub-pilote/current/poste.py --stop
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=default.target

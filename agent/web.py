@@ -2008,10 +2008,11 @@ def internal_error(env,kind):
     return kind,'<h1>Interface indisponible</h1><p>Vérifiez les services et les fichiers de configuration locaux.</p>'
 
 
-def serve(config_path,auth_path):
+def serve(config_path,auth_path,port=8769,host='127.0.0.1'):
     from waitress import serve as waitress_serve
     # send_bytes=1 : chaque écriture part tout de suite (sinon Waitress retient ~18 Ko et les événements du flux SSE restent en attente).
-    waitress_serve(App(config_path,auth_path),host='127.0.0.1',port=8769,threads=24,send_bytes=1,
+    # 5.6.20 : port et hôte paramétrables (mode poste) ; l'écoute reste locale par défaut.
+    waitress_serve(App(config_path,auth_path),host=host,port=int(port),threads=24,send_bytes=1,
                    max_request_body_size=20_100_000,trusted_proxy='127.0.0.1',
                    trusted_proxy_headers={'x-forwarded-proto','x-forwarded-for'},clear_untrusted_proxy_headers=True)
 

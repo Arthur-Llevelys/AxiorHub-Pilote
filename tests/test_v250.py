@@ -202,11 +202,11 @@ class Version250Tests(unittest.TestCase):
         self.assertEqual(self.dav.created,[])
 
     def test_api_openwebui_and_migration_expose_v250(self):
-        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.19')
+        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.20')
         for path in ('/hearing/writings','/hearing/devices/compare',
           '/hearing-projects/{project_id}/confirm','/word-projects/{project_id}/confirm'):
             self.assertIn(path,spec['paths'])
-        caps=dispatch(self.d,'/capabilities','GET');self.assertEqual(caps['version'],'5.6.19')
+        caps=dispatch(self.d,'/capabilities','GET');self.assertEqual(caps['version'],'5.6.20')
         self.assertIn('compare_party_devices',caps['can'])
         tool=(Path(__file__).parents[1]/'integrations/openwebui/axiorhub_tool.py').read_text()
         for name in ('identifier_les_dernieres_conclusions_des_parties',
