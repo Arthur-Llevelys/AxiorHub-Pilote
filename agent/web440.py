@@ -76,6 +76,9 @@ def err_text(ex):
 def human(code):
     """Readable French messages for the codes users meet in the workshop."""
     table = {
+        'dossier_local_invalide': 'Le dossier de travail local doit être un chemin absolu vers un répertoire existant (par exemple /mnt/cabinet ou le dossier synchronisé du client Nextcloud), jamais la racine du système. Laissez vide pour lire les fichiers par WebDAV.',
+        'dossier_local_introuvable': 'Le dossier de travail local configuré est introuvable : vérifiez le chemin dans Paramètres › Connexions ou videz-le pour revenir à WebDAV.',
+        'agenda_webdav_non_configure': 'Les agendas restent lus par CalDAV : renseignez l’adresse, l’identifiant et le mot de passe Nextcloud dans Connexions, même avec un dossier de travail local.',
         'configuration_non_inscriptible': 'Le service ne peut pas écrire le fichier de configuration : le lien /etc/axiorhub-mail-agent/config.json a probablement été remplacé par un fichier ordinaire (commande « axiorhub-mail mode » ou « configure » d’une version précédente). Lancez « sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py », qui rétablit le pont de configuration, puis réessayez.',
         'duree_invalide': 'La durée indiquée est invalide (en minutes, entre 1 et 1 440).',
         'secours_sans_fournisseur': 'Aucun fournisseur externe n’est prêt : activez-en un, autorisez l’envoi et indiquez un modèle dans Paramètres › IA.',

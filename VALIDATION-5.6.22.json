@@ -1,0 +1,24 @@
+{
+  "version": "5.6.22",
+  "base": "5.6.21 livrée",
+  "date_utc": "2026-10-09T22:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1532,
+    "failures": 4,
+    "errors": 60,
+    "skipped": 58,
+    "duration_seconds": 1168.4,
+    "note": "Un seul écart par rapport aux particularités Windows connues (5.6.4–5.6.21) : test_v440_office.test_callback_security, comparaison de deux fichiers Word construits à cheval sur une seconde (horodatage zip) ; rejoué trois fois avec succès, sans lien avec cette version. L’intégration continue GitHub exécute la même suite sous Linux (dont le test des liens symboliques ignorés)."
+  },
+  "new_tests": "tests/test_v5622.py (aiguillage DAV(cfg) vers LocalFolder, instance toujours DAV ; agendas indisponibles sans CalDAV ; dossier introuvable refusé ; listage avec exclusion des fichiers cachés et des répertoires secrets, ETag, dates ; inventaires simple, paginé, par étapes et large ; lecture avec contrôle d’ETag ; stat ; refus hors racines, chemins ambigus, répertoire exclu, dossier absent ; dépôt exclusif, parent absent, remplacement contrôlé avec version conservée, dossiers créés dans le périmètre seulement, racine non créable, liens symboliques ignorés sous Linux ; réglage « dossier de travail local » validé)",
+  "corrections": [
+    "Dossier de travail local (poste et serveur) : LocalFolder derrière la même interface que WebDAV, choisi par nextcloud.local_path.",
+    "Agendas toujours en CalDAV ; message lisible si l’accès WebDAV n’est pas renseigné."
+  ],
+  "limits": [
+    "Les liens « Ouvrir dans Nextcloud » d’un fichier local deviennent des adresses file:// ; l’éditeur de documents en ligne (ONLYOFFICE) exige toujours Nextcloud.",
+    "Les versions précédentes des fichiers remplacés sont conservées localement dans .axiorhub-versions, pas dans l’historique Nextcloud."
+  ]
+}

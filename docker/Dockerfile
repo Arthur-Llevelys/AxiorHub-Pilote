@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 LABEL org.opencontainers.image.title="AxiorHub Pilote" \
-      org.opencontainers.image.version="5.6.21" \
+      org.opencontainers.image.version="5.6.22" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.authors="Timo RAINIO" \
       org.opencontainers.image.description="Production juridique utile, déposée et vérifiée pour cabinets d’avocats"

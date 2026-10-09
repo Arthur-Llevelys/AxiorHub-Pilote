@@ -3,6 +3,18 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.22 — Dossier de travail local
+
+- **Dossier de travail local** (poste et serveur) : dans Paramètres › Connexions › Nextcloud, « Dossier de travail local » désigne un
+  répertoire existant (dossier synchronisé par le client Nextcloud de bureau, partage monté). Les racines (`/Dossiers`) et tous les
+  chemins du cabinet y sont alors lus et écrits directement, avec la même interface que WebDAV : inventaires bornés, lecture avec
+  contrôle de version (ETag calculé sur date et taille), dépôt exclusif (jamais de remplacement silencieux), remplacement contrôlé
+  conservant la version précédente dans `.axiorhub-versions`, création de sous-dossiers dans le périmètre du dossier seulement.
+  Fichiers cachés, répertoires « secrets » et liens symboliques sont ignorés comme avec Nextcloud ; aucune sortie du dossier n’est possible.
+- **Agendas** : toujours lus par CalDAV ; avec un dossier local, l’adresse, l’identifiant et le mot de passe Nextcloud restent utiles
+  pour les agendas, sinon ils sont signalés indisponibles (jamais simulés).
+- Réglage validé (chemin absolu, répertoire existant, jamais la racine du système ; vide = WebDAV).
+
 ## 5.6.21 — Réseau du cabinet et Paramètres regroupés
 
 - **Ollama, Kokoro et passerelle vocale sur le réseau du cabinet** : les adresses privées (10.x, 172.16–31.x, 192.168.x, fc00::/7,

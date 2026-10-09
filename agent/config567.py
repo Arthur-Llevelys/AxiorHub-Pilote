@@ -39,6 +39,7 @@ FIELDS = (
  ('nextcloud.password_file','Mot de passe d’application Nextcloud','secret','','Nextcloud'),
  ('nextcloud.roots','Racines autorisées (une par ligne)','paths',['/Dossiers'],'Nextcloud'),
  ('nextcloud.matter_roots','Racines des dossiers','paths',['/Dossiers'],'Nextcloud'),
+ ('nextcloud.local_path','Dossier de travail local (facultatif : dossier synchronisé ou partage monté, les racines ci-dessus y sont lues ; vide = WebDAV)','local_dir','','Nextcloud'),
  ('calendar.urls','Agendas autorisés (URLs, une par ligne)','urls',[],'Nextcloud'),
  ('calendar.task_urls','Listes de tâches autorisées','urls',[],'Nextcloud'),
  ('document_agents568.incoming_paths','Dossiers d’arrivée à surveiller, dans les racines autorisées','paths',[],'Agents documentaires'),
@@ -184,6 +185,16 @@ def docker_plan(data):
 
 
 def _validate(kind,value,key):
+    if kind=='local_dir':   # 5.6.22 : chemin absolu d'un répertoire existant, jamais la racine du système ; vide = WebDAV
+        from pathlib import Path as _Path
+        value=str(value or '').strip()
+        if not value:return ''
+        if len(value)>600 or any(ord(c)<32 for c in value):raise Stop('reglage_texte_invalide')
+        candidate=_Path(value).expanduser()
+        if not candidate.is_absolute():raise Stop('dossier_local_invalide')
+        resolved=candidate.resolve()
+        if str(resolved)==resolved.anchor or not resolved.is_dir():raise Stop('dossier_local_invalide')
+        return str(candidate)
     if kind=='voice_provider':
         if value not in ('espeak','kokoro','chatterbox','elevenlabs'):raise Stop('fournisseur_voix_invalide')
         return value

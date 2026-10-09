@@ -1,5 +1,8 @@
 from datetime import datetime, timezone, timedelta
-from pathlib import PurePosixPath
+from email.utils import format_datetime
+import os
+from pathlib import Path, PurePosixPath
+import tempfile
 import re
 import urllib.parse as U
 from xml.sax.saxutils import escape
@@ -14,6 +17,13 @@ OC = '{http://owncloud.org/ns}'
 
 
 class DAV:
+    def __new__(cls, cfg=None, *args, **kwargs):
+        # 5.6.22 : un dossier de travail local (client Nextcloud de bureau, partage monté) prend la place de WebDAV pour les
+        # fichiers, avec la même interface ; les agendas restent en CalDAV si l'accès WebDAV est aussi renseigné.
+        if cls is DAV and isinstance(cfg, dict) and cfg.get('local_path'):
+            return object.__new__(LocalFolder)
+        return object.__new__(cls)
+
     def __init__(self, cfg):
         self.cfg = cfg
         self.http = HTTP(cfg['url'], cfg['username'], read_secret(cfg['password_file']))
@@ -528,3 +538,168 @@ def document_sources(dav, matter, terms, cfg):
             failed.append({'path': item['path'], 'reason': str(e)})
     return sources, {'total_files': len(inventory), 'examined_files': min(len(inventory), max_files),
                      'not_exhaustive': len(inventory) > max_files, 'failed': failed}
+
+
+EXCLUDED_NAMES = {'secrets', 'mots de passe'}
+
+
+class LocalFolder(DAV):
+    """5.6.22 : dossier de travail local avec l'interface du client WebDAV.
+
+    ``cfg['local_path']`` est la racine locale ; les chemins du cabinet (racines ``/Dossiers``, chemins des dossiers) sont
+    résolus sous cette racine, sans jamais en sortir. Les fichiers et dossiers commençant par un point, les répertoires
+    « secrets » et les liens symboliques sont ignorés comme avec Nextcloud. Un remplacement conserve la version précédente
+    dans ``.axiorhub-versions`` du même dossier. Les agendas (CalDAV) exigent ``url``, ``username`` et ``password_file`` ;
+    sinon ils sont signalés indisponibles plutôt que simulés.
+    """
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.local = Path(str(cfg['local_path'])).expanduser().resolve()
+        if not self.local.is_dir():
+            raise Stop('dossier_local_introuvable')
+        self.refused = []
+        self.http = None
+        if cfg.get('url') and cfg.get('username') and cfg.get('password_file'):
+            self.http = HTTP(cfg['url'], cfg['username'], read_secret(cfg['password_file']))
+            self.files = self.http.base + '/remote.php/dav/files/' + U.quote(cfg['username'], safe='')
+            self.calendar_home = self.http.base + '/remote.php/dav/calendars/' + U.quote(cfg['username'], safe='') + '/'
+
+    # ----- chemins
+    def _check(self, path):
+        path = clean_path(path)
+        if not any(under(path, root) for root in self.cfg['roots']): raise Stop('fichier_hors_racines')
+        if any(p.startswith('.') or fold(p) in EXCLUDED_NAMES for p in path.split('/') if p): raise Stop('repertoire_exclu')
+        return path
+
+    def _fs(self, path):
+        path = self._check(path)
+        target = (self.local / path.lstrip('/')).resolve()
+        if target != self.local and self.local not in target.parents: raise Stop('chemin_refuse')
+        return path, target
+
+    @staticmethod
+    def _stamp(seconds):
+        return format_datetime(datetime.fromtimestamp(seconds, timezone.utc), usegmt=True)
+
+    @staticmethod
+    def _etag(st):
+        return '"%x-%x"' % (int(st.st_mtime * 1000), st.st_size)   # millisecondes : stable d'un système à l'autre
+
+    def _item(self, path, target):
+        st = target.stat()
+        return {'path': path, 'directory': target.is_dir(), 'etag': self._etag(st) if target.is_file() else '',
+                'modified': self._stamp(st.st_mtime), 'created': self._stamp(getattr(st, 'st_birthtime', None) or st.st_ctime), 'size': st.st_size if target.is_file() else 0}
+
+    # ----- lecture
+    def list_folder(self, path):
+        path, target = self._fs(path)
+        if not target.exists(): raise Stop('http_404')
+        if not target.is_dir(): raise Stop('chemin_est_un_fichier')
+        out = []
+        for child in sorted(target.iterdir(), key=lambda c: c.name):
+            if child.is_symlink():
+                self.refused.append(child.name[-120:]); continue
+            if child.name.startswith('.') or fold(child.name) in EXCLUDED_NAMES: continue
+            if not (child.is_dir() or child.is_file()): continue
+            out.append(self._item(clean_path(path + '/' + child.name), child))
+        return out
+
+    def file_web_url(self, path):
+        _, target = self._fs(path)
+        if not target.is_file(): raise Stop('fichier_nextcloud_introuvable')
+        return target.as_uri()
+
+    def download(self, item):
+        limit = self.cfg.get('max_file_bytes', 15_000_000)
+        if item.get('size', 0) > limit: raise Stop('piece_trop_volumineuse')
+        _, target = self._fs(item['path'])
+        if not target.is_file(): raise Stop('http_404')
+        st = target.stat()
+        if item.get('etag') and item['etag'] != self._etag(st): raise Stop('http_412')
+        if st.st_size > limit: raise Stop('reponse_trop_volumineuse')
+        return target.read_bytes()
+
+    def stat(self, path):
+        path, target = self._fs(path)
+        if not target.exists(): raise Stop('fichier_nextcloud_introuvable')
+        if target.is_dir(): raise Stop('chemin_est_un_dossier')
+        return {**{k: v for k, v in self._item(path, target).items() if k != 'directory'}, 'fileid': ''}
+
+    # ----- écriture (jamais hors des racines, jamais de remplacement silencieux)
+    def _write(self, target, data):
+        fd, tmp = tempfile.mkstemp(dir=str(target.parent), prefix='.axiorhub-')
+        try:
+            with os.fdopen(fd, 'wb') as handle:
+                handle.write(data); handle.flush(); os.fsync(handle.fileno())
+            os.replace(tmp, target)
+        finally:
+            if os.path.exists(tmp): os.unlink(tmp)
+
+    def replace_file(self, path, data, etag):
+        if not isinstance(data, bytes): raise Stop('contenu_fichier_invalide')
+        limit = self.cfg.get('max_generated_file_bytes', 20_000_000)
+        if not data or len(data) > limit: raise Stop('fichier_genere_trop_volumineux')
+        if not etag: raise Stop('etag_nextcloud_absent')
+        path, target = self._fs(path)
+        if not target.is_file(): raise Stop('fichier_nextcloud_introuvable')
+        if self._etag(target.stat()) != etag: raise Stop('version_nextcloud_modifiee')
+        versions = target.parent / '.axiorhub-versions'
+        versions.mkdir(exist_ok=True)
+        self._write(versions / (target.name + '.' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')), target.read_bytes())
+        self._write(target, data)
+        return path
+
+    def create_folder(self, path):
+        path = clean_path(path)
+        if path in {clean_path(x) for x in self.cfg['roots']}: raise Stop('creation_racine_refusee')
+        path, target = self._fs(path)
+        self.list_folder(str(PurePosixPath(path).parent))
+        if target.exists(): raise Stop('http_412')
+        target.mkdir()
+        return path
+
+    def ensure_folder(self, path, boundary):
+        path, boundary = clean_path(path), clean_path(boundary)
+        if not under(path, boundary): raise Stop('destination_hors_dossier')
+        current = boundary
+        self.list_folder(current)
+        for part in PurePosixPath(path).relative_to(PurePosixPath(boundary)).parts:
+            current = clean_path(current + '/' + part)
+            try: self.list_folder(current)
+            except Stop as ex:
+                if str(ex) != 'http_404': raise
+                self._fs(current)[1].mkdir()
+        return path
+
+    def put_file(self, path, data, content_type='application/octet-stream'):
+        if not isinstance(data, bytes): raise Stop('contenu_fichier_invalide')
+        limit = self.cfg.get('max_generated_file_bytes', 20_000_000)
+        if not data or len(data) > limit: raise Stop('fichier_genere_trop_volumineux')
+        path, target = self._fs(path)
+        if target.exists(): raise Stop('http_412')
+        if not target.parent.is_dir(): raise Stop('http_409')
+        self._write(target, data)
+        return path
+
+    # ----- agendas : CalDAV seulement
+    def _caldav(self):
+        if self.http is None: raise Stop('agenda_webdav_non_configure')
+
+    def calendars(self):
+        self._caldav(); return DAV.calendars(self)
+
+    def events(self, *args, **kwargs):
+        self._caldav(); return DAV.events(self, *args, **kwargs)
+
+    def todos(self, *args, **kwargs):
+        self._caldav(); return DAV.todos(self, *args, **kwargs)
+
+    def put_todo(self, *args, **kwargs):
+        self._caldav(); return DAV.put_todo(self, *args, **kwargs)
+
+    def put_event(self, *args, **kwargs):
+        self._caldav(); return DAV.put_event(self, *args, **kwargs)
+
+    def delete_event(self, *args, **kwargs):
+        self._caldav(); return DAV.delete_event(self, *args, **kwargs)
