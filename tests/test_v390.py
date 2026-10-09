@@ -64,7 +64,7 @@ class Production390(unittest.TestCase):
 
     def test_api_exposes_the_five_production_deliverables(self):
         schema=openapi('https://agent.example.com')
-        self.assertEqual(schema['info']['version'],'5.6.22')
+        self.assertEqual(schema['info']['version'],'5.6.23')
         for path in ('/production/dashboard','/production/run','/production/playbooks/advance'):
             self.assertIn(path,schema['paths'])
         self.assertIn('safety',dispatch(self.d,'/production/dashboard','GET'))

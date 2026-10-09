@@ -86,7 +86,7 @@ class LegalMemory170Tests(unittest.TestCase):
 
     def test_api_exposes_memory_timeline_and_version(self):
         upsert_record(self.d,'DOS-001',record(),[source()]);sync_timeline(self.d,'DOS-001')
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.22')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.23')
         memory=dispatch(self.d,'/matters/DOS-001/memory','GET')
         events=dispatch(self.d,'/matters/DOS-001/timeline','GET')
         self.assertEqual(memory['matter'],'DOS-001');self.assertIn('records',memory)

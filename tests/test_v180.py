@@ -91,7 +91,7 @@ class Strategic180Tests(unittest.TestCase):
         self.assertEqual(act_projects(self.d,'DOS-001')[0]['status'],'validated')
 
     def test_api_exposes_and_queues_all_three_workflows(self):
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.22')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.23')
         a=dispatch(self.d,'/matters/DOS-001/strategy','POST',{'objective':'Comparer les options.'})
         b=dispatch(self.d,'/matters/DOS-001/matrix','POST',{'objective':'Cartographier les preuves.'})
         c=dispatch(self.d,'/matters/DOS-001/act-projects','POST',{'act_type':'conclusions','instruction':'Préparer une trame.'})
@@ -117,7 +117,7 @@ class Web180Tests(unittest.TestCase):
         self.assertIn('Espace stratégique',page);self.assertIn('Matrice faits / pièces / prétentions',page)
         self.assertIn('Atelier de projets d’actes',page);self.assertIn('name="objective"',page)
         self.assertIn('name="act_type"',page);self.assertNotIn('http-equiv="refresh"',page)
-        self.assertIn('Version 5.6.22',page)
+        self.assertIn('Version 5.6.23',page)
 
 
 if __name__=='__main__':unittest.main()

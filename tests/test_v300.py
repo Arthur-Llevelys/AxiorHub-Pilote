@@ -107,7 +107,7 @@ class Version300Tests(unittest.TestCase):
 
     def test_continuous_business_tests_and_contracts(self):
         result=run_business_tests(self.d);self.assertEqual(result['status'],'passed')
-        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.22')
+        spec=openapi('https://cabinet.test');self.assertEqual(spec['info']['version'],'5.6.23')
         for path in ('/cabinet-control','/cabinet-decisions','/cabinet-decision-batches',
           '/cabinet/meetings/prepare','/cabinet/transcripts/prepare','/cabinet/audit'):
             self.assertIn(path,spec['paths'])
@@ -122,7 +122,7 @@ class Version300Tests(unittest.TestCase):
         auth={'prefix':'/agent-courriel','csrf':'token'}
         page=App(self.f.c,auth).page(self.f.c,auth,'/pilotage',{})
         self.assertIn('Décisions de l’avocat',page);self.assertIn('Confirmation groupée',page)
-        self.assertIn('Version 5.6.22',page);self.assertIn('Rejeter',page)
+        self.assertIn('Version 5.6.23',page);self.assertIn('Rejeter',page)
 
 
 if __name__=='__main__':unittest.main()

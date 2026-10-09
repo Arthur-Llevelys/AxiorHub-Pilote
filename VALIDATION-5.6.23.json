@@ -1,0 +1,23 @@
+{
+  "version": "5.6.23",
+  "base": "5.6.22 livrée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1534,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 59,
+    "duration_seconds": 1155.8,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.22). L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5623.py (guide présent avec ses commandes clés, cinq captures PNG existantes et bornées, fichiers listés dans RELEASE-FILES, lien depuis le README)",
+  "corrections": [
+    "Documentation : guide d’installation du poste Ubuntu 24.04 en dix minutes, avec captures."
+  ],
+  "limits": [
+    "Les captures proviennent de l’aperçu de démonstration (données fictives) rendu dans un navigateur, pas de la fenêtre GTK elle-même ; le contenu affiché est identique.",
+    "Le guide n’a pas été rejoué sur une machine Ubuntu vierge avant livraison."
+  ]
+}

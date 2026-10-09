@@ -3,6 +3,13 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.23 — Guide « poste Ubuntu en dix minutes »
+
+- **`docs/GUIDE-POSTE-10-MINUTES.md`** : installation de l’application de bureau sur Ubuntu 24.04, d’Ollama au premier briefing,
+  avec cinq captures de l’interface (Aujourd’hui, Pilote, Paramètres, Documents, Dossiers) prises sur l’aperçu de démonstration
+  (données fictives), le fonctionnement au quotidien (services permanents, journaux, mise à jour, désinstallation) et un tableau de
+  dépannage. Lien depuis le README.
+
 ## 5.6.22 — Dossier de travail local
 
 - **Dossier de travail local** (poste et serveur) : dans Paramètres › Connexions › Nextcloud, « Dossier de travail local » désigne un
