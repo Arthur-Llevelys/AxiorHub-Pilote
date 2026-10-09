@@ -107,7 +107,7 @@ class SinglePanel(t530.Base):
     def test_voice_lives_in_the_assistant_panel(self):
         page = self.request('/aujourdhui')['body']
         self.assertIn('id="ws-ai-talk"', page);self.assertIn('id="ws-ai-voice"', page);self.assertIn('<strong>Pilote</strong>', page)
-        self.assertIn('💬 Dialoguer', page);self.assertIn('🎙 Dicter', page)
+        self.assertIn('💬 Dialoguer', page);self.assertNotIn('🎙 Dicter', page)   # 5.6.19 : une seule dictée, sous l'instruction
         js = (ROOT / 'agent' / 'static' / 'v568.js').read_text(encoding='utf-8')
         self.assertIn("document.querySelector('#ws-ai-talk')", js);self.assertIn("dockVoice.append(pane)", js);self.assertIn("addTurn(payload.instruction,text,'voice')", js)
         self.assertNotIn("document.body.append(launch,pane);", js.replace('else document.body.append(launch,pane)', ''))

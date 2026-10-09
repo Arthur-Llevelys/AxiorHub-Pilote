@@ -294,7 +294,7 @@ class BenchByFunction(Base):
 class SharedPanel(Base):
     def test_one_pilot_component_on_today_and_in_the_panel(self):
         page = self.request('/aujourdhui')['body']
-        for text in ('id="c530-pilot-slot"', 'data-legacy-composer', 'id="ws-ai-intent"', 'id="ws-ai-files"', 'id="ws-ai-mic"', 'id="ws-ai-mic-stop"',
+        for text in ('data-legacy-composer', 'id="ws-ai-intent"', 'id="ws-ai-files"', 'id="ws-ai-mic"', 'id="ws-ai-mic-stop"',
                      'id="ws-ai-wide"', 'id="ws-ai-matter-search"', 'id="ws-ai-history"', 'id="ws-ai-plan"', 'Brouillon dans Drafts'):
             self.assertIn(text, page)
         js = (ROOT / 'agent' / 'static' / 'v567.js').read_text(encoding='utf-8')

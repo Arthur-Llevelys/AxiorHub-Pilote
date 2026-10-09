@@ -48,7 +48,11 @@
     dock.hidden ? open() : close();
   });
   dock.querySelector('#ws-ai-close').addEventListener('click', close);
-  wide?.addEventListener('click', () => {const on = dock.classList.toggle('ws-ai-dock--wide'); wide.setAttribute('aria-pressed', String(on));});
+  // 5.6.19 : fenêtre flottante large par défaut (mémorisée par navigateur) ; le bouton ⤢ la réduit.
+  const wideKey = 'axiorhub567-wide:' + prefix; let wideOn = true;
+  try { wideOn = localStorage.getItem(wideKey) !== '0'; } catch {}
+  if (wideOn && !embedded) { dock.classList.add('ws-ai-dock--wide'); wide?.setAttribute('aria-pressed', 'true'); }
+  wide?.addEventListener('click', () => {const on = dock.classList.toggle('ws-ai-dock--wide'); wide.setAttribute('aria-pressed', String(on)); try { localStorage.setItem(wideKey, on ? '1' : '0'); } catch {}});
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !dock.hidden && !embedded) close();
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && document.activeElement === question) {event.preventDefault(); send.click();}
@@ -204,8 +208,7 @@
     currentMission = m; storage.set(m.id); current.replaceChildren(card(m)); note(m.label);
     const final = ['answered', 'verified', 'prepared', 'abstained', 'error'].includes(m.state);
     if (final && shownStates[m.id] !== m.state) { shownStates[m.id] = m.state; if (m.context?.channel !== 'voice') addTurn(m.instruction, (m.result?.text || m.result?.message || m.label), 'text'); }
-    if (['answered', 'verified', 'prepared', 'abstained'].includes(m.state)) send.textContent = 'Confier une autre mission';
-    else send.textContent = 'Démarrer une nouvelle mission';
+    send.textContent = 'Envoyer l’instruction';   // 5.6.19 : libellé stable ; l'état de la mission est dans la carte et la note
   }
   async function refreshCurrent() {
     const id = currentMission?.id || storage.get(); if (!id || document.hidden) return;
@@ -254,7 +257,11 @@
   dock.querySelector('[data-read567]').addEventListener('click', () => read(currentMission?.result?.text || current.textContent));
   dock.querySelector('[data-audio-pause567]').addEventListener('click', () => {if (liveAudio) liveAudio.paused ? liveAudio.play().catch(e => note(e.message)) : liveAudio.pause();});
   dock.querySelector('[data-audio-stop567]').addEventListener('click', stopAudio);
-  dock.querySelector('#ws-ai-dictate').addEventListener('click', async event => {
+  dock.querySelector('#ws-ai-clear')?.addEventListener('click', () => {   // 5.6.19 : effacer l'affichage, pas l'historique des missions
+    stopAudio(); current.replaceChildren(); history.replaceChildren(); currentMission = null; storage.set(''); shownStates = {};
+    note('Conversation effacée. Les missions restent consultables dans Outils › Missions.');
+  });
+  dock.querySelector('#ws-ai-dictate')?.addEventListener('click', async event => {
     const button = event.currentTarget; stopAudio();
     if (recorder && recorder.state !== 'inactive') {recorder.stop(); return;}
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {note('Microphone indisponible dans ce navigateur.'); return;}

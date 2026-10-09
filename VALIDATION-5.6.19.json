@@ -1,0 +1,25 @@
+{
+  "version": "5.6.19",
+  "base": "5.6.18 livrée",
+  "date_utc": "2026-10-09T08:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1516,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 54,
+    "duration_seconds": 1148.5,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.18) : sockets IMAP simulés, os.fchmod, installeur Linux, rendu LibreOffice. L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5619.py (panneau : un seul bouton Envoyer avant les options, plus de commandes de contexte, plus de dictée en double, bouton Effacer, scripts et styles ; « Aujourd’hui » sans cadre Pilote avec bouton robot et fenêtre ; briefing lu : markdown rendu lisible (titres, puces, heures, liens), routine lue sauf mode discret, repli sur l’instantané ; mode discret non activé par défaut)",
+  "corrections": [
+    "Pilote : bouton « Envoyer l’instruction » explicite et stable ; commandes de contexte et bouton « Dicter » en double retirés ; « Effacer la conversation ».",
+    "« Aujourd’hui » : le Pilote redevient une fenêtre flottante (large par défaut, mémorisée), ouverte par le bouton robot.",
+    "« Écouter le briefing » : lecture du briefing du matin produit par la routine ; mode discret sur choix explicite."
+  ],
+  "limits": [
+    "Le bouton « Commencer la dictée » (mode rapide ou local) reste celui de la dictée générale des champs de texte ; la conversation vocale par tours (« Dialoguer ») exige la passerelle vocale locale.",
+    "L’effacement vide l’affichage du fil ; les missions et leurs résultats restent dans Outils › Missions."
+  ]
+}

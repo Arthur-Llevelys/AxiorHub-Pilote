@@ -10,7 +10,7 @@ import subprocess
 from .common import Stop, load_matters, matter_display
 
 DEFAULTS = {'name': 'Pilote', 'tone': 'sobre', 'length': 'courte', 'initiative': 'preparer',
-            'lexicon': [], 'speech_enabled': True, 'speech_rate': 1.0, 'discreet': True,
+            'lexicon': [], 'speech_enabled': True, 'speech_rate': 1.0, 'discreet': False,   # 5.6.19 : noms lus sauf mode discret choisi
             'avatar': 'icone', 'numeric_success_rates': False}
 
 

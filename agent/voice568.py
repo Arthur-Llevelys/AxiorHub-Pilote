@@ -180,8 +180,37 @@ def speech(desk,text,owner='cabinet',matter=''):
         return assistant567.speech(desk,text,owner)
 
 
+def spoken_briefing_text(markdown):
+    """5.6.19 : le briefing du matin (markdown) rendu lisible à voix haute : titres et puces en clair, heures en toutes lettres,
+    sans balises ni liens. Chaque ligne se termine par une ponctuation pour que la synthèse marque la pause."""
+    out=[]
+    for raw in str(markdown or '').splitlines():
+        line=raw.strip()
+        if not line or line.startswith('*(Rubriques'):continue
+        line=re.sub(r'^#+\s*','',line);line=re.sub(r'^[-*•]\s+','',line)
+        line=line.replace('**','').replace('__','').replace('`','')
+        line=re.sub(r'\[([^\]]+)\]\([^)]*\)',r'\1',line)
+        line=re.sub(r'\b(\d{1,2})[:h](\d{2})\b',lambda m:str(int(m.group(1)))+' heures'+('' if m.group(2)=='00' else ' '+m.group(2)),line)
+        line=line.replace(' – ',' à ').replace(' — ',' : ')
+        if not line.endswith(('.',':','!','?')):line+='.'
+        out.append(line)
+    return '\n'.join(out)
+
+
 def briefing(desk,owner='cabinet'):
     base=assistant567.briefing(desk,owner)
+    profile=assistant567.profile(desk,owner)
+    report=None
+    if not profile.get('discreet'):
+        try:
+            from . import routines520
+            report=routines520.latest(desk,'briefing')
+        except Exception:
+            report=None
+    if report and str(report.get('text') or '').strip():
+        base={**base,'text':'Briefing du matin.\n'+spoken_briefing_text(report['text'])[:6500],'source':'routine_briefing'}
+    else:
+        base={**base,'source':'instantane_anonymise' if profile.get('discreet') else 'instantane'}
     count=desk.db.execute("SELECT count(*) FROM commitments_v568 WHERE owner=? AND state NOT IN ('satisfied','cancelled')",(owner,)).fetchone()[0]
     news=desk.db.execute('SELECT title,published FROM news_v568 WHERE owner=? ORDER BY published DESC LIMIT 3',(owner,)).fetchall()
     from zoneinfo import ZoneInfo

@@ -3,6 +3,21 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.19 — Pilote simplifié
+
+- **Un bouton « Envoyer l’instruction »**, placé sous le résultat attendu, au libellé stable (plus de « Démarrer la mission » /
+  « Confier une autre mission » / « Démarrer une nouvelle mission » selon l’état). Ctrl+Entrée envoie aussi.
+- **Commandes de contexte retirées** (Préparer audience, Répondre aux conclusions, Assignation, Comparer, Réviser, Devis) :
+  l’instruction se dit ou s’écrit ; le résultat attendu reste sélectionnable.
+- **Une seule dictée** : le bouton « Commencer la dictée » sous l’instruction (mode rapide ou local au choix). Le bouton « Dicter »
+  du panneau, qui faisait double emploi, est retiré ; « Dialoguer » (conversation vocale par tours) reste.
+- **« Effacer la conversation »** : vide l’affichage du fil ; les missions restent consultables dans Outils › Missions.
+- **Fenêtre flottante** : sur « Aujourd’hui », le Pilote n’est plus monté dans la page ; le bouton robot ouvre la fenêtre, large par
+  défaut (le bouton ⤢ la réduit, choix mémorisé par navigateur), comme sur les autres pages.
+- **« Écouter le briefing »** lit le briefing du matin produit par la routine (titres, puces et heures en clair) au lieu de
+  l’instantané « un événement à 9 heures ». Le mode discret (noms masqués) n’est plus activé par défaut : il reste activable dans
+  Paramètres › Assistant.
+
 ## 5.6.18 — Paquet Debian
 
 - **Paquet `axiorhub-pilote_5.6.18_all.deb`** : construit en local par `scripts/build-deb.py` à partir de l’archive de livraison

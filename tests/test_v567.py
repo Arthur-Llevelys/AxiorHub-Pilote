@@ -407,7 +407,7 @@ class Quality(Base):
     def test_discreet_briefing_does_not_read_client_labels(self):
         self.desk.db.execute('INSERT INTO production_deliverables_v420 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
           ('synthetic',1,'docrequest520','manual','x','DEMO','document','Mme CONFIDENTIEL — Consultation','verified','informed','[]','Requête','[]','/x','{}','Prêt','',0,1,self.desk.now(),self.desk.now()));self.desk.db.commit()
-        brief=assistant.briefing(self.desk);self.assertNotIn('CONFIDENTIEL',brief['text']);self.assertEqual(brief['llm_calls'],0)
+        assistant.save_profile(self.desk,{'discreet':True});brief=assistant.briefing(self.desk);self.assertNotIn('CONFIDENTIEL',brief['text']);self.assertEqual(brief['llm_calls'],0)
 
     def test_tts_is_fixed_local_command_without_shell(self):
         class Completed:stdout=b'RIFF'+b'\0'*200

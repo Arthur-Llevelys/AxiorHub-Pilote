@@ -522,7 +522,7 @@ class Interface(Base):
         for text in ('id="c5614-routines"', 'data-routine="briefing"', 'id="c5614-pause"', '/static/v5614.js'):
             self.assertIn(text, body)
         self.assertNotIn('id="c569-decisions"', body)                                               # rien à décider : rien d'affiché
-        self.assertLess(body.index('id="c5614-routines"'), body.index('id="c530-pilot-slot"'))     # routines sous le titre, avant le Pilote
+        self.assertLess(body.index('id="c5614-routines"'), body.index('data-legacy-composer'))     # routines sous le titre (5.6.19 : Pilote flottant)
         self.task_model.missing = ['juridiction']
         m = taches5614.create(self.desk, {'instruction': 'Prépare une assignation', 'matter': ALPHA, 'parcours': 'assignation', 'request_key': 'req5614-ui' + 'u' * 18, 'answers': {}})
         self.run_all(m['id'], rounds=2)
@@ -567,7 +567,7 @@ class Interface(Base):
         page = self.request('/missions-complexes', query='id=' + m['id'])['body']
         for text in ('m5614-tree', 'data-m5614-filter="blocages"', 'T12d', 'Prochaine action', 'data-m5614="revise"'):
             self.assertIn(text, page)
-        dock = self.request('/missions')['body'];self.assertIn('data-ai-intent="mission"', dock);self.assertIn('value="facturation"', dock)
+        dock = self.request('/missions')['body'];self.assertIn('value="mission"', dock);self.assertIn('value="facturation"', dock)   # 5.6.19 : plus de chips
 
     def test_readiness_voice_levels_and_recette_with_injected_error(self):
         from agent import readiness569, recette5613

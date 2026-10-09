@@ -98,8 +98,8 @@ class Version310Tests(unittest.TestCase):
         self.assertEqual(dav.file_web_url('/Dossiers/projet.docx'),'https://cloud.test/index.php/f/12345')
 
     def test_version_api_briefing_and_upgrade_defaults(self):
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.18')
-        caps=dispatch(self.d,'/capabilities','GET');self.assertEqual(caps['version'],'5.6.18')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.19')
+        caps=dispatch(self.d,'/capabilities','GET');self.assertEqual(caps['version'],'5.6.19')
         self.assertIn('read_seen_and_unseen_new_uids',caps['can'])
         self.assertIn('events_next_7_days',daily_briefing(self.d))
         cfg=json.loads(upgrade.updated_config(json.dumps({'mail':{},'ollama':{},'nextcloud':{}}).encode()))
