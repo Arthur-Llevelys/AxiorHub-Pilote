@@ -74,95 +74,102 @@ class UpgradeTests(unittest.TestCase):
 
 @unittest.skipUnless(os.geteuid() == 0, 'Installation root simulée dans un dossier temporaire')
 class UpgradeFilesystemTests(unittest.TestCase):
+    def test_upgrade_from_5620_is_supported_and_reversible(self):
+        later=self.base/'releases'/'5.6.20'
+        shutil.copytree(self.old,later)
+        (self.base/'current').unlink();(self.base/'current').symlink_to(later)
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
+        upgrade.rollback(self.base,self.config,self.state)
+        self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5619_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.19'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5618_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.18'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5617_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.17'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5616_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.16'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5615_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.15'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5614_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.14'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5613_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.13'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5612_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.12'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5611_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.11'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_5610_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.10'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_569_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.9'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_568_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.8'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_567_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.7'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -170,7 +177,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'4.3.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
         self.assertEqual(self.config.read_bytes(),self.before)
@@ -178,140 +185,140 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'4.4.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_450_is_supported_and_reversible(self):
         later=self.base/'releases'/'4.5.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_460_is_supported_and_reversible(self):
         later=self.base/'releases'/'4.6.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_470_is_supported_and_reversible(self):
         later=self.base/'releases'/'4.7.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_490_is_supported_and_reversible(self):
         later=self.base/'releases'/'4.9.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_565_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.5'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_564_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.4'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_563_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.3'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_562_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.2'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_561_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.1'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_560_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_550_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.5.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_540_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.4.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_530_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.3.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_521_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.2.1'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_520_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.2.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_510_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.1.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_501_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.0.1'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_500_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.0.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_upgrade_from_480_is_supported_and_reversible(self):
         later=self.base/'releases'/'4.8.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
     def test_database_backup_contains_committed_wal_pages_and_is_private(self):
@@ -319,7 +326,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         db.execute('PRAGMA journal_mode=WAL');db.execute('CREATE TABLE fixture(value TEXT)')
         db.execute('INSERT INTO fixture VALUES(?)',('committed fixture',));db.commit()
         self.addCleanup(db.close);self.apply()
-        receipt=json.loads((self.base/'upgrade-5.6.20.json').read_text())
+        receipt=json.loads((self.base/'upgrade-5.6.21.json').read_text())
         backup=Path(receipt['database_backups'][0]);copy=sqlite3.connect(backup)
         try:self.assertEqual(copy.execute('SELECT value FROM fixture').fetchone()[0],'committed fixture')
         finally:copy.close()
@@ -329,7 +336,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'4.2.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
         self.assertEqual(self.config.read_bytes(),self.before)
@@ -362,7 +369,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
 
     def test_round_trip_preserves_state_and_permissions(self):
         self.apply()
-        self.assertEqual((self.base/'current').resolve().name, '5.6.20')
+        self.assertEqual((self.base/'current').resolve().name, '5.6.21')
         self.assertEqual(self.config.read_bytes(), self.before)
         self.assertEqual(json.loads(self.config.read_bytes())['mail']['max_body_chars'], 100000)
         self.assertEqual(self.config.stat().st_mode & 0o777, 0o640)
@@ -379,7 +386,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         (self.base/'current').unlink()
         (self.base/'current').symlink_to(later)
         self.apply()
-        self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
         self.assertEqual(self.config.read_bytes(),self.before)
@@ -388,7 +395,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'3.8.1'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -396,7 +403,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'3.9.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -404,7 +411,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'3.9.1'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -412,7 +419,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'3.9.2'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -420,7 +427,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'3.9.3'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -428,7 +435,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'4.0.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -436,7 +443,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'4.1.0'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 
@@ -444,7 +451,7 @@ class UpgradeFilesystemTests(unittest.TestCase):
         later=self.base/'releases'/'4.1.1'
         shutil.copytree(self.old,later)
         (self.base/'current').unlink();(self.base/'current').symlink_to(later)
-        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.20')
+        self.apply();self.assertEqual((self.base/'current').resolve().name,'5.6.21')
         upgrade.rollback(self.base,self.config,self.state)
         self.assertEqual((self.base/'current').resolve(),later)
 

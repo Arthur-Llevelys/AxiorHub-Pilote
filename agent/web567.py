@@ -115,8 +115,9 @@ def page(desk, auth, prefix, env):
     return shell('Missions', body, prefix, auth['csrf'], '/aujourdhui')
 
 
-def preferences_page(desk, auth, prefix, env):
-    from .web440 import shell
+def preferences_page(desk, auth, prefix, env, shell=None):
+    from .web440 import shell as default_shell   # 5.6.21
+    shell = shell or default_shell
     owner, _ = actor(env)
     p = assistant567.profile(desk, owner)
     def opts(values, current):
@@ -135,13 +136,16 @@ def preferences_page(desk, auth, prefix, env):
     return shell('Voix et comportement', body, prefix, auth['csrf'], '/parametres')
 
 
-def connections_page(desk,auth,prefix,env):
-    from .web440 import shell
+def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),tests=None,heading=None):
+    from .web440 import shell as default_shell   # 5.6.21 : rendu injectable (concentrateur Paramètres), groupes filtrables
+    shell=shell or default_shell
     from .config567 import catalog
     _,role=actor(env)
     if role!='administrateur':raise Stop('role_insuffisant')
     data=catalog(desk,env)
-    body='<h1>Connexions et configuration</h1><p>Les secrets existants ne sont jamais affichés. Une valeur vide conserve le secret. Les paramètres Docker demandent un plan de déploiement et un redémarrage.</p><form id="connections567-form">'
+    if groups is not None or exclude:
+        data={**data,'fields':[f for f in data['fields'] if (groups is None or f['group'] in groups) and f['group'] not in exclude]}
+    body='<h1>'+e(heading or 'Connexions et configuration')+'</h1><p>Les secrets existants ne sont jamais affichés. Une valeur vide conserve le secret. Les paramètres Docker demandent un plan de déploiement et un redémarrage.</p><form id="connections567-form">'
     groups={}
     for field in data['fields']:groups.setdefault(field['group'],[]).append(field)
     for group,fields in groups.items():
@@ -160,7 +164,7 @@ def connections_page(desk,auth,prefix,env):
             body+='</label>'
         body+='</div></details>'
     body+='<button>Enregistrer les changements</button><p id="connections567-status" role="status"></p></form><section><h2>Tests de connexion</h2><p>Enregistrez d’abord vos changements. Les tests ne créent ni facture ni courriel et ne sélectionnent pas vos agendas à votre place.</p>'
-    for name,label in (('imap','IMAP'),('nextcloud','Nextcloud / agendas'),('ollama','Ollama'),('invoice_ninja','Invoice Ninja'),('voice','Voix locale')):
+    for name,label in [x for x in (('imap','IMAP'),('nextcloud','Nextcloud / agendas'),('ollama','Ollama'),('invoice_ninja','Invoice Ninja'),('voice','Voix locale')) if tests is None or x[0] in tests]:
         body+='<button type="button" data-connector567="'+name+'">Tester '+label+'</button> '
     body+='</section><details><summary>Variables Docker et plan de déploiement</summary><p>Ces variables sont inventoriées. Les secrets ne sont pas exportés ; appliquer ce plan reste une opération d’administration du serveur.</p><table><thead><tr><th>Variable</th><th>Valeur d’exemple / nouveau choix</th><th>Application</th></tr></thead><tbody>'
     for item in data['infrastructure']:

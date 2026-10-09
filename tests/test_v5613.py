@@ -326,7 +326,7 @@ class SharedPanel(Base):
 class Pages(Base):
     def test_ai_settings_are_grouped_and_activity_is_grouped_by_matter(self):
         body = self.request('/ia-externe')['body']
-        self.assertIn('<h1>Intelligence artificielle</h1>', body);self.assertIn('id="ia5613-local"', body);self.assertIn('id="economie569"', body)
+        self.assertIn('<h2>Intelligence artificielle</h2>', body)   # 5.6.21 : rubrique du concentrateur Paramètres;self.assertIn('id="ia5613-local"', body);self.assertIn('id="economie569"', body)
         self.assertIn('Régime économe et consommation', body);self.assertIn('Modèles locaux et routage', body)
         from agent.config567 import FIELDS
         self.assertIn('Intelligence artificielle', {f[4] for f in FIELDS});self.assertNotIn('IA locale', {f[4] for f in FIELDS})

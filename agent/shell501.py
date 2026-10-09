@@ -23,20 +23,16 @@ ACTIVE = {'/mise-en-service':'/parametres', '/parametres/agents':'/parametres', 
 TOOLS = (('/mise-en-service', 'Mise en service', 'Services réels, micro, Docker : contrôles et correctifs'),
          ('/parametres/agents', 'Agents et règles', 'Missions documentaires en langage naturel'),
          ('/agents-documents', 'Résultats des agents', 'Classement, agendas, brouillons et reprise'),
-         ('/parametres/agendas', 'Agendas et procédure', 'Google, Nextcloud, CalDAV et rôle au dossier'), ('/parametres/proactivite', 'Initiatives et voix', 'Engagements, rôles spécialisés, Talk et veille'),
          ('/engagements', 'Engagements et suites', 'Promesses sourcées et missions en étapes'),
          ('/veille', 'Veille juridique', 'Nouveautés officielles datées'),
          ('/diagnostic', 'Pourquoi rien n’est produit ?', 'Services, erreurs, dossiers bloqués, connexions, recette'),
-         ('/ia-externe', 'Intelligence artificielle', 'Modèles locaux, routage, régime économe, consommation, IA externe sûre'),
          ('/audience', 'Fiche d’audience', 'Conclusions, pièces attendues, note de plaidoirie, questions probables, projets à relire'),
          ('/missions-complexes', 'Missions complexes', 'Assignation, conclusions : sous-tâches par rôle, décisions, projet contrôlé'),
          ('/profils', 'Profils procéduraux', 'Registre daté des procédures approuvées par l’avocat'),
          ('/pieces', 'Pièces et bordereaux', 'Bordereau, pièces numérotées et tamponnées'),
          ('/verification', 'Vérifier', 'Citations juridiques, mentions obligatoires, relecture contradictoire'),
          ('/progres', 'Progrès', 'Apprentissage, tons par destinataire, règles, autonomie et traçabilité'),
-         ('/confort', 'Confort', 'Dictée, envoi facultatif, application mobile, raccourcis'),
-         ('/modeles-word', 'Documents du cabinet', 'Modèles Word et livrables'),
-         ('/atelier/reglages', 'Réglages de l’atelier', 'Éditeur de documents, avis de procédure, rôle par dossier'))
+         ('/modeles-word', 'Documents du cabinet', 'Modèles Word et livrables'))
 TOOL_PAGES = {'/mise-en-service', '/audience', '/missions-complexes', '/profils', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/parametres/proactivite', '/engagements', '/veille', '/diagnostic', '/ia-externe', '/pieces', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/confort', '/modeles-word', '/atelier/reglages'}
 
 AX_CSS = ('v440.css', 'v470.css', 'v480.css', 'v500.css')

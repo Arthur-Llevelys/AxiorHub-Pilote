@@ -67,6 +67,21 @@ def index_html(st):
 
 # ------------------------------------------------------------------------------------------------ confort
 def confort_page(desk, auth, prefix, args, shell):
+    return shell('Confort d’usage', confort_body(desk, auth, prefix, args), prefix, auth['csrf'], '/confort')
+
+
+def confort_sections(desk, auth, prefix, args):
+    """5.6.21 : sections de la page Confort (voix, envoi, mobile, recherche, clavier) pour le concentrateur Paramètres."""
+    import re as _re
+    out = {}
+    for part in _re.split(r'(?=<section id=")', confort_body(desk, auth, prefix, args)):
+        m = _re.match(r'<section id="([a-z]+)"', part)
+        if m:
+            out[m.group(1)] = part
+    return out
+
+
+def confort_body(desk, auth, prefix, args):
     snd = send490.status(desk)
     mob = mobile490.status(desk)
     srch = search490.status(desk)
@@ -96,7 +111,7 @@ def confort_page(desk, auth, prefix, args, shell):
         voice_rows, 'ok' if snd['enabled'] else 'muted', 'activé' if snd['enabled'] else 'désactivé', send_html(snd, matters, log),
         mobile_html(mob), index_html(srch), ' checked' if srch['mail_indexing'] else '',
         ''.join('<tr><th scope="row"><kbd>%s</kbd></th><td>%s</td><td>%s</td></tr>' % (e(k), e(a), e(w)) for k, a, w in SHORTCUTS))
-    return shell('Confort d’usage', body, prefix, auth['csrf'], '/confort')
+    return body
 
 
 def send_html(snd, matters, log):

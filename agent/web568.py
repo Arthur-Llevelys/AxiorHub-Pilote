@@ -185,8 +185,9 @@ def page(desk,auth,prefix,env,path):
     return shell('Engagements',body,prefix,auth['csrf'],'/aujourdhui')
 
 
-def preferences(desk,auth,prefix,env):
-    from .web440 import shell
+def preferences(desk,auth,prefix,env,shell=None):
+    from .web440 import shell as default_shell   # 5.6.21
+    shell=shell or default_shell
     owner,role=actor(env)
     if role not in ('administrateur','avocat'):raise Stop('role_insuffisant')
     p=settings568.profile(desk,owner)

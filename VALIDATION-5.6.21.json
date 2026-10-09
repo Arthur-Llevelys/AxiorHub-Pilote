@@ -1,0 +1,24 @@
+{
+  "version": "5.6.21",
+  "base": "5.6.20 livrée",
+  "date_utc": "2026-10-09T18:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1527,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 57,
+    "duration_seconds": 1181.1,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.20). L’intégration continue GitHub exécute la même suite sous Linux."
+  },
+  "new_tests": "tests/test_v5621.py (réseau du cabinet : adresses privées admises pour les services locaux, publiques refusées, HTTPS toujours exigé hors services locaux, validation des réglages et libellés ; concentrateur Paramètres : chaque rubrique rend ses formulaires une seule fois, voix hors de Connexions, Ollama hors de Voix, anciennes adresses et ancien onglet ouvrant la bonne rubrique, menu Outils sans doublon)",
+  "corrections": [
+    "Services locaux (Ollama, Kokoro, passerelle vocale) joignables sur le réseau privé du cabinet, dans les deux installations.",
+    "Page Paramètres unique à six rubriques ; doublons retirés par composition des pages existantes."
+  ],
+  "limits": [
+    "Les anciennes pages restent accessibles par leur adresse (elles affichent la rubrique) ; les scripts des formulaires sont inchangés.",
+    "La rubrique Routines reprend l’ancienne vue « essentiel du jour » et l’onglet Automatismes ; leur mise en forme est celle d’origine."
+  ]
+}

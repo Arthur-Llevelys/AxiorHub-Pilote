@@ -266,7 +266,7 @@ def route(env, cfg, auth, prefix, path, args, method):
         name = path.rsplit('/', 1)[1]
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
-    if not (path in ('/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos') or path in _pages500() or path.startswith('/api440/')):
+    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos') or path in _pages500() or path.startswith('/api440/')):
         return None
     from . import shell501
     shell501.set_context(cfg)
@@ -276,6 +276,9 @@ def route(env, cfg, auth, prefix, path, args, method):
             return api(env, desk, auth, prefix, path[len('/api440/'):], args, method)
         if method != 'GET':
             return {'status': '405 Method Not Allowed', 'kind': 'text/plain; charset=utf-8', 'body': 'Méthode refusée.'}
+        from . import parametres5621   # 5.6.21 : concentrateur des réglages (une rubrique par sujet, chaque réglage à un seul endroit)
+        if path == '/parametres' or path in parametres5621.ALIASES:
+            return page_out(parametres5621.page(desk, auth, prefix, env, args, path))
         if path in ('/parametres/agents','/parametres/agendas','/agents-documents'):
             from .web_rules568 import page
             return page_out(page(desk,auth,prefix,env,path,args))
@@ -703,7 +706,7 @@ def editor_page(desk, auth, prefix, args):
     return page_out(html, csp)
 
 
-def settings_page(desk, auth, prefix, args):
+def settings_page(desk, auth, prefix, args, render=None):
     from . import office440, notices440
     cfg = office440.settings(desk)
     matters = sorted(load_matters(desk.c), key=lambda m: matter_display(m).casefold())
@@ -747,4 +750,4 @@ def settings_page(desk, auth, prefix, args):
                '<div class="ax-table"><table><thead><tr><th>Dossier</th><th>Votre rôle</th><th>Confrère</th><th>Son courriel</th><th></th></tr></thead><tbody>%s</tbody></table></div></section>') % (
         ' checked' if enabled else '', ' checked' if calendar else '', rows)
     body = '<h1>Réglages de l’atelier</h1>' + office + notices
-    return shell('Réglages de l’atelier', body, prefix, auth['csrf'], '/parametres')
+    return (render or shell)('Réglages de l’atelier', body, prefix, auth['csrf'], '/parametres')

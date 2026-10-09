@@ -737,7 +737,7 @@ class Web(unittest.TestCase):
             self.assertIn('401', self.call(path, auth=False)['status'], path)
             self.assertTrue(self.call(path)['status'].startswith('200'), path)
         html = self.call('/courriels')['body'].decode()
-        for needle in ('/agent-courriel/recherche', '/agent-courriel/confort', 'rel="manifest"', 'theme-color', 'cf-skip', 'id="ax-main"', '/static/v490.js', '/static/app520.css'):
+        for needle in ('/agent-courriel/recherche', '/agent-courriel/parametres', 'rel="manifest"', 'theme-color', 'cf-skip', 'id="ax-main"', '/static/v490.js', '/static/app520.css'):
             self.assertIn(needle, html, needle)
 
     def test_manifest_is_public_service_worker_is_not_and_csp_allows_both(self):
@@ -811,7 +811,7 @@ class Web(unittest.TestCase):
         self.assertTrue(self.post('mobile/subscribe', {'endpoint': 'https://fcm.googleapis.com/fcm/send/b'})[0]['status'].startswith('400'))
 
     def test_confort_page_lists_commands_shortcuts_and_the_decision_on_sending(self):
-        html = self.call('/confort')['body'].decode()
+        html = self.call('/confort')['body'].decode() + self.call('/parametres/assistant')['body'].decode()   # 5.6.21 : dictée dans « Voix », envoi et raccourcis dans « Cabinet »
         for needle in ('Ajoute que je suis disponible le 12', 'Envoie…', 'REFUSÉ', 'désactivé', 'Ouvrir dans la messagerie', 'Aucun serveur d’envoi', 'uniquement des nombres',
                        '<kbd>g puis c</kbd>', 'Ctrl + Entrée', 'Raccourcis clavier'):
             self.assertIn(needle, html, needle)

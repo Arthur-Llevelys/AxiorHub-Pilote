@@ -3,6 +3,18 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.21 — Réseau du cabinet et Paramètres regroupés
+
+- **Ollama, Kokoro et passerelle vocale sur le réseau du cabinet** : les adresses privées (10.x, 172.16–31.x, 192.168.x, fc00::/7,
+  noms en `.local`) sont admises pour ces services, par exemple `http://192.168.1.115:11434` ; les adresses publiques restent refusées
+  (le texte des dossiers ne sort pas du cabinet sans décision explicite). Libellés mis à jour dans Connexions.
+- **Paramètres regroupés** : une seule page à six rubriques — Connexions ; Intelligence artificielle ; Voix ; Routines et
+  initiatives ; Documents et procédure ; Cabinet et accueil — chaque réglage à un seul endroit. Les formulaires existants sont
+  réutilisés tels quels ; les doublons sont retirés (la voix n’est réglée que dans « Voix », le rôle par dossier que dans « Documents
+  et procédure », Ollama que dans « Connexions »). Les anciennes adresses (`/parametres/connexions`, `/parametres/assistant`,
+  `/parametres/proactivite`, `/ia-externe`, `/confort`, `/atelier/reglages`, `/parametres/agendas`, `/parametres?tab=…`) ouvrent la
+  rubrique correspondante ; le menu Outils ne les liste plus séparément.
+
 ## 5.6.20 — Mode poste : application de bureau Ubuntu 24.04
 
 - **`poste.py`** : AxiorHub sur un poste de travail, sans root ni Apache. Données, configuration et secrets dans

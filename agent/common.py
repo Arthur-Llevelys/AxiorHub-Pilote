@@ -100,13 +100,18 @@ class HTTP:
         if p.username or p.password or p.query or p.fragment or p.scheme not in ('https', 'http'):
             raise Stop('url_invalide')
         try:
-            loopback = ipaddress.ip_address(p.hostname).is_loopback
+            address = ipaddress.ip_address(p.hostname)
+            loopback = address.is_loopback
+            # 5.6.21 : réseau du cabinet (10/8, 172.16/12, 192.168/16, fc00::/7, lien local) admis pour les services locaux ;
+            # une adresse publique reste refusée : le texte des dossiers ne sort pas du cabinet sans décision explicite.
+            private = address.is_private and not address.is_loopback
         except ValueError:
             loopback = p.hostname in ('localhost','host.docker.internal')
+            private = bool(p.hostname) and p.hostname.endswith('.local')
         approved = p.hostname in set(local_hosts) if local_only else False
-        if local_only and not (loopback or approved):
+        if local_only and not (loopback or approved or private):
             raise Stop('ollama_doit_etre_local')
-        if p.scheme != 'https' and not (loopback or approved):
+        if p.scheme != 'https' and not (loopback or approved or (local_only and private)):
             raise Stop('https_obligatoire')
         self.base, self.origin = base.rstrip('/'), (p.scheme, p.netloc)
         self.timeout = timeout

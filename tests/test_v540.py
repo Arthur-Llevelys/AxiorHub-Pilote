@@ -198,7 +198,7 @@ class Page(unittest.TestCase):
         for text in ('IA externe sûre', 'Mode d’utilisation', 'Tout en local', 'Mixte (recommandé hors local)', 'Aperçu de ce qui part',
                      'Journal des envois', '/static/v540.js', 'Aucun fournisseur externe'):
             self.assertIn(text, body)
-        self.assertIn('/ia-externe', self.request('/parametres', query='tab=ia')['body'])
+        self.assertIn('rubrique=ia', self.request('/parametres', query='tab=ia')['body'])   # 5.6.21 : ancien onglet → rubrique
         self.assertIn('anthropic · anthropic', self.request('/parametres', query='tab=ia')['body'])
         out = ia540.handle(self.d, 'm540/preview', {'text': 'Écrire à M. Paul MARTIN, paul.martin@example.test'})
         self.assertNotIn('MARTIN', out['sent'])
