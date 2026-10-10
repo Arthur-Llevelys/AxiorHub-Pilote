@@ -297,6 +297,9 @@ def prepare_draft(desk,args):
                  'available_slots':slots,'coverage':coverage}
         from .assistant567 import drafting_preferences
         payload['preferences_assistant']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
+        if m['id']:   # 5.6.29 : consignes permanentes de l'avocat pour ce dossier
+            from .pause5629 import consignes
+            if consignes(desk,m['id']):payload['consignes_permanentes_du_dossier']=consignes(desk,m['id'])
         from .relevance370 import correction_guidance
         payload['corrections_approuvees']=correction_guidance(desk,m['id'])
         from .learning392 import learning_context

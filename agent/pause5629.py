@@ -1,0 +1,150 @@
+"""5.6.29 : maîtrise du travail automatique de l'agent, dossier par dossier.
+
+- **Pause de l'IA sur un dossier** : plus aucun travail automatique (diligences des courriels entrants, orchestrateur, surveillance
+  des fichiers, avis de procédure, mémoire du dossier, projets et créations de fichiers automatiques, brouillons de réponse aux
+  courriels entrants) n'est mis en file ni exécuté pour ce dossier ; les travaux automatiques déjà en file sont annulés, celui en
+  cours reçoit une demande d'arrêt. Les demandes de l'avocat (priorité « avocat ») restent possibles.
+- **Consignes permanentes** du dossier : transmises à l'agent avec chaque travail sur ce dossier (instruction des projets, réponses
+  aux courriels, fiche de travail).
+- **Coupe-circuit** : un travail automatique qui a échoué trois fois de suite pour le même dossier n'est plus relancé
+  automatiquement ; il reste relançable à la main, et « Réautoriser » efface le compteur.
+"""
+import json
+
+from .common import Stop
+
+PAUSE_KEY = 'pause5629:matters'
+RESET_KEY = 'pause5629:reset'
+FAILURES = 3
+CONSIGNES_MAX = 4000
+AUTOMATIC_PRIORITY = 30
+
+
+def paused(desk):
+    value = desk.settings(PAUSE_KEY, {}) or {}
+    return value if isinstance(value, dict) else {}
+
+
+def is_paused(desk, mid):
+    return str(mid or '') in paused(desk)
+
+
+def is_automatic(args, priority):
+    return str((args or {}).get('automatic') or '') == 'yes' or int(priority if priority is not None else 0) >= AUTOMATIC_PRIORITY
+
+
+def _resets(desk):
+    value = desk.settings(RESET_KEY, {}) or {}
+    return value if isinstance(value, dict) else {}
+
+
+def failures(desk, kind, mid):
+    """Échecs consécutifs les plus récents d'un type de travail sur un dossier (depuis la dernière réautorisation)."""
+    since = _resets(desk).get('%s|%s' % (kind, mid), '')
+    rows = desk.db.execute("SELECT status,finished,result FROM jobs WHERE kind=? AND json_extract(args,'$.matter')=? AND status IN ('done','error') "
+                           "AND COALESCE(finished,'')>? ORDER BY id DESC LIMIT ?", (kind, mid, since, FAILURES)).fetchall()
+    count = 0
+    for r in rows:
+        if r['status'] != 'error':
+            break
+        count += 1
+    last = ''
+    if rows and rows[0]['status'] == 'error':
+        try:
+            last = (json.loads(rows[0]['result'] or '{}') or {}).get('erreur', '')
+        except ValueError:
+            last = ''
+    return count, last
+
+
+def check_enqueue(desk, kind, args, priority):
+    """Refuse la mise en file d'un travail AUTOMATIQUE sur un dossier en pause ou en échec répété."""
+    mid = str((args or {}).get('matter') or (args or {}).get('matter_id') or '')
+    if not mid or not is_automatic(args, priority):
+        return
+    if is_paused(desk, mid):
+        raise Stop('agent_en_pause_sur_ce_dossier')
+    count, _ = failures(desk, kind, mid)
+    if count >= FAILURES:
+        raise Stop('relances_suspendues_apres_trois_echecs')
+
+
+def check_running(desk, row, args):
+    """Juste avant l'exécution : un travail automatique d'un dossier mis en pause entre-temps n'est pas exécuté."""
+    mid = str((args or {}).get('matter') or (args or {}).get('matter_id') or '')
+    try:
+        priority = row['priority']
+    except (IndexError, KeyError):
+        priority = 0
+    if mid and is_automatic(args, priority) and is_paused(desk, mid):
+        raise Stop('agent_en_pause_sur_ce_dossier')
+
+
+def set_pause(desk, mid, on, owner='cabinet'):
+    from .common import load_matters
+    if not any(m['id'] == mid for m in load_matters(desk.c)):
+        raise Stop('dossier_absent')
+    value = paused(desk)
+    cancelled = stopping = 0
+    if on:
+        value[mid] = {'at': desk.now(), 'by': owner}
+        desk.setting(PAUSE_KEY, value)
+        cond = ("json_extract(args,'$.matter')=? AND (priority>=? OR json_extract(args,'$.automatic')='yes')")
+        cancelled = desk.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE status='pending' AND " + cond,
+                                    (desk.now(), json.dumps({'message': 'Annulé : IA en pause sur ce dossier.'}), mid, AUTOMATIC_PRIORITY)).rowcount
+        stopping = desk.db.execute("UPDATE jobs SET status='cancel_requested' WHERE status='running' AND " + cond, (mid, AUTOMATIC_PRIORITY)).rowcount
+        desk.db.commit()
+        message = 'IA en pause sur ce dossier : plus aucun travail automatique.'
+        if cancelled or stopping:
+            message += ' %d travail(aux) en file annulé(s)%s.' % (cancelled, (', %d arrêt demandé' % stopping) if stopping else '')
+    else:
+        value.pop(mid, None)
+        desk.setting(PAUSE_KEY, value)
+        message = 'L’IA peut de nouveau travailler automatiquement sur ce dossier.'
+    desk.audit('pause5629_dossier', {'matter': mid, 'pause': bool(on), 'annules': cancelled, 'arrets': stopping, 'owner': owner})
+    return {'paused': bool(on), 'cancelled': cancelled, 'stopping': stopping, 'message': message}
+
+
+def consignes(desk, mid):
+    return str(desk.settings('consignes5629:' + str(mid), '') or '')
+
+
+def set_consignes(desk, mid, text, owner='cabinet'):
+    from .common import load_matters
+    if not any(m['id'] == mid for m in load_matters(desk.c)):
+        raise Stop('dossier_absent')
+    text = str(text or '').replace('\r\n', '\n').strip()
+    if len(text) > CONSIGNES_MAX:
+        raise Stop('consignes_trop_longues_4000_maximum')
+    desk.setting('consignes5629:' + mid, text)
+    desk.audit('consignes5629_dossier', {'matter': mid, 'longueur': len(text), 'owner': owner})
+    return {'message': 'Consignes enregistrées : l’agent les suivra pour chaque travail sur ce dossier.' if text else 'Consignes effacées.'}
+
+
+def with_consignes(desk, args):
+    """Ajoute les consignes permanentes du dossier à l'instruction d'un travail (copie des arguments)."""
+    mid = str((args or {}).get('matter') or '')
+    text = consignes(desk, mid) if mid else ''
+    if not text or 'instruction' not in (args or {}):
+        return args
+    return {**args, 'instruction': (str(args.get('instruction') or '').rstrip() + '\n\nConsignes permanentes de l’avocat pour ce dossier (prioritaires) :\n' + text).strip()}
+
+
+def blocked(desk, mid, days=14):
+    """Travaux automatiques de ce dossier suspendus après des échecs répétés (pour affichage et réautorisation)."""
+    rows = desk.db.execute("SELECT DISTINCT kind FROM jobs WHERE json_extract(args,'$.matter')=? AND status='error' AND finished>=datetime('now',?)",
+                           (mid, '-%d days' % days)).fetchall()
+    out = []
+    for r in rows:
+        count, last = failures(desk, r['kind'], mid)
+        if count >= FAILURES:
+            out.append({'kind': r['kind'], 'failures': count, 'error': last})
+    return out
+
+
+def reset(desk, kind, mid, owner='cabinet'):
+    value = _resets(desk)
+    value['%s|%s' % (kind, mid)] = desk.now()
+    desk.setting(RESET_KEY, value)
+    desk.audit('pause5629_reautorisation', {'matter': mid, 'kind': kind, 'owner': owner})
+    return {'message': 'Relances automatiques réautorisées pour ce travail.'}

@@ -106,6 +106,32 @@
     });
   }
 
+  // ------------------------------------------------------------ 5.6.29 : pause de l'IA, consignes, relances suspendues
+  $$('[data-d27-pause]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var on = b.getAttribute('data-d27-pause') === '1';
+      if (on && !window.confirm('Mettre l’IA en pause sur ce dossier ? Les travaux automatiques en file seront annulés ; vos propres demandes restent possibles.')) return;
+      busy(b, true);
+      api('m5627/pause', { matter: matter, on: on ? '1' : '0' }).then(function (r) { toast(r.message); setTimeout(function () { location.reload(); }, 700); })
+        .catch(function (e) { toast(e.message, true); busy(b, false); });
+    });
+  });
+  $$('form[data-d27-consignes]').forEach(function (form) {
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var save = $('button[type=submit]', form); busy(save, true);
+      api('m5627/consignes', { matter: matter, text: $('textarea', form).value }).then(function (r) { toast(r.message); })
+        .catch(function (e) { toast(e.message, true); }).then(function () { busy(save, false); });
+    });
+  });
+  $$('[data-d27-reset]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      busy(b, true);
+      api('m5627/reautoriser', { matter: matter, kind: b.getAttribute('data-d27-reset') }).then(function (r) { toast(r.message); b.closest('li').remove(); })
+        .catch(function (e) { toast(e.message, true); busy(b, false); });
+    });
+  });
+
   // ------------------------------------------------------------ pièces : filtre
   $$('[data-d27-filter]').forEach(function (input) {
     var list = $(input.getAttribute('data-d27-filter'));

@@ -217,6 +217,14 @@
         .then(function (res) { toast(res.message); part('day', '#c530-day'); }).catch(function (err) { toast(err.message, true); busy(ed, false); });
       return;
     }
+    var pm = t.closest('[data-pause-matter]');   // 5.6.29 : pause de l'IA sur le dossier de ce travail
+    if (pm) {
+      if (!confirm('Mettre l’IA en pause sur ce dossier ? Les travaux automatiques en file pour ce dossier seront annulés ; vos demandes restent possibles. Reprise depuis la page du dossier.')) return;
+      busy(pm, true);
+      call('m5627/pause', { matter: pm.getAttribute('data-pause-matter'), on: '1' }).then(function (res) { toast(res.message); part('feed', '#c530-feed'); })
+        .catch(function (err) { toast(err.message, true); busy(pm, false); });
+      return;
+    }
     var cj = t.closest('[data-cancel-job]');
     if (cj) {
       if (!confirm('Annuler ce travail ? Un document déjà déposé reste conservé.')) return;

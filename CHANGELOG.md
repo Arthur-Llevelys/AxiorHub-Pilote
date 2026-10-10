@@ -3,6 +3,27 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.29 — Maîtrise du travail automatique : pause par dossier, consignes, fin des boucles
+
+Tests : `tests/test_v5629.py`.
+
+- **Mettre l’IA en pause sur un dossier** (page Dossier, et bouton ⏸ sur un travail de « Ce que fait l’agent ») : plus aucun travail
+  automatique pour ce dossier (diligences des courriels entrants, orchestrateur, surveillance des fichiers, avis de procédure,
+  mémoire, projets et créations automatiques de fichiers, brouillons de réponse aux courriels entrants). Les travaux automatiques
+  déjà en file sont annulés, celui en cours reçoit une demande d’arrêt ; vos propres demandes restent possibles. Bandeau sur la page
+  du dossier, badge « ⏸ IA en pause » dans la liste des dossiers, « ▶ Reprendre l’IA » pour lever la pause.
+- **Consignes pour l’agent** (page Dossier) : consignes permanentes transmises comme prioritaires à chaque travail sur ce dossier
+  (projets documentaires, réponses aux courriels, documents demandés, fiche de travail).
+- **Coupe-circuit** : un travail automatique qui échoue trois fois de suite sur un dossier n’est plus relancé seul ; la page du
+  dossier le signale (« Relances suspendues ») avec « Réautoriser ». Les relances à la main restent possibles.
+- **Boucles corrigées** :
+  - « Vérification des réponses aux engagements » et l’analyse des envois échouaient toutes les cinq minutes sur un courriel trop
+    volumineux (le passage s’arrêtait avant d’avancer) : le message est désormais lu par ses en-têtes et le passage continue ;
+  - « Actualisation de la fiche vivante » était remise en file à chaque passage de la mémoire pour les dossiers en échec : arrêt
+    après trois échecs, et limite de génération relevée pour cette fiche ;
+  - « Création confirmée des fichiers documentaires » en double (« Ce nom de fichier existe déjà ») : une création automatique
+    en double est abandonnée proprement, sans erreur répétée.
+
 ## 5.6.28 — Messagerie complète dans Courriels, vue Tâches simplifiée
 
 Tests : `tests/test_v5628.py`.

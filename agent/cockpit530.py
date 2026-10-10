@@ -420,7 +420,8 @@ ICONS = {'ignore': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
          'trash': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
          'edit': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>',
          'add': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
-         'stop': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>'}
+         'stop': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
+         'pause': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>'}
 
 
 def _icon(kind, label, attrs):
@@ -742,6 +743,13 @@ def feed_html(desk, prefix, current='en_cours'):
                 action += _icon('ignore', 'Ignorer ce blocage (le masquer)', {'data-dismiss': a['retry']})
             elif k == 'en_cours' and a.get('job'):
                 action = _icon('stop', 'Arrêter ce travail', {'data-cancel-job': a['job']})
+            if a.get('job') and k in ('en_cours', 'bloque'):   # 5.6.29 : mettre l'IA en pause sur le dossier de ce travail
+                try:
+                    jm = desk.db.execute("SELECT json_extract(args,'$.matter') FROM jobs WHERE id=?", (a['job'],)).fetchone()
+                except Exception:   # pylint: disable=broad-except
+                    jm = None
+                if jm and jm[0]:
+                    action += _icon('pause', 'Mettre l’IA en pause sur ce dossier (plus de travail automatique)', {'data-pause-matter': jm[0]})
             elif a.get('link'):
                 action = '<a class="ax-btn ghost c530-small" href="%s">%s</a>' % (e(prefix + a['link']), e(a['link_label']))
             title = ('<button type="button" class="c561-open" data-job="%d" title="Voir le détail">%s</button>' % (a['job'], e(a['text']))) if a.get('job') else (

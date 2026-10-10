@@ -348,6 +348,9 @@ class Desk:
             from . import conflicts500
             if kind in conflicts500.GATED_KINDS:
                 conflicts500.gate(self, str(args['matter']))
+        if args and (args.get('matter') or args.get('matter_id')):   # 5.6.29 : pause de l'IA par dossier et coupe-circuit des relances
+            from . import pause5629
+            pause5629.check_enqueue(self, kind, args, job_priority(kind) if priority is None else priority)
         raw = json.dumps(args or {}, sort_keys=True)
         maximum=120000 if kind=='prepare_transcript_report' else (60000 if kind in ('assistant_answer','prepare_document_project','prepare_hearing','prepare_word_project','prepare_legal_opinion','coach_hearing35','record_call35') else (24000 if kind in ('propose_work_plan','prepare_cabinet_letter') else
           (120000 if kind=='import_mcp_legal_results' else
@@ -789,7 +792,11 @@ class Desk:
                 if indexed and not known:remaining.append(m)
             pending=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]
             selected=remaining[:max(0,min(5,98-pending))]
-            for m in selected:self.enqueue('refresh_brief',{'matter':m['id']})
+            queued=[]
+            for m in selected:   # 5.6.29 : un dossier en pause ou en échec répété n'est plus remis en file à chaque passage
+                try:self.enqueue('refresh_brief',{'matter':m['id']});queued.append(m)
+                except Stop:pass
+            selected=queued if queued else selected
             return {'dossiers_mis_en_attente':len(selected),'suite':len(remaining)>len(selected),
                     'after':selected[-1]['id'] if selected else args.get('after','')}
         if kind in ('discover','browse','register_matter','create_matter','chat','forget_chat'):
@@ -898,6 +905,8 @@ class Desk:
             from .live430 import progress
             from .missions567 import check_authority
             check_authority(self,_args)
+            from .pause5629 import check_running,with_consignes   # 5.6.29
+            check_running(self,row,_args)
             progress(self,'Traitement démarré')
             self.audit('job_started',{'job_id':row['id'],'kind':row['kind'],
               'args_sha256':digest(row['args'])})
@@ -937,7 +946,7 @@ class Desk:
                 from .queue567 import producer_lock
                 with producer_lock(self.c,row['kind'],_args):
                     note_holder(self.c['state_dir'],'Travail n° %s (%s)'%(row['id'],row['kind']))
-                    result=self.perform(row['kind'],json.loads(row['args']))
+                    result=self.perform(row['kind'],with_consignes(self,json.loads(row['args'])))
             if isinstance(result,dict):
                 try:
                     from .relevance370 import review_result
@@ -953,6 +962,8 @@ class Desk:
                 self.active_job_id=None;trace480.end();secours564.end()
                 return False
             result={'erreur':str(e)};status='error'
+            if str(e)=='agent_en_pause_sur_ce_dossier':   # 5.6.29 : dossier mis en pause : travail annulé, pas une erreur
+                result={'message':'Annulé : IA en pause sur ce dossier.'};status='cancelled'
         except Exception:
             result={'erreur':'action_interrompue_consulter_le_journal'};status='error'
         current=self.db.execute('SELECT status FROM jobs WHERE id=?',(row['id'],)).fetchone()[0]

@@ -218,6 +218,7 @@ def prepare(desk, args):
         raise Stop('aucune_piece_lisible_dans_le_dossier')
     payload = {'dossier': {'reference': m['id'], 'nom': matter_display(m), 'client_du_cabinet': m.get('client_name', '')},
                'date_du_jour': datetime.now(timezone.utc).date().isoformat(), 'corrections_de_l_avocat': corrections,
+               'consignes_permanentes_du_dossier': __import__('agent.pause5629', fromlist=['consignes']).consignes(desk, mid),
                'faits_valides_par_avocat': facts, 'pieces': [{k: s[k] for k in ('id', 'nom', 'date_fichier', 'nature', 'extrait')} for s in sources]}
     while len(json.dumps(payload, ensure_ascii=False)) > limit - 4000 and len(payload['pieces']) > 3:
         payload['pieces'].pop()
@@ -390,12 +391,19 @@ def header_html(desk, prefix, m, view, counts):
         ('/chronologie?' + urlencode({'matter': mid}), 'Chronologie complète'), ('/strategy?' + urlencode({'matter': mid}), 'Stratégie'),
         ('/modeles-word?' + urlencode({'matter': mid}), 'Créer un courrier Word'), ('/documents?' + urlencode({'matter': mid}), 'Documents du dossier'),
         ('/matter?' + urlencode({'id': mid}), 'Ancienne page (surveillance, mémoire, réglages)')))
+    from .pause5629 import is_paused
+    on_pause = is_paused(desk, mid)
+    pause_btn = ('<button type="button" class="ax-btn d27-resume" data-d27-pause="0" title="L’IA reprend le travail automatique sur ce dossier">▶ Reprendre l’IA</button>'
+                 if on_pause else
+                 '<button type="button" class="ax-btn ghost d27-pausebtn" data-d27-pause="1" title="Plus aucun travail automatique de l’IA sur ce dossier">⏸ Mettre l’IA en pause</button>')
+    banner = ('<p class="d27-paused" role="status">⏸ <strong>IA en pause sur ce dossier.</strong> Aucun travail automatique (projets, brouillons de '
+              'réponse, mises à jour) n’est lancé ; vos demandes restent possibles.</p>') if on_pause else ''
     return ('<div class="d27" data-d27-matter="%s">'
             '<nav class="d27-back">%s</nav>'
             '<header class="d27-head"><div class="d27-title"><h1>%s</h1><p class="d27-muted">Référence %s%s</p></div>'
-            '<div class="d27-head-actions"><button type="button" class="ax-btn" data-d27-prepare>Mettre à jour la fiche</button>'
+            '<div class="d27-head-actions">' + pause_btn + '<button type="button" class="ax-btn" data-d27-prepare>Mettre à jour la fiche</button>'
             '<details class="d27-more"><summary class="ax-btn ghost">Plus ▾</summary><ul>%s</ul></details></div></header>'
-            '<nav class="d27-tabs" aria-label="Vues du dossier">%s</nav>') % (
+            '' + banner + '<nav class="d27-tabs" aria-label="Vues du dossier">%s</nav>') % (
         e(mid, quote=True), _a(prefix, '/dossiers', '← Tous les dossiers'), e(matter_display(m)), e(mid),
         (' · client : ' + e(m['client_name'])) if m.get('client_name') else '', more,
         ''.join('<a href="%s"%s>%s%s</a>' % (e(prefix + q(key), quote=True), ' aria-current="page"' if key == view else '', e(label),
@@ -483,6 +491,21 @@ def fiche_html(desk, prefix, m):
         client = m.get('client_name') or ''
         parties = '<ul class="d27-parties"><li class="d27-client"><strong>%s</strong> <span class="d27-badge">client</span></li></ul>' % e(client) if client else '<p class="d27-muted">Parties à identifier.</p>'
         parties_text = (client + ' — Client') if client else ''
+    from .pause5629 import consignes, blocked, FAILURES
+    cons = consignes(desk, mid)
+    side += _card('Consignes pour l’agent', (
+        '<p class="d27-muted">Suivies par l’agent pour chaque travail sur ce dossier (projets, réponses, fiche).</p>'
+        '<form class="d27-consignes" data-d27-consignes><textarea rows="4" maxlength="4000" aria-label="Consignes pour l’agent sur ce dossier" '
+        'placeholder="Ex. : ne plus préparer de projet sans ma demande ; ton ferme avec le confrère ; attendre le jugement avant toute relance.">%s</textarea>'
+        '<div class="d27-actions"><button class="ax-btn" type="submit">Enregistrer les consignes</button></div></form>') % e(cons))
+    stuck = blocked(desk, mid)
+    if stuck:
+        from .web440 import human
+        from .web import JOB_LABELS
+        side += _card('Relances suspendues', '<p class="d27-muted">Ces travaux automatiques ont échoué %d fois de suite : l’agent ne les relance plus seul.</p>'
+                      '<ul class="d27-stuck">%s</ul>' % (FAILURES, ''.join(
+                          '<li><strong>%s</strong><br><span class="d27-muted">%s</span> <button type="button" class="ax-btn ghost" data-d27-reset="%s">Réautoriser</button></li>' % (
+                              e(JOB_LABELS.get(s['kind'], s['kind'])), e(human(s['error']) if s['error'] else 'échec'), e(s['kind'], quote=True)) for s in stuck)))
     side += _card('Parties', parties + _edit_block('parties', 'Une partie par ligne : nom — qualité — conseil', parties_text, 6), _edit_button('parties'))
     proc = data.get('procedure') or {}
     nd = _next_deadline(desk, mid)
@@ -593,6 +616,15 @@ def api(env, desk, auth, prefix, name, args, method):
         return json_out(request(desk, mid))
     if route == 'fiche/corriger':
         return json_out(save_edit(desk, _matter(desk, mid)['id'], str(data.get('section') or ''), data.get('text', ''), owner))
+    if route == 'pause':   # 5.6.29
+        from .pause5629 import set_pause
+        return json_out(set_pause(desk, _matter(desk, mid)['id'], str(data.get('on')) in ('1', 'true', 'True'), owner))
+    if route == 'consignes':
+        from .pause5629 import set_consignes
+        return json_out(set_consignes(desk, _matter(desk, mid)['id'], data.get('text', ''), owner))
+    if route == 'reautoriser':
+        from .pause5629 import reset
+        return json_out(reset(desk, str(data.get('kind') or ''), _matter(desk, mid)['id'], owner))
     if route == 'agent':
         return json_out(ask_agent(desk, mid, data.get('text', ''), str(data.get('kind') or 'question')))
     raise Stop('route_inconnue')

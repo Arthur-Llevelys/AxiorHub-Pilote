@@ -1777,7 +1777,7 @@ class App:
                 if fold_for_search(query) not in fold_for_search(m['path']+' '+m['id']):continue
                 n=index.db.execute("SELECT COUNT(*) FROM docs WHERE matter=? AND error='' AND text<>''",(m['id'],)).fetchone()[0]
                 state_label={'active':'🟢 Actif','dormant':'🟡 En sommeil','archived':'⚪ Archivé','to_confirm':'🟠 À confirmer'}[item['state']]
-                rows.append('<tr><td>'+link('/dossier',matter_label(m),id=m['id'])+'<small>'+e(m['id'])+'</small></td><td><span class="portfolio-state '+e(item['state'])+'">'+state_label+'</span></td><td>'+e(date(item['last_external_activity']))+'</td><td>'+str(len(m.get('correspondents',[])))+'</td><td>'+str(n)+'</td></tr>')
+                rows.append('<tr><td>'+link('/dossier',matter_label(m),id=m['id'])+(' <span class="d27-badge" title="Aucun travail automatique de l’IA">⏸ IA en pause</span>' if m['id'] in __import__('agent.pause5629',fromlist=['paused']).paused(desk) else '')+'<small>'+e(m['id'])+'</small></td><td><span class="portfolio-state '+e(item['state'])+'">'+state_label+'</span></td><td>'+e(date(item['last_external_activity']))+'</td><td>'+str(len(m.get('correspondents',[])))+'</td><td>'+str(n)+'</td></tr>')
             main+='<div class="table"><table><thead><tr><th>Dossier</th><th>État</th><th>Dernière activité sourcée</th><th>Correspondants</th><th>Textes indexés</th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>'
             discovery=desk.settings('last_discovery')
             if discovery:main+='<h2>Avancement du parcours Nextcloud</h2>'+block(json.dumps(discovery,ensure_ascii=False,indent=2))

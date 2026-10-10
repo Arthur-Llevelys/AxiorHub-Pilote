@@ -29,7 +29,10 @@ def scan(desk,owner='cabinet',box=None):
         found=sorted({int(u) for u in client.search(cfg['inbox'],'UID',str(last+1)+':*','SINCE',since,'UNDELETED') if str(u).isdigit() and int(u)>last})
         pending=desk.db.execute("SELECT * FROM commitments_v568 WHERE owner=? AND state NOT IN ('satisfied','cancelled')",(owner,)).fetchall();count=0
         for uid in found[:50]:
-            mail=client.fetch(cfg['inbox'],str(uid))
+            try:mail=client.fetch(cfg['inbox'],str(uid))
+            except Stop as ex:   # 5.6.29 : un message trop lourd ne bloque plus le suivi à chaque passage (en-têtes seulement)
+                if str(ex)!='message_trop_volumineux':raise
+                mail=client.fetch(cfg['inbox'],str(uid),headers_only=True)
             if mail.uidvalidity!=validity:raise Stop('uidvalidity_modifie_pendant_scan')
             for c in pending:
                 evidence=json.loads(c['evidence']);mid=evidence['message_id']

@@ -232,6 +232,16 @@ class Engine:
                 'score':x['score'],'role':x['role'],'reasons':x['reasons']} for x in ranked[:8]]
             report['matter_candidates']=suggested;report['matter']=matter['id'] if matter else None
             report['recipient_role']=role;report['matter_path']=matter['path'] if matter else None
+            if matter:   # 5.6.29 : IA en pause sur ce dossier : aucun brouillon automatique (l'avocat peut toujours « Répondre avec l'IA »)
+                if getattr(self,'_paused5629',None) is None:
+                    try:
+                        from .desk import Desk
+                        from .pause5629 import paused
+                        self._paused5629=set(paused(Desk(cfg)))
+                    except Exception:   # pylint: disable=broad-except
+                        self._paused5629=set()
+                if matter['id'] in self._paused5629:
+                    return finish('ignored','dossier_en_pause')
             if matter:
                 try:
                     from .desk import Desk

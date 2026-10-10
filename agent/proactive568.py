@@ -110,12 +110,16 @@ def sent_scan(desk,owner='cabinet',box=None):
         uids=sorted({int(u) for u in candidates if str(u).isdigit() and int(u)>last})[:50]
         count=0;scanned=0
         for uid in uids:
-            mail=client.fetch(folder,str(uid))
+            oversized=False
+            try:mail=client.fetch(folder,str(uid))
+            except Stop as ex:   # 5.6.29 : un message trop lourd ne bloque plus l'analyse à chaque passage
+                if str(ex)!='message_trop_volumineux':raise
+                mail=client.fetch(folder,str(uid),headers_only=True);oversized=True
             if mail.uidvalidity!=validity:raise Stop('uidvalidity_modifie_pendant_scan')
             if mail.sender in own and '\\Draft' not in mail.flags and '\\Deleted' not in mail.flags and mail.mid:
                 text=own_text(mail.text)
                 # Long sent mail is retained as a diagnostic, not silently sliced for promises.
-                if len(text)>60000:
+                if oversized or len(text)>60000:
                     record(desk,owner,'sent',mail.key(account),ident(mail.mid),'E02',{'subject':mail.subject,'reason':'Texte envoyé trop long pour l’extraction déterministe ; analyse manuelle nécessaire.','manual_only':True},occurred=mail.timestamp.isoformat())
                 else:
                     matter,candidates=match_matter(desk,mail.subject,text)

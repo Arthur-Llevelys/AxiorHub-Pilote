@@ -697,6 +697,11 @@ def confirm_creation(desk,args,dav=None):
         remote=present.get(path)
         if remote:
             if journal['status'] not in ('writing','created'):
+                if data.get('automatic'):   # 5.6.29 : création automatique en double : abandon propre, sans erreur répétée
+                    desk.db.execute("UPDATE document_projects_v220 SET status='rejected',decided=? WHERE id=?",(desk.now(),pid));desk.db.commit()
+                    desk.audit('document_auto_doublon_evite',{'project_id':pid,'matter':row['matter'] if 'matter' in row.keys() else ''})
+                    return {'status':'abstention','reason':'nom_fichier_deja_existant','created':[],'warnings':[],
+                            'message':'Un document du même nom existe déjà dans le dossier : création automatique abandonnée, aucun doublon.'}
                 raise Stop('nom_fichier_deja_existant')
             try:remote_raw=client.download(remote)
             except (Stop,KeyError,TypeError):raise Stop('reprise_fichier_non_verifiable') from None

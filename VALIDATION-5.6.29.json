@@ -1,0 +1,22 @@
+{
+  "version": "5.6.29",
+  "base": "5.6.28 (non publiée, incluse) sur 5.6.27 publiée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1644,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 67,
+    "note": "Aucun échec."
+  },
+  "new_tests": "tests/test_v5629.py : pause par dossier (annulation des travaux automatiques en file, refus des nouveaux, demandes de l’avocat conservées, reprise), coupe-circuit après trois échecs et réautorisation, consignes permanentes transmises, commandes sur la page Dossier et dans l’activité, boucles fermées (message trop lourd dans le suivi des engagements, mémoire, création automatique en double).",
+  "adjusted_tests": [],
+  "manual_checks": [
+    "Aperçu de démonstration : « Mettre l’IA en pause » puis bandeau et « Reprendre l’IA » sur la page du dossier."
+  ],
+  "limits": [
+    "Causes des boucles déduites du tableau d’erreurs transmis et du code ; pas d’accès au serveur du cabinet."
+  ]
+}

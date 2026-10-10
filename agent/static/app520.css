@@ -1257,6 +1257,11 @@ html[data-theme="dark"] #proactive568-summary,body.dark #proactive568-summary{ba
 .d27-chip:hover{background:#e6eefb}
 .d27-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .d27-limits{margin-top:-4px}
+.d27-paused{margin:0 0 12px;padding:10px 14px;border-radius:10px;background:#fff4e5;border:1px solid #f5c27a;color:#6b3d00}
+.d27-pausebtn{border-color:#f5c27a!important;color:#8a4b00!important}.d27-resume{background:#1f7a3a!important;border-color:#1f7a3a!important}
+.d27-consignes{display:grid;gap:8px}.d27-consignes textarea{font:inherit;padding:8px 10px;border:1px solid #dfe3e9;border-radius:8px;width:100%;box-sizing:border-box}
+.d27-stuck{list-style:none;margin:0;padding:0;display:grid;gap:8px}.d27-stuck li{padding:8px;border:1px solid #f1c6c1;border-radius:8px;background:#fff8f7}
+:root[data-theme=dark] .d27-paused{background:#3a2a12;border-color:#7a5a20;color:#ffd9a0}:root[data-theme=dark] .d27-stuck li{background:#2a1d1d;border-color:#5a3030}
 .fc-back{margin:0 0 6px}.fc-back a,.ws-new-page a{font-weight:600;text-decoration:none}
 :root[data-theme=dark] .d27-card,:root[data-theme=dark] .d27-more ul{background:#1a2029;border-color:#2b3441}
 :root[data-theme=dark] .d27-tabs{border-color:#2b3441}:root[data-theme=dark] .d27-tabs a[aria-current=page]{color:#8db4ff;border-bottom-color:#8db4ff}
