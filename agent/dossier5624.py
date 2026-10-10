@@ -247,7 +247,29 @@ def rubrique(desk, mid, key):
     refused = [r for r in records if r['status'] == 'disputed']
     if key == 'parties':
         m = _matter(desk, mid)
-        items = [_fact_view(desk, mid, r) for r in active if r['record_type'] == 'party']
+        from . import dossier5627
+        fiche = dossier5627.latest(desk, mid)
+        if fiche and (fiche['data'].get('parties') or (fiche.get('edits') or {}).get('parties')):   # 5.6.27 : parties de la fiche de travail
+            edit = (fiche.get('edits') or {}).get('parties')
+            rows = ([{'nom': l.strip(), 'qualite': '', 'conseil': '', 'client_du_cabinet': False} for l in edit['text'].splitlines() if l.strip()] if edit
+                    else fiche['data']['parties'])
+            out['items'] = [{'id': '', 'value': p['nom'] + ((' — ' + dossier5627.QUALITES.get(p['qualite'], '')) if p.get('qualite') else '') +
+                             ((' — conseil : ' + p['conseil']) if p.get('conseil') else ''), 'title': p['nom'],
+                             'status': 'validated' if edit or p.get('client_du_cabinet') else 'derived',
+                             'status_label': 'Corrigé par l’avocat' if edit else ('Client du cabinet' if p.get('client_du_cabinet') else 'Fiche de travail'),
+                             'confidence': 'high', 'sources': [{'label': 'Fiche de travail v%d' % fiche['version'], 'href': '/dossier?id=' + mid, 'excerpt': ''}],
+                             'validated': bool(edit), 'type': 'party'} for p in rows]
+            out['refused'] = 0
+            out['state'] = 'present'
+            out['analysis'] = st
+            out['freshness'] = 'a_jour'
+            return out
+        from .facts460 import NOT_PARTY, party_name
+        from .common import fold
+        old = ('Personne citée dans la pièce', 'Partie citée dans la pièce')   # repérage d'avant 5.6.27 : tout nom cité, non fiable
+        items = [_fact_view(desk, mid, r) for r in active if r['record_type'] == 'party'
+                 and (r['status'] in ('validated', 'pinned') or not str(r.get('content') or '').startswith(old))]
+        items = [i for i in items if party_name(str(i.get('value') or i.get('title') or '').replace('Partie : ', '')) and not NOT_PARTY.search(fold(str(i.get('value') or '')))]
         if m.get('client_name'):
             items.insert(0, {'id': '', 'value': m['client_name'], 'title': m['client_name'], 'status': 'configured', 'status_label': 'Configuration du dossier', 'confidence': 'high',
                              'sources': [{'label': 'Configuration du dossier', 'href': '', 'excerpt': ''}], 'validated': True, 'type': 'party'})

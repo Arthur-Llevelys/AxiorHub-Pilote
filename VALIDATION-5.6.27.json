@@ -1,0 +1,25 @@
+{
+  "version": "5.6.27",
+  "base": "5.6.26 publiée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1625,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 65,
+    "note": "Seul échec : test_v440_office.test_callback_security, aléa de temps connu (horodatage d’archive à cheval sur une seconde) ; rejoué seul trois fois avec succès."
+  },
+  "new_tests": "tests/test_v5627.py : choix des pièces (actes d’abord, factures en dernier, jurisprudence citée signalée, dates HTTP de l’index), fiche préparée (parties réelles seulement, doublons fusionnés, chronologie triée, références inventées retirées), corrections de l’avocat affichées et transmises, une préparation par dossier, page et onglets, instructions à l’agent, droits et ressources ; parties désignées seulement dans le repérage automatique, vues détaillées alignées sur la fiche de travail.",
+  "adjusted_tests": [
+    "tests/test_v460.py, tests/test_v5624.py : la chronologie renvoie vers la page Dossier (« Retour au dossier »)."
+  ],
+  "manual_checks": [
+    "Aperçu de démonstration : préparation de la fiche (modèle simulé) puis rechargement automatique, commissaire de justice écarté des parties, demande d’un courrier depuis la page et document affiché dans le fil, correction du résumé, filtre des pièces, liste des dossiers vers la nouvelle page."
+  ],
+  "limits": [
+    "Fiche validée avec un modèle simulé ; qualité réelle à juger sur un dossier du cabinet.",
+    "Les propositions de parties déjà enregistrées par l’ancien repérage restent en base ; elles sont masquées tant qu’elles ne sont pas validées."
+  ]
+}

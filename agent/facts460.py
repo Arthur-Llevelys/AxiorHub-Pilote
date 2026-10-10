@@ -31,7 +31,44 @@ EVENT_CUES = (
 PARTY = re.compile(r"\b(?:la\s+soci[ée]t[ée]\s+)?((?:SAS|SARL|SA|SASU|EURL|SCI|SELARL|SNC)\s+[A-ZÀ-Ý][\w'’\-&]*(?:\s+[A-ZÀ-Ý][\w'’\-&]*){0,3})")
 PERSON = re.compile(r"\b(M\.|Monsieur|Madame|Mme)\s+([A-ZÀ-Ý][\w'’\-]+(?:\s+[A-ZÀ-Ý][\w'’\-]+){0,2})")
 NOISE_PERSON = {'le', 'la', 'les'}
-CONF_RANK = {'high': 3, 'medium': 2, 'low': 1}
+# 5.6.27 : une partie n'est proposée que si la pièce la désigne comme telle ; jamais un auxiliaire de justice, un magistrat ou un avocat.
+PARTY_CUE = re.compile(r"requete de|demandeu|defendeu|defenderesse|appelant|intime|intervenant|contre\s*:|pour\s*:|entre\s*:|a l.encontre de|condamnation (?:solidaire )?de|"
+                       r"assigne|cite a comparaitre|partie civile|prevenu|bailleur|preneur|vendeur|acquereur|employeur|salarie")
+NOT_PARTY = re.compile(r"avocat|maitre|\bme\b|toque|barreau|huissier|commissaire|notaire|juge|greffi|president|conseiller|expert|mandataire judiciaire|"
+                       r"ministere de|signifie|signification|domicile elu|postulant|plaidant|substitut|procureur")
+PARTY_AFTER = re.compile(r"\b(demande|sollicite|reclame|assigne|conclut|requiert|forme appel|interjette|represente[e]? par son|prise en la personne)")
+TRAILING = {'piece', 'pieces', 'date', 'identifiant', 'organisme', 'situations', 'situation', 'monsieur', 'madame', 'toque', 'avocats', 'avocat',
+            'maitre', 'huissier', 'de', 'du', 'des', 'et', 'societe', 'adresse', 'ne', 'nee'}
+
+
+def party_name(name):
+    """Nom de partie nettoyé des mots parasites en fin (« Pièce », « Date », « Toque »…) ; '' si rien ne reste."""
+    words = str(name or '').split()
+    while words and fold(words[-1]).strip('.,;:') in TRAILING:
+        words.pop()
+    while words and fold(words[0]).strip('.,;:') in {'monsieur', 'madame', 'm', 'mme'} and len(words) > 1 and fold(words[1]).strip('.') in {'monsieur', 'madame'}:
+        words.pop(0)
+    return ' '.join(words)
+
+
+def looks_like_party(folded, start, end, name):
+    """Vrai seulement si la pièce désigne ce nom comme partie : un repère (« à la requête de », « contre : », « demandeur »…) dans la même
+    phrase, moins de 220 caractères avant ; et ni le nom ni ses voisins immédiats sur la même ligne ne désignent un avocat, un auxiliaire de
+    justice ou un magistrat."""
+    line_start = folded.rfind(chr(10), 0, start) + 1
+    line_end = folded.find(chr(10), end)
+    near = folded[max(line_start, start - 28):min(line_end if line_end >= 0 else len(folded), end + 22)]
+    if NOT_PARTY.search(fold(name)) or NOT_PARTY.search(near):
+        return False
+    after = re.split(r'[.;]\s', folded[end:end + 140], 1)[0]   # « La SAS X, représentée par…, demande la condamnation de… »
+    if PARTY_AFTER.search(after):
+        return True
+    window = folded[max(0, start - 220):start]
+    cues = list(PARTY_CUE.finditer(window))
+    if not cues:
+        return False
+    between = window[cues[-1].end():]
+    return not re.search(r'[.;]\s', between)
 
 
 def text_quality(text):
@@ -135,15 +172,18 @@ def extract_facts(text, path, modified=''):
                 break
     parties = 0
     for m in PARTY.finditer(text):
-        add('party', 'Partie : ' + m[1].strip(), 'Partie citée dans la pièce : ' + m[1].strip(), False, m.start(), m.end())
+        name = party_name(m[1].strip())
+        if not name or not looks_like_party(folded, m.start(), m.end(), name):
+            continue
+        add('party', 'Partie : ' + name, 'Partie désignée dans la pièce : ' + name, False, m.start(), m.end())
         parties += 1
         if parties >= 4:
             break
     for m in PERSON.finditer(text):
-        name = m[2].strip()
-        if fold(name.split()[0]) in NOISE_PERSON or parties >= 6:
+        name = party_name(m[2].strip())
+        if not name or fold(name.split()[0]) in NOISE_PERSON or parties >= 6 or not looks_like_party(folded, m.start(), m.end(), name):
             continue
-        add('party', 'Partie : %s %s' % (m[1], name), 'Personne citée dans la pièce : %s %s' % (m[1], name), False, m.start(), m.end())
+        add('party', 'Partie : %s %s' % (m[1], name), 'Personne désignée comme partie dans la pièce : %s %s' % (m[1], name), False, m.start(), m.end())
         parties += 1
     return out, quality
 

@@ -347,7 +347,7 @@ class Pages(Base0 if False else unittest.TestCase):
         self.assertIn('/static/v460.js', page)
         chrono = self.call('/chronologie', query='matter=DOS-001')['body'].decode()
         self.assertIn('Chronologie', chrono)
-        self.assertIn('Retour à la fiche', chrono)
+        self.assertIn('Retour au dossier', chrono)   # 5.6.27 : retour vers la page Dossier
         self.assertEqual(self.call('/fiche', query='matter=NOPE')['status'][:3], '200')
         self.assertIn('Dossier introuvable', self.call('/fiche', query='matter=NOPE')['body'].decode())
         self.assertIn('Choisissez un dossier', self.call('/fiche')['body'].decode())

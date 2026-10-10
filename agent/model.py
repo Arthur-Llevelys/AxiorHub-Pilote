@@ -41,6 +41,12 @@ LEGAL_MEMORY_RECORD = obj({
     'status':{'type':'string','enum':['assertion','project','confirmed']},
     'source_ids':A})
 LEGAL_MEMORY_CONFLICT = obj({'description':S,'source_ids':A})
+# 5.6.27 : fiche de travail du dossier (page Dossier refondue)
+PARTY5627 = obj({'nom':S,'qualite':{'type':'string','enum':['demandeur','defendeur','appelant','intime','intervenant','client','cocontractant','autre']},
+                 'conseil':S,'client_du_cabinet':B,'source_ids':A})
+FICHE5627 = obj({'resume':S,'rappel_des_faits':arr(obj({'texte':S,'source_ids':A}),12),'parties':arr(PARTY5627,12),
+                 'procedure':obj({'juridiction':S,'numero_rg':S,'stade':S,'prochaine_etape':S,'source_ids':A}),
+                 'chronologie':arr(obj({'date':S,'evenement':S,'source_ids':A}),20),'enjeux':A,'points_a_verifier':A,'limits':A})
 LEGAL_MEMORY = obj({'records':arr(LEGAL_MEMORY_RECORD,60),
                     'contradictions':arr(LEGAL_MEMORY_CONFLICT,20),'limits':A})
 STRATEGY_POSITION = obj({'title':S,'description':S,'actor':S,'source_ids':A})
@@ -217,6 +223,43 @@ non datables gardent une date vide. status=confirmed uniquement pour les faits m
 validés_par_avocat dans les données. N'invente rien. Sépare instructions actuelles,
 positions de négociation et projets. Signale les contradictions et limites. Pas de
 recherche juridique, pas de recommandation stratégique. Retourne le JSON du schéma.
+"""
+FICHE5627_PROMPT="""Tu prépares la FICHE DE TRAVAIL d'un dossier d'avocat à partir des seuls éléments fournis :
+extraits des pièces (pieces, identifiants P1, P2…), faits validés par l'avocat (V1, V2…) et corrections de l'avocat.
+La fiche doit permettre à l'avocat de comprendre le dossier en deux minutes.
+
+Règles générales :
+- N'invente rien. Ce qui n'apparaît pas dans les éléments reste vide ou va dans points_a_verifier.
+- Chaque élément cite ses sources par leurs identifiants dans source_ids (jamais un nom de fichier).
+- Les corrections de l'avocat et les faits validés priment sur les pièces ; reprends leur contenu.
+- Le client du cabinet est indiqué dans dossier.client_du_cabinet ; rédige de son point de vue, sans parti pris.
+- Français juridique clair, phrases courtes, pas de longues citations.
+- Une pièce marquée « jurisprudence citée » concerne une AUTRE affaire : elle ne fournit ni partie, ni fait, ni événement du dossier.
+
+resume : 4 à 8 phrases. Qui (le client et son adversaire), quoi (objet du litige ou de la mission), où en est le dossier
+(juridiction, stade) et l'enjeu principal (demande, montant).
+
+rappel_des_faits : récit chronologique des FAITS à l'origine de l'affaire (relations entre les parties, contrats, manquements,
+échanges déterminants, préjudice), en 3 à 10 paragraphes courts. Ce n'est PAS une liste de documents : aucune facture
+d'honoraires, aucun frais de greffe, aucun courrier de transmission, aucune date de fichier. Les étapes de la procédure vont
+dans procedure et chronologie, pas ici.
+
+parties : uniquement les PARTIES à l'affaire (demandeur, défendeur, appelant, intimé, intervenant ; pour une affaire non
+contentieuse : le client et ses cocontractants). Pour chacune : qualite, conseil (l'avocat qui la représente, sinon vide),
+client_du_cabinet (true pour le client du cabinet seulement). Ne sont JAMAIS des parties : magistrats (juge, président,
+conseiller), greffiers, commissaires de justice ou huissiers, experts judiciaires, médiateurs, témoins, ni les personnes ou
+sociétés seulement citées dans les actes ou la jurisprudence. Les avocats figurent dans conseil, jamais comme partie.
+Fusionne les variantes d'un même nom (SA X, X France, société X).
+
+procedure : juridiction actuellement saisie, numéro RG, stade actuel (par exemple « assignation délivrée, audience de mise en
+état à venir »), prochaine étape connue avec sa date.
+
+chronologie : 5 à 15 événements DÉTERMINANTS de l'affaire, faits et procédure confondus (contrat, mise en demeure, assignation,
+audiences, jugement, signification, appel…), date au format AAAA-MM-JJ (ou AAAA-MM, ou AAAA). Exclus : factures, honoraires,
+frais, simples courriers d'envoi, dates de création de fichiers, décisions d'autres affaires.
+
+enjeux : 1 à 5 points (demandes, montants, risques). points_a_verifier : informations manquantes ou contradictoires.
+limits : limites de la fiche (pièces illisibles ou partielles). Retourne exclusivement le JSON du schéma.
 """
 LEGAL_MEMORY_PROMPT="""Extrais une mémoire juridique STRUCTURÉE et INTERNE à partir
 des seules sources fournies. Chaque record est une proposition factuelle distincte et
@@ -959,14 +1002,15 @@ class Model:
                           'attachment_review':(ATTACHMENT_REVIEW,ATTACHMENT_REVIEW_PROMPT),
                           'deadline_review':(DEADLINE_REVIEW,DEADLINE_REVIEW_PROMPT),
                           'manual_draft':(MANUAL_DRAFT,MANUAL_DRAFT_PROMPT),
-                          'memory_insight':(MEMORY_INSIGHT,MEMORY_INSIGHT_PROMPT)}[stage]
+                          'memory_insight':(MEMORY_INSIGHT,MEMORY_INSIGHT_PROMPT),
+                          'dossier_fiche':(FICHE5627,FICHE5627_PROMPT)}[stage]
         payload = json.dumps(data, ensure_ascii=False)
         if len(payload) > self.cfg.get('max_context_chars', 65000):
             raise Stop('contexte_trop_long')
         messages=[{'role':'system','content':prompt if stage=='chat' else
-                  (INTERNAL_SAFETY+prompt if stage in ('case_brief','legal_memory','strategy_analysis','evidence_matrix','act_project','document_project','document_control','hearing_preparation','word_revision_plan','mail_orchestration_classification','mail_case_differential','legal_opinion_simulation','opinion_control','meeting_preparation','transcript_report','preparation_control','second_model_review','attachment_review','deadline_review','memory_insight') else BASE+prompt)},
+                  (INTERNAL_SAFETY+prompt if stage in ('case_brief','dossier_fiche','legal_memory','strategy_analysis','evidence_matrix','act_project','document_project','document_control','hearing_preparation','word_revision_plan','mail_orchestration_classification','mail_case_differential','legal_opinion_simulation','opinion_control','meeting_preparation','transcript_report','preparation_control','second_model_review','attachment_review','deadline_review','memory_insight') else BASE+prompt)},
                   {'role':'user','content':payload}]
-        maximum=7000 if stage in ('hearing_preparation','word_revision_plan','legal_opinion_simulation') else (6000 if stage in ('strategy_analysis','evidence_matrix','act_project','document_project','mail_case_differential') else 3500)
+        maximum=7000 if stage in ('hearing_preparation','word_revision_plan','legal_opinion_simulation') else (6000 if stage in ('dossier_fiche','strategy_analysis','evidence_matrix','act_project','document_project','mail_case_differential') else 3500)
         content=self.complete(messages,self.cfg.get('temperature',0),maximum,schema)
         try: value = json.loads(content)
         except (KeyError, ValueError, TypeError): raise Stop('json_ia_invalide') from None

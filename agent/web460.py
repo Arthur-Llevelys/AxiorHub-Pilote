@@ -137,8 +137,8 @@ def _top(desk, prefix, mid, label, onglet, analysis):
     """En-tête commun : titre, liens, onglets du dossier et analyse suivie (5.6.24)."""
     from . import dossier5624
     q = urlencode({'matter': mid})
-    return ('<h1>%s</h1><p class="ax-muted fc-actions">%s · %s · %s · %s · %s</p>%s%s') % (
-        e(label), _a(prefix, '/chronologie?' + q, 'Chronologie'), _a(prefix, '/documents?' + q, 'Documents'),
+    return ('<p class="fc-back">%s</p><h1>%s</h1><p class="ax-muted fc-actions">%s · %s · %s · %s · %s</p>%s%s') % (
+        _a(prefix, '/dossier?' + urlencode({'id': mid}), '← Retour au dossier'), e(label), _a(prefix, '/chronologie?' + q, 'Chronologie'), _a(prefix, '/documents?' + q, 'Documents'),
         _a(prefix, '/production?' + q, 'Produire un acte'), _a(prefix, '/matter?' + urlencode({'id': mid}), 'Ancienne vue du dossier'),
         _a(prefix, '/verification?' + q, 'Vérifier un texte'), dossier5624.tabs_html(prefix, mid, onglet), dossier5624.analysis_html(prefix, mid, analysis))
 
@@ -218,7 +218,7 @@ def chronologie_page(desk, auth, prefix, args, shell):
     undated = [r for r in rows if r.get('undated')]
     body = ('<h1>Chronologie · %s</h1><p class="ax-muted fc-actions">%s</p><nav class="fc-chips" aria-label="Filtrer">%s</nav>'
             '<ol class="fc-timeline">%s</ol>%s') % (
-        e(matter_option(m)), _a(prefix, '/fiche?' + urlencode({'matter': mid}), 'Retour à la fiche du dossier'), chips,
+        e(matter_option(m)), _a(prefix, '/dossier?' + urlencode({'id': mid}), '← Retour au dossier'), chips,
         lines or '<li class="fc-empty">Aucun événement. Lancez « Analyser le dossier » depuis la fiche si les pièces viennent d’arriver.</li>',
         ('<h2>Dates inconnues ou partielles</h2><ul class="fc-list">%s</ul>' % ''.join('<li><span class="fc-type">%s</span> <strong>%s</strong> <span class="fc-muted">(%s)</span><br><span class="fc-src">Source : %s</span></li>' % (
             e(r['kind_label']), e(r['title']), e(r['at'] or 'date inconnue'), _a(prefix, r['href'], r['source']) if r['href'] else e(r['source'])) for r in undated)) if undated else '')

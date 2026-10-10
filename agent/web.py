@@ -121,7 +121,7 @@ REASONS.update({
  'service_redemarre_verifier_avant_relance':'Le service a redémarré pendant ce travail. Contrôlez la destination avant de relancer pour éviter un doublon.',
  'depot_automatique_desactive':'Le dépôt automatique est désactivé dans vos réglages ; le projet reste à examiner.',
  'requete_en_cours_verifier_activite':'Cette demande est déjà réservée. Vérifiez son résultat dans le panneau Activité avant de la relancer.'})
-JOB_LABELS = {'extract_facts460':'Recherche de faits dans les pièces du dossier','analyze_deadline450':'Analyse d’une pièce (événement de départ et échéance)','analyze_notice440':'Analyse d’un avis de procédure (dates, agenda, brouillon)','live_mail430':'Contrôle des courriels et préparation des réponses',
+JOB_LABELS = {'fiche_dossier5627':'Préparation de la fiche du dossier (résumé, faits, parties, chronologie)','extract_facts460':'Recherche de faits dans les pièces du dossier','analyze_deadline450':'Analyse d’une pièce (événement de départ et échéance)','analyze_notice440':'Analyse d’un avis de procédure (dates, agenda, brouillon)','live_mail430':'Contrôle des courriels et préparation des réponses',
               'live_calendar430':'Surveillance des échéances et audiences',
               'live_documents430':'Surveillance des documents des dossiers',
               'sync':'Découverte des dossiers et correspondants','approve':'Confirmation d’association',
@@ -1197,7 +1197,7 @@ class App:
             if daily['priorities']:
                 main+='<h2>🚨 Priorités à examiner</h2><div class="priority-list">'
                 for signal in daily['priorities'][:8]:
-                    main+='<article class="signal '+e(signal['severity'])+'"><div><small>'+e(signal['severity'].upper())+' · '+e(signal['matter_name'])+'</small><h3>'+e(signal['title'])+'</h3><p>'+e(signal['detail'])+'</p>'+link('/matter','Ouvrir le dossier',id=signal['matter'])+'</div><div class="signal-actions">'+form('ack_signal','✓ Vu',{'signal':signal['id']})+form('snooze_signal','⏰ Demain',{'signal':signal['id'],'hours':'24'})+form('resolve_signal','✓ Résolu',{'signal':signal['id']})+'</div></article>'
+                    main+='<article class="signal '+e(signal['severity'])+'"><div><small>'+e(signal['severity'].upper())+' · '+e(signal['matter_name'])+'</small><h3>'+e(signal['title'])+'</h3><p>'+e(signal['detail'])+'</p>'+link('/dossier','Ouvrir le dossier',id=signal['matter'])+'</div><div class="signal-actions">'+form('ack_signal','✓ Vu',{'signal':signal['id']})+form('snooze_signal','⏰ Demain',{'signal':signal['id'],'hours':'24'})+form('resolve_signal','✓ Résolu',{'signal':signal['id']})+'</div></article>'
                 main+='</div>'
             else:main+='<p class="success">Aucun signal prioritaire ouvert dans les données surveillées.</p>'
             cards=[('needs_action','Courriels à traiter','📬'),('needs_confirmation','Décisions à confirmer','❓'),
@@ -1212,7 +1212,7 @@ class App:
             main+='</div><h2>🗂️ Dossiers récemment actifs</h2>'
             if info['recent_matters']:
                 for item in info['recent_matters']:
-                    main+='<article class="matter-row"><div><h3>'+link('/matter',item['name']+' · '+item['id'],id=item['id'])+'</h3><p>'+e(item['summary'] or 'Synthèse non encore préparée.')+'</p>'+link('/strategy','Ouvrir l’espace stratégique',matter=item['id'])+'</div><small>'+e(date(item['last_activity']))+' · '+str(item['documents'])+' document(s) · '+str(item['open_tasks'])+' tâche(s) · '+str(item['memory_to_confirm'])+' information(s) à confirmer · '+str(item['memory_conflicts'])+' contradiction(s) · '+str(item['strategy_count'])+' analyse(s) · '+str(item['act_projects'])+' projet(s) d’acte</small></article>'
+                    main+='<article class="matter-row"><div><h3>'+link('/dossier',item['name']+' · '+item['id'],id=item['id'])+'</h3><p>'+e(item['summary'] or 'Synthèse non encore préparée.')+'</p>'+link('/strategy','Ouvrir l’espace stratégique',matter=item['id'])+'</div><small>'+e(date(item['last_activity']))+' · '+str(item['documents'])+' document(s) · '+str(item['open_tasks'])+' tâche(s) · '+str(item['memory_to_confirm'])+' information(s) à confirmer · '+str(item['memory_conflicts'])+' contradiction(s) · '+str(item['strategy_count'])+' analyse(s) · '+str(item['act_projects'])+' projet(s) d’acte</small></article>'
             else:main+='<p class="empty">Aucun dossier actif. Lancez l’organisation automatique ou activez manuellement un dossier.</p>'
             main+='<h2>💬 Discussions récentes</h2>'
             if info['conversations']:
@@ -1780,7 +1780,7 @@ class App:
                 if fold_for_search(query) not in fold_for_search(m['path']+' '+m['id']):continue
                 n=index.db.execute("SELECT COUNT(*) FROM docs WHERE matter=? AND error='' AND text<>''",(m['id'],)).fetchone()[0]
                 state_label={'active':'🟢 Actif','dormant':'🟡 En sommeil','archived':'⚪ Archivé','to_confirm':'🟠 À confirmer'}[item['state']]
-                rows.append('<tr><td>'+link('/matter',matter_label(m),id=m['id'])+'<small>'+e(m['id'])+'</small></td><td><span class="portfolio-state '+e(item['state'])+'">'+state_label+'</span></td><td>'+e(date(item['last_external_activity']))+'</td><td>'+str(len(m.get('correspondents',[])))+'</td><td>'+str(n)+'</td></tr>')
+                rows.append('<tr><td>'+link('/dossier',matter_label(m),id=m['id'])+'<small>'+e(m['id'])+'</small></td><td><span class="portfolio-state '+e(item['state'])+'">'+state_label+'</span></td><td>'+e(date(item['last_external_activity']))+'</td><td>'+str(len(m.get('correspondents',[])))+'</td><td>'+str(n)+'</td></tr>')
             main+='<div class="table"><table><thead><tr><th>Dossier</th><th>État</th><th>Dernière activité sourcée</th><th>Correspondants</th><th>Textes indexés</th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>'
             discovery=desk.settings('last_discovery')
             if discovery:main+='<h2>Avancement du parcours Nextcloud</h2>'+block(json.dumps(discovery,ensure_ascii=False,indent=2))
@@ -1793,6 +1793,7 @@ class App:
             portfolio_item=matter_status(desk,m)
             data=matter_overview(c,desk,state,m)
             state_label={'active':'🟢 Actif','dormant':'🟡 En sommeil','archived':'⚪ Archivé','to_confirm':'🟠 À confirmer'}[portfolio_item['state']]
+            main+='<p class="ws-new-page">'+link('/dossier','← Nouvelle page du dossier (fiche, parties, faits, travail avec l’agent)',id=m['id'])+'</p>'
             main+='<section class="matter-hero"><div><span class="portfolio-state '+e(portfolio_item['state'])+'">'+state_label+'</span><h2>'+e(matter_label(m))+'</h2><p>'+e(m['id']+' · '+m['path'])+'</p></div><div class="primary-actions">'+form('index','Actualiser les données du dossier',{'matter':m['id']})+form('monitor_matter','🔭 Surveiller maintenant',{'matter':m['id']})+link('/fiche','Fiche du dossier',matter=m['id'])+link('/chronologie','Chronologie',matter=m['id'])+link('/modeles-word','Créer un courrier Word',matter=m['id'])+link('/assistant','Discuter avec l’IA',matter=m['id'])+link('/strategy','Analyser la stratégie',matter=m['id'])+'</div></section>'
             from .production420_ui import smart_matter_section
             main+=smart_matter_section(desk,m,form,link)

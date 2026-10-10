@@ -43,7 +43,7 @@ WORK_API = PREPARATION_API | DECISION_API | FACTURATION_API | frozenset({
     'fiche/refresh',
     'm5625/boite/repondre',
     'm5625/boite/supprimer', 'm5625/boite/creer-dossier',
-    'm5625/agenda/creer',
+    'm5625/agenda/creer', 'm5627/fiche/preparer', 'm5627/fiche/corriger', 'm5627/agent',
     'fiche/analyse',
     'fiche/etat',
     'learning/dashboard',

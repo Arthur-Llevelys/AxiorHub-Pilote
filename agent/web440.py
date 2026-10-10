@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+STATIC = {'/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -269,7 +269,7 @@ def route(env, cfg, auth, prefix, path, args, method):
         name = path.rsplit('/', 1)[1]
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
-    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos') or path in _pages500() or path.startswith('/api440/')):
+    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos') or path in _pages500() or path.startswith('/api440/')):
         return None
     from . import shell501
     shell501.set_context(cfg)
@@ -301,6 +301,12 @@ def route(env, cfg, auth, prefix, path, args, method):
             return page_out(documents_page(desk, auth, prefix, args))
         if path == '/documents/edit':
             return editor_page(desk, auth, prefix, args)
+        if path == '/dossier':   # 5.6.27 : page Dossier refondue
+            from . import dossier5627
+            try:
+                return page_out(dossier5627.page(desk, auth, prefix, args, shell))
+            except Stop as ex:
+                return page_out(shell('Dossier introuvable', '<h1>Dossier introuvable</h1><p>%s</p>' % e(human(str(ex))), prefix, auth['csrf'], '/dossiers'))
         if path == '/fiche' or path == '/chronologie':
             from . import web460
             try:
@@ -361,6 +367,10 @@ def route(env, cfg, auth, prefix, path, args, method):
 
 def api(env, desk, auth, prefix, name, args, method):
     from . import drafts440, office440, notices440
+    if name.startswith('m5627/'):   # 5.6.27 : page Dossier (fiche de travail, corrections, instructions à l'agent)
+        from .dossier5627 import api as api5627
+        try:return api5627(env,desk,auth,prefix,name,args,method)
+        except Stop as error:return json_out({'error':str(error).split(':')[0],'message':human(str(error).split(':')[0])},'400 Bad Request')
     if name.startswith('m5625/'):   # 5.6.25 : boîte de réception (Courriels) et ajout d'événements (Agenda)
         from .web5625 import api as api5625
         try:return api5625(env,desk,auth,prefix,name,args,method)

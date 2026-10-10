@@ -168,6 +168,11 @@ def build_fiche(desk, mid, today=None):
     if client:
         parties.insert(0, {'id': '', 'value': client, 'title': client, 'status': 'configured', 'status_label': STATUS_LABELS['configured'],
                            'confidence': 'high', 'sources': [{'label': 'Configuration du dossier', 'href': '', 'excerpt': ''}], 'validated': True, 'event_date': ''})
+    try:   # 5.6.27 : mêmes parties que l'onglet Parties (fiche de travail, sinon propositions fiables seulement)
+        from .dossier5624 import rubrique
+        parties = [{'event_date': '', **p} for p in rubrique(desk, mid, 'parties')['items']]
+    except Stop:
+        pass
     fiche['parties'] = parties
     for field, kind, key in (('jurisdiction', 'jurisdiction', 'jurisdiction'), ('case_number', 'case_number', 'rg')):
         best = _best(records, kind)

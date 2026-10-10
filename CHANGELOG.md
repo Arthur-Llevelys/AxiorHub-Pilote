@@ -3,6 +3,29 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.27 — Page Dossier refondue
+
+Tests : `tests/test_v5627.py`.
+
+- **Une seule page Dossier** (`/dossier?id=…`), ouverte depuis la liste des dossiers : lien « ← Tous les dossiers », titre,
+  « Mettre à jour la fiche », menu « Plus » vers les vues détaillées ; onglets Fiche, Pièces, Courriels, Travaux de l’agent.
+  Les pages Fiche par rubriques et Chronologie ont un lien « ← Retour au dossier ».
+- **Fiche de travail préparée par l’agent** (modèle « Analyse juridique et stratégie ») : résumé en quelques phrases, rappel des
+  faits rédigé comme un récit (pas une liste de pièces), parties au litige seulement (qualité, conseil, client du cabinet —
+  magistrats, commissaires de justice, experts, personnes citées et jurisprudence écartés, doublons fusionnés), procédure
+  (juridiction, RG, stade, prochaine étape), chronologie des 5 à 15 événements déterminants, enjeux et points à vérifier.
+  Les actes (assignation, conclusions, décisions, contrats) sont lus en premier ; factures et frais en dernier ; une décision
+  d’une autre affaire est signalée comme « jurisprudence citée ». Chaque paragraphe renvoie à ses pièces ; une référence
+  inconnue est retirée. Fiche versionnée, une seule préparation en file par dossier, échec affiché en clair.
+- **Corrections de l’avocat** : résumé, rappel des faits et parties se corrigent sur la page (crayon) ; affichées aussitôt et
+  transmises à l’agent comme prioritaires à la mise à jour suivante.
+- **Parties (repérage automatique)** : un nom n’est proposé que si la pièce le désigne comme partie (« à la requête de »,
+  « contre : », demandeur, défendeur, appelant, intimé, « demande », « sollicite »…) ; jamais un avocat, un commissaire de justice,
+  un magistrat, un greffier ou un expert ; mots parasites retirés (« Pièce », « Date », « Toque »…). Les anciennes propositions
+  non validées sont masquées ; les vues Synthèse et Parties reprennent les parties de la fiche de travail quand elle existe.
+- **Travailler avec l’agent dans le dossier** : demande libre ou raccourcis (courrier au client, note de synthèse, projet de
+  conclusions, prochaine échéance), type de demande au choix ; les réponses et documents produits s’affichent sur la page.
+
 ## 5.6.26 — Coffre sous Windows, messagerie en trois colonnes, réponse sans dossier
 
 Tests : `tests/test_v5625.py` (classes InboxFolders et VaultOnWindows).

@@ -5,7 +5,7 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.26</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.27</p>
 
 <p align="center"><a href="docs/GUIDE-POSTE-10-MINUTES.md">Poste Ubuntu 24.04 : démarrer en dix minutes, avec captures</a> · <a href="docs/INSTALLATION-WINDOWS.md">Poste Windows 11</a></p>
 
@@ -123,7 +123,10 @@ connexions, recette automatique.
 
 ### Dossiers
 
-- **Fiche de dossier** : juridiction, n° RG, parties, prochaine échéance, dernier acte reçu, points en attente.
+- **Page Dossier** : une seule page claire. La fiche de travail préparée par l’agent donne le résumé, le rappel des
+  faits rédigé, les parties au litige (qualité, conseil, client du cabinet), la procédure et la chronologie des
+  événements déterminants, chaque élément avec ses pièces ; l’avocat la corrige sur place. À côté : travailler avec
+  l’agent dans le dossier (courrier, note, conclusions, question), parties, procédure, derniers courriels.
 - **Chronologie** unifiée (courriels, pièces, actes, audiences).
 - **Faits du dossier** extraits des pièces (RG, montants, dates, parties), chacun avec sa source, à valider.
 - **Recherche** dans tout le cabinet (courriels, documents, dossiers).
@@ -423,9 +426,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.26.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.26_all.deb --archive dist/axiorhub-mail-agent-5.6.26.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.26_amd64.deb --archive dist/axiorhub-mail-agent-5.6.26.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.27.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.27_all.deb --archive dist/axiorhub-mail-agent-5.6.27.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.27_amd64.deb --archive dist/axiorhub-mail-agent-5.6.27.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 

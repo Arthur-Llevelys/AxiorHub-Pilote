@@ -45,7 +45,7 @@ JOBS |= {'organize_cabinet','classify_portfolio','reconcile_inbox','set_matter_s
 JOBS |= {'propose_work_plan','sync_caldav_tasks','apply_work_plan','update_work_task','edit_work_task','schedule_work_task',
          'create_agenda_event','edit_agenda_event','cancel_agenda_event'}
 JOBS |= {'prepare_document_project','create_document_files'}
-JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624'}
+JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624','fiche_dossier5627'}
 JOBS |= {'search_index490'}
 JOBS |= {'autonomy_mail_sweep','refresh_operational_memory','review_autonomy_proposal'}
 JOBS |= {'legal_research','import_mcp_legal_results','verify_official_decision','identify_latest_writings','refresh_exhibit_registry'}
@@ -122,7 +122,7 @@ NORMAL_JOBS |= {'save_mail_rule370','delete_mail_rule370','record_correction370'
 NORMAL_JOBS |= {'review_action380','save_ecosystem_service380'}
 NORMAL_JOBS |= {'set_learning_rule392'}
 NORMAL_JOBS |= {'verify_deliverable420','snapshot_metrics420'}
-NORMAL_JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624'}
+NORMAL_JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624','fiche_dossier5627'}
 NORMAL_JOBS |= {'search_index490'}
 
 
@@ -621,6 +621,9 @@ class Desk:
         if kind=='extract_facts460':
             from .facts460 import scan_matter
             return scan_matter(self,args)
+        if kind=='fiche_dossier5627':   # 5.6.27 : fiche de travail du dossier (page Dossier refondue)
+            from .dossier5627 import prepare
+            return prepare(self,args)
         if kind=='analyser_dossier5624':   # 5.6.24 (F25) : parcours complet suivi étape par étape
             from .dossier5624 import analyse
             return analyse(self,args)

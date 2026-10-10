@@ -15,7 +15,7 @@ RUBRIQUES = (('/documents','▤','Documents'),('/echeances','⚖','Échéances')
 ACTIVE = {'/mise-en-service':'/parametres', '/parametres/agents':'/parametres', '/parametres/agendas':'/parametres', '/agents-documents':'/production', '/parametres/proactivite':'/parametres', '/engagements':'/aujourdhui', '/veille':'/production', '/': '/', '/mail': '/', '/planning': '/planning', '/agenda': '/planning', '/taches': '/planning',
           '/verification': '/production', '/sources': '/production', '/modeles': '/production',
           '/progres': '/mon-style', '/mon-style': '/mon-style', '/autonomie': '/cabinet', '/tracabilite': '/cabinet', '/confort': '/parametres',
-          '/atelier/reglages': '/parametres', '/fiche': '/dossiers', '/chronologie': '/dossiers', '/documents/edit': '/documents',
+          '/atelier/reglages': '/parametres', '/fiche': '/dossiers', '/dossier': '/dossiers', '/chronologie': '/dossiers', '/documents/edit': '/documents',
           '/honoraires': '/cabinet', '/rendez-vous': '/cabinet', '/conflits': '/cabinet', '/prescriptions': '/cabinet',
           '/pilotage-mensuel': '/cabinet', '/rechercher': '/recherche', '/pieces': '/production', '/diagnostic': '/aujourdhui', '/ia-externe': '/parametres'}
 
@@ -41,7 +41,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
