@@ -71,7 +71,7 @@ def save(auth, form):
     pairs = {'imap_host':'mail.host','imap_port':'mail.port','imap_user':'mail.username',
              'imap_drafts':'mail.drafts','imap_sent':'mail.sent','from_address':'mail.from_address',
              'from_name':'mail.from_name','imap_password':'mail.password_file',
-             'nc_url':'nextcloud.url','nc_user':'nextcloud.username','nc_password':'nextcloud.password_file',
+             'nc_url':'nextcloud.url','nc_user':'nextcloud.username','nc_password':'nextcloud.password_file','local_path':'nextcloud.local_path',
              'ollama_url':'ollama.url','ollama_model':'ollama.model'}
     values = {key: form[field] for field,key in pairs.items() if form.get(field)}
     if form.get('nc_root'):
@@ -102,11 +102,19 @@ def save(auth, form):
         desk.db.close()
 
 
-def _connection_fingerprint(cfg):
+CAPABILITIES = {'imap': ('mail',), 'nextcloud': ('nextcloud',), 'agenda': ('nextcloud', 'calendar'), 'local': ('nextcloud.local_path', 'nextcloud.roots'), 'ia': ('ollama',)}
+
+
+def _connection_fingerprint(cfg, what=None):
+    """5.6.24 (F20) : empreinte des seuls réglages de la capacité testée ; modifier l'IA ne périme pas le test des dossiers."""
     import hashlib
     from .common import read_secret
     values = {}
-    for name in ('mail','nextcloud','ollama'):
+    for name in (CAPABILITIES.get(what) or ('mail','nextcloud','ollama')):
+        if '.' in name:
+            section, key = name.split('.', 1)
+            values[name] = (cfg.get(section) or {}).get(key)
+            continue
         part = dict(cfg.get(name) or {})
         for key,value in list(part.items()):
             if key.endswith('_file'):
@@ -119,7 +127,7 @@ def _connection_fingerprint(cfg):
 def _receipt(auth, what, ok):
     cfg = _cfg(auth)
     cfg.setdefault('installation',{}).setdefault('connection_tests567',{})[what] = {
-        'ok':bool(ok), 'fingerprint':_connection_fingerprint(cfg),
+        'ok':bool(ok), 'fingerprint':_connection_fingerprint(cfg, what),
         'at':datetime.now(timezone.utc).isoformat()}
     _write_cfg(auth,cfg)
 
@@ -162,14 +170,38 @@ def test(auth, what):
             message = check_imap(desk)['message']
             _receipt(auth, what, True)
             return True, message
+        if what == 'local':   # 5.6.24 (F20) : dossier local seul — lecture et création vérifiées, aucun appel CalDAV
+            import os, tempfile
+            from .common import Stop
+            from .dav import LocalFolder
+            cfg = dict(desk.c['nextcloud'])
+            if not cfg.get('local_path'):
+                raise Stop('dossier_local_non_renseigne')
+            client = LocalFolder(cfg)
+            root = cfg['roots'][0]
+            try:
+                items = client.list_folder(root)
+            except Stop as ex:
+                if str(ex) == 'http_404':
+                    raise Stop('dossier_des_dossiers_absent_indiquez_slash_si_les_dossiers_clients_sont_a_la_racine') from None
+                raise
+            target = client._fs(root)[1]
+            fd, probe = tempfile.mkstemp(dir=str(target), prefix='.axiorhub-test-')
+            os.close(fd); os.unlink(probe)
+            _receipt(auth, what, True)
+            return True, 'Dossier local lisible et inscriptible : %d élément(s) dans %s.' % (len(items), root)
         if what == 'nextcloud':
             from .dav import DAV
             client = DAV(desk.c['nextcloud'])
             client.list_folder(desk.c['nextcloud']['roots'][0])
-            cals = client.calendars()
+            _receipt(auth, what, True)
+            return True, 'Nextcloud joignable ; dossier des dossiers lisible. Les agendas se testent séparément (facultatif).'
+        if what == 'agenda':
+            from .dav import DAV
+            cals = DAV(desk.c['nextcloud']).calendars()
             urls = [c['url'] for c in cals if 'VEVENT' in c['components']]
             _receipt(auth, what, True)
-            return True, 'Nextcloud joignable ; dossier des dossiers lisible ; %d agenda(s) découvert(s). Choisissez les agendas autorisés dans les connexions ; aucun n’a été retenu automatiquement.' % len(urls)
+            return True, '%d agenda(s) découvert(s). Choisissez les agendas autorisés dans les connexions ; aucun n’a été retenu automatiquement.' % len(urls)
         if what == 'ia':
             from .queue521 import check_ai
             message = check_ai(desk)['message']
@@ -186,20 +218,21 @@ def test(auth, what):
 
 
 def finish(auth, user):
+    """5.6.24 (F20) : seules les capacités minimales du parcours choisi sont exigées — dossiers (dossier local OU Nextcloud) et IA ;
+    la messagerie n'est exigée (et testée) que si elle est renseignée. Chaque reçu est lié à l'empreinte de sa seule connexion."""
     cfg = _cfg(auth)
-    missing = []
-    if 'example.com' in (cfg.get('mail') or {}).get('host', 'example.com'):
-        missing.append('messagerie')
-    if 'example.com' in (cfg.get('nextcloud') or {}).get('url', 'example.com'):
-        missing.append('Nextcloud')
-    if missing:
-        return False, 'À compléter avant de terminer : ' + ', '.join(missing) + '.'
+    nc = cfg.get('nextcloud') or {}
+    local = bool(nc.get('local_path'))
+    remote = 'example.com' not in nc.get('url', 'example.com')
+    mail = 'example.com' not in (cfg.get('mail') or {}).get('host', 'example.com')
+    if not (local or remote):
+        return False, 'À compléter avant de terminer : dossiers du cabinet (dossier local ou Nextcloud).'
     from datetime import timedelta
-    fp = _connection_fingerprint(cfg)
     tests = cfg.get('installation',{}).get('connection_tests567',{})
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
-    untested = [key for key in ('imap','nextcloud','ia') if not tests.get(key,{}).get('ok')
-                or tests[key].get('fingerprint') != fp or tests[key].get('at','') < cutoff]
+    required = ['local' if local else 'nextcloud', 'ia'] + (['imap'] if mail else [])
+    untested = [key for key in required if not tests.get(key,{}).get('ok')
+                or tests[key].get('fingerprint') != _connection_fingerprint(cfg, key) or tests[key].get('at','') < cutoff]
     if untested:
         return False, 'Tests récents à effectuer avant de terminer : ' + ', '.join(untested) + '. Une adresse renseignée ne prouve pas que la connexion fonctionne.'
     cfg.setdefault('installation', {}).update({'done': True, 'at': datetime.now(timezone.utc).isoformat(), 'by': user['email']})
@@ -240,10 +273,13 @@ def page(auth, user, notes=(), result=''):
             '<label>Dossier des brouillons<input name="imap_drafts" value="%s"></label><label>Dossier des messages envoyés<input name="imap_sent" value="%s"></label>'
             '<label>Adresse d’expédition<input name="from_address" type="email" value="%s"></label><label>Nom d’expéditeur<input name="from_name" value="%s"></label></div>'
             '<button name="op" value="test_imap" class="ghost">Tester la messagerie</button></fieldset>'
-            '<fieldset><legend>3 · Nextcloud (dossiers et agenda)</legend><div class="grid"><label>Adresse<input name="nc_url" value="%s" placeholder="https://cloud.votre-cabinet.fr"></label>'
+            '<fieldset><legend>3 · Dossiers du cabinet : dossier local OU Nextcloud (agenda facultatif)</legend>'
+            '<div class="grid"><label>Dossier de travail local (poste ou partage monté ; vide = Nextcloud)<input name="local_path" value="__LOCAL_PATH__" placeholder="~/Cabinet ou /mnt/cabinet"></label></div>'
+            '<button name="op" value="test_local" class="ghost">Tester le dossier local</button>'
+            '<div class="grid"><label>Adresse<input name="nc_url" value="%s" placeholder="https://cloud.votre-cabinet.fr"></label>'
             '<label>Compte (compte technique conseillé)<input name="nc_user" value="%s"></label><label>Mot de passe d’application<input name="nc_password" type="password" autocomplete="new-password"></label>'
             '<label>Dossier des dossiers clients<input name="nc_root" value="%s" placeholder="/Dossiers"></label></div>'
-            '<button name="op" value="test_nextcloud" class="ghost">Tester Nextcloud et trouver les agendas</button></fieldset>'
+            '<button name="op" value="test_nextcloud" class="ghost">Tester Nextcloud</button> <button name="op" value="test_agenda" class="ghost">Trouver les agendas (facultatif)</button></fieldset>'
             '<fieldset><legend>4 · Intelligence artificielle</legend>%s%s%s<div class="grid"><label>Ollama (adresse)<input name="ollama_url" value="%s"></label>'
             '<label>Modèle local<input name="ollama_model" value="%s"></label><label>Fournisseur externe<select name="provider">%s</select></label>'
             '<label>Clé API<input name="provider_key" type="password" autocomplete="new-password"></label><label>Modèle externe (vide = conseillé)<input name="provider_model"></label></div>'
@@ -264,6 +300,7 @@ def page(auth, user, notes=(), result=''):
         radio('mixte', 'Mixte', 'Tri et lecture des pièces en local, rédaction et analyse via l’API choisie, avec pseudonymisation.'),
         radio('externe', 'Tout via l’API', 'Pour un VPS sans carte graphique : toutes les fonctions via le fournisseur choisi, avec pseudonymisation.'),
         v(ol.get('url')), v(ol.get('model')), providers, ' checked' if cfg.get('mode') != 'drafts' else '', ' checked' if cfg.get('mode') == 'drafts' else '')
+    body = body.replace('__LOCAL_PATH__', v(nc.get('local_path', '')))
     body += '<p>Pour une IA externe, renseignez ses tarifs, ses plafonds et les fonctions autorisées avant le test : <a href="/ia-externe">Fournisseurs et budgets</a> · <a href="/routage-hybride">Politique de routage</a>. Ces écrans sont accessibles à l’administrateur avant la fin de l’installation.</p>'
     return auth._page('Installation d’AxiorHub Pilote', body, wide=True)
 

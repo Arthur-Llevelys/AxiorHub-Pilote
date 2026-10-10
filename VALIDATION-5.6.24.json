@@ -1,0 +1,29 @@
+{
+  "version": "5.6.24",
+  "base": "5.6.23 (non publiée) sur 5.6.22 livrée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1579,
+    "failures": 3,
+    "errors": 60,
+    "skipped": 60,
+    "note": "Aucun écart par rapport aux particularités Windows connues (5.6.4–5.6.23). L’intégration continue GitHub exécute la même suite sous Linux, y compris les tests de processus du poste."
+  },
+  "new_tests": "tests/test_v5624.py : un test de reproduction par constat de l’audit (F01 à F37) et par demande d’interface (sélecteur de dossier, icônes d’Aujourd’hui, onglets du dossier, agenda en français).",
+  "adjusted_tests": [
+    "tests/test_v460.py : « fiche/refresh » lance l’analyse complète suivie (analyser_dossier5624) au lieu d’une simple synchronisation (F25).",
+    "tests/test_v560.py : la messagerie n’est plus exigée pour terminer l’installation ; le message porte sur les dossiers du cabinet (F20).",
+    "tests/test_v569.py, tests/test_v5611b.py, tests/test_v5614.py : les simulateurs Invoice Ninja renvoient une relecture complète (libellés, montant, time_log) ; une relecture tronquée est désormais « non vérifiée » (F14, F15).",
+    "tests/test_v5614.py : le simulateur de recherche juridique renvoie la forme réelle d’une autorité vérifiée (F07)."
+  ],
+  "conformity": "CONFORMITE-5.6.24.md : 24 constats livrés, 13 partiels avec la limite restante nommée.",
+  "manual_checks": [
+    "Aperçu de démonstration : onglets de la fiche, bouton « Analyser le dossier » suivi, icônes des trois colonnes d’Aujourd’hui, formulaire d’ajout de tâche, sélecteur de dossier."
+  ],
+  "limits": [
+    "Parcours du poste non rejoué sur un Ubuntu 24.04 neuf ; tests de processus réels (arrêt brutal, PID réutilisé) exécutés seulement par l’intégration continue Linux.",
+    "Relecture Invoice Ninja non rejouée sur une instance réelle (taxes, remises)."
+  ]
+}

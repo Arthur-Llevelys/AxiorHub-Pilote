@@ -45,7 +45,7 @@ def api(env, desk, auth, prefix, name, args, method):
         if name.startswith('m567/config/'):
             if role != 'administrateur':raise Stop('role_insuffisant')
             from .config567 import handle
-            return json_out(handle(desk,name,{},env,method))
+            return json_out(handle(desk,name,dict(args or {}),env,method))   # 5.6.24 : paramètres de lecture (navigation du dossier local)
         raise Stop('route_inconnue')
     if method != 'POST':
         raise Stop('methode_refusee')
@@ -159,6 +159,9 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
                 body+='<input type="checkbox" data-config567="'+e(key)+'"'+(' checked' if value else '')+'>'
             elif typ=='secret':
                 body+='<input type="password" data-config567="'+e(key)+'" autocomplete="new-password" placeholder="'+('Secret configuré ; laisser vide pour le conserver' if f['secret_configured'] else 'Nouveau secret')+'">'
+            elif typ=='local_dir':   # 5.6.24 : bouton de sélection du dossier de travail
+                body+=('<span class="browse567-field"><input type="text" data-config567="'+e(key)+'" value="'+e(str(value))+'" placeholder="vide = Nextcloud (WebDAV)">'
+                       '<button type="button" class="ghost" data-browse567="'+e(key)+'">📁 Choisir…</button></span>')
             else:
                 body+='<input type="'+('number' if typ in ('integer','port') else 'text')+'" data-config567="'+e(key)+'" value="'+e(str(value))+'">'
             body+='</label>'

@@ -319,10 +319,13 @@ def test(desk,data):
             return {'ok':True,'connector':kind,'message':out['message'],'writes':0}
         if kind=='nextcloud':
             from .dav import DAV
-            c=deepcopy(desk.c['nextcloud']);client=DAV(c);client.http.timeout=10
-            items=client.list_folder(c['roots'][0]);calendars=client.calendars()
-            return {'ok':True,'connector':kind,'message':'Nextcloud lu ; aucun agenda n’a été sélectionné automatiquement.',
-                    'entries':len(items),'calendars':calendars,'writes':0}
+            c=deepcopy(desk.c['nextcloud']);client=DAV(c)
+            remote=getattr(client,'http',None) is not None
+            if remote:client.http.timeout=10
+            items=client.list_folder(c['roots'][0])
+            calendars=client.calendars() if remote else []   # 5.6.24 (F20) : le dossier local se teste sans CalDAV
+            message=('Dossier local lu (%d élément(s) dans %s)%s.'%(len(items),c['roots'][0],' ; agendas Nextcloud lus' if remote else ' ; agendas non configurés (facultatif)')) if c.get('local_path') else 'Nextcloud lu ; aucun agenda n’a été sélectionné automatiquement.'
+            return {'ok':True,'connector':kind,'message':message,'entries':len(items),'calendars':calendars,'writes':0}
         if kind=='ollama':
             from .common import HTTP
             cfg=desk.c['ollama'];client=HTTP(cfg['url'],local_only=True,local_hosts=cfg.get('local_hosts',()),timeout=8)
@@ -342,8 +345,36 @@ def test(desk,data):
         return {'ok':False,'connector':kind,'code':code,'message':'Test non validé : '+code.replace('_',' ')+'. Vérifiez l’adresse, les autorisations et le service.','writes':0}
 
 
+SYSTEM_DIRS=('/proc','/sys','/dev','/run','/boot','/etc','/bin','/sbin','/lib','/lib64','/usr','/var/lib','/snap')
+
+
+def browse(data):
+    """5.6.24 : navigation dans les dossiers du poste ou du serveur pour choisir le dossier de travail local (répertoires seulement, jamais de
+    contenu de fichier ; dossiers système refusés). Réservé à l'administrateur comme toute la configuration."""
+    raw=str(data.get('path') or '').strip()
+    if len(raw)>600 or any(ord(c)<32 for c in raw):raise Stop('dossier_local_invalide')
+    base=Path(raw).expanduser() if raw else Path.home()
+    if not base.is_absolute():raise Stop('dossier_local_invalide')
+    base=base.resolve()
+    if not base.is_dir():raise Stop('dossier_local_introuvable')
+    text=str(base).replace('\\','/')
+    if any(text==x or text.startswith(x+'/') for x in SYSTEM_DIRS):raise Stop('dossier_systeme_refuse')
+    try:children=sorted(base.iterdir(),key=lambda c:c.name.lower())
+    except OSError:raise Stop('dossier_illisible') from None
+    dirs=[]
+    for child in children:
+        if child.name.startswith('.'):continue
+        try:
+            if child.is_dir():dirs.append({'name':child.name[:200],'path':str(child)})
+        except OSError:continue
+        if len(dirs)>=500:break
+    roots=[{'label':'Dossier personnel','path':str(Path.home())}]+[{'label':x,'path':x} for x in ('/mnt','/media','/srv') if Path(x).is_dir()]
+    return {'path':str(base),'parent':str(base.parent) if base.parent!=base else '','dirs':dirs,'roots':roots,'truncated':len(dirs)>=500}
+
+
 def handle(desk,name,data,env,method):
     if name=='m567/config/catalog' and method=='GET':return catalog(desk,env)
+    if name=='m567/config/browse' and method=='GET':return browse(data)
     if name=='m567/config/save':return save(desk,data,env)
     if name=='m567/config/test':return test(desk,data)
     if name=='m567/config/docker-plan':return docker_plan(data)

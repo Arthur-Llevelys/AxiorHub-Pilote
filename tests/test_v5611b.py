@@ -25,10 +25,10 @@ class FakeNinja:
             return {'data': {'id': 'INV1' if path.endswith('invoices') else 'TSK1', 'number': '2026-0042'}}
         if self.mismatch:
             return {'data': {'id': 'AUTRE', 'client_id': 'X', 'amount': 0, 'line_items': []}}
-        if path.startswith('/api/v1/invoices/'):
-            return {'data': {'id': 'INV1', 'number': '2026-0042', 'status_id': '1', 'client_id': self.last['client_id'],
-                             'line_items': [{'cost': i['cost'], 'quantity': i['quantity']} for i in self.last['line_items']]}}
-        return {'data': {'id': 'TSK1', 'client_id': self.last['client_id'], 'description': self.last['description']}}
+        if path.startswith('/api/v1/invoices/'):   # 5.6.24 (F15) : relecture complète, comme Invoice Ninja (libellés, montant)
+            return {'data': {**self.last, 'id': 'INV1', 'number': '2026-0042', 'status_id': '1',
+                             'amount': round(sum(float(i['cost']) * float(i['quantity']) for i in self.last['line_items']), 2)}}
+        return {'data': {**self.last, 'id': 'TSK1'}}   # 5.6.24 (F14) : la tâche relue porte son time_log et son taux
 
 
 class Facturation(t530.Base):

@@ -495,7 +495,10 @@ def run(desk, args, dav=None):
             else:
                 data, revision_report = pilote5613.revise_body(raw, _body_xml(doc, ctx, row['request'], internal))   # 5.6.14 (C03) : révision par blocs
                 template_info = {'id': 'previous', 'label': 'Document d’origine conservé : ' + revision_report['summary']}
-        except Stop:
+        except Stop as ex:
+            if 'objet_word_perdu' in str(ex):   # 5.6.24 (F22) : aucune version sans ses images ; la version précédente reste en place
+                _set(desk, rid, 'echec', result={'error': str(ex), 'notes': notes})
+                raise
             data = b''
     elif not row['revision_of']:
         trow, traw = pilote5613.template_for_kind(desk, row['kind'])

@@ -8,10 +8,11 @@
 - Clients et contacts (recherche avant création, homonyme = décision), projets rattachés au dossier, devis en brouillon (jamais
   envoyés ni convertis), synchronisation périodique des statuts et paiements (Invoice Ninja fait autorité sur numéros et paiements).
 """
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 import json
 import re
+import secrets
 import sqlite3
 from urllib.parse import quote, urlencode
 
@@ -156,28 +157,45 @@ class InvoiceNinjaClient:
         payload = json.dumps(body, sort_keys=True, ensure_ascii=False, default=str)
         phash = digest(payload)
         now = self.desk.now()
-        row = self.desk.db.execute('SELECT * FROM invoice_ninja_ops5614 WHERE id=?', (key,)).fetchone()
-        if row:
+        owner = secrets.token_hex(8)
+        # 5.6.24 (F17) : l'opération est réclamée dans une transaction exclusive AVANT toute lecture de décision (INSERT simple sur la
+        # clé primaire) ; deux connexions simultanées ne peuvent pas lire toutes deux l'absence de l'opération puis émettre deux POST.
+        try:
+            self.desk.db.execute('BEGIN IMMEDIATE')
+            row = self.desk.db.execute('SELECT * FROM invoice_ninja_ops5614 WHERE id=?', (key,)).fetchone()
+            if row is None:
+                self.desk.db.execute('INSERT INTO invoice_ninja_ops5614 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                                     (key, self.company, entity, str(local_id), action, 'en_cours', phash, payload, '', json.dumps({'owner': owner, 'generation': 1}), now, now))
+            self.desk.db.commit()
+        except sqlite3.IntegrityError:
+            self.desk.db.rollback()
+            raise Stop('operation_deja_en_cours') from None
+        if row is not None:
             if row['state'] == 'confirme':
                 return self.get_one(entity, row['remote_id']), key, 'deja_confirme'
             if row['payload_hash'] != phash:
                 raise Stop('operation_reutilisee_avec_autres_donnees')
-            found = self.reconcile(entity, local_id, body)
+            found = self.reconcile(entity, local_id, body)   # hors transaction : appel réseau
             if found:
-                self.desk.db.execute("UPDATE invoice_ninja_ops5614 SET state='confirme',remote_id=?,updated=? WHERE id=?", (str(found['id']), now, key))
+                self.desk.db.execute("UPDATE invoice_ninja_ops5614 SET state='confirme',remote_id=?,updated=? WHERE id=? AND state!='confirme'", (str(found['id']), now, key))
                 self.desk.db.commit()
                 self._map(entity, local_id, str(found['id']), phash)
                 return found, key, 'rapproche'
             if row['state'] in ('en_cours', 'incertain'):
                 raise Stop('operation_incertaine_rapprochement_impossible')
-        try:
-            self.desk.db.execute('BEGIN IMMEDIATE')
-            self.desk.db.execute('INSERT OR REPLACE INTO invoice_ninja_ops5614 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-                                 (key, self.company, entity, str(local_id), action, 'en_cours', phash, payload, '', '{}', row['created'] if row else now, now))
-            self.desk.db.commit()
-        except sqlite3.IntegrityError:
-            self.desk.db.rollback()
-            raise Stop('operation_deja_en_cours') from None
+            # état « refuse » : nouvelle tentative réclamée conditionnellement (propriétaire + génération)
+            detail = json.loads(row['detail'] or '{}') if isinstance(row['detail'], str) else {}
+            generation = int(detail.get('generation') or 1) + 1
+            try:
+                self.desk.db.execute('BEGIN IMMEDIATE')
+                claimed = self.desk.db.execute("UPDATE invoice_ninja_ops5614 SET state='en_cours',payload_hash=?,payload=?,detail=?,updated=? WHERE id=? AND state='refuse'",
+                                               (phash, payload, json.dumps({'owner': owner, 'generation': generation}), now, key)).rowcount
+                self.desk.db.commit()
+            except sqlite3.OperationalError:
+                self.desk.db.rollback()
+                raise Stop('operation_deja_en_cours') from None
+            if claimed != 1:
+                raise Stop('operation_deja_en_cours')
         try:
             created = self._data(self.call('POST', ENTITY_ENDPOINTS[entity], body))
         except NinjaError as ex:
@@ -382,19 +400,33 @@ def _lines(items):
     return out, total.quantize(Decimal('0.01'))
 
 
+def office_today(desk):
+    """Date du jour dans le fuseau du cabinet (réglage ``calendar.timezone``, Europe/Paris par défaut)."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo(desk.c.get('calendar', {}).get('timezone', 'Europe/Paris'))).date()
+    except Exception:
+        return date.today()
+
+
 def preview_quote(desk, matter, items, terms='', validity_days=30, note=''):
-    """Aperçu modifiable avant création : lignes, HT, taxes déclarées, TTC calculé en Decimal (aucun régime de taxe supposé)."""
+    """Aperçu modifiable avant création : lignes, HT, taxes déclarées, TTC calculé en Decimal (aucun régime de taxe supposé).
+    5.6.24 (F16) : la date d'émission et la date de validité (fuseau du cabinet) font partie de l'aperçu et du devis créé."""
     lines, total_ht = _lines(items)
     taxes = Decimal('0')
     for l in lines:
         if 'tax_rate1' in l:
             taxes += (Decimal(str(l['quantity'])) * Decimal(str(l['cost'])) * Decimal(str(l['tax_rate1'])) / 100).quantize(Decimal('0.01'))
+    days = max(1, min(int(validity_days or 30), 365))
+    today = office_today(desk)
     return {'matter': str(matter), 'lines': lines, 'total_ht': str(total_ht), 'taxes': str(taxes), 'total_ttc': str(total_ht + taxes), 'terms': str(terms or '')[:2000],
-            'validity_days': max(1, min(int(validity_days or 30), 365)), 'note': str(note or '')[:1000], 'missing': []}
+            'validity_days': days, 'date': today.isoformat(), 'due_date': (today + timedelta(days=days)).isoformat(), 'note': str(note or '')[:1000], 'missing': []}
 
 
-def draft_quote(desk, matter, items, confirm=False, terms='', validity_days=30, note='', http=None):
-    """Devis en brouillon (jamais envoyé, approuvé ni converti), relu après création, relié au client, au projet et au dossier."""
+def draft_quote(desk, matter, items, confirm=False, terms='', validity_days=30, note='', http=None, request_key=''):
+    """Devis en brouillon (jamais envoyé, approuvé ni converti), relu après création, relié au client, au projet et au dossier.
+    5.6.24 (F16) : l'identifiant local dépend de la demande (``request_key``) ou, à défaut, de toute la charge (lignes, conditions, note,
+    validité, date) : des conditions différentes font un autre devis ; une même clé avec d'autres données est un conflit explicite."""
     ensure_schema(desk)
     if not (confirm is True or str(confirm or '').lower() in ('yes', 'oui', '1', 'true')):
         raise Stop('confirmation_requise')
@@ -406,16 +438,20 @@ def draft_quote(desk, matter, items, confirm=False, terms='', validity_days=30, 
     if not link:
         raise Stop('client_invoice_ninja_non_lie')
     prev = preview_quote(desk, matter, items, terms, validity_days, note)
-    local_id = 'quote:' + m['id'] + ':' + digest(json.dumps(prev['lines'], sort_keys=True))[:12]
-    body = {'client_id': str(link['client_id']), 'date': date.today().isoformat(), 'line_items': prev['lines'], 'public_notes': prev['note'], 'terms': prev['terms'],
-            'private_notes': 'AxiorHub:' + local_id, 'due_date': ''}
+    identity = str(request_key or '').strip() or json.dumps({k: prev[k] for k in ('lines', 'terms', 'note', 'validity_days', 'date')}, sort_keys=True)
+    local_id = 'quote:' + m['id'] + ':' + digest(identity)[:12]
+    body = {'client_id': str(link['client_id']), 'date': prev['date'], 'line_items': prev['lines'], 'public_notes': prev['note'], 'terms': prev['terms'],
+            'private_notes': 'AxiorHub:' + local_id, 'due_date': prev['due_date'], 'expected_amount': prev['total_ttc']}
     project = client.mapped('project', 'matter:' + m['id'])
     if project:
         body['project_id'] = project
-    created, key, how = client.create('quote', body, local_id)
+    sent = {k: v for k, v in body.items() if k != 'expected_amount'}
+    created, key, how = client.create('quote', sent, local_id)
     checked = client.get_one('quote', str(created['id']))
     issues = check_lines(checked, body, str(link['client_id']), prev['total_ht'])
-    if str(checked.get('status_id', '1')) != '1':
+    if checked.get('status_id') is None:
+        issues.append('statut absent')   # 5.6.24 (F15) : un statut absent n'est pas un brouillon supposé
+    elif str(checked.get('status_id')) != '1':
         issues.append('statut non brouillon')
     desk.audit('invoice_ninja_devis_brouillon', {'matter': m['id'], 'remote_id': str(checked['id']), 'how': how, 'issues': issues, 'sent': False})
     return {'quote_id': str(checked['id']), 'number': str(checked.get('number') or ''), 'total_ht': prev['total_ht'], 'total_ttc': prev['total_ttc'], 'draft': not issues,
@@ -424,15 +460,32 @@ def draft_quote(desk, matter, items, confirm=False, terms='', validity_days=30, 
                        else 'Devis créé, conformité non vérifiée : ' + ' ; '.join(issues)}
 
 
+def expected_total(body):
+    """TTC attendu d'après les lignes envoyées (quantité × coût, taxe de ligne déclarée) ; ``expected_amount`` explicite prioritaire."""
+    if body.get('expected_amount') is not None:
+        return money(body['expected_amount'])
+    total = Decimal('0')
+    for l in body.get('line_items', []) or []:
+        base = money(l.get('quantity', 1)) * money(l.get('cost', 0))
+        total += base + (base * money(l.get('tax_rate1', 0)) / 100).quantize(Decimal('0.01'))
+    return total.quantize(Decimal('0.01'))
+
+
 def check_lines(checked, body, client_id, total_ht):
-    """C14 : rapprochement champ par champ — client, projet, chaque ligne normalisée (libellé, quantité, coût, taxe), totaux Decimal, statut."""
+    """C14 : rapprochement champ par champ — client, projet, chaque ligne normalisée (libellé, quantité, coût, taxe, nom de taxe), totaux
+    Decimal, remise. 5.6.24 (F15) : contrat de relecture exigeant — libellé de chaque ligne, montant total (TTC calculé depuis les lignes
+    envoyées ou ``expected_amount``), échéance, conditions, note publique et devise attendue sont EXIGÉS quand ils ont été envoyés ; un
+    champ absent est un écart nommé, jamais un succès supposé."""
     issues = []
     if not checked.get('client_id'):
         issues.append('client absent de la relecture')
     elif str(checked.get('client_id')) != str(client_id):
         issues.append('client différent')
-    if body.get('project_id') and str(checked.get('project_id') or '') != str(body['project_id']):
-        issues.append('projet différent')
+    if body.get('project_id'):
+        if not checked.get('project_id'):
+            issues.append('projet absent de la relecture')
+        elif str(checked.get('project_id')) != str(body['project_id']):
+            issues.append('projet différent')
     items = checked.get('line_items')
     if not isinstance(items, list):
         issues.append('lignes non relues')
@@ -441,22 +494,56 @@ def check_lines(checked, body, client_id, total_ht):
     if len(items) != len(expected):
         issues.append('nombre de lignes différent (%d au lieu de %d)' % (len(items), len(expected)))
     for n, (a, b) in enumerate(zip(items, expected), 1):
-        if 'notes' in a and str(a.get('notes', '')).strip() != str(b.get('notes', '')).strip():
+        if not isinstance(a, dict):
+            issues.append('ligne %d : illisible' % n); continue
+        if 'notes' not in a:
+            issues.append('ligne %d : libellé absent' % n)
+        elif str(a.get('notes', '')).strip() != str(b.get('notes', '')).strip():
             issues.append('ligne %d : libellé différent' % n)
-        if money(a.get('quantity', 1)) != money(b.get('quantity', 1)) or money(a.get('cost', 0)) != money(b.get('cost', 0)):
-            issues.append('ligne %d : quantité ou coût différent' % n)
-        if ('tax_rate1' in b or 'tax_rate1' in a) and money(a.get('tax_rate1', 0)) != money(b.get('tax_rate1', 0)):
-            issues.append('ligne %d : taxe différente' % n)
+        try:
+            if money(a.get('quantity', 1)) != money(b.get('quantity', 1)) or money(a.get('cost', 0)) != money(b.get('cost', 0)):
+                issues.append('ligne %d : quantité ou coût différent' % n)
+            if ('tax_rate1' in b or 'tax_rate1' in a) and money(a.get('tax_rate1', 0)) != money(b.get('tax_rate1', 0)):
+                issues.append('ligne %d : taxe différente' % n)
+        except Stop:
+            issues.append('ligne %d : illisible' % n)
+        if b.get('tax_name1') and str(a.get('tax_name1') or '').strip() != str(b['tax_name1']).strip():
+            issues.append('ligne %d : nom de taxe différent' % n)
+        if ('discount' in b or a.get('discount') not in (None, 0, 0.0, '0', '0.0')) and str(a.get('discount') or 0) != str(b.get('discount') or 0):
+            issues.append('ligne %d : remise différente' % n)
     try:
-        remote_total = sum((money(i.get('cost', 0)) * money(i.get('quantity', 1)) for i in items), Decimal('0')).quantize(Decimal('0.01'))
+        remote_total = sum((money(i.get('cost', 0)) * money(i.get('quantity', 1)) for i in items if isinstance(i, dict)), Decimal('0')).quantize(Decimal('0.01'))
         if remote_total != money(total_ht):
             issues.append('total HT différent (%s au lieu de %s)' % (remote_total, money(total_ht)))
     except Stop:
         issues.append('lignes illisibles')
-    if checked.get('amount') is not None and body.get('expected_amount') is not None and money(checked['amount']) != money(body['expected_amount']):
-        issues.append('montant total différent')
+    try:
+        wanted = expected_total(body)
+        if checked.get('amount') is None:
+            issues.append('montant total absent')
+        elif money(checked['amount']) != wanted:
+            issues.append('montant total différent (%s au lieu de %s)' % (money(checked['amount']), wanted))
+    except Stop:
+        issues.append('montant total illisible')
     if checked.get('discount') not in (None, 0, 0.0, '0', '0.0') and not body.get('discount'):
         issues.append('remise inattendue')
+    for field, label in (('due_date', 'échéance'), ('date', 'date')):
+        if body.get(field):
+            if not checked.get(field):
+                issues.append(label + ' absente')
+            elif str(checked[field])[:10] != str(body[field])[:10]:
+                issues.append(label + ' différente')
+    for field, label in (('terms', 'conditions'), ('public_notes', 'note publique')):
+        if body.get(field) is not None and body.get(field) != '':
+            if checked.get(field) is None:
+                issues.append(label + ' absente(s)')
+            elif str(checked[field]).strip() != str(body[field]).strip():
+                issues.append(label + ' différente(s)')
+    if body.get('currency_id'):
+        if not checked.get('currency_id'):
+            issues.append('devise absente')
+        elif str(checked['currency_id']) != str(body['currency_id']):
+            issues.append('devise différente')
     return issues
 
 

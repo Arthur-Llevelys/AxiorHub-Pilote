@@ -43,9 +43,21 @@ CREATE TABLE IF NOT EXISTS decisions5614(
  state TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '{}', deferred_until TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, updated TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS ops5614(
  id TEXT PRIMARY KEY, mission TEXT NOT NULL, task TEXT NOT NULL, kind TEXT NOT NULL, state TEXT NOT NULL, payload_hash TEXT NOT NULL,
- remote_ref TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, updated TEXT NOT NULL);'''
+ remote_ref TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, updated TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS validations5614(
+ id TEXT PRIMARY KEY, mission TEXT NOT NULL, artifact TEXT NOT NULL, sha256 TEXT NOT NULL, file_sha256 TEXT NOT NULL, path TEXT NOT NULL,
+ author TEXT NOT NULL, plan_revision INTEGER NOT NULL, profile TEXT NOT NULL DEFAULT '', snapshot TEXT NOT NULL DEFAULT '', motive TEXT NOT NULL DEFAULT '',
+ created TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS batches5614(
+ id TEXT PRIMARY KEY, mission TEXT NOT NULL, task TEXT NOT NULL, label TEXT NOT NULL, position INTEGER NOT NULL, total INTEGER NOT NULL,
+ input_hash TEXT NOT NULL, result TEXT NOT NULL, result_hash TEXT NOT NULL, state TEXT NOT NULL, created TEXT NOT NULL);'''
+# 5.6.24 : colonnes ajoutées par migration additive (bases existantes)
+MIGRATIONS = (('missions5614', 'mandate', 'INTEGER NOT NULL DEFAULT 1'), ('missions5614', 'payload_hash', "TEXT NOT NULL DEFAULT ''"),
+              ('tasks5614', 'lease_owner', "TEXT NOT NULL DEFAULT ''"))
+REQUEST_CONTRACT = 'mission5614/2'   # version du contrat de demande (F04) : entre dans l'empreinte canonique
 DEFAULT_LIMITS = {'max_tasks': 64, 'max_depth': 4, 'concurrency': 3, 'budget_calls': 150, 'correction_cycles': 2, 'lease_seconds': 900,
-                  'destination_subfolder': '20_Actes_et_conclusions/90_AxiorHub_Brouillons', 'max_payload_chars': 60000}
+                  'destination_subfolder': '20_Actes_et_conclusions/90_AxiorHub_Brouillons', 'max_payload_chars': 60000,
+                  'max_read_files': 60, 'max_mail_chars': 200000}   # 5.6.24 (F06) : au-delà de max_read_files pièces lisibles, décision explicite
 TASK_STATES = ('a_preparer', 'en_attente', 'en_cours', 'suspendue', 'en_erreur', 'annulee', 'terminee')
 OUTCOMES = ('incomplet', 'a_controler', 'accepte', 'reserves', 'bloque', 'perime')
 MISSION_LABELS = {'active': 'Travail en cours', 'decision': 'Donnée manquante ou choix à faire', 'suspendue': 'Suspendue', 'suspendue_budget': 'Budget atteint : décision',
@@ -56,6 +68,10 @@ OK_OUTCOMES = ('accepte', 'reserves')
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    for table, column, ddl in MIGRATIONS:
+        if column not in {r[1] for r in desk.db.execute('PRAGMA table_info(%s)' % table)}:
+            desk.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table, column, ddl))
+    desk.db.commit()
 
 
 def limits(desk):
@@ -179,20 +195,30 @@ def create(desk, data, owner='cabinet'):
     autonomy = str(data.get('autonomy') or 'prepare')
     if autonomy not in ('prepare', 'suggest'):
         raise Stop('autonomie_mission_invalide')
-    fp = hashlib.sha256(json.dumps({'i': text, 'm': matter['id'], 'p': name, 't': [t['code'] for t in tasks], 'a': answers}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    deadline = str(data.get('deadline') or '')[:32]
+    # 5.6.24 (F04) : charge canonique = valeurs normalisées réellement persistées (dossier, objectif, parcours, tâches complètes, réponses,
+    # autonomie, budget, échéance, version du contrat) ; l'empreinte est ENREGISTRÉE et relue, jamais reconstruite avec les valeurs nouvelles.
+    canonical = {'contract': REQUEST_CONTRACT, 'matter': matter['id'], 'objective': text, 'parcours': name, 'answers': answers, 'autonomy': autonomy, 'budget': budget,
+                 'deadline': deadline, 'tasks': [{k: t.get(k) for k in ('code', 'title', 'role', 'type', 'output', 'instruction', 'depends', 'parent', 'required')} for t in tasks]}
+    fp = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
     ident, now = secrets.token_hex(16), desk.now()
     title = (parcours5614.PARCOURS[name]['label'] + ' — ' if name in parcours5614.PARCOURS else '') + matter_display(matter)
+    if desk.db.in_transaction:
+        desk.db.commit()
     desk.db.execute('BEGIN IMMEDIATE')
     try:
-        old = desk.db.execute('SELECT id,objective,parcours FROM missions5614 WHERE owner=? AND request_key=?', (owner, token)).fetchone()
+        old = desk.db.execute('SELECT id,payload_hash FROM missions5614 WHERE owner=? AND request_key=?', (owner, token)).fetchone()
         if old:
-            if hashlib.sha256(json.dumps({'i': old['objective'], 'm': matter['id'], 'p': old['parcours'], 't': [t['code'] for t in tasks], 'a': answers}, sort_keys=True, ensure_ascii=False).encode()).hexdigest() != fp:
-                raise Stop('requete_reutilisee_avec_autres_donnees')
             desk.db.commit()
+            if not old['payload_hash']:
+                raise Stop('requete_reutilisee_empreinte_absente')          # mission antérieure à 5.6.24 : réutilisation ambiguë refusée
+            if old['payload_hash'] != fp:
+                desk.audit('mission5614_conflit_requete', {'mission': old['id'], 'request_key': digest(token)[:12]})   # aucun texte du dossier dans le journal
+                raise Stop('requete_reutilisee_avec_autres_donnees')
             return get(desk, old['id'], owner)
-        desk.db.execute('INSERT INTO missions5614(id,owner,request_key,matter,title,objective,parcours,state,answers,budget_calls,deadline,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        desk.db.execute('INSERT INTO missions5614(id,owner,request_key,matter,title,objective,parcours,state,answers,budget_calls,deadline,payload_hash,mandate,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                         (ident, owner, token, matter['id'], title[:300], text, name, 'suggested' if autonomy == 'suggest' else 'active', json.dumps(answers, ensure_ascii=False),
-                         budget, str(data.get('deadline') or '')[:32], now, now))
+                         budget, deadline, fp, 1, now, now))
         for i, t in enumerate(tasks):
             desk.db.execute('INSERT INTO tasks5614(id,mission,parent_id,position,code,title,role,task_type,output_type,instruction,depends_on,required,run_state,created,updated) '
                             'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -274,6 +300,14 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
     m['next_action'] = _next_action(m, tasks)
     final = next((t for t in tasks if t['task_type'] == 'assemblage' and t['artifact']), None)
     m['deliverable'] = (final['result'] or {}).get('summary') if final else None
+    # 5.6.24 (F03) : validations immuables ; une validation ancienne sans empreinte de fichier relue est « à renouveler »
+    m['validations'] = [dict(r) for r in desk.db.execute('SELECT sha256,file_sha256,path,author,plan_revision,profile,created FROM validations5614 WHERE mission=? ORDER BY created', (ident,))]
+    if m['validation'] == 'validee' and not any(v['sha256'] == m['validated_hash'] for v in m['validations']):
+        m['validation_label'] = 'validation à renouveler (empreinte du fichier non relue)'
+    else:
+        m['validation_label'] = {'non_demandee': 'non demandée', 'a_decider': 'à décider', 'validee': 'validée', 'a_renouveler': 'à renouveler (document ou sources modifiés)'}.get(m['validation'], m['validation'])
+    m['effets_a_rapprocher'] = [{'task': r['task'], 'kind': r['kind'], 'state': r['state'], 'path': json.loads(r['detail'] or '{}').get('path', '')}
+                               for r in desk.db.execute("SELECT task,kind,state,detail FROM ops5614 WHERE mission=? AND state IN ('prepare','en_cours','incertain','conflit')", (ident,))]
     m['url'] = prefix + '/missions-complexes?id=' + ident
     return m
 
@@ -364,9 +398,14 @@ def advance(desk, ident):
     if desk.settings('missions567:pause', False):
         return 0
     lim = limits(desk)
-    tasks = _tasks(desk, ident)
-    by_code = {t['code']: t for t in tasks}
     now = _now_iso()
+    tasks = _tasks(desk, ident)
+    if any(t['run_state'] == 'en_cours' and t['lease_until'] and t['lease_until'] <= now for t in tasks):   # 5.6.24 (F02)
+        for t in tasks:
+            if t['run_state'] == 'en_cours' and t['lease_until'] and t['lease_until'] <= now:
+                _reclaim_expired(desk, m, t, now)
+        tasks = _tasks(desk, ident)
+    by_code = {t['code']: t for t in tasks}
     running = [t for t in tasks if t['run_state'] == 'en_cours' and t['lease_until'] > now]
     slots = max(0, lim['concurrency'] - len(running))
     launched = 0
@@ -396,6 +435,68 @@ def advance(desk, ident):
     desk.db.commit()
     _refresh_state(desk, ident)
     return launched
+
+
+def _pending_ops(desk, task_id):
+    return [dict(r) for r in desk.db.execute("SELECT * FROM ops5614 WHERE task=? AND state IN ('prepare','en_cours','incertain','conflit')", (task_id,))]
+
+
+def _reclaim_expired(desk, m, t, now):
+    """5.6.24 (F02) : un bail expiré n'est plus une mission figée. Travail encore vivant (travail « running ») : on attend. Effet externe engagé
+    (opération non confirmée) : la tâche passe en erreur et une décision « effet incertain » est ouverte, jamais une relance aveugle.
+    Sinon la tentative est abandonnée et la tâche redevient à préparer (l'historique des tentatives est conservé)."""
+    alive = desk.db.execute("SELECT 1 FROM jobs WHERE kind='task5614' AND status='running' AND json_extract(args,'$.task')=?", (t['id'],)).fetchone()
+    if alive:
+        return 'vivant'
+    ops = _pending_ops(desk, t['id'])
+    if ops:
+        desk.db.execute("UPDATE tasks5614 SET run_state='en_erreur',error='bail_expire_effet_a_rapprocher',lease_until='',updated=? WHERE id=? AND run_state='en_cours'", (now, t['id']))
+        desk.db.commit()
+        op = ops[0]
+        _decision(desk, m['id'], t['id'], 'effet_incertain', 'La tâche %s a été interrompue pendant un dépôt (%s). Vérifier dans le dossier si le fichier existe, puis indiquer « fichier présent » ou « fichier absent » pour reprendre.' % (
+            t['code'], (json.loads(op['detail'] or '{}').get('path') or op['kind'])), {'task': t['code'], 'op': op['id'], 'state': op['state'], 'path': json.loads(op['detail'] or '{}').get('path', ''),
+                                                                                       'options': ['fichier_present', 'fichier_absent']})
+        return 'a_rapprocher'
+    desk.db.execute("UPDATE tasks5614 SET run_state='a_preparer',lease_until='',lease_owner='',error='',updated=? WHERE id=? AND run_state='en_cours' AND lease_until<=?", (now, t['id'], now))
+    desk.db.commit()
+    desk.audit('mission5614_bail_expire_reprise', {'mission': m['id'], 'task': t['code'], 'attempt': t['attempt']})
+    return 'reprise'
+
+
+def recover_job(desk, args):
+    """5.6.24 (F02) : reprise d'un travail « task5614 » après redémarrage — rapprochement des opérations d'abord ; sans effet engagé la tâche
+    est remise en attente (nouvelle tentative, génération incrémentée au prochain bail) ; avec un effet non confirmé, elle reste bloquée à décider."""
+    ensure_schema(desk)
+    tid, ident = str(args.get('task') or ''), str(args.get('mission') or '')
+    t = desk.db.execute('SELECT * FROM tasks5614 WHERE id=? AND mission=?', (tid, ident)).fetchone()
+    m = desk.db.execute('SELECT * FROM missions5614 WHERE id=?', (ident,)).fetchone()
+    if not t or not m:
+        return 'error', {'erreur': 'tache_absente'}
+    if m['state'] in ('annulee', 'suspendue', 'suspendue_budget'):
+        return 'cancelled', {'message': 'Mission %s : travail abandonné au redémarrage.' % m['state']}
+    now = _now_iso()
+    if _pending_ops(desk, tid):
+        _reclaim_expired(desk, dict(m), {**dict(t), 'lease_until': now}, now)
+        return 'error', {'erreur': 'service_redemarre_effet_a_rapprocher'}
+    desk.db.execute("UPDATE tasks5614 SET run_state='a_preparer',lease_until='',lease_owner='',error='',updated=? WHERE id=? AND run_state='en_cours'", (now, tid))
+    desk.db.commit()
+    return 'pending', None
+
+
+def _mandate_check(desk, mission, task=None, generation=None):
+    """5.6.24 (F01) : relit l'état et la génération de mandat de la mission ; une tentative dont le mandat est révoqué (annulation, pause,
+    révision) ou dont le bail est perdu s'interrompt avant tout nouvel effet ou publication."""
+    row = desk.db.execute('SELECT state,mandate FROM missions5614 WHERE id=?', (mission['id'],)).fetchone()
+    if not row:
+        raise Stop('mission_absente')
+    if row['state'] in ('annulee', 'suspendue', 'suspendue_budget'):
+        raise Stop('mandat_revoque:' + row['state'])
+    if mission.get('mandate') is not None and int(row['mandate']) != int(mission['mandate']):
+        raise Stop('mandat_revoque:revision')
+    if task is not None and generation is not None and task.get('id'):
+        t = desk.db.execute('SELECT generation,run_state FROM tasks5614 WHERE id=?', (task['id'],)).fetchone()
+        if t and (int(t['generation']) != int(generation) or t['run_state'] != 'en_cours'):
+            raise Stop('tentative_perimee_bail_perdu')
 
 
 def _block_task(desk, t, reason):
@@ -455,36 +556,43 @@ def perform(desk, args):
     lim = limits(desk)
     now = _now_iso()
     lease = (datetime.now(timezone.utc) + timedelta(seconds=lim['lease_seconds'])).isoformat()
-    cur = desk.db.execute("UPDATE tasks5614 SET run_state='en_cours',lease_until=?,generation=generation+1,attempt=attempt+1,error='',updated=? "
-                          "WHERE id=? AND (run_state IN ('a_preparer','en_attente') OR (run_state='en_cours' AND lease_until<?))", (lease, now, tid, now))
+    owner_token = secrets.token_hex(8)   # 5.6.24 (F02) : propriétaire de la tentative
+    cur = desk.db.execute("UPDATE tasks5614 SET run_state='en_cours',lease_until=?,lease_owner=?,generation=generation+1,attempt=attempt+1,error='',updated=? "
+                          "WHERE id=? AND (run_state IN ('a_preparer','en_attente') OR (run_state='en_cours' AND lease_until<?))", (lease, owner_token, now, tid, now))
     desk.db.commit()
     if not cur.rowcount:
         return {'skipped': 'bail_detenu_par_une_autre_tentative'}
     task = dict(desk.db.execute('SELECT * FROM tasks5614 WHERE id=?', (tid,)).fetchone())
     task['depends_on'] = json.loads(task['depends_on'] or '[]')
     generation = task['generation']
-    mission = dict(m)
+    mission = dict(m)   # porte « mandate » : la génération de mandat réclamée par cette tentative (F01)
     mission['answers'] = json.loads(mission['answers'] or '{}')
     mission['extra_instructions'] = json.loads(mission['extra_instructions'] or '[]')
     try:
         from .live430 import progress
         progress(desk, 'Mission complexe %s : %s' % (task['code'], task['title']), mission['matter'])
         result, outcome, sources, trace = EXECUTORS[task['task_type']](desk, mission, task)
+        _mandate_check(desk, mission, task, generation)   # F01 : recontrôle avant publication
         _publish(desk, mission, task, generation, result, outcome, sources, trace)
     except Decision as d:
-        desk.db.execute("UPDATE tasks5614 SET run_state='en_attente',error=?,updated=? WHERE id=? AND generation=?", ('decision:' + d.kind, _now_iso(), tid, generation))
+        desk.db.execute("UPDATE tasks5614 SET run_state='en_attente',error=?,updated=? WHERE id=? AND generation=? AND run_state='en_cours'", ('decision:' + d.kind, _now_iso(), tid, generation))
         desk.db.commit()
         _decision(desk, ident, tid, d.kind, d.question, d.payload)
         _refresh_state(desk, ident)
         return {'decision': d.kind}
     except Budget:
-        desk.db.execute("UPDATE tasks5614 SET run_state='suspendue',updated=? WHERE id=? AND generation=?", (_now_iso(), tid, generation))
+        desk.db.execute("UPDATE tasks5614 SET run_state='suspendue',updated=? WHERE id=? AND generation=? AND run_state='en_cours'", (_now_iso(), tid, generation))
         desk.db.execute("UPDATE missions5614 SET state='suspendue_budget',updated=? WHERE id=?", (_now_iso(), ident))
         desk.db.commit()
         _decision(desk, ident, tid, 'budget', 'Budget d’appels atteint (%d). Augmenter le budget ou découper la mission ; aucun résultat n’est perdu.' % mission['budget_calls'], {'task': task['code']})
         return {'suspended': 'budget'}
     except Stop as ex:
-        desk.db.execute("UPDATE tasks5614 SET run_state='en_erreur',error=?,updated=? WHERE id=? AND generation=?", (str(ex)[:200], _now_iso(), tid, generation))
+        if str(ex).startswith(('mandat_revoque', 'tentative_perimee')):   # F01 : arrêt demandé → arrêt confirmé ; l'état posé par l'avocat (annulée, suspendue) est conservé
+            desk.db.execute("UPDATE tasks5614 SET lease_until='',updated=? WHERE id=? AND generation=? AND run_state='en_cours'", (_now_iso(), tid, generation))
+            desk.db.commit()
+            desk.audit('mission5614_tentative_interrompue', {'mission': ident, 'task': task['code'], 'reason': str(ex)[:80], 'effets_a_rapprocher': len(_pending_ops(desk, tid))})
+            return {'skipped': str(ex)[:80]}
+        desk.db.execute("UPDATE tasks5614 SET run_state='en_erreur',error=?,updated=? WHERE id=? AND generation=? AND run_state='en_cours'", (str(ex)[:200], _now_iso(), tid, generation))
         desk.db.commit()
         _refresh_state(desk, ident)
         raise
@@ -503,22 +611,41 @@ class Budget(Exception):
 
 
 def _publish(desk, mission, task, generation, result, outcome, sources, trace):
+    """Publication d'un résultat. 5.6.24 (F01) : mandat et génération vérifiés DANS la transaction qui insère l'artefact et met à jour la
+    tâche ; si le contrôle échoue, rien n'est publié (l'artefact est conservé à part, marqué tentative périmée, comme trace)."""
     if outcome not in OUTCOMES:
         outcome = 'reserves'
     content = json.dumps(result, ensure_ascii=False, sort_keys=True)
     chash = hashlib.sha256(content.encode()).hexdigest()
-    version = 1 + desk.db.execute('SELECT COUNT(*) FROM artifacts5614 WHERE task=?', (task['id'],)).fetchone()[0]
-    aid = digest(task['id'] + '|' + str(version) + '|' + chash)[:32]
-    desk.db.execute("UPDATE artifacts5614 SET state='remplace' WHERE task=? AND state='actif'", (task['id'],))
-    desk.db.execute('INSERT OR REPLACE INTO artifacts5614 VALUES(?,?,?,?,?,?,?,?,?,?)',
-                    (aid, mission['id'], task['id'], task['output_type'], version, chash, content, json.dumps(sources[:200], ensure_ascii=False), 'actif', _now_iso()))
-    cur = desk.db.execute("UPDATE tasks5614 SET run_state='terminee',result_outcome=?,artifact=?,trace=?,lease_until='',updated=? WHERE id=? AND generation=?",
-                          (outcome, aid, json.dumps(trace, ensure_ascii=False), _now_iso(), task['id'], generation))
-    desk.db.commit()
-    if not cur.rowcount:
-        desk.db.execute("UPDATE artifacts5614 SET state='tentative_perimee' WHERE id=?", (aid,))
+    now = _now_iso()
+    if desk.db.in_transaction:
         desk.db.commit()
-        raise Stop('tentative_perimee_non_publiee')
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        row = desk.db.execute('SELECT state,mandate FROM missions5614 WHERE id=?', (mission['id'],)).fetchone()
+        revoked = (not row) or row['state'] in ('annulee', 'suspendue', 'suspendue_budget') or (mission.get('mandate') is not None and int(row['mandate']) != int(mission['mandate']))
+        version = 1 + desk.db.execute('SELECT COUNT(*) FROM artifacts5614 WHERE task=?', (task['id'],)).fetchone()[0]
+        aid = digest(task['id'] + '|' + str(version) + '|' + chash)[:32]
+        cur = None
+        if not revoked:
+            cur = desk.db.execute("UPDATE tasks5614 SET run_state='terminee',result_outcome=?,artifact=?,trace=?,lease_until='',updated=? WHERE id=? AND generation=?",
+                                  (outcome, aid, json.dumps(trace, ensure_ascii=False), now, task['id'], generation))
+        if revoked or not cur.rowcount:
+            desk.db.rollback()
+            desk.db.execute('INSERT OR REPLACE INTO artifacts5614 VALUES(?,?,?,?,?,?,?,?,?,?)',
+                            (aid, mission['id'], task['id'], task['output_type'], version, chash, content, json.dumps(sources[:200], ensure_ascii=False), 'tentative_perimee', now))
+            desk.db.commit()
+            raise Stop('mandat_revoque_non_publie' if revoked else 'tentative_perimee_non_publiee')
+        desk.db.execute("UPDATE artifacts5614 SET state='remplace' WHERE task=? AND state='actif'", (task['id'],))
+        desk.db.execute('INSERT OR REPLACE INTO artifacts5614 VALUES(?,?,?,?,?,?,?,?,?,?)',
+                        (aid, mission['id'], task['id'], task['output_type'], version, chash, content, json.dumps(sources[:200], ensure_ascii=False), 'actif', now))
+        desk.db.commit()
+    except Stop:
+        raise
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
     # invalider les résultats dépendants déjà produits (nouvelle version d'un parent)
     tasks = _tasks(desk, mission['id'])
     for t in tasks:
@@ -527,11 +654,17 @@ def _publish(desk, mission, task, generation, result, outcome, sources, trace):
     desk.db.commit()
 
 
-def _count_call(desk, mission):
+def _count_call(desk, mission, task=None):
     row = desk.db.execute('SELECT calls_used,budget_calls FROM missions5614 WHERE id=?', (mission['id'],)).fetchone()
     if row['calls_used'] >= row['budget_calls']:
         raise Budget()
     desk.db.execute('UPDATE missions5614 SET calls_used=calls_used+1 WHERE id=?', (mission['id'],))
+    if task and task.get('id') and task.get('generation') is not None:   # 5.6.24 (F02) : renouvellement conditionnel du bail (propriétaire + génération)
+        lease = (datetime.now(timezone.utc) + timedelta(seconds=limits(desk)['lease_seconds'])).isoformat()
+        cur = desk.db.execute("UPDATE tasks5614 SET lease_until=? WHERE id=? AND generation=? AND run_state='en_cours'", (lease, task['id'], task['generation']))
+        if not cur.rowcount:
+            desk.db.commit()
+            raise Stop('tentative_perimee_bail_perdu')
     desk.db.commit()
 
 
@@ -566,7 +699,8 @@ CADRAGE_SCHEMA = {'type': 'object', 'properties': {
 
 
 def _ask(desk, mission, task, payload, schema, max_tokens=4000, system_extra=''):
-    _count_call(desk, mission)
+    _mandate_check(desk, mission, task, task.get('generation'))   # 5.6.24 (F01) : recontrôle du mandat avant chaque appel (donc entre les lots)
+    _count_call(desk, mission, task)
     model, route = _model(desk, mission, task['role'])
     lim = limits(desk)
     serialized = json.dumps(payload, ensure_ascii=False)
@@ -582,6 +716,7 @@ def _ask(desk, mission, task, payload, schema, max_tokens=4000, system_extra='')
         raise Stop('reponse_modele_non_json') from None
     if not isinstance(data, dict):
         raise Stop('reponse_modele_invalide')
+    _mandate_check(desk, mission, task, task.get('generation'))   # F01 : une réponse arrivée après annulation n'est pas exploitée
     return data, route
 
 
@@ -614,23 +749,113 @@ def _ask_batched(desk, mission, task, base, inputs, schema, label):
         batches.append(current)
     if not batches:
         batches = [[]]
+    # 5.6.24 (F09) : agrégateur selon le contrat de sortie (items ou paragraphes) ; chaque lot est enregistré (position, empreinte, état) et
+    # réutilisé après une interruption ; la consolidation reçoit TOUS les lots, récursivement si le contexte ne suffit pas (aucune coupe).
+    key = 'paragraphes' if 'paragraphes' in (schema or {}).get('properties', {}) else 'items'
+    ihash = digest(json.dumps(inputs, sort_keys=True, ensure_ascii=False, default=str))[:16]
     results, routes = [], []
     for n, batch in enumerate(batches, 1):
-        data, route = _ask(desk, mission, task, {**base, 'lot': '%d/%d' % (n, len(batches)), 'entrees': batch}, schema)
+        bid = digest('batch5614|%s|%s|%s|%d|%d' % (task.get('id', ''), label, ihash, n, len(batches)))[:32]
+        saved = desk.db.execute("SELECT result FROM batches5614 WHERE id=? AND state='ok'", (bid,)).fetchone()
+        if saved:
+            data, route = json.loads(saved['result']), {'purpose': 'lot_repris_sans_nouvel_appel'}
+        else:
+            data, route = _ask(desk, mission, task, {**base, 'lot': '%d/%d' % (n, len(batches)), 'entrees': batch}, schema)
+            desk.db.execute('INSERT OR REPLACE INTO batches5614 VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+                            (bid, mission['id'], task.get('id', ''), label, n, len(batches), ihash, json.dumps(data, ensure_ascii=False),
+                             digest(json.dumps(data, sort_keys=True, ensure_ascii=False))[:16], 'ok', _now_iso()))
+            desk.db.commit()
         results.append(data)
         routes.append(route)
     if len(results) == 1:
         return results[0], routes[0], len(batches)
-    merged = {'items': [], 'champs_manquants': [], 'notes': [], 'summary': ''}
-    for r in results:
-        merged['items'] += r.get('items', [])
-        merged['champs_manquants'] += r.get('champs_manquants', [])
-        merged['notes'] += r.get('notes', [])
-    data, route = _ask(desk, mission, task, {**base, 'consolidation': True, 'resultats_par_lot': merged['items'][:400], 'champs_manquants': merged['champs_manquants'][:60]},
-                       schema, system_extra='Consolide les résultats partiels sans en perdre, en supprimant les doublons et en conservant toutes les sources.')
-    data['items'] = data.get('items') or merged['items']
+    if len(results) != len(batches):
+        raise Stop('lots_manquants_avant_consolidation')
+    merged = {key: [], 'champs_manquants': [], 'a_completer': [], 'notes': [], 'summary': ''}
+    for n, r in enumerate(results, 1):
+        for it in (r.get(key) or []):
+            merged[key].append({**it, 'lot': n} if isinstance(it, dict) else {'texte': str(it), 'lot': n})
+        merged['champs_manquants'] += r.get('champs_manquants', []) or []
+        merged['a_completer'] += r.get('a_completer', []) or []
+        merged['notes'] += r.get('notes', []) or []
+    data, route = _consolidate(desk, mission, task, base, schema, key, merged, budget)
+    data[key] = data.get(key) or merged[key]
     data['notes'] = (data.get('notes') or []) + ['Consolidé à partir de %d lots.' % len(batches)]
+    if key == 'paragraphes':
+        data['a_completer'] = list(dict.fromkeys((data.get('a_completer') or []) + merged['a_completer']))
+    else:
+        data['champs_manquants'] = list(dict.fromkeys((data.get('champs_manquants') or []) + merged['champs_manquants']))
     return data, route, len(batches)
+
+
+def _consolidate(desk, mission, task, base, schema, key, merged, budget):
+    """5.6.24 (F09) : consolidation récursive — si tous les éléments tiennent dans le contexte, un appel ; sinon groupes intermédiaires
+    (chaque élément garde son numéro de lot), puis consolidation des groupes. Aucun élément n'est coupé en silence."""
+    extra = 'Consolide les résultats partiels sans en perdre, en supprimant les doublons et en conservant toutes les sources, les réserves et l’ordre des lots.'
+    elements = merged[key]
+    size = lambda xs: len(json.dumps(xs, ensure_ascii=False))
+    if size(elements) <= budget:
+        return _ask(desk, mission, task, {**base, 'consolidation': True, 'resultats_par_lot': elements, 'champs_manquants': merged['champs_manquants'][:60]}, schema, system_extra=extra)
+    groups, cur, used = [], [], 0
+    for el in elements:
+        s = size(el)
+        if cur and used + s > budget:
+            groups.append(cur)
+            cur, used = [], 0
+        cur.append(el)
+        used += s
+    if cur:
+        groups.append(cur)
+    if len(groups) <= 1:
+        raise Stop('element_trop_long_pour_consolidation')
+    reduced = []
+    for g in groups:
+        d, _ = _ask(desk, mission, task, {**base, 'consolidation': True, 'groupe_intermediaire': True, 'resultats_par_lot': g}, schema, system_extra=extra)
+        reduced += [it if isinstance(it, dict) else {'texte': str(it)} for it in (d.get(key) or g)]
+    return _consolidate(desk, mission, task, base, schema, key, {**merged, key: reduced}, budget)
+
+
+def _allowed_sources(desk, mission, contents):
+    """5.6.24 (F08) : registre des sources autorisées d'une mission — fichiers, courriels et événements de l'instantané, lectures, autorités
+    juridiques vérifiées (issues de la recherche) et artefacts parents. Tout autre identifiant est une source inventée."""
+    allowed = set()
+    if mission.get('snapshot'):
+        try:
+            from . import sources5614
+            snap = sources5614.get_snapshot(desk, mission['snapshot'])
+            allowed.update(x['id'] for k in ('files', 'mails', 'events') for x in snap.get(k, []))
+        except Stop:
+            pass
+        allowed.update(r['source_id'] for r in desk.db.execute('SELECT source_id FROM readings5614 WHERE snapshot=?', (mission['snapshot'],)))
+    for c in contents:
+        allowed.add('artefact-' + c['code'])
+        cont = c['contenu']
+        if isinstance(cont, dict):
+            for it in cont.get('items', []) or []:
+                if isinstance(it, dict):
+                    if it.get('source_id'):
+                        allowed.add(it['source_id'])
+                    if c['type'] == 'recherche':
+                        allowed.update(it.get('source_ids') or [])
+            for x in cont.get('files', []) or []:
+                if isinstance(x, dict) and x.get('id'):
+                    allowed.add(x['id'])
+    return allowed
+
+
+def _filter_sources(items, allowed, key='source_ids'):
+    """Retire des éléments les identifiants de sources inconnus du registre ; retourne la liste triée des identifiants refusés."""
+    invented = set()
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        ids = [str(s) for s in (it.get(key) or [])]
+        bad = [s for s in ids if s not in allowed]
+        if bad:
+            invented.update(bad)
+            it['sources_refusees'] = bad
+            it[key] = [s for s in ids if s in allowed]
+    return sorted(invented)
 
 
 def _inputs(desk, mission, task, tasks=None):
@@ -718,6 +943,10 @@ def _select_files(snap_files, mission, limit=12):
 
 
 def _exec_lecture_pieces(desk, mission, task, paths=None):
+    """5.6.24 (F05/F06) : l'inventaire complet est le périmètre par défaut ; au-delà de max_read_files pièces lisibles, l'avocat décide
+    (tout lire par lots, ou pièces déterminantes avec exclusions nommées). Chaque lecture passe la version attendue de l'instantané ;
+    une pièce modifiée entre-temps est un conflit nommé, pas une substitution silencieuse. Chaque élément référence le texte intégral
+    enregistré (readings5614) ; l'aperçu « excerpt » n'est qu'un affichage."""
     from . import sources5614
     refs, contents = _inputs(desk, mission, task)
     inv = next((c['contenu'] for c in contents if c['type'] == 'inventaire'), None)
@@ -726,21 +955,41 @@ def _exec_lecture_pieces(desk, mission, task, paths=None):
     snap = sources5614.get_snapshot(desk, inv['snapshot'])
     from .document_projects import _dav
     client = _dav(desk)
-    chosen = [f for f in snap['files'] if f['path'] in set(paths)] if paths else _select_files(snap['files'], mission)
+    lim = limits(desk)
+    readable = [f for f in snap['files'] if f.get('readable')]
+    scope = str(mission.get('answers', {}).get('perimetre_lecture') or '')
+    if paths:
+        chosen = [f for f in snap['files'] if f['path'] in set(paths)]
+    elif len(readable) <= lim['max_read_files'] or scope == 'tout':
+        chosen = readable
+    elif scope == 'essentielles':
+        chosen = _select_files(snap['files'], mission, lim['max_read_files'])
+    else:
+        raise Decision('perimetre_lecture', 'Le dossier compte %d pièces lisibles (plafond de lecture intégrale automatique : %d). Lire toutes les pièces par lots, ou seulement les pièces '
+                       'déterminantes (les exclusions seront nommées dans le rapport) ?' % (len(readable), lim['max_read_files']),
+                       {'count': len(readable), 'limit': lim['max_read_files'], 'options': ['tout', 'essentielles'], 'task': task['code']})
     readings, items = [], []
     for f in chosen:
-        r = sources5614.read_file(desk, client, mission['matter'], f['path'], snap['id'])
+        r = sources5614.read_file(desk, client, mission['matter'], f['path'], snap['id'], expected_version=f.get('version', ''))
         readings.append(r)
-        items.append({'source_id': r['source_id'], 'path': f['path'], 'name': f['name'], 'status': r['status'], 'sha256': r.get('sha256', ''), 'coverage': r['coverage'],
+        items.append({'source_id': r['source_id'], 'path': f['path'], 'name': f['name'], 'version': f.get('version', ''), 'status': r['status'], 'sha256': r.get('sha256', ''),
+                      'coverage': r['coverage'], 'chars': r.get('chars', 0), 'pages': r.get('pages', [])[:400], 'reading': digest(snap['id'] + '|' + r['source_id'])[:32],
                       'error': r.get('error', ''), 'excerpt': r.get('text', '')[:1500]})
     man = sources5614.manifest(snap, readings)
-    unread = [f['name'] for f in snap['files'] if f['readable'] and f['path'] not in {c['path'] for c in chosen}]
-    result = {'items': items, 'manifest': {k: man[k] for k in ('total_files', 'inventoried', 'counts', 'homonyms', 'excluded', 'unread')},
-              'summary': sources5614.summary_text(man) + ('. Non lus : %d fichier(s) lisibles' % len(unread) if unread else ''), 'chosen': [c['path'] for c in chosen]}
-    outcome = 'accepte' if any(r['status'].startswith('lu') for r in readings) else ('reserves' if readings else 'bloque')
+    chosen_paths = {c['path'] for c in chosen}
+    excluded = [{'path': f['path'], 'name': f['name'], 'reason': 'perimetre_essentielles'} for f in readable if f['path'] not in chosen_paths]
+    modified = [r['path'] for r in readings if r['status'] == 'version_modifiee']
+    unread = [x['name'] for x in excluded]
+    result = {'items': items, 'manifest': {k: man[k] for k in ('total_files', 'inventoried', 'counts', 'homonyms', 'excluded', 'unread')}, 'exclus': excluded[:200],
+              'versions_modifiees': modified[:50], 'perimetre': 'complet' if not excluded else 'essentielles',
+              'summary': sources5614.summary_text(man) + ('. Exclues sur décision : %d pièce(s) lisible(s)' % len(excluded) if excluded else '')
+              + ('. Versions modifiées depuis l’inventaire : %d' % len(modified) if modified else ''), 'chosen': [c['path'] for c in chosen]}
+    read_any = any(r['status'].startswith('lu') for r in readings)
+    outcome = ('accepte' if not excluded and not modified else 'reserves') if read_any else ('reserves' if readings else 'bloque')
     if outcome == 'bloque':
         desk.db.execute("UPDATE tasks5614 SET error='aucune_piece_lisible' WHERE id=?", (task['id'],))
-    return result, outcome, [r['source_id'] for r in readings], {'route': {'purpose': 'lecture_deterministe'}, 'unread': unread[:50]}
+    return result, outcome, [r['source_id'] for r in readings], {'route': {'purpose': 'lecture_deterministe'}, 'unread': unread[:50], 'exclus': len(excluded), 'versions_modifiees': modified[:50],
+                                                                   'pages_extraites': sum(r['coverage'].get('total', 0) for r in readings)}
 
 
 def _exec_lecture_echanges(desk, mission, task):
@@ -748,27 +997,33 @@ def _exec_lecture_echanges(desk, mission, task):
     inv = next((c['contenu'] for c in contents if c['type'] == 'inventaire'), None)
     if not inv:
         raise Stop('inventaire_requis')
-    items, notes = [], []
-    mails = inv.get('mails', [])[:40]
+    items, notes, unavailable = [], [], []
+    mails = inv.get('mails', [])   # 5.6.24 (F06) : tous les courriels rattachés, par lots de 40 ; texte intégral borné par max_mail_chars
+    lim = limits(desk)
     if mails:
         try:
             from .mailbox import Mailbox
             box = Mailbox(desk.c['mail'])
             try:
-                for m in mails:
-                    try:
-                        msg = box.fetch(m['folder'], m['uid'])
-                    except Stop:
-                        continue
-                    items.append({'source_id': m['id'], 'message_id': getattr(msg, 'mid', ''), 'from': msg.sender, 'date': m['date'], 'subject': msg.subject[:200],
-                                  'texte': re.sub(r'\s+', ' ', msg.text)[:6000]})
+                for start in range(0, len(mails), 40):
+                    for m in mails[start:start + 40]:
+                        try:
+                            msg = box.fetch(m['folder'], m['uid'])
+                        except Stop as ex:
+                            unavailable.append({'source_id': m['id'], 'date': m['date'], 'error': str(ex)[:80]})
+                            continue
+                        text = re.sub(r'\s+', ' ', msg.text)
+                        items.append({'source_id': m['id'], 'message_id': getattr(msg, 'mid', ''), 'from': msg.sender, 'date': m['date'], 'subject': msg.subject[:200],
+                                      'texte': text[:lim['max_mail_chars']], 'chars': len(text), 'tronque': len(text) > lim['max_mail_chars']})
             finally:
                 box.close()
         except Exception as ex:
             notes.append('Messagerie inaccessible : ' + str(ex)[:80])
-    result = {'items': items, 'notes': notes, 'summary': '%d courriel(s) lu(s) sur %d rattaché(s)' % (len(items), len(inv.get('mails', [])))}
-    outcome = 'accepte' if items else ('reserves' if not inv.get('mails') else 'bloque')
-    return result, outcome, [i['source_id'] for i in items], {'route': {'purpose': 'lecture_deterministe'}}
+    if unavailable:
+        notes.append('%d courriel(s) indisponible(s) : %s' % (len(unavailable), ', '.join(u['date'] for u in unavailable[:5])))
+    result = {'items': items, 'indisponibles': unavailable[:100], 'notes': notes, 'summary': '%d courriel(s) lu(s) sur %d rattaché(s)' % (len(items), len(mails))}
+    outcome = ('accepte' if not unavailable else 'reserves') if items else ('reserves' if not mails else 'bloque')
+    return result, outcome, [i['source_id'] for i in items], {'route': {'purpose': 'lecture_deterministe'}, 'indisponibles': len(unavailable)}
 
 
 def _exec_agenda(desk, mission, task):
@@ -781,25 +1036,50 @@ def _exec_agenda(desk, mission, task):
 
 
 def _exec_analyse(desk, mission, task):
+    """5.6.24 (F05) : les éléments issus des lectures sont transmis au modèle avec leur TEXTE INTÉGRAL enregistré (readings5614), découpé
+    par lots et fragments ; l'aperçu ne suffit plus. (F08) : chaque source_id renvoyé est vérifié contre le registre des sources de la mission."""
     refs, contents = _inputs(desk, mission, task)
-    inputs = []
+    readings = {}
+    if mission.get('snapshot'):
+        for r in desk.db.execute('SELECT source_id,path,text,sha256,pages_total FROM readings5614 WHERE snapshot=? AND text<>\'\'', (mission['snapshot'],)):
+            readings[r['source_id']] = r
+    inputs, full, previews = [], 0, []
     for c in contents:
         cont = c['contenu']
         if isinstance(cont, dict) and cont.get('items'):
-            for it in cont['items'][:300]:
-                inputs.append({'origine': c['code'], 'type': c['type'], **{k: v for k, v in it.items() if k != 'content'}})
+            for it in cont['items']:
+                if not isinstance(it, dict):
+                    continue
+                entry = {'origine': c['code'], 'type': c['type'], **{k: v for k, v in it.items() if k not in ('content', 'excerpt', 'pages')}}
+                r = readings.get(it.get('source_id', ''))
+                if r is not None and 'texte' not in it:
+                    entry.update({'texte': r['text'], 'lecture': 'integrale', 'sha256': r['sha256'], 'pages_total': r['pages_total']})
+                    full += 1
+                elif 'texte' not in it and it.get('excerpt'):
+                    entry.update({'texte': it['excerpt'], 'lecture': 'apercu_seulement'})
+                    previews.append(str(it.get('source_id') or it.get('path') or '')[:80])
+                inputs.append(entry)
         else:
             inputs.append({'origine': c['code'], 'type': c['type'], 'texte': json.dumps(cont, ensure_ascii=False)[:20000]})
     base = {'tache': task['code'], 'consigne': task['instruction'], 'type_resultat': task['output_type'], 'objectif': mission['objective'], 'references_entrees': refs,
-            'profil_procedural': mission.get('profile') or ''}
+            'profil_procedural': mission.get('profile') or '', 'regles': ['chaque élément cite ses source_ids parmi les identifiants fournis, avec page et citation exacte quand elles existent',
+                                                                           'une information contraire ou une allégation d’une partie est conservée et qualifiée, jamais fusionnée']}
     data, route, batches = _ask_batched(desk, mission, task, base, inputs, GENERIC_SCHEMA, task['output_type'])
-    items = data.get('items', [])
+    items = [it for it in data.get('items', []) if isinstance(it, dict)]
     missing = data.get('champs_manquants', [])
-    result = {'items': items, 'champs_manquants': missing, 'notes': data.get('notes', []), 'summary': data.get('summary', '') or '%d élément(s)' % len(items), 'batches': batches}
-    outcome = 'accepte' if items and not missing else ('reserves' if items else 'bloque')
+    notes = list(data.get('notes', []))
+    invented = _filter_sources(items, _allowed_sources(desk, mission, contents))
+    if invented:
+        notes.append('Sources inconnues refusées (%d identifiant(s) hors registre) : %s' % (len(invented), ', '.join(invented[:8])))
+    if previews:
+        notes.append('Lecture intégrale non démontrée pour %d source(s) transmise(s) en aperçu seulement.' % len(previews))
+    result = {'items': items, 'champs_manquants': missing, 'notes': notes, 'summary': data.get('summary', '') or '%d élément(s)' % len(items), 'batches': batches,
+              'sources_refusees': invented[:100], 'textes_integraux': full, 'apercus_seulement': previews[:100]}
+    outcome = 'accepte' if items and not missing and not invented and not previews else ('reserves' if items else 'bloque')
     if outcome == 'bloque':
         desk.db.execute("UPDATE tasks5614 SET error='analyse_sans_resultat' WHERE id=?", (task['id'],))
-    return result, outcome, sorted({s for it in items for s in (it.get('source_ids') or [])})[:200], {'route': route, 'batches': batches}
+    return result, outcome, sorted({s for it in items for s in (it.get('source_ids') or [])})[:200], {'route': route, 'batches': batches, 'blocs_transmis': len(inputs),
+                                                                                                      'textes_integraux': full, 'apercus_seulement': len(previews), 'sources_refusees': len(invented)}
 
 
 def _exec_profil(desk, mission, task):
@@ -832,22 +1112,32 @@ def _exec_recherche(desk, mission, task):
         research = research_enabled_mcp(desk, mission['matter'], question, 8)
     except Stop as ex:
         research = {'status': 'unavailable', 'error': str(ex), 'verified_authorities': [], 'leads': [], 'connectors': []}
-    verified = research.get('verified_authorities', [])
+    from .legal_research import legal_source
+    verified, incomplete = [], []
+    for v in research.get('verified_authorities', []):   # 5.6.24 (F07) : seul l'objet commun complet (identité, référence, extrait exact, empreinte) est citable
+        src = legal_source(v)
+        (verified if src else incomplete).append(src or v)
     leads = research.get('leads', [])
     status = research.get('status', 'unavailable')
-    items = [{'texte': str(v.get('title') or v.get('reference') or v.get('id') or '')[:300], 'statut': 'verifiee', 'source_ids': ['authority-' + str(v.get('id', ''))[:20]],
-              'detail': str(v.get('official_url') or '')[:200]} for v in verified]
+    items = [{'texte': str(s.get('title') or s['reference'])[:300], 'statut': 'verifiee', 'source_ids': ['authority-' + s['authority_id'][:20]], 'reference': s['reference'],
+              'extrait_exact': s['exact_excerpt'][:2000], 'official_url': s['official_url'], 'official_text_sha256': s['official_text_sha256'], 'kind': s['kind'],
+              'detail': s['official_url'][:200]} for s in verified]
+    items += [{'texte': str(v.get('title') or v.get('identifier') or v.get('reference') or '')[:300], 'statut': 'reference_incomplete_non_citable', 'source_ids': [],
+               'detail': 'contrat de source incomplet (identité, extrait exact ou empreinte manquants)'} for v in incomplete if isinstance(v, dict)]
     items += [{'texte': str(l.get('title') or l.get('reference') or '')[:300], 'statut': 'piste_non_verifiee', 'source_ids': [], 'detail': str(l.get('url') or '')[:200]} for l in leads]
     for ref in (prof or {}).get('requirements', {}).get('references', []):
         items.append({'texte': ref['ref'], 'statut': 'reference_du_profil_a_verifier', 'source_ids': [], 'detail': ref.get('note', '')})
     note = {'completed': 'Connecteurs juridiques consultés.', 'partial': 'Consultation partielle des connecteurs.', 'not_configured': 'Aucun connecteur juridique activé : aucune référence vérifiée.',
             'unavailable': 'Connecteurs indisponibles : aucune référence vérifiée.'}.get(status, status)
-    result = {'items': items, 'status': status, 'connectors': research.get('connectors', []), 'verified_count': len(verified), 'leads_count': len(leads),
-              'notes': [note] + (['Erreur : ' + research['error']] if research.get('error') else []), 'summary': note + ' %d vérifiée(s), %d piste(s).' % (len(verified), len(leads))}
+    notes = [note] + (['Erreur : ' + research['error']] if research.get('error') else [])
+    if incomplete:
+        notes.append('%d référence(s) renvoyée(s) sans contrat de source complet : non citables.' % len(incomplete))
+    result = {'items': items, 'status': status, 'connectors': research.get('connectors', []), 'verified_count': len(verified), 'leads_count': len(leads), 'sources_juridiques': verified,
+              'notes': notes, 'summary': note + ' %d vérifiée(s), %d piste(s)%s.' % (len(verified), len(leads), (', %d incomplète(s)' % len(incomplete)) if incomplete else '')}
     outcome = 'accepte' if verified else 'bloque'
     if outcome == 'bloque':
         desk.db.execute("UPDATE tasks5614 SET error='aucune_reference_verifiee' WHERE id=?", (task['id'],))
-    return result, outcome, ['authority-' + str(v.get('id', ''))[:20] for v in verified], {'route': {'purpose': 'connecteurs_mcp'}}
+    return result, outcome, ['authority-' + s['authority_id'][:20] for s in verified], {'route': {'purpose': 'connecteurs_mcp'}, 'incompletes': len(incomplete)}
 
 
 def _exec_section(desk, mission, task):
@@ -856,7 +1146,7 @@ def _exec_section(desk, mission, task):
     for c in contents:
         cont = c['contenu']
         if isinstance(cont, dict) and cont.get('items'):
-            inputs.append({'origine': c['code'], 'type': c['type'], 'texte': json.dumps(cont['items'][:300], ensure_ascii=False)})
+            inputs.append({'origine': c['code'], 'type': c['type'], 'texte': json.dumps(cont['items'], ensure_ascii=False)})   # 5.6.24 (F09) : aucune coupe à 300
         else:
             inputs.append({'origine': c['code'], 'type': c['type'], 'texte': json.dumps({k: v for k, v in cont.items() if k not in ('files', 'mails', 'events')} if isinstance(cont, dict) else cont, ensure_ascii=False)[:30000]})
     base = {'tache': task['code'], 'section': task['title'], 'consigne': task['instruction'], 'objectif': mission['objective'], 'references_entrees': refs,
@@ -871,12 +1161,14 @@ def _exec_section(desk, mission, task):
     except Exception:
         pass
     data, route, batches = _ask_batched(desk, mission, task, base, inputs, SECTION_SCHEMA, 'section')
-    paras = [p for p in data.get('paragraphes', []) if str(p.get('texte', '')).strip()]
+    paras = [p for p in data.get('paragraphes', []) if isinstance(p, dict) and str(p.get('texte', '')).strip()]
     if not paras:
         raise Stop('section_vide')
-    result = {'titre': data.get('titre', task['title']), 'paragraphes': paras[:400], 'a_completer': data.get('a_completer', [])[:40], 'summary': data.get('summary', '') or task['title'],
-              'text': '\n'.join(str(p['texte']) for p in paras)}
-    return result, 'accepte' if not result['a_completer'] else 'reserves', sorted({s for p in paras for s in (p.get('source_ids') or [])})[:200], {'route': route, 'batches': batches}
+    invented = _filter_sources(paras, _allowed_sources(desk, mission, contents))   # 5.6.24 (F08)
+    result = {'titre': data.get('titre', task['title']), 'paragraphes': paras, 'a_completer': data.get('a_completer', [])[:40], 'summary': data.get('summary', '') or task['title'],
+              'text': '\n'.join(str(p['texte']) for p in paras), 'sources_refusees': invented[:100]}
+    outcome = 'accepte' if not result['a_completer'] and not invented else 'reserves'
+    return result, outcome, sorted({s for p in paras for s in (p.get('source_ids') or [])})[:200], {'route': route, 'batches': batches, 'sources_refusees': len(invented)}
 
 
 def _exec_bordereau(desk, mission, task):
@@ -986,7 +1278,15 @@ def _deposit(desk, mission, task, data, label):
         local = staged.read_bytes() if staged.is_file() else data
         if hashlib.sha256(local).hexdigest() != sha:
             raise Stop('contenu_depot_local_altere')
-        client.put_file(path, local, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        _mandate_check(desk, mission)   # 5.6.24 (F01) : aucun dépôt après annulation, pause ou révision constatée
+        try:
+            client.put_file(path, local, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        except Stop as ex:
+            if str(ex) in ('http_404', 'http_409', 'fichier_hors_racines', 'dossier_hors_racines'):
+                raise
+            desk.db.execute("UPDATE ops5614 SET state='incertain',detail=?,updated=? WHERE id=?", (json.dumps({**detail, 'error': str(ex)[:120]}), _now_iso(), key))
+            desk.db.commit()
+            raise Stop('depot_incertain_verification_requise') from None
         meta = client.stat(path)
     back = client.download(meta)
     if hashlib.sha256(back).hexdigest() != sha:
@@ -1014,6 +1314,21 @@ def _exec_assemblage(desk, mission, task):
     bordereau = next((c['contenu'] for c in contents if c['type'] == 'bordereau'), None)
     if not sections:
         raise Stop('aucune_section_a_assembler')
+    lim = limits(desk)
+    delta = None
+    if mission.get('snapshot'):   # 5.6.24 (F06) : le dossier est comparé à l'instantané avant la consolidation finale
+        try:
+            from . import sources5614
+            from .document_projects import _dav
+            delta = sources5614.changed_since(desk, sources5614.get_snapshot(desk, mission['snapshot']), dav=_dav(desk), ignore_prefix=lim['destination_subfolder'])
+        except Stop as ex:
+            delta = {'changed': False, 'error': str(ex)}
+        accepted = str(mission.get('answers', {}).get('sources_modifiees_acceptees') or '')
+        if delta.get('changed') and accepted != delta.get('current_snapshot'):
+            raise Decision('sources_modifiees', 'Le dossier a changé depuis l’inventaire : %d ajout(s), %d modification(s), %d suppression(s), %d courriel(s) nouveau(x). '
+                           'Reprendre l’inventaire et les lectures, ou assembler avec une réserve ?' % (len(delta['added']), len(delta['modified']), len(delta['removed']), delta['new_mails']),
+                           {'added': delta['added'][:20], 'modified': delta['modified'][:20], 'removed': delta['removed'][:20], 'new_mails': delta['new_mails'],
+                            'current_snapshot': delta['current_snapshot'], 'options': ['reprendre', 'continuer'], 'task': task['code']})
     data, text, doc, template = _assemble_document(desk, mission, task, sections, bordereau)
     sources = _sources_texts(desk, mission)
     for c in contents:
@@ -1025,6 +1340,15 @@ def _exec_assemblage(desk, mission, task):
     report = controle5614.review(desk, text, sources, kind, mission['matter'], pieces=pieces or None, profile_kind=mentions_kind)
     if mission.get('profile') and not profils5614.is_approved(desk, mission['profile']):
         report['reserves'].append('Profil procédural « %s » non approuvé par l’avocat.' % mission['profile'])
+        if report['outcome'] == 'reussi':
+            report['outcome'] = 'reserves'
+    if delta and delta.get('changed'):
+        report['reserves'].append('Sources modifiées depuis l’inventaire (%d ajout(s), %d modification(s)) : assemblage poursuivi sur décision de l’avocat.' % (len(delta['added']), len(delta['modified'])))
+        if report['outcome'] == 'reussi':
+            report['outcome'] = 'reserves'
+    refused = sorted({s for sec in sections for s in (sec['content'].get('sources_refusees') or [])})
+    if refused:   # 5.6.24 (F08) : les réserves critiques (sources inventées) empêchent le statut « réussi »
+        report['reserves'].append('%d identifiant(s) de source refusé(s) dans les sections (hors registre de la mission).' % len(refused))
         if report['outcome'] == 'reussi':
             report['outcome'] = 'reserves'
     deposit = _deposit(desk, mission, task, data, parcours5614.PARCOURS.get(mission['parcours'], {}).get('label', 'Projet') + ' - ' + matter_display(_matter(desk, mission['matter']))[:40])
@@ -1080,7 +1404,12 @@ def _exec_presentation(desk, mission, task):
     if not assembled:
         raise Stop('assemblage_requis')
     tasks = _tasks(desk, mission['id'])
+    assembly = next((t for t in tasks if t['task_type'] == 'assemblage' and t['artifact']), None)
+    art = artifact(desk, assembly['artifact']) if assembly else None
     package = {'word': {'path': assembled['path'], 'sha256': assembled['sha256'], 'url': assembled.get('url', '')}, 'control': assembled['control']['summary'],
+               # 5.6.24 (F03) : contexte exact à renvoyer avec la validation
+               'artifact_id': art['id'] if art else '', 'artifact_hash': art['content_hash'] if art else '', 'plan_revision': mission.get('plan_revision'), 'profile': mission.get('profile') or '',
+               'snapshot': mission.get('snapshot') or '', 'sources_hash': digest(json.dumps(sorted(art['sources']) if art else [], ensure_ascii=False))[:16],
                'control_sheet': assembled['control_sheet'], 'bordereau': next((artifact(desk, t['artifact'])['content'] for t in tasks if t['output_type'] == 'bordereau' and t['artifact']), None),
                'inventaire': next((artifact(desk, t['artifact'])['content'].get('summary') for t in tasks if t['output_type'] == 'inventaire' and t['artifact']), ''),
                'reserves': assembled['control'].get('reserves', []), 'defauts': len(assembled['control'].get('defects', [])),
@@ -1089,7 +1418,8 @@ def _exec_presentation(desk, mission, task):
     desk.db.execute("UPDATE missions5614 SET validation='a_decider',updated=? WHERE id=?", (_now_iso(), mission['id']))
     desk.db.commit()
     _decision(desk, mission['id'], task['id'], 'validation', 'Projet prêt à relire : valider cette version (%s) ou demander une correction.' % assembled['sha256'][:12],
-              {'path': assembled['path'], 'sha256': assembled['sha256'], 'control': assembled['control']['summary'], 'reserves': assembled['control'].get('reserves', [])[:10]})
+              {'path': assembled['path'], 'sha256': assembled['sha256'], 'control': assembled['control']['summary'], 'reserves': assembled['control'].get('reserves', [])[:10],
+               'artifact_id': package['artifact_id'], 'plan_revision': package['plan_revision'], 'profile': package['profile']})
     return package, 'accepte', [], {'route': {'purpose': 'aucun'}}
 
 
@@ -1138,10 +1468,17 @@ def control(desk, data, owner='cabinet', admin=False):
     m = _mission_row(desk, str(data.get('id') or ''), owner, admin)
     action = str(data.get('action') or '')
     now = _now_iso()
+    reason = str(data.get('reason') or data.get('instruction') or '')[:200]
     if action == 'pause':
-        desk.db.execute("UPDATE missions5614 SET state='suspendue',updated=? WHERE id=?", (now, m['id']))
+        # 5.6.24 (F01) : transition transactionnelle ; la génération de mandat révoque les tentatives en cours (auteur, heure, raison journalisés)
+        if desk.db.in_transaction:
+            desk.db.commit()
+        desk.db.execute('BEGIN IMMEDIATE')
+        desk.db.execute("UPDATE missions5614 SET state='suspendue',mandate=mandate+1,updated=? WHERE id=?", (now, m['id']))
         desk.db.execute("UPDATE tasks5614 SET run_state='suspendue',updated=? WHERE mission=? AND run_state IN ('a_preparer','en_attente')", (now, m['id']))
+        desk.db.commit()
         _cancel_jobs(desk, m['id'])
+        desk.audit('mission5614_mandat', {'mission': m['id'], 'transition': 'pause', 'author': owner, 'reason': reason, 'mandate': int(m.get('mandate') or 1) + 1})
     elif action == 'resume':
         if m['state'] == 'annulee':
             raise Stop('mission_annulee')
@@ -1159,11 +1496,17 @@ def control(desk, data, owner='cabinet', admin=False):
         desk.db.commit()
         advance(desk, m['id'])
     elif action == 'cancel':
-        desk.db.execute("UPDATE missions5614 SET state='annulee',updated=? WHERE id=?", (now, m['id']))
+        if desk.db.in_transaction:
+            desk.db.commit()
+        desk.db.execute('BEGIN IMMEDIATE')
+        desk.db.execute("UPDATE missions5614 SET state='annulee',mandate=mandate+1,updated=? WHERE id=?", (now, m['id']))
         desk.db.execute("UPDATE tasks5614 SET run_state='annulee',updated=? WHERE mission=? AND run_state<>'terminee'", (now, m['id']))
         desk.db.execute("UPDATE decisions5614 SET state='annulee',updated=? WHERE mission=? AND state IN ('a_decider','reportee')", (now, m['id']))
+        desk.db.commit()
         _cancel_jobs(desk, m['id'])
-        desk.audit('mission5614_annulee', {'mission': m['id'], 'files_kept': True})
+        # 5.6.24 (F01) : arrêt demandé ≠ effet déjà engagé — les opérations non confirmées sont signalées, jamais annoncées comme sans effet
+        pending = [dict(r) for r in desk.db.execute("SELECT id,task,kind,state,detail FROM ops5614 WHERE mission=? AND state IN ('prepare','en_cours','incertain','conflit')", (m['id'],))]
+        desk.audit('mission5614_annulee', {'mission': m['id'], 'files_kept': True, 'author': owner, 'reason': reason, 'effets_a_rapprocher': len(pending), 'mandate': int(m.get('mandate') or 1) + 1})
     elif action == 'revise':
         text = re.sub(r'\s+', ' ', str(data.get('instruction') or '')).strip()
         codes = [str(c) for c in (data.get('codes') or []) if c]
@@ -1179,45 +1522,99 @@ def control(desk, data, owner='cabinet', admin=False):
         if unknown:
             raise Stop('code_tache_inconnu')
         # invalider les cibles et leurs dépendants ; conserver les autres résultats (révision du plan)
-        todo = set(targets)
-        changed = True
-        while changed:
-            changed = False
-            for t in tasks:
-                if t['code'] not in todo and any(d in todo for d in t['depends_on']):
-                    todo.add(t['code'])
-                    changed = True
-        for code in todo:
-            t = by_code[code]
-            if t['run_state'] == 'terminee' or t['result_outcome'] in OK_OUTCOMES or t['run_state'] in ('en_erreur', 'en_attente'):
-                desk.db.execute("UPDATE tasks5614 SET run_state='a_preparer',result_outcome=CASE WHEN artifact<>'' THEN 'perime' ELSE result_outcome END,error='',updated=? WHERE id=?", (now, t['id']))
-        desk.db.execute("UPDATE missions5614 SET extra_instructions=?,plan_revision=plan_revision+1,validation='non_demandee',validated_hash='',state='active',updated=? WHERE id=?",
-                        (json.dumps(extra, ensure_ascii=False), now, m['id']))
+        todo = _invalidate(desk, m, tasks, set(targets), now)
+        desk.db.execute("UPDATE missions5614 SET extra_instructions=?,plan_revision=plan_revision+1,mandate=mandate+1,validation='non_demandee',validated_hash='',state='active',updated=? WHERE id=?",
+                        (json.dumps(extra, ensure_ascii=False), now, m['id']))   # 5.6.24 (F01) : la révision est une nouvelle génération de mandat
         desk.db.execute("UPDATE decisions5614 SET state='perimee',updated=? WHERE mission=? AND kind IN ('validation','reserve') AND state IN ('a_decider','reportee')", (now, m['id']))
         desk.db.commit()
         desk.audit('mission5614_revision', {'mission': m['id'], 'codes': sorted(todo), 'revision': m['plan_revision'] + 1})
         advance(desk, m['id'])
     elif action == 'validate':
+        # 5.6.24 (F03) : l'empreinte est exigée ; le fichier est RELU à son chemin courant et ses octets comparés au document présenté ; révision du
+        # plan et profil vérifiés ; transition conditionnelle ; validation immuable (hash, auteur, heure) ; en cas d'écart, « validation à renouveler ».
         expected = str(data.get('sha256') or '')
-        row = desk.db.execute("SELECT a.content FROM artifacts5614 a JOIN tasks5614 t ON t.artifact=a.id WHERE a.mission=? AND t.task_type='assemblage' AND a.state='actif' ORDER BY a.created DESC LIMIT 1", (m['id'],)).fetchone()
+        if not expected:
+            raise Stop('empreinte_requise')
+        row = desk.db.execute("SELECT a.id,a.content FROM artifacts5614 a JOIN tasks5614 t ON t.artifact=a.id WHERE a.mission=? AND t.task_type='assemblage' AND a.state='actif' ORDER BY a.created DESC LIMIT 1", (m['id'],)).fetchone()
         if not row:
             raise Stop('aucun_projet_a_valider')
         content = json.loads(row['content'])
         if m['validation'] != 'a_decider':
             raise Stop('validation_non_demandee')
-        if expected and expected != content.get('sha256'):
+        if expected != content.get('sha256'):
             raise Stop('version_validee_perimee')
+        pres = desk.db.execute("SELECT a.content FROM artifacts5614 a JOIN tasks5614 t ON t.artifact=a.id WHERE a.mission=? AND t.task_type='presentation' AND a.state='actif' ORDER BY a.created DESC LIMIT 1", (m['id'],)).fetchone()
+        pres = json.loads(pres['content']) if pres else {}
+        changed = []
+        if pres.get('artifact_id') and pres['artifact_id'] != row['id']:
+            changed.append('document assemblé')
+        if pres.get('plan_revision') is not None and int(pres['plan_revision']) != int(m['plan_revision']):
+            changed.append('révision du plan')
+        if 'profile' in pres and (pres.get('profile') or '') != (m.get('profile') or ''):
+            changed.append('profil procédural')
+        from .document_projects import _dav
+        try:
+            client = _dav(desk)
+            back = client.download(client.stat(content['path']))
+        except Stop as ex:
+            raise Stop('document_valide_introuvable:' + str(ex)[:60]) from None
+        file_sha = hashlib.sha256(back).hexdigest()
+        if file_sha != content.get('sha256'):
+            changed.append('fichier Word (%s)' % content['path'].rsplit('/', 1)[-1])
+        if m.get('snapshot') and not data.get('accepter_sources_modifiees'):
+            try:
+                from . import sources5614
+                delta = sources5614.changed_since(desk, sources5614.get_snapshot(desk, m['snapshot']), dav=client, ignore_prefix=limits(desk)['destination_subfolder'])
+                if delta['changed']:
+                    changed.append('sources du dossier (%d ajout(s), %d modification(s), %d suppression(s), %d courriel(s))' % (len(delta['added']), len(delta['modified']), len(delta['removed']), delta['new_mails']))
+            except Stop:
+                pass
+        if changed:
+            desk.db.execute("UPDATE missions5614 SET validation='a_renouveler',updated=? WHERE id=? AND validation='a_decider'", (now, m['id']))
+            desk.db.commit()
+            desk.audit('mission5614_validation_refusee', {'mission': m['id'], 'changed': changed})
+            raise Stop('document_modifie_depuis_presentation:' + '; '.join(changed)[:160])
         motive = str(data.get('motive') or '')[:500]
         if content.get('control', {}).get('outcome') == 'bloque' and not motive:
             raise Stop('validation_malgre_blocage_motif_requis')
-        desk.db.execute("UPDATE missions5614 SET validation='validee',validated_hash=?,state='validee',updated=? WHERE id=?", (content.get('sha256', ''), now, m['id']))
+        if desk.db.in_transaction:
+            desk.db.commit()
+        desk.db.execute('BEGIN IMMEDIATE')
+        cur = desk.db.execute("UPDATE missions5614 SET validation='validee',validated_hash=?,state='validee',updated=? WHERE id=? AND validation='a_decider' AND plan_revision=? AND mandate=?",
+                              (content.get('sha256', ''), now, m['id'], m['plan_revision'], m.get('mandate') or 1))
+        if not cur.rowcount:
+            desk.db.rollback()
+            raise Stop('validation_concurrente_version_changee')
+        desk.db.execute('INSERT INTO validations5614 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (digest('validation5614|%s|%s|%s' % (m['id'], content.get('sha256', ''), now))[:32], m['id'], row['id'], content.get('sha256', ''), file_sha, content['path'],
+                         owner, m['plan_revision'], m.get('profile') or '', m.get('snapshot') or '', motive, now))
         desk.db.execute("UPDATE decisions5614 SET state='repondue',answer=?,updated=? WHERE mission=? AND kind='validation' AND state='a_decider'",
-                        (json.dumps({'validated': True, 'motive': motive, 'sha256': content.get('sha256', '')}), now, m['id']))
-        desk.audit('mission5614_validee', {'mission': m['id'], 'sha256': content.get('sha256', ''), 'motive': bool(motive), 'control_outcome': content.get('control', {}).get('outcome')})
+                        (json.dumps({'validated': True, 'motive': motive, 'sha256': content.get('sha256', ''), 'file_sha256': file_sha, 'author': owner}), now, m['id']))
+        desk.db.commit()
+        desk.audit('mission5614_validee', {'mission': m['id'], 'sha256': content.get('sha256', ''), 'file_sha256': file_sha, 'author': owner, 'motive': bool(motive),
+                                           'control_outcome': content.get('control', {}).get('outcome')})
     else:
         raise Stop('action_mission_invalide')
     desk.db.commit()
     return get(desk, m['id'], owner, admin)
+
+
+def _invalidate(desk, m, tasks, targets, now):
+    """Remet à préparer les tâches ciblées et toutes celles qui en dépendent (résultats marqués périmés) ; retourne l'ensemble des codes."""
+    by_code = {t['code']: t for t in tasks}
+    todo = set(targets)
+    changed = True
+    while changed:
+        changed = False
+        for t in tasks:
+            if t['code'] not in todo and any(d in todo for d in t['depends_on']):
+                todo.add(t['code'])
+                changed = True
+    for code in todo:
+        t = by_code[code]
+        if t['run_state'] == 'terminee' or t['result_outcome'] in OK_OUTCOMES or t['run_state'] in ('en_erreur', 'en_attente'):
+            desk.db.execute("UPDATE tasks5614 SET run_state='a_preparer',result_outcome=CASE WHEN artifact<>'' THEN 'perime' ELSE result_outcome END,error='',updated=? WHERE id=?", (now, t['id']))
+    return todo
 
 
 def _cancel_jobs(desk, ident):
@@ -1275,6 +1672,34 @@ def decide(desk, data, owner='cabinet', admin=False):
         answers['reserve_decision'] = str(answer.get('decision') or 'corriger')
     elif d['kind'] == 'role_desactive':
         pass
+    elif d['kind'] == 'perimetre_lecture':   # 5.6.24 (F06)
+        choice = str(answer.get('choix') or 'tout')
+        if choice not in ('tout', 'essentielles'):
+            raise Stop('choix_perimetre_invalide')
+        answers['perimetre_lecture'] = choice
+    elif d['kind'] == 'sources_modifiees':   # 5.6.24 (F06)
+        choice = str(answer.get('choix') or '')
+        if choice == 'continuer':
+            answers['sources_modifiees_acceptees'] = str(payload.get('current_snapshot') or '')
+        elif choice == 'reprendre':
+            tasks = _tasks(desk, m['id'])
+            codes = [t['code'] for t in tasks if t['task_type'] == 'inventaire']
+            if codes:
+                _invalidate(desk, m, tasks, set(codes), now)
+        else:
+            raise Stop('choix_sources_invalide')
+    elif d['kind'] == 'effet_incertain':   # 5.6.24 (F02)
+        choice = str(answer.get('choix') or '')
+        op = desk.db.execute('SELECT * FROM ops5614 WHERE id=?', (str(payload.get('op') or ''),)).fetchone()
+        if choice not in ('fichier_present', 'fichier_absent'):
+            raise Stop('choix_effet_invalide')
+        if op:
+            detail = json.loads(op['detail'] or '{}')
+            if choice == 'fichier_present' and detail.get('path'):
+                desk.db.execute("UPDATE ops5614 SET state='confirme',remote_ref=?,detail=?,updated=? WHERE id=?", (detail['path'], json.dumps({**detail, 'confirmed_by': owner}), now, op['id']))
+            else:
+                desk.db.execute("UPDATE ops5614 SET state='abandonne',detail=?,updated=? WHERE id=?", (json.dumps({**detail, 'abandoned_by': owner, 'choice': choice}), now, op['id']))
+        desk.audit('mission5614_effet_rapproche', {'mission': m['id'], 'op': str(payload.get('op') or ''), 'choice': choice, 'author': owner})
     elif d['kind'] == 'validation':
         raise Stop('utiliser_action_validate')
     desk.db.execute('UPDATE missions5614 SET answers=?,updated=? WHERE id=?', (json.dumps(answers, ensure_ascii=False), now, m['id']))
@@ -1344,3 +1769,6 @@ def run_pending(desk, ident, max_rounds=40):
             desk.db.commit()
             done += 1
     return done
+
+
+DECISION_LABELS.update({'perimetre_lecture': 'Périmètre de lecture des pièces', 'sources_modifiees': 'Dossier modifié depuis l’inventaire', 'effet_incertain': 'Dépôt interrompu à vérifier'})   # 5.6.24

@@ -164,6 +164,15 @@ def page(desk, auth, prefix, env, args, path='/parametres'):
         + ' title="' + e(desc, quote=True) + '">' + e(label) + '</a>' for key, label, desc in RUBRIQUES) + '</nav>'
     label, desc = next((l, d) for k, l, d in RUBRIQUES if k == current)
     body = '<h1>Paramètres</h1>' + nav + '<p class="p5621-intro"><strong>' + e(label) + '</strong> — ' + e(desc) + '</p>'
+    nc = desk.c.get('nextcloud') or {}
+    if current == 'connexions' and not nc.get('local_path') and 'example.com' in str(nc.get('url', 'example.com')):   # 5.6.24 (F19)
+        body += ('<section class="p5621-first" role="note"><h2>Premier lancement : trois étapes</h2><ol>'
+                 '<li><strong>Dossiers</strong> — dans « Nextcloud », cliquez sur <em>📁 Choisir…</em> à côté de « Dossier de travail local » et désignez le dossier de vos dossiers clients '
+                 '(ou renseignez l’adresse Nextcloud) ; mettez « / » comme racine si vos dossiers clients sont directement dedans.</li>'
+                 '<li><strong>Intelligence artificielle</strong> — vérifiez l’adresse Ollama (locale ou du réseau du cabinet) et le modèle.</li>'
+                 '<li><strong>Enregistrer</strong>, puis « Tester Nextcloud / agendas » et « Tester Ollama ».</li></ol>'
+                 '<p>La messagerie, les agendas et Invoice Ninja sont facultatifs : leurs fonctions restent inactives tant qu’ils ne sont pas configurés. '
+                 'Ce guide disparaît dès qu’un dossier de travail ou Nextcloud est enregistré.</p></section>')
     body += BUILDERS[current](desk, auth, prefix, env, cap)
     body += _section(_links(prefix, RELATED), 'Autres pages de réglage et d’outillage')
     return shell('Paramètres · ' + label, body, prefix, auth['csrf'], '/parametres', cap.head)

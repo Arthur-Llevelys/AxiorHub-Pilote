@@ -41,8 +41,8 @@
   }
 
   document.addEventListener('submit', function (ev) {
-    var form = ev.target.closest && ev.target.closest('form.m5-form');
-    if (!form) return;
+    var form = ev.target.closest && ev.target.closest('form.m5-form[data-api]');   // 5.6.24 (F37) : un formulaire GET natif (sélecteur de dossier) n'est plus détourné
+    if (!form || !form.getAttribute('data-api')) return;
     ev.preventDefault();
     var conf = form.getAttribute('data-confirm');
     if (conf && !window.confirm(conf)) return;

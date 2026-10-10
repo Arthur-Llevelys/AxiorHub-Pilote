@@ -880,6 +880,14 @@ aside details.ws-rubriques .ws-sub a{padding:7px 13px;font-size:.92rem}
 .ia540-modes article{border:1px solid var(--ws-border,#e1e5eb);border-radius:10px;padding:14px;background:var(--ws-surface,#fff)}
 .ia540-modes h3{margin:0 0 6px}
 .ia540-sent{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--ws-paper,#f8fafc);border:1px solid var(--ws-border,#e1e5eb);border-radius:8px;padding:12px;max-height:420px;overflow:auto;font-size:.88rem}
+
+/* 5.6.24 : boutons-icônes d'Aujourd'hui */
+.c530-has-icons{display:flex;align-items:flex-start;gap:6px}.c530-has-icons>.c530-item,.c530-has-icons>div,.c530-has-icons>label{flex:1;min-width:0}
+.c530-icons{display:inline-flex;gap:2px;flex:none;align-items:center}
+.c530-ico{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:8px;background:none;color:var(--ax-mute,#64707f);cursor:pointer}
+.c530-ico:hover,.c530-ico:focus-visible{border-color:#dfe3e9;color:inherit}.c530-ico.trash:hover{color:#b3261e}
+.c530-ico[hidden]{display:none}
+.c530-dayform{display:grid;gap:10px}.c530-dayform label{display:grid;gap:4px}.c530-dayform input{font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px}
 /* ==== v550.css ==== */
 /* AxiorHub 5.5.0 — « Mon style », carte du poste de pilotage, menu plus robuste. Variables du thème commun (clair et sombre). */
 
@@ -996,6 +1004,14 @@ a.ax-btn.ghost:hover,a.ax-btn.ghost:focus-visible,button.ax-btn.ghost:hover{colo
 .mission567-card button,.mission567-card .btn {min-height:2.75rem;}
 @media(prefers-reduced-motion:reduce) {.mission567-card,*[data-mission-id] {animation:none!important;transition:none!important;}}
 @media(max-width:640px) {#ws-ai-dock {width:calc(100vw - 1rem);right:.5rem;max-height:90dvh;} .mission567-heading button {flex:1 1 auto;}}
+
+/* 5.6.24 : sélection du dossier de travail */
+.browse567-field{display:flex;gap:6px;align-items:center}.browse567-field input{flex:1;min-width:0}
+dialog.browse567{max-width:640px;width:calc(100% - 32px);border:1px solid #dfe3e9;border-radius:12px;padding:16px}
+.browse567-path{font-family:monospace;word-break:break-all}.browse567-roots{display:flex;gap:6px;flex-wrap:wrap}
+.browse567-list{list-style:none;margin:8px 0;padding:0;max-height:50vh;overflow:auto}.browse567-list li{margin:2px 0}
+.browse567-dir{width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:8px;padding:6px 8px;cursor:pointer;color:inherit}
+.browse567-dir:hover{border-color:#dfe3e9}.browse567-actions{display:flex;gap:8px;justify-content:flex-end}
 /* ==== v568.css ==== */
 /* 5.6.8 : suites de missions et conversation, mêmes variables de thème. */
 .proactive568-heading{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-bottom:1.5rem}

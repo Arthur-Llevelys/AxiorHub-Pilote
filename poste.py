@@ -27,8 +27,15 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
+
+try:
+    import fcntl
+except ImportError:   # Windows (tests) : pas de verrou d'instance, contrôle du PID seulement
+    fcntl = None
+RESTART_LIMIT = (5, 600)   # 5.6.24 (F24) : au plus 5 reprises par service en 10 minutes, puis défaut visible
 
 ROOT = Path(__file__).resolve().parent
 APP = 'axiorhub-pilote'
@@ -104,6 +111,26 @@ def credentials(p):
     return auth.get('username', 'admin'), password
 
 
+def _lock_path(p):
+    return p['logs'] / 'poste.lock'
+
+
+def _lock_held(p):
+    """5.6.24 (F24) : l'instance est vivante si son verrou est tenu ; un ancien PID réutilisé par un autre programme ne compte pas."""
+    if fcntl is None:
+        return None
+    try:
+        with open(_lock_path(p), 'a') as handle:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
+            fcntl.flock(handle, fcntl.LOCK_UN)
+            return False
+    except OSError:
+        return None
+
+
 def runtime(p):
     try:
         info = json.loads(p['runtime'].read_text(encoding='utf-8'))
@@ -113,7 +140,19 @@ def runtime(p):
         os.kill(int(info['pid']), 0)
     except (OSError, ValueError, TypeError):
         return None
+    if _lock_held(p) is False:
+        return None   # fichier périmé : PID vivant mais ce n'est plus l'instance AxiorHub
     return info
+
+
+def first_run(p):
+    """5.6.24 (F19) : profil neuf = ni dossier de travail local ni Nextcloud renseigné."""
+    try:
+        cfg = json.loads(p['config'].read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return True
+    nc = cfg.get('nextcloud') or {}
+    return not nc.get('local_path') and 'example.com' in str(nc.get('url', 'example.com'))
 
 
 def probe(port, timeout=2):
@@ -130,38 +169,103 @@ def probe(port, timeout=2):
 class Supervisor:
     """Interface, worker, veille IMAP et passage périodique de l'agent, comme les unités systemd du serveur."""
 
+    SERVICES = ('interface', 'worker', 'veille')
+
     def __init__(self, p, port=DEFAULT_PORT, python=None, interval_minutes=5, root=ROOT):
         self.p, self.port, self.python, self.root = p, int(port), python or sys.executable, Path(root)
         self.interval = max(1, int(interval_minutes)) * 60
         self.procs, self.logs, self.stop_event = {}, {}, threading.Event()
-        self.timer = None
+        self.timer = self.monitor = None
+        self.args, self.restarts, self.faults, self.lock = {}, {}, {}, None
+        self.registry_lock = threading.Lock()
 
     def _spawn(self, name, args):
-        log = open(self.p['logs'] / (name + '.log'), 'ab')
-        self.logs[name] = log
+        log = self.logs.get(name)
+        if log is None or log.closed:
+            log = open(self.p['logs'] / (name + '.log'), 'ab')
+            self.logs[name] = log
         env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8'}
-        self.procs[name] = subprocess.Popen([self.python, *args], cwd=str(self.root), stdout=log, stderr=subprocess.STDOUT, env=env)
+        extra = {'start_new_session': True} if os.name == 'posix' else {}   # groupe de processus : les descendants s'arrêtent avec lui
+        self.args[name] = args
+        self.procs[name] = subprocess.Popen([self.python, *args], cwd=str(self.root), stdout=log, stderr=subprocess.STDOUT, env=env, **extra)
+        return self.procs[name]
+
+    def _write_runtime(self):
+        _write_private(self.p['runtime'], json.dumps({'pid': os.getpid(), 'port': self.port, 'started': getattr(self, 'started', ''),
+                                                      'processes': {k: self.procs[k].pid for k in self.SERVICES if k in self.procs},
+                                                      'restarts': {k: len(v) for k, v in self.restarts.items()}, 'defauts': self.faults}) + '\n')
 
     def start(self):
+        self.p['logs'].mkdir(parents=True, exist_ok=True)
+        if fcntl is not None:   # 5.6.24 (F24) : une seule instance par profil, verrou du système tenu pendant toute la vie du superviseur
+            self.lock = open(_lock_path(self.p), 'a')
+            try:
+                fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                self.lock.close(); self.lock = None
+                raise RuntimeError('instance_axiorhub_deja_active')
         cfg = ['--config', str(self.p['config'])]
         self._spawn('interface', [str(self.root / 'web.py'), 'serve', *cfg, '--auth', str(self.p['auth']), '--port', str(self.port)])
         self._spawn('worker', [str(self.root / 'web.py'), 'worker', *cfg])
         self._spawn('veille', [str(self.root / 'web.py'), 'watch', *cfg])
+        self.started = time.strftime('%Y-%m-%dT%H:%M:%S')
         self.timer = threading.Thread(target=self._periodic, name='axiorhub-poste-periodique', daemon=True)
         self.timer.start()
+        self.monitor = threading.Thread(target=self._watch, name='axiorhub-poste-surveillance', daemon=True)
+        self.monitor.start()
         self.p['runtime'].parent.mkdir(parents=True, exist_ok=True)
-        _write_private(self.p['runtime'], json.dumps({'pid': os.getpid(), 'port': self.port, 'started': time.strftime('%Y-%m-%dT%H:%M:%S'),
-                                                      'processes': {k: v.pid for k, v in self.procs.items()}}) + '\n')
+        self._write_runtime()
         return self
 
+    def _watch(self):
+        """5.6.24 (F24) : surveillance bornée — un service arrêté est relancé avec une temporisation progressive ; au-delà de
+        RESTART_LIMIT, la boucle de plantage devient un défaut visible (runtime.json, journal) au lieu d'une relance infinie."""
+        while not self.stop_event.wait(2):
+            for name in self.SERVICES:
+                proc = self.procs.get(name)
+                if proc is None or proc.poll() is None or name in self.faults:
+                    continue
+                now = time.time()
+                history = [t for t in self.restarts.get(name, []) if now - t < RESTART_LIMIT[1]]
+                if len(history) >= RESTART_LIMIT[0]:
+                    self.faults[name] = 'arrets_repetes_code_%s' % proc.returncode
+                    self._log('Service %s arrêté %d fois en 10 minutes : relance suspendue (voir %s.log).' % (name, len(history), name))
+                    self._write_runtime()
+                    continue
+                if self.stop_event.wait(min(60, 2 ** len(history))):
+                    return
+                with self.registry_lock:
+                    if self.stop_event.is_set():
+                        return
+                    history.append(time.time())
+                    self.restarts[name] = history
+                    self._log('Service %s arrêté (code %s) : relance n° %d.' % (name, proc.returncode, len(history)))
+                    self._spawn(name, self.args[name])
+                    self._write_runtime()
+
+    def _log(self, message):
+        try:
+            with open(self.p['logs'] / 'superviseur.log', 'a', encoding='utf-8') as handle:
+                handle.write(time.strftime('%Y-%m-%dT%H:%M:%S ') + message + '\n')
+        except OSError:
+            pass
+
     def _periodic(self):
+        """Passage périodique de l'agent : processus enregistré (arrêté avec les autres), jamais un subprocess.run non suivi (F24)."""
         while not self.stop_event.wait(self.interval):
-            try:
-                with open(self.p['logs'] / 'passage.log', 'ab') as log:
-                    subprocess.run([self.python, str(self.root / 'manage.py'), '--config', str(self.p['config']), 'run'],
-                                   cwd=str(self.root), stdout=log, stderr=subprocess.STDOUT, timeout=3600)
-            except (OSError, subprocess.SubprocessError):
-                pass
+            with self.registry_lock:
+                if self.stop_event.is_set():
+                    return
+                try:
+                    proc = self._spawn('passage', [str(self.root / 'manage.py'), '--config', str(self.p['config']), 'run'])
+                except OSError:
+                    continue
+            deadline = time.time() + 3600
+            while proc.poll() is None and not self.stop_event.is_set() and time.time() < deadline:
+                time.sleep(1)
+            if proc.poll() is None and not self.stop_event.is_set():
+                self._log('Passage périodique interrompu après une heure.')
+                self._terminate(proc)
 
     def wait_ready(self, timeout=60):
         deadline = time.time() + timeout
@@ -176,23 +280,49 @@ class Supervisor:
     def alive(self):
         return {name: proc.poll() is None for name, proc in self.procs.items()}
 
+    @staticmethod
+    def _terminate(proc, sig=signal.SIGTERM):
+        if proc.poll() is not None:
+            return
+        try:
+            if os.name == 'posix':
+                os.killpg(proc.pid, sig)   # le groupe entier : aucun descendant oublié
+            elif sig == signal.SIGTERM:
+                proc.terminate()
+            else:
+                proc.kill()
+        except (OSError, ProcessLookupError):
+            pass
+
     def stop(self, timeout=15):
         self.stop_event.set()
-        for proc in self.procs.values():
-            if proc.poll() is None:
-                proc.terminate()
+        with self.registry_lock:
+            procs = list(self.procs.values())
+        for proc in procs:
+            self._terminate(proc)
         deadline = time.time() + timeout
-        for proc in self.procs.values():
+        for proc in procs:
             try:
                 proc.wait(max(0.1, deadline - time.time()))
             except subprocess.TimeoutExpired:
-                proc.kill()
+                self._terminate(proc, getattr(signal, 'SIGKILL', signal.SIGTERM))
+                try:
+                    proc.wait(5)
+                except subprocess.TimeoutExpired:
+                    pass
         for log in self.logs.values():
             log.close()
         try:
             self.p['runtime'].unlink()
         except OSError:
             pass
+        if self.lock is not None:
+            try:
+                fcntl.flock(self.lock, fcntl.LOCK_UN)
+            except OSError:
+                pass
+            self.lock.close()
+            self.lock = None
 
 
 def open_window(url, user, password, title='AxiorHub Pilote'):
@@ -207,11 +337,35 @@ def open_window(url, user, password, title='AxiorHub Pilote'):
     window = Gtk.Window(title=title)
     window.set_default_size(1280, 860)
     view = WebKit2.WebView()
+    parsed = urllib.parse.urlsplit(url)
+    origin = '%s://%s' % (parsed.scheme, parsed.netloc)
 
     def authenticate(_view, request):
+        # 5.6.24 (F24) : les identifiants locaux ne répondent qu'à l'origine locale attendue (hôte et port) ; toute autre demande est annulée
+        try:
+            ok = request.get_host() in ('127.0.0.1', 'localhost') and int(request.get_port()) == int(parsed.port or 80)
+        except (AttributeError, TypeError, ValueError):
+            ok = False
+        if not ok:
+            request.cancel()
+            return True
         request.authenticate(WebKit2.Credential.new(user, password, WebKit2.CredentialPersistence.FOR_SESSION))
         return True
+
+    def policy(_view, decision, kind):
+        # liens externes : navigateur du système ; la fenêtre AxiorHub ne quitte jamais l'origine locale
+        if kind in (WebKit2.PolicyDecisionType.NAVIGATION_ACTION, WebKit2.PolicyDecisionType.NEW_WINDOW_ACTION):
+            try:
+                target = decision.get_navigation_action().get_request().get_uri() or ''
+            except AttributeError:
+                return False
+            if target and not (target == origin or target.startswith(origin + '/') or target.startswith('about:')):
+                webbrowser.open(target)
+                decision.ignore()
+                return True
+        return False
     view.connect('authenticate', authenticate)
+    view.connect('decide-policy', policy)
     window.add(view)
     view.load_uri(url)
     window.connect('destroy', Gtk.main_quit)
@@ -260,7 +414,11 @@ def main(argv=None):
         port = int(existing['port'])
     else:
         port = args.port
-        supervisor = Supervisor(p, port, interval_minutes=args.interval).start()
+        try:
+            supervisor = Supervisor(p, port, interval_minutes=args.interval).start()
+        except RuntimeError as error:
+            print('Une instance AxiorHub est déjà active pour ce profil (' + str(error) + ').', file=sys.stderr)
+            return 1
         stopping = threading.Event()
 
         def on_signal(*_):
@@ -271,7 +429,7 @@ def main(argv=None):
             supervisor.stop()
             print('L’interface locale n’a pas démarré : consultez ' + str(p['logs'] / 'interface.log'), file=sys.stderr)
             return 1
-    url = origin_for(port) + PREFIX + '/'
+    url = origin_for(port) + PREFIX + ('/parametres?rubrique=connexions&premier=1' if first_run(p) else '/')   # 5.6.24 (F19) : premier lancement guidé
     if args.no_window:
         print('Services AxiorHub actifs sur ' + url + ' (identifiants : python3 poste.py --print-password)')
         if supervisor:

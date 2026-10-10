@@ -18,6 +18,10 @@ import test_v5613 as t5613
 
 ROOT = Path(__file__).resolve().parents[1]
 ALPHA = '20240101001'
+# 5.6.24 (F07) : forme réelle d'une autorité vérifiée (verify_official_decision), et non plus un objet {id, title} inexistant dans le code
+VERIFIED_54 = {'authority_id': 'a' * 64, 'status': 'verified', 'citable': True, 'identifier': 'CPC art. 54', 'ecli': '', 'title': 'CPC art. 54', 'court': '', 'date': '',
+               'official_url': 'https://legifrance.example/54', 'exact_excerpt': 'La demande initiale est formée par assignation ou par requête remise ou adressée au greffe.',
+               'official_text_sha256': 'b' * 64, 'verified_at': '2026-10-10T00:00:00+00:00'}
 
 
 class TaskModel:
@@ -63,7 +67,7 @@ class Base(t530.Base):
                   patch('agent.controle5614._control_model', return_value=FakeController()),
                   patch('agent.control470.quality', return_value={'mentions': None, 'citations': {'items': [], 'counts': {}, 'total': 0, 'needs_check': False, 'headline': '', 'sources': {}}, 'fact_date': ''}),
                   patch('agent.documents.extract_pages', side_effect=fake_pages),
-                  patch('agent.legal_research.research_enabled_mcp', return_value={'status': 'completed', 'verified_authorities': [{'id': 'auth-1', 'title': 'CPC art. 54', 'official_url': 'https://legifrance.example/54'}], 'leads': [], 'connectors': []})):
+                  patch('agent.legal_research.research_enabled_mcp', return_value={'status': 'completed', 'verified_authorities': [VERIFIED_54], 'leads': [], 'connectors': []})):
             p.start();self.addCleanup(p.stop)
 
     def mission(self, instruction='Prépare une assignation au fond devant le tribunal judiciaire', key='k', **kw):
@@ -382,8 +386,8 @@ class FakeNinjaHTTP:
                 raise Stop('http_422')
             self.n += 1;rid = 'id%d' % self.n
             row = {**data, 'id': rid, 'status_id': '1', 'number': entity[:3].upper() + str(self.n), 'updated_at': self.n}
-            if entity == 'invoices':
-                row['amount'] = sum(float(i['cost']) * float(i['quantity']) for i in data['line_items'])
+            if entity in ('invoices', 'quotes'):   # 5.6.24 : montant TTC calculé comme Invoice Ninja (taxe de ligne comprise)
+                row['amount'] = round(sum(float(i['cost']) * float(i['quantity']) * (1 + float(i.get('tax_rate1', 0)) / 100) for i in data['line_items']), 2)
             self.store[entity][rid] = row
             return {'data': row}
         if method == 'PUT':
@@ -422,7 +426,7 @@ class Facturation(Base):
             facturation5614.draft_quote(self.desk, ALPHA, prev['lines'], http=self.http)
         q = facturation5614.draft_quote(self.desk, ALPHA, [{'label': 'Consultation', 'quantity': 2, 'cost': '150.10'}], confirm=True, http=self.http)
         self.assertTrue(q['verified']);self.assertFalse(q['sent']);self.assertFalse(q['converted']);self.assertNotIn('send_email', self.http.store['quotes'][q['quote_id']])
-        remote = {'id': 'i1', 'client_id': 'other', 'status_id': '1', 'line_items': [{'notes': 'Consultation', 'quantity': 2, 'cost': 150.1}]}
+        remote = {'id': 'i1', 'client_id': 'other', 'status_id': '1', 'amount': 300.2, 'line_items': [{'notes': 'Consultation', 'quantity': 2, 'cost': 150.1}]}
         issues = facturation5614.check_lines(remote, {'line_items': [{'notes': 'Consultation', 'quantity': 2, 'cost': 150.1}]}, 'c1', '300.20')
         self.assertEqual(issues, ['client différent'])
         issues = facturation5614.check_lines({**remote, 'client_id': 'c1', 'line_items': [{'notes': 'Autre', 'quantity': 2, 'cost': 150.1, 'tax_rate1': 20}]}, {'line_items': [{'notes': 'Consultation', 'quantity': 2, 'cost': 150.1, 'tax_rate1': 0}]}, 'c1', '300.20')

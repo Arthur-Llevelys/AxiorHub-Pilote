@@ -9,6 +9,9 @@ from .improvements36 import matter_option
 from .common import load_matters
 from .workplan import calendar_events,_calendar_urls,EVENT_UID
 
+JOURS = ('Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche')   # 5.6.24 : libellés indépendants de la locale du serveur
+MOIS = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')
+
 
 def e(value):return escape(str(value if value is not None else ''),quote=True)
 
@@ -152,7 +155,7 @@ def page(desk,args,link,url,form=None):
             days=sorted(by_day)
             out+='<div class="ws-calendar-list">'
         for item in days:
-            out+='<section class="ws-calendar-day" data-day="'+e(item.isoformat())+'"><h3>'+e(item.strftime('%A %d/%m/%Y'))+'</h3>'
+            out+='<section class="ws-calendar-day" data-day="'+e(item.isoformat())+'"><h3>'+e(JOURS[item.weekday()]+item.strftime(' %d/%m/%Y'))+'</h3>'   # 5.6.24 : jours en français
             out+=''.join(event_card(ev) for ev in by_day.get(item,[]))
             if not by_day.get(item):out+='<small>Aucun événement connu</small>'
             out+='</section>'

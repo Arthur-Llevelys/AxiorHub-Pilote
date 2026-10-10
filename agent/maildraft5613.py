@@ -133,8 +133,8 @@ def verify(box, folder, message_id, subject, expected=None):
     issues = []
     if saved.subject != subject:
         issues.append('sujet')
-    flags = getattr(saved, 'flags', ()) or ()
-    if flags and '\\Draft' not in flags:
+    flags = getattr(saved, 'flags', None) or ()
+    if '\\Draft' not in flags:   # 5.6.24 (F21) : le drapeau est exigé, une liste vide ou absente ne vaut pas preuve
         issues.append('drapeau_draft')
     if expected is not None:
         saved_msg = getattr(saved, 'msg', None)
@@ -144,8 +144,8 @@ def verify(box, folder, message_id, subject, expected=None):
             if addresses(str(saved_msg.get('To', ''))) != addresses(str(expected.get('To', ''))) or addresses(str(saved_msg.get('Cc', ''))) != addresses(str(expected.get('Cc', ''))):
                 issues.append('destinataires')
         body_saved = (getattr(saved, 'text', '') or '').replace('\r\n', '\n').strip()
-        if body_saved and body_saved != _body_text(expected):
-            issues.append('corps')
+        if body_saved != _body_text(expected):   # 5.6.24 (F21) : un corps vide ou absent n'est pas conforme
+            issues.append('corps_vide' if not body_saved else 'corps')
     if issues:
         raise Stop('brouillon_contenu_non_conforme_' + '_'.join(issues))
     return {'uid': saved.uid, 'uidvalidity': getattr(saved, 'uidvalidity', ''), 'folder': folder, 'verified_at': datetime.now(timezone.utc).isoformat(),

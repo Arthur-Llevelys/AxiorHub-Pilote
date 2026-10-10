@@ -89,7 +89,7 @@ def page(desk, auth, prefix, env, args):
             body += '<p class="notice">%s</p>' % e(str(ex))
     rows = taches5614.listing(desk, owner, role == 'administrateur', prefix)
     body += '<h2>Missions</h2>' + (''.join(mission_html(m, prefix, detailed=False) for m in rows) if rows else '<p class="c530-empty">Aucune mission complexe.</p>')
-    body += '<script defer src="%s/static/v5614.js"></script></div>' % e(prefix)
+    body += '</div>'   # 5.6.24 (F36) : v5614.js est déjà chargé par l'en-tête commun ; un second chargement doublait chaque commande
     return shell('Missions complexes', body, prefix, auth['csrf'], '/production')
 
 

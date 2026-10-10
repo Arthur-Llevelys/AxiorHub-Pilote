@@ -256,7 +256,7 @@ class Installation(unittest.TestCase):
     def test_finish_refuses_example_connections(self):
         csrf = re.search(r'name="csrf" value="([^"]+)"', self.call('/installation', cookie=self.admin)['body']).group(1)
         r = self.call('/installation', 'POST', {'csrf': csrf, 'op': 'finish', 'prenom': 'C', 'nom': 'E', 'barreau': 'Lyon'}, cookie=self.admin)
-        self.assertIn('À compléter avant de terminer : messagerie, Nextcloud.', r['body'])
+        self.assertIn('À compléter avant de terminer : dossiers du cabinet (dossier local ou Nextcloud).', r['body'])   # 5.6.24 (F20) : messagerie facultative
         self.assertNotIn('installation', {k: v for k, v in self.cfg().items() if k == 'installation' and v.get('done')})
 
 
@@ -284,7 +284,7 @@ class Identity(t510.Base):
         self.assertIn('AGPL', about)
         home = self.request('/')['body']
         self.assertIn('AxiorHub Pilote — créé par Timo RAINIO', home)
-        self.assertIn('Version 5.6.23', home)
+        self.assertIn('Version 5.6.24', home)
         with patch.dict(os.environ, {'AXIORHUB_SOURCE_URL': 'https://git.example.test/axiorhub'}):
             self.assertIn('href="https://git.example.test/axiorhub"', self.request('/a-propos')['body'])
 
@@ -417,8 +417,8 @@ class Paths(unittest.TestCase):
     def test_version(self):
         import upgrade
         from agent import __version__
-        self.assertEqual(__version__, '5.6.23')
-        self.assertEqual(upgrade.VERSION, '5.6.23')
+        self.assertEqual(__version__, '5.6.24')
+        self.assertEqual(upgrade.VERSION, '5.6.24')
         self.assertIn('5.5.0', upgrade.SUPPORTED_PREVIOUS)
 
 

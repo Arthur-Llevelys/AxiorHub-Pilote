@@ -39,6 +39,13 @@ def recover(desk, worker_id):
     for row in rows:
         if row['status']=='cancel_requested':
             state,result='cancelled',{'message':'Arrêt confirmé au redémarrage ; les dépôts déjà effectués restent conservés.'};counts['cancelled']+=1
+        elif row['kind']=='task5614':   # 5.6.24 (F02) : rapprochement des opérations avant toute reprise d'une tâche de mission
+            try:
+                from .taches5614 import recover_job
+                state,result=recover_job(desk,json.loads(row['args'] or '{}'))
+            except Exception as ex:
+                state,result='error',{'erreur':'reprise_mission_impossible:'+str(ex)[:80]}
+            counts['resumed' if state=='pending' else ('cancelled' if state=='cancelled' else 'review')]+=1
         elif row['kind'] in REPLAY_SAFE and int(row['attempts'] or 0)<3:
             state,result='pending',None;counts['resumed']+=1
         else:

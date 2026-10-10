@@ -146,7 +146,7 @@ def api(env,desk,auth,prefix,name,args,method):
         if route=='ninja/clients/search':return json_out({'clients':facturation5614.search_clients(desk,str(data.get('name') or ''),str(data.get('email') or ''),str(data.get('siren') or ''))})
         if route=='ninja/project':return json_out(facturation5614.ensure_project(desk,str(data.get('matter') or ''),data))
         if route=='ninja/quote/preview':return json_out(facturation5614.preview_quote(desk,str(data.get('matter') or ''),data.get('items') or [],str(data.get('terms') or ''),data.get('validity_days') or 30,str(data.get('note') or '')))
-        if route=='ninja/quote':return json_out(facturation5614.draft_quote(desk,str(data.get('matter') or ''),data.get('items') or [],confirm=data.get('confirm'),terms=str(data.get('terms') or ''),validity_days=data.get('validity_days') or 30,note=str(data.get('note') or '')))
+        if route=='ninja/quote':return json_out(facturation5614.draft_quote(desk,str(data.get('matter') or ''),data.get('items') or [],confirm=data.get('confirm'),terms=str(data.get('terms') or ''),validity_days=data.get('validity_days') or 30,note=str(data.get('note') or ''),request_key=str(data.get('request_key') or '')))
         if route=='ninja/sync':return json_out({'changes':facturation5614.pull(desk),'message':'Statuts et paiements relus depuis Invoice Ninja.'})
         raise Stop('route_inconnue')
     if route=='docreq/control':         # 5.6.13 : « À décider » — demande de document bloquée reprise avec le dossier choisi

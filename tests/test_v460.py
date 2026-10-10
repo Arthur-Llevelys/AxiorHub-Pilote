@@ -379,7 +379,7 @@ class Pages(Base0 if False else unittest.TestCase):
         r, out = self.post('fiche/refresh', {'matter': 'DOS-001'})
         self.assertIn('job_id', out)
         kinds = {row[0] for row in self.desk.db.execute('SELECT kind FROM jobs')}
-        self.assertTrue({'extract_facts460', 'sync_legal_memory'} <= kinds)
+        self.assertTrue({'extract_facts460', 'analyser_dossier5624'} <= kinds)   # 5.6.24 (F25) : analyse complète suivie
         self.assertTrue(self.post('fact/scan', {'matter': 'NOPE'})[0]['status'].startswith('400'))
 
     def test_html_in_facts_is_escaped(self):

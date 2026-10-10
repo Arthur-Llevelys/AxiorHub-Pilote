@@ -131,3 +131,11 @@ aside details.ws-rubriques .ws-sub a{padding:7px 13px;font-size:.92rem}
 .ia540-modes article{border:1px solid var(--ws-border,#e1e5eb);border-radius:10px;padding:14px;background:var(--ws-surface,#fff)}
 .ia540-modes h3{margin:0 0 6px}
 .ia540-sent{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--ws-paper,#f8fafc);border:1px solid var(--ws-border,#e1e5eb);border-radius:8px;padding:12px;max-height:420px;overflow:auto;font-size:.88rem}
+
+/* 5.6.24 : boutons-icônes d'Aujourd'hui */
+.c530-has-icons{display:flex;align-items:flex-start;gap:6px}.c530-has-icons>.c530-item,.c530-has-icons>div,.c530-has-icons>label{flex:1;min-width:0}
+.c530-icons{display:inline-flex;gap:2px;flex:none;align-items:center}
+.c530-ico{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:8px;background:none;color:var(--ax-mute,#64707f);cursor:pointer}
+.c530-ico:hover,.c530-ico:focus-visible{border-color:#dfe3e9;color:inherit}.c530-ico.trash:hover{color:#b3261e}
+.c530-ico[hidden]{display:none}
+.c530-dayform{display:grid;gap:10px}.c530-dayform label{display:grid;gap:4px}.c530-dayform input{font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px}

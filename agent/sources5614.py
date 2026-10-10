@@ -99,11 +99,14 @@ def get_snapshot(desk, sid):
     return data
 
 
-def changed_since(desk, snapshot_data, dav=None):
-    """Delta entre l'instantané et l'état actuel (nouveaux fichiers, versions modifiées, disparus)."""
+def changed_since(desk, snapshot_data, dav=None, ignore_prefix=''):
+    """Delta entre l'instantané et l'état actuel (nouveaux fichiers, versions modifiées, disparus).
+    5.6.24 (F06) : ``ignore_prefix`` (sous-dossier des dépôts de l'agent) est exclu de la comparaison."""
     current = snapshot(desk, snapshot_data['matter'], dav=dav)
-    before = {f['path']: f for f in snapshot_data.get('files', [])}
-    after = {f['path']: f for f in current.get('files', [])}
+    skip = ('/' + str(ignore_prefix).strip('/') + '/') if ignore_prefix else None
+    keep = lambda p: not skip or skip not in p
+    before = {f['path']: f for f in snapshot_data.get('files', []) if keep(f['path'])}
+    after = {f['path']: f for f in current.get('files', []) if keep(f['path'])}
     added = [p for p in after if p not in before]
     removed = [p for p in before if p not in after]
     modified = [p for p in after if p in before and (after[p]['version'] != before[p]['version'] or after[p]['size'] != before[p]['size'])]
@@ -113,15 +116,21 @@ def changed_since(desk, snapshot_data, dav=None):
             'current_snapshot': current['id']}
 
 
-def read_file(desk, client, matter_id, path, snapshot_id='', max_chars=2_000_000):
-    """Lecture intégrale avec couverture par page ; l'illisible et le chiffré sont signalés, jamais ignorés."""
+def read_file(desk, client, matter_id, path, snapshot_id='', max_chars=2_000_000, expected_version=''):
+    """Lecture intégrale avec couverture par page ; l'illisible et le chiffré sont signalés, jamais ignorés.
+    5.6.24 (F06) : ``expected_version`` (version de l'instantané) est comparée à la version courante ; un écart est un conflit nommé
+    (statut « version_modifiee »), jamais une lecture silencieuse de la dernière version."""
     ensure_schema(desk)
     from .documents import extract, extract_pages
     path = clean_path(path)
     sid = source_id(matter_id, path)
     name = PurePosixPath(path).name
     try:
-        raw = client.download(client.stat(path))
+        meta = client.stat(path)
+        if expected_version and str(meta.get('etag', '') or '') != str(expected_version):
+            return {'source_id': sid, 'path': path, 'name': name, 'status': 'version_modifiee', 'error': 'version_attendue_differente', 'expected': str(expected_version),
+                    'found': str(meta.get('etag', '') or ''), 'text': '', 'pages': [], 'coverage': {'total': 0, 'text': 0, 'blank': 0, 'unreadable': 0}}
+        raw = client.download(meta)
     except Stop as ex:
         return {'source_id': sid, 'path': path, 'status': 'indisponible', 'error': str(ex), 'text': '', 'pages': [], 'coverage': {'total': 0, 'text': 0, 'blank': 0, 'unreadable': 0}}
     cfg = {**desk.c.get('documents', {}), 'max_document_chars': max_chars, 'max_document_chars_long': max_chars}

@@ -48,3 +48,17 @@ a:focus-visible,button:focus-visible,summary:focus-visible,.ck-main:focus-visibl
 .fc-line time{color:#64707f;font-size:13px}
 @media (max-width:700px){.fc-line{grid-template-columns:1fr;gap:2px}.fc-btns .ax-btn{flex:1 1 100%}}
 .ck-folded summary strong{margin-right:.35em}
+/* 5.6.24 : onglets du dossier, analyse suivie, rubriques */
+.fc-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px;border-bottom:1px solid #dfe3e9;padding-bottom:8px}
+.fc-tab{padding:6px 12px;border-radius:8px;text-decoration:none;color:inherit;min-height:36px;display:inline-flex;align-items:center;border:1px solid transparent}
+.fc-tab:hover{border-color:#dfe3e9}.fc-tab.on{background:#1f4e9c;color:#fff}
+.fc-analysis{margin-bottom:14px}.fc-analysis p{margin:4px 0}.fc-step{margin:4px 0}
+.fc-step.fc-s-erreur{color:#7a1710}.fc-step.fc-s-ok{color:inherit}
+.fc-rubrique{margin-bottom:14px}.fc-rubrique h3{font-size:15px;margin:14px 0 4px}
+.fc-table{width:100%;border-collapse:collapse;font-size:14px}.fc-table th,.fc-table td{border-bottom:1px solid #dfe3e9;padding:6px;text-align:left;vertical-align:top}
+.fc-editor{display:grid;gap:6px;margin-top:6px}.fc-editor label{display:grid;gap:2px;font-size:13px}
+.fc-editor input{font:inherit;padding:6px 8px;border:1px solid #dfe3e9;border-radius:8px}
+.fc-pages{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+:root[data-theme=dark] .fc-tabs,:root[data-theme=dark] .fc-table th,:root[data-theme=dark] .fc-table td{border-color:#2b3441}
+@media (max-width:700px){.fc-tabs{overflow-x:auto;flex-wrap:nowrap}.fc-tab{white-space:nowrap}}
+:root[data-theme=dark] .fc-step.fc-s-erreur{color:#ffb4ab}

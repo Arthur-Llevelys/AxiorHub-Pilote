@@ -176,7 +176,7 @@ JOB_LABELS.update({'monitor_matter':'Surveillance immédiate du dossier',
   'reject_group':'Association groupée rejetée','propose_work_plan':'Préparation du programme de travail',
   'sync_caldav_tasks':'Synchronisation des tâches Nextcloud','apply_work_plan':'Création du programme Nextcloud',
   'update_work_task':'Mise à jour de la tâche Nextcloud','autonomy_mail_sweep':'Surveillance autonome des courriels',
-  'edit_work_task':'Modification de la tâche Nextcloud','create_agenda_event':'Création d’un événement dans l’agenda','pieces_scan510':'Analyse des pièces du dossier (bordereau)','edit_personal_event':'Modification d’un événement de votre agenda','routine520':'Briefing, tri des courriels ou bilan de la semaine','docrequest520':'Préparation d’un document demandé','maildraft5613':'Préparation d’un brouillon de courriel','task5614':'Tâche d’une mission complexe','deck530_sync':'Synchronisation de Deck et des Tâches Nextcloud','style550_scan':'Analyse du style du cabinet','edit_personal_task':'Modification d’une tâche Nextcloud personnelle','pieces_create510':'Création du bordereau et des pièces numérotées','edit_agenda_event':'Modification d’un événement de l’agenda','cancel_agenda_event':'Suppression d’un événement de l’agenda','schedule_work_task':'Programmation de la tâche dans l’agenda',
+  'edit_work_task':'Modification de la tâche Nextcloud','create_agenda_event':'Création d’un événement dans l’agenda','pieces_scan510':'Analyse des pièces du dossier (bordereau)','edit_personal_event':'Modification d’un événement de votre agenda','routine520':'Briefing, tri des courriels ou bilan de la semaine','docrequest520':'Préparation d’un document demandé','maildraft5613':'Préparation d’un brouillon de courriel','task5614':'Tâche d’une mission complexe','analyser_dossier5624':'Analyse complète du dossier (indexation, faits, chronologie, synthèse)','deck530_sync':'Synchronisation de Deck et des Tâches Nextcloud','style550_scan':'Analyse du style du cabinet','edit_personal_task':'Modification d’une tâche Nextcloud personnelle','pieces_create510':'Création du bordereau et des pièces numérotées','edit_agenda_event':'Modification d’un événement de l’agenda','cancel_agenda_event':'Suppression d’un événement de l’agenda','schedule_work_task':'Programmation de la tâche dans l’agenda',
   'refresh_operational_memory':'Actualisation de la mémoire opérationnelle',
   'review_autonomy_proposal':'Examen d’une proposition autonome',
   'prepare_document_project':'Préparation d’un projet documentaire',
@@ -833,21 +833,21 @@ class App:
                           (desk_action.now(),json.dumps({'message':'Remplacé par un réglage appliqué immédiatement.'}),'%"key": '+json.dumps(form.get('key',''))+'%'))
                         desk_action.db.commit();job=0
                     else:job=desk_action.enqueue(action,form,priority=0 if action=='review_cabinet_decision' else None)
-                    target='/?job='+str(job)
+                    target='/'+('?job='+str(job) if job else '')   # 5.6.24 (F35)
                     if action in ('assistant_ask','delegate_local_task'):
-                        target='/assistant?'+urlencode({'job':job,'thread':form.get('thread','')})
+                        target='/assistant?'+urlencode({**({'job':job} if job else {}),'thread':form.get('thread','')})
                     elif action in ('create_local_task','update_local_task','cancel_local_task','edit_work_task','schedule_work_task','update_work_task'):
-                        target='/planning?'+urlencode({'vue':'taches','job':job})
+                        target='/planning?'+urlencode({'vue':'taches',**({'job':job} if job else {})})
                     elif action in ('routine520','save_routines520'):
                         target='/aujourdhui?'+urlencode({'job':job} if job else {})
                     elif action in ('set_agenda_personal_edit','save_reminders520'):
                         target='/planning?vue=agenda'
                     elif action=='edit_personal_task':
-                        target='/planning?'+urlencode({'vue':'taches','job':job})
+                        target='/planning?'+urlencode({'vue':'taches',**({'job':job} if job else {})})
                     elif action in ('create_agenda_event','edit_agenda_event','cancel_agenda_event','edit_personal_event'):
-                        target='/planning?'+urlencode({'vue':'agenda','job':job})
+                        target='/planning?'+urlencode({'vue':'agenda',**({'job':job} if job else {})})
                     elif action in ('prepare_cabinet_letter','prepare_cabinet_revision','create_cabinet_letter','approve_cabinet_template'):
-                        target='/modeles-word?'+urlencode({'job':job,'project':form.get('project_id',''),
+                        target='/modeles-word?'+urlencode({**({'job':job} if job else {}),'project':form.get('project_id',''),
                                                           'template':form.get('template_id','')})
                     elif action in ('cancel_job','retry_job393','run_system_checks393','test_openrouter393'):
                         if action in ('run_system_checks393','test_openrouter393'):
@@ -862,7 +862,7 @@ class App:
                     elif action in ('associate','remove_contact') and form.get('back')=='contacts':
                         target='/contacts?'+urlencode({'job':job})
                     elif action=='sync_caldav_tasks':
-                        target='/planning?'+urlencode({'vue':'taches','job':job})
+                        target='/planning?'+urlencode({'vue':'taches',**({'job':job} if job else {})})
                     elif action in ('propose_work_plan','approve_work_plan'):
                         target='/planning?'+urlencode({'vue':'organiser','job':job,'proposal':form.get('proposal','')})
                     elif action=='reject_work_plan':
@@ -870,9 +870,9 @@ class App:
                     elif action=='reject_document_project':
                         target='/projets'
                     elif action in ('chat','forget_chat','execute_actions'):
-                        target='/assistant?'+urlencode({'job':job,'matter':form.get('matter',''),'key':form.get('key','')})
+                        target='/assistant?'+urlencode({**({'job':job} if job else {}),'matter':form.get('matter',''),'key':form.get('key','')})
                     elif action in ('browse','register_matter','create_matter','discover','index_all','memory_all'):
-                        target='/dossiers?'+urlencode({'job':job,'q':form.get('path','')})
+                        target='/dossiers?'+urlencode({**({'job':job} if job else {}),'q':form.get('path','')})
                     elif action in ('save_local_model','save_ai_provider','test_ai_provider','save_ai_route','save_cabinet_profile',
                                     'register_lawve_extension','test_lawve_extension','set_lawve_extension'):
                         target=('/mcp' if 'lawve_extension' in action else '/parametres?'+urlencode({'tab':'cabinet' if action=='save_cabinet_profile' else 'ia'}))
@@ -883,9 +883,9 @@ class App:
                     elif action=='review_action380':
                         target='/aujourdhui?'+urlencode({'job':job})
                     elif action=='refresh_matter_graph380':
-                        target='/matter?'+urlencode({'job':job,'id':form.get('matter','')})
+                        target='/matter?'+urlencode({**({'job':job} if job else {}),'id':form.get('matter','')})
                     elif action in ('start_playbook380','advance_playbook380','complete_playbook_step380'):
-                        target='/playbooks?'+urlencode({'job':job,'run':form.get('run_id',''),'matter':form.get('matter','')})
+                        target='/playbooks?'+urlencode({**({'job':job} if job else {}),'run':form.get('run_id',''),'matter':form.get('matter','')})
                     elif action in ('save_ecosystem_service380','prepare_ecosystem_action380'):
                         target='/ecosysteme?'+urlencode({'job':job})
                     elif action=='run_business_evaluation380':
@@ -894,12 +894,12 @@ class App:
                                      'advance_playbooks391','retry_production391','review_output391'):
                         target='/production?'+urlencode({'job':job})
                     elif action=='studio_prepare420':
-                        target='/studio?'+urlencode({'job':job,'matter':form.get('matter',''),
+                        target='/studio?'+urlencode({**({'job':job} if job else {}),'matter':form.get('matter',''),
                           'type':form.get('deliverable_kind','')})
                     elif action in ('retry_deliverable420','snapshot_metrics420'):
                         target='/production?'+urlencode({'job':job})
                     elif action=='advance_matter420':
-                        target='/matter?'+urlencode({'job':job,'id':form.get('matter','')})
+                        target='/matter?'+urlencode({**({'job':job} if job else {}),'id':form.get('matter','')})
                     elif action=='save_update_policy420':
                         target='/parametres?'+urlencode({'tab':'maintenance','saved':'yes'})
                     elif action=='set_learning_rule392':
@@ -913,22 +913,22 @@ class App:
                     elif action in ('refresh_brief','validate_fact','pin_fact','archive_fact','index','retry_matter','associate','remove_contact',
                                   'sync_legal_memory','validate_memory','pin_memory','dispute_memory','archive_memory','resolve_conflict',
                                   'set_matter_state') and form.get('matter'):
-                        target='/matter?'+urlencode({'job':job,'id':form.get('matter','')})
+                        target='/matter?'+urlencode({**({'job':job} if job else {}),'id':form.get('matter','')})
                     elif action in ('analyze_strategy','build_matrix','draft_act','validate_strategy','archive_strategy',
                                     'validate_matrix_row','dispute_matrix_row','archive_matrix_row','validate_act','archive_act') and form.get('matter'):
-                        target='/strategy?'+urlencode({'job':job,'matter':form.get('matter','')})
+                        target='/strategy?'+urlencode({**({'job':job} if job else {}),'matter':form.get('matter','')})
                     elif action=='prepare_reply':
-                        target='/?'+urlencode({'job':job,'view':'todo'})
+                        target='/?'+urlencode({**({'job':job} if job else {}),'view':'todo'})
                     elif action=='mark_handled' and form.get('back')=='inbox':
-                        target='/?'+urlencode({'job':job,'view':'todo'})
+                        target='/?'+urlencode({**({'job':job} if job else {}),'view':'todo'})
                     elif action=='associate' and form.get('back')=='inbox':
-                        target='/?'+urlencode({'job':job,'view':'confirm'})
+                        target='/?'+urlencode({**({'job':job} if job else {}),'view':'confirm'})
                     elif action=='confirm_matter':
-                        target='/?'+urlencode({'job':job,'view':'todo'})
+                        target='/?'+urlencode({**({'job':job} if job else {}),'view':'todo'})
                     elif action=='reject_group':
                         target='/associations?'+urlencode({'job':job})
                     elif action in ('prepare_draft','deposit_draft','attachment_review','deadline_review','confirm_event','confirm_task','ignore_deadline','feedback','add_rule','mark_handled','retry','review') and form.get('key'):
-                        target='/mail?'+urlencode({'job':job,'key':form.get('key','')})
+                        target='/mail?'+urlencode({**({'job':job} if job else {}),'key':form.get('key','')})
                     elif action in ('learn','forget','memory_insight','memory_scope'):
                         target='/memoire?'+urlencode({'job':job})
                     elif action in ('health','daily_digest','automation_setting','organize_cabinet','classify_portfolio'):
@@ -937,14 +937,14 @@ class App:
                                      '/accueil?' if action=='automation_setting' and form.get('back')=='home' else '/dashboard?')
                         target=destination+urlencode({'job':job})
                     elif action=='reconcile_inbox':
-                        target='/?'+urlencode({'job':job,'view':'todo'})
+                        target='/?'+urlencode({**({'job':job} if job else {}),'view':'todo'})
                     elif action in ('monitor_all','build_daily_dashboard','ack_signal','snooze_signal','resolve_signal'):
                         target='/surveillance?'+urlencode({'job':job})
                     elif action=='proactive34_now':
                         target='/preparation-proactive?'+urlencode({'job':job})
                     elif action in ('coach_hearing35','prepare_call35','record_call35','calculate35',
                                     'billing_review35','classify_comparable35'):
-                        target='/assistance-metier?'+urlencode({'job':job,'matter':form.get('matter','')})
+                        target='/assistance-metier?'+urlencode({**({'job':job} if job else {}),'matter':form.get('matter','')})
                     elif action in ('autonomy_mail_sweep','review_autonomy_proposal'):
                         target='/projets?'+urlencode({'job':job})
                     elif action in ('orchestrator_mail_sweep','orchestrate_mail','prepare_legal_opinion'):
@@ -952,12 +952,12 @@ class App:
                     elif action in ('orchestrator_mail_sweep','orchestrate_mail','prepare_legal_opinion'):
                         target='/orchestrateur-avis?'+urlencode({'job':job})
                     elif action in ('legal_research','verify_official_decision','identify_latest_writings','refresh_exhibit_registry'):
-                        target='/recherche-juridique?'+urlencode({'job':job,'matter':form.get('matter','')})
+                        target='/recherche-juridique?'+urlencode({**({'job':job} if job else {}),'matter':form.get('matter','')})
                     elif action=='create_document_files':
-                        target='/projets?'+urlencode({'job':job,'project':form.get('project_id','')})
+                        target='/projets?'+urlencode({**({'job':job} if job else {}),'project':form.get('project_id','')})
                     elif action in ('identify_party_writings','compare_devices','prepare_hearing','create_hearing_files',
                                     'prepare_word_project','create_word_files','reject_hearing','reject_word_project'):
-                        target='/audiences-word?'+urlencode({'job':job,'hearing':form.get('project_id',''),
+                        target='/audiences-word?'+urlencode({**({'job':job} if job else {}),'hearing':form.get('project_id',''),
                           'word':form.get('project_id',''),'matter':form.get('matter','')})
                     elif action in ('refresh_cabinet_pilotage','prepare_meeting','prepare_transcript_report',
                                     'review_cabinet_decision','create_cabinet_confirmation_batch',
@@ -965,7 +965,7 @@ class App:
                                     'run_continuous_business_tests'):
                         target='/pilotage?'+urlencode({'job':job})
                     elif action=='monitor_matter' and form.get('matter'):
-                        target='/matter?'+urlencode({'job':job,'id':form.get('matter','')})
+                        target='/matter?'+urlencode({**({'job':job} if job else {}),'id':form.get('matter','')})
                     if live_token:
                         from .live430 import finish_request
                         finish_request(desk_action,live_token,job,target)
@@ -1052,6 +1052,8 @@ class App:
         cabinet_shortcuts=external_links(desk)
         main=shell501.topbar_html(prefix,title)+('' if path=='/aujourdhui' and not args.get('vue') else  # 5.3.0 : le poste de pilotage a son propre en-tête
              '<div class="page-title"><div><p class="eyebrow">Cabinet · poste de travail</p><h1>'+e(title)+'</h1></div>'+link(path,'Actualiser',**args)+'</div>')
+        if str(args.get('job', '')).strip() in ('', '0'):   # 5.6.24 (F35) : une action immédiate n'a pas de travail ; un ancien lien job=0 reste lisible
+            args.pop('job', None)
         if args.get('job'):
             try:job_id=int(args['job'])
             except ValueError:raise Stop('operation_invalide') from None

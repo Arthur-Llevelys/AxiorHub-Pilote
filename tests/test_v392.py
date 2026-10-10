@@ -55,7 +55,7 @@ class Learning392(unittest.TestCase):
 
     def test_api_exposes_learning_and_version(self):
         spec=openapi('https://agent.example.com')
-        self.assertEqual(spec['info']['version'],'5.6.23')
+        self.assertEqual(spec['info']['version'],'5.6.24')
         self.assertIn('/learning',spec['paths']);self.assertIn('/learning/corrections/{correction_id}',spec['paths'])
         self.assertIn('guardrails',dispatch(self.d,'/learning','GET'))
 

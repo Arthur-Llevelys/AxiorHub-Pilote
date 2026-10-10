@@ -254,20 +254,23 @@ class Voice(unittest.TestCase):
 
 
 class FakeNinja:
+    """5.6.24 : la relecture renvoie ce qui a été déposé (libellés, notes, time_log…), comme Invoice Ninja."""
     def __init__(self, fail_post=False):
-        self.calls = [];self.fail_post = fail_post;self.headers = {}
+        self.calls = [];self.fail_post = fail_post;self.headers = {};self.posted = {}
     def json(self, method, path, data=None):
         self.calls.append((method, path, data))
         if method == 'POST' and self.fail_post:
             raise Stop('http_500')
         if path == '/api/v1/invoices':
+            self.posted['invoice'] = data
             return {'data': {'id': 'INV1', 'number': '2026-0042', 'status_id': '1', 'amount': 375.0}}
         if path.startswith('/api/v1/invoices/'):
-            return {'data': {'id': 'INV1', 'number': '2026-0042', 'status_id': '1', 'amount': 375.0, 'client_id': 'CLT42', 'line_items': [{'cost': 375.0, 'quantity': 1}]}}
+            return {'data': {**self.posted.get('invoice', {}), 'id': 'INV1', 'number': '2026-0042', 'status_id': '1', 'amount': 375.0, 'client_id': 'CLT42'}}
         if path == '/api/v1/tasks':
+            self.posted['task'] = data
             return {'data': {'id': 'TSK1'}}
         if path.startswith('/api/v1/tasks/'):
-            return {'data': {'id': 'TSK1'}}
+            return {'data': {**self.posted.get('task', {}), 'id': 'TSK1'}}
         raise Stop('http_404')
 
 

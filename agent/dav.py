@@ -1,6 +1,12 @@
 from datetime import datetime, timezone, timedelta
 from email.utils import format_datetime
 import os
+from contextlib import contextmanager
+import time
+import stat
+import secrets
+import hashlib
+import errno
 from pathlib import Path, PurePosixPath
 import tempfile
 import re
@@ -263,6 +269,12 @@ class DAV:
         if not data or len(data)>limit:raise Stop('fichier_genere_trop_volumineux')
         self.http.request('PUT',self.file_url(path),data,
           {'Content-Type':content_type,'If-None-Match':'*'},limit+1)
+        return path
+
+    def trash_file(self, path, etag):
+        """5.6.24 : suppression conditionnelle (If-Match) d'un fichier ; Nextcloud le conserve dans sa corbeille (restaurable)."""
+        if not etag: raise Stop('etag_nextcloud_absent')
+        self.http.request('DELETE', self.file_url(path), None, {'If-Match': etag}, 100000)
         return path
 
     def calendars(self):
@@ -548,9 +560,20 @@ class LocalFolder(DAV):
 
     ``cfg['local_path']`` est la racine locale ; les chemins du cabinet (racines ``/Dossiers``, chemins des dossiers) sont
     résolus sous cette racine, sans jamais en sortir. Les fichiers et dossiers commençant par un point, les répertoires
-    « secrets » et les liens symboliques sont ignorés comme avec Nextcloud. Un remplacement conserve la version précédente
-    dans ``.axiorhub-versions`` du même dossier. Les agendas (CalDAV) exigent ``url``, ``username`` et ``password_file`` ;
-    sinon ils sont signalés indisponibles plutôt que simulés.
+    « secrets » et les liens symboliques sont ignorés comme avec Nextcloud. Les agendas (CalDAV) exigent ``url``, ``username``
+    et ``password_file`` ; sinon ils sont signalés indisponibles plutôt que simulés.
+
+    5.6.24 (F10 à F13) :
+    - chaque composant du chemin est contrôlé sans suivre les liens (lstat) : un alias vers « secrets », vers un autre dossier
+      ou vers l'extérieur est refusé au listage, au stat, au téléchargement, à la création et au remplacement ; la lecture passe
+      par un descripteur ouvert avec O_NOFOLLOW quand le système le propose ;
+    - l'ETag est une empreinte SHA-256 du contenu (mise en cache par identité de fichier, date en nanosecondes et taille) ; le
+      téléchargement compare l'empreinte des octets réellement lus et vérifie que le fichier n'a pas changé pendant la lecture ;
+    - la création est une publication exclusive (lien dur depuis un fichier temporaire du même volume, sinon O_EXCL) : jamais de
+      remplacement d'un fichier apparu entre le contrôle et l'écriture ;
+    - le remplacement se fait sous verrou, après relecture de la version attendue ; chaque version précédente reçoit un nom unique
+      (horodatage à la microseconde, empreinte, jeton) publié exclusivement ; la rétention ``local_versions_keep`` (défaut 100,
+      0 = illimitée) est administrable dans la configuration ``nextcloud``.
     """
 
     def __init__(self, cfg):
@@ -560,6 +583,7 @@ class LocalFolder(DAV):
             raise Stop('dossier_local_introuvable')
         self.refused = []
         self.http = None
+        self._hashes = {}
         if cfg.get('url') and cfg.get('username') and cfg.get('password_file'):
             self.http = HTTP(cfg['url'], cfg['username'], read_secret(cfg['password_file']))
             self.files = self.http.base + '/remote.php/dav/files/' + U.quote(cfg['username'], safe='')
@@ -573,9 +597,15 @@ class LocalFolder(DAV):
         return path
 
     def _fs(self, path):
+        """Chemin métier contrôlé et chemin local correspondant. Aucun composant ne peut être un lien symbolique (F12) ni « .. »."""
         path = self._check(path)
-        target = (self.local / path.lstrip('/')).resolve()
-        if target != self.local and self.local not in target.parents: raise Stop('chemin_refuse')
+        target = self.local
+        for part in [x for x in path.split('/') if x]:
+            if part in ('.', '..'): raise Stop('chemin_refuse')
+            target = target / part
+            if target.is_symlink(): raise Stop('lien_symbolique_refuse')
+        resolved = target.resolve()
+        if resolved != self.local and self.local not in resolved.parents: raise Stop('chemin_refuse')
         return path, target
 
     @staticmethod
@@ -583,12 +613,63 @@ class LocalFolder(DAV):
         return format_datetime(datetime.fromtimestamp(seconds, timezone.utc), usegmt=True)
 
     @staticmethod
-    def _etag(st):
-        return '"%x-%x"' % (int(st.st_mtime * 1000), st.st_size)   # millisecondes : stable d'un système à l'autre
+    def _mtime_ns(st):
+        return getattr(st, 'st_mtime_ns', None) or int(st.st_mtime * 1_000_000_000)
+
+    @staticmethod
+    def _etag_bytes(data):
+        return '"%s"' % hashlib.sha256(data).hexdigest()[:32]
+
+    @staticmethod
+    def _open_read(target):
+        flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+        try:
+            return os.open(str(target), flags)
+        except FileNotFoundError:
+            raise Stop('http_404') from None
+        except OSError as ex:
+            if getattr(ex, 'errno', None) == errno.ELOOP: raise Stop('lien_symbolique_refuse') from None
+            raise Stop('fichier_illisible') from None
+
+    def _read(self, target, limit):
+        """Octets d'un fichier lus par descripteur ; l'état (taille, date) est comparé avant et après la lecture (F13)."""
+        fd = self._open_read(target)
+        try:
+            before = os.fstat(fd)
+            if not stat.S_ISREG(before.st_mode): raise Stop('http_404')
+            if before.st_size > limit: raise Stop('reponse_trop_volumineuse')
+            chunks = []
+            while True:
+                chunk = os.read(fd, 1 << 20)
+                if not chunk: break
+                chunks.append(chunk)
+            after = os.fstat(fd)
+        finally:
+            os.close(fd)
+        if (before.st_size, self._mtime_ns(before)) != (after.st_size, self._mtime_ns(after)): raise Stop('fichier_modifie_pendant_lecture')
+        return b''.join(chunks), before
+
+    def _etag(self, target, st=None):
+        """Empreinte SHA-256 du contenu, en cache par identité de fichier, date en nanosecondes et taille (F13)."""
+        st = st or target.stat()
+        key = (str(target), getattr(st, 'st_ino', 0), self._mtime_ns(st), st.st_size)
+        if key not in self._hashes:
+            fd = self._open_read(target)
+            h = hashlib.sha256()
+            try:
+                while True:
+                    chunk = os.read(fd, 1 << 20)
+                    if not chunk: break
+                    h.update(chunk)
+            finally:
+                os.close(fd)
+            if len(self._hashes) > 5000: self._hashes.clear()
+            self._hashes[key] = '"%s"' % h.hexdigest()[:32]
+        return self._hashes[key]
 
     def _item(self, path, target):
         st = target.stat()
-        return {'path': path, 'directory': target.is_dir(), 'etag': self._etag(st) if target.is_file() else '',
+        return {'path': path, 'directory': target.is_dir(), 'etag': self._etag(target, st) if target.is_file() else '',
                 'modified': self._stamp(st.st_mtime), 'created': self._stamp(getattr(st, 'st_birthtime', None) or st.st_ctime), 'size': st.st_size if target.is_file() else 0}
 
     # ----- lecture
@@ -615,10 +696,9 @@ class LocalFolder(DAV):
         if item.get('size', 0) > limit: raise Stop('piece_trop_volumineuse')
         _, target = self._fs(item['path'])
         if not target.is_file(): raise Stop('http_404')
-        st = target.stat()
-        if item.get('etag') and item['etag'] != self._etag(st): raise Stop('http_412')
-        if st.st_size > limit: raise Stop('reponse_trop_volumineuse')
-        return target.read_bytes()
+        data, _ = self._read(target, limit)
+        if item.get('etag') and item['etag'] != self._etag_bytes(data): raise Stop('http_412')   # F13 : comparaison sur les octets lus
+        return data
 
     def stat(self, path):
         path, target = self._fs(path)
@@ -627,14 +707,72 @@ class LocalFolder(DAV):
         return {**{k: v for k, v in self._item(path, target).items() if k != 'directory'}, 'fileid': ''}
 
     # ----- écriture (jamais hors des racines, jamais de remplacement silencieux)
-    def _write(self, target, data):
-        fd, tmp = tempfile.mkstemp(dir=str(target.parent), prefix='.axiorhub-')
+    @staticmethod
+    def _sync_dir(directory):
         try:
-            with os.fdopen(fd, 'wb') as handle:
-                handle.write(data); handle.flush(); os.fsync(handle.fileno())
-            os.replace(tmp, target)
+            fd = os.open(str(directory), os.O_RDONLY)
+        except OSError:
+            return
+        try: os.fsync(fd)
+        except OSError: pass
+        finally: os.close(fd)
+
+    def _tmp(self, directory, data):
+        fd, tmp = tempfile.mkstemp(dir=str(directory), prefix='.axiorhub-')
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(data); handle.flush(); os.fsync(handle.fileno())
+        return tmp
+
+    def _publish(self, target, data):
+        """F10 : publication exclusive — lien dur depuis le fichier temporaire (même volume), sinon création O_EXCL. Un fichier
+        apparu après le contrôle initial fait échouer la création (http_412) au lieu d'être remplacé."""
+        if target.is_symlink(): raise Stop('lien_symbolique_refuse')
+        tmp = self._tmp(target.parent, data)
+        try:
+            try:
+                os.link(tmp, str(target))
+            except FileExistsError:
+                raise Stop('http_412') from None
+            except (AttributeError, NotImplementedError, OSError) as ex:
+                if getattr(ex, 'errno', None) == errno.EEXIST: raise Stop('http_412') from None
+                try:
+                    fd = os.open(str(target), os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_BINARY', 0), 0o644)
+                except FileExistsError:
+                    raise Stop('http_412') from None
+                with os.fdopen(fd, 'wb') as handle:
+                    handle.write(data); handle.flush(); os.fsync(handle.fileno())
         finally:
             if os.path.exists(tmp): os.unlink(tmp)
+        self._sync_dir(target.parent)
+
+    @contextmanager
+    def _lock(self, target):
+        """Verrou de remplacement (fichier exclusif à côté de la cible) ; un verrou abandonné depuis plus de deux minutes est repris."""
+        lock = target.parent / ('.axiorhub-lock-' + target.name)
+        for _ in range(500):
+            try:
+                os.close(os.open(str(lock), os.O_WRONLY | os.O_CREAT | os.O_EXCL)); break
+            except FileExistsError:
+                try:
+                    if time.time() - lock.stat().st_mtime > 120: lock.unlink()
+                    else: time.sleep(0.01)
+                except OSError:
+                    pass
+        else:
+            raise Stop('fichier_verrouille')
+        try:
+            yield
+        finally:
+            try: lock.unlink()
+            except OSError: pass
+
+    def _prune_versions(self, versions, name):
+        keep = int(self.cfg.get('local_versions_keep', 100) or 0)
+        if keep <= 0: return
+        copies = sorted(c.name for c in versions.iterdir() if c.is_file() and c.name.startswith(name + '.'))
+        for old in copies[:-keep] if len(copies) > keep else []:
+            try: (versions / old).unlink()
+            except OSError: pass
 
     def replace_file(self, path, data, etag):
         if not isinstance(data, bytes): raise Stop('contenu_fichier_invalide')
@@ -643,11 +781,18 @@ class LocalFolder(DAV):
         if not etag: raise Stop('etag_nextcloud_absent')
         path, target = self._fs(path)
         if not target.is_file(): raise Stop('fichier_nextcloud_introuvable')
-        if self._etag(target.stat()) != etag: raise Stop('version_nextcloud_modifiee')
-        versions = target.parent / '.axiorhub-versions'
-        versions.mkdir(exist_ok=True)
-        self._write(versions / (target.name + '.' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')), target.read_bytes())
-        self._write(target, data)
+        with self._lock(target):
+            current, _ = self._read(target, max(limit, self.cfg.get('max_file_bytes', 15_000_000)))
+            if self._etag_bytes(current) != etag: raise Stop('version_nextcloud_modifiee')   # F13 : version relue sous verrou, juste avant publication
+            versions = target.parent / '.axiorhub-versions'
+            if versions.is_symlink(): raise Stop('lien_symbolique_refuse')
+            versions.mkdir(exist_ok=True)
+            name = '%s.%s.%s.%s' % (target.name, datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ'), hashlib.sha256(current).hexdigest()[:12], secrets.token_hex(4))
+            self._publish(versions / name, current)   # F11 : copie unique, publiée exclusivement, jamais écrasée
+            tmp = self._tmp(target.parent, data)
+            os.replace(tmp, target)                     # remplacement autorisé : sous verrou, version vérifiée, copie conservée
+            self._sync_dir(target.parent); self._sync_dir(versions)
+            self._prune_versions(versions, target.name)
         return path
 
     def create_folder(self, path):
@@ -655,8 +800,10 @@ class LocalFolder(DAV):
         if path in {clean_path(x) for x in self.cfg['roots']}: raise Stop('creation_racine_refusee')
         path, target = self._fs(path)
         self.list_folder(str(PurePosixPath(path).parent))
-        if target.exists(): raise Stop('http_412')
-        target.mkdir()
+        try:
+            target.mkdir()
+        except FileExistsError:
+            raise Stop('http_412') from None
         return path
 
     def ensure_folder(self, path, boundary):
@@ -669,7 +816,23 @@ class LocalFolder(DAV):
             try: self.list_folder(current)
             except Stop as ex:
                 if str(ex) != 'http_404': raise
-                self._fs(current)[1].mkdir()
+                try: self._fs(current)[1].mkdir()
+                except FileExistsError: pass
+        return path
+
+    def trash_file(self, path, etag):
+        """5.6.24 : déplacement dans ``.axiorhub-corbeille`` du même dossier (nom unique, restaurable), après contrôle de la version."""
+        path, target = self._fs(path)
+        if not target.is_file(): raise Stop('fichier_nextcloud_introuvable')
+        with self._lock(target):
+            current, _ = self._read(target, max(self.cfg.get('max_generated_file_bytes', 20_000_000), self.cfg.get('max_file_bytes', 15_000_000)))
+            if not etag or self._etag_bytes(current) != etag: raise Stop('version_nextcloud_modifiee')
+            bin_dir = target.parent / '.axiorhub-corbeille'
+            if bin_dir.is_symlink(): raise Stop('lien_symbolique_refuse')
+            bin_dir.mkdir(exist_ok=True)
+            self._publish(bin_dir / ('%s.%s.%s' % (target.name, datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ'), secrets.token_hex(4))), current)
+            os.unlink(str(target))
+            self._sync_dir(target.parent)
         return path
 
     def put_file(self, path, data, content_type='application/octet-stream'):
@@ -677,9 +840,9 @@ class LocalFolder(DAV):
         limit = self.cfg.get('max_generated_file_bytes', 20_000_000)
         if not data or len(data) > limit: raise Stop('fichier_genere_trop_volumineux')
         path, target = self._fs(path)
-        if target.exists(): raise Stop('http_412')
+        if target.exists() or target.is_symlink(): raise Stop('http_412')
         if not target.parent.is_dir(): raise Stop('http_409')
-        self._write(target, data)
+        self._publish(target, data)                     # F10 : exclusif, même si le fichier est apparu entre-temps
         return path
 
     # ----- agendas : CalDAV seulement

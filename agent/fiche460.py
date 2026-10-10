@@ -13,7 +13,7 @@ from .common import Stop, load_matters
 from .legal_memory import ensure_schema as ensure_memory, memory_records, timeline as memory_timeline
 from .improvements36 import matter_option
 
-STATUS_LABELS = {'validated': 'Validé', 'pinned': 'Validé', 'suggested': 'À valider', 'disputed': 'Contesté',
+STATUS_LABELS = {'validated': 'Validé', 'pinned': 'Validé', 'suggested': 'À valider', 'disputed': 'Refusé par l’avocat', 'proof_changed': 'À revalider (preuve modifiée)',
                  'configured': 'Configuration du dossier', 'derived': 'Non validé'}
 KIND_LABELS = {'document': 'Pièce', 'email_received': 'Courriel reçu', 'email_sent': 'Courriel envoyé', 'draft': 'Brouillon',
                'task': 'Tâche', 'calendar': 'Agenda', 'fact': 'Fait', 'deadline': 'Échéance', 'completed_action': 'Acte accompli',
@@ -68,35 +68,57 @@ def chronologie(desk, mid, limit=200, kinds=None):
     ensure_memory(desk)
     rows = []
     for ev in memory_timeline(desk, mid, 500):
+        if ev['source_kind'] == 'legal_memory' and ev['status'] in ('disputed', 'archived'):
+            continue   # 5.6.24 (F28) : un fait refusé n'apparaît plus « à valider »
         label, href = source_of(desk, mid, ev)
         validated = ev['source_kind'] != 'legal_memory' or ev['status'] in ('validated', 'pinned')
         rows.append({'at': ev['event_at'], 'kind': ev['event_type'], 'kind_label': KIND_LABELS.get(ev['event_type'], ev['event_type']),
-                     'title': ev['title'], 'detail': (ev['detail'] or '')[:300], 'source': label, 'href': href,
-                     'validated': validated, 'status_label': '' if validated else STATUS_LABELS['suggested']})
+                     'title': ev['title'], 'detail': (ev['detail'] or '')[:300], 'source': label, 'href': href, 'source_id': ev['source_id'],
+                     'validated': validated, 'status_label': '' if validated else STATUS_LABELS.get(ev['status'], STATUS_LABELS['suggested'])})
     from . import echeances450 as ech
     ech.ensure_schema(desk)
     for d in ech.listing(desk, mid, True):
         src = d['source_path'].rsplit('/', 1)[-1] if d['source_path'] else 'Saisie à la main'
         href = doc_href(d['source_path'], mid) if d['source_path'] else '/echeances'
-        rows.append({'at': d['start_date'], 'kind': 'start_event', 'kind_label': KIND_LABELS['start_event'],
+        rows.append({'at': d['start_date'], 'kind': 'start_event', 'kind_label': KIND_LABELS['start_event'], 'source_id': 'ech-start-' + d['id'],
                      'title': '%s (%s)' % (d['start_event_label'], d['rule_label']), 'detail': d['source_excerpt'][:300],
                      'source': src, 'href': href, 'validated': d['status'] not in ('a_confirmer', 'a_completer'),
                      'status_label': '' if d['status'] not in ('a_confirmer', 'a_completer') else 'À confirmer'})
         if d['due']:
-            rows.append({'at': d['due'], 'kind': 'deadline', 'kind_label': KIND_LABELS['deadline'], 'title': 'Échéance : ' + d['rule_label'],
+            rows.append({'at': d['due'], 'kind': 'deadline', 'kind_label': KIND_LABELS['deadline'], 'title': 'Échéance : ' + d['rule_label'], 'source_id': 'ech-due-' + d['id'],
                          'detail': d['status_label'], 'source': 'Échéances de procédure', 'href': '/echeances#e-' + d['id'],
                          'validated': d['status'] not in ('a_confirmer', 'a_completer'),
                          'status_label': '' if d['status'] not in ('a_confirmer', 'a_completer') else 'À confirmer'})
     if kinds:
         rows = [r for r in rows if r['kind'] in kinds]
+    # 5.6.24 (F29) : déduplication par identité de source (deux courriels de même objet le même jour restent deux lignes) ;
+    # dates connues triées par valeur normalisée, dates inconnues ou partielles présentées à part, après les dates connues.
     seen, unique = set(), []
     for r in rows:
-        key = (r['kind'], r['at'][:10], r['title'])
+        key = (r['kind'], r.get('source_id') or '', r['at'][:10], '' if r.get('source_id') else r['title'])
         if key not in seen:
             seen.add(key)
+            r['undated'] = _undated(r['at'])
             unique.append(r)
-    unique.sort(key=lambda r: (r['at'] == '', r['at']), reverse=True)
-    return unique[:max(1, min(int(limit), 500))]
+    dated = sorted([r for r in unique if not r['undated']], key=lambda r: _moment(r['at']), reverse=True)
+    undated = sorted([r for r in unique if r['undated']], key=lambda r: (r['at'], r['title']))
+    return (dated + undated)[:max(1, min(int(limit), 500))]
+
+
+def _moment(value):
+    parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _undated(value):
+    value = str(value or '')
+    if len(value) < 10:
+        return True
+    try:
+        _moment(value)
+        return False
+    except ValueError:
+        return True
 
 
 def _fact(desk, mid, r):
@@ -106,9 +128,11 @@ def _fact(desk, mid, r):
         sources.append({'label': PurePosixPath(path).name if path.startswith('/') else (path or 'Source'),
                         'href': doc_href(path, mid) if path.startswith('/') else '', 'excerpt': s.get('excerpt', '')[:200]})
     conf = 'high' if r['confidence'] >= 0.85 else 'medium' if r['confidence'] >= 0.6 else 'low'
+    proof = 'perimee' if r['status'] == 'suggested' and str(r.get('validation_note') or '').startswith('Preuve modifiée') else ''
     return {'id': r['id'], 'value': r['title'].split(' : ', 1)[-1] if r['record_type'] in ('party',) else r['content'],
-            'title': r['title'], 'status': r['status'], 'status_label': STATUS_LABELS.get(r['status'], r['status']),
-            'confidence': conf, 'sources': sources, 'validated': r['status'] in ('validated', 'pinned'), 'event_date': r['event_date']}
+            'title': r['title'], 'status': r['status'], 'status_label': STATUS_LABELS['proof_changed'] if proof else STATUS_LABELS.get(r['status'], r['status']),
+            'confidence': conf, 'sources': sources, 'validated': r['status'] in ('validated', 'pinned'), 'event_date': r['event_date'],
+            'revision': r.get('revision'), 'actor': r.get('actor', ''), 'proof_state': proof, 'note': r.get('validation_note', '')}
 
 
 def _best(records, kind):
@@ -137,7 +161,7 @@ def build_fiche(desk, mid, today=None):
     m = find_matter(desk, mid)
     today = today or date.today()
     ensure_memory(desk)
-    records = memory_records(desk, mid, None, 300)
+    records = memory_records(desk, mid, None, 500)
     fiche = {'matter': {'id': mid, 'label': matter_option(m), 'path': m.get('path', '')}, 'today': today.isoformat()}
     parties = [_fact(desk, mid, r) for r in records if r['record_type'] == 'party' and r['status'] in ('pinned', 'validated', 'suggested')]
     client = m.get('client_name', '')
@@ -210,6 +234,6 @@ def build_fiche(desk, mid, today=None):
     fiche['drafts'] = [{'subject': r['subject'] or 'sans objet', 'href': '/courriels'} for r in desk.db.execute(
         "SELECT subject FROM work_items WHERE matter=? AND state='draft_ready' ORDER BY updated DESC LIMIT 5", (mid,))]
     fiche['facts_to_validate'] = to_validate
-    fiche['facts'] = [_fact(desk, mid, r) | {'type': r['record_type']} for r in records if r['status'] in ('suggested', 'validated', 'pinned')][:60]
+    fiche['facts'] = [_fact(desk, mid, r) | {'type': r['record_type']} for r in records if r['status'] in ('suggested', 'validated', 'pinned')]   # 5.6.24 (F32) : plus de coupe à 60
     fiche['refused'] = sum(1 for r in records if r['status'] == 'disputed')
     return fiche

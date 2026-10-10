@@ -1,5 +1,15 @@
-"""Registre fermé des écritures connues. Toute nouvelle route doit préciser ses droits."""
-WORK_API = frozenset({
+"""Registre fermé des écritures connues. Toute nouvelle route doit préciser ses droits.
+
+5.6.24 (F18) : les routes 5.6.13/5.6.14 sont classées par nature de droit (préparation, décision, facturation) ; l'enveloppe de
+comptes (standalone_auth.allowed) et les contrôles métiers (web568.api) lisent le même registre. L'administration reste à part
+(ADMIN_API dans standalone_auth) ; l'assistant(e) n'obtient aucune de ces routes (ASSISTANT_API)."""
+PREPARATION_API = frozenset({'m568/mission5614/create', 'm568/mission5614/run', 'm568/mission5614/migrate', 'm568/docreq/control'})
+DECISION_API = frozenset({'m568/mission5614/control', 'm568/mission5614/decide', 'm568/decision/defer', 'm568/automatismes/pause',
+                          'm568/profils/approve', 'm568/profils/revoke'})
+FACTURATION_API = frozenset({'m568/ninja/client', 'm568/ninja/clients/search', 'm568/ninja/project', 'm568/ninja/quote/preview',
+                             'm568/ninja/quote', 'm568/ninja/sync'})
+RIGHTS = {'preparation': PREPARATION_API, 'decision': DECISION_API, 'facturation': FACTURATION_API}
+WORK_API = PREPARATION_API | DECISION_API | FACTURATION_API | frozenset({
     'm568/rules/compile','m568/rules/save','m568/rules/control','m568/rules/simulate',
     'm568/document/control','m568/document/scan','m568/calendars/save','m568/calendars/test',
     'm568/google/start','m568/google/disconnect','m568/procedure/save',
@@ -31,6 +41,8 @@ WORK_API = frozenset({
     'fact/scan',
     'fact/validate',
     'fiche/refresh',
+    'fiche/analyse',
+    'fiche/etat',
     'learning/dashboard',
     'learning/refresh',
     'm500/conflicts/check',
@@ -115,6 +127,15 @@ WORK_API = frozenset({
     'm530/routine',
     'm530/stop',
     'm530/task',
+    'm530/task/create',
+    'm530/task/edit',
+    'm530/task/delete',
+    'm530/event/create',
+    'm530/event/edit',
+    'm530/event/delete',
+    'm530/item/ignore',
+    'm530/item/trash',
+    'm530/dismiss',
     'm540/mode',
     'm540/preview',
     'm540/sample',

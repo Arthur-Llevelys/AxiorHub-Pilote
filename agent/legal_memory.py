@@ -95,6 +95,7 @@ def _snapshot(sources, ids):
         result.append({'id':sid,'kind':source.get('kind',''),
           'path':source.get('path') or source.get('subject',''),
           'modified':source.get('modified') or source.get('date',''),
+          'version':str(source.get('etag') or source.get('version') or source.get('modified') or ''),   # 5.6.24 (F33) : version figée de la preuve
           'excerpt_sha256':digest(excerpt),'excerpt':excerpt[:1200]})
     return result
 
@@ -110,8 +111,22 @@ def _row_data(row):
     return {key:row[key] for key in row.keys()}
 
 
-def upsert_record(desk, mid, record, sources, origin='model'):
+PROOF_CHANGED='Preuve modifiée depuis la validation : à recontrôler.'
+
+
+def _proof_changes(old_snapshot, new_snapshot):
+    """5.6.24 (F33) : chemins communs dont l'extrait ou la version ont changé (la même preuve relue autrement)."""
+    before={s.get('path',''):s for s in old_snapshot};changed=[]
+    for s in new_snapshot:
+        o=before.get(s.get('path',''))
+        if o is not None and (o.get('excerpt_sha256')!=s.get('excerpt_sha256') or str(o.get('modified',''))!=str(s.get('modified',''))):
+            changed.append(s.get('path',''))
+    return changed
+
+
+def upsert_record(desk, mid, record, sources, origin='model', stats=None):
     ensure_schema(desk)
+    stats=stats if stats is not None else {}
     kind=record.get('record_type','')
     if kind not in RECORD_TYPES:raise Stop('type_memoire_invalide')
     source_ids=list(dict.fromkeys(record.get('source_ids') or []))
@@ -129,9 +144,11 @@ def upsert_record(desk, mid, record, sources, origin='model'):
         # Un fait refusé par l'avocat n'est jamais reproposé, même reformulé légèrement.
         for refused in desk.db.execute("SELECT id,title,content FROM legal_memory_records WHERE matter=? AND record_type=? AND status='disputed'",(mid,kind)):
             if fold(refused['content'])==fold(content) or fold(refused['title'])==fold(title):
+                stats['refus_respectes']=stats.get('refus_respectes',0)+1
                 return refused['id']
     stamp=desk.now();encoded_sources=json.dumps(source_ids,ensure_ascii=False)
     encoded_snapshot=json.dumps(snapshot,ensure_ascii=False)
+    note=old['validation_note'] if old else ''
     if old:
         # Never downgrade or silently replace a human decision on a rescan.
         human=old['status'] in ('validated','pinned','disputed','archived')
@@ -139,7 +156,15 @@ def upsert_record(desk, mid, record, sources, origin='model'):
         if human:
             title,content=old['title'],old['content']
             actor,event_date=old['actor'],old['event_date']
-            changed=old['sources']!=encoded_sources or old['source_snapshot']!=encoded_snapshot
+            # 5.6.24 (F33) : la même preuve relue autrement suspend la validation (l'historique garde la version validée) ;
+            # des sources différentes ne remplacent jamais en silence celles qui ont été relues par l'avocat.
+            proof=_proof_changes(json.loads(old['source_snapshot'] or '[]'),snapshot) if old['status'] in ('validated','pinned') else []
+            if proof:
+                kept_status='suggested';note=PROOF_CHANGED+' ('+', '.join(PurePosixPath(p).name for p in proof[:3])+')'
+                changed=True
+            else:
+                encoded_sources,encoded_snapshot=old['sources'],old['source_snapshot']
+                changed=False
         else:
             actor,event_date=_clean(record.get('actor'),500),_date(record.get('event_date'))
             changed=any((old['title']!=title,old['content']!=content,old['actor']!=actor,
@@ -148,13 +173,18 @@ def upsert_record(desk, mid, record, sources, origin='model'):
         revision=old['revision']
         if changed:
             desk.db.execute('INSERT INTO legal_memory_history(record_id,revision,data,changed_at,reason) VALUES (?,?,?,?,?)',
-                (rid,revision,json.dumps(_row_data(old),ensure_ascii=False),stamp,'nouvelle_extraction_sourcee'))
+                (rid,revision,json.dumps(_row_data(old),ensure_ascii=False),stamp,
+                 'preuve_modifiee_validation_suspendue' if kept_status!=old['status'] else 'nouvelle_extraction_sourcee'))
             revision+=1
-        desk.db.execute('''UPDATE legal_memory_records SET title=?,content=?,actor=?,event_date=?,
-          confidence=?,status=?,sources=?,source_snapshot=?,origin=?,revision=?,updated=? WHERE id=?''',
-          (title,content,actor,event_date,
-           confidence,kept_status,encoded_sources,encoded_snapshot,origin,revision,stamp,rid))
+            stats['modifies']=stats.get('modifies',0)+1
+            desk.db.execute('''UPDATE legal_memory_records SET title=?,content=?,actor=?,event_date=?,
+              confidence=?,status=?,sources=?,source_snapshot=?,origin=?,revision=?,updated=?,validation_note=? WHERE id=?''',
+              (title,content,actor,event_date,
+               confidence if not human else old['confidence'],kept_status,encoded_sources,encoded_snapshot,origin if not human else old['origin'],revision,stamp,note,rid))
+        else:
+            stats['inchanges']=stats.get('inchanges',0)+1
     else:
+        stats['nouveaux']=stats.get('nouveaux',0)+1
         desk.db.execute('''INSERT INTO legal_memory_records VALUES
           (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
           (rid,mid,kind,title,content,_clean(record.get('actor'),500),
@@ -203,12 +233,22 @@ def change_record(desk,kind,args):
     stamp=desk.now();before=json.dumps(_row_data(row),ensure_ascii=False)
     desk.db.execute('INSERT INTO legal_memory_history(record_id,revision,data,changed_at,reason) VALUES (?,?,?,?,?)',
                     (rid,row['revision'],before,stamp,kind))
+    if args.get('revision') not in (None,'') and str(args.get('revision'))!=str(row['revision']):
+        raise Stop('fait_modifie_entre_temps_recharger')   # 5.6.24 (F27) : correction concurrente = conflit visible, jamais d'écrasement
     if kind=='validate_memory':
+        # 5.6.24 (F27) : correction structurée — texte, intitulé, date et acteur mis à jour ensemble ; l'ancienne version reste dans l'historique
         text=_clean(args.get('text') or row['content'],8000)
         if not text:raise Stop('correction_memoire_invalide')
-        desk.db.execute('''UPDATE legal_memory_records SET content=?,status='validated',revision=revision+1,
+        title=_clean(args.get('title') or row['title'],500)
+        event_date=row['event_date']
+        if args.get('event_date') is not None:
+            raw=_clean(args.get('event_date'),80)
+            if raw and not re.fullmatch(r'\d{4}(-\d{2}(-\d{2})?)?',raw[:10]):raise Stop('date_fait_invalide')
+            event_date=_date(raw)
+        actor=_clean(args.get('actor'),500) if args.get('actor') is not None else row['actor']
+        desk.db.execute('''UPDATE legal_memory_records SET content=?,title=?,event_date=?,actor=?,status='validated',revision=revision+1,
           updated=?,validated_at=?,validation_note=? WHERE id=?''',
-          (text,stamp,stamp,_clean(args.get('note'),1000),rid))
+          (text,title,event_date,actor,stamp,stamp,_clean(args.get('note'),1000),rid))
     elif kind=='pin_memory':
         desk.db.execute("UPDATE legal_memory_records SET status='pinned',revision=revision+1,updated=?,validated_at=? WHERE id=?",
                         (stamp,stamp,rid))
@@ -240,7 +280,8 @@ def _timeline_put(desk,mid,event_type,event_at,title,detail='',source_id='',sour
     if event_type not in TIMELINE_TYPES:return
     title=_clean(title,1000);detail=_clean(detail,5000);event_at=_date(event_at)
     source_id=_clean(source_id,200);source_path=_clean(source_path,2000)
-    identity='|'.join([mid,event_type,source_id,event_at,title])
+    # 5.6.24 (F29) : identité stable de la source (message, pièce, fait, tâche) ; un changement de date déplace l'événement au lieu d'en créer un autre
+    identity='|'.join([mid,event_type,source_id]) if source_id else '|'.join([mid,event_type,source_id,event_at,title])
     tid=digest(identity);signature=digest('|'.join([title,detail,source_modified,status,end_at]))
     desk.db.execute('''INSERT INTO timeline_events VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET event_at=excluded.event_at,end_at=excluded.end_at,
@@ -286,7 +327,7 @@ def sync_timeline(desk,mid,calendar_events=None):
     for row in desk.db.execute('SELECT * FROM tasks WHERE matter=?',(mid,)):
         _timeline_put(desk,mid,'task',row['due'] or row['created'],row['title'],row['status'],row['id'],'task','',row['created'],
                       status='active' if row['status']=='open' else row['status'])
-    for row in desk.db.execute("SELECT * FROM legal_memory_records WHERE matter=? AND status<>'archived'",(mid,)):
+    for row in desk.db.execute("SELECT * FROM legal_memory_records WHERE matter=? AND status NOT IN ('archived','disputed')",(mid,)):   # 5.6.24 (F28) : un refus n'est jamais projeté
         if not row['event_date']:continue
         event_type={'deadline':'deadline','completed_action':'completed_action'}.get(row['record_type'],'fact')
         snap=json.loads(row['source_snapshot']);path=snap[0].get('path','') if snap else ''
@@ -314,6 +355,7 @@ def _calendar_for_matter(desk,m):
     try:events=DAV(desk.c['nextcloud']).events(cc['urls'],now-timedelta(days=past),
             now+timedelta(days=future),cc.get('timezone','Europe/Paris'))
     except Stop as ex:return [],str(ex)
+    except (KeyError,OSError,ValueError) as ex:return [],'agenda_indisponible:'+type(ex).__name__   # 5.6.24 : un agenda absent ne bloque pas la chronologie
     refs=[m['id']]+list(m.get('references',[]))+list(m.get('aliases',[]))
     client=m.get('client_name','')
     if len(fold(client))>=6:refs.append(client)

@@ -38,6 +38,7 @@ def ensure_schema(desk):
     CREATE TABLE IF NOT EXISTS cockpit530_messages(id INTEGER PRIMARY KEY, role TEXT NOT NULL, text TEXT NOT NULL, matter TEXT NOT NULL,
       ref TEXT NOT NULL, created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS cockpit530_reviewed(item TEXT PRIMARY KEY, decision TEXT NOT NULL, title TEXT NOT NULL, at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS cockpit5624_dismissed(job INTEGER PRIMARY KEY, at TEXT NOT NULL);
     ''')
     desk.db.commit()
 
@@ -407,12 +408,77 @@ def review_html(desk, prefix):
     items = review_items(desk)
     note = '' if desk.settings('cockpit530:drafts', {}).get('ok', True) else '<p class="c530-note">Brouillons de la messagerie non lus pour l’instant (connexion).</p>'
     rows = ''.join(
-        '<li><button type="button" class="c530-item" data-item="%s"><span class="c530-row"><span class="c530-type %s">%s</span><span class="c530-when">%s</span></span>'
-        '<strong>%s</strong><span class="c530-sub">%s</span><span class="c530-dest">→ %s</span></button></li>' % (
+        '<li class="c530-has-icons"><button type="button" class="c530-item" data-item="%s"><span class="c530-row"><span class="c530-type %s">%s</span><span class="c530-when">%s</span></span>'
+        '<strong>%s</strong><span class="c530-sub">%s</span><span class="c530-dest">→ %s</span></button><span class="c530-icons">%s</span></li>' % (
             e(x['id'], quote=True), TYPE_CLASS.get(x['type'], 'doc'), e(x['type']), e(_local(desk, x['when'])), e(x['title']),
-            e(x['matter_label'] or 'dossier non identifié'), e(x['dest'])) for x in items[:25])
+            e(x['matter_label'] or 'dossier non identifié'), e(x['dest']), _review_icons(x)) for x in items[:25])
     return ('<div class="c530-head"><h2 id="c530-t-review">À relire <span class="c530-count">%d</span></h2><span class="c530-hint">un clic pour ouvrir</span></div>%s%s') % (
         len(items), note, ('<ul class="c530-list">%s</ul>' % rows) if rows else '<p class="c530-empty">Tout est relu. L’agent vous préviendra ici du prochain projet.</p>')
+
+
+ICONS = {'ignore': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 22 12a17 17 0 0 1-3.2 4.2M6.1 6.1A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4-.9"/></svg>',
+         'trash': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+         'edit': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>',
+         'add': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+         'stop': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>'}
+
+
+def _icon(kind, label, attrs):
+    """5.6.24 : petit bouton-icône accessible (libellé lu par les lecteurs d'écran et affiché au survol)."""
+    return '<button type="button" class="c530-ico %s" title="%s" aria-label="%s"%s>%s</button>' % (
+        kind, e(label, quote=True), e(label, quote=True), ''.join(' %s="%s"' % (k, e(str(v), quote=True)) for k, v in attrs.items()), ICONS[kind])
+
+
+def _review_icons(x):
+    out = _icon('ignore', 'Ignorer : retirer de « À relire » (rien n’est supprimé)', {'data-ignore': x['id']})
+    if x.get('request') and x.get('path'):
+        out += _icon('trash', 'Supprimer le fichier produit par l’agent (corbeille, restaurable)', {'data-trash': x['id'], 'data-name': x['title']})
+    return out
+
+
+def ignore_item(desk, data):
+    """5.6.24 : retire un élément de « À relire » sans décision de relecture ni suppression."""
+    x = _find(desk, str(data.get('item') or ''))
+    desk.db.execute('INSERT OR REPLACE INTO cockpit530_reviewed VALUES(?,?,?,?)', (x['id'], 'ignore', ('%s — %s' % (x['title'], x['matter_label']))[:250], desk.now()))
+    desk.db.commit()
+    desk.audit('cockpit5624_ignore', {'item': digest(x['id'])[:16]})
+    return {'message': 'Retiré de « À relire ». Le fichier ou le brouillon reste en place.'}
+
+
+def trash_item(desk, data):
+    """5.6.24 : supprime un document PRODUIT PAR L'AGENT, seulement s'il est inchangé depuis son dépôt (empreinte), vers la corbeille Nextcloud
+    ou la corbeille du dossier local (restaurable). Un document modifié par l'avocat n'est jamais supprimé ici."""
+    import hashlib
+    x = _find(desk, str(data.get('item') or ''))
+    if not (x.get('request') and x.get('path')):
+        raise Stop('suppression_reservee_aux_documents_de_l_agent')
+    row = desk.db.execute('SELECT result,path FROM docreq520 WHERE id=?', (x['request'],)).fetchone()
+    sha = json.loads(row['result'] or '{}').get('sha256', '') if row else ''
+    if not row or row['path'] != x['path'] or not sha:
+        raise Stop('empreinte_document_absente_suppression_refusee')
+    from .document_projects import _dav
+    client = _dav(desk)
+    meta = client.stat(x['path'])
+    if hashlib.sha256(client.download(meta)).hexdigest() != sha:
+        raise Stop('document_modifie_depuis_depot_suppression_refusee')
+    client.trash_file(x['path'], meta['etag'])
+    desk.db.execute("UPDATE docreq520 SET status='supprime',updated=? WHERE id=?", (desk.now(), x['request']))
+    desk.db.execute('INSERT OR REPLACE INTO cockpit530_reviewed VALUES(?,?,?,?)', (x['id'], 'supprime', ('%s — %s' % (x['title'], x['matter_label']))[:250], desk.now()))
+    desk.db.commit()
+    desk.audit('cockpit5624_document_supprime', {'item': digest(x['id'])[:16], 'request': x['request']})
+    return {'message': 'Document « %s » supprimé (corbeille, restaurable).' % x['title']}
+
+
+def dismiss_job(desk, data):
+    try:
+        jid = int(data.get('job'))
+    except (TypeError, ValueError):
+        raise Stop('travail_invalide') from None
+    if not desk.db.execute("SELECT 1 FROM jobs WHERE id=? AND status='error'", (jid,)).fetchone():
+        raise Stop('travail_invalide')
+    desk.db.execute('INSERT OR REPLACE INTO cockpit5624_dismissed VALUES(?,?)', (jid, desk.now()))
+    desk.db.commit()
+    return {'message': 'Blocage masqué de « Ce que fait l’agent ». Le travail reste consultable dans l’historique.'}
 
 
 def _find(desk, item):
@@ -569,6 +635,7 @@ def feed(desk):
     labels = _labels(desk)
     label = lambda k: 'Analyse des nouveaux courriels' if k in MAIL_KINDS else JOB_LABELS.get(k, k)
     out = {'en_cours': [], 'fait': [], 'bloque': []}
+    ensure_schema(desk)   # 5.6.24 : table des blocages masqués
 
     def matter_of(raw):
         try:
@@ -612,7 +679,8 @@ def feed(desk):
             code = json.loads(r['result'] or '{}').get('erreur', 'action_interrompue')
         except ValueError:
             code = 'action_interrompue'
-        if r['kind'] in NOISE or (code == queue521.INTERRUPTED and queue521.automatic(r['kind'], r['priority'])) or len(out['bloque']) >= 8:
+        if r['kind'] in NOISE or (code == queue521.INTERRUPTED and queue521.automatic(r['kind'], r['priority'])) or len(out['bloque']) >= 8 \
+                or desk.db.execute('SELECT 1 FROM cockpit5624_dismissed WHERE job=?', (r['id'],)).fetchone():
             continue
         out['bloque'].append({'job': r['id'], 'text': label(r['kind']), 'matter': matter_of(r['args']), 'when': _local(desk, r['finished']), 'detail': _reason(code),
                               'retry': r['id'] if r['kind'] not in ('automation_setting',) else 0})
@@ -660,6 +728,7 @@ def _table(desk, name):
 
 
 def feed_html(desk, prefix, current='en_cours'):
+    ensure_schema(desk)
     f = feed(desk)
     tabs = ''.join('<button type="button" class="c530-pill" data-feed="%s" aria-pressed="%s">%s · %d</button>' % (
         k, 'true' if k == current else 'false', label, len(f[k])) for k, label in (('en_cours', 'En cours'), ('fait', 'Fait'), ('bloque', 'Bloqué')))
@@ -670,6 +739,9 @@ def feed_html(desk, prefix, current='en_cours'):
             action = ''
             if a.get('retry'):
                 action = '<button type="button" class="ax-btn ghost c530-small" data-retry="%d">Relancer</button>' % a['retry']
+                action += _icon('ignore', 'Ignorer ce blocage (le masquer)', {'data-dismiss': a['retry']})
+            elif k == 'en_cours' and a.get('job'):
+                action = _icon('stop', 'Arrêter ce travail', {'data-cancel-job': a['job']})
             elif a.get('link'):
                 action = '<a class="ax-btn ghost c530-small" href="%s">%s</a>' % (e(prefix + a['link']), e(a['link_label']))
             title = ('<button type="button" class="c561-open" data-job="%d" title="Voir le détail">%s</button>' % (a['job'], e(a['text']))) if a.get('job') else (
@@ -707,9 +779,12 @@ def day_html(desk, prefix):
     start = datetime.combine(today, dtime.min, z).astimezone(timezone.utc).isoformat()
     end = datetime.combine(today + timedelta(days=1), dtime.min, z).astimezone(timezone.utc).isoformat()
     try:
-        events = [dict(r) for r in desk.db.execute('SELECT id,title,starts,ends,matter FROM calendar_cache WHERE starts<? AND ends>? ORDER BY starts LIMIT 12', (end, start))]
+        events = [dict(r) for r in desk.db.execute('SELECT id,uid,title,starts,ends,matter FROM calendar_cache WHERE starts<? AND ends>? ORDER BY starts LIMIT 12', (end, start))]
     except Exception:
         events = []
+    from .workplan import EVENT_UID
+    from . import agenda520
+    personal = agenda520.enabled(desk)
     ressort = ''
     try:
         from . import routines520
@@ -722,8 +797,18 @@ def day_html(desk, prefix):
         when = 'Journée' if s.time() == dtime.min else s.strftime('%H:%M')
         title = ev['title'] or 'Événement'
         far = ressort and 'audience' in fold(title) and fold(ressort) not in fold(title) and re.search(r'\b(tj|tribunal|cour|ca|cph)\b', fold(title))
-        ev_html += '<li class="c530-ev%s"><time>%s</time><div><strong>%s</strong>%s</div></li>' % (
-            ' far' if far else '', e(when), e(title), ('<span class="c530-sub">%s</span>' % e(labels.get(ev['matter'], ''))) if ev['matter'] else '')
+        own = bool(EVENT_UID.fullmatch(str(ev.get('uid') or '')))
+        try:
+            minutes = max(5, int((datetime.fromisoformat(ev['ends']) - datetime.fromisoformat(ev['starts'])).total_seconds() // 60))
+        except (TypeError, ValueError):
+            minutes = 60
+        icons = ''
+        if own or personal:
+            icons += _icon('edit', 'Modifier l’événement', {'data-ev-edit': ev['id'], 'data-title': title, 'data-start': s.strftime('%Y-%m-%dT%H:%M'), 'data-duration': minutes})
+        if own:
+            icons += _icon('trash', 'Supprimer l’événement', {'data-ev-del': ev['id'], 'data-title': title})
+        ev_html += '<li class="c530-ev%s c530-has-icons"><time>%s</time><div><strong>%s</strong>%s</div><span class="c530-icons">%s</span></li>' % (
+            ' far' if far else '', e(when), e(title), ('<span class="c530-sub">%s</span>' % e(labels.get(ev['matter'], ''))) if ev['matter'] else '', icons)
     try:
         tasks = [dict(r) for r in desk.db.execute("SELECT id,external_uid,title,due,status,matter,updated FROM work_tasks_v211 WHERE status NOT IN ('completed','cancelled') "
                                                   "ORDER BY CASE WHEN due='' THEN 1 ELSE 0 END, due LIMIT 8")]
@@ -743,11 +828,15 @@ def day_html(desk, prefix):
             except ValueError:
                 due = ''
         sub = ' · '.join(x for x in (labels.get(t['matter'], ''), due) if x)
-        tk_html += ('<li class="c530-task"><input type="checkbox" id="c530-tk-%s" data-task="%s"%s><label for="c530-tk-%s"><span class="%s">%s</span>%s</label>'
-                    '<span class="c530-by %s">%s</span></li>') % (
+        icons = ''
+        if not mine or personal:
+            icons = (_icon('edit', 'Modifier la tâche', {'data-tk-edit': t['id'], 'data-title': t['title'], 'data-due': str(t['due'] or '')[:10]})
+                     + _icon('trash', 'Supprimer la tâche (annulée dans Nextcloud)', {'data-tk-del': t['id'], 'data-title': t['title']}))
+        tk_html += ('<li class="c530-task c530-has-icons"><input type="checkbox" id="c530-tk-%s" data-task="%s"%s><label for="c530-tk-%s"><span class="%s">%s</span>%s</label>'
+                    '<span class="c530-by %s">%s</span><span class="c530-icons">%s</span></li>') % (
             e(t['id'], quote=True), e(t['id'], quote=True), ' checked' if t['status'] == 'completed' else '', e(t['id'], quote=True),
             'c530-done' if t['status'] == 'completed' else '', e(t['title']), ('<span class="c530-sub">%s</span>' % e(sub)) if sub else '',
-            'me' if mine else 'agent', 'Vous' if mine else 'Agent')
+            'me' if mine else 'agent', 'Vous' if mine else 'Agent', icons)
     from . import deck530
     s = deck530.settings(desk)
     board = desk.settings('deck530:board_url', '') or ''
@@ -763,13 +852,117 @@ def day_html(desk, prefix):
                      '<button class="ax-btn" type="submit">Enregistrer</button></form>'
                      '<form class="m5-form m5-inline" data-api="m530/nextcloud/sync" data-reload="1"><button class="ax-btn ghost" type="submit">Synchroniser maintenant</button></form></details>') % (
         ' checked' if s['deck'] else '', ' checked' if s['tasks'] else '', e(s['board'], quote=True), e(s['share_with'], quote=True))
-    return ('<div class="c530-head"><h2 id="c530-t-day">Ma journée</h2><a href="%s">Agenda</a></div>%s'
-            '<div class="c530-head sub"><h3>Tâches Nextcloud</h3><a href="%s">Toutes les tâches</a></div>%s'
+    add_ev = _icon('add', 'Ajouter un événement', {'data-day-add': 'event'})
+    add_tk = _icon('add', 'Ajouter une tâche', {'data-day-add': 'task'})
+    return ('<div class="c530-head"><h2 id="c530-t-day">Ma journée</h2><span class="c530-icons">' + add_ev + '</span><a href="%s">Agenda</a></div>%s'
+            '<div class="c530-head sub"><h3>Tâches Nextcloud</h3><span class="c530-icons">' + add_tk + '</span><a href="%s">Toutes les tâches</a></div>%s'
             '<div class="c530-head sub"><h3>Deck · %s</h3>%s</div><div class="c530-deck">%s</div><p class="c530-note">%s</p>%s') % (
         e(prefix + '/planning?vue=agenda'), ('<ul class="c530-list">%s</ul>' % ev_html) if ev_html else '<p class="c530-empty">Rien à l’agenda aujourd’hui.</p>',
         e(prefix + '/planning?vue=taches'), ('<ul class="c530-list">%s</ul>' % tk_html) if tk_html else '<p class="c530-empty">Aucune tâche ouverte.</p>',
         e(s['board']), ('<a target="_blank" rel="noopener noreferrer" href="%s">Ouvrir dans Deck</a>' % e(board, quote=True)) if board.startswith('https://') else '',
         deck_cols, status, settings_form)
+
+
+def _title_arg(data, minimum=3, maximum=200):
+    title = re.sub(r'\s+', ' ', str(data.get('title') or '')).strip()
+    if not minimum <= len(title) <= maximum:
+        raise Stop('intitule_invalide')
+    return title
+
+
+def event_create(desk, data):
+    from .workplan import create_event
+    out = create_event(desk, {'title': _title_arg(data), 'start': str(data.get('start') or ''), 'duration_minutes': data.get('duration_minutes') or 60,
+                              'matter': str(data.get('matter') or '')})
+    return {'message': out['message']}
+
+
+def _event_row(desk, data):
+    row = desk.db.execute('SELECT * FROM calendar_cache WHERE id=?', (str(data.get('event') or ''),)).fetchone()
+    if not row:
+        raise Stop('evenement_absent')
+    return row
+
+
+def event_edit(desk, data):
+    from .workplan import EVENT_UID, edit_event
+    row = _event_row(desk, data)
+    args = {'title': _title_arg(data), 'start': str(data.get('start') or ''), 'duration_minutes': data.get('duration_minutes') or 60}
+    if EVENT_UID.fullmatch(str(row['uid'] or '')):
+        out = edit_event(desk, {**args, 'uid': row['uid'], 'matter': row['matter'] or ''})
+    else:
+        from . import agenda520
+        out = agenda520.edit_event(desk, {**args, 'event': row['id']})
+    return {'message': out['message']}
+
+
+def event_delete(desk, data):
+    from .workplan import EVENT_UID, cancel_event
+    row = _event_row(desk, data)
+    if not EVENT_UID.fullmatch(str(row['uid'] or '')):
+        raise Stop('evenement_externe_suppression_dans_nextcloud')
+    return {'message': cancel_event(desk, {'uid': row['uid'], 'confirm': 'yes'})['message']}
+
+
+def task_create(desk, data):
+    """5.6.24 : nouvelle tâche dans la liste de tâches Nextcloud de l'agent (configurée dans Planification), relue ensuite."""
+    from .workplan import _dav, sync_tasks
+    from zoneinfo import ZoneInfo
+    cfg = desk.c.get('nextcloud_workflow') or {}
+    url = cfg.get('task_calendar_url', '')
+    if not cfg.get('enabled') or not url:
+        raise Stop('liste_taches_non_configuree')
+    title = _title_arg(data)
+    due = str(data.get('due') or '')[:10]
+    when = ''
+    if due:
+        try:
+            when = datetime.combine(date.fromisoformat(due), dtime(17, 0), ZoneInfo(desk.c.get('planning', {}).get('timezone', 'Europe/Paris'))).isoformat()
+        except ValueError:
+            raise Stop('date_tache_invalide') from None
+    matter = str(data.get('matter') or '')
+    uid = 'axiorhub-' + digest('task5624|' + title + '|' + due + '|' + desk.now())[:32] + '@mail-agent.local'
+    _dav(desk).put_todo(url, uid, title, ('Dossier : ' + labels_for(desk).get(matter, matter)) if matter else '', None, when or None, 'NEEDS-ACTION', 5, 0)
+    try:
+        sync_tasks(desk)
+    except (Stop, OSError, ValueError):
+        pass
+    desk.audit('cockpit5624_tache_creee', {'matter': matter})
+    return {'message': 'Tâche « %s » ajoutée dans Nextcloud.' % title}
+
+
+def labels_for(desk):
+    return _labels(desk)
+
+
+def _task_row(desk, data):
+    row = desk.db.execute('SELECT * FROM work_tasks_v211 WHERE id=?', (str(data.get('task') or ''),)).fetchone()
+    if not row:
+        raise Stop('tache_absente')
+    return row
+
+
+def task_edit(desk, data):
+    row = _task_row(desk, data)
+    args = {'task': row['id'], 'title': _title_arg(data), 'due': str(data.get('due') or '')[:10]}
+    if str(row['external_uid']).startswith('axiorhub-'):
+        from .workplan import edit_task
+        edit_task(desk, args)
+    else:
+        from . import agenda520
+        agenda520.edit_task(desk, args)
+    return {'message': 'Tâche modifiée dans Nextcloud.'}
+
+
+def task_delete(desk, data):
+    row = _task_row(desk, data)
+    if str(row['external_uid']).startswith('axiorhub-'):
+        from .workplan import update_task_status
+        update_task_status(desk, {'task': row['id'], 'status': 'cancelled'})
+    else:
+        from . import agenda520
+        agenda520.edit_task(desk, {'task': row['id'], 'status': 'cancelled'})
+    return {'message': 'Tâche supprimée de la liste (annulée dans Nextcloud, historique conservé).'}
 
 
 def toggle_task(desk, data):
@@ -958,6 +1151,11 @@ def handle(desk, name, data, method='POST', args=None):
         return cancel(desk, data)
     if n == 'task':
         return toggle_task(desk, data)
+    routes5624 = {'item/ignore': ignore_item, 'item/trash': trash_item, 'dismiss': dismiss_job, 'event/create': event_create, 'event/edit': event_edit,
+                  'event/delete': event_delete, 'task/create': task_create, 'task/edit': task_edit, 'task/delete': task_delete}
+    if n in routes5624:   # 5.6.24 : boutons-icônes d'Aujourd'hui
+        ensure_schema(desk)
+        return routes5624[n](desk, data)
     if n == 'routine':
         kind = str(data.get('kind') or '')
         from . import routines520

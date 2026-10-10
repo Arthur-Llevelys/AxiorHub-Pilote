@@ -73,9 +73,9 @@ def assertions(text):
     """Assertions vérifiables du texte, avec localisation (ligne, section)."""
     out = []
     for value, raw, pos in amounts(text):
-        out.append({'kind': 'montant', 'value': value, 'raw': raw, **_location(text, pos)})
+        out.append({'kind': 'montant', 'value': value, 'raw': raw, 'pos': pos, **_location(text, pos)})
     for value, raw, pos in dates(text):
-        out.append({'kind': 'date', 'value': value, 'raw': raw, **_location(text, pos)})
+        out.append({'kind': 'date', 'value': value, 'raw': raw, 'pos': pos, **_location(text, pos)})
     for m in ARTICLE.finditer(text or ''):
         out.append({'kind': 'reference', 'value': re.sub(r'\s', '', m.group(1)), 'raw': m.group(0), **_location(text, m.start())})
     for m in PIECE.finditer(text or ''):
@@ -86,9 +86,50 @@ def assertions(text):
     return out
 
 
+STOPWORDS = {'dans', 'pour', 'avec', 'sans', 'cette', 'cela', 'ceci', 'être', 'etre', 'avoir', 'leur', 'leurs', 'elle', 'elles', 'nous', 'vous', 'ils', 'sont',
+             'euros', 'euro', 'montant', 'somme', 'date', 'depuis', 'jusqu', 'entre', 'ainsi', 'donc', 'alors', 'mais', 'aussi', 'plus', 'moins', 'tout', 'tous',
+             'toute', 'toutes', 'comme', 'lors', 'apres', 'avant', 'selon', 'dont', 'quel', 'quelle', 'celui', 'celle', 'etait', 'sera', 'fait', 'faite', 'article'}
+NEGATION = re.compile(r"\b(ne|n'|pas|jamais|aucun|aucune|nullement|sans)\b")
+
+
+def _sentences(text):
+    return [s for s in re.split(r'(?<=[.;!?\n])\s+', text or '') if s.strip()]
+
+
+def _sentence_at(text, pos):
+    start = max(text.rfind('\n', 0, pos), text.rfind('. ', 0, pos), text.rfind('; ', 0, pos)) + 1
+    ends = [i for i in (text.find('\n', pos), text.find('. ', pos), text.find('; ', pos)) if i >= 0]
+    return text[start:(min(ends) + 1) if ends else len(text)]
+
+
+def _keywords(sentence):
+    return {w for w in re.findall(r'[a-z0-9]{4,}', fold(sentence)) if w not in STOPWORDS and not w.isdigit()}
+
+
+def supported(sentence, value, kind, sources):
+    """5.6.24 (F08) : une valeur présente dans une source ne suffit plus. La phrase source contenant la valeur doit partager des mots
+    significatifs (acteur, action) avec la phrase de l'assertion et porter la même négation ; sinon la relation n'est pas démontrée
+    (« a_controler »). Retourne (statut, passage source)."""
+    akeys = _keywords(sentence)
+    aneg = bool(NEGATION.search(fold(sentence)))
+    needed = min(2, max(1, len(akeys) // 3 or 1))
+    best = None
+    for s in sources or ():
+        body = s.get('text', '') if isinstance(s, dict) else str(s)
+        for sent in _sentences(body):
+            vals = {v for v, _, _ in (amounts(sent) if kind == 'montant' else dates(sent))}
+            if value not in vals:
+                continue
+            common = akeys & _keywords(sent)
+            if len(common) >= needed and bool(NEGATION.search(fold(sent))) == aneg:
+                return 'appuyee', sent.strip()[:240]
+            best = best or sent.strip()[:240]
+    return 'a_controler', best or ''
+
+
 def deterministic(text, sources, pieces=None):
-    """Contrôles déterministes : montants et dates retrouvés dans les sources, pièces citées existantes, demandes cohérentes
-    entre discussion et dispositif."""
+    """Contrôles déterministes : montants et dates retrouvés dans les sources ET reliés à leur passage (F08), pièces citées existantes,
+    demandes cohérentes entre discussion et dispositif."""
     src_amounts = set()
     src_dates = set()
     for s in sources or ():
@@ -97,10 +138,12 @@ def deterministic(text, sources, pieces=None):
         src_dates.update(v for v, _, _ in dates(body))
     items = assertions(text)
     for a in items:
-        if a['kind'] == 'montant':
-            a['status'] = 'appuyee' if a['value'] in src_amounts else ('non_verifiable' if not sources else 'non_retrouvee')
-        elif a['kind'] == 'date':
-            a['status'] = 'appuyee' if a['value'] in src_dates else ('non_verifiable' if not sources else 'non_retrouvee')
+        if a['kind'] in ('montant', 'date'):
+            found = a['value'] in (src_amounts if a['kind'] == 'montant' else src_dates)
+            if not found:
+                a['status'] = 'non_verifiable' if not sources else 'non_retrouvee'
+            else:
+                a['status'], a['passage'] = supported(_sentence_at(text or '', a.get('pos', 0)), a['value'], a['kind'], sources)
         elif a['kind'] == 'piece':
             if pieces is None:
                 a['status'] = 'non_verifiable'
@@ -122,10 +165,15 @@ def deterministic(text, sources, pieces=None):
     defects = [{'localisation': 'ligne %d%s' % (a['line'], (' · ' + a['section']) if a['section'] else ''), 'gravite': 'reserve', 'regle_ou_source': 'source du dossier',
                 'avant': a['raw'], 'kind': a['kind'], 'message': '%s « %s » non retrouvé(e) dans les sources fournies.' % ('Montant' if a['kind'] == 'montant' else 'Date' if a['kind'] == 'date' else 'Pièce', a['raw'])}
                for a in items if a.get('status') == 'non_retrouvee']
+    defects += [{'localisation': 'ligne %d%s' % (a['line'], (' · ' + a['section']) if a['section'] else ''), 'gravite': 'reserve', 'regle_ou_source': 'relation avec la source',
+                 'avant': a['raw'], 'kind': 'relation_non_demontree', 'passage': a.get('passage', ''),
+                 'message': '%s « %s » présent(e) dans les sources, mais la relation (acteur, action, négation) avec le passage source n’est pas démontrée : à contrôler.'
+                            % ('Montant' if a['kind'] == 'montant' else 'Date', a['raw'])} for a in items if a.get('status') == 'a_controler']
     defects += [{'localisation': 'dispositif', 'gravite': 'bloquant', 'regle_ou_source': 'cohérence discussion / dispositif', 'avant': c['value'], 'kind': 'coherence',
                  'message': 'Montant du dispositif « %s » absent de la discussion.' % c['value']} for c in coherence]
     return {'assertions': items, 'defects': defects, 'counts': {'total': len(items), 'appuyees': sum(1 for a in items if a.get('status') == 'appuyee'),
-                                                                 'non_retrouvees': sum(1 for a in items if a.get('status') == 'non_retrouvee')}}
+                                                                 'non_retrouvees': sum(1 for a in items if a.get('status') == 'non_retrouvee'),
+                                                                 'a_controler': sum(1 for a in items if a.get('status') == 'a_controler')}}
 
 
 def _blocks(text, size=BLOCK):
@@ -239,9 +287,9 @@ def review(desk, text, sources=(), kind='', matter_id='', pieces=None, model=Non
     else:
         out['outcome'] = 'reussi'
     labels = {'reussi': 'contrôle réussi', 'reserves': 'contrôle avec réserves', 'bloque': 'contrôle bloquant', 'indisponible': 'contrôle indisponible'}
-    out['summary'] = '%s · %s · %d assertion(s), %d appuyée(s), %d non retrouvée(s) · %d défaut(s) · blocs relus %d/%d' % (
+    out['summary'] = '%s · %s · %d assertion(s), %d appuyée(s), %d non retrouvée(s), %d à contrôler · %d défaut(s) · blocs relus %d/%d' % (
         labels[out['outcome']], {'executee': 'exécuté', 'partielle': 'partiel', 'non_executee': 'non exécuté'}[out['execution']], det['counts']['total'],
-        det['counts']['appuyees'], det['counts']['non_retrouvees'], len(out['defects']), out['coverage']['blocks_reviewed'], out['coverage']['blocks_total'])
+        det['counts']['appuyees'], det['counts']['non_retrouvees'], det['counts'].get('a_controler', 0), len(out['defects']), out['coverage']['blocks_reviewed'], out['coverage']['blocks_total'])
     return out
 
 

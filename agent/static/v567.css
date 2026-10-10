@@ -17,3 +17,11 @@
 .mission567-card button,.mission567-card .btn {min-height:2.75rem;}
 @media(prefers-reduced-motion:reduce) {.mission567-card,*[data-mission-id] {animation:none!important;transition:none!important;}}
 @media(max-width:640px) {#ws-ai-dock {width:calc(100vw - 1rem);right:.5rem;max-height:90dvh;} .mission567-heading button {flex:1 1 auto;}}
+
+/* 5.6.24 : sélection du dossier de travail */
+.browse567-field{display:flex;gap:6px;align-items:center}.browse567-field input{flex:1;min-width:0}
+dialog.browse567{max-width:640px;width:calc(100% - 32px);border:1px solid #dfe3e9;border-radius:12px;padding:16px}
+.browse567-path{font-family:monospace;word-break:break-all}.browse567-roots{display:flex;gap:6px;flex-wrap:wrap}
+.browse567-list{list-style:none;margin:8px 0;padding:0;max-height:50vh;overflow:auto}.browse567-list li{margin:2px 0}
+.browse567-dir{width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:8px;padding:6px 8px;cursor:pointer;color:inherit}
+.browse567-dir:hover{border-color:#dfe3e9}.browse567-actions{display:flex;gap:8px;justify-content:flex-end}

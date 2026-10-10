@@ -3,6 +3,39 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.24 — Corrections de l’audit des 5.6.22 et 5.6.23, dossier en onglets, icônes d’Aujourd’hui
+
+Matrice détaillée constat par constat : `CONFORMITE-5.6.24.md` ; tests de reproduction : `tests/test_v5624.py`.
+
+- **Dossier** : la fiche s’organise en douze onglets (Synthèse, Parties, Faits et procédure, Arguments des parties, Chronologie,
+  Juridiction et échéances, Pièces, Textes et jurisprudence, Écritures et projets, Simulation, Décisions, Actions), chacun avec ses
+  sources et sa fraîcheur. Bouton unique « Analyser le dossier » (indexation, faits, chronologie, synthèse) suivi étape par étape,
+  reprise des seules étapes en erreur (F25, F34). La recherche des faits couvre toutes les pièces et projette la chronologie dans le
+  même travail (F26, F32) ; correction structurée d’un fait (texte, intitulé, date confirmée) avec révision attendue (F27) ; un fait
+  refusé n’apparaît plus « à valider » (F28) ; deux courriels distincts restent deux événements, les dates inconnues sont à part (F29) ;
+  la synthèse charge les faits validés et refusés de la fiche (F31) ; une preuve modifiée suspend la validation (F33).
+- **Missions** : mandat versionné (pause, annulation, révision) contrôlé avant chaque appel, dépôt et publication (F01) ; baux expirés
+  repris ou soumis à décision, reprise après redémarrage par rapprochement (F02) ; validation sur le fichier relu, immuable (F03) ;
+  empreinte canonique de la demande (F04) ; textes intégraux des pièces transmis à l’analyse (F05) ; périmètre de lecture et sources
+  modifiées soumis à décision (F06) ; contrat commun de source juridique (F07) ; sources inventées refusées, relation montant/acteur
+  démontrée (F08) ; lots enregistrés et consolidation récursive sans perte (F09).
+- **Dossier local** : publication exclusive (F10), versions uniques et rétention réglable (F11), liens symboliques refusés à chaque
+  composant (F12), ETag fondé sur le contenu (F13).
+- **Invoice Ninja** : réservation de chaque temps avant tout envoi, plus de tâche pour un temps facturé (F14) ; relecture exigeante
+  (montant TTC, libellés, statut, échéance, conditions) (F15) ; validité du devis appliquée et identité de devis par demande (F16) ;
+  journal des opérations réclamé en transaction exclusive (F17).
+- **Droits** : le rôle avocat accède aux missions, décisions, profils et facturation (F18).
+- **Poste de bureau** : premier lancement guidé dans Paramètres (F19) ; installation par capacités, dossier local suffisant, messagerie
+  facultative (F20) ; services surveillés et relancés de façon bornée, verrou d’instance, identifiants WebKit limités à l’origine
+  locale, liens externes dans le navigateur (F24).
+- **Courriels et Word** : brouillon sans drapeau Draft ou sans corps non conforme (F21) ; images, champs et objets protégés lors d’une
+  révision Word (F22). **MCP** : réponses corrélées par identifiant, flux SSE complets, pagination contrôlée (F23).
+- **Navigation** : plus de « job=0 » après une action immédiate (F35), script des missions chargé une fois (F36), formulaires GET non
+  détournés (F37).
+- **Interface** : bouton « 📁 Choisir… » pour le dossier de travail local dans Paramètres ; icônes dans Aujourd’hui (ignorer ou
+  supprimer un document produit par l’agent, masquer un blocage, arrêter un travail, ajouter/modifier/supprimer un événement ou une
+  tâche) ; jours de l’agenda en français.
+
 ## 5.6.23 — Guide « poste Ubuntu en dix minutes »
 
 - **`docs/GUIDE-POSTE-10-MINUTES.md`** : installation de l’application de bureau sur Ubuntu 24.04, d’Ollama au premier briefing,

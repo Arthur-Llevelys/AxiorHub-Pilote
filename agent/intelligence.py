@@ -75,11 +75,22 @@ def refresh_brief(desk,args):
                           'validated_par_avocat':True,'status':row[4]})
         fact_sources.append({'id':sid,'kind':'lawyer_validated_fact','path':'Fiche validée par l’avocat',
                              'modified':desk.now(),'excerpt':row[2],'partial':False})
+    # 5.6.24 (F31) : les décisions humaines de la fiche (mémoire de dossier : faits validés, corrigés, refusés) sont chargées AVANT l'appel
+    # au modèle ; un fait refusé est transmis comme tel et ne peut pas revenir comme fait établi.
+    from .legal_memory import memory_records
+    for row in memory_records(desk,m['id'],['pinned','validated'],60):
+        sid='memoire-'+row['id'][:16]
+        validated.append({'id':sid,'category':row['record_type'],'text':(row['title']+' — '+row['content'])[:2000],'date':row['event_date'],
+                          'original_source_ids':json.loads(row['sources']) if isinstance(row['sources'],str) else row['sources'],
+                          'validated_par_avocat':True,'status':row['status'],'revision':row['revision']})
+        fact_sources.append({'id':sid,'kind':'lawyer_validated_fact','path':'Fait validé par l’avocat (fiche du dossier)',
+                             'modified':row['updated'],'excerpt':(row['title']+' — '+row['content']+((' — date : '+row['event_date']) if row['event_date'] else ''))[:2000],'partial':False})
+    refused=[{'type':row['record_type'],'titre':row['title'][:300],'contenu':row['content'][:500]} for row in memory_records(desk,m['id'],['disputed'],100)]
     sources=bounded_sources(desk.c,fact_sources+raw_sources)
     available={s['id'] for s in sources};validated=[x for x in validated if x['id'] in available]
     model=Model(routed_config(desk.c,'attachment_review'))
     memory_payload={'dossier':{'id':m['id'],'nom':m['client_name']},
-        'sources':sources,'faits_valides':validated,
+        'sources':sources,'faits_valides':validated,'faits_refuses_par_avocat':refused,
         'couverture':{'extraits':len(sources),'fichiers_en_attente':len(stale)}}
     result=model.ask('case_brief',memory_payload)
     validate(result,CASE_BRIEF);valid={s['id'] for s in sources}
@@ -94,7 +105,9 @@ def refresh_brief(desk,args):
         if not conflict['source_ids'] or any(x not in valid for x in conflict['source_ids']):
             raise Stop('source_memoire_invalide')
     version=(desk.db.execute('SELECT COALESCE(MAX(version),0) FROM case_briefs WHERE matter=?',(m['id'],)).fetchone()[0]+1)
-    cur=desk.db.execute('INSERT INTO case_briefs VALUES(NULL,?,?,?,?,?)',(m['id'],version,json.dumps(result),json.dumps(sources),desk.now()))
+    from .dossier5624 import source_revision
+    stored={**result,'revision_consommee':source_revision(desk,m['id']),'faits_valides_utilises':len(validated),'faits_refuses_transmis':len(refused)}   # 5.6.24 (F30/F31)
+    cur=desk.db.execute('INSERT INTO case_briefs VALUES(NULL,?,?,?,?,?)',(m['id'],version,json.dumps(stored),json.dumps(sources),desk.now()))
     categories={'party':result['parties'],'claim':result['claims'],'latest_instruction':result['latest_instructions'],
                 'negotiation':result['negotiation_positions'],'action_completed':result['actions_completed'],
                 'action_planned':result['actions_planned'],'open_question':result['open_questions']}

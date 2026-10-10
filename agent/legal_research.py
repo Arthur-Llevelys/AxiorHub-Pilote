@@ -283,6 +283,23 @@ def _fetch_official(url,configured_hosts=()):
     return HTTP(base,timeout=60).request('GET',url,headers={'Accept':'text/html,application/json,text/plain'},limit=6_000_000)
 
 
+LEGAL_SOURCE_REQUIRED=('authority_id','reference','official_url','exact_excerpt','official_text_sha256')
+
+
+def legal_source(result):
+    """5.6.24 (F07) : objet commun de source juridique partagé par la recherche, le rédacteur et le contrôleur — identité officielle
+    (authority_id), type, référence (identifiant ou ECLI), URL officielle, extrait exact, empreinte du texte officiel, date de vérification.
+    Retourne None, jamais un objet partiel, si un champ obligatoire manque ou si la source n'est pas citable."""
+    if not isinstance(result,dict):return None
+    if not (result.get('citable') or result.get('status')=='verified'):return None
+    src={'authority_id':str(result.get('authority_id') or ''),'kind':str(result.get('kind') or 'decision'),
+      'reference':str(result.get('identifier') or result.get('ecli') or result.get('reference') or ''),'official_url':str(result.get('official_url') or ''),
+      'exact_excerpt':str(result.get('exact_excerpt') or ''),'official_text_sha256':str(result.get('official_text_sha256') or ''),
+      'verified_at':str(result.get('verified_at') or ''),'court':str(result.get('court') or ''),'date':str(result.get('date') or ''),'title':str(result.get('title') or '')}
+    if any(not src[k] for k in LEGAL_SOURCE_REQUIRED):return None
+    return src
+
+
 def verify_official_decision(desk,args,fetcher=None):
     ensure_schema(desk);matter=_matter(desk,args.get('matter',''))
     url=str(args.get('official_url','')).strip();identifier=str(args.get('identifier','')).strip()[:300]
@@ -318,9 +335,9 @@ def verify_official_decision(desk,args,fetcher=None):
     desk.db.commit();desk.audit('official_decision_verified',{'matter':matter['id'],
       'authority':authority_id,'status':status,'official_url':url,'text_sha256':_sha(official.encode())})
     return {'authority_id':authority_id,'status':status,'official_url':url,
-      'identifier':identifier,'ecli':ecli,'court':court,'date':decision_date,
+      'identifier':identifier,'ecli':ecli,'court':court,'date':decision_date,'title':title,'kind':'decision',
       'exact_excerpt':quote if verified else '', 'official_text_sha256':_sha(official.encode()),
-      'verification_reason':reason,'citable':verified}
+      'verification_reason':reason,'citable':verified,'verified_at':stamp}
 
 
 def _provider_results(desk,name,query,limit):
@@ -414,7 +431,7 @@ def import_mcp_results(desk,args,official_fetcher=None):
     desk.audit('legal_mcp_results_imported',{'matter':query['matter'],'query':qid,
       'provider':provider,'leads':len(leads),'verified':len(verified),'errors':len(errors)})
     return {'query_id':qid,'matter':query['matter'],'provider':provider,'leads':leads,
-      'verified_authorities':verified,'status':final,'errors':errors,
+      'verified_authorities':verified,'sources_juridiques':[s for s in (legal_source(v) for v in verified) if s],'status':final,'errors':errors,
       'warning':'Les résultats MCP sont des pistes. Seules les décisions présentes dans verified_authorities sont citables.'}
 
 

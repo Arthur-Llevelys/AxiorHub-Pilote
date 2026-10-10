@@ -120,16 +120,19 @@ def extract_facts(text, path, modified=''):
             continue
         value = _fr_amount(m[1])
         add('amount', 'Montant : %s €' % value, 'Montant de %s € cité dans la pièce.' % value, True, m.start(), m.end())
-        if len([1 for r, _ in out if r['record_type'] == 'amount']) >= 6:
+        if len([1 for r, _ in out if r['record_type'] == 'amount']) >= 20:
             break
     for label, pattern in EVENT_CUES:
-        for m in re.finditer(pattern, folded):
+        found = 0
+        for m in re.finditer(pattern, folded):   # 5.6.24 (F32) : deux jugements d'une même pièce restent deux faits distincts
             when, end = _parse_date(folded, m.end())
             if not when:
                 continue
             title = '%s du %d/%02d/%d' % (label, when.day, when.month, when.year)
             add('event', title, '%s en date du %s.' % (label, when.strftime('%d/%m/%Y')), True, m.start(), end, when.isoformat())
-            break
+            found += 1
+            if found >= 6:
+                break
     parties = 0
     for m in PARTY.finditer(text):
         add('party', 'Partie : ' + m[1].strip(), 'Partie citée dans la pièce : ' + m[1].strip(), False, m.start(), m.end())
@@ -145,13 +148,13 @@ def extract_facts(text, path, modified=''):
     return out, quality
 
 
-def propose(desk, mid, path, text, modified=''):
+def propose(desk, mid, path, text, modified='', stats=None):
     """Enregistre les faits repérés comme propositions à valider (jamais validés d'office)."""
     ensure_schema(desk)
     facts, quality = extract_facts(text, path, modified)
     created = 0
     for record, source in facts:
-        upsert_record(desk, mid, record, [source], 'extraction_deterministe_460')
+        upsert_record(desk, mid, record, [source], 'extraction_deterministe_460', stats=stats)
         created += 1
     desk.db.commit()
     return {'path': path, 'faits': created, 'qualite_texte': quality}
@@ -168,18 +171,33 @@ def scan_matter(desk, args):
     if only:
         sql += ' AND path=?'
         params.append(only)
-    sql += ' ORDER BY modified DESC LIMIT 40'
-    total, per_doc = 0, []
-    for path, text, modified in index.db.execute(sql, params).fetchall():
-        res = propose(desk, mid, path, text or '', modified or '')
-        total += res['faits']
-        per_doc.append(res)
-    desk.audit('faits_460_proposes', {'matter': mid, 'documents': len(per_doc), 'faits': total})
+    # 5.6.24 (F32) : toutes les pièces, par pages de 200 (plus de coupe à quarante) ; compteurs calculés depuis les changements persistés
+    sql += ' ORDER BY modified DESC, path LIMIT 200 OFFSET ?'
+    total, per_doc, offset, stats = 0, [], 0, {}
+    while True:
+        rows = index.db.execute(sql, params + [offset]).fetchall()
+        if not rows:
+            break
+        for path, text, modified in rows:
+            res = propose(desk, mid, path, text or '', modified or '', stats)
+            total += res['faits']
+            per_doc.append(res)
+        offset += len(rows)
+    failed = [r[0] for r in index.db.execute('SELECT path FROM docs WHERE matter=? AND error<>""' + (' AND path=?' if only else ''), [mid] + ([only] if only else []))]
+    events = None
+    if args.get('sync', True):   # 5.6.24 (F26) : la chronologie est projetée dans le même travail, la commande n'est complète qu'ensuite
+        from .legal_memory import sync_timeline
+        events = sync_timeline(desk, mid)
+    desk.audit('faits_460_proposes', {'matter': mid, 'documents': len(per_doc), 'faits': total, **stats})
     low = [d['path'] for d in per_doc if d['qualite_texte'] < 0.55]
-    return {'status': 'prepared' if total else 'blocked', 'matter': mid, 'documents': len(per_doc), 'faits': total,
-            'documents_peu_lisibles': low,
-            'message': '%d fait(s) proposé(s) à valider dans %d pièce(s)%s.' % (
-                total, len(per_doc), ' ; %d pièce(s) peu lisible(s), confiance basse' % len(low) if low else '')}
+    counts = {k: stats.get(k, 0) for k in ('nouveaux', 'modifies', 'inchanges', 'refus_respectes')}
+    return {'status': 'prepared' if total else 'blocked', 'matter': mid, 'documents': len(per_doc), 'faits': total, **counts,
+            'erreurs': len(failed), 'documents_en_erreur': failed[:50], 'documents_peu_lisibles': low, 'chronologie': events,
+            'traitement': 'repérage déterministe (RG, juridiction, montants, dates d’actes, parties) — pas une analyse sémantique du dossier',
+            'message': '%d fait(s) repéré(s) dans %d pièce(s) : %d nouveau(x), %d modifié(s), %d inchangé(s), %d refus respecté(s)%s%s%s.' % (
+                total, len(per_doc), counts['nouveaux'], counts['modifies'], counts['inchanges'], counts['refus_respectes'],
+                ' ; %d pièce(s) peu lisible(s), confiance basse' % len(low) if low else '', ' ; %d pièce(s) en erreur de lecture' % len(failed) if failed else '',
+                ' ; chronologie mise à jour (%d événement(s))' % events if events is not None else '')}
 
 
 # ------------------------------------------------------------ décisions
@@ -199,15 +217,17 @@ def facts_for_review(desk, mid):
     return out
 
 
-def decide(desk, mid, rid, action, text='', note=''):
-    """Valider (éventuellement en corrigeant le texte) ou refuser, en un clic."""
+def decide(desk, mid, rid, action, text='', note='', **fields):
+    """Valider (éventuellement en corrigeant texte, intitulé, date et acteur) ou refuser, en un clic. 5.6.24 (F27) : ``revision``
+    attendue contrôlée ; ``event_date`` confirmée par l'avocat met à jour la date utilisée par la chronologie et la synthèse."""
     row = desk.db.execute('SELECT matter FROM legal_memory_records WHERE id=?', (rid,)).fetchone()
     if not row or row['matter'] != mid:
         raise Stop('information_memoire_absente')
+    extra = {k: v for k, v in fields.items() if k in ('title', 'event_date', 'actor', 'revision') and v is not None}
     if action == 'validate':
-        return change_record(desk, 'validate_memory', {'record': rid, 'matter': mid, 'text': text, 'note': note or 'Validé par l’avocat'})
+        return change_record(desk, 'validate_memory', {'record': rid, 'matter': mid, 'text': text, 'note': note or 'Validé par l’avocat', **extra})
     if action == 'reject':
-        return change_record(desk, 'dispute_memory', {'record': rid, 'matter': mid, 'note': note or 'Refusé par l’avocat'})
+        return change_record(desk, 'dispute_memory', {'record': rid, 'matter': mid, 'note': note or 'Refusé par l’avocat', **({'revision': extra['revision']} if 'revision' in extra else {})})
     raise Stop('action_memoire_invalide')
 
 

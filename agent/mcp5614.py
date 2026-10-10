@@ -20,24 +20,50 @@ TEXT_WORDS = ('get', 'read', 'fetch', 'retrieve', 'text', 'texte', 'article', 'd
 LEGAL_WORDS = ('legal', 'law', 'juris', 'decision', 'code', 'article', 'legif', 'droit', 'texte', 'loi', 'norm')
 
 
-def _parse(raw):
-    """JSON direct ou flux d'événements (data: …) : le dernier message JSON-RPC complet est retenu."""
+def _messages(raw):
+    """5.6.24 (F23) : tous les messages JSON-RPC d'une réponse — JSON direct (objet ou lot) ou flux SSE (événements séparés par une ligne
+    vide, lignes data: multiples concaténées). Les notifications (sans id) sont conservées à part ; rien n'est réduit au dernier objet."""
     text = raw.decode('utf-8', 'replace') if isinstance(raw, bytes) else str(raw)
     stripped = text.strip()
+    out = []
     if stripped.startswith('{') or stripped.startswith('['):
-        return json.loads(stripped)
-    last = None
-    for line in text.splitlines():
-        if line.startswith('data:'):
-            body = line[5:].strip()
-            if body:
-                try:
-                    last = json.loads(body)
-                except ValueError:
-                    continue
-    if last is None:
+        value = json.loads(stripped)
+        out = value if isinstance(value, list) else [value]
+    else:
+        buffer = []
+        for line in text.splitlines() + ['']:
+            if line.startswith('data:'):
+                buffer.append(line[5:].lstrip())
+            elif line == '' and buffer:
+                body = '\n'.join(buffer).strip(); buffer = []
+                if body:
+                    try:
+                        value = json.loads(body)
+                    except ValueError:
+                        continue
+                    out += value if isinstance(value, list) else [value]
+    if not out:
         raise Stop('reponse_mcp_illisible')
-    return last
+    return [m for m in out if isinstance(m, dict)]
+
+
+def _parse(raw):
+    """Compatibilité : premier message portant un id (réponse) ou, à défaut, le dernier message."""
+    messages = _messages(raw)
+    responses = [m for m in messages if 'id' in m]
+    return responses[0] if responses else messages[-1]
+
+
+def correlate(raw, request_id):
+    """5.6.24 (F23) : la réponse dont l'id correspond à la requête ; notifications et progressions sont ignorées ; une erreur JSON-RPC
+    corrélée est remontée ; aucune réponse corrélée = erreur explicite, jamais un succès déduit d'une notification."""
+    messages = _messages(raw)
+    for m in messages:
+        if m.get('jsonrpc') == '2.0' and 'id' in m and m.get('id') == request_id:
+            return m
+    if any('id' in m and m.get('id') != request_id for m in messages):
+        raise Stop('reponse_mcp_non_correlee')
+    raise Stop('reponse_mcp_sans_reponse')
 
 
 class Session:
@@ -74,9 +100,7 @@ class Session:
             self.session_id = header_sid
         if not expect_result:
             return None
-        result = _parse(raw)
-        if isinstance(result, list):
-            result = next((x for x in result if isinstance(x, dict) and x.get('id') == payload.get('id')), result[-1] if result else {})
+        result = correlate(raw, payload.get('id'))   # 5.6.24 (F23)
         if not isinstance(result, dict) or result.get('jsonrpc') != '2.0':
             raise Stop('reponse_mcp_invalide')
         if result.get('error'):
@@ -104,8 +128,8 @@ class Session:
         return result
 
     def list_tools(self, max_pages=20):
-        tools, cursor, pages = [], None, 0
-        while pages < max_pages:
+        tools, cursor, pages, seen = [], None, 0, set()
+        while True:
             params = {'cursor': cursor} if cursor else {}
             result = self.call('tools/list', params)
             rows = result.get('tools', []) if isinstance(result, dict) else []
@@ -116,6 +140,9 @@ class Session:
             pages += 1
             if not cursor:
                 break
+            if cursor in seen or pages >= max_pages:   # 5.6.24 (F23) : un curseur répété ou une pagination interminable = catalogue incomplet, jamais présenté comme exhaustif
+                raise Stop('pagination_outils_mcp_incomplete')
+            seen.add(cursor)
         self.tools = tools
         return tools
 

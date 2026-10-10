@@ -1,6 +1,9 @@
 /* AxiorHub 5.6.14 : barre des routines, centre « À décider » compact (panneau latéral, actions), page des missions complexes. */
 (() => {
   'use strict';
+  if (window.__axiorhub5614) return;   // 5.6.24 (F36) : initialisation idempotente, un seul gestionnaire par contrôle
+  window.__axiorhub5614 = true;
+  const inflight = new Set();          // commandes en cours (mission + action) : un clic = une commande
   const meta = name => document.querySelector('meta[name="' + name + '"]')?.content || '';
   const prefix = meta('axiorhub-prefix'), csrf = meta('axiorhub-csrf');
   async function post(api, route, data) {
@@ -68,6 +71,9 @@
     const field = name => card.querySelector('[data-field="' + name + '"]')?.value?.trim() || '';
     const answers = () => { const a = {}; card.querySelectorAll('[data-answer]').forEach(x => { if (x.value) a[x.dataset.answer] = x.value; }); return a; };
     if (button.dataset.confirm && !window.confirm(button.dataset.confirm)) return;
+    const flight = (id || card.dataset.mission || '') + '|' + act;   // 5.6.24 (F36) : un clic = une commande, même si le bouton est réactivé
+    if (inflight.has(flight)) return;
+    inflight.add(flight);
     button.disabled = true;
     try {
       let keep = false;
@@ -94,6 +100,7 @@
       if (!keep) { const next = card.nextElementSibling || card.previousElementSibling; card.remove(); badge(); next?.focus?.(); }
       else button.disabled = false;
     } catch (e) { note(e.message); button.disabled = false; }
+    finally { inflight.delete(flight); }
   });
 
   // ---- page des missions complexes

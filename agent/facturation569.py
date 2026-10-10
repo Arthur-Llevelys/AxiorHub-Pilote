@@ -151,7 +151,7 @@ def _check_invoice(checked, remote_id, client_id, total_cents, line_count, body=
         issues.append('client différent')
     if body is not None:
         from .facturation5614 import check_lines
-        issues += [i for i in check_lines(checked, {**body, 'expected_amount': None}, client_id, Decimal(int(total_cents)) / 100) if i not in issues]
+        issues += [i for i in check_lines(checked, {**body, 'expected_amount': Decimal(int(total_cents)) / 100}, client_id, Decimal(int(total_cents)) / 100) if i not in issues]   # 5.6.24 (F15) : TTC attendu = HT des lignes (aucune taxe envoyée)
         if body.get('public_notes') is not None and checked.get('public_notes') is not None and str(checked.get('public_notes')) != str(body['public_notes']):
             issues.append('notes publiques différentes')
         if checked.get('currency_id') and body.get('currency_id') and str(checked['currency_id']) != str(body['currency_id']):
@@ -267,7 +267,21 @@ def log_time(desk, entry_id, confirm=False, http=None):
         body['rate'] = _euros(entry['rate_cents'])
     proof = {'entry': entry['id'], 'minutes': int(entry['minutes']), 'representation': representation, 'time_log': log}
     client = _client(desk, http)
-    _reserve(desk, key, 'task', entry['matter'], client_id, entry['id'], proof, conflict='temps_deja_transmis')
+    from .facturation5614 import InvoiceNinjaClient
+    project = InvoiceNinjaClient(desk, http).mapped('project', 'matter:' + str(entry['matter']))
+    if project:
+        body['project_id'] = project
+    # 5.6.24 (F14) : un temps déjà transmis (même incertain) n'est jamais réexporté ; la réservation par entrée précède tout effet distant
+    # dans les deux parcours (facture et tâche) et un conflit de réservation interdit le POST au lieu d'être masqué.
+    previous = desk.db.execute('SELECT state FROM invoice_ninja_writes_v569 WHERE id=?', (key,)).fetchone()
+    if previous:
+        raise Stop('temps_deja_transmis')
+    reserve_entries(desk, [entry['id']], key)
+    try:
+        _reserve(desk, key, 'task', entry['matter'], client_id, entry['id'], proof, conflict='temps_deja_transmis')
+    except Stop:
+        release_entries(desk, key, 'cle_temps_deja_reservee')
+        raise
     remote_id = ''
     try:
         created = _data(client.json('POST', '/api/v1/tasks', body))
@@ -284,32 +298,40 @@ def log_time(desk, entry_id, confirm=False, http=None):
     issues = []
     if str(checked.get('id')) != remote_id:
         issues.append('identifiant différent')
-    if checked.get('client_id') is not None and str(checked.get('client_id')) != client_id:
+    # 5.6.24 (F14/F15) : client, description, time_log, taux et projet sont exigés à la relecture ; un champ absent est un écart nommé
+    if checked.get('client_id') is None:
+        issues.append('client absent de la relecture')
+    elif str(checked.get('client_id')) != client_id:
         issues.append('client différent')
-    if checked.get('description') is not None and str(checked.get('description')) != description:
+    if checked.get('description') is None:
+        issues.append('description absente')
+    elif str(checked.get('description')) != description:
         issues.append('description différente')
     try:
         remote_log = json.loads(checked['time_log']) if isinstance(checked.get('time_log'), str) else checked.get('time_log')
-        if remote_log is not None and [[int(a), int(b)] for a, b in remote_log] != log:
-            issues.append('intervalle de temps différent')
-        if remote_log is not None and sum(int(b) - int(a) for a, b in remote_log) != int(entry['minutes']) * 60:
-            issues.append('durée différente')
+        if remote_log is None:
+            issues.append('time_log absent')
+        else:
+            if [[int(a), int(b)] for a, b in remote_log] != log:
+                issues.append('intervalle de temps différent')
+            if sum(int(b) - int(a) for a, b in remote_log) != int(entry['minutes']) * 60:
+                issues.append('durée différente')
     except (ValueError, TypeError, KeyError):
         issues.append('time_log illisible')
-    if body.get('rate') is not None and checked.get('rate') is not None and abs(float(checked['rate']) - float(body['rate'])) > 0.005:
-        issues.append('taux différent')
-    if checked.get('project_id') and body.get('project_id') and str(checked['project_id']) != str(body['project_id']):
-        issues.append('projet différent')
+    if body.get('rate') is not None:
+        if checked.get('rate') is None:
+            issues.append('taux absent')
+        elif abs(float(checked['rate']) - float(body['rate'])) > 0.005:
+            issues.append('taux différent')
+    if body.get('project_id'):
+        if not checked.get('project_id'):
+            issues.append('projet absent de la relecture')
+        elif str(checked['project_id']) != str(body['project_id']):
+            issues.append('projet différent')
     state = 'verified' if not issues else 'deposited_unverified'
     _update(desk, key, state, {**proof, 'issues': issues, 'checked_at': desk.now()}, remote_id=remote_id)
-    try:
-        from .facturation5614 import InvoiceNinjaClient
-        InvoiceNinjaClient(desk, http)._map('task', 'entry:' + entry['id'], remote_id)
-        # 5.6.14 (C16) : un temps exporté comme tâche ne peut plus être facturé localement en parallèle
-        reserve_entries(desk, [entry['id']], key)
-        confirm_entries(desk, key, remote_task=remote_id)
-    except Stop:
-        pass
+    InvoiceNinjaClient(desk, http)._map('task', 'entry:' + entry['id'], remote_id)
+    confirm_entries(desk, key, remote_task=remote_id)   # réservée avant le POST ; désormais exportée (plus facturable localement)
     desk.audit('invoice_ninja_temps_transmis', {'matter': entry['matter'], 'remote_id': remote_id, 'minutes': int(entry['minutes']), 'state': state})
     return {'task_id': remote_id, 'minutes': int(entry['minutes']), 'verified': not issues, 'issues': issues,
             'message': ('Temps de %d min transmis à Invoice Ninja (tâche %s).' % (int(entry['minutes']), remote_id)) if not issues else

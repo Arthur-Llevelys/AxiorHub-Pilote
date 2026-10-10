@@ -179,6 +179,44 @@
         .catch(function (err) { toast(err.message, true); busy(cl, false); });
       return;
     }
+    // 5.6.24 : boutons-icônes — À relire (ignorer, supprimer), Ce que fait l'agent (ignorer un blocage), Ma journée (événements, tâches)
+    var ig = t.closest('[data-ignore]');
+    if (ig) {
+      busy(ig, true);
+      call('m530/item/ignore', { item: ig.getAttribute('data-ignore') }).then(function (res) { toast(res.message); part('review', '#c530-review'); })
+        .catch(function (err) { toast(err.message, true); busy(ig, false); });
+      return;
+    }
+    var tr = t.closest('[data-trash]');
+    if (tr) {
+      if (!confirm('Supprimer « ' + (tr.getAttribute('data-name') || 'ce document') + ' » ? Seul un document produit par l’agent et resté inchangé peut l’être ; il part dans la corbeille (restaurable).')) return;
+      busy(tr, true);
+      call('m530/item/trash', { item: tr.getAttribute('data-trash') }).then(function (res) { toast(res.message); part('review', '#c530-review'); })
+        .catch(function (err) { toast(err.message, true); busy(tr, false); });
+      return;
+    }
+    var dm = t.closest('[data-dismiss]');
+    if (dm) {
+      busy(dm, true);
+      call('m530/dismiss', { job: dm.getAttribute('data-dismiss') }).then(function (res) { toast(res.message); part('feed', '#c530-feed'); })
+        .catch(function (err) { toast(err.message, true); busy(dm, false); });
+      return;
+    }
+    var add = t.closest('[data-day-add]');
+    if (add) { dayForm(add.getAttribute('data-day-add') === 'event' ? 'event/create' : 'task/create', {}, add); return; }
+    var ee = t.closest('[data-ev-edit]');
+    if (ee) { dayForm('event/edit', { event: ee.getAttribute('data-ev-edit'), title: ee.getAttribute('data-title'), start: ee.getAttribute('data-start'), duration_minutes: ee.getAttribute('data-duration') }, ee); return; }
+    var te = t.closest('[data-tk-edit]');
+    if (te) { dayForm('task/edit', { task: te.getAttribute('data-tk-edit'), title: te.getAttribute('data-title'), due: te.getAttribute('data-due') }, te); return; }
+    var ed = t.closest('[data-ev-del]') || t.closest('[data-tk-del]');
+    if (ed) {
+      var isEv = ed.hasAttribute('data-ev-del');
+      if (!confirm('Supprimer « ' + (ed.getAttribute('data-title') || '') + ' » ?')) return;
+      busy(ed, true);
+      call(isEv ? 'm530/event/delete' : 'm530/task/delete', isEv ? { event: ed.getAttribute('data-ev-del') } : { task: ed.getAttribute('data-tk-del') })
+        .then(function (res) { toast(res.message); part('day', '#c530-day'); }).catch(function (err) { toast(err.message, true); busy(ed, false); });
+      return;
+    }
     var cj = t.closest('[data-cancel-job]');
     if (cj) {
       if (!confirm('Annuler ce travail ? Un document déjà déposé reste conservé.')) return;
@@ -221,6 +259,49 @@
 
   // ---------------------------------------------------------------- panneau de relecture
   var drawer = $('#c530-drawer'), content = $('#c530-drawer-content');
+
+  // 5.6.24 : formulaire d'ajout ou de modification (événement, tâche) dans le panneau latéral, construit sans HTML injecté
+  function dayForm(route, values, from) {
+    var isEvent = route.indexOf('event/') === 0, isNew = /create$/.test(route);
+    state.lastFocus = from || null;
+    content.textContent = '';
+    var form = document.createElement('form'); form.className = 'c530-dayform';
+    var h = document.createElement('h2'); h.id = 'c530-drawer-title';
+    h.textContent = (isNew ? 'Ajouter ' : 'Modifier ') + (isEvent ? 'un événement' : 'une tâche');
+    form.appendChild(h);
+    function field(label, name, type, value, extra) {
+      var l = document.createElement('label'); l.textContent = label;
+      var i = document.createElement('input'); i.name = name; i.type = type; i.value = value || '';
+      Object.keys(extra || {}).forEach(function (k) { i.setAttribute(k, extra[k]); });
+      l.appendChild(i); form.appendChild(l); return i;
+    }
+    var title = field('Intitulé', 'title', 'text', values.title, { required: 'required', minlength: '3', maxlength: '200' });
+    var start, duration, due;
+    if (isEvent) {
+      var d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1);
+      var local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      start = field('Début', 'start', 'datetime-local', values.start || local, { required: 'required' });
+      duration = field('Durée (minutes)', 'duration_minutes', 'number', values.duration_minutes || '60', { min: '5', max: '1440', step: '5' });
+    } else {
+      due = field('Échéance (facultative)', 'due', 'date', values.due || '');
+    }
+    var ok = document.createElement('button'); ok.type = 'submit'; ok.className = 'ax-btn'; ok.textContent = 'Enregistrer';
+    var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ax-btn ghost'; cancel.textContent = 'Annuler';
+    cancel.addEventListener('click', closeDrawer);
+    var row = document.createElement('p'); row.appendChild(ok); row.appendChild(document.createTextNode(' ')); row.appendChild(cancel); form.appendChild(row);
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var body = { title: title.value.trim() };
+      if (values.event) body.event = values.event;
+      if (values.task) body.task = values.task;
+      if (isEvent) { body.start = start.value; body.duration_minutes = Number(duration.value || 60); } else { body.due = due.value; }
+      busy(ok, true);
+      call('m530/' + route, body).then(function (res) { toast(res.message); closeDrawer(); part('day', '#c530-day'); })
+        .catch(function (err) { toast(err.message, true); busy(ok, false); });
+    });
+    content.appendChild(form);
+    drawer.hidden = false; title.focus();
+  }
   function closeDrawer() { drawer.hidden = true; content.textContent = ''; if (state.lastFocus) state.lastFocus.focus(); }
   function openItem(id, from) {
     state.lastFocus = from || null;

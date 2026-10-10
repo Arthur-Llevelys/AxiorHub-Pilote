@@ -250,6 +250,18 @@ def _ptext(xml):
     return re.sub(r'\s+', ' ', ''.join(re.findall(r'<w:t(?:\s[^>]*)?>(.*?)</w:t>', xml, flags=re.S))).strip()
 
 
+OBJECT = re.compile(r'<w:(?:drawing|pict|object)\b|<w:fldSimple\b|<w:fldChar\b|<m:oMath|<w:footnoteReference\b|<w:endnoteReference\b')
+
+
+def _has_object(xml):
+    """5.6.24 (F22) : paragraphe porteur d'un contenu non textuel (image, dessin, objet, champ, formule, renvoi de note)."""
+    return bool(OBJECT.search(xml))
+
+
+def _object_count(xml):
+    return len(OBJECT.findall(xml)) + len(re.findall(r'r:(?:embed|link|id)="', xml))
+
+
 def revise_body(previous_raw, body_xml):
     """5.6.14 (C03) : révision par blocs. Les paragraphes inchangés gardent leur XML (styles, numérotation, notes), les tableaux, images
     et contrôles de contenu restent à leur place ; seuls les paragraphes modifiés, ajoutés ou retirés changent. Retourne (octets, rapport)."""
@@ -273,7 +285,9 @@ def revise_body(previous_raw, body_xml):
         sect = xml.rfind('<w:sectPr', start, end)
         tail = xml[sect:end] if sect > start else ''
         inner = xml[start:sect if sect > start else end]
-        old_elems = _split_body(inner)
+        # 5.6.24 (F22) : un paragraphe sans texte mais porteur d'une image, d'un champ ou d'un objet est un bloc protégé (comme un tableau)
+        old_elems = [('obj' if k == 'p' and _has_object(x) and not _ptext(x) else k, x) for k, x in _split_body(inner)]
+        objects_before = _object_count(inner)
         old_p = [(i, _ptext(x)) for i, (k, x) in enumerate(old_elems) if k == 'p']
         new_p = [x for k, x in _split_body(body_xml) if k == 'p']
         new_t = [_ptext(x) for x in new_p]
@@ -287,7 +301,7 @@ def revise_body(previous_raw, body_xml):
                 attached.setdefault(count, []).append(x)
         pieces = list(attached.get(0, []))
         report = {'kept': 0, 'replaced': 0, 'inserted': 0, 'deleted': 0, 'tables_kept': sum(1 for k, _ in old_elems if k == 'tbl'),
-                  'other_kept': sum(1 for k, _ in old_elems if k not in ('p', 'tbl'))}
+                  'other_kept': sum(1 for k, _ in old_elems if k not in ('p', 'tbl')), 'objets_proteges': 0}
         def emit_old(j):
             pieces.extend(attached.get(j + 1, []))
         for op, i1, i2, j1, j2 in sm.get_opcodes():
@@ -299,24 +313,38 @@ def revise_body(previous_raw, body_xml):
             elif op == 'replace':
                 pieces.extend(new_p[j1:j2])
                 for off in range(i2 - i1):
+                    old_x = old_elems[old_p[i1 + off][0]][1]
+                    if _has_object(old_x):   # F22 : un paragraphe porteur d'image ou de champ n'est jamais remplacé implicitement
+                        pieces.append(old_x)
+                        report['objets_proteges'] += 1
                     emit_old(i1 + off)
                 report['replaced'] += i2 - i1
                 report['inserted'] += max(0, (j2 - j1) - (i2 - i1))
             elif op == 'delete':
                 for off in range(i2 - i1):
+                    old_x = old_elems[old_p[i1 + off][0]][1]
+                    if _has_object(old_x):
+                        pieces.append(old_x)
+                        report['objets_proteges'] += 1
+                    else:
+                        report['deleted'] += 1
                     emit_old(i1 + off)
-                report['deleted'] += i2 - i1
             elif op == 'insert':
                 pieces.extend(new_p[j1:j2])
                 report['inserted'] += j2 - j1
-        document = xml[:start] + ''.join(pieces) + tail + xml[end:]
+        new_inner = ''.join(pieces)
+        if _object_count(new_inner) < objects_before:   # F22 : contrôle avant publication ; la version précédente reste intacte
+            raise Stop('objet_word_perdu_revision')
+        report['objects'] = objects_before
+        document = xml[:start] + new_inner + tail + xml[end:]
         for info in zin.infolist():
             if info.filename == 'word/document.xml' or info.filename.endswith('vbaProject.bin'):
                 continue
             zout.writestr(info, zin.read(info.filename))
         zout.writestr('word/document.xml', document.encode('utf-8'))
     report['summary'] = '%d paragraphe(s) conservé(s), %d remplacé(s), %d ajouté(s), %d retiré(s) ; %d tableau(x) conservé(s)' % (
-        report['kept'], report['replaced'], report['inserted'], report['deleted'], report['tables_kept'])
+        report['kept'], report['replaced'], report['inserted'], report['deleted'], report['tables_kept']) + (
+        ' ; %d paragraphe(s) avec image ou champ protégé(s), à relire' % report['objets_proteges'] if report['objets_proteges'] else '')
     return out.getvalue(), report
 
 

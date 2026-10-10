@@ -328,6 +328,35 @@
       catalog = await api('config/catalog'); connections.querySelectorAll('input[type=password]').forEach(x => {x.value = ''; x.placeholder = 'Secret configuré ; laisser vide pour le conserver';});
     } catch (e) {output.textContent = e.message;} finally {button.disabled = false;}
   });
+  // 5.6.24 : choisir le dossier de travail local (navigation dans les dossiers, aucun fichier lu ; l'enregistrement reste explicite)
+  document.querySelectorAll('[data-browse567]').forEach(b => b.addEventListener('click', async () => {
+    const input = [...document.querySelectorAll('[data-config567]')].find(x => x.dataset.config567 === b.dataset.browse567);
+    if (!input) return;
+    const box = el('dialog', undefined, 'browse567'), where = el('p', 'Lecture…', 'browse567-path'), list = el('ul', undefined, 'browse567-list');
+    const roots = el('div', undefined, 'browse567-roots'), actions = el('div', undefined, 'browse567-actions');
+    const choose = el('button', 'Choisir ce dossier'), cancel = el('button', 'Annuler', 'ghost');
+    choose.type = 'button'; cancel.type = 'button'; actions.append(choose, cancel);
+    box.setAttribute('aria-label', 'Choisir le dossier de travail');
+    box.append(el('h3', 'Choisir le dossier de travail'), roots, where, list, actions); document.body.append(box);
+    let current = '';
+    const close = () => { box.close(); box.remove(); b.focus(); };
+    const load = async path => {
+      try {
+        const r = await api('config/browse' + (path ? '?path=' + encodeURIComponent(path) : ''));
+        current = r.path; where.textContent = r.path; list.replaceChildren(); roots.replaceChildren();
+        r.roots.forEach(x => { const k = el('button', x.label, 'ghost'); k.type = 'button'; k.addEventListener('click', () => load(x.path)); roots.append(k); });
+        if (r.parent) { const up = el('button', '⬆ Dossier parent', 'ghost'); up.type = 'button'; up.addEventListener('click', () => load(r.parent)); list.append(el('li')); list.lastChild.append(up); }
+        r.dirs.forEach(d => { const k = el('button', '📁 ' + d.name, 'browse567-dir'); k.type = 'button'; k.addEventListener('click', () => load(d.path)); const li = el('li'); li.append(k); list.append(li); });
+        if (!r.dirs.length) list.append(el('li', 'Aucun sous-dossier.'));
+        if (r.truncated) list.append(el('li', 'Liste limitée à 500 dossiers.'));
+      } catch (e) { where.textContent = e.message; }
+    };
+    choose.addEventListener('click', () => { if (current) { input.value = current; input.dispatchEvent(new Event('input', {bubbles: true})); }
+      close(); const out = document.querySelector('#connections567-status'); if (out) out.textContent = 'Dossier choisi : ' + current + '. Cliquez sur « Enregistrer les changements ».'; });
+    cancel.addEventListener('click', close); box.addEventListener('cancel', e => { e.preventDefault(); close(); });
+    if (box.showModal) box.showModal(); else box.setAttribute('open', '');
+    await load(input.value.trim());
+  }));
   document.querySelectorAll('[data-connector567]').forEach(b => b.addEventListener('click', async () => {
     b.disabled = true; const output = document.querySelector('#connections567-status'); output.textContent = 'Test en cours…';
     try {const value = await api('config/test', {connector: b.dataset.connector567}); output.textContent = (value.ok ? 'Test validé : ' : 'Test non validé : ') + value.message;
