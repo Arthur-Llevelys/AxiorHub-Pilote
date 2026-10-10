@@ -353,13 +353,14 @@ class Mailbox:
         return {'uid': saved.uid, 'uidvalidity': saved.uidvalidity,
                 'folder': self.cfg['drafts'], 'verified_at': datetime.now(timezone.utc).isoformat()}
 
-    def preflight(self, mail, draft_mid=None, allow_seen=False):
+    def preflight(self, mail, draft_mid=None, allow_seen=False, manual=False):
         current = self.fetch(mail.mailbox, mail.uid, headers_only=True)
         if current.uidvalidity != mail.uidvalidity or current.mid != mail.mid:
             return 'message_source_change'
         reason = exclusion(current, self.cfg, allow_seen=allow_seen)
-        if reason: return reason
+        if reason and not (manual and reason != 'marque_supprime'): return reason
         if self.existing_draft(mail, draft_mid): return 'brouillon_existant'
+        if manual: return ''   # 5.6.28 : réponse demandée par l'avocat : ni filtre automatique, ni abstention liée au fil
         own = own_addresses(self.cfg)
         for m in self.thread(mail):
             if m.timestamp >= mail.timestamp:
@@ -394,11 +395,11 @@ class Mailbox:
         if status != 'OK': raise Stop('append_imap_incertain')
 
 
-def make_draft(mail, cfg, body, key, cc=()):
+def make_draft(mail, cfg, body, key, cc=(), to=None):
     if '\r' in cfg['from_name'] or '\n' in cfg['from_name']: raise Stop('identite_invalide')
     result = EmailMessage(policy=policy.SMTP)
     result['From'] = formataddr((cfg['from_name'], cfg['from_address']))
-    result['To'] = mail.sender
+    result['To'] = to or mail.sender   # 5.6.28 : réponse à un message du cabinet adressée à ses destinataires
     if cc:
         if any(not re.fullmatch(r'[^\s@,;<>]+@[^\s@,;<>]+', a) for a in cc): raise Stop('copie_invalide')
         result['Cc'] = ', '.join(cc)

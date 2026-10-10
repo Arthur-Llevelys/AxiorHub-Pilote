@@ -174,10 +174,12 @@ def _check_sendable(desk, mail):
         raise Stop('smtp_non_configure')
     msg = mail.msg
     matter = _matter_of(desk, draft_key(msg), '')
-    if not matter:
-        raise Stop('envoi_dossier_non_identifie')
-    if matter not in set(desk.settings('send490:matters', [])):
-        raise Stop('envoi_non_active_pour_ce_dossier')
+    webmail = str(msg.get('X-AxiorHub-Origine', '')).strip() == 'webmail5628'   # 5.6.28 : message rédigé par l'avocat dans la messagerie
+    if not webmail:
+        if not matter:
+            raise Stop('envoi_dossier_non_identifie')
+        if matter not in set(desk.settings('send490:matters', [])):
+            raise Stop('envoi_non_active_pour_ce_dossier')
     subject = str(msg.get('Subject', ''))
     if VERIFY_MARK.search(subject) or VERIFY_MARK.search(body_text(msg)[:400]):
         raise Stop('brouillon_a_verifier')
@@ -234,6 +236,13 @@ def _outgoing(msg, from_cfg):
     out['Message-ID'] = make_msgid(domain=domain)
     out['Date'] = format_datetime(datetime.now(timezone.utc))
     out.set_content(body_text(msg).replace('\r\n', '\n').rstrip() + '\n')
+    html = msg.get_body(preferencelist=('html',))   # 5.6.28 : la version mise en forme d'un message de la messagerie accompagne le texte
+    if html is not None and str(msg.get('X-AxiorHub-Origine', '')).strip() == 'webmail5628':
+        try:
+            from .webmail5628 import clean_html
+            out.add_alternative('<!doctype html><html><body>%s</body></html>' % clean_html(html.get_content()), subtype='html')
+        except (LookupError, UnicodeError):
+            pass
     for part in msg.iter_attachments():
         data = part.get_payload(decode=True)
         out.add_attachment(data, maintype=part.get_content_maintype(), subtype=part.get_content_subtype(),

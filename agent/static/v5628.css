@@ -1,0 +1,62 @@
+/* AxiorHub 5.6.28 — messagerie (barre d'actions, rédaction mise en forme) et vue « Tâches » simplifiée. */
+.bx5628-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:0 0 10px;margin:0 0 10px;border-bottom:1px solid #dfe3e9;position:sticky;top:0;background:var(--ws-card,#fff);z-index:2}
+.bx5628-btn{font:inherit;font-size:13px;border:1px solid #c9d5ea;background:#fff;color:#1f2a3a;border-radius:8px;padding:6px 10px;cursor:pointer;min-height:34px}
+.bx5628-btn:hover{background:#eef2f8}.bx5628-btn.primary{background:#1f4e9c;border-color:#1f4e9c;color:#fff}.bx5628-btn.ai{background:#f3effd;border-color:#cdbdf5;color:#5b2bbf}.bx5628-btn.danger{color:#b42318;border-color:#f1c6c1}
+.bx5628-move{font:inherit;font-size:13px;border:1px solid #c9d5ea;border-radius:8px;padding:6px 8px;min-height:34px;max-width:170px}
+.bx5628-sep{width:1px;height:22px;background:#dfe3e9;margin:0 2px}
+.bx5628-new{margin:0 0 6px}
+.bx5628-compose{display:grid;gap:8px}
+.bx5628-compose-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}.bx5628-compose-head h2{margin:0;font-size:18px}
+.bx5628-field{display:grid;grid-template-columns:56px 1fr;align-items:center;gap:8px;border-bottom:1px solid #e6eaf0;padding:2px 0}
+.bx5628-field[hidden]{display:none}.bx5628-field span{color:#5b6676;font-size:13px}
+.bx5628-field input{font:inherit;border:0;padding:8px 4px;background:transparent;min-width:0}.bx5628-field input:focus{outline:2px solid #9fb3d1;border-radius:6px}
+.bx5628-toggles{display:flex;gap:10px;justify-content:flex-end;margin-top:-4px}
+.bx5628-link{background:none;border:0;color:#1f4e9c;cursor:pointer;font:inherit;font-size:13px;padding:2px}
+.bx5628-fmt{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid #dfe3e9;border-bottom:0;border-radius:10px 10px 0 0;background:#f6f7f9}
+.bx5628-fbtn{font:inherit;font-size:13px;font-weight:600;color:#1f2a3a;border:1px solid #dfe3e9;background:#fff;border-radius:6px;padding:4px 9px;cursor:pointer;min-height:30px}
+.bx5628-fbtn:hover{background:#e6eefb;border-color:#c9d5ea}
+.bx5628-editor{min-height:240px;max-height:52vh;overflow:auto;border:1px solid #dfe3e9;border-radius:0 0 10px 10px;padding:12px;line-height:1.55;background:#fff;margin-top:-8px}
+.bx5628-editor:focus{outline:2px solid #9fb3d1}
+.bx5628-editor blockquote{margin:6px 0;padding:4px 0 4px 12px;border-left:3px solid #c9d5ea;color:#3d4757}
+.bx5628-files{display:grid;gap:4px;font-size:13px}.bx5628-attach{display:grid;gap:4px;font-size:13px}
+.bx5628-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bx5628-confirm{border:1px solid #1f4e9c;border-radius:10px;padding:10px 12px;background:#f4f7fd}.bx5628-confirm[hidden]{display:none}
+.bx5628-confirm.bad{border-color:#f1c6c1;background:#fdecea}.bx5628-confirm h3{margin:0 0 6px}
+.bx5628-confirm dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0 0 8px}.bx5628-confirm dt{color:#5b6676}.bx5628-confirm dd{margin:0;font-weight:600;word-break:break-word}
+/* --- Tâches */
+.tk28{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px;align-items:start}
+.tk28-main,.tk28-side{display:grid;gap:12px;min-width:0}.tk28-side{position:sticky;top:12px}
+.tk28-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}.tk28-head h2{margin:0;font-size:20px}
+.tk28-muted{color:#5b6676;font-size:13px;margin:2px 0 0}.tk28-late{color:#b42318}
+.tk28-filter select{font:inherit;padding:7px 10px;border:1px solid #dfe3e9;border-radius:8px;max-width:280px}
+.tk28-chips{display:flex;gap:6px;flex-wrap:wrap}
+.tk28-chips a{padding:5px 12px;border-radius:14px;border:1px solid #dfe3e9;text-decoration:none;color:inherit;font-size:13px}
+.tk28-chips a[aria-current=page]{background:#1f4e9c;border-color:#1f4e9c;color:#fff}
+.tk28-group h3{font-size:14px;margin:6px 0;color:#3d4757;text-transform:uppercase;letter-spacing:.03em}
+.tk28-retard h3{color:#b42318}
+.tk28-count{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:#eef2f8;font-size:12px;text-align:center;color:#3d4757}
+.tk28-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.tk28-item{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start;background:var(--ws-card,#fff);border:1px solid #dfe3e9;border-radius:10px;padding:8px 10px}
+.tk28-item form{margin:0}
+.tk28-done{width:30px;height:30px;border-radius:50%;border:2px solid #9fb3d1;background:#fff;color:#1f4e9c;cursor:pointer;font-size:14px;line-height:1;padding:0}
+.tk28-done:hover{background:#1f4e9c;color:#fff;border-color:#1f4e9c}
+.tk28-ro{display:inline-block;width:30px;text-align:center;color:#9aa6b6}
+.tk28-title{margin:3px 0 4px;font-weight:600;line-height:1.4}
+.tk28-chips-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tk28-chip{font-size:12px;padding:1px 8px;border-radius:9px;background:#eef2f8;color:#1f4e9c;text-decoration:none}
+.tk28-due.late{background:#fdecea;color:#b42318}.tk28-src{font-size:11px;color:#5b6676}
+.tk28 .tk28-more{margin-top:2px;border:0;padding:0;background:none;box-shadow:none}.tk28 .tk28-more[open]{padding-bottom:4px}.tk28-more>summary{cursor:pointer;font-size:12.5px;color:#5b6676;list-style:none}
+.tk28-more>summary::-webkit-details-marker{display:none}.tk28-more>summary::before{content:'⋯ '}
+.tk28-actions{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.tk28-actions form{display:inline-block}
+.tk28-actions button{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:8px;border:1px solid #c9d5ea;background:#fff;color:#1f4e9c;cursor:pointer;min-height:32px}.tk28-actions button:hover{background:#eef2f8}
+.tk28-card{background:var(--ws-card,#fff);border:1px solid #dfe3e9;border-radius:12px;padding:14px}
+.tk28-card h2{font-size:16px;margin:0 0 8px}.tk28-add{border-top:4px solid #1f4e9c}
+.tk28-add form{display:grid;gap:8px}.tk28-add label{display:grid;gap:4px;font-size:13px}
+.tk28-add textarea,.tk28-add select,.tk28-add input{font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px;width:100%;box-sizing:border-box}
+.tk28-empty{background:var(--ws-card,#fff);border:1px dashed #c9d5ea;border-radius:12px;padding:18px}
+:root[data-theme=dark] .bx5628-bar,:root[data-theme=dark] .tk28-item,:root[data-theme=dark] .tk28-card,:root[data-theme=dark] .tk28-empty{background:#1a2029;border-color:#2b3441}
+:root[data-theme=dark] .bx5628-btn,:root[data-theme=dark] .bx5628-fbtn,:root[data-theme=dark] .bx5628-move,:root[data-theme=dark] .tk28-actions button,:root[data-theme=dark] .tk28-done{background:#202833;color:#e6ebf2;border-color:#3a4a63}
+:root[data-theme=dark] .bx5628-editor{background:#11161d;border-color:#2b3441}:root[data-theme=dark] .bx5628-fmt{background:#1a2029;border-color:#2b3441}
+:root[data-theme=dark] .bx5628-confirm{background:#1e2a3c}:root[data-theme=dark] .tk28-chip,:root[data-theme=dark] .tk28-count{background:#243042;color:#a9c4ff}
+:root[data-theme=dark] .tk28-muted,:root[data-theme=dark] .bx5628-field span{color:#9aa6b6}
+@media (max-width:1100px){.tk28{grid-template-columns:1fr}.tk28-side{position:static;order:-1}}

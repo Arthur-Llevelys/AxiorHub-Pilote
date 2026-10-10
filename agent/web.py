@@ -1235,14 +1235,11 @@ class App:
             if vue=='agenda':
                 from .agenda36 import page as agenda_page
                 main+=agenda_page(desk,args,link,url,form)
-            elif vue=='taches':
-                from .workstation32_ui import tasks_page
+            elif vue=='taches':   # 5.6.28 : vue simple (liste groupée par échéance) et ajout d'une tâche à côté
+                from .taches5628 import page as tasks_page5628
                 try:last_sync=desk.db.execute('SELECT MAX(synced) FROM work_tasks_v211').fetchone()[0] or ''
                 except Exception:last_sync=''
-                main+=('<section class="ws-heading"><h2>Tâches Nextcloud</h2><p>Dernière synchronisation : <strong>'+(e(date(last_sync)) if last_sync else 'jamais')+
-                  '</strong>. Seules les tâches créées par AxiorHub peuvent être modifiées ici ; les autres listes choisies à la configuration restent en lecture seule.</p>'+
-                  form('sync_caldav_tasks','↻ Actualiser depuis Nextcloud')+'</section>')
-                main+=tasks_page(desk,link,form)
+                main+=tasks_page5628(desk,link,form,url,args,date(last_sync) if last_sync else '',form('sync_caldav_tasks','↻ Actualiser depuis Nextcloud'))
             elif vue=='organiser':
                 today=datetime.now(timezone.utc).date();finish=today+timedelta(days=7)
                 main+='<section class="daily-hero"><div><h2>📅 Organiser une semaine réaliste</h2><p>Collez votre liste. AxiorHub lit tous les événements de la période, repère les dossiers et les dépendances, puis propose un programme sans rien créer.</p><p>Après relecture, une confirmation groupée permet de créer ce programme dans Nextcloud.</p></div></section>'

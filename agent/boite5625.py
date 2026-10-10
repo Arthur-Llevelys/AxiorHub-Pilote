@@ -285,8 +285,12 @@ def request_reply(desk, uid, matter, instruction='', with_attachments=True, owne
     account = _account(cfg)
     if not mail.sender:
         raise Stop('expediteur_illisible')
-    if mail.sender.lower() in {a.lower() for a in mbx.own_addresses(cfg)}:
-        raise Stop('courriel_envoye_par_le_cabinet')
+    own_set = {a.lower() for a in mbx.own_addresses(cfg)}
+    recipients = [mail.sender]
+    if mail.sender.lower() in own_set:   # 5.6.28 : message du cabinet : la réponse s'adresse à ses destinataires extérieurs
+        recipients = list(dict.fromkeys(a.lower() for a in mbx.addresses(str(mail.msg.get('To', '')) + ',' + str(mail.msg.get('Cc', ''))) if a.lower() not in own_set))
+        if not recipients:
+            raise Stop('aucun_destinataire_exterieur')
     key = mail.key(account)
     state = _state(desk)
     try:
@@ -296,7 +300,7 @@ def request_reply(desk, uid, matter, instruction='', with_attachments=True, owne
         report = {'key': key, 'subject': mail.subject, 'sender': mail.sender, 'source_uid': mail.uid, 'source_mailbox': mail.mailbox,
                   'received_at': mail.timestamp.isoformat(), 'mode': desk.c.get('mode', 'drafts'), 'sources': [], 'incoming_message_id': mail.mid,
                   'account_key': digest(account), 'model': desk.c.get('ollama', {}).get('model', ''), 'started_at': datetime.now(timezone.utc).isoformat()}
-    report.update({'matter': matter, 'reply_recipients': [mail.sender], 'manual_request': {'by': owner, 'at': desk.now(), 'instruction': instruction[:500],
+    report.update({'matter': matter, 'reply_recipients': recipients, 'manual_request': {'by': owner, 'at': desk.now(), 'instruction': instruction[:500],
                                                                                          'attachments': bool(with_attachments)}})
     if not report.get('status'):
         report.update({'status': 'manual', 'reason': 'reponse_demandee_par_avocat'})

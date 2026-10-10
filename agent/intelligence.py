@@ -267,7 +267,9 @@ def prepare_draft(desk,args):
             m={'id':'','client_name':'','path':''}
         else:m=matter(desk.c,report.get('matter',''))
         recipients=report.get('reply_recipients') or [mail.sender]
-        if recipients[0]!=mail.sender:raise Stop('destinataire_invalide')
+        from .mailbox import own_addresses
+        own_sent=bool(report.get('manual_request')) and mail.sender.lower() in {a.lower() for a in own_addresses(desk.c['mail'])}
+        if recipients[0]!=mail.sender and not own_sent:raise Stop('destinataire_invalide')   # 5.6.28 : message du cabinet, réponse à ses destinataires
         sources=[{'id':'incoming','kind':'email_received','content_ref':'incoming'}]
         attachment_notes=[]
         if args.get('pieces_jointes')=='oui':   # 5.6.25 : réponse demandée depuis la boîte — texte des pièces jointes du courriel
@@ -347,17 +349,23 @@ def deposit_draft(desk,args):
     try:
         report,mail=fetch_source(desk,key,box)
         if digest(mail.text)!=data['source_hash']:raise Stop('courriel_modifie_depuis_projet')
+        # 5.6.28 : réponse demandée par l'avocat (« Répondre avec l'IA », relance avec instruction) : chaque demande donne son propre
+        # brouillon, et les filtres automatiques (déjà lu, liste de diffusion, message du cabinet, règles locales…) ne s'appliquent pas.
+        manual=report.get('manual_request') or {}
         existing=state.get(key)
-        if existing and existing[0] in ('drafted','appending','append_uncertain'):raise Stop('brouillon_deja_depose_ou_incertain')
-        manual_key=digest(key+'|manual-v15');draft_mid='<axiorhub-'+manual_key+'@mail-agent.local>'
-        reason=box.preflight(mail,draft_mid,allow_seen=bool(desk.c.get('mail',{}).get('process_seen_recent',True)))
+        if not manual and existing and existing[0] in ('drafted','appending','append_uncertain'):raise Stop('brouillon_deja_depose_ou_incertain')
+        manual_key=digest(key+'|manual-v15'+(('|'+str(manual.get('at',''))) if manual else ''));draft_mid='<axiorhub-'+manual_key+'@mail-agent.local>'
+        reason=box.preflight(mail,draft_mid,allow_seen=bool(desk.c.get('mail',{}).get('process_seen_recent',True)),**({'manual':True} if manual else {}))
         if reason:raise Stop(reason)
-        reason=custom_exclusion(desk.c,mail)
+        reason='' if manual else custom_exclusion(desk.c,mail)
         if reason:raise Stop(reason)
+        from .mailbox import own_addresses
+        own_sent=bool(manual) and mail.sender.lower() in {a.lower() for a in own_addresses(desk.c['mail'])}
         cc=data['recipients'][1:]
+        to=data['recipients'][0] if own_sent else None
         from .verify470 import gate_for_config,mark_message
         checked_body,citations_marked,_citation_report=gate_for_config(desk.c,result['body'],data['matter'],'mail',key)
-        draft=mark_message(make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc),citations_marked)
+        draft=mark_message(make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc,to=to),citations_marked)
         account=desk.c['mail']['username']+'@'+desk.c['mail']['host']
         mid,thread=digest(account+mail.mid),digest(account+mail.root)
         state.report(key,{**report,'status':'appending','reason':'projet_prudent_confirme',

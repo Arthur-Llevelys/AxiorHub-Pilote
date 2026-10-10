@@ -135,9 +135,19 @@
       }).catch(function (e) { toast(e.message, true); }).then(function () { delete inflight[m.uid]; busy(button, false); });
     };
 
+    var empty = function () {
+      state.current = null; clearInterval(state.poll); panel.textContent = '';
+      panel.appendChild(el('div', { 'class': 'ax-empty' }, [el('h2', { text: 'Choisissez un courriel' }),
+        el('p', { text: 'Répondre, transférer, classer, ou demander une réponse à l’agent. Rien n’est envoyé sans votre confirmation.' })]));
+    };
+    var ctx = function () {   // 5.6.28 : contexte pour la messagerie (v5628.js)
+      return { panel: panel, folder: state.folder, role: state.role, folders: state.folders || [], reload: function () { list(); loadFolders(); }, open: open, clear: empty };
+    };
+    window.axh5625Ctx = ctx;
     var render = function (m) {
       state.current = m;
       panel.textContent = '';
+      if (window.axh5628) panel.appendChild(window.axh5628.toolbar(m, ctx()));
       var head = el('div', { 'class': 'bx5625-mhead' }, [el('h2', { text: m.subject || '(sans objet)' }),
         el('p', { 'class': 'ax-muted', text: 'De : ' + m.from + ' · ' + when(m.date) }),
         el('p', { 'class': 'ax-muted', text: 'À : ' + m.to + (m.cc ? ' · Cc : ' + m.cc : '') }),
@@ -163,10 +173,7 @@
         panel.appendChild(pj);
       }
       panel.appendChild(replyList(m));
-      if (m.own) {
-        panel.appendChild(el('p', { 'class': 'ax-muted', text: 'Courriel envoyé par le cabinet : pas de réponse à préparer.' }));
-        return;
-      }
+      var ownNote = m.own ? el('p', { 'class': 'ax-muted', text: 'Message envoyé par le cabinet : la réponse sera adressée à ses destinataires.' }) : null;
       var select = el('select', { id: 'bx5625-matter' }, [el('option', { value: '', text: 'Choisir le dossier…' }),
         el('option', { value: '__aucun__', text: 'Sans dossier (réponse à partir du courriel et de ses pièces jointes)' }),
         el('option', { value: '__nouveau__', text: '＋ Créer un nouveau dossier…' })]);
@@ -210,9 +217,9 @@
       select.addEventListener('change', function () { if (select.value === '__nouveau__') showCreator(); else creator.hidden = true; });
       var instr = el('textarea', { id: 'bx5625-instruction', rows: '3', maxlength: '4000', placeholder: 'Exemple : réponds que nous acceptons le report au 15 et demande la pièce 4 ; ton cordial.' });
       var pjBox = el('input', { type: 'checkbox', id: 'bx5625-pj' }); pjBox.checked = true;
-      var go = el('button', { type: 'button', 'class': 'ax-btn', text: 'Demander une réponse à l’agent' });
+      var go = el('button', { type: 'button', 'class': 'ax-btn', text: '✨ Répondre avec l’IA' });
       go.addEventListener('click', function () { ask(go); });
-      panel.appendChild(el('div', { 'class': 'bx5625-ask' }, [el('h3', { text: 'Demander une réponse' }),
+      panel.appendChild(el('div', { 'class': 'bx5625-ask', id: 'bx5625-ask' }, [el('h3', { text: 'Répondre avec l’IA' }), ownNote,
         el('label', {}, [el('span', { text: 'Dossier' + (m.matter_reason ? ' (' + m.matter_reason + ')' : '') }), select]), creator,
         el('label', {}, [el('span', { text: 'Instruction à l’agent (facultative)' }), instr]),
         el('label', { 'class': 'm5-check' }, [pjBox, el('span', { text: ' Utiliser le texte des pièces jointes' })]),
@@ -239,16 +246,18 @@
         el('p', { text: 'Texte, pièces jointes, réponses déjà préparées ; pour un courriel reçu, vous pouvez demander une réponse à l’agent. Rien n’est envoyé.' })]));
       list();
     };
-    api('m5625/boite/dossiers').then(function (d) {
+    var loadFolders = function () { return api('m5625/boite/dossiers').then(function (d) {
+      state.folders = d.folders;
       flist.textContent = '';
       d.folders.forEach(function (f) {
         var b = el('button', { type: 'button', 'class': 'bx5625-folder', title: f.name },
           [el('span', { 'aria-hidden': 'true', text: ICONS[f.role] || '📁' }), el('span', { text: f.label })]);
-        if (f.role === 'inbox') b.setAttribute('aria-current', 'true');
+        if ((f.role === 'inbox' && !state.folder) || (state.folder && f.name === state.folder)) b.setAttribute('aria-current', 'true');
         b.addEventListener('click', function () { choose(f, b); });
         flist.appendChild(b);
       });
-    }).catch(function (e) { flist.textContent = ''; flist.appendChild(el('p', { 'class': 'ax-muted', text: 'Dossiers indisponibles : ' + e.message })); });
+    }).catch(function (e) { flist.textContent = ''; flist.appendChild(el('p', { 'class': 'ax-muted', text: 'Dossiers indisponibles : ' + e.message })); }); };
+    loadFolders();
     list();
   }
 

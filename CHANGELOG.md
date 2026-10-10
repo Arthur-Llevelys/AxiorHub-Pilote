@@ -3,6 +3,29 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.28 — Messagerie complète dans Courriels, vue Tâches simplifiée
+
+Tests : `tests/test_v5628.py`.
+
+- **Courriels › Boîte de réception — fonctions de messagerie** : barre d’actions sur chaque courriel (Répondre, Répondre à tous,
+  Transférer, Archiver, Déplacer vers un dossier, Indésirable, Supprimer, Non lu, Suivi) et bouton « Nouveau message ».
+  Rédaction : À, Cc, Cci, objet, texte mis en forme (gras, italique, souligné, barré, listes, citation, lien), citation du message
+  d’origine, pièces jointes du message transféré au choix et fichiers ajoutés (15 Mo au total), fil conservé (In-Reply-To).
+  Réponse à tous sans l’adresse du cabinet.
+- **Garde-fous** : « Supprimer » déplace dans la corbeille (récupérable), jamais de suppression définitive ; « Archiver » crée le
+  dossier Archives s’il manque ; seuls les dossiers existants de la messagerie sont acceptés ; texte mis en forme nettoyé côté
+  serveur (liste fermée de balises, liens http, https, mailto). Le message est d’abord enregistré dans Brouillons ; l’envoi passe
+  par le circuit existant (interrupteur général, aperçu puis confirmation, plafond horaire, copie dans Envoyés), avec la version
+  mise en forme ; le rattachement à un dossier n’est pas exigé pour un message rédigé par l’avocat dans la messagerie. Si l’envoi
+  est désactivé, le message reste dans Brouillons et un lien mène au réglage.
+- **Répondre avec l’IA** (ex-« Demander une réponse à l’agent ») : bouton aussi dans la barre d’actions. Une demande de l’avocat
+  passe outre les filtres automatiques (déjà lu, liste de diffusion, message automatique, règles locales…), seul un message
+  supprimé reste refusé ; pour un message envoyé par le cabinet, la réponse est adressée à ses destinataires extérieurs.
+  Correctif : « Relancer avec mon instruction » produit un nouveau brouillon au lieu d’être refusé après le premier.
+- **Agenda et tâches › Tâches** : liste compacte groupée par échéance (en retard, aujourd’hui, cette semaine, plus tard, sans
+  échéance), case « terminée » sur chaque tâche, dossier et échéance en étiquettes, actions regroupées (confier à l’IA, terminer,
+  supprimer, modifier, programmer dans l’agenda) ; filtres par période et par dossier ; « Ajouter une tâche » à côté de la liste.
+
 ## 5.6.27 — Page Dossier refondue
 
 Tests : `tests/test_v5627.py`.

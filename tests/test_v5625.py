@@ -479,7 +479,7 @@ class InboxFolders(t530.Base):
         for bad in ('Public', 'Inconnu', 'INBOX\r\nA1 LOGOUT'):
             with self.assertRaisesRegex(Stop, 'dossier_messagerie_inconnu'):
                 boite5625.listing(self.desk, folder=bad)
-        with self.assertRaisesRegex(Stop, 'courriel_envoye_par_le_cabinet'):
+        with self.assertRaisesRegex(Stop, 'aucun_destinataire_exterieur'):   # 5.6.28 : message du cabinet sans destinataire extérieur
             boite5625.request_reply(self.desk, '9', '20240101001', folder='Sent')
 
     def test_reply_without_matter_uses_only_the_mail(self):

@@ -1,0 +1,24 @@
+{
+  "version": "5.6.28",
+  "base": "5.6.27 publiée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1637,
+    "failures": 0,
+    "errors": 4,
+    "skipped": 66,
+    "note": "Les 4 erreurs venaient d’un double de test (test_productivite_hotfix) sans le nouveau paramètre de preflight ; le paramètre n’est plus transmis que pour une demande de l’avocat, et ces tests ont été rejoués avec succès avec test_v5628 et test_v5625."
+  },
+  "new_tests": "tests/test_v5628.py : nettoyage du texte mis en forme, modèles répondre / répondre à tous / transférer, brouillon (Cci, mise en forme, fil, pièces jointes, remplacement), envoi refusé puis aperçu et confirmation (version mise en forme, Cci retiré, sans dossier), archiver / déplacer / indésirable / corbeille / non lu, déplacement sans MOVE IMAP, droits ; « Répondre avec l’IA » forcé (filtres automatiques ignorés, message du cabinet adressé à ses destinataires) ; vue Tâches groupée et filtrée.",
+  "adjusted_tests": [
+    "tests/test_v5625.py : un message du cabinet sans destinataire extérieur est refusé avec « aucun_destinataire_exterieur »."
+  ],
+  "manual_checks": [
+    "Aperçu de démonstration : barre d’actions, répondre à tous (Cc sans l’adresse du cabinet), envoi désactivé → brouillon et lien vers le réglage, archivage avec création du dossier, nouveau message, bouton « Répondre avec l’IA », vue Tâches."
+  ],
+  "limits": [
+    "Actions de messagerie validées avec une messagerie simulée ; premier essai réel conseillé sur un courriel sans enjeu."
+  ]
+}

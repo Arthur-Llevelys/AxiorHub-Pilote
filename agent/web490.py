@@ -192,3 +192,28 @@ def handle(desk, name, data, method='POST', args=None):
     if name == 'mobile/test':
         return mobile490.dispatch(desk, force=True)
     raise Stop('route_inconnue')
+
+
+# ------------------------------------------------------------------------------------------- 5.6.28 : messagerie
+def webmail_status(desk):
+    st = send490.status(desk)
+    return {'enabled': bool(st.get('enabled')), 'smtp': bool(st.get('smtp_configured'))}
+
+
+def webmail_send(desk, data, owner='cabinet'):
+    """« Envoyer » depuis la messagerie : enregistre dans Brouillons puis rend l'aperçu à confirmer (second clic obligatoire)."""
+    from .common import Stop
+    from .web440 import human
+    from .webmail5628 import save
+    draft = save(desk, {**data, 'intent': 'envoyer'}, owner)
+    try:
+        preview = send490.prepare(desk, draft['uid'], draft['uidvalidity'])
+    except Stop as ex:
+        return {'draft': draft, 'token': '', 'reason': str(ex),
+                'message': 'Enregistré dans Brouillons, mais l’envoi n’est pas possible : %s' % human(str(ex))}
+    return {'draft': draft, **preview, 'message': 'Vérifiez puis confirmez l’envoi.'}
+
+
+def webmail_confirm(desk, token):
+    return send490.confirm(desk, token)
+

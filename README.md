@@ -5,7 +5,7 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.27</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.28</p>
 
 <p align="center"><a href="docs/GUIDE-POSTE-10-MINUTES.md">Poste Ubuntu 24.04 : démarrer en dix minutes, avec captures</a> · <a href="docs/INSTALLATION-WINDOWS.md">Poste Windows 11</a></p>
 
@@ -85,6 +85,8 @@ connexions, recette automatique.
   brouillons, corbeille, sous-dossiers), liste et lecture côte à côte, pièces jointes lisibles ; « Demander une réponse
   à l’agent » pour un courriel choisi, avec un dossier, sans dossier ou en créant un nouveau dossier, une instruction et
   le texte des pièces jointes. Les réponses préparées se modifient, se suppriment ou se relancent avec une instruction.
+- **Fonctions de messagerie** : répondre, répondre à tous, transférer, nouveau message (À, Cc, Cci, texte mis en forme,
+  pièces jointes), archiver, déplacer, indésirable, supprimer (corbeille), lu / non lu, suivi.
 - **Envoi**, désactivé par défaut. S'il est activé, il passe par une confirmation qui récapitule les destinataires, l'objet et
   les pièces jointes.
 - **Pourquoi pas de brouillon ?** Chaque courriel non traité indique son motif (message du cabinet, liste de diffusion,
@@ -118,6 +120,8 @@ connexions, recette automatique.
 - **Prescription et forclusion** : règles versionnées avec leurs articles, calcul détaillé pas à pas.
 - **Ajouter un événement** depuis « Agenda et tâches », dans un ou plusieurs agendas configurés (Nextcloud,
   CalDAV, Google Agenda), avec relecture de chaque dépôt.
+- **Tâches** : liste simple groupée par échéance (en retard, aujourd’hui, cette semaine, plus tard, sans échéance),
+  filtres par période et par dossier, ajout d’une tâche juste à côté.
 - **Agenda et tâches** Nextcloud (CalDAV) et **Deck** : programme de travail par dossier, tâches de l'agent et
   tâches personnelles, cartes qui suivent l'avancement de la production.
 
@@ -426,9 +430,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.27.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.27_all.deb --archive dist/axiorhub-mail-agent-5.6.27.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.27_amd64.deb --archive dist/axiorhub-mail-agent-5.6.27.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.28.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.28_all.deb --archive dist/axiorhub-mail-agent-5.6.28.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.28_amd64.deb --archive dist/axiorhub-mail-agent-5.6.28.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 
