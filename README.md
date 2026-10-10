@@ -5,7 +5,7 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.25</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.26</p>
 
 <p align="center"><a href="docs/GUIDE-POSTE-10-MINUTES.md">Poste Ubuntu 24.04 : démarrer en dix minutes, avec captures</a> · <a href="docs/INSTALLATION-WINDOWS.md">Poste Windows 11</a></p>
 
@@ -81,9 +81,10 @@ connexions, recette automatique.
   - demander une reformulation (« plus court », « plus courtois », « ajouter un rappel de la date ») ;
   - vérifier les citations juridiques ;
   - enregistrer une règle « toujours faire comme ça ».
-- **Boîte de réception** (onglet de « Courriels ») : tous les courriels de la boîte, recherche, lecture des pièces
-  jointes ; « Demander une réponse à l’agent » pour un courriel choisi, avec le dossier, une instruction et le texte des
-  pièces jointes. Les réponses préparées se modifient, se suppriment ou se relancent avec une instruction.
+- **Messagerie** (onglet « Boîte de réception » de « Courriels ») : dossiers de la messagerie (réception, envoyés,
+  brouillons, corbeille, sous-dossiers), liste et lecture côte à côte, pièces jointes lisibles ; « Demander une réponse
+  à l’agent » pour un courriel choisi, avec un dossier, sans dossier ou en créant un nouveau dossier, une instruction et
+  le texte des pièces jointes. Les réponses préparées se modifient, se suppriment ou se relancent avec une instruction.
 - **Envoi**, désactivé par défaut. S'il est activé, il passe par une confirmation qui récapitule les destinataires, l'objet et
   les pièces jointes.
 - **Pourquoi pas de brouillon ?** Chaque courriel non traité indique son motif (message du cabinet, liste de diffusion,
@@ -422,9 +423,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.25.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.25_all.deb --archive dist/axiorhub-mail-agent-5.6.25.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.25_amd64.deb --archive dist/axiorhub-mail-agent-5.6.25.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.26.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.26_all.deb --archive dist/axiorhub-mail-agent-5.6.26.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.26_amd64.deb --archive dist/axiorhub-mail-agent-5.6.26.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 

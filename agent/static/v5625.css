@@ -2,8 +2,15 @@
 .bx5625-tabs{display:flex;gap:6px;margin:4px 0 12px}
 .bx5625-tabs a{padding:8px 16px;border-radius:10px;border:1px solid #dfe3e9;text-decoration:none;color:inherit;font-weight:600;min-height:40px;display:inline-flex;align-items:center}
 .bx5625-tabs a[aria-current=page]{background:#1f4e9c;color:#fff;border-color:#1f4e9c}
-.bx5625{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;align-items:start}
-.bx5625[hidden]{display:none}
+.bx5625{display:grid;grid-template-columns:190px minmax(280px,360px) minmax(0,1fr);gap:14px;align-items:start}
+.bx5625[hidden],#ax-drafts[hidden]{display:none!important}
+.bx5625-folders{background:var(--ws-card,#fff);border:1px solid #dfe3e9;border-radius:12px;padding:10px;position:sticky;top:12px}
+.bx5625-folders h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#5b6676;margin:2px 4px 8px}
+#bx5625-flist{display:grid;gap:2px;max-height:calc(100vh - 120px);overflow:auto}
+.bx5625-folder{display:flex;gap:8px;align-items:center;width:100%;text-align:left;font:inherit;background:none;border:0;border-radius:8px;padding:8px 10px;min-height:38px;cursor:pointer;color:inherit}
+.bx5625-folder:hover{background:#eef2f8}.bx5625-folder[aria-current]{background:#1f4e9c;color:#fff;font-weight:600}
+.bx5625-folder span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bx5625-panel{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
 .bx5625-list,.bx5625-panel{background:var(--ws-card,#fff);border:1px solid #dfe3e9;border-radius:12px;padding:12px}
 .bx5625-head h1{font-size:22px;margin:4px 0}.bx5625-search{display:flex;gap:6px;margin:8px 0}.bx5625-search input{flex:1;min-width:0;font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px}
 .bx5625-rows{max-height:70vh;overflow:auto}.bx5625-unseen strong{font-weight:800}
@@ -12,15 +19,22 @@
 .bx5625-pjrow{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}
 .bx5625-reply{border:1px solid #dfe3e9;border-radius:10px;padding:8px 10px;margin:6px 0}
 .bx5625-ask{border-top:1px solid #dfe3e9;margin-top:12px;padding-top:8px;display:grid;gap:8px}
+.bx5625-new{border:1px dashed #9fb3d1;border-radius:10px;padding:10px;display:grid;gap:8px;background:#f7f9fd}
+.bx5625-new h4{margin:0;font-size:15px}.bx5625-new input{font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px}
+.bx5625-new-row{display:grid;grid-template-columns:minmax(120px,180px) 1fr;gap:8px}
 .bx5625-ask label{display:grid;gap:4px}.bx5625-ask select,.bx5625-ask textarea{font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px}
 .ag5625 form{display:grid;gap:8px;margin-top:8px}.ag5625 label{display:grid;gap:4px}
 .ag5625-row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.ag5625-row label{min-width:120px}
 .ag5625 input,.ag5625 select,.ag5625 textarea{font:inherit;padding:7px 8px;border:1px solid #dfe3e9;border-radius:8px}
 .ag5625-targets{border:1px solid #dfe3e9;border-radius:10px;padding:8px 12px}.ag5625-targets label{display:flex;gap:6px;align-items:center}
-:root[data-theme=dark] .bx5625-list,:root[data-theme=dark] .bx5625-panel{background:#1a2029;border-color:#2b3441}
+:root[data-theme=dark] .bx5625-list,:root[data-theme=dark] .bx5625-panel,:root[data-theme=dark] .bx5625-folders{background:#1a2029;border-color:#2b3441}
+:root[data-theme=dark] .bx5625-folder:hover{background:#243042}:root[data-theme=dark] .bx5625-folders h2{color:#9aa6b6}
 :root[data-theme=dark] .bx5625-text{background:#11161d}
+:root[data-theme=dark] .bx5625-new{background:#151b23;border-color:#3a4a63}
 :root[data-theme=dark] .bx5625-tabs a,:root[data-theme=dark] .bx5625-reply,:root[data-theme=dark] .ag5625-targets{border-color:#2b3441}
-@media (max-width:900px){.bx5625{grid-template-columns:1fr}.bx5625-rows{max-height:40vh}}
+@media (max-width:1200px){.bx5625{grid-template-columns:minmax(260px,340px) minmax(0,1fr)}.bx5625-folders{grid-column:1/-1;position:static}
+  #bx5625-flist{display:flex;flex-wrap:nowrap;overflow-x:auto;max-height:none}.bx5625-folder{width:auto;flex:none}}
+@media (max-width:900px){.bx5625{grid-template-columns:1fr}.bx5625-rows{max-height:40vh}.bx5625-panel{position:static;max-height:none}}
 .ag5625 form.ag5625-form{grid-template-columns:1fr;align-items:stretch;max-width:760px}
 .ag5625 input[type=checkbox],.bx5625-ask input[type=checkbox]{width:auto;flex:none}
 .ag5625 label.m5-check,.bx5625-ask label.m5-check,.ag5625-targets label{display:flex;flex-direction:row;gap:8px;align-items:center}

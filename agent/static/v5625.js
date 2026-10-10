@@ -50,22 +50,24 @@
   var box = $('#bx5625');
   if (box && !box.hidden) {
     var rows = $('#bx5625-rows'), panel = $('#bx5625-panel'), pages = $('#bx5625-pages');
-    var state = { page: 1, q: '', matters: null, current: null, poll: null };
+    var state = { page: 1, q: '', matters: null, current: null, poll: null, folder: '', role: 'inbox' };
+    var qs = function (o) { if (state.folder) o.dossier = state.folder; return new URLSearchParams(o).toString(); };
+    var outgoing = function () { return ['sent', 'drafts', 'outbox'].indexOf(state.role) >= 0; };
     var loadMatters = function () {
       if (state.matters) return Promise.resolve(state.matters);
       return api('m567/matters').then(function (d) { state.matters = d.matters || []; return state.matters; }).catch(function () { state.matters = []; return []; });
     };
     var list = function () {
-      rows.textContent = ''; rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Lecture de la boîte…' }));
-      api('m5625/boite/liste?' + new URLSearchParams({ page: state.page, q: state.q }).toString()).then(function (d) {
+      rows.textContent = ''; pages.textContent = ''; rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Lecture du dossier…' }));
+      api('m5625/boite/liste?' + qs({ page: state.page, q: state.q })).then(function (d) {
         rows.textContent = '';
-        if (!d.items.length) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: state.q ? 'Aucun courriel ne correspond.' : 'Boîte de réception vide.' }));
+        if (!d.items.length) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: state.q ? 'Aucun courriel ne correspond.' : 'Ce dossier est vide.' }));
         d.items.forEach(function (m) {
           var top = el('span', { 'class': 'ax-row-top' }, [el('strong', { text: m.subject })]);
           if (m.attachments) top.appendChild(el('em', { 'class': 'ax-badge', title: 'Pièces jointes probables', text: 'PJ' }));
           if (m.status_label) top.appendChild(el('em', { 'class': 'ax-badge bx5625-st-' + m.status, text: m.status_label }));
           var row = el('button', { type: 'button', 'class': 'ax-row' + (m.seen ? '' : ' bx5625-unseen'), 'data-uid': m.uid },
-            [top, el('span', { 'class': 'ax-row-sub', text: m.from }), el('span', { 'class': 'ax-row-date', text: when(m.date) })]);
+            [top, el('span', { 'class': 'ax-row-sub', text: outgoing() ? 'À : ' + (m.to || '—') : m.from }), el('span', { 'class': 'ax-row-date', text: when(m.date) })]);
           row.addEventListener('click', function () {
             Array.prototype.forEach.call(rows.querySelectorAll('.ax-row'), function (r) { r.classList.remove('on'); });
             row.classList.add('on'); open(m.uid);
@@ -114,16 +116,19 @@
     var ask = function (button) {
       var m = state.current; if (!m) return;
       var matter = $('#bx5625-matter').value, instruction = $('#bx5625-instruction').value.trim(), pj = $('#bx5625-pj').checked;
-      if (!matter) { $('#bx5625-matter').focus(); toast('Choisissez le dossier auquel rattacher la réponse.', true); return; }
+      if (!matter) { $('#bx5625-matter').focus(); toast('Choisissez un dossier, « Sans dossier », ou créez un nouveau dossier.', true); return; }
+      if (matter === '__nouveau__') { toast('Remplissez puis validez « Créer le dossier » d’abord.', true); return; }
+      var none = matter === '__aucun__';
       if (inflight[m.uid]) return;
       inflight[m.uid] = true; busy(button, true);
-      api('m5625/boite/repondre', { uid: m.uid, matter: matter, instruction: instruction, pieces_jointes: pj }).then(function (r) {
+      api('m5625/boite/repondre', { uid: m.uid, dossier: m.folder || state.folder, matter: none ? '' : matter, sans_dossier: none ? 'oui' : '',
+                                    instruction: instruction, pieces_jointes: pj }).then(function (r) {
         toast(r.message);
         var count = m.replies.length, tries = 0;
         clearInterval(state.poll);
         state.poll = setInterval(function () {   // la réponse apparaît dans « Réponses préparées » dès qu'elle est déposée
           if (++tries > 40 || !state.current || state.current.uid !== m.uid) { clearInterval(state.poll); return; }
-          api('m5625/boite/courriel?uid=' + encodeURIComponent(m.uid)).then(function (fresh) {
+          api('m5625/boite/courriel?' + qs({ uid: m.uid })).then(function (fresh) {
             if (fresh.replies.length > count) { clearInterval(state.poll); toast('Réponse préparée : elle est dans « À relire ».'); render(fresh); }
           }).catch(function () {});
         }, 10000);
@@ -148,7 +153,7 @@
           read.addEventListener('click', function () {
             if (!out.hidden) { out.hidden = true; return; }
             busy(read, true);
-            api('m5625/boite/piece?' + new URLSearchParams({ uid: m.uid, index: a.index }).toString()).then(function (d) {
+            api('m5625/boite/piece?' + qs({ uid: m.uid, index: a.index })).then(function (d) {
               out.textContent = d.text + (d.truncated ? '\n[…]' : ''); out.hidden = false;
             }).catch(function (e) { toast(e.message, true); }).then(function () { busy(read, false); });
           });
@@ -162,16 +167,53 @@
         panel.appendChild(el('p', { 'class': 'ax-muted', text: 'Courriel envoyé par le cabinet : pas de réponse à préparer.' }));
         return;
       }
-      var select = el('select', { id: 'bx5625-matter' }, [el('option', { value: '', text: 'Choisir le dossier…' })]);
+      var select = el('select', { id: 'bx5625-matter' }, [el('option', { value: '', text: 'Choisir le dossier…' }),
+        el('option', { value: '__aucun__', text: 'Sans dossier (réponse à partir du courriel et de ses pièces jointes)' }),
+        el('option', { value: '__nouveau__', text: '＋ Créer un nouveau dossier…' })]);
+      var creator = el('div', { 'class': 'bx5625-new', hidden: 'hidden' });
       loadMatters().then(function (all) {
-        all.forEach(function (x) { var o = el('option', { value: x.id, text: x.label }); if (x.id === m.matter) o.selected = true; select.appendChild(o); });
+        var group = el('optgroup', { label: 'Dossiers du cabinet' });
+        all.forEach(function (x) { var o = el('option', { value: x.id, text: x.label }); if (x.id === m.matter) o.selected = true; group.appendChild(o); });
+        select.appendChild(group);
       });
+      var senderName = String(m.from || '').replace(/<[^>]*>/, '').replace(/"/g, '').trim();
+      var showCreator = function () {
+        creator.textContent = ''; creator.hidden = false;
+        var client = el('input', { maxlength: '120', value: senderName.indexOf('@') < 0 ? senderName : '', placeholder: 'Nom du client' });
+        var title = el('input', { maxlength: '120', value: String(m.subject || '').replace(/^(re|tr|fwd?|réf)\s*:\s*/ig, '').slice(0, 80), placeholder: 'Affaire (facultatif)' });
+        var ref = el('input', { maxlength: '80', pattern: '[A-Za-z0-9_-]{1,80}' }), parent = el('input', { maxlength: '1000' });
+        var link = el('input', { type: 'checkbox' }); link.checked = true;
+        var make = el('button', { type: 'button', 'class': 'ax-btn', text: 'Créer le dossier' });
+        var cancel = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Annuler' });
+        api('m5625/boite/nouveau-dossier').then(function (p) { ref.value = p.reference; parent.value = p.parent; }).catch(function () {});
+        cancel.addEventListener('click', function () { creator.hidden = true; select.value = ''; });
+        make.addEventListener('click', function () {
+          if (inflight.creer) return;
+          inflight.creer = true; busy(make, true);
+          api('m5625/boite/creer-dossier', { client_name: client.value, title: title.value, reference: ref.value, parent: parent.value,
+                                              correspondent: link.checked ? String((String(m.from).match(/<([^>]+)>/) || [0, m.from])[1]).trim() : '' })
+            .then(function (r) {
+              toast(r.message); state.matters = null;
+              var o = el('option', { value: r.id, text: r.label }); select.appendChild(o); select.value = r.id; creator.hidden = true;
+            }).catch(function (e) { toast(e.message, true); }).then(function () { delete inflight.creer; busy(make, false); });
+        });
+        creator.appendChild(el('h4', { text: 'Nouveau dossier' }));
+        creator.appendChild(el('label', {}, [el('span', { text: 'Client' }), client]));
+        creator.appendChild(el('label', {}, [el('span', { text: 'Affaire' }), title]));
+        creator.appendChild(el('div', { 'class': 'bx5625-new-row' }, [el('label', {}, [el('span', { text: 'Référence' }), ref]),
+          el('label', {}, [el('span', { text: 'Emplacement (Nextcloud)' }), parent])]));
+        creator.appendChild(el('label', { 'class': 'm5-check' }, [link, el('span', { text: ' Rattacher l’expéditeur comme client de ce dossier' })]));
+        creator.appendChild(el('p', { 'class': 'ax-muted', text: 'Le répertoire « Client - Affaire - Référence » est créé à cet emplacement puis enregistré ; rien n’est déplacé.' }));
+        creator.appendChild(el('div', { 'class': 'ax-actions' }, [make, cancel]));
+        client.focus();
+      };
+      select.addEventListener('change', function () { if (select.value === '__nouveau__') showCreator(); else creator.hidden = true; });
       var instr = el('textarea', { id: 'bx5625-instruction', rows: '3', maxlength: '4000', placeholder: 'Exemple : réponds que nous acceptons le report au 15 et demande la pièce 4 ; ton cordial.' });
       var pjBox = el('input', { type: 'checkbox', id: 'bx5625-pj' }); pjBox.checked = true;
       var go = el('button', { type: 'button', 'class': 'ax-btn', text: 'Demander une réponse à l’agent' });
       go.addEventListener('click', function () { ask(go); });
       panel.appendChild(el('div', { 'class': 'bx5625-ask' }, [el('h3', { text: 'Demander une réponse' }),
-        el('label', {}, [el('span', { text: 'Dossier' + (m.matter_reason ? ' (' + m.matter_reason + ')' : '') }), select]),
+        el('label', {}, [el('span', { text: 'Dossier' + (m.matter_reason ? ' (' + m.matter_reason + ')' : '') }), select]), creator,
         el('label', {}, [el('span', { text: 'Instruction à l’agent (facultative)' }), instr]),
         el('label', { 'class': 'm5-check' }, [pjBox, el('span', { text: ' Utiliser le texte des pièces jointes' })]),
         el('div', { 'class': 'ax-actions' }, [go, el('span', { 'class': 'ax-muted', text: 'La réponse est déposée dans Brouillons et contrôlée ; rien n’est envoyé.' })])]));
@@ -179,9 +221,34 @@
     var open = function (uid) {
       clearInterval(state.poll);
       panel.textContent = ''; panel.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Ouverture du courriel…' }));
-      api('m5625/boite/courriel?uid=' + encodeURIComponent(uid)).then(render)
+      api('m5625/boite/courriel?' + qs({ uid: uid })).then(render)
         .catch(function (e) { panel.textContent = ''; panel.appendChild(el('p', { 'class': 'ax-alert', role: 'alert', text: e.message })); });
     };
+    // dossiers de la messagerie : Boîte de réception, Brouillons, Envoyés, Corbeille, sous-dossiers…
+    var flist = $('#bx5625-flist'), title = $('#bx5625-title');
+    var ICONS = { inbox: '📥', drafts: '📝', sent: '📤', outbox: '📮', archive: '🗄', junk: '⚠', trash: '🗑' };
+    var choose = function (f, button) {
+      Array.prototype.forEach.call(flist.querySelectorAll('.bx5625-folder'), function (b) { b.removeAttribute('aria-current'); });
+      if (button) button.setAttribute('aria-current', 'true');
+      state.folder = f.role === 'inbox' ? '' : f.name; state.role = f.role || ''; state.page = 1; state.q = ''; state.current = null;
+      clearInterval(state.poll);
+      $('.bx5625-search', box).q.value = '';
+      title.textContent = f.label;
+      panel.textContent = '';
+      panel.appendChild(el('div', { 'class': 'ax-empty' }, [el('h2', { text: 'Choisissez un courriel' }),
+        el('p', { text: 'Texte, pièces jointes, réponses déjà préparées ; pour un courriel reçu, vous pouvez demander une réponse à l’agent. Rien n’est envoyé.' })]));
+      list();
+    };
+    api('m5625/boite/dossiers').then(function (d) {
+      flist.textContent = '';
+      d.folders.forEach(function (f) {
+        var b = el('button', { type: 'button', 'class': 'bx5625-folder', title: f.name },
+          [el('span', { 'aria-hidden': 'true', text: ICONS[f.role] || '📁' }), el('span', { text: f.label })]);
+        if (f.role === 'inbox') b.setAttribute('aria-current', 'true');
+        b.addEventListener('click', function () { choose(f, b); });
+        flist.appendChild(b);
+      });
+    }).catch(function (e) { flist.textContent = ''; flist.appendChild(el('p', { 'class': 'ax-muted', text: 'Dossiers indisponibles : ' + e.message })); });
     list();
   }
 

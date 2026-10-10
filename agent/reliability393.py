@@ -237,7 +237,8 @@ def permission_health(desk):
             info=path.lstat();mode=stat.S_IMODE(info.st_mode)
             regular=stat.S_ISREG(info.st_mode) and not path.is_symlink()
             # 0640 is permitted for a root-managed secret shared with the service group.
-            protected=(mode & 0o027)==0 if secret else (mode & 0o002)==0
+            from . import portable
+            protected=not portable.too_open(mode, 0o027 if secret else 0o002)
             status='verified' if regular and protected else 'error'
             rows.append({'path':str(path),'status':status,'mode':format(mode,'04o'),
                          'uid':info.st_uid,'gid':info.st_gid,'secret':secret,

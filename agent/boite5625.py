@@ -8,9 +8,11 @@
   dépôt dans Brouillons, relecture IMAP), même pour un courriel que l'agent avait ignoré ou jamais lu. Le dossier est choisi
   par l'avocat ; son instruction est transmise ; le texte des pièces jointes peut être joint aux sources. Jamais d'envoi.
 """
+from collections import Counter
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import json
+from pathlib import PurePosixPath
 import re
 
 from .common import Stop, digest, load_matters
@@ -37,19 +39,83 @@ def _state(desk):
     return State(desk.c['state_dir'])
 
 
+ROLE_LABELS = (('inbox', 'Boîte de réception'), ('drafts', 'Brouillons'), ('sent', 'Envoyés'), ('outbox', 'Boîte d’envoi'),
+               ('archive', 'Archives'), ('junk', 'Indésirables'), ('trash', 'Corbeille'))
+NAME_ROLES = {'inbox': 'inbox', 'sent': 'sent', 'sent items': 'sent', 'sent messages': 'sent', 'sent mail': 'sent', 'envoyés': 'sent',
+              'éléments envoyés': 'sent', 'messages envoyés': 'sent', 'drafts': 'drafts', 'brouillons': 'drafts', 'trash': 'trash',
+              'deleted items': 'trash', 'deleted messages': 'trash', 'corbeille': 'trash', 'éléments supprimés': 'trash',
+              'messages supprimés': 'trash', 'junk': 'junk', 'spam': 'junk', 'indésirables': 'junk', 'courrier indésirable': 'junk',
+              'archive': 'archive', 'archives': 'archive', 'outbox': 'outbox', 'boîte d’envoi': 'outbox', "boîte d'envoi": 'outbox'}
+
+
+def _folder_rows(box, cfg):
+    """Dossiers sélectionnables de la messagerie : (nom IMAP, libellé, rôle), la boîte de réception d'abord."""
+    from .setup import mailbox_names
+    rows = []
+    for name, flags in mailbox_names(box):
+        if '\\noselect' in flags or '\\nonexistent' in flags:
+            continue
+        short = re.split(r'[./]', name)[-1] if name.upper() != 'INBOX' else 'INBOX'
+        role = next((r for r in ('drafts', 'sent', 'trash', 'junk', 'archive') if '\\' + r in flags), '')
+        role = role or NAME_ROLES.get(short.casefold(), '')
+        if name == cfg.get('inbox'):
+            role = 'inbox'
+        elif name == cfg.get('drafts'):
+            role = 'drafts'
+        elif name == cfg.get('sent'):
+            role = 'sent'
+        label = dict(ROLE_LABELS).get(role) or (name[len('INBOX') + 1:] if name.upper().startswith(('INBOX.', 'INBOX/')) else name)
+        rows.append({'name': name, 'label': label[:120], 'role': role})
+    order = {r: n for n, (r, _) in enumerate(ROLE_LABELS)}
+    seen, out = set(), []
+    for row in sorted(rows, key=lambda r: (order.get(r['role'], len(order)), r['label'].casefold())):
+        if row['role'] and row['role'] in seen and row['role'] != 'archive':
+            row['label'] = row['label'] + ' (' + row['name'] + ')'
+        seen.add(row['role'])
+        out.append(row)
+    return out
+
+
+def folders(desk, box=None):
+    """5.6.25 : dossiers de la messagerie (Envoyés, Brouillons, Corbeille, sous-dossiers…), sans aucun contenu."""
+    cfg = desk.c['mail']
+    own = box is None
+    box = box or mbx.Mailbox(cfg)
+    try:
+        return {'folders': _folder_rows(box, cfg), 'inbox': cfg['inbox']}
+    finally:
+        if own:
+            box.close()
+
+
+def _folder(box, cfg, folder):
+    """Dossier demandé : la boîte de réception par défaut, sinon un dossier existant de la messagerie (aucun nom inventé)."""
+    folder = str(folder or '')
+    if not folder or folder == cfg['inbox']:
+        return cfg['inbox']
+    if len(folder) > 300 or any(ord(ch) < 32 for ch in folder):
+        raise Stop('dossier_messagerie_inconnu')
+    if folder not in {row['name'] for row in _folder_rows(box, cfg)}:
+        raise Stop('dossier_messagerie_inconnu')
+    return folder
+
+
 STATUS_LABELS = {'drafted': 'Brouillon préparé', 'ignored': 'Ignoré par l’agent', 'observed': 'Analysé (observation)', 'review': 'À examiner',
                  'error': 'Erreur', 'retry': 'À reprendre', 'appending': 'Dépôt en cours', 'append_uncertain': 'Dépôt à vérifier', 'manual': 'Réponse demandée'}
 
 
-def listing(desk, page=1, query='', box=None):
-    """Page de la boîte de réception (du plus récent au plus ancien)."""
+def listing(desk, page=1, query='', box=None, folder=None):
+    """Page d'un dossier de la messagerie (boîte de réception par défaut), du plus récent au plus ancien."""
     cfg = desk.c['mail']
-    folder = cfg['inbox']
-    page = max(1, int(page or 1))
+    try:
+        page = max(1, int(page or 1))
+    except ValueError:
+        page = 1
     query = re.sub(r'\s+', ' ', str(query or '')).strip()[:120]
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
+        folder = _folder(box, cfg, folder)
         if query and query.isascii():
             uids = box.search(folder, 'UNDELETED', 'OR', 'SUBJECT', mbx.imap_quote(query), 'FROM', mbx.imap_quote(query))
         else:
@@ -73,7 +139,8 @@ def listing(desk, page=1, query='', box=None):
                 continue
             key = mail.key(account)
             known = state.get(key)
-            items.append({'uid': mail.uid, 'key': key, 'subject': subject[:200], 'from': sender, 'date': mail.timestamp.isoformat(),
+            items.append({'uid': mail.uid, 'key': key, 'subject': subject[:200], 'from': sender, 'to': str(mail.msg.get('To', ''))[:200],
+                          'date': mail.timestamp.isoformat(),
                           'seen': '\\Seen' in mail.flags, 'attachments': mail.msg.get_content_type() == 'multipart/mixed',
                           'status': known[0] if known else '', 'status_label': STATUS_LABELS.get(known[0], known[0]) if known else ''})
             if len(items) >= PAGE:
@@ -126,13 +193,14 @@ def replies(box, cfg, mail):
     return out
 
 
-def message(desk, uid, box=None):
+def message(desk, uid, box=None, folder=None):
     cfg = desk.c['mail']
     uid = _uid(uid)
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
-        mail = box.fetch(cfg['inbox'], uid)
+        folder = _folder(box, cfg, folder)
+        mail = box.fetch(folder, uid)
         key = mail.key(_account(cfg))
         try:
             from .desk import report_for
@@ -142,7 +210,7 @@ def message(desk, uid, box=None):
         matter, why = _guess_matter(desk, mail, report)
         known = _state(desk).get(key)
         text = mail.text
-        return {'uid': mail.uid, 'key': key, 'subject': mail.subject, 'from': str(mail.msg.get('From', ''))[:300], 'to': str(mail.msg.get('To', ''))[:500],
+        return {'uid': mail.uid, 'key': key, 'folder': folder, 'subject': mail.subject, 'from': str(mail.msg.get('From', ''))[:300], 'to': str(mail.msg.get('To', ''))[:500],
                 'cc': str(mail.msg.get('Cc', ''))[:500], 'date': mail.timestamp.isoformat(), 'text': text[:MAX_TEXT], 'truncated': len(text) > MAX_TEXT,
                 'attachments': _attachments(mail.msg), 'matter': matter, 'matter_reason': why,
                 'status': known[0] if known else '', 'status_label': STATUS_LABELS.get(known[0], known[0]) if known else 'Jamais traité par l’agent',
@@ -153,14 +221,14 @@ def message(desk, uid, box=None):
             box.close()
 
 
-def attachment_text(desk, uid, index, box=None):
+def attachment_text(desk, uid, index, box=None, folder=None):
     """Texte extrait d'une pièce jointe (lecture locale bornée)."""
     from .documents import extract
     cfg = desk.c['mail']
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
-        mail = box.fetch(cfg['inbox'], _uid(uid))
+        mail = box.fetch(_folder(box, cfg, folder), _uid(uid))
         parts = list(mail.msg.iter_attachments())
         try:
             part = parts[int(index)]
@@ -194,7 +262,7 @@ def attachment_sources(desk, mail):
     return sources, notes
 
 
-def request_reply(desk, uid, matter, instruction='', with_attachments=True, owner='cabinet', box=None):
+def request_reply(desk, uid, matter, instruction='', with_attachments=True, owner='cabinet', box=None, folder=None, without_matter=False):
     """Réponse demandée par l'avocat pour un courriel choisi : rapport créé ou complété (dossier choisi), puis travail
     « prepare_reply » (sources du dossier, contrôle, dépôt vérifié dans Brouillons). Rien n'est envoyé."""
     cfg = desk.c['mail']
@@ -203,12 +271,14 @@ def request_reply(desk, uid, matter, instruction='', with_attachments=True, owne
     if len(instruction) > 4000:
         raise Stop('instruction_trop_longue_4000_maximum')
     matters = {m['id']: m for m in load_matters(desk.c)}
-    if matter not in matters:
+    if without_matter and not matter:   # 5.6.25 : réponse sans dossier, à partir du courriel, des pièces jointes et de l'instruction
+        matter = ''
+    elif matter not in matters:
         raise Stop('dossier_a_choisir')
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
-        mail = box.fetch(cfg['inbox'], uid)
+        mail = box.fetch(_folder(box, cfg, folder), uid)
     finally:
         if own:
             box.close()
@@ -235,9 +305,62 @@ def request_reply(desk, uid, matter, instruction='', with_attachments=True, owne
     if not known:
         state.set(key, digest(account + mail.mid), digest(account + mail.root), 'manual', 'reponse_demandee_par_avocat')
     job = desk.enqueue('prepare_reply', {'key': key, 'matter': matter, 'instruction': instruction, 'pieces_jointes': 'oui' if with_attachments else '',
-                                         'origine': 'boite5625'}, priority=0)
+                                         'sans_dossier': 'oui' if not matter else '', 'origine': 'boite5625'}, priority=0)
     desk.audit('boite5625_reponse_demandee', {'key': key[:16], 'matter': matter, 'job': job, 'instruction': bool(instruction), 'attachments': bool(with_attachments)})
     return {'job_id': job, 'key': key, 'message': 'Réponse demandée à l’agent (travail n° %d). Elle arrivera dans « À relire » (dossier Brouillons) ; rien n’est envoyé.' % job}
+
+
+def matter_proposal(desk):
+    """5.6.25 : emplacement et référence proposés pour un nouveau dossier (à côté des dossiers existants, référence AAAAMMJJnnn libre)."""
+    matters = load_matters(desk.c)
+    parents = Counter(str(PurePosixPath(m['path']).parent) for m in matters if m.get('path'))
+    roots = [str(r).rstrip('/') for r in desk.c.get('nextcloud', {}).get('roots', []) if str(r).strip('/')]
+    parent = parents.most_common(1)[0][0] if parents else (roots[0] if roots else '')
+    today = datetime.now().strftime('%Y%m%d')
+    used = {m['id'] for m in matters}
+    reference = next((today + '%03d' % n for n in range(1, 1000) if today + '%03d' % n not in used), today + '999')
+    return {'parent': parent, 'reference': reference}
+
+
+def _dav(desk):
+    """Accès aux fichiers du cabinet (Nextcloud ou dossier local) ; message clair s'il n'est pas configuré."""
+    from .dav import DAV
+    cfg = desk.c.get('nextcloud') or {}
+    if not (cfg.get('url') or cfg.get('local_path')):
+        raise Stop('nextcloud_ou_dossier_local_a_configurer')
+    return DAV(cfg)
+
+
+def create_matter(desk, data, owner='cabinet'):
+    """5.6.25 : crée le répertoire du nouveau dossier (« CLIENT - Affaire - référence ») sous une racine autorisée, l'enregistre et y
+    rattache l'expéditeur du courriel comme correspondant. Rien n'est déplacé ni supprimé."""
+    from .desk import save_matter
+    from .workspace import create_matter as create
+    clean = lambda v, n: re.sub(r'\s+', ' ', str(v or '')).strip()[:n]
+    client, title, reference = clean(data.get('client_name'), 120), clean(data.get('title'), 120), clean(data.get('reference'), 80)
+    parent = str(data.get('parent') or '').strip().rstrip('/')
+    if len(client) < 2:
+        raise Stop('nom_client_invalide')
+    if any(ch in client + title for ch in '/\\') or any(ord(ch) < 32 for ch in client + title):
+        raise Stop('nom_dossier_invalide')
+    if not parent.startswith('/'):
+        raise Stop('emplacement_du_dossier_a_choisir')
+    name = ' - '.join(x for x in (client, title, reference) if x)
+    path = parent + '/' + name
+    out = create(desk, {'confirm': 'yes', 'path': path, 'reference': reference, 'client_name': client,
+                        'references': clean(data.get('references'), 500)}, _dav(desk))
+    email = clean(data.get('correspondent'), 200).lower()
+    role = str(data.get('role') or 'client')
+    from .desk import ROLES
+    own = {a.lower() for a in mbx.own_addresses(desk.c['mail'])}
+    if email and re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email) and email not in own and role in ROLES:
+        matter = next((m for m in load_matters(desk.c) if m['id'] == out['dossier']), None)
+        if matter is not None:
+            matter['correspondents'] = [p for p in matter.get('correspondents', []) if p['email'].lower() != email] + [{'email': email, 'role': role}]
+            save_matter(desk.c, matter)
+    desk.audit('boite5625_dossier_cree', {'id': out['dossier'], 'owner': owner})
+    return {'id': out['dossier'], 'label': name, 'path': path,
+            'message': 'Dossier « %s » créé dans Nextcloud et enregistré ; son indexation a démarré.' % name}
 
 
 def discard_reply(desk, uid, validity):

@@ -5,6 +5,7 @@ Ce chiffrement protège les fichiers copiés isolément ; il ne protège pas d'u
 administrateur ou d'un processus disposant aussi de la clé du serveur.
 """
 from contextlib import contextmanager
+from . import portable
 from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import os
 from pathlib import Path
@@ -56,7 +57,7 @@ def write(path, value):
                 _private_write(keyfile, Fernet.generate_key())
             except ImportError:
                 raise Stop('coffre_chiffrement_indisponible') from None
-        if keyfile.is_symlink() or keyfile.stat().st_mode & 0o077:
+        if keyfile.is_symlink() or portable.too_open(keyfile.stat().st_mode, 0o077):
             raise Stop('cle_coffre_permissions_incorrectes')
         token = _fernet(keyfile.read_bytes()).encrypt(value.encode()).decode()
         _private_write(path, (MAGIC + token + '\n').encode())
@@ -67,7 +68,7 @@ def decrypt(path, value):
     if not value.startswith(MAGIC):
         return value                         # import progressif, sans modifier un secret géré par root
     keyfile = Path(path).parent / '.master.key'
-    if not keyfile.is_file() or keyfile.is_symlink() or keyfile.stat().st_mode & 0o077:
+    if not keyfile.is_file() or keyfile.is_symlink() or portable.too_open(keyfile.stat().st_mode, 0o077):
         raise Stop('cle_coffre_absente_ou_permissions_incorrectes')
     try:
         return _fernet(keyfile.read_bytes()).decrypt(value[len(MAGIC):].encode()).decode()

@@ -15,12 +15,17 @@ def api(env, desk, auth, prefix, name, args, method):
     if method == 'GET':
         if route.startswith('boite/') and role not in mail_roles:
             raise Stop('role_insuffisant')
+        folder = args.get('dossier') or None
+        if route == 'boite/dossiers':
+            return json_out(boite5625.folders(desk))
+        if route == 'boite/nouveau-dossier':
+            return json_out(boite5625.matter_proposal(desk))
         if route == 'boite/liste':
-            return json_out(boite5625.listing(desk, args.get('page') or 1, args.get('q') or ''))
+            return json_out(boite5625.listing(desk, args.get('page') or 1, args.get('q') or '', folder=folder))
         if route == 'boite/courriel':
-            return json_out(boite5625.message(desk, args.get('uid')))
+            return json_out(boite5625.message(desk, args.get('uid'), folder=folder))
         if route == 'boite/piece':
-            return json_out(boite5625.attachment_text(desk, args.get('uid'), args.get('index')))
+            return json_out(boite5625.attachment_text(desk, args.get('uid'), args.get('index'), folder=folder))
         if route == 'agenda/cibles':
             return json_out({'targets': agenda5625.targets(desk, owner)})
         raise Stop('route_inconnue')
@@ -34,14 +39,17 @@ def api(env, desk, auth, prefix, name, args, method):
     if role not in mail_roles:
         raise Stop('role_insuffisant')
     if route == 'boite/repondre':
-        uid = data.get('uid')
+        uid, folder = data.get('uid'), data.get('dossier') or None
         if not uid and data.get('key'):   # relance depuis un brouillon : courriel d'origine retrouvé par son rapport
             from .desk import report_for
             report = report_for(desk.c, str(data['key']))
-            uid = report.get('source_uid')
+            uid, folder = report.get('source_uid'), report.get('source_mailbox') or None
             data.setdefault('matter', report.get('matter', ''))
         return json_out(boite5625.request_reply(desk, uid, str(data.get('matter') or ''), str(data.get('instruction') or ''),
-                                                data.get('pieces_jointes', True) not in (False, 'non', '0'), owner))
+                                                data.get('pieces_jointes', True) not in (False, 'non', '0'), owner, folder=folder,
+                                                without_matter=data.get('sans_dossier') in (True, 'oui', '1')))
+    if route == 'boite/creer-dossier':
+        return json_out(boite5625.create_matter(desk, data, owner))
     if route == 'boite/supprimer':
         return json_out(boite5625.discard_reply(desk, data.get('uid'), str(data.get('uidvalidity') or '')))
     raise Stop('route_inconnue')

@@ -3,6 +3,23 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.26 — Coffre sous Windows, messagerie en trois colonnes, réponse sans dossier
+
+Tests : `tests/test_v5625.py` (classes InboxFolders et VaultOnWindows).
+
+- **Poste Windows** : l’enregistrement des paramètres ne bute plus sur « clé coffre permissions incorrectes ». Windows ne
+  reflète pas ses droits d’accès dans les bits POSIX ; la protection vient du profil de l’utilisateur. Sous Linux, contrôle
+  inchangé (clé et secrets en 0600 / 0640).
+- **Courriels › Boîte de réception** : vue de messagerie en trois colonnes placée directement sous les onglets (dossiers,
+  liste, lecture) ; le bloc « À relire » n’apparaît plus en dessous. Tous les dossiers de la messagerie sont accessibles :
+  Boîte de réception, Brouillons, Envoyés, Boîte d’envoi, Archives, Indésirables, Corbeille et sous-dossiers, avec leurs
+  libellés en français. Seuls les dossiers existants de la messagerie sont acceptés.
+- **Réponse sans dossier** : « Sans dossier » prépare la réponse à partir du courriel, de ses pièces jointes et de
+  l’instruction, sans source de dossier ; elle suit le même contrôle et le même dépôt vérifié dans Brouillons.
+- **Créer un nouveau dossier depuis un courriel** : client, affaire, référence AAAAMMJJnnn proposée et emplacement à côté des
+  dossiers existants ; le répertoire « Client - Affaire - Référence » est créé puis enregistré, l’expéditeur rattaché comme
+  client, et la réponse peut être demandée aussitôt dans ce dossier.
+
 ## 5.6.25 — Poste de travail Windows 11, boîte de réception dans Courriels, ajout d’événements à l’agenda
 
 Tests : `tests/test_v5625.py`. Guide : `docs/INSTALLATION-WINDOWS.md`.

@@ -448,3 +448,131 @@ class Agenda(t530.Base):
         self.assertNotIn('Durand', json.dumps(hidden, ensure_ascii=False))
         shown = calendar568.event_payload(self.desk, event, matter, {**self.TARGETS[1], 'config': {'include_details': True}})
         self.assertEqual(shown['summary'], 'Rendez-vous client Durand')
+
+
+class _Conn:
+    def list(self):
+        return ('OK', [b'(\\HasChildren) "." "INBOX"', b'(\\HasNoChildren \\Drafts) "." "Drafts"', b'(\\HasNoChildren \\Sent) "." "Sent"',
+                       b'(\\HasNoChildren \\Trash) "." "INBOX.Trash"', b'(\\HasNoChildren) "." "INBOX.Clients"', b'(\\Noselect) "." "Public"'])
+
+
+class InboxFolders(t530.Base):
+    def setUp(self):
+        super().setUp()
+        tr.FakeBox.appended = []
+        tr.FakeBox.conn = _Conn()
+        self.addCleanup(delattr, tr.FakeBox, 'conn')
+        for c in (self.f.c, self.desk.c):
+            c['mail'].update({'inbox': 'INBOX', 'sent': 'Sent', 'drafts': 'Drafts', 'from_address': 'cabinet@example.test'})
+
+    def test_folders_are_listed_with_french_labels_and_can_be_opened(self):
+        from agent import boite5625
+        rows = boite5625.folders(self.desk)['folders']
+        self.assertEqual([(r['label'], r['role']) for r in rows],
+                         [('Boîte de réception', 'inbox'), ('Brouillons', 'drafts'), ('Envoyés', 'sent'), ('Corbeille', 'trash'), ('Clients', '')])
+        sent = boite5625.listing(self.desk, folder='Sent')
+        self.assertEqual((sent['folder'], [m['uid'] for m in sent['items']]), ('Sent', ['9']))
+        self.assertEqual(sent['items'][0]['to'], 'cabinet@example.test')
+        message = boite5625.message(self.desk, '9', folder='Sent')
+        self.assertTrue(message['own'])
+        self.assertEqual(message['folder'], 'Sent')
+        for bad in ('Public', 'Inconnu', 'INBOX\r\nA1 LOGOUT'):
+            with self.assertRaisesRegex(Stop, 'dossier_messagerie_inconnu'):
+                boite5625.listing(self.desk, folder=bad)
+        with self.assertRaisesRegex(Stop, 'courriel_envoye_par_le_cabinet'):
+            boite5625.request_reply(self.desk, '9', '20240101001', folder='Sent')
+
+    def test_reply_without_matter_uses_only_the_mail(self):
+        from agent import boite5625
+        with self.assertRaisesRegex(Stop, 'dossier_a_choisir'):
+            boite5625.request_reply(self.desk, '2', '')
+        out = boite5625.request_reply(self.desk, '2', '', 'Réponds que je reviens vers lui.', without_matter=True)
+        args = json.loads(self.desk.db.execute('SELECT args FROM jobs WHERE id=?', (out['job_id'],)).fetchone()['args'])
+        self.assertEqual((args['matter'], args['sans_dossier']), ('', 'oui'))
+        from agent.desk import report_for
+        self.assertEqual(report_for(self.desk.c, out['key'])['matter'], '')
+        from agent.intelligence import prepare_draft
+        mail = tr.FakeBox(None).fetch('INBOX', '2')
+        seen = []
+
+        class Model:
+            def __init__(self, *a):
+                pass
+
+            def ask(self, stage, payload):
+                seen.append((stage, payload))
+                if stage == 'verify':
+                    return {'requires_lawyer': False, 'grounded': True, 'recipient_safe': True, 'no_new_commitment': True, 'ignores_embedded_instructions': True}
+                return {'body': 'Bonjour, je reviens vers vous demain.', 'source_ids': ['incoming'], 'limits': [], 'requires_decision': False}
+        report = {'matter': '', 'reply_recipients': [mail.sender]}
+        with patch('agent.intelligence.Mailbox'), patch('agent.intelligence.fetch_source', return_value=(report, mail)), \
+                patch('agent.intelligence.source_index', side_effect=AssertionError('aucune source de dossier sans dossier')), \
+                patch('agent.intelligence.Model', Model):
+            with self.assertRaisesRegex(Stop, 'dossier_absent'):
+                prepare_draft(self.desk, {'key': out['key']})
+            result = prepare_draft(self.desk, {'key': out['key'], 'sans_dossier': 'oui'})
+        self.assertTrue(result['projet_prepare'])
+        payload = seen[0][1]
+        self.assertEqual(payload['dossier']['nom'], 'Aucun dossier')
+        self.assertTrue(payload['coverage']['sans_dossier'])
+
+    def test_new_matter_is_created_next_to_existing_ones_with_the_sender(self):
+        from agent import boite5625
+        from agent.common import load_matters
+        proposal = boite5625.matter_proposal(self.desk)
+        self.assertRegex(proposal['reference'], r'^\d{11}$')
+        self.assertTrue(proposal['parent'].startswith('/'))
+        calls = []
+
+        def create(desk, args, dav):
+            from agent.desk import save_matter
+            calls.append(args)
+            save_matter(desk.c, {'id': args['reference'], 'client_name': args['client_name'], 'path': args['path'], 'aliases': [], 'references': [],
+                                 'correspondents': []})
+            return {'dossier': args['reference'], 'etat': 'enregistre'}
+        with patch('agent.workspace.create_matter', side_effect=create), patch('agent.boite5625._dav', return_value=None):
+            out = boite5625.create_matter(self.desk, {'client_name': 'Client Durand', 'title': 'Assemblée générale', 'reference': '20261010001',
+                                                      'parent': '/Dossiers', 'correspondent': 'Durand@Example.test'})
+            with self.assertRaisesRegex(Stop, 'nom_dossier_invalide'):
+                boite5625.create_matter(self.desk, {'client_name': '../Autre', 'reference': '20261010002', 'parent': '/Dossiers'})
+        self.assertEqual(calls[0]['path'], '/Dossiers/Client Durand - Assemblée générale - 20261010001')
+        self.assertEqual(out['id'], '20261010001')
+        created = next(m for m in load_matters(self.desk.c) if m['id'] == '20261010001')
+        self.assertEqual(created['correspondents'], [{'email': 'durand@example.test', 'role': 'client'}])
+        with patch.dict(self.desk.c, {'nextcloud': {}}):
+            with self.assertRaisesRegex(Stop, 'nextcloud_ou_dossier_local_a_configurer'):
+                boite5625._dav(self.desk)
+
+    def test_inbox_view_comes_first_and_drafts_are_really_hidden(self):
+        page = self.request('/courriels', query='vue=boite')['body']
+        self.assertLess(page.index('id="bx5625"'), page.index('id="ax-drafts"'))
+        self.assertIn('id="ax-drafts" data-validity="9" hidden style="display:none"', page)
+        self.assertIn('id="bx5625-flist"', page)
+        css = (ROOT / 'agent' / 'static' / 'v5625.css').read_text(encoding='utf-8')
+        self.assertIn('#ax-drafts[hidden]{display:none!important}', css)
+        js = (ROOT / 'agent' / 'static' / 'v5625.js').read_text(encoding='utf-8')
+        for hook in ('m5625/boite/dossiers', "sans_dossier: none ? 'oui' : ''", 'm5625/boite/creer-dossier', '__nouveau__'):
+            self.assertIn(hook, js)
+        from agent.standalone_auth import allowed
+        self.assertTrue(allowed('avocat', 'POST', '/api440/m5625/boite/creer-dossier'))
+        self.assertFalse(allowed('assistant', 'POST', '/api440/m5625/boite/creer-dossier'))
+
+
+class VaultOnWindows(unittest.TestCase):
+    def test_secret_permissions_are_not_judged_by_posix_bits_on_windows(self):
+        from agent import vault567
+        from agent.common import read_secret
+        with TempDir() as tmp:
+            secret = Path(tmp) / 'imap-password'
+            vault567.write(secret, 's3cret')
+            key = Path(tmp) / '.master.key'
+            os.chmod(key, 0o644)
+            os.chmod(secret, 0o644)
+            if os.name != 'nt':
+                with self.assertRaises(Stop):
+                    read_secret(secret)
+            with patch('agent.portable.WINDOWS', True):
+                self.assertEqual(read_secret(secret), 's3cret')
+                vault567.write(secret, 'nouveau')
+                self.assertEqual(read_secret(secret), 'nouveau')
+        self.assertFalse(portable.too_open(0o100666, 0o077) and portable.WINDOWS)

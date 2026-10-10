@@ -262,7 +262,10 @@ def prepare_draft(desk,args):
     if len(instruction)>12000:raise Stop('instruction_trop_longue_12000_maximum')
     box=Mailbox(desk.c['mail'])
     try:
-        report,mail=fetch_source(desk,key,box);m=matter(desk.c,report.get('matter',''))
+        report,mail=fetch_source(desk,key,box)
+        if not report.get('matter') and args.get('sans_dossier')=='oui':   # 5.6.25 : réponse demandée par l'avocat sans dossier
+            m={'id':'','client_name':'','path':''}
+        else:m=matter(desk.c,report.get('matter',''))
         recipients=report.get('reply_recipients') or [mail.sender]
         if recipients[0]!=mail.sender:raise Stop('destinataire_invalide')
         sources=[{'id':'incoming','kind':'email_received','content_ref':'incoming'}]
@@ -270,9 +273,11 @@ def prepare_draft(desk,args):
         if args.get('pieces_jointes')=='oui':   # 5.6.25 : réponse demandée depuis la boîte — texte des pièces jointes du courriel
             from .boite5625 import attachment_sources
             extra,attachment_notes=attachment_sources(desk,mail);sources+=extra
-        index=source_index(desk.c);docs,coverage=index.sources(DAV(desk.c['nextcloud']),m,[mail.subject,mail.text[:1000]],
-                                                {**desk.c['documents'],'max_documents_per_mail':3});sources+=docs
-        if desk.c.get('legal_memory',{}).get('enabled',True):
+        if m['id']:
+            index=source_index(desk.c);docs,coverage=index.sources(DAV(desk.c['nextcloud']),m,[mail.subject,mail.text[:1000]],
+                                                    {**desk.c['documents'],'max_documents_per_mail':3});sources+=docs
+        else:coverage={'sans_dossier':True,'not_exhaustive':True}
+        if m['id'] and desk.c.get('legal_memory',{}).get('enabled',True):
             from .legal_memory import memory_sources
             sources += [item for item in memory_sources(desk,m['id'],mail.subject,
                 desk.c.get('legal_memory',{}).get('assistant_records',10))
@@ -283,7 +288,9 @@ def prepare_draft(desk,args):
             events=DAV(desk.c['nextcloud']).events(cc['urls'],now-timedelta(days=1),now+timedelta(days=cc.get('availability_days',10)+1),cc['timezone'])
             slots=available_slots(events,now,cc)[:3];sources += [{'id':s['id'],'kind':'available_slot',**s} for s in slots]
         payload={'incoming':mail.public(),'style':style,'instruction_avocat':instruction,
-                 'dossier':{'id':m['id'],'nom':m['client_name']},
+                 'dossier':{'id':m['id'],'nom':m['client_name']} if m['id'] else {'id':'','nom':'Aucun dossier',
+                     'consigne':'Aucun dossier rattaché : répondre seulement à partir du courriel, de ses pièces jointes et de l’instruction de '
+                                'l’avocat ; ne rien affirmer sur un dossier ; signaler ce qui devra être vérifié.'},
                  'recipient_role':report.get('recipient_role',''),'reply_recipients':recipients,'sources':sources,
                  'available_slots':slots,'coverage':coverage}
         from .assistant567 import drafting_preferences
@@ -333,8 +340,9 @@ def deposit_draft(desk,args):
     if not row:raise Stop('projet_prudent_absent')
     data=json.loads(row[0]);result=data['result']
     if result['requires_decision'] or not result['body']:raise Stop('depot_bloque_decision_requise')
-    m=matter(desk.c,data['matter'])
-    if m['path']!=data['matter_path']:raise Stop('dossier_modifie_depuis_projet')
+    if data['matter'] or data.get('matter_path'):   # 5.6.25 : un projet sans dossier n'a pas de répertoire à revérifier
+        m=matter(desk.c,data['matter'])
+        if m['path']!=data['matter_path']:raise Stop('dossier_modifie_depuis_projet')
     box=Mailbox(desk.c['mail']);state=State(desk.c['state_dir'])
     try:
         report,mail=fetch_source(desk,key,box)

@@ -40,7 +40,7 @@ class StandaloneInstallerTests(unittest.TestCase):
     def test_one_archive_provisions_a_fresh_server_without_fake_secrets(self):
         release=installer.provision_files(self.source,self.base,self.config,self.state,
           self.launcher,self.systemd,os.getuid(),os.getgid(),os.getuid(),os.getgid())
-        self.assertEqual(release.name,'5.6.25')
+        self.assertEqual(release.name,'5.6.26')
         self.assertEqual((self.base/'current').resolve(),release)
         self.assertTrue(self.launcher.is_file())
         self.assertEqual({x.name for x in self.systemd.iterdir()},set(installer.CORE_UNITS))
@@ -63,14 +63,14 @@ class StandaloneInstallerTests(unittest.TestCase):
 
     def test_cleanup_preserves_active_and_rollback_release(self):
         releases=self.base/'releases'
-        for version in ('3.9.3','4.0.0','4.1.0','5.6.25'):
+        for version in ('3.9.3','4.0.0','4.1.0','5.6.26'):
             verified_release(releases/version)
-        (self.base/'current').symlink_to(releases/'5.6.25')
-        (self.base/'upgrade-5.6.25.json').write_text(json.dumps({
+        (self.base/'current').symlink_to(releases/'5.6.26')
+        (self.base/'upgrade-5.6.26.json').write_text(json.dumps({
           'previous_release':str(releases/'4.1.0')}))
         result=installer.prune_old_releases(self.base,keep=2)
         self.assertEqual(set(result['removed']),{'3.9.3','4.0.0'})
-        self.assertTrue((releases/'5.6.25').is_dir())
+        self.assertTrue((releases/'5.6.26').is_dir())
         self.assertTrue((releases/'4.1.0').is_dir())
 
 

@@ -580,18 +580,19 @@ def drafts_page(desk, auth, prefix, args):
     inbox_view = str(args.get('vue') or '') == 'boite'   # 5.6.25 : onglets « À relire » / « Boîte de réception »
     tabs = ('<nav class="bx5625-tabs" aria-label="Courriels"><a href="%s"%s>À relire</a><a href="%s"%s>Boîte de réception</a></nav>') % (
         e(prefix + '/courriels', quote=True), '' if inbox_view else ' aria-current="page"', e(prefix + '/courriels?vue=boite', quote=True), ' aria-current="page"' if inbox_view else '')
-    inbox = ('<section class="bx5625" id="bx5625" aria-label="Boîte de réception"%s>'
-             '<div class="bx5625-list"><div class="bx5625-head"><h1>Boîte de réception</h1>'
-             '<p class="ax-muted">Tous les courriels reçus, du plus récent au plus ancien (lecture seule, rien n’est marqué comme lu). '
-             'Choisissez-en un pour demander à l’agent d’y répondre.</p>'
-             '<form class="bx5625-search" role="search"><input type="search" name="q" placeholder="Rechercher par objet ou expéditeur" aria-label="Rechercher dans la boîte">'
+    inbox = ('<section class="bx5625" id="bx5625" aria-label="Messagerie"%s>'
+             '<nav class="bx5625-folders" aria-label="Dossiers de la messagerie"><h2>Dossiers</h2>'
+             '<div id="bx5625-flist"><p class="ax-muted">Lecture des dossiers…</p></div></nav>'
+             '<div class="bx5625-list"><div class="bx5625-head"><h1 id="bx5625-title">Boîte de réception</h1>'
+             '<p class="ax-muted">Du plus récent au plus ancien ; rien n’est marqué comme lu.</p>'
+             '<form class="bx5625-search" role="search"><input type="search" name="q" placeholder="Rechercher par objet ou expéditeur" aria-label="Rechercher dans ce dossier">'
              '<button class="ax-btn ghost" type="submit">Rechercher</button></form></div>'
              '<div class="bx5625-rows" id="bx5625-rows"><p class="ax-muted ax-pad">Lecture de la boîte…</p></div>'
              '<div class="bx5625-pages" id="bx5625-pages"></div></div>'
              '<div class="bx5625-panel" id="bx5625-panel" aria-live="polite"><div class="ax-empty"><h2>Choisissez un courriel</h2>'
              '<p>Vous verrez son texte et ses pièces jointes, les réponses déjà préparées (à modifier, supprimer ou relancer) et pourrez demander '
              'une réponse à l’agent, avec votre instruction. <strong>Rien n’est envoyé</strong>.</p></div></div></section>') % ('' if inbox_view else ' hidden')
-    body = ('<div class="ax-split" id="ax-drafts" data-validity="%s"' + (' hidden' if inbox_view else '') + '>'
+    body = ('<div class="ax-split" id="ax-drafts" data-validity="%s"' + (' hidden style="display:none"' if inbox_view else '') + '>'
             '<div class="ax-list" role="region" aria-label="Brouillons">'
             '<div class="ax-list-head"><h1>Courriels à relire</h1>'
             '<p class="ax-muted">Les brouillons du dossier « %s » de votre messagerie. Cliquez sur l’un d’eux pour le corriger ici même.</p>'
@@ -606,7 +607,10 @@ def drafts_page(desk, auth, prefix, args):
         notice, ('<p class="ax-alert" role="alert">%s</p>' % e(error)) if error else '', rows,
         '' if rows or error else '<p class="ax-muted ax-pad">Aucun brouillon pour le moment. Dès qu’un courriel ou un avis de procédure arrive, l’agent en prépare un ici.</p>')
     from .web520 import mail_pipeline_html
-    body = mail_pipeline_html(desk, prefix, compact=True) + tabs + body + inbox
+    if inbox_view:   # 5.6.25 : la messagerie d'abord, sous les onglets ; le bilan des brouillons reste dans « À relire »
+        body = tabs + inbox + body
+    else:
+        body = mail_pipeline_html(desk, prefix, compact=True) + tabs + body + inbox
     return shell('Courriels', body, prefix, auth['csrf'], '/courriels')
 
 

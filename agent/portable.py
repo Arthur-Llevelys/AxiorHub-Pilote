@@ -99,6 +99,12 @@ def chown(path, uid, gid):
         os.chown(path, uid, gid)
 
 
+def too_open(st_mode, mask):
+    """5.6.25 : droits trop larges ? Sous Windows, les bits POSIX rendus par stat ne reflètent pas les ACL (toujours 0o666) ;
+    la protection vient du profil de l'utilisateur (%LOCALAPPDATA%, privé par défaut). Sous Linux, contrôle inchangé."""
+    return False if WINDOWS else bool(st_mode & mask)
+
+
 def geteuid():
     """Identifiant effectif ; sous Windows, jamais « root » (0)."""
     return os.geteuid() if hasattr(os, 'geteuid') else 1000

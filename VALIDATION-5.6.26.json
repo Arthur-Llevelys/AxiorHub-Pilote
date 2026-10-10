@@ -1,0 +1,23 @@
+{
+  "version": "5.6.26",
+  "base": "5.6.25 publiée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1615,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 64,
+    "note": "Aucun échec. L’intégration continue exécute la suite complète sous Linux et les tests du poste sur windows-latest."
+  },
+  "new_tests": "tests/test_v5625.py : InboxFolders (dossiers IMAP et libellés, dossier inconnu refusé, réponse sans dossier jusqu’à la préparation, création de dossier avec correspondant, vue messagerie en tête et brouillons masqués), VaultOnWindows (secrets lus et écrits sous Windows sans bits POSIX).",
+  "adjusted_tests": [],
+  "manual_checks": [
+    "Coffre : écriture puis lecture d’un secret sous Windows sans shim (erreur reproduite sur l’archive 5.6.25, absente en 5.6.26).",
+    "Aperçu de démonstration : trois colonnes (dossiers, liste, lecture), dossier Envoyés, « Sans dossier » accepté, création d’un nouveau dossier puis sélection automatique."
+  ],
+  "limits": [
+    "Création de dossier rejouée avec un Nextcloud simulé uniquement."
+  ]
+}

@@ -54,7 +54,8 @@ def private_json(path, value):
 
 def read_secret(path):
     p = Path(path)
-    if not p.is_file() or p.stat().st_mode & 0o027:
+    from . import portable
+    if not p.is_file() or portable.too_open(p.stat().st_mode, 0o027):
         raise Stop('secret_absent_ou_permissions_trop_larges')
     if p.stat().st_size>16384:raise Stop('secret_invalide')
     value = p.read_text(encoding='utf-8').strip()

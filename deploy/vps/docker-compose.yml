@@ -14,7 +14,7 @@ x-axiorhub: &axiorhub
   build:
     context: ../..
     dockerfile: docker/Dockerfile
-  image: axiorhub:5.6.25
+  image: axiorhub:5.6.26
   restart: unless-stopped
   env_file: .env
   volumes:
