@@ -72,14 +72,16 @@ def extract_pages(raw, name, cfg):
     if ext=='.docx':
         with tempfile.TemporaryDirectory(prefix='axiorhub-docx-pages-',ignore_cleanup_errors=portable.WINDOWS) as td:   # LibreOffice peut garder son profil ouvert un instant sous Windows
             source=Path(td)/'source.docx';source.write_bytes(raw)
-            try:
-                p=portable.run_tool([_tool('libreoffice'),'-env:UserInstallation='+Path(td,'profil').as_uri(),'--headless','--convert-to','pdf',
-                    '--outdir',td,str(source)],int(cfg.get('max_extraction_seconds_long',600)),limits,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
-                    env=portable.tool_env(HOME=td))
-            except (FileNotFoundError,OSError,subprocess.TimeoutExpired):p=None
             rendered=Path(td)/'source.pdf'
+            for _attempt in (1,2):   # 5.6.30 : profil neuf sous Windows = premier lancement sans conversion
+                try:
+                    p=portable.run_tool([_tool('libreoffice'),'-env:UserInstallation='+Path(td,'profil').as_uri(),'--headless','--convert-to','pdf',
+                        '--outdir',td,str(source)],int(cfg.get('max_extraction_seconds_long',600)),limits,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
+                        env=portable.tool_env(HOME=td))
+                except (FileNotFoundError,OSError,subprocess.TimeoutExpired):p=None
+                if p is None or p.returncode or rendered.is_file():break
             if p is not None and p.returncode==0 and rendered.is_file():
-                return _pdf_pages(rendered.read_bytes(),cfg)
+                return _pdf_pages(portable.read_output(rendered),cfg)
         text=extract(raw,name,{**cfg,'max_document_chars':cfg.get('max_document_chars_long',2_000_000)})
         return [{'page':1,'label':'section logique 1','text':text,
                  'extraction':'docx_xml','citation_kind':'logical_section'}]

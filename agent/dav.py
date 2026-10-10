@@ -600,7 +600,11 @@ class LocalFolder(DAV):
         """Chemin métier contrôlé et chemin local correspondant. Aucun composant ne peut être un lien symbolique (F12) ni « .. »."""
         path = self._check(path)
         target = self.local
-        for part in [x for x in path.split('/') if x]:
+        parts = [x for x in path.split('/') if x]
+        # 5.6.30 : dossier local choisi au niveau de la racine elle-même (…\Nextcloud\CABINET pour la racine /CABINET) : accepté.
+        if parts and parts[0] == self.local.name and not (self.local / parts[0]).exists():
+            parts = parts[1:]
+        for part in parts:
             if part in ('.', '..'): raise Stop('chemin_refuse')
             target = target / part
             if target.is_symlink(): raise Stop('lien_symbolique_refuse')

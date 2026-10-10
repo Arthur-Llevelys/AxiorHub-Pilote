@@ -1,0 +1,28 @@
+{
+  "version": "5.6.30",
+  "base": "5.6.29 publiée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1661,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 68,
+    "note": "Aucun échec. Deux défauts révélés par LibreOffice désormais opérationnel sous Windows (PDF encore verrouillé à la relecture, « PAR CES MOTIFS » collé au pied de page) ont été corrigés avant cette exécution."
+  },
+  "new_tests": "tests/test_v5630.py : connexion IMAP TLS direct / STARTTLS / automatique et causes d’échec précises, dossier local Nextcloud au niveau de la racine, enregistrements successifs des Paramètres sans rechargement, aperçu Word sans Poppler (encodeur PNG, PDFium, relance de LibreOffice, soffice.com), identité de la fenêtre Windows dans la barre des tâches, relecture d’un fichier encore verrouillé, dispositif collé au texte précédent.",
+  "adjusted_tests": [
+    "tests/test_v5625.py : le panneau des brouillons est masqué par l’attribut hidden (plus de style en ligne) ; réponse manuelle à son propre message adressée aux destinataires extérieurs."
+  ],
+  "manual_checks": [
+    "Aperçu 5.6.30 : enregistrer, tester, modifier et réenregistrer les Connexions plusieurs fois sans recharger.",
+    "Application Windows empaquetée : démarrage, pages principales, arrêt propre des services.",
+    "Application Windows empaquetée : aperçu de deux modèles Word (2 pages chacun) avec le LibreOffice du poste, sans Poppler.",
+    "Fenêtre Edge en mode application : identifiant AxiorHub.Pilote et icône AxiorHub dans la barre des tâches ; fermeture détectée."
+  ],
+  "limits": [
+    "Pas de connexion au serveur de messagerie ni au Nextcloud du cabinet avec vos identifiants : seuls les ports et le TLS ont été sondés.",
+    "L’icône est attribuée quelques instants après l’ouverture de la fenêtre."
+  ]
+}

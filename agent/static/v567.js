@@ -316,13 +316,15 @@
     event.preventDefault(); const output = document.querySelector('#connections567-status'), values = {};
     for (const field of catalog.fields) {
       const input = [...connections.querySelectorAll('[data-config567]')].find(x => x.dataset.config567 === field.key);
+      if (!input) continue;   // 5.6.30 : le catalogue relu après enregistrement contient aussi des réglages absents de cette page
       let value = field.type === 'bool' ? input.checked : input.value;
       if (['port', 'integer'].includes(field.type)) value = Number(value);
       if (['lines', 'paths', 'urls'].includes(field.type)) value = value.split('\n').map(x => x.trim()).filter(Boolean);
       if (field.type === 'secret' ? value.trim() : JSON.stringify(value) !== JSON.stringify(field.value)) values[field.key] = value;
     }
     if (!Object.keys(values).length) {output.textContent = 'Aucun changement à enregistrer.'; return;}
-    const button = connections.querySelector('button'); button.disabled = true;
+    const button = connections.querySelector('button[type=submit]') || [...connections.querySelectorAll('button')].pop(); button.disabled = true;
+    output.textContent = 'Enregistrement…';
     try {
       const answer = await api('config/save', {revision: catalog.revision, values}); output.textContent = answer.message;
       catalog = await api('config/catalog'); connections.querySelectorAll('input[type=password]').forEach(x => {x.value = ''; x.placeholder = 'Secret configuré ; laisser vide pour le conserver';});

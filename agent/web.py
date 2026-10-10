@@ -79,7 +79,7 @@ REASONS.update({
  'analyse_document_couverture_incomplete':'Toutes les pages n’ont pas été validées. Relancez la même demande : l’analyse reprendra uniquement les fragments manquants.',
  'document_long_depasse_pages_autorisees':'Le document dépasse la limite de pages configurée pour les documents longs.',
  'document_long_depasse_taille_autorisee':'Le texte extrait dépasse la limite configurée pour les documents longs.',
- 'previsualisation_libreoffice_poppler_requise':'Installer LibreOffice Writer et Poppler sur le serveur, puis réessayer la prévisualisation.',
+ 'previsualisation_libreoffice_poppler_requise':'Installer LibreOffice Writer (et, sur un serveur Linux, Poppler : paquet poppler-utils), puis réessayer la prévisualisation.',
  'rendu_word_indisponible':'La conversion Word locale a échoué ; contrôler LibreOffice et le modèle DOCX.',
  'modele_word_non_valide':'Ce modèle doit être approuvé après examen de toutes ses pages.',
  'version_source_modifiee':'Le fichier Nextcloud a changé depuis l’aperçu ; préparez une nouvelle version.',

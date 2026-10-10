@@ -1156,14 +1156,22 @@ def docx_to_pdf(raw, timeout=120):
     with tempfile.TemporaryDirectory(prefix='axiorhub-bordereau-', ignore_cleanup_errors=(__import__('os').name == 'nt')) as td:
         source = Path(td) / 'bordereau.docx'
         source.write_bytes(raw)
-        try:
-            subprocess.run([office, '-env:UserInstallation=' + (Path(td) / 'profile').as_uri(), '--headless', '--convert-to', 'pdf',
-                            '--outdir', td, str(source)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout, check=False,
-                           env={'PATH': '/usr/bin:/bin', 'HOME': td, 'LANG': 'C.UTF-8'})
-        except (OSError, subprocess.TimeoutExpired):
-            return None
+        from . import portable
         pdf = Path(td) / 'bordereau.pdf'
-        return pdf.read_bytes() if pdf.is_file() else None
+        env = portable.tool_env(HOME=td) if portable.WINDOWS else {'PATH': '/usr/bin:/bin', 'HOME': td, 'LANG': 'C.UTF-8'}   # 5.6.30
+        for _attempt in (1, 2):   # 5.6.30 : profil neuf sous Windows = premier lancement sans conversion
+            try:
+                proc = subprocess.run([office, '-env:UserInstallation=' + (Path(td) / 'profile').as_uri(), '--headless', '--convert-to', 'pdf',
+                                       '--outdir', td, str(source)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout, check=False,
+                                      env=env)
+            except (OSError, subprocess.TimeoutExpired):
+                return None
+            if proc.returncode or pdf.is_file():
+                break
+        try:
+            return portable.read_output(pdf) if pdf.is_file() else None   # 5.6.30 : fichier encore verrouillé par LibreOffice sous Windows
+        except PermissionError:
+            return None
 
 
 def template_values(data, prof):

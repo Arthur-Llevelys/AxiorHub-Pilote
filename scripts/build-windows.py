@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ('web.py', 'manage.py', 'poste.py', 'standalone.py', 'localpaths.py', 'docker/bootstrap.py')
 DATA_DIRS = ('agent', 'templates', 'examples', 'docs', 'integrations/openwebui', 'windows')
 DATA_FILES = SCRIPTS + ('LICENSE', 'NOTICE', 'AUTHORS.md', 'THIRD_PARTY_NOTICES.md', 'LOGO-LICENSE.md', 'TRADEMARKS.md', 'README.md', 'CHANGELOG.md')
-THIRD_PARTY = ('waitress', 'cryptography', 'pypdf', 'tzdata')
+THIRD_PARTY = ('waitress', 'cryptography', 'pypdf', 'tzdata', 'pypdfium2')   # 5.6.30 : pypdfium2 = rendu des pages sans Poppler
 EXCLUDES = ('gi', 'pytest', 'IPython', 'matplotlib', 'numpy', 'PIL', 'lxml', 'docx')
 
 
@@ -71,12 +71,14 @@ def icon(build):
 
 
 APP_SPEC = '''# -*- mode: python -*-
-from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files, collect_dynamic_libs
 hidden = collect_submodules('agent') + collect_submodules('windows') + {hidden!r}
 for name in {third!r}:
     hidden += collect_submodules(name)
-datas = {datas!r} + collect_data_files('tzdata')
-a = Analysis([{entry!r}], pathex=[{root!r}], datas=datas, hiddenimports=hidden, excludes={excludes!r}, noarchive=False)
+datas = {datas!r} + collect_data_files('tzdata') + collect_data_files('pypdfium2') + collect_data_files('pypdfium2_raw')
+hidden += collect_submodules('pypdfium2_raw')
+binaries = collect_dynamic_libs('pypdfium2_raw')
+a = Analysis([{entry!r}], pathex=[{root!r}], datas=datas, binaries=binaries, hiddenimports=hidden, excludes={excludes!r}, noarchive=False)
 pyz = PYZ(a.pure)
 options = [('X utf8=1', None, 'OPTION')]
 gui = EXE(pyz, a.scripts, options, exclude_binaries=True, name='AxiorHub Pilote', console=False, icon={icon!r}, upx=False)

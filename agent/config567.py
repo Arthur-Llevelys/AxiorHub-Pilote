@@ -24,7 +24,8 @@ from .common import Stop, load_config, private_json, read_secret
 # clé, libellé, type, valeur initiale, groupe
 FIELDS = (
  ('mail.host','Serveur IMAP','host','mail.example.com','Courriels'),
- ('mail.port','Port IMAP TLS','port',993,'Courriels'),
+ ('mail.port','Port IMAP (993 = TLS direct, le plus courant ; 143 = STARTTLS)','port',993,'Courriels'),
+ ('mail.security','Chiffrement IMAP','imap_security','','Courriels'),
  ('mail.username','Identifiant IMAP','text','','Courriels'),
  ('mail.password_file','Mot de passe IMAP / d’application','secret','','Courriels'),
  ('mail.inbox','Boîte de réception','text','INBOX','Courriels'),
@@ -229,6 +230,7 @@ def _validate(kind,value,key):
     if kind=='host' and (not value or any(c in value for c in '/@?# ')):raise Stop('hote_connexion_invalide')
     if kind=='email' and value and not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+',value):raise Stop('adresse_connexion_invalide')
     if kind=='smtp_security' and value not in ('starttls','ssl'):raise Stop('smtp_securite_invalide')
+    if kind=='imap_security' and value not in ('','ssl','starttls'):raise Stop('imap_securite_invalide')   # 5.6.30
     if kind in ('url','local_url'):
         p=urlsplit(value)
         if not p.netloc or p.username or p.password or p.query or p.fragment:raise Stop('url_connexion_invalide')
@@ -277,7 +279,7 @@ def _save(desk,data,env):
         # Validation structurelle avant toute rotation de secret.
         fd,temp=tempfile.mkstemp(dir=path.parent,prefix='.config-candidate-')
         try:
-            with os.fdopen(fd,'w') as stream:json.dump(candidate,stream)
+            with os.fdopen(fd,'w', encoding='utf-8') as stream:json.dump(candidate,stream)
             load_config(temp)
         finally:os.unlink(temp)
         from .vault567 import write
@@ -288,7 +290,7 @@ def _save(desk,data,env):
         stat=path.stat()
         fd,temp=tempfile.mkstemp(dir=path.parent,prefix='.config-applied-')
         try:
-            with os.fdopen(fd,'w') as stream:
+            with os.fdopen(fd,'w', encoding='utf-8') as stream:
                 json.dump(candidate,stream,ensure_ascii=False,indent=2);stream.write('\n');stream.flush();os.fsync(stream.fileno())
             os.chmod(temp,stat.st_mode & 0o777)
             if portable.geteuid()==0:portable.chown(temp,stat.st_uid,stat.st_gid)
@@ -343,7 +345,17 @@ def test(desk,data):
         raise Stop('connecteur_test_inconnu')
     except (Stop,OSError,ValueError) as error:
         code=str(error) if isinstance(error,Stop) else 'connexion_indisponible'
-        return {'ok':False,'connector':kind,'code':code,'message':'Test non validé : '+code.replace('_',' ')+'. Vérifiez l’adresse, les autorisations et le service.','writes':0}
+        from .web440 import human   # 5.6.30 : cause lisible, sans répéter « Test non validé » (ajouté par la page)
+        message=human(code)
+        if code=='http_404' and kind=='nextcloud':
+            message=('Dossier introuvable (erreur 404). Avec un dossier de travail local, indiquez le dossier synchronisé principal (par exemple '
+                     'C:\\Users\\vous\\Nextcloud) et gardez la racine des dossiers telle qu’elle apparaît dans Nextcloud (par exemple /CABINET). '
+                     'Sans dossier local : vérifiez l’adresse Nextcloud (https://cloud.exemple.fr, sans /remote.php) et la racine.') if desk.c.get('nextcloud',{}).get('local_path') else (
+                     'Adresse Nextcloud ou racine des dossiers introuvable (erreur 404) : indiquez l’adresse de base (https://cloud.exemple.fr, sans /remote.php) '
+                     'et une racine qui existe dans vos fichiers Nextcloud.')
+        elif message==code.replace('_',' '):
+            message+=' — vérifiez l’adresse, les autorisations et le service.'
+        return {'ok':False,'connector':kind,'code':code,'message':message,'writes':0}
 
 
 SYSTEM_DIRS=('/proc','/sys','/dev','/run','/boot','/etc','/bin','/sbin','/lib','/lib64','/usr','/var/lib','/snap')

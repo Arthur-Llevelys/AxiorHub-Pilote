@@ -279,22 +279,60 @@ def fill_template(raw,values):
     return out.getvalue()
 
 
+def _png(width,height,stride,channels,buffer):
+    """5.6.30 : encodage PNG minimal (RVB ou RVBA 8 bits), sans bibliothèque d'image."""
+    import struct,zlib
+    rows=b''.join(b'\x00'+bytes(buffer[y*stride:y*stride+width*channels]) for y in range(height))
+    def chunk(kind,data):
+        return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
+    head=struct.pack('>IIBBBBB',width,height,8,6 if channels==4 else 2,0,0,0)
+    return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',head)+chunk(b'IDAT',zlib.compress(rows,6))+chunk(b'IEND',b'')
+
+
+def _pdfium():
+    try:
+        import pypdfium2
+        return pypdfium2
+    except ImportError:
+        return None
+
+
 def render_pages(raw,folder,variant):
-    """Local PDF conversion and all-page PNGs. Nothing is sent to an external office."""
+    """Local PDF conversion and all-page PNGs. Nothing is sent to an external office.
+    5.6.30 : sans Poppler (poste Windows), les pages du PDF produit par LibreOffice sont rendues par PDFium (pypdfium2)."""
     office=portable.which('libreoffice')
     raster=portable.which('pdftoppm');info=portable.which('pdfinfo')
-    if not office or not raster or not info:raise Stop('previsualisation_libreoffice_poppler_requise')
+    pdfium=None if (raster and info) else _pdfium()
+    if not office or (not (raster and info) and pdfium is None):raise Stop('previsualisation_libreoffice_poppler_requise')
     _private_dir(folder)
     with tempfile.TemporaryDirectory(prefix='word-preview-',dir=folder,ignore_cleanup_errors=portable.WINDOWS) as temp:
         p=Path(temp);source=p/'input.docx';source.write_bytes(raw)
         env=os.environ.copy();env['HOME']=str(p);env['TMPDIR']=str(p)
         try:
-            proc=subprocess.run([office,'-env:UserInstallation='+ (p/'profile').as_uri(),
-                '--headless','--convert-to','pdf:writer_pdf_Export','--outdir',str(p),str(source)],
-                env=env,capture_output=True,timeout=90,check=False)
             pdf=p/'input.pdf'
+            for _attempt in (1,2):   # 5.6.30 : profil neuf sous Windows = premier lancement sans conversion
+                proc=subprocess.run([office,'-env:UserInstallation='+ (p/'profile').as_uri(),
+                    '--headless','--convert-to','pdf:writer_pdf_Export','--outdir',str(p),str(source)],
+                    env=env,capture_output=True,timeout=90,check=False)
+                if proc.returncode or (pdf.is_file() and pdf.stat().st_size):break
             if proc.returncode or not pdf.is_file() or not pdf.stat().st_size:
                 raise Stop('rendu_word_indisponible')
+            if pdfium is not None:
+                document=pdfium.PdfDocument(portable.read_output(pdf))   # en mémoire : aucun accès fichier par PDFium (verrous Windows)
+                try:
+                    pages=len(document)
+                    if not 1<=pages<=MAX_PAGES:raise Stop('previsualisation_word_trop_longue')
+                    dest=_private_dir(folder/variant)
+                    for index in range(pages):
+                        page=document[index]
+                        width,height=page.get_size()
+                        bitmap=page.render(scale=1450/max(width,height,1),rev_byteorder=True)
+                        data=_png(bitmap.width,bitmap.height,bitmap.stride,bitmap.n_channels,bitmap.buffer)
+                        if not 0<len(data)<=3_000_000:raise Stop('image_previsualisation_invalide')
+                        _private_file(dest/(str(index+1)+'.png'),data)
+                    return pages
+                finally:
+                    document.close()
             stats=subprocess.run([info,str(pdf)],capture_output=True,text=True,timeout=15,check=False)
             match=re.search(r'^Pages:\s*(\d+)',stats.stdout,re.M)
             if stats.returncode or not match:raise Stop('nombre_pages_word_indisponible')

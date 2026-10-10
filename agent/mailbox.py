@@ -8,6 +8,7 @@ from email.utils import getaddresses, formataddr, format_datetime
 from html.parser import HTMLParser
 import imaplib
 import re
+import socket
 import ssl
 
 from .common import Stop, digest, fold, read_secret
@@ -191,14 +192,49 @@ def recipient_issue(mail, cfg, allowed_recipients=()):
     return ''
 
 
+def connect(cfg):
+    """5.6.30 : connexion IMAP chiffrée — TLS direct (993, par défaut) ou STARTTLS (143, ou « security » = starttls) — avec la cause
+    exacte d'un échec (serveur introuvable, port fermé, délai, port sans TLS direct, certificat refusé)."""
+    host = str(cfg['host'])
+    try:
+        port = int(cfg.get('port') or 993)
+    except (TypeError, ValueError):
+        raise Stop('imap_port_invalide') from None
+    security = str(cfg.get('security') or ('starttls' if port == 143 else 'ssl')).lower()
+    context = ssl.create_default_context()
+    try:
+        if security == 'starttls':
+            conn = imaplib.IMAP4(host, port, timeout=45)
+            if 'STARTTLS' not in conn.capabilities:
+                raise Stop('imap_starttls_indisponible')
+            conn.starttls(ssl_context=context)
+            return conn
+        return imaplib.IMAP4_SSL(host, port, ssl_context=context, timeout=45)
+    except socket.gaierror:
+        raise Stop('imap_serveur_introuvable') from None
+    except ssl.SSLCertVerificationError:
+        raise Stop('imap_certificat_refuse') from None
+    except ssl.SSLError as error:
+        if 'WRONG_VERSION_NUMBER' in str(error).upper():
+            raise Stop('imap_port_sans_tls_direct') from None
+        raise Stop('imap_tls_echoue') from None
+    except ConnectionRefusedError:
+        raise Stop('imap_port_ferme') from None
+    except (TimeoutError, socket.timeout):
+        raise Stop('imap_delai_depasse') from None
+    except (imaplib.IMAP4.error, OSError):
+        raise Stop('connexion_imap_echouee') from None
+
+
 class Mailbox:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.conn = connect(cfg)
         try:
-            self.conn = imaplib.IMAP4_SSL(cfg['host'], cfg.get('port', 993),
-                                        ssl_context=ssl.create_default_context(), timeout=45)
             self.conn.login(cfg['username'], read_secret(cfg['password_file']))
-        except (imaplib.IMAP4.error, OSError):
+        except imaplib.IMAP4.error:
+            raise Stop('imap_identifiants_refuses') from None
+        except OSError:
             raise Stop('connexion_imap_echouee') from None
         self.selected, self.validity = '', ''
 

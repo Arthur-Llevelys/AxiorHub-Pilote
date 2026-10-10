@@ -76,6 +76,19 @@ def err_text(ex):
 def human(code):
     """Readable French messages for the codes users meet in the workshop."""
     table = {
+        'imap_serveur_introuvable': 'Serveur de messagerie introuvable : vérifiez l’adresse IMAP (par exemple imap.votre-hebergeur.fr) et la connexion Internet.',
+        'imap_port_ferme': 'Le serveur de messagerie refuse la connexion sur ce port : utilisez 993 (TLS) ou 143 (STARTTLS).',
+        'imap_delai_depasse': 'Le serveur de messagerie ne répond pas : vérifiez l’adresse, le port, et qu’un pare-feu ou un antivirus ne bloque pas AxiorHub.',
+        'imap_port_sans_tls_direct': 'Ce port n’accepte pas le TLS direct : utilisez le port 993, ou 143 avec STARTTLS.',
+        'imap_certificat_refuse': 'Le certificat du serveur de messagerie n’est pas reconnu : vérifiez l’adresse exacte du serveur IMAP indiquée par votre hébergeur.',
+        'imap_tls_echoue': 'La connexion chiffrée au serveur de messagerie a échoué : vérifiez le port (993 en TLS, 143 en STARTTLS).',
+        'imap_starttls_indisponible': 'Ce serveur ne propose pas STARTTLS sur ce port : utilisez le port 993.',
+        'imap_identifiants_refuses': 'Le serveur de messagerie refuse l’identifiant ou le mot de passe : ressaisissez-les (adresse complète en identifiant, mot de passe d’application si votre hébergeur l’exige).',
+        'imap_port_invalide': 'Port IMAP invalide : indiquez 993 (TLS) ou 143 (STARTTLS).',
+        'connexion_imap_echouee': 'Connexion à la messagerie impossible : vérifiez le serveur, le port, l’identifiant et le mot de passe (Paramètres › Connexions).',
+        'http_401': 'Identifiant ou mot de passe refusé (erreur 401). Pour Nextcloud, créez un mot de passe d’application (Paramètres personnels › Sécurité).',
+        'http_403': 'Accès refusé (erreur 403) : ce compte n’a pas le droit de lire ce dossier.',
+        'http_404': 'Adresse ou dossier introuvable (erreur 404) : vérifiez l’adresse du serveur et la racine des dossiers.',
         'dossier_local_invalide': 'Le dossier de travail local doit être un chemin absolu vers un répertoire existant (par exemple /mnt/cabinet ou le dossier synchronisé du client Nextcloud), jamais la racine du système. Laissez vide pour lire les fichiers par WebDAV.',
         'dossier_local_introuvable': 'Le dossier de travail local configuré est introuvable : vérifiez le chemin dans Paramètres › Connexions ou videz-le pour revenir à WebDAV.',
         'agenda_webdav_non_configure': 'Les agendas restent lus par CalDAV : renseignez l’adresse, l’identifiant et le mot de passe Nextcloud dans Connexions, même avec un dossier de travail local.',
@@ -606,7 +619,7 @@ def drafts_page(desk, auth, prefix, args):
              '<div class="bx5625-panel" id="bx5625-panel" aria-live="polite"><div class="ax-empty"><h2>Choisissez un courriel</h2>'
              '<p>Vous verrez son texte et ses pièces jointes, les réponses déjà préparées (à modifier, supprimer ou relancer) et pourrez demander '
              'une réponse à l’agent, avec votre instruction. <strong>Rien n’est envoyé</strong>.</p></div></div></section>') % ('' if inbox_view else ' hidden')
-    body = ('<div class="ax-split" id="ax-drafts" data-validity="%s"' + (' hidden style="display:none"' if inbox_view else '') + '>'
+    body = ('<div class="ax-split" id="ax-drafts" data-validity="%s"' + (' hidden' if inbox_view else '') + '>'
             '<div class="ax-list" role="region" aria-label="Brouillons">'
             '<div class="ax-list-head"><h1>Courriels à relire</h1>'
             '<p class="ax-muted">Les brouillons du dossier « %s » de votre messagerie. Cliquez sur l’un d’eux pour le corriger ici même.</p>'

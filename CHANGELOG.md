@@ -3,6 +3,32 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.30 — Corrections : Paramètres sans rechargement, messagerie STARTTLS, poste Windows
+
+Tests : `tests/test_v5630.py`.
+
+- **Paramètres › Connexions** : après un premier enregistrement, les suivants ne faisaient plus rien (erreur de script sur un réglage
+  absent de la page) ; il fallait recharger la page. Corrigé : on peut modifier, enregistrer, tester, puis corriger et enregistrer
+  de nouveau sans recharger. Message « Enregistrement… » pendant l’envoi ; « Test non validé » n’est plus répété.
+- **Messagerie** : nouveau réglage « Chiffrement IMAP » (automatique d’après le port, TLS direct ou STARTTLS) ; le port 143 se
+  connecte en STARTTLS. Chaque échec de test indique sa cause : serveur introuvable, port fermé, port sans TLS direct, délai
+  dépassé, certificat refusé, identifiant ou mot de passe refusé. Aide aux réglages dans la rubrique Courriels.
+- **Nextcloud** : un dossier de travail local choisi au niveau de la racine elle-même (…\Nextcloud\CABINET pour la racine
+  /CABINET) est accepté ; message 404 explicite selon le cas (dossier local ou WebDAV).
+- **Poste Windows** :
+  - aperçu des modèles Word (« previsualisation_libreoffice_poppler_requise ») : Poppler n’est plus nécessaire, les pages sont
+    rendues par PDFium (inclus) ; LibreOffice est lancé par `soffice.com` et la conversion est relancée après l’initialisation d’un
+    profil neuf (premier lancement sans fichier produit) — même correction pour la lecture des DOCX et le bordereau de pièces ;
+  - la fenêtre AxiorHub a son propre bouton et son icône dans la barre des tâches (identifiant d’application, icône et commande
+    de relance), au lieu de l’icône d’Edge ; épingler la fenêtre épingle AxiorHub ;
+  - fermer la fenêtre arrête de nouveau les services (Edge confie la fenêtre à un processus enfant : la fermeture est suivie sur
+    la fenêtre elle-même) ;
+  - fichier de configuration toujours écrit en UTF-8 ;
+  - le PDF produit par LibreOffice (aperçu Word, lecture DOCX, bordereau) est relu après une courte attente s’il est encore
+    verrouillé, au lieu d’échouer.
+- **Audience** : le dispositif « PAR CES MOTIFS » est retrouvé même collé au texte qui précède (extraction sans Poppler).
+- **Courriels** : plus de style en ligne bloqué par la politique de sécurité du navigateur.
+
 ## 5.6.29 — Maîtrise du travail automatique : pause par dossier, consignes, fin des boucles
 
 Tests : `tests/test_v5629.py`.

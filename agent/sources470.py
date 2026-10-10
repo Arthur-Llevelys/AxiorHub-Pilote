@@ -399,7 +399,7 @@ def save_settings(desk, enabled, client_id='', secret='', clear_secret=False):
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         import os
         fd = os.open(str(path) + '.tmp', os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, 'w') as f:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
             f.write(secret + '\n')
         os.replace(str(path) + '.tmp', path)
     elif clear_secret and path.exists():

@@ -157,7 +157,7 @@ def upload_writing(desk,raw,filename,matter_id,side,dav=None):
 
 
 def _device(text):
-    folded=fold(text);matches=list(re.finditer(r'\bpar ces motifs\b',folded))
+    folded=fold(text);matches=list(re.finditer(r'par ces motifs\b',folded))   # 5.6.30 : titre parfois collé au pied de page qui précède
     if not matches:return {'found':False,'text':'','clauses':[]}
     start=matches[-1].start();value=text[start:]
     stop=re.search(r'\n\s*(?:bordereau|liste des pieces|sous toutes reserves)\b',fold(value))

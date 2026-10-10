@@ -14,7 +14,7 @@ s'ouvre avec Microsoft Edge en mode application et se connecte par un jeton à u
 | Tesseract OCR (avec la langue française) | lecture des PDF numérisés | non |
 | LibreOffice | conversions de documents Word et PDF | non |
 | eSpeak NG | voix de secours | non |
-| Poppler | lecture des PDF ; sinon `pypdf`, inclus, prend le relais | non |
+| Poppler | lecture des PDF ; sinon `pypdf` et PDFium, inclus, prennent le relais (aperçus Word compris) | non |
 
 Python n'est pas nécessaire : il est inclus dans l'application.
 
@@ -24,7 +24,7 @@ Python n'est pas nécessaire : il est inclus dans l'application.
 2. Vérifiez l'empreinte dans PowerShell ; elle doit être identique au contenu du fichier `.sha256` :
 
    ```powershell
-   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.25.exe -Algorithm SHA256
+   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.30.exe -Algorithm SHA256
    ```
 
 3. Double-cliquez sur l'installateur. L'application n'étant pas signée par un éditeur, Windows SmartScreen peut afficher
@@ -42,7 +42,7 @@ L'installation se fait pour l'utilisateur courant, sans droits d'administrateur 
 Installation sans fenêtre, par exemple pour un déploiement sur plusieurs postes :
 
 ```powershell
-.\AxiorHub-Pilote-Setup-5.6.25.exe --silencieux --demarrage
+.\AxiorHub-Pilote-Setup-5.6.30.exe --silencieux --demarrage
 ```
 
 Options : `--sans-bureau`, `--sans-raccourcis`, `--demarrage` (lancement à l'ouverture de session), `--lancer`

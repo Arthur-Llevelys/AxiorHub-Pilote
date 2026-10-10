@@ -438,7 +438,17 @@ def open_window_windows(url, p):
     profile.mkdir(parents=True, exist_ok=True)
     started = time.time()
     proc = subprocess.Popen(edge_command(edge, url, profile))
+    state, watcher = {}, None
+    try:   # 5.6.30 : identité AxiorHub dans la barre des tâches (icône, groupe, épinglage) et suivi réel de la fenêtre
+        from windows import marque
+        watcher = marque.brand(proc, sys.executable, state=state)
+    except Exception:   # pylint: disable=broad-except
+        watcher = None
     proc.wait()
+    if watcher is not None:
+        watcher.join()   # Edge confie la fenêtre à un processus enfant : on attend la fermeture de la fenêtre elle-même
+        if state.get('seen'):
+            return True
     if time.time() - started < 4:
         return None   # Edge a confié l'adresse à une fenêtre AxiorHub déjà ouverte avec ce profil
     return True

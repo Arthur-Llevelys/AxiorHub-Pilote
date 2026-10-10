@@ -149,7 +149,17 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
     groups={}
     for field in data['fields']:groups.setdefault(field['group'],[]).append(field)
     for group,fields in groups.items():
-        body+='<details'+(' open' if group in ('Courriels','Nextcloud') else '')+'><summary>'+e(group)+'</summary><div class="mission567-fields">'
+        body+='<details'+(' open' if group in ('Courriels','Nextcloud') else '')+'><summary>'+e(group)+'</summary>'
+        if group=='Courriels':   # 5.6.30 : aide aux réglages de la messagerie
+            body+=('<p class="ax-muted cfg567-help">Réglages habituels : <strong>port 993 avec « TLS direct »</strong> (la plupart des hébergeurs) ou '
+                   '<strong>port 143 avec « STARTTLS »</strong>. L’identifiant est en général l’adresse complète. Certains hébergeurs (Gmail, '
+                   'Microsoft 365…) exigent un mot de passe d’application. Après « Enregistrer les changements », cliquez sur « Tester IMAP » : '
+                   'le message indique la cause exacte d’un échec (serveur introuvable, mauvais port, certificat, mot de passe).</p>')
+        if group=='Nextcloud':
+            body+=('<p class="ax-muted cfg567-help">Avec un dossier de travail local, indiquez le dossier synchronisé principal (par exemple '
+                   'C:\\Users\\vous\\Nextcloud sous Windows) et gardez les racines telles qu’elles apparaissent dans Nextcloud '
+                   '(par exemple /CABINET).</p>')
+        body+='<div class="mission567-fields">'
         for f in fields:
             key,typ=f['key'],f['type'];value=f['value']
             body+='<label>'+e(f['label'])
@@ -159,6 +169,10 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
                 body+='<input type="checkbox" data-config567="'+e(key)+'"'+(' checked' if value else '')+'>'
             elif typ=='secret':
                 body+='<input type="password" data-config567="'+e(key)+'" autocomplete="new-password" placeholder="'+('Secret configuré ; laisser vide pour le conserver' if f['secret_configured'] else 'Nouveau secret')+'">'
+            elif typ in ('imap_security','smtp_security'):   # 5.6.30 : choix explicite du chiffrement
+                options=([('','Automatique (d’après le port : 993 → TLS direct, 143 → STARTTLS)')] if typ=='imap_security' else [])+[
+                    ('ssl','TLS direct (SSL) — en général port 993 (IMAP) ou 465 (SMTP)'),('starttls','STARTTLS — en général port 143 (IMAP) ou 587 (SMTP)')]
+                body+='<select data-config567="'+e(key)+'">'+''.join('<option value="'+e(v)+'"'+(' selected' if str(value or '')==v else '')+'>'+e(l)+'</option>' for v,l in options)+'</select>'
             elif typ=='local_dir':   # 5.6.24 : bouton de sélection du dossier de travail
                 body+=('<span class="browse567-field"><input type="text" data-config567="'+e(key)+'" value="'+e(str(value))+'" placeholder="vide = Nextcloud (WebDAV)">'
                        '<button type="button" class="ghost" data-browse567="'+e(key)+'">📁 Choisir…</button></span>')
@@ -166,7 +180,7 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
                 body+='<input type="'+('number' if typ in ('integer','port') else 'text')+'" data-config567="'+e(key)+'" value="'+e(str(value))+'">'
             body+='</label>'
         body+='</div></details>'
-    body+='<button>Enregistrer les changements</button><p id="connections567-status" role="status"></p></form><section><h2>Tests de connexion</h2><p>Enregistrez d’abord vos changements. Les tests ne créent ni facture ni courriel et ne sélectionnent pas vos agendas à votre place.</p>'
+    body+='<button type="submit">Enregistrer les changements</button><p id="connections567-status" role="status"></p></form><section><h2>Tests de connexion</h2><p>Enregistrez d’abord vos changements. Les tests ne créent ni facture ni courriel et ne sélectionnent pas vos agendas à votre place.</p>'
     for name,label in [x for x in (('imap','IMAP'),('nextcloud','Nextcloud / agendas'),('ollama','Ollama'),('invoice_ninja','Invoice Ninja'),('voice','Voix locale')) if tests is None or x[0] in tests]:
         body+='<button type="button" data-connector567="'+name+'">Tester '+label+'</button> '
     body+='</section><details><summary>Variables Docker et plan de déploiement</summary><p>Ces variables sont inventoriées. Les secrets ne sont pas exportés ; appliquer ce plan reste une opération d’administration du serveur.</p><table><thead><tr><th>Variable</th><th>Valeur d’exemple / nouveau choix</th><th>Application</th></tr></thead><tbody>'

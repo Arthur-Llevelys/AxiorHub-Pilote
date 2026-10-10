@@ -121,7 +121,18 @@ ALIASES = {'libreoffice': ('libreoffice', 'soffice'), 'soffice': ('soffice', 'li
 
 
 def which(name):
-    """Chemin d'un programme externe : ``PATH`` d'abord, puis dossiers d'installation habituels (Windows ou Linux) ; ``None`` sinon."""
+    """Chemin d'un programme externe : ``PATH`` d'abord, puis dossiers d'installation habituels (Windows ou Linux) ; ``None`` sinon.
+    5.6.30 : sous Windows, LibreOffice est lancé par ``soffice.com`` (variante console qui attend la fin de la conversion) ;
+    ``soffice.exe`` rend la main avant d'avoir écrit le fichier."""
+    found = _which(name)
+    if found and WINDOWS and name in ('libreoffice', 'soffice') and found.lower().endswith('soffice.exe'):
+        console = found[:-len('soffice.exe')] + 'soffice.com'
+        if Path(console).is_file():
+            return console
+    return found
+
+
+def _which(name):
     for candidate in ALIASES.get(name, (name,)):
         found = shutil.which(candidate)
         if found:
@@ -147,6 +158,18 @@ def tool_env(**extra):
         env = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8'}
     env.update({k: str(v) for k, v in extra.items()})
     return env
+
+
+def read_output(path, tries=10, pause=0.3):
+    """Lit un fichier produit par un outil externe ; sous Windows, LibreOffice le garde parfois ouvert un instant après sa sortie."""
+    import time
+    for attempt in range(tries):
+        try:
+            return Path(path).read_bytes()
+        except PermissionError:
+            if attempt == tries - 1:
+                raise
+            time.sleep(pause)
 
 
 def run_tool(args, timeout, limits=None, **kwargs):

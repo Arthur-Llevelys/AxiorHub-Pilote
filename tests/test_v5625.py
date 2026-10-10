@@ -546,7 +546,7 @@ class InboxFolders(t530.Base):
     def test_inbox_view_comes_first_and_drafts_are_really_hidden(self):
         page = self.request('/courriels', query='vue=boite')['body']
         self.assertLess(page.index('id="bx5625"'), page.index('id="ax-drafts"'))
-        self.assertIn('id="ax-drafts" data-validity="9" hidden style="display:none"', page)
+        self.assertIn('id="ax-drafts" data-validity="9" hidden>', page)   # 5.6.30 : sans style en ligne (bloqué par la CSP)
         self.assertIn('id="bx5625-flist"', page)
         css = (ROOT / 'agent' / 'static' / 'v5625.css').read_text(encoding='utf-8')
         self.assertIn('#ax-drafts[hidden]{display:none!important}', css)

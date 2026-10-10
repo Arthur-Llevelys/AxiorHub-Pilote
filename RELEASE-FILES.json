@@ -46,6 +46,7 @@
   "VALIDATION-5.6.27.json",
   "VALIDATION-5.6.28.json",
   "VALIDATION-5.6.29.json",
+  "VALIDATION-5.6.30.json",
   "VALIDATION-5.6.8.json",
   "VALIDATION-5.6.9.json",
   "activate-local-dictation.py",
@@ -644,6 +645,7 @@
   "tests/test_v5628.py",
   "tests/test_v5629.py",
   "tests/test_v563.py",
+  "tests/test_v5630.py",
   "tests/test_v564.py",
   "tests/test_v565.py",
   "tests/test_v566.py",
@@ -657,5 +659,6 @@
   "windows/__init__.py",
   "windows/deploiement.py",
   "windows/installateur.py",
-  "windows/lanceur.py"
+  "windows/lanceur.py",
+  "windows/marque.py"
 ]
