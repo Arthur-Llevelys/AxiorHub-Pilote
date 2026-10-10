@@ -55,7 +55,7 @@ class Browser381(unittest.TestCase):
 class Standalone381(unittest.TestCase):
     def test_cleanup_service_worker_is_public_and_self_unregistering(self):
         from agent.standalone_auth import StandaloneAuth
-        with tempfile.TemporaryDirectory() as tmp:
+        with __import__('sqlite_cleanup').TempDir() as tmp:
             app=StandaloneAuth(lambda env,start:[],tmp,'https://agent.example.com')
             capture={};env={'PATH_INFO':'/service-worker.js','REQUEST_METHOD':'GET',
               'QUERY_STRING':'','wsgi.input':io.BytesIO(), 'CONTENT_LENGTH':'0'}

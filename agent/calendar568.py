@@ -7,7 +7,7 @@ import base64
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 import hashlib
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import json
 import os
 from pathlib import Path
@@ -229,7 +229,10 @@ def normalized_title(text):return re.sub(r'\s+',' ',fold(str(text))).strip()
 def event_payload(desk,event,matter,target):
     title=str(event['title'])[:250];description=str(event.get('description') or '')[:1900]
     if target['provider']=='google' and not target['config'].get('include_details',False):
-        title='Échéance AxiorHub · '+matter+' · '+str(event.get('kind') or 'procédure');description='Rappel préparé par AxiorHub. Consulter le dossier dans l’application.'
+        if str(event.get('key','')).startswith('manuel-'):   # 5.6.25 : événement ajouté par l'avocat depuis l'agenda
+            title='Rendez-vous AxiorHub'+(' · '+matter if matter else '');description='Événement ajouté depuis AxiorHub. Détails dans l’application.'
+        else:
+            title='Échéance AxiorHub · '+matter+' · '+str(event.get('kind') or 'procédure');description='Rappel préparé par AxiorHub. Consulter le dossier dans l’application.'
     a,b=event['start'],event['end'];all_day=bool(event.get('all_day'))
     key='date' if all_day else 'dateTime'
     return {'summary':title,'description':description,'start':{key:a},'end':{key:b},'visibility':'private','reminders':{'useDefault':False},'extendedProperties':{'private':{'axiorhubKey':event['key'],'axiorhubMatter':matter}}}

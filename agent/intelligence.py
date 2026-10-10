@@ -266,6 +266,10 @@ def prepare_draft(desk,args):
         recipients=report.get('reply_recipients') or [mail.sender]
         if recipients[0]!=mail.sender:raise Stop('destinataire_invalide')
         sources=[{'id':'incoming','kind':'email_received','content_ref':'incoming'}]
+        attachment_notes=[]
+        if args.get('pieces_jointes')=='oui':   # 5.6.25 : réponse demandée depuis la boîte — texte des pièces jointes du courriel
+            from .boite5625 import attachment_sources
+            extra,attachment_notes=attachment_sources(desk,mail);sources+=extra
         index=source_index(desk.c);docs,coverage=index.sources(DAV(desk.c['nextcloud']),m,[mail.subject,mail.text[:1000]],
                                                 {**desk.c['documents'],'max_documents_per_mail':3});sources+=docs
         if desk.c.get('legal_memory',{}).get('enabled',True):
@@ -296,6 +300,7 @@ def prepare_draft(desk,args):
         valid={s['id'] for s in payload['sources']}
         if any(x not in valid for x in result['source_ids']):raise Stop('source_brouillon_invalide')
         if result['body'] and len(result['body'])>7000:raise Stop('brouillon_trop_long')
+        if attachment_notes:result['limits'].append('Pièce(s) jointe(s) non lue(s) : '+' ; '.join(attachment_notes)[:400])
         if dropped:
             result['requires_decision']=True
             result['limits'].append(str(dropped)+' source(s) omise(s) pour respecter le contexte du modèle ; '

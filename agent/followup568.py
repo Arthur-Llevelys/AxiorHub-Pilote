@@ -7,7 +7,7 @@ from datetime import datetime,timedelta,timezone
 from email.message import EmailMessage
 from email.utils import formataddr
 import json
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 from pathlib import Path
 from zoneinfo import ZoneInfo
 

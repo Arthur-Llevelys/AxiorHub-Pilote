@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Upgrade a verified AxiorHub installation to 5.6.24."""
+"""Upgrade a verified AxiorHub installation to 5.6.25."""
 import argparse
 from contextlib import contextmanager
 from datetime import datetime, timezone
-import fcntl
+try:
+    import fcntl
+except ImportError:   # 5.6.25 : Windows (essais) — verrous portables
+    from agent.portable import fcntl
 import hashlib
 import json
 import os
@@ -18,8 +21,8 @@ import uuid
 BASE = Path('/opt/axiorhub-mail-agent')
 CONFIG = Path('/etc/axiorhub-mail-agent/config.json')
 STATE = Path('/var/lib/axiorhub-mail-agent')
-VERSION = '5.6.24'
-SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23')
+VERSION = '5.6.25'
+SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24')
 
 
 def digest(data):
@@ -56,8 +59,8 @@ def atomic(path, data, uid, gid, mode):
     fd, temporary = tempfile.mkstemp(prefix=path.name+'.new-', dir=path.parent)
     try:
         with os.fdopen(fd, 'wb') as f:
-            os.fchown(f.fileno(), uid, gid)
-            os.fchmod(f.fileno(), mode)
+            (os.fchown(f.fileno(), uid, gid) if hasattr(os, 'fchown') else None)
+            (os.fchmod(f.fileno(), mode) if hasattr(os, 'fchmod') else None)
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
@@ -466,7 +469,7 @@ def locked(state):
 
 
 def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
-    """Atomically switch an authenticated release to 5.6.24."""
+    """Atomically switch an authenticated release to 5.6.25."""
     verify(source)
     if not (base/'current').is_symlink() or not config.is_file():
         raise RuntimeError('Installation AxiorHub ou configuration introuvable.')
@@ -475,7 +478,7 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
         release=base/'releases'/VERSION
         if old==release:
             verify(release)
-            print('Version 5.6.24 déjà active ; données et configuration conservées.')
+            print('Version 5.6.25 déjà active ; données et configuration conservées.')
             return
         if old not in tuple(base/'releases'/version for version in SUPPORTED_PREVIOUS):
             raise RuntimeError('Cette mise à jour directe exige une version précédente comprise entre %s et %s.' % (SUPPORTED_PREVIOUS[0], SUPPORTED_PREVIOUS[-1]))
@@ -484,12 +487,12 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
         if release.exists():
             verify(release)
             if (release/'MANIFEST.sha256').read_bytes()!=(source/'MANIFEST.sha256').read_bytes():
-                raise RuntimeError('Une autre version 5.6.24 existe déjà.')
+                raise RuntimeError('Une autre version 5.6.25 existe déjà.')
         for path in source.rglob('*'):
             if path.is_symlink():raise RuntimeError('Lien symbolique dans le paquet refusé.')
         if quiesce:quiesce()
         if not release.exists():
-            staging=base/'releases'/('.5.6.24-'+uuid.uuid4().hex)
+            staging=base/'releases'/('.5.6.25-'+uuid.uuid4().hex)
             try:
                 shutil.copytree(source,staging,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
                 for path in [staging,*staging.rglob('*')]:
@@ -516,16 +519,16 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
             finally:target_db.close();source_db.close()
             dest.chmod(0o600);databases.append(str(dest))
         receipt['database_backups']=databases
-        atomic(base/'upgrade-5.6.24.json',json.dumps(receipt).encode(),0,0,0o600)
+        atomic(base/'upgrade-5.6.25.json',json.dumps(receipt).encode(),0,0,0o600)
         switch(base,release)
-        print('Mise à jour directe 5.6.24 terminée. Configuration, secrets, dossiers, index et état conservés.')
+        print('Mise à jour directe 5.6.25 terminée. Configuration, secrets, dossiers, index et état conservés.')
 
 
 def rollback(base=BASE, config=CONFIG, state=STATE, quiesce=None):
     with locked(state):
         if (base/'current').resolve()!=base/'releases'/VERSION:
-            raise RuntimeError('Le retour arrière exige la version 5.6.24 active.')
-        receipt=json.loads((base/'upgrade-5.6.24.json').read_text())
+            raise RuntimeError('Le retour arrière exige la version 5.6.25 active.')
+        receipt=json.loads((base/'upgrade-5.6.25.json').read_text())
         old=Path(receipt['previous_release'])
         if old not in tuple(base/'releases'/version for version in SUPPORTED_PREVIOUS):
             raise RuntimeError('Cible de retour arrière refusée.')

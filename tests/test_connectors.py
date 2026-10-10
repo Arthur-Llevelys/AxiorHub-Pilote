@@ -55,7 +55,7 @@ class Server(BaseHTTPRequestHandler):
 
 class HTTPIntegrationTests(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.temp=__import__('sqlite_cleanup').TempDir();self.addCleanup(self.temp.cleanup)
         self.srv=HTTPServer(('127.0.0.1',0),Server);self.srv.calls=[];self.srv.schemas=[];self.srv.reports=[]
         self.srv.show={'model_info':{}};self.srv.model=FakeModel()
         self.thread=threading.Thread(target=self.srv.serve_forever,daemon=True);self.thread.start()
@@ -132,7 +132,7 @@ class Transport:
 
 class IMAPAdapterTests(unittest.TestCase):
     def test_read_flags_preserved_and_only_append_used(self):
-        with tempfile.TemporaryDirectory() as td:
+        with __import__('sqlite_cleanup').TempDir() as td:
             secret=Path(td)/'secret';secret.write_text('synthetic');secret.chmod(0o600)
             cfg={'host':'example.test','username':'test','password_file':str(secret),'inbox':'INBOX','sent':'Sent','drafts':'Drafts'}
             with patch('agent.mailbox.imaplib.IMAP4_SSL',Transport):

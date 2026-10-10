@@ -7,7 +7,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from contextlib import contextmanager
 import errno
-import fcntl
+from . import portable
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import hashlib
 import json
 import os
@@ -290,7 +291,7 @@ def _save(desk,data,env):
             with os.fdopen(fd,'w') as stream:
                 json.dump(candidate,stream,ensure_ascii=False,indent=2);stream.write('\n');stream.flush();os.fsync(stream.fileno())
             os.chmod(temp,stat.st_mode & 0o777)
-            if os.geteuid()==0:os.chown(temp,stat.st_uid,stat.st_gid)
+            if portable.geteuid()==0:portable.chown(temp,stat.st_uid,stat.st_gid)
             os.replace(temp,path)
         finally:
             if os.path.exists(temp):os.unlink(temp)
@@ -338,7 +339,7 @@ def test(desk,data):
             return {'ok':bool(out.get('complete',True)),'connector':kind,'message':'Factures lues ; aucune facture créée ni envoyée.','result':out,'writes':0}
         if kind=='voice':
             import shutil
-            return {'ok':bool(shutil.which('espeak-ng')),'connector':kind,'message':'Synthèse locale disponible.' if shutil.which('espeak-ng') else 'Installer espeak-ng (présent dans l’image 5.6.8).','dictation_configured':bool(desk.c.get('audio',{}).get('enabled')),'writes':0}
+            return {'ok':bool(portable.which('espeak-ng')),'connector':kind,'message':'Synthèse locale disponible.' if portable.which('espeak-ng') else 'Installer espeak-ng (présent dans l’image 5.6.8).','dictation_configured':bool(desk.c.get('audio',{}).get('enabled')),'writes':0}
         raise Stop('connecteur_test_inconnu')
     except (Stop,OSError,ValueError) as error:
         code=str(error) if isinstance(error,Stop) else 'connexion_indisponible'

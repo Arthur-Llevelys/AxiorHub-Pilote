@@ -1149,10 +1149,11 @@ def _expand_piece_list(xml, titles, first=1):
 
 
 def docx_to_pdf(raw, timeout=120):
-    office = shutil.which('libreoffice') or shutil.which('soffice')
+    from .portable import which
+    office = which('libreoffice')
     if not office:
         return None
-    with tempfile.TemporaryDirectory(prefix='axiorhub-bordereau-') as td:
+    with tempfile.TemporaryDirectory(prefix='axiorhub-bordereau-', ignore_cleanup_errors=(__import__('os').name == 'nt')) as td:
         source = Path(td) / 'bordereau.docx'
         source.write_bytes(raw)
         try:

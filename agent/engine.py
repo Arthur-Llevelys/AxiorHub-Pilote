@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import json
 import os
 from pathlib import Path

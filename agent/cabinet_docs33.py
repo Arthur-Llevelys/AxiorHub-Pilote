@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 from .common import Stop, clean_path, digest, under
+from . import portable
 from .document_projects import _dav, _resolve_matter
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -147,7 +148,7 @@ def _private_file(path,raw):
     fd,temp=tempfile.mkstemp(prefix='.new-',dir=folder)
     try:
         with os.fdopen(fd,'wb') as dest:
-            os.fchmod(dest.fileno(),0o600)
+            portable.fchmod(dest.fileno(),0o600)
             dest.write(raw);dest.flush();os.fsync(dest.fileno())
         os.replace(temp,path)
     finally:
@@ -280,11 +281,11 @@ def fill_template(raw,values):
 
 def render_pages(raw,folder,variant):
     """Local PDF conversion and all-page PNGs. Nothing is sent to an external office."""
-    office=shutil.which('libreoffice') or shutil.which('soffice')
-    raster=shutil.which('pdftoppm');info=shutil.which('pdfinfo')
+    office=portable.which('libreoffice')
+    raster=portable.which('pdftoppm');info=portable.which('pdfinfo')
     if not office or not raster or not info:raise Stop('previsualisation_libreoffice_poppler_requise')
     _private_dir(folder)
-    with tempfile.TemporaryDirectory(prefix='word-preview-',dir=folder) as temp:
+    with tempfile.TemporaryDirectory(prefix='word-preview-',dir=folder,ignore_cleanup_errors=portable.WINDOWS) as temp:
         p=Path(temp);source=p/'input.docx';source.write_bytes(raw)
         env=os.environ.copy();env['HOME']=str(p);env['TMPDIR']=str(p)
         try:

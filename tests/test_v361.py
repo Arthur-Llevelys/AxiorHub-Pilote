@@ -62,7 +62,7 @@ class ReadMailIsNotHandled(unittest.TestCase):
         script=Path(__file__).parents[1]/'diagnostic-v360.py'
         spec=spec_from_file_location('diagnostic_v361',script)
         module=module_from_spec(spec);spec.loader.exec_module(module)
-        with tempfile.TemporaryDirectory() as temp:
+        with __import__('sqlite_cleanup').TempDir() as temp:
             state=Path(temp)
             module.CONFIG=state/'config.json'
             module.CONFIG.write_text(json.dumps({'state_dir':temp}))

@@ -40,7 +40,7 @@ ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_
                  'set_automation_level370', 'save_ecosystem_service380', 'register_lawve_extension', 'test_openrouter393',
                  'save_cabinet_profile', 'save_workspace_mapping'}
 # Ce qu'un(e) assistant(e) peut faire en écriture ; tout autre envoi de formulaire lui est refusé.
-ASSISTANT_API = ('m530/ask', 'm530/task', 'm530/event/', 'm530/routine', 'm530/stop', 'm530/clear', 'm510/scan', 'm510/table', 'm510/check', 'm510/plan', 'm510/case', 'm520/check/')
+ASSISTANT_API = ('m530/ask', 'm530/task', 'm530/event/', 'm5625/agenda/', 'm530/routine', 'm530/stop', 'm530/clear', 'm510/scan', 'm510/table', 'm510/check', 'm510/plan', 'm510/case', 'm520/check/')
 ASSISTANT_ACTIONS = {'create_agenda_event', 'edit_agenda_event', 'update_work_task', 'edit_work_task', 'schedule_work_task', 'confirm_task',
                      'create_local_task', 'sync_caldav_tasks', 'assistant_ask', 'edit_personal_event', 'edit_personal_task'}
 ASSISTANT_PATHS = ('/assistant/attachment',)

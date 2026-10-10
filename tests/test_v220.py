@@ -120,7 +120,7 @@ class DocumentProjects220Tests(unittest.TestCase):
 
     def test_api_and_openwebui_expose_exact_ten_tools(self):
         spec=openapi('https://cabinet.test')
-        self.assertEqual(spec['info']['version'],'5.6.24')
+        self.assertEqual(spec['info']['version'],'5.6.25')
         self.assertIn('/document-projects/{project_id}/confirm',spec['paths'])
         capabilities=dispatch(self.d,'/capabilities','GET')
         self.assertIn('create_new_nextcloud_document_files',capabilities['requires_confirmation'])

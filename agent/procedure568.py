@@ -6,7 +6,7 @@ peuvent fournir des candidats. Le régime procédural est une donnée confirmée
 """
 from datetime import date,datetime,timedelta,timezone
 from contextlib import contextmanager
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import hashlib
 import json
 import os

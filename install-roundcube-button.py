@@ -56,8 +56,8 @@ def atomic(path,data,stat):
     fd,name=tempfile.mkstemp(prefix=path.name+'.new-',dir=path.parent)
     try:
         with os.fdopen(fd,'wb') as f:
-            os.fchown(f.fileno(),stat.st_uid,stat.st_gid)
-            os.fchmod(f.fileno(),stat.st_mode & 0o777)
+            (os.fchown(f.fileno(),stat.st_uid,stat.st_gid) if hasattr(os, 'fchown') else None)
+            (os.fchmod(f.fileno(),stat.st_mode & 0o777) if hasattr(os, 'fchmod') else None)
             f.write(data);f.flush();os.fsync(f.fileno())
         os.replace(name,path)
     finally:

@@ -1,6 +1,9 @@
 """Interactive local configuration. Passwords never enter command arguments."""
 import getpass
-import grp
+try:
+    import grp   # installation serveur Linux
+except ImportError:   # 5.6.25 : poste Windows (setup.py n'y sert pas)
+    grp = None
 import json
 import os
 from pathlib import Path

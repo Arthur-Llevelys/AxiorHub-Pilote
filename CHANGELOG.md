@@ -3,6 +3,31 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.25 — Poste de travail Windows 11, boîte de réception dans Courriels, ajout d’événements à l’agenda
+
+Tests : `tests/test_v5625.py`. Guide : `docs/INSTALLATION-WINDOWS.md`.
+
+- **Poste Windows 11** : application de bureau autonome, sur le modèle du poste Ubuntu. Installateur
+  `AxiorHub-Pilote-Setup-<version>.exe` pour l’utilisateur courant (sans droits d’administrateur), Python inclus, raccourcis
+  menu Démarrer, Bureau et ouverture de session au choix, désinstallation depuis Paramètres Windows (données conservées sauf
+  demande). Fenêtre Microsoft Edge en mode application, ouverte par un jeton local à usage unique (deux minutes) échangé contre
+  un cookie de session strict ; interface limitée à `127.0.0.1`. Services surveillés et arrêtés avec leur arbre de processus.
+- **Couche portable** (`agent/portable.py`) : verrous de fichiers Windows, droits et propriétaires sans effet sous Windows,
+  recherche des outils installés (Tesseract, LibreOffice, Poppler, eSpeak NG), lecture des PDF par `pypdf` quand Poppler manque,
+  processus sans fenêtre de console. Sous Linux, comportement et chemins inchangés.
+- **Base de travail** : initialisation du schéma sérialisée entre processus (plus d’erreur « duplicate column » au premier
+  lancement d’un profil neuf).
+- **Courriels › Boîte de réception** : tous les courriels de la boîte, du plus récent au plus ancien, recherche, état connu de
+  l’agent, lecture du texte et des pièces jointes. « Demander une réponse à l’agent » pour un courriel choisi, même ignoré ou
+  jamais traité : dossier choisi, instruction facultative, texte des pièces jointes ajouté aux sources ; la réponse suit le
+  chemin habituel (contrôle, dépôt vérifié dans Brouillons, rien n’est envoyé). Réponses préparées : modifier, supprimer
+  (corbeille de la messagerie), relancer avec une instruction, aussi depuis l’atelier « À relire ».
+- **Agenda et tâches › Ajouter un événement** : intitulé, jour, heures ou journée entière, lieu, dossier, note ; dépôt dans un
+  ou plusieurs agendas configurés (Nextcloud, CalDAV, Google Agenda) avec relecture de chacun et compte rendu agenda par agenda.
+  Pour Google, titre neutre sauf si l’agenda autorise la transmission des détails. Ouvert aux rôles avocat, administrateur et
+  assistant(e).
+- **Intégration continue** : tâche Windows (tests du poste et construction de l’installateur).
+
 ## 5.6.24 — Corrections de l’audit des 5.6.22 et 5.6.23, dossier en onglets, icônes d’Aujourd’hui
 
 Matrice détaillée constat par constat : `CONFORMITE-5.6.24.md` ; tests de reproduction : `tests/test_v5624.py`.

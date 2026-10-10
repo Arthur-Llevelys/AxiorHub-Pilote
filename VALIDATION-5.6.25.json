@@ -1,0 +1,30 @@
+{
+  "version": "5.6.25",
+  "base": "5.6.24 publiée",
+  "date_utc": "2026-10-10T00:00:00+00:00",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 1608,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 63,
+    "note": "Les deux échecs (version figée dans test_v5624, verrou simulé globalement dans test_v521) ont été corrigés dans les tests puis rejoués avec succès, avec les suites touchées par la correction du titre Google (test_v5625, test_v568). La couche portable fait passer la suite Windows de 63 erreurs (5.6.24) à 0. L’intégration continue exécute la suite complète sous Linux et les tests du poste Windows sur windows-latest."
+  },
+  "new_tests": "tests/test_v5625.py : couche portable (verrous, droits, outils, processus), course au schéma entre processus, session locale du poste, lanceur et déploiement Windows, construction de l’installateur, boîte de réception (liste, lecture, réponse demandée, pièces jointes, droits), ajout d’événements (validation, dépôt par agenda, échecs partiels, titre neutre Google, droits).",
+  "adjusted_tests": [
+    "tests/test_agent.py, test_v15.py, test_v361.py, test_v370.py, test_v381.py, test_connectors.py : fermeture des bases SQLite avant le nettoyage des dossiers temporaires (Windows).",
+    "tests/test_installer.py : ignoré sous Windows (installateur systemd).",
+    "tests/test_v521.py : seul l’essai de verrou non bloquant est simulé occupé.",
+    "tests/test_v5624.py : la version attendue est 5.6.24 ou suivante."
+  ],
+  "manual_checks": [
+    "Poste Windows réel : services, échange du jeton (303), jeton réutilisé refusé (403), cookie forgé refusé (401), arrêt de l’arbre de processus.",
+    "Application empaquetée : pages, trois services, journaux, arrêt complet ; installation silencieuse dans un dossier temporaire, raccourcis, désinstallation ; fenêtre Edge ouverte et connectée par jeton.",
+    "Aperçu de démonstration : onglet Boîte de réception, demande de réponse, bouton de relance dans « À relire », formulaire d’ajout d’événement sur deux agendas."
+  ],
+  "limits": [
+    "Installateur non signé : avertissement SmartScreen attendu.",
+    "Poste Windows non rejoué sur une machine neuve ; boîte de réception et ajout d’événements non rejoués sur une messagerie et des agendas réels."
+  ]
+}

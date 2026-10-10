@@ -82,6 +82,7 @@ class FakeModel:
 class EngineTests(unittest.TestCase):
     def setUp(self):
         self.t=tempfile.TemporaryDirectory();self.addCleanup(self.t.cleanup)
+        from sqlite_cleanup import close_sqlite_under;self.addCleanup(close_sqlite_under,self.t.name)   # 5.6.25 : bases fermées avant suppression (Windows)
         self.base=Path(self.t.name);self.state_dir=self.base/'state';self.state_dir.mkdir()
         self.matters=[{'id':'DOS-001','client_name':'Client DEMO','path':'/Dossiers/DEMO','references':['DOS-001'],
                        'aliases':['Client DEMO'],'correspondents':[{'email':'client@example.test','role':'client'}]}]
@@ -255,6 +256,8 @@ class ExtractionTests(unittest.TestCase):
         p=Path(__file__).parent/'fixtures/document-demo.pdf'
         self.assertIn('Client DEMO',extract(p.read_bytes(),p.name,{}))
     def test_real_scan_ocr(self):
+        from agent.portable import WINDOWS, which
+        if WINDOWS and not which('tesseract'):self.skipTest('Tesseract non installé sur ce poste Windows')
         p=Path(__file__).parent/'fixtures/scan-demo.png'
         self.assertIn('DEMO',extract(p.read_bytes(),p.name,{}))
     def test_docx_without_executing_macros_or_external_links(self):

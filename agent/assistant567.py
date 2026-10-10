@@ -125,7 +125,8 @@ def speech(desk, text, owner='cabinet'):
     text = str(text or '').strip()
     if not 1 <= len(text) <= 7000:
         raise Stop('texte_lecture_trop_long_7000_maximum')
-    binary = shutil.which('espeak-ng')
+    from .portable import which
+    binary = which('espeak-ng')
     if not binary:
         raise Stop('synthese_locale_indisponible_installer_espeak_ng')
     try:

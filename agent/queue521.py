@@ -12,7 +12,7 @@ Ce module :
 - teste le modèle d'IA (durée d'une réponse très courte).
 """
 from datetime import datetime, timezone
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import json
 import os
 from pathlib import Path

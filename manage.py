@@ -186,7 +186,7 @@ def main():
     if args.command in ('learn','memory-status','memory-forget'):
         from agent.memory import SentMemory
         from agent.mailbox import Mailbox
-        import fcntl
+        from agent.portable import fcntl
         memory = SentMemory(c)
         if args.command=='memory-status':
             print(json.dumps(memory.status(),ensure_ascii=False,indent=2)); return 0
@@ -201,7 +201,7 @@ def main():
             finally: box.close()
         print(json.dumps(result,ensure_ascii=False,indent=2)); return 0
     if args.command=='purge-index':
-        import fcntl
+        from agent.portable import fcntl
         from agent.index import DocumentIndex
         with open(Path(c['state_dir'])/'run.lock','a') as lock:
             try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -215,7 +215,7 @@ def main():
         from agent.engine import Engine
         print(json.dumps(Engine(c,state=state).run(),ensure_ascii=False)); return 0
     if args.command=='index':
-        import fcntl
+        from agent.portable import fcntl
         from agent.index import DocumentIndex
         from agent.dav import DAV
         with open(Path(c['state_dir'])/'run.lock','a') as lock:

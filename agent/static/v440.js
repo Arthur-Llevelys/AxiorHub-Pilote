@@ -162,6 +162,12 @@
       drop.addEventListener('click', discard);
       if (!d.editable) save.disabled = true;
       bar.appendChild(save); bar.appendChild(undo); bar.appendChild(drop);
+      // 5.6.25 : relancer une réponse complète (sources du dossier) avec une instruction, si le courriel d'origine est retrouvé
+      if (d.source && d.source.key && window.axh5625Relaunch) {
+        var again = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Relancer la réponse avec une instruction…' });
+        again.addEventListener('click', function () { window.axh5625Relaunch(d.source.key, again); });
+        bar.appendChild(again);
+      }
       bar.appendChild(el('span', { 'class': 'ax-muted', text: 'L’envoi se fait depuis votre messagerie : le brouillon y sera à jour.' }));
       editor.appendChild(bar);
     }

@@ -106,11 +106,9 @@ def page(desk,args,link,url,form=None):
     previous=(first-delta if view=='week' else first-timedelta(days=1))
     following=(last if view=='week' else last)
     out='<section class="ws-calendar"><h2>Événements de l’agenda</h2>'
-    if writable:
-        out+=('<details class="ws-task-editor"><summary>➕ Ajouter un événement à l’agenda</summary>'+form('create_agenda_event','Créer l’événement',None,
-            '<label>Intitulé<input name="title" required minlength="3" maxlength="200" placeholder="Rendez-vous client, audience, appel…"></label>'+matter_select()+
-            '<label>Début<input type="datetime-local" name="start" required value="'+day.isoformat()+'T09:00"></label>'
-            '<label>Durée (minutes)<input type="number" name="duration_minutes" min="5" max="1440" step="5" value="60"></label>')+'</details>')
+    if form is not None:   # 5.6.25 : ajout direct dans les agendas configurés (Nextcloud, CalDAV, Google), toujours proposé
+        from .agenda5625 import form_html
+        out+=form_html('',day,matters)
     if form is not None:
         from .agenda520 import enabled as personal_on
         from .reminders520 import settings as reminder_settings

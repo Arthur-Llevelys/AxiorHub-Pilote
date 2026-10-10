@@ -5,7 +5,7 @@ Ce chiffrement protège les fichiers copiés isolément ; il ne protège pas d'u
 administrateur ou d'un processus disposant aussi de la clé du serveur.
 """
 from contextlib import contextmanager
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import os
 from pathlib import Path
 import tempfile

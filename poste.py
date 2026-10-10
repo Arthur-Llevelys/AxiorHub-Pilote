@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
-"""AxiorHub Pilote — mode poste (5.6.20) : l'agent sur un poste de travail Ubuntu, sans root, sans Apache, dans une fenêtre.
+"""AxiorHub Pilote — mode poste : l'agent sur un poste de travail, sans serveur, dans une fenêtre.
 
-  python3 poste.py                 démarre les services s'ils ne tournent pas, puis ouvre la fenêtre (WebKitGTK)
-  python3 poste.py --no-window     services seulement (unité systemd utilisateur « axiorhub-pilote »)
-  python3 poste.py --stop          arrête les services lancés par ce poste
-  python3 poste.py --status        état (port, processus) et emplacement des dossiers
-  python3 poste.py --print-password  affiche l'identifiant et le mot de passe locaux (pour un navigateur ordinaire)
+Ubuntu 24.04 (5.6.20) et Windows 11 (5.6.25), même interface et mêmes services.
 
-Dossiers (XDG) : données, configuration et secrets dans ~/.local/share/axiorhub-pilote (config.json, ui-auth.json,
-secrets/, state/, matters.json, mot-de-passe-local) ; journaux dans ~/.local/state/axiorhub-pilote.
+  poste.py                   démarre les services s'ils ne tournent pas, puis ouvre la fenêtre
+  poste.py --no-window       services seulement (Ubuntu : unité systemd utilisateur ; Windows : lancement à l'ouverture de session)
+  poste.py --stop            arrête les services lancés par ce poste
+  poste.py --status          état (port, processus) et emplacement des dossiers
+  poste.py --print-password  identifiant et mot de passe locaux (pour un navigateur ordinaire)
+
+Dossiers :
+- Ubuntu (XDG) : données, configuration et secrets dans ~/.local/share/axiorhub-pilote ; journaux dans ~/.local/state/axiorhub-pilote.
+- Windows : %LOCALAPPDATA%\\AxiorHub Pilote\\donnees et ...\\journaux (profil de l'utilisateur, réservé à son compte).
+
+Fenêtre :
+- Ubuntu : WebKitGTK ; les identifiants locaux ne répondent qu'à l'origine locale.
+- Windows : Microsoft Edge en mode application (moteur WebView2 intégré à Windows 11), profil dédié ; connexion par jeton de
+  lancement à usage unique échangé contre un cookie de session (agent/poste_session.py), aucun mot de passe à saisir.
+
 Premier lancement : configuration sans secret (même modèle que le conteneur Docker, adresses locales pour Ollama et Kokoro),
-compte local « admin » avec un mot de passe aléatoire enregistré en 0600 ; l'assistant d'installation de l'interface prend ensuite
-le relais (messagerie, Nextcloud, Ollama). Les services sont ceux de l'installation serveur, lancés comme sous-processus :
-interface (127.0.0.1 seulement), worker, veille IMAP, passage périodique de l'agent.
+compte local « admin » avec un mot de passe aléatoire enregistré en privé ; la fenêtre ouvre ensuite Paramètres › Connexions.
+Services : interface (127.0.0.1 seulement), worker, veille IMAP, passage périodique de l'agent, surveillés et relancés de façon bornée.
 """
 import argparse
 import base64
@@ -32,23 +40,42 @@ import urllib.request
 import webbrowser
 
 try:
-    import fcntl
-except ImportError:   # Windows (tests) : pas de verrou d'instance, contrôle du PID seulement
+    from agent.portable import fcntl, kill_tree, pid_alive   # 5.6.25 : verrous et processus portables Linux / Windows
+except ImportError:   # pragma: no cover - arbre incomplet
     fcntl = None
+    kill_tree = pid_alive = None
 RESTART_LIMIT = (5, 600)   # 5.6.24 (F24) : au plus 5 reprises par service en 10 minutes, puis défaut visible
 
 ROOT = Path(__file__).resolve().parent
 APP = 'axiorhub-pilote'
+WINDOWS_APP = 'AxiorHub Pilote'
 DEFAULT_PORT = 8769
 PREFIX = '/agent-courriel'
+WINDOWS = os.name == 'nt'
+NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 
 
 def paths(home=None):
-    home = Path(home or os.environ.get('AXIORHUB_POSTE_HOME') or Path.home())
-    data = home / '.local' / 'share' / APP
-    logs = home / '.local' / 'state' / APP
+    explicit = home or os.environ.get('AXIORHUB_POSTE_HOME')
+    home = Path(explicit or Path.home()).expanduser().absolute()   # 5.6.25 : les services travaillent depuis le dossier de l'application
+    if WINDOWS:
+        local = (home / 'AppData' / 'Local') if explicit else Path(os.environ.get('LOCALAPPDATA') or home / 'AppData' / 'Local')
+        base = local / WINDOWS_APP
+        data, logs = base / 'donnees', base / 'journaux'
+    else:
+        data = home / '.local' / 'share' / APP
+        logs = home / '.local' / 'state' / APP
     return {'home': home, 'data': data, 'logs': logs, 'config': data / 'config.json', 'auth': data / 'ui-auth.json',
             'password': data / 'mot-de-passe-local', 'runtime': logs / 'runtime.json', 'state': data / 'state'}
+
+
+def service_python():
+    """Interpréteur des services : Python courant, ou l'exécutable console de l'application Windows empaquetée."""
+    if getattr(sys, 'frozen', False):
+        console = Path(sys.executable).with_name('axiorhub-service.exe')
+        if console.is_file():
+            return str(console)
+    return sys.executable
 
 
 def _write_private(path, text):
@@ -78,20 +105,21 @@ def bootstrap(p, port=DEFAULT_PORT, python=None):
         env = {**os.environ, 'AXIORHUB_DATA_DIR': str(p['data']),
                'AXIORHUB_OLLAMA_URL': os.environ.get('AXIORHUB_OLLAMA_URL', 'http://127.0.0.1:11434'),
                'AXIORHUB_SPEECH_URL': os.environ.get('AXIORHUB_SPEECH_URL', 'http://127.0.0.1:8880'),
-               'AXIORHUB_PUBLIC_URL': origin_for(port), 'PYTHONDONTWRITEBYTECODE': '1'}
-        subprocess.run([python or sys.executable, str(ROOT / 'docker' / 'bootstrap.py')], env=env, check=True,
-                       stdout=subprocess.DEVNULL, cwd=str(ROOT))
+               'AXIORHUB_PUBLIC_URL': origin_for(port), 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONUTF8': '1'}
+        subprocess.run([python or service_python(), str(ROOT / 'docker' / 'bootstrap.py')], env=env, check=True,
+                       stdout=subprocess.DEVNULL, cwd=str(ROOT), creationflags=NO_WINDOW)
     origin = origin_for(port)
     if p['auth'].exists():
         auth = json.loads(p['auth'].read_text(encoding='utf-8'))
-        if auth.get('origin') != origin:
+        if auth.get('origin') != origin or not auth.get('poste'):
             auth['origin'] = origin
+            auth['poste'] = True   # 5.6.25 : connexion de la fenêtre locale par jeton de lancement
             _write_private(p['auth'], json.dumps(auth, ensure_ascii=False) + '\n')
         return auth
     password = secrets.token_urlsafe(18)
     salt = secrets.token_bytes(16)
     auth = {'username': 'admin', 'salt': salt.hex(), 'hash': _scrypt(password, salt), 'csrf': secrets.token_urlsafe(32),
-            'origin': origin, 'prefix': PREFIX}
+            'origin': origin, 'prefix': PREFIX, 'poste': True}
     internal = p['data'] / 'internal-auth.json'
     if internal.exists():
         try:
@@ -131,14 +159,22 @@ def _lock_held(p):
         return None
 
 
+def _alive(pid):
+    if pid_alive is not None:
+        return pid_alive(pid)
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def runtime(p):
     try:
         info = json.loads(p['runtime'].read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return None
-    try:
-        os.kill(int(info['pid']), 0)
-    except (OSError, ValueError, TypeError):
+    if not _alive(info.get('pid')):   # 5.6.25 : jamais os.kill(pid, 0) sous Windows (cela terminerait le processus)
         return None
     if _lock_held(p) is False:
         return None   # fichier périmé : PID vivant mais ce n'est plus l'instance AxiorHub
@@ -172,7 +208,7 @@ class Supervisor:
     SERVICES = ('interface', 'worker', 'veille')
 
     def __init__(self, p, port=DEFAULT_PORT, python=None, interval_minutes=5, root=ROOT):
-        self.p, self.port, self.python, self.root = p, int(port), python or sys.executable, Path(root)
+        self.p, self.port, self.python, self.root = p, int(port), python or service_python(), Path(root)
         self.interval = max(1, int(interval_minutes)) * 60
         self.procs, self.logs, self.stop_event = {}, {}, threading.Event()
         self.timer = self.monitor = None
@@ -184,8 +220,11 @@ class Supervisor:
         if log is None or log.closed:
             log = open(self.p['logs'] / (name + '.log'), 'ab')
             self.logs[name] = log
-        env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8'}
-        extra = {'start_new_session': True} if os.name == 'posix' else {}   # groupe de processus : les descendants s'arrêtent avec lui
+        env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'}
+        if os.name == 'posix':
+            extra = {'start_new_session': True}   # groupe de processus : les descendants s'arrêtent avec lui
+        else:
+            extra = {'creationflags': NO_WINDOW | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)}   # 5.6.25 : sans console visible
         self.args[name] = args
         self.procs[name] = subprocess.Popen([self.python, *args], cwd=str(self.root), stdout=log, stderr=subprocess.STDOUT, env=env, **extra)
         return self.procs[name]
@@ -287,8 +326,8 @@ class Supervisor:
         try:
             if os.name == 'posix':
                 os.killpg(proc.pid, sig)   # le groupe entier : aucun descendant oublié
-            elif sig == signal.SIGTERM:
-                proc.terminate()
+            elif kill_tree is not None:
+                kill_tree(proc.pid)        # 5.6.25 : Windows — arbre de processus (taskkill /T), aucun descendant oublié
             else:
                 proc.kill()
         except (OSError, ProcessLookupError):
@@ -374,13 +413,73 @@ def open_window(url, user, password, title='AxiorHub Pilote'):
     return True
 
 
+def edge_path():
+    """Microsoft Edge (présent sur tout Windows 11) ; None s'il est introuvable."""
+    for base in (os.environ.get('ProgramFiles(x86)'), os.environ.get('ProgramFiles'), os.environ.get('LOCALAPPDATA')):
+        if base:
+            candidate = Path(base) / 'Microsoft' / 'Edge' / 'Application' / 'msedge.exe'
+            if candidate.is_file():
+                return str(candidate)
+    return None
+
+
+def edge_command(edge, url, profile):
+    """Fenêtre d'application Edge : sans barre d'adresse ni onglets, profil dédié à AxiorHub (cookies, cache, réglages séparés)."""
+    return [edge, '--app=' + url, '--user-data-dir=' + str(profile), '--no-first-run', '--no-default-browser-check',
+            '--disable-sync', '--window-size=1320,900', '--disable-features=msEdgeStartupBoost,Translate']
+
+
+def open_window_windows(url, p):
+    """5.6.25 : fenêtre Windows. Attend sa fermeture ; retourne False si Edge est introuvable, None si une fenêtre existait déjà."""
+    edge = edge_path()
+    if not edge:
+        return False
+    profile = p['data'] / 'fenetre-edge'
+    profile.mkdir(parents=True, exist_ok=True)
+    started = time.time()
+    proc = subprocess.Popen(edge_command(edge, url, profile))
+    proc.wait()
+    if time.time() - started < 4:
+        return None   # Edge a confié l'adresse à une fenêtre AxiorHub déjà ouverte avec ce profil
+    return True
+
+
+def local_url(p, port, path):
+    """Adresse d'ouverture : Windows — jeton de lancement à usage unique (aucun mot de passe à saisir) ; Ubuntu — adresse directe."""
+    if not WINDOWS:
+        return origin_for(port) + PREFIX + path
+    from agent.poste_session import new_launch_token
+    token = new_launch_token(p['auth'])
+    return origin_for(port) + PREFIX + '/poste-session?' + urllib.parse.urlencode({'jeton': token, 'suite': path})
+
+
 def basic_header(user, password):
     return 'Basic ' + base64.b64encode((user + ':' + password).encode('utf-8')).decode('ascii')
 
 
+def stop_instance(p):
+    """Arrête l'instance enregistrée et ses services (Windows : arbre de processus ; Ubuntu : signal au superviseur)."""
+    info = runtime(p)
+    if not info:
+        return None
+    if WINDOWS:
+        if kill_tree is not None:
+            kill_tree(info['pid'])
+        for pid in (info.get('processes') or {}).values():
+            if kill_tree is not None and _alive(pid):
+                kill_tree(pid)
+        try:
+            p['runtime'].unlink()
+        except OSError:
+            pass
+    else:
+        os.kill(int(info['pid']), signal.SIGTERM)
+    return info
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='AxiorHub Pilote — mode poste')
-    parser.add_argument('--no-window', action='store_true', help='services seulement (unité systemd utilisateur)')
+    parser.add_argument('--no-window', action='store_true', help='services seulement (sans fenêtre)')
     parser.add_argument('--stop', action='store_true')
     parser.add_argument('--status', action='store_true')
     parser.add_argument('--print-password', action='store_true')
@@ -396,12 +495,8 @@ def main(argv=None):
                           'dossiers': {'donnees': str(p['data']), 'journaux': str(p['logs'])}}, ensure_ascii=False, indent=2))
         return 0
     if args.stop:
-        info = runtime(p)
-        if not info:
-            print('Aucun service AxiorHub lancé par ce poste.')
-            return 0
-        os.kill(int(info['pid']), signal.SIGTERM)
-        print('Arrêt demandé (pid %s).' % info['pid'])
+        info = stop_instance(p)
+        print(('Arrêt demandé (pid %s).' % info['pid']) if info else 'Aucun service AxiorHub lancé par ce poste.')
         return 0
     auth = bootstrap(p, args.port)
     user, password = credentials(p)
@@ -410,6 +505,7 @@ def main(argv=None):
         return 0
     existing = runtime(p)
     supervisor = None
+    stopping = threading.Event()
     if existing and probe(existing['port']) in (200, 401):
         port = int(existing['port'])
     else:
@@ -419,25 +515,32 @@ def main(argv=None):
         except RuntimeError as error:
             print('Une instance AxiorHub est déjà active pour ce profil (' + str(error) + ').', file=sys.stderr)
             return 1
-        stopping = threading.Event()
 
         def on_signal(*_):
             stopping.set()
-        for sig in (signal.SIGTERM, signal.SIGINT):
+        for sig in (signal.SIGTERM, signal.SIGINT) + ((signal.SIGBREAK,) if hasattr(signal, 'SIGBREAK') else ()):
             signal.signal(sig, on_signal)
         if not supervisor.wait_ready(90):
             supervisor.stop()
             print('L’interface locale n’a pas démarré : consultez ' + str(p['logs'] / 'interface.log'), file=sys.stderr)
             return 1
-    url = origin_for(port) + PREFIX + ('/parametres?rubrique=connexions&premier=1' if first_run(p) else '/')   # 5.6.24 (F19) : premier lancement guidé
+    path = '/parametres?rubrique=connexions&premier=1' if first_run(p) else '/'   # 5.6.24 (F19) : premier lancement guidé
     if args.no_window:
-        print('Services AxiorHub actifs sur ' + url + ' (identifiants : python3 poste.py --print-password)')
+        print('Services AxiorHub actifs sur ' + origin_for(port) + PREFIX + path + ' (identifiants : --print-password)')
         if supervisor:
             while not stopping.wait(1):
                 pass
             supervisor.stop()
         return 0
-    if not open_window(url, user, password):
+    url = local_url(p, port, path)
+    if WINDOWS:
+        shown = open_window_windows(url, p)
+        if shown is False:
+            webbrowser.open(url)
+        if shown is not True and supervisor:   # navigateur ordinaire ou fenêtre déjà ouverte : les services restent actifs
+            while not stopping.wait(1):
+                pass
+    elif not open_window(url, user, password):
         print('Fenêtre indisponible (python3-gi, gir1.2-gtk-3.0 et gir1.2-webkit2-4.1 requis) : ouverture du navigateur.\n'
               'Identifiant : ' + user + ' — mot de passe dans ' + str(p['password']))
         webbrowser.open(url)

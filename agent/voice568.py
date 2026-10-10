@@ -5,7 +5,7 @@ Les clés n'atteignent jamais le navigateur ; aucun clonage de voix.
 """
 from datetime import datetime,timezone
 from decimal import Decimal
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import hashlib
 import io
 import json
@@ -232,4 +232,4 @@ def diagnostic(desk):
         value=http.json('GET','/v1/voices')
         return {'ok':isinstance(value,dict),'provider':provider,'message':'Authentification ElevenLabs réussie ; aucun texte de dossier transmis.','remote_write':False}
     import shutil
-    return {'ok':bool(shutil.which('espeak-ng')),'provider':provider,'message':'Présence du moteur eSpeak NG local vérifiée.'}
+    return {'ok':bool(__import__('agent.portable',fromlist=['which']).which('espeak-ng')),'provider':provider,'message':'Présence du moteur eSpeak NG local vérifiée.'}

@@ -39,7 +39,7 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out({'attachments': attachments_listing(desk, idents, str(args.get('matter') or ''), str(args.get('key') or ''))})
         if name == 'm567/capabilities':
             from .reception567 import capabilities
-            return json_out({'missions': True, 'speech_local': bool(shutil.which('espeak-ng')),
+            return json_out({'missions': True, 'speech_local': bool(__import__('agent.portable',fromlist=['which']).which('espeak-ng')),
                              'dictation_configured': bool(desk.c.get('audio', {}).get('enabled')),
                              **capabilities(desk)})
         if name.startswith('m567/config/'):

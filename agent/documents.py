@@ -6,13 +6,17 @@ import csv
 import os
 from pathlib import Path
 import re
-import resource
+try:
+    import resource
+except ImportError:   # Windows : pas de limites de ressources par processus
+    resource = None
 import subprocess
 import tempfile
 import time
 import zipfile
 
 from .common import Stop, xml_bytes
+from . import portable
 from .mailbox import body_text
 
 SUPPORTED = {'.pdf', '.docx', '.odt', '.xlsx', '.txt', '.md', '.csv', '.eml', '.png', '.jpg', '.jpeg', '.tif', '.tiff'}
@@ -21,9 +25,18 @@ SUPPORTED = {'.pdf', '.docx', '.odt', '.xlsx', '.txt', '.md', '.csv', '.eml', '.
 def _pdf_pages(raw, cfg):
     """Extract every PDF page independently so citations cannot drift."""
     started=time.monotonic()
+    if _poppler_missing():   # 5.6.25 : Windows sans Poppler
+        texts=_pypdf_texts(raw);maximum=int(cfg.get('max_pdf_pages_long',cfg.get('max_pdf_pages',60)))
+        if len(texts)>maximum:raise Stop('pdf_trop_long_ou_protege')
+        pages=[]
+        for number,page in enumerate(texts,1):
+            page=page.strip()
+            if len(page)<30:raise Stop('pdf_scan_ocr_necessaire_installer_poppler_et_tesseract')
+            pages.append({'page':number,'label':'p. '+str(number),'text':page,'extraction':'text','citation_kind':'page'})
+        return pages
     with tempfile.TemporaryDirectory(prefix='axiorhub-pages-') as td:
         source=Path(td)/'input.pdf';source.write_bytes(raw)
-        info=command(['/usr/bin/pdfinfo',str(source)])
+        info=command([_tool('pdfinfo'),str(source)])
         match=re.search(r'^Pages:\s+(\d+)',info,re.M)
         maximum=int(cfg.get('max_pdf_pages_long',cfg.get('max_pdf_pages',60)))
         if not match or int(match[1])>maximum:raise Stop('pdf_trop_long_ou_protege')
@@ -31,13 +44,13 @@ def _pdf_pages(raw, cfg):
         for number in range(1,count+1):
             if time.monotonic()-started>cfg.get('max_extraction_seconds_long',600):
                 raise Stop('temps_extraction_depasse')
-            page=command(['/usr/bin/pdftotext','-f',str(number),'-l',str(number),
+            page=command([_tool('pdftotext'),'-f',str(number),'-l',str(number),
                           '-layout','-enc','UTF-8',str(source),'-']).replace('\x00','').strip()
             method='text'
             if len(page)<30:
                 if not cfg.get('ocr',True):raise Stop('pdf_scan_ocr_necessaire')
                 stem=str(Path(td)/('page-'+str(number)))
-                command(['/usr/bin/pdftoppm','-f',str(number),'-l',str(number),
+                command([_tool('pdftoppm'),'-f',str(number),'-l',str(number),
                          '-scale-to','1800','-singlefile','-png',str(source),stem])
                 page=ocr(stem+'.png').strip();method='ocr'
             if not page:raise Stop('page_pdf_sans_texte_exploitable')
@@ -57,14 +70,13 @@ def extract_pages(raw, name, cfg):
     ext=Path(name).suffix.lower()
     if ext=='.pdf':return _pdf_pages(raw,cfg)
     if ext=='.docx':
-        with tempfile.TemporaryDirectory(prefix='axiorhub-docx-pages-') as td:
+        with tempfile.TemporaryDirectory(prefix='axiorhub-docx-pages-',ignore_cleanup_errors=portable.WINDOWS) as td:   # LibreOffice peut garder son profil ouvert un instant sous Windows
             source=Path(td)/'source.docx';source.write_bytes(raw)
             try:
-                p=subprocess.run(['/usr/bin/libreoffice','--headless','--convert-to','pdf',
-                    '--outdir',td,str(source)],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
-                    timeout=int(cfg.get('max_extraction_seconds_long',600)),check=False,
-                    preexec_fn=limits,env={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8','HOME':td})
-            except (FileNotFoundError,subprocess.TimeoutExpired):p=None
+                p=portable.run_tool([_tool('libreoffice'),'-env:UserInstallation='+Path(td,'profil').as_uri(),'--headless','--convert-to','pdf',
+                    '--outdir',td,str(source)],int(cfg.get('max_extraction_seconds_long',600)),limits,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
+                    env=portable.tool_env(HOME=td))
+            except (FileNotFoundError,OSError,subprocess.TimeoutExpired):p=None
             rendered=Path(td)/'source.pdf'
             if p is not None and p.returncode==0 and rendered.is_file():
                 return _pdf_pages(rendered.read_bytes(),cfg)
@@ -76,7 +88,38 @@ def extract_pages(raw, name, cfg):
              'extraction':'native','citation_kind':'logical_section'}]
 
 
+def _tool(name):
+    """5.6.25 : chemin fixe sous Linux (jamais pris dans le PATH), dossiers d'installation habituels sous Windows."""
+    if not portable.WINDOWS:
+        return '/usr/bin/' + name
+    return portable.which(name) or name
+
+
+def _pypdf_texts(raw):
+    """5.6.25 : repli Windows sans Poppler — texte natif page par page (pypdf). Un scan reste à lire par OCR."""
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        raise Stop('extracteur_pdf_absent_installer_poppler') from None
+    try:
+        reader = PdfReader(io.BytesIO(raw))
+        if reader.is_encrypted:
+            raise Stop('pdf_trop_long_ou_protege')
+        return [(page.extract_text() or '').replace('\x00', '') for page in reader.pages]
+    except Stop:
+        raise
+    except Exception:
+        raise Stop('pdf_illisible') from None
+
+
+def _poppler_missing():
+    # Git pour Windows fournit un pdftotext isolé : Poppler n'est retenu que complet (pdfinfo et pdftotext)
+    return portable.WINDOWS and not (portable.which('pdfinfo') and portable.which('pdftotext'))
+
+
 def limits():
+    if resource is None:
+        return
     resource.setrlimit(resource.RLIMIT_CPU, (90, 90))
     resource.setrlimit(resource.RLIMIT_AS, (1800 * 1024**2, 1800 * 1024**2))
     resource.setrlimit(resource.RLIMIT_FSIZE, (70 * 1024**2, 70 * 1024**2))
@@ -85,18 +128,17 @@ def limits():
 
 def command(args, timeout=90):
     try:
-        p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                           timeout=timeout, check=False, preexec_fn=limits,
-                           env={'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'OMP_THREAD_LIMIT': '1'})
+        p = portable.run_tool(args, timeout, limits, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              env=portable.tool_env(OMP_THREAD_LIMIT=1))
         if p.returncode: raise Stop('extraction_locale_echouee')
         if len(p.stdout) > 4_000_000: raise Stop('texte_extrait_trop_long')
         return p.stdout.decode('utf-8', 'replace')
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         raise Stop('extracteur_absent_ou_delai_depasse') from None
 
 
 def ocr(path):
-    tsv = command(['/usr/bin/tesseract',str(path),'stdout','-l','fra+eng','tsv'])
+    tsv = command([_tool('tesseract'),str(path),'stdout','-l','fra+eng','tsv'])
     words = [r for r in csv.DictReader(io.StringIO(tsv),delimiter='\t')
              if r.get('text','').strip() and float(r.get('conf','-1')) >= 0]
     if not words: raise Stop('ocr_sans_texte_reconnu')
@@ -164,13 +206,19 @@ def extract(raw, name, cfg):
             if ext != '.pdf':
                 if not cfg.get('ocr', True): raise Stop('ocr_desactive')
                 text = ocr(source)
+            elif _poppler_missing():   # 5.6.25 : Windows sans Poppler — texte natif, un scan demande Poppler et Tesseract
+                texts = _pypdf_texts(raw)
+                if len(texts) > cfg.get('max_pdf_pages', 60): raise Stop('pdf_trop_long_ou_protege')
+                if any(len(page.strip()) < 30 for page in texts) and not ''.join(texts).strip():
+                    raise Stop('pdf_scan_ocr_necessaire_installer_poppler_et_tesseract')
+                text = '\n'.join('[Page %d]\n%s' % (i + 1, page) for i, page in enumerate(texts))
             else:
-                info = command(['/usr/bin/pdfinfo', str(source)])
+                info = command([_tool('pdfinfo'), str(source)])
                 match = re.search(r'^Pages:\s+(\d+)', info, re.M)
                 if not match or int(match[1]) > cfg.get('max_pdf_pages', 60):
                     raise Stop('pdf_trop_long_ou_protege')
                 count = int(match[1])
-                native = command(['/usr/bin/pdftotext', '-layout', '-enc', 'UTF-8', str(source), '-'])
+                native = command([_tool('pdftotext'), '-layout', '-enc', 'UTF-8', str(source), '-'])
                 pages = native.split('\f')
                 out = []
                 for i in range(count):
@@ -180,7 +228,7 @@ def extract(raw, name, cfg):
                     if len(page.strip()) < 30:
                         if not cfg.get('ocr', True): raise Stop('pdf_scan_ocr_necessaire')
                         stem = str(Path(td) / 'page')
-                        command(['/usr/bin/pdftoppm', '-f', str(i+1), '-l', str(i+1),
+                        command([_tool('pdftoppm'), '-f', str(i+1), '-l', str(i+1),
                                  '-scale-to', '1800', '-singlefile', '-png', str(source), stem])
                         page = ocr(stem + '.png')
                     out.append('[Page ' + str(i+1) + ']\n' + page)

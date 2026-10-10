@@ -119,7 +119,13 @@ class Diagnostic(t510.Base):
         self.desk.db.execute("UPDATE jobs SET created='2026-10-01T08:00:00+00:00'")
         self.desk.db.commit()
         queue521.note_holder(self.f.c['state_dir'], 'Analyse des courriels (lecture, tri et brouillons)')
-        with patch('agent.queue521.fcntl.flock', side_effect=BlockingIOError()):
+        real = queue521.fcntl.flock
+
+        def busy(handle, operation):   # 5.6.25 : seul l'essai non bloquant échoue ; le verrou du schéma (bloquant) reste réel
+            if operation & queue521.fcntl.LOCK_NB:
+                raise BlockingIOError()
+            return real(handle, operation)
+        with patch('agent.queue521.fcntl.flock', side_effect=busy):
             d = web520.diagnosis(self.desk)
             body = self.request('/diagnostic')['body']
         self.assertTrue(any('tient le verrou' in p for p in d['problems']))

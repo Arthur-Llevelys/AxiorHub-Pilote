@@ -487,7 +487,7 @@ class Desktop(unittest.TestCase):
 class Release(unittest.TestCase):
     def test_version_and_conformity_matrix(self):
         from agent import __version__
-        self.assertEqual(__version__, '5.6.24')
+        self.assertGreaterEqual(tuple(map(int, __version__.split('.'))), (5, 6, 24))   # versions suivantes comprises
         matrix = src('CONFORMITE-5.6.24.md')
         for n in range(1, 38):
             self.assertIn('F%02d' % n, matrix)

@@ -35,7 +35,7 @@ class Matcher15Tests(unittest.TestCase):
 
 class Rag15Tests(unittest.TestCase):
     def test_knowledge_is_scoped_and_embedding_failure_falls_back(self):
-        with tempfile.TemporaryDirectory() as td:
+        with __import__('sqlite_cleanup').TempDir() as td:
             index=DocumentIndex(td,{'enabled':True,'embedding_model':'local'}, {'url':'http://127.0.0.1:11434'})
             a={'id':'A'};b={'id':'B'}
             index.put_source(a,'/A/contrat.txt','rupture de la relation commerciale','1')

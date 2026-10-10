@@ -101,7 +101,8 @@ class PublicPackage370(unittest.TestCase):
         os.environ['AXIORHUB_ALLOW_SIGNUP']='true';os.environ['AXIORHUB_INTERNAL_API_TOKEN']='test-internal-token'
         self.addCleanup(lambda: os.environ.__setitem__('AXIORHUB_ALLOW_SIGNUP',old) if old is not None else os.environ.pop('AXIORHUB_ALLOW_SIGNUP',None))
         self.addCleanup(lambda: os.environ.__setitem__('AXIORHUB_INTERNAL_API_TOKEN',old_token) if old_token is not None else os.environ.pop('AXIORHUB_INTERNAL_API_TOKEN',None))
-        with tempfile.TemporaryDirectory() as tmp:
+        from sqlite_cleanup import TempDir
+        with TempDir() as tmp:   # 5.6.25 : base des comptes fermée avant suppression (Windows)
             app=StandaloneAuth(inner,tmp,'https://agent.example.com')
             def call(path,method='GET',data=None,cookie=''):
                 raw=urlencode(data or {}).encode();capture={}

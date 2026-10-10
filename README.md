@@ -5,9 +5,9 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.24</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.25</p>
 
-<p align="center"><a href="docs/GUIDE-POSTE-10-MINUTES.md">Poste Ubuntu 24.04 : démarrer en dix minutes, avec captures</a></p>
+<p align="center"><a href="docs/GUIDE-POSTE-10-MINUTES.md">Poste Ubuntu 24.04 : démarrer en dix minutes, avec captures</a> · <a href="docs/INSTALLATION-WINDOWS.md">Poste Windows 11</a></p>
 
 <p align="center"><img src="docs/captures/01-poste-de-pilotage.png" alt="Poste de pilotage d'AxiorHub Pilote" width="900"></p>
 
@@ -81,6 +81,9 @@ connexions, recette automatique.
   - demander une reformulation (« plus court », « plus courtois », « ajouter un rappel de la date ») ;
   - vérifier les citations juridiques ;
   - enregistrer une règle « toujours faire comme ça ».
+- **Boîte de réception** (onglet de « Courriels ») : tous les courriels de la boîte, recherche, lecture des pièces
+  jointes ; « Demander une réponse à l’agent » pour un courriel choisi, avec le dossier, une instruction et le texte des
+  pièces jointes. Les réponses préparées se modifient, se suppriment ou se relancent avec une instruction.
 - **Envoi**, désactivé par défaut. S'il est activé, il passe par une confirmation qui récapitule les destinataires, l'objet et
   les pièces jointes.
 - **Pourquoi pas de brouillon ?** Chaque courriel non traité indique son motif (message du cabinet, liste de diffusion,
@@ -112,6 +115,8 @@ connexions, recette automatique.
   dans la pièce. Le délai est calculé par des règles déterministes, jamais par l'IA. Chaque date est proposée « à
   confirmer » avec son calcul, puis des rappels sont émis en cascade.
 - **Prescription et forclusion** : règles versionnées avec leurs articles, calcul détaillé pas à pas.
+- **Ajouter un événement** depuis « Agenda et tâches », dans un ou plusieurs agendas configurés (Nextcloud,
+  CalDAV, Google Agenda), avec relecture de chaque dépôt.
 - **Agenda et tâches** Nextcloud (CalDAV) et **Deck** : programme de travail par dossier, tâches de l'agent et
   tâches personnelles, cartes qui suivent l'avancement de la production.
 
@@ -190,6 +195,7 @@ Détails : [docs/CONFIDENTIALITE.md](docs/CONFIDENTIALITE.md).
 | Situation | Guide |
 |---|---|
 | **Nouveau VPS** (OVH ou autre) : AxiorHub Pilote + Nextcloud + Roundcube + OnlyOffice, Apache, HTTPS Let's Encrypt | les étapes ci-dessous, détails dans [docs/INSTALLATION-VPS.md](docs/INSTALLATION-VPS.md) |
+| **Poste Windows 11** : application de bureau, installateur sans droits d’administrateur | [docs/INSTALLATION-WINDOWS.md](docs/INSTALLATION-WINDOWS.md) |
 | Serveur existant, AxiorHub Pilote seul en Docker | [DOCKER-INSTALLATION.md](DOCKER-INSTALLATION.md) |
 | Serveur existant, installation système (systemd), mise à jour d'une version antérieure | [docs/INSTALLATION-SERVEUR.md](docs/INSTALLATION-SERVEUR.md) |
 
@@ -416,9 +422,10 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.24.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.24_all.deb --archive dist/axiorhub-mail-agent-5.6.24.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.24_amd64.deb --archive dist/axiorhub-mail-agent-5.6.24.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.25.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.25_all.deb --archive dist/axiorhub-mail-agent-5.6.25.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.25_amd64.deb --archive dist/axiorhub-mail-agent-5.6.25.tar.gz --variant poste
+python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 
 Python 3.11 ou plus récent, bibliothèque standard pour le cœur, Waitress pour le serveur web ; Poppler, Tesseract et

@@ -429,6 +429,10 @@ class App:
         self.live_slots=threading.BoundedSemaphore(8)
 
     def authenticate(self, environ, auth):
+        if auth.get('poste') and environ.get('HTTP_COOKIE'):   # 5.6.25 : session de la fenêtre locale du poste
+            from .poste_session import cookie_ok
+            if cookie_ok(self.auth_path,environ):
+                return True
         raw=environ.get('HTTP_AUTHORIZATION','')
         client=(environ.get('HTTP_X_FORWARDED_FOR','') or environ.get('REMOTE_ADDR','')).split(',')[0].strip()[:64]
         if len(raw)>2048:
@@ -492,6 +496,9 @@ class App:
                 except (KeyError,ValueError,TypeError,UnicodeError):
                     _public={'status':'400 Bad Request','kind':'application/json','body':json.dumps({'error':'accueil_configuration_ou_message_invalide'})}
                 finally:_desk567.db.close()
+            elif _path=='/poste-session' and auth.get('poste') and env['REQUEST_METHOD']=='GET':   # 5.6.25 : jeton de lancement du poste
+                from .poste_session import exchange
+                _public=exchange(self.auth_path,env,_prefix)
             elif _path=='/pwa/manifest.webmanifest' and env['REQUEST_METHOD'] in ('GET','HEAD'):
                 # Le manifeste ne contient aucune donnée de dossier : nom, icône, adresses de démarrage.
                 from .mobile490 import manifest as _manifest490

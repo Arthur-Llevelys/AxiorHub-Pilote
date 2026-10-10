@@ -1,6 +1,6 @@
 """Concurrence bornée des producteurs isolés et reprise des seuls travaux rejouables."""
 from contextlib import contextmanager
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import hashlib
 import json
 from pathlib import Path

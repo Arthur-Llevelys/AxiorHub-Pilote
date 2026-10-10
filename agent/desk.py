@@ -4,7 +4,7 @@ Only the worker executes jobs. No arbitrary commands, SMTP, or automatic roles.
 """
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import json
 import os
 from pathlib import Path
@@ -196,6 +196,25 @@ PICK_ORDER=("CASE WHEN priority<30 THEN priority ELSE MAX(30,priority-MIN(60,CAS
 
 class Desk:
     def __init__(self, c):
+        # 5.6.25 : création et migration du schéma sérialisées entre processus (interface, worker, veille démarrent ensemble sur un
+        # profil neuf : sans ce verrou, deux ALTER TABLE simultanés font échouer l'un des services).
+        try:
+            handle = open(Path(c['state_dir'])/'schema.lock', 'a')
+        except OSError:
+            handle = None
+        try:
+            if handle is not None:
+                fcntl.flock(handle, fcntl.LOCK_EX)
+            self._init(c)
+        finally:
+            if handle is not None:
+                try:
+                    fcntl.flock(handle, fcntl.LOCK_UN)
+                except OSError:
+                    pass
+                handle.close()
+
+    def _init(self, c):
         self.c = c
         self.db = sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3', timeout=10)
         self.db.row_factory = sqlite3.Row

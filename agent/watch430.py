@@ -4,7 +4,7 @@ The watcher never calls a model, sends mail, or writes to remote services.
 It has a separate lock/process, so an expensive model cannot stop detection.
 """
 from datetime import datetime, timezone, timedelta
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import hashlib
 import imaplib
 import json

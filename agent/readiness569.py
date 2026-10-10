@@ -91,7 +91,7 @@ def run(desk):
     try:
         # 5.6.14 (section 32) : repli local effectif, distinct du moteur configuré ; capture = navigateur, transcription = passerelle
         sp = desk.c.get('speech568', {})
-        fallback_ok = bool(shutil.which('espeak-ng'))
+        fallback_ok = bool(__import__('agent.portable',fromlist=['which']).which('espeak-ng'))
         if sp.get('provider', 'espeak') != 'espeak':
             checks.append(_item('tts_fallback', 'Repli de synthèse (eSpeak NG local)', fallback_ok if sp.get('fallback_local', True) else None,
                                 'eSpeak NG présent : lecture possible si %s est indisponible.' % sp.get('provider') if fallback_ok else 'eSpeak NG absent : aucune lecture si le moteur configuré ne répond pas.',

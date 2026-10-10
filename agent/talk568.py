@@ -1,5 +1,5 @@
 """Nextcloud Talk OCS v4 : salon privé, relecture, pas d'invitation ni de partage."""
-import fcntl
+from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import json
 import os
 from pathlib import Path

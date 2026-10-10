@@ -50,13 +50,17 @@ def now():
 # ================================================================================================== OCR
 TESSERACT = '/usr/bin/tesseract'
 PDFTOPPM = '/usr/bin/pdftoppm'
+if __import__('os').name == 'nt':   # 5.6.25 : Windows — dossiers d'installation habituels (Tesseract-OCR, Poppler)
+    from .portable import which as _which
+    TESSERACT = _which('tesseract') or TESSERACT
+    PDFTOPPM = _which('pdftoppm') or PDFTOPPM
 _langs = {}
 
 
 def _run(args, timeout=120):
     try:
-        p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout, check=False,
-                           env={'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'OMP_THREAD_LIMIT': '1'})
+        from .portable import run_tool, tool_env
+        p = run_tool(args, timeout, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=tool_env(OMP_THREAD_LIMIT=1))
     except (OSError, subprocess.TimeoutExpired):
         raise Stop('ocr_indisponible') from None
     if p.returncode:
