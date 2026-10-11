@@ -1,0 +1,19 @@
+{
+  "version": "5.6.33",
+  "base": "5.6.32 publiée",
+  "date_utc": "2026-10-11T00:00:00+00:00",
+  "cahier_des_charges": "Correctif de mise à jour (liste des versions acceptées par upgrade.py) ; contenu fonctionnel identique à la 5.6.32 (CONFORMITE-5.6.32.md).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1739,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 71,
+    "note": "Aucun échec (suite complète depuis l’archive extraite)."
+  },
+  "new_tests": "tests/test_v5633.py (3 tests) : chaîne des versions acceptées par upgrade.py (version précédente, toutes les 5.6.x, ordre, version installée exclue) et cohérence avec install-interface.py.",
+  "adjusted_tests": [
+    "tests/test_upgrade.py : mise à jour depuis 5.6.32 (root, Linux)"
+  ]
+}

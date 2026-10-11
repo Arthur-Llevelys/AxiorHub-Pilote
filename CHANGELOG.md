@@ -3,6 +3,16 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.33 — Correctif de mise à jour depuis la 5.6.31
+
+- **Mise à jour refusée** : l’archive 5.6.32 répondait « Cette mise à jour directe exige une version précédente comprise entre 3.5.0
+  et 5.6.32 » sur une installation 5.6.31. Le passage de version avait remplacé « 5.6.31 » par « 5.6.32 » jusque dans la liste des
+  versions acceptées par `upgrade.py`. La liste est rétablie (5.6.31 et 5.6.32 acceptées) ; aucune autre différence avec la 5.6.32.
+- **Contrôle permanent** (`tests/test_v5633.py`, exécuté sur tous les systèmes) : la version immédiatement précédente et toutes les
+  versions 5.6.x publiées sont acceptées, la version installée ne l’est pas, la liste est ordonnée, et l’installateur web accepte la
+  même version précédente. Le test de mise à jour sur système de fichiers, lui, ne tourne qu’en root sous Linux : c’est pourquoi
+  l’erreur n’avait pas été vue.
+
 ## 5.6.32 — Veille planifiée, sources juridiques, compétences, documents de procédure, écrans traduits, interface sans blocage
 
 Cahier des charges additionnel, deuxième livraison. Matrice de conformité : `CONFORMITE-5.6.32.md`. Tests : `tests/test_v5632.py`.
