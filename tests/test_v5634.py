@@ -863,6 +863,7 @@ class IntegrationContract(Base):
         super().setUp()
         secret = Path(self.desk.c['state_dir']) / 'integration.secret'
         secret.write_text(self.SECRET, encoding='utf-8')
+        secret.chmod(0o600)   # le moteur refuse un secret lisible par d'autres comptes (contrôle effectif sous Linux)
         self.desk.c['integration5634'] = {'enabled': True, 'instance_id': 'cabinet-test', 'secret_file': str(secret)}
 
     def header(self, scope=(MID,), **over):
