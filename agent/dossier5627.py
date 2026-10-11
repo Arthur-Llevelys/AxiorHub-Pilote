@@ -169,6 +169,19 @@ def latest(desk, mid):
         return None
 
 
+def version(desk, mid, number):
+    """5.6.35 (F12) : une version précise de la fiche (contenu figé, sans les corrections ultérieures)."""
+    ensure_schema(desk)
+    try:
+        number = int(number)
+    except (TypeError, ValueError):
+        return None
+    row = desk.db.execute('SELECT version,data,sources,created FROM fiche5627 WHERE matter=? AND version=?', (mid, number)).fetchone()
+    if not row:
+        return None
+    return {'version': row['version'], 'data': json.loads(row['data']), 'sources': json.loads(row['sources']), 'created': row['created']}
+
+
 def pending(desk, mid):
     try:
         row = desk.db.execute("SELECT id,status FROM jobs WHERE kind=? AND status IN ('pending','running') AND json_extract(args,'$.matter')=? ORDER BY id DESC LIMIT 1",
@@ -190,10 +203,16 @@ def last_error(desk, mid):
         return None
 
 
-def request(desk, mid, with_index=True):
-    """Demande (ou rejoint) la préparation de la fiche ; une seule demande en file par dossier."""
+def request(desk, mid, with_index=True, only=None):
+    """Demande (ou rejoint) la préparation de la fiche ; une seule demande en file par dossier.
+    5.6.35 (F11) : ``only`` = pièces choisies (chemins de l'index) ; la préparation ne lit alors QUE ces pièces (travail distinct)."""
     _matter(desk, mid)
     ensure_schema(desk)
+    if only:
+        paths = sorted({str(p) for p in only})[:500]
+        job = desk.enqueue(JOB, {'matter': mid, 'index': bool(with_index), 'only': paths}, priority=5)
+        desk.audit('dossier5627_fiche_demandee', {'matter': mid, 'job': job, 'selection': len(paths)})
+        return {'job_id': job, 'message': 'Préparation de la fiche lancée sur %d pièce(s) choisie(s).' % len(paths)}
     # 5.6.34 (B08) : clé d'idempotence atomique par dossier — deux clics, deux onglets ou une reconnexion rejoignent le même travail.
     desk.db.execute('CREATE TABLE IF NOT EXISTS fiche_requests5634(matter TEXT PRIMARY KEY, job INTEGER, at TEXT NOT NULL)')
     desk.db.execute('INSERT OR IGNORE INTO fiche_requests5634(matter,job,at) VALUES(?,NULL,?)', (mid, desk.now()))
@@ -401,8 +420,9 @@ def prepare(desk, args):
     # 5.6.32 : dossier ENTIER — fiches de pièces (une par version de pièce) et compression étagée ; les fiches manquantes sont préparées.
     from . import synthese5632
     budget = max(8000, int(limit * 0.6))
+    only = set(args.get('only') or []) or None   # 5.6.35 (F11) : sélection de pièces (application Nextcloud) = filtre réel
     with stage('extraction', 'index'):
-        sources, coverage = synthese5632.sources_for(desk, m, budget, score=_doc_score)
+        sources, coverage = synthese5632.sources_for(desk, m, budget, score=_doc_score, only=only)
     if coverage['sans_fiche']:
         desk._then('digest_pieces5632', {'matter': mid}, priority=75)
     facts = _validated_facts(desk, mid)
@@ -423,7 +443,7 @@ def prepare(desk, args):
         if str(ex) not in ('contexte_ia_insuffisant', 'generation_ia_incomplete'):
             raise
         # 5.6.32 : une seule relance, entrée compressée de moitié (toutes les pièces restent représentées, avec moins de détail).
-        sources, coverage = synthese5632.sources_for(desk, m, budget // 2, score=_doc_score)
+        sources, coverage = synthese5632.sources_for(desk, m, budget // 2, score=_doc_score, only=only)
         payload['pieces'] = [{k: s[k] for k in ('id', 'nom', 'date_fichier', 'nature', 'extrait')} for s in sources]
         kept = {p['id'] for p in payload['pieces']}
         with stage('generation', 'ollama'):
@@ -433,7 +453,9 @@ def prepare(desk, args):
     info = {s['id']: {'date_fichier': s.get('date_fichier', ''), 'dates': dates_in_text(s.get('extrait', '')),
                       'jurisprudence': bool(re.search(JURISPRUDENCE, _fold(PurePosixPath(s['path']).name)))} for s in sources}
     data = _clean(result, kept | {f['id'] for f in facts}, info)
-    coverage = synthese5632.coverage(desk, mid, sources)   # 5.6.34 (B05) : bilan recalculé après la dernière compression et toute relance
+    coverage = synthese5632.coverage(desk, mid, sources, only=only)   # 5.6.34 (B05) : bilan recalculé après compression et relance
+    if only:
+        coverage['selection'] = {'demandees': len(only), 'trouvees': len({d['path'] for d in synthese5632.inventory(desk, mid)} & only)}
     data['pieces_lues'] = len(sources)   # compatibilité : nombre de sources transmises (libellé exact dans la vue)
     data['couverture'] = coverage
     data['generation'] = {'profil': cfg.get('profile', ''), 'version_profil': cfg.get('profile_version', 0), 'modele': cfg.get('model', ''),
@@ -674,6 +696,12 @@ def fiche_html(desk, prefix, m):
                   'décisions, contrats…) et rédige un résumé, le rappel des faits, les parties et la chronologie, avec les pièces citées.</p>'
                   '<button type="button" class="ax-btn" data-d27-prepare>Préparer la fiche du dossier</button></div>')
     resume_text = (edits.get('resume') or {}).get('text') or data.get('resume', '')
+    from .synthese5632 import METHOD
+    used = (data.get('couverture') or {}).get('methode')
+    if f and data and used != METHOD:   # 5.6.35 (audit F01–F02) : preuves contrôlées par une méthode antérieure, plus permissive
+        status += ('<p class="notice">Cette fiche a été établie avec une méthode de contrôle des preuves antérieure (%s) : dates et montants '
+                   'peuvent y être marqués « documentés » sans figurer dans l’extrait cité. Relancez « Préparer la fiche du dossier » pour '
+                   'recontrôler les preuves ; vos corrections sont conservées.</p>') % e(used or 'avant 5.6.34')
     main = _card('De quoi s’agit-il ?', status + resume + _history_box(desk, mid, 'resume') + _edit_block('resume', 'Résumé du dossier', resume_text, 5, edits),
                  ('<span class="d27-muted">%s</span>' % e(when) if when else '') + _edit_button('resume'), 'd27-summary')
     # --- rappel des faits

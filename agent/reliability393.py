@@ -106,11 +106,13 @@ def job_health(desk, current=None):
     policy=desk.c.get('reliability393',{})
     running_hours=max(1,min(int(policy.get('running_stale_hours',2)),72))
     pending_hours=max(1,min(int(policy.get('pending_stale_hours',6)),168))
-    rows=desk.db.execute('SELECT id,kind,args,status,priority,created,finished,result FROM jobs ORDER BY id DESC LIMIT 500').fetchall()
+    rows=desk.db.execute('SELECT id,kind,args,status,priority,created,started,finished,result FROM jobs ORDER BY id DESC LIMIT 500').fetchall()
     recent=[];stale=[];groups={}
     for row in rows:
         item=dict(row);created=_parse(item.get('created'))
-        age=round((current-created).total_seconds()/3600,1) if created else None
+        # 5.6.35 : un traitement en cours est « trop ancien » d'après son démarrage, pas d'après son attente dans la file.
+        since=(_parse(item.get('started')) or created) if item['status'] in ('running','cancel_requested') else created
+        age=round((current-since).total_seconds()/3600,1) if since else None
         item['age_hours']=age;item['error_reason']=_error_from_result(item.get('result')) if item['status']=='error' else ''
         item.pop('args',None);item['stale']=False;item['loop']=False
         threshold=running_hours if item['status'] in ('running','cancel_requested') else pending_hours

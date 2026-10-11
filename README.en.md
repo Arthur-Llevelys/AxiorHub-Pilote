@@ -5,7 +5,7 @@
 <p align="center"><strong>The AI execution agent for law firms</strong><br>
 Emails, case files, exhibits, deadlines, calendar and draft documents, on your own server, with a local AI or a pseudonymised external AI.</p>
 
-<p align="center">Created by <strong>Timo RAINIO</strong>, member of the Lyon Bar · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.34</p>
+<p align="center">Created by <strong>Timo RAINIO</strong>, member of the Lyon Bar · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.35</p>
 
 <p align="center"><a href="README.md">Français</a> · <strong>English</strong> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
@@ -315,8 +315,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (in French).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.34.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.34_all.deb --archive dist/axiorhub-mail-agent-5.6.34.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.35.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.35_all.deb --archive dist/axiorhub-mail-agent-5.6.35.tar.gz
 python scripts/build-windows.py dist/windows   # on Windows, after pip install -r scripts/windows-requirements.txt
 ```
 

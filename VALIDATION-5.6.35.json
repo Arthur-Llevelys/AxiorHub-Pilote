@@ -1,0 +1,20 @@
+{
+  "version": "5.6.35",
+  "base": "5.6.34 publiée",
+  "date_utc": "2026-10-11T00:00:00+00:00",
+  "cahier_des_charges": "Audit « AxiorHub Pilote 5.6.34 » (fiches F01 à F18 et améliorations proposées) et anomalies signalées en production (application Nextcloud, recette serveur, traitement trop ancien) — matrice CONFORMITE-5.6.35.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1846,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 80,
+    "note": "Aucun échec (suite complète depuis l’archive extraite) ; 80 tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub (umask 022 et 077, migrations root)."
+  },
+  "new_tests": "tests/test_v5635.py (31 tests) : contrat 1.1 (F08 à F13, secret de 8 caractères, liste des dossiers, historique des décisions), preuves (F01, F02), agenda (F03 à F07, F18), ACL Windows (F14), recette serveur (Waitress), relevés bornés dans le temps et reprise après redémarrage, affichage des échéances.",
+  "adjusted_tests": [
+    "tests/test_v5634.py : IntegrationContract signe l’opération (contrat 1.1) ; santé du contrat 1.0 ou 1.1 ; tests de version et de chaîne indépendants de la version courante ; ACL Windows avec propriétaire lu",
+    "tests/test_v567.py : test HTTP Waitress ignoré avec motif si Waitress est absent de l’interpréteur"
+  ]
+}

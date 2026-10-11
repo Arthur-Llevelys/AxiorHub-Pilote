@@ -544,7 +544,10 @@ class Backup(Base):
 
 class HTTPIntegration(Base):
     def test_real_waitress_serves_mission_json_and_persists_duplicate_click(self):
-        from waitress import create_server
+        try:
+            from waitress import create_server
+        except ImportError:   # 5.6.35 : serveur sans python3-waitress ; l'interface utilise ui-venv, que recette.py ajoute au chemin
+            self.skipTest('waitress absent de cet interpréteur Python')
         server=create_server(self.app,host='127.0.0.1',port=0,threads=4,trusted_proxy='127.0.0.1',trusted_proxy_headers={'x-forwarded-proto'})
         thread=threading.Thread(target=server.run,daemon=True);thread.start();self.addCleanup(server.close)
         connection=http.client.HTTPConnection('127.0.0.1',int(server.effective_port),timeout=10)

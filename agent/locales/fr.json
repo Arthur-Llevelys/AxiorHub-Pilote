@@ -736,5 +736,6 @@
  "vj.title": "Veille juridique",
  "vj.tz": "Fuseau horaire",
  "vj.use_connector": "Interroger aussi la source juridique activée (décisions récentes)",
- "vj.use_tavily": "Recherche Internet par Tavily (clé réglée par l’administrateur)"
+ "vj.use_tavily": "Recherche Internet par Tavily (clé réglée par l’administrateur)",
+ "js.5634.restore_confirm": "Rétablir cette sauvegarde ? L’état actuel est sauvegardé avant."
 }

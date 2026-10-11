@@ -1254,7 +1254,7 @@ class App:
             from .workplan import get_plan,list_tasks
             workflow=c.get('nextcloud_workflow',{})
             if workflow.get('enabled'):
-                main+='<p class="success">✅ Synchronisation Nextcloud active : '+e(workflow.get('username',''))+'. Les écritures sont limitées aux calendriers choisis.</p>'
+                main+='<p class="success">✅ Copie vers Nextcloud active : '+e(workflow.get('username',''))+'. Copie à sens unique (pas une synchronisation bidirectionnelle) ; les écritures sont limitées aux calendriers choisis.</p>'
             if vue=='agenda':   # 5.6.34 : agenda local par défaut (rendez-vous, audiences, échéances, rappels, sauvegarde) ; synchronisation en option
                 from .web5634 import agenda_panel
                 main+=agenda_panel(desk,prefix)

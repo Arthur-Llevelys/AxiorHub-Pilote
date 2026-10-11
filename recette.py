@@ -21,6 +21,7 @@ import time
 
 CONFIG = Path('/etc/axiorhub-mail-agent/config.json')
 HERE = Path(__file__).resolve().parent
+UI_VENV = Path('/opt/axiorhub-mail-agent/ui-venv')
 
 
 def state_dir(config=CONFIG):
@@ -68,6 +69,13 @@ def reasons(output):
     return details
 
 
+def interface_packages(venv=UI_VENV):
+    """5.6.35 : dossier des paquets de l'environnement de l'interface (waitress, cryptography), s'il correspond à la version de Python
+    de la recette. Il est ajouté APRÈS les chemins du système : la recette voit ce que voit le service web, sans rien masquer."""
+    path = Path(venv) / 'lib' / ('python%d.%d' % sys.version_info[:2]) / 'site-packages'
+    return str(path) if path.is_dir() else ''
+
+
 def run(target, timeout=3600):
     started = time.monotonic()
     base = {'version': version(), 'at': datetime.now(timezone.utc).isoformat(), 'status': 'en_cours', 'summary': 'recette en cours', 'failures': []}
@@ -76,6 +84,9 @@ def run(target, timeout=3600):
         copy = Path(td) / 'release'
         shutil.copytree(HERE, copy, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         env = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'PYTHONDONTWRITEBYTECODE': '1', 'HOME': td, 'TMPDIR': td}
+        extra = interface_packages()
+        if extra:
+            env['PYTHONPATH'] = extra
         try:
             p = subprocess.run([sys.executable, '-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'], cwd=copy, env=env,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, check=False)

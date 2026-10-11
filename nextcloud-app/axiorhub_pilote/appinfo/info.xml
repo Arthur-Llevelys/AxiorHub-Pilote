@@ -6,21 +6,22 @@
     <summary>Assistant for law firms: case sheets, hearings, legal research and validated work, using the AxiorHub engine</summary>
     <description><![CDATA[AxiorHub Pilote brings the AxiorHub engine into Nextcloud: case sheets with sources and coverage, hearing preparation, legal research and work that the lawyer reviews and approves.
 
-**Requires a separately installed AxiorHub engine** (version 5.6.34 or later, contract /integration/v1) reachable from this Nextcloud server. Installing this app installs neither Python, nor Ollama, nor any processing server. A workstation that may be switched off is not a reliable engine for a hosted Nextcloud.
+**Requires a separately installed AxiorHub engine** (version 5.6.35 or later, contract /integration/v1 1.1) reachable from this Nextcloud server. Installing this app installs neither Python, nor Ollama, nor any processing server. A workstation that may be switched off is not a reliable engine for a hosted Nextcloud.
 
-Nextcloud manages the session, users, file permissions and the native interface; the engine manages indexing, models, missions, checks and versioned results. Development version 0.1.0: compatibility is announced only after real installation and tests on each declared server version.]]></description>
-    <version>0.1.0</version>
+Nextcloud manages the session, users, file permissions and the native interface; the engine manages indexing, models, missions, checks and versioned results. Development version 0.2.0: compatibility is announced only after real installation and tests on each declared server version.]]></description>
+    <version>0.2.0</version>
     <licence>agpl</licence>
-    <author mail="101706410+Arthur-Llevelys@users.noreply.github.com" homepage="https://github.com/Arthur-Llevelys/AxiorHub-Pilote">Timo RAINIO</author>
+    <author mail="101706410+Arthur-Llevelys@users.noreply.github.com" homepage="https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud">Timo RAINIO</author>
     <namespace>AxiorhubPilote</namespace>
     <documentation>
-        <admin>https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/nextcloud-app/axiorhub_pilote/README.md</admin>
+        <user>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/blob/main/README.md</user>
+        <admin>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/blob/main/README.md</admin>
     </documentation>
     <category>office</category>
     <category>tools</category>
-    <website>https://github.com/Arthur-Llevelys/AxiorHub-Pilote</website>
-    <bugs>https://github.com/Arthur-Llevelys/AxiorHub-Pilote/issues</bugs>
-    <repository type="git">https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git</repository>
+    <website>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud</website>
+    <bugs>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/issues</bugs>
+    <repository type="git">https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git</repository>
     <dependencies>
         <php min-version="8.1" max-version="8.5"/>
         <nextcloud min-version="32" max-version="35"/>

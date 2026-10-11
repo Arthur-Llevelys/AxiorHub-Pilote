@@ -736,5 +736,6 @@
  "vj.title": "Rechtsbeobachtung",
  "vj.tz": "Zeitzone",
  "vj.use_connector": "Auch die aktivierte Rechtsquelle abfragen (neue Entscheidungen)",
- "vj.use_tavily": "Internetsuche mit Tavily (Schlüssel vom Administrator eingerichtet)"
+ "vj.use_tavily": "Internetsuche mit Tavily (Schlüssel vom Administrator eingerichtet)",
+ "js.5634.restore_confirm": "Diese Sicherung wiederherstellen? Der aktuelle Stand wird vorher gesichert."
 }

@@ -129,15 +129,57 @@ def poste_services(desk, runtime=None):
 
 
 # ------------------------------------------------------------------------------------------------ permissions
-def windows_sddl(path):
-    """Descripteur de sécurité (SDDL) réel d'un fichier Windows, ou None si illisible."""
+# 5.6.35 (audit F14) : comptes acceptés sur un fichier protégé — système, administrateurs, « droits du propriétaire », le propriétaire
+# lui-même et le compte qui exécute AxiorHub. Tout autre compte autorisé rend le contrôle « non vérifiable » (jamais un vert par défaut).
+TRUSTED_SIDS = {'SY', 'BA', 'OW', 'S-1-5-18', 'S-1-5-32-544', 'S-1-3-4'}
+TRUSTED_OWNERS = {'SY', 'BA', 'S-1-5-18', 'S-1-5-32-544'}
+
+
+def windows_user_sid():
+    """SID (texte) du compte qui exécute le processus, ou None si illisible."""
     if not portable.WINDOWS:
         return None
     import ctypes
     from ctypes import wintypes
     advapi = ctypes.WinDLL('advapi32', use_last_error=True)
     kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-    info = 0x00000004   # DACL_SECURITY_INFORMATION
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    advapi.OpenProcessToken.argtypes = (wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE))
+    advapi.GetTokenInformation.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD))
+    advapi.ConvertSidToStringSidW.argtypes = (ctypes.c_void_p, ctypes.POINTER(wintypes.LPWSTR))
+    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+    token = wintypes.HANDLE()
+    if not advapi.OpenProcessToken(kernel.GetCurrentProcess(), 0x0008, ctypes.byref(token)):   # TOKEN_QUERY
+        return None
+    try:
+        needed = wintypes.DWORD(0)
+        advapi.GetTokenInformation(token, 1, None, 0, ctypes.byref(needed))                   # TokenUser
+        if not needed.value:
+            return None
+        buf = ctypes.create_string_buffer(needed.value)
+        if not advapi.GetTokenInformation(token, 1, buf, needed, ctypes.byref(needed)):
+            return None
+        sid = ctypes.cast(buf, ctypes.POINTER(ctypes.c_void_p))[0]
+        out = wintypes.LPWSTR()
+        if not advapi.ConvertSidToStringSidW(ctypes.c_void_p(sid), ctypes.byref(out)):
+            return None
+        try:
+            return out.value
+        finally:
+            kernel.LocalFree(out)
+    finally:
+        kernel.CloseHandle(token)
+
+
+def windows_sddl(path):
+    """Descripteur de sécurité (SDDL) réel d'un fichier Windows — propriétaire et DACL —, ou None si illisible."""
+    if not portable.WINDOWS:
+        return None
+    import ctypes
+    from ctypes import wintypes
+    advapi = ctypes.WinDLL('advapi32', use_last_error=True)
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    info = 0x00000001 | 0x00000004   # OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION
     needed = wintypes.DWORD(0)
     advapi.GetFileSecurityW(str(path), info, None, 0, ctypes.byref(needed))
     if not needed.value:
@@ -154,19 +196,31 @@ def windows_sddl(path):
         kernel.LocalFree(out)
 
 
+def parse_sddl(sddl):
+    """Propriétaire, DACL nulle et entrées « autoriser » effectives (hors héritage seul) d'un descripteur SDDL."""
+    import re
+    text = str(sddl or '')
+    owner = re.search(r'O:(.+?)(?=[GDS]:|$)', text)
+    dacl = re.search(r'D:([^()]*)((?:\([^)]*\))*)', text)
+    allowed = []
+    for ace in re.findall(r'\(([^)]*)\)', dacl.group(2) if dacl else ''):
+        parts = ace.split(';')
+        if len(parts) >= 6 and parts[0] in ('A', 'OA') and 'IO' not in parts[1]:   # IO : héritage seul, sans effet sur le fichier
+            allowed.append(parts[5])
+    null = bool(dacl) and 'NO_ACCESS_CONTROL' in dacl.group(1)
+    return {'owner': owner.group(1) if owner else None, 'has_dacl': bool(dacl), 'null_dacl': null,
+            'empty_dacl': bool(dacl) and not null and not dacl.group(2), 'allowed': allowed}
+
+
 def broad_access(sddl):
     """Entrées « autoriser » accordées à des groupes larges (Tout le monde, Utilisateurs…) dans une DACL SDDL."""
-    import re
-    found = []
-    for ace in re.findall(r'\(([^)]*)\)', str(sddl or '')):
-        parts = ace.split(';')
-        if len(parts) >= 6 and parts[0] in ('A', 'OA') and parts[5] in BROAD_SIDS:
-            found.append(BROAD_SIDS[parts[5]])
-    return sorted(set(found))
+    return sorted({BROAD_SIDS[s] for s in parse_sddl(sddl)['allowed'] if s in BROAD_SIDS})
 
 
-def file_permission(path, secret, mode, sddl_reader=None):
-    """Contrôle réel d'un fichier : POSIX (Linux) ou liste de contrôle d'accès (Windows). Statut verified | error | unknown."""
+def file_permission(path, secret, mode, sddl_reader=None, me=None):
+    """Contrôle réel d'un fichier : POSIX (Linux) ou liste de contrôle d'accès (Windows). Statut verified | error | unknown.
+    5.6.35 (audit F14) : une DACL nulle (accès total pour tous) est une erreur ; un propriétaire ou un compte autorisé non reconnu
+    donne « unknown » (à vérifier), jamais « verified »."""
     p = Path(path)
     if not p.exists():
         return {'status': 'missing'}
@@ -174,9 +228,23 @@ def file_permission(path, secret, mode, sddl_reader=None):
         sddl = (sddl_reader or windows_sddl)(p)
         if not sddl:
             return {'status': 'unknown', 'reason': 'autorisations_windows_illisibles'}
+        acl = parse_sddl(sddl)
+        if not acl['has_dacl']:
+            return {'status': 'unknown', 'reason': 'autorisations_windows_illisibles'}
+        if acl['null_dacl']:   # DACL nulle : accès complet pour tous (documentation Microsoft)
+            return {'status': 'error', 'reason': 'dacl_nulle', 'broad': ['Tout le monde']}
+        if acl['empty_dacl']:  # DACL vide : personne, pas même AxiorHub, ne peut lire le fichier
+            return {'status': 'error', 'reason': 'dacl_vide_fichier_illisible'}
         broad = broad_access(sddl)
         if broad:
             return {'status': 'error', 'reason': 'acces_trop_large', 'broad': broad}
+        me = me or windows_user_sid()
+        owners = TRUSTED_OWNERS | ({me} if me else set())
+        if not acl['owner'] or acl['owner'] not in owners:
+            return {'status': 'unknown', 'reason': 'proprietaire_non_reconnu', 'owner': acl['owner'] or ''}
+        others = sorted({s for s in acl['allowed'] if s not in TRUSTED_SIDS | owners})
+        if others:
+            return {'status': 'unknown', 'reason': 'compte_non_reconnu', 'accounts': others}
         return {'status': 'verified', 'acl': 'propriétaire et système uniquement'}
     info = p.lstat()
     m = stat.S_IMODE(info.st_mode)

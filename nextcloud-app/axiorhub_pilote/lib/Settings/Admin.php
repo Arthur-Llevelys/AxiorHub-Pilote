@@ -22,6 +22,7 @@ class Admin implements ISettings {
 			'instance_id' => $this->settings->instanceId(),
 			'secret_set' => $this->settings->secret() !== '',
 			'allow_local' => $this->settings->allowLocal(),
+			'default_group' => $this->settings->defaultGroup(),
 		]);
 	}
 

@@ -129,7 +129,7 @@
         status(form, msg('sending', 'Envoi…'));
         return call(route, data).then(function (r) {
           status(form, r.message || msg('saved', 'Enregistré.'));
-          if (route === 'agenda/creer' || route === 'agenda/importer' || route.indexOf('modeles/') === 0) setTimeout(function () { location.reload(); }, 900);
+          if (route === 'agenda/creer' || route === 'agenda/modifier' || route === 'agenda/importer' || route.indexOf('modeles/') === 0) setTimeout(function () { location.reload(); }, 900);
         }).catch(function (e) { status(form, e.message, true); }).then(function () { if (button) button.disabled = false; });
       };
       if (file && file.files && file.files[0]) {
@@ -195,10 +195,38 @@
       b.addEventListener('click', function () {
         if (!window.confirm(b.getAttribute('data-confirm'))) return;
         b.disabled = true;
-        call('agenda/annuler', { id: b.closest('[data-m34-event]').getAttribute('data-m34-event') })
+        call('agenda/annuler', { id: b.closest('[data-m34-event]').getAttribute('data-m34-event'), portee: b.getAttribute('data-m34-scope') || 'occurrence' })
           .then(function (r) { b.closest('li').textContent = r.message; }).catch(function (e) { window.alert(e.message); b.disabled = false; });
       });
     });
+    // 5.6.35 : restauration en deux temps — aperçu (rien n'est modifié), puis confirmation explicite
+    $$('[data-m34-agenda-restore]', agenda).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var name = b.getAttribute('data-m34-agenda-restore'), out = $('[data-m34-restore-status]', agenda);
+        b.disabled = true;
+        call('agenda/restaurer', { name: name }).then(function (preview) {
+          if (!window.confirm(preview.message + ' ' + msg('restore_confirm', 'Rétablir cette sauvegarde ? L’état actuel est sauvegardé avant.'))) { b.disabled = false; return null; }
+          return call('agenda/restaurer', { name: name, confirmer: true });
+        }).then(function (done) {
+          if (!done) return;
+          status(out, done.message);
+          setTimeout(function () { location.reload(); }, 1200);
+        }).catch(function (e) { status(out, e.message, true); b.disabled = false; });
+      });
+    });
+    // 5.6.35 : recherche et filtre par dossier dans la liste des événements (filtrage local, rien n'est envoyé)
+    var search = $('[data-m34-agenda-search]', agenda), only = $('[data-m34-agenda-matter]', agenda), none = $('[data-m34-agenda-none]', agenda);
+    function filter() {
+      var q = (search && search.value || '').trim().toLowerCase(), m = only && only.value || '', shown = 0;
+      $$('[data-m34-agenda-list] > li[data-m34-event]', agenda).forEach(function (li) {
+        var ok = (!m || li.getAttribute('data-m34-matter') === m) && (!q || (li.getAttribute('data-m34-text') || '').indexOf(q) >= 0);
+        li.hidden = !ok;
+        shown += ok ? 1 : 0;
+      });
+      if (none) none.hidden = shown > 0 || (!q && !m);
+    }
+    if (search) search.addEventListener('input', filter);
+    if (only) only.addEventListener('change', filter);
     var exp = $('[data-m34-agenda-export]', agenda);
     if (exp) exp.addEventListener('click', function () {
       call('agenda/export').then(function (r) {

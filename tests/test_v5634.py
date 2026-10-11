@@ -490,12 +490,16 @@ class UpgradeFixtures(unittest.TestCase):
         src = (ROOT / 'upgrade.py').read_text(encoding='utf-8')
         line = next(l for l in src.splitlines() if l.startswith('SUPPORTED_PREVIOUS = '))
         chain = ast.literal_eval(line.split('=', 1)[1].strip())
-        self.assertEqual(chain[-3:], ('5.6.31', '5.6.32', '5.6.33'))
-        self.assertIn("VERSION = '5.6.34'", src)
+        import re as _re
+        from agent import __version__
+        for v in ('5.6.31', '5.6.32', '5.6.33'):                                         # versions toujours acceptées (5.6.35 : la chaîne s'allonge)
+            self.assertIn(v, chain)
+        self.assertNotIn(__version__, chain)
+        self.assertIn("VERSION = '%s'" % __version__, src)
         self.assertEqual(src.count("'5.6.33'"), 1)                                      # seule occurrence : la chaîne des versions acceptées
         body = src[src.index('def rollback('):]
         self.assertLess(body.index('receipt_path(base)'), body.index('switch(base,old)'))   # reçu contrôlé avant toute modification
-        self.assertIn("'5.6.33'}", (ROOT / 'install-interface.py').read_text(encoding='utf-8'))
+        self.assertTrue(_re.search(r"'5\.6\.33'[,}]", (ROOT / 'install-interface.py').read_text(encoding='utf-8')))
 
 
 # --------------------------------------------------------------------------------------------- chapitre 5 : profil Juridique (L01 à L06)
@@ -821,7 +825,8 @@ class SystemStateByMode(Base):
         from agent import diagnostic5634
         p = Path(self.desk.c['state_dir']) / 'ui-auth.json'
         p.write_text('{}', encoding='utf-8')
-        self.assertEqual(diagnostic5634.file_permission(p, True, 'windows', lambda _: 'D:PAI(A;;FA;;;SY)(A;;FA;;;S-1-5-21-1-2-3-1000)')['status'], 'verified')
+        self.assertEqual(diagnostic5634.file_permission(p, True, 'windows', lambda _: 'O:S-1-5-21-1-2-3-1000D:PAI(A;;FA;;;SY)(A;;FA;;;S-1-5-21-1-2-3-1000)',
+                                                          me='S-1-5-21-1-2-3-1000')['status'], 'verified')
         bad = diagnostic5634.file_permission(p, True, 'windows', lambda _: 'D:(A;;FR;;;WD)(A;;FA;;;SY)')
         self.assertEqual((bad['status'], bad['broad']), ('error', ['Tout le monde']))
         self.assertEqual(diagnostic5634.file_permission(p, True, 'windows', lambda _: None)['status'], 'unknown')   # jamais un vert par défaut
@@ -871,21 +876,27 @@ class IntegrationContract(Base):
         ctx = {'instance': 'cabinet-test', 'user': 'alice', 'scope': list(scope), 'exp': (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat(),
                'nonce': hashlib.sha256(str(datetime.now().timestamp()).encode() + str(over).encode()).hexdigest()[:32]}
         ctx.update(over)
-        return {'HTTP_X_AXIORHUB_CONTEXT': sign(self.SECRET, ctx)}
+        return {'_ctx': ctx}   # 5.6.35 (F10) : signé au moment de l'appel, pour l'opération réellement appelée
 
     def call(self, method, path, headers, body=None):
-        from agent.integration5634 import handle
+        from agent.integration5634 import handle, sign
+        if '_ctx' in headers:
+            ctx = dict(headers['_ctx'])
+            ctx.setdefault('op', method + ' ' + path)
+            headers = {'HTTP_X_AXIORHUB_CONTEXT': sign(self.SECRET, ctx)}
         return handle(self.desk, method, path, headers, json.dumps(body).encode() if body is not None else b'')
 
     def test_health_signature_replay_and_expiry(self):
         status, out = self.call('GET', '/integration/v1/health', {})
-        self.assertEqual((status, out['contract']), ('200 OK', '1.0'))
+        self.assertEqual(status, '200 OK')
+        self.assertIn(out['contract'], ('1.0', '1.1'))
         h = self.header()
         self.assertEqual(self.call('GET', '/integration/v1/jobs/' + 'f' * 32, h)[0], '404 Not Found')
         self.assertEqual(self.call('GET', '/integration/v1/jobs/' + 'f' * 32, h)[1]['code'], 'requete_rejouee')
         self.assertEqual(self.call('GET', '/integration/v1/jobs/' + 'f' * 32, self.header(exp='2020-01-01T00:00:00+00:00'))[1]['code'], 'contexte_expire')
-        forged = dict(h)
-        forged['HTTP_X_AXIORHUB_CONTEXT'] = h['HTTP_X_AXIORHUB_CONTEXT'][:-4] + '0000'
+        from agent.integration5634 import sign
+        good = sign(self.SECRET, dict(self.header()['_ctx'], op='GET /integration/v1/jobs/' + 'f' * 32))
+        forged = {'HTTP_X_AXIORHUB_CONTEXT': good[:-4] + '0000'}
         self.assertEqual(self.call('GET', '/integration/v1/jobs/' + 'f' * 32, forged)[1]['code'], 'signature_invalide')
         err = self.call('GET', '/integration/v1/jobs/' + 'f' * 32, self.header(instance='autre'))[1]
         for k in ('code', 'service', 'stage', 'retryable', 'correlation_id', 'message'):
@@ -909,9 +920,9 @@ class IntegrationContract(Base):
 class Release(unittest.TestCase):
     def test_version_and_cache_busting(self):
         from agent import __version__
-        self.assertEqual(__version__, '5.6.34')
+        self.assertTrue(__version__.startswith('5.6.') and int(__version__.split('.')[2]) >= 34)
         sb = json.loads((ROOT / 'SBOM.cdx.json').read_text(encoding='utf-8'))
-        self.assertEqual(sb['metadata']['component']['version'], '5.6.34')
+        self.assertEqual(sb['metadata']['component']['version'], __version__)
         listing = json.loads((ROOT / 'RELEASE-FILES.json').read_text(encoding='utf-8'))
         for name in ('agent/schema5634.py', 'agent/synthese5632.py', 'agent/agenda5634.py', 'agent/diagnostic5634.py', 'agent/integration5634.py',
                      'agent/static/v5634.js', 'agent/static/v5634.css', 'tests/test_v5634.py', 'nextcloud-app/axiorhub_pilote/appinfo/info.xml'):

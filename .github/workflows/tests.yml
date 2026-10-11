@@ -21,10 +21,16 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-fra
       - name: Dépendances Python (identiques à l'image Docker)
         run: python3 -m pip install --quiet waitress==3.0.2 cryptography==44.0.0
-      - name: Tests
+      - name: Tests sous umask 022 (les fixtures fixent elles-mêmes leurs permissions)
         run: |
           set -o pipefail
+          umask 022
           python3 -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee /tmp/tests.log
+      - name: Contrat d'intégration sous umask 077
+        run: |
+          set -o pipefail
+          umask 077
+          python3 -m unittest discover -s tests -t tests -p 'test_v563[45].py' 2>&1 | tee /tmp/tests-umask077.log
       - name: Motifs des échecs (annotations lisibles sans connexion)
         if: failure()
         run: python3 scripts/ci-annotate.py /tmp/tests.log
@@ -39,6 +45,13 @@ jobs:
       - name: Motifs des échecs de l'archive
         if: failure()
         run: python3 scripts/ci-annotate.py /tmp/archive-tests.log
+      - name: Journaux de la recette Linux
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journaux-linux
+          path: /tmp/*tests*.log
+          if-no-files-found: warn
 
   migrations-root:
     # 5.6.34 (B13) : les migrations et retours arrière réels (fixtures 5.6.31, 5.6.32, 5.6.33, réinstallation, espace disque, reçu)
@@ -50,7 +63,16 @@ jobs:
         with:
           python-version: '3.12'
       - name: Migrations en root (installation simulée dans des dossiers temporaires)
-        run: sudo -E env "PATH=$PATH" python3 -m unittest discover -s tests -p 'test_upgrade.py' -v
+        run: |
+          set -o pipefail
+          sudo -E env "PATH=$PATH" python3 -m unittest discover -s tests -p 'test_upgrade.py' -v 2>&1 | tee /tmp/migrations.log
+      - name: Journaux des migrations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journaux-migrations
+          path: /tmp/migrations.log
+          if-no-files-found: warn
 
   windows:
     runs-on: windows-latest
@@ -65,7 +87,22 @@ jobs:
       - name: Dépendances du poste Windows
         run: python -m pip install --quiet -r scripts/windows-requirements.txt
       - name: Tests du poste Windows (couche portable, session locale, lanceur, déploiement)
-        run: python -m unittest discover -s tests -t tests -p "test_v562[05].py"
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -t tests -p "test_v562[05].py" 2>&1 | tee "$(cygpath "$RUNNER_TEMP")/tests-poste.log"
+      - name: Contrôles 5.6.34 et 5.6.35 sous Windows (contrat d'intégration, ACL réelles, agenda, preuves)
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -t tests -p "test_v563[45].py" -v 2>&1 | tee "$(cygpath "$RUNNER_TEMP")/tests-5634-5635.log"
+      - name: Journaux de la recette Windows
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journaux-windows
+          path: ${{ runner.temp }}/tests-*.log
+          if-no-files-found: warn
       - name: Installateur Windows (construction)
         run: python scripts/build-windows.py "$env:RUNNER_TEMP\axiorhub-windows"
       - uses: actions/upload-artifact@v4

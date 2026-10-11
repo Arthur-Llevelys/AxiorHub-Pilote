@@ -9,10 +9,13 @@ use OCP\IAppConfig;
 use OCP\Security\ICrypto;
 
 /**
- * Réglages d'instance : adresse du moteur, identifiant d'instance, secret partagé (chiffré et marqué sensible).
- * Le secret n'est jamais renvoyé au navigateur, ni placé dans l'état initial, une URL ou un journal.
+ * Réglages d'instance : adresse du moteur, identifiant d'instance, secret partagé (chiffré et marqué sensible), groupe autorisé par
+ * défaut pour les dossiers importés du moteur. Le secret n'est jamais renvoyé au navigateur, ni placé dans l'état initial, une URL ou
+ * un journal. 0.2.0 : même règle de longueur que le moteur (8 caractères au moins ; 32 aléatoires recommandés).
  */
 class EngineSettings {
+	public const SECRET_MIN = 8;
+
 	public function __construct(
 		private IAppConfig $appConfig,
 		private ICrypto $crypto,
@@ -36,6 +39,14 @@ class EngineSettings {
 		return $stored === '' ? '' : $this->crypto->decrypt($stored);
 	}
 
+	public function defaultGroup(): string {
+		return $this->appConfig->getValueString(Application::APP_ID, 'default_group', 'admin');
+	}
+
+	public function setDefaultGroup(string $group): void {
+		$this->appConfig->setValueString(Application::APP_ID, 'default_group', $group);
+	}
+
 	public function isConfigured(): bool {
 		return $this->engineUrl() !== '' && $this->instanceId() !== '' && $this->secret() !== '';
 	}
@@ -56,7 +67,7 @@ class EngineSettings {
 		$this->appConfig->setValueString(Application::APP_ID, 'instance_id', $instance);
 		$this->appConfig->setValueBool(Application::APP_ID, 'allow_local_engine', $allowLocal);
 		if ($secret !== null && $secret !== '') {
-			if (strlen($secret) < 32) {
+			if (strlen($secret) < self::SECRET_MIN) {
 				throw new \InvalidArgumentException('secret_too_short');
 			}
 			$this->appConfig->setValueString(Application::APP_ID, 'engine_secret', $this->crypto->encrypt($secret), lazy: true, sensitive: true);

@@ -736,5 +736,6 @@
  "vj.title": "Vigilancia jurídica",
  "vj.tz": "Zona horaria",
  "vj.use_connector": "Consultar también la fuente jurídica activada (resoluciones recientes)",
- "vj.use_tavily": "Búsqueda en Internet con Tavily (clave configurada por el administrador)"
+ "vj.use_tavily": "Búsqueda en Internet con Tavily (clave configurada por el administrador)",
+ "js.5634.restore_confirm": "¿Restaurar esta copia de seguridad? El estado actual se guarda antes."
 }

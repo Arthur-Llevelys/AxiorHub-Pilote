@@ -5,7 +5,7 @@
 <p align="center"><strong>Der KI-Ausführungsagent für die Anwaltskanzlei</strong><br>
 E-Mails, Akten, Anlagen, Fristen, Kalender und Schriftsatzentwürfe, auf Ihrem eigenen Server, mit lokaler KI oder pseudonymisierter externer KI.</p>
 
-<p align="center">Erstellt von <strong>Timo RAINIO</strong>, Rechtsanwalt (Barreau de Lyon) · Lizenz <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.34</p>
+<p align="center">Erstellt von <strong>Timo RAINIO</strong>, Rechtsanwalt (Barreau de Lyon) · Lizenz <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.35</p>
 
 <p align="center"><a href="README.md">Français</a> · <a href="README.en.md">English</a> · <strong>Deutsch</strong> · <a href="README.es.md">Español</a></p>
 
@@ -322,8 +322,8 @@ Siehe [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (auf Französisch).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.34.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.34_all.deb --archive dist/axiorhub-mail-agent-5.6.34.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.35.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.35_all.deb --archive dist/axiorhub-mail-agent-5.6.35.tar.gz
 python scripts/build-windows.py dist/windows   # unter Windows, nach pip install -r scripts/windows-requirements.txt
 ```
 

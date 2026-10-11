@@ -1,11 +1,12 @@
-# AxiorHub Pilote pour Nextcloud (0.1.0, version de développement)
+# AxiorHub Pilote pour Nextcloud (0.2.0, version de développement)
 
 Application native Nextcloud (PHP + Vue 3) raccordée au moteur AxiorHub par le contrat versionné `/integration/v1`
-(moteur 5.6.34 ou plus récent). Cycle de version distinct du moteur.
+(moteur 5.6.35 ou plus récent, contrat 1.1). Cycle de version distinct du moteur.
 
 ## Dépôts
 
-- Application Nextcloud : dépôt dédié `AxiorHub-Pilote-Nextcloud` (application à la racine, prête à être placée dans `apps/axiorhub_pilote`).
+- Application Nextcloud : dépôt dédié `AxiorHub-Pilote-Nextcloud` (https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud),
+  application à la racine, prête à être placée dans `apps/axiorhub_pilote` ; signalements : onglet « Issues » de ce dépôt.
 - Moteur : dépôt `AxiorHub-Pilote` (https://github.com/Arthur-Llevelys/AxiorHub-Pilote), qui en garde une copie dans `nextcloud-app/`
   pour les archives du moteur. Les deux copies sont identiques à chaque livraison.
 
@@ -31,9 +32,24 @@ Application native Nextcloud (PHP + Vue 3) raccordée au moteur AxiorHub par le 
 ## Activer la liaison
 
 1. Sur le moteur (`config.json`) : `"integration5634": {"enabled": true, "instance_id": "<identifiant>", "secret_file": "<chemin du secret>"}`
-   (secret aléatoire d'au moins 32 caractères, fichier lisible par le seul compte de service).
-2. Dans Nextcloud : Paramètres d'administration › Paramètres supplémentaires › AxiorHub : adresse HTTPS du moteur, même identifiant
-   d'instance, même secret. Puis rattacher les dossiers du moteur aux groupes Nextcloud autorisés (`POST /apps/axiorhub_pilote/api/admin/matters`).
+   (fichier lisible par le seul compte de service, droits 600). Le secret compte **8 caractères au moins** ; 32 caractères aléatoires
+   sont recommandés (`openssl rand -base64 48`). Les deux côtés appliquent la même règle.
+2. Dans Nextcloud : Paramètres d'administration › Paramètres supplémentaires › AxiorHub : adresse HTTPS du moteur (par exemple
+   `https://courriel.exemple.fr/agent-courriel`), même identifiant d'instance, même secret, groupe autorisé par défaut (`admin` sauf
+   choix contraire). L'enregistrement teste la liaison et **importe les dossiers du moteur** ; le tableau « Dossiers et groupes
+   autorisés » permet ensuite de donner chaque dossier à un groupe. La liste est actualisée toutes les 5 minutes (nouveaux dossiers,
+   intitulés) sans jamais écraser un groupe choisi.
+3. Les administrateurs voient tous les dossiers ; les autres utilisateurs, ceux de leurs groupes.
+
+### Installation manuelle
+
+Décompresser l'archive dans `apps/` avec le compte du serveur web (sinon Nextcloud signale « Propriétaire des répertoires
+d'applications ») :
+
+```bash
+sudo -u www-data tar -xzf axiorhub_pilote-0.2.0.tar.gz -C /chemin/nextcloud/apps/
+sudo -u www-data php /chemin/nextcloud/occ app:enable axiorhub_pilote
+```
 
 ## Compatibilité
 

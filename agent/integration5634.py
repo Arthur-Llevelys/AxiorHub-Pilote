@@ -7,25 +7,39 @@ Authentification : jamais un simple identifiant utilisateur joint à une clé gl
 Nextcloud (déduit côté serveur Nextcloud), le périmètre (dossiers autorisés), l'opération, une expiration (≤ 5 min) et un nonce à
 usage unique (protection contre le rejeu). Le moteur revérifie le périmètre pour chaque dossier, travail et résultat.
 
-Opérations : santé (sans secret), manifeste de sources (file_id, version/ETag, empreintes), travaux avec clé d'idempotence (contrainte
-unique : deux requêtes concurrentes rejoignent le même travail), suivi, annulation, résultat, approbation d'une version précise de
-résultat (conflit si le résultat a changé). Une erreur porte code, service, stage, retryable, correlation_id et message.
-Un travail accepté ne signifie pas un document produit ; une approbation ne vaut pas pour les versions futures.
+Opérations : santé (sans secret), liste des dossiers (administrateur Nextcloud, périmètre « * »), manifeste de sources (file_id,
+version/ETag, empreintes), travaux avec clé d'idempotence, suivi, annulation, résultat, décision sur une version précise de résultat.
+Une erreur porte code, service, stage, retryable, correlation_id et message.
+
+5.6.35 (audit F08–F13) :
+- F10 : l'opération signée (« MÉTHODE /chemin ») est comparée exactement à la route appelée, avant toute écriture ;
+- F13 : contexte validé par un schéma strict (types, tailles, expiration avec fuseau) ; toute anomalie donne une erreur 4xx structurée ;
+- F08 : la demande est validée AVANT la réservation de la clé ; réservation et mise en file dans une seule transaction ; empreinte du
+  contenu : même clé + même contenu = même travail, même clé + autre contenu = 409 ; les réservations orphelines sont reprises ou closes ;
+- F09 : état persistant du travail d'intégration (annulation durable, même sans travail moteur) ;
+- F11 : le manifeste est contrôlé (existence, instance, utilisateur, dossier, fraîcheur) et devient le filtre réel des pièces analysées ;
+- F12 : le résultat d'un travail est figé à sa première lecture (version de fiche produite par CE travail) ; l'approbation porte sur ce
+  contenu exact, contrôlée dans la transaction ; décisions approuvé / refusé / correction demandée.
+Secret partagé : 8 caractères au moins (même règle que l'application Nextcloud) ; 32 caractères aléatoires recommandés.
 """
 import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import json
+from pathlib import PurePosixPath
 import re
 import uuid
 
-from .common import Stop, load_matters, read_secret
+from .common import Stop, load_matters, matter_display, read_secret
 
-CONTRACT = '1.0'
+CONTRACT = '1.1'
 OPERATIONS = {'fiche_dossier': 'fiche_dossier5627', 'recherche_juridique': 'recherche5634'}
 MAX_SKEW = timedelta(minutes=5)
 MAX_BODY = 2_000_000
+MANIFEST_TTL = timedelta(hours=24)
+SECRET_MIN = 8
+DECISIONS = ('approuve', 'refuse', 'correction_demandee')
 
 
 def schema(desk):
@@ -37,7 +51,22 @@ def schema(desk):
     CREATE TABLE IF NOT EXISTS integration_manifests5634(id TEXT PRIMARY KEY, instance TEXT NOT NULL, user TEXT NOT NULL, matter TEXT NOT NULL,
       sources TEXT NOT NULL, created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS integration_approvals5634(result TEXT NOT NULL, version TEXT NOT NULL, user TEXT NOT NULL, decision TEXT NOT NULL,
-      at TEXT NOT NULL, PRIMARY KEY(result, version, user));''')
+      at TEXT NOT NULL, PRIMARY KEY(result, version, user));
+    CREATE TABLE IF NOT EXISTS integration_decisions5635(id INTEGER PRIMARY KEY AUTOINCREMENT, result TEXT NOT NULL, version TEXT NOT NULL,
+      user TEXT NOT NULL, decision TEXT NOT NULL, at TEXT NOT NULL, comment TEXT NOT NULL DEFAULT '');
+    CREATE INDEX IF NOT EXISTS integration_decisions5635_result ON integration_decisions5635(result, id);''')
+    _columns(desk, 'integration_jobs5634', (('state', "TEXT NOT NULL DEFAULT 'pending'"), ('content_hash', "TEXT NOT NULL DEFAULT ''"),
+                                            ('args', "TEXT NOT NULL DEFAULT '{}'"), ('error', "TEXT NOT NULL DEFAULT ''"),
+                                            ('snapshot', "TEXT NOT NULL DEFAULT ''"), ('snapshot_version', "TEXT NOT NULL DEFAULT ''")))
+    _columns(desk, 'integration_manifests5634', (('paths', "TEXT NOT NULL DEFAULT '[]'"),))
+    _columns(desk, 'integration_approvals5634', (('comment', "TEXT NOT NULL DEFAULT ''"),))
+
+
+def _columns(desk, table, cols):
+    have = {r[1] for r in desk.db.execute('PRAGMA table_info(%s)' % table)}
+    for name, decl in cols:
+        if name not in have:
+            desk.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table, name, decl))
 
 
 class Refused(Stop):
@@ -63,32 +92,61 @@ def _settings(cfg):
     return s
 
 
-def verify(desk, header, now=None):
-    """Contexte signé, non expiré, à usage unique, émis pour CETTE instance. Renvoie le contexte."""
-    s = _settings(desk.c)
+def _secret(s):
     secret = read_secret(s['secret_file'])
+    if len(secret) < SECRET_MIN:
+        raise Refused('secret_integration_trop_court', '503 Service Unavailable', stage='configuration')
+    return secret
+
+
+def _exp(value):
+    """F13 : date ISO 8601 AVEC fuseau ; une date naïve ou mal formée est refusée (jamais comparée)."""
+    if not isinstance(value, str) or len(value) > 40:
+        raise Refused('contexte_invalide', '401 Unauthorized')
     try:
-        payload, mac = str(header or '').split('.', 1)
+        exp = datetime.fromisoformat(value.replace('Z', '+00:00'))
     except ValueError:
-        raise Refused('contexte_absent', '401 Unauthorized') from None
+        raise Refused('contexte_invalide', '401 Unauthorized') from None
+    if exp.tzinfo is None or exp.utcoffset() is None:
+        raise Refused('contexte_sans_fuseau', '401 Unauthorized')
+    return exp.astimezone(timezone.utc)
+
+
+def verify(desk, header, op=None, now=None):
+    """Contexte signé, bien formé, non expiré, à usage unique, émis pour CETTE instance et pour CETTE opération. Renvoie le contexte."""
+    s = _settings(desk.c)
+    secret = _secret(s)
+    header = header if isinstance(header, str) else ''
+    if len(header) > 20000 or '.' not in header:
+        raise Refused('contexte_absent', '401 Unauthorized')
+    payload, mac = header.split('.', 1)
     expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, mac):
         raise Refused('signature_invalide', '401 Unauthorized')
     try:
         ctx = json.loads(_b64d(payload))
-    except (ValueError, UnicodeError):
+    except (ValueError, UnicodeError, TypeError):
         raise Refused('contexte_invalide', '401 Unauthorized') from None
+    if not isinstance(ctx, dict):
+        raise Refused('contexte_invalide', '401 Unauthorized')
     now = now or datetime.now(timezone.utc)
-    try:
-        exp = datetime.fromisoformat(str(ctx['exp']))
-    except (KeyError, ValueError):
-        raise Refused('contexte_invalide', '401 Unauthorized') from None
+    exp = _exp(ctx.get('exp'))
     if exp < now or exp > now + MAX_SKEW:
         raise Refused('contexte_expire', '401 Unauthorized')
-    if ctx.get('instance') != s.get('instance_id') or not re.fullmatch(r'[\w.@+-]{1,120}', str(ctx.get('user') or '')):
+    if not isinstance(ctx.get('instance'), str) or ctx['instance'] != s.get('instance_id'):
         raise Refused('contexte_hors_instance', '403 Forbidden')
-    nonce = str(ctx.get('nonce') or '')
-    if not re.fullmatch(r'[A-Za-z0-9_-]{16,64}', nonce):
+    if not isinstance(ctx.get('user'), str) or not re.fullmatch(r'[\w.@+-]{1,120}', ctx['user']):
+        raise Refused('contexte_hors_instance', '403 Forbidden')
+    scope = ctx.get('scope', [])
+    if not isinstance(scope, list) or len(scope) > 5000 or not all(isinstance(x, str) and 0 < len(x) <= 120 for x in scope):
+        raise Refused('contexte_invalide', '401 Unauthorized')
+    signed_op = ctx.get('op')
+    if not isinstance(signed_op, str) or len(signed_op) > 300:
+        raise Refused('operation_non_signee', '403 Forbidden')
+    if op is not None and signed_op != op:   # F10 : un contexte signé pour lire un travail ne permet ni d'en créer ni d'en annuler un
+        raise Refused('operation_non_signee', '403 Forbidden')
+    nonce = ctx.get('nonce')
+    if not isinstance(nonce, str) or not re.fullmatch(r'[A-Za-z0-9_-]{16,64}', nonce):
         raise Refused('nonce_invalide', '401 Unauthorized')
     schema(desk)
     desk.db.execute('DELETE FROM integration_nonces5634 WHERE expires<?', (now.isoformat(),))
@@ -96,12 +154,12 @@ def verify(desk, header, now=None):
     desk.db.commit()
     if not cur.rowcount:
         raise Refused('requete_rejouee', '401 Unauthorized')
-    ctx['scope'] = [str(x) for x in (ctx.get('scope') or []) if isinstance(x, str)][:500]
+    ctx['scope'] = list(scope)
     return ctx
 
 
 def _in_scope(ctx, matter):
-    if matter not in ctx['scope'] or not any(m['id'] == matter for m in load_matters_safe(ctx.get('_cfg'))):
+    if not isinstance(matter, str) or matter not in ctx['scope'] or not any(m['id'] == matter for m in load_matters_safe(ctx.get('_cfg'))):
         raise Refused('dossier_hors_perimetre', '403 Forbidden')
 
 
@@ -112,9 +170,9 @@ def load_matters_safe(cfg):
         return []
 
 
-def _job_state(row):
+def _job_state(status):
     return {'pending': 'pending', 'running': 'running', 'done': 'succeeded', 'error': 'failed', 'cancelled': 'cancelled',
-            'cancel_requested': 'cancel_requested'}.get(row['status'], row['status'])
+            'cancel_requested': 'cancel_requested'}.get(status, status)
 
 
 def handle(desk, method, path, headers, body):
@@ -125,7 +183,7 @@ def handle(desk, method, path, headers, body):
             _settings(desk.c)
             from . import __version__
             return '200 OK', {'version': __version__, 'contract': CONTRACT, 'operations': sorted(OPERATIONS), 'status': 'ok'}
-        ctx = verify(desk, headers.get('HTTP_X_AXIORHUB_CONTEXT'))
+        ctx = verify(desk, headers.get('HTTP_X_AXIORHUB_CONTEXT'), op=method + ' ' + path)
         ctx['_cfg'] = desk.c
         data = {}
         if method == 'POST':
@@ -137,6 +195,8 @@ def handle(desk, method, path, headers, body):
                 raise Refused('json_invalide') from None
             if not isinstance(data, dict):
                 raise Refused('objet_json_requis')
+        if path == '/integration/v1/matters' and method == 'GET':
+            return '200 OK', matters(desk, ctx)
         if path == '/integration/v1/source-manifests' and method == 'POST':
             return '200 OK', manifest(desk, ctx, data)
         if path == '/integration/v1/jobs' and method == 'POST':
@@ -152,6 +212,16 @@ def handle(desk, method, path, headers, body):
         return ex.status, _error(str(ex), ex.stage, ex.retryable, correlation)
     except Stop as ex:
         return '400 Bad Request', _error(str(ex), 'traitement', False, correlation)
+    except (TypeError, ValueError, KeyError, AttributeError) as ex:   # F13 : jamais de trace brute vers le client
+        _log(desk, correlation, ex)
+        return '400 Bad Request', _error('requete_invalide', 'controle', False, correlation)
+
+
+def _log(desk, correlation, ex):
+    try:
+        desk.audit('integration5634_erreur', {'correlation_id': correlation, 'type': type(ex).__name__})
+    except Exception:   # noqa: BLE001
+        pass
 
 
 def _error(code, stage, retryable, correlation):
@@ -159,8 +229,25 @@ def _error(code, stage, retryable, correlation):
     return {'code': code, 'service': 'axiorhub', 'stage': stage, 'retryable': retryable, 'correlation_id': correlation, 'message': explain(code)}
 
 
+# ------------------------------------------------------------------------------------------------ dossiers (application Nextcloud)
+def matters(desk, ctx):
+    """Liste des dossiers du moteur pour l'administrateur Nextcloud (périmètre « * » signé côté serveur Nextcloud) : identifiant,
+    intitulé et état ; aucune pièce ni donnée de fond."""
+    if ctx['scope'] != ['*']:
+        raise Refused('liste_reservee_administrateur', '403 Forbidden')
+    out = []
+    for m in load_matters_safe(desk.c):
+        out.append({'id': str(m.get('id') or ''), 'label': matter_display(m)[:255], 'archived': bool(m.get('archived'))})
+    return {'matters': [x for x in out if re.fullmatch(r'[A-Za-z0-9_.-]{1,80}', x['id'])], 'total': len(out)}
+
+
+# ------------------------------------------------------------------------------------------------ manifeste (F11)
+def _norm_etag(value):
+    return re.sub(r'^(W/)?"|"$', '', str(value or '').strip())
+
+
 def manifest(desk, ctx, data):
-    matter = str(data.get('matter') or '')
+    matter = data.get('matter')
     _in_scope(ctx, matter)
     sources = data.get('sources') or []
     if not isinstance(sources, list) or len(sources) > 500:
@@ -170,46 +257,150 @@ def manifest(desk, ctx, data):
         if not isinstance(s, dict) or not re.fullmatch(r'\d{1,20}', str(s.get('file_id') or '')):
             errors.append({'source': str(s)[:80], 'error': 'file_id_invalide'})
             continue
-        clean.append({'file_id': str(s['file_id']), 'etag': str(s.get('etag') or '')[:80], 'size': int(s.get('size') or 0),
-                      'sha256': str(s.get('sha256') or '')[:64], 'name': str(s.get('name') or '')[:255]})
+        size = s.get('size', 0)
+        if not isinstance(size, int) or not 0 <= size <= 10 ** 12:
+            errors.append({'source': str(s.get('file_id')), 'error': 'taille_invalide'})
+            continue
+        sha = str(s.get('sha256') or '')
+        if sha and not re.fullmatch(r'[a-f0-9]{64}', sha):
+            errors.append({'source': str(s.get('file_id')), 'error': 'empreinte_invalide'})
+            continue
+        clean.append({'file_id': str(s['file_id']), 'etag': str(s.get('etag') or '')[:80], 'size': size, 'sha256': sha,
+                      'name': PurePosixPath(str(s.get('name') or '').replace('\\', '/')).name[:255]})
+    # Pont file_id → pièce du moteur : ETag de la version (puis nom exact s'il est unique). Une pièce introuvable est signalée ;
+    # aucune autre pièce ne la remplace.
+    from . import synthese5632
+    inv = synthese5632.inventory(desk, matter)
+    by_etag = {_norm_etag(d['etag']): d for d in inv if d['etag']}
+    by_name = {}
+    for d in inv:
+        by_name.setdefault(PurePosixPath(d['path']).name, []).append(d)
+    paths, accepted = [], []
+    for s in clean:
+        d = by_etag.get(_norm_etag(s['etag'])) if s['etag'] else None
+        if d is None and len(by_name.get(s['name'], [])) == 1:
+            d = by_name[s['name']][0]
+        if d is None:
+            errors.append({'source': s['file_id'], 'name': s['name'], 'error': 'piece_absente_de_l_index_du_dossier'})
+            continue
+        if d['state'] != 'extrait':
+            errors.append({'source': s['file_id'], 'name': s['name'], 'error': 'piece_' + d['state']})
+            continue
+        paths.append(d['path'])
+        accepted.append(s)
     ident = uuid.uuid4().hex
     schema(desk)
-    desk.db.execute('INSERT INTO integration_manifests5634 VALUES(?,?,?,?,?,?)', (ident, ctx['instance'], ctx['user'], matter,
-                                                                              json.dumps(clean, ensure_ascii=False), datetime.now(timezone.utc).isoformat()))
+    desk.db.execute('INSERT INTO integration_manifests5634(id,instance,user,matter,sources,created,paths) VALUES(?,?,?,?,?,?,?)',
+                    (ident, ctx['instance'], ctx['user'], matter, json.dumps(accepted, ensure_ascii=False), datetime.now(timezone.utc).isoformat(),
+                     json.dumps(sorted(set(paths)), ensure_ascii=False)))
     desk.db.commit()
-    return {'manifest_id': ident, 'accepted': len(clean), 'errors': errors, 'coverage': {'declared': len(sources), 'accepted': len(clean)}}
+    return {'manifest_id': ident, 'accepted': len(accepted), 'errors': errors,
+            'coverage': {'declared': len(sources), 'accepted': len(accepted), 'refused': len(errors)}}
+
+
+def _manifest_paths(desk, ctx, matter, ident):
+    if not ident:
+        return None
+    if not isinstance(ident, str) or not re.fullmatch(r'[a-f0-9]{32}', ident):
+        raise Refused('manifeste_invalide')
+    row = desk.db.execute('SELECT * FROM integration_manifests5634 WHERE id=?', (ident,)).fetchone()
+    if not row or row['instance'] != ctx['instance'] or row['user'] != ctx['user'] or row['matter'] != matter:
+        raise Refused('manifeste_absent_ou_hors_perimetre', '403 Forbidden')
+    if datetime.fromisoformat(row['created']) < datetime.now(timezone.utc) - MANIFEST_TTL:
+        raise Refused('manifeste_perime', '409 Conflict')
+    paths = json.loads(row['paths'] or '[]')
+    if not paths:
+        raise Refused('aucune_piece_selectionnee_lisible', '409 Conflict')
+    return paths
+
+
+# ------------------------------------------------------------------------------------------------ travaux (F08, F09)
+def _validate(desk, ctx, data):
+    """Toute la demande est contrôlée AVANT la moindre réservation (F08)."""
+    op = data.get('operation')
+    if op not in OPERATIONS:
+        raise Refused('operation_inconnue')
+    idem = data.get('idempotency_key')
+    if not isinstance(idem, str) or not re.fullmatch(r'[A-Za-z0-9_-]{8,80}', idem):
+        raise Refused('cle_idempotence_requise')
+    matter = data.get('matter') or ''
+    if not isinstance(matter, str):
+        raise Refused('dossier_hors_perimetre', '403 Forbidden')
+    if op == 'fiche_dossier' or matter:
+        _in_scope(ctx, matter)
+    manifest_id = data.get('manifest_id') or ''
+    args = {'operation': op, 'matter': matter, 'manifest_id': manifest_id}
+    if op == 'recherche_juridique':
+        question = data.get('question')
+        question = question.strip() if isinstance(question, str) else ''
+        if not 3 <= len(question) <= 3000:
+            raise Refused('question_juridique_invalide')
+        if manifest_id:
+            raise Refused('manifeste_non_applicable')
+        args['question'] = question
+    else:
+        schema(desk)
+        args['only'] = _manifest_paths(desk, ctx, matter, manifest_id)
+    content = hashlib.sha256(json.dumps({k: args[k] for k in ('operation', 'matter', 'manifest_id', 'question') if k in args},
+                                        sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    return idem, args, content
+
+
+def _enqueue(desk, args):
+    if args['operation'] == 'fiche_dossier':
+        from .dossier5627 import request
+        return request(desk, args['matter'], only=args.get('only'))['job_id']
+    return desk.enqueue('recherche5634', {'question': args['question'], 'matter': args['matter'], 'providers': []})
 
 
 def create_job(desk, ctx, data):
-    op = str(data.get('operation') or '')
-    if op not in OPERATIONS:
-        raise Refused('operation_inconnue')
-    idem = str(data.get('idempotency_key') or '')
-    if not re.fullmatch(r'[A-Za-z0-9_-]{8,80}', idem):
-        raise Refused('cle_idempotence_requise')
-    matter = str(data.get('matter') or '')
-    if op == 'fiche_dossier' or matter:
-        _in_scope(ctx, matter)
+    idem, args, content = _validate(desk, ctx, data)
     schema(desk)
-    ident = uuid.uuid4().hex
-    cur = desk.db.execute('INSERT OR IGNORE INTO integration_jobs5634(id,instance,user,idem,operation,matter,manifest,job,created) VALUES(?,?,?,?,?,?,?,NULL,?)',
-                          (ident, ctx['instance'], ctx['user'], idem, op, matter, str(data.get('manifest_id') or ''), datetime.now(timezone.utc).isoformat()))
-    desk.db.commit()
-    if not cur.rowcount:   # même clé : on rejoint le travail existant (aucun doublon)
+    _repair(desk)
+    if not desk.db.in_transaction:
+        desk.db.execute('BEGIN IMMEDIATE')
+    try:
         row = desk.db.execute('SELECT * FROM integration_jobs5634 WHERE instance=? AND user=? AND idem=?', (ctx['instance'], ctx['user'], idem)).fetchone()
-        return {'job_id': row['id'], 'state': 'existing', 'status_url': '/integration/v1/jobs/' + row['id']}
-    if op == 'fiche_dossier':
-        from .dossier5627 import request
-        out = request(desk, matter)
-        job = out['job_id']
-    else:
-        question = str(data.get('question') or '').strip()
-        if not 3 <= len(question) <= 3000:
-            raise Refused('question_juridique_invalide')
-        job = desk.enqueue('recherche5634', {'question': question, 'matter': matter, 'providers': []})
-    desk.db.execute('UPDATE integration_jobs5634 SET job=? WHERE id=?', (job, ident))
-    desk.db.commit()
+        if row is not None:
+            if row['content_hash'] and row['content_hash'] != content:
+                raise Refused('cle_idempotence_deja_utilisee', '409 Conflict')
+            if row['job'] is not None or row['state'] in ('cancelled', 'failed'):
+                desk.db.commit()
+                return {'job_id': row['id'], 'state': 'existing', 'status_url': '/integration/v1/jobs/' + row['id']}
+            ident = row['id']   # réservation sans travail (ancienne version) : la demande valide la reprend
+            desk.db.execute('UPDATE integration_jobs5634 SET content_hash=?, args=? WHERE id=?', (content, json.dumps(args, ensure_ascii=False), ident))
+        else:
+            ident = uuid.uuid4().hex
+            desk.db.execute('INSERT INTO integration_jobs5634(id,instance,user,idem,operation,matter,manifest,job,created,state,content_hash,args) '
+                            "VALUES(?,?,?,?,?,?,?,NULL,?,'pending',?,?)",
+                            (ident, ctx['instance'], ctx['user'], idem, args['operation'], args['matter'], args['manifest_id'],
+                             datetime.now(timezone.utc).isoformat(), content, json.dumps(args, ensure_ascii=False)))
+        job = _enqueue(desk, args)   # même transaction : la réservation n'est validée qu'avec son travail
+        if not desk.db.in_transaction:
+            desk.db.execute('BEGIN IMMEDIATE')
+        desk.db.execute('UPDATE integration_jobs5634 SET job=? WHERE id=?', (job, ident))
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
     return {'job_id': ident, 'state': 'pending', 'status_url': '/integration/v1/jobs/' + ident}
+
+
+def _repair(desk):
+    """Réservations sans travail (interruption entre réservation et mise en file, ou versions 5.6.34) : reprise si la demande est
+    complète, sinon clôture explicite « échec » avec motif."""
+    limit = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+    for row in desk.db.execute("SELECT id,args FROM integration_jobs5634 WHERE job IS NULL AND state='pending' AND created<?", (limit,)).fetchall():
+        args = json.loads(row['args'] or '{}')
+        try:
+            if args.get('operation') not in OPERATIONS:
+                raise Stop('demande_incomplete')
+            job = _enqueue(desk, args)
+            desk.db.execute('UPDATE integration_jobs5634 SET job=? WHERE id=?', (job, row['id']))
+        except Stop as ex:
+            desk.db.execute("UPDATE integration_jobs5634 SET state='failed', error=? WHERE id=?", ('reservation_sans_travail:' + str(ex), row['id']))
+    desk.db.commit()
 
 
 def _own(desk, ctx, ident):
@@ -224,47 +415,111 @@ def _own(desk, ctx, ident):
 
 def job_status(desk, ctx, ident):
     row = _own(desk, ctx, ident)
+    if row['state'] in ('cancelled', 'failed') and not row['job']:
+        errors = [_error(row['error'].split(':')[0] or 'travail_non_cree', 'reservation', True, '')] if row['state'] == 'failed' else []
+        return {'job_id': ident, 'state': row['state'], 'stage': '', 'result_id': '', 'errors': errors}
     job = desk.db.execute('SELECT status,progress,result FROM jobs WHERE id=?', (row['job'],)).fetchone() if row['job'] else None
     if not job:
-        return {'job_id': ident, 'state': 'pending', 'stage': '', 'partial': None, 'errors': []}
+        return {'job_id': ident, 'state': 'pending', 'stage': '', 'result_id': '', 'errors': []}
     res = json.loads(job['result'] or '{}') or {}
-    errors = [_error(res.get('erreur'), (res.get('detail') or {}).get('stage', 'traitement'), bool((res.get('detail') or {}).get('retryable')), (res.get('detail') or {}).get('correlation_id', ''))] if job['status'] == 'error' else []
-    return {'job_id': ident, 'state': _job_state(job), 'stage': job['progress'] or '', 'result_id': ident if job['status'] == 'done' else '', 'errors': errors}
+    detail = res.get('detail') or {}
+    errors = [_error(res.get('erreur'), detail.get('stage', 'traitement'), bool(detail.get('retryable')), detail.get('correlation_id', ''))] if job['status'] == 'error' else []
+    state = _job_state(job['status'])
+    if row['state'] == 'cancelled' and state in ('pending', 'running'):
+        state = 'cancel_requested'
+    return {'job_id': ident, 'state': state, 'stage': job['progress'] or '', 'result_id': ident if job['status'] == 'done' else '', 'errors': errors}
 
 
 def cancel_job(desk, ctx, ident):
     row = _own(desk, ctx, ident)
+    if not row['job']:
+        if row['state'] == 'failed':
+            return {'job_id': ident, 'state': 'already_finished', 'message': 'Ce travail n’a pas pu être créé : rien à annuler.'}
+        desk.db.execute("UPDATE integration_jobs5634 SET state='cancelled' WHERE id=? AND job IS NULL", (ident,))   # F09 : état durable
+        desk.db.commit()
+        return {'job_id': ident, 'state': 'cancelled', 'message': 'Annulation enregistrée : le travail ne sera pas lancé.'}
     try:
-        out = desk.cancel_job(row['job']) if row['job'] else {'status': 'cancelled'}
+        out = desk.cancel_job(row['job'])
     except Stop:
-        out = {'status': 'deja_termine'}
+        return {'job_id': ident, 'state': 'already_finished', 'message': 'Le travail était déjà terminé : son résultat est conservé.'}
+    desk.db.execute("UPDATE integration_jobs5634 SET state='cancelled' WHERE id=?", (ident,))
+    desk.db.commit()
     return {'job_id': ident, 'state': out['status'], 'message': 'Annulation enregistrée ; un résultat déjà produit est conservé.'}
+
+
+# ------------------------------------------------------------------------------------------------ résultat figé et décision (F12)
+def _hash(payload):
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()[:16]
+
+
+def _decisions(desk, ident):
+    """0.2.0 de l'app / 5.6.35 : historique des décisions sur ce résultat (version relue, auteur, décision, date, commentaire)."""
+    rows = desk.db.execute('SELECT version,user,decision,at,comment FROM integration_decisions5635 WHERE result=? ORDER BY id DESC LIMIT 50',
+                           (ident,)).fetchall()
+    if not rows:   # décisions antérieures à 5.6.35 : seule la dernière par version et par utilisateur a été conservée
+        rows = desk.db.execute('SELECT version,user,decision,at,comment FROM integration_approvals5634 WHERE result=? ORDER BY at DESC LIMIT 50',
+                               (ident,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def result(desk, ctx, ident):
     row = _own(desk, ctx, ident)
+    if row['snapshot']:
+        payload = json.loads(row['snapshot'])
+        return {**_shape(ident, row['operation'], row['snapshot_version'], payload), 'decisions': _decisions(desk, ident)}
     job = desk.db.execute('SELECT status,result FROM jobs WHERE id=?', (row['job'],)).fetchone() if row['job'] else None
     if not job or job['status'] != 'done':
         raise Refused('resultat_indisponible', '409 Conflict', retryable=True)
-    payload = json.loads(job['result'] or '{}') or {}
+    produced = json.loads(job['result'] or '{}') or {}
     if row['operation'] == 'fiche_dossier':
-        from .dossier5627 import latest
-        f = latest(desk, row['matter']) or {}
-        payload = {'version': f.get('version'), 'data': f.get('data'), 'sources': f.get('sources'), 'corrections': f.get('edits')}
-    version = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()[:16]
-    return {'result_id': ident, 'version': version, 'operation': row['operation'], 'content': payload,
-            'validations_attendues': ['relecture par l’avocat'], 'note': 'Une approbation ne vaut que pour cette version.'}
+        from .dossier5627 import corrections, version as fiche_version
+        number = produced.get('version')
+        f = fiche_version(desk, row['matter'], number) if number else None
+        if not f:
+            raise Refused('version_produite_introuvable', '409 Conflict')
+        payload = {'version': f['version'], 'data': f['data'], 'sources': f['sources'], 'corrections': corrections(desk, row['matter']),
+                   'produit_le': f['created']}
+    else:
+        payload = produced
+    version = _hash(payload)
+    desk.db.execute("UPDATE integration_jobs5634 SET snapshot=?, snapshot_version=? WHERE id=? AND snapshot=''",
+                    (json.dumps(payload, ensure_ascii=False, default=str), version, ident))
+    desk.db.commit()
+    stored = desk.db.execute('SELECT snapshot,snapshot_version FROM integration_jobs5634 WHERE id=?', (ident,)).fetchone()
+    return {**_shape(ident, row['operation'], stored['snapshot_version'], json.loads(stored['snapshot'])), 'decisions': _decisions(desk, ident)}
+
+
+def _shape(ident, operation, version, payload):
+    return {'result_id': ident, 'version': version, 'operation': operation, 'content': payload,
+            'validations_attendues': ['relecture par l’avocat'],
+            'note': 'Résultat figé pour ce travail ; une décision ne vaut que pour cette version. La fiche courante du dossier peut avoir évolué depuis.'}
 
 
 def approve(desk, ctx, ident, data):
-    current = result(desk, ctx, ident)
-    if str(data.get('version') or '') != current['version']:
-        raise Refused('resultat_modifie_depuis_lecture', '409 Conflict')
-    decision = str(data.get('decision') or '')
-    if decision not in ('approuve', 'refuse'):
+    decision = data.get('decision')
+    if decision not in DECISIONS:
         raise Refused('decision_invalide')
-    desk.db.execute('INSERT OR REPLACE INTO integration_approvals5634 VALUES(?,?,?,?,?)', (ident, current['version'], ctx['user'], decision,
-                                                                                         datetime.now(timezone.utc).isoformat()))
-    desk.db.commit()
-    desk.audit('integration5634_approbation', {'result': ident, 'version': current['version'], 'decision': decision})
+    comment = data.get('comment') or ''
+    if not isinstance(comment, str) or len(comment) > 5000:
+        raise Refused('commentaire_invalide')
+    if decision == 'correction_demandee' and len(comment.strip()) < 3:
+        raise Refused('correction_a_preciser')
+    current = result(desk, ctx, ident)   # fige le résultat s'il ne l'était pas encore
+    if not desk.db.in_transaction:
+        desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        stored = desk.db.execute('SELECT snapshot_version FROM integration_jobs5634 WHERE id=?', (ident,)).fetchone()
+        if data.get('version') != stored['snapshot_version']:
+            raise Refused('resultat_modifie_depuis_lecture', '409 Conflict')
+        at = datetime.now(timezone.utc).isoformat()
+        desk.db.execute('INSERT OR REPLACE INTO integration_approvals5634(result,version,user,decision,at,comment) VALUES(?,?,?,?,?,?)',
+                        (ident, stored['snapshot_version'], ctx['user'], decision, at, comment.strip()))
+        desk.db.execute('INSERT INTO integration_decisions5635(result,version,user,decision,at,comment) VALUES(?,?,?,?,?,?)',
+                        (ident, stored['snapshot_version'], ctx['user'], decision, at, comment.strip()))   # historique complet, jamais réécrit
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    desk.audit('integration5634_decision', {'result': ident, 'version': current['version'], 'decision': decision})
     return {'result_id': ident, 'version': current['version'], 'decision': decision}

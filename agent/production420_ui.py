@@ -150,12 +150,26 @@ def production_page(desk,args,form,link):
     return out+'</div></section>'
 
 
+def _due(desk,value):
+    """5.6.35 : échéance lisible (JJ/MM/AAAA, heure locale du cabinet si elle est connue) au lieu de l'horodatage ISO brut."""
+    from datetime import date,datetime
+    raw=str(value or '')
+    try:
+        if len(raw)<=10:return date.fromisoformat(raw).strftime('%d/%m/%Y')
+        from .agenda5634 import _tz
+        when=datetime.fromisoformat(raw.replace('Z','+00:00'))
+        when=when.astimezone(_tz(desk)) if when.tzinfo else when
+        return when.strftime('%d/%m/%Y') if (when.hour,when.minute)==(0,0) else when.strftime('%d/%m/%Y %H:%M')
+    except (ValueError,TypeError):
+        return raw
+
+
 def smart_matter_section(desk,matter,form,link):
     mid=matter['id'];data=dashboard(desk);rows=[x for x in data['deliverables'] if x['matter']==mid]
     next_ready=next((x for x in rows if x['status']=='verified'),None)
     incidents=sum(x['status']=='error' for x in rows);decisions=sum(x['status'] in ('prepared','abstained') for x in rows)
     signals=list(desk.db.execute("SELECT title,due,severity FROM proactive_signals WHERE matter=? AND state='open' ORDER BY due,last_seen DESC LIMIT 8",(mid,)))
-    due=next((x['due'] for x in signals if x['due']), '')
+    due=next((_due(desk,x['due']) for x in signals if x['due']), '')
     out='<section class="matter420"><header><div><p class="eyebrow">DOSSIER INTELLIGENT</p><h2>Prochaine action recommandée</h2><p>'+e(('Échéance repérée : '+due+'. ') if due else '')+'AxiorHub peut actualiser le dossier, reconstruire le graphe arguments–preuves et préparer les travaux internes possibles.</p></div>'+form('advance_matter420','Faire avancer le dossier',{'matter':mid})+'</header><div class="matter420-kpis"><article><strong>'+str(len(rows))+'</strong><span>Productions</span></article><article><strong>'+str(decisions)+'</strong><span>Décisions</span></article><article><strong>'+str(incidents)+'</strong><span>Incidents</span></article><article><strong>'+('Oui' if next_ready else 'Non')+'</strong><span>Livrable prêt</span></article></div>'
-    if signals:out+='<details><summary>Événements et échéances détectés</summary><ul>'+''.join('<li>'+e(x['title'])+((' — '+e(x['due'])) if x['due'] else '')+'</li>' for x in signals)+'</ul></details>'
+    if signals:out+='<details><summary>Événements et échéances détectés</summary><ul>'+''.join('<li>'+e(x['title'])+((' — '+e(_due(desk,x['due']))) if x['due'] else '')+'</li>' for x in signals)+'</ul></details>'
     return out+'<p>'+link('/studio','Ouvrir le Studio avec ce dossier',matter=mid)+'</p></section>'

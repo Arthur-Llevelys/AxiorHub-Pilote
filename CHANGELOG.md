@@ -3,6 +3,48 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.35 — Corrective : preuves ancrées dans l’extrait, agenda fiable, contrat Nextcloud 1.1, application Nextcloud utilisable
+
+Audit de la 5.6.34 (fiches F01 à F18 et améliorations proposées) et anomalies relevées sur un serveur en production. Détail fiche
+par fiche, avec les tests et les limites : `CONFORMITE-5.6.35.md`.
+
+- **Preuves des fiches (F01, F02)** : une date ou un montant n’est « documenté » que s’il figure dans l’extrait cité, jamais
+  ailleurs dans le fragment ; montants structurés (valeur exacte, devise, signe) : un prix en USD ne justifie plus un prix en EUR,
+  un avoir ne justifie plus un débit, une année ou un numéro de pièce n’est jamais un montant ; séparateurs ambigus signalés ;
+  empreinte du passage conservée. La méthode de relevé passe à 5635.1 : les anciens relevés sont refaits, les corrections de l’avocat
+  conservées, et une fiche établie avec l’ancienne méthode l’indique.
+- **Agenda (F03 à F07, F18)** : chaque occurrence d’une série a sa propre entrée (cache reconstruit à la mise à jour) et sa propre
+  identité à l’export ; une modification ne touche que les champs envoyés (durée, journée entière et notes conservés) et refuse
+  d’écraser une modification faite entre-temps ; EXDATE et occurrences modifiées appliquées, UNTIL inclusif, rappels repris à
+  l’import ; restauration réelle (statuts, rappels, annulations) avec aperçu puis confirmation, après sauvegarde de l’état actuel ;
+  la copie vers Nextcloud se fait hors de toute transaction (plus de verrou de la base pendant un appel réseau).
+- **Agenda, parcours** : « Modifier » sous chaque événement, « Annuler la série », recherche et filtre par dossier (200 événements
+  visibles au lieu de 30), liste des sauvegardes avec « Restaurer… » ; la copie vers Nextcloud est présentée comme une copie à sens
+  unique, jamais comme une synchronisation.
+- **Contrat Nextcloud 1.1 (F08 à F13)** : l’opération signée doit correspondre à la route appelée ; contexte sans fuseau, mal formé
+  ou incomplet refusé proprement (4xx, jamais d’exception) ; une demande refusée ne réserve plus rien et une clé d’idempotence est
+  liée au contenu de la demande ; annulation durable même sans travail lancé ; manifeste de pièces vérifié (taille, empreinte,
+  appartenance au dossier) et réellement appliqué au travail ; résultat figé à la première lecture (une nouvelle préparation ne le
+  modifie plus) ; décisions « Approuver », « Refuser », « Demander une correction » avec commentaire et historique complet.
+- **Application Nextcloud 0.2.0** : « Aucun dossier ne vous est accessible » corrigé — les dossiers du moteur sont importés
+  automatiquement (groupe par défaut, réglable), un tableau d’administration rattache chaque dossier à un groupe ; secret partagé
+  de 8 caractères au moins, comme le moteur ; résultat entièrement lisible avant décision (F16) ; suivi rattaché au travail lancé
+  (F17) ; travaux récents et réouverture d’un résultat ancien ; liens du site, des anomalies et du code vers
+  `AxiorHub-Pilote-Nextcloud`.
+- **Diagnostic Windows (F14)** : propriétaire et liste d’accès réellement lus ; une DACL nulle (accès complet pour tous) ou vide est
+  une erreur ; un compte ou un propriétaire non reconnu donne « à vérifier », jamais un voyant vert.
+- **Recette automatique du serveur** : le test HTTP voit Waitress installé dans l’environnement de l’interface (ui-venv) au lieu de
+  signaler « No module named 'waitress' » ; les contrôles du contrat d’intégration ne dépendent plus de l’umask (F15).
+- **Traitements trop anciens** : un passage du relevé des pièces est borné à 20 minutes (réglable) ; une pièce longue reprend au
+  passage suivant sans refaire les fragments déjà relevés ; un relevé interrompu par un redémarrage reprend seul ; l’ancienneté
+  d’un traitement en cours se mesure depuis son démarrage, pas depuis son attente dans la file.
+- **Affichage** : les échéances détectées d’un dossier sont datées en heure locale (« 13/10/2026 21:19 ») au lieu d’un horodatage
+  ISO brut.
+- **Traductions** : textes nouveaux de l’agenda, messages des opérations d’agenda, avis de méthode de la fiche, fiche d’aide « Agenda
+  et tâches » réécrite en quatre langues.
+- **Recette GitHub (F15)** : tests sous umask 022 et 077, contrôles 5.6.34 et 5.6.35 exécutés aussi sous Windows, journaux archivés
+  pour les trois parcours (Linux, migrations root, Windows).
+
 ## 5.6.34 — Fiabilité des fiches, parcours simplifiés, agenda local, état du système par mode d’installation, contrat Nextcloud
 
 Cahier des charges « Audit et préparation de la nouvelle version » (11 octobre 2026) et demandes complémentaires de l’avocat. Détail

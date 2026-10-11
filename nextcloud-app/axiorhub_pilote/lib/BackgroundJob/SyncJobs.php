@@ -26,6 +26,8 @@ class SyncJobs extends TimedJob {
 	}
 
 	protected function run($argument): void {
+		// 0.2.0 : intitulés et nouveaux dossiers du moteur importés à chaque passage (rattachements de l'administrateur conservés)
+		$this->matters->syncFromEngine();
 		foreach ($this->jobs->active(50) as $job) {
 			if ($job->getMatterRef() !== '' && !$this->matters->allowed($job->getUserId(), $job->getMatterRef())) {
 				$job->setState('acces_retire');

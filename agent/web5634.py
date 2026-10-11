@@ -10,6 +10,7 @@
   dernière action ; aucune échéance ni aucun agenda n'est modifié.
 - Agenda local et profil du modèle local (panneaux insérés dans Agenda et Paramètres › IA).
 """
+from datetime import datetime
 from html import escape as e
 import hashlib
 import hmac
@@ -420,11 +421,35 @@ def agenda_panel(desk, prefix):
     matters = ''.join('<option value="%s">%s</option>' % (e(x['id'], quote=True), e(matter_display(x))) for x in sorted(load_matters(desk.c), key=lambda x: fold(matter_display(x))))
     upcoming = agenda5634.listing(desk)
     labels = {x['id']: matter_display(x) for x in load_matters(desk.c)}
-    rows = ''.join('<li data-m34-event="%s"><strong>%s</strong> · %s <small>%s%s%s</small> <button type="button" class="ax-btn ghost" data-m34-agenda-cancel '
-                   'data-confirm="Annuler cet événement ? Il reste dans l’historique et les sauvegardes.">Annuler</button></li>' % (
-                       e(ev['id'], quote=True), e(ev['title']), e(ev['kind_label']), e(_local(desk, ev)),
-                       (' · dossier ' + e(labels.get(ev['matter'], ev['matter']))) if ev['matter'] else '', {'a_synchroniser': ' · synchronisation à reprendre', 'synchronise': ' · copié dans Nextcloud'}.get(ev['sync_state'], ''))
-                   for ev in upcoming[:30])
+    tz = agenda5634._tz(desk)
+
+    def edit_form(ev):   # 5.6.35 : modification partielle (seuls les champs du formulaire), contrôle de version contre l'écrasement
+        a, b = datetime.fromisoformat(ev['starts']).astimezone(tz), datetime.fromisoformat(ev['ends']).astimezone(tz)
+        when = ('<label>Jour<input type="date" name="start" value="%s" required></label>' % a.strftime('%Y-%m-%d')) if ev['all_day'] else (
+            '<label>Début<input type="datetime-local" name="start" value="%s" required></label><label>Durée (minutes)<input type="number" '
+            'name="duration_minutes" min="5" max="1440" step="5" value="%d"></label>') % (a.strftime('%Y-%m-%dT%H:%M'), int((b - a).total_seconds() // 60))
+        return ('<details class="m34-edit"><summary>Modifier</summary><form class="m34-form" data-m34-form="agenda/modifier">'
+                '<input type="hidden" name="id" value="%s"><input type="hidden" name="base" value="%s">'
+                '<div class="m34-row"><label>Intitulé<input name="title" value="%s" required maxlength="200"></label>%s</div>'
+                '<div class="m34-row"><label>Lieu<input name="location" value="%s" maxlength="200"></label></div>'
+                '<label>Notes<textarea name="description" rows="2" maxlength="2000">%s</textarea></label>'
+                '<button class="ax-btn" type="submit">Enregistrer la modification</button><p role="status" class="m34-status"></p></form></details>') % (
+            e(ev['id'], quote=True), e(ev['updated'], quote=True), e(ev['title'], quote=True), when, e(ev['location'], quote=True), e(ev['description']))
+
+    rows = ''.join('<li data-m34-event="%s" data-m34-matter="%s" data-m34-text="%s"><strong>%s</strong> · %s <small>%s%s%s</small> '
+                   '<button type="button" class="ax-btn ghost" data-m34-agenda-cancel '
+                   'data-confirm="Annuler cet événement ? Il reste dans l’historique et les sauvegardes.">Annuler</button>%s%s</li>' % (
+                       e(ev['id'], quote=True), e(ev['matter'] or '', quote=True),
+                       e(' '.join((ev['title'], ev['location'] or '', labels.get(ev['matter'], ev['matter']) or '')).casefold(), quote=True),
+                       e(ev['title']), e(ev['kind_label']), e(_local(desk, ev)),
+                       (' · dossier ' + e(labels.get(ev['matter'], ev['matter']))) if ev['matter'] else '',
+                       {'a_synchroniser': ' · copie vers Nextcloud à reprendre', 'synchronise': ' · copié dans Nextcloud'}.get(ev['sync_state'], ''),
+                       (' <button type="button" class="ax-btn ghost" data-m34-agenda-cancel data-m34-scope="serie" data-confirm="Annuler toutes '
+                        'les occurrences à venir de cette série ?">Annuler la série</button>') if ev['series'] else '', edit_form(ev))
+                   for ev in upcoming[:200])
+    saved = agenda5634.backups(desk)[:10]
+    restore = ''.join('<li>%s%s <button type="button" class="ax-btn ghost" data-m34-agenda-restore="%s">Restaurer…</button></li>' % (
+        e(b['name']), '' if b['exacte'] else ' <small>(import seulement : statuts et rappels non rétablis)</small>', e(b['name'], quote=True)) for b in saved)
     return ('<section class="ax-card m34-agenda" data-m34-agenda><h2>Mon agenda</h2><p class="m34-mode"><strong>%s</strong> — %s</p>'
             '<details%s><summary>Ajouter un rendez-vous, une audience ou une échéance</summary><form class="m34-form" data-m34-form="agenda/creer">'
             '<div class="m34-row"><label>Type<select name="kind">%s</select></label><label>Intitulé<input name="title" required maxlength="200"></label></div>'
@@ -433,15 +458,20 @@ def agenda_panel(desk, prefix):
             '<div class="m34-row"><label>Dossier<select name="matter"><option value="">Sans dossier</option>%s</select></label><label>Lieu<input name="location" maxlength="200"></label></div>'
             '<fieldset class="m34-reminders"><legend>Rappels</legend>%s</fieldset><label>Notes<textarea name="notes" rows="2" maxlength="2000"></textarea></label>'
             '<button class="ax-btn" type="submit">Enregistrer</button><p role="status" class="m34-status"></p></form></details>'
-            '<h3>Prochains événements de l’agenda local</h3><ul class="m34-list">%s</ul>'
+            '<h3>Prochains événements de l’agenda local</h3><div class="m34-row m34-filter"><label>Rechercher<input type="search" '
+            'data-m34-agenda-search placeholder="Intitulé, lieu ou dossier"></label><label>Dossier<select data-m34-agenda-matter><option value="">'
+            'Tous les dossiers</option>%s</select></label></div><ul class="m34-list" data-m34-agenda-list>%s</ul>'
+            '<p class="m34-muted" data-m34-agenda-none hidden>Aucun événement ne correspond à ce filtre.</p>'
             '<details><summary>Importer, exporter, sauvegarder</summary><form class="m34-form" data-m34-form="agenda/importer" data-m34-ics>'
             '<label>Fichier iCalendar (.ics : export Nextcloud, Google Agenda, Outlook)<input type="file" name="ics" accept=".ics,text/calendar"></label>'
             '<label>ou adresse iCal HTTPS (adresse secrète Google, lien d’abonnement Nextcloud ; elle n’est pas conservée)<input type="url" name="url" placeholder="https://…"></label>'
             '<button class="ax-btn" type="submit">Importer</button><p role="status" class="m34-status"></p></form>'
             '<p><button type="button" class="ax-btn ghost" data-m34-agenda-export>Exporter (.ics)</button> <button type="button" class="ax-btn ghost" data-m34-agenda-backup>'
-            'Sauvegarder maintenant</button></p><p class="m34-muted">Une sauvegarde est faite chaque jour automatiquement (30 jours conservés).</p></details></section>') % (
-        e(m['label']), e(m['help']), ' open' if not upcoming else '', kinds, matters, reminders,
-        rows or '<li class="m34-muted">Aucun événement local à venir.</li>')
+            'Sauvegarder maintenant</button></p><p class="m34-muted">Une sauvegarde est faite chaque jour automatiquement (30 jours conservés). '
+            'Importer ajoute des événements ; restaurer rétablit l’agenda tel qu’il était (aperçu avant toute modification, état actuel sauvegardé '
+            'au préalable).</p><h3>Sauvegardes</h3><ul class="m34-list">%s</ul><p role="status" class="m34-status" data-m34-restore-status></p></details></section>') % (
+        e(m['label']), e(m['help']), ' open' if not upcoming else '', kinds, matters, reminders, matters,
+        rows or '<li class="m34-muted">Aucun événement local à venir.</li>', restore or '<li class="m34-muted">Aucune sauvegarde pour l’instant.</li>')
 
 
 # ------------------------------------------------------------------------------------------------ Profil du modèle local

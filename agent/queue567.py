@@ -10,6 +10,8 @@ from .common import Stop
 READ568={'document568_scan','document568_compile','sent568_scan','received568_scan','proactive568_cycle','news568_collect'}
 SCOPED = {'docrequest520', 'prepare_reply', 'assistant_answer'} | READ568
 REPLAY_SAFE = SCOPED | {'live_calendar430', 'live_documents430','followup568_prepare','talk568_prepare','document568_run'}
+# 5.6.35 : relevés de pièces rejouables (fragments acquis en cache, état de chaque pièce conservé) — repris après redémarrage.
+REPLAY_SAFE |= {'digest_pieces5632'}
 
 
 @contextmanager

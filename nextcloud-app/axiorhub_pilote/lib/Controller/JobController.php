@@ -95,6 +95,12 @@ class JobController extends Controller {
 		}
 	}
 
+	/** 0.2.0 : travaux récents de l'utilisateur (réouverture d'un résultat ancien) ; aucune donnée d'un autre utilisateur. */
+	#[NoAdminRequired]
+	public function index(): DataResponse {
+		return new DataResponse(['jobs' => $this->jobs->recentForUser($this->uid(), 30)]);
+	}
+
 	#[NoAdminRequired]
 	public function show(string $id): DataResponse {
 		$job = $this->own($id);
@@ -127,11 +133,14 @@ class JobController extends Controller {
 	}
 
 	#[NoAdminRequired]
-	public function approve(string $id, string $version, string $decision): DataResponse {
+	public function approve(string $id, string $version, string $decision, string $comment = ''): DataResponse {
 		if ($this->own($id) === null) {
 			return new DataResponse(['code' => 'travail_absent'], Http::STATUS_NOT_FOUND);
 		}
+		if (!in_array($decision, ['approuve', 'refuse', 'correction_demandee'], true) || mb_strlen($comment) > 5000) {
+			return new DataResponse(['code' => 'decision_invalide'], Http::STATUS_BAD_REQUEST);
+		}
 		return $this->forward($this->engine->call('POST', '/integration/v1/results/' . $id . '/approvals', $this->uid(), $this->matters->scope($this->uid()),
-			['version' => $version, 'decision' => $decision]));
+			['version' => $version, 'decision' => $decision, 'comment' => $comment]));
 	}
 }

@@ -3,7 +3,8 @@
 Rien ici n'appelle un modèle : ce sont des contrôles déterministes appliqués APRÈS la réponse de l'IA.
 - Une date est validée comme date civile (le 31 février est refusé), une date partielle reste partielle, la formulation d'origine est
   conservée avec la méthode de normalisation.
-- Un montant n'est retenu comme documenté que si sa valeur figure dans le passage source.
+- Un montant n'est retenu comme documenté que si la même valeur, dans la même devise et avec le même signe, figure dans le
+  passage cité (5.6.35, audit F01–F02).
 - Un extrait justificatif doit se retrouver (à la casse, aux espaces et aux guillemets près) dans la version exacte du texte ; sa
   position fixe la page (si la pièce est paginée) ou la position dans le texte (sinon) : aucune page n'est inventée.
 - Statuts d'une proposition : allégué, documenté, contradictoire, à vérifier, validé par l'avocat (provenance humaine distincte de la
@@ -110,34 +111,114 @@ def date_in_passage(value, passage):
 
 
 # ------------------------------------------------------------------------------------------------ montants
-def _amount(text):
-    t = str(text or '').replace(' ', ' ').replace('\xa0', ' ')
-    m = re.search(r'\d{1,3}(?:[ .]\d{3})+(?:,\d{1,2})?|\d+(?:[,.]\d{1,2})?', t)
-    if not m:
-        return None
-    s = m.group(0)
-    if re.fullmatch(r'\d{1,3}(?:[ .]\d{3})+(?:,\d{1,2})?', s):   # séparateurs de milliers (espace ou point)
-        s = s.replace(' ', '').replace('.', '')
-    s = s.replace(',', '.')
+# 5.6.35 (audit F02) : un montant est une valeur structurée — Decimal, devise, signe, texte d'origine et position. Un nombre n'est un
+# montant que s'il porte une devise (symbole ou mot) ; une année, un numéro de page, de pièce ou de référence n'en est jamais un. EUR et USD
+# restent distincts ; aucune conversion n'est faite. Les séparateurs ambigus (« 4,500 € », « 4.500 $ ») sont signalés, jamais devinés.
+from decimal import Decimal, InvalidOperation   # noqa: E402
+
+CURRENCIES = (('livres sterling', 'GBP'), ('francs suisses', 'CHF'), ('dollars', 'USD'), ('dollar', 'USD'), ('euros', 'EUR'), ('euro', 'EUR'),
+              ('us$', 'USD'), ('eur', 'EUR'), ('usd', 'USD'), ('gbp', 'GBP'), ('chf', 'CHF'), ('€', 'EUR'), ('$', 'USD'), ('£', 'GBP'))
+_CUR = '|'.join(re.escape(c) for c, _ in CURRENCIES)
+_SP = '[   ]'
+_NUM = (r'\d{1,3}(?:' + _SP + r'\d{3})+(?:,\d{1,2})?|\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[,.]\d{1,2})?')
+_MONEY = re.compile(r'(?P<pre>(?:' + _CUR + r')' + _SP + r'?)?(?P<sign>[-−+]' + _SP + r'?)?(?P<num>' + _NUM + r')(?P<post>' + _SP
+                    + r'?(?:' + _CUR + r')(?![a-z]))?', re.I)
+
+
+def _currency(token):
+    token = fold(token or '').strip()
+    return next((code for word, code in CURRENCIES if token == word), None)
+
+
+def _value(num, currency):
+    """(Decimal, ambigu) d'une écriture de nombre ; None si illisible."""
+    s = re.sub(_SP, ' ', num)
+    ambiguous = False
+    if re.fullmatch(r'\d{1,3}(?: \d{3})+(?:,\d{1,2})?', s):
+        s = s.replace(' ', '').replace(',', '.')
+    elif re.fullmatch(r'\d{1,3}(?:\.\d{3})+,\d{1,2}', s):
+        s = s.replace('.', '').replace(',', '.')
+    elif re.fullmatch(r'\d{1,3}(?:,\d{3})+\.\d{1,2}', s):
+        s = s.replace(',', '')
+    elif re.fullmatch(r'\d{1,3}(?:\.\d{3})+', s):          # « 4.500 » : milliers à la française ; ambigu hors euro
+        ambiguous = currency not in (None, 'EUR')
+        s = s.replace('.', '')
+    elif re.fullmatch(r'\d{1,3}(?:,\d{3})+', s):           # « 4,500 » : milliers à l'anglaise ; ambigu en euro
+        ambiguous = currency in (None, 'EUR')
+        s = s.replace(',', '')
+    else:
+        s = s.replace(',', '.')
     try:
-        return round(float(s), 2)
-    except ValueError:
+        return Decimal(s), ambiguous
+    except InvalidOperation:
         return None
 
 
-def amounts_in_text(text):
-    t = str(text or '').replace(' ', ' ').replace('\xa0', ' ')
-    out = set()
-    for s in re.findall(r'\d{1,3}(?:[ .]\d{3})+(?:,\d{1,2})?|\d+(?:[,.]\d{1,2})?', t):
-        v = _amount(s)
-        if v is not None:
-            out.add(v)
+def money_in_text(text):
+    """Occurrences monétaires d'un texte : {'valeur', 'devise', 'signe', 'texte', 'debut', 'fin', 'ambigu'} (devise obligatoire)."""
+    out = []
+    t = str(text or '')
+    for m in _MONEY.finditer(t):
+        currency = _currency(m.group('pre')) or _currency(m.group('post'))
+        if not currency:
+            continue
+        before = t[max(0, m.start() - 1):m.start()]
+        if before and (before.isalnum() or before in '/.-'):   # fragment d'un identifiant (n° 12-4 500 €…) : ignoré
+            continue
+        parsed = _value(m.group('num'), currency)
+        if parsed is None:
+            continue
+        sign = -1 if (m.group('sign') or '').strip() in ('-', '−') else 1
+        out.append({'valeur': parsed[0] * sign, 'devise': currency, 'signe': sign, 'texte': m.group(0).strip(), 'debut': m.start(),
+                    'fin': m.end(), 'ambigu': parsed[1]})
     return out
 
 
-def amount_in_passage(value, passage):
-    v = _amount(value)
-    return v is not None and v in amounts_in_text(passage)
+def parse_amount(value, devise=None):
+    """Montant déclaré (réponse de l'IA) : première occurrence monétaire ; à défaut, nombre seul avec la devise fournie à part."""
+    found = money_in_text(value)
+    if found:
+        return found[0]
+    m = re.search(r'([-−+]' + _SP + r'?)?(' + _NUM + r')', str(value or ''))
+    currency = _currency(devise) if devise else None
+    if not m:
+        return None
+    parsed = _value(m.group(2), currency)
+    if parsed is None:
+        return None
+    sign = -1 if (m.group(1) or '').strip() in ('-', '−') else 1
+    return {'valeur': parsed[0] * sign, 'devise': currency, 'signe': sign, 'texte': m.group(0).strip(), 'debut': m.start(), 'fin': m.end(),
+            'ambigu': parsed[1]}
+
+
+def check_amount(value, passage, devise=None):
+    """Contrôle d'un montant dans le passage cité : None si documenté, sinon la cause (montant_illisible, devise_absente,
+    montant_ambigu, montant_absent_du_passage)."""
+    claim = parse_amount(value, devise)
+    if claim is None:
+        return 'montant_illisible'
+    if not claim['devise']:
+        return 'devise_absente'
+    if claim['ambigu']:
+        return 'montant_ambigu'
+    for occ in money_in_text(passage):
+        if occ['valeur'] == claim['valeur'] and occ['devise'] == claim['devise']:
+            return 'montant_ambigu' if occ['ambigu'] else None
+    return 'montant_absent_du_passage'
+
+
+def _amount(text):
+    """Compatibilité (clé de dédoublonnage) : valeur et devise du montant déclaré."""
+    claim = parse_amount(text)
+    return (str(claim['valeur']), claim['devise']) if claim else None
+
+
+def amounts_in_text(text):
+    return {(str(o['valeur']), o['devise']) for o in money_in_text(text)}
+
+
+def amount_in_passage(value, passage, devise=None):
+    return check_amount(value, passage, devise) is None
 
 
 # ------------------------------------------------------------------------------------------------ extraits et positions
