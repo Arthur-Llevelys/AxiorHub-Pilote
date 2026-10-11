@@ -183,6 +183,7 @@ def configure(path):
          'model_routing':{'fast_model':'','complex_model':ollama['model'],
                           'control_model':ollama['model'],'fast_temperature':0,
                           'complex_temperature':0,'control_temperature':0},
+         'llm':{'profile':'juridique','profile_version':1,'context_mode':'auto'},   # 5.6.34 : profil Juridique sur une installation neuve
          'ai_providers':{},
          'lawve_extensions':{},
          'ai_gateway':{'roundcube_enabled':True,'audit_content':False},

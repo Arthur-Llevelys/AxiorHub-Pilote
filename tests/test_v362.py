@@ -91,8 +91,10 @@ class ContextAndPresentation362(unittest.TestCase):
         self.addCleanup(f.doCleanups)
         auth={'prefix':'/agent-courriel','csrf':'test','origin':'https://courriel.example.com'}
         page=App(f.c,auth).page(f.c,auth,'/',{'view':'mail'})
-        self.assertIn('class="ws-roundcube-frame"',page)
-        self.assertNotIn('<iframe class="ws-roundcube-frame" style=',page)
+        # 5.6.34 : plus de cadre Open WebUI « Courrier » ; la messagerie renvoie vers la boîte de réception d'AxiorHub
+        self.assertIn('ws-roundcube-container',page)
+        self.assertIn('/courriels?vue=boite',page)
+        self.assertNotIn('<iframe class="ws-roundcube-frame"',page)
         self.assertIn('rel="icon"',page)
         self.assertIn('/static/axiorhub-icon.png',page)
         css=(Path(__file__).parents[1]/'agent/static/v360.css').read_text()

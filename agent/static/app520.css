@@ -1519,7 +1519,9 @@ aside .f5631-all>summary:focus-visible{outline:3px solid #ffd166;outline-offset:
 /* --- Aujourd'hui : résumé oral du briefing */
 .o5632{margin:12px 0 4px;border-top:1px solid var(--x32-line);padding-top:10px}
 .o5632-bar{display:flex;gap:8px;flex-wrap:wrap}
-.o5632-text{margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--x32-soft);color:var(--x32-ink);line-height:1.6;max-width:72ch}
+/* 5.6.34 (U07) : le résumé occupe toute la largeur intérieure du cadre (padding compris), sans débordement */
+.o5632{min-width:0;max-width:100%}
+.o5632-text{margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--x32-soft);color:var(--x32-ink);line-height:1.6;width:100%;max-width:none;box-sizing:border-box;min-width:0;overflow-wrap:anywhere;word-break:normal}
 .o5632-text p{margin:0 0 .8em}
 .o5632-note{font-size:12px;color:var(--x32-mute);margin:6px 0 0}
 .o5632 [hidden],.s5632-folders [hidden]{display:none!important}
@@ -1547,3 +1549,84 @@ main aside:where(:not([id])){position:static;inset:auto;width:auto;height:auto;m
 .m5632-tags table{width:100%;border-collapse:collapse;font-size:13px}
 .m5632-tags th,.m5632-tags td{border-bottom:1px solid var(--x32-line);padding:6px 8px;text-align:left;vertical-align:top}
 .m5632-tags code{background:var(--x32-soft);padding:0 4px;border-radius:4px}
+/* ==== v5634.css ==== */
+/* AxiorHub 5.6.34 — sélecteurs de dossier et de document, Audiences, Réviser, Recherche juridique, Alertes du cabinet, détail des demandes,
+   agenda local, profil du modèle local, corrections de la fiche. Thèmes clair et sombre ; lisible à 360 px sans défilement horizontal. */
+:root{--x34-ink:#1f2a3a;--x34-mute:#5b6676;--x34-line:#dfe3e9;--x34-card:#fff;--x34-soft:#f4f7fd;--x34-accent:#1f4e9c;--x34-ok:#1e7a46;--x34-bad:#b42318;--x34-warn:#8a5a00}
+[data-theme=dark]{--x34-ink:#e8ecf2;--x34-mute:#9aa6b6;--x34-line:#2b3441;--x34-card:#1a2029;--x34-soft:#1f2937;--x34-accent:#6ea0f0;--x34-ok:#5cc47f;--x34-bad:#ff8a80;--x34-warn:#f0c060}
+
+.m34-intro,.m34-muted,.m34-help{color:var(--x34-mute);font-size:14px}
+.m34-muted{font-size:13px}
+.m34-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px;border-bottom:1px solid var(--x34-line)}
+.m34-tabs a{padding:8px 14px;border-radius:8px 8px 0 0;color:var(--x34-ink);text-decoration:none;font-weight:600}
+.m34-tabs a[aria-current=page]{background:var(--x34-soft);border:1px solid var(--x34-line);border-bottom-color:transparent;color:var(--x34-accent)}
+
+/* --- sélecteur de dossier */
+.m34-matter{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:10px 0;position:relative;min-width:0}
+.m34-matter label{display:grid;gap:4px;font-weight:600;font-size:13px;flex:1 1 260px;min-width:0}
+.m34-matter input[type=search]{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--x34-line);border-radius:8px;background:var(--x34-card);color:var(--x34-ink);font:inherit}
+.m34-current{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0;padding:8px 12px;border-radius:10px;background:var(--x34-soft);color:var(--x34-ink)}
+.m34-results,.m34-list{list-style:none;margin:6px 0;padding:0;flex:1 1 100%}
+.m34-results li,.m34-list li{padding:6px 0;border-bottom:1px solid var(--x34-line);overflow-wrap:anywhere}
+
+/* --- formulaires */
+.m34-form{display:grid;gap:10px;margin:10px 0;min-width:0}
+.m34-form label{display:grid;gap:4px;font-weight:600;font-size:13px;color:var(--x34-ink);min-width:0}
+.m34-form input:not([type=checkbox]):not([type=radio]),.m34-form select,.m34-form textarea{width:100%;box-sizing:border-box;font:inherit;font-weight:400;padding:8px 10px;border:1px solid var(--x34-line);border-radius:8px;background:var(--x34-card);color:var(--x34-ink)}
+.m34-form label small{font-weight:400;color:var(--x34-mute)}
+.m34-form button[type=submit]{justify-self:start}
+.m34-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.m34-check{display:flex!important;gap:8px;align-items:center;font-weight:400!important}
+.m34-status{margin:0;font-size:13px;color:var(--x34-ok);min-height:1em}
+.m34-status.bad{color:var(--x34-bad)}
+
+/* --- sélecteur de document */
+.m34-docs{border:1px solid var(--x34-line);border-radius:10px;padding:8px 12px;min-width:0}
+.m34-docs legend{font-weight:700;font-size:13px;padding:0 4px}
+.m34-docs ul{list-style:none;margin:6px 0 0;padding:0;max-height:260px;overflow-y:auto}
+.m34-docs li{padding:4px 0;border-bottom:1px solid var(--x34-line)}
+.m34-docs li label{display:flex!important;gap:8px;align-items:baseline;font-weight:400!important;overflow-wrap:anywhere}
+.m34-docs li small{color:var(--x34-mute)}
+.m34-filter{width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--x34-line);border-radius:8px;background:var(--x34-card);color:var(--x34-ink)}
+
+/* --- recherche juridique */
+.m34-research header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+.m34-research ul{list-style:none;padding:0}
+.m34-lead{padding:8px 0;border-bottom:1px solid var(--x34-line);overflow-wrap:anywhere}
+.m34-lead blockquote{margin:6px 0;padding:6px 10px;border-left:3px solid var(--x34-line);color:var(--x34-ink);background:var(--x34-soft)}
+.m34-badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid currentColor}
+.m34-badge.ok{color:var(--x34-ok)}
+.m34-badge.piste{color:var(--x34-warn)}
+.m34-research pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}
+
+/* --- détail d'une demande */
+.m5634-detail{max-width:900px}
+.m34-dl,.m5634-dl{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:6px 14px}
+.m34-dl dt,.m5634-dl dt{font-weight:700;color:var(--x34-mute)}
+.m34-dl dd,.m5634-dl dd{margin:0;overflow-wrap:anywhere}
+.m5634-error{border:1px solid var(--x34-bad);border-radius:10px;padding:8px 12px;margin:10px 0}
+.m5634-error pre{white-space:pre-wrap;font-size:12px}
+.m5634-actions{margin:14px 0;display:grid;gap:6px;justify-items:start}
+.m5634-help,.c5614-help{font-size:12px;color:var(--x34-mute);margin:4px 0 0;flex-basis:100%}
+.m5634-note{color:var(--x34-mute)}
+
+/* --- agenda local, profil du modèle */
+.m34-mode{margin:0 0 8px}
+.m34-reminders{border:1px solid var(--x34-line);border-radius:10px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 14px}
+.m34-notice{border:1px solid var(--x34-warn);border-radius:10px;padding:8px 12px;margin:8px 0}
+.m34-profile form label input{max-width:12em}
+
+/* --- fiche du dossier : correction face à une proposition, historique, rapprochements */
+.d34-conflict,.d34-merge{border:1px dashed var(--x34-warn);border-radius:10px;padding:8px 12px;margin:8px 0}
+.d34-proposal{white-space:normal;padding:6px 10px;background:var(--x34-soft);border-radius:8px;overflow-wrap:anywhere}
+.d34-history ul{list-style:none;padding:0}
+.d34-history li{border-bottom:1px solid var(--x34-line);padding:6px 0}
+
+/* --- alertes de l'état du système */
+.rel-alerts{list-style:none;padding:0}
+.rel-alerts li{border-left:4px solid var(--x34-bad);padding:6px 10px;margin:6px 0;background:var(--x34-soft);overflow-wrap:anywhere}
+
+@media (max-width:420px){
+  .m34-dl,.m5634-dl{grid-template-columns:1fr}
+  .m34-matter{flex-direction:column;align-items:stretch}
+}

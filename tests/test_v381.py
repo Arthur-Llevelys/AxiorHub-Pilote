@@ -36,8 +36,7 @@ class Browser381(unittest.TestCase):
     def test_configured_openwebui_origin_drives_iframe_redirect_and_csp(self):
         save_external_url(Desk(self.f.c),'openwebui','https://ai.cabinet.test/')
         mail=self.request('/')
-        self.assertIn('https://ai.cabinet.test/mail',mail['body'])
-        self.assertIn('https://ai.cabinet.test',mail['headers']['Content-Security-Policy'])
+        self.assertNotIn('https://ai.cabinet.test/mail',mail['body'])   # 5.6.34 : Open WebUI classique n'a pas de section Courriel
         self.assertNotIn('ai.example.com',mail['body'])
         shortcut=self.request('/openwebui')
         self.assertEqual(shortcut['headers']['Location'],'https://ai.cabinet.test/')

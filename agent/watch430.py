@@ -91,6 +91,16 @@ def schedule(desk,stamp=None):
         jobs.extend(schedule5632(desk,stamp))
     except Exception as ex:   # noqa: BLE001 — la veille ne doit pas interrompre la surveillance
         emit(desk,'blocked','Veille juridique : planification impossible ('+str(ex)[:120]+').',dedupe='veille5632-schedule')
+    try:   # 5.6.34 (B07) : rappels d'alertes échus remis en circulation ici, jamais pendant l'affichage d'une page
+        from .proactive import release_snoozed
+        release_snoozed(desk)
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Alertes : remise en circulation impossible ('+str(ex)[:120]+').',dedupe='alertes5634-release')
+    try:   # 5.6.34 : agenda local — rappels, resynchronisation facultative, sauvegarde quotidienne
+        from .agenda5634 import tick as agenda_tick
+        agenda_tick(desk,stamp)
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Agenda local : rappels ou sauvegarde impossibles ('+str(ex)[:120]+').',dedupe='agenda5634-tick')
     heartbeat(desk,'surveillance','active','Contrôle périodique et réveil IMAP',stamp+max(0,300-(stamp-float(desk.settings('live430:last:live_mail430',0)))))
     return jobs
 

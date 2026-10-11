@@ -151,7 +151,12 @@ class Install(unittest.TestCase):
         src = (ROOT / 'install-interface.py').read_text(encoding='utf-8')
         self.assertIn("('axiorhub-mail-agent.timer','axiorhub-mail-agent-cleanup.timer')", src)
         self.assertIn("'enable','--now',*timers", src)
-        self.assertIn('sudo systemctl enable --now axiorhub-mail-agent.timer axiorhub-mail-agent-cleanup.timer', (ROOT / 'agent' / 'web520.py').read_text(encoding='utf-8'))
+        # 5.6.34 : l'indication de relance dépend du mode d'installation (diagnostic5634.relaunch_hint)
+        from unittest import mock
+        from agent import diagnostic5634
+        with mock.patch.object(diagnostic5634.portable, 'WINDOWS', False):
+            hint = diagnostic5634.relaunch_hint({'_path': '/etc/axiorhub-mail-agent/config.json'})
+        self.assertIn('sudo systemctl enable --now axiorhub-mail-agent.timer axiorhub-mail-agent-cleanup.timer', hint)
 
 
 if __name__ == '__main__':

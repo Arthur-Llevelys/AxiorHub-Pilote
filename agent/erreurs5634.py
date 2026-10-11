@@ -1,0 +1,173 @@
+"""5.6.34 (B15, O01) : erreurs qualifiées au point de leur origine.
+
+Une erreur garde son code public (compatibilité : ``str(erreur) == 'http_404'``) mais porte un détail structuré : service, opération,
+étape, statut distant, possibilité de reprise, identifiant de corrélation et ressource ANONYMISÉE (jamais d'URL signée, de mot de
+passe, de jeton ni de contenu de document). Le message montré à l'avocat dépend de la cause réelle, pas du seul numéro 404.
+"""
+from contextlib import contextmanager
+import hashlib
+import re
+import uuid
+from urllib.parse import urlsplit
+
+from .common import Stop
+
+STAGES = {'inventaire': 'inventaire des pièces', 'extraction': 'extraction du texte', 'lecture_fichier': 'lecture d’un fichier',
+          'releves': 'relevés des pièces', 'modele_show': 'initialisation du modèle (/api/show)', 'generation': 'génération (/api/chat)',
+          'enregistrement': 'enregistrement du résultat', 'publication': 'publication du résultat'}
+SERVICES = {'nextcloud': 'Nextcloud (WebDAV)', 'stockage_local': 'dossier de travail local', 'ollama': 'moteur Ollama', 'index': 'index des pièces',
+            'base': 'base locale', 'fournisseur_ia': 'fournisseur d’IA externe'}
+RETRYABLE = {'delai_http_depasse', 'connexion_http_indisponible', 'http_429', 'http_502', 'http_503', 'http_504', 'moteur_ollama_injoignable',
+             'generation_ia_delai_depasse', 'fournisseur_ia_injoignable', 'index_documents_verrouille', 'contexte_ia_insuffisant'}
+
+
+class Qualified(Stop):
+    """Stop dont ``str()`` reste le code public, avec un détail structuré et sans secret."""
+
+    def __init__(self, code, **detail):
+        super().__init__(code)
+        self.detail = {k: v for k, v in detail.items() if v not in (None, '')}
+
+
+def anonymize(resource):
+    """Ressource anonymisée : schéma et hôte, deux premiers segments, puis une empreinte courte du reste (aucun nom de client)."""
+    raw = str(resource or '')
+    if not raw:
+        return ''
+    p = urlsplit(raw)
+    path = p.path if p.scheme else raw
+    segments = [s for s in path.split('/') if s]
+    head = '/'.join(segments[:2]) if p.scheme else ''
+    tail = hashlib.sha256(path.encode('utf-8')).hexdigest()[:10]
+    prefix = (p.scheme + '://' + (p.hostname or '') + (':%d' % p.port if p.port else '')) if p.scheme else ''
+    return '%s/%s%s#%s' % (prefix, head, '/…' if len(segments) > 2 or not p.scheme else '', tail)
+
+
+def http_error(code, method, url):
+    """Erreur HTTP structurée (appelée par common.HTTP) : statut, opération, hôte et ressource anonymisée."""
+    status = int(code)
+    return Qualified('http_%d' % status, service=urlsplit(url).hostname or '', operation=method, remote_status=status,
+                     resource=anonymize(url), retryable=('http_%d' % status) in RETRYABLE)
+
+
+def local_missing(path):
+    return Qualified('http_404', service='stockage_local', operation='lecture', remote_status=404, resource=anonymize(path), retryable=False,
+                     cause='fichier_local_absent')
+
+
+def detail_of(error):
+    return dict(getattr(error, 'detail', None) or {})
+
+
+@contextmanager
+def stage(name, service=''):
+    """Encadre une étape : toute erreur en sort qualifiée (étape, service, corrélation), son code public inchangé."""
+    try:
+        yield
+    except Stop as error:
+        if getattr(error, 'detail', {}).get('stage'):
+            raise
+        detail = detail_of(error)
+        detail.setdefault('service', service)
+        if detail.get('service') in ('', None):
+            detail['service'] = service
+        if service == 'stockage_local' or detail.get('service') == 'stockage_local':
+            detail['service'] = 'stockage_local'
+        detail.update(stage=name, correlation_id=uuid.uuid4().hex[:12], retryable=detail.get('retryable', str(error) in RETRYABLE))
+        raise Qualified(str(error), **detail) from None
+
+
+MESSAGES = {
+    'ollama_non_configure': 'Adresse ou modèle Ollama non renseigné : Paramètres › Connexions › Intelligence artificielle.',
+    'conflit_de_correction': 'Cette rubrique a été corrigée entre-temps (autre onglet ou autre poste) : rechargez la page ; aucune correction n’a été écrasée.',
+    'correction_absente': 'Aucune correction active dans cette rubrique.',
+    'demande_annulee': 'Cette demande a été annulée : elle ne repart pas. Créez une nouvelle demande si nécessaire.',
+    'mission_annulee': 'Cette mission a été annulée : elle ne repart pas.',
+    'annulation_non_prise_en_charge': 'Ce type de décision ne s’annule pas ici : ouvrez son détail.',
+    'decision_absente': 'Cette demande est introuvable ou ne vous est pas accessible.',
+    'type_decision_inconnu': 'Type de demande inconnu.',
+    'document_absent_du_dossier': 'Ce document n’appartient pas au dossier choisi (ou n’est plus indexé) : choisissez-le de nouveau.',
+    'document_modifie_depuis_la_selection': 'Le document a changé depuis votre sélection : rechargez la page et choisissez la nouvelle version.',
+    'format_document_incorrect': 'Format non accepté pour cette action (DOCX ou PDF selon le cas).',
+    'nos_ecritures_requises': 'Choisissez nos dernières écritures pour préparer la plaidoirie.',
+    'aucune_source_juridique_active': 'Aucune source juridique active : configurez et testez une source (Paramètres › Sources juridiques).',
+    'fichier_ics_invalide': 'Ce fichier n’est pas un agenda iCalendar (.ics).',
+    'fichier_ics_trop_volumineux': 'Agenda trop volumineux (8 Mo au plus).',
+    'adresse_ics_https_requise': 'Indiquez une adresse iCal commençant par https:// (ou webcal://).',
+    'evenement_deja_present': 'Cet événement figure déjà dans l’agenda.',
+    'evenement_absent': 'Événement introuvable.',
+    'evenement_annule': 'Cet événement a été annulé.',
+    'rappel_invalide': 'Rappels possibles : à l’heure, 10 min, 30 min, 1 h, 2 h, 1 jour, 2 jours, 1 semaine (quatre au plus).',
+    'type_evenement_invalide': 'Type d’événement inconnu.',
+    'creneau_evenement_invalide': 'Date, heure ou durée invalide (5 minutes à 24 heures).',
+    'titre_evenement_invalide': 'Indiquez un intitulé (2 à 200 caractères).',
+    'sauvegarde_invalide': 'Sauvegarde inconnue.',
+    'sauvegarde_absente': 'Sauvegarde introuvable.',
+    'profil_modele_invalide': 'Profil inconnu : Juridique ou Personnalisé.',
+    'mode_contexte_invalide': 'Fenêtre de contexte : automatique ou fixée.',
+    'reglage_nombre_invalide': 'Valeur numérique invalide (la virgule décimale est acceptée).',
+    'aucune_action_a_annuler': 'Aucune action à annuler sur cette alerte.',
+    'rapprochement_invalide': 'Rapprochement invalide.',
+    'index_documents_indisponible': 'Incident de l’index des pièces (base locale indisponible) : ce n’est pas un dossier vide.',
+    'piece_absente_de_l_index': 'Cette pièce n’est plus dans l’index du dossier.',
+    'integration_desactivee': 'Liaison Nextcloud désactivée sur ce moteur.',
+    'dossier_hors_perimetre': 'Ce dossier n’entre pas dans votre périmètre.',
+    'requete_rejouee': 'Requête déjà reçue (protection contre le rejeu).',
+    'contexte_expire': 'Requête expirée : réessayez.',
+    'signature_invalide': 'Signature de la requête invalide.',
+    'resultat_indisponible': 'Le résultat n’est pas encore disponible.',
+    'resultat_modifie_depuis_lecture': 'Le résultat a changé depuis votre lecture : rechargez-le avant d’approuver.',
+}
+
+
+def explain(code, detail=None):
+    """Message propre à la cause (étape, service, statut) ; à défaut, le message générique historique."""
+    d = detail or {}
+    code = str(code or '')
+    st, svc = d.get('stage', ''), d.get('service', '')
+    where = (' — étape : %s' % STAGES.get(st, st)) if st else ''
+    ref = (' (réf. %s)' % d['correlation_id']) if d.get('correlation_id') else ''
+    if code == 'modele_ollama_absent':
+        return 'Le modèle choisi n’est pas installé sur le moteur Ollama : installez-le ou choisissez un modèle présent (Paramètres › IA). Les dossiers ne sont pas en cause.' + ref
+    if code in ('moteur_ollama_injoignable', 'fournisseur_ia_injoignable'):
+        return 'Le moteur d’IA ne répond pas : vérifiez qu’Ollama est démarré et que son adresse est correcte (Paramètres › IA › Tester). Aucune pièce n’est perdue ; le travail pourra reprendre.' + ref
+    if code == 'contexte_ia_insuffisant':
+        return 'Le dossier dépasse la fenêtre du modèle même après compression : le travail se poursuit par étapes (relevés des pièces) ; relancez une fois les relevés terminés.' + ref
+    if code in ('index_documents_indisponible', 'index_documents_verrouille'):
+        return 'Incident de l’index des pièces (base locale indisponible ou occupée) : ce n’est pas un dossier vide. Réessayez dans quelques minutes ; si l’incident persiste, consultez État du logiciel.' + ref
+    if code == 'http_404':
+        if svc == 'stockage_local' or d.get('cause') == 'fichier_local_absent':
+            return 'Fichier introuvable dans le dossier de travail local : il a été déplacé, renommé ou supprimé%s. Réindexez le dossier.%s' % (where, ref)
+        if st in ('modele_show', 'generation') or svc == 'ollama':
+            return 'Le moteur d’IA a répondu « introuvable » (404)%s : l’adresse configurée ne correspond pas à un serveur Ollama ou le modèle a été retiré. Vérifiez Paramètres › IA › Tester.%s' % (where, ref)
+        if st == 'lecture_fichier':
+            return 'Une pièce a été déplacée ou supprimée sur Nextcloud pendant la lecture (404)%s : réindexez le dossier puis relancez.%s' % (where, ref)
+        if st == 'inventaire':
+            return 'Le dossier du cabinet est introuvable sur Nextcloud (404)%s : il a pu être renommé ou déplacé. Vérifiez son emplacement dans le registre des dossiers ; rien n’a été effacé.%s' % (where, ref)
+        if st in ('enregistrement', 'publication'):
+            return 'Le dossier de destination est introuvable (404)%s : le résultat n’a pas été publié ; la version précédente reste valable.%s' % (where, ref)
+    if code == 'http_403':
+        return 'Accès refusé (403)%s : le compte utilisé par le moteur n’a pas le droit nécessaire sur %s.%s' % (where, SERVICES.get(svc, svc or 'ce service'), ref)
+    if code == 'http_401':
+        return 'Identifiants refusés (401)%s par %s : renouvelez le mot de passe d’application ou le jeton.%s' % (where, SERVICES.get(svc, svc or 'le service'), ref)
+    if code in ('delai_http_depasse', 'generation_ia_delai_depasse'):
+        return 'Délai dépassé%s : le service n’a pas répondu à temps ; le travail peut être repris.%s' % (where, ref)
+    if code.startswith('reglage_hors_plage_'):
+        return 'Valeur hors de la plage autorisée pour %s.' % code[len('reglage_hors_plage_'):]
+    if code in MESSAGES:
+        return MESSAGES[code] + (where + ref if (where or ref) else '')
+    from .web440 import human
+    base = human(code)
+    return base + (where + ref if (where or ref) else '')
+
+
+def public(detail):
+    """Détail affichable (section technique repliée) : aucune donnée confidentielle n'y figure par construction."""
+    keep = ('service', 'operation', 'stage', 'remote_status', 'retryable', 'correlation_id', 'resource', 'cause')
+    return {k: detail[k] for k in keep if k in detail}
+
+
+def safe_text(text):
+    """Dernier filet : retire d'un texte d'erreur tout ce qui ressemble à un secret (jeton, mot de passe, URL signée)."""
+    t = re.sub(r'(?i)(authorization|bearer|token|password|passwd|secret|signature|sig)=?[:\s]*[A-Za-z0-9._~+/=-]{6,}', r'\1=***', str(text or ''))
+    return re.sub(r'https?://[^\s]*[?&][^\s]*', lambda m: anonymize(m.group(0)), t)

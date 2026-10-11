@@ -8,6 +8,7 @@ from html import escape as e
 import json
 from pathlib import PurePosixPath
 import sqlite3
+from urllib.parse import urlencode
 
 from .common import load_matters, matter_display
 
@@ -36,16 +37,16 @@ def items(desk, owner='cabinet', prefix='', limit=20):
                     'title': r['name'] + ' — ' + PurePosixPath(r['path']).name, 'matter': r['matter'],
                     'matter_label': labels.get(r['matter'], 'Dossier à préciser'), 'explanation': human(r['explanation']) if r['explanation'] else '',
                     'candidates': [{'id': c, 'label': labels.get(c, c)} for c in meta.get('candidates', []) if c in labels],
-                    'url': prefix + '/agents-documents'})
+                    'url': prefix + '/decision?' + urlencode({'type': 'document', 'id': r['id']})})
     for p in plans:
         out.append({'kind': 'plan', 'id': p['id'], 'state': 'blocked', 'title': p['title'], 'matter': p['matter'],
                     'matter_label': labels.get(p['matter'], ''), 'explanation': 'Une étape attend une décision ou une reprise.',
-                    'candidates': [], 'url': prefix + '/engagements'})
+                    'candidates': [], 'url': prefix + '/decision?type=plan&id=' + str(p['id'])})
     for c in commitments:
         out.append({'kind': 'commitment', 'id': c['id'], 'state': c['state'], 'title': 'Engagement : ' + c['expected'][:160],
                     'matter': c['matter'], 'matter_label': labels.get(c['matter'], ''),
                     'explanation': ('Condition à confirmer : ' + c['condition_text'][:200]) if c['state'] == 'conditional' else 'Dossier ou échéance à préciser.',
-                    'candidates': [], 'url': prefix + '/engagements'})
+                    'candidates': [], 'url': prefix + '/decision?type=commitment&id=' + str(c['id'])})
     out += _extra_items(desk, owner, prefix, labels, limit)
     return out
 
@@ -72,7 +73,7 @@ def _extra_items(desk, owner, prefix, labels, limit):
             explanation = ' '.join(x.get('message', '') for x in m.get('exceptions', [])) or (m.get('job') or {}).get('error', '') or 'Traitement interrompu.'
             out.append({'kind': 'mission', 'id': m['id'], 'state': m['state'], 'title': 'Mission : ' + m['instruction'][:160], 'matter': m['matter'],
                         'matter_label': m.get('matter_label', ''), 'explanation': explanation[:300],
-                        'candidates': [{'id': c['id'], 'label': c.get('label') or labels.get(c['id'], c['id'])} for c in candidates[:8]], 'url': prefix + '/missions'})
+                        'candidates': [{'id': c['id'], 'label': c.get('label') or labels.get(c['id'], c['id'])} for c in candidates[:8]], 'url': prefix + '/decision?type=mission&id=' + m['id']})
     except sqlite3.OperationalError:
         pass
     try:
@@ -85,7 +86,7 @@ def _extra_items(desk, owner, prefix, labels, limit):
             out.append({'kind': 'docreq', 'id': r['id'], 'state': r['status'], 'title': 'Document demandé : ' + r['request'][:160], 'matter': r['matter'],
                         'matter_label': labels.get(r['matter'], 'Dossier à préciser'),
                         'explanation': 'Dossier à préciser pour rédiger ce document.' if r['status'] == 'dossier_a_choisir' else 'Dépôt ou rédaction en échec : ' + str(res.get('error', 'action_interrompue'))[:160],
-                        'candidates': [c for c in res.get('candidates', []) if c.get('id') in labels][:8], 'url': prefix + '/aujourdhui'})
+                        'candidates': [c for c in res.get('candidates', []) if c.get('id') in labels][:8], 'url': prefix + '/decision?type=docreq&id=' + r['id']})
     except sqlite3.OperationalError:
         pass
     try:
@@ -100,7 +101,7 @@ def _extra_items(desk, owner, prefix, labels, limit):
         from .pilote5613 import rule_proposals
         for p in rule_proposals(desk)[:limit]:
             out.append({'kind': 'rule', 'id': p['id'], 'state': 'proposed', 'title': 'Règle proposée après votre correction', 'matter': p['matter'],
-                        'matter_label': labels.get(p['matter'], ''), 'explanation': p['instruction'][:300], 'candidates': [], 'url': prefix + '/progres'})
+                        'matter_label': labels.get(p['matter'], ''), 'explanation': p['instruction'][:300], 'candidates': [], 'url': prefix + '/decision?type=rule&id=' + str(p['id'])})
     except sqlite3.OperationalError:
         pass
     return out

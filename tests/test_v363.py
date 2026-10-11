@@ -81,12 +81,16 @@ class Browser363(unittest.TestCase):
 
     def test_mail_frame_and_hearing_fields_are_reachable(self):
         mail=self.request('/')
-        self.assertIn('https://ai.example.com/mail',mail['body'])
-        self.assertIn('ws-mail-fold',mail['body'])
-        self.assertIn('https://ai.example.com',mail['headers']['Content-Security-Policy'])
-        hearing=self.request('/audiences-word',query='matter=DOS-001')['body']
-        self.assertIn('data-hearing-upload="ours"',hearing)
-        self.assertIn('data-hearing-upload="opponent"',hearing)
+        # 5.6.34 : Open WebUI classique n'a pas de section Courriel ; la messagerie renvoie vers la boîte de réception d'AxiorHub
+        self.assertNotIn('https://ai.example.com/mail',mail['body'])
+        self.assertIn('/courriels?vue=boite',mail['body'])
+        # 5.6.34 (U01) : le téléversement des écritures se fait dans Audiences › Préparer, au bon dossier
+        old=self.request('/audiences-word',query='matter=DOS-001')
+        self.assertTrue(old['status'].startswith('302'))
+        self.assertIn('/audiences?onglet=preparer&matter=DOS-001',dict(old['headers'])['Location'])
+        hearing=self.request('/audiences',query='onglet=preparer&matter=DOS-001')['body']
+        self.assertIn('data-m34-upload="ours"',hearing)
+        self.assertIn('data-m34-upload="opponent"',hearing)
         self.assertIn('app520.css',hearing)
         matter=self.request('/matter',query='id=DOS-001')['body']
         self.assertIn('Corriger le nom et les références du dossier',matter)

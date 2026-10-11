@@ -35,7 +35,7 @@ STEPS = (('fonctions', ()), ('profil', ()), ('coordonnees', ()), ('langues', ())
          ('stockage', ('documents',)), ('ia', ('documents', 'messagerie', 'recherches')),
          ('messagerie', ('messagerie',)), ('envoi', ('messagerie',)), ('agenda', ('agenda',)), ('sources', ('recherches',)),
          ('modeles', ('documents',)), ('veille', ('veille',)), ('facturation', ('facturation',)), ('telephonie', ('telephonie',)),
-         ('fin', ()))
+         ('voix', ()), ('fin', ()))   # 5.6.34 (B17) : synthèse vocale Kokoro selon le système
 # Champs : nom, destination (clé config567, profil ou préférence), type, obligatoire. « Plus de détails » : avancé=True.
 FIELDS = {
     'profil': (('prenom', 'profile.prenom_avocat', 'text', True, False), ('nom', 'profile.nom_avocat', 'text', True, False),
@@ -972,6 +972,10 @@ def page(desk, auth, prefix, env, args, shell):
     elif step == 'sources':   # 5.6.32 : cartes réelles (compte, clé, vérification, activation) des sources juridiques
         from .web5632 import sources_section
         body += sources_section(desk) if role == 'administrateur' else _info_step_html(step, prefix)
+    elif step == 'voix':   # 5.6.34 (B17) : Kokoro selon le système d'installation et voix par langue
+        from .kokoro5634 import guide_html
+        from .diagnostic5634 import install_mode
+        body += guide_html(i18n.current(), install_mode(desk.c))
     elif step == 'veille':
         from .web5632 import veille_settings
         body += veille_settings(desk, env, prefix, admin=role == 'administrateur')
@@ -1006,7 +1010,9 @@ def _version():
     return __version__
 
 
-LINKS = {'ia': (('Ollama', 'https://ollama.com/download'), ('Ollama — modèles', 'https://ollama.com/search'),
+LINKS = {'voix': (('Kokoro-FastAPI (GitHub)', 'https://github.com/remsky/Kokoro-FastAPI'), ('Docker Desktop', 'https://www.docker.com/products/docker-desktop/'),
+                  ('eSpeak NG', 'https://github.com/espeak-ng/espeak-ng')),
+         'ia': (('Ollama', 'https://ollama.com/download'), ('Ollama — modèles', 'https://ollama.com/search'),
                 ('Anthropic (Claude)', 'https://docs.anthropic.com/'), ('OpenRouter', 'https://openrouter.ai/docs/quickstart'),
                 ('OpenAI', 'https://platform.openai.com/docs'), ('Mistral', 'https://docs.mistral.ai/')),
          'stockage': (('Nextcloud — mots de passe d’application', 'https://docs.nextcloud.com/server/latest/user_manual/fr/session_management.html'),),
@@ -1018,7 +1024,7 @@ LINKS = {'ia': (('Ollama', 'https://ollama.com/download'), ('Ollama — modèles
          'facturation': (('Invoice Ninja', 'https://invoiceninja.github.io/'),),
          'telephonie': (('Twilio — sécurité des webhooks', 'https://www.twilio.com/docs/usage/webhooks/webhooks-security'),)}
 # Écrans existants qui réalisent les étapes encore informatives (lots suivants du cahier des charges).
-SCREENS = {'agenda': '/parametres?rubrique=connexions', 'sources': '/mcp', 'modeles': '/modeles-word', 'veille': '/veille',
+SCREENS = {'voix': '/parametres?rubrique=voix', 'agenda': '/parametres?rubrique=connexions', 'sources': '/mcp', 'modeles': '/modeles-word', 'veille': '/veille',
            'facturation': '/parametres?rubrique=connexions', 'telephonie': '/accueil-administratif'}
 
 

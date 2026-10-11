@@ -11,6 +11,9 @@
   var root = $('.d27');
   if (!root) return;
   var matter = root.getAttribute('data-d27-matter');
+  var messages = {};
+  try { var rawMsg = document.getElementById('l5631-msg'); if (rawMsg) messages = JSON.parse(rawMsg.textContent || '{}'); } catch (err) { messages = {}; }
+  function msg(key, fallback) { return messages['js.5634.' + key] || fallback; }   // 5.6.34 : messages traduits
 
   function toast(message, bad) {
     var box = $('#ax-toast');
@@ -30,19 +33,77 @@
   var q = function (o) { return new URLSearchParams(o).toString(); };
 
   // ------------------------------------------------------------ fiche : préparation et suivi
-  var watching = false;
+  // 5.6.34 (B08) : suivi d'un travail précis ; statut HTTP et format contrôlés ; reprises réseau bornées (backoff) ; au-delà de
+  // 12 minutes ou après une perte de session, le suivi s'interrompt AVEC une explication et les boutons redeviennent utilisables.
+  var watching = false, watchTimer = null, LIMIT = 12 * 60 * 1000;
+  function statusBox() {
+    var box = $('.d27-status[data-d34-watch]') || $('.d27-status[data-d27-waiting]');
+    if (!box) {
+      box = document.createElement('p'); box.className = 'd27-status'; box.setAttribute('role', 'status');
+      var card = $('.d27-summary') || root; card.insertBefore(box, card.querySelector('h2') ? card.querySelector('h2').parentNode.nextSibling : card.firstChild);
+    }
+    box.setAttribute('data-d34-watch', ''); return box;
+  }
+  function release() { $$('[data-d27-prepare]').forEach(function (b) { busy(b, false); }); }
+  function poll() {
+    return fetch(prefix + '/api440/m5627/etat?' + q({ matter: matter }), { credentials: 'same-origin' }).then(function (r) {
+      if (r.status === 401 || r.status === 403) throw { kind: 'auth' };
+      if (r.status >= 500) throw { kind: 'server' };
+      if ((r.headers.get('Content-Type') || '').indexOf('application/json') < 0) throw { kind: 'format' };
+      return r.json().catch(function () { throw { kind: 'format' }; });
+    });
+  }
   function watch(version) {
     if (watching) return; watching = true;
-    var tries = 0;
-    var timer = setInterval(function () {
-      if (++tries > 120) { clearInterval(timer); watching = false; return; }
-      api('m5627/etat?' + q({ matter: matter })).then(function (d) {
-        if (!d.pending) { clearInterval(timer); watching = false; if (d.version !== version) toast('Fiche du dossier mise à jour.'); location.reload(); }
-      }).catch(function () {});
-    }, 6000);
+    var started = Date.now(), delay = 6000, failures = 0, box = statusBox();
+    box.classList.remove('bad'); box.textContent = '⏳ ' + msg('watch_running', 'Préparation en cours') + '…';
+    function interrupt(message) {
+      watching = false; clearTimeout(watchTimer); release();
+      box.classList.add('bad'); box.textContent = message + ' ';
+      var resume = document.createElement('button'); resume.type = 'button'; resume.className = 'ax-btn ghost'; resume.textContent = msg('watch_resume', 'Reprendre le suivi');
+      resume.addEventListener('click', function () { watch(version); });
+      var see = document.createElement('a'); see.className = 'ax-btn ghost'; see.textContent = msg('watch_see', 'Voir le travail');
+      see.href = prefix + '/dossier?' + q({ id: matter, vue: 'travaux' });
+      box.appendChild(resume); box.appendChild(see);
+    }
+    function finish(d) {
+      watching = false; clearTimeout(watchTimer); release();
+      if (d.state === 'failed') { box.classList.add('bad'); box.textContent = msg('watch_failed', 'La préparation a échoué : ') + (d.message || 'erreur') + msg('watch_kept', ' La dernière fiche valable reste affichée.'); return; }
+      if (d.state === 'cancelled') { box.textContent = msg('watch_cancelled', 'Préparation annulée.'); return; }
+      if (d.version !== version) {
+        box.textContent = msg('watch_new', 'Nouvelle version de la fiche disponible : ') + 'v' + d.version + '. ';
+        var open = document.createElement('button'); open.type = 'button'; open.className = 'ax-btn'; open.textContent = msg('watch_open', 'Ouvrir la nouvelle version');
+        open.addEventListener('click', function () {
+          var dirty = $$('form.d27-edit:not([hidden]) textarea, #d27-text').some(function (t) { return t.value.trim() && t.value !== t.defaultValue; });
+          if (dirty && !window.confirm(msg('watch_dirty', 'Une saisie est en cours : ouvrir la nouvelle version la fera perdre. Continuer ?'))) return;
+          location.reload();
+        });
+        box.appendChild(open);
+      } else box.textContent = msg('watch_done', 'Préparation terminée.');
+    }
+    function tick() {
+      poll().then(function (d) {
+        failures = 0; delay = 6000;
+        if (!d.pending) return finish(d);
+        box.classList.remove('bad');
+        box.textContent = '⏳ ' + (d.state === 'running' ? msg('watch_running', 'Préparation en cours') : msg('watch_queued', 'Préparation en file d’attente')) + (d.step ? ' : ' + d.step : '') + '…';
+        if (Date.now() - started > LIMIT) return interrupt(msg('watch_interrupted', 'Le suivi est interrompu ; le travail peut continuer sur le serveur.'));
+        watchTimer = setTimeout(tick, delay);
+      }).catch(function (err) {
+        if (err && err.kind === 'auth') return interrupt(msg('watch_session', 'Votre session a expiré : reconnectez-vous. Le suivi est interrompu ; le travail peut continuer sur le serveur.'));
+        failures += 1; delay = Math.min(60000, delay * 2);
+        if (failures > 5 || Date.now() - started > LIMIT) return interrupt(msg('watch_interrupted', 'Le suivi est interrompu ; le travail peut continuer sur le serveur.'));
+        box.classList.add('bad');
+        box.textContent = (err && err.kind === 'server' ? msg('watch_server', 'Le serveur rencontre une erreur') : err && err.kind === 'format' ? msg('watch_format', 'Réponse inattendue du serveur') : msg('watch_offline', 'Connexion perdue')) +
+          msg('watch_retry', ' : nouvel essai dans # s.').replace('#', String(Math.round(delay / 1000)));
+        watchTimer = setTimeout(tick, delay);
+      });
+    }
+    tick();
   }
   $$('[data-d27-prepare]').forEach(function (b) {
     b.addEventListener('click', function () {
+      if (b.disabled) return;
       busy(b, true);
       api('m5627/etat?' + q({ matter: matter })).then(function (s) {
         return api('m5627/fiche/preparer', { matter: matter }).then(function (r) { toast(r.message); watch(s.version); });
@@ -50,6 +111,24 @@
     });
   });
   if ($('.d27-status[data-d27-waiting]')) api('m5627/etat?' + q({ matter: matter })).then(function (s) { watch(s.version); }).catch(function () {});
+
+  // 5.6.34 (B04, B09) : correction face à une proposition de l'agent ; rapprochement de parties sur confirmation
+  $$('[data-d34-correction]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      busy(b, true);
+      api('m5627/fiche/correction', { matter: matter, section: b.getAttribute('data-section'), action: b.getAttribute('data-d34-correction'), id: b.getAttribute('data-id') || '' })
+        .then(function (r) { toast(r.message); setTimeout(function () { location.reload(); }, 600); })
+        .catch(function (e) { toast(e.message, true); busy(b, false); });
+    });
+  });
+  $$('[data-d34-merge]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      busy(b, true);
+      api('m5627/fiche/rapprocher', { matter: matter, a: b.getAttribute('data-a'), b: b.getAttribute('data-b'), decision: b.getAttribute('data-d34-merge') })
+        .then(function (r) { toast(r.message); b.closest('li').remove(); })
+        .catch(function (e) { toast(e.message, true); busy(b, false); });
+    });
+  });
 
   // ------------------------------------------------------------ corrections de l'avocat
   $$('[data-d27-edit]').forEach(function (b) {
@@ -65,7 +144,7 @@
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var save = $('button[type=submit]', form); busy(save, true);
-      api('m5627/fiche/corriger', { matter: matter, section: form.getAttribute('data-d27-section'), text: $('textarea', form).value })
+      api('m5627/fiche/corriger', { matter: matter, section: form.getAttribute('data-d27-section'), text: $('textarea', form).value, revision: form.getAttribute('data-d34-revision') })
         .then(function (r) { toast(r.message); setTimeout(function () { location.reload(); }, 600); })
         .catch(function (e) { toast(e.message, true); busy(save, false); });
     });

@@ -195,8 +195,9 @@ class HTTP:
                 if len(raw) > limit:
                     raise Stop('reponse_trop_volumineuse')
                 return raw
-        except urllib.error.HTTPError as e:
-            raise Stop('http_' + str(e.code)) from None
+        except urllib.error.HTTPError as e:   # 5.6.34 (B15) : code public inchangé, détail structuré et anonymisé
+            from .erreurs5634 import http_error
+            raise http_error(e.code, method, url) from None
         except TimeoutError:
             raise Stop('delai_http_depasse') from None
         except urllib.error.URLError as error:

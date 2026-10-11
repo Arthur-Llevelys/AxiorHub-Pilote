@@ -27,7 +27,23 @@ OFFICIAL_HOSTS=(
   'conseil-constitutionnel.fr','www.conseil-constitutionnel.fr',
   'eur-lex.europa.eu','curia.europa.eu',
 )
-PROVIDERS=('openlegal','openlegi','goodlegal','pappers')
+PROVIDERS=('openlegal','openlegi','goodlegal','pappers')   # historique (anciennes configurations) ; voir registre5634
+def _known(provider):
+    """5.6.34 (B06) : registre partagé — catalogue MCP récent ET identifiants historiques."""
+    from .registre5634 import known
+    return known(provider)
+
+
+GENERAL={'id':'','client_name':'','aliases':[],'references':[],'correspondents':[],'path':''}
+
+
+def _general_values(desk):
+    """Question générale (sans dossier) : toutes les identités connues du cabinet sont retirées de la question."""
+    values=[]
+    for item in load_matters(desk.c):
+        values+=[item.get('client_name',''),*item.get('aliases',[]),*item.get('references',[])]
+        values+=[p.get('email','') for p in item.get('correspondents',[])]
+    return values
 WRITING_TYPES={
   'conclusions':('conclusion','conclusions'),
   'assignation':('assignation',),
@@ -196,6 +212,7 @@ def identify_latest_writings(desk,args,dav=None,items=None):
 
 def _sensitive_values(desk,matter):
     values=[matter.get('client_name',''),*matter.get('aliases',[]),*matter.get('references',[])]
+    if not matter.get('id'):values+=_general_values(desk)
     for person in matter.get('correspondents',[]):values.append(person.get('email',''))
     try:
         rows=desk.db.execute("SELECT title,content FROM legal_memory_records WHERE matter=? AND record_type='party'",(matter['id'],))
@@ -232,11 +249,11 @@ def anonymize_query(desk,matter,question):
 
 def prepare_research_query(desk,args):
     """Prepare the only string that may be sent to an external legal MCP."""
-    ensure_schema(desk);matter=_matter(desk,args.get('matter',''))
+    ensure_schema(desk);matter=_matter(desk,args.get('matter','')) if str(args.get('matter') or '').strip() else dict(GENERAL)   # 5.6.34 (U03)
     anonymous,redactions=anonymize_query(desk,matter,args.get('question',''))
     requested=args.get('providers') or list(PROVIDERS)
     if isinstance(requested,str):requested=[x.strip().lower() for x in requested.split(',') if x.strip()]
-    if not isinstance(requested,list) or not requested or any(x not in PROVIDERS for x in requested):
+    if not isinstance(requested,list) or not requested or any(not _known(x) for x in requested):
         raise Stop('fournisseur_juridique_invalide')
     qid=digest(matter['id']+'|'+anonymous+'|'+','.join(requested))
     stamp=desk.now();desk.db.execute('''INSERT OR REPLACE INTO legal_research_queries_v240
@@ -301,7 +318,7 @@ def legal_source(result):
 
 
 def verify_official_decision(desk,args,fetcher=None):
-    ensure_schema(desk);matter=_matter(desk,args.get('matter',''))
+    ensure_schema(desk);matter=_matter(desk,args.get('matter','')) if str(args.get('matter') or '').strip() else dict(GENERAL)   # 5.6.34 : question générale
     url=str(args.get('official_url','')).strip();identifier=str(args.get('identifier','')).strip()[:300]
     ecli=str(args.get('ecli','')).strip()[:300];court=str(args.get('court','')).strip()[:300]
     decision_date=str(args.get('date','')).strip()[:40];title=str(args.get('title','')).strip()[:500]
@@ -405,7 +422,7 @@ def import_mcp_results(desk,args,official_fetcher=None):
     if not query:raise Stop('requete_juridique_absente')
     provider=str(args.get('provider','')).strip().lower()
     allowed=json.loads(query['providers'])
-    if provider not in PROVIDERS or provider not in allowed:raise Stop('fournisseur_juridique_non_autorise')
+    if not _known(provider) or provider not in allowed:raise Stop('fournisseur_juridique_non_autorise')
     supplied=str(args.get('anonymized_query','')).strip()
     if supplied and supplied!=query['anonymized_query']:raise Stop('requete_mcp_non_conforme')
     raw=args.get('results',[])
@@ -437,7 +454,7 @@ def import_mcp_results(desk,args,official_fetcher=None):
 
 def research(desk,args,provider_runner=None,official_fetcher=None):
     """Query configured discovery providers and verify eligible hits officially."""
-    prepared=prepare_research_query(desk,args);matter=_matter(desk,prepared['matter'])
+    prepared=prepare_research_query(desk,args);matter=_matter(desk,prepared['matter']) if prepared['matter'] else dict(GENERAL)
     anonymous=prepared['anonymized_query'];redactions=prepared['redaction_report']
     requested=prepared['providers'];qid=prepared['query_id']
     limit=max(1,min(int(args.get('limit',8)),20))
@@ -478,14 +495,14 @@ def research(desk,args,provider_runner=None,official_fetcher=None):
 
 def research_enabled_mcp(desk,matter,question,limit=8,official_fetcher=None):
     """Use enabled Lawve MCP connectors and independently verify official texts."""
-    target=_matter(desk,matter)
+    target=_matter(desk,matter) if str(matter or '').strip() else dict(GENERAL)
     anonymous,redactions=anonymize_query(desk,target,question)
     from .extensions364 import legal_connector_search
     connector_results=legal_connector_search(desk,anonymous,limit)
     verified=[];leads=[];reports=[]
     for result in connector_results:
         provider=result.get('provider','')
-        if result.get('status')!='ok' or provider not in PROVIDERS:
+        if result.get('status')!='ok' or not _known(provider):   # 5.6.34 (B06) : les connecteurs récents ne sont plus écartés
             reports.append({k:result.get(k,'') for k in ('connector','provider','status','error')});continue
         prepared=prepare_research_query(desk,{'matter':target['id'],'question':question,
                                              'providers':[provider]})

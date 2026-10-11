@@ -45,7 +45,104 @@ SHORTCUTS = (('courrier', 'Courrier au client', 'Prépare un courrier au client 
 
 
 def ensure_schema(desk):
-    desk.db.executescript(SCHEMA)
+    desk.db.executescript(SCHEMA + SCHEMA5634)
+    _migrate_edits(desk)
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.34 (B04) : corrections de l'avocat
+SCHEMA5634 = '''
+CREATE TABLE IF NOT EXISTS fiche_corrections5634(id INTEGER PRIMARY KEY AUTOINCREMENT, matter TEXT NOT NULL, section TEXT NOT NULL,
+  text TEXT NOT NULL, author TEXT NOT NULL, at TEXT NOT NULL, base_version INTEGER NOT NULL, revision INTEGER NOT NULL,
+  status TEXT NOT NULL, origin TEXT NOT NULL DEFAULT 'avocat');
+CREATE INDEX IF NOT EXISTS fiche_corrections5634_m ON fiche_corrections5634(matter, section, status);
+CREATE TABLE IF NOT EXISTS party_links5634(matter TEXT NOT NULL, a TEXT NOT NULL, b TEXT NOT NULL, decision TEXT NOT NULL, by TEXT NOT NULL,
+  at TEXT NOT NULL, PRIMARY KEY(matter, a, b));'''
+SECTIONS = ('resume', 'faits', 'parties')
+
+
+def _migrate_edits(desk):
+    """Les corrections enregistrées sur d'anciennes versions (perdues à l'affichage depuis une mise à jour de la fiche) deviennent la
+    couche de corrections : la dernière correction de chaque rubrique redevient la valeur affichée et exportée."""
+    try:
+        if desk.settings('fiche5634:migration_corrections', False):
+            return
+    except Exception:   # noqa: BLE001
+        return
+    found = {}
+    for row in desk.db.execute("SELECT matter,version,edits FROM fiche5627 WHERE edits<>'{}' ORDER BY version"):
+        try:
+            edits = json.loads(row['edits'] or '{}')
+        except ValueError:
+            continue
+        for section, value in edits.items():
+            if section in SECTIONS and isinstance(value, dict) and str(value.get('text') or '').strip():
+                found[(row['matter'], section)] = (row['version'], value)
+    for (mid, section), (version, value) in found.items():
+        if not desk.db.execute("SELECT 1 FROM fiche_corrections5634 WHERE matter=? AND section=?", (mid, section)).fetchone():
+            desk.db.execute('INSERT INTO fiche_corrections5634(matter,section,text,author,at,base_version,revision,status,origin) VALUES(?,?,?,?,?,?,?,?,?)',
+                            (mid, section, str(value['text']), str(value.get('by') or 'cabinet'), str(value.get('at') or desk.now()), version, 1, 'active', 'migration'))
+    desk.db.commit()
+    desk.setting('fiche5634:migration_corrections', True)
+
+
+def corrections(desk, mid):
+    """Corrections actives, indépendantes des versions produites par l'IA : {rubrique: {text, by, at, revision, base_version, id}}."""
+    out = {}
+    for r in desk.db.execute("SELECT * FROM fiche_corrections5634 WHERE matter=? AND status='active' ORDER BY revision", (mid,)):
+        out[r['section']] = {'text': r['text'], 'by': r['author'], 'at': r['at'], 'revision': r['revision'], 'base_version': r['base_version'], 'id': r['id']}
+    return out
+
+
+def correction_history(desk, mid, section):
+    return [dict(r) for r in desk.db.execute('SELECT id,text,author,at,base_version,revision,status FROM fiche_corrections5634 '
+                                             'WHERE matter=? AND section=? ORDER BY revision DESC LIMIT 20', (mid, section))]
+
+
+def _current_revision(desk, mid, section):
+    row = desk.db.execute('SELECT MAX(revision) FROM fiche_corrections5634 WHERE matter=? AND section=?', (mid, section)).fetchone()
+    return int(row[0] or 0)
+
+
+def correction_action(desk, mid, section, action, owner='cabinet', ident=None):
+    """Conflit avec une nouvelle version de l'agent : garder la correction, adopter la proposition, ou restaurer une correction passée."""
+    if section not in SECTIONS:
+        raise Stop('rubrique_inconnue')
+    current = corrections(desk, mid).get(section)
+    latest_version = (latest(desk, mid) or {}).get('version', 0)
+    if action == 'garder':
+        if not current:
+            raise Stop('correction_absente')
+        desk.db.execute('UPDATE fiche_corrections5634 SET base_version=? WHERE id=?', (latest_version, current['id']))
+        message = 'Votre correction reste la valeur affichée et exportée.'
+    elif action == 'adopter':
+        if not current:
+            raise Stop('correction_absente')
+        desk.db.execute("UPDATE fiche_corrections5634 SET status='remplacee_par_agent' WHERE id=?", (current['id'],))
+        message = 'Proposition de l’agent adoptée ; votre correction reste dans l’historique.'
+    elif action == 'restaurer':
+        row = desk.db.execute('SELECT * FROM fiche_corrections5634 WHERE id=? AND matter=? AND section=?', (int(ident or 0), mid, section)).fetchone()
+        if not row:
+            raise Stop('correction_absente')
+        return save_edit(desk, mid, section, row['text'], owner, base=_current_revision(desk, mid, section), origin='restauration')
+    else:
+        raise Stop('action_invalide')
+    desk.db.commit()
+    desk.audit('dossier5634_correction_' + action, {'matter': mid, 'section': section})
+    return {'message': message}
+
+
+def parties_from_text(text):
+    """Liste corrigée par l'avocat (« nom — qualité — conseil ») en parties structurées."""
+    labels = {_fold(v): k for k, v in QUALITES.items()}
+    out = []
+    for line in str(text or '').splitlines():
+        parts = [x.strip() for x in re.split(r'\s+[—–-]\s+', line) if x.strip()]
+        if not parts:
+            continue
+        quality = labels.get(_fold(parts[1])) if len(parts) > 1 else ''
+        conseil = next((re.sub(r'(?i)^conseil\s*:\s*', '', x) for x in parts[1:] if _fold(x).startswith('conseil')), '')
+        out.append({'nom': parts[0], 'qualite': quality or '', 'conseil': conseil, 'client_du_cabinet': quality == 'client'})
+    return out
 
 
 def _fold(text):
@@ -63,9 +160,10 @@ def latest(desk, mid):
     ensure_schema(desk)
     row = desk.db.execute('SELECT version,data,sources,edits,created FROM fiche5627 WHERE matter=? ORDER BY version DESC LIMIT 1', (mid,)).fetchone()
     if not row:
-        return None
+        edits = corrections(desk, mid)   # 5.6.34 (B04) : des corrections sans fiche générée restent affichées et exportées
+        return {'version': 0, 'data': {}, 'sources': [], 'edits': edits, 'created': ''} if edits else None
     try:
-        return {'version': row['version'], 'data': json.loads(row['data']), 'sources': json.loads(row['sources']), 'edits': json.loads(row['edits'] or '{}'),
+        return {'version': row['version'], 'data': json.loads(row['data']), 'sources': json.loads(row['sources']), 'edits': corrections(desk, mid),
                 'created': row['created']}
     except ValueError:
         return None
@@ -86,7 +184,8 @@ def last_error(desk, mid):
                               (JOB, mid)).fetchone()
         if not row:
             return None
-        return {'error': (json.loads(row['result'] or '{}') or {}).get('erreur', 'erreur'), 'updated': row['finished'] or ''}
+        res = json.loads(row['result'] or '{}') or {}
+        return {'error': res.get('erreur', 'erreur'), 'detail': res.get('detail') or {}, 'updated': row['finished'] or ''}
     except Exception:   # pylint: disable=broad-except
         return None
 
@@ -94,10 +193,35 @@ def last_error(desk, mid):
 def request(desk, mid, with_index=True):
     """Demande (ou rejoint) la préparation de la fiche ; une seule demande en file par dossier."""
     _matter(desk, mid)
+    ensure_schema(desk)
+    # 5.6.34 (B08) : clé d'idempotence atomique par dossier — deux clics, deux onglets ou une reconnexion rejoignent le même travail.
+    desk.db.execute('CREATE TABLE IF NOT EXISTS fiche_requests5634(matter TEXT PRIMARY KEY, job INTEGER, at TEXT NOT NULL)')
+    desk.db.execute('INSERT OR IGNORE INTO fiche_requests5634(matter,job,at) VALUES(?,NULL,?)', (mid, desk.now()))
+    desk.db.commit()
+    row = desk.db.execute('SELECT job FROM fiche_requests5634 WHERE matter=?', (mid,)).fetchone()
+    old = row['job'] if row else None
+    if old is not None:
+        state = desk.db.execute('SELECT status FROM jobs WHERE id=?', (old,)).fetchone()
+        if state and state['status'] in ('pending', 'running', 'cancel_requested'):
+            return {'job_id': old, 'deja_en_cours': True, 'message': 'La fiche du dossier est déjà en préparation : le suivi reprend.'}
     current = pending(desk, mid)
     if current:
+        desk.db.execute('UPDATE fiche_requests5634 SET job=? WHERE matter=?', (current['id'], mid))
+        desk.db.commit()
         return {'job_id': current['id'], 'deja_en_cours': True, 'message': 'La fiche du dossier est déjà en préparation.'}
-    job = desk.enqueue(JOB, {'matter': mid, 'index': bool(with_index)}, priority=5)
+    claim = desk.db.execute('UPDATE fiche_requests5634 SET job=-1, at=? WHERE matter=? AND job IS ?', (desk.now(), mid, old))
+    desk.db.commit()
+    if not claim.rowcount:   # un autre onglet vient de lancer la préparation
+        row = desk.db.execute('SELECT job FROM fiche_requests5634 WHERE matter=?', (mid,)).fetchone()
+        return {'job_id': row['job'], 'deja_en_cours': True, 'message': 'La fiche du dossier est déjà en préparation.'}
+    try:
+        job = desk.enqueue(JOB, {'matter': mid, 'index': bool(with_index)}, priority=5)
+    except Exception:
+        desk.db.execute('UPDATE fiche_requests5634 SET job=? WHERE matter=?', (old, mid))
+        desk.db.commit()
+        raise
+    desk.db.execute('UPDATE fiche_requests5634 SET job=? WHERE matter=?', (job, mid))
+    desk.db.commit()
     desk.audit('dossier5627_fiche_demandee', {'matter': mid, 'job': job})
     return {'job_id': job, 'message': 'Préparation de la fiche lancée : lecture des pièces puis rédaction par l’agent (quelques minutes).'}
 
@@ -167,33 +291,92 @@ def _validated_facts(desk, mid):
 
 
 # ------------------------------------------------------------------------------------------------ préparation
-def _clean(result, valid):
+FORMES = r'sa|sas|sasu|sarl|eurl|sci|snc|selarl|selas|scp|gie|scm|scop|association|fondation|gaec|earl'
+
+
+def _party_identity(name):
+    """(forme sociale, dénomination sans forme ni civilité, SIREN) ; la forme sociale fait partie de l'identité (B09)."""
+    folded = _fold(name)
+    forme = next(iter(re.findall(r'\b(' + FORMES + r')\b', folded)), '')
+    siren = next(iter(re.findall(r'\b(\d{3} ?\d{3} ?\d{3})\b', folded)), '').replace(' ', '')
+    core = re.sub(r'\b(' + FORMES + r'|ste|societe|monsieur|madame|m|mme|me|maitre)\b|\b\d{3} ?\d{3} ?\d{3}\b|[^a-z0-9 ]', ' ', folded)
+    return forme, re.sub(r'\s+', ' ', core).strip(), siren
+
+
+def _clean(result, valid, sources_info=None):
+    """Nettoyage de la fiche produite par l'IA. 5.6.34 : une affirmation dont tous les rattachements sont invalides ne passe pas pour
+    un fait documenté (rubrique « À vérifier ») ; une date impossible est refusée ; une date égale à la date du FICHIER cité, absente
+    de son extrait, est signalée ; deux personnes morales de formes différentes ne sont jamais fusionnées d'office."""
+    from .preuve5634 import normalize_date
+    info = sources_info or {}
+    juris = {k for k, v in info.items() if v.get('jurisprudence')}
+    a_verifier = []
+
     def ids(x):
         return [i for i in (x or []) if i in valid][:8]
     out = {'resume': str(result.get('resume') or '').strip()[:3000],
-           'rappel_des_faits': [{'texte': str(p['texte']).strip()[:2500], 'source_ids': ids(p['source_ids'])} for p in result.get('rappel_des_faits', []) if str(p.get('texte', '')).strip()],
            'procedure': {**{k: str(result['procedure'].get(k) or '').strip()[:400] for k in ('juridiction', 'numero_rg', 'stade', 'prochaine_etape')},
                          'source_ids': ids(result['procedure'].get('source_ids'))},
            'enjeux': [str(x).strip()[:400] for x in result.get('enjeux', []) if str(x).strip()][:6],
            'points_a_verifier': [str(x).strip()[:400] for x in result.get('points_a_verifier', []) if str(x).strip()][:8],
            'limits': [str(x).strip()[:300] for x in result.get('limits', []) if str(x).strip()][:6]}
-    parties, seen = [], set()
+    facts = []
+    for p in result.get('rappel_des_faits', []):
+        text = str(p.get('texte', '')).strip()[:2500]
+        if not text:
+            continue
+        refs = ids(p.get('source_ids'))
+        if refs:
+            facts.append({'texte': text, 'source_ids': refs})
+        else:
+            a_verifier.append({'texte': text, 'cause': 'aucune pièce valide citée' if p.get('source_ids') else 'aucune pièce citée', 'rubrique': 'faits'})
+    out['rappel_des_faits'] = facts
+    parties, seen, by_core = [], {}, {}
+    rapprochements = []
     for p in result.get('parties', []):
         name = re.sub(r'\s+', ' ', str(p.get('nom') or '')).strip()[:200]
-        key = re.sub(r'\b(sa|sas|sasu|sarl|eurl|sci|snc|selarl|ste|societe|monsieur|madame|m|mme|me|maitre)\b|[^a-z0-9 ]', ' ', _fold(name))
-        key = re.sub(r'\s+', ' ', key).strip()
-        if not name or key in seen or re.search(r'\b(juge|president|greffi|commissaire de justice|huissier|expert judiciaire|conseiller)\b', _fold(name)):
+        if not name or re.search(r'\b(juge|president|greffi|commissaire de justice|huissier|expert judiciaire|conseiller)\b', _fold(name)):
             continue
-        seen.add(key)
-        parties.append({'nom': name, 'qualite': p['qualite'] if p.get('qualite') in QUALITES else 'autre', 'conseil': str(p.get('conseil') or '').strip()[:200],
-                        'client_du_cabinet': bool(p.get('client_du_cabinet')), 'source_ids': ids(p.get('source_ids'))})
+        forme, core, siren = _party_identity(name)
+        refs = ids(p.get('source_ids'))
+        if refs and all(r in juris for r in refs):   # partie d'un litige cité dans une décision : pas une partie du dossier
+            a_verifier.append({'texte': name, 'cause': 'partie citée seulement dans une décision d’une autre affaire', 'rubrique': 'parties'})
+            continue
+        key = siren or (forme, core)
+        if key in seen:
+            continue
+        if core and core in by_core and not siren:
+            other = by_core[core]
+            if other['forme'] != forme:
+                rapprochements.append({'a': other['nom'], 'b': name, 'motif': 'même dénomination, forme sociale différente ou absente : à confirmer'})
+        seen[key] = True
+        entry = {'nom': name, 'qualite': p['qualite'] if p.get('qualite') in QUALITES else 'autre', 'conseil': str(p.get('conseil') or '').strip()[:200],
+                 'client_du_cabinet': bool(p.get('client_du_cabinet')), 'source_ids': refs, 'forme_sociale': forme.upper(), 'siren': siren}
+        by_core.setdefault(core, {'nom': name, 'forme': forme})
+        parties.append(entry)
     out['parties'] = parties
+    out['rapprochements'] = rapprochements[:10]
     events = []
     for ev in result.get('chronologie', []):
         text = str(ev.get('evenement') or '').strip()[:500]
-        if text:
-            events.append({'date': str(ev.get('date') or '').strip()[:10], 'evenement': text, 'source_ids': ids(ev.get('source_ids'))})
+        if not text:
+            continue
+        refs = ids(ev.get('source_ids'))
+        raw = str(ev.get('date') or '').strip()[:40]
+        d = normalize_date(raw) if raw else {'valide': True, 'iso': '', 'precision': '', 'origine': '', 'motif': ''}
+        if raw and not d['valide']:
+            a_verifier.append({'texte': '%s — %s' % (raw, text), 'cause': 'date impossible' if d['motif'] == 'date_impossible' else 'date non reconnue',
+                               'rubrique': 'chronologie'})
+            continue
+        if not refs:
+            a_verifier.append({'texte': '%s — %s' % (raw or 'date inconnue', text), 'cause': 'aucune pièce valide citée', 'rubrique': 'chronologie'})
+            continue
+        if d['iso'] and refs and all(info.get(r, {}).get('date_fichier') == d['iso'] and d['iso'] not in info.get(r, {}).get('dates', set()) for r in refs):
+            a_verifier.append({'texte': '%s — %s' % (raw, text), 'cause': 'date identique à la date du fichier et absente du texte cité', 'rubrique': 'chronologie'})
+            continue
+        events.append({'date': d['iso'], 'date_origine': raw if raw != d['iso'] else '', 'precision': d['precision'], 'evenement': text, 'source_ids': refs})
     out['chronologie'] = sorted(events, key=lambda x: (x['date'] == '', x['date']))
+    out['a_verifier'] = a_verifier[:30]
     return out
 
 
@@ -202,20 +385,24 @@ def prepare(desk, args):
     mid = str(args.get('matter') or '')
     m = _matter(desk, mid)
     ensure_schema(desk)
+    from .erreurs5634 import stage
     if args.get('index'):
-        for _ in range(6):
-            res = desk.perform('index', {'matter': mid}) or {}
-            if not res.get('en_attente'):
-                break
+        with stage('inventaire', 'nextcloud' if not (desk.c.get('nextcloud') or {}).get('local_path') else 'stockage_local'):
+            for _ in range(6):
+                res = desk.perform('index', {'matter': mid}) or {}
+                if not res.get('en_attente'):
+                    break
     from .model import Model, routed_config, validate, FICHE5627
-    cfg = routed_config(desk.c, 'legal_analysis')
+    with stage('modele_show', 'ollama'):
+        cfg = routed_config(desk.c, 'legal_analysis')
     limit = int(cfg.get('max_context_chars') or desk.c.get('ollama', {}).get('max_context_chars', 65000))
     previous = latest(desk, mid)
     corrections = {k: v.get('text', '') for k, v in ((previous or {}).get('edits') or {}).items() if isinstance(v, dict)}
     # 5.6.32 : dossier ENTIER — fiches de pièces (une par version de pièce) et compression étagée ; les fiches manquantes sont préparées.
     from . import synthese5632
     budget = max(8000, int(limit * 0.6))
-    sources, coverage = synthese5632.sources_for(desk, m, budget, score=_doc_score)
+    with stage('extraction', 'index'):
+        sources, coverage = synthese5632.sources_for(desk, m, budget, score=_doc_score)
     if coverage['sans_fiche']:
         desk._then('digest_pieces5632', {'matter': mid}, priority=75)
     facts = _validated_facts(desk, mid)
@@ -230,7 +417,8 @@ def prepare(desk, args):
     kept = {p['id'] for p in payload['pieces']}
     sources = [s for s in sources if s['id'] in kept]
     try:
-        result = Model(cfg).ask('dossier_fiche', payload)
+        with stage('generation', 'ollama'):
+            result = Model(cfg).ask('dossier_fiche', payload)
     except Stop as ex:
         if str(ex) not in ('contexte_ia_insuffisant', 'generation_ia_incomplete'):
             raise
@@ -238,47 +426,52 @@ def prepare(desk, args):
         sources, coverage = synthese5632.sources_for(desk, m, budget // 2, score=_doc_score)
         payload['pieces'] = [{k: s[k] for k in ('id', 'nom', 'date_fichier', 'nature', 'extrait')} for s in sources]
         kept = {p['id'] for p in payload['pieces']}
-        result = Model(cfg).ask('dossier_fiche', payload)
+        with stage('generation', 'ollama'):
+            result = Model(cfg).ask('dossier_fiche', payload)
     validate(result, FICHE5627)
-    data = _clean(result, kept | {f['id'] for f in facts})
-    data['pieces_lues'] = len(sources)
-    data['couverture'] = coverage   # 5.6.32 : pièces du dossier, représentées, avec fiche, au niveau de détail complet
+    from .preuve5634 import dates_in_text
+    info = {s['id']: {'date_fichier': s.get('date_fichier', ''), 'dates': dates_in_text(s.get('extrait', '')),
+                      'jurisprudence': bool(re.search(JURISPRUDENCE, _fold(PurePosixPath(s['path']).name)))} for s in sources}
+    data = _clean(result, kept | {f['id'] for f in facts}, info)
+    coverage = synthese5632.coverage(desk, mid, sources)   # 5.6.34 (B05) : bilan recalculé après la dernière compression et toute relance
+    data['pieces_lues'] = len(sources)   # compatibilité : nombre de sources transmises (libellé exact dans la vue)
+    data['couverture'] = coverage
+    data['generation'] = {'profil': cfg.get('profile', ''), 'version_profil': cfg.get('profile_version', 0), 'modele': cfg.get('model', ''),
+                          'temperature': cfg.get('temperature'), 'sources': [{'path': s['path'], 'version': s.get('version', ''), 'niveau': s.get('niveau')} for s in sources]}
     version = desk.db.execute('SELECT COALESCE(MAX(version),0)+1 FROM fiche5627 WHERE matter=?', (mid,)).fetchone()[0]
     stored = [{'id': s['id'], 'path': s['path'], 'nom': s['nom']} for s in sources] + [{'id': f['id'], 'path': '', 'nom': 'Fait validé par l’avocat'} for f in facts]
-    desk.db.execute('INSERT INTO fiche5627(matter,version,data,sources,edits,created) VALUES(?,?,?,?,?,?)',
-                    (mid, version, json.dumps(data, ensure_ascii=False), json.dumps(stored, ensure_ascii=False), '{}', desk.now()))
-    desk.db.commit()
+    with stage('enregistrement', 'base'):
+        desk.db.execute('INSERT INTO fiche5627(matter,version,data,sources,edits,created) VALUES(?,?,?,?,?,?)',
+                        (mid, version, json.dumps(data, ensure_ascii=False), json.dumps(stored, ensure_ascii=False), '{}', desk.now()))
+        desk.db.commit()
     desk.audit('dossier5627_fiche_preparee', {'matter': mid, 'version': version, 'pieces': len(sources)})
     return {'status': 'prepared', 'matter': mid, 'version': version, 'pieces': len(sources),
             'coverage': coverage,
-            'message': 'Fiche du dossier préparée (version %d, %d pièce(s) sur %d, dont %d par fiche de pièce).' % (
-                version, len(sources), coverage['pieces'], coverage['avec_fiche'])}
+            'message': 'Fiche du dossier préparée (version %d) : %s.' % (version, synthese5632.coverage_label(coverage))}
 
 
-def save_edit(desk, mid, section, text, owner='cabinet'):
-    """Correction de l'avocat sur la dernière fiche (résumé, rappel des faits, parties) : affichée aussitôt, prioritaire ensuite."""
-    if section not in ('resume', 'faits', 'parties'):
+def save_edit(desk, mid, section, text, owner='cabinet', base=None, origin='avocat'):
+    """Correction de l'avocat (résumé, rappel des faits, parties) : enregistrement INDÉPENDANT des versions produites par l'IA (B04),
+    appliqué dans toutes les vues, exports et missions ; deux corrections concurrentes produisent un conflit explicite."""
+    if section not in SECTIONS:
         raise Stop('rubrique_inconnue')
     text = str(text or '').replace('\r\n', '\n').strip()
     if len(text) > 20000:
         raise Stop('texte_trop_long_20000_maximum')
+    _matter(desk, mid)
+    ensure_schema(desk)
+    revision = _current_revision(desk, mid, section)
+    if base not in (None, '') and int(base) != revision:
+        raise Stop('conflit_de_correction')
     current = latest(desk, mid)
-    if not current:
-        _matter(desk, mid)
-        desk.db.execute('INSERT INTO fiche5627(matter,version,data,sources,edits,created) VALUES(?,?,?,?,?,?)',
-                        (mid, 1, json.dumps({'resume': '', 'rappel_des_faits': [], 'parties': [], 'procedure': {'juridiction': '', 'numero_rg': '', 'stade': '',
-                                                                                                                 'prochaine_etape': '', 'source_ids': []},
-                                              'chronologie': [], 'enjeux': [], 'points_a_verifier': [], 'limits': [], 'pieces_lues': 0}), '[]', '{}', desk.now()))
-        current = latest(desk, mid)
-    edits = dict(current['edits'])
-    if text:
-        edits[section] = {'text': text, 'by': owner, 'at': desk.now()}
-    else:
-        edits.pop(section, None)
-    desk.db.execute('UPDATE fiche5627 SET edits=? WHERE matter=? AND version=?', (json.dumps(edits, ensure_ascii=False), mid, current['version']))
+    version = current['version'] if current else 0
+    desk.db.execute("UPDATE fiche_corrections5634 SET status='remplacee' WHERE matter=? AND section=? AND status='active'", (mid, section))
+    desk.db.execute('INSERT INTO fiche_corrections5634(matter,section,text,author,at,base_version,revision,status,origin) VALUES(?,?,?,?,?,?,?,?,?)',
+                    (mid, section, text, owner, desk.now(), version, revision + 1, 'active' if text else 'retiree', origin))
     desk.db.commit()
-    desk.audit('dossier5627_fiche_corrigee', {'matter': mid, 'section': section})
-    return {'message': 'Correction enregistrée ; l’agent en tiendra compte à la prochaine mise à jour de la fiche.'}
+    desk.audit('dossier5627_fiche_corrigee', {'matter': mid, 'section': section, 'revision': revision + 1})
+    return {'message': 'Correction enregistrée : elle reste affichée et exportée lors des prochaines mises à jour de la fiche.' if text else
+            'Correction retirée : la rédaction de l’agent est de nouveau affichée.', 'revision': revision + 1}
 
 
 # ------------------------------------------------------------------------------------------------ agent
@@ -359,8 +552,9 @@ def _date_fr(value):
     return ('%s/%s' % (m.group(2), m.group(1))) if m else value
 
 
-def _edit_block(section, label, text, rows=6):
-    return ('<form class="d27-edit" data-d27-section="%s" hidden><label><span>%s</span><textarea rows="%d" maxlength="20000">%s</textarea></label>'
+def _edit_block(section, label, text, rows=6, edits=None):
+    revision = ((edits or {}).get(section) or {}).get('revision', 0)
+    return ('<form class="d27-edit" data-d27-section="%s" data-d34-revision="' + str(int(revision)) + '" hidden><label><span>%s</span><textarea rows="%d" maxlength="20000">%s</textarea></label>'
             '<div class="d27-actions"><button class="ax-btn" type="submit">Enregistrer ma correction</button>'
             '<button class="ax-btn ghost" type="button" data-d27-cancel>Annuler</button></div></form>') % (e(section, quote=True), e(label), rows, e(text))
 
@@ -427,6 +621,31 @@ def header_html(desk, prefix, m, view, counts):
                                              (' <span class="d27-count">%d</span>' % n) if n else '') for key, label, n in tabs))
 
 
+def _proposal_box(desk, mid, section, edits, f, generated):
+    """B04 : la fiche a été régénérée APRÈS la correction et l'agent propose autre chose : les deux versions, leur origine, le choix."""
+    c = edits.get(section)
+    if not c or not f or f['version'] <= int(c.get('base_version') or 0) or not str(generated or '').strip():
+        return ''
+    if ' '.join(str(generated).split()) == ' '.join(str(c['text']).split()):
+        return ''
+    return ('<div class="d34-conflict" role="note"><p><strong>L’agent propose une autre rédaction</strong> (version %d, issue des pièces) ; '
+            'votre correction du %s reste affichée et exportée tant que vous ne choisissez pas.</p><details><summary>Voir la proposition de l’agent</summary>'
+            '<div class="d34-proposal">%s</div></details><div class="d27-actions"><button type="button" class="ax-btn ghost" data-d34-correction="garder" '
+            'data-section="%s">Garder ma correction</button><button type="button" class="ax-btn ghost" data-d34-correction="adopter" data-section="%s">'
+            'Adopter la proposition</button></div></div>') % (f['version'], _date_fr(str(c['at'])[:10]), e(generated).replace('\n', '<br>'), e(section, quote=True), e(section, quote=True))
+
+
+def _history_box(desk, mid, section):
+    rows = [r for r in correction_history(desk, mid, section) if r['status'] != 'active']
+    if not rows:
+        return ''
+    return ('<details class="d34-history"><summary>Historique des corrections (%d)</summary><ul>%s</ul></details>' % (len(rows), ''.join(
+        '<li><small>%s · %s · %s</small><p>%s</p><button type="button" class="ax-btn ghost" data-d34-correction="restaurer" data-section="%s" data-id="%d">'
+        'Restaurer</button></li>' % (e(_date_fr(str(r['at'])[:10])), e(r['author']), e({'remplacee': 'remplacée', 'retiree': 'retirée',
+                                                                                        'remplacee_par_agent': 'remplacée par la proposition de l’agent'}.get(r['status'], r['status'])),
+                                     e(r['text'][:400]), e(section, quote=True), r['id']) for r in rows[:10])))
+
+
 def fiche_html(desk, prefix, m):
     mid = m['id']
     f = latest(desk, mid)
@@ -436,15 +655,18 @@ def fiche_html(desk, prefix, m):
     if job:
         status = '<p class="d27-status" role="status" data-d27-waiting>⏳ L’agent prépare la fiche du dossier (lecture des pièces puis rédaction)… la page se mettra à jour.</p>'
     elif err and (not f or str(err.get('updated') or '') > str(f['created'])):
-        from .web440 import human
-        status = '<p class="d27-status bad" role="alert">La dernière préparation a échoué : %s</p>' % e(human(str(err.get('error') or 'erreur')))
+        from .erreurs5634 import explain
+        status = '<p class="d27-status bad" role="alert">La dernière préparation a échoué : %s La dernière fiche valable reste affichée.</p>' % e(explain(str(err.get('error') or 'erreur'), err.get('detail')))
     data = (f or {}).get('data') or {}
     sources = (f or {}).get('sources') or []
-    edits = (f or {}).get('edits') or {}
-    when = ('Préparée le %s · version %d · %d pièce(s) lue(s)' % (_date_fr(str(f['created'])[:10]), f['version'], data.get('pieces_lues', 0))) if f and data.get('pieces_lues') is not None else ''
+    ensure_schema(desk)
+    edits = corrections(desk, mid)   # 5.6.34 (B04) : couche de corrections, indépendante des versions de l'IA
+    from .synthese5632 import coverage_label
+    when = ('Préparée le %s · version %d · %s' % (_date_fr(str(f['created'])[:10]), f['version'], coverage_label(data.get('couverture') or {'representees': data.get('pieces_lues', 0), 'pieces': data.get('pieces_lues', 0)}))) if f and data.get('pieces_lues') is not None else ''
     # --- résumé
     if edits.get('resume'):
         resume = '<p>%s</p><p class="d27-note">Corrigé par vous le %s.</p>' % (e(edits['resume']['text']).replace('\n', '<br>'), _date_fr(str(edits['resume']['at'])[:10]))
+        resume += _proposal_box(desk, mid, 'resume', edits, f, data.get('resume', ''))
     elif data.get('resume'):
         resume = '<p>%s</p>' % e(data['resume'])
     else:
@@ -452,18 +674,19 @@ def fiche_html(desk, prefix, m):
                   'décisions, contrats…) et rédige un résumé, le rappel des faits, les parties et la chronologie, avec les pièces citées.</p>'
                   '<button type="button" class="ax-btn" data-d27-prepare>Préparer la fiche du dossier</button></div>')
     resume_text = (edits.get('resume') or {}).get('text') or data.get('resume', '')
-    main = _card('De quoi s’agit-il ?', status + resume + _edit_block('resume', 'Résumé du dossier', resume_text, 5),
+    main = _card('De quoi s’agit-il ?', status + resume + _history_box(desk, mid, 'resume') + _edit_block('resume', 'Résumé du dossier', resume_text, 5, edits),
                  ('<span class="d27-muted">%s</span>' % e(when) if when else '') + _edit_button('resume'), 'd27-summary')
     # --- rappel des faits
     if edits.get('faits'):
         faits = ''.join('<p>%s</p>' % e(p) for p in re.split(r'\n\s*\n', edits['faits']['text']) if p.strip()) + '<p class="d27-note">Rappel corrigé par vous.</p>'
+        faits += _proposal_box(desk, mid, 'faits', edits, f, '\n\n'.join(p['texte'] for p in data.get('rappel_des_faits') or []))
         faits_text = edits['faits']['text']
     elif data.get('rappel_des_faits'):
         faits = ''.join('<p>%s %s</p>' % (e(p['texte']), _refs(prefix, mid, p['source_ids'], sources)) for p in data['rappel_des_faits'])
         faits_text = '\n\n'.join(p['texte'] for p in data['rappel_des_faits'])
     else:
         faits, faits_text = '<p class="d27-muted">Le rappel des faits apparaîtra ici une fois la fiche préparée.</p>', ''
-    main += _card('Rappel des faits', faits + _edit_block('faits', 'Rappel des faits (un paragraphe par bloc, séparés par une ligne vide)', faits_text, 14),
+    main += _card('Rappel des faits', faits + _history_box(desk, mid, 'faits') + _edit_block('faits', 'Rappel des faits (un paragraphe par bloc, séparés par une ligne vide)', faits_text, 14, edits),
                   _edit_button('faits'))
     # --- chronologie
     events = data.get('chronologie') or []
@@ -473,6 +696,10 @@ def fiche_html(desk, prefix, m):
     else:
         chrono = '<p class="d27-muted">Les événements déterminants du dossier (actes, audiences, décisions) apparaîtront ici.</p>'
     main += _card('Chronologie clé', chrono, _a(prefix, '/chronologie?' + urlencode({'matter': mid}), 'Chronologie complète', 'd27-link'))
+    if data.get('a_verifier'):   # 5.6.34 (B10) : affirmations sans source valide, dates impossibles — jamais présentées comme documentées
+        main += _card('À vérifier (non confirmé par une pièce)', '<p class="d27-muted">Ces éléments proposés par l’agent ne sont rattachés à aucune pièce '
+                      'valable ou portent une date douteuse : ils ne figurent ni dans le rappel des faits ni dans la chronologie.</p><ul class="d27-check">%s</ul>' % ''.join(
+            '<li>%s <span class="d27-badge bad">%s</span></li>' % (e(x['texte']), e(x['cause'])) for x in data['a_verifier']))
     if data.get('enjeux') or data.get('points_a_verifier'):
         body = ''
         if data.get('enjeux'):
@@ -523,7 +750,17 @@ def fiche_html(desk, prefix, m):
                       '<ul class="d27-stuck">%s</ul>' % (FAILURES, ''.join(
                           '<li><strong>%s</strong><br><span class="d27-muted">%s</span> <button type="button" class="ax-btn ghost" data-d27-reset="%s">Réautoriser</button></li>' % (
                               e(JOB_LABELS.get(s['kind'], s['kind'])), e(human(s['error']) if s['error'] else 'échec'), e(s['kind'], quote=True)) for s in stuck)))
-    side += _card('Parties', parties + _edit_block('parties', 'Une partie par ligne : nom — qualité — conseil', parties_text, 6), _edit_button('parties'))
+    if parties_edit:
+        parties += _proposal_box(desk, mid, 'parties', edits, f, '\n'.join(p['nom'] for p in data.get('parties') or []))
+    if data.get('rapprochements') and not parties_edit:   # 5.6.34 (B09) : rapprochement proposé, jamais décidé d'office
+        decided = {(r['a'], r['b']) for r in desk.db.execute('SELECT a,b FROM party_links5634 WHERE matter=?', (mid,))}
+        todo = [r for r in data['rapprochements'] if (r['a'], r['b']) not in decided]
+        if todo:
+            parties += '<div class="d34-merge"><p class="d27-muted">Rapprochements à confirmer :</p><ul>%s</ul></div>' % ''.join(
+                '<li>%s / %s <small>(%s)</small><br><button type="button" class="ax-btn ghost" data-d34-merge="meme_partie" data-a="%s" data-b="%s">Même partie</button>'
+                '<button type="button" class="ax-btn ghost" data-d34-merge="distinctes" data-a="%s" data-b="%s">Parties distinctes</button></li>' % (
+                    e(r['a']), e(r['b']), e(r['motif']), e(r['a'], quote=True), e(r['b'], quote=True), e(r['a'], quote=True), e(r['b'], quote=True)) for r in todo)
+    side += _card('Parties', parties + _history_box(desk, mid, 'parties') + _edit_block('parties', 'Une partie par ligne : nom — qualité — conseil', parties_text, 6, edits), _edit_button('parties'))
     proc = data.get('procedure') or {}
     nd = _next_deadline(desk, mid)
     rows = [(label, proc.get(key)) for key, label in (('juridiction', 'Juridiction'), ('numero_rg', 'N° RG'), ('stade', 'Stade'), ('prochaine_etape', 'Prochaine étape'))]
@@ -568,7 +805,11 @@ def pieces_html(desk, prefix, m):
     return _card('Pièces du dossier (%d)' % len(docs), (
         '<input type="search" class="d27-filter" data-d27-filter="#d27-pieces" placeholder="Filtrer par nom" aria-label="Filtrer les pièces">'
         '<ul class="d27-list" id="d27-pieces">%s</ul>') % (rows or '<li class="d27-muted">Aucune pièce indexée : cliquez sur « Mettre à jour la fiche ».</li>'),
-        _a(prefix, '/documents?' + urlencode({'matter': m['id']}), 'Gérer les documents', 'd27-link'))
+        _a(prefix, '/documents?' + urlencode({'matter': m['id']}), 'Gérer les documents', 'd27-link')) + (
+        '<section class="d27-card"><div class="d27-card-head"><h2>Registre et écritures</h2></div><p class="d27-muted">Commandes du dossier '
+        '(anciennement dans Recherche juridique).</p><div class="d27-actions"><button type="button" class="ax-btn ghost" data-m34-post="pieces/ecritures" '
+        'data-matter="%s">Identifier les dernières écritures</button><button type="button" class="ax-btn ghost" data-m34-post="pieces/registre" data-matter="%s">'
+        'Actualiser le registre des pièces</button></div><p role="status" class="m34-status"></p></section>') % (e(m['id'], quote=True), e(m['id'], quote=True))
 
 
 STATE_LABELS = {'draft_ready': 'Brouillon prêt à relire', 'done': 'Traité', 'ignored': 'Ignoré', 'needs_decision': 'Décision à prendre', 'error': 'Erreur',
@@ -634,9 +875,22 @@ def api(env, desk, auth, prefix, name, args, method):
         if route == 'fil':
             html, waiting = thread_html(desk, prefix, _matter(desk, mid)['id'], int(args.get('n') or 8) if str(args.get('n') or '8').isdigit() else 8)
             return json_out({'html': html, 'waiting': waiting})
-        if route == 'etat':
+        if route == 'etat':   # 5.6.34 (B08) : état explicite du travail suivi (job_id, étape, échec qualifié)
             f = latest(desk, _matter(desk, mid)['id'])
-            return json_out({'pending': bool(pending(desk, mid)), 'version': f['version'] if f else 0})
+            job = pending(desk, mid)
+            out = {'pending': bool(job), 'version': f['version'] if f else 0, 'state': 'running' if job and job['status'] == 'running' else ('pending' if job else '')}
+            if job:
+                row = desk.db.execute('SELECT progress FROM jobs WHERE id=?', (job['id'],)).fetchone()
+                out.update(job_id=job['id'], step=str((row['progress'] if row else '') or ''))
+            else:
+                row = desk.db.execute("SELECT id,status,result FROM jobs WHERE kind=? AND json_extract(args,'$.matter')=? ORDER BY id DESC LIMIT 1", (JOB, mid)).fetchone()
+                if row:
+                    res = json.loads(row['result'] or '{}') or {}
+                    out.update(job_id=row['id'], state={'done': 'succeeded', 'error': 'failed', 'cancelled': 'cancelled'}.get(row['status'], row['status']))
+                    if row['status'] == 'error':
+                        from .erreurs5634 import explain
+                        out['message'] = explain(res.get('erreur', 'erreur'), res.get('detail'))
+            return json_out(out)
         raise Stop('route_inconnue')
     if method != 'POST':
         raise Stop('methode_refusee')
@@ -645,7 +899,17 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'fiche/preparer':
         return json_out(request(desk, mid))
     if route == 'fiche/corriger':
-        return json_out(save_edit(desk, _matter(desk, mid)['id'], str(data.get('section') or ''), data.get('text', ''), owner))
+        return json_out(save_edit(desk, _matter(desk, mid)['id'], str(data.get('section') or ''), data.get('text', ''), owner, base=data.get('revision')))
+    if route == 'fiche/correction':   # 5.6.34 (B04) : garder, adopter la proposition, restaurer
+        return json_out(correction_action(desk, _matter(desk, mid)['id'], str(data.get('section') or ''), str(data.get('action') or ''), owner, data.get('id')))
+    if route == 'fiche/rapprocher':   # 5.6.34 (B09) : rapprochement de deux parties, seulement après confirmation de l'avocat
+        ensure_schema(desk)
+        a, b, decision = str(data.get('a') or '')[:200], str(data.get('b') or '')[:200], str(data.get('decision') or '')
+        if not a or not b or decision not in ('meme_partie', 'distinctes'):
+            raise Stop('rapprochement_invalide')
+        desk.db.execute('INSERT OR REPLACE INTO party_links5634 VALUES(?,?,?,?,?,?)', (_matter(desk, mid)['id'], a, b, decision, owner, desk.now()))
+        desk.db.commit()
+        return json_out({'message': 'Rapprochement confirmé : une seule partie.' if decision == 'meme_partie' else 'Deux parties distinctes conservées.'})
     if route == 'pause':   # 5.6.29
         from .pause5629 import set_pause
         return json_out(set_pause(desk, _matter(desk, mid)['id'], str(data.get('on')) in ('1', 'true', 'True'), owner))

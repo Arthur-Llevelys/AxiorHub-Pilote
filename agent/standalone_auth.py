@@ -31,7 +31,7 @@ from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles', '/guide-installation')
-ADMIN_API = ('settings/', 'send/settings', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
+ADMIN_API = ('m5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
              'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme', 'm5631/guide/', 'm5632/admin/')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
@@ -40,7 +40,7 @@ ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_
                  'set_automation_level370', 'save_ecosystem_service380', 'register_lawve_extension', 'test_openrouter393',
                  'save_cabinet_profile', 'save_workspace_mapping'}
 # Ce qu'un(e) assistant(e) peut faire en écriture ; tout autre envoi de formulaire lui est refusé.
-ASSISTANT_API = ('m530/ask', 'm530/task', 'm530/event/', 'm5625/agenda/', 'm530/routine', 'm530/stop', 'm530/clear', 'm510/scan', 'm510/table', 'm510/check', 'm510/plan', 'm510/case', 'm520/check/')
+ASSISTANT_API = ('m530/ask', 'm530/task', 'm530/event/', 'm5625/agenda/', 'm5634/agenda/', 'm530/routine', 'm530/stop', 'm530/clear', 'm510/scan', 'm510/table', 'm510/check', 'm510/plan', 'm510/case', 'm520/check/')
 ASSISTANT_ACTIONS = {'create_agenda_event', 'edit_agenda_event', 'update_work_task', 'edit_work_task', 'schedule_work_task', 'confirm_task',
                      'create_local_task', 'sync_caldav_tasks', 'assistant_ask', 'edit_personal_event', 'edit_personal_task'}
 ASSISTANT_PATHS = ('/assistant/attachment',)

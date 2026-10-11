@@ -1,14 +1,14 @@
 {
- "_": "AxiorHub 5.6.32 — fiches du guide d’utilisation (en) ; identifiants = registre fonctions5631 ; exemples fictifs",
+ "_": "AxiorHub 5.6.34 — fiches du guide d’utilisation (en) ; identifiants = registre fonctions5631 ; exemples fictifs",
  "aujourdhui": {
   "objective": "See on one screen what needs your attention today and run the firm’s routines.",
   "when": "Every morning, or after an absence, to know what to handle first.",
   "prerequisites": "None: the panels fill in as connections are set up.",
   "steps": [
    "Open Today in the menu.",
-   "In “Routines du cabinet”, click “Briefing du matin” or “Tri des courriels”, then “Générer maintenant”.",
-   "Listen to the summary with “Écouter le briefing” if voice is enabled.",
-   "Use “Pause des automatismes” to suspend automatic processing."
+   "In “Firm routines”, click “Morning briefing” or “Email triage”, then “Generate now”.",
+   "Listen to the summary with “Listen to the briefing” if voice is enabled.",
+   "Use “Pause automations” to suspend automatic processing."
   ],
   "result": "A dated briefing and the list of prepared work, to review before any action.",
   "verify": "The routine panel shows the time of the last generation.",
@@ -19,7 +19,7 @@
    ],
    [
     "Nothing updates",
-    "Automations may be paused: restart them with “Pause des automatismes”."
+    "Automations may be paused: restart them with “Pause automations”."
    ]
   ],
   "example": "Monday briefing: two fictitious hearings (DEMO-A, DEMO-B) and three emails to review.",
@@ -30,7 +30,7 @@
    "Pause des automatismes",
    "Écouter le briefing"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "dossiers": {
   "objective": "Find a case, open its file and link the cases present in your files.",
@@ -38,8 +38,8 @@
   "prerequisites": "A document space set up (local folder or Nextcloud).",
   "steps": [
    "Open Cases.",
-   "Type a name or reference, then click “Rechercher”.",
-   "For a matter missing from the list, give its folder then “Vérifier et enregistrer le dossier”.",
+   "Type a name or reference, then click “Search”.",
+   "For a matter missing from the list, give its folder then “Check and save the case”.",
    "Open the case to see its file, parties and timeline."
   ],
   "result": "The case appears in the portfolio with its working file.",
@@ -51,7 +51,7 @@
    ],
    [
     "Empty list",
-    "Run “Indexer progressivement tous les dossiers enregistrés”."
+    "Run “Progressively index all saved cases”."
    ]
   ],
   "example": "Case DEMO-A — SAS Example v. Test Company, reference 2026-001.",
@@ -61,7 +61,7 @@
    "Lire ce répertoire dans Nextcloud",
    "Indexer progressivement tous les dossiers enregistrés"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "courriels": {
   "objective": "Read the inbox, review prepared drafts and reply, forward or file.",
@@ -71,7 +71,7 @@
    "Open Emails; the Inbox tab lists the messages.",
    "Click a message to display it, then choose Reply, Reply all or Forward.",
    "For a prepared draft, review and correct it before any sending.",
-   "Use “Rechercher” to find an exchange and “Actualiser” to reload the list."
+   "Use “Search” to find an exchange and “Refresh” to reload the list."
   ],
   "result": "A draft placed in your Drafts folder; nothing is sent without your confirmation.",
   "verify": "The draft is visible in the Drafts folder of your usual email client.",
@@ -90,7 +90,7 @@
    "Actualiser",
    "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "planning": {
   "objective": "See the events of your authorised calendars and add one.",
@@ -98,9 +98,9 @@
   "prerequisites": "An authorised calendar (CalDAV or Google) for writing; read-only is enough to view.",
   "steps": [
    "Open Calendar and tasks.",
-   "Open “＋ Ajouter un événement” and enter date, time and title.",
-   "Click “Ajouter à l’agenda”.",
-   "Set your reminders then “Enregistrer les rappels”."
+   "Open “＋ Add an event” and enter date, time and title.",
+   "Click “Add to calendar”.",
+   "Set your reminders then “Save the reminders”."
   ],
   "result": "The event appears in the list and in the chosen calendar.",
   "verify": "Open your usual calendar: the event is there at the same time.",
@@ -119,7 +119,7 @@
    "Ajouter à l’agenda",
    "Enregistrer les rappels"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "taches": {
   "objective": "Follow your tasks and add one.",
@@ -127,9 +127,9 @@
   "prerequisites": "None; Nextcloud synchronisation is optional.",
   "steps": [
    "Open Calendar and tasks, then the Tasks view.",
-   "Use “Filtrer” to show one case or overdue tasks only.",
-   "In “Ajouter une tâche”, enter the title and due date then “Ajouter la tâche”.",
-   "With Nextcloud, “↻ Actualiser depuis Nextcloud” reloads the list."
+   "Use “Filter” to show one case or overdue tasks only.",
+   "In “Add a task”, enter the title and due date then “Add the task”.",
+   "With Nextcloud, “↻ Refresh from Nextcloud” reloads the list."
   ],
   "result": "The task appears in the list, grouped by due date.",
   "verify": "The task remains visible after reloading the page.",
@@ -145,7 +145,7 @@
    "Filtrer",
    "↻ Actualiser depuis Nextcloud"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "production": {
   "objective": "See what AxiorHub actually produced and start a production.",
@@ -154,8 +154,8 @@
   "steps": [
    "Open Produce.",
    "Browse the sections (letters, pleadings, hearings, exhibits, invoicing).",
-   "Click “Lancer la production” to start.",
-   "Resume a workflow in progress with “Continuer les playbooks”."
+   "Click “Start production” to start.",
+   "Resume a workflow in progress with “Continue the playbooks”."
   ],
   "result": "The deliverable appears in its section with its check status.",
   "verify": "Each deliverable shows its date and the checks performed.",
@@ -170,7 +170,7 @@
    "Lancer la production",
    "Continuer les playbooks"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "documents": {
   "objective": "Ask the agent for a document and open recent files.",
@@ -178,12 +178,12 @@
   "prerequisites": "A document space and AI set up.",
   "steps": [
    "Open Documents.",
-   "In “Demander un document à l’agent”, describe the document and choose the case.",
-   "Click “Préparer le document”.",
-   "Open the result with “Afficher” and review it."
+   "In “Ask the agent for a document”, describe the document and choose the case.",
+   "Click “Prepare the document”.",
+   "Open the result with “Show” and review it."
   ],
   "result": "A draft document in the chosen case, never sent automatically.",
-  "verify": "The file appears under “Modifiés récemment ici”.",
+  "verify": "The file appears under “Recently changed here”.",
   "errors": [
    [
     "Document not created",
@@ -195,7 +195,7 @@
    "Préparer le document",
    "Afficher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "echeances": {
   "objective": "Calculate, simulate and record procedural deadlines.",
@@ -203,12 +203,12 @@
   "prerequisites": "A calendar authorised for writing to record it.",
   "steps": [
    "Open Deadlines.",
-   "In “Ajouter ou simuler une échéance”, enter the event and the start date.",
-   "Click “Calculer” and check the rule applied.",
-   "Click “Enregistrer et inscrire à l’agenda” if the calculation suits you."
+   "In “Add or simulate a deadline”, enter the event and the start date.",
+   "Click “Calculate” and check the rule applied.",
+   "Click “Save and record in the calendar” if the calculation suits you."
   ],
   "result": "A calculated deadline, with its legal basis, recorded in the calendar if you choose.",
-  "verify": "“Vérifier l’agenda maintenant” confirms the event is present.",
+  "verify": "“Check the calendar now” confirms the event is present.",
   "errors": [
    [
     "Uncertain calculation",
@@ -221,56 +221,56 @@
    "Enregistrer et inscrire à l’agenda",
    "Vérifier l’agenda maintenant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "audience": {
-  "objective": "Prepare a case’s hearing sheet.",
+  "objective": "View a case’s hearing sheet, without a new AI call.",
   "when": "A few days before a hearing.",
-  "prerequisites": "The case and its exhibits accessible.",
+  "prerequisites": "The case and its indexed documents; the hearing entered in the Calendar.",
   "steps": [
-   "Open Hearing sheet.",
+   "Open Hearings.",
+   "Type the name, reference, client, a party or the docket number, then click “Search”.",
    "Choose the case.",
-   "Click “Afficher la fiche”.",
-   "Review the expected exhibits, the oral argument notes and the likely questions."
+   "Review the identified pleadings, the expected exhibits and the likely questions."
   ],
-  "result": "A hearing sheet to review, with its sources.",
-  "verify": "Each item of the sheet refers to an exhibit of the case.",
+  "result": "A sheet to review; unavailable items are flagged, no hearing is ever invented.",
+  "verify": "The date of the index used is shown at the top of the sheet.",
   "errors": [
    [
-    "Incomplete sheet",
-    "The latest pleadings were not found: place them in the case."
+    "No hearing",
+    "Add the hearing in the Calendar: the sheet never invents one."
    ]
   ],
-  "example": "Fictitious sheet for the DEMO-A hearing on 24 November 2026.",
+  "example": "Fictitious sheet for hearing DEMO-A on 24 November 2026.",
   "buttons": [
-   "Afficher la fiche"
+   "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "audiences_word": {
-  "objective": "Prepare an oral argument from the latest pleadings and analyse a Word document.",
-  "when": "To compare claims or review a DOCX without changing it.",
-  "prerequisites": "The case and AI set up.",
+  "objective": "Prepare an oral argument from our pleadings and the opponents’.",
+  "when": "Before a hearing, once the latest pleadings have arrived.",
+  "prerequisites": "The case and the AI configured.",
   "steps": [
-   "Open Hearings and Word.",
-   "Choose the case.",
-   "Click “Analyser et préparer la plaidoirie”.",
-   "For a Word file, use “Analyser le DOCX sans le modifier”."
+   "Open Hearings, Prepare tab.",
+   "Search for the case, then click “Search”.",
+   "State the objective and speaking time.",
+   "Tick our latest pleadings and one or more opposing pleadings; if they are not in the matter, upload them (DOCX or PDF).",
+   "Start “Prepare the oral argument”."
   ],
-  "result": "An outline of the oral argument or an analysis of the document, the original remaining intact.",
-  "verify": "The original file keeps its modification date.",
+  "result": "An argument plan, replies to arguments and exhibits to bring, to review. Word revision is in Produce › Revise.",
+  "verify": "Each argument refers to the pleadings and exhibits used.",
   "errors": [
    [
-    "No pleadings identified",
-    "Check the name and location of the pleadings in the case."
+    "Provisional analysis",
+    "Without opposing pleadings, the preparation says so; add them as soon as received."
    ]
   ],
-  "example": "Fictitious outline comparing the claims of DEMO-A and the opposing party.",
+  "example": "Fictitious preparation for hearing DEMO-A.",
   "buttons": [
-   "Analyser et préparer la plaidoirie",
-   "Analyser le DOCX sans le modifier"
+   "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "missions_complexes": {
   "objective": "Delegate the preparation of a summons or pleadings in checked sub-tasks.",
@@ -278,8 +278,8 @@
   "prerequisites": "Document space and AI set up; a firm Word template is recommended.",
   "steps": [
    "Open Complex assignments.",
-   "Open “Lancer une mission (assignation ou conclusions)” and choose the case.",
-   "Click “Créer la mission”.",
+   "Open “Start an assignment (summons or pleadings)” and choose the case.",
+   "Click “Create the assignment”.",
    "Follow the sub-tasks and answer the decisions requested."
   ],
   "result": "A checked draft, with its sources and the points to verify.",
@@ -294,7 +294,7 @@
   "buttons": [
    "Créer la mission"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "pieces": {
   "objective": "Prepare an exhibit list with numbered and stamped exhibits.",
@@ -302,8 +302,8 @@
   "prerequisites": "The PDF exhibits in the case; an exhibit list template is optional.",
   "steps": [
    "Open Exhibits and exhibit lists.",
-   "Fill in your profile and stamp then “Enregistrer le profil”.",
-   "In “Préparer un bordereau”, choose the case then “Analyser les PDF du dossier”.",
+   "Fill in your profile and stamp then “Save the profile”.",
+   "In “Prepare an exhibit list”, choose the case then “Analyse the case PDFs”.",
    "Check titles and numbers, preview all pages then confirm."
   ],
   "result": "A new version of the exhibit list and stamped exhibits. Creating the file is not communication to a party.",
@@ -319,7 +319,7 @@
    "Analyser les PDF du dossier",
    "Enregistrer le profil"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "profils": {
   "objective": "Approve the procedural profiles used to suggest steps and deadlines.",
@@ -327,12 +327,12 @@
   "prerequisites": "None.",
   "steps": [
    "Open Procedural profiles.",
-   "Open a profile (for example “Tribunal judiciaire au fond”).",
+   "Open a profile (for example “Judicial court on the merits”).",
    "Review its steps and sources.",
-   "Click “Approuver” if the profile suits you."
+   "Click “Approve” if the profile suits you."
   ],
   "result": "The profile becomes usable, with the date of your approval.",
-  "verify": "The profile is no longer marked “non approuvé”.",
+  "verify": "The profile is no longer marked “not approved”.",
   "errors": [
    [
     "Unsuitable profile",
@@ -343,7 +343,7 @@
   "buttons": [
    "Approuver"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "strategie": {
   "objective": "Work on a case’s strategy in a dedicated space.",
@@ -352,7 +352,7 @@
   "steps": [
    "Open Strategy.",
    "Choose the case.",
-   "Click “Ouvrir”.",
+   "Click “Open”.",
    "Note and compare the options."
   ],
   "result": "A strategy space specific to the case.",
@@ -367,7 +367,7 @@
   "buttons": [
    "Ouvrir"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "studio": {
   "objective": "Choose a deliverable and prepare it with checks, from a single screen.",
@@ -375,9 +375,9 @@
   "prerequisites": "AI set up; a firm Word template is recommended.",
   "steps": [
    "Open Production studio.",
-   "Choose a deliverable, for example “Courrier Word” or “Conclusions”.",
+   "Choose a deliverable, for example “Word letter” or “Pleadings”.",
    "Enter the case and the instruction.",
-   "Click “Préparer et contrôler”."
+   "Click “Prepare and check”."
   ],
   "result": "A checked draft in the case.",
   "verify": "The draft shows the checks passed and the points to verify.",
@@ -393,7 +393,7 @@
    "Courrier Word",
    "Conclusions"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "playbooks": {
   "objective": "Follow a guided workflow for a frequent task.",
@@ -402,22 +402,22 @@
   "steps": [
    "Open Guided workflows.",
    "Choose the suitable workflow.",
-   "Click “Démarrer ce parcours”.",
+   "Click “Start this journey”.",
    "Follow the suggested steps."
   ],
-  "result": "A workflow saved under “Parcours récents”.",
+  "result": "A workflow saved under “Recent journeys”.",
   "verify": "Each step shows its status.",
   "errors": [
    [
     "Workflow interrupted",
-    "Resume it from “Parcours récents”."
+    "Resume it from “Recent journeys”."
    ]
   ],
   "example": "Fictitious analysis of opposing pleadings for DEMO-A.",
   "buttons": [
    "Démarrer ce parcours"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "recherche": {
   "objective": "Find an email, file, event or note in the firm.",
@@ -427,46 +427,46 @@
    "Open Search the firm.",
    "Type your search (words, name, date).",
    "Filter by case or period if needed.",
-   "Click “Rechercher”."
+   "Click “Search”."
   ],
   "result": "The list of items found, ranked by relevance.",
   "verify": "Open a result to check its content.",
   "errors": [
    [
     "No results",
-    "The index may not be up to date: see “État de l’index”."
+    "The index may not be up to date: see “Index status”."
    ]
   ],
   "example": "Fictitious search: “penalty clause DEMO-A”.",
   "buttons": [
    "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "recherche_juridique": {
-  "objective": "Search texts and decisions without sending client data.",
-  "when": "To find the basis of an argument.",
-  "prerequisites": "A legal source set up for external searches.",
+  "objective": "Search texts and decisions, with or without a case, without sending client data.",
+  "when": "To find the basis of an argument or answer a general question.",
+  "prerequisites": "An active legal source (Settings › Legal sources).",
   "steps": [
    "Open Legal research.",
-   "Phrase the legal question without names or identifying data.",
-   "Click “Rechercher sans données client”.",
-   "Check the references before using them."
+   "Optional: choose the case.",
+   "Enter the question, field, territory and date of application.",
+   "Choose the sources, then click “Search”.",
+   "Open the official source before citing anything."
   ],
-  "result": "Leads to texts and decisions with their source.",
-  "verify": "Each reference can be opened and checked.",
+  "result": "Result cards: decisions verified on the official source and leads to check.",
+  "verify": "A failing source is named; the other sources’ results remain displayed.",
   "errors": [
    [
-    "Source unavailable",
-    "Check the connection in Legal sources."
+    "No active source",
+    "Configure and test a legal source."
    ]
   ],
   "example": "Fictitious question: limitation period for a warranty claim.",
   "buttons": [
-   "Rechercher sans données client",
-   "Identifier les dernières conclusions"
+   "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "verification": {
   "objective": "Check legal citations and mandatory statements, and run an adversarial review.",
@@ -475,11 +475,11 @@
   "steps": [
    "Open Verify.",
    "Choose the document.",
-   "Click “Vérifier les citations”, “Contrôler les mentions” or “Relecture contradictoire”.",
+   "Click “Check citations”, “Check the mandatory statements” or “Adversarial review”.",
    "Handle each flagged point."
   ],
   "result": "A list of points to correct or verify, with their source.",
-  "verify": "An unchecked reference stays marked “À vérifier”.",
+  "verify": "An unchecked reference stays marked “To verify”.",
   "errors": [
    [
     "Citation not found",
@@ -492,7 +492,7 @@
    "Contrôler les mentions",
    "Relecture contradictoire"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "sources": {
   "objective": "Check the status of legal sources and set their use.",
@@ -500,8 +500,8 @@
   "prerequisites": "None.",
   "steps": [
    "Open Legal sources.",
-   "Set the sources then “Enregistrer”.",
-   "Click “Tester les sources”.",
+   "Set the sources then “Save”.",
+   "Click “Test the sources”.",
    "Look at the outgoing request log."
   ],
   "result": "The status of each source and the log of the last 30 requests.",
@@ -517,16 +517,16 @@
    "Tester les sources",
    "Enregistrer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "veille": {
   "objective": "Receive a scheduled, dated and sourced legal watch on your topics.",
-  "when": "Every morning or on chosen days; on demand with “Actualiser”.",
+  "when": "Every morning or on chosen days; on demand with “Refresh”.",
   "prerequisites": "Watch topics (Settings › Watch and Internet search); optional: enabled legal source, Tavily key.",
   "steps": [
    "Open Settings › Watch and Internet search and enter your topics.",
    "Choose the official feeds and the frequency, then save.",
-   "Open Legal watch and click “Actualiser”.",
+   "Open Legal watch and click “Refresh”.",
    "Read each item and open its source.",
    "Mark it “Lu”, “Conserver” or “Masquer”."
   ],
@@ -546,32 +546,32 @@
   "buttons": [
    "Actualiser"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "surveillance": {
-  "objective": "Monitor cases and recalculate the priority table.",
-  "when": "To spot cases requiring action.",
-  "prerequisites": "Document space set up.",
+  "objective": "Find the changes and points that need your attention (Firm alerts).",
+  "when": "Every day, or after new documents arrive.",
+  "prerequisites": "Monitored cases.",
   "steps": [
-   "Open Monitoring.",
-   "Click “🔭 Surveiller tous les dossiers”.",
-   "Click “🧭 Recalculer le tableau”.",
-   "Open the flagged cases."
+   "Open Firm alerts.",
+   "Open the case or deadline concerned.",
+   "Then “Mark as read”, “Remind me tomorrow” or “Mark as handled”.",
+   "To rerun the analysis, click “Refresh the alerts of all cases” or “Recalculate priorities”."
   ],
-  "result": "A table of cases to watch.",
-  "verify": "The table shows the date of the last calculation.",
+  "result": "Alerts sorted by urgency; actions change neither the calendar nor any deadline.",
+  "verify": "Each change of state shows who made it and when; “Undo the last action” undoes it.",
   "errors": [
    [
-    "Empty table",
-    "First register your cases."
+    "Alert reopened",
+    "Its content changed significantly: read it again."
    ]
   ],
-  "example": "Fictitious case DEMO-B flagged: deadline approaching.",
+  "example": "Fictitious alert: new document filed in case DEMO-A.",
   "buttons": [
-   "🔭 Surveiller tous les dossiers",
-   "🧭 Recalculer le tableau"
+   "Actualiser les alertes de tous les dossiers",
+   "Recalculer les priorités"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "engagements": {
   "objective": "Follow promises made in exchanges and the prepared follow-ups.",
@@ -579,8 +579,8 @@
   "prerequisites": "Email set up.",
   "steps": [
    "Open Commitments and follow-ups.",
-   "Look at “Engagements à suivre”.",
-   "Click “Vérifier les envois”.",
+   "Look at “Commitments to track”.",
+   "Click “Check the sendings”.",
    "Review the prepared follow-ups."
   ],
   "result": "The list of commitments with their source.",
@@ -595,7 +595,7 @@
   "buttons": [
    "Vérifier les envois"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "accueil_administratif": {
   "objective": "Receive and handle incoming administrative calls and messages.",
@@ -617,7 +617,7 @@
   ],
   "example": "Fictitious appointment request received by phone.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "contacts": {
   "objective": "Manage the firm’s correspondents and their role in each case.",
@@ -625,16 +625,16 @@
   "prerequisites": "None.",
   "steps": [
    "Open Contacts.",
-   "Use “Filtrer” to find a correspondent.",
-   "Link them to a case then “Enregistrer l’association”.",
-   "Correct their role then “Enregistrer le rôle”."
+   "Use “Filter” to find a correspondent.",
+   "Link them to a case then “Save the link”.",
+   "Correct their role then “Save the role”."
   ],
   "result": "The correspondent is linked to the case with their role.",
   "verify": "The case file mentions this correspondent.",
   "errors": [
    [
     "Wrong role",
-    "Correct it in “Corriger le rôle ou retirer”."
+    "Correct it in “Correct the role or remove”."
    ]
   ],
   "example": "Fictitious contact: opposing counsel in DEMO-A.",
@@ -643,7 +643,7 @@
    "Enregistrer l’association",
    "Enregistrer le rôle"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "associations": {
   "objective": "Link email addresses to cases.",
@@ -651,7 +651,7 @@
   "prerequisites": "Email set up.",
   "steps": [
    "Open Suggested associations.",
-   "Click “✨ Rechercher et regrouper automatiquement”.",
+   "Click “✨ Search and group automatically”.",
    "Confirm the suggested associations.",
    "Link an address directly if needed."
   ],
@@ -667,7 +667,7 @@
   "buttons": [
    "✨ Rechercher et regrouper automatiquement"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "orchestrateur": {
   "objective": "Match emails with cases and prepare draft notices.",
@@ -675,12 +675,12 @@
   "prerequisites": "Email set up.",
   "steps": [
    "Open Orchestrator and notices.",
-   "Click “↻ Analyser les nouveaux courriels”.",
-   "Prepare a notice with “Préparer sans action externe”.",
+   "Click “↻ Analyse new emails”.",
+   "Prepare a notice with “Prepare without external action”.",
    "Review the recent draft notices."
   ],
   "result": "Draft notices to review; no external action.",
-  "verify": "Drafts appear under “Projets d’avis récents”.",
+  "verify": "Drafts appear under “Recent draft notices”.",
   "errors": [
    [
     "Email not matched",
@@ -692,7 +692,7 @@
    "↻ Analyser les nouveaux courriels",
    "Préparer sans action externe"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "missions": {
   "objective": "Give the agent an assignment and follow its progress.",
@@ -701,7 +701,7 @@
   "steps": [
    "Open Assignments.",
    "Describe the assignment.",
-   "Click “Confier une mission”.",
+   "Click “Give an assignment”.",
    "Follow its status and answer the questions asked."
   ],
   "result": "A tracked assignment, with results to review.",
@@ -716,7 +716,7 @@
   "buttons": [
    "Confier une mission"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "assistant": {
   "objective": "Talk with the assistant about the firm and its cases.",
@@ -725,7 +725,7 @@
   "steps": [
    "Open Assistant.",
    "Type your question.",
-   "Click “Envoyer à l’assistant”.",
+   "Click “Send to the assistant”.",
    "Find the exchange in the history."
   ],
   "result": "An answer with its sources when possible.",
@@ -740,7 +740,7 @@
   "buttons": [
    "Envoyer à l’assistant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "cabinet": {
   "objective": "Access firm management: time, appointments, conflicts, limitation, reporting.",
@@ -761,7 +761,7 @@
   ],
   "example": "Fictitious look at this month’s reporting.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "honoraires": {
   "objective": "Approve time spent and estimate work done.",
@@ -770,8 +770,8 @@
   "steps": [
    "Open Time and fees.",
    "Review the time entries to approve.",
-   "Click “Estimer à partir des courriels, pièces et rendez-vous”.",
-   "Adjust the rate scale then “Enregistrer le barème”."
+   "Click “Estimate from emails, exhibits and meetings”.",
+   "Adjust the rate scale then “Save the scale”."
   ],
   "result": "Approved time entries per case.",
   "verify": "The total per case is updated.",
@@ -786,7 +786,7 @@
    "Estimer à partir des courriels, pièces et rendez-vous",
    "Enregistrer le barème"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "rendez_vous": {
   "objective": "Prepare appointments and their minutes.",
@@ -807,7 +807,7 @@
   ],
   "example": "Fictitious meeting with the DEMO-B client.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "conflits": {
   "objective": "Search for conflicts of interest.",
@@ -815,12 +815,12 @@
   "prerequisites": "None.",
   "steps": [
    "Open Conflicts of interest.",
-   "Enter the names in “Nouvelle recherche”.",
-   "Click “Rechercher les conflits”.",
-   "If necessary, manage the production block (“Désactiver le blocage”)."
+   "Enter the names in “New search”.",
+   "Click “Search for conflicts”.",
+   "If necessary, manage the production block (“Remove the block”)."
   ],
   "result": "A conflict search report.",
-  "verify": "The report appears under “Rapports récents”.",
+  "verify": "The report appears under “Recent reports”.",
   "errors": [
    [
     "Doubtful result",
@@ -832,7 +832,7 @@
    "Rechercher les conflits",
    "Désactiver le blocage"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "prescriptions": {
   "objective": "Calculate and track limitation periods and time bars.",
@@ -841,15 +841,15 @@
   "steps": [
    "Open Limitation and time bars.",
    "Enter the rule and the starting point.",
-   "Click “Calculer sans enregistrer” to check.",
-   "Click “Créer (à confirmer)” to track the deadline."
+   "Click “Calculate without saving” to check.",
+   "Click “Create (to confirm)” to track the deadline."
   ],
   "result": "A calculated deadline with its text, to confirm.",
   "verify": "The deadline appears in the list with its end date.",
   "errors": [
    [
     "Rule missing",
-    "See “Règles disponibles et textes”."
+    "See “Available rules and texts”."
    ]
   ],
   "example": "Fictitious five-year limitation from 1 March 2026.",
@@ -857,7 +857,7 @@
    "Calculer sans enregistrer",
    "Créer (à confirmer)"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "pilotage_mensuel": {
   "objective": "View the month’s indicators and export them.",
@@ -865,8 +865,8 @@
   "prerequisites": "None.",
   "steps": [
    "Open Monthly reporting.",
-   "Choose the month then “Afficher”.",
-   "Export with “Exporter (CSV)” or “Exporter (Markdown)”."
+   "Choose the month then “Show”.",
+   "Export with “Export (CSV)” or “Export (Markdown)”."
   ],
   "result": "The month’s indicators: cases, deadlines, time, drafts, quality.",
   "verify": "The exported file contains the same figures.",
@@ -882,7 +882,7 @@
    "Exporter (CSV)",
    "Exporter (Markdown)"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "assistance_metier": {
   "objective": "Perform checkable calculations and prepare the billing review.",
@@ -890,9 +890,9 @@
   "prerequisites": "None.",
   "steps": [
    "Open Practice assistance.",
-   "Choose the calculation, for example “Calculer les intérêts simples” or “Calculer une indexation”.",
+   "Choose the calculation, for example “Calculate simple interest” or “Calculate an indexation”.",
    "Enter the amounts and dates.",
-   "For invoicing, use “Préparer la revue de facturation”."
+   "For invoicing, use “Prepare the billing review”."
   ],
   "result": "A detailed and traceable calculation.",
   "verify": "The calculation details are shown line by line.",
@@ -908,7 +908,7 @@
    "Calculer une indexation",
    "Préparer la revue de facturation"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "modeles_word": {
   "objective": "Import your Word templates, check their tags and preview every page.",
@@ -917,7 +917,7 @@
   "steps": [
    "Open Firm documents.",
    "Choose your DOCX file.",
-   "Click “Importer et prévisualiser”.",
+   "Click “Import and preview”.",
    "Check the detected tags and every page, then approve the template."
   ],
   "result": "An approved template used for new drafts; the original is not changed.",
@@ -936,7 +936,7 @@
   "buttons": [
    "Importer et prévisualiser"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "modeles_actes": {
   "objective": "Manage deed templates and their mandatory statements.",
@@ -946,7 +946,7 @@
    "Open Deed templates.",
    "Choose the type of deed.",
    "Complete the statements.",
-   "Click “Enregistrer le modèle”."
+   "Click “Save the template”."
   ],
   "result": "A saved deed template.",
   "verify": "The template is suggested when preparing a deed.",
@@ -960,7 +960,7 @@
   "buttons": [
    "Enregistrer le modèle"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "mon_style": {
   "objective": "Analyse your writing to reproduce your style.",
@@ -968,12 +968,12 @@
   "prerequisites": "Firm documents accessible.",
   "steps": [
    "Open My style.",
-   "Click “Analyser maintenant”.",
+   "Click “Analyse now”.",
    "Review the suggested habits.",
-   "Refine with “Affiner avec l’IA” if needed."
+   "Refine with “Refine with the AI” if needed."
   ],
   "result": "Style habits to approve, then applied.",
-  "verify": "Approved habits appear under “Habitudes appliquées”.",
+  "verify": "Approved habits appear under “Applied habits”.",
   "errors": [
    [
     "Empty corpus",
@@ -985,7 +985,7 @@
    "Analyser maintenant",
    "Affiner avec l’IA"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "progres": {
   "objective": "Set the tone per recipient and “always do it this way” rules.",
@@ -994,8 +994,8 @@
   "steps": [
    "Open Style and learning.",
    "Look at the learning table.",
-   "Correct a tone with “Corriger la détection”.",
-   "Add a rule with “Créer la règle”; “Valeurs d’origine” restores the settings."
+   "Correct a tone with “Correct the detection”.",
+   "Add a rule with “Create the rule”; “Original values” restores the settings."
   ],
   "result": "Rules applied to the next drafts.",
   "verify": "The rule appears in the list of rules.",
@@ -1011,19 +1011,19 @@
    "Corriger la détection",
    "Valeurs d’origine"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "agents": {
   "objective": "Create a document agent described in plain language.",
   "when": "To automate repetitive document processing.",
   "prerequisites": "AI set up.",
   "steps": [
-   "Open Agents and rules then “Nouvel agent”.",
-   "Describe the assignment then “Interpréter la mission”.",
-   "Check with “Tester le déclencheur sans agir”.",
-   "Click “Enregistrer et activer”."
+   "Open Agents and rules then “New agent”.",
+   "Describe the assignment then “Interpret the assignment”.",
+   "Check with “Test the trigger without acting”.",
+   "Click “Save and enable”."
   ],
-  "result": "An active agent under “Mes agents et règles par défaut”.",
+  "result": "An active agent under “My agents and default rules”.",
   "verify": "Results appear in Agent results.",
   "errors": [
    [
@@ -1038,7 +1038,7 @@
    "Tester le déclencheur sans agir",
    "Enregistrer et activer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "agents_documents": {
   "objective": "See document agent results and resume processing.",
@@ -1047,7 +1047,7 @@
   "steps": [
    "Open Agent results.",
    "Look at the results.",
-   "Click “Vérifier les documents”.",
+   "Click “Check the documents”.",
    "Resume a failed processing."
   ],
   "result": "The list of processing runs with their status.",
@@ -1062,7 +1062,7 @@
   "buttons": [
    "Vérifier les documents"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "regles": {
   "objective": "Set the autonomy level and email processing rules.",
@@ -1070,9 +1070,9 @@
   "prerequisites": "None.",
   "steps": [
    "Open Rules and autonomy.",
-   "Choose a level then “Activer ce niveau”.",
-   "Add a rule with “Ajouter la règle”.",
-   "Learn from a correction with “Enregistrer la correction”."
+   "Choose a level then “Enable this level”.",
+   "Add a rule with “Add the rule”.",
+   "Learn from a correction with “Save the correction”."
   ],
   "result": "Active and reversible rules.",
   "verify": "Active rules are listed with their effect.",
@@ -1088,7 +1088,7 @@
    "Ajouter la règle",
    "Enregistrer la correction"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "autonomie": {
   "objective": "See what remains subject to your approval and adjust autonomy.",
@@ -1096,9 +1096,9 @@
   "prerequisites": "None.",
   "steps": [
    "Open Agent autonomy.",
-   "Look at “Toujours soumis à votre validation”.",
-   "Adjust then “Appliquer”.",
-   "If in doubt, “Tout passer en mode prudent”."
+   "Look at “Always subject to your approval”.",
+   "Adjust then “Apply”.",
+   "If in doubt, “Switch everything to cautious mode”."
   ],
   "result": "The autonomy level applied.",
   "verify": "The settings history records the change.",
@@ -1113,7 +1113,7 @@
    "Appliquer",
    "Tout passer en mode prudent"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "apprentissage": {
   "objective": "Create practice rules and declare reliable references.",
@@ -1121,12 +1121,12 @@
   "prerequisites": "None.",
   "steps": [
    "Open Practice learning.",
-   "In “Créer une règle métier”, describe the rule then “Enregistrer la règle”.",
-   "Declare a reliable document then “Enregistrer la référence fiable”.",
+   "In “Create a practice rule”, describe the rule then “Save the rule”.",
+   "Declare a reliable document then “Save the reliable reference”.",
    "Review recent corrections."
   ],
   "result": "Active and reversible rules.",
-  "verify": "Rules appear under “Préférences apprises”.",
+  "verify": "Rules appear under “Learned preferences”.",
   "errors": [
    [
     "Rule too general",
@@ -1138,7 +1138,7 @@
    "Enregistrer la règle",
    "Enregistrer la référence fiable"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "projets": {
   "objective": "Review automatically prepared work.",
@@ -1146,7 +1146,7 @@
   "prerequisites": "None.",
   "steps": [
    "Open Pending drafts.",
-   "Click “↻ Analyser les nouveaux courriels”.",
+   "Click “↻ Analyse new emails”.",
    "Review each draft.",
    "Approve or dismiss."
   ],
@@ -1162,7 +1162,7 @@
   "buttons": [
    "↻ Analyser les nouveaux courriels"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "preparation": {
   "objective": "See the next work spotted and source coverage.",
@@ -1170,7 +1170,7 @@
   "prerequisites": "None.",
   "steps": [
    "Open Proactive preparation.",
-   "Click “↻ Analyser maintenant”.",
+   "Click “↻ Analyse now”.",
    "Look at the work spotted."
   ],
   "result": "The list of the next work spotted.",
@@ -1185,7 +1185,7 @@
   "buttons": [
    "↻ Analyser maintenant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "memoire": {
   "objective": "Update the sent replies remembered by the agent.",
@@ -1193,7 +1193,7 @@
   "prerequisites": "Email set up.",
   "steps": [
    "Open Memory.",
-   "Click “Actualiser les réponses envoyées”.",
+   "Click “Refresh sent replies”.",
    "Look at the items remembered."
   ],
   "result": "An up-to-date memory of sent replies.",
@@ -1208,7 +1208,7 @@
   "buttons": [
    "Actualiser les réponses envoyées"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "parametres": {
   "objective": "Set up the software’s connections and preferences.",
@@ -1217,8 +1217,8 @@
   "steps": [
    "Open Settings then the section you need.",
    "Change the setting.",
-   "Click “Enregistrer les changements”.",
-   "Test with “Tester IMAP”, “Tester Nextcloud / agendas” or “Tester Ollama”."
+   "Click “Save changes”.",
+   "Test with “Test IMAP”, “Test Nextcloud / calendars” or “Test Ollama”."
   ],
   "result": "Settings saved, without reloading the page.",
   "verify": "The test message states what was actually checked.",
@@ -1235,7 +1235,7 @@
    "Tester Nextcloud / agendas",
    "Tester Ollama"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "guide_installation": {
   "objective": "Set up services step by step and check connections.",
@@ -1257,7 +1257,7 @@
   ],
   "example": "Fictitious path: local folder and Ollama, without email.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "guide_utilisation": {
   "objective": "Find out how to use a function.",
@@ -1278,7 +1278,7 @@
   ],
   "example": "Fictitious search: “exhibit list”.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "mise_en_service": {
   "objective": "Check real services, the microphone and Docker.",
@@ -1286,12 +1286,12 @@
   "prerequisites": "None.",
   "steps": [
    "Open Commissioning.",
-   "Click “Lancer les contrôles (jusqu’à une minute)”.",
-   "Test the microphone with “Tester le micro”.",
-   "Run “Lancer la recette de production” for a full check."
+   "Click “Run the checks (up to one minute)”.",
+   "Test the microphone with “Test the microphone”.",
+   "Run “Run the production acceptance test” for a full check."
   ],
   "result": "A check report with the suggested fixes.",
-  "verify": "The “Dernier rapport” shows the date and the result.",
+  "verify": "The “Latest report” shows the date and the result.",
   "errors": [
    [
     "Microphone refused",
@@ -1304,7 +1304,7 @@
    "Tester le micro",
    "Lancer la recette de production"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "diagnostic": {
   "objective": "Understand why nothing is produced: services, errors, blocked cases, connections.",
@@ -1313,7 +1313,7 @@
   "steps": [
    "Open Software status and help.",
    "Look at Services and the work queue.",
-   "Test with “Tester la messagerie”, “Tester Nextcloud” or “Tester l’IA”.",
+   "Test with “Test the mailbox”, “Test Nextcloud” or “Test the AI”.",
    "Read the errors of the last seven days."
   ],
   "result": "The cause of the block and the next action.",
@@ -1330,7 +1330,7 @@
    "Tester Nextcloud",
    "Tester l’IA"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "etat_systeme": {
   "objective": "View incidents, recent processing, services and index.",
@@ -1338,8 +1338,8 @@
   "prerequisites": "None.",
   "steps": [
    "Open System status.",
-   "Click “Contrôler maintenant”.",
-   "Open “Voir le détail” on an incident."
+   "Click “Check now”.",
+   "Open “See details” on an incident."
   ],
   "result": "The status of services and processing.",
   "verify": "Each service shows its last check.",
@@ -1353,7 +1353,7 @@
   "buttons": [
    "Contrôler maintenant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "mcp": {
   "objective": "Manage MCP legal connectors, skills and extensions.",
@@ -1362,7 +1362,7 @@
   "steps": [
    "Open MCP connectors.",
    "Fill in the connector.",
-   "Click “Enregistrer sans activer”.",
+   "Click “Save without enabling”.",
    "Test it then activate it for the functions you want."
   ],
   "result": "A saved connector, active only after your choice.",
@@ -1377,7 +1377,7 @@
   "buttons": [
    "Enregistrer sans activer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "routage": {
   "objective": "Decide when an external AI may be used, and at what cost.",
@@ -1385,9 +1385,9 @@
   "prerequisites": "An external AI set up.",
   "steps": [
    "Open Hybrid routing.",
-   "Estimate with “Calculer le routage et le coût”.",
-   "See the data sent with “Afficher les données et le coût”.",
-   "Click “Enregistrer la politique”."
+   "Estimate with “Calculate routing and cost”.",
+   "See the data sent with “Show data and cost”.",
+   "Click “Save the policy”."
   ],
   "result": "A routing policy applied before any sending.",
   "verify": "The latest routing decisions are listed.",
@@ -1403,7 +1403,7 @@
    "Afficher les données et le coût",
    "Enregistrer la politique"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "evaluations": {
   "objective": "Compare models on reference cases.",
@@ -1411,8 +1411,8 @@
   "prerequisites": "AI set up.",
   "steps": [
    "Open Legal benchmark.",
-   "Add a case then “Enregistrer le cas”.",
-   "Click “Lancer la comparaison”.",
+   "Add a case then “Save the case”.",
+   "Click “Start the comparison”.",
    "Look at the model ranking."
   ],
   "result": "A ranking of models on your cases.",
@@ -1428,7 +1428,7 @@
    "Enregistrer le cas",
    "Lancer la comparaison"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "tracabilite": {
   "objective": "Know what the model saw on a case and which models were used.",
@@ -1436,8 +1436,8 @@
   "prerequisites": "None.",
   "steps": [
    "Open Traceability.",
-   "Choose the case then “Consulter”.",
-   "Export with “Exporter (CSV)” or “Exporter (JSON)”."
+   "Choose the case then “View”.",
+   "Export with “Export (CSV)” or “Export (JSON)”."
   ],
   "result": "The list of the model’s accesses to the case.",
   "verify": "Models used over 30 days are listed.",
@@ -1453,7 +1453,7 @@
    "Exporter (CSV)",
    "Exporter (JSON)"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "qualite": {
   "objective": "Understand blocking reasons and draft corrections.",
@@ -1474,7 +1474,7 @@
   ],
   "example": "Fictitious reason: case not identified.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "ecosysteme": {
   "objective": "Register the services used by the firm.",
@@ -1483,9 +1483,9 @@
   "steps": [
    "Open Ecosystem.",
    "Fill in the service.",
-   "Click “Enregistrer le service”."
+   "Click “Save the service”."
   ],
-  "result": "The service appears under “Services configurés”.",
+  "result": "The service appears under “Configured services”.",
   "verify": "The service is listed with its address.",
   "errors": [
    [
@@ -1497,7 +1497,7 @@
   "buttons": [
    "Enregistrer le service"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "administration": {
   "objective": "Manage automations, shortcuts and advanced checks.",
@@ -1505,8 +1505,8 @@
   "prerequisites": "The administrator role.",
   "steps": [
    "Open Administration.",
-   "Enable or pause an automation (“Mettre en pause”).",
-   "Click “Tester les connexions”."
+   "Enable or pause an automation (“Pause”).",
+   "Click “Test the connections”."
   ],
   "result": "Automations set and connections tested.",
   "verify": "The status of each automation is shown.",
@@ -1521,7 +1521,7 @@
    "Tester les connexions",
    "Mettre en pause"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "tableau_de_bord": {
   "objective": "View the former detailed dashboard.",
@@ -1529,7 +1529,7 @@
   "prerequisites": "None.",
   "steps": [
    "Open Detailed dashboard.",
-   "Click “Analyser les dossiers actifs” or “Repérer le travail à faire”.",
+   "Click “Analyse active cases” or “Identify the work to do”.",
    "Open the flagged items."
   ],
   "result": "An overview of the firm.",
@@ -1545,7 +1545,7 @@
    "Analyser les dossiers actifs",
    "Repérer le travail à faire"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "a_propos": {
   "objective": "Know the version, the licence and the privacy rules.",
@@ -1566,7 +1566,7 @@
   ],
   "example": "Version 5.6.31.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "competences": {
   "objective": "Give the AI a written working method (analysis, drafting, checking).",
@@ -1575,8 +1575,8 @@
   "steps": [
    "Open AI skills.",
    "Enable a built-in skill or copy it to adapt it.",
-   "To write one, fill in the form then click “Créer”.",
-   "To reuse one, choose the file then click “Importer”."
+   "To write one, fill in the form then click “Create”.",
+   "To reuse one, choose the file then click “Import”."
   ],
   "result": "The skill appears in the list, with its version and origin.",
   "verify": "An active skill shows any missing prerequisites.",
@@ -1591,6 +1591,6 @@
    "Créer",
    "Importer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Upgrade a verified AxiorHub installation to 5.6.33."""
+"""Upgrade a verified AxiorHub installation to the release named in VERSION."""
 import argparse
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -21,8 +21,8 @@ import uuid
 BASE = Path('/opt/axiorhub-mail-agent')
 CONFIG = Path('/etc/axiorhub-mail-agent/config.json')
 STATE = Path('/var/lib/axiorhub-mail-agent')
-VERSION = '5.6.33'
-SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32')
+VERSION = '5.6.34'
+SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33')
 
 
 def digest(data):
@@ -469,7 +469,7 @@ def locked(state):
 
 
 def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
-    """Atomically switch an authenticated release to 5.6.33."""
+    """Atomically switch an authenticated release to VERSION."""
     verify(source)
     if not (base/'current').is_symlink() or not config.is_file():
         raise RuntimeError('Installation AxiorHub ou configuration introuvable.')
@@ -478,7 +478,8 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
         release=base/'releases'/VERSION
         if old==release:
             verify(release)
-            print('Version 5.6.33 déjà active ; données et configuration conservées.')
+            print('Version %s déjà active : réinstallation sans migration ; aucun nouveau point de retour arrière n’est créé. '
+                  'Données et configuration conservées.' % VERSION)
             return
         if old not in tuple(base/'releases'/version for version in SUPPORTED_PREVIOUS):
             raise RuntimeError('Cette mise à jour directe exige une version précédente comprise entre %s et %s.' % (SUPPORTED_PREVIOUS[0], SUPPORTED_PREVIOUS[-1]))
@@ -487,12 +488,15 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
         if release.exists():
             verify(release)
             if (release/'MANIFEST.sha256').read_bytes()!=(source/'MANIFEST.sha256').read_bytes():
-                raise RuntimeError('Une autre version 5.6.33 existe déjà.')
+                raise RuntimeError('Une autre version %s existe déjà.' % VERSION)
         for path in source.rglob('*'):
             if path.is_symlink():raise RuntimeError('Lien symbolique dans le paquet refusé.')
+        need=sum(p.stat().st_size for p in source.rglob('*') if p.is_file())*2+sum(p.stat().st_size for p in state.glob('*.sqlite3'))
+        if shutil.disk_usage(base).free<need:   # 5.6.34 (B13) : refus AVANT tout arrêt de service ou toute copie
+            raise RuntimeError('Espace disque insuffisant pour la mise à jour et ses sauvegardes : libérer de la place puis relancer.')
         if quiesce:quiesce()
         if not release.exists():
-            staging=base/'releases'/('.5.6.33-'+uuid.uuid4().hex)
+            staging=base/'releases'/('.'+VERSION+'-'+uuid.uuid4().hex)
             try:
                 shutil.copytree(source,staging,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
                 for path in [staging,*staging.rglob('*')]:
@@ -505,7 +509,7 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
         config_stat=config.stat();backup_dir=config.parent/'backups';backup_dir.mkdir(mode=0o750,exist_ok=True)
         backup=backup_dir/('config-before-'+VERSION+'-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'.json')
         atomic(backup,config.read_bytes(),config_stat.st_uid,config_stat.st_gid,0o600)
-        receipt={'previous_release':str(old),'previous_manifest_sha256':old_manifest,
+        receipt={'previous_release':str(old),'previous_version':old.name,'target_version':VERSION,'previous_manifest_sha256':old_manifest,
           'config_backup':str(backup)}
         # Snapshot real SQLite files while services are stopped. Online backup
         # also incorporates committed WAL pages; copying the main file cannot.
@@ -519,26 +523,44 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
             finally:target_db.close();source_db.close()
             dest.chmod(0o600);databases.append(str(dest))
         receipt['database_backups']=databases
-        atomic(base/'upgrade-5.6.33.json',json.dumps(receipt).encode(),0,0,0o600)
+        atomic(receipt_path(base),json.dumps(receipt).encode(),0,0,0o600)
         switch(base,release)
-        print('Mise à jour directe 5.6.33 terminée. Configuration, secrets, dossiers, index et état conservés.')
+        print('Mise à jour directe %s → %s terminée. Configuration, secrets, dossiers, index et état conservés.' % (old.name, VERSION))
+
+
+def receipt_path(base=BASE):
+    return base/('upgrade-%s.json' % VERSION)
 
 
 def rollback(base=BASE, config=CONFIG, state=STATE, quiesce=None):
+    """5.6.34 (B13) : le reçu est contrôlé AVANT toute modification de l'installation. Sans reçu (installation neuve ou réinstallation de
+    la même version), aucun retour arrière n'est promis. Seul le code est restauré : les données actuelles sont conservées et les
+    sauvegardes de bases faites avant la mise à jour restent disponibles (leur restauration est une décision distincte)."""
     with locked(state):
         if (base/'current').resolve()!=base/'releases'/VERSION:
-            raise RuntimeError('Le retour arrière exige la version 5.6.33 active.')
-        receipt=json.loads((base/'upgrade-5.6.33.json').read_text())
+            raise RuntimeError('Le retour arrière exige la version %s active.' % VERSION)
+        path=receipt_path(base)
+        if not path.is_file():
+            raise RuntimeError('Aucun point de retour arrière disponible : cette version n’a pas été installée par mise à jour d’une version précédente.')
+        try:receipt=json.loads(path.read_text())
+        except ValueError:raise RuntimeError('Reçu de mise à jour illisible : retour arrière refusé.') from None
+        if not isinstance(receipt,dict) or not receipt.get('previous_release') or not receipt.get('previous_manifest_sha256'):
+            raise RuntimeError('Reçu de mise à jour incomplet : retour arrière refusé.')
         old=Path(receipt['previous_release'])
-        if old not in tuple(base/'releases'/version for version in SUPPORTED_PREVIOUS):
+        if old==base/'releases'/VERSION or old not in tuple(base/'releases'/version for version in SUPPORTED_PREVIOUS):
             raise RuntimeError('Cible de retour arrière refusée.')
+        if receipt.get('previous_version') and receipt['previous_version']!=old.name:
+            raise RuntimeError('Reçu de mise à jour incohérent : retour arrière refusé.')
+        if not old.is_dir():
+            raise RuntimeError('Version précédente absente : retour arrière impossible.')
         verify(old)
         if digest((old/'MANIFEST.sha256').read_bytes())!=receipt['previous_manifest_sha256']:
             raise RuntimeError('Version précédente modifiée : arrêt.')
         if quiesce:quiesce()
         switch(base,old)
-        print('Version '+old.name+' restaurée ; données et configuration conservées.')
-
+        backups=receipt.get('database_backups') or []
+        print('Version '+old.name+' restaurée (code). Données et configuration actuelles conservées'
+              +((' ; sauvegardes des bases d’avant la mise à jour : '+', '.join(backups)) if backups else '')+'.')
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()

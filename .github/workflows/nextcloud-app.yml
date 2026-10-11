@@ -1,0 +1,82 @@
+name: nextcloud-app
+
+# Qualification de l'application Nextcloud AxiorHub Pilote (0.1.x). Lancement manuel : la compatibilité n'est annoncée qu'après une
+# installation réelle réussie sur chaque combinaison déclarée (cahier des charges 5.6.34, chapitre 9.8). Versions exactes à verrouiller
+# à chaque livraison (branches stableNN du serveur).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: nextcloud-app/axiorhub_pilote
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dépendances verrouillées et construction de production
+        run: npm ci && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: axiorhub-pilote-js
+          path: nextcloud-app/axiorhub_pilote/js
+
+  install:
+    needs: frontend
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { server: stable32, php: '8.1', db: sqlite }
+          - { server: stable32, php: '8.4', db: mysql }
+          - { server: stable33, php: '8.2', db: pgsql }
+          - { server: stable33, php: '8.5', db: sqlite }
+          - { server: stable34, php: '8.3', db: mysql }
+          - { server: stable34, php: '8.5', db: pgsql }
+          - { server: stable35, php: '8.3', db: pgsql }
+          - { server: stable35, php: '8.5', db: mysql }
+    services:
+      mysql:
+        image: mariadb:11.4
+        env: { MARIADB_ROOT_PASSWORD: rootpass, MARIADB_DATABASE: nextcloud }
+        ports: ['3306:3306']
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_PASSWORD: rootpass, POSTGRES_DB: nextcloud }
+        ports: ['5432:5432']
+    steps:
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: zip, gd, mbstring, intl, pdo_sqlite, pdo_mysql, pdo_pgsql, curl, xml
+          tools: phpunit
+      - name: Serveur Nextcloud ${{ matrix.server }}
+        run: git clone --depth 1 --recurse-submodules --shallow-submodules -b ${{ matrix.server }} https://github.com/nextcloud/server.git server
+      - uses: actions/checkout@v4
+        with:
+          path: server/apps-extra/axiorhub-src
+      - uses: actions/download-artifact@v4
+        with:
+          name: axiorhub-pilote-js
+          path: server/apps-extra/axiorhub-src/nextcloud-app/axiorhub_pilote/js
+      - name: Installation réelle et activation
+        working-directory: server
+        run: |
+          mv apps-extra/axiorhub-src/nextcloud-app/axiorhub_pilote apps/axiorhub_pilote
+          case "${{ matrix.db }}" in
+            sqlite) php occ maintenance:install --admin-user admin --admin-pass admin-recette ;;
+            mysql) php occ maintenance:install --database mysql --database-host 127.0.0.1 --database-name nextcloud --database-user root --database-pass rootpass --admin-user admin --admin-pass admin-recette ;;
+            pgsql) php occ maintenance:install --database pgsql --database-host 127.0.0.1 --database-name nextcloud --database-user postgres --database-pass rootpass --admin-user admin --admin-pass admin-recette ;;
+          esac
+          php occ app:enable axiorhub_pilote
+          php occ app:list | grep -q axiorhub_pilote
+      - name: Tests PHPUnit de l'application
+        working-directory: server/apps/axiorhub_pilote
+        run: phpunit -c phpunit.xml

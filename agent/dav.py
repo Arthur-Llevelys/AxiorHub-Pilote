@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from .erreurs5634 import local_missing as _local_missing   # 5.6.34 (B15) : fichier local absent ≠ adresse de serveur
 from email.utils import format_datetime
 import os
 from contextlib import contextmanager
@@ -631,7 +632,7 @@ class LocalFolder(DAV):
         try:
             return os.open(str(target), flags)
         except FileNotFoundError:
-            raise Stop('http_404') from None
+            raise _local_missing(str(locals().get('target') or '')) from None
         except OSError as ex:
             if getattr(ex, 'errno', None) == errno.ELOOP: raise Stop('lien_symbolique_refuse') from None
             raise Stop('fichier_illisible') from None
@@ -641,7 +642,7 @@ class LocalFolder(DAV):
         fd = self._open_read(target)
         try:
             before = os.fstat(fd)
-            if not stat.S_ISREG(before.st_mode): raise Stop('http_404')
+            if not stat.S_ISREG(before.st_mode): raise _local_missing(str(locals().get('target') or ''))
             if before.st_size > limit: raise Stop('reponse_trop_volumineuse')
             chunks = []
             while True:
@@ -680,7 +681,7 @@ class LocalFolder(DAV):
     # ----- lecture
     def list_folder(self, path):
         path, target = self._fs(path)
-        if not target.exists(): raise Stop('http_404')
+        if not target.exists(): raise _local_missing(str(locals().get('target') or ''))
         if not target.is_dir(): raise Stop('chemin_est_un_fichier')
         out = []
         for child in sorted(target.iterdir(), key=lambda c: c.name):
@@ -700,7 +701,7 @@ class LocalFolder(DAV):
         limit = self.cfg.get('max_file_bytes', 15_000_000)
         if item.get('size', 0) > limit: raise Stop('piece_trop_volumineuse')
         _, target = self._fs(item['path'])
-        if not target.is_file(): raise Stop('http_404')
+        if not target.is_file(): raise _local_missing(str(locals().get('target') or ''))
         data, _ = self._read(target, limit)
         if item.get('etag') and item['etag'] != self._etag_bytes(data): raise Stop('http_412')   # F13 : comparaison sur les octets lus
         return data

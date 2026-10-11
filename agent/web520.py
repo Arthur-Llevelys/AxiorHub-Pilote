@@ -12,6 +12,7 @@ import time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .common import Stop, load_matters, matter_display
+from .diagnostic5634 import relaunch_hint as _relaunch_hint   # 5.6.34 : consigne selon le mode d'installation
 
 
 def _tz(desk):
@@ -252,12 +253,10 @@ def diagnostic_page(desk, auth, prefix, args, shell):
     beats = ''.join('<tr><td>%s</td><td>il y a %s</td><td>%s</td></tr>' % (
         e(h['name']), e(_age(h['age'])), '<span class="ko">suspendu</span>' if h.get('note') == 'suspendu' else _ok(not h['stale'], 'vivant', 'silencieux'))
         for h in d['heartbeats'])
-    html += ('<section class="ax-card"><h2>Services</h2><table class="vf-table"><thead><tr><th>Service</th><th>État systemd</th><th>Statut</th></tr></thead><tbody>%s</tbody></table>'
+    html += ('<section class="ax-card"><h2>Services</h2><table class="vf-table"><thead><tr><th>Service</th><th>État relu</th><th>Statut</th></tr></thead><tbody>%s</tbody></table>'
              '<h3>Derniers signes de vie</h3><table class="vf-table"><thead><tr><th>Contrôle</th><th>Dernier signal</th><th>Statut</th></tr></thead><tbody>%s</tbody></table>'
-             '<p class="vf-note">Un worker « vivant » peut être occupé par un long travail : voir « File de travail ». Pour relancer : '
-             '<code>sudo systemctl restart axiorhub-mail-desk-worker.service axiorhub-mail-desk-worker@2.service axiorhub-mail-watch.service</code>. '
-             'Analyse ou nettoyage périodique arrêté : <code>sudo systemctl enable --now axiorhub-mail-agent.timer axiorhub-mail-agent-cleanup.timer</code></p></section>') % (
-        rows or '<tr><td colspan="3">État systemd non lisible depuis l’interface.</td></tr>', beats or '<tr><td colspan="3">Aucun signal enregistré.</td></tr>')
+             '<p class="vf-note">Un worker « vivant » peut être occupé par un long travail : voir « File de travail ». %s</p></section>') % (_relaunch_hint(desk.c),
+        rows or '<tr><td colspan="3">État des services non lisible depuis l’interface.</td></tr>', beats or '<tr><td colspan="3">Aucun signal enregistré.</td></tr>')
     html += _queue_html(d)
     html += mail_pipeline_html(desk, prefix)
     errs = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (e(x['at']), e(x['kind']), e(x['matter']), e(x['reason'])) for x in d['errors'])

@@ -98,8 +98,10 @@ def adverse_parties(desk, mid):
     except Exception:   # noqa: BLE001 — registre pas encore créé
         pass
     try:
-        row = desk.db.execute('SELECT data FROM fiche5627 WHERE matter=? ORDER BY version DESC LIMIT 1', (mid,)).fetchone()
-        data = json.loads(row[0]) if row else {}
+        from . import dossier5627   # 5.6.34 (B04) : la liste corrigée par l'avocat prime sur la version de l'IA
+        fiche = dossier5627.latest(desk, mid) or {}
+        edit = (fiche.get('edits') or {}).get('parties')
+        data = {'parties': dossier5627.parties_from_text(edit['text'])} if edit else (fiche.get('data') or {})
         names += [p.get('nom', '') for p in data.get('parties', []) if not p.get('client_du_cabinet')
                   and p.get('qualite') in ('defendeur', 'intime', 'demandeur', 'appelant', 'intervenant', 'autre')]
     except Exception:   # noqa: BLE001 — fiche absente

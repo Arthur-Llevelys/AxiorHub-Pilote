@@ -10,6 +10,7 @@ STATUS = {
   'warning': ('À contrôler', 'warning'),
   'error': ('Incident', 'error'),
   'unknown': ('Non vérifié', 'unknown'),
+  'optional': ('Facultatif', 'unknown'),   # 5.6.34 : connecteur non configuré, fichier facultatif absent
 }
 
 
@@ -71,10 +72,20 @@ def page(desk, args, form, link, reasons, job_labels):
         else:
             cards.append('<article class="rel-card">'+_badge('unknown')+'<h3>'+e(label)+
               '</h3><p>Aucun contrôle réel enregistré.</p><small>Contrôlé : jamais</small></article>')
-    out='<section class="rel-hero"><div><p class="eyebrow">3.9.3 · EXPLOITATION FIABLE</p><h2>État du système</h2><p>Un voyant vert signifie que le résultat a été relu depuis systemd, IMAP, Nextcloud, l’index ou le fournisseur concerné. Une simple déclaration du producteur ne suffit pas.</p></div><div class="rel-actions">'
+    from . import diagnostic5634 as _d   # 5.6.34 : page adaptée au mode d'installation
+    mode=info['services'].get('mode') or _d.install_mode(desk.c)
+    source={'serveur':'systemd','poste_linux':'les processus du poste','windows':'les processus du poste Windows'}[mode]
+    out='<section class="rel-hero"><div><p class="eyebrow">'+e(_d.MODES[mode].upper())+'</p><h2>État du système</h2><p>Un voyant vert signifie que le résultat a été relu depuis '+e(source)+', IMAP, Nextcloud, l’index ou le fournisseur concerné. Une simple déclaration du producteur ne suffit pas.</p></div><div class="rel-actions">'
     out+=form('run_system_checks393','Contrôler maintenant',{'back':'system'})
     out+=form('test_openrouter393','Tester OpenRouter sans donnée de dossier',{'back':'system'})
     out+='</div></section><div class="rel-grid">'+''.join(cards)+'</div>'
+    alerts=_d.alerts(info['services'].get('services',[]),info['permissions'].get('files',[]),mode)
+    if alerts:
+        out+='<section class="rel-section" role="alert"><h2>À traiter</h2><ul class="rel-alerts">'+''.join(
+          '<li><strong>'+e(a['feature'])+'</strong><br>Cause vérifiée : '+e(a['cause'])+'<br>Action : '+e(a['action'])+'</li>' for a in alerts)+'</ul></section>'
+    conn=_d.connectors(desk)
+    out+='<section class="rel-section"><h2>Connecteurs facultatifs</h2><ul class="rel-list">'+''.join(
+      '<li>'+_badge({'ok':'verified','warn':'warning','muted':'optional'}[c['class']])+' <strong>'+e(c['label'])+'</strong> · '+e(c['state'])+' — '+e(c['feature'])+(('<br><small>'+e(c['action'])+'</small>') if c['action'] else '')+'</li>' for c in conn)+'</ul></section>'
 
     stale=jobs.get('stale',[]);loops=jobs.get('loops',[])
     out+='<section class="rel-section"><h2>Incidents de traitements</h2>'
@@ -113,8 +124,8 @@ def page(desk, args, form, link, reasons, job_labels):
     out+='</section>'
 
     out+='<section class="rel-section"><h2>Services et permissions</h2><div class="rel-two">'
-    out+='<div><h3>Services</h3><ul class="rel-list">'+''.join('<li>'+_badge('verified' if x['verified'] else 'error')+' <code>'+e(x['unit'])+'</code> · '+e(x['state'])+'</li>' for x in info['services'].get('services',[]))+'</ul></div>'
-    out+='<div><h3>Fichiers sensibles</h3><ul class="rel-list">'+''.join('<li>'+_badge(x['status'])+' <code>'+e(x['path'])+'</code> · '+e(x.get('mode','—'))+'</li>' for x in info['permissions'].get('files',[]))+'</ul></div></div></section>'
+    out+='<div><h3>Services</h3><ul class="rel-list">'+''.join('<li>'+_badge('verified' if x['verified'] else 'error')+' <code>'+e(x['unit'])+'</code> · '+e(x['state'])+((' — '+e(x['cause'])) if x.get('cause') else '')+'</li>' for x in info['services'].get('services',[]))+'</ul></div>'
+    out+='<div><h3>Fichiers sensibles</h3><ul class="rel-list">'+''.join('<li>'+_badge(x['status'])+' <code>'+e(x['path'])+'</code> · '+e(x.get('mode') or x.get('acl') or (', '.join(x['broad']) if x.get('broad') else '—'))+'</li>' for x in info['permissions'].get('files',[]))+'</ul></div></div></section>'
 
     index=info['index'].get('evidence',{});ollama=checks.get('ollama',{}).get('evidence',{})
     out+='<section class="rel-section"><h2>Index et modèles</h2><div class="rel-two"><div><h3>Fraîcheur de l’index</h3><dl><dt>Documents</dt><dd>'+str(index.get('documents',0))+'</dd><dt>Fragments</dt><dd>'+str(index.get('chunks',0))+'</dd><dt>Dernière indexation</dt><dd>'+e(str(index.get('last_indexed_at') or 'inconnue'))+'</dd><dt>Inventaires incomplets</dt><dd>'+str(index.get('incomplete_inventories',0))+'</dd></dl></div><div><h3>Ollama</h3><dl><dt>Modèles sélectionnés</dt><dd>'+e(', '.join(ollama.get('selected_models',[])) or 'Non contrôlé')+'</dd><dt>Installés</dt><dd>'+e(', '.join(ollama.get('available_models',[])) or 'Non contrôlé')+'</dd><dt>Actuellement en mémoire</dt><dd>'+e(', '.join(ollama.get('loaded_models',[])) or 'Aucun ou non contrôlé')+'</dd></dl></div></div></section>'

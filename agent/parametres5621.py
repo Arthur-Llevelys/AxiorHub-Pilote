@@ -83,13 +83,14 @@ def _links(prefix, items):
 
 def _connexions(desk, auth, prefix, env, cap):
     from . import web567
-    html = web567.connections_page(desk, auth, prefix, env, shell=cap, exclude=VOICE_GROUPS)
+    html = web567.connections_page(desk, auth, prefix, env, shell=cap, exclude=VOICE_GROUPS + ('Profil du modèle',))
     return _section(html) + _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier')
 
 
 def _ia(desk, auth, prefix, env, cap):
-    from . import ia540
-    body = _section(ia540.page(desk, prefix, cap, auth['csrf']))
+    from . import ia540, web5634
+    body = web5634.profile_panel(desk, prefix)   # 5.6.34 : Modèles locaux, profil Juridique, Tester, Restaurer
+    body += _section(ia540.page(desk, prefix, cap, auth['csrf']))
     body += _section(_legacy(desk, prefix, auth['csrf'], 'ia'), 'Fournisseurs : état et tests')
     body += _section(_legacy(desk, prefix, auth['csrf'], 'extensions'), 'Connecteurs et extensions')
     body += _section('<p>L’adresse et le modèle Ollama se règlent dans la rubrique <a href="' + e(prefix + '/parametres?rubrique=connexions') + '">Connexions</a> (locale ou réseau du cabinet).</p>')

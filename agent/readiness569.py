@@ -28,7 +28,18 @@ def run(desk):
     checks = []
     # 1. services systemd et workers
     import shutil
-    if shutil.which('systemctl'):
+    from .diagnostic5634 import install_mode
+    if install_mode(desk.c) != 'serveur':   # 5.6.34 : poste Linux ou Windows — processus du superviseur, pas systemd
+        try:
+            from .reliability393 import service_health
+            s = service_health(desk)
+            failed = [x for x in s['services'] if x['required'] and not x['verified']]
+            checks.append(_item('services', 'Services du poste (superviseur)', not failed,
+                                'Interface, moteur et veille actifs.' if not failed else ' ; '.join(x.get('cause') or x['label'] for x in failed),
+                                failed[0].get('action', '') if failed else ''))
+        except Exception as ex:
+            checks.append(_item('services', 'Services du poste (superviseur)', None, 'État des processus non lisible (%s).' % str(ex)[:80], level='non testé'))
+    elif shutil.which('systemctl'):
         try:
             from .reliability393 import service_health
             s = service_health(desk)

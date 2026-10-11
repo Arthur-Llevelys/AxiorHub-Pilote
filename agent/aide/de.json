@@ -1,14 +1,14 @@
 {
- "_": "AxiorHub 5.6.32 — fiches du guide d’utilisation (de) ; identifiants = registre fonctions5631 ; exemples fictifs",
+ "_": "AxiorHub 5.6.34 — fiches du guide d’utilisation (de) ; identifiants = registre fonctions5631 ; exemples fictifs",
  "aujourdhui": {
   "objective": "Auf einem Bildschirm sehen, was heute Ihre Aufmerksamkeit braucht, und die Routinen der Kanzlei starten.",
   "when": "Jeden Morgen oder nach einer Abwesenheit, um zu wissen, was zuerst zu tun ist.",
   "prerequisites": "Keine: Die Bereiche füllen sich, sobald Verbindungen eingerichtet sind.",
   "steps": [
    "Öffnen Sie „Heute“ im Menü.",
-   "Klicken Sie unter „Routines du cabinet“ auf „Briefing du matin“ oder „Tri des courriels“ und dann auf „Générer maintenant“.",
-   "Hören Sie die Zusammenfassung mit „Écouter le briefing“, wenn die Stimme aktiviert ist.",
-   "Mit „Pause des automatismes“ halten Sie automatische Verarbeitungen an."
+   "Klicken Sie unter „Routinen der Kanzlei“ auf „Morgenbriefing“ oder „E-Mail-Sortierung“ und dann auf „Jetzt erstellen“.",
+   "Hören Sie die Zusammenfassung mit „Briefing anhören“, wenn die Stimme aktiviert ist.",
+   "Mit „Automatismen pausieren“ halten Sie automatische Verarbeitungen an."
   ],
   "result": "Ein datiertes Briefing und die Liste der vorbereiteten Arbeit, vor jeder Aktion zu prüfen.",
   "verify": "Der Routinebereich zeigt die Uhrzeit der letzten Erstellung.",
@@ -19,7 +19,7 @@
    ],
    [
     "Nichts wird aktualisiert",
-    "Die Automatisierungen sind vielleicht pausiert: Starten Sie sie mit „Pause des automatismes“ wieder."
+    "Die Automatisierungen sind vielleicht pausiert: Starten Sie sie mit „Automatismen pausieren“ wieder."
    ]
   ],
   "example": "Montagsbriefing: zwei fiktive Verhandlungen (DEMO-A, DEMO-B) und drei zu prüfende E-Mails.",
@@ -30,7 +30,7 @@
    "Pause des automatismes",
    "Écouter le briefing"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "dossiers": {
   "objective": "Eine Akte finden, ihr Aktenblatt öffnen und die Akten in Ihren Dateien verknüpfen.",
@@ -38,8 +38,8 @@
   "prerequisites": "Ein eingerichteter Dokumentenbereich (lokaler Ordner oder Nextcloud).",
   "steps": [
    "Öffnen Sie „Akten“.",
-   "Geben Sie einen Namen oder ein Aktenzeichen ein und klicken Sie auf „Rechercher“.",
-   "Für ein fehlendes Mandat geben Sie seinen Ordner an und klicken auf „Vérifier et enregistrer le dossier“.",
+   "Geben Sie einen Namen oder ein Aktenzeichen ein und klicken Sie auf „Suchen“.",
+   "Für ein fehlendes Mandat geben Sie seinen Ordner an und klicken auf „Akte prüfen und speichern“.",
    "Öffnen Sie die Akte, um Aktenblatt, Beteiligte und Chronologie zu sehen."
   ],
   "result": "Die Akte erscheint im Bestand mit ihrem Arbeitsblatt.",
@@ -51,7 +51,7 @@
    ],
    [
     "Leere Liste",
-    "Starten Sie „Indexer progressivement tous les dossiers enregistrés“."
+    "Starten Sie „Alle gespeicherten Akten schrittweise indexieren“."
    ]
   ],
   "example": "Akte DEMO-A — SAS Beispiel gegen Testfirma, Aktenzeichen 2026-001.",
@@ -61,7 +61,7 @@
    "Lire ce répertoire dans Nextcloud",
    "Indexer progressivement tous les dossiers enregistrés"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "courriels": {
   "objective": "Den Posteingang lesen, vorbereitete Entwürfe prüfen und antworten, weiterleiten oder ablegen.",
@@ -71,7 +71,7 @@
    "Öffnen Sie „E-Mails“; der Reiter Posteingang listet die Nachrichten.",
    "Klicken Sie auf eine Nachricht und wählen Sie Antworten, Allen antworten oder Weiterleiten.",
    "Prüfen und korrigieren Sie einen vorbereiteten Entwurf vor jedem Versand.",
-   "Mit „Rechercher“ finden Sie eine Korrespondenz, mit „Actualiser“ laden Sie die Liste neu."
+   "Mit „Suchen“ finden Sie eine Korrespondenz, mit „Aktualisieren“ laden Sie die Liste neu."
   ],
   "result": "Ein Entwurf in Ihrem Entwurfsordner; nichts wird ohne Ihre Bestätigung gesendet.",
   "verify": "Der Entwurf ist im Entwurfsordner Ihres üblichen E-Mail-Programms sichtbar.",
@@ -90,7 +90,7 @@
    "Actualiser",
    "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "planning": {
   "objective": "Die Termine Ihrer freigegebenen Kalender sehen und einen hinzufügen.",
@@ -98,9 +98,9 @@
   "prerequisites": "Ein zum Schreiben freigegebener Kalender (CalDAV oder Google); zum Ansehen genügt Lesezugriff.",
   "steps": [
    "Öffnen Sie „Kalender und Aufgaben“.",
-   "Öffnen Sie „＋ Ajouter un événement“ und geben Sie Datum, Uhrzeit und Titel ein.",
-   "Klicken Sie auf „Ajouter à l’agenda“.",
-   "Stellen Sie Ihre Erinnerungen ein und klicken Sie auf „Enregistrer les rappels“."
+   "Öffnen Sie „＋ Termin hinzufügen“ und geben Sie Datum, Uhrzeit und Titel ein.",
+   "Klicken Sie auf „Zum Kalender hinzufügen“.",
+   "Stellen Sie Ihre Erinnerungen ein und klicken Sie auf „Erinnerungen speichern“."
   ],
   "result": "Der Termin erscheint in der Liste und im gewählten Kalender.",
   "verify": "Öffnen Sie Ihren üblichen Kalender: Der Termin steht dort zur gleichen Uhrzeit.",
@@ -119,7 +119,7 @@
    "Ajouter à l’agenda",
    "Enregistrer les rappels"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "taches": {
   "objective": "Ihre Aufgaben verfolgen und eine hinzufügen.",
@@ -127,9 +127,9 @@
   "prerequisites": "Keine; die Nextcloud-Synchronisation ist optional.",
   "steps": [
    "Öffnen Sie „Kalender und Aufgaben“ und dann die Aufgabenansicht.",
-   "Mit „Filtrer“ zeigen Sie nur eine Akte oder überfällige Aufgaben.",
-   "Unter „Ajouter une tâche“ geben Sie Titel und Fälligkeit ein und klicken auf „Ajouter la tâche“.",
-   "Mit Nextcloud lädt „↻ Actualiser depuis Nextcloud“ die Liste neu."
+   "Mit „Filtern“ zeigen Sie nur eine Akte oder überfällige Aufgaben.",
+   "Unter „Aufgabe hinzufügen“ geben Sie Titel und Fälligkeit ein und klicken auf „Aufgabe hinzufügen“.",
+   "Mit Nextcloud lädt „↻ Aus Nextcloud aktualisieren“ die Liste neu."
   ],
   "result": "Die Aufgabe erscheint in der Liste, nach Fälligkeit gruppiert.",
   "verify": "Die Aufgabe bleibt nach dem Neuladen sichtbar.",
@@ -145,7 +145,7 @@
    "Filtrer",
    "↻ Actualiser depuis Nextcloud"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "production": {
   "objective": "Sehen, was AxiorHub tatsächlich erstellt hat, und eine Erstellung starten.",
@@ -154,8 +154,8 @@
   "steps": [
    "Öffnen Sie „Erstellen“.",
    "Durchsuchen Sie die Rubriken (Briefe, Schriftsätze, Verhandlungen, Anlagen, Abrechnung).",
-   "Klicken Sie auf „Lancer la production“.",
-   "Setzen Sie einen laufenden Ablauf mit „Continuer les playbooks“ fort."
+   "Klicken Sie auf „Erstellung starten“.",
+   "Setzen Sie einen laufenden Ablauf mit „Playbooks fortsetzen“ fort."
   ],
   "result": "Das Schriftstück erscheint in seiner Rubrik mit seinem Prüfstatus.",
   "verify": "Jedes Schriftstück zeigt sein Datum und die durchgeführten Prüfungen.",
@@ -170,7 +170,7 @@
    "Lancer la production",
    "Continuer les playbooks"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "documents": {
   "objective": "Ein Dokument beim Agenten anfordern und neue Dateien öffnen.",
@@ -178,12 +178,12 @@
   "prerequisites": "Dokumentenbereich und KI eingerichtet.",
   "steps": [
    "Öffnen Sie „Dokumente“.",
-   "Beschreiben Sie unter „Demander un document à l’agent“ das Dokument und wählen Sie die Akte.",
-   "Klicken Sie auf „Préparer le document“.",
-   "Öffnen Sie das Ergebnis mit „Afficher“ und prüfen Sie es."
+   "Beschreiben Sie unter „Beim Agenten ein Dokument anfordern“ das Dokument und wählen Sie die Akte.",
+   "Klicken Sie auf „Dokument vorbereiten“.",
+   "Öffnen Sie das Ergebnis mit „Anzeigen“ und prüfen Sie es."
   ],
   "result": "Ein Dokumententwurf in der gewählten Akte, niemals automatisch versendet.",
-  "verify": "Die Datei erscheint unter „Modifiés récemment ici“.",
+  "verify": "Die Datei erscheint unter „Hier kürzlich geändert“.",
   "errors": [
    [
     "Dokument nicht erstellt",
@@ -195,7 +195,7 @@
    "Préparer le document",
    "Afficher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "echeances": {
   "objective": "Verfahrensfristen berechnen, simulieren und eintragen.",
@@ -203,12 +203,12 @@
   "prerequisites": "Ein beschreibbarer Kalender für das Eintragen.",
   "steps": [
    "Öffnen Sie „Fristen“.",
-   "Geben Sie unter „Ajouter ou simuler une échéance“ das Ereignis und das Anfangsdatum ein.",
-   "Klicken Sie auf „Calculer“ und prüfen Sie die angewandte Regel.",
-   "Klicken Sie auf „Enregistrer et inscrire à l’agenda“, wenn die Berechnung passt."
+   "Geben Sie unter „Frist hinzufügen oder simulieren“ das Ereignis und das Anfangsdatum ein.",
+   "Klicken Sie auf „Berechnen“ und prüfen Sie die angewandte Regel.",
+   "Klicken Sie auf „Speichern und in den Kalender eintragen“, wenn die Berechnung passt."
   ],
   "result": "Eine berechnete Frist mit Rechtsgrundlage, auf Wunsch im Kalender eingetragen.",
-  "verify": "„Vérifier l’agenda maintenant“ bestätigt den Termin.",
+  "verify": "„Kalender jetzt prüfen“ bestätigt den Termin.",
   "errors": [
    [
     "Unsichere Berechnung",
@@ -221,56 +221,56 @@
    "Enregistrer et inscrire à l’agenda",
    "Vérifier l’agenda maintenant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "audience": {
-  "objective": "Das Verhandlungsblatt einer Akte vorbereiten.",
+  "objective": "Das Verhandlungsblatt einer Akte ansehen, ohne neuen KI-Aufruf.",
   "when": "Einige Tage vor einer Verhandlung.",
-  "prerequisites": "Die Akte und ihre Anlagen zugänglich.",
+  "prerequisites": "Die Akte mit indexierten Unterlagen; die Verhandlung im Kalender eingetragen.",
   "steps": [
-   "Öffnen Sie „Verhandlungsblatt“.",
+   "Öffnen Sie Verhandlungen.",
+   "Geben Sie Name, Aktenzeichen, Mandant, eine Partei oder das Gerichtsaktenzeichen ein und klicken Sie auf „Suchen“.",
    "Wählen Sie die Akte.",
-   "Klicken Sie auf „Afficher la fiche“.",
-   "Prüfen Sie erwartete Anlagen, Plädoyernotiz und wahrscheinliche Fragen."
+   "Prüfen Sie die erkannten Schriftsätze, erwarteten Unterlagen und wahrscheinlichen Fragen."
   ],
-  "result": "Ein zu prüfendes Verhandlungsblatt mit seinen Quellen.",
-  "verify": "Jeder Punkt des Blatts verweist auf eine Anlage der Akte.",
+  "result": "Ein Blatt zur Durchsicht; fehlende Angaben werden gemeldet, keine Verhandlung wird erfunden.",
+  "verify": "Das Datum des verwendeten Index steht oben auf dem Blatt.",
   "errors": [
    [
-    "Unvollständiges Blatt",
-    "Die letzten Schriftsätze wurden nicht gefunden: Legen Sie sie in der Akte ab."
+    "Keine Verhandlung",
+    "Tragen Sie die Verhandlung im Kalender ein: Das Blatt erfindet keine."
    ]
   ],
   "example": "Fiktives Blatt für die Verhandlung DEMO-A am 24. November 2026.",
   "buttons": [
-   "Afficher la fiche"
+   "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "audiences_word": {
-  "objective": "Ein Plädoyer aus den letzten Schriftsätzen vorbereiten und ein Word-Dokument analysieren.",
-  "when": "Um Anträge zu vergleichen oder eine DOCX-Datei unverändert zu prüfen.",
+  "objective": "Ein Plädoyer aus unseren und den gegnerischen Schriftsätzen vorbereiten.",
+  "when": "Vor einer Verhandlung, sobald die letzten Schriftsätze vorliegen.",
   "prerequisites": "Akte und KI eingerichtet.",
   "steps": [
-   "Öffnen Sie „Verhandlungen und Word“.",
-   "Wählen Sie die Akte.",
-   "Klicken Sie auf „Analyser et préparer la plaidoirie“.",
-   "Für eine Word-Datei nutzen Sie „Analyser le DOCX sans le modifier“."
+   "Öffnen Sie Verhandlungen, Reiter Vorbereiten.",
+   "Suchen Sie die Akte und klicken Sie auf „Suchen“.",
+   "Geben Sie Ziel und Redezeit an.",
+   "Markieren Sie unsere letzten Schriftsätze und einen oder mehrere gegnerische; fehlen sie in der Akte, laden Sie sie hoch (DOCX oder PDF).",
+   "Starten Sie „Plädoyer vorbereiten“."
   ],
-  "result": "Eine Plädoyergliederung oder eine Analyse des Dokuments; das Original bleibt unverändert.",
-  "verify": "Die Originaldatei behält ihr Änderungsdatum.",
+  "result": "Ein Plädoyerplan, Erwiderungen und mitzunehmende Unterlagen zur Durchsicht. Die Word-Überarbeitung erfolgt unter Erstellen › Überarbeiten.",
+  "verify": "Jedes Argument verweist auf die verwendeten Schriftsätze und Unterlagen.",
   "errors": [
    [
-    "Keine Schriftsätze erkannt",
-    "Prüfen Sie Namen und Ablageort der Schriftsätze in der Akte."
+    "Vorläufige Analyse",
+    "Ohne gegnerische Schriftsätze wird dies angezeigt; fügen Sie sie nach Eingang hinzu."
    ]
   ],
-  "example": "Fiktive Gliederung, die die Anträge von DEMO-A und der Gegenseite vergleicht.",
+  "example": "Fiktive Vorbereitung für die Verhandlung DEMO-A.",
   "buttons": [
-   "Analyser et préparer la plaidoirie",
-   "Analyser le DOCX sans le modifier"
+   "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "missions_complexes": {
   "objective": "Die Vorbereitung einer Klageschrift oder von Schriftsätzen in geprüften Teilaufgaben übergeben.",
@@ -278,8 +278,8 @@
   "prerequisites": "Dokumentenbereich und KI eingerichtet; eine Word-Vorlage der Kanzlei wird empfohlen.",
   "steps": [
    "Öffnen Sie „Komplexe Aufträge“.",
-   "Öffnen Sie „Lancer une mission (assignation ou conclusions)“ und wählen Sie die Akte.",
-   "Klicken Sie auf „Créer la mission“.",
+   "Öffnen Sie „Auftrag starten (Klage oder Schriftsätze)“ und wählen Sie die Akte.",
+   "Klicken Sie auf „Auftrag anlegen“.",
    "Verfolgen Sie die Teilaufgaben und beantworten Sie die verlangten Entscheidungen."
   ],
   "result": "Ein geprüfter Entwurf mit Quellen und Prüfpunkten.",
@@ -294,7 +294,7 @@
   "buttons": [
    "Créer la mission"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "pieces": {
   "objective": "Ein Anlagenverzeichnis mit nummerierten und gestempelten Anlagen erstellen.",
@@ -302,8 +302,8 @@
   "prerequisites": "Die PDF-Anlagen in der Akte; eine Verzeichnisvorlage ist optional.",
   "steps": [
    "Öffnen Sie „Anlagen und Anlagenverzeichnisse“.",
-   "Füllen Sie Profil und Stempel aus und klicken Sie auf „Enregistrer le profil“.",
-   "Wählen Sie unter „Préparer un bordereau“ die Akte und dann „Analyser les PDF du dossier“.",
+   "Füllen Sie Profil und Stempel aus und klicken Sie auf „Profil speichern“.",
+   "Wählen Sie unter „Anlagenverzeichnis vorbereiten“ die Akte und dann „PDF-Dateien der Akte analysieren“.",
    "Prüfen Sie Titel und Nummern, sehen Sie alle Seiten in der Vorschau an und bestätigen Sie."
   ],
   "result": "Eine neue Fassung des Verzeichnisses und gestempelte Anlagen. Das Erstellen der Datei ist keine Übermittlung an eine Partei.",
@@ -319,7 +319,7 @@
    "Analyser les PDF du dossier",
    "Enregistrer le profil"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "profils": {
   "objective": "Die Verfahrensprofile genehmigen, die Schritte und Fristen vorschlagen.",
@@ -327,12 +327,12 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Verfahrensprofile“.",
-   "Öffnen Sie ein Profil (zum Beispiel „Tribunal judiciaire au fond“).",
+   "Öffnen Sie ein Profil (zum Beispiel „Tribunal judiciaire in der Hauptsache“).",
    "Prüfen Sie Schritte und Quellen.",
-   "Klicken Sie auf „Approuver“, wenn das Profil passt."
+   "Klicken Sie auf „Freigeben“, wenn das Profil passt."
   ],
   "result": "Das Profil wird nutzbar, mit dem Datum Ihrer Genehmigung.",
-  "verify": "Das Profil ist nicht mehr als „non approuvé“ markiert.",
+  "verify": "Das Profil ist nicht mehr als „nicht freigegeben“ markiert.",
   "errors": [
    [
     "Unpassendes Profil",
@@ -343,7 +343,7 @@
   "buttons": [
    "Approuver"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "strategie": {
   "objective": "Die Strategie einer Akte in einem eigenen Bereich erarbeiten.",
@@ -352,7 +352,7 @@
   "steps": [
    "Öffnen Sie „Strategie“.",
    "Wählen Sie die Akte.",
-   "Klicken Sie auf „Ouvrir“.",
+   "Klicken Sie auf „Öffnen“.",
    "Notieren und vergleichen Sie die Optionen."
   ],
   "result": "Ein Strategiebereich für die Akte.",
@@ -367,7 +367,7 @@
   "buttons": [
    "Ouvrir"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "studio": {
   "objective": "Ein Schriftstück wählen und es mit Prüfung auf einem Bildschirm vorbereiten.",
@@ -375,9 +375,9 @@
   "prerequisites": "KI eingerichtet; eine Word-Vorlage der Kanzlei wird empfohlen.",
   "steps": [
    "Öffnen Sie „Produktionsstudio“.",
-   "Wählen Sie ein Schriftstück, zum Beispiel „Courrier Word“ oder „Conclusions“.",
+   "Wählen Sie ein Schriftstück, zum Beispiel „Word-Schreiben“ oder „Schriftsätze“.",
    "Geben Sie Akte und Anweisung ein.",
-   "Klicken Sie auf „Préparer et contrôler“."
+   "Klicken Sie auf „Vorbereiten und prüfen“."
   ],
   "result": "Ein geprüfter Entwurf in der Akte.",
   "verify": "Der Entwurf zeigt bestandene Prüfungen und Prüfpunkte.",
@@ -393,7 +393,7 @@
    "Courrier Word",
    "Conclusions"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "playbooks": {
   "objective": "Einem geführten Ablauf für eine häufige Aufgabe folgen.",
@@ -402,22 +402,22 @@
   "steps": [
    "Öffnen Sie „Geführte Abläufe“.",
    "Wählen Sie den passenden Ablauf.",
-   "Klicken Sie auf „Démarrer ce parcours“.",
+   "Klicken Sie auf „Diesen Ablauf starten“.",
    "Folgen Sie den vorgeschlagenen Schritten."
   ],
-  "result": "Ein Ablauf, gespeichert unter „Parcours récents“.",
+  "result": "Ein Ablauf, gespeichert unter „Letzte Abläufe“.",
   "verify": "Jeder Schritt zeigt seinen Status.",
   "errors": [
    [
     "Ablauf unterbrochen",
-    "Setzen Sie ihn unter „Parcours récents“ fort."
+    "Setzen Sie ihn unter „Letzte Abläufe“ fort."
    ]
   ],
   "example": "Fiktive Analyse gegnerischer Schriftsätze für DEMO-A.",
   "buttons": [
    "Démarrer ce parcours"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "recherche": {
   "objective": "Eine E-Mail, Datei, einen Termin oder eine Notiz in der Kanzlei finden.",
@@ -427,46 +427,46 @@
    "Öffnen Sie „Suche in der Kanzlei“.",
    "Geben Sie Ihre Suche ein (Wörter, Name, Datum).",
    "Filtern Sie bei Bedarf nach Akte oder Zeitraum.",
-   "Klicken Sie auf „Rechercher“."
+   "Klicken Sie auf „Suchen“."
   ],
   "result": "Die Liste der Treffer, nach Relevanz geordnet.",
   "verify": "Öffnen Sie einen Treffer, um den Inhalt zu prüfen.",
   "errors": [
    [
     "Keine Treffer",
-    "Der Index ist vielleicht nicht aktuell: siehe „État de l’index“."
+    "Der Index ist vielleicht nicht aktuell: siehe „Indexstatus“."
    ]
   ],
   "example": "Fiktive Suche: „Vertragsstrafe DEMO-A“.",
   "buttons": [
    "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "recherche_juridique": {
-  "objective": "Texte und Entscheidungen suchen, ohne Mandantendaten zu übermitteln.",
-  "when": "Um die Grundlage eines Arguments zu finden.",
-  "prerequisites": "Eine Rechtsquelle für externe Recherchen eingerichtet.",
+  "objective": "Texte und Entscheidungen suchen, mit oder ohne Akte, ohne Mandantendaten zu übertragen.",
+  "when": "Um die Grundlage eines Arguments zu finden oder eine allgemeine Frage zu beantworten.",
+  "prerequisites": "Eine aktive Rechtsquelle (Einstellungen › Rechtsquellen).",
   "steps": [
-   "Öffnen Sie „Juristische Recherche“.",
-   "Formulieren Sie die Rechtsfrage ohne Namen oder identifizierende Daten.",
-   "Klicken Sie auf „Rechercher sans données client“.",
-   "Prüfen Sie die Fundstellen, bevor Sie sie verwenden."
+   "Öffnen Sie Rechtsrecherche.",
+   "Optional: Wählen Sie die Akte.",
+   "Geben Sie Frage, Rechtsgebiet, Gebiet und Anwendungsdatum an.",
+   "Wählen Sie die Quellen und klicken Sie auf „Suchen“.",
+   "Öffnen Sie vor jedem Zitat die amtliche Quelle."
   ],
-  "result": "Hinweise auf Texte und Entscheidungen mit ihrer Quelle.",
-  "verify": "Jede Fundstelle kann geöffnet und geprüft werden.",
+  "result": "Ergebniskarten: an der amtlichen Quelle geprüfte Entscheidungen und zu prüfende Hinweise.",
+  "verify": "Eine fehlerhafte Quelle wird genannt; die Ergebnisse der anderen bleiben sichtbar.",
   "errors": [
    [
-    "Quelle nicht verfügbar",
-    "Prüfen Sie die Verbindung unter „Rechtsquellen“."
+    "Keine aktive Quelle",
+    "Richten Sie eine Rechtsquelle ein und testen Sie sie."
    ]
   ],
-  "example": "Fiktive Frage: Verjährungsfrist einer Gewährleistungsklage.",
+  "example": "Fiktive Frage: Verjährungsfrist eines Gewährleistungsanspruchs.",
   "buttons": [
-   "Rechercher sans données client",
-   "Identifier les dernières conclusions"
+   "Rechercher"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "verification": {
   "objective": "Rechtszitate und Pflichtangaben prüfen und eine kontradiktorische Durchsicht durchführen.",
@@ -475,11 +475,11 @@
   "steps": [
    "Öffnen Sie „Prüfen“.",
    "Wählen Sie das Dokument.",
-   "Klicken Sie auf „Vérifier les citations“, „Contrôler les mentions“ oder „Relecture contradictoire“.",
+   "Klicken Sie auf „Zitate prüfen“, „Pflichtangaben prüfen“ oder „Kontradiktorische Prüfung“.",
    "Bearbeiten Sie jeden gemeldeten Punkt."
   ],
   "result": "Eine Liste zu korrigierender oder zu prüfender Punkte mit Quelle.",
-  "verify": "Eine ungeprüfte Fundstelle bleibt als „À vérifier“ markiert.",
+  "verify": "Eine ungeprüfte Fundstelle bleibt als „Zu prüfen“ markiert.",
   "errors": [
    [
     "Zitat nicht gefunden",
@@ -492,7 +492,7 @@
    "Contrôler les mentions",
    "Relecture contradictoire"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "sources": {
   "objective": "Den Status der Rechtsquellen prüfen und ihre Nutzung einstellen.",
@@ -500,8 +500,8 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Rechtsquellen“.",
-   "Stellen Sie die Quellen ein und klicken Sie auf „Enregistrer“.",
-   "Klicken Sie auf „Tester les sources“.",
+   "Stellen Sie die Quellen ein und klicken Sie auf „Speichern“.",
+   "Klicken Sie auf „Quellen testen“.",
    "Sehen Sie das Protokoll der ausgehenden Anfragen an."
   ],
   "result": "Der Status jeder Quelle und das Protokoll der letzten 30 Anfragen.",
@@ -517,16 +517,16 @@
    "Tester les sources",
    "Enregistrer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "veille": {
   "objective": "Eine geplante, datierte und belegte Rechtsbeobachtung zu Ihren Themen erhalten.",
-  "when": "Jeden Morgen oder an gewählten Tagen; auf Anforderung mit „Actualiser“.",
+  "when": "Jeden Morgen oder an gewählten Tagen; auf Anforderung mit „Aktualisieren“.",
   "prerequisites": "Beobachtungsthemen (Einstellungen › Beobachtung und Internetsuche); optional: aktivierte Rechtsquelle, Tavily-Schlüssel.",
   "steps": [
    "Öffnen Sie Einstellungen › Beobachtung und Internetsuche und geben Sie Ihre Themen an.",
    "Wählen Sie amtliche Feeds und Häufigkeit und speichern Sie.",
-   "Öffnen Sie Rechtsbeobachtung und klicken Sie auf „Actualiser“.",
+   "Öffnen Sie Rechtsbeobachtung und klicken Sie auf „Aktualisieren“.",
    "Lesen Sie jede Neuigkeit und öffnen Sie ihre Quelle.",
    "Markieren Sie sie mit „Lu“, „Conserver“ oder „Masquer“."
   ],
@@ -546,32 +546,32 @@
   "buttons": [
    "Actualiser"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "surveillance": {
-  "objective": "Akten überwachen und die Prioritätentabelle neu berechnen.",
-  "when": "Um Akten zu erkennen, die ein Handeln erfordern.",
-  "prerequisites": "Dokumentenbereich eingerichtet.",
+  "objective": "Änderungen und Punkte finden, die Ihre Aufmerksamkeit erfordern (Kanzleiwarnungen).",
+  "when": "Täglich oder nach Eingang neuer Unterlagen.",
+  "prerequisites": "Überwachte Akten.",
   "steps": [
-   "Öffnen Sie „Überwachung“.",
-   "Klicken Sie auf „🔭 Surveiller tous les dossiers“.",
-   "Klicken Sie auf „🧭 Recalculer le tableau“.",
-   "Öffnen Sie die gemeldeten Akten."
+   "Öffnen Sie Kanzleiwarnungen.",
+   "Öffnen Sie die betroffene Akte oder Frist.",
+   "Dann „Als gelesen markieren“, „Morgen erinnern“ oder „Als erledigt markieren“.",
+   "Für eine neue Analyse klicken Sie auf „Warnungen aller Akten aktualisieren“ oder „Prioritäten neu berechnen“."
   ],
-  "result": "Eine Tabelle der zu überwachenden Akten.",
-  "verify": "Die Tabelle zeigt das Datum der letzten Berechnung.",
+  "result": "Nach Dringlichkeit geordnete Warnungen; die Aktionen ändern weder Kalender noch Fristen.",
+  "verify": "Jede Statusänderung zeigt, wer sie wann vorgenommen hat; „Letzte Aktion rückgängig machen“ macht sie rückgängig.",
   "errors": [
    [
-    "Leere Tabelle",
-    "Erfassen Sie zuerst Ihre Akten."
+    "Warnung wieder geöffnet",
+    "Ihr Inhalt hat sich wesentlich geändert: Lesen Sie sie erneut."
    ]
   ],
-  "example": "Fiktive Akte DEMO-B gemeldet: Frist naht.",
+  "example": "Fiktive Warnung: neue Unterlage in der Akte DEMO-A.",
   "buttons": [
-   "🔭 Surveiller tous les dossiers",
-   "🧭 Recalculer le tableau"
+   "Actualiser les alertes de tous les dossiers",
+   "Recalculer les priorités"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "engagements": {
   "objective": "Zusagen aus der Korrespondenz und vorbereitete Folgeschritte verfolgen.",
@@ -579,8 +579,8 @@
   "prerequisites": "E-Mail eingerichtet.",
   "steps": [
    "Öffnen Sie „Zusagen und Folgeschritte“.",
-   "Sehen Sie „Engagements à suivre“ an.",
-   "Klicken Sie auf „Vérifier les envois“.",
+   "Sehen Sie „Zu verfolgende Zusagen“ an.",
+   "Klicken Sie auf „Sendungen prüfen“.",
    "Prüfen Sie die vorbereiteten Folgeschritte."
   ],
   "result": "Die Liste der Zusagen mit ihrer Quelle.",
@@ -595,7 +595,7 @@
   "buttons": [
    "Vérifier les envois"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "accueil_administratif": {
   "objective": "Eingehende administrative Anrufe und Nachrichten empfangen und bearbeiten.",
@@ -617,7 +617,7 @@
   ],
   "example": "Fiktive Terminanfrage per Telefon.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "contacts": {
   "objective": "Die Korrespondenten der Kanzlei und ihre Rolle je Akte verwalten.",
@@ -625,16 +625,16 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Kontakte“.",
-   "Mit „Filtrer“ finden Sie einen Korrespondenten.",
-   "Ordnen Sie ihn einer Akte zu und klicken Sie auf „Enregistrer l’association“.",
-   "Korrigieren Sie seine Rolle und klicken Sie auf „Enregistrer le rôle“."
+   "Mit „Filtern“ finden Sie einen Korrespondenten.",
+   "Ordnen Sie ihn einer Akte zu und klicken Sie auf „Zuordnung speichern“.",
+   "Korrigieren Sie seine Rolle und klicken Sie auf „Rolle speichern“."
   ],
   "result": "Der Korrespondent ist der Akte mit seiner Rolle zugeordnet.",
   "verify": "Das Aktenblatt nennt diesen Korrespondenten.",
   "errors": [
    [
     "Falsche Rolle",
-    "Korrigieren Sie sie unter „Corriger le rôle ou retirer“."
+    "Korrigieren Sie sie unter „Rolle korrigieren oder entfernen“."
    ]
   ],
   "example": "Fiktiver Kontakt: gegnerischer Anwalt in DEMO-A.",
@@ -643,7 +643,7 @@
    "Enregistrer l’association",
    "Enregistrer le rôle"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "associations": {
   "objective": "E-Mail-Adressen Akten zuordnen.",
@@ -651,7 +651,7 @@
   "prerequisites": "E-Mail eingerichtet.",
   "steps": [
    "Öffnen Sie „Vorgeschlagene Zuordnungen“.",
-   "Klicken Sie auf „✨ Rechercher et regrouper automatiquement“.",
+   "Klicken Sie auf „✨ Automatisch suchen und gruppieren“.",
    "Bestätigen Sie die vorgeschlagenen Zuordnungen.",
    "Ordnen Sie bei Bedarf eine Adresse direkt zu."
   ],
@@ -667,7 +667,7 @@
   "buttons": [
    "✨ Rechercher et regrouper automatiquement"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "orchestrateur": {
   "objective": "E-Mails und Akten abgleichen und Mitteilungsentwürfe vorbereiten.",
@@ -675,12 +675,12 @@
   "prerequisites": "E-Mail eingerichtet.",
   "steps": [
    "Öffnen Sie „Orchestrator und Mitteilungen“.",
-   "Klicken Sie auf „↻ Analyser les nouveaux courriels“.",
-   "Bereiten Sie eine Mitteilung mit „Préparer sans action externe“ vor.",
+   "Klicken Sie auf „↻ Neue E-Mails analysieren“.",
+   "Bereiten Sie eine Mitteilung mit „Ohne externe Aktion vorbereiten“ vor.",
    "Prüfen Sie die letzten Mitteilungsentwürfe."
   ],
   "result": "Zu prüfende Mitteilungsentwürfe; keine externe Aktion.",
-  "verify": "Die Entwürfe stehen unter „Projets d’avis récents“.",
+  "verify": "Die Entwürfe stehen unter „Letzte Hinweisentwürfe“.",
   "errors": [
    [
     "E-Mail nicht zugeordnet",
@@ -692,7 +692,7 @@
    "↻ Analyser les nouveaux courriels",
    "Préparer sans action externe"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "missions": {
   "objective": "Dem Agenten einen Auftrag geben und den Fortschritt verfolgen.",
@@ -701,7 +701,7 @@
   "steps": [
    "Öffnen Sie „Aufträge“.",
    "Beschreiben Sie den Auftrag.",
-   "Klicken Sie auf „Confier une mission“.",
+   "Klicken Sie auf „Auftrag erteilen“.",
    "Verfolgen Sie den Status und beantworten Sie gestellte Fragen."
   ],
   "result": "Ein verfolgter Auftrag mit zu prüfenden Ergebnissen.",
@@ -716,7 +716,7 @@
   "buttons": [
    "Confier une mission"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "assistant": {
   "objective": "Mit dem Assistenten über die Kanzlei und ihre Akten sprechen.",
@@ -725,7 +725,7 @@
   "steps": [
    "Öffnen Sie „Assistent“.",
    "Geben Sie Ihre Frage ein.",
-   "Klicken Sie auf „Envoyer à l’assistant“.",
+   "Klicken Sie auf „An den Assistenten senden“.",
    "Finden Sie das Gespräch im Verlauf wieder."
   ],
   "result": "Eine Antwort, wenn möglich mit Quellen.",
@@ -740,7 +740,7 @@
   "buttons": [
    "Envoyer à l’assistant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "cabinet": {
   "objective": "Zur Kanzleiverwaltung: Zeit, Termine, Konflikte, Verjährung, Steuerung.",
@@ -761,7 +761,7 @@
   ],
   "example": "Fiktiver Blick auf die Steuerung des Monats.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "honoraires": {
   "objective": "Aufgewendete Zeit freigeben und Tätigkeiten schätzen.",
@@ -770,8 +770,8 @@
   "steps": [
    "Öffnen Sie „Zeit und Honorare“.",
    "Prüfen Sie die freizugebenden Zeiten.",
-   "Klicken Sie auf „Estimer à partir des courriels, pièces et rendez-vous“.",
-   "Passen Sie den Tarif an und klicken Sie auf „Enregistrer le barème“."
+   "Klicken Sie auf „Aus E-Mails, Anlagen und Terminen schätzen“.",
+   "Passen Sie den Tarif an und klicken Sie auf „Tabelle speichern“."
   ],
   "result": "Freigegebene Zeiten je Akte.",
   "verify": "Die Summe je Akte wird aktualisiert.",
@@ -786,7 +786,7 @@
    "Estimer à partir des courriels, pièces et rendez-vous",
    "Enregistrer le barème"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "rendez_vous": {
   "objective": "Termine und ihre Protokolle vorbereiten.",
@@ -807,7 +807,7 @@
   ],
   "example": "Fiktiver Termin mit dem Mandanten von DEMO-B.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "conflits": {
   "objective": "Interessenkonflikte suchen.",
@@ -815,12 +815,12 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Interessenkonflikte“.",
-   "Geben Sie die Namen unter „Nouvelle recherche“ ein.",
-   "Klicken Sie auf „Rechercher les conflits“.",
-   "Verwalten Sie bei Bedarf die Erstellungssperre („Désactiver le blocage“)."
+   "Geben Sie die Namen unter „Neue Suche“ ein.",
+   "Klicken Sie auf „Konflikte suchen“.",
+   "Verwalten Sie bei Bedarf die Erstellungssperre („Sperre aufheben“)."
   ],
   "result": "Ein Bericht der Konfliktsuche.",
-  "verify": "Der Bericht erscheint unter „Rapports récents“.",
+  "verify": "Der Bericht erscheint unter „Letzte Berichte“.",
   "errors": [
    [
     "Zweifelhaftes Ergebnis",
@@ -832,7 +832,7 @@
    "Rechercher les conflits",
    "Désactiver le blocage"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "prescriptions": {
   "objective": "Verjährungs- und Ausschlussfristen berechnen und verfolgen.",
@@ -841,15 +841,15 @@
   "steps": [
    "Öffnen Sie „Verjährung und Ausschlussfristen“.",
    "Geben Sie Regel und Fristbeginn ein.",
-   "Klicken Sie zur Prüfung auf „Calculer sans enregistrer“.",
-   "Klicken Sie auf „Créer (à confirmer)“, um die Frist zu verfolgen."
+   "Klicken Sie zur Prüfung auf „Berechnen ohne zu speichern“.",
+   "Klicken Sie auf „Erstellen (zu bestätigen)“, um die Frist zu verfolgen."
   ],
   "result": "Eine berechnete Frist mit ihrem Text, zu bestätigen.",
   "verify": "Die Frist steht mit ihrem Enddatum in der Liste.",
   "errors": [
    [
     "Regel fehlt",
-    "Siehe „Règles disponibles et textes“."
+    "Siehe „Verfügbare Regeln und Texte“."
    ]
   ],
   "example": "Fiktive fünfjährige Verjährung ab dem 1. März 2026.",
@@ -857,7 +857,7 @@
    "Calculer sans enregistrer",
    "Créer (à confirmer)"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "pilotage_mensuel": {
   "objective": "Die Monatskennzahlen ansehen und exportieren.",
@@ -865,8 +865,8 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Monatliche Steuerung“.",
-   "Wählen Sie den Monat und klicken Sie auf „Afficher“.",
-   "Exportieren Sie mit „Exporter (CSV)“ oder „Exporter (Markdown)“."
+   "Wählen Sie den Monat und klicken Sie auf „Anzeigen“.",
+   "Exportieren Sie mit „Exportieren (CSV)“ oder „Exportieren (Markdown)“."
   ],
   "result": "Die Monatskennzahlen: Akten, Fristen, Zeit, Entwürfe, Qualität.",
   "verify": "Die exportierte Datei enthält dieselben Zahlen.",
@@ -882,7 +882,7 @@
    "Exporter (CSV)",
    "Exporter (Markdown)"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "assistance_metier": {
   "objective": "Prüfbare Berechnungen durchführen und die Abrechnungsprüfung vorbereiten.",
@@ -890,9 +890,9 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Fachliche Unterstützung“.",
-   "Wählen Sie die Berechnung, zum Beispiel „Calculer les intérêts simples“ oder „Calculer une indexation“.",
+   "Wählen Sie die Berechnung, zum Beispiel „Einfache Zinsen berechnen“ oder „Eine Indexierung berechnen“.",
    "Geben Sie Beträge und Daten ein.",
-   "Für die Abrechnung nutzen Sie „Préparer la revue de facturation“."
+   "Für die Abrechnung nutzen Sie „Abrechnungsprüfung vorbereiten“."
   ],
   "result": "Eine ausführliche und nachvollziehbare Berechnung.",
   "verify": "Die Berechnung wird Zeile für Zeile angezeigt.",
@@ -908,7 +908,7 @@
    "Calculer une indexation",
    "Préparer la revue de facturation"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "modeles_word": {
   "objective": "Ihre Word-Vorlagen importieren, Platzhalter prüfen und jede Seite in der Vorschau ansehen.",
@@ -917,7 +917,7 @@
   "steps": [
    "Öffnen Sie „Kanzleidokumente“.",
    "Wählen Sie Ihre DOCX-Datei.",
-   "Klicken Sie auf „Importer et prévisualiser“.",
+   "Klicken Sie auf „Importieren und Vorschau“.",
    "Prüfen Sie erkannte Platzhalter und jede Seite und genehmigen Sie die Vorlage."
   ],
   "result": "Eine genehmigte Vorlage für neue Entwürfe; das Original bleibt unverändert.",
@@ -936,7 +936,7 @@
   "buttons": [
    "Importer et prévisualiser"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "modeles_actes": {
   "objective": "Schriftsatzvorlagen und ihre Pflichtangaben verwalten.",
@@ -946,7 +946,7 @@
    "Öffnen Sie „Schriftsatzvorlagen“.",
    "Wählen Sie die Art des Schriftsatzes.",
    "Ergänzen Sie die Angaben.",
-   "Klicken Sie auf „Enregistrer le modèle“."
+   "Klicken Sie auf „Vorlage speichern“."
   ],
   "result": "Eine gespeicherte Schriftsatzvorlage.",
   "verify": "Die Vorlage wird bei der Vorbereitung vorgeschlagen.",
@@ -960,7 +960,7 @@
   "buttons": [
    "Enregistrer le modèle"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "mon_style": {
   "objective": "Ihre Texte analysieren, um Ihren Stil zu übernehmen.",
@@ -968,12 +968,12 @@
   "prerequisites": "Texte der Kanzlei zugänglich.",
   "steps": [
    "Öffnen Sie „Mein Stil“.",
-   "Klicken Sie auf „Analyser maintenant“.",
+   "Klicken Sie auf „Jetzt analysieren“.",
    "Prüfen Sie die vorgeschlagenen Gewohnheiten.",
-   "Verfeinern Sie bei Bedarf mit „Affiner avec l’IA“."
+   "Verfeinern Sie bei Bedarf mit „Mit der KI verfeinern“."
   ],
   "result": "Zu genehmigende, danach angewandte Stilgewohnheiten.",
-  "verify": "Genehmigte Gewohnheiten stehen unter „Habitudes appliquées“.",
+  "verify": "Genehmigte Gewohnheiten stehen unter „Angewandte Gewohnheiten“.",
   "errors": [
    [
     "Leerer Korpus",
@@ -985,7 +985,7 @@
    "Analyser maintenant",
    "Affiner avec l’IA"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "progres": {
   "objective": "Ton je Empfänger und „immer so machen“-Regeln einstellen.",
@@ -994,8 +994,8 @@
   "steps": [
    "Öffnen Sie „Stil und Lernen“.",
    "Sehen Sie die Lerntabelle an.",
-   "Korrigieren Sie einen Ton mit „Corriger la détection“.",
-   "Fügen Sie mit „Créer la règle“ eine Regel hinzu; „Valeurs d’origine“ stellt die Einstellungen wieder her."
+   "Korrigieren Sie einen Ton mit „Erkennung korrigieren“.",
+   "Fügen Sie mit „Regel anlegen“ eine Regel hinzu; „Ursprungswerte“ stellt die Einstellungen wieder her."
   ],
   "result": "Regeln, die auf die nächsten Entwürfe angewandt werden.",
   "verify": "Die Regel erscheint in der Regelliste.",
@@ -1011,19 +1011,19 @@
    "Corriger la détection",
    "Valeurs d’origine"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "agents": {
   "objective": "Einen in natürlicher Sprache beschriebenen Dokumentenagenten erstellen.",
   "when": "Um eine wiederkehrende Dokumentenverarbeitung zu automatisieren.",
   "prerequisites": "KI eingerichtet.",
   "steps": [
-   "Öffnen Sie „Agenten und Regeln“ und dann „Nouvel agent“.",
-   "Beschreiben Sie den Auftrag und klicken Sie auf „Interpréter la mission“.",
-   "Prüfen Sie mit „Tester le déclencheur sans agir“.",
-   "Klicken Sie auf „Enregistrer et activer“."
+   "Öffnen Sie „Agenten und Regeln“ und dann „Neuer Agent“.",
+   "Beschreiben Sie den Auftrag und klicken Sie auf „Auftrag auslegen“.",
+   "Prüfen Sie mit „Auslöser testen, ohne zu handeln“.",
+   "Klicken Sie auf „Speichern und aktivieren“."
   ],
-  "result": "Ein aktiver Agent unter „Mes agents et règles par défaut“.",
+  "result": "Ein aktiver Agent unter „Meine Agenten und Standardregeln“.",
   "verify": "Die Ergebnisse erscheinen unter „Ergebnisse der Agenten“.",
   "errors": [
    [
@@ -1038,7 +1038,7 @@
    "Tester le déclencheur sans agir",
    "Enregistrer et activer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "agents_documents": {
   "objective": "Ergebnisse der Dokumentenagenten sehen und eine Verarbeitung wiederaufnehmen.",
@@ -1047,7 +1047,7 @@
   "steps": [
    "Öffnen Sie „Ergebnisse der Agenten“.",
    "Sehen Sie die Ergebnisse an.",
-   "Klicken Sie auf „Vérifier les documents“.",
+   "Klicken Sie auf „Dokumente prüfen“.",
    "Nehmen Sie eine fehlgeschlagene Verarbeitung wieder auf."
   ],
   "result": "Die Liste der Verarbeitungen mit ihrem Status.",
@@ -1062,7 +1062,7 @@
   "buttons": [
    "Vérifier les documents"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "regles": {
   "objective": "Autonomiestufe und Regeln der E-Mail-Verarbeitung einstellen.",
@@ -1070,9 +1070,9 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Regeln und Autonomie“.",
-   "Wählen Sie eine Stufe und klicken Sie auf „Activer ce niveau“.",
-   "Fügen Sie mit „Ajouter la règle“ eine Regel hinzu.",
-   "Lernen Sie aus einer Korrektur mit „Enregistrer la correction“."
+   "Wählen Sie eine Stufe und klicken Sie auf „Diese Stufe aktivieren“.",
+   "Fügen Sie mit „Regel hinzufügen“ eine Regel hinzu.",
+   "Lernen Sie aus einer Korrektur mit „Korrektur speichern“."
   ],
   "result": "Aktive und umkehrbare Regeln.",
   "verify": "Aktive Regeln werden mit ihrer Wirkung aufgelistet.",
@@ -1088,7 +1088,7 @@
    "Ajouter la règle",
    "Enregistrer la correction"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "autonomie": {
   "objective": "Sehen, was Ihrer Freigabe unterliegt, und die Autonomie anpassen.",
@@ -1096,9 +1096,9 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Autonomie des Agenten“.",
-   "Sehen Sie „Toujours soumis à votre validation“ an.",
-   "Passen Sie an und klicken Sie auf „Appliquer“.",
-   "Im Zweifel „Tout passer en mode prudent“."
+   "Sehen Sie „Immer Ihrer Freigabe unterworfen“ an.",
+   "Passen Sie an und klicken Sie auf „Anwenden“.",
+   "Im Zweifel „Alles in den vorsichtigen Modus schalten“."
   ],
   "result": "Die angewandte Autonomiestufe.",
   "verify": "Der Einstellungsverlauf hält die Änderung fest.",
@@ -1113,7 +1113,7 @@
    "Appliquer",
    "Tout passer en mode prudent"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "apprentissage": {
   "objective": "Fachregeln erstellen und verlässliche Referenzen erklären.",
@@ -1121,12 +1121,12 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Fachliches Lernen“.",
-   "Beschreiben Sie unter „Créer une règle métier“ die Regel und klicken Sie auf „Enregistrer la règle“.",
-   "Erklären Sie ein verlässliches Dokument und klicken Sie auf „Enregistrer la référence fiable“.",
+   "Beschreiben Sie unter „Fachregel anlegen“ die Regel und klicken Sie auf „Regel speichern“.",
+   "Erklären Sie ein verlässliches Dokument und klicken Sie auf „Verlässliche Fundstelle speichern“.",
    "Prüfen Sie die letzten Korrekturen."
   ],
   "result": "Aktive und umkehrbare Regeln.",
-  "verify": "Die Regeln stehen unter „Préférences apprises“.",
+  "verify": "Die Regeln stehen unter „Gelernte Präferenzen“.",
   "errors": [
    [
     "Regel zu allgemein",
@@ -1138,7 +1138,7 @@
    "Enregistrer la règle",
    "Enregistrer la référence fiable"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "projets": {
   "objective": "Automatisch vorbereitete Arbeit prüfen.",
@@ -1146,7 +1146,7 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Wartende Entwürfe“.",
-   "Klicken Sie auf „↻ Analyser les nouveaux courriels“.",
+   "Klicken Sie auf „↻ Neue E-Mails analysieren“.",
    "Prüfen Sie jeden Entwurf.",
    "Geben Sie frei oder verwerfen Sie."
   ],
@@ -1162,7 +1162,7 @@
   "buttons": [
    "↻ Analyser les nouveaux courriels"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "preparation": {
   "objective": "Die nächste erkannte Arbeit und die Quellenabdeckung sehen.",
@@ -1170,7 +1170,7 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Proaktive Vorbereitung“.",
-   "Klicken Sie auf „↻ Analyser maintenant“.",
+   "Klicken Sie auf „↻ Jetzt analysieren“.",
    "Sehen Sie die erkannte Arbeit an."
   ],
   "result": "Die Liste der nächsten erkannten Arbeit.",
@@ -1185,7 +1185,7 @@
   "buttons": [
    "↻ Analyser maintenant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "memoire": {
   "objective": "Die vom Agenten gemerkten gesendeten Antworten aktualisieren.",
@@ -1193,7 +1193,7 @@
   "prerequisites": "E-Mail eingerichtet.",
   "steps": [
    "Öffnen Sie „Gedächtnis“.",
-   "Klicken Sie auf „Actualiser les réponses envoyées“.",
+   "Klicken Sie auf „Gesendete Antworten aktualisieren“.",
    "Sehen Sie die gemerkten Elemente an."
   ],
   "result": "Ein aktuelles Gedächtnis der gesendeten Antworten.",
@@ -1208,7 +1208,7 @@
   "buttons": [
    "Actualiser les réponses envoyées"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "parametres": {
   "objective": "Verbindungen und Präferenzen der Software einstellen.",
@@ -1217,8 +1217,8 @@
   "steps": [
    "Öffnen Sie „Einstellungen“ und dann die gewünschte Rubrik.",
    "Ändern Sie die Einstellung.",
-   "Klicken Sie auf „Enregistrer les changements“.",
-   "Testen Sie mit „Tester IMAP“, „Tester Nextcloud / agendas“ oder „Tester Ollama“."
+   "Klicken Sie auf „Änderungen speichern“.",
+   "Testen Sie mit „IMAP testen“, „Nextcloud / Kalender testen“ oder „Ollama testen“."
   ],
   "result": "Gespeicherte Einstellungen, ohne die Seite neu zu laden.",
   "verify": "Die Testmeldung nennt, was tatsächlich geprüft wurde.",
@@ -1235,7 +1235,7 @@
    "Tester Nextcloud / agendas",
    "Tester Ollama"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "guide_installation": {
   "objective": "Dienste Schritt für Schritt einrichten und Verbindungen prüfen.",
@@ -1257,7 +1257,7 @@
   ],
   "example": "Fiktiver Ablauf: lokaler Ordner und Ollama, ohne E-Mail.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "guide_utilisation": {
   "objective": "Herausfinden, wie eine Funktion verwendet wird.",
@@ -1278,7 +1278,7 @@
   ],
   "example": "Fiktive Suche: „Anlagenverzeichnis“.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "mise_en_service": {
   "objective": "Echte Dienste, Mikrofon und Docker prüfen.",
@@ -1286,12 +1286,12 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Inbetriebnahme“.",
-   "Klicken Sie auf „Lancer les contrôles (jusqu’à une minute)“.",
-   "Testen Sie das Mikrofon mit „Tester le micro“.",
-   "Starten Sie „Lancer la recette de production“ für eine vollständige Prüfung."
+   "Klicken Sie auf „Kontrollen starten (bis zu einer Minute)“.",
+   "Testen Sie das Mikrofon mit „Mikrofon testen“.",
+   "Starten Sie „Abnahmetest der Erstellung starten“ für eine vollständige Prüfung."
   ],
   "result": "Ein Prüfbericht mit vorgeschlagenen Korrekturen.",
-  "verify": "Der „Dernier rapport“ zeigt Datum und Ergebnis.",
+  "verify": "Der „Letzter Bericht“ zeigt Datum und Ergebnis.",
   "errors": [
    [
     "Mikrofon verweigert",
@@ -1304,7 +1304,7 @@
    "Tester le micro",
    "Lancer la recette de production"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "diagnostic": {
   "objective": "Verstehen, warum nichts erstellt wird: Dienste, Fehler, blockierte Akten, Verbindungen.",
@@ -1313,7 +1313,7 @@
   "steps": [
    "Öffnen Sie „Softwarestatus und Hilfe“.",
    "Sehen Sie Dienste und Warteschlange an.",
-   "Testen Sie mit „Tester la messagerie“, „Tester Nextcloud“ oder „Tester l’IA“.",
+   "Testen Sie mit „Postfach testen“, „Nextcloud testen“ oder „KI testen“.",
    "Lesen Sie die Fehler der letzten sieben Tage."
   ],
   "result": "Die Ursache der Blockierung und der nächste Schritt.",
@@ -1330,7 +1330,7 @@
    "Tester Nextcloud",
    "Tester l’IA"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "etat_systeme": {
   "objective": "Vorfälle, letzte Verarbeitungen, Dienste und Index ansehen.",
@@ -1338,8 +1338,8 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Systemstatus“.",
-   "Klicken Sie auf „Contrôler maintenant“.",
-   "Öffnen Sie „Voir le détail“ bei einem Vorfall."
+   "Klicken Sie auf „Jetzt prüfen“.",
+   "Öffnen Sie „Details ansehen“ bei einem Vorfall."
   ],
   "result": "Der Status der Dienste und Verarbeitungen.",
   "verify": "Jeder Dienst zeigt seine letzte Prüfung.",
@@ -1353,7 +1353,7 @@
   "buttons": [
    "Contrôler maintenant"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "mcp": {
   "objective": "Juristische MCP-Konnektoren, Kompetenzen und Erweiterungen verwalten.",
@@ -1362,7 +1362,7 @@
   "steps": [
    "Öffnen Sie „MCP-Konnektoren“.",
    "Füllen Sie den Konnektor aus.",
-   "Klicken Sie auf „Enregistrer sans activer“.",
+   "Klicken Sie auf „Speichern ohne zu aktivieren“.",
    "Testen Sie ihn und aktivieren Sie ihn für die gewünschten Funktionen."
   ],
   "result": "Ein gespeicherter Konnektor, erst nach Ihrer Wahl aktiv.",
@@ -1377,7 +1377,7 @@
   "buttons": [
    "Enregistrer sans activer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "routage": {
   "objective": "Entscheiden, wann eine externe KI genutzt werden darf und zu welchen Kosten.",
@@ -1385,9 +1385,9 @@
   "prerequisites": "Eine eingerichtete externe KI.",
   "steps": [
    "Öffnen Sie „Hybrides Routing“.",
-   "Schätzen Sie mit „Calculer le routage et le coût“.",
-   "Sehen Sie die übermittelten Daten mit „Afficher les données et le coût“.",
-   "Klicken Sie auf „Enregistrer la politique“."
+   "Schätzen Sie mit „Routing und Kosten berechnen“.",
+   "Sehen Sie die übermittelten Daten mit „Daten und Kosten anzeigen“.",
+   "Klicken Sie auf „Richtlinie speichern“."
   ],
   "result": "Eine vor jedem Versand angewandte Routing-Richtlinie.",
   "verify": "Die letzten Routing-Entscheidungen werden aufgelistet.",
@@ -1403,7 +1403,7 @@
    "Afficher les données et le coût",
    "Enregistrer la politique"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "evaluations": {
   "objective": "Modelle anhand von Referenzfällen vergleichen.",
@@ -1411,8 +1411,8 @@
   "prerequisites": "KI eingerichtet.",
   "steps": [
    "Öffnen Sie „Juristischer Prüfstand“.",
-   "Fügen Sie einen Fall hinzu und klicken Sie auf „Enregistrer le cas“.",
-   "Klicken Sie auf „Lancer la comparaison“.",
+   "Fügen Sie einen Fall hinzu und klicken Sie auf „Fall speichern“.",
+   "Klicken Sie auf „Vergleich starten“.",
    "Sehen Sie die Rangliste der Modelle an."
   ],
   "result": "Eine Rangliste der Modelle für Ihre Fälle.",
@@ -1428,7 +1428,7 @@
    "Enregistrer le cas",
    "Lancer la comparaison"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "tracabilite": {
   "objective": "Wissen, was das Modell bei einer Akte gesehen hat und welche Modelle verwendet wurden.",
@@ -1436,8 +1436,8 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Nachvollziehbarkeit“.",
-   "Wählen Sie die Akte und klicken Sie auf „Consulter“.",
-   "Exportieren Sie mit „Exporter (CSV)“ oder „Exporter (JSON)“."
+   "Wählen Sie die Akte und klicken Sie auf „Ansehen“.",
+   "Exportieren Sie mit „Exportieren (CSV)“ oder „Exportieren (JSON)“."
   ],
   "result": "Die Liste der Zugriffe des Modells auf die Akte.",
   "verify": "Die in 30 Tagen verwendeten Modelle werden aufgelistet.",
@@ -1453,7 +1453,7 @@
    "Exporter (CSV)",
    "Exporter (JSON)"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "qualite": {
   "objective": "Blockierungsgründe und Korrekturen der Entwürfe verstehen.",
@@ -1474,7 +1474,7 @@
   ],
   "example": "Fiktiver Grund: Akte nicht erkannt.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "ecosysteme": {
   "objective": "Die von der Kanzlei genutzten Dienste erfassen.",
@@ -1483,9 +1483,9 @@
   "steps": [
    "Öffnen Sie „Ökosystem“.",
    "Füllen Sie den Dienst aus.",
-   "Klicken Sie auf „Enregistrer le service“."
+   "Klicken Sie auf „Dienst speichern“."
   ],
-  "result": "Der Dienst erscheint unter „Services configurés“.",
+  "result": "Der Dienst erscheint unter „Eingerichtete Dienste“.",
   "verify": "Der Dienst wird mit seiner Adresse aufgelistet.",
   "errors": [
    [
@@ -1497,16 +1497,16 @@
   "buttons": [
    "Enregistrer le service"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "administration": {
   "objective": "Automatisierungen, Verknüpfungen und erweiterte Prüfungen verwalten.",
   "when": "Für die technische Verwaltung.",
   "prerequisites": "Die Administratorrolle.",
   "steps": [
-   "Öffnen Sie „Administration“.",
-   "Aktivieren oder pausieren Sie eine Automatisierung („Mettre en pause“).",
-   "Klicken Sie auf „Tester les connexions“."
+   "Öffnen Sie „Verwaltung“.",
+   "Aktivieren oder pausieren Sie eine Automatisierung („Pausieren“).",
+   "Klicken Sie auf „Verbindungen testen“."
   ],
   "result": "Eingestellte Automatisierungen und geprüfte Verbindungen.",
   "verify": "Der Status jeder Automatisierung wird angezeigt.",
@@ -1521,7 +1521,7 @@
    "Tester les connexions",
    "Mettre en pause"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "tableau_de_bord": {
   "objective": "Das frühere detaillierte Dashboard ansehen.",
@@ -1529,7 +1529,7 @@
   "prerequisites": "Keine.",
   "steps": [
    "Öffnen Sie „Detailliertes Dashboard“.",
-   "Klicken Sie auf „Analyser les dossiers actifs“ oder „Repérer le travail à faire“.",
+   "Klicken Sie auf „Aktive Akten analysieren“ oder „Anstehende Arbeit erkennen“.",
    "Öffnen Sie die gemeldeten Elemente."
   ],
   "result": "Ein Überblick über die Kanzlei.",
@@ -1545,7 +1545,7 @@
    "Analyser les dossiers actifs",
    "Repérer le travail à faire"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "a_propos": {
   "objective": "Version, Lizenz und Datenschutzregeln kennen.",
@@ -1566,7 +1566,7 @@
   ],
   "example": "Version 5.6.31.",
   "buttons": [],
-  "version": "5.6.32"
+  "version": "5.6.34"
  },
  "competences": {
   "objective": "Der KI eine schriftliche Arbeitsmethode geben (Analyse, Entwurf, Prüfung).",
@@ -1575,8 +1575,8 @@
   "steps": [
    "Öffnen Sie KI-Kompetenzen.",
    "Aktivieren Sie eine integrierte Kompetenz oder kopieren Sie sie zum Anpassen.",
-   "Um eine zu schreiben, füllen Sie das Formular aus und klicken Sie auf „Créer“.",
-   "Um eine zu übernehmen, wählen Sie die Datei und klicken Sie auf „Importer“."
+   "Um eine zu schreiben, füllen Sie das Formular aus und klicken Sie auf „Erstellen“.",
+   "Um eine zu übernehmen, wählen Sie die Datei und klicken Sie auf „Importieren“."
   ],
   "result": "Die Kompetenz erscheint in der Liste mit Version und Herkunft.",
   "verify": "Eine aktive Kompetenz zeigt gegebenenfalls fehlende Voraussetzungen.",
@@ -1591,6 +1591,6 @@
    "Créer",
    "Importer"
   ],
-  "version": "5.6.32"
+  "version": "5.6.34"
  }
 }

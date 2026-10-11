@@ -196,11 +196,12 @@ def card_html(desk, c, labels):
             actions += '<button type="button" class="ax-btn" data-act="mission-resume">Relancer</button>'
         actions += ('<details class="c5614-more"><summary>Compléter les instructions</summary><textarea data-field="instruction" rows="2" placeholder="Instruction complémentaire : une mission de suite est créée dans le même dossier"></textarea>'
                     '<button type="button" class="ax-btn ghost" data-act="mission-complete">Envoyer</button></details>')
-        actions += '<button type="button" class="ax-btn ghost" data-act="defer">Reporter</button><button type="button" class="ax-btn ghost" data-act="mission-cancel">Annuler</button>'
+        actions += '<button type="button" class="ax-btn ghost" data-act="defer">Reporter</button><button type="button" class="ax-btn ghost" data-act="mission-cancel" data-confirm="Annuler cette demande ? Les fichiers déjà créés seront conservés.">Annuler</button>'
     elif k == 'docreq':
         actions += '<select data-field="matter">%s</select><button type="button" class="ax-btn" data-act="docreq-resolve">%s</button>' % (
             _options(labels, c['candidates'], c['matter']), 'Choisir le dossier et rédiger' if c['state'] == 'dossier_a_choisir' else 'Relancer')
-        actions += '<button type="button" class="ax-btn ghost" data-act="defer">Reporter</button>'
+        actions += ('<button type="button" class="ax-btn ghost" data-act="defer">Reporter</button>'
+                    '<button type="button" class="ax-btn ghost" data-act="docreq-cancel" data-confirm="Annuler cette demande ? Les fichiers déjà créés seront conservés.">Annuler</button>')
     elif k == 'document':
         actions += ('<select data-field="matter">%s</select><input data-field="created" placeholder="Date de création prouvée (ex. 2026-10-06T10:00:00+02:00)"><input data-field="proof" placeholder="Preuve ou explication">'
                     '<button type="button" class="ax-btn" data-act="resolve">Confirmer et reprendre</button><button type="button" class="ax-btn ghost" data-act="retry">Relancer</button>'
@@ -214,7 +215,9 @@ def card_html(desk, c, labels):
                     + '<button type="button" class="ax-btn ghost" data-act="rule-ignore">Ignorer</button>')
     elif k == 'commitment':
         actions += '<a class="ax-btn" href="%s">Décider dans Engagements</a><button type="button" class="ax-btn ghost" data-act="defer">Reporter</button>' % e(c['url'], quote=True)
-    detail = '<a class="ax-btn ghost" href="%s">Détail</a>' % e(c['url'], quote=True) if c.get('url') else ''
+    detail = '<a class="ax-btn ghost" href="%s" data-m34-detail>Détail</a>' % e(c['url'], quote=True) if c.get('url') else ''
+    if k in ('mission', 'docreq', 'mission5614'):   # 5.6.34 (U06) : différence entre Annuler et Reporter, près des actions
+        detail += '<p class="c5614-help">Annuler abandonne cette demande ; Reporter y revient plus tard, sans changer aucune échéance.</p>'
     return '<article class="c5614-card" data-key="%s" data-kind="%s" data-id="%s" data-mission="%s" tabindex="-1">%s%s<div class="c5614-actions">%s%s</div></article>' % (
         e(c['key'], quote=True), e(k), e(str(c['id']), quote=True), e(str(c.get('mission', '')), quote=True), head, body, actions, detail)
 

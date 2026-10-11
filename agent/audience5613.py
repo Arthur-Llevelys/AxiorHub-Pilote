@@ -39,13 +39,26 @@ def sheet(desk, matter_id, dav=None):
               if any(w in fold(x['title']) for w in HEARING_WORDS)]
     out['hearings'] = [{'id': x['id'], 'title': x['title'][:160], 'starts': x['starts'][:16].replace('T', ' '), 'location': (x.get('location') or '')[:120]} for x in events[:3]]
     files = []
-    try:
-        from .document_projects import _dav, _inventory
-        client = dav or _dav(desk)
-        files = [x for x in _inventory(client, matter['path']) if not x.get('directory')]
-    except Exception as ex:
-        errors.append('Nextcloud : ' + str(ex)[:80])
-        out['notes'].append('Dossier Nextcloud indisponible : aucune liste de conclusions (aucun inventaire de repli n’est inventé).')
+    if dav is not None:   # appel explicite (actualisation, tests) : inventaire en direct
+        try:
+            from .document_projects import _inventory
+            files = [x for x in _inventory(dav, matter['path']) if not x.get('directory')]
+        except Exception as ex:
+            errors.append('Nextcloud : ' + str(ex)[:80])
+            out['notes'].append('Dossier Nextcloud indisponible : aucune liste de conclusions (aucun inventaire de repli n’est inventé).')
+    else:   # 5.6.34 (B07) : consultation à partir de l'instantané de l'index local daté, sans appel distant
+        try:
+            from .synthese5632 import inventory
+            files = [{'path': d['path'], 'modified': d['modified']} for d in inventory(desk, matter['id'])]
+            from .index import DocumentIndex
+            idx = DocumentIndex(desk.c['state_dir'])
+            try:
+                row = idx.db.execute('SELECT MAX(indexed_at) FROM knowledge_chunks WHERE matter=?', (matter['id'],)).fetchone()
+            finally:
+                idx.db.close()
+            out['snapshot_at'] = str((row or [''])[0] or '')[:16]
+        except Stop as ex:
+            errors.append('Index des pièces : ' + str(ex))
     conclusions = [x for x in files if 'conclusion' in fold(PurePosixPath(x['path']).name)]
     conclusions.sort(key=lambda x: str(x.get('modified', '')), reverse=True)
     out['conclusions'] = [{'path': x['path'], 'name': PurePosixPath(x['path']).name, 'modified': str(x.get('modified', ''))[:16],
@@ -88,10 +101,7 @@ def sheet(desk, matter_id, dav=None):
         out['status'] = 'indisponible'
     if not out['hearings']:
         out['notes'].append('Aucune audience à venir dans l’agenda synchronisé pour ce dossier.')
-    try:
-        desk.setting('audience5614:' + matter['id'], {'at': now, 'status': out['status']})
-    except Exception:
-        pass
+    # 5.6.34 (B07) : plus aucune écriture pendant l'affichage (l'ancien réglage « audience5614: » n'est plus mis à jour ici)
     if not questions:
         out['notes'].append('Questions probables : disponibles après une préparation d’audience complète (Audiences › Préparer).')
     return out

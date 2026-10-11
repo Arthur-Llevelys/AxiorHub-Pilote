@@ -74,8 +74,12 @@ class Fiche(t530.Base):
         self.assertEqual(out['version'], 1)
         f = dossier5627.latest(self.desk, MID)
         data = f['data']
-        self.assertEqual([p['nom'] for p in data['parties']], ['ALPHA', 'BETA SERVICES'])   # doublon fusionné, commissaire et juge écartés
-        self.assertEqual([e['date'] for e in data['chronologie']], ['2023-01-03', '2025-03-04', ''])
+        # 5.6.34 (B09) : même dénomination, forme sociale absente d'un côté : deux fiches et un rapprochement à confirmer (commissaire et juge écartés)
+        self.assertEqual([p['nom'] for p in data['parties']], ['ALPHA', 'SAS ALPHA', 'BETA SERVICES'])
+        self.assertEqual([(r['a'], r['b']) for r in data['rapprochements']], [('ALPHA', 'SAS ALPHA')])
+        # 5.6.34 (B10) : un événement sans pièce valide, ou daté seulement de la date du FICHIER cité (absente du texte), passe en « À vérifier »
+        self.assertEqual(data['chronologie'], [])
+        self.assertEqual(sorted(x['cause'] for x in data['a_verifier']), ['aucune pièce valide citée'] + ['date identique à la date du fichier et absente du texte cité'] * 2)
         self.assertNotIn('P99', data['rappel_des_faits'][0]['source_ids'])                  # référence inventée retirée
         self.assertEqual(data['pieces_lues'], 4)
         self.assertEqual(self.payloads[0]['dossier']['client_du_cabinet'], 'ALPHA')

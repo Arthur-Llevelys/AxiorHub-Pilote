@@ -40,6 +40,18 @@ jobs:
         if: failure()
         run: python3 scripts/ci-annotate.py /tmp/archive-tests.log
 
+  migrations-root:
+    # 5.6.34 (B13) : les migrations et retours arrière réels (fixtures 5.6.31, 5.6.32, 5.6.33, réinstallation, espace disque, reçu)
+    # exigent root : ils s'exécutent ici sur une machine virtuelle jetable du runner, au lieu d'être ignorés.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Migrations en root (installation simulée dans des dossiers temporaires)
+        run: sudo -E env "PATH=$PATH" python3 -m unittest discover -s tests -p 'test_upgrade.py' -v
+
   windows:
     runs-on: windows-latest
     env:

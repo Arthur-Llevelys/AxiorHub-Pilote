@@ -57,8 +57,15 @@ def _signal(desk,mid,category,severity,title,detail,sources,action,due='',finger
     sources=list(dict.fromkeys(str(x) for x in sources if x))[:20]
     identity='|'.join([mid,category,fingerprint or title,due])
     sid=digest(identity);stamp=desk.now()
-    old=desk.db.execute('SELECT state,snoozed_until,fingerprint FROM proactive_signals WHERE id=?',(sid,)).fetchone()
+    old=desk.db.execute('SELECT state,snoozed_until,fingerprint,severity,detail,due FROM proactive_signals WHERE id=?',(sid,)).fetchone()
     state=old['state'] if old else 'open';snooze=old['snoozed_until'] if old else ''
+    material=digest('|'.join([severity,detail,due,','.join(sorted(sources))]))   # 5.6.34 (U04) : éléments déterminants de l'alerte
+    _schema5634(desk)
+    prev=desk.db.execute('SELECT material,version FROM signal_versions5634 WHERE signal=?',(sid,)).fetchone()
+    if prev and prev['material']!=material and state in ('resolved','acknowledged','snoozed'):
+        _event5634(desk,sid,'systeme',state,'open','changement matériel : '+('gravité ' if old and old['severity']!=severity else '')+('détail ' if old and old['detail']!=detail[:4000] else '')+('échéance' if old and old['due']!=due else ''))
+        state='open';snooze=''
+    desk.db.execute('INSERT OR REPLACE INTO signal_versions5634 VALUES(?,?,?)',(sid,material,(prev['version']+1 if prev and prev['material']!=material else (prev['version'] if prev else 1))))
     if state=='snoozed' and (_dt(snooze) or datetime.min.replace(tzinfo=timezone.utc))<=datetime.now(timezone.utc):
         state='open';snooze=''
     first=desk.db.execute('SELECT first_seen FROM proactive_signals WHERE id=?',(sid,)).fetchone()
@@ -228,12 +235,14 @@ def monitor_all(desk,args):
 
 def signals(desk,state='open',matter='',limit=100):
     ensure_schema(desk);limit=max(1,min(int(limit),300));params=[];where=[]
-    desk.db.execute("UPDATE proactive_signals SET state='open',snoozed_until='' WHERE state='snoozed' AND snoozed_until<>'' AND snoozed_until<=?",(desk.now(),))
-    desk.db.commit()
+    stamp=desk.now()   # 5.6.34 (B07) : aucune écriture à la lecture ; release_snoozed() est appelé par le cycle de surveillance
     if state and state!='all':
         valid=[x for x in str(state).split(',') if x in SIGNAL_STATES]
         if not valid:raise Stop('etat_signal_invalide')
-        where.append('state IN ('+','.join('?' for _ in valid)+')');params+=valid
+        clause='state IN ('+','.join('?' for _ in valid)+')';params+=valid
+        if 'open' in valid:clause='('+clause+" OR (state='snoozed' AND snoozed_until<>'' AND snoozed_until<=?))";params.append(stamp)
+        elif 'snoozed' in valid:clause='('+clause+") AND NOT (state='snoozed' AND snoozed_until<>'' AND snoozed_until<=?)";params.append(stamp)
+        where.append(clause)
     if matter:where.append('matter=?');params.append(matter)
     elif state!='all':
         from .portfolio import portfolio_rows
@@ -245,8 +254,62 @@ def signals(desk,state='open',matter='',limit=100):
     params.append(limit)
     result=[]
     for row in desk.db.execute(sql,params):
-        item=dict(row);item['source_ids']=json.loads(item['source_ids']);result.append(item)
+        item=dict(row);item['source_ids']=json.loads(item['source_ids'])
+        if item['state']=='snoozed' and item['snoozed_until'] and item['snoozed_until']<=stamp:item['state']='open'
+        result.append(item)
     return result
+
+
+def release_snoozed(desk):
+    """5.6.34 (B07) : remise en circulation des rappels échus, par le worker (jamais pendant l'affichage d'une page)."""
+    ensure_schema(desk)
+    cur=desk.db.execute("UPDATE proactive_signals SET state='open',snoozed_until='' WHERE state='snoozed' AND snoozed_until<>'' AND snoozed_until<=?",(desk.now(),))
+    desk.db.commit();return cur.rowcount
+
+
+def _schema5634(desk):
+    desk.db.executescript('''CREATE TABLE IF NOT EXISTS signal_versions5634(signal TEXT PRIMARY KEY, material TEXT NOT NULL, version INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS signal_events5634(id INTEGER PRIMARY KEY AUTOINCREMENT, signal TEXT NOT NULL, at TEXT NOT NULL, actor TEXT NOT NULL,
+        from_state TEXT NOT NULL, to_state TEXT NOT NULL, from_until TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '');''')
+
+
+def _event5634(desk,sid,actor,from_state,to_state,note='',from_until=''):
+    desk.db.execute('INSERT INTO signal_events5634(signal,at,actor,from_state,to_state,from_until,note) VALUES(?,?,?,?,?,?,?)',
+                    (sid,desk.now(),actor,from_state,to_state,from_until,note[:200]))
+
+
+def history5634(desk,sid,limit=10):
+    _schema5634(desk)
+    return [dict(r) for r in desk.db.execute('SELECT * FROM signal_events5634 WHERE signal=? ORDER BY id DESC LIMIT ?',(sid,limit))]
+
+
+def act5634(desk,sid,action,actor='cabinet',hours=24):
+    """Alertes du cabinet : marquer comme lu, me le rappeler demain (sans dépasser la date utile), marquer comme traité, rouvrir,
+    annuler la dernière action. Aucune échéance ni aucun agenda n'est modifié."""
+    ensure_schema(desk);_schema5634(desk)
+    row=desk.db.execute('SELECT * FROM proactive_signals WHERE id=?',(str(sid),)).fetchone()
+    if not row:raise Stop('signal_absent')
+    warning=''
+    if action=='undo':
+        last=desk.db.execute("SELECT * FROM signal_events5634 WHERE signal=? AND actor<>'systeme' AND note<>'annulation' ORDER BY id DESC LIMIT 1",(row['id'],)).fetchone()
+        if not last:raise Stop('aucune_action_a_annuler')
+        state,until=last['from_state'],last['from_until']
+        desk.db.execute('UPDATE signal_events5634 SET note=? WHERE id=?',('annulation',last['id']))
+    elif action=='reopen':state,until='open',''
+    elif action=='read':state,until='acknowledged',''
+    elif action=='done':state,until='resolved',''
+    elif action=='remind':
+        state='snoozed';target=datetime.now(timezone.utc)+timedelta(hours=max(1,min(int(hours),720)))
+        due=_dt(row['due']) if row['due'] else None
+        if due and target>due:   # un rappel ne dépasse jamais la date utile
+            target=max(datetime.now(timezone.utc)+timedelta(hours=1),due-timedelta(hours=12))
+            warning='Échéance proche : rappel avancé avant la date utile.'
+        until=target.isoformat()
+    else:raise Stop('action_inconnue')
+    if action!='undo':_event5634(desk,row['id'],actor,row['state'],state,action,row['snoozed_until'] or '')
+    desk.db.execute('UPDATE proactive_signals SET state=?,snoozed_until=? WHERE id=?',(state,until,row['id']));desk.db.commit()
+    desk.audit('alerte5634_'+action,{'signal':row['id'],'matter':row['matter'],'state':state,'actor':actor})
+    return {'signal':row['id'],'state':state,'snoozed_until':until,'warning':warning}
 
 
 def change_signal(desk,kind,args):

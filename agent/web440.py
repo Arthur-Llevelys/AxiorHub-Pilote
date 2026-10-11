@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+STATIC = {'/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -213,6 +213,10 @@ def human(code):
     }
     from .web510 import MESSAGES as messages510
     table.update(messages510)
+    if code not in table:   # 5.6.34 : messages des nouveaux contrôles (corrections, annulations, agenda, profil, intégration)
+        from .erreurs5634 import MESSAGES
+        if code in MESSAGES:
+            return MESSAGES[code]
     return table.get(code, code.replace('_', ' '))
 
 
@@ -279,11 +283,22 @@ def public(env, cfg, path, method):
 
 # ------------------------------------------------------------------ authed
 def route(env, cfg, auth, prefix, path, args, method):
+    if method == 'GET' and (path == '/audience' or (path == '/audiences-word' and not any(args.get(k) for k in ('hearing', 'word', 'job')))):
+        # 5.6.34 (U01) : anciens liens → espace Audiences, au bon dossier
+        from urllib.parse import urlencode as _ue
+        target = prefix + '/audiences?' + _ue({'onglet': 'fiche' if path == '/audience' else 'preparer', **({'matter': args['matter']} if args.get('matter') else {})})
+        return {'status': '302 Found', 'kind': 'text/plain; charset=utf-8', 'body': '', 'headers': [('Location', target)]}
+    if method == 'GET' and path in ('/static/ecrans-en.json', '/static/ecrans-de.json', '/static/ecrans-es.json'):
+        # 5.6.34 : dictionnaire des écrans pour les textes écrits par les scripts (v5634t.js) ; mis en cache dans la session du navigateur
+        from .ecrans5632 import dictionary
+        import json as _json
+        return {'status': '200 OK', 'kind': 'application/json; charset=utf-8',
+                'body': _json.dumps(dictionary(path[-7:-5]), ensure_ascii=False, separators=(',', ':'))}
     if path in STATIC and method == 'GET':
         name = path.rsplit('/', 1)[1]
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
-    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation', '/competences') or path in _pages500() or path.startswith('/api440/')):
+    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation', '/competences', '/decision', '/audiences', '/reviser', '/recherche-juridique', '/surveillance') or path in _pages500() or path.startswith('/api440/')):
         return None
     from . import shell501
     shell501.set_context(cfg)
@@ -293,6 +308,20 @@ def route(env, cfg, auth, prefix, path, args, method):
             return api(env, desk, auth, prefix, path[len('/api440/'):], args, method)
         if method != 'GET':
             return {'status': '405 Method Not Allowed', 'kind': 'text/plain; charset=utf-8', 'body': 'Méthode refusée.'}
+        if path in ('/decision', '/audiences', '/reviser', '/recherche-juridique', '/surveillance'):   # 5.6.34 : parcours simplifiés
+            from . import web5634
+            if path == '/decision':
+                from . import decisions5634
+                return page_out(decisions5634.page(desk, auth, prefix, env, args, shell))
+            if path == '/audiences':
+                return page_out(web5634.audiences_page(desk, auth, prefix, env, args, shell))
+            if path == '/reviser':
+                return page_out(web5634.reviser_page(desk, auth, prefix, env, args, shell))
+            if path == '/recherche-juridique':
+                return page_out(web5634.research_page(desk, auth, prefix, env, args, shell))
+            state = str(args.get('state') or 'open')
+            state = state if state in ('open', 'acknowledged', 'snoozed', 'resolved', 'all') else 'open'
+            return page_out(shell('Alertes du cabinet', web5634.alerts_html(desk, prefix, state, auth['csrf']), prefix, auth['csrf'], '/surveillance'))
         from . import parametres5621   # 5.6.21 : concentrateur des réglages (une rubrique par sujet, chaque réglage à un seul endroit)
         if path == '/parametres' or path in parametres5621.ALIASES:
             return page_out(parametres5621.page(desk, auth, prefix, env, args, path))
@@ -396,6 +425,14 @@ def route(env, cfg, auth, prefix, path, args, method):
 
 def api(env, desk, auth, prefix, name, args, method):
     from . import drafts440, office440, notices440
+    if name.startswith('m5634/'):   # 5.6.34 : sélecteurs, décisions, alertes, audiences, révision, recherche, agenda local, profil du modèle
+        from . import web5634
+        try:
+            return web5634.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            return json_out({'error': code, 'message': explain(code, getattr(error, 'detail', None))}, '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5632/'):   # 5.6.32 : sources, contrôle des références, veille, compétences, documents de procédure
         from . import web5632
         try:

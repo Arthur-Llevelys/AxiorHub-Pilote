@@ -48,6 +48,7 @@ JOBS |= {'prepare_document_project','create_document_files'}
 JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624','fiche_dossier5627'}
 JOBS |= {'search_index490'}
 JOBS |= {'digest_pieces5632','veille5632_collect','briefing_oral5632','mailrules5632'}   # 5.6.32
+JOBS |= {'recherche5634'}   # 5.6.34 : recherche juridique par le registre unique des sources
 JOBS |= {'autonomy_mail_sweep','refresh_operational_memory','review_autonomy_proposal'}
 JOBS |= {'legal_research','import_mcp_legal_results','verify_official_decision','identify_latest_writings','refresh_exhibit_registry'}
 JOBS |= {'identify_party_writings','compare_devices','prepare_hearing','create_hearing_files',
@@ -688,6 +689,9 @@ class Desk:
         if kind=='extract_facts460':
             from .facts460 import scan_matter
             return scan_matter(self,args)
+        if kind=='recherche5634':   # 5.6.34 (B06, U03) : un seul service de recherche pour tous les parcours
+            from .web5634 import research_job
+            return research_job(self,args)
         if kind=='digest_pieces5632':   # 5.6.32 : fiches de pièces (examen du dossier entier)
             from .synthese5632 import build_job
             return build_job(self,args)
@@ -1039,6 +1043,9 @@ class Desk:
                 self.active_job_id=None;trace480.end();secours564.end()
                 return False
             result={'erreur':str(e)};status='error'
+            if getattr(e,'detail',None):   # 5.6.34 (B15) : service, étape, statut, corrélation, ressource anonymisée (aucun secret)
+                from .erreurs5634 import public as _public_detail
+                result['detail']=_public_detail(e.detail)
             if str(e)=='agent_en_pause_sur_ce_dossier':   # 5.6.29 : dossier mis en pause : travail annulé, pas une erreur
                 result={'message':'Annulé : IA en pause sur ce dossier.'};status='cancelled'
         except Exception:

@@ -53,6 +53,10 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
 
 def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=''):
     head='<meta name="axiorhub-prefix" content="'+escape(prefix,quote=True)+'"><meta name="axiorhub-csrf" content="'+escape(csrf,quote=True)+'"><meta name="axiorhub-audio" content="'+('enabled' if audio_enabled else 'disabled')+'">'
+    from .i18n5631 import current as _lang5634
+    from .ecrans5632 import signature as _ecrans5634
+    if _lang5634() not in ('fr',''):head+='<meta name="axiorhub-ecrans" content="'+escape(_ecrans5634(_lang5634()),quote=True)+'">'
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5634t.js"></script>'   # 5.6.34 : en premier, traduit ce que les scripts écrivent
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v310.js"></script>'
     head+=''
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v320.js"></script>'

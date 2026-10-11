@@ -3,6 +3,57 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.34 — Fiabilité des fiches, parcours simplifiés, agenda local, état du système par mode d’installation, contrat Nextcloud
+
+Cahier des charges « Audit et préparation de la nouvelle version » (11 octobre 2026) et demandes complémentaires de l’avocat. Détail
+fiche par fiche, avec les limites : `CONFORMITE-5.6.34.md`.
+
+- **Relevés de pièces contrôlés (B01–B03, B05, B11, B12)** : validation JSON Schema complète côté serveur (entier ≠ 3,5, champs
+  facultatifs, tailles, énumérations), reprise unique puis fragment « invalide » (jamais une fiche vide réputée réussie) ; chaque fait,
+  date, montant et demande porte un extrait retrouvé dans le texte, sinon « à vérifier » ; page déduite de l’extrait (position pour un
+  document non paginé) ; index complet sans plafond, omissions signalées ; état par pièce et reprises bornées (une pièce en échec ne
+  bloque plus les suivantes, pause annoncée si le modèle est indisponible) ; cache dépendant de la méthode et du texte extrait ; bilan
+  exact (« 23 fichiers, 20 extraits disponibles, 15 relevés complets contrôlés ; … sources utilisées ») au lieu de « pièces lues ».
+- **Fiche du dossier (B04, B09, B10)** : corrections de l’avocat conservées indépendamment des versions de l’IA (migration des
+  anciennes corrections, conflit explicite entre deux onglets, proposition de l’agent affichée à côté, historique et restauration) ;
+  SAS ALPHA et SARL ALPHA ne sont plus fusionnées (rapprochement à confirmer) ; dates impossibles refusées, dates partielles gardées,
+  affirmations sans pièce valide et dates égales à la date du fichier placées dans « À vérifier ».
+- **Disponibilité et diagnostic (B07, B08, B15, B16)** : consultation des alertes et de la fiche d’audience sans écriture ni appel
+  distant ; suivi de préparation borné, expliqué en cas d’interruption, sans seconde préparation (clé d’idempotence) ; erreurs
+  qualifiées (service, étape, corrélation, ressource anonymisée) au lieu d’un « http_404 » générique ; « Détail » ouvre la demande
+  précise, « Annuler » est une annulation durable (demandes de document, missions), jamais une pause.
+- **Profil Juridique du modèle local (chapitre 5)** : température 0,3, top_p 0,9, top_k 40, repeat_penalty 1,0, contexte automatique
+  borné par le modèle ; réglages conservés à la mise à jour (un zéro explicite n’est jamais remonté) avec proposition d’adoption ;
+  sous-profil « Extraction factuelle » à 0 ; options réellement transmises à Ollama et mémorisées ; panneau Paramètres › IA › Modèles
+  locaux (Tester, Restaurer le profil juridique, réglages avancés expliqués).
+- **Parcours (chapitres 6 et 7)** : espace Audiences (Fiche / Préparer, plusieurs adversaires, téléversement d’écritures absentes du dossier) et Produire › Réviser avec sélecteurs de
+  dossier et de document (plus de chemin ni d’identifiant à saisir) ; Recherche juridique sans dossier, registre unique des sources
+  (B06) et résultats en cartes ; « Alertes du cabinet » (Marquer comme lu, Me le rappeler demain, Marquer comme traité, Rouvrir,
+  Annuler la dernière action ; rouverte si son contenu change) ; bouton « Résumé » pleine largeur ; matrice des 64 fonctions.
+- **Agenda local par défaut** : rendez-vous, audiences, échéances, rattachement aux dossiers, rappels, sauvegarde quotidienne, import
+  .ics (Nextcloud, Google, séries simples) et export ; la synchronisation Nextcloud devient une option.
+- **État du système selon le mode d’installation** : serveur Linux (systemd), poste Linux ou Windows (processus réellement lancés,
+  activité, réponse de l’interface), fichier d’authentification réellement utilisé, autorisations Windows lues (ACL) ; alertes
+  « fonctionnalité / cause vérifiée / action » ; connecteurs « Non configuré » ou « À tester ».
+- **Traduction complète en anglais, allemand et espagnol** : les textes écrits par les scripts du navigateur (boutons comme
+  « Commencer la dictée », états, compteurs « Suivi des engagements … · 0 suite(s) en cours », confirmations) sont désormais
+  traduits avec le dictionnaire des écrans ; modèles à donnée insérée (« Modifier « … » »), phrases à segments « · », fil d’Ariane,
+  libellés cités dans les aides ; environ 1 300 phrases ajoutées après un relevé de 300 pages. Les données (noms, objets, dossiers,
+  références légales, exemples de commandes vocales prononcées en français) ne sont jamais traduites.
+- **Rapports dans la langue du cabinet** : briefing du matin, tri des courriels, bilan de la semaine et résumé oral sont rédigés
+  dans la langue choisie (cabinet, ou celle de l’avocat) ; les brouillons de réponse aux correspondants restent en français.
+- **Application Nextcloud** : dépôt dédié `AxiorHub-Pilote-Nextcloud` (application à la racine, recette d’installation réelle).
+- **Open WebUI** : la version classique n’a pas de section Courriel ; AxiorHub n’y renvoie plus (lien et cadre « Courrier Open WebUI »
+  retirés) : la messagerie se consulte dans Courriels, Roundcube restant accessible.
+- **Mise à jour (B13)** : le test « depuis 5.6.31 » part bien de 5.6.31 ; cas 5.6.32 et 5.6.33 ; réinstallation sans fausse promesse
+  de retour arrière ; reçu contrôlé avant toute modification ; espace disque vérifié avant tout arrêt ; version de sortie centralisée ;
+  ces tests root s’exécutent désormais dans la recette GitHub.
+- **Guide d’installation (B17)** : étape « Synthèse vocale (Kokoro) » selon le système (Windows, poste Ubuntu, serveur) et voix
+  par langue (l’allemand n’est pas proposé par Kokoro : eSpeak NG ou Chatterbox).
+- **Application Nextcloud 0.1.0 (chapitre 9, cycle distinct)** : application native PHP + Vue 3 et contrat moteur `/integration/v1`
+  (contexte signé, nonce, périmètre, idempotence, annulation, approbation d’une version). Non qualifiée : aucune compatibilité n’est
+  annoncée avant installation réelle sur Nextcloud 32 à 35 (workflow manuel fourni).
+
 ## 5.6.33 — Correctif de mise à jour depuis la 5.6.31
 
 - **Mise à jour refusée** : l’archive 5.6.32 répondait « Cette mise à jour directe exige une version précédente comprise entre 3.5.0

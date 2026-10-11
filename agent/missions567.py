@@ -31,7 +31,7 @@ LABELS = {'creating': 'Demande enregistrée', 'queued': 'En attente', 'running':
           'suggested':'Plan proposé, préparation non lancée',
           'cancel_requested': 'Arrêt demandé', 'paused': 'Suspendue', 'decision': 'Une précision est nécessaire',
           'prepared': 'Projet préparé', 'verified': 'Dépôt vérifié', 'answered': 'Réponse disponible',
-          'abstained': 'Aucune production nécessaire', 'error': 'Traitement interrompu'}
+          'abstained': 'Aucune production nécessaire', 'error': 'Traitement interrompu', 'cancelled': 'Annulée'}
 
 
 def ensure_schema(desk):
@@ -50,6 +50,8 @@ def check_authority(desk, args):
     if not row:
         raise Stop('autorisation_mission_absente')
     desk.mission_owner567 = row['owner']
+    if row['state'] in ('cancelled', 'cancel_requested'):   # 5.6.34 (B16) : vérifié avant chaque effet
+        raise Stop('mission_annulee')
     if row['state'] == 'paused' or row['job_status'] in ('cancelled','cancel_requested'):
         raise Stop('preparation_suspendue')
     if row['owner'] == 'cabinet':
@@ -268,6 +270,8 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
         if job:
             result = json.loads(job['result'] or '{}')
             state = {'pending': 'queued', 'running': 'running', 'error': 'error', 'cancelled': 'paused', 'cancel_requested': 'cancel_requested'}.get(job['status'], row['state'])
+            if row['state'] == 'cancelled' or (row['state'] == 'cancel_requested' and job['status'] in ('cancelled', 'error', 'done')):
+                state = 'cancelled' if job['status'] != 'done' or row['state'] == 'cancelled' else state   # 5.6.34 : annulation durable
             if job['status'] == 'done':
                 state = 'prepared'
                 if row['kind'] == 'mail' and row['ref'].startswith('newmail:'):

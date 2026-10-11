@@ -131,7 +131,8 @@ class Menu(Web):
         """NV T01 : inventaire initial (Rubriques, Outils, menu principal) comparé au registre final."""
         from agent import fonctions5631 as reg
         from agent.shell501 import PRIMARY, RUBRIQUES, TOOLS
-        routes = {r[2].split('?', 1)[0] for r in reg.FUNCTIONS}
+        from agent.fonctions5634 import REDIRECTS   # 5.6.34 (U05) : anciens liens redirigés vers le parcours regroupé
+        routes = {r[2].split('?', 1)[0] for r in reg.FUNCTIONS} | {old for old, new in REDIRECTS.items() if new in {r[2].split('?', 1)[0] for r in reg.FUNCTIONS}}
         for p, *_ in PRIMARY + RUBRIQUES:
             self.assertIn(p, routes, p)
         for p, *_ in TOOLS:
@@ -221,16 +222,18 @@ class SetupGuide(Web):
         from agent import guide5631 as g
         desk = self.desk()
         s = self._session(desk, ('documents',))
-        self.assertEqual(s['steps'], ['fonctions', 'profil', 'coordonnees', 'langues', 'stockage', 'ia', 'modeles', 'fin'])
+        # 5.6.34 (B17) : étape « Synthèse vocale (Kokoro) » toujours proposée (facultative) avant le récapitulatif
+        self.assertEqual(s['steps'], ['fonctions', 'profil', 'coordonnees', 'langues', 'stockage', 'ia', 'modeles', 'voix', 'fin'])
         s2 = g.start(desk, 'cabinet', ['veille'])
-        self.assertEqual(s2['steps'], ['fonctions', 'profil', 'coordonnees', 'langues', 'veille', 'fin'])      # GI T03 : veille seule, sans IA ni stockage
+        self.assertEqual(s2['steps'], ['fonctions', 'profil', 'coordonnees', 'langues', 'veille', 'voix', 'fin'])      # GI T03 : veille seule, sans IA ni stockage
         self.assertEqual(desk.db.execute("SELECT COUNT(*) FROM guide_sessions5631 WHERE status='in_progress'").fetchone()[0], 1)
 
     def test_page_shows_one_question_explanation_help_and_progress(self):
         desk = self.desk()
         s = self._session(desk)
         body = self.request('/guide-installation', query='session=%s&etape=messagerie' % s['id'])['body']
-        for text in ('Étape 7 sur 10', 'Quelle adresse professionnelle utilisez-vous ?', 'Où trouver cette information', 'Ce que cela permet :',
+        for text in ('Étape 7 sur 11',   # 5.6.34 : + étape Synthèse vocale
+                      'Quelle adresse professionnelle utilisez-vous ?', 'Où trouver cette information', 'Ce que cela permet :',
                      'Plus de détails', 'Vérifier la connexion', 'Enregistrer et reprendre plus tard', 'Passer cette étape', 'Retour'):
             self.assertIn(text, body)
         visible = re.search(r'<form class="g5631-form".*?<details class="g5631-more">', body, re.S).group(0)

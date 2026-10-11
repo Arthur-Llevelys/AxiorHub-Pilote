@@ -87,7 +87,13 @@
       else if (act === 'm5614-cancel') await post('m568', 'mission5614/control', {id: card.dataset.mission, action: 'cancel'});
       else if (act === 'mission-resolve') { if (!field('matter')) throw new Error('Choisissez le dossier.'); await post('m567', 'mission/control', {id, action: 'resolve', matter: field('matter')}); }
       else if (act === 'mission-resume') await post('m567', 'mission/control', {id, action: 'resume'});
-      else if (act === 'mission-cancel') await post('m567', 'mission/control', {id, action: 'pause'});
+      else if (act === 'mission-cancel' || act === 'docreq-cancel') {   // 5.6.34 (B16) : annulation métier, pas une pause
+        const v = await post('m5634', 'decision/annuler', {type: act === 'mission-cancel' ? 'mission' : 'docreq', id});
+        note(v.message || 'Demande annulée.');
+        if (v.counts && v.counts.total !== null) { const b = document.querySelector('#c5614-title .c530-badge'); if (b) b.textContent = String(v.counts.total);
+          const u = document.querySelector('#c5614-title .c5614-urgent'); if (u) u.textContent = v.counts.urgent + ' urgente(s)'; }
+        if (v.state === 'annulation_demandee' || v.state === 'cancel_requested') { button.disabled = true; button.textContent = 'Arrêt demandé'; inflight.delete(flight); return; }
+      }
       else if (act === 'mission-complete') { if (!field('instruction')) throw new Error('Indiquez l’instruction complémentaire.');
         await post('m567', 'mission/create', {request_key: crypto.randomUUID(), instruction: field('instruction'), matter: card.querySelector('[data-field="matter"]')?.value || '', context: {mission_id: id}, autonomy: 'prepare'}); keep = true; note('Mission de suite créée.'); }
       else if (act === 'docreq-resolve') await post('m568', 'docreq/control', {id, matter: field('matter')});
@@ -96,7 +102,8 @@
       else if (act === 'resolve') { const payload = {id, action: 'resolve'}; if (field('matter')) payload.matter = field('matter'); if (field('created')) { payload.created = field('created'); payload.proof = field('proof'); }
         if (!payload.matter && !payload.created) throw new Error('Choisissez un dossier ou indiquez la date de création avec sa preuve.'); await post('m568', 'document/control', payload); }
       else await post('m568', 'document/control', {id, action: act});
-      if (act !== 'defer') note('Décision enregistrée ; l’agent reprend.');
+      if (act !== 'defer' && act !== 'mission-cancel' && act !== 'docreq-cancel' && act !== 'm5614-cancel') note('Décision enregistrée ; l’agent reprend.');
+      if (act === 'm5614-cancel') note('Mission annulée. Les fichiers déjà déposés sont conservés.');
       if (!keep) { const next = card.nextElementSibling || card.previousElementSibling; card.remove(); badge(); next?.focus?.(); }
       else button.disabled = false;
     } catch (e) { note(e.message); button.disabled = false; }

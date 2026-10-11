@@ -429,6 +429,10 @@ def run(desk, args, dav=None):
     row = desk.db.execute('SELECT * FROM docreq520 WHERE id=?', (rid,)).fetchone()
     if not row:
         raise Stop('demande_document_absente')
+    if row['status'] in ('annule', 'annulation_demandee'):   # 5.6.34 (B16) : une demande annulée ne repart pas
+        if row['status'] == 'annulation_demandee':
+            _set(desk, rid, 'annule', result=json.loads(row['result'] or '{}'))
+        raise Stop('demande_annulee')
     if row['status'] == 'cree' and row['path']:
         from .document_projects import _dav
         client = dav or _dav(desk)
@@ -539,6 +543,10 @@ def run(desk, args, dav=None):
     if not under(path, matter['path']):
         raise Stop('dossier_hors_racines')
     from .deposits567 import stage, finish
+    current = desk.db.execute('SELECT status FROM docreq520 WHERE id=?', (rid,)).fetchone()
+    if current and current['status'] in ('annule', 'annulation_demandee'):   # 5.6.34 (B16) : contrôle avant tout dépôt
+        _set(desk, rid, 'annule', result={'notes': notes, 'message': 'Annulée avant le dépôt : aucun fichier écrit.'})
+        raise Stop('demande_annulee')
     result = {'title': doc['titre'], 'to_complete': doc['a_completer'], 'sources': doc['sources'], 'notes': notes,
               'url': '', 'revision_coverage':doc.get('revision_coverage',{}), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)},
               'control': control, 'template': template_info, 'manifest': ctx['manifeste'], 'revision_diff': diff, 'rule_proposal': proposal,
@@ -560,7 +568,7 @@ def resolve(desk, rid, matter=''):
     row = desk.db.execute('SELECT * FROM docreq520 WHERE id=?', (rid,)).fetchone()
     if not row:
         raise Stop('demande_document_absente')
-    if row['status'] not in ('dossier_a_choisir', 'echec'):
+    if row['status'] not in ('dossier_a_choisir', 'echec'):   # une demande annulée n'est jamais rouverte en silence
         raise Stop('demande_document_non_reprenante')
     matters = {m['id']: m for m in load_matters(desk.c)}
     matter = str(matter or '')
@@ -595,7 +603,9 @@ def perform(desk, kind, args):
             return run(desk, args)
         except Stop as ex:
             row = desk.db.execute('SELECT status,result FROM docreq520 WHERE id=?', (str(args.get('request', '')),)).fetchone()
-            if row and row['status'] not in ('cree', 'dossier_a_choisir', 'depot_en_cours'):
+            if row and row['status'] in ('annulation_demandee',):
+                _set(desk, str(args.get('request', '')), 'annule', result=json.loads(row['result'] or '{}'))
+            elif row and row['status'] not in ('cree', 'dossier_a_choisir', 'depot_en_cours', 'annule'):
                 previous = json.loads(row['result'] or '{}')
                 _set(desk, str(args.get('request', '')), 'echec', result={**previous, 'error': str(ex)})
             raise

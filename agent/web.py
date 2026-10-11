@@ -427,6 +427,7 @@ class LiveStream:
 class App:
     def __init__(self, config_path, auth_path):
         self.config_path, self.auth_path = config_path, auth_path
+        if isinstance(auth_path,(str,Path)) and auth_path:__import__('os').environ['AXIORHUB_AUTH_FILE']=str(Path(auth_path).resolve())   # 5.6.34 : chemin réellement utilisé (diagnostic)
         self.auth_cache={};self.failures=[];self.mutex=threading.Lock()
         self.live_slots=threading.BoundedSemaphore(8)
 
@@ -500,6 +501,14 @@ class App:
                 except (KeyError,ValueError,TypeError,UnicodeError):
                     _public={'status':'400 Bad Request','kind':'application/json','body':json.dumps({'error':'accueil_configuration_ou_message_invalide'})}
                 finally:_desk567.db.close()
+            elif _path.startswith('/integration/v1/'):   # 5.6.34 (chap. 9.6) : contrat avec l'application Nextcloud (contexte signé, pas de session)
+                from .integration5634 import handle as _integration
+                _desk34=Desk(load_config(self.config_path))
+                try:
+                    _raw=env['wsgi.input'].read(min(int(env.get('CONTENT_LENGTH') or 0),2_000_001)) if env['REQUEST_METHOD']=='POST' else b''
+                    _st,_obj=_integration(_desk34,env['REQUEST_METHOD'],_path,env,_raw)
+                finally:_desk34.db.close()
+                _public={'status':_st,'kind':'application/json; charset=utf-8','body':json.dumps(_obj,ensure_ascii=False)}
             elif _path=='/poste-session' and auth.get('poste') and env['REQUEST_METHOD']=='GET':   # 5.6.25 : jeton de lancement du poste
                 from .poste_session import exchange
                 _public=exchange(self.auth_path,env,_prefix)
@@ -1245,10 +1254,10 @@ class App:
             from .workplan import get_plan,list_tasks
             workflow=c.get('nextcloud_workflow',{})
             if workflow.get('enabled'):
-                main+='<p class="success">✅ Compte Nextcloud technique actif : '+e(workflow.get('username',''))+'. Les écritures sont limitées aux calendriers choisis.</p>'
-            else:
-                main+='<p class="notice">⚠️ L’agenda reste lisible, mais la création de tâches et de créneaux est désactivée. Exécutez <code>sudo python3 configure-nextcloud-workflow.py</code> après avoir partagé les calendriers avec le compte technique.</p>'
-            if vue=='agenda':
+                main+='<p class="success">✅ Synchronisation Nextcloud active : '+e(workflow.get('username',''))+'. Les écritures sont limitées aux calendriers choisis.</p>'
+            if vue=='agenda':   # 5.6.34 : agenda local par défaut (rendez-vous, audiences, échéances, rappels, sauvegarde) ; synchronisation en option
+                from .web5634 import agenda_panel
+                main+=agenda_panel(desk,prefix)
                 from .agenda36 import page as agenda_page
                 main+=agenda_page(desk,args,link,url,form)
             elif vue=='taches':   # 5.6.28 : vue simple (liste groupée par échéance) et ajout d'une tâche à côté
@@ -1405,7 +1414,7 @@ class App:
             if not pending['billing']:main+='<p class="empty">Aucune facturation proposée.</p>'
             main+='</section>'
         elif path=='/recherche-juridique':
-            mid=args.get('matter','');main+='<section class="daily-hero"><div><p class="eyebrow">VERSION 2.4.0</p><h2>Recherche et traçabilité</h2><p>Les passerelles reçoivent seulement une question anonymisée. Une piste n’est citable qu’après récupération du texte officiel, vérification de l’identifiant et présence mot pour mot de l’extrait.</p></div></section>'
+            mid=args.get('matter','');main+='<section class="daily-hero"><div><h2>Recherche et traçabilité</h2><p>Les passerelles reçoivent seulement une question anonymisée. Une piste n’est citable qu’après récupération du texte officiel, vérification de l’identifiant et présence mot pour mot de l’extrait.</p></div></section>'
             main+=form('legal_research','Rechercher sans données client',extra='<label>Identifiant exact du dossier<input required name="matter" maxlength="80" value="'+e(mid)+'"></label><label>Question juridique anonymisable<textarea required name="question" maxlength="3000" rows="5"></textarea></label><input type="hidden" name="providers" value="openlegal,openlegi,goodlegal,pappers"><input type="hidden" name="limit" value="8">')
             main+='<div class="dashboard-actions">'+form('identify_latest_writings','Identifier les dernières conclusions',{'matter':mid,'document_type':'conclusions'})+form('refresh_exhibit_registry','Empreinter les pièces du dossier',{'matter':mid})+'</div>'
             if args.get('job'):
@@ -1432,7 +1441,7 @@ class App:
             from .hearing import preview_hearing
             from .word_legal import preview_word_project
             mid=args.get('matter','')
-            main+='<section class="daily-hero"><div><p class="eyebrow">VERSION 2.5.0 · SUPERVISÉE</p><h2>Audience, contradictoire et moteur Word</h2><p>La préparation identifie les écritures des parties, compare leurs dispositifs et produit des projets contrôlables. Les sources restent inchangées ; aucun dépôt RPVA, envoi, signature ou écrasement.</p></div></section>'
+            main+='<section class="daily-hero"><div><h2>Audience, contradictoire et moteur Word</h2><p>La préparation identifie les écritures des parties, compare leurs dispositifs et produit des projets contrôlables. Les sources restent inchangées ; aucun dépôt RPVA, envoi, signature ou écrasement.</p></div></section>'
             q=args.get('q','').strip()
             main+='<form method="get" action="'+e(url('/audiences-word'))+'"><label>Rechercher un dossier par nom complet ou référence<input name="q" maxlength="150" value="'+e(q)+'" placeholder="MARTIN, 2018091201…"></label><button>Rechercher</button></form>'
             if q:
@@ -1442,8 +1451,9 @@ class App:
                 if len(choices)>50:main+='<p>Précisez la recherche pour voir les autres dossiers.</p>'
                 main+='</section>'
             if mid in by_id:main+='<p class="success">Dossier sélectionné : '+e(matter_option(by_id[mid]))+'</p>'
-            pdf_link=external_links(desk).get('pdf_tools','https://pdf.example.com/')
-            main+='<section class="ws-hearing"><h2>Préparer une plaidoirie à partir des dernières conclusions</h2><p>Recherchez d’abord l’affaire ci-dessus. Ajoutez les dernières conclusions des deux parties, puis indiquez l’audience, votre objectif et les points à défendre. Les sources téléversées sont enregistrées dans le dossier choisi, sans écraser les originaux.</p><p><a class="button secondary" target="_blank" rel="noopener noreferrer" href="'+e(pdf_link)+'">Ouvrir l’atelier PDF pour numéroter, nommer ou tamponner les pièces</a></p>'
+            pdf_link=external_links(desk).get('pdf_tools','')   # 5.6.34 (B14) : jamais un domaine d'exemple ouvert comme service réel
+            if 'example.com' in pdf_link:pdf_link=''
+            main+='<section class="ws-hearing"><h2>Préparer une plaidoirie à partir des dernières conclusions</h2><p>Recherchez d’abord l’affaire ci-dessus. Ajoutez les dernières conclusions des deux parties, puis indiquez l’audience, votre objectif et les points à défendre. Les sources téléversées sont enregistrées dans le dossier choisi, sans écraser les originaux.</p>'+('<p><a class="button secondary" target="_blank" rel="noopener noreferrer" href="'+e(pdf_link)+'">Ouvrir l’atelier PDF pour numéroter, nommer ou tamponner les pièces</a></p>' if pdf_link else '<p class="notice">Atelier PDF non configuré : Paramètres › Connexions (lien du cabinet). </p>')
             main+='<div class="ws-hearing-uploads" data-hearing-matter="'+e(mid)+'">'
             for side,label in (('ours','Nos dernières conclusions'),('opponent','Dernières conclusions adverses')):
                 main+='<label>'+label+' · DOCX ou PDF, 20 Mo maximum<input type="file" accept=".docx,.pdf" data-hearing-upload="'+side+'"'+('' if mid in by_id else ' disabled')+'></label><p role="status" data-hearing-status="'+side+'">'+('Sélectionnez un dossier avant le téléversement.' if mid not in by_id else 'Aucun nouveau document téléversé.')+'</p>'
@@ -1491,8 +1501,8 @@ class App:
             pending=requests(desk,'pending',100);recent=requests(desk,'',20)
             openwebui=external_links(desk).get('openwebui','')
             if urlsplit(openwebui).scheme=='https':
-                openwebui_mail=openwebui.rstrip('/')+'/mail'
-                main+='<p class="success">Ouvrir directement <a rel="noopener noreferrer" target="_blank" href="'+e(openwebui)+'">Open WebUI</a>. La messagerie Open WebUI se trouve dans <a rel="noopener noreferrer" target="_blank" href="'+e(openwebui_mail)+'">Courrier</a>.</p>'
+                # 5.6.34 : Open WebUI classique n'a pas de section Courriel ; la messagerie reste dans AxiorHub (Courriels)
+                main+='<p class="success">Ouvrir directement <a rel="noopener noreferrer" target="_blank" href="'+e(openwebui)+'">Open WebUI</a> pour la conversation. Les courriels se consultent dans '+link('/courriels','Courriels',vue='boite')+'.</p>'
             main+='<section class="daily-hero"><div><p class="eyebrow">INTERFACE CONVERSATIONNELLE PRINCIPALE</p><h2>🤖 AxiorHub dans Open WebUI</h2><p>Posez des questions générales ou par dossier, obtenez la réponse et ses sources dans la même conversation, puis confirmez séparément les actions engageantes.</p></div>'+link('/assistant','Assistant intégré de secours')+'</section>'
             main+='<div class="stats"><article><strong>'+str(len(pending))+'</strong><span>Confirmations en attente</span></article><article><strong>'+str(len([x for x in recent if x['status']=='approved']))+'</strong><span>Confirmées récemment</span></article><article><strong>0</strong><span>Envoi automatique autorisé</span></article></div>'
             main+='<section><h2>Parcours supervisé</h2><ol><li>Demandez une recherche, une analyse, une matrice ou un projet : la réponse revient dans le chat avec ses sources.</li><li>Pour un brouillon, l’assistant affiche le courriel visé, l’instruction et un code à six chiffres.</li><li>Relisez puis recopiez ce code dans un nouveau message. Sans cette saisie, aucune préparation n’est lancée.</li><li>Le résultat est un brouillon dans '+e(c['mail']['drafts'])+' seulement si les contrôles réussissent. Aucun envoi.</li></ol></section>'
@@ -1597,16 +1607,12 @@ class App:
             main+=link('/administration','Voir les erreurs et la file des opérations')+'</details>'
             from .workstation import external_links
             links=external_links(desk);webmail=links.get('roundcube','')
-            openwebui_base=links.get('openwebui','')
-            openwebui_mail=openwebui_base.rstrip('/')+'/mail' if openwebui_base else ''
-            main+='<section class="ws-heading ws-roundcube-container"><h2>Messagerie</h2><p>Consultez le courrier dans Open WebUI. Le webmail Roundcube demeure accessible dans un onglet séparé.</p>'
-            if openwebui_mail:
-                main+='<details class="ws-mail-fold"><summary>Afficher ou masquer le courrier Open WebUI</summary><iframe class="ws-roundcube-frame" title="Courrier Open WebUI" src="'+e(openwebui_mail)+'" loading="lazy" referrerpolicy="no-referrer" allow="clipboard-read; clipboard-write"></iframe></details>'
-                main+='<p><a href="'+e(openwebui_mail)+'" rel="noopener noreferrer" target="_blank">Ouvrir le courrier Open WebUI directement</a>'
-            else:
-                main+='<p class="notice">Open WebUI n’est pas configuré. Enregistrez son URL dans Paramètres → Connexions.</p><p>'
+            # 5.6.34 : la version classique d'Open WebUI n'a pas de section Courriel : la messagerie se consulte dans AxiorHub (Courriels),
+            # le webmail Roundcube restant accessible dans un onglet séparé.
+            main+='<section class="ws-heading ws-roundcube-container"><h2>Messagerie</h2><p>Consultez le courrier dans la boîte de réception d’AxiorHub. Le webmail Roundcube demeure accessible dans un onglet séparé.</p>'
+            main+='<p>'+link('/courriels','Ouvrir la boîte de réception',vue='boite')
             if urlsplit(webmail).scheme=='https':main+=' · <a href="'+e(webmail)+'" rel="noopener noreferrer" target="_blank">Ouvrir Roundcube</a>'
-            main+='</p><p class="muted">Si l’intégration est refusée par la politique de sécurité d’Open WebUI, utilisez le lien direct.</p></section>'
+            main+='</p></section>'
 
             verified_drafts=desk.db.execute("SELECT COUNT(*) FROM work_items WHERE state='draft_ready' AND source_status='drafted'").fetchone()[0]
             prepared_drafts=desk.db.execute('SELECT COUNT(*) FROM manual_drafts').fetchone()[0]
@@ -1999,7 +2005,7 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
-        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
 def fold_for_search(value):

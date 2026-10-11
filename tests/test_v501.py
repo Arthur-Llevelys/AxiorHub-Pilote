@@ -119,11 +119,11 @@ class Agenda(Base):
             workplan.create_event(self.desk, {'title': 'Titre valide', 'start': 'pas une date'}, self.dav)
         with self.assertRaises(Stop):
             workplan.create_event(self.desk, {'title': 'Titre valide', 'start': '2026-10-05T10:00', 'matter': 'INCONNU'}, self.dav)
+        # 5.6.34 : sans agenda de planification CalDAV, l'événement va dans l'agenda local (la synchronisation est une option)
         self.f.c['nextcloud_workflow']['enabled'] = False
         desk = Desk(self.f.c)
-        with self.assertRaises(Stop) as ctx:
-            workplan.create_event(desk, {'title': 'Titre valide', 'start': '2026-10-05T10:00'}, self.dav)
-        self.assertEqual(str(ctx.exception), 'agenda_planification_non_configure')
+        out = workplan.create_event(desk, {'title': 'Titre valide', 'start': '2026-10-05T10:00'}, self.dav)
+        self.assertTrue(out['local']);self.assertFalse(out['calendar_updated'])
         desk.db.close()
 
     def test_event_jobs_are_registered_as_user_jobs(self):

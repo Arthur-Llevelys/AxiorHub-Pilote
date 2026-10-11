@@ -204,7 +204,8 @@ class Guided300Tests(unittest.TestCase):
         self.f=test_desk.WebTests();self.f.setUp();self.addCleanup(self.f.doCleanups)
 
     def test_home_and_all_requested_pages_include_local_micro_script(self):
-        for path in ('/accueil','/orchestrateur-avis','/recherche-juridique','/audiences-word','/planning','/assistant'):
+        # 5.6.34 (U01) : /audiences-word renvoie vers l'espace Audiences, qui porte le micro local
+        for path in ('/accueil','/orchestrateur-avis','/recherche-juridique','/audiences','/planning','/assistant'):
             result=self.f.request(path)
             self.assertTrue(result['status'].startswith('200'),(path,result['body'][:300]))
             self.assertIn('v310.js',result['body']);self.assertIn('axiorhub-audio',result['body'])

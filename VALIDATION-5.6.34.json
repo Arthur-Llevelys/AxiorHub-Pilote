@@ -1,0 +1,27 @@
+{
+  "version": "5.6.34",
+  "base": "5.6.33 publiée",
+  "date_utc": "2026-10-11T00:00:00+00:00",
+  "cahier_des_charges": "« Audit et préparation de la nouvelle version » (11 octobre 2026) et demandes complémentaires (agenda local, état du système par mode d’installation) — matrice CONFORMITE-5.6.34.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1814,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 78,
+    "note": "Aucun échec (suite complète depuis l’archive extraite) ; 78 tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5634.py (68 tests) : T01 à T16, L01 à L06, U01 à U07 (dont téléversement d’écritures), agenda local, état du système par mode, guide Kokoro, contrat /integration/v1, application Nextcloud, chaîne des versions, traduction des textes écrits par les scripts et des exemples de saisie, rapports dans la langue choisie.",
+  "adjusted_tests": [
+    "tests/test_upgrade.py : fixture 5.6.31 corrigée, 5.6.33 ajoutée, version de sortie centralisée, six scénarios (réinstallation, idempotence, interruption avant et après bascule, espace disque, reçu illisible)",
+    "tests/test_v5613.py, test_v5614.py : fiche d’audience lue depuis l’index local ; /audience → /audiences",
+    "tests/test_v5627.py : SAS ALPHA distincte de ALPHA (rapprochement proposé) ; événements sans preuve placés dans « À vérifier »",
+    "tests/test_v5631.py : étape « Synthèse vocale » du guide ; anciens liens redirigés",
+    "tests/test_v190.py : « Alertes du cabinet » et « Actualiser les alertes de tous les dossiers »",
+    "tests/test_v300_local.py, test_v363.py, test_v365.py : /audiences-word renvoie vers Audiences (téléversement dans Préparer, plus de lien d’exemple PDF)",
+    "tests/test_v501.py : sans agenda CalDAV, l’événement va dans l’agenda local",
+    "tests/test_v561.py : consigne de relance selon le mode d’installation (diagnostic5634.relaunch_hint)",
+    "tests/test_v362.py, test_v381.py, test_v363.py : Open WebUI classique sans section Courriel (plus de cadre ni de lien « /mail »)"
+  ]
+}

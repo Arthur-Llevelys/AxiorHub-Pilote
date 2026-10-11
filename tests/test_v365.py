@@ -94,16 +94,17 @@ class Browser365(unittest.TestCase):
         for label in ('Marquer terminée','Supprimer','Modifier ou programmer','Programmer dans l’agenda'):
             self.assertIn(label,body)
         self.assertIn('Produire',body);self.assertNotIn('Outils métier',body)
-        hearing=self.request('/audiences-word',query='matter=DOS-001')['body']
-        self.assertIn('https://pdf.example.com/',hearing)
-        self.assertIn('toutes les pages',hearing)
+        # 5.6.34 (B14) : plus de lien d'exemple vers un service PDF ; la préparation ne dépose ni n'envoie rien
+        hearing=self.request('/audiences',query='onglet=preparer&matter=DOS-001')['body']
+        self.assertNotIn('pdf.example.com',hearing)
+        self.assertIn('Rien n’est déposé ni envoyé',hearing)
         script=self.request('/static/v365.js')
         self.assertEqual(script['status'],'200 OK');self.assertIn('sessionStorage',script['body'])
 
     def test_openapi_exposes_long_document_progress_and_365(self):
         from agent.api import openapi
         spec=openapi('https://cabinet.test')
-        self.assertEqual(spec['info']['version'],'5.6.33')
+        self.assertEqual(spec['info']['version'],'5.6.34')
         self.assertIn('/long-documents/{run_id}',spec['paths'])
 
 

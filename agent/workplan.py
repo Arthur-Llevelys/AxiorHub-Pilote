@@ -644,7 +644,11 @@ def _event_text(desk,args):
 def create_event(desk,args,dav=None):
     """Crée un événement dans le calendrier de planification (jamais dans un calendrier que l'avocat n'a pas choisi)."""
     ensure_schema(desk);cfg=desk.c.get('nextcloud_workflow') or {};calendar=cfg.get('planning_calendar_url','')
-    if not cfg.get('enabled') or not calendar:raise Stop('agenda_planification_non_configure')
+    if not cfg.get('enabled') or not calendar:   # 5.6.34 : sans agenda CalDAV, l'événement est créé dans l'agenda local
+        from .agenda5634 import create as create_local
+        out=create_local(desk,{'title':args.get('title',''),'start':args.get('start',''),'duration_minutes':args.get('duration_minutes',60),
+                               'matter':args.get('matter',''),'notes':args.get('notes',''),'kind':args.get('kind','rendez_vous')})
+        return {'event_uid':out['id'],'start':out['event']['starts'],'end':out['event']['ends'],'calendar_updated':False,'local':True,'message':out['message']}
     begins,ends=_event_times(desk,args);title,matter,description=_event_text(desk,args)
     event_id=digest('manual-event|'+title+'|'+begins.isoformat()+'|'+desk.now())
     client=dav or _dav(desk);uid=client.put_event(calendar,event_id,title,begins,ends,description)

@@ -495,7 +495,14 @@ def routed_config(config, purpose):
     if chosen:base['model']=chosen
     if not base.get('model'):raise Stop('modele_fournisseur_absent')
     base['provider_id']=provider_id;base['provider_type']=provider_type
-    base['purpose']=purpose;base['temperature']=float(routes.get(role+'_temperature',0)) if routes else 0
+    base['purpose']=purpose
+    from .profil5634 import resolve as _resolve_profile   # 5.6.34 : profil Juridique, sous-profil Extraction factuelle, réglages conservés
+    _params=_resolve_profile(config if 'ollama' in config else {},purpose,role)
+    base['temperature']=_params['temperature'];base['sampling']=_params['sampling']
+    base['profile']=_params['profile'];base['profile_version']=_params['profile_version'];base['subprofile']=_params['subprofile']
+    if provider_type=='ollama':
+        base['context_mode']=_params['context_mode']
+        if _params['context_mode']=='fixe':base['num_ctx']=_params['num_ctx']
     base['external_policy_config']=config
     if config.get('state_dir'):base['state_dir']=config['state_dir']
     base['pseudo']=pseudo_sources(config)
@@ -674,18 +681,10 @@ Vérifie aussi la période, la durée et les jours des créneaux par rapport à 
 
 
 def validate(value, schema):
-    typ = schema['type']
-    if typ == 'object':
-        if not isinstance(value, dict) or set(value) != set(schema['properties']): raise Stop('schema_ia_invalide')
-        for k, sub in schema['properties'].items(): validate(value[k], sub)
-    elif typ == 'boolean':
-        if type(value) is not bool: raise Stop('schema_ia_invalide')
-    elif typ == 'string':
-        if not isinstance(value, str) or len(value) > 18000: raise Stop('schema_ia_invalide')
-        if 'enum' in schema and value not in schema['enum']: raise Stop('schema_ia_invalide')
-    elif typ == 'array':
-        if not isinstance(value, list) or len(value) > schema.get('maxItems', 20): raise Stop('schema_ia_invalide')
-        for item in value: validate(item, schema['items'])
+    """5.6.34 (B12) : validation JSON Schema complète (agent/schema5634.py) : types stricts (un entier refuse 3,5 et True), tailles,
+    énumérations, champs requis et facultatifs, propriétés interdites ; erreurs à chemin précis conservées dans l'exception."""
+    from .schema5634 import validate as _validate
+    _validate(value, schema)
 
 
 class Model:
@@ -698,7 +697,20 @@ class Model:
         self.usage_cost_known=(self.provider_type=='ollama' or bool(cfg.get('input_usd_per_million') or cfg.get('output_usd_per_million')))
         if self.provider_type == 'ollama':
             self.http = HTTP(cfg['url'], local_only=True, timeout=cfg.get('timeout_seconds', 240), local_hosts=cfg.get('local_hosts', ()))
-            shown = self.http.json('POST', '/api/show', {'model': cfg['model']})
+            try:
+                shown = self.http.json('POST', '/api/show', {'model': cfg['model']})
+            except Stop as error:   # 5.6.34 (B15) : même traduction qu'/api/chat, cause propre au modèle
+                code = str(error)
+                if code == 'http_404':
+                    raise Stop('modele_ollama_absent') from None
+                if code in ('connexion_http_indisponible', 'delai_http_depasse'):
+                    raise Stop('moteur_ollama_injoignable') from None
+                raise
+            if not isinstance(shown, dict):
+                shown = {}
+            from .profil5634 import model_context_limit
+            self.context_limit = model_context_limit(shown)
+            self.capabilities = [str(x) for x in (shown.get('capabilities') or [])] if isinstance(shown.get('capabilities'), list) else None
             if shown.get('remote_host') or shown.get('remote_model'):
                 raise Stop('modele_distant_refuse')
         elif self.provider_type in ('openai','mistral','openrouter','anthropic'):
@@ -786,7 +798,9 @@ class Model:
         if first is not None:raise first
         return self._call_child(local,method,*args)        # aucun fournisseur joignable : le modèle local termine le travail
 
-    def complete(self,messages,temperature=0,max_tokens=3500,json_schema=None):
+    def complete(self,messages,temperature=None,max_tokens=3500,json_schema=None):
+        if temperature is None:   # 5.6.34 : argument absent → température du profil ; un 0 explicite reste 0
+            temperature=float(self.cfg.get('temperature',0) or 0)
         self._external_context={'payload':getattr(self,'_trace',('',None))[1],
                                 'messages':messages,'inherited':self.cfg.get('external_context')}
         if self.cfg.get('secours') and self.provider_type=='ollama':
@@ -850,16 +864,20 @@ class Model:
             insert_at=1 if messages and messages[0].get('role')=='system' else 0
             messages.insert(insert_at,{'role':'system','content':policy})
         if self.provider_type=='ollama':
-            num_ctx=int(self.cfg.get('num_ctx',32768) or 32768)
+            from .profil5634 import context_window, provider_options, record as record_params
+            num_ctx=context_window({'context_mode':self.cfg.get('context_mode','fixe'),'num_ctx':self.cfg.get('num_ctx',32768)},getattr(self,'context_limit',None))
+            if getattr(self,'context_limit',None) and num_ctx>self.context_limit:num_ctx=int(self.context_limit)
             # 5.6.32 : budget en jetons (≈ 3 caractères par jeton pour un texte juridique français en JSON). Une entrée qui ne laisse pas
             # la place de la réponse est refusée AVANT l'appel, avec une erreur distincte que l'appelant traite en compressant (fiches de pièces).
             estimated=len(json.dumps(messages,ensure_ascii=False))//3
             if estimated+int(max_tokens)>num_ctx-256:raise Stop('contexte_ia_insuffisant')
-            req={'model':self.cfg['model'],'stream':False,'messages':messages,
-                 'options':{'temperature':temperature,'num_ctx':num_ctx,
-                            'num_predict':max_tokens}}
+            options,ignored=provider_options('ollama',temperature,self.cfg.get('sampling') or {})
+            options.update({'num_ctx':num_ctx,'num_predict':max_tokens})
+            req={'model':self.cfg['model'],'stream':False,'messages':messages,'options':options}
             if json_schema is not None:req['format']=json_schema
-            if self.cfg.get('disable_thinking',True):req['think']=False
+            caps=getattr(self,'capabilities',None)
+            if self.cfg.get('disable_thinking',True) and (caps is None or 'thinking' in caps):req['think']=False   # option non envoyée si non prise en charge
+            self.last_options=dict(options)
             try:result=self.http.json('POST','/api/chat',req)
             except Stop as error:raise self._translate_error(error) from None
             if result.get('done') is True and result.get('done_reason')=='length':
@@ -877,6 +895,12 @@ class Model:
             try:   # 5.6.9 : jetons et durée de la génération locale, par fonction (aucun texte conservé)
                 from .economie569 import record_local_usage
                 record_local_usage(self.cfg,result)
+            except Exception:
+                pass
+            try:   # 5.6.34 : valeurs effectivement transmises (profil, version, options), sans contenu
+                record_params(self.cfg,req['options'],{'ignored':ignored,'prompt_tokens':int(result.get('prompt_eval_count') or 0),
+                              'eval_tokens':int(result.get('eval_count') or 0),'duration_ms':int((result.get('total_duration') or 0)/1e6),
+                              'num_ctx_limit':getattr(self,'context_limit',None)})
             except Exception:
                 pass
             if message.get('tool_calls'):raise Stop('appel_outil_ia_refuse')
@@ -935,8 +959,12 @@ class Model:
 
     def _openai_compatible(self,messages,temperature,max_tokens,json_schema):
         from .ai_gateway import estimate_and_check_budget,record_usage
-        req={'model':self.cfg['model'],'messages':messages,'stream':False,
-             'temperature':temperature,'max_tokens':max_tokens}
+        from .profil5634 import provider_options, record as record_params
+        sent,ignored=provider_options(self.provider_type,temperature,self.cfg.get('sampling') or {})
+        if 'repeat_penalty' in sent:sent['repetition_penalty']=sent.pop('repeat_penalty')   # nom OpenRouter
+        req={'model':self.cfg['model'],'messages':messages,'stream':False,'max_tokens':max_tokens,**sent}
+        try:record_params(self.cfg,sent,{'ignored':ignored})
+        except Exception:pass
         if self.provider_type=='openrouter' and self.cfg.get('zdr_required'):
             req['provider']={'zdr':True,'allow_fallbacks':False}
         if json_schema is not None:
@@ -1031,11 +1059,22 @@ class Model:
                   (INTERNAL_SAFETY+prompt if stage in ('case_brief','dossier_fiche','legal_memory','strategy_analysis','evidence_matrix','act_project','document_project','document_control','hearing_preparation','word_revision_plan','mail_orchestration_classification','mail_case_differential','legal_opinion_simulation','opinion_control','meeting_preparation','transcript_report','preparation_control','second_model_review','attachment_review','deadline_review','memory_insight') else BASE+prompt)},
                   {'role':'user','content':payload}]
         maximum=7000 if stage in ('hearing_preparation','word_revision_plan','legal_opinion_simulation') else (6000 if stage in ('case_brief','dossier_fiche','strategy_analysis','evidence_matrix','act_project','document_project','mail_case_differential') else 3500)
-        content=self.complete(messages,self.cfg.get('temperature',0),maximum,schema)
-        try: value = json.loads(content)
-        except (KeyError, ValueError, TypeError): raise Stop('json_ia_invalide') from None
-        validate(value, schema)
-        return value
+        from .schema5634 import SchemaError, describe
+        for attempt in (1, 2):   # 5.6.34 (B12) : une reprise unique, bornée ; jamais de conversion d'une sortie fausse en succès
+            content=self.complete(messages,None,maximum,schema)
+            try:
+                value = json.loads(content)
+                validate(value, schema)
+                return value
+            except (KeyError, ValueError, TypeError):
+                failure, detail = Stop('json_ia_invalide'), 'JSON illisible'
+            except SchemaError as ex:
+                failure, detail = ex, describe(ex.errors)
+            if attempt == 2 or self.cfg.get('schema_retry') is False:
+                raise failure
+            messages = messages + [{'role': 'assistant', 'content': str(content)[:2000]},
+                                   {'role': 'user', 'content': 'Ta réponse précédente n’est pas conforme au schéma demandé (' + detail[:600] +
+                                    '). Réponds de nouveau, uniquement par un objet JSON conforme.'}]
 
 
 def provider_diagnostic(cfg):

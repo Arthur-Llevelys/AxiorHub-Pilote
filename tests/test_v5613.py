@@ -340,10 +340,17 @@ class Pages(Base):
         self.desk.db.execute("INSERT INTO calendar_cache(id,uid,recurrence_id,calendar_url,href,etag,title,description,location,starts,ends,busy,matter,matter_candidates,fetched) "
                              "VALUES('e1','u1','','c','h','e','Audience de plaidoirie','','TJ Paris','2099-01-10T09:00:00+00:00','2099-01-10T10:00:00+00:00',1,?,'[]',?)", (ALPHA, self.desk.now()))
         self.desk.db.commit()
+        # 5.6.34 (B07) : la consultation lit l'index local daté (plus d'inventaire Nextcloud en direct pendant l'affichage)
+        from agent.index import DocumentIndex
+        from agent.common import load_matters
+        idx = DocumentIndex(self.desk.c['state_dir'])
+        m = next(x for x in load_matters(self.desk.c) if x['id'] == ALPHA)
+        idx.db.execute('INSERT OR REPLACE INTO docs VALUES(?,?,?,?,?,?)', (ALPHA, m['path'] + '/Conclusions récapitulatives.docx', 'e1', '2026-10-01T10:00:00', 'texte', ''))
+        idx.db.commit();idx.db.close()
         s = audience5613.sheet(self.desk, ALPHA)
         self.assertEqual(s['hearings'][0]['title'], 'Audience de plaidoirie');self.assertEqual(s['conclusions'][0]['name'], 'Conclusions récapitulatives.docx')
         self.assertIn('drafts_to_review', s);self.assertIn('probable_questions', s)
-        body = self.request('/audience', query='matter=' + ALPHA)['body']
+        body = self.request('/audiences', query='onglet=fiche&matter=' + ALPHA)['body']   # 5.6.34 (U01) : espace Audiences
         self.assertIn('Audience de plaidoirie', body);self.assertIn('Conclusions récapitulatives.docx', body);self.assertIn('Préparer la plaidoirie', body)
         with self.assertRaisesRegex(Stop, 'dossier_absent'):
             audience5613.sheet(self.desk, 'inconnu')

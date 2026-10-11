@@ -81,7 +81,9 @@
 /* --- Aujourd'hui : résumé oral du briefing */
 .o5632{margin:12px 0 4px;border-top:1px solid var(--x32-line);padding-top:10px}
 .o5632-bar{display:flex;gap:8px;flex-wrap:wrap}
-.o5632-text{margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--x32-soft);color:var(--x32-ink);line-height:1.6;max-width:72ch}
+/* 5.6.34 (U07) : le résumé occupe toute la largeur intérieure du cadre (padding compris), sans débordement */
+.o5632{min-width:0;max-width:100%}
+.o5632-text{margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--x32-soft);color:var(--x32-ink);line-height:1.6;width:100%;max-width:none;box-sizing:border-box;min-width:0;overflow-wrap:anywhere;word-break:normal}
 .o5632-text p{margin:0 0 .8em}
 .o5632-note{font-size:12px;color:var(--x32-mute);margin:6px 0 0}
 .o5632 [hidden],.s5632-folders [hidden]{display:none!important}

@@ -172,7 +172,26 @@ def _ollama_answers(desk):
         return False
 
 
-def service_health(desk, runner=None):
+def service_health(desk, runner=None, mode=None, runtime=None):
+    # 5.6.34 : poste Linux et Windows — processus réellement lancés, activité, réponse de l'interface (jamais systemctl sous Windows)
+    from . import diagnostic5634
+    mode=mode or ('serveur' if runner else diagnostic5634.install_mode(desk.c))
+    if mode!='serveur':
+        rows=diagnostic5634.poste_services(desk,runtime)
+        if not _ollama_answers(desk):
+            rows.append({'unit':'ollama','label':'Ollama','state':'API injoignable','required':False,'verified':False,
+                         'feature':'Modèle d’IA local','cause':'Le moteur Ollama ne répond pas à l’adresse configurée.',
+                         'action':'Démarrez Ollama (ou installez-le depuis ollama.com), puis Paramètres › IA › Tester.'})
+        else:
+            rows.append({'unit':'ollama','label':'Ollama','state':'API joignable','required':False,'verified':True})
+        failed=[x for x in rows if x['required'] and not x['verified']]
+        optional=[x for x in rows if not x['required'] and not x['verified']]
+        status='error' if failed else ('warning' if optional else 'verified')
+        summary=('Processus du poste actifs et interface joignable.' if status=='verified' else
+                 (f'{len(failed)} processus requis inactif(s) ou muet(s).' if failed else 'Ollama ne répond pas.'))
+        check=_store_check(desk,'services','services',status,summary,
+          {'mode':mode,'active':sum(1 for x in rows if x['verified']),'total':len(rows),'required_failed':[x['unit'] for x in failed]})
+        return {**check,'services':rows,'mode':mode}
     runner=runner or subprocess.run;rows=[]
     for unit,label,required in SERVICES:
         try:
@@ -193,7 +212,7 @@ def service_health(desk, runner=None):
     check=_store_check(desk,'services','services',status,summary,
       {'active':sum(1 for x in rows if x['verified']),'total':len(rows),
        'required_failed':[x['unit'] for x in failed]})
-    return {**check,'services':rows}
+    return {**check,'services':rows,'mode':'serveur'}
 
 
 def _configured_files(config):
@@ -206,7 +225,13 @@ def _configured_files(config):
         elif isinstance(value,str) and (key.endswith('_file') or key in ('secret_file','password_file')) and value:
             found.add(value)
     walk(config)
-    for path in (config.get('_path',''),'/etc/axiorhub-mail-agent/ui-auth.json',
+    from . import diagnostic5634   # 5.6.34 : fichier d'authentification RÉELLEMENT utilisé (poste : dossier de données)
+    _auth=diagnostic5634.auth_file(config)[0]
+    if diagnostic5634.install_mode(config)!='serveur' or _auth.exists():found.add(str(_auth))
+    if diagnostic5634.install_mode(config)!='serveur':
+        for path,_secret,_label in diagnostic5634.poste_files(config):found.add(path)
+        return sorted(found)
+    for path in (config.get('_path',''),
                  '/etc/axiorhub-mail-agent/openwebui-api-token',
                  '/etc/axiorhub-mail-agent/axiorhub_openwebui_tool.py',
                  '/etc/axiorhub-mail-agent/SYSTEM-PROMPT-AXIORHUB.md'):
@@ -228,8 +253,25 @@ def _optional_files(config):
     return optional
 
 
-def permission_health(desk):
+def permission_health(desk, mode=None, sddl_reader=None):
     rows=[];optional=_optional_files(desk.c)
+    from . import diagnostic5634
+    mode=mode or diagnostic5634.install_mode(desk.c)
+    if mode=='windows':   # 5.6.34 : autorisations Windows réellement lues (SDDL), jamais un vert par défaut
+        for name in _configured_files(desk.c):
+            secret=any(x in Path(name).name.casefold() for x in ('secret','password','token','auth','mot-de-passe'))
+            res=diagnostic5634.file_permission(name,secret,'windows',sddl_reader)
+            if res['status']=='missing':
+                st='optional' if name in optional else 'error'
+                rows.append({'path':name,'status':st,'secret':secret,'reason':'fichier_facultatif_absent' if st=='optional' else 'fichier_absent'})
+            else:
+                rows.append({'path':name,'secret':secret,**res})
+        bad=[x for x in rows if x['status'] not in ('verified','optional')]
+        status='verified' if rows and not bad else ('error' if any(x['status']=='error' for x in bad) else 'unknown')
+        check=_store_check(desk,'permissions','security',status,
+          ('Autorisations Windows relues : accès réservé au compte et au système.' if status=='verified' else
+           f'{len(bad)} fichier(s) absent(s), aux autorisations trop larges ou non vérifiables.'),{'files_checked':len(rows),'issues':len(bad),'mode':mode})
+        return {**check,'files':rows,'mode':mode}
     for name in _configured_files(desk.c):
         path=Path(name);secret=any(x in path.name.casefold() for x in ('secret','password','token','auth'))
         try:

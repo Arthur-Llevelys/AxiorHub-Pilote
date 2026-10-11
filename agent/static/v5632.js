@@ -190,7 +190,7 @@
         out.setAttribute('data-text', res.text || '');
         out.hidden = false; b.setAttribute('aria-expanded', 'true');
         $('[data-o5632=play]', box).hidden = false;
-        note.textContent = res.method === 'ia' ? msg('oral_ai', 'Résumé rédigé par l’IA à partir du briefing, sans fait ajouté (contrôle des nombres).')
+        note.textContent = res.method === 'ia' ? msg('oral_ai', 'Résumé rédigé par l’IA à partir du briefing. Contrôle effectué : les nombres repris correspondent au briefing ; les autres affirmations ne sont pas contrôlées automatiquement.')
           : (res.pending ? msg('oral_pending', 'Version provisoire : l’IA rédige une version plus fluide, rouvrez le résumé dans un instant.')
              : (res.notes && res.notes[0]) || msg('oral_rules', 'Résumé établi sans IA à partir du briefing.'));
       }).catch(function (e) { note.textContent = e.message; }).then(function () { b.disabled = false; });

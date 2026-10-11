@@ -47,7 +47,7 @@ def page(desk,args,link,url,form=None):
     except (Stop,OSError,TimeoutError,ValueError,KeyError):
         data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=False)
         warning=('Lecture CalDAV indisponible : affichage du cache local, potentiellement incomplet.'
-                 if configured else 'Aucun calendrier configuré : affichage du cache local uniquement.')
+                 if configured else '')   # 5.6.34 : sans CalDAV, l'agenda local fait foi (aucun avertissement trompeur)
     events=data['events']
     by_day={}
     matters=[]
@@ -121,7 +121,9 @@ def page(desk,args,link,url,form=None):
                  '<label><input type="checkbox" name="email" value="yes"'+(' checked' if rs['email'] else '')+'> Récapitulatif déposé dans votre boîte de réception (aucun envoi)</label>')+
             '</details>')
     if not writable and form is not None:
-        out+='<p class="notice">La création et la modification d’événements demandent le compte Nextcloud technique et un calendrier de planification (<code>sudo python3 configure-nextcloud-workflow.py</code>). L’agenda reste lisible.</p>'
+        # 5.6.34 : sans calendrier de planification, les événements se créent dans l'agenda local ; la synchronisation est une option
+        out+='<p class="notice">Vos rendez-vous, audiences et échéances s’enregistrent dans l’agenda local (« Mon agenda » ci-dessus). '
+        out+='La synchronisation avec un calendrier Nextcloud ou Google est facultative : Paramètres › Guide d’installation › Agenda.</p>'
     out+='<nav class="ws-calendar-nav" aria-label="Vues de l’agenda">'+''.join(
         '<a '+('aria-current="page" ' if view==v else '')+'href="'+e(url('/planning',vue='agenda',view=v,date=day.isoformat()))+'">'+label+'</a>'
         for v,label in [('list','Liste'),('week','Semaine'),('month','Mois')])+'</nav>'

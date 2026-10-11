@@ -52,6 +52,16 @@ FIELDS = (
  ('ollama.url','Adresse Ollama (locale ou réseau du cabinet, ex. http://192.168.1.10:11434)','local_url','http://127.0.0.1:11434','Intelligence artificielle'),
  ('ollama.model','Modèle Ollama','text','qwen3:8b','Intelligence artificielle'),
  ('ollama.num_ctx','Fenêtre de contexte (tokens)','integer',32768,'Intelligence artificielle'),
+ # 5.6.34 (chap. 5) : profil du modèle local ; réglés depuis Paramètres › IA › Modèles locaux
+ ('llm.profile','Profil du modèle','llm_profile','juridique','Profil du modèle'),
+ ('llm.profile_version','Version du profil','integer',1,'Profil du modèle'),
+ ('llm.temperature','Température','llm_number',0.3,'Profil du modèle'),
+ ('llm.top_p','top_p','llm_number',0.9,'Profil du modèle'),
+ ('llm.top_k','top_k','llm_number',40,'Profil du modèle'),
+ ('llm.min_p','min_p','llm_number',0.0,'Profil du modèle'),
+ ('llm.repeat_penalty','repeat_penalty','llm_number',1.0,'Profil du modèle'),
+ ('llm.repeat_last_n','repeat_last_n','llm_number',64,'Profil du modèle'),
+ ('llm.context_mode','Fenêtre de contexte','context_mode','auto','Profil du modèle'),
  ('audio.enabled','Activer la dictée locale','bool',False,'Voix'),
  ('audio.bridge_base_url','Passerelle Whisper / Vocal (locale ou réseau du cabinet)','local_url','http://127.0.0.1:9011','Voix'),
  ('audio.bridge_token_file','Jeton de la passerelle vocale','secret','','Voix'),
@@ -206,6 +216,15 @@ def _validate(kind,value,key):
         amount=money(value)
         if amount>10000:raise Stop('budget_voix_invalide')
         return str(amount)
+    if kind=='llm_profile':   # 5.6.34
+        if value not in ('juridique','personnalise'):raise Stop('profil_modele_invalide')
+        return value
+    if kind=='llm_number':
+        from .profil5634 import number
+        return number(value,key.split('.',1)[1])
+    if kind=='context_mode':
+        if value not in ('auto','fixe'):raise Stop('mode_contexte_invalide')
+        return value
     if kind=='bool':
         if not isinstance(value,bool):raise Stop('reglage_booleen_invalide')
         return value

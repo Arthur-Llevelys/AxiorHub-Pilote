@@ -359,7 +359,7 @@ class Corrections(Base):
             return real(desk, sql, args, errors)
         with patch('agent.audience5613._rows', side_effect=broken):
             s = audience5613.sheet(self.desk, ALPHA);self.assertEqual(s['status'], 'indisponible');self.assertTrue(s['unavailable'])
-            body = self.request('/audience', query='matter=' + ALPHA)['body'];self.assertIn('partiellement indisponible', body)
+            body = self.request('/audiences', query='onglet=fiche&matter=' + ALPHA)['body'];self.assertIn('partiellement indisponible', body)   # 5.6.34 (U01)
 
 
 class FakeNinjaHTTP:
