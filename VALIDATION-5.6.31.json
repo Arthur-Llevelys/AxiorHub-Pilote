@@ -1,0 +1,30 @@
+{
+  "version": "5.6.31",
+  "base": "5.6.30 publiée",
+  "date_utc": "2026-10-11T00:00:00+00:00",
+  "cahier_des_charges": "Cahier des charges additionnel AxiorHub Pilote — guide d’installation et veille (version révisée du 10 octobre 2026), lot 1 : R00, R01, R02, R17, R18, R19 ; matrice CONFORMITE-5.6.31.md",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1696,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 69,
+    "note": "Aucun échec."
+  },
+  "new_tests": "tests/test_v5631.py (34 tests) : catalogues fr/en/de/es complets et cohérents, pluriels, échappement, deux langues simultanées, préférence et cookie ; menu unique, inventaire Rubriques/Outils retrouvé dans le registre, chaque route servie, recherche par alias, filtrage par rôle ; fiches d’aide en quatre langues et présence réelle de chaque bouton cité ; guide d’installation : étapes selon les fonctions, erreurs par champ, reprise, coffre de session, isolement entre utilisateurs, tests sur configuration candidate, invalidation ciblée des preuves, niveaux IA, écriture de test locale, publication sans messagerie avec rechargement réel de la configuration, conflit de révision, droits.",
+  "adjusted_tests": [
+    "tests/test_v410.py, test_v501.py, test_v530.py, test_v550.py : « Rubriques » et « Outils » remplacés par le panneau « Toutes les fonctions » (exigence NV01).",
+    "tests/test_v501.py : l’événement de démonstration reste dans la semaine affichée quand la recette tourne un dimanche (recette GitHub de la 5.6.30)."
+  ],
+  "manual_checks": [
+    "Navigateur : panneau « Toutes les fonctions », recherche au clavier (« délai » → Échéances, Prescription), Échap et retour du focus.",
+    "Navigateur : guide d’installation (choix des fonctions, étape 7 sur 10, « Vérifier la connexion » avec niveaux séparés).",
+    "Navigateur : interface et guide en allemand ; fiche d’aide allemande en largeur mobile 375 px sans défilement horizontal ; aucune erreur de console."
+  ],
+  "limits": [
+    "Lots 3 à 9 du cahier des charges non livrés (voir CONFORMITE-5.6.31.md).",
+    "Écrans métier non traduits ; traductions non relues par un traducteur juridique.",
+    "Aucun essai sur un compte réel de fournisseur (messagerie, Nextcloud, Ollama du cabinet)."
+  ]
+}

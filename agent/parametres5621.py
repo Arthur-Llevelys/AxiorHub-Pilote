@@ -163,7 +163,10 @@ def page(desk, auth, prefix, env, args, path='/parametres'):
         '<a href="' + e(prefix + '/parametres?rubrique=' + key, quote=True) + '"' + (' aria-current="page"' if key == current else '')
         + ' title="' + e(desc, quote=True) + '">' + e(label) + '</a>' for key, label, desc in RUBRIQUES) + '</nav>'
     label, desc = next((l, d) for k, l, d in RUBRIQUES if k == current)
-    body = '<h1>Paramètres</h1>' + nav + '<p class="p5621-intro"><strong>' + e(label) + '</strong> — ' + e(desc) + '</p>'
+    from .i18n5631 import th
+    guides = ('<div class="p5631-guides"><a class="button" href="' + e(prefix + '/guide-installation', quote=True) + '">' + th('fn.guide_installation.label') +
+              '</a><a class="button ghost" href="' + e(prefix + '/guide-utilisation', quote=True) + '">' + th('fn.guide_utilisation.label') + '</a></div>')   # 5.6.31 (GI01, GU01)
+    body = '<h1>Paramètres</h1>' + guides + nav + '<p class="p5621-intro"><strong>' + e(label) + '</strong> — ' + e(desc) + '</p>'
     nc = desk.c.get('nextcloud') or {}
     if current == 'connexions' and not nc.get('local_path') and 'example.com' in str(nc.get('url', 'example.com')):   # 5.6.24 (F19)
         body += ('<section class="p5621-first" role="note"><h2>Premier lancement : trois étapes</h2><ol>'

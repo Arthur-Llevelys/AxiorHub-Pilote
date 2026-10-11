@@ -41,7 +41,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -73,41 +73,54 @@ def _links(prefix, entries, active):
         for p, icon, label in entries)
 
 
+def _primary():
+    # 5.6.31 (LG02) : libellés traduits selon la langue de la requête ; routes et icônes inchangées.
+    from .i18n5631 import t
+    keys = {'/aujourdhui': 'aujourdhui', '/dossiers': 'dossiers', '/courriels': 'courriels', '/planning': 'planning', '/production': 'production', '/parametres': 'parametres'}
+    return tuple((p, icon, t('fn.%s.label' % keys[p])) for p, icon, _ in PRIMARY)
+
+
 def nav_html(prefix, active_path):
+    """5.6.31 (NV01) : six accès de travail fréquents, puis un seul accès « Toutes les fonctions » (remplace Rubriques et Outils)."""
+    from .fonctions5631 import panel_html
+    from .i18n5631 import current, role, th
     active = active_primary(active_path)
-    opened = ' open' if active in {p for p, _, _ in RUBRIQUES} else ''
-    return ('<nav aria-label="Navigation principale" class="ws-primary">' + _links(prefix, PRIMARY, active) + '</nav>'
-            '<details class="ws-rubriques"' + opened + '><summary>Rubriques</summary><nav aria-label="Rubriques" class="ws-primary ws-sub">' +
-            _links(prefix, RUBRIQUES, active) + '</nav></details>')
+    return ('<nav aria-label="' + th('nav.primary') + '" class="ws-primary">' + _links(prefix, _primary(), active) + '</nav>' +
+            panel_html(prefix, active_path, context(), role(), current()))
 
 
 def tools_html(prefix, path):
-    opened = ' open' if path in TOOL_PAGES else ''
-    return ('<div class="ws-secondary"><details%s><summary>Outils</summary>' % opened + ''.join(
-        '<a href="' + e(prefix + p) + '" title="' + e(hint) + '"' + (' aria-current="page"' if p == path else '') + '>' + e(label) + '</a>'
-        for p, label, hint in TOOLS) + '</details></div>')
+    """Conservé pour compatibilité : les outils sont désormais dans « Toutes les fonctions » (registre fonctions5631)."""
+    return ''
 
 
-def topbar_html(prefix, title):
+def topbar_html(prefix, title, path=''):
+    from .fonctions5631 import for_path
+    from .i18n5631 import menu_html, th
+    fid = for_path(path) if path else ''
+    help_link = '<a class="l5631-help" href="' + e(prefix + '/guide-utilisation' + ('?fonction=' + fid if fid else '')) + '">' + th('top.help') + '</a>'
     return ('<header class="ws-topbar"><div class="ws-topbar-leading"><button type="button" class="ws-icon-button" id="ws-sidebar-toggle" '
-            'aria-controls="ws-sidebar" aria-expanded="true" aria-label="Replier le menu" title="Replier le menu"><span aria-hidden="true">☰</span></button>'
-            '<span>Espace de travail / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
-            'id="ws-theme-toggle" aria-label="Activer le thème sombre" title="Activer le thème sombre"><span aria-hidden="true">☾</span></button>'
-            '<a href="' + e(prefix + '/missions') + '">Missions</a><a href="' + e(prefix + '/rechercher') + '">⌕ Rechercher dans le cabinet</a></div></header>')
+            'aria-controls="ws-sidebar" aria-expanded="true" aria-label="' + th('top.fold') + '" title="' + th('top.fold') + '"><span aria-hidden="true">☰</span></button>'
+            '<span>' + th('top.workspace') + ' / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
+            'id="ws-theme-toggle" aria-label="' + th('top.dark') + '" title="' + th('top.dark') + '"><span aria-hidden="true">☾</span></button>'
+            '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '">⌕ ' + th('top.search') + '</a>' +
+            help_link + menu_html(prefix) + '</div></header>')
 
 
 def head_html(title, prefix, css=(), head=''):
     # 5.5.0 : « ?v=version » change l'adresse à chaque version ; ni le navigateur, ni un proxy, ni l'application mobile ne gardent l'ancienne feuille.
     from . import __version__ as version
     links = ''.join('<link rel="stylesheet" href="' + e(prefix) + '/static/' + name + '?v=' + e(version) + '">' for name in (BUNDLE_FILE,) + tuple(c for c in css if c not in BUNDLE))
-    return ('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    from .i18n5631 import current
+    return ('<!doctype html><html lang="' + current() + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
             '<title>' + e(title) + ' · AxiorHub Pilote</title>' + links + head + '</head><body>')
 
 
 def sidebar_html(prefix, active_path):
+    from .i18n5631 import th
     return ('<aside id="ws-sidebar"><div class="brand"><div class="ws-brand-lockup"><img src="' + e(prefix) + '/static/axiorhub-icon.png" width="38" height="38" alt="">'
-            '<span class="ws-brand-name">AxiorHub</span></div><span class="ws-brand-subtitle">Pilote · Agent IA Avocat</span></div>' + nav_html(prefix, active_path) + tools_html(prefix, active_path) +
-            '<p class="ws-about">Version ' + e(_version()) + ' · ' + e(ATTRIBUTION) + '<br><a href="' + e(prefix) + '/a-propos">À propos · licence AGPL</a></p></aside>')
+            '<span class="ws-brand-name">AxiorHub</span></div><span class="ws-brand-subtitle">' + th('side.subtitle') + '</span></div>' + nav_html(prefix, active_path) +
+            '<p class="ws-about">' + th('side.version', version=_version()) + ' · ' + e(ATTRIBUTION) + '<br><a href="' + e(prefix) + '/a-propos">' + th('side.about') + '</a></p></aside>')
 
 
 def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='', selected_matter='', toast='', page_title=True):
@@ -120,6 +133,15 @@ def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='
     except Exception:
         matters = []
     audio = bool((cfg.get('audio') or {}).get('enabled'))
-    html = (head_html(title, prefix, css, head) + toast + sidebar_html(prefix, path) + '<main id="ws-main">' + topbar_html(prefix, title) + body + '</main>' + scripts + '</body></html>')
+    html = (head_html(title, prefix, css, head) + toast + sidebar_html(prefix, path) + '<main id="ws-main">' + topbar_html(prefix, title, path) + body + '</main>' + scripts +
+            _messages_json() + '<script defer src="' + e(prefix) + '/static/v5631.js"></script></body></html>')
     from .ui_helpers import enhance
     return enhance(html, prefix, csrf, audio, matters, path, selected_matter)
+
+
+def _messages_json():
+    """5.6.31 (R17) : messages traduits dont les scripts ont besoin (donnée JSON, jamais exécutée)."""
+    import json
+    from .i18n5631 import js_messages
+    return ('<script type="application/json" id="l5631-msg">' + json.dumps(js_messages(('js.',)), ensure_ascii=False).replace('</', '<' + chr(92) + '/') +
+            '</script>')

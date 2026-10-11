@@ -3,6 +3,36 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.31 — Guide d’installation pas à pas, interface en quatre langues, menu « Toutes les fonctions », guide d’utilisation
+
+Cahier des charges additionnel (guide d’installation et veille), premier lot livré : fiches R00, R01, R02, R17, R18 et R19.
+Matrice de conformité exigence par exigence : `CONFORMITE-5.6.31.md`. Tests : `tests/test_v5631.py`.
+
+- **Guide d’installation** (Paramètres › Guide d’installation, et au premier démarrage) : on choisit d’abord les fonctions utilisées
+  (documents, messagerie, agenda, recherches, veille, facturation, téléphonie) ; seules leurs étapes s’affichent, une question et trois à
+  cinq champs par écran, « Où trouver cette information », ce que l’étape permet, « Plus de détails » pour les réglages techniques,
+  progression « Étape 3 sur 7 ». Retour, Continuer, Passer, Enregistrer et reprendre plus tard, Abandonner.
+- **Sessions et preuves** : une session de guide par utilisateur (révision contrôlée, reprise après fermeture) ; les secrets saisis
+  sont chiffrés aussitôt dans un coffre propre à la session et ne sont jamais renvoyés ; les tests portent sur la configuration
+  candidate, sans rien enregistrer pour essayer ; chaque preuve vise une connexion et une capacité (lecture, dossiers, écriture
+  de test, service, modèle, génération, identification SMTP) : modifier le SMTP ne périme pas la preuve IMAP, changer le mot de passe
+  IMAP la périme. Publication avec contrôle de révision : un réglage modifié entre-temps par un autre écran donne un conflit ciblé.
+- **Fonctions non choisies non bloquantes** (R00) : la messagerie peut être désactivée (« Messagerie utilisée par AxiorHub ») ;
+  aucune connexion IMAP n’est alors ouverte et la configuration reste valide. Fin d’installation complète ou partielle reconnue par
+  le premier démarrage ; « Découvrir puis configurer plus tard » au premier lancement.
+- **Langues** : français, English, Deutsch, Español. Choix dans la barre du haut, enregistré par utilisateur ; langue résolue à
+  chaque requête (deux avocats peuvent travailler dans deux langues en même temps). Catalogues complets et contrôlés (mêmes
+  variables, pluriels) pour le menu, la barre du haut, le guide d’installation et le guide d’utilisation ; les autres écrans restent
+  en français dans cette version. La langue de l’interface est distincte de la langue de rédaction et du droit applicable.
+- **Menu « Toutes les fonctions »** : remplace « Rubriques » et « Outils » ; 63 fonctions en six groupes d’usage, recherche par nom,
+  besoin ou ancien nom, « Configurer » vers l’étape du guide quand un prérequis manque, Échap ferme le panneau. Les adresses
+  existantes sont conservées.
+- **Guide d’utilisation** : une fiche par fonction en quatre langues (objectif, quand l’utiliser, prérequis, étapes avec les noms
+  exacts des boutons, résultat, vérification, erreurs courantes, exemple fictif), parcours par besoin, « Aide sur cette page » sur
+  chaque écran. Un test vérifie que chaque bouton cité existe réellement sur l’écran.
+- **Correctif de recette** : un test d’agenda échouait le dimanche (événement « demain » hors de la semaine affichée) ; le logiciel
+  n’était pas en cause.
+
 ## 5.6.30 — Corrections : Paramètres sans rechargement, messagerie STARTTLS, poste Windows
 
 Tests : `tests/test_v5630.py`.

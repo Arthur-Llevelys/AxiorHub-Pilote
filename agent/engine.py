@@ -53,7 +53,8 @@ class Engine:
     def __init__(self, config, mailbox=None, dav=None, model=None, state=None):
         self.c = config
         self.state = state or State(config['state_dir'])
-        self.mailbox = mailbox or Mailbox(config['mail'])
+        # 5.6.31 (R00) : messagerie non choisie — aucune connexion IMAP n'est ouverte (run() s'arrête avant tout traitement)
+        self.mailbox = mailbox or (None if (config.get('mail') or {}).get('enabled', True) is False else Mailbox(config['mail']))
         self.dav = dav or DAV(config['nextcloud'])
         if model is not None:
             self.fast_model=self.complex_model=self.control_model=model
@@ -523,6 +524,8 @@ class Engine:
             return finish('error', 'erreur_interne_consulter_diagnostic')
 
     def run(self):
+        if (self.c.get('mail') or {}).get('enabled', True) is False:
+            return {'examined': 0, 'skipped': 'messagerie_desactivee'}   # 5.6.31 (R00) : aucune connexion IMAP si la messagerie n'est pas choisie
         lock_path = Path(self.c['state_dir']) / 'run.lock'
         with open(lock_path, 'a') as lock:
             try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

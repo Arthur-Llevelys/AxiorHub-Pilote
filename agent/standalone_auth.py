@@ -30,9 +30,9 @@ from email.message import EmailMessage
 from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
-ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles')
+ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles', '/guide-installation')
 ADMIN_API = ('settings/', 'send/settings', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
-             'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme')
+             'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme', 'm5631/guide/')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
                  'set_agenda_personal_edit', 'save_reminders520',
@@ -76,6 +76,8 @@ def allowed(role, method, path, action=''):
         return False
     if api.startswith(ADMIN_API) or action in ADMIN_ACTIONS:
         return False
+    if api == 'm5631/langue':
+        return True                        # 5.6.31 (LG01, GI36) : chaque membre choisit la langue de SON interface
     if role == 'avocat':
         from .permissions567 import WORK_API, WORK_ACTIONS
         if api:
@@ -492,7 +494,7 @@ class StandaloneAuth:
             from . import setup560
             return setup560.handle(self, env, start, user)
         # Flux d'activité, API et instantanés ne sont jamais redirigés vers l'assistant (5.6.3 : le flux restait vide pendant l'installation).
-        setup_settings=role=='administrateur' and path in ('/parametres','/parametres/connexions','/ia-externe','/routage-hybride')
+        setup_settings=role=='administrateur' and path in ('/parametres','/parametres/connexions','/ia-externe','/routage-hybride','/guide-installation','/guide-utilisation')
         if not self._installed() and env.get('REQUEST_METHOD', 'GET') == 'GET' and not (path.startswith(('/api', '/live/')) or setup_settings):
             if role == 'administrateur':
                 return self._respond(start, '303 See Other', '', [('Location', '/installation')])

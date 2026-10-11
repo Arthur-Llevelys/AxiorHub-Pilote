@@ -117,7 +117,7 @@ class Corpus(t510.Base):
         for text in ('Mon style', 'Corpus analysé', 'Habitudes à valider', 'Habitudes appliquées', 'Plans types', 'Analyser maintenant',
                      'Affiner avec l’IA', 'data-action="valider"', '/static/v550.js', 'value="PROCEDURE"'):
             self.assertIn(text, body)
-        self.assertIn('href="/agent-courriel/mon-style" aria-label="Apprentissage et modèles"', body)
+        self.assertIn('href="/agent-courriel/mon-style" aria-current="page"><strong>Mon style</strong>', body)   # 5.6.31 : menu unique
         card = ck.style_html(self.desk, '/p')
         self.assertIn('écrits des dossiers', card)
         self.assertIn('data-habit=', card)

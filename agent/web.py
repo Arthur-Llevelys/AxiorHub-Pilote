@@ -530,6 +530,9 @@ class App:
                 if path.startswith(prefix+'/'):path=path[len(prefix):]
                 args={k:v[0] for k,v in parse_qs(env.get('QUERY_STRING',''),max_num_fields=30).items()}
                 env['axiorhub.config_path']=self.config_path
+                from .i18n5631 import begin as _lang_begin   # 5.6.31 (R17) : langue propre à cette requête et à cet utilisateur
+                from . import shell501 as _shell501
+                _shell501.set_context(cfg);_lang_begin(env,cfg,*actor(env))
                 from .web440 import route as _route440
                 _r440=_route440(env,cfg,auth,prefix,path,args,env['REQUEST_METHOD'])
                 if _r440 is not None:
@@ -1057,7 +1060,7 @@ class App:
         nav=shell501.nav_html(prefix,path)
         from .workstation import CABINET_SITES, external_links
         cabinet_shortcuts=external_links(desk)
-        main=shell501.topbar_html(prefix,title)+('' if path=='/aujourdhui' and not args.get('vue') else  # 5.3.0 : le poste de pilotage a son propre en-tête
+        main=shell501.topbar_html(prefix,title,path)+('' if path=='/aujourdhui' and not args.get('vue') else  # 5.3.0 : le poste de pilotage a son propre en-tête
              '<div class="page-title"><div><p class="eyebrow">Cabinet · poste de travail</p><h1>'+e(title)+'</h1></div>'+link(path,'Actualiser',**args)+'</div>')
         if str(args.get('job', '')).strip() in ('', '0'):   # 5.6.24 (F35) : une action immédiate n'a pas de travail ; un ancien lien job=0 reste lisible
             args.pop('job', None)
@@ -1983,7 +1986,7 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
-        return enhance('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
 def fold_for_search(value):
@@ -2027,3 +2030,8 @@ def serve(config_path,auth_path,port=8769,host='127.0.0.1'):
 def _ax_version():
     from . import __version__
     return __version__
+
+
+def _lang_now():
+    from .i18n5631 import current
+    return current()

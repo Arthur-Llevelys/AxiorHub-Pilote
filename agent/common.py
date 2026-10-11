@@ -162,12 +162,22 @@ def load_config(path):
     c = json.loads(Path(path).read_text(encoding='utf-8'))
     if c.get('mode') not in ('observe', 'drafts'):
         raise Stop('mode_invalide')
-    if not c.get('mail', {}).get('own_addresses'):
-        raise Stop('adresses_du_cabinet_absentes')
-    if not c['mail'].get('sent') or not c['mail'].get('drafts'):
-        raise Stop('dossiers_imap_absents')
-    if c['mail']['drafts'] in (c['mail']['inbox'], c['mail']['sent']):
-        raise Stop('dossiers_imap_confondus')
+    mail = c.setdefault('mail', {})
+    if mail.get('enabled', True) is False:
+        # 5.6.31 (R00) : messagerie non choisie — ses contrôles stricts ne bloquent pas les autres fonctions ; valeurs neutres
+        # pour le code qui lit encore ces clés. Une messagerie ACTIVÉE garde tous ses contrôles.
+        for key, value in (('inbox', 'INBOX'), ('drafts', 'Drafts'), ('sent', 'Sent'), ('host', 'mail.example.com'), ('username', ''),
+                           ('own_addresses', ['cabinet@example.com'])):
+            mail.setdefault(key, value)
+        if not mail.get('own_addresses'):
+            mail['own_addresses'] = ['cabinet@example.com']
+    else:
+        if not mail.get('own_addresses'):
+            raise Stop('adresses_du_cabinet_absentes')
+        if not mail.get('sent') or not mail.get('drafts'):
+            raise Stop('dossiers_imap_absents')
+        if mail['drafts'] in (mail.get('inbox'), mail['sent']):
+            raise Stop('dossiers_imap_confondus')
     if c['ollama']['model'].endswith('-cloud') or ':cloud' in c['ollama']['model']:
         raise Stop('modele_cloud_refuse')
     autonomy=c.get('autonomy',{})

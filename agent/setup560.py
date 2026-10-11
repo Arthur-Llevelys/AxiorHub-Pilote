@@ -259,7 +259,12 @@ def page(auth, user, notes=(), result=''):
     radio = lambda val, label, hint: '<label><input type="radio" name="ai" value="%s"%s style="width:auto"> %s</label><p class="muted">%s</p>' % (
         val, ' checked' if ai == val else '', escape(label), escape(hint))
     msgs = ''.join('<p class="warn">%s</p>' % escape(n) for n in notes) + result
-    body = (msgs + '<p class="muted">Bienvenue. Renseignez le cabinet et ses connexions ; vous pourrez tout modifier ensuite dans Paramètres. Les mots de passe '
+    choice = ('<section class="notice"><h2>Bienvenue</h2><p>Le <strong>guide d’installation</strong> vous accompagne par petits écrans : vous choisissez '
+              'les fonctions qui vous intéressent, chaque écran explique ce que vous renseignez, où trouver l’information et ce que le logiciel pourra faire '
+              'ensuite. Vous pouvez vous arrêter et reprendre plus tard.</p><p><a class="button" href="/guide-installation">Commencer la configuration guidée</a></p>'
+              '<form method="post" action="/installation"><input type="hidden" name="csrf" value="%s"><button name="op" value="later" class="ghost">'
+              'Découvrir puis configurer plus tard</button></form><p class="muted">Le formulaire complet ci-dessous reste disponible.</p></section>') % csrf
+    body = (choice + msgs + '<p class="muted">Bienvenue. Renseignez le cabinet et ses connexions ; vous pourrez tout modifier ensuite dans Paramètres. Les mots de passe '
             'laissés vides sont conservés. Rien n’est envoyé ni écrit dans la messagerie pendant l’installation.</p>'
             '<form method="post" action="/installation"><input type="hidden" name="csrf" value="%s">'
             '<fieldset><legend>1 · Cabinet</legend><div class="grid"><label>Prénom<input name="prenom" value="%s" required></label><label>Nom<input name="nom" value="%s" required></label>'
@@ -311,6 +316,10 @@ def handle(auth, env, start, user):
     form = auth._form(env, 40000)
     if not auth._same_origin(env) or not hmac.compare_digest(form.get('csrf', ''), auth._csrf(user)):
         return auth._respond(start, '400 Bad Request', auth._page('Installation', '<p class="warn">Formulaire expiré : rechargez la page.</p>'))
+    if form.get('op') == 'later':   # 5.6.31 (GI01) : découvrir puis configurer plus tard — installation partielle, aucune fonction promise
+        from .guide5631 import later
+        later({'axiorhub.config_path': str(auth.app.config_path)})
+        return auth._respond(start, '303 See Other', '', [('Location', '/aujourdhui')])
     notes = save(auth, form)
     op = form.get('op', 'save')
     result = '<p class="ok">Enregistré.</p>'

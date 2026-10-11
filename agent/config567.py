@@ -23,6 +23,7 @@ from .common import Stop, load_config, private_json, read_secret
 
 # clé, libellé, type, valeur initiale, groupe
 FIELDS = (
+ ('mail.enabled','Messagerie utilisée par AxiorHub (décochée : aucune lecture de courriels, les autres fonctions restent disponibles)','bool',True,'Courriels'),
  ('mail.host','Serveur IMAP','host','mail.example.com','Courriels'),
  ('mail.port','Port IMAP (993 = TLS direct, le plus courant ; 143 = STARTTLS)','port',993,'Courriels'),
  ('mail.security','Chiffrement IMAP','imap_security','','Courriels'),
@@ -275,7 +276,7 @@ def _save(desk,data,env):
             host=urlsplit(candidate.get(name,{}).get(urlkey,'')).hostname
             if host in ('ollama','vocal','whisper'):candidate[name]['local_hosts']=[host]
         candidate['config_revision567']=revision+1
-        candidate.setdefault('installation',{})['tests567']={}
+        # 5.6.31 (R02) : plus d'effacement global des tests ; les preuves sont ciblées par connexion (guide5631.fingerprint).
         # Validation structurelle avant toute rotation de secret.
         fd,temp=tempfile.mkstemp(dir=path.parent,prefix='.config-candidate-')
         try:

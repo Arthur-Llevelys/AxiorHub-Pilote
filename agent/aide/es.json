@@ -1,0 +1,1566 @@
+{
+ "_": "AxiorHub 5.6.31 — fiches du guide d’utilisation (es) ; identifiants = registre fonctions5631 ; exemples fictifs",
+ "aujourdhui": {
+  "objective": "Ver en una sola pantalla lo que requiere su atención hoy y lanzar las rutinas del despacho.",
+  "when": "Cada mañana, o tras una ausencia, para saber qué tratar primero.",
+  "prerequisites": "Ninguno: los paneles se completan a medida que se configuran las conexiones.",
+  "steps": [
+   "Abra Hoy en el menú.",
+   "En «Routines du cabinet», pulse «Briefing du matin» o «Tri des courriels» y luego «Générer maintenant».",
+   "Escuche el resumen con «Écouter le briefing» si la voz está activada.",
+   "Use «Pause des automatismes» para suspender los tratamientos automáticos."
+  ],
+  "result": "Un resumen fechado y la lista del trabajo preparado, para revisar antes de cualquier acción.",
+  "verify": "El panel de la rutina indica la hora de la última generación.",
+  "errors": [
+   [
+    "El resumen sigue vacío",
+    "Compruebe en «Estado del programa y ayuda» que el correo y la IA responden."
+   ],
+   [
+    "No se actualiza nada",
+    "Los automatismos pueden estar en pausa: reactívelos con «Pause des automatismes»."
+   ]
+  ],
+  "example": "Resumen del lunes: dos audiencias ficticias (DEMO-A, DEMO-B) y tres correos por revisar.",
+  "buttons": [
+   "Briefing du matin",
+   "Tri des courriels",
+   "Générer maintenant",
+   "Pause des automatismes",
+   "Écouter le briefing"
+  ],
+  "version": "5.6.31"
+ },
+ "dossiers": {
+  "objective": "Encontrar un expediente, abrir su ficha y vincular los expedientes presentes en sus archivos.",
+  "when": "Para empezar a trabajar en un asunto o registrar uno existente.",
+  "prerequisites": "Un espacio de documentos configurado (carpeta local o Nextcloud).",
+  "steps": [
+   "Abra Expedientes.",
+   "Escriba un nombre o una referencia y pulse «Rechercher».",
+   "Para un asunto ausente de la lista, indique su carpeta y pulse «Vérifier et enregistrer le dossier».",
+   "Abra el expediente para ver su ficha, sus partes y su cronología."
+  ],
+  "result": "El expediente aparece en la cartera con su ficha de trabajo.",
+  "verify": "La ficha muestra el nombre de la carpeta y la fecha de la última lectura.",
+  "errors": [
+   [
+    "Expediente no encontrado",
+    "Compruebe que la carpeta está bajo la raíz autorizada en Ajustes."
+   ],
+   [
+    "Lista vacía",
+    "Lance «Indexer progressivement tous les dossiers enregistrés»."
+   ]
+  ],
+  "example": "Expediente DEMO-A — SAS Ejemplo c/ Sociedad Prueba, referencia 2026-001.",
+  "buttons": [
+   "Rechercher",
+   "Vérifier et enregistrer le dossier",
+   "Lire ce répertoire dans Nextcloud",
+   "Indexer progressivement tous les dossiers enregistrés"
+  ],
+  "version": "5.6.31"
+ },
+ "courriels": {
+  "objective": "Leer la bandeja de entrada, revisar los borradores preparados y responder, reenviar o archivar.",
+  "when": "Cuando llega un mensaje o un borrador del agente espera su revisión.",
+  "prerequisites": "Correo configurado (recepción IMAP; el envío SMTP es opcional).",
+  "steps": [
+   "Abra Correos; la pestaña Bandeja de entrada muestra los mensajes.",
+   "Pulse un mensaje para mostrarlo y elija Responder, Responder a todos o Reenviar.",
+   "Revise y corrija el borrador preparado antes de cualquier envío.",
+   "Use «Rechercher» para encontrar un intercambio y «Actualiser» para recargar la lista."
+  ],
+  "result": "Un borrador depositado en su carpeta Borradores; nada se envía sin su confirmación.",
+  "verify": "El borrador es visible en la carpeta Borradores de su programa de correo habitual.",
+  "errors": [
+   [
+    "Conexión IMAP fallida",
+    "Compruebe el servidor, el puerto (993 o 143) y el cifrado en Ajustes."
+   ],
+   [
+    "Ningún botón de respuesta",
+    "Seleccione primero un mensaje de la lista."
+   ]
+  ],
+  "example": "Respuesta a un compañero ficticio en el expediente DEMO-A, guardada como borrador.",
+  "buttons": [
+   "Actualiser",
+   "Rechercher"
+  ],
+  "version": "5.6.31"
+ },
+ "planning": {
+  "objective": "Ver los eventos de sus agendas autorizadas y añadir uno.",
+  "when": "Para comprobar una fecha de audiencia o inscribir una cita.",
+  "prerequisites": "Una agenda autorizada (CalDAV o Google) para escribir; la lectura basta para consultar.",
+  "steps": [
+   "Abra Agenda y tareas.",
+   "Abra «＋ Ajouter un événement» e indique fecha, hora y título.",
+   "Pulse «Ajouter à l’agenda».",
+   "Ajuste sus recordatorios y pulse «Enregistrer les rappels»."
+  ],
+  "result": "El evento aparece en la lista y en la agenda elegida.",
+  "verify": "Abra su agenda habitual: el evento figura a la misma hora.",
+  "errors": [
+   [
+    "Escritura rechazada",
+    "La agenda es de solo lectura: elija en Ajustes una agenda autorizada para escribir."
+   ],
+   [
+    "Ningún evento",
+    "No hay ninguna agenda autorizada: añada una en Ajustes › Conexiones."
+   ]
+  ],
+  "example": "Audiencia ficticia del 24 de noviembre de 2026 a las 9:30, expediente DEMO-A.",
+  "buttons": [
+   "Ajouter à l’agenda",
+   "Enregistrer les rappels"
+  ],
+  "version": "5.6.31"
+ },
+ "taches": {
+  "objective": "Seguir sus tareas y añadir una.",
+  "when": "Para anotar una diligencia o ver lo que está atrasado.",
+  "prerequisites": "Ninguno; la sincronización con Nextcloud es opcional.",
+  "steps": [
+   "Abra Agenda y tareas y luego la vista Tareas.",
+   "Use «Filtrer» para mostrar solo un expediente o las tareas atrasadas.",
+   "En «Ajouter une tâche», indique el título y el vencimiento y pulse «Ajouter la tâche».",
+   "Con Nextcloud, «↻ Actualiser depuis Nextcloud» recarga la lista."
+  ],
+  "result": "La tarea aparece en la lista, agrupada por vencimiento.",
+  "verify": "La tarea sigue visible tras recargar la página.",
+  "errors": [
+   [
+    "Tarea ausente tras actualizar",
+    "Compruebe la lista de tareas autorizada en Ajustes."
+   ]
+  ],
+  "example": "Reclamar a la secretaría del juzgado para el expediente ficticio DEMO-B antes del viernes.",
+  "buttons": [
+   "Ajouter la tâche",
+   "Filtrer",
+   "↻ Actualiser depuis Nextcloud"
+  ],
+  "version": "5.6.31"
+ },
+ "production": {
+  "objective": "Ver lo que AxiorHub ha producido realmente y lanzar una producción.",
+  "when": "Para encontrar un entregable o empezar a preparar un escrito.",
+  "prerequisites": "IA configurada y probada.",
+  "steps": [
+   "Abra Producir.",
+   "Recorra los apartados (cartas, escritos, audiencias, documentos, facturación).",
+   "Pulse «Lancer la production» para empezar.",
+   "Reanude un recorrido en curso con «Continuer les playbooks»."
+  ],
+  "result": "El entregable aparece en su apartado con su estado de control.",
+  "verify": "Cada entregable indica su fecha y los controles realizados.",
+  "errors": [
+   [
+    "No se produce nada",
+    "Abra «Estado del programa y ayuda» para ver la causa."
+   ]
+  ],
+  "example": "Proyecto ficticio de carta para DEMO-A, por revisar.",
+  "buttons": [
+   "Lancer la production",
+   "Continuer les playbooks"
+  ],
+  "version": "5.6.31"
+ },
+ "documents": {
+  "objective": "Pedir un documento al agente y abrir los archivos recientes.",
+  "when": "Para obtener un proyecto de carta o de nota a partir de una instrucción.",
+  "prerequisites": "Espacio de documentos e IA configurados.",
+  "steps": [
+   "Abra Documentos.",
+   "En «Demander un document à l’agent», describa el documento y elija el expediente.",
+   "Pulse «Préparer le document».",
+   "Abra el resultado con «Afficher» y revíselo."
+  ],
+  "result": "Un proyecto de documento en el expediente elegido, nunca enviado automáticamente.",
+  "verify": "El archivo aparece en «Modifiés récemment ici».",
+  "errors": [
+   [
+    "Documento no creado",
+    "Compruebe que el expediente está bajo una raíz autorizada."
+   ]
+  ],
+  "example": "Carta ficticia de solicitud de documentos para DEMO-A.",
+  "buttons": [
+   "Préparer le document",
+   "Afficher"
+  ],
+  "version": "5.6.31"
+ },
+ "echeances": {
+  "objective": "Calcular, simular e inscribir los plazos procesales.",
+  "when": "Tras una notificación o un aviso, para conocer e inscribir el plazo.",
+  "prerequisites": "Una agenda autorizada para escribir, para la inscripción.",
+  "steps": [
+   "Abra Plazos.",
+   "En «Ajouter ou simuler une échéance», indique el evento y la fecha de inicio.",
+   "Pulse «Calculer» y compruebe la regla aplicada.",
+   "Pulse «Enregistrer et inscrire à l’agenda» si el cálculo le conviene."
+  ],
+  "result": "Un plazo calculado, con su fundamento, inscrito en la agenda si lo elige.",
+  "verify": "«Vérifier l’agenda maintenant» confirma la presencia del evento.",
+  "errors": [
+   [
+    "Cálculo incierto",
+    "El cálculo sigue siendo una propuesta: compruebe la regla y el punto de partida."
+   ]
+  ],
+  "example": "Plazo ficticio de apelación calculado desde una notificación del 1 de octubre de 2026.",
+  "buttons": [
+   "Calculer",
+   "Enregistrer et inscrire à l’agenda",
+   "Vérifier l’agenda maintenant"
+  ],
+  "version": "5.6.31"
+ },
+ "audience": {
+  "objective": "Preparar la ficha de audiencia de un expediente.",
+  "when": "Unos días antes de una audiencia.",
+  "prerequisites": "El expediente y sus documentos accesibles.",
+  "steps": [
+   "Abra Ficha de audiencia.",
+   "Elija el expediente.",
+   "Pulse «Afficher la fiche».",
+   "Revise los documentos esperados, la nota de alegato y las preguntas probables."
+  ],
+  "result": "Una ficha de audiencia por revisar, con sus fuentes.",
+  "verify": "Cada elemento de la ficha remite a un documento del expediente.",
+  "errors": [
+   [
+    "Ficha incompleta",
+    "No se han encontrado los últimos escritos: deposítelos en el expediente."
+   ]
+  ],
+  "example": "Ficha ficticia de la audiencia DEMO-A del 24 de noviembre de 2026.",
+  "buttons": [
+   "Afficher la fiche"
+  ],
+  "version": "5.6.31"
+ },
+ "audiences_word": {
+  "objective": "Preparar un alegato a partir de los últimos escritos y analizar un documento Word.",
+  "when": "Para comparar las pretensiones o revisar un DOCX sin modificarlo.",
+  "prerequisites": "Expediente e IA configurados.",
+  "steps": [
+   "Abra Audiencias y Word.",
+   "Elija el expediente.",
+   "Pulse «Analyser et préparer la plaidoirie».",
+   "Para un archivo Word, use «Analyser le DOCX sans le modifier»."
+  ],
+  "result": "Un esquema de alegato o un análisis del documento; el original permanece intacto.",
+  "verify": "El archivo original conserva su fecha de modificación.",
+  "errors": [
+   [
+    "Ningún escrito identificado",
+    "Compruebe el nombre y la ubicación de los escritos en el expediente."
+   ]
+  ],
+  "example": "Esquema ficticio que compara las pretensiones de DEMO-A y de la parte contraria.",
+  "buttons": [
+   "Analyser et préparer la plaidoirie",
+   "Analyser le DOCX sans le modifier"
+  ],
+  "version": "5.6.31"
+ },
+ "missions_complexes": {
+  "objective": "Confiar la preparación de una demanda o de escritos en subtareas controladas.",
+  "when": "Para un escrito largo que requiere lectura de documentos, investigación y redacción.",
+  "prerequisites": "Espacio de documentos e IA configurados; se recomienda una plantilla Word del despacho.",
+  "steps": [
+   "Abra Encargos complejos.",
+   "Abra «Lancer une mission (assignation ou conclusions)» y elija el expediente.",
+   "Pulse «Créer la mission».",
+   "Siga las subtareas y responda a las decisiones solicitadas."
+  ],
+  "result": "Un proyecto controlado, con sus fuentes y los puntos por verificar.",
+  "verify": "Cada subtarea indica su estado y su resultado.",
+  "errors": [
+   [
+    "Encargo bloqueado",
+    "Se le pide una decisión: respóndala para continuar."
+   ]
+  ],
+  "example": "Proyecto ficticio de escrito de contestación para DEMO-A.",
+  "buttons": [
+   "Créer la mission"
+  ],
+  "version": "5.6.31"
+ },
+ "pieces": {
+  "objective": "Preparar un índice de comunicación de documentos numerados y sellados.",
+  "when": "Antes de comunicar documentos a un compañero o al tribunal.",
+  "prerequisites": "Los documentos PDF en el expediente; la plantilla de índice es opcional.",
+  "steps": [
+   "Abra Documentos e índices.",
+   "Complete su perfil y su sello y pulse «Enregistrer le profil».",
+   "En «Préparer un bordereau», elija el expediente y pulse «Analyser les PDF du dossier».",
+   "Compruebe títulos y números, previsualice todas las páginas y confirme."
+  ],
+  "result": "Una nueva versión del índice y documentos sellados. Crear el archivo no equivale a comunicarlo a una parte.",
+  "verify": "Abra el índice: cada documento tiene número y título.",
+  "errors": [
+   [
+    "Documento ilegible",
+    "Sustituya el PDF por una versión legible o escaneada con OCR."
+   ]
+  ],
+  "example": "Índice ficticio de 12 documentos para DEMO-A.",
+  "buttons": [
+   "Analyser les PDF du dossier",
+   "Enregistrer le profil"
+  ],
+  "version": "5.6.31"
+ },
+ "profils": {
+  "objective": "Aprobar los perfiles procesales que sirven para proponer etapas y plazos.",
+  "when": "Antes de utilizar un procedimiento por primera vez.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Perfiles procesales.",
+   "Abra un perfil (por ejemplo «Tribunal judiciaire au fond»).",
+   "Revise sus etapas y sus fuentes.",
+   "Pulse «Approuver» si el perfil le conviene."
+  ],
+  "result": "El perfil pasa a ser utilizable, con la fecha de su aprobación.",
+  "verify": "El perfil deja de estar marcado «non approuvé».",
+  "errors": [
+   [
+    "Perfil inadecuado",
+    "No lo apruebe: no se propondrá."
+   ]
+  ],
+  "example": "Perfil ficticio «procedimiento sumario ante el presidente del tribunal».",
+  "buttons": [
+   "Approuver"
+  ],
+  "version": "5.6.31"
+ },
+ "strategie": {
+  "objective": "Trabajar la estrategia de un expediente en un espacio dedicado.",
+  "when": "Para reflexionar sobre las opciones de un expediente antes de redactar.",
+  "prerequisites": "El expediente accesible.",
+  "steps": [
+   "Abra Estrategia.",
+   "Elija el expediente.",
+   "Pulse «Ouvrir».",
+   "Anote y compare las opciones."
+  ],
+  "result": "Un espacio estratégico propio del expediente.",
+  "verify": "Sus notas quedan vinculadas al expediente.",
+  "errors": [
+   [
+    "Expediente ausente",
+    "Registre primero el expediente en Expedientes."
+   ]
+  ],
+  "example": "Opciones ficticias: transacción o demanda para DEMO-B.",
+  "buttons": [
+   "Ouvrir"
+  ],
+  "version": "5.6.31"
+ },
+ "studio": {
+  "objective": "Elegir un entregable y prepararlo con control, desde una sola pantalla.",
+  "when": "Para producir rápidamente un escrito tipo.",
+  "prerequisites": "IA configurada; se recomienda una plantilla Word del despacho.",
+  "steps": [
+   "Abra Estudio de producción.",
+   "Elija un entregable, por ejemplo «Courrier Word» o «Conclusions».",
+   "Indique el expediente y la instrucción.",
+   "Pulse «Préparer et contrôler»."
+  ],
+  "result": "Un proyecto controlado en el expediente.",
+  "verify": "El proyecto indica los controles superados y los puntos por verificar.",
+  "errors": [
+   [
+    "Plantilla no encontrada",
+    "Importe su plantilla en Documentos del despacho."
+   ]
+  ],
+  "example": "Carta ficticia de recordatorio para DEMO-B.",
+  "buttons": [
+   "Préparer et contrôler",
+   "Courrier Word",
+   "Conclusions"
+  ],
+  "version": "5.6.31"
+ },
+ "playbooks": {
+  "objective": "Seguir un recorrido guiado para una tarea frecuente.",
+  "when": "Para analizar escritos contrarios, preparar una audiencia, revisar un contrato o un requerimiento.",
+  "prerequisites": "IA configurada.",
+  "steps": [
+   "Abra Recorridos guiados.",
+   "Elija el recorrido adecuado.",
+   "Pulse «Démarrer ce parcours».",
+   "Siga las etapas propuestas."
+  ],
+  "result": "Un recorrido guardado en «Parcours récents».",
+  "verify": "Cada etapa muestra su estado.",
+  "errors": [
+   [
+    "Recorrido interrumpido",
+    "Reanúdelo desde «Parcours récents»."
+   ]
+  ],
+  "example": "Análisis ficticio de escritos contrarios para DEMO-A.",
+  "buttons": [
+   "Démarrer ce parcours"
+  ],
+  "version": "5.6.31"
+ },
+ "recherche": {
+  "objective": "Encontrar un correo, un archivo, un evento o una nota en el despacho.",
+  "when": "Cuando busca una información sin saber dónde está.",
+  "prerequisites": "Ninguno; la búsqueda es totalmente local.",
+  "steps": [
+   "Abra Búsqueda en el despacho.",
+   "Escriba su búsqueda (palabras, nombre, fecha).",
+   "Filtre por expediente o periodo si es necesario.",
+   "Pulse «Rechercher»."
+  ],
+  "result": "La lista de elementos encontrados, ordenados por pertinencia.",
+  "verify": "Abra un resultado para comprobar su contenido.",
+  "errors": [
+   [
+    "Ningún resultado",
+    "Puede que el índice no esté al día: consulte «État de l’index»."
+   ]
+  ],
+  "example": "Búsqueda ficticia: «cláusula penal DEMO-A».",
+  "buttons": [
+   "Rechercher"
+  ],
+  "version": "5.6.31"
+ },
+ "recherche_juridique": {
+  "objective": "Buscar textos y resoluciones sin transmitir datos del cliente.",
+  "when": "Para encontrar el fundamento de un argumento.",
+  "prerequisites": "Una fuente jurídica configurada para las búsquedas externas.",
+  "steps": [
+   "Abra Investigación jurídica.",
+   "Formule la cuestión jurídica sin nombres ni datos identificativos.",
+   "Pulse «Rechercher sans données client».",
+   "Controle las referencias antes de usarlas."
+  ],
+  "result": "Pistas de textos y resoluciones con su fuente.",
+  "verify": "Cada referencia puede abrirse y controlarse.",
+  "errors": [
+   [
+    "Fuente no disponible",
+    "Compruebe la conexión en Fuentes jurídicas."
+   ]
+  ],
+  "example": "Pregunta ficticia: plazo de prescripción de una acción de garantía.",
+  "buttons": [
+   "Rechercher sans données client",
+   "Identifier les dernières conclusions"
+  ],
+  "version": "5.6.31"
+ },
+ "verification": {
+  "objective": "Controlar las citas jurídicas y las menciones obligatorias y hacer una relectura contradictoria.",
+  "when": "Antes de finalizar un escrito.",
+  "prerequisites": "El proyecto accesible en el expediente.",
+  "steps": [
+   "Abra Verificar.",
+   "Elija el documento.",
+   "Pulse «Vérifier les citations», «Contrôler les mentions» o «Relecture contradictoire».",
+   "Trate cada punto señalado."
+  ],
+  "result": "Una lista de puntos por corregir o verificar, con su fuente.",
+  "verify": "Una referencia no controlada sigue marcada «À vérifier».",
+  "errors": [
+   [
+    "Cita no encontrada",
+    "No la utilice mientras no esté verificada."
+   ]
+  ],
+  "example": "Control ficticio de un artículo citado en un proyecto de escrito.",
+  "buttons": [
+   "Vérifier les citations",
+   "Contrôler les mentions",
+   "Relecture contradictoire"
+  ],
+  "version": "5.6.31"
+ },
+ "sources": {
+  "objective": "Comprobar el estado de las fuentes jurídicas y ajustar su uso.",
+  "when": "Si una búsqueda jurídica falla o para controlar las consultas salientes.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Fuentes jurídicas.",
+   "Ajuste las fuentes y pulse «Enregistrer».",
+   "Pulse «Tester les sources».",
+   "Consulte el registro de consultas salientes."
+  ],
+  "result": "El estado de cada fuente y el registro de las 30 últimas consultas.",
+  "verify": "Una fuente disponible aparece como tal tras la prueba.",
+  "errors": [
+   [
+    "Fuente con fallos",
+    "Compruebe su clave o su acceso con el proveedor."
+   ]
+  ],
+  "example": "Prueba ficticia de las fuentes oficiales.",
+  "buttons": [
+   "Tester les sources",
+   "Enregistrer"
+  ],
+  "version": "5.6.31"
+ },
+ "veille": {
+  "objective": "Leer las novedades jurídicas oficiales fechadas.",
+  "when": "Con regularidad, para seguir la actualidad de sus ámbitos.",
+  "prerequisites": "Ninguno para las fuentes oficiales.",
+  "steps": [
+   "Abra Vigilancia jurídica.",
+   "Pulse «Actualiser la veille».",
+   "Lea las novedades y abra su fuente.",
+   "Anote las que afectan a un expediente."
+  ],
+  "result": "Una lista de novedades fechadas, con su fuente.",
+  "verify": "Cada novedad indica su fecha y su origen.",
+  "errors": [
+   [
+    "Ninguna novedad",
+    "Un fallo no es ausencia de novedades: compruebe el estado de las fuentes."
+   ]
+  ],
+  "example": "Novedad ficticia: decreto publicado el 1 de octubre de 2026.",
+  "buttons": [
+   "Actualiser la veille"
+  ],
+  "version": "5.6.31"
+ },
+ "surveillance": {
+  "objective": "Supervisar los expedientes y recalcular el cuadro de prioridades.",
+  "when": "Para detectar los expedientes que requieren una acción.",
+  "prerequisites": "Espacio de documentos configurado.",
+  "steps": [
+   "Abra Supervisión.",
+   "Pulse «🔭 Surveiller tous les dossiers».",
+   "Pulse «🧭 Recalculer le tableau».",
+   "Abra los expedientes señalados."
+  ],
+  "result": "Un cuadro de expedientes por supervisar.",
+  "verify": "El cuadro indica la fecha del último cálculo.",
+  "errors": [
+   [
+    "Cuadro vacío",
+    "Registre primero sus expedientes."
+   ]
+  ],
+  "example": "Expediente ficticio DEMO-B señalado: plazo próximo.",
+  "buttons": [
+   "🔭 Surveiller tous les dossiers",
+   "🧭 Recalculer le tableau"
+  ],
+  "version": "5.6.31"
+ },
+ "engagements": {
+  "objective": "Seguir los compromisos asumidos en los intercambios y los seguimientos preparados.",
+  "when": "Para no olvidar lo prometido a un cliente o a un compañero.",
+  "prerequisites": "Correo configurado.",
+  "steps": [
+   "Abra Compromisos y seguimientos.",
+   "Consulte «Engagements à suivre».",
+   "Pulse «Vérifier les envois».",
+   "Revise los seguimientos preparados."
+  ],
+  "result": "La lista de compromisos con su fuente.",
+  "verify": "Cada compromiso remite al mensaje original.",
+  "errors": [
+   [
+    "Compromiso erróneo",
+    "Descártelo: dejará de proponerse."
+   ]
+  ],
+  "example": "Compromiso ficticio: enviar el proyecto al cliente antes del 15 de octubre.",
+  "buttons": [
+   "Vérifier les envois"
+  ],
+  "version": "5.6.31"
+ },
+ "accueil_administratif": {
+  "objective": "Recibir y tratar las llamadas y mensajes administrativos entrantes.",
+  "when": "Si utiliza la recepción telefónica o por WhatsApp.",
+  "prerequisites": "Telefonía configurada (Twilio) con una dirección HTTPS pública.",
+  "steps": [
+   "Abra Recepción administrativa.",
+   "Consulte las solicitudes recibidas.",
+   "Trate cada solicitud.",
+   "Ajuste la recepción en Ajustes si es necesario."
+  ],
+  "result": "La lista de solicitudes administrativas recibidas.",
+  "verify": "Una solicitud recibida aparece con su hora.",
+  "errors": [
+   [
+    "Ninguna llamada recibida",
+    "La dirección de recepción debe ser accesible para Twilio (no localhost)."
+   ]
+  ],
+  "example": "Solicitud ficticia de cita recibida por teléfono.",
+  "buttons": [],
+  "version": "5.6.31"
+ },
+ "contacts": {
+  "objective": "Gestionar los corresponsales del despacho y su papel en cada expediente.",
+  "when": "Para indicar quién es cliente, compañero o parte.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Contactos.",
+   "Use «Filtrer» para encontrar un corresponsal.",
+   "Asócielo a un expediente y pulse «Enregistrer l’association».",
+   "Corrija su papel y pulse «Enregistrer le rôle»."
+  ],
+  "result": "El corresponsal queda vinculado al expediente con su papel.",
+  "verify": "La ficha del expediente menciona a este corresponsal.",
+  "errors": [
+   [
+    "Papel erróneo",
+    "Corríjalo en «Corriger le rôle ou retirer»."
+   ]
+  ],
+  "example": "Contacto ficticio: abogado contrario en DEMO-A.",
+  "buttons": [
+   "Filtrer",
+   "Enregistrer l’association",
+   "Enregistrer le rôle"
+  ],
+  "version": "5.6.31"
+ },
+ "associations": {
+  "objective": "Vincular las direcciones de correo con los expedientes.",
+  "when": "Cuando los mensajes no están vinculados al expediente correcto.",
+  "prerequisites": "Correo configurado.",
+  "steps": [
+   "Abra Asociaciones propuestas.",
+   "Pulse «✨ Rechercher et regrouper automatiquement».",
+   "Valide las asociaciones propuestas.",
+   "Asocie directamente una dirección si es necesario."
+  ],
+  "result": "Los mensajes de esas direcciones quedan vinculados al expediente.",
+  "verify": "Los nuevos mensajes de la dirección aparecen en el expediente.",
+  "errors": [
+   [
+    "Asociación errónea",
+    "Retírela; dejará de proponerse."
+   ]
+  ],
+  "example": "Dirección ficticia contacto@sociedad-prueba.example asociada a DEMO-A.",
+  "buttons": [
+   "✨ Rechercher et regrouper automatiquement"
+  ],
+  "version": "5.6.31"
+ },
+ "orchestrateur": {
+  "objective": "Relacionar correos y expedientes y preparar proyectos de aviso.",
+  "when": "Para tratar las notificaciones recibidas por correo.",
+  "prerequisites": "Correo configurado.",
+  "steps": [
+   "Abra Orquestador y avisos.",
+   "Pulse «↻ Analyser les nouveaux courriels».",
+   "Prepare un aviso con «Préparer sans action externe».",
+   "Revise los proyectos de aviso recientes."
+  ],
+  "result": "Proyectos de aviso por revisar; ninguna acción externa.",
+  "verify": "Los proyectos figuran en «Projets d’avis récents».",
+  "errors": [
+   [
+    "Correo no relacionado",
+    "Asocie su dirección al expediente en Asociaciones propuestas."
+   ]
+  ],
+  "example": "Aviso ficticio de aplazamiento para DEMO-A.",
+  "buttons": [
+   "↻ Analyser les nouveaux courriels",
+   "Préparer sans action externe"
+  ],
+  "version": "5.6.31"
+ },
+ "missions": {
+  "objective": "Confiar un encargo al agente y seguir su avance.",
+  "when": "Para delegar una tarea descrita en lenguaje corriente.",
+  "prerequisites": "IA configurada.",
+  "steps": [
+   "Abra Encargos.",
+   "Describa el encargo.",
+   "Pulse «Confier une mission».",
+   "Siga su estado y responda a las preguntas planteadas."
+  ],
+  "result": "Un encargo seguido, con resultados por revisar.",
+  "verify": "El encargo muestra su estado y su resultado.",
+  "errors": [
+   [
+    "Encargo rechazado",
+    "La solicitud supera el mandato autorizado: reformúlela."
+   ]
+  ],
+  "example": "Encargo ficticio: resumir los intercambios del expediente DEMO-B.",
+  "buttons": [
+   "Confier une mission"
+  ],
+  "version": "5.6.31"
+ },
+ "assistant": {
+  "objective": "Conversar con el asistente sobre el despacho y sus expedientes.",
+  "when": "Para una pregunta rápida o una búsqueda general.",
+  "prerequisites": "IA configurada.",
+  "steps": [
+   "Abra Asistente.",
+   "Escriba su pregunta.",
+   "Pulse «Envoyer à l’assistant».",
+   "Encuentre el intercambio en el historial."
+  ],
+  "result": "Una respuesta con sus fuentes cuando es posible.",
+  "verify": "Las fuentes citadas pueden abrirse.",
+  "errors": [
+   [
+    "Respuesta sin fuente",
+    "Compruébela antes de usarla."
+   ]
+  ],
+  "example": "Pregunta ficticia: «¿Qué audiencias hay esta semana?».",
+  "buttons": [
+   "Envoyer à l’assistant"
+  ],
+  "version": "5.6.31"
+ },
+ "cabinet": {
+  "objective": "Acceder a la gestión del despacho: tiempo, citas, conflictos, prescripción, seguimiento.",
+  "when": "Para las tareas de gestión corrientes.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Gestión del despacho.",
+   "Elija el apartado (Tiempo y honorarios, Citas, Conflictos de intereses…).",
+   "Consulte el registro de acceso a los datos sensibles si es necesario."
+  ],
+  "result": "El acceso a las herramientas de gestión del despacho.",
+  "verify": "Cada apartado se abre en su página.",
+  "errors": [
+   [
+    "Apartado vacío",
+    "Los datos aparecen con la actividad del despacho."
+   ]
+  ],
+  "example": "Consulta ficticia del seguimiento del mes.",
+  "buttons": [],
+  "version": "5.6.31"
+ },
+ "honoraires": {
+  "objective": "Validar el tiempo dedicado y estimar las diligencias.",
+  "when": "Al final del día o antes de facturar.",
+  "prerequisites": "Ninguno; Invoice Ninja es opcional.",
+  "steps": [
+   "Abra Tiempo y honorarios.",
+   "Revise los tiempos por validar.",
+   "Pulse «Estimer à partir des courriels, pièces et rendez-vous».",
+   "Ajuste el baremo y pulse «Enregistrer le barème»."
+  ],
+  "result": "Tiempos validados por expediente.",
+  "verify": "El total por expediente se actualiza.",
+  "errors": [
+   [
+    "Estimación incoherente",
+    "Corrija el baremo de estimación."
+   ]
+  ],
+  "example": "Tiempo ficticio: 1 h 30 de redacción para DEMO-A.",
+  "buttons": [
+   "Estimer à partir des courriels, pièces et rendez-vous",
+   "Enregistrer le barème"
+  ],
+  "version": "5.6.31"
+ },
+ "rendez_vous": {
+  "objective": "Preparar las citas y sus actas.",
+  "when": "Antes o después de una cita con un cliente.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Citas.",
+   "Elija la cita.",
+   "Prepárela o redacte el acta."
+  ],
+  "result": "Una cita preparada o un acta por revisar.",
+  "verify": "El acta queda vinculada al expediente.",
+  "errors": [
+   [
+    "Cita ausente",
+    "Debe figurar en una agenda autorizada."
+   ]
+  ],
+  "example": "Cita ficticia con el cliente de DEMO-B.",
+  "buttons": [],
+  "version": "5.6.31"
+ },
+ "conflits": {
+  "objective": "Buscar conflictos de intereses.",
+  "when": "Antes de aceptar un nuevo expediente.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Conflictos de intereses.",
+   "Indique los nombres en «Nouvelle recherche».",
+   "Pulse «Rechercher les conflits».",
+   "Si es necesario, gestione el bloqueo de la producción («Désactiver le blocage»)."
+  ],
+  "result": "Un informe de búsqueda de conflictos.",
+  "verify": "El informe aparece en «Rapports récents».",
+  "errors": [
+   [
+    "Resultado dudoso",
+    "Compruebe la ortografía de los nombres y repita la búsqueda."
+   ]
+  ],
+  "example": "Búsqueda ficticia: Sociedad Prueba.",
+  "buttons": [
+   "Rechercher les conflits",
+   "Désactiver le blocage"
+  ],
+  "version": "5.6.31"
+ },
+ "prescriptions": {
+  "objective": "Calcular y seguir los plazos de prescripción y caducidad.",
+  "when": "Al abrir un expediente o antes de actuar.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Prescripción y caducidad.",
+   "Indique la regla y el punto de partida.",
+   "Pulse «Calculer sans enregistrer» para comprobar.",
+   "Pulse «Créer (à confirmer)» para seguir el plazo."
+  ],
+  "result": "Un plazo calculado con su texto, por confirmar.",
+  "verify": "El plazo figura en la lista con su fecha límite.",
+  "errors": [
+   [
+    "Regla ausente",
+    "Consulte «Règles disponibles et textes»."
+   ]
+  ],
+  "example": "Prescripción ficticia de cinco años desde el 1 de marzo de 2026.",
+  "buttons": [
+   "Calculer sans enregistrer",
+   "Créer (à confirmer)"
+  ],
+  "version": "5.6.31"
+ },
+ "pilotage_mensuel": {
+  "objective": "Consultar los indicadores del mes y exportarlos.",
+  "when": "A final de mes.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Seguimiento mensual.",
+   "Elija el mes y pulse «Afficher».",
+   "Exporte con «Exporter (CSV)» o «Exporter (Markdown)»."
+  ],
+  "result": "Los indicadores del mes: expedientes, plazos, tiempo, borradores, calidad.",
+  "verify": "El archivo exportado contiene las mismas cifras.",
+  "errors": [
+   [
+    "Cifras vacías",
+    "Los datos aparecen con la actividad."
+   ]
+  ],
+  "example": "Seguimiento ficticio de septiembre de 2026.",
+  "buttons": [
+   "Afficher",
+   "Exporter (CSV)",
+   "Exporter (Markdown)"
+  ],
+  "version": "5.6.31"
+ },
+ "assistance_metier": {
+  "objective": "Hacer cálculos controlables y preparar la revisión de facturación.",
+  "when": "Para un cálculo de intereses, una indexación o una revisión de facturación.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Asistencia profesional.",
+   "Elija el cálculo, por ejemplo «Calculer les intérêts simples» o «Calculer une indexation».",
+   "Indique los importes y las fechas.",
+   "Para la facturación, use «Préparer la revue de facturation»."
+  ],
+  "result": "Un cálculo detallado y trazable.",
+  "verify": "El detalle del cálculo se muestra línea por línea.",
+  "errors": [
+   [
+    "Importe inesperado",
+    "Compruebe las fechas y el tipo introducidos."
+   ]
+  ],
+  "example": "Intereses ficticios sobre 10 000 € del 1 de enero al 30 de junio de 2026.",
+  "buttons": [
+   "Calculer les intérêts simples",
+   "Calculer une indexation",
+   "Préparer la revue de facturation"
+  ],
+  "version": "5.6.31"
+ },
+ "modeles_word": {
+  "objective": "Importar sus plantillas Word, comprobar sus etiquetas y previsualizar todas las páginas.",
+  "when": "Para producir sus cartas con la presentación del despacho.",
+  "prerequisites": "LibreOffice instalado para la vista previa (en Windows y en Linux).",
+  "steps": [
+   "Abra Documentos del despacho.",
+   "Elija su archivo DOCX.",
+   "Pulse «Importer et prévisualiser».",
+   "Compruebe las etiquetas detectadas y todas las páginas y valide la plantilla."
+  ],
+  "result": "Una plantilla validada para los nuevos proyectos; el original no se modifica.",
+  "verify": "La vista previa muestra cada página de la plantilla con un ejemplo ficticio.",
+  "errors": [
+   [
+    "Vista previa imposible",
+    "Instale LibreOffice y vuelva a intentarlo."
+   ],
+   [
+    "Etiqueta no reconocida",
+    "Escríbala de una sola vez, por ejemplo {{destinataire}}."
+   ]
+  ],
+  "example": "Plantilla de carta ficticia con {{destinataire}}, {{objet}} y {{corps}}.",
+  "buttons": [
+   "Importer et prévisualiser"
+  ],
+  "version": "5.6.31"
+ },
+ "modeles_actes": {
+  "objective": "Gestionar los modelos de actos y sus menciones obligatorias.",
+  "when": "Para preparar escritos o actos conformes.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Modelos de actos.",
+   "Elija el tipo de acto.",
+   "Complete las menciones.",
+   "Pulse «Enregistrer le modèle»."
+  ],
+  "result": "Un modelo de acto guardado.",
+  "verify": "El modelo se propone al preparar un acto.",
+  "errors": [
+   [
+    "Mención ausente",
+    "Añádala antes de guardar."
+   ]
+  ],
+  "example": "Modelo ficticio de escrito.",
+  "buttons": [
+   "Enregistrer le modèle"
+  ],
+  "version": "5.6.31"
+ },
+ "mon_style": {
+  "objective": "Analizar sus escritos para reproducir su estilo.",
+  "when": "Tras aportar escritos representativos.",
+  "prerequisites": "Escritos del despacho accesibles.",
+  "steps": [
+   "Abra Mi estilo.",
+   "Pulse «Analyser maintenant».",
+   "Revise los hábitos propuestos.",
+   "Afine con «Affiner avec l’IA» si es necesario."
+  ],
+  "result": "Hábitos de estilo por validar y luego aplicados.",
+  "verify": "Los hábitos validados aparecen en «Habitudes appliquées».",
+  "errors": [
+   [
+    "Corpus vacío",
+    "Aporte algunos escritos del despacho."
+   ]
+  ],
+  "example": "Hábito ficticio: saludo «Cher Confrère,».",
+  "buttons": [
+   "Analyser maintenant",
+   "Affiner avec l’IA"
+  ],
+  "version": "5.6.31"
+ },
+ "progres": {
+  "objective": "Ajustar el tono por destinatario y las reglas «hacerlo siempre así».",
+  "when": "Tras corregir varios borradores.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Estilo y aprendizaje.",
+   "Consulte el cuadro de aprendizaje.",
+   "Corrija un tono con «Corriger la détection».",
+   "Añada una regla con «Créer la règle»; «Valeurs d’origine» restablece los ajustes."
+  ],
+  "result": "Reglas aplicadas a los próximos proyectos.",
+  "verify": "La regla aparece en la lista de reglas.",
+  "errors": [
+   [
+    "Regla inadecuada",
+    "Elimínela o restablezca los valores de origen."
+   ]
+  ],
+  "example": "Regla ficticia: tratar siempre de usted a los clientes.",
+  "buttons": [
+   "Créer la règle",
+   "Corriger la détection",
+   "Valeurs d’origine"
+  ],
+  "version": "5.6.31"
+ },
+ "agents": {
+  "objective": "Crear un agente documental descrito en lenguaje natural.",
+  "when": "Para automatizar un tratamiento repetitivo de documentos.",
+  "prerequisites": "IA configurada.",
+  "steps": [
+   "Abra Agentes y reglas y luego «Nouvel agent».",
+   "Describa el encargo y pulse «Interpréter la mission».",
+   "Compruebe con «Tester le déclencheur sans agir».",
+   "Pulse «Enregistrer et activer»."
+  ],
+  "result": "Un agente activo en «Mes agents et règles par défaut».",
+  "verify": "Los resultados aparecen en Resultados de los agentes.",
+  "errors": [
+   [
+    "Agente demasiado amplio",
+    "Precise el expediente y el tipo de documento."
+   ]
+  ],
+  "example": "Agente ficticio: archivar los avisos de aplazamiento en el expediente correspondiente.",
+  "buttons": [
+   "Nouvel agent",
+   "Interpréter la mission",
+   "Tester le déclencheur sans agir",
+   "Enregistrer et activer"
+  ],
+  "version": "5.6.31"
+ },
+ "agents_documents": {
+  "objective": "Ver los resultados de los agentes documentales y reanudar un tratamiento.",
+  "when": "Tras activar un agente.",
+  "prerequisites": "Un agente activo.",
+  "steps": [
+   "Abra Resultados de los agentes.",
+   "Consulte los resultados.",
+   "Pulse «Vérifier les documents».",
+   "Reanude un tratamiento fallido."
+  ],
+  "result": "La lista de tratamientos con su estado.",
+  "verify": "Cada resultado remite al documento tratado.",
+  "errors": [
+   [
+    "Tratamiento fallido",
+    "Consulte la causa y reanúdelo."
+   ]
+  ],
+  "example": "Resultado ficticio: aviso de aplazamiento archivado en DEMO-A.",
+  "buttons": [
+   "Vérifier les documents"
+  ],
+  "version": "5.6.31"
+ },
+ "regles": {
+  "objective": "Ajustar el nivel de autonomía y las reglas de tratamiento de los correos.",
+  "when": "Para decidir lo que el agente puede hacer solo.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Reglas y autonomía.",
+   "Elija un nivel y pulse «Activer ce niveau».",
+   "Añada una regla con «Ajouter la règle».",
+   "Aprenda de una corrección con «Enregistrer la correction»."
+  ],
+  "result": "Reglas activas y reversibles.",
+  "verify": "Las reglas activas se listan con su efecto.",
+  "errors": [
+   [
+    "Efecto inesperado",
+    "Vuelva a un nivel más prudente."
+   ]
+  ],
+  "example": "Regla ficticia: archivar los boletines sin respuesta.",
+  "buttons": [
+   "Activer ce niveau",
+   "Ajouter la règle",
+   "Enregistrer la correction"
+  ],
+  "version": "5.6.31"
+ },
+ "autonomie": {
+  "objective": "Ver lo que sigue sometido a su validación y ajustar la autonomía.",
+  "when": "Para controlar o reducir la autonomía del agente.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Autonomía del agente.",
+   "Consulte «Toujours soumis à votre validation».",
+   "Ajuste y pulse «Appliquer».",
+   "En caso de duda, «Tout passer en mode prudent»."
+  ],
+  "result": "El nivel de autonomía aplicado.",
+  "verify": "El historial de ajustes registra el cambio.",
+  "errors": [
+   [
+    "Demasiados automatismos",
+    "Pase al modo prudente."
+   ]
+  ],
+  "example": "Ajuste ficticio: solo proponer, para los borradores.",
+  "buttons": [
+   "Appliquer",
+   "Tout passer en mode prudent"
+  ],
+  "version": "5.6.31"
+ },
+ "apprentissage": {
+  "objective": "Crear reglas profesionales y declarar referencias fiables.",
+  "when": "Para transmitir una preferencia del despacho al agente.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Aprendizaje profesional.",
+   "En «Créer une règle métier», describa la regla y pulse «Enregistrer la règle».",
+   "Declare un documento fiable y pulse «Enregistrer la référence fiable».",
+   "Revise las correcciones recientes."
+  ],
+  "result": "Reglas activas y reversibles.",
+  "verify": "Las reglas figuran en «Préférences apprises».",
+  "errors": [
+   [
+    "Regla demasiado general",
+    "Precise el contexto de aplicación."
+   ]
+  ],
+  "example": "Regla ficticia: citar los textos en su versión aplicable.",
+  "buttons": [
+   "Enregistrer la règle",
+   "Enregistrer la référence fiable"
+  ],
+  "version": "5.6.31"
+ },
+ "projets": {
+  "objective": "Revisar el trabajo preparado automáticamente.",
+  "when": "Con regularidad, para validar o descartar los proyectos.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Proyectos pendientes.",
+   "Pulse «↻ Analyser les nouveaux courriels».",
+   "Revise cada proyecto.",
+   "Valide o descarte."
+  ],
+  "result": "Los proyectos tratados salen de la lista.",
+  "verify": "Un proyecto validado aparece en su apartado.",
+  "errors": [
+   [
+    "Proyecto erróneo",
+    "Descártelo; su corrección se recuerda."
+   ]
+  ],
+  "example": "Proyecto ficticio de diligencia para DEMO-B.",
+  "buttons": [
+   "↻ Analyser les nouveaux courriels"
+  ],
+  "version": "5.6.31"
+ },
+ "preparation": {
+  "objective": "Ver el próximo trabajo detectado y la cobertura de las fuentes.",
+  "when": "Para anticipar las próximas tareas.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Preparación proactiva.",
+   "Pulse «↻ Analyser maintenant».",
+   "Consulte el trabajo detectado."
+  ],
+  "result": "La lista del próximo trabajo detectado.",
+  "verify": "Cada elemento indica su fuente.",
+  "errors": [
+   [
+    "Nada detectado",
+    "Puede que no todas las fuentes estén conectadas."
+   ]
+  ],
+  "example": "Trabajo ficticio detectado: audiencia DEMO-A por preparar.",
+  "buttons": [
+   "↻ Analyser maintenant"
+  ],
+  "version": "5.6.31"
+ },
+ "memoire": {
+  "objective": "Actualizar las respuestas enviadas que retiene el agente.",
+  "when": "Tras los envíos, para enriquecer la memoria.",
+  "prerequisites": "Correo configurado.",
+  "steps": [
+   "Abra Memoria.",
+   "Pulse «Actualiser les réponses envoyées».",
+   "Consulte los elementos retenidos."
+  ],
+  "result": "Una memoria actualizada de las respuestas enviadas.",
+  "verify": "Los elementos recientes aparecen en la lista.",
+  "errors": [
+   [
+    "Memoria vacía",
+    "Compruebe la carpeta Enviados en Ajustes."
+   ]
+  ],
+  "example": "Respuesta ficticia retenida: confirmación de audiencia.",
+  "buttons": [
+   "Actualiser les réponses envoyées"
+  ],
+  "version": "5.6.31"
+ },
+ "parametres": {
+  "objective": "Ajustar las conexiones y las preferencias del programa.",
+  "when": "Para modificar un ajuste o probar una conexión.",
+  "prerequisites": "El papel de administrador para los ajustes comunes.",
+  "steps": [
+   "Abra Ajustes y luego el apartado deseado.",
+   "Modifique el ajuste.",
+   "Pulse «Enregistrer les changements».",
+   "Pruebe con «Tester IMAP», «Tester Nextcloud / agendas» o «Tester Ollama»."
+  ],
+  "result": "Los ajustes guardados, sin recargar la página.",
+  "verify": "El mensaje de la prueba indica lo que se ha verificado realmente.",
+  "errors": [
+   [
+    "Prueba no validada",
+    "Lea la causa mostrada y corrija el ajuste correspondiente."
+   ]
+  ],
+  "example": "Ajuste ficticio: puerto IMAP 993, cifrado automático.",
+  "buttons": [
+   "Enregistrer les changements",
+   "Tester IMAP",
+   "Tester Nextcloud / agendas",
+   "Tester Ollama"
+  ],
+  "version": "5.6.31"
+ },
+ "guide_installation": {
+  "objective": "Configurar los servicios paso a paso y verificar las conexiones.",
+  "when": "En el primer arranque, o para añadir una funcionalidad.",
+  "prerequisites": "El papel de administrador.",
+  "steps": [
+   "Abra Ajustes y luego «Guía de instalación».",
+   "Elija las funciones que le interesan.",
+   "Complete cada pantalla y pulse «Continuar»; «Verificar la conexión» prueba sin enviar nada.",
+   "En el resumen, pulse «Terminar y aplicar»."
+  ],
+  "result": "Los ajustes aplicados y la lista de funciones disponibles.",
+  "verify": "El resumen distingue funciones disponibles y conexiones por completar.",
+  "errors": [
+   [
+    "Conflicto de ajustes",
+    "Otra pantalla ha modificado un ajuste: recargue y compruebe los campos señalados."
+   ]
+  ],
+  "example": "Recorrido ficticio: carpeta local y Ollama, sin correo.",
+  "buttons": [],
+  "version": "5.6.31"
+ },
+ "guide_utilisation": {
+  "objective": "Averiguar cómo utilizar una función.",
+  "when": "Cuando no sabe dónde hacer algo.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Ajustes y luego «Guía de uso», o «Ayuda sobre esta página» en la parte superior.",
+   "Busque una función o una necesidad.",
+   "Abra la ficha y luego «Abrir esta función»."
+  ],
+  "result": "La ficha de la función con sus pasos.",
+  "verify": "Los botones citados en la ficha existen en la pantalla.",
+  "errors": [
+   [
+    "Función por configurar",
+    "Pulse «Configurar el requisito que falta»."
+   ]
+  ],
+  "example": "Búsqueda ficticia: «índice».",
+  "buttons": [],
+  "version": "5.6.31"
+ },
+ "mise_en_service": {
+  "objective": "Controlar los servicios reales, el micrófono y Docker.",
+  "when": "Tras una instalación o una actualización.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Puesta en servicio.",
+   "Pulse «Lancer les contrôles (jusqu’à une minute)».",
+   "Pruebe el micrófono con «Tester le micro».",
+   "Lance «Lancer la recette de production» para un control completo."
+  ],
+  "result": "Un informe de control con las correcciones propuestas.",
+  "verify": "El «Dernier rapport» muestra la fecha y el resultado.",
+  "errors": [
+   [
+    "Micrófono rechazado",
+    "El navegador exige una dirección HTTPS para el micrófono."
+   ]
+  ],
+  "example": "Informe ficticio: servicios activos, micrófono autorizado.",
+  "buttons": [
+   "Lancer les contrôles (jusqu’à une minute)",
+   "Tester le micro",
+   "Lancer la recette de production"
+  ],
+  "version": "5.6.31"
+ },
+ "diagnostic": {
+  "objective": "Entender por qué no se produce nada: servicios, errores, expedientes bloqueados, conexiones.",
+  "when": "Cuando no aparece un tratamiento esperado.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Estado del programa y ayuda.",
+   "Consulte Servicios y la cola de trabajo.",
+   "Pruebe con «Tester la messagerie», «Tester Nextcloud» o «Tester l’IA».",
+   "Lea los errores de los últimos siete días."
+  ],
+  "result": "La causa del bloqueo y la acción siguiente.",
+  "verify": "Tras la corrección, la prueba correspondiente es correcta.",
+  "errors": [
+   [
+    "Servicio detenido",
+    "Reinicie la aplicación o el servicio correspondiente."
+   ]
+  ],
+  "example": "Diagnóstico ficticio: IA inaccesible desde hace 2 horas.",
+  "buttons": [
+   "Tester la messagerie",
+   "Tester Nextcloud",
+   "Tester l’IA"
+  ],
+  "version": "5.6.31"
+ },
+ "etat_systeme": {
+  "objective": "Consultar las incidencias, los tratamientos recientes, los servicios y el índice.",
+  "when": "Para un control técnico.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Estado del sistema.",
+   "Pulse «Contrôler maintenant».",
+   "Abra «Voir le détail» en una incidencia."
+  ],
+  "result": "El estado de los servicios y de los tratamientos.",
+  "verify": "Cada servicio muestra su último control.",
+  "errors": [
+   [
+    "Incidencia repetida",
+    "Abra su detalle y siga la corrección propuesta."
+   ]
+  ],
+  "example": "Incidencia ficticia: índice por reconstruir.",
+  "buttons": [
+   "Contrôler maintenant"
+  ],
+  "version": "5.6.31"
+ },
+ "mcp": {
+  "objective": "Gestionar los conectores jurídicos MCP, las competencias y las extensiones.",
+  "when": "Para añadir una fuente jurídica o una competencia.",
+  "prerequisites": "El papel de administrador.",
+  "steps": [
+   "Abra Conectores MCP.",
+   "Complete el conector.",
+   "Pulse «Enregistrer sans activer».",
+   "Pruébelo y actívelo para las funciones deseadas."
+  ],
+  "result": "Un conector guardado, activo solo tras su elección.",
+  "verify": "El conector aparece con sus funciones autorizadas.",
+  "errors": [
+   [
+    "Conector con fallos",
+    "Compruebe la dirección y la clave con el proveedor."
+   ]
+  ],
+  "example": "Conector ficticio de demostración.",
+  "buttons": [
+   "Enregistrer sans activer"
+  ],
+  "version": "5.6.31"
+ },
+ "routage": {
+  "objective": "Decidir cuándo puede utilizarse una IA externa y con qué coste.",
+  "when": "Antes de autorizar una IA externa.",
+  "prerequisites": "Una IA externa configurada.",
+  "steps": [
+   "Abra Enrutamiento híbrido.",
+   "Estime con «Calculer le routage et le coût».",
+   "Vea los datos transmitidos con «Afficher les données et le coût».",
+   "Pulse «Enregistrer la politique»."
+  ],
+  "result": "Una política de enrutamiento aplicada antes de cualquier envío.",
+  "verify": "Las últimas decisiones de enrutamiento se listan.",
+  "errors": [
+   [
+    "Coste elevado",
+    "Reduzca las funciones autorizadas o el límite."
+   ]
+  ],
+  "example": "Política ficticia: primero lo local, externo para la redacción larga.",
+  "buttons": [
+   "Calculer le routage et le coût",
+   "Afficher les données et le coût",
+   "Enregistrer la politique"
+  ],
+  "version": "5.6.31"
+ },
+ "evaluations": {
+  "objective": "Comparar los modelos con casos de referencia.",
+  "when": "Antes de elegir un modelo de IA.",
+  "prerequisites": "IA configurada.",
+  "steps": [
+   "Abra Banco jurídico.",
+   "Añada un caso y pulse «Enregistrer le cas».",
+   "Pulse «Lancer la comparaison».",
+   "Consulte la clasificación de los modelos."
+  ],
+  "result": "Una clasificación de los modelos según sus casos.",
+  "verify": "Cada caso muestra el resultado de cada modelo.",
+  "errors": [
+   [
+    "Comparación larga",
+    "Reduzca el número de casos."
+   ]
+  ],
+  "example": "Caso ficticio: calificación de un contrato de prestación.",
+  "buttons": [
+   "Enregistrer le cas",
+   "Lancer la comparaison"
+  ],
+  "version": "5.6.31"
+ },
+ "tracabilite": {
+  "objective": "Saber lo que vio el modelo en un expediente y qué modelos se utilizaron.",
+  "when": "Para un control de confidencialidad.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Trazabilidad.",
+   "Elija el expediente y pulse «Consulter».",
+   "Exporte con «Exporter (CSV)» o «Exporter (JSON)»."
+  ],
+  "result": "La lista de accesos del modelo al expediente.",
+  "verify": "Se listan los modelos utilizados en 30 días.",
+  "errors": [
+   [
+    "Acceso inesperado",
+    "Compruebe las reglas de autonomía."
+   ]
+  ],
+  "example": "Consulta ficticia para DEMO-A.",
+  "buttons": [
+   "Consulter",
+   "Exporter (CSV)",
+   "Exporter (JSON)"
+  ],
+  "version": "5.6.31"
+ },
+ "qualite": {
+  "objective": "Entender los motivos de bloqueo y las correcciones de los borradores.",
+  "when": "Para mejorar la calidad de los proyectos.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Calidad.",
+   "Consulte los motivos de bloqueo.",
+   "Consulte las correcciones de los borradores enviados."
+  ],
+  "result": "Los principales motivos de bloqueo y de corrección.",
+  "verify": "Las cifras evolucionan tras sus correcciones.",
+  "errors": [
+   [
+    "Datos vacíos",
+    "Aparecen con los tratamientos."
+   ]
+  ],
+  "example": "Motivo ficticio: expediente no identificado.",
+  "buttons": [],
+  "version": "5.6.31"
+ },
+ "ecosysteme": {
+  "objective": "Registrar los servicios utilizados por el despacho.",
+  "when": "Para referenciar una herramienta del despacho.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Ecosistema.",
+   "Complete el servicio.",
+   "Pulse «Enregistrer le service»."
+  ],
+  "result": "El servicio aparece en «Services configurés».",
+  "verify": "El servicio se lista con su dirección.",
+  "errors": [
+   [
+    "Dirección rechazada",
+    "Utilice una dirección HTTPS."
+   ]
+  ],
+  "example": "Servicio ficticio: herramienta de firma.",
+  "buttons": [
+   "Enregistrer le service"
+  ],
+  "version": "5.6.31"
+ },
+ "administration": {
+  "objective": "Gestionar los automatismos, los accesos directos y los controles avanzados.",
+  "when": "Para una administración técnica.",
+  "prerequisites": "El papel de administrador.",
+  "steps": [
+   "Abra Administración.",
+   "Active o pause un automatismo («Mettre en pause»).",
+   "Pulse «Tester les connexions»."
+  ],
+  "result": "Automatismos ajustados y conexiones probadas.",
+  "verify": "Se muestra el estado de cada automatismo.",
+  "errors": [
+   [
+    "Conexión con fallos",
+    "Corríjala en Ajustes."
+   ]
+  ],
+  "example": "Ajuste ficticio: análisis automático en pausa.",
+  "buttons": [
+   "Tester les connexions",
+   "Mettre en pause"
+  ],
+  "version": "5.6.31"
+ },
+ "tableau_de_bord": {
+  "objective": "Consultar el antiguo panel detallado.",
+  "when": "Si prefiere esta presentación a las pantallas actuales.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Panel detallado.",
+   "Pulse «Analyser les dossiers actifs» o «Repérer le travail à faire».",
+   "Abra los elementos señalados."
+  ],
+  "result": "Una vista de conjunto del despacho.",
+  "verify": "Los elementos remiten a las pantallas correspondientes.",
+  "errors": [
+   [
+    "Presentación recargada",
+    "Utilice mejor Hoy."
+   ]
+  ],
+  "example": "Vista ficticia de la semana.",
+  "buttons": [
+   "Analyser les dossiers actifs",
+   "Repérer le travail à faire"
+  ],
+  "version": "5.6.31"
+ },
+ "a_propos": {
+  "objective": "Conocer la versión, la licencia y las reglas de confidencialidad.",
+  "when": "Para comprobar la versión instalada.",
+  "prerequisites": "Ninguno.",
+  "steps": [
+   "Abra Acerca de.",
+   "Lea la versión y la licencia.",
+   "Consulte la sección Confidencialidad."
+  ],
+  "result": "La información de versión y de licencia.",
+  "verify": "El número de versión coincide con la nota de actualización.",
+  "errors": [
+   [
+    "Versión antigua",
+    "Instale la última actualización."
+   ]
+  ],
+  "example": "Versión 5.6.31.",
+  "buttons": [],
+  "version": "5.6.31"
+ }
+}

@@ -105,11 +105,11 @@ class LegalBenchmark410Tests(unittest.TestCase):
 
     def test_api_exposes_41_learning_and_benchmark(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.30')
+        self.assertEqual(spec['info']['version'],'5.6.31')
         for path in ('/learning/business-rules','/evaluations/legal',
                      '/evaluations/legal/cases','/evaluations/legal/run'):
             self.assertIn(path,spec['paths'])
-        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.30')
+        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.31')
 
 
 class Browser410Tests(unittest.TestCase):
@@ -121,14 +121,15 @@ class Browser410Tests(unittest.TestCase):
         body=self.request('/parametres')['body']
         nav=re.search(r'<nav aria-label="Navigation principale".*?</nav>',body,re.S).group(0)
         self.assertEqual(nav.count('<a '),6)
-        sub=re.search(r'<nav aria-label="Rubriques".*?</nav>',body,re.S).group(0)
-        self.assertEqual(sub.count('<a '),5)
+        # 5.6.31 (NV01) : les anciennes rubriques sont dans le panneau unique « Toutes les fonctions ».
+        sub=re.search(r'<details class="f5631-all".*?</details>',body,re.S).group(0)
         for label in ('Aujourd’hui','Dossiers','Courriels','Agenda et tâches','Produire','Paramètres'):
             self.assertIn(label,nav)
-        for label in ('Documents','Échéances','Recherche','Cabinet','Apprentissage et modèles'):
+        for label in ('Documents','Échéances','Recherche dans le cabinet','Gestion du cabinet','Mon style'):
             self.assertIn(label,sub)
+        self.assertIn('apprentissage et modèles',sub)   # ancien nom conservé pour la recherche
         self.assertIn('Apprentissage métier',body);self.assertIn('Banc juridique',body)
-        self.assertIn('Version 5.6.30',body)
+        self.assertIn('Version 5.6.31',body)
 
     def test_produce_hub_contains_the_six_expected_outputs(self):
         body=self.request('/production')['body']

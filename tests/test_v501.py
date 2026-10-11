@@ -27,7 +27,9 @@ class FakeDAV:
     def events(self, urls, a, b, tz):
         base = datetime.now(timezone.utc).replace(hour=8, minute=0, second=0, microsecond=0)
         out = [{'uid': 'ext-1', 'recurrence_id': '', 'summary': 'Audience MARTINEAU', 'description': 'DOS-001', 'location': '',
-                'start': (base + timedelta(days=1)).isoformat(), 'end': (base + timedelta(days=1, hours=2)).isoformat(), 'busy': True,
+                # 5.6.31 : « demain » sortait de la semaine affichée (lundi → dimanche) quand la recette tournait un dimanche.
+                'start': (base + timedelta(days=0 if base.weekday() == 6 else 1)).isoformat(),
+                'end': (base + timedelta(days=0 if base.weekday() == 6 else 1, hours=2)).isoformat(), 'busy': True,
                 'source_url': CAL, 'href': '/e1.ics', 'etag': '"1"'}]
         for uid, (title, start, end) in self.store.items():
             out.append({'uid': uid, 'recurrence_id': '', 'summary': title, 'description': '', 'location': '', 'start': start.isoformat(),
@@ -150,17 +152,23 @@ class UnifiedInterface(Base):
                 self.assertIn('<aside id="ws-sidebar">', body, path)
                 nav = re.search(r'<nav aria-label="Navigation principale".*?</nav>', body, re.S).group(0)
                 self.assertEqual(nav.count('<a '), 6, path)                                   # 5.3.0 : menu réduit
-                self.assertIn('<nav aria-label="Rubriques"', body, path)
+                self.assertIn('id="f5631-all"', body, path)                              # 5.6.31 : menu unique « Toutes les fonctions »
                 self.assertNotIn('class="ax-top"', body, path)
                 self.assertIn('id="ws-ai-launcher"', body, path)
 
     def test_active_entry_follows_the_page(self):
         expected = {'/courriels': 'Courriels', '/documents': 'Documents', '/echeances': 'Échéances', '/cabinet': 'Cabinet',
                     '/conflits': 'Cabinet', '/dossiers': 'Dossiers', '/production': 'Produire'}
+        panel = {'/documents': ('/documents', 'Documents'), '/echeances': ('/echeances', 'Échéances'), '/cabinet': ('/cabinet', 'Gestion du cabinet'),
+                 '/conflits': ('/cabinet', 'Gestion du cabinet')}
         for path, label in expected.items():
             body = self.request(path)['body']
             current = re.findall(r'<a [^>]*aria-label="([^"]+)"[^>]*aria-current="page"', body)
-            self.assertEqual(current, [label], path)
+            if path in panel:   # 5.6.31 : entrée active dans le panneau « Toutes les fonctions »
+                self.assertEqual(current, [], path)
+                self.assertIn('href="/agent-courriel%s" aria-current="page"><strong>%s</strong>' % panel[path], body, path)
+            else:
+                self.assertEqual(current, [label], path)
 
     def test_workshop_styles_follow_the_common_theme_switch(self):
         for name in ('v440.css', 'v460.css', 'v470.css', 'v480.css', 'v490.css', 'v500.css'):
