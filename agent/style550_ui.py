@@ -12,7 +12,8 @@ def _habit_card(h, pending):
                    '<div class="s550-actions"><button type="button" class="ax-btn" data-habit="%s" data-action="valider">Valider</button>'
                    '<button type="button" class="ax-btn ghost" data-habit="%s" data-action="ecarter">Écarter</button></div>') % (
             e(h['id']), e(h['id']), e(h['text']), e(h['id'], quote=True), e(h['id'], quote=True))
-        body = ''
+        effect = style550.EFFECTS.get(h['kind'], '')
+        body = ('<p class="s550-effect">Si vous validez : %s</p>' % e(effect)) if effect else ''   # 5.6.32 : l'effet concret est expliqué
     else:
         actions = '<div class="s550-actions"><button type="button" class="ax-btn ghost" data-habit="%s" data-action="retirer">Retirer</button></div>' % e(h['id'], quote=True)
         body = '<p>%s</p>' % e(h['text'])
@@ -25,6 +26,21 @@ def page(desk, prefix, shell, csrf):
     o = style550.overview(desk)
     s = style550.settings(desk)
     f = folders(desk)
+    from . import dossiers5632
+    extra = dossiers5632.configured(desk)
+    usage_options = lambda cur: ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == cur else '', e(v)) for k, v in dossiers5632.USAGES.items())
+    extra_rows = ''.join(
+        '<div class="s5632-folder" data-s5632-row><label class="m5-field">Nom du dossier<input name="extra_pattern_%d" value="%s" maxlength="120" '
+        'placeholder="Nom du dossier (ex. EXPERTISES)"></label><label class="m5-field">Usage<select name="extra_usage_%d">%s</select></label>'
+        '<button type="button" class="ax-btn ghost s5632-del" data-s5632-del aria-label="Retirer ce dossier de travail">Retirer</button></div>' % (
+            i, e(x['pattern'], quote=True), i, usage_options(x['usage'])) for i, x in enumerate(extra + [{'pattern': '', 'usage': 'travail'}]))
+    extra_html = ('<fieldset class="s5632-folders"><legend>Autres dossiers de travail</legend>'
+                  '<p class="vf-note">Variables : <code>{{partie_adverse01}}</code> à <code>{{partie_adverse09}}</code> (parties adverses du dossier, '
+                  'dans l’ordre du registre des parties puis de la fiche du dossier) et <code>{{client}}</code>. Un dossier déjà nommé autrement après le tiret '
+                  '(« PIECES ADVERSES - … ») est reconnu. Les pièces (nôtres ou adverses) sont lues pour l’analyse du dossier et signalées à l’IA avec leur '
+                  'provenance, mais jamais utilisées pour apprendre votre style. Rien n’est créé dans Nextcloud depuis cette page : la page de chaque dossier '
+                  'propose de créer les dossiers absents.</p><div data-s5632-rows>%s</div>'
+                  '<button type="button" class="ax-btn ghost" data-s5632-add>Ajouter un dossier de travail</button></fieldset>') % extra_rows
     total = o['files'] + o['mails']
     rate = ''
     try:
@@ -65,7 +81,7 @@ def page(desk, prefix, shell, csrf):
             '<label class="m5-field">Actes de procédure<input name="folder_procedure" value="%s"></label>'
             '<label class="m5-field">Correspondances<input name="folder_correspondance" value="%s"></label>'
             '<label class="m5-field">Projets (contrats, actes)<input name="folder_projets" value="%s"></label>'
-            '<label class="m5-field">Livrables (notes, consultations)<input name="folder_livrables" value="%s"></label></div>'
+            '<label class="m5-field">Livrables (notes, consultations)<input name="folder_livrables" value="%s"></label></div>%s'
             '<label class="m5-check"><input type="checkbox" name="mails"%s> Apprendre aussi de mes courriels envoyés</label>'
             '<label class="m5-check"><input type="checkbox" name="auto"%s> Analyse automatique une fois par jour (par petits lots)</label>'
             '<button class="ax-btn" type="submit">Enregistrer</button></form>'
@@ -76,7 +92,7 @@ def page(desk, prefix, shell, csrf):
         len(o['pending']), pending or '<p class="c530-empty">Aucune habitude à valider. Lancez une analyse (au moins 3 écrits d’un même type).</p>',
         len(o['validated']), validated or '<p class="c530-empty">Aucune habitude validée pour l’instant.</p>',
         skeletons or '<p class="c530-empty">Disponibles après l’analyse.</p>',
-        e(f['procedure'], quote=True), e(f['correspondance'], quote=True), e(f['projets'], quote=True), e(f['livrables'], quote=True),
+        e(f['procedure'], quote=True), e(f['correspondance'], quote=True), e(f['projets'], quote=True), e(f['livrables'], quote=True), extra_html,
         ' checked' if s['mails'] else '', ' checked' if s['auto'] else '', e(prefix + '/static/v550.js'))
     return shell('Mon style', body, prefix, csrf, '/mon-style')
 

@@ -212,7 +212,12 @@ def prepare(desk, args):
     limit = int(cfg.get('max_context_chars') or desk.c.get('ollama', {}).get('max_context_chars', 65000))
     previous = latest(desk, mid)
     corrections = {k: v.get('text', '') for k, v in ((previous or {}).get('edits') or {}).items() if isinstance(v, dict)}
-    sources = select_sources(desk, m, budget=max(8000, int(limit * 0.6)))
+    # 5.6.32 : dossier ENTIER — fiches de pièces (une par version de pièce) et compression étagée ; les fiches manquantes sont préparées.
+    from . import synthese5632
+    budget = max(8000, int(limit * 0.6))
+    sources, coverage = synthese5632.sources_for(desk, m, budget, score=_doc_score)
+    if coverage['sans_fiche']:
+        desk._then('digest_pieces5632', {'matter': mid}, priority=75)
     facts = _validated_facts(desk, mid)
     if not sources and not facts:
         raise Stop('aucune_piece_lisible_dans_le_dossier')
@@ -224,10 +229,20 @@ def prepare(desk, args):
         payload['pieces'].pop()
     kept = {p['id'] for p in payload['pieces']}
     sources = [s for s in sources if s['id'] in kept]
-    result = Model(cfg).ask('dossier_fiche', payload)
+    try:
+        result = Model(cfg).ask('dossier_fiche', payload)
+    except Stop as ex:
+        if str(ex) not in ('contexte_ia_insuffisant', 'generation_ia_incomplete'):
+            raise
+        # 5.6.32 : une seule relance, entrée compressée de moitié (toutes les pièces restent représentées, avec moins de détail).
+        sources, coverage = synthese5632.sources_for(desk, m, budget // 2, score=_doc_score)
+        payload['pieces'] = [{k: s[k] for k in ('id', 'nom', 'date_fichier', 'nature', 'extrait')} for s in sources]
+        kept = {p['id'] for p in payload['pieces']}
+        result = Model(cfg).ask('dossier_fiche', payload)
     validate(result, FICHE5627)
     data = _clean(result, kept | {f['id'] for f in facts})
     data['pieces_lues'] = len(sources)
+    data['couverture'] = coverage   # 5.6.32 : pièces du dossier, représentées, avec fiche, au niveau de détail complet
     version = desk.db.execute('SELECT COALESCE(MAX(version),0)+1 FROM fiche5627 WHERE matter=?', (mid,)).fetchone()[0]
     stored = [{'id': s['id'], 'path': s['path'], 'nom': s['nom']} for s in sources] + [{'id': f['id'], 'path': '', 'nom': 'Fait validé par l’avocat'} for f in facts]
     desk.db.execute('INSERT INTO fiche5627(matter,version,data,sources,edits,created) VALUES(?,?,?,?,?,?)',
@@ -235,7 +250,9 @@ def prepare(desk, args):
     desk.db.commit()
     desk.audit('dossier5627_fiche_preparee', {'matter': mid, 'version': version, 'pieces': len(sources)})
     return {'status': 'prepared', 'matter': mid, 'version': version, 'pieces': len(sources),
-            'message': 'Fiche du dossier préparée (version %d, %d pièce(s) lue(s)).' % (version, len(sources))}
+            'coverage': coverage,
+            'message': 'Fiche du dossier préparée (version %d, %d pièce(s) sur %d, dont %d par fiche de pièce).' % (
+                version, len(sources), coverage['pieces'], coverage['avec_fiche'])}
 
 
 def save_edit(desk, mid, section, text, owner='cabinet'):
@@ -536,8 +553,17 @@ def pieces_html(desk, prefix, m):
     except Exception:   # pylint: disable=broad-except
         rows = []
     docs = sorted(({'path': r[0], 'name': PurePosixPath(r[0]).name, 'modified': _iso(r[1]), 'error': r[2] or ''} for r in rows), key=lambda d: d['modified'], reverse=True)
-    rows = ''.join('<li data-d27-search="%s"><a href="%s">%s</a><span class="d27-muted">%s</span>%s</li>' % (
-        e(_fold(d['name']), quote=True), e(prefix + doc_href(d['path'], m['id']), quote=True), e(d['name']), e(_date_fr(d['modified'])),
+    # 5.6.32 : provenance des pièces d'après les dossiers de travail (Nos pièces, Pièces adverses — partie).
+    from . import dossiers5632
+    try:
+        resolved = dossiers5632.resolve(desk, m)
+    except Exception:   # noqa: BLE001
+        resolved = []
+    for d in docs:
+        d['usage'] = dossiers5632.usage_of(desk, m, d['path'], resolved) if resolved else None
+    rows = ''.join('<li data-d27-search="%s"><a href="%s">%s</a><span class="d27-muted">%s</span>%s%s</li>' % (
+        e(_fold(d['name'] + ' ' + (d['usage']['label'] if d['usage'] else '')), quote=True), e(prefix + doc_href(d['path'], m['id']), quote=True), e(d['name']),
+        e(_date_fr(d['modified'])), (' <span class="d27-badge">%s</span>' % e(d['usage']['label'])) if d['usage'] else '',
         ' <span class="d27-badge bad">illisible</span>' if d['error'] else '') for d in docs)
     return _card('Pièces du dossier (%d)' % len(docs), (
         '<input type="search" class="d27-filter" data-d27-filter="#d27-pieces" placeholder="Filtrer par nom" aria-label="Filtrer les pièces">'
@@ -586,6 +612,10 @@ def page(desk, auth, prefix, args, shell):
     counts = _counts(desk, mid)
     body = header_html(desk, prefix, m, view, counts)
     body += {'fiche': fiche_html, 'pieces': pieces_html, 'courriels': courriels_html, 'travaux': travaux_html}[view](desk, prefix, m)
+    if view == 'pieces':   # 5.6.32 (R15) : documents de procédure → agenda → brouillons, dans la page du dossier
+        from .web5632 import procedure_panel, working_folders_panel
+        body += working_folders_panel(desk, prefix, m)
+        body += procedure_panel(desk, prefix, m)
     body += '</div>'
     head = '<script defer src="%s/static/v5627.js"></script>' % e(prefix)
     return shell(matter_display(m), body, prefix, auth['csrf'], '/dossiers', head)

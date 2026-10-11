@@ -7,7 +7,10 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import ssl
+import sys
+import threading
 import unicodedata
+import weakref
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -95,6 +98,56 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+_TRACKED = threading.local()
+OPEN_TRANSACTIONS = {'count': 0, 'last': ''}
+
+
+def set_request_mode(mode):
+    """5.6.32 : « read » pour l'affichage d'une page (GET) — une écriture concurrente n'y fait attendre que 2 s au plus."""
+    _TRACKED.mode = mode
+
+
+def busy_timeout():
+    return 2 if getattr(_TRACKED, 'mode', '') == 'read' else 10
+
+
+def track_connection(owner):
+    """5.6.32 : connexions SQLite du fil courant surveillées avant chaque appel réseau. ``owner`` est l'objet qui porte la connexion
+    (attribut ``db``, par exemple le Desk) : une connexion sqlite3 n'accepte pas de référence faible, son propriétaire si ; ainsi
+    rien n'est retenu en mémoire après la fin de la requête."""
+    refs = getattr(_TRACKED, 'dbs', None)
+    if refs is None:
+        refs = _TRACKED.dbs = []
+    refs[:] = [r for r in refs if r() is not None][-20:]
+    try:
+        refs.append(weakref.ref(owner))
+    except TypeError:
+        pass
+
+
+def release_before_network(what=''):
+    """Règle « hors transaction : appel réseau » appliquée partout : une écriture SQLite encore ouverte avant un appel au modèle, à un
+    connecteur, à Nextcloud ou à la messagerie bloquerait l'interface et les autres services pendant toute la durée de l'appel.
+    Elle est validée avant l'appel et signalée (origine) pour correction."""
+    for ref in list(getattr(_TRACKED, 'dbs', []) or []):
+        owner = ref()
+        db = getattr(owner, 'db', None)
+        if db is None:
+            continue
+        try:
+            if db.in_transaction:
+                import traceback
+                frame = next((f for f in reversed(traceback.extract_stack()[:-2]) if 'common.py' not in f.filename), None)
+                OPEN_TRANSACTIONS['count'] += 1
+                OPEN_TRANSACTIONS['last'] = '%s:%s (%s)' % (Path(frame.filename).name, frame.lineno, what) if frame else what
+                stream = sys.stderr or sys.__stderr__
+                if stream is not None:
+                    print('AxiorHub : transaction SQLite validée avant un appel réseau — ' + OPEN_TRANSACTIONS['last'], file=stream, flush=True)
+                db.commit()
+        except Exception:   # noqa: BLE001 — une connexion fermée n'empêche pas l'appel
+            continue
+
+
 class HTTP:
     def __init__(self, base, username=None, password=None, local_only=False, timeout=45, local_hosts=()):
         p = urllib.parse.urlsplit(base)
@@ -116,7 +169,10 @@ class HTTP:
             raise Stop('https_obligatoire')
         self.base, self.origin = base.rstrip('/'), (p.scheme, p.netloc)
         self.timeout = timeout
-        self.headers = {}
+        # 5.6.32 : identité explicite ; l'en-tête par défaut « Python-urllib » est refusé (403) par certains services derrière
+        # Cloudflare (JusticeLibre). Aucune donnée du cabinet n'y figure.
+        from . import __version__
+        self.headers = {'User-Agent': 'AxiorHub-Pilote/%s (+https://github.com/Arthur-Llevelys/AxiorHub-Pilote)' % __version__}
         self.last_headers = {}
         if username is not None:
             self.headers['Authorization'] = 'Basic ' + base64.b64encode(
@@ -126,6 +182,7 @@ class HTTP:
             urllib.request.HTTPSHandler(context=ssl.create_default_context()))
 
     def request(self, method, url, data=None, headers=None, limit=12_000_000):
+        release_before_network(urllib.parse.urlsplit(url).netloc)   # 5.6.32 : aucun verrou SQLite tenu pendant l'appel
         p = urllib.parse.urlsplit(url)
         if (p.scheme, p.netloc) != self.origin or p.username or p.password or p.fragment:
             raise Stop('origine_http_refusee')

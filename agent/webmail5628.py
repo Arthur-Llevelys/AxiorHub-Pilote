@@ -215,10 +215,14 @@ def template(desk, mode, uid=None, folder=None):
     cfg = desk.c['mail']
     own = {a.lower() for a in mbx.own_addresses(cfg)}
     sender = _display(cfg.get('from_name') or '', cfg.get('from_address') or '')
-    if mode == 'nouveau':
-        return {'mode': mode, 'from': sender, 'to': '', 'cc': '', 'bcc': '', 'subject': '', 'html': '<p><br></p>', 'attachments': []}
-    if mode not in ('repondre', 'repondre_tous', 'transferer'):
+    from . import courrier5632 as c32   # 5.6.32 : signature, police et copie cachée automatique
+    if mode not in ('nouveau', 'repondre', 'repondre_tous', 'transferer'):
         raise Stop('mode_de_redaction_inconnu')
+    sig = c32.signature_for(desk, mode)
+    sig_html = ('<p><br></p>' + sig) if sig else ''
+    extra = {'font': c32.font_css(desk), 'bcc': ', '.join(c32.auto_bcc(desk, mode)), 'signature': bool(sig)}
+    if mode == 'nouveau':
+        return {'mode': mode, 'from': sender, 'to': '', 'cc': '', 'subject': '', 'html': '<p><br></p>' + sig_html, 'attachments': [], **extra}
     box = _open(desk)
     try:
         folder = _folder(box, cfg, folder)
@@ -228,11 +232,11 @@ def template(desk, mode, uid=None, folder=None):
     msg = mail.msg
     when = mail.timestamp.astimezone().strftime('%d/%m/%Y à %H:%M')
     original = text_to_html(mail.text[:60000])
-    out = {'mode': mode, 'from': sender, 'bcc': '', 'source_uid': mail.uid, 'source_folder': folder, 'attachments': []}
+    out = {'mode': mode, 'from': sender, 'source_uid': mail.uid, 'source_folder': folder, 'attachments': [], **extra}
     if mode == 'transferer':
         out.update({'to': '', 'cc': '', 'subject': _prefixed(mail.subject, 'TR :'),
-                    'html': ('<p><br></p><p>-------- Message transféré --------<br>De : %s<br>Date : %s<br>Objet : %s<br>À : %s</p><blockquote>%s</blockquote>' % (
-                        escape(str(msg.get('From', ''))), escape(when), escape(mail.subject), escape(str(msg.get('To', ''))), original)),
+                    'html': ('<p><br></p>%s<p>-------- Message transféré --------<br>De : %s<br>Date : %s<br>Objet : %s<br>À : %s</p><blockquote>%s</blockquote>' % (
+                        sig_html, escape(str(msg.get('From', ''))), escape(when), escape(mail.subject), escape(str(msg.get('To', ''))), original)),
                     'attachments': [{'index': n, 'name': str(p.get_filename() or 'pièce %d' % (n + 1)), 'size': len(p.get_payload(decode=True) or b'')}
                                     for n, p in enumerate(msg.iter_attachments())]})
         return out
@@ -246,7 +250,7 @@ def template(desk, mode, uid=None, folder=None):
                 seen.add(p[1].lower())
                 cc.append(p)
     out.update({'to': _fmt(to), 'cc': _fmt(cc), 'subject': _prefixed(mail.subject, 'Re :'),
-                'html': '<p><br></p><p>Le %s, %s a écrit :</p><blockquote>%s</blockquote>' % (escape(when), escape(str(msg.get('From', ''))), original)})
+                'html': '<p><br></p>%s<p>Le %s, %s a écrit :</p><blockquote>%s</blockquote>' % (sig_html, escape(when), escape(str(msg.get('From', ''))), original)})
     return out
 
 
@@ -287,7 +291,8 @@ def build(desk, data):
             msg['In-Reply-To'] = source.mid
             msg['References'] = ' '.join(([str(source.msg.get('References', '')).strip()] if source.msg.get('References') else []) + [source.mid])
     msg.set_content(text + '\n')
-    msg.add_alternative('<!doctype html><html><body>%s</body></html>' % html, subtype='html')
+    from .courrier5632 import wrap   # 5.6.32 : police choisie dans les réglages de messagerie
+    msg.add_alternative('<!doctype html><html><body>%s</body></html>' % wrap(desk, html), subtype='html')
     total = 0
     if source is not None and mode == 'transferer':
         keep = {int(i) for i in (data.get('keep') or []) if str(i).isdigit()}

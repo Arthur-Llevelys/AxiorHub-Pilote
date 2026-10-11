@@ -35,7 +35,7 @@ TEMPLATES=[
 def normalized(text):return re.sub(r'[^a-z0-9]+',' ',fold(str(text))).strip()
 
 
-def validate_recipe(value):
+def validate_recipe(value,extra_folders=None):
     if not isinstance(value,dict) or set(value)-{'names','types','age_days','clock','actions','mode','scope','recipient','folder','guidance'}:
         raise Stop('recette_agent_champ_inconnu')
     out=deepcopy(value)
@@ -51,15 +51,33 @@ def validate_recipe(value):
     out.update(age_days=n,clock=out.get('clock','created'),mode=out.get('mode','prepare'),scope=str(out.get('scope') or ''),
                recipient=out.get('recipient','case_role'),folder=out.get('folder','PROCEDURE'),guidance=str(out.get('guidance') or '').strip())
     if out['clock'] not in ('created','modified') or out['mode'] not in ('observe','prepare','organize'):raise Stop('autonomie_agent_invalide')
-    if out['recipient'] not in ('case_role','self') or out['folder'] not in FOLDERS:raise Stop('destination_agent_non_autorisee')
+    if out['recipient'] not in ('case_role','self'):raise Stop('destination_agent_non_autorisee')
+    if out['folder'] not in FOLDERS:
+        # 5.6.32 : choix fermé élargi aux dossiers de travail réglés dans « Mon style » (« PIECES ADVERSES - {{partie_adverse01}} ») ;
+        # sans liste fournie, seuls les modèles par défaut sont admis. Une seule partie de chemin, jamais « .. ».
+        from .dossiers5632 import DEFAULTS,validate_pattern
+        allowed=list(extra_folders) if extra_folders is not None else [d['pattern'] for d in DEFAULTS]
+        try:ok=bool(validate_pattern(out['folder'])) and out['folder'] in allowed
+        except Stop:ok=False
+        if not ok:raise Stop('destination_agent_non_autorisee')
     if len(out['guidance'])>6000 or '\0' in out['guidance']:raise Stop('instruction_agent_trop_longue')
     # L'analyse est obligatoire avant tout effet, même si l'interprétation l'omet.
     out['actions']=['analyze']+[x for x in out['actions'] if x!='analyze']
     return out
 
 
+def _stored(recipe):
+    """Règle déjà enregistrée : son dossier a été contrôlé à l'enregistrement, seul son format est revérifié ici."""
+    return [str((recipe or {}).get('folder') or '')] if isinstance(recipe,dict) else None
+
+
+def working_folders(desk):
+    from .dossiers5632 import configured
+    return [x['pattern'] for x in configured(desk)]
+
+
 def recipe_text(recipe):
-    r=validate_recipe(recipe)
+    r=validate_recipe(recipe,_stored(recipe))
     return {'trigger':('Nom contenant '+', '.join(r['names'])+' ou type '+', '.join(r['types'])),
       'age':str(r['age_days'])+' jours maximum depuis '+('la création prouvée par WebDAV' if r['clock']=='created' else 'la modification WebDAV'),
       'actions':[LABELS[x] for x in r['actions']], 'mode':r['mode'],
@@ -103,7 +121,7 @@ def save(desk,data,owner):
     if not isinstance(data,dict) or set(data)-{'id','revision','name','instruction','recipe'}:raise Stop('agent_document_champ_inconnu')
     name=str(data.get('name') or '').strip();text=str(data.get('instruction') or '').strip()
     if not 3<=len(name)<=160 or not 10<=len(text)<=6000:raise Stop('instruction_agent_invalide')
-    r=validate_recipe(data.get('recipe'));known={str(m['id']) for m in load_matters(desk.c)}
+    r=validate_recipe(data.get('recipe'),working_folders(desk));known={str(m['id']) for m in load_matters(desk.c)}
     if r['scope'] and r['scope'] not in known:raise Stop('dossier_absent')
     old=_rule(desk,data['id'],owner) if data.get('id') else None
     if old and data.get('revision')!=old['revision']:raise Stop('regle_modifiee_recharger')
@@ -205,7 +223,7 @@ def stamp(meta,clock):
 
 
 def match(recipe,path,meta,text=None,now=None):
-    r=validate_recipe(recipe);now=now or datetime.now(timezone.utc);when=stamp(meta,r['clock'])
+    r=validate_recipe(recipe,_stored(recipe));now=now or datetime.now(timezone.utc);when=stamp(meta,r['clock'])
     if when is None:return 'age_unknown'
     if when>now+timedelta(minutes=5) or when<now-timedelta(days=r['age_days']):return 'out_of_window'
     if any(normalized(x) in normalized(PurePosixPath(path).stem) for x in r['names']):return 'match'

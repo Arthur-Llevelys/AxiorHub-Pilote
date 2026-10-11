@@ -1,0 +1,20 @@
+{
+  "version": "5.6.32",
+  "base": "5.6.31 publiée",
+  "date_utc": "2026-10-11T00:00:00+00:00",
+  "cahier_des_charges": "Cahier des charges additionnel AxiorHub Pilote — guide d’installation et veille (version révisée du 10 octobre 2026), deuxième livraison : R06, R07, R08, R10, R11, R12, R13, R14, R15, R16, R17 (écrans métier), README traduits ; matrice CONFORMITE-5.6.32.md",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1735,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 70,
+    "note": "Aucun échec (suite complète depuis l’archive extraite et depuis l’arborescence de travail)."
+  },
+  "new_tests": "tests/test_v5632.py : ouverture sans blocage sous verrou d’écriture, écritures facultatives, 503 avec rechargement, transaction validée avant un appel réseau, User-Agent, garde de contexte et relance de l’IA, audit incrémental, tests métier quotidiens, tâches 412, habitudes de style, dossiers de travail (variables, reconnaissance, création à la demande, règles des agents), résumé oral (règles, contrôle des nombres, file unique), messagerie (signature, police, copie cachée, règles de classement après lecture par l’agent), traduction des écrans, guide (agendas, facturation, téléphonie, sources, veille), modèles Word (balises, exemple), contraste des menus en thème clair.",
+  "adjusted_tests": [
+    "tests/test_v5631.py : version du guide d’utilisation 5.6.32 (fiches veille et compétences)",
+    "tests/test_upgrade.py : mise à jour depuis 5.6.31"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "builtin.approbation_comptes",
+  "name": "Approbation des comptes d’une société",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "AxiorHub (création originale)",
+  "license": "AGPL-3.0",
+  "source": "",
+  "instructions": ["SKILL.md"],
+  "jurisdictions": ["FR"],
+  "description": "Projets d’approbation des comptes annuels (SARL, EURL, SAS, SASU) : questions progressives, calculs traçables, convocation, résolutions, procès-verbal ou décision de l’associé unique, formalités.",
+  "situations": ["approbation des comptes", "assemblée générale", "décision de l’associé unique", "affectation du résultat", "comptes annuels", "dépôt des comptes"],
+  "auto_select_tags": ["approbation des comptes", "comptes annuels", "assemblée générale", "associé unique", "affectation du résultat", "dividendes", "sarl", "eurl", "sas", "sasu", "exercice"],
+  "requires": {"analysis": ["storage.read", "ai.generate"], "verified_draft": ["storage.read", "ai.generate", "legal.text", "docx.generate"]},
+  "input_schema": "schemas/accounts-input.json",
+  "output_schema": "schemas/accounts-output.json"
+}

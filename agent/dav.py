@@ -388,7 +388,8 @@ class DAV:
                  'If-Match':etag} if etag else {
                  'Content-Type':'text/calendar; charset=utf-8','If-None-Match':'*'}
         self.http.request('PUT',url,'\r\n'.join(lines).encode(),headers,100000)
-        return {'uid':uid,'url':url,'status':status}
+        new_etag=next((v for k,v in (getattr(self.http,'last_headers',{}) or {}).items() if str(k).lower()=='etag'),'')
+        return {'uid':uid,'url':url,'status':status,'etag':new_etag}   # 5.6.32 : nouvelle version renvoyée par Nextcloud
 
     def delete_event(self, calendar, uid, etag=''):
         """Supprime un événement créé par AxiorHub (identifiant axiorhub-<64 hex>) ; jamais un événement d'un tiers."""

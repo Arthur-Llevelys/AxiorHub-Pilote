@@ -3,6 +3,45 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.32 — Veille planifiée, sources juridiques, compétences, documents de procédure, écrans traduits, interface sans blocage
+
+Cahier des charges additionnel, deuxième livraison. Matrice de conformité : `CONFORMITE-5.6.32.md`. Tests : `tests/test_v5632.py`.
+
+### Corrections
+- **Interface qui se bloquait** (« Interface indisponible », retour après rechargement) : l’affichage d’une page réécrivait des données
+  par défaut à l’ouverture de la base et attendait la fin des travaux de fond. Le schéma est désormais préparé une fois par processus,
+  l’affichage n’écrit plus rien, attend au plus 2 secondes, saute les écritures facultatives si la base est occupée et, au pire,
+  affiche « Un instant… » avec rechargement automatique. Une transaction ouverte est validée avant tout appel réseau (IA, Nextcloud,
+  messagerie, connecteurs). Les erreurs d’interface sont consignées dans `erreurs-interface.log`.
+- **Erreur 412 sur les tâches Nextcloud** : version de la tâche mise à jour après chaque écriture ; une version périmée est relue et
+  rapprochée au lieu d’échouer ; une tâche présente plusieurs fois change d’état partout ; plus de tâches « Relire : … » en double.
+- **Habitudes de style** : la longueur n’est plus une habitude à valider mais un repère automatique ; plan proposé seulement avec au
+  moins trois vraies parties ; nouvelles habitudes utiles (numérotation, présentation des décisions citées, intitulé du dispositif) ;
+  chaque proposition dit ce qu’elle changera.
+- **Tests métier continus** : une fois par jour, vérification incrémentale de la chaîne d’audit.
+- **Lisibilité en thème clair** : élément courant du menu « Toutes les fonctions » ; barre latérale recouverte sur Studio de production.
+
+### Nouveautés
+- **Examen du dossier entier** : fiche par pièce (faits datés avec la page, demandes, montants, références) ; l’IA examine toutes les
+  pièces au niveau de détail que permet sa mémoire de travail, couverture affichée ; plus de « La génération a atteint sa limite » sur
+  un dossier volumineux (garde de contexte et relance d’une réponse coupée).
+- **Sources juridiques** (Paramètres › Sources juridiques et guide) : JusticeLibre sans clé, OpenLegi, GoodLegal, LibreJustice, Legal
+  Data Hunter ; vérification à niveaux séparés et activation après accord sur les données externes.
+- **Contrôle des références** dans « Vérifier » : articles, lois, pourvois, décisions, ECLI et citations contrôlés à la date utile.
+- **Veille juridique planifiée** : thèmes, flux officiels, source juridique, Tavily ; cadre dans Aujourd’hui et page de lecture.
+- **Compétences de l’IA** : trois intégrées (dont l’assistant juridique de Christophe Quézel-Ambrunaz, AGPL-3.0), création, import,
+  copie, versions, choix automatique ou manuel.
+- **Documents de procédure → agenda → brouillons** depuis la page du dossier, sans envoi.
+- **Dossiers de travail** (NOS PIECES, PIECES ADVERSES - {{partie_adverse01}}…) réglables dans Mon style, complétés avec les parties
+  adverses de chaque dossier.
+- **Résumé oral du briefing** à lire ou à écouter (synthèse vocale du cabinet).
+- **Messagerie** : signature, police, copie cachée automatique, règles de classement vers un sous-dossier.
+- **Guide d’installation** : étapes réelles pour les agendas, Invoice Ninja et Twilio (champs et vérification), sources et veille.
+- **Modèles Word** : aide aux balises et modèle d’exemple fictif à télécharger.
+- **Écrans métier en anglais, allemand et espagnol** (dictionnaire de 2 799 phrases relevées sur les écrans réels ; les données ne sont
+  jamais traduites).
+- **README** en anglais, allemand et espagnol.
+
 ## 5.6.31 — Guide d’installation pas à pas, interface en quatre langues, menu « Toutes les fonctions », guide d’utilisation
 
 Cahier des charges additionnel (guide d’installation et veille), premier lot livré : fiches R00, R01, R02, R17, R18 et R19.

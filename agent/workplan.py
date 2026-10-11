@@ -530,6 +530,41 @@ def apply_plan(desk,args,dav=None):
     return result
 
 
+def _remote_task(client,row):
+    """Tâche telle qu'elle est maintenant dans Nextcloud (version et état) ; None si elle n'y existe plus."""
+    tz=ZoneInfo('Europe/Paris')
+    for task in client.todos([row['calendar_url']],tz,2000):
+        if task.get('uid')==row['external_uid']:return task
+    return None
+
+
+def _put_task(desk,client,row,title,description,starts,due,state,priority,percent):
+    """5.6.32 : écriture d'une tâche avec sa version. Si Nextcloud répond 412 (version périmée : la tâche a changé depuis la dernière
+    lecture, par exemple cochée juste avant), la tâche est relue : déjà dans l'état demandé → rien à refaire ; sinon une seule nouvelle
+    tentative avec la version actuelle. La nouvelle version est conservée pour TOUTES les lignes locales de cette tâche."""
+    remote_state=REMOTE_STATES[state]
+    try:
+        result=client.put_todo(row['calendar_url'],row['external_uid'],title,description,starts or None,due or None,remote_state,priority,percent,row['etag'])
+        etag=result.get('etag','') if isinstance(result,dict) else ''
+    except Stop as ex:
+        if str(ex)!='http_412':raise
+        current=_remote_task(client,row)
+        if current is None:
+            if state=='cancelled':etag=''          # supprimée dans Nextcloud entre-temps : l'annulation est acquise
+            else:raise Stop('tache_supprimee_dans_nextcloud') from None
+        elif current.get('status')==remote_state and current.get('title')==title:
+            etag=current.get('etag','')            # déjà dans l'état demandé (autre écran, doublon local) : aucune écriture
+        else:
+            result=client.put_todo(row['calendar_url'],row['external_uid'],title,description,starts or None,due or None,remote_state,priority,percent,current.get('etag',''))
+            etag=result.get('etag','') if isinstance(result,dict) else ''
+    if not etag:
+        try:
+            current=_remote_task(client,row) if hasattr(client,'todos') else None;etag=current.get('etag','') if current else ''
+        except Exception:etag=''   # noqa: BLE001 — relecture facultative : la prochaine synchronisation relira la version
+    desk.db.execute('UPDATE work_tasks_v211 SET etag=? WHERE external_uid=?',(etag,row['external_uid']))
+    return etag
+
+
 def update_task_status(desk,args,dav=None):
     ensure_schema(desk);tid=str(args.get('task',''));state=str(args.get('status',''))
     if state not in TASK_STATES-{'blocked'}:raise Stop('etat_tache_invalide')
@@ -537,9 +572,9 @@ def update_task_status(desk,args,dav=None):
     if not row:raise Stop('tache_absente')
     if not row['external_uid'].startswith('axiorhub-'):raise Stop('tache_externe_lecture_seule')
     client=dav or _dav(desk);percent=100 if state=='completed' else (50 if state=='in_progress' else 0)
-    client.put_todo(row['calendar_url'],row['external_uid'],row['title'],row['description'],
-      row['starts'] or None,row['due'] or None,REMOTE_STATES[state],row['priority'],percent,row['etag'])
-    desk.db.execute('UPDATE work_tasks_v211 SET status=?,updated=?,synced=? WHERE id=?',(state,desk.now(),desk.now(),tid))
+    _put_task(desk,client,row,row['title'],row['description'],row['starts'],row['due'],state,row['priority'],percent)
+    # 5.6.32 : une même tâche Nextcloud présente plusieurs fois localement change d'état partout (plus de doublon resté ouvert).
+    desk.db.execute('UPDATE work_tasks_v211 SET status=?,updated=?,synced=? WHERE external_uid=?',(state,desk.now(),desk.now(),row['external_uid']))
     desk.db.execute('UPDATE tasks SET status=? WHERE id=?',('closed' if state in ('completed','cancelled') else 'open',tid));desk.db.commit()
     desk.audit('task_status_changed',{'task':tid,'status':state});return {'task':tid,'status':state,'nextcloud_updated':True}
 
@@ -555,9 +590,8 @@ def edit_task(desk,args,dav=None):
     if due:
         try:datetime.fromisoformat(due if 'T' in due else due+'T17:00:00+02:00')
         except ValueError:raise Stop('date_tache_invalide') from None
-    client=dav or _dav(desk);client.put_todo(row['calendar_url'],row['external_uid'],title,row['description'],
-      row['starts'] or None,due or None,REMOTE_STATES[row['status']],row['priority'],
-      100 if row['status']=='completed' else 0,row['etag'])
+    client=dav or _dav(desk)
+    _put_task(desk,client,row,title,row['description'],row['starts'],due,row['status'],row['priority'],100 if row['status']=='completed' else 0)
     desk.db.execute('UPDATE work_tasks_v211 SET title=?,due=?,updated=?,synced=? WHERE id=?',
                     (title,due,desk.now(),desk.now(),tid))
     desk.db.execute('UPDATE tasks SET title=?,due=? WHERE id=?',(title,due,tid));desk.db.commit()

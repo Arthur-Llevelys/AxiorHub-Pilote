@@ -501,7 +501,8 @@ class Engine:
             if citation_report:
                 report['citations'] = {'headline': citation_report['headline'], 'counts': citation_report['counts'],
                                        'needs_check': citation_report['needs_check']}
-            draft = mark_message(make_draft(mail, cfg['mail'], body, key, cc=reply_cc), citations_marked)
+            from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
+            draft = mark_message(add_agent_bcc(cfg['state_dir'], make_draft(mail, cfg['mail'], body, key, cc=reply_cc)), citations_marked)
             report['draft_message_id'] = draft_mid
             report['draft_expected_headers']={header:str(draft[header]) for header in
               ('Message-ID','From','To','Cc','Subject','In-Reply-To','References','X-AxiorHub-Draft-Key') if draft.get(header)}

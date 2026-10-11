@@ -212,6 +212,11 @@ def _candidates(desk,ident,ids):
 
 
 def _move(desk,client,run,matter,raw,proof,folder='PROCEDURE'):
+    if '{{' in folder:   # 5.6.32 : dossier de travail à variables, complété avec les parties adverses de CE dossier
+        from .dossiers5632 import VAR,_values
+        values=_values(desk,matter);missing=[v for v in VAR.findall(folder) if not values.get(v)]
+        if missing:raise Stop('partie_adverse_non_renseignee')
+        folder=VAR.sub(lambda x:values[x.group(1)],folder)
     destination=clean_path(matter['path']+'/'+folder+'/'+PurePosixPath(run['path']).name)
     old=_previous(desk,run['id'],'file_procedure')
     if old and old['proof'].get('destination'):destination=old['proof']['destination']

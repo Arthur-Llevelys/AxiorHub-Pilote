@@ -998,6 +998,9 @@ def routines_html(desk, prefix):
         if rep:
             body = '<p class="c530-note">%s</p>%s' % (e('Produit le ' + _local(desk, rep['created'], '%H:%M')), r5.render_markdown(rep['text']))
             body += ''.join('<p class="c530-note">%s</p>' % e(n) for n in (rep['notes'] or []))
+            if kind == 'briefing':   # 5.6.32 : résumé oral, à lire ou à écouter
+                from .oral5632 import panel_html
+                body += panel_html(rep['id'])
         else:
             body = '<p class="c530-empty">Pas encore produit.</p>'
         body += '<form class="m5-form m5-inline" data-api="m530/routine" data-reload="1"><input type="hidden" name="kind" value="%s"><button class="ax-btn ghost" type="submit">Générer maintenant</button></form>' % kind
@@ -1080,11 +1083,12 @@ def page(desk, prefix, csrf='', owner='cabinet'):
     when = '%s %d %s %d' % (days[now.weekday()].capitalize(), now.day, months[now.month - 1], now.year)
     options = ''.join('<option value="%s">%s</option>' % (e(mid, quote=True), e(label)) for mid, label in sorted(_labels(desk).items(), key=lambda kv: fold(kv[1])))
     header = header_html(desk).replace('href="diagnostic"', 'href="%s"' % e(prefix + '/diagnostic', quote=True))
-    return ('<div class="c530" id="c530" data-prefix="%s">'
+    html = ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
             # 5.6.17 : le cadre « Routines du cabinet » (briefing, tri, bilan, documents) est en tête de page, avant le Pilote.
             '<div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section>'
-            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section></div>'
+            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section>'
+            '<section class="c530-card" id="c5632-veille" aria-labelledby="c5632-t-veille">__VEILLE5632__</section></div>'
             # 5.6.19 : le Pilote est la fenêtre flottante (bouton robot) ; l'ancien composeur reste masqué (script v530 toujours lié).
             '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer hidden>%s'
             '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
@@ -1112,6 +1116,18 @@ def page(desk, prefix, csrf='', owner='cabinet'):
         thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
         review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
+    return html.replace('__VEILLE5632__', veille_card(desk, prefix, owner))
+
+
+def veille_card(desk, prefix, owner='cabinet'):
+    """5.6.32 (VJ01) : cadre « Veille juridique » ; une erreur de la veille ne doit jamais empêcher l'affichage d'Aujourd'hui."""
+    try:
+        from .veille5632 import card_html
+        return card_html(desk, prefix, owner)
+    except Exception as ex:   # noqa: BLE001 — cadre facultatif
+        import logging
+        logging.getLogger(__name__).warning('veille5632 card: %s', ex)
+        return '<h2 id="c5632-t-veille">Veille juridique</h2><p>Veille momentanément indisponible.</p>'
 
 
 PARTS = {'thread': thread_html, 'review': review_html, 'feed': feed_html, 'day': day_html}

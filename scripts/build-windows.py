@@ -25,8 +25,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ('web.py', 'manage.py', 'poste.py', 'standalone.py', 'localpaths.py', 'docker/bootstrap.py')
-DATA_DIRS = ('agent', 'templates', 'examples', 'docs', 'integrations/openwebui', 'windows')
-DATA_FILES = SCRIPTS + ('LICENSE', 'NOTICE', 'AUTHORS.md', 'THIRD_PARTY_NOTICES.md', 'LOGO-LICENSE.md', 'TRADEMARKS.md', 'README.md', 'CHANGELOG.md')
+DATA_DIRS = ('agent', 'templates', 'examples', 'docs', 'integrations/openwebui', 'windows', 'resources')
+DATA_FILES = SCRIPTS + ('LICENSE', 'NOTICE', 'AUTHORS.md', 'THIRD_PARTY_NOTICES.md', 'LOGO-LICENSE.md', 'TRADEMARKS.md', 'README.md', 'README.en.md', 'README.de.md', 'README.es.md', 'CHANGELOG.md')
 THIRD_PARTY = ('waitress', 'cryptography', 'pypdf', 'tzdata', 'pypdfium2')   # 5.6.30 : pypdfium2 = rendu des pages sans Poppler
 EXCLUDES = ('gi', 'pytest', 'IPython', 'matplotlib', 'numpy', 'PIL', 'lxml', 'docx')
 

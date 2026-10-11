@@ -15,7 +15,8 @@ SETTING = 'ai:economy_enabled'
 QUOTA_SETTING = 'ai:economy_daily_jobs'
 DEFAULT_QUOTA = 20
 # Minutes entre deux contrôles périodiques : (régime complet, régime économe).
-INTERVALS = {'health': (30, 120), 'refresh_cabinet_pilotage': (30, 120), 'run_continuous_business_tests': (60, 1440),
+INTERVALS = {'health': (30, 120), 'refresh_cabinet_pilotage': (30, 120), 'run_continuous_business_tests': (1440, 1440),   # 5.6.32 : une fois par jour (contrôles de cohérence, sans IA)
+            
              'production_cycle391': (5, 15), 'classify_portfolio': (360, 1440), 'reconcile_inbox': (15, 60),
              'monitor_all': (30, 120), 'index_all': (360, 1440)}
 # Travaux automatiques qui appellent le modèle : soumis au quota journalier (jamais les demandes de l'avocat).

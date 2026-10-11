@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Politique RGPD — données d’entrée",
+  "type": "object",
+  "required": ["responsable"],
+  "properties": {
+    "responsable": {"type": "object", "properties": {"nom": {"type": "string"}, "adresse": {"type": "string"}, "contact": {"type": "string"}, "dpo": {"type": "string"}}},
+    "publics": {"type": "array", "items": {"type": "string"}},
+    "traitements": {"type": "array", "items": {"type": "object", "properties": {
+      "finalite": {"type": "string"}, "donnees": {"type": "array", "items": {"type": "string"}}, "base_juridique_envisagee": {"type": "string"},
+      "base_juridique_confirmee": {"type": "boolean"}, "destinataires": {"type": "array", "items": {"type": "string"}},
+      "sous_traitants": {"type": "array", "items": {"type": "string"}}, "transferts_hors_ue": {"enum": ["oui", "non", "inconnu"]},
+      "conservation": {"type": "string"}, "decision_automatisee": {"enum": ["oui", "non", "inconnu"]}}}},
+    "cookies": {"enum": ["oui", "non", "inconnu"]},
+    "langues": {"type": "array", "items": {"enum": ["fr", "en", "de", "es"]}},
+    "documents": {"type": "array", "items": {"type": "object", "properties": {"chemin": {"type": "string"}, "nature": {"type": "string"}}}}
+  }
+}

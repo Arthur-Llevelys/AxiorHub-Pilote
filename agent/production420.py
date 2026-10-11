@@ -517,7 +517,7 @@ def metrics(desk, days=30):
       'openrouter_cost_by_matter':cost_by_matter,
       'failed_or_blocked':status.get('error',0)+status.get('abstained',0),**reviews}
     day=datetime.now(timezone.utc).date().isoformat()
-    desk.db.execute('INSERT OR REPLACE INTO production_metric_snapshots_v420 VALUES(?,?,?)',(day,json.dumps(result,ensure_ascii=False),desk.now()));desk.db.commit()
+    desk.soft_write('INSERT OR REPLACE INTO production_metric_snapshots_v420 VALUES(?,?,?)',(day,json.dumps(result,ensure_ascii=False),desk.now()))   # 5.6.32
     return result
 
 

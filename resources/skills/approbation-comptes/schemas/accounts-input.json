@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Approbation des comptes — données d’entrée",
+  "type": "object",
+  "required": ["societe", "exercice"],
+  "properties": {
+    "societe": {"type": "object", "required": ["denomination", "forme"], "properties": {
+      "denomination": {"type": "string"}, "forme": {"enum": ["SARL", "EURL", "SAS", "SASU", "autre"]}, "rcs": {"type": "string"},
+      "siege": {"type": "string"}, "statuts_version": {"type": "string", "description": "date ou version des statuts à jour"}}},
+    "exercice": {"type": "object", "required": ["debut", "cloture"], "properties": {
+      "debut": {"type": "string", "format": "date"}, "cloture": {"type": "string", "format": "date"}}},
+    "associes": {"type": "array", "items": {"type": "object", "properties": {"nom": {"type": "string"}, "parts_ou_actions": {"type": "string"}, "droits_de_vote": {"type": "string"}}}},
+    "dirigeants": {"type": "array", "items": {"type": "object", "properties": {"nom": {"type": "string"}, "fonction": {"type": "string"}}}},
+    "comptes": {"type": "object", "properties": {"resultat": {"type": "string", "description": "montant décimal en texte, ex. 12345.67"}, "devise": {"type": "string", "default": "EUR"},
+      "report_a_nouveau_anterieur": {"type": "string"}, "reserve_legale_actuelle": {"type": "string"}, "capital": {"type": "string"}}},
+    "affectation_envisagee": {"type": "string"},
+    "documents": {"type": "array", "items": {"type": "object", "properties": {"chemin": {"type": "string"}, "nature": {"type": "string"}}}}
+  }
+}

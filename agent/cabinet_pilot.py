@@ -450,9 +450,28 @@ def transcript_preview(desk,pid):
     item['safety']={'email_sent':False,'document_created':False,'task_created':False};return item
 
 
+def audit_verify(desk,full_days=7):
+    """5.6.32 : vérification incrémentale de la chaîne d'audit depuis le dernier point contrôlé (relecture complète une fois par
+    semaine). Avant, tout le journal était relu et rehaché à chaque passage, de plus en plus long à mesure qu'il grandit."""
+    ensure_schema(desk)
+    point=desk.settings('audit_chain:checkpoint5632',{}) or {}
+    full=not point or point.get('full_at','')<(datetime.now(timezone.utc)-timedelta(days=full_days)).isoformat()
+    seq=0 if full else int(point.get('seq',0));previous='' if full else str(point.get('hash',''))
+    count=0
+    for row in desk.db.execute('SELECT * FROM audit_chain_v290 WHERE seq>? ORDER BY seq',(seq,)):
+        actual=hashlib.sha256(str(row['payload']).encode()).hexdigest()
+        expected=hashlib.sha256((previous+'\n'+row['at']+'\n'+row['action']+'\n'+row['payload_hash']).encode()).hexdigest()
+        if row['payload_hash']!=actual or row['previous_hash']!=previous or row['event_hash']!=expected:
+            return {'valid':False,'broken_at':row['seq'],'checked':count,'full':full}
+        previous=row['event_hash'];seq=row['seq'];count+=1
+    desk.soft_write('INSERT OR REPLACE INTO settings VALUES(?,?)',('audit_chain:checkpoint5632',json.dumps(
+        {'seq':seq,'hash':previous,'full_at':datetime.now(timezone.utc).isoformat() if full else point.get('full_at',''),'at':datetime.now(timezone.utc).isoformat()})))
+    return {'valid':True,'broken_at':None,'checked':count,'full':full}
+
+
 def run_business_tests(desk,args=None):
     ensure_schema(desk);checks=[]
-    audit=audit_status(desk,1);checks.append({'name':'audit_chain','ok':audit['valid'],'detail':audit.get('broken_at')})
+    audit=audit_verify(desk);checks.append({'name':'audit_chain','ok':audit['valid'],'detail':audit.get('broken_at'),'checked':audit['checked'],'full':audit['full']})
     invalid=desk.db.execute("SELECT COUNT(*) FROM cabinet_decisions_v290 WHERE risk NOT IN ('low','medium','high','critical') OR status NOT IN ('pending','approved','rejected','snoozed','superseded')").fetchone()[0]
     checks.append({'name':'decision_enums','ok':invalid==0,'detail':invalid})
     unsafe=0

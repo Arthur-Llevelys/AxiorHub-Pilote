@@ -1,0 +1,111 @@
+/* AxiorHub 5.6.32 — sources juridiques, contrôle des références, veille, compétences, documents de procédure, dossiers de travail. */
+:root{--x32-ink:#1f2a3a;--x32-mute:#5b6676;--x32-line:#dfe3e9;--x32-card:#fff;--x32-soft:#f4f7fd;--x32-accent:#1f4e9c;--x32-ok:#1e7a46;--x32-bad:#b42318;--x32-warn:#8a5a00}
+[data-theme=dark]{--x32-ink:#e8ecf2;--x32-mute:#9aa6b6;--x32-line:#2b3441;--x32-card:#1a2029;--x32-soft:#1f2937;--x32-accent:#6ea0f0;--x32-ok:#5cc47f;--x32-bad:#ff8a80;--x32-warn:#f0c060}
+
+/* --- formulaires génériques */
+.f5632{display:grid;gap:10px;margin:8px 0}
+.f5632 label{display:grid;gap:4px;font-weight:600;font-size:13px;color:var(--x32-ink);min-width:0}
+.f5632 input:not([type=checkbox]):not([type=radio]),.f5632 select,.f5632 textarea{width:100%;box-sizing:border-box;font:inherit;font-weight:400;padding:8px 10px;border:1px solid var(--x32-line);border-radius:8px;background:var(--x32-card);color:var(--x32-ink)}
+.f5632 label.f5632-check{display:flex;gap:8px;align-items:center;font-weight:400}
+.f5632 button[type=submit]{justify-self:start;padding:9px 16px;border:0;border-radius:8px;background:var(--x32-accent);color:#fff;font-weight:700;cursor:pointer}
+.f5632 button[aria-busy=true]{opacity:.6;cursor:progress}
+.f5632 fieldset{border:1px solid var(--x32-line);border-radius:10px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px}
+.f5632 legend{font-weight:700;font-size:13px;padding:0 4px}
+.f5632-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.f5632-hint{color:var(--x32-mute);font-size:13px;margin:4px 0}
+.f5632-out{margin:0;font-size:13px;color:var(--x32-ok);min-height:1em}
+.f5632-out.bad{color:var(--x32-bad)}
+
+/* --- sources juridiques */
+.s5632-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.s5632-card{border:1px solid var(--x32-line);border-radius:12px;padding:14px;background:var(--x32-card)}
+.s5632-card h3{margin:0 0 6px;font-size:16px}
+.s5632-card h3 small{font-weight:600;color:var(--x32-mute);font-size:12px;margin-left:6px}
+.s5632-actions{display:flex;gap:8px;flex-wrap:wrap}
+.s5632-actions .f5632{margin:0}
+.s5632-levels{font-size:12px;color:var(--x32-mute)}
+
+/* --- contrôle des références */
+.c5632-report{margin-top:12px}
+.c5632-report table{width:100%;border-collapse:collapse;font-size:13px}
+.c5632-report th,.c5632-report td{border-bottom:1px solid var(--x32-line);padding:6px 8px;text-align:left;vertical-align:top}
+.c5632-state{display:inline-block;padding:1px 8px;border-radius:9px;font-size:11px;font-weight:700;background:var(--x32-soft);color:var(--x32-ink)}
+.c5632-state.controlee{background:#e3f4ea;color:var(--x32-ok)}
+.c5632-state.anomalie{background:#fde8e6;color:var(--x32-bad)}
+.c5632-state.a_verifier{background:#fff4dc;color:var(--x32-warn)}
+
+/* --- veille */
+.v5632-list,.v5632-items{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.v5632-list li,.v5632-items li{display:grid;gap:2px}
+.v5632-list small,.v5632-items small{color:var(--x32-mute);font-size:12px}
+.v5632-items li{border:1px solid var(--x32-line);border-radius:10px;padding:10px 12px;background:var(--x32-card)}
+.v5632-items li[data-status=read]{opacity:.75}
+.v5632-reason{font-size:12px;color:var(--x32-mute);margin:0}
+.v5632-actions,.v5632-item-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.v5632-item-actions .f5632{margin:0}
+.v5632-partial{color:var(--x32-warn);font-size:13px}
+.v5632-meta,.v5632-more{color:var(--x32-mute);font-size:12px}
+
+/* --- compétences */
+.k5632-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:12px 0}
+.k5632-card{border:1px solid var(--x32-line);border-radius:12px;padding:14px;background:var(--x32-card)}
+.k5632-card[data-enabled="0"]{opacity:.8}
+.k5632-card h3{margin:0 0 6px;font-size:16px}
+.k5632-card h3 small{color:var(--x32-mute);font-weight:600;font-size:12px}
+.k5632-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.k5632-actions .f5632{margin:0}
+.k5632-missing{color:var(--x32-bad);font-size:13px}
+.k5632-partial{color:var(--x32-warn);font-size:13px}
+
+/* --- documents de procédure et dossiers de travail (page du dossier) */
+.d5632{border:1px solid var(--x32-line);border-radius:12px;padding:14px;margin:14px 0;background:var(--x32-card)}
+.d5632 h2{margin:0 0 6px;font-size:17px}
+.d5632-docs{max-height:260px;overflow:auto}
+.d5632-events{display:grid;gap:10px;padding-left:20px}
+.d5632-event blockquote{margin:6px 0;padding:6px 10px;border-left:3px solid var(--x32-line);color:var(--x32-mute);font-size:13px}
+.d5632-check{border-left:3px solid var(--x32-warn);padding-left:8px}
+.d5632-targets,.d5632-actions{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.d5632-actions .on{background:var(--x32-accent);color:#fff}
+.d5632-warn{color:var(--x32-warn);font-size:13px;margin:4px 0}
+.d5632-ok{color:var(--x32-ok);font-size:13px;margin:4px 0}
+.d5632-empty{color:var(--x32-mute)}
+
+/* --- Mon style › Réglages : autres dossiers de travail */
+.s5632-folders{border:1px solid var(--ax-line,var(--x32-line));border-radius:10px;padding:10px 12px;margin:10px 0;display:grid;gap:8px}
+.s5632-folders legend{font-weight:700;font-size:13px;padding:0 4px}
+.s5632-folders code{font-size:12px;background:var(--x32-soft);padding:0 4px;border-radius:4px}
+.s5632-folder{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+.s5632-folder[hidden]{display:none}
+@media (max-width:640px){.s5632-folder{grid-template-columns:1fr}.s5632-folder .s5632-del{justify-self:start}}
+
+/* --- Aujourd'hui : résumé oral du briefing */
+.o5632{margin:12px 0 4px;border-top:1px solid var(--x32-line);padding-top:10px}
+.o5632-bar{display:flex;gap:8px;flex-wrap:wrap}
+.o5632-text{margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--x32-soft);color:var(--x32-ink);line-height:1.6;max-width:72ch}
+.o5632-text p{margin:0 0 .8em}
+.o5632-note{font-size:12px;color:var(--x32-mute);margin:6px 0 0}
+.o5632 [hidden],.s5632-folders [hidden]{display:none!important}
+
+/* --- Paramètres › Messagerie */
+.m5632-sig{min-height:90px;border:1px solid var(--x32-line);border-radius:8px;padding:10px;background:var(--x32-card);color:var(--x32-ink)}
+.m5632-sigbar{display:flex;gap:4px;margin-bottom:4px}
+.m5632-sigbar button{min-width:32px;padding:4px 8px;border:1px solid var(--x32-line);border-radius:6px;background:var(--x32-soft);color:var(--x32-ink);cursor:pointer}
+.m5632-rules,.m5632-log{list-style:none;padding:0;margin:8px 0;display:grid;gap:6px}
+.m5632-rule{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;border:1px solid var(--x32-line);border-radius:10px;padding:8px 12px;background:var(--x32-card)}
+.m5632-rule[data-enabled="0"]{opacity:.7}
+.m5632-rule-actions{display:flex;gap:6px}
+.m5632-rule-actions .f5632{margin:0}
+.m5632-log li{font-size:13px;color:var(--x32-mute)}
+
+/* 5.6.32 : un <aside> placé dans le contenu (estimation du Studio de production, volets de relecture) ne reprend plus le style de la
+   barre latérale (position fixe à gauche, fond sombre, texte clair), qui recouvrait le menu en thème clair. Spécificité 0,0,2 : au-dessus
+   des règles génériques « aside{…} », en dessous des règles propres aux pages (.review391-workspace>aside…). */
+main aside:where(:not([id])){position:static;inset:auto;width:auto;height:auto;min-height:0;z-index:auto;overflow:visible;transition:none;
+  display:block;background:transparent;color:inherit;padding:0}
+
+/* --- Modèles Word : aide aux balises (R08) */
+.m5632-tags{border:1px solid var(--x32-line);border-radius:12px;padding:14px;margin:14px 0;background:var(--x32-card)}
+.m5632-table{overflow-x:auto}
+.m5632-tags table{width:100%;border-collapse:collapse;font-size:13px}
+.m5632-tags th,.m5632-tags td{border-bottom:1px solid var(--x32-line);padding:6px 8px;text-align:left;vertical-align:top}
+.m5632-tags code{background:var(--x32-soft);padding:0 4px;border-radius:4px}

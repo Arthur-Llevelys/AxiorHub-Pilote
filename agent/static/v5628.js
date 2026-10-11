@@ -108,7 +108,8 @@
       if (hidden) row.hidden = true;
       return row;
     };
-    var to = field('À', 'to', t.to), cc = field('Cc', 'cc', t.cc, !t.cc), bcc = field('Cci', 'bcc', t.bcc, true), subject = field('Objet', 'subject', t.subject);
+    // 5.6.32 : la copie cachée automatique (Paramètres › Messagerie) est visible et modifiable
+    var to = field('À', 'to', t.to), cc = field('Cc', 'cc', t.cc, !t.cc), bcc = field('Cci', 'bcc', t.bcc, !t.bcc), subject = field('Objet', 'subject', t.subject);
     var toggles = el('div', { 'class': 'bx5628-toggles' });
     [['Cc', cc], ['Cci', bcc]].forEach(function (p) {
       if (!p[1].hidden) return;
@@ -121,6 +122,7 @@
     // barre de mise en forme
     var editor = el('div', { 'class': 'bx5628-editor', contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Texte du message' });
     editor.innerHTML = t.html || '<p><br></p>';
+    if (t.font) editor.style.cssText = t.font;   // 5.6.32 : police choisie (posée aussi par le serveur sur le message envoyé)
     var fmt = el('div', { 'class': 'bx5628-fmt', role: 'toolbar', 'aria-label': 'Mise en forme' });
     [['B', 'bold', 'Gras'], ['I', 'italic', 'Italique'], ['U', 'underline', 'Souligné'], ['S', 'strikeThrough', 'Barré'], ['• Liste', 'insertUnorderedList', 'Liste à puces'],
      ['1. Liste', 'insertOrderedList', 'Liste numérotée'], ['❝ Citation', 'formatBlock:blockquote', 'Citation'], ['🔗 Lien', 'link', 'Insérer un lien'],
@@ -223,5 +225,8 @@
     var b = el('button', { type: 'button', 'class': 'ax-btn bx5628-new', text: '✉ Nouveau message' });
     b.addEventListener('click', function () { if (window.axh5625Ctx) compose('nouveau', null, window.axh5625Ctx()); });
     head.insertBefore(b, head.firstChild.nextSibling);
+    // 5.6.32 : signature, police et règles de la messagerie
+    var s = el('a', { 'class': 'ax-btn ghost bx5632-settings', href: prefix + '/parametres?rubrique=messagerie', text: '⚙ Signature et règles' });
+    head.insertBefore(s, b.nextSibling);
   });
 })();

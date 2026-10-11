@@ -21,7 +21,7 @@ COMPLEX_STAGES = {'strategy_analysis', 'evidence_matrix', 'act_project',
     'document_project', 'hearing_preparation', 'word_revision_plan',
     'legal_opinion_simulation', 'opinion_control', 'second_model_review',
     'mail_case_differential'}
-ESCALATABLE_LOCAL_ERRORS = {'generation_ia_incomplete', 'generation_ia_delai_depasse',
+ESCALATABLE_LOCAL_ERRORS = {'generation_ia_incomplete', 'contexte_ia_insuffisant', 'generation_ia_delai_depasse',
     'fournisseur_ia_injoignable', 'reponse_ia_vide', 'json_ia_invalide',
     'schema_ia_invalide', 'contexte_trop_long'}
 

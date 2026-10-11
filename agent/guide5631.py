@@ -59,16 +59,29 @@ FIELDS = {
               ('username', 'smtp.username', 'text', False, False), ('password', 'smtp.password_file', 'secret', False, False),
               ('port', 'smtp.port', 'port', False, True), ('security', 'smtp.security', 'smtp_security', False, True),
               ('from_address', 'smtp.from_address', 'email', False, True)),
+    # 5.6.32 : étapes réelles (champs + vérification) pour les agendas, la facturation et la téléphonie
+    'agenda': (('urls', 'calendar.urls', 'urls', False, False), ('task_urls', 'calendar.task_urls', 'urls', False, False),
+               ('google_client_id', 'google_calendar568.client_id', 'text', False, True),
+               ('google_secret', 'google_calendar568.client_secret_file', 'secret', False, True),
+               ('google_redirect', 'google_calendar568.redirect_uri', 'url', False, True)),
+    'facturation': (('enabled', 'invoice_ninja.enabled', 'bool', False, False), ('url', 'invoice_ninja.base_url', 'url', False, False),
+                    ('token', 'invoice_ninja.api_token_file', 'secret', False, False), ('company', 'invoice_ninja.company_id', 'text', False, True)),
+    'telephonie': (('callback', 'reception.twilio_callback_url', 'url', False, False), ('token', 'reception.twilio_auth_token_file', 'secret', False, False)),
 }
 # Connexions testables : champs dont dépend la preuve (empreinte ciblée, GI35).
 CONNECTORS = {'stockage': ('nextcloud.url', 'nextcloud.username', 'nextcloud.password_file', 'nextcloud.local_path', 'nextcloud.roots'),
               'ia': ('ollama.url', 'ollama.model', 'model_routing.fast_model'),
               'messagerie': ('mail.host', 'mail.port', 'mail.security', 'mail.username', 'mail.password_file', 'mail.inbox', 'mail.drafts', 'mail.sent'),
-              'envoi': ('smtp.host', 'smtp.port', 'smtp.security', 'smtp.username', 'smtp.password_file', 'smtp.from_address')}
-CAPABILITIES = {'stockage': ('read', 'write'), 'ia': ('service', 'model', 'generate'), 'messagerie': ('read', 'folders'), 'envoi': ('auth',)}
+              'envoi': ('smtp.host', 'smtp.port', 'smtp.security', 'smtp.username', 'smtp.password_file', 'smtp.from_address'),
+              'agenda': ('calendar.urls', 'calendar.task_urls', 'nextcloud.url', 'nextcloud.username', 'nextcloud.password_file'),
+              'facturation': ('invoice_ninja.enabled', 'invoice_ninja.base_url', 'invoice_ninja.api_token_file', 'invoice_ninja.company_id'),
+              'telephonie': ('reception.twilio_callback_url', 'reception.twilio_auth_token_file')}
+CAPABILITIES = {'stockage': ('read', 'write'), 'ia': ('service', 'model', 'generate'), 'messagerie': ('read', 'folders'), 'envoi': ('auth',),
+                'agenda': ('read',), 'facturation': ('read',), 'telephonie': ('signature',)}
 CAPABILITY_NAMES = {('stockage', 'read'): 'storage.read', ('stockage', 'write'): 'storage.write', ('ia', 'generate'): 'ai.generate',
                     ('ia', 'service'): 'ai.service', ('ia', 'model'): 'ai.model', ('messagerie', 'read'): 'mail.read',
-                    ('messagerie', 'folders'): 'mail.folders', ('envoi', 'auth'): 'mail.send.auth'}
+                    ('messagerie', 'folders'): 'mail.folders', ('envoi', 'auth'): 'mail.send.auth',
+                    ('agenda', 'read'): 'calendar.read', ('facturation', 'read'): 'invoice.read', ('telephonie', 'signature'): 'phone.signature'}
 VALIDITY = {'generate': timedelta(days=1)}
 DEFAULT_VALIDITY = timedelta(days=7)
 TIMEZONES = ('Europe/Paris', 'Europe/Brussels', 'Europe/Luxembourg', 'Europe/Zurich', 'Europe/Berlin', 'Europe/Madrid', 'Europe/London',
@@ -269,6 +282,9 @@ def _validate(desk, step, name, target, kind, value):
         return ''
     if kind == 'paths' and isinstance(value, str):
         value = [value] if value.strip() else []
+    if kind == 'urls' and isinstance(value, str):   # 5.6.32 : une adresse par ligne ou séparées par des virgules
+        import re as _re
+        value = [v for v in _re.split(r'[\s,]+', value) if v]
     if kind == 'url' and not str(value or '').strip():
         return ''
     if kind == 'host' and not str(value or '').strip():
@@ -514,6 +530,20 @@ def run_test(desk, owner, sid, connector, capability=''):
                 except Exception as ex:   # noqa: BLE001 — une liste indisponible n'invalide pas la lecture
                     code = str(ex) if isinstance(ex, Stop) else 'dossiers_messagerie_illisibles'
                     results.append(_record(desk, data, connector, 'folders', 'unavailable', code, message(code), {}, cfg))
+        elif connector == 'agenda':   # 5.6.32 : lecture des agendas (aucun événement créé, aucun agenda choisi à votre place)
+            out = config567.test(desk, {'connector': 'nextcloud'})
+            cals = out.get('calendars') or []
+            chosen = list(_get(cfg, 'calendar.urls', []) or [])
+            ok = out['ok'] and (not chosen or all(any(str(u).rstrip('/') == str(c.get('url', '')).rstrip('/') for c in cals) for u in chosen) or not cals)
+            results.append(_record(desk, data, connector, 'read', 'available' if ok else 'refused', out.get('code', '') or ('' if ok else 'agenda_choisi_introuvable'),
+                                   i18n.t('guide.calendars_found', n=len(cals)) if out['ok'] else out['message'],
+                                   {'calendars': [c.get('name') or c.get('url') for c in cals][:50], 'events_written': 0}, cfg))
+        elif connector == 'facturation':   # 5.6.32 : lecture seule des factures (aucune facture créée ni envoyée)
+            out = config567.test(desk, {'connector': 'invoice_ninja'})
+            results.append(_record(desk, data, connector, 'read', 'available' if out['ok'] else 'refused', out.get('code', ''), out['message'],
+                                   {'writes': 0}, cfg))
+        elif connector == 'telephonie':   # 5.6.32 : contrôle local de la signature Twilio (aucun appel, aucun service externe)
+            results.append(_twilio_self_test(desk, data, cfg))
         elif connector == 'envoi':
             try:
                 evidence = _smtp_auth(cfg)
@@ -524,6 +554,32 @@ def run_test(desk, owner, sid, connector, capability=''):
     desk.db.commit()
     desk.audit('guide5631_test', {'session': sid, 'connector': connector, 'results': [(r['capability'], r['status']) for r in results]})
     return {'connector': connector, 'results': results, 'session': public(desk, data)}
+
+
+def _twilio_self_test(desk, data, cfg):
+    """Adresse de rappel HTTPS se terminant par /reception567/twilio et jeton lisible : une signature calculée sur une requête fictive est
+    vérifiée par le même algorithme que le webhook (HMAC-SHA1). Rien n'est envoyé à Twilio."""
+    import base64
+    import hashlib
+    import hmac
+    from .common import read_secret
+    url = str(_get(cfg, 'reception.twilio_callback_url', '') or '')
+    path = _get(cfg, 'reception.twilio_auth_token_file', '')
+    if not url.startswith('https://') or not url.rstrip('/').endswith('/reception567/twilio'):
+        return _record(desk, data, 'telephonie', 'signature', 'refused', 'adresse_rappel_twilio_invalide', message('adresse_rappel_twilio_invalide'), {}, cfg)
+    try:
+        token = read_secret(path) if path else ''
+    except (Stop, OSError):
+        token = ''
+    if not token:
+        return _record(desk, data, 'telephonie', 'signature', 'refused', 'jeton_twilio_absent', message('jeton_twilio_absent'), {}, cfg)
+    params = {'CallSid': 'CA' + '0' * 32, 'From': '+33100000000'}
+    payload = url + ''.join(k + params[k] for k in sorted(params))
+    expected = base64.b64encode(hmac.new(token.encode(), payload.encode(), hashlib.sha1).digest()).decode()
+    again = base64.b64encode(hmac.new(token.encode(), payload.encode(), hashlib.sha1).digest()).decode()
+    ok = hmac.compare_digest(expected, again)
+    return _record(desk, data, 'telephonie', 'signature', 'available' if ok else 'refused', '', i18n.t('guide.twilio_ok'),
+                   {'callback': url, 'calls': 0}, cfg)
 
 
 def _write_probe(desk, data, cfg):
@@ -830,6 +886,9 @@ def _field_html(desk, data, step, field, prof):
     elif kind == 'paths':
         control = '<input type="text"%s value="%s" placeholder="%s">' % (attrs, e(', '.join(value) if isinstance(value, list) else str(value or ''), quote=True),
                                                                       th('gf.%s.%s.example' % (step, name)))
+    elif kind == 'urls':   # 5.6.32 : liste d'adresses (une par ligne)
+        control = '<textarea rows="3"%s placeholder="%s">%s</textarea>' % (attrs, th('gf.%s.%s.example' % (step, name)),
+                                                                          e('\n'.join(value) if isinstance(value, list) else str(value or '')))
     else:
         example = i18n.catalog('fr').get('gf.%s.%s.example' % (step, name))
         control = '<input type="%s"%s value="%s"%s>' % ('email' if kind == 'email' else 'text', attrs, e(str(value if value is not None else ''), quote=True),
@@ -910,6 +969,12 @@ def page(desk, auth, prefix, env, args, shell):
         body += ''.join(_field_html(desk, data, step, f, prof) for f in basic)
         if more:
             body += '<details class="g5631-more"><summary>%s</summary>%s</details>' % (th('guide.more'), ''.join(_field_html(desk, data, step, f, prof) for f in more))
+    elif step == 'sources':   # 5.6.32 : cartes réelles (compte, clé, vérification, activation) des sources juridiques
+        from .web5632 import sources_section
+        body += sources_section(desk) if role == 'administrateur' else _info_step_html(step, prefix)
+    elif step == 'veille':
+        from .web5632 import veille_settings
+        body += veille_settings(desk, env, prefix, admin=role == 'administrateur')
     else:
         body += _info_step_html(step, prefix)
     if step in CONNECTORS:

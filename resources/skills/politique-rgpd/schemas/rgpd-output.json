@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Politique RGPD — résultat",
+  "type": "object",
+  "required": ["informations", "manquants", "projet", "references", "reserves"],
+  "properties": {
+    "informations": {"type": "array", "items": {"type": "object", "properties": {"sujet": {"type": "string"}, "etat": {"enum": ["etablie", "a_confirmer", "manquante"]}, "source": {"type": "string"}}}},
+    "manquants": {"type": "array", "items": {"type": "string"}},
+    "projet": {"type": "object", "properties": {"etat": {"const": "projet"}, "langue": {"enum": ["fr", "en", "de", "es"]}, "champs_a_completer": {"type": "array", "items": {"type": "string"}}}},
+    "references": {"type": "array", "items": {"type": "object", "properties": {"reference": {"type": "string"}, "etat": {"enum": ["piste", "identifiee", "controlee", "a_verifier", "anomalie"]}}}},
+    "reserves": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -384,8 +384,9 @@ def active_extensions(config,purpose):
 
 
 def _legal_provider(item):
+    if item.get('provider'):return str(item['provider'])   # 5.6.32 : connecteur du catalogue sources5632
     value=' '.join(str(item.get(k,'')) for k in ('id','name','slug','author')).lower()
-    for provider in ('openlegal','openlegi','goodlegal','pappers'):
+    for provider in ('openlegal','openlegi','goodlegal','pappers','justicelibre','librejustice','legaldatahunter'):
         if provider in value:return provider
     return ''
 

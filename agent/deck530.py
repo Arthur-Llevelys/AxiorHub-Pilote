@@ -222,15 +222,28 @@ def _sync_tasks(desk, want, dav=None):
             continue
         row = mapped.get(item)
         if stack == 'À relire' and not row:
-            uid = 'axiorhub-%s@mail-agent.local' % secrets.token_hex(16)
+            # 5.6.32 : identifiant DÉTERMINÉ par le document (et non aléatoire) et lien enregistré AVANT l'écriture : un passage interrompu
+            # après la création (base occupée, coupure) ne crée plus une deuxième ou troisième tâche identique ; la tâche existante est reprise.
+            uid = 'axiorhub-%s@mail-agent.local' % digest('deck530-task|' + url + '|' + item)[:32]
             tid = digest('task530|' + uid)[:32]
             due = datetime.combine(datetime.now(tz).date(), dtime(18, 0), tz)
             name = ('Relire : ' + title)[:300]
-            client.put_todo(url, uid, name, description[:2000], None, due.isoformat(), 'NEEDS-ACTION', 5, 0, '')
             now = desk.now()
             desk.db.execute('INSERT OR REPLACE INTO work_tasks_v211 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                             (tid, uid, url, '', '*', '', name, description[:2000], '', due.isoformat(), 15, 5, 'todo', '', 'review', '', '', 'cockpit530', now, now, now))
             desk.db.execute('INSERT OR REPLACE INTO deck530_tasks VALUES(?,?,0,?)', (item, tid, now))
+            desk.db.commit()
+            try:
+                result = client.put_todo(url, uid, name, description[:2000], None, due.isoformat(), 'NEEDS-ACTION', 5, 0, '')
+                if isinstance(result, dict) and result.get('etag'):
+                    desk.db.execute('UPDATE work_tasks_v211 SET etag=? WHERE id=?', (result['etag'], tid))
+            except Stop as ex:
+                if str(ex) != 'http_412':   # 412 avec If-None-Match : la tâche existe déjà (passage précédent interrompu) — reprise
+                    desk.db.execute('DELETE FROM deck530_tasks WHERE item=?', (item,))
+                    desk.db.execute('DELETE FROM work_tasks_v211 WHERE id=?', (tid,))
+                    desk.db.commit()
+                    raise
+            desk.db.commit()
             created += 1
     for item, row in mapped.items():
         if row['done']:

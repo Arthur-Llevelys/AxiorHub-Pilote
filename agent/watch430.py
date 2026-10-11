@@ -81,6 +81,16 @@ def schedule(desk,stamp=None):
     maintenance(desk,stamp)
     from .proactive568 import schedule as schedule568
     jobs.extend(schedule568(desk,stamp))
+    try:   # 5.6.32 : règles « Déplacer » de la messagerie, toutes les 5 minutes si une règle est active
+        from .courrier5632 import schedule as schedule_rules
+        jobs.extend(schedule_rules(desk,stamp))
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Règles de messagerie : planification impossible ('+str(ex)[:120]+').',dedupe='courrier5632-schedule')
+    try:   # 5.6.32 (R12) : veille juridique planifiée, au plus un travail par utilisateur et par créneau
+        from .veille5632 import schedule as schedule5632
+        jobs.extend(schedule5632(desk,stamp))
+    except Exception as ex:   # noqa: BLE001 — la veille ne doit pas interrompre la surveillance
+        emit(desk,'blocked','Veille juridique : planification impossible ('+str(ex)[:120]+').',dedupe='veille5632-schedule')
     heartbeat(desk,'surveillance','active','Contrôle périodique et réveil IMAP',stamp+max(0,300-(stamp-float(desk.settings('live430:last:live_mail430',0)))))
     return jobs
 

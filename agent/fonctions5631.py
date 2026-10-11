@@ -61,6 +61,7 @@ FUNCTIONS = (
     ('regles', 'modeles', '/regles', ('Règles et autonomie', 'Règles de tri'), ()),
     ('autonomie', 'modeles', '/autonomie', ('Autonomie de l’agent', 'Mode prudent'), ()),
     ('apprentissage', 'modeles', '/apprentissage', ('Apprentissage métier', 'Règles métier'), ()),
+    ('competences', 'modeles', '/competences', ('Compétences', 'Skills', 'Assistant juridique', 'Approbation des comptes', 'RGPD'), ('ai',)),
     ('projets', 'modeles', '/projets', ('Projets en attente', 'Travail préparé'), ()),
     ('preparation', 'modeles', '/preparation-proactive', ('Préparation proactive',), ()),
     ('memoire', 'modeles', '/memoire', ('Mémoire', 'Réponses envoyées'), ()),

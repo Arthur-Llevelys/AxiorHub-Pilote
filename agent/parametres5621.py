@@ -17,6 +17,9 @@ RUBRIQUES = (
     ('routines', 'Routines et initiatives', 'Heures, jours, signature, exclusions, briefing, rôles, automatismes'),
     ('documents', 'Documents et procédure', 'Éditeur de documents, avis de procédure, rôle par dossier, agendas, modèles'),
     ('cabinet', 'Cabinet et accueil', 'Accueil téléphonique, envoi, mobile, recherche, raccourcis, maintenance'),
+    ('messagerie', 'Messagerie', 'Signature, police d’écriture, copie cachée automatique, règles de classement'),
+    ('veille', 'Veille et recherche Internet', 'Thèmes, flux, connecteur juridique, Tavily, fréquence'),
+    ('sources', 'Sources juridiques', 'JusticeLibre, OpenLegi, GoodLegal, LibreJustice, Legal Data Hunter'),
 )
 ALIASES = {'/parametres/connexions': 'connexions', '/parametres/assistant': 'voix', '/parametres/proactivite': 'routines',
            '/ia-externe': 'ia', '/confort': 'cabinet', '/atelier/reglages': 'documents', '/parametres/agendas': 'documents'}
@@ -145,7 +148,24 @@ RELATED = (('/mise-en-service', 'Mise en service'), ('/parametres/agents', 'Agen
            ('/evaluations', 'Banc juridique'), ('/routage-hybride', 'Routage hybride'), ('/mcp', 'Connecteurs MCP'),
            ('/regles', 'Règles et autonomie'), ('/etat-systeme', 'État du système'), ('/accueil-administratif', 'Accueil administratif'))
 
-BUILDERS = {'connexions': _connexions, 'ia': _ia, 'voix': _voix, 'routines': _routines, 'documents': _documents, 'cabinet': _cabinet}
+def _messagerie(desk, auth, prefix, env, cap):
+    from .web5632 import courrier_section
+    return _section(courrier_section(desk, prefix))
+
+
+def _veille(desk, auth, prefix, env, cap):
+    from .web5632 import veille_settings
+    from .web567 import actor
+    return _section(veille_settings(desk, env, prefix, admin=actor(env)[1] == 'administrateur'))
+
+
+def _sources(desk, auth, prefix, env, cap):
+    from .web5632 import sources_section
+    return _section(sources_section(desk))
+
+
+BUILDERS = {'connexions': _connexions, 'ia': _ia, 'voix': _voix, 'routines': _routines, 'documents': _documents, 'cabinet': _cabinet,
+            'veille': _veille, 'sources': _sources, 'messagerie': _messagerie}
 
 
 def rubrique_for(path, args):

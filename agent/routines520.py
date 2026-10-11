@@ -383,7 +383,13 @@ def briefing(desk, today=None):
         text = _briefing_plain(data, s)
         status = 'sans_ia'
         notes.append('Rédigé sans IA (modèle indisponible : %s).' % str(ex)[:80])
-    return _store(desk, 'briefing', today.isoformat(), text, data, notes, status)
+    rid = _store(desk, 'briefing', today.isoformat(), text, data, notes, status)
+    try:   # 5.6.32 : le résumé oral est préparé dans la foulée (prêt à la lecture du matin)
+        from .oral5632 import get as oral
+        oral(desk, rid)
+    except Exception:   # noqa: BLE001 — facultatif
+        pass
+    return rid
 
 
 def _ev(x):
@@ -499,7 +505,8 @@ def _draft(desk, box, mail, item, s, model_ok):
     body = re.sub(r'(?is)<[^>]+>', '', body)[:6000]
     cfg = dict(desk.c['mail'])
     cfg['signature'] = s['signature']
-    msg = make_draft(mail, cfg, body, key)
+    from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
+    msg = add_agent_bcc(desk.c['state_dir'], make_draft(mail, cfg, body, key))
     box.append_draft(msg)
     desk.audit('routines_520_brouillon', {'uid': item['uid']})
     return {'uid': item['uid'], 'status': 'cree', 'subject': str(msg['Subject'])[:120]}

@@ -193,6 +193,8 @@ def recipient_issue(mail, cfg, allowed_recipients=()):
 
 
 def connect(cfg):
+    from .common import release_before_network
+    release_before_network('imap')   # 5.6.32 : aucun verrou SQLite tenu pendant la connexion à la messagerie
     """5.6.30 : connexion IMAP chiffrée — TLS direct (993, par défaut) ou STARTTLS (143, ou « security » = starttls) — avec la cause
     exacte d'un échec (serveur introuvable, port fermé, délai, port sans TLS direct, certificat refusé)."""
     host = str(cfg['host'])

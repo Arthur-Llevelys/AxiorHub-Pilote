@@ -145,6 +145,8 @@ def verification_page(desk, auth, prefix, args, shell, allowed_path):
         _a(prefix, '/sources', 'Sources juridiques et journal des requêtes'), notice, stored,
         _matter_options(desk, matter), e(str(fact_date or ''), quote=True), MAX_TEXT, e(text),
         ''.join('<option value="%s">%s</option>' % (e(k['kind']), e(k['label'])) for k in templates470.listing(desk)))
+    from .web5632 import controle_section   # 5.6.32 (R14) : contrôle des références par les sources officielles
+    body += controle_section(prefix)
     return shell('Vérification des citations', body, prefix, auth['csrf'], '/verification')
 
 

@@ -1,5 +1,5 @@
 {
- "_": "AxiorHub 5.6.31 — fiches du guide d’utilisation (de) ; identifiants = registre fonctions5631 ; exemples fictifs",
+ "_": "AxiorHub 5.6.32 — fiches du guide d’utilisation (de) ; identifiants = registre fonctions5631 ; exemples fictifs",
  "aujourdhui": {
   "objective": "Auf einem Bildschirm sehen, was heute Ihre Aufmerksamkeit braucht, und die Routinen der Kanzlei starten.",
   "when": "Jeden Morgen oder nach einer Abwesenheit, um zu wissen, was zuerst zu tun ist.",
@@ -30,7 +30,7 @@
    "Pause des automatismes",
    "Écouter le briefing"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "dossiers": {
   "objective": "Eine Akte finden, ihr Aktenblatt öffnen und die Akten in Ihren Dateien verknüpfen.",
@@ -61,7 +61,7 @@
    "Lire ce répertoire dans Nextcloud",
    "Indexer progressivement tous les dossiers enregistrés"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "courriels": {
   "objective": "Den Posteingang lesen, vorbereitete Entwürfe prüfen und antworten, weiterleiten oder ablegen.",
@@ -90,7 +90,7 @@
    "Actualiser",
    "Rechercher"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "planning": {
   "objective": "Die Termine Ihrer freigegebenen Kalender sehen und einen hinzufügen.",
@@ -119,7 +119,7 @@
    "Ajouter à l’agenda",
    "Enregistrer les rappels"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "taches": {
   "objective": "Ihre Aufgaben verfolgen und eine hinzufügen.",
@@ -145,7 +145,7 @@
    "Filtrer",
    "↻ Actualiser depuis Nextcloud"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "production": {
   "objective": "Sehen, was AxiorHub tatsächlich erstellt hat, und eine Erstellung starten.",
@@ -170,7 +170,7 @@
    "Lancer la production",
    "Continuer les playbooks"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "documents": {
   "objective": "Ein Dokument beim Agenten anfordern und neue Dateien öffnen.",
@@ -195,7 +195,7 @@
    "Préparer le document",
    "Afficher"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "echeances": {
   "objective": "Verfahrensfristen berechnen, simulieren und eintragen.",
@@ -221,7 +221,7 @@
    "Enregistrer et inscrire à l’agenda",
    "Vérifier l’agenda maintenant"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "audience": {
   "objective": "Das Verhandlungsblatt einer Akte vorbereiten.",
@@ -245,7 +245,7 @@
   "buttons": [
    "Afficher la fiche"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "audiences_word": {
   "objective": "Ein Plädoyer aus den letzten Schriftsätzen vorbereiten und ein Word-Dokument analysieren.",
@@ -270,7 +270,7 @@
    "Analyser et préparer la plaidoirie",
    "Analyser le DOCX sans le modifier"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "missions_complexes": {
   "objective": "Die Vorbereitung einer Klageschrift oder von Schriftsätzen in geprüften Teilaufgaben übergeben.",
@@ -294,7 +294,7 @@
   "buttons": [
    "Créer la mission"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "pieces": {
   "objective": "Ein Anlagenverzeichnis mit nummerierten und gestempelten Anlagen erstellen.",
@@ -319,7 +319,7 @@
    "Analyser les PDF du dossier",
    "Enregistrer le profil"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "profils": {
   "objective": "Die Verfahrensprofile genehmigen, die Schritte und Fristen vorschlagen.",
@@ -343,7 +343,7 @@
   "buttons": [
    "Approuver"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "strategie": {
   "objective": "Die Strategie einer Akte in einem eigenen Bereich erarbeiten.",
@@ -367,7 +367,7 @@
   "buttons": [
    "Ouvrir"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "studio": {
   "objective": "Ein Schriftstück wählen und es mit Prüfung auf einem Bildschirm vorbereiten.",
@@ -393,7 +393,7 @@
    "Courrier Word",
    "Conclusions"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "playbooks": {
   "objective": "Einem geführten Ablauf für eine häufige Aufgabe folgen.",
@@ -417,7 +417,7 @@
   "buttons": [
    "Démarrer ce parcours"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "recherche": {
   "objective": "Eine E-Mail, Datei, einen Termin oder eine Notiz in der Kanzlei finden.",
@@ -441,7 +441,7 @@
   "buttons": [
    "Rechercher"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "recherche_juridique": {
   "objective": "Texte und Entscheidungen suchen, ohne Mandantendaten zu übermitteln.",
@@ -466,7 +466,7 @@
    "Rechercher sans données client",
    "Identifier les dernières conclusions"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "verification": {
   "objective": "Rechtszitate und Pflichtangaben prüfen und eine kontradiktorische Durchsicht durchführen.",
@@ -492,7 +492,7 @@
    "Contrôler les mentions",
    "Relecture contradictoire"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "sources": {
   "objective": "Den Status der Rechtsquellen prüfen und ihre Nutzung einstellen.",
@@ -517,31 +517,36 @@
    "Tester les sources",
    "Enregistrer"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "veille": {
-  "objective": "Datierte amtliche Rechtsneuigkeiten lesen.",
-  "when": "Regelmäßig, um die Entwicklungen in Ihren Gebieten zu verfolgen.",
-  "prerequisites": "Keine für amtliche Feeds.",
+  "objective": "Eine geplante, datierte und belegte Rechtsbeobachtung zu Ihren Themen erhalten.",
+  "when": "Jeden Morgen oder an gewählten Tagen; auf Anforderung mit „Actualiser“.",
+  "prerequisites": "Beobachtungsthemen (Einstellungen › Beobachtung und Internetsuche); optional: aktivierte Rechtsquelle, Tavily-Schlüssel.",
   "steps": [
-   "Öffnen Sie „Rechtsbeobachtung“.",
-   "Klicken Sie auf „Actualiser la veille“.",
-   "Lesen Sie die Neuigkeiten und öffnen Sie ihre Quelle.",
-   "Notieren Sie, was eine Akte betrifft."
+   "Öffnen Sie Einstellungen › Beobachtung und Internetsuche und geben Sie Ihre Themen an.",
+   "Wählen Sie amtliche Feeds und Häufigkeit und speichern Sie.",
+   "Öffnen Sie Rechtsbeobachtung und klicken Sie auf „Actualiser“.",
+   "Lesen Sie jede Neuigkeit und öffnen Sie ihre Quelle.",
+   "Markieren Sie sie mit „Lu“, „Conserver“ oder „Masquer“."
   ],
-  "result": "Eine Liste datierter Neuigkeiten mit Quelle.",
-  "verify": "Jede Neuigkeit zeigt Datum und Herkunft.",
+  "result": "Eine Liste datierter Neuigkeiten mit Quelle, auch in „Heute“ zusammengefasst.",
+  "verify": "Der Rahmen zeigt die letzte erfolgreiche Prüfung und die nächste Ausführung.",
   "errors": [
    [
-    "Keine Neuigkeiten",
-    "Ein Ausfall ist kein Fehlen von Neuigkeiten: Prüfen Sie den Status der Quellen."
+    "Teilweise Erfassung",
+    "Eine nicht verfügbare Quelle wird genannt; die anderen werden veröffentlicht."
+   ],
+   [
+    "Nichts Neues",
+    "Prüfen Sie Ihre Stichwörter und das Datum der letzten Prüfung."
    ]
   ],
-  "example": "Fiktive Neuigkeit: Verordnung vom 1. Oktober 2026.",
+  "example": "Fiktives Thema „Gewerbemiete: Miete, Verlängerung“.",
   "buttons": [
-   "Actualiser la veille"
+   "Actualiser"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "surveillance": {
   "objective": "Akten überwachen und die Prioritätentabelle neu berechnen.",
@@ -566,7 +571,7 @@
    "🔭 Surveiller tous les dossiers",
    "🧭 Recalculer le tableau"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "engagements": {
   "objective": "Zusagen aus der Korrespondenz und vorbereitete Folgeschritte verfolgen.",
@@ -590,7 +595,7 @@
   "buttons": [
    "Vérifier les envois"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "accueil_administratif": {
   "objective": "Eingehende administrative Anrufe und Nachrichten empfangen und bearbeiten.",
@@ -612,7 +617,7 @@
   ],
   "example": "Fiktive Terminanfrage per Telefon.",
   "buttons": [],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "contacts": {
   "objective": "Die Korrespondenten der Kanzlei und ihre Rolle je Akte verwalten.",
@@ -638,7 +643,7 @@
    "Enregistrer l’association",
    "Enregistrer le rôle"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "associations": {
   "objective": "E-Mail-Adressen Akten zuordnen.",
@@ -662,7 +667,7 @@
   "buttons": [
    "✨ Rechercher et regrouper automatiquement"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "orchestrateur": {
   "objective": "E-Mails und Akten abgleichen und Mitteilungsentwürfe vorbereiten.",
@@ -687,7 +692,7 @@
    "↻ Analyser les nouveaux courriels",
    "Préparer sans action externe"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "missions": {
   "objective": "Dem Agenten einen Auftrag geben und den Fortschritt verfolgen.",
@@ -711,7 +716,7 @@
   "buttons": [
    "Confier une mission"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "assistant": {
   "objective": "Mit dem Assistenten über die Kanzlei und ihre Akten sprechen.",
@@ -735,7 +740,7 @@
   "buttons": [
    "Envoyer à l’assistant"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "cabinet": {
   "objective": "Zur Kanzleiverwaltung: Zeit, Termine, Konflikte, Verjährung, Steuerung.",
@@ -756,7 +761,7 @@
   ],
   "example": "Fiktiver Blick auf die Steuerung des Monats.",
   "buttons": [],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "honoraires": {
   "objective": "Aufgewendete Zeit freigeben und Tätigkeiten schätzen.",
@@ -781,7 +786,7 @@
    "Estimer à partir des courriels, pièces et rendez-vous",
    "Enregistrer le barème"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "rendez_vous": {
   "objective": "Termine und ihre Protokolle vorbereiten.",
@@ -802,7 +807,7 @@
   ],
   "example": "Fiktiver Termin mit dem Mandanten von DEMO-B.",
   "buttons": [],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "conflits": {
   "objective": "Interessenkonflikte suchen.",
@@ -827,7 +832,7 @@
    "Rechercher les conflits",
    "Désactiver le blocage"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "prescriptions": {
   "objective": "Verjährungs- und Ausschlussfristen berechnen und verfolgen.",
@@ -852,7 +857,7 @@
    "Calculer sans enregistrer",
    "Créer (à confirmer)"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "pilotage_mensuel": {
   "objective": "Die Monatskennzahlen ansehen und exportieren.",
@@ -877,7 +882,7 @@
    "Exporter (CSV)",
    "Exporter (Markdown)"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "assistance_metier": {
   "objective": "Prüfbare Berechnungen durchführen und die Abrechnungsprüfung vorbereiten.",
@@ -903,7 +908,7 @@
    "Calculer une indexation",
    "Préparer la revue de facturation"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "modeles_word": {
   "objective": "Ihre Word-Vorlagen importieren, Platzhalter prüfen und jede Seite in der Vorschau ansehen.",
@@ -931,7 +936,7 @@
   "buttons": [
    "Importer et prévisualiser"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "modeles_actes": {
   "objective": "Schriftsatzvorlagen und ihre Pflichtangaben verwalten.",
@@ -955,7 +960,7 @@
   "buttons": [
    "Enregistrer le modèle"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "mon_style": {
   "objective": "Ihre Texte analysieren, um Ihren Stil zu übernehmen.",
@@ -980,7 +985,7 @@
    "Analyser maintenant",
    "Affiner avec l’IA"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "progres": {
   "objective": "Ton je Empfänger und „immer so machen“-Regeln einstellen.",
@@ -1006,7 +1011,7 @@
    "Corriger la détection",
    "Valeurs d’origine"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "agents": {
   "objective": "Einen in natürlicher Sprache beschriebenen Dokumentenagenten erstellen.",
@@ -1033,7 +1038,7 @@
    "Tester le déclencheur sans agir",
    "Enregistrer et activer"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "agents_documents": {
   "objective": "Ergebnisse der Dokumentenagenten sehen und eine Verarbeitung wiederaufnehmen.",
@@ -1057,7 +1062,7 @@
   "buttons": [
    "Vérifier les documents"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "regles": {
   "objective": "Autonomiestufe und Regeln der E-Mail-Verarbeitung einstellen.",
@@ -1083,7 +1088,7 @@
    "Ajouter la règle",
    "Enregistrer la correction"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "autonomie": {
   "objective": "Sehen, was Ihrer Freigabe unterliegt, und die Autonomie anpassen.",
@@ -1108,7 +1113,7 @@
    "Appliquer",
    "Tout passer en mode prudent"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "apprentissage": {
   "objective": "Fachregeln erstellen und verlässliche Referenzen erklären.",
@@ -1133,7 +1138,7 @@
    "Enregistrer la règle",
    "Enregistrer la référence fiable"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "projets": {
   "objective": "Automatisch vorbereitete Arbeit prüfen.",
@@ -1157,7 +1162,7 @@
   "buttons": [
    "↻ Analyser les nouveaux courriels"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "preparation": {
   "objective": "Die nächste erkannte Arbeit und die Quellenabdeckung sehen.",
@@ -1180,7 +1185,7 @@
   "buttons": [
    "↻ Analyser maintenant"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "memoire": {
   "objective": "Die vom Agenten gemerkten gesendeten Antworten aktualisieren.",
@@ -1203,7 +1208,7 @@
   "buttons": [
    "Actualiser les réponses envoyées"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "parametres": {
   "objective": "Verbindungen und Präferenzen der Software einstellen.",
@@ -1230,7 +1235,7 @@
    "Tester Nextcloud / agendas",
    "Tester Ollama"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "guide_installation": {
   "objective": "Dienste Schritt für Schritt einrichten und Verbindungen prüfen.",
@@ -1252,7 +1257,7 @@
   ],
   "example": "Fiktiver Ablauf: lokaler Ordner und Ollama, ohne E-Mail.",
   "buttons": [],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "guide_utilisation": {
   "objective": "Herausfinden, wie eine Funktion verwendet wird.",
@@ -1273,7 +1278,7 @@
   ],
   "example": "Fiktive Suche: „Anlagenverzeichnis“.",
   "buttons": [],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "mise_en_service": {
   "objective": "Echte Dienste, Mikrofon und Docker prüfen.",
@@ -1299,7 +1304,7 @@
    "Tester le micro",
    "Lancer la recette de production"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "diagnostic": {
   "objective": "Verstehen, warum nichts erstellt wird: Dienste, Fehler, blockierte Akten, Verbindungen.",
@@ -1325,7 +1330,7 @@
    "Tester Nextcloud",
    "Tester l’IA"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "etat_systeme": {
   "objective": "Vorfälle, letzte Verarbeitungen, Dienste und Index ansehen.",
@@ -1348,7 +1353,7 @@
   "buttons": [
    "Contrôler maintenant"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "mcp": {
   "objective": "Juristische MCP-Konnektoren, Kompetenzen und Erweiterungen verwalten.",
@@ -1372,7 +1377,7 @@
   "buttons": [
    "Enregistrer sans activer"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "routage": {
   "objective": "Entscheiden, wann eine externe KI genutzt werden darf und zu welchen Kosten.",
@@ -1398,7 +1403,7 @@
    "Afficher les données et le coût",
    "Enregistrer la politique"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "evaluations": {
   "objective": "Modelle anhand von Referenzfällen vergleichen.",
@@ -1423,7 +1428,7 @@
    "Enregistrer le cas",
    "Lancer la comparaison"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "tracabilite": {
   "objective": "Wissen, was das Modell bei einer Akte gesehen hat und welche Modelle verwendet wurden.",
@@ -1448,7 +1453,7 @@
    "Exporter (CSV)",
    "Exporter (JSON)"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "qualite": {
   "objective": "Blockierungsgründe und Korrekturen der Entwürfe verstehen.",
@@ -1469,7 +1474,7 @@
   ],
   "example": "Fiktiver Grund: Akte nicht erkannt.",
   "buttons": [],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "ecosysteme": {
   "objective": "Die von der Kanzlei genutzten Dienste erfassen.",
@@ -1492,7 +1497,7 @@
   "buttons": [
    "Enregistrer le service"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "administration": {
   "objective": "Automatisierungen, Verknüpfungen und erweiterte Prüfungen verwalten.",
@@ -1516,7 +1521,7 @@
    "Tester les connexions",
    "Mettre en pause"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "tableau_de_bord": {
   "objective": "Das frühere detaillierte Dashboard ansehen.",
@@ -1540,7 +1545,7 @@
    "Analyser les dossiers actifs",
    "Repérer le travail à faire"
   ],
-  "version": "5.6.31"
+  "version": "5.6.32"
  },
  "a_propos": {
   "objective": "Version, Lizenz und Datenschutzregeln kennen.",
@@ -1561,6 +1566,31 @@
   ],
   "example": "Version 5.6.31.",
   "buttons": [],
-  "version": "5.6.31"
+  "version": "5.6.32"
+ },
+ "competences": {
+  "objective": "Der KI eine schriftliche Arbeitsmethode geben (Analyse, Entwurf, Prüfung).",
+  "when": "Damit eine Art von Arbeit immer gleich und mit Ihren Kontrollen erledigt wird.",
+  "prerequisites": "Ein eingerichtetes KI-Modell.",
+  "steps": [
+   "Öffnen Sie KI-Kompetenzen.",
+   "Aktivieren Sie eine integrierte Kompetenz oder kopieren Sie sie zum Anpassen.",
+   "Um eine zu schreiben, füllen Sie das Formular aus und klicken Sie auf „Créer“.",
+   "Um eine zu übernehmen, wählen Sie die Datei und klicken Sie auf „Importer“."
+  ],
+  "result": "Die Kompetenz erscheint in der Liste mit Version und Herkunft.",
+  "verify": "Eine aktive Kompetenz zeigt gegebenenfalls fehlende Voraussetzungen.",
+  "errors": [
+   [
+    "Datei abgelehnt",
+    "Nur Texte werden angenommen: Skripte und ausführbare Dateien werden blockiert."
+   ]
+  ],
+  "example": "Fiktive Kompetenz „Prüfung eines Gewerbemietvertrags“.",
+  "buttons": [
+   "Créer",
+   "Importer"
+  ],
+  "version": "5.6.32"
  }
 }

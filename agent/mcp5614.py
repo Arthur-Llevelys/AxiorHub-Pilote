@@ -15,6 +15,11 @@ import re
 from .common import HTTP, Stop, read_secret
 
 PROTOCOL = '2025-06-18'
+
+
+def _version():
+    from . import __version__
+    return __version__
 SEARCH_WORDS = ('search', 'recherche', 'find', 'query', 'lookup', 'chercher')
 TEXT_WORDS = ('get', 'read', 'fetch', 'retrieve', 'text', 'texte', 'article', 'decision', 'document', 'lire', 'consult')
 LEGAL_WORDS = ('legal', 'law', 'juris', 'decision', 'code', 'article', 'legif', 'droit', 'texte', 'loi', 'norm')
@@ -116,7 +121,7 @@ class Session:
         return self._post(payload)
 
     def initialize(self):
-        result = self.call('initialize', {'protocolVersion': PROTOCOL, 'capabilities': {}, 'clientInfo': {'name': 'AxiorHub', 'version': '5.6.14'}})
+        result = self.call('initialize', {'protocolVersion': PROTOCOL, 'capabilities': {}, 'clientInfo': {'name': 'AxiorHub', 'version': _version()}})
         self.protocol = str(result.get('protocolVersion') or PROTOCOL)
         self.server = result.get('serverInfo', {}) if isinstance(result.get('serverInfo'), dict) else {}
         if isinstance(result.get('sessionId'), str) and not self.session_id:
@@ -253,6 +258,15 @@ def _fill_required(args, schema, path=()):
             _set_path(args, path + (name,), str(spec.get('default', enum[0] if isinstance(enum, list) and enum else '')))
 
 
+def preferred(item, tools, capability):
+    """5.6.32 : outil déclaré par le catalogue des sources (sources5632) s'il existe réellement ; sinon choix d'après le schéma."""
+    wanted = ((item or {}).get('preferred_tools') or {}).get(capability)
+    for tool in tools or ():
+        if wanted and isinstance(tool, dict) and tool.get('name') == wanted:
+            return tool
+    return choose_tool(tools, capability)
+
+
 def choose_tool(tools, capability):
     """Outil pour une capacité (« search » ou « text ») d'après nom, description et schéma ; aucune signature n'est supposée."""
     words = SEARCH_WORDS if capability == 'search' else TEXT_WORDS
@@ -330,7 +344,7 @@ def search(item, query, limit=8, http=None, call=None, tools=None):
             s.tools = list(tools)
     except Stop as ex:
         return {'status': 'unavailable', 'error': str(ex), 'rows': [], 'tool': '', 'session': bool(s.session_id)}
-    tool = choose_tool(tools, 'search')
+    tool = preferred(item, tools, 'search')
     if not tool:
         return {'status': 'skipped', 'error': 'outil_recherche_absent', 'rows': [], 'tool': '', 'session': bool(s.session_id)}
     try:
@@ -349,7 +363,7 @@ def fetch_text(item, reference, http=None, session=None, call=None):
             s.list_tools()
         except Stop as ex:
             return {'status': 'unavailable', 'error': str(ex), 'text': ''}
-    tool = choose_tool(s.tools, 'text')
+    tool = preferred(item, s.tools, 'text')
     if not tool:
         return {'status': 'skipped', 'error': 'outil_lecture_absent', 'text': ''}
     try:
@@ -374,7 +388,7 @@ def diagnostic(item, http=None, sample_query='article 1240 du code civil', call=
         out['connection'] = 'error'
         out['details']['error'] = str(ex)
         return out
-    tool = choose_tool(tools, 'search')
+    tool = preferred(item, tools, 'search')
     if not tool:
         out['search'] = 'tool_missing'
         return out
@@ -388,14 +402,14 @@ def diagnostic(item, http=None, sample_query='article 1240 du code civil', call=
         out['search'] = 'error'
         out['details']['search_error'] = str(ex)
         return out
-    ttool = choose_tool(tools, 'text')
+    ttool = preferred(item, tools, 'text')
     if not ttool:
         out['text'] = 'tool_missing'
         return out
     ref = ''
     for r in rows:
         if isinstance(r, dict):
-            ref = str(r.get('id') or r.get('reference') or r.get('url') or r.get('celex') or '')
+            ref = str(r.get('id') or r.get('identifiant') or r.get('reference') or r.get('url') or r.get('celex') or '')
             if ref:
                 break
     if not ref:

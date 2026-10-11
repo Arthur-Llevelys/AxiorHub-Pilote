@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Approbation des comptes — résultat",
+  "type": "object",
+  "required": ["profil", "manquants", "controles", "projets", "references", "reserves"],
+  "properties": {
+    "profil": {"enum": ["SARL", "EURL", "SAS", "SASU", "non_pris_en_charge"]},
+    "manquants": {"type": "array", "items": {"type": "string"}},
+    "controles": {"type": "array", "items": {"type": "object", "properties": {"point": {"type": "string"}, "etat": {"enum": ["coherent", "incoherent", "a_verifier"]}, "detail": {"type": "string"}}}},
+    "calculs": {"type": "array", "items": {"type": "object", "properties": {"ligne": {"type": "string"}, "formule": {"type": "string"}, "montant": {"type": "string"}, "devise": {"type": "string"}}}},
+    "projets": {"type": "array", "items": {"type": "object", "properties": {"type": {"enum": ["convocation", "ordre_du_jour", "resolutions", "proces_verbal", "decision_associe_unique", "affectation", "liste_pieces_formalites"]}, "etat": {"const": "projet"}, "champs_a_completer": {"type": "array", "items": {"type": "string"}}}}},
+    "references": {"type": "array", "items": {"type": "object", "properties": {"reference": {"type": "string"}, "etat": {"enum": ["piste", "identifiee", "controlee", "a_verifier", "anomalie"]}}}},
+    "echeances_proposees": {"type": "array", "items": {"type": "object", "properties": {"objet": {"type": "string"}, "date": {"type": "string"}, "source": {"type": "string"}}}},
+    "reserves": {"type": "array", "items": {"type": "string"}}
+  }
+}

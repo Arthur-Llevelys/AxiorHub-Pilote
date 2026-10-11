@@ -69,9 +69,8 @@ def _json(value, default):
 def _store_check(desk, key, category, status, summary, evidence=None, checked=None):
     ensure_schema(desk);checked=checked or _now()
     safe=evidence if isinstance(evidence,dict) else {}
-    desk.db.execute('INSERT OR REPLACE INTO reliability_checks_v393 VALUES(?,?,?,?,?,?)',
-      (key,category,status,str(summary)[:1000],json.dumps(safe,ensure_ascii=False),checked))
-    desk.db.commit()
+    desk.soft_write('INSERT OR REPLACE INTO reliability_checks_v393 VALUES(?,?,?,?,?,?)',
+      (key,category,status,str(summary)[:1000],json.dumps(safe,ensure_ascii=False),checked))   # 5.6.32 : jamais bloquant pour l'affichage
     return {'key':key,'category':category,'status':status,'summary':str(summary)[:1000],
             'evidence':safe,'checked_at':checked,'verified':status=='verified'}
 

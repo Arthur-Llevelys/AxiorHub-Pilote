@@ -5,7 +5,9 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.31</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.32</p>
+
+<p align="center"><strong>Français</strong> · <a href="README.en.md">English</a> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
 <p align="center"><a href="docs/GUIDE-POSTE-10-MINUTES.md">Poste Ubuntu 24.04 : démarrer en dix minutes, avec captures</a> · <a href="docs/INSTALLATION-WINDOWS.md">Poste Windows 11</a></p>
 
@@ -36,7 +38,10 @@ L'écran « Aujourd'hui » rassemble ce qui demande l'avocat :
 - **À relire** : brouillons de courriels et projets de documents prêts, un clic pour les ouvrir ;
 - **Ce que fait l'agent** : ce qui est en cours, terminé ou bloqué, avec le nom de la pièce ou de la demande traitée ;
 - **Ma journée** : audiences et rendez-vous du jour, tâches Nextcloud (celles de l'agent et les vôtres), tableau Deck ;
-- **Routines** : briefing du matin, tri matinal des courriels, bilan de la semaine ;
+- **Routines** : briefing du matin, tri matinal des courriels, bilan de la semaine. Le briefing existe aussi en
+  **résumé oral** rédigé, à lire ou à **écouter** (synthèse vocale du cabinet : Kokoro, Chatterbox ou espeak) ;
+  chaque nombre du résumé est contrôlé dans le briefing ;
+- **Veille juridique** : les nouveautés datées et sourcées de vos thèmes ;
 - **Style du cabinet** : habitudes d'écriture proposées, à valider.
 
 Un bandeau en bas de page montre l'activité de l'agent en direct. Un mode sombre est disponible.
@@ -87,6 +92,10 @@ connexions, recette automatique.
   le texte des pièces jointes. Les réponses préparées se modifient, se suppriment ou se relancent avec une instruction.
 - **Fonctions de messagerie** : répondre, répondre à tous, transférer, nouveau message (À, Cc, Cci, texte mis en forme,
   pièces jointes), archiver, déplacer, indésirable, supprimer (corbeille), lu / non lu, suivi.
+- **Réglages de messagerie** : signature mise en forme (nouveaux messages, réponses, transferts), police et taille
+  d’écriture, **copie cachée automatique** à chaque message (y compris les brouillons de l’agent) et **règles de
+  classement** : selon l’objet, l’expéditeur ou un destinataire, le courriel reçu est déplacé dans le sous-dossier choisi,
+  après sa lecture par l’agent.
 - **Envoi**, désactivé par défaut. S'il est activé, il passe par une confirmation qui récapitule les destinataires, l'objet et
   les pièces jointes.
 - **Pourquoi pas de brouillon ?** Chaque courriel non traité indique son motif (message du cabinet, liste de diffusion,
@@ -97,6 +106,10 @@ connexions, recette automatique.
 - **Demande en langage naturel** : conclusions, assignation, requête, courrier, mise en demeure, note, consultation,
   contrat. Le projet est rédigé à partir du dossier (pièces, faits, chronologie) et des **modèles du cabinet**.
 - **Rangement automatique** dans l'arborescence du dossier (PROCEDURE, CORRESPONDANCES, PROJETS, LIVRABLES).
+- **Dossiers de travail** ajoutés par l’avocat : par exemple `NOS PIECES` et `PIECES ADVERSES - {{partie_adverse01}}`,
+  le nom étant complété avec les parties adverses de chaque dossier. L’IA sait de quel côté vient chaque pièce.
+- **Analyse du dossier entier** : chaque pièce a sa fiche (faits datés, demandes, montants, références, avec la page) ;
+  l’IA examine toutes les pièces au niveau de détail que permet sa mémoire de travail, et la couverture est affichée.
 - **Nouvelles versions** sur instruction, sans écraser l'original, y compris pour un document que vous avez rédigé.
 - **Édition en ligne** du document Word dans le navigateur (OnlyOffice), sans téléchargement.
 
@@ -111,6 +124,10 @@ connexions, recette automatique.
   modifiés.
 
 ### Échéances, agenda et tâches
+
+- **Documents de procédure → agenda → brouillons** : sur la page du dossier, choisissez les documents reçus ; l’agent
+  relève les dates citées, vous choisissez celles à inscrire et les agendas (Nextcloud, CalDAV, Google), puis il prépare
+  les brouillons d’information du client et du confrère. Rien n’est envoyé.
 
 - **Avis de procédure** (renvoi, convocation, calendrier) : les dates sont extraites et vérifiées dans le texte,
   inscrites à l'agenda Nextcloud, et un courriel d'information est préparé.
@@ -145,14 +162,25 @@ connexions, recette automatique.
 - **Conflits d'intérêts** : recherche des parties dans les dossiers existants, rapport sourcé ; aucune production pour
   un dossier nouveau tant que l'avocat n'a pas décidé.
 - **Recherche juridique tracée** : une décision n'est citée qu'après vérification sur la source officielle.
+- **Sources juridiques** : connecteurs JusticeLibre (sans clé), OpenLegi, GoodLegal, LibreJustice et Legal Data Hunter,
+  vérifiés (connexion, recherche, lecture d’un texte) avant activation.
+- **Contrôle des références** dans un écrit (« Vérifier ») : articles, lois, décisions et citations entre guillemets
+  relevés puis contrôlés auprès de la source activée, à la date utile ; chaque référence est marquée contrôlée,
+  identifiée, à vérifier ou anormale.
+- **Veille juridique planifiée** : thèmes, flux officiels, source juridique et recherche Internet Tavily (facultative,
+  plafonnée) ; un cadre dans « Aujourd’hui », une page de lecture.
+- **Compétences de l’IA** : méthodes écrites suivies par l’IA pour un type de travail. Trois sont intégrées (dont
+  l’[assistant juridique](resources/skills/assistant-juridique/PROVENANCE.md) de Christophe Quézel-Ambrunaz, AGPL-3.0) ;
+  vous pouvez en créer, en importer (SKILL.md ou .zip, textes seulement) ou les copier pour les adapter.
 - **Préparation d'audience** et analyse des écritures adverses (projets supervisés).
 
 ### Style du cabinet
 
 L'agent lit vos écrits définitifs (procédure, correspondances, projets) et vos courriels envoyés, puis propose vos
-habitudes : formule d'ouverture et de clôture, plan habituel des conclusions, formules récurrentes. Une fois validées,
-elles s'appliquent aux brouillons et aux documents. Aucune phrase contenant un nom, un numéro ou une adresse n'est
-retenue.
+habitudes : formule d'ouverture et de clôture, plan habituel des conclusions, numérotation des parties, présentation des
+décisions citées, intitulé du dispositif, formules récurrentes. Chaque proposition dit ce qu’elle changera ; une fois
+validées, elles s'appliquent aux brouillons et aux documents. La longueur habituelle est un simple repère transmis
+automatiquement. Aucune phrase contenant un nom, un numéro ou une adresse n'est retenue.
 
 ### Une IA externe, mais pseudonymisée
 
@@ -187,6 +215,8 @@ pseudonymisée. Le tri des courriels et les contrôles restent locaux.
 - **Intégrations** Roundcube (bouton dans le webmail) et Open WebUI (outil pour la conversation).
 - **Mises à jour vérifiées** (manifeste SHA-256, signature, retour arrière) et **recette automatique** après chaque
   installation.
+- **Interface en quatre langues** (français par défaut, anglais, allemand, espagnol), menu « Toutes les fonctions » et
+  guide d’utilisation relié aux écrans réels.
 
 <p align="center"><img src="docs/captures/07-mode-sombre.png" alt="Mode sombre" width="700"></p>
 
@@ -432,9 +462,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.31.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.31_all.deb --archive dist/axiorhub-mail-agent-5.6.31.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.31_amd64.deb --archive dist/axiorhub-mail-agent-5.6.31.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.32.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.32_all.deb --archive dist/axiorhub-mail-agent-5.6.32.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.32_amd64.deb --archive dist/axiorhub-mail-agent-5.6.32.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 

@@ -368,7 +368,8 @@ def deposit_draft(desk,args):
         to=data['recipients'][0] if own_sent else None
         from .verify470 import gate_for_config,mark_message
         checked_body,citations_marked,_citation_report=gate_for_config(desk.c,result['body'],data['matter'],'mail',key)
-        draft=mark_message(make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc,to=to),citations_marked)
+        from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
+        draft=mark_message(add_agent_bcc(desk.c['state_dir'],make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc,to=to)),citations_marked)
         account=desk.c['mail']['username']+'@'+desk.c['mail']['host']
         mid,thread=digest(account+mail.mid),digest(account+mail.root)
         state.report(key,{**report,'status':'appending','reason':'projet_prudent_confirme',

@@ -24,7 +24,7 @@ EXCLUDED_FILES = {'scripts/privacy-scan.py', '.privacy-denylist', 'MANIFEST.sha2
 BINARY = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.tgz', '.woff', '.woff2', '.ttf', '.sqlite3'}
 OFFICE = {'.docx', '.xlsx', '.pptx', '.odt', '.ods'}
 # L'auteur est nommé volontairement (attribution, licence AGPL §7 b) dans ces fichiers seulement.
-AUTHOR_FILES = {'NOTICE', 'AUTHORS.md', 'deploy/debian/copyright', 'scripts/build-deb.py', 'README.md', 'CHANGELOG.md', 'LOGO-LICENSE.md', 'TRADEMARKS.md', 'SECURITY.md', 'CONTRIBUTING.md',
+AUTHOR_FILES = {'NOTICE', 'AUTHORS.md', 'deploy/debian/copyright', 'scripts/build-deb.py', 'README.md', 'README.en.md', 'README.de.md', 'README.es.md', 'agent/locales/ecrans_en.json', 'agent/locales/ecrans_de.json', 'agent/locales/ecrans_es.json', 'CHANGELOG.md', 'LOGO-LICENSE.md', 'TRADEMARKS.md', 'SECURITY.md', 'CONTRIBUTING.md',
                 'agent/about560.py', 'agent/standalone_auth.py', 'tests/test_v560.py', 'docker/Dockerfile'}
 AUTHOR = re.compile(r'\b(?:' + '|'.join(['ti' + 'mo', 'rai' + 'nio']) + r')\b', re.I)
 PRIVATE_NAMES = re.compile(r'\b(?:' + '|'.join(['lle' + 'velys', 'more' + 'stin', 'resto' + 'group', 'bodi' + 'kian', 'jul' + 'lien', 'bu' + 'vat']) + r')\b', re.I)

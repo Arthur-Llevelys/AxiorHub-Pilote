@@ -15,6 +15,7 @@ import hashlib
 import hmac
 from html import escape
 import json
+import sqlite3
 from pathlib import Path, PurePosixPath
 import re
 import threading
@@ -75,6 +76,7 @@ REASONS.update({
  'courriel_entrant_depasse_contexte_pour_reponse':'Le courriel entier dépasse la capacité disponible pour préparer et vérifier une réponse. Le brouillon est bloqué : examinez le message dans Roundcube.',
  'contexte_modele_insuffisant_pour_verification':'La capacité de contexte configurée ne permet pas la vérification d’une réponse. Vérifiez les paramètres du modèle.',
  'generation_ia_incomplete':'La génération a atteint sa limite avant la fin. Posez une question plus ciblée ou relancez avec moins de pièces.',
+ 'contexte_ia_insuffisant':'Le texte dépasse la fenêtre de l’IA. AxiorHub prépare des fiches des pièces (résumés sourcés, une fois par pièce) et relancera l’analyse sur le dossier entier ; vous pouvez aussi augmenter la fenêtre de contexte d’Ollama dans Paramètres.',
  'fragment_document_depasse_contexte':'Un fragment dépasse encore la capacité du modèle. Réduisez la taille des fragments dans Paramètres > Maintenance puis reprenez : les fragments déjà terminés restent en cache.',
  'analyse_document_couverture_incomplete':'Toutes les pages n’ont pas été validées. Relancez la même demande : l’analyse reprendra uniquement les fragments manquants.',
  'document_long_depasse_pages_autorisees':'Le document dépasse la limite de pages configurée pour les documents longs.',
@@ -470,6 +472,8 @@ class App:
                  ('Permissions-Policy','camera=(), microphone=(self), geolocation=()'),
                  ('Content-Security-Policy',"default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; form-action 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
         status='200 OK';kind='text/html; charset=utf-8'
+        from .common import set_request_mode
+        set_request_mode('read' if env.get('REQUEST_METHOD') in ('GET','HEAD') else 'write')   # 5.6.32 : délai d'attente court pour l'affichage
         try:
             auth=json.loads(Path(self.auth_path).read_text(encoding='utf-8'))
             from .web567 import actor
@@ -1022,8 +1026,14 @@ class App:
                     body+='<p>Ouvrez à nouveau l’interface à son adresse habituelle, rechargez la page (Ctrl+F5), puis relancez le bouton. Ne renvoyez pas l’ancien formulaire.</p>'
                 else:body+='<p>Revenez à la page précédente.</p>'
         except Exception:
-            status='500 Internal Server Error'
-            kind,body=internal_error(env,kind)
+            status,kind,body=internal_error_response(env,kind,self.config_path)
+            if status.startswith('503'):headers=headers+[('Retry-After','3')]
+        try:   # 5.6.32 (lot 7) : écrans métier traduits à la sortie (anglais, allemand, espagnol)
+            from .i18n5631 import current as _lang_now5632
+            from .ecrans5632 import apply as _ecrans5632
+            body=_ecrans5632(body,kind,_lang_now5632())
+        except Exception:   # noqa: BLE001
+            pass
         raw=body if isinstance(body,bytes) else body.encode('utf-8')
         start_response(status,headers+[('Content-Type',kind),('Content-Length',str(len(raw)))])
         return [raw]
@@ -1126,7 +1136,10 @@ class App:
                 main+='<p><a href="'+e(url('/aujourdhui'))+'">← Retour à l’essentiel du jour</a></p>'+cockpit_html(desk,prefix)
             elif args.get('vue')=='essentiel':
                 from .web520 import today_html
-                main+='<p><a href="'+e(url('/aujourdhui'))+'">← Retour au poste de pilotage</a></p>'+today_html(desk,prefix,form)
+                from .cockpit530 import veille_card   # 5.6.32 (VJ01) : la veille aussi dans la vue « essentiel »
+                main+=('<p><a href="'+e(url('/aujourdhui'))+'">← Retour au poste de pilotage</a></p>'
+                       '<section class="c530-card" id="c5632-veille" aria-labelledby="c5632-t-veille">'+veille_card(desk,prefix,str(auth.get('owner') or 'cabinet'))+'</section>'
+                       +today_html(desk,prefix,form))
             else:
                 # 5.3.0 : poste de pilotage (conversation avec l'agent, à relire, activité, journée Nextcloud).
                 from .cockpit530 import page as cockpit_page
@@ -1986,7 +1999,7 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
-        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
 def fold_for_search(value):
@@ -2009,13 +2022,51 @@ def wants_json(env,kind):
     return any(marker in path for marker in JSON_ROUTES)
 
 
-def internal_error(env,kind):
-    """5.6.15 : une erreur interne sur une route d'API renvoie du JSON lisible ; la trace va au journal, jamais au navigateur."""
-    import traceback
-    traceback.print_exc()
+def internal_error(env,kind,config_path=''):
+    """Compatibilité (5.6.15) : type et corps de la réponse d'erreur."""
+    return internal_error_response(env,kind,config_path)[1:]
+
+
+def internal_error_response(env,kind,config_path=''):
+    """5.6.15 : une erreur interne sur une route d'API renvoie du JSON lisible ; la trace va au journal, jamais au navigateur.
+    5.6.32 : la trace est aussi écrite dans « erreurs-interface.log » (à côté des données ; le poste Windows n'a pas de console) ;
+    une base momentanément occupée par une écriture (« database is locked ») n'est pas une panne : réponse 503 avec nouvel essai
+    automatique au lieu de « Interface indisponible »."""
+    import sys,traceback
+    error=sys.exc_info()[1]
+    log_interface_error(env,config_path)
+    if isinstance(error,sqlite3.OperationalError) and 'locked' in str(error).lower():
+        if wants_json(env,kind):
+            return '503 Service Unavailable','application/json; charset=utf-8',json.dumps({'error':'base_occupee','message':BUSY_MESSAGE,'retry_after':3},ensure_ascii=False)
+        return ('503 Service Unavailable','text/html; charset=utf-8','<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta http-equiv="refresh" content="3">'
+                '<title>Un instant · AxiorHub Pilote</title></head><body><h1>Un instant…</h1><p>'+e(BUSY_MESSAGE)+'</p></body></html>')
     if wants_json(env,kind):
-        return 'application/json; charset=utf-8',json.dumps({'error':'interface_indisponible','message':INTERNAL_ERROR_MESSAGE},ensure_ascii=False)
-    return kind,'<h1>Interface indisponible</h1><p>Vérifiez les services et les fichiers de configuration locaux.</p>'
+        return '500 Internal Server Error','application/json; charset=utf-8',json.dumps({'error':'interface_indisponible','message':INTERNAL_ERROR_MESSAGE},ensure_ascii=False)
+    return '500 Internal Server Error',kind,'<h1>Interface indisponible</h1><p>Vérifiez les services et les fichiers de configuration locaux. Le détail est consigné dans « erreurs-interface.log ».</p>'
+
+
+BUSY_MESSAGE='AxiorHub termine une écriture en cours ; la page se recharge automatiquement dans quelques secondes.'
+
+
+def log_interface_error(env,config_path=''):
+    """Trace de l'erreur (sans corps de requête, sans en-tête, sans donnée de formulaire) : date, méthode, chemin, type et pile."""
+    import sys,traceback
+    text=''.join(traceback.format_exc())[-12000:]
+    try:
+        stream=sys.stderr or sys.__stderr__
+        if stream is not None:print(text,file=stream,flush=True)
+    except Exception:
+        pass
+    try:
+        state_dir=json.loads(Path(config_path).read_text(encoding='utf-8')).get('state_dir','') if config_path else ''
+        if not state_dir:return
+        target=Path(state_dir)/'erreurs-interface.log'
+        if target.exists() and target.stat().st_size>2_000_000:
+            target.replace(target.with_suffix('.log.1'))
+        with open(target,'a',encoding='utf-8') as stream:
+            stream.write('=== %s %s %s\n%s\n'%(datetime.now(timezone.utc).isoformat(),str(env.get('REQUEST_METHOD',''))[:8],str(env.get('PATH_INFO',''))[:200],text))
+    except Exception:
+        pass
 
 
 def serve(config_path,auth_path,port=8769,host='127.0.0.1'):

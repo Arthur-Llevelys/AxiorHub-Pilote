@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+STATIC = {'/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -283,7 +283,7 @@ def route(env, cfg, auth, prefix, path, args, method):
         name = path.rsplit('/', 1)[1]
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
-    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation') or path in _pages500() or path.startswith('/api440/')):
+    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation', '/competences') or path in _pages500() or path.startswith('/api440/')):
         return None
     from . import shell501
     shell501.set_context(cfg)
@@ -299,6 +299,9 @@ def route(env, cfg, auth, prefix, path, args, method):
         if path in ('/parametres/agents','/parametres/agendas','/agents-documents'):
             from .web_rules568 import page
             return page_out(page(desk,auth,prefix,env,path,args))
+        if path == '/veille':   # 5.6.32 (R12) : veille planifiée, sourcée ; l'ancienne veille officielle est reprise dans les sources
+            from . import web5632
+            return page_out(web5632.veille_page(desk, auth, prefix, env, shell))
         if path in ('/engagements','/veille','/parametres/proactivite','/mise-en-service','/audience','/missions-complexes','/profils'):
             from .web568 import page
             env['axiorhub.args']=args
@@ -321,6 +324,9 @@ def route(env, cfg, auth, prefix, path, args, method):
             if actor(env)[1] != 'administrateur':
                 return page_out(shell('Guide d’installation', '<h1>Guide d’installation</h1><p>%s</p>' % e(human('role_insuffisant')), prefix, auth['csrf'], '/parametres'))
             return page_out(guide5631.page(desk, auth, prefix, env, args, shell))
+        if path == '/competences':   # 5.6.32 (R16) : compétences de l'IA
+            from . import web5632
+            return page_out(web5632.skills_page(desk, auth, prefix, env, shell))
         if path == '/guide-utilisation':   # 5.6.31 (R19) : guide d'utilisation de toutes les fonctions
             from . import aide5631
             return page_out(aide5631.page(desk, auth, prefix, env, args, shell))
@@ -390,6 +396,14 @@ def route(env, cfg, auth, prefix, path, args, method):
 
 def api(env, desk, auth, prefix, name, args, method):
     from . import drafts440, office440, notices440
+    if name.startswith('m5632/'):   # 5.6.32 : sources, contrôle des références, veille, compétences, documents de procédure
+        from . import web5632
+        try:
+            return web5632.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .guide5631 import message
+            return json_out({'error': code, 'message': message(code)}, '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5631/'):   # 5.6.31 : guide d'installation (sessions, étapes, preuves) et choix de la langue
         from . import guide5631
         try:

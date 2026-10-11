@@ -47,6 +47,7 @@ JOBS |= {'propose_work_plan','sync_caldav_tasks','apply_work_plan','update_work_
 JOBS |= {'prepare_document_project','create_document_files'}
 JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624','fiche_dossier5627'}
 JOBS |= {'search_index490'}
+JOBS |= {'digest_pieces5632','veille5632_collect','briefing_oral5632','mailrules5632'}   # 5.6.32
 JOBS |= {'autonomy_mail_sweep','refresh_operational_memory','review_autonomy_proposal'}
 JOBS |= {'legal_research','import_mcp_legal_results','verify_official_decision','identify_latest_writings','refresh_exhibit_registry'}
 JOBS |= {'identify_party_writings','compare_devices','prepare_hearing','create_hearing_files',
@@ -194,30 +195,81 @@ PICK_ORDER=("CASE WHEN priority<30 THEN priority ELSE MAX(30,priority-MIN(60,CAS
             " END,id")
 
 
+_SCHEMA_READY = set()
+_SCHEMA_LOCK = __import__('threading').Lock()
+
+
+def _schema_key(c):
+    """Base déjà préparée par CE processus (chemin + identité du fichier : une base recréée est préparée de nouveau)."""
+    path = Path(c['state_dir']) / 'desk.sqlite3'
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    if not st.st_size:
+        return None
+    return (str(path.resolve()), st.st_ino, st.st_ctime_ns if hasattr(st, 'st_ctime_ns') else 0)
+
+
 class Desk:
     def __init__(self, c):
-        # 5.6.25 : création et migration du schéma sérialisées entre processus (interface, worker, veille démarrent ensemble sur un
-        # profil neuf : sans ce verrou, deux ALTER TABLE simultanés font échouer l'un des services).
-        try:
-            handle = open(Path(c['state_dir'])/'schema.lock', 'a')
-        except OSError:
-            handle = None
-        try:
-            if handle is not None:
-                fcntl.flock(handle, fcntl.LOCK_EX)
-            self._init(c)
-        finally:
-            if handle is not None:
+        # 5.6.32 : la préparation du schéma (tables, migrations, données par défaut) n'a lieu qu'une fois par processus et par base.
+        # Avant, chaque page ouvrait Desk en écrivant (INSERT des parcours par défaut, index) sous un verrou de fichier partagé par
+        # l'interface, le worker et la veille : un traitement qui tenait l'écriture SQLite bloquait toutes les pages 10 s, puis
+        # « Interface indisponible » (database is locked). Les ouvertures suivantes ne font plus que lire.
+        key = _schema_key(c)
+        if key is not None and key in _SCHEMA_READY:
+            self._open(c)
+            self._runtime()
+            return
+        with _SCHEMA_LOCK:
+            key = _schema_key(c)
+            if key is not None and key in _SCHEMA_READY:
+                self._open(c)
+            else:
+                # 5.6.25 : création et migration du schéma sérialisées entre processus (interface, worker, veille démarrent ensemble sur
+                # un profil neuf : sans ce verrou, deux ALTER TABLE simultanés font échouer l'un des services).
                 try:
-                    fcntl.flock(handle, fcntl.LOCK_UN)
+                    handle = open(Path(c['state_dir'])/'schema.lock', 'a')
                 except OSError:
-                    pass
-                handle.close()
+                    handle = None
+                try:
+                    if handle is not None:
+                        fcntl.flock(handle, fcntl.LOCK_EX)
+                    self._open(c)
+                    self._prepare()
+                finally:
+                    if handle is not None:
+                        try:
+                            fcntl.flock(handle, fcntl.LOCK_UN)
+                        except OSError:
+                            pass
+                        handle.close()
+                key = _schema_key(c)
+                if key is not None:
+                    _SCHEMA_READY.add(key)
+        self._runtime()
 
-    def _init(self, c):
+    def _open(self, c):
         self.c = c
-        self.db = sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3', timeout=10)
+        from .common import busy_timeout
+        self._busy = busy_timeout()   # 5.6.32 : 2 s pour l'affichage d'une page, 10 s pour les actions et le worker
+        self.db = sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3', timeout=self._busy)
         self.db.row_factory = sqlite3.Row
+        from .common import track_connection
+        track_connection(self)   # 5.6.32 : aucune transaction ne reste ouverte pendant un appel réseau (voir common.HTTP)
+
+    def _runtime(self):
+        """Lectures propres à chaque ouverture (réglages chargés dans la configuration de la requête) ; aucune écriture."""
+        for role in ('fast','complex','control'):
+            chosen=self.settings('model:role:'+role,'')
+            if chosen:self.c.setdefault('model_routing',{})[role+'_model']=chosen
+        from .ai_gateway import load_runtime_settings
+        load_runtime_settings(self)
+        from .extensions364 import load_runtime_settings as load_extension_settings
+        load_extension_settings(self)
+
+    def _prepare(self):
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.executescript('''
         CREATE TABLE IF NOT EXISTS jobs(id INTEGER PRIMARY KEY, kind TEXT, args TEXT,
@@ -261,13 +313,6 @@ class Desk:
         self.db.commit()
         from .migrations import apply as apply_migrations
         apply_migrations(self)
-        for role in ('fast','complex','control'):
-            chosen=self.settings('model:role:'+role,'')
-            if chosen:self.c.setdefault('model_routing',{})[role+'_model']=chosen
-        from .ai_gateway import load_runtime_settings
-        load_runtime_settings(self)
-        from .extensions364 import load_runtime_settings as load_extension_settings
-        load_extension_settings(self)
         from .legal_memory import ensure_schema
         ensure_schema(self)
         from .metier500 import ensure_schema as ensure_metier500_schema   # 5.0.0 : tables additives
@@ -430,6 +475,25 @@ class Desk:
     def setting(self, key, value):
         self.db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)',(key,json.dumps(value)))
         self.db.commit()
+
+    def soft_write(self, sql, params=()):
+        """5.6.32 : écriture facultative (cache, mesure, instantané) : si une autre écriture occupe la base, elle est sautée au lieu de
+        bloquer la page ; elle sera refaite au prochain affichage. Renvoie True si elle a eu lieu."""
+        self.db.execute('PRAGMA busy_timeout=300')
+        try:
+            self.db.execute(sql, params)
+            self.db.commit()
+            return True
+        except sqlite3.OperationalError as error:
+            if 'locked' not in str(error).lower() and 'busy' not in str(error).lower():
+                raise
+            try:
+                self.db.rollback()
+            except sqlite3.Error:
+                pass
+            return False
+        finally:
+            self.db.execute('PRAGMA busy_timeout=%d' % (int(getattr(self, '_busy', 10)) * 1000))
 
     def propose(self, matter, email, evidence):
         try:
@@ -624,6 +688,18 @@ class Desk:
         if kind=='extract_facts460':
             from .facts460 import scan_matter
             return scan_matter(self,args)
+        if kind=='digest_pieces5632':   # 5.6.32 : fiches de pièces (examen du dossier entier)
+            from .synthese5632 import build_job
+            return build_job(self,args)
+        if kind=='mailrules5632':   # 5.6.32 : règles « Déplacer » de la messagerie
+            from .courrier5632 import apply_moves
+            return apply_moves(self)
+        if kind=='briefing_oral5632':   # 5.6.32 : résumé oral du briefing, rédigé par l'IA et contrôlé
+            from .oral5632 import job
+            return job(self,args)
+        if kind=='veille5632_collect':   # 5.6.32 : veille juridique planifiée
+            from .veille5632 import collect
+            return collect(self,args)
         if kind=='fiche_dossier5627':   # 5.6.27 : fiche de travail du dossier (page Dossier refondue)
             from .dossier5627 import prepare
             return prepare(self,args)
@@ -944,7 +1020,8 @@ class Desk:
             else:
                 from .queue521 import note_holder
                 from .queue567 import producer_lock
-                with producer_lock(self.c,row['kind'],_args):
+                from .competences5632 import for_job   # 5.6.32 (R16) : compétences retenues pour CE travail seulement
+                with producer_lock(self.c,row['kind'],_args), for_job(self,row,_args):
                     note_holder(self.c['state_dir'],'Travail n° %s (%s)'%(row['id'],row['kind']))
                     result=self.perform(row['kind'],with_consignes(self,json.loads(row['args'])))
             if isinstance(result,dict):

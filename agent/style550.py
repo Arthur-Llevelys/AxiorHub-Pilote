@@ -51,6 +51,21 @@ STEPS = re.compile(r"(prochaine[s]? étape|prochaines etapes|je vous propose|je 
                    r"délai|delai|je vous remercie de (?:bien vouloir )?(?:me|nous) (?:faire|transmettre|retourner|communiquer))", re.I)
 AXIORHUB_MARK = 'Projet préparé par AxiorHub'
 SUBHEADING = re.compile(r"^(?:[A-H]|[a-h]|\d{1,2}(?:\.\d{1,2})*)\s*[.\-–)]\s")
+FEATURES_VERSION = 2   # 5.6.32 : numérotation, style des citations et intitulé du dispositif
+# Libellés de parties et mentions de forme : ce ne sont pas des parties du raisonnement (« Plan habituel : POUR → CONTRE » était inutile).
+TRIVIAL_HEADINGS = {'POUR', 'CONTRE', 'ENTRE', 'ET', 'A LA REQUETE DE', 'À LA REQUÊTE DE', 'DEMANDEUR', 'DEMANDERESSE', 'DEFENDEUR', 'DÉFENDEUR',
+                    'DEFENDERESSE', 'DÉFENDERESSE', 'APPELANT', 'APPELANTE', 'INTIME', 'INTIMÉ', 'INTIMEE', 'INTIMÉE', 'AYANT POUR AVOCAT',
+                    'PIECES', 'PIÈCES', 'BORDEREAU', 'SOUS TOUTES RESERVES', 'SOUS TOUTES RÉSERVES', 'DONT ACTE', 'COPIE'}
+CITATIONS = (('Cass. civ. 1re', re.compile(r"\bCass\.\s*civ\.\s*1(?:re|ère)", re.I)), ('Civ. 1re', re.compile(r"(?<!Cass\. )\bCiv\.\s*1(?:re|ère)")),
+             ('Cass., 1re civ.', re.compile(r"\bCass\.,\s*1(?:re|ère)\s*civ", re.I)), ('Cass. soc.', re.compile(r"\bCass\.\s*soc\.", re.I)),
+             ('Soc.', re.compile(r"(?<!Cass\. )\bSoc\.,")), ('Cass. com.', re.compile(r"\bCass\.\s*com\.", re.I)), ('Com.', re.compile(r"(?<!Cass\. )\bCom\.,")))
+DISPOSITIF = re.compile(r"^\s*(PAR CES MOTIFS|PLAISE AU TRIBUNAL|PLAISE [ÀA] LA COUR|IL EST DEMAND[ÉE] AU TRIBUNAL DE|DISPOSITIF)\b", re.M)
+EFFECTS = {'ouverture': 'Les projets de ce type commenceront par cette formule.', 'cloture': 'Les projets de ce type se termineront par cette formule.',
+           'plan': 'Les projets de ce type suivront ce plan.', 'numerotation': 'Les parties des projets seront numérotées ainsi.',
+           'citations': 'Les décisions citées dans les projets seront présentées dans ce format.',
+           'dispositif': 'Le dispositif des projets portera cet intitulé.', 'etapes': 'Les projets se termineront par les prochaines étapes ou un délai.',
+           'listes': 'Les points à traiter seront présentés en liste.', 'formule': 'Cette formule sera reprise quand elle convient.',
+           'ia': 'Cette consigne sera donnée à l’IA pour les projets de ce type.'}
 TITLE = re.compile(r"^(?:CONCLUSIONS|ASSIGNATION|REQU[ÊE]TE|CONTRAT|AVENANT|NOTE|CONSULTATION|PROTOCOLE|STATUTS|MISE EN DEMEURE|COMPTE RENDU|ACTE)(?![A-Z])")
 
 
@@ -86,9 +101,11 @@ def save_settings(desk, data):
         if not re.fullmatch(r"[\w .'’()&\-]{1,80}", value):
             raise Stop('nom_sous_dossier_invalide')
         folders[key] = value
+    from . import dossiers5632   # 5.6.32 : autres dossiers de travail (NOS PIECES, PIECES ADVERSES - {{partie_adverse01}}…)
+    extra = dossiers5632.save(desk, data) if any(str(k).startswith('extra_pattern_') for k in data) else dossiers5632.configured(desk)
     desk.setting('docreq530:folders', folders)
-    desk.audit('style550_reglages', {**s, 'folders': list(folders.values())})
-    return {**s, 'folders': folders, 'message': 'Réglages enregistrés.'}
+    desk.audit('style550_reglages', {**s, 'folders': list(folders.values()), 'extra_folders': [x['pattern'] for x in extra]})
+    return {**s, 'folders': folders, 'extra_folders': extra, 'message': 'Réglages enregistrés.'}
 
 
 # ======================================================================================== analyse d'un écrit
@@ -164,7 +181,19 @@ def analyse(text, doc_type=''):
             skeleton.append('  ' + first[:220])
             current = None
     skel = _generic('\n'.join(skeleton[:60]), ps)[:3000]
-    return {'opening': _generic(opening)[:120] if opening else '', 'closing': _generic(closing)[:260] if closing else '', 'headings': headings,
+    mains = [l for l in lines if _is_heading(l) and not SUBHEADING.match(l)]
+    numbering = ''
+    if sum(1 for l in mains if re.match(r'^[IVX]{1,5}\s*[.\-–)]', l)) >= 2:
+        numbering = 'romains'
+    elif sum(1 for l in mains if re.match(r'^\d{1,2}\s*[.\-–)]', l)) >= 2:
+        numbering = 'chiffres'
+    subs = 'lettres' if sum(1 for l in lines if re.match(r'^[A-H]\s*[.\-–)]\s', l)) >= 2 else ''
+    cites = {label: len(rx.findall(text)) for label, rx in CITATIONS}
+    cite = max(cites, key=cites.get) if max(cites.values() or [0]) >= 2 else ''
+    disp = DISPOSITIF.search(text)
+    return {'v': FEATURES_VERSION, 'numbering': numbering, 'subnumbering': subs, 'citation_style': cite,
+            'dispositif': disp.group(1).upper() if disp else '',
+            'opening': _generic(opening)[:120] if opening else '', 'closing': _generic(closing)[:260] if closing else '', 'headings': headings,
             'words': words, 'paragraphs': len(lines), 'sentence_avg': avg, 'steps': bool(STEPS.search(last_part)),
             'bullets': sum(1 for l in lines if l[:1] in '-–•*·') >= 2, 'formulas': formulas, 'skeleton': skel}
 
@@ -209,7 +238,9 @@ def scan(desk, dav=None, budget=MAX_FILES_PER_RUN):
         generated = {r[0] for r in desk.db.execute("SELECT path FROM docreq520 WHERE path<>''")}
     except sqlite3.Error:
         pass
-    known = {r['id']: r['etag'] for r in desk.db.execute('SELECT id,etag FROM style550_docs')}
+    # 5.6.32 : un écrit analysé par une version antérieure des caractéristiques est relu (nouvelles habitudes : numérotation, citations…).
+    known = {r['id']: (r['etag'] if '"v": %d' % FEATURES_VERSION in (r['features'] or '') else None)
+             for r in desk.db.execute('SELECT id,etag,features FROM style550_docs')}
     try:
         matters = load_matters(desk.c)
     except Stop:
@@ -223,7 +254,13 @@ def scan(desk, dav=None, budget=MAX_FILES_PER_RUN):
         if read >= budget or time.monotonic() - started > 120:
             break
         visited += 1
-        for group, folder in names.items():
+        # 5.6.32 : les dossiers de travail « écrits du cabinet » sont lus aussi ; les pièces (nôtres ou adverses) jamais.
+        from .dossiers5632 import style_folders
+        try:
+            extra = [('ecrits', f) for f in style_folders(desk, m)]
+        except Exception:   # noqa: BLE001
+            extra = []
+        for group, folder in list(names.items()) + extra:
             base = m['path'].rstrip('/') + '/' + folder
             try:
                 items = client.inventory(base)
@@ -336,16 +373,26 @@ def propose(desk):
                 hs = d.get('headings') or []
                 for i, h in enumerate(dict.fromkeys(hs)):
                     positions.setdefault(h, []).append(i / max(len(hs), 1))
-            plan = [h for h, p in positions.items() if len(p) >= max(2, n * 0.6)]
-            if len(plan) >= 2:
+            plan = [h for h, p in positions.items() if len(p) >= max(2, n * 0.6) and h not in TRIVIAL_HEADINGS and len(h) > 4]
+            if len(plan) >= 3:   # au moins trois vraies parties : sinon ce n'est pas un plan
                 plan.sort(key=lambda h: statistics.mean(positions[h]))
                 k = min(len(positions[h]) for h in plan)
                 created += _habit(desk, doc_type, 'plan', 'Plan habituel : ' + ' → '.join(plan[:8]), k, n, ev(k))
+            for field, kind, render in (('numbering', 'numerotation', lambda v: 'Parties principales numérotées en %s%s' % (
+                                            'chiffres romains (I., II., III.)' if v == 'romains' else 'chiffres arabes (1., 2., 3.)',
+                                            ', sous-parties en lettres (A., B.)' if sum(1 for d in docs if d.get('subnumbering') == 'lettres') >= max(2, n * 0.5) else '')),
+                                        ('citation_style', 'citations', lambda v: 'Citations de jurisprudence au format « %s, [date], n° [pourvoi] »' % v),
+                                        ('dispositif', 'dispositif', lambda v: 'Dispositif introduit par « %s »' % v)):
+                values = Counter(d.get(field) for d in docs if d.get(field))
+                if values:
+                    value, k = values.most_common(1)[0]
+                    if k >= max(2, n * 0.5):
+                        created += _habit(desk, doc_type, kind, render(value), k, n, ev(k))
         lengths = sorted(d.get('words', 0) for d in docs if d.get('words'))
         if len(lengths) >= MIN_DOCS:
+            # 5.6.32 : la longueur est un repère mesuré, pas une habitude à valider : elle est transmise automatiquement à la rédaction.
             q1, q3 = lengths[len(lengths) // 4], lengths[(3 * len(lengths)) // 4]
-            rnd = lambda x: int(round(x / 10.0) * 10) if x < 1000 else int(round(x / 100.0) * 100)
-            created += _habit(desk, doc_type, 'longueur', 'Longueur habituelle : %d à %d mots' % (rnd(q1), rnd(q3)), len(lengths), n, ev(len(lengths)))
+            desk.setting('style550:length:' + doc_type, {'min': q1, 'max': q3, 'ecrits': len(lengths)})
         k = sum(1 for d in docs if d.get('steps'))
         if k >= max(2, n * 0.6):
             created += _habit(desk, doc_type, 'etapes', 'Vous terminez en annonçant les prochaines étapes ou un délai', k, n, ev(k))
@@ -362,6 +409,12 @@ def propose(desk):
         for key, k in counts.most_common(8):
             if k >= max(3, n * 0.3):
                 created += _habit(desk, doc_type, 'formule', 'Formule maison : « %s »' % originals[key], k, n, ev(k))
+    # 5.6.32 : anciennes propositions sans intérêt retirées de la liste « à valider » (aucune règle n'en dépendait).
+    desk.db.execute("UPDATE style550_habits SET status='automatique' WHERE status='proposee' AND kind='longueur'")
+    for row in desk.db.execute("SELECT id,text FROM style550_habits WHERE status='proposee' AND kind='plan'").fetchall():
+        parts = [p.strip() for p in str(row['text']).split(':', 1)[-1].split('→') if p.strip()]
+        if len([p for p in parts if p not in TRIVIAL_HEADINGS and len(p) > 4]) < 3:
+            desk.db.execute("UPDATE style550_habits SET status='ecartee' WHERE id=?", (row['id'],))
     desk.db.commit()
     return created
 
@@ -443,9 +496,11 @@ def drafting_context(desk, kind='auto'):
     marks = ','.join('?' * len(types))
     habits = [r['text'] for r in desk.db.execute("SELECT text FROM style550_habits WHERE status='validee' AND doc_type IN (%s) ORDER BY support DESC LIMIT 20" % marks, types)]
     skeletons = [r['skeleton'] for r in desk.db.execute('SELECT skeleton FROM style550_docs WHERE doc_type IN (%s) AND skeleton<>\'\' ORDER BY analysed DESC LIMIT 2' % marks, types)]
-    if not habits and not skeletons:
+    lengths = {t: desk.settings('style550:length:' + t, None) for t in types}
+    lengths = {TYPES.get(t, t): '%d à %d mots (%d écrits)' % (v['min'], v['max'], v['ecrits']) for t, v in lengths.items() if v}
+    if not habits and not skeletons and not lengths:
         return {}
-    return {'habitudes_validees': habits, 'plans_types': skeletons,
+    return {'habitudes_validees': habits, 'plans_types': skeletons, 'longueur_indicative': lengths,
             'consigne': 'Reprends le style et le plan habituels du cabinet ci-dessus, sauf si la demande les contredit.'}
 
 

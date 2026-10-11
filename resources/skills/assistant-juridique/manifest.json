@@ -1,0 +1,19 @@
+{
+  "id": "builtin.assistant_juridique",
+  "name": "Assistant juridique",
+  "version": "7.4.0+axiorhub.1",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "Christophe Quézel-Ambrunaz (œuvre d’origine) ; adaptation AxiorHub",
+  "license": "AGPL-3.0",
+  "source": "https://lawve.ai/@christophe-quezel-ambrunaz/skill/assistant-juridique",
+  "archive_sha256": "02574345d439365822ad7f5b7bc568b7e34b76dcc03f07f08a64c3ff9993633a",
+  "instructions": ["origine/SKILL.md", "ADAPTATION.md"],
+  "references": "origine/references",
+  "jurisdictions": ["FR", "UE", "CEDH"],
+  "description": "Recherche juridique, consultation, rédaction d’actes, analyse de pièces et de contrats, contre-argumentaire, veille, vérification et harmonisation des références, avec la règle « Chercher → Trouver → Lire → Vérifier → Citer ».",
+  "situations": ["question juridique", "recherche juridique", "consultation", "rédaction d’un acte", "analyse d’un contrat", "analyse de pièces", "contre-argumentaire", "vérification de références", "jurisprudence", "article de code"],
+  "auto_select_tags": ["jurisprudence", "article", "code civil", "code du travail", "consultation", "recherche juridique", "conclusions", "assignation", "contrat", "responsabilité", "cedh", "cjue", "référence", "citation"],
+  "requires": {"analysis": ["ai.generate"], "verified_draft": ["ai.generate", "legal.text"]},
+  "excluded_files": ["scripts/doctrine_search.py", "scripts/extract_references.py", "scripts/format_citation.py", "scripts/generate_bibliography.py", "scripts/hal_search.py", "scripts/reference_journal.py", "scripts/verify_links.py"]
+}
