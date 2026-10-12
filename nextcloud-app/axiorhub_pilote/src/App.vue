@@ -1,500 +1,312 @@
 <template>
-	<NcContent app-name="axiorhub_pilote">
+	<NcContent app-name="axiorhub_pilote" class="axh-app">
+		<NcAppNavigation class="axh-nav" :aria-label="t('axiorhub_pilote', 'AxiorHub sections')">
+			<div class="axh-side">
+				<div class="axh-brand">
+					<img :src="logo" width="38" height="38" alt="">
+					<div>
+						<span class="axh-brand-name">AxiorHub</span>
+						<span class="axh-brand-sub">{{ t('axiorhub_pilote', 'Pilote · AI lawyer agent') }}</span>
+					</div>
+				</div>
+				<nav v-for="(group, g) in groups" :key="g" class="axh-side-group">
+					<a v-for="s in group"
+						:key="s.path"
+						href="#"
+						:aria-current="view === 'axiorhub' && current === s.path ? 'page' : undefined"
+						@click.prevent="go(s.path)">
+						<span class="axh-side-icon" aria-hidden="true">{{ s.icon }}</span>
+						<span>{{ s.label }}</span>
+					</a>
+				</nav>
+				<nav class="axh-side-group">
+					<a href="#" :title="t('axiorhub_pilote', 'Collapse the menu')" @click.prevent="collapse">
+						<span class="axh-side-icon" aria-hidden="true">«</span>
+						<span>{{ t('axiorhub_pilote', 'Collapse the menu') }}</span>
+					</a>
+					<a href="#" @click.prevent="openTab">
+						<span class="axh-side-icon" aria-hidden="true">↗</span>
+						<span>{{ t('axiorhub_pilote', 'Open in a new tab') }}</span>
+					</a>
+					<a href="#" :aria-current="view === 'simple' ? 'page' : undefined" @click.prevent="view = 'simple'">
+						<span class="axh-side-icon" aria-hidden="true">☰</span>
+						<span>{{ t('axiorhub_pilote', 'Simplified view') }}</span>
+					</a>
+				</nav>
+				<p class="axh-side-about">
+					{{ t('axiorhub_pilote', 'AxiorHub Pilote for Nextcloud {version}', { version: APP_VERSION }) }}
+				</p>
+			</div>
+		</NcAppNavigation>
 		<NcAppContent>
-			<div class="axh">
-				<header class="axh-head">
-					<h2>{{ t('axiorhub_pilote', 'AxiorHub Pilote') }}</h2>
-					<p v-if="me" class="axh-muted">{{ t('axiorhub_pilote', 'Linked to {user} · AxiorHub {version}', { user: me.user || '—', version: me.version || '' }) }}</p>
-				</header>
-
-				<NcNoteCard v-if="!config.linked && !config.engineConfigured" type="info">
+			<div v-if="view === 'axiorhub'" class="axh-embed">
+				<NcNoteCard v-if="!config.linked" type="info" class="axh-note">
 					<p>{{ t('axiorhub_pilote', 'Link your AxiorHub account to use AxiorHub Pilote in Nextcloud.') }}</p>
 					<p><a class="axh-link" :href="config.personalUrl">{{ t('axiorhub_pilote', 'Open Personal settings › AxiorHub Pilote') }}</a></p>
 				</NcNoteCard>
-				<template v-else>
-					<NcNoteCard v-if="health && !health.reachable" type="warning">
-						<p>{{ healthText }}</p>
-						<p v-if="config.linked"><a class="axh-link" :href="config.personalUrl">{{ t('axiorhub_pilote', 'Check the connection in Personal settings › AxiorHub Pilote') }}</a></p>
-						<NcButton @click="checkHealth">{{ t('axiorhub_pilote', 'Try again') }}</NcButton>
-					</NcNoteCard>
-
-					<section class="axh-case">
-						<NcSelect v-model="selected"
-							:options="matters"
-							label="label"
-							:filterable="false"
-							:loading="loadingMatters"
-							:input-label="t('axiorhub_pilote', 'Case (optional for the Pilot and the searches)')"
-							:placeholder="t('axiorhub_pilote', 'Search a case by name or reference')"
-							@search="onSearch" />
-						<p v-if="!matters.length && !loadingMatters" class="axh-muted">{{ emptyText }}</p>
-					</section>
-
-					<nav class="axh-tabs" role="tablist">
-						<NcButton v-for="tab in tabs"
-							:key="tab.id"
-							role="tab"
-							:aria-selected="active === tab.id ? 'true' : 'false'"
-							:variant="active === tab.id ? 'primary' : 'secondary'"
-							@click="active = tab.id">
-							{{ tab.label }}
-						</NcButton>
-					</nav>
-
-					<section v-if="active === 'pilote'" class="axh-panel">
-						<NcTextArea v-model="instruction" :label="t('axiorhub_pilote', 'Instruction to the Pilot')" :placeholder="t('axiorhub_pilote', 'Describe the expected result… e.g. “Summarise the last letter of the other side and list the deadlines”')" rows="5" />
-						<label class="axh-label" for="axh-intent">{{ t('axiorhub_pilote', 'Expected result') }}</label>
-						<select id="axh-intent" v-model="intent" class="axh-select">
-							<option value="auto">{{ t('axiorhub_pilote', 'Let the Pilot decide') }}</option>
-							<option value="question">{{ t('axiorhub_pilote', 'Answer') }}</option>
-							<option value="analysis">{{ t('axiorhub_pilote', 'Analysis') }}</option>
-							<option value="document">{{ t('axiorhub_pilote', 'Word draft in the case folder') }}</option>
-							<option value="mail">{{ t('axiorhub_pilote', 'Email draft in Drafts (never sent)') }}</option>
-						</select>
-						<NcButton variant="primary" :disabled="busy || instruction.trim().length < 3" @click="start('instruction', instruction)">
-							{{ t('axiorhub_pilote', 'Send the instruction') }}
-						</NcButton>
-					</section>
-
-					<section v-if="active === 'recherche'" class="axh-panel">
-						<NcTextField v-model="searchText" :label="t('axiorhub_pilote', 'Search the cases (emails, documents, notes)')" @keyup.enter="search" />
-						<NcButton variant="primary" :disabled="searching || searchText.trim().length < 2" @click="search">{{ t('axiorhub_pilote', 'Search') }}</NcButton>
-						<p v-if="searchInfo" class="axh-muted">{{ searchInfo }}</p>
-						<ul class="axh-results">
-							<li v-for="(r, i) in searchResults" :key="i">
-								<strong>{{ r.title }}</strong>
-								<span class="axh-muted"> · {{ kindName(r.kind) }}<template v-if="r.date"> · {{ r.date }}</template><template v-if="r.matter"> · {{ matterName(r.matter) }}</template></span>
-								<p v-if="r.excerpt">{{ r.excerpt }}</p>
-							</li>
-						</ul>
-					</section>
-
-					<section v-if="active === 'fiche'" class="axh-panel">
-						<p v-if="!selected" class="axh-muted">{{ t('axiorhub_pilote', 'Choose a case above.') }}</p>
-						<NcButton variant="primary" :disabled="busy || !selected" @click="start('fiche_dossier', '')">
-							{{ t('axiorhub_pilote', 'Prepare the case sheet') }}
-						</NcButton>
-					</section>
-
-					<section v-if="active === 'juridique'" class="axh-panel">
-						<NcTextArea v-model="question" :label="t('axiorhub_pilote', 'Legal question (anonymised before any sending)')" />
-						<NcButton variant="primary" :disabled="busy || question.trim().length < 3" @click="start('recherche_juridique', question)">
-							{{ t('axiorhub_pilote', 'Search') }}
-						</NcButton>
-					</section>
-
-					<section v-if="active === 'travaux'" class="axh-panel">
-						<p v-if="!recent.length" class="axh-muted">{{ t('axiorhub_pilote', 'No work yet.') }}</p>
-						<ul class="axh-plain">
-							<li v-for="j in recent" :key="j.id">
-								<NcButton :variant="job?.id === j.id ? 'primary' : 'tertiary'" @click="reopen(j)">
-									{{ operationName(j.operation) }} · {{ matterName(j.matter) || t('axiorhub_pilote', 'Whole firm') }} · {{ when(j.created_at * 1000) }}
-								</NcButton>
-							</li>
-						</ul>
-					</section>
-
-					<p class="axh-status" role="status" aria-live="polite">{{ message }}</p>
-
-					<section v-if="job" class="axh-job">
-						<h3>{{ operationName(job.operation || current) }} — {{ stateLabel }}</h3>
-						<p v-if="job.stage" class="axh-muted">{{ job.stage }}</p>
-						<NcButton v-if="['pending','running'].includes(job.state)" @click="cancel">{{ t('axiorhub_pilote', 'Cancel') }}</NcButton>
-						<NcButton v-if="interrupted" @click="follow(job.id)">{{ t('axiorhub_pilote', 'Resume tracking') }}</NcButton>
-						<div v-if="result" class="axh-result">
-							<template v-if="content.reponse !== undefined">
-								<pre class="axh-pre">{{ content.reponse || t('axiorhub_pilote', 'No text answer: see the deliverable.') }}</pre>
-								<p v-if="content.livrable"><strong>{{ t('axiorhub_pilote', 'Deliverable:') }}</strong> {{ content.livrable }}</p>
-								<details v-if="content.sources && content.sources.length" class="axh-section">
-									<summary>{{ t('axiorhub_pilote', 'Sources ({count})', { count: content.sources.length }) }}</summary>
-									<ul><li v-for="(s, i) in content.sources" :key="i">{{ sourceText(s) }}</li></ul>
-								</details>
-							</template>
-							<template v-else>
-								<p><strong>{{ t('axiorhub_pilote', 'Result version {version}', { version: result.version }) }}</strong> — {{ t('axiorhub_pilote', 'complete content below ({count} characters): read it entirely before deciding.', { count: fullText.length }) }}</p>
-								<template v-if="sections.length">
-									<details v-for="s in sections" :key="s.key" open class="axh-section">
-										<summary>{{ s.key }}</summary>
-										<pre class="axh-pre">{{ s.text }}</pre>
-									</details>
-								</template>
-								<pre v-else class="axh-pre">{{ fullText }}</pre>
-							</template>
-							<p v-if="decision" class="axh-decision">{{ decisionLabel }}</p>
-							<details v-if="history.length" class="axh-section">
-								<summary>{{ t('axiorhub_pilote', 'Decision history ({count})', { count: history.length }) }}</summary>
-								<ul>
-									<li v-for="(h, i) in history" :key="i">
-										{{ t('axiorhub_pilote', '{decision} by {user} on {date} (version {version})', { decision: decisionName(h.decision), user: h.user, date: when(h.at), version: h.version }) }}
-										<span v-if="h.comment"> — {{ h.comment }}</span>
-									</li>
-								</ul>
-							</details>
-							<NcTextArea v-model="comment" :label="t('axiorhub_pilote', 'Correction requested (required to request a correction)')" />
-							<div class="axh-buttons">
-								<NcButton variant="primary" :disabled="deciding" @click="decide('approuve')">{{ t('axiorhub_pilote', 'Approve this version') }}</NcButton>
-								<NcButton :disabled="deciding" @click="decide('refuse')">{{ t('axiorhub_pilote', 'Refuse this version') }}</NcButton>
-								<NcButton :disabled="deciding || comment.trim().length < 3" @click="decide('correction_demandee')">{{ t('axiorhub_pilote', 'Request a correction') }}</NcButton>
-							</div>
-						</div>
-					</section>
-				</template>
+				<NcNoteCard v-else-if="problem" type="warning" class="axh-note">
+					<p>{{ problemText }}</p>
+					<div class="axh-buttons">
+						<NcButton @click="reconnect(current)">{{ t('axiorhub_pilote', 'Try again') }}</NcButton>
+						<NcButton @click="openTab">{{ t('axiorhub_pilote', 'Open in a new tab') }}</NcButton>
+						<NcButton variant="tertiary" @click="view = 'simple'">{{ t('axiorhub_pilote', 'Simplified view') }}</NcButton>
+					</div>
+				</NcNoteCard>
+				<iframe v-if="src && !problem"
+					ref="frame"
+					:key="frameKey"
+					:src="src"
+					class="axh-frame"
+					:title="t('axiorhub_pilote', 'AxiorHub interface')"
+					allow="microphone; clipboard-read; clipboard-write"
+					referrerpolicy="no-referrer" />
+				<NcLoadingIcon v-else-if="loading" :size="44" class="axh-loading" />
 			</div>
+			<SimpleView v-else />
 		</NcAppContent>
 	</NcContent>
 </template>
 
 <script setup>
-// 0.3.0 : interface complète — instruction au Pilote, recherche dans les dossiers, fiche du dossier, recherche juridique, travaux.
-// Compte relié dans les paramètres personnels (clé personnelle) ; suivi rattaché au travail lancé (une réponse tardive d'un ancien
-// travail ne modifie jamais l'écran d'un autre travail) ; résultat entièrement lisible avant décision.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+// 0.4.0 : l'interface AxiorHub elle-même, affichée dans Nextcloud (cadre), avec les rubriques AxiorHub dans la navigation Nextcloud.
+// La connexion se fait par une adresse à usage unique remise par le moteur au compte relié (aucun mot de passe ni secret dans le
+// navigateur) ; si la session AxiorHub expire ou si le navigateur la bloque dans le cadre, une nouvelle adresse est demandée une
+// fois, puis l'écran propose « Ouvrir dans un onglet » et la « Vue simplifiée » (écran de la 0.3.0).
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import axios from '@nextcloud/axios'
+import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { loadState } from '@nextcloud/initial-state'
 import { t } from '@nextcloud/l10n'
-import { generateUrl } from '@nextcloud/router'
+import { generateUrl, imagePath } from '@nextcloud/router'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
+import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
+import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
-import NcSelect from '@nextcloud/vue/components/NcSelect'
-import NcTextArea from '@nextcloud/vue/components/NcTextArea'
-import NcTextField from '@nextcloud/vue/components/NcTextField'
+import SimpleView from './components/SimpleView.vue'
 
-const LIMIT_MS = 15 * 60 * 1000
-const config = loadState('axiorhub_pilote', 'config', { engineConfigured: false, linked: false, personalUrl: '', isAdmin: false })
-const url = (path) => generateUrl('/apps/axiorhub_pilote/api' + path)
-const tabs = [
-	{ id: 'pilote', label: t('axiorhub_pilote', 'Pilot') },
-	{ id: 'recherche', label: t('axiorhub_pilote', 'Search the cases') },
-	{ id: 'fiche', label: t('axiorhub_pilote', 'Case sheet') },
-	{ id: 'juridique', label: t('axiorhub_pilote', 'Legal search') },
-	{ id: 'travaux', label: t('axiorhub_pilote', 'Recent work') },
+const config = loadState('axiorhub_pilote', 'config', { engineConfigured: false, linked: false, personalUrl: '', isAdmin: false, embed: { ok: false } })
+// mêmes rubriques, icônes et ordre que le menu d'AxiorHub (six accès principaux, puis les fonctions du cabinet)
+const sections = [
+	{ path: '/aujourdhui', icon: '◎', label: t('axiorhub_pilote', 'Today') },
+	{ path: '/dossiers', icon: '▦', label: t('axiorhub_pilote', 'Cases') },
+	{ path: '/courriels', icon: '✉', label: t('axiorhub_pilote', 'Emails') },
+	{ path: '/planning', icon: '◷', label: t('axiorhub_pilote', 'Calendar and tasks') },
+	{ path: '/production', icon: '＋', label: t('axiorhub_pilote', 'Produce') },
+	{ path: '/corporate', icon: '⚖', label: t('axiorhub_pilote', 'Corporate') },
+	{ path: '/contacts-crm', icon: '☏', label: t('axiorhub_pilote', 'Contacts & CRM') },
+	{ path: '/initiatives', icon: '✦', label: t('axiorhub_pilote', 'Initiatives') },
+	{ path: '/outils-ia', icon: '◇', label: t('axiorhub_pilote', 'AI tools') },
+	{ path: '/recherche-juridique', icon: '⌕', label: t('axiorhub_pilote', 'Legal research') },
+	{ path: '/missions', icon: '➤', label: t('axiorhub_pilote', 'Missions') },
+	{ path: '/toutes-les-fonctions', icon: '▸', label: t('axiorhub_pilote', 'All functions') },
+	{ path: '/parametres', icon: '⚙', label: t('axiorhub_pilote', 'Settings') },
 ]
-const active = ref('pilote')
-const health = ref(null)
-const me = ref(null)
-const matters = ref([])
-const loadingMatters = ref(false)
-const syncInfo = ref(null)
-const selected = ref(null)
-const instruction = ref('')
-const intent = ref('auto')
-const question = ref('')
-const searchText = ref('')
-const searching = ref(false)
-const searchResults = ref([])
-const searchInfo = ref('')
-const busy = ref(false)
-const deciding = ref(false)
-const message = ref('')
-const job = ref(null)
-const current = ref('')
-const result = ref(null)
-const decision = ref(null)
-const comment = ref('')
-const interrupted = ref(false)
-const recent = ref([])
-let timer = null
-let generation = 0
-let controller = null
-let searchTimer = null
-
-const matter = computed(() => selected.value?.matter || '')
+const PRIMARY = ['/aujourdhui', '/dossiers', '/courriels', '/planning', '/production', '/parametres']
+const groups = [
+	PRIMARY.map((p) => sections.find((s) => s.path === p)),
+	sections.filter((s) => !PRIMARY.includes(s.path)),
+]
+const logo = imagePath('axiorhub_pilote', 'axiorhub-logo.png')
+// eslint-disable-next-line no-undef
+const APP_VERSION = typeof appVersion === 'string' ? appVersion : ''
 const REASONS = {
-	compte_non_relie: () => t('axiorhub_pilote', 'Link your AxiorHub account in Personal settings › AxiorHub Pilote.'),
+	moteur_a_mettre_a_jour: () => t('axiorhub_pilote', 'This AxiorHub engine is too old to be displayed in Nextcloud: update it to version 5.6.37 or later.'),
 	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server (address, firewall or certificate).'),
 	moteur_occupe: () => t('axiorhub_pilote', 'AxiorHub is busy finishing another operation: try again in a few seconds.'),
-	reponse_moteur_invalide: () => t('axiorhub_pilote', 'The configured address answers but is not AxiorHub Pilote: check it in Personal settings.'),
-	acces_refuse_par_le_frontal: () => t('axiorhub_pilote', 'The web server in front of AxiorHub asks for a login: allow /integration/v1/ without login on that server.'),
 	cle_personnelle_revoquee_ou_inconnue: () => t('axiorhub_pilote', 'Your personal key was revoked: link your account again in Personal settings.'),
 	integration_desactivee: () => t('axiorhub_pilote', 'AxiorHub does not accept Nextcloud requests: ask the administrator to allow the Nextcloud app in AxiorHub.'),
-	dossier_hors_perimetre: () => t('axiorhub_pilote', 'This case is not available to your account.'),
-}
-const reason = (data) => (REASONS[data?.code] ? REASONS[data.code]() : (data?.message || t('axiorhub_pilote', 'The request was refused.') + (data?.code ? ' (' + data.code + ')' : '')))
-const healthText = computed(() => reason(health.value))
-
-const stateLabel = computed(() => ({
-	pending: t('axiorhub_pilote', 'Waiting in queue'),
-	running: t('axiorhub_pilote', 'In progress'),
-	succeeded: t('axiorhub_pilote', 'Finished'),
-	failed: t('axiorhub_pilote', 'Failed'),
-	cancelled: t('axiorhub_pilote', 'Cancelled'),
-	cancel_requested: t('axiorhub_pilote', 'Stop requested'),
-	already_finished: t('axiorhub_pilote', 'Already finished'),
-}[job.value?.state] || job.value?.state || ''))
-const emptyText = computed(() => {
-	if (config.isAdmin && syncInfo.value && !syncInfo.value.ok) {
-		return t('axiorhub_pilote', 'No case imported from the engine ({code}). Check the connection in Administration settings › AxiorHub.', { code: syncInfo.value.code || 'erreur' })
-	}
-	return config.linked
-		? t('axiorhub_pilote', 'No case found for this search.')
-		: t('axiorhub_pilote', 'No case is available to you. Link your AxiorHub account in Personal settings › AxiorHub Pilote.')
-})
-const content = computed(() => result.value?.content ?? {})
-const fullText = computed(() => JSON.stringify(content.value, null, 1))
-const sections = computed(() => {
-	const data = content.value?.data
-	if (!data || typeof data !== 'object' || Array.isArray(data)) {
-		return []
-	}
-	const out = Object.entries(data).map(([key, value]) => ({ key, text: typeof value === 'string' ? value : JSON.stringify(value, null, 1) }))
-	for (const key of ['sources', 'corrections']) {
-		if (content.value[key] !== undefined) {
-			out.push({ key, text: JSON.stringify(content.value[key], null, 1) })
-		}
-	}
-	return out
-})
-const history = computed(() => (Array.isArray(result.value?.decisions) ? result.value.decisions : []))
-const decisionName = (d) => ({
-	approuve: t('axiorhub_pilote', 'Approved'),
-	refuse: t('axiorhub_pilote', 'Refused'),
-	correction_demandee: t('axiorhub_pilote', 'Correction requested'),
-}[d] || d)
-const operationName = (op) => ({
-	fiche_dossier: t('axiorhub_pilote', 'Case sheet'),
-	recherche_juridique: t('axiorhub_pilote', 'Legal search'),
-	instruction: t('axiorhub_pilote', 'Instruction to the Pilot'),
-}[op] || op || '')
-const kindName = (k) => ({ courriel: t('axiorhub_pilote', 'email'), fichier: t('axiorhub_pilote', 'document'), note: t('axiorhub_pilote', 'note'), agenda: t('axiorhub_pilote', 'calendar') }[k] || k || '')
-const matterName = (reference) => matters.value.find((m) => m.matter === reference)?.label || reference || ''
-const sourceText = (s) => (typeof s === 'string' ? s : (s.path || s.title || s.id || JSON.stringify(s)))
-const when = (value) => {
-	const d = new Date(value)
-	return Number.isNaN(d.getTime()) ? '' : d.toLocaleString()
-}
-const decisionLabel = computed(() => ({
-	approuve: t('axiorhub_pilote', 'Approved: version {version} only.', { version: decision.value?.version }),
-	refuse: t('axiorhub_pilote', 'Refused: version {version}.', { version: decision.value?.version }),
-	correction_demandee: t('axiorhub_pilote', 'Correction requested on version {version}.', { version: decision.value?.version }),
-}[decision.value?.decision] || ''))
-
-function key() {
-	const bytes = new Uint8Array(16)
-	crypto.getRandomValues(bytes)
-	return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+	application_nextcloud_non_autorisee: () => t('axiorhub_pilote', 'AxiorHub does not accept Nextcloud requests: ask the administrator to allow the Nextcloud app in AxiorHub.'),
+	role_insuffisant: () => t('axiorhub_pilote', 'Your AxiorHub account cannot open the full interface: use the simplified view.'),
+	acces_refuse_par_le_frontal: () => t('axiorhub_pilote', 'The web server in front of AxiorHub asks for a login: allow /integration/v1/ without login on that server.'),
+	distribution_autonome: () => t('axiorhub_pilote', 'This AxiorHub installation (Docker distribution) asks for its own login and cannot be displayed inside Nextcloud: open it in a new tab.'),
+	cadre_bloque: () => t('axiorhub_pilote', 'Your browser does not keep the AxiorHub session inside Nextcloud (third-party cookies blocked). Open AxiorHub in a new tab, or serve AxiorHub and Nextcloud under the same domain.'),
 }
 
-async function checkHealth() {
+const view = ref('axiorhub')
+const src = ref('')
+const base = ref('')
+const frameOrigin = ref('')
+const current = ref('/aujourdhui')
+const loading = ref(false)
+const problem = ref(null)
+const frameKey = ref(0)
+let renewals = 0
+
+const problemText = computed(() => (REASONS[problem.value?.code] ? REASONS[problem.value.code]()
+	: (problem.value?.message || t('axiorhub_pilote', 'The request was refused.') + (problem.value?.code ? ' (' + problem.value.code + ')' : ''))))
+
+function apply(session, path) {
+	if (session?.ok && session.standalone) {
+		// distribution Docker : la couche des comptes du cabinet ne s'affiche pas dans un cadre
+		base.value = session.base
+		frameOrigin.value = session.frame_origin
+		current.value = path
+		problem.value = { code: 'distribution_autonome' }
+	} else if (session?.ok) {
+		src.value = session.url
+		base.value = session.base
+		frameOrigin.value = session.frame_origin
+		current.value = path
+		problem.value = null
+		frameKey.value += 1
+	} else {
+		problem.value = session || { code: 'session_refusee' }
+	}
+}
+
+async function fresh(path) {
+	const { data } = await axios.post(generateUrl('/apps/axiorhub_pilote/api/session'), { page: path })
+	return data
+}
+
+async function reconnect(path) {
+	loading.value = true
+	problem.value = null
 	try {
-		health.value = (await axios.get(url('/health'))).data
-		me.value = health.value?.linked && health.value?.reachable ? health.value.engine : null
+		apply(await fresh(path), path)
 	} catch (error) {
-		health.value = { reachable: false, ...(error?.response?.data || {}) }
-	}
-}
-
-async function loadMatters(q = '') {
-	loadingMatters.value = true
-	try {
-		const { data } = await axios.get(url('/matters'), { params: { q } })
-		matters.value = data.matters || []
-		if (data.sync) {
-			syncInfo.value = data.sync
-		}
-		if (data.code) {
-			message.value = reason(data)
-		}
-	} catch (error) {
-		matters.value = []
-		message.value = reason(error?.response?.data)
+		apply(error?.response?.data || { code: 'moteur_injoignable' }, path)
 	} finally {
-		loadingMatters.value = false
+		loading.value = false
 	}
 }
 
-function onSearch(text) {
-	clearTimeout(searchTimer)
-	searchTimer = setTimeout(() => loadMatters(text || ''), 300)
-}
-
-async function loadRecent() {
-	try {
-		recent.value = (await axios.get(url('/jobs'))).data.jobs || []
-	} catch (error) {
-		recent.value = []
-	}
-}
-
-async function search() {
-	searching.value = true
-	searchInfo.value = ''
-	try {
-		const { data } = await axios.get(url('/search'), { params: { q: searchText.value, matter: matter.value } })
-		searchResults.value = data.results || []
-		searchInfo.value = t('axiorhub_pilote', '{count} result(s)', { count: searchResults.value.length }) + (data.partial ? ' · ' + t('axiorhub_pilote', 'partial (time limit)') : '')
-	} catch (error) {
-		searchResults.value = []
-		searchInfo.value = reason(error?.response?.data)
-	} finally {
-		searching.value = false
-	}
-}
-
-function stopTracking() {
-	generation += 1
-	clearTimeout(timer)
-	if (controller) {
-		controller.abort()
-		controller = null
-	}
-}
-
-function reopen(j) {
-	stopTracking()
-	job.value = { id: j.id, state: j.state, operation: j.operation }
-	current.value = j.operation
-	result.value = null
-	decision.value = null
-	comment.value = ''
-	message.value = ''
-	follow(j.id)
-}
-
-async function start(operation, text) {
-	busy.value = true
-	message.value = ''
-	try {
-		const { data } = await axios.post(url('/jobs'), { operation, matter: matter.value, question: text, intent: intent.value, idempotencyKey: key() })
-		stopTracking()
-		current.value = operation
-		job.value = { id: data.job_id, state: data.state === 'existing' ? 'running' : 'pending', operation }
-		result.value = null
-		decision.value = null
-		comment.value = ''
-		follow(data.job_id)
-		loadRecent()
-	} catch (error) {
-		message.value = reason(error?.response?.data)
-	} finally {
-		busy.value = false
-	}
-}
-
-function follow(jobId) {
-	stopTracking()
-	const mine = generation
-	controller = new AbortController()
-	const signal = controller.signal
-	const isCurrent = () => mine === generation && job.value?.id === jobId
-	interrupted.value = false
-	const started = Date.now()
-	let delay = 4000
-	let failures = 0
-	const tick = async () => {
-		try {
-			const { data } = await axios.get(url('/jobs/' + jobId), { signal })
-			if (!isCurrent()) {
-				return
-			}
-			failures = 0
-			delay = 4000
-			job.value = { ...job.value, ...data, id: jobId }
-			if (data.state === 'succeeded') {
-				const res = (await axios.get(url('/results/' + jobId), { signal })).data
-				if (isCurrent()) {
-					result.value = res
-				}
-				return
-			}
-			if (['failed', 'cancelled', 'already_finished'].includes(data.state)) {
-				message.value = data.errors?.[0]?.message || ''
-				return
-			}
-		} catch (error) {
-			if (!isCurrent() || axios.isCancel?.(error) || error?.name === 'CanceledError') {
-				return
-			}
-			failures += 1
-			delay = Math.min(60000, delay * 2)
-			if (error?.response?.status === 401 || failures > 5) {
-				interrupted.value = true
-				message.value = t('axiorhub_pilote', 'Tracking interrupted; the work may continue on the engine.')
-				return
-			}
-		}
-		if (Date.now() - started > LIMIT_MS) {
-			interrupted.value = true
-			message.value = t('axiorhub_pilote', 'Tracking interrupted; the work may continue on the engine.')
-			return
-		}
-		if (isCurrent()) {
-			timer = setTimeout(tick, delay)
-		}
-	}
-	tick()
-}
-
-async function cancel() {
-	const jobId = job.value.id
-	try {
-		const { data } = await axios.post(url('/jobs/' + jobId + '/cancel'))
-		message.value = data.message || ''
-	} catch (error) {
-		message.value = reason(error?.response?.data)
-	}
-	if (job.value?.id === jobId) {
-		follow(jobId)
-	}
-}
-
-async function decide(choice) {
-	const jobId = job.value.id
-	const version = result.value.version
-	deciding.value = true
-	try {
-		const { data } = await axios.post(url('/results/' + jobId + '/approvals'), { version, decision: choice, comment: comment.value })
-		if (job.value?.id === jobId) {
-			decision.value = data
-			message.value = t('axiorhub_pilote', 'Decision recorded for this version only.')
-			axios.get(url('/results/' + jobId)).then(({ data: res }) => {   // historique à jour ; un échec ici n'annule pas la décision
-				if (job.value?.id === jobId) {
-					result.value = res
-				}
-			}).catch(() => {})
-		}
-	} catch (error) {
-		message.value = error?.response?.data?.message || t('axiorhub_pilote', 'The result changed since you read it: reload it before approving.')
-	} finally {
-		deciding.value = false
-	}
-}
-
-watch(active, (tab) => {
-	if (tab === 'travaux') {
-		loadRecent()
-	}
-})
-
-onMounted(async () => {
-	if (!config.linked && !config.engineConfigured) {
+function go(path) {
+	view.value = 'axiorhub'
+	if (!config.linked) {
 		return
 	}
-	await checkHealth()
-	await loadMatters()
-	await loadRecent()
+	if (!base.value || problem.value) {
+		reconnect(path)
+		return
+	}
+	current.value = path
+	src.value = base.value + path   // session AxiorHub déjà ouverte dans le cadre
+	frameKey.value += 1
+}
+
+async function openTab() {
+	const opened = window.open('', '_blank')   // ouvert pendant le clic (sinon bloqué), adresse donnée ensuite
+	try {
+		const session = await fresh(current.value)
+		if (session?.ok && opened) {
+			opened.opener = null
+			opened.location.href = session.url
+			return
+		}
+		opened?.close()
+		apply(session, current.value)
+	} catch (error) {
+		opened?.close()
+		problem.value = error?.response?.data || { code: 'moteur_injoignable' }
+	}
+}
+
+// menu de gauche repliable : bouton « Replier le menu », bouton ☰ de Nextcloud pour le rouvrir ; choix mémorisé dans ce navigateur
+const NAV_KEY = 'axiorhub_pilote:menu'
+function collapse() {
+	emit('toggle-navigation', { open: false })
+}
+function onNavigation({ open }) {
+	try {
+		window.localStorage.setItem(NAV_KEY, open ? 'ouvert' : 'replie')
+	} catch (e) {
+		// stockage du navigateur indisponible : le choix vaut pour cette page
+	}
+}
+
+function onMessage(event) {
+	// seuls les messages du cadre AxiorHub (origine annoncée par le moteur) sont pris en compte
+	if (!frameOrigin.value || event.origin !== frameOrigin.value || typeof event.data !== 'object' || event.data === null) {
+		return
+	}
+	if (event.data.axiorhub === 'page' && typeof event.data.path === 'string') {
+		const match = sections.find((s) => event.data.path === s.path || event.data.path.startsWith(s.path + '/'))
+		if (match) {
+			current.value = match.path
+		}
+		renewals = 0
+	} else if (event.data.axiorhub === 'session') {
+		if (renewals < 1) {   // une seule nouvelle adresse : au-delà, le navigateur bloque la session dans le cadre
+			renewals += 1
+			reconnect(current.value)
+		} else {
+			problem.value = { code: 'cadre_bloque' }
+		}
+	}
+}
+
+onMounted(() => {
+	window.addEventListener('message', onMessage)
+	let saved = null
+	try {
+		saved = window.localStorage.getItem(NAV_KEY)
+	} catch (e) {
+		saved = null
+	}
+	if (saved === 'replie' && window.innerWidth >= 1024) {
+		setTimeout(() => emit('toggle-navigation', { open: false }), 0)
+	}
+	subscribe('navigation-toggled', onNavigation)
+	if (config.linked) {
+		const initial = config.embed || { ok: false }
+		if (!initial.ok && initial.code === 'compte_non_relie') {
+			return
+		}
+		apply(initial, '/aujourdhui')
+	} else if (config.engineConfigured) {
+		view.value = 'simple'   // mode d'instance (sans compte relié) : écran simplifié de la 0.3.0
+	}
 })
 
-onBeforeUnmount(stopTracking)
+onBeforeUnmount(() => {
+	window.removeEventListener('message', onMessage)
+	unsubscribe('navigation-toggled', onNavigation)
+})
 </script>
 
 <style scoped>
-.axh { padding: 16px; max-width: 1080px; }
-.axh-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
-.axh-case { margin: 12px 0; max-width: 640px; }
-.axh-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
-.axh-panel { display: grid; gap: 10px; margin: 12px 0; max-width: 820px; }
-.axh-select { max-width: 420px; }
-.axh-muted { color: var(--color-text-maxcontrast); }
-.axh-link { color: var(--color-primary-element); text-decoration: underline; }
-.axh-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-.axh-section { margin: 6px 0; }
+.axh-embed { height: 100%; display: flex; flex-direction: column; }
+.axh-frame { flex: 1; width: 100%; min-height: calc(100vh - 50px); border: 0; display: block; background: var(--color-main-background); }
+.axh-note { margin: 16px; max-width: 820px; }
+.axh-loading { margin: 48px auto; }
 .axh-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.axh-decision { font-weight: bold; }
-.axh-label { font-weight: bold; }
-.axh-results { list-style: none; padding: 0; display: grid; gap: 10px; }
-.axh-results li { border-bottom: 1px solid var(--color-border); padding-bottom: 8px; }
-.axh-plain { list-style: none; padding: 0; display: grid; gap: 4px; }
-.axh-job { margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 12px; }
+.axh-link { color: var(--color-primary-element); text-decoration: underline; }
+</style>
+
+<style>
+/* 0.4.0 : menu aux couleurs d'AxiorHub (valeurs relevées sur le menu d'AxiorHub 5.6.37) : panneau bleu nuit, boutons espacés. */
+.axh-app #app-navigation-vue,
+.axh-app .app-navigation {
+	--color-main-background: #17191e;
+	--color-main-background-blur: #17191e;
+	--color-main-text: #f5f6f8;
+	background: #17191e !important;
+	color: #f5f6f8;
+	border-right: 1px solid #303a46;
+	backdrop-filter: none;
+}
+/* bande sombre entre le menu et AxiorHub : elle porte le bouton ☰ de Nextcloud (ouvrir / replier le menu) sans recouvrir AxiorHub */
+.axh-app .axh-embed { padding-inline-start: calc(var(--default-clickable-area, 44px) + 2 * var(--app-navigation-padding, 6px)); background: #17191e; box-sizing: border-box; }
+.axh-app .axh-embed .axh-note { background: var(--color-main-background); }
+.axh-app .app-navigation-toggle { background: #17191e !important; color: #f5f6f8 !important; }
+.axh-app .app-navigation-toggle:hover { background: #303b4b !important; }
+/* menu replié : même règle que Nextcloud, avec une largeur de repli si la variable du thème manque */
+.axh-app .app-navigation.app-navigation--closed { margin-inline-start: calc(-1 * min(300px, var(--app-navigation-max-width, 300px))); }
+.axh-side { display: flex; flex-direction: column; min-height: 100%; padding: 22px 18px 18px; box-sizing: border-box;
+	font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.axh-brand { display: flex; align-items: center; gap: 10px; margin: 0 4px 22px; }
+.axh-brand img { flex: none; border-radius: 8px; }
+.axh-brand-name { display: block; font-size: 24px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; color: #fff; }
+.axh-brand-sub { display: block; font-size: 12px; line-height: 1.4; color: #ddd2fb; }
+.axh-side-group { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; }
+.axh-side-group + .axh-side-group { border-top: 1px solid rgba(255, 255, 255, 0.18); margin-top: 10px; padding-top: 14px; }
+.axh-side-group a { display: flex; align-items: center; gap: 12px; min-height: 42px; box-sizing: border-box; padding: 10px 13px;
+	border-radius: 10px; color: #f5f6f8 !important; font-size: 14.4px; line-height: 1.5; text-decoration: none; }
+.axh-side-group a:hover, .axh-side-group a:focus-visible { background: rgba(255, 255, 255, 0.08); outline: none; }
+.axh-side-group a[aria-current='page'] { background: #303b4b; color: #fff !important; font-weight: 800; }
+.axh-side-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; font-size: 1.24rem; line-height: 1; }
+.axh-side-about { margin: auto 4px 0; padding-top: 20px; border-top: 1px solid #303a46; font-size: 12px; line-height: 1.5; color: #e1d9f6; }
 </style>

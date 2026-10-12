@@ -31,6 +31,8 @@ def _now():
 
 
 def schema(desk):
+    if desk.db.in_transaction:   # 5.6.37 (audit F08) : executescript validerait l'opération en cours ; schéma créé avant BEGIN
+        return
     desk.db.executescript('''
     CREATE TABLE IF NOT EXISTS contacts5636(id TEXT PRIMARY KEY, kind TEXT NOT NULL, category TEXT NOT NULL, name TEXT NOT NULL,
       first_name TEXT NOT NULL DEFAULT '', company TEXT NOT NULL DEFAULT '', function TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '',
@@ -68,7 +70,8 @@ def label(c):
     return who + ((' (' + c['company'] + ')') if c.get('company') and c.get('kind') == 'personne' else '')
 
 
-def save(desk, data, owner='cabinet', source='manuel'):
+def save(desk, data, owner='cabinet', source='manuel', commit=True):
+    """5.6.37 (F08) : ``commit=False`` = écriture dans la transaction de l'appelant (opération Corporate), sans validation ni journal."""
     schema(desk)
     clean = _clean(data)
     ident = str(data.get('id') or '')
@@ -82,14 +85,15 @@ def save(desk, data, owner='cabinet', source='manuel'):
         ident = uuid.uuid4().hex
         desk.db.execute('INSERT INTO contacts5636(id,%s,source,created,updated) VALUES(?,%s,?,?,?)' % (','.join(FIELDS), ','.join('?' for _ in FIELDS)),
                         [ident] + [clean[k] for k in FIELDS] + [source, now, now])
-    desk.db.commit()
-    desk.audit('crm5636_contact', {'id': ident, 'category': clean['category'], 'owner': owner})
+    if commit:
+        desk.db.commit()
+        desk.audit('crm5636_contact', {'id': ident, 'category': clean['category'], 'owner': owner})
     if data.get('matter'):
-        link(desk, ident, str(data['matter']), str(data.get('role') or clean['category']))
+        link(desk, ident, str(data['matter']), str(data.get('role') or clean['category']), commit=commit)
     return get(desk, ident)
 
 
-def find_or_create(desk, data, source='initiative'):
+def find_or_create(desk, data, source='initiative', commit=True):
     """Contact existant (même courriel, ou même nom et même catégorie) ou nouveau contact ; renvoie la fiche."""
     schema(desk)
     clean = _clean(data)
@@ -101,12 +105,12 @@ def find_or_create(desk, data, source='initiative'):
                               (clean['name'], clean['first_name'], clean['category'])).fetchone()
     if row is not None:
         if data.get('matter'):
-            link(desk, row['id'], str(data['matter']), str(data.get('role') or clean['category']))
+            link(desk, row['id'], str(data['matter']), str(data.get('role') or clean['category']), commit=commit)
         return get(desk, row['id'])
-    return save(desk, data, source=source)
+    return save(desk, data, source=source, commit=commit)
 
 
-def link(desk, contact, matter, role):
+def link(desk, contact, matter, role, commit=True):
     schema(desk)
     if matter not in {m['id'] for m in load_matters(desk.c)}:
         raise Stop('dossier_absent')
@@ -115,7 +119,8 @@ def link(desk, contact, matter, role):
     if not desk.db.execute('SELECT 1 FROM contacts5636 WHERE id=?', (contact,)).fetchone():
         raise Stop('contact_absent')
     desk.db.execute('INSERT OR IGNORE INTO contact_links5636 VALUES(?,?,?,?)', (contact, matter, role, _now()))
-    desk.db.commit()
+    if commit:
+        desk.db.commit()
     return get(desk, contact)
 
 

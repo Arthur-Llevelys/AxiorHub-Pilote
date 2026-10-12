@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Paquet de diffusion de l'application Nextcloud AxiorHub Pilote : une archive tar.gz contenant UN SEUL dossier « axiorhub_pilote »
-(appinfo, lib, templates, l10n, img, actifs compilés js/ et css/, README, CHANGELOG, licence). Exclus : sources de développement (src/),
+(appinfo, lib, templates, l10n, img, actifs compilés js/ et css/, README, CHANGELOG, licences du code et du logo). Exclus : sources de développement (src/),
 node_modules, tests, caches et tout fichier de secret. Les actifs compilés doivent exister (npm ci && npm run build).
 La signature (certificat du responsable du projet, clé privée hors dépôt) se fait ensuite avec « occ integrity:sign-app ».
 
@@ -42,16 +42,17 @@ def build(target):
             info = tarfile.TarInfo('axiorhub_pilote/' + rel)
             info.size, info.mode, info.mtime = len(data), 0o644, 0
             tar.addfile(info, io.BytesIO(data))
-        lic = (ROOT / 'LICENSE').read_bytes()
-        info = tarfile.TarInfo('axiorhub_pilote/LICENSE')
-        info.size, info.mode, info.mtime = len(lic), 0o644, 0
-        tar.addfile(info, io.BytesIO(lic))
+        for name in ('LICENSE', 'LOGO-LICENSE.md'):   # 0.4.0 : licence propre du logo, livré dans img/
+            lic = (ROOT / name).read_bytes()
+            info = tarfile.TarInfo('axiorhub_pilote/' + name)
+            info.size, info.mode, info.mtime = len(lic), 0o644, 0
+            tar.addfile(info, io.BytesIO(lic))
     out = Path(target)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(gzip.compress(raw.getvalue(), mtime=0))
     digest = hashlib.sha256(out.read_bytes()).hexdigest()
     out.with_name(out.name + '.sha256').write_text('%s  %s\n' % (digest, out.name), encoding='utf-8', newline='\n')
-    print('axiorhub_pilote %s : %s (%d fichiers) sha256 %s' % (version, out, len(members) + 1, digest))
+    print('axiorhub_pilote %s : %s (%d fichiers) sha256 %s' % (version, out, len(members) + 2, digest))
 
 
 if __name__ == '__main__':

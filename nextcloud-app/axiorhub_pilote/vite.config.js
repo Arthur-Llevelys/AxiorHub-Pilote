@@ -5,7 +5,8 @@ import vue from '@vitejs/plugin-vue'
 // l'utilisateur n'a pas besoin de npm pour installer l'application. Aucun script en ligne (CSP Nextcloud).
 export default defineConfig({
 	plugins: [vue()],
-	define: { 'process.env.NODE_ENV': JSON.stringify('production') },
+	// appName / appVersion : attendus par @nextcloud/vue 9 (journal « library was used without setting appName » sinon)
+	define: { 'process.env.NODE_ENV': JSON.stringify('production'), appName: JSON.stringify('axiorhub_pilote'), appVersion: JSON.stringify(process.env.npm_package_version || '') },
 	build: {
 		outDir: 'js',
 		emptyOutDir: true,

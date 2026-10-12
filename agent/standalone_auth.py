@@ -112,6 +112,9 @@ def normalize(path):
     return '/' + '/'.join(parts) + ('/' if parts and path.endswith('/') else '')
 
 
+# 5.6.37 (audit F01) : seuls en-têtes X-AxiorHub-* transmis depuis l'extérieur, et seulement vers /integration/v1/ (signés).
+SIGNED_TRANSPORT = ('HTTP_X_AXIORHUB_CONTEXT', 'HTTP_X_AXIORHUB_KEY')
+
 class _Passthrough:
     """Réponse transmise au fil de l'eau (flux SSE, fichiers) : jamais mise en mémoire, fermée proprement."""
 
@@ -149,7 +152,8 @@ class StandaloneAuth:
           password_hash TEXT,salt TEXT,active INTEGER,created TEXT);
           CREATE TABLE IF NOT EXISTS reset_tokens(token_hash TEXT PRIMARY KEY,user_id INTEGER,expires TEXT,used INTEGER);''')
         cols = {r[1] for r in self.db.execute('PRAGMA table_info(users)')}
-        for name, sql in (('role', "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'avocat'"),
+        for name, sql in (('authz', 'ALTER TABLE users ADD COLUMN authz INTEGER NOT NULL DEFAULT 1'),   # 5.6.37 (audit F02)
+                          ('role', "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'avocat'"),
                           ('name', "ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''"),
                           ('last_login', "ALTER TABLE users ADD COLUMN last_login TEXT NOT NULL DEFAULT ''"),
                           ('must_change', 'ALTER TABLE users ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0')):
@@ -389,14 +393,15 @@ class StandaloneAuth:
                 return '<p class="warn">Rôle invalide.</p>'
             if last_admin and role != 'administrateur':
                 return '<p class="warn">Il doit rester au moins un administrateur.</p>'
-            self.db.execute('UPDATE users SET role=? WHERE id=?', (role, target['id']))
+            self.db.execute('UPDATE users SET role=?, authz=authz+1 WHERE id=?', (role, target['id']))   # 5.6.37 (F02) : clés à revoir
             self.db.commit()
             self._log(user['email'], 'role', target['email'] + ' → ' + role)
             return '<p class="ok">Rôle modifié.</p>'
         if op in ('disable', 'enable'):
             if op == 'disable' and last_admin:
                 return '<p class="warn">Il doit rester au moins un administrateur actif.</p>'
-            self.db.execute('UPDATE users SET active=? WHERE id=?', (1 if op == 'enable' else 0, target['id']))
+            # 5.6.37 (audit F02) : la désactivation invalide les clés personnelles ; une réactivation ne les ressuscite pas
+            self.db.execute('UPDATE users SET active=?, authz=authz+? WHERE id=?', (1 if op == 'enable' else 0, 1 if op == 'disable' else 0, target['id']))
             self._log(user['email'], op, target['email'])
             self.db.commit()
             if op == 'disable':
@@ -405,7 +410,7 @@ class StandaloneAuth:
         if op == 'reset':
             temp = secrets.token_urlsafe(12)
             salt = secrets.token_bytes(16).hex()
-            self.db.execute('UPDATE users SET password_hash=?,salt=?,must_change=1 WHERE id=?', (self._hash(temp, salt), salt, target['id']))
+            self.db.execute('UPDATE users SET password_hash=?,salt=?,must_change=1,authz=authz+1 WHERE id=?', (self._hash(temp, salt), salt, target['id']))
             self._log(user['email'], 'mot_de_passe', target['email'])
             self.db.commit()
             self._revoke(target['id'])
@@ -435,9 +440,14 @@ class StandaloneAuth:
 
     # ------------------------------------------------------------------ requêtes
     def __call__(self, env, start):
-        # En-têtes réservés à l'application interne : jamais acceptés du navigateur.
+        # En-têtes réservés à l'application interne : jamais acceptés du navigateur. 5.6.37 (audit F01) : les deux en-têtes de TRANSPORT du
+        # contrat signé (contexte et identifiant de clé) sont conservés pour /integration/v1/ seulement ; le moteur vérifie leur signature.
+        # Les en-têtes d'identité (USER, ROLE…) restent toujours supprimés.
+        signed = normalize(env.get('PATH_INFO', '/')) or ''
+        keep = {k: env[k] for k in SIGNED_TRANSPORT if k in env} if signed.startswith('/integration/v1/') else {}
         for key in [k for k in env if k.startswith('HTTP_X_AXIORHUB_')]:
             del env[key]
+        env.update(keep)
         path = normalize(env.get('PATH_INFO', '/'))
         if path is None:
             return self._respond(start, '400 Bad Request', self._page('Adresse refusée', '<p class="warn">Adresse invalide.</p>'))
@@ -542,6 +552,8 @@ class StandaloneAuth:
             env['HTTP_X_AXIORHUB_USER'] = row['email']
             env['HTTP_X_AXIORHUB_ROLE'] = row['role']
             env['axiorhub.pair_verified'] = '1'
+            env['axiorhub.account_id'] = str(row['id'])                       # 5.6.37 (F02) : identité stable du compte
+            env['axiorhub.account_authz'] = str(row['authz'] if 'authz' in row.keys() else 1)
             self._log(row['email'], 'appairage_nextcloud', self._client(env))
         env['wsgi.input'] = BytesIO(raw)
         env['CONTENT_LENGTH'] = str(len(raw))

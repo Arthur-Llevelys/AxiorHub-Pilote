@@ -30,6 +30,16 @@ WINDOW = 900
 
 
 def schema(desk):
+    _tables(desk)
+    cols = {r[1] for r in desk.db.execute('PRAGMA table_info(integration_keys5636)')}
+    for name, decl in (('auth_mode', "TEXT NOT NULL DEFAULT ''"), ('account_id', "TEXT NOT NULL DEFAULT ''"), ('account_authz', 'INTEGER NOT NULL DEFAULT 0'),
+                       ('auth_stamp', "TEXT NOT NULL DEFAULT ''")):
+        if name not in cols:   # 5.6.37 (audit F02) : clé liée à une identité de compte et à une version des autorisations
+            desk.db.execute('ALTER TABLE integration_keys5636 ADD COLUMN %s %s' % (name, decl))
+    desk.db.commit()
+
+
+def _tables(desk):
     desk.db.executescript('''
     CREATE TABLE IF NOT EXISTS integration_keys5636(id TEXT PRIMARY KEY, axiorhub_user TEXT NOT NULL, role TEXT NOT NULL, secret TEXT NOT NULL,
       label TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, last_used TEXT NOT NULL DEFAULT '', revoked TEXT NOT NULL DEFAULT '');
@@ -60,6 +70,8 @@ def status(desk):
 def revoke(desk, key_id, owner='cabinet'):
     schema(desk)
     cur = desk.db.execute("UPDATE integration_keys5636 SET revoked=? WHERE id=? AND revoked=''", (datetime.now(timezone.utc).isoformat(), str(key_id)))
+    from . import nextcloud5637
+    nextcloud5637.end_for_key(desk, str(key_id))   # 5.6.37 : la session de l'interface dans Nextcloud tombe avec la clé
     desk.db.commit()
     if not cur.rowcount:
         raise Stop('cle_absente_ou_deja_revoquee')
@@ -122,12 +134,79 @@ def pair(desk, env, data):
     if account['role'] not in ('administrateur', 'avocat', 'assistant'):
         raise Refused('role_insuffisant', '403 Forbidden')
     key_id, secret = secrets.token_hex(16), secrets.token_urlsafe(32)
-    desk.db.execute('INSERT INTO integration_keys5636(id,axiorhub_user,role,secret,label,created) VALUES(?,?,?,?,?,?)',
-                    (key_id, account['user'], account['role'], secret, label, datetime.now(timezone.utc).isoformat()))
+    standalone = str(env.get('axiorhub.pair_verified', '')) == '1'
+    desk.db.execute('INSERT INTO integration_keys5636(id,axiorhub_user,role,secret,label,created,auth_mode,account_id,account_authz,auth_stamp) '
+                    'VALUES(?,?,?,?,?,?,?,?,?,?)',
+                    (key_id, account['user'], account['role'], secret, label, datetime.now(timezone.utc).isoformat(),
+                     'cabinet' if standalone else 'serveur', str(env.get('axiorhub.account_id') or ''),
+                     int(env.get('axiorhub.account_authz') or 0) if standalone else 0,
+                     '' if standalone else _stamp(env.get('axiorhub.auth'))))
     desk.db.commit()
     desk.audit('integration5636_appairage', {'key': key_id[:12], 'user': account['user'], 'label': label})
     from .integration5634 import CONTRACT
     return {'key_id': key_id, 'secret': secret, 'user': account['user'], 'role': account['role'], 'contract': CONTRACT}
+
+
+# 5.6.37 (audit F03) : capacités du contrat par rôle ACTUEL du compte relié ; la clé d'instance historique (secret partagé) agit comme
+# administrateur du cabinet (configuration de l'administrateur Nextcloud, documentée).
+CAPABILITIES = {'lire': ('administrateur', 'avocat', 'assistant'), 'preparer': ('administrateur', 'avocat', 'assistant'),
+                'annuler': ('administrateur', 'avocat', 'assistant'), 'decider': ('administrateur', 'avocat'),
+                'session': ('administrateur', 'avocat'), 'delier': ('administrateur', 'avocat', 'assistant')}
+
+
+def require(ctx, capability):
+    from .integration5634 import Refused
+    if ctx.get('_role') not in CAPABILITIES[capability]:
+        raise Refused('role_insuffisant', '403 Forbidden')
+
+
+def _stamp(auth):
+    """Empreinte du compte de l'interface serveur (identifiant et mot de passe) : un changement d'accès invalide les clés."""
+    if not auth or not auth.get('hash'):
+        return ''
+    return hashlib.sha256(('%s|%s|%s' % (auth.get('username', ''), auth.get('salt', ''), auth.get('hash', ''))).encode()).hexdigest()[:24]
+
+
+def current_account(desk, key, auth=None):
+    """5.6.37 (audit F02) : compte relié vérifié MAINTENANT par un résolveur de confiance (jamais un en-tête du client) : comptes du cabinet
+    (distribution autonome : actif, version des autorisations, rôle actuel) ou compte de l'interface serveur (même identifiant, même mot
+    de passe qu'à l'appairage). Renvoie {'user', 'role'} ou None si l'état ne peut pas être établi."""
+    import sqlite3
+    from .missions567 import auth_root
+    db_path = auth_root() / 'users.sqlite3'
+    if db_path.is_file():
+        try:
+            db = sqlite3.connect('file:' + str(db_path) + '?mode=ro', uri=True, timeout=10)
+            db.row_factory = sqlite3.Row
+            try:
+                cols = {r[1] for r in db.execute('PRAGMA table_info(users)')}
+                fields = 'id,email,active,role' + (',authz' if 'authz' in cols else '')
+                row = (db.execute('SELECT %s FROM users WHERE id=?' % fields, (int(key['account_id']),)).fetchone() if str(key.get('account_id') or '').isdigit()
+                       else db.execute('SELECT %s FROM users WHERE email=?' % fields, (key['axiorhub_user'],)).fetchone())
+            finally:
+                db.close()
+        except (sqlite3.Error, ValueError):
+            return None
+        if row is None or not row['active'] or row['role'] not in ('administrateur', 'avocat', 'assistant'):
+            return None
+        authz = row['authz'] if 'authz' in row.keys() else 1
+        if key.get('account_id') and int(key.get('account_authz') or 0) != int(authz):
+            return None   # désactivé, rôle changé ou accès réinitialisé depuis l'appairage : la clé doit être reliée de nouveau
+        if not key.get('account_id'):   # clé 5.6.36 : rattachée une fois à l'identité et à la version ACTUELLES du compte encore actif
+            desk.db.execute('UPDATE integration_keys5636 SET auth_mode=?, account_id=?, account_authz=? WHERE id=?', ('cabinet', str(row['id']), int(authz), key['id']))
+            desk.db.commit()
+        return {'user': row['email'], 'role': row['role']}
+    if not auth or not auth.get('username'):
+        return None
+    if not hmac.compare_digest(str(auth['username']), str(key['axiorhub_user'])):
+        return None
+    stamp = _stamp(auth)
+    if key.get('auth_stamp') and not hmac.compare_digest(stamp, key['auth_stamp']):
+        return None   # compte de l'interface changé (mot de passe réinitialisé) depuis l'appairage
+    if not key.get('auth_stamp'):
+        desk.db.execute("UPDATE integration_keys5636 SET auth_mode='serveur', auth_stamp=? WHERE id=?", (stamp, key['id']))
+        desk.db.commit()
+    return {'user': key['axiorhub_user'], 'role': 'administrateur'}
 
 
 def key_secret(desk, key_id):
@@ -151,6 +230,8 @@ def unpair(desk, ctx):
         from .integration5634 import Refused
         raise Refused('cle_personnelle_requise', '400 Bad Request')
     desk.db.execute("UPDATE integration_keys5636 SET revoked=? WHERE id=? AND revoked=''", (datetime.now(timezone.utc).isoformat(), ctx['_key']))
+    from . import nextcloud5637
+    nextcloud5637.end_for_key(desk, ctx['_key'])
     desk.db.commit()
     desk.audit('integration5636_delie', {'key': ctx['_key'][:12]})
     return {'unpaired': True}
@@ -181,14 +262,14 @@ def start_instruction(desk, ctx, args):
     from . import missions567
     key = 'nc-' + hashlib.sha256((args['question'] + args.get('matter', '') + ctx.get('user', '') + args.get('idem', '')).encode()).hexdigest()[:40]
     m = missions567.create(desk, {'instruction': args['question'], 'matter': args.get('matter') or '', 'intent': args.get('intent') or 'auto',
-                                  'request_key': key, 'autonomy': 'prepare'}, ctx.get('_owner') or 'cabinet')
+                                  'request_key': key, 'autonomy': 'prepare'}, missions567.owner_for(ctx.get('_owner')))
     return m.get('job_id'), m.get('id')
 
 
 def instruction_status(desk, ctx, row):
     from . import missions567
     try:
-        m = missions567.get(desk, row['mission'], ctx.get('_owner') or 'cabinet', ctx.get('_role') == 'administrateur')
+        m = missions567.get(desk, row['mission'], missions567.owner_for(ctx.get('_owner')), ctx.get('_role') == 'administrateur')
     except Stop:
         return {'job_id': row['id'], 'state': 'failed', 'stage': '', 'result_id': '', 'errors': [{'code': 'mission_absente', 'message': 'Mission introuvable.'}]}
     state = m.get('state', '')
@@ -207,7 +288,7 @@ def instruction_status(desk, ctx, row):
 
 def instruction_payload(desk, ctx, row):
     from . import missions567
-    m = missions567.get(desk, row['mission'], ctx.get('_owner') or 'cabinet', ctx.get('_role') == 'administrateur')
+    m = missions567.get(desk, row['mission'], missions567.owner_for(ctx.get('_owner')), ctx.get('_role') == 'administrateur')
     r = m.get('result') or {}
     return {'instruction': m.get('instruction', ''), 'reponse': r.get('text') or r.get('message', ''), 'sources': r.get('sources') or [],
             'livrable': r.get('path') or '', 'etat': m.get('label', ''), 'mission': m.get('id', '')}

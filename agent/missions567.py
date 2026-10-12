@@ -39,6 +39,21 @@ def ensure_schema(desk):
     desk.db.execute('CREATE TABLE IF NOT EXISTS missions_hidden5636(id TEXT PRIMARY KEY, owner TEXT NOT NULL, at TEXT NOT NULL)')   # 5.6.36
 
 
+def auth_root():
+    return Path(os.environ.get('AXIORHUB_AUTH_STATE') or (os.environ.get('AXIORHUB_DATA_DIR', '/data') + '/auth'))
+
+
+def owner_for(login):
+    """5.6.37 : propriétaire d'une mission demandée hors de l'interface (application Nextcloud).
+
+    Avec comptes propres (mode Docker), la mission appartient au compte relié ; avec l'authentification du serveur,
+    elle appartient au cabinet, comme celles de l'interface (sinon check_authority la refuserait)."""
+    login = str(login or '')
+    if login and (auth_root() / 'users.sqlite3').is_file():
+        return login
+    return 'cabinet'
+
+
 def check_authority(desk, args):
     """Revalide la mission immédiatement avant un effet, même après une longue inférence."""
     ident = str(args.get('mission_id') or '')
@@ -57,7 +72,7 @@ def check_authority(desk, args):
         raise Stop('preparation_suspendue')
     if row['owner'] == 'cabinet':
         return                         # installation avec authentification serveur
-    root = Path(os.environ.get('AXIORHUB_AUTH_STATE') or (os.environ.get('AXIORHUB_DATA_DIR', '/data') + '/auth'))
+    root = auth_root()
     if not (root / 'users.sqlite3').is_file():
         raise Stop('autorisation_mission_non_verifiable')
     db = sqlite3.connect('file:' + str(root / 'users.sqlite3') + '?mode=ro', uri=True, timeout=10)

@@ -1,7 +1,7 @@
-# AxiorHub Pilote pour Nextcloud (0.3.0, version de développement)
+# AxiorHub Pilote pour Nextcloud (0.4.0, version de développement)
 
 Application native Nextcloud (PHP + Vue 3) raccordée au moteur AxiorHub par le contrat versionné `/integration/v1`
-(moteur 5.6.36 ou plus récent, contrat 1.2). Cycle de version distinct du moteur.
+(moteur 5.6.37 ou plus récent, contrat 1.3 ; 5.6.36 pour la seule vue simplifiée). Cycle de version distinct du moteur.
 
 ## Dépôts
 
@@ -13,7 +13,16 @@ Application native Nextcloud (PHP + Vue 3) raccordée au moteur AxiorHub par le 
 
 ## Ce que l'application fait
 
-Après liaison du compte (voir ci-dessous), la page « AxiorHub Pilote » de Nextcloud propose :
+Après liaison du compte (voir ci-dessous), la page « AxiorHub Pilote » de Nextcloud **affiche l'interface AxiorHub elle-même**, avec
+ses rubriques dans le menu de gauche aux couleurs d'AxiorHub : Aujourd'hui, Dossiers, Courriels, Agenda et tâches, Produire, Paramètres,
+Corporate, Contacts & CRM, Initiatives, Outils IA, Recherche juridique, Missions, Toutes les fonctions. Aucun mot de passe à ressaisir : le moteur remet au
+compte relié une adresse de connexion à usage unique (60 secondes), échangée par le navigateur contre une session AxiorHub de
+12 heures. « Ouvrir dans un onglet » ouvre la même interface en plein écran. Le menu se replie (« Replier le menu », puis le bouton ☰
+pour le rouvrir) ; le choix est mémorisé dans le navigateur.
+
+![AxiorHub dans Nextcloud (données fictives)](screenshots/axiorhub-dans-nextcloud.png)
+
+La **« Vue simplifiée »** (menu de gauche) garde l'écran de la 0.3.0 :
 
 - **Pilote** : une instruction écrite, avec le dossier (facultatif) et le résultat attendu — réponse, analyse, projet Word déposé
   dans le dossier, ou brouillon de courriel déposé dans Brouillons. **Rien n'est envoyé** ;
@@ -46,7 +55,16 @@ les préférences de l'utilisateur et se révoque des deux côtés (« Délier �
 
 Si AxiorHub est sur le même serveur que Nextcloud et joint par une adresse locale, cochez « Moteur sur ce serveur (adresse locale) ».
 Si un serveur web placé devant AxiorHub demande une connexion, autorisez sans connexion le chemin `/integration/v1/` (chaque appel y est
-signé).
+signé) ainsi que `/nextcloud-session` (adresse à usage unique).
+
+### Affichage dans Nextcloud : même domaine recommandé
+
+AxiorHub s'affiche dans un cadre de la page Nextcloud. Quand AxiorHub et Nextcloud sont servis sous le même domaine (par exemple
+`https://cloud.exemple.fr/` et `https://cloud.exemple.fr/agent-courriel/`), la session fonctionne dans tous les navigateurs. Sur deux
+domaines différents, la session est un cookie « tiers » (Secure, SameSite=None, Partitioned) : certains navigateurs le bloquent ;
+l'application le détecte et propose « Ouvrir dans un onglet ». Un serveur web placé devant AxiorHub ne doit pas ajouter son propre
+en-tête `X-Frame-Options` aux pages d'AxiorHub (le moteur règle lui-même `frame-ancestors`). La distribution Docker (comptes du cabinet)
+demande sa propre connexion : elle s'ouvre dans un onglet.
 
 ### Mode d'instance (facultatif, hérité de 0.2.0)
 
@@ -63,6 +81,10 @@ Nextcloud. Un utilisateur relié personnellement passe toujours par sa clé pers
   réessayée une fois quand le moteur est occupé, une écriture jamais.
 - Essais de liaison limités par le moteur (5 échecs en 15 minutes).
 - Fichiers lus par les API publiques (`IRootFolder`, nœuds et permissions), jamais par le répertoire `data`.
+- Interface dans Nextcloud : adresse de connexion à usage unique (60 s, empreinte seule conservée par le moteur), session de 12 heures
+  (cookie HttpOnly limité au chemin d'AxiorHub), révoquée avec la clé ; la page Nextcloud n'autorise dans un cadre que l'origine du
+  moteur, et le moteur n'accepte d'être affiché que dans le site Nextcloud de la clé ; une connexion par mot de passe reste interdite
+  de cadre.
 - Routes métier avec protection CSRF (aucun `NoCSRFRequired` ni `PublicPage` hors de la page d'entrée).
 
 ## Installation manuelle
@@ -71,7 +93,7 @@ Décompresser l'archive dans `apps/` avec le compte du serveur web (sinon Nextcl
 d'applications ») :
 
 ```bash
-sudo -u www-data tar -xzf axiorhub_pilote-0.3.0.tar.gz -C /chemin/nextcloud/apps/
+sudo -u www-data tar -xzf axiorhub_pilote-0.4.0.tar.gz -C /chemin/nextcloud/apps/
 sudo -u www-data php /chemin/nextcloud/occ app:enable axiorhub_pilote
 ```
 

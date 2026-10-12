@@ -106,4 +106,19 @@ DEFAULTS = {
     'reformulation_vide': 'Le modèle n’a pas proposé de texte : reformulez la consigne.',
     'microsoft365_non_configure': 'Microsoft 365 n’est pas encore relié : renseignez l’application Microsoft (Paramètres › Connexions › '
                                   'Microsoft 365) puis cliquez « Se connecter à Microsoft 365 ».',
+    # 5.6.37 : audit 5.6.36 et interface dans Nextcloud
+    'operation_deja_close': 'Cette opération est déjà réalisée, abandonnée ou en cours : rechargez la page.',
+    'justificatif_requis': 'Indiquez le justificatif de la réalisation (PV signé, acte signé, décision de l’associé unique…).',
+    'associe_ambigu': 'Deux associés portent ce nom : précisez lequel (nom complet tel qu’inscrit au registre).',
+    'nominal_invalide': 'La valeur nominale doit être un montant strictement positif.',
+    'capital_invalide': 'Le capital doit être un montant strictement positif.',
+    'prix_invalide': 'Le prix doit être un montant positif ou nul.',
+    'date_invalide': 'Date invalide : utilisez le sélecteur de date.',
+    'relance_perimee': 'Cette relance n’est plus d’actualité : la facture est réglée, annulée ou exclue. Aucun brouillon n’a été déposé.',
+    'relance_solde_modifie': 'Le solde de la facture a changé depuis la préparation : relisez la relance avant de la déposer.',
+    'compte_axiorhub_inactif_ou_modifie': 'Le compte AxiorHub relié a été désactivé, ses droits ou son mot de passe ont changé : reliez de nouveau votre compte dans Nextcloud (Paramètres personnels › AxiorHub Pilote).',
+    'piece_modifiee_depuis_la_selection': 'Une pièce choisie a été modifiée depuis sa sélection : choisissez de nouveau les pièces.',
+    'pieces_modifiees_depuis_la_selection': 'Toutes les pièces choisies ont été modifiées depuis leur sélection : choisissez de nouveau les pièces.',
+    'cle_idempotence_deja_utilisee': 'Ce formulaire a déjà été envoyé avec un autre contenu : rechargez la page avant de recommencer.',
+    'origine_nextcloud_invalide': 'Adresse du serveur Nextcloud invalide (schéma, nom et port seulement).',
 }

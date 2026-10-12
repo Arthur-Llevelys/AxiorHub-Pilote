@@ -182,6 +182,42 @@ def _utc(value):
     return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
 
 
+def _local_tz(desk):
+    from zoneinfo import ZoneInfo
+    try:
+        return ZoneInfo(str((desk.c.get('calendar') or {}).get('timezone') or 'Europe/Paris'))
+    except Exception:   # noqa: BLE001
+        return timezone.utc
+
+
+def civil_days(desk, event):
+    """Journée(s) entière(s) : (premier jour, lendemain du dernier jour) en dates civiles du fuseau de l'agenda (fin exclusive)."""
+    tz = _local_tz(desk)
+    first = _utc(event['starts']).astimezone(tz)
+    last = _utc(event['ends']).astimezone(tz)
+    start = first.date()
+    end = last.date() if (last.hour, last.minute, last.second) == (0, 0, 0) else last.date() + timedelta(days=1)
+    return start, max(end, start + timedelta(days=1))
+
+
+def graph_times(desk, event):
+    """5.6.37 (audit F16) : une journée entière part en dates civiles, de minuit à minuit (fin exclusive) dans un même fuseau, comme l'exige
+    Microsoft Graph pour isAllDay ; un événement horaire garde sa conversion en UTC."""
+    if event.get('all_day'):
+        start, end = civil_days(desk, event)
+        return {'start': {'dateTime': start.isoformat() + 'T00:00:00', 'timeZone': 'UTC'},
+                'end': {'dateTime': end.isoformat() + 'T00:00:00', 'timeZone': 'UTC'}}
+    return {'start': {'dateTime': _utc(event['starts']).strftime('%Y-%m-%dT%H:%M:%S'), 'timeZone': 'UTC'},
+            'end': {'dateTime': _utc(event['ends']).strftime('%Y-%m-%dT%H:%M:%S'), 'timeZone': 'UTC'}}
+
+
+def graph_all_day(desk, value):
+    """Date civile d'une borne de journée entière lue dans Graph : minuit = date telle quelle ; sinon (instant UTC, par exemple la veille à
+    23 h) date civile dans le fuseau de l'agenda — jamais la veille."""
+    dt = _utc(value)
+    return dt.date() if (dt.hour, dt.minute, dt.second) == (0, 0, 0) else dt.astimezone(_local_tz(desk)).date()
+
+
 def push_event(desk, event, http=None):
     """Copie d'un événement AxiorHub dans Outlook (une seule fois) ; sans effet si Microsoft 365 n'est pas relié ou la copie désactivée."""
     if not connected(desk) or not config(desk).get('push'):
@@ -191,9 +227,8 @@ def push_event(desk, event, http=None):
         return None
     body = {'subject': event['title'][:250], 'categories': ['AxiorHub'], 'isAllDay': bool(event.get('all_day')),
             'body': {'contentType': 'text', 'content': (event.get('description') or '') + '\n\n(Événement créé par AxiorHub Pilote.)'},
-            'location': {'displayName': event.get('location') or ''},
-            'start': {'dateTime': _utc(event['starts']).strftime('%Y-%m-%dT%H:%M:%S'), 'timeZone': 'UTC'},
-            'end': {'dateTime': _utc(event['ends']).strftime('%Y-%m-%dT%H:%M:%S'), 'timeZone': 'UTC'}}
+            'location': {'displayName': event.get('location') or ''}}
+    body.update(graph_times(desk, event))
     out = _graph(desk, 'POST', '/v1.0/me/events', body, http)
     desk.db.execute('INSERT OR REPLACE INTO ms_links5636 VALUES(?,?,?,?)', (event['id'], str(out.get('id') or ''), str(out.get('iCalUId') or ''),
                                                                            datetime.now(timezone.utc).isoformat()))
@@ -230,6 +265,10 @@ def pull(desk, http=None, now=None):
             continue
         title = str(ev.get('subject') or 'Rendez-vous Outlook').strip()[:200] or 'Rendez-vous Outlook'
         all_day = bool(ev.get('isAllDay'))
+        if all_day:   # 5.6.37 (audit F16) : dates civiles conservées à l'aller-retour
+            first, after = graph_all_day(desk, ev['start']['dateTime']), graph_all_day(desk, ev['end']['dateTime'])
+            begins = datetime(first.year, first.month, first.day, tzinfo=timezone.utc)
+            ends = datetime(after.year, after.month, after.day, tzinfo=timezone.utc) if after > first else begins + timedelta(days=1)
         data = {'title': title if len(title) >= 2 else 'Rendez-vous Outlook', 'kind': 'rendez_vous', 'location': (ev.get('location') or {}).get('displayName', ''),
                 'description': str(ev.get('bodyPreview') or '')[:2000], 'reminders': [], 'all_day': all_day,
                 'start': begins.date().isoformat() if all_day else begins.isoformat(), 'days': max(1, (ends - begins).days) if all_day else 1,

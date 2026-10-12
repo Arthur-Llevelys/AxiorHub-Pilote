@@ -1,7 +1,7 @@
 # Licence particulière du logo AxiorHub
 
-Le fichier `agent/static/axiorhub-icon.png` et ses variantes graphiques sont
-protégés indépendamment du code. Ils ne sont **pas** placés sous AGPL.
+Le fichier `agent/static/axiorhub-icon.png` et ses variantes graphiques (dont `img/axiorhub-logo.png` de l’application Nextcloud
+AxiorHub Pilote, copie non modifiée) sont protégés indépendamment du code. Ils ne sont **pas** placés sous AGPL.
 
 Permission est accordée de redistribuer le logo, sans modification, uniquement
 avec une copie officielle non modifiée d’AxiorHub ou dans une documentation qui

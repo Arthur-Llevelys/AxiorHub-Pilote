@@ -136,7 +136,7 @@ class Contract(t34.Base):
         self.assertEqual(self.job('cle-recette-m0', manifest_id='d' * 32)[1]['code'], 'manifeste_absent_ou_hors_perimetre')
         status, man = self.call('POST', '/integration/v1/source-manifests', body={'matter': MID, 'sources': [
             {'file_id': '11', 'etag': '"e-at.pdf"', 'name': 'Contrat.pdf', 'size': 10},
-            {'file_id': '12', 'etag': 'inconnu', 'name': 'Assignation.pdf', 'size': 10},
+            {'file_id': '12', 'name': 'Assignation.pdf', 'size': 10},   # 5.6.37 (audit F04) : sans version ; une version contradictoire est refusée
             {'file_id': '13', 'etag': 'inconnu', 'name': 'Absente.pdf', 'size': 10}]})
         self.assertEqual((man['accepted'], man['coverage']['refused']), (2, 1))
         self.assertEqual(man['errors'][0]['error'], 'piece_absente_de_l_index_du_dossier')

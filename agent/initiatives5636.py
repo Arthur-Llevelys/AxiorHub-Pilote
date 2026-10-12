@@ -28,7 +28,10 @@ from .common import Stop, fold, load_matters, matter_display
 
 AUTO = 'initiatives5636:detection'
 STATES = {'analyse': 'Analyse en cours', 'proposee': 'À valider', 'en_cours': 'Exécution en cours', 'executee': 'Exécutée', 'ecartee': 'Écartée',
-          'echec': 'Analyse impossible'}
+          'echec': 'Analyse impossible', 'redactions': 'Rédactions en cours'}
+# 5.6.37 (audit F12) : états d'une étape ; une rédaction mise en file n'est jamais « faite » avant que son document existe
+STEP_STATUS = {'fait': '✅ ', 'prepare': '📄 ', 'echec': '⚠️ ', 'attente': '⏳ ', 'en_file': '⏳ ', 'annulee': '⛔ '}
+STEP_LABELS = {'en_file': 'Rédaction en cours', 'prepare': 'Document préparé — à relire', 'annulee': 'Non exécutée (plan écarté)'}
 STEPS = (
     ('dossier', 'Créer le dossier', 'Répertoire « {nom_dossier} » sous {emplacement}, avec PROCEDURE, CORRESPONDANCES et PIECES.'),
     ('pj', 'Ranger les pièces jointes', 'Les pièces jointes du courriel vont dans « PJ courriels » du dossier (sans écrasement).'),
@@ -69,6 +72,9 @@ def schema(desk):
       fields TEXT NOT NULL DEFAULT '{}', steps TEXT NOT NULL DEFAULT '[]', state TEXT NOT NULL, job INTEGER, owner TEXT NOT NULL DEFAULT '',
       created TEXT NOT NULL, updated TEXT NOT NULL);
     CREATE UNIQUE INDEX IF NOT EXISTS initiatives5636_mail ON initiatives5636(kind, mail_key) WHERE mail_key<>'';''')
+    if 'version' not in {r[1] for r in desk.db.execute('PRAGMA table_info(initiatives5636)')}:   # 5.6.37 (audit F11) : version de validation
+        desk.db.execute('ALTER TABLE initiatives5636 ADD COLUMN version INTEGER NOT NULL DEFAULT 0')
+        desk.db.commit()
 
 
 def enabled(desk):
@@ -297,7 +303,7 @@ def _fr(iso):
 def validate(desk, ident, data, owner='cabinet'):
     """Enregistre les corrections et les étapes cochées, puis met l'exécution en file."""
     row = _row(desk, ident)
-    if row['state'] not in ('proposee', 'executee'):
+    if row['state'] not in ('proposee', 'executee', 'redactions'):
         raise Stop('initiative_absente')
     fields = dict(row['fields'])
     for k, _ in FIELDS:
@@ -312,7 +318,7 @@ def validate(desk, ident, data, owner='cabinet'):
         row['matter'] = str(data.get('matter') or '')
     steps = row['steps']
     for s in steps:
-        if s['status'] == 'fait':
+        if s['status'] in ('fait', 'prepare', 'en_file'):   # 5.6.37 (F12) : une étape faite ou en cours n'est jamais relancée en double
             s['checked'] = False
             continue
         s['checked'] = bool(data.get('step_' + s['id']))
@@ -320,18 +326,33 @@ def validate(desk, ident, data, owner='cabinet'):
         raise Stop('aucune_etape_choisie')
     if row['matter'] and row['matter'] not in {m['id'] for m in load_matters(desk.c)}:
         raise Stop('dossier_absent')
-    _save(desk, ident, fields=fields, steps=steps, state='en_cours', matter=row['matter'], owner=owner)
-    job = desk.enqueue('initiative5636', {'id': ident, 'action': 'executer', **({'matter': row['matter']} if row['matter'] else {})}, priority=20)
+    version = int(row.get('version') or 0) + 1
+    _save(desk, ident, fields=fields, steps=steps, state='en_cours', matter=row['matter'], owner=owner, version=version)
+    job = desk.enqueue('initiative5636', {'id': ident, 'action': 'executer', 'version': version, **({'matter': row['matter']} if row['matter'] else {})},
+                       priority=20)
     _save(desk, ident, job=job)
     desk.audit('initiatives5636_validee', {'id': ident, 'steps': [s['id'] for s in steps if s['checked']], 'owner': owner})
     return {'id': ident, 'job': job, 'message': 'Plan validé : les étapes cochées sont en cours d’exécution (brouillons et projets seulement).'}
 
 
 def dismiss(desk, ident, owner='cabinet'):
-    _row(desk, ident)
-    _save(desk, ident, state='ecartee')
+    """5.6.37 (audit F11) : écarter invalide la version validée et annule le travail encore en attente ; l'exécution vérifie l'état et la
+    version avant chaque étape. Les étapes déjà accomplies restent tracées, rien n'est effacé."""
+    row = _row(desk, ident)
+    _save(desk, ident, state='ecartee', version=int(row.get('version') or 0) + 1)
+    if row.get('job'):
+        try:
+            desk.cancel_job(row['job'])
+        except Stop:
+            pass
     desk.audit('initiatives5636_ecartee', {'id': ident, 'owner': owner})
-    return {'id': ident, 'message': 'Initiative écartée.'}
+    return {'id': ident, 'message': 'Initiative écartée : aucune étape ne sera plus exécutée.'}
+
+
+def _authorized(desk, ident, version):
+    """L'initiative est toujours validée dans CETTE version (ni écartée, ni revalidée entre-temps)."""
+    row = desk.db.execute('SELECT state, version FROM initiatives5636 WHERE id=?', (ident,)).fetchone()
+    return bool(row) and row['state'] == 'en_cours' and (version is None or int(row['version'] or 0) == int(version))
 
 
 def _mail_text(desk, purpose, fields, matter_label):
@@ -459,23 +480,65 @@ def _step(desk, row, sid, fields, owner, dav=None):
                      matter, 'courrier')
     else:
         raise Stop('operation_inconnue')
-    return 'Rédaction lancée (travail n° %s) : le document Word sera déposé dans le dossier et listé dans « Documents ».' % out['job_id']
+    return {'status': 'en_file', 'job': out['job_id'], 'request': out['request'],
+            'result': 'Rédaction en cours (travail n° %s) : le document Word sera déposé dans le dossier.' % out['job_id']}
 
 
-def execute(desk, ident, dav=None):
-    """Travail de fond : exécute les étapes cochées dans l'ordre ; une étape en échec n'arrête pas les autres."""
+def refresh_children(desk, ident):
+    """5.6.37 (audit F12) : état des rédactions d'après leur travail : document préparé (fichier déposé), échec (motif), annulée ; le plan
+    n'est « exécuté » que lorsque plus aucune rédaction n'est en cours."""
+    row = _row(desk, ident)
+    steps, changed = row['steps'], False
+    for s in steps:
+        if s.get('status') != 'en_file' or not s.get('request'):
+            continue
+        req = desk.db.execute('SELECT status, path, result FROM docreq520 WHERE id=?', (s['request'],)).fetchone()
+        job = desk.db.execute('SELECT status FROM jobs WHERE id=?', (s.get('job'),)).fetchone() if s.get('job') else None
+        if req and req['status'] == 'cree' and req['path']:
+            s.update(status='prepare', result='Document préparé, à relire : %s' % req['path'].rsplit('/', 1)[-1], path=req['path'])
+            changed = True
+        elif (req and req['status'] in ('echec', 'dossier_a_choisir')) or (job and job['status'] == 'error'):
+            detail = json.loads(req['result'] or '{}') if req else {}
+            s.update(status='echec', result='Rédaction en échec%s : relancez cette étape seule.' % (
+                (' (%s)' % detail.get('erreur')) if detail.get('erreur') else ''))
+            changed = True
+        elif job and job['status'] in ('cancelled', 'cancel_requested'):
+            s.update(status='annulee', result='Rédaction annulée.')
+            changed = True
+    state = row['state']
+    if state == 'redactions' and not any(s.get('status') == 'en_file' for s in steps):
+        state = 'executee'
+    if changed or state != row['state']:
+        _save(desk, ident, steps=steps, state=state)
+    return steps
+
+
+def execute(desk, ident, dav=None, version=None):
+    """Travail de fond : exécute les étapes cochées dans l'ordre ; une étape en échec n'arrête pas les autres.
+    5.6.37 (audit F11) : l'initiative doit être encore validée dans la même version au démarrage puis avant CHAQUE étape avec effet."""
     from .erreurs5634 import explain
     row = _row(desk, ident)
     fields, steps = row['fields'], row['steps']
+    if not _authorized(desk, ident, version):
+        desk.audit('initiatives5636_non_executee', {'id': ident, 'motif': 'ecartee_ou_revalidee'})
+        return {'id': ident, 'steps': [{k: s[k] for k in ('id', 'status')} for s in steps], 'interrompu': True}
+    interrupted = False
     for s in steps:
-        if not s.get('checked') or s.get('status') == 'fait':
+        if not s.get('checked') or s.get('status') in ('fait', 'prepare', 'en_file'):
             continue
+        if not _authorized(desk, ident, version):   # écartée pendant l'exécution : les étapes suivantes ne démarrent pas
+            interrupted = True
+            break
         if s['id'] in NEEDS_MATTER and not row['matter']:
             s.update(status='attente', result='En attente du dossier : cochez « Créer le dossier » ou choisissez un dossier existant.')
             continue
         try:
-            s['result'] = _step(desk, row, s['id'], fields, row['owner'] or 'cabinet', dav)
-            s['status'] = 'fait'
+            out = _step(desk, row, s['id'], fields, row['owner'] or 'cabinet', dav)
+            if isinstance(out, dict):   # rédaction mise en file : suivie jusqu'à son document (F12)
+                s.update(status=out['status'], result=out['result'], job=out['job'], request=out['request'])
+            else:
+                s['result'] = out
+                s['status'] = 'fait'
         except Stop as exc:
             detail = getattr(exc, 'detail', None)
             message = explain(str(exc), detail if isinstance(detail, dict) else None)
@@ -485,7 +548,16 @@ def execute(desk, ident, dav=None):
             s.update(status='echec', result='Étape interrompue (%s).' % type(exc).__name__)
         s['checked'] = False
         _save(desk, ident, steps=steps, matter=row['matter'])
-    _save(desk, ident, steps=steps, matter=row['matter'], state='executee')
+    if interrupted:
+        for s in steps:
+            if s.get('checked'):
+                s.update(checked=False, status='annulee', result='Non exécutée : l’initiative a été écartée.')
+    final = 'redactions' if any(s.get('status') == 'en_file' for s in steps) else 'executee'
+    desk.db.execute('UPDATE initiatives5636 SET steps=?, matter=?, updated=? WHERE id=?', (json.dumps(steps, ensure_ascii=False), row['matter'], _now(), ident))
+    # transition conditionnelle : une annulation concurrente (état écarté, version changée) n'est jamais écrasée
+    desk.db.execute("UPDATE initiatives5636 SET state=? WHERE id=? AND state='en_cours'" + ('' if version is None else ' AND version=?'),
+                    (final, ident) + (() if version is None else (int(version),)))
+    desk.db.commit()
     desk.audit('initiatives5636_executee', {'id': ident, 'done': [s['id'] for s in steps if s.get('status') == 'fait'],
                                             'failed': [s['id'] for s in steps if s.get('status') == 'echec']})
     return {'id': ident, 'steps': [{k: s[k] for k in ('id', 'status')} for s in steps]}
@@ -494,7 +566,7 @@ def execute(desk, ident, dav=None):
 def job(desk, args):
     ident = str(args.get('id') or '')
     if args.get('action') == 'executer':
-        return execute(desk, ident)
+        return execute(desk, ident, version=args.get('version'))
     try:
         return analyse(desk, ident)
     except Stop as exc:
@@ -503,8 +575,13 @@ def job(desk, args):
 
 
 # ------------------------------------------------------------------------------------------------ page
-def listing(desk, states=('analyse', 'proposee', 'en_cours'), limit=50):
+def listing(desk, states=('analyse', 'proposee', 'en_cours', 'redactions'), limit=50):
     schema(desk)
+    for r in desk.db.execute("SELECT id FROM initiatives5636 WHERE state='redactions'").fetchall():   # 5.6.37 (F12)
+        try:
+            refresh_children(desk, r['id'])
+        except Exception:   # noqa: BLE001 — l'affichage ne dépend pas du suivi
+            pass
     rows = desk.db.execute('SELECT id FROM initiatives5636 WHERE state IN (%s) ORDER BY created DESC LIMIT ?' % ','.join('?' for _ in states),
                            list(states) + [limit]).fetchall()
     return [_row(desk, r['id']) for r in rows]
@@ -536,10 +613,10 @@ def _card(desk, prefix, r, matters):
             desc = desc.format(**{k: (f.get(k) or '…') for k, _ in FIELDS})
         except (KeyError, IndexError):
             pass
-        status = {'fait': '✅ ', 'echec': '⚠️ ', 'attente': '⏳ '}.get(s.get('status'), '')
+        status = STEP_STATUS.get(s.get('status'), '') + ((STEP_LABELS[s['status']] + ' — ') if s.get('status') in STEP_LABELS else '')
         steps += ('<li class="i5636-step i5636-%s"><label class="e5636-switch"><input type="checkbox" name="step_%s"%s%s> <strong>%s%s</strong></label>'
                   '<small>%s</small>%s</li>') % (e(s.get('status') or 'todo'), e(s['id']), ' checked' if s.get('checked') else '',
-                                                ' disabled' if s.get('status') == 'fait' else '', status, e(s['label']), e(desc),
+                                                ' disabled' if s.get('status') in ('fait', 'prepare', 'en_file') else '', status, e(s['label']), e(desc),
                                                 ('<p class="i5636-result">%s</p>' % e(s['result'])) if s.get('result') else '')
     running = r['state'] == 'en_cours'
     return ('<article class="ax-card i5636" id="i-%s">%s<form class="m5-form" data-api="m5636/initiatives/valider" data-reload="1">'

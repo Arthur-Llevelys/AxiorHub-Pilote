@@ -12,7 +12,9 @@
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
   let chosen = read(keyTheme);
   // 5.6.9 : sans préférence enregistrée, le menu est replié sur un petit écran (il occupait tout le haut de chaque page).
-  const storedSidebar = read(keySidebar);
+  // 5.6.37 : dans Nextcloud, le menu AxiorHub est un volet qui s'ouvre par ☰ : fermé à chaque page, préférence non enregistrée.
+  const integre = !!(root.classList && typeof root.classList.contains === 'function' && root.classList.contains('ax-integre'));
+  const storedSidebar = integre ? 'collapsed' : read(keySidebar);
   let collapsed = storedSidebar ? storedSidebar === 'collapsed' : window.matchMedia('(max-width: 850px)').matches;
 
   function theme() {
@@ -47,7 +49,7 @@
   });
   sidebarButton?.addEventListener('click', () => {
     collapsed = !collapsed;
-    save(keySidebar, collapsed ? 'collapsed' : 'expanded');
+    if (!integre) save(keySidebar, collapsed ? 'collapsed' : 'expanded');
     menu();
   });
   systemDark.addEventListener?.('change', () => { if (chosen !== 'dark' && chosen !== 'light') theme(); });

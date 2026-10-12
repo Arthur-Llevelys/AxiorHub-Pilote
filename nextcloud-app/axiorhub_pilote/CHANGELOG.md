@@ -1,5 +1,27 @@
 # Journal des versions — application Nextcloud AxiorHub Pilote
 
+## 0.4.0 — version de développement (avec le moteur 5.6.37, contrat 1.3)
+
+- **L'interface AxiorHub dans Nextcloud** : la page « AxiorHub Pilote » affiche AxiorHub lui-même (Aujourd'hui, Dossiers, Courriels,
+  Agenda et tâches, Produire, Paramètres, puis Corporate, Contacts & CRM, Initiatives, Outils IA, Recherche juridique, Missions), sans
+  ressaisir le mot de passe : le moteur remet au compte relié une adresse de connexion à usage unique (60 secondes), échangée contre une
+  session AxiorHub de 12 heures ; aucun mot de passe ni secret n'arrive dans le navigateur.
+- **Menu aux couleurs d'AxiorHub** : panneau bleu nuit, logo, boutons espacés et rubrique active surlignée, comme le menu d'AxiorHub ;
+  un seul menu : dans le cadre, le menu propre d'AxiorHub est masqué et « Toutes les fonctions » est une entrée du menu Nextcloud.
+- **Menu repliable** : « Replier le menu » en bas du menu, bouton ☰ de Nextcloud pour le rouvrir (dans une bande sombre qui ne recouvre
+  jamais AxiorHub) ; le choix est mémorisé dans le navigateur.
+- **Description de la boutique** : tutoriel d'installation de la version serveur sur Ubuntu, en anglais et en français ; capture
+  d'écran (données fictives).
+- **« Ouvrir dans un onglet »** (nouvelle adresse à usage unique) et **« Vue simplifiée »** (écran de la 0.3.0 : instruction, recherche,
+  fiche, recherche juridique, travaux récents).
+- **Session expirée ou bloquée** : le cadre le signale, l'application demande une seule nouvelle adresse ; si le navigateur bloque la
+  session dans Nextcloud (cookies tiers), un message l'explique et propose l'onglet ou la vue simplifiée.
+- **Sécurité** : la page Nextcloud n'autorise dans un cadre que l'origine du moteur ; le moteur n'accepte d'être affiché que dans le
+  site Nextcloud déclaré par la clé ; la session tombe avec la clé (révocation, « Délier », liaison désactivée).
+- **Instruction au Pilote** : l'échec « autorisation_mission_non_verifiable » (moteur installé sur un serveur) est corrigé par le moteur
+  5.6.37.
+- Moteur 5.6.36 : la vue simplifiée reste utilisable ; un message demande la mise à jour pour l'interface complète.
+
 ## 0.3.0 — version de développement (avec le moteur 5.6.36, contrat 1.2)
 
 - **Compte relié personnellement** : Paramètres personnels › AxiorHub Pilote (adresse, identifiant et mot de passe AxiorHub) ; le mot

@@ -3,6 +3,33 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.37 — L’interface AxiorHub dans Nextcloud, instruction au Pilote corrigée, audit 5.6.36
+
+Demandes de l’avocat du 12 octobre 2026 sur l’application Nextcloud et audit du code 5.6.36. Détail, tests et limites : `CONFORMITE-5.6.37.md`.
+
+- **Instruction au Pilote depuis Nextcloud** : l’échec « autorisation_mission_non_verifiable » (installation sur un serveur, compte
+  relié = compte du serveur) est corrigé : la mission appartient au cabinet, comme celles lancées depuis l’interface ; en distribution
+  Docker, elle reste au compte relié.
+- **Application Nextcloud 0.4.0** : la page « AxiorHub Pilote » affiche l’interface AxiorHub elle-même, avec ses rubriques dans le menu
+  Nextcloud aux couleurs d’AxiorHub ; « Ouvrir dans un onglet » et « Vue simplifiée » (écran de la 0.3.0).
+- **Session de l’interface dans Nextcloud** (contrat d’intégration 1.3) : `POST /integration/v1/session`, signé avec la clé personnelle,
+  remet une adresse de connexion à usage unique (60 secondes, empreinte seule conservée) ; `/nextcloud-session` l’échange contre un
+  cookie de session de 12 heures (HttpOnly, limité au chemin ; Secure, SameSite=None, Partitioned en HTTPS), révoqué avec la clé.
+  L’affichage dans un cadre n’est permis qu’au site Nextcloud déclaré par la clé et seulement pour cette session ; une connexion par
+  mot de passe reste interdite de cadre. Dans un cadre sans session, une page sans donnée demande à l’application une nouvelle adresse
+  (jamais de fenêtre de mot de passe).
+- **Audit du code 5.6.36 (16 fiches)** : liaison Nextcloud à travers la façade Docker ; clé personnelle confrontée au compte actuel
+  (désactivation, rôle, mot de passe) ; décisions réservées à l’avocat et à l’administrateur ; pièces du manifeste identifiées et
+  versionnées ; chiffres du rapport de gestion contrôlés dans leur extrait (poste, montant, signe, devise, unité, exercice) ;
+  Corporate : la saisie prépare un projet, les registres changent à « Enregistrer la réalisation », contrôles complets (annulations
+  cumulées, souscriptions), une seule transaction, file pleine sans effet, clé d’idempotence ; initiatives écartées sans effet et
+  rédactions suivies jusqu’au document ; relances : niveau fondé sur les envois confirmés, solde revérifié avant dépôt, routine du
+  jour récupérable ; journées entières copiées vers Outlook en dates civiles.
+- **Application Nextcloud 0.4.0** : menu repliable (choix mémorisé) ; description de la boutique en anglais et en français avec un
+  tutoriel d’installation de la version serveur sur Ubuntu.
+- **Affichage intégré** : dans Nextcloud, un seul menu (celui de Nextcloud) ; le menu d’AxiorHub est masqué et « Toutes les
+  fonctions » devient une page ouverte depuis le menu Nextcloud ; la page prend toute la largeur.
+
 ## 5.6.36 — Application Nextcloud par utilisateur, notifications apaisées, initiatives, données des pièces, outils IA, corporate
 
 Demandes de l’avocat du 12 octobre 2026 (correctifs, application Nextcloud, nouvelles fonctions). Détail demande par demande, avec

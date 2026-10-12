@@ -24,7 +24,7 @@ Python n'est pas nécessaire : il est inclus dans l'application.
 2. Vérifiez l'empreinte dans PowerShell ; elle doit être identique au contenu du fichier `.sha256` :
 
    ```powershell
-   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.36.exe -Algorithm SHA256
+   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.37.exe -Algorithm SHA256
    ```
 
 3. Double-cliquez sur l'installateur. L'application n'étant pas signée par un éditeur, Windows SmartScreen peut afficher
@@ -42,7 +42,7 @@ L'installation se fait pour l'utilisateur courant, sans droits d'administrateur 
 Installation sans fenêtre, par exemple pour un déploiement sur plusieurs postes :
 
 ```powershell
-.\AxiorHub-Pilote-Setup-5.6.36.exe --silencieux --demarrage
+.\AxiorHub-Pilote-Setup-5.6.37.exe --silencieux --demarrage
 ```
 
 Options : `--sans-bureau`, `--sans-raccourcis`, `--demarrage` (lancement à l'ouverture de session), `--lancer`

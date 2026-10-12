@@ -203,14 +203,14 @@ def last_error(desk, mid):
         return None
 
 
-def request(desk, mid, with_index=True, only=None):
+def request(desk, mid, with_index=True, only=None, versions=None):
     """Demande (ou rejoint) la préparation de la fiche ; une seule demande en file par dossier.
     5.6.35 (F11) : ``only`` = pièces choisies (chemins de l'index) ; la préparation ne lit alors QUE ces pièces (travail distinct)."""
     _matter(desk, mid)
     ensure_schema(desk)
     if only:
         paths = sorted({str(p) for p in only})[:500]
-        job = desk.enqueue(JOB, {'matter': mid, 'index': bool(with_index), 'only': paths}, priority=5)
+        job = desk.enqueue(JOB, {'matter': mid, 'index': bool(with_index), 'only': paths, **({'versions': dict(versions)} if versions else {})}, priority=5)
         desk.audit('dossier5627_fiche_demandee', {'matter': mid, 'job': job, 'selection': len(paths)})
         return {'job_id': job, 'message': 'Préparation de la fiche lancée sur %d pièce(s) choisie(s).' % len(paths)}
     # 5.6.34 (B08) : clé d'idempotence atomique par dossier — deux clics, deux onglets ou une reconnexion rejoignent le même travail.
@@ -421,6 +421,14 @@ def prepare(desk, args):
     from . import synthese5632
     budget = max(8000, int(limit * 0.6))
     only = set(args.get('only') or []) or None   # 5.6.35 (F11) : sélection de pièces (application Nextcloud) = filtre réel
+    changed = []
+    if only and args.get('versions'):   # 5.6.37 (audit F04) : version revérifiée avant lecture ; pièce modifiée = retirée et signalée
+        from .integration5634 import _norm_etag
+        now = {d['path']: _norm_etag(d['etag']) for d in synthese5632.inventory(desk, mid)}
+        changed = sorted(p for p, e in args['versions'].items() if p in only and now.get(p) != _norm_etag(e))
+        only = only - set(changed)
+        if not only:
+            raise Stop('pieces_modifiees_depuis_la_selection')
     with stage('extraction', 'index'):
         sources, coverage = synthese5632.sources_for(desk, m, budget, score=_doc_score, only=only)
     if coverage['sans_fiche']:
@@ -455,7 +463,8 @@ def prepare(desk, args):
     data = _clean(result, kept | {f['id'] for f in facts}, info)
     coverage = synthese5632.coverage(desk, mid, sources, only=only)   # 5.6.34 (B05) : bilan recalculé après compression et relance
     if only:
-        coverage['selection'] = {'demandees': len(only), 'trouvees': len({d['path'] for d in synthese5632.inventory(desk, mid)} & only)}
+        coverage['selection'] = {'demandees': len(only) + len(changed), 'trouvees': len({d['path'] for d in synthese5632.inventory(desk, mid)} & only),
+                                 'modifiees_depuis_selection': changed}
     data['pieces_lues'] = len(sources)   # compatibilité : nombre de sources transmises (libellé exact dans la vue)
     data['couverture'] = coverage
     data['generation'] = {'profil': cfg.get('profile', ''), 'version_profil': cfg.get('profile_version', 0), 'modele': cfg.get('model', ''),

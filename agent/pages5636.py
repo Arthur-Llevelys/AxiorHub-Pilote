@@ -10,6 +10,7 @@ PAGES = {
     '/complement-word': 'Complément Word',
     '/microsoft-retour': 'Microsoft 365',
     '/complement-word/volet': 'AxiorHub',
+    '/toutes-les-fonctions': 'Toutes les fonctions',   # 5.6.37 : page du menu « Toutes les fonctions » (interface affichée dans Nextcloud)
 }
 
 
@@ -36,6 +37,8 @@ def page(desk, auth, prefix, env, args, path, shell):
     elif path == '/relances':
         from . import relances5636
         body = relances5636.page_html(desk, prefix, args)
+    elif path == '/toutes-les-fonctions':
+        return shell(_all_title(), all_functions_html(desk, prefix), prefix, auth['csrf'], path)
     elif path == '/microsoft-retour':
         from . import microsoft5636
         body = microsoft5636.return_page(desk, prefix, args)
@@ -43,3 +46,22 @@ def page(desk, auth, prefix, env, args, path, shell):
         from . import office5636
         body = office5636.page_html(desk, prefix, args, env)
     return shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path)
+
+
+def _all_title():
+    from .i18n5631 import t
+    return t('menu.all')
+
+
+def all_functions_html(desk, prefix):
+    """5.6.37 : les fonctions du menu « Toutes les fonctions », en page (mêmes groupes, mêmes liens, mêmes états de disponibilité)."""
+    import re
+    from .fonctions5631 import panel_html
+    from .i18n5631 import current, role
+    from .shell501 import context
+    panel = panel_html(prefix, '/toutes-les-fonctions', context(), role(), current())
+    start = panel.find('<section class="f5631-group"')
+    end = panel.rfind('</div></details>')
+    groups = panel[start:end] if start >= 0 and end > start else ''
+    groups = re.sub(r' aria-current="page"', '', groups)
+    return ('<div class="p5637-fonctions"><h1>%s</h1><div class="f5631-panel p5637-panel">%s</div></div>' % (_all_title(), groups))

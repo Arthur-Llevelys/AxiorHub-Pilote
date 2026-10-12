@@ -337,7 +337,8 @@ class PersonalKeys(t34.Base):
         self.n += 1
         ctx = {'instance': 'personnel:avocat-fictif', 'user': 'alice', 'scope': [], 'op': method + ' ' + path,
                'exp': (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat(), 'nonce': ('n%031d' % self.n)}
-        env = {'HTTP_X_AXIORHUB_CONTEXT': sign(key['secret'], ctx), 'HTTP_X_AXIORHUB_KEY': key['key_id'], 'QUERY_STRING': query}
+        env = {'HTTP_X_AXIORHUB_CONTEXT': sign(key['secret'], ctx), 'HTTP_X_AXIORHUB_KEY': key['key_id'], 'QUERY_STRING': query,
+               'axiorhub.auth': self.server_auth}   # 5.6.37 (audit F02) : compte de l'interface revérifié à chaque requête
         return handle(self.desk, method, path, env, json.dumps(body).encode() if body is not None else b'')
 
     def test_linking_is_refused_until_allowed_in_axiorhub(self):
@@ -384,11 +385,14 @@ class PersonalKeys(t34.Base):
         def fake_get(desk, ident, owner='cabinet', admin=False, prefix=''):
             return {'id': ident, 'state': 'verified', 'label': 'Réponse prête', 'instruction': created['instruction'], 'exceptions': [],
                     'job': {}, 'result': {'text': 'Réponse fictive sourcée.', 'sources': [{'path': '/Dossiers/DEMO/Note.docx'}]}}
-        with unittest.mock.patch('agent.missions567.create', side_effect=fake_create), unittest.mock.patch('agent.missions567.get', side_effect=fake_get):
+        empty = tempfile.TemporaryDirectory()
+        self.addCleanup(empty.cleanup)
+        with unittest.mock.patch('agent.missions567.create', side_effect=fake_create), unittest.mock.patch('agent.missions567.get', side_effect=fake_get),                 unittest.mock.patch.dict('os.environ', {'AXIORHUB_AUTH_STATE': empty.name}):
             status, job = self.signed(key, 'POST', '/integration/v1/jobs', {'operation': 'instruction', 'question': 'Résume le dossier fictif.',
                                                                             'matter': MID, 'idempotency_key': 'cle-instruction-1'})
             self.assertEqual(status, '202 Accepted', job)
-            self.assertEqual((created['owner'], created['autonomy'], created['matter']), ('avocat-fictif', 'prepare', MID))
+            # 5.6.37 : sur un serveur (sans comptes propres), la mission appartient au cabinet, comme celles de l'interface
+            self.assertEqual((created['owner'], created['autonomy'], created['matter']), ('cabinet', 'prepare', MID))
             status, st = self.signed(key, 'GET', '/integration/v1/jobs/' + job['job_id'])
             self.assertEqual(st['state'], 'succeeded')
             status, res = self.signed(key, 'GET', '/integration/v1/results/' + job['job_id'])
@@ -614,8 +618,10 @@ class Initiatives(t34.Base):
                 unittest.mock.patch('agent.webmail5628.save', side_effect=lambda desk, d, owner='cabinet': drafts.append(d) or {'uid': '7'}):
             i.execute(self.desk, row['id'])
         done = {s['id']: s for s in i._row(self.desk, row['id'])['steps']}
-        for sid in ('contacts', 'agenda', 'courriel_client', 'note_interne', 'constitution'):
+        for sid in ('contacts', 'agenda', 'courriel_client'):
             self.assertEqual(done[sid]['status'], 'fait', (sid, done[sid]['result']))
+        for sid in ('note_interne', 'constitution'):   # 5.6.37 (audit F12) : rédaction en file, pas « faite » avant son document
+            self.assertEqual(done[sid]['status'], 'en_file', (sid, done[sid]['result']))
         self.assertEqual(drafts[0]['to'], 'contact@dupont.example.test')
         self.assertEqual(drafts[0]['mode'], 'nouveau')                                         # brouillon : jamais un envoi
         kinds = [r['kind'] for r in self.desk.db.execute('SELECT kind FROM docreq520 ORDER BY created')]
@@ -626,7 +632,7 @@ class Initiatives(t34.Base):
         self.assertEqual({c['role'] for c in crm5636.for_matter(self.desk, MID)}, {'client', 'partie_adverse', 'avocat_adverse'})
         ev = self.desk.db.execute('SELECT kind FROM agenda5634 WHERE matter=?', (MID,)).fetchone()
         self.assertEqual(ev['kind'], 'audience')
-        self.assertEqual(i._row(self.desk, row['id'])['state'], 'executee')
+        self.assertEqual(i._row(self.desk, row['id'])['state'], 'redactions')                # 5.6.37 : rédactions en cours
 
     def test_steps_needing_a_matter_wait_and_nothing_runs_without_validation(self):
         from agent import initiatives5636 as i
@@ -684,6 +690,8 @@ class Relances(t34.Base):
             r.deposit(self.desk, row['id'], {'body': 'Texte corrigé par l’avocat.'})
         self.assertEqual((drafts[0]['to'], drafts[0]['mode']), ('compta@client.example.test', 'nouveau'))
         self.assertIn('Texte corrigé', drafts[0]['html'])
+        self.assertEqual(r.prepare(self.desk, today=date.today() + timedelta(days=11), refresh=False)['created'], 0)  # 5.6.37 : envoi non confirmé
+        r.confirm_sent(self.desk, row['id'])                                                  # 5.6.37 (audit F13) : envoi confirmé par l'avocat
         self.assertEqual(r.prepare(self.desk, today=date.today() + timedelta(days=2), refresh=False)['created'], 0)   # intervalle non écoulé
         self.assertEqual(r.prepare(self.desk, today=date.today() + timedelta(days=11), refresh=False)['created'], 1)  # niveau 2
         self.assertEqual(self.desk.db.execute('SELECT MAX(level) FROM relances5636').fetchone()[0], 2)
@@ -813,6 +821,10 @@ class _CorporateBase(t34.Base):
     def run_job(self, op):
         return self.co.generate(self.desk, op, dav=self.docs)
 
+    def realize(self, out):
+        """5.6.37 (audit F09) : la saisie prépare un projet ; les registres changent quand l'avocat enregistre la réalisation."""
+        return self.co.realize(self.desk, {'id': out['id'], 'date': '2026-10-12', 'justificatif': 'PV signé (essai fictif)'})
+
 
 class Corporate(_CorporateBase):
     def test_share_transfer_one_entry_four_effects(self):
@@ -820,6 +832,8 @@ class Corporate(_CorporateBase):
         out = co.operation_submit(self.desk, {'kind': 'cession', 'company': self.cid, 'cedant': 'Paul MARTIN', 'cessionnaire_nom': 'Lucie BERNARD',
                                               'cessionnaire_email': 'lucie@example.test', 'nombre': '1000', 'prix_unitaire': '2,5',
                                               'date_cession': '2026-10-12', 'agrement': True, 'categorie': 'ordinaires'})
+        self.assertEqual(co.holdings(self.desk, self.cid)[0][0]['quantity'], 6000)           # 5.6.37 : projet, registres inchangés
+        self.realize(out)
         rows, total = co.holdings(self.desk, self.cid)                                       # table de capitalisation
         self.assertEqual({r['name']: r['quantity'] for r in rows}, {'Paul MARTIN': 5000, 'Anne DUPONT': 4000, 'Lucie BERNARD': 1000})
         self.assertEqual(total, 10000)
@@ -851,6 +865,8 @@ class Corporate(_CorporateBase):
         self.assertIn('report à nouveau » : 14 000,00 €', pv)
         self.assertIn('15 juin 2026', pv)
         self.assertIn('L. 227-10', _docx_text(self.docs.files[next(p for p in result['files'] if 'Rapport spécial' in p)]))
+        self.assertEqual(co.registers(self.desk, self.cid)[1], [])                           # 5.6.37 : projet, aucune décision inscrite
+        self.realize(out)
         self.assertIn('Approbation des comptes', co.registers(self.desk, self.cid)[1][-1]['title'])
         with self.assertRaises(Stop):
             bad = co.operation_submit(self.desk, {'kind': 'agoa', 'company': self.cid, 'exercice_clos': '2025-12-31', 'date_ag': '2026-06-15',
@@ -861,25 +877,32 @@ class Corporate(_CorporateBase):
         co = self.co
         self.docs.files['/Dossiers/DEMO/Comptes 2025.txt'] = 'Chiffre d’affaires net : 812 450 €. Résultat net : 20 000 €.'.encode()
         model = _Model([{'activite': 'Activité stable.', 'evenements': 'Néant.', 'perspectives': '[À COMPLÉTER]',
-                         'chiffres': [{'libelle': 'Chiffre d’affaires', 'montant': '812 450 €', 'extrait': 'Chiffre d’affaires net : 812 450 €'},
-                                      {'libelle': 'Capitaux propres', 'montant': '99 999 €', 'extrait': 'Capitaux propres : 99 999 €'}]}])
+                         'chiffres': [{'libelle': 'Chiffre d’affaires', 'montant': '812 450 €', 'devise': 'EUR', 'unite': 'unites', 'exercice': '2025',
+                                       'extrait': 'Chiffre d’affaires net : 812 450 €'},
+                                      {'libelle': 'Capitaux propres', 'montant': '99 999 €', 'devise': 'EUR', 'unite': 'unites', 'exercice': '2025',
+                                       'extrait': 'Capitaux propres : 99 999 €'}]}])
         out = co.operation_submit(self.desk, {'kind': 'agoa', 'company': self.cid, 'exercice_clos': '2025-12-31', 'date_ag': '2026-06-15', 'resultat': '20000',
                                               'comptes_pdf': '/Dossiers/DEMO/Comptes 2025.txt', 'doc_rapport_gestion': True,
                                               **{'doc_' + d: False for d in co.OPERATIONS['agoa'][1] if d != 'rapport_gestion'}})
         result = co.generate(self.desk, out['id'], dav=self.docs, model=model)
         text = _docx_text(self.docs.files[result['files'][0]])
         self.assertIn('Chiffre d’affaires : 812 450 €', text)
-        self.assertIn('99 999 € [À VÉRIFIER dans les comptes]', text)                         # chiffre absent des comptes
+        self.assertNotIn('812 450 € [À VÉRIFIER', text)                                     # justifié par son extrait
+        self.assertIn('99 999 € [À VÉRIFIER dans les comptes : extrait introuvable dans les comptes]', text)   # extrait absent des comptes
         self.assertIn('à relire et valider', text)
 
     def test_officer_change_and_registered_office(self):
         co = self.co
         out = co.operation_submit(self.desk, {'kind': 'dirigeant', 'company': self.cid, 'fonction': 'Président', 'motif': 'aucun', 'entrant_prenom': 'Claire',
                                               'entrant_nom': 'Exemple', 'date_effet': '2026-11-01', 'organe': 'assemblee'})
+        self.assertEqual(co.officers(self.desk, self.cid), [])                               # 5.6.37 : projet
+        self.realize(out)
         self.assertEqual([o['name'] for o in co.officers(self.desk, self.cid)], ['Claire EXEMPLE'])
         self.assertEqual(len(self.run_job(out['id'])['files']), 5)                           # sans lettre de démission (aucun départ)
         out = co.operation_submit(self.desk, {'kind': 'siege', 'company': self.cid, 'nouveau_siege': '5 place Fictive, 69003 Lyon', 'date_effet': '2026-11-02',
                                               'organe': 'dirigeant'})
+        self.assertEqual(co.company(self.desk, self.cid)['siege'], '10 rue du Test, 69002 Lyon')    # 5.6.37 : projet
+        self.realize(out)
         self.assertEqual(co.company(self.desk, self.cid)['siege'], '5 place Fictive, 69003 Lyon')
         decision = _docx_text(self.docs.files[next(p for p in self.run_job(out['id'])['files'] if 'Décision de transfert' in p)])
         self.assertIn('10 rue du Test, 69002 Lyon', decision)
@@ -896,6 +919,8 @@ class Corporate(_CorporateBase):
                                               'dirigeant_prenom': 'Paul', 'dirigeant_nom': 'Martin', 'matter': MID, 'perso_banque_depositaire': 'Banque Exemple'})
         cid = out['company']
         self.assertEqual(co.company(self.desk, cid)['forme'], 'SARL')
+        self.assertEqual(co.holdings(self.desk, cid)[1], 0)                                  # 5.6.37 : société en formation, projet
+        self.realize(out)
         self.assertEqual(co.holdings(self.desk, cid)[1], 100)
         self.assertEqual([o['fonction'] for o in co.officers(self.desk, cid)], ['Gérant'])
         result = self.run_job(out['id'])
@@ -1055,6 +1080,8 @@ class CorporateDiligences(_CorporateBase):
         co = self.co
         out = co.operation_submit(self.desk, {'kind': 'diligence', 'company': self.cid, 'nature': 'augmentation_capital', 'date_effet': '2026-11-15',
                                               'organe': 'assemblee', 'nouveau_capital': '12000', 'emissions': 'Lucie BERNARD ; 2000'})
+        self.assertEqual(co.company(self.desk, self.cid)['capital'], '10000')                # 5.6.37 : projet
+        self.realize(out)
         self.assertEqual(co.company(self.desk, self.cid)['capital'], '12000')
         rows, total = co.holdings(self.desk, self.cid)
         self.assertEqual((total, {r['name']: r['quantity'] for r in rows}['Lucie BERNARD']), (12000, 2000))

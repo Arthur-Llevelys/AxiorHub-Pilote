@@ -26,6 +26,7 @@ import uuid
 from pathlib import Path
 
 from .common import Stop, clean_path, fold, load_matters, matter_display
+from .erreurs5634 import Qualified
 from .corporate_modeles5636 import DOCS, OPERATIONS
 
 FORMS = {
@@ -176,6 +177,19 @@ def _now():
 
 
 def schema(desk):
+    if desk.db.in_transaction:   # 5.6.37 (audit F08) : executescript validerait l'opération en cours ; schéma créé avant BEGIN
+        return
+    _schema_tables(desk)
+    have = {r[1] for r in desk.db.execute('PRAGMA table_info(operations5636)')}
+    if 'idem' not in have:   # 5.6.37 (F10) : clé d'idempotence du formulaire
+        desk.db.execute("ALTER TABLE operations5636 ADD COLUMN idem TEXT NOT NULL DEFAULT ''")
+        # opérations 5.6.36 : leurs effets ont été inscrits dès la saisie (avant la réalisation) ; elles restent signalées comme telles
+        desk.db.execute("UPDATE operations5636 SET data=json_set(data, '$.effets', 'appliques_5636') WHERE json_valid(data)")
+    desk.db.execute("CREATE INDEX IF NOT EXISTS operations5636_idem ON operations5636(idem)")
+    desk.db.commit()
+
+
+def _schema_tables(desk):
     desk.db.executescript('''
     CREATE TABLE IF NOT EXISTS companies5636(id TEXT PRIMARY KEY, denomination TEXT NOT NULL, forme TEXT NOT NULL, capital TEXT NOT NULL DEFAULT '0',
       nominal TEXT NOT NULL DEFAULT '1', siege TEXT NOT NULL DEFAULT '', rcs TEXT NOT NULL DEFAULT '', siren TEXT NOT NULL DEFAULT '', objet TEXT NOT NULL DEFAULT '',
@@ -242,7 +256,8 @@ def companies(desk):
     return [dict(r) for r in desk.db.execute('SELECT * FROM companies5636 WHERE archived=0 ORDER BY lower(denomination)')]
 
 
-def company_save(desk, data, owner='cabinet'):
+def company_save(desk, data, owner='cabinet', commit=True):
+    """5.6.37 (F08) : ``commit=False`` = écriture dans la transaction de l'opération (aucune validation intermédiaire ni journal)."""
     schema(desk)
     forme = str(data.get('forme') or 'SAS').upper()
     if forme not in FORMS:
@@ -250,7 +265,15 @@ def company_save(desk, data, owner='cabinet'):
     denomination = re.sub(r'\s+', ' ', str(data.get('denomination') or '')).strip()[:200]
     if len(denomination) < 2:
         raise Stop('denomination_requise')
-    capital, nominal = _dec(data.get('capital')) or Decimal(0), _dec(data.get('nominal')) or Decimal(1)
+    # 5.6.37 (audit F07) : valeur par défaut réservée aux champs absents ; un zéro ou un négatif fourni est refusé
+    capital = _dec(data.get('capital'), 'capital_invalide')
+    nominal = _dec(data.get('nominal'), 'nominal_invalide')
+    capital = Decimal(0) if capital is None else capital
+    nominal = Decimal(1) if nominal is None else nominal
+    if capital < 0 or (str(data.get('capital') or '').strip() and capital <= 0):
+        raise Stop('capital_invalide')
+    if nominal <= 0:
+        raise Stop('nominal_invalide')
     siren = re.sub(r'\s', '', str(data.get('siren') or ''))
     if siren and not re.fullmatch(r'\d{9}', siren):
         raise Stop('contact_siren_invalide')
@@ -270,11 +293,14 @@ def company_save(desk, data, owner='cabinet'):
         from . import crm5636
         try:
             contact = crm5636.find_or_create(desk, {'kind': 'societe', 'category': 'client', 'name': denomination, 'siren': siren,
-                                                    'address': values['siege'], **({'matter': mid, 'role': 'client'} if mid else {})}, source='corporate')['id']
+                                                    'address': values['siege'], **({'matter': mid, 'role': 'client'} if mid else {})}, source='corporate',
+                                             commit=commit)['id']
         except Stop:
             contact = ''
         desk.db.execute('INSERT INTO companies5636(id,%s,contact,created,updated) VALUES(?,%s,?,?,?)' % (','.join(values), ','.join('?' for _ in values)),
                         [cid] + list(values.values()) + [contact, _now(), _now()])
+    if not commit:
+        return {'id': cid}
     desk.db.commit()
     desk.audit('corporate5636_societe', {'id': cid, 'owner': owner})
     return {'id': cid, 'goto': '?societe=' + cid, 'message': 'Société enregistrée.'}
@@ -297,11 +323,24 @@ def holdings(desk, cid):
         if m['to_name']:
             k = (m['to_contact'] or m['to_name'], m['category'])
             acc.setdefault(k, {'name': m['to_name'], 'contact': m['to_contact'], 'category': m['category'], 'quantity': 0})['quantity'] += m['quantity']
-    rows = [v for v in acc.values() if v['quantity'] > 0]
+    rows = [v for v in acc.values() if v['quantity'] > 0]   # les positions négatives sont signalées par anomalies(), jamais masquées
     total = sum(v['quantity'] for v in rows) or 0
     for v in rows:
         v['pct'] = (Decimal(v['quantity']) * 100 / Decimal(total)).quantize(Decimal('0.01')) if total else Decimal(0)
     return sorted(rows, key=lambda v: (-v['quantity'], v['name'].casefold())), total
+
+
+def anomalies(desk, cid):
+    """5.6.37 (audit F06) : positions négatives du registre (opérations antérieures) : affichées comme anomalies à rapprocher."""
+    acc = {}
+    for m in desk.db.execute('SELECT * FROM movements5636 WHERE company=? ORDER BY numero', (cid,)):
+        if m['from_name']:
+            k = (m['from_contact'] or m['from_name'], m['category'])
+            acc.setdefault(k, {'name': m['from_name'], 'category': m['category'], 'quantity': 0})['quantity'] -= m['quantity']
+        if m['to_name']:
+            k = (m['to_contact'] or m['to_name'], m['category'])
+            acc.setdefault(k, {'name': m['to_name'], 'category': m['category'], 'quantity': 0})['quantity'] += m['quantity']
+    return [v for v in acc.values() if v['quantity'] < 0]
 
 
 def _movement(desk, cid, day, kind, qty, category, op, from_=('', ''), to=('', ''), price=''):
@@ -421,15 +460,100 @@ def _agoa_context(desk, c, data, ctx):
 ACCOUNTS_SCHEMA = {'type': 'object', 'additionalProperties': False, 'required': ['activite', 'chiffres', 'evenements', 'perspectives'],
                    'properties': {'activite': {'type': 'string', 'maxLength': 3000}, 'evenements': {'type': 'string', 'maxLength': 1500},
                                   'perspectives': {'type': 'string', 'maxLength': 1500},
-                                  'chiffres': {'type': 'array', 'maxItems': 12, 'items': {'type': 'object', 'additionalProperties': False,
-                                                                                          'required': ['libelle', 'montant', 'extrait'],
-                                                                                          'properties': {'libelle': {'type': 'string', 'maxLength': 120},
-                                                                                                         'montant': {'type': 'string', 'maxLength': 40},
-                                                                                                         'extrait': {'type': 'string', 'maxLength': 300}}}}}}
+                                  'chiffres': {'type': 'array', 'maxItems': 12, 'items': {
+                                      'type': 'object', 'additionalProperties': False,
+                                      'required': ['libelle', 'montant', 'devise', 'unite', 'exercice', 'extrait'],
+                                      'properties': {'libelle': {'type': 'string', 'maxLength': 120}, 'montant': {'type': 'string', 'maxLength': 40},
+                                                     'devise': {'type': 'string', 'enum': ['EUR', 'USD', 'GBP', 'CHF']},
+                                                     'unite': {'type': 'string', 'enum': ['unites', 'milliers', 'millions']},
+                                                     'exercice': {'type': 'string', 'maxLength': 10},
+                                                     'extrait': {'type': 'string', 'maxLength': 300}}}}}}
+# 5.6.37 (audit F05) : méthode de contrôle versionnée ; un rapport établi avec une méthode antérieure est à recontrôler.
+METHODE_COMPTES = 2
+# Postes reconnus : un extrait ne justifie un chiffre que s'il porte sur le même poste (jamais le résultat net pour le chiffre d'affaires).
+POSTES = (('chiffre d\'affaires', ('chiffre d\'affaires', 'chiffres d\'affaires', 'ventes de marchandises', 'production vendue')),
+          ('resultat net', ('resultat net', 'benefice', 'perte de l\'exercice', 'resultat de l\'exercice')),
+          ('resultat d\'exploitation', ('resultat d\'exploitation',)), ('resultat courant', ('resultat courant',)),
+          ('total du bilan', ('total du bilan', 'total general', 'total actif', 'total passif')), ('capitaux propres', ('capitaux propres',)),
+          ('endettement', ('dettes', 'emprunts', 'endettement')))
+_UNITS = {'milliers': r'(en\s+milliers\s+d[\'’]euros|\bk\s?(?:€|eur)\b|\bkeur\b|en\s+k€)', 'millions': r'(en\s+millions\s+d[\'’]euros|\bm\s?€|\bmeur\b)'}
+_NUMBER = re.compile(r'(\(\s*)?([-−]\s?)?(\d{1,3}(?:[  .]\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)(\s*\))?')
 
 
-def accounts_analysis(desk, c, raw, name, model=None):
-    """Rapport de gestion : chiffres clés et commentaires établis à partir des comptes (PDF) ; chaque chiffre est contrôlé dans le texte."""
+def _doc_unit(text):
+    folded = fold(text)
+    for unit, rx in _UNITS.items():
+        if re.search(rx, folded):
+            return unit
+    return 'unites'
+
+
+def _doc_currencies(text):
+    from .preuve5634 import money_in_text
+    found = {o['devise'] for o in money_in_text(text)}
+    folded = fold(text)
+    if re.search(r'\beuros?\b|€|\beur\b', folded):
+        found.add('EUR')
+    return found
+
+
+def _numbers(passage):
+    """Nombres d'un passage des comptes (séparateurs français, parenthèses = négatif), en Decimal signé."""
+    out = []
+    for m in _NUMBER.finditer(re.sub(r'\s+', ' ', str(passage or ''))):
+        raw = m.group(3).replace(' ', '').replace(' ', '').replace('.', '').replace(',', '.')
+        try:
+            value = Decimal(raw)
+        except InvalidOperation:
+            continue
+        negative = bool(m.group(2)) or (bool(m.group(1)) and bool(m.group(4)))
+        out.append(-value if negative else value)
+    return out
+
+
+def check_figure(x, text, exercice=''):
+    """Contrôle strict d'un chiffre : (None, détail) si justifié, sinon (cause, détail). L'extrait doit être retrouvé (non vide), porter
+    sur le même poste, contenir le montant (signe compris) dans la devise, l'unité et l'exercice des comptes."""
+    from .preuve5634 import find_excerpt, page_at, parse_amount
+    extrait = str(x.get('extrait') or '').strip()
+    if len(extrait) < 12:
+        return 'extrait_absent_ou_trop_court', {}
+    pos = find_excerpt(extrait, text)
+    if pos is None:
+        return 'extrait_introuvable_dans_les_comptes', {}
+    passage = text[pos[0]:pos[1]]
+    detail = {'page': page_at(text, pos[0]), 'debut': pos[0], 'extrait': passage[:300]}
+    label, folded_passage = fold(str(x.get('libelle') or '')).replace('’', "'"), fold(passage).replace('’', "'")
+    for name, words in POSTES:
+        if any(w in label for w in words) or name in label:
+            if not any(w in folded_passage for w in words):
+                return 'poste_different_dans_l_extrait', detail
+            break
+    devise = str(x.get('devise') or '')
+    currencies = _doc_currencies(text)
+    if not currencies:
+        return 'devise_non_etablie', detail
+    if devise not in currencies:
+        return 'devise_differente_des_comptes', detail
+    unit = str(x.get('unite') or 'unites')
+    if unit != _doc_unit(text):
+        return 'unite_differente_des_comptes', detail
+    year = str(x.get('exercice') or '').strip()[:4]
+    if exercice and year and year != str(exercice)[:4]:
+        return 'exercice_different', detail
+    claim = parse_amount(x.get('montant'), devise)
+    if claim is None:
+        return 'montant_illisible', detail
+    if claim['devise'] and claim['devise'] != devise:
+        return 'devise_differente_des_comptes', detail
+    if claim['valeur'] not in _numbers(passage):
+        return 'montant_absent_de_l_extrait', detail
+    return None, detail
+
+
+def accounts_analysis(desk, c, raw, name, model=None, exercice=''):
+    """Rapport de gestion : chiffres clés et commentaires établis à partir des comptes (PDF). 5.6.37 (audit F05) : chaque chiffre est contrôlé
+    dans SON extrait (retrouvé dans les comptes, même poste, devise, unité, exercice, signe) ; à défaut il porte la réserve et sa cause."""
     from .documents import extract
     text = extract(raw, name, {**desk.c.get('documents', {}), 'max_document_chars': 120000})
     if model is None:
@@ -437,21 +561,29 @@ def accounts_analysis(desk, c, raw, name, model=None):
         model = _model(desk, c['matter'])
     out = json.loads(model.complete([
         {'role': 'system', 'content': 'Tu prépares le rapport de gestion d’une société française à partir de ses comptes annuels. Relève les chiffres '
-                                      'clés (chiffre d’affaires, résultat d’exploitation, résultat net, total du bilan, capitaux propres, endettement) avec '
-                                      'l’extrait EXACT des comptes, puis rédige des paragraphes sobres et factuels sur l’activité, les événements et les '
+                                      'clés (chiffre d’affaires, résultat d’exploitation, résultat net, total du bilan, capitaux propres, endettement) avec, '
+                                      'pour chacun, la devise, l’unité des comptes (unités, milliers, millions), l’exercice et l’extrait EXACT des comptes qui '
+                                      'contient ce montant. Rédige ensuite des paragraphes sobres et factuels sur l’activité, les événements et les '
                                       'perspectives. N’invente rien : écris [À COMPLÉTER] si les comptes ne le disent pas. JSON conforme au schéma.'},
         {'role': 'user', 'content': text[:60000]}], temperature=0, max_tokens=4000, json_schema=ACCOUNTS_SCHEMA))
-    folded = re.sub(r'\s+', '', fold(text))
-    lines, unverified = [], 0
+    lines, controls, unverified = [], [], 0
     for x in out.get('chiffres') or []:
-        digits = re.sub(r'\D', '', str(x.get('montant') or ''))
-        ok = bool(digits) and digits in re.sub(r'\D', '', text) and re.sub(r'\s+', '', fold(x.get('extrait') or '')) in folded
-        unverified += not ok
-        lines.append('%s : %s%s' % (x.get('libelle', ''), x.get('montant', ''), '' if ok else ' [À VÉRIFIER dans les comptes]'))
+        cause, detail = check_figure(x, text, exercice)
+        unverified += cause is not None
+        unit = {'milliers': ' (en milliers)', 'millions': ' (en millions)'}.get(x.get('unite'), '')
+        from .preuve5634 import parse_amount
+        shown = str(x.get('montant', ''))
+        if (parse_amount(shown) or {}).get('devise') is None and x.get('devise'):
+            shown += ' ' + str(x['devise'])
+        lines.append('%s : %s%s%s' % (x.get('libelle', ''), shown, unit,
+                                      '' if cause is None else ' [À VÉRIFIER dans les comptes : %s]' % cause.replace('_', ' ')))
+        controls.append({'libelle': x.get('libelle', ''), 'montant': x.get('montant', ''), 'devise': x.get('devise', ''), 'unite': x.get('unite', ''),
+                         'exercice': x.get('exercice', ''), 'statut': 'justifie' if cause is None else 'a_verifier', 'cause': cause or '', **detail})
     return {'activite': str(out.get('activite') or '[À COMPLÉTER]'), 'evenements': str(out.get('evenements') or '[À COMPLÉTER]'),
             'perspectives': str(out.get('perspectives') or '[À COMPLÉTER]'), 'chiffres_cles': '\n'.join(lines) or '[À COMPLÉTER]',
+            'controle_chiffres': controls, 'methode_controle': METHODE_COMPTES,
             'avertissement_ia': ('Projet établi par AxiorHub à partir des comptes annuels (%s) : chiffres et commentaires à relire et valider par le '
-                                 'dirigeant%s.') % (name, ' ; %d chiffre(s) non retrouvé(s) dans les comptes' % unverified if unverified else '')}
+                                 'dirigeant%s.') % (name, ' ; %d chiffre(s) non justifié(s) par leur extrait des comptes' % unverified if unverified else '')}
 
 
 def _fill(template_lines, ctx):
@@ -751,6 +883,7 @@ def _apply_effects(desk, c, kind, d, op):
     day = d.get('date_effet') or d.get('date_cession') or d.get('date_ag') or date.today().isoformat()
     from . import crm5636
     if kind == 'agoa':
+        _agoa_context(desk, c, d, {})   # 5.6.37 (audit F09) : affectation contrôlée avant toute inscription
         _decision(desk, cid, d.get('date_ag') or day, 'associe_unique' if FORMS[c['forme']][3] else 'assemblee',
                   'Approbation des comptes de l’exercice clos le %s' % date_fr(d.get('exercice_clos')), 'Comptes approuvés ; affectation du résultat ; conventions ; pouvoirs.', op)
     elif kind == 'siege':
@@ -772,7 +905,7 @@ def _apply_effects(desk, c, kind, d, op):
         try:
             contact = crm5636.find_or_create(desk, {'name': d.get('entrant_nom') or name, 'first_name': d.get('entrant_prenom', ''), 'kind': 'personne',
                                                     'email': d.get('entrant_email', ''), 'address': d.get('entrant_adresse', ''), 'category': 'autre',
-                                                    **({'matter': c['matter'], 'role': 'dirigeant'} if c['matter'] else {})}, source='corporate')['id']
+                                                    **({'matter': c['matter'], 'role': 'dirigeant'} if c['matter'] else {})}, source='corporate', commit=False)['id']
         except Stop:
             pass
         desk.db.execute('INSERT INTO officers5636 VALUES(?,?,?,?,?,?,?,?)', (uuid.uuid4().hex, cid, contact, name, d.get('fonction') or FORMS[c['forme']][2], day, '', op))
@@ -800,10 +933,18 @@ def _apply_effects(desk, c, kind, d, op):
                     raise Stop('titres_format')
                 lines.append((kind_mv, parts[0][:200], int(qty)))
         rows, _ = holdings(desk, cid)
+        # 5.6.37 (audit F06) : annulations CUMULÉES par associé, comparées aux titres détenus ; une ligne ambiguë (deux associés du même
+        # nom) est refusée ; l'opération entière est refusée avant toute écriture
+        wanted = {}
         for kind_mv, name, qty in lines:
             if kind_mv == 'annulation':
-                held = sum(r['quantity'] for r in rows if r['name'] == name or r['contact'] == name)
-                if held < qty:
+                matches = [r for r in rows if (r['name'] == name or r['contact'] == name) and r['category'] == 'ordinaires']
+                if len({(r['contact'] or r['name']) for r in matches}) > 1:
+                    raise Stop('associe_ambigu')
+                key = (matches[0]['contact'] or matches[0]['name']) if matches else name
+                wanted[key] = wanted.get(key, 0) + qty
+                held = sum(r['quantity'] for r in matches)
+                if held < wanted[key]:
                     raise Stop('cession_titres_insuffisants')
         if d.get('nouveau_capital'):
             capital = _dec(d['nouveau_capital'], 'montant_invalide')
@@ -834,10 +975,12 @@ def _apply_effects(desk, c, kind, d, op):
         contact = ''
         try:
             contact = crm5636.find_or_create(desk, {'name': buyer, 'email': d.get('cessionnaire_email', ''), 'category': 'autre',
-                                                    **({'matter': c['matter'], 'role': 'associe'} if c['matter'] else {})}, source='corporate')['id']
+                                                    **({'matter': c['matter'], 'role': 'associe'} if c['matter'] else {})}, source='corporate', commit=False)['id']
         except Stop:
             pass
-        price = _dec(d.get('prix_unitaire')) or Decimal(0)
+        price = _dec(d.get('prix_unitaire'), 'prix_invalide') or Decimal(0)
+        if price < 0:
+            raise Stop('prix_invalide')
         n = _movement(desk, cid, d.get('date_cession') or day, 'cession', int(qty), d.get('categorie'), op, (seller['name'], seller['contact']),
                       (buyer, contact), str(price))
         d.update(cedant_nom=seller['name'], numero_mouvement=str(n))
@@ -851,17 +994,23 @@ def _prepare_creation(desk, d, owner):
     if not d.get('matter'):
         raise Stop('societe_sans_dossier')
     capital = _dec(d.get('capital'), 'montant_invalide')
-    nominal = _dec(d.get('nominal'), 'montant_invalide') or Decimal(1)
-    if not capital or capital <= 0:
+    nominal = _dec(d.get('nominal'), 'nominal_invalide')
+    nominal = Decimal(1) if nominal is None else nominal
+    if capital is None or capital <= 0:
         raise Stop('capital_requis')
+    if nominal <= 0:
+        raise Stop('nominal_invalide')
     associates = []
-    for line in [x for x in str(d.get('associes') or '').splitlines() if x.strip()]:
+    for i, line in enumerate([x for x in str(d.get('associes') or '').splitlines() if x.strip()], 1):
         parts = [p.strip() for p in line.split(';')]
-        if len(parts) < 3:
-            raise Stop('associes_format')
+        # 5.6.37 (audit F07) : nom requis, apport > 0, nombre entier > 0, apport en numéraire = nombre × nominal (ligne par ligne)
+        if len(parts) < 3 or len(parts[0]) < 2:
+            raise Qualified('associes_format', precision='ligne %d : « nom ; apport ; nombre de titres »' % i)
         apport, nombre = _dec(parts[1], 'associes_format'), _dec(parts[2], 'associes_format')
-        if not apport or not nombre or nombre != nombre.to_integral():
-            raise Stop('associes_format')
+        if apport is None or nombre is None or apport <= 0 or nombre <= 0 or nombre != nombre.to_integral() or nombre > 10 ** 12:
+            raise Qualified('associes_format', precision='ligne %d : apport et nombre de titres positifs, nombre entier' % i)
+        if apport != nombre * nominal:
+            raise Qualified('associes_format', precision='ligne %d : l’apport en numéraire doit être égal au nombre de titres × nominal (%s)' % (i, money(nominal)))
         associates.append((parts[0][:200], apport, int(nombre)))
     if not associates:
         raise Stop('associes_format')
@@ -871,8 +1020,29 @@ def _prepare_creation(desk, d, owner):
         raise Stop('associe_unique_requis')
     cid = company_save(desk, {'denomination': d.get('denomination'), 'forme': d.get('forme'), 'capital': str(capital), 'nominal': str(nominal),
                               'siege': d.get('siege'), 'objet': d.get('objet'), 'duree': d.get('duree') or '99', 'date_cloture': d.get('date_cloture') or '31/12',
-                              'matter': d.get('matter')}, owner)['id']
+                              'matter': d.get('matter')}, owner, commit=False)['id']
+    desk.db.execute("UPDATE companies5636 SET data=json_set(data, '$.statut', 'en_formation') WHERE id=?", (cid,))
     return cid, associates
+
+
+def _apply_creation(desk, c, d, op):
+    """Réalisation d'une constitution : souscriptions, premier dirigeant et décision inscrits (dans la transaction de l'appelant)."""
+    from . import crm5636
+    day = d.get('date_effet') or date.today().isoformat()
+    for name, apport, nombre in d.get('associes_lignes') or []:
+        contact = ''
+        try:
+            contact = crm5636.find_or_create(desk, {'name': name, 'category': 'autre', 'matter': c['matter'], 'role': 'associe'}, source='corporate',
+                                             commit=False)['id']
+        except Stop:
+            pass
+        _movement(desk, c['id'], day, 'souscription', int(nombre), 'ordinaires', op, to=(name, contact), price=str(c['nominal']))
+    head = ' '.join(x for x in (d.get('dirigeant_prenom'), d.get('dirigeant_nom', '').upper()) if x).strip()
+    if head:
+        desk.db.execute('INSERT INTO officers5636 VALUES(?,?,?,?,?,?,?,?)', (uuid.uuid4().hex, c['id'], '', head, FORMS[c['forme']][2], day, '', op))
+    _decision(desk, c['id'], day, 'associes', 'Constitution de la société', 'Statuts signés ; premier dirigeant : %s.' % (head or '—'), op)
+    desk.db.execute("UPDATE companies5636 SET data=json_set(data, '$.statut', 'constituee'), updated=? WHERE id=?", (_now(), c['id']))
+    return d
 
 
 def operation_submit(desk, data, owner='cabinet'):
@@ -891,40 +1061,162 @@ def operation_submit(desk, data, owner='cabinet'):
     docs += ['perso_' + r['id'] for r in own_deeds(desk, kind) if data.get('doc_perso_' + r['id'], True) not in (False, '', '0', 'false')]
     if not docs:
         raise Stop('aucun_document_choisi')
+    # 5.6.37 (audit F10) : clé d'idempotence du formulaire : même clé + même contenu = même opération ; autre contenu = refus
+    idem = re.sub(r'[^A-Za-z0-9_-]', '', str(data.get('idem') or ''))[:64]
+    content = hashlib.sha256(json.dumps({'kind': kind, 'company': str(data.get('company') or ''), 'data': d, 'docs': docs}, sort_keys=True,
+                                        ensure_ascii=False).encode()).hexdigest()
+    if idem:
+        prior = desk.db.execute('SELECT id,company,job,data FROM operations5636 WHERE idem=?', (idem,)).fetchone()
+        if prior:
+            if json.loads(prior['data']).get('_contenu') != content:
+                raise Stop('cle_idempotence_deja_utilisee')
+            return {'id': prior['id'], 'company': prior['company'], 'job': prior['job'], 'goto': '?societe=%s&vue=actes' % prior['company'],
+                    'message': 'Opération déjà enregistrée.'}
+    from . import crm5636
+    crm5636.schema(desk)   # 5.6.37 (F08) : schémas créés AVANT la transaction (executescript la validerait)
+    if not desk.db.in_transaction:
+        desk.db.execute('BEGIN IMMEDIATE')
     try:
         if kind == 'creation':
             cid, associates = _prepare_creation(desk, d, owner)
             c = company(desk, cid)
-            for name, apport, nombre in associates:
-                contact = ''
-                try:
-                    from . import crm5636
-                    contact = crm5636.find_or_create(desk, {'name': name, 'category': 'autre', 'matter': c['matter'], 'role': 'associe'}, source='corporate')['id']
-                except Stop:
-                    pass
-                _movement(desk, cid, date.today().isoformat(), 'souscription', nombre, 'ordinaires', op, to=(name, contact), price=str(c['nominal']))
-            head = ' '.join(x for x in (d.get('dirigeant_prenom'), d.get('dirigeant_nom', '').upper()) if x).strip()
-            if head:
-                desk.db.execute('INSERT INTO officers5636 VALUES(?,?,?,?,?,?,?,?)', (uuid.uuid4().hex, cid, '', head, FORMS[c['forme']][2], date.today().isoformat(), '', op))
-            _decision(desk, cid, date.today().isoformat(), 'associes', 'Constitution de la société', 'Statuts signés ; premier dirigeant : %s.' % (head or '—'), op)
             d['associes_lignes'] = [[a[0], str(a[1]), a[2]] for a in associates]
+            d.setdefault('date_effet', date.today().isoformat())
         else:
             c = company(desk, str(data.get('company') or ''))
             if not c['matter']:
                 raise Stop('societe_sans_dossier')
-            d = _apply_effects(desk, c, kind, d, op)
-        desk.db.execute('INSERT INTO operations5636 VALUES(?,?,?,?,?,?,?,?,?,?,?)', (op, c['id'], kind, json.dumps(d, ensure_ascii=False), json.dumps(docs),
-                                                                                   'en_file', '{}', None, owner, _now(), _now()))
+            # 5.6.37 (audit F09) : tous les contrôles et les valeurs calculées (ancien siège, n° de mouvement prévu…) sur un essai à blanc
+            # annulé : la saisie prépare un PROJET ; registres, capital et dirigeants ne changent qu'à « Enregistrer la réalisation »
+            desk.db.execute('SAVEPOINT projet5637')
+            try:
+                d = _apply_effects(desk, c, kind, dict(d), op)
+            finally:
+                desk.db.execute('ROLLBACK TO SAVEPOINT projet5637')
+                desk.db.execute('RELEASE SAVEPOINT projet5637')
+        d['effets'] = 'proposes'
+        d['_contenu'] = content
+        desk.db.execute('INSERT INTO operations5636(id,company,kind,data,docs,state,result,job,owner,created,updated,idem) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (op, c['id'], kind, json.dumps(d, ensure_ascii=False), json.dumps(docs), 'en_file', '{}', None, owner, _now(), _now(), idem))
+        # 5.6.37 (audit F10) : la demande de travail est enregistrée DANS la même transaction ; une file pleine annule tout
+        job = desk.enqueue('corporate5636', {'id': op, 'matter': c['matter']}, priority=35)
+        if not desk.db.in_transaction:
+            desk.db.execute('BEGIN IMMEDIATE')
+        desk.db.execute('UPDATE operations5636 SET job=? WHERE id=?', (job, op))
         desk.db.commit()
     except Exception:
-        desk.db.rollback()
+        if desk.db.in_transaction:
+            desk.db.rollback()
         raise
-    job = desk.enqueue('corporate5636', {'id': op, 'matter': c['matter']}, priority=35)
-    desk.db.execute('UPDATE operations5636 SET job=? WHERE id=?', (job, op))
-    desk.db.commit()
     desk.audit('corporate5636_operation', {'id': op, 'kind': kind, 'company': c['id'], 'docs': len(docs), 'owner': owner})
-    return {'id': op, 'company': c['id'], 'job': job, 'goto': '?societe=%s&vue=actes' % c['id'], 'message': '%s enregistrée : fiche, registres et table de capitalisation à jour ; %d acte(s) en préparation.'
+    return {'id': op, 'company': c['id'], 'job': job, 'goto': '?societe=%s&vue=actes' % c['id'],
+            'message': '%s : projet enregistré, %d acte(s) en préparation. Les registres seront mis à jour quand vous enregistrerez la réalisation.'
             % (OPERATIONS[kind][0], len(docs))}
+
+
+def realize(desk, data, owner='cabinet'):
+    """5.6.37 (audit F09) : l'avocat constate que la décision a été prise (AG tenue, acte signé) : effets inscrits d'un bloc, avec la date et
+    le justificatif ; contrôles refaits sur l'état actuel des registres. Une opération en échec, abandonnée ou déjà réalisée est refusée."""
+    schema(desk)
+    from . import crm5636
+    crm5636.schema(desk)
+    op = str(data.get('id') or '')
+    row = desk.db.execute('SELECT * FROM operations5636 WHERE id=?', (op,)).fetchone()
+    if not row:
+        raise Stop('operation_inconnue')
+    d = json.loads(row['data'])
+    if d.get('effets') != 'proposes' or row['state'] in ('realisee', 'abandonnee'):
+        raise Stop('operation_deja_close')
+    day = str(data.get('date') or date.today().isoformat())[:10]
+    try:
+        date.fromisoformat(day)
+    except ValueError:
+        raise Stop('date_invalide') from None
+    proof = re.sub(r'[\x00-\x08\x0b-\x1f]', '', str(data.get('justificatif') or '')).strip()[:500]
+    if len(proof) < 3:
+        raise Stop('justificatif_requis')
+    if not desk.db.in_transaction:
+        desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        c = company(desk, row['company'])
+        for key in ('date_effet', 'date_cession', 'date_ag'):
+            if key in d and not d.get(key):
+                d[key] = day
+        d = _apply_creation(desk, c, d, op) if row['kind'] == 'creation' else _apply_effects(desk, c, row['kind'], d, op)
+        d.update(effets='realises', realise_le=day, realise_par=owner, justificatif=proof)
+        cur = desk.db.execute("UPDATE operations5636 SET state='realisee', data=?, updated=? WHERE id=? AND state NOT IN ('realisee','abandonnee')",
+                              (json.dumps(d, ensure_ascii=False), _now(), op))
+        if not cur.rowcount:
+            raise Stop('operation_deja_close')
+        desk.db.commit()
+    except Exception:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    desk.audit('corporate5636_realisation', {'id': op, 'kind': row['kind'], 'company': row['company'], 'owner': owner})
+    return {'id': op, 'message': 'Réalisation enregistrée : fiche, registres et table de capitalisation mis à jour.'}
+
+
+def abandon(desk, data, owner='cabinet'):
+    """Projet abandonné : aucun effet ; une constitution abandonnée laisse la société « en formation » archivée."""
+    schema(desk)
+    op = str(data.get('id') or '')
+    row = desk.db.execute('SELECT * FROM operations5636 WHERE id=?', (op,)).fetchone()
+    if not row:
+        raise Stop('operation_inconnue')
+    if json.loads(row['data']).get('effets') != 'proposes' or row['state'] in ('realisee', 'abandonnee'):
+        raise Stop('operation_deja_close')
+    desk.db.execute("UPDATE operations5636 SET state='abandonnee', updated=? WHERE id=?", (_now(), op))
+    if row['kind'] == 'creation':
+        desk.db.execute("UPDATE companies5636 SET archived=1, updated=? WHERE id=? AND json_extract(data, '$.statut')='en_formation'", (_now(), row['company']))
+    if row['job']:
+        try:
+            desk.cancel_job(row['job'])
+        except Stop:
+            pass
+    desk.db.commit()
+    desk.audit('corporate5636_abandon', {'id': op, 'owner': owner})
+    return {'id': op, 'message': 'Projet abandonné : aucun registre modifié.'}
+
+
+def repair(desk):
+    """5.6.37 (audit F10) : opération sans travail (interruption entre les deux écritures des versions antérieures) : rattachée au
+    travail existant, sinon signalée « mise en file à reprendre » (bouton Relancer) ; jamais laissée « en préparation »."""
+    schema(desk)
+    for row in desk.db.execute("SELECT id FROM operations5636 WHERE job IS NULL AND state='en_file'").fetchall():
+        found = desk.db.execute("SELECT id FROM jobs WHERE kind='corporate5636' AND json_extract(args, '$.id')=? ORDER BY id DESC", (row['id'],)).fetchone()
+        if found:
+            desk.db.execute('UPDATE operations5636 SET job=? WHERE id=?', (found['id'], row['id']))
+        else:
+            desk.db.execute("UPDATE operations5636 SET state='mise_en_file_a_reprendre', updated=? WHERE id=?", (_now(), row['id']))
+    desk.db.commit()
+
+
+def relaunch(desk, data, owner='cabinet'):
+    """Nouvelle mise en file d'une opération dont la préparation n'a pas pu être lancée ou a échoué (un seul travail)."""
+    schema(desk)
+    op = str(data.get('id') or '')
+    row = desk.db.execute('SELECT * FROM operations5636 WHERE id=?', (op,)).fetchone()
+    recheck = (row is not None and row['kind'] == 'agoa' and row['state'] == 'actes_prets'
+               and json.loads(row['result'] or '{}').get('methode_controle') != METHODE_COMPTES)   # 5.6.37 (F05) : rapport à recontrôler
+    if not row or (row['state'] not in ('mise_en_file_a_reprendre', 'echec') and not recheck):
+        raise Stop('operation_deja_close')
+    c = company(desk, row['company'])
+    if not desk.db.in_transaction:
+        desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        desk.db.execute("UPDATE operations5636 SET state='en_file', updated=? WHERE id=?", (_now(), op))
+        job = desk.enqueue('corporate5636', {'id': op, 'matter': c['matter'], 'reprise': _now()}, priority=35)
+        if not desk.db.in_transaction:
+            desk.db.execute('BEGIN IMMEDIATE')
+        desk.db.execute('UPDATE operations5636 SET job=? WHERE id=?', (job, op))
+        desk.db.commit()
+    except Exception:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    desk.audit('corporate5636_relance', {'id': op, 'owner': owner})
+    return {'id': op, 'job': job, 'message': 'Préparation relancée.'}
 
 
 def build_context(desk, c, kind, d, docs=(), client=None, model=None):
@@ -936,7 +1228,7 @@ def build_context(desk, c, kind, d, docs=(), client=None, model=None):
         if 'rapport_gestion' in docs and d.get('comptes_pdf') and client is not None:
             try:
                 raw = client.download(client.stat(clean_path(d['comptes_pdf'])))
-                ctx.update(accounts_analysis(desk, c, raw, d['comptes_pdf'].rsplit('/', 1)[-1], model))
+                ctx.update(accounts_analysis(desk, c, raw, d['comptes_pdf'].rsplit('/', 1)[-1], model, exercice=str(d.get('exercice_clos') or '')[:4]))
             except Stop as exc:
                 ctx['avertissement_ia'] = 'Comptes non analysés (%s) : rapport à compléter.' % exc
     elif kind == 'siege':
@@ -985,6 +1277,7 @@ def build_context(desk, c, kind, d, docs=(), client=None, model=None):
         forme = FORMS[c['forme']]
         ctx['objet_formalite'] = 'l’immatriculation de la société'
         lines = d.get('associes_lignes') or []
+        ctx['total_titres'] = str(sum(int(q) for _, _, q in lines)) if lines else '[À COMPLÉTER]'
         ctx['tableau_associes'] = '\n'.join('%s — apport : %s — %s %s' % (n, money(a), q, forme[1]) for n, a, q in lines)
         ctx['texte_apports'] = 'Les associés ont fait apport en numéraire des sommes suivantes : ' + ' ; '.join('%s : %s' % (n, money(a)) for n, a, _ in lines) + \
             '. Ces sommes ont été déposées sur un compte ouvert au nom de la société en formation [À COMPLÉTER : banque], ainsi qu’il résulte du certificat du dépositaire.'
@@ -1124,6 +1417,59 @@ def _field(desk, c, kind, key, label, typ, default, labels):
     return '<label>%s<input type="%s" name="%s" value="%s"%s></label>' % (e(label), kinds.get(typ, 'text'), key, e(default, quote=True), hint)
 
 
+STATES = {'en_file': 'actes en préparation', 'actes_prets': 'projets prêts — réalisation à enregistrer', 'echec': 'échec de la préparation',
+          'mise_en_file_a_reprendre': 'préparation à relancer', 'realisee': 'réalisée', 'abandonnee': 'abandonnée'}
+
+
+def operations_html(desk, prefix, cid):
+    """5.6.37 (audit F09, F10) : chaque opération est un PROJET tant que l'avocat n'a pas enregistré sa réalisation (date, justificatif) ;
+    seuls les effets réalisés modifient fiche, registres et table de capitalisation."""
+    ops = desk.db.execute('SELECT * FROM operations5636 WHERE company=? ORDER BY created DESC LIMIT 30', (cid,)).fetchall()
+    items = []
+    for o in ops:
+        d, res = json.loads(o['data'] or '{}'), json.loads(o['result'] or '{}')
+        files = [f for f in res.get('files', []) if f]
+        body = '<strong>%s</strong> — %s · <span class="c5637-state">%s</span>' % (e(OPERATIONS[o['kind']][0]), e(o['created'][:10]), e(STATES.get(o['state'], o['state'])))
+        if files:
+            body += '<br><small>%s</small><details><summary>%d fichier(s)</summary><ul>%s</ul></details>' % (
+                e(res.get('folder', '')), len(files), ''.join('<li>%s</li>' % e(f.rsplit('/', 1)[-1]) for f in files))
+        if o['state'] == 'echec':
+            body += ' — ' + e(res.get('erreur', ''))
+        if res.get('controle_chiffres'):   # 5.6.37 (audit F05) : chiffres du rapport de gestion et leur justification
+            body += '<details><summary>Contrôle des chiffres (%d à vérifier)</summary><ul>%s</ul></details>' % (
+                sum(1 for x in res['controle_chiffres'] if x.get('statut') != 'justifie'), ''.join(
+                    '<li>%s : %s %s — %s%s%s</li>' % (e(x.get('libelle', '')), e(x.get('montant', '')), e(x.get('devise', '')),
+                                                    'justifié' if x.get('statut') == 'justifie' else 'à vérifier (%s)' % e(x.get('cause', '').replace('_', ' ')),
+                                                    (' · page %s' % e(str(x['page']))) if x.get('page') else '',
+                                                    ('<br><small>« %s »</small>' % e(x['extrait'])) if x.get('extrait') else '')
+                    for x in res['controle_chiffres']))
+        recheck = (o['kind'] == 'agoa' and o['state'] == 'actes_prets' and 'rapport_gestion' in json.loads(o['docs'] or '[]')
+                   and res.get('methode_controle') != METHODE_COMPTES and bool(d.get('comptes_pdf')))
+        if recheck:
+            body += ('<br><small>Rapport de gestion établi avec l’ancien contrôle des chiffres : à recontrôler.</small>'
+                     '<form class="m5-form m5-inline" data-api="m5636/corporate/relancer" data-reload="1"><input type="hidden" name="id" value="%s">'
+                     '<button class="ax-btn ghost" type="submit">Relancer la préparation</button></form>') % e(o['id'], quote=True)
+        if d.get('effets') == 'realises':
+            body += '<br><small>Réalisation enregistrée le %s : %s</small>' % (e(d.get('realise_le', '')), e(d.get('justificatif', '')))
+        elif d.get('effets') == 'appliques_5636':
+            body += '<br><small>Registres mis à jour dès la saisie (version 5.6.36)%s.</small>' % (
+                ' : opération en échec, vérifiez la fiche et les registres' if o['state'] == 'echec' else '')
+        if d.get('effets') == 'proposes' and o['state'] not in ('realisee', 'abandonnee'):
+            body += ('<form class="m5-form m5-inline c5637-realise" data-api="m5636/corporate/realiser" data-reload="1"><input type="hidden" name="id" value="%s">'
+                     '<label>Date de la décision<input type="date" name="date" required></label><label>Justificatif<input name="justificatif" required '
+                     'placeholder="PV signé, acte signé, décision de l’associé unique…"></label><button class="ax-btn" type="submit">Enregistrer la réalisation</button></form>'
+                     '<form class="m5-form m5-inline" data-api="m5636/corporate/abandonner" data-reload="1" data-confirm="Abandonner ce projet ? Aucun registre ne sera modifié.">'
+                     '<input type="hidden" name="id" value="%s"><button class="ax-btn ghost" type="submit">Abandonner le projet</button></form>') % (
+                e(o['id'], quote=True), e(o['id'], quote=True))
+        if o['state'] in ('mise_en_file_a_reprendre', 'echec'):
+            body += ('<form class="m5-form m5-inline" data-api="m5636/corporate/relancer" data-reload="1"><input type="hidden" name="id" value="%s">'
+                     '<button class="ax-btn ghost" type="submit">Relancer la préparation</button></form>') % e(o['id'], quote=True)
+        items.append('<li>%s</li>' % body)
+    return ('<section class="ax-card"><h3>Actes préparés</h3><p class="ax-muted">Une opération reste un projet tant que vous n’avez pas enregistré sa '
+            'réalisation : la fiche, les registres et la table de capitalisation ne changent qu’à ce moment.</p><ul class="o5636-list">%s</ul></section>') % (
+        ''.join(items) or '<li class="ax-muted">Aucun acte.</li>')
+
+
 def operation_form(desk, prefix, c, kind, labels):
     title, docs = OPERATIONS[kind]
     fields = ''.join(_field(desk, c, kind, k, lab, typ, default, labels) for k, lab, typ, default in FIELDS[kind])
@@ -1135,11 +1481,12 @@ def operation_form(desk, prefix, c, kind, labels):
         e(r['id'], quote=True), e(r['label'])) for r in own_deeds(desk, kind))
     checks += variables_html(desk, kind, prefix, (c or {}).get('id', ''))
     return ('<section class="ax-card c5636-op"><h2>%s</h2><form class="m5-form" data-api="m5636/corporate/operation" data-reload="1">'
-            '<input type="hidden" name="kind" value="%s"><input type="hidden" name="company" value="%s"><div class="c5636-fields">%s</div>'
+            '<input type="hidden" name="kind" value="%s"><input type="hidden" name="company" value="%s"><input type="hidden" name="idem" value="%s">'
+            '<div class="c5636-fields">%s</div>'
             '<fieldset><legend>Actes à préparer</legend>%s</fieldset><div class="ax-actions"><button class="ax-btn" type="submit">Enregistrer et préparer les actes</button>'
-            '</div><p class="ax-muted">Une seule saisie : la fiche, les registres et la table de capitalisation sont mis à jour, puis les actes (projets Word) sont '
-            'déposés dans le dossier de la société. Rien n’est signé ni déposé.</p></form></section>') % (
-        e(title), kind, e((c or {}).get('id', ''), quote=True), fields, checks)
+            '</div><p class="ax-muted">Une seule saisie : les actes (projets Word) sont préparés dans le dossier de la société. La fiche, les registres et la '
+            'table de capitalisation sont mis à jour quand vous enregistrez la réalisation (onglet « Actes préparés »). Rien n’est signé ni déposé.</p></form></section>') % (
+        e(title), kind, e((c or {}).get('id', ''), quote=True), uuid.uuid4().hex, fields, checks)
 
 
 def _company_form(c, labels):
@@ -1219,6 +1566,10 @@ def models_html(desk, prefix, cid):
 
 def page_html(desk, prefix, args):
     schema(desk)
+    try:
+        repair(desk)   # 5.6.37 (audit F10)
+    except Exception:   # noqa: BLE001 — l'affichage ne dépend pas de la réparation
+        pass
     labels = {}
     try:
         labels = {m['id']: matter_display(m) for m in load_matters(desk.c)}
@@ -1265,7 +1616,8 @@ def page_html(desk, prefix, args):
         tabs = (('fiche', 'Fiche'), ('operations', 'Opérations'), ('capital', 'Table de capitalisation'), ('registres', 'Registres'), ('actes', 'Actes préparés'),
                 ('modeles', 'Modèles et formulaires'))
         main = '<header class="c5636-head"><h2>%s <small>%s</small></h2><nav class="tabs">%s</nav></header>' % (
-            e(c['denomination']), e(FORMS.get(c['forme'], ('',))[0]), ''.join('<a class="%s" href="%s">%s</a>' % (
+            e(c['denomination']) + (' (en formation)' if c['data'].get('statut') == 'en_formation' else ''), e(FORMS.get(c['forme'], ('',))[0]),
+            ''.join('<a class="%s" href="%s">%s</a>' % (
                 'active' if k == view else '', e(prefix + '/corporate?societe=%s&vue=%s' % (cid, k), quote=True), e(v)) for k, v in tabs))
         if view == 'operations' or op_kind:
             if op_kind in OPERATIONS and op_kind != 'creation':
@@ -1286,6 +1638,11 @@ def page_html(desk, prefix, args):
                 or '<tr><td colspan="4" class="ax-muted">Aucun titre inscrit.</td></tr>', total, e(cid, quote=True))
         elif view == 'registres':
             moves, decisions = registers(desk, cid)
+            wrong = anomalies(desk, cid)
+            if wrong:   # 5.6.37 (audit F06) : jamais masquées ; à rapprocher par une écriture correctrice validée par l'avocat
+                main += ('<section class="ax-card c5637-alert" role="alert"><h3>Anomalie du registre</h3><p>Position négative : %s. Une opération antérieure a '
+                         'annulé ou cédé plus de titres que l’associé n’en détenait. Vérifiez le registre et inscrivez une écriture correctrice ; l’historique '
+                         'est conservé.</p></section>') % e(' ; '.join('%s (%s) : %d' % (w['name'], w['category'], w['quantity']) for w in wrong))
             main += ('<section class="ax-card"><h3>Registre des mouvements de titres</h3><button type="button" class="ax-btn ghost m5-export" data-api="m5636/corporate/registre?societe=%s&type=mouvements">'
                      'Exporter</button><div class="o5636-scroll"><table class="o5636-grid"><thead><tr><th>N°</th><th>Date</th><th>Nature</th><th>De</th><th>À</th><th>Catégorie</th><th>Nombre</th></tr></thead>'
                      '<tbody>%s</tbody></table></div></section>') % (e(cid, quote=True), ''.join('<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td></tr>' % (
@@ -1296,13 +1653,7 @@ def page_html(desk, prefix, args):
                 e(cid, quote=True), ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (e(x['day']), e(ORGANES.get(x['organe'], x['organe'])), e(x['title']), e(x['summary']))
                                             for x in decisions) or '<tr><td colspan="4" class="ax-muted">Registre vide.</td></tr>')
         elif view == 'actes':
-            ops = desk.db.execute('SELECT * FROM operations5636 WHERE company=? ORDER BY created DESC LIMIT 30', (cid,)).fetchall()
-            main += '<section class="ax-card"><h3>Actes préparés</h3><ul class="o5636-list">%s</ul></section>' % (''.join('<li><strong>%s</strong> — %s · %s%s</li>' % (
-                e(OPERATIONS[o['kind']][0]), e(o['created'][:10]), e({'en_file': 'en préparation', 'actes_prets': 'actes prêts', 'echec': 'échec'}.get(o['state'], o['state'])),
-                ('<br><small>%s</small><details><summary>%d fichier(s)</summary><ul>%s</ul></details>' % (
-                    e(json.loads(o['result']).get('folder', '')), len(json.loads(o['result']).get('files', [])),
-                    ''.join('<li>%s</li>' % e(f.rsplit('/', 1)[-1]) for f in json.loads(o['result']).get('files', []) if f))) if o['state'] == 'actes_prets' else
-                ((' — ' + e(json.loads(o['result']).get('erreur', ''))) if o['state'] == 'echec' else '')) for o in ops) or '<li class="ax-muted">Aucun acte.</li>')
+            main += operations_html(desk, prefix, cid)
         elif view == 'modeles':
             main += models_html(desk, prefix, cid)
             main += '<section class="ax-card"><h3>Formulaires : champs personnalisés</h3>%s</section>' % ''.join(
@@ -1337,6 +1688,12 @@ def api_post(desk, route, data, owner):
         return company_save(desk, data, owner)
     if route == 'corporate/operation':
         return operation_submit(desk, data, owner)
+    if route == 'corporate/realiser':   # 5.6.37 (audit F09) : réservé à l'avocat et à l'administrateur
+        return realize(desk, data, owner)
+    if route == 'corporate/abandonner':
+        return abandon(desk, data, owner)
+    if route == 'corporate/relancer':
+        return relaunch(desk, data, owner)
     if route == 'corporate/souscription':
         return subscription(desk, data, owner)
     if route == 'corporate/champs':

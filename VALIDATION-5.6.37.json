@@ -1,0 +1,24 @@
+{
+  "version": "5.6.37",
+  "base": "5.6.36 publiée",
+  "date_utc": "2026-10-12T00:00:00+00:00",
+  "cahier_des_charges": "Demandes de l’avocat du 12 octobre 2026 sur l’application Nextcloud (interface AxiorHub adaptée à Nextcloud, couleurs d’AxiorHub, menu repliable, onglet Pilote en échec « autorisation_mission_non_verifiable », description et tutoriel pour la boutique Nextcloud) et audit du code 5.6.36 (fiches F01 à F16) — matrice CONFORMITE-5.6.37.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1943,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 82,
+    "note": "Aucun échec (suite complète depuis l’archive extraite) ; 82 tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub (umask 022 et 077, migrations root)."
+  },
+  "new_tests": "tests/test_v5637.py (29 tests) : propriétaire des missions demandées depuis Nextcloud, session de l’interface dans Nextcloud (adresse à usage unique, cookie, cadre limité au site Nextcloud de la clé, révocation, page d’arrivée et origine contrôlées, cadre sans session, distribution Docker), affichage intégré (un seul menu, page « Toutes les fonctions »), et un contre-test par fiche de l’audit 5.6.36 (F01 à F16) ; application Nextcloud 0.4.0 : 28 tests PHPUnit (tests/Unit) et essai de bout en bout PHP → moteur.",
+  "adjusted_tests": [
+    "tests/test_v5636.py (PersonalKeys) : sur un serveur sans comptes propres, la mission demandée depuis Nextcloud appartient au cabinet ; le compte de l’interface est transmis à chaque requête signée (audit F02)",
+    "tests/test_v5636.py (Corporate, CorporateDiligences) : la saisie prépare un projet ; les registres sont vérifiés après « Enregistrer la réalisation » (audit F09) ; le relevé des chiffres porte devise, unité et exercice (audit F05)",
+    "tests/test_v5636.py (Initiatives) : une rédaction mise en file est « en cours », le plan « rédactions en cours » (audit F12)",
+    "tests/test_v5636.py (Relances) : le niveau 2 n’est proposé qu’après un envoi confirmé (audit F13)",
+    "tests/test_v5635.py (Contract) : une pièce déclarée avec une version contradictoire n’est plus acceptée par son nom (audit F04)",
+    "agent/static/v5637.js chargé en script différé (règle des pages : aucun script en ligne ni bloquant), premier de la liste"
+  ]
+}

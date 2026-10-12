@@ -34,7 +34,7 @@ import uuid
 
 from .common import Stop, load_matters, matter_display, read_secret
 
-CONTRACT = '1.2'   # 5.6.36 : clés personnelles, instruction au Pilote, recherche dans les dossiers
+CONTRACT = '1.3'   # 5.6.36 (1.2) : clés personnelles, instruction, recherche ; 5.6.37 (1.3) : session de l'interface dans Nextcloud
 OPERATIONS = {'fiche_dossier': 'fiche_dossier5627', 'recherche_juridique': 'recherche5634', 'instruction': 'mission567'}
 MAX_SKEW = timedelta(minutes=5)
 MAX_BODY = 2_000_000
@@ -116,7 +116,7 @@ def _exp(value):
     return exp.astimezone(timezone.utc)
 
 
-def verify(desk, header, op=None, now=None, key_id=''):
+def verify(desk, header, op=None, now=None, key_id='', auth=None):
     """Contexte signé, bien formé, non expiré, à usage unique, émis pour CETTE instance et pour CETTE opération. Renvoie le contexte."""
     from . import integration5636
     key = integration5636.key_secret(desk, key_id) if key_id else None
@@ -169,7 +169,10 @@ def verify(desk, header, op=None, now=None, key_id=''):
         raise Refused('requete_rejouee', '401 Unauthorized')
     ctx['scope'] = list(scope)
     if key is not None:   # 5.6.36 : le périmètre est celui du compte AxiorHub relié (le cabinet entier), pas celui déclaré par Nextcloud
-        ctx.update(scope=['*'], _key=key['id'], _owner=key['axiorhub_user'], _role=key['role'])
+        account = integration5636.current_account(desk, key, auth)   # 5.6.37 (audit F02) : compte et rôle ACTUELS
+        if account is None:
+            raise Refused('compte_axiorhub_inactif_ou_modifie', '401 Unauthorized')
+        ctx.update(scope=['*'], _key=key['id'], _owner=account['user'], _role=account['role'])
         integration5636.touch(desk, key['id'])
     else:
         ctx.update(_owner='cabinet', _role='administrateur')
@@ -215,7 +218,8 @@ def handle(desk, method, path, headers, body):
             if not isinstance(data, dict):
                 raise Refused('objet_json_requis')
             return '200 OK', integration5636.pair(desk, headers, data)
-        ctx = verify(desk, headers.get('HTTP_X_AXIORHUB_CONTEXT'), op=method + ' ' + path, key_id=str(headers.get('HTTP_X_AXIORHUB_KEY') or ''))
+        ctx = verify(desk, headers.get('HTTP_X_AXIORHUB_CONTEXT'), op=method + ' ' + path, key_id=str(headers.get('HTTP_X_AXIORHUB_KEY') or ''),
+                     auth=headers.get('axiorhub.auth'))
         ctx['_cfg'] = desk.c
         data = {}
         if method == 'POST':
@@ -231,6 +235,11 @@ def handle(desk, method, path, headers, body):
             return '200 OK', matters(desk, ctx)
         if path == '/integration/v1/me' and method == 'GET':
             return '200 OK', integration5636.me(desk, ctx)
+        integration5636.require(ctx, 'lire' if method == 'GET' else 'preparer')
+        if path == '/integration/v1/session' and method == 'POST':   # 5.6.37 : interface AxiorHub affichée dans Nextcloud
+            integration5636.require(ctx, 'session')
+            from . import nextcloud5637
+            return '200 OK', nextcloud5637.create(desk, ctx, data, headers.get('axiorhub.auth'))
         if path == '/integration/v1/unpair' and method == 'POST':
             return '200 OK', integration5636.unpair(desk, ctx)
         if path == '/integration/v1/search' and method == 'GET':
@@ -313,37 +322,74 @@ def manifest(desk, ctx, data):
         if sha and not re.fullmatch(r'[a-f0-9]{64}', sha):
             errors.append({'source': str(s.get('file_id')), 'error': 'empreinte_invalide'})
             continue
-        clean.append({'file_id': str(s['file_id']), 'etag': str(s.get('etag') or '')[:80], 'size': size, 'sha256': sha,
-                      'name': PurePosixPath(str(s.get('name') or '').replace('\\', '/')).name[:255]})
-    # Pont file_id → pièce du moteur : ETag de la version (puis nom exact s'il est unique). Une pièce introuvable est signalée ;
-    # aucune autre pièce ne la remplace.
+        sha_text = str(s.get('sha256_text') or '')
+        if sha_text and not re.fullmatch(r'[a-f0-9]{64}', sha_text):
+            errors.append({'source': str(s.get('file_id')), 'error': 'empreinte_invalide'})
+            continue
+        rel = str(s.get('path') or '').replace('\\', '/').strip('/')
+        if rel and ('..' in rel.split('/') or len(rel) > 1000):
+            errors.append({'source': str(s.get('file_id')), 'error': 'chemin_invalide'})
+            continue
+        clean.append({'file_id': str(s['file_id']), 'etag': str(s.get('etag') or '')[:80], 'size': size, 'sha256': sha, 'sha256_text': sha_text,
+                      'path': rel, 'name': PurePosixPath(str(s.get('name') or '').replace('\\', '/')).name[:255]})
+    # 5.6.37 (audit F04) : une pièce déclarée est identifiée par son NOM (et son chemin relatif s'il est fourni) ; l'ETag et l'empreinte du
+    # texte vérifient sa VERSION. Toute contradiction est une erreur explicite ; un ETag n'identifie jamais une autre pièce, un nom identique
+    # ne compense jamais une version différente. L'empreinte des octets du fichier (sha256) n'est pas comparable à celle du texte extrait :
+    # elle est conservée et signalée comme non vérifiée.
     from . import synthese5632
     inv = synthese5632.inventory(desk, matter)
-    by_etag = {_norm_etag(d['etag']): d for d in inv if d['etag']}
+    by_etag = {}
+    for d in inv:
+        if d['etag']:
+            by_etag.setdefault(_norm_etag(d['etag']), []).append(d)
     by_name = {}
     for d in inv:
         by_name.setdefault(PurePosixPath(d['path']).name, []).append(d)
-    paths, accepted = [], []
+    paths, accepted, reserves = [], [], []
     for s in clean:
-        d = by_etag.get(_norm_etag(s['etag'])) if s['etag'] else None
-        if d is None and len(by_name.get(s['name'], [])) == 1:
-            d = by_name[s['name']][0]
+        if not s['name']:
+            errors.append({'source': s['file_id'], 'error': 'nom_de_piece_requis'})
+            continue
+        cands = by_name.get(s['name'], [])
+        if s['path']:
+            cands = [d for d in cands if d['path'] == '/' + s['path'] or d['path'].endswith('/' + s['path'])]
+        tag = _norm_etag(s['etag']) if s['etag'] else ''
+        others = [d for d in by_etag.get(tag, []) if d not in cands] if tag else []
+        d, err = None, ''
+        if not cands:
+            err = 'etag_d_une_autre_piece' if others else 'piece_absente_de_l_index_du_dossier'
+        elif tag:
+            same = [x for x in cands if _norm_etag(x['etag']) == tag]
+            if not same:
+                err = 'etag_d_une_autre_piece' if others else 'version_differente_de_l_index'
+            elif len(same) > 1:
+                err = 'piece_ambigue'
+            else:
+                d = same[0]
+        elif len(cands) > 1:
+            err = 'piece_ambigue'
+        else:
+            d = cands[0]
+            reserves.append({'source': s['file_id'], 'name': s['name'], 'reserve': 'version_non_verifiee'})
+        if d is not None and s['sha256_text'] and s['sha256_text'] != d['sha256']:
+            d, err = None, 'empreinte_du_texte_differente'
+        if d is not None and d['state'] != 'extrait':
+            d, err = None, 'piece_' + d['state']
         if d is None:
-            errors.append({'source': s['file_id'], 'name': s['name'], 'error': 'piece_absente_de_l_index_du_dossier'})
+            errors.append({'source': s['file_id'], 'name': s['name'], 'error': err})
             continue
-        if d['state'] != 'extrait':
-            errors.append({'source': s['file_id'], 'name': s['name'], 'error': 'piece_' + d['state']})
-            continue
+        if s['sha256']:
+            reserves.append({'source': s['file_id'], 'name': s['name'], 'reserve': 'empreinte_du_fichier_non_verifiee_par_le_moteur'})
         paths.append(d['path'])
-        accepted.append(s)
+        accepted.append({**s, 'path': d['path'], 'etag': d['etag'], 'sha256_text': d['sha256'], 'version_verifiee': bool(tag)})
     ident = uuid.uuid4().hex
     schema(desk)
     desk.db.execute('INSERT INTO integration_manifests5634(id,instance,user,matter,sources,created,paths) VALUES(?,?,?,?,?,?,?)',
                     (ident, ctx['instance'], ctx['user'], matter, json.dumps(accepted, ensure_ascii=False), datetime.now(timezone.utc).isoformat(),
                      json.dumps(sorted(set(paths)), ensure_ascii=False)))
     desk.db.commit()
-    return {'manifest_id': ident, 'accepted': len(accepted), 'errors': errors,
-            'coverage': {'declared': len(sources), 'accepted': len(accepted), 'refused': len(errors)}}
+    return {'manifest_id': ident, 'accepted': len(accepted), 'errors': errors, 'reserves': reserves,
+            'coverage': {'declared': len(sources), 'accepted': len(accepted), 'refused': len(errors), 'reserves': len(reserves)}}
 
 
 def _manifest_paths(desk, ctx, matter, ident):
@@ -360,6 +406,20 @@ def _manifest_paths(desk, ctx, matter, ident):
     if not paths:
         raise Refused('aucune_piece_selectionnee_lisible', '409 Conflict')
     return paths
+
+
+def _manifest_versions(desk, ident, matter):
+    """5.6.37 (audit F04) : versions acceptées au manifeste ; une pièce modifiée depuis la sélection impose une nouvelle sélection."""
+    if not ident:
+        return {}
+    row = desk.db.execute('SELECT sources FROM integration_manifests5634 WHERE id=?', (ident,)).fetchone()
+    versions = {s['path']: s.get('etag', '') for s in json.loads(row['sources'] or '[]') if isinstance(s, dict) and s.get('path')} if row else {}
+    from . import synthese5632
+    now = {d['path']: _norm_etag(d['etag']) for d in synthese5632.inventory(desk, matter)}
+    changed = sorted(p for p, e in versions.items() if now.get(p) != _norm_etag(e))
+    if changed:
+        raise Refused('piece_modifiee_depuis_la_selection', '409 Conflict')
+    return versions
 
 
 # ------------------------------------------------------------------------------------------------ travaux (F08, F09)
@@ -395,6 +455,7 @@ def _validate(desk, ctx, data):
     else:
         schema(desk)
         args['only'] = _manifest_paths(desk, ctx, matter, manifest_id)
+        args['versions'] = _manifest_versions(desk, manifest_id, matter)
     content = hashlib.sha256(json.dumps({k: args[k] for k in ('operation', 'matter', 'manifest_id', 'question', 'intent') if k in args},
                                         sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     return idem, args, content
@@ -403,7 +464,7 @@ def _validate(desk, ctx, data):
 def _enqueue(desk, args):
     if args['operation'] == 'fiche_dossier':
         from .dossier5627 import request
-        return request(desk, args['matter'], only=args.get('only'))['job_id']
+        return request(desk, args['matter'], only=args.get('only'), versions=args.get('versions'))['job_id']
     return desk.enqueue('recherche5634', {'question': args['question'], 'matter': args['matter'], 'providers': []})
 
 
@@ -564,6 +625,8 @@ def _shape(ident, operation, version, payload):
 
 
 def approve(desk, ctx, ident, data):
+    from . import integration5636
+    integration5636.require(ctx, 'decider')   # 5.6.37 (audit F03) : approuver, refuser ou demander une correction = avocat ou administrateur
     decision = data.get('decision')
     if decision not in DECISIONS:
         raise Refused('decision_invalide')

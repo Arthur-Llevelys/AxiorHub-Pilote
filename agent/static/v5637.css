@@ -1,0 +1,9 @@
+/* 5.6.37 : AxiorHub affiché dans Nextcloud. Un seul menu : celui de Nextcloud (rubriques, « Toutes les fonctions »). Le menu et le bouton ☰
+   d'AxiorHub sont masqués dans le cadre ; la page prend toute la largeur. */
+.ax-integre aside#ws-sidebar,.ax-integre #ws-sidebar-toggle{display:none!important}
+.ax-integre main,.ax-integre.ws-collapsed main{margin-left:0}
+.ax-integre #ws-live-bar,.ax-integre.ws-collapsed #ws-live-bar{left:12px}
+.ax-integre .ws-topbar{padding-bottom:12px}
+/* page « Toutes les fonctions » */
+.p5637-panel{position:static!important;left:auto!important;width:auto!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;
+  display:block!important;padding:0!important;background:transparent!important;border:0!important}

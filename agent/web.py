@@ -433,10 +433,33 @@ class App:
     def __init__(self, config_path, auth_path):
         self.config_path, self.auth_path = config_path, auth_path
         if isinstance(auth_path,(str,Path)) and auth_path:__import__('os').environ['AXIORHUB_AUTH_FILE']=str(Path(auth_path).resolve())   # 5.6.34 : chemin réellement utilisé (diagnostic)
-        self.auth_cache={};self.failures=[];self.mutex=threading.Lock()
+        self.auth_cache={};self.failures=[];self.mutex=threading.Lock();self.nc_cache={}
         self.live_slots=threading.BoundedSemaphore(8)
 
+    def nextcloud_session(self, environ, auth=None):
+        """5.6.37 : session de l'interface affichée dans Nextcloud (cookie axh_nc) ; vérifiée en base, mémorisée 30 s."""
+        from .nextcloud5637 import cookie_value, session
+        value=cookie_value(environ)
+        if not value:return None
+        environ['axiorhub.nc_cookie']='1'
+        key=hashlib.sha256(value.encode()).hexdigest()
+        with self.mutex:
+            hit=self.nc_cache.get(key)
+            if hit and hit[0]>time.time():return hit[1]
+        desk=Desk(load_config(self.config_path))
+        try:found=session(desk,value,auth)
+        finally:desk.db.close()
+        with self.mutex:
+            if len(self.nc_cache)>200:self.nc_cache.clear()
+            self.nc_cache[key]=(time.time()+30,found)
+        return found
+
     def authenticate(self, environ, auth):
+        if environ.get('HTTP_COOKIE') and not environ.get('HTTP_AUTHORIZATION'):
+            found=self.nextcloud_session(environ,auth)
+            if found is not None:
+                environ['axiorhub.nc_origin']=found['origin'] or 'self'
+                return True
         if auth.get('poste') and environ.get('HTTP_COOKIE'):   # 5.6.25 : session de la fenêtre locale du poste
             from .poste_session import cookie_ok
             if cookie_ok(self.auth_path,environ):
@@ -516,6 +539,15 @@ class App:
                     _st,_obj=_integration(_desk34,env['REQUEST_METHOD'],_path,env,_raw)
                 finally:_desk34.db.close()
                 _public={'status':_st,'kind':'application/json; charset=utf-8','body':json.dumps(_obj,ensure_ascii=False)}
+            elif _path=='/nextcloud-session' and env['REQUEST_METHOD']=='GET':   # 5.6.37 : interface AxiorHub dans Nextcloud (jeton à usage unique)
+                set_request_mode('write')
+                from .nextcloud5637 import exchange as _nc_exchange
+                _desk37=Desk(load_config(self.config_path))
+                try:_public=_nc_exchange(_desk37,env,auth)
+                finally:_desk37.db.close()
+            elif _path=='/nextcloud-session/signal.js' and env['REQUEST_METHOD']=='GET':
+                from .nextcloud5637 import signal_js as _nc_signal
+                _public=_nc_signal()
             elif _path=='/poste-session' and auth.get('poste') and env['REQUEST_METHOD']=='GET':   # 5.6.25 : jeton de lancement du poste
                 from .poste_session import exchange
                 _public=exchange(self.auth_path,env,_prefix)
@@ -532,7 +564,14 @@ class App:
             if _public is not None:
                 status=_public['status'];kind=_public['kind'];body=_public['body']
                 headers=[(n,v) for n,v in headers if n!='Content-Security-Policy']+[('Content-Security-Policy',_public.get('csp',"default-src 'none'"))]+list(_public.get('headers',[]))
+                if _public.get('frame_any'):headers=[(n,v) for n,v in headers if n!='X-Frame-Options']   # 5.6.37 : page sans donnée, affichable dans Nextcloud
             elif not self.authenticate(env,auth):
+                if env.get('HTTP_SEC_FETCH_DEST')=='iframe' and not env.get('HTTP_AUTHORIZATION'):
+                    # 5.6.37 : cadre de l'application Nextcloud sans session valide : page sans donnée qui demande une nouvelle session
+                    from .nextcloud5637 import denied_page as _nc_denied
+                    _p=_nc_denied(_prefix,'bloque');status,kind,body=_p['status'],_p['kind'],_p['body']
+                    headers=[(n,v) for n,v in headers if n not in ('Content-Security-Policy','X-Frame-Options')]+[('Content-Security-Policy',_p['csp'])]
+                    raw=body.encode('utf-8');start_response(status,headers+[('Content-Type',kind),('Content-Length',str(len(raw)))]);return [raw]
                 status='401 Unauthorized';headers.append(('WWW-Authenticate','Basic realm="AxiorHub Cabinet", charset="UTF-8"'))
                 body='<p>Connectez-vous avec le compte défini à l’installation.</p>'
                 if _path.startswith(('/api','/live/')):
@@ -1059,6 +1098,9 @@ class App:
         except Exception:   # noqa: BLE001
             pass
         raw=body if isinstance(body,bytes) else body.encode('utf-8')
+        if env.get('axiorhub.nc_origin'):   # 5.6.37 : réponse à une session Nextcloud : cadre permis au seul site Nextcloud de la clé
+            from .nextcloud5637 import frame_headers
+            headers=frame_headers(headers,'' if env['axiorhub.nc_origin']=='self' else env['axiorhub.nc_origin'])
         start_response(status,headers+[('Content-Type',kind),('Content-Length',str(len(raw)))])
         return [raw]
 

@@ -13,6 +13,7 @@ from html import escape as e
 import json
 import re
 from zoneinfo import ZoneInfo
+from decimal import Decimal, InvalidOperation
 
 from .common import Stop, load_matters, matter_display
 
@@ -27,9 +28,22 @@ def schema(desk):
       matter TEXT NOT NULL DEFAULT '', level INTEGER NOT NULL, recipient TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL, body TEXT NOT NULL,
       balance TEXT NOT NULL, currency TEXT NOT NULL DEFAULT '', due_date TEXT NOT NULL, state TEXT NOT NULL, created TEXT NOT NULL, updated TEXT NOT NULL,
       draft_uid TEXT NOT NULL DEFAULT '');
-    CREATE UNIQUE INDEX IF NOT EXISTS relances5636_level ON relances5636(invoice, level);
     CREATE TABLE IF NOT EXISTS relances_exclues5636(invoice TEXT PRIMARY KEY, reason TEXT NOT NULL DEFAULT '', created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS relances_runs5636(day TEXT PRIMARY KEY, created TEXT NOT NULL);''')
+    # 5.6.37 (audit F13, F14, F15) : envoi confirmé, contrôle du solde avant dépôt, routine du jour récupérable
+    cols = {r[1] for r in desk.db.execute('PRAGMA table_info(relances5636)')}
+    for name, decl in (('sent_at', "TEXT NOT NULL DEFAULT ''"), ('checked_at', "TEXT NOT NULL DEFAULT ''"), ('check_note', "TEXT NOT NULL DEFAULT ''")):
+        if name not in cols:
+            desk.db.execute('ALTER TABLE relances5636 ADD COLUMN %s %s' % (name, decl))
+    # un seul projet ouvert (à valider ou déposé, en attente de confirmation) par facture ; les projets écartés restent tracés
+    desk.db.execute('DROP INDEX IF EXISTS relances5636_level')
+    desk.db.execute("CREATE UNIQUE INDEX IF NOT EXISTS relances5636_ouverte ON relances5636(invoice) WHERE state IN ('a_valider','deposee')")
+    runs = {r[1] for r in desk.db.execute('PRAGMA table_info(relances_runs5636)')}
+    for name, decl in (('state', "TEXT NOT NULL DEFAULT 'lancee'"), ('job', 'INTEGER'), ('next_retry', "TEXT NOT NULL DEFAULT ''"),
+                       ('last_error', "TEXT NOT NULL DEFAULT ''")):
+        if name not in runs:
+            desk.db.execute('ALTER TABLE relances_runs5636 ADD COLUMN %s %s' % (name, decl))
+    desk.db.commit()
 
 
 def settings(desk):
@@ -75,11 +89,23 @@ def schedule(desk, stamp=None):
     local = now.astimezone(_tz(desk))
     if local.hour < int(s['hour']):
         return []
-    cur = desk.db.execute('INSERT OR IGNORE INTO relances_runs5636 VALUES(?,?)', (local.date().isoformat(), now.isoformat()))
+    day = local.date().isoformat()
+    # 5.6.37 (audit F15) : seule une routine réellement mise en file empêche une nouvelle tentative ; une file pleine reste récupérable
+    desk.db.execute("INSERT OR IGNORE INTO relances_runs5636(day,created,state) VALUES(?,?,'reservee')", (day, now.isoformat()))
     desk.db.commit()
-    if not cur.rowcount:
+    run = desk.db.execute('SELECT * FROM relances_runs5636 WHERE day=?', (day,)).fetchone()
+    if run['state'] == 'lancee' or (run['next_retry'] and run['next_retry'] > now.isoformat()):
         return []
-    return [desk.enqueue('relances5636', {'day': local.date().isoformat()}, priority=60)]
+    try:
+        job = desk.enqueue('relances5636', {'day': day}, priority=60)   # arguments identiques : deux cycles concurrents rejoignent le même travail
+    except Stop as exc:
+        retry = (now + timedelta(minutes=15)).isoformat()
+        desk.db.execute("UPDATE relances_runs5636 SET state='en_attente', next_retry=?, last_error=? WHERE day=?", (retry, str(exc), day))
+        desk.db.commit()
+        return []
+    desk.db.execute("UPDATE relances_runs5636 SET state='lancee', job=?, next_retry='', last_error='' WHERE day=?", (job, day))
+    desk.db.commit()
+    return [job]
 
 
 def _money(value, currency):
@@ -166,24 +192,29 @@ def prepare(desk, today=None, refresh=True, http=None):
         late = (today - date.fromisoformat(inv['due_date'])).days
         if late < int(s['grace_days']):
             continue
-        last = desk.db.execute('SELECT level, state, updated FROM relances5636 WHERE invoice=? ORDER BY level DESC LIMIT 1', (inv['id'],)).fetchone()
-        if last and last['state'] == 'a_valider':
-            continue   # un projet attend déjà la décision de l'avocat
-        level = 1 if not last else last['level'] + 1
+        # 5.6.37 (audit F13) : un projet ouvert (à valider, ou déposé dont l'envoi n'est pas confirmé) attend la décision de l'avocat ; le niveau
+        # vient des seules relances dont l'ENVOI est confirmé (un projet écarté ou un brouillon jamais envoyé ne compte pas) ; l'intervalle part
+        # du dernier envoi confirmé ou du dernier projet écarté
+        if desk.db.execute("SELECT 1 FROM relances5636 WHERE invoice=? AND state IN ('a_valider','deposee')", (inv['id'],)).fetchone():
+            continue
+        sent = desk.db.execute("SELECT MAX(level) AS level, MAX(sent_at) AS at FROM relances5636 WHERE invoice=? AND state='envoyee'", (inv['id'],)).fetchone()
+        dismissed = desk.db.execute("SELECT MAX(updated) AS at FROM relances5636 WHERE invoice=? AND state='ecartee'", (inv['id'],)).fetchone()
+        level = int(sent['level'] or 0) + 1
         if level > int(s['max_level']):
             continue
-        if last and (today - datetime.fromisoformat(last['updated']).astimezone(_tz(desk)).date()).days < int(s['interval_days']):
+        since = max([x for x in (sent['at'], dismissed['at']) if x] or [''])
+        if since and (today - datetime.fromisoformat(since).astimezone(_tz(desk)).date()).days < int(s['interval_days']):
             continue
         currency = inv['currency'] if 'currency' in inv.keys() else ''
         amount = _money(inv['balance_exact'] if 'balance_exact' in inv.keys() and inv['balance_exact'] else inv['balance'], currency)
         matter = _matter_for(desk, inv['client_id'])
         subject, body = _text(level, inv['number'] or inv['id'], amount, inv['due_date'], inv['invoice_url'], sign)
         now = datetime.now(timezone.utc).isoformat()
-        desk.db.execute('INSERT OR IGNORE INTO relances5636(invoice,number,client_id,matter,level,recipient,subject,body,balance,currency,due_date,state,'
+        cur = desk.db.execute('INSERT OR IGNORE INTO relances5636(invoice,number,client_id,matter,level,recipient,subject,body,balance,currency,due_date,state,'
                         'created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                         (inv['id'], inv['number'], inv['client_id'], matter, level, _recipient(desk, matter, inv['client_id'], http), subject, body,
                          amount, currency, inv['due_date'], 'a_valider', now, now))
-        created += 1
+        created += cur.rowcount
     desk.db.commit()
     desk.audit('relances5636_preparees', {'count': created})
     return {'created': created, 'message': '%d projet(s) de relance préparé(s).' % created}
@@ -206,10 +237,74 @@ def _get(desk, rid):
     return row
 
 
-def deposit(desk, rid, data, owner='cabinet'):
+def _fresh_invoice(desk, invoice, http=None):
+    """Facture relue dans Invoice Ninja (lecture seule) : {'balance', 'paid', 'due_date'} ; None si l'API ne répond pas."""
+    try:
+        from .workstation import HTTP, read_secret
+        cfg = desk.c.get('invoice_ninja', {})
+        client = http or HTTP(str(cfg['base_url']).rstrip('/'), timeout=20)
+        if http is None:
+            client.headers.update({'X-API-TOKEN': read_secret(cfg['api_token_file']), 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'})
+        raw = client.request('GET', client.base + '/api/v1/invoices/' + re.sub(r'[^A-Za-z0-9]', '', invoice), headers={'Accept': 'application/json'},
+                             limit=500_000)
+        data = (json.loads(raw) or {}).get('data') or {}
+        balance = Decimal(str(data.get('balance')))
+    except (Stop, KeyError, ValueError, TypeError, OSError, ImportError, InvalidOperation):
+        return None
+    paid = balance <= 0 or str(data.get('status_id') or '') in ('4', '5', '6') or bool(data.get('is_deleted'))
+    return {'balance': balance, 'paid': paid, 'due_date': str(data.get('due_date') or '')}
+
+
+def check_before_deposit(desk, row, http=None):
+    """5.6.37 (audit F14) : la facture est relue avant tout dépôt. Réglée, annulée ou exclue : le projet est périmé. Solde modifié : le projet
+    est actualisé pour relecture. Vérification impossible : réserve explicite (le projet n'est pas annoncé « à jour »)."""
+    now = datetime.now(timezone.utc).isoformat()
+    if desk.db.execute('SELECT 1 FROM relances_exclues5636 WHERE invoice=?', (row['invoice'],)).fetchone():
+        return 'perimee', 'facture exclue des relances'
+    cached = desk.db.execute('SELECT * FROM invoice_ninja_cache_v310 WHERE id=?', (row['invoice'],)).fetchone()
+    if cached is not None and float(cached['balance'] or 0) <= 0:
+        return 'perimee', 'solde nul dans Invoice Ninja (paiement enregistré)'
+    fresh = _fresh_invoice(desk, row['invoice'], http)
+    if fresh is None:
+        desk.db.execute('UPDATE relances5636 SET checked_at=?, check_note=? WHERE id=?', (now, 'solde_non_reverifie', row['id']))
+        return 'reserve', 'Invoice Ninja n’a pas répondu : le solde n’a pas pu être revérifié'
+    if fresh['paid']:
+        if cached is not None:
+            desk.db.execute('UPDATE invoice_ninja_cache_v310 SET balance=0 WHERE id=?', (row['invoice'],))
+        return 'perimee', 'facture réglée ou annulée dans Invoice Ninja'
+    currency = row['currency'] or ''
+    amount = _money(str(fresh['balance']), currency)
+    desk.db.execute('UPDATE relances5636 SET checked_at=?, check_note=? WHERE id=?', (now, 'solde_reverifie', row['id']))
+    if amount != row['balance']:
+        return 'modifiee', amount
+    return 'ok', amount
+
+
+def deposit(desk, rid, data, owner='cabinet', http=None):
     row = _get(desk, rid)
     if row['state'] != 'a_valider':
         raise Stop('relance_absente')
+    status, info = check_before_deposit(desk, row, http)
+    if status == 'perimee':
+        desk.db.execute("UPDATE relances5636 SET state='perimee', check_note=?, updated=? WHERE id=?", (info, datetime.now(timezone.utc).isoformat(), row['id']))
+        desk.db.commit()
+        desk.audit('relances5636_perimee', {'invoice': row['invoice'], 'motif': info})
+        from .erreurs5634 import Qualified
+        raise Qualified('relance_perimee', precision='Projet retiré : %s. Aucun brouillon déposé.' % info)
+    if status == 'modifiee':
+        edited = str(data.get('body') or row['body']) != row['body']
+        if not edited:   # texte non corrigé par l'avocat : actualisé avec le nouveau solde ; une correction n'est jamais écrasée
+            sign = (desk.c.get('mail') or {}).get('from_name') or 'Le cabinet'
+            cached = desk.db.execute('SELECT invoice_url FROM invoice_ninja_cache_v310 WHERE id=?', (row['invoice'],)).fetchone()
+            subject, body = _text(row['level'], row['number'] or row['invoice'], info, row['due_date'], cached['invoice_url'] if cached else '', sign)
+            desk.db.execute('UPDATE relances5636 SET balance=?, subject=?, body=?, updated=? WHERE id=?',
+                            (info, subject, body, datetime.now(timezone.utc).isoformat(), row['id']))
+        else:
+            desk.db.execute('UPDATE relances5636 SET balance=?, updated=? WHERE id=?', (info, datetime.now(timezone.utc).isoformat(), row['id']))
+        desk.db.commit()
+        from .erreurs5634 import Qualified
+        raise Qualified('relance_solde_modifie', precision='Nouveau solde : %s. %s' % (
+            info, 'Votre texte a été conservé : corrigez le montant puis déposez.' if edited else 'Le projet a été actualisé : relisez-le puis déposez.'))
     to = str(data.get('recipient') or row['recipient'] or '').strip().lower()
     subject = re.sub(r'[\r\n]+', ' ', str(data.get('subject') or row['subject'])).strip()[:200]
     body = str(data.get('body') or row['body'])[:8000]
@@ -220,12 +315,30 @@ def deposit(desk, rid, data, owner='cabinet'):
     desk.db.execute("UPDATE relances5636 SET state='deposee', recipient=?, subject=?, body=?, draft_uid=?, updated=? WHERE id=?",
                     (to, subject, body, str(out.get('uid') or ''), datetime.now(timezone.utc).isoformat(), row['id']))
     desk.db.commit()
-    desk.audit('relances5636_deposee', {'invoice': row['invoice'], 'level': row['level'], 'owner': owner})
-    return {'id': row['id'], 'message': 'Relance déposée dans Brouillons' + (' pour ' + to if to else ' (destinataire à compléter)') + ' : rien n’est envoyé.'}
+    desk.audit('relances5636_deposee', {'invoice': row['invoice'], 'level': row['level'], 'owner': owner, 'controle': status})
+    return {'id': row['id'], 'message': 'Relance déposée dans Brouillons' + (' pour ' + to if to else ' (destinataire à compléter)') + ' : rien n’est envoyé.'
+            + (' Attention : %s.' % info if status == 'reserve' else ' Solde revérifié : %s.' % info)}
+
+
+def confirm_sent(desk, rid, owner='cabinet', sent=True):
+    """5.6.37 (audit F13) : l'avocat confirme l'envoi réel (ou non) d'une relance déposée ; seul un envoi confirmé fait monter le niveau."""
+    row = _get(desk, rid)
+    if row['state'] != 'deposee':
+        raise Stop('relance_absente')
+    now = datetime.now(timezone.utc).isoformat()
+    if sent:
+        desk.db.execute("UPDATE relances5636 SET state='envoyee', sent_at=?, updated=? WHERE id=?", (now, now, row['id']))
+    else:
+        desk.db.execute("UPDATE relances5636 SET state='ecartee', updated=? WHERE id=?", (now, row['id']))
+    desk.db.commit()
+    desk.audit('relances5636_envoi_confirme' if sent else 'relances5636_non_envoyee', {'invoice': row['invoice'], 'level': row['level'], 'owner': owner})
+    return {'id': row['id'], 'message': 'Envoi confirmé.' if sent else 'Relance marquée non envoyée.'}
 
 
 def dismiss(desk, rid, owner='cabinet', exclude=False):
     row = _get(desk, rid)
+    if row['state'] not in ('a_valider', 'deposee'):
+        raise Stop('relance_absente')
     desk.db.execute("UPDATE relances5636 SET state='ecartee', updated=? WHERE id=?", (datetime.now(timezone.utc).isoformat(), row['id']))
     if exclude:
         desk.db.execute('INSERT OR REPLACE INTO relances_exclues5636 VALUES(?,?,?)', (row['invoice'], 'avocat', datetime.now(timezone.utc).isoformat()))
@@ -273,10 +386,20 @@ def page_html(desk, prefix, args):
             e(r['number'] or r['invoice']), e(r['balance']), e(LEVELS.get(r['level'], '')), e(r['due_date']),
             e(labels.get(r['matter'], 'dossier non relié') if r['matter'] else 'dossier non relié'), r['id'], e(r['recipient'], quote=True),
             e(r['subject'], quote=True), e(r['body']))
+    sent = desk.db.execute("SELECT * FROM relances5636 WHERE state='deposee' ORDER BY updated DESC").fetchall()
+    if sent:
+        html += '<section class="ax-card"><h2>Relances déposées : envoi à confirmer</h2><p class="ax-muted">Le niveau suivant (« Malgré notre précédent rappel… ») ' \
+                'n’est proposé qu’après un envoi confirmé.</p><ul class="o5636-list">%s</ul></section>' % ''.join(
+                    ('<li><strong>Facture %s</strong> — %s · déposée le %s<form class="m5-form m5-inline" data-api="m5636/relances/envoi" data-reload="1">'
+                     '<input type="hidden" name="id" value="%d"><button class="ax-btn ghost" type="submit">Marquer comme envoyée</button>'
+                     '<button class="ax-btn ghost" type="submit" data-extra="non_envoyee=1">Non envoyée</button></form></li>') % (
+                        e(r['number'] or r['invoice']), e(LEVELS.get(r['level'], '')), e(r['updated'][:10]), r['id']) for r in sent)
     return html
 
 
 def api_post(desk, route, data, owner):
+    if route == 'relances/envoi':   # 5.6.37 (audit F13)
+        return confirm_sent(desk, data.get('id'), owner, sent=not data.get('non_envoyee'))
     if route == 'relances/reglages':
         return save_settings(desk, data, owner)
     if route == 'relances/preparer':

@@ -17,6 +17,7 @@ return [
 		['name' => 'personal#test', 'url' => '/api/personal/test', 'verb' => 'GET'],
 		['name' => 'personal#unlink', 'url' => '/api/personal/unlink', 'verb' => 'POST'],
 		['name' => 'search#index', 'url' => '/api/search', 'verb' => 'GET'],
+		['name' => 'session#create', 'url' => '/api/session', 'verb' => 'POST'],   // 0.4.0 : adresse de connexion à usage unique (interface dans Nextcloud)
 		['name' => 'job#index', 'url' => '/api/jobs', 'verb' => 'GET'],
 		['name' => 'job#create', 'url' => '/api/jobs', 'verb' => 'POST'],
 		['name' => 'job#show', 'url' => '/api/jobs/{id}', 'verb' => 'GET', 'requirements' => ['id' => '[a-f0-9]{32}']],
