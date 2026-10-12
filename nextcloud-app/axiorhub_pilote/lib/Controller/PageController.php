@@ -6,6 +6,7 @@ namespace OCA\AxiorhubPilote\Controller;
 
 use OCA\AxiorhubPilote\AppInfo\Application;
 use OCA\AxiorhubPilote\Service\EngineSettings;
+use OCA\AxiorhubPilote\Service\UserLink;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -13,6 +14,7 @@ use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\IGroupManager;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use OCP\IUserSession;
 
 class PageController extends Controller {
@@ -22,6 +24,8 @@ class PageController extends Controller {
 		private EngineSettings $settings,
 		private IUserSession $session,
 		private IGroupManager $groups,
+		private UserLink $links,
+		private IURLGenerator $urls,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -31,9 +35,12 @@ class PageController extends Controller {
 	#[NoCSRFRequired]
 	public function index(): TemplateResponse {
 		$user = $this->session->getUser();
+		$uid = $user?->getUID() ?? '';
 		$this->initialState->provideInitialState('config', [
 			'engineConfigured' => $this->settings->isConfigured(),
-			'isAdmin' => $user !== null && $this->groups->isAdmin($user->getUID()),
+			'linked' => $this->links->linked($uid),   // 0.3.0 : compte AxiorHub relié dans les paramètres personnels
+			'personalUrl' => $this->urls->linkToRoute('settings.PersonalSettings.index', ['section' => Application::APP_ID]),
+			'isAdmin' => $user !== null && $this->groups->isAdmin($uid),
 		]);
 		return new TemplateResponse(Application::APP_ID, 'main');
 	}

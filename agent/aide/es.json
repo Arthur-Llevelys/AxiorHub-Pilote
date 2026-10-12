@@ -1,5 +1,5 @@
 {
- "_": "AxiorHub 5.6.35 — fiches du guide d’utilisation (es) ; identifiants = registre fonctions5631 ; exemples fictifs",
+ "_": "AxiorHub 5.6.36 — fiches du guide d’utilisation (es) ; identifiants = registre fonctions5631 ; exemples fictifs",
  "aujourdhui": {
   "objective": "Ver en una sola pantalla lo que requiere su atención hoy y lanzar las rutinas del despacho.",
   "when": "Cada mañana, o tras una ausencia, para saber qué tratar primero.",
@@ -30,7 +30,7 @@
    "Pause des automatismes",
    "Écouter le briefing"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "dossiers": {
   "objective": "Encontrar un expediente, abrir su ficha y vincular los expedientes presentes en sus archivos.",
@@ -61,7 +61,7 @@
    "Lire ce répertoire dans Nextcloud",
    "Indexer progressivement tous les dossiers enregistrés"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "courriels": {
   "objective": "Leer la bandeja de entrada, revisar los borradores preparados y responder, reenviar o archivar.",
@@ -90,7 +90,7 @@
    "Actualiser",
    "Rechercher"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "planning": {
   "objective": "Añadir, modificar o cancelar una cita, una vista o un plazo en su agenda.",
@@ -125,7 +125,7 @@
    "Importer",
    "Sauvegarder maintenant"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "taches": {
   "objective": "Seguir sus tareas y añadir una.",
@@ -151,7 +151,7 @@
    "Filtrer",
    "↻ Actualiser depuis Nextcloud"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "production": {
   "objective": "Ver lo que AxiorHub ha producido realmente y lanzar una producción.",
@@ -176,7 +176,7 @@
    "Lancer la production",
    "Continuer les playbooks"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "documents": {
   "objective": "Pedir un documento al agente y abrir los archivos recientes.",
@@ -201,7 +201,7 @@
    "Préparer le document",
    "Afficher"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "echeances": {
   "objective": "Calcular, simular e inscribir los plazos procesales.",
@@ -227,7 +227,7 @@
    "Enregistrer et inscrire à l’agenda",
    "Vérifier l’agenda maintenant"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "audience": {
   "objective": "Consultar la ficha de audiencia de un expediente, sin nueva llamada a la IA.",
@@ -251,7 +251,7 @@
   "buttons": [
    "Rechercher"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "audiences_word": {
   "objective": "Preparar un alegato a partir de nuestros escritos y los de las partes contrarias.",
@@ -276,7 +276,7 @@
   "buttons": [
    "Rechercher"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "missions_complexes": {
   "objective": "Confiar la preparación de una demanda o de escritos en subtareas controladas.",
@@ -300,7 +300,7 @@
   "buttons": [
    "Créer la mission"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "pieces": {
   "objective": "Preparar un índice de comunicación de documentos numerados y sellados.",
@@ -325,7 +325,7 @@
    "Analyser les PDF du dossier",
    "Enregistrer le profil"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "profils": {
   "objective": "Aprobar los perfiles procesales que sirven para proponer etapas y plazos.",
@@ -349,7 +349,7 @@
   "buttons": [
    "Approuver"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "strategie": {
   "objective": "Trabajar la estrategia de un expediente en un espacio dedicado.",
@@ -373,7 +373,7 @@
   "buttons": [
    "Ouvrir"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "studio": {
   "objective": "Elegir un entregable y prepararlo con control, desde una sola pantalla.",
@@ -399,7 +399,7 @@
    "Courrier Word",
    "Conclusions"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "playbooks": {
   "objective": "Seguir un recorrido guiado para una tarea frecuente.",
@@ -423,7 +423,7 @@
   "buttons": [
    "Démarrer ce parcours"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "recherche": {
   "objective": "Encontrar un correo, un archivo, un evento o una nota en el despacho.",
@@ -447,7 +447,7 @@
   "buttons": [
    "Rechercher"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "recherche_juridique": {
   "objective": "Buscar textos y resoluciones, con o sin expediente, sin transmitir datos del cliente.",
@@ -472,7 +472,7 @@
   "buttons": [
    "Rechercher"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "verification": {
   "objective": "Controlar las citas jurídicas y las menciones obligatorias y hacer una relectura contradictoria.",
@@ -498,7 +498,7 @@
    "Contrôler les mentions",
    "Relecture contradictoire"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "sources": {
   "objective": "Comprobar el estado de las fuentes jurídicas y ajustar su uso.",
@@ -523,7 +523,7 @@
    "Tester les sources",
    "Enregistrer"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "veille": {
   "objective": "Recibir una vigilancia jurídica programada, fechada y con fuentes sobre sus temas.",
@@ -552,7 +552,7 @@
   "buttons": [
    "Actualiser"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "surveillance": {
   "objective": "Encontrar los cambios y puntos que requieren su atención (Alertas del despacho).",
@@ -577,7 +577,7 @@
    "Actualiser les alertes de tous les dossiers",
    "Recalculer les priorités"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "engagements": {
   "objective": "Seguir los compromisos asumidos en los intercambios y los seguimientos preparados.",
@@ -601,7 +601,7 @@
   "buttons": [
    "Vérifier les envois"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "accueil_administratif": {
   "objective": "Recibir y tratar las llamadas y mensajes administrativos entrantes.",
@@ -623,7 +623,7 @@
   ],
   "example": "Solicitud ficticia de cita recibida por teléfono.",
   "buttons": [],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "contacts": {
   "objective": "Gestionar los corresponsales del despacho y su papel en cada expediente.",
@@ -649,7 +649,7 @@
    "Enregistrer l’association",
    "Enregistrer le rôle"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "associations": {
   "objective": "Vincular las direcciones de correo con los expedientes.",
@@ -673,7 +673,7 @@
   "buttons": [
    "✨ Rechercher et regrouper automatiquement"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "orchestrateur": {
   "objective": "Relacionar correos y expedientes y preparar proyectos de aviso.",
@@ -698,7 +698,7 @@
    "↻ Analyser les nouveaux courriels",
    "Préparer sans action externe"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "missions": {
   "objective": "Confiar un encargo al agente y seguir su avance.",
@@ -722,7 +722,7 @@
   "buttons": [
    "Confier une mission"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "assistant": {
   "objective": "Conversar con el asistente sobre el despacho y sus expedientes.",
@@ -746,7 +746,7 @@
   "buttons": [
    "Envoyer à l’assistant"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "cabinet": {
   "objective": "Acceder a la gestión del despacho: tiempo, citas, conflictos, prescripción, seguimiento.",
@@ -767,7 +767,7 @@
   ],
   "example": "Consulta ficticia del seguimiento del mes.",
   "buttons": [],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "honoraires": {
   "objective": "Validar el tiempo dedicado y estimar las diligencias.",
@@ -792,7 +792,7 @@
    "Estimer à partir des courriels, pièces et rendez-vous",
    "Enregistrer le barème"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "rendez_vous": {
   "objective": "Preparar las citas y sus actas.",
@@ -813,7 +813,7 @@
   ],
   "example": "Cita ficticia con el cliente de DEMO-B.",
   "buttons": [],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "conflits": {
   "objective": "Buscar conflictos de intereses.",
@@ -838,7 +838,7 @@
    "Rechercher les conflits",
    "Désactiver le blocage"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "prescriptions": {
   "objective": "Calcular y seguir los plazos de prescripción y caducidad.",
@@ -863,7 +863,7 @@
    "Calculer sans enregistrer",
    "Créer (à confirmer)"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "pilotage_mensuel": {
   "objective": "Consultar los indicadores del mes y exportarlos.",
@@ -888,7 +888,7 @@
    "Exporter (CSV)",
    "Exporter (Markdown)"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "assistance_metier": {
   "objective": "Hacer cálculos controlables y preparar la revisión de facturación.",
@@ -914,7 +914,7 @@
    "Calculer une indexation",
    "Préparer la revue de facturation"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "modeles_word": {
   "objective": "Importar sus plantillas Word, comprobar sus etiquetas y previsualizar todas las páginas.",
@@ -942,7 +942,7 @@
   "buttons": [
    "Importer et prévisualiser"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "modeles_actes": {
   "objective": "Gestionar los modelos de actos y sus menciones obligatorias.",
@@ -966,7 +966,7 @@
   "buttons": [
    "Enregistrer le modèle"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "mon_style": {
   "objective": "Analizar sus escritos para reproducir su estilo.",
@@ -991,7 +991,7 @@
    "Analyser maintenant",
    "Affiner avec l’IA"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "progres": {
   "objective": "Ajustar el tono por destinatario y las reglas «hacerlo siempre así».",
@@ -1017,7 +1017,7 @@
    "Corriger la détection",
    "Valeurs d’origine"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "agents": {
   "objective": "Crear un agente documental descrito en lenguaje natural.",
@@ -1044,7 +1044,7 @@
    "Tester le déclencheur sans agir",
    "Enregistrer et activer"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "agents_documents": {
   "objective": "Ver los resultados de los agentes documentales y reanudar un tratamiento.",
@@ -1068,7 +1068,7 @@
   "buttons": [
    "Vérifier les documents"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "regles": {
   "objective": "Ajustar el nivel de autonomía y las reglas de tratamiento de los correos.",
@@ -1094,7 +1094,7 @@
    "Ajouter la règle",
    "Enregistrer la correction"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "autonomie": {
   "objective": "Ver lo que sigue sometido a su validación y ajustar la autonomía.",
@@ -1119,7 +1119,7 @@
    "Appliquer",
    "Tout passer en mode prudent"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "apprentissage": {
   "objective": "Crear reglas profesionales y declarar referencias fiables.",
@@ -1144,7 +1144,7 @@
    "Enregistrer la règle",
    "Enregistrer la référence fiable"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "projets": {
   "objective": "Revisar el trabajo preparado automáticamente.",
@@ -1168,7 +1168,7 @@
   "buttons": [
    "↻ Analyser les nouveaux courriels"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "preparation": {
   "objective": "Ver el próximo trabajo detectado y la cobertura de las fuentes.",
@@ -1191,7 +1191,7 @@
   "buttons": [
    "↻ Analyser maintenant"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "memoire": {
   "objective": "Actualizar las respuestas enviadas que retiene el agente.",
@@ -1214,7 +1214,7 @@
   "buttons": [
    "Actualiser les réponses envoyées"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "parametres": {
   "objective": "Ajustar las conexiones y las preferencias del programa.",
@@ -1241,7 +1241,7 @@
    "Tester Nextcloud / agendas",
    "Tester Ollama"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "guide_installation": {
   "objective": "Configurar los servicios paso a paso y verificar las conexiones.",
@@ -1263,7 +1263,7 @@
   ],
   "example": "Recorrido ficticio: carpeta local y Ollama, sin correo.",
   "buttons": [],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "guide_utilisation": {
   "objective": "Averiguar cómo utilizar una función.",
@@ -1284,7 +1284,7 @@
   ],
   "example": "Búsqueda ficticia: «índice».",
   "buttons": [],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "mise_en_service": {
   "objective": "Controlar los servicios reales, el micrófono y Docker.",
@@ -1310,7 +1310,7 @@
    "Tester le micro",
    "Lancer la recette de production"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "diagnostic": {
   "objective": "Entender por qué no se produce nada: servicios, errores, expedientes bloqueados, conexiones.",
@@ -1336,7 +1336,7 @@
    "Tester Nextcloud",
    "Tester l’IA"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "etat_systeme": {
   "objective": "Consultar las incidencias, los tratamientos recientes, los servicios y el índice.",
@@ -1359,7 +1359,7 @@
   "buttons": [
    "Contrôler maintenant"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "mcp": {
   "objective": "Gestionar los conectores jurídicos MCP, las competencias y las extensiones.",
@@ -1383,7 +1383,7 @@
   "buttons": [
    "Enregistrer sans activer"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "routage": {
   "objective": "Decidir cuándo puede utilizarse una IA externa y con qué coste.",
@@ -1409,7 +1409,7 @@
    "Afficher les données et le coût",
    "Enregistrer la politique"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "evaluations": {
   "objective": "Comparar los modelos con casos de referencia.",
@@ -1434,7 +1434,7 @@
    "Enregistrer le cas",
    "Lancer la comparaison"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "tracabilite": {
   "objective": "Saber lo que vio el modelo en un expediente y qué modelos se utilizaron.",
@@ -1459,7 +1459,7 @@
    "Exporter (CSV)",
    "Exporter (JSON)"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "qualite": {
   "objective": "Entender los motivos de bloqueo y las correcciones de los borradores.",
@@ -1480,7 +1480,7 @@
   ],
   "example": "Motivo ficticio: expediente no identificado.",
   "buttons": [],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "ecosysteme": {
   "objective": "Registrar los servicios utilizados por el despacho.",
@@ -1503,7 +1503,7 @@
   "buttons": [
    "Enregistrer le service"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "administration": {
   "objective": "Gestionar los automatismos, los accesos directos y los controles avanzados.",
@@ -1527,7 +1527,7 @@
    "Tester les connexions",
    "Mettre en pause"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "tableau_de_bord": {
   "objective": "Consultar el antiguo panel detallado.",
@@ -1551,7 +1551,7 @@
    "Analyser les dossiers actifs",
    "Repérer le travail à faire"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "a_propos": {
   "objective": "Conocer la versión, la licencia y las reglas de confidencialidad.",
@@ -1572,7 +1572,7 @@
   ],
   "example": "Versión 5.6.31.",
   "buttons": [],
-  "version": "5.6.35"
+  "version": "5.6.36"
  },
  "competences": {
   "objective": "Dar a la IA un método de trabajo escrito (análisis, redacción, control).",
@@ -1597,6 +1597,213 @@
    "Créer",
    "Importer"
   ],
-  "version": "5.6.35"
+  "version": "5.6.36"
+ },
+ "contacts_crm": {
+  "objective": "Llevar un directorio único de clientes, partes contrarias, colegas, tribunales y peritos, vinculado a los expedientes.",
+  "when": "Para encontrar a un interlocutor, ver en qué expedientes interviene y con qué papel, o preparar un escrito sin volver a teclear sus datos.",
+  "prerequisites": "Ninguno. Al abrirlo por primera vez, la importación de los corresponsales ya asociados a los expedientes rellena el directorio.",
+  "steps": [
+   "Abra Contactos y CRM.",
+   "Escriba un nombre, sociedad, correo o SIREN y haga clic en «Buscar»; filtre por categoría con las etiquetas.",
+   "Para crear un contacto, rellene «Nuevo contacto», elija expediente y papel y haga clic en «Añadir el contacto».",
+   "Abra una ficha para corregirla o vincularla a otro expediente («Vincular a este expediente»).",
+   "En la página de un expediente, el bloque «Intervinientes» lista sus contactos."
+  ],
+  "result": "Cada contacto aparece con su categoría y expedientes; las iniciativas y la secretaría societaria reutilizan estas fichas.",
+  "verify": "Abra un expediente: el bloque «Intervinientes» muestra el contacto con su papel.",
+  "errors": [
+   [
+    "«La dirección de correo no es válida»",
+    "Corrija la dirección (nombre@example.com) o deje el campo vacío."
+   ],
+   [
+    "Contacto duplicado",
+    "El mismo correo siempre lleva a la misma ficha; corrija una y archive la otra («Archivar»)."
+   ]
+  ],
+  "example": "Contacto ficticio: letrada Jeanne EXEMPLE, abogada de la parte contraria en el expediente DEMO-A.",
+  "buttons": [
+   "Rechercher",
+   "Ajouter le contact"
+  ],
+  "version": "5.6.36"
+ },
+ "initiatives": {
+  "objective": "Recibir un plan de acción propuesto por AxiorHub (por ejemplo al recibir una demanda), corregirlo, validarlo y hacer que se ejecute.",
+  "when": "Cuando un correo exige varias acciones coordinadas: abrir expediente, anotar la vista, preparar correos y escritos.",
+  "prerequisites": "Correo conectado; Nextcloud para crear el expediente y archivar; modelo de IA para los borradores.",
+  "steps": [
+   "Deje marcada «Repérer automatiquement les assignations…» y haga clic en «Guardar» (o, desde un correo, «Proposer un plan d’actions»).",
+   "Abra Iniciativas: despliegue «Éléments relevés» y corrija tribunal, fecha de vista, partes y nombre del expediente.",
+   "Elija un expediente existente o deje «Expediente nuevo»; desmarque los pasos innecesarios.",
+   "Haga clic en «Validar y ejecutar los pasos marcados».",
+   "Revise cada resultado: borradores en el correo, borradores Word en el expediente, vista en la agenda."
+  ],
+  "result": "Cada paso muestra «hecho», «en espera» o el motivo de un fallo; nada se envía, los escritos son borradores.",
+  "verify": "Abra Borradores, la agenda y el expediente: los elementos creados están ahí; el historial queda en «Ejecutadas recientemente».",
+  "errors": [
+   [
+    "«En espera del expediente»",
+    "Marque «Crear el expediente» o elija un expediente y vuelva a ejecutar los pasos."
+   ],
+   [
+    "Sin fecha de vista",
+    "Indíquela como AAAA-MM-DD en «Éléments relevés» o desmarque el paso de agenda."
+   ]
+  ],
+  "example": "Demanda ficticia MARTIN c. DUPONT SAS ante el tribunal de Lyon, vista el 20 de noviembre de 2026 a las 9:30.",
+  "buttons": [
+   "Enregistrer"
+  ],
+  "version": "5.6.36"
+ },
+ "pieces_donnees": {
+  "objective": "Usar cada documento como datos: tipo, fecha, partes, fechas clave, importes, textos citados y pretensiones, consultables en todo el despacho.",
+  "when": "Para encontrar todos los documentos que citan un artículo, una parte o un importe, o para controlar los plazos de un expediente.",
+  "prerequisites": "Documentos indexados y analizados («Analizar los documentos del expediente»); Nextcloud para archivar los adjuntos de correos.",
+  "steps": [
+   "Elija un expediente y haga clic en «Mostrar».",
+   "Si la lista está vacía, haga clic en «Analizar los documentos del expediente» y espere.",
+   "Despliegue un documento; «documentado» significa encontrado en el extracto citado.",
+   "Para buscar en todo el despacho, escriba una palabra y haga clic en «Buscar».",
+   "Active si lo desea el archivo automático de los adjuntos de correos."
+  ],
+  "result": "Una tabla por documento, los plazos detectados del expediente y una exportación a hoja de cálculo.",
+  "verify": "Abra un documento citado: el extracto debe figurar; los elementos «a verificar» requieren su control.",
+  "errors": [
+   [
+    "Ningún documento analizado",
+    "Lance «Analizar los documentos del expediente»; los documentos ilegibles se indican en el diagnóstico."
+   ],
+   [
+    "Adjunto no archivado",
+    "Solo se archivan formatos habituales; un archivo existente nunca se sustituye."
+   ]
+  ],
+  "example": "Búsqueda ficticia «1641»: todos los documentos que citan el artículo 1641 del Código civil, expediente por expediente.",
+  "buttons": [
+   "Afficher",
+   "Rechercher"
+  ],
+  "version": "5.6.36"
+ },
+ "outils_ia": {
+  "objective": "Comparar documentos con una tabla de criterios, aplicar sus posiciones de negociación a un contrato y compartir notas jurídicas con fuentes.",
+  "when": "Para una auditoría de contratos, una revisión de documentos, una negociación o para reutilizar una investigación ya hecha.",
+  "prerequisites": "Modelo de IA del despacho; documentos indexados para las tablas; fuente jurídica activa para las notas redactadas por la IA.",
+  "steps": [
+   "Tablas: elija un expediente, un criterio por línea y haga clic en «Crear y extraer».",
+   "Abra la tabla: cada valor indica el extracto en que se basa; exporte si lo necesita.",
+   "Playbooks: indique sus posiciones (Cláusula, Posición, Alternativa, Inaceptable), haga clic en «Guardar el playbook» y luego «Aplicar» a un contrato Word.",
+   "Notas: formule la pregunta, haga clic en «Investigar y redactar con IA», revise y marque «Mémo relu et validé»."
+  ],
+  "result": "Una tabla comparativa con fuentes, una copia del contrato con control de cambios y su nota justificativa, notas validadas reutilizables.",
+  "verify": "Los valores «a verificar» no se encontraron en el documento; el contrato original queda intacto junto a la copia.",
+  "errors": [
+   [
+    "«Indique al menos un criterio»",
+    "Escriba un criterio por línea."
+   ],
+   [
+    "Párrafo repetido",
+    "Un cambio sobre un párrafo idéntico a otro se describe en la nota pero no se aplica: hágalo a mano."
+   ]
+  ],
+  "example": "Tabla ficticia «Fecha de firma / Plazo de preaviso» sobre los contratos del expediente DEMO-A.",
+  "buttons": [
+   "Créer et relever"
+  ],
+  "version": "5.6.36"
+ },
+ "corporate": {
+  "objective": "Llevar la secretaría societaria de las sociedades clientes: operaciones, actas, tabla de capitalización y libros registro, con una sola entrada.",
+  "when": "Para la aprobación de cuentas, el traslado de domicilio, el cambio de administrador, una transmisión de acciones, una modificación o una constitución.",
+  "prerequisites": "Nextcloud: la sociedad está vinculada a un expediente del despacho donde se archivan las actas (JURIDIQUE).",
+  "steps": [
+   "Haga clic en «Añadir una sociedad existente» (o «Créer une société»), rellene la ficha y guarde; anote los títulos de cada socio en «Tabla de capitalización».",
+   "Haga clic en «Aprobación de cuentas» para la secretaría societaria anual, o en «Otra diligencia de derecho de sociedades» (domicilio, administradores, transmisión, capital, disolución…).",
+   "Elija la sociedad, rellene el formulario y marque las actas; para otra diligencia, deje vacíos los acuerdos para partir de la plantilla propuesta.",
+   "Haga clic en «Guardar y preparar las actas».",
+   "Revise los borradores Word en el expediente; los libros y la tabla de capitalización ya están al día.",
+   "Sus modelos: pestaña «Modelos y formularios» › «Mis actas» para un acta nueva, o un modelo por acta; «📁 Elegir en Nextcloud» o «⬆ Importar desde el equipo». Las variables, listadas bajo cada formulario, se escriben {{denomination}} o {{ denomination }}."
+  ],
+  "result": "Las actas (modelos del despacho o genéricos) se guardan en «JURIDIQUE/fecha - operación»; ficha, administradores, tabla y libros se actualizan.",
+  "verify": "Abra «Libros registro»: el movimiento de títulos o la decisión figura con su fecha; «Actas preparadas» indica la carpeta.",
+  "errors": [
+   [
+    "«El transmitente no tiene suficientes títulos»",
+    "Revise la tabla de capitalización y anote la situación de partida."
+   ],
+   [
+    "«La aplicación no corresponde al resultado»",
+    "Reserva legal + dividendos + remanente deben igualar el beneficio; deje vacíos los campos calculados."
+   ]
+  ],
+  "example": "Sociedad ficticia EXEMPLE SAS con capital de 10 000 €: transmisión de 1 000 acciones de Paul MARTIN a Lucie BERNARD.",
+  "buttons": [
+   "Approbation des comptes",
+   "Autre diligence en droit des sociétés",
+   "Ajouter une société existante"
+  ],
+  "version": "5.6.36"
+ },
+ "relances": {
+  "objective": "Preparar cada mañana borradores de recordatorio para las facturas vencidas de Invoice Ninja, a revisar antes de cualquier envío.",
+  "when": "Para seguir los impagos sin olvidar ninguna factura ni reclamar demasiado a menudo.",
+  "prerequisites": "Invoice Ninja conectado (solo lectura); correo para dejar los recordatorios en Borradores.",
+  "steps": [
+   "Abra «Ajustes»: hora, plazo de gracia, intervalo y nivel máximo, y haga clic en «Guardar».",
+   "Cada mañana aparecen los borradores; haga clic en «Preparar ahora» para no esperar.",
+   "Revise destinatario, asunto y mensaje; corrija si es necesario.",
+   "Haga clic en «Dejar en Borradores», «Descartar» o «No volver a reclamar» para una factura en litigio."
+  ],
+  "result": "Un recordatorio por factura y nivel (aviso, reclamación, último aviso), nunca antes del intervalo elegido.",
+  "verify": "Abra Borradores: el recordatorio está ahí; Invoice Ninja nunca se modifica.",
+  "errors": [
+   [
+    "«Invoice Ninja aún no está conectado»",
+    "Configure Invoice Ninja en Ajustes › Conexiones."
+   ],
+   [
+    "Destinatario vacío",
+    "Añada la dirección del cliente en Contactos y CRM o escríbala en el borrador."
+   ]
+  ],
+  "example": "Factura ficticia F-2026-042, pendiente 1 200,00 €, vencida el 1 de septiembre de 2026.",
+  "buttons": [
+   "Préparer maintenant",
+   "Enregistrer"
+  ],
+  "version": "5.6.36"
+ },
+ "complement_word": {
+  "objective": "Usar AxiorHub dentro de Word: playbooks con control de cambios, notas del despacho, reformulación de la selección.",
+  "when": "Para negociar un contrato, insertar una nota validada o reformular un pasaje sin salir de Word.",
+  "prerequisites": "Servidor AxiorHub publicado en HTTPS; Word (Windows, Mac o web); playbooks y notas preparados en Herramientas IA.",
+  "steps": [
+   "Haga clic en «Descargar el manifiesto (manifest.xml)».",
+   "En Word: Insertar › Complementos › Mis complementos › «Cargar mi complemento» y elija el archivo.",
+   "Haga clic en el botón AxiorHub de la pestaña Inicio e inicie sesión.",
+   "Elija un playbook y haga clic en «Analizar el documento», luego «Aplicar» en cada cambio que conserve.",
+   "Para reformular, seleccione un pasaje, escriba la instrucción y haga clic en «Proponer una reformulación»."
+  ],
+  "result": "Los cambios se insertan con control de cambios, para aceptar o rechazar en Word (Revisar).",
+  "verify": "El panel indica cada cambio insertado; un párrafo modificado desde el análisis no se toca.",
+  "errors": [
+   [
+    "El botón no aparece",
+    "Office exige una dirección HTTPS válida; compruebe también que el complemento esté cargado."
+   ],
+   [
+    "«El párrafo ha cambiado desde el análisis»",
+    "Vuelva a lanzar «Analizar el documento»."
+   ]
+  ],
+  "example": "Contrato de servicios ficticio: límite de responsabilidad reducido al precio anual según el playbook «Servicios – lado cliente».",
+  "buttons": [
+   "Télécharger le manifeste (manifest.xml)"
+  ],
+  "version": "5.6.36"
  }
 }

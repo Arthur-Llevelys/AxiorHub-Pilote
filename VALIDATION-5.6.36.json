@@ -1,0 +1,21 @@
+{
+  "version": "5.6.36",
+  "base": "5.6.35 publiée",
+  "date_utc": "2026-10-12T00:00:00+00:00",
+  "cahier_des_charges": "Demandes de l’avocat du 12 octobre 2026 (application Nextcloud par utilisateur, modèle de courrier, notifications, page « Un instant… », envoi direct, agents documentaires, README et confidentialité, initiatives, GED, outils IA, corporate avec « Approbation des comptes » et « Autre diligence », complément Word, agenda Microsoft 365, relances Invoice Ninja, CRM) — matrice CONFORMITE-5.6.36.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1913,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 81,
+    "note": "Aucun échec (suite complète depuis l’archive extraite) ; 81 tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub (umask 022 et 077, migrations root)."
+  },
+  "new_tests": "tests/test_v5636.py (66 tests) : modèle de courrier, surveillance et points à vérifier, missions, base occupée, envoi direct, sélecteur de dossiers, clés personnelles (contrat 1.2), données des pièces, contacts, initiatives, relances, outils IA, corporate, diligences et modèles d’actes du cabinet, Microsoft 365, complément Word, droits des rôles ; application Nextcloud : 21 tests PHPUnit (tests/Unit) et essai de bout en bout PHP → moteur.",
+  "adjusted_tests": [
+    "tests/test_v5632.py : la page « Un instant… » recharge la même adresse (« 3;url=… »)",
+    "tests/test_v5634.py : contrat 1.x (expression régulière) ; 64 fonctions au moins, chacune avec sa ligne de migration",
+    "agent/envoi5636.py lit l’état de l’envoi par la couche web (web490.send_settings_status), conformément à test_v490 : aucun module de l’agent n’atteint le module d’envoi"
+  ]
+}

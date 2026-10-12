@@ -31,7 +31,7 @@ from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles', '/guide-installation')
-ADMIN_API = ('m5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
+ADMIN_API = ('m5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
              'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme', 'm5631/guide/', 'm5632/admin/')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5636/'):   # 5.6.36 : contacts, initiatives, pièces, outils IA, corporate, relances, complément Word
+        from .web5636 import allowed as allowed5636
+        return allowed5636(role, api[len('m5636/'):])
     if role == 'avocat' and api.startswith('m5632/'):
         from .web5632 import LAWYER_ROUTES   # 5.6.32 : travail de l'avocat (contrôle, veille personnelle, compétences, procédure)
         return 'm5632/' + api[len('m5632/'):] in LAWYER_ROUTES                        # 5.6.31 (LG01, GI36) : chaque membre choisit la langue de SON interface
@@ -447,6 +450,10 @@ class StandaloneAuth:
             return self._proxy(env, start, None, preserve_authorization=True)
         if path in ('/reception567/twilio','/reception567/whatsapp'):
             return self._proxy(env,start,None,preserve_authorization=True)
+        if path.startswith('/integration/v1/'):   # 5.6.36 : contrat signé avec l'application Nextcloud (aucune session navigateur)
+            if path == '/integration/v1/pair' and env.get('REQUEST_METHOD') == 'POST':
+                return self._pair5636(env, start)
+            return self._proxy(env, start, None, preserve_authorization=True)
         if path in ('/healthz','/readyz'):
             from .health567 import check
             result=check(getattr(self.app,'config_path',''),readiness=path=='/readyz')
@@ -515,6 +522,30 @@ class StandaloneAuth:
         if not allowed(role, env.get('REQUEST_METHOD', 'GET'), path, action):
             return self._forbidden(start, json_api=path.startswith('/api'))
         return self._proxy(env, start, user)
+
+    def _pair5636(self, env, start):
+        """5.6.36 : appairage d'un compte Nextcloud : adresse et mot de passe vérifiés ici (comptes du cabinet), puis transmis au moteur
+        comme compte vérifié ; en cas d'échec, le moteur compte la tentative (limitation des essais)."""
+        try:
+            length = min(int(env.get('CONTENT_LENGTH') or 0), 20000)
+        except ValueError:
+            length = 0
+        raw = env['wsgi.input'].read(length) if length else b''
+        try:
+            data = json.loads(raw.decode('utf-8') or '{}')
+        except (ValueError, UnicodeError):
+            data = {}
+        email = str(data.get('login') or '').strip().lower()[:200] if isinstance(data, dict) else ''
+        row = self.db.execute('SELECT * FROM users WHERE email=? AND active=1', (email,)).fetchone() if email else None
+        computed = self._hash(str(data.get('password') or '') if isinstance(data, dict) else '', row['salt'] if row else '00' * 16)
+        if row and hmac.compare_digest(row['password_hash'], computed):
+            env['HTTP_X_AXIORHUB_USER'] = row['email']
+            env['HTTP_X_AXIORHUB_ROLE'] = row['role']
+            env['axiorhub.pair_verified'] = '1'
+            self._log(row['email'], 'appairage_nextcloud', self._client(env))
+        env['wsgi.input'] = BytesIO(raw)
+        env['CONTENT_LENGTH'] = str(len(raw))
+        return self._proxy(env, start, None, preserve_authorization=True)
 
     def _forbidden(self, start, json_api=False):
         if json_api:

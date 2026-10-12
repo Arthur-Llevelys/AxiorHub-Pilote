@@ -102,7 +102,7 @@ def report(desk):
             code = json.loads(row['result'] or '{}').get('erreur', '')
         except ValueError:
             code = ''
-        suspended = kind != 'live_mail430' and row['status'] == 'error' and int(row['attempts'] or 0) >= 3
+        suspended = kind != 'live_mail430' and row['status'] == 'error' and int(row['attempts'] or 0) >= 3 and code != 'dossiers_illisibles'
         surveillance.append({'kind': kind, 'label': name, 'state': row['status'], 'reason': code, 'suspended': suspended,
                              'at': (row['finished'] or '')[:16].replace('T', ' ')})
     return {'running': running, 'pending': pending, 'lock': lock_state(desk.c['state_dir']), 'surveillance': surveillance,

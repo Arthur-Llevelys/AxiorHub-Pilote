@@ -59,6 +59,7 @@
       } else { toast(res && typeof res.message === 'string' ? res.message : 'Enregistré.'); }
       if (form.hasAttribute('data-reload')) {
         var go = res && res.id && form.getAttribute('data-api') === 'm500/conflicts/check' ? '?id=' + encodeURIComponent(res.id) : '';
+        if (res && typeof res.goto === 'string' && /^\?[\w=&%.-]*$/.test(res.goto)) { go = res.goto; }   // 5.6.36 : page de l'élément créé (même page)
         setTimeout(function () { if (go) { location.href = location.pathname + go; } else { location.reload(); } }, 500);
       }
     }).catch(function (e) { toast(e.message, true); }).then(function () { busy(btn, false); });
@@ -70,7 +71,9 @@
     ev.preventDefault(); busy(b, true);
     call(b.getAttribute('data-api')).then(function (res) {
       var d = res.download; if (!d) throw new Error('Rien à exporter.');
-      var url = URL.createObjectURL(new Blob([d.text], { type: d.mime + ';charset=utf-8' }));
+      var blob = d.base64 ? new Blob([Uint8Array.from(atob(d.base64), function (c) { return c.charCodeAt(0); })], { type: d.mime })   // 5.6.36 : fichiers Word
+        : new Blob([d.text], { type: d.mime + ';charset=utf-8' });
+      var url = URL.createObjectURL(blob);
       var a = document.createElement('a'); a.href = url; a.download = d.filename; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
     }).catch(function (e) { toast(e.message, true); }).then(function () { busy(b, false); });

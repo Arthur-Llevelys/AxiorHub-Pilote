@@ -27,7 +27,8 @@ ET.register_namespace('w', W)
 DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 FIELDS = {'destinataire', 'qualite', 'adresse', 'reference', 'objet', 'date',
           'envoi', 'appel', 'corps', 'fin', 'signature'}
-REQUIRED = {'destinataire', 'objet', 'date', 'envoi', 'appel', 'corps', 'fin'}
+# 5.6.36 : seule {{corps}} est obligatoire ; un courrier sans « mode d'envoi » ou sans référence reste un modèle valable.
+REQUIRED = {'corps'}
 TOKEN = re.compile(r'\{\{([a-z_]+)\}\}')
 SAMPLE = {'destinataire': 'Madame Martin (exemple fictif)', 'qualite': 'Dirigeante',
           'adresse': '10 rue du Test, 69000 Lyon', 'reference': 'DEMO-001',
@@ -184,16 +185,21 @@ def inspect_template(raw):
                         body_count+=1
                         if name!='word/document.xml' or txt.strip()!='{{corps}}':
                             raise Stop('balise_corps_paragraphe_unique_requise')
-                    if any(not re.fullmatch(r'[a-z_]+',t) or t not in FIELDS
-                           for t in re.findall(r'\{\{([^{}]*)\}\}',txt)):
-                        raise Stop('balise_modele_word_inconnue')
+                    unknown=[t for t in re.findall(r'\{\{([^{}]*)\}\}',txt) if not re.fullmatch(r'[a-z_]+',t) or t not in FIELDS]
+                    if unknown:
+                        from .erreurs5634 import Qualified
+                        raise Qualified('balise_modele_word_inconnue',precision='Balise non reconnue : {{%s}}. Balises possibles : %s.'%(
+                            unknown[0][:40],', '.join('{{%s}}'%f for f in sorted(FIELDS))))
                 instructions=' '.join([*(n.text or '' for n in root.iter('{'+W+'}instrText')),
                     *(n.get('{'+W+'}instr','') for n in root.iter('{'+W+'}fldSimple'))])
                 if re.search(r'\b(?:DATE|TIME|CREATEDATE|SAVEDATE|PRINTDATE)\b',instructions,re.I):
                     raise Stop('date_word_dynamique_refusee')
             if body_count!=1:raise Stop('balise_corps_paragraphe_unique_requise')
-            if placeholders-FIELDS or REQUIRED-placeholders:raise Stop(
-                'balises_modele_word_incompletes_ou_inconnues')
+            if placeholders-FIELDS or REQUIRED-placeholders:
+                from .erreurs5634 import Qualified
+                raise Qualified('balises_modele_word_incompletes_ou_inconnues',precision='Balise(s) manquante(s) : %s.'%', '.join(
+                    '{{%s}}'%f for f in sorted(REQUIRED-placeholders)) if REQUIRED-placeholders else 'Balise(s) inconnue(s) : %s.'%', '.join(
+                    '{{%s}}'%f for f in sorted(placeholders-FIELDS)))
             return {'placeholders':sorted(placeholders),'has_images':images,
                     'has_headers':any(x.startswith('word/header') for x in names),
                     'has_footers':any(x.startswith('word/footer') for x in names),

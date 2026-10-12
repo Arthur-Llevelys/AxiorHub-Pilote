@@ -1,68 +1,95 @@
-# AxiorHub Pilote pour Nextcloud (0.2.0, version de développement)
+# AxiorHub Pilote pour Nextcloud (0.3.0, version de développement)
 
 Application native Nextcloud (PHP + Vue 3) raccordée au moteur AxiorHub par le contrat versionné `/integration/v1`
-(moteur 5.6.35 ou plus récent, contrat 1.1). Cycle de version distinct du moteur.
+(moteur 5.6.36 ou plus récent, contrat 1.2). Cycle de version distinct du moteur.
 
 ## Dépôts
 
 - Application Nextcloud : dépôt dédié `AxiorHub-Pilote-Nextcloud` (https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud),
-  application à la racine, prête à être placée dans `apps/axiorhub_pilote` ; signalements : onglet « Issues » de ce dépôt.
+  application à la racine, prête à être placée dans `apps/axiorhub_pilote` ; signalements : onglet « Issues » de ce dépôt, sans
+  aucune donnée du cabinet.
 - Moteur : dépôt `AxiorHub-Pilote` (https://github.com/Arthur-Llevelys/AxiorHub-Pilote), qui en garde une copie dans `nextcloud-app/`
   pour les archives du moteur. Les deux copies sont identiques à chaque livraison.
 
-## Ce que l'application fait et ne fait pas
+## Ce que l'application fait
 
-- Nextcloud gère la session, l'utilisateur, les permissions de fichiers, les métadonnées propres à l'application et l'interface.
-- Le moteur AxiorHub gère l'indexation, les modèles, les missions, les contrôles, les connecteurs et les résultats versionnés.
-- L'installation de l'application **n'installe ni Python, ni Ollama, ni un serveur de traitement**. Le moteur doit être installé sur le
-  serveur du cabinet (paquet Debian, archive ou Docker) et joignable depuis le serveur Nextcloud. Un poste Windows ou Ubuntu qui peut
-  être éteint n'est pas un moteur fiable pour un Nextcloud hébergé ailleurs.
-- Parcours natifs de cette version : liaison au moteur, choix d'un dossier accessible, préparation de la fiche du dossier, recherche
-  juridique, suivi borné des travaux, annulation, consultation et approbation d'une version précise d'un résultat.
-  Les autres fonctions restent dans l'interface du moteur.
+Après liaison du compte (voir ci-dessous), la page « AxiorHub Pilote » de Nextcloud propose :
+
+- **Pilote** : une instruction écrite, avec le dossier (facultatif) et le résultat attendu — réponse, analyse, projet Word déposé
+  dans le dossier, ou brouillon de courriel déposé dans Brouillons. **Rien n'est envoyé** ;
+- **Rechercher dans les dossiers** : courriels, documents, notes et agenda indexés par le moteur ;
+- **Fiche du dossier** : préparation et lecture complète, décisions Approuver / Refuser / Demander une correction, historique ;
+- **Recherche juridique** : question anonymisée avant tout envoi ;
+- **Travaux récents** : suivi, annulation et réouverture d'un résultat.
+
+Le moteur garde l'indexation, les modèles, les missions et les contrôles ; l'installation de l'application **n'installe ni Python, ni
+Ollama, ni serveur de traitement**. Un poste qui peut être éteint n'est pas un moteur fiable pour un Nextcloud hébergé ailleurs.
+
+## Mise en service
+
+### 1. Dans AxiorHub (une fois, par l'administrateur)
+
+Paramètres › Connexions › **Application Nextcloud** : cochez « Autoriser la liaison des comptes depuis Nextcloud », puis
+« Enregistrer ». Les comptes reliés apparaissent ensuite dans ce même tableau, avec « Révoquer ».
+
+### 2. Dans Nextcloud (chaque avocat, pour son compte)
+
+Paramètres personnels › **AxiorHub Pilote** :
+
+1. adresse d'AxiorHub Pilote (par exemple `https://courriel.exemple.fr/agent-courriel`) ;
+2. identifiant et mot de passe AxiorHub ;
+3. « Relier mon compte ».
+
+Le mot de passe sert **une seule fois** à obtenir une clé personnelle ; il n'est ni conservé, ni journalisé. La clé est chiffrée dans
+les préférences de l'utilisateur et se révoque des deux côtés (« Délier » dans Nextcloud, « Révoquer » dans AxiorHub).
+**Les utilisateurs Nextcloud qui n'ont pas relié de compte n'ont aucun accès** : un collaborateur non avocat ne voit rien.
+
+Si AxiorHub est sur le même serveur que Nextcloud et joint par une adresse locale, cochez « Moteur sur ce serveur (adresse locale) ».
+Si un serveur web placé devant AxiorHub demande une connexion, autorisez sans connexion le chemin `/integration/v1/` (chaque appel y est
+signé).
+
+### Mode d'instance (facultatif, hérité de 0.2.0)
+
+Paramètres d'administration › Paramètres supplémentaires › AxiorHub : adresse, identifiant d'instance et secret partagé (8 caractères
+au moins, identiques à `integration5634` sur le moteur), groupe par défaut ; les dossiers du moteur sont rattachés à des groupes
+Nextcloud. Un utilisateur relié personnellement passe toujours par sa clé personnelle.
 
 ## Sécurité
 
-- Contexte signé à chaque appel (HMAC-SHA256 avec un secret d'instance, utilisateur et périmètre déduits côté serveur, expiration de
-  2 minutes, nonce à usage unique) ; le moteur revérifie le périmètre de chaque dossier, travail et résultat.
-- Secret chiffré et marqué sensible dans la configuration de l'application ; jamais transmis au navigateur.
+- Contexte signé à chaque appel (HMAC-SHA256 : clé personnelle ou secret d'instance, opération signée, expiration de 2 minutes, nonce
+  à usage unique) ; le moteur revérifie les droits du compte pour chaque dossier, travail et résultat.
+- Aucune redirection suivie ; une réponse non JSON du moteur (page d'attente, page de connexion d'un frontal) est qualifiée
+  (`moteur_occupe`, `acces_refuse_par_le_frontal`, `reponse_moteur_invalide`) au lieu d'un « injoignable » trompeur ; une lecture est
+  réessayée une fois quand le moteur est occupé, une écriture jamais.
+- Essais de liaison limités par le moteur (5 échecs en 15 minutes).
 - Fichiers lus par les API publiques (`IRootFolder`, nœuds et permissions), jamais par le répertoire `data`.
 - Routes métier avec protection CSRF (aucun `NoCSRFRequired` ni `PublicPage` hors de la page d'entrée).
 
-## Activer la liaison
-
-1. Sur le moteur (`config.json`) : `"integration5634": {"enabled": true, "instance_id": "<identifiant>", "secret_file": "<chemin du secret>"}`
-   (fichier lisible par le seul compte de service, droits 600). Le secret compte **8 caractères au moins** ; 32 caractères aléatoires
-   sont recommandés (`openssl rand -base64 48`). Les deux côtés appliquent la même règle.
-2. Dans Nextcloud : Paramètres d'administration › Paramètres supplémentaires › AxiorHub : adresse HTTPS du moteur (par exemple
-   `https://courriel.exemple.fr/agent-courriel`), même identifiant d'instance, même secret, groupe autorisé par défaut (`admin` sauf
-   choix contraire). L'enregistrement teste la liaison et **importe les dossiers du moteur** ; le tableau « Dossiers et groupes
-   autorisés » permet ensuite de donner chaque dossier à un groupe. La liste est actualisée toutes les 5 minutes (nouveaux dossiers,
-   intitulés) sans jamais écraser un groupe choisi.
-3. Les administrateurs voient tous les dossiers ; les autres utilisateurs, ceux de leurs groupes.
-
-### Installation manuelle
+## Installation manuelle
 
 Décompresser l'archive dans `apps/` avec le compte du serveur web (sinon Nextcloud signale « Propriétaire des répertoires
 d'applications ») :
 
 ```bash
-sudo -u www-data tar -xzf axiorhub_pilote-0.2.0.tar.gz -C /chemin/nextcloud/apps/
+sudo -u www-data tar -xzf axiorhub_pilote-0.3.0.tar.gz -C /chemin/nextcloud/apps/
 sudo -u www-data php /chemin/nextcloud/occ app:enable axiorhub_pilote
 ```
 
-## Compatibilité
+Mise à jour depuis 0.2.0 : remplacer le dossier `apps/axiorhub_pilote` de la même façon, puis `sudo -u www-data php occ upgrade`.
 
-Cibles : Nextcloud 32 (transition, fin de support en septembre 2026), 33, 34 et 35 ; PHP 8.1 à 8.5 selon la version du serveur.
-**Aucune compatibilité n'est annoncée tant que l'installation réelle et les tests n'ont pas été exécutés** sur chaque combinaison
-(workflow `.github/workflows/nextcloud-app.yml`, lancé manuellement). La signature et la publication sur l'App Store relèvent du
-responsable du projet (certificat, clé privée hors dépôt).
+## Compatibilité et tests
+
+Cibles : Nextcloud 32 à 35 ; PHP 8.1 à 8.5 selon la version du serveur. À chaque envoi, la recette GitHub exécute la syntaxe PHP
+(8.1 et 8.4), les tests unitaires (`composer install`, `vendor/bin/phpunit -c phpunit-unit.xml`) et la construction de l'interface.
+L'installation réelle sur chaque version de Nextcloud (workflow `nextcloud-app.yml`) se lance manuellement ; **aucune compatibilité
+n'est annoncée** avant son succès. La signature et la publication sur l'App Store relèvent du responsable du projet.
 
 ## Construire
 
 ```
-npm ci && npm run build      # actifs compilés dans js/
+npm ci && npm run build      # actifs compilés dans js/ et css/
 ```
 
-Le paquet de diffusion (`scripts/build-package.py` dans le dépôt dédié, `scripts/build-nextcloud-app.py` dans le dépôt du moteur) contient un seul dossier `axiorhub_pilote`, les actifs compilés, `appinfo`,
-`lib`, `templates`, `l10n`, `img`, la licence et cette documentation ; ni `node_modules`, ni sources de développement, ni secret.
+Le paquet de diffusion (`scripts/build-package.py` dans le dépôt dédié, `scripts/build-nextcloud-app.py` dans le dépôt du moteur)
+contient un seul dossier `axiorhub_pilote`, les actifs compilés, `appinfo`, `lib`, `templates`, `l10n`, `img`, la licence et cette
+documentation ; ni `node_modules`, ni `vendor`, ni sources de développement, ni secret.

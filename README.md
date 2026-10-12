@@ -5,7 +5,7 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.35</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.36</p>
 
 <p align="center"><strong>Français</strong> · <a href="README.en.md">English</a> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
@@ -25,7 +25,8 @@ ne dépose rien. Chaque production est un brouillon ou un projet que l'avocat re
 | **Pour qui** | Avocats exerçant seuls ou en petite structure, avec leurs collaborateurs et assistants. |
 | **Où** | Sur le serveur du cabinet (un VPS suffit) : la messagerie et Nextcloud restent les vôtres. |
 | **Avec quelle IA** | Locale (Ollama), externe (Anthropic, OpenAI, Mistral…) **pseudonymisée**, ou les deux. |
-| **Ce qu'il ne fait jamais** | Envoyer un courriel, signer, déposer, fixer seul une date de procédure, inventer une source. |
+| **Ce qu'il ne fait pas de lui-même** | Envoyer un courriel (seul votre clic sur « Envoyer » le fait, si vous l'avez autorisé), signer, déposer, fixer une date de procédure. |
+| **Sources** | Contrôlées dans la mesure du possible, jamais garanties : voir « [Sources et contrôles](#sources-et-contrôles--ce-qui-est-vérifié-ce-qui-reste-à-vous) ». |
 
 ## Ce que fait l'agent
 
@@ -161,7 +162,8 @@ connexions, recette automatique.
   budgets et alertes.
 - **Conflits d'intérêts** : recherche des parties dans les dossiers existants, rapport sourcé ; aucune production pour
   un dossier nouveau tant que l'avocat n'a pas décidé.
-- **Recherche juridique tracée** : une décision n'est citée qu'après vérification sur la source officielle.
+- **Recherche juridique tracée** : une décision est relue sur la source officielle activée avant d’être présentée comme vérifiée ;
+  sinon elle reste une piste à vérifier.
 - **Sources juridiques** : connecteurs JusticeLibre (sans clé), OpenLegi, GoodLegal, LibreJustice et Legal Data Hunter,
   vérifiés (connexion, recherche, lecture d’un texte) avant activation.
 - **Contrôle des références** dans un écrit (« Vérifier ») : articles, lois, décisions et citations entre guillemets
@@ -173,6 +175,23 @@ connexions, recette automatique.
   l’[assistant juridique](resources/skills/assistant-juridique/PROVENANCE.md) de Christophe Quézel-Ambrunaz, AGPL-3.0) ;
   vous pouvez en créer, en importer (SKILL.md ou .zip, textes seulement) ou les copier pour les adapter.
 - **Préparation d'audience** et analyse des écritures adverses (projets supervisés).
+
+### Initiatives, pièces, outils IA et secrétariat juridique (5.6.36)
+
+- **Initiatives** : à réception d’une assignation, l’agent propose un plan (dossier « DEMANDEUR - DÉFENDEUR - référence », pièces jointes
+  rangées, intervenants, audience à l’agenda, courriel au client, note sur les arguments adverses, projet de constitution, demande de
+  pièces au confrère, courrier à la juridiction). Vous corrigez les éléments relevés, décochez ce qui est inutile et validez : seules les
+  étapes cochées s’exécutent, en brouillons et projets.
+- **Données des pièces** : type, date, parties, dates clés, montants, textes cités et demandes de chaque pièce, chacun marqué
+  « documenté » ou « à vérifier », interrogeables dans tout le cabinet ; pièces jointes des courriels rangées dans le dossier.
+- **Outils IA** : grilles d’analyse (mêmes critères relevés dans chaque pièce, avec l’extrait qui fonde chaque valeur), playbooks de
+  négociation appliqués à un contrat Word en modifications suivies, bibliothèque de mémos juridiques sourcés validés par un avocat.
+- **Corporate** : « Approbation des comptes » et « Autre diligence en droit des sociétés » (siège, dirigeants, cession de titres,
+  capital, dissolution…) ; une saisie met à jour la fiche, la table de capitalisation et les registres, puis prépare les actes
+  (modèles du cabinet ou génériques). Vos propres actes et modèles Word s’ajoutent, avec les variables `{{ denomination }}`… Rien n’est signé ni déposé.
+- **Contacts & CRM** : clients, parties, confrères et juridictions reliés à chaque dossier avec leur rôle.
+- **Relances d’impayés** : chaque matin, projets de relance des factures échues d’Invoice Ninja, à relire avant tout envoi.
+- **Microsoft** : complément Word (playbooks, mémos, reformulation dans le document ouvert) et agenda Microsoft 365.
 
 ### Style du cabinet
 
@@ -219,6 +238,30 @@ pseudonymisée. Le tri des courriels et les contrôles restent locaux.
   guide d’utilisation relié aux écrans réels.
 
 <p align="center"><img src="docs/captures/07-mode-sombre.png" alt="Mode sombre" width="700"></p>
+
+## Sources et contrôles : ce qui est vérifié, ce qui reste à vous
+
+AxiorHub réduit le risque d’erreur ; il ne le supprime pas. Un modèle d’IA peut se tromper, résumer de travers ou
+attribuer une phrase à la mauvaise pièce. Le logiciel le dit, contrôle ce qu’il peut contrôler et vous signale le reste.
+
+**Contrôles disponibles**
+- **Faits, dates et montants des pièces** : chaque élément relevé cite un extrait ; la date ou le montant n’est
+  marqué « documenté » que s’il figure dans cet extrait (même devise, même signe), sinon « à vérifier ».
+- **Décisions et textes** : une décision trouvée par un connecteur de recherche est relue sur la source officielle
+  activée avant d’être présentée comme vérifiée ; sans lecture possible, elle reste une « piste ».
+- **Références d’un écrit** (« Vérifier ») : articles, lois, décisions et citations relevés et contrôlés auprès de la
+  source activée, à la date utile : contrôlée, identifiée, à vérifier ou anormale.
+- **Résumé oral du briefing** : chaque nombre est comparé au briefing écrit.
+
+**Limites**
+- La correspondance d’un extrait est textuelle : une paraphrase du modèle reste « à vérifier ».
+- Une pièce mal numérisée (OCR) peut fausser un extrait ; une source indisponible laisse la référence « à vérifier ».
+- Le sens juridique d’une phrase, sa portée et son actualité ne sont pas garantis par ces contrôles.
+- Les traductions de l’interface et des rapports ne sont pas relues par un traducteur juridique.
+
+**Ce qui vous revient**
+Ouvrez la source officielle avant toute citation, relisez chaque projet avant de le valider, et traitez tout élément
+« à vérifier » avant usage. Aucune production d’AxiorHub ne remplace votre contrôle professionnel.
 
 ## Confidentialité d'abord
 
@@ -462,9 +505,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.35.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.35_all.deb --archive dist/axiorhub-mail-agent-5.6.35.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.35_amd64.deb --archive dist/axiorhub-mail-agent-5.6.35.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.36.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.36_all.deb --archive dist/axiorhub-mail-agent-5.6.36.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.36_amd64.deb --archive dist/axiorhub-mail-agent-5.6.36.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 

@@ -5,6 +5,13 @@
 Utilisez le **signalement privé de vulnérabilité** du dépôt GitHub (onglet *Security → Report a vulnerability*).
 N'ouvrez pas de ticket public contenant un secret, une donnée de client ou le détail d'une faille exploitable.
 
+## Signaler une anomalie sans exposer le cabinet
+
+Le code est public ; les données du cabinet ne le sont jamais. Pour une anomalie ordinaire, utilisez le modèle de ticket
+« Signaler une anomalie » et collez-y le texte de « Pourquoi rien n'est produit ? › Préparer un signalement anonymisé » :
+version, état des services, codes d'erreur et origines techniques, sans nom de dossier, de partie, de courriel ni de chemin.
+N'ajoutez ni capture d'écran d'une installation réelle, ni pièce, ni journal brut.
+
 ## Ce qui ne doit jamais être publié
 
 `.env`, `data/`, `deploy/vps/data/`, les bases SQLite, les fichiers `*.secret`, les archives de dossiers, les journaux

@@ -108,7 +108,10 @@ def set_request_mode(mode):
 
 
 def busy_timeout():
-    return 2 if getattr(_TRACKED, 'mode', '') == 'read' else 10
+    """2 s pour afficher une page ; 25 s pour une action de l'avocat ou un appel de l'application Nextcloud (5.6.36 : 10 s ne suffisaient
+    pas derrière un travail de fond et faisaient apparaître « Un instant… ») ; 10 s pour les services de fond."""
+    mode = getattr(_TRACKED, 'mode', '')
+    return 2 if mode == 'read' else (25 if mode == 'write' else 10)
 
 
 def track_connection(owner):

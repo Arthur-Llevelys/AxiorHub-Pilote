@@ -885,6 +885,14 @@ def page(desk, auth, prefix, args, shell):
         from .web5632 import procedure_panel, working_folders_panel
         body += working_folders_panel(desk, prefix, m)
         body += procedure_panel(desk, prefix, m)
+        body += ('<p class="d5636-link"><a class="ax-btn ghost" href="%s">Données des pièces (types, parties, dates, montants, textes cités)</a></p>'
+                 % e(prefix + '/pieces-donnees?dossier=' + m['id'], quote=True))   # 5.6.36 : GED
+    if view == 'fiche':   # 5.6.36 : intervenants du dossier (contacts & CRM)
+        try:
+            from .crm5636 import matter_block
+            body += matter_block(desk, prefix, m['id'])
+        except Stop:
+            pass
     body += '</div>'
     head = '<script defer src="%s/static/v5627.js"></script>' % e(prefix)
     return shell(matter_display(m), body, prefix, auth['csrf'], '/dossiers', head)

@@ -202,6 +202,8 @@ def _job_article(item,prefix,csrf,JOB_LABELS,esc):
     action='retry_job393' if item['status']=='error' else 'cancel_job'
     if item['status'] in ('pending','running','error'):
         html+='<form method="post" action="'+esc(prefix)+'/action" hx-post="'+esc(prefix)+'/action" hx-swap="none"><input type="hidden" name="csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="'+action+'"><input type="hidden" name="job" value="'+str(item['id'])+'"><button>'+('Relancer' if item['status']=='error' else 'Annuler')+'</button></form>'
+    if item['status']=='error':   # 5.6.36 : écarter une demande en erreur (ni relancée, ni signalée ; conservée dans l'historique)
+        html+='<button type="button" class="live-dismiss" data-s5636-dismiss="'+str(item['id'])+'">Écarter</button>'
     if item.get('can_restore'):
         html+='<form method="post" action="'+esc(prefix)+'/action" hx-post="'+esc(prefix)+'/action" hx-swap="none"><input type="hidden" name="csrf" value="'+esc(csrf)+'"><input type="hidden" name="action" value="review_action380"><input type="hidden" name="action_id" value="'+esc(item['action_id'])+'"><input type="hidden" name="state" value="restored"><button>Rétablir l’action écartée</button></form>'
     html+='<a href="'+esc(prefix+item['href'])+'">Ouvrir</a></article>'

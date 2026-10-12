@@ -26,6 +26,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
+import sqlite3
 import json
 from pathlib import PurePosixPath
 import re
@@ -33,8 +34,8 @@ import uuid
 
 from .common import Stop, load_matters, matter_display, read_secret
 
-CONTRACT = '1.1'
-OPERATIONS = {'fiche_dossier': 'fiche_dossier5627', 'recherche_juridique': 'recherche5634'}
+CONTRACT = '1.2'   # 5.6.36 : clés personnelles, instruction au Pilote, recherche dans les dossiers
+OPERATIONS = {'fiche_dossier': 'fiche_dossier5627', 'recherche_juridique': 'recherche5634', 'instruction': 'mission567'}
 MAX_SKEW = timedelta(minutes=5)
 MAX_BODY = 2_000_000
 MANIFEST_TTL = timedelta(hours=24)
@@ -60,6 +61,9 @@ def schema(desk):
                                             ('snapshot', "TEXT NOT NULL DEFAULT ''"), ('snapshot_version', "TEXT NOT NULL DEFAULT ''")))
     _columns(desk, 'integration_manifests5634', (('paths', "TEXT NOT NULL DEFAULT '[]'"),))
     _columns(desk, 'integration_approvals5634', (('comment', "TEXT NOT NULL DEFAULT ''"),))
+    _columns(desk, 'integration_jobs5634', (('mission', "TEXT NOT NULL DEFAULT ''"),))   # 5.6.36 : mission du Pilote
+    from . import integration5636
+    integration5636.schema(desk)
 
 
 def _columns(desk, table, cols):
@@ -112,10 +116,19 @@ def _exp(value):
     return exp.astimezone(timezone.utc)
 
 
-def verify(desk, header, op=None, now=None):
+def verify(desk, header, op=None, now=None, key_id=''):
     """Contexte signé, bien formé, non expiré, à usage unique, émis pour CETTE instance et pour CETTE opération. Renvoie le contexte."""
-    s = _settings(desk.c)
-    secret = _secret(s)
+    from . import integration5636
+    key = integration5636.key_secret(desk, key_id) if key_id else None
+    if key_id and key is None:
+        raise Refused('cle_personnelle_revoquee_ou_inconnue', '401 Unauthorized')
+    if key is None:
+        s = _settings(desk.c)
+        secret = _secret(s)
+    else:
+        if not integration5636.enabled(desk):
+            raise Refused('integration_desactivee', '404 Not Found')
+        s, secret = {'instance_id': 'personnel:' + key['axiorhub_user']}, key['secret']
     header = header if isinstance(header, str) else ''
     if len(header) > 20000 or '.' not in header:
         raise Refused('contexte_absent', '401 Unauthorized')
@@ -155,11 +168,17 @@ def verify(desk, header, op=None, now=None):
     if not cur.rowcount:
         raise Refused('requete_rejouee', '401 Unauthorized')
     ctx['scope'] = list(scope)
+    if key is not None:   # 5.6.36 : le périmètre est celui du compte AxiorHub relié (le cabinet entier), pas celui déclaré par Nextcloud
+        ctx.update(scope=['*'], _key=key['id'], _owner=key['axiorhub_user'], _role=key['role'])
+        integration5636.touch(desk, key['id'])
+    else:
+        ctx.update(_owner='cabinet', _role='administrateur')
     return ctx
 
 
 def _in_scope(ctx, matter):
-    if not isinstance(matter, str) or matter not in ctx['scope'] or not any(m['id'] == matter for m in load_matters_safe(ctx.get('_cfg'))):
+    allowed = ctx['scope'] == ['*'] or matter in ctx['scope']   # 5.6.36 : « * » = tout le cabinet (compte AxiorHub relié)
+    if not isinstance(matter, str) or not allowed or not any(m['id'] == matter for m in load_matters_safe(ctx.get('_cfg'))):
         raise Refused('dossier_hors_perimetre', '403 Forbidden')
 
 
@@ -179,11 +198,24 @@ def handle(desk, method, path, headers, body):
     """Point d'entrée (appelé par la façade web) ; renvoie (statut HTTP, objet JSON)."""
     correlation = uuid.uuid4().hex[:12]
     try:
+        from . import integration5636
         if path == '/integration/v1/health' and method == 'GET':
-            _settings(desk.c)
+            if not integration5636.enabled(desk):
+                raise Refused('integration_desactivee', '404 Not Found')
             from . import __version__
-            return '200 OK', {'version': __version__, 'contract': CONTRACT, 'operations': sorted(OPERATIONS), 'status': 'ok'}
-        ctx = verify(desk, headers.get('HTTP_X_AXIORHUB_CONTEXT'), op=method + ' ' + path)
+            return '200 OK', {'version': __version__, 'contract': CONTRACT, 'operations': sorted(OPERATIONS), 'status': 'ok',
+                              'personal_accounts': bool(desk.settings(integration5636.SETTING, False))}
+        if path == '/integration/v1/pair' and method == 'POST':   # 5.6.36 : seule route non signée qui écrit (identifiants vérifiés)
+            if len(body or b'') > 20000:
+                raise Refused('requete_trop_longue', '413 Payload Too Large')
+            try:
+                data = json.loads((body or b'{}').decode('utf-8') or '{}')
+            except (ValueError, UnicodeError):
+                raise Refused('json_invalide') from None
+            if not isinstance(data, dict):
+                raise Refused('objet_json_requis')
+            return '200 OK', integration5636.pair(desk, headers, data)
+        ctx = verify(desk, headers.get('HTTP_X_AXIORHUB_CONTEXT'), op=method + ' ' + path, key_id=str(headers.get('HTTP_X_AXIORHUB_KEY') or ''))
         ctx['_cfg'] = desk.c
         data = {}
         if method == 'POST':
@@ -197,6 +229,14 @@ def handle(desk, method, path, headers, body):
                 raise Refused('objet_json_requis')
         if path == '/integration/v1/matters' and method == 'GET':
             return '200 OK', matters(desk, ctx)
+        if path == '/integration/v1/me' and method == 'GET':
+            return '200 OK', integration5636.me(desk, ctx)
+        if path == '/integration/v1/unpair' and method == 'POST':
+            return '200 OK', integration5636.unpair(desk, ctx)
+        if path == '/integration/v1/search' and method == 'GET':
+            from urllib.parse import parse_qs
+            q = {k: v[0] for k, v in parse_qs(str(headers.get('QUERY_STRING', ''))).items()}
+            return '200 OK', integration5636.search(desk, ctx, q)
         if path == '/integration/v1/source-manifests' and method == 'POST':
             return '200 OK', manifest(desk, ctx, data)
         if path == '/integration/v1/jobs' and method == 'POST':
@@ -215,6 +255,14 @@ def handle(desk, method, path, headers, body):
     except (TypeError, ValueError, KeyError, AttributeError) as ex:   # F13 : jamais de trace brute vers le client
         _log(desk, correlation, ex)
         return '400 Bad Request', _error('requete_invalide', 'controle', False, correlation)
+    except sqlite3.OperationalError as ex:   # 5.6.36 : base momentanément occupée → JSON réessayable, jamais la page HTML d'attente
+        if 'locked' not in str(ex).lower() and 'busy' not in str(ex).lower():
+            raise
+        try:
+            desk.db.rollback()
+        except sqlite3.Error:
+            pass
+        return '503 Service Unavailable', _error('moteur_occupe', 'base', True, correlation)
 
 
 def _log(desk, correlation, ex):
@@ -330,7 +378,13 @@ def _validate(desk, ctx, data):
         _in_scope(ctx, matter)
     manifest_id = data.get('manifest_id') or ''
     args = {'operation': op, 'matter': matter, 'manifest_id': manifest_id}
-    if op == 'recherche_juridique':
+    if op == 'instruction':   # 5.6.36 : mission du Pilote (réponse, analyse, projet, brouillon déposé ; jamais d'envoi)
+        from . import integration5636
+        question, intent = integration5636.validate_instruction(data)
+        if manifest_id:
+            raise Refused('manifeste_non_applicable')
+        args.update(question=question, intent=intent, idem=idem)
+    elif op == 'recherche_juridique':
         question = data.get('question')
         question = question.strip() if isinstance(question, str) else ''
         if not 3 <= len(question) <= 3000:
@@ -341,7 +395,7 @@ def _validate(desk, ctx, data):
     else:
         schema(desk)
         args['only'] = _manifest_paths(desk, ctx, matter, manifest_id)
-    content = hashlib.sha256(json.dumps({k: args[k] for k in ('operation', 'matter', 'manifest_id', 'question') if k in args},
+    content = hashlib.sha256(json.dumps({k: args[k] for k in ('operation', 'matter', 'manifest_id', 'question', 'intent') if k in args},
                                         sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     return idem, args, content
 
@@ -364,7 +418,7 @@ def create_job(desk, ctx, data):
         if row is not None:
             if row['content_hash'] and row['content_hash'] != content:
                 raise Refused('cle_idempotence_deja_utilisee', '409 Conflict')
-            if row['job'] is not None or row['state'] in ('cancelled', 'failed'):
+            if row['job'] is not None or row['mission'] or row['state'] in ('cancelled', 'failed'):
                 desk.db.commit()
                 return {'job_id': row['id'], 'state': 'existing', 'status_url': '/integration/v1/jobs/' + row['id']}
             ident = row['id']   # réservation sans travail (ancienne version) : la demande valide la reprend
@@ -375,10 +429,15 @@ def create_job(desk, ctx, data):
                             "VALUES(?,?,?,?,?,?,?,NULL,?,'pending',?,?)",
                             (ident, ctx['instance'], ctx['user'], idem, args['operation'], args['matter'], args['manifest_id'],
                              datetime.now(timezone.utc).isoformat(), content, json.dumps(args, ensure_ascii=False)))
-        job = _enqueue(desk, args)   # même transaction : la réservation n'est validée qu'avec son travail
+        mission = ''
+        if args['operation'] == 'instruction':
+            from . import integration5636
+            job, mission = integration5636.start_instruction(desk, ctx, args)
+        else:
+            job = _enqueue(desk, args)   # même transaction : la réservation n'est validée qu'avec son travail
         if not desk.db.in_transaction:
             desk.db.execute('BEGIN IMMEDIATE')
-        desk.db.execute('UPDATE integration_jobs5634 SET job=? WHERE id=?', (job, ident))
+        desk.db.execute('UPDATE integration_jobs5634 SET job=?, mission=? WHERE id=?', (job, mission or '', ident))
         desk.db.commit()
     except BaseException:
         if desk.db.in_transaction:
@@ -391,10 +450,10 @@ def _repair(desk):
     """Réservations sans travail (interruption entre réservation et mise en file, ou versions 5.6.34) : reprise si la demande est
     complète, sinon clôture explicite « échec » avec motif."""
     limit = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
-    for row in desk.db.execute("SELECT id,args FROM integration_jobs5634 WHERE job IS NULL AND state='pending' AND created<?", (limit,)).fetchall():
+    for row in desk.db.execute("SELECT id,args FROM integration_jobs5634 WHERE job IS NULL AND mission='' AND state='pending' AND created<?", (limit,)).fetchall():
         args = json.loads(row['args'] or '{}')
         try:
-            if args.get('operation') not in OPERATIONS:
+            if args.get('operation') not in OPERATIONS or args.get('operation') == 'instruction':
                 raise Stop('demande_incomplete')
             job = _enqueue(desk, args)
             desk.db.execute('UPDATE integration_jobs5634 SET job=? WHERE id=?', (job, row['id']))
@@ -415,6 +474,9 @@ def _own(desk, ctx, ident):
 
 def job_status(desk, ctx, ident):
     row = _own(desk, ctx, ident)
+    if row['mission']:
+        from . import integration5636
+        return integration5636.instruction_status(desk, ctx, row)
     if row['state'] in ('cancelled', 'failed') and not row['job']:
         errors = [_error(row['error'].split(':')[0] or 'travail_non_cree', 'reservation', True, '')] if row['state'] == 'failed' else []
         return {'job_id': ident, 'state': row['state'], 'stage': '', 'result_id': '', 'errors': errors}
@@ -467,10 +529,16 @@ def result(desk, ctx, ident):
     if row['snapshot']:
         payload = json.loads(row['snapshot'])
         return {**_shape(ident, row['operation'], row['snapshot_version'], payload), 'decisions': _decisions(desk, ident)}
-    job = desk.db.execute('SELECT status,result FROM jobs WHERE id=?', (row['job'],)).fetchone() if row['job'] else None
-    if not job or job['status'] != 'done':
-        raise Refused('resultat_indisponible', '409 Conflict', retryable=True)
-    produced = json.loads(job['result'] or '{}') or {}
+    if row['mission']:
+        from . import integration5636
+        if integration5636.instruction_status(desk, ctx, row)['state'] != 'succeeded':
+            raise Refused('resultat_indisponible', '409 Conflict', retryable=True)
+        produced = integration5636.instruction_payload(desk, ctx, row)
+    else:
+        job = desk.db.execute('SELECT status,result FROM jobs WHERE id=?', (row['job'],)).fetchone() if row['job'] else None
+        if not job or job['status'] != 'done':
+            raise Refused('resultat_indisponible', '409 Conflict', retryable=True)
+        produced = json.loads(job['result'] or '{}') or {}
     if row['operation'] == 'fiche_dossier':
         from .dossier5627 import corrections, version as fiche_version
         number = produced.get('version')

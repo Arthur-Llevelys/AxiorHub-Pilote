@@ -172,6 +172,9 @@ def handle(desk, name, data, method='POST', args=None):
         return voice490.interpret(str(data.get('transcript', '')), str(data.get('body', '')))
     if name == 'send/settings':
         return send490.set_enabled(desk, bool(data.get('enabled')), str(data.get('confirm', '')))
+    if name == 'send/options':   # 5.6.36
+        return send490.set_options(desk, data.get('all_matters') if 'all_matters' in data else None,
+                                   data.get('confirm_each') if 'confirm_each' in data else None, str(data.get('confirm', '')))
     if name == 'send/matter':
         return send490.set_matter(desk, str(data.get('matter', '')), bool(data.get('enabled')), str(data.get('confirm', '')))
     if name == 'send/prepare':
@@ -195,6 +198,11 @@ def handle(desk, name, data, method='POST', args=None):
 
 
 # ------------------------------------------------------------------------------------------- 5.6.28 : messagerie
+def send_settings_status(desk):
+    """5.6.36 : état de l'envoi (lecture seule) pour le bloc « Envoi depuis AxiorHub » ; seule la couche web touche au module d'envoi."""
+    return send490.status(desk)
+
+
 def webmail_status(desk):
     st = send490.status(desk)
     return {'enabled': bool(st.get('enabled')), 'smtp': bool(st.get('smtp_configured'))}

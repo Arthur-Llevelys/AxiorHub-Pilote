@@ -25,7 +25,40 @@ class MatterService {
 		private IGroupManager $groups,
 		private EngineClient $engine,
 		private EngineSettings $settings,
+		private UserLink $links,
 	) {
+	}
+
+	/**
+	 * 0.3.0 : liste affichée à l'utilisateur. Compte relié : dossiers du compte AxiorHub, lus au moteur (recherche par nom ou référence) ;
+	 * sinon : dossiers rattachés à ses groupes Nextcloud.
+	 * @return array{matters: list<array{matter:string,label:string}>, total:int, code?:string}
+	 */
+	public function listFor(string $userId, string $q = ''): array {
+		$needle = mb_strtolower(trim($q));
+		if ($this->links->linked($userId)) {
+			$out = $this->engine->call('GET', '/integration/v1/matters', $userId, ['*']);
+			if ($out['status'] !== 200 || !isset($out['body']['matters']) || !is_array($out['body']['matters'])) {
+				return ['matters' => [], 'total' => 0, 'code' => (string)($out['body']['code'] ?? 'moteur_injoignable'),
+					'message' => (string)($out['body']['message'] ?? '')];
+			}
+			$rows = [];
+			foreach ($out['body']['matters'] as $row) {
+				$ref = (string)($row['id'] ?? '');
+				$label = (string)($row['label'] ?? $ref);
+				if ($ref === '' || !empty($row['archived'])) {
+					continue;
+				}
+				if ($needle === '' || str_contains(mb_strtolower($label . ' ' . $ref), $needle)) {
+					$rows[] = ['matter' => $ref, 'label' => $label];
+				}
+			}
+			return ['matters' => array_slice($rows, 0, 50), 'total' => count($rows)];
+		}
+		$rows = array_values(array_filter($this->visible($userId),
+			fn (Matter $m) => $needle === '' || str_contains(mb_strtolower($m->getLabel() . ' ' . $m->getMatterRef()), $needle)));
+		return ['matters' => array_map(fn (Matter $m) => ['matter' => $m->getMatterRef(), 'label' => $m->getLabel()], array_slice($rows, 0, 50)),
+			'total' => count($rows)];
 	}
 
 	/** @return Matter[] */
@@ -39,10 +72,16 @@ class MatterService {
 
 	/** @return string[] */
 	public function scope(string $userId): array {
+		if ($this->links->linked($userId)) {
+			return ['*'];   // compte relié : le moteur applique les droits du compte AxiorHub
+		}
 		return array_map(fn (Matter $m) => $m->getMatterRef(), $this->visible($userId));
 	}
 
 	public function allowed(string $userId, string $matterRef): bool {
+		if ($this->links->linked($userId)) {
+			return preg_match('/^[A-Za-z0-9_.-]{1,80}$/', $matterRef) === 1;   // revérifié par le moteur
+		}
 		return in_array($matterRef, $this->scope($userId), true);
 	}
 

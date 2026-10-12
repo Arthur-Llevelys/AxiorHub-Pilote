@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+STATIC = {'/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -184,8 +184,10 @@ def human(code):
         'texte_a_ajouter_vide': 'Dites ce qu’il faut ajouter.',
         'aucune_phrase_a_supprimer': 'Il n’y a plus de phrase à supprimer dans le corps du message.',
         'dictee_locale_non_configuree': 'La passerelle Vocal locale n’est pas activée : la dictée vocale est indisponible.',
-        'envoi_desactive': 'L’envoi depuis AxiorHub est désactivé. Utilisez « Ouvrir dans la messagerie ».',
-        'envoi_non_active_pour_ce_dossier': 'L’envoi n’est pas autorisé pour le dossier de ce brouillon (page Confort).',
+        'envoi_desactive': 'L’envoi depuis AxiorHub est désactivé : activez « Autoriser l’envoi quand je clique sur Envoyer » dans Paramètres › '
+                           'Messagerie, ou utilisez « Ouvrir dans la messagerie ».',
+        'envoi_non_active_pour_ce_dossier': 'L’envoi n’est pas autorisé pour le dossier de ce brouillon : dans Paramètres › Messagerie, choisissez '
+                                            '« Tous les dossiers » ou cochez ce dossier.',
         'envoi_dossier_non_identifie': 'Le dossier de ce brouillon n’est pas identifié : l’envoi est refusé. Utilisez « Ouvrir dans la messagerie ».',
         'confirmation_envoi_requise': 'Cochez la case de confirmation avant d’activer l’envoi.',
         'smtp_non_configure': 'Aucun serveur d’envoi (SMTP) n’est configuré.',
@@ -298,7 +300,7 @@ def route(env, cfg, auth, prefix, path, args, method):
         name = path.rsplit('/', 1)[1]
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
-    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation', '/competences', '/decision', '/audiences', '/reviser', '/recherche-juridique', '/surveillance') or path in _pages500() or path.startswith('/api440/')):
+    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation', '/competences', '/decision', '/audiences', '/reviser', '/recherche-juridique', '/surveillance') or path in _pages500() or path.startswith('/api440/') or path in _pages5636()):
         return None
     from . import shell501
     shell501.set_context(cfg)
@@ -308,6 +310,10 @@ def route(env, cfg, auth, prefix, path, args, method):
             return api(env, desk, auth, prefix, path[len('/api440/'):], args, method)
         if method != 'GET':
             return {'status': '405 Method Not Allowed', 'kind': 'text/plain; charset=utf-8', 'body': 'Méthode refusée.'}
+        if path in _pages5636():   # 5.6.36 : contacts, initiatives, pièces, outils IA, corporate, relances, complément Word
+            from . import pages5636
+            out5636 = pages5636.page(desk, auth, prefix, env, args, path, shell)
+            return out5636 if isinstance(out5636, dict) else page_out(out5636)
         if path in ('/decision', '/audiences', '/reviser', '/recherche-juridique', '/surveillance'):   # 5.6.34 : parcours simplifiés
             from . import web5634
             if path == '/decision':
@@ -423,8 +429,25 @@ def route(env, cfg, auth, prefix, path, args, method):
             pass
 
 
+def _pages5636():
+    from .pages5636 import PAGES
+    return PAGES
+
+
 def api(env, desk, auth, prefix, name, args, method):
     from . import drafts440, office440, notices440
+    if name.startswith('m5636/'):   # 5.6.36 : points à vérifier, demandes écartées, contacts, initiatives, GED, outils, corporate…
+        from . import web5636
+        try:
+            return web5636.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            precision = str((getattr(error, 'detail', None) or {}).get('precision', ''))[:400]
+            message = REASONS.get(code) or explain(code, getattr(error, 'detail', None))
+            return json_out({'error': code, 'message': message + (' ' + precision if precision else '')},
+                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5634/'):   # 5.6.34 : sélecteurs, décisions, alertes, audiences, révision, recherche, agenda local, profil du modèle
         from . import web5634
         try:

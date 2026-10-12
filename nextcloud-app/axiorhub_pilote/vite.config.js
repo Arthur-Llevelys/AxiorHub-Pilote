@@ -12,7 +12,7 @@ export default defineConfig({
 		cssCodeSplit: false,
 		sourcemap: false,
 		rollupOptions: {
-			input: { 'axiorhub_pilote-main': 'src/main.js', 'axiorhub_pilote-admin': 'src/admin.js' },
+			input: { 'axiorhub_pilote-main': 'src/main.js', 'axiorhub_pilote-admin': 'src/admin.js', 'axiorhub_pilote-personal': 'src/personal.js' },
 			output: {
 				entryFileNames: '[name].mjs',
 				chunkFileNames: 'axiorhub_pilote-[name]-[hash].chunk.mjs',

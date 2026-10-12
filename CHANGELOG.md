@@ -3,6 +3,53 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.36 — Application Nextcloud par utilisateur, notifications apaisées, initiatives, données des pièces, outils IA, corporate
+
+Demandes de l’avocat du 12 octobre 2026 (correctifs, application Nextcloud, nouvelles fonctions). Détail demande par demande, avec
+les tests et les limites : `CONFORMITE-5.6.36.md`.
+
+- **Application Nextcloud 0.3.0** : chaque utilisateur relie son propre compte AxiorHub dans ses paramètres personnels Nextcloud
+  (adresse, identifiant, mot de passe échangé contre une clé personnelle révocable) ; un utilisateur non relié n’a aucun accès.
+  Interface complète : instruction au Pilote, recherche dans les dossiers, fiche, recherche juridique, travaux récents. « Moteur
+  injoignable » corrigé : réponses JSON même quand la base est occupée (nouvel essai automatique), appels signés accessibles sans
+  session en mode Docker, diagnostic précis dans l’application. Contrat d’intégration 1.2 (appairage, `instruction`, recherche).
+- **Modèle de courrier** : seule la balise `{{corps}}` est obligatoire ; un refus nomme la balise manquante ou inconnue.
+- **Notifications** : le bandeau rouge d’« Aujourd’hui » devient un indicateur neutre ; le détail « Points à vérifier » est en bas
+  de page, repliable, avec un bouton par point (relancer, écarter les erreurs déjà vues, voir) ; un dossier illisible ne suspend plus
+  la surveillance des autres ; la file pleine n’est plus une erreur. Barre d’activité repliable, repliée par défaut sur toutes les
+  pages. Les demandes de l’agent et les missions s’annulent ou se retirent de la liste.
+- **Pilote** : fenêtre centrée (l’icône reste à droite), utilisable sur téléphone.
+- **« Un instant… »** : page graphique qui se recharge seule ; lectures réessayées automatiquement ; les écritures longues sont
+  mesurées et affichées dans le diagnostic.
+- **Envoi direct** : réglage « Autoriser l’envoi quand je clique sur « Envoyer » » (Paramètres › Messagerie), pour tous les dossiers
+  ou certains, avec ou sans confirmation ; l’agent n’envoie jamais rien de lui-même.
+- **Agents documentaires** : dossiers choisis en cliquant dans Nextcloud, réglages en cases et boutons.
+- **README et confidentialité** : la promesse « jamais » sur les sources est remplacée par les contrôles réels, leurs limites et la
+  validation attendue de l’avocat ; signalement d’anomalie anonymisé ; modèles de ticket GitHub ; contrôle de confidentialité étendu
+  aux métadonnées des images et aux journaux.
+- **Initiatives** : à réception d’une assignation, plan d’actions proposé (dossier « DEMANDEUR - DÉFENDEUR - référence », pièces
+  jointes rangées, intervenants, audience à l’agenda, courriel au client, note sur les arguments adverses, projet de constitution,
+  courriel au confrère pour les pièces, courrier à la juridiction), corrigé et validé par l’avocat, puis exécuté étape par étape
+  (brouillons et projets seulement).
+- **Données des pièces (GED)** : type, date, parties, dates clés, montants, textes cités et demandes de chaque pièce, avec leur statut,
+  interrogeables dans tout le cabinet et exportables ; pièces jointes des courriels rangées dans « PJ courriels » du dossier.
+- **Outils IA** : grilles d’analyse sourcées, playbooks de négociation appliqués à un contrat Word en modifications suivies (copie et
+  note de justification), bibliothèque de mémos juridiques validés.
+- **Corporate** : boutons « Approbation des comptes » et « Autre diligence en droit des sociétés » ; sociétés, approbation des comptes
+  (dix actes, dont rapport de gestion établi à partir des comptes en PDF), transfert de siège, changement de dirigeant, cession de
+  titres (une saisie, quatre effets), augmentation ou réduction de capital, dissolution, transformation et autres diligences,
+  création de société selon sa forme ; table de capitalisation, registres des mouvements de titres et des décisions ; champs
+  personnalisés. Modèles d’actes du cabinet : « Mes actes » (vos propres actes, proposés dans les opérations choisies) ou un modèle
+  par acte, choisi dans Nextcloud ou importé depuis le poste ; variables `{{denomination}}` ou `{{ denomination }}` listées sous
+  chaque formulaire avec un exemple fictif ; balises inconnues signalées dès l’enregistrement.
+- **Contacts & CRM** : clients, parties, confrères, juridictions et experts reliés aux dossiers ; bloc « Intervenants » du dossier.
+- **Relances d’impayés** : chaque matin, projets de relance des factures échues d’Invoice Ninja (lecture seule), à valider.
+- **Microsoft** : complément Word (playbooks, mémos, reformulation, en modifications suivies) et agenda Microsoft 365 (copie des
+  événements AxiorHub, lecture des rendez-vous Outlook).
+- **Droits** : les nouvelles actions suivent les rôles (administrateur, avocat, assistant) aussi en mode Docker.
+- **Traductions** : écrans, messages et fiches d’aide nouveaux en anglais, allemand et espagnol ; les actes générés restent en
+  français.
+
 ## 5.6.35 — Corrective : preuves ancrées dans l’extrait, agenda fiable, contrat Nextcloud 1.1, application Nextcloud utilisable
 
 Audit de la 5.6.34 (fiches F01 à F18 et améliorations proposées) et anomalies relevées sur un serveur en production. Détail fiche

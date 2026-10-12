@@ -12,12 +12,13 @@ from html import escape
 
 from .cabinet_docs33 import FIELDS, REQUIRED, SAMPLE, inspect_template
 
-ROLES = {'destinataire': 'Nom du destinataire', 'qualite': 'Qualité du destinataire (facultatif)', 'adresse': 'Adresse du destinataire (facultatif)',
-         'reference': 'Référence du dossier (facultatif)', 'objet': 'Objet du courrier', 'date': 'Date du courrier (figée à la préparation)',
+ROLES = {'destinataire': 'Nom du destinataire', 'qualite': 'Qualité du destinataire', 'adresse': 'Adresse du destinataire',
+         'reference': 'Référence du dossier', 'objet': 'Objet du courrier', 'date': 'Date du courrier (figée à la préparation)',
          'envoi': 'Mode d’envoi (courriel, courrier simple, recommandé)', 'appel': 'Formule d’appel', 'corps': 'Corps du courrier (seul dans son paragraphe)',
-         'fin': 'Formule de fin', 'signature': 'Signature texte (facultatif)'}
+         'fin': 'Formule de fin', 'signature': 'Signature texte'}
 ORDER = ('destinataire', 'qualite', 'adresse', 'reference', 'date', 'envoi', 'objet', 'appel', 'corps', 'fin', 'signature')
-RULES = ('Écrivez chaque balise telle quelle, accolades comprises, sans espace : {{objet}}.',
+RULES = ('Seule la balise {{corps}} est obligatoire ; mettez les autres là où votre courrier en a besoin (5.6.36).',
+         'Écrivez chaque balise telle quelle, accolades comprises, sans espace : {{objet}}.',
          'La balise {{corps}} est seule dans son paragraphe ; le texte du courrier y est inséré paragraphe par paragraphe.',
          'Aucun champ de date automatique de Word (DATE, TIME…) : la date du projet est figée à la préparation.',
          'Les liens externes et modèles attachés sont neutralisés à l’import ; l’en-tête, le pied de page, le logo et les tableaux sont conservés.',

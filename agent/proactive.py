@@ -227,10 +227,15 @@ def monitor_all(desk,args):
     matters=sorted((m for m in load_matters(desk.c) if m['id'] in active),key=lambda x:x['id'])
     remaining=[m for m in matters if m['id']>after]
     free=max(0,98-desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0])
-    selected=remaining[:min(limit,free)]
-    for matter in selected:desk.enqueue('monitor_matter',{'matter':matter['id']},priority=60)
-    return {'dossiers_mis_en_attente':len(selected),'suite':len(remaining)>len(selected),
-            'after':selected[-1]['id'] if selected else after}
+    selected=[]
+    for matter in remaining[:min(limit,free)]:
+        try:desk.enqueue('monitor_matter',{'matter':matter['id']},priority=60)
+        except Stop as ex:
+            if str(ex)!='file_attente_pleine':raise
+            break   # 5.6.36 : plafond des travaux automatiques atteint : le lot s'arrête là, la suite reprendra au prochain passage
+        selected.append(matter)
+    return {'dossiers_mis_en_attente':len(selected),'suite':len(remaining)>len(selected) and bool(selected),
+            'after':selected[-1]['id'] if selected else after,'reporte':len(remaining)-len(selected)}
 
 
 def signals(desk,state='open',matter='',limit=100):

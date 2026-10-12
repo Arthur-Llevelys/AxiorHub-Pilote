@@ -17,7 +17,7 @@ from . import fonctions5631 as reg
 from . import i18n5631 as i18n
 
 ROOT = Path(__file__).resolve().parent / 'aide'
-VERSION = '5.6.35'   # version du guide d'utilisation (fiches relues pour cette version)
+VERSION = '5.6.36'   # version du guide d'utilisation (fiches relues pour cette version)
 # Parcours par besoin (GU02) : identifiant, fonctions dans l'ordre d'usage.
 PATHS = (('analyser_dossier', ('dossiers', 'documents', 'recherche', 'verification')),
          ('preparer_reponse', ('courriels', 'assistant', 'documents')),

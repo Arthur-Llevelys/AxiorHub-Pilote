@@ -5,7 +5,7 @@
 <p align="center"><strong>The AI execution agent for law firms</strong><br>
 Emails, case files, exhibits, deadlines, calendar and draft documents, on your own server, with a local AI or a pseudonymised external AI.</p>
 
-<p align="center">Created by <strong>Timo RAINIO</strong>, member of the Lyon Bar · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.35</p>
+<p align="center">Created by <strong>Timo RAINIO</strong>, member of the Lyon Bar · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.36</p>
 
 <p align="center"><a href="README.md">Français</a> · <strong>English</strong> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
@@ -28,7 +28,8 @@ Every output is a draft that the lawyer reviews, corrects and approves.
 | **For whom** | Lawyers practising alone or in small firms, with their associates and assistants. |
 | **Where** | On the firm's server (a VPS is enough) or on a Windows or Ubuntu workstation: the mailbox and Nextcloud remain yours. |
 | **Which AI** | Local (Ollama), external (Anthropic, OpenAI, Mistral…) **pseudonymised**, or both. |
-| **What it never does** | Send an email, sign, file, set a procedural date on its own, invent a source. |
+| **What it does not do on its own** | Send an email (only your click on “Send” does, if you have allowed it), sign, file, set a procedural date. |
+| **Sources** | Checked as far as possible, never guaranteed: see “[Sources and checks](#sources-and-checks-what-is-verified-what-remains-yours)”. |
 
 ## What the agent does
 
@@ -160,7 +161,8 @@ connections, automatic acceptance tests.
 - **Time and fees**: time entries proposed from actual activity, counted only once approved; budgets and alerts.
 - **Conflicts of interest**: search for the parties in existing case files, sourced report; no production for a new
   case file until the lawyer has decided.
-- **Traceable legal research**: a decision is cited only after checking it against the official source.
+- **Traceable legal research**: a decision is read again on the enabled official source before being shown as verified;
+  otherwise it stays a lead to check.
 - **Legal sources**: connectors JusticeLibre (no key), OpenLegi, GoodLegal, LibreJustice and Legal Data Hunter, checked
   (connection, search, reading a text) before being enabled.
 - **Reference check** in a document ("Verify"): articles, statutes, decisions and quotations are extracted and checked
@@ -171,6 +173,23 @@ connections, automatic acceptance tests.
   Quézel-Ambrunaz's [legal assistant](resources/skills/assistant-juridique/PROVENANCE.md), AGPL-3.0); you can create,
   import (SKILL.md or .zip, text only) or copy them to adapt them.
 - **Hearing preparation** and analysis of the opposing party's submissions (supervised drafts).
+
+### Initiatives, documents, AI tools and corporate secretarial work (5.6.36)
+
+- **Initiatives**: when a writ of summons arrives, the agent proposes a plan (case file “CLAIMANT - DEFENDANT - reference”, attachments
+  filed, parties involved, hearing in the calendar, email to the client, note on the opposing arguments, draft notice of appearance,
+  request for documents to opposing counsel, letter to the court). You correct the extracted details, untick what is not needed and
+  approve: only ticked steps run, as drafts.
+- **Document data**: type, date, parties, key dates, amounts, cited texts and claims of each document, each marked “documented” or
+  “to check”, searchable across the firm; email attachments filed in the case file.
+- **AI tools**: analysis grids (the same criteria extracted from each document, with the excerpt behind each value), negotiation
+  playbooks applied to a Word contract as tracked changes, a library of sourced legal memos approved by a lawyer.
+- **Corporate**: “Approval of accounts” and “Other company law matter” (registered office, directors, share transfer, capital,
+  dissolution…); one entry updates the record, cap table and registers, then prepares the deeds (firm or generic templates). Your own deeds and Word
+  templates can be added, with variables such as `{{ denomination }}`. Nothing is signed or filed.
+- **Contacts & CRM**: clients, parties, fellow lawyers and courts linked to each case file with their role.
+- **Payment reminders**: every morning, reminder drafts for overdue Invoice Ninja invoices, reviewed before anything is sent.
+- **Microsoft**: Word add-in (playbooks, memos, rewording in the open document) and Microsoft 365 calendar.
 
 ### Firm style
 
@@ -215,6 +234,30 @@ OpenRouter), always pseudonymised. Email triage and checks remain local.
   linked to the actual screens.
 
 <p align="center"><img src="docs/captures/07-mode-sombre.png" alt="Dark mode" width="700"></p>
+
+## Sources and checks: what is verified, what remains yours
+
+AxiorHub reduces the risk of error; it does not remove it. An AI model can be wrong, summarise inaccurately or attribute a
+sentence to the wrong document. The software says so, checks what it can check and flags the rest.
+
+**Available checks**
+- **Facts, dates and amounts from documents**: each item quotes an excerpt; a date or amount is marked “documented” only if it
+  appears in that excerpt (same currency, same sign), otherwise “to check”.
+- **Decisions and texts**: a decision found by a search connector is read again on the enabled official source before being
+  shown as verified; if it cannot be read, it stays a “lead”.
+- **References in a document** (“Check”): articles, statutes, decisions and quotations are listed and checked against the
+  enabled source, at the relevant date: checked, identified, to check or anomalous.
+- **Spoken summary of the briefing**: every number is compared with the written briefing.
+
+**Limits**
+- Excerpt matching is textual: a paraphrase by the model stays “to check”.
+- A badly scanned document (OCR) can distort an excerpt; an unavailable source leaves the reference “to check”.
+- The legal meaning of a sentence, its scope and whether it is still good law are not guaranteed by these checks.
+- Translations of the interface and reports are not reviewed by a legal translator.
+
+**What remains yours**
+Open the official source before any citation, review every draft before validating it, and resolve any “to check” item before
+use. No AxiorHub output replaces your professional review.
 
 ## Privacy first
 
@@ -315,8 +358,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (in French).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.35.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.35_all.deb --archive dist/axiorhub-mail-agent-5.6.35.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.36.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.36_all.deb --archive dist/axiorhub-mail-agent-5.6.36.tar.gz
 python scripts/build-windows.py dist/windows   # on Windows, after pip install -r scripts/windows-requirements.txt
 ```
 

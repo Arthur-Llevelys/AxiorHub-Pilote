@@ -84,7 +84,10 @@ def _links(prefix, items):
 def _connexions(desk, auth, prefix, env, cap):
     from . import web567
     html = web567.connections_page(desk, auth, prefix, env, shell=cap, exclude=VOICE_GROUPS + ('Profil du modèle',))
-    return _section(html) + _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier')
+    from .integration5636 import settings_html as _app_nextcloud   # 5.6.36 : comptes Nextcloud reliés (clés personnelles révocables)
+    from .microsoft5636 import settings_html as _microsoft   # 5.6.36 : agenda Microsoft 365 (Outlook)
+    return (_section(html) + _section(_app_nextcloud(desk, prefix)) + _section(_microsoft(desk, prefix, env)) +
+            _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
 
 def _ia(desk, auth, prefix, env, cap):
@@ -151,7 +154,8 @@ RELATED = (('/mise-en-service', 'Mise en service'), ('/parametres/agents', 'Agen
 
 def _messagerie(desk, auth, prefix, env, cap):
     from .web5632 import courrier_section
-    return _section(courrier_section(desk, prefix))
+    from .envoi5636 import settings_html
+    return _section(settings_html(desk, prefix) + courrier_section(desk, prefix))
 
 
 def _veille(desk, auth, prefix, env, cap):

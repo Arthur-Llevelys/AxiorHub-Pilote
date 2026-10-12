@@ -1,0 +1,109 @@
+"""5.6.36 : messages lisibles des refus les plus fréquents (avant : code brut affiché, « balises modele word incompletes … »).
+
+Chaque message dit ce qui bloque et comment le corriger, sans jargon. Ajoutés à web.REASONS au chargement de l'interface.
+"""
+
+REASONS = {
+    # modèles Word du cabinet (import d'un modèle de courrier)
+    'balise_modele_word_inconnue': 'Votre modèle contient une balise que AxiorHub ne connaît pas : corrigez son orthographe (accolades comprises, '
+                                   'sans espace ni majuscule) ou supprimez-la.',
+    'balises_modele_word_incompletes_ou_inconnues': 'Votre modèle ne contient pas toutes les balises nécessaires : seule {{corps}} est '
+                                                    'obligatoire.',
+    'balise_corps_paragraphe_unique_requise': 'La balise {{corps}} doit apparaître une seule fois, seule dans son paragraphe (dans le corps '
+                                              'de la page, pas dans l’en-tête ni le pied de page).',
+    'date_word_dynamique_refusee': 'Votre modèle contient un champ de date automatique de Word (DATE, TIME…) : remplacez-le par la balise '
+                                   '{{date}}, la date du courrier étant figée à sa préparation. Les numéros de page sont acceptés.',
+    'lien_externe_modele_word_refuse': 'Votre modèle charge un élément externe (image liée, modèle attaché) : enregistrez-le avec les images '
+                                       'incorporées puis importez-le à nouveau.',
+    'modele_word_actif_refuse': 'Votre modèle contient des macros ou des contrôles actifs : enregistrez-le au format « Document Word (.docx) » '
+                                'sans macro puis importez-le à nouveau.',
+    'modele_word_docx_invalide': 'Ce fichier n’est pas un document Word (.docx) lisible : ouvrez-le dans Word puis « Enregistrer sous » '
+                                 '« Document Word (.docx) ».',
+    'modele_word_xml_invalide': 'Ce document Word contient une structure refusée par sécurité : enregistrez-le à nouveau depuis Word.',
+    'modele_word_trop_volumineux': 'Ce modèle est trop volumineux (images très lourdes) : réduisez la taille des images puis importez-le.',
+    'taille_modele_word_invalide': 'Ce fichier est vide ou dépasse 8 Mo.',
+    'type_modele_word_invalide': 'Choisissez un fichier Word au format .docx.',
+    'nom_modele_word_invalide': 'Le nom du fichier contient des caractères non pris en charge : renommez-le (lettres, chiffres, espaces, '
+                                'tirets) en gardant l’extension .docx.',
+    'previsualisation_libreoffice_poppler_requise': 'L’aperçu du modèle exige LibreOffice sur cette machine : installez-le (Paramètres › '
+                                                    'Guide d’installation) puis importez à nouveau.',
+    'rendu_word_indisponible': 'LibreOffice n’a pas pu produire l’aperçu de ce modèle : réessayez ; s’il est ouvert dans Word, fermez-le.',
+    'previsualisation_word_trop_longue': 'Ce modèle dépasse le nombre de pages accepté pour un modèle de courrier.',
+    'validation_visuelle_modele_requise': 'Contrôlez l’aperçu de toutes les pages puis cochez la case de confirmation avant de valider.',
+    'modele_word_deja_decide': 'Ce modèle a déjà été validé ou écarté.',
+    'modele_word_modifie': 'Le fichier du modèle a changé depuis son import : importez-le à nouveau.',
+    'modele_word_absent': 'Ce modèle n’existe plus.',
+    'modele_word_non_valide': 'Validez d’abord ce modèle (aperçu contrôlé) avant de l’utiliser.',
+    'nextcloud_non_configure': 'Nextcloud n’est pas encore relié : renseignez son adresse, l’identifiant et le mot de passe d’application '
+                               '(Paramètres › Connexions › Nextcloud), enregistrez, puis choisissez les dossiers.',
+    'dossier_introuvable': 'Ce dossier n’existe plus (renommé ou supprimé) : remontez au dossier parent.',
+    # base momentanément occupée
+    'base_occupee': 'AxiorHub termine une autre opération ; votre demande est reprise automatiquement dans quelques secondes.',
+}
+
+# Messages des fonctions 5.6.36 : ajoutés seulement là où aucun message n'existe déjà (jamais en remplacement).
+DEFAULTS = {
+    'role_insuffisant': 'Cette action est réservée à un autre rôle du cabinet (avocat ou administrateur).',
+    'dossier_absent': 'Choisissez d’abord un dossier existant.',
+    'dossier_du_courriel_a_preciser': 'Rattachez d’abord ce courriel à un dossier (« Choisir le dossier »), puis rangez ses pièces jointes.',
+    'contact_absent': 'Ce contact n’existe plus.',
+    'contact_nom_requis': 'Indiquez au moins le nom du contact.',
+    'contact_caracteres_invalides': 'Un champ du contact contient des caractères non pris en charge (caractères de contrôle) : retapez-le.',
+    'contact_courriel_invalide': 'L’adresse électronique du contact n’est pas valide.',
+    'contact_siren_invalide': 'Le SIREN comporte 9 chiffres (14 pour un SIRET).',
+    'role_contact_invalide': 'Choisissez le rôle du contact dans la liste.',
+    'initiative_absente': 'Cette initiative n’existe plus ou a déjà été traitée.',
+    'aucune_etape_choisie': 'Cochez au moins une étape à exécuter.',
+    'date_audience_invalide': 'Indiquez la date d’audience au format AAAA-MM-JJ et l’heure au format HH:MM (ou décochez « Inscrire l’audience à l’agenda »).',
+    'relance_absente': 'Ce projet de relance n’existe plus ou a déjà été traité.',
+    'courriel_absent': 'Ce courriel n’est plus disponible dans la messagerie.',
+    'emplacement_du_dossier_a_choisir': 'Indiquez l’emplacement du nouveau dossier dans Nextcloud (par exemple /Cabinet/Dossiers).',
+    'nom_client_invalide': 'Indiquez le nom du client (au moins deux caractères) pour nommer le dossier.',
+    'nom_dossier_invalide': 'Le nom du dossier ne doit contenir ni « / » ni « \\ ».',
+    'nextcloud_ou_dossier_local_a_configurer': 'Reliez d’abord Nextcloud ou un dossier de travail local (Paramètres › Connexions).',
+    'grille_criteres_requis': 'Indiquez au moins un critère (une ligne par critère).',
+    'playbook_absent': 'Ce playbook n’existe plus.',
+    'playbook_positions_requises': 'Indiquez au moins une position : « Clause : … » puis « Position : … » (une position par bloc).',
+    'playbook_nom_requis': 'Donnez un nom au playbook.',
+    'grille_absente': 'Cette grille n’existe plus.',
+    'memo_absent': 'Ce mémo n’existe plus.',
+    'memo_titre_et_texte_requis': 'Indiquez le titre et le texte du mémo.',
+    'memo_question_trop_courte': 'Formulez la question juridique en une phrase complète.',
+    'contrat_docx_requis': 'Choisissez un contrat au format Word (.docx).',
+    'societe_absente': 'Cette société n’existe plus dans le registre du cabinet.',
+    'societe_sans_dossier': 'Rattachez d’abord la société à un dossier du cabinet (fiche de la société) : les actes y sont rangés dans « JURIDIQUE ».',
+    'forme_societe_inconnue': 'Choisissez la forme de la société dans la liste.',
+    'denomination_requise': 'Indiquez la dénomination de la société.',
+    'montant_invalide': 'Un montant n’est pas un nombre (exemple : 12500 ou 12 500,50).',
+    'resultat_requis': 'Indiquez le résultat de l’exercice (négatif en cas de perte).',
+    'resultat_invalide': 'Le résultat de l’exercice n’est pas un nombre.',
+    'affectation_incoherente': 'L’affectation ne correspond pas au résultat : réserve légale + dividendes + report à nouveau doivent égaler le bénéfice (aucun dividende en cas de perte).',
+    'nouveau_siege_requis': 'Indiquez l’adresse du nouveau siège.',
+    'dirigeant_requis': 'Indiquez le nom du nouveau dirigeant.',
+    'nature_modification_requise': 'Décrivez la modification décidée.',
+    'nombre_titres_invalide': 'Le nombre de titres doit être un nombre entier positif.',
+    'cessionnaire_requis': 'Indiquez le cessionnaire.',
+    'capital_requis': 'Indiquez le capital social.',
+    'titres_format': 'Une ligne par titulaire : « Nom ; nombre de titres » (nombre entier positif).',
+    'associes_format': 'Une ligne par associé : « Nom ; apport en € ; nombre de titres ».',
+    'capital_incoherent': 'La somme des apports et le nombre de titres × valeur nominale doivent être égaux au capital.',
+    'associe_unique_requis': 'Une SASU ou une EURL n’a qu’un associé.',
+    'nom_acte_requis': 'Donnez un nom à l’acte.',
+    'modele_acte_requis': 'Choisissez le modèle Word de l’acte (dans Nextcloud ou importé depuis le poste).',
+    'operation_acte_requise': 'Cochez au moins une opération où proposer cet acte.',
+    'acte_absent': 'Cet acte n’existe plus dans « Mes actes ».',
+    'aucun_document_choisi': 'Cochez au moins un acte à préparer.',
+    'operation_inconnue': 'Cette opération n’est pas proposée.',
+    'cession_titres_insuffisants': 'Le cédant ne détient pas assez de titres pour cette cession : vérifiez la table de capitalisation.',
+    'invoice_ninja_non_configure': 'Invoice Ninja n’est pas encore relié : Paramètres › Connexions › Facturation.',
+    'microsoft_identifiant_application_invalide': 'L’identifiant d’application Microsoft a la forme 00000000-0000-0000-0000-000000000000.',
+    'microsoft_annuaire_invalide': 'Annuaire Microsoft : « common », « organizations » ou le nom de domaine / l’identifiant de votre annuaire.',
+    'microsoft_connexion_refusee': 'Microsoft a refusé la connexion : vérifiez l’adresse de redirection, les autorisations accordées et le secret client.',
+    'microsoft_etat_invalide': 'La connexion Microsoft a expiré ou a été ouverte deux fois : recommencez « Se connecter à Microsoft 365 ».',
+    'microsoft_reponse_invalide': 'Réponse inattendue de Microsoft : réessayez dans quelques minutes.',
+    'selection_word_requise': 'Sélectionnez un passage (12 000 caractères au plus) dans le document.',
+    'consigne_requise': 'Indiquez la consigne de reformulation.',
+    'reformulation_vide': 'Le modèle n’a pas proposé de texte : reformulez la consigne.',
+    'microsoft365_non_configure': 'Microsoft 365 n’est pas encore relié : renseignez l’application Microsoft (Paramètres › Connexions › '
+                                  'Microsoft 365) puis cliquez « Se connecter à Microsoft 365 ».',
+}

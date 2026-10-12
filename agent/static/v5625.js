@@ -172,6 +172,7 @@
         });
         panel.appendChild(pj);
       }
+      if (window.axh5636 && window.axh5636.mailTools) panel.appendChild(window.axh5636.mailTools(m));   // 5.6.36 : ranger les PJ, plan d'actions
       panel.appendChild(replyList(m));
       var ownNote = m.own ? el('p', { 'class': 'ax-muted', text: 'Message envoyé par le cabinet : la réponse sera adressée à ses destinataires.' }) : null;
       var select = el('select', { id: 'bx5625-matter' }, [el('option', { value: '', text: 'Choisir le dossier…' }),

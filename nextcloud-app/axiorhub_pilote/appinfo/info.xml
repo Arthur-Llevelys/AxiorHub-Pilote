@@ -6,10 +6,12 @@
     <summary>Assistant for law firms: case sheets, hearings, legal research and validated work, using the AxiorHub engine</summary>
     <description><![CDATA[AxiorHub Pilote brings the AxiorHub engine into Nextcloud: case sheets with sources and coverage, hearing preparation, legal research and work that the lawyer reviews and approves.
 
-**Requires a separately installed AxiorHub engine** (version 5.6.35 or later, contract /integration/v1 1.1) reachable from this Nextcloud server. Installing this app installs neither Python, nor Ollama, nor any processing server. A workstation that may be switched off is not a reliable engine for a hosted Nextcloud.
+**Requires a separately installed AxiorHub engine** (version 5.6.36 or later, contract /integration/v1 1.2) reachable from this Nextcloud server.
 
-Nextcloud manages the session, users, file permissions and the native interface; the engine manages indexing, models, missions, checks and versioned results. Development version 0.2.0: compatibility is announced only after real installation and tests on each declared server version.]]></description>
-    <version>0.2.0</version>
+Each lawyer links his or her own AxiorHub account in Personal settings › AxiorHub Pilote (the password is used once and never stored); Nextcloud users without a linked account have no access. Then: instructions to the Pilote, search in the cases, case sheet, legal research, recent work and decisions. Installing this app installs neither Python, nor Ollama, nor any processing server. A workstation that may be switched off is not a reliable engine for a hosted Nextcloud.
+
+Nextcloud manages the session, users, file permissions and the native interface; the engine manages indexing, models, missions, checks and versioned results. Development version 0.3.0: compatibility is announced only after real installation and tests on each declared server version.]]></description>
+    <version>0.3.0</version>
     <licence>agpl</licence>
     <author mail="101706410+Arthur-Llevelys@users.noreply.github.com" homepage="https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud">Timo RAINIO</author>
     <namespace>AxiorhubPilote</namespace>
@@ -31,6 +33,8 @@ Nextcloud manages the session, users, file permissions and the native interface;
     </background-jobs>
     <settings>
         <admin>OCA\AxiorhubPilote\Settings\Admin</admin>
+        <personal>OCA\AxiorhubPilote\Settings\Personal</personal>
+        <personal-section>OCA\AxiorhubPilote\Settings\PersonalSection</personal-section>
     </settings>
     <navigations>
         <navigation>

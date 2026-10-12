@@ -241,9 +241,11 @@ def diagnostic_page(desk, auth, prefix, args, shell):
     d = diagnosis(desk)
     html = ('<div class="d520"><h1>Pourquoi rien n’est produit ?</h1><p class="ax-muted">Un seul écran pour comprendre une panne : services, file de travail, '
             'erreurs récentes et leur motif, dossiers bloqués, connexions et dernière recette automatique.</p>')
-    if d['problems']:
-        html += '<div class="d520-verdict ko" role="alert"><strong>%d point(s) à traiter :</strong><ul>%s</ul></div>' % (
-            len(d['problems']), ''.join('<li>%s</li>' % e(p) for p in d['problems']))
+    from . import sante5636
+    points = sante5636.checks(desk)
+    if points:   # 5.6.36 : ton informatif et, pour chaque point, le bouton qui le règle
+        html += '<div class="d520-verdict s5636-verdict" role="status"><strong>%d point(s) à vérifier</strong> — AxiorHub continue de travailler.%s</div>' % (
+            len(points), sante5636.items_html(points, prefix))
     else:
         html += '<div class="d520-verdict ok" role="status"><strong>Aucune cause de blocage détectée.</strong> Si rien n’est produit, testez les connexions ci-dessous.</div>'
     rows = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td></tr>' % (
@@ -255,12 +257,21 @@ def diagnostic_page(desk, auth, prefix, args, shell):
         for h in d['heartbeats'])
     html += ('<section class="ax-card"><h2>Services</h2><table class="vf-table"><thead><tr><th>Service</th><th>État relu</th><th>Statut</th></tr></thead><tbody>%s</tbody></table>'
              '<h3>Derniers signes de vie</h3><table class="vf-table"><thead><tr><th>Contrôle</th><th>Dernier signal</th><th>Statut</th></tr></thead><tbody>%s</tbody></table>'
-             '<p class="vf-note">Un worker « vivant » peut être occupé par un long travail : voir « File de travail ». %s</p></section>') % (_relaunch_hint(desk.c),
-        rows or '<tr><td colspan="3">État des services non lisible depuis l’interface.</td></tr>', beats or '<tr><td colspan="3">Aucun signal enregistré.</td></tr>')
+             '<p class="vf-note">Un worker « vivant » peut être occupé par un long travail : voir « File de travail ». %s</p></section>') % (
+        rows or '<tr><td colspan="3">État des services non lisible depuis l’interface.</td></tr>', beats or '<tr><td colspan="3">Aucun signal enregistré.</td></tr>',
+        _relaunch_hint(desk.c))   # 5.6.36 : ordre des colonnes rétabli (la consigne de relance s'affichait dans le tableau des services)
     html += _queue_html(d)
     html += mail_pipeline_html(desk, prefix)
     errs = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (e(x['at']), e(x['kind']), e(x['matter']), e(x['reason'])) for x in d['errors'])
-    html += ('<section class="ax-card"><h2>Erreurs des 7 derniers jours</h2>%s<p><a href="%s">Reprendre une demande dans « État du système »</a></p></section>') % (
+    html += sante5636.unreadable_html(desk, prefix)
+    html += ('<section class="ax-card" id="signalement"><h2>Signaler une anomalie</h2><p class="vf-note">Le texte préparé ne contient que la version, '
+             'l’état des services et des codes d’erreur : aucun nom de dossier, de partie, de courriel ni de chemin. Relisez-le, puis collez-le dans un '
+             'ticket ; n’y joignez jamais de capture d’écran ou de pièce d’un vrai dossier.</p><button type="button" class="ax-btn ghost" '
+             'data-s5636-report>Préparer un signalement anonymisé</button><textarea class="s5636-report" data-no-dictation readonly hidden rows="12"></textarea></section>')
+    html += ('<section class="ax-card" id="erreurs"><h2>Erreurs des 7 derniers jours</h2>%s<p><a href="%s">Reprendre une demande dans « État du système »</a></p>'
+             + ('<form class="m5-form m5-inline m5-mini" data-api="m5636/erreurs/ecarter" data-reload="1" data-confirm="Écarter ces erreurs ? Elles restent dans '
+                'l’historique ; les nouvelles erreurs seront de nouveau signalées."><button class="ax-btn ghost" type="submit">Écarter ces erreurs (déjà vues)</button></form>'
+                if d['errors'] else '') + '</section>') % (
         ('<table class="vf-table"><thead><tr><th>Date</th><th>Demande</th><th>Dossier</th><th>Motif</th></tr></thead><tbody>%s</tbody></table>' % errs) if errs
         else '<p class="ok">Aucune erreur.</p>', e(prefix + '/etat-systeme'))
     blocked = ''.join('<li><a href="%s">%s</a> — %s</li>' % (e('%s/conflits?matter=%s' % (prefix, b['matter']), quote=True), e(b['label']), e(b['why'])) for b in d['blocked'])

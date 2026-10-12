@@ -1,0 +1,36 @@
+name: Signaler une anomalie
+description: Un comportement inattendu d'AxiorHub Pilote (aucune donnée du cabinet, jamais).
+labels: [anomalie]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ce ticket est public.** N'y mettez aucune donnée du cabinet : pas de nom de client ou de partie, pas d'objet ou de texte de
+        courriel, pas de capture d'écran d'une installation réelle, pas de pièce, pas de chemin de serveur, pas de journal brut.
+        Dans AxiorHub, « Pourquoi rien n'est produit ? » › « Préparer un signalement anonymisé » donne un texte sans ces données.
+        Une faille de sécurité se signale en privé (onglet Security › Report a vulnerability), jamais ici.
+  - type: textarea
+    id: quoi
+    attributes:
+      label: Ce qui se passe
+      description: Ce que vous avez fait, ce que vous attendiez, ce qui s'est produit (avec des exemples fictifs si besoin).
+    validations:
+      required: true
+  - type: textarea
+    id: signalement
+    attributes:
+      label: Signalement anonymisé
+      description: Collez ici le texte de « Préparer un signalement anonymisé » (relu).
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: 5.6.36
+  - type: checkboxes
+    id: confidentialite
+    attributes:
+      label: Confidentialité
+      options:
+        - label: Je confirme que ce ticket ne contient aucune donnée de client, de partie ou de dossier, ni capture d'une installation réelle.
+          required: true

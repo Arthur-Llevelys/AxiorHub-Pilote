@@ -44,8 +44,15 @@ class JobController extends Controller {
 	}
 
 	#[NoAdminRequired]
-	public function create(string $operation, string $matter = '', string $question = '', array $fileIds = [], string $idempotencyKey = ''): DataResponse {
+	public function create(string $operation, string $matter = '', string $question = '', array $fileIds = [], string $idempotencyKey = '', string $intent = 'auto'): DataResponse {
 		$uid = $this->uid();
+		// 0.3.0 : opérations connues seulement ; « instruction » = mission du Pilote (réponse, analyse, projet, brouillon déposé — jamais d'envoi)
+		if (!in_array($operation, ['fiche_dossier', 'recherche_juridique', 'instruction'], true)) {
+			return new DataResponse(['code' => 'operation_inconnue'], Http::STATUS_BAD_REQUEST);
+		}
+		if (!in_array($intent, ['auto', 'question', 'analysis', 'document', 'mail'], true)) {
+			return new DataResponse(['code' => 'resultat_attendu_invalide'], Http::STATUS_BAD_REQUEST);
+		}
 		if ($matter !== '' && !$this->matters->allowed($uid, $matter)) {
 			return new DataResponse(['code' => 'dossier_hors_perimetre'], Http::STATUS_FORBIDDEN);
 		}
@@ -64,6 +71,7 @@ class JobController extends Controller {
 		}
 		$out = $this->engine->call('POST', '/integration/v1/jobs', $uid, $scope, [
 			'operation' => $operation, 'matter' => $matter, 'question' => $question, 'manifest_id' => $manifestId, 'idempotency_key' => $idempotencyKey,
+			'intent' => $intent,
 		]);
 		if ($out['status'] < 400 && isset($out['body']['job_id'])) {
 			$job = new Job();

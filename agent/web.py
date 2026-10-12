@@ -123,7 +123,12 @@ REASONS.update({
  'service_redemarre_verifier_avant_relance':'Le service a redémarré pendant ce travail. Contrôlez la destination avant de relancer pour éviter un doublon.',
  'depot_automatique_desactive':'Le dépôt automatique est désactivé dans vos réglages ; le projet reste à examiner.',
  'requete_en_cours_verifier_activite':'Cette demande est déjà réservée. Vérifiez son résultat dans le panneau Activité avant de la relancer.'})
-JOB_LABELS = {'fiche_dossier5627':'Préparation de la fiche du dossier (résumé, faits, parties, chronologie)','extract_facts460':'Recherche de faits dans les pièces du dossier','analyze_deadline450':'Analyse d’une pièce (événement de départ et échéance)','analyze_notice440':'Analyse d’un avis de procédure (dates, agenda, brouillon)','live_mail430':'Contrôle des courriels et préparation des réponses',
+from .messages5636 import REASONS as _REASONS5636, DEFAULTS as _DEFAULTS5636   # 5.6.36 : refus lisibles (modèles Word, base occupée, fonctions)
+REASONS.update(_REASONS5636)
+for _k5636, _v5636 in _DEFAULTS5636.items():
+    REASONS.setdefault(_k5636, _v5636)
+JOB_LABELS = {'microsoft5636': 'Agenda Microsoft 365 : copie et lecture des rendez-vous', 'corporate5636': 'Corporate : préparation des actes de l’opération', 'outils5636': 'Outils IA : grille d’analyse, playbook ou mémo juridique', 'relances5636': 'Préparation des relances d’impayés (Invoice Ninja, lecture seule)', 'initiative5636': 'Initiative : analyse du courriel ou exécution du plan validé',
+              'pj_courriel5636': 'Rangement des pièces jointes d’un courriel dans le dossier','fiche_dossier5627':'Préparation de la fiche du dossier (résumé, faits, parties, chronologie)','extract_facts460':'Recherche de faits dans les pièces du dossier','analyze_deadline450':'Analyse d’une pièce (événement de départ et échéance)','analyze_notice440':'Analyse d’un avis de procédure (dates, agenda, brouillon)','live_mail430':'Contrôle des courriels et préparation des réponses',
               'live_calendar430':'Surveillance des échéances et audiences',
               'live_documents430':'Surveillance des documents des dossiers',
               'sync':'Découverte des dossiers et correspondants','approve':'Confirmation d’association',
@@ -502,16 +507,22 @@ class App:
                     _public={'status':'400 Bad Request','kind':'application/json','body':json.dumps({'error':'accueil_configuration_ou_message_invalide'})}
                 finally:_desk567.db.close()
             elif _path.startswith('/integration/v1/'):   # 5.6.34 (chap. 9.6) : contrat avec l'application Nextcloud (contexte signé, pas de session)
+                set_request_mode('write')   # 5.6.36 : chaque appel signé écrit son nonce ; 2 s d'attente ne suffisaient pas
                 from .integration5634 import handle as _integration
                 _desk34=Desk(load_config(self.config_path))
                 try:
                     _raw=env['wsgi.input'].read(min(int(env.get('CONTENT_LENGTH') or 0),2_000_001)) if env['REQUEST_METHOD']=='POST' else b''
+                    env['axiorhub.auth']=auth   # 5.6.36 : appairage d'un compte Nextcloud vérifié avec le compte du serveur
                     _st,_obj=_integration(_desk34,env['REQUEST_METHOD'],_path,env,_raw)
                 finally:_desk34.db.close()
                 _public={'status':_st,'kind':'application/json; charset=utf-8','body':json.dumps(_obj,ensure_ascii=False)}
             elif _path=='/poste-session' and auth.get('poste') and env['REQUEST_METHOD']=='GET':   # 5.6.25 : jeton de lancement du poste
                 from .poste_session import exchange
                 _public=exchange(self.auth_path,env,_prefix)
+            elif _path=='/static/axiorhub-icon-192.png' and env['REQUEST_METHOD'] in ('GET','HEAD'):
+                # 5.6.36 : icône du complément Word, téléchargée par Office sans la session AxiorHub (aucune donnée du cabinet)
+                _public={'status':'200 OK','kind':'image/png','body':(Path(__file__).parent/'static'/'axiorhub-icon-192.png').read_bytes() if env['REQUEST_METHOD']=='GET' else b'',
+                         'csp':"default-src 'none'"}
             elif _path=='/pwa/manifest.webmanifest' and env['REQUEST_METHOD'] in ('GET','HEAD'):
                 # Le manifeste ne contient aucune donnée de dossier : nom, icône, adresses de démarrage.
                 from .mobile490 import manifest as _manifest490
@@ -553,6 +564,8 @@ class App:
                     headers.extend(_r440.get('headers',[]))
                     if _r440.get('csp'):
                         headers=[(n,_r440['csp'] if n=='Content-Security-Policy' else v) for n,v in headers]
+                    if _r440.get('frame_office'):   # 5.6.36 : volet du complément Word (Word sur le web l'affiche dans un cadre Office)
+                        headers=[(n,v) for n,v in headers if n!='X-Frame-Options']
                 elif path=='/live/events' and env['REQUEST_METHOD']=='GET':
                     from .live430 import stream
                     after=live_cursor(env.get('HTTP_LAST_EVENT_ID') or args.get('after') or 0)
@@ -1026,9 +1039,11 @@ class App:
             status='400 Bad Request'
             if wants_json(env,kind):
                 kind='application/json; charset=utf-8'   # 5.6.15 : jamais de page HTML dans une réponse attendue en JSON
-                body=json.dumps({'error':str(ex),'message':REASONS.get(str(ex),str(ex).replace('_',' '))},ensure_ascii=False)
+                _precision=str((getattr(ex,'detail',None) or {}).get('precision',''))[:400]   # 5.6.36 : erreur qualifiée (balise nommée…)
+                body=json.dumps({'error':str(ex),'message':(REASONS.get(str(ex),str(ex).replace('_',' '))+(' '+_precision if _precision else ''))},ensure_ascii=False)
             else:
-                body='<h1>Action non effectuée</h1><p>'+e(REASONS.get(str(ex),str(ex).replace('_',' ')))+'</p>'
+                _precision=str((getattr(ex,'detail',None) or {}).get('precision',''))[:400]
+                body='<h1>Action non effectuée</h1><p>'+e(REASONS.get(str(ex),str(ex).replace('_',' ')))+'</p>'+('<p>'+e(_precision)+'</p>' if _precision else '')
                 if str(ex) in ('conflit_a_examiner','dossier_decline_conflit'):
                     body+='<p><a href="'+e((locals().get('prefix') or '/agent-courriel')+'/conflits')+'">Ouvrir les conflits d’intérêts à examiner</a></p>'
                 if str(ex)=='origine_refusee':
@@ -1685,6 +1700,9 @@ class App:
             main+=form('mark_handled','Ignorer',{'key':key,'back':'inbox'})
             chooser_matter='<label>Dossier<select required name="matter">'+opts+'</select></label><p>Cette action confirme seulement le dossier ; le rôle reste indépendant.</p>'
             main+='<details class="chooser"><summary>📁 Choisir le dossier</summary>'+form('confirm_matter','Confirmer le dossier et retraiter',{'mail_key':key},chooser_matter)+'<p>'+link('/dossiers','Dossier absent de la liste ? Chercher ou créer dans Nextcloud',state='all',mail_key=key)+'</p></details></div>'
+            main+='<p class="s5636-pj">'   # 5.6.36 : pièces jointes rangées dans « PJ courriels » du dossier ; plan d'actions proposé
+            if selected:main+='<button type="button" class="secondary" data-s5636-pj="'+e(key)+'" data-matter="'+e(selected)+'">📎 Ranger les pièces jointes dans le dossier</button> '
+            main+='<button type="button" class="secondary" data-s5636-plan="'+e(key)+'">🧭 Proposer un plan d’actions</button> <span class="s5636-pj-out" role="status"></span></p>'
             manual=desk.db.execute('SELECT data FROM manual_drafts WHERE mail_key=?',(key,)).fetchone()
             if manual:
                 draft=json.loads(manual[0]);value=draft['result']
@@ -2005,7 +2023,7 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
-        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
 def fold_for_search(value):
@@ -2042,16 +2060,49 @@ def internal_error_response(env,kind,config_path=''):
     error=sys.exc_info()[1]
     log_interface_error(env,config_path)
     if isinstance(error,sqlite3.OperationalError) and 'locked' in str(error).lower():
+        try:
+            from .ecritures5636 import note_busy
+            note_busy(config_path,env)
+        except Exception:
+            pass
         if wants_json(env,kind):
-            return '503 Service Unavailable','application/json; charset=utf-8',json.dumps({'error':'base_occupee','message':BUSY_MESSAGE,'retry_after':3},ensure_ascii=False)
-        return ('503 Service Unavailable','text/html; charset=utf-8','<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta http-equiv="refresh" content="3">'
-                '<title>Un instant · AxiorHub Pilote</title></head><body><h1>Un instant…</h1><p>'+e(BUSY_MESSAGE)+'</p></body></html>')
+            return '503 Service Unavailable','application/json; charset=utf-8',json.dumps({'error':'base_occupee','message':BUSY_JSON_MESSAGE,'retry_after':3},ensure_ascii=False)
+        return '503 Service Unavailable','text/html; charset=utf-8',busy_page(env)
     if wants_json(env,kind):
         return '500 Internal Server Error','application/json; charset=utf-8',json.dumps({'error':'interface_indisponible','message':INTERNAL_ERROR_MESSAGE},ensure_ascii=False)
     return '500 Internal Server Error',kind,'<h1>Interface indisponible</h1><p>Vérifiez les services et les fichiers de configuration locaux. Le détail est consigné dans « erreurs-interface.log ».</p>'
 
 
 BUSY_MESSAGE='AxiorHub termine une écriture en cours ; la page se recharge automatiquement dans quelques secondes.'
+BUSY_JSON_MESSAGE='AxiorHub termine une autre opération : réessayez dans quelques secondes (rien n’a été perdu).'
+
+
+def busy_page(env):
+    """5.6.36 : page d'attente lisible (avant : texte brut « Un instant… » qui ressemblait à une panne). Une page s'affiche de nouveau
+    seule ; après un clic sur un bouton (envoi de formulaire), la page précédente se rouvre et l'action est à refaire."""
+    from urllib.parse import urlsplit as _split
+    post=env.get('REQUEST_METHOD','GET') not in ('GET','HEAD')
+    back=''
+    if post:
+        ref=_split(env.get('HTTP_REFERER',''))
+        if ref.netloc==env.get('HTTP_HOST','') and ref.path.startswith('/'):
+            back=ref.path+('?'+ref.query if ref.query else '')
+    target=back if post else (env.get('SCRIPT_NAME','')+env.get('PATH_INFO','/')+('?'+env['QUERY_STRING'] if env.get('QUERY_STRING') else ''))
+    refresh=('<meta http-equiv="refresh" content="%d;url=%s">'%(4 if post else 3,e(target))) if target else ''
+    text=('Votre clic n’a pas pu être enregistré tout de suite, car AxiorHub termine une autre opération. La page précédente se rouvre : '
+          'cliquez de nouveau sur le bouton. Rien n’a été perdu.') if post else 'AxiorHub termine une autre opération. La page s’affiche dans un instant, sans rien à faire.'
+    return ('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+refresh+
+            '<title>Un instant · AxiorHub Pilote</title><style>'
+            'body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f4f7fb;color:#172033}'
+            '.b{max-width:440px;margin:24px;padding:32px 28px;border-radius:20px;background:#fff;box-shadow:0 18px 50px rgba(15,23,42,.12);text-align:center}'
+            '.l{width:56px;height:56px;margin:0 auto 18px;border-radius:16px;background:#2563eb;color:#fff;font:700 30px/56px system-ui}'
+            '.s{width:34px;height:34px;margin:18px auto 0;border:4px solid #dbe5f5;border-top-color:#2563eb;border-radius:50%;animation:r 1s linear infinite}'
+            'h1{font-size:1.25rem;margin:0 0 10px}p{margin:0;color:#475569;line-height:1.5}a{color:#2563eb}'
+            '@keyframes r{to{transform:rotate(360deg)}}@media(prefers-color-scheme:dark){body{background:#12161d;color:#e5e9f0}.b{background:#1c222c}p{color:#b6c0cf}}'
+            '@media(prefers-reduced-motion:reduce){.s{animation:none}}</style></head><body><main class="b" role="status"><div class="l" aria-hidden="true">A</div>'
+            '<h1>Un instant…</h1><p>'+e(text)+'</p><div class="s" aria-hidden="true"></div>'+
+            ('<p style="margin-top:18px"><a href="'+e(target)+'">Continuer maintenant</a></p>' if target else
+             '<p style="margin-top:18px"><a href="javascript:history.back()">Revenir à la page précédente</a></p>')+'</main></body></html>')
 
 
 def log_interface_error(env,config_path=''):

@@ -58,6 +58,50 @@ def office_text(path):
     return ' '.join(out)
 
 
+def image_text(path):
+    """5.6.36 : texte des métadonnées d'une image (PNG tEXt/iTXt/zTXt, JPEG COM et EXIF) ; le contenu des pixels n'est pas lu."""
+    import struct
+    import zlib
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return ''
+    out = []
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        pos = 8
+        while pos + 8 <= len(data):
+            length, kind = struct.unpack('>I4s', data[pos:pos + 8])
+            body = data[pos + 8:pos + 8 + length]
+            if kind == b'tEXt':
+                out.append(body.replace(b'\x00', b' ').decode('latin-1', 'replace'))
+            elif kind == b'zTXt':
+                key, _, rest = body.partition(b'\x00')
+                try:
+                    out.append(key.decode('latin-1') + ' ' + zlib.decompress(rest[1:]).decode('latin-1', 'replace'))
+                except zlib.error:
+                    pass
+            elif kind == b'iTXt':
+                parts = body.split(b'\x00', 5)
+                text = parts[-1]
+                if len(parts) > 2 and parts[1][:1] == b'\x01':
+                    try:
+                        text = zlib.decompress(text)
+                    except zlib.error:
+                        pass
+                out.append(parts[0].decode('latin-1') + ' ' + text.decode('utf-8', 'replace'))
+            pos += 12 + length
+            if kind == b'IEND':
+                break
+    elif data[:2] == b'\xff\xd8':
+        for m in __import__('re').finditer(rb'\xff\xfe(..)', data[:200000]):
+            n = int.from_bytes(m.group(1), 'big')
+            out.append(data[m.end():m.end() + max(0, n - 2)].decode('latin-1', 'replace'))
+        exif = data.find(b'Exif\x00\x00')
+        if exif >= 0:
+            out.append(' '.join(x.decode('latin-1') for x in __import__('re').findall(rb'[ -~]{6,}', data[exif:exif + 65536])))
+    return ' '.join(out)
+
+
 def denylist(root=ROOT):
     path = root / '.privacy-denylist'
     if not path.exists():
@@ -118,6 +162,13 @@ def scan(root=ROOT):
             findings.append(rel + ' : fichier .env (secrets) — ne doit pas être publié')
             continue
         suffix = path.suffix.lower()
+        if suffix in ('.log', '.sqlite3', '.db', '.eml') and not rel.startswith(('examples/', 'tests/')):
+            findings.append(rel + ' : journal, base de données ou courriel — ne doit pas être publié')
+            continue
+        if suffix in ('.png', '.jpg', '.jpeg'):
+            for problem in sorted(set(scan_text(rel, image_text(path), deny))):
+                findings.append(rel + ' (métadonnées de l’image) : ' + problem)
+            continue
         if suffix in BINARY:
             continue
         if suffix in OFFICE:

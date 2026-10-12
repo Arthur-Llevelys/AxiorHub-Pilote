@@ -1062,14 +1062,9 @@ def header_html(desk):
             nxt = ' · prochain contrôle des courriels %s' % ('dans %d min' % max(1, int(secs // 60)) if secs > 0 else 'imminent')
     except Exception:
         pass
-    alert = ''
-    try:
-        from .web520 import diagnosis
-        d = diagnosis(desk)
-        if d['problems']:
-            alert = '<a class="c530-alert" href="diagnostic">%s</a>' % e(d['problems'][0])
-    except Exception:
-        pass
+    # 5.6.36 : plus de bandeau rouge ; un indicateur neutre ouvre « Points à vérifier » en bas de page (chaque point a son bouton)
+    from .sante5636 import indicator_html
+    alert = indicator_html(desk, '')
     return '<span class="c530-status"><span class="c530-live" aria-hidden="true"></span>%d en cours · %d en file%s</span>%s' % (running, pending, e(nxt), alert)
 
 
@@ -1116,7 +1111,8 @@ def page(desk, prefix, csrf='', owner='cabinet'):
         thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
         review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
-    return html.replace('__VEILLE5632__', veille_card(desk, prefix, owner))
+    from .sante5636 import panel_html
+    return html.replace('__VEILLE5632__', veille_card(desk, prefix, owner)) + panel_html(desk, prefix)
 
 
 def veille_card(desk, prefix, owner='cabinet'):

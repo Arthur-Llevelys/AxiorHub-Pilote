@@ -179,6 +179,7 @@ WORK_API = PREPARATION_API | DECISION_API | FACTURATION_API | frozenset({
     'send/matter',
     'send/prepare',
     'send/settings',
+    'send/options',
     'send/status',
     'settings/deadlines',
     'settings/matter',

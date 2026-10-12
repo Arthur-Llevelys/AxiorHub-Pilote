@@ -28,6 +28,10 @@ FUNCTIONS = (
     ('audiences_word', 'dossier', '/audiences?onglet=preparer', ('Audiences et Word', 'Préparer la plaidoirie', 'Révision Word', 'Réviser un document'), ('storage', 'ai')),
     ('missions_complexes', 'dossier', '/missions-complexes', ('Assignation', 'Conclusions', 'Rédiger une assignation'), ('storage', 'ai')),
     ('pieces', 'dossier', '/pieces', ('Bordereau', 'Préparer un bordereau', 'Pièces numérotées'), ('storage',)),
+    ('pieces_donnees', 'dossier', '/pieces-donnees', ('GED', 'Données des pièces', 'Textes cités', 'Montants', 'Pièces jointes'), ('storage',)),   # 5.6.36
+    ('outils_ia', 'dossier', '/outils-ia', ('Grilles d’analyse', 'Playbook de négociation', 'Mémos juridiques', 'Tableau comparatif'), ('ai',)),
+    ('corporate', 'dossier', '/corporate', ('Secrétariat juridique', 'Approbation des comptes', 'AGO', 'Cession de titres', 'Table de capitalisation',
+                                             'Registre des mouvements de titres', 'Création de société', 'Transfert de siège', 'Changement de dirigeant'), ('storage',)),
     ('profils', 'dossier', '/profils', ('Profils procéduraux', 'Procédures approuvées'), ()),
     ('strategie', 'dossier', '/strategy', ('Stratégie', 'Espace stratégique'), ('storage',)),
     ('studio', 'dossier', '/studio', ('Studio de production',), ('ai',)),
@@ -41,12 +45,15 @@ FUNCTIONS = (
     ('engagements', 'communiquer', '/engagements', ('Engagements et suites', 'Promesses'), ('mail',)),
     ('accueil_administratif', 'communiquer', '/accueil-administratif', ('Accueil téléphonique', 'Twilio', 'WhatsApp'), ('telephony',)),
     ('contacts', 'communiquer', '/contacts', ('Correspondants',), ()),
+    ('contacts_crm', 'communiquer', '/contacts-crm', ('CRM', 'Clients', 'Parties adverses', 'Confrères', 'Intervenants', 'Répertoire'), ()),   # 5.6.36
+    ('initiatives', 'communiquer', '/initiatives', ('Assistant proactif', 'Plan d’actions', 'Assignation reçue', 'Proactivité'), ('mail',)),
     ('associations', 'communiquer', '/associations', ('Associations proposées', 'Adresse et dossier'), ('mail',)),
     ('orchestrateur', 'communiquer', '/orchestrateur-avis', ('Orchestrateur et avis', 'Notifications'), ('mail',)),
     ('missions', 'communiquer', '/missions', ('Missions', 'Confier une mission'), ('ai',)),
     ('assistant', 'communiquer', '/assistant', ('Assistant', 'Conversation'), ('ai',)),
     ('cabinet', 'temps', '/cabinet', ('Gestion du cabinet',), ()),
     ('honoraires', 'temps', '/honoraires', ('Temps et honoraires', 'Diligences', 'Préparer une facture'), ()),
+    ('relances', 'temps', '/relances', ('Impayés', 'Relances', 'Invoice Ninja', 'Factures échues'), ('invoice',)),   # 5.6.36
     ('rendez_vous', 'temps', '/rendez-vous', ('Rendez-vous',), ()),
     ('conflits', 'temps', '/conflits', ('Conflits d’intérêts',), ()),
     ('prescriptions', 'temps', '/prescriptions', ('Prescription', 'Forclusion'), ()),
@@ -55,6 +62,7 @@ FUNCTIONS = (
     ('modeles_word', 'modeles', '/modeles-word', ('Documents du cabinet', 'Modèles Word', 'Balises'), ()),
     ('modeles_actes', 'modeles', '/modeles', ('Modèles d’actes', 'Mentions obligatoires'), ()),
     ('mon_style', 'modeles', '/mon-style', ('Mon style', 'Apprentissage et modèles'), ()),
+    ('complement_word', 'modeles', '/complement-word', ('Word', 'Office', 'Complément', 'Add-in', 'Microsoft Word'), ()),   # 5.6.36
     ('progres', 'modeles', '/progres', ('Progrès', 'Style et apprentissage', 'Tons'), ()),
     ('agents', 'modeles', '/parametres/agents', ('Agents et règles', 'Créer un agent'), ('ai',)),
     ('agents_documents', 'modeles', '/agents-documents', ('Résultats des agents', 'Reprises'), ()),

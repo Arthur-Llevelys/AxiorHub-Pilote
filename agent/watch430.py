@@ -55,6 +55,15 @@ def idle_wait(box, seconds=30):
     return changed
 
 
+def _legacy_unreadable(row):
+    """5.6.36 : une suspension due à l'ancien motif « dossiers illisibles » est levée d'office (ce motif ne suspend plus rien)."""
+    try:
+        found=json.loads(row['result'] or '{}').get('erreur','') if 'result' in row.keys() else ''
+    except (ValueError,TypeError,AttributeError):
+        return False
+    return found=='dossiers_illisibles'
+
+
 def schedule(desk,stamp=None):
     stamp=time.time() if stamp is None else stamp
     if not desk.settings('live430:enabled',True):
@@ -63,8 +72,9 @@ def schedule(desk,stamp=None):
     for kind,interval in [('live_mail430',300),('live_calendar430',180),('live_documents430',300)]:
         last=desk.settings('live430:last:'+kind,0)
         if stamp-float(last)>=interval:
-            latest=desk.db.execute('SELECT id,status,attempts FROM jobs WHERE kind=? ORDER BY id DESC LIMIT 1',(kind,)).fetchone()
-            if kind in ('live_calendar430','live_documents430') and latest and latest['status']=='error' and latest['attempts']>=3:
+            latest=desk.db.execute('SELECT id,status,attempts,result FROM jobs WHERE kind=? ORDER BY id DESC LIMIT 1',(kind,)).fetchone()
+            if (kind in ('live_calendar430','live_documents430') and latest and latest['status']=='error' and latest['attempts']>=3
+                    and not _legacy_unreadable(latest)):
                 emit(desk,'blocked','Contrôle en lecture suspendu après trois tentatives ; corriger le motif puis utiliser Relancer.',latest['id'],dedupe='retry-exhausted-'+str(latest['id']))
                 continue
             if latest and latest['status'] in ('pending','running','cancel_requested'):
@@ -91,6 +101,16 @@ def schedule(desk,stamp=None):
         jobs.extend(schedule5632(desk,stamp))
     except Exception as ex:   # noqa: BLE001 — la veille ne doit pas interrompre la surveillance
         emit(desk,'blocked','Veille juridique : planification impossible ('+str(ex)[:120]+').',dedupe='veille5632-schedule')
+    try:   # 5.6.36 : agenda Microsoft 365 relié — actualisation toutes les 15 minutes
+        from .microsoft5636 import schedule as schedule_microsoft
+        jobs.extend(schedule_microsoft(desk,stamp))
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Agenda Microsoft 365 : planification impossible ('+str(ex)[:120]+').',dedupe='microsoft5636-schedule')
+    try:   # 5.6.36 : relances d'impayés préparées chaque matin (projets à valider, rien n'est envoyé)
+        from .relances5636 import schedule as schedule_relances
+        jobs.extend(schedule_relances(desk,stamp))
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Relances d’impayés : planification impossible ('+str(ex)[:120]+').',dedupe='relances5636-schedule')
     try:   # 5.6.34 (B07) : rappels d'alertes échus remis en circulation ici, jamais pendant l'affichage d'une page
         from .proactive import release_snoozed
         release_snoozed(desk)
@@ -175,8 +195,36 @@ def recent_change(items,days=RECENT_DAYS):
     return False
 
 
+UNREADABLE='documents5636:illisibles'   # 5.6.36 : {dossier: {libellé, chemin, motif, date, essais}}
+IGNORED='documents5636:ignores'         # 5.6.36 : dossiers que l'avocat a retirés de la surveillance
+
+
+def unreadable(desk):
+    value=desk.settings(UNREADABLE,{})
+    return value if isinstance(value,dict) else {}
+
+
+def ignored(desk):
+    value=desk.settings(IGNORED,[])
+    return [str(x) for x in value] if isinstance(value,list) else []
+
+
+def retry_folder(desk,mid,ignore=False,restore=False):
+    """5.6.36 : « Réessayer » (le dossier sera relu au prochain lot), « Ne plus surveiller » ou « Surveiller de nouveau »."""
+    mid=str(mid or '')
+    if not mid or len(mid)>120:raise Stop('dossier_invalide')
+    gone=unreadable(desk);gone.pop(mid,None);desk.setting(UNREADABLE,gone)
+    skip=[x for x in ignored(desk) if x!=mid]
+    if ignore:skip.append(mid)
+    desk.setting(IGNORED,skip)
+    desk.audit('documents5636_dossier',{'matter':mid,'ignore':bool(ignore),'restore':bool(restore)})
+    return {'message':'Dossier retiré de la surveillance.' if ignore else ('Dossier de nouveau surveillé.' if restore else
+            'Dossier relu au prochain contrôle (dans 5 minutes au plus).')}
+
+
 def documents_check(desk,dav=None):
-    client=dav or DAV(desk.c['nextcloud']);matters=indexable_matters(desk.c)
+    client=dav or DAV(desk.c['nextcloud']);skip=set(ignored(desk))
+    matters=[m for m in indexable_matters(desk.c) if m['id'] not in skip]
     if not matters:return {'abstention':'Aucun dossier indexable.'}
     cursor=int(desk.settings('live430:document_cursor',0))%len(matters);changed=0;partial=0
     selected=matters[cursor:cursor+3]
@@ -188,9 +236,18 @@ def documents_check(desk,dav=None):
             scan,complete=client.inventory_step(matter['path'],desk.settings(setting,None))
         except Stop as ex:
             # 5.6.3 : un dossier illisible est signalé et passé ; il ne suspend plus la surveillance de tout le cabinet.
+            # 5.6.36 : il est nommé dans « Pourquoi rien n'est produit ? » avec son motif, « Réessayer » et « Ne plus surveiller ».
             failed+=1;desk.setting(setting,None)
-            emit(desk,'documents','Dossier non lu ('+str(ex)[:60]+') : '+str(matter.get('path',''))[-120:],getattr(desk,'active_job_id',None),mid)
+            gone=unreadable(desk);prev=gone.get(mid) or {}
+            from .improvements36 import matter_option
+            gone[mid]={'label':matter_option(matter)[:160],'path':str(matter.get('path',''))[-160:],'code':str(ex)[:80],
+                       'at':datetime.now(timezone.utc).isoformat(),'count':int(prev.get('count',0))+1}
+            desk.setting(UNREADABLE,dict(sorted(gone.items())[:300]))
+            emit(desk,'documents','Dossier non lu ('+str(ex)[:60]+') : '+str(matter.get('path',''))[-120:],getattr(desk,'active_job_id',None),mid,
+                 dedupe='illisible-'+mid+'-'+time.strftime('%Y%m%d'))
             continue
+        if mid in unreadable(desk):
+            gone=unreadable(desk);gone.pop(mid,None);desk.setting(UNREADABLE,gone)
         for href in getattr(client,'refused',[])[:5]:
             emit(desk,'documents','Fichier au nom ambigu ignoré : '+href,getattr(desk,'active_job_id',None),mid,dedupe='refused-'+href)
         client.refused=[]
@@ -241,7 +298,7 @@ def documents_check(desk,dav=None):
     # Finish a whole sweep in bounded lots, yielding to replies between each lot.
     more=next_cursor!=0 or bool(partial)
     heartbeat(desk,'documents','active','Lot '+str(cursor+1)+'–'+str(cursor+len(selected))+' / '+str(len(matters))+' dossiers · '+str(partial)+' inventaires partiels',time.time()+300)
-    if failed and failed==len(selected):raise Stop('dossiers_illisibles')
+    # 5.6.36 : plus de Stop('dossiers_illisibles') : trois lots de dossiers illisibles suspendaient toute la surveillance des documents.
     return {'changed':changed,'partial':partial,'failed':failed,'continue_scan':more,'remote_write':False}
 
 

@@ -5,7 +5,7 @@
 <p align="center"><strong>Der KI-Ausführungsagent für die Anwaltskanzlei</strong><br>
 E-Mails, Akten, Anlagen, Fristen, Kalender und Schriftsatzentwürfe, auf Ihrem eigenen Server, mit lokaler KI oder pseudonymisierter externer KI.</p>
 
-<p align="center">Erstellt von <strong>Timo RAINIO</strong>, Rechtsanwalt (Barreau de Lyon) · Lizenz <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.35</p>
+<p align="center">Erstellt von <strong>Timo RAINIO</strong>, Rechtsanwalt (Barreau de Lyon) · Lizenz <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.36</p>
 
 <p align="center"><a href="README.md">Français</a> · <a href="README.en.md">English</a> · <strong>Deutsch</strong> · <a href="README.es.md">Español</a></p>
 
@@ -28,7 +28,8 @@ und reicht nichts ein. Jedes Ergebnis ist ein Entwurf, den der Anwalt prüft, ko
 | **Für wen** | Einzelanwälte und kleine Kanzleien, mit ihren Mitarbeitern und Assistenten. |
 | **Wo** | Auf dem Server der Kanzlei (ein VPS genügt) oder auf einem Windows- oder Ubuntu-Arbeitsplatz: Postfach und Nextcloud bleiben Ihre. |
 | **Mit welcher KI** | Lokal (Ollama), extern (Anthropic, OpenAI, Mistral…) **pseudonymisiert**, oder beides. |
-| **Was es nie tut** | Eine E-Mail senden, unterschreiben, einreichen, eigenständig einen Verfahrenstermin festlegen, eine Quelle erfinden. |
+| **Was es nicht von selbst tut** | Eine E-Mail senden (nur Ihr Klick auf „Senden“, sofern erlaubt), unterschreiben, einreichen, einen Verfahrenstermin festlegen. |
+| **Quellen** | Soweit möglich geprüft, nie garantiert: siehe „[Quellen und Kontrollen](#quellen-und-kontrollen-was-geprüft-wird-was-bei-ihnen-bleibt)“. |
 
 ## Was der Agent tut
 
@@ -162,7 +163,8 @@ Verbindungen, automatische Abnahmetests.
   und Warnungen.
 - **Interessenkonflikte**: Suche der Parteien in bestehenden Akten, belegter Bericht; keine Ausarbeitung für eine neue
   Akte, solange der Anwalt nicht entschieden hat.
-- **Nachvollziehbare juristische Recherche**: eine Entscheidung wird erst nach Prüfung an der amtlichen Quelle zitiert.
+- **Nachvollziehbare juristische Recherche**: eine Entscheidung wird an der aktivierten amtlichen Quelle nachgelesen, bevor sie
+  als geprüft erscheint; sonst bleibt sie ein zu prüfender Hinweis.
 - **Rechtsquellen**: Konnektoren JusticeLibre (ohne Schlüssel), OpenLegi, GoodLegal, LibreJustice und Legal Data Hunter,
   vor der Aktivierung geprüft (Verbindung, Suche, Lesen eines Textes).
 - **Prüfung der Fundstellen** in einem Schriftstück („Prüfen"): Artikel, Gesetze, Entscheidungen und Zitate werden
@@ -174,6 +176,23 @@ Verbindungen, automatische Abnahmetests.
   der [juristische Assistent](resources/skills/assistant-juridique/PROVENANCE.md) von Christophe Quézel-Ambrunaz,
   AGPL-3.0); Sie können eigene erstellen, importieren (SKILL.md oder .zip, nur Texte) oder zum Anpassen kopieren.
 - **Verhandlungsvorbereitung** und Analyse der gegnerischen Schriftsätze (überwachte Entwürfe).
+
+### Initiativen, Dokumentdaten, KI-Werkzeuge und Gesellschaftssekretariat (5.6.36)
+
+- **Initiativen**: Bei Eingang einer Klage schlägt der Agent einen Plan vor (Akte „KLÄGER - BEKLAGTER - Referenz“, abgelegte Anhänge,
+  Beteiligte, Termin im Kalender, E-Mail an den Mandanten, Vermerk zu den gegnerischen Argumenten, Entwurf der Bestellungsanzeige,
+  Anforderung der Unterlagen beim Kollegen, Schreiben an das Gericht). Sie korrigieren die erkannten Angaben, deaktivieren Unnötiges
+  und geben frei: Nur markierte Schritte werden ausgeführt, als Entwürfe.
+- **Dokumentdaten**: Art, Datum, Parteien, Schlüsseldaten, Beträge, zitierte Normen und Anträge jedes Dokuments, jeweils „belegt“
+  oder „zu prüfen“, kanzleiweit durchsuchbar; E-Mail-Anhänge in der Akte abgelegt.
+- **KI-Werkzeuge**: Analyseraster (dieselben Kriterien aus jedem Dokument, mit dem Auszug zu jedem Wert), Verhandlungs-Playbooks als
+  Änderungsverfolgung in einem Word-Vertrag, Bibliothek belegter, von einem Anwalt freigegebener Rechtsvermerke.
+- **Gesellschaftsrecht**: „Feststellung des Jahresabschlusses“ und „Sonstige gesellschaftsrechtliche Maßnahme“ (Sitz, Organe,
+  Anteilsübertragung, Kapital, Auflösung…); eine Eingabe aktualisiert Karte, Kapitaltabelle und Register und bereitet die Urkunden vor
+  (Kanzlei- oder generische Vorlagen). Eigene Urkunden und Word-Vorlagen mit Variablen wie `{{ denomination }}` lassen sich hinzufügen. Nichts wird unterzeichnet oder eingereicht.
+- **Kontakte & CRM**: Mandanten, Parteien, Kollegen und Gerichte, mit jeder Akte und Rolle verknüpft.
+- **Zahlungserinnerungen**: jeden Morgen Mahnungsentwürfe für fällige Invoice-Ninja-Rechnungen, vor jedem Versand zu prüfen.
+- **Microsoft**: Word-Add-In (Playbooks, Vermerke, Umformulierung im geöffneten Dokument) und Microsoft-365-Kalender.
 
 ### Kanzleistil
 
@@ -219,6 +238,30 @@ ChatGPT, OpenRouter), immer pseudonymisiert. Sortierung und Kontrollen bleiben l
   Benutzerhandbuch, das mit den tatsächlichen Bildschirmen verknüpft ist.
 
 <p align="center"><img src="docs/captures/07-mode-sombre.png" alt="Dunkler Modus" width="700"></p>
+
+## Quellen und Kontrollen: was geprüft wird, was bei Ihnen bleibt
+
+AxiorHub verringert das Fehlerrisiko; es beseitigt es nicht. Ein KI-Modell kann sich irren, ungenau zusammenfassen oder einen
+Satz dem falschen Dokument zuordnen. Die Software sagt das, prüft, was sie prüfen kann, und weist auf den Rest hin.
+
+**Verfügbare Kontrollen**
+- **Tatsachen, Daten und Beträge aus Dokumenten**: jedes Element zitiert einen Auszug; ein Datum oder Betrag gilt nur als
+  „belegt“, wenn er in diesem Auszug steht (gleiche Währung, gleiches Vorzeichen), sonst „zu prüfen“.
+- **Entscheidungen und Texte**: eine von einem Recherche-Connector gefundene Entscheidung wird an der aktivierten amtlichen
+  Quelle nachgelesen, bevor sie als geprüft erscheint; ist das nicht möglich, bleibt sie ein „Hinweis“.
+- **Verweise in einem Schriftstück** („Prüfen“): Artikel, Gesetze, Entscheidungen und Zitate werden erfasst und an der
+  aktivierten Quelle zum maßgeblichen Datum geprüft: geprüft, identifiziert, zu prüfen oder auffällig.
+- **Gesprochene Zusammenfassung des Briefings**: jede Zahl wird mit dem schriftlichen Briefing verglichen.
+
+**Grenzen**
+- Der Abgleich eines Auszugs ist textuell: eine Umschreibung durch das Modell bleibt „zu prüfen“.
+- Ein schlecht gescanntes Dokument (OCR) kann einen Auszug verfälschen; eine nicht verfügbare Quelle lässt den Verweis „zu prüfen“.
+- Rechtliche Bedeutung, Tragweite und Aktualität eines Satzes werden durch diese Kontrollen nicht garantiert.
+- Die Übersetzungen der Oberfläche und der Berichte sind nicht von einem juristischen Übersetzer geprüft.
+
+**Was bei Ihnen bleibt**
+Öffnen Sie vor jedem Zitat die amtliche Quelle, lesen Sie jeden Entwurf vor der Freigabe und klären Sie jedes Element „zu prüfen“
+vor der Verwendung. Kein Ergebnis von AxiorHub ersetzt Ihre berufliche Prüfung.
 
 ## Vertraulichkeit zuerst
 
@@ -322,8 +365,8 @@ Siehe [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (auf Französisch).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.35.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.35_all.deb --archive dist/axiorhub-mail-agent-5.6.35.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.36.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.36_all.deb --archive dist/axiorhub-mail-agent-5.6.36.tar.gz
 python scripts/build-windows.py dist/windows   # unter Windows, nach pip install -r scripts/windows-requirements.txt
 ```
 

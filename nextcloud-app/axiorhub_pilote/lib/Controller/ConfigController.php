@@ -8,6 +8,7 @@ use OCA\AxiorhubPilote\AppInfo\Application;
 use OCA\AxiorhubPilote\Service\EngineClient;
 use OCA\AxiorhubPilote\Service\EngineSettings;
 use OCA\AxiorhubPilote\Service\MatterService;
+use OCA\AxiorhubPilote\Service\UserLink;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -29,18 +30,27 @@ class ConfigController extends Controller {
 		private MatterService $matters,
 		private IGroupManager $groups,
 		private IUserSession $session,
+		private UserLink $links,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
 
-	/** État de la liaison, lisible par tout utilisateur connecté ; aucune information secrète. */
+	/** État de la liaison, lisible par tout utilisateur connecté ; aucune information secrète.
+	 * 0.3.0 : compte relié → contrôle signé avec la clé personnelle (/me) ; sinon santé du moteur de l'instance ; motif précis renvoyé. */
 	#[NoAdminRequired]
 	public function health(): DataResponse {
-		if (!$this->settings->isConfigured()) {
-			return new DataResponse(['configured' => false]);
+		$uid = $this->session->getUser()?->getUID() ?? '';
+		if ($this->links->linked($uid)) {
+			$out = $this->engine->call('GET', '/integration/v1/me', $uid, ['*']);
+			return new DataResponse(['configured' => true, 'linked' => true, 'engine' => $out['body'], 'reachable' => $out['status'] === 200,
+				'code' => (string)($out['body']['code'] ?? ''), 'message' => (string)($out['body']['message'] ?? '')]);
 		}
-		$out = $this->engine->call('GET', '/integration/v1/health', $this->session->getUser()?->getUID() ?? '', []);
-		return new DataResponse(['configured' => true, 'engine' => $out['body'], 'reachable' => $out['status'] === 200]);
+		if (!$this->settings->isConfigured()) {
+			return new DataResponse(['configured' => false, 'linked' => false]);
+		}
+		$out = $this->engine->health($this->settings->engineUrl(), $this->settings->allowLocal());
+		return new DataResponse(['configured' => true, 'linked' => false, 'engine' => $out['body'], 'reachable' => $out['status'] === 200,
+			'code' => (string)($out['body']['code'] ?? ''), 'message' => (string)($out['body']['message'] ?? '')]);
 	}
 
 	public function save(string $engineUrl, string $instanceId, ?string $secret = null, bool $allowLocal = false, string $defaultGroup = ''): DataResponse {
@@ -55,7 +65,7 @@ class ConfigController extends Controller {
 			}
 			$this->settings->setDefaultGroup($defaultGroup);
 		}
-		$health = $this->engine->call('GET', '/integration/v1/health', $this->session->getUser()?->getUID() ?? '', []);
+		$health = $this->engine->health($this->settings->engineUrl(), $this->settings->allowLocal());
 		$sync = $health['status'] === 200 ? $this->matters->syncFromEngine() : ['ok' => false, 'code' => (string)($health['body']['code'] ?? 'moteur_injoignable')];
 		return new DataResponse(['saved' => true, 'reachable' => $health['status'] === 200, 'sync' => $sync]);
 	}

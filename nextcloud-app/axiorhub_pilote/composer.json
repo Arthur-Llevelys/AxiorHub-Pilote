@@ -1,0 +1,21 @@
+{
+  "name": "axiorhub/pilote-nextcloud",
+  "description": "AxiorHub Pilote for Nextcloud — development dependencies only (unit tests); nothing here is shipped in the app package",
+  "type": "project",
+  "license": "AGPL-3.0-or-later",
+  "require-dev": {
+    "nextcloud/ocp": "dev-stable32",
+    "phpunit/phpunit": "^10.5"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "OCA\\AxiorhubPilote\\": "lib/",
+      "OCA\\AxiorhubPilote\\Tests\\": "tests/",
+      "OCP\\": "vendor/nextcloud/ocp/OCP/",
+      "NCU\\": "vendor/nextcloud/ocp/NCU/"
+    }
+  },
+  "config": {"sort-packages": true, "platform": {"php": "8.3"}},
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

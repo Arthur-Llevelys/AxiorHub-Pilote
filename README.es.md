@@ -5,7 +5,7 @@
 <p align="center"><strong>El agente de IA de ejecución del despacho de abogados</strong><br>
 Correos, expedientes, documentos, plazos, agenda y proyectos de escritos, en su propio servidor, con una IA local o una IA externa seudonimizada.</p>
 
-<p align="center">Creado por <strong>Timo RAINIO</strong>, abogado del Colegio de Lyon · Licencia <a href="LICENSE">AGPL-3.0-or-later</a> · Versión 5.6.35</p>
+<p align="center">Creado por <strong>Timo RAINIO</strong>, abogado del Colegio de Lyon · Licencia <a href="LICENSE">AGPL-3.0-or-later</a> · Versión 5.6.36</p>
 
 <p align="center"><a href="README.md">Français</a> · <a href="README.en.md">English</a> · <a href="README.de.md">Deutsch</a> · <strong>Español</strong></p>
 
@@ -28,7 +28,8 @@ presenta nada. Cada resultado es un borrador que el abogado revisa, corrige y va
 | **Para quién** | Abogados que ejercen solos o en pequeños despachos, con sus colaboradores y asistentes. |
 | **Dónde** | En el servidor del despacho (basta un VPS) o en un puesto Windows o Ubuntu: el correo y Nextcloud siguen siendo suyos. |
 | **Con qué IA** | Local (Ollama), externa (Anthropic, OpenAI, Mistral…) **seudonimizada**, o ambas. |
-| **Lo que nunca hace** | Enviar un correo, firmar, presentar, fijar por sí solo una fecha procesal, inventar una fuente. |
+| **Lo que no hace por sí solo** | Enviar un correo (solo su clic en «Enviar», si lo ha autorizado), firmar, presentar, fijar una fecha procesal. |
+| **Fuentes** | Controladas en la medida de lo posible, nunca garantizadas: véase «[Fuentes y controles](#fuentes-y-controles-qué-se-verifica-y-qué-le-corresponde-a-usted)». |
 
 ## Lo que hace el agente
 
@@ -163,7 +164,8 @@ conexiones, pruebas automáticas.
   presupuestos y alertas.
 - **Conflictos de intereses**: búsqueda de las partes en los expedientes existentes, informe con fuentes; ningún trabajo
   para un expediente nuevo mientras el abogado no haya decidido.
-- **Investigación jurídica trazada**: una resolución solo se cita tras verificarla en la fuente oficial.
+- **Investigación jurídica trazada**: una resolución se vuelve a leer en la fuente oficial activada antes de presentarse como
+  verificada; si no, queda como pista por verificar.
 - **Fuentes jurídicas**: conectores JusticeLibre (sin clave), OpenLegi, GoodLegal, LibreJustice y Legal Data Hunter,
   verificados (conexión, búsqueda, lectura de un texto) antes de activarlos.
 - **Control de las referencias** en un escrito («Verificar»): artículos, leyes, resoluciones y citas se detectan y se
@@ -175,6 +177,25 @@ conexiones, pruebas automáticas.
   ellas el [asistente jurídico](resources/skills/assistant-juridique/PROVENANCE.md) de Christophe Quézel-Ambrunaz,
   AGPL-3.0); puede crearlas, importarlas (SKILL.md o .zip, solo textos) o copiarlas para adaptarlas.
 - **Preparación de audiencias** y análisis de los escritos contrarios (proyectos supervisados).
+
+### Iniciativas, datos de los documentos, herramientas IA y secretaría societaria (5.6.36)
+
+- **Iniciativas**: al recibir una demanda, el agente propone un plan (expediente «DEMANDANTE - DEMANDADO - referencia», adjuntos
+  archivados, intervinientes, vista en la agenda, correo al cliente, nota sobre los argumentos contrarios, borrador de personación,
+  solicitud de documentos al colega, escrito al tribunal). Usted corrige los datos detectados, desmarca lo innecesario y valida: solo
+  se ejecutan los pasos marcados, como borradores.
+- **Datos de los documentos**: tipo, fecha, partes, fechas clave, importes, textos citados y pretensiones de cada documento, cada uno
+  «documentado» o «a verificar», consultables en todo el despacho; adjuntos de correos archivados en el expediente.
+- **Herramientas IA**: tablas de análisis (los mismos criterios extraídos de cada documento, con el extracto que funda cada valor),
+  playbooks de negociación aplicados a un contrato Word con control de cambios, biblioteca de notas jurídicas con fuentes validadas
+  por un abogado.
+- **Societario**: «Aprobación de cuentas» y «Otra diligencia de derecho de sociedades» (domicilio, administradores, transmisión de
+  títulos, capital, disolución…); una entrada actualiza la ficha, la tabla de capitalización y los libros y prepara las actas (modelos
+  del despacho o genéricos). Puede añadir sus propias actas y modelos Word con variables como `{{ denomination }}`. Nada se firma ni se presenta.
+- **Contactos y CRM**: clientes, partes, colegas y tribunales vinculados a cada expediente con su papel.
+- **Recordatorios de impago**: cada mañana, borradores de recordatorio de las facturas vencidas de Invoice Ninja, a revisar antes de
+  cualquier envío.
+- **Microsoft**: complemento Word (playbooks, notas, reformulación en el documento abierto) y agenda de Microsoft 365.
 
 ### Estilo del despacho
 
@@ -219,6 +240,30 @@ OpenRouter), siempre seudonimizada. La clasificación del correo y los controles
   vinculada a las pantallas reales.
 
 <p align="center"><img src="docs/captures/07-mode-sombre.png" alt="Modo oscuro" width="700"></p>
+
+## Fuentes y controles: qué se verifica y qué le corresponde a usted
+
+AxiorHub reduce el riesgo de error; no lo elimina. Un modelo de IA puede equivocarse, resumir de forma inexacta o atribuir una
+frase al documento equivocado. El programa lo indica, controla lo que puede controlar y le señala el resto.
+
+**Controles disponibles**
+- **Hechos, fechas e importes de los documentos**: cada elemento cita un extracto; una fecha o un importe solo se marca
+  «documentado» si figura en ese extracto (misma moneda, mismo signo); si no, «por verificar».
+- **Resoluciones y textos**: una resolución hallada por un conector de búsqueda se vuelve a leer en la fuente oficial activada
+  antes de presentarse como verificada; si no puede leerse, queda como «pista».
+- **Referencias de un escrito** («Verificar»): artículos, leyes, resoluciones y citas se identifican y se controlan en la fuente
+  activada, en la fecha pertinente: controlada, identificada, por verificar o anómala.
+- **Resumen oral del informe**: cada cifra se compara con el informe escrito.
+
+**Límites**
+- La coincidencia de un extracto es textual: una paráfrasis del modelo queda «por verificar».
+- Un documento mal digitalizado (OCR) puede alterar un extracto; una fuente no disponible deja la referencia «por verificar».
+- Estos controles no garantizan el sentido jurídico de una frase, su alcance ni su vigencia.
+- Las traducciones de la interfaz y de los informes no han sido revisadas por un traductor jurídico.
+
+**Lo que le corresponde**
+Abra la fuente oficial antes de cualquier cita, revise cada proyecto antes de validarlo y resuelva todo elemento «por verificar»
+antes de usarlo. Ninguna producción de AxiorHub sustituye su control profesional.
 
 ## La confidencialidad primero
 
@@ -322,8 +367,8 @@ Véase [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (en francés).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.35.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.35_all.deb --archive dist/axiorhub-mail-agent-5.6.35.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.36.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.36_all.deb --archive dist/axiorhub-mail-agent-5.6.36.tar.gz
 python scripts/build-windows.py dist/windows   # en Windows, tras pip install -r scripts/windows-requirements.txt
 ```
 

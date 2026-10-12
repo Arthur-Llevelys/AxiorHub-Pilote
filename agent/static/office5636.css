@@ -1,0 +1,19 @@
+/* AxiorHub 5.6.36 — volet du complément Word (étroit : 320 px environ). */
+:root { color-scheme: light dark; --w-fg: #1d2330; --w-bg: #ffffff; --w-muted: #5b6475; --w-line: #d9dee7; --w-accent: #2457c5; --w-ok: #1f7a46; --w-bad: #a3262a; }
+@media (prefers-color-scheme: dark) { :root { --w-fg: #e7eaf0; --w-bg: #1f2329; --w-muted: #a7afbd; --w-line: #3a414c; --w-accent: #7aa2ff; --w-ok: #6fd39a; --w-bad: #ff8a8f; } }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 10px 12px 24px; font: 14px/1.45 "Segoe UI", system-ui, sans-serif; color: var(--w-fg); background: var(--w-bg); }
+.w-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.w-head strong { font-size: 16px; }
+#w-status { font-size: 12px; color: var(--w-muted); text-align: right; }
+#w-status.bad { color: var(--w-bad); }
+.w-row { display: grid; gap: 4px; margin: 8px 0; font-weight: 600; }
+select, input, textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--w-line); border-radius: 6px; background: var(--w-bg); color: var(--w-fg); }
+details { border-top: 1px solid var(--w-line); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.w-btn { margin: 8px 0 4px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--w-accent); color: #fff; font: inherit; cursor: pointer; }
+.w-btn:disabled { opacity: .5; cursor: default; }
+.w-edit { border: 1px solid var(--w-line); border-radius: 8px; padding: 8px; margin: 8px 0; }
+.w-edit.done { border-color: var(--w-ok); }
+.w-edit p { margin: 4px 0; white-space: pre-wrap; }
+.w-note { color: var(--w-muted); font-size: 12px; }

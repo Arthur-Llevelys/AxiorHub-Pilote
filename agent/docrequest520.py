@@ -24,7 +24,7 @@ from .common import Stop, clean_path, digest, fold, load_matters, matter_display
 
 KINDS = {'auto': 'Laisser l’agent choisir', 'courrier': 'Courrier / lettre', 'courriel': 'Projet de courriel', 'conclusions': 'Conclusions',
          'assignation': 'Assignation / requête', 'mise_en_demeure': 'Mise en demeure', 'contrat': 'Contrat / acte', 'note': 'Note / consultation',
-         'compte_rendu': 'Compte rendu', 'autre': 'Autre document'}
+         'compte_rendu': 'Compte rendu', 'acte_procedure': 'Acte de procédure (constitution…)', 'autre': 'Autre document'}
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS docreq520(
   id TEXT PRIMARY KEY, matter TEXT NOT NULL, request TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, path TEXT NOT NULL,
@@ -33,10 +33,11 @@ CREATE INDEX IF NOT EXISTS docreq520_updated ON docreq520(updated);
 '''
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 # 5.3.0 : rangement dans l'arborescence du cabinet (sous-dossier utilisé seulement s'il existe dans le dossier du client).
-FOLDER_GROUPS = {'conclusions': 'procedure', 'assignation': 'procedure', 'courrier': 'correspondance', 'courriel': 'correspondance',
+FOLDER_GROUPS = {'conclusions': 'procedure', 'assignation': 'procedure', 'acte_procedure': 'procedure', 'courrier': 'correspondance', 'courriel': 'correspondance',
                  'mise_en_demeure': 'correspondance', 'compte_rendu': 'correspondance', 'contrat': 'projets', 'note': 'livrables'}
 DEFAULT_FOLDERS = {'procedure': 'PROCEDURE', 'correspondance': 'CORRESPONDANCES', 'projets': 'PROJETS', 'livrables': 'LIVRABLES'}
-KIND_WORDS = (('conclusions', ('conclusions', 'conclusion')), ('assignation', ('assignation', 'requete', 'requête', 'acte introductif')),
+KIND_WORDS = (('acte_procedure', ('constitution d’avocat', "constitution d'avocat", 'acte de constitution', 'notification de constitution')),   # 5.6.36
+              ('conclusions', ('conclusions', 'conclusion')), ('assignation', ('assignation', 'requete', 'requête', 'acte introductif')),
               ('mise_en_demeure', ('mise en demeure',)), ('contrat', ('contrat', 'avenant', 'statuts', 'protocole', 'acte de cession', 'pacte')),
               ('note', ('note', 'consultation', 'memo', 'mémo', 'synthese', 'synthèse', 'analyse')), ('compte_rendu', ('compte rendu', 'compte-rendu')),
               ('courriel', ('courriel', 'mail', 'e-mail', 'réponse', 'reponse')), ('courrier', ('courrier', 'lettre')))

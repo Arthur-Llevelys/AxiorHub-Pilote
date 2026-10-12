@@ -638,7 +638,7 @@ class Journeys(Base):
     def test_u05_every_function_has_a_migration_line_and_new_routes_answer(self):
         from agent import fonctions5634
         self.assertEqual(fonctions5634.check(), [])
-        self.assertEqual(len(fonctions5634.MIGRATION), 64)
+        self.assertGreaterEqual(len(fonctions5634.MIGRATION), 64)   # 5.6.36 : 7 fonctions nouvelles, chacune avec sa ligne (check() ci-dessus)
         for path in ('/audiences', '/reviser', '/surveillance', '/recherche-juridique'):
             self.assertTrue(self.request(path)['status'].startswith('200'), path)
 
@@ -889,7 +889,7 @@ class IntegrationContract(Base):
     def test_health_signature_replay_and_expiry(self):
         status, out = self.call('GET', '/integration/v1/health', {})
         self.assertEqual(status, '200 OK')
-        self.assertIn(out['contract'], ('1.0', '1.1'))
+        self.assertRegex(out['contract'], r'^1\.\d+$')   # contrat 1.x (compatible ascendant)
         h = self.header()
         self.assertEqual(self.call('GET', '/integration/v1/jobs/' + 'f' * 32, h)[0], '404 Not Found')
         self.assertEqual(self.call('GET', '/integration/v1/jobs/' + 'f' * 32, h)[1]['code'], 'requete_rejouee')

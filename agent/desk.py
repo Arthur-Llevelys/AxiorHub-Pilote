@@ -48,6 +48,7 @@ JOBS |= {'prepare_document_project','create_document_files'}
 JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624','fiche_dossier5627'}
 JOBS |= {'search_index490'}
 JOBS |= {'digest_pieces5632','veille5632_collect','briefing_oral5632','mailrules5632'}   # 5.6.32
+JOBS |= {'pj_courriel5636','initiative5636','relances5636','outils5636','corporate5636','microsoft5636'}   # 5.6.36 : pièces jointes rangées ; initiatives (analyse, exécution du plan validé)
 JOBS |= {'recherche5634'}   # 5.6.34 : recherche juridique par le registre unique des sources
 JOBS |= {'autonomy_mail_sweep','refresh_operational_memory','review_autonomy_proposal'}
 JOBS |= {'legal_research','import_mcp_legal_results','verify_official_decision','identify_latest_writings','refresh_exhibit_registry'}
@@ -255,7 +256,9 @@ class Desk:
         self.c = c
         from .common import busy_timeout
         self._busy = busy_timeout()   # 5.6.32 : 2 s pour l'affichage d'une page, 10 s pour les actions et le worker
-        self.db = sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3', timeout=self._busy)
+        from .ecritures5636 import TimedConnection
+        self.db = sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3', timeout=self._busy, factory=TimedConnection)
+        self.db.state_dir = str(c['state_dir'])   # 5.6.36 : les écritures longues sont consignées (fichier) et nommées dans le diagnostic
         self.db.row_factory = sqlite3.Row
         from .common import track_connection
         track_connection(self)   # 5.6.32 : aucune transaction ne reste ouverte pendant un appel réseau (voir common.HTTP)
@@ -692,6 +695,24 @@ class Desk:
         if kind=='recherche5634':   # 5.6.34 (B06, U03) : un seul service de recherche pour tous les parcours
             from .web5634 import research_job
             return research_job(self,args)
+        if kind=='microsoft5636':   # 5.6.36 : agenda Microsoft 365 (copie des événements AxiorHub, lecture d'Outlook)
+            from .microsoft5636 import job
+            return job(self,args)
+        if kind=='corporate5636':   # 5.6.36 : actes du secrétariat juridique (modèles du cabinet ou génériques)
+            from .corporate5636 import job
+            return job(self,args)
+        if kind=='outils5636':   # 5.6.36 : grille d'analyse, playbook appliqué à un contrat, mémo juridique
+            from .outils5636 import job
+            return job(self,args)
+        if kind=='relances5636':   # 5.6.36 : projets de relance des factures échues (Invoice Ninja en lecture)
+            from .relances5636 import job
+            return job(self,args)
+        if kind=='initiative5636':   # 5.6.36 : analyse d'un courriel (plan proposé) ou exécution des étapes validées
+            from .initiatives5636 import job
+            return job(self,args)
+        if kind=='pj_courriel5636':   # 5.6.36 : rangement des pièces jointes (option activée par l'avocat)
+            from .ged5636 import file_attachments
+            return file_attachments(self,str(args.get('key') or ''),str(args.get('matter') or ''),'automatique')
         if kind=='digest_pieces5632':   # 5.6.32 : fiches de pièces (examen du dossier entier)
             from .synthese5632 import build_job
             return build_job(self,args)

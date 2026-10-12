@@ -36,6 +36,7 @@ LABELS = {'creating': 'Demande enregistrée', 'queued': 'En attente', 'running':
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    desk.db.execute('CREATE TABLE IF NOT EXISTS missions_hidden5636(id TEXT PRIMARY KEY, owner TEXT NOT NULL, at TEXT NOT NULL)')   # 5.6.36
 
 
 def check_authority(desk, args):
@@ -335,8 +336,8 @@ def complex_shim(m):
 
 def listing(desk, owner='cabinet', admin=False, prefix=''):
     ensure_schema(desk)
-    rows = desk.db.execute('SELECT id FROM missions_v567' + ('' if admin else ' WHERE owner=?') + ' ORDER BY created DESC LIMIT 40',
-                          () if admin else (owner,)).fetchall()
+    rows = desk.db.execute('SELECT id FROM missions_v567 WHERE id NOT IN (SELECT id FROM missions_hidden5636)' + ('' if admin else ' AND owner=?') +
+                          ' ORDER BY created DESC LIMIT 40', () if admin else (owner,)).fetchall()
     return [get(desk, r['id'], owner, admin, prefix) for r in rows]
 
 
@@ -393,6 +394,21 @@ def control(desk, data, owner='cabinet', admin=False):
             if not claimed.rowcount:
                 return get(desk,row['id'],owner,admin)
             _launch(desk,_row(desk,row['id'],owner,admin))
+    elif action == 'cancel':   # 5.6.36 : annulation définitive (un projet déjà déposé reste dans le dossier)
+        if current['state'] in ('cancelled',):
+            raise Stop('mission_deja_annulee')
+        if row['job_id']:
+            try:
+                desk.cancel_job(row['job_id'])
+            except Stop:
+                pass   # travail déjà terminé : seule la mission est close
+        desk.db.execute("UPDATE missions_v567 SET state='cancelled',updated=? WHERE id=?", (desk.now(), row['id']))
+        desk.db.commit()
+    elif action == 'hide':   # 5.6.36 : retirée de la liste (rien n'est effacé : historique et projets conservés)
+        if current['state'] in ACTIVE:
+            raise Stop('mission_active_a_annuler_dabord')
+        desk.db.execute('INSERT OR REPLACE INTO missions_hidden5636 VALUES(?,?,?)', (row['id'], owner, desk.now()))
+        desk.db.commit()
     else:
         raise Stop('action_mission_invalide')
     _event(desk, row['id'], action, {'matter': row['matter']})

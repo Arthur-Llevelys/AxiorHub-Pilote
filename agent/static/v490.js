@@ -303,7 +303,12 @@
       }).catch(function () { /* lien facultatif */ });
       var known = sendStatus ? Promise.resolve(sendStatus) : api('send/status').then(function (s) { sendStatus = s; return s; });
       known.then(function (s) {
-        if (!s.enabled) return;
+        if (!s.enabled) {   // 5.6.36 : l'avocat voit où activer l'envoi direct au lieu d'un bouton absent
+          var hint = el('a', { 'class': 'ax-btn ghost', href: (document.querySelector('meta[name="axiorhub-prefix"]') || {}).content + '/parametres?rubrique=messagerie#envoi5636',
+                               text: 'Envoyer depuis AxiorHub : à activer', title: 'Paramètres › Messagerie › Envoi depuis AxiorHub' });
+          row.appendChild(hint);
+          return;
+        }
         sendBtn.hidden = false;
         // 5.6.1 : « Envoyer… » après un enregistrement demandé par ce même bouton (30 s au plus) : la confirmation d'envoi s'ouvre.
         var pend = window.__cfSendAfterSave;
@@ -322,9 +327,23 @@
           return;
         }
         busy(sendBtn, true);
-        api('send/prepare', { uid: uidNow(), uidvalidity: validity() }).then(function (p) { showDialog(p); })
+        api('send/prepare', { uid: uidNow(), uidvalidity: validity() }).then(function (p) { if (p.confirm_each === false) { sendNow(p); } else { showDialog(p); } })
           .catch(function (e) { toast(e.message, true); }).then(function () { busy(sendBtn, false); });
       });
+
+      // 5.6.36 : « Envoyer » sans seconde confirmation (réglage de l'avocat) ; les contrôles du serveur restent les mêmes
+      function sendNow(p) {
+        busy(sendBtn, true);
+        toast('Envoi en cours à ' + p.summary.recipient_count + ' destinataire(s)…');
+        setTimeout(function () {
+          api('send/confirm', { token: p.token }).then(function (r) {
+            toast(r.message, !r.copy_saved);
+            var rowOn = $('.ax-row.on'); if (rowOn) rowOn.remove();
+            editor.textContent = '';
+            editor.appendChild(el('div', { 'class': 'ax-empty' }, [el('h2', { text: 'Message envoyé' }), el('p', { text: r.message })]));
+          }).catch(function (e) { toast(e.message, true); }).then(function () { busy(sendBtn, false); });
+        }, Math.ceil((p.min_delay || 1) * 1000) + 200);
+      }
 
       function showDialog(p) {
         var s = p.summary;

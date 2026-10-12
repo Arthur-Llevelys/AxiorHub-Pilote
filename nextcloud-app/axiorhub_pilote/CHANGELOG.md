@@ -1,5 +1,16 @@
 # Journal des versions — application Nextcloud AxiorHub Pilote
 
+## 0.3.0 — version de développement (avec le moteur 5.6.36, contrat 1.2)
+
+- **Compte relié personnellement** : Paramètres personnels › AxiorHub Pilote (adresse, identifiant et mot de passe AxiorHub) ; le mot
+  de passe sert une fois à obtenir une clé personnelle chiffrée, révocable des deux côtés. Les utilisateurs Nextcloud non reliés n'ont
+  aucun accès ; le mode d'instance (secret partagé, groupes) reste disponible.
+- **Interface complète** : Pilote (instruction, résultat attendu), Rechercher dans les dossiers, Fiche du dossier, Recherche juridique,
+  Travaux récents ; choix du dossier par recherche.
+- **« Moteur injoignable » corrigé** : une page HTML du moteur (base occupée, frontal demandant une connexion) n'est plus prise pour une
+  panne réseau ; motif précis affiché ; une lecture est réessayée une fois quand le moteur est occupé.
+- Tests unitaires PHP exécutés à chaque envoi (syntaxe PHP 8.1 et 8.4, API publique OCP), construction vérifiée.
+
 ## 0.2.0 — version de développement (avec le moteur 5.6.35)
 
 - **Dossiers importés automatiquement** : l'enregistrement des réglages teste la liaison et importe les dossiers du moteur (groupe par

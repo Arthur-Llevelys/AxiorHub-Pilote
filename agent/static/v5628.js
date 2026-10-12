@@ -156,7 +156,7 @@
     var saveBtn = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Enregistrer le brouillon' });
     var cancel = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Fermer' });
     form.appendChild(el('div', { 'class': 'bx5628-actions' }, [sendBtn, saveBtn, cancel,
-      el('span', { 'class': 'ax-muted', text: 'Enregistré d’abord dans Brouillons ; l’envoi demande une confirmation.' })]));
+      el('span', { 'class': 'ax-muted', text: 'Enregistré d’abord dans Brouillons ; l’envoi suit votre réglage (Paramètres › Messagerie).' })]));
     var confirmBox = el('div', { 'class': 'bx5628-confirm', hidden: 'hidden', role: 'alertdialog', 'aria-label': 'Confirmer l’envoi' });
     form.appendChild(confirmBox);
     panel.appendChild(form);
@@ -182,15 +182,24 @@
       payload().then(function (p) { return api('m5628/envoyer', p); }).then(function (r) {
         state.draftUid = (r.draft || {}).uid || state.draftUid;
         if (!r.token) { showRefusal(r); return; }
+        if (r.confirm_each === false) { sendDirect(r); return; }   // 5.6.36 : réglage « sans seconde confirmation »
         showConfirm(r);
       }).catch(function (e) { toast(e.message, true); }).then(function () { delete inflight.send; busy(sendBtn, false); });
     });
 
+    function sendDirect(r) {
+      inflight.confirm = true; busy(sendBtn, true);
+      toast('Envoi en cours…');
+      setTimeout(function () {
+        api('m5628/envoyer/confirmer', { token: r.token }).then(function (x) { toast(x.message); c.clear(); c.reload(); })
+          .catch(function (e) { toast(e.message, true); }).then(function () { delete inflight.confirm; busy(sendBtn, false); });
+      }, Math.round(((r.min_delay || 1) * 1000) + 250));
+    }
     function showRefusal(r) {
       confirmBox.textContent = ''; confirmBox.hidden = false; confirmBox.className = 'bx5628-confirm bad';
       confirmBox.appendChild(el('p', { text: r.message }));
       if (r.reason === 'envoi_desactive' || r.reason === 'smtp_non_configure') {
-        confirmBox.appendChild(el('p', {}, [el('a', { href: prefix + '/confort#envoi', text: 'Activer l’envoi depuis AxiorHub (Paramètres › Cabinet › Confort › Envoi depuis l’interface)' })]));
+        confirmBox.appendChild(el('p', {}, [el('a', { href: prefix + '/parametres?rubrique=messagerie#envoi5636', text: 'Activer l’envoi depuis AxiorHub (Paramètres › Messagerie › Envoi depuis AxiorHub)' })]));
       }
     }
     function showConfirm(r) {

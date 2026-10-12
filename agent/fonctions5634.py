@@ -69,6 +69,14 @@ MIGRATION = {
     'administration': 'Paramètres → Administration ; accès selon le rôle',
     'tableau_de_bord': 'Gestion du cabinet → Tableau de bord détaillé',
     'a_propos': 'Paramètres → À propos, version, licence et source',
+    # 5.6.36 : fonctions nouvelles (aucun ancien lien à rediriger)
+    'contacts_crm': 'Toutes les fonctions → Contacts & CRM ; bloc « Intervenants » dans le Dossier',
+    'initiatives': 'Toutes les fonctions → Initiatives ; « Proposer un plan d’actions » depuis un courriel',
+    'pieces_donnees': 'Dossier → Pièces › Données des pièces ; recherche dans tout le cabinet',
+    'outils_ia': 'Toutes les fonctions → Outils IA (grilles, playbooks, mémos) ; playbooks aussi dans le complément Word',
+    'corporate': 'Toutes les fonctions → Corporate (sociétés, opérations, actes, table de capitalisation, registres)',
+    'relances': 'Toutes les fonctions → Relances d’impayés ; carte dans Initiatives',
+    'complement_word': 'Toutes les fonctions → Complément Word (manifeste et volet)',
 }
 # Anciens liens → nouveau parcours (le dossier « matter » est conservé) ; les liens de contrôle (hearing=, word=, job=) restent servis.
 REDIRECTS = {'/audience': '/audiences', '/audiences-word': '/audiences'}

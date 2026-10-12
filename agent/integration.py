@@ -64,6 +64,17 @@ def sync_work_items(desk):
                 (key, target, status, reason, matter_value,
                  report.get('subject') or '', report.get('sender') or '',
                  report.get('received_at') or stamp, stamp))
+            if matter_value:   # 5.6.36 : rangement automatique des pièces jointes, seulement si l'avocat l'a activé
+                try:
+                    from .ged5636 import after_mail
+                    after_mail(desk, key, matter_value)
+                except Exception:   # noqa: BLE001 — jamais bloquant pour la boîte de réception
+                    pass
+            try:   # 5.6.36 : une assignation repérée → plan d'actions proposé (rien n'est exécuté sans validation)
+                from .initiatives5636 import observe
+                observe(desk, key, report)
+            except Exception:   # noqa: BLE001
+                pass
             continue
         current = row['state']
         if current in STABLE_WORK_STATES and target not in ('draft_ready',):

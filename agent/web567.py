@@ -83,7 +83,7 @@ def cards(rows, prefix):
     for row in rows:
         result, job = row.get('result') or {}, row.get('job') or {}
         out += '<article class="mission567-card" data-mission-id="' + e(row['id']) + '"><div class="mission567-state">' + e(row['label']) + '</div><h3>' + e(row['instruction']) + '</h3>'
-        out += '<p>' + e(row['matter_label'] or 'Cabinet') + '</p><p class="muted">' + e(job.get('progress') or row['plan']['deliverable']) + '</p>'
+        out += '<p>' + e(row['matter_label'] or 'Cabinet') + '</p><p class="muted">' + e(job.get('progress') or (row.get('plan') or {}).get('deliverable', '')) + '</p>'
         if result.get('text'):
             out += '<details><summary>Lire la réponse et ses sources</summary><pre>' + e(result['text']) + '</pre></details>'
         if result.get('open_url'):
@@ -99,7 +99,13 @@ def cards(rows, prefix):
             out += '<button type="button" data-mission-control="resume">'+('Démarrer la préparation' if row['state']=='suggested' else 'Relancer')+'</button>'
         if row['state'] in ('queued', 'running', 'creating', 'paused'):
             out += '<details><summary>Autres actions</summary><button type="button" data-mission-control="' + ('pause' if row['state'] in missions567.ACTIVE else 'resume') + '">' + ('Suspendre' if row['state'] in missions567.ACTIVE else ('Démarrer la préparation' if row['state']=='suggested' else 'Reprendre')) + '</button></details>'
-        out += '<details><summary>Plan, limites et preuve</summary><ol>' + ''.join('<li>' + e(x) + '</li>' for x in row['plan']['steps']) + '</ol><p>' + e(' · '.join(row['plan']['restrictions'])) + '</p>'
+        # 5.6.36 : boutons visibles pour annuler une mission ou la retirer de la liste
+        if row['state'] not in ('cancelled',) and row['state'] not in ('verified', 'prepared', 'abstained'):
+            out += ('<button type="button" class="ghost" data-mission5636="annuler" data-confirm="Annuler définitivement cette mission ? '
+                    'Un projet déjà déposé reste dans le dossier.">Annuler la mission</button>')
+        if row['state'] not in missions567.ACTIVE:
+            out += '<button type="button" class="ghost" data-mission5636="retirer">Retirer de la liste</button>'
+        out += '<details><summary>Plan, limites et preuve</summary><ol>' + ''.join('<li>' + e(x) + '</li>' for x in (row.get('plan') or {}).get('steps', [])) + '</ol><p>' + e(' · '.join((row.get('plan') or {}).get('restrictions', []))) + '</p>'
         if result.get('proof'):
             out += '<p>Relecture : ' + e(str(result['proof'])) + '</p>'
         out += '</details></article>'
@@ -163,8 +169,15 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
         for f in fields:
             key,typ=f['key'],f['type'];value=f['value']
             body+='<label>'+e(f['label'])
-            if typ in ('lines','paths','urls'):
-                body+='<textarea data-config567="'+e(key)+'" rows="3">'+e('\n'.join(value or []))+'</textarea>'
+            if typ=='paths':   # 5.6.36 : dossiers choisis en cliquant ; la saisie manuelle reste possible (repliée)
+                chips=''.join('<li><span>📁 '+e(v)+'</span><button type="button" class="ghost" data-nc5636-remove="'+e(v)+'" aria-label="Retirer '+e(v)+'">×</button></li>'
+                              for v in (value or []))
+                body+=('<div class="nc5636-paths" data-nc5636-field="'+e(key)+'"><ul class="nc5636-chosen">'+(chips or '<li class="ax-muted nc5636-none">Aucun dossier choisi.</li>')+
+                       '</ul><button type="button" class="ghost" data-nc5636-browse="'+e(key)+'">📁 Ajouter un dossier…</button>'
+                       '<details class="nc5636-raw"><summary>Saisie manuelle (avancé)</summary><textarea data-config567="'+e(key)+'" data-no-dictation rows="3">'+
+                       e('\n'.join(value or []))+'</textarea></details></div>')
+            elif typ in ('lines','urls'):
+                body+='<textarea data-config567="'+e(key)+'" data-no-dictation rows="3">'+e('\n'.join(value or []))+'</textarea>'
             elif typ=='bool':
                 body+='<input type="checkbox" data-config567="'+e(key)+'"'+(' checked' if value else '')+'>'
             elif typ=='secret':

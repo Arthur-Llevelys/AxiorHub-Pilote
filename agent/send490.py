@@ -83,6 +83,8 @@ def status(desk):
         'SELECT at,matter,recipients,status,detail FROM send_log490 WHERE at>=? ORDER BY id DESC LIMIT 30', (since,))]
     return {'smtp_configured': configured, 'enabled': bool(desk.settings('send490:enabled', False)) and configured,
             'requested': bool(desk.settings('send490:enabled', False)),
+            'all_matters': bool(desk.settings('send5636:all_matters', False)),   # 5.6.36 : tous les dossiers d'un coup
+            'confirm_each': bool(desk.settings('send5636:confirm_each', True)),  # 5.6.36 : confirmation avant chaque envoi (recommandée)
             'matters': [{'id': m['id'], 'label': matter_display(m),
                          'enabled': m['id'] in enabled_ids} for m in matters],
             'recent': recent, 'max_per_hour': MAX_PER_HOUR, 'max_recipients': MAX_RECIPIENTS,
@@ -98,6 +100,19 @@ def set_enabled(desk, enabled, confirm=''):
             raise Stop('smtp_non_configure')
     desk.setting('send490:enabled', bool(enabled))
     desk.audit('envoi_490_interrupteur', {'enabled': bool(enabled)})
+    return status(desk)
+
+
+def set_options(desk, all_matters=None, confirm_each=None, confirm=''):
+    """5.6.36 : « tous les dossiers » (au lieu d'une activation dossier par dossier) et confirmation avant chaque envoi."""
+    ensure_schema(desk)
+    if all_matters is not None:
+        if all_matters and confirm != 'yes':
+            raise Stop('confirmation_envoi_requise')
+        desk.setting('send5636:all_matters', bool(all_matters))
+    if confirm_each is not None:
+        desk.setting('send5636:confirm_each', bool(confirm_each))
+    desk.audit('envoi_5636_options', {'all_matters': all_matters, 'confirm_each': confirm_each})
     return status(desk)
 
 
@@ -178,7 +193,7 @@ def _check_sendable(desk, mail):
     if not webmail:
         if not matter:
             raise Stop('envoi_dossier_non_identifie')
-        if matter not in set(desk.settings('send490:matters', [])):
+        if matter not in set(desk.settings('send490:matters', [])) and not desk.settings('send5636:all_matters', False):
             raise Stop('envoi_non_active_pour_ce_dossier')
     subject = str(msg.get('Subject', ''))
     if VERIFY_MARK.search(subject) or VERIFY_MARK.search(body_text(msg)[:400]):
@@ -220,7 +235,8 @@ def prepare(desk, uid, validity):
     desk.db.commit()
     desk.audit('envoi_490_apercu', {'matter': matter, 'recipients': len(recipients)})
     return {'token': token, 'expires_in': TOKEN_TTL, 'min_delay': MIN_DELAY,
-            'summary': _summary(mail.msg, recipients, matter), 'fingerprint': fp[:12]}
+            'summary': _summary(mail.msg, recipients, matter), 'fingerprint': fp[:12],
+            'confirm_each': bool(desk.settings('send5636:confirm_each', True))}
 
 
 # ------------------------------------------------------------------------------------------- envoi

@@ -391,7 +391,7 @@ class Reliability(Base):
         except sqlite3.OperationalError:
             status, kind, body = web.internal_error_response({'PATH_INFO': '/aujourdhui', 'REQUEST_METHOD': 'GET'}, 'text/html; charset=utf-8', '')
         self.assertTrue(status.startswith('503'))
-        self.assertIn('http-equiv="refresh" content="3"', body)
+        self.assertIn('http-equiv="refresh" content="3', body)   # 5.6.36 : rechargement de la même adresse (« 3;url=… »)
         self.assertNotIn('Interface indisponible', body)
 
     def test_open_transaction_is_committed_before_a_network_call(self):
