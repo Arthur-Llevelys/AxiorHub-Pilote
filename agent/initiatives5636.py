@@ -30,8 +30,9 @@ AUTO = 'initiatives5636:detection'
 STATES = {'analyse': 'Analyse en cours', 'proposee': 'À valider', 'en_cours': 'Exécution en cours', 'executee': 'Exécutée', 'ecartee': 'Écartée',
           'echec': 'Analyse impossible', 'redactions': 'Rédactions en cours'}
 # 5.6.37 (audit F12) : états d'une étape ; une rédaction mise en file n'est jamais « faite » avant que son document existe
-STEP_STATUS = {'fait': '✅ ', 'prepare': '📄 ', 'echec': '⚠️ ', 'attente': '⏳ ', 'en_file': '⏳ ', 'annulee': '⛔ '}
-STEP_LABELS = {'en_file': 'Rédaction en cours', 'prepare': 'Document préparé — à relire', 'annulee': 'Non exécutée (plan écarté)'}
+STEP_STATUS = {'fait': '✅ ', 'prepare': '📄 ', 'echec': '⚠️ ', 'attente': '⏳ ', 'en_file': '⏳ ', 'annulee': '⛔ ', 'annulation_demandee': '⛔ '}
+STEP_LABELS = {'en_file': 'Rédaction en cours', 'prepare': 'Document préparé — à relire', 'annulee': 'Non exécutée (plan écarté)',
+               'annulation_demandee': 'Arrêt demandé'}
 STEPS = (
     ('dossier', 'Créer le dossier', 'Répertoire « {nom_dossier} » sous {emplacement}, avec PROCEDURE, CORRESPONDANCES et PIECES.'),
     ('pj', 'Ranger les pièces jointes', 'Les pièces jointes du courriel vont dans « PJ courriels » du dossier (sans écrasement).'),
@@ -345,8 +346,62 @@ def dismiss(desk, ident, owner='cabinet'):
             desk.cancel_job(row['job'])
         except Stop:
             pass
+    cancel_children(desk, ident, owner)   # 5.6.39 (audit 5.6.37, F05) : rédactions enfants en attente ou en cours
     desk.audit('initiatives5636_ecartee', {'id': ident, 'owner': owner})
     return {'id': ident, 'message': 'Initiative écartée : aucune étape ne sera plus exécutée.'}
+
+
+def cancel_children(desk, ident, owner='cabinet'):
+    """5.6.39 (audit 5.6.37, F05) : chaque rédaction enfant encore en file est annulée, une rédaction en cours reçoit une demande d'arrêt
+    (elle s'arrête avant son dépôt) ; un document déjà produit reste tracé, rien n'est effacé."""
+    from .decisions5634 import cancel_docreq
+    row = _row(desk, ident)
+    steps, changed = row['steps'], False
+    for s in steps:
+        if s.get('status') != 'en_file' or not s.get('request'):
+            continue
+        try:
+            out = cancel_docreq(desk, s['request'], owner, 'initiative écartée')
+        except Stop:
+            continue
+        if out['state'] == 'annule':
+            s.update(status='annulee', result='Rédaction annulée : l’initiative a été écartée.')
+        elif out['state'] == 'annulation_demandee':
+            s.update(status='annulation_demandee', result='Arrêt demandé : la rédaction en cours s’arrête avant son dépôt.')
+        else:
+            continue
+        changed = True
+    if changed:
+        _save(desk, ident, steps=steps)
+    return steps
+
+
+def _children_schema(desk):
+    desk.db.execute('CREATE TABLE IF NOT EXISTS initiative_children5639(request TEXT PRIMARY KEY, initiative TEXT NOT NULL, version INTEGER NOT NULL, '
+                    'created TEXT NOT NULL)')
+
+
+def link_child(desk, request, ident, version):
+    """5.6.39 (audit 5.6.37, F05) : la rédaction enfant garde l'initiative et la version de validation qui l'ont autorisée."""
+    if not request:
+        return
+    _children_schema(desk)
+    desk.db.execute('INSERT OR REPLACE INTO initiative_children5639(request, initiative, version, created) VALUES(?,?,?,?)',
+                    (str(request), str(ident), int(version or 0), desk.now()))
+    desk.db.commit()
+
+
+def child_authorized(desk, request):
+    """Vrai si la rédaction n'appartient à aucune initiative, ou si son initiative n'est ni écartée ni revalidée dans une autre version.
+    Appelé par la rédaction au démarrage et juste avant son dépôt."""
+    try:
+        link = desk.db.execute('SELECT initiative, version FROM initiative_children5639 WHERE request=?', (str(request),)).fetchone()
+    except Exception:   # noqa: BLE001 — table absente : aucune rédaction liée
+        return True
+    if not link:
+        return True
+    row = desk.db.execute('SELECT state, version FROM initiatives5636 WHERE id=?', (link['initiative'],)).fetchone()
+    return bool(row) and row['state'] != 'ecartee' and int(row['version'] or 0) == int(link['version'])
 
 
 def _authorized(desk, ident, version):
@@ -490,9 +545,13 @@ def refresh_children(desk, ident):
     row = _row(desk, ident)
     steps, changed = row['steps'], False
     for s in steps:
-        if s.get('status') != 'en_file' or not s.get('request'):
+        if s.get('status') not in ('en_file', 'annulation_demandee') or not s.get('request'):
             continue
         req = desk.db.execute('SELECT status, path, result FROM docreq520 WHERE id=?', (s['request'],)).fetchone()
+        if req and req['status'] == 'annule':
+            s.update(status='annulee', result='Rédaction annulée : l’initiative a été écartée.')
+            changed = True
+            continue
         job = desk.db.execute('SELECT status FROM jobs WHERE id=?', (s.get('job'),)).fetchone() if s.get('job') else None
         if req and req['status'] == 'cree' and req['path']:
             s.update(status='prepare', result='Document préparé, à relire : %s' % req['path'].rsplit('/', 1)[-1], path=req['path'])
@@ -506,6 +565,8 @@ def refresh_children(desk, ident):
             s.update(status='annulee', result='Rédaction annulée.')
             changed = True
     state = row['state']
+    if state == 'ecartee' and any(s.get('status') == 'en_file' for s in steps):   # reprise des initiatives écartées avant la 5.6.39
+        steps = cancel_children(desk, ident)
     if state == 'redactions' and not any(s.get('status') == 'en_file' for s in steps):
         state = 'executee'
     if changed or state != row['state']:
@@ -536,6 +597,7 @@ def execute(desk, ident, dav=None, version=None):
             out = _step(desk, row, s['id'], fields, row['owner'] or 'cabinet', dav)
             if isinstance(out, dict):   # rédaction mise en file : suivie jusqu'à son document (F12)
                 s.update(status=out['status'], result=out['result'], job=out['job'], request=out['request'])
+                link_child(desk, out['request'], ident, row.get('version') if version is None else version)   # 5.6.39 (F05)
             else:
                 s['result'] = out
                 s['status'] = 'fait'
@@ -577,7 +639,8 @@ def job(desk, args):
 # ------------------------------------------------------------------------------------------------ page
 def listing(desk, states=('analyse', 'proposee', 'en_cours', 'redactions'), limit=50):
     schema(desk)
-    for r in desk.db.execute("SELECT id FROM initiatives5636 WHERE state='redactions'").fetchall():   # 5.6.37 (F12)
+    for r in desk.db.execute("SELECT id FROM initiatives5636 WHERE state='redactions' OR (state='ecartee' AND (steps LIKE '%\"en_file\"%' "
+                             "OR steps LIKE '%\"annulation_demandee\"%'))").fetchall():   # 5.6.37 (F12), 5.6.39 (F05)
         try:
             refresh_children(desk, r['id'])
         except Exception:   # noqa: BLE001 — l'affichage ne dépend pas du suivi

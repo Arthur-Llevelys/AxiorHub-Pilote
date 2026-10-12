@@ -31,7 +31,8 @@ FUNCTIONS = (
     ('pieces_donnees', 'dossier', '/pieces-donnees', ('GED', 'Données des pièces', 'Textes cités', 'Montants', 'Pièces jointes'), ('storage',)),   # 5.6.36
     ('outils_ia', 'dossier', '/outils-ia', ('Grilles d’analyse', 'Playbook de négociation', 'Mémos juridiques', 'Tableau comparatif'), ('ai',)),
     ('corporate', 'dossier', '/corporate', ('Secrétariat juridique', 'Approbation des comptes', 'AGO', 'Cession de titres', 'Table de capitalisation',
-                                             'Registre des mouvements de titres', 'Création de société', 'Transfert de siège', 'Changement de dirigeant'), ('storage',)),
+                                             'Registre des mouvements de titres', 'Création de société', 'Transfert de siège', 'Changement de dirigeant',
+                                             'Bibliothèque de modèles', 'Statuts', 'Pacte d’associés', 'Lettre d’intention'), ('storage',)),   # 5.6.39
     ('profils', 'dossier', '/profils', ('Profils procéduraux', 'Procédures approuvées'), ()),
     ('strategie', 'dossier', '/strategy', ('Stratégie', 'Espace stratégique'), ('storage',)),
     ('studio', 'dossier', '/studio', ('Studio de production',), ('ai',)),

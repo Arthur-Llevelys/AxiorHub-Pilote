@@ -3,6 +3,37 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.39 — Bibliothèque de modèles (Corporate) et corrections de l’audit 5.6.37
+
+Demande de l’avocat du 12 octobre 2026 et audit du code 5.6.37 (8 fiches). Détail, tests et limites : `CONFORMITE-5.6.39.md`.
+
+- **Bibliothèque de modèles** (Corporate › « 📚 Bibliothèque de modèles », avec ou sans société choisie) : 47 trames prêtes à l’emploi.
+  Droit français : statuts de SAS, SASU, SELAS, SARL, EURL, SELARL, SCI, SCM et SCP avec clauses à cocher (agrément, préemption, sortie
+  conjointe, sortie forcée, inaliénabilité, exclusion, changement de contrôle, actions de préférence, comité, directeurs généraux…) ;
+  pacte d’associés, pacte d’actionnaires, lettre d’intention, protocole sous conditions suspensives, compromis de vente de fonds de
+  commerce sous conditions suspensives, actes de cession de titres et de fonds de commerce ; contrats (prestation de services,
+  confidentialité, CGV, compte courant d’associé, prestations intragroupe). Droit allemand (GmbH, UG, Gesellschaftervereinbarung,
+  Anteilskaufvertrag…), espagnol (S.L., S.A., pacto de socios, compraventa de participaciones…) et anglais (Articles of Association,
+  Shareholders’ Agreement, SPA…), chacun avec ses contrats et la mention « à faire valider par un conseil local ».
+- **Préparer un document** : variables pré-remplies depuis la société choisie (dénomination, siège, capital, associés, dirigeant…),
+  articles numérotés automatiquement, clauses retenues seules ; Word à télécharger, dépôt dans le dossier (JURIDIQUE) ou rédaction par
+  l’IA, qui reçoit la trame remplie comme base. Le Pilote reçoit aussi la trame lorsqu’une demande de rédaction la désigne clairement
+  (« statuts d’une SAS », « pacte d’actionnaires », « lettre d’intention »…).
+- **Modèles du cabinet** : « Personnaliser ce modèle » (texte, {{variables}}, clauses [[si …]] … [[fin]]), « Télécharger la trame en
+  Word » puis « Mon modèle Word » (mise en forme du cabinet conservée), « Ajouter mon modèle », « Revenir au modèle d’origine ».
+- **Audit 5.6.37** : chiffres du rapport de gestion rattachés à leur poste, leur devise, leur unité et leur exercice dans le même segment
+  (méthode 3) ; mise en file Corporate transactionnelle, notification après validation ; réalisation réservée aux actes prêts, parcours
+  distinct « actes établis hors d’AxiorHub », date de décision confirmée inscrite au registre ; écarter une initiative annule ses
+  rédactions enfants (autorisation vérifiée au démarrage et avant le dépôt) ; relance après paiement partiel : texte corrigé conservé et
+  relecture confirmée ; abandon pendant la préparation respecté ; application Nextcloud 0.4.1 (réponses de session obsolètes ignorées).
+- **Pages d’erreur lisibles** (400 « Action non effectuée », 401, 404, 405, 500, 503) : logo, explication, boutons « Recharger la page »,
+  « Revenir en arrière » (page d’origine du même site) et « Accueil » ; une adresse inconnue donne « Page introuvable » (404). Moins
+  d’erreurs affichées : une page en erreur inattendue est réessayée une fois automatiquement, la base occupée l’est jusqu’à
+  disponibilité, le nom du site est comparé sans tenir compte des majuscules ni du port par défaut, et sur le poste « localhost » et
+  « 127.0.0.1 » sont redirigés l’un vers l’autre, et Apache affiche « AxiorHub redémarre » (rechargement automatique) au lieu de 502/503 pendant un redémarrage
+  (`install-interface.py`, modèles `deploy/`).
+- Aide « Corporate » mise à jour en quatre langues ; textes nouveaux traduits en anglais, allemand et espagnol.
+
 ## 5.6.38 — Corrective : l'interface AxiorHub s'affiche dans Nextcloud même avec l'identifiant AxiorHub mémorisé
 
 Signalement de l'avocat du 12 octobre 2026 (application Nextcloud 0.4.0 : « … n'autorise pas la connexion »). Détail : `CONFORMITE-5.6.38.md`.

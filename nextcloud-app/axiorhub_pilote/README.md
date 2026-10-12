@@ -1,4 +1,4 @@
-# AxiorHub Pilote pour Nextcloud (0.4.0, version de développement)
+# AxiorHub Pilote pour Nextcloud (0.4.1, version de développement)
 
 Application native Nextcloud (PHP + Vue 3) raccordée au moteur AxiorHub par le contrat versionné `/integration/v1`
 (moteur 5.6.37 ou plus récent, contrat 1.3 ; 5.6.36 pour la seule vue simplifiée). Cycle de version distinct du moteur.
@@ -93,7 +93,7 @@ Décompresser l'archive dans `apps/` avec le compte du serveur web (sinon Nextcl
 d'applications ») :
 
 ```bash
-sudo -u www-data tar -xzf axiorhub_pilote-0.4.0.tar.gz -C /chemin/nextcloud/apps/
+sudo -u www-data tar -xzf axiorhub_pilote-0.4.1.tar.gz -C /chemin/nextcloud/apps/
 sudo -u www-data php /chemin/nextcloud/occ app:enable axiorhub_pilote
 ```
 

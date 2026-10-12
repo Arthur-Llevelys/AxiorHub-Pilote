@@ -1717,33 +1717,37 @@
   "version": "5.6.36"
  },
  "corporate": {
-  "objective": "Tenir le secrétariat juridique des sociétés clientes : opérations, actes, table de capitalisation et registres, en une seule saisie.",
-  "when": "Pour l’approbation des comptes, un transfert de siège, un changement de dirigeant, une cession de titres, une modification ou une création de société.",
+  "objective": "Tenir le secrétariat juridique des sociétés clientes (opérations, actes, table de capitalisation, registres) et préparer statuts, pactes, lettres d’intention, protocoles, cessions et contrats à partir de la bibliothèque de modèles.",
+  "when": "Pour l’approbation des comptes, un transfert de siège, un changement de dirigeant, une cession de titres, une modification ou une création de société ; pour rédiger des statuts (SAS, SASU, SARL, EURL, SELARL, SELAS, SCI, SCM, SCP, GmbH, S.L., Ltd…), un pacte, une LOI, un protocole ou un contrat.",
   "prerequisites": "Nextcloud : la société est rattachée à un dossier du cabinet, où les actes sont rangés (JURIDIQUE).",
   "steps": [
    "Cliquez sur « Ajouter une société existante » (ou « Créer une société »), remplissez la fiche et enregistrez ; inscrivez les titres de chaque associé dans « Table de capitalisation ».",
-   "Cliquez sur « Approbation des comptes » pour le secrétariat juridique annuel, ou sur « Autre diligence en droit des sociétés » (siège, dirigeants, cession, capital, dissolution…).",
-   "Choisissez la société, remplissez le formulaire et cochez les actes à préparer ; pour une autre diligence, laissez les résolutions vides pour partir de la trame proposée.",
-   "Cliquez sur « Enregistrer et préparer les actes ».",
-   "Relisez les projets Word dans le dossier ; les registres et la table de capitalisation sont déjà à jour.",
-   "Vos modèles : onglet « Modèles et formulaires » › « Mes actes » pour un acte nouveau, ou un modèle par acte ; « 📁 Choisir dans Nextcloud » ou « ⬆ Importer depuis le poste ». Les variables, listées sous chaque formulaire, s’écrivent {{denomination}} ou {{ denomination }}."
+   "Cliquez sur « Approbation des comptes » ou sur « Autre diligence en droit des sociétés », choisissez la société, remplissez le formulaire et cochez les actes à préparer, puis cliquez sur « Enregistrer et préparer les actes ».",
+   "Relisez les projets Word dans le dossier. Une fois la décision prise et les actes signés, ouvrez « Actes préparés » et cliquez sur « Enregistrer la réalisation » (date de la décision, justificatif) : la fiche, les registres et la table de capitalisation sont alors mis à jour. Décision prise avec d’autres actes : « Décision déjà prise avec des actes établis hors d’AxiorHub ? ».",
+   "Bibliothèque de modèles : cliquez sur « 📚 Bibliothèque de modèles », choisissez le droit et le modèle, cochez les clauses (agrément, préemption, sortie conjointe, sortie forcée, exclusion…), vérifiez les variables pré-remplies depuis la société choisie, puis « Préparer » : Word à télécharger, dépôt dans le dossier ou rédaction par l’IA qui suit la trame.",
+   "Pour adapter un modèle : « Personnaliser ce modèle » (texte, {{variables}}, clauses [[si …]] … [[fin]]), ou « ⬇ Télécharger la trame en Word », modifiez-la puis importez-la (« Mon modèle Word »). « ＋ Ajouter mon modèle » ajoute vos propres trames."
   ],
-  "result": "Les actes (modèles du cabinet ou génériques) sont déposés dans « JURIDIQUE/date - opération » ; la fiche, les dirigeants, la table de capitalisation et les registres sont mis à jour.",
-  "verify": "Ouvrez « Registres » : le mouvement de titres ou la décision figure avec sa date ; « Actes préparés » donne le dossier des fichiers.",
+  "result": "Les actes sont déposés dans « JURIDIQUE » ; les registres changent seulement quand vous enregistrez la réalisation. Les modèles de la bibliothèque donnent des projets à relire ; les modèles étrangers sont à faire valider par un conseil local.",
+  "verify": "Ouvrez « Registres » : la décision figure à la date confirmée ; « Actes préparés » montre l’état de chaque opération.",
   "errors": [
    [
-    "« Le cédant ne détient pas assez de titres »",
-    "Vérifiez la table de capitalisation et inscrivez la situation de départ."
+    "« Les actes sont en préparation »",
+    "Attendez la fin de la préparation, ou relancez-la si elle a échoué."
    ],
    [
-    "« L’affectation ne correspond pas au résultat »",
-    "Réserve légale + dividendes + report à nouveau doivent égaler le bénéfice ; laissez vides les champs calculés."
+    "« La date saisie diffère de la date prévue dans les actes »",
+    "Cochez « La décision a été prise à cette date » ou corrigez la date."
+   ],
+   [
+    "« Chaque [[si …]] doit être fermé par un [[fin]] »",
+    "Vérifiez les clauses optionnelles du modèle personnalisé."
    ]
   ],
-  "example": "Société fictive EXEMPLE SAS au capital de 10 000 € : cession de 1 000 actions de Paul MARTIN à Lucie BERNARD.",
+  "example": "Société fictive EXEMPLE SAS au capital de 10 000 € : statuts de SAS avec clauses d’agrément, de préemption et de sortie conjointe.",
   "buttons": [
    "Approbation des comptes",
    "Autre diligence en droit des sociétés",
+   "Bibliothèque de modèles",
    "Ajouter une société existante"
   ],
   "version": "5.6.36"

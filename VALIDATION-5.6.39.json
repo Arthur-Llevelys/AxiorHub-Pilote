@@ -1,0 +1,25 @@
+{
+  "version": "5.6.39",
+  "base": "5.6.38 publiée",
+  "date_utc": "2026-10-12T00:00:00+00:00",
+  "cahier_des_charges": "Demande de l’avocat du 12 octobre 2026 (bibliothèque de modèles Corporate : statuts, pactes, LOI, protocoles, cessions, contrats ; droits français, allemand, espagnol, anglais ; modèles personnalisables et importés) et audit « Audit-AxiorHub-Pilote-5.6.37 » (8 fiches) — CONFORMITE-5.6.39.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1984,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 84,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5639.py : AuditFigures (P01, P02, P03, C01, tableaux N/N-1, devises, extraits larges), AuditCorporateFlows (P04 à P07, P10), AuditInitiativeChildren (P08), AuditReminders (P09), AuditNextcloudApp (P11), Library et LibraryFlows (bibliothèque), ErrorPages (pages d’erreur).",
+  "nextcloud_app": {
+    "version": "0.4.1",
+    "php_tests": "28 tests (phpunit)",
+    "change": "audit 5.6.37 F08 : réponses de session obsolètes ignorées"
+  },
+  "adjusted_tests": [
+    "tests/test_v5636.py : réalisation après préparation des actes (contrat F03) ; rapport de gestion avec en-tête d’exercice (F01)",
+    "tests/test_v5637.py : préparation avant réalisation (F03), date de décision affichée (F04)"
+  ]
+}

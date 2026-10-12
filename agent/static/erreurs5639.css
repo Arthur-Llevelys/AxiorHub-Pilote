@@ -1,0 +1,32 @@
+/* 5.6.39 : pages d'erreur et d'attente (400, 401, 404, 405, 500, 503) — servie sans connexion, sans donnée du cabinet */
+:root{--axe-bg:#f4f7fb;--axe-card:#fff;--axe-ink:#172033;--axe-mute:#475569;--axe-line:#d7e0ee;--axe-accent:#2563eb;--axe-accent-ink:#fff;
+  --axe-warn:#b45309;--axe-warn-bg:#fff7e6;--axe-error:#b91c1c;--axe-error-bg:#fef2f2;--axe-info-bg:#eff6ff}
+@media (prefers-color-scheme:dark){:root{--axe-bg:#12161d;--axe-card:#1c222c;--axe-ink:#e5e9f0;--axe-mute:#b6c0cf;--axe-line:#334155;--axe-accent:#6ea0f0;
+  --axe-accent-ink:#0b1220;--axe-warn:#fbbf24;--axe-warn-bg:#3b2a0a;--axe-error:#fca5a5;--axe-error-bg:#3f1717;--axe-info-bg:#172554}}
+*{box-sizing:border-box}
+.axe-body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--axe-bg);color:var(--axe-ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+.axe-card{width:min(520px,100%);padding:30px 28px 22px;border-radius:22px;background:var(--axe-card);box-shadow:0 18px 50px rgba(15,23,42,.14);
+  text-align:center;border-top:6px solid var(--axe-accent)}
+.axe-warn{border-top-color:#f59e0b}.axe-error{border-top-color:#ef4444}.axe-lost{border-top-color:#8b5cf6}.axe-lock{border-top-color:#0ea5e9}
+.axe-brand{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:800;font-size:1.15rem;letter-spacing:-.02em;margin-bottom:14px}
+.axe-brand img{border-radius:10px}
+.axe-icon{width:72px;height:72px;margin:6px auto 12px;border-radius:50%;display:grid;place-items:center;font-size:2.1rem;background:var(--axe-info-bg)}
+.axe-warn .axe-icon{background:var(--axe-warn-bg)}.axe-error .axe-icon{background:var(--axe-error-bg)}
+.axe-card h1{font-size:1.4rem;margin:0 0 10px}
+.axe-msg{margin:0 0 8px;color:var(--axe-ink);font-size:1.02rem}
+.axe-detail{margin:8px 0;padding:10px 12px;border-radius:12px;background:var(--axe-bg);color:var(--axe-mute);font-size:.94rem;text-align:left}
+.axe-hint,.axe-auto{margin:10px 0 0;color:var(--axe-mute);font-size:.92rem}
+.axe-card p a{color:var(--axe-accent)}
+.axe-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:22px 0 10px}
+.axe-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:10px 18px;border-radius:12px;border:1px solid var(--axe-line);
+  color:var(--axe-ink);background:var(--axe-card);text-decoration:none;font-weight:600}
+.axe-btn:hover,.axe-btn:focus-visible{border-color:var(--axe-accent);outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.18)}
+.axe-primary{background:var(--axe-accent);border-color:var(--axe-accent);color:var(--axe-accent-ink)}
+.axe-ghost{border-color:transparent;color:var(--axe-mute)}
+.axe-code{margin:6px 0 0;color:var(--axe-mute);font-size:.8rem}
+.axe-spinner{width:34px;height:34px;margin:16px auto 0;border:4px solid var(--axe-line);border-top-color:var(--axe-accent);border-radius:50%;
+  animation:axe-r 1s linear infinite}
+@keyframes axe-r{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.axe-spinner{animation:none}}
+@media (max-width:480px){.axe-card{padding:24px 18px 18px}.axe-btn{flex:1 1 100%;justify-content:center}}

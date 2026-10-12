@@ -511,7 +511,13 @@ class App:
             from .web567 import actor
             auth['owner']=actor(env)[0]   # 5.6.9 : utilisateur courant pour les blocs personnels des pages (« À décider »)
             origin=urlsplit(auth['origin'])
-            if env.get('HTTP_HOST','')!=origin.netloc:
+            if not same_host(env.get('HTTP_HOST',''),origin):
+                # 5.6.39 : sur le poste, une page ouverte sous l'autre nom de la machine (localhost / 127.0.0.1, même port) est redirigée
+                # vers l'adresse configurée au lieu d'afficher une erreur ; tout autre nom reste refusé (protection contre le DNS rebinding),
+                # de même que les envois (POST).
+                if env.get('REQUEST_METHOD') in ('GET','HEAD') and not env.get('HTTP_ORIGIN') and loopback_alias(env.get('HTTP_HOST',''),origin):
+                    _target=auth['origin'].rstrip('/')+(env.get('SCRIPT_NAME','') or '')+(env.get('PATH_INFO','/') or '/')+('?'+env['QUERY_STRING'] if env.get('QUERY_STRING') else '')
+                    start_response('302 Found',[('Location',_target),('Cache-Control','no-store'),('Content-Length','0')]);return [b'']
                 raise Stop('hote_refuse')
             if origin.scheme=='https' and env.get('HTTP_X_FORWARDED_PROTO')!='https' and env.get('wsgi.url_scheme')!='https':
                 raise Stop('https_obligatoire')
@@ -554,6 +560,10 @@ class App:
             elif _path=='/poste-session' and auth.get('poste') and env['REQUEST_METHOD']=='GET':   # 5.6.25 : jeton de lancement du poste
                 from .poste_session import exchange
                 _public=exchange(self.auth_path,env,_prefix)
+            elif _path=='/static/erreurs5639.css' and env['REQUEST_METHOD'] in ('GET','HEAD'):   # 5.6.39 : pages d'erreur lisibles
+                from .erreurs_pages5639 import css as _err_css
+                _public={'status':'200 OK','kind':'text/css; charset=utf-8','body':_err_css() if env['REQUEST_METHOD']=='GET' else '',
+                         'csp':"default-src 'none'"}
             elif _path=='/static/axiorhub-icon-192.png' and env['REQUEST_METHOD'] in ('GET','HEAD'):
                 # 5.6.36 : icône du complément Word, téléchargée par Office sans la session AxiorHub (aucune donnée du cabinet)
                 _public={'status':'200 OK','kind':'image/png','body':(Path(__file__).parent/'static'/'axiorhub-icon-192.png').read_bytes() if env['REQUEST_METHOD']=='GET' else b'',
@@ -576,7 +586,8 @@ class App:
                     headers=[(n,v) for n,v in headers if n not in ('Content-Security-Policy','X-Frame-Options')]+[('Content-Security-Policy',_p['csp'])]
                     raw=body.encode('utf-8');start_response(status,headers+[('Content-Type',kind),('Content-Length',str(len(raw)))]);return [raw]
                 status='401 Unauthorized';headers.append(('WWW-Authenticate','Basic realm="AxiorHub Cabinet", charset="UTF-8"'))
-                body='<p>Connectez-vous avec le compte défini à l’installation.</p>'
+                from .erreurs_pages5639 import unauthorized as _err401
+                body=_err401(env,_prefix)   # 5.6.39 : page lisible si la fenêtre de connexion est fermée
                 if _path.startswith(('/api','/live/')):
                     kind='application/json; charset=utf-8';body=json.dumps({'error':'authentification_requise'})
             else:
@@ -1055,7 +1066,8 @@ class App:
                     else:
                         status='303 See Other';headers.append(('Location',prefix+target));body='Action enregistrée.'
                 elif env['REQUEST_METHOD']!='GET':
-                    status='405 Method Not Allowed';body='Méthode refusée.'
+                    from .erreurs_pages5639 import method_refused as _err405
+                    status='405 Method Not Allowed';body=_err405(env,locals().get('_prefix'))
                 elif path=='/openwebui':
                     # A direct route avoids loading the entire dashboard and does
                     # not depend on an iframe policy on the remote application.
@@ -1085,14 +1097,17 @@ class App:
                 body=json.dumps({'error':str(ex),'message':(REASONS.get(str(ex),str(ex).replace('_',' '))+(' '+_precision if _precision else ''))},ensure_ascii=False)
             else:
                 _precision=str((getattr(ex,'detail',None) or {}).get('precision',''))[:400]
-                body='<h1>Action non effectuée</h1><p>'+e(REASONS.get(str(ex),str(ex).replace('_',' ')))+'</p>'+('<p>'+e(_precision)+'</p>' if _precision else '')
+                _extra=''
                 if str(ex) in ('conflit_a_examiner','dossier_decline_conflit'):
-                    body+='<p><a href="'+e((locals().get('prefix') or '/agent-courriel')+'/conflits')+'">Ouvrir les conflits d’intérêts à examiner</a></p>'
+                    _extra+='<p><a href="'+e((locals().get('prefix') or '/agent-courriel')+'/conflits')+'">Ouvrir les conflits d’intérêts à examiner</a></p>'
                 if str(ex)=='origine_refusee':
-                    body+='<p>Ouvrez à nouveau l’interface à son adresse habituelle, rechargez la page (Ctrl+F5), puis relancez le bouton. Ne renvoyez pas l’ancien formulaire.</p>'
-                else:body+='<p>Revenez à la page précédente.</p>'
+                    _extra+='<p class="axe-hint">Ouvrez à nouveau l’interface à son adresse habituelle, rechargez la page (Ctrl+F5), puis relancez le bouton. Ne renvoyez pas l’ancien formulaire.</p>'
+                # 5.6.39 : page lisible (logo, explication, boutons Recharger / Revenir en arrière / Accueil) ; adresse inconnue : 404
+                from .erreurs_pages5639 import refused as _refused
+                status,body=_refused(env,str(ex),REASONS.get(str(ex),str(ex).replace('_',' ')),_precision,locals().get('_prefix'),_extra)
+                kind='text/html; charset=utf-8'
         except Exception:
-            status,kind,body=internal_error_response(env,kind,self.config_path)
+            status,kind,body=internal_error_response(env,kind,self.config_path,locals().get('_prefix'))
             if status.startswith('503'):headers=headers+[('Retry-After','3')]
         try:   # 5.6.32 (lot 7) : écrans métier traduits à la sortie (anglais, allemand, espagnol)
             from .i18n5631 import current as _lang_now5632
@@ -2084,6 +2099,31 @@ JSON_ROUTES=('/api440/','/api/v1','/live/snapshot','/live/board','/dictation','/
              '/hearing/upload','/extensions/upload')
 
 
+def same_host(host,origin):
+    """5.6.39 : même site malgré la casse ou le port par défaut (« Cabinet.example.test:443 » = « cabinet.example.test »)."""
+    host=str(host or '').strip().lower()
+    default={'https':':443','http':':80'}.get(origin.scheme,'')
+    if default and host.endswith(default):host=host[:-len(default)]
+    expected=origin.netloc.lower()
+    if default and expected.endswith(default):expected=expected[:-len(default)]
+    return host==expected
+
+
+LOOPBACK={'localhost','127.0.0.1','[::1]'}
+
+
+def loopback_alias(host,origin):
+    """5.6.39 : « localhost:8769 » et « 127.0.0.1:8769 » désignent le même poste quand l'adresse configurée est locale."""
+    parts=urlsplit('//'+str(host or '').strip().lower())
+    try:port=parts.port
+    except ValueError:return False
+    name=(parts.hostname or '')
+    name='[::1]' if name=='::1' else name
+    want=origin.hostname or ''
+    want='[::1]' if want=='::1' else want
+    return name in LOOPBACK and want in LOOPBACK and (port or None)==(origin.port or None)
+
+
 def wants_json(env,kind):
     """5.6.15 : routes appelées par fetch() et lues avec response.json() — un refus ou une erreur y est renvoyé en JSON."""
     if kind.startswith('application/json'):return True
@@ -2096,7 +2136,7 @@ def internal_error(env,kind,config_path=''):
     return internal_error_response(env,kind,config_path)[1:]
 
 
-def internal_error_response(env,kind,config_path=''):
+def internal_error_response(env,kind,config_path='',prefix=None):
     """5.6.15 : une erreur interne sur une route d'API renvoie du JSON lisible ; la trace va au journal, jamais au navigateur.
     5.6.32 : la trace est aussi écrite dans « erreurs-interface.log » (à côté des données ; le poste Windows n'a pas de console) ;
     une base momentanément occupée par une écriture (« database is locked ») n'est pas une panne : réponse 503 avec nouvel essai
@@ -2112,42 +2152,23 @@ def internal_error_response(env,kind,config_path=''):
             pass
         if wants_json(env,kind):
             return '503 Service Unavailable','application/json; charset=utf-8',json.dumps({'error':'base_occupee','message':BUSY_JSON_MESSAGE,'retry_after':3},ensure_ascii=False)
-        return '503 Service Unavailable','text/html; charset=utf-8',busy_page(env)
+        return '503 Service Unavailable','text/html; charset=utf-8',busy_page(env,prefix)
     if wants_json(env,kind):
         return '500 Internal Server Error','application/json; charset=utf-8',json.dumps({'error':'interface_indisponible','message':INTERNAL_ERROR_MESSAGE},ensure_ascii=False)
-    return '500 Internal Server Error',kind,'<h1>Interface indisponible</h1><p>Vérifiez les services et les fichiers de configuration locaux. Le détail est consigné dans « erreurs-interface.log ».</p>'
+    from .erreurs_pages5639 import internal as _internal   # 5.6.39 : page lisible, un nouvel essai automatique pour une page
+    return '500 Internal Server Error','text/html; charset=utf-8',_internal(env,prefix)
 
 
 BUSY_MESSAGE='AxiorHub termine une écriture en cours ; la page se recharge automatiquement dans quelques secondes.'
 BUSY_JSON_MESSAGE='AxiorHub termine une autre opération : réessayez dans quelques secondes (rien n’a été perdu).'
 
 
-def busy_page(env):
-    """5.6.36 : page d'attente lisible (avant : texte brut « Un instant… » qui ressemblait à une panne). Une page s'affiche de nouveau
-    seule ; après un clic sur un bouton (envoi de formulaire), la page précédente se rouvre et l'action est à refaire."""
-    from urllib.parse import urlsplit as _split
-    post=env.get('REQUEST_METHOD','GET') not in ('GET','HEAD')
-    back=''
-    if post:
-        ref=_split(env.get('HTTP_REFERER',''))
-        if ref.netloc==env.get('HTTP_HOST','') and ref.path.startswith('/'):
-            back=ref.path+('?'+ref.query if ref.query else '')
-    target=back if post else (env.get('SCRIPT_NAME','')+env.get('PATH_INFO','/')+('?'+env['QUERY_STRING'] if env.get('QUERY_STRING') else ''))
-    refresh=('<meta http-equiv="refresh" content="%d;url=%s">'%(4 if post else 3,e(target))) if target else ''
-    text=('Votre clic n’a pas pu être enregistré tout de suite, car AxiorHub termine une autre opération. La page précédente se rouvre : '
-          'cliquez de nouveau sur le bouton. Rien n’a été perdu.') if post else 'AxiorHub termine une autre opération. La page s’affiche dans un instant, sans rien à faire.'
-    return ('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+refresh+
-            '<title>Un instant · AxiorHub Pilote</title><style>'
-            'body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f4f7fb;color:#172033}'
-            '.b{max-width:440px;margin:24px;padding:32px 28px;border-radius:20px;background:#fff;box-shadow:0 18px 50px rgba(15,23,42,.12);text-align:center}'
-            '.l{width:56px;height:56px;margin:0 auto 18px;border-radius:16px;background:#2563eb;color:#fff;font:700 30px/56px system-ui}'
-            '.s{width:34px;height:34px;margin:18px auto 0;border:4px solid #dbe5f5;border-top-color:#2563eb;border-radius:50%;animation:r 1s linear infinite}'
-            'h1{font-size:1.25rem;margin:0 0 10px}p{margin:0;color:#475569;line-height:1.5}a{color:#2563eb}'
-            '@keyframes r{to{transform:rotate(360deg)}}@media(prefers-color-scheme:dark){body{background:#12161d;color:#e5e9f0}.b{background:#1c222c}p{color:#b6c0cf}}'
-            '@media(prefers-reduced-motion:reduce){.s{animation:none}}</style></head><body><main class="b" role="status"><div class="l" aria-hidden="true">A</div>'
-            '<h1>Un instant…</h1><p>'+e(text)+'</p><div class="s" aria-hidden="true"></div>'+
-            ('<p style="margin-top:18px"><a href="'+e(target)+'">Continuer maintenant</a></p>' if target else
-             '<p style="margin-top:18px"><a href="javascript:history.back()">Revenir à la page précédente</a></p>')+'</main></body></html>')
+def busy_page(env,prefix=None):
+    """5.6.36 : page d'attente lisible ; 5.6.39 : même présentation que les autres pages d'erreur (feuille de style servie sans connexion,
+    boutons Recharger / Revenir en arrière / Accueil). Une page s'affiche de nouveau seule ; après un clic sur un bouton (envoi de
+    formulaire), la page précédente se rouvre et l'action est à refaire."""
+    from .erreurs_pages5639 import busy
+    return busy(env,prefix)
 
 
 def log_interface_error(env,config_path=''):

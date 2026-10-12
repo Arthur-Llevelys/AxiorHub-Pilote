@@ -74,10 +74,10 @@ sudo -u www-data php occ app:install axiorhub_pilote
 Without the App Store, build the package from the source repository:
 
 ```bash
-cd /tmp && git clone --branch v0.4.0 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.0.tar.gz
+cd /tmp && git clone --branch v0.4.1 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
+python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.1.tar.gz
 cd /path/to/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.0.tar.gz -C apps
+sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.1.tar.gz -C apps
 sudo -u www-data php occ app:enable axiorhub_pilote
 ```
 
@@ -91,7 +91,7 @@ If a web server login protects AxiorHub, let `/agent-courriel/integration/v1/` a
 - Back up `/etc/axiorhub-mail-agent/` and `/var/lib/axiorhub-mail-agent/` (encrypted, off the server): they contain client data.
 - Full documentation (French): https://github.com/Arthur-Llevelys/AxiorHub-Pilote
 
-Development version 0.4.0: compatibility is announced only after real installation and tests on each declared Nextcloud version.]]></description>
+Development version 0.4.1: compatibility is announced only after real installation and tests on each declared Nextcloud version.]]></description>
     <description lang="fr"><![CDATA[AxiorHub Pilote est un **logiciel juridique destiné aux avocats français** et à leurs cabinets : il suit la procédure française, les juridictions françaises et les sources du droit français ; ses écrans, documents et actes sont rédigés en français.
 
 Cette application affiche **l'interface d'AxiorHub elle-même dans Nextcloud** (Aujourd'hui, Dossiers, Courriels, Agenda et tâches, Produire, Corporate, Contacts & CRM, Outils IA, Recherche juridique…), avec son menu aux couleurs d'AxiorHub, sans ressaisir le mot de passe AxiorHub. Une vue simplifiée garde l'instruction au Pilote, la recherche dans les dossiers, la fiche du dossier, la recherche juridique et les travaux récents.
@@ -161,10 +161,10 @@ sudo -u www-data php occ app:install axiorhub_pilote
 Sans la boutique, construisez le paquet depuis le dépôt source :
 
 ```bash
-cd /tmp && git clone --branch v0.4.0 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.0.tar.gz
+cd /tmp && git clone --branch v0.4.1 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
+python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.1.tar.gz
 cd /chemin/vers/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.0.tar.gz -C apps
+sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.1.tar.gz -C apps
 sudo -u www-data php occ app:enable axiorhub_pilote
 ```
 
@@ -178,8 +178,8 @@ Si une authentification du serveur web protège AxiorHub, laissez passer sans co
 - Sauvegardez `/etc/axiorhub-mail-agent/` et `/var/lib/axiorhub-mail-agent/` (chiffrés, hors du serveur) : ils contiennent des données de clients.
 - Documentation complète : https://github.com/Arthur-Llevelys/AxiorHub-Pilote
 
-Version de développement 0.4.0 : aucune compatibilité n'est annoncée avant installation réelle et tests sur chaque version déclarée de Nextcloud.]]></description>
-    <version>0.4.0</version>
+Version de développement 0.4.1 : aucune compatibilité n'est annoncée avant installation réelle et tests sur chaque version déclarée de Nextcloud.]]></description>
+    <version>0.4.1</version>
     <licence>agpl</licence>
     <author mail="101706410+Arthur-Llevelys@users.noreply.github.com" homepage="https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud">Timo RAINIO</author>
     <namespace>AxiorhubPilote</namespace>
@@ -192,7 +192,7 @@ Version de développement 0.4.0 : aucune compatibilité n'est annoncée avant in
     <website>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud</website>
     <bugs>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/issues</bugs>
     <repository type="git">https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git</repository>
-    <screenshot>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/raw/v0.4.0/screenshots/axiorhub-dans-nextcloud.png</screenshot>
+    <screenshot>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/raw/v0.4.1/screenshots/axiorhub-dans-nextcloud.png</screenshot>
     <dependencies>
         <php min-version="8.1" max-version="8.5"/>
         <nextcloud min-version="32" max-version="35"/>

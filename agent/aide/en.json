@@ -1717,33 +1717,37 @@
   "version": "5.6.36"
  },
  "corporate": {
-  "objective": "Run the corporate secretarial work of client companies: operations, deeds, cap table and registers, from a single entry.",
-  "when": "For approval of accounts, a transfer of registered office, a change of director, a share transfer, an amendment or a company incorporation.",
+  "objective": "Run the corporate secretarial work of client companies (operations, deeds, cap table, registers) and prepare articles, shareholders’ agreements, letters of intent, conditional agreements, transfers and contracts from the template library.",
+  "when": "For approval of accounts, a transfer of registered office, a change of director, a share transfer, an amendment or an incorporation; to draft articles (SAS, SASU, SARL, EURL, SELARL, SELAS, SCI, SCM, SCP, GmbH, S.L., Ltd…), an agreement, an LOI or a contract.",
   "prerequisites": "Nextcloud: the company is linked to a firm case file where deeds are filed (JURIDIQUE).",
   "steps": [
-   "Click “Add an existing company” (or “Créer une société”), fill in the record and save; record each shareholder’s shares in “Cap table”.",
-   "Click “Approval of accounts” for the annual corporate secretarial work, or “Other company law matter” (office, directors, transfer, capital, dissolution…).",
-   "Choose the company, fill in the form and tick the deeds to prepare; for another diligence, leave the resolutions empty to start from the proposed template.",
-   "Click “Save and prepare the deeds”.",
-   "Review the Word drafts in the case file; registers and cap table are already up to date.",
-   "Your templates: “Templates and forms” tab › “My deeds” for a new deed, or one template per deed; “📁 Choose in Nextcloud” or “⬆ Import from this computer”. The variables, listed under each form, are written {{denomination}} or {{ denomination }}."
+   "Click “Add an existing company” (or “Create a company”), fill in the record and save; record each shareholder’s shares in “Cap table”.",
+   "Click “Approval of accounts” or “Other corporate matter”, choose the company, fill in the form, tick the deeds to prepare, then click “Save and prepare the deeds”.",
+   "Review the Word drafts in the case folder. Once the decision is taken and the deeds signed, open “Prepared deeds” and click “Record completion” (date of the decision, supporting document): the record, registers and cap table are then updated. Decision taken with other deeds: “Decision already taken with deeds drawn up outside AxiorHub?”.",
+   "Template library: click “📚 Template library”, choose the law and the template, tick the clauses (approval, pre-emption, tag-along, drag-along, exclusion…), check the variables pre-filled from the selected company, then “Prepare”: Word download, saving in the case folder, or drafting by the AI following the template.",
+   "To adapt a template: “Customise this template” (text, {{variables}}, [[si …]] … [[fin]] clauses), or “⬇ Download the template in Word”, edit it and import it (“My Word template”). “＋ Add my template” adds your own templates."
   ],
-  "result": "Deeds (firm templates or generic) are filed under “JURIDIQUE/date - operation”; record, directors, cap table and registers are updated.",
-  "verify": "Open “Registers”: the share movement or decision appears with its date; “Prepared deeds” gives the folder of the files.",
+  "result": "Deeds are saved in “JURIDIQUE”; registers only change when you record completion. Library templates produce drafts to review; foreign templates must be validated by local counsel.",
+  "verify": "Open “Registers”: the decision appears at the confirmed date; “Prepared deeds” shows the state of each operation.",
   "errors": [
    [
-    "“The transferor does not hold enough shares”",
-    "Check the cap table and record the starting position."
+    "“The deeds are being prepared”",
+    "Wait for the preparation to finish, or restart it if it failed."
    ],
    [
-    "“The allocation does not match the result”",
-    "Legal reserve + dividends + retained earnings must equal the profit; leave computed fields empty."
+    "“The date entered differs from the date planned in the deeds”",
+    "Tick “The decision was taken on this date” or correct the date."
+   ],
+   [
+    "“Each [[si …]] must be closed by a [[fin]]”",
+    "Check the optional clauses of the customised template."
    ]
   ],
-  "example": "Fictitious company EXEMPLE SAS with €10,000 share capital: transfer of 1,000 shares from Paul MARTIN to Lucie BERNARD.",
+  "example": "Fictitious company EXEMPLE SAS with a capital of €10,000: SAS articles with approval, pre-emption and tag-along clauses.",
   "buttons": [
    "Approbation des comptes",
    "Autre diligence en droit des sociétés",
+   "Bibliothèque de modèles",
    "Ajouter une société existante"
   ],
   "version": "5.6.36"

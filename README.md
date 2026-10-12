@@ -5,7 +5,7 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.38</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.39</p>
 
 <p align="center"><strong>Français</strong> · <a href="README.en.md">English</a> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
@@ -505,9 +505,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.38.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.38_all.deb --archive dist/axiorhub-mail-agent-5.6.38.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.38_amd64.deb --archive dist/axiorhub-mail-agent-5.6.38.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.39.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.39_all.deb --archive dist/axiorhub-mail-agent-5.6.39.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.39_amd64.deb --archive dist/axiorhub-mail-agent-5.6.39.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 

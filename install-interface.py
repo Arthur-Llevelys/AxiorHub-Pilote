@@ -27,9 +27,11 @@ UNITS=('axiorhub-mail-ui.service','axiorhub-mail-desk-worker.service','axiorhub-
 VENV=Path('/opt/axiorhub-mail-agent/ui-venv')
 
 
-def apache_config(host):
+def apache_config(host,errors=True):
     if not re.fullmatch(r'[a-z0-9]+(?:[.-][a-z0-9]+)*\.[a-z]{2,}',host):
         raise RuntimeError('Nom de domaine invalide.')
+    from agent.erreurs_pages5639 import apache_directives
+    errors=apache_directives() if errors else ''
     return f'''# AxiorHub Mail Agent — dédié à ce chemin et ce nom HTTPS.
 RedirectMatch 302 ^/agent-courriel$ /agent-courriel/
 <Location "/agent-courriel/">
@@ -40,7 +42,8 @@ RedirectMatch 302 ^/agent-courriel$ /agent-courriel/
     RequestHeader set X-Forwarded-Proto "https"
     Header always unset Permissions-Policy
     Header always set Permissions-Policy "camera=(), microphone=(self), geolocation=()"
-</Location>
+    # 5.6.39 : moteur arrêté ou en cours de redémarrage : page qui se recharge seule (au lieu de « Service Unavailable »)
+{errors}</Location>
 # Flux d'activité (SSE) : transmis événement par événement, jamais compressé ni retenu par Apache.
 <Location "/agent-courriel/live/events">
     Require expr "%{{HTTPS}} == 'on' && %{{HTTP_HOST}} == '{host}'"
@@ -72,7 +75,7 @@ def main():
     if os.geteuid()!=0:raise RuntimeError('Exécuter avec sudo python3 install-interface.py')
     os.umask(0o077)
     verify(BASE.resolve())
-    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37'}
+    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37','5.6.38'}
     from agent import __version__ as active_version   # 5.6.16 : la version active (celle de ce script) est toujours admise
     if BASE.resolve().name not in supported|{active_version}:
         raise RuntimeError('Version active non prise en charge par l’installateur d’interface.')
@@ -87,7 +90,8 @@ def main():
         raise RuntimeError('Ce nom ne figure pas dans les hôtes Apache. Choisir un nom HTTPS déjà configuré.')
     run('apache2ctl','configtest')
     old_conf=CONF.read_bytes() if CONF.exists() else None
-    if old_conf not in (None,config,apache_config_151(host).encode(),config.replace(b'microphone=(self)',b'microphone=()').replace(b'timeout=240',b'timeout=60')):
+    before=apache_config(host,errors=False).replace('    # 5.6.39 : moteur arrêté ou en cours de redémarrage : page qui se recharge seule (au lieu de « Service Unavailable »)\n','').encode()
+    if old_conf not in (None,config,before,apache_config_151(host).encode(),before.replace(b'microphone=(self)',b'microphone=()').replace(b'timeout=240',b'timeout=60')):
         raise RuntimeError('La configuration dédiée a été modifiée : arrêt sans écrasement.')
     for unit in UNITS:
         bundled=unit.replace('@2.','@.')

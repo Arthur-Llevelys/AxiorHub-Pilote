@@ -390,7 +390,11 @@ class Desk:
             return None
         return self.enqueue(kind, args, priority, chained=True)
 
-    def enqueue(self, kind, args=None, priority=None, chained=False):
+    def enqueue(self, kind, args=None, priority=None, chained=False, transactional=False):
+        """Met un travail en file. 5.6.39 (audit 5.6.37, F02) : ``transactional=True`` = le travail est inséré dans la transaction de
+        l'appelant, sans validation, sans annulation globale et sans notification : l'appelant valide l'ensemble puis appelle
+        ``notify_queued``. Sinon (contrat historique), la mise en file est validée ici ; une notification en panne après cette validation
+        n'est jamais transformée en échec de la demande."""
         if kind not in JOBS:
             raise Stop('action_inconnue')
         if args and args.get('matter'):
@@ -409,7 +413,7 @@ class Desk:
         if not self.db.in_transaction:self.db.execute('BEGIN IMMEDIATE')
         old = self.db.execute("SELECT id FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested')", (kind,raw)).fetchone()
         if old:
-            self.db.commit()
+            if not transactional:self.db.commit()
             return old[0]
         priority=job_priority(kind) if priority is None else max(0,min(int(priority),100))
         # 5.6.5 : les travaux automatiques (priorité 30 et plus) ont leur propre plafond ; ils ne peuvent plus remplir la file au point de
@@ -418,18 +422,18 @@ class Desk:
             automatic=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending' AND priority>=?",(AUTOMATIC_PRIORITY,)).fetchone()[0]
             same=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending' AND kind=? AND priority>=?",(kind,AUTOMATIC_PRIORITY)).fetchone()[0]
             if automatic>=AUTOMATIC_LIMIT or same>=AUTOMATIC_PER_KIND:
-                self.db.rollback()
+                if not transactional:self.db.rollback()
                 raise Stop('file_attente_pleine')
         elif self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]>=USER_LIMIT:
-            self.db.rollback()
+            if not transactional:self.db.rollback()
             raise Stop('file_attente_pleine')
         cur = self.db.execute('''INSERT INTO jobs
             (kind,args,status,created,finished,result,priority) VALUES (?,?,?, ?,NULL,NULL,?)''',
             (kind,raw,'pending',now(),priority))
+        if transactional:
+            return cur.lastrowid
         self.db.commit()
-        from .live430 import emit
-        emit(self,'queued','Demande enregistrée ; traitement mis en attente.',cur.lastrowid,
-          str((args or {}).get('matter','')),str((args or {}).get('key','')))
+        self.notify_queued(cur.lastrowid, args)
         if kind in ('prepare_reply','prepare_draft','deposit_draft') and args and args.get('key'):
             try:
                 from .integration import set_work_state
@@ -443,6 +447,20 @@ class Desk:
             except Stop:
                 pass
         return cur.lastrowid
+
+    def notify_queued(self, job_id, args=None):
+        """Notification « demande enregistrée », après validation ; une panne est journalisée, jamais remontée (le travail existe)."""
+        try:
+            from .live430 import emit
+            emit(self,'queued','Demande enregistrée ; traitement mis en attente.',job_id,
+              str((args or {}).get('matter','')),str((args or {}).get('key','')))
+        except Exception as error:   # noqa: BLE001
+            try:
+                if self.db.in_transaction:self.db.rollback()
+                self.db.execute('INSERT INTO audit VALUES(NULL,?,?,?)',(now(),'notification_file_en_panne',json.dumps({'job':job_id,'type':type(error).__name__})))
+                self.db.commit()
+            except Exception:   # noqa: BLE001
+                pass
 
     def cancel_job(self, job_id):
         try:job_id=int(job_id)

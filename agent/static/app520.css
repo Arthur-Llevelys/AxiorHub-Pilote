@@ -1808,3 +1808,26 @@ main aside:where(:not([id])){position:static;inset:auto;width:auto;height:auto;m
 /* page « Toutes les fonctions » */
 .p5637-panel{position:static!important;left:auto!important;width:auto!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;
   display:block!important;padding:0!important;background:transparent!important;border:0!important}
+/* 5.6.39 : bibliothèque de modèles (Corporate) */
+.b5639-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:8px}
+.b5639-filters label{display:grid;gap:4px;min-width:200px}
+.b5639-list{list-style:none;margin:0 0 16px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.b5639-item{display:grid;gap:4px;text-decoration:none;color:inherit;height:100%;box-sizing:border-box}
+.b5639-item small{color:var(--ws-muted,#64748b)}
+.b5639-badge{display:inline-block;margin-left:4px;padding:1px 8px;border-radius:999px;background:#eef2f7;color:#334155;font-size:.74rem;font-weight:600}
+.b5639-badge.on{background:#e3f1e8;color:#14532d}
+.b5639-badge.cab{background:#efe9fb;color:#4c1d95}
+.b5639-warn{padding:10px 12px;border-radius:10px;background:#fff7e6;color:#7a4b00;border:1px solid #f3d38a}
+.b5639-ready{padding:10px 12px;border-radius:10px;background:#e8f5ee}
+.b5639-form fieldset{border:1px solid var(--ws-border,#d7e0ee);border-radius:12px;padding:10px 12px;margin:10px 0;display:grid;gap:8px}
+.b5639-vars{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.b5639-preview{white-space:pre-wrap;max-height:60vh;overflow:auto;font:0.9rem/1.5 Georgia,'Times New Roman',serif;background:var(--ws-panel,#f8fafc);padding:12px;border-radius:10px}
+.b5639-src{width:100%;font:0.86rem/1.45 ui-monospace,Consolas,monospace}
+.b5639-help ul{margin:6px 0 0;padding-left:18px}
+:root[data-theme=dark] .b5639-badge{background:#273142;color:#e2e8f0}
+:root[data-theme=dark] .b5639-badge.on{background:#14532d;color:#dcfce7}
+:root[data-theme=dark] .b5639-badge.cab{background:#3b2a63;color:#ede9fe}
+:root[data-theme=dark] .b5639-warn{background:#3b2a0a;color:#fde7b0;border-color:#6b4a12}
+:root[data-theme=dark] .b5639-ready{background:#123524}
+:root[data-theme=dark] .b5639-preview{background:#111827}
+@media (max-width:700px){.b5639-filters label{min-width:0;flex:1 1 100%}}

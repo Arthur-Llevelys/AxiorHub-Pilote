@@ -13,7 +13,7 @@
 					<a v-for="s in group"
 						:key="s.path"
 						href="#"
-						:aria-current="view === 'axiorhub' && current === s.path ? 'page' : undefined"
+						:aria-current="view === 'axiorhub' && selected === s.path ? 'page' : undefined"
 						@click.prevent="go(s.path)">
 						<span class="axh-side-icon" aria-hidden="true">{{ s.icon }}</span>
 						<span>{{ s.label }}</span>
@@ -128,8 +128,12 @@ const view = ref('axiorhub')
 const src = ref('')
 const base = ref('')
 const frameOrigin = ref('')
-const current = ref('/aujourdhui')
+const current = ref('/aujourdhui')   // rubrique réellement chargée dans le cadre
+const selected = ref('/aujourdhui')  // rubrique choisie par l'utilisateur (surlignée dans le menu, même pendant le chargement)
 const loading = ref(false)
+// 0.4.1 (audit 5.6.37, F08) : chaque demande de session porte un numéro ; seule la plus récente peut modifier l'affichage
+let sessionSeq = 0
+let sessionAbort = null
 const problem = ref(null)
 const frameKey = ref(0)
 let renewals = 0
@@ -156,25 +160,46 @@ function apply(session, path) {
 	}
 }
 
-async function fresh(path) {
-	const { data } = await axios.post(generateUrl('/apps/axiorhub_pilote/api/session'), { page: path })
+async function fresh(path, signal) {
+	const { data } = await axios.post(generateUrl('/apps/axiorhub_pilote/api/session'), { page: path }, signal ? { signal } : undefined)
 	return data
 }
 
+function invalidateSession() {
+	sessionSeq += 1
+	if (sessionAbort) {
+		sessionAbort.abort()
+		sessionAbort = null
+	}
+	return sessionSeq
+}
+
 async function reconnect(path) {
+	const seq = invalidateSession()   // la demande précédente est abandonnée ; sa réponse tardive sera ignorée
+	sessionAbort = typeof AbortController === 'function' ? new AbortController() : null
+	selected.value = path
 	loading.value = true
 	problem.value = null
 	try {
-		apply(await fresh(path), path)
+		const session = await fresh(path, sessionAbort?.signal)
+		if (seq === sessionSeq) {
+			apply(session, path)
+		}
 	} catch (error) {
-		apply(error?.response?.data || { code: 'moteur_injoignable' }, path)
+		if (seq === sessionSeq && !axios.isCancel?.(error) && error?.name !== 'CanceledError') {
+			apply(error?.response?.data || { code: 'moteur_injoignable' }, path)
+		}
 	} finally {
-		loading.value = false
+		if (seq === sessionSeq) {
+			loading.value = false
+			sessionAbort = null
+		}
 	}
 }
 
 function go(path) {
 	view.value = 'axiorhub'
+	selected.value = path
 	if (!config.linked) {
 		return
 	}
@@ -182,6 +207,8 @@ function go(path) {
 		reconnect(path)
 		return
 	}
+	invalidateSession()   // un choix direct rend obsolète toute demande de session encore en vol
+	loading.value = false
 	current.value = path
 	src.value = base.value + path   // session AxiorHub déjà ouverte dans le cadre
 	frameKey.value += 1
@@ -226,6 +253,7 @@ function onMessage(event) {
 		const match = sections.find((s) => event.data.path === s.path || event.data.path.startsWith(s.path + '/'))
 		if (match) {
 			current.value = match.path
+			selected.value = match.path
 		}
 		renewals = 0
 	} else if (event.data.axiorhub === 'session') {
@@ -262,6 +290,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+	invalidateSession()
 	window.removeEventListener('message', onMessage)
 	unsubscribe('navigation-toggled', onNavigation)
 })

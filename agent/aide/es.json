@@ -1717,33 +1717,37 @@
   "version": "5.6.36"
  },
  "corporate": {
-  "objective": "Llevar la secretaría societaria de las sociedades clientes: operaciones, actas, tabla de capitalización y libros registro, con una sola entrada.",
-  "when": "Para la aprobación de cuentas, el traslado de domicilio, el cambio de administrador, una transmisión de acciones, una modificación o una constitución.",
-  "prerequisites": "Nextcloud: la sociedad está vinculada a un expediente del despacho donde se archivan las actas (JURIDIQUE).",
+  "objective": "Llevar la secretaría jurídica de las sociedades clientes (operaciones, actas, tabla de capitalización, libros) y preparar estatutos, pactos, cartas de intenciones, protocolos, cesiones y contratos a partir de la biblioteca de modelos.",
+  "when": "Para la aprobación de cuentas, un traslado de domicilio, un cambio de administrador, una cesión de participaciones, una modificación o una constitución; para redactar estatutos (SAS, SARL, SCI, GmbH, S.L., S.A., Ltd…), pactos, cartas de intenciones o contratos.",
+  "prerequisites": "Nextcloud: la sociedad está vinculada a un expediente del despacho, donde se archivan las actas (JURIDIQUE).",
   "steps": [
-   "Haga clic en «Añadir una sociedad existente» (o «Créer une société»), rellene la ficha y guarde; anote los títulos de cada socio en «Tabla de capitalización».",
-   "Haga clic en «Aprobación de cuentas» para la secretaría societaria anual, o en «Otra diligencia de derecho de sociedades» (domicilio, administradores, transmisión, capital, disolución…).",
-   "Elija la sociedad, rellene el formulario y marque las actas; para otra diligencia, deje vacíos los acuerdos para partir de la plantilla propuesta.",
-   "Haga clic en «Guardar y preparar las actas».",
-   "Revise los borradores Word en el expediente; los libros y la tabla de capitalización ya están al día.",
-   "Sus modelos: pestaña «Modelos y formularios» › «Mis actas» para un acta nueva, o un modelo por acta; «📁 Elegir en Nextcloud» o «⬆ Importar desde el equipo». Las variables, listadas bajo cada formulario, se escriben {{denomination}} o {{ denomination }}."
+   "Haga clic en «Añadir una sociedad existente» (o «Crear una sociedad»), complete la ficha y guárdela; inscriba las participaciones de cada socio en «Tabla de capitalización».",
+   "Haga clic en «Aprobación de cuentas» u «Otra diligencia societaria», elija la sociedad, complete el formulario, marque las actas y haga clic en «Guardar y preparar las actas».",
+   "Revise los proyectos Word en el expediente. Una vez adoptada la decisión y firmadas las actas, abra «Actas preparadas» y haga clic en «Registrar la realización» (fecha de la decisión, justificante): entonces se actualizan la ficha, los libros y la tabla de capitalización.",
+   "Biblioteca de modelos: haga clic en «📚 Biblioteca de modelos», elija el derecho y el modelo, marque las cláusulas (aprobación, adquisición preferente, acompañamiento, arrastre…), compruebe las variables rellenadas desde la sociedad y haga clic en «Preparar»: descarga en Word, depósito en el expediente o redacción por la IA siguiendo el modelo.",
+   "Para adaptar un modelo: «Personalizar este modelo» (texto, {{variables}}, cláusulas [[si …]] … [[fin]]) o «⬇ Descargar el modelo en Word», modifíquelo e impórtelo («Mi modelo Word»). «＋ Añadir mi modelo» añade sus propios modelos."
   ],
-  "result": "Las actas (modelos del despacho o genéricos) se guardan en «JURIDIQUE/fecha - operación»; ficha, administradores, tabla y libros se actualizan.",
-  "verify": "Abra «Libros registro»: el movimiento de títulos o la decisión figura con su fecha; «Actas preparadas» indica la carpeta.",
+  "result": "Las actas se depositan en «JURIDIQUE»; los libros solo cambian al registrar la realización. Los modelos dan proyectos por revisar; los modelos extranjeros deben validarse por un asesor local.",
+  "verify": "Abra «Libros»: la decisión figura en la fecha confirmada; «Actas preparadas» muestra el estado de cada operación.",
   "errors": [
    [
-    "«El transmitente no tiene suficientes títulos»",
-    "Revise la tabla de capitalización y anote la situación de partida."
+    "«Las actas se están preparando»",
+    "Espere a que termine la preparación o relánzela si ha fallado."
    ],
    [
-    "«La aplicación no corresponde al resultado»",
-    "Reserva legal + dividendos + remanente deben igualar el beneficio; deje vacíos los campos calculados."
+    "«La fecha indicada difiere de la prevista en las actas»",
+    "Confirme la fecha o corríjala."
+   ],
+   [
+    "«Cada [[si …]] debe cerrarse con un [[fin]]»",
+    "Compruebe las cláusulas opcionales del modelo personalizado."
    ]
   ],
-  "example": "Sociedad ficticia EXEMPLE SAS con capital de 10 000 €: transmisión de 1 000 acciones de Paul MARTIN a Lucie BERNARD.",
+  "example": "Sociedad ficticia EXEMPLE SAS con un capital de 10 000 €: estatutos de SAS con cláusulas de aprobación, adquisición preferente y acompañamiento.",
   "buttons": [
    "Approbation des comptes",
    "Autre diligence en droit des sociétés",
+   "Bibliothèque de modèles",
    "Ajouter une société existante"
   ],
   "version": "5.6.36"

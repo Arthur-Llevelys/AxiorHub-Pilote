@@ -320,6 +320,13 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
             payload['regles_du_cabinet'] = rules
     except Exception:
         pass
+    try:   # 5.6.39 : trame de la bibliothèque de modèles (choisie par l'avocat, ou clairement désignée par la demande)
+        from .bibliotheque5639 import trame_for_request
+        trame = trame_for_request(desk, request)
+        if trame:
+            payload['trame_bibliotheque'] = trame
+    except Exception:   # noqa: BLE001 — la rédaction ne dépend pas de la bibliothèque
+        pass
     from .cabinet560 import writer_intro
     from .assistant567 import drafting_preferences
     payload['preferences']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
@@ -424,12 +431,24 @@ def _free_path(client, folder, base):
 
 
 # ---------------------------------------------------------------------------------------- tâche
+def _parent_authorized(desk, rid):
+    """5.6.39 (audit 5.6.37, F05) : une rédaction lancée par une initiative s'arrête si l'initiative a été écartée ou revalidée."""
+    try:
+        from .initiatives5636 import child_authorized
+    except ImportError:
+        return True
+    return child_authorized(desk, rid)
+
+
 def run(desk, args, dav=None):
     ensure_schema(desk)
     rid = str(args.get('request', ''))
     row = desk.db.execute('SELECT * FROM docreq520 WHERE id=?', (rid,)).fetchone()
     if not row:
         raise Stop('demande_document_absente')
+    if row['status'] not in ('annule', 'annulation_demandee', 'cree') and not _parent_authorized(desk, rid):   # 5.6.39 (F05)
+        _set(desk, rid, 'annule', result={'message': 'Initiative écartée ou revalidée : rédaction non démarrée.'})
+        raise Stop('demande_annulee')
     if row['status'] in ('annule', 'annulation_demandee'):   # 5.6.34 (B16) : une demande annulée ne repart pas
         if row['status'] == 'annulation_demandee':
             _set(desk, rid, 'annule', result=json.loads(row['result'] or '{}'))
@@ -545,7 +564,7 @@ def run(desk, args, dav=None):
         raise Stop('dossier_hors_racines')
     from .deposits567 import stage, finish
     current = desk.db.execute('SELECT status FROM docreq520 WHERE id=?', (rid,)).fetchone()
-    if current and current['status'] in ('annule', 'annulation_demandee'):   # 5.6.34 (B16) : contrôle avant tout dépôt
+    if (current and current['status'] in ('annule', 'annulation_demandee')) or not _parent_authorized(desk, rid):   # B16 ; 5.6.39 (F05)
         _set(desk, rid, 'annule', result={'notes': notes, 'message': 'Annulée avant le dépôt : aucun fichier écrit.'})
         raise Stop('demande_annulee')
     result = {'title': doc['titre'], 'to_complete': doc['a_completer'], 'sources': doc['sources'], 'notes': notes,

@@ -469,7 +469,7 @@ ACCOUNTS_SCHEMA = {'type': 'object', 'additionalProperties': False, 'required': 
                                                      'exercice': {'type': 'string', 'maxLength': 10},
                                                      'extrait': {'type': 'string', 'maxLength': 300}}}}}}
 # 5.6.37 (audit F05) : méthode de contrôle versionnée ; un rapport établi avec une méthode antérieure est à recontrôler.
-METHODE_COMPTES = 2
+METHODE_COMPTES = 3   # 5.6.39 (audit 5.6.37, F01) : preuve structurée, voir comptes5639
 # Postes reconnus : un extrait ne justifie un chiffre que s'il porte sur le même poste (jamais le résultat net pour le chiffre d'affaires).
 POSTES = (('chiffre d\'affaires', ('chiffre d\'affaires', 'chiffres d\'affaires', 'ventes de marchandises', 'production vendue')),
           ('resultat net', ('resultat net', 'benefice', 'perte de l\'exercice', 'resultat de l\'exercice')),
@@ -512,43 +512,10 @@ def _numbers(passage):
 
 
 def check_figure(x, text, exercice=''):
-    """Contrôle strict d'un chiffre : (None, détail) si justifié, sinon (cause, détail). L'extrait doit être retrouvé (non vide), porter
-    sur le même poste, contenir le montant (signe compris) dans la devise, l'unité et l'exercice des comptes."""
-    from .preuve5634 import find_excerpt, page_at, parse_amount
-    extrait = str(x.get('extrait') or '').strip()
-    if len(extrait) < 12:
-        return 'extrait_absent_ou_trop_court', {}
-    pos = find_excerpt(extrait, text)
-    if pos is None:
-        return 'extrait_introuvable_dans_les_comptes', {}
-    passage = text[pos[0]:pos[1]]
-    detail = {'page': page_at(text, pos[0]), 'debut': pos[0], 'extrait': passage[:300]}
-    label, folded_passage = fold(str(x.get('libelle') or '')).replace('’', "'"), fold(passage).replace('’', "'")
-    for name, words in POSTES:
-        if any(w in label for w in words) or name in label:
-            if not any(w in folded_passage for w in words):
-                return 'poste_different_dans_l_extrait', detail
-            break
-    devise = str(x.get('devise') or '')
-    currencies = _doc_currencies(text)
-    if not currencies:
-        return 'devise_non_etablie', detail
-    if devise not in currencies:
-        return 'devise_differente_des_comptes', detail
-    unit = str(x.get('unite') or 'unites')
-    if unit != _doc_unit(text):
-        return 'unite_differente_des_comptes', detail
-    year = str(x.get('exercice') or '').strip()[:4]
-    if exercice and year and year != str(exercice)[:4]:
-        return 'exercice_different', detail
-    claim = parse_amount(x.get('montant'), devise)
-    if claim is None:
-        return 'montant_illisible', detail
-    if claim['devise'] and claim['devise'] != devise:
-        return 'devise_differente_des_comptes', detail
-    if claim['valeur'] not in _numbers(passage):
-        return 'montant_absent_de_l_extrait', detail
-    return None, detail
+    """Contrôle d'un chiffre du rapport de gestion. 5.6.39 (audit 5.6.37, F01) : preuve structurée (comptes5639) — poste, valeur, signe,
+    devise, unité et exercice établis ensemble dans le même segment des comptes ou par leurs en-têtes."""
+    from . import comptes5639
+    return comptes5639.check(x, text, exercice)
 
 
 def accounts_analysis(desk, c, raw, name, model=None, exercice=''):
@@ -877,21 +844,24 @@ def _clean_data(desk, kind, data):
     return out
 
 
-def _apply_effects(desk, c, kind, d, op):
-    """Effets de la saisie unique : fiche, dirigeants, table de capitalisation, registres (une seule transaction)."""
+def _apply_effects(desk, c, kind, d, op, decision_day=None):
+    """Effets de la saisie unique : fiche, dirigeants, table de capitalisation, registres (une seule transaction).
+    5.6.39 (audit 5.6.37, F04) : ``decision_day`` = date de la décision confirmée par l'avocat, portée au registre des décisions ; la date
+    d'effet (mouvements, prise de fonctions, transfert) reste distincte."""
     cid = c['id']
+    dec_day = decision_day
     day = d.get('date_effet') or d.get('date_cession') or d.get('date_ag') or date.today().isoformat()
     from . import crm5636
     if kind == 'agoa':
         _agoa_context(desk, c, d, {})   # 5.6.37 (audit F09) : affectation contrôlée avant toute inscription
-        _decision(desk, cid, d.get('date_ag') or day, 'associe_unique' if FORMS[c['forme']][3] else 'assemblee',
+        _decision(desk, cid, dec_day or d.get('date_ag') or day, 'associe_unique' if FORMS[c['forme']][3] else 'assemblee',
                   'Approbation des comptes de l’exercice clos le %s' % date_fr(d.get('exercice_clos')), 'Comptes approuvés ; affectation du résultat ; conventions ; pouvoirs.', op)
     elif kind == 'siege':
         if not d.get('nouveau_siege'):
             raise Stop('nouveau_siege_requis')
         d['ancien_siege'] = c['siege'] or '[À COMPLÉTER]'
         desk.db.execute('UPDATE companies5636 SET siege=?, updated=? WHERE id=?', (d['nouveau_siege'], _now(), cid))
-        _decision(desk, cid, day, d.get('organe') or 'assemblee', 'Transfert du siège social', 'Du %s au %s.' % (d['ancien_siege'], d['nouveau_siege']), op)
+        _decision(desk, cid, dec_day or day, d.get('organe') or 'assemblee', 'Transfert du siège social', 'Du %s au %s.' % (d['ancien_siege'], d['nouveau_siege']), op)
     elif kind == 'dirigeant':
         name = ' '.join(x for x in (d.get('entrant_prenom'), d.get('entrant_nom', '').upper()) if x).strip()
         if not name:
@@ -910,7 +880,7 @@ def _apply_effects(desk, c, kind, d, op):
             pass
         desk.db.execute('INSERT INTO officers5636 VALUES(?,?,?,?,?,?,?,?)', (uuid.uuid4().hex, cid, contact, name, d.get('fonction') or FORMS[c['forme']][2], day, '', op))
         d['entrant'] = name
-        _decision(desk, cid, day, d.get('organe') or 'assemblee', 'Nomination : %s (%s)' % (name, d.get('fonction')),
+        _decision(desk, cid, dec_day or day, d.get('organe') or 'assemblee', 'Nomination : %s (%s)' % (name, d.get('fonction')),
                   ('Remplace %s.' % d['sortant_nom']) if d.get('sortant_nom') else '', op)
     elif kind == 'modification':
         if not d.get('nature'):
@@ -918,7 +888,7 @@ def _apply_effects(desk, c, kind, d, op):
         if d.get('champ') in ('denomination', 'objet', 'capital', 'duree') and d.get('nouvelle_redaction'):
             value = d['nouvelle_redaction'] if d['champ'] != 'capital' else str(_dec(d['nouvelle_redaction'], 'montant_invalide'))
             desk.db.execute('UPDATE companies5636 SET %s=?, updated=? WHERE id=?' % d['champ'], (value, _now(), cid))
-        _decision(desk, cid, day, d.get('organe') or 'assemblee', d['nature'], d.get('nouvelle_redaction', '')[:500], op)
+        _decision(desk, cid, dec_day or day, d.get('organe') or 'assemblee', d['nature'], d.get('nouvelle_redaction', '')[:500], op)
     elif kind == 'diligence':
         label = dict(CHOICES['diligence']).get(d.get('nature'), 'Autre diligence')
         d['intitule'] = d.get('intitule') or label
@@ -960,7 +930,7 @@ def _apply_effects(desk, c, kind, d, op):
                 _movement(desk, cid, day, 'annulation', qty, 'ordinaires', op, from_=who)
         if d.get('champ') in ('denomination', 'objet', 'duree') and d.get('nouvelle_valeur'):
             desk.db.execute('UPDATE companies5636 SET %s=?, updated=? WHERE id=?' % d['champ'], (d['nouvelle_valeur'][:3000], _now(), cid))
-        _decision(desk, cid, day, d.get('organe') or 'assemblee', d['intitule'], (d.get('resolutions') or '')[:500], op)
+        _decision(desk, cid, dec_day or day, d.get('organe') or 'assemblee', d['intitule'], (d.get('resolutions') or '')[:500], op)
     elif kind == 'cession':
         qty = _dec(d.get('nombre'), 'nombre_titres_invalide')
         if qty is None or qty <= 0 or qty != qty.to_integral():
@@ -984,7 +954,7 @@ def _apply_effects(desk, c, kind, d, op):
         n = _movement(desk, cid, d.get('date_cession') or day, 'cession', int(qty), d.get('categorie'), op, (seller['name'], seller['contact']),
                       (buyer, contact), str(price))
         d.update(cedant_nom=seller['name'], numero_mouvement=str(n))
-        _decision(desk, cid, d.get('date_cession') or day, 'assemblee' if d.get('agrement') else 'dirigeant',
+        _decision(desk, cid, dec_day or d.get('date_cession') or day, 'assemblee' if d.get('agrement') else 'dirigeant',
                   'Cession de %d titres : %s → %s' % (int(qty), seller['name'], buyer), 'Mouvement n° %d.%s' % (n, ' Agrément du cessionnaire.' if d.get('agrement') else ''), op)
     return d
 
@@ -1025,10 +995,10 @@ def _prepare_creation(desk, d, owner):
     return cid, associates
 
 
-def _apply_creation(desk, c, d, op):
+def _apply_creation(desk, c, d, op, decision_day=None):
     """Réalisation d'une constitution : souscriptions, premier dirigeant et décision inscrits (dans la transaction de l'appelant)."""
     from . import crm5636
-    day = d.get('date_effet') or date.today().isoformat()
+    day = decision_day or d.get('date_effet') or date.today().isoformat()
     for name, apport, nombre in d.get('associes_lignes') or []:
         contact = ''
         try:
@@ -1072,8 +1042,9 @@ def operation_submit(desk, data, owner='cabinet'):
                 raise Stop('cle_idempotence_deja_utilisee')
             return {'id': prior['id'], 'company': prior['company'], 'job': prior['job'], 'goto': '?societe=%s&vue=actes' % prior['company'],
                     'message': 'Opération déjà enregistrée.'}
-    from . import crm5636
+    from . import crm5636, metier500
     crm5636.schema(desk)   # 5.6.37 (F08) : schémas créés AVANT la transaction (executescript la validerait)
+    metier500.ensure_schema(desk)   # 5.6.39 (audit 5.6.37, F02) : contrôle des conflits appelé par la mise en file
     if not desk.db.in_transaction:
         desk.db.execute('BEGIN IMMEDIATE')
     try:
@@ -1098,36 +1069,64 @@ def operation_submit(desk, data, owner='cabinet'):
         d['_contenu'] = content
         desk.db.execute('INSERT INTO operations5636(id,company,kind,data,docs,state,result,job,owner,created,updated,idem) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
                         (op, c['id'], kind, json.dumps(d, ensure_ascii=False), json.dumps(docs), 'en_file', '{}', None, owner, _now(), _now(), idem))
-        # 5.6.37 (audit F10) : la demande de travail est enregistrée DANS la même transaction ; une file pleine annule tout
-        job = desk.enqueue('corporate5636', {'id': op, 'matter': c['matter']}, priority=35)
-        if not desk.db.in_transaction:
-            desk.db.execute('BEGIN IMMEDIATE')
+        # 5.6.37 (audit F10) / 5.6.39 (audit 5.6.37, F02) : projet, travail et rattachement dans UNE transaction dont operation_submit est
+        # le seul propriétaire ; la mise en file ne valide rien ; la notification suit la validation
+        job = desk.enqueue('corporate5636', {'id': op, 'matter': c['matter']}, priority=35, transactional=True)
         desk.db.execute('UPDATE operations5636 SET job=? WHERE id=?', (job, op))
         desk.db.commit()
     except Exception:
         if desk.db.in_transaction:
             desk.db.rollback()
         raise
+    desk.notify_queued(job, {'id': op, 'matter': c['matter']})
     desk.audit('corporate5636_operation', {'id': op, 'kind': kind, 'company': c['id'], 'docs': len(docs), 'owner': owner})
     return {'id': op, 'company': c['id'], 'job': job, 'goto': '?societe=%s&vue=actes' % c['id'],
             'message': '%s : projet enregistré, %d acte(s) en préparation. Les registres seront mis à jour quand vous enregistrerez la réalisation.'
             % (OPERATIONS[kind][0], len(docs))}
 
 
-def realize(desk, data, owner='cabinet'):
-    """5.6.37 (audit F09) : l'avocat constate que la décision a été prise (AG tenue, acte signé) : effets inscrits d'un bloc, avec la date et
-    le justificatif ; contrôles refaits sur l'état actuel des registres. Une opération en échec, abandonnée ou déjà réalisée est refusée."""
+# 5.6.39 (audit 5.6.37, F03) : contrat de réalisation unique pour l'interface et l'API.
+#  - parcours courant : projet dont les actes sont prêts (actes_prets) et dont tous les actes requis ont été produits ;
+#  - parcours « actes externes » : décision prise avec des actes établis hors d'AxiorHub, confirmation explicite obligatoire, possible
+#    tant que le projet n'est ni réalisé ni abandonné (préparation en cours, en échec ou à relancer).
+REALISABLE = ('actes_prets',)
+REALISABLE_EXTERNE = ('actes_prets', 'en_file', 'echec', 'mise_en_file_a_reprendre')
+# date « de décision » prévue dans le projet, par opération (l'approbation des comptes se décide à l'assemblée)
+DATE_DECISION = {'agoa': 'date_ag'}
+
+
+def _missing_deliverables(row):
+    res = json.loads(row['result'] or '{}')
+    templates = res.get('templates') or {}
+    required = [d for d in json.loads(row['docs'] or '[]') if not d.startswith('perso_')]
+    return [d for d in required if d not in templates or str(templates.get(d, '')).startswith('échec')] if res.get('files') else required
+
+
+def realization_state(row):
+    """(réalisable, réalisable avec des actes externes, motif) pour un projet — partagé par l'écran et le service."""
+    d = json.loads(row['data'] or '{}')
+    if d.get('effets') != 'proposes' or row['state'] in ('realisee', 'abandonnee'):
+        return False, False, 'operation_deja_close'
+    external = row['state'] in REALISABLE_EXTERNE
+    if row['state'] not in REALISABLE:
+        return False, external, {'en_file': 'actes_en_preparation', 'echec': 'preparation_en_echec',
+                                 'mise_en_file_a_reprendre': 'preparation_a_relancer'}.get(row['state'], 'operation_non_realisable')
+    if _missing_deliverables(row):
+        return False, external, 'actes_requis_manquants'
+    return True, external, ''
+
+
+def realize(desk, data, owner='cabinet', externe=False):
+    """5.6.37 (audit F09) : l'avocat constate que la décision a été prise (AG tenue, acte signé) : effets inscrits d'un bloc, avec la date
+    de la décision et le justificatif ; contrôles refaits sur l'état actuel des registres.
+    5.6.39 (audit 5.6.37) : F03 — le parcours courant exige des actes prêts ; le parcours « actes externes » est distinct et exige une
+    confirmation ; état et version relus dans la transaction, transition conditionnelle. F04 — la date confirmée est la date de la décision
+    inscrite au registre ; si elle diffère de la date prévue dans les actes, l'avocat doit le confirmer explicitement."""
     schema(desk)
     from . import crm5636
     crm5636.schema(desk)
     op = str(data.get('id') or '')
-    row = desk.db.execute('SELECT * FROM operations5636 WHERE id=?', (op,)).fetchone()
-    if not row:
-        raise Stop('operation_inconnue')
-    d = json.loads(row['data'])
-    if d.get('effets') != 'proposes' or row['state'] in ('realisee', 'abandonnee'):
-        raise Stop('operation_deja_close')
-    day = str(data.get('date') or date.today().isoformat())[:10]
+    day = str(data.get('date') or '')[:10]
     try:
         date.fromisoformat(day)
     except ValueError:
@@ -1135,17 +1134,36 @@ def realize(desk, data, owner='cabinet'):
     proof = re.sub(r'[\x00-\x08\x0b-\x1f]', '', str(data.get('justificatif') or '')).strip()[:500]
     if len(proof) < 3:
         raise Stop('justificatif_requis')
+    if externe and str(data.get('actes_externes') or '') not in ('1', 'true', 'on', 'True'):
+        raise Stop('confirmation_actes_externes_requise')
     if not desk.db.in_transaction:
         desk.db.execute('BEGIN IMMEDIATE')
     try:
+        row = desk.db.execute('SELECT * FROM operations5636 WHERE id=?', (op,)).fetchone()   # relu DANS la transaction
+        if not row:
+            raise Stop('operation_inconnue')
+        ok, ok_external, reason = realization_state(row)
+        if not (ok_external if externe else ok):
+            raise Stop(reason or 'operation_non_realisable')
+        d = json.loads(row['data'])
+        planned_key = DATE_DECISION.get(row['kind'])
+        planned = str(d.get(planned_key) or '')[:10] if planned_key else ''
+        if planned and planned != day and str(data.get('confirmer_date') or '') not in ('1', 'true', 'on', 'True'):
+            raise Qualified('date_decision_differente', precision='Date prévue dans les actes : %s ; date saisie : %s. Cochez « La décision a été '
+                                                                 'prise à cette date » pour confirmer, ou corrigez la date.' % (planned, day))
+        if planned and planned != day:
+            d[planned_key + '_prevue'] = planned
+            d[planned_key] = day
         c = company(desk, row['company'])
-        for key in ('date_effet', 'date_cession', 'date_ag'):
+        for key in ('date_effet', 'date_cession'):
             if key in d and not d.get(key):
                 d[key] = day
-        d = _apply_creation(desk, c, d, op) if row['kind'] == 'creation' else _apply_effects(desk, c, row['kind'], d, op)
-        d.update(effets='realises', realise_le=day, realise_par=owner, justificatif=proof)
-        cur = desk.db.execute("UPDATE operations5636 SET state='realisee', data=?, updated=? WHERE id=? AND state NOT IN ('realisee','abandonnee')",
-                              (json.dumps(d, ensure_ascii=False), _now(), op))
+        d = (_apply_creation(desk, c, d, op, decision_day=day) if row['kind'] == 'creation'
+             else _apply_effects(desk, c, row['kind'], d, op, decision_day=day))
+        d.update(effets='realises', date_decision=day, realise_le=date.today().isoformat(), realise_par=owner, justificatif=proof,
+                 mode_realisation='actes_externes' if externe else 'actes_prepares')
+        cur = desk.db.execute('UPDATE operations5636 SET state=?, data=?, updated=? WHERE id=? AND state=? AND updated=?',
+                              ('realisee', json.dumps(d, ensure_ascii=False), _now(), op, row['state'], row['updated']))
         if not cur.rowcount:
             raise Stop('operation_deja_close')
         desk.db.commit()
@@ -1153,7 +1171,8 @@ def realize(desk, data, owner='cabinet'):
         if desk.db.in_transaction:
             desk.db.rollback()
         raise
-    desk.audit('corporate5636_realisation', {'id': op, 'kind': row['kind'], 'company': row['company'], 'owner': owner})
+    desk.audit('corporate5636_realisation', {'id': op, 'kind': row['kind'], 'company': row['company'], 'owner': owner,
+                                            'mode': 'actes_externes' if externe else 'actes_prepares'})
     return {'id': op, 'message': 'Réalisation enregistrée : fiche, registres et table de capitalisation mis à jour.'}
 
 
@@ -1166,7 +1185,10 @@ def abandon(desk, data, owner='cabinet'):
         raise Stop('operation_inconnue')
     if json.loads(row['data']).get('effets') != 'proposes' or row['state'] in ('realisee', 'abandonnee'):
         raise Stop('operation_deja_close')
-    desk.db.execute("UPDATE operations5636 SET state='abandonnee', updated=? WHERE id=?", (_now(), op))
+    cur = desk.db.execute("UPDATE operations5636 SET state='abandonnee', updated=? WHERE id=? AND state NOT IN ('realisee','abandonnee')", (_now(), op))
+    if not cur.rowcount:
+        desk.db.rollback()
+        raise Stop('operation_deja_close')
     if row['kind'] == 'creation':
         desk.db.execute("UPDATE companies5636 SET archived=1, updated=? WHERE id=? AND json_extract(data, '$.statut')='en_formation'", (_now(), row['company']))
     if row['job']:
@@ -1202,19 +1224,21 @@ def relaunch(desk, data, owner='cabinet'):
     if not row or (row['state'] not in ('mise_en_file_a_reprendre', 'echec') and not recheck):
         raise Stop('operation_deja_close')
     c = company(desk, row['company'])
+    from . import metier500
+    metier500.ensure_schema(desk)
     if not desk.db.in_transaction:
         desk.db.execute('BEGIN IMMEDIATE')
     try:
         desk.db.execute("UPDATE operations5636 SET state='en_file', updated=? WHERE id=?", (_now(), op))
-        job = desk.enqueue('corporate5636', {'id': op, 'matter': c['matter'], 'reprise': _now()}, priority=35)
-        if not desk.db.in_transaction:
-            desk.db.execute('BEGIN IMMEDIATE')
+        args = {'id': op, 'matter': c['matter'], 'reprise': _now()}
+        job = desk.enqueue('corporate5636', args, priority=35, transactional=True)
         desk.db.execute('UPDATE operations5636 SET job=? WHERE id=?', (job, op))
         desk.db.commit()
     except Exception:
         if desk.db.in_transaction:
             desk.db.rollback()
         raise
+    desk.notify_queued(job, args)
     desk.audit('corporate5636_relance', {'id': op, 'owner': owner})
     return {'id': op, 'job': job, 'message': 'Préparation relancée.'}
 
@@ -1306,6 +1330,9 @@ def build_context(desk, c, kind, d, docs=(), client=None, model=None):
     return ctx
 
 
+PREPARABLE = ('en_file', 'mise_en_file_a_reprendre')
+
+
 def generate(desk, op_id, dav=None, model=None):
     """Travail de fond : actes de l'opération rangés dans « JURIDIQUE/AAAA-MM-JJ - opération » du dossier de la société."""
     from .dav import DAV
@@ -1313,6 +1340,8 @@ def generate(desk, op_id, dav=None, model=None):
     row = desk.db.execute('SELECT * FROM operations5636 WHERE id=?', (op_id,)).fetchone()
     if not row:
         raise Stop('operation_inconnue')
+    if row['state'] not in PREPARABLE:   # 5.6.39 (audit 5.6.37, F07) : projet abandonné, réalisé ou déjà prêt : rien n'est préparé
+        return {**json.loads(row['result'] or '{}'), 'interrompu': row['state']}
     c = company(desk, row['company'])
     d, docs = json.loads(row['data']), json.loads(row['docs'])
     matter = next((m for m in load_matters(desk.c) if m['id'] == c['matter']), None)
@@ -1324,7 +1353,12 @@ def generate(desk, op_id, dav=None, model=None):
     client.ensure_folder(folder, matter['path'])
     files, sources = [], {}
     own = {'perso_' + r['id']: r for r in own_deeds(desk)}
+    stopped = ''
     for doc in docs:
+        state = desk.db.execute('SELECT state FROM operations5636 WHERE id=?', (op_id,)).fetchone()['state']
+        if state not in PREPARABLE:   # abandon pendant la préparation : les actes suivants ne sont pas déposés
+            stopped = state
+            break
         try:
             raw, source = render(desk, doc, ctx, client)
         except Stop as exc:
@@ -1340,6 +1374,10 @@ def generate(desk, op_id, dav=None, model=None):
             try:
                 client.put_file(target, raw, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
                 files.append(target)
+                # dépôt tracé aussitôt (un abandon ou un arrêt ultérieur n'efface jamais la trace d'un fichier réellement créé)
+                desk.db.execute("UPDATE operations5636 SET result=json_set(result, '$.files', json(?)) WHERE id=?",
+                                (json.dumps(files, ensure_ascii=False), op_id))
+                desk.db.commit()
                 break
             except Stop as exc:
                 if str(exc) != 'http_412' or n > 20:
@@ -1347,7 +1385,13 @@ def generate(desk, op_id, dav=None, model=None):
                 n += 1
         sources[doc] = source
     result = {'folder': folder, 'files': files, 'templates': sources}
-    desk.db.execute("UPDATE operations5636 SET state='actes_prets', result=?, updated=? WHERE id=?", (json.dumps(result, ensure_ascii=False), _now(), op_id))
+    if stopped:
+        result['arret'] = 'abandon_pendant_la_preparation'
+    # transition conditionnelle : un abandon concurrent n'est jamais remplacé par « actes prêts »
+    cur = desk.db.execute("UPDATE operations5636 SET state='actes_prets', result=?, updated=? WHERE id=? AND state IN ('en_file','mise_en_file_a_reprendre')",
+                          (json.dumps(result, ensure_ascii=False), _now(), op_id))
+    if not cur.rowcount:
+        desk.db.execute('UPDATE operations5636 SET result=? WHERE id=?', (json.dumps(result, ensure_ascii=False), op_id))
     desk.db.commit()
     desk.audit('corporate5636_actes', {'id': op_id, 'files': len(files)})
     return result
@@ -1357,7 +1401,9 @@ def job(desk, args):
     try:
         return generate(desk, str(args.get('id') or ''))
     except Stop as exc:
-        desk.db.execute("UPDATE operations5636 SET state='echec', result=?, updated=? WHERE id=?", (json.dumps({'erreur': str(exc)}), _now(), str(args.get('id') or '')))
+        # 5.6.39 (audit 5.6.37, F07) : un état clos (abandonné, réalisé) n'est jamais remplacé par « échec » ; fichiers déjà déposés conservés
+        desk.db.execute("UPDATE operations5636 SET state='echec', result=json_set(result, '$.erreur', ?), updated=? "
+                        "WHERE id=? AND state IN ('en_file','mise_en_file_a_reprendre')", (str(exc), _now(), str(args.get('id') or '')))
         desk.db.commit()
         raise
 
@@ -1449,18 +1495,15 @@ def operations_html(desk, prefix, cid):
             body += ('<br><small>Rapport de gestion établi avec l’ancien contrôle des chiffres : à recontrôler.</small>'
                      '<form class="m5-form m5-inline" data-api="m5636/corporate/relancer" data-reload="1"><input type="hidden" name="id" value="%s">'
                      '<button class="ax-btn ghost" type="submit">Relancer la préparation</button></form>') % e(o['id'], quote=True)
+        if res.get('arret'):
+            body += '<br><small>Abandonné pendant la préparation : %d fichier(s) déjà déposé(s), conservé(s) ; les suivants n’ont pas été créés.</small>' % len(files)
         if d.get('effets') == 'realises':
-            body += '<br><small>Réalisation enregistrée le %s : %s</small>' % (e(d.get('realise_le', '')), e(d.get('justificatif', '')))
+            body += '<br><small>%s</small>' % e(_dates_line(d))
         elif d.get('effets') == 'appliques_5636':
             body += '<br><small>Registres mis à jour dès la saisie (version 5.6.36)%s.</small>' % (
                 ' : opération en échec, vérifiez la fiche et les registres' if o['state'] == 'echec' else '')
         if d.get('effets') == 'proposes' and o['state'] not in ('realisee', 'abandonnee'):
-            body += ('<form class="m5-form m5-inline c5637-realise" data-api="m5636/corporate/realiser" data-reload="1"><input type="hidden" name="id" value="%s">'
-                     '<label>Date de la décision<input type="date" name="date" required></label><label>Justificatif<input name="justificatif" required '
-                     'placeholder="PV signé, acte signé, décision de l’associé unique…"></label><button class="ax-btn" type="submit">Enregistrer la réalisation</button></form>'
-                     '<form class="m5-form m5-inline" data-api="m5636/corporate/abandonner" data-reload="1" data-confirm="Abandonner ce projet ? Aucun registre ne sera modifié.">'
-                     '<input type="hidden" name="id" value="%s"><button class="ax-btn ghost" type="submit">Abandonner le projet</button></form>') % (
-                e(o['id'], quote=True), e(o['id'], quote=True))
+            body += _realize_forms(o, d)
         if o['state'] in ('mise_en_file_a_reprendre', 'echec'):
             body += ('<form class="m5-form m5-inline" data-api="m5636/corporate/relancer" data-reload="1"><input type="hidden" name="id" value="%s">'
                      '<button class="ax-btn ghost" type="submit">Relancer la préparation</button></form>') % e(o['id'], quote=True)
@@ -1468,6 +1511,48 @@ def operations_html(desk, prefix, cid):
     return ('<section class="ax-card"><h3>Actes préparés</h3><p class="ax-muted">Une opération reste un projet tant que vous n’avez pas enregistré sa '
             'réalisation : la fiche, les registres et la table de capitalisation ne changent qu’à ce moment.</p><ul class="o5636-list">%s</ul></section>') % (
         ''.join(items) or '<li class="ax-muted">Aucun acte.</li>')
+
+
+BLOCKED = {'actes_en_preparation': 'Les actes sont en préparation : la réalisation pourra être enregistrée quand ils seront prêts.',
+           'preparation_en_echec': 'La préparation des actes a échoué : relancez-la avant d’enregistrer la réalisation.',
+           'preparation_a_relancer': 'La préparation n’a pas pu être lancée : relancez-la avant d’enregistrer la réalisation.',
+           'actes_requis_manquants': 'Un acte requis n’a pas été produit : relancez la préparation avant d’enregistrer la réalisation.'}
+
+
+def _dates_line(d):
+    parts = []
+    for key, label in (('date_ag_prevue', 'date prévue'), ('date_decision', 'décision du'), ('date_effet', 'effet au'), ('date_cession', 'cession au'),
+                       ('realise_le', 'enregistrée le')):
+        if d.get(key):
+            parts.append('%s %s' % (label, d[key]))
+    return 'Réalisation : %s — %s%s' % (', '.join(parts), d.get('justificatif', ''),
+                                         ' (actes établis hors d’AxiorHub)' if d.get('mode_realisation') == 'actes_externes' else '')
+
+
+def _realize_forms(o, d):
+    """5.6.39 (audit 5.6.37, F03, F04) : formulaire de réalisation présenté selon le même contrat que le service ; date de décision
+    préremplie (date d'assemblée prévue pour une approbation des comptes) ; parcours « actes externes » distinct."""
+    ok, ok_external, reason = realization_state(o)
+    planned = str(d.get(DATE_DECISION.get(o['kind'], ''), '') or '')[:10]
+    ident = e(o['id'], quote=True)
+    fields = ('<input type="hidden" name="id" value="%s"><label>Date de la décision<input type="date" name="date" value="%s" required></label>'
+              '<label>Justificatif<input name="justificatif" required placeholder="PV signé, acte signé, décision de l’associé unique…"></label>%s') % (
+        ident, e(planned, quote=True), ('<label class="e5636-switch"><input type="checkbox" name="confirmer_date" value="1"> La décision a été prise à '
+                                        'cette date (différente de la date prévue, %s)</label>' % e(planned)) if planned else '')
+    html = ''
+    if ok:
+        html += ('<form class="m5-form m5-inline c5637-realise" data-api="m5636/corporate/realiser" data-reload="1">%s'
+                 '<button class="ax-btn" type="submit">Enregistrer la réalisation</button></form>') % fields
+    else:
+        html += '<p class="ax-muted c5639-blocage">%s</p>' % e(BLOCKED.get(reason, 'Réalisation impossible dans cet état.'))
+    if ok_external:
+        html += ('<details class="c5639-externe"><summary>Décision déjà prise avec des actes établis hors d’AxiorHub ?</summary>'
+                 '<form class="m5-form m5-inline" data-api="m5636/corporate/realiser-externe" data-reload="1">%s<label class="e5636-switch"><input type="checkbox" '
+                 'name="actes_externes" value="1" required> Je confirme que la décision a été prise et signée avec d’autres actes que ceux préparés ici</label>'
+                 '<button class="ax-btn ghost" type="submit">Enregistrer la décision (actes externes)</button></form></details>') % fields
+    html += ('<form class="m5-form m5-inline" data-api="m5636/corporate/abandonner" data-reload="1" data-confirm="Abandonner ce projet ? Aucun registre ne sera modifié.">'
+             '<input type="hidden" name="id" value="%s"><button class="ax-btn ghost" type="submit">Abandonner le projet</button></form>') % ident
+    return html
 
 
 def operation_form(desk, prefix, c, kind, labels):
@@ -1582,10 +1667,13 @@ def page_html(desk, prefix, args):
     actions = ('<nav class="c5636-actions" aria-label="Secrétariat juridique"><a class="c5636-big%s" href="%s"><strong>📋 Approbation des comptes</strong>'
                '<small>Effectuer le secrétariat juridique annuel d’une société : convocation, rapport de gestion, PV, extrait, dépôt.</small></a>'
                '<a class="c5636-big%s" href="%s"><strong>⚖️ Autre diligence en droit des sociétés</strong><small>Siège, dirigeants, cession de titres, '
-               'capital, dissolution, transformation, objet, dénomination…</small></a></nav>') % (
+               'capital, dissolution, transformation, objet, dénomination…</small></a>'
+               '<a class="c5636-big%s" href="%s"><strong>📚 Bibliothèque de modèles</strong><small>Statuts, pactes, LOI, protocoles, cessions et '
+               'contrats (droit français, allemand, espagnol, anglais), personnalisables.</small></a></nav>') % (
         ' on' if parcours == 'agoa' or op_kind == 'agoa' else '', e(prefix + '/corporate?parcours=agoa' + q, quote=True),
         ' on' if parcours == 'diligences' or op_kind in ('siege', 'dirigeant', 'modification', 'cession', 'diligence') else '',
-        e(prefix + '/corporate?parcours=diligences' + q, quote=True))
+        e(prefix + '/corporate?parcours=diligences' + q, quote=True),
+        ' on' if view == 'bibliotheque' else '', e(prefix + '/corporate?vue=bibliotheque' + q, quote=True))
     side = '<nav class="c5636-side" aria-label="Sociétés"><a class="ax-btn" href="%s">＋ Créer une société</a><a class="ax-btn ghost" href="%s">Ajouter une société existante</a><ul>%s</ul></nav>' % (
         e(prefix + '/corporate?operation=creation', quote=True), e(prefix + '/corporate?vue=nouvelle', quote=True),
         ''.join('<li><a%s href="%s">%s <small>%s</small></a></li>' % (' aria-current="page"' if r['id'] == cid else '', e(prefix + '/corporate?societe=' + r['id'], quote=True),
@@ -1605,6 +1693,10 @@ def page_html(desk, prefix, args):
         return intro + actions + '<div class="c5636-layout">%s<div class="c5636-main">%s</div></div>' % (side, main)
     if parcours == 'diligences' and cid and not op_kind:
         view = 'operations'
+    if view == 'bibliotheque' and not cid:   # 5.6.39 : bibliothèque de modèles, sans société choisie
+        from . import bibliotheque5639
+        return intro + actions + '<div class="c5636-layout">%s<div class="c5636-main">%s</div></div>' % (
+            side, bibliotheque5639.page_html(desk, prefix, args))
     if op_kind == 'creation':
         main = operation_form(desk, prefix, {'id': '', 'forme': 'SAS', 'siege': ''}, 'creation', labels)
     elif view == 'nouvelle' or not cid:
@@ -1614,7 +1706,7 @@ def page_html(desk, prefix, args):
     else:
         c = company(desk, cid)
         tabs = (('fiche', 'Fiche'), ('operations', 'Opérations'), ('capital', 'Table de capitalisation'), ('registres', 'Registres'), ('actes', 'Actes préparés'),
-                ('modeles', 'Modèles et formulaires'))
+                ('modeles', 'Modèles et formulaires'), ('bibliotheque', 'Bibliothèque de modèles'))
         main = '<header class="c5636-head"><h2>%s <small>%s</small></h2><nav class="tabs">%s</nav></header>' % (
             e(c['denomination']) + (' (en formation)' if c['data'].get('statut') == 'en_formation' else ''), e(FORMS.get(c['forme'], ('',))[0]),
             ''.join('<a class="%s" href="%s">%s</a>' % (
@@ -1654,6 +1746,9 @@ def page_html(desk, prefix, args):
                                             for x in decisions) or '<tr><td colspan="4" class="ax-muted">Registre vide.</td></tr>')
         elif view == 'actes':
             main += operations_html(desk, prefix, cid)
+        elif view == 'bibliotheque':   # 5.6.39 : variables pré-remplies depuis cette société
+            from . import bibliotheque5639
+            main += bibliotheque5639.page_html(desk, prefix, args, cid)
         elif view == 'modeles':
             main += models_html(desk, prefix, cid)
             main += '<section class="ax-card"><h3>Formulaires : champs personnalisés</h3>%s</section>' % ''.join(
@@ -1690,6 +1785,8 @@ def api_post(desk, route, data, owner):
         return operation_submit(desk, data, owner)
     if route == 'corporate/realiser':   # 5.6.37 (audit F09) : réservé à l'avocat et à l'administrateur
         return realize(desk, data, owner)
+    if route == 'corporate/realiser-externe':   # 5.6.39 (audit 5.6.37, F03) : décision prise avec des actes établis hors d'AxiorHub
+        return realize(desk, data, owner, externe=True)
     if route == 'corporate/abandonner':
         return abandon(desk, data, owner)
     if route == 'corporate/relancer':

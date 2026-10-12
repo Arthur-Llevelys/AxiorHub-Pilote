@@ -1,5 +1,14 @@
 # Journal des versions — application Nextcloud AxiorHub Pilote
 
+## 0.4.1 — version de développement (avec le moteur 5.6.39, contrat 1.3)
+
+- **Changement rapide de rubrique** (audit 5.6.37, F08) : chaque demande de connexion porte un numéro ; une réponse arrivée après un
+  nouveau choix est ignorée (et la demande précédente est interrompue). Le cadre affiche toujours la dernière rubrique choisie, jamais
+  une rubrique plus ancienne revenue en retard.
+- **Rubrique surlignée** : le menu surligne la rubrique choisie dès le clic, y compris pendant le chargement ; un choix direct rend
+  obsolète toute demande encore en cours.
+- Aucun changement de sécurité, de contrat ni de réglage : mise à jour simple depuis la 0.4.0.
+
 ## 0.4.0 — version de développement (avec le moteur 5.6.37, contrat 1.3)
 
 - **L'interface AxiorHub dans Nextcloud** : la page « AxiorHub Pilote » affiche AxiorHub lui-même (Aujourd'hui, Dossiers, Courriels,

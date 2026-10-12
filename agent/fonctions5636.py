@@ -26,6 +26,9 @@ def get(desk, route, args, owner, role):
     if route.startswith('outils/'):
         from . import outils5636
         return outils5636.api_get(desk, route, args)
+    if route.startswith('corporate/bibliotheque'):   # 5.6.39 : bibliothèque de modèles
+        from . import bibliotheque5639
+        return bibliotheque5639.api_get(desk, route, args, owner)
     if route.startswith('corporate/'):
         from . import corporate5636
         return corporate5636.api_get(desk, route, args)
@@ -42,6 +45,12 @@ def post(desk, route, data, owner, role, prefix):
             raise Stop('role_insuffisant')
         from . import crm5636
         return crm5636.api_post(desk, route, data, owner)
+    if route.startswith('corporate/bibliotheque/'):
+        # 5.6.39 : l'assistant prépare des projets ; seuls l'avocat et l'administrateur modifient la bibliothèque du cabinet
+        if role not in ('administrateur', 'avocat', 'assistant') or (role == 'assistant' and route != 'corporate/bibliotheque/generer'):
+            raise Stop('role_insuffisant')
+        from . import bibliotheque5639
+        return bibliotheque5639.api_post(desk, route, data, owner)
     if route.startswith('corporate/'):
         if role not in ('administrateur', 'avocat', 'assistant') or (role == 'assistant' and route not in (
                 'corporate/operation', 'corporate/societe', 'corporate/souscription')):

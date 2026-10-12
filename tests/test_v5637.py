@@ -449,6 +449,7 @@ class AuditCorporate(_Linked):
         self.assertEqual((self.count('operations5636'), co.holdings(self.desk, self.cid)[1]), (0, 10000))
         out = co.operation_submit(self.desk, {'kind': 'diligence', 'company': self.cid, 'nature': 'reduction_capital', 'nouveau_capital': '4000',
                                               'annulations': 'Paul MARTIN ; 3000\nPaul MARTIN ; 3000', 'date_effet': '2026-11-15'})
+        co.generate(self.desk, out['id'], dav=self.docs)
         co.realize(self.desk, {'id': out['id'], 'date': '2026-11-15', 'justificatif': 'PV fictif signé'})
         rows, total = co.holdings(self.desk, self.cid)
         self.assertEqual(({r['name']: r['quantity'] for r in rows}, total), ({'Anne DUPONT': 4000}, 4000))
@@ -481,6 +482,7 @@ class AuditCorporate(_Linked):
         self.assertEqual(self.count('operations5636'), 0)
         out = co.operation_submit(self.desk, {'kind': 'creation', 'forme': 'SARL', 'denomination': 'CREATION REPRISE', 'capital': '1000',
                                               'nominal': '10', 'associes': 'Paul MARTIN ; 1000 ; 100', 'matter': t34.MID})
+        co.generate(self.desk, out['id'], dav=self.docs)
         real = co._movement
         calls = []
 
@@ -493,7 +495,7 @@ class AuditCorporate(_Linked):
         self.assertTrue(calls)
         self.assertEqual(co.holdings(self.desk, out['company'])[1], 0)
         self.assertEqual(co.registers(self.desk, out['company'])[1], [])                          # aucune décision partielle
-        self.assertEqual(self.desk.db.execute('SELECT state FROM operations5636 WHERE id=?', (out['id'],)).fetchone()['state'], 'en_file')
+        self.assertEqual(self.desk.db.execute('SELECT state FROM operations5636 WHERE id=?', (out['id'],)).fetchone()['state'], 'actes_prets')
         self.assertTrue(real)
 
     def _has(self, table):
@@ -520,9 +522,11 @@ class AuditCorporate(_Linked):
         co.abandon(self.desk, {'id': out['id']})
         self.assertEqual(co.company(self.desk, self.cid)['siege'], '10 rue du Test, 69002 Lyon')
         page = self.request('/corporate', query='societe=%s&vue=actes' % self.cid)['body']
-        self.assertIn('Réalisation enregistrée le 2026-06-15', page)
+        self.assertIn('décision du 2026-06-15', page)
         self.assertNotIn('Enregistrer la réalisation', page)                                       # opérations closes : plus de bouton
-        co.operation_submit(self.desk, {'kind': 'siege', 'company': self.cid, 'nouveau_siege': '7 quai Fictif, 69005 Lyon', 'organe': 'dirigeant'})
+        third = co.operation_submit(self.desk, {'kind': 'siege', 'company': self.cid, 'nouveau_siege': '7 quai Fictif, 69005 Lyon', 'organe': 'dirigeant'})
+        self.assertIn('Les actes sont en préparation', self.request('/corporate', query='societe=%s&vue=actes' % self.cid)['body'])   # 5.6.39 (F03)
+        co.generate(self.desk, third['id'], dav=self.docs)
         self.assertIn('Enregistrer la réalisation', self.request('/corporate', query='societe=%s&vue=actes' % self.cid)['body'])
 
     def test_f10_full_queue_leaves_nothing_and_repair_relaunches_once(self):

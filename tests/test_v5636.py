@@ -822,8 +822,14 @@ class _CorporateBase(t34.Base):
         return self.co.generate(self.desk, op, dav=self.docs)
 
     def realize(self, out):
-        """5.6.37 (audit F09) : la saisie prépare un projet ; les registres changent quand l'avocat enregistre la réalisation."""
-        return self.co.realize(self.desk, {'id': out['id'], 'date': '2026-10-12', 'justificatif': 'PV signé (essai fictif)'})
+        """5.6.37 (audit F09) : la saisie prépare un projet ; les registres changent quand l'avocat enregistre la réalisation.
+        5.6.39 (audit 5.6.37, F03, F04) : réalisation d'un projet dont les actes sont prêts, à la date de décision prévue."""
+        import json as _json
+        row = self.desk.db.execute('SELECT state, data FROM operations5636 WHERE id=?', (out['id'],)).fetchone()
+        if row['state'] == 'en_file':
+            self.run_job(out['id'])
+        planned = _json.loads(row['data']).get('date_ag') or '2026-10-12'
+        return self.co.realize(self.desk, {'id': out['id'], 'date': planned, 'justificatif': 'PV signé (essai fictif)'})
 
 
 class Corporate(_CorporateBase):
@@ -875,7 +881,7 @@ class Corporate(_CorporateBase):
 
     def test_management_report_from_accounts_is_checked(self):
         co = self.co
-        self.docs.files['/Dossiers/DEMO/Comptes 2025.txt'] = 'Chiffre d’affaires net : 812 450 €. Résultat net : 20 000 €.'.encode()
+        self.docs.files['/Dossiers/DEMO/Comptes 2025.txt'] = 'Comptes annuels de l’exercice 2025 (en euros)\nChiffre d’affaires net : 812 450 €. Résultat net : 20 000 €.'.encode()   # 5.6.39 : exercice établi par l’en-tête
         model = _Model([{'activite': 'Activité stable.', 'evenements': 'Néant.', 'perspectives': '[À COMPLÉTER]',
                          'chiffres': [{'libelle': 'Chiffre d’affaires', 'montant': '812 450 €', 'devise': 'EUR', 'unite': 'unites', 'exercice': '2025',
                                        'extrait': 'Chiffre d’affaires net : 812 450 €'},
