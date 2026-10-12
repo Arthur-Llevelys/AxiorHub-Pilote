@@ -150,7 +150,9 @@ def exchange(desk, env, auth):
                     (_sha(sid), 'session', row['key_id'], row['origin'], now + SESSION_SECONDS, datetime.now(timezone.utc).isoformat(timespec='seconds')))
     desk.db.commit()
     desk.audit('nextcloud5637_session', {'key': row['key_id'][:12]})
-    return {'status': '303 See Other', 'kind': 'text/plain; charset=utf-8', 'body': '',
+    # 5.6.38 : redirection affichable dans le cadre du seul site Nextcloud de la clé (jamais « X-Frame-Options: DENY »)
+    return {'status': '303 See Other', 'kind': 'text/plain; charset=utf-8', 'body': '', 'frame_any': True,
+            'csp': "default-src 'none'; frame-ancestors 'self'" + ((' ' + row['origin']) if row['origin'] else ''),
             'headers': [('Location', prefix + suite), ('Set-Cookie', _cookie(sid, auth, SESSION_SECONDS))]}
 
 

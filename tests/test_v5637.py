@@ -663,5 +663,26 @@ class AuditAutomations(_Linked):
         self.assertEqual(ms.graph_times(self.desk, timed)['start'], {'dateTime': '2026-11-20T08:30:00', 'timeZone': 'UTC'})
 
 
+
+class SessionWithRememberedLogin(_Linked):
+    """5.6.38 : le navigateur envoie aussi l'identifiant Basic mémorisé d'AxiorHub (AxiorHub et Nextcloud sur le même domaine)."""
+
+    def test_frame_is_allowed_even_with_the_remembered_basic_login(self):
+        key = self.pair()
+        r = self.get('/nextcloud-session', self.session_url(key)['url'].split('?', 1)[1])
+        self.assertNotIn('X-Frame-Options', r['headers'])                                    # redirection affichable dans le cadre
+        self.assertIn("frame-ancestors 'self' " + NC, r['headers']['Content-Security-Policy'])
+        sid = r['headers']['Set-Cookie'].split(';', 1)[0]
+        page = self.get('/aujourdhui', cookie=sid, dest='iframe', auth=True)                  # cookie Nextcloud + identifiant Basic
+        self.assertEqual(page['status'], '200 OK')
+        self.assertNotIn('X-Frame-Options', page['headers'])
+        self.assertIn("frame-ancestors 'self' " + NC, page['headers']['Content-Security-Policy'])
+        plain = self.get('/aujourdhui', auth=True)                                             # sans cookie Nextcloud : jamais de cadre
+        self.assertEqual(plain['headers']['X-Frame-Options'], 'DENY')
+        self.assertIn("frame-ancestors 'none'", plain['headers']['Content-Security-Policy'])
+        bad = self.get('/aujourdhui', cookie='axh_nc=inconnu', auth=True)                     # cookie invalide : connexion habituelle
+        self.assertEqual((bad['status'], bad['headers']['X-Frame-Options']), ('200 OK', 'DENY'))
+
+
 if __name__ == '__main__':
     unittest.main()

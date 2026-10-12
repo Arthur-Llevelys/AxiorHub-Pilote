@@ -455,7 +455,10 @@ class App:
         return found
 
     def authenticate(self, environ, auth):
-        if environ.get('HTTP_COOKIE') and not environ.get('HTTP_AUTHORIZATION'):
+        # 5.6.38 : la session Nextcloud (cookie axh_nc) est vérifiée même si le navigateur envoie aussi l'identifiant Basic mémorisé
+        # d'AxiorHub (même domaine) ; sans cela, la page partait avec « X-Frame-Options: DENY » et Nextcloud affichait « … n'autorise pas
+        # la connexion ».
+        if environ.get('HTTP_COOKIE'):
             found=self.nextcloud_session(environ,auth)
             if found is not None:
                 environ['axiorhub.nc_origin']=found['origin'] or 'self'

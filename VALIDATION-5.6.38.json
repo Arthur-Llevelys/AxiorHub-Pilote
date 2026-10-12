@@ -1,0 +1,17 @@
+{
+  "version": "5.6.38",
+  "base": "5.6.37 publiée",
+  "date_utc": "2026-10-12T00:00:00+00:00",
+  "cahier_des_charges": "Signalement de l’avocat du 12 octobre 2026 : l’interface AxiorHub refusée dans le cadre de l’application Nextcloud 0.4.0 — CONFORMITE-5.6.38.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 1945,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 83,
+    "note": "Aucun échec (suite complète depuis l’archive extraite) ; 83 tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5637.py (SessionWithRememberedLogin) : cadre permis avec la session Nextcloud même si l’identifiant Basic mémorisé est joint ; redirection affichable ; sans session, DENY conservé.",
+  "adjusted_tests": []
+}

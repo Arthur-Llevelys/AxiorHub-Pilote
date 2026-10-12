@@ -3,6 +3,15 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.38 — Corrective : l'interface AxiorHub s'affiche dans Nextcloud même avec l'identifiant AxiorHub mémorisé
+
+Signalement de l'avocat du 12 octobre 2026 (application Nextcloud 0.4.0 : « … n'autorise pas la connexion »). Détail : `CONFORMITE-5.6.38.md`.
+
+- Quand AxiorHub et Nextcloud sont sur le même domaine, le navigateur envoie aussi l'identifiant de connexion d'AxiorHub qu'il a
+  mémorisé ; la session Nextcloud n'était alors pas examinée et la page partait avec « X-Frame-Options: DENY ». La session Nextcloud est
+  désormais vérifiée en premier ; la redirection de l'adresse à usage unique est elle aussi affichable dans le cadre du seul site
+  Nextcloud de la clé. Une connexion par mot de passe sans session Nextcloud reste interdite de cadre.
+
 ## 5.6.37 — L’interface AxiorHub dans Nextcloud, instruction au Pilote corrigée, audit 5.6.36
 
 Demandes de l’avocat du 12 octobre 2026 sur l’application Nextcloud et audit du code 5.6.36. Détail, tests et limites : `CONFORMITE-5.6.37.md`.
