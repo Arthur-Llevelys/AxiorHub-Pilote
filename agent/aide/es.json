@@ -1725,7 +1725,8 @@
    "Haga clic en «Aprobación de cuentas» u «Otra diligencia societaria», elija la sociedad, complete el formulario, marque las actas y haga clic en «Guardar y preparar las actas».",
    "Revise los proyectos Word en el expediente. Una vez adoptada la decisión y firmadas las actas, abra «Actas preparadas» y haga clic en «Registrar la realización» (fecha de la decisión, justificante): entonces se actualizan la ficha, los libros y la tabla de capitalización.",
    "Biblioteca de modelos: haga clic en «📚 Biblioteca de modelos», elija el derecho y el modelo, marque las cláusulas (aprobación, adquisición preferente, acompañamiento, arrastre…), compruebe las variables rellenadas desde la sociedad y haga clic en «Preparar»: descarga en Word, depósito en el expediente o redacción por la IA siguiendo el modelo.",
-   "Para adaptar un modelo: «Personalizar este modelo» (texto, {{variables}}, cláusulas [[si …]] … [[fin]]) o «⬇ Descargar el modelo en Word», modifíquelo e impórtelo («Mi modelo Word»). «＋ Añadir mi modelo» añade sus propios modelos."
+   "Para adaptar un modelo: «Personalizar este modelo» (texto, {{variables}}, cláusulas [[si …]] … [[fin]]) o «⬇ Descargar el modelo en Word», modifíquelo e impórtelo («Mi modelo Word»). «＋ Añadir mi modelo» añade sus propios modelos.",
+   "Biblioteca: la preparación se hace en cuatro pasos (destino, información, cláusulas, comprobación); «Vista previa del documento» muestra el resultado real antes de preparar. El derecho propuesto por defecto es un ajuste del despacho, independiente del idioma de la interfaz."
   ],
   "result": "Las actas se depositan en «JURIDIQUE»; los libros solo cambian al registrar la realización. Los modelos dan proyectos por revisar; los modelos extranjeros deben validarse por un asesor local.",
   "verify": "Abra «Libros»: la decisión figura en la fecha confirmada; «Actas preparadas» muestra el estado de cada operación.",

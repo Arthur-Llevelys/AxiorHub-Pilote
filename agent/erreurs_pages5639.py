@@ -13,6 +13,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 CSS_PATH = '/static/erreurs5639.css'
 RETRY_FLAG = '_reessai'
+BUSY_FLAG = '_occupe'
+BUSY_DELAYS = (3, 5, 8, 13)   # 5.6.40 (E03) : essais automatiques espacés, puis page stable avec « Réessayer »
 TONES = {'info': 'ℹ️', 'warn': '⚠️', 'error': '⛔', 'busy': '⏳', 'lost': '🧭', 'lock': '🔒'}
 
 
@@ -40,17 +42,34 @@ def referer(env):
     return ''
 
 
-def with_retry_flag(url):
+def with_retry_flag(url, flag=RETRY_FLAG, value='1'):
     parts = urlsplit(url)
-    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != RETRY_FLAG] + [(RETRY_FLAG, '1')]
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != flag] + [(flag, str(value))]
     return parts.path + '?' + urlencode(query)
+
+
+def busy_attempt(env):
+    for k, v in parse_qsl(str((env or {}).get('QUERY_STRING', '') or ''), keep_blank_values=True):
+        if k == BUSY_FLAG:
+            try:
+                return max(0, min(int(v), 99))
+            except ValueError:
+                return 0
+    return 0
+
+
+def incident_reference():
+    """Référence d'incident : heure UTC à la seconde, celle des journaux (« erreurs-interface.log », écritures longues)."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
 
 
 def already_retried(env):
     return any(k == RETRY_FLAG for k, _ in parse_qsl(str(env.get('QUERY_STRING', '') or ''), keep_blank_values=True))
 
 
-def page(env, status, title, message, prefix=None, detail='', tone='warn', retry_seconds=0, retry_url='', extra_html='', reference=''):
+def page(env, status, title, message, prefix=None, detail='', tone='warn', retry_seconds=0, retry_url='', extra_html='', reference='',
+         reload_label=''):
     """Page complète, autonome. ``extra_html`` est déjà échappé par l'appelant."""
     env = env or {}
     prefix = guess_prefix(env) if prefix is None else prefix
@@ -61,8 +80,10 @@ def page(env, status, title, message, prefix=None, detail='', tone='warn', retry
     reload_url = (back or home) if post else here
     refresh = ('<meta http-equiv="refresh" content="%d;url=%s">' % (retry_seconds, e(retry_url or reload_url, quote=True))) if retry_seconds else ''
     code = status.split(' ', 1)[0]
-    buttons = ['<a class="axe-btn axe-primary" href="%s">↻ %s</a>' % (e(reload_url, quote=True), 'Recharger la page' if not post else
-                                                                        'Rouvrir la page précédente')]
+    if retry_url and not retry_seconds:   # page stable après les essais automatiques : « Réessayer » repart de zéro
+        reload_url = retry_url
+    buttons = ['<a class="axe-btn axe-primary" href="%s">↻ %s</a>' % (e(reload_url, quote=True), reload_label or ('Recharger la page' if not post else
+                                                                                                                  'Rouvrir la page précédente'))]
     if back and back != reload_url:
         buttons.append('<a class="axe-btn" href="%s">← Revenir en arrière</a>' % e(back, quote=True))
     elif not back and not post:
@@ -103,27 +124,49 @@ def refused(env, reason, message, precision='', prefix=None, extra_html=''):
                                    extra_html=extra_html + '<p class="axe-hint">%s</p>' % e(hint))
 
 
+def _diagnostic(prefix):
+    return '<p class="axe-hint">Si cela se répète : <a href="%s">ouvrir le diagnostic</a> et communiquer la référence ci-dessous.</p>' % e(
+        (prefix or '') + '/diagnostic', quote=True)
+
+
 def internal(env, prefix=None, reference=''):
-    """Erreur inattendue : une page (GET) est réessayée une fois automatiquement ; ensuite, explication et boutons."""
+    """Erreur inattendue : une page (GET) est réessayée une fois automatiquement ; ensuite, explication, référence et boutons."""
     env = env or {}
+    prefix = guess_prefix(env) if prefix is None else prefix
     get = env.get('REQUEST_METHOD', 'GET') in ('GET', 'HEAD')
     retry = get and not already_retried(env)
     return page(env, '500 Internal Server Error', 'Interface indisponible',
-                'Une erreur inattendue a interrompu l’affichage. Rien n’a été perdu : rechargez la page ; si l’erreur revient, vérifiez les '
-                'services et les fichiers de configuration locaux. Le détail est consigné dans « erreurs-interface.log ».', prefix,
-                tone='error', retry_seconds=5 if retry else 0, retry_url=with_retry_flag(current_url(env)) if retry else '', reference=reference)
+                'Une erreur inattendue a interrompu l’affichage. Rechargez la page ; si l’erreur revient, vérifiez les services et les fichiers '
+                'de configuration locaux. Le détail est consigné dans « erreurs-interface.log ».', prefix,
+                tone='error', retry_seconds=5 if retry else 0, retry_url=with_retry_flag(current_url(env)) if retry else '',
+                reference=reference or incident_reference(), extra_html='' if retry else _diagnostic(prefix))
 
 
 def busy(env, prefix=None):
-    """Base momentanément occupée par une écriture : nouvel essai automatique (page) ou retour à la page du formulaire (bouton)."""
+    """Base momentanément occupée par une écriture. 5.6.40 (audit 5.6.39, E03) : une page (GET) est réessayée automatiquement à
+    intervalles croissants (3, 5, 8, 13 s) puis s'arrête sur une page stable avec « Réessayer », une référence et le diagnostic ; après
+    un clic (POST), la page précédente est rouverte une fois (jamais de nouvel envoi automatique du formulaire), sans promettre que les
+    saisies sont conservées."""
     env = env or {}
+    prefix = guess_prefix(env) if prefix is None else prefix
     post = env.get('REQUEST_METHOD', 'GET') not in ('GET', 'HEAD')
-    back = referer(env)
-    target = back if post else current_url(env)
-    text = ('Votre clic n’a pas pu être enregistré tout de suite, car AxiorHub termine une autre opération. La page précédente se rouvre : '
-            'cliquez de nouveau sur le bouton. Rien n’a été perdu.') if post else 'AxiorHub termine une autre opération. La page s’affiche dans un instant, sans rien à faire.'
-    return page(env, '503 Service Unavailable', 'Un instant…', text, prefix, tone='busy', retry_seconds=(4 if post else 3) if target else 0,
-                retry_url=target)
+    if post:
+        back = referer(env)
+        text = ('Votre clic n’a pas pu être enregistré, car AxiorHub termine une autre opération : rien n’a été modifié. La page précédente '
+                'se rouvre ; les informations saisies dans le formulaire peuvent devoir être saisies de nouveau, puis cliquez de nouveau sur le '
+                'bouton.')
+        return page(env, '503 Service Unavailable', 'Un instant…', text, prefix, tone='busy', retry_seconds=4 if back else 0, retry_url=back,
+                    reference=incident_reference())
+    attempt = busy_attempt(env)
+    here = current_url(env)
+    if attempt < len(BUSY_DELAYS):
+        return page(env, '503 Service Unavailable', 'Un instant…', 'AxiorHub termine une autre opération. La page s’affiche dans un instant, '
+                    'sans rien à faire (essai %d sur %d).' % (attempt + 1, len(BUSY_DELAYS)), prefix, tone='busy',
+                    retry_seconds=BUSY_DELAYS[attempt], retry_url=with_retry_flag(here, BUSY_FLAG, attempt + 1))
+    return page(env, '503 Service Unavailable', 'AxiorHub reste occupé',
+                'Une opération longue occupe encore la base après plusieurs essais. Patientez une minute puis cliquez « Réessayer » ; rien n’a '
+                'été modifié par cette page.', prefix, tone='warn', retry_url=with_retry_flag(here, BUSY_FLAG, 0),
+                reference=incident_reference(), extra_html=_diagnostic(prefix), reload_label='Réessayer')
 
 
 def unauthorized(env, prefix=None):

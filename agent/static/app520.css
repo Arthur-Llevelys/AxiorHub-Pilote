@@ -1831,3 +1831,13 @@ main aside:where(:not([id])){position:static;inset:auto;width:auto;height:auto;m
 :root[data-theme=dark] .b5639-ready{background:#123524}
 :root[data-theme=dark] .b5639-preview{background:#111827}
 @media (max-width:700px){.b5639-filters label{min-width:0;flex:1 1 100%}}
+/* 5.6.40 : bibliothèque en étapes, identité du document, droit du cabinet, recontrôle des chiffres */
+.b5640-steps fieldset legend{font-weight:700}
+.b5640-id{display:flex;flex-wrap:wrap;gap:6px 14px;margin:4px 0 10px;padding:8px 12px;border-radius:10px;background:var(--ws-panel,#f8fafc);font-size:.92rem}
+.b5640-law{margin-top:10px}
+.b5640-law summary{cursor:pointer}
+.b5640-advanced summary{cursor:pointer}
+textarea.b5639-preview{width:100%;box-sizing:border-box;min-height:220px;border:1px solid var(--ws-border,#d7e0ee)}
+.c5640-ecarts{margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff7e6}
+:root[data-theme=dark] .b5640-id{background:#111827}
+:root[data-theme=dark] .c5640-ecarts{background:#3b2a0a}

@@ -469,7 +469,7 @@ ACCOUNTS_SCHEMA = {'type': 'object', 'additionalProperties': False, 'required': 
                                                      'exercice': {'type': 'string', 'maxLength': 10},
                                                      'extrait': {'type': 'string', 'maxLength': 300}}}}}}
 # 5.6.37 (audit F05) : méthode de contrôle versionnée ; un rapport établi avec une méthode antérieure est à recontrôler.
-METHODE_COMPTES = 3   # 5.6.39 (audit 5.6.37, F01) : preuve structurée, voir comptes5639
+METHODE_COMPTES = 4   # 5.6.39 (audit 5.6.37, F01) : preuve structurée ; 5.6.40 (audit 5.6.39, B01) : libellé et montant dans l'extrait
 # Postes reconnus : un extrait ne justifie un chiffre que s'il porte sur le même poste (jamais le résultat net pour le chiffre d'affaires).
 POSTES = (('chiffre d\'affaires', ('chiffre d\'affaires', 'chiffres d\'affaires', 'ventes de marchandises', 'production vendue')),
           ('resultat net', ('resultat net', 'benefice', 'perte de l\'exercice', 'resultat de l\'exercice')),
@@ -511,11 +511,12 @@ def _numbers(passage):
     return out
 
 
-def check_figure(x, text, exercice=''):
+def check_figure(x, text, exercice='', analysis=None):
     """Contrôle d'un chiffre du rapport de gestion. 5.6.39 (audit 5.6.37, F01) : preuve structurée (comptes5639) — poste, valeur, signe,
-    devise, unité et exercice établis ensemble dans le même segment des comptes ou par leurs en-têtes."""
+    devise, unité et exercice établis ensemble dans le même segment des comptes ou par leurs en-têtes. 5.6.40 (P01) : ``analysis``
+    préparée une fois par document."""
     from . import comptes5639
-    return comptes5639.check(x, text, exercice)
+    return comptes5639.check(x, text, exercice, analysis)
 
 
 def accounts_analysis(desk, c, raw, name, model=None, exercice=''):
@@ -534,8 +535,10 @@ def accounts_analysis(desk, c, raw, name, model=None, exercice=''):
                                       'perspectives. N’invente rien : écris [À COMPLÉTER] si les comptes ne le disent pas. JSON conforme au schéma.'},
         {'role': 'user', 'content': text[:60000]}], temperature=0, max_tokens=4000, json_schema=ACCOUNTS_SCHEMA))
     lines, controls, unverified = [], [], 0
+    from .comptes5639 import analyse
+    analysis = analyse(text)   # 5.6.40 (audit 5.6.39, P01) : une seule analyse des comptes pour tous les chiffres
     for x in out.get('chiffres') or []:
-        cause, detail = check_figure(x, text, exercice)
+        cause, detail = check_figure(x, text, exercice, analysis)
         unverified += cause is not None
         unit = {'milliers': ' (en milliers)', 'millions': ' (en millions)'}.get(x.get('unite'), '')
         from .preuve5634 import parse_amount
@@ -1229,6 +1232,11 @@ def relaunch(desk, data, owner='cabinet'):
     if not desk.db.in_transaction:
         desk.db.execute('BEGIN IMMEDIATE')
     try:
+        if recheck:   # 5.6.40 (audit 5.6.39, B01) : le contrôle et les fichiers relus restent accessibles ; les écarts seront présentés
+            old = json.loads(row['result'] or '{}')
+            desk.db.execute("UPDATE operations5636 SET result=json_set(result, '$.controle_precedent', json(?), '$.fichiers_precedents', json(?)) "
+                            "WHERE id=?", (json.dumps(old.get('controle_chiffres') or [], ensure_ascii=False),
+                                           json.dumps(old.get('files') or [], ensure_ascii=False), op))
         desk.db.execute("UPDATE operations5636 SET state='en_file', updated=? WHERE id=?", (_now(), op))
         args = {'id': op, 'matter': c['matter'], 'reprise': _now()}
         job = desk.enqueue('corporate5636', args, priority=35, transactional=True)
@@ -1385,6 +1393,13 @@ def generate(desk, op_id, dav=None, model=None):
                 n += 1
         sources[doc] = source
     result = {'folder': folder, 'files': files, 'templates': sources}
+    for key in ('controle_chiffres', 'methode_controle'):   # 5.6.40 : contrôles des chiffres conservés avec l'opération
+        if key in ctx:
+            result[key] = ctx[key]
+    previous = json.loads(row['result'] or '{}')
+    if previous.get('controle_precedent'):   # recontrôle : contrôle antérieur gardé pour présenter les écarts
+        result['controle_precedent'] = previous['controle_precedent']
+        result['fichiers_precedents'] = previous.get('fichiers_precedents') or []
     if stopped:
         result['arret'] = 'abandon_pendant_la_preparation'
     # transition conditionnelle : un abandon concurrent n'est jamais remplacé par « actes prêts »
@@ -1489,6 +1504,8 @@ def operations_html(desk, prefix, cid):
                                                     (' · page %s' % e(str(x['page']))) if x.get('page') else '',
                                                     ('<br><small>« %s »</small>' % e(x['extrait'])) if x.get('extrait') else '')
                     for x in res['controle_chiffres']))
+        if res.get('controle_precedent') is not None and res.get('controle_chiffres') is not None:
+            body += _control_changes(res['controle_precedent'], res['controle_chiffres'], res.get('fichiers_precedents') or [])
         recheck = (o['kind'] == 'agoa' and o['state'] == 'actes_prets' and 'rapport_gestion' in json.loads(o['docs'] or '[]')
                    and res.get('methode_controle') != METHODE_COMPTES and bool(d.get('comptes_pdf')))
         if recheck:
@@ -1511,6 +1528,25 @@ def operations_html(desk, prefix, cid):
     return ('<section class="ax-card"><h3>Actes préparés</h3><p class="ax-muted">Une opération reste un projet tant que vous n’avez pas enregistré sa '
             'réalisation : la fiche, les registres et la table de capitalisation ne changent qu’à ce moment.</p><ul class="o5636-list">%s</ul></section>') % (
         ''.join(items) or '<li class="ax-muted">Aucun acte.</li>')
+
+
+def _control_changes(before, after, old_files):
+    """5.6.40 (audit 5.6.39, B01) : après un recontrôle, écarts entre l'ancien et le nouveau contrôle des chiffres ; le rapport déjà relu
+    reste dans le dossier (le nouveau est déposé à côté, jamais à sa place)."""
+    def key(x):
+        return (str(x.get('libelle', '')), str(x.get('montant', '')))
+    old = {key(x): x.get('statut') for x in before}
+    changed = [x for x in after if key(x) in old and old[key(x)] != x.get('statut')]
+    added = [x for x in after if key(x) not in old]
+    lines = ['%s : %s — %s → %s' % (x.get('libelle', ''), x.get('montant', ''), 'justifié' if old[key(x)] == 'justifie' else 'à vérifier',
+                                     'justifié' if x.get('statut') == 'justifie' else 'à vérifier (%s)' % str(x.get('cause', '')).replace('_', ' '))
+             for x in changed] + ['%s : %s — nouveau chiffre' % (x.get('libelle', ''), x.get('montant', '')) for x in added]
+    keep = ' Le rapport déjà relu reste dans le dossier : %s.' % ', '.join(f.rsplit('/', 1)[-1] for f in old_files[:3]) if old_files else ''
+    if not lines:
+        return '<br><small>Recontrôle des chiffres : aucun écart avec le contrôle précédent.%s</small>' % e(keep)
+    return ('<details open class="c5640-ecarts"><summary>Recontrôle des chiffres : %d écart(s) avec le contrôle précédent</summary><ul>%s</ul>'
+            '<small>%s</small></details>') % (len(lines), ''.join('<li>%s</li>' % e(x) for x in lines),
+                                              e('Comparez avant d’utiliser le nouveau rapport.' + keep))
 
 
 BLOCKED = {'actes_en_preparation': 'Les actes sont en préparation : la réalisation pourra être enregistrée quand ils seront prêts.',

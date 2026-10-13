@@ -1,0 +1,21 @@
+{
+  "version": "5.6.40",
+  "base": "5.6.39 publiée",
+  "date_utc": "2026-10-13T00:00:00+00:00",
+  "cahier_des_charges": "Audit « Audit-AxiorHub-Pilote-5.6.39 » (13 octobre 2026) : défauts B01 à B07, optimisations P01 et P02, améliorations E01 à E03 — CONFORMITE-5.6.40.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2003,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 85,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5640.py : AuditB01 (B01, P01, recontrôle), LibraryEngine (B03, B04, B07), LibraryAudit (B02 à B06, P02, E01, E02), BusyPages (E03).",
+  "nextcloud_app": {
+    "version": "0.4.1",
+    "change": "inchangée (aucune fiche de l’audit 5.6.39 ne la concerne ; F08 confirmé corrigé)"
+  },
+  "adjusted_tests": []
+}

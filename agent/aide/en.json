@@ -1725,7 +1725,8 @@
    "Click “Approval of accounts” or “Other corporate matter”, choose the company, fill in the form, tick the deeds to prepare, then click “Save and prepare the deeds”.",
    "Review the Word drafts in the case folder. Once the decision is taken and the deeds signed, open “Prepared deeds” and click “Record completion” (date of the decision, supporting document): the record, registers and cap table are then updated. Decision taken with other deeds: “Decision already taken with deeds drawn up outside AxiorHub?”.",
    "Template library: click “📚 Template library”, choose the law and the template, tick the clauses (approval, pre-emption, tag-along, drag-along, exclusion…), check the variables pre-filled from the selected company, then “Prepare”: Word download, saving in the case folder, or drafting by the AI following the template.",
-   "To adapt a template: “Customise this template” (text, {{variables}}, [[si …]] … [[fin]] clauses), or “⬇ Download the template in Word”, edit it and import it (“My Word template”). “＋ Add my template” adds your own templates."
+   "To adapt a template: “Customise this template” (text, {{variables}}, [[si …]] … [[fin]] clauses), or “⬇ Download the template in Word”, edit it and import it (“My Word template”). “＋ Add my template” adds your own templates.",
+   "Library: preparation takes four steps (destination, information, clauses, check); “Document preview” shows the actual result before preparing. The default proposed law is a firm setting (“Firm’s default applicable law”), independent of the interface language."
   ],
   "result": "Deeds are saved in “JURIDIQUE”; registers only change when you record completion. Library templates produce drafts to review; foreign templates must be validated by local counsel.",
   "verify": "Open “Registers”: the decision appears at the confirmed date; “Prepared deeds” shows the state of each operation.",

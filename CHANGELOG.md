@@ -3,6 +3,28 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.40 — Corrections de l’audit 5.6.39 : preuve des chiffres, bibliothèque de modèles fiable, attente bornée
+
+Audit du code 5.6.39 (7 défauts, 2 optimisations, 3 améliorations). Détail, tests et limites : `CONFORMITE-5.6.40.md`.
+
+- **Chiffres du rapport de gestion (B01, priorité absolue)** : un montant d’une autre ligne n’est plus jamais « justifié ». Le segment d’un
+  poste s’arrête en fin de ligne et devant tout nouvel intitulé, même inconnu (« Charges externes ») ; le libellé ET le montant doivent
+  figurer dans l’extrait cité ; plusieurs montants sans colonnes de tableau établies restent « à vérifier ». Méthode 4 : les rapports
+  antérieurs sont signalés pour recontrôle, les écarts avec l’ancien contrôle sont présentés et le rapport déjà relu reste dans le dossier.
+  Les contrôles des chiffres sont désormais conservés avec l’opération (ils n’étaient pas affichés).
+- **Bibliothèque de modèles** : un seul « modèle effectif » pour le téléchargement, le dépôt et l’IA — le Word choisi par le cabinet est
+  bien celui transmis à la rédaction IA (B02), avec un instantané complet et immuable ; les champs et clauses d’un modèle Word sont
+  proposés dans le formulaire, libellés modifiables, fautes de frappe signalées (B03) ; une clause mal fermée est refusée avec la ligne en
+  cause, à l’enregistrement comme à la préparation, sans jamais produire un document tronqué (B04) ; plus aucune coupe silencieuse de la
+  trame : refus explicite si elle est trop longue, sections manquantes signalées après rédaction (B05) ; expiration réelle des
+  téléchargements à 24 heures et purge périodique (B06) ; remplissage Word qui conserve le gras, l’italique et les signets des balises (B07).
+- **Plus rapide** : une seule analyse des comptes par document (P01) ; catalogue construit en une lecture, sans création de tables à chaque
+  affichage (P02).
+- **Interface** : droit applicable par défaut réglé pour le cabinet, indépendant de la langue de l’interface ; chaque document affiche son
+  droit et sa langue (E01) ; préparation en quatre étapes avec « Aperçu du document » calculé par le même moteur que le document final,
+  personnalisation avancée repliée (E02) ; pages « base occupée » : essais automatiques espacés (3, 5, 8, 13 s) puis page stable avec
+  « Réessayer », référence et diagnostic ; après un clic, aucun renvoi automatique du formulaire (E03).
+
 ## 5.6.39 — Bibliothèque de modèles (Corporate) et corrections de l’audit 5.6.37
 
 Demande de l’avocat du 12 octobre 2026 et audit du code 5.6.37 (8 fiches). Détail, tests et limites : `CONFORMITE-5.6.39.md`.

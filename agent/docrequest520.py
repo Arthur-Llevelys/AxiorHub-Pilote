@@ -510,6 +510,15 @@ def run(desk, args, dav=None):
     except Exception as ex:
         _set(desk, rid, 'echec', result={'error': str(ex)[:120], 'notes': notes})
         raise Stop('redaction_document_impossible') from None
+    try:   # 5.6.40 (audit 5.6.39, B05) : chaque section attendue de la trame de la bibliothèque doit figurer dans le projet
+        from .bibliotheque5639 import coverage
+        absent = coverage(desk, row['request'], doc)
+        if absent:
+            doc['a_completer'] = list(doc.get('a_completer') or []) + ['Section de la trame absente du projet : « %s » (à vérifier).' % s
+                                                                       for s in absent][:40]
+            notes.append('%d section(s) de la trame absente(s) du projet : à vérifier avant relecture.' % len(absent))
+    except Exception:   # noqa: BLE001 — la rédaction ne dépend pas de la bibliothèque
+        pass
     text = pilote5613.plain_text(doc)
     control = pilote5613.control_document(desk, row['kind'], text, matter['id'])     # 5.6.13 : contrôle juridique de la rédaction libre
     template_info = {'id': '', 'label': 'Word générique'}

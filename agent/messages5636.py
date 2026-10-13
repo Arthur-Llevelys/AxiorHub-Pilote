@@ -138,4 +138,7 @@ DEFAULTS = {
     'titre_modele_requis': 'Indiquez le titre du modèle.',
     'modele_categorie_invalide': 'Catégorie ou droit du modèle invalide.',
     'texte_ou_modele_word_requis': 'Saisissez le texte du modèle ou choisissez un modèle Word.',
+    # 5.6.40 : audit 5.6.39
+    'modele_word_illisible': 'Le modèle Word du cabinet ne peut pas être lu : importez-le de nouveau, ou retirez-le pour utiliser la trame texte.',
+    'trame_trop_longue': 'La trame est trop longue pour être transmise en entier à la rédaction IA : désactivez des clauses ou préparez le document en Word.',
 }
