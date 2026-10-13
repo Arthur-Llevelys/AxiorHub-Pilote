@@ -20,6 +20,8 @@ AxiorHub Pilote lit la messagerie et les dossiers du cabinet, comprend ce qui ar
 brouillons de réponse, projets d'actes, bordereaux de pièces, échéances, tâches. Il n'envoie rien, ne signe rien et
 ne dépose rien. Chaque production est un brouillon ou un projet que l'avocat relit, corrige et valide.
 
+**ATTENTION : VERSION EXPERIMENTALE**
+
 | | |
 |---|---|
 | **Pour qui** | Avocats exerçant seuls ou en petite structure, avec leurs collaborateurs et assistants. |
