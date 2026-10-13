@@ -187,7 +187,8 @@ def _http(desk,target):
     if target['provider']=='nextcloud':
         from .dav import DAV
         return DAV(desk.c['nextcloud']).http
-    return HTTP(cfg['base_url'],cfg['username'],read_secret(cfg['password_file']),timeout=30)
+    from .exapp5642 import nextcloud_http   # 5.6.42 : en-têtes AppAPI en mode ExApp
+    return nextcloud_http(cfg['base_url'],cfg,timeout=30)
 
 
 def _dav_events(http,url,start,end,tz):

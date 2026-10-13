@@ -3,8 +3,8 @@
 [Français](README.md) · **English**
 
 Nextcloud app that shows **the AxiorHub Pilote interface** — legal software designed for French lawyers (avocats) — right inside
-Nextcloud: Today, cases, emails, calendar and tasks, deeds, Corporate, legal research, Pilot. Version 0.4.2 (development version), for
-AxiorHub Pilote 5.6.41 or later. AxiorHub works with French procedure, courts and legal sources; its documents are written in French,
+Nextcloud: Today, cases, emails, calendar and tasks, deeds, Corporate, legal research, Pilot. Version 0.4.3 (development version), for
+AxiorHub Pilote 5.6.42 or later. AxiorHub works with French procedure, courts and legal sources; its documents are written in French,
 and its interface is also translated into English, German and Spanish.
 
 ![The AxiorHub Pilote interface inside Nextcloud (fictitious data)](screenshots/en/01-interface.png)
@@ -59,12 +59,12 @@ sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y git python3 python3-venv
 
 # 1.2 Download AxiorHub Pilote and build the verified archive (checksum manifest checked by the installer)
-sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.42 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.42.tar.gz
 
 # 1.3 Install (or update) the engine
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.42.tar.gz && cd axiorhub-mail-agent-5.6.42
 sudo bash install.sh
 
 # 1.4 Configure the mailbox, Nextcloud and the AI, then check
@@ -99,10 +99,10 @@ Updates then appear in **Apps › Updates**.
 As long as the app is not listed in your App Store, or on a server without access to it:
 
 ```bash
-cd /tmp && git clone --branch v0.4.2 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.2.tar.gz
+cd /tmp && git clone --branch v0.4.3 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
+python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.3.tar.gz
 cd /path/to/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.2.tar.gz -C apps
+sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.3.tar.gz -C apps
 sudo -u www-data php occ app:enable axiorhub_pilote
 ```
 
@@ -130,8 +130,8 @@ If AxiorHub runs on the same server as Nextcloud and is reached through a local 
 
 To **try** AxiorHub without a server, install the workstation version:
 [Windows 11](https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/docs/INSTALLATION-WINDOWS.md) (installer
-`AxiorHub-Pilote-Setup-5.6.41.exe`) or [Ubuntu 24.04](https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/docs/GUIDE-POSTE-10-MINUTES.md)
-(`sudo apt install ./axiorhub-pilote-poste_5.6.41_amd64.deb`); both guides are in French, and the
+`AxiorHub-Pilote-Setup-5.6.42.exe`) or [Ubuntu 24.04](https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/docs/GUIDE-POSTE-10-MINUTES.md)
+(`sudo apt install ./axiorhub-pilote-poste_5.6.42_amd64.deb`); both guides are in French, and the
 [engine README](https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/README.en.md#installation) summarises them in English.
 The workstation version only listens on its own computer (`http://127.0.0.1:8769`).
 

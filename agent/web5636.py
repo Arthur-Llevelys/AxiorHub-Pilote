@@ -4,7 +4,7 @@ from .web5634 import _post
 
 
 # Droits en écriture des routes m5636 (mode autonome : même règle que le serveur, testée).
-ADMIN_ONLY = ('nextcloud/app', 'nextcloud/cle/revoquer', 'microsoft/')
+ADMIN_ONLY = ('nextcloud/app', 'nextcloud/cle/revoquer', 'microsoft/', 'compte/')   # 5.6.42 : compte de l'interface
 ASSISTANT_ROUTES = ('contacts/', 'pieces/analyser', 'pieces/ranger-pj', 'corporate/operation', 'corporate/societe', 'corporate/souscription',
                     'outils/memo/rediger', 'travail/ecarter', 'office/reformuler')
 
@@ -44,6 +44,11 @@ def api(env, desk, auth, prefix, name, args, method):
     if method != 'POST':
         raise Stop('methode_refusee')
     data = _post(env, auth, 12_000_000 if route.startswith(('documents/', 'corporate/import', 'grilles/import', 'office/')) else 400_000)
+    if route == 'compte/mot-de-passe':   # 5.6.42 : identifiant et mot de passe de l'interface (administrateur)
+        if role != 'administrateur':
+            raise Stop('role_insuffisant')
+        from . import comptes5642
+        return json_out(comptes5642.change(desk, auth, data, owner))
     from . import sante5636
     if route == 'erreurs/ecarter':
         return json_out(sante5636.dismiss_errors(desk, owner))

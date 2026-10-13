@@ -58,6 +58,17 @@ class UserLink {
 		$this->config->setUserValue($userId, Application::APP_ID, 'linked_at', gmdate('Y-m-d\TH:i:s\Z'));
 	}
 
+	/** 0.4.3 : date (UTC) du dernier test réussi de l'adresse ou du compte. */
+	public function lastOk(string $userId): string {
+		return $userId === '' ? '' : $this->config->getUserValue($userId, Application::APP_ID, 'last_ok', '');
+	}
+
+	public function markOk(string $userId): void {
+		if ($userId !== '') {
+			$this->config->setUserValue($userId, Application::APP_ID, 'last_ok', gmdate('Y-m-d H:i') . ' UTC');
+		}
+	}
+
 	/** 0.4.2 : adresse de l'AxiorHub installé sur le poste de l'utilisateur (mode découverte) ; lien ouvert par le navigateur, jamais joint par le serveur. */
 	public function localUrl(string $userId): string {
 		return $userId === '' ? '' : $this->config->getUserValue($userId, Application::APP_ID, 'local_url', '');

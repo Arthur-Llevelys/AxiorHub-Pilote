@@ -469,7 +469,8 @@ ACCOUNTS_SCHEMA = {'type': 'object', 'additionalProperties': False, 'required': 
                                                      'exercice': {'type': 'string', 'maxLength': 10},
                                                      'extrait': {'type': 'string', 'maxLength': 300}}}}}}
 # 5.6.37 (audit F05) : méthode de contrôle versionnée ; un rapport établi avec une méthode antérieure est à recontrôler.
-METHODE_COMPTES = 4   # 5.6.39 (audit 5.6.37, F01) : preuve structurée ; 5.6.40 (audit 5.6.39, B01) : libellé et montant dans l'extrait
+METHODE_COMPTES = 5   # 5.6.39 (audit 5.6.37, F01) : preuve structurée ; 5.6.40 (audit 5.6.39, B01) : libellé et montant dans l'extrait ;
+# 5.6.42 (audit 5.6.41, F01) : périmètre de l'unité (ligne, tableau, document) ; les rapports établis avant sont à recontrôler
 # Postes reconnus : un extrait ne justifie un chiffre que s'il porte sur le même poste (jamais le résultat net pour le chiffre d'affaires).
 POSTES = (('chiffre d\'affaires', ('chiffre d\'affaires', 'chiffres d\'affaires', 'ventes de marchandises', 'production vendue')),
           ('resultat net', ('resultat net', 'benefice', 'perte de l\'exercice', 'resultat de l\'exercice')),

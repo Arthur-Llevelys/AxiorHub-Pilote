@@ -33,7 +33,8 @@ class DAV:
 
     def __init__(self, cfg):
         self.cfg = cfg
-        self.http = HTTP(cfg['url'], cfg['username'], read_secret(cfg['password_file']))
+        from .exapp5642 import nextcloud_http   # 5.6.42 : en-têtes AppAPI en mode ExApp
+        self.http = nextcloud_http(cfg['url'], cfg)
         self.files = self.http.base + '/remote.php/dav/files/' + U.quote(cfg['username'], safe='')
         self.calendar_home = self.http.base + '/remote.php/dav/calendars/' + U.quote(cfg['username'], safe='') + '/'
 
@@ -586,8 +587,9 @@ class LocalFolder(DAV):
         self.refused = []
         self.http = None
         self._hashes = {}
-        if cfg.get('url') and cfg.get('username') and cfg.get('password_file'):
-            self.http = HTTP(cfg['url'], cfg['username'], read_secret(cfg['password_file']))
+        if cfg.get('url') and cfg.get('username') and (cfg.get('password_file') or cfg.get('auth') == 'app_api'):
+            from .exapp5642 import nextcloud_http   # 5.6.42 : en-têtes AppAPI en mode ExApp
+            self.http = nextcloud_http(cfg['url'], cfg)
             self.files = self.http.base + '/remote.php/dav/files/' + U.quote(cfg['username'], safe='')
             self.calendar_home = self.http.base + '/remote.php/dav/calendars/' + U.quote(cfg['username'], safe='') + '/'
 

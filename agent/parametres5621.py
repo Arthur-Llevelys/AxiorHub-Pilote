@@ -20,6 +20,7 @@ RUBRIQUES = (
     ('messagerie', 'Messagerie', 'Signature, police d’écriture, copie cachée automatique, règles de classement'),
     ('veille', 'Veille et recherche Internet', 'Thèmes, flux, connecteur juridique, Tavily, fréquence'),
     ('sources', 'Sources juridiques', 'JusticeLibre, OpenLegi, GoodLegal, LibreJustice, Legal Data Hunter'),
+    ('comptes', 'Comptes', 'Administrateur, identifiant, mot de passe, changement de mot de passe, comptes du cabinet'),
 )
 ALIASES = {'/parametres/connexions': 'connexions', '/parametres/assistant': 'voix', '/parametres/proactivite': 'routines',
            '/ia-externe': 'ia', '/confort': 'cabinet', '/atelier/reglages': 'documents', '/parametres/agendas': 'documents'}
@@ -169,8 +170,13 @@ def _sources(desk, auth, prefix, env, cap):
     return _section(sources_section(desk))
 
 
+def _comptes(desk, auth, prefix, env, cap):
+    from .comptes5642 import section_html   # 5.6.42 : administration du compte de l'interface
+    return _section(section_html(desk, auth, prefix))
+
+
 BUILDERS = {'connexions': _connexions, 'ia': _ia, 'voix': _voix, 'routines': _routines, 'documents': _documents, 'cabinet': _cabinet,
-            'veille': _veille, 'sources': _sources, 'messagerie': _messagerie}
+            'veille': _veille, 'sources': _sources, 'messagerie': _messagerie, 'comptes': _comptes}
 
 
 def rubrique_for(path, args):

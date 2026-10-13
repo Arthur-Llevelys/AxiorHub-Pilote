@@ -1,0 +1,29 @@
+{
+  "version": "5.6.42",
+  "base": "5.6.41 publiée",
+  "date_utc": "2026-10-13T00:00:00+00:00",
+  "cahier_des_charges": "Audit de la 5.6.41 (F01 à F07, ergonomie, gestion des utilisateurs dans les paramètres) et cahier des charges « AxiorHub Pilote ExApp » (lots L1 et L2, L3 en partie) — CONFORMITE-5.6.42.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2039,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 87,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5642.py : UnitScope (R01, T01 et variantes), LibraryAudit5641 (R02a, R02b, R03, R04, R05, R06, purge bornée), Accounts (rubrique Comptes), ExApp (cycle de vie, en-têtes AppAPI, rôles, droits, installation dans le volume), NextcloudApp043 (choix guidé de la configuration).",
+  "exapp": {
+    "depot": "AxiorHub-Pilote-ExApp 0.1.0 (version de développement)",
+    "essais": "contrôles du dépôt (6 tests) ; essai de bout en bout en processus local avec un faux Nextcloud (battement, en-têtes, rôles, droits, menu, initialisation, travaux et veille) ; image Docker et installation par HaRP non essayées ici"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "php_tests": "35 tests (phpunit)",
+    "change": "choix guidé de la configuration, « Tester l’adresse », dernier test réussi"
+  },
+  "adjusted_tests": [
+    "tests/test_v5640.py : méthode de preuve comptable attendue « au moins 4 » (méthode 5 en 5.6.42, F01)",
+    "tests/test_v5641.py : numéros de version de l’application et du moteur lus dans la version courante (0.4.3, 5.6.42)"
+  ]
+}

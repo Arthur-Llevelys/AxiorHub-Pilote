@@ -113,6 +113,18 @@ MESSAGES = {
     'integration_desactivee': 'Liaison Nextcloud désactivée sur ce moteur.',
     'moteur_poste_non_pris_en_charge': 'AxiorHub installé sur un poste de travail : utilisable seulement en mode découverte, depuis l’ordinateur où il est installé (Nextcloud sur ce même ordinateur, ou lien « Mon AxiorHub local »). Pour le cabinet, installez la version serveur (Linux, HTTPS).',   # 5.6.41
     'dossier_hors_perimetre': 'Ce dossier n’entre pas dans votre périmètre.',
+    'instantane_modele_introuvable': 'La trame choisie pour cette rédaction est introuvable : choisissez de nouveau le modèle dans la bibliothèque. La rédaction ne se fera pas sur une autre version.',   # 5.6.42
+    'instantane_modele_altere': 'La trame enregistrée pour cette rédaction ne correspond plus à son empreinte : choisissez de nouveau le modèle.',   # 5.6.42
+    'modele_word_modifie': 'Le modèle Word a été modifié depuis son enregistrement : rechargez la page, vérifiez les informations et les clauses, puis relancez.',   # 5.6.42
+    'modele_modifie_depuis_affichage': 'Le modèle a changé depuis l’affichage de cette page : rechargez-la, vérifiez les options et relancez l’aperçu.',   # 5.6.42
+    'modele_word_absent': 'Aucun modèle Word n’est enregistré pour cette trame.',   # 5.6.42
+    'mot_de_passe_actuel_incorrect': 'Mot de passe actuel incorrect.',   # 5.6.42
+    'mot_de_passe_trop_court': 'Le nouveau mot de passe doit compter 16 caractères au moins.',   # 5.6.42
+    'mots_de_passe_differents': 'Les deux saisies du nouveau mot de passe sont différentes.',   # 5.6.42
+    'mot_de_passe_inchange': 'Le nouveau mot de passe est identique à l’actuel.',   # 5.6.42
+    'identifiant_invalide': 'Identifiant invalide : 3 à 64 caractères (lettres, chiffres, point, tiret, @).',   # 5.6.42
+    'comptes_du_cabinet_dans_la_page_comptes': 'Les comptes du cabinet se gèrent dans la page Comptes.',   # 5.6.42
+    'compte_interface_absent': 'Compte de l’interface introuvable : relancez l’installation de l’interface.',   # 5.6.42
     # 5.6.35 : contrat /integration/v1 (application Nextcloud)
     'operation_non_signee': 'La requête ne correspond pas à l’opération autorisée par Nextcloud : elle est refusée.',
     'contexte_sans_fuseau': 'Contexte Nextcloud invalide : l’expiration doit comporter un fuseau horaire.',

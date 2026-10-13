@@ -15,7 +15,8 @@ API='/ocs/v2.php/apps/spreed/api/v4'
 class Talk:
     def __init__(self,cfg):
         self.cfg=cfg
-        self.http=HTTP(cfg['url'],cfg['username'],read_secret(cfg['password_file']),timeout=30)
+        from .exapp5642 import nextcloud_http   # 5.6.42 : en-têtes AppAPI en mode ExApp
+        self.http=nextcloud_http(cfg['url'],cfg,timeout=30)
         self.http.headers.update({'OCS-APIRequest':'true','Accept':'application/json'})
 
     def call(self,method,path,data=None):

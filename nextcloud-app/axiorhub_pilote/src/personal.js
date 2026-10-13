@@ -27,6 +27,64 @@ const REASONS = {
 	acces_refuse_par_le_frontal: () => t('axiorhub_pilote', 'The web server in front of AxiorHub asks for a login: allow /integration/v1/ without login on that server.'),
 }
 
+// 0.4.3 : choix guidé de la configuration — seuls les champs pertinents sont affichés
+const LOCAL_ENGINE = 'http://127.0.0.1:8769/agent-courriel'
+function applyConfig(value, initial = false) {
+	document.querySelectorAll('[data-axh-config]').forEach((block) => {
+		block.hidden = !block.dataset.axhConfig.split(' ').includes(value)
+	})
+	if (value === 'meme-poste' && form && !initial) {
+		const url = form.querySelector('input[name=engineUrl]')
+		if (url && !/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]|host\.docker\.internal)(:|\/|$)/i.test(url.value)) {
+			url.value = LOCAL_ENGINE
+		}
+		const local = form.querySelector('input[name=allowLocal]')
+		if (local) {
+			local.checked = true
+		}
+	}
+}
+document.querySelectorAll('input[name=axhConfig]').forEach((radio) => {
+	radio.addEventListener('change', () => applyConfig(radio.value))
+	if (radio.checked) {
+		applyConfig(radio.value, true)
+	}
+})
+
+document.getElementById('axh-personal-probe')?.addEventListener('click', async () => {
+	const f = new FormData(form)
+	const choice = document.querySelector('input[name=axhConfig]:checked')?.value || 'serveur'
+	say(status, t('axiorhub_pilote', 'Testing…'))
+	try {
+		const { data } = await axios.post(api('/personal/probe'), { engineUrl: String(f.get('engineUrl') || ''), allowLocal: f.get('allowLocal') === 'on' })
+		let text = t('axiorhub_pilote', 'AxiorHub {version} answers at this address.', { version: data.version || '' })
+		if (data.mode === 'poste' && choice === 'serveur') {
+			text += ' ' + t('axiorhub_pilote', 'This AxiorHub is installed on a workstation: choose “On this computer, with Nextcloud on the same computer (discovery mode)”.')
+		} else if (data.mode !== 'poste' && choice === 'meme-poste') {
+			text += ' ' + t('axiorhub_pilote', 'This AxiorHub is a server version: choose “On a server (recommended)”.')
+		}
+		if (!data.personal_accounts) {
+			text += ' ' + t('axiorhub_pilote', 'AxiorHub does not allow Nextcloud accounts yet: in AxiorHub, Settings › Connections › Nextcloud app, tick “Allow linking accounts from Nextcloud”.')
+		}
+		say(status, text)
+		const last = document.getElementById('axh-last-ok')
+		if (last && data.last_ok) {
+			last.textContent = t('axiorhub_pilote', 'Last successful test: %s').replace('%s', data.last_ok)
+		}
+	} catch (error) {
+		say(status, reason(error), true)
+	}
+})
+
+document.getElementById('axh-personal-local-open')?.addEventListener('click', () => {
+	const url = String(new FormData(document.getElementById('axh-personal-local')).get('localUrl') || '')
+	if (/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?(\/|$)/i.test(url)) {
+		window.open(url, '_blank', 'noopener,noreferrer')
+	} else {
+		say(document.getElementById('axh-personal-local-status'), REASONS.adresse_locale_requise(), true)
+	}
+})
+
 // 0.4.2 : adresse de l'AxiorHub local (mode découverte) : lien seulement, jamais joint par le serveur Nextcloud
 const localForm = document.getElementById('axh-personal-local')
 if (localForm) {

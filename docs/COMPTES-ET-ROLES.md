@@ -7,6 +7,14 @@ dossiers (les cloisons relèvent des partages Nextcloud et de la messagerie).
 Cette gestion des comptes concerne la distribution autonome (Docker, VPS). L'installation système historique derrière
 Apache utilise l'authentification de son hôte virtuel.
 
+**Version serveur et versions poste (5.6.42)** : un seul compte, l'administrateur de l'interface. **Paramètres › Comptes** affiche son
+identifiant et permet de changer l'identifiant et le mot de passe (mot de passe actuel exigé, 16 caractères au moins). Le nouvel accès
+est enregistré dans un fichier privé du dossier d'état du service ; le navigateur redemande ensuite l'identifiant et le mot de passe, et
+les comptes Nextcloud reliés doivent être reliés de nouveau.
+
+**ExApp Nextcloud (développement)** : les comptes sont ceux de Nextcloud ; le rôle vient des groupes `axiorhub-avocats`,
+`axiorhub-collaborateurs` (avocat), `axiorhub-assistants` (assistant) et des administrateurs de Nextcloud (administrateur).
+
 ## Rôles
 
 | | Administrateur | Avocat | Assistant(e) |

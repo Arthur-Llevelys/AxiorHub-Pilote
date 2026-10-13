@@ -69,6 +69,7 @@ TTL_HOURS = 24               # B06 : durée de validité d'un document préparé
 TRAME_RETENTION_DAYS = 30    # B06 : instantané non référencé par une demande de rédaction
 LIMIT_TRAME = 45000          # B05 : trame transmise en entier à la rédaction IA (le reste du contexte : pièces du dossier, consignes)
 SETTING_DROIT = 'bibliotheque5640:droit'   # E01 : droit applicable par défaut du cabinet
+META_VERSION = 2             # 5.6.42 (audit 5.6.41, F02) : version des métadonnées d'un modèle Word (distincte de la version du modèle)
 _READY = set()
 
 
@@ -85,6 +86,10 @@ def schema(desk):
       created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS bibliotheque5639_trames(jeton TEXT PRIMARY KEY, modele TEXT NOT NULL, titre TEXT NOT NULL, langue TEXT NOT NULL,
       texte TEXT NOT NULL, created TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS bibliotheque5642_liens(jeton TEXT NOT NULL, demande TEXT NOT NULL, created TEXT NOT NULL,
+      PRIMARY KEY(jeton, demande));
+    CREATE INDEX IF NOT EXISTS bibliotheque5642_liens_demande ON bibliotheque5642_liens(demande);
+    CREATE INDEX IF NOT EXISTS bibliotheque5642_trames_created ON bibliotheque5639_trames(created);
     ''')
     columns = {
         'bibliotheque5639': (('meta', "TEXT NOT NULL DEFAULT '{}'"), ('version', 'INTEGER NOT NULL DEFAULT 1')),
@@ -101,6 +106,7 @@ def schema(desk):
     # B06 : lignes antérieures à la 5.6.40 : expiration dérivée de leur date de création (migration bornée)
     for row in desk.db.execute("SELECT jeton, created FROM bibliotheque5639_fichiers WHERE expires_at='' LIMIT 500").fetchall():
         desk.db.execute('UPDATE bibliotheque5639_fichiers SET expires_at=? WHERE jeton=?', (_expiry(row['created']), row['jeton']))
+    desk.db.execute('CREATE INDEX IF NOT EXISTS bibliotheque5642_fichiers_expire ON bibliotheque5639_fichiers(expires_at)')
     desk.db.commit()
     _READY.add(key)
 
@@ -218,7 +224,72 @@ def template(desk, ident):
     schema(desk)
     ident = str(ident or '')
     rows = _query(desk, 'SELECT * FROM bibliotheque5639 WHERE id=?', (ident,))
-    return _build(ident, rows[0] if rows else None)
+    t = _build(ident, rows[0] if rows else None)
+    if needs_meta(t):   # 5.6.42 (F02) : modèle Word enregistré avant la 5.6.40 : champs et clauses relevés à la première ouverture
+        hydrate(desk, t)
+        rows = _query(desk, 'SELECT * FROM bibliotheque5639 WHERE id=?', (ident,))
+        t = _build(ident, rows[0] if rows else None)
+    return t
+
+
+def needs_meta(t):
+    """5.6.42 (F02) : modèle Word dont les métadonnées n'ont pas été calculées par la version actuelle (ni en erreur déjà signalée)."""
+    meta = t.get('meta') or {}
+    return bool(t.get('word')) and int(meta.get('meta_version') or 0) < META_VERSION and \
+        (meta.get('hydratation') or {}).get('etat') != 'erreur'
+
+
+def _word_meta(t, raw, base=None):
+    """Métadonnées d'un modèle Word lu : variables, clauses, empreinte ; libellés et personnalisations du cabinet conservés."""
+    tags, clauses = W5.word_keys(raw)
+    meta = dict(base if base is not None else t.get('meta') or {})
+    before_v, before_c = list(meta.get('variables') or []), list(meta.get('clauses') or [])
+    meta.update(variables=tags, clauses=clauses, empreinte=_sha(raw), meta_version=META_VERSION,
+                hydratation={'etat': 'ok', 'date': _now()},
+                nouvelles=[k for k in tags if k not in before_v] + ['clause_' + k for k in clauses if k not in before_c] if before_v or before_c else [],
+                disparues=sorted(set(before_v) - set(tags)) + ['clause_' + k for k in before_c if k not in clauses])
+    return meta
+
+
+def hydrate(desk, t):
+    """5.6.42 (audit 5.6.41, F02) : reconstruit les métadonnées d'un modèle Word existant — identité, version, libellés et personnalisations
+    conservés ; idempotent (un second passage ne duplique rien) ; lecture de la source HORS transaction ; une source illisible est
+    enregistrée comme telle avec sa cause (la fiche propose de la retrouver ou de la réimporter)."""
+    from .corporate5636 import load_template, check_docx
+    meta = dict(t.get('meta') or {})
+    try:
+        raw = load_template(desk, t['word'])
+        check_docx(raw)
+    except Stop as exc:
+        meta['hydratation'] = {'etat': 'erreur', 'cause': str(exc)[:80], 'date': _now()}
+        desk.db.execute('UPDATE bibliotheque5639 SET meta=? WHERE id=?', (json.dumps(meta, ensure_ascii=False), t['id']))
+        desk.db.commit()
+        return False
+    meta = _word_meta(t, raw, meta)
+    meta['nouvelles'], meta['disparues'] = [], meta.get('disparues') if t['meta'].get('variables') else []
+    desk.db.execute('UPDATE bibliotheque5639 SET meta=? WHERE id=?', (json.dumps(meta, ensure_ascii=False), t['id']))
+    desk.db.commit()
+    return True
+
+
+def hydrate_pending(desk, limit=20):
+    """5.6.42 (F02) : passage de maintenance borné sur les anciens modèles Word (reprise naturelle au passage suivant)."""
+    schema(desk)
+    done = 0
+    for row in _query(desk, "SELECT id FROM bibliotheque5639 WHERE word<>'' LIMIT 200"):
+        t = _build(row['id'], _query(desk, 'SELECT * FROM bibliotheque5639 WHERE id=?', (row['id'],))[0])
+        if needs_meta(t):
+            hydrate(desk, t)
+            done += 1
+            if done >= limit:
+                break
+    return done
+
+
+def view_token(t):
+    """5.6.42 (audit 5.6.41, F03) : version affichée d'un modèle (version et empreinte du Word) ; l'aperçu et la préparation lancés depuis
+    une même page doivent porter sur cette version."""
+    return '%s:%s' % (t.get('version', 1), ((t.get('meta') or {}).get('empreinte') or '')[:16] if t.get('word') else '')
 
 
 def catalog(desk):
@@ -420,6 +491,19 @@ def effective(desk, t, data):
             raise Qualified('modele_word_illisible', precision='Le modèle Word du cabinet ne peut pas être lu (%s). Importez-le de nouveau, ou '
                                                               'retirez-le pour utiliser la trame texte (« Enregistrer le modèle Word » avec un '
                                                               'champ vide).' % exc) from None
+        stored = (t.get('meta') or {}).get('empreinte') or ''
+        if stored and stored != _sha(raw):   # 5.6.42 (audit 5.6.41, F03) : la source a changé depuis l'enregistrement du modèle
+            meta = _word_meta(t, raw)
+            desk.db.execute('UPDATE bibliotheque5639 SET meta=?, version=version+1, updated=? WHERE id=?',
+                            (json.dumps(meta, ensure_ascii=False), _now(), t['id']))
+            desk.db.commit()
+            changes = ', '.join(('{{%s}}' % k) if not k.startswith('clause_') else '[[si %s]]' % k[7:] for k in meta['nouvelles'])
+            gone = ', '.join(('{{%s}}' % k) if not k.startswith('clause_') else '[[si %s]]' % k[7:] for k in meta['disparues'])
+            raise Qualified('modele_word_modifie',
+                            precision='Le modèle Word a été modifié depuis son enregistrement : la fiche est actualisée (version %d)%s%s. '
+                                      'Rechargez la page, vérifiez les informations et les clauses, puis relancez.' % (
+                                          int(t.get('version', 1)) + 1, (' ; nouveaux : ' + changes) if changes else '',
+                                          (' ; disparus : ' + gone) if gone else ''))
         docx, sections = _fill_word(raw, t, values, flags)
         return {'docx': docx, 'texte': W5.docx_text(docx), 'sections': sections, 'source': 'word', 'empreinte_source': _sha(raw),
                 'version': t.get('version', 1), 'values': values, 'flags': flags}
@@ -483,6 +567,11 @@ def generate(desk, data, owner='cabinet', dav=None):
     cid = str(data.get('societe') or '')
     if cid:   # données de la société pour les variables laissées vides (appel direct de l'API)
         data = {**prefill(desk, cid), **{k: v for k, v in data.items() if v not in (None, '')}}
+    seen = str(data.get('version_vue') or '')
+    if seen and seen != view_token(t):   # 5.6.42 (F03) : jamais un contenu différent de celui affiché sans en informer
+        raise Qualified('modele_modifie_depuis_affichage',
+                        precision='Le modèle a changé depuis l’affichage de cette page (version %s → %s) : rechargez la page, vérifiez les '
+                                  'options et relancez l’aperçu.' % (seen.split(':')[0], view_token(t).split(':')[0]))
     if where == 'ia':
         return _ask_ai(desk, t, data, owner)
     eff = effective(desk, t, data)
@@ -546,30 +635,71 @@ def download(desk, jeton, owner='cabinet', now=None):
     return {'download': {'filename': row['nom'], 'mime': DOCX_MIME, 'base64': base64.b64encode(data).decode()}}
 
 
+PURGE_BATCH = 500   # 5.6.42 (audit 5.6.41, performance) : maintenance bornée, reprise au passage suivant
+LAST_PURGE = {}      # dernier résultat par base (journal de maintenance sans contenu de dossier)
+
+
+def _references(desk):
+    """5.6.42 (F07) : jetons des instantanés référencés — relation explicite demande–instantané, et marqueurs [trame:…] des demandes plus
+    anciennes. Seule l'absence de la table des demandes au premier démarrage vaut « aucune référence » ; toute autre erreur de lecture est
+    propagée : elle ne vaut jamais autorisation de supprimer."""
+    import sqlite3
+    referenced = {r['jeton'] for r in desk.db.execute('SELECT jeton FROM bibliotheque5642_liens').fetchall()}
+    try:
+        rows = desk.db.execute("SELECT request FROM docreq520 WHERE request LIKE '%[trame:%'").fetchall()
+    except sqlite3.OperationalError as exc:
+        if 'no such table' not in str(exc):
+            raise
+        rows = []
+    for r in rows:
+        referenced.update(re.findall(r'\[trame:([0-9a-f]{16})\]', r['request']))
+    return referenced
+
+
 def purge(desk, now=None):
     """B06 : documents temporaires expirés effacés ; instantanés de trames gardés tant qu'une demande de rédaction s'y réfère (preuve de la
-    base fournie à l'IA), effacés trente jours après leur création sinon. Les documents déposés dans les dossiers ne sont jamais touchés."""
+    base fournie à l'IA), effacés trente jours après leur création sinon. Les documents déposés dans les dossiers ne sont jamais touchés.
+    5.6.42 (audit 5.6.41, F07 et performance) : seuls les candidats expirés sont lus (index), par lots bornés ; les références sont établies
+    AVANT toute suppression d'instantané, dans une même transaction ; si elles ne peuvent pas l'être, aucun instantané n'est supprimé et
+    la purge est différée au passage suivant."""
     schema(desk)
     moment = now or datetime.now(timezone.utc)
-    gone = 0
-    for row in desk.db.execute('SELECT jeton, created, expires_at FROM bibliotheque5639_fichiers').fetchall():
+    gone, deferred = 0, ''
+    horizon = (moment + timedelta(seconds=1)).isoformat()
+    for row in desk.db.execute('SELECT jeton, created, expires_at FROM bibliotheque5639_fichiers WHERE expires_at<? LIMIT ?',
+                               (horizon, PURGE_BATCH)).fetchall():
         expires = _parse_time(row['expires_at']) or _parse_time(_expiry(row['created']))
         if expires is None or expires <= moment:
             desk.db.execute('DELETE FROM bibliotheque5639_fichiers WHERE jeton=?', (row['jeton'],))
             gone += 1
-    limit = moment - timedelta(days=TRAME_RETENTION_DAYS)
-    referenced = set()
-    try:
-        for r in desk.db.execute("SELECT request FROM docreq520 WHERE request LIKE '%[trame:%'"):
-            referenced.update(re.findall(r'\[trame:([0-9a-f]{16})\]', r['request']))
-    except Exception:   # noqa: BLE001 — table des rédactions pas encore créée
-        pass
-    for row in desk.db.execute('SELECT jeton, created FROM bibliotheque5639_trames').fetchall():
-        created = _parse_time(row['created'])
-        if row['jeton'] not in referenced and created is not None and created < limit:
-            desk.db.execute('DELETE FROM bibliotheque5639_trames WHERE jeton=?', (row['jeton'],))
-            gone += 1
     desk.db.commit()
+    limit = moment - timedelta(days=TRAME_RETENTION_DAYS)
+    candidates = desk.db.execute('SELECT jeton, created FROM bibliotheque5639_trames WHERE created<? LIMIT ?',
+                                 ((limit + timedelta(seconds=1)).isoformat(), PURGE_BATCH)).fetchall()
+    if candidates:
+        try:
+            desk.db.execute('BEGIN IMMEDIATE')   # aucune demande ne peut se lier à un instantané pendant la décision
+        except Exception:   # noqa: BLE001 — transaction déjà ouverte par l'appelant
+            pass
+        try:
+            referenced = _references(desk)
+        except Exception as exc:   # noqa: BLE001 — lecture impossible : on conserve tout
+            desk.db.rollback()
+            deferred = type(exc).__name__
+        else:
+            for row in candidates:
+                created = _parse_time(row['created'])
+                if row['jeton'] not in referenced and created is not None and created < limit:
+                    desk.db.execute('DELETE FROM bibliotheque5639_trames WHERE jeton=?', (row['jeton'],))
+                    gone += 1
+            desk.db.commit()
+    LAST_PURGE[_key(desk)] = {'date': moment.isoformat(timespec='seconds'), 'supprimes': gone,
+                              'differee': bool(deferred), 'cause': deferred}
+    if deferred:
+        try:
+            desk.audit('bibliotheque5642_purge_differee', {'cause': deferred})
+        except Exception:   # noqa: BLE001
+            pass
     return gone
 
 
@@ -608,6 +738,8 @@ def _ask_ai(desk, t, data, owner):
         (' Consignes de l’avocat : ' + consignes) if consignes else '')
     from .docrequest520 import submit
     out = submit(desk, request, matter['id'], 'contrat' if t['categorie'] in ('contrat', 'pacte', 'operation') else 'autre')
+    desk.db.execute('INSERT OR IGNORE INTO bibliotheque5642_liens(jeton, demande, created) VALUES(?,?,?)', (jeton, out['request'], _now()))
+    desk.db.commit()   # 5.6.42 (F07) : relation explicite demande–instantané, protégée de la purge
     desk.audit('bibliotheque5639_ia', {'modele': t['id'], 'dossier': matter['id'], 'owner': owner, 'source': eff['source']})
     return {'request': out['request'], 'job': out['job_id'],
             'message': 'Rédaction confiée à l’IA avec la trame « %s » : le projet Word sera déposé dans le dossier %s.' % (t['titre'], matter_display(matter))}
@@ -686,7 +818,7 @@ def set_word(desk, data, owner='cabinet'):
                 suspects[tag] = close[0]
     labels = {k: v for k, v in (t['meta'].get('libelles') or {}).items() if k in tags or k.startswith('clause_')}
     meta = {**t['meta'], 'variables': tags, 'clauses': clauses, 'empreinte': _sha(raw), 'libelles': labels, 'suspectes': suspects,
-            'disparues': gone}
+            'disparues': gone, 'nouvelles': [], 'meta_version': META_VERSION, 'hydratation': {'etat': 'ok', 'date': _now()}}
     _save(desk, t, owner, word=path, meta=json.dumps(meta, ensure_ascii=False))
     desk.audit('bibliotheque5639_word', {'modele': t['id'], 'owner': owner, 'balises': len(tags), 'clauses': len(clauses)})
     notes = ['%d variable(s), %d clause(s) relevée(s)' % (len(tags), len(clauses))]
@@ -695,6 +827,30 @@ def set_word(desk, data, owner='cabinet'):
     if gone:
         notes.append('champs disparus par rapport au modèle précédent : ' + ', '.join('{{%s}}' % x for x in gone))
     return {'message': 'Modèle Word enregistré : %s.' % ' ; '.join(notes)}
+
+
+def refresh(desk, data, owner='cabinet'):
+    """5.6.42 (F02, F03) : « Actualiser le modèle » — relit le Word du cabinet, présente les champs nouveaux et disparus ; la version change
+    seulement si le contenu a changé."""
+    t = template(desk, data.get('modele'))
+    if not t.get('word'):
+        raise Stop('modele_word_absent')
+    from .corporate5636 import load_template, check_docx
+    raw = load_template(desk, t['word'])
+    check_docx(raw)
+    _, problems = W5.word_structure(raw)
+    if problems:
+        raise Qualified('modele_conditions_desequilibrees', precision='Modèle Word refusé — %s' % problems)
+    changed = (t['meta'].get('empreinte') or '') != _sha(raw)
+    meta = _word_meta(t, raw)
+    desk.db.execute('UPDATE bibliotheque5639 SET meta=?%s, updated=? WHERE id=?' % (', version=version+1' if changed else ''),
+                    (json.dumps(meta, ensure_ascii=False), _now(), t['id']))
+    desk.db.commit()
+    desk.audit('bibliotheque5642_actualise', {'modele': t['id'], 'owner': owner, 'modifie': changed})
+    if not changed:
+        return {'message': 'Modèle Word inchangé depuis son enregistrement (version %s).' % t.get('version', 1)}
+    return {'message': 'Modèle Word actualisé (version %d) : %d nouveau(x) champ(s) ou clause(s), %d disparu(s) — vérifiez les options.' % (
+        int(t.get('version', 1)) + 1, len(meta['nouvelles']), len(meta['disparues']))}
 
 
 def prefill_keys():
@@ -824,6 +980,16 @@ def trame_for_request(desk, request):
     m = re.search(r'\[trame:([0-9a-f]{16})\]', str(request or ''))
     if m:
         row = desk.db.execute('SELECT * FROM bibliotheque5639_trames WHERE jeton=?', (m.group(1),)).fetchone()
+        if row is None:   # 5.6.42 (audit 5.6.41, F05) : jamais de repli sur le modèle actuel pour une trame explicitement choisie
+            raise Qualified('instantane_modele_introuvable',
+                            precision='La trame choisie dans la bibliothèque pour cette demande est introuvable (restauration partielle ou '
+                                      'incident de maintenance). Choisissez de nouveau le modèle dans la bibliothèque (Corporate › '
+                                      'Bibliothèque de modèles › Rédiger par l’IA) : la rédaction ne se fera pas sur une autre version.')
+        stored = row['empreinte'] if 'empreinte' in row.keys() else ''
+        if stored and stored != _sha(row['texte']):
+            raise Qualified('instantane_modele_altere',
+                            precision='La trame enregistrée pour cette demande ne correspond plus à son empreinte : choisissez de nouveau '
+                                      'le modèle dans la bibliothèque.')
         if row:
             sections = json.loads(row['sections'] or '[]') if 'sections' in row.keys() else []
             return {'titre': row['titre'], 'langue': row['langue'], 'droit': DROITS.get(row['droit'], row['droit']) if 'droit' in row.keys() else '',
@@ -847,23 +1013,80 @@ def trame_for_request(desk, request):
     return {**base, 'empreinte': _sha(eff['texte']), 'texte': eff['texte']}
 
 
-def coverage(desk, request, doc):
-    """B05 : sections de la trame absentes du projet rédigé (contrôle après rédaction, avant « prêt à relire »)."""
+HEADING_STYLES = {'titre', 'intertitre', 'titre1', 'titre2', 'heading', 'heading1', 'heading2'}
+MIN_BODY = 40   # caractères utiles sous un intitulé pour qu'une section soit réellement rédigée
+
+
+def _title_key(text):
+    """Intitulé normalisé : sans numérotation (« Article 3 — », « 3. », « II - »), sans mention à compléter, minuscules sans accents."""
+    key = fold(str(text or '')).lower()
+    key = re.sub(r'\[[^\]]*\]', ' ', key)
+    key = re.sub(r'^\s*(article|art\.|section|chapitre|titre|clause|§)\s*[\divxlc]*\s*', ' ', key)
+    key = re.sub(r'^\s*[\divxlc]+\s*[.)\-–—:]\s*', ' ', key)
+    key = re.sub(r'[^\w\s]', ' ', key)
+    return re.sub(r'\s+', ' ', key).strip()
+
+
+def _same_title(expected, heading):
+    if not expected or not heading:
+        return False
+    if expected == heading or expected in heading or heading in expected:
+        return True
+    words = [w for w in expected.split() if len(w) > 3]
+    if words and all(w in heading.split() for w in words):
+        return True
+    return difflib.SequenceMatcher(None, expected, heading).ratio() >= 0.85
+
+
+def coverage_report(desk, request, doc):
+    """5.6.42 (audit 5.6.41, F06) : couverture STRUCTURELLE des sections attendues de la trame. Une section n'est présente que si un
+    intitulé du projet lui correspond (numérotation et variantes normalisées) ET qu'un corps exploitable le suit ; une section seulement
+    citée dans une phrase, ou un intitulé vide, n'est pas une section rédigée. Un contrôle impossible est signalé comme tel, jamais
+    comme une absence d'écart. La qualité juridique du contenu reste à relire par l'avocat."""
     try:
         trame = trame_for_request(desk, request)
-    except Exception:   # noqa: BLE001
-        return []
-    if not trame or not trame.get('sections_attendues'):
-        return []
-    produced = ' '.join(fold(str(p.get('texte', ''))).lower() for p in doc.get('paragraphes') or [])
-    produced = re.sub(r'\s+', ' ', produced)
-    missing = []
-    for title in trame['sections_attendues']:
-        key = re.sub(r'\s+', ' ', fold(str(title)).lower()).strip()
-        key = re.sub(r'\[[^\]]*\]', '', key).strip()
-        if key and key not in produced:
-            missing.append(str(title))
-    return missing
+    except Exception as exc:   # noqa: BLE001
+        return {'statut': 'controle_indisponible', 'cause': str(exc)[:80], 'attendues': [], 'presentes': [], 'vides': [],
+                'citees_seulement': [], 'absentes': []}
+    expected = [str(x) for x in (trame or {}).get('sections_attendues') or []]
+    if not expected:
+        return {'statut': 'sans_objet', 'attendues': [], 'presentes': [], 'vides': [], 'citees_seulement': [], 'absentes': []}
+    paras = [p for p in doc.get('paragraphes') or [] if isinstance(p, dict)]
+    headings = []   # (clé, index du paragraphe)
+    for i, p in enumerate(paras):
+        style = fold(str(p.get('style') or '')).lower().replace(' ', '')
+        if style in HEADING_STYLES:
+            headings.append((_title_key(p.get('texte')), i))
+    bodies = {}
+    for n, (key, i) in enumerate(headings):
+        end = headings[n + 1][1] if n + 1 < len(headings) else len(paras)
+        body = ' '.join(str(p.get('texte') or '') for p in paras[i + 1:end])
+        body = re.sub(r'\[[^\]]*\]', ' ', body)
+        bodies[i] = len(re.sub(r'\s+', ' ', body).strip())
+    texts = ' '.join(_title_key(p.get('texte')) for p in paras)
+    report = {'statut': 'complet', 'attendues': [{'id': 's%d' % (k + 1), 'titre': t} for k, t in enumerate(expected)],
+              'presentes': [], 'vides': [], 'citees_seulement': [], 'absentes': []}
+    used = set()
+    for title in expected:
+        key = _title_key(title)
+        found = next((i for k, i in headings if i not in used and _same_title(key, k)), None)
+        if found is not None:
+            used.add(found)
+            report['presentes' if bodies.get(found, 0) >= MIN_BODY else 'vides'].append(title)
+        elif key and key in texts:
+            report['citees_seulement'].append(title)
+        else:
+            report['absentes'].append(title)
+    if report['vides'] or report['citees_seulement'] or report['absentes']:
+        report['statut'] = 'ecarts'
+    return report
+
+
+def coverage(desk, request, doc):
+    """B05 : sections de la trame à reprendre dans le projet rédigé (absentes, seulement citées ou sans corps) — 5.6.42 (F06) : contrôle
+    structurel (``coverage_report``)."""
+    report = coverage_report(desk, request, doc)
+    return report['absentes'] + report['citees_seulement'] + report['vides']
 
 
 CONSIGNE = ('Utilise cette trame comme base : suis sa structure et ses articles, adapte-la au dossier et à la demande, complète les mentions '
@@ -1016,9 +1239,10 @@ def detail_html(desk, prefix, args, ident, cid=''):
     identity = ('<p class="b5640-id"><span>Droit applicable : <strong>%s</strong></span> · <span>Langue du document : <strong>%s</strong></span> · '
                 '<span>Source : %s, version %s</span></p>') % (e(DROITS.get(t['droit'], t['droit'])), e(LANGUES.get(t['langue'], t['langue'])),
                                                                e(source), e(str(t.get('version', 1))))
+    identity += _word_state_html(t) + _progress_html(t, values)
     form = ('<section class="ax-card"><h3>Préparer le document</h3>%s%s<form class="m5-form b5639-form b5640-steps" data-api="m5636/corporate/'
             'bibliotheque/generer" data-reload="1" data-result="#b5640-apercu"><input type="hidden" name="modele" value="%s"><input type="hidden" '
-            'name="societe" value="%s">%s'
+            'name="societe" value="%s"><input type="hidden" name="version_vue" value="%s">%s'
             '<fieldset><legend>1. Destination</legend><label class="e5636-switch"><input type="radio" name="destination" value="telecharger" checked> '
             'Télécharger en Word</label><label class="e5636-switch"><input type="radio" name="destination" value="dossier"> Déposer dans le dossier '
             '(JURIDIQUE)</label><label class="e5636-switch"><input type="radio" name="destination" value="ia"> Faire rédiger par l’IA à partir de '
@@ -1031,7 +1255,8 @@ def detail_html(desk, prefix, args, ident, cid=''):
             '<textarea id="b5640-apercu" class="b5639-preview" rows="14" readonly aria-label="Aperçu du document"></textarea>'
             '<div class="ax-actions"><button class="ax-btn ghost" type="submit" data-extra="destination=apercu">Aperçu du document</button>'
             '<button class="ax-btn" type="submit">Préparer</button></div></fieldset></form></section>') % (
-        identity, _ready_html(desk, args, owner), e(t['id'], quote=True), e(cid, quote=True), warn, matter_select, ''.join(fields),
+        identity, _ready_html(desk, args, owner), e(t['id'], quote=True), e(cid, quote=True), e(view_token(t), quote=True), warn,
+        matter_select, ''.join(fields),
         clauses or '<p class="ax-muted">Aucune clause optionnelle.</p>')
     custom = ('<details class="ax-card b5640-advanced"><summary><strong>Personnalisation avancée du modèle</strong> (texte, champs, modèle Word)'
               '</summary><p class="ax-muted">Le texte ci-dessous est la trame utilisée par le cabinet : modifiez-le, ajoutez vos {{variables}} et vos '
@@ -1059,6 +1284,43 @@ def detail_html(desk, prefix, args, ident, cid=''):
             '</section>') % (e(_url(prefix, cid, droit=t['droit']), quote=True), e(t['titre']), _badges(t), e(DROITS.get(t['droit'], '')),
                              e(_resume(t, lang)))
     return head + form + custom
+
+
+def _word_state_html(t):
+    """5.6.42 (audit 5.6.41, ergonomie, F02/F03) : version et empreinte du Word, état de synchronisation, champs nouveaux et disparus,
+    action « Actualiser le modèle »."""
+    if not t.get('word'):
+        return ''
+    meta = t.get('meta') or {}
+    state = meta.get('hydratation') or {}
+    if state.get('etat') == 'erreur':
+        status = ('<span class="c5636-warn">source illisible (%s) : vérifiez le chemin dans Nextcloud ou réimportez le modèle Word ci-dessous'
+                  '</span>' % e(state.get('cause', '')))
+    else:
+        status = 'synchronisé le %s' % e(str(state.get('date') or '')[:16].replace('T', ' ')) if state.get('date') else 'à actualiser'
+    news = meta.get('nouvelles') or []
+    gone = meta.get('disparues') or []
+    label = lambda k: '[[si %s]]' % k[7:] if k.startswith('clause_') else '{{%s}}' % k   # noqa: E731
+    changes = ''
+    if news:
+        changes += '<p class="c5636-warn">Nouveaux depuis la version précédente : %s — vérifiez-les dans le formulaire.</p>' % e(', '.join(map(label, news)))
+    if gone:
+        changes += '<p class="c5636-warn">Disparus depuis la version précédente : %s.</p>' % e(', '.join(map(label, gone)))
+    return ('<div class="b5642-word"><p><span>Modèle Word : <code>%s</code></span> · <span>empreinte <code>%s</code></span> · <span>%s</span></p>%s'
+            '<form class="m5-form m5-inline" data-api="m5636/corporate/bibliotheque/actualiser" data-reload="1"><input type="hidden" name="modele" '
+            'value="%s"><button class="ax-btn ghost" type="submit">Actualiser le modèle</button></form></div>') % (
+        e(t['word']), e((meta.get('empreinte') or '—')[:12]), status, changes, e(t['id'], quote=True))
+
+
+def _progress_html(t, values):
+    """5.6.42 (ergonomie) : informations déjà renseignées et mentions à compléter, avant les quatre étapes."""
+    total = len(t['variables'])
+    if not total:
+        return ''
+    head = MISSING.get(t['langue'] if t['langue'] in LANGS else 'fr', MISSING['fr']).split('%s')[0]
+    filled = sum(1 for k, _, _ in t['variables'] if (values.get(k) or '').strip() and not str(values.get(k)).startswith(head))
+    return ('<p class="b5642-progress" role="status"><progress max="%d" value="%d"></progress> %d information(s) sur %d déjà renseignée(s)%s</p>'
+            % (total, filled, filled, total, ' — complétez les autres à l’étape 2' if filled < total else ''))
 
 
 def _labels_html(t):
@@ -1097,6 +1359,8 @@ def api_post(desk, route, data, owner):
         return set_word(desk, data, owner)
     if route == 'corporate/bibliotheque/libelles':
         return set_labels(desk, data, owner)
+    if route == 'corporate/bibliotheque/actualiser':
+        return refresh(desk, data, owner)
     if route == 'corporate/bibliotheque/droit':
         return set_default_law(desk, data, owner)
     if route == 'corporate/bibliotheque/ajouter':

@@ -60,7 +60,8 @@ def ensure_schema(desk):
 # ---------------------------------------------------------------------------------------- client Deck (API REST v1.0)
 class Deck:
     def __init__(self, cfg):
-        self.http = HTTP(cfg['url'], cfg['username'], read_secret(cfg['password_file']))
+        from .exapp5642 import nextcloud_http   # 5.6.42 : en-têtes AppAPI en mode ExApp
+        self.http = nextcloud_http(cfg['url'], cfg)
         self.user = cfg['username']
         self.api = self.http.base + '/index.php/apps/deck/api/v1.0'
         self.web = self.http.base + '/index.php/apps/deck/#/board/'

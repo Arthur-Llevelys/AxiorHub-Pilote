@@ -13,13 +13,23 @@ document, l'exercice déclaré par le modèle ou un champ vide ne prouvent rien 
     dans l'extrait cité ;
   - plusieurs montants dans un segment sans colonnes de tableau établies : rattachement ambigu, jamais « justifié » ;
   - analyse préparée une seule fois par document (``analyse``) et réutilisée pour chaque chiffre du rapport.
+
+5.6.42 (audit 5.6.41, F01, P0) — méthode 5 : périmètre des déclarations d'unité.
+  - une mention d'unité portée par une ligne qui contient des montants (« Dettes financières (en milliers d'euros) : 20 ») ne vaut que pour
+    cette ligne ; elle n'est plus diffusée au document ;
+  - une déclaration d'unité est une ligne sans montant (« (en milliers d'euros) », « Montants exprimés en millions d'euros ») ; dans la zone
+    de titre du document (premier bloc, avant toute ligne chiffrée) elle vaut pour le document ; ailleurs elle vaut pour son bloc (tableau ou section
+    délimités par une ligne vide ou un saut de page), ou, isolée, pour le tableau qui la suit (titre) ou à défaut qui la précède (pied) ;
+  - ordre : unité du segment, puis du bloc, puis du document ; deux unités différentes au même niveau : unité non établie (jamais un
+    choix arbitraire) ; aucune déclaration : montants en unités ;
+  - la source précise de l'unité (ligne et positions) est jointe à la preuve.
 """
 from bisect import bisect_right
 from decimal import Decimal, InvalidOperation
 import re
 import unicodedata
 
-METHODE = 4
+METHODE = 5
 
 # postes reconnus et leurs libellés dans les comptes (texte replié : minuscules, sans accents, apostrophe droite)
 POSTES = (('chiffre_affaires', ('chiffre d\'affaires', 'chiffres d\'affaires', 'ventes de marchandises', 'production vendue')),
@@ -61,10 +71,82 @@ def _currency(token):
     return next((code for word, code in CURRENCY_WORDS if token == word), None)
 
 
+_MONTHS = r'(?:janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)'
+_DATES = re.compile(r'\b\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}\b|\b\d{1,2}(?:er)?\s+' + _MONTHS + r'\b')
+
+
+def _has_amount(line):
+    """5.6.42 (F01) : la ligne porte au moins un montant (dates et années exclues)."""
+    return bool(_numbers(_DATES.sub(' ', line)))
+
+
+def _unit_scopes(folded, lines):
+    """5.6.42 (audit 5.6.41, F01) : déclarations d'unité et leur périmètre. Renvoie (unités du document, unités par bloc, bloc de chaque
+    ligne) ; chaque unité porte la ligne et les positions de sa déclaration."""
+    block, blocks, current, seen_text = [], 0, 0, False
+    for a, b in lines:
+        line = folded[a:b]
+        if '\f' in line or not line.strip():
+            if seen_text:
+                current += 1
+            seen_text = False
+            block.append(current if line.strip() else -1)
+            if line.strip():
+                seen_text = True
+            continue
+        block.append(current)
+        seen_text = True
+    blocks = current + 1
+    data = [bool(folded[a:b].strip()) and _has_amount(folded[a:b]) for a, b in lines]
+    first_data = next((i for i, d in enumerate(data) if d), len(lines))
+    first_block = next((block[i] for i, (a, b) in enumerate(lines) if folded[a:b].strip()), 0)   # zone de titre : premier bloc du document
+    data_blocks = sorted({block[i] for i, d in enumerate(data) if d})
+    doc, per_block, orphans = {}, {}, []
+    for i, (a, b) in enumerate(lines):
+        if data[i] or block[i] < 0:
+            continue
+        line = folded[a:b]
+        for name, rx in _UNITS:
+            m = re.search(rx, line)
+            if not m:
+                continue
+            source = {'ligne': i + 1, 'debut': a + m.start(), 'fin': a + m.end()}
+            if i < first_data and block[i] == first_block:
+                doc.setdefault(name, source)
+            elif block[i] in data_blocks:
+                per_block.setdefault(block[i], {}).setdefault(name, source)
+            else:
+                orphans.append((block[i], name, source))
+    for b_index, name, source in orphans:   # déclaration isolée : titre du tableau suivant, sinon pied du tableau précédent
+        nxt = next((d for d in data_blocks if d > b_index), None)
+        prev = next((d for d in reversed(data_blocks) if d < b_index), None)
+        target = nxt if nxt is not None and nxt not in per_block else prev
+        if target is not None:
+            per_block.setdefault(target, {}).setdefault(name, source)
+    del blocks
+    return doc, per_block, block
+
+
+def _scoped_unit(scopes, line_index):
+    """5.6.42 (F01) : unité applicable à une ligne hors mention locale — bloc, puis document ; conflit : unité non établie."""
+    doc, per_block, block = scopes
+    own = per_block.get(block[line_index]) if 0 <= line_index < len(block) else None
+    for level, found in (('du tableau ou de la section', own), ('en-tête du document', doc)):
+        if not found:
+            continue
+        if len(found) > 1:
+            return '', 'conflit d\'unités (%s)' % ' / '.join(sorted(found)), None
+        name, source = next(iter(found.items()))
+        return name, ('déclaration %s, ligne %d' % (level, source['ligne']) if level != 'en-tête du document'
+                      else 'en-tête du document, ligne %d' % source['ligne']), source
+    return 'unites', 'aucune mention de milliers ni de millions', None
+
+
 def doc_context(text, folded=None):
-    """Exercice, devise et unité établis par les EN-TÊTES du document (lignes d'intitulé, « exercice clos le… », « en euros »)."""
+    """Exercice, devise et unité établis par les EN-TÊTES du document (lignes d'intitulé, « exercice clos le… », « en euros »).
+    5.6.42 (F01) : l'unité du document ne vient que d'une déclaration placée dans sa zone de titre, jamais d'une ligne de poste."""
     folded = _fold(text) if folded is None else folded
-    years, currencies, unit = set(), set(), 'unites'
+    years, currencies = set(), set()
     for line in folded.splitlines():
         if not _HEADER.search(line):
             continue
@@ -75,12 +157,8 @@ def doc_context(text, folded=None):
             code = _currency(m.group(1))
             if code:
                 currencies.add(code)
-        for name, rx in _UNITS:
-            if re.search(rx, line):
-                unit = name
-    for name, rx in _UNITS:   # unité indiquée hors des lignes d'intitulé (« montants en milliers d'euros » en pied de tableau)
-        if unit == 'unites' and re.search(rx, folded):
-            unit = name
+    doc_units, _, _ = _unit_scopes(folded, _lines(folded))
+    unit = 'unites' if not doc_units else (next(iter(doc_units)) if len(doc_units) == 1 else '')
     return {'exercice': next(iter(years)) if len(years) == 1 else '', 'exercices': sorted(years),
             'devise': next(iter(currencies)) if len(currencies) == 1 else '', 'unite': unit, 'colonnes': []}
 
@@ -179,6 +257,7 @@ def analyse(text):
     lines = _lines(folded)
     analysis = {'texte': text, 'replie': folded, 'lignes': lines, 'debuts': [a for a, _ in lines], 'methode': METHODE}
     analysis['contexte'] = doc_context(text, folded)
+    analysis['unites'] = _unit_scopes(folded, lines)   # 5.6.42 (F01) : périmètre des déclarations d'unité
     analysis['entetes'] = _column_headers(folded, lines)
     analysis['faits'] = _facts(analysis)
     return analysis
@@ -213,7 +292,7 @@ def _facts(analysis):
             continue
         seg_years = [m.group(1) for m in _YEAR.finditer(segment)]
         seg_cur = {c for c in (_currency(m.group(1)) for m in _CUR.finditer(segment)) if c}
-        seg_unit = next((name for name, rx in _UNITS if re.search(rx, segment)), '')
+        seg_units = [(name, m) for name, rx in _UNITS for m in [re.search(rx, segment)] if m]   # 5.6.42 (F01) : mention propre au poste
         columns = _table_columns(analysis, line_index) if len(nums) >= 2 and not seg_years else []
         tabular = bool(columns) and len(columns) == len(nums)
         for k, (value, a, b) in enumerate(nums):
@@ -231,12 +310,19 @@ def _facts(analysis):
                 cur, cur_proof = ctx['devise'], 'en-tête du document'
             else:
                 cur, cur_proof = '', ''
-            unit, unit_proof = (seg_unit, 'même ligne') if seg_unit else (ctx['unite'], 'en-tête du document')
+            if len({n for n, _ in seg_units}) == 1:
+                unit, unit_proof = seg_units[0][0], 'même ligne'
+                unit_pos = [end + seg_units[0][1].start(), end + seg_units[0][1].end()]
+            elif seg_units:
+                unit, unit_proof, unit_pos = '', 'conflit d\'unités sur la ligne', None
+            else:
+                unit, unit_proof, source = _scoped_unit(analysis['unites'], line_index)
+                unit_pos = [source['debut'], source['fin']] if source else None
             out.append({'poste': poste, 'valeur': value, 'devise': cur, 'unite': unit, 'exercice': year, 'debut': start, 'fin': seg_end,
                         'libelle_debut': start, 'libelle_fin': end, 'montant_debut': end + a, 'montant_fin': end + b,
                         'ambigu': len(nums) > 1 and not tabular, 'coupe': cut,
                         'segment': text[start:seg_end].strip()[:300], 'preuve_devise': cur_proof, 'preuve_exercice': year_proof,
-                        'preuve_unite': unit_proof})
+                        'preuve_unite': unit_proof, 'position_unite': unit_pos})
     return out
 
 
@@ -281,6 +367,8 @@ def check(x, text, exercice='', analysis=None):
     if not same:
         return 'poste_different_dans_l_extrait', detail
     unit = str(x.get('unite') or 'unites')
+    if all(f['unite'] == '' for f in same):   # 5.6.42 (F01) : déclarations contradictoires, unité non établie
+        return 'unite_non_etablie', {**detail, 'preuve_unite': same[0]['preuve_unite']}
     if all(f['unite'] != unit for f in same):
         return 'unite_differente_des_comptes', {**detail, 'unite_des_comptes': same[0]['unite']}
     matches = [f for f in same if f['valeur'] == claim['valeur'] and f['unite'] == unit]
@@ -291,6 +379,7 @@ def check(x, text, exercice='', analysis=None):
     f = matches[0]
     detail.update(poste=f['poste'], valeur=str(f['valeur']), devise=f['devise'], unite=f['unite'], exercice=f['exercice'], segment=f['segment'],
                   preuve_devise=f['preuve_devise'], preuve_exercice=f['preuve_exercice'], preuve_unite=f['preuve_unite'],
+                  position_unite=f.get('position_unite'),
                   position_libelle=[f['libelle_debut'], f['libelle_fin']], position_montant=[f['montant_debut'], f['montant_fin']],
                   page_montant=page_at(text, f['montant_debut']))
     if f['ambigu']:   # plusieurs montants dans le segment, sans colonnes établies : rattachement non prouvé

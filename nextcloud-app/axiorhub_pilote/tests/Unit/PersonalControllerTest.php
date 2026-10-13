@@ -59,4 +59,38 @@ class PersonalControllerTest extends TestCase {
 		$out = $this->controller($this->createMock(EngineClient::class), $this->createMock(UserLink::class))->link('http://moteur.example.test', 'a', 'b');
 		$this->assertSame([400, 'https_required'], [$out->getStatus(), $out->getData()['code']]);
 	}
+
+	/** 0.4.3 : « Tester l'adresse » avant la liaison — version et mode du moteur, dernier test réussi enregistré, rien d'autre. */
+	public function testProbeReportsVersionAndModeAndRecordsTheLastSuccess(): void {
+		$engine = $this->createMock(EngineClient::class);
+		$engine->method('health')->willReturn(['status' => 200, 'body' => ['version' => '5.6.42', 'mode' => 'poste', 'personal_accounts' => true]]);
+		$engine->expects($this->never())->method('pair');
+		$links = $this->createMock(UserLink::class);
+		$links->expects($this->once())->method('markOk')->with('alice');
+		$links->method('lastOk')->willReturn('2026-10-13 10:00 UTC');
+		$links->expects($this->never())->method('store');
+		$out = $this->controller($engine, $links)->probe('http://127.0.0.1:8769/agent-courriel', true);
+		$this->assertSame(200, $out->getStatus());
+		$this->assertSame(['5.6.42', 'poste', true, '2026-10-13 10:00 UTC'],
+			[$out->getData()['version'], $out->getData()['mode'], $out->getData()['personal_accounts'], $out->getData()['last_ok']]);
+	}
+
+	public function testProbeOfAnUnreachableOrInvalidAddressRecordsNothing(): void {
+		$engine = $this->createMock(EngineClient::class);
+		$engine->method('health')->willReturn(['status' => 503, 'body' => ['code' => 'moteur_injoignable']]);
+		$links = $this->createMock(UserLink::class);
+		$links->expects($this->never())->method('markOk');
+		$this->assertSame('moteur_injoignable', $this->controller($engine, $links)->probe('https://moteur.example.test')->getData()['code']);
+		$this->assertSame('https_required', $this->controller($engine, $links)->probe('http://moteur.example.test')->getData()['code']);
+	}
+
+	/** 0.4.3 : configuration proposée à l'ouverture des paramètres, déduite de l'état actuel. */
+	public function testDefaultConfigurationFollowsTheCurrentState(): void {
+		$personal = \OCA\AxiorhubPilote\Settings\Personal::class;
+		$this->assertSame('serveur', $personal::configuration(null, ''));
+		$this->assertSame('poste-heberge', $personal::configuration(null, 'http://127.0.0.1:8769/agent-courriel/'));
+		$this->assertSame('serveur', $personal::configuration(['url' => 'https://moteur.example.test/agent-courriel', 'allow_local' => false], ''));
+		$this->assertSame('meme-poste', $personal::configuration(['url' => 'http://127.0.0.1:8769/agent-courriel', 'allow_local' => true], ''));
+		$this->assertSame('meme-poste', $personal::configuration(['url' => 'http://host.docker.internal:8769/agent-courriel', 'allow_local' => true], ''));
+	}
 }

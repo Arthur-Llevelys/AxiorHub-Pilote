@@ -3,6 +3,33 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.42 — Audit 5.6.41 (F01 à F07), comptes dans les paramètres, mode ExApp
+
+Audit de la 5.6.41 et cahier des charges « AxiorHub Pilote ExApp ». Détail : `CONFORMITE-5.6.42.md`.
+
+- **F01 (P0) — unité comptable** : méthode de preuve 5. Une mention d'unité portée par une ligne chiffrée ne vaut que pour cette ligne ;
+  une déclaration (ligne sans montant) vaut pour son tableau ou sa section, ou pour le document si elle est dans sa zone de titre ; deux
+  unités au même niveau : `unite_non_etablie` ; la source de l'unité (ligne, positions) est jointe à la preuve ; les rapports établis avec
+  la méthode 4 sont à recontrôler (écarts présentés avant régénération).
+- **F02 — anciens modèles Word** : métadonnées (champs, clauses, empreinte) reconstruites à la première ouverture, hors transaction,
+  idempotentes, libellés et version conservés ; source illisible signalée sur la fiche avec l'action à mener.
+- **F03 — Word modifié** : empreinte comparée avant toute préparation ; nouvelle version, champs nouveaux et disparus présentés, refus
+  explicite plutôt que des options périmées ; l'aperçu et « Préparer » portent sur la version affichée ; bouton « Actualiser le modèle ».
+- **F04 — trame IA fidèle** : sauts de ligne (`w:br`, `w:cr`) et tabulations conservés dans le texte transmis à l'IA.
+- **F05 — instantané exigé** : une demande avec trame choisie ne se rédige jamais sur une autre version (`instantane_modele_introuvable`,
+  `instantane_modele_altere`), erreur propagée à l'état du travail.
+- **F06 — couverture structurelle** : une section n'est présente que si un intitulé lui correspond et qu'un corps exploitable le suit ;
+  sections absentes, seulement citées ou vides signalées dans la relecture ; contrôle impossible affiché comme tel.
+- **F07 — purge sûre** : relation explicite demande–instantané, références établies avant toute suppression dans une transaction, erreur
+  de lecture = purge différée ; maintenance bornée sur les seuls candidats expirés (index).
+- **Paramètres › Comptes** (nouvelle rubrique) : identifiant et mot de passe de l'administrateur de l'interface (version serveur et
+  postes), changement avec le mot de passe actuel ; distribution autonome : accès à la page Comptes.
+- **Mode ExApp** (`agent/exapp5642.py`, `exapp.py`) : moteur livrable comme application externe Nextcloud (AppAPI, HaRP) — cycle de vie,
+  en-têtes AppAPI, rôles par groupes Nextcloud, droits de la distribution autonome, pages affichées dans Nextcloud, services Nextcloud
+  par les en-têtes AppAPI ; conditionnement dans le dépôt séparé AxiorHub-Pilote-ExApp (version de développement 0.1.0).
+- **Application Nextcloud 0.4.3** : choix guidé de la configuration (serveur, même ordinateur, poste avec Nextcloud hébergé), « Tester
+  l'adresse », date du dernier test réussi.
+
 ## 5.6.41 — Application Nextcloud : mode découverte sur un poste, prérequis et étapes d’installation
 
 Demandes de l’avocat du 13 octobre 2026. Détail : `CONFORMITE-5.6.41.md`.

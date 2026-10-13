@@ -178,6 +178,18 @@ OC.L10N.register(
  "AxiorHub installed on this computer (discovery mode)? Enter the address of your local AxiorHub in the same settings.": "¿AxiorHub instalado en este ordenador (modo descubrimiento)? Introduzca la dirección de su AxiorHub local en los mismos ajustes.",
  "AxiorHub opens in a new tab of this browser, on this computer only. Nextcloud does not exchange any data with it: no Pilote, no search and no display inside Nextcloud in this mode.": "AxiorHub se abre en una pestaña nueva de este navegador, solo en este ordenador. Nextcloud no intercambia ningún dato con él: ni Pilote, ni búsqueda, ni visualización en Nextcloud en este modo.",
  "Open my local AxiorHub": "Abrir mi AxiorHub local",
- "Change the address": "Cambiar la dirección"
+ "Change the address": "Cambiar la dirección",
+ "Where is AxiorHub installed?": "¿Dónde está instalado AxiorHub?",
+ "On a server (recommended)": "En un servidor (recomendado)",
+ "AxiorHub server version (Linux, HTTPS) reachable by this Nextcloud: everything works inside Nextcloud, from every computer of the firm.": "Versión servidor de AxiorHub (Linux, HTTPS) accesible desde este Nextcloud: todo funciona en Nextcloud, desde todos los ordenadores del despacho.",
+ "On this computer, with Nextcloud on the same computer (discovery mode)": "En este ordenador, con Nextcloud en el mismo ordenador (modo descubrimiento)",
+ "The AxiorHub interface works inside Nextcloud, from this computer only, with a permanent warning. For tests only.": "La interfaz de AxiorHub funciona en Nextcloud, solo desde este ordenador, con un aviso permanente. Solo para pruebas.",
+ "On my computer, with Nextcloud hosted on a server (discovery mode)": "En mi ordenador, con Nextcloud alojado en un servidor (modo descubrimiento)",
+ "Only a link that opens AxiorHub in a new tab: in this setup the Pilot, the search and the display inside Nextcloud are not available.": "Solo un enlace que abre AxiorHub en una pestaña nueva: en esta configuración, el Piloto, la búsqueda y la visualización en Nextcloud no están disponibles.",
+ "Last successful test: %s": "Última prueba correcta: %s",
+ "Test the address": "Probar la dirección",
+ "AxiorHub {version} answers at this address.": "AxiorHub {version} responde en esta dirección.",
+ "This AxiorHub is installed on a workstation: choose “On this computer, with Nextcloud on the same computer (discovery mode)”.": "Este AxiorHub está instalado en un puesto de trabajo: elija «En este ordenador, con Nextcloud en el mismo ordenador (modo descubrimiento)».",
+ "This AxiorHub is a server version: choose “On a server (recommended)”.": "Este AxiorHub es una versión servidor: elija «En un servidor (recomendado)»."
 },
     "nplurals=2; plural=(n != 1);");

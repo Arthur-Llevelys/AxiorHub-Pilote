@@ -1,5 +1,14 @@
 # Journal des versions — application Nextcloud AxiorHub Pilote
 
+## 0.4.3 — version de développement (avec le moteur 5.6.42)
+
+- **Choix guidé de la configuration** (audit 5.6.41) dans les paramètres personnels : « Sur un serveur (recommandé) », « Sur cet ordinateur,
+  avec Nextcloud sur le même ordinateur (mode découverte) », « Sur mon ordinateur, avec Nextcloud hébergé (mode découverte) » ; seuls les
+  champs utiles à la configuration choisie sont affichés, et les limites sont expliquées au moment du choix.
+- **« Tester l'adresse »** avant la liaison : moteur joignable, version, mode serveur ou poste (avec une orientation si le choix ne
+  correspond pas), liaison autorisée ou non ; **date du dernier test réussi** affichée.
+- Mode découverte avec Nextcloud hébergé : bouton « Ouvrir mon AxiorHub local » dès les paramètres.
+
 ## 0.4.2 — version de développement (avec le moteur 5.6.41, contrat 1.3)
 
 - **Mode découverte avec un AxiorHub installé sur un poste de travail** (Windows 11, Ubuntu poste), pour des tests seulement :

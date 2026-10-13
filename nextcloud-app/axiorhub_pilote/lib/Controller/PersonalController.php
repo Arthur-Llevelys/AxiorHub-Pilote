@@ -68,6 +68,7 @@ class PersonalController extends Controller {
 				'step' => 'pair'], $out['status'] >= 400 ? $out['status'] : Http::STATUS_BAD_GATEWAY);
 		}
 		$this->links->store($uid, $url, $allowLocal, $out['body']);
+		$this->links->markOk($uid);
 		return new DataResponse(['linked' => true, 'axiorhub_user' => (string)($out['body']['user'] ?? ''), 'role' => (string)($out['body']['role'] ?? ''),
 			'version' => (string)($health['body']['version'] ?? '')]);
 	}
@@ -79,7 +80,28 @@ class PersonalController extends Controller {
 			return new DataResponse(['code' => 'compte_non_relie'], Http::STATUS_CONFLICT);
 		}
 		$out = $this->engine->call('GET', '/integration/v1/me', $uid, ['*']);
-		return new DataResponse($out['body'], $out['status'] === 200 ? Http::STATUS_OK : $out['status']);
+		if ($out['status'] === 200) {
+			$this->links->markOk($uid);
+		}
+		return new DataResponse($out['body'] + ['last_ok' => $this->links->lastOk($uid)], $out['status'] === 200 ? Http::STATUS_OK : $out['status']);
+	}
+
+	/** 0.4.3 : « Tester l'adresse » avant la liaison — moteur joignable, version, mode (serveur ou poste en mode découverte). */
+	#[NoAdminRequired]
+	public function probe(string $engineUrl = '', bool $allowLocal = false): DataResponse {
+		try {
+			$url = UserLink::checkUrl($engineUrl, $allowLocal);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['code' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		$health = $this->engine->health($url, $allowLocal);
+		if ($health['status'] !== 200) {
+			return new DataResponse(['code' => (string)($health['body']['code'] ?? 'moteur_injoignable'), 'message' => (string)($health['body']['message'] ?? '')],
+				Http::STATUS_BAD_GATEWAY);
+		}
+		$this->links->markOk($this->uid());
+		return new DataResponse(['version' => (string)($health['body']['version'] ?? ''), 'mode' => (string)($health['body']['mode'] ?? 'serveur'),
+			'personal_accounts' => (bool)($health['body']['personal_accounts'] ?? false), 'last_ok' => $this->links->lastOk($this->uid())]);
 	}
 
 	/** 0.4.2 : « Adresse de mon AxiorHub local » (mode découverte) ; vide = retirée. */

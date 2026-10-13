@@ -99,7 +99,8 @@ class AuditB01(unittest.TestCase):
 
     def test_b01_report_and_method(self):
         from agent import corporate5636 as co, comptes5639
-        self.assertEqual((comptes5639.METHODE, co.METHODE_COMPTES), (4, 4))
+        self.assertGreaterEqual(min(comptes5639.METHODE, co.METHODE_COMPTES), 4)   # 5.6.42 : méthode 5 (périmètre de l'unité)
+        self.assertEqual(comptes5639.METHODE, co.METHODE_COMPTES)
         answer = {'activite': 'a', 'evenements': 'b', 'perspectives': 'c', 'chiffres': [
             {**self.B, 'libelle': 'Chiffre d’affaires', 'montant': '20 000 EUR', 'extrait': 'Chiffre d’affaires 2025 : 812 450 EUR'},
             {**self.B, 'libelle': 'Chiffre d’affaires', 'montant': '812 450 EUR', 'extrait': 'Chiffre d’affaires 2025 : 812 450 EUR'}]}

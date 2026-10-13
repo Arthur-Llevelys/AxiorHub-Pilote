@@ -148,7 +148,26 @@ def apply_inline(text, flags):
 
 # ------------------------------------------------------------------------------------------------ paragraphes Word
 def _text_of(p):
+    """Texte d'un paragraphe pour reconnaître les balises (runs concaténés, sans séparateur)."""
     return unescape(''.join(TEXT.findall(p)))
+
+
+_RENDER = re.compile(r'<w:t(?: [^>]*)?>([^<]*)</w:t>|<w:(br|cr)\b[^>]*/>|<w:(tab)\b[^>]*/>')
+_PPR = re.compile(r'<w:pPr>.*?</w:pPr>|<w:rPr>.*?</w:rPr>', re.S)
+
+
+def render_text(p):
+    """5.6.42 (audit 5.6.41, F04) : texte de RESTITUTION d'un paragraphe, lu dans l'ordre du XML — w:br et w:cr deviennent des sauts de
+    ligne, w:tab une tabulation ; les définitions de taquets (w:pPr) et de mise en forme (w:rPr) sont ignorées."""
+    out = []
+    for m in _RENDER.finditer(_PPR.sub('', p)):
+        if m.group(1) is not None:
+            out.append(unescape(m.group(1)))
+        elif m.group(2):
+            out.append('\n')
+        elif m.group(3):
+            out.append('\t')
+    return ''.join(out)
 
 
 def paragraphs(xml):
@@ -332,16 +351,16 @@ def docx_text(raw):
         target = lines if name == 'word/document.xml' else extra
         body = xml
         pos = 0
-        for t in re.finditer(r'<w:tbl>.*?</w:tbl>', body, flags=re.S):
-            target.extend(x for x in (_text_of(p.group(0)).strip() for p in PARA.finditer(body[pos:t.start()])) if x)
+        for t in re.finditer(r'<w:tbl>.*?</w:tbl>', body, flags=re.S):   # 5.6.42 (F04) : texte de restitution (sauts de ligne conservés)
+            target.extend(x for x in (render_text(p.group(0)).strip() for p in PARA.finditer(body[pos:t.start()])) if x)
             for row in re.findall(r'<w:tr[ >].*?</w:tr>', t.group(0), flags=re.S):
-                cells = [' / '.join(x for x in (_text_of(p).strip() for p in PARA.findall(c)) if x)
+                cells = [' / '.join(x for x in (render_text(p).strip().replace('\n', ' / ') for p in PARA.findall(c)) if x)
                          for c in re.findall(r'<w:tc[ >].*?</w:tc>', row, flags=re.S)]
                 if any(cells):
                     target.append(' | '.join(cells))
             pos = t.end()
-        target.extend(x for x in (_text_of(p.group(0)).strip() for p in PARA.finditer(body[pos:])) if x)
+        target.extend(x for x in (render_text(p.group(0)).strip() for p in PARA.finditer(body[pos:])) if x)
     if extra:
         lines.append('')
-        lines.extend('[En-tête ou pied de page] ' + x for x in extra)
+        lines.extend('[En-tête ou pied de page] ' + x.replace('\n', ' / ') for x in extra)
     return '\n'.join(lines).strip()

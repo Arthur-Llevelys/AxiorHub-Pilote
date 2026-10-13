@@ -3,8 +3,8 @@
 **Français** · [English](README.en.md)
 
 Application Nextcloud qui affiche **l'interface d'AxiorHub Pilote** — logiciel juridique destiné aux avocats français — directement
-dans Nextcloud : Aujourd'hui, dossiers, courriels, agenda et tâches, actes, Corporate, recherche juridique, Pilote. Version 0.4.2
-(version de développement), pour AxiorHub Pilote 5.6.41 ou ultérieur.
+dans Nextcloud : Aujourd'hui, dossiers, courriels, agenda et tâches, actes, Corporate, recherche juridique, Pilote. Version 0.4.3
+(version de développement), pour AxiorHub Pilote 5.6.42 ou ultérieur.
 
 ![L'interface d'AxiorHub Pilote dans Nextcloud (données fictives)](screenshots/fr/01-interface.png)
 
@@ -58,12 +58,12 @@ sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y git python3 python3-venv
 
 # 1.2 Télécharger AxiorHub Pilote et construire l'archive vérifiée (manifeste d'empreintes contrôlé par l'installateur)
-sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.42 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.42.tar.gz
 
 # 1.3 Installer (ou mettre à jour) le moteur
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.42.tar.gz && cd axiorhub-mail-agent-5.6.42
 sudo bash install.sh
 
 # 1.4 Configurer la messagerie, Nextcloud et l'IA, puis contrôler
@@ -99,10 +99,10 @@ Les mises à jour apparaissent ensuite dans **Applications › Mises à jour**.
 Tant que l'application n'apparaît pas dans votre boutique, ou sur un serveur sans accès à la boutique :
 
 ```bash
-cd /tmp && git clone --branch v0.4.2 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.2.tar.gz
+cd /tmp && git clone --branch v0.4.3 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
+python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.3.tar.gz
 cd /chemin/vers/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.2.tar.gz -C apps
+sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.3.tar.gz -C apps
 sudo -u www-data php occ app:enable axiorhub_pilote
 ```
 
@@ -130,8 +130,8 @@ ce serveur (adresse locale) ».
 
 Pour **essayer** AxiorHub sans serveur, installez la version poste :
 [Windows 11](https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/docs/INSTALLATION-WINDOWS.md) (installateur
-`AxiorHub-Pilote-Setup-5.6.41.exe`) ou [Ubuntu 24.04](https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/docs/GUIDE-POSTE-10-MINUTES.md)
-(`sudo apt install ./axiorhub-pilote-poste_5.6.41_amd64.deb`). Elle n'écoute que son propre ordinateur (`http://127.0.0.1:8769`).
+`AxiorHub-Pilote-Setup-5.6.42.exe`) ou [Ubuntu 24.04](https://github.com/Arthur-Llevelys/AxiorHub-Pilote/blob/main/docs/GUIDE-POSTE-10-MINUTES.md)
+(`sudo apt install ./axiorhub-pilote-poste_5.6.42_amd64.deb`). Elle n'écoute que son propre ordinateur (`http://127.0.0.1:8769`).
 
 > **Avertissement — tests et découverte seulement, jamais pour la production.** AxiorHub n'est alors joignable que depuis cet ordinateur,
 > s'arrête quand l'ordinateur est éteint, et les échanges locaux ne sont pas chiffrés (HTTP). Pour le travail du cabinet, installez la

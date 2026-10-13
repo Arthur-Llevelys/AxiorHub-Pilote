@@ -325,8 +325,9 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
         trame = trame_for_request(desk, request)
         if trame:
             payload['trame_bibliotheque'] = trame
-    except Exception:   # noqa: BLE001 — la rédaction ne dépend pas de la bibliothèque
-        pass
+    except Exception:   # noqa: BLE001 — la rédaction ne dépend pas de la bibliothèque…
+        if '[trame:' in str(request or ''):   # 5.6.42 (audit 5.6.41, F05) : …sauf d'une trame explicitement choisie : jamais sans sa base
+            raise
     from .cabinet560 import writer_intro
     from .assistant567 import drafting_preferences
     payload['preferences']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
@@ -508,17 +509,32 @@ def run(desk, args, dav=None):
     try:
         doc = draft(desk, row['request'], row['kind'], ctx, previous_text, matter['id'])
     except Exception as ex:
+        detail = getattr(ex, 'detail', None) or {}
+        if detail.get('precision'):   # 5.6.42 (F05) : la cause précise (instantané introuvable…) est conservée dans l'état du travail
+            notes.append(str(detail['precision']))
         _set(desk, rid, 'echec', result={'error': str(ex)[:120], 'notes': notes})
         raise Stop('redaction_document_impossible') from None
-    try:   # 5.6.40 (audit 5.6.39, B05) : chaque section attendue de la trame de la bibliothèque doit figurer dans le projet
-        from .bibliotheque5639 import coverage
-        absent = coverage(desk, row['request'], doc)
-        if absent:
-            doc['a_completer'] = list(doc.get('a_completer') or []) + ['Section de la trame absente du projet : « %s » (à vérifier).' % s
-                                                                       for s in absent][:40]
-            notes.append('%d section(s) de la trame absente(s) du projet : à vérifier avant relecture.' % len(absent))
-    except Exception:   # noqa: BLE001 — la rédaction ne dépend pas de la bibliothèque
-        pass
+    couverture = None
+    try:   # 5.6.40 (B05), 5.6.42 (audit 5.6.41, F06) : couverture structurelle des sections attendues de la trame
+        from .bibliotheque5639 import coverage_report
+        couverture = coverage_report(desk, row['request'], doc)
+    except Exception as ex:   # noqa: BLE001 — le contrôleur a échoué : signalé, jamais compté comme « aucun écart »
+        couverture = {'statut': 'controle_indisponible', 'cause': type(ex).__name__}
+    if couverture and couverture['statut'] == 'ecarts':
+        lines = (['Section de la trame absente du projet : « %s » (à rédiger).' % s for s in couverture['absentes']] +
+                 ['Section seulement citée, sans intitulé ni corps : « %s » (à rédiger).' % s for s in couverture['citees_seulement']] +
+                 ['Section sans contenu exploitable : « %s » (à compléter).' % s for s in couverture['vides']])
+        doc['a_completer'] = list(doc.get('a_completer') or []) + lines[:40]
+        notes.append('Couverture de la trame : %d section(s) rédigée(s) sur %d ; à reprendre : %s.' % (
+            len(couverture['presentes']), len(couverture['attendues']),
+            ', '.join(couverture['absentes'] + couverture['citees_seulement'] + couverture['vides'])[:400]))
+    elif couverture and couverture['statut'] == 'complet':
+        notes.append('Couverture de la trame : les %d section(s) attendue(s) sont rédigées (contrôle de structure, contenu à relire).'
+                     % len(couverture['attendues']))
+    elif couverture and couverture['statut'] == 'controle_indisponible' and '[trame:' in row['request']:
+        notes.append('Contrôle de couverture de la trame indisponible : vérifiez vous-même la présence de chaque section attendue.')
+    if couverture:
+        doc['couverture_trame'] = couverture
     text = pilote5613.plain_text(doc)
     control = pilote5613.control_document(desk, row['kind'], text, matter['id'])     # 5.6.13 : contrôle juridique de la rédaction libre
     template_info = {'id': '', 'label': 'Word générique'}
@@ -579,6 +595,7 @@ def run(desk, args, dav=None):
     result = {'title': doc['titre'], 'to_complete': doc['a_completer'], 'sources': doc['sources'], 'notes': notes,
               'url': '', 'revision_coverage':doc.get('revision_coverage',{}), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)},
               'control': control, 'template': template_info, 'manifest': ctx['manifeste'], 'revision_diff': diff, 'rule_proposal': proposal,
+              'couverture_trame': doc.get('couverture_trame'),   # 5.6.42 (F06) : sections attendues, rédigées, à reprendre
               'text_sha256': hashlib.sha256(text.encode()).hexdigest(),
               # 5.6.14 (U06) : fiche de contrôle séparée du document destiné au correspondant
               'control_sheet': {'demande': row['request'][:600], 'sources': doc['sources'], 'a_completer': doc['a_completer'], 'controle': control.get('summary', ''),

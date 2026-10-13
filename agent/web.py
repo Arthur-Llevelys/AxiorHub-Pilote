@@ -454,6 +454,13 @@ class App:
             self.nc_cache[key]=(time.time()+30,found)
         return found
 
+    def _state_dir5642(self):
+        """5.6.42 : dossier d'état du service (compte de l'interface modifié depuis les paramètres), lu une fois."""
+        if not hasattr(self,'_state5642'):
+            try:self._state5642=str(load_config(self.config_path).get('state_dir') or '')
+            except Exception:self._state5642=''   # noqa: BLE001
+        return self._state5642
+
     def authenticate(self, environ, auth):
         # 5.6.38 : la session Nextcloud (cookie axh_nc) est vérifiée même si le navigateur envoie aussi l'identifiant Basic mémorisé
         # d'AxiorHub (même domaine) ; sans cela, la page partait avec « X-Frame-Options: DENY » et Nextcloud affichait « … n'autorise pas
@@ -508,6 +515,8 @@ class App:
         set_request_mode('read' if env.get('REQUEST_METHOD') in ('GET','HEAD') else 'write')   # 5.6.32 : délai d'attente court pour l'affichage
         try:
             auth=json.loads(Path(self.auth_path).read_text(encoding='utf-8'))
+            from .comptes5642 import overlay as _overlay5642
+            _overlay5642(auth,self._state_dir5642())   # 5.6.42 : identifiant et mot de passe changés depuis Paramètres › Comptes
             from .web567 import actor
             auth['owner']=actor(env)[0]   # 5.6.9 : utilisateur courant pour les blocs personnels des pages (« À décider »)
             origin=urlsplit(auth['origin'])

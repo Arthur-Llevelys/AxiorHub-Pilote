@@ -14,6 +14,8 @@ import unittest.mock
 from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 
+from agent import __version__
+
 import test_v5637 as t37
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -148,17 +150,17 @@ class NextcloudApp042(unittest.TestCase):
 
     def test_store_description_and_readme_show_requirements_steps_and_discovery_mode(self):
         info = ET.parse(APP / 'appinfo' / 'info.xml').getroot()
-        self.assertEqual(info.find('version').text, '0.4.2')
+        self.assertRegex(info.find('version').text, r'^0\.4\.[2-9]$')   # 5.6.42 : version suivante de l'application admise
         descriptions = {d.get('lang'): d.text for d in info.findall('description')}
         for lang, marks in (('en', ('## Before you start: requirements', '## Discovery mode: AxiorHub installed on a workstation (tests only)',
                                     'Warning — tests and discovery only.', 'Address of my local AxiorHub', 'host.docker.internal',
                                     '## Step 1 — Install the AxiorHub server version on Linux', '## Step 2 — Install this app from the Nextcloud App Store',
-                                    '## Step 3 — Link each lawyer', 'occ app:install axiorhub_pilote', 'Ubuntu 24.04 LTS or Debian 12', 'v5.6.41')),
+                                    '## Step 3 — Link each lawyer', 'occ app:install axiorhub_pilote', 'Ubuntu 24.04 LTS or Debian 12', 'v' + __version__)),
                             ('fr', ('## Avant de commencer : prérequis', '## Mode découverte : AxiorHub installé sur un poste de travail (tests seulement)',
                                     'Avertissement — tests et découverte seulement.', 'Adresse de mon AxiorHub local',
                                     '## Étape 1 — Installer la version serveur d\'AxiorHub sur Linux',
                                     '## Étape 2 — Installer cette application depuis la boutique Nextcloud', '## Étape 3 — Relier le compte',
-                                    'Applications › Bureautique et texte › AxiorHub Pilote', 'v5.6.41'))):
+                                    'Applications › Bureautique et texte › AxiorHub Pilote', 'v' + __version__))):
             for mark in marks:
                 self.assertIn(mark, descriptions[lang], (lang, mark))
         self.assertNotIn('Not supported', descriptions['en'])
@@ -199,7 +201,8 @@ class EngineReadme5641(unittest.TestCase):
             text = (ROOT / name).read_text(encoding='utf-8')
             positions = [text.index(m) for m in marks]
             self.assertEqual(positions, sorted(positions), name)
-            for cmd in ('AxiorHub-Pilote-Setup-5.6.41.exe', 'axiorhub-pilote-poste_5.6.41_amd64.deb', 'sudo bash install.sh', 'install-interface.py'):
+            for cmd in ('AxiorHub-Pilote-Setup-%s.exe' % __version__, 'axiorhub-pilote-poste_%s_amd64.deb' % __version__, 'sudo bash install.sh',
+                        'install-interface.py'):
                 self.assertIn(cmd, text, (name, cmd))
             shots = re.findall(r'src="(docs/captures/[^"]+)"', text)
             lang = {'README.md': 'fr'}.get(name, name.split('.')[1])

@@ -9,7 +9,7 @@
 
 This app brings the **AxiorHub interface itself into Nextcloud** (Today, Cases, Emails, Calendar and tasks, Produce, Corporate, Contacts & CRM, AI tools, Legal research…), with its menu in the AxiorHub colours, without typing the AxiorHub password again. A simplified view keeps instructions to the Pilote, search in the cases, case sheet, legal research and recent work.
 
-**This app does not contain the engine.** It needs the **server version of AxiorHub Pilote (version 5.6.41 or later), installed on a Linux server that this Nextcloud can reach over HTTPS** — ideally the same server and the same domain as Nextcloud. Each lawyer links his or her own AxiorHub account; Nextcloud users without a linked account have no access. An AxiorHub installed on a workstation can only be tried in *discovery mode*, for tests (see below).
+**This app does not contain the engine.** It needs the **server version of AxiorHub Pilote (version 5.6.42 or later), installed on a Linux server that this Nextcloud can reach over HTTPS** — ideally the same server and the same domain as Nextcloud. Each lawyer links his or her own AxiorHub account; Nextcloud users without a linked account have no access. An AxiorHub installed on a workstation can only be tried in *discovery mode*, for tests (see below).
 
 ## Before you start: requirements
 
@@ -42,9 +42,9 @@ sudo apt install -y git python3 python3-venv
 **1.2 Download AxiorHub Pilote and build the verified archive**
 
 ```bash
-sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.42 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.42.tar.gz
 ```
 
 The archive carries a checksum manifest: the installer refuses any modified file.
@@ -52,7 +52,7 @@ The archive carries a checksum manifest: the installer refuses any modified file
 **1.3 Install (or update) the engine**
 
 ```bash
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.42.tar.gz && cd axiorhub-mail-agent-5.6.42
 sudo bash install.sh
 ```
 
@@ -113,12 +113,12 @@ The password is used once to obtain a personal key and is never stored. The **Ax
 - Back up `/etc/axiorhub-mail-agent/` and `/var/lib/axiorhub-mail-agent/` (encrypted, off the server): they contain client data.
 - Full documentation (French): https://github.com/Arthur-Llevelys/AxiorHub-Pilote — manual installation of this app without the App Store: https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud
 
-Development version 0.4.2: compatibility is announced only after real installation and tests on each declared Nextcloud version.]]></description>
+Development version 0.4.3: compatibility is announced only after real installation and tests on each declared Nextcloud version.]]></description>
     <description lang="fr"><![CDATA[AxiorHub Pilote est un **logiciel juridique destiné aux avocats français** et à leurs cabinets : il suit la procédure française, les juridictions françaises et les sources du droit français ; ses écrans, documents et actes sont rédigés en français.
 
 Cette application affiche **l'interface d'AxiorHub elle-même dans Nextcloud** (Aujourd'hui, Dossiers, Courriels, Agenda et tâches, Produire, Corporate, Contacts & CRM, Outils IA, Recherche juridique…), avec son menu aux couleurs d'AxiorHub, sans ressaisir le mot de passe AxiorHub. Une vue simplifiée garde l'instruction au Pilote, la recherche dans les dossiers, la fiche du dossier, la recherche juridique et les travaux récents.
 
-**Cette application ne contient pas le moteur.** Elle a besoin de la **version serveur d'AxiorHub Pilote (5.6.41 ou ultérieure), installée sur un serveur Linux que ce Nextcloud peut joindre en HTTPS** — idéalement le même serveur et le même domaine que Nextcloud. Chaque avocat relie son propre compte AxiorHub ; les utilisateurs Nextcloud non reliés n'ont aucun accès. Un AxiorHub installé sur un poste de travail ne peut être essayé qu'en *mode découverte*, pour des tests (voir plus bas).
+**Cette application ne contient pas le moteur.** Elle a besoin de la **version serveur d'AxiorHub Pilote (5.6.42 ou ultérieure), installée sur un serveur Linux que ce Nextcloud peut joindre en HTTPS** — idéalement le même serveur et le même domaine que Nextcloud. Chaque avocat relie son propre compte AxiorHub ; les utilisateurs Nextcloud non reliés n'ont aucun accès. Un AxiorHub installé sur un poste de travail ne peut être essayé qu'en *mode découverte*, pour des tests (voir plus bas).
 
 ## Avant de commencer : prérequis
 
@@ -151,9 +151,9 @@ sudo apt install -y git python3 python3-venv
 **1.2 Télécharger AxiorHub Pilote et construire l'archive vérifiée**
 
 ```bash
-sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.42 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.42.tar.gz
 ```
 
 L'archive porte un manifeste d'empreintes : l'installateur refuse tout fichier modifié.
@@ -161,7 +161,7 @@ L'archive porte un manifeste d'empreintes : l'installateur refuse tout fichier m
 **1.3 Installer (ou mettre à jour) le moteur**
 
 ```bash
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.42.tar.gz && cd axiorhub-mail-agent-5.6.42
 sudo bash install.sh
 ```
 
@@ -222,8 +222,8 @@ Le mot de passe sert une seule fois à obtenir une clé personnelle ; il n'est j
 - Sauvegardez `/etc/axiorhub-mail-agent/` et `/var/lib/axiorhub-mail-agent/` (chiffrés, hors du serveur) : ils contiennent des données de clients.
 - Documentation complète : https://github.com/Arthur-Llevelys/AxiorHub-Pilote — installation manuelle de cette application, sans la boutique : https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud
 
-Version de développement 0.4.2 : aucune compatibilité n'est annoncée avant installation réelle et tests sur chaque version déclarée de Nextcloud.]]></description>
-    <version>0.4.2</version>
+Version de développement 0.4.3 : aucune compatibilité n'est annoncée avant installation réelle et tests sur chaque version déclarée de Nextcloud.]]></description>
+    <version>0.4.3</version>
     <licence>agpl</licence>
     <author mail="101706410+Arthur-Llevelys@users.noreply.github.com" homepage="https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud">Timo RAINIO</author>
     <namespace>AxiorhubPilote</namespace>
@@ -236,7 +236,7 @@ Version de développement 0.4.2 : aucune compatibilité n'est annoncée avant in
     <website>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud</website>
     <bugs>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/issues</bugs>
     <repository type="git">https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git</repository>
-    <screenshot>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/raw/v0.4.2/screenshots/axiorhub-dans-nextcloud.png</screenshot>
+    <screenshot>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/raw/v0.4.3/screenshots/axiorhub-dans-nextcloud.png</screenshot>
     <dependencies>
         <php min-version="8.1" max-version="8.5"/>
         <nextcloud min-version="32" max-version="35"/>

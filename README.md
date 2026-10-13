@@ -5,7 +5,7 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.41</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.42</p>
 
 <p align="center"><strong>Français</strong> · <a href="README.en.md">English</a> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
@@ -289,6 +289,7 @@ un avocat seul sur son ordinateur, ou à l'essai.
 | **Serveur Linux** (Ubuntu 24.04 LTS, Debian 12) — **recommandée** | le cabinet, tous ses postes, l'application Nextcloud | HTTPS, depuis tous les postes | ci-dessous, [VPS clé en main](docs/INSTALLATION-VPS.md), [serveur existant](docs/INSTALLATION-SERVEUR.md), [Docker](DOCKER-INSTALLATION.md) |
 | **Poste Windows 11** | un avocat sur son ordinateur, essai | cet ordinateur seulement | [docs/INSTALLATION-WINDOWS.md](docs/INSTALLATION-WINDOWS.md) |
 | **Poste Ubuntu 24.04** | un avocat sur son ordinateur, essai | cet ordinateur seulement | [docs/GUIDE-POSTE-10-MINUTES.md](docs/GUIDE-POSTE-10-MINUTES.md) |
+| **ExApp Nextcloud** (développement 0.1, tests seulement) | moteur installé depuis la boutique Nextcloud, dans un conteneur géré par Nextcloud | comptes Nextcloud, depuis tous les postes | [AxiorHub-Pilote-ExApp](https://github.com/Arthur-Llevelys/AxiorHub-Pilote-ExApp) |
 
 ### 1. Version serveur (Linux) — recommandée
 
@@ -307,12 +308,12 @@ sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y git python3 python3-venv
 
 # 2. Télécharger AxiorHub Pilote et construire l'archive vérifiée (manifeste d'empreintes contrôlé par l'installateur)
-sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.42 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.42.tar.gz
 
 # 3. Installer (ou mettre à jour) : code dans /opt/axiorhub-mail-agent, configuration dans /etc/axiorhub-mail-agent
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.42.tar.gz && cd axiorhub-mail-agent-5.6.42
 sudo bash install.sh
 
 # 4. Configurer la messagerie, Nextcloud, les agendas et l'IA (mots de passe saisis masqués), puis contrôler
@@ -323,7 +324,7 @@ sudo axiorhub-mail doctor
 sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py
 ```
 
-Variante : le paquet Debian `axiorhub-pilote_5.6.41_all.deb` (`sudo apt install ./axiorhub-pilote_5.6.41_all.deb`, construit par
+Variante : le paquet Debian `axiorhub-pilote_5.6.42_all.deb` (`sudo apt install ./axiorhub-pilote_5.6.42_all.deb`, construit par
 `scripts/build-deb.py`, voir [Développer](#développer)) remplace l'étape 3 ; les étapes 4 et 5 restent à faire. Une mise à jour se fait avec l'archive de la nouvelle version (`sudo bash install.sh`) ; en cas d'échec,
 l'ancienne version reste active (retour arrière : `sudo python3 upgrade.py --rollback`).
 
@@ -332,9 +333,9 @@ l'ancienne version reste active (retour arrière : `sudo python3 upgrade.py --ro
 **Prérequis** : Windows 11 64 bits et Microsoft Edge (présent d'origine) ; [Ollama pour Windows](https://ollama.com/download/windows)
 ou un fournisseur d'IA externe ; facultatifs : Tesseract OCR, LibreOffice. Python est inclus.
 
-1. Téléchargez `AxiorHub-Pilote-Setup-5.6.41.exe` et son fichier `.sha256` depuis la page des versions du dépôt (onglet *Releases*),
+1. Téléchargez `AxiorHub-Pilote-Setup-5.6.42.exe` et son fichier `.sha256` depuis la page des versions du dépôt (onglet *Releases*),
    ou construisez-les (`python scripts\build-windows.py dist\windows`).
-2. Vérifiez l'empreinte dans PowerShell : `Get-FileHash .\AxiorHub-Pilote-Setup-5.6.41.exe -Algorithm SHA256`.
+2. Vérifiez l'empreinte dans PowerShell : `Get-FileHash .\AxiorHub-Pilote-Setup-5.6.42.exe -Algorithm SHA256`.
 3. Lancez l'installateur (sans droits d'administrateur). Si SmartScreen affiche « Windows a protégé votre ordinateur » : **Informations
    complémentaires › Exécuter quand même**.
 4. Ouvrez **AxiorHub Pilote** depuis le menu Démarrer : la fenêtre s'ouvre, déjà connectée, sur le premier réglage.
@@ -352,8 +353,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen3:8b
 
 # AxiorHub Pilote (paquet et son .sha256 depuis la page des versions du dépôt)
-sha256sum -c axiorhub-pilote-poste_5.6.41_amd64.deb.sha256
-sudo apt install ./axiorhub-pilote-poste_5.6.41_amd64.deb
+sha256sum -c axiorhub-pilote-poste_5.6.42_amd64.deb.sha256
+sudo apt install ./axiorhub-pilote-poste_5.6.42_amd64.deb
 ```
 
 Lancez **AxiorHub Pilote** depuis le menu des applications (ou `axiorhub-pilote` dans un terminal) : la fenêtre s'ouvre, déjà
@@ -617,9 +618,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.41.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.41_all.deb --archive dist/axiorhub-mail-agent-5.6.41.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.41_amd64.deb --archive dist/axiorhub-mail-agent-5.6.41.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.42.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.42_all.deb --archive dist/axiorhub-mail-agent-5.6.42.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.42_amd64.deb --archive dist/axiorhub-mail-agent-5.6.42.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 

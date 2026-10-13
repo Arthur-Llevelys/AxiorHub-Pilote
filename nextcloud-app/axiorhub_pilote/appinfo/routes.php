@@ -16,7 +16,8 @@ return [
 		['name' => 'personal#link', 'url' => '/api/personal/link', 'verb' => 'POST'],
 		['name' => 'personal#test', 'url' => '/api/personal/test', 'verb' => 'GET'],
 		['name' => 'personal#unlink', 'url' => '/api/personal/unlink', 'verb' => 'POST'],
-		['name' => 'personal#local', 'url' => '/api/personal/local', 'verb' => 'POST'],   // 0.4.2 : adresse de l'AxiorHub local (lien)
+		['name' => 'personal#local', 'url' => '/api/personal/local', 'verb' => 'POST'],
+		['name' => 'personal#probe', 'url' => '/api/personal/probe', 'verb' => 'POST'],   // 0.4.3 : tester l'adresse avant la liaison   // 0.4.2 : adresse de l'AxiorHub local (lien)
 		['name' => 'search#index', 'url' => '/api/search', 'verb' => 'GET'],
 		['name' => 'session#create', 'url' => '/api/session', 'verb' => 'POST'],   // 0.4.0 : adresse de connexion à usage unique (interface dans Nextcloud)
 		['name' => 'job#index', 'url' => '/api/jobs', 'verb' => 'GET'],
