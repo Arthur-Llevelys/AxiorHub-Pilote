@@ -1,5 +1,23 @@
 # Journal des versions — application Nextcloud AxiorHub Pilote
 
+## 0.4.2 — version de développement (avec le moteur 5.6.41, contrat 1.3)
+
+- **Mode découverte avec un AxiorHub installé sur un poste de travail** (Windows 11, Ubuntu poste), pour des tests seulement :
+  - *Nextcloud sur le même ordinateur* (y compris Docker Desktop sous Windows, adresse `http://host.docker.internal:<port>`) : le moteur
+    5.6.41 accepte les appels venus de ce même ordinateur et se signale (`mode: poste`) ; l'interface affiche un **bandeau
+    d'avertissement permanent** (tests et découverte seulement, joignable depuis cet ordinateur seulement, échanges locaux non chiffrés,
+    version serveur recommandée) ;
+  - *Nextcloud hébergé* : nouveau réglage personnel **« Adresse de mon AxiorHub local »** (adresse de bouclage `127.0.0.1`, `localhost`
+    ou `[::1]` seulement) et entrée **« Mon AxiorHub local »** qui ouvre AxiorHub dans un nouvel onglet du navigateur, avec le même
+    avertissement ; le serveur Nextcloud ne s'y connecte jamais (ni Pilote, ni recherche, ni affichage dans Nextcloud).
+- Messages : « AxiorHub installé sur un poste de travail : utilisable seulement en mode découverte… » (code
+  `moteur_poste_non_pris_en_charge`, appel relayé depuis un autre ordinateur) ; « AxiorHub est injoignable » oriente vers « Mon AxiorHub
+  local » ; note à côté de l'adresse dans les paramètres personnels et d'administration.
+- **README en français et en anglais** (`README.md`, `README.en.md`, ce dernier inclus dans le paquet) : ce que fait l'application, choix de la configuration, étapes, mode découverte (« jamais pour la production ») ; captures fictives dans `screenshots/fr` et `screenshots/en`.
+- **Description de la boutique et README** : prérequis (serveur Linux, Nextcloud, HTTPS, mémoire, disque, comptes), trois étapes —
+  installer la version serveur d'AxiorHub, installer l'application depuis la boutique Nextcloud, relier le compte de chaque avocat —, une
+  section « Mode découverte » avec son avertissement, et un tableau des messages en cas de difficulté.
+
 ## 0.4.1 — version de développement (avec le moteur 5.6.39, contrat 1.3)
 
 - **Changement rapide de rubrique** (audit 5.6.37, F08) : chaque demande de connexion porte un numéro ; une réponse arrivée après un

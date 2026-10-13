@@ -11,17 +11,35 @@ const status = document.getElementById('axh-personal-status')
 const statusLinked = document.getElementById('axh-personal-status-linked')
 
 const REASONS = {
+	adresse_locale_requise: () => t('axiorhub_pilote', 'Enter an address of this computer: http://127.0.0.1:<port>, http://localhost:<port> or http://[::1]:<port>.'),
+	adresse_locale_invalide: () => t('axiorhub_pilote', 'This address is not valid.'),
 	identifiants_refuses: () => t('axiorhub_pilote', 'Login or password refused by AxiorHub.'),
 	trop_de_tentatives: () => t('axiorhub_pilote', 'Too many attempts: try again in 15 minutes.'),
 	application_nextcloud_non_autorisee: () => t('axiorhub_pilote', 'AxiorHub does not allow Nextcloud accounts yet: in AxiorHub, Settings › Connections › Nextcloud app, tick “Allow linking accounts from Nextcloud”.'),
 	integration_desactivee: () => t('axiorhub_pilote', 'AxiorHub does not allow Nextcloud accounts yet: in AxiorHub, Settings › Connections › Nextcloud app, tick “Allow linking accounts from Nextcloud”.'),
 	https_required: () => t('axiorhub_pilote', 'The address must start with https://.'),
 	engine_url_invalid: () => t('axiorhub_pilote', 'This address is not valid.'),
-	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server: check the address (for example https://courriel.example.test/agent-courriel).'),
+	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server: check the address (for example https://courriel.example.test/agent-courriel). An AxiorHub installed on a workstation cannot be reached from a hosted Nextcloud: use “Address of my local AxiorHub” below (discovery mode).'),
+	moteur_poste_non_pris_en_charge: () => t('axiorhub_pilote', 'AxiorHub installed on a workstation: it can only be used in discovery mode, from the computer where it is installed (Nextcloud on the same computer, or the “My local AxiorHub” link). For your firm, install the server version (Linux, HTTPS).'),
 	adresse_locale_refusee: () => t('axiorhub_pilote', 'Nextcloud refuses this local address: tick “Engine on this server (local address)”.'),
 	moteur_occupe: () => t('axiorhub_pilote', 'AxiorHub is busy: try again in a few seconds.'),
 	reponse_moteur_invalide: () => t('axiorhub_pilote', 'This address answers but is not AxiorHub Pilote: check the address (it usually ends with /agent-courriel).'),
 	acces_refuse_par_le_frontal: () => t('axiorhub_pilote', 'The web server in front of AxiorHub asks for a login: allow /integration/v1/ without login on that server.'),
+}
+
+// 0.4.2 : adresse de l'AxiorHub local (mode découverte) : lien seulement, jamais joint par le serveur Nextcloud
+const localForm = document.getElementById('axh-personal-local')
+if (localForm) {
+	localForm.addEventListener('submit', async (event) => {
+		event.preventDefault()
+		const out = document.getElementById('axh-personal-local-status')
+		try {
+			const { data } = await axios.post(api('/personal/local'), { localUrl: new FormData(localForm).get('localUrl') || '' })
+			out.textContent = data.local_url ? t('axiorhub_pilote', 'Saved: the “My local AxiorHub” entry appears in AxiorHub Pilote.') : t('axiorhub_pilote', 'Address removed.')
+		} catch (error) {
+			out.textContent = reason(error)
+		}
+	})
 }
 
 function reason(error) {

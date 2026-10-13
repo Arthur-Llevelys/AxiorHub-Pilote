@@ -32,6 +32,10 @@
 						<span class="axh-side-icon" aria-hidden="true">☰</span>
 						<span>{{ t('axiorhub_pilote', 'Simplified view') }}</span>
 					</a>
+					<a v-if="config.localUrl" href="#" :aria-current="view === 'local' ? 'page' : undefined" @click.prevent="view = 'local'">
+						<span class="axh-side-icon" aria-hidden="true">⌂</span>
+						<span>{{ t('axiorhub_pilote', 'My local AxiorHub') }}</span>
+					</a>
 				</nav>
 				<p class="axh-side-about">
 					{{ t('axiorhub_pilote', 'AxiorHub Pilote for Nextcloud {version}', { version: APP_VERSION }) }}
@@ -43,6 +47,10 @@
 				<NcNoteCard v-if="!config.linked" type="info" class="axh-note">
 					<p>{{ t('axiorhub_pilote', 'Link your AxiorHub account to use AxiorHub Pilote in Nextcloud.') }}</p>
 					<p><a class="axh-link" :href="config.personalUrl">{{ t('axiorhub_pilote', 'Open Personal settings › AxiorHub Pilote') }}</a></p>
+					<p>{{ t('axiorhub_pilote', 'AxiorHub installed on this computer (discovery mode)? Enter the address of your local AxiorHub in the same settings.') }}</p>
+				</NcNoteCard>
+				<NcNoteCard v-if="discovery && !problem" type="warning" class="axh-note axh-discovery">
+					<p>{{ t('axiorhub_pilote', 'Discovery mode: AxiorHub is installed on a workstation (Windows 11 or Ubuntu desktop). Use it only for tests and to discover the application: it can only be reached from this computer, stops when the computer is switched off, and local exchanges are not encrypted (HTTP). For your firm’s work, install the server version (Linux, HTTPS): more secure, backed up and reachable from every computer.') }}</p>
 				</NcNoteCard>
 				<NcNoteCard v-else-if="problem" type="warning" class="axh-note">
 					<p>{{ problemText }}</p>
@@ -50,6 +58,7 @@
 						<NcButton @click="reconnect(current)">{{ t('axiorhub_pilote', 'Try again') }}</NcButton>
 						<NcButton @click="openTab">{{ t('axiorhub_pilote', 'Open in a new tab') }}</NcButton>
 						<NcButton variant="tertiary" @click="view = 'simple'">{{ t('axiorhub_pilote', 'Simplified view') }}</NcButton>
+						<NcButton v-if="config.localUrl" variant="tertiary" @click="view = 'local'">{{ t('axiorhub_pilote', 'My local AxiorHub') }}</NcButton>
 					</div>
 				</NcNoteCard>
 				<iframe v-if="src && !problem"
@@ -61,6 +70,18 @@
 					allow="microphone; clipboard-read; clipboard-write"
 					referrerpolicy="no-referrer" />
 				<NcLoadingIcon v-else-if="loading" :size="44" class="axh-loading" />
+			</div>
+			<div v-else-if="view === 'local'" class="axh-local">
+				<NcNoteCard type="warning" class="axh-note">
+					<p><strong>{{ t('axiorhub_pilote', 'My local AxiorHub (discovery mode)') }}</strong></p>
+					<p>{{ t('axiorhub_pilote', 'Discovery mode: AxiorHub is installed on a workstation (Windows 11 or Ubuntu desktop). Use it only for tests and to discover the application: it can only be reached from this computer, stops when the computer is switched off, and local exchanges are not encrypted (HTTP). For your firm’s work, install the server version (Linux, HTTPS): more secure, backed up and reachable from every computer.') }}</p>
+					<p>{{ t('axiorhub_pilote', 'AxiorHub opens in a new tab of this browser, on this computer only. Nextcloud does not exchange any data with it: no Pilote, no search and no display inside Nextcloud in this mode.') }}</p>
+					<div class="axh-buttons">
+						<NcButton variant="primary" @click="openLocal">{{ t('axiorhub_pilote', 'Open my local AxiorHub') }}</NcButton>
+						<NcButton variant="tertiary" :href="config.personalUrl">{{ t('axiorhub_pilote', 'Change the address') }}</NcButton>
+					</div>
+					<p class="axh-local-url">{{ config.localUrl }}</p>
+				</NcNoteCard>
 			</div>
 			<SimpleView v-else />
 		</NcAppContent>
@@ -113,7 +134,8 @@ const logo = imagePath('axiorhub_pilote', 'axiorhub-logo.png')
 const APP_VERSION = typeof appVersion === 'string' ? appVersion : ''
 const REASONS = {
 	moteur_a_mettre_a_jour: () => t('axiorhub_pilote', 'This AxiorHub engine is too old to be displayed in Nextcloud: update it to version 5.6.37 or later.'),
-	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server (address, firewall or certificate).'),
+	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server (address, firewall or certificate). An AxiorHub installed on a workstation cannot be reached from a hosted Nextcloud: use “My local AxiorHub” (discovery mode) or install the server version.'),
+	moteur_poste_non_pris_en_charge: () => t('axiorhub_pilote', 'AxiorHub installed on a workstation: it can only be used in discovery mode, from the computer where it is installed (Nextcloud on the same computer, or the “My local AxiorHub” link). For your firm, install the server version (Linux, HTTPS).'),
 	moteur_occupe: () => t('axiorhub_pilote', 'AxiorHub is busy finishing another operation: try again in a few seconds.'),
 	cle_personnelle_revoquee_ou_inconnue: () => t('axiorhub_pilote', 'Your personal key was revoked: link your account again in Personal settings.'),
 	integration_desactivee: () => t('axiorhub_pilote', 'AxiorHub does not accept Nextcloud requests: ask the administrator to allow the Nextcloud app in AxiorHub.'),
@@ -136,6 +158,7 @@ let sessionSeq = 0
 let sessionAbort = null
 const problem = ref(null)
 const frameKey = ref(0)
+const discovery = ref(false)   // 0.4.2 : moteur installé sur un poste (mode découverte) : bandeau d'avertissement permanent
 let renewals = 0
 
 const problemText = computed(() => (REASONS[problem.value?.code] ? REASONS[problem.value.code]()
@@ -149,6 +172,7 @@ function apply(session, path) {
 		current.value = path
 		problem.value = { code: 'distribution_autonome' }
 	} else if (session?.ok) {
+		discovery.value = !!session.poste
 		src.value = session.url
 		base.value = session.base
 		frameOrigin.value = session.frame_origin
@@ -231,6 +255,14 @@ async function openTab() {
 	}
 }
 
+// 0.4.2 : AxiorHub installé sur ce poste, Nextcloud hébergé : simple lien ouvert par le navigateur (jamais par le serveur Nextcloud)
+function openLocal() {
+	const url = String(config.localUrl || '')
+	if (/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?(\/|$)/i.test(url)) {
+		window.open(url, '_blank', 'noopener,noreferrer')
+	}
+}
+
 // menu de gauche repliable : bouton « Replier le menu », bouton ☰ de Nextcloud pour le rouvrir ; choix mémorisé dans ce navigateur
 const NAV_KEY = 'axiorhub_pilote:menu'
 function collapse() {
@@ -303,6 +335,9 @@ onBeforeUnmount(() => {
 .axh-loading { margin: 48px auto; }
 .axh-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .axh-link { color: var(--color-primary-element); text-decoration: underline; }
+.axh-discovery { margin-bottom: 0; }
+.axh-local { padding: 16px; }
+.axh-local-url { font-family: monospace; color: var(--color-text-maxcontrast); word-break: break-all; }
 </style>
 
 <style>

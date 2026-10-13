@@ -82,6 +82,17 @@ class PersonalController extends Controller {
 		return new DataResponse($out['body'], $out['status'] === 200 ? Http::STATUS_OK : $out['status']);
 	}
 
+	/** 0.4.2 : « Adresse de mon AxiorHub local » (mode découverte) ; vide = retirée. */
+	#[NoAdminRequired]
+	public function local(string $localUrl = ''): DataResponse {
+		try {
+			$this->links->setLocalUrl($this->uid(), $localUrl);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['code' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return new DataResponse(['local_url' => $this->links->localUrl($this->uid())]);
+	}
+
 	#[NoAdminRequired]
 	public function unlink(): DataResponse {
 		$uid = $this->uid();

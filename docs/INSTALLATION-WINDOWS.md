@@ -24,7 +24,7 @@ Python n'est pas nécessaire : il est inclus dans l'application.
 2. Vérifiez l'empreinte dans PowerShell ; elle doit être identique au contenu du fichier `.sha256` :
 
    ```powershell
-   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.40.exe -Algorithm SHA256
+   Get-FileHash .\AxiorHub-Pilote-Setup-5.6.41.exe -Algorithm SHA256
    ```
 
 3. Double-cliquez sur l'installateur. L'application n'étant pas signée par un éditeur, Windows SmartScreen peut afficher
@@ -42,7 +42,7 @@ L'installation se fait pour l'utilisateur courant, sans droits d'administrateur 
 Installation sans fenêtre, par exemple pour un déploiement sur plusieurs postes :
 
 ```powershell
-.\AxiorHub-Pilote-Setup-5.6.40.exe --silencieux --demarrage
+.\AxiorHub-Pilote-Setup-5.6.41.exe --silencieux --demarrage
 ```
 
 Options : `--sans-bureau`, `--sans-raccourcis`, `--demarrage` (lancement à l'ouverture de session), `--lancer`
@@ -60,6 +60,8 @@ périodique de l'agent) démarrent en arrière-plan et la fenêtre s'ouvre sur *
 
 Fermer la fenêtre arrête l'application et ses services. Un second lancement ouvre une nouvelle fenêtre sur l'instance déjà
 active.
+
+**Application Nextcloud « AxiorHub Pilote » sur un poste : mode découverte, pour des tests seulement.** La version poste n’écoute que son propre ordinateur. *Nextcloud installé sur ce même ordinateur* (ou dans Docker Desktop sous Windows) : dans AxiorHub, Paramètres › Connexions › Application Nextcloud, cochez « Autoriser la liaison des comptes depuis Nextcloud (même ordinateur) » ; dans Nextcloud, Paramètres personnels › AxiorHub Pilote, adresse `http://127.0.0.1:8769/agent-courriel` (Docker Desktop : `http://host.docker.internal:8769/agent-courriel`), cochez « Moteur sur ce serveur (adresse locale) », puis l’identifiant et le mot de passe locaux affichés sur la même page d’AxiorHub ; l’interface s’affiche dans Nextcloud avec un bandeau d’avertissement permanent. *Nextcloud hébergé* : saisissez `http://127.0.0.1:8769/agent-courriel/` dans « Adresse de mon AxiorHub local » ; l’entrée « Mon AxiorHub local » ouvre AxiorHub dans un onglet du navigateur (ni Pilote, ni recherche, ni affichage dans Nextcloud). **Avertissement** : AxiorHub n’est alors joignable que depuis cet ordinateur, s’arrête avec lui, et les échanges locaux ne sont pas chiffrés (HTTP) ; pour le travail du cabinet, installez la version serveur (Linux, HTTPS), plus sûre. Sur un poste, AxiorHub peut aussi utiliser les fichiers de votre Nextcloud (Guide d’installation › Documents) ou un dossier synchronisé par le client Nextcloud.
 
 ## Mettre à jour
 

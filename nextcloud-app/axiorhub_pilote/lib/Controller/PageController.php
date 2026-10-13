@@ -52,6 +52,7 @@ class PageController extends Controller {
 			'personalUrl' => $this->urls->linkToRoute('settings.PersonalSettings.index', ['section' => Application::APP_ID]),
 			'isAdmin' => $user !== null && $this->groups->isAdmin($uid),
 			'embed' => $embed,
+			'localUrl' => $this->links->localUrl($uid),   // 0.4.2 : « Mon AxiorHub local » (mode découverte, lien ouvert dans un onglet)
 		]);
 		$response = new TemplateResponse(Application::APP_ID, 'main');
 		$origins = $linked ? $this->embed->frameOrigins($uid, $embed) : [];

@@ -5,13 +5,13 @@
 <p align="center"><strong>L'agent IA d'exécution du cabinet d'avocats</strong><br>
 Courriels, dossiers, pièces, échéances, agenda et projets d'actes, sur votre serveur, avec une IA locale ou une IA externe pseudonymisée.</p>
 
-<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.40</p>
+<p align="center">Créé par <strong>Timo RAINIO</strong>, avocat au Barreau de Lyon · Licence <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.41</p>
 
 <p align="center"><strong>Français</strong> · <a href="README.en.md">English</a> · <a href="README.de.md">Deutsch</a> · <a href="README.es.md">Español</a></p>
 
 <p align="center"><a href="docs/GUIDE-POSTE-10-MINUTES.md">Poste Ubuntu 24.04 : démarrer en dix minutes, avec captures</a> · <a href="docs/INSTALLATION-WINDOWS.md">Poste Windows 11</a></p>
 
-<p align="center"><img src="docs/captures/01-poste-de-pilotage.png" alt="Poste de pilotage d'AxiorHub Pilote" width="900"></p>
+<p align="center"><img src="docs/captures/fr/01-aujourdhui.png" alt="Aujourd'hui : le poste de pilotage d'AxiorHub Pilote" width="900"></p>
 
 ---
 
@@ -47,9 +47,10 @@ L'écran « Aujourd'hui » rassemble ce qui demande l'avocat :
 
 Un bandeau en bas de page montre l'activité de l'agent en direct. Un mode sombre est disponible.
 
+<p align="center"><img src="docs/captures/fr/07-pilote.png" alt="Le Pilote : une instruction, un résultat attendu" width="900"></p>
+
 ### Relire et valider en un clic
 
-<p align="center"><img src="docs/captures/02-relecture-projet.png" alt="Volet de relecture d'un projet de conclusions" width="900"></p>
 
 Chaque projet s'ouvre dans un volet : texte complet, sources citées, points « À COMPLÉTER ». Vous pouvez :
 - **valider** le projet ;
@@ -61,7 +62,6 @@ L'agent apprend de ces décisions.
 
 ### Savoir exactement ce que fait l'agent
 
-<p align="center"><img src="docs/captures/03-detail-travail.png" alt="Détail d'un travail de l'agent" width="900"></p>
 
 Chaque travail s'ouvre sur son détail :
 - le dossier ;
@@ -130,6 +130,8 @@ connexions, recette automatique.
   relève les dates citées, vous choisissez celles à inscrire et les agendas (Nextcloud, CalDAV, Google), puis il prépare
   les brouillons d’information du client et du confrère. Rien n’est envoyé.
 
+<p align="center"><img src="docs/captures/fr/03-agenda.png" alt="Agenda et tâches" width="900"></p>
+
 - **Avis de procédure** (renvoi, convocation, calendrier) : les dates sont extraites et vérifiées dans le texte,
   inscrites à l'agenda Nextcloud, et un courriel d'information est préparé.
 - **Échéances de procédure** : l'événement de départ (signification, notification, déclaration d'appel…) est repéré
@@ -155,6 +157,8 @@ connexions, recette automatique.
 - **Faits du dossier** extraits des pièces (RG, montants, dates, parties), chacun avec sa source, à valider.
 - **Recherche** dans tout le cabinet (courriels, documents, dossiers).
 - **Préparation des rendez-vous** : fiche sourcée avant le rendez-vous, projet de compte rendu après.
+
+<p align="center"><img src="docs/captures/fr/02-dossiers.png" alt="Dossiers du cabinet" width="900"></p>
 
 ### Métier
 
@@ -193,6 +197,8 @@ connexions, recette automatique.
 - **Relances d’impayés** : chaque matin, projets de relance des factures échues d’Invoice Ninja, à relire avant tout envoi.
 - **Microsoft** : complément Word (playbooks, mémos, reformulation dans le document ouvert) et agenda Microsoft 365.
 
+<p align="center"><img src="docs/captures/fr/04-corporate.png" alt="Corporate : secrétariat juridique" width="900"></p>
+
 ### Style du cabinet
 
 L'agent lit vos écrits définitifs (procédure, correspondances, projets) et vos courriels envoyés, puis propose vos
@@ -203,7 +209,7 @@ automatiquement. Aucune phrase contenant un nom, un numéro ou une adresse n'est
 
 ### Une IA externe, mais pseudonymisée
 
-<p align="center"><img src="docs/captures/04-pseudonymisation.png" alt="Aperçu de la pseudonymisation avant envoi à une IA externe" width="900"></p>
+<p align="center"><img src="docs/captures/fr/09-ia-externe.png" alt="Paramètres › Intelligence artificielle : modèles locaux, routage, IA externe pseudonymisée" width="900"></p>
 
 Avant tout envoi à une IA non locale, les noms, sociétés, adresses, téléphones, courriels, IBAN et numéros sont
 remplacés par des marqueurs (`[PERSONNE_1]`, `[SOCIETE_1]`…). La table de correspondance reste sur le serveur, et la
@@ -218,8 +224,8 @@ pseudonymisée. Le tri des courriels et les contrôles restent locaux.
 
 ### Installation guidée et comptes du cabinet
 
-<p align="center"><img src="docs/captures/05-assistant-installation.png" alt="Assistant d'installation" width="440">
-&nbsp;<img src="docs/captures/06-comptes-et-roles.png" alt="Comptes et rôles du cabinet" width="440"></p>
+<p align="center"><img src="docs/captures/fr/06-guide-installation.png" alt="Guide d'installation" width="440">
+&nbsp;<img src="docs/captures/fr/05-parametres.png" alt="Paramètres › Connexions" width="440"></p>
 
 - **Assistant d'installation** au premier démarrage : cabinet, messagerie, Nextcloud, IA et mode de fonctionnement.
   Chaque connexion se teste.
@@ -237,7 +243,7 @@ pseudonymisée. Le tri des courriels et les contrôles restent locaux.
 - **Interface en quatre langues** (français par défaut, anglais, allemand, espagnol), menu « Toutes les fonctions » et
   guide d’utilisation relié aux écrans réels.
 
-<p align="center"><img src="docs/captures/07-mode-sombre.png" alt="Mode sombre" width="700"></p>
+<p align="center"><img src="docs/captures/fr/08-mode-sombre.png" alt="Mode sombre" width="700"></p>
 
 ## Sources et contrôles : ce qui est vérifié, ce qui reste à vous
 
@@ -275,12 +281,118 @@ Détails : [docs/CONFIDENTIALITE.md](docs/CONFIDENTIALITE.md).
 
 ## Installer
 
-| Situation | Guide |
-|---|---|
-| **Nouveau VPS** (OVH ou autre) : AxiorHub Pilote + Nextcloud + Roundcube + OnlyOffice, Apache, HTTPS Let's Encrypt | les étapes ci-dessous, détails dans [docs/INSTALLATION-VPS.md](docs/INSTALLATION-VPS.md) |
-| **Poste Windows 11** : application de bureau, installateur sans droits d’administrateur | [docs/INSTALLATION-WINDOWS.md](docs/INSTALLATION-WINDOWS.md) |
-| Serveur existant, AxiorHub Pilote seul en Docker | [DOCKER-INSTALLATION.md](DOCKER-INSTALLATION.md) |
-| Serveur existant, installation système (systemd), mise à jour d'une version antérieure | [docs/INSTALLATION-SERVEUR.md](docs/INSTALLATION-SERVEUR.md) |
+AxiorHub Pilote existe en trois versions. **Pour le travail du cabinet, choisissez la version serveur** ; les versions poste servent à
+un avocat seul sur son ordinateur, ou à l'essai.
+
+| Version | Pour quoi | Accès | Guide détaillé |
+|---|---|---|---|
+| **Serveur Linux** (Ubuntu 24.04 LTS, Debian 12) — **recommandée** | le cabinet, tous ses postes, l'application Nextcloud | HTTPS, depuis tous les postes | ci-dessous, [VPS clé en main](docs/INSTALLATION-VPS.md), [serveur existant](docs/INSTALLATION-SERVEUR.md), [Docker](DOCKER-INSTALLATION.md) |
+| **Poste Windows 11** | un avocat sur son ordinateur, essai | cet ordinateur seulement | [docs/INSTALLATION-WINDOWS.md](docs/INSTALLATION-WINDOWS.md) |
+| **Poste Ubuntu 24.04** | un avocat sur son ordinateur, essai | cet ordinateur seulement | [docs/GUIDE-POSTE-10-MINUTES.md](docs/GUIDE-POSTE-10-MINUTES.md) |
+
+### 1. Version serveur (Linux) — recommandée
+
+**Prérequis** : un serveur Ubuntu 24.04 LTS ou Debian 12 (64 bits) avec accès `sudo` ; 8 Go de mémoire au moins sans IA locale (32 Go
+et idéalement une carte graphique pour une IA locale) ; 80 Go de disque ; un nom de domaine en HTTPS ; les paramètres de la messagerie
+du cabinet (IMAP, SMTP) ; Nextcloud (déjà en place, ou installé par le script VPS).
+
+**Nouveau serveur (VPS)** : AxiorHub Pilote, Nextcloud, Roundcube, OnlyOffice, Apache et HTTPS Let's Encrypt en une fois — suivez
+[l'installation complète sur un VPS, pas à pas](#installation-complète-sur-un-vps-pas-à-pas) plus bas.
+
+**Serveur existant** (Nextcloud et Apache déjà en place) :
+
+```bash
+# 1. Préparer le serveur
+sudo apt update && sudo apt full-upgrade -y
+sudo apt install -y git python3 python3-venv
+
+# 2. Télécharger AxiorHub Pilote et construire l'archive vérifiée (manifeste d'empreintes contrôlé par l'installateur)
+sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+cd /opt/axiorhub-src
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
+
+# 3. Installer (ou mettre à jour) : code dans /opt/axiorhub-mail-agent, configuration dans /etc/axiorhub-mail-agent
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
+sudo bash install.sh
+
+# 4. Configurer la messagerie, Nextcloud, les agendas et l'IA (mots de passe saisis masqués), puis contrôler
+sudo axiorhub-mail configure
+sudo axiorhub-mail doctor
+
+# 5. Publier l'interface sous le nom HTTPS existant (https://cloud.votre-cabinet.fr/agent-courriel/)
+sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py
+```
+
+Variante : le paquet Debian `axiorhub-pilote_5.6.41_all.deb` (`sudo apt install ./axiorhub-pilote_5.6.41_all.deb`, construit par
+`scripts/build-deb.py`, voir [Développer](#développer)) remplace l'étape 3 ; les étapes 4 et 5 restent à faire. Une mise à jour se fait avec l'archive de la nouvelle version (`sudo bash install.sh`) ; en cas d'échec,
+l'ancienne version reste active (retour arrière : `sudo python3 upgrade.py --rollback`).
+
+### 2. Poste Windows 11
+
+**Prérequis** : Windows 11 64 bits et Microsoft Edge (présent d'origine) ; [Ollama pour Windows](https://ollama.com/download/windows)
+ou un fournisseur d'IA externe ; facultatifs : Tesseract OCR, LibreOffice. Python est inclus.
+
+1. Téléchargez `AxiorHub-Pilote-Setup-5.6.41.exe` et son fichier `.sha256` depuis la page des versions du dépôt (onglet *Releases*),
+   ou construisez-les (`python scripts\build-windows.py dist\windows`).
+2. Vérifiez l'empreinte dans PowerShell : `Get-FileHash .\AxiorHub-Pilote-Setup-5.6.41.exe -Algorithm SHA256`.
+3. Lancez l'installateur (sans droits d'administrateur). Si SmartScreen affiche « Windows a protégé votre ordinateur » : **Informations
+   complémentaires › Exécuter quand même**.
+4. Ouvrez **AxiorHub Pilote** depuis le menu Démarrer : la fenêtre s'ouvre, déjà connectée, sur le premier réglage.
+
+Données : `%LOCALAPPDATA%\AxiorHub Pilote\donnees` ; mise à jour : relancer l'installateur de la nouvelle version (données conservées).
+
+### 3. Poste Ubuntu 24.04
+
+**Prérequis** : Ubuntu 24.04 (64 bits) et un compte `sudo` ; Ollama avec un modèle (sur ce poste, GPU conseillé, ou sur une machine du
+cabinet).
+
+```bash
+# Ollama et un modèle (environ 5 Go à télécharger)
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen3:8b
+
+# AxiorHub Pilote (paquet et son .sha256 depuis la page des versions du dépôt)
+sha256sum -c axiorhub-pilote-poste_5.6.41_amd64.deb.sha256
+sudo apt install ./axiorhub-pilote-poste_5.6.41_amd64.deb
+```
+
+Lancez **AxiorHub Pilote** depuis le menu des applications (ou `axiorhub-pilote` dans un terminal) : la fenêtre s'ouvre, déjà
+connectée, sur l'assistant d'installation. Mot de passe local : `axiorhub-pilote --print-password`.
+
+Les versions poste n'écoutent que leur propre ordinateur (`http://127.0.0.1:8769`), sans HTTPS ni sauvegarde automatique : pour le
+cabinet, préférez la version serveur.
+
+### 4. Premier réglage (toutes les versions)
+
+À la première ouverture, le **guide d'installation** (Paramètres › Guide d'installation) vous mène un écran à la fois : fonctions
+utilisées, profil, coordonnées, langue et fuseau horaire, voix, récapitulatif. Seules les étapes des fonctions choisies s'affichent ;
+rien n'est envoyé ni écrit dans la messagerie pendant le guide.
+
+<p align="center"><img src="docs/captures/fr/06-guide-installation.png" alt="Guide d'installation, étape 1 : vos fonctions" width="440">
+&nbsp;<img src="docs/captures/fr/05-parametres.png" alt="Paramètres › Connexions" width="440"></p>
+
+Puis **Paramètres › Connexions** :
+
+1. **Dossiers** : dossier de travail local (« 📁 Choisir… », par exemple un dossier synchronisé par le client Nextcloud) ou Nextcloud
+   (adresse HTTPS, identifiant, mot de passe d'application) ;
+2. **Intelligence artificielle** : Ollama (local ou sur une machine du cabinet) ou un fournisseur externe, toujours **pseudonymisé** ;
+3. **Messagerie** (facultative) : IMAP (port 993, ou 143 avec STARTTLS), dossier Brouillons ;
+4. **Agendas** (facultatifs) : Nextcloud, CalDAV ou Google Agenda.
+
+Chaque rubrique a son bouton de test. Commencez en mode **observation** (rien n'est écrit), passez en mode **brouillons** après
+quelques jours, puis activez les automatismes un par un.
+
+### 5. Application Nextcloud « AxiorHub Pilote »
+
+L'[application Nextcloud](https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud) affiche l'interface d'AxiorHub dans Nextcloud
+(boutique Nextcloud : **Applications › Bureautique et texte › AxiorHub Pilote**). Elle demande la **version serveur** ; activez-la dans
+**Paramètres › Connexions › Application Nextcloud**, puis chaque avocat relie son compte dans Nextcloud (Paramètres personnels ›
+AxiorHub Pilote).
+
+Avec une **version poste**, elle ne fonctionne qu'en **mode découverte, pour des tests** : Nextcloud installé sur le même ordinateur
+(adresse `http://127.0.0.1:8769/agent-courriel`, bandeau d'avertissement permanent), ou simple lien « Mon AxiorHub local » depuis un
+Nextcloud hébergé. AxiorHub n'est alors joignable que depuis cet ordinateur et les échanges locaux ne sont pas chiffrés : jamais pour
+la production.
 
 ### Installation complète sur un VPS, pas à pas
 
@@ -505,9 +617,9 @@ Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.40.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.40_all.deb --archive dist/axiorhub-mail-agent-5.6.40.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.40_amd64.deb --archive dist/axiorhub-mail-agent-5.6.40.tar.gz --variant poste
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.41.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.41_all.deb --archive dist/axiorhub-mail-agent-5.6.41.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote-poste_5.6.41_amd64.deb --archive dist/axiorhub-mail-agent-5.6.41.tar.gz --variant poste
 python scripts/build-windows.py dist/windows   # sous Windows, après pip install -r scripts/windows-requirements.txt
 ```
 

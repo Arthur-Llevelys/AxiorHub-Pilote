@@ -62,6 +62,14 @@ class EmbedSessionTest extends TestCase {
 		$this->assertStringStartsWith(self::BASE . '/nextcloud-session?jeton=', $out['url']);
 	}
 
+	/** 0.4.2 : un moteur installé sur un poste se signale (mode découverte) ; l'interface affiche alors l'avertissement permanent. */
+	public function testWorkstationEngineIsFlaggedForTheDiscoveryBanner(): void {
+		$this->assertFalse((new EmbedSession($this->engine($this->ok()), $this->links(), $this->urls()))->open('alice')['poste']);
+		$answer = $this->ok();
+		$answer['body']['mode'] = 'poste';
+		$this->assertTrue((new EmbedSession($this->engine($answer), $this->links(), $this->urls()))->open('alice')['poste']);
+	}
+
 	public function testPageIsAlwaysAnInternalPath(): void {
 		foreach (['//autre.example.test', 'https://autre.example.test', '/integration/v1/me', "/a\nb", '\\x', ''] as $page) {
 			$this->assertSame('/aujourdhui', EmbedSession::cleanPage($page), $page);

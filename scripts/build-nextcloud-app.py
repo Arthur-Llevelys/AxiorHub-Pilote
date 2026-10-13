@@ -17,7 +17,7 @@ import tarfile
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'nextcloud-app' / 'axiorhub_pilote'
 INCLUDE = ('appinfo', 'lib', 'templates', 'l10n', 'img', 'js', 'css')
-FILES = ('README.md', 'CHANGELOG.md')
+FILES = ('README.md', 'README.en.md', 'CHANGELOG.md')
 SECRET = re.compile(r'(secret|password|token|\.key|\.pem)$', re.I)
 
 

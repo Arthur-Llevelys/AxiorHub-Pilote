@@ -28,6 +28,7 @@ class Personal implements ISettings {
 			'axiorhub_user' => $cred['user'] ?? '',
 			'linked_at' => $cred['linked_at'] ?? '',
 			'allow_local' => $cred['allow_local'] ?? false,
+			'local_url' => $this->links->localUrl($this->session->getUser()?->getUID() ?? ''),
 		]);
 	}
 

@@ -24,6 +24,7 @@ Secret partagé : 8 caractères au moins (même règle que l'application Nextclo
 """
 import base64
 from datetime import datetime, timedelta, timezone
+import os
 import hashlib
 import hmac
 import sqlite3
@@ -197,17 +198,40 @@ def _job_state(status):
             'cancel_requested': 'cancel_requested'}.get(status, status)
 
 
+def workstation(headers=None):
+    """5.6.41 : moteur installé sur un poste de travail (fenêtre locale, écoute 127.0.0.1) : le serveur Nextcloud ne peut pas le joindre de
+    façon fiable ; l'application Nextcloud est refusée avec une explication claire au lieu d'un échec obscur."""
+    auth = (headers or {}).get('axiorhub.auth') if isinstance(headers, dict) else None
+    return bool(isinstance(auth, dict) and auth.get('poste')) or bool(os.environ.get('AXIORHUB_POSTE_HOME'))
+
+
+DISCLAIMER = 'Mode découverte : AxiorHub est installé sur un poste de travail (Windows 11 ou Ubuntu). Cette configuration sert uniquement aux tests et à la découverte de l’application : AxiorHub n’est joignable que depuis cet ordinateur, s’arrête quand il est éteint, et les échanges locaux ne sont pas chiffrés (HTTP). Pour le travail du cabinet, installez la version serveur (Linux, HTTPS), plus sûre : sauvegardes, accès depuis tous les postes, chiffrement.'
+
+
+def loopback(headers=None):
+    """Appel venu du poste lui-même (le poste n'écoute que 127.0.0.1 ; un tunnel ou un relais vers l'extérieur est refusé)."""
+    return str((headers or {}).get('REMOTE_ADDR') or '') in ('127.0.0.1', '::1', '::ffff:127.0.0.1')
+
+
+def discovery(poste):
+    """5.6.41 : réponse d'un moteur poste : mode et avertissement affichés par l'application Nextcloud (tests et découverte seulement)."""
+    return {'mode': 'poste', 'avertissement': DISCLAIMER} if poste else {}
+
+
 def handle(desk, method, path, headers, body):
     """Point d'entrée (appelé par la façade web) ; renvoie (statut HTTP, objet JSON)."""
     correlation = uuid.uuid4().hex[:12]
     try:
         from . import integration5636
+        poste = workstation(headers)
+        if poste and not loopback(headers):   # 5.6.41 : version poste : mode découverte, depuis ce même ordinateur seulement
+            raise Refused('moteur_poste_non_pris_en_charge', '409 Conflict', stage='configuration')
         if path == '/integration/v1/health' and method == 'GET':
             if not integration5636.enabled(desk):
                 raise Refused('integration_desactivee', '404 Not Found')
             from . import __version__
             return '200 OK', {'version': __version__, 'contract': CONTRACT, 'operations': sorted(OPERATIONS), 'status': 'ok',
-                              'personal_accounts': bool(desk.settings(integration5636.SETTING, False))}
+                              'personal_accounts': bool(desk.settings(integration5636.SETTING, False)), **discovery(poste)}
         if path == '/integration/v1/pair' and method == 'POST':   # 5.6.36 : seule route non signée qui écrit (identifiants vérifiés)
             if len(body or b'') > 20000:
                 raise Refused('requete_trop_longue', '413 Payload Too Large')
@@ -239,7 +263,7 @@ def handle(desk, method, path, headers, body):
         if path == '/integration/v1/session' and method == 'POST':   # 5.6.37 : interface AxiorHub affichée dans Nextcloud
             integration5636.require(ctx, 'session')
             from . import nextcloud5637
-            return '200 OK', nextcloud5637.create(desk, ctx, data, headers.get('axiorhub.auth'))
+            return '200 OK', {**nextcloud5637.create(desk, ctx, data, headers.get('axiorhub.auth')), **discovery(poste)}
         if path == '/integration/v1/unpair' and method == 'POST':
             return '200 OK', integration5636.unpair(desk, ctx)
         if path == '/integration/v1/search' and method == 'GET':

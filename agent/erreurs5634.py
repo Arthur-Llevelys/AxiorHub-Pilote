@@ -111,6 +111,7 @@ MESSAGES = {
     'index_documents_indisponible': 'Incident de l’index des pièces (base locale indisponible) : ce n’est pas un dossier vide.',
     'piece_absente_de_l_index': 'Cette pièce n’est plus dans l’index du dossier.',
     'integration_desactivee': 'Liaison Nextcloud désactivée sur ce moteur.',
+    'moteur_poste_non_pris_en_charge': 'AxiorHub installé sur un poste de travail : utilisable seulement en mode découverte, depuis l’ordinateur où il est installé (Nextcloud sur ce même ordinateur, ou lien « Mon AxiorHub local »). Pour le cabinet, installez la version serveur (Linux, HTTPS).',   # 5.6.41
     'dossier_hors_perimetre': 'Ce dossier n’entre pas dans votre périmètre.',
     # 5.6.35 : contrat /integration/v1 (application Nextcloud)
     'operation_non_signee': 'La requête ne correspond pas à l’opération autorisée par Nextcloud : elle est refusée.',

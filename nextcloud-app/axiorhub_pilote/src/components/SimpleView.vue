@@ -198,7 +198,8 @@ let searchTimer = null
 const matter = computed(() => selected.value?.matter || '')
 const REASONS = {
 	compte_non_relie: () => t('axiorhub_pilote', 'Link your AxiorHub account in Personal settings › AxiorHub Pilote.'),
-	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server (address, firewall or certificate).'),
+	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server (address, firewall or certificate). An AxiorHub installed on a workstation cannot be reached from a hosted Nextcloud: use “My local AxiorHub” (discovery mode) or install the server version.'),
+	moteur_poste_non_pris_en_charge: () => t('axiorhub_pilote', 'AxiorHub installed on a workstation: it can only be used in discovery mode, from the computer where it is installed (Nextcloud on the same computer, or the “My local AxiorHub” link). For your firm, install the server version (Linux, HTTPS).'),
 	moteur_occupe: () => t('axiorhub_pilote', 'AxiorHub is busy finishing another operation: try again in a few seconds.'),
 	reponse_moteur_invalide: () => t('axiorhub_pilote', 'The configured address answers but is not AxiorHub Pilote: check it in Personal settings.'),
 	acces_refuse_par_le_frontal: () => t('axiorhub_pilote', 'The web server in front of AxiorHub asks for a login: allow /integration/v1/ without login on that server.'),

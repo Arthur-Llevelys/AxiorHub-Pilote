@@ -8,12 +8,18 @@ const api = (path) => generateUrl('/apps/axiorhub_pilote/api' + path)
 const form = document.getElementById('axh-admin-form')
 const table = document.querySelector('#axh-admin-matters tbody')
 
+// 0.4.2 : causes expliquées (moteur installé sur un poste local, moteur injoignable)
+const REASONS = {
+	moteur_poste_non_pris_en_charge: () => t('axiorhub_pilote', 'AxiorHub installed on a workstation: it can only be used in discovery mode, from the computer where it is installed (Nextcloud on the same computer, or the “My local AxiorHub” link). For your firm, install the server version (Linux, HTTPS).'),
+	moteur_injoignable: () => t('axiorhub_pilote', 'AxiorHub cannot be reached from this Nextcloud server (address, firewall or certificate). An AxiorHub installed on a workstation cannot be reached from a hosted Nextcloud: use “My local AxiorHub” (discovery mode) or install the server version.'),
+}
+
 function syncText(sync) {
 	if (!sync) {
 		return ''
 	}
 	if (!sync.ok) {
-		return t('axiorhub_pilote', 'Cases not imported: {code}', { code: sync.code || 'erreur' })
+		return REASONS[sync.code] ? REASONS[sync.code]() : t('axiorhub_pilote', 'Cases not imported: {code}', { code: sync.code || 'erreur' })
 	}
 	return n('axiorhub_pilote', '%n case imported', '%n cases imported', sync.imported) + ' · '
 		+ n('axiorhub_pilote', '%n case on the engine', '%n cases on the engine', sync.total)
@@ -82,7 +88,8 @@ if (form) {
 			form.secret.value = ''
 			await loadMatters()
 		} catch (error) {
-			status.textContent = t('axiorhub_pilote', 'Not saved: {code}', { code: error?.response?.data?.code || 'erreur' })
+			const code = error?.response?.data?.code || 'erreur'
+			status.textContent = REASONS[code] ? REASONS[code]() : t('axiorhub_pilote', 'Not saved: {code}', { code })
 		}
 	})
 	document.getElementById('axh-admin-sync')?.addEventListener('click', async () => {

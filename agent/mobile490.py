@@ -242,6 +242,8 @@ self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => 
 self.addEventListener('fetch', e => {
   const req = e.request; const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin || !url.pathname.startsWith(PREFIX + '/')) return;
+  /* 5.6.41 : pages affichées dans un cadre (application Nextcloud) : jamais interceptées, le navigateur garde la session du cadre */
+  if (req.destination === 'iframe' || req.destination === 'frame') return;
   if (url.pathname.startsWith(PREFIX + '/static/') && url.pathname.endsWith('.css')) {
     /* 5.5.0 : réseau d'abord (feuille à jour après chaque installation), cache seulement hors ligne */
     e.respondWith(fetch(req).then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return res; }).catch(() => caches.match(req, { ignoreSearch: true })));

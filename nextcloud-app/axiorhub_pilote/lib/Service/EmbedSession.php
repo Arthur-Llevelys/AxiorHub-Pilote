@@ -72,7 +72,8 @@ class EmbedSession {
 		if ($frame === '' || self::origin($url) !== $frame || !str_starts_with($url, $base . '/')) {
 			return ['ok' => false, 'code' => 'reponse_moteur_invalide'];
 		}
-		return ['ok' => true, 'url' => $url, 'base' => $base, 'frame_origin' => $frame, 'standalone' => (bool)($body['standalone'] ?? false)];
+		return ['ok' => true, 'url' => $url, 'base' => $base, 'frame_origin' => $frame, 'standalone' => (bool)($body['standalone'] ?? false),
+			'poste' => ($body['mode'] ?? '') === 'poste'];   // 0.4.2 : moteur installé sur un poste (mode découverte)
 	}
 
 	/**

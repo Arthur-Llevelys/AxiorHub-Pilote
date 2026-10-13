@@ -3,6 +3,28 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.41 — Application Nextcloud : mode découverte sur un poste, prérequis et étapes d’installation
+
+Demandes de l’avocat du 13 octobre 2026. Détail : `CONFORMITE-5.6.41.md`.
+
+- **Version poste (Windows 11, Ubuntu poste) utilisable avec l’application Nextcloud en mode découverte**, pour des tests seulement :
+  - *Nextcloud sur ce même ordinateur* : les appels de l’application venus de l’adresse de bouclage sont acceptés (y compris sous le nom
+    `host.docker.internal` pour un Nextcloud dans Docker Desktop, sur la seule route d’intégration) ; les réponses `health` et `session`
+    portent `mode: poste` et un avertissement, que l’application affiche en bandeau permanent ; cookie de session admis dans le cadre sur
+    `127.0.0.1` ;
+  - *Nextcloud hébergé* : « Mon AxiorHub local » (application 0.4.2) ouvre AxiorHub dans un onglet du navigateur ;
+  - appel relayé depuis un autre ordinateur : refus explicite `moteur_poste_non_pris_en_charge` (HTTP 409), « utilisable seulement en mode
+    découverte… installez la version serveur ».
+- **Paramètres › Connexions › Application Nextcloud** sur le poste : avertissement, adresses à saisir (même ordinateur, Docker Desktop,
+  Nextcloud hébergé), identifiant et mot de passe locaux, case « Autoriser la liaison des comptes depuis Nextcloud (même ordinateur) ».
+- **Application Nextcloud 0.4.2** : bandeau du mode découverte, réglage « Adresse de mon AxiorHub local » et entrée « Mon AxiorHub
+  local », messages ; description de la boutique (anglais, français) et README réorganisés : prérequis, trois étapes (version serveur sur
+  Linux, application depuis la boutique Nextcloud, liaison des comptes), section « Mode découverte » et messages en cas de difficulté.
+- Guides du poste (Windows 11, Ubuntu) et README : mode découverte et son avertissement ; version serveur recommandée.
+- **README en français, anglais, allemand et espagnol** : section « Installer » réécrite (choix de la version ; version serveur Linux recommandée, serveur existant ou VPS ; poste Windows 11 ; poste Ubuntu 24.04 ; premier réglage ; application Nextcloud et mode découverte) et **captures d’écran actualisées dans chaque langue** (`docs/captures/<langue>/`, données fictives) ; les captures de la 5.6.1 sont retirées.
+- **Interface dans Nextcloud** : le service worker n’intercepte plus les pages affichées dans un cadre (le navigateur garde la session du cadre ; constaté sur un banc local, où le cadre restait blanc dès la deuxième ouverture).
+- Mode sombre : barre des routines d’« Aujourd’hui » lisible (fond clair et libellés blancs auparavant).
+
 ## 5.6.40 — Corrections de l’audit 5.6.39 : preuve des chiffres, bibliothèque de modèles fiable, attente bornée
 
 Audit du code 5.6.39 (7 défauts, 2 optimisations, 3 améliorations). Détail, tests et limites : `CONFORMITE-5.6.40.md`.

@@ -57,9 +57,35 @@ class UserLinkTest extends TestCase {
 			['http://courriel.example.test/agent-courriel', false, 'https_required'],
 			['http://127.0.0.1:8765', true, null],
 			['http://10.0.0.5:8765', true, 'https_required'],
+			['http://host.docker.internal:8769/agent-courriel', true, null],
+			['http://host.docker.internal:8769/agent-courriel', false, 'https_required'],
 			['https://user:pw@courriel.example.test', false, 'engine_url_invalid'],
 			['https://courriel.example.test/?x=1', false, 'engine_url_invalid'],
 			['pas une adresse', false, 'engine_url_invalid'],
 		];
+	}
+
+	/** 0.4.2 : adresse de l'AxiorHub local (mode découverte) : adresse de bouclage seulement ; vide = retirée. */
+	public function testLocalAddressIsAComputerLoopbackLinkOnly(): void {
+		$l = $this->link();
+		$this->assertSame('', $l->localUrl('alice'));
+		$l->setLocalUrl('alice', ' http://127.0.0.1:8769/agent-courriel/ ');
+		$this->assertSame('http://127.0.0.1:8769/agent-courriel/', $l->localUrl('alice'));
+		foreach (['http://localhost:8769/', 'https://[::1]:8769/agent-courriel'] as $ok) {
+			$this->assertSame($ok, UserLink::checkLocalUrl($ok));
+		}
+		foreach (['http://courriel.example.test/' => 'adresse_locale_requise', 'http://192.168.1.5:8769/' => 'adresse_locale_requise',
+			'http://host.docker.internal:8769/' => 'adresse_locale_requise', 'javascript:alert(1)' => 'adresse_locale_invalide',
+			'http://fictif@example.test/' => 'adresse_locale_invalide', 'http://127.0.0.1:8769/?x=1' => 'adresse_locale_invalide',
+			'http://127.0.0.1:8769/#x' => 'adresse_locale_invalide', 'http://127.0.0.1:8769/"onload' => 'adresse_locale_invalide'] as $bad => $code) {
+			try {
+				UserLink::checkLocalUrl($bad);
+				$this->fail($bad);
+			} catch (\InvalidArgumentException $e) {
+				$this->assertSame($code, $e->getMessage(), $bad);
+			}
+		}
+		$l->setLocalUrl('alice', '');
+		$this->assertSame([], $this->values);
 	}
 }

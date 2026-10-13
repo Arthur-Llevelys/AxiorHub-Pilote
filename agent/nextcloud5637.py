@@ -101,7 +101,8 @@ def create(desk, ctx, data, auth):
 
 def _cookie(sid, auth, max_age):
     prefix = auth.get('prefix', '/agent-courriel') or '/'
-    secure = urlsplit(str(auth.get('origin', ''))).scheme == 'https'
+    parts = urlsplit(str(auth.get('origin', '')))
+    secure = parts.scheme == 'https' or (parts.hostname or '') in ('127.0.0.1', 'localhost', '::1')   # 5.6.41 : poste (mode découverte)
     return '%s=%s; Path=%s; Max-Age=%d; HttpOnly; %s' % (COOKIE, sid, prefix, max_age,
                                                        'Secure; SameSite=None; Partitioned' if secure else 'SameSite=Lax')
 

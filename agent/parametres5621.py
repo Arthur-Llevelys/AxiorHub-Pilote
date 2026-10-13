@@ -86,7 +86,7 @@ def _connexions(desk, auth, prefix, env, cap):
     html = web567.connections_page(desk, auth, prefix, env, shell=cap, exclude=VOICE_GROUPS + ('Profil du modèle',))
     from .integration5636 import settings_html as _app_nextcloud   # 5.6.36 : comptes Nextcloud reliés (clés personnelles révocables)
     from .microsoft5636 import settings_html as _microsoft   # 5.6.36 : agenda Microsoft 365 (Outlook)
-    return (_section(html) + _section(_app_nextcloud(desk, prefix)) + _section(_microsoft(desk, prefix, env)) +
+    return (_section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_microsoft(desk, prefix, env)) +
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
 

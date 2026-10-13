@@ -319,7 +319,7 @@ def search(desk, ctx, args):
 
 
 # ------------------------------------------------------------------------------------------------ AxiorHub : Paramètres › Connexions
-def settings_html(desk, prefix):
+def settings_html(desk, prefix, auth=None):
     from html import escape as e
     s = status(desk)
     rows = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
@@ -328,6 +328,9 @@ def settings_html(desk, prefix):
         ('<form class="m5-form m5-inline m5-mini" data-api="m5636/nextcloud/cle/revoquer" data-reload="1" data-confirm="Révoquer cette clé ? Le compte '
          'Nextcloud devra être relié de nouveau."><input type="hidden" name="key" value="%s"><button class="ax-btn ghost" type="submit">Révoquer</button></form>') % e(k['id'], quote=True))
         for k in s['keys'])
+    from .integration5634 import workstation
+    if workstation({'axiorhub.auth': auth} if auth else None):   # 5.6.41 : version poste : mode découverte
+        return discovery_html(desk, s, rows, auth)
     return ('<section class="ax-card" id="app-nextcloud"><h2>Application Nextcloud</h2><p class="ax-muted">Chaque avocat relie son compte Nextcloud '
             'à son compte AxiorHub dans ses paramètres personnels Nextcloud (« AxiorHub Pilote »). Les utilisateurs Nextcloud non reliés n’ont '
             'aucun accès. Le mot de passe n’est jamais conservé : une clé personnelle, révocable ici, le remplace.</p>'
@@ -336,3 +339,36 @@ def settings_html(desk, prefix):
         ' checked' if s['enabled'] else '',
         ('<table class="vf-table"><thead><tr><th>Compte Nextcloud</th><th>Compte AxiorHub</th><th>Relié le</th><th>Dernière utilisation</th><th></th></tr></thead>'
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ax-muted">Aucun compte relié.</p>')
+
+
+def discovery_html(desk, s, rows, auth=None):
+    """5.6.41 : réglages de l'application Nextcloud sur un poste (Windows 11, Ubuntu) — mode découverte, avertissement, adresses à saisir,
+    identifiant et mot de passe locaux (l'utilisateur du poste est déjà connecté ; le fichier est dans son profil)."""
+    from html import escape as e
+    from pathlib import Path
+    from urllib.parse import urlsplit
+    from .integration5634 import DISCLAIMER
+    origin = str((auth or {}).get('origin') or 'http://127.0.0.1:8769').rstrip('/')
+    prefix = str((auth or {}).get('prefix') or '/agent-courriel')
+    port = urlsplit(origin).port or 8769
+    secret = ''
+    try:
+        secret = (Path(desk.c['state_dir']).parent / 'mot-de-passe-local').read_text(encoding='utf-8').strip()
+    except (OSError, KeyError, TypeError):
+        pass
+    creds = ('<details class="p5641-creds"><summary>Afficher l’identifiant et le mot de passe locaux</summary><p>Identifiant : <code>%s</code> · Mot de passe '
+             ': <code>%s</code></p></details>') % (e(str((auth or {}).get('username') or 'admin')), e(secret or 'indisponible')) if (auth or {}).get('poste') else ''
+    return ('<section class="ax-card" id="app-nextcloud"><h2>Application Nextcloud — mode découverte</h2><p class="c5636-warn" role="note">%s</p>'
+            '<h3>Nextcloud installé sur ce même ordinateur</h3><ol><li>Cochez ci-dessous « Autoriser la liaison des comptes depuis Nextcloud ».</li>'
+            '<li>Dans Nextcloud, Paramètres personnels › AxiorHub Pilote : adresse <code>%s%s</code> (Nextcloud dans Docker Desktop sous Windows : '
+            '<code>http://host.docker.internal:%d%s</code>), cochez « Moteur sur ce serveur (adresse locale) », puis l’identifiant et le mot de '
+            'passe locaux ci-dessous.</li></ol>'
+            '<h3>Nextcloud hébergé (sur un serveur)</h3><p>Le serveur Nextcloud ne peut pas joindre ce poste. Dans Nextcloud, Paramètres personnels '
+            '› AxiorHub Pilote › « Adresse de mon AxiorHub local » : <code>%s%s/</code> ; l’entrée « Mon AxiorHub local » ouvre alors AxiorHub '
+            'dans un onglet de ce navigateur (ni Pilote, ni recherche, ni affichage dans Nextcloud).</p>%s'
+            '<form class="m5-form m5-inline" data-api="m5636/nextcloud/app" data-reload="1"><label class="e5636-switch"><input type="checkbox" '
+            'name="enabled" value="1"%s> Autoriser la liaison des comptes depuis Nextcloud (même ordinateur)</label><button class="ax-btn ghost" '
+            'type="submit">Enregistrer</button></form>%s</section>') % (
+        e(DISCLAIMER), e(origin), e(prefix), port, e(prefix), e(origin), e(prefix), creds, ' checked' if s['enabled'] else '',
+        ('<table class="vf-table"><thead><tr><th>Compte Nextcloud</th><th>Compte AxiorHub</th><th>Relié le</th><th>Dernière utilisation</th><th></th>'
+         '</tr></thead><tbody>%s</tbody></table>' % rows) if rows else '<p class="ax-muted">Aucun compte relié.</p>')

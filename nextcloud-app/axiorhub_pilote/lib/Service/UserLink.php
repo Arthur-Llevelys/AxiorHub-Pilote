@@ -58,6 +58,34 @@ class UserLink {
 		$this->config->setUserValue($userId, Application::APP_ID, 'linked_at', gmdate('Y-m-d\TH:i:s\Z'));
 	}
 
+	/** 0.4.2 : adresse de l'AxiorHub installé sur le poste de l'utilisateur (mode découverte) ; lien ouvert par le navigateur, jamais joint par le serveur. */
+	public function localUrl(string $userId): string {
+		return $userId === '' ? '' : $this->config->getUserValue($userId, Application::APP_ID, 'local_url', '');
+	}
+
+	public function setLocalUrl(string $userId, string $url): void {
+		if (trim($url) === '') {
+			$this->config->deleteUserValue($userId, Application::APP_ID, 'local_url');
+			return;
+		}
+		$this->config->setUserValue($userId, Application::APP_ID, 'local_url', self::checkLocalUrl($url));
+	}
+
+	/** Adresse locale du poste : http(s)://127.0.0.1, localhost ou [::1], port et chemin facultatifs ; ni identifiants, ni requête, ni fragment. */
+	public static function checkLocalUrl(string $url): string {
+		$url = trim($url);
+		$parts = parse_url($url);
+		if ($parts === false || !isset($parts['scheme'], $parts['host']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query'])
+			|| isset($parts['fragment']) || !in_array(strtolower($parts['scheme']), ['http', 'https'], true) || strlen($url) > 300
+			|| preg_match('/[\x00-\x20"<>\\\\]/', $url)) {
+			throw new \InvalidArgumentException('adresse_locale_invalide');
+		}
+		if (!in_array(strtolower($parts['host']), ['127.0.0.1', 'localhost', '[::1]', '::1'], true)) {
+			throw new \InvalidArgumentException('adresse_locale_requise');
+		}
+		return $url;
+	}
+
 	public function forget(string $userId): void {
 		foreach (['engine_url', 'allow_local', 'key_id', 'key_secret', 'axiorhub_user', 'axiorhub_role', 'linked_at'] as $key) {
 			$this->config->deleteUserValue($userId, Application::APP_ID, $key);
@@ -70,7 +98,8 @@ class UserLink {
 		if ($parts === false || !isset($parts['scheme'], $parts['host']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
 			throw new \InvalidArgumentException('engine_url_invalid');
 		}
-		if ($parts['scheme'] !== 'https' && !($allowLocal && $parts['scheme'] === 'http' && in_array($parts['host'], ['127.0.0.1', 'localhost', '::1'], true))) {
+		// 0.4.2 : host.docker.internal = AxiorHub poste joint par un Nextcloud qui tourne dans Docker Desktop sur le même ordinateur
+		if ($parts['scheme'] !== 'https' && !($allowLocal && $parts['scheme'] === 'http' && in_array(strtolower($parts['host']), ['127.0.0.1', 'localhost', '::1', '[::1]', 'host.docker.internal'], true))) {
 			throw new \InvalidArgumentException('https_required');
 		}
 		return rtrim(trim($url), '/');

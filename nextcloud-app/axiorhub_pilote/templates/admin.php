@@ -7,6 +7,7 @@ declare(strict_types=1);
 <div id="axiorhub-pilote-admin" class="section">
 	<h2><?php p($l->t('AxiorHub engine')); ?></h2>
 	<p><?php p($l->t('The AxiorHub engine is installed separately (server of the firm). Nextcloud must be able to reach it; a workstation that may be switched off is not a reliable engine.')); ?></p>
+	<p class="axh-hint"><?php p($l->t('AxiorHub Pilote for Nextcloud is designed for the server version of AxiorHub (Linux server reachable over HTTPS by this Nextcloud server). An AxiorHub installed on a workstation (Windows 11 or Ubuntu desktop) only works in discovery mode, for tests: with a Nextcloud installed on the same computer, or as a link that opens it in a new tab (“My local AxiorHub” below).')); ?></p>
 	<form id="axh-admin-form">
 		<p><label><?php p($l->t('Engine address (HTTPS)')); ?><br><input type="url" name="engineUrl" value="<?php p($_['engine_url']); ?>" required></label></p>
 		<p><label><?php p($l->t('Instance identifier (same as integration5634.instance_id on the engine)')); ?><br><input type="text" name="instanceId" value="<?php p($_['instance_id']); ?>" required></label></p>

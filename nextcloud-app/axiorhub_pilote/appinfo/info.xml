@@ -3,45 +3,62 @@
       xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
     <id>axiorhub_pilote</id>
     <name>AxiorHub Pilote</name>
-    <summary lang="en">AxiorHub interface for French lawyers inside Nextcloud: cases, emails, deeds, legal research (AxiorHub engine required)</summary>
-    <summary lang="fr">Interface AxiorHub pour avocats français dans Nextcloud : dossiers, courriels, actes, recherche juridique (moteur requis)</summary>
+    <summary lang="en">AxiorHub interface for French lawyers inside Nextcloud: cases, emails, deeds, legal research (AxiorHub server version required)</summary>
+    <summary lang="fr">AxiorHub pour avocats français dans Nextcloud : dossiers, courriels, actes, recherche juridique (version serveur requise)</summary>
     <description lang="en"><![CDATA[AxiorHub Pilote is **legal software designed for French lawyers (avocats)** and their firms: it works with French procedure, French courts and French legal sources, and its screens, documents and deeds are written in French (the interface is also translated into English, German and Spanish).
 
 This app brings the **AxiorHub interface itself into Nextcloud** (Today, Cases, Emails, Calendar and tasks, Produce, Corporate, Contacts & CRM, AI tools, Legal research…), with its menu in the AxiorHub colours, without typing the AxiorHub password again. A simplified view keeps instructions to the Pilote, search in the cases, case sheet, legal research and recent work.
 
-**This app does not contain the engine.** AxiorHub Pilote (version 5.6.37 or later) must be installed separately on a server that this Nextcloud can reach — ideally the same Ubuntu server and the same domain as Nextcloud. Each lawyer links his or her own AxiorHub account; Nextcloud users without a linked account have no access.
+**This app does not contain the engine.** It needs the **server version of AxiorHub Pilote (version 5.6.41 or later), installed on a Linux server that this Nextcloud can reach over HTTPS** — ideally the same server and the same domain as Nextcloud. Each lawyer links his or her own AxiorHub account; Nextcloud users without a linked account have no access. An AxiorHub installed on a workstation can only be tried in *discovery mode*, for tests (see below).
 
-## Tutorial: install the server version on Ubuntu and connect it to Nextcloud
+## Before you start: requirements
 
-Requirements: an Ubuntu 24.04 (or Debian 12) server that already runs **Nextcloud behind Apache with HTTPS**, administrator access (`sudo`), the firm's mailbox settings (IMAP), and about 30 minutes. Replace `cloud.your-firm.example` with your Nextcloud address.
+- **A Linux server**: Ubuntu 24.04 LTS or Debian 12 (64-bit), administrator access (`sudo`), 8 GB of memory at least without local AI (32 GB and ideally a graphics card for a local AI), 80 GB of disk or more.
+- **Nextcloud 32 to 35** running behind **Apache with HTTPS** (valid certificate, for example Let's Encrypt), PHP 8.1 to 8.5, and a Nextcloud administrator account to install apps.
+- **An HTTPS address for AxiorHub**: the simplest is the Nextcloud address itself (`https://cloud.your-firm.example/agent-courriel/`).
+- The **firm's mailbox settings** (IMAP and SMTP), and a **Nextcloud app password** for a technical account that will read the case folders.
+- About 45 minutes.
 
-### 1. Prepare the server
+## Discovery mode: AxiorHub installed on a workstation (tests only)
+
+The workstation version of AxiorHub (Windows 11, Ubuntu desktop) only listens on its own computer (`http://127.0.0.1:8769`). It can be used with this app **in discovery mode, to test and discover the application**:
+
+- **Nextcloud installed on the same computer** (native, or Docker Desktop on Windows): in AxiorHub, **Settings › Connections › Nextcloud app**, tick “Allow linking accounts from Nextcloud (same computer)”; in Nextcloud, **Personal settings › AxiorHub Pilote**, address `http://127.0.0.1:8769/agent-courriel` (Docker Desktop: `http://host.docker.internal:8769/agent-courriel`), tick “Engine on this server (local address)”, then the local login and password shown in the same AxiorHub settings. The AxiorHub interface works in Nextcloud, with a permanent warning banner.
+- **Hosted Nextcloud** (on a server): the Nextcloud server cannot reach your computer. In **Personal settings › AxiorHub Pilote › Address of my local AxiorHub**, enter `http://127.0.0.1:8769/agent-courriel/`: the **My local AxiorHub** menu entry then opens AxiorHub in a new tab of your browser (no Pilote, no search and no display inside Nextcloud).
+
+> **Warning — tests and discovery only.** AxiorHub can then only be reached from that computer, stops when the computer is switched off, and local exchanges are not encrypted (HTTP). For your firm's work, install the **server version** (Step 1): more secure (HTTPS), backed up and reachable from every computer.
+
+## Step 1 — Install the AxiorHub server version on Linux
+
+Replace `cloud.your-firm.example` with your Nextcloud address.
+
+**1.1 Prepare the server**
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y git python3 python3-venv
 ```
 
-### 2. Download AxiorHub Pilote and build the verified archive
+**1.2 Download AxiorHub Pilote and build the verified archive**
 
 ```bash
-sudo git clone --branch v5.6.37 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.37.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
 ```
 
 The archive carries a checksum manifest: the installer refuses any modified file.
 
-### 3. Install (or update) the engine
+**1.3 Install (or update) the engine**
 
 ```bash
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.37.tar.gz && cd axiorhub-mail-agent-5.6.37
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
 sudo bash install.sh
 ```
 
 The code goes to `/opt/axiorhub-mail-agent/`, the configuration to `/etc/axiorhub-mail-agent/` (secrets readable by root only), the data to `/var/lib/axiorhub-mail-agent/`. An update keeps the previous version and rolls back by itself if something fails.
 
-### 4. Configure mail, Nextcloud and AI
+**1.4 Configure mail, Nextcloud and AI**
 
 ```bash
 sudo axiorhub-mail configure   # mailbox, Nextcloud folders and calendars, local AI (passwords typed hidden)
@@ -50,85 +67,107 @@ sudo axiorhub-mail doctor      # checks IMAP, Nextcloud, CalDAV and the AI model
 
 For Nextcloud, create a technical account (for example `axiorhub`) with an **app password** (Personal settings › Security) and share the case folders and calendars with it.
 
-### 5. Publish the interface on the Nextcloud address
+**1.5 Publish the interface on the Nextcloud address**
 
 ```bash
 sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py
 ```
 
-Give the existing HTTPS name of Nextcloud (`cloud.your-firm.example`) and choose the interface password (16 characters or more). AxiorHub then answers at `https://cloud.your-firm.example/agent-courriel/` (login `admin`). Using the **same domain as Nextcloud** is recommended: the interface then works inside Nextcloud in every browser.
+Give the existing HTTPS name of Nextcloud (`cloud.your-firm.example`) and choose the interface password (16 characters or more). AxiorHub then answers at `https://cloud.your-firm.example/agent-courriel/` (login `admin`).
 
-### 6. Allow the Nextcloud app in AxiorHub
+**1.6 Allow the Nextcloud app in AxiorHub**
 
 Open `https://cloud.your-firm.example/agent-courriel/`, then **Settings › Connections › Nextcloud app**: tick “Allow linking accounts from Nextcloud” and save. Start in **observation** mode (nothing is written), then switch to drafts when the case matching is right. Nothing is ever sent without your click.
 
-### 7. Install this app and link each lawyer's account
+## Step 2 — Install this app from the Nextcloud App Store
 
-From the Nextcloud App Store: **Apps › Office & text › AxiorHub Pilote › Download and enable**, or:
+As a Nextcloud administrator: **Apps › Office & text › AxiorHub Pilote › Download and enable** (or search for “AxiorHub Pilote”). Command-line equivalent:
 
 ```bash
 cd /path/to/nextcloud
 sudo -u www-data php occ app:install axiorhub_pilote
 ```
 
-Without the App Store, build the package from the source repository:
+Updates of the app then appear in **Apps › Updates**.
 
-```bash
-cd /tmp && git clone --branch v0.4.1 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.1.tar.gz
-cd /path/to/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.1.tar.gz -C apps
-sudo -u www-data php occ app:enable axiorhub_pilote
-```
+## Step 3 — Link each lawyer's account
 
-Each lawyer opens **Personal settings › AxiorHub Pilote**, enters `https://cloud.your-firm.example/agent-courriel`, the AxiorHub login and password, then “Link my account” (the password is used once to obtain a personal key, never stored). The **AxiorHub Pilote** icon in the Nextcloud top bar then opens the AxiorHub interface.
+Each lawyer opens **Personal settings › AxiorHub Pilote** and enters:
 
-If a web server login protects AxiorHub, let `/agent-courriel/integration/v1/` and `/agent-courriel/nextcloud-session` through without login (these calls are signed or single-use).
+1. the address `https://cloud.your-firm.example/agent-courriel`;
+2. his or her AxiorHub login and password;
+3. “Link my account”.
 
-### Good to know
+The password is used once to obtain a personal key and is never stored. The **AxiorHub Pilote** icon in the Nextcloud top bar then opens the AxiorHub interface.
+
+## If something does not work
+
+- “AxiorHub cannot be reached from this Nextcloud server”: check the address (it usually ends with `/agent-courriel`), the HTTPS certificate and the firewall; a workstation installation cannot be reached from a hosted Nextcloud (see Discovery mode).
+- “AxiorHub installed on a workstation: it can only be used in discovery mode”: use Nextcloud on the same computer or “My local AxiorHub” (see Discovery mode); for your firm, install the server version (Step 1).
+- “The web server in front of AxiorHub asks for a login”: let `/agent-courriel/integration/v1/` and `/agent-courriel/nextcloud-session` through without login (these calls are signed or single-use).
+- The interface stays blank inside Nextcloud: serve AxiorHub under the same domain as Nextcloud, or use “Open in a new tab”.
+
+## Good to know
 
 - Your data stay on your server; an external AI (optional) only receives pseudonymised text.
 - Back up `/etc/axiorhub-mail-agent/` and `/var/lib/axiorhub-mail-agent/` (encrypted, off the server): they contain client data.
-- Full documentation (French): https://github.com/Arthur-Llevelys/AxiorHub-Pilote
+- Full documentation (French): https://github.com/Arthur-Llevelys/AxiorHub-Pilote — manual installation of this app without the App Store: https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud
 
-Development version 0.4.1: compatibility is announced only after real installation and tests on each declared Nextcloud version.]]></description>
+Development version 0.4.2: compatibility is announced only after real installation and tests on each declared Nextcloud version.]]></description>
     <description lang="fr"><![CDATA[AxiorHub Pilote est un **logiciel juridique destiné aux avocats français** et à leurs cabinets : il suit la procédure française, les juridictions françaises et les sources du droit français ; ses écrans, documents et actes sont rédigés en français.
 
 Cette application affiche **l'interface d'AxiorHub elle-même dans Nextcloud** (Aujourd'hui, Dossiers, Courriels, Agenda et tâches, Produire, Corporate, Contacts & CRM, Outils IA, Recherche juridique…), avec son menu aux couleurs d'AxiorHub, sans ressaisir le mot de passe AxiorHub. Une vue simplifiée garde l'instruction au Pilote, la recherche dans les dossiers, la fiche du dossier, la recherche juridique et les travaux récents.
 
-**Cette application ne contient pas le moteur.** AxiorHub Pilote (version 5.6.37 ou ultérieure) s'installe à part, sur un serveur que ce Nextcloud peut joindre — idéalement le même serveur Ubuntu et le même domaine que Nextcloud. Chaque avocat relie son propre compte AxiorHub ; les utilisateurs Nextcloud non reliés n'ont aucun accès.
+**Cette application ne contient pas le moteur.** Elle a besoin de la **version serveur d'AxiorHub Pilote (5.6.41 ou ultérieure), installée sur un serveur Linux que ce Nextcloud peut joindre en HTTPS** — idéalement le même serveur et le même domaine que Nextcloud. Chaque avocat relie son propre compte AxiorHub ; les utilisateurs Nextcloud non reliés n'ont aucun accès. Un AxiorHub installé sur un poste de travail ne peut être essayé qu'en *mode découverte*, pour des tests (voir plus bas).
 
-## Tutoriel : installer la version serveur sur Ubuntu et la relier à Nextcloud
+## Avant de commencer : prérequis
 
-Prérequis : un serveur Ubuntu 24.04 (ou Debian 12) qui fait déjà tourner **Nextcloud derrière Apache en HTTPS**, un accès administrateur (`sudo`), les paramètres de la messagerie du cabinet (IMAP) et une trentaine de minutes. Remplacez `cloud.votre-cabinet.fr` par l'adresse de votre Nextcloud.
+- **Un serveur Linux** : Ubuntu 24.04 LTS ou Debian 12 (64 bits), un accès administrateur (`sudo`), 8 Go de mémoire au moins sans IA locale (32 Go et idéalement une carte graphique pour une IA locale), 80 Go de disque ou plus.
+- **Nextcloud 32 à 35** derrière **Apache en HTTPS** (certificat valide, par exemple Let's Encrypt), PHP 8.1 à 8.5, et un compte administrateur Nextcloud pour installer les applications.
+- **Une adresse HTTPS pour AxiorHub** : le plus simple est l'adresse de Nextcloud elle-même (`https://cloud.votre-cabinet.fr/agent-courriel/`).
+- Les **paramètres de la messagerie du cabinet** (IMAP et SMTP), et un **mot de passe d'application Nextcloud** pour un compte technique qui lira les dossiers clients.
+- Environ 45 minutes.
 
-### 1. Préparer le serveur
+## Mode découverte : AxiorHub installé sur un poste de travail (tests seulement)
+
+La version poste d'AxiorHub (Windows 11, Ubuntu poste) n'écoute que son propre ordinateur (`http://127.0.0.1:8769`). Elle peut servir avec cette application **en mode découverte, pour tester et découvrir l'application** :
+
+- **Nextcloud installé sur le même ordinateur** (installation classique, ou Docker Desktop sous Windows) : dans AxiorHub, **Paramètres › Connexions › Application Nextcloud**, cochez « Autoriser la liaison des comptes depuis Nextcloud (même ordinateur) » ; dans Nextcloud, **Paramètres personnels › AxiorHub Pilote**, adresse `http://127.0.0.1:8769/agent-courriel` (Docker Desktop : `http://host.docker.internal:8769/agent-courriel`), cochez « Moteur sur ce serveur (adresse locale) », puis l'identifiant et le mot de passe locaux affichés dans ces mêmes paramètres d'AxiorHub. L'interface d'AxiorHub fonctionne dans Nextcloud, avec un bandeau d'avertissement permanent.
+- **Nextcloud hébergé** (sur un serveur) : le serveur Nextcloud ne peut pas joindre votre ordinateur. Dans **Paramètres personnels › AxiorHub Pilote › Adresse de mon AxiorHub local**, saisissez `http://127.0.0.1:8769/agent-courriel/` : l'entrée **Mon AxiorHub local** du menu ouvre alors AxiorHub dans un nouvel onglet de votre navigateur (ni Pilote, ni recherche, ni affichage dans Nextcloud).
+
+> **Avertissement — tests et découverte seulement.** AxiorHub n'est alors joignable que depuis cet ordinateur, s'arrête quand l'ordinateur est éteint, et les échanges locaux ne sont pas chiffrés (HTTP). Pour le travail du cabinet, installez la **version serveur** (étape 1) : plus sûre (HTTPS), sauvegardée et joignable depuis tous les postes.
+
+## Étape 1 — Installer la version serveur d'AxiorHub sur Linux
+
+Remplacez `cloud.votre-cabinet.fr` par l'adresse de votre Nextcloud.
+
+**1.1 Préparer le serveur**
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y git python3 python3-venv
 ```
 
-### 2. Télécharger AxiorHub Pilote et construire l'archive vérifiée
+**1.2 Télécharger AxiorHub Pilote et construire l'archive vérifiée**
 
 ```bash
-sudo git clone --branch v5.6.37 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.41 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.37.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.41.tar.gz
 ```
 
 L'archive porte un manifeste d'empreintes : l'installateur refuse tout fichier modifié.
 
-### 3. Installer (ou mettre à jour) le moteur
+**1.3 Installer (ou mettre à jour) le moteur**
 
 ```bash
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.37.tar.gz && cd axiorhub-mail-agent-5.6.37
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.41.tar.gz && cd axiorhub-mail-agent-5.6.41
 sudo bash install.sh
 ```
 
 Le code va dans `/opt/axiorhub-mail-agent/`, la configuration dans `/etc/axiorhub-mail-agent/` (secrets lisibles par root seulement), les données dans `/var/lib/axiorhub-mail-agent/`. Une mise à jour garde la version précédente et revient en arrière d'elle-même en cas d'échec.
 
-### 4. Configurer la messagerie, Nextcloud et l'IA
+**1.4 Configurer la messagerie, Nextcloud et l'IA**
 
 ```bash
 sudo axiorhub-mail configure   # messagerie, dossiers et agendas Nextcloud, IA locale (mots de passe saisis masqués)
@@ -137,49 +176,54 @@ sudo axiorhub-mail doctor      # contrôle IMAP, Nextcloud, CalDAV et le modèle
 
 Pour Nextcloud, créez un compte technique (par exemple `axiorhub`) avec un **mot de passe d'application** (Paramètres personnels › Sécurité) et partagez-lui les dossiers clients et les agendas.
 
-### 5. Publier l'interface sur l'adresse de Nextcloud
+**1.5 Publier l'interface sur l'adresse de Nextcloud**
 
 ```bash
 sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py
 ```
 
-Indiquez le nom HTTPS existant de Nextcloud (`cloud.votre-cabinet.fr`) et choisissez le mot de passe de l'interface (16 caractères au moins). AxiorHub répond alors à `https://cloud.votre-cabinet.fr/agent-courriel/` (identifiant `admin`). Le **même domaine que Nextcloud** est recommandé : l'interface fonctionne alors dans Nextcloud avec tous les navigateurs.
+Indiquez le nom HTTPS existant de Nextcloud (`cloud.votre-cabinet.fr`) et choisissez le mot de passe de l'interface (16 caractères au moins). AxiorHub répond alors à `https://cloud.votre-cabinet.fr/agent-courriel/` (identifiant `admin`).
 
-### 6. Autoriser l'application Nextcloud dans AxiorHub
+**1.6 Autoriser l'application Nextcloud dans AxiorHub**
 
 Ouvrez `https://cloud.votre-cabinet.fr/agent-courriel/`, puis **Paramètres › Connexions › Application Nextcloud** : cochez « Autoriser la liaison des comptes depuis Nextcloud » et enregistrez. Commencez en mode **observation** (rien n'est écrit), puis passez aux brouillons quand les rattachements aux dossiers sont justes. Rien n'est jamais envoyé sans votre clic.
 
-### 7. Installer cette application et relier le compte de chaque avocat
+## Étape 2 — Installer cette application depuis la boutique Nextcloud
 
-Depuis la boutique d'applications Nextcloud : **Applications › Bureautique et texte › AxiorHub Pilote › Télécharger et activer**, ou :
+En administrateur Nextcloud : **Applications › Bureautique et texte › AxiorHub Pilote › Télécharger et activer** (ou recherchez « AxiorHub Pilote »). Équivalent en ligne de commande :
 
 ```bash
 cd /chemin/vers/nextcloud
 sudo -u www-data php occ app:install axiorhub_pilote
 ```
 
-Sans la boutique, construisez le paquet depuis le dépôt source :
+Les mises à jour de l'application apparaissent ensuite dans **Applications › Mises à jour**.
 
-```bash
-cd /tmp && git clone --branch v0.4.1 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.1.tar.gz
-cd /chemin/vers/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.1.tar.gz -C apps
-sudo -u www-data php occ app:enable axiorhub_pilote
-```
+## Étape 3 — Relier le compte de chaque avocat
 
-Chaque avocat ouvre **Paramètres personnels › AxiorHub Pilote**, saisit `https://cloud.votre-cabinet.fr/agent-courriel`, son identifiant et son mot de passe AxiorHub, puis « Relier mon compte » (le mot de passe sert une fois à obtenir une clé personnelle, il n'est jamais conservé). L'icône **AxiorHub Pilote** de la barre Nextcloud ouvre ensuite l'interface d'AxiorHub.
+Chaque avocat ouvre **Paramètres personnels › AxiorHub Pilote** et saisit :
 
-Si une authentification du serveur web protège AxiorHub, laissez passer sans connexion `/agent-courriel/integration/v1/` et `/agent-courriel/nextcloud-session` (ces appels sont signés ou à usage unique).
+1. l'adresse `https://cloud.votre-cabinet.fr/agent-courriel` ;
+2. son identifiant et son mot de passe AxiorHub ;
+3. « Relier mon compte ».
 
-### Bon à savoir
+Le mot de passe sert une seule fois à obtenir une clé personnelle ; il n'est jamais conservé. L'icône **AxiorHub Pilote** de la barre Nextcloud ouvre ensuite l'interface d'AxiorHub.
+
+## En cas de difficulté
+
+- « AxiorHub est injoignable depuis ce serveur Nextcloud » : vérifiez l'adresse (elle se termine en général par `/agent-courriel`), le certificat HTTPS et le pare-feu ; une installation sur un poste de travail n'est pas joignable depuis un Nextcloud hébergé (voir Mode découverte).
+- « AxiorHub installé sur un poste de travail : utilisable seulement en mode découverte » : Nextcloud sur le même ordinateur ou « Mon AxiorHub local » (voir Mode découverte) ; pour le cabinet, installez la version serveur (étape 1).
+- « Le serveur web placé devant AxiorHub demande une connexion » : laissez passer sans connexion `/agent-courriel/integration/v1/` et `/agent-courriel/nextcloud-session` (ces appels sont signés ou à usage unique).
+- L'interface reste blanche dans Nextcloud : servez AxiorHub sous le même domaine que Nextcloud, ou utilisez « Ouvrir dans un onglet ».
+
+## Bon à savoir
 
 - Vos données restent sur votre serveur ; une IA externe (facultative) ne reçoit que des textes pseudonymisés.
 - Sauvegardez `/etc/axiorhub-mail-agent/` et `/var/lib/axiorhub-mail-agent/` (chiffrés, hors du serveur) : ils contiennent des données de clients.
-- Documentation complète : https://github.com/Arthur-Llevelys/AxiorHub-Pilote
+- Documentation complète : https://github.com/Arthur-Llevelys/AxiorHub-Pilote — installation manuelle de cette application, sans la boutique : https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud
 
-Version de développement 0.4.1 : aucune compatibilité n'est annoncée avant installation réelle et tests sur chaque version déclarée de Nextcloud.]]></description>
-    <version>0.4.1</version>
+Version de développement 0.4.2 : aucune compatibilité n'est annoncée avant installation réelle et tests sur chaque version déclarée de Nextcloud.]]></description>
+    <version>0.4.2</version>
     <licence>agpl</licence>
     <author mail="101706410+Arthur-Llevelys@users.noreply.github.com" homepage="https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud">Timo RAINIO</author>
     <namespace>AxiorhubPilote</namespace>
@@ -192,7 +236,7 @@ Version de développement 0.4.1 : aucune compatibilité n'est annoncée avant in
     <website>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud</website>
     <bugs>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/issues</bugs>
     <repository type="git">https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git</repository>
-    <screenshot>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/raw/v0.4.1/screenshots/axiorhub-dans-nextcloud.png</screenshot>
+    <screenshot>https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud/raw/v0.4.2/screenshots/axiorhub-dans-nextcloud.png</screenshot>
     <dependencies>
         <php min-version="8.1" max-version="8.5"/>
         <nextcloud min-version="32" max-version="35"/>

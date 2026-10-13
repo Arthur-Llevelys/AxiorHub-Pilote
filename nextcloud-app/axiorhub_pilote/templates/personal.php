@@ -15,6 +15,7 @@ declare(strict_types=1);
 			<span id="axh-personal-status-linked" role="status"></span></p>
 	</div>
 	<form id="axh-personal-form" <?php if ($_['linked']) { p('hidden'); } ?>>
+		<p class="axh-hint"><?php p($l->t('AxiorHub Pilote for Nextcloud is designed for the server version of AxiorHub (Linux server reachable over HTTPS by this Nextcloud server). An AxiorHub installed on a workstation (Windows 11 or Ubuntu desktop) only works in discovery mode, for tests: with a Nextcloud installed on the same computer, or as a link that opens it in a new tab (“My local AxiorHub” below).')); ?></p>
 		<p><label><?php p($l->t('AxiorHub Pilote address')); ?><br>
 			<input type="url" name="engineUrl" value="<?php p($_['engine_url']); ?>" placeholder="https://courriel.example.test/agent-courriel" required size="50"></label></p>
 		<p><label><?php p($l->t('AxiorHub login')); ?><br><input type="text" name="login" autocomplete="username" required></label></p>
@@ -22,5 +23,13 @@ declare(strict_types=1);
 		<p><label><input type="checkbox" name="allowLocal" <?php if ($_['allow_local']) { p('checked'); } ?>> <?php p($l->t('Engine on this server (local address)')); ?></label></p>
 		<p class="axh-hint"><?php p($l->t('Your password is used once to obtain a personal key and is never stored. The administrator of AxiorHub must first allow Nextcloud accounts (AxiorHub › Settings › Connections › Nextcloud app).')); ?></p>
 		<p><button type="submit" class="primary"><?php p($l->t('Link my account')); ?></button> <span id="axh-personal-status" role="status"></span></p>
+	</form>
+	<h3><?php p($l->t('My local AxiorHub (discovery mode)')); ?></h3>
+	<p class="axh-hint axh-warning"><?php p($l->t('Discovery mode: AxiorHub is installed on a workstation (Windows 11 or Ubuntu desktop). Use it only for tests and to discover the application: it can only be reached from this computer, stops when the computer is switched off, and local exchanges are not encrypted (HTTP). For your firm’s work, install the server version (Linux, HTTPS): more secure, backed up and reachable from every computer.')); ?></p>
+	<form id="axh-personal-local">
+		<p><label><?php p($l->t('Address of my local AxiorHub')); ?><br>
+			<input type="url" name="localUrl" value="<?php p($_['local_url']); ?>" placeholder="http://127.0.0.1:8769/agent-courriel/" size="50"></label></p>
+		<p class="axh-hint"><?php p($l->t('For a hosted Nextcloud: this address is only used by your browser, to open your local AxiorHub in a new tab from the “My local AxiorHub” menu entry; Nextcloud never connects to it (no Pilote, no search, no display inside Nextcloud). If Nextcloud runs on this same computer, link your account above instead, with the address http://127.0.0.1:8769/agent-courriel and “Engine on this server (local address)”.')); ?></p>
+		<p><button type="submit"><?php p($l->t('Save')); ?></button> <span id="axh-personal-local-status" role="status"></span></p>
 	</form>
 </div>

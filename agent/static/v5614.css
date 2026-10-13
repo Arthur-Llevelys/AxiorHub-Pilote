@@ -66,3 +66,4 @@
 .p5621-section{margin:0 0 1.6rem;padding-top:.2rem;border-top:1px solid #e5e7eb}
 .p5621-section:first-of-type{border-top:0}
 .p5621-links{display:flex;flex-wrap:wrap;gap:.6rem;margin:.6rem 0}
+html[data-theme="dark"] .c5614-routines,body.dark .c5614-routines{background:#1f232b;border-color:#343a46}   /* 5.6.41 : barre des routines lisible en mode sombre */

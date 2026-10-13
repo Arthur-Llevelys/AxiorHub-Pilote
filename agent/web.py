@@ -511,7 +511,7 @@ class App:
             from .web567 import actor
             auth['owner']=actor(env)[0]   # 5.6.9 : utilisateur courant pour les blocs personnels des pages (« À décider »)
             origin=urlsplit(auth['origin'])
-            if not same_host(env.get('HTTP_HOST',''),origin):
+            if not same_host(env.get('HTTP_HOST',''),origin) and not docker_alias(env,auth,origin):
                 # 5.6.39 : sur le poste, une page ouverte sous l'autre nom de la machine (localhost / 127.0.0.1, même port) est redirigée
                 # vers l'adresse configurée au lieu d'afficher une erreur ; tout autre nom reste refusé (protection contre le DNS rebinding),
                 # de même que les envois (POST).
@@ -2110,6 +2110,17 @@ def same_host(host,origin):
 
 
 LOOPBACK={'localhost','127.0.0.1','[::1]'}
+
+
+def docker_alias(env,auth,origin):
+    """5.6.41 (mode découverte) : Nextcloud dans Docker Desktop sur le même poste joint AxiorHub par « host.docker.internal » ; admis
+    seulement pour la route d'intégration (appels signés), sur un poste, depuis l'adresse de bouclage et sur le port configuré."""
+    if not (auth or {}).get('poste') or str(env.get('REMOTE_ADDR') or '') not in ('127.0.0.1','::1','::ffff:127.0.0.1'):return False
+    if '/integration/v1/' not in str(env.get('PATH_INFO') or ''):return False
+    parts=urlsplit('//'+str(env.get('HTTP_HOST') or '').strip().lower())
+    try:port=parts.port
+    except ValueError:return False
+    return parts.hostname=='host.docker.internal' and (port or None)==(origin.port or None)
 
 
 def loopback_alias(host,origin):

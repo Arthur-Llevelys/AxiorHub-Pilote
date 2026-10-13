@@ -1,6 +1,6 @@
 {
   "name": "axiorhub_pilote",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "description": "AxiorHub Pilote — application Nextcloud (façade native du moteur AxiorHub)",
   "license": "AGPL-3.0-or-later",
