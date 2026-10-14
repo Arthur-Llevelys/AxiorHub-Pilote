@@ -113,6 +113,12 @@ MESSAGES = {
     'integration_desactivee': 'Liaison Nextcloud désactivée sur ce moteur.',
     'moteur_poste_non_pris_en_charge': 'AxiorHub installé sur un poste de travail : utilisable seulement en mode découverte, depuis l’ordinateur où il est installé (Nextcloud sur ce même ordinateur, ou lien « Mon AxiorHub local »). Pour le cabinet, installez la version serveur (Linux, HTTPS).',   # 5.6.41
     'dossier_hors_perimetre': 'Ce dossier n’entre pas dans votre périmètre.',
+    'autorisation_retiree': 'Classement automatique arrêté : l’autorisation a été retirée avant le dépôt ; les fichiers déjà vérifiés restent enregistrés.',   # 5.6.44
+    'dossier_du_mandat_modifie': 'Le dossier choisi pour ce courriel a changé depuis la demande : rien n’a été déposé ; relancez le classement.',   # 5.6.44
+    'correction_invalide': 'Correction invalide : rechargez la page du dossier.',   # 5.6.44
+    'correction_vide': 'Indiquez le texte exact à enregistrer.',   # 5.6.44
+    'correction_trop_longue': 'Texte trop long (300 caractères au plus).',   # 5.6.44
+    'partie_de_la_configuration': 'Cette partie vient de la configuration du dossier : modifiez-la dans la configuration des dossiers.',   # 5.6.44
     'operation_annulee': 'Travail arrêté à votre demande ; les fichiers déjà enregistrés et vérifiés sont conservés.',   # 5.6.43
     'ia_en_pause': 'L’IA est en pause : ce travail reprendra quand vous cliquerez sur « IA en pause — reprendre ».',   # 5.6.43
     'automatismes_en_pause': 'L’IA est en pause : aucun travail automatique ne démarre avant la reprise.',   # 5.6.43

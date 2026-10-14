@@ -61,19 +61,40 @@ def _read(state_dir):
         db.close()
 
 
-def _job_status(state_dir, job_id):
+PAUSE_REASONS = {'pause': 'ia_en_pause', 'pause_dossier': 'agent_en_pause_sur_ce_dossier'}
+
+
+def stop_code(status, stop_reason):
+    """5.6.44 (audit F09) : code d'arrêt d'un travail selon son état ET son motif. Une demande d'arrêt posée par la pause donne le code
+    de pause (le travail sera suspendu, donc repris) ; seule une annulation (motif utilisateur, parent ou ancien) est terminale."""
+    if status == 'cancelled':
+        return 'operation_annulee'
+    if status == 'cancel_requested':
+        return PAUSE_REASONS.get(str(stop_reason or ''), 'operation_annulee')
+    return ''
+
+
+def _job_state(state_dir, job_id):
     path = Path(state_dir or '') / 'desk.sqlite3'
     if not job_id or not path.is_file():
-        return ''
+        return '', None
     try:
         db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=2)
         try:
-            row = db.execute('SELECT status FROM jobs WHERE id=?', (int(job_id),)).fetchone()
+            row = db.execute('SELECT status,stop_reason FROM jobs WHERE id=?', (int(job_id),)).fetchone()
         finally:
             db.close()
     except (sqlite3.Error, ValueError, TypeError):
         raise Stop('controle_pause_indisponible') from None
-    return row[0] if row else 'absent'
+    return (row[0], row[1]) if row else ('absent', None)
+
+
+def _job_status(state_dir, job_id):
+    return _job_state(state_dir, job_id)[0]
+
+
+def job_stop_code(state_dir, job_id):
+    return stop_code(*_job_state(state_dir, job_id))
 
 
 def global_paused(desk):
@@ -149,9 +170,10 @@ def check_parent(desk):
     parent = getattr(desk, 'active_job_id', None)
     if not parent:
         return None
-    row = desk.db.execute('SELECT status FROM jobs WHERE id=?', (parent,)).fetchone()
-    if row and row[0] in ('cancel_requested', 'cancelled'):
-        raise Stop('operation_annulee')
+    row = desk.db.execute('SELECT status,stop_reason FROM jobs WHERE id=?', (parent,)).fetchone()
+    code = stop_code(row[0], row[1]) if row else ''
+    if code:
+        raise Stop(code)
     return parent
 
 
@@ -180,7 +202,7 @@ def pause_all(desk, on, owner='cabinet'):
         message = ('IA en pause : aucun nouvel appel au modèle ni travail automatique. %d travail(aux) suspendu(s), %d arrêt(s) demandé(s)%s. '
                    'Les actions manuelles sans IA restent possibles.' % (
                        counts['suspendus'], counts['arrets_demandes'],
-                       (', %d appel(s) au modèle en cours interrompu(s) dans la seconde' % counts['en_cours_a_interrompre'])
+                       (', arrêt demandé pour %d appel(s) au modèle en cours' % counts['en_cours_a_interrompre'])
                        if counts['en_cours_a_interrompre'] else ''))
     else:
         counts['repris'] = resume(desk)
@@ -201,6 +223,13 @@ def resume(desk, matter=None):
     for jid in ids:
         count += desk.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL WHERE id=? AND status='suspended'",
                                  (jid,)).rowcount
+    # 5.6.44 (F09) : reprise avant acquittement de la pause — la demande d'arrêt posée par la pause est retirée ; un travail encore actif
+    # continue, et un travail interrompu entre-temps est remis en file par le worker (pas de second clic).
+    stopping = desk.db.execute("SELECT id,matter_ref,stop_reason FROM jobs WHERE status='cancel_requested' AND stop_reason IN ('pause','pause_dossier')").fetchall()
+    for r in stopping:
+        if (matter is None or r['matter_ref'] == matter) and str(r['matter_ref'] or '') not in paused_matters:
+            desk.db.execute("UPDATE jobs SET status='running',stop_reason=NULL WHERE id=? AND status='cancel_requested' AND stop_reason=?",
+                            (r['id'], r['stop_reason']))
     desk.db.commit()
     return count
 
@@ -228,7 +257,8 @@ def cancel_descendants(desk, job_id):
         cancelled += desk.db.execute(
             "UPDATE jobs SET status='cancelled',finished=?,result=? WHERE parent_job_id=? AND status IN ('pending','suspended')",
             (stamp, json.dumps({'message': 'Annulé avec le travail parent.'}), parent)).rowcount
-        stopping += desk.db.execute("UPDATE jobs SET status='cancel_requested' WHERE parent_job_id=? AND status='running'", (parent,)).rowcount
+        stopping += desk.db.execute("UPDATE jobs SET status='cancel_requested',stop_reason='parent' WHERE parent_job_id=? AND "
+                                    "(status='running' OR (status='cancel_requested' AND stop_reason IN ('pause','pause_dossier')))", (parent,)).rowcount
         todo.extend(children)
     desk.db.commit()
     return cancelled, stopping
@@ -261,9 +291,9 @@ def reason_to_stop(state_dir=None, job=None):
     if not state_dir:
         return ''
     if job and job.get('job_id'):
-        status = _job_status(state_dir, job['job_id'])
-        if status in ('cancel_requested', 'cancelled'):
-            return 'operation_annulee'
+        code = job_stop_code(state_dir, job['job_id'])
+        if code:
+            return code
     paused, matters = _read(state_dir)
     if paused:
         return 'ia_en_pause'
@@ -279,34 +309,52 @@ def before_model_call(cfg):
 
 
 # ---------------------------------------------------------------- appel au modèle interruptible
+def _close(sock):
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    try:
+        sock.close()
+    except OSError:
+        pass
+
+
 class _Slot:
+    """Transport d'un seul appel au modèle. 5.6.44 (audit F01) : la socket est retenue dès la connexion, car urllib détache
+    ``conn.sock`` une fois les en-têtes reçus alors que le corps est encore lu sur cette même socket."""
     def __init__(self):
         self.conn = None
+        self.sock = None
+        self.stopped = False
         self.lock = threading.Lock()
+
+    def attach(self, conn):
+        with self.lock:
+            self.conn, self.sock = conn, getattr(conn, 'sock', None)
+            stopped = self.stopped
+        if stopped and self.sock is not None:   # arrêt demandé avant l'ouverture : la connexion est refermée aussitôt
+            _close(self.sock)
 
     def abort(self):
         with self.lock:
-            conn = self.conn
-        sock = getattr(conn, 'sock', None) if conn is not None else None
+            self.stopped = True
+            sock = self.sock or (getattr(self.conn, 'sock', None) if self.conn is not None else None)
         if sock is None:
             return False
-        try:
-            sock.shutdown(socket.SHUT_RDWR)
-        except OSError:
-            pass
-        try:
-            sock.close()
-        except OSError:
-            pass
+        _close(sock)
         return True
+
+    def release(self):
+        with self.lock:
+            self.conn = self.sock = None
 
 
 def register_connection(conn):
     """Appelé par le transport HTTP à l'ouverture d'une connexion : rend l'appel du modèle de ce fil interruptible."""
     slot = getattr(_local, 'slot', None)
     if slot is not None:
-        with slot.lock:
-            slot.conn = conn
+        slot.attach(conn)
 
 
 def interruptible(call, cfg=None, poll=POLL_SECONDS):
@@ -325,6 +373,7 @@ def interruptible(call, cfg=None, poll=POLL_SECONDS):
             box['error'] = error
         finally:
             _local.slot = None
+            slot.release()
 
     worker = threading.Thread(target=run, name='axiorhub-inference-%s' % job['job_id'], daemon=True)
     worker.start()
@@ -351,8 +400,11 @@ def interruptible(call, cfg=None, poll=POLL_SECONDS):
 
 def _note(job, reason, closed, still_alive):
     """Trace l'interruption (sans contenu) dans le journal d'activité du travail."""
-    state = ('transport fermé' if closed else 'transport non encore ouvert') + (
-        ' ; calcul peut-être encore actif chez le fournisseur' if still_alive or not closed else '')
+    # 5.6.44 (F01) : distinguer demande d'arrêt, transport fermé et fin constatée de l'appel ; la fermeture du transport ne prouve
+    # pas que le fournisseur a cessé son calcul.
+    state = ('transport fermé' if closed else 'arrêt demandé avant l’ouverture du transport') + (
+        ' ; appel encore en cours de fermeture' if still_alive else ' ; appel terminé côté AxiorHub') + (
+        ' ; arrêt du calcul chez le fournisseur non confirmé' if closed else '')
     path = Path(job['state_dir']) / 'desk.sqlite3'
     try:
         db = sqlite3.connect(str(path), timeout=5)

@@ -48,10 +48,10 @@ def blocked_for_config(config, mid=''):
         raise Stop('controle_pause_indisponible') from None
     finally:
         db.close()
-    from .arret5643 import current_job, _job_status   # 5.6.43 (§ 16) : l'arrêt du travail en cours est aussi relu avant chaque effet
+    from .arret5643 import current_job, job_stop_code   # 5.6.43 (§ 16) : l'arrêt du travail en cours est aussi relu avant chaque effet
     job = current_job()
-    if job and job.get('job_id') and _job_status(job.get('state_dir') or config['state_dir'], job['job_id']) in ('cancel_requested', 'cancelled'):
-        return 'operation_annulee'
+    if job and job.get('job_id'):
+        return job_stop_code(job.get('state_dir') or config['state_dir'], job['job_id'])   # 5.6.44 (F09) : pause ≠ annulation
     return ''
 
 
@@ -123,9 +123,13 @@ def checkpoint(desk):
     jid = getattr(desk, 'active_job_id', None)
     if not jid:
         return
-    row = desk.db.execute('SELECT kind,status,priority,args FROM jobs WHERE id=?', (jid,)).fetchone()
-    if not row or row['status'] in ('cancel_requested', 'cancelled'):
+    from .arret5643 import stop_code
+    row = desk.db.execute('SELECT kind,status,priority,args,stop_reason FROM jobs WHERE id=?', (jid,)).fetchone()
+    if not row:
         raise Stop('operation_annulee')
+    code = stop_code(row['status'], row['stop_reason'])   # 5.6.44 (F09) : une demande d'arrêt de la pause suspend, elle n'annule pas
+    if code:
+        raise Stop(code)
     full = desk.db.execute('SELECT * FROM jobs WHERE id=?', (jid,)).fetchone()
     check_running(desk, full, json.loads(row['args'] or '{}'))
 

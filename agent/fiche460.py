@@ -174,6 +174,7 @@ def build_fiche(desk, mid, today=None):
     except Stop:
         pass
     fiche['parties'] = parties
+    from . import dossier5644
     for field, kind, key in (('jurisdiction', 'jurisdiction', 'jurisdiction'), ('case_number', 'case_number', 'rg')):
         best = _best(records, kind)
         if best:
@@ -183,6 +184,7 @@ def build_fiche(desk, mid, today=None):
             fiche[field] = ({'id': '', 'value': derived[0], 'title': derived[0], 'status': 'derived', 'status_label': STATUS_LABELS['derived'],
                              'confidence': 'medium', 'sources': [{'label': PurePosixPath(derived[1]).name, 'href': doc_href(derived[1], mid), 'excerpt': ''}],
                              'validated': False, 'event_date': ''} if derived else None)
+        fiche[field] = dossier5644.single(desk, mid, kind, fiche[field])   # 5.6.44 : corrections de l'avocat (supprimée, corrigée, saisie)
     from . import echeances450 as ech
     ech.ensure_schema(desk)
     upcoming = [d for d in ech.listing(desk, mid) if d['due']]

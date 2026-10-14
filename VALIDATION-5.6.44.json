@@ -1,0 +1,34 @@
+{
+  "version": "5.6.44",
+  "base": "5.6.43 publiée",
+  "date_utc": "2026-10-14T00:00:00+00:00",
+  "cahier_des_charges": "Audit « AxiorHub Pilote 5.6.43 » (F01 à F10) et demandes de l’avocat du 14 octobre 2026 (démarrage tolérant au verrou de la base, test d’affichage de Talk, corrections dans la page du dossier) — CONFORMITE-5.6.44.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2164,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 89,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5644.py : Regressions (les dix contre-tests de l’audit, F01 à F10, repris tels quels), Variantes (recettes des fiches : arrêt avant connexion, appels simultanés, PJ seule, exception allow/deny, commande manuelle, UIDVALIDITY, dossier en pause, pause, sélection du mandat, exclusion, double clic, état affiché, versions des dérivés, régénération, courses de reprise, pause puis arrêt), DemarrageVerrou, TalkRegleNavigateurs, CorrectionsDuDossier.",
+  "preview": "Aperçu à données fictives (port 8907) : parties en double fusionnées dans la carte Synthèse, « Corriger », suppression enregistrée puis « Supprimé(s) par l’avocat (1) » avec « Rétablir ».",
+  "exapp": {
+    "version": "0.1.3",
+    "moteur": "5.6.44",
+    "essais": "contrôles du dépôt ; image construite par la recette GitHub après publication du tag v5.6.44 du moteur ; installation par HaRP non essayée ici"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "not_verified_here": [
+    "coupure d’un appel Ollama réel",
+    "classement sur le serveur IMAP réel du cabinet",
+    "redémarrage des services pendant une écriture longue sur le serveur du cabinet",
+    "affichage de Talk depuis le Nextcloud réel",
+    "installation de l’ExApp par HaRP"
+  ],
+  "adjusted_tests": []
+}

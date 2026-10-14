@@ -183,13 +183,19 @@ def ensure_schema(desk):
     CREATE INDEX IF NOT EXISTS ecosystem_events_status_v380 ON ecosystem_events_v380(status,created);
     ''')
     stamp=desk.now()
+    # 5.6.44 : écriture seulement si une définition fournie manque ou a changé (aucun verrou d'écriture pris à chaque démarrage).
+    current={r['id']:r for r in desk.db.execute('SELECT id,name,family,version,description,steps,built_in FROM playbook_definitions_v380')}
     for item in PLAYBOOKS:
+        steps=json.dumps(item['steps'],ensure_ascii=False)
+        row=current.get(item['id'])
+        if row and (row['name'],row['family'],row['version'],row['description'],row['steps'],row['built_in'])==(item['name'],item['family'],2,item['description'],steps,1):
+            continue
         desk.db.execute('''INSERT INTO playbook_definitions_v380
           VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
           name=excluded.name,family=excluded.family,version=excluded.version,
           description=excluded.description,steps=excluded.steps,built_in=1,updated=excluded.updated''',
           (item['id'],item['name'],item['family'],2,item['description'],
-          json.dumps(item['steps'],ensure_ascii=False),1,1,stamp))
+          steps,1,1,stamp))
     evals=(
       ('action_contract','Centre d’action structuré','workflow',{'requires':['id','bucket','title','reason','action_label']}),
       ('graph_provenance','Provenance du graphe','evidence',{'source_required_for':['fact','claim','argument','evidence']}),
@@ -197,10 +203,12 @@ def ensure_schema(desk):
       ('ecosystem_boundary','Frontière des connecteurs','security',{'external_calls':'connector_only','secrets_in_payload':False}),
       ('quality_control','Contrôle indépendant','quality',{'second_model_required':True}),
     )
+    known={r[0] for r in desk.db.execute('SELECT id FROM evaluation_cases_v380')}
     for eid,name,family,spec in evals:
+        if eid in known:continue
         desk.db.execute('INSERT OR IGNORE INTO evaluation_cases_v380 VALUES(?,?,?,?,?,?)',
           (eid,name,family,json.dumps(spec,ensure_ascii=False),1,stamp))
-    desk.db.commit()
+    if desk.db.in_transaction:desk.db.commit()
 
 
 def _review_map(desk):

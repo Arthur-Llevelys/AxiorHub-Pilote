@@ -448,6 +448,16 @@ def api(env, desk, auth, prefix, name, args, method):
             message = REASONS.get(code) or explain(code, getattr(error, 'detail', None))
             return json_out({'error': code, 'message': message + (' ' + precision if precision else '')},
                             '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+    if name.startswith('m5644/'):   # 5.6.44 : corrections de l'avocat dans la page du dossier
+        from . import web5644
+        try:
+            return web5644.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
+                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5643/'):   # 5.6.43 (cahier v9, § 10-14) : courriels et pièces conservés dans le dossier client
         from . import web5643
         try:

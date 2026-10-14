@@ -90,9 +90,11 @@ def ensure_schema(desk):
         ('matter_hashes', "TEXT NOT NULL DEFAULT '[]'")):
         if name not in columns:
             desk.db.execute('ALTER TABLE hybrid_decisions_v400 ADD COLUMN '+name+' '+declaration)
-    desk.db.execute('DELETE FROM hybrid_previews_v400 WHERE expires<?',
-                    (datetime.now(timezone.utc).isoformat(),))
-    desk.db.commit()
+    stamp = datetime.now(timezone.utc).isoformat()
+    if desk.db.execute('SELECT 1 FROM hybrid_previews_v400 WHERE expires<? LIMIT 1', (stamp,)).fetchone():   # 5.6.44 : écriture si utile
+        desk.db.execute('DELETE FROM hybrid_previews_v400 WHERE expires<?', (stamp,))
+    if desk.db.in_transaction:
+        desk.db.commit()
 
 
 def _walk_count(value, names):

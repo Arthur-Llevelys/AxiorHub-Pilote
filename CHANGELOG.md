@@ -3,6 +3,33 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.44 — Démarrage tolérant au verrou, test de Talk, audit 5.6.43 (F01 à F10), corrections dans la page du dossier
+
+Audit « AxiorHub Pilote 5.6.43 » et demandes de l’avocat du 14 octobre 2026. Détail : `CONFORMITE-5.6.44.md`.
+
+- **Démarrage tolérant au verrou de la base** : si un autre processus tient l’écriture de la base au démarrage, l’interface, le worker
+  et la veille attendent et réessaient (1, 2, 4… 15 s, jusqu’à 5 minutes, `AXIORHUB_STARTUP_WAIT`) avec une ligne claire dans le
+  journal, au lieu de s’arrêter en boucle. Les écritures faites à chaque démarrage (parcours fournis, cas d’évaluation, aperçus
+  expirés) n’ont lieu que si quelque chose a changé : un démarrage sans changement n’écrit rien.
+- **« Tester l’affichage » de Talk** : règle des navigateurs — la directive `frame-ancestors` l’emporte sur `X-Frame-Options` ;
+  l’intégration n’est jugée possible que si chaque politique reçue autorise l’adresse d’AxiorHub vue par le navigateur.
+- **Page du dossier** : chaque partie, la juridiction et le numéro de RG proposés par l’IA se corrigent (« Corriger »), se suppriment
+  ou s’ajoutent ; corrections historisées et annulables (« Rétablir », « Annuler ma correction ») ; une proposition supprimée ou
+  corrigée est refusée et n’est plus réutilisée dans les rédactions ; doublons évidents de parties fusionnés (même nom suivi d’une
+  adresse ou d’une précision entre parenthèses).
+- **Audit 5.6.43** :
+  - F01 : l’arrêt ferme la connexion exacte de l’appel au modèle, même après réception des en-têtes ; plus de promesse
+    « dans la seconde » ;
+  - F02 : un courriel sans pièce jointe reste conservé quand les deux règles sont actives ;
+  - F03 : les travaux de classement portent leur dossier (pause du dossier) ; travaux existants rattachés une fois ;
+  - F04 : autorisation et pause du dossier relues avant chaque dépôt automatique ;
+  - F05 : progression persistante de la boîte (au-delà des 30 derniers messages), messages différés repris ;
+  - F06 : mandat « Confier ce classement à l’IA » durable, avec sa sélection exacte, repris après la pause ;
+  - F07 : un classement annulé peut être relancé ; état affiché aligné sur le travail ;
+  - F08 : lecture et manifeste versionnés (`lecture.v2.md`…), aucune version vérifiée remplacée ;
+  - F09 : la pause suspend un travail actif (reprenable), sans second clic si la reprise intervient pendant l’interruption ;
+  - F10 : « Arrêter » pendant une pause devient une annulation définitive.
+
 ## 5.6.43 — Pause et arrêt fiables, courriels du cabinet, classement des courriels, agendas séparés, Talk, navigation
 
 Cahier des charges « IA, courriels, agendas, ergonomie et navigation » (version 9, 14 octobre 2026). Détail : `CONFORMITE-5.6.43.md`.

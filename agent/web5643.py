@@ -70,5 +70,6 @@ def api(env, desk, auth, prefix, name, args, method):
                 out.append(desk.cancel_job(j))
             except Stop:
                 pass
+        c.reconcile(desk, link['link_id'])   # 5.6.44 (audit F07) : état du classement aligné sur celui de ses travaux
         return json_out({'link_id': link['link_id'], 'jobs': out, 'message': 'Arrêt demandé ; les fichiers déjà vérifiés restent enregistrés.'})
     raise Stop('route_inconnue')

@@ -47,7 +47,7 @@ def api(env, desk, auth, prefix, name, args, method):
     data = _post(env, auth, 12_000_000 if route.startswith(('documents/', 'corporate/import', 'grilles/import', 'office/')) else 400_000)
     if route in ('talk/enregistrer', 'talk/tester'):   # 5.6.43 (§ 22) : préférence de l'utilisateur connecté (jamais celle d'un autre)
         from . import talk5643
-        return json_out(talk5643.save(desk, owner, data) if route == 'talk/enregistrer' else talk5643.test(desk, data))
+        return json_out(talk5643.save(desk, owner, data) if route == 'talk/enregistrer' else talk5643.test(desk, data, env))
     if route == 'compte/mot-de-passe':   # 5.6.42 : identifiant et mot de passe de l'interface (administrateur)
         if role != 'administrateur':
             raise Stop('role_insuffisant')

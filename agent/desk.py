@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import sys
 import time
 
 from .common import (Stop, clean_path, digest, fold, indexable_matters,
@@ -206,6 +207,38 @@ _SCHEMA_READY = set()
 _SCHEMA_LOCK = __import__('threading').Lock()
 
 
+def _locked(error):
+    """5.6.44 : base occupée par un autre processus (verrou d'écriture SQLite), y compris derrière une erreur de migration."""
+    seen = 0
+    while error is not None and seen < 5:
+        text = str(error).lower()
+        if isinstance(error, sqlite3.OperationalError) and ('locked' in text or 'busy' in text):
+            return True
+        error, seen = error.__cause__ or error.__context__, seen + 1
+    return False
+
+
+def startup_wait():
+    """Attente maximale de la préparation du schéma quand la base est occupée : quelques minutes pour un service (interface, worker,
+    veille : AXIORHUB_STARTUP_WAIT, 300 s par défaut), moins pour une page ou une action qui attendent une réponse."""
+    from .common import _TRACKED
+    mode = getattr(_TRACKED, 'mode', '')
+    if mode == 'read':
+        return 20
+    if mode == 'write':
+        return 60
+    try:
+        return max(0, int(os.environ.get('AXIORHUB_STARTUP_WAIT', '300')))
+    except ValueError:
+        return 300
+
+
+def _startup_log(message):
+    stream = sys.stderr or sys.__stderr__
+    if stream is not None:
+        print('AxiorHub : ' + message, file=stream, flush=True)
+
+
 def _schema_key(c):
     """Base déjà préparée par CE processus (chemin + identité du fichier : une base recréée est préparée de nouveau)."""
     path = Path(c['state_dir']) / 'desk.sqlite3'
@@ -234,28 +267,63 @@ class Desk:
             if key is not None and key in _SCHEMA_READY:
                 self._open(c)
             else:
-                # 5.6.25 : création et migration du schéma sérialisées entre processus (interface, worker, veille démarrent ensemble sur
-                # un profil neuf : sans ce verrou, deux ALTER TABLE simultanés font échouer l'un des services).
-                try:
-                    handle = open(Path(c['state_dir'])/'schema.lock', 'a')
-                except OSError:
-                    handle = None
-                try:
-                    if handle is not None:
-                        fcntl.flock(handle, fcntl.LOCK_EX)
-                    self._open(c)
-                    self._prepare()
-                finally:
-                    if handle is not None:
-                        try:
-                            fcntl.flock(handle, fcntl.LOCK_UN)
-                        except OSError:
-                            pass
-                        handle.close()
+                self._prepare_waiting(c)
                 key = _schema_key(c)
                 if key is not None:
                     _SCHEMA_READY.add(key)
         self._runtime()
+
+    def _prepare_waiting(self, c):
+        """5.6.44 : si un autre processus tient l'écriture de la base, la préparation est reprise depuis le début après une attente
+        croissante (1, 2, 4… 15 s) au lieu d'arrêter le service ; chaque essai est noté dans le journal. Le verrou de fichier du
+        schéma est relâché pendant l'attente (un autre processus peut terminer sa propre préparation)."""
+        waited, delay, limit = 0.0, 1.0, startup_wait()
+        while True:
+            try:
+                self._prepare_once(c)
+                if waited:
+                    _startup_log('base de données de nouveau disponible : préparation terminée après %d s d’attente.' % waited)
+                return
+            except (sqlite3.OperationalError, Stop) as error:
+                if not _locked(error):
+                    raise
+                try:
+                    self.db.rollback()
+                except (sqlite3.Error, AttributeError):
+                    pass
+                try:
+                    self.db.close()
+                except (sqlite3.Error, AttributeError):
+                    pass
+                if waited >= limit:
+                    _startup_log('base de données toujours occupée par un autre processus après %d s ; arrêt (le service sera relancé).' % waited)
+                    raise
+                pause = min(delay, max(0.1, limit - waited))
+                _startup_log('base de données occupée par un autre processus pendant la préparation du démarrage (%s) ; nouvel essai dans '
+                             '%d s (attente cumulée %d s, au plus %d s).' % (error.__cause__ or error, max(1, round(pause)), waited, limit))
+                time.sleep(pause)
+                waited += pause
+                delay = min(delay * 2, 15.0)
+
+    def _prepare_once(self, c):
+        # 5.6.25 : création et migration du schéma sérialisées entre processus (interface, worker, veille démarrent ensemble sur
+        # un profil neuf : sans ce verrou, deux ALTER TABLE simultanés font échouer l'un des services).
+        try:
+            handle = open(Path(c['state_dir'])/'schema.lock', 'a')
+        except OSError:
+            handle = None
+        try:
+            if handle is not None:
+                fcntl.flock(handle, fcntl.LOCK_EX)
+            self._open(c)
+            self._prepare()
+        finally:
+            if handle is not None:
+                try:
+                    fcntl.flock(handle, fcntl.LOCK_UN)
+                except OSError:
+                    pass
+                handle.close()
 
     def _open(self, c):
         self.c = c
@@ -326,6 +394,12 @@ class Desk:
             self.db.execute("UPDATE jobs SET matter_ref=COALESCE(NULLIF(json_extract(args,'$.matter'),''),NULLIF(json_extract(args,'$.matter_id'),'')) "
                             "WHERE matter_ref IS NULL AND json_valid(args)")
             self.db.commit();self.setting('arret5643:matter_ref_backfill',True)
+        if not self.settings('correspondances5644:jobs_matter',False):   # 5.6.44 (audit F03) : une seule fois, puis plus aucune écriture
+            for job in self.db.execute("SELECT j.id,l.matter_id FROM jobs j JOIN mail_archive_links l ON l.id=json_extract(j.args,'$.link_id') "
+                                       "WHERE j.kind IN ('archive_correspondence5643','file_mail_attachments5643') AND j.matter_ref IS NULL "
+                                       "AND json_valid(j.args)").fetchall():
+                self.db.execute("UPDATE jobs SET matter_ref=?,args=json_set(args,'$.matter',?) WHERE id=?",(job['matter_id'],job['matter_id'],job['id']))
+            self.db.commit();self.setting('correspondances5644:jobs_matter',True)
         from .legal_memory import ensure_schema
         ensure_schema(self)
         from .metier500 import ensure_schema as ensure_metier500_schema   # 5.0.0 : tables additives
@@ -476,6 +550,11 @@ class Desk:
         try:job_id=int(job_id)
         except (TypeError,ValueError):raise Stop('operation_invalide') from None
         stamp=now()
+        # 5.6.44 (audit F10) : « Arrêter » pendant une demande d'arrêt posée par la pause devient une annulation terminale (motif « user »),
+        # sans remettre le travail en cours ; la finalisation ne le suspendra donc pas et la reprise ne le relancera pas.
+        upgraded=self.db.execute(
+            "UPDATE jobs SET stop_reason='user',result=? WHERE id=? AND status='cancel_requested' AND COALESCE(stop_reason,'')<>'user'",
+            (json.dumps({'message':'Annulation demandée par l’avocat ; la pause ne reprendra pas ce travail.'}),job_id)).rowcount
         changed=self.db.execute("""UPDATE jobs SET
             status=CASE status WHEN 'pending' THEN 'cancelled' WHEN 'suspended' THEN 'cancelled' WHEN 'running' THEN 'cancel_requested' ELSE status END,
             finished=CASE WHEN status IN ('pending','suspended') THEN ? ELSE finished END,
@@ -483,7 +562,7 @@ class Desk:
             stop_reason=CASE WHEN status IN ('pending','suspended','running') THEN 'user' ELSE stop_reason END
             WHERE id=? AND status IN ('pending','suspended','running')""",
             (stamp,json.dumps({'message':'Opération annulée avant son démarrage.'}),json.dumps({'message':'Opération suspendue annulée.'}),
-             json.dumps({'message':'Arrêt demandé ; le worker doit encore le confirmer.'}),job_id)).rowcount
+             json.dumps({'message':'Arrêt demandé ; le worker doit encore le confirmer.'}),job_id)).rowcount+upgraded
         self.db.commit()
         from .arret5643 import cancel_descendants
         cancel_descendants(self,job_id)
@@ -1142,7 +1221,13 @@ class Desk:
               WHEN status='cancel_requested' THEN ?
               ELSE ? END
             WHERE id=?""", (status,status,status,status,reason_code,now(),partial,status,json.dumps(result),partial,json.dumps(result),row['id']))
-        actual=self.db.execute('SELECT status,result FROM jobs WHERE id=?',(row['id'],)).fetchone()
+        actual=self.db.execute('SELECT status,result,stop_reason,matter_ref FROM jobs WHERE id=?',(row['id'],)).fetchone()
+        if actual['status']=='suspended' and actual['stop_reason'] in ('pause','pause_dossier'):
+            # 5.6.44 (F09) : la reprise a pu intervenir pendant l'interruption ; sans pause en vigueur, le travail repart sans second clic.
+            from .pause5629 import is_paused
+            if not self.settings('missions567:pause',False) and not (actual['matter_ref'] and is_paused(self,actual['matter_ref'])):
+                self.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL WHERE id=? AND status='suspended'",(row['id'],))
+                actual=self.db.execute('SELECT status,result FROM jobs WHERE id=?',(row['id'],)).fetchone()
         status=actual['status'];result=json.loads(actual['result'] or '{}')
         if row['kind']=='proactive34_cycle' and status!='done':
             self.db.execute("UPDATE proactive_cycles_v340 SET state='error',finished=? WHERE job_id=?",

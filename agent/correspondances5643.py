@@ -322,7 +322,7 @@ def prepare(desk, owner, data, box=None, mode='assisted', origin='user'):
     archive_id = _sha(('cabinet|%s|%s' % (account_id(desk.c), meta['raw_sha256'])).encode())
     parts = mime_parts(msg, desk.c)
     by_key = {p['key']: p for p in parts if p.get('state') == 'extraite'}
-    chosen = []
+    chosen, notices = [], []
     if 'file_attachments' in actions:
         selection = data.get('attachments_selection') or {'mode': 'all'}
         if selection.get('mode') == 'selected':
@@ -334,7 +334,11 @@ def prepare(desk, owner, data, box=None, mode='assisted', origin='user'):
         else:
             chosen = [dict(p) for p in parts if p.get('attachment') and not p.get('signature_like') and p.get('state') == 'extraite']
         if not chosen:
-            raise Stop('aucune_piece_jointe_a_enregistrer')
+            if 'archive_email' not in actions:
+                raise Stop('aucune_piece_jointe_a_enregistrer')
+            # 5.6.44 (audit F02) : l'absence de pièce n'empêche jamais la conservation du courriel demandée en même temps
+            actions = [a for a in actions if a != 'file_attachments']
+            notices.append('Aucune pièce jointe à enregistrer pour ce courriel : seul le courriel est conservé.')
     title = re.sub(r'\s+', ' ', str(data.get('title') or meta['headers']['subject'] or 'Courriel')).strip()[:200]
     corr, pieces = correspondances_dir(desk, m), nos_pieces_dir(desk, m)
     mdir = message_dir(meta, archive_id)
@@ -359,7 +363,7 @@ def prepare(desk, owner, data, box=None, mode='assisted', origin='user'):
                 'files_expected': files,
                 'parts': [{'key': p['key'], 'name': p['name'], 'display_name': p.get('display_name') or p['name'], 'type': p['type'],
                            'size': p['size'], 'sha256': p['sha256'], 'stored_name': piece_name(p)} for p in chosen],
-                'warnings': ([] if meta['direction'] in ('received', 'sent') else ['Sens du message à vérifier (en-têtes)'])}
+                'warnings': ([] if meta['direction'] in ('received', 'sent') else ['Sens du message à vérifier (en-têtes)']), 'notices': notices}
     desk.db.execute('INSERT INTO mail_archive_proposals(id,owner,version,data_json,created_at) VALUES(?,?,?,?,?)',
                     (pid, owner, 1, json.dumps(proposal, ensure_ascii=False), _now()))
     desk.db.commit()
@@ -415,12 +419,15 @@ def confirm(desk, owner, data):
         jobs = []
         for action in p['actions']:
             column, state_col = ('email_requested', 'conservation_state') if action == 'archive_email' else ('attachments_requested', 'attachments_state')
-            current = link[state_col]
+            current = _reconcile(desk, link, action)   # 5.6.44 (audit F07) : l'état du classement suit celui de son travail
             desk.db.execute('UPDATE mail_archive_links SET %s=1, resolution_json=?, version=version+1, updated_at=? WHERE id=?' % column,
                             (json.dumps(res, ensure_ascii=False), stamp, link_id))
-            if current in ('queued', 'saving', 'verifying') or (current == 'verified' and action == 'archive_email'):
-                continue   # déjà en cours ou original déjà vérifié : on rejoint
-            job = desk.enqueue(JOB_FOR[action], {'link_id': link_id, 'proposal_id': pid}, priority=0, transactional=True,
+            if current in ACTIVE_LINK_STATES:
+                continue   # travail réellement actif (en file, en cours, suspendu ou arrêt en cours de confirmation) : on le rejoint
+            if action == 'archive_email' and current == 'verified' and link['extraction_state'] == 'complete':
+                continue   # original vérifié et lecture complète : rien à refaire (une lecture partielle est régénérée, audit F08)
+            # 5.6.44 (audit F03) : le dossier confirmé est porté par le travail (pause du dossier, contrôles pendant l'exécution)
+            job = desk.enqueue(JOB_FOR[action], {'link_id': link_id, 'proposal_id': pid, 'matter': p['matter_id']}, priority=0, transactional=True,
                                origin='automatic' if p['origin'] == 'automatic' else 'user')
             desk.db.execute('UPDATE mail_archive_links SET %s=?, %s=? WHERE id=?' % (state_col, 'job_id' if action == 'archive_email' else 'attachments_job_id'),
                             ('queued', job, link_id))
@@ -446,24 +453,118 @@ def _asset(desk, link_id, kind, part_key, version=1):
                            (link_id, kind, part_key, version)).fetchone()
 
 
-def _deposit(desk, client, link, kind, usage, path, data, mime, provenance, part_key='', source_name='', content_id='', boundary=''):
+# 5.6.44 (audit F07) : états d'un classement dont le travail est réellement actif ; un état « en file » dont le travail est terminé
+# ou absent est réconcilié (annulé, erreur) pour permettre une nouvelle commande.
+ACTIVE_LINK_STATES = ('queued', 'saving', 'verifying', 'cancel_requested')
+ACTIVE_JOB_STATES = ('pending', 'running', 'suspended', 'cancel_requested')
+
+
+def _projected(desk, link, action):
+    """État affichable d'une action du classement, cohérent avec la file (sans écriture)."""
+    state_col, job_col = ('conservation_state', 'job_id') if action == 'archive_email' else ('attachments_state', 'attachments_job_id')
+    current = link[state_col]
+    if current not in ACTIVE_LINK_STATES:
+        return current
+    job = desk.db.execute('SELECT status FROM jobs WHERE id=?', (link[job_col],)).fetchone() if link[job_col] else None
+    if job and job['status'] in ACTIVE_JOB_STATES:
+        return 'cancel_requested' if job['status'] == 'cancel_requested' else current
+    if job and job['status'] == 'cancelled':
+        return 'cancelled'
+    return 'error'
+
+
+def _reconcile(desk, link, action):
+    """Écrit l'état projeté quand il diffère (appelé dans la transaction de l'appelant) ; renvoie l'état réconcilié."""
+    state_col = 'conservation_state' if action == 'archive_email' else 'attachments_state'
+    state = _projected(desk, link, action)
+    if state != link[state_col] and state in ('cancelled', 'error'):
+        desk.db.execute('UPDATE mail_archive_links SET %s=?, updated_at=? WHERE id=?' % state_col, (state, _now(), link['id']))
+    return state
+
+
+def reconcile(desk, link_id):
+    link = _link(desk, link_id)
+    for action in ACTIONS:
+        _reconcile(desk, link, action)
+    desk.db.commit()
+
+
+def _guard(desk, link, kind):
+    """5.6.44 (audit F04 et F03) : avant chaque nouvel effet d'un travail AUTOMATIQUE (frontière d'engagement), la décision actuelle
+    est relue : pause du dossier porté par le classement, autorisation effective de l'action exacte (règle générale du compte ou du
+    cabinet, exception de ce message), dossier du mandat. Une commande de l'utilisateur garde son propre mandat."""
+    jid = getattr(desk, 'active_job_id', None)
+    if not jid:
+        return
+    row = desk.db.execute('SELECT origin FROM jobs WHERE id=?', (jid,)).fetchone()
+    if not row or row['origin'] != 'automatic':
+        return
+    from .pause5629 import is_paused
+    if is_paused(desk, link['matter_id']):
+        raise Stop('agent_en_pause_sur_ce_dossier')
+    src = desk.db.execute('SELECT folder,uidvalidity,uid FROM mail_archive_sources WHERE archive_id=? AND account_id=? ORDER BY observed_at DESC',
+                          (link['archive_id'], account_id(desk.c))).fetchone()
+    if not src:
+        raise Stop('source_du_courriel_absente')
+    action = 'file_attachments' if kind == 'attachment' else 'archive_email'
+    eff = effective(desk, {'folder': src['folder'], 'uidvalidity': src['uidvalidity'], 'uid': src['uid']}, link['matter_id'])
+    if not eff[action]['allowed']:
+        raise Stop('autorisation_retiree')
+    if eff['matter_id'] and eff['matter_id'] != link['matter_id']:
+        raise Stop('dossier_du_mandat_modifie')
+
+
+def _versioned(path, version):
+    """Chemin de la version ``version`` d'un fichier dérivé : la version 1 garde le nom d'origine (``lecture.md``), les suivantes
+    reçoivent un suffixe (``lecture.v2.md``) ; aucune version vérifiée n'est jamais remplacée."""
+    if version <= 1:
+        return path
+    p = PurePosixPath(path)
+    return str(p.with_name('%s.v%d%s' % (p.stem, version, p.suffix)))
+
+
+def _derived(desk, client, link, kind, base_path, data, mime, provenance, part_key='', source_name='', content_id='', boundary=''):
+    """5.6.44 (audit F08) : dépôt d'un dérivé (lecture, manifeste, image) versionné. Contenu identique à la version courante vérifiée :
+    rien n'est réécrit. Contenu nouveau : nouvelle version à un nouveau chemin, déposée puis vérifiée ; la version précédente passe à
+    « remplacée » seulement après cette vérification (elle reste dans le dossier)."""
+    sha = _sha(data)
+    rows = desk.db.execute('SELECT * FROM mail_archive_assets WHERE link_id=? AND kind=? AND part_key=? ORDER BY version DESC',
+                           (link['id'], kind, part_key)).fetchall()
+    current = next((r for r in rows if r['state'] == 'verified'), None)
+    if current and current['sha256'] == sha:
+        return {'path': current['path'], 'state': 'verified', 'sha256': sha, 'rejoined': True, 'version': current['version']}
+    retry = next((r for r in rows if r['sha256'] == sha and r['state'] in ('staged', 'writing', 'uncertain')), None)
+    if retry:
+        version = retry['version']
+    else:
+        version = (rows[0]['version'] + 1) if rows else 1
+    out = _deposit(desk, client, link, kind, 'correspondances', _versioned(base_path, version), data, mime, provenance, part_key=part_key,
+                   source_name=source_name, content_id=content_id, boundary=boundary, version=version)
+    desk.db.execute("UPDATE mail_archive_assets SET state='superseded' WHERE link_id=? AND kind=? AND part_key=? AND version<>? AND state='verified'",
+                    (link['id'], kind, part_key, version))
+    desk.db.commit()
+    return {**out, 'version': version}
+
+
+def _deposit(desk, client, link, kind, usage, path, data, mime, provenance, part_key='', source_name='', content_id='', boundary='', version=1):
     """Réserve l'opération (transaction courte), contrôle l'arrêt, dépose exclusivement HORS transaction, relit et compare l'empreinte.
     Un fichier déjà présent n'est réutilisé que si ses octets sont identiques ; sinon conflit expliqué (jamais d'écrasement)."""
     from .pause5629 import checkpoint
     sha, lim = _sha(data), limits(desk.c)
-    done = _asset(desk, link['id'], kind, part_key)
+    done = _asset(desk, link['id'], kind, part_key, version)
     if done and done['state'] == 'verified' and done['sha256'] == sha:
         return {'path': done['path'], 'state': 'verified', 'sha256': sha, 'rejoined': True}
-    aid = _sha(('asset|%s|%s|%s' % (link['id'], kind, part_key)).encode())[:32]
+    aid = _sha(('asset|%s|%s|%s' % (link['id'], kind, part_key) + ('|v%d' % version if version > 1 else '')).encode())[:32]
     stamp = _now()
     desk.db.execute('INSERT OR IGNORE INTO mail_archive_assets(id,link_id,kind,destination_usage,part_key,mime_type,source_name,content_id,path,sha256,'
-                    'size_bytes,state,provenance) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (aid, link['id'], kind, usage, part_key, mime, source_name[:300], content_id[:300], path, sha, len(data), 'staged', provenance))
-    op = _sha(('op|%s|%s|%s' % (link['id'], kind, path)).encode())[:32]
+                    'size_bytes,version,state,provenance) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (aid, link['id'], kind, usage, part_key, mime, source_name[:300], content_id[:300], path, sha, len(data), version, 'staged', provenance))
+    op = _sha(('op|%s|%s|%s|%s' % (link['id'], kind, path, sha)).encode())[:32]   # 5.6.44 : version (chemin) et empreinte dans l'identifiant
     desk.db.execute('INSERT OR IGNORE INTO mail_archive_operations(id,request_key,link_id,phase,destination,expected_sha256,state,created_at,updated_at) '
                     'VALUES(?,?,?,?,?,?,?,?,?)', (op, link['id'], link['id'], kind + ':' + part_key, path, sha, 'prepared', stamp, stamp))
     desk.db.commit()
     checkpoint(desk)   # frontière d'engagement : un arrêt demandé avant ce point empêche l'écriture
+    _guard(desk, link, kind)   # 5.6.44 : autorisation et pause du dossier relues avant la création des dossiers et le dépôt
     desk.db.execute("UPDATE mail_archive_operations SET state='started',updated_at=? WHERE id=?", (_now(), op))
     desk.db.execute("UPDATE mail_archive_assets SET state='writing' WHERE id=?", (aid,))
     desk.db.commit()
@@ -532,6 +633,22 @@ def _recapture(desk, link, box=None):
     return raw, msg, meta
 
 
+# 5.6.44 : interruptions qui arrêtent un travail de conservation sans être des échecs du dépôt
+INTERRUPTIONS = frozenset({'operation_annulee', 'ia_en_pause', 'automatismes_en_pause', 'agent_en_pause_sur_ce_dossier', 'dossier_en_pause',
+                           'controle_pause_indisponible', 'autorisation_retiree', 'dossier_du_mandat_modifie'})
+
+
+def _failed_state(error):
+    code = str(error)
+    if code == 'operation_annulee' or code in ('autorisation_retiree', 'dossier_du_mandat_modifie'):
+        return 'cancelled'
+    if code in INTERRUPTIONS:
+        return 'queued'   # pause : le travail est suspendu puis repris ; le classement reste en file
+    if code == 'relecture_depot_impossible':
+        return 'uncertain'
+    return 'error'
+
+
 def run_archive_email(desk, args, box=None, client=None):
     """Travail déterministe : original vérifié, puis dérivés ; l'échec d'un dérivé laisse visible l'état réel de l'original."""
     link = _link(desk, args.get('link_id'))
@@ -547,8 +664,7 @@ def run_archive_email(desk, args, box=None, client=None):
         _deposit(desk, client, link, 'original', 'correspondances', mdir + '/original.eml', raw['raw'], 'message/rfc822', 'mail_original',
                  boundary=paths['matter_root'])
     except Stop as ex:
-        state = 'cancelled' if str(ex) == 'operation_annulee' else ('uncertain' if str(ex) == 'relecture_depot_impossible' else 'error')
-        _set(desk, link['id'], conservation_state=state)
+        _set(desk, link['id'], conservation_state=_failed_state(ex))
         raise
     _set(desk, link['id'], conservation_state='verified')
     extraction = 'complete'
@@ -557,23 +673,25 @@ def run_archive_email(desk, args, box=None, client=None):
         pieces = {a['part_key']: a['path'] for a in desk.db.execute(
             "SELECT part_key,path FROM mail_archive_assets WHERE link_id=? AND kind='attachment' AND state='verified'", (link['id'],))}
         text, partial = reading_md(meta, msg, parts, pieces)
-        _deposit(desk, client, link, 'reading', 'correspondances', mdir + '/lecture.md', text.encode('utf-8'), 'text/markdown; charset=utf-8',
+        _derived(desk, client, link, 'reading', mdir + '/lecture.md', text.encode('utf-8'), 'text/markdown; charset=utf-8',
                  'mail_extraction', boundary=paths['matter_root'])
         for p in parts:
             if p.get('inline_image') and p.get('state') == 'extraite' and p['data']:
-                _deposit(desk, client, link, 'inline_image', 'correspondances', mdir + '/images/' + image_name(p), p['data'], p['type'],
+                _derived(desk, client, link, 'inline_image', mdir + '/images/' + image_name(p), p['data'], p['type'],
                          'mail_extraction', part_key=p['key'], source_name=p['name'], content_id=p['cid'], boundary=paths['matter_root'])
+        created = desk.db.execute('SELECT created_at FROM mail_archives WHERE id=?', (link['archive_id'],)).fetchone()
         manifest = {'format': 'axiorhub-correspondance/1', 'extraction_version': EXTRACTION_VERSION, 'archive_id': link['archive_id'],
                     'matter_id': link['matter_id'], 'raw_sha256': meta['raw_sha256'], 'raw_size': meta['raw_size'], 'headers': meta['headers'],
                     'internaldate': meta['internaldate'], 'direction': meta['direction'],
                     'source': {k: meta['source'][k] for k in ('folder', 'uidvalidity', 'uid')},
                     'parts': [{k: p.get(k) for k in ('key', 'type', 'name', 'cid', 'size', 'sha256', 'state', 'reason')} for p in parts],
-                    'nos_pieces': pieces, 'reading': {'partial': partial}, 'created_at': _now()}
-        _deposit(desk, client, link, 'manifest', 'correspondances', mdir + '/metadata.json',
+                    'nos_pieces': pieces, 'reading': {'partial': partial},
+                    'created_at': created['created_at'] if created else link['created_at']}   # date stable : contenu identique = fichier identique
+        _derived(desk, client, link, 'manifest', mdir + '/metadata.json',
                  json.dumps(manifest, ensure_ascii=False, indent=1).encode('utf-8'), 'application/json', 'mail_extraction', boundary=paths['matter_root'])
         extraction = 'partial' if partial else 'complete'
     except Stop as ex:
-        if str(ex) == 'operation_annulee':
+        if str(ex) in INTERRUPTIONS:
             _set(desk, link['id'], extraction_state='partial')
             raise
         extraction = 'partial'
@@ -591,8 +709,8 @@ def run_file_attachments(desk, args, box=None, client=None):
     _set(desk, link['id'], attachments_state='saving')
     try:
         raw, msg, meta = _recapture(desk, link, box)   # lecture temporaire : elle ne vaut pas conservation du courriel
-    except Stop:
-        _set(desk, link['id'], attachments_state='error')
+    except Stop as ex:
+        _set(desk, link['id'], attachments_state=_failed_state(ex))
         raise
     parts = {p['key']: p for p in mime_parts(msg, desk.c) if p.get('state') == 'extraite'}
     client = client or _client(desk)
@@ -611,8 +729,8 @@ def run_file_attachments(desk, args, box=None, client=None):
             files.append({'part_key': item['key'], 'name': item['stored_name'], 'state': 'verified', 'sha256': out['sha256'], 'path': out['path']})
             ok += 1
         except Stop as ex:
-            if str(ex) == 'operation_annulee':
-                _set(desk, link['id'], attachments_state='cancelled' if not ok else 'partial')
+            if str(ex) in INTERRUPTIONS:   # arrêt, pause ou autorisation retirée : rien d'autre n'est déposé
+                _set(desk, link['id'], attachments_state=('partial' if ok and _failed_state(ex) != 'queued' else _failed_state(ex)))
                 raise
             files.append({'part_key': item['key'], 'name': item['stored_name'], 'state': 'error', 'error': str(ex)[:80]})
             failed += 1
@@ -641,6 +759,7 @@ def status(desk, link_id):
     original = next((dict(a) for a in assets if a['kind'] == 'original' and a['state'] == 'verified'), None)
     pieces = [dict(a) for a in assets if a['kind'] == 'attachment']
     selected = len(json.loads(link['resolution_json']).get('parts', []))
+    link = {**dict(link), 'conservation_state': _projected(desk, link, 'archive_email'), 'attachments_state': _projected(desk, link, 'file_attachments')}
     return {'link_id': link['id'], 'archive_id': link['archive_id'], 'matter_id': link['matter_id'], 'title': link['title'],
             'email_requested': bool(link['email_requested']), 'attachments_requested': bool(link['attachments_requested']),
             'conservation_state': link['conservation_state'], 'attachments_state': link['attachments_state'],
@@ -685,7 +804,8 @@ def detail(desk, link_id, client=None):
     """Lecture SANS IMAP : la version de lecture archivée et les métadonnées ; les notes du cabinet restent séparées du message."""
     st = status(desk, link_id)
     client = client or _client(desk)
-    reading = desk.db.execute("SELECT path FROM mail_archive_assets WHERE link_id=? AND kind='reading' AND state='verified'", (st['link_id'],)).fetchone()
+    reading = desk.db.execute("SELECT path FROM mail_archive_assets WHERE link_id=? AND kind='reading' AND state='verified' ORDER BY version DESC",
+                              (st['link_id'],)).fetchone()
     text = ''
     if reading:
         try:
@@ -797,6 +917,16 @@ def get_message_rule(desk, source):
             'version': row['version'], 'updated_by': row['updated_by'], 'updated_at': row['updated_at']}
 
 
+def _selection(data):
+    """Sélection des pièces d'un mandat : « toutes » (pièces ordinaires) ou la liste exacte des parties choisies."""
+    sel = data.get('attachments_selection') if isinstance(data.get('attachments_selection'), dict) else {}
+    if sel.get('mode') == 'selected':
+        parts = [{'part_key': str(x.get('part_key') or x.get('key') or '')[:80], 'display_name': str(x.get('display_name') or '')[:120]}
+                 for x in (sel.get('parts') or []) if isinstance(x, dict)][:200]
+        return {'mode': 'selected', 'parts': parts}
+    return {'mode': 'all', 'parts': []}
+
+
 def set_message_rule(desk, owner, data):
     """Exception pour CE SEUL message (localisateur complet) ; jamais étendue au fil, à l'expéditeur ni aux prochains courriels."""
     source = _source(data)
@@ -815,10 +945,20 @@ def set_message_rule(desk, owner, data):
     if matter:
         _matter(desk, matter)
     stamp = _now()
+    sel = _selection(data)
     desk.db.execute('INSERT OR REPLACE INTO mail_filing_message_rules(scope_id,account_id,folder,uidvalidity,uid,email_override,attachments_override,'
-                    'matter_id,confirmed_by,confirmed_at,version,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    'matter_id,confirmed_by,confirmed_at,attachments_selection,selected_parts_json,version,updated_by,updated_at) '
+                    'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                     ('cabinet', account_id(desk.c), source['folder'], source['uidvalidity'], source['uid'], values['email_override'],
-                     values['attachments_override'], matter, owner if matter else None, stamp if matter else None, current['version'] + 1, owner, stamp))
+                     values['attachments_override'], matter, owner if matter else None, stamp if matter else None, sel['mode'],
+                     json.dumps(sel['parts'], ensure_ascii=False), current['version'] + 1, owner, stamp))
+    # 5.6.44 (F06) : un mandat qui attendait le dossier le reçoit ; un mandat dont une action est maintenant exclue est retiré
+    mandate = _mandate(desk, source)
+    if mandate and mandate['state'] in ('pending', 'waiting_matter'):
+        acts = [a for a in json.loads(mandate['actions_json']) if values['email_override' if a == 'archive_email' else 'attachments_override'] != 'deny']
+        state = ('cancelled' if not acts else ('pending' if matter else 'waiting_matter'))
+        desk.db.execute('UPDATE mail_filing_mandates SET matter_id=?, actions_json=?, state=?, version=version+1, updated_at=? WHERE id=?',
+                        (matter, json.dumps(acts), state, stamp, mandate['id']))
     desk.db.commit()
     return {**get_message_rule(desk, source), 'effective': effective(desk, source)}
 
@@ -860,6 +1000,51 @@ def message_state(desk, uid, folder, box=None):
 
 
 # ------------------------------------------------------------------------------------------------ automatique (nouveaux messages)
+DEFERRED_MAX = 500
+
+
+def _cursor_key(desk, folder):
+    return 'correspondances5644:curseur:%s:%s' % (account_id(desk.c), folder)
+
+
+def _mandate(desk, source):
+    return desk.db.execute('SELECT * FROM mail_filing_mandates WHERE scope_id=? AND account_id=? AND folder=? AND uidvalidity=? AND uid=?',
+                           ('cabinet', account_id(desk.c), source['folder'], source['uidvalidity'], source['uid'])).fetchone()
+
+
+def _run_mandates(desk, box, limit):
+    """5.6.44 (audit F06) : mandats explicites en attente (reprise de l'IA, dossier choisi), indépendants de la borne des nouveaux
+    messages ; chacun est revérifié (autorisation actuelle, dossier en pause) puis exécuté une seule fois avec sa sélection exacte."""
+    from .pause5629 import is_paused
+    queued = 0
+    rows = desk.db.execute("SELECT * FROM mail_filing_mandates WHERE state='pending' AND account_id=? ORDER BY created_at LIMIT ?",
+                           (account_id(desk.c), int(limit))).fetchall()
+    for m in rows:
+        if not m['matter_id'] or is_paused(desk, m['matter_id']):
+            continue
+        source = {'folder': m['folder'], 'uid': m['uid'], 'uidvalidity': m['uidvalidity']}
+        eff = effective(desk, source, m['matter_id'])
+        actions = [a for a in json.loads(m['actions_json']) if a in ACTIONS and eff[a]['allowed']]
+        if not actions:
+            desk.db.execute("UPDATE mail_filing_mandates SET state='cancelled', error_code='autorisation_retiree', updated_at=? WHERE id=?", (_now(), m['id']))
+            desk.db.commit()
+            continue
+        try:
+            prop = prepare(desk, m['owner'], {'source': source, 'matter_id': m['matter_id'], 'actions': actions,
+                                              'attachments_selection': json.loads(m['selection_json'] or '{}')}, box, mode='assisted', origin='automatic')
+            out = confirm(desk, m['owner'], {'proposal_id': prop['proposal_id'], 'expected_version': 1, 'request_key': 'mandat-%s-%d' % (m['id'][:40], m['version'])})
+        except Stop as ex:
+            if str(ex) in ('automatismes_en_pause', 'ia_en_pause', 'agent_en_pause_sur_ce_dossier', 'controle_pause_indisponible'):
+                continue   # reste en attente
+            desk.db.execute("UPDATE mail_filing_mandates SET state='error', error_code=?, updated_at=? WHERE id=?", (str(ex)[:80], _now(), m['id']))
+            desk.db.commit()
+            continue
+        desk.db.execute("UPDATE mail_filing_mandates SET state='done', link_id=?, error_code='', updated_at=? WHERE id=?", (out['link_id'], _now(), m['id']))
+        desk.db.commit()
+        queued += 1
+    return queued
+
+
 def auto_tick(desk, box=None, limit=30):
     """Classement automatique sur rattachement confirmé : nouveaux messages seulement (depuis la prise d'effet), messages reçus d'un
     correspondant validé d'UN seul dossier ou dossier confirmé pour ce message ; listes, messages du cabinet et dossiers en pause exclus.
@@ -867,50 +1052,94 @@ def auto_tick(desk, box=None, limit=30):
     general = get_policy(desk, 'account')
     cabinet = get_policy(desk, 'cabinet')
     any_rule = desk.db.execute("SELECT 1 FROM mail_filing_message_rules WHERE email_override='allow' OR attachments_override='allow' LIMIT 1").fetchone()
-    if not (general['email_auto'] or general['attachments_auto'] or cabinet['email_auto'] or cabinet['attachments_auto'] or any_rule):
+    mandates = desk.db.execute("SELECT 1 FROM mail_filing_mandates WHERE state='pending' LIMIT 1").fetchone()
+    if not (general['email_auto'] or general['attachments_auto'] or cabinet['email_auto'] or cabinet['attachments_auto'] or any_rule or mandates):
         return {'examined': 0, 'queued': 0}
+    if desk.settings('missions567:pause', False):
+        return {'examined': 0, 'queued': 0, 'paused': True}   # rien n'est consommé pendant la pause : la progression reprend ensuite
     since = min(x for x in (general['effective_from'], cabinet['effective_from'], _now()) if x)
     own = box is None
     box = box or _box(desk)
     examined = queued = 0
+    folder = desk.c['mail'].get('inbox', 'INBOX')
+    key = _cursor_key(desk, folder)
+    cursor = desk.settings(key, {}) or {}
+    before = json.dumps(cursor, sort_keys=True)
     try:
-        folder = desk.c['mail'].get('inbox', 'INBOX')
+        queued += _run_mandates(desk, box, limit)
         day = datetime.fromisoformat(since.replace('Z', '+00:00')).strftime('%d-%b-%Y')
-        for uid in box.search(folder, 'SINCE', day, 'UNDELETED')[-int(limit):]:
+        found = sorted({str(u) for u in box.search(folder, 'SINCE', day, 'UNDELETED') if str(u).isdigit()}, key=int)
+        deferred = {k: v for k, v in (cursor.get('deferred') or {}).items() if k in found}
+        last = int(cursor.get('last_uid') or 0)
+        now = _now()
+        # 5.6.44 (audit F05) : progression persistante par compte et boîte (UID croissants) ; les messages différés (erreur, dossier
+        # en pause ou à préciser) sont repris plus tard sans bloquer les suivants ; la limite porte sur les messages examinés.
+        retry = [u for u in sorted(deferred, key=int) if deferred[u].get('next', '') <= now][:max(1, int(limit) // 3)]
+        fresh = [u for u in found if int(u) > last and u not in deferred]
+        for uid in (retry + fresh)[:int(limit)]:
             examined += 1
-            try:
-                head = box.fetch(folder, uid, headers_only=True)
-            except Stop:
-                continue
-            if head.timestamp.isoformat() < since or head.msg.get('List-Id') or head.msg.get('List-Unsubscribe'):
-                continue
-            from .sens5643 import direction
-            if direction(head, desk.c['mail']) != 'received':
-                continue   # message du cabinet ou interne : jamais classé automatiquement
-            source = {'folder': folder, 'uid': str(uid), 'uidvalidity': head.uidvalidity}
-            eff = effective(desk, source, confirmed_matter(desk, head.sender))
-            actions = [a for a in ACTIONS if eff[a]['allowed']]
-            if not actions or not eff['matter_id']:
-                continue
-            from .pause5629 import is_paused
-            if is_paused(desk, eff['matter_id']):
-                continue
-            done = links_for_source(desk, folder, uid, head.uidvalidity)
-            actions = [a for a in actions if not any(l['matter_id'] == eff['matter_id'] and
-                                                     (l['email_requested'] if a == 'archive_email' else l['attachments_requested']) for l in done)]
-            if not actions:
-                continue
-            try:
-                prop = prepare(desk, 'cabinet', {'source': source, 'matter_id': eff['matter_id'], 'actions': actions}, box,
-                               mode='automatic_confirmed', origin='automatic')
-                confirm(desk, 'cabinet', {'proposal_id': prop['proposal_id'], 'expected_version': 1, 'request_key': 'auto-' + prop['archive_id'][:40]})
+            outcome = _auto_one(desk, box, folder, uid, since, cursor)
+            if uid in fresh:
+                last = max(last, int(uid))
+            if outcome == 'queued':
                 queued += 1
-            except Stop:
-                continue   # message inéligible (pas de pièce, taille, pause…) : il reste en proposition
+            if outcome in ('queued', 'skipped'):
+                deferred.pop(uid, None)
+            elif outcome:
+                entry = deferred.get(uid) or {'attempts': 0}
+                hours = 6 if outcome == 'dossier_a_preciser' else min(24, 1 + entry['attempts'])
+                deferred[uid] = {'reason': outcome, 'attempts': entry['attempts'] + 1,
+                                 'next': datetime.fromtimestamp(datetime.now(timezone.utc).timestamp() + hours * 3600, timezone.utc).isoformat()}
+        if len(deferred) > DEFERRED_MAX:
+            deferred = dict(sorted(deferred.items(), key=lambda kv: int(kv[0]))[-DEFERRED_MAX:])
+        cursor.update({'last_uid': last, 'deferred': deferred})
     finally:
         if own:
             box.close()
-    return {'examined': examined, 'queued': queued}
+        if json.dumps(cursor, sort_keys=True) != before:
+            desk.setting(key, cursor)
+    return {'examined': examined, 'queued': queued, 'deferred': len(cursor.get('deferred') or {})}
+
+
+def _auto_one(desk, box, folder, uid, since, cursor):
+    """Un message de la progression : 'queued', 'skipped' (inéligible, définitif) ou un motif de report."""
+    try:
+        head = box.fetch(folder, uid, headers_only=True)
+    except Stop:
+        return 'lecture_impossible'
+    if cursor.get('uidvalidity') and str(head.uidvalidity) != str(cursor['uidvalidity']):
+        cursor.update({'uidvalidity': str(head.uidvalidity), 'last_uid': 0, 'deferred': {}})   # boîte renumérotée : parcours repris
+        return 'boite_renumerotee'
+    cursor['uidvalidity'] = str(head.uidvalidity)
+    if head.timestamp.isoformat() < since or head.msg.get('List-Id') or head.msg.get('List-Unsubscribe'):
+        return 'skipped'
+    from .sens5643 import direction
+    if direction(head, desk.c['mail']) != 'received':
+        return 'skipped'   # message du cabinet ou interne : jamais classé automatiquement
+    source = {'folder': folder, 'uid': str(uid), 'uidvalidity': head.uidvalidity}
+    eff = effective(desk, source, confirmed_matter(desk, head.sender))
+    actions = [a for a in ACTIONS if eff[a]['allowed']]
+    if not actions:
+        return 'skipped'
+    if not eff['matter_id']:
+        return 'dossier_a_preciser'
+    from .pause5629 import is_paused
+    if is_paused(desk, eff['matter_id']):
+        return 'dossier_en_pause'
+    done = links_for_source(desk, folder, uid, head.uidvalidity)
+    actions = [a for a in actions if not any(l['matter_id'] == eff['matter_id'] and
+                                             (l['email_requested'] if a == 'archive_email' else l['attachments_requested']) for l in done)]
+    if not actions:
+        return 'skipped'   # déjà demandé (y compris annulé par l'avocat : jamais recréé automatiquement)
+    try:
+        prop = prepare(desk, 'cabinet', {'source': source, 'matter_id': eff['matter_id'], 'actions': actions}, box,
+                       mode='automatic_confirmed', origin='automatic')
+        confirm(desk, 'cabinet', {'proposal_id': prop['proposal_id'], 'expected_version': 1, 'request_key': 'auto-' + prop['archive_id'][:40]})
+    except Stop as ex:
+        if str(ex) in ('aucune_piece_jointe_a_enregistrer', 'message_trop_volumineux_pour_conservation', 'action_de_classement_a_choisir'):
+            return 'skipped'
+        return str(ex)[:60] or 'erreur'
+    return 'queued'
 
 
 def entrust(desk, owner, data, box=None):
@@ -921,23 +1150,44 @@ def entrust(desk, owner, data, box=None):
     if not actions:
         raise Stop('action_de_classement_a_choisir')
     source = _source(data)
-    rule = get_message_rule(desk, source) if source.get('uidvalidity') else {'version': 0}
+    if not source['uidvalidity']:
+        raise Stop('uidvalidity_requise')
+    matter = str(data.get('matter_id') or '')
+    if matter:
+        _matter(desk, matter)
+    rule = get_message_rule(desk, source)
+    sel = _selection(data)
+    # 5.6.44 (audit F06) : mandat durable pour CE message, avec ses seules actions cochées et sa sélection exacte de pièces
+    stamp, previous = _now(), _mandate(desk, source)
+    mid = previous['id'] if previous else secrets.token_hex(16)
+    desk.db.execute('INSERT OR REPLACE INTO mail_filing_mandates(id,scope_id,account_id,folder,uidvalidity,uid,matter_id,actions_json,selection_json,'
+                    'owner,state,error_code,link_id,version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (mid, 'cabinet', account_id(desk.c), source['folder'], source['uidvalidity'], source['uid'], matter, json.dumps(actions),
+                     json.dumps(sel, ensure_ascii=False), owner, 'pending' if matter else 'waiting_matter', '', None,
+                     (previous['version'] + 1) if previous else 1, previous['created_at'] if previous else stamp, stamp))
+    desk.db.commit()
     set_message_rule(desk, owner, {**source, 'expected_version': rule['version'],
-                                   'email_override': 'allow' if 'archive_email' in actions else 'inherit',
-                                   'attachments_override': 'allow' if 'file_attachments' in actions else 'inherit',
-                                   'matter_id': str(data.get('matter_id') or '')})
-    if not data.get('matter_id'):
-        return {'state': 'en_attente_du_dossier', 'message': 'Mandat enregistré pour ce courriel — en attente du choix du dossier.'}
-    if desk.settings('missions567:pause', False):
-        return {'state': 'en_attente_reprise', 'message': 'Mandat enregistré pour ce courriel ; il sera exécuté à la reprise de l’IA.'}
-    prop = prepare(desk, owner, {'source': source, 'matter_id': data['matter_id'], 'actions': actions,
-                                 'attachments_selection': data.get('attachments_selection')}, box, mode='assisted', origin='automatic')
-    out = confirm(desk, owner, {'proposal_id': prop['proposal_id'], 'expected_version': 1, 'request_key': 'mandat-' + prop['archive_id'][:40]})
+                                   'email_override': 'allow' if 'archive_email' in actions else rule['email_override'],
+                                   'attachments_override': 'allow' if 'file_attachments' in actions else rule['attachments_override'],
+                                   'matter_id': matter, 'attachments_selection': sel})
+    if not matter:
+        return {'state': 'en_attente_du_dossier', 'mandate_id': mid, 'message': 'Mandat enregistré pour ce courriel — en attente du choix du dossier.'}
+    from .pause5629 import is_paused
+    if desk.settings('missions567:pause', False) or is_paused(desk, matter):
+        return {'state': 'en_attente_reprise', 'mandate_id': mid, 'message': 'Mandat enregistré pour ce courriel ; il sera exécuté à la reprise de l’IA.'}
+    prop = prepare(desk, owner, {'source': source, 'matter_id': matter, 'actions': actions, 'attachments_selection': sel}, box,
+                   mode='assisted', origin='automatic')
+    m = _mandate(desk, source)
+    out = confirm(desk, owner, {'proposal_id': prop['proposal_id'], 'expected_version': 1, 'request_key': 'mandat-%s-%d' % (mid[:40], m['version'])})
+    desk.db.execute("UPDATE mail_filing_mandates SET state='done', link_id=?, updated_at=? WHERE id=?", (out['link_id'], _now(), mid))
+    desk.db.commit()
+    out['mandate_id'] = mid
     out['message'] = 'Classement confié pour ce seul courriel ; les fichiers sont vérifiés après dépôt.'
     return out
 
 
-SECONDARY = re.compile(r'/\d{4}-\d{2}/\d{4}-\d{2}-\d{2}_\d{6}-[a-z]+-[^/]*--[0-9a-f]{8}/(?:original\.eml|metadata\.json|images/[^/]+)$')
+SECONDARY = re.compile(r'/\d{4}-\d{2}/\d{4}-\d{2}-\d{2}_\d{6}-[a-z]+-[^/]*--[0-9a-f]{8}/'
+                       r'(?:original\.eml|metadata(?:\.v\d+)?\.json|lecture\.v\d+\.md|images/[^/]+)$')   # 5.6.44 : versions de dérivés
 
 
 def secondary_representation(path):

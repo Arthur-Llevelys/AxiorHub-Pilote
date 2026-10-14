@@ -259,6 +259,8 @@ def rubrique(desk, mid, key):
                              'status_label': 'Corrigé par l’avocat' if edit else ('Client du cabinet' if p.get('client_du_cabinet') else 'Fiche de travail'),
                              'confidence': 'high', 'sources': [{'label': 'Fiche de travail v%d' % fiche['version'], 'href': '/dossier?id=' + mid, 'excerpt': ''}],
                              'validated': bool(edit), 'type': 'party'} for p in rows]
+            from . import dossier5644   # 5.6.44 : corrections de l'avocat et doublons fusionnés
+            out['items'] = dossier5644.apply(desk, mid, 'parties', out['items'])
             out['refused'] = 0
             out['state'] = 'present'
             out['analysis'] = st
@@ -274,18 +276,23 @@ def rubrique(desk, mid, key):
             items.insert(0, {'id': '', 'value': m['client_name'], 'title': m['client_name'], 'status': 'configured', 'status_label': 'Configuration du dossier', 'confidence': 'high',
                              'sources': [{'label': 'Configuration du dossier', 'href': '', 'excerpt': ''}], 'validated': True, 'type': 'party'})
         brief = _brief(desk, mid)
+        from .dossier5644 import head
         for p in ((brief or {}).get('data') or {}).get('parties', []) or []:
-            if isinstance(p, str) and not any(p.lower() in str(i.get('value', '')).lower() for i in items):
+            if isinstance(p, str) and not any(p.lower() in str(i.get('value', '')).lower() or (head(p) and head(p) == head(i.get('value')))
+                                              for i in items):
                 items.append({'id': '', 'value': p, 'title': p, 'status': 'derived', 'status_label': 'Synthèse (non validé)', 'confidence': 'medium', 'sources': [{'label': 'Synthèse v%s' % brief['version'], 'href': '', 'excerpt': ''}], 'validated': False, 'type': 'party'})
-        out['items'] = items
+        from . import dossier5644   # 5.6.44 : corrections de l'avocat et doublons fusionnés
+        out['items'] = dossier5644.apply(desk, mid, 'parties', items)
         out['refused'] = len([r for r in refused if r['record_type'] == 'party'])
     elif key == 'procedure':
         from . import echeances450 as ech
         ech.ensure_schema(desk)
+        from . import dossier5644
         for kind in ('jurisdiction', 'case_number'):
             best = fiche460._best(records, kind)
-            if best:
-                out['items'].append({'kind': kind, 'label': 'Juridiction' if kind == 'jurisdiction' else 'Numéro de RG', **_fact_view(desk, mid, best)})
+            shown = dossier5644.single(desk, mid, kind, _fact_view(desk, mid, best) if best else None)   # 5.6.44 : corrections de l'avocat
+            if shown:
+                out['items'].append({'kind': kind, 'label': 'Juridiction' if kind == 'jurisdiction' else 'Numéro de RG', **shown})
         acts = [_fact_view(desk, mid, r) for r in active if r['record_type'] in ('completed_action', 'deadline', 'planned_action')]
         acts.sort(key=lambda x: x.get('event_date') or '', reverse=True)
         out['actes'] = acts
@@ -447,11 +454,19 @@ def render(desk, prefix, mid, key, data):
         head += '<p class="fc-muted"><span class="fc-badge warn">périmée</span> Sources ou faits modifiés depuis la dernière synthèse : relancez l’analyse.</p>'
     body = head
     if key == 'parties':
-        body += '<ul class="fc-list">%s</ul>' % (''.join(_fact_li(prefix, x) for x in data['items']) or '<li class="fc-empty">Aucune partie connue : lancez l’analyse ou validez les faits proposés.</li>')
+        from . import dossier5644   # 5.6.44 : chaque partie se corrige ou se supprime ; une partie manquante s'ajoute
+        body += '<ul class="fc-list">%s</ul>' % (''.join(_fact_li(prefix, x)[:-5] + dossier5644.editor_html(mid, 'parties', x) + '</li>' for x in data['items'])
+                                                 or '<li class="fc-empty">Aucune partie connue : lancez l’analyse ou validez les faits proposés.</li>')
+        body += dossier5644.add_html(mid, 'parties') + dossier5644.removed_html(desk, mid, 'parties')
         if data.get('refused'):
             body += '<p class="fc-muted">%d partie(s) refusée(s) par l’avocat : non réutilisées.</p>' % data['refused']
     elif key == 'procedure':
-        body += '<ul class="fc-list">%s</ul>' % (''.join('<li><span class="fc-type">%s</span> ' % e(x['label']) + _fact_li(prefix, x)[4:] for x in data['items']) or '<li class="fc-empty">Juridiction et numéro de RG non renseignés : aucune pièce ne les mentionne encore.</li>')
+        from . import dossier5644
+        body += '<ul class="fc-list">%s</ul>' % (''.join('<li><span class="fc-type">%s</span> ' % e(x['label']) + _fact_li(prefix, x)[4:-5] + dossier5644.editor_html(mid, x['kind'], x) + '</li>'
+                                                         for x in data['items']) or '<li class="fc-empty">Juridiction et numéro de RG non renseignés : aucune pièce ne les mentionne encore.</li>')
+        shown = {x['kind'] for x in data['items']}
+        body += ''.join(dossier5644.add_html(mid, k) for k in ('jurisdiction', 'case_number') if k not in shown)
+        body += dossier5644.removed_html(desk, mid, 'jurisdiction') + dossier5644.removed_html(desk, mid, 'case_number')
         if data.get('profil'):
             body += '<p>Profil procédural retenu par les missions : <strong>%s</strong> (mission %s).</p>' % (e(data['profil']['id']), e(data['profil']['mission_state']))
         body += '<h3>Actes de procédure</h3><ul class="fc-list">%s</ul>' % (''.join(_fact_li(prefix, x) for x in data.get('actes', [])) or '<li class="fc-empty">Aucun acte enregistré dans les faits validés ou proposés.</li>')

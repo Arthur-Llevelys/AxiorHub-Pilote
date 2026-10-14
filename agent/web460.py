@@ -97,8 +97,11 @@ def fiche_page(desk, auth, prefix, args, shell):
     f = fiche460.build_fiche(desk, mid)
     synth = dossier5624.rubrique(desk, mid, 'synthese')
     q = urlencode({'matter': mid})
-    parties = ''.join('<li><strong>%s</strong> %s<br>%s</li>' % (e(p['value']), _badge(p['status'], p['status_label'], p['confidence']), _sources(prefix, p['sources']))
+    from . import dossier5644   # 5.6.44 : supprimer, modifier ou ajouter les informations proposées par l'IA
+    parties = ''.join('<li><strong>%s</strong> %s<br>%s%s</li>' % (e(p['value']), _badge(p['status'], p['status_label'], p['confidence']), _sources(prefix, p['sources']),
+                                                                 dossier5644.editor_html(mid, 'parties', p))
                       for p in f['parties']) or '<li class="fc-empty">Aucune partie connue.</li>'
+    parties += '</ul>' + dossier5644.add_html(mid, 'parties') + dossier5644.removed_html(desk, mid, 'parties') + '<ul class="fc-list">'
     nd = f['next_deadline']
     if nd:
         when = 'aujourd’hui' if nd['days'] == 0 else ('dépassée de %d j' % -nd['days'] if nd['days'] < 0 else 'dans %d j' % nd['days'])
@@ -126,11 +129,17 @@ def fiche_page(desk, auth, prefix, args, shell):
         '<section class="ax-card"><h2>Points en attente</h2><ul class="fc-list">%s</ul></section>'
         '<section class="ax-card"><h2>Pièces récentes</h2><ul class="fc-list">%s</ul><h2>Brouillons</h2><ul class="fc-list">%s</ul></section>'
         '</div>%s%s'
-    ) % (_entry(prefix, f['jurisdiction'], 'Non renseignée : aucune pièce ne la mentionne encore.'),
-         _entry(prefix, f['case_number'], 'Non renseigné : aucune pièce ne le mentionne encore.'),
+    ) % (_entry(prefix, f['jurisdiction'], 'Non renseignée : aucune pièce ne la mentionne encore.') + _fix(desk, mid, 'jurisdiction', f['jurisdiction']),
+         _entry(prefix, f['case_number'], 'Non renseigné : aucune pièce ne le mentionne encore.') + _fix(desk, mid, 'case_number', f['case_number']),
          parties, deadline, act(f['last_received'], 'Aucun acte ou courriel reçu enregistré.'), act(f['last_sent'], 'Aucun courriel envoyé enregistré.'),
          pend, docs, drafts, dossier5624.synthese_html(prefix, mid, synth), facts_section(f, mid, prefix, page))
     return shell('Fiche · ' + f['matter']['label'], body, prefix, auth['csrf'], '/dossiers', _head(prefix))
+
+
+def _fix(desk, mid, section, item):
+    """5.6.44 : commandes de correction d'une information unique (juridiction, RG) sous sa carte."""
+    from . import dossier5644
+    return (dossier5644.editor_html(mid, section, item) if item else dossier5644.add_html(mid, section)) + dossier5644.removed_html(desk, mid, section)
 
 
 def _top(desk, prefix, mid, label, onglet, analysis):
