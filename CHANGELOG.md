@@ -3,6 +3,17 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.45 — Correctif : le worker survit à une base occupée
+
+Journal du serveur du 14 octobre 2026 (installation de la 5.6.44, 17:07:52) : le worker s’est arrêté sur « database is locked » au
+début d’un tour de sa boucle (`work_once`), hors de la préparation du démarrage protégée en 5.6.44.
+
+- La boucle du worker annule sa transaction, écrit « base de données occupée par un autre processus (worker N…) ; nouvel essai dans
+  N s » dans le journal, attend (3 s, puis jusqu’à 60 s) et reprend, au lieu de s’arrêter ; un travail resté « en cours » par cette
+  interruption est rendu à la file (ou signalé s’il ne peut pas être rejoué sans risque).
+- La reprise des travaux interrompus au démarrage du worker attend elle aussi que la base soit libérée.
+- Toute autre erreur de base reste remontée (le service est relancé par systemd et l’erreur reste visible).
+
 ## 5.6.44 — Démarrage tolérant au verrou, test de Talk, audit 5.6.43 (F01 à F10), corrections dans la page du dossier
 
 Audit « AxiorHub Pilote 5.6.43 » et demandes de l’avocat du 14 octobre 2026. Détail : `CONFORMITE-5.6.44.md`.

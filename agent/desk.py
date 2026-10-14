@@ -1325,6 +1325,34 @@ class Desk:
         return True
 
 
+def _after_lock(desk,worker_id):
+    """Après une interruption par verrou : transaction annulée, travail actif oublié puis rendu à la file s'il est resté « en cours »."""
+    try:desk.db.rollback()
+    except sqlite3.Error:pass
+    if getattr(desk,'active_job_id',None):
+        desk.active_job_id=None
+        try:
+            from .queue567 import recover
+            recover(desk,worker_id)
+        except (sqlite3.Error,Stop):
+            try:desk.db.rollback()
+            except sqlite3.Error:pass
+
+
+def _patient(desk,action,label,limit):
+    """Exécute ``action`` en attendant (au plus ``limit`` secondes) que la base soit libérée par un autre processus."""
+    waited,pause=0.0,1.0
+    while True:
+        try:
+            return action()
+        except (sqlite3.OperationalError,Stop) as error:
+            if not _locked(error) or waited>=limit:raise
+            try:desk.db.rollback()
+            except sqlite3.Error:pass
+            _startup_log('base de données occupée par un autre processus (%s) ; nouvel essai dans %d s.'%(label,max(1,round(pause))))
+            time.sleep(pause);waited+=pause;pause=min(pause*2,15.0)
+
+
 def worker(c,worker_id='1'):
     # Multiple atomic claimers; mutating producers still share run.lock.
     import threading
@@ -1335,7 +1363,7 @@ def worker(c,worker_id='1'):
         desk=Desk(c)
         desk.worker_id=str(worker_id)
         from .queue567 import recover
-        recover(desk,worker_id)
+        _patient(desk,lambda:recover(desk,worker_id),'reprise des travaux interrompus',startup_wait())
         stop=threading.Event()
         def pulse():
             db=sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3',timeout=10)
@@ -1348,16 +1376,28 @@ def worker(c,worker_id='1'):
                     stop.wait(10)
             finally:db.close()
         threading.Thread(target=pulse,daemon=True).start()
+        pause=3.0
         while True:
-            if c.get('_path'):
-                desk.c=load_config(c['_path'])
-                from .ai_gateway import load_runtime_settings
-                load_runtime_settings(desk)
-                from .extensions364 import load_runtime_settings as load_extensions
-                load_extensions(desk)
-            from .operations import automation_tick
             try:
-                if str(worker_id)=='1':automation_tick(desk)
-            except Stop:pass
-            desk.work_once()
+                if c.get('_path'):
+                    desk.c=load_config(c['_path'])
+                    from .ai_gateway import load_runtime_settings
+                    load_runtime_settings(desk)
+                    from .extensions364 import load_runtime_settings as load_extensions
+                    load_extensions(desk)
+                from .operations import automation_tick
+                try:
+                    if str(worker_id)=='1':automation_tick(desk)
+                except Stop:pass
+                desk.work_once()
+                pause=3.0
+            except (sqlite3.OperationalError,Stop) as error:
+                # 5.6.45 : base occupée par un autre processus (installation, sauvegarde, écriture longue) : le worker attend et reprend
+                # au lieu de s'arrêter ; un travail resté « en cours » par cette interruption est récupéré.
+                if not _locked(error):raise
+                _after_lock(desk,worker_id)
+                _startup_log('base de données occupée par un autre processus (worker %s, %s) ; nouvel essai dans %d s.'%(worker_id,error.__cause__ or error,pause))
+                time.sleep(pause)
+                pause=min(pause*2,60.0)
+                continue
             time.sleep(3)

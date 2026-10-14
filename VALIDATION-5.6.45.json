@@ -1,0 +1,28 @@
+{
+  "version": "5.6.45",
+  "base": "5.6.44 publiée",
+  "date_utc": "2026-10-14T00:00:00+00:00",
+  "cahier_des_charges": "Correctif demandé après le journal du serveur du 14 octobre 2026 (worker arrêté sur « database is locked » dans sa boucle pendant l’installation de la 5.6.44).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2168,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 90,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5645.py : WorkerBaseOccupee (verrou pendant la boucle : attente croissante puis reprise ; travail resté en cours rendu à la file ; autre erreur SQLite toujours remontée).",
+  "exapp": {
+    "version": "0.1.4",
+    "moteur": "5.6.45"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "not_verified_here": [
+    "installation sur le serveur du cabinet pendant une écriture longue"
+  ],
+  "adjusted_tests": []
+}
