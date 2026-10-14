@@ -1,0 +1,28 @@
+{
+  "version": "5.6.47",
+  "base": "5.6.46 publiée",
+  "date_utc": "2026-10-14T00:00:00+00:00",
+  "cahier_des_charges": "Correctif après le signalement du 14 octobre 2026 : « Délai dépassé — étape : génération (/api/chat) » lors de la préparation de la fiche d’un dossier de 202 pièces.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2182,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 92,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5647.py : GenerationEnFlux (génération plus longue que le délai menée à terme ; modèle muet arrêté au délai ; plafond global ; le modèle local demande le flux).",
+  "exapp": {
+    "version": "0.1.6",
+    "moteur": "5.6.47"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "not_verified_here": [
+    "préparation de la fiche du dossier de 202 pièces avec le modèle Ollama du cabinet"
+  ],
+  "adjusted_tests": []
+}

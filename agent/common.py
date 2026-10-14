@@ -235,7 +235,69 @@ class HTTP:
         except OSError:
             raise Stop('connexion_http_indisponible') from None
 
+    STREAM_MAX_SECONDS = 1800   # plafond d'une génération en flux (le délai ordinaire porte sur le silence entre deux morceaux)
+
+    def _chat_stream(self, url, data):
+        """5.6.47 : Ollama /api/chat en flux (lignes JSON). Le délai ``timeout`` s'applique à chaque attente de données ; la génération
+        entière est bornée par ``STREAM_MAX_SECONDS``. Le résultat a la forme d'une réponse non fluide (message, done, compteurs)."""
+        import time as _time
+        release_before_network(urllib.parse.urlsplit(url).netloc)
+        p = urllib.parse.urlsplit(url)
+        if (p.scheme, p.netloc) != self.origin or p.username or p.password or p.fragment:
+            raise Stop('origine_http_refusee')
+        req = urllib.request.Request(url, data=json.dumps(data).encode(), method='POST',
+                                     headers={**self.headers, 'Content-Type': 'application/json'})
+        parts, thinking, calls, final, size = [], [], [], None, 0
+        deadline = _time.monotonic() + max(float(self.timeout), float(self.STREAM_MAX_SECONDS))
+        try:
+            with self.opener.open(req, timeout=self.timeout) as r:
+                self.last_headers = {k: v for k, v in r.headers.items()}
+                while True:
+                    line = r.readline(2_000_001)
+                    if not line:
+                        break
+                    size += len(line)
+                    if size > 8_000_000 or len(line) > 2_000_000:
+                        raise Stop('reponse_trop_volumineuse')
+                    if _time.monotonic() > deadline:
+                        raise Stop('delai_http_depasse')
+                    if not line.strip():
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except (ValueError, UnicodeError):
+                        raise Stop('json_http_invalide') from None
+                    if obj.get('error'):
+                        raise Stop('generation_ia_incomplete')
+                    message = obj.get('message') or {}
+                    if message.get('content'):
+                        parts.append(message['content'])
+                    if message.get('thinking'):
+                        thinking.append(message['thinking'])
+                    if message.get('tool_calls'):
+                        calls.extend(message['tool_calls'])
+                    if obj.get('done') is True:
+                        final = obj
+                        break
+        except urllib.error.HTTPError as e:
+            from .erreurs5634 import http_error
+            raise http_error(e.code, 'POST', url) from None
+        except TimeoutError:
+            raise Stop('delai_http_depasse') from None
+        except urllib.error.URLError as error:
+            if isinstance(error.reason, TimeoutError):
+                raise Stop('delai_http_depasse') from None
+            raise Stop('connexion_http_indisponible') from None
+        except OSError:
+            raise Stop('connexion_http_indisponible') from None
+        out = dict(final or {'done': False, 'done_reason': 'flux_interrompu'})
+        out['message'] = {'role': 'assistant', 'content': ''.join(parts), **({'thinking': ''.join(thinking)} if thinking else {}),
+                          **({'tool_calls': calls} if calls else {})}
+        return out
+
     def json(self, method, path, data=None):
+        if method == 'POST' and path.endswith('/api/chat') and isinstance(data, dict) and data.get('stream') is True:
+            return self._chat_stream(self.base + path, data)   # 5.6.47 : génération locale en flux
         raw = self.request(method, self.base + path,
                            None if data is None else json.dumps(data).encode(),
                            {'Content-Type': 'application/json'}, 2_000_000)

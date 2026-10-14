@@ -5494,5 +5494,10 @@
 "Indiquez le texte exact à enregistrer.": "Geben Sie den genauen zu speichernden Text an.",
 "Texte trop long (# caractères au plus).": "Text zu lang (höchstens # Zeichen).",
 "Cette partie vient de la configuration du dossier : modifiez-la dans la configuration des dossiers.": "Diese Partei stammt aus der Konfiguration der Akte: Ändern Sie sie in der Aktenkonfiguration.",
-"Cette correction n’existe plus ou a déjà été annulée : rechargez la page.": "Diese Korrektur existiert nicht mehr oder wurde bereits rückgängig gemacht: Laden Sie die Seite neu."
+"Cette correction n’existe plus ou a déjà été annulée : rechargez la page.": "Diese Korrektur existiert nicht mehr oder wurde bereits rückgängig gemacht: Laden Sie die Seite neu.",
+"Pause entre deux paragraphes lus (millisecondes, # à # ; # = une respiration)": "Pause zwischen zwei vorgelesenen Absätzen (Millisekunden, # bis #; # = ein Atemzug)",
+"Pause entre paragraphes propre à une langue (une par ligne, par exemple fr=# ou en=#)": "Pause zwischen Absätzen je Sprache (eine pro Zeile, zum Beispiel fr=# oder en=#)",
+"Rechercher un dossier (nom, client, numéro)": "Akte suchen (Name, Mandant, Nummer)",
+"Rechercher un dossier": "Akte suchen",
+"# dossier(s)": "# Akte(n)"
 }

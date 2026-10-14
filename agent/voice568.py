@@ -172,6 +172,18 @@ def _cached_wav(raw,provider):
     return _wav(raw)
 
 
+def paragraph_pause_ms(cfg,lang='fr'):
+    """5.6.47 : pause entre deux paragraphes lus (ms) : valeur de la langue si elle est réglée, sinon valeur générale (500 par défaut)."""
+    speech=(cfg or {}).get('speech568') or {}
+    for line in speech.get('paragraph_pause_by_language') or []:
+        code,_,value=str(line).partition('=')
+        if code.strip().lower()[:2]==str(lang or 'fr').lower()[:2]:
+            try:return max(0,min(3000,int(value.strip())))
+            except ValueError:break
+    try:return max(0,min(3000,int(speech.get('paragraph_pause_ms',500))))
+    except (TypeError,ValueError):return 500
+
+
 def speech(desk,text,owner='cabinet',matter=''):
     try:return synthesize(desk,text,owner,matter)
     except Stop as exc:

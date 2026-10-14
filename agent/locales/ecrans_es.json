@@ -5494,5 +5494,10 @@
 "Indiquez le texte exact à enregistrer.": "Indique el texto exacto que se debe guardar.",
 "Texte trop long (# caractères au plus).": "Texto demasiado largo (# caracteres como máximo).",
 "Cette partie vient de la configuration du dossier : modifiez-la dans la configuration des dossiers.": "Esta parte procede de la configuración del expediente: modifíquela en la configuración de los expedientes.",
-"Cette correction n’existe plus ou a déjà été annulée : rechargez la page.": "Esta corrección ya no existe o ya se ha deshecho: recargue la página."
+"Cette correction n’existe plus ou a déjà été annulée : rechargez la page.": "Esta corrección ya no existe o ya se ha deshecho: recargue la página.",
+"Pause entre deux paragraphes lus (millisecondes, # à # ; # = une respiration)": "Pausa entre dos párrafos leídos (milisegundos, de # a #; # = una respiración)",
+"Pause entre paragraphes propre à une langue (une par ligne, par exemple fr=# ou en=#)": "Pausa entre párrafos propia de un idioma (una por línea, por ejemplo fr=# o en=#)",
+"Rechercher un dossier (nom, client, numéro)": "Buscar un expediente (nombre, cliente, número)",
+"Rechercher un dossier": "Buscar un expediente",
+"# dossier(s)": "# expediente(s)"
 }

@@ -874,7 +874,8 @@ class Model:
             if estimated+int(max_tokens)>num_ctx-256:raise Stop('contexte_ia_insuffisant')
             options,ignored=provider_options('ollama',temperature,self.cfg.get('sampling') or {})
             options.update({'num_ctx':num_ctx,'num_predict':max_tokens})
-            req={'model':self.cfg['model'],'stream':False,'messages':messages,'options':options}
+            # 5.6.47 : en flux, le délai porte sur le silence entre deux morceaux et non sur toute la génération (longues fiches de dossier)
+            req={'model':self.cfg['model'],'stream':True,'messages':messages,'options':options}
             if json_schema is not None:req['format']=json_schema
             caps=getattr(self,'capabilities',None)
             if self.cfg.get('disable_thinking',True) and (caps is None or 'thinking' in caps):req['think']=False   # option non envoyée si non prise en charge

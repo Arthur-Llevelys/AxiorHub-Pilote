@@ -91,3 +91,7 @@
 .talk5643-bar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:0 0 .75rem}
 .talk5643-help{flex:1 1 20rem;color:var(--muted);font-size:.875rem}
 .talk5643-frame{display:block;width:100%;height:calc(100vh - 12rem);min-height:28rem;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+
+/* 5.6.47 : recherche dans les listes de dossiers */
+.ax5647-filter{display:block;width:100%;min-height:44px;margin:.25rem 0;font-size:1rem}
+.ax5647-count{display:block;font-size:.8125rem;color:var(--ax-muted,#5b6472)}

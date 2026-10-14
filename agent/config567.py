@@ -72,6 +72,8 @@ FIELDS = (
  ('speech568.api_key_file','Clé API TTS / ElevenLabs','secret','','Synthèse vocale'),
  ('speech568.external_allowed','Autoriser ElevenLabs sous la politique externe globale','bool',False,'Synthèse vocale'),
  ('speech568.fallback_local','Revenir à eSpeak NG si la synthèse échoue ou est refusée','bool',True,'Synthèse vocale'),
+ ('speech568.paragraph_pause_ms','Pause entre deux paragraphes lus (millisecondes, 0 à 3000 ; 500 = une respiration)','integer',500,'Synthèse vocale'),
+ ('speech568.paragraph_pause_by_language','Pause entre paragraphes propre à une langue (une par ligne, par exemple fr=500 ou en=400)','lines',[],'Synthèse vocale'),
  ('speech568.usd_per_1000_chars','Prix plafond en USD pour 1 000 caractères','money',0,'Synthèse vocale'),
  ('speech568.per_request_usd','Plafond USD par lecture externe','money',0,'Synthèse vocale'),
  ('speech568.monthly_usd','Budget mensuel vocal externe USD, partagé au cabinet','money',0,'Synthèse vocale'),
@@ -232,7 +234,7 @@ def _validate(kind,value,key):
         try:
             if isinstance(value,bool):raise ValueError()
             n=int(value)
-            lo,hi=(1,65535) if kind=='port' else ((2048,262144) if key=='ollama.num_ctx' else (1,90 if key=='reception.retention_days' else (100 if key.endswith('max_pages') else 300)))
+            lo,hi=(1,65535) if kind=='port' else ((2048,262144) if key=='ollama.num_ctx' else ((0,3000) if key=='speech568.paragraph_pause_ms' else (1,90 if key=='reception.retention_days' else (100 if key.endswith('max_pages') else 300))))
             if not lo<=n<=hi:raise ValueError()
             return n
         except (TypeError,ValueError):raise Stop('reglage_nombre_invalide') from None

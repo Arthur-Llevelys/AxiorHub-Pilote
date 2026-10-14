@@ -106,7 +106,9 @@ def create(desk, owner, data):
 def form_html(prefix, day, matters):
     """Formulaire « Ajouter un événement » (agendas chargés pour l'utilisateur connecté par v5625.js)."""
     from html import escape as e
-    options = ''.join('<option value="%s">%s</option>' % (e(m['id'], quote=True), e(m.get('client_name') or m['id'])) for m in matters[:400])
+    from .common import matter_display   # 5.6.47 : nom complet du dossier (le seul nom du client ne permettait pas de le retrouver)
+    options = ''.join('<option value="%s">%s</option>' % (e(m['id'], quote=True), e(matter_display(m)))
+                      for m in sorted(matters, key=lambda m: matter_display(m).lower()))
     return ('<details class="ws-task-editor ag5625" id="ag5625"><summary>＋ Ajouter un événement</summary>'
             '<form class="ag5625-form" method="post" novalidate>'
             '<label>Intitulé<input name="title" required minlength="2" maxlength="250" placeholder="Rendez-vous client, audience, appel…"></label>'

@@ -5494,5 +5494,10 @@
 "Indiquez le texte exact à enregistrer.": "Enter the exact text to save.",
 "Texte trop long (# caractères au plus).": "Text too long (# characters at most).",
 "Cette partie vient de la configuration du dossier : modifiez-la dans la configuration des dossiers.": "This party comes from the case file configuration: change it in the case files configuration.",
-"Cette correction n’existe plus ou a déjà été annulée : rechargez la page.": "This correction no longer exists or was already undone: reload the page."
+"Cette correction n’existe plus ou a déjà été annulée : rechargez la page.": "This correction no longer exists or was already undone: reload the page.",
+"Pause entre deux paragraphes lus (millisecondes, # à # ; # = une respiration)": "Pause between two paragraphs read aloud (milliseconds, # to #; # = a breath)",
+"Pause entre paragraphes propre à une langue (une par ligne, par exemple fr=# ou en=#)": "Pause between paragraphs for a given language (one per line, for example fr=# or en=#)",
+"Rechercher un dossier (nom, client, numéro)": "Search a case file (name, client, number)",
+"Rechercher un dossier": "Search a case file",
+"# dossier(s)": "# case file(s)"
 }

@@ -64,7 +64,10 @@ def api(env,desk,auth,prefix,name,args,method):
         raise Stop('route_inconnue')
     if method!='POST':raise Stop('methode_refusee')
     data=check_post(env,auth)
-    if route=='speech':return {'status':'200 OK','kind':'audio/wav','body':voice568.speech(desk,data.get('text',''),owner,str(data.get('matter') or ''))}
+    if route=='speech':
+        from .i18n5631 import current as _lang
+        return {'status':'200 OK','kind':'audio/wav','body':voice568.speech(desk,data.get('text',''),owner,str(data.get('matter') or '')),
+                'headers':[('X-AxiorHub-Pause-Ms',str(voice568.paragraph_pause_ms(desk.c,_lang())))]}   # 5.6.47 : pause entre paragraphes
     if route=='speech/preview':return json_out(voice568.preview(desk,str(data.get('text') or '')[:7000],owner,str(data.get('matter') or '')))
     if route=='voice/turn':
         from .missions567 import create

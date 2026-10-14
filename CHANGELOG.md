@@ -3,6 +3,21 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.47 — Correctifs : longues générations locales, lecture vocale fluide, recherche de dossier dans l’agenda
+
+Signalement du 14 octobre 2026 : « Délai dépassé — étape : génération (/api/chat) » en préparant la fiche d’un dossier de 202 pièces.
+
+- AxiorHub demandait à Ollama la réponse entière d’un coup : le délai de 240 s portait sur toute la génération, et une fiche longue
+  dépassait ce délai alors que le modèle travaillait encore.
+- La génération locale se fait maintenant en flux : le délai porte sur le silence entre deux morceaux de réponse (un modèle qui
+  écrit n’est jamais coupé), avec un plafond de 30 minutes pour la génération entière. Un modèle qui ne répond plus reste arrêté au
+  délai, et « Pause de l’IA » ou « Arrêter » ferment toujours la connexion.
+- **Lecture vocale (Kokoro…)** : 3 à 4 s de silence entre deux paragraphes du résumé oral, le temps de synthétiser le suivant. Il est
+  désormais préparé pendant la lecture du précédent ; la pause entre paragraphes est réglable dans Paramètres › Synthèse vocale
+  (500 ms par défaut, valeur propre à chaque langue possible : `fr=500`, `en=400`…).
+- **Agenda, « Ajouter un événement »** : la liste des dossiers affiche le nom complet du dossier (et non le seul client), dans l’ordre
+  alphabétique, sans plafond de 400 ; toute liste de dossiers de plus de 12 choix reçoit une case « Rechercher un dossier ».
+
 ## 5.6.46 — Correctif : plus d’écriture de plusieurs minutes dans la base
 
 Relevé « écritures longues » du serveur du cabinet (14 octobre 2026) : deux traitements périodiques tenaient la base en écriture, ce

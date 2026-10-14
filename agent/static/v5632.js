@@ -160,20 +160,29 @@
     });
     return out;
   }
-  function speak(box, parts, i, gen) {
-    if (gen !== oral.gen) return;
-    if (i >= parts.length) { oralStop(box); $('.o5632-note', box).textContent = msg('oral_done', 'Lecture terminée.'); return; }
-    fetch(prefix + '/api440/m568/speech', { method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ text: parts[i] }) })
+  // 5.6.47 : le paragraphe suivant est synthétisé PENDANT la lecture du précédent ; entre les deux, seulement la pause réglée
+  // (Paramètres › Synthèse vocale, 500 ms par défaut) au lieu du temps de synthèse (3 à 4 s avec Kokoro).
+  function fetchPart(text) {
+    var p = fetch(prefix + '/api440/m568/speech', { method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ text: text }) })
       .then(function (r) {
         if (!r.ok) return r.json().catch(function () { return {}; }).then(function (d) { throw new Error(d.message || d.error || msg('oral_voice_error', 'Synthèse vocale indisponible.')); });
-        return r.blob();
-      }).then(function (blob) {
+        var pause = parseInt(r.headers.get('X-AxiorHub-Pause-Ms') || '500', 10);
+        return r.blob().then(function (blob) { return { blob: blob, pause: isNaN(pause) ? 500 : Math.max(0, Math.min(3000, pause)) }; });
+      });
+    p.catch(function () {});   // erreur traitée quand ce paragraphe est lu
+    return p;
+  }
+  function speak(box, parts, i, gen, pending) {
+    if (gen !== oral.gen) return;
+    if (i >= parts.length) { oralStop(box); $('.o5632-note', box).textContent = msg('oral_done', 'Lecture terminée.'); return; }
+    (pending || fetchPart(parts[i])).then(function (res) {
         if (gen !== oral.gen) return;
+        var next = i + 1 < parts.length ? fetchPart(parts[i + 1]) : null;
         if (oral.url) URL.revokeObjectURL(oral.url);
-        oral.url = URL.createObjectURL(blob);
+        oral.url = URL.createObjectURL(res.blob);
         oral.audio = new Audio(oral.url);
-        oral.audio.onended = function () { speak(box, parts, i + 1, gen); };
+        oral.audio.onended = function () { setTimeout(function () { speak(box, parts, i + 1, gen, next); }, res.pause); };
         return oral.audio.play();
       }).catch(function (e) { oralStop(box); $('.o5632-note', box).textContent = e.message; });
   }
