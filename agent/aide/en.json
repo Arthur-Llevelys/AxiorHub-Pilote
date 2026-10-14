@@ -27,7 +27,7 @@
    "Briefing du matin",
    "Tri des courriels",
    "Générer maintenant",
-   "Pause des automatismes",
+   "Pause de l’IA",
    "Écouter le briefing"
   ],
   "version": "5.6.36"
@@ -95,24 +95,25 @@
  "planning": {
   "objective": "Add, change or cancel an appointment, a hearing or a deadline in your calendar.",
   "when": "To note a hearing date, a client appointment or a procedural deadline, with its reminders.",
-  "prerequisites": "None: the calendar is saved on this computer or server. Copying to Nextcloud is optional (one-way copy, not a synchronisation).",
+  "prerequisites": "None for the personal calendar: it is stored in AxiorHub, on this computer or your server, never copied to an online calendar. For the online calendar, a Nextcloud, CalDAV or Google calendar set up in Settings › Connections.",
   "steps": [
    "Open Calendar and tasks.",
+   "Under “Agenda”, the “Online calendar” and “Personal calendar” buttons show one source or the other; your choice is kept.",
    "Open “Add an appointment, a hearing or a deadline”, fill in type, title, start, case file and reminders, then click “Save”.",
    "To change an event, open “Edit” under it, correct only what changes and click “Save the change”.",
    "To cancel, click “Cancel” (one occurrence) or “Cancel the series” (all upcoming occurrences).",
    "To find an event, type in “Search” or choose a case file."
   ],
-  "result": "The event appears under “Upcoming local calendar events” with its reminders; a cancellation stays in the history and backups.",
+  "result": "The event appears under the upcoming events of the personal calendar, with its reminders; it is not copied to any online calendar. A cancellation stays in the history and backups.",
   "verify": "Open “Import, export, back up”: “Back up now” saves the calendar; “Restore…” first shows a preview, then restores the calendar after confirmation (the current state is backed up first).",
   "errors": [
    [
-    "“Event changed in the meantime”",
+    "“Event changed meanwhile”",
     "It was changed elsewhere since the page was opened: reload it and make the change again."
    ],
    [
-    "Copy to Nextcloud to be retried",
-    "The event is saved; the copy will be retried automatically."
+    "Older events to sort out",
+    "Before 5.6.43 some events were copied to Nextcloud: choose for each one to keep it in the personal calendar only or to keep its remote copy; nothing is copied or deleted without that choice."
    ],
    [
     "Series partly imported",
@@ -1809,6 +1810,32 @@
   "buttons": [
    "Télécharger le manifeste (manifest.xml)"
   ],
+  "version": "5.6.36"
+ },
+ "talk": {
+  "objective": "Show your Nextcloud Talk app (chats and calls) inside AxiorHub.",
+  "when": "To talk with the firm or make a call without leaving AxiorHub.",
+  "prerequisites": "A configured Nextcloud connection with the Talk app installed; being signed in to Nextcloud in this browser.",
+  "steps": [
+   "Open Settings › Connections › Nextcloud Talk.",
+   "Tick “Show the Talk page”, check the suggested address and click “Save”.",
+   "Reload the page: “Talk” appears under “Calendar and tasks”.",
+   "Open Talk; “Test the display” explains any embedding refusal."
+  ],
+  "result": "Talk is shown in the page with your conversations; “Open Talk in a new tab” is always available.",
+  "verify": "The conversations shown are those of your Nextcloud account; turning the page on created no room.",
+  "errors": [
+   [
+    "Empty frame",
+    "Sign in to Nextcloud in a tab, then click “Reload”; if Nextcloud forbids embedding, open it in a tab."
+   ],
+   [
+    "Address refused",
+    "The address must be the Talk app on the same Nextcloud instance as the configured connection."
+   ]
+  ],
+  "example": "Call with a fictitious colleague from the Talk page.",
+  "buttons": [],
   "version": "5.6.36"
  }
 }

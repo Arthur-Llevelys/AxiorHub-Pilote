@@ -13,6 +13,7 @@ import unicodedata
 import weakref
 import urllib.error
 import urllib.parse
+import http.client
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -151,6 +152,31 @@ def release_before_network(what=''):
             continue
 
 
+class _TrackedHTTPConnection(http.client.HTTPConnection):
+    """5.6.43 (§ 16.3) : la connexion d'un appel au modèle est déclarée au contrôleur d'arrêt, qui peut la fermer."""
+    def connect(self):
+        super().connect()
+        from .arret5643 import register_connection
+        register_connection(self)
+
+
+class _TrackedHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self):
+        super().connect()
+        from .arret5643 import register_connection
+        register_connection(self)
+
+
+class _TrackedHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_TrackedHTTPConnection, req)
+
+
+class _TrackedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_TrackedHTTPSConnection, req, context=self._context)
+
+
 class HTTP:
     def __init__(self, base, username=None, password=None, local_only=False, timeout=45, local_hosts=()):
         p = urllib.parse.urlsplit(base)
@@ -181,8 +207,8 @@ class HTTP:
             self.headers['Authorization'] = 'Basic ' + base64.b64encode(
                 (username + ':' + password).encode()).decode()
         self.opener = urllib.request.build_opener(
-            urllib.request.ProxyHandler({}), NoRedirect(),
-            urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+            urllib.request.ProxyHandler({}), NoRedirect(), _TrackedHTTPHandler(),
+            _TrackedHTTPSHandler(context=ssl.create_default_context()))
 
     def request(self, method, url, data=None, headers=None, limit=12_000_000):
         release_before_network(urllib.parse.urlsplit(url).netloc)   # 5.6.32 : aucun verrou SQLite tenu pendant l'appel

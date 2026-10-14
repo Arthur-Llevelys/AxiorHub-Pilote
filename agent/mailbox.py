@@ -279,6 +279,30 @@ class Mailbox:
         message = BytesParser(policy=policy.default).parsebytes(raw)
         return Mail(uid, validity, folder, flags, stamp, message)
 
+    def fetch_raw(self, folder, uid, expected_validity=None, limit=50 * 1024 * 1024):
+        """5.6.43 (cahier v9, § 10.3) : octets COMPLETS d'un message pour sa conservation, tels que le serveur les donne.
+        Boîte ouverte en lecture seule, ``BODY.PEEK[]`` (le message n'est pas marqué lu) ; aucune commande STORE, MOVE ou EXPUNGE.
+        L'UIDVALIDITY doit être celle de la sélection validée : une UID réutilisée ne désigne jamais un autre message."""
+        validity = self.select(folder)
+        if expected_validity and str(expected_validity) != str(validity):
+            raise Stop('uidvalidity_modifiee')
+        status, rr = self.conn.uid('FETCH', uid, '(UID FLAGS INTERNALDATE RFC822.SIZE)')
+        meta = b' '.join(x for x in rr if isinstance(x, bytes))
+        if status != 'OK' or not meta: raise Stop('message_imap_disparu')
+        size = re.search(br'RFC822.SIZE (\d+)', meta)
+        if not size: raise Stop('taille_imap_absente')
+        if int(size[1]) > int(limit): raise Stop('message_trop_volumineux_pour_conservation')
+        date = re.search(br'INTERNALDATE "([^"]+)"', meta)
+        try:
+            internal = datetime.strptime(date[1].decode(), '%d-%b-%Y %H:%M:%S %z').isoformat() if date else ''
+        except ValueError:
+            internal = ''
+        status, data = self.conn.uid('FETCH', uid, '(BODY.PEEK[])')
+        raw = b''.join(x[1] for x in data if isinstance(x, tuple) and isinstance(x[1], bytes))
+        if status != 'OK' or not raw: raise Stop('lecture_imap_echouee')
+        return {'folder': folder, 'uidvalidity': str(validity), 'uid': str(uid), 'raw': raw, 'rfc822_size': int(size[1]),
+                'internaldate': internal, 'flags': sorted(x.decode() for x in imaplib.ParseFlags(meta)), 'complete': len(raw) == int(size[1])}
+
     def unseen(self):
         criteria = ['UNSEEN','UNDELETED']
         days = self.cfg.get('lookback_days',0)
@@ -437,6 +461,8 @@ def make_draft(mail, cfg, body, key, cc=(), to=None):
     if '\r' in cfg['from_name'] or '\n' in cfg['from_name']: raise Stop('identite_invalide')
     result = EmailMessage(policy=policy.SMTP)
     result['From'] = formataddr((cfg['from_name'], cfg['from_address']))
+    from .sens5643 import check_recipients   # 5.6.43 (§ 21.2) : garde commune, recalculée au dépôt
+    check_recipients(to or mail.sender, cc, cfg)
     result['To'] = to or mail.sender   # 5.6.28 : réponse à un message du cabinet adressée à ses destinataires
     if cc:
         if any(not re.fullmatch(r'[^\s@,;<>]+@[^\s@,;<>]+', a) for a in cc): raise Stop('copie_invalide')

@@ -16,7 +16,9 @@ MOIS = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août
 def e(value):return escape(str(value if value is not None else ''),quote=True)
 
 
-def page(desk,args,link,url,form=None):
+def page(desk,args,link,url,form=None,source='online'):
+    """5.6.43 (§ 17.4) : ``source='online'`` (Agenda en ligne, calendriers CalDAV configurés) ou ``'personal'`` (Agenda personnel)."""
+    sub='personnel' if source=='personal' else 'en_ligne'
     # 5.6.14 (U03) : semaine par défaut ; une vue choisie explicitement devient la préférence de l'utilisateur
     explicit=args.get('view','')
     if explicit in ('list','week','month'):
@@ -41,13 +43,15 @@ def page(desk,args,link,url,form=None):
     # Refresh on demand; the same view can be used during a CalDAV outage
     # with its last cached data and an explicit warning.
     warning='';configured=bool(_calendar_urls(desk))
-    try:
-        if not configured:raise Stop('aucun_calendrier_configure')
-        data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=True)
-    except (Stop,OSError,TimeoutError,ValueError,KeyError):
-        data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=False)
-        warning=('Lecture CalDAV indisponible : affichage du cache local, potentiellement incomplet.'
-                 if configured else '')   # 5.6.34 : sans CalDAV, l'agenda local fait foi (aucun avertissement trompeur)
+    if source=='personal':
+        data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=False,source='personal')
+    else:
+        try:
+            if not configured:raise Stop('aucun_calendrier_configure')
+            data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=True,source='online')
+        except (Stop,OSError,TimeoutError,ValueError,KeyError):
+            data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=False,source='online')
+            warning=('Lecture CalDAV indisponible : données en cache, potentiellement incomplètes.' if configured else '')
     events=data['events']
     by_day={}
     matters=[]
@@ -71,11 +75,12 @@ def page(desk,args,link,url,form=None):
         when=('<label>Date<input type="date" name="start" required value="'+e(start.date().isoformat())+'"></label>' if all_day else
               '<label>Début<input type="datetime-local" name="start" required value="'+e(start.strftime('%Y-%m-%dT%H:%M'))+'"></label>'
               '<label>Durée (minutes)<input type="number" name="duration_minutes" min="5" max="1440" step="5" value="'+str(minutes)+'"></label>')
-        return ('<details class="ws-task-editor"><summary>Modifier (agenda personnel)</summary>'+form('edit_personal_event','Enregistrer dans Nextcloud',{'event':event['id']},
+        return ('<details class="ws-task-editor"><summary>Modifier cet événement en ligne</summary>'+form('edit_personal_event','Enregistrer dans Nextcloud',{'event':event['id']},
             '<label>Intitulé<input name="title" required maxlength="300" value="'+e(event['title'])+'"></label>'+when)+
             '<small>Seuls l’intitulé et l’horaire sont réécrits ; rappels, participants et catégories sont conservés. Séries récurrentes non modifiables ici.</small></details>')
 
     def editor(event,start,ending):
+        if source=='personal':return ''   # l'Agenda personnel se modifie dans son panneau, jamais vers un agenda distant
         if not (writable and EVENT_UID.fullmatch(str(event.get('uid','')))):
             return personal_editor(event,start,ending)
         minutes=max(5,int((ending-start).total_seconds()//60))
@@ -105,29 +110,37 @@ def page(desk,args,link,url,form=None):
     delta=timedelta(days=7 if view=='week' else 1)
     previous=(first-delta if view=='week' else first-timedelta(days=1))
     following=(last if view=='week' else last)
-    out='<section class="ws-calendar"><h2>Événements de l’agenda</h2>'
-    if form is not None:   # 5.6.25 : ajout direct dans les agendas configurés (Nextcloud, CalDAV, Google), toujours proposé
+    if source=='personal':
+        out='<section class="ws-calendar"><h2>Agenda personnel — vue de la période</h2><p class="notice">Local, non synchronisé : événements enregistrés dans AxiorHub sur l’instance utilisée.</p>'
+    else:
+        names=', '.join(str(u).rstrip('/').rsplit('/',1)[-1] for u in _calendar_urls(desk)) or ''
+        fresh=desk.db.execute("SELECT MAX(fetched) FROM calendar_cache WHERE calendar_url<>'local:agenda'").fetchone()[0] or ''
+        out=('<section class="ws-calendar"><h2>Agenda en ligne</h2><p>'+(('Calendriers consultés : '+e(names)+(' · dernière actualisation : '+e(fresh[:16].replace('T',' '))+' (UTC)' if fresh else '')) if names else
+             'Aucun calendrier en ligne n’est configuré.')+' '+link('/planning','Actualiser',vue='agenda',agenda='en_ligne',view=view,date=day.isoformat())+'</p>')
+        if not configured:   # état vide explicite ; aucun basculement silencieux vers l'Agenda personnel
+            out+=('<p class="empty">Ajoutez un agenda Nextcloud, CalDAV ou Google dans '+link('/parametres','Paramètres › Connexions',tab='connexions')+
+                  ' pour l’afficher ici. Vos événements locaux restent dans « Agenda personnel ».</p>')
+    if form is not None and source!='personal':   # 5.6.25 : ajout direct dans les agendas configurés (Nextcloud, CalDAV, Google)
         from .agenda5625 import form_html
         out+=form_html('',day,matters)
     if form is not None:
         from .agenda520 import enabled as personal_on
         from .reminders520 import settings as reminder_settings
         rs=reminder_settings(desk)
-        out+=('<details class="ws-task-editor"><summary>Réglages : modification de mes agendas et rappels</summary>'+
-            form('set_agenda_personal_edit','Enregistrer',None,'<label><input type="checkbox" name="enabled" value="yes"'+(' checked' if personal_on(desk) else '')+
-                 '> Autoriser la modification de mes agendas et tâches personnels (titre, horaire, échéance, état ; jamais de suppression)</label>')+
+        # 5.6.43 (§ 17.4) : les rappels d'échéances valent pour les deux sous-vues ; la modification d'agendas distants, seulement en ligne
+        out+=('<details class="ws-task-editor"><summary>'+('Réglages : rappels' if source=='personal' else 'Réglages : modification de mes agendas en ligne et rappels')+'</summary>'+
+            ('' if source=='personal' else form('set_agenda_personal_edit','Enregistrer',None,'<label><input type="checkbox" name="enabled" value="yes"'+(' checked' if personal_on(desk) else '')+
+                 '> Autoriser la modification de mes agendas et tâches en ligne (titre, horaire, échéance, état ; jamais de suppression)</label>'))+
             form('save_reminders520','Enregistrer les rappels',None,
                  '<label><input type="checkbox" name="push" value="yes"'+(' checked' if rs['push'] else '')+'> Rappels d’échéances et de prescriptions par notification mobile (sans contenu)</label>'
                  '<label><input type="checkbox" name="email" value="yes"'+(' checked' if rs['email'] else '')+'> Récapitulatif déposé dans votre boîte de réception (aucun envoi)</label>')+
             '</details>')
-    if not writable and form is not None:
-        # 5.6.34 : sans calendrier de planification, les événements se créent dans l'agenda local ; la synchronisation est une option
-        out+='<p class="notice">Vos rendez-vous, audiences et échéances s’enregistrent dans l’agenda local (« Mon agenda » ci-dessus). '
-        out+='La synchronisation avec un calendrier Nextcloud ou Google est facultative : Paramètres › Guide d’installation › Agenda.</p>'
     out+='<nav class="ws-calendar-nav" aria-label="Vues de l’agenda">'+''.join(
-        '<a '+('aria-current="page" ' if view==v else '')+'href="'+e(url('/planning',vue='agenda',view=v,date=day.isoformat()))+'">'+label+'</a>'
+        '<a '+('aria-current="page" ' if view==v else '')+'href="'+e(url('/planning',vue='agenda',agenda=sub,view=v,date=day.isoformat()))+'">'+label+'</a>'
         for v,label in [('list','Liste'),('week','Semaine'),('month','Mois')])+'</nav>'
-    out+='<div class="ws-calendar-nav">'+link('/planning','← Précédent',vue='agenda',view=view,date=previous.isoformat())+'<strong>'+e(first.strftime('%d/%m/%Y'))+' – '+e((last-timedelta(days=1)).strftime('%d/%m/%Y'))+'</strong>'+link('/planning','Suivant →',vue='agenda',view=view,date=following.isoformat())+'</div>'
+    out+=('<div class="ws-calendar-nav">'+link('/planning','← Précédent',vue='agenda',agenda=sub,view=view,date=previous.isoformat())+'<strong>'+
+          e(first.strftime('%d/%m/%Y'))+' – '+e((last-timedelta(days=1)).strftime('%d/%m/%Y'))+'</strong>'+
+          link('/planning','Suivant →',vue='agenda',agenda=sub,view=view,date=following.isoformat())+'</div>')
     out+='<p>'+str(len(events))+' événement(s) sur cette période · '+str(data['counts']['linked'])+' relié(s) à un dossier certain.</p>'
     if warning:out+='<p class="notice">'+e(warning)+'</p>'
     if view=='month':

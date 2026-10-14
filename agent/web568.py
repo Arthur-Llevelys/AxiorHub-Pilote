@@ -130,9 +130,10 @@ def api(env,desk,auth,prefix,name,args,method):
         return json_out(defer(desk,str(data.get('key') or ''),int(data.get('days') or 1)))
     if route=='automatismes/pause':
         if role not in ('administrateur','avocat'):raise Stop('role_insuffisant')
-        paused=bool(data.get('paused'))
-        desk.setting('missions567:pause',paused);desk.audit('automatismes5614_pause',{'paused':paused})
-        return json_out({'paused':paused,'message':'Automatismes en pause : aucune nouvelle mission ni tâche ne démarre.' if paused else 'Automatismes repris.'})
+        from .arret5643 import pause_all   # 5.6.43 (§ 16) : pause enregistrée, file suspendue et arrêts demandés AVANT la réponse
+        out=pause_all(desk,bool(data.get('paused')),owner)
+        desk.audit('automatismes5614_pause',{'paused':out['paused']})
+        return json_out(out)
     if route.startswith('profils/'):
         if not admin and role!='avocat':raise Stop('role_insuffisant')
         from . import profils5614

@@ -25,7 +25,9 @@ import zipfile
 from .common import Stop, fold
 
 ROOT = Path(__file__).resolve().parents[1] / 'resources' / 'skills'
-BUILTIN = ('assistant-juridique', 'approbation-comptes', 'politique-rgpd')
+BUILTIN = ('assistant-juridique', 'approbation-comptes', 'politique-rgpd',
+           # 5.6.43 (cahier v9, § 3) : méthodes de phase, installées désactivées (à relire, adapter puis activer)
+           'methode-decider', 'methode-analyser', 'methode-courriel', 'methode-document', 'methode-controler')
 MAX_SELECTED = 2
 BUDGET = 60_000
 _ctx = threading.local()
@@ -79,7 +81,8 @@ def ensure_builtin(desk):
                              json.dumps(manifest, ensure_ascii=False), instructions, sha, '', _now()))
         state = desk.db.execute('SELECT * FROM skill_state5632 WHERE id=?', (sid,)).fetchone()
         if not state:
-            desk.db.execute('INSERT INTO skill_state5632 VALUES(?,?,?,?,?,0,?)', (sid, version, 1, 'cabinet', 'cabinet', _now()))
+            desk.db.execute('INSERT INTO skill_state5632 VALUES(?,?,?,?,?,0,?)',
+                            (sid, version, 0 if manifest.get('enabled_default') is False else 1, 'cabinet', 'cabinet', _now()))
         elif state['active_version'] != version:
             desk.db.execute('UPDATE skill_state5632 SET active_version=?, updated=? WHERE id=?', (version, _now(), sid))   # désactivation conservée
         installed.append(sid)
@@ -259,8 +262,10 @@ def import_skill(desk, owner, raw, filename, scope='personal'):
     if desk.db.execute('SELECT 1 FROM skills5632 WHERE id=? AND sha256=?', (sid, sha)).fetchone():
         raise Stop('competence_deja_importee')
     situations = [x.strip() for x in re.split(r'[,;]', meta.get('situations', '')) if x.strip()]
+    phases = [x.strip() for x in re.split(r'[,;]', meta.get('phases', '') or meta.get('phase', '')) if x.strip()]   # 5.6.43 (§ 26.1)
     manifest = _manifest_for(sid, meta.get('name') or slug, desc, version, 'import', situations,
-                             {'files': sorted(texts), 'blocked_files': blocked, 'scripts_executed': False, 'filename': name})
+                             {'files': sorted(texts), 'blocked_files': blocked, 'scripts_executed': False, 'filename': name,
+                              'phases': phases, 'references_injected': False})
     _insert(desk, sid, version, 'import', owner, 'cabinet' if scope == 'cabinet' else 'personal', meta.get('name') or slug, desc, manifest, skill)
     desk.audit('competence5632_importee', {'id': sid, 'version': version, 'blocked': len(blocked), 'scripts_executed': False})
     return {'id': sid, 'version': version, 'blocked_files': blocked, 'files': sorted(texts), 'state': 'a_relire'}
@@ -358,12 +363,11 @@ def instructions_for(desk, selection, budget=BUDGET):
     for sel in selection:
         row = _row(desk, sel['id'], sel['version'])
         text = row['instructions']
-        if used + len(text) > budget:
-            text = text[:max(0, budget - used)] + '\n[…instructions tronquées au budget de contexte : appliquez les règles ci-dessus]'
+        if used + len(text) > budget:   # 5.6.43 (§ 7.3) : jamais coupée au milieu de ses limites ou contrôles : non transmise, signalée
+            blocks.append('[Compétence « %s » non transmise : elle dépasse la place disponible dans le contexte.]' % row['name'])
+            continue
         blocks.append('COMPÉTENCE « %s » version %s (%s)\n%s' % (row['name'], row['version'], sel['reason'], text))
         used += len(text)
-        if used >= budget:
-            break
     return '\n\n'.join(blocks)
 
 
@@ -383,12 +387,14 @@ def for_job(desk, row, args):
     """Contexte d'un travail : compétences retenues (manuel via args['skills'] ou automatique), instructions transmises au modèle,
     usage enregistré (version réellement utilisée)."""
     selection = []
-    try:
+    try:   # 5.6.43 (cahier v9, § 7.1-7.2) : vraie consigne relue en base et méthode choisie selon la phase du travail
+        from .competences5643 import real_instruction, select
         manual = args.get('skills') if isinstance(args, dict) else None
-        text = ' '.join(str(args.get(k) or '') for k in TEXT_KEYS) if isinstance(args, dict) else ''
+        kind = row['kind'] if row else ''
+        text, _deliverable, phase = real_instruction(desk, kind, args)
         owner = str((args or {}).get('owner') or 'cabinet')
-        if manual or text.strip():
-            selection = resolve(desk, text, owner, manual=[str(x) for x in manual] if isinstance(manual, list) else None)
+        if manual or text or phase:
+            selection = select(desk, text, phase, owner, manual=[str(x) for x in manual] if isinstance(manual, list) else None)
     except Exception:   # noqa: BLE001 — une compétence indisponible n'empêche jamais le travail
         selection = []
     _ctx.selection = selection

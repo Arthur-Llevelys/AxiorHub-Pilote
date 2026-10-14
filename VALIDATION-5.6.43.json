@@ -1,0 +1,44 @@
+{
+  "version": "5.6.43",
+  "base": "5.6.42 publiée",
+  "date_utc": "2026-10-14T00:00:00+00:00",
+  "cahier_des_charges": "Cahier des charges « IA, courriels, agendas, ergonomie et navigation », version 9 du 14 octobre 2026 : sections 7, 10 à 14 et 16 à 22 livrées ; sections 23 à 30 reportées — CONFORMITE-5.6.43.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2109,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 88,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5643.py : PauseAnnulationContreTests, PauseCourrielsContreTests (R01 à R15), PauseReprenable, InferenceInterruptible (serveur muet coupé dans la seconde), PauseRoute, CourrielsDuCabinet, CompetencesParPhase, ProduireLisible, Playbooks, NavigationSansDoublons, AgendaPersonnelJamaisCopie, AgendaSousVues, PageTalk, Correspondances.",
+  "preview": "Aperçu à données fictives (port 8906) : bloc de classement des courriels et onglet Correspondances (original téléchargé, empreinte identique), sous-vues d’agenda et anciens événements à répartir, page Talk et politique de sécurité limitée à /talk, onglets de Produire, menu de huit entrées, Playbooks (détail d’abord, reprise d’étape, nom métier), « Pause de l’IA » puis reprise ; lisibilité mesurée (texte 18/14 px, boutons 44 px, contraste sombre 14,4 et 10,6, aucun défilement horizontal à 320 px).",
+  "exapp": {
+    "version": "0.1.2",
+    "moteur": "5.6.43",
+    "essais": "contrôles du dépôt ; image construite par la recette GitHub après publication du tag v5.6.43 du moteur ; installation par HaRP non essayée ici"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "not_verified_here": [
+    "coupure d’un appel Ollama réel par « Pause de l’IA » (vérifiée sur un serveur HTTP muet)",
+    "classement d’un courriel sur le serveur IMAP réel du cabinet (vérifié avec une boîte fictive)",
+    "affichage de Talk depuis le Nextcloud réel du cabinet",
+    "installation de l’ExApp par HaRP"
+  ],
+  "adjusted_tests": [
+    "tests/test_v5629.py : un travail en attente pendant la pause est suspendu (« suspended ») et repris, plus annulé ; libellé de la boucle",
+    "tests/test_v520_routines.py : la routine du matin ne dépose plus de modèle vide ; les courriels urgents passent par la rédaction",
+    "tests/test_v5628.py : un brouillon adressé au cabinet lui-même est refusé (« reponse_a_soi_meme_refusee »)",
+    "tests/test_v5634.py : réponse proposée par _propose_reply ; libellé « Agenda personnel »",
+    "tests/test_v5635.py : aucune copie de l’Agenda personnel, ancien événement copié = pont historique (F18) ; dates sûres au changement d’heure",
+    "tests/test_v5631.py : entrées trouvées par la recherche seulement (data-search-only) dans le panneau",
+    "tests/test_v501.py : entrées actives canoniques du menu ; sous-vues d’agenda",
+    "tests/test_v5625.py et tests/test_v520.py : paramètre agenda=en_ligne ; nouveau libellé",
+    "tests/test_v5614.py : la vue Semaine reste la vue par défaut ; ses liens portent la sous-vue d’agenda (agenda=personnel)",
+    "tests/test_v5641.py : la description de l’application Nextcloud 0.4.3 (inchangée) cite un tag publié du moteur, de 5.6.42 à la version courante"
+  ]
+}

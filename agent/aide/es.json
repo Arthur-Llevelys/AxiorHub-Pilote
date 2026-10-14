@@ -27,7 +27,7 @@
    "Briefing du matin",
    "Tri des courriels",
    "Générer maintenant",
-   "Pause des automatismes",
+   "Pause de l’IA",
    "Écouter le briefing"
   ],
   "version": "5.6.36"
@@ -95,28 +95,29 @@
  "planning": {
   "objective": "Añadir, modificar o cancelar una cita, una vista o un plazo en su agenda.",
   "when": "Para anotar una fecha de vista, una cita con un cliente o un plazo procesal, con sus recordatorios.",
-  "prerequisites": "Ninguno: la agenda se guarda en este equipo o servidor. La copia a Nextcloud es opcional (copia en un solo sentido, no una sincronización).",
+  "prerequisites": "Ninguno para la agenda personal: se guarda en AxiorHub, en este equipo o en su servidor, sin copia a una agenda en línea. Para la agenda en línea, una agenda Nextcloud, CalDAV o Google configurada en Ajustes › Conexiones.",
   "steps": [
    "Abra Agenda y tareas.",
+   "Bajo «Agenda», los botones «Agenda en línea» y «Agenda personal» muestran una u otra fuente; se conserva su elección.",
    "Abra «Añadir una cita, una vista o un plazo», indique tipo, título, inicio, expediente y recordatorios y haga clic en «Guardar».",
    "Para cambiar un evento, abra «Modificar» debajo de él, corrija solo lo que cambia y haga clic en «Guardar la modificación».",
    "Para cancelar, haga clic en «Cancelar» (una repetición) o «Cancelar la serie» (todas las próximas repeticiones).",
    "Para encontrar un evento, escriba en «Buscar» o elija un expediente."
   ],
-  "result": "El evento aparece en «Próximos eventos de la agenda local» con sus recordatorios; una cancelación se conserva en el historial y las copias de seguridad.",
+  "result": "El evento aparece en los próximos eventos de la agenda personal, con sus recordatorios; no se copia a ninguna agenda en línea. Una anulación queda en el historial y en las copias de seguridad.",
   "verify": "Abra «Importar, exportar, guardar copia»: «Guardar copia ahora» guarda la agenda; «Restaurar…» muestra primero una vista previa y restablece la agenda tras su confirmación (el estado actual se guarda antes).",
   "errors": [
    [
-    "«Evento modificado mientras tanto»",
-    "Se cambió en otro lugar desde que se abrió la página: recárguela y vuelva a hacer el cambio."
+    "«Evento modificado entretanto»",
+    "Se cambió en otro lugar desde que se abrió la página: recárguela y repita el cambio."
    ],
    [
-    "Copia a Nextcloud pendiente",
-    "El evento está guardado; la copia se reintentará automáticamente."
+    "Eventos antiguos por repartir",
+    "Antes de 5.6.43 algunos eventos se copiaban a Nextcloud: elija para cada uno mantenerlo solo en la agenda personal o conservar su copia remota; nada se copia ni se borra sin esa elección."
    ],
    [
     "Serie importada parcialmente",
-    "Algunas reglas de repetición no se admiten: compruebe las fechas indicadas en el mensaje de importación."
+    "Algunas reglas de repetición no son compatibles: compruebe las fechas indicadas en el mensaje de importación."
    ]
   ],
   "example": "Vista ficticia el 24 de noviembre de 2026 a las 9:30, expediente DEMO-A, recordatorios la víspera y una hora antes.",
@@ -1809,6 +1810,32 @@
   "buttons": [
    "Télécharger le manifeste (manifest.xml)"
   ],
+  "version": "5.6.36"
+ },
+ "talk": {
+  "objective": "Mostrar su aplicación Nextcloud Talk (conversaciones y llamadas) dentro de AxiorHub.",
+  "when": "Para hablar con el despacho o llamar sin salir de AxiorHub.",
+  "prerequisites": "Una conexión Nextcloud configurada con la aplicación Talk instalada; haber iniciado sesión en Nextcloud en este navegador.",
+  "steps": [
+   "Abra Ajustes › Conexiones › Nextcloud Talk.",
+   "Marque «Mostrar la página Talk», compruebe la dirección propuesta y pulse «Guardar».",
+   "Recargue la página: «Talk» aparece bajo «Agenda y tareas».",
+   "Abra Talk; «Probar la visualización» explica un posible rechazo de integración."
+  ],
+  "result": "Talk se muestra en la página con sus conversaciones; «Abrir Talk en una pestaña nueva» siempre está disponible.",
+  "verify": "Las conversaciones mostradas son las de su cuenta Nextcloud; la activación no ha creado ninguna sala.",
+  "errors": [
+   [
+    "Marco vacío",
+    "Inicie sesión en Nextcloud en una pestaña y pulse «Recargar»; si Nextcloud prohíbe la integración, ábralo en una pestaña."
+   ],
+   [
+    "Dirección rechazada",
+    "La dirección debe ser la de Talk en la misma instancia Nextcloud que la conexión configurada."
+   ]
+  ],
+  "example": "Llamada con una colaboradora ficticia desde la página Talk.",
+  "buttons": [],
   "version": "5.6.36"
  }
 }

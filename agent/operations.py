@@ -75,6 +75,15 @@ def daily_digest(desk):
 
 
 def automation_tick(desk):
+    """5.6.43 (§ 16.1) : origine « automatic » pour tout ce que ce planificateur met en file."""
+    from .arret5643 import automatic
+    with automatic(desk):
+        return _automation_tick_5642(desk)
+
+
+def _automation_tick_5642(desk):
+    if desk.settings('missions567:pause', False):
+        return
     from . import economie569   # 5.6.9 : contrôles périodiques espacés en régime économe
     cfg=desk.c.get('automation',{});now_ts=datetime.now(timezone.utc).timestamp()
     try:economie569.resume_deferred(desk)   # 5.6.11 : travaux différés par le quota, repris à leur échéance

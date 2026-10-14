@@ -21,6 +21,7 @@ FUNCTIONS = (
     ('courriels', 'communiquer', '/courriels', ('Messagerie', 'Boîte de réception', 'Brouillons'), ('mail',)),
     ('planning', 'communiquer', '/planning', ('Agenda', 'Calendrier'), ()),
     ('taches', 'communiquer', '/planning?vue=taches', ('Tâches', 'À faire'), ()),
+    ('talk', 'communiquer', '/talk', ('Nextcloud Talk', 'Visio', 'Visioconférence', 'Appel', 'Discussion'), ()),   # 5.6.43 (§ 22) : facultatif
     ('production', 'dossier', '/production', ('Produire', 'Livrables'), ('ai',)),
     ('documents', 'dossier', '/documents', ('Rédiger un document', 'Courrier'), ('storage', 'ai')),
     ('echeances', 'dossier', '/echeances', ('Délais', 'Échéances de procédure', 'Retrouver un délai'), ()),
@@ -158,11 +159,14 @@ def for_path(path, args=None):
 def panel_html(prefix, path, cfg=None, role='administrateur', lang=None):
     """Panneau « Toutes les fonctions » : groupes d'usage, recherche par nom ou besoin (alias compris), état de disponibilité."""
     lang = lang or i18n.current()
+    from .navigation5643 import PARENT_LABELS, canonical, visibility   # 5.6.43 (cahier v9, § 20)
     rows = entries(cfg, role, lang)
     current = for_path(path)
+    if current and visibility(current) != 'panel':
+        current = canonical(current)   # une sous-section marque l'entrée de sa destination (ex. Conflits → Gestion du cabinet)
     groups = []
     for g in GROUPS:
-        items = [r for r in rows if r['group'] == g]
+        items = [r for r in rows if r['group'] == g and visibility(r['id']) == 'panel']   # ni accès principaux, ni doublons
         if not items:
             continue
         links = ''.join(
@@ -173,6 +177,23 @@ def panel_html(prefix, path, cfg=None, role='administrateur', lang=None):
             '</li>' for r in items)
         groups.append('<section class="f5631-group" data-group="' + g + '"><h3>' + i18n.th('grp.%s.label' % g, lang) + '</h3><p>' +
                       i18n.th('grp.%s.desc' % g, lang) + '</p><ul>' + links + '</ul></section>')
+    # 5.6.43 : toutes les autres fonctions restent trouvables par leur nom ou leurs anciens noms ; le résultat ouvre leur page, rangée dans
+    # sa destination canonique (affichée). Masquées tant que la recherche est vide.
+    index = []
+    for r in rows:
+        kind = visibility(r['id'])
+        if kind == 'panel':
+            continue
+        target = r if kind != 'hidden' else next((x for x in rows if x['id'] == canonical(r['id'])), None)
+        if not target:
+            continue
+        where = PARENT_LABELS.get(canonical(r['id']), '') if kind in ('sub', 'tab', 'hidden') else ''
+        index.append('<li hidden data-search-only data-search="' + e(' '.join((r['label'], r['desc']) + tuple(r['aliases'])).lower(), quote=True) + '">'
+                     '<a href="' + e(prefix + target['route'], quote=True) + '"><strong>' + e(target['label'] if kind == 'hidden' else r['label']) +
+                     '</strong><small>' + e(('Dans « %s »' % where) if where else r['desc']) + '</small></a></li>')
+    if index:
+        groups.append('<section class="f5631-group" data-group="index" hidden><h3>' + i18n.th('menu.search', lang) + '</h3><ul>' + ''.join(index) +
+                      '</ul></section>')
     return ('<details class="f5631-all" id="f5631-all"><summary id="f5631-toggle">' + i18n.th('menu.all', lang) + '</summary>'
             '<div class="f5631-panel" role="region" aria-label="' + i18n.th('menu.all', lang) + '">'
             '<label class="f5631-search"><span>' + i18n.th('menu.search', lang) + '</span><input type="search" id="f5631-q" autocomplete="off" placeholder="' +

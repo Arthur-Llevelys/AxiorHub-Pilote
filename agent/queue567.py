@@ -52,7 +52,10 @@ def recover(desk, worker_id):
             state,result='pending',None;counts['resumed']+=1
         else:
             state,result='error',{'erreur':'service_redemarre_verifier_avant_relance'};counts['review']+=1
-        desk.db.execute('UPDATE jobs SET status=?,finished=?,result=? WHERE id=?',(state,None if state=='pending' else desk.now(),json.dumps(result) if result else None,row['id']))
+        # 5.6.43 (§ 16.2) : transition conditionnelle ; une annulation enregistrée entre-temps n'est jamais remise en file
+        changed=desk.db.execute('UPDATE jobs SET status=?,finished=?,result=? WHERE id=? AND status=?',(state,None if state=='pending' else desk.now(),json.dumps(result) if result else None,row['id'],row['status'])).rowcount
+        if not changed and state=='pending':
+            desk.db.execute("UPDATE jobs SET status='cancelled',finished=? WHERE id=? AND status='cancel_requested'",(desk.now(),row['id']))
     desk.db.commit()
     if rows:desk.audit('reprise567_apres_redemarrage',counts)
     return counts

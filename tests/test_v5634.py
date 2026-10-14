@@ -732,8 +732,9 @@ class ReportsInFirmLanguage(unittest.TestCase):
         src = (ROOT / 'agent' / 'routines520.py').read_text(encoding='utf-8')
         self.assertIn("text = ask(desk, prompt, data, lang=lang)", src)
         self.assertNotIn('en français, titres compris', src)
-        draft = src[src.index('def _draft('):src.index('def _draft(') + 1500]
-        self.assertNotIn('lang=', draft)                                                 # réponses aux correspondants : en français
+        # 5.6.43 (§ 21) : le tri ne rédige plus ; la réponse passe par le circuit commun, toujours en français
+        draft = src[src.index('def _propose_reply('):src.index('def _propose_reply(') + 1500]
+        self.assertNotIn('lang=', draft)
 
     def test_report_language_follows_the_lawyer_when_the_firm_has_none(self):
         import tempfile
@@ -799,7 +800,7 @@ class LocalAgenda(Base):
         out = workplan.create_event(self.desk, {'title': 'Audience fictive', 'start': start, 'duration_minutes': 60, 'matter': MID})
         self.assertTrue(out['local'])
         page = self.request('/planning')['body']
-        self.assertIn('Agenda local', page)
+        self.assertIn('Agenda personnel', page)   # 5.6.43 (§ 17) : libellé de la sous-vue locale, non synchronisée
         self.assertNotIn('configure-nextcloud-workflow.py', page)
 
 

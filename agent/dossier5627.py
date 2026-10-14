@@ -599,7 +599,12 @@ def _edit_button(section):
 
 
 def _counts(desk, mid):
-    out = {'pieces': 0, 'courriels': 0, 'travaux': 0}
+    out = {'pieces': 0, 'courriels': 0, 'travaux': 0, 'correspondances': 0}
+    try:   # 5.6.43 (§ 12.2) : courriels CONSERVÉS (original demandé), pas les simples rattachements
+        out['correspondances'] = desk.db.execute("SELECT COUNT(*) FROM mail_archive_links WHERE matter_id=? AND email_requested=1 "
+                                                 "AND conservation_state<>'withdrawn'", (mid,)).fetchone()[0]
+    except Exception:   # pylint: disable=broad-except
+        pass
     try:
         from .index import DocumentIndex
         out['pieces'] = DocumentIndex(desk.c['state_dir']).db.execute('SELECT COUNT(*) FROM docs WHERE matter=?', (mid,)).fetchone()[0]
@@ -627,7 +632,8 @@ def _next_deadline(desk, mid):
 def header_html(desk, prefix, m, view, counts):
     mid = m['id']
     q = lambda v: '/dossier?' + urlencode({'id': mid, **({'vue': v} if v != 'fiche' else {})})
-    tabs = (('fiche', 'Fiche', None), ('pieces', 'Pièces', counts['pieces']), ('courriels', 'Courriels', counts['courriels']), ('travaux', 'Travaux de l’agent', counts['travaux']))
+    tabs = (('fiche', 'Fiche', None), ('pieces', 'Pièces', counts['pieces']), ('courriels', 'Courriels', counts['courriels']),
+            ('correspondances', 'Correspondances', counts.get('correspondances', 0)), ('travaux', 'Travaux de l’agent', counts['travaux']))
     more = ''.join('<li>%s</li>' % _a(prefix, href, label) for href, label in (
         ('/fiche?' + urlencode({'matter': mid}), 'Vue détaillée par rubriques'), ('/fiche?' + urlencode({'matter': mid, 'onglet': 'faits'}), 'Faits proposés à valider'),
         ('/chronologie?' + urlencode({'matter': mid}), 'Chronologie complète'), ('/strategy?' + urlencode({'matter': mid}), 'Stratégie'),
@@ -860,8 +866,78 @@ def courriels_html(desk, prefix, m):
         rows = []
     body = ''.join('<li><strong>%s</strong><span class="d27-muted">%s · %s · %s</span></li>' % (
         e(r['subject'] or 'sans objet'), e(str(r['sender'] or '')[:80]), e(_date_fr(str(r['received'] or '')[:10])), e(STATE_LABELS.get(r['state'], r['state'] or ''))) for r in rows)
-    return _card('Courriels rattachés (%d)' % len(rows), '<ul class="d27-list">%s</ul>' % (body or '<li class="d27-muted">Aucun courriel rattaché à ce dossier.</li>'),
+    return _card('Courriels rattachés (%d)' % len(rows), '<p class="d27-muted">Un rattachement n’est pas une conservation : les courriels '
+                 'enregistrés dans le dossier sont dans « %s ».</p><ul class="d27-list">%s</ul>' % (
+                     _a(prefix, '/dossier?' + urlencode({'id': m['id'], 'vue': 'correspondances'}), 'Correspondances'),
+                     body or '<li class="d27-muted">Aucun courriel rattaché à ce dossier.</li>'),
                  _a(prefix, '/courriels?vue=boite', 'Ouvrir la messagerie', 'd27-link'))
+
+
+def _folder_link(desk, path):
+    from .talk5643 import _base
+    origin, base = _base(desk.c)
+    if not origin:
+        return '<span class="d27-muted">%s</span>' % e(path)
+    return '<a class="ax-btn ghost" rel="noreferrer" target="_blank" href="%s">Ouvrir le répertoire</a>' % e(
+        origin + base + '/index.php/apps/files/?' + urlencode({'dir': path}), quote=True)
+
+
+def correspondances_html(desk, prefix, m, archive=''):
+    """5.6.43 (§ 12.2) : une ligne par correspondance conservée ; lecture depuis l'archive (sans IMAP) ; courriers historiques du
+    répertoire CORRESPONDANCES listés depuis l'index (aucun parcours complet du stockage à l'ouverture)."""
+    from . import correspondances5643 as cx
+    from .fiche460 import doc_href
+    folder = cx.correspondances_dir(desk, m)
+    try:
+        items = cx.listing(desk, m['id'])
+    except Exception:   # pylint: disable=broad-except
+        items = []
+    head = ('<p class="d27-muted">Répertoire : <strong>%s</strong> %s · les courriels s’y enregistrent depuis « Courriels » '
+            '(« Enregistrer le courriel maintenant »).</p>' % (e(folder), _folder_link(desk, folder)))
+    detail = ''
+    if archive:
+        link = next((x for x in items if x['archive_id'] == archive), None)
+        if link:
+            try:
+                d = cx.detail(desk, link['link_id'])
+            except Exception:   # pylint: disable=broad-except
+                d = None
+            if d:
+                notes = ''.join('<li>Note version %d — %s</li>' % (n['version'], e(_date_fr(str(n.get('verified_at') or '')[:10]))) for n in d['annotations'])
+                detail = _card('Lecture : ' + (link['title'] or link['subject'] or 'courriel'), (
+                    '<p class="d27-muted">Version de lecture extraite de l’original (non modifiée) ; état : %s%s.</p>'
+                    '<pre class="d27-reading">%s</pre>'
+                    '<p><a class="ax-btn" href="%s">Télécharger l’original (.eml)</a></p>'
+                    '<h3>Notes du cabinet</h3><ul class="d27-list">%s</ul>'
+                    '<form class="m5-form" data-api="m5643/correspondances/annoter" data-reload><input type="hidden" name="link_id" value="%s">'
+                    '<label>Nouvelle note (séparée du courriel)<textarea name="text" rows="3" maxlength="20000" required></textarea></label>'
+                    '<button class="ax-btn ghost" type="submit">Annoter</button><p role="status" class="m5-status"></p></form>') % (
+                    e(d['conservation_label']), ', lecture partielle' if d['extraction_state'] == 'partial' else '',
+                    e(d['reading'] or 'Lecture indisponible : téléchargez l’original.'),
+                    e(prefix + '/api440/m5643/correspondances/original?' + urlencode({'lien': d['link_id']}), quote=True),
+                    notes or '<li class="d27-muted">Aucune note.</li>', e(d['link_id'], quote=True)))
+    rows = ''.join('<li data-d27-search="%s"><a href="%s"><strong>%s</strong></a><span class="d27-muted">%s · %s · %s%s</span> '
+                   '<span class="d27-badge">%s</span></li>' % (
+                       e(_fold(' '.join((x['title'], x['subject'], x['from']))), quote=True),
+                       e(prefix + '/dossier?' + urlencode({'id': m['id'], 'vue': 'correspondances', 'archive': x['archive_id']}), quote=True),
+                       e(x['title'] or x['subject'] or '(sans objet)'), e(_date_fr(str(x['date'])[:10])),
+                       {'received': 'reçu', 'sent': 'envoyé', 'internal': 'interne'}.get(x['direction'], '?'), e(x['from'][:80]),
+                       (' · %d pièce(s) dans NOS PIECES' % x['pieces']) if x['pieces'] else '', e(x['state_label'])) for x in items)
+    historic = ''
+    try:
+        from .index import DocumentIndex
+        from .common import under
+        docs = [r for r in DocumentIndex(desk.c['state_dir']).db.execute('SELECT path,modified FROM docs WHERE matter=? LIMIT 3000', (m['id'],))
+                if under(r[0], folder) and not r[0].endswith(('/original.eml', '/metadata.json'))]
+        historic = ''.join('<li><a href="%s">%s</a><span class="d27-muted">%s</span></li>' % (
+            e(prefix + doc_href(r[0], m['id']), quote=True), e(PurePosixPath(r[0]).name), e(_date_fr(str(r[1])[:10]))) for r in docs[:300])
+    except Exception:   # pylint: disable=broad-except
+        historic = ''
+    return (detail + _card('Correspondances (%d)' % len(items), head + (
+        '<input type="search" class="d27-filter" data-d27-filter="#d27-corr" placeholder="Filtrer par objet ou correspondant" aria-label="Filtrer les correspondances">'
+        '<ul class="d27-list" id="d27-corr">%s</ul>') % (rows or '<li class="d27-muted">Aucun courriel conservé dans ce dossier pour l’instant.</li>'))
+            + _card('Autres documents du répertoire', '<ul class="d27-list">%s</ul>' % (
+                historic or '<li class="d27-muted">Aucun autre document indexé dans ce répertoire.</li>')))
 
 
 DOC_STATUS = {'cree': 'Prêt à relire', 'en_cours': 'En rédaction', 'en_attente': 'En file', 'echec': 'Échec', 'annule': 'Arrêté', 'dossier_a_choisir': 'Dossier à préciser'}
@@ -885,11 +961,14 @@ def page(desk, auth, prefix, args, shell):
     mid = str(args.get('id') or args.get('matter') or '')
     m = _matter(desk, mid)
     view = str(args.get('vue') or 'fiche')
-    if view not in ('fiche', 'pieces', 'courriels', 'travaux'):
+    if view not in ('fiche', 'pieces', 'courriels', 'correspondances', 'travaux'):
         view = 'fiche'
     counts = _counts(desk, mid)
     body = header_html(desk, prefix, m, view, counts)
-    body += {'fiche': fiche_html, 'pieces': pieces_html, 'courriels': courriels_html, 'travaux': travaux_html}[view](desk, prefix, m)
+    if view == 'correspondances':   # 5.6.43 (§ 12.2)
+        body += correspondances_html(desk, prefix, m, str(args.get('archive') or ''))
+    else:
+        body += {'fiche': fiche_html, 'pieces': pieces_html, 'courriels': courriels_html, 'travaux': travaux_html}[view](desk, prefix, m)
     if view == 'pieces':   # 5.6.32 (R15) : documents de procédure → agenda → brouillons, dans la page du dossier
         from .web5632 import procedure_panel, working_folders_panel
         body += working_folders_panel(desk, prefix, m)

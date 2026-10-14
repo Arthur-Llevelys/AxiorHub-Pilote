@@ -37,7 +37,11 @@ REMINDERS = (0, 10, 30, 60, 120, 1440, 2880, 10080)
 BACKUPS_KEPT = 30
 HORIZON_DAYS = 548
 FIELDS = ('id', 'uid', 'recurrence_id', 'kind', 'title', 'description', 'location', 'starts', 'ends', 'all_day', 'matter', 'reminders', 'status',
-          'source', 'sync_state', 'remote_uid', 'owner', 'created', 'updated')
+          'source', 'sync_state', 'remote_uid', 'owner', 'created', 'updated', 'calendar_scope', 'copy_policy')
+# 5.6.43 (cahier v9, § 17.3) : portée persistée de chaque événement. « personal_local » : Agenda personnel, jamais copié ;
+# « legacy_bridge » : événement d'avant 5.6.43 déjà copié ou en attente de copie, à répartir par une décision explicite ;
+# « copy_policy » = 'mirror' seulement quand l'avocat a choisi de garder la copie distante d'un tel événement.
+FIELD_DEFAULTS = {'calendar_scope': 'personal_local', 'copy_policy': 'none'}
 
 
 def _now():
@@ -66,6 +70,12 @@ def schema(desk):
     cols = {r[1] for r in desk.db.execute('PRAGMA table_info(agenda5634)')}
     if 'recurrence_id' not in cols:   # 5.6.35 (F04) : identité de l'occurrence dans sa série
         desk.db.execute("ALTER TABLE agenda5634 ADD COLUMN recurrence_id TEXT NOT NULL DEFAULT ''")
+    if 'calendar_scope' not in cols:   # 5.6.43 (§ 17.7) : migration sans copie ni suppression ; les anciennes copies sont à répartir
+        desk.db.execute("ALTER TABLE agenda5634 ADD COLUMN calendar_scope TEXT NOT NULL DEFAULT 'personal_local'")
+        desk.db.execute("ALTER TABLE agenda5634 ADD COLUMN copy_policy TEXT NOT NULL DEFAULT 'none'")
+        desk.db.execute("UPDATE agenda5634 SET calendar_scope='legacy_bridge' WHERE remote_uid<>'' OR sync_state IN ('synchronise','a_synchroniser')")
+        desk.db.execute("UPDATE agenda5634 SET sync_state='a_repartir' WHERE sync_state='a_synchroniser'")   # aucune copie relancée par la migration
+        desk.db.commit()
     if not desk.db.execute("SELECT 1 FROM settings WHERE key='agenda5635_cache'").fetchone():
         rebuild_cache(desk)   # 5.6.35 (F03) : une entrée de cache par occurrence active (les autres calendriers sont conservés)
         desk.db.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('agenda5635_cache','\"fait\"')")
@@ -73,14 +83,15 @@ def schema(desk):
 
 
 def mode(desk):
+    """5.6.43 (§ 17.3) : l'Agenda personnel n'est JAMAIS copié vers un agenda distant, quelle que soit la configuration Nextcloud.
+    ``sync`` ne concerne plus que les anciens événements dont l'avocat a choisi de garder la copie distante."""
     cfg = desk.c.get('nextcloud_workflow') or {}
-    sync = bool(cfg.get('enabled') and cfg.get('planning_calendar_url'))
-    return {'local': True, 'sync': sync,
-            'label': 'Agenda local, copié dans Nextcloud' if sync else 'Agenda local (enregistré sur ce poste ou ce serveur)',
-            'help': ('Vos rendez-vous et échéances sont enregistrés dans AxiorHub et copiés dans le calendrier Nextcloud de planification '
-                     '(copie à sens unique, pas une synchronisation bidirectionnelle).' if sync else
-                     'Vos rendez-vous et échéances sont enregistrés dans AxiorHub, sur cette machine, sans serveur d’agenda. La copie vers '
-                     'Nextcloud reste une option (Paramètres › Guide d’installation › Agenda) ; vous pouvez importer un agenda existant.')}
+    bridge = bool(cfg.get('enabled') and cfg.get('planning_calendar_url'))
+    return {'local': True, 'sync': bridge, 'personal_copy': False,
+            'label': 'Agenda personnel (local, non synchronisé)',
+            'help': ('Vos rendez-vous, audiences et échéances sont enregistrés dans AxiorHub, sur l’instance utilisée (ce poste ou votre '
+                     'serveur), sans copie vers un agenda en ligne. L’export .ics reste une action explicite ; les agendas Nextcloud, CalDAV ou '
+                     'Google se consultent dans « Agenda en ligne ».')}
 
 
 # ------------------------------------------------------------------------------------------------ validation
@@ -174,6 +185,10 @@ def _push(desk, row):
     Renvoie (état, uid distant)."""
     if not mode(desk)['sync']:
         return 'local', row.get('remote_uid') or ''
+    # 5.6.43 (§ 17.3) : refus au niveau du connecteur, quel que soit l'appelant (création, modification, annulation, import,
+    # restauration, reprise périodique) : seul un ancien événement dont l'avocat a gardé la copie distante peut être copié.
+    if row.get('calendar_scope', 'personal_local') != 'legacy_bridge' or row.get('copy_policy') != 'mirror':
+        return row.get('sync_state') if row.get('sync_state') in ('a_repartir', 'synchronise') else 'local', row.get('remote_uid') or ''
     if desk.db.in_transaction:   # garde-fou : jamais d'appel réseau pendant une écriture SQLite
         desk.db.commit()
     try:
@@ -202,7 +217,8 @@ def _copy(desk, row):
 
 
 def _message(state, base):
-    return base + (' et copié dans Nextcloud' if state == 'synchronise' else (' (copie vers Nextcloud à reprendre)' if state == 'a_synchroniser' else '')) + '.'
+    return base + (' dans l’Agenda personnel (local, non synchronisé)' if state in ('local', 'a_repartir') else
+                   (' et sa copie distante conservée mise à jour' if state == 'synchronise' else ' (copie distante conservée à reprendre)')) + '.'
 
 
 # ------------------------------------------------------------------------------------------------ création, modification, annulation
@@ -216,8 +232,8 @@ def create(desk, data, owner='cabinet', source='local', uid='', recurrence_id=''
     row = {'id': ident, 'uid': uid, 'recurrence_id': recurrence_id, 'kind': clean['kind'], 'title': clean['title'], 'description': clean['description'],
            'location': clean['location'], 'starts': begins.astimezone(timezone.utc).isoformat(), 'ends': ends.astimezone(timezone.utc).isoformat(),
            'all_day': int(all_day), 'matter': clean['matter'], 'reminders': json.dumps(clean['reminders']), 'status': 'actif', 'source': source,
-           'sync_state': 'local' if source == 'local' and not mode(desk)['sync'] else ('a_synchroniser' if source == 'local' else 'local'),
-           'remote_uid': '', 'owner': owner, 'created': stamp, 'updated': stamp}
+           'sync_state': 'local', 'remote_uid': '', 'owner': owner, 'created': stamp, 'updated': stamp,
+           'calendar_scope': 'personal_local', 'copy_policy': 'none'}   # 5.6.43 : un événement créé ici n'est jamais copié
     try:
         desk.db.execute('INSERT INTO agenda5634(%s) VALUES(%s)' % (','.join(row), ','.join('?' for _ in row)), tuple(row.values()))
     except Exception as ex:   # noqa: BLE001
@@ -228,9 +244,8 @@ def create(desk, data, owner='cabinet', source='local', uid='', recurrence_id=''
     _mirror(desk, row)
     desk.db.commit()   # F18 : enregistré localement AVANT toute copie réseau
     desk.audit('agenda5634_cree', {'id': ident, 'kind': row['kind'], 'matter': row['matter'], 'source': source})
-    state = _copy(desk, row) if (source == 'local' and copy) else row['sync_state']
-    row['sync_state'] = state
-    return {'id': ident, 'event': public(row), 'message': _message(state, 'Événement enregistré dans l’agenda')}
+    state = row['sync_state']   # 5.6.43 (§ 17.3) : « copy » n'a plus d'effet ; aucune copie réseau à la création
+    return {'id': ident, 'event': public(row), 'message': _message(state, 'Événement enregistré')}
 
 
 def update(desk, data, owner='cabinet'):
@@ -269,8 +284,9 @@ def update(desk, data, owner='cabinet'):
     reminders = json.dumps(clean['reminders'])
     moved = starts != row['starts'] or reminders != row['reminders']
     row.update(clean)
+    mirrored = mode(desk)['sync'] and row.get('calendar_scope') == 'legacy_bridge' and row.get('copy_policy') == 'mirror'
     row.update(starts=starts, ends=ends_iso, all_day=int(all_day), reminders=reminders, updated=desk.now(),
-               sync_state='a_synchroniser' if mode(desk)['sync'] else row['sync_state'])
+               sync_state='a_synchroniser' if mirrored else row['sync_state'])
     desk.db.execute('UPDATE agenda5634 SET kind=?,title=?,description=?,location=?,starts=?,ends=?,all_day=?,matter=?,reminders=?,sync_state=?,updated=? WHERE id=?',
                     (row['kind'], row['title'], row['description'], row['location'], row['starts'], row['ends'], row['all_day'], row['matter'],
                      row['reminders'], row['sync_state'], row['updated'], row['id']))
@@ -279,7 +295,7 @@ def update(desk, data, owner='cabinet'):
     _mirror(desk, row)
     desk.db.commit()
     desk.audit('agenda5634_modifie', {'id': row['id']})
-    state = _copy(desk, row) if mode(desk)['sync'] else row['sync_state']
+    state = _copy(desk, row) if mirrored else row['sync_state']
     row['sync_state'] = state
     return {'id': row['id'], 'event': public(row), 'message': _message(state, 'Événement modifié')}
 
@@ -302,7 +318,8 @@ def cancel(desk, ident, scope='occurrence'):
     desk.audit('agenda5634_annule', {'id': row['id'], 'portee': scope, 'nombre': len(targets)})
     if mode(desk)['sync']:
         for r in targets:
-            _copy(desk, r)
+            if r.get('calendar_scope') == 'legacy_bridge' and r.get('copy_policy') == 'mirror':   # 5.6.43 : jamais un événement personnel
+                _copy(desk, r)
     return {'id': row['id'], 'cancelled': len(targets),
             'message': ('Série annulée (%d occurrence(s))' % len(targets) if len(targets) > 1 else 'Événement annulé') +
                        ' ; conservé dans l’historique et les sauvegardes.'}
@@ -310,6 +327,7 @@ def cancel(desk, ident, scope='occurrence'):
 
 def public(row):
     out = {k: row[k] for k in ('id', 'kind', 'title', 'description', 'location', 'starts', 'ends', 'matter', 'status', 'source', 'sync_state')}
+    out['calendar_scope'] = row.get('calendar_scope', 'personal_local')
     out['all_day'] = bool(row['all_day'])
     out['reminders'] = json.loads(row['reminders']) if isinstance(row['reminders'], str) else row['reminders']
     out['kind_label'] = KINDS.get(row['kind'], row['kind'])
@@ -701,6 +719,7 @@ def restore(desk, name, owner='cabinet', apply=False):
                                                  'importée ; statuts et rappels ne seront pas rétablis.'}
         return import_ics(desk, (_backup_dir(desk) / name).read_text(encoding='utf-8'), 'sauvegarde', owner)
     current = {r['id']: dict(r) for r in desk.db.execute('SELECT * FROM agenda5634')}
+    events = [{**FIELD_DEFAULTS, **ev} for ev in events]
     plan = {'ajoutes': 0, 'reactives': 0, 'remplaces': 0, 'conserves': 0}
     for ev in events:
         cur = current.get(ev['id'])
@@ -720,7 +739,7 @@ def restore(desk, name, owner='cabinet', apply=False):
         desk.db.execute('BEGIN IMMEDIATE')
     try:
         for ev in events:
-            values = tuple(ev[k] for k in FIELDS)
+            values = tuple(ev.get(k, FIELD_DEFAULTS.get(k, '')) for k in FIELDS)   # 5.6.43 : sauvegardes antérieures : portée personnelle
             desk.db.execute('INSERT OR REPLACE INTO agenda5634(%s) VALUES(%s)' % (','.join(FIELDS), ','.join('?' for _ in FIELDS)), values)
             desk.db.execute('DELETE FROM agenda_rappels5634 WHERE event=?', (ev['id'],))
         rebuild_cache(desk)
@@ -733,6 +752,35 @@ def restore(desk, name, owner='cabinet', apply=False):
     return {'exacte': True, 'apercu': plan, 'sauvegarde_prealable': Path(safety).name if safety else '',
             'message': 'Agenda rétabli : %(ajoutes)d ajouté(s), %(reactives)d réactivé(s), %(remplaces)d remplacé(s). Aucun calendrier externe '
                        'n’a été modifié.' % plan}
+
+
+def legacy_inventory(desk):
+    """5.6.43 (§ 17.7) : anciens événements déjà copiés ou en attente de copie, à répartir (hors compteur de l'Agenda personnel)."""
+    schema(desk)
+    return [{**public(dict(r)), 'remote_uid': bool(r['remote_uid']), 'copy_policy': r['copy_policy']}
+            for r in desk.db.execute("SELECT * FROM agenda5634 WHERE calendar_scope='legacy_bridge' AND copy_policy<>'mirror' ORDER BY starts")]
+
+
+def decide_legacy(desk, ident, decision, owner='cabinet'):
+    """Décision explicite pour un ancien événement : « garder_local » (devient personnel ; la copie distante existante n'est PAS supprimée)
+    ou « garder_copie » (la copie distante déjà créée continue d'être tenue à jour). Aucune décision n'est prise par défaut."""
+    schema(desk)
+    row = _row(desk, ident)
+    if row.get('calendar_scope') != 'legacy_bridge':
+        raise Stop('evenement_deja_reparti')
+    if decision == 'garder_local':
+        desk.db.execute("UPDATE agenda5634 SET calendar_scope='personal_local',copy_policy='none',sync_state='local',updated=? WHERE id=?",
+                        (desk.now(), row['id']))
+        message = 'Événement gardé dans l’Agenda personnel (local, non synchronisé). La copie distante éventuelle n’a pas été supprimée.'
+    elif decision == 'garder_copie':
+        desk.db.execute("UPDATE agenda5634 SET copy_policy='mirror',sync_state=CASE WHEN sync_state='a_repartir' THEN 'a_synchroniser' "
+                        "ELSE sync_state END,updated=? WHERE id=?", (desk.now(), row['id']))
+        message = 'La copie distante de cet ancien événement sera tenue à jour.'
+    else:
+        raise Stop('decision_agenda_invalide')
+    desk.db.commit()
+    desk.audit('agenda5643_repartition', {'id': row['id'], 'decision': decision, 'owner': owner})
+    return {'id': row['id'], 'decision': decision, 'message': message}
 
 
 def tick(desk, stamp=None):
@@ -757,8 +805,9 @@ def tick(desk, stamp=None):
                     sent += 1
     desk.db.commit()
     retried = 0
-    if mode(desk)['sync']:
-        for r in desk.db.execute("SELECT * FROM agenda5634 WHERE sync_state='a_synchroniser' LIMIT 20").fetchall():
+    if mode(desk)['sync']:   # 5.6.43 (§ 17.3) : seuls les anciens événements dont la copie distante a été gardée explicitement
+        for r in desk.db.execute("SELECT * FROM agenda5634 WHERE sync_state='a_synchroniser' AND calendar_scope='legacy_bridge' "
+                                 "AND copy_policy='mirror' LIMIT 20").fetchall():
             retried += _copy(desk, dict(r)) == 'synchronise'   # F18 : chaque copie hors transaction
     saved = backup(desk)
     return {'reminders': sent, 'resynchronised': retried, 'backup': saved}
@@ -773,7 +822,11 @@ def api(desk, route, data, method, owner='cabinet'):
             return {'ics': export_ics(desk)}
         if route == 'agenda/sauvegardes':
             return {'backups': backups(desk)}
+        if route == 'agenda/a-repartir':
+            return {'events': legacy_inventory(desk)}
         raise Stop('route_inconnue')
+    if route == 'agenda/repartir':
+        return decide_legacy(desk, data.get('id'), data.get('decision'), owner)
     if route == 'agenda/creer':
         return create(desk, data, owner)
     if route == 'agenda/modifier':

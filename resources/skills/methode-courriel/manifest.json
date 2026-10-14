@@ -1,0 +1,35 @@
+{
+  "id": "builtin.methode_courriel",
+  "name": "Rédiger un courriel utile",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "Méthodes jointes au cahier des charges AxiorHub Pilote (version 9, 14 octobre 2026)",
+  "license": "AGPL-3.0",
+  "source": "",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "description": "Préparer une réponse ciblée, factuelle et adaptée au destinataire et au style du cabinet.",
+  "situations": [
+    "courriel",
+    "mail",
+    "réponse",
+    "relance",
+    "demander des pièces",
+    "destinataire"
+  ],
+  "phases": [
+    "redaction_courriel"
+  ],
+  "auto_select_tags": [],
+  "enabled_default": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  }
+}

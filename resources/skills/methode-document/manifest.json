@@ -1,0 +1,36 @@
+{
+  "id": "builtin.methode_document",
+  "name": "Rédiger un document avec sources",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "Méthodes jointes au cahier des charges AxiorHub Pilote (version 9, 14 octobre 2026)",
+  "license": "AGPL-3.0",
+  "source": "",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "description": "Rédiger un projet fidèle au mandat, au modèle sélectionné et aux preuves effectivement lues.",
+  "situations": [
+    "document",
+    "rédaction",
+    "contrat",
+    "conclusions",
+    "consultation",
+    "assignation",
+    "modèle Word"
+  ],
+  "phases": [
+    "redaction_document"
+  ],
+  "auto_select_tags": [],
+  "enabled_default": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  }
+}

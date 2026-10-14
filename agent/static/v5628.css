@@ -60,3 +60,19 @@
 :root[data-theme=dark] .bx5628-confirm{background:#1e2a3c}:root[data-theme=dark] .tk28-chip,:root[data-theme=dark] .tk28-count{background:#243042;color:#a9c4ff}
 :root[data-theme=dark] .tk28-muted,:root[data-theme=dark] .bx5628-field span{color:#9aa6b6}
 @media (max-width:1100px){.tk28{grid-template-columns:1fr}.tk28-side{position:static;order:-1}}
+
+/* 5.6.43 (§ 12.1) : classement dans le dossier client — cases et libellés cliquables ensemble, états écrits (pas seulement la couleur) */
+.cx5643{border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem;margin:.75rem 0;background:var(--surface)}
+.cx5643 h3{margin:0 0 .5rem;font-size:1rem}
+.cx5643 label{display:block;margin:.4rem 0 .15rem;font-weight:600}
+.cx5643 select,.cx5643 input:not([type=checkbox]){width:100%;max-width:40rem;min-height:40px}
+.cx5643-badges{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin:.25rem 0 .5rem}
+.cx5643-badge{display:inline-block;padding:.2rem .6rem;border-radius:999px;border:1px solid var(--border);font-size:.875rem;font-weight:600}
+.cx5643-badge.is-verified{border-color:#16a34a}.cx5643-badge.is-error,.cx5643-badge.is-uncertain{border-color:#dc2626}.cx5643-badge.is-partial{border-color:#d97706}
+.cx5643-links{display:inline-flex;flex-wrap:wrap;gap:.6rem}
+.cx5643-parts,.cx5643-rules{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;padding:.5rem .75rem}
+.cx5643-part{display:grid;grid-template-columns:auto 1fr;gap:.25rem .5rem;align-items:center;margin:.3rem 0}
+.cx5643-part label{font-weight:400;margin:0}.cx5643-part input:not([type=checkbox]){grid-column:2}
+.cx5643-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}.cx5643-actions .ax-btn{min-height:44px}
+.cx5643-general{margin:.25rem 0;flex-basis:100%}.cx5643-general label{display:inline;margin-left:.35rem}
+.d27-reading{white-space:pre-wrap;overflow-wrap:anywhere;max-height:60vh;overflow:auto;padding:.75rem;border:1px solid var(--border);border-radius:8px}

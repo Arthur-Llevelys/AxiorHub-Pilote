@@ -72,6 +72,7 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5614.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5625.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5628.js"></script>'   # 5.6.28 : messagerie (répondre, transférer, classer)
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5643.js"></script>'   # 5.6.43 : classement dans le dossier client
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/rules568.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v420.js"></script>'
     head+='<meta name="htmx-config" content=\'{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"selfRequestsOnly":true}\'>'

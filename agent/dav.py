@@ -273,6 +273,18 @@ class DAV:
           {'Content-Type':content_type,'If-None-Match':'*'},limit+1)
         return path
 
+    def put_archive(self, path, data, limit, content_type='application/octet-stream'):
+        """5.6.43 (§ 10.4) : dépôt EXCLUSIF d'un fichier de conservation (courriel d'origine, lecture, pièce), borné par les limites
+        de conservation, distinctes de celles des documents générés. Un fichier existant n'est jamais remplacé (HTTP 412)."""
+        if not isinstance(data, bytes) or not data: raise Stop('contenu_fichier_invalide')
+        if len(data) > int(limit): raise Stop('archive_trop_volumineuse')
+        self.http.request('PUT', self.file_url(path), data, {'Content-Type': content_type, 'If-None-Match': '*'}, int(limit) + 1)
+        return path
+
+    def read_archive(self, path, limit):
+        """Relecture des octets réellement enregistrés (vérification de l'empreinte après dépôt ou reprise)."""
+        return self.http.request('GET', self.file_url(path), limit=int(limit))
+
     def trash_file(self, path, etag):
         """5.6.24 : suppression conditionnelle (If-Match) d'un fichier ; Nextcloud le conserve dans sa corbeille (restaurable)."""
         if not etag: raise Stop('etag_nextcloud_absent')
@@ -852,6 +864,22 @@ class LocalFolder(DAV):
         if not target.parent.is_dir(): raise Stop('http_409')
         self._publish(target, data)                     # F10 : exclusif, même si le fichier est apparu entre-temps
         return path
+
+    def put_archive(self, path, data, limit, content_type='application/octet-stream'):
+        """5.6.43 (§ 10.4) : même contrat que sur Nextcloud (exclusif, borné), dans le dossier local du poste."""
+        if not isinstance(data, bytes) or not data: raise Stop('contenu_fichier_invalide')
+        if len(data) > int(limit): raise Stop('archive_trop_volumineuse')
+        path, target = self._fs(path)
+        if target.exists() or target.is_symlink(): raise Stop('http_412')
+        if not target.parent.is_dir(): raise Stop('http_409')
+        self._publish(target, data)
+        return path
+
+    def read_archive(self, path, limit):
+        _, target = self._fs(path)
+        if not target.is_file(): raise Stop('http_404')
+        data, _ = self._read(target, int(limit))
+        return data
 
     # ----- agendas : CalDAV seulement
     def _caldav(self):

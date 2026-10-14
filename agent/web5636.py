@@ -6,7 +6,8 @@ from .web5634 import _post
 # Droits en écriture des routes m5636 (mode autonome : même règle que le serveur, testée).
 ADMIN_ONLY = ('nextcloud/app', 'nextcloud/cle/revoquer', 'microsoft/', 'compte/')   # 5.6.42 : compte de l'interface
 ASSISTANT_ROUTES = ('contacts/', 'pieces/analyser', 'pieces/ranger-pj', 'corporate/operation', 'corporate/societe', 'corporate/souscription',
-                    'outils/memo/rediger', 'travail/ecarter', 'office/reformuler')
+                    'outils/memo/rediger', 'travail/ecarter', 'office/reformuler',
+                    'talk/')   # 5.6.43 (§ 22) : chacun règle sa propre page Talk
 
 
 def allowed(role, route):
@@ -44,6 +45,9 @@ def api(env, desk, auth, prefix, name, args, method):
     if method != 'POST':
         raise Stop('methode_refusee')
     data = _post(env, auth, 12_000_000 if route.startswith(('documents/', 'corporate/import', 'grilles/import', 'office/')) else 400_000)
+    if route in ('talk/enregistrer', 'talk/tester'):   # 5.6.43 (§ 22) : préférence de l'utilisateur connecté (jamais celle d'un autre)
+        from . import talk5643
+        return json_out(talk5643.save(desk, owner, data) if route == 'talk/enregistrer' else talk5643.test(desk, data))
     if route == 'compte/mot-de-passe':   # 5.6.42 : identifiant et mot de passe de l'interface (administrateur)
         if role != 'administrateur':
             raise Stop('role_insuffisant')

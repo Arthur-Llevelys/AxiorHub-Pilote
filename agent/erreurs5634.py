@@ -113,6 +113,48 @@ MESSAGES = {
     'integration_desactivee': 'Liaison Nextcloud désactivée sur ce moteur.',
     'moteur_poste_non_pris_en_charge': 'AxiorHub installé sur un poste de travail : utilisable seulement en mode découverte, depuis l’ordinateur où il est installé (Nextcloud sur ce même ordinateur, ou lien « Mon AxiorHub local »). Pour le cabinet, installez la version serveur (Linux, HTTPS).',   # 5.6.41
     'dossier_hors_perimetre': 'Ce dossier n’entre pas dans votre périmètre.',
+    'operation_annulee': 'Travail arrêté à votre demande ; les fichiers déjà enregistrés et vérifiés sont conservés.',   # 5.6.43
+    'ia_en_pause': 'L’IA est en pause : ce travail reprendra quand vous cliquerez sur « IA en pause — reprendre ».',   # 5.6.43
+    'automatismes_en_pause': 'L’IA est en pause : aucun travail automatique ne démarre avant la reprise.',   # 5.6.43
+    'controle_pause_indisponible': 'L’état de pause n’a pas pu être vérifié : le travail est suspendu par précaution.',   # 5.6.43
+    'origine_travail_invalide': 'Origine du travail invalide.',   # 5.6.43
+    'reponse_a_soi_meme_refusee': 'Aucun brouillon adressé au cabinet lui-même : vérifiez les destinataires du message.',   # 5.6.43
+    'destinataire_absent': 'Aucun destinataire extérieur pour ce brouillon.',   # 5.6.43
+    'action_de_classement_a_choisir': 'Choisissez au moins une action : enregistrer le courriel ou ses pièces jointes.',   # 5.6.43
+    'aucune_piece_jointe_a_enregistrer': 'Aucune pièce jointe à enregistrer pour ce courriel.',   # 5.6.43
+    'piece_jointe_inconnue': 'Cette pièce jointe ne fait pas partie du courriel lu : rechargez le message.',   # 5.6.43
+    'proposition_absente': 'Préparation introuvable : relancez « Enregistrer… maintenant ».',   # 5.6.43
+    'proposition_obsolete': 'Le classement a changé depuis l’affichage : rechargez le message ; vos choix restent à refaire.',   # 5.6.43
+    'confirmation_invalide': 'Confirmation de classement invalide.',   # 5.6.43
+    'proposition_autre_utilisateur': 'Cette préparation appartient à un autre utilisateur.',   # 5.6.43
+    'courriel_source_deplace_ou_absent': 'Le courriel a été déplacé ou supprimé de la messagerie depuis la préparation : rouvrez-le à son nouvel emplacement.',   # 5.6.43
+    'courriel_source_modifie_depuis_la_preparation': 'Le courriel lu n’a plus les mêmes octets que lors de la préparation : rien n’a été enregistré.',   # 5.6.43
+    'uidvalidity_modifiee': 'La boîte de messagerie a été renumérotée par le serveur : rouvrez le courriel avant de le classer.',   # 5.6.43
+    'uidvalidity_requise': 'Identifiant de boîte manquant : rouvrez le courriel.',   # 5.6.43
+    'message_trop_volumineux_pour_conservation': 'Courriel trop volumineux pour la conservation (limite de la configuration « archive_max_message_bytes »).',   # 5.6.43
+    'octets_imap_incomplets': 'Le serveur de messagerie n’a pas transmis le message complet : réessayez.',   # 5.6.43
+    'taille_imap_absente': 'Le serveur de messagerie n’indique pas la taille du message.',   # 5.6.43
+    'archive_trop_volumineuse': 'Fichier trop volumineux pour la conservation.',   # 5.6.43
+    'conflit_fichier_existant': 'Un fichier différent existe déjà à cet emplacement : rien n’a été écrasé.',   # 5.6.43
+    'empreinte_depot_differente': 'Le fichier relu après dépôt ne correspond pas : enregistrement non validé, réessayez.',   # 5.6.43
+    'relecture_depot_impossible': 'Le dépôt n’a pas pu être relu : son état est incertain ; il sera vérifié avant toute nouvelle copie.',   # 5.6.43
+    'original_non_conserve': 'L’original de ce courriel n’est pas (encore) conservé.',   # 5.6.43
+    'original_altere': 'L’original conservé ne correspond plus à son empreinte : vérifiez le fichier dans le dossier.',   # 5.6.43
+    'classement_absent': 'Classement introuvable.',   # 5.6.43
+    'classement_modifie_entre_temps': 'Ce classement a été modifié ailleurs : rechargez la page.',   # 5.6.43
+    'annotation_invalide': 'Note vide ou trop longue (20 000 caractères au plus).',   # 5.6.43
+    'autorisation_invalide': 'Choix d’autorisation invalide.',   # 5.6.43
+    'aucune_piece_enregistree': 'Aucune pièce jointe n’a pu être enregistrée : voir le détail par fichier.',   # 5.6.43
+    'source_du_courriel_absente': 'La source de ce courriel n’est plus connue : rouvrez-le depuis la messagerie.',   # 5.6.43
+    'reglage_modifie_entre_temps': 'Ce réglage a été modifié ailleurs : rechargez la page.',   # 5.6.43
+    'version_invalide': 'Version de réglage invalide.',   # 5.6.43
+    'adresse_talk_invalide': 'Adresse de Talk invalide : utilisez l’adresse HTTPS de l’application Talk de votre Nextcloud (…/apps/spreed/).',   # 5.6.43
+    'adresse_talk_hors_nextcloud': 'L’adresse de Talk doit être sur la même instance Nextcloud que la connexion configurée.',   # 5.6.43
+    'parcours_annule': 'Ce parcours est annulé : démarrez-en un nouveau.',   # 5.6.43
+    'etape_non_reprenable': 'Seule une étape en erreur ou annulée peut être reprise.',   # 5.6.43
+    'evenement_deja_reparti': 'Cet événement a déjà été réparti.',   # 5.6.43
+    'decision_agenda_invalide': 'Choix invalide pour cet ancien événement.',   # 5.6.43
+    'courriel_invalide': 'Courriel invalide : rouvrez-le depuis la messagerie.',   # 5.6.43
     'instantane_modele_introuvable': 'La trame choisie pour cette rédaction est introuvable : choisissez de nouveau le modèle dans la bibliothèque. La rédaction ne se fera pas sur une autre version.',   # 5.6.42
     'instantane_modele_altere': 'La trame enregistrée pour cette rédaction ne correspond plus à son empreinte : choisissez de nouveau le modèle.',   # 5.6.42
     'modele_word_modifie': 'Le modèle Word a été modifié depuis son enregistrement : rechargez la page, vérifiez les informations et les clauses, puis relancez.',   # 5.6.42

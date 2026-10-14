@@ -66,6 +66,7 @@ JOBS |= {'proactive34_cycle','proactive34_briefing','proactive34_now'}
 JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
          'billing_review35','classify_comparable35'}
 JOBS |= {'save_mail_rule370','delete_mail_rule370','record_correction370','set_automation_level370'}
+JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}   # 5.6.43 (§ 19) : reprise d'une étape, arrêt du parcours
 JOBS |= {'review_action380','refresh_matter_graph380','start_playbook380','advance_playbook380',
          'complete_playbook_step380','save_ecosystem_service380',
          'prepare_ecosystem_action380','run_business_evaluation380'}
@@ -108,6 +109,10 @@ USER_JOBS |= {'prepare_cabinet_letter','prepare_cabinet_revision','create_cabine
 USER_JOBS |= {'proactive34_now'}
 USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
               'billing_review35','classify_comparable35'}
+USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
+JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
+USER_JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}
+CONSERVATION_JOBS = ('archive_correspondence5643','file_mail_attachments5643')
 USER_JOBS |= {'refresh_matter_graph380','start_playbook380','advance_playbook380',
               'complete_playbook_step380','prepare_ecosystem_action380','run_business_evaluation380'}
 USER_JOBS |= {'production_cycle390','advance_playbooks390'}
@@ -317,6 +322,10 @@ class Desk:
         self.db.commit()
         from .migrations import apply as apply_migrations
         apply_migrations(self)
+        if not self.settings('arret5643:matter_ref_backfill',False):   # 5.6.43 (§ 16.1) : dossier normalisé des travaux antérieurs
+            self.db.execute("UPDATE jobs SET matter_ref=COALESCE(NULLIF(json_extract(args,'$.matter'),''),NULLIF(json_extract(args,'$.matter_id'),'')) "
+                            "WHERE matter_ref IS NULL AND json_valid(args)")
+            self.db.commit();self.setting('arret5643:matter_ref_backfill',True)
         from .legal_memory import ensure_schema
         ensure_schema(self)
         from .metier500 import ensure_schema as ensure_metier500_schema   # 5.0.0 : tables additives
@@ -390,7 +399,7 @@ class Desk:
             return None
         return self.enqueue(kind, args, priority, chained=True)
 
-    def enqueue(self, kind, args=None, priority=None, chained=False, transactional=False):
+    def enqueue(self, kind, args=None, priority=None, chained=False, transactional=False, origin=None):
         """Met un travail en file. 5.6.39 (audit 5.6.37, F02) : ``transactional=True`` = le travail est inséré dans la transaction de
         l'appelant, sans validation, sans annulation globale et sans notification : l'appelant valide l'ensemble puis appelle
         ``notify_queued``. Sinon (contrat historique), la mise en file est validée ici ; une notification en panne après cette validation
@@ -401,9 +410,10 @@ class Desk:
             from . import conflicts500
             if kind in conflicts500.GATED_KINDS:
                 conflicts500.gate(self, str(args['matter']))
-        if args and (args.get('matter') or args.get('matter_id')):   # 5.6.29 : pause de l'IA par dossier et coupe-circuit des relances
-            from . import pause5629
-            pause5629.check_enqueue(self, kind, args, job_priority(kind) if priority is None else priority)
+        from . import arret5643, pause5629   # 5.6.43 (cahier v9, § 16) : origine explicite, parent et contrôleur unique
+        origin = arret5643.resolve_origin(self, kind, args, job_priority(kind) if priority is None else priority, origin)
+        parent_job_id = arret5643.check_parent(self)
+        pause5629.check_enqueue(self, kind, args, job_priority(kind) if priority is None else priority, origin)
         raw = json.dumps(args or {}, sort_keys=True)
         maximum=120000 if kind=='prepare_transcript_report' else (60000 if kind in ('assistant_answer','prepare_document_project','prepare_hearing','prepare_word_project','prepare_legal_opinion','coach_hearing35','record_call35') else (24000 if kind in ('propose_work_plan','prepare_cabinet_letter') else
           (120000 if kind=='import_mcp_legal_results' else
@@ -428,8 +438,8 @@ class Desk:
             if not transactional:self.db.rollback()
             raise Stop('file_attente_pleine')
         cur = self.db.execute('''INSERT INTO jobs
-            (kind,args,status,created,finished,result,priority) VALUES (?,?,?, ?,NULL,NULL,?)''',
-            (kind,raw,'pending',now(),priority))
+            (kind,args,status,created,finished,result,priority,origin,parent_job_id,matter_ref) VALUES (?,?,?, ?,NULL,NULL,?,?,?,?)''',
+            (kind,raw,'pending',now(),priority,origin,parent_job_id,arret5643.matter_of(args) or None))
         if transactional:
             return cur.lastrowid
         self.db.commit()
@@ -465,22 +475,27 @@ class Desk:
     def cancel_job(self, job_id):
         try:job_id=int(job_id)
         except (TypeError,ValueError):raise Stop('operation_invalide') from None
+        stamp=now()
+        changed=self.db.execute("""UPDATE jobs SET
+            status=CASE status WHEN 'pending' THEN 'cancelled' WHEN 'suspended' THEN 'cancelled' WHEN 'running' THEN 'cancel_requested' ELSE status END,
+            finished=CASE WHEN status IN ('pending','suspended') THEN ? ELSE finished END,
+            result=CASE status WHEN 'pending' THEN ? WHEN 'suspended' THEN ? WHEN 'running' THEN ? ELSE result END,
+            stop_reason=CASE WHEN status IN ('pending','suspended','running') THEN 'user' ELSE stop_reason END
+            WHERE id=? AND status IN ('pending','suspended','running')""",
+            (stamp,json.dumps({'message':'Opération annulée avant son démarrage.'}),json.dumps({'message':'Opération suspendue annulée.'}),
+             json.dumps({'message':'Arrêt demandé ; le worker doit encore le confirmer.'}),job_id)).rowcount
+        self.db.commit()
+        from .arret5643 import cancel_descendants
+        cancel_descendants(self,job_id)
         row=self.db.execute('SELECT status,kind FROM jobs WHERE id=?',(job_id,)).fetchone()
         if not row:raise Stop('operation_absente')
-        stamp=now()
-        if row['status']=='pending':
-            self.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE id=?",
-                (stamp,json.dumps({'message':'Opération annulée avant son démarrage.'}),job_id))
-            state='cancelled'
-        elif row['status']=='running':
-            self.db.execute("UPDATE jobs SET status='cancel_requested',result=? WHERE id=?",
-                (json.dumps({'message':'Annulation demandée ; le lot en cours va se terminer sans être relancé.'}),job_id))
-            state='cancel_requested'
-        elif row['status']=='cancel_requested':state='cancel_requested'
-        else:raise Stop('operation_deja_terminee')
+        if row['status'] not in ('cancelled','cancel_requested'):raise Stop('operation_deja_terminee')
+        state=row['status']
+        if not changed:   # second arrêt : idempotent (R10), sans nouvel audit ni annonce ; « already » permet de le dire à l'utilisateur
+            return {'job_id':job_id,'status':state,'already':True}
         self.db.commit();self.audit('operation_annulee',{'job':job_id,'kind':row['kind'],'state':state})
         from .live430 import emit
-        emit(self,'cancelled','Annulation enregistrée ; un travail déjà déposé reste conservé.',job_id)
+        emit(self,state,'Annulation confirmée avant démarrage.' if state=='cancelled' else 'Arrêt demandé ; confirmation du worker attendue.',job_id)
         return {'job_id':job_id,'status':state}
 
     def audit(self, action, data):
@@ -689,6 +704,9 @@ class Desk:
         return {'note_interne':'disponible','brouillon_imap_cree':False}
 
     def perform(self, kind, args):
+        if kind in CONSERVATION_JOBS:
+            from .correspondances5643 import perform as conserve
+            return conserve(self,kind,args)
         if kind=='document568_run':
             from .procedure568 import execute
             return execute(self,str(args.get('run') or ''),str(args.get('owner') or 'cabinet'))
@@ -770,7 +788,7 @@ class Desk:
             from .learning392 import set_correction_state
             return set_correction_state(self,args.get('correction_id',''),args.get('enabled','no'))
         if kind in {'review_action380','refresh_matter_graph380','start_playbook380',
-                    'advance_playbook380','complete_playbook_step380',
+                    'advance_playbook380','complete_playbook_step380','retry_playbook_step5643','cancel_playbook5643',
                     'save_ecosystem_service380','prepare_ecosystem_action380',
                     'run_business_evaluation380'}:
             from .operating380 import perform
@@ -1006,7 +1024,7 @@ class Desk:
             try:fcntl.flock(probe,fcntl.LOCK_SH|fcntl.LOCK_NB)
             except BlockingIOError:busy=True
         row=self.db.execute("SELECT * FROM jobs WHERE status='pending'"+
-          (" AND kind IN ('live_calendar430','live_documents430','automation_setting')" if busy else '')+
+          (" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643')" if busy else '')+
           ' ORDER BY '+PICK_ORDER+' LIMIT 1').fetchone()
         if not row:
             self.db.commit()
@@ -1020,6 +1038,10 @@ class Desk:
             _args=json.loads(row['args'] or '{}');_args=_args if isinstance(_args,dict) else {}
         except (ValueError,TypeError):_args={}
         trace480.begin(row['id'],row['kind'],_args.get('matter') or _args.get('matter_id') or '')
+        from . import arret5643   # 5.6.43 (§ 16) : les appels au modèle de ce fil sont rattachés au travail (interruption, pause)
+        _job_ctx=arret5643.job_context(self.c['state_dir'],row['id'],arret5643.matter_of(_args),arret5643.is_automatic_row(row,_args))
+        _job_ctx.__enter__()
+        pause_reason=''
         try:
             from .live430 import progress
             from .missions567 import check_authority
@@ -1051,14 +1073,19 @@ class Desk:
                     from .live430 import heartbeat
                     heartbeat(self,'courriels','active',str(result.get('examined',0))+' courriels examinés',time.time()+300)
                 if result.get('busy'):
-                    self.db.execute("UPDATE jobs SET status='pending' WHERE id=?",(row['id'],));self.db.commit()
-                    self.active_job_id=None;trace480.end();secours564.end()
+                    changed=self.db.execute("UPDATE jobs SET status='pending' WHERE id=? AND status='running'",(row['id'],)).rowcount
+                    self.db.commit()
+                    if not changed:raise Stop('operation_annulee')
+                    self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
                     return False
             elif row['kind'] in ('live_calendar430','live_documents430'):
                 from .watch430 import perform
                 result=perform(self,row['kind'],json.loads(row['args']))
             elif row['kind']=='automation_setting':
                 # 5.2.1 : simple réglage local, appliqué même si une analyse tient le verrou.
+                result=self.perform(row['kind'],json.loads(row['args']))
+            elif row['kind'] in CONSERVATION_JOBS:
+                # 5.6.43 (§ 13.5) : copie déterministe, sans IA ; elle n'attend pas une inférence qui tient le verrou global.
                 result=self.perform(row['kind'],json.loads(row['args']))
             else:
                 from .queue521 import note_holder
@@ -1078,22 +1105,45 @@ class Desk:
             status='done'
         except Stop as e:
             if str(e)=='traitement_deja_en_cours':
-                self.db.execute("UPDATE jobs SET status='pending' WHERE id=?",(row['id'],));self.db.commit()
-                self.active_job_id=None;trace480.end();secours564.end()
-                return False
+                changed = self.db.execute("UPDATE jobs SET status='pending' WHERE id=? AND status='running'",(row['id'],)).rowcount
+                self.db.commit()
+                if changed:
+                    self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
+                    return False
+                e=Stop('operation_annulee')
             result={'erreur':str(e)};status='error'
             if getattr(e,'detail',None):   # 5.6.34 (B15) : service, étape, statut, corrélation, ressource anonymisée (aucun secret)
                 from .erreurs5634 import public as _public_detail
                 result['detail']=_public_detail(e.detail)
-            if str(e)=='agent_en_pause_sur_ce_dossier':   # 5.6.29 : dossier mis en pause : travail annulé, pas une erreur
-                result={'message':'Annulé : IA en pause sur ce dossier.'};status='cancelled'
+            # 5.6.43 (§ 16) : une pause suspend (reprenable) ; seule l'annulation est terminale
+            if str(e) in ('agent_en_pause_sur_ce_dossier','dossier_en_pause'):
+                result={'message':'Suspendu : IA en pause sur ce dossier. Repris à la levée de la pause.'};status='suspended';pause_reason='pause_dossier'
+            elif str(e) in ('automatismes_en_pause','ia_en_pause','controle_pause_indisponible'):
+                result={'message':'Suspendu : IA en pause. Repris à la reprise de l’IA.' if str(e)!='controle_pause_indisponible'
+                        else 'Suspendu : l’état de pause n’a pas pu être vérifié ; reprise après contrôle.'};status='suspended';pause_reason='pause'
+            elif str(e)=='operation_annulee':
+                result={'message':'Annulé à la demande de l’avocat.'};status='cancelled'
         except Exception:
             result={'erreur':'action_interrompue_consulter_le_journal'};status='error'
-        current=self.db.execute('SELECT status FROM jobs WHERE id=?',(row['id'],)).fetchone()[0]
-        if current=='cancel_requested':
-            status='cancelled';result={'message':'Opération annulée après le lot en cours.'}
-        self.db.execute('UPDATE jobs SET status=?,finished=?,result=? WHERE id=?',
-                        (status,now(),json.dumps(result),row['id']))
+        _job_ctx.__exit__(None,None,None)
+        reason_code=pause_reason or 'pause'
+        partial=json.dumps({'message':'Arrêt confirmé ; résultats déjà produits conservés.', 'partial_result':result})
+        self.db.execute("""UPDATE jobs SET
+            status=CASE
+              WHEN status='cancelled' THEN 'cancelled'
+              WHEN status='cancel_requested' AND COALESCE(stop_reason,'') IN ('pause','pause_dossier') AND ? IN ('suspended','done') THEN ?
+              WHEN status='cancel_requested' THEN 'cancelled'
+              ELSE ? END,
+            stop_reason=CASE WHEN ?='suspended' AND status<>'cancelled' THEN COALESCE(stop_reason,?) ELSE stop_reason END,
+            finished=?,
+            result=CASE
+              WHEN status='cancelled' THEN ?
+              WHEN status='cancel_requested' AND COALESCE(stop_reason,'') IN ('pause','pause_dossier') AND ? IN ('suspended','done') THEN ?
+              WHEN status='cancel_requested' THEN ?
+              ELSE ? END
+            WHERE id=?""", (status,status,status,status,reason_code,now(),partial,status,json.dumps(result),partial,json.dumps(result),row['id']))
+        actual=self.db.execute('SELECT status,result FROM jobs WHERE id=?',(row['id'],)).fetchone()
+        status=actual['status'];result=json.loads(actual['result'] or '{}')
         if row['kind']=='proactive34_cycle' and status!='done':
             self.db.execute("UPDATE proactive_cycles_v340 SET state='error',finished=? WHERE job_id=?",
                             (now(),row['id']))

@@ -3,6 +3,7 @@ from html import escape
 import json
 from urllib.parse import parse_qsl, urlsplit
 
+from .common import Stop
 from .improvements36 import matter_option
 from .operating380 import (BUCKETS, CAPABILITIES, action_center, evaluation_runs,
                            matter_graph, playbook_run, playbooks,
@@ -36,28 +37,104 @@ def today_page(desk, form, link):
     return out+'</div><p class="notice">'+e(data['warning'])+'</p>'
 
 
+RUN_STATES = {'running': 'En cours', 'awaiting_input': 'Validation requise', 'suspended': 'Suspendu (pause de l’IA)',
+              'step_cancelled': 'Étape annulée — reprise contrôlée possible', 'error': 'Erreur — reprise de l’étape possible',
+              'done': 'Terminé', 'cancelled': 'Annulé'}
+STEP_STATES = {'pending': 'En attente', 'reserving': 'En cours', 'queued': 'En cours', 'awaiting_input': 'Validation requise',
+               'done': 'Terminée', 'error': 'Erreur', 'cancelled': 'Annulée'}
+PLAYBOOK_JOBS = ('start_playbook380', 'advance_playbook380', 'complete_playbook_step380', 'retry_playbook_step5643', 'cancel_playbook5643')
+
+
+def _run_from_job(desk, job_id):
+    """5.6.43 (§ 19.1) : un lien « job=… » ouvre le parcours produit par ce travail (démarrage, suite, reprise)."""
+    try:
+        row = desk.db.execute('SELECT kind,status,result FROM jobs WHERE id=?', (int(job_id),)).fetchone()
+    except (TypeError, ValueError):
+        return '', 'Travail introuvable.'
+    if not row or row['kind'] not in PLAYBOOK_JOBS:
+        return '', 'Ce travail ne concerne pas un parcours guidé.'
+    if row['status'] in ('pending', 'running', 'suspended'):
+        return '', 'Démarrage du parcours en cours (travail n° %s) : rechargez la page dans un instant.' % job_id
+    try:
+        result = json.loads(row['result'] or '{}')
+    except ValueError:
+        result = {}
+    rid = str(result.get('run_id') or result.get('id') or '')
+    if not rid:
+        return '', 'Le travail n° %s n’a pas produit de parcours : %s' % (job_id, result.get('erreur') or result.get('message') or row['status'])
+    return rid, ''
+
+
+def _playbook_names(desk):
+    return {p['id']: p['name'] for p in playbooks(desk)}
+
+
+def _run_detail(desk, run, names, form, link):
+    mid = run['matter']
+    title = _playbook_names(desk).get(run['playbook_id'], run['playbook_id'])   # nom métier du parcours, jamais l'identifiant technique
+    out = ('<section class="op-run-detail" id="playbook-run"><p class="eyebrow">PARCOURS GUIDÉ</p><h2>' + e(title) + '</h2>'
+           '<p class="result420-identity">' + link('/matter', names.get(mid, mid) or mid, id=mid).replace('<a ', '<a class="result420-matter" ', 1) +
+           '<span class="result420-reference">Dossier n° ' + e(mid) + '</span></p>'
+           '<p>État : <strong>' + e(RUN_STATES.get(run['status'], run['status'])) + '</strong>' +
+           (' · objectif : ' + e(run['objective']) if run.get('objective') else '') + '</p><ol class="op-steps">')
+    for step in run['steps']:
+        out += ('<li class="op-step-' + e(step['status']) + '"><strong>' + e(step['label']) + '</strong> · ' +
+                e(STEP_STATES.get(step['status'], step['status'])))
+        if step.get('job_id'):
+            out += ' · ' + link('/etat-systeme', 'travail n° %s' % step['job_id'], job=step['job_id'])
+        if step['result'].get('target'):
+            out += ' · ' + link(step['result']['target'], 'Ouvrir l’étape', matter=mid)
+        if step['status'] == 'awaiting_input':
+            out += form('complete_playbook_step380', 'Marquer l’étape comme contrôlée', {'run_id': run['id'], 'step_no': step['step_no']})
+        if step['status'] in ('error', 'cancelled') and run['status'] != 'cancelled':
+            out += form('retry_playbook_step5643', 'Reprendre cette étape', {'run_id': run['id'], 'step_no': step['step_no']})
+        out += '</li>'
+    out += '</ol><div class="actions">'
+    if run['status'] in ('running', 'awaiting_input') and not any(s['status'] in ('queued', 'reserving') for s in run['steps']):
+        out += form('advance_playbook380', 'Continuer le parcours', {'run_id': run['id']})
+    if run['status'] not in ('done', 'cancelled'):
+        out += form('cancel_playbook5643', 'Arrêter le parcours', {'run_id': run['id']})
+    return out + '</div></section>'
+
+
 def playbooks_page(desk, matters, args, form, link):
-    selected=args.get('matter','');run_id=args.get('run','')
-    options='<option value="">Choisir le dossier complet</option>'+''.join('<option value="'+e(m['id'])+'"'+(' selected' if m['id']==selected else '')+'>'+e(matter_option(m))+'</option>' for m in matters)
-    out='<section class="op-hero"><p class="eyebrow">PROCÉDURES MÉTIER</p><h1>Playbooks</h1><p>Chaque parcours réutilise les tâches, contrôles, documents et recherches existants. Aucune étape engageante n’est exécutée sans validation.</p></section>'
-    out+='<div class="op-playbooks">'
-    for item in playbooks(desk):
-        steps='<ol>'+''.join('<li>'+e(s['label'])+(' · validation' if s.get('manual') else '')+'</li>' for s in item['steps'])+'</ol>'
-        extra='<label>Dossier<select required name="matter">'+options+'</select></label><label>Objectif ou consigne<textarea name="objective" maxlength="3000" rows="3"></textarea></label>'
-        out+='<article><small>'+e(item['family'])+'</small><h2>'+e(item['name'])+'</h2><p>'+e(item['description'])+'</p><details><summary>Étapes</summary>'+steps+'</details>'+form('start_playbook380','Démarrer ce parcours',{'playbook_id':item['id']},extra)+'</article>'
-    out+='</div><h2>Parcours récents</h2>'
-    for run in recent_playbook_runs(desk,selected,30):
-        out+='<article class="op-run"><div><small>'+e(run['status'])+'</small><h3>'+e(run['playbook_id'])+' · '+e(run['matter'])+'</h3></div><a href="?run='+e(run['id'])+'&matter='+e(run['matter'])+'">Voir le parcours</a></article>'
+    """5.6.43 (§ 19) : le suivi du parcours sélectionné est présenté en premier ; le catalogue et les parcours récents viennent ensuite."""
+    names = {m['id']: matter_option(m) for m in matters}
+    selected = args.get('matter', '')
+    run_id = args.get('run', '')
+    notice = ''
+    if not run_id and args.get('job'):
+        run_id, notice = _run_from_job(desk, args.get('job'))
+    out = ('<section class="op-hero"><p class="eyebrow">PROCÉDURES MÉTIER</p><h1>Playbooks</h1><p>Chaque parcours réutilise les tâches, '
+           'contrôles, documents et recherches existants. Aucune étape engageante n’est exécutée sans validation.</p></section>')
+    if notice:
+        out += '<p class="notice" role="status">' + e(notice) + '</p>'
     if run_id:
-        run=playbook_run(desk,run_id);out+='<section class="op-run-detail"><h2>Parcours '+e(run['playbook_id'])+'</h2><p>Dossier : '+link('/matter',run['matter'],id=run['matter'])+' · état : <strong>'+e(run['status'])+'</strong></p><ol>'
-        for step in run['steps']:
-            out+='<li class="op-step-'+e(step['status'])+'"><strong>'+e(step['label'])+'</strong> · '+e(step['status'])
-            if step['result'].get('target'):out+=' · '+link(step['result']['target'],'Ouvrir l’étape',matter=run['matter'])
-            if step['status']=='awaiting_input':out+=form('complete_playbook_step380','Marquer l’étape comme contrôlée',{'run_id':run['id'],'step_no':step['step_no']})
-            out+='</li>'
-        out+='</ol>'
-        if run['status'] in ('running','awaiting_input'):out+=form('advance_playbook380','Continuer le parcours',{'run_id':run['id']})
-        out+='</section>'
+        try:
+            run = playbook_run(desk, run_id)
+        except Stop:
+            out += '<p class="notice" role="alert">Ce parcours n’existe plus ou n’est pas accessible. Choisissez-en un dans la liste ci-dessous.</p>'
+        else:
+            if selected and selected != run['matter']:
+                out += ('<p class="notice" role="status">Ce parcours concerne le dossier ' + e(names.get(run['matter'], run['matter'])) +
+                        ', pas celui indiqué dans le lien : il est affiché avec son vrai dossier.</p>')
+            out += _run_detail(desk, run, names, form, link)
+    options = '<option value="">Choisir le dossier complet</option>' + ''.join(
+        '<option value="' + e(m['id']) + '"' + (' selected' if m['id'] == selected else '') + '>' + e(matter_option(m)) + '</option>' for m in matters)
+    out += '<h2>Démarrer un parcours</h2><div class="op-playbooks">'
+    for item in playbooks(desk):
+        steps = '<ol>' + ''.join('<li>' + e(s['label']) + (' · validation' if s.get('manual') else '') + '</li>' for s in item['steps']) + '</ol>'
+        extra = ('<label>Dossier<select required name="matter">' + options + '</select></label><label>Objectif ou consigne'
+                 '<textarea name="objective" maxlength="3000" rows="3"></textarea></label>')
+        out += ('<article><small>' + e(item['family']) + '</small><h2>' + e(item['name']) + '</h2><p>' + e(item['description']) +
+                '</p><details><summary>Étapes</summary>' + steps + '</details>' +
+                form('start_playbook380', 'Démarrer ce parcours', {'playbook_id': item['id']}, extra) + '</article>')
+    out += '</div><h2>Parcours récents</h2>'
+    titles = _playbook_names(desk)
+    for run in recent_playbook_runs(desk, selected, 30):
+        out += ('<article class="op-run"><div><span class="result420-matter">' + e(names.get(run['matter'], run['matter'])) +
+                '</span><small>' + e(RUN_STATES.get(run['status'], run['status'])) + '</small><h3>' + e(titles.get(run['playbook_id'], run['playbook_id'])) + '</h3></div>' +
+                link('/playbooks', 'Voir le parcours', run=run['id']) + '</article>')
     return out
 
 

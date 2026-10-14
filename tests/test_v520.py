@@ -329,11 +329,11 @@ class Agenda(AgendaBase):
                  'href': '/remote.php/dav/calendars/tech/perso/perso-1.ics', 'etag': '"v1"'}]
         with patch('agent.workplan._dav', return_value=type('D', (), {'calendar_url': lambda s, u: CAL, 'events': lambda s, *a: live,
                                                                      'http': FakeHTTP({})})()):
-            body = self.request('/planning', query='vue=agenda&view=week&date=2026-10-05')['body']
+            body = self.request('/planning', query='vue=agenda&agenda=en_ligne&view=week&date=2026-10-05')['body']
         self.assertIn('class="ax-dnd"', body)
         self.assertIn('data-day="2026-10-05"', body)
         self.assertIn('data-task="t1"', body)
-        self.assertIn('Modifier (agenda personnel)', body)
+        self.assertIn('Modifier cet événement en ligne', body)   # 5.6.43 (§ 17.4) : libellé sans ambiguïté avec l'Agenda personnel
         self.assertIn('/static/v520.js', body)
 
 

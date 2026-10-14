@@ -286,7 +286,8 @@ class ForcedAIReply(unittest.TestCase):
         own = self._mail('Cabinet <cabinet@example.test>', 'romero@avocats.test')
         draft = make_draft(own, cfg, 'Texte', 'k1', to='romero@avocats.test')
         self.assertEqual(draft['To'], 'romero@avocats.test')
-        self.assertEqual(make_draft(own, cfg, 'Texte', 'k2')['To'], 'cabinet@example.test')
+        with self.assertRaisesRegex(Stop, 'reponse_a_soi_meme_refusee'):   # 5.6.43 (§ 21.2) : jamais de brouillon adressé au cabinet
+            make_draft(own, cfg, 'Texte', 'k2')
         src = (ROOT / 'agent' / 'intelligence.py').read_text(encoding='utf-8')
         self.assertIn("manual_key=digest(key+'|manual-v15'+(('|'+str(manual.get('at',''))) if manual else ''))", src)   # chaque relance = nouveau brouillon
         self.assertIn("if not manual and existing and existing[0] in ('drafted'", src)

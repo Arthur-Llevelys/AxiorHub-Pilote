@@ -19,9 +19,9 @@ class Pause(t530.Base):
         brief = self.desk.enqueue('refresh_brief', {'matter': MID})
         mine = self.desk.enqueue('prepare_document_project', {'matter': MID, 'document_type': 'courrier', 'instruction': 'ma demande'}, priority=0)
         out = pause5629.set_pause(self.desk, MID, True)
-        self.assertEqual(out['cancelled'], 2)
+        self.assertEqual(out['suspended'], 2)   # 5.6.43 (cahier v9, § 16) : suspendus (reprenables), plus annulés
         status = {r['id']: r['status'] for r in self.desk.db.execute('SELECT id,status FROM jobs')}
-        self.assertEqual((status[auto], status[brief], status[mine]), ('cancelled', 'cancelled', 'pending'))
+        self.assertEqual((status[auto], status[brief], status[mine]), ('suspended', 'suspended', 'pending'))
         with self.assertRaisesRegex(Stop, 'agent_en_pause_sur_ce_dossier'):
             self.desk.enqueue('refresh_brief', {'matter': MID})
         with self.assertRaisesRegex(Stop, 'agent_en_pause_sur_ce_dossier'):
@@ -31,7 +31,10 @@ class Pause(t530.Base):
         with self.assertRaisesRegex(Stop, 'agent_en_pause_sur_ce_dossier'):
             pause5629.check_running(self.desk, row, {'matter': MID})
         pause5629.check_running(self.desk, {'priority': 0}, {'matter': MID})
-        pause5629.set_pause(self.desk, MID, False)
+        resumed = pause5629.set_pause(self.desk, MID, False)
+        self.assertEqual(resumed['resumed'], 2)   # 5.6.43 : la levée de la pause remet en file les travaux suspendus
+        status = {r['id']: r['status'] for r in self.desk.db.execute('SELECT id,status FROM jobs')}
+        self.assertEqual((status[auto], status[brief]), ('pending', 'pending'))
         self.assertTrue(self.desk.enqueue('refresh_brief', {'matter': MID}))
         with self.assertRaisesRegex(Stop, 'dossier_absent'):
             pause5629.set_pause(self.desk, 'INCONNU', True)
@@ -97,7 +100,7 @@ class Loops(unittest.TestCase):
         self.assertIn("if data.get('automatic'):   # 5.6.29", (ROOT / 'agent' / 'document_projects.py').read_text(encoding='utf-8'))
         desk = (ROOT / 'agent' / 'desk.py').read_text(encoding='utf-8')
         self.assertIn("try:self.enqueue('refresh_brief',{'matter':m['id']});queued.append(m)", desk)
-        self.assertIn("if str(e)=='agent_en_pause_sur_ce_dossier':", desk)
+        self.assertIn("if str(e) in ('agent_en_pause_sur_ce_dossier','dossier_en_pause'):", desk)   # 5.6.43 : suspension reprenable
 
     def test_oversized_message_no_longer_aborts_the_engagement_scan(self):
         from agent import followup568

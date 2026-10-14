@@ -3,6 +3,38 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.43 — Pause et arrêt fiables, courriels du cabinet, classement des courriels, agendas séparés, Talk, navigation
+
+Cahier des charges « IA, courriels, agendas, ergonomie et navigation » (version 9, 14 octobre 2026). Détail : `CONFORMITE-5.6.43.md`.
+
+- **Pause et arrêt (§ 16)** : contrôleur unique `agent/arret5643.py`. « Pause de l’IA » suspend les travaux en attente (état
+  `suspended`, repris à la reprise), demande l’arrêt des travaux d’IA en cours et coupe un appel au modèle en cours dans la seconde
+  (connexion suivie et fermée) ; les travaux sans IA (dépôts, conservation, agenda) continuent. L’arrêt d’un travail arrête ses
+  travaux enfants ; origine, parent et dossier de chaque travail sont enregistrés (migration 0643). Les planificateurs ne créent
+  aucun travail automatique pendant la pause.
+- **Courriels du cabinet (§ 21)** : garde commune `agent/sens5643.py` (identités du cabinet, sens du message, destinataires) ; aucun
+  brouillon adressé au cabinet lui-même ; les messages envoyés par le cabinet ne reçoivent jamais de réponse automatique ; la
+  routine du matin passe les courriels urgents à la rédaction avec le dossier au lieu d’un modèle vide ; « À COMPLÉTER » signalé.
+- **Compétences (§ 7)** : la vraie consigne de l’avocat est rechargée pour choisir les compétences ; sélection par phase (analyser,
+  décider, rédiger, contrôler, courriel) ; budget d’assemblage unique (24 000 caractères) sans coupure au milieu d’une compétence ;
+  cinq méthodes fournies dans la rubrique Compétences, désactivées par défaut.
+- **Classement des courriels et des pièces (§ 10 à 14)** : dans « Courriels », bloc « Classement dans le dossier client » :
+  enregistrer le courriel (original `.eml` octet pour octet et lecture `.md`) dans CORRESPONDANCES et les pièces choisies dans
+  NOS PIECES / PJ courriels ; dépôt exclusif, relu et vérifié par empreinte ; état honnête (en attente, vérifié, partiel, échec,
+  incertain) ; règle générale du compte et règle par courriel, mandat à l’IA ; onglet « Correspondances » du dossier (lecture,
+  original téléchargeable, notes du cabinet séparées). Migration 0644 (tables des courriels conservés).
+- **Produire lisible (§ 18)** : cartes avec nom du dossier, état en français, date JJ/MM/AAAA HH:mm ; taille de texte de base
+  portée à 100 % de la préférence du navigateur (16 px au lieu de 15 px) ; contrastes des deux thèmes revus.
+- **Playbooks (§ 19)** : parcours en erreur repris étape par étape (« Reprendre cette étape »), arrêt du parcours, détail du
+  parcours affiché d’abord, nom métier du parcours et états en français ; réservation atomique d’une étape.
+- **Navigation (§ 20)** : six accès principaux, Talk sous condition, menu complémentaire de huit entrées ; sous-sections trouvées
+  par la recherche ; onglets de « Produire ».
+- **Agendas (§ 17)** : « Agenda en ligne » et « Agenda personnel » séparés ; l’Agenda personnel n’est jamais copié vers un agenda en
+  ligne ; les anciens événements copiés vers Nextcloud sont présentés pour un choix explicite (garder localement ou garder la copie).
+- **Page Talk (§ 22)** : option par utilisateur dans Paramètres › Connexions ; Nextcloud Talk affiché sous « Agenda et tâches » avec
+  une politique de sécurité propre à cette page ; « Tester l’affichage ».
+- Écrans, messages et guide traduits en anglais, allemand et espagnol pour ces nouveautés.
+
 ## 5.6.42 — Audit 5.6.41 (F01 à F07), comptes dans les paramètres, mode ExApp
 
 Audit de la 5.6.41 et cahier des charges « AxiorHub Pilote ExApp ». Détail : `CONFORMITE-5.6.42.md`.

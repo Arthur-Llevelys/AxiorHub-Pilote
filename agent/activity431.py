@@ -82,7 +82,7 @@ def maintenance(desk, stamp=None):
         search490.schedule(desk, now=stamp)
     except Exception:
         pass
-    for step in ('conflicts500.scan_background','time500.check_alerts','limitation500.daily_check','meeting500.prepare_ahead','report500.snapshot_previous','reminders520.run','routines520.tick','deck530.tick','style550.tick','bibliotheque5639.purge'):
+    for step in ('conflicts500.scan_background','time500.check_alerts','limitation500.daily_check','meeting500.prepare_ahead','report500.snapshot_previous','reminders520.run','routines520.tick','deck530.tick','style550.tick','bibliotheque5639.purge','correspondances5643.auto_tick'):
         # Fonctions métier 5.0 : calculs locaux, chacun isolé pour qu'une panne n'empêche pas les autres.
         try:
             key='metier500:last:'+step

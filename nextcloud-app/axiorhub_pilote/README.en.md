@@ -7,6 +7,9 @@ Nextcloud: Today, cases, emails, calendar and tasks, deeds, Corporate, legal res
 AxiorHub Pilote 5.6.42 or later. AxiorHub works with French procedure, courts and legal sources; its documents are written in French,
 and its interface is also translated into English, German and Spanish.
 
+**WARNING: EXPERIMENTAL VERSION**
+
+
 ![The AxiorHub Pilote interface inside Nextcloud (fictitious data)](screenshots/en/01-interface.png)
 
 **This app does not contain the engine.** It connects to an AxiorHub Pilote that is already installed. For your firm's work, that engine

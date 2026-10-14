@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5643/'):   # 5.6.43 : conservation des courriels et des pièces jointes
+        from .web5643 import allowed as allowed5643
+        return allowed5643(role, api[len('m5643/'):])
     if api.startswith('m5636/'):   # 5.6.36 : contacts, initiatives, pièces, outils IA, corporate, relances, complément Word
         from .web5636 import allowed as allowed5636
         return allowed5636(role, api[len('m5636/'):])

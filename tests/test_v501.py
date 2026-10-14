@@ -69,7 +69,7 @@ class Agenda(Base):
     def test_planning_page_shows_the_calendar_and_the_task_tabs(self):
         from unittest.mock import patch
         with patch('agent.workplan._dav', return_value=self.dav):
-            body = self.request('/planning')['body']
+            body = self.request('/planning', query='vue=agenda&agenda=en_ligne')['body']   # 5.6.43 : sous-vue « Agenda en ligne »
         self.assertIn('Audience MARTINEAU', body)
         for label in ('Agenda', 'Tâches', 'Organiser la semaine'):
             self.assertIn('>' + label + '</a>', body)
@@ -80,7 +80,7 @@ class Agenda(Base):
         with patch('agent.workplan._dav', return_value=self.dav):
             agenda = self.request('/agenda')['body']
             tasks = self.request('/taches')['body']
-        self.assertIn('Événements de l’agenda', agenda)
+        self.assertIn('Agenda personnel', agenda)   # 5.6.43 : sous-vue par défaut (agenda local, non synchronisé)
         self.assertIn('Ajouter une tâche', tasks)
         for body in (agenda, tasks):
             self.assertEqual(re.findall(r'<a [^>]*aria-label="([^"]+)"[^>]*aria-current="page"', body), ['Agenda et tâches'])
@@ -90,7 +90,10 @@ class Agenda(Base):
         private_json(self.config, self.f.c)
         r = self.request('/planning')
         self.assertTrue(r['status'].startswith('200'))
-        self.assertIn('Événements de l’agenda', r['body'])
+        self.assertIn('Agenda personnel', r['body'])
+        online = self.request('/planning', query='vue=agenda&agenda=en_ligne')
+        self.assertTrue(online['status'].startswith('200'))
+        self.assertIn('Agenda en ligne', online['body'])
 
     def test_event_create_edit_delete_only_for_axiorhub_events(self):
         start = (datetime.now(timezone.utc) + timedelta(days=2)).replace(microsecond=0).isoformat()
@@ -157,10 +160,10 @@ class UnifiedInterface(Base):
                 self.assertIn('id="ws-ai-launcher"', body, path)
 
     def test_active_entry_follows_the_page(self):
-        expected = {'/courriels': 'Courriels', '/documents': 'Documents', '/echeances': 'Échéances', '/cabinet': 'Cabinet',
+        # 5.6.43 (cahier v9, § 20) : une sous-section active sa destination canonique (Documents → Produire, Échéances → Dossiers)
+        expected = {'/courriels': 'Courriels', '/documents': 'Produire', '/echeances': 'Dossiers', '/cabinet': 'Cabinet',
                     '/conflits': 'Cabinet', '/dossiers': 'Dossiers', '/production': 'Produire'}
-        panel = {'/documents': ('/documents', 'Documents'), '/echeances': ('/echeances', 'Échéances'), '/cabinet': ('/cabinet', 'Gestion du cabinet'),
-                 '/conflits': ('/cabinet', 'Gestion du cabinet')}
+        panel = {'/cabinet': ('/cabinet', 'Gestion du cabinet'), '/conflits': ('/cabinet', 'Gestion du cabinet')}
         for path, label in expected.items():
             body = self.request(path)['body']
             current = re.findall(r'<a [^>]*aria-label="([^"]+)"[^>]*aria-current="page"', body)

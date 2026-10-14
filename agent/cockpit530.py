@@ -257,6 +257,8 @@ def stop(desk, data):
         if str(ex) == 'operation_deja_terminee':
             return {'message': 'Cette tâche est déjà terminée.'}
         raise
+    if out.get('already') and out['status'] == 'cancelled':   # 5.6.43 : second arrêt, annulation idempotente
+        return {'message': 'Cette tâche est déjà terminée.'}
     kind, _, rest = ref.partition(':')
     if out['status'] == 'cancelled':
         if kind == 'docreq':
@@ -648,13 +650,14 @@ def feed(desk):
             return ' — '.join(x for x in (where, what) if x)
         except ValueError:
             return ''
-    for r in desk.db.execute("SELECT id,kind,args,status,created,started FROM jobs WHERE status IN ('running','pending','cancel_requested') "
-                             "ORDER BY CASE status WHEN 'running' THEN 0 ELSE 1 END, priority, id LIMIT 40"):
+    for r in desk.db.execute("SELECT id,kind,args,status,created,started FROM jobs WHERE status IN ('running','pending','cancel_requested','suspended') "
+                             "ORDER BY CASE status WHEN 'running' THEN 0 WHEN 'cancel_requested' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, priority, id LIMIT 40"):
         if r['kind'] in NOISE:
             continue
         last = desk.db.execute('SELECT message FROM live_events_v430 WHERE job_id=? ORDER BY id DESC LIMIT 1', (r['id'],)).fetchone() if r['status'] == 'running' else None
-        out['en_cours'].append({'job': r['id'], 'text': label(r['kind']), 'matter': matter_of(r['args']), 'running': r['status'] == 'running',
-                                'when': _ago(queue521._age_seconds(r['started'] or r['created'])) if r['status'] == 'running' else 'en file',
+        out['en_cours'].append({'job': r['id'], 'status':r['status'], 'text': label(r['kind']), 'matter': matter_of(r['args']), 'running': r['status'] in ('running','cancel_requested'),
+                                'when': ('arrêt demandé' if r['status']=='cancel_requested' else ('suspendu (pause de l’IA)' if r['status']=='suspended' else
+                                         (_ago(queue521._age_seconds(r['started'] or r['created'])) if r['status'] == 'running' else 'en file'))),
                                 'detail': (last['message'] if last else '')})
         if len(out['en_cours']) >= 8:
             break
@@ -742,7 +745,8 @@ def feed_html(desk, prefix, current='en_cours'):
                 action = '<button type="button" class="ax-btn ghost c530-small" data-retry="%d">Relancer</button>' % a['retry']
                 action += _icon('ignore', 'Ignorer ce blocage (le masquer)', {'data-dismiss': a['retry']})
             elif k == 'en_cours' and a.get('job'):
-                action = _icon('stop', 'Arrêter ce travail', {'data-cancel-job': a['job']})
+                action = ('<button type="button" class="ax-btn ghost c530-small" disabled>Arrêt demandé</button>'
+                          if a.get('status')=='cancel_requested' else _icon('stop', 'Arrêter ce travail', {'data-cancel-job': a['job']}))
             if a.get('job') and k in ('en_cours', 'bloque'):   # 5.6.29 : mettre l'IA en pause sur le dossier de ce travail
                 try:
                     jm = desk.db.execute("SELECT json_extract(args,'$.matter') FROM jobs WHERE id=?", (a['job'],)).fetchone()

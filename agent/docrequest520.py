@@ -151,7 +151,8 @@ def listing(desk, limit=12):
 def _set(desk, rid, status, path='', result=None, matter=None):
     if matter is not None:
         desk.db.execute('UPDATE docreq520 SET matter=? WHERE id=?', (matter, rid))
-    desk.db.execute('UPDATE docreq520 SET status=?, path=CASE WHEN ?<>\'\' THEN ? ELSE path END, result=?, updated=? WHERE id=?',
+    guard = '' if status in ('annule', 'annulation_demandee') else " AND status NOT IN ('annule','annulation_demandee')"
+    desk.db.execute('UPDATE docreq520 SET status=?, path=CASE WHEN ?<>\'\' THEN ? ELSE path END, result=?, updated=? WHERE id=?' + guard,
                     (status, path, path, json.dumps(result or {}, ensure_ascii=False), now(), rid))
     desk.db.commit()
 
@@ -514,6 +515,8 @@ def run(desk, args, dav=None):
             notes.append(str(detail['precision']))
         _set(desk, rid, 'echec', result={'error': str(ex)[:120], 'notes': notes})
         raise Stop('redaction_document_impossible') from None
+    from .pause5629 import checkpoint
+    checkpoint(desk)
     couverture = None
     try:   # 5.6.40 (B05), 5.6.42 (audit 5.6.41, F06) : couverture structurelle des sections attendues de la trame
         from .bibliotheque5639 import coverage_report
@@ -649,7 +652,7 @@ def perform(desk, kind, args):
             return run(desk, args)
         except Stop as ex:
             row = desk.db.execute('SELECT status,result FROM docreq520 WHERE id=?', (str(args.get('request', '')),)).fetchone()
-            if row and row['status'] in ('annulation_demandee',):
+            if row and (row['status'] in ('annulation_demandee',) or str(ex) == 'operation_annulee'):
                 _set(desk, str(args.get('request', '')), 'annule', result=json.loads(row['result'] or '{}'))
             elif row and row['status'] not in ('cree', 'dossier_a_choisir', 'depot_en_cours', 'annule'):
                 previous = json.loads(row['result'] or '{}')

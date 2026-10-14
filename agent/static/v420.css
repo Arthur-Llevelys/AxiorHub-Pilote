@@ -13,3 +13,15 @@
 .ws-autosave-state{font-size:.75rem;color:var(--muted);margin-left:8px}
 @media(max-width:1000px){.metrics420>div{grid-template-columns:repeat(2,minmax(0,1fr))}.today420-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.today420-hero,.studio420-hero,.matter420>header{display:block}.today420-grid,.studio420-grid,.metrics420>div,.matter420-kpis{grid-template-columns:1fr}.studio420-wide{grid-column:auto}.today420-summary{grid-template-columns:1fr 1fr}.result420-progress{grid-template-columns:1fr 1fr}.today420-hero form,.matter420>header form{margin-top:14px}}
+
+/* 5.6.43 (cahier v9, § 18) : identité du dossier en tête de carte, lisible sans zoom ; contrastes vérifiés sur les fonds réels */
+:root{--ui-text:#182230;--ui-secondary-text:#475467}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ui-text:#f1f5f9;--ui-secondary-text:#cbd5e1}}
+:root[data-theme="dark"]{--ui-text:#f1f5f9;--ui-secondary-text:#cbd5e1}
+.result420-identity{margin:0 0 .5rem;min-width:0}
+.result420-matter{display:block;font-size:1.125rem;font-weight:700;line-height:1.4;color:var(--ui-text);overflow-wrap:anywhere;text-decoration:none}
+a.result420-matter:hover,a.result420-matter:focus-visible{text-decoration:underline}
+.result420-reference,.result420-meta{display:block;font-size:.875rem;line-height:1.5;color:var(--ui-secondary-text);margin:0}
+.result420-card h3{font-size:1rem;line-height:1.4;color:var(--ui-text)}
+.result420-card header>span.result420-state,.result420-card>span.result420-state{font-size:.875rem;font-weight:600;color:var(--ui-text);white-space:normal;border:1px solid var(--border)}
+.result420-card .actions a,.result420-card .actions button{min-height:44px}

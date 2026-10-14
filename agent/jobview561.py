@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from .common import Stop, clean_path, under
 
 STATUS = {'pending': 'en file', 'running': 'en cours', 'done': 'terminé', 'error': 'bloqué', 'cancelled': 'annulé',
-          'cancel_requested': 'annulation demandée'}
+          'cancel_requested': 'arrêt demandé', 'suspended': 'suspendu (pause de l’IA)'}
 # Arguments techniques jamais affichés.
 HIDDEN = {'etag', 'hash', 'sha256', 'digest', 'attempt', 'trigger', 'dedupe', 'source_hash', 'csrf'}
 ARG_LABELS = {'matter': 'Dossier', 'matter_id': 'Dossier', 'path': 'Fichier', 'key': 'Courriel', 'mail_key': 'Courriel', 'request': 'Demande',

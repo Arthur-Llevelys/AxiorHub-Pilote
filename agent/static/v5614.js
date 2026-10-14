@@ -40,7 +40,7 @@
       if (pause) {
         pause.disabled = true;
         try { const v = await post('m568', 'automatismes/pause', {paused: pause.dataset.paused !== '1'}); pause.dataset.paused = v.paused ? '1' : '0';
-          pause.textContent = v.paused ? 'Automatismes en pause — reprendre' : 'Pause des automatismes'; pause.classList.toggle('warn', v.paused); pause.classList.toggle('ghost', !v.paused);
+          pause.textContent = v.paused ? 'IA en pause — reprendre' : 'Pause de l’IA'; pause.classList.toggle('warn', v.paused); pause.classList.toggle('ghost', !v.paused);
           pause.setAttribute('aria-pressed', String(v.paused)); if (rs) rs.textContent = v.message; }
         catch (e) { if (rs) rs.textContent = e.message; } finally { pause.disabled = false; }
       }

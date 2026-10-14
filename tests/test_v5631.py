@@ -149,9 +149,10 @@ class Menu(Web):
     def test_search_uses_former_names_and_needs(self):
         from agent import fonctions5631 as reg
         panel = reg.panel_html('/agent-courriel', '/aujourdhui', self.f.c)
-        item = re.search(r'<li data-search="([^"]*)"><a href="/agent-courriel/pieces"', panel).group(1)
+        # 5.6.43 (cahier v9, § 20) : sous-sections trouvées par la recherche (entrées masquées tant que la recherche est vide)
+        item = re.search(r'<li hidden data-search-only data-search="([^"]*)"><a href="/agent-courriel/pieces"', panel).group(1)
         self.assertIn('préparer un bordereau', item)
-        self.assertIn('style et apprentissage', re.search(r'<li data-search="([^"]*)"><a href="/agent-courriel/progres"', panel).group(1))
+        self.assertIn('style et apprentissage', re.search(r'<li hidden data-search-only data-search="([^"]*)"><a href="/agent-courriel/progres"', panel).group(1))
 
     def test_unconfigured_function_offers_the_guide_step_and_roles_are_filtered(self):
         from agent import fonctions5631 as reg

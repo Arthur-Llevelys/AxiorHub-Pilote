@@ -26,9 +26,47 @@ def _source_details(source_ids, trigger=''):
     return out+'</details>'
 
 
+STATE_LABELS={'verified':'Disponible','prepared':'À décider','abstained':'Abstention','error':'Incident','verifying':'Vérification en cours'}
+
+
+def _when(value):
+    """5.6.43 (§ 18.2) : date utile JJ/MM/AAAA HH:mm, heure de Paris ; jamais l'horodatage technique brut."""
+    from datetime import datetime,timezone
+    raw=str(value or '')
+    try:
+        when=datetime.fromisoformat(raw.replace('Z','+00:00'))
+    except ValueError:
+        return ''
+    try:
+        from zoneinfo import ZoneInfo
+        zone=ZoneInfo('Europe/Paris')
+    except Exception:   # noqa: BLE001 — base des fuseaux absente : heure locale du système
+        zone=None
+    when=when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+    when=when.astimezone(zone) if zone else when.astimezone()
+    return when.strftime('%d/%m/%Y %H:%M')
+
+
+def _identity(link, matter_id, matter_name, when='', due=''):
+    """5.6.43 (§ 18.1) : identité du dossier en tête de carte — nom complet (lien), « Dossier n° … » sur sa ligne, puis la date.
+    Sans dossier : « Cabinet » ; référence sans nom connu : « Dossier à confirmer » (aucune association inventée)."""
+    mid=str(matter_id or '');name=str(matter_name or '').strip()
+    if not mid:
+        head='<span class="result420-matter">Cabinet</span>'
+    else:
+        label=name if name and name!=mid else 'Dossier à confirmer'
+        anchor=link('/matter',label,id=mid)
+        head=anchor.replace('<a ','<a class="result420-matter" ',1) if anchor.startswith('<a ') else '<span class="result420-matter">'+e(label)+'</span>'
+        head+='<span class="result420-reference">Dossier n° '+e(mid)+'</span>'
+    meta=[x for x in (_when(when),('Échéance '+e(due)) if due else '') if x]
+    return '<div class="result420-identity">'+head+('<p class="result420-meta">'+' · '.join(meta)+'</p>' if meta else '')+'</div>'
+
+
 def _deliverable_card(item, form, link, incident=False):
     verification=item.get('verification') or {};files=verification.get('files') or []
-    out='<article data-live-card="deliverable-'+e(item['id'])+'" class="result420-card result420-'+e(item['status'])+'"><header><div><small>'+e(item['matter_name'])+' · '+e(item['updated'])+'</small><h3>'+e(item['label'])+'</h3></div><span>'+e({'verified':'Disponible','prepared':'À décider','abstained':'Abstention','error':'Incident','verifying':'Vérification'}.get(item['status'],item['status']))+'</span></header>'
+    out=('<article data-live-card="deliverable-'+e(item['id'])+'" class="result420-card result420-'+e(item['status'])+'">'+
+         _identity(link,item.get('matter'),item.get('matter_name'),item.get('updated'))+
+         '<header><div><h3>'+e(item['label'])+'</h3></div><span class="result420-state">'+e(STATE_LABELS.get(item['status'],item['status']))+'</span></header>')
     out+='<p>'+e(item['business_message'])+'</p>'+_source_details(item['source_ids'],item['trigger_text'])
     if files:out+='<ul class="result420-files">'+''.join('<li>'+e(x.get('path',''))+'</li>' for x in files)+'</ul>'
     if item.get('stages'):
@@ -45,8 +83,11 @@ def _deliverable_card(item, form, link, incident=False):
 
 
 def _action_card(card, form, link):
-    due=(' · échéance '+e(card.get('due'))) if card.get('due') else ''
-    out='<article data-live-card="action-'+e(card.get('id') or card.get('href') or card.get('title'))+'" class="result420-card"><header><div><small>'+e(card.get('matter_name') or 'Cabinet')+due+'</small><h3>'+e(card.get('title'))+'</h3></div></header><p>'+e(card.get('reason'))+'</p>'+_source_details(card.get('source_ids',[]),'Action détectée par AxiorHub')+'<div class="actions">'
+    mid=card.get('matter') or card.get('matter_id') or ''
+    out=('<article data-live-card="action-'+e(card.get('id') or card.get('href') or card.get('title'))+'" class="result420-card">'+
+         _identity(link,mid,card.get('matter_name') or ('' if not mid else mid),'',str(card.get('due') or ''))+
+         '<header><div><h3>'+e(card.get('title'))+'</h3></div></header><p>'+e(card.get('reason'))+'</p>'+
+         _source_details(card.get('source_ids',[]),'Action détectée par AxiorHub')+'<div class="actions">')
     out+=_href(link,card.get('href'),card.get('action_label') or 'Ouvrir') or link('/production','Examiner')
     out+=form('review_action380','Écarter',{'action_id':card.get('id',''),'state':'dismissed'})
     return out+'</div></article>'
@@ -83,7 +124,9 @@ def today_page(desk, form, link):
 def _live_incident_card(item,form,link):
     from .web import JOB_LABELS
     message=item['error'] or 'Worker non confirmé ou traitement trop long ; vérifier l’état avant reprise.'
-    out='<article class="result420-card result420-error" data-live-card="incident-'+str(item['id'])+'"><small>'+e(item['matter'] or 'Cabinet')+'</small><h3>'+e(JOB_LABELS.get(item['kind'],'Traitement du cabinet'))+'</h3><p>'+e(message)+'</p>'
+    out=('<article class="result420-card result420-error" data-live-card="incident-'+str(item['id'])+'">'+
+         _identity(link,item.get('matter_id',''),item.get('matter') or '',item.get('created') or '')+
+         '<h3>'+e(JOB_LABELS.get(item['kind'],'Traitement du cabinet'))+'</h3><span class="result420-state">Incident</span><p>'+e(message)+'</p>')
     out+=link('/etat-systeme','Voir le diagnostic',job=item['id'])
     if item['status']=='error':out+=form('retry_job393','Relancer',{'job':item['id']})
     return out+'</article>'
@@ -145,7 +188,9 @@ def production_page(desk,args,form,link):
     from .interface410_ui import produce_hub
     out+=produce_hub(link,str(desk.c.get('workspace',{}).get('pdf_url') or ''))
     out+='<details class="technical"><summary>Automatisations de production</summary><h2>Chaîne de production · Production réelle</h2><p>Brouillons IMAP vérifiés et documents Nextcloud relus : l’avocat décide uniquement avant l’engagement externe.</p><div class="actions">'+form('production_cycle390','Lancer la production',{'limit':'30'})+form('advance_playbooks390','Continuer les playbooks',{'limit':'30'})+'</div><p>L’avocat décide avant envoi, dépôt, signature ou facturation définitive.</p></details>'
-    out+='<section class="today420-zone"><header><div><h2>Livrables récents</h2><p>Les dépôts en cours de vérification ne sont jamais présentés comme disponibles.</p></div><strong>'+str(len(data['deliverables']))+'</strong></header><div class="today420-grid">'
+    total=len(data['deliverables']);shown=min(total,80)   # 5.6.43 (§ 18.3) : nombre total et nombre affiché distingués
+    count=str(total) if total<=shown else '%d affichés sur %d' % (shown,total)
+    out+='<section class="today420-zone"><header><div><h2>Livrables récents</h2><p>Les dépôts en cours de vérification ne sont jamais présentés comme disponibles.'+(' Les plus récents sont affichés ; ouvrez un dossier pour voir les autres.' if total>shown else '')+'</p></div><strong>'+e(count)+'</strong></header><div class="today420-grid">'
     out+=''.join(_deliverable_card(x,form,link,x['status']=='error') for x in data['deliverables'][:80]) or '<p class="empty">Aucun livrable 4.2 enregistré.</p>'
     return out+'</div></section>'
 

@@ -431,7 +431,7 @@ class Agenda(t530.Base):
                 agenda5625.create(self.desk, 'cabinet', {'title': 'Rendez-vous', 'date': '2026-10-12', 'start': '09:00', 'targets': 'nc'})
 
     def test_form_on_agenda_page_and_rights(self):
-        page = self.request('/planning', query='vue=agenda')['body']
+        page = self.request('/planning', query='vue=agenda&agenda=en_ligne')['body']   # 5.6.43 : ajout aux agendas en ligne
         for text in ('id="ag5625"', 'Ajouter un événement', 'data-ag5625-targets', '/static/v5625.js'):
             self.assertIn(text, page)
         from agent.standalone_auth import allowed

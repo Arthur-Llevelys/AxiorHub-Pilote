@@ -94,10 +94,13 @@ class DocumentIndex:
         active={r['path'] for r in items}
         for path in set(known)-active:self.remove(matter['id'],path)
         changed=[r for r in items if not r['etag'] or known.get(r['path'])!=r['etag']]
+        from .correspondances5643 import secondary_representation   # 5.6.43 (§ 13.6) : une seule représentation indexée par courriel
         for item in changed[:budget]:
             self.remove(matter['id'],item['path']);text=error=''
-            try:text=extract(dav.download(item),item['path'],cfg)
-            except Stop as ex:error=str(ex)
+            if secondary_representation(item['path']):error='representation_secondaire_de_correspondance'
+            else:
+                try:text=extract(dav.download(item),item['path'],cfg)
+                except Stop as ex:error=str(ex)
             self.db.execute('INSERT INTO docs VALUES (?,?,?,?,?,?)',(matter['id'],item['path'],item['etag'],item['modified'],text,error))
             if text:
                 self.db.execute('INSERT INTO search VALUES (?,?,?)',(matter['id'],item['path'],text))
@@ -132,10 +135,13 @@ class DocumentIndex:
             self.db.execute('INSERT OR IGNORE INTO inventory_seen VALUES (?,?,?)',
                             (mid,generation,item['path']))
         changed=[r for r in items if not r['etag'] or known.get(r['path'])!=r['etag']]
+        from .correspondances5643 import secondary_representation
         for item in changed:
             self.remove(mid,item['path']);text=error=''
-            try:text=extract(dav.download(item),item['path'],cfg)
-            except Stop as ex:error=str(ex)
+            if secondary_representation(item['path']):error='representation_secondaire_de_correspondance'
+            else:
+                try:text=extract(dav.download(item),item['path'],cfg)
+                except Stop as ex:error=str(ex)
             self.db.execute('INSERT INTO docs VALUES (?,?,?,?,?,?)',
                             (mid,item['path'],item['etag'],item['modified'],text,error))
             if text:

@@ -153,6 +153,7 @@
         el('p', { 'class': 'ax-muted', text: 'À : ' + m.to + (m.cc ? ' · Cc : ' + m.cc : '') }),
         el('p', {}, [el('em', { 'class': 'ax-badge', text: m.status_label })])]);
       panel.appendChild(head);
+      if (window.axh5643) panel.appendChild(window.axh5643.block(m, ctx()));   // 5.6.43 (§ 12.1) : classement, sous les en-têtes
       var body = el('pre', { 'class': 'bx5625-text', text: m.text + (m.truncated ? '\n\n[… texte tronqué à l’affichage]' : '') });
       panel.appendChild(body);
       if (m.attachments.length) {

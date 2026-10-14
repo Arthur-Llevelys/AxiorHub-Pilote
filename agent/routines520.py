@@ -32,7 +32,8 @@ LIBELLES = {
     'en': {'briefing': 'Morning briefing of %s', 'today': 'Today', 'tomorrow': 'Tomorrow', 'todo': 'To handle', 'done': 'Settled',
            'affaires': 'Business and company law', 'numerique': 'Digital, GDPR, AI', 'profession': 'Legal profession and bar', 'lyon': 'News about Lyon',
            'tri': 'Morning email triage of %s', 'since': 'Messages received since %s.', 'urgent': '🔴 Urgent — today', 'semaine': '🟠 To handle this week',
-           'info': '🟢 For information', 'regle': '✅ Already settled', 'draft': ' (draft prepared)',
+           'info': '🟢 For information', 'regle': '✅ Already settled', 'draft': ' (draft prepared)', 'draft_requested': ' (reply requested from the agent, with the case file)',
+           'draft_matter': ' — case file to choose: no automatic draft',
            'excluded': '%d message(s) excluded (newsletters, advertising, DMARC, notifications, CLIPA offers, bank and payments).',
            'tri_failed': 'The triage could not be done this morning: the mailbox is unreachable (%s).',
            'bilan': 'Weekly review from %s to %s', 'achievements': 'Achievements', 'open': 'Open / pending items', 'coming': 'Coming up next week',
@@ -41,7 +42,8 @@ LIBELLES = {
     'de': {'briefing': 'Morgenbriefing vom %s', 'today': 'Heute', 'tomorrow': 'Morgen', 'todo': 'Zu erledigen', 'done': 'Erledigt',
            'affaires': 'Wirtschafts- und Gesellschaftsrecht', 'numerique': 'Digitales, DSGVO, KI', 'profession': 'Anwaltsberuf und Kammer', 'lyon': 'Nachrichten aus Lyon',
            'tri': 'Morgendliche E-Mail-Sortierung vom %s', 'since': 'Nachrichten seit %s.', 'urgent': '🔴 Dringend — heute', 'semaine': '🟠 Diese Woche zu erledigen',
-           'info': '🟢 Zur Information', 'regle': '✅ Bereits erledigt', 'draft': ' (Entwurf vorbereitet)',
+           'info': '🟢 Zur Information', 'regle': '✅ Bereits erledigt', 'draft': ' (Entwurf vorbereitet)', 'draft_requested': ' (Antwort beim Agenten angefragt, mit der Akte)',
+           'draft_matter': ' — Akte auszuwählen: kein automatischer Entwurf',
            'excluded': '%d Nachricht(en) ausgeschlossen (Newsletter, Werbung, DMARC, Benachrichtigungen, CLIPA-Angebote, Bank und Zahlungen).',
            'tri_failed': 'Die Sortierung war heute Morgen nicht möglich: Das Postfach ist nicht erreichbar (%s).',
            'bilan': 'Wochenbilanz vom %s bis %s', 'achievements': 'Ergebnisse', 'open': 'Offene / ausstehende Punkte', 'coming': 'Nächste Woche',
@@ -50,7 +52,8 @@ LIBELLES = {
     'es': {'briefing': 'Informe matinal del %s', 'today': 'Hoy', 'tomorrow': 'Mañana', 'todo': 'Por tratar', 'done': 'Resuelto',
            'affaires': 'Derecho mercantil y de sociedades', 'numerique': 'Digital, RGPD, IA', 'profession': 'Abogacía y colegio', 'lyon': 'Noticias de Lyon',
            'tri': 'Clasificación matinal de correos del %s', 'since': 'Mensajes recibidos desde el %s.', 'urgent': '🔴 Urgente — hoy', 'semaine': '🟠 Por tratar esta semana',
-           'info': '🟢 Para información', 'regle': '✅ Ya resuelto', 'draft': ' (borrador preparado)',
+           'info': '🟢 Para información', 'regle': '✅ Ya resuelto', 'draft': ' (borrador preparado)', 'draft_requested': ' (respuesta solicitada al agente, con el expediente)',
+           'draft_matter': ' — expediente por elegir: ningún borrador automático',
            'excluded': '%d mensaje(s) excluido(s) (boletines, publicidad, DMARC, notificaciones, ofertas CLIPA, banco y pagos).',
            'tri_failed': 'La clasificación no se ha podido hacer esta mañana: el buzón no está accesible (%s).',
            'bilan': 'Balance de la semana del %s al %s', 'achievements': 'Logros', 'open': 'Puntos abiertos / pendientes', 'coming': 'Próxima semana',
@@ -164,6 +167,13 @@ def save_settings(desk, form):
 
 # ======================================================================================== planification
 def tick(desk, now=None):
+    """5.6.43 (§ 16.1) : origine « automatic » pour tout ce que ce planificateur met en file."""
+    from .arret5643 import automatic
+    with automatic(desk):
+        return _tick_5642(desk, now)
+
+
+def _tick_5642(desk, now=None):
     """Appelé par la maintenance : met en file chaque routine due (une fois par jour au plus)."""
     s = settings(desk)
     local = (now or datetime.now(timezone.utc)).astimezone(tz(desk))
@@ -526,16 +536,25 @@ def tri(desk, now=None):
         for it in items:
             it.setdefault('summary', it['excerpt'][:160] or it['subject'])
             it.setdefault('reply_today', it['category'] == 'urgent')
+        by_uid = {x['uid']: x['_mail'] for x in found}
+        from .sens5643 import CABINET_NOTE, direction   # 5.6.43 (§ 21) : sens réel du message, d'après ses en-têtes
+        for it in items:
+            it['sens'] = direction(by_uid[it['uid']], desk.c['mail'])
+            if it['sens'] != 'received':
+                it['category'] = 'info'
+                it['note'] = CABINET_NOTE
         if s['tri']['drafts']:
-            by_uid = {x['uid']: x['_mail'] for x in found}
             for it in items:
                 sig = set(x.split(':')[0] for x in it['signals'])
+                if it['sens'] != 'received':
+                    drafts.append({'uid': it['uid'], 'status': 'message_du_cabinet'})
+                    continue
                 if it['category'] != 'urgent' or not it['reply_today'] or sig & {'lre', 'greffe', 'sans_reponse'} or not it['mid']:
                     continue
                 try:
-                    drafts.append(_draft(desk, box, by_uid[it['uid']], it, s, model_ok))
+                    drafts.append(_propose_reply(desk, by_uid[it['uid']], it))
                 except Exception as ex:
-                    notes.append('Brouillon non créé pour « %s » (%s).' % (it['subject'][:60], str(ex)[:60]))
+                    notes.append('Réponse non demandée pour « %s » (%s).' % (it['subject'][:60], str(ex)[:60]))
     finally:
         box.close()
     order = [('urgent', '🔴 Urgent — aujourd’hui'), ('semaine', '🟠 À traiter cette semaine'), ('info', '🟢 Pour information'), ('regle', '✅ Déjà réglé')]
@@ -544,39 +563,43 @@ def tri(desk, now=None):
     for key, title in order:
         sel = [x for x in items if x['category'] == key]
         if sel:
-            lines += ['## ' + lib(lang, key, title)] + ['- **%s** — %s : %s%s' % (x['from'], x['subject'][:90], x['summary'], lib(lang, 'draft', ' (brouillon préparé)') if x['uid'] in [d['uid'] for d in drafts] else '') for x in sel] + ['']
+            lines += ['## ' + lib(lang, key, title)] + ['- **%s** — %s : %s%s' % (x['from'], x['subject'][:90], x['summary'], _draft_note(lang, x, drafts)) for x in sel] + ['']
     lines.append(lib(lang, 'excluded', '%d message(s) exclu(s) (newsletters, publicité, DMARC, notifications, offres CLIPA, banque et paiements).') % excluded)
     data = {'since': since.isoformat(), 'items': items, 'excluded': excluded, 'drafts': drafts}
     return _store(desk, 'tri', local.date().isoformat(), '\n'.join(lines), data, notes, 'ok' if model_ok else 'sans_ia')
 
 
-def _draft(desk, box, mail, item, s, model_ok):
-    from .mailbox import make_draft
-    key = digest('routine520-draft|' + mail.mid)[:40]
-    draft_mid = '<axiorhub-' + key + '@mail-agent.local>'
-    if box.existing_draft(mail, draft_mid):
+def _propose_reply(desk, mail, item):
+    """5.6.43 (§ 21.3, 27.2) : le tri ne rédige plus lui-même. Un courriel urgent rattaché à un dossier établi est confié au circuit commun
+    « prepare_reply » (dossier, sources, compétences de phase, contrôle, dépôt relu) ; sans dossier établi, aucun brouillon automatique :
+    le tri le signale. Aucune trame fixe n'est déposée pour masquer une indisponibilité du modèle."""
+    from .desk import report_for
+    from .state import State
+    account = desk.c['mail']['username'] + '@' + desk.c['mail']['host']
+    key = mail.key(account)
+    try:
+        report = report_for(desk.c, key)
+    except Stop:
+        report = {}
+    matter = str(report.get('matter') or '')
+    if not matter:
+        return {'uid': item['uid'], 'status': 'dossier_a_choisir'}
+    known = State(desk.c['state_dir']).get(key)
+    if known and known[0] in ('drafted', 'appending', 'append_uncertain'):
         return {'uid': item['uid'], 'status': 'deja_present'}
-    body = ''
-    if model_ok:
-        try:
-            body = ask(desk, 'Rédige le corps d’un brouillon de réponse à ce courriel (sans objet ni signature) : vouvoiement ; « Cher Confrère » / '
-                             '« Chère Consœur » pour un avocat, « Madame, Monsieur » ou le nom pour un client ; ton professionnel et concis ; AUCUNE position '
-                             'juridique de fond ; aucun fait, montant ou date inventé ; place des marqueurs [À COMPLÉTER : …] là où ma décision est nécessaire. '
-                             'À défaut de mieux, un accusé de réception indiquant un retour rapide.',
-                       {'de': item['from'], 'objet': item['subject'], 'extrait': item['excerpt']}, 1200)
-        except Exception:
-            body = ''
-    if not body.strip():
-        body = ('Madame, Monsieur,\n\nJe vous remercie de votre message, dont je prends connaissance, et reviens vers vous très rapidement.\n\n'
-                '[À COMPLÉTER : réponse sur le fond]\n\nJe vous prie de croire à l’assurance de mes salutations distinguées.')
-    body = re.sub(r'(?is)<[^>]+>', '', body)[:6000]
-    cfg = dict(desk.c['mail'])
-    cfg['signature'] = s['signature']
-    from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
-    msg = add_agent_bcc(desk.c['state_dir'], make_draft(mail, cfg, body, key))
-    box.append_draft(msg)
-    desk.audit('routines_520_brouillon', {'uid': item['uid']})
-    return {'uid': item['uid'], 'status': 'cree', 'subject': str(msg['Subject'])[:120]}
+    job = desk.enqueue('prepare_reply', {'key': key, 'matter': matter, 'instruction': '', 'origine': 'tri_matinal', 'automatic': 'yes'},
+                       origin='automatic')
+    desk.audit('routines_520_reponse_demandee', {'uid': item['uid'], 'job': job})
+    return {'uid': item['uid'], 'status': 'demande', 'job_id': job, 'matter': matter}
+
+
+def _draft_note(lang, item, drafts):
+    status = next((d.get('status') for d in drafts if d.get('uid') == item['uid']), '')
+    if item.get('note'):
+        return ' — ' + item['note']
+    return {'demande': lib(lang, 'draft_requested', ' (réponse demandée à l’agent, avec le dossier)'),
+            'deja_present': lib(lang, 'draft', ' (brouillon préparé)'),
+            'dossier_a_choisir': lib(lang, 'draft_matter', ' — dossier à choisir : aucun brouillon automatique')}.get(status, '')
 
 
 def bilan(desk, now=None):

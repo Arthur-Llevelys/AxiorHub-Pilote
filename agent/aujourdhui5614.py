@@ -1,7 +1,7 @@
 """5.6.14 (U01, U02) : barre des routines en tête d'« Aujourd'hui » et centre « À décider » compact et actionnable.
 
 - Routines : une barre compacte sous le titre (briefing, tri, bilan, documents à préparer) avec dernier lancement, état, accès au
-  résultat, lancement sans double clic, et une action « Pause des automatismes » visible.
+  résultat, lancement sans double clic, et une action « Pause de l’IA » visible (5.6.43).
 - À décider : un résumé replié par défaut (total, urgentes), un panneau latéral de largeur raisonnable ; chaque carte porte le
   contexte, la question précise, la recommandation, les sources, les conséquences et des actions Valider, Modifier, Compléter les
   instructions, Reporter, Annuler. Les décisions des missions complexes, des missions, des documents, des agents documentaires, des
@@ -56,7 +56,7 @@ def routines_bar_html(desk, prefix):
             '<div class="c5614-side"><button type="button" class="ax-btn %s" id="c5614-pause" data-paused="%s" aria-pressed="%s">%s</button>'
             '<a class="ax-btn ghost" href="%s">Réglages</a></div><p id="c5614-routines-status" role="status" class="c530-sr"></p></section>') % (
         ''.join(parts), 'warn' if paused else 'ghost', '1' if paused else '0', 'true' if paused else 'false',
-        'Automatismes en pause — reprendre' if paused else 'Pause des automatismes', e(prefix + '/aujourdhui?vue=essentiel', quote=True))
+        'IA en pause — reprendre' if paused else 'Pause de l’IA', e(prefix + '/aujourdhui?vue=essentiel', quote=True))
 
 
 def _deferred(desk):

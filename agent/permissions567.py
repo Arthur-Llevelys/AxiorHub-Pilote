@@ -238,6 +238,8 @@ WORK_ACTIONS = frozenset({
     'coach_hearing35',
     'compare_devices',
     'complete_playbook_step380',
+    'retry_playbook_step5643',
+    'cancel_playbook5643',
     'confirm_event',
     'confirm_matter',
     'confirm_task',

@@ -245,6 +245,8 @@
  "fn.tableau_de_bord.label": "Panel detallado",
  "fn.taches.desc": "Lista de tareas, filtros y añadir una tarea",
  "fn.taches.label": "Tareas",
+ "fn.talk.desc": "Nextcloud Talk (conversaciones y llamadas) dentro de AxiorHub, si lo activa",
+ "fn.talk.label": "Talk",
  "fn.tracabilite.desc": "Lo que vio el modelo y modelos utilizados",
  "fn.tracabilite.label": "Trazabilidad",
  "fn.veille.desc": "Novedades oficiales fechadas",

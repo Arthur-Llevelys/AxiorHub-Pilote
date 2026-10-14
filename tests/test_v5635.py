@@ -329,7 +329,10 @@ class Agenda(t34.Base):
         two = self.a.create(self.desk, {'title': 'Échéance fictive', 'kind': 'echeance', 'all_day': True, 'start': day, 'days': 2})
         renamed = self.a.update(self.desk, {'id': two['id'], 'title': 'Échéance fictive renommée'})['event']
         self.assertTrue(renamed['all_day'])
-        self.assertEqual(datetime.fromisoformat(renamed['ends']) - datetime.fromisoformat(renamed['starts']), timedelta(days=2))
+        # 5.6.43 : écart mesuré en dates locales (Europe/Paris) : un changement d'heure dans la période ne déplace aucune date
+        paris = self.a._tz(self.desk)
+        self.assertEqual(datetime.fromisoformat(renamed['ends']).astimezone(paris).date() - datetime.fromisoformat(renamed['starts']).astimezone(paris).date(),
+                         timedelta(days=2))
         moved = self.a.update(self.desk, {'id': ev['id'], 'start': (start + timedelta(hours=2)).isoformat()})['event']
         self.assertEqual(datetime.fromisoformat(moved['ends']) - datetime.fromisoformat(moved['starts']), timedelta(minutes=45))
         with self.assertRaises(Stop):
@@ -401,6 +404,16 @@ class Agenda(t34.Base):
         self.desk.c['nextcloud_workflow'] = {'enabled': True, 'planning_calendar_url': '/remote.php/dav/calendars/x/planning/'}
         with unittest.mock.patch('agent.workplan._dav', return_value=SlowDav()):
             out = self.a.create(self.desk, {'title': 'Rendez-vous fictif', 'start': (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()})
+        # 5.6.43 (cahier v9, § 17.3) : un événement de l'Agenda personnel n'est jamais copié, même avec la copie Nextcloud configurée
+        self.assertEqual(seen, {})
+        self.assertEqual(self.desk.db.execute('SELECT sync_state, calendar_scope FROM agenda5634 WHERE id=?', (out['id'],)).fetchone()[:],
+                         ('local', 'personal_local'))
+        # F18 reste vrai pour un ancien événement dont l'avocat a gardé la copie distante : copie hors transaction, après validation
+        self.desk.db.execute("UPDATE agenda5634 SET calendar_scope='legacy_bridge',sync_state='a_repartir' WHERE id=?", (out['id'],))
+        self.desk.db.commit()
+        self.a.decide_legacy(self.desk, out['id'], 'garder_copie')
+        with unittest.mock.patch('agent.workplan._dav', return_value=SlowDav()):
+            self.a.update(self.desk, {'id': out['id'], 'title': 'Rendez-vous fictif déplacé'})
         self.assertEqual(seen, {'in_transaction': False, 'other_could_write': True})
         self.assertEqual(self.desk.db.execute('SELECT sync_state, remote_uid FROM agenda5634 WHERE id=?', (out['id'],)).fetchone()[:], ('synchronise', 'uid-distant'))
 

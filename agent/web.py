@@ -7,6 +7,7 @@
 No remote assets or arbitrary file/command endpoints. Every mutation is POST + CSRF
 and creates a bounded job executed by the service account, never by root.
 """
+from .navigation5643 import PRODUCTION_VIEWS   # 5.6.43 (§ 20) : sous-vues de Produire
 from .common import matter_display
 import base64
 from datetime import datetime, timezone, timedelta
@@ -33,7 +34,7 @@ LABELS = {'review':'À vérifier','drafted':'Brouillon dans la messagerie',
           'ignored':'Ignoré','retry':'À reprendre','error':'Erreur',
           'observed':'Proposition en observation','appending':'Dépôt en cours',
           'append_uncertain':'Dépôt à vérifier', 'pending':'En attente',
-          'running':'En cours','cancel_requested':'Annulation demandée',
+          'running':'En cours','cancel_requested':'Arrêt demandé','suspended':'Suspendu (pause de l’IA)',
           'done':'Terminé','cancelled':'Annulé'}
 REASONS = {'configuration_non_inscriptible': 'Le service ne peut pas écrire le fichier de configuration (lien /etc/axiorhub-mail-agent/config.json remplacé par un fichier ordinaire). Lancez « sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py » puis réessayez.',
            'contact_personnel_hors_dossier': 'Contact personnel : aucun brouillon n’est préparé à partir du dossier.',
@@ -609,6 +610,14 @@ class App:
                 openwebui_parts=urlsplit(configured_openwebui)
                 frame_origin=(openwebui_parts.scheme+'://'+openwebui_parts.netloc
                   if openwebui_parts.scheme=='https' and openwebui_parts.netloc else '')
+                if _path=='/talk':   # 5.6.43 (§ 22.3) : seule l'origine Nextcloud validée, seulement pour /talk (préfixe retiré)
+                    from .talk5643 import frame_origin as _talk_origin
+                    from .web567 import actor as _talk_actor
+                    talk_origin=_talk_origin(cfg,_talk_actor(env)[0])
+                    if talk_origin:
+                        frame_origin=(frame_origin+' '+talk_origin).strip()
+                        headers=[(n,v) for n,v in headers if n!='Permissions-Policy']+[('Permissions-Policy',
+                          'camera=(self "%s"), microphone=(self "%s"), display-capture=(self "%s"), fullscreen=(self "%s"), geolocation=()' % ((talk_origin,)*4))]
                 csp="default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; form-action 'self'; frame-src 'self'"+((' '+frame_origin) if frame_origin else '')+"; frame-ancestors 'none'; base-uri 'none'"
                 headers=[(name,csp if name=='Content-Security-Policy' else value) for name,value in headers]
                 prefix=auth.get('prefix','/agent-courriel')
@@ -982,8 +991,8 @@ class App:
                         target='/aujourdhui?'+urlencode({'job':job})
                     elif action=='refresh_matter_graph380':
                         target='/matter?'+urlencode({**({'job':job} if job else {}),'id':form.get('matter','')})
-                    elif action in ('start_playbook380','advance_playbook380','complete_playbook_step380'):
-                        target='/playbooks?'+urlencode({**({'job':job} if job else {}),'run':form.get('run_id',''),'matter':form.get('matter','')})
+                    elif action in ('start_playbook380','advance_playbook380','complete_playbook_step380','retry_playbook_step5643','cancel_playbook5643'):
+                        target='/playbooks?'+urlencode({k:v for k,v in (('job',job),('run',form.get('run_id',''))) if v})
                     elif action in ('save_ecosystem_service380','prepare_ecosystem_action380'):
                         target='/ecosysteme?'+urlencode({'job':job})
                     elif action=='run_business_evaluation380':
@@ -1077,6 +1086,12 @@ class App:
                 elif env['REQUEST_METHOD']!='GET':
                     from .erreurs_pages5639 import method_refused as _err405
                     status='405 Method Not Allowed';body=_err405(env,locals().get('_prefix'))
+                elif (path=='/production' and env.get('REQUEST_METHOD') in ('GET','HEAD') and
+                      PRODUCTION_VIEWS.get(str(args.get('vue') or ''),'/production')!='/production'):
+                    # 5.6.43 (cahier v9, § 20.3) : /production?vue=… ouvre l'onglet de Produire correspondant, paramètres métier conservés
+                    kept={k:v for k,v in args.items() if k in ('run','job','matter','id','output','type','project')}
+                    status='302 Found';headers.append(('Location',prefix+PRODUCTION_VIEWS[str(args['vue'])]+(('?'+urlencode(kept)) if kept else '')))
+                    body=''
                 elif path=='/openwebui':
                     # A direct route avoids loading the entire dashboard and does
                     # not depend on an iframe policy on the remote application.
@@ -1149,7 +1164,7 @@ class App:
                '/dashboard':'Tableau de bord','/administration':'Administration','/etat-systeme':'État du système','/associations':'Associations proposées',
                '/dossiers':'Dossiers','/memoire':'Mémoire','/qualite':'Qualité','/regles':'Règles et autonomie','/mcp':'Connecteurs MCP',
                '/mail':'Courriel','/matter':'Dossier','/assistant':'Assistant','/strategy':'Stratégie',
-               '/surveillance':'Surveillance','/openwebui':'Assistant Open WebUI','/planning':'Agenda et tâches',
+               '/surveillance':'Surveillance','/openwebui':'Assistant Open WebUI','/planning':'Agenda et tâches','/talk':'Talk',
                '/projets':'Projets en attente','/recherche-juridique':'Recherche juridique',
                '/audiences-word':'Audiences et Word','/orchestrateur-avis':'Orchestrateur et avis',
                '/pilotage':'Pilotage du cabinet','/accueil':'Tableau de bord · Mon cabinet','/guide':'Guide pratique',
@@ -1165,6 +1180,8 @@ class App:
         cabinet_shortcuts=external_links(desk)
         main=shell501.topbar_html(prefix,title,path)+('' if path=='/aujourdhui' and not args.get('vue') else  # 5.3.0 : le poste de pilotage a son propre en-tête
              '<div class="page-title"><div><p class="eyebrow">Cabinet · poste de travail</p><h1>'+e(title)+'</h1></div>'+link(path,'Actualiser',**args)+'</div>')
+        from .navigation5643 import production_tabs_html   # 5.6.43 (§ 20) : onglets de Produire
+        main+=production_tabs_html(prefix,path)
         if str(args.get('job', '')).strip() in ('', '0'):   # 5.6.24 (F35) : une action immédiate n'a pas de travail ; un ancien lien job=0 reste lisible
             args.pop('job', None)
         if args.get('job'):
@@ -1329,21 +1346,33 @@ class App:
             else:main+='<p class="empty">Aucune discussion. Vous pouvez interroger immédiatement tout le cabinet dans Assistant.</p>'
             if info['jobs']:
                 main+='<p class="notice">'+str(len(info['jobs']))+' opération(s) active(s). Les demandes de réponse et les questions passent avant l’indexation.</p>'
+        elif path=='/talk':   # 5.6.43 (cahier v9, § 22) : Nextcloud Talk de l'utilisateur, dans un cadre (session du navigateur)
+            from .talk5643 import page_html as talk_page
+            main+=talk_page(desk,str(auth.get('owner') or 'cabinet'),prefix)
         elif path=='/planning':
             vue=args.get('vue','')
             if vue not in ('agenda','taches','organiser'):vue='organiser' if (args.get('proposal') or args.get('job')) else 'agenda'
-            main+='<nav class="ws-tabs" aria-label="Rubriques de l’agenda">'+''.join(
+            main+='<nav class="ws-tabs planning-tabs" aria-label="Rubriques de l’agenda">'+''.join(
                 '<a'+(' aria-current="page"' if vue==key else '')+' href="'+e(url('/planning',vue=key))+'">'+e(label)+'</a>'
                 for key,label in (('agenda','Agenda'),('taches','Tâches'),('organiser','Organiser la semaine')))+'</nav>'
+            agenda_view=''
+            if vue=='agenda':   # 5.6.43 (cahier v9, § 17) : deux sous-vues, une seule source rendue
+                from .agenda5643 import resolve_view,subnav_html
+                agenda_view=resolve_view(desk,args.get('agenda',''),str(auth.get('owner') or 'cabinet'))
+                main+=subnav_html(agenda_view,args,url)
             from .workplan import get_plan,list_tasks
             workflow=c.get('nextcloud_workflow',{})
-            if workflow.get('enabled'):
-                main+='<p class="success">✅ Copie vers Nextcloud active : '+e(workflow.get('username',''))+'. Copie à sens unique (pas une synchronisation bidirectionnelle) ; les écritures sont limitées aux calendriers choisis.</p>'
-            if vue=='agenda':   # 5.6.34 : agenda local par défaut (rendez-vous, audiences, échéances, rappels, sauvegarde) ; synchronisation en option
-                from .web5634 import agenda_panel
-                main+=agenda_panel(desk,prefix)
+            if workflow.get('enabled') and agenda_view!='personnel':   # jamais annoncé dans l'Agenda personnel (aucune copie)
+                main+='<p class="success">✅ Copie vers Nextcloud active : '+e(workflow.get('username',''))+'. Copie à sens unique des tâches et programmes '
+                main+='(pas une synchronisation bidirectionnelle) ; les écritures sont limitées aux calendriers choisis. L’Agenda personnel n’est jamais copié.</p>'
+            if vue=='agenda':
                 from .agenda36 import page as agenda_page
-                main+=agenda_page(desk,args,link,url,form)
+                if agenda_view=='personnel':
+                    from .web5634 import agenda_panel
+                    main+=agenda_panel(desk,prefix)
+                    main+=agenda_page(desk,args,link,url,form,source='personal')
+                else:
+                    main+=agenda_page(desk,args,link,url,form,source='online')
             elif vue=='taches':   # 5.6.28 : vue simple (liste groupée par échéance) et ajout d'une tâche à côté
                 from .taches5628 import page as tasks_page5628
                 try:last_sync=desk.db.execute('SELECT MAX(synced) FROM work_tasks_v211').fetchone()[0] or ''

@@ -102,13 +102,12 @@ class Routines(t510.Base):
         self.assertEqual(data['excluded'], 2)
         self.assertIn('🔴 Urgent', rep['text'])
         self.assertIn('2 message(s) exclu(s)', rep['text'])
-        self.assertEqual(len(FakeBox.appended), 1)                           # aucun brouillon pour l'avis LRE automatique
-        d = FakeBox.appended[0]
-        self.assertEqual((d['To'], d['In-Reply-To']), ('durand@example.test', '<a2@x>'))
-        self.assertIn('Avocat au Barreau de Lyon', d.get_content())
-        self.assertIn('[À COMPLÉTER', d.get_content())
+        # 5.6.43 (cahier v9, § 21) : le tri ne rédige plus lui-même ; sans dossier établi, aucun brouillon (ni trame fixe) n'est déposé
+        self.assertEqual(len(FakeBox.appended), 0)
+        self.assertEqual({d['uid']: d['status'] for d in data['drafts']}, {'2': 'dossier_a_choisir'})
+        self.assertIn('dossier à choisir', rep['text'])
         r5.tri(self.desk)
-        self.assertEqual(len(FakeBox.appended), 1)                           # jamais deux brouillons pour le même message
+        self.assertEqual(len(FakeBox.appended), 0)
 
     def test_tri_without_model_and_without_mailbox(self):
         with patch('agent.routines520._model', return_value=FakeModel(fail=True)):

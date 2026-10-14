@@ -6,6 +6,8 @@ Application Nextcloud qui affiche **l'interface d'AxiorHub Pilote** — logiciel
 dans Nextcloud : Aujourd'hui, dossiers, courriels, agenda et tâches, actes, Corporate, recherche juridique, Pilote. Version 0.4.3
 (version de développement), pour AxiorHub Pilote 5.6.42 ou ultérieur.
 
+**ATTENTION : VERSION EXPERIMENTALE**
+
 ![L'interface d'AxiorHub Pilote dans Nextcloud (données fictives)](screenshots/fr/01-interface.png)
 
 **Cette application ne contient pas le moteur.** Elle se connecte à un AxiorHub Pilote déjà installé. Pour le travail du cabinet, ce

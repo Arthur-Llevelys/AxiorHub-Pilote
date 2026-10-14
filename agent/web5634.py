@@ -419,7 +419,8 @@ def agenda_panel(desk, prefix):
         n, ' checked' if n in (60, 1440) else '', e({0: 'à l’heure', 10: '10 min', 30: '30 min', 60: '1 h', 120: '2 h', 1440: '1 jour', 2880: '2 jours', 10080: '1 semaine'}[n]))
         for n in agenda5634.REMINDERS)
     matters = ''.join('<option value="%s">%s</option>' % (e(x['id'], quote=True), e(matter_display(x))) for x in sorted(load_matters(desk.c), key=lambda x: fold(matter_display(x))))
-    upcoming = agenda5634.listing(desk)
+    upcoming = [x for x in agenda5634.listing(desk) if x.get('calendar_scope') != 'legacy_bridge']   # 5.6.43 : compteur personnel seul
+    legacy = agenda5634.legacy_inventory(desk)
     labels = {x['id']: matter_display(x) for x in load_matters(desk.c)}
     tz = agenda5634._tz(desk)
 
@@ -443,14 +444,27 @@ def agenda_panel(desk, prefix):
                        e(' '.join((ev['title'], ev['location'] or '', labels.get(ev['matter'], ev['matter']) or '')).casefold(), quote=True),
                        e(ev['title']), e(ev['kind_label']), e(_local(desk, ev)),
                        (' · dossier ' + e(labels.get(ev['matter'], ev['matter']))) if ev['matter'] else '',
-                       {'a_synchroniser': ' · copie vers Nextcloud à reprendre', 'synchronise': ' · copié dans Nextcloud'}.get(ev['sync_state'], ''),
+                       {'a_synchroniser': ' · ancienne copie distante à reprendre', 'synchronise': ' · ancienne copie distante conservée'}.get(ev['sync_state'], ''),
                        (' <button type="button" class="ax-btn ghost" data-m34-agenda-cancel data-m34-scope="serie" data-confirm="Annuler toutes '
                         'les occurrences à venir de cette série ?">Annuler la série</button>') if ev['series'] else '', edit_form(ev))
                    for ev in upcoming[:200])
     saved = agenda5634.backups(desk)[:10]
     restore = ''.join('<li>%s%s <button type="button" class="ax-btn ghost" data-m34-agenda-restore="%s">Restaurer…</button></li>' % (
         e(b['name']), '' if b['exacte'] else ' <small>(import seulement : statuts et rappels non rétablis)</small>', e(b['name'], quote=True)) for b in saved)
-    return ('<section class="ax-card m34-agenda" data-m34-agenda><h2>Mon agenda</h2><p class="m34-mode"><strong>%s</strong> — %s</p>'
+    legacy_html = ''
+    if legacy:   # 5.6.43 (§ 17.7) : décision explicite, aucune copie ni suppression automatique
+        legacy_html = ('<details class="m34-legacy"><summary>Anciens événements copiés vers Nextcloud avant 5.6.43 : %d à répartir</summary>'
+                       '<p>Ces événements avaient une copie (ou une copie en attente) dans le calendrier Nextcloud de planification. Choisissez pour '
+                       'chacun : le garder seulement dans l’Agenda personnel (la copie déjà créée n’est pas supprimée) ou continuer à tenir sa copie '
+                       'distante à jour. Aucune copie en attente ne repart sans votre choix.</p><ul>' % len(legacy) + ''.join(
+                           '<li><strong>%s</strong> · %s %s%s</li>' % (
+                               e(ev['title']), e(_local(desk, ev)),
+                               ''.join('<form class="m34-form" data-m34-form="agenda/repartir"><input type="hidden" name="id" value="%s">'
+                                       '<input type="hidden" name="decision" value="%s"><button class="ax-btn ghost" type="submit">%s</button></form>' % (
+                                           e(ev['id'], quote=True), d, label)
+                                       for d, label in (('garder_local', 'Garder dans l’Agenda personnel'), ('garder_copie', 'Garder la copie distante'))),
+                               '<p role="status" class="m34-status"></p>') for ev in legacy) + '</ul></details>')
+    return ('<section class="ax-card m34-agenda" data-m34-agenda><h2>Agenda personnel</h2><p class="m34-mode"><strong>%s</strong> — %s</p>'
             '<details%s><summary>Ajouter un rendez-vous, une audience ou une échéance</summary><form class="m34-form" data-m34-form="agenda/creer">'
             '<div class="m34-row"><label>Type<select name="kind">%s</select></label><label>Intitulé<input name="title" required maxlength="200"></label></div>'
             '<div class="m34-row"><label>Début<input type="datetime-local" name="start" required></label><label>Durée (minutes)<input type="number" name="duration_minutes" '
@@ -458,7 +472,7 @@ def agenda_panel(desk, prefix):
             '<div class="m34-row"><label>Dossier<select name="matter"><option value="">Sans dossier</option>%s</select></label><label>Lieu<input name="location" maxlength="200"></label></div>'
             '<fieldset class="m34-reminders"><legend>Rappels</legend>%s</fieldset><label>Notes<textarea name="notes" rows="2" maxlength="2000"></textarea></label>'
             '<button class="ax-btn" type="submit">Enregistrer</button><p role="status" class="m34-status"></p></form></details>'
-            '<h3>Prochains événements de l’agenda local</h3><div class="m34-row m34-filter"><label>Rechercher<input type="search" '
+            '%s<h3>Prochains événements de l’Agenda personnel</h3><div class="m34-row m34-filter"><label>Rechercher<input type="search" '
             'data-m34-agenda-search placeholder="Intitulé, lieu ou dossier"></label><label>Dossier<select data-m34-agenda-matter><option value="">'
             'Tous les dossiers</option>%s</select></label></div><ul class="m34-list" data-m34-agenda-list>%s</ul>'
             '<p class="m34-muted" data-m34-agenda-none hidden>Aucun événement ne correspond à ce filtre.</p>'
@@ -470,8 +484,8 @@ def agenda_panel(desk, prefix):
             'Sauvegarder maintenant</button></p><p class="m34-muted">Une sauvegarde est faite chaque jour automatiquement (30 jours conservés). '
             'Importer ajoute des événements ; restaurer rétablit l’agenda tel qu’il était (aperçu avant toute modification, état actuel sauvegardé '
             'au préalable).</p><h3>Sauvegardes</h3><ul class="m34-list">%s</ul><p role="status" class="m34-status" data-m34-restore-status></p></details></section>') % (
-        e(m['label']), e(m['help']), ' open' if not upcoming else '', kinds, matters, reminders, matters,
-        rows or '<li class="m34-muted">Aucun événement local à venir.</li>', restore or '<li class="m34-muted">Aucune sauvegarde pour l’instant.</li>')
+        e(m['label']), e(m['help']), ' open' if not upcoming else '', kinds, matters, reminders, legacy_html, matters,
+        rows or '<li class="m34-muted">Aucun événement à venir dans l’Agenda personnel.</li>', restore or '<li class="m34-muted">Aucune sauvegarde pour l’instant.</li>')
 
 
 # ------------------------------------------------------------------------------------------------ Profil du modèle local

@@ -288,7 +288,7 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
             state = {'pending': 'queued', 'running': 'running', 'error': 'error', 'cancelled': 'paused', 'cancel_requested': 'cancel_requested'}.get(job['status'], row['state'])
             if row['state'] == 'cancelled' or (row['state'] == 'cancel_requested' and job['status'] in ('cancelled', 'error', 'done')):
                 state = 'cancelled' if job['status'] != 'done' or row['state'] == 'cancelled' else state   # 5.6.34 : annulation durable
-            if job['status'] == 'done':
+            if job['status'] == 'done' and row['state'] not in ('cancelled','cancel_requested'):
                 state = 'prepared'
                 if row['kind'] == 'mail' and row['ref'].startswith('newmail:'):
                     state = 'verified' if result.get('brouillon_imap') == 'verifie' else 'prepared'
@@ -328,6 +328,8 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                     if answer:
                         state = 'answered'
                         row['result'] = {'text': answer['content'], 'sources': json.loads(answer['sources'] or '[]')}
+            if row['state'] == 'cancel_requested' and job['status'] in ('done','error','cancelled'):
+                state = 'cancelled'
             row['job'] = {'id': job['id'], 'status': job['status'], 'progress': job['progress'] or '',
                           'error': result.get('erreur', '') if job['status'] == 'error' else ''}
             if state != row['state']:

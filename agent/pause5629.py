@@ -10,6 +10,8 @@
   automatiquement ; il reste relançable à la main, et « Réautoriser » efface le compteur.
 """
 import json
+from pathlib import Path
+import sqlite3
 
 from .common import Stop
 
@@ -27,6 +29,30 @@ def paused(desk):
 
 def is_paused(desk, mid):
     return str(mid or '') in paused(desk)
+
+
+def blocked_for_config(config, mid=''):
+    """Lecture fraîche sans créer un Desk ni garder son cache pendant le passage IMAP."""
+    path = Path(config['state_dir']) / 'desk.sqlite3'
+    if not path.is_file():
+        return ''
+    db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=2)
+    try:
+        values = {key: json.loads(value) for key, value in db.execute(
+            'SELECT key,value FROM settings WHERE key IN (?,?)', ('missions567:pause', PAUSE_KEY))}
+        if values.get('missions567:pause', False):
+            return 'automatismes_en_pause'
+        if str(mid or '') in (values.get(PAUSE_KEY, {}) or {}):
+            return 'dossier_en_pause'
+    except (sqlite3.Error, ValueError, TypeError):
+        raise Stop('controle_pause_indisponible') from None
+    finally:
+        db.close()
+    from .arret5643 import current_job, _job_status   # 5.6.43 (§ 16) : l'arrêt du travail en cours est aussi relu avant chaque effet
+    job = current_job()
+    if job and job.get('job_id') and _job_status(job.get('state_dir') or config['state_dir'], job['job_id']) in ('cancel_requested', 'cancelled'):
+        return 'operation_annulee'
+    return ''
 
 
 def is_automatic(args, priority):
@@ -57,10 +83,17 @@ def failures(desk, kind, mid):
     return count, last
 
 
-def check_enqueue(desk, kind, args, priority):
-    """Refuse la mise en file d'un travail AUTOMATIQUE sur un dossier en pause ou en échec répété."""
+def check_enqueue(desk, kind, args, priority, origin=None):
+    """Refuse la mise en file d'un travail AUTOMATIQUE pendant la pause de l'IA, sur un dossier en pause ou en échec répété.
+    5.6.43 : l'origine enregistrée (« automatic ») prime sur la priorité ; une demande de l'avocat est acceptée et attend la reprise."""
+    if origin in ('user', 'automatic', 'control'):
+        automatic = origin == 'automatic'
+    else:
+        automatic = is_automatic(args, priority) or kind == 'live_mail430'
+    if desk.settings('missions567:pause', False) and automatic:
+        raise Stop('automatismes_en_pause')
     mid = str((args or {}).get('matter') or (args or {}).get('matter_id') or '')
-    if not mid or not is_automatic(args, priority):
+    if not mid or not automatic:
         return
     if is_paused(desk, mid):
         raise Stop('agent_en_pause_sur_ce_dossier')
@@ -70,14 +103,31 @@ def check_enqueue(desk, kind, args, priority):
 
 
 def check_running(desk, row, args):
-    """Juste avant l'exécution : un travail automatique d'un dossier mis en pause entre-temps n'est pas exécuté."""
+    """Juste avant l'exécution : un travail automatique d'un dossier mis en pause entre-temps n'est pas exécuté.
+    5.6.43 (§ 16) : pendant la pause de l'IA, tout travail qui appelle le modèle attend la reprise (état « suspendu ») ; seuls les travaux
+    déterministes (sans IA) s'exécutent."""
+    from .arret5643 import DETERMINISTIC, is_automatic_row
     mid = str((args or {}).get('matter') or (args or {}).get('matter_id') or '')
-    try:
-        priority = row['priority']
-    except (IndexError, KeyError):
-        priority = 0
-    if mid and is_automatic(args, priority) and is_paused(desk, mid):
+    automatic = is_automatic_row(row, args)
+    if desk.settings('missions567:pause', False):
+        if automatic:
+            raise Stop('automatismes_en_pause')
+        if row['kind'] not in DETERMINISTIC:
+            raise Stop('ia_en_pause')
+    if mid and automatic and is_paused(desk, mid):
         raise Stop('agent_en_pause_sur_ce_dossier')
+
+
+def checkpoint(desk):
+    """Revalide l'état réel du job avant de poursuivre ou de produire un effet."""
+    jid = getattr(desk, 'active_job_id', None)
+    if not jid:
+        return
+    row = desk.db.execute('SELECT kind,status,priority,args FROM jobs WHERE id=?', (jid,)).fetchone()
+    if not row or row['status'] in ('cancel_requested', 'cancelled'):
+        raise Stop('operation_annulee')
+    full = desk.db.execute('SELECT * FROM jobs WHERE id=?', (jid,)).fetchone()
+    check_running(desk, full, json.loads(row['args'] or '{}'))
 
 
 def set_pause(desk, mid, on, owner='cabinet'):
@@ -89,20 +139,23 @@ def set_pause(desk, mid, on, owner='cabinet'):
     if on:
         value[mid] = {'at': desk.now(), 'by': owner}
         desk.setting(PAUSE_KEY, value)
-        cond = ("json_extract(args,'$.matter')=? AND (priority>=? OR json_extract(args,'$.automatic')='yes')")
-        cancelled = desk.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE status='pending' AND " + cond,
-                                    (desk.now(), json.dumps({'message': 'Annulé : IA en pause sur ce dossier.'}), mid, AUTOMATIC_PRIORITY)).rowcount
-        stopping = desk.db.execute("UPDATE jobs SET status='cancel_requested' WHERE status='running' AND " + cond, (mid, AUTOMATIC_PRIORITY)).rowcount
-        desk.db.commit()
+        from .arret5643 import suspend_matter   # 5.6.43 (§ 16) : suspendus (reprenables), plus annulés ; matter et matter_id
+        suspended, stopping = suspend_matter(desk, mid)
+        resumed = 0
         message = 'IA en pause sur ce dossier : plus aucun travail automatique.'
-        if cancelled or stopping:
-            message += ' %d travail(aux) en file annulé(s)%s.' % (cancelled, (', %d arrêt demandé' % stopping) if stopping else '')
+        if suspended or stopping:
+            message += ' %d travail(aux) en file suspendu(s)%s.' % (suspended, (', %d arrêt demandé' % stopping) if stopping else '')
     else:
         value.pop(mid, None)
         desk.setting(PAUSE_KEY, value)
-        message = 'L’IA peut de nouveau travailler automatiquement sur ce dossier.'
-    desk.audit('pause5629_dossier', {'matter': mid, 'pause': bool(on), 'annules': cancelled, 'arrets': stopping, 'owner': owner})
-    return {'paused': bool(on), 'cancelled': cancelled, 'stopping': stopping, 'message': message}
+        from .arret5643 import resume
+        resumed = resume(desk, mid)
+        suspended = stopping = 0
+        message = 'L’IA peut de nouveau travailler automatiquement sur ce dossier.' + (
+            ' %d travail(aux) suspendu(s) remis en file.' % resumed if resumed else '')
+    desk.audit('pause5629_dossier', {'matter': mid, 'pause': bool(on), 'suspendus': suspended, 'arrets': stopping, 'repris': resumed,
+                                     'owner': owner})
+    return {'paused': bool(on), 'suspended': suspended, 'cancelled': 0, 'stopping': stopping, 'resumed': resumed, 'message': message}
 
 
 def consignes(desk, mid):

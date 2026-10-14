@@ -35,6 +35,8 @@ def stage(desk, rid, path, data, result):
 
 
 def finish(desk, row, client, args):
+    from .pause5629 import checkpoint
+    checkpoint(desk)
     from .docrequest520 import _set
     from .missions567 import check_authority
     result = json.loads(row['result'] or '{}')
@@ -58,6 +60,7 @@ def finish(desk, row, client, args):
         if hashlib.sha256(data).hexdigest() != expected:
             raise Stop('contenu_depot_local_altere')
         check_authority(desk, args)
+        checkpoint(desk)
         client.put_file(row['path'], data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         meta = client.stat(row['path'])
     raw = client.download(meta)

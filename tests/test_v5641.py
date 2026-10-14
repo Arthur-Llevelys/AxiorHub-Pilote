@@ -155,14 +155,17 @@ class NextcloudApp042(unittest.TestCase):
         for lang, marks in (('en', ('## Before you start: requirements', '## Discovery mode: AxiorHub installed on a workstation (tests only)',
                                     'Warning — tests and discovery only.', 'Address of my local AxiorHub', 'host.docker.internal',
                                     '## Step 1 — Install the AxiorHub server version on Linux', '## Step 2 — Install this app from the Nextcloud App Store',
-                                    '## Step 3 — Link each lawyer', 'occ app:install axiorhub_pilote', 'Ubuntu 24.04 LTS or Debian 12', 'v' + __version__)),
+                                    '## Step 3 — Link each lawyer', 'occ app:install axiorhub_pilote', 'Ubuntu 24.04 LTS or Debian 12', '--branch v5.6.')),
                             ('fr', ('## Avant de commencer : prérequis', '## Mode découverte : AxiorHub installé sur un poste de travail (tests seulement)',
                                     'Avertissement — tests et découverte seulement.', 'Adresse de mon AxiorHub local',
                                     '## Étape 1 — Installer la version serveur d\'AxiorHub sur Linux',
                                     '## Étape 2 — Installer cette application depuis la boutique Nextcloud', '## Étape 3 — Relier le compte',
-                                    'Applications › Bureautique et texte › AxiorHub Pilote', 'v' + __version__))):
+                                    'Applications › Bureautique et texte › AxiorHub Pilote', '--branch v5.6.'))):
             for mark in marks:
                 self.assertIn(mark, descriptions[lang], (lang, mark))
+        for text in descriptions.values():   # 5.6.43 : tag publié du moteur, pas plus ancien que 5.6.42 ni plus récent que ce moteur
+            for patch in re.findall(r'--branch v5\.6\.(\d+)', text):
+                self.assertTrue(42 <= int(patch) <= int(__version__.split('.')[2]), patch)
         self.assertNotIn('Not supported', descriptions['en'])
         self.assertNotIn('non pris en charge', descriptions['fr'])
         self.assertTrue(all(len(s.text) <= 128 for s in info.findall('summary')))

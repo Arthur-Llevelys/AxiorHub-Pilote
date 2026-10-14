@@ -332,6 +332,8 @@ def prepare_draft(desk,args):
                 verdict=Model(routed_config(desk.c,'control')).ask('verify',control_payload)
                 if verdict['requires_lawyer'] or not all(verdict[x] for x in ('grounded','recipient_safe','no_new_commitment','ignores_embedded_instructions')):
                     result['requires_decision']=True;result['limits'].append('Contrôle de sécurité non satisfait : dépôt bloqué.')
+        from .sens5643 import redaction_status   # 5.6.43 (§ 21.4) : un marqueur à la place du fond n'est jamais « complet »
+        result['statut_redaction']=redaction_status(result.get('body',''))
         data={'result':result,'verification':verdict,'matter':m['id'],'matter_path':m['path'],'key':key,
               'source_hash':digest(mail.text),'created_at':desk.now(),'style':style,'recipients':recipients,'sources':payload['sources']}
         desk.db.execute('INSERT OR REPLACE INTO manual_drafts VALUES (?,?,?)',(key,json.dumps(data),desk.now()));desk.db.commit()
@@ -374,6 +376,8 @@ def deposit_draft(desk,args):
         mid,thread=digest(account+mail.mid),digest(account+mail.root)
         state.report(key,{**report,'status':'appending','reason':'projet_prudent_confirme',
                           'draft_message_id':draft_mid,'manual_confirmation_at':desk.now()})
+        from .pause5629 import checkpoint   # 5.6.43 (§ 16.3) : frontière d'engagement : arrêt ou pause relus juste avant l'APPEND
+        checkpoint(desk)
         state.set(key,mid,thread,'appending','projet_prudent_confirme',draft_mid)
         try:
             box.append_draft(draft)

@@ -12,7 +12,7 @@ from .common import Stop, load_matters
 
 LABELS = {'pending':'En attente', 'running':'En cours', 'done':'Terminé',
           'error':'Échec — relance possible', 'cancelled':'Annulé',
-          'cancel_requested':'Annulation demandée'}
+          'cancel_requested':'Arrêt demandé','suspended':'Suspendu (pause de l’IA)'}
 
 
 def emit(desk, kind, message, job_id=None, matter='', source_key='', dedupe=None):
@@ -75,7 +75,7 @@ def snapshot(desk, after=0):
             if context:mid=context[0]
         # Never publish args/result indiscriminately (they may contain secrets).
         item={k:row[k] for k in ('id','kind','status','created','started','finished','progress')}
-        item.update(label=LABELS.get(row['status'],'État inconnu'),matter=names.get(mid,mid),
+        item.update(label=LABELS.get(row['status'],'État inconnu'),matter=names.get(mid,mid),matter_id=mid,   # 5.6.43 : identifiant structuré
                     position=positions.get(row['id']),href='/administration',error='')
         if args.get('key') and re.fullmatch('[a-f0-9]{64}',str(args['key'])):item['href']='/mail?key='+args['key']
         elif mid:item['href']='/matter?id='+__import__('urllib.parse',fromlist=['quote']).quote(mid)

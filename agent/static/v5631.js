@@ -21,7 +21,8 @@
     var filter = function () {
       var q = fold(input.value.trim()), shown = 0;
       panel.querySelectorAll('li[data-search]').forEach(function (li) {
-        var ok = !q || fold(li.getAttribute('data-search')).indexOf(q) !== -1;
+        var only = li.hasAttribute('data-search-only');   // 5.6.43 : sous-sections visibles seulement dans les résultats de recherche
+        var ok = q ? fold(li.getAttribute('data-search')).indexOf(q) !== -1 : !only;
         li.hidden = !ok; if (ok) shown++;
       });
       panel.querySelectorAll('.f5631-group').forEach(function (g) { g.hidden = !g.querySelector('li[data-search]:not([hidden])'); });

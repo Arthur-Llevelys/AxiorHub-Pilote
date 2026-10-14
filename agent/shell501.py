@@ -17,7 +17,10 @@ ACTIVE = {'/mise-en-service':'/parametres', '/parametres/agents':'/parametres', 
           '/progres': '/mon-style', '/mon-style': '/mon-style', '/autonomie': '/cabinet', '/tracabilite': '/cabinet', '/confort': '/parametres',
           '/atelier/reglages': '/parametres', '/fiche': '/dossiers', '/dossier': '/dossiers', '/chronologie': '/dossiers', '/documents/edit': '/documents',
           '/honoraires': '/cabinet', '/rendez-vous': '/cabinet', '/conflits': '/cabinet', '/prescriptions': '/cabinet',
-          '/pilotage-mensuel': '/cabinet', '/rechercher': '/recherche', '/pieces': '/production', '/diagnostic': '/aujourdhui', '/ia-externe': '/parametres'}
+          '/pilotage-mensuel': '/cabinet', '/rechercher': '/recherche', '/pieces': '/production', '/diagnostic': '/aujourdhui', '/ia-externe': '/parametres',
+          # 5.6.43 (§ 20) : les onglets de Produire activent Produire
+          '/studio': '/production', '/documents': '/production', '/missions-complexes': '/production', '/playbooks': '/production',
+          '/outils-ia': '/production', '/projets': '/production'}
 
 # Pages d'atelier sans entrée principale : regroupées sous « Outils » pour rester accessibles depuis tout écran.
 TOOLS = (('/mise-en-service', 'Mise en service', 'Services réels, micro, Docker : contrôles et correctifs'),
@@ -63,7 +66,19 @@ def context():
 
 
 def active_primary(path):
-    return ACTIVE.get(path, path)
+    """Accès principal actif : table historique, sinon la destination canonique de la fonction affichée (5.6.43, § 20.3)."""
+    if path in ACTIVE:
+        return ACTIVE[path]
+    try:
+        from .fonctions5631 import INDEX, for_path
+        from .navigation5643 import PRIMARY as MAIN, canonical
+        fid = for_path(path)
+        parent = canonical(fid) if fid else ''
+        if parent in MAIN and parent in INDEX:
+            return INDEX[parent][2].split('?', 1)[0]
+    except Exception:   # noqa: BLE001 — l'état actif ne bloque jamais le rendu
+        pass
+    return path
 
 
 def _links(prefix, entries, active):
@@ -81,11 +96,22 @@ def _primary():
 
 
 def nav_html(prefix, active_path):
-    """5.6.31 (NV01) : six accès de travail fréquents, puis un seul accès « Toutes les fonctions » (remplace Rubriques et Outils)."""
+    """5.6.31 (NV01) : six accès de travail fréquents, puis un seul accès « Toutes les fonctions » (remplace Rubriques et Outils).
+    5.6.43 (§ 22) : « Talk », septième accès facultatif, juste après « Agenda et tâches », pour l'utilisateur qui l'a activé."""
     from .fonctions5631 import panel_html
     from .i18n5631 import current, role, th
     active = active_primary(active_path)
-    return ('<nav aria-label="' + th('nav.primary') + '" class="ws-primary">' + _links(prefix, _primary(), active) + '</nav>' +
+    entries = list(_primary())
+    try:
+        from .i18n5631 import _ctx as _lang_ctx
+        from .talk5643 import visible as _talk_visible
+        if _talk_visible(context(), getattr(_lang_ctx, 'owner', '') or 'cabinet'):
+            at = next(i for i, x in enumerate(entries) if x[0] == '/planning') + 1
+            from .i18n5631 import t as _t
+            entries.insert(at, ('/talk', '☏', _t('fn.talk.label')))
+    except Exception:   # noqa: BLE001 — l'entrée facultative ne bloque jamais le menu
+        pass
+    return ('<nav aria-label="' + th('nav.primary') + '" class="ws-primary">' + _links(prefix, entries, active) + '</nav>' +
             panel_html(prefix, active_path, context(), role(), current()))
 
 
@@ -133,6 +159,8 @@ def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='
     except Exception:
         matters = []
     audio = bool((cfg.get('audio') or {}).get('enabled'))
+    from .navigation5643 import production_tabs_html   # 5.6.43 (§ 20) : onglets de Produire sur chacune de ses pages
+    body = production_tabs_html(prefix, path) + body
     html = (head_html(title, prefix, css, head) + toast + sidebar_html(prefix, path) + '<main id="ws-main">' + topbar_html(prefix, title, path) + body + '</main>' + scripts +
             _messages_json() + '<script defer src="' + e(prefix) + '/static/v5631.js"></script><script defer src="' + e(prefix) + '/static/v5632.js"></script><script defer src="' + e(prefix) + '/static/v5634.js"></script><script defer src="' + e(prefix) + '/static/v5636.js"></script></body></html>')
     from .ui_helpers import enhance

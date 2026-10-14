@@ -353,3 +353,14 @@
   // la barre et le Pilote peuvent être insérés après le chargement (pages enrichies)
   setTimeout(boot, 800);
 })();
+
+/* 5.6.43 (§ 22) : « Recharger » Talk — confirmation (un appel peut être interrompu), jamais de rechargement automatique. */
+(function () {
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-talk5643-reload]');
+    if (!b) { return; }
+    if (!window.confirm(b.getAttribute('data-confirm') || 'Recharger ?')) { return; }
+    var f = document.querySelector('.talk5643-frame');
+    if (f) { f.src = f.src; }
+  });
+})();

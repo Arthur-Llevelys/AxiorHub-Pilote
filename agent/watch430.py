@@ -65,8 +65,15 @@ def _legacy_unreadable(row):
 
 
 def schedule(desk,stamp=None):
+    """5.6.43 (§ 16.1) : origine « automatic » pour tout ce que ce planificateur met en file."""
+    from .arret5643 import automatic
+    with automatic(desk):
+        return _schedule_5642(desk,stamp)
+
+
+def _schedule_5642(desk,stamp=None):
     stamp=time.time() if stamp is None else stamp
-    if not desk.settings('live430:enabled',True):
+    if desk.settings('missions567:pause',False) or not desk.settings('live430:enabled',True):
         heartbeat(desk,'surveillance','paused','Surveillance en pause');return []
     jobs=[]
     for kind,interval in [('live_mail430',300),('live_calendar430',180),('live_documents430',300)]:
@@ -323,12 +330,12 @@ def _idle_loop(config,stop):
         try:
             cfg=load_config(config) if isinstance(config,(str,Path)) else config
             desk=Desk(cfg)
-            if not desk.settings('live430:enabled',True):stop.wait(15);continue
+            if desk.settings('missions567:pause',False) or not desk.settings('live430:enabled',True):stop.wait(15);continue
             box=Mailbox(cfg['mail'])
             # Reuse the dedicated connection. Refresh private configuration at
             # most five minutes later; check the pause flag every IDLE cycle.
             for _ in range(10):
-                if stop.is_set() or not desk.settings('live430:enabled',True):break
+                if stop.is_set() or desk.settings('missions567:pause',False) or not desk.settings('live430:enabled',True):break
                 heartbeat(desk,'imap_idle','active','Connexion IMAP dédiée en lecture')
                 changed=idle_wait(box)
                 if changed is None:

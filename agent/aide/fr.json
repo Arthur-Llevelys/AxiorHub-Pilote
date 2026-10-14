@@ -8,7 +8,7 @@
    "Ouvrez Aujourd’hui dans le menu.",
    "Dans « Routines du cabinet », cliquez sur « Briefing du matin » ou « Tri des courriels », puis sur « Générer maintenant ».",
    "Écoutez le résumé avec « Écouter le briefing » si la voix est activée.",
-   "Utilisez « Pause des automatismes » pour suspendre les traitements automatiques."
+   "Utilisez « Pause de l’IA » pour suspendre les appels à l’IA et les traitements automatiques ; « IA en pause — reprendre » les relance."
   ],
   "result": "Un briefing daté et la liste du travail préparé, à relire avant toute action.",
   "verify": "Le cadre de la routine indique l’heure de la dernière génération.",
@@ -19,7 +19,7 @@
    ],
    [
     "Rien ne se met à jour",
-    "Les automatismes sont peut-être en pause : relancez-les avec « Pause des automatismes »."
+    "L’IA est peut-être en pause : reprenez-la avec « IA en pause — reprendre »."
    ]
   ],
   "example": "Briefing du lundi : deux audiences fictives (DEMO-A, DEMO-B) et trois courriels à relire.",
@@ -27,7 +27,7 @@
    "Briefing du matin",
    "Tri des courriels",
    "Générer maintenant",
-   "Pause des automatismes",
+   "Pause de l’IA",
    "Écouter le briefing"
   ],
   "version": "5.6.36"
@@ -95,15 +95,16 @@
  "planning": {
   "objective": "Inscrire, modifier ou annuler un rendez-vous, une audience ou une échéance dans votre agenda.",
   "when": "Pour noter une date d’audience, un rendez-vous client ou une échéance de procédure, avec ses rappels.",
-  "prerequisites": "Aucun : l’agenda est enregistré sur ce poste ou ce serveur. La copie vers Nextcloud est facultative (copie à sens unique, pas une synchronisation).",
+  "prerequisites": "Aucun pour l’Agenda personnel : il est enregistré dans AxiorHub, sur ce poste ou votre serveur, sans copie vers un agenda en ligne. Pour l’Agenda en ligne, un agenda Nextcloud, CalDAV ou Google configuré dans Paramètres › Connexions.",
   "steps": [
    "Ouvrez Agenda et tâches.",
+   "Les boutons « Agenda en ligne » et « Agenda personnel », sous « Agenda », affichent l’une ou l’autre source ; votre choix est retenu.",
    "Ouvrez « Ajouter un rendez-vous, une audience ou une échéance », renseignez type, intitulé, début, dossier et rappels, puis cliquez sur « Enregistrer ».",
    "Pour changer un événement, ouvrez « Modifier » sous celui-ci, corrigez seulement ce qui change et cliquez sur « Enregistrer la modification ».",
    "Pour annuler, cliquez sur « Annuler » (une occurrence) ou « Annuler la série » (toutes les occurrences à venir).",
    "Pour retrouver un événement, tapez dans « Rechercher » ou choisissez un dossier."
   ],
-  "result": "L’événement apparaît dans « Prochains événements de l’agenda local », avec ses rappels ; une annulation reste dans l’historique et les sauvegardes.",
+  "result": "L’événement apparaît dans « Prochains événements de l’Agenda personnel », avec ses rappels ; il n’est copié vers aucun agenda en ligne. Une annulation reste dans l’historique et les sauvegardes.",
   "verify": "Ouvrez « Importer, exporter, sauvegarder » : « Sauvegarder maintenant » enregistre l’agenda ; « Restaurer… » montre d’abord un aperçu, puis rétablit l’agenda après confirmation (l’état actuel est sauvegardé avant).",
   "errors": [
    [
@@ -111,8 +112,8 @@
     "Il a été changé ailleurs depuis l’ouverture de la page : rechargez-la puis refaites la modification."
    ],
    [
-    "Copie vers Nextcloud à reprendre",
-    "L’événement est bien enregistré ; la copie sera retentée automatiquement."
+    "Anciens événements à répartir",
+    "Avant la 5.6.43, certains événements étaient copiés vers Nextcloud : choisissez pour chacun « Garder dans l’Agenda personnel » ou « Garder la copie distante » ; rien n’est copié ni supprimé sans ce choix."
    ],
    [
     "Série importée partiellement",
@@ -1809,6 +1810,32 @@
   "buttons": [
    "Télécharger le manifeste (manifest.xml)"
   ],
+  "version": "5.6.36"
+ },
+ "talk": {
+  "objective": "Afficher votre application Nextcloud Talk (discussions et appels) dans AxiorHub.",
+  "when": "Pour échanger avec le cabinet ou passer un appel sans quitter AxiorHub.",
+  "prerequisites": "Une connexion Nextcloud configurée et l’application Talk installée sur Nextcloud ; être connecté à Nextcloud dans ce navigateur.",
+  "steps": [
+   "Ouvrez Paramètres › Connexions › Nextcloud Talk.",
+   "Cochez « Afficher la page Talk », vérifiez l’adresse proposée et cliquez sur « Enregistrer ».",
+   "Rechargez la page : « Talk » apparaît sous « Agenda et tâches ».",
+   "Ouvrez Talk ; « Tester l’affichage » explique un refus d’intégration éventuel."
+  ],
+  "result": "Talk s’affiche dans la page avec vos conversations ; « Ouvrir Talk dans un nouvel onglet » reste toujours disponible.",
+  "verify": "Les conversations affichées sont celles de votre compte Nextcloud ; aucun salon n’a été créé par l’activation.",
+  "errors": [
+   [
+    "Cadre vide",
+    "Connectez-vous à Nextcloud dans un onglet puis cliquez sur « Recharger » ; si Nextcloud interdit l’intégration, utilisez l’ouverture dans un onglet."
+   ],
+   [
+    "Adresse refusée",
+    "L’adresse doit être celle de Talk sur la même instance Nextcloud que la connexion configurée."
+   ]
+  ],
+  "example": "Appel avec une collaboratrice fictive depuis la page Talk.",
+  "buttons": [],
   "version": "5.6.36"
  }
 }

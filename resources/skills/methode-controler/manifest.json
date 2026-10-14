@@ -1,0 +1,35 @@
+{
+  "id": "builtin.methode_controler",
+  "name": "Contrôler un projet avant validation",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "Méthodes jointes au cahier des charges AxiorHub Pilote (version 9, 14 octobre 2026)",
+  "license": "AGPL-3.0",
+  "source": "",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "description": "Relever les erreurs et omissions vérifiables dans un projet et proposer des corrections localisées.",
+  "situations": [
+    "contrôle",
+    "relecture",
+    "vérification",
+    "cohérence",
+    "omission",
+    "projet"
+  ],
+  "phases": [
+    "controle"
+  ],
+  "auto_select_tags": [],
+  "enabled_default": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  }
+}

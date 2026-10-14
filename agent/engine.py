@@ -122,8 +122,14 @@ class Engine:
         models={id(x):x for x in (self.fast_model,self.complex_model,self.control_model)}
         costs_before={ident:float(getattr(model,'usage_cost_usd',0) or 0) for ident,model in models.items()}
         def ask(model,stage,data):
+            from .pause5629 import blocked_for_config
+            reason = blocked_for_config(cfg, report.get('matter') or '')
+            if reason:raise Stop(reason)
             called.append((stage,model))
-            return model.ask(stage,data)
+            result = model.ask(stage,data)
+            reason = blocked_for_config(cfg, report.get('matter') or '')
+            if reason:raise Stop(reason)
+            return result
         def finish(status, reason):
             report.update(status=status, reason=reason)
             report['models_used']=[{'function':purpose,'provider':getattr(model,'last_provider',''),
@@ -234,14 +240,8 @@ class Engine:
             report['matter_candidates']=suggested;report['matter']=matter['id'] if matter else None
             report['recipient_role']=role;report['matter_path']=matter['path'] if matter else None
             if matter:   # 5.6.29 : IA en pause sur ce dossier : aucun brouillon automatique (l'avocat peut toujours « Répondre avec l'IA »)
-                if getattr(self,'_paused5629',None) is None:
-                    try:
-                        from .desk import Desk
-                        from .pause5629 import paused
-                        self._paused5629=set(paused(Desk(cfg)))
-                    except Exception:   # pylint: disable=broad-except
-                        self._paused5629=set()
-                if matter['id'] in self._paused5629:
+                from .pause5629 import blocked_for_config
+                if blocked_for_config(cfg, matter['id']):
                     return finish('ignored','dossier_en_pause')
             if matter:
                 try:
@@ -467,6 +467,9 @@ class Engine:
                 return finish('review', 'controle_qualite_non_satisfait')
             report['draft_body'] = body
             if cfg['mode'] == 'observe': return finish('observed', 'proposition_sans_ecriture_imap')
+            from .pause5629 import blocked_for_config
+            reason = blocked_for_config(cfg, report.get('matter') or '')
+            if reason:return finish('ignored',reason)
             from .desk import Desk
             policy_desk=Desk(cfg)
             try:
@@ -507,6 +510,8 @@ class Engine:
             report['draft_expected_headers']={header:str(draft[header]) for header in
               ('Message-ID','From','To','Cc','Subject','In-Reply-To','References','X-AxiorHub-Draft-Key') if draft.get(header)}
             # Persist the report before the single allowed write.
+            reason = blocked_for_config(cfg, report.get('matter') or '')
+            if reason:return finish('ignored',reason)
             self.state.report(key, {**report, 'status':'appending'})
             self.state.set(key, mid, thread, 'appending', 'enregistrement_reserve', draft_mid)
             try:
@@ -525,6 +530,9 @@ class Engine:
             return finish('error', 'erreur_interne_consulter_diagnostic')
 
     def run(self):
+        from .pause5629 import blocked_for_config
+        reason = blocked_for_config(self.c)
+        if reason:return {'examined':0,'skipped':reason}
         if (self.c.get('mail') or {}).get('enabled', True) is False:
             return {'examined': 0, 'skipped': 'messagerie_desactivee'}   # 5.6.31 (R00) : aucune connexion IMAP si la messagerie n'est pas choisie
         lock_path = Path(self.c['state_dir']) / 'run.lock'

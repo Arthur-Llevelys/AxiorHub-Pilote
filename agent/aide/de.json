@@ -27,7 +27,7 @@
    "Briefing du matin",
    "Tri des courriels",
    "Générer maintenant",
-   "Pause des automatismes",
+   "Pause de l’IA",
    "Écouter le briefing"
   ],
   "version": "5.6.36"
@@ -95,28 +95,29 @@
  "planning": {
   "objective": "Einen Termin, eine Verhandlung oder eine Frist im Kalender eintragen, ändern oder absagen.",
   "when": "Um ein Verhandlungsdatum, einen Mandantentermin oder eine Verfahrensfrist mit Erinnerungen festzuhalten.",
-  "prerequisites": "Keine: Der Kalender wird auf diesem Rechner oder Server gespeichert. Die Kopie nach Nextcloud ist optional (Kopie in eine Richtung, keine Synchronisierung).",
+  "prerequisites": "Keine für den persönlichen Kalender: Er wird in AxiorHub gespeichert, auf diesem Rechner oder Ihrem Server, ohne Kopie in einen Online-Kalender. Für den Online-Kalender ein in Einstellungen › Verbindungen eingerichteter Nextcloud-, CalDAV- oder Google-Kalender.",
   "steps": [
    "Öffnen Sie Kalender und Aufgaben.",
+   "Unter „Agenda“ zeigen die Schaltflächen „Online-Kalender“ und „Persönlicher Kalender“ die eine oder die andere Quelle; Ihre Wahl bleibt erhalten.",
    "Öffnen Sie „Termin, Verhandlung oder Frist hinzufügen“, füllen Sie Typ, Bezeichnung, Beginn, Akte und Erinnerungen aus und klicken Sie auf „Speichern“.",
    "Um ein Ereignis zu ändern, öffnen Sie darunter „Bearbeiten“, korrigieren Sie nur das Geänderte und klicken Sie auf „Änderung speichern“.",
    "Zum Absagen klicken Sie auf „Abbrechen“ (ein Termin) oder „Serie absagen“ (alle kommenden Termine).",
    "Um ein Ereignis zu finden, tippen Sie in „Suchen“ oder wählen Sie eine Akte."
   ],
-  "result": "Das Ereignis erscheint unter „Nächste Termine des lokalen Kalenders“ mit seinen Erinnerungen; eine Absage bleibt im Verlauf und in den Sicherungen.",
+  "result": "Der Termin erscheint bei den nächsten Terminen des persönlichen Kalenders, mit seinen Erinnerungen; er wird in keinen Online-Kalender kopiert. Eine Absage bleibt im Verlauf und in den Sicherungen.",
   "verify": "Öffnen Sie „Importieren, exportieren, sichern“: „Jetzt sichern“ sichert den Kalender; „Wiederherstellen…“ zeigt zuerst eine Vorschau und stellt den Kalender nach Bestätigung wieder her (der aktuelle Stand wird vorher gesichert).",
   "errors": [
    [
-    "„Ereignis zwischenzeitlich geändert“",
-    "Es wurde seit dem Öffnen der Seite anderswo geändert: Laden Sie die Seite neu und ändern Sie erneut."
+    "„Termin inzwischen geändert“",
+    "Er wurde seit dem Öffnen der Seite anderswo geändert: Seite neu laden und die Änderung wiederholen."
    ],
    [
-    "Kopie nach Nextcloud wird erneut versucht",
-    "Das Ereignis ist gespeichert; die Kopie wird automatisch erneut versucht."
+    "Ältere Termine zuzuordnen",
+    "Vor 5.6.43 wurden manche Termine nach Nextcloud kopiert: Wählen Sie für jeden, ob er nur im persönlichen Kalender bleibt oder seine entfernte Kopie behält; ohne diese Wahl wird nichts kopiert oder gelöscht."
    ],
    [
     "Serie teilweise importiert",
-    "Einige Wiederholungsregeln werden nicht unterstützt: Prüfen Sie die in der Importmeldung genannten Daten."
+    "Manche Wiederholungsregeln werden nicht unterstützt: Prüfen Sie die in der Importmeldung genannten Daten."
    ]
   ],
   "example": "Fiktive Verhandlung am 24. November 2026 um 9:30 Uhr, Akte DEMO-A, Erinnerungen am Vortag und eine Stunde vorher.",
@@ -1809,6 +1810,32 @@
   "buttons": [
    "Télécharger le manifeste (manifest.xml)"
   ],
+  "version": "5.6.36"
+ },
+ "talk": {
+  "objective": "Ihre Nextcloud-Talk-App (Unterhaltungen und Anrufe) in AxiorHub anzeigen.",
+  "when": "Um mit der Kanzlei zu schreiben oder anzurufen, ohne AxiorHub zu verlassen.",
+  "prerequisites": "Eine eingerichtete Nextcloud-Verbindung mit installierter Talk-App; in diesem Browser bei Nextcloud angemeldet sein.",
+  "steps": [
+   "Öffnen Sie Einstellungen › Verbindungen › Nextcloud Talk.",
+   "Aktivieren Sie „Talk-Seite anzeigen“, prüfen Sie die vorgeschlagene Adresse und klicken Sie auf „Speichern“.",
+   "Seite neu laden: „Talk“ erscheint unter „Kalender und Aufgaben“.",
+   "Öffnen Sie Talk; „Anzeige testen“ erklärt eine eventuelle Einbettungssperre."
+  ],
+  "result": "Talk wird mit Ihren Unterhaltungen angezeigt; „Talk in neuem Tab öffnen“ bleibt immer verfügbar.",
+  "verify": "Die angezeigten Unterhaltungen sind die Ihres Nextcloud-Kontos; durch die Aktivierung wurde kein Raum erstellt.",
+  "errors": [
+   [
+    "Leerer Rahmen",
+    "Melden Sie sich in einem Tab bei Nextcloud an und klicken Sie auf „Neu laden“; verbietet Nextcloud die Einbettung, im Tab öffnen."
+   ],
+   [
+    "Adresse abgelehnt",
+    "Die Adresse muss die Talk-App derselben Nextcloud-Instanz wie die eingerichtete Verbindung sein."
+   ]
+  ],
+  "example": "Anruf mit einer fiktiven Kollegin über die Talk-Seite.",
+  "buttons": [],
   "version": "5.6.36"
  }
 }

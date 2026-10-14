@@ -370,29 +370,38 @@ def start_playbook(desk, playbook_id, mid, objective=''):
     return {'run_id':rid,'status':'running','steps':len(steps)}
 
 
+RUN_TERMINAL=('cancelled','done')
+
+
 def _sync_run(desk, rid):
+    """5.6.43 (§ 19.1-19.2) : rapprochement des étapes avec leurs travaux. Transitions conditionnelles : un parcours annulé ou terminé
+    ne redevient jamais actif par une consultation ; une étape annulée n'est pas une étape réussie et bloque la suite (reprise contrôlée)."""
     run=desk.db.execute('SELECT * FROM playbook_runs_v380 WHERE id=?',(rid,)).fetchone()
     if not run:raise Stop('parcours_absent')
     for step in desk.db.execute("SELECT * FROM playbook_steps_v380 WHERE run_id=? AND status='queued'",(rid,)).fetchall():
         job=desk.db.execute('SELECT status,result FROM jobs WHERE id=?',(step['job_id'],)).fetchone()
         if job and job['status'] in ('done','error','cancelled'):
             status='done' if job['status']=='done' else job['status']
-            desk.db.execute('UPDATE playbook_steps_v380 SET status=?,result=?,updated=? WHERE run_id=? AND step_no=?',
+            desk.db.execute("UPDATE playbook_steps_v380 SET status=?,result=?,updated=? WHERE run_id=? AND step_no=? AND status='queued'",
               (status,job['result'] or '',desk.now(),rid,step['step_no']))
     steps=desk.db.execute('SELECT * FROM playbook_steps_v380 WHERE run_id=? ORDER BY step_no',(rid,)).fetchall()
+    suspended=any(x['status']=='queued' and desk.db.execute("SELECT 1 FROM jobs WHERE id=? AND status='suspended'",(x['job_id'],)).fetchone()
+                  for x in steps)
     if any(x['status']=='error' for x in steps):status='error'
+    elif any(x['status']=='cancelled' for x in steps):status='step_cancelled'
     elif steps and all(x['status']=='done' for x in steps):status='done'
     elif any(x['status']=='awaiting_input' for x in steps):status='awaiting_input'
+    elif suspended:status='suspended'
     else:status='running'
-    current=next((x['step_no'] for x in steps if x['status'] not in ('done','cancelled')),len(steps))
-    desk.db.execute('UPDATE playbook_runs_v380 SET status=?,current_step=?,updated=? WHERE id=?',
-      (status,current,desk.now(),rid));desk.db.commit()
+    current=next((x['step_no'] for x in steps if x['status']!='done'),len(steps))
+    desk.db.execute('UPDATE playbook_runs_v380 SET status=?,current_step=?,updated=? WHERE id=? AND status NOT IN (?,?)',
+      (status,current,desk.now(),rid)+RUN_TERMINAL);desk.db.commit()
     return desk.db.execute('SELECT * FROM playbook_runs_v380 WHERE id=?',(rid,)).fetchone(),steps
 
 
 def advance_playbook(desk, rid):
     ensure_schema(desk);run,step_rows=_sync_run(desk,rid)
-    if run['status'] in ('done','error','cancelled'):return playbook_run(desk,rid)
+    if run['status'] in ('done','error','cancelled','step_cancelled','suspended'):return playbook_run(desk,rid)
     if run['status']=='awaiting_input' or any(x['status']=='queued' for x in step_rows):
         return playbook_run(desk,rid)
     definition=desk.db.execute('SELECT steps FROM playbook_definitions_v380 WHERE id=?',(run['playbook_id'],)).fetchone()
@@ -411,10 +420,52 @@ def advance_playbook(desk, rid):
     elif step.get('job_kind') in ('draft_act','prepare_document_project','prepare_hearing','prepare_word_project'):
         args['instruction']=instruction
     elif step.get('job_kind')=='legal_research':args['question']=instruction
-    job=desk.enqueue(step['job_kind'],args,priority=0)
-    desk.db.execute('UPDATE playbook_steps_v380 SET status=?,job_id=?,updated=? WHERE run_id=? AND step_no=?',
-      ('queued',job,desk.now(),rid,pending['step_no']))
+    # 5.6.43 (§ 19.2) : réservation de l'étape en transaction courte ; un double clic ou deux workers rejoignent la même étape
+    reserved=desk.db.execute("UPDATE playbook_steps_v380 SET status='reserving',updated=? WHERE run_id=? AND step_no=? AND status='pending'",
+      (desk.now(),rid,pending['step_no'])).rowcount
+    desk.db.commit()
+    if not reserved:return playbook_run(desk,rid)
+    try:job=desk.enqueue(step['job_kind'],args,priority=0)
+    except Exception:
+        desk.db.execute("UPDATE playbook_steps_v380 SET status='pending' WHERE run_id=? AND step_no=? AND status='reserving'",(rid,pending['step_no']))
+        desk.db.commit();raise
+    desk.db.execute("UPDATE playbook_steps_v380 SET status='queued',job_id=?,updated=? WHERE run_id=? AND step_no=? AND status='reserving'",
+      (job,desk.now(),rid,pending['step_no']))
     desk.db.commit();desk.audit('playbook_step_queued',{'run_id':rid,'step':pending['step_no'],'job':job})
+    return playbook_run(desk,rid)
+
+
+def retry_step(desk, rid, step_no):
+    """Reprise contrôlée d'UNE étape en erreur ou annulée (jamais tout le parcours) ; la tentative est comptée et tracée."""
+    ensure_schema(desk)
+    try:step_no=int(step_no)
+    except (TypeError,ValueError):raise Stop('etape_invalide') from None
+    run=desk.db.execute('SELECT status FROM playbook_runs_v380 WHERE id=?',(rid,)).fetchone()
+    if not run:raise Stop('parcours_absent')
+    if run['status']=='cancelled':raise Stop('parcours_annule')
+    row=desk.db.execute('SELECT status,result FROM playbook_steps_v380 WHERE run_id=? AND step_no=?',(rid,step_no)).fetchone()
+    if not row or row['status'] not in ('error','cancelled'):raise Stop('etape_non_reprenable')
+    attempt=int((_json(row['result'],{}) or {}).get('attempt',0) or 0)+1
+    changed=desk.db.execute("UPDATE playbook_steps_v380 SET status='pending',job_id=NULL,result=?,updated=? WHERE run_id=? AND step_no=? AND status IN ('error','cancelled')",
+      (json.dumps({'attempt':attempt,'previous':row['status']},ensure_ascii=False),desk.now(),rid,step_no)).rowcount
+    desk.db.execute("UPDATE playbook_runs_v380 SET status='running',updated=? WHERE id=? AND status IN ('error','step_cancelled')",(desk.now(),rid))
+    desk.db.commit()
+    if changed:desk.audit('playbook_step_retry',{'run_id':rid,'step':step_no,'attempt':attempt})
+    return advance_playbook(desk,rid)
+
+
+def cancel_run(desk, rid):
+    """Arrêt du parcours : terminal ; les travaux de ses étapes non achevées sont annulés (ou leur arrêt demandé)."""
+    ensure_schema(desk)
+    run=desk.db.execute('SELECT status FROM playbook_runs_v380 WHERE id=?',(rid,)).fetchone()
+    if not run:raise Stop('parcours_absent')
+    stopped=[]
+    for step in desk.db.execute("SELECT step_no,job_id FROM playbook_steps_v380 WHERE run_id=? AND status IN ('queued','reserving')",(rid,)).fetchall():
+        if step['job_id']:
+            try:stopped.append(desk.cancel_job(step['job_id']))
+            except Stop:pass
+    desk.db.execute("UPDATE playbook_runs_v380 SET status='cancelled',updated=? WHERE id=? AND status<>'done'",(desk.now(),rid))
+    desk.db.commit();desk.audit('playbook_cancelled',{'run_id':rid,'jobs':[x['job_id'] for x in stopped]})
     return playbook_run(desk,rid)
 
 
@@ -424,7 +475,9 @@ def complete_manual_step(desk, rid, step_no):
     except (TypeError,ValueError):raise Stop('etape_invalide') from None
     row=desk.db.execute('SELECT status FROM playbook_steps_v380 WHERE run_id=? AND step_no=?',(rid,step_no)).fetchone()
     if not row or row['status']!='awaiting_input':raise Stop('etape_non_validable')
-    desk.db.execute("UPDATE playbook_steps_v380 SET status='done',updated=? WHERE run_id=? AND step_no=?",(desk.now(),rid,step_no))
+    validated={'validated_by':str(getattr(desk,'mission_owner567','') or 'cabinet'),'validated_at':desk.now()}   # 5.6.43 (§ 19.2) : acteur tracé
+    desk.db.execute("UPDATE playbook_steps_v380 SET status='done',result=?,updated=? WHERE run_id=? AND step_no=? AND status='awaiting_input'",
+      (json.dumps(validated,ensure_ascii=False),desk.now(),rid,step_no))
     desk.db.commit();_sync_run(desk,rid);return playbook_run(desk,rid)
 
 
@@ -586,6 +639,8 @@ def perform(desk, kind, args):
     if kind=='start_playbook380':return start_playbook(desk,args.get('playbook_id',''),args.get('matter',''),args.get('objective',''))
     if kind=='advance_playbook380':return advance_playbook(desk,args.get('run_id',''))
     if kind=='complete_playbook_step380':return complete_manual_step(desk,args.get('run_id',''),args.get('step_no',''))
+    if kind=='retry_playbook_step5643':return retry_step(desk,args.get('run_id',''),args.get('step_no',''))
+    if kind=='cancel_playbook5643':return cancel_run(desk,args.get('run_id',''))
     if kind=='save_ecosystem_service380':return register_service(desk,args.get('service_id',''),args.get('name',''),args.get('base_url',''),args.get('capabilities',''),args.get('secret_ref',''),args.get('enabled')=='yes',args.get('reviewed')=='yes')
     if kind=='prepare_ecosystem_action380':return prepare_ecosystem_action(desk,args.get('service_id',''),args.get('matter',''),args.get('capability',''),_json(args.get('payload'),{}) if isinstance(args.get('payload'),str) else args.get('payload',{}))
     if kind=='run_business_evaluation380':return run_evaluation(desk)

@@ -144,9 +144,12 @@ def _matter_candidates(matters,text):
     return [x[2] for x in scored]
 
 
-def calendar_events(desk,start,end,matter='',refresh=True,dav=None):
-    """Return every event in the period, including unlinked events."""
+def calendar_events(desk,start,end,matter='',refresh=True,dav=None,source=None):
+    """Return every event in the period, including unlinked events.
+    5.6.43 (cahier v9, § 17.4) : ``source='online'`` ne rend que les calendriers distants (jamais « local:agenda », y compris dans le cache
+    de secours) ; ``source='personal'`` ne rend que l'Agenda personnel, sans appel réseau ; sans source, l'agrégat interne (disponibilités)."""
     ensure_schema(desk);a,b=_period(start,end);matters=load_matters(desk.c)
+    if source=='personal':refresh=False
     if matter and not any(x['id']==matter for x in matters):raise Stop('dossier_absent')
     if refresh:
         client=dav or _dav(desk);tz=desk.c.get('calendar',{}).get('timezone','Europe/Paris')
@@ -176,6 +179,8 @@ def calendar_events(desk,start,end,matter='',refresh=True,dav=None):
         desk.db.commit()
     a_utc=a.astimezone(timezone.utc).isoformat();b_utc=b.astimezone(timezone.utc).isoformat()
     params=[a_utc,b_utc];where='starts<? AND ends>?'
+    if source=='online':where+=" AND calendar_url<>'local:agenda'"
+    elif source=='personal':where+=" AND calendar_url='local:agenda'"
     if matter:where+=' AND matter=?';params.append(matter)
     rows=[];matter_paths={m['id']:m['path'] for m in matters}
     for row in desk.db.execute('SELECT * FROM calendar_cache WHERE '+where+' ORDER BY starts',

@@ -535,9 +535,9 @@ class Interface(Base):
             self.assertIn(text, body)
         self.desk.c['calendar'] = {**self.desk.c.get('calendar', {}), 'urls': []}
         page = self.request('/planning', query='vue=agenda')['body']
-        self.assertIn('aria-current="page" href="/agent-courriel/planning?vue=agenda&amp;view=week', page)
+        self.assertIn('aria-current="page" href="/agent-courriel/planning?vue=agenda&amp;agenda=personnel&amp;view=week', page)   # 5.6.43 : sous-vue
         self.request('/planning', query='vue=agenda&view=list');self.assertEqual(self.desk.settings('agenda5614:view', ''), 'list')
-        self.assertIn('aria-current="page" href="/agent-courriel/planning?vue=agenda&amp;view=list', self.request('/planning', query='vue=agenda')['body'])
+        self.assertIn('aria-current="page" href="/agent-courriel/planning?vue=agenda&amp;agenda=personnel&amp;view=list', self.request('/planning', query='vue=agenda')['body'])
 
     def test_decisions_center_gathers_every_kind_with_actions(self):
         from agent import aujourdhui5614, docrequest520 as dr

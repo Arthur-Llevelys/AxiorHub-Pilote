@@ -1,0 +1,35 @@
+{
+  "id": "builtin.methode_analyser",
+  "name": "Analyser faits preuves et arguments",
+  "version": "1.0.0",
+  "origin": "builtin",
+  "scope": "cabinet",
+  "author": "Méthodes jointes au cahier des charges AxiorHub Pilote (version 9, 14 octobre 2026)",
+  "license": "AGPL-3.0",
+  "source": "",
+  "instructions": [
+    "SKILL.md"
+  ],
+  "jurisdictions": [
+    "FR"
+  ],
+  "description": "Construire une analyse traçable avec distinction des faits, des allégations et des déductions.",
+  "situations": [
+    "analyse",
+    "pièces",
+    "preuve",
+    "chronologie",
+    "argument",
+    "contradiction"
+  ],
+  "phases": [
+    "analyse"
+  ],
+  "auto_select_tags": [],
+  "enabled_default": false,
+  "requires": {
+    "analysis": [
+      "ai.generate"
+    ]
+  }
+}
