@@ -576,6 +576,11 @@ def reconcile_work_items(desk,box=None):
                     if details.get('state')=='handled':manual_keys.add(details.get('key'))
                 except (ValueError,TypeError,AttributeError):pass
         repair_complete=True
+        changes=[]   # 5.6.46 : décisions d'abord (lectures IMAP, réseau), écriture ensuite en une transaction courte
+        if desk.db.in_transaction:desk.db.commit()
+
+        def _work_state(_desk,key,state):
+            changes.append((key,state,next(r['state'] for r in rows if r['mail_key']==key)))
         for row in rows:
             checked+=1
             legacy=repair and row['state']=='handled' and row['source_status']=='review'
@@ -609,6 +614,8 @@ def reconcile_work_items(desk,box=None):
                 reopened+=1
             elif (_dt(row['received']) or datetime.now(timezone.utc))<cutoff:
                 _work_state(desk,row['mail_key'],'backlog');backlog+=1
+        for key,state,expected in changes:
+            globals()['_work_state'](desk,key,state,expected)
         desk.db.commit()
         if repair and repair_complete and len(previous)<501:
             desk.setting('portfolio:seen_review_repair_v361',True)
@@ -623,9 +630,12 @@ def reconcile_work_items(desk,box=None):
     desk.setting('portfolio:last_reconciliation',result);return result
 
 
-def _work_state(desk,key,state):
-    stamp=desk.now();desk.db.execute('UPDATE work_items SET state=?,updated=?,resolved=? WHERE mail_key=?',
-      (state,stamp,stamp if state in ('handled','archived','draft_ready') else None,key))
+def _work_state(desk,key,state,expected=None):
+    """5.6.46 : ``expected`` = état lu avant la vérification réseau ; la carte n'est changée que si personne ne l'a modifiée entre-temps."""
+    stamp=desk.now()
+    sql='UPDATE work_items SET state=?,updated=?,resolved=? WHERE mail_key=?'+(' AND state=?' if expected is not None else '')
+    params=(state,stamp,stamp if state in ('handled','archived','draft_ready') else None,key)+((expected,) if expected is not None else ())
+    return desk.db.execute(sql,params).rowcount
 
 
 def perform(desk,kind,args):

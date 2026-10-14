@@ -3,6 +3,20 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.46 — Correctif : plus d’écriture de plusieurs minutes dans la base
+
+Relevé « écritures longues » du serveur du cabinet (14 octobre 2026) : deux traitements périodiques tenaient la base en écriture, ce
+qui faisait attendre le worker (« base de données occupée… ») et pouvait afficher « Un instant… » dans les pages.
+
+- **Rapprochement des courriels** (`portfolio.reconcile_work_items`, 250 à 330 s toutes les 15 minutes) : la transaction s’ouvrait au
+  premier changement d’état d’une carte puis restait ouverte pendant la lecture IMAP des messages suivants (jusqu’à 200). Les
+  décisions sont maintenant prises d’abord, puis écrites en une transaction courte ; une carte changée entre-temps (par exemple
+  archivée par l’avocat) n’est jamais écrasée.
+- **Agenda** (`workplan.calendar_events`, environ 28 s) : le rattachement des événements aux dossiers se calculait dans la
+  transaction, avec des motifs recompilés pour chaque événement. Il est calculé avant d’écrire, avec des motifs préparés une fois
+  (mêmes résultats) ; la transaction ne contient plus que l’effacement de la période et l’insertion des lignes prêtes. Même
+  préparation pour les tâches et le plan de travail.
+
 ## 5.6.45 — Correctif : le worker survit à une base occupée
 
 Journal du serveur du 14 octobre 2026 (installation de la 5.6.44, 17:07:52) : le worker s’est arrêté sur « database is locked » au

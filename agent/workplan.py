@@ -125,20 +125,33 @@ def _period(start,end,maximum_days=370):
     return a,b
 
 
-def _matter_candidates(matters,text):
-    value=fold(text);scored=[]
-    exact=[m['id'] for m in matters if len(m['id'])>=4 and re.search(
-        r'(?<!\w)'+re.escape(fold(m['id']))+r'(?!\w)',value)]
-    if len(exact)==1:return exact
-    folders=[m['id'] for m in matters if len(fold(m['path'].rsplit('/',1)[-1]))>=8
-        and re.search(r'(?<!\w)'+re.escape(fold(m['path'].rsplit('/',1)[-1]))+r'(?!\w)',value)]
-    if len(folders)==1:return folders
-    for matter in matters:
-        terms=[matter['id'],matter.get('client_name','')]+matter.get('references',[])+matter.get('aliases',[])
-        hits=[]
-        for term in terms:
+def _word(term):
+    return re.compile(r'(?<!\w)'+re.escape(term)+r'(?!\w)')
+
+
+def prepare_matters(matters):
+    """5.6.46 : motifs de rattachement préparés une fois (au lieu d'être recompilés pour chaque événement et chaque dossier)."""
+    out=[]
+    for m in matters:
+        folder=fold(m['path'].rsplit('/',1)[-1])
+        terms=[]
+        for term in [m['id'],m.get('client_name','')]+m.get('references',[])+m.get('aliases',[]):
             term=fold(str(term)).strip()
-            if len(term)>=4 and re.search(r'(?<!\w)'+re.escape(term)+r'(?!\w)',value):hits.append(term)
+            if len(term)>=4:terms.append((term,_word(term)))
+        out.append({'id':m['id'],'exact':_word(fold(m['id'])) if len(m['id'])>=4 else None,
+                    'folder':_word(folder) if len(folder)>=8 else None,'terms':terms})
+    return out
+
+
+def _matter_candidates(matters,text,prepared=None):
+    value=fold(text);scored=[]
+    prepared=prepared if prepared is not None else prepare_matters(matters)
+    exact=[m['id'] for m in prepared if m['exact'] is not None and m['exact'].search(value)]
+    if len(exact)==1:return exact
+    folders=[m['id'] for m in prepared if m['folder'] is not None and m['folder'].search(value)]
+    if len(folders)==1:return folders
+    for matter in prepared:
+        hits=[term for term,rx in matter['terms'] if rx.search(value)]
         if hits:scored.append((max(len(x) for x in hits),len(hits),matter['id']))
     scored.sort(reverse=True)
     return [x[2] for x in scored]
@@ -155,27 +168,32 @@ def calendar_events(desk,start,end,matter='',refresh=True,dav=None,source=None):
         client=dav or _dav(desk);tz=desk.c.get('calendar',{}).get('timezone','Europe/Paris')
         urls=_calendar_urls(desk)
         events=client.events(urls,a,b,tz)
-        # A fresh REPORT is authoritative for the requested period. Remove the
-        # previous slice first so deleted or moved occurrences cannot survive
-        # forever in the local cache.
-        for url in urls:
-            normalized=client.calendar_url(url)
-            desk.db.execute('DELETE FROM calendar_cache WHERE calendar_url=? AND starts<? AND ends>?',
-                            (normalized,b.astimezone(timezone.utc).isoformat(),
-                             a.astimezone(timezone.utc).isoformat()))
+        # 5.6.46 : tout est calculé AVANT d'écrire (adresses normalisées, rattachement aux dossiers) ; la transaction ne contient plus que
+        # l'effacement de la période et l'insertion des lignes déjà prêtes.
+        normalized=[client.calendar_url(url) for url in urls]
+        prepared=prepare_matters(matters);stamp=desk.now();rows_ready=[]
         for event in events:
             starts=datetime.fromisoformat(event['start']).astimezone(timezone.utc).isoformat()
             ends=datetime.fromisoformat(event['end']).astimezone(timezone.utc).isoformat()
-            candidates=_matter_candidates(matters,(event.get('summary','')+'\n'+event.get('description','')))
+            candidates=_matter_candidates(matters,(event.get('summary','')+'\n'+event.get('description','')),prepared)
             linked=candidates[0] if len(candidates)==1 else ''
             eid=digest('|'.join([event.get('uid',''),event.get('recurrence_id',''),starts,
                                  event.get('source_url','')]))
-            desk.db.execute('''INSERT OR REPLACE INTO calendar_cache VALUES
-              (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',(eid,event.get('uid',''),event.get('recurrence_id',''),
+            rows_ready.append((eid,event.get('uid',''),event.get('recurrence_id',''),
               event.get('source_url',''),event.get('href',''),event.get('etag',''),
               event.get('summary',''),event.get('description',''),event.get('location',''),
               starts,ends,1 if event.get('busy',True) else 0,linked,
-              json.dumps(candidates[:5]),desk.now()))
+              json.dumps(candidates[:5]),stamp))
+        if desk.db.in_transaction:desk.db.commit()
+        # A fresh REPORT is authoritative for the requested period. Remove the
+        # previous slice first so deleted or moved occurrences cannot survive
+        # forever in the local cache.
+        for url in normalized:
+            desk.db.execute('DELETE FROM calendar_cache WHERE calendar_url=? AND starts<? AND ends>?',
+                            (url,b.astimezone(timezone.utc).isoformat(),
+                             a.astimezone(timezone.utc).isoformat()))
+        desk.db.executemany('''INSERT OR REPLACE INTO calendar_cache VALUES
+              (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',rows_ready)
         desk.db.commit()
     a_utc=a.astimezone(timezone.utc).isoformat();b_utc=b.astimezone(timezone.utc).isoformat()
     params=[a_utc,b_utc];where='starts<? AND ends>?'
@@ -211,9 +229,9 @@ def sync_tasks(desk,dav=None):
         except (Stop,OSError,ValueError):pass
         raise Stop('liste_taches_axiorhub_non_configuree')
     client=dav or _dav(desk);tz=desk.c.get('calendar',{}).get('timezone','Europe/Paris')
-    matters=load_matters(desk.c);seen=[]
+    matters=load_matters(desk.c);seen=[];prepared=prepare_matters(matters)   # 5.6.46 : motifs préparés une fois
     for remote in client.todos(urls,tz,2000):
-        candidates=_matter_candidates(matters,remote['title']+'\n'+remote.get('description',''))
+        candidates=_matter_candidates(matters,remote['title']+'\n'+remote.get('description',''),prepared)
         matter=candidates[0] if len(candidates)==1 else ''
         tid=digest('caldav-vtodo|'+remote['uid']);state=_remote_state(remote['status']);stamp=desk.now()
         previous=desk.db.execute('SELECT * FROM work_tasks_v211 WHERE id=?',(tid,)).fetchone()
@@ -316,12 +334,12 @@ def extract_tasks(desk,text,period_start=''):
     if not text or len(text)>20000:raise Stop('liste_taches_requise_20000_caracteres_maximum')
     try:year=datetime.fromisoformat(period_start).year if period_start else datetime.now().year
     except ValueError:year=datetime.now().year
-    matters=load_matters(desk.c);items=[]
+    matters=load_matters(desk.c);items=[];prepared=prepare_matters(matters)
     for raw in text.splitlines():
         line=re.sub(r'^\s*(?:[-*•]|\d+[.)])\s*','',raw).strip()
         if not line:continue
         duration,line=_duration(line);prefix=line.split(':',1)[0].strip()
-        candidates=_matter_candidates(matters,prefix)
+        candidates=_matter_candidates(matters,prefix,prepared)
         category='personal' if fold(prefix).startswith('personnel') else ('cabinet' if fold(prefix).startswith('cabinet exemple') else 'matter')
         matter=candidates[0] if len(candidates)==1 else ''
         title=line.split(':',1)[1].strip() if ':' in line else line

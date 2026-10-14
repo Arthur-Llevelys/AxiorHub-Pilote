@@ -1,0 +1,29 @@
+{
+  "version": "5.6.46",
+  "base": "5.6.45 publiée",
+  "date_utc": "2026-10-14T00:00:00+00:00",
+  "cahier_des_charges": "Correctif des écritures longues relevées sur le serveur du cabinet le 14 octobre 2026 (ecritures-longues.json : portfolio._work_state 250 à 330 s, workplan.calendar_events environ 28 s, toutes les 15 minutes).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2172,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 91,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5646.py : RapprochementSansTransactionOuverte (aucune transaction pendant les lectures IMAP ; décision de l’avocat prise pendant le rapprochement jamais écrasée), AgendaTransactionCourte (rattachement aux dossiers calculé avant l’écriture, 400 événements × 300 dossiers ; motifs préparés = même résultat). Ces trois tests échouent sur la 5.6.45.",
+  "not_verified_here_detail": "mesure de la durée des écritures sur le serveur du cabinet après installation (ecritures-longues.json)",
+  "exapp": {
+    "version": "0.1.5",
+    "moteur": "5.6.46"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "not_verified_here": [
+    "installation sur le serveur du cabinet pendant une écriture longue"
+  ],
+  "adjusted_tests": []
+}
