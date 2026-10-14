@@ -258,8 +258,8 @@ class Accounts(tw.WebWorkshopTests):
         self.assertEqual(Path(self.auth).read_bytes(), before)                                      # ui-auth.json jamais réécrit
         override = Path(self.f.c['state_dir']) / 'compte-interface5642.json'
         self.assertEqual(oct(override.stat().st_mode & 0o777)[-3:], '600') if os.name == 'posix' else None
-        self.assertTrue(self.call('/courriels', auth=False)['status'].startswith('401'))
-        self.assertTrue(self.call('/courriels')['status'].startswith('401'))                        # ancien mot de passe refusé
+        self.assertTrue(self.call('/courriels', auth=False)['status'].startswith(('401', '303')))   # 5.6.48 : page de connexion
+        self.assertTrue(self.call('/courriels')['status'].startswith(('401', '303')))               # ancien mot de passe refusé
         env = {'HTTP_AUTHORIZATION': 'Basic ' + base64.b64encode(('maitre:' + new).encode()).decode()}
         self.assertTrue(self.call('/courriels', auth=False, extra=env)['status'].startswith('200'))
 

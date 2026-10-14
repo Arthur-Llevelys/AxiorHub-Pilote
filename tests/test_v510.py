@@ -330,7 +330,7 @@ class Web(Base):
     def test_page_renders_in_the_common_layout_and_is_reachable(self):
         did = self.scan()
         body = self.request('/pieces', query='draft=' + did)['body']
-        self.assertTrue(self.request('/pieces', auth=False)['status'].startswith('401'))
+        self.assertTrue(self.request('/pieces', auth=False)['status'].startswith(('401', '303')))
         self.assertIn('<aside id="ws-sidebar">', body)
         self.assertIn('Pièces et bordereaux', body)
         self.assertIn('vf-table p5-table', body)

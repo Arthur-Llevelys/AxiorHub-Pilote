@@ -4,7 +4,7 @@ from .web5634 import _post
 
 
 # Droits en écriture des routes m5636 (mode autonome : même règle que le serveur, testée).
-ADMIN_ONLY = ('nextcloud/app', 'nextcloud/cle/revoquer', 'microsoft/', 'compte/')   # 5.6.42 : compte de l'interface
+ADMIN_ONLY = ('nextcloud/app', 'nextcloud/cle/revoquer', 'microsoft/', 'compte/', 'comptes/')   # 5.6.42 : compte de l'interface
 ASSISTANT_ROUTES = ('contacts/', 'pieces/analyser', 'pieces/ranger-pj', 'corporate/operation', 'corporate/societe', 'corporate/souscription',
                     'outils/memo/rediger', 'travail/ecarter', 'office/reformuler',
                     'talk/')   # 5.6.43 (§ 22) : chacun règle sa propre page Talk
@@ -48,6 +48,22 @@ def api(env, desk, auth, prefix, name, args, method):
     if route in ('talk/enregistrer', 'talk/tester'):   # 5.6.43 (§ 22) : préférence de l'utilisateur connecté (jamais celle d'un autre)
         from . import talk5643
         return json_out(talk5643.save(desk, owner, data) if route == 'talk/enregistrer' else talk5643.test(desk, data, env))
+    if route in ('comptes/recuperation', 'comptes/ajouter', 'comptes/modifier'):   # 5.6.48 : comptes de la version serveur
+        if role != 'administrateur':
+            raise Stop('role_insuffisant')
+        from . import connexion5648
+        if not connexion5648.enabled(auth):
+            raise Stop('comptes_du_cabinet_dans_la_page_comptes')
+        db48 = connexion5648.connect(desk.c['state_dir'])
+        try:
+            if route == 'comptes/recuperation':
+                saved = connexion5648.set_admin_email(db48, data.get('email'))
+                return json_out({'message': ('Adresse de récupération enregistrée : %s.' % saved) if saved else 'Adresse de récupération retirée.'})
+            if route == 'comptes/ajouter':
+                return json_out(connexion5648.add_user(db48, owner, data))
+            return json_out(connexion5648.update_user(db48, owner, data))
+        finally:
+            db48.close()
     if route == 'compte/mot-de-passe':   # 5.6.42 : identifiant et mot de passe de l'interface (administrateur)
         if role != 'administrateur':
             raise Stop('role_insuffisant')

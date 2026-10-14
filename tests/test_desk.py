@@ -170,7 +170,7 @@ class WebTests(unittest.TestCase):
 
     def test_all_four_views_require_authentication(self):
         for path in ['/','/associations','/dossiers','/memoire']:
-            self.assertTrue(self.request(path,auth=False)['status'].startswith('401'))
+            self.assertTrue(self.request(path,auth=False)['status'].startswith(('401','303')))   # 5.6.48 : page de connexion
             self.assertTrue(self.request(path)['status'].startswith('200'))
 
     def test_post_requires_origin_and_csrf(self):
@@ -220,9 +220,11 @@ class WebTests(unittest.TestCase):
         try:
             base='http://127.0.0.1:'+str(server.server_port)+'/agent-courriel'
             headers={'Host':'cabinet.example.test','X-Forwarded-Proto':'https'}
-            with self.assertRaises(urllib.error.HTTPError) as error:
-                urllib.request.urlopen(urllib.request.Request(base+'/',headers=headers))
-            self.assertEqual(error.exception.code,401)
+            from agent.common import NoRedirect
+            with self.assertRaises(urllib.error.HTTPError) as error:   # 5.6.48 : renvoi vers la page de connexion (non suivi)
+                urllib.request.build_opener(NoRedirect()).open(urllib.request.Request(base+'/',headers=headers))
+            self.assertEqual(error.exception.code,303)
+            self.assertIn('/agent-courriel/connexion',error.exception.headers['Location'])
             headers['Authorization']='Basic '+base64.b64encode(('admin:'+self.password).encode()).decode()
             for path in ['/','/associations','/dossiers','/memoire','/static/style.css']:
                 with urllib.request.urlopen(urllib.request.Request(base+path,headers=headers)) as response:

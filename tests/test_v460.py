@@ -333,7 +333,7 @@ class Pages(Base0 if False else unittest.TestCase):
         self.assertIn('À faire aujourd’hui', detail)
 
     def test_fiche_and_timeline_pages(self):
-        self.assertTrue(self.call('/fiche', auth=False)['status'].startswith('401'))
+        self.assertTrue(self.call('/fiche', auth=False)['status'].startswith(('401', '303')))   # 5.6.48 : page de connexion
         index = DocumentIndex(self.desk.c['state_dir'])
         index.db.execute('INSERT OR REPLACE INTO docs VALUES(?,?,?,?,?,?)', ('DOS-001', PATH, 'e1', '2026-09-20T10:00:00+00:00', TEXT, ''))
         index.db.commit()

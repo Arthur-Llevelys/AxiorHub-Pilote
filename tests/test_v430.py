@@ -232,7 +232,7 @@ class LiveWeb430Tests(unittest.TestCase):
 
     def test_live_routes_are_authenticated_and_local_assets_served(self):
         for path in ('/live/snapshot','/live/panel','/live/board'):
-            self.assertTrue(self.w.request(path,auth=False)['status'].startswith('401'))
+            self.assertTrue(self.w.request(path,auth=False)['status'].startswith(('401', '303')))
             self.assertTrue(self.w.request(path)['status'].startswith('200'))
         for name in ('htmx.min.js','v430.js','v430.css'):
             self.assertTrue(self.w.request('/static/'+name)['status'].startswith('200'))

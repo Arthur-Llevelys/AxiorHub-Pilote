@@ -95,3 +95,16 @@
 /* 5.6.47 : recherche dans les listes de dossiers */
 .ax5647-filter{display:block;width:100%;min-height:44px;margin:.25rem 0;font-size:1rem}
 .ax5647-count{display:block;font-size:.8125rem;color:var(--ax-muted,#5b6472)}
+
+/* 5.6.48 : compte connecté et déconnexion (pied du menu), comptes du cabinet (Paramètres › Comptes) */
+.cx48-user{display:flex;flex-direction:column;gap:2px;margin:12px 12px 16px;padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:12px;color:inherit}
+.cx48-user-name{font-weight:700;overflow-wrap:anywhere}
+.cx48-user small{color:inherit;opacity:.85}
+.cx48-user form{margin:8px 0 0}
+.cx48-logout{min-height:44px;width:100%;padding:8px 12px;border-radius:10px;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+.cx48-logout:hover{background:rgba(255,255,255,.12)}
+.cx48-logout:focus-visible{outline:3px solid #7b55cf;outline-offset:2px}
+.cx48-table{width:100%;border-collapse:collapse}
+.cx48-table th,.cx48-table td{padding:8px;border-bottom:1px solid var(--ui-line,#d6deea);text-align:left;vertical-align:top}
+.cx48-actions form{margin:0 0 6px}
+.cx48-add{margin-top:12px}

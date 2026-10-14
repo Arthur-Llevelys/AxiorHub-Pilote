@@ -161,14 +161,14 @@ class NextcloudSession(_Linked):
         self.assertEqual(self.get('/aujourdhui', cookie=sid)['status'], '200 OK')
         integration5636.revoke(self.desk, key['key_id'])
         self.app.nc_cache.clear()                                                            # sinon au plus 30 s de mémoire
-        self.assertEqual(self.get('/aujourdhui', cookie=sid)['status'], '401 Unauthorized')
+        self.assertIn(self.get('/aujourdhui', cookie=sid)['status'], ('401 Unauthorized', '303 See Other'))   # 5.6.48 : page de connexion
         self.assertEqual(self.desk.db.execute('SELECT COUNT(*) FROM integration_sessions5637').fetchone()[0], 0)
         key = self.pair()
         r = self.get('/nextcloud-session', self.session_url(key)['url'].split('?', 1)[1])
         sid = r['headers']['Set-Cookie'].split(';', 1)[0]
         integration5636.set_enabled(self.desk, False)
         self.app.nc_cache.clear()
-        self.assertEqual(self.get('/aujourdhui', cookie=sid)['status'], '401 Unauthorized')
+        self.assertIn(self.get('/aujourdhui', cookie=sid)['status'], ('401 Unauthorized', '303 See Other'))   # 5.6.48 : page de connexion
 
     def test_unpair_ends_the_session(self):
         key = self.pair()
@@ -176,7 +176,7 @@ class NextcloudSession(_Linked):
         sid = r['headers']['Set-Cookie'].split(';', 1)[0]
         self.assertEqual(self.signed(key, 'POST', '/integration/v1/unpair', {})[1], {'unpaired': True})
         self.app.nc_cache.clear()
-        self.assertEqual(self.get('/aujourdhui', cookie=sid)['status'], '401 Unauthorized')
+        self.assertIn(self.get('/aujourdhui', cookie=sid)['status'], ('401 Unauthorized', '303 See Other'))   # 5.6.48 : page de connexion
 
     def test_expired_link_is_refused(self):
         key = self.pair()
@@ -229,7 +229,7 @@ class NextcloudSession(_Linked):
         js = self.get('/nextcloud-session/signal.js')
         self.assertEqual(js['status'], '200 OK')
         self.assertIn("postMessage({axiorhub:'session'", js['body'])
-        self.assertIn('WWW-Authenticate', self.get('/aujourdhui')['headers'])               # navigation directe : connexion habituelle
+        self.assertIn('/connexion', self.get('/aujourdhui')['headers']['Location'])          # navigation directe : page de connexion (5.6.48)
 
     def test_standalone_distribution_lets_the_account_layer_log_in(self):
         key = self.pair()

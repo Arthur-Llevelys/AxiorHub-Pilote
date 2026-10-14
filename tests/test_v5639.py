@@ -613,11 +613,12 @@ class ErrorPages(t37._Linked):
         self.assertTrue(r['headers']['Content-Type'].startswith('text/css'))
 
     def test_login_window_closed_gives_a_readable_page(self):
-        r = self.raw('/agent-courriel/dossiers', auth=False)
-        self.assertTrue(r['status'].startswith('401'))
-        self.assertIn('WWW-Authenticate', r['headers'])
-        self.assert_graphic(r['body'])
-        self.assertIn('Connexion nécessaire', r['body'])
+        r = self.raw('/agent-courriel/dossiers', auth=False)   # 5.6.48 : page de connexion au lieu de la fenêtre du navigateur
+        self.assertTrue(r['status'].startswith('303'))
+        self.assertNotIn('WWW-Authenticate', r['headers'])
+        self.assertIn('/agent-courriel/connexion?suite=', r['headers']['Location'])
+        login = self.raw('/agent-courriel/connexion', auth=False)
+        self.assertIn('Se connecter', login['body'])
         api = self.raw('/agent-courriel/api440/m5636/corporate/societes', auth=False)
         self.assertEqual(json.loads(api['body'])['error'], 'authentification_requise')               # API : JSON inchangé
 

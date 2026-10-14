@@ -90,6 +90,10 @@ def change(desk, auth, data, owner='administrateur'):
         except OSError:
             pass
     desk.audit('compte5642_modifie', {'auteur': owner, 'identifiant_change': username != auth.get('username')})
+    from . import connexion5648
+    if connexion5648.enabled(auth):   # 5.6.48 : sessions de l'administrateur fermées (empreinte du mot de passe changée)
+        return {'message': 'Accès de l’administrateur modifié (identifiant « %s »). Reconnectez-vous avec le nouveau mot de passe. Par sécurité, '
+                           'les comptes Nextcloud reliés devront être reliés de nouveau.' % username, 'noreload': True}
     return {'message': 'Accès de l’interface modifié (identifiant « %s »). Votre navigateur va redemander l’identifiant et le nouveau mot de '
                        'passe. Par sécurité, les comptes Nextcloud reliés devront être reliés de nouveau.' % username,
             'noreload': True}
@@ -103,9 +107,12 @@ def section_html(desk, auth, prefix):
                 'désactiver, réinitialiser un mot de passe. Chaque personne change son propre mot de passe depuis le lien de son compte, en pied '
                 'du menu.</p></section>')
     poste = bool(auth.get('poste'))
+    from . import connexion5648
+    login = connexion5648.enabled(auth)   # 5.6.48 : page de connexion de la version serveur
     changed = str(auth.get('compte_modifie') or '')
     kind = ('Compte de l’interface de ce poste : utilisé par la fenêtre d’AxiorHub et pour relier Nextcloud en mode découverte.' if poste else
-            'Compte de l’interface du serveur : identifiant et mot de passe demandés par le navigateur à l’ouverture d’AxiorHub.')
+            ('Compte administrateur du serveur : il se connecte par la page de connexion d’AxiorHub et garde les données du cabinet.' if login else
+             'Compte de l’interface du serveur : identifiant et mot de passe demandés par le navigateur à l’ouverture d’AxiorHub.'))
     return ('<section class="ax-card" id="comptes"><h2>Compte administrateur</h2><p class="ax-muted">%s</p>'
             '<p>Identifiant actuel : <code>%s</code>%s</p>'
             '<form class="m5-form" data-api="m5636/compte/mot-de-passe" autocomplete="off">'
@@ -115,8 +122,12 @@ def section_html(desk, auth, prefix):
             'autocomplete="new-password"></label>'
             '<label>Répétez le nouveau mot de passe<input type="password" name="confirmation" required minlength="%d" autocomplete="new-password">'
             '</label><button class="ax-btn" type="submit">Changer le mot de passe</button></form>'
-            '<p class="ax-muted">Après le changement, le navigateur redemande l’identifiant et le nouveau mot de passe ; les comptes Nextcloud '
-            'reliés doivent être reliés de nouveau. Plusieurs comptes avec des rôles (avocats, assistants) : distribution autonome (Docker) ou '
-            'application Nextcloud, où chaque avocat utilise son compte.</p></section>') % (
+            '<p class="ax-muted">%s</p></section>%s') % (
         e(kind), e(str(auth.get('username') or 'admin')), (' · modifié le %s' % e(changed[:16].replace('T', ' '))) if changed else '',
-        e(str(auth.get('username') or 'admin'), quote=True), MIN_LENGTH, MIN_LENGTH, MIN_LENGTH)
+        e(str(auth.get('username') or 'admin'), quote=True), MIN_LENGTH, MIN_LENGTH, MIN_LENGTH,
+        e('Après le changement, reconnectez-vous avec le nouveau mot de passe (les autres sessions de l’administrateur sont fermées) ; les '
+          'comptes Nextcloud reliés doivent être reliés de nouveau.' if login else
+          'Après le changement, le navigateur redemande l’identifiant et le nouveau mot de passe ; les comptes Nextcloud reliés doivent être '
+          'reliés de nouveau. Plusieurs comptes avec des rôles (avocats, assistants) : distribution autonome (Docker) ou application Nextcloud, '
+          'où chaque avocat utilise son compte.'),
+        connexion5648.settings_html(desk.c['state_dir'], auth) if login else '')

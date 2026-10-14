@@ -255,7 +255,7 @@ class Web(unittest.TestCase):
 
     def test_pages_render_and_require_auth(self):
         for path, query in (('/verification', ''), ('/sources', ''), ('/modeles', ''), ('/modeles', 'kind=mise_en_demeure')):
-            self.assertIn('401', self.call(path, auth=False, query=query)['status'], path)
+            self.assertTrue(self.call(path, auth=False, query=query)['status'].startswith(('401', '303')), path)   # 5.6.48 : page de connexion
             r = self.call(path, query=query)
             self.assertTrue(r['status'].startswith('200'), path)
         text = self.call('/sources')['body'].decode()

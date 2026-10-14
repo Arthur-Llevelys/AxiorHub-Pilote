@@ -173,6 +173,13 @@ MESSAGES = {
     'identifiant_invalide': 'Identifiant invalide : 3 à 64 caractères (lettres, chiffres, point, tiret, @).',   # 5.6.42
     'comptes_du_cabinet_dans_la_page_comptes': 'Les comptes du cabinet se gèrent dans la page Comptes.',   # 5.6.42
     'compte_interface_absent': 'Compte de l’interface introuvable : relancez l’installation de l’interface.',   # 5.6.42
+    'mot_de_passe_trop_court_12': 'Le mot de passe doit compter 12 caractères au moins.',   # 5.6.48
+    'adresse_recuperation_invalide': 'Adresse électronique de récupération invalide.',   # 5.6.48
+    'compte_existe_deja': 'Un compte porte déjà cet identifiant.',   # 5.6.48
+    'role_invalide': 'Rôle invalide : administrateur, avocat ou assistant(e).',   # 5.6.48
+    'action_compte_invalide': 'Action sur le compte invalide.',   # 5.6.48
+    'compte_absent': 'Compte introuvable : rechargez la page.',   # 5.6.48
+    'mot_de_passe_a_changer': 'Choisissez d’abord votre mot de passe personnel (page de connexion).',   # 5.6.48
     # 5.6.35 : contrat /integration/v1 (application Nextcloud)
     'operation_non_signee': 'La requête ne correspond pas à l’opération autorisée par Nextcloud : elle est refusée.',
     'contexte_sans_fuseau': 'Contexte Nextcloud invalide : l’expiration doit comporter un fuseau horaire.',

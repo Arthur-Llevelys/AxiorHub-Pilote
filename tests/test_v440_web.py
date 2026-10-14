@@ -72,7 +72,7 @@ class WebWorkshopTests(unittest.TestCase):
 
     def test_pages_need_authentication_and_render(self):
         for path in ('/courriels', '/documents', '/atelier/reglages', '/api440/drafts'):
-            self.assertTrue(self.call(path, auth=False)['status'].startswith('401'), path)
+            self.assertTrue(self.call(path, auth=False)['status'].startswith(('401', '303')), path)
         r = self.call('/courriels')
         self.assertTrue(r['status'].startswith('200'))
         text = r['body'].decode()

@@ -182,7 +182,7 @@ class WorkspaceWebTests(unittest.TestCase):
         self.assertEqual(Desk(self.f.c).db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],len(actions))
 
     def test_assistant_requires_auth_and_exposes_scope_and_form(self):
-        self.assertTrue(self.request('/assistant',auth=False)['status'].startswith('401'))
+        self.assertTrue(self.request('/assistant',auth=False)['status'].startswith(('401', '303')))
         r=self.request('/assistant',query='matter=DOS-001')
         self.assertTrue(r['status'].startswith('200'))
         self.assertIn('name="question"',r['body'])

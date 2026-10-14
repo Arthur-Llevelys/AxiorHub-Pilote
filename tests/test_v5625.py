@@ -153,7 +153,7 @@ class Session(unittest.TestCase):
         data = json.loads(Path(self.auth).read_text(encoding='utf-8')); data['poste'] = False
         Path(self.auth).write_text(json.dumps(data), encoding='utf-8')
         token = poste_session.new_launch_token(self.auth)
-        self.assertTrue(self.call('/agent-courriel/poste-session', 'jeton=' + token)['status'].startswith('401'))    # serveur : route absente
+        self.assertTrue(self.call('/agent-courriel/poste-session', 'jeton=' + token)['status'].startswith(('401', '303')))    # serveur : route absente (5.6.48 : page de connexion)
 
 
 class Launcher(unittest.TestCase):

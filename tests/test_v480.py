@@ -733,7 +733,7 @@ class Web(unittest.TestCase):
 
     def test_pages_render_require_auth_and_are_in_the_navigation(self):
         for path in ('/progres', '/autonomie', '/tracabilite'):
-            self.assertIn('401', self.call(path, auth=False)['status'], path)
+            self.assertTrue(self.call(path, auth=False)['status'].startswith(('401', '303')), path)   # 5.6.48 : page de connexion
             r = self.call(path)
             self.assertTrue(r['status'].startswith('200'), path)
         self.assertIn('/agent-courriel/progres', self.call('/courriels')['body'].decode())

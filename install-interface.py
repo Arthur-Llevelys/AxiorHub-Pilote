@@ -75,11 +75,12 @@ def main():
     if os.geteuid()!=0:raise RuntimeError('Exécuter avec sudo python3 install-interface.py')
     os.umask(0o077)
     verify(BASE.resolve())
-    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37','5.6.38','5.6.39','5.6.40','5.6.41','5.6.42','5.6.43','5.6.44','5.6.45','5.6.46'}
+    supported={'3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37','5.6.38','5.6.39','5.6.40','5.6.41','5.6.42','5.6.43','5.6.44','5.6.45','5.6.46','5.6.47'}
     from agent import __version__ as active_version   # 5.6.16 : la version active (celle de ce script) est toujours admise
     if BASE.resolve().name not in supported|{active_version}:
         raise RuntimeError('Version active non prise en charge par l’installateur d’interface.')
     existing=json.loads(AUTH.read_text()) if AUTH.exists() else None
+    first_account=False
     if existing:
         host=existing['origin'].removeprefix('https://')
     else:
@@ -102,13 +103,10 @@ def main():
         with socket.socket() as s:
             try:s.bind(('127.0.0.1',8769))
             except OSError:raise RuntimeError('Le port local 8769 est déjà utilisé.') from None
-        password=getpass.getpass('Nouveau mot de passe de l’interface (16 caractères minimum) : ')
-        if len(password)<16:raise RuntimeError('Mot de passe trop court.')
-        if password!=getpass.getpass('Répétez le mot de passe : '):raise RuntimeError('Mots de passe différents.')
-        salt=secrets.token_hex(16)
-        existing={'username':'admin','salt':salt,
-                  'hash':hashlib.scrypt(password.encode(),salt=bytes.fromhex(salt),n=16384,r=8,p=1).hex(),
-                  'csrf':secrets.token_urlsafe(32),'origin':'https://'+host,'prefix':'/agent-courriel'}
+        # 5.6.48 : le compte administrateur se crée au premier accès dans le navigateur (page « Premier lancement »), avec le code
+        # privé écrit dans le dossier d'état ; aucun mot de passe n'est saisi dans le terminal.
+        existing={'username':'admin','csrf':secrets.token_urlsafe(32),'origin':'https://'+host,'prefix':'/agent-courriel'}
+        first_account=True
     # Runtime code must be readable/executable by the unprivileged service user.
     os.umask(0o022)
     from agent.runtime_config567 import enable as enable_runtime_configuration
@@ -172,7 +170,11 @@ def main():
     if timers:subprocess.run(['systemctl','enable','--now',*timers],check=False)
     run('systemctl','reload','apache2')
     print('Interface installée : https://'+host+'/agent-courriel/')
-    print('Identifiant : admin — mot de passe défini ci-dessus.')
+    if first_account:   # 5.6.48 : compte administrateur créé dans le navigateur
+        print('Premier lancement : ouvrez cette adresse ; la page « Premier lancement » crée le compte administrateur avec le code privé')
+        print('affiché par : sudo cat /var/lib/axiorhub-mail-agent/premier-compte.code (code créé à la première visite de la page).')
+    else:
+        print('Connexion : page de connexion d’AxiorHub, compte administrateur inchangé (Paramètres › Comptes pour le modifier).')
     print('La découverte démarre en arrière-plan. Les associations proposées restent à confirmer.')
     print('API AxiorHub : https://'+host+'/agent-courriel/api/v1/openapi.json')
     print('Jeton Open WebUI conservé dans '+str(API_TOKEN)+' (lecture root uniquement).')

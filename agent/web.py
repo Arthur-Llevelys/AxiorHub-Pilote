@@ -455,6 +455,45 @@ class App:
             self.nc_cache[key]=(time.time()+30,found)
         return found
 
+    def _identity5648(self, env, auth, prefix, path):
+        """5.6.48 : identité et droits du compte connecté (version serveur). Les en-têtes d'identité envoyés par le navigateur ne sont
+        jamais crus : l'administrateur garde l'identité du cabinet (« cabinet ») ; un autre compte reçoit la sienne et les droits de son
+        rôle (mêmes règles que la distribution autonome). Renvoie une réponse de refus ou de redirection, sinon None."""
+        from . import connexion5648 as _cx48
+        if not _cx48.enabled(auth) or env.get('axiorhub.nc_origin') or str(env.get('HTTP_AUTHORIZATION','')).startswith('Bearer '):
+            return None
+        for key in ('HTTP_X_AXIORHUB_USER','HTTP_X_AXIORHUB_ROLE'):
+            env.pop(key,None)
+        user=env.get('axiorhub.user')
+        if not user or user['id']==_cx48.ADMIN_ID:
+            auth['owner']='cabinet'
+            return None
+        env['HTTP_X_AXIORHUB_USER']=user['owner'];env['HTTP_X_AXIORHUB_ROLE']=user['role'];auth['owner']=user['owner']
+        method=env.get('REQUEST_METHOD','GET')
+        if user['must_change']:
+            if path.startswith(('/api','/live/')) or method not in ('GET','HEAD'):
+                return {'status':'403 Forbidden','kind':'application/json; charset=utf-8','body':json.dumps({'error':'mot_de_passe_a_changer'})}
+            return {'status':'303 See Other','kind':'text/html; charset=utf-8','body':'','headers':[('Location',prefix+'/connexion/changer')]}
+        action=''
+        if method=='POST' and path=='/action':
+            from io import BytesIO
+            try:length=int(env.get('CONTENT_LENGTH') or 0)
+            except ValueError:length=0
+            raw=env['wsgi.input'].read(length) if 0<length<=30_000_000 else b''
+            env['wsgi.input']=BytesIO(raw)
+            from urllib.parse import parse_qs as _pq
+            try:action=_pq(raw.decode('utf-8','replace'),max_num_fields=400).get('action',[''])[0]
+            except ValueError:action=''
+        from .standalone_auth import allowed as _allowed
+        if _allowed(user['role'],method,path,action):
+            return None
+        if path.startswith(('/api','/live/')) or method not in ('GET','HEAD'):
+            return {'status':'403 Forbidden','kind':'application/json; charset=utf-8',
+                    'body':json.dumps({'error':'role_insuffisant','message':'Action réservée à un autre rôle du cabinet.'},ensure_ascii=False)}
+        from .erreurs_pages5639 import refused as _refused48
+        status,body=_refused48(env,'role_insuffisant','Cette page est réservée à un autre rôle du cabinet (administrateur ou avocat).','',prefix,'')
+        return {'status':'403 Forbidden','kind':'text/html; charset=utf-8','body':body}
+
     def _state_dir5642(self):
         """5.6.42 : dossier d'état du service (compte de l'interface modifié depuis les paramètres), lu une fois."""
         if not hasattr(self,'_state5642'):
@@ -475,7 +514,21 @@ class App:
             from .poste_session import cookie_ok
             if cookie_ok(self.auth_path,environ):
                 return True
+        if environ.get('HTTP_COOKIE'):   # 5.6.48 : session ouverte par la page de connexion (version serveur)
+            from . import connexion5648 as _cx48
+            token=_cx48.cookie_value(environ)
+            if token and _cx48.enabled(auth):
+                try:
+                    _db48=_cx48.connect(self._state_dir5642())
+                    try:user=_cx48.session_user(_db48,auth,token)
+                    finally:_db48.close()
+                except (OSError,sqlite3.Error):user=None
+                if user:
+                    environ['axiorhub.user']=user
+                    return True
         raw=environ.get('HTTP_AUTHORIZATION','')
+        if not auth.get('hash'):   # 5.6.48 : premier lancement, aucun compte encore créé
+            return False
         client=(environ.get('HTTP_X_FORWARDED_FOR','') or environ.get('REMOTE_ADDR','')).split(',')[0].strip()[:64]
         if len(raw)>2048:
             return False
@@ -584,6 +637,14 @@ class App:
                 _public={'status':'200 OK','kind':'application/manifest+json; charset=utf-8',
                          'body':json.dumps(_manifest490(_prefix),ensure_ascii=False) if env['REQUEST_METHOD']=='GET' else '',
                          'csp':"default-src 'none'"}
+            if _public is None and (_path in ('/connexion','/deconnexion','/static/connexion5648.css') or _path.startswith('/connexion/')):
+                from . import connexion5648 as _cx48
+                if _cx48.enabled(auth):   # 5.6.48 : page de connexion, premier compte, mot de passe oublié, déconnexion
+                    set_request_mode('write')
+                    _cfg48=load_config(self.config_path)
+                    from .i18n5631 import begin as _lang48
+                    _lang48(env,_cfg48)
+                    _public=_cx48.handle(env,auth,_cfg48,_prefix,_path)
             if _public is not None:
                 status=_public['status'];kind=_public['kind'];body=_public['body']
                 headers=[(n,v) for n,v in headers if n!='Content-Security-Policy']+[('Content-Security-Policy',_public.get('csp',"default-src 'none'"))]+list(_public.get('headers',[]))
@@ -595,11 +656,24 @@ class App:
                     _p=_nc_denied(_prefix,'bloque');status,kind,body=_p['status'],_p['kind'],_p['body']
                     headers=[(n,v) for n,v in headers if n not in ('Content-Security-Policy','X-Frame-Options')]+[('Content-Security-Policy',_p['csp'])]
                     raw=body.encode('utf-8');start_response(status,headers+[('Content-Type',kind),('Content-Length',str(len(raw)))]);return [raw]
-                status='401 Unauthorized';headers.append(('WWW-Authenticate','Basic realm="AxiorHub Cabinet", charset="UTF-8"'))
-                from .erreurs_pages5639 import unauthorized as _err401
-                body=_err401(env,_prefix)   # 5.6.39 : page lisible si la fenêtre de connexion est fermée
-                if _path.startswith(('/api','/live/')):
-                    kind='application/json; charset=utf-8';body=json.dumps({'error':'authentification_requise'})
+                from . import connexion5648 as _cx48
+                if _cx48.enabled(auth):   # 5.6.48 : la page de connexion remplace la fenêtre « Basic » du navigateur
+                    status='401 Unauthorized'
+                    if _path.startswith(('/api','/live/','/static/')) or env.get('REQUEST_METHOD') not in ('GET','HEAD'):
+                        kind='application/json; charset=utf-8';body=json.dumps({'error':'authentification_requise'})
+                    else:
+                        from urllib.parse import quote as _q48
+                        _back=_prefix+_path+('?'+env['QUERY_STRING'] if env.get('QUERY_STRING') else '')
+                        status='303 See Other';body=''
+                        headers.append(('Location',_prefix+('/connexion/premier-compte' if _cx48.first_run(auth) else '/connexion?suite='+_q48(_back,safe=''))))
+                else:
+                    status='401 Unauthorized';headers.append(('WWW-Authenticate','Basic realm="AxiorHub Cabinet", charset="UTF-8"'))
+                    from .erreurs_pages5639 import unauthorized as _err401
+                    body=_err401(env,_prefix)   # 5.6.39 : page lisible si la fenêtre de connexion est fermée
+                    if _path.startswith(('/api','/live/')):
+                        kind='application/json; charset=utf-8';body=json.dumps({'error':'authentification_requise'})
+            elif (_deny48:=self._identity5648(env,auth,_prefix,_path)) is not None:
+                status,kind,body=_deny48['status'],_deny48['kind'],_deny48['body'];headers.extend(_deny48.get('headers',[]))
             else:
                 cfg=load_config(self.config_path)
                 # The iframe origin is configuration, never a compiled example
@@ -1133,6 +1207,10 @@ class App:
         except Exception:
             status,kind,body=internal_error_response(env,kind,self.config_path,locals().get('_prefix'))
             if status.startswith('503'):headers=headers+[('Retry-After','3')]
+        _u48=env.get('axiorhub.user')
+        if _u48 and isinstance(body,str) and str(kind).startswith('text/html') and '</aside>' in body:   # 5.6.48 : compte et déconnexion
+            from .connexion5648 import user_block as _ub48
+            body=body.replace('</aside>',_ub48(locals().get('_prefix') or '/agent-courriel',_u48)+'</aside>',1)
         try:   # 5.6.32 (lot 7) : écrans métier traduits à la sortie (anglais, allemand, espagnol)
             from .i18n5631 import current as _lang_now5632
             from .ecrans5632 import apply as _ecrans5632

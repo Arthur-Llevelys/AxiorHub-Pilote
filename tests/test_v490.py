@@ -734,7 +734,7 @@ class Web(unittest.TestCase):
 
     def test_pages_need_authentication_and_are_in_the_navigation(self):
         for path in ('/recherche', '/confort', '/sw.js', '/hors-ligne'):
-            self.assertIn('401', self.call(path, auth=False)['status'], path)
+            self.assertTrue(self.call(path, auth=False)['status'].startswith(('401', '303')), path)   # 5.6.48 : page de connexion
             self.assertTrue(self.call(path)['status'].startswith('200'), path)
         html = self.call('/courriels')['body'].decode()
         for needle in ('/agent-courriel/recherche', '/agent-courriel/parametres', 'rel="manifest"', 'theme-color', 'cf-skip', 'id="ax-main"', '/static/v490.js', '/static/app520.css'):

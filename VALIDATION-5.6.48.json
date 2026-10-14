@@ -1,0 +1,33 @@
+{
+  "version": "5.6.48",
+  "base": "5.6.47 publiée",
+  "date_utc": "2026-10-14T00:00:00+00:00",
+  "cahier_des_charges": "Accord du cabinet du 14 octobre 2026 : page de connexion soignée, premier compte créé au premier lancement, bouton « Se déconnecter », « Mot de passe oublié » par lien envoyé par courriel ; compte actuel repris tel quel.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2205,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 93,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5648.py : LoginPage (renvoi vers la page de connexion, API en JSON, cookie de session, « Se souvenir de moi », mot de passe faux et limite de tentatives, adresse de retour interne, formulaire d’une autre origine refusé, déconnexion, langues, en-tête Basic des scripts, sessions fermées au changement de mot de passe, autres modes inchangés) ; FirstRun (code privé, une seule création, ui-auth.json jamais réécrit) ; ForgottenPassword (même réponse, lien à usage unique, expiration, limite des demandes) ; CabinetAccounts (comptes avocat et assistant, mot de passe provisoire, droits par rôle, désactivation, en-têtes d’identité du navigateur ignorés).",
+  "exapp": {
+    "version": "0.1.7",
+    "moteur": "5.6.48"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "preview": "Aperçu local (données fictives) : page de connexion, retour sur la page demandée, bouton « Se déconnecter », page sur téléphone (375 px, sans défilement horizontal), mode sombre, anglais.",
+  "not_verified_here": [
+    "envoi réel du lien « Mot de passe oublié » par le serveur SMTP du cabinet",
+    "Apache du serveur du cabinet (le cookie Secure suppose l’accès en HTTPS)"
+  ],
+  "adjusted_tests": [
+    "tests/test_desk.py, test_v430.py, test_v440_web.py, test_v450_web.py, test_v460.py, test_v470_acts.py, test_v480.py, test_v490.py, test_v500.py, test_v510.py, test_v5625.py, test_workspace.py, test_v5642.py : une page demandée sans connexion répond 303 (page de connexion) ou 401 ; les API gardent 401 JSON.",
+    "tests/test_v5637.py, test_v5639.py : la navigation directe sans connexion renvoie vers la page de connexion au lieu de la fenêtre « Basic » du navigateur (WWW-Authenticate)."
+  ]
+}

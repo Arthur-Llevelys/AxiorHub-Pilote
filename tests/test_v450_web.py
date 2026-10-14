@@ -26,7 +26,7 @@ class EcheancesWebTests(unittest.TestCase):
         return r, (json.loads(r['body']) if r['body'][:1] == b'{' else {})
 
     def test_page_requires_auth_and_renders_empty_state(self):
-        self.assertTrue(self.call('/echeances', auth=False)['status'].startswith('401'))
+        self.assertTrue(self.call('/echeances', auth=False)['status'].startswith(('401', '303')))
         r = self.call('/echeances')
         self.assertTrue(r['status'].startswith('200'))
         text = r['body'].decode()

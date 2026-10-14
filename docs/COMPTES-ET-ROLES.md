@@ -7,10 +7,26 @@ dossiers (les cloisons relèvent des partages Nextcloud et de la messagerie).
 Cette gestion des comptes concerne la distribution autonome (Docker, VPS). L'installation système historique derrière
 Apache utilise l'authentification de son hôte virtuel.
 
-**Version serveur et versions poste (5.6.42)** : un seul compte, l'administrateur de l'interface. **Paramètres › Comptes** affiche son
-identifiant et permet de changer l'identifiant et le mot de passe (mot de passe actuel exigé, 16 caractères au moins). Le nouvel accès
-est enregistré dans un fichier privé du dossier d'état du service ; le navigateur redemande ensuite l'identifiant et le mot de passe, et
-les comptes Nextcloud reliés doivent être reliés de nouveau.
+**Version serveur (5.6.48)** : connexion par la page d'AxiorHub (`/agent-courriel/connexion`), bouton **Se déconnecter** en pied
+du menu.
+
+- *Administrateur* : le compte de l'installation (identifiant et mot de passe de l'interface, repris tels quels). Sur une nouvelle
+  installation, la première visite ouvre **Premier lancement** : saisissez le code privé lu sur le serveur
+  (`sudo cat /var/lib/axiorhub-mail-agent/premier-compte.code`), l'identifiant, une adresse de récupération facultative et un mot de
+  passe de 16 caractères au moins. Les inscriptions sont ensuite fermées.
+- *Avocats et assistant(e)s* : **Paramètres › Comptes › Comptes du cabinet**, réservé à l'administrateur (ajout avec mot de passe
+  provisoire de 12 caractères au moins, à changer à la première connexion ; changement de rôle ; désactivation ; nouveau mot de passe
+  provisoire). Les droits suivent le tableau ci-dessous.
+- *Mot de passe oublié* : lien valable 30 minutes envoyé à l'adresse de récupération (envoi par le serveur SMTP de Paramètres ›
+  Messagerie), même réponse que le compte existe ou non. Sur le serveur, sans courriel :
+  `sudo python3 /opt/axiorhub-mail-agent/current/reinitialiser-acces.py [identifiant]`.
+- *Sessions* : cookie `HttpOnly`, `Secure`, `SameSite=Lax`, 12 heures (30 jours avec « Se souvenir de moi ») ; empreinte seule
+  conservée sur le serveur ; un changement de mot de passe ou une désactivation ferme les sessions du compte. Tentatives limitées
+  (5 par identifiant, 20 par adresse en 15 minutes).
+- L'en-tête « Basic » de l'administrateur reste accepté pour les scripts du cabinet.
+
+**Versions poste (5.6.42)** : un seul compte, l'administrateur de l'interface. **Paramètres › Comptes** affiche son identifiant et
+permet de changer l'identifiant et le mot de passe (mot de passe actuel exigé, 16 caractères au moins).
 
 **ExApp Nextcloud (développement)** : les comptes sont ceux de Nextcloud ; le rôle vient des groupes `axiorhub-avocats`,
 `axiorhub-collaborateurs` (avocat), `axiorhub-assistants` (assistant) et des administrateurs de Nextcloud (administrateur).

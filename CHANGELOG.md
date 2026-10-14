@@ -3,6 +3,32 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.48 — Page de connexion, premier compte, déconnexion et mot de passe oublié
+
+Demande du cabinet (14 octobre 2026) : à la première installation, rien n’indiquait comment choisir l’identifiant et le mot de passe,
+et l’interface n’avait ni bouton de connexion ni bouton de déconnexion.
+
+- **Page de connexion** (version serveur) : la fenêtre « Basic » du navigateur est remplacée par une page aux couleurs d’AxiorHub, en
+  français, anglais, allemand et espagnol, lisible sur téléphone et en mode sombre. « Se souvenir de moi » garde la session 30 jours
+  sur l’appareil (12 heures sinon). Après connexion, on revient sur la page demandée. Les tentatives sont limitées (5 par identifiant
+  et 20 par adresse en 15 minutes). La session est un cookie `HttpOnly`, `Secure`, `SameSite=Lax` ; le serveur ne garde que son
+  empreinte.
+- **Compte existant repris tel quel** : l’identifiant et le mot de passe actuels (`ui-auth.json`, ou ceux changés dans Paramètres ›
+  Comptes) ouvrent la session administrateur, avec les données du cabinet. Changer ce mot de passe ferme les sessions ouvertes.
+- **Premier lancement** : une nouvelle installation ne demande plus de mot de passe dans le terminal. La première visite ouvre la page
+  « Premier lancement », qui crée le compte administrateur avec le code privé écrit sur le serveur
+  (`sudo cat /var/lib/axiorhub-mail-agent/premier-compte.code`). Les inscriptions sont ensuite fermées.
+- **« Se déconnecter »** : bouton en pied du menu, sous le nom et le rôle du compte connecté.
+- **Mot de passe oublié** : un lien valable 30 minutes est envoyé à l’adresse de récupération (Paramètres › Comptes), par le serveur
+  SMTP de la messagerie. La réponse est la même que le compte existe ou non. Sans adresse ni envoi : `sudo python3
+  /opt/axiorhub-mail-agent/current/reinitialiser-acces.py` sur le serveur.
+- **Comptes du cabinet** : l’administrateur ajoute des comptes avocat ou assistant(e) dans Paramètres › Comptes, avec un mot de passe
+  provisoire à changer à la première connexion. Il peut aussi changer leur rôle, les désactiver (leurs sessions sont fermées) ou leur
+  donner un nouveau mot de passe provisoire. Les droits par rôle sont ceux de la distribution autonome ; les en-têtes d’identité
+  envoyés par le navigateur ne sont jamais crus.
+- Inchangés : l’en-tête « Basic » de l’administrateur reste accepté pour les scripts du cabinet. Les accès d’intégration (jeton Open
+  WebUI, application Nextcloud, ExApp, fenêtre du poste, distribution autonome) gardent leur propre connexion.
+
 ## 5.6.47 — Correctifs : longues générations locales, lecture vocale fluide, recherche de dossier dans l’agenda
 
 Signalement du 14 octobre 2026 : « Délai dépassé — étape : génération (/api/chat) » en préparant la fiche d’un dossier de 202 pièces.
