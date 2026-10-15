@@ -105,11 +105,11 @@ class LegalBenchmark410Tests(unittest.TestCase):
 
     def test_api_exposes_41_learning_and_benchmark(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.49')
+        self.assertEqual(spec['info']['version'],'5.6.50')
         for path in ('/learning/business-rules','/evaluations/legal',
                      '/evaluations/legal/cases','/evaluations/legal/run'):
             self.assertIn(path,spec['paths'])
-        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.49')
+        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.50')
 
 
 class Browser410Tests(unittest.TestCase):
@@ -120,7 +120,7 @@ class Browser410Tests(unittest.TestCase):
         # 5.3.0 : quatre entrées principales ; les rubriques historiques restent dans le volet « Rubriques ».
         body=self.request('/parametres')['body']
         nav=re.search(r'<nav aria-label="Navigation principale".*?</nav>',body,re.S).group(0)
-        self.assertEqual(nav.count('<a '),6)
+        self.assertEqual(nav.count('<a '),7)   # 5.6.50 : six accès de travail + Messagerie
         # 5.6.31 (NV01) : les anciennes rubriques sont dans le panneau unique « Toutes les fonctions ».
         sub=re.search(r'<details class="f5631-all".*?</details>',body,re.S).group(0)
         for label in ('Aujourd’hui','Dossiers','Courriels','Agenda et tâches','Produire','Paramètres'):
@@ -129,7 +129,7 @@ class Browser410Tests(unittest.TestCase):
             self.assertIn(label,sub)
         self.assertIn('apprentissage et modèles',sub)   # ancien nom conservé pour la recherche
         self.assertIn('Apprentissage métier',body);self.assertIn('Banc juridique',body)
-        self.assertIn('Version 5.6.49',body)
+        self.assertIn('Version 5.6.50',body)
 
     def test_produce_hub_contains_the_six_expected_outputs(self):
         body=self.request('/production')['body']

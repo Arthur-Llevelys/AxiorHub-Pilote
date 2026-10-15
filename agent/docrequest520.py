@@ -624,6 +624,9 @@ def run(desk, args, dav=None):
     saved = desk.db.execute('SELECT * FROM docreq520 WHERE id=?',(rid,)).fetchone()
     outcome = finish(desk,saved,client,args)
     desk.audit('document_520_cree', {'request': rid, 'matter': matter['id'], 'readback': True})
+    from .messagerie5650 import notice   # 5.6.50 : avis de l'agent dans le fil du dossier
+    notice(desk, matter['id'], 'Document produit, à relire : « %s » (%s).' % (doc['titre'] or PurePosixPath(path).name, KINDS.get(row['kind'], row['kind'])),
+           '/dossier?id=' + matter['id'] + '&vue=travaux', 'Travaux de l’agent')
     return outcome
 
 

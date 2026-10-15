@@ -154,7 +154,7 @@ class UnifiedInterface(Base):
                 body = r['body']
                 self.assertIn('<aside id="ws-sidebar">', body, path)
                 nav = re.search(r'<nav aria-label="Navigation principale".*?</nav>', body, re.S).group(0)
-                self.assertEqual(nav.count('<a '), 6, path)                                   # 5.3.0 : menu réduit
+                self.assertEqual(nav.count('<a '), 7, path)                                   # 5.3.0 : menu réduit ; 5.6.50 : + Messagerie
                 self.assertIn('id="f5631-all"', body, path)                              # 5.6.31 : menu unique « Toutes les fonctions »
                 self.assertNotIn('class="ax-top"', body, path)
                 self.assertIn('id="ws-ai-launcher"', body, path)

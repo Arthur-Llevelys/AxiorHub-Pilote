@@ -40,7 +40,7 @@ GENERAL={'id':'','client_name':'','aliases':[],'references':[],'correspondents':
 def _general_values(desk):
     """Question générale (sans dossier) : toutes les identités connues du cabinet sont retirées de la question."""
     values=[]
-    for item in load_matters(desk.c):
+    for item in load_matters(desk.c,unfiltered=True):   # 5.6.50 : toutes les identités, même d'un dossier réservé à d'autres
         values+=[item.get('client_name',''),*item.get('aliases',[]),*item.get('references',[])]
         values+=[p.get('email','') for p in item.get('correspondents',[])]
     return values

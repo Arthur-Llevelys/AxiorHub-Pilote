@@ -121,7 +121,7 @@ class Menu(Web):
     def test_single_menu_replaces_rubriques_and_tools(self):
         body = self.request('/parametres')['body']
         nav = re.search(r'<nav aria-label="Navigation principale".*?</nav>', body, re.S).group(0)
-        self.assertEqual(nav.count('<a '), 6)
+        self.assertEqual(nav.count('<a '), 7)   # 5.6.50 : six accès de travail + Messagerie
         self.assertIn('id="f5631-all"', body)
         self.assertNotIn('<summary>Rubriques</summary>', body)
         self.assertNotIn('<summary>Outils</summary>', body)

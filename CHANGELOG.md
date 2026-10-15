@@ -3,6 +3,31 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.50 — Messagerie interne, droits par compte, dossiers réservés, fichiers sur un autre serveur WebDAV
+
+Demande du cabinet (15 octobre 2026) : une messagerie entre les membres du cabinet qui ne dépende pas d’une session Nextcloud, des
+droits et pouvoirs réglables compte par compte, la possibilité de réserver des dossiers, et des fichiers sur un serveur WebDAV autre
+que Nextcloud.
+
+- **Messagerie du cabinet** (menu « Messagerie », pastille des non-lus) : conversations à deux, groupes (créés par n’importe quel
+  membre ; le créateur retire des membres, chacun peut partir) et **fil de chaque dossier**, ouvert depuis la page du dossier.
+  Chaque message porte le nom et le rôle de son auteur ; « @identifiant » prévient un membre ; un message se retire (il reste
+  signalé comme retiré). Tout reste sur le serveur du cabinet ; un administrateur ne lit pas les conversations des autres.
+- **Avis de l’agent** dans le fil du dossier : document produit (lien vers les travaux de l’agent), réponse à un courriel déposée
+  dans les brouillons, fiche du dossier mise à jour. L’agent ne lit jamais les conversations.
+- **Droits par compte** (Paramètres › Droits et accès, administrateur) : sur la base du rôle, six droits s’accordent ou se retirent
+  compte par compte — envoyer des courriels, déposer des brouillons, valider les décisions et productions, gérer l’agenda,
+  facturation et temps, réglages du cabinet. Un administrateur garde tous ses droits ; la gestion des comptes et des droits lui
+  reste réservée. Contrôle côté serveur, dans la version serveur, la distribution autonome et l’ExApp.
+- **Dossiers réservés** (facultatif, rubrique « Accès au dossier » de la page du dossier) : un dossier réservé n’est visible que
+  des comptes choisis et des administrateurs — listes et sélecteurs de dossiers, recherche du cabinet, assistant, agenda,
+  messagerie — et toute requête qui le désigne est refusée. La boîte de réception reste commune (boîte unique du cabinet). Les
+  travaux de l’agent pour le cabinet ne sont pas cloisonnés.
+- **Fichiers sur un autre serveur WebDAV** que Nextcloud (Paramètres › Connexions : « Serveur WebDAV autre que Nextcloud ») :
+  mêmes racines autorisées, même lecture, création sans écrasement ; un fichier « supprimé » est déplacé dans « Corbeille AxiorHub »
+  du même dossier (jamais effacé) ; l’ouverture en ligne reste propre à Nextcloud ; les agendas viennent des agendas CalDAV de
+  chaque utilisateur (Paramètres › Agendas).
+
 ## 5.6.49 — Recherche juridique avant chaque réponse
 
 Constat du 15 octobre 2026 : les connecteurs juridiques du cabinet (GoodLegal, OpenLegi, LibreJustice…) n’étaient consultés que par la

@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+STATIC = {'/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -447,6 +447,16 @@ def api(env, desk, auth, prefix, name, args, method):
             precision = str((getattr(error, 'detail', None) or {}).get('precision', ''))[:400]
             message = REASONS.get(code) or explain(code, getattr(error, 'detail', None))
             return json_out({'error': code, 'message': message + (' ' + precision if precision else '')},
+                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+    if name.startswith('m5650/'):   # 5.6.50 : messagerie interne, droits par compte, dossiers réservés
+        from . import web5650
+        try:
+            return web5650.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
                             '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5644/'):   # 5.6.44 : corrections de l'avocat dans la page du dossier
         from . import web5644

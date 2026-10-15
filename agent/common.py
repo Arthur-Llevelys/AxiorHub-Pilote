@@ -384,7 +384,9 @@ def matter_display(matter):
     return ' — '.join(x for x in (str(matter.get('client_name', '') or ''), str(matter.get('id', '') or '')) if x) or 'Dossier'
 
 
-def load_matters(c):
+def load_matters(c, unfiltered=False):
+    """Registre des dossiers. 5.6.50 : pendant une requête, les dossiers réservés à d'autres membres sont retirés (``unfiltered`` :
+    registre complet, pour les contrôles qui doivent tout connaître, comme l'anonymisation)."""
     rows = json.loads(Path(c['matters_file']).read_text(encoding='utf-8'))
     if not isinstance(rows, list):
         raise Stop('registre_dossiers_invalide')
@@ -405,6 +407,11 @@ def load_matters(c):
         for person in r.get('correspondents', []):
             if person.get('role') not in VALID_ROLES:
                 raise Stop('role_correspondant_invalide')
+    if not unfiltered:
+        from .membres5650 import viewer_hidden
+        hidden = viewer_hidden()
+        if hidden:
+            rows = [r for r in rows if r['id'] not in hidden]
     return rows
 
 

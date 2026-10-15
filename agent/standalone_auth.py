@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5650/'):   # 5.6.50 : messagerie interne (tous) ; droits et dossiers réservés (administrateur)
+        from .web5650 import allowed as allowed5650
+        return allowed5650(role, api[len('m5650/'):])
     if api.startswith('m5644/'):   # 5.6.44 : corrections de l'avocat dans la page du dossier
         from .web5644 import allowed as allowed5644
         return allowed5644(role, api[len('m5644/'):])
@@ -535,7 +538,9 @@ class StandaloneAuth:
                 action = parse_qs(raw.decode('utf-8', 'replace'), max_num_fields=400).get('action', [''])[0]
             except ValueError:
                 action = ''
-        if not allowed(role, env.get('REQUEST_METHOD', 'GET'), path, action):
+        from .membres5650 import allowed as allowed5650   # 5.6.50 : droits accordés ou retirés à ce compte
+        state5650 = self.app._state_dir5642() if hasattr(self.app, '_state_dir5642') else ''
+        if not allowed5650(state5650, user['email'], role, env.get('REQUEST_METHOD', 'GET'), path, action):
             return self._forbidden(start, json_api=path.startswith('/api'))
         return self._proxy(env, start, user)
 

@@ -25,6 +25,21 @@ du menu.
   (5 par identifiant, 20 par adresse en 15 minutes).
 - L'en-tête « Basic » de l'administrateur reste accepté pour les scripts du cabinet.
 
+**Droits par compte (5.6.50)** : *Paramètres › Droits et accès* (administrateur). Sur la base du rôle, six droits s'accordent
+ou se retirent compte par compte : envoyer des courriels, déposer des brouillons dans la messagerie, valider les décisions et les
+productions, gérer l'agenda et les tâches, facturation et temps passé, réglages du cabinet. Un administrateur garde tous ses droits ;
+la gestion des comptes et des droits reste réservée aux administrateurs, quel que soit le réglage. Les droits sont stockés dans
+`acces5650.json` (dossier d'état) et contrôlés côté serveur dans la version serveur, la distribution autonome et l'ExApp.
+
+**Dossiers réservés (5.6.50, facultatif)** : rubrique « Accès au dossier » de la page du dossier (administrateur). Un dossier réservé
+n'est visible que des comptes cochés et des administrateurs : listes et sélecteurs de dossiers, recherche du cabinet, assistant,
+agenda, messagerie ; toute requête qui le désigne est refusée (403). La boîte de réception reste commune (boîte unique du cabinet). Les travaux de l'agent pour le cabinet (indexation, rapprochement des
+courriels) ne sont pas cloisonnés.
+
+**Messagerie du cabinet (5.6.50)** : menu « Messagerie ». Conversations à deux, groupes et fil de chaque dossier ; chaque message
+porte le nom et le rôle de son auteur ; un administrateur ne lit pas les conversations des autres ; l'agent dépose des avis dans le
+fil du dossier et ne lit jamais les conversations.
+
 **Versions poste (5.6.42)** : un seul compte, l'administrateur de l'interface. **Paramètres › Comptes** affiche son identifiant et
 permet de changer l'identifiant et le mot de passe (mot de passe actuel exigé, 16 caractères au moins).
 

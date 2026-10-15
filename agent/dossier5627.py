@@ -476,6 +476,8 @@ def prepare(desk, args):
                         (mid, version, json.dumps(data, ensure_ascii=False), json.dumps(stored, ensure_ascii=False), '{}', desk.now()))
         desk.db.commit()
     desk.audit('dossier5627_fiche_preparee', {'matter': mid, 'version': version, 'pieces': len(sources)})
+    from .messagerie5650 import notice   # 5.6.50 : avis de l'agent dans le fil du dossier
+    notice(desk, mid, 'Fiche du dossier mise à jour (version %d, %d pièce(s) lue(s)).' % (version, len(sources)), '/dossier?id=' + mid, 'Voir la fiche')
     return {'status': 'prepared', 'matter': mid, 'version': version, 'pieces': len(sources),
             'coverage': coverage,
             'message': 'Fiche du dossier préparée (version %d) : %s.' % (version, synthese5632.coverage_label(coverage))}
@@ -975,6 +977,10 @@ def page(desk, auth, prefix, args, shell):
         body += procedure_panel(desk, prefix, m)
         body += ('<p class="d5636-link"><a class="ax-btn ghost" href="%s">Données des pièces (types, parties, dates, montants, textes cités)</a></p>'
                  % e(prefix + '/pieces-donnees?dossier=' + m['id'], quote=True))   # 5.6.36 : GED
+    if view == 'fiche':   # 5.6.50 : discussion du dossier (messagerie interne) et, pour l'administrateur, accès au dossier
+        from .i18n5631 import role as _role50
+        from .web5650 import matter_card
+        body += matter_card(desk, auth, prefix, m['id'], _role50(), str(auth.get('owner') or 'cabinet'))
     if view == 'fiche':   # 5.6.36 : intervenants du dossier (contacts & CRM)
         try:
             from .crm5636 import matter_block

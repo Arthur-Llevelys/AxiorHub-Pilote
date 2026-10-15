@@ -10,7 +10,9 @@ PAGES = {
     '/complement-word': 'Complément Word',
     '/microsoft-retour': 'Microsoft 365',
     '/complement-word/volet': 'AxiorHub',
-    '/toutes-les-fonctions': 'Toutes les fonctions',   # 5.6.37 : page du menu « Toutes les fonctions » (interface affichée dans Nextcloud)
+    '/toutes-les-fonctions': 'Toutes les fonctions',
+    '/messagerie': 'Messagerie du cabinet',   # 5.6.50
+    '/parametres/droits': 'Droits et accès',   # 5.6.50 (administrateur)   # 5.6.37 : page du menu « Toutes les fonctions » (interface affichée dans Nextcloud)
 }
 
 
@@ -19,7 +21,16 @@ def page(desk, auth, prefix, env, args, path, shell):
     if path == '/complement-word/volet':   # volet affiché dans Word : page autonome (en-têtes propres à Office)
         from . import office5636
         return office5636.taskpane(desk, auth, prefix)
-    if path == '/contacts-crm':
+    if path == '/messagerie':   # 5.6.50 : messagerie interne du cabinet
+        from . import web5650
+        body = web5650.messagerie_page(desk, auth, prefix, env, args)
+    elif path == '/parametres/droits':
+        from .web567 import actor
+        if actor(env)[1] != 'administrateur':
+            raise Stop('role_insuffisant')
+        from . import web5650
+        body = web5650.droits_page(desk, auth, prefix, env, args)
+    elif path == '/contacts-crm':
         from . import crm5636
         body = crm5636.page_html(desk, prefix, args)
     elif path == '/initiatives':

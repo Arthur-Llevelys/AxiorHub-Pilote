@@ -1,0 +1,46 @@
+/* AxiorHub 5.6.50 — messagerie interne et droits par compte */
+.m50-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.m50-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:#c2410c;color:#fff;font-size:.75rem;font-weight:700;line-height:1}
+.m50-chat{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.m50-side{display:flex;flex-direction:column;gap:10px;flex:1 1 240px;min-width:0}
+.m50-new{border:1px solid var(--ws-border,#d7e0ee);border-radius:12px;padding:8px 12px;background:var(--ws-surface,#fff)}
+.m50-new summary{cursor:pointer;font-weight:600;min-height:32px;display:flex;align-items:center}
+.m50-new form{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.m50-checks{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0}
+.m50-check,.m5-form label.m50-check{display:inline-flex;flex-direction:row;align-items:center;gap:8px;min-height:32px;text-align:left;font-weight:400}
+.m50-check input[type=checkbox],.m5-form .m50-check input[type=checkbox]{display:inline-block;width:18px;height:18px;min-height:0;margin:0;flex:0 0 auto}
+.m50-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.m50-item a{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:10px 12px;border:1px solid var(--ws-border,#d7e0ee);border-radius:12px;background:var(--ws-surface,#fff);color:inherit;text-decoration:none}
+.m50-item a:hover,.m50-current a{border-color:var(--ws-accent,#2563eb)}
+.m50-item-title{font-weight:600;overflow-wrap:anywhere}
+.m50-kind,.m50-last{grid-column:1/-1;font-size:.85rem;color:var(--ws-muted,#5b6475);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m50-item .m50-badge{grid-row:1;grid-column:2;margin:0}
+.m50-main{border:1px solid var(--ws-border,#d7e0ee);border-radius:14px;background:var(--ws-surface,#fff);display:flex;flex-direction:column;min-height:420px;flex:3 1 440px;min-width:0}
+.m50-empty{padding:24px;color:var(--ws-muted,#5b6475)}
+.m50-head{padding:12px 16px;border-bottom:1px solid var(--ws-border,#d7e0ee)}
+.m50-head h2{margin:0 0 4px}
+.m50-people{margin:0;color:var(--ws-muted,#5b6475);font-size:.9rem}
+.m50-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
+.m50-add{display:inline-flex;gap:6px;align-items:center}
+.m50-messages{list-style:none;margin:0;padding:12px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:60vh;min-height:240px}
+.m50-msg{max-width:80%;padding:8px 12px;border-radius:12px;background:var(--ws-surface-alt,#f1f5f9);align-self:flex-start}
+.m50-mine{align-self:flex-end;background:#dbeafe}
+.m50-notice{align-self:stretch;max-width:none;background:transparent;border:1px dashed var(--ws-border,#d7e0ee);font-style:italic}
+.m50-meta{margin:0 0 4px;font-size:.8rem;color:var(--ws-muted,#5b6475)}
+.m50-text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.m50-removed{color:var(--ws-muted,#5b6475);font-style:italic}
+.m50-link{display:inline-block;margin-top:4px}
+.m50-remove{margin-top:4px;border:0;background:none;color:var(--ws-muted,#5b6475);text-decoration:underline;cursor:pointer;font:inherit;font-size:.8rem;min-height:32px;padding:0}
+.m50-compose{display:flex;flex-direction:column;gap:8px;padding:12px 16px;border-top:1px solid var(--ws-border,#d7e0ee)}
+.m50-compose textarea{width:100%;min-height:64px;resize:vertical;font:inherit;padding:8px;border-radius:10px;border:1px solid var(--ws-border,#d7e0ee);box-sizing:border-box}
+.m50-compose>.ax-btn{align-self:flex-end;min-height:44px;min-width:120px}
+.m50-status{margin:0;font-size:.85rem;color:var(--ws-muted,#5b6475)}
+.m50-muted{color:var(--ws-muted,#5b6475)}
+.m50-members{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.m50-member{border:1px solid var(--ws-border,#d7e0ee);border-radius:12px;padding:12px;background:var(--ws-surface,#fff)}
+.m50-member h3{margin:0 0 6px;font-size:1rem}
+.m50-member h3 small{font-weight:400;color:var(--ws-muted,#5b6475);overflow-wrap:anywhere}
+.m50-member .m50-checks{flex-direction:column;align-items:flex-start}
+[data-theme="dark"] .m50-mine{background:#1e3a8a;color:#eff6ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .m50-mine{background:#1e3a8a;color:#eff6ff}}
+@media (max-width:820px){.m50-msg{max-width:92%}.m50-messages{max-height:55vh}}

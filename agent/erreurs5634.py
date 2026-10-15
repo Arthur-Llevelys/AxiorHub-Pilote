@@ -180,6 +180,25 @@ MESSAGES = {
     'action_compte_invalide': 'Action sur le compte invalide.',   # 5.6.48
     'compte_absent': 'Compte introuvable : rechargez la page.',   # 5.6.48
     'mot_de_passe_a_changer': 'Choisissez d’abord votre mot de passe personnel (page de connexion).',   # 5.6.48
+    'conversation_absente': 'Conversation introuvable ou réservée à ses membres.',   # 5.6.50
+    'destinataire_inconnu': 'Membre du cabinet inconnu : choisissez un destinataire dans la liste.',   # 5.6.50
+    'titre_groupe_requis': 'Donnez un nom au groupe.',   # 5.6.50
+    'membres_groupe_requis': 'Choisissez au moins un autre membre pour le groupe.',   # 5.6.50
+    'groupe_trop_grand': 'Un groupe compte 50 membres au plus.',   # 5.6.50
+    'conversation_non_groupe': 'Cette conversation n’est pas un groupe.',   # 5.6.50
+    'retrait_reserve_au_createur': 'Seul le créateur du groupe peut en retirer un autre membre ; chacun peut quitter le groupe.',   # 5.6.50
+    'suivi_reserve_aux_dossiers': 'Seuls les fils de dossier se suivent.',   # 5.6.50
+    'message_vide': 'Le message est vide.',   # 5.6.50
+    'message_trop_long': 'Message trop long : 8 000 caractères au plus.',   # 5.6.50
+    'lien_interne_invalide': 'Le lien doit mener à une page d’AxiorHub.',   # 5.6.50
+    'message_absent': 'Message introuvable, ou écrit par un autre membre.',   # 5.6.50
+    'droits_administrateur_non_modifiables': 'Un administrateur garde tous ses droits ; changez d’abord son rôle.',   # 5.6.50
+    'droits_compte_invalide': 'Vous ne pouvez pas modifier vos propres droits.',   # 5.6.50
+    'dossier_reserve': 'Ce dossier est réservé à d’autres membres du cabinet.',   # 5.6.50
+    'controle_acces_indisponible': 'Contrôle des accès indisponible : réessayez dans un instant.',   # 5.6.50
+    'adresse_webdav_invalide': 'Adresse WebDAV invalide : adresse HTTPS du dossier racine des fichiers, sans identifiant ni paramètre.',   # 5.6.50
+    'ouverture_en_ligne_nextcloud_seulement': 'L’ouverture en ligne d’un fichier passe par Nextcloud : avec un autre serveur WebDAV, ouvrez le fichier depuis ce serveur.',   # 5.6.50
+    'agendas_dans_parametres_agendas': 'Ce serveur de fichiers n’a pas d’agenda : ajoutez vos agendas CalDAV dans Paramètres › Agendas.',   # 5.6.50
     # 5.6.35 : contrat /integration/v1 (application Nextcloud)
     'operation_non_signee': 'La requête ne correspond pas à l’opération autorisée par Nextcloud : elle est refusée.',
     'contexte_sans_fuseau': 'Contexte Nextcloud invalide : l’expiration doit comporter un fuseau horaire.',

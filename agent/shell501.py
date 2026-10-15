@@ -44,7 +44,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -110,6 +110,12 @@ def nav_html(prefix, active_path):
             from .i18n5631 import t as _t
             entries.insert(at, ('/talk', '☏', _t('fn.talk.label')))
     except Exception:   # noqa: BLE001 — l'entrée facultative ne bloque jamais le menu
+        pass
+    try:   # 5.6.50 : messagerie interne du cabinet, juste après les courriels (pastille « non lus » posée par v5650.js)
+        from .i18n5631 import t as _t50
+        at50 = next(i for i, x in enumerate(entries) if x[0] == '/courriels') + 1
+        entries.insert(at50, ('/messagerie', '❝', _t50('fn.messagerie.label')))
+    except Exception:   # noqa: BLE001
         pass
     return ('<nav aria-label="' + th('nav.primary') + '" class="ws-primary">' + _links(prefix, entries, active) + '</nav>' +
             panel_html(prefix, active_path, context(), role(), current()))

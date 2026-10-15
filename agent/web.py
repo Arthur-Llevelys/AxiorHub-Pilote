@@ -455,6 +455,28 @@ class App:
             self.nc_cache[key]=(time.time()+30,found)
         return found
 
+    def _gate5650(self, env, prefix, path):
+        """5.6.50 : dossiers réservés (masqués pour la requête, refus d'une requête qui en désigne un) et annuaire des membres."""
+        from . import membres5650 as _m50
+        args={k:v[0] for k,v in parse_qs(env.get('QUERY_STRING',''),max_num_fields=30).items()}
+        try:
+            code=_m50.gate(env,self._state_dir5642(),path,args)
+        except Exception:   # noqa: BLE001 — contrôle impossible : refus pour un compte cloisonnable, jamais pour l'administrateur
+            from .web567 import actor as _a50
+            if _a50(env)[1]=='administrateur':
+                return None
+            code='controle_acces_indisponible'
+        if not code:
+            return None
+        if path.startswith(('/api','/live/')) or env.get('REQUEST_METHOD') not in ('GET','HEAD'):
+            return {'status':'403 Forbidden','kind':'application/json; charset=utf-8',
+                    'body':json.dumps({'error':code,'message':'Ce dossier est réservé à d’autres membres du cabinet.' if code=='dossier_reserve'
+                                       else 'Contrôle des accès indisponible : réessayez dans un instant.'},ensure_ascii=False)}
+        from .erreurs_pages5639 import refused as _refused50
+        _st,_body=_refused50(env,code,'Ce dossier est réservé à d’autres membres du cabinet.' if code=='dossier_reserve'
+                             else 'Contrôle des accès indisponible : réessayez dans un instant.','',prefix,'')
+        return {'status':'403 Forbidden','kind':'text/html; charset=utf-8','body':_body}
+
     def _identity5648(self, env, auth, prefix, path):
         """5.6.48 : identité et droits du compte connecté (version serveur). Les en-têtes d'identité envoyés par le navigateur ne sont
         jamais crus : l'administrateur garde l'identité du cabinet (« cabinet ») ; un autre compte reçoit la sienne et les droits de son
@@ -484,8 +506,8 @@ class App:
             from urllib.parse import parse_qs as _pq
             try:action=_pq(raw.decode('utf-8','replace'),max_num_fields=400).get('action',[''])[0]
             except ValueError:action=''
-        from .standalone_auth import allowed as _allowed
-        if _allowed(user['role'],method,path,action):
+        from .membres5650 import allowed as _allowed   # 5.6.50 : règle du rôle, puis droits accordés ou retirés à ce compte
+        if _allowed(self._state_dir5642(),user['owner'],user['role'],method,path,action):
             return None
         if path.startswith(('/api','/live/')) or method not in ('GET','HEAD'):
             return {'status':'403 Forbidden','kind':'application/json; charset=utf-8',
@@ -567,6 +589,8 @@ class App:
         status='200 OK';kind='text/html; charset=utf-8'
         from .common import set_request_mode
         set_request_mode('read' if env.get('REQUEST_METHOD') in ('GET','HEAD') else 'write')   # 5.6.32 : délai d'attente court pour l'affichage
+        from .membres5650 import clear as _clear5650
+        _clear5650()   # 5.6.50 : aucun cloisonnement hérité d'une requête précédente du même fil d'exécution
         try:
             auth=json.loads(Path(self.auth_path).read_text(encoding='utf-8'))
             from .comptes5642 import overlay as _overlay5642
@@ -674,6 +698,8 @@ class App:
                         kind='application/json; charset=utf-8';body=json.dumps({'error':'authentification_requise'})
             elif (_deny48:=self._identity5648(env,auth,_prefix,_path)) is not None:
                 status,kind,body=_deny48['status'],_deny48['kind'],_deny48['body'];headers.extend(_deny48.get('headers',[]))
+            elif (_deny50:=self._gate5650(env,_prefix,_path)) is not None:
+                status,kind,body=_deny50['status'],_deny50['kind'],_deny50['body']
             else:
                 cfg=load_config(self.config_path)
                 # The iframe origin is configuration, never a compiled example

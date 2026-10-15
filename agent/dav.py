@@ -34,6 +34,17 @@ class DAV:
     def __init__(self, cfg):
         self.cfg = cfg
         from .exapp5642 import nextcloud_http   # 5.6.42 : en-têtes AppAPI en mode ExApp
+        self.generic = False
+        webdav = str(cfg.get('webdav_url') or '').strip()
+        if webdav:   # 5.6.50 : serveur WebDAV autre que Nextcloud — adresse du dossier racine des fichiers, mêmes racines autorisées
+            parts = U.urlsplit(webdav)
+            if parts.scheme not in ('https', 'http') or not parts.netloc or parts.query or parts.fragment or parts.username or parts.password:
+                raise Stop('adresse_webdav_invalide')
+            self.http = nextcloud_http(parts.scheme + '://' + parts.netloc, cfg)
+            self.files = (parts.scheme + '://' + parts.netloc + parts.path).rstrip('/')
+            self.calendar_home = ''   # agendas : CalDAV de chaque utilisateur (Paramètres › Agendas), jamais déduits du serveur de fichiers
+            self.generic = True
+            return
         self.http = nextcloud_http(cfg['url'], cfg)
         self.files = self.http.base + '/remote.php/dav/files/' + U.quote(cfg['username'], safe='')
         self.calendar_home = self.http.base + '/remote.php/dav/calendars/' + U.quote(cfg['username'], safe='') + '/'
@@ -95,6 +106,8 @@ class DAV:
         The file remains in Nextcloud; this method does not create a public
         share and does not contact the document server directly.
         """
+        if getattr(self, 'generic', False):   # 5.6.50 : pas d'ouverture en ligne hors Nextcloud (le fichier reste sur le serveur WebDAV)
+            raise Stop('ouverture_en_ligne_nextcloud_seulement')
         body = ('<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">'
                 '<d:prop><oc:fileid/><d:resourcetype/></d:prop></d:propfind>')
         root = self.request_xml('PROPFIND', self.file_url(path), body, depth='0')
@@ -286,12 +299,29 @@ class DAV:
         return self.http.request('GET', self.file_url(path), limit=int(limit))
 
     def trash_file(self, path, etag):
-        """5.6.24 : suppression conditionnelle (If-Match) d'un fichier ; Nextcloud le conserve dans sa corbeille (restaurable)."""
+        """5.6.24 : suppression conditionnelle (If-Match) d'un fichier ; Nextcloud le conserve dans sa corbeille (restaurable).
+        5.6.50 : un autre serveur WebDAV n'a pas forcément de corbeille : le fichier est DÉPLACÉ dans « Corbeille AxiorHub » du même
+        dossier (nom horodaté, restaurable), jamais supprimé."""
         if not etag: raise Stop('etag_nextcloud_absent')
+        if getattr(self, 'generic', False):
+            path = clean_path(path)
+            parent = str(PurePosixPath(path).parent)
+            bin_dir = clean_path(parent + '/Corbeille AxiorHub')
+            try:
+                self.list_folder(bin_dir)
+            except Stop as ex:
+                if str(ex) != 'http_404': raise
+                self.http.request('MKCOL', self.file_url(bin_dir), b'', {'If-None-Match': '*'}, 100000)
+            stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+            target = clean_path('%s/%s %s' % (bin_dir, stamp, PurePosixPath(path).name))
+            self.http.request('MOVE', self.file_url(path), None, {'If-Match': etag, 'Destination': self.file_url(target), 'Overwrite': 'F'}, 100000)
+            return path
         self.http.request('DELETE', self.file_url(path), None, {'If-Match': etag}, 100000)
         return path
 
     def calendars(self):
+        if getattr(self, 'generic', False) or not self.calendar_home:   # 5.6.50 : serveur WebDAV sans agenda
+            raise Stop('agendas_dans_parametres_agendas')
         body = ('<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
                 '<d:prop><d:displayname/><d:resourcetype/>'
                 '<c:supported-calendar-component-set/></d:prop></d:propfind>')

@@ -259,6 +259,10 @@ def search(desk, q, matter='', date_from='', date_to='', kinds=None, limit=30):
             if results or len(terms) == 1 or partial:
                 relaxed = bool(results) and joiner == ' OR '
                 break
+        from .membres5650 import viewer_hidden   # 5.6.50 : dossiers réservés à d'autres membres
+        hidden = viewer_hidden()
+        if hidden:
+            results = [r for r in results if r.get('matter') not in hidden]
         # fusion par rang réciproque : chaque source garde son ordre de pertinence
         by_kind, fused = {}, []
         for r in sorted(results, key=lambda x: x['rank']):

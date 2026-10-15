@@ -43,6 +43,7 @@ FIELDS = (
  ('nextcloud.roots','Racines autorisées (une par ligne)','paths',['/Dossiers'],'Nextcloud'),
  ('nextcloud.matter_roots','Racines des dossiers','paths',['/Dossiers'],'Nextcloud'),
  ('nextcloud.local_path','Dossier de travail local (facultatif : dossier synchronisé ou partage monté, les racines ci-dessus y sont lues ; vide = WebDAV)','local_dir','','Nextcloud'),
+ ('nextcloud.webdav_url','Serveur WebDAV autre que Nextcloud (facultatif : adresse HTTPS du dossier racine des fichiers ; identifiant et mot de passe ci-dessus ; vide = Nextcloud)','url','','Nextcloud'),
  ('calendar.urls','Agendas autorisés (URLs, une par ligne)','urls',[],'Nextcloud'),
  ('calendar.task_urls','Listes de tâches autorisées','urls',[],'Nextcloud'),
  ('document_agents568.incoming_paths','Dossiers d’arrivée à surveiller, dans les racines autorisées','paths',[],'Agents documentaires'),
@@ -249,6 +250,7 @@ def _validate(kind,value,key):
         return list(dict.fromkeys(out))
     value=str(value).strip()
     if len(value)>600 or any(ord(c)<32 for c in value):raise Stop('reglage_texte_invalide')
+    if key=='nextcloud.webdav_url' and not value:return ''   # 5.6.50 : facultatif (vide = Nextcloud)
     if kind=='host' and (not value or any(c in value for c in '/@?# ')):raise Stop('hote_connexion_invalide')
     if kind=='email' and value and not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+',value):raise Stop('adresse_connexion_invalide')
     if kind=='smtp_security' and value not in ('starttls','ssl'):raise Stop('smtp_securite_invalide')

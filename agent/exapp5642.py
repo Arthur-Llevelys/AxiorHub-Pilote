@@ -276,7 +276,9 @@ class Gateway:
                 action = parse_qs(raw.decode('utf-8', 'replace'), max_num_fields=400).get('action', [''])[0]
             except ValueError:
                 action = ''
-        if not allowed(role, method, inner, action):
+        from .membres5650 import allowed as allowed5650   # 5.6.50 : droits accordés ou retirés à ce compte
+        state5650 = self.app._state_dir5642() if hasattr(self.app, '_state_dir5642') else ''
+        if not allowed5650(state5650, user, role, method, inner, action):
             if inner.startswith(('/api', '/live/')):
                 return _json(start, '403 Forbidden', {'error': 'role_insuffisant'})
             return _page(start, '403 Forbidden', 'Accès refusé', 'Votre rôle dans AxiorHub ne permet pas cette action.')

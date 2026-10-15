@@ -201,8 +201,11 @@ def calendar_events(desk,start,end,matter='',refresh=True,dav=None,source=None):
     elif source=='personal':where+=" AND calendar_url='local:agenda'"
     if matter:where+=' AND matter=?';params.append(matter)
     rows=[];matter_paths={m['id']:m['path'] for m in matters}
+    from .membres5650 import viewer_hidden
+    hidden5650=viewer_hidden()   # 5.6.50 : événements d'un dossier réservé à d'autres membres
     for row in desk.db.execute('SELECT * FROM calendar_cache WHERE '+where+' ORDER BY starts',
                                (b_utc,a_utc,*params[2:])):
+        if row['matter'] and row['matter'] in hidden5650:continue
         item=dict(row);item['matter_candidates']=json.loads(item['matter_candidates']);item['busy']=bool(item['busy'])
         item['links']={'caldav_source':item['href'] or item['calendar_url'],
           'matter':'/agent-courriel/dossiers/'+item['matter'] if item['matter'] else '',

@@ -47,6 +47,11 @@ L'installateur d'interface ajoute une configuration Apache limitée au chemin `/
 services (interface, deux workers, surveillance IMAP). L'emplacement de Roundcube est détecté (`/var/www/html/roundcube*`) ;
 `AXIORHUB_ROUNDCUBE_ROOT` permet de l'imposer.
 
+**Fichiers sur un autre serveur WebDAV (5.6.50)** : sans Nextcloud, renseignez dans *Paramètres › Connexions* le champ « Serveur
+WebDAV autre que Nextcloud » (adresse HTTPS du dossier racine des fichiers), avec l'identifiant et le mot de passe d'application. Les
+racines autorisées s'appliquent de la même façon ; un fichier supprimé depuis AxiorHub est déplacé dans « Corbeille AxiorHub » ; les
+agendas s'ajoutent en CalDAV par chaque utilisateur (*Paramètres › Agendas*).
+
 **Premier lancement (5.6.48)** : aucun mot de passe n'est demandé dans le terminal. Ouvrez `https://votre-nom/agent-courriel/` :
 la page « Premier lancement » crée le compte administrateur avec le code privé affiché par
 `sudo cat /var/lib/axiorhub-mail-agent/premier-compte.code`. Une installation existante garde son identifiant et son mot de passe.

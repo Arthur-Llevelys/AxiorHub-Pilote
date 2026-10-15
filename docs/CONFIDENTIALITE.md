@@ -37,6 +37,12 @@ distantes sont désactivées tant que vous ne les configurez pas, et elles sont 
 Vérifiez les conditions contractuelles du fournisseur (absence d'entraînement sur vos données, localisation,
 conservation) et inscrivez le traitement à votre registre (RGPD, article 30).
 
+## Messagerie du cabinet (5.6.50)
+
+Les messages entre membres du cabinet sont enregistrés dans la base du serveur du cabinet (`desk.sqlite3`) et ne sont transmis à
+aucun service externe ni au modèle d'IA. Un administrateur ne lit pas les conversations auxquelles il ne participe pas ; un message
+retiré par son auteur est effacé de la base (seule reste la mention « retiré »). Les sauvegardes du serveur incluent la messagerie.
+
 ## Connecteurs juridiques (recherche avant chaque réponse, 5.6.49)
 
 Quand un connecteur juridique (GoodLegal, OpenLegi, LibreJustice…) est activé, testé, autorisé à recevoir des requêtes anonymisées et

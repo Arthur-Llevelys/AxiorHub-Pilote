@@ -1,0 +1,35 @@
+{
+  "version": "5.6.50",
+  "base": "5.6.49 publiée",
+  "date_utc": "2026-10-15T00:00:00+00:00",
+  "cahier_des_charges": "Demande du cabinet du 15 octobre 2026 : messagerie interne sans session Nextcloud (conversations à deux, groupes, fil par dossier, avis de l’agent), droits et pouvoirs réglables compte par compte, dossiers réservés en option, fichiers sur un serveur WebDAV autre que Nextcloud ; le tout dans une même version.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2246,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 95,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5650.py : Rights (classement des routes par droit, droits du rôle puis du compte, aucune élévation vers la gestion des comptes, administrateur non restreignable, dossier réservé masqué pendant une requête et visible des travaux de l’agent, recherche du cabinet filtrée) ; Messaging (conversation privée et non-lus, règles des groupes, fil de dossier, mentions, avis de l’agent, règles des messages) ; ServerAccounts (application réelle : messages entre comptes, page des droits et restriction, dossier réservé refusé et absent des listes) ; AgentNotices (avis après un document produit ; reprend aussi les essais 5.2.0 des documents) ; GenericWebDAV (faux serveur WebDAV local : liste, lecture, création sans écrasement, corbeille par déplacement, ouverture en ligne et agendas refusés, validation de l’adresse).",
+  "preview": "Aperçu local (données fictives) : messagerie (liste, conversation, envoi, fil de dossier avec avis de l’agent), pastille du menu, page Droits et accès, carte « Discussion du dossier » et « Accès au dossier » ; téléphone (375 px, sans défilement horizontal) et mode sombre.",
+  "exapp": {
+    "version": "0.1.9",
+    "moteur": "5.6.50"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "not_verified_here": [
+    "serveur WebDAV réel autre que Nextcloud (essai sur un faux serveur local)",
+    "passerelles de la distribution autonome et de l’ExApp avec des droits retirés (règle commune testée ; passerelles couvertes par leurs essais existants)"
+  ],
+  "limits": [
+    "Dossiers réservés : la boîte de réception reste commune (boîte unique du cabinet) ; un courriel rattaché à un dossier réservé y reste visible, mais l’ouverture du dossier, sa fiche et toute action qui le désigne sont refusées. Les événements de l’agenda rattachés au dossier sont masqués."
+  ],
+  "adjusted_tests": [
+    "tests/test_v410.py, test_v501.py, test_v5631.py : le menu principal compte sept entrées (six accès de travail + Messagerie) au lieu de six ; tests/test_v5643.py : huit avec Talk activé, Messagerie juste après Courriels."
+  ]
+}

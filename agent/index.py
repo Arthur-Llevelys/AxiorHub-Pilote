@@ -271,8 +271,11 @@ class DocumentIndex:
                     key=(row[0],row[1],row[6]);rows[key]=row[:-1]
                     scores[key]=scores.get(key,0)+score
         selected=[];per_matter={};per_source={}
+        from .membres5650 import viewer_hidden
+        hidden5650=viewer_hidden()
         for key in sorted(scores,key=lambda k:(-scores[k],rows[k][4],k[2])):
             row=rows[key];mid=row[0];source=row[1]
+            if mid in hidden5650:continue   # 5.6.50 : dossier réservé à d'autres membres
             if per_matter.get(mid,0)>=4 or per_source.get((mid,source),0)>=2:continue
             per_matter[mid]=per_matter.get(mid,0)+1
             per_source[(mid,source)]=per_source.get((mid,source),0)+1

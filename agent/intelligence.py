@@ -435,6 +435,10 @@ def prepare_reply(desk,args):
     check_authority(desk,args)
     deposited=deposit_draft(desk,{'key':args.get('key',''),'confirm':'yes'})
     progress(desk,'Brouillon effectivement relu dans le dossier Brouillons configuré',str(args.get('matter','')),str(args.get('key','')))
+    if args.get('matter'):   # 5.6.50 : avis de l'agent dans le fil du dossier
+        from .messagerie5650 import notice
+        notice(desk,str(args['matter']),'Réponse à un courriel préparée et déposée dans les brouillons de la messagerie, à relire avant envoi.',
+               '/courriels','Courriels')
     return {**prepared,**deposited,'message':'1 brouillon retrouvé et vérifié dans la messagerie.'}
 
 

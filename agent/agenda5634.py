@@ -342,7 +342,9 @@ def listing(desk, start=None, end=None, matter='', limit=500):
     b = (end or (_now() + timedelta(days=60))).astimezone(timezone.utc).isoformat()
     sql = "SELECT * FROM agenda5634 WHERE status='actif' AND starts<? AND ends>?" + (' AND matter=?' if matter else '') + ' ORDER BY starts LIMIT ?'
     args = (b, a) + ((matter,) if matter else ()) + (int(limit),)
-    return [public(dict(r)) for r in desk.db.execute(sql, args)]
+    from .membres5650 import viewer_hidden
+    hidden = viewer_hidden()   # 5.6.50 : événements d'un dossier réservé à d'autres membres
+    return [public(dict(r)) for r in desk.db.execute(sql, args) if not (r['matter'] and r['matter'] in hidden)]
 
 
 # ------------------------------------------------------------------------------------------------ iCalendar : export (F04)
