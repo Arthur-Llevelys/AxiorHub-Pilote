@@ -4,7 +4,7 @@ import json
 
 from .common import Stop
 
-ADMIN_ROUTES = ('droits', 'reserve')
+ADMIN_ROUTES = ('droits', 'reserve', 'restaurer')
 
 
 def allowed(role, route):
@@ -73,8 +73,24 @@ def messagerie_page(desk, auth, prefix, env, args):
 
 
 def droits_page(desk, auth, prefix, env, args):
-    from .membres5650 import page_html
-    return page_html(desk, auth, prefix, args)
+    from .membres5650 import diagnose, page_html
+    try:
+        return page_html(desk, auth, prefix, args)
+    except Stop as ex:
+        if str(ex) != 'controle_acces_indisponible':
+            raise
+    state = diagnose(desk.c['state_dir'])   # 5.6.51 (audit B05) : registre illisible — les autres comptes sont refusés en attendant
+    rows = ''.join('<li><strong>%s</strong> : %s</li>' % (e(k), e(json.dumps(v, ensure_ascii=False))) for k, v in state.items())
+    copy_ok = (state.get('copie') or {}).get('etat') == 'valide'
+    return ('<h1>Droits et accès</h1><section class="ax-card"><h2>Registre des accès illisible</h2>'
+            '<p class="notice">Le registre des droits et des dossiers réservés est absent, illisible ou invalide. Par sécurité, les comptes '
+            'qui ne sont pas administrateurs sont refusés jusqu’à sa restauration ; aucun accès n’a été rouvert.</p><ul>%s</ul>%s'
+            '<form class="m5-form" data-api="m5650/restaurer" data-reload data-confirm="Repartir d’un registre vide ? Toutes les restrictions '
+            'et tous les dossiers réservés seront levés."><input type="hidden" name="choix" value="vide">'
+            '<button class="ax-btn ghost" type="submit">Repartir d’un registre vide</button><p role="status" class="m5-status"></p></form>'
+            '</section>') % (rows, ('<form class="m5-form" data-api="m5650/restaurer" data-reload><input type="hidden" name="choix" value="copie">'
+                                     '<button class="ax-btn" type="submit">Restaurer la copie de secours (version %s)</button>'
+                                     '<p role="status" class="m5-status"></p></form>' % e(str(state['copie'].get('version')))) if copy_ok else '')
 
 
 def matter_card(desk, auth, prefix, mid, role, me):
@@ -115,9 +131,13 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out({'non_lus': mx.unread_total(desk, me, hidden)})
         if route == 'fils':
             return json_out({'fils': mx.threads(desk, me, members, hidden)})
-        if route == 'fil':
-            return json_out({'fil': mx.thread_info(desk, me, args.get('id'), members, hidden),
-                             'messages': mx.messages(desk, me, args.get('id'), hidden, int(args.get('apres') or 0))})
+        if route == 'fil':   # 5.6.51 (audit B04) : lots sans trou, historique à la demande
+            try:
+                after, before = int(args.get('apres') or 0), int(args.get('avant') or 0)
+            except ValueError:
+                raise Stop('curseur_invalide') from None
+            page = mx.messages_page(desk, me, args.get('id'), hidden, after=after, before=before)
+            return json_out({'fil': mx.thread_info(desk, me, args.get('id'), members, hidden), **page})
         if route == 'membres':
             return json_out({'membres': [{'owner': m['owner'], 'nom': m['name'] or m['owner'], 'role': m['role']}
                                          for o, m in sorted(members.items()) if o != me]})
@@ -158,10 +178,16 @@ def api(env, desk, auth, prefix, name, args, method):
         member = members.get(owner)
         if not member:
             raise Stop('compte_absent')
-        values = {r: bool(data.get(r)) for r in membres5650.RIGHT_IDS}
+        values = {r: data.get(r) is True for r in membres5650.RIGHT_IDS}   # 5.6.51 (audit B05) : jamais bool("false")
         rights = membres5650.set_rights(desk.c['state_dir'], me, owner, member['role'], values)
         desk.audit('droits5650_modifies', {'compte': owner, 'par': me, 'droits': rights})
         return json_out({'droits': rights, 'message': 'Droits de « %s » enregistrés.' % (member['name'] or owner)})
+    if route == 'restaurer':   # 5.6.51 (audit B05) : registre des accès illisible
+        if role != 'administrateur':
+            raise Stop('role_insuffisant')
+        record = membres5650.restore(desk.c['state_dir'], str(data.get('choix') or ''))
+        desk.audit('acces5650_restaure', {'par': me, 'choix': str(data.get('choix') or ''), 'version': record['version']})
+        return json_out({'message': 'Registre des accès restauré (version %d).' % record['version']})
     if route == 'reserve':
         if role != 'administrateur':
             raise Stop('role_insuffisant')

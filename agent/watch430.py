@@ -103,6 +103,11 @@ def _schedule_5642(desk,stamp=None):
         jobs.extend(schedule_rules(desk,stamp))
     except Exception as ex:   # noqa: BLE001
         emit(desk,'blocked','Règles de messagerie : planification impossible ('+str(ex)[:120]+').',dedupe='courrier5632-schedule')
+    try:   # 5.6.51 (A07) : préparations d'audience ou d'échéance confirmée, au plus une vérification par heure
+        from .missions5651 import schedule as schedule5651
+        jobs.extend(schedule5651(desk,stamp))
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Préparation proactive : planification impossible ('+str(ex)[:120]+').',dedupe='preparation5651-schedule')
     try:   # 5.6.32 (R12) : veille juridique planifiée, au plus un travail par utilisateur et par créneau
         from .veille5632 import schedule as schedule5632
         jobs.extend(schedule5632(desk,stamp))

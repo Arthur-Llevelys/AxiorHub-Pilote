@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5651/'):   # 5.6.51 : page Dossier refondue (classement pour tous ; décisions pour avocat et administrateur)
+        from .web5651 import allowed as allowed5651
+        return allowed5651(role, api[len('m5651/'):])
     if api.startswith('m5650/'):   # 5.6.50 : messagerie interne (tous) ; droits et dossiers réservés (administrateur)
         from .web5650 import allowed as allowed5650
         return allowed5650(role, api[len('m5650/'):])

@@ -40,7 +40,11 @@ DEPOSIT_ACTIONS = frozenset({'deposit_draft', 'prepare_reply', 'prepare_draft'})
 VALIDATE_API = frozenset({'fact/validate', 'fact/reject', 'deadline/confirm', 'deadline/correct', 'deadline/close', 'm500/limitation/confirm',
                           'm500/limitation/correct', 'm500/limitation/close', 'm500/conflicts/decide', 'm5634/decision/annuler',
                           'm568/profils/approve', 'm568/profils/revoke', 'm568/mission5614/control', 'm568/mission5614/decide',
-                          'm568/decision/defer', 'm568/automatismes/pause'})
+                          'm568/decision/defer', 'm568/automatismes/pause',
+                          'm5644/dossier/corriger', 'm5644/dossier/annuler-correction'}   # 5.6.51 (audit B02)
+                         | {'m5651/' + r for r in ('information', 'information/ajouter', 'partie', 'partie/ajouter', 'partie/fusion', 'partie/separer',
+                                                    'partie/annuler-fusion', 'procedure', 'decision-cabinet', 'decision-cabinet/retirer', 'file/decider',
+                                                    'file/lot', 'relecture/decider', 'relecture/appliquer', 'preparation', 'regle')})
 VALIDATE_ACTIONS = frozenset({'approve_cabinet_confirmation_batch', 'approve_cabinet_template', 'approve_project', 'approve_work_plan',
                               'validate_act', 'validate_fact', 'validate_matrix_row', 'validate_memory', 'validate_strategy',
                               'reject_document_project', 'reject_group', 'reject_hearing', 'reject_word_project', 'reject_work_plan',
@@ -51,49 +55,172 @@ AGENDA_ACTIONS = frozenset({'create_agenda_event', 'edit_agenda_event', 'cancel_
 BILLING_PREFIXES = ('m500/invoice/', 'm500/time/', 'm568/ninja/')
 BILLING_ACTIONS = frozenset({'link_invoice_client', 'billing_review35', 'record_provision'})
 # Gestion des comptes et des droits : jamais accordée par un réglage (pas d'élévation de privilège).
-ACCOUNT_ROUTES = ('m5636/comptes/', 'm5636/compte/', 'm5650/droits', 'm5650/reserve')
+ACCOUNT_ROUTES = ('m5636/comptes/', 'm5636/compte/', 'm5650/droits', 'm5650/reserve', 'm5650/restaurer')
 MATTER_KEYS = ('matter', 'matter_id', 'dossier', 'mid')
 MATTER_ID_PATHS = ('/dossier', '/fiche', '/chronologie', '/pieces')
 
 _viewer = ContextVar('axiorhub_viewer5650', default=None)
 _lock = threading.Lock()
-_cache = {}
 _seen = {}
 
 
 # ------------------------------------------------------------------------------------------------ stockage
+# 5.6.51 (audit B05) : une installation jamais configurée n'a aucune restriction ; un registre DÉJÀ ACTIF devenu absent, illisible ou
+# invalide n'est jamais lu comme « aucune restriction » : la copie de même version est utilisée si elle existe, sinon le contrôle
+# refuse (Stop « controle_acces_indisponible ») et seul l'administrateur garde l'accès (diagnostic et restauration).
+MIRROR = 'acces5650.copie.json'
+MARKER = 'acces5650.actif'
+LOCK = 'acces5650.verrou'
+
+
 def _path(state_dir):
     return Path(str(state_dir)) / FILE
 
 
-def load(state_dir):
-    """{'droits': {compte: {droit: bool}}, 'reserves': {dossier: [comptes]}} ; relu seulement si le fichier a changé."""
-    path = _path(state_dir)
+def _strict(raw):
+    """Contrôle complet du schéma : objets attendus, listes de chaînes, vrais booléens (jamais bool("false"))."""
+    if not isinstance(raw, dict):
+        raise ValueError('objet')
+    version = raw.get('version', 0)
+    if not isinstance(version, int) or isinstance(version, bool) or version < 0:
+        raise ValueError('version')
+    droits, reserves = raw.get('droits', {}), raw.get('reserves', {})
+    if not isinstance(droits, dict) or not isinstance(reserves, dict):
+        raise ValueError('rubriques')
+    out_d = {}
+    for owner, rights in droits.items():
+        if not isinstance(owner, str) or not isinstance(rights, dict):
+            raise ValueError('droits')
+        for right, value in rights.items():
+            if right not in RIGHT_IDS or not isinstance(value, bool):
+                raise ValueError('droit')
+        out_d[owner] = dict(rights)
+    out_r = {}
+    for matter, owners in reserves.items():
+        if not isinstance(matter, str) or not isinstance(owners, list) or not all(isinstance(o, str) for o in owners):
+            raise ValueError('reserves')
+        if owners:
+            out_r[matter] = sorted(set(owners))
+    return {'version': version, 'droits': out_d, 'reserves': out_r}
+
+
+def _read(path):
+    return _strict(json.loads(path.read_text(encoding='utf-8')))
+
+
+def _marker(state_dir):
     try:
-        stamp = path.stat().st_mtime_ns
-    except OSError:
-        return {'droits': {}, 'reserves': {}}
-    with _lock:
-        hit = _cache.get(str(path))
-        if hit and hit[0] == stamp:
-            return hit[1]
-    try:
-        data = json.loads(path.read_text(encoding='utf-8'))
+        return int((Path(str(state_dir)) / MARKER).read_text(encoding='ascii').strip() or '0')
+    except FileNotFoundError:
+        return None
     except (OSError, ValueError):
-        data = {}
-    data = {'droits': {str(k): {r: bool(v) for r, v in (rights or {}).items() if r in RIGHT_IDS}
-                       for k, rights in (data.get('droits') or {}).items() if isinstance(rights, dict)},
-            'reserves': {str(k): sorted({str(o) for o in (owners or [])}) for k, owners in (data.get('reserves') or {}).items()
-                         if isinstance(owners, list) and owners}}
-    with _lock:
-        _cache[str(path)] = (stamp, data)
-    return data
+        return -1   # indicateur illisible : registre réputé actif, version inconnue
 
 
-def _save(state_dir, data):
-    private_json(_path(state_dir), data)
-    with _lock:
-        _cache.pop(str(_path(state_dir)), None)
+def load(state_dir):
+    """{'version', 'droits': {compte: {droit: bool}}, 'reserves': {dossier: [comptes]}} — relu à chaque appel (petit fichier)."""
+    path = _path(state_dir)
+    active = _marker(state_dir)
+    try:
+        record = _read(path)
+        if active is None:   # registre de la 5.6.50 (sans indicateur) : désormais réputé actif
+            try:
+                (Path(str(state_dir)) / MARKER).write_text(str(record['version']), encoding='ascii')
+            except OSError:
+                pass
+        return record
+    except FileNotFoundError:
+        if active is None:
+            return {'version': 0, 'droits': {}, 'reserves': {}}   # jamais configuré
+    except (OSError, ValueError, UnicodeError):
+        if active is None and not (Path(str(state_dir)) / MIRROR).exists():
+            raise Stop('controle_acces_indisponible') from None   # fichier présent mais illisible : jamais « aucune restriction »
+    try:   # registre actif : copie de MÊME version seulement (une copie plus ancienne pourrait rouvrir un accès révoqué)
+        mirror = _read(Path(str(state_dir)) / MIRROR)
+        if active is not None and active >= 0 and mirror['version'] == active:
+            return mirror
+    except (OSError, ValueError, UnicodeError):
+        pass
+    raise Stop('controle_acces_indisponible')
+
+
+def diagnose(state_dir):
+    """Pour l'administrateur : état du registre, de sa copie et de l'indicateur."""
+    out = {'indicateur': _marker(state_dir)}
+    for label, name in (('registre', FILE), ('copie', MIRROR)):
+        target = Path(str(state_dir)) / name
+        try:
+            out[label] = {'etat': 'valide', 'version': _read(target)['version']}
+        except FileNotFoundError:
+            out[label] = {'etat': 'absent'}
+        except (OSError, ValueError, UnicodeError) as ex:
+            out[label] = {'etat': 'invalide', 'cause': type(ex).__name__}
+    return out
+
+
+class _Locked:
+    """Verrou entre processus (fichier exclusif) autour du cycle lecture–modification–écriture."""
+
+    def __init__(self, state_dir):
+        self.path = Path(str(state_dir)) / LOCK
+
+    def __enter__(self):
+        deadline = time.time() + 5
+        while True:
+            try:
+                fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                os.close(fd)
+                return self
+            except FileExistsError:
+                try:
+                    if time.time() - self.path.stat().st_mtime > 30:   # verrou abandonné par un processus arrêté
+                        self.path.unlink()
+                        continue
+                except OSError:
+                    pass
+                if time.time() > deadline:
+                    raise Stop('registre_acces_occupe') from None
+                time.sleep(0.05)
+
+    def __exit__(self, *exc):
+        try:
+            self.path.unlink()
+        except OSError:
+            pass
+
+
+def _update(state_dir, change):
+    """Modification transactionnelle : lecture stricte, version + 1, registre puis copie puis indicateur."""
+    with _Locked(state_dir):
+        current = load(state_dir)
+        data = change({'droits': dict(current['droits']), 'reserves': dict(current['reserves'])})
+        record = _strict({'version': current['version'] + 1, 'droits': data['droits'], 'reserves': data['reserves']})
+        private_json(_path(state_dir), record)
+        private_json(Path(str(state_dir)) / MIRROR, record)
+        marker = Path(str(state_dir)) / MARKER
+        marker.write_text(str(record['version']), encoding='ascii')
+        try:
+            marker.chmod(0o600)
+        except OSError:
+            pass
+        return record
+
+
+def restore(state_dir, choice):
+    """Administrateur : « copie » (dernière copie valide, quelle que soit sa version) ou « vide » (aucune restriction)."""
+    with _Locked(state_dir):
+        if choice == 'copie':
+            record = _read(Path(str(state_dir)) / MIRROR)
+        elif choice == 'vide':
+            record = {'version': 0, 'droits': {}, 'reserves': {}}
+        else:
+            raise Stop('restauration_invalide')
+        version = max(record['version'], (_marker(state_dir) or 0)) + 1
+        record = {**record, 'version': version}
+        private_json(_path(state_dir), record)
+        private_json(Path(str(state_dir)) / MIRROR, record)
+        (Path(str(state_dir)) / MARKER).write_text(str(version), encoding='ascii')
+        return record
 
 
 def effective_rights(state_dir, owner, role):
@@ -109,28 +236,31 @@ def set_rights(state_dir, actor, owner, role, values):
         raise Stop('droits_administrateur_non_modifiables')
     if not owner or owner == actor:
         raise Stop('droits_compte_invalide')
-    data = load(state_dir)
+    if any(not isinstance(values[r], bool) for r in RIGHT_IDS if r in values):
+        raise Stop('droit_invalide')
     defaults = ROLE_DEFAULTS[role]
-    chosen = {r: bool(values.get(r)) for r in RIGHT_IDS if r in values}
-    overrides = {r: v for r, v in chosen.items() if v != defaults[r]}
-    droits = dict(data['droits'])
-    if overrides:
-        droits[owner] = overrides
-    else:
-        droits.pop(owner, None)
-    _save(state_dir, {**data, 'droits': droits})
+    overrides = {r: values[r] for r in RIGHT_IDS if r in values and values[r] != defaults[r]}
+
+    def change(data):
+        if overrides:
+            data['droits'][owner] = overrides
+        else:
+            data['droits'].pop(owner, None)
+        return data
+    _update(state_dir, change)
     return effective_rights(state_dir, owner, role)
 
 
 def set_reserve(state_dir, matter, owners):
-    data = load(state_dir)
-    reserves = dict(data['reserves'])
     owners = sorted({str(o).strip() for o in owners or [] if str(o).strip()})[:200]
-    if owners:
-        reserves[str(matter)] = owners
-    else:
-        reserves.pop(str(matter), None)
-    _save(state_dir, {**data, 'reserves': reserves})
+
+    def change(data):
+        if owners:
+            data['reserves'][str(matter)] = owners
+        else:
+            data['reserves'].pop(str(matter), None)
+        return data
+    _update(state_dir, change)
     return owners
 
 
@@ -164,7 +294,9 @@ def category(method, path, action=''):
 
 
 def allowed(state_dir, owner, role, method, path, action=''):
-    """Règle du rôle (standalone_auth.allowed), puis droits accordés ou retirés à ce compte par l'administrateur."""
+    """Règle du rôle (standalone_auth.allowed), puis droit EFFECTIF du compte (5.6.51, audit B02 : un droit faux refuse, qu'il vienne
+    du rôle ou d'un réglage ; un droit accordé au-delà du rôle n'ouvre qu'une route de travail connue, jamais la gestion des comptes).
+    Registre des accès illisible : refus pour tout compte qui n'est pas administrateur (audit B05)."""
     from .standalone_auth import allowed as role_allowed
     base = role_allowed(role, method, path, action)
     if role == 'administrateur' or not owner or not state_dir:
@@ -172,16 +304,15 @@ def allowed(state_dir, owner, role, method, path, action=''):
     cat = category(method, path, action)
     if cat in (None, 'comptes'):
         return base
-    custom = load(state_dir)['droits'].get(str(owner), {})
-    if cat not in custom:
-        return base
-    if not custom[cat]:
+    try:
+        rights = effective_rights(state_dir, owner, role)
+    except Stop:
+        return False
+    if not rights.get(cat):
         return False
     if base:
         return True
-    # Droit accordé au-delà du rôle : la route doit être une route de travail connue de ce droit (jamais une route inconnue).
-    from .standalone_auth import allowed as _a
-    return _a('avocat', method, path, action) or (cat == 'reglages' and _a('administrateur', method, path, action))
+    return role_allowed('avocat', method, path, action) or (cat == 'reglages' and role_allowed('administrateur', method, path, action))
 
 
 # ------------------------------------------------------------------------------------------------ dossiers réservés
@@ -206,47 +337,102 @@ def clear():
     _viewer.set(None)
 
 
+INDIRECT_KEYS = ('lien', 'link_id', 'request', 'mission', 'mission_id', 'project', 'task', 'job', 'job_id')
+PATH_KEYS = ('path', 'chemin', 'fichier', 'document', 'source_path')
+INDIRECT_SQL = {
+    'lien': ("SELECT matter_id FROM mail_archive_links WHERE id=?",),
+    'link_id': ("SELECT matter_id FROM mail_archive_links WHERE id=?",),
+    'request': ("SELECT matter FROM docreq520 WHERE id=?",),
+    'mission': ("SELECT matter FROM missions_v567 WHERE id=?", "SELECT matter FROM missions5614 WHERE id=?"),
+    'mission_id': ("SELECT matter FROM missions_v567 WHERE id=?", "SELECT matter FROM missions5614 WHERE id=?"),
+    'project': ("SELECT matter FROM document_projects_v220 WHERE id=?",),
+    'task': ("SELECT matter FROM work_tasks_v211 WHERE id=?",),
+}
+
+
 def _request_values(env, path, args):
-    values = [str(args.get(k) or '') for k in MATTER_KEYS]
+    """(clé, valeur) de la requête : dossier désigné directement, objets indirects et chemins (requête et corps JSON ou formulaire)."""
+    keys = MATTER_KEYS + INDIRECT_KEYS + PATH_KEYS
+    pairs = [(k, str(args.get(k) or '')) for k in keys]
     if path.rstrip('/') in MATTER_ID_PATHS:
-        values.append(str(args.get('id') or ''))
+        pairs.append(('matter', str(args.get('id') or '')))
+    if 'mission' in path:
+        pairs.append(('mission', str(args.get('id') or '')))
     method = env.get('REQUEST_METHOD', 'GET')
-    if method not in ('POST', 'PUT', 'PATCH'):
-        return values
-    ctype = str(env.get('CONTENT_TYPE') or '').split(';')[0].strip()
-    if ctype not in ('application/json', 'application/x-www-form-urlencoded'):
-        return values
-    try:
-        length = int(env.get('CONTENT_LENGTH') or 0)
-    except ValueError:
-        length = 0
-    if not 0 < length <= 2_000_000:
-        return values
-    from io import BytesIO
-    raw = env['wsgi.input'].read(length)
-    env['wsgi.input'] = BytesIO(raw)
-    try:
-        if ctype == 'application/json':
-            data = json.loads(raw.decode('utf-8') or '{}')
-            if isinstance(data, dict):
-                values += [str(data.get(k) or '') for k in MATTER_KEYS]
-        else:
-            form = parse_qs(raw.decode('utf-8', 'replace'), max_num_fields=400)
-            values += [str((form.get(k) or [''])[0]) for k in MATTER_KEYS]
-    except (ValueError, UnicodeError):
-        pass
-    return values
+    if method in ('POST', 'PUT', 'PATCH'):
+        ctype = str(env.get('CONTENT_TYPE') or '').split(';')[0].strip()
+        try:
+            length = int(env.get('CONTENT_LENGTH') or 0)
+        except ValueError:
+            length = 0
+        if ctype in ('application/json', 'application/x-www-form-urlencoded') and 0 < length <= 2_000_000:
+            from io import BytesIO
+            raw = env['wsgi.input'].read(length)
+            env['wsgi.input'] = BytesIO(raw)
+            try:
+                if ctype == 'application/json':
+                    data = json.loads(raw.decode('utf-8') or '{}')
+                    if isinstance(data, dict):
+                        pairs += [(k, str(data.get(k) or '')) for k in keys if not isinstance(data.get(k), (dict, list))]
+                else:
+                    form = parse_qs(raw.decode('utf-8', 'replace'), max_num_fields=400)
+                    pairs += [(k, str((form.get(k) or [''])[0])) for k in keys]
+            except (ValueError, UnicodeError):
+                pass
+    return [(k, v) for k, v in pairs if v]
 
 
-def gate(env, state_dir, path, args):
+def _matters_of(state_dir, pairs, matter_paths):
+    """Dossiers désignés par la requête, objets indirects résolus sur le serveur (jamais d'après le navigateur)."""
+    from .common import clean_path, under
+    found = {v for k, v in pairs if k in MATTER_KEYS}
+    lookups = [(k, v) for k, v in pairs if k in INDIRECT_KEYS]
+    if lookups:
+        import sqlite3
+        db = sqlite3.connect('file:%s?mode=ro' % (Path(str(state_dir)) / 'desk.sqlite3').as_posix(), uri=True, timeout=2)
+        try:
+            for key, value in lookups:
+                if key in ('job', 'job_id'):
+                    try:
+                        row = db.execute('SELECT args FROM jobs WHERE id=?', (value,)).fetchone()
+                        if row:
+                            found.add(str((json.loads(row[0] or '{}') or {}).get('matter') or ''))
+                    except (sqlite3.Error, ValueError):
+                        pass
+                    continue
+                for sql in INDIRECT_SQL.get(key, ()):
+                    try:
+                        row = db.execute(sql, (value,)).fetchone()
+                    except sqlite3.Error:
+                        continue
+                    if row and row[0]:
+                        found.add(str(row[0]))
+        finally:
+            db.close()
+    paths = [v for k, v in pairs if k in PATH_KEYS]
+    if paths and matter_paths:
+        for value in paths:
+            try:
+                target = clean_path(value)
+            except Stop:
+                continue
+            for mid, root in matter_paths().items():
+                if root and under(target, clean_path(root)):
+                    found.add(mid)
+    found.discard('')
+    return found
+
+
+def gate(env, state_dir, path, args, matter_paths=None):
     """Contrôle central (toutes versions) : présence du membre, dossiers masqués de la requête, refus d'une requête qui désigne un
-    dossier réservé. Renvoie None (requête autorisée) ou le code d'erreur."""
+    dossier réservé — directement ou par un objet indirect (lien d'archive, demande, mission, projet, tâche, travail, chemin).
+    Renvoie None (requête autorisée) ou le code d'erreur ; registre illisible : Stop (refus, sauf administrateur)."""
     from .web567 import actor
     owner, role = actor(env)
     hidden = hidden_for(state_dir, owner, role)
     set_viewer(hidden)
     _presence(state_dir, owner, role, env)
-    if hidden and any(v in hidden for v in _request_values(env, path, args) if v):
+    if hidden and _matters_of(state_dir, _request_values(env, path, args), matter_paths) & hidden:
         return 'dossier_reserve'
     return None
 

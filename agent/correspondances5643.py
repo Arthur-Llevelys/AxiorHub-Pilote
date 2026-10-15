@@ -604,6 +604,9 @@ def _link(desk, link_id):
     row = desk.db.execute('SELECT * FROM mail_archive_links WHERE id=?', (str(link_id or ''),)).fetchone()
     if not row:
         raise Stop('classement_absent')
+    from .membres5650 import viewer_hidden   # 5.6.51 (audit B01) : le dossier de l'objet est contrôlé avant toute lecture
+    if row['matter_id'] in viewer_hidden():
+        raise Stop('dossier_reserve')
     return row
 
 

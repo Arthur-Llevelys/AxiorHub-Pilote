@@ -1,0 +1,254 @@
+"""5.6.51 (audit 5.6.50, A06) : file unique « À décider / À relire ».
+
+Une décision est un objet unique, identifié par dossier + objet/version + décision attendue ; Aujourd'hui, Dossier et Produire en
+affichent la même instance. Chaque élément porte une **révision** calculée sur l'objet : une décision prise sur une révision dépassée
+échoue proprement (« version en conflit ») et l'élément est marqué périmé. La priorité ne vient jamais du modèle : échéance confirmée
+proche, blocage d'un engagement, demande expresse de l'avocat. La validation regroupée n'accepte que des éléments homogènes et exclut
+les choix stratégiques et les écritures externes. Rien n'est envoyé, déposé ni facturé depuis cette file.
+
+Sources : rapprochements de parties à confirmer, documents à classer (un seul élément groupé), informations proposées (un seul élément
+groupé : pas 130 cartes), contradictions de montants, lacunes qui bloquent un engagement, propositions de relecture Word, projets
+terminés des missions et documents produits à relire.
+"""
+from datetime import date, datetime, timedelta, timezone
+import hashlib
+import json
+
+from .common import Stop, load_matters, matter_display
+
+SCHEMA = '''
+CREATE TABLE IF NOT EXISTS d51_queue(key TEXT PRIMARY KEY, matter TEXT NOT NULL, item_class TEXT NOT NULL, state TEXT NOT NULL,
+  revision TEXT NOT NULL, author TEXT NOT NULL DEFAULT '', motif TEXT NOT NULL DEFAULT '', until TEXT NOT NULL DEFAULT '', at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS d51_queue_log(id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL, matter TEXT NOT NULL, state TEXT NOT NULL,
+  revision TEXT NOT NULL, author TEXT NOT NULL, motif TEXT NOT NULL DEFAULT '', at TEXT NOT NULL);
+'''
+STATES = {'a_examiner': 'À examiner', 'approuve': 'Approuvé', 'refuse': 'Refusé', 'reporte': 'Reporté', 'remplace': 'Remplacé', 'perime': 'Périmé'}
+CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des documents', 'informations': 'Informations proposées',
+           'contradiction': 'Contradiction', 'lacune': 'Information nécessaire', 'relecture': 'Modifications proposées',
+           'livrable': 'Projet à relire', 'strategie': 'Choix stratégique'}
+FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie'), 'relire': ('relecture', 'livrable')}
+NOT_BATCHABLE = ('strategie', 'livrable', 'lacune')     # choix stratégiques et engagements : jamais en validation regroupée
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat(timespec='seconds')
+
+
+def _sha(*parts):
+    return hashlib.sha256('|'.join(str(p) for p in parts).encode('utf-8')).hexdigest()[:20]
+
+
+def ensure_schema(desk):
+    desk.db.executescript(SCHEMA)
+
+
+def _deadline_reason(desk, mid):
+    """Priorité traçable : échéance confirmée dans les sept jours."""
+    try:
+        row = desk.db.execute("SELECT due,rule_id FROM deadlines450 WHERE matter=? AND status IN ('confirmee','manuel') AND due<>'' AND due>=? AND due<=? "
+                              "ORDER BY due LIMIT 1", (mid, date.today().isoformat(), (date.today() + timedelta(days=7)).isoformat())).fetchone()
+    except Exception:   # noqa: BLE001
+        return ''
+    return ('Échéance confirmée le %s' % row['due']) if row else ''
+
+
+def _items_for(desk, prefix, m):
+    from . import modele5651, memoire5651
+    mid = m['id']
+    name = matter_display(m)
+    q = lambda vue, extra='': prefix + '/dossier?id=' + mid + ('&vue=' + vue if vue else '') + extra
+    items = []
+    modele5651.ensure_schema(desk)
+    memoire5651.ensure_schema(desk)
+    for c in modele5651.candidates(desk, mid):
+        items.append({'class': 'identite', 'object': 'parties:%s:%s' % (c['a']['id'], c['b']['id']), 'revision': _sha(c['a']['version'], c['b']['version']),
+                      'title': 'Même personne ? « %s » et « %s »' % (c['a']['display_name'], c['b']['display_name']), 'consequence': c['reason'],
+                      'href': q('', '#d51-parties'), 'choices': ('fusionner', 'separer'), 'a': c['a']['id'], 'b': c['b']['id']})
+    to_class = desk.db.execute("SELECT COUNT(*),COALESCE(MAX(updated),'') FROM d51_documents WHERE matter=? AND nature='a_classer' AND nature_source<>'avocat'",
+                               (mid,)).fetchone()
+    if to_class[0]:
+        items.append({'class': 'classement', 'object': 'documents:a_classer', 'revision': _sha(*to_class), 'title': '%d document(s) à classer' % to_class[0],
+                      'consequence': 'Nature incertaine : ces documents n’apparaissent ni dans Pièces ni dans Procédure.', 'href': q('pieces', '&filtre=a_classer'),
+                      'choices': ('ouvrir',)})
+    proposed = desk.db.execute("SELECT COUNT(*),COALESCE(MAX(updated),'') FROM d51_assertions WHERE matter=? AND review='propose' AND relevance<>'hors_sujet'",
+                               (mid,)).fetchone()
+    if proposed[0]:
+        items.append({'class': 'informations', 'object': 'informations:propose', 'revision': _sha(*proposed),
+                      'title': '%d information(s) proposée(s) à examiner' % proposed[0],
+                      'consequence': 'Utilisées avec leur attribution et la mention « proposée, non contrôlée » tant que vous ne les avez pas examinées.',
+                      'href': q('faits'), 'choices': ('ouvrir',)})
+    for c in memoire5651.changes(desk, mid, 0, False, 50):
+        if c['kind'] == 'montant_modifie' and not c['acknowledged']:
+            items.append({'class': 'contradiction', 'object': 'changement:%d' % c['id'], 'revision': c['version'], 'title': c['title'],
+                          'consequence': c['detail'].get('consequence', ''), 'href': q('faits'), 'choices': ('approuver', 'reporter'), 'change': c['id']})
+    for g in memoire5651.gaps(desk, mid):
+        if g['blocking'] == 'engagement':
+            items.append({'class': 'lacune', 'object': 'lacune:' + g['id'], 'revision': _sha(g['updated']), 'title': 'Information nécessaire : ' + g['expected'],
+                          'consequence': memoire5651.BLOCKING['engagement'], 'href': q('travaux'), 'choices': ('ouvrir', 'reporter'), 'gap': g['id']})
+    try:
+        from .relecture5651 import pending_sessions
+        for s in pending_sessions(desk, mid):
+            items.append({'class': 'relecture', 'object': 'relecture:' + s['session'], 'revision': s['revision'],
+                          'title': '%d modification(s) proposée(s) dans « %s »' % (s['count'], s['name']),
+                          'consequence': 'Rien n’est appliqué au fichier sans votre décision, passage par passage.', 'href': q('travaux', '&relecture=' + s['session']),
+                          'choices': ('ouvrir',)})
+    except Exception:   # noqa: BLE001
+        pass
+    try:
+        for r in desk.db.execute("SELECT id,title,updated FROM missions5614 WHERE matter=? AND validation='a_decider'", (mid,)).fetchall():
+            items.append({'class': 'livrable', 'object': 'mission:' + r['id'], 'revision': r['updated'], 'title': 'Projet prêt à relire : ' + r['title'],
+                          'consequence': 'Valider ou demander une correction depuis la mission ; aucun envoi.', 'href': prefix + '/missions-complexes?id=' + r['id'],
+                          'choices': ('ouvrir',)})
+    except Exception:   # noqa: BLE001
+        pass
+    try:
+        since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        for r in desk.db.execute("SELECT id,request,path,updated FROM docreq520 WHERE matter=? AND status='cree' AND updated>=? ORDER BY updated DESC LIMIT 20",
+                                 (mid, since)).fetchall():
+            items.append({'class': 'livrable', 'object': 'document:' + r['id'], 'revision': r['updated'], 'title': 'Document produit à relire : ' + r['request'][:120],
+                          'consequence': 'Marquer comme relu le retire de toutes les vues.', 'href': q('travaux'), 'choices': ('relu', 'reporter')})
+    except Exception:   # noqa: BLE001
+        pass
+    reason = _deadline_reason(desk, mid)
+    for it in items:
+        it['matter'] = mid
+        it['matter_name'] = name
+        it['key'] = _sha(mid, it['object'], it['class'])
+        it['priority'] = 'haute' if (reason or it['class'] == 'lacune') else 'normale'
+        it['priority_reason'] = reason or ('Bloque un engagement' if it['class'] == 'lacune' else '')
+    return items
+
+
+def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_closed=False):
+    """Éléments actifs (à examiner, ou reportés arrivés à échéance) ; un élément décidé sur sa révision courante disparaît partout."""
+    ensure_schema(desk)
+    matters = [m for m in load_matters(desk.c) if str(m['id']) not in hidden and (matter is None or str(m['id']) == str(matter))]
+    if matter is None:   # seuls les dossiers qui ont quelque chose à décider sont parcourus
+        active = set()
+        since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        for sql, params in (("SELECT DISTINCT matter FROM d51_party_candidates WHERE state='propose'", ()),
+                            ("SELECT DISTINCT matter FROM d51_documents WHERE nature='a_classer'", ()),
+                            ("SELECT DISTINCT matter FROM d51_assertions WHERE review='propose'", ()),
+                            ("SELECT DISTINCT matter FROM d51_changes WHERE kind='montant_modifie' AND acknowledged=0", ()),
+                            ("SELECT DISTINCT matter FROM d51_gaps WHERE state='ouverte'", ()),
+                            ("SELECT DISTINCT matter FROM d51_proposals WHERE state IN ('proposee','modifiee','acceptee')", ()),
+                            ("SELECT DISTINCT matter FROM missions5614 WHERE validation='a_decider'", ()),
+                            ("SELECT DISTINCT matter FROM docreq520 WHERE status='cree' AND updated>=?", (since,))):
+            try:
+                active |= {r[0] for r in desk.db.execute(sql, params)}
+            except Exception:   # noqa: BLE001 — table absente
+                pass
+        matters = [m for m in matters if str(m['id']) in active]
+    out = []
+    now = _now()
+    for m in matters:
+        try:
+            found = _items_for(desk, prefix, m)
+        except Stop:
+            continue
+        for it in found:
+            if view and it['class'] not in FILTERS.get(view, ()):
+                continue
+            row = desk.db.execute('SELECT * FROM d51_queue WHERE key=?', (it['key'],)).fetchone()
+            if row and row['revision'] == it['revision']:
+                if row['state'] in ('approuve', 'refuse', 'remplace'):
+                    continue
+                if row['state'] == 'reporte' and row['until'] > now:
+                    it['state'] = 'reporte'
+                    if not include_closed:
+                        continue
+            it.setdefault('state', 'a_examiner')
+            out.append(it)
+    out.sort(key=lambda i: (i['priority'] != 'haute', i['matter_name'], i['class']))
+    return out
+
+
+def decide(desk, owner, key, state, revision, motif='', days=1, prefix='', hidden=frozenset()):
+    """Décision sur la révision affichée ; si l'objet a changé, refus « version en conflit » et élément périmé."""
+    ensure_schema(desk)
+    if state not in ('approuve', 'refuse', 'reporte'):
+        raise Stop('decision_file_invalide')
+    current = next((i for i in items(desk, prefix, None, '', hidden, include_closed=True) if i['key'] == key), None)
+    if current is None:
+        raise Stop('element_absent')
+    if str(revision) != str(current['revision']):
+        _store(desk, key, current['matter'], current['class'], 'perime', str(revision), owner, 'révision dépassée')
+        raise Stop('version_en_conflit')
+    until = ''
+    if state == 'reporte':
+        until = (datetime.now(timezone.utc) + timedelta(days=max(1, min(int(days or 1), 30)))).isoformat(timespec='seconds')
+    _store(desk, key, current['matter'], current['class'], state, current['revision'], owner, motif, until)
+    if current['class'] == 'contradiction' and state == 'approuve':
+        desk.db.execute('UPDATE d51_changes SET acknowledged=1 WHERE id=?', (current['change'],))
+        desk.db.commit()
+    return {'key': key, 'state': state, 'until': until}
+
+
+def decide_batch(desk, owner, entries, state, prefix='', hidden=frozenset()):
+    """Validation regroupée : éléments homogènes (même classe), hors choix stratégiques et engagements ; chaque révision est contrôlée."""
+    if not isinstance(entries, list) or not entries:
+        raise Stop('selection_vide')
+    current = {i['key']: i for i in items(desk, prefix, None, '', hidden, include_closed=True)}
+    classes = {current[e['key']]['class'] for e in entries if isinstance(e, dict) and e.get('key') in current}
+    if len(classes) != 1:
+        raise Stop('selection_heterogene')
+    if classes & set(NOT_BATCHABLE):
+        raise Stop('selection_non_regroupable')
+    done, conflicts = [], []
+    for e in entries:
+        try:
+            done.append(decide(desk, owner, str(e.get('key')), state, str(e.get('revision')), str(e.get('motif') or ''), prefix=prefix, hidden=hidden)['key'])
+        except Stop as ex:
+            conflicts.append({'key': e.get('key'), 'error': str(ex)})
+    return {'decided': done, 'conflicts': conflicts}
+
+
+def _store(desk, key, mid, cls, state, revision, author, motif='', until=''):
+    now = _now()
+    desk.db.execute('INSERT OR REPLACE INTO d51_queue(key,matter,item_class,state,revision,author,motif,until,at) VALUES(?,?,?,?,?,?,?,?,?)',
+                    (key, mid, cls, state, revision, author, str(motif)[:500], until, now))
+    desk.db.execute('INSERT INTO d51_queue_log(key,matter,state,revision,author,motif,at) VALUES(?,?,?,?,?,?,?)', (key, mid, state, revision, author, str(motif)[:500], now))
+    desk.db.commit()
+
+
+def history(desk, matter, limit=50):
+    ensure_schema(desk)
+    return [dict(r) for r in desk.db.execute('SELECT * FROM d51_queue_log WHERE matter=? ORDER BY id DESC LIMIT ?', (matter, int(limit)))]
+
+
+def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title=True):
+    """Cartes courtes (dossier, action attendue, conséquence, choix) ; détails techniques repliés ; filtres À décider / À relire."""
+    from html import escape as e
+    rows = items(desk, prefix, matter, view, hidden)
+    base = (prefix + '/dossier?id=' + matter + '&') if matter else (prefix + '/aujourdhui?')
+    tabs = ''.join('<a href="%s"%s>%s</a>' % (e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(label))
+                   for k, label in (('', 'Tout'), ('decider', 'À décider'), ('relire', 'À relire')))
+    cards = []
+    for it in rows[:limit]:
+        buttons = []
+        for c in it['choices']:
+            if c == 'ouvrir':
+                buttons.append('<a class="ax-btn ghost" href="%s">Ouvrir</a>' % e(it['href'], quote=True))
+            elif c in ('fusionner', 'separer'):
+                buttons.append('<form class="m5-form q51-inline" data-api="m5651/partie/%s" data-reload><input type="hidden" name="matter" value="%s">'
+                               '<input type="hidden" name="a" value="%s"><input type="hidden" name="b" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>'
+                               % ('fusion' if c == 'fusionner' else 'separer', e(it['matter'], quote=True), e(it['a'], quote=True), e(it['b'], quote=True),
+                                  '' if c == 'fusionner' else ' ghost', 'Même personne' if c == 'fusionner' else 'Personnes distinctes'))
+            else:
+                state = {'approuver': 'approuve', 'relu': 'approuve', 'reporter': 'reporte'}[c]
+                label = {'approuver': 'Pris en compte', 'relu': 'Relu', 'reporter': 'Reporter'}[c]
+                buttons.append('<form class="m5-form q51-inline" data-api="m5651/file/decider" data-reload><input type="hidden" name="matter" value="%s">'
+                               '<input type="hidden" name="key" value="%s"><input type="hidden" name="revision" value="%s"><input type="hidden" name="state" value="%s">'
+                               '<button class="ax-btn%s" type="submit">%s</button></form>' % (e(it['matter'], quote=True), e(it['key'], quote=True),
+                                                                                             e(str(it['revision']), quote=True), state,
+                                                                                             ' ghost' if state == 'reporte' else '', label))
+        cards.append('<li class="q51-item q51-%s"><div class="q51-head"><span class="q51-class">%s</span>%s<strong class="q51-matter">%s</strong></div>'
+                     '<p class="q51-title">%s</p>%s<div class="q51-actions">%s</div></li>' % (
+                         e(it['class']), e(CLASSES[it['class']]), ' <span class="q51-prio" title="%s">Prioritaire</span>' % e(it['priority_reason'], quote=True)
+                         if it['priority'] == 'haute' else '', e(it['matter_name']), e(it['title']),
+                         '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
+    more = '<p class="ax-muted">%d autre(s) élément(s).</p>' % (len(rows) - limit) if len(rows) > limit else ''
+    head = ('<h2 id="q51-t">À décider / À relire</h2>' if title else '') + '<nav class="q51-filters" aria-label="Filtres de la file">%s</nav>' % tabs
+    if not rows:
+        return '<section class="q51" aria-labelledby="q51-t">%s<p class="ax-muted">Rien à décider ni à relire pour l’instant.</p></section>' % head
+    return '<section class="q51" aria-labelledby="q51-t">%s<ul class="q51-list">%s</ul>%s</section>' % (head, ''.join(cards), more)

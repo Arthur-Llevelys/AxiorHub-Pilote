@@ -306,6 +306,9 @@ def prepare_draft(desk,args):
         if m['id']:   # 5.6.29 : consignes permanentes de l'avocat pour ce dossier
             from .pause5629 import consignes
             if consignes(desk,m['id']):payload['consignes_permanentes_du_dossier']=consignes(desk,m['id'])
+            from .contexte5651 import for_drafting   # 5.6.51 (D06, A02) : même contexte structuré que la page Dossier
+            structure=for_drafting(desk,m['id'],mail.subject)
+            if structure:payload['dossier_structure']=structure
         from .relevance370 import correction_guidance
         payload['corrections_approuvees']=correction_guidance(desk,m['id'])
         from .learning392 import learning_context

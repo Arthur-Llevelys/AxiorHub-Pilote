@@ -104,8 +104,13 @@ def neutral_query(text, limit=900):
     return text[:limit]
 
 
-def _key(matter, query):
-    return 'juridique5649:cache:' + hashlib.sha256(('%s|%s' % (matter, query)).encode('utf-8')).hexdigest()[:40]
+POLICY = '5651.1'   # 5.6.51 (audit, amélioration 6) : toute évolution de la politique de recherche invalide le cache
+
+
+def _key(matter, query, connectors=()):
+    """Cache d'une heure : dossier, requête, connecteurs utilisables et version de la politique."""
+    used = ','.join(sorted(c['id'] for c in connectors if c.get('utilise')))
+    return 'juridique5649:cache:' + hashlib.sha256(('%s|%s|%s|%s' % (POLICY, matter, query, used)).encode('utf-8')).hexdigest()[:40]
 
 
 # ------------------------------------------------------------------------------------------------ recherche
@@ -120,7 +125,7 @@ def research(desk, matter_id, question, purpose='redaction', researcher=None):
     query = neutral_query(question)
     if len(query) < 8:
         return {**base, 'statut': 'echec', 'erreur': 'question_trop_courte'}
-    key = _key(matter_id, query)
+    key = _key(matter_id, query, state)
     cached = desk.settings(key)
     if isinstance(cached, dict) and time.time() - float(cached.get('at') or 0) < TTL and isinstance(cached.get('data'), dict):
         return {**cached['data'], 'connecteurs': state, 'cache': True}
@@ -187,26 +192,72 @@ def as_sources(result):
 
 
 # ------------------------------------------------------------------------------------------------ contrôle et bilan
+def _article_keys(text):
+    """(code canonique, numéro normalisé) des articles d'un texte, y compris la forme « Code X, article N » (code avant l'article)."""
+    from .refs470 import ALIAS_RE, canonical_code, extract_articles
+    text = str(text or '')
+    keys = set()
+    for ref in extract_articles(text):
+        code = ref.get('code') or ''
+        if not code:   # « Code de procédure civile, article 700 » : code cité juste avant l'article
+            window = text[max(0, ref['start'] - 90):ref['start']]
+            found = list(re.finditer(ALIAS_RE, window, re.I))
+            if found:
+                code = canonical_code(found[-1].group(0)) or ''
+        keys.add((code, ref['number']))
+    return keys
+
+
+def _decision_keys(text):
+    from .refs470 import extract_decisions
+    keys = set()
+    for ref in extract_decisions(str(text or '')):
+        for k in ('pourvoi', 'rg', 'ce_number', 'cc_number'):
+            if ref.get(k):
+                keys.add(fold(str(ref[k])).replace(' ', ''))
+    for ecli in re.findall(r'ECLI:[A-Z]{2}:[A-Z0-9]+:\d{4}:[A-Z0-9.]+', str(text or ''), re.I):
+        keys.add(ecli.upper())
+    return keys
+
+
 def unsourced_references(text, result):
-    """Références juridiques citées dans le texte qui ne correspondent à aucune source consultée : à vérifier."""
+    """Références citées dans le texte qui ne correspondent à AUCUNE source consultée (5.6.51, audit B03) :
+    - un article correspond seulement au même (code, numéro) — le même numéro dans un autre code ne suffit pas ;
+    - un article cité sans code est « à vérifier » (identité incomplète) ;
+    - une décision correspond par son identifiant officiel (pourvoi, RG, numéro, ECLI), jamais par sa seule date ;
+    - contrôle impossible (analyseur en échec) : un signalement explicite, jamais une liste vide.
+    Une correspondance de référence n'atteste pas que la source soutient l'affirmation."""
     try:
         from .refs470 import extract
         refs = extract(str(text or ''))
+        articles, decisions = set(), set()
+        for s in (result or {}).get('sources', []):
+            blob = ' \n '.join(str(s.get(k) or '') for k in ('titre', 'reference', 'extrait'))
+            articles |= _article_keys(blob)
+            decisions |= _decision_keys(blob)
+            if s.get('reference'):
+                decisions.add(fold(str(s['reference'])).replace(' ', ''))
+                decisions.add(str(s['reference']).upper())
+        cited = _article_keys(str(text or ''))
     except Exception:   # noqa: BLE001
-        return []
-    known = ' '.join(fold(' '.join((s.get('titre', ''), s.get('reference', ''), s.get('extrait', '')[:400]))) for s in (result or {}).get('sources', []))
+        return ['contrôle des références incomplet : vérifiez chaque référence citée']
     out = []
     for ref in refs:
         raw = str(ref.get('raw') or '').strip()
-        number = str(ref.get('number') or '')
+        if not raw:
+            continue
         if ref.get('kind') == 'article':
-            found = bool(number) and re.search(r'(?<![\w.-])%s(?![\w-])' % re.escape(fold(number)), known)
+            match = [k for k in cited if k[1] == ref['number'] and (not ref.get('code') or k[0] == ref['code'])]
+            code = (match[0][0] if match else ref.get('code')) or ''
+            if not code:
+                out.append(raw[:160] + ' (code non précisé)')
+                continue
+            if (code, ref['number']) not in articles:
+                out.append(raw[:160])
         else:
-            idents = [fold(str(ref.get(k) or '')) for k in ('pourvoi', 'rg', 'ce_number', 'cc_number')]
-            idents = [i for i in idents if i] or ([fold(str(ref.get('date') or ''))] if ref.get('date') else [])
-            found = any(i in known for i in idents)
-        if raw and not found:
-            out.append(raw[:160])
+            idents = {fold(str(ref.get(k))).replace(' ', '') for k in ('pourvoi', 'rg', 'ce_number', 'cc_number') if ref.get(k)}
+            if not idents or not (idents & decisions):
+                out.append(raw[:160] + ('' if idents else ' (identifiant officiel absent)'))
     return list(dict.fromkeys(out))[:12]
 
 

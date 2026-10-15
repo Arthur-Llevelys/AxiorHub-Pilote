@@ -3,6 +3,29 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.51 — Audit 5.6.50 : frontières d’accès, page Dossier refondue, huit fonctions d’autonomie
+
+Corrections et livraisons de l’audit « AxiorHub Pilote 5.6.50 » (détail : `CONFORMITE-5.6.51.md`).
+
+- **Accès et validation (B01, B02, B05)** : un objet rattaché à un dossier réservé (lien d’archive, demande, mission, chemin de fichier…)
+  est refusé avant toute lecture ; les corrections du dossier demandent le droit « Valider » effectif ; un registre des droits illisible
+  ne rouvre jamais les accès (copie de secours, diagnostic et restauration pour l’administrateur).
+- **Références (B03)** et **messagerie (B04)** : article comparé par code et numéro ; messages par lots sans trou.
+- **Page Dossier en six onglets** : Vue d’ensemble, Faits et arguments, Procédure, Pièces, Correspondances, Travaux ; bandeau avec l’état
+  réel de l’analyse et « Prendre en charge une mission ».
+- **Parties** sans doublons ni fusion abusive (alias, rapprochements à confirmer, fusion réversible) ; **informations** attribuées à leur
+  auteur, qualifiées (allégué, contesté, constaté…), validées par « Enregistrer », « Hors sujet », « À vérifier », « Refuser » ; refus
+  conservés après une nouvelle analyse ; **rappel des faits** et **rappel de la procédure** rédigés avec leurs sources.
+- **Pièces** : seulement les pièces (nos pièces, pièces de chaque adversaire, à numéroter, à classer) ; actes, jurisprudence, notes et
+  documents de gestion à part ; couverture documentaire et relance ciblée des lectures en erreur.
+- **Procédure** : procédure de référence, procédures historiques ou citées, actes aux dates distinctes, décisions examinées ou
+  seulement mentionnées ; chronologie commune (litige / procédure).
+- **Autonomie** : missions lancées depuis le dossier (préparation d’audience, livrable libre ; double clic = même mission) ; décisions
+  et consignes du cabinet mémorisées et utilisées par chaque rédaction ; « Depuis votre dernière lecture » ; informations manquantes ;
+  relecture Word par propositions appliquées en suivi des modifications dans un nouveau fichier ; file unique « À décider / À relire »
+  (Aujourd’hui, Dossier, Produire) ; préparation d’audience aux paliers J-14 / J-7 / J-2 (désactivée par défaut) ; apprentissage des
+  corrections à portée choisie (ce document, ce dossier, mon style).
+
 ## 5.6.50 — Messagerie interne, droits par compte, dossiers réservés, fichiers sur un autre serveur WebDAV
 
 Demande du cabinet (15 octobre 2026) : une messagerie entre les membres du cabinet qui ne dépende pas d’une session Nextcloud, des

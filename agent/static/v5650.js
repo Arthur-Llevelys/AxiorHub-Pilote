@@ -67,7 +67,7 @@
   setInterval(function () { if (!document.hidden) renderList(); }, 20000);
   if (!fil) return;
 
-  var box = document.getElementById('m50-messages'), status = document.getElementById('m50-status'), last = 0;
+  var box = document.getElementById('m50-messages'), status = document.getElementById('m50-status'), last = 0, first = 0, seen = {}, busyLoad = false;
   var form = document.getElementById('m50-compose'), text = document.getElementById('m50-text');
 
   function tools(info) {
@@ -76,7 +76,7 @@
       var b = el('button', 'ax-btn ghost', info.suivi ? 'Ne plus suivre' : 'Suivre ce fil'); b.type = 'button';
       b.setAttribute('aria-pressed', info.suivi ? 'true' : 'false');
       b.addEventListener('click', function () {
-        post('m5650/suivre', { id: fil, suivre: !info.suivi }).then(function () { refresh(true); renderList(); badge(); })
+        post('m5650/suivre', { id: fil, suivre: !info.suivi }).then(function () { reload(); renderList(); badge(); })
           .catch(function (e) { status.textContent = e.message; });
       });
       t.appendChild(b);
@@ -92,7 +92,7 @@
         label.appendChild(sel); t.insertBefore(label, t.firstChild);
         var add = el('button', 'ax-btn ghost', 'Ajouter au groupe'); add.type = 'button';
         add.addEventListener('click', function () {
-          post('m5650/groupe/membres', { id: fil, ajouter: [sel.value] }).then(function () { refresh(true); renderList(); })
+          post('m5650/groupe/membres', { id: fil, ajouter: [sel.value] }).then(function () { reload(); renderList(); })
             .catch(function (e) { status.textContent = e.message; });
         });
         t.insertBefore(add, label.nextSibling);
@@ -115,39 +115,72 @@
     tools(i);
   }
 
-  function add(m) {
+  function item(m) {
     var li = el('li', 'm50-msg' + (m.moi ? ' m50-mine' : '') + (m.genre === 'avis' ? ' m50-notice' : ''));
+    li.setAttribute('data-id', String(m.id));
     var head = el('p', 'm50-meta'); head.appendChild(el('strong', null, m.nom));
     head.appendChild(document.createTextNode(' · ' + (ROLES[m.role] || m.role) + ' · ' + when(m.quand)));
     li.appendChild(head);
-    var p = el('p', 'm50-text' + (m.retire ? ' m50-removed' : ''), m.retire ? 'Message retiré par son auteur.' : m.texte);
-    li.appendChild(p);
+    li.appendChild(el('p', 'm50-text' + (m.retire ? ' m50-removed' : ''), m.retire ? 'Message retiré par son auteur.' : m.texte));
     if (m.lien) { var a = el('a', 'm50-link', m.lien_libelle || 'Ouvrir'); a.href = prefix + m.lien; li.appendChild(a); }
     if (m.moi && !m.retire && m.genre !== 'avis') {
       var r = el('button', 'm50-remove', 'Retirer'); r.type = 'button';
       r.addEventListener('click', function () {
         if (!window.confirm('Retirer ce message ? Il restera signalé comme retiré.')) return;
-        post('m5650/retirer', { message: m.id }).then(function () { refresh(true); }).catch(function (e) { status.textContent = e.message; });
+        post('m5650/retirer', { message: m.id }).then(function () { reload(); }).catch(function (e) { status.textContent = e.message; });
       });
       li.appendChild(r);
     }
-    box.appendChild(li);
-    last = Math.max(last, m.id);
+    return li;
   }
 
-  function refresh(full) {
-    return get('m5650/fil?id=' + encodeURIComponent(fil) + '&apres=' + (full ? 0 : last)).then(function (d) {
-      var stick = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-      if (full) { box.textContent = ''; last = 0; info(d.fil); }
-      var empty = box.querySelector('.m50-placeholder'); if (empty && d.messages.length) empty.remove();
-      d.messages.forEach(add);
-      if (!box.children.length) box.appendChild(el('li', 'm50-muted m50-placeholder', 'Aucun message : écrivez le premier.'));
-      if (stick || full) box.scrollTop = box.scrollHeight;
-      if (d.messages.length && !full) { renderList(); badge(); }
-    }).catch(function (e) { status.textContent = e.message; });
+  function placeholder() {
+    var empty = box.querySelector('.m50-placeholder');
+    if (box.querySelector('.m50-msg')) { if (empty) empty.remove(); }
+    else if (!empty) box.appendChild(el('li', 'm50-muted m50-placeholder', 'Aucun message : écrivez le premier.'));
   }
-  refresh(true).then(function () { badge(); renderList(); });
-  setInterval(function () { if (!document.hidden) refresh(false); }, 8000);
+
+  function older(show) {   /* 5.6.51 (audit B04) : « Messages précédents », lot par lot */
+    var btn = box.querySelector('.m50-older');
+    if (!show) { if (btn) btn.remove(); return; }
+    if (btn) return;
+    var li = el('li', 'm50-older'); var b = el('button', 'ax-btn ghost', 'Messages précédents'); b.type = 'button';
+    b.addEventListener('click', function () {
+      b.disabled = true;
+      get('m5650/fil?id=' + encodeURIComponent(fil) + '&avant=' + first).then(function (d) {
+        var anchor = box.querySelector('.m50-msg'), height = box.scrollHeight;
+        d.messages.forEach(function (m) { if (seen[m.id]) return; seen[m.id] = true; box.insertBefore(item(m), anchor); first = Math.min(first || m.id, m.id); });
+        box.scrollTop += box.scrollHeight - height;
+        older(d.plus_anciens);
+      }).catch(function (e) { status.textContent = e.message; }).then(function () { b.disabled = false; });
+    });
+    li.appendChild(b); box.insertBefore(li, box.firstChild);
+  }
+
+  function load(full) {   /* lots successifs sans trou ; une seule requête à la fois */
+    if (busyLoad) return Promise.resolve();
+    busyLoad = true;
+    function step(cursor, isFull) {
+      return get('m5650/fil?id=' + encodeURIComponent(fil) + (isFull ? '' : '&apres=' + cursor)).then(function (d) {
+        var stick = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+        if (isFull) { box.textContent = ''; last = 0; first = 0; seen = {}; info(d.fil); older(d.plus_anciens); }
+        d.messages.forEach(function (m) {
+          if (seen[m.id]) return; seen[m.id] = true;
+          box.appendChild(item(m)); last = Math.max(last, m.id); first = first ? Math.min(first, m.id) : m.id;
+        });
+        placeholder();
+        if (stick || isFull) box.scrollTop = box.scrollHeight;
+        if (d.plus_recents) return step(last, false);
+        return d.messages.length;
+      });
+    }
+    return step(last, full).then(function (n) { if (n && !full) { renderList(); badge(); } })
+      .catch(function (e) { status.textContent = e.message; })
+      .then(function () { busyLoad = false; });
+  }
+  function reload() { busyLoad = false; return load(true); }
+  load(true).then(function () { badge(); renderList(); });
+  setInterval(function () { if (!document.hidden) load(false); }, 8000);
 
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
@@ -155,7 +188,7 @@
     var button = form.querySelector('button'); button.disabled = true; status.textContent = 'Envoi…';
     post('m5650/ecrire', { id: fil, texte: value }).then(function (res) {
       text.value = ''; status.textContent = res.mentions && res.mentions.length ? 'Envoyé ; ' + res.mentions.length + ' membre(s) mentionné(s) prévenu(s).' : 'Envoyé.';
-      return refresh(false);
+      return load(false);
     }).catch(function (e) { status.textContent = e.message; }).then(function () { button.disabled = false; text.focus(); });
   });
   text.addEventListener('keydown', function (ev) {

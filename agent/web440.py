@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+STATIC = {'/static/v5651.js': 'text/javascript', '/static/v5651.css': 'text/css', '/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -447,7 +447,18 @@ def api(env, desk, auth, prefix, name, args, method):
             precision = str((getattr(error, 'detail', None) or {}).get('precision', ''))[:400]
             message = REASONS.get(code) or explain(code, getattr(error, 'detail', None))
             return json_out({'error': code, 'message': message + (' ' + precision if precision else '')},
-                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+                            '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
+    if name.startswith('m5651/'):   # 5.6.51 : page Dossier refondue et fonctions d'autonomie
+        from . import web5651
+        try:
+            return web5651.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
+                            '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
+                            ('409 Conflict' if code == 'version_en_conflit' else '400 Bad Request'))
     if name.startswith('m5650/'):   # 5.6.50 : messagerie interne, droits par compte, dossiers réservés
         from . import web5650
         try:
@@ -457,7 +468,7 @@ def api(env, desk, auth, prefix, name, args, method):
             from .erreurs5634 import explain
             from .web import REASONS
             return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
-                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+                            '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
     if name.startswith('m5644/'):   # 5.6.44 : corrections de l'avocat dans la page du dossier
         from . import web5644
         try:
@@ -467,7 +478,7 @@ def api(env, desk, auth, prefix, name, args, method):
             from .erreurs5634 import explain
             from .web import REASONS
             return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
-                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+                            '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
     if name.startswith('m5643/'):   # 5.6.43 (cahier v9, § 10-14) : courriels et pièces conservés dans le dossier client
         from . import web5643
         try:
@@ -486,7 +497,7 @@ def api(env, desk, auth, prefix, name, args, method):
         except Stop as error:
             code = str(error).split(':')[0]
             from .erreurs5634 import explain
-            return json_out({'error': code, 'message': explain(code, getattr(error, 'detail', None))}, '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+            return json_out({'error': code, 'message': explain(code, getattr(error, 'detail', None))}, '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
     if name.startswith('m5632/'):   # 5.6.32 : sources, contrôle des références, veille, compétences, documents de procédure
         from . import web5632
         try:
@@ -494,7 +505,7 @@ def api(env, desk, auth, prefix, name, args, method):
         except Stop as error:
             code = str(error).split(':')[0]
             from .guide5631 import message
-            return json_out({'error': code, 'message': message(code)}, '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+            return json_out({'error': code, 'message': message(code)}, '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
     if name.startswith('m5631/'):   # 5.6.31 : guide d'installation (sessions, étapes, preuves) et choix de la langue
         from . import guide5631
         try:
@@ -505,7 +516,7 @@ def api(env, desk, auth, prefix, name, args, method):
             raise Stop('route_inconnue')
         except Stop as error:
             code = str(error).split(':')[0]
-            return json_out({'error': code, 'message': guide5631.message(code)}, '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+            return json_out({'error': code, 'message': guide5631.message(code)}, '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
     if name.startswith('m5628/'):   # 5.6.28 : messagerie (répondre, transférer, archiver, déplacer, supprimer, envoyer)
         from .webmail5628 import api as api5628
         try:return api5628(env,desk,auth,prefix,name,args,method)

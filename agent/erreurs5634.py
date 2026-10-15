@@ -199,6 +199,67 @@ MESSAGES = {
     'adresse_webdav_invalide': 'Adresse WebDAV invalide : adresse HTTPS du dossier racine des fichiers, sans identifiant ni paramètre.',   # 5.6.50
     'ouverture_en_ligne_nextcloud_seulement': 'L’ouverture en ligne d’un fichier passe par Nextcloud : avec un autre serveur WebDAV, ouvrez le fichier depuis ce serveur.',   # 5.6.50
     'agendas_dans_parametres_agendas': 'Ce serveur de fichiers n’a pas d’agenda : ajoutez vos agendas CalDAV dans Paramètres › Agendas.',   # 5.6.50
+    'registre_acces_occupe': 'Le registre des accès est en cours de modification : réessayez dans un instant.',   # 5.6.51
+    'restauration_invalide': 'Choix de restauration invalide.',   # 5.6.51
+    'droit_invalide': 'Valeur de droit invalide (oui ou non attendu).',   # 5.6.51
+    'curseur_invalide': 'Position dans la conversation invalide : rechargez la page.',   # 5.6.51
+    'version_en_conflit': 'L’élément a été modifié entre-temps : rechargez la page pour voir sa version actuelle avant de décider.',   # 5.6.51
+    'partie_absente': 'Partie introuvable dans ce dossier.',   # 5.6.51
+    'fusion_personne_societe_refusee': 'Une personne et une société ne peuvent pas être réunies.',   # 5.6.51
+    'nom_partie_requis': 'Indiquez le nom de la partie.',   # 5.6.51
+    'nom_partie_invalide': 'Nom de partie non reconnu (un juge, un greffier ou un avocat n’est pas une partie).',   # 5.6.51
+    'document_absent': 'Document introuvable dans ce dossier.',   # 5.6.51
+    'nature_invalide': 'Nature de document inconnue.',   # 5.6.51
+    'statut_procedure_invalide': 'Statut de procédure inconnu (active, historique ou citée).',   # 5.6.51
+    'procedure_absente': 'Procédure introuvable dans ce dossier.',   # 5.6.51
+    'procedure_vide': 'Indiquez au moins la juridiction ou le numéro de RG.',   # 5.6.51
+    'information_absente': 'Information introuvable dans ce dossier.',   # 5.6.51
+    'texte_information_invalide': 'Le texte doit compter entre 3 et 2 000 caractères.',   # 5.6.51
+    'qualification_invalide': 'Qualification probatoire inconnue.',   # 5.6.51
+    'date_information_invalide': 'Date non reconnue : indiquez un jour, un mois ou une année.',   # 5.6.51
+    'action_information_invalide': 'Décision inconnue pour cette information.',   # 5.6.51
+    'type_information_invalide': 'Type d’information inconnu.',   # 5.6.51
+    'type_decision_cabinet_invalide': 'Type de décision du cabinet inconnu.',   # 5.6.51
+    'texte_decision_cabinet_invalide': 'Le texte de la décision doit compter entre 3 et 2 000 caractères.',   # 5.6.51
+    'portee_lacune_invalide': 'Portée du blocage inconnue.',   # 5.6.51
+    'type_lacune_invalide': 'Type d’information manquante inconnu.',   # 5.6.51
+    'lacune_invalide': 'Décrivez l’information attendue.',   # 5.6.51
+    'etat_lacune_invalide': 'État inconnu pour cette information manquante.',   # 5.6.51
+    'lacune_absente': 'Information manquante introuvable dans ce dossier.',   # 5.6.51
+    'decision_file_invalide': 'Décision inconnue.',   # 5.6.51
+    'element_absent': 'Élément introuvable : il a peut-être déjà été traité ou sa source a été retirée.',   # 5.6.51
+    'selection_vide': 'Aucun élément sélectionné.',   # 5.6.51
+    'selection_heterogene': 'Une validation regroupée ne porte que sur des éléments de même nature.',   # 5.6.51
+    'selection_non_regroupable': 'Les choix stratégiques, les projets et les engagements se décident un par un.',   # 5.6.51
+    'document_word_illisible': 'Document Word illisible.',   # 5.6.51
+    'fichier_hors_dossier': 'Ce fichier n’appartient pas au dossier.',   # 5.6.51
+    'relecture_word_seulement': 'La relecture par propositions porte sur un document Word (.docx).',   # 5.6.51
+    'consigne_relecture_invalide': 'Indiquez une consigne de relecture (3 à 4 000 caractères).',   # 5.6.51
+    'aucun_paragraphe_a_relire': 'Aucun paragraphe à relire dans la portée demandée.',   # 5.6.51
+    'relecture_absente': 'Relecture introuvable dans ce dossier.',   # 5.6.51
+    'reponse_modele_invalide': 'Le modèle d’IA a rendu une réponse illisible ; les résultats déjà enregistrés sont conservés.',   # 5.6.51
+    'proposition_close': 'Cette proposition a déjà été appliquée ou est périmée.',   # 5.6.51
+    'texte_proposition_invalide': 'Le texte proposé est vide ou trop long.',   # 5.6.51
+    'action_proposition_invalide': 'Décision inconnue pour cette proposition.',   # 5.6.51
+    'aucune_proposition_acceptee': 'Aucune proposition acceptée sur sa version actuelle.',   # 5.6.51
+    'aucune_modification_applicable': 'Aucune modification applicable : les paragraphes ont changé depuis ou contiennent des éléments à reporter à la main.',   # 5.6.51
+    'ecriture_non_verifiee': 'Le fichier enregistré ne correspond pas au contenu attendu : vérifiez le dossier.',   # 5.6.51
+    'objectif_mission_invalide': 'Résultat attendu inconnu.',   # 5.6.51
+    'mode_preparation_invalide': 'Mode de préparation inconnu.',   # 5.6.51
+    'paliers_invalides': 'Paliers invalides : indiquez des nombres de jours entre 1 et 60.',   # 5.6.51
+    'portee_apprentissage_invalide': 'Portée inconnue (ce document, ce dossier ou mon style).',   # 5.6.51
+    'categorie_correction_invalide': 'Catégorie de correction inconnue.',   # 5.6.51
+    'correction_factuelle_hors_style': 'Une correction de faits, d’attribution, de classement ou de stratégie ne peut pas devenir une préférence de style.',   # 5.6.51
+    'dossier_requis': 'Dossier requis.',   # 5.6.51
+    'document_requis': 'Document requis.',   # 5.6.51
+    'etat_regle_invalide': 'État de règle inconnu.',   # 5.6.51
+    'regle_absente': 'Règle introuvable.',   # 5.6.51
+    'campagne_absente': 'Campagne d’évaluation introuvable.',   # 5.6.51
+    'preference_invalide': 'Préférence inconnue.',   # 5.6.51
+    'relance_inutile': 'Relance inutile pour ce type d’erreur : fournissez une version lisible du document.',   # 5.6.51
+    'type_rappel_invalide': 'Type de rappel inconnu.',   # 5.6.51
+    'aucune_information_pour_le_rappel': 'Aucune information du dossier à rédiger : actualisez d’abord les données.',   # 5.6.51
+    'rappel_sans_source': 'Le rappel proposé ne s’appuyait sur aucune information du dossier : rien n’a été enregistré.',   # 5.6.51
     # 5.6.35 : contrat /integration/v1 (application Nextcloud)
     'operation_non_signee': 'La requête ne correspond pas à l’opération autorisée par Nextcloud : elle est refusée.',
     'contexte_sans_fuseau': 'Contexte Nextcloud invalide : l’expiration doit comporter un fuseau horaire.',

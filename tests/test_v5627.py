@@ -112,7 +112,7 @@ class Fiche(t530.Base):
     def test_page_layout_navigation_and_views(self):
         page = self.request('/dossier', query='id=' + MID)['body']
         for text in ('← Tous les dossiers', 'De quoi s’agit-il ?', 'Préparer la fiche du dossier', 'Travailler avec l’agent', 'Parties', 'Procédure',
-                     'Chronologie clé', 'Rappel des faits', 'Vue détaillée par rubriques', '/static/v5627.js', 'aria-current="page">Fiche'):
+                     'Chronologie clé', 'Rappel des faits', 'Tous les documents', '/static/v5627.js', 'aria-current="page">Vue d’ensemble'):   # 5.6.51 (D03)
             self.assertIn(text, page)
         self.assertNotIn('<aside class="d27-side"', page)
         pieces = self.request('/dossier', query='id=%s&vue=pieces' % MID)['body']

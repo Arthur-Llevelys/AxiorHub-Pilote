@@ -1,0 +1,46 @@
+{
+  "version": "5.6.51",
+  "base": "5.6.50 publiée",
+  "date_utc": "2026-10-15T00:00:00+00:00",
+  "cahier_des_charges": "Audit « AxiorHub Pilote 5.6.50 » du 15 octobre 2026 : lot 0 (B01 à B05), refonte de la page Dossier (D02 à D13) et huit fonctions d’autonomie (A01 à A08) ; limites et éléments non faits détaillés dans CONFORMITE-5.6.51.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2293,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 96,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "audit_counter_tests": {
+    "contre_tests_5650 (B01 à B05)": "5/5 passent (repris dans tests/test_contre5650.py)",
+    "contre_tests_5643 (anciens F01 à F10)": "10/10 passent"
+  },
+  "new_tests": "tests/test_v5651.py : ReservedMatterObjects (B01 : original, état, détail, annotation par lien ; lien gardé avant la réservation ; demande de document et chemins) ; ValidationRight (B02 : matrice avocat / assistant / administrateur, droit accordé, annulation, route oubliée refusée par le service, aucune écriture refusée) ; References (B03 : alias, L./R., sans code, décisions de même date, au-delà de 400 caractères, panne de l’analyseur ; clé de cache) ; MessageBatches (B04 : 0, 1, 60, 61, 130 messages, ouverture au premier non lu, historique) ; AccessRegistry / AccessRegistryWeb (B05 : JSON tronqué, mauvais types, fichier supprimé, copie de même version, copie plus ancienne refusée, modifications simultanées, registre 5.6.50, restauration, refus des non-administrateurs).",
+  "acceptance_tests": "tests/test_d5651.py : recette Dossier-D13 sur un dossier fictif (parties, informations, procédures, pièces, couverture, changements, mémoire, lacunes, file unique, missions, préparation proactive, relecture Word, apprentissage, page et API avec droits, pagination au-delà de 500 informations). La recette sur un dossier annoté par l’avocat reste à faire.",
+  "exapp": {
+    "version": "0.1.10",
+    "moteur": "5.6.51"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Un(e) assistant(e) ne peut plus corriger les informations validées de la page du dossier sans droit « Valider » accordé (B02).",
+    "La page /dossier est servie en six onglets (Vue d’ensemble, Faits et arguments, Procédure, Pièces, Correspondances, Travaux) ; l’onglet « Fiche » devient « Vue d’ensemble » et le raccourci vers l’ancienne page est retiré de la navigation.",
+    "Pièces ne liste plus que les pièces (actes, jurisprudence, notes et documents de gestion à part).",
+    "La préparation proactive (A07) est désactivée par défaut (« À la demande ») et se règle par dossier."
+  ],
+  "not_verified_here": [
+    "installation du cabinet",
+    "passerelles de la distribution autonome et de l’ExApp en conditions réelles",
+    "connecteurs juridiques réels",
+    "qualité des extractions et rédactions avec le modèle local du cabinet",
+    "ouverture des révisions Word dans les éditeurs du cabinet",
+    "recette D13 sur un dossier annoté par l’avocat"
+  ],
+  "adjusted_tests": [
+    "tests/test_v5627.py (test_page_layout_navigation_and_views) : « Vue détaillée par rubriques » et l’onglet « Fiche » remplacés par « Tous les documents » et « Vue d’ensemble » (audit D03 : raccourci de l’ancienne vue retiré, six onglets)."
+  ]
+}

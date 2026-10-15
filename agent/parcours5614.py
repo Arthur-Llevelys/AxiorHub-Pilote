@@ -92,8 +92,44 @@ CONCLUSIONS = [
     _t('C18', 'Présenter à l’avocat', 'superviseur', 'presentation', 'presentation', ['C16'], 'Paquet final et décisions résiduelles.'),
 ]
 
+# 5.6.51 (audit 5.6.50, A01 et A07) : préparation d'audience et livrable libre, avec les mêmes types de tâches (aucun moteur parallèle).
+AUDIENCE = [
+    _t('H01', 'Cadrer', 'superviseur', 'cadrage', 'cadrage', [], 'Cadrer la préparation : audience visée, juridiction, enjeux, ce que l’avocat doit pouvoir dire.'),
+    _t('H02', 'Inventorier', 'documentaliste', 'inventaire', 'inventaire', ['H01'], 'Inventorier écritures, pièces, courriels et agenda ; versions des écritures.'),
+    _t('H03', 'Lire les pièces', 'documentaliste', 'lecture_pieces', 'extraits', ['H02'], 'Lire les écritures et pièces déterminantes ; extraits localisés.'),
+    _t('H04', 'Lire les échanges', 'documentaliste', 'lecture_echanges', 'echanges', ['H02'], 'Courriels utiles : engagements, pièces annoncées, demandes du juge.'),
+    _t('H05', 'Examiner l’agenda', 'documentaliste', 'agenda', 'agenda', ['H02'], 'Dates confirmées ou indicatives ; audience et calendrier de procédure.'),
+    _t('H06', 'Chronologie utile', 'analyste_faits', 'analyse', 'chronologie', ['H03', 'H04', 'H05'],
+       'Chronologie utile à l’audience : événement, date et précision, auteur, source ; faits sans date à part.'),
+    _t('H07', 'Prétentions en présence', 'analyste_faits', 'analyse', 'matrice', ['H03'],
+       'Prétentions de chaque partie, moyens, montants et pièces invoquées ; points contestés.'),
+    _t('H08', 'Pièces clés et pièces manquantes', 'gestion', 'analyse', 'diligences', ['H02', 'H07'],
+       'Pièces clés à avoir à l’audience ; pièces attendues non reçues avec un brouillon de demande (rien n’est envoyé).'),
+    _t('H09', 'Rechercher le droit', 'chercheur', 'recherche', 'recherche', ['H07'], 'Textes et décisions utiles, autorités contraires comprises ; références vérifiées seulement.'),
+    _t('H10', 'Rédiger la synthèse', 'redacteur', 'section', 'section', ['H06', 'H07'], 'Synthèse actualisée du dossier pour l’audience.'),
+    _t('H11', 'Questions et note de plaidoirie', 'redacteur', 'section', 'section', ['H07', 'H08', 'H09'],
+       'Questions à anticiper et projet de note de plaidoirie, attribuant chaque affirmation à son auteur.'),
+    _t('H12', 'Assembler et contrôler', 'controleur', 'assemblage', 'assemblage', ['H10', 'H11'], 'Assembler le dossier d’audience (Word) et le contrôler.'),
+    _t('H13', 'Présenter à l’avocat', 'superviseur', 'presentation', 'presentation', ['H12'], 'Paquet final et décisions résiduelles.'),
+]
+
+LIVRABLE = [
+    _t('L01', 'Cadrer', 'superviseur', 'cadrage', 'cadrage', [], 'Cadrer le résultat attendu, son destinataire et ses limites.'),
+    _t('L02', 'Inventorier', 'documentaliste', 'inventaire', 'inventaire', ['L01'], 'Inventorier les sources utiles du dossier.'),
+    _t('L03', 'Lire les pièces', 'documentaliste', 'lecture_pieces', 'extraits', ['L02'], 'Lire les pièces déterminantes ; extraits localisés.'),
+    _t('L04', 'Lire les échanges', 'documentaliste', 'lecture_echanges', 'echanges', ['L02'], 'Lire les courriels utiles.'),
+    _t('L05', 'Établir les faits et les changements', 'analyste_faits', 'analyse', 'chronologie', ['L03', 'L04'],
+       'Faits et prétentions utiles, avec auteur et source ; ce qui a changé récemment.'),
+    _t('L06', 'Rechercher le droit', 'chercheur', 'recherche', 'recherche', ['L05'], 'Droit utile ; références vérifiées seulement.', required=False),
+    _t('L07', 'Rédiger', 'redacteur', 'section', 'section', ['L05', 'L06'], 'Rédiger le livrable demandé.'),
+    _t('L08', 'Assembler et contrôler', 'controleur', 'assemblage', 'assemblage', ['L07'], 'Assembler le Word et le contrôler.'),
+    _t('L09', 'Présenter à l’avocat', 'superviseur', 'presentation', 'presentation', ['L08'], 'Paquet final et décisions résiduelles.'),
+]
+
 PARCOURS = {'assignation': {'label': 'Assignation', 'tasks': ASSIGNATION, 'document_kind': 'assignation'},
-            'conclusions': {'label': 'Conclusions en réponse', 'tasks': CONCLUSIONS, 'document_kind': 'conclusions'}}
+            'conclusions': {'label': 'Conclusions en réponse', 'tasks': CONCLUSIONS, 'document_kind': 'conclusions'},
+            'audience': {'label': 'Préparation d’audience', 'tasks': AUDIENCE, 'document_kind': 'note_audience'},
+            'livrable': {'label': 'Livrable', 'tasks': LIVRABLE, 'document_kind': 'autre'}}
 
 
 def template(name):

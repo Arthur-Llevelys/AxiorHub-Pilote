@@ -931,11 +931,14 @@ def _select_files(snap_files, mission, limit=12):
     """Pièces déterminantes : conclusions, assignations, jugements, contrats, pièces numérotées, puis les plus récentes."""
     words = ('conclusion', 'assignation', 'jugement', 'ordonnance', 'arret', 'contrat', 'bail', 'piece', 'facture', 'mise en demeure', 'convention', 'proces-verbal', 'constat')
     scored = []
+    chosen = set((mission.get('answers') or {}).get('fichiers_selectionnes') or []) if isinstance(mission.get('answers'), dict) else set()
     for f in snap_files:
         if not f.get('readable'):
             continue
         n = fold(f['name'])
         score = sum(3 for w in words if w in n) + (1 if re.match(r'\d{1,3}[ _-]', n) else 0)
+        if f.get('path') in chosen:   # 5.6.51 (A01) : fichiers choisis par l'avocat dans le panneau de mission, lus en premier
+            score += 1000
         scored.append((score, f.get('modified', ''), f))
     scored.sort(key=lambda x: (-x[0], x[1]), reverse=False)
     scored.sort(key=lambda x: -x[0])
@@ -1152,6 +1155,13 @@ def _exec_section(desk, mission, task):
     base = {'tache': task['code'], 'section': task['title'], 'consigne': task['instruction'], 'objectif': mission['objective'], 'references_entrees': refs,
             'profil_procedural': mission.get('profile') or '', 'regles': ['aucune référence juridique non vérifiée présentée comme certaine', 'champs manquants en [À COMPLÉTER : …]',
                                                                           'aucun RG, adresse, date de signification ou formalité inventés']}
+    try:   # 5.6.51 (D06, A02) : faits attribués, procédure de référence, décisions du cabinet, arguments abandonnés
+        from .contexte5651 import for_drafting
+        structure = for_drafting(desk, mission['matter'], mission['objective'])
+        if structure:
+            base['dossier_structure'] = structure
+    except Exception:   # noqa: BLE001
+        pass
     try:
         from .style550 import drafting_context
         from .docrequest520 import KINDS

@@ -111,6 +111,8 @@ USER_JOBS |= {'proactive34_now'}
 USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
               'billing_review35','classify_comparable35'}
 USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
+JOBS |= {'recit5651','relecture5651'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
+USER_JOBS |= {'recit5651','relecture5651'}
 JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
 USER_JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}
 CONSERVATION_JOBS = ('archive_correspondence5643','file_mail_attachments5643')
@@ -783,6 +785,12 @@ class Desk:
         return {'note_interne':'disponible','brouillon_imap_cree':False}
 
     def perform(self, kind, args):
+        if kind=='recit5651':   # 5.6.51 (D06, D09) : rappel des faits ou de la procédure, paragraphes sourcés
+            from .recit5651 import run as recit
+            return recit(self,args)
+        if kind=='relecture5651':   # 5.6.51 (A05) : propositions de relecture Word par lots
+            from .relecture5651 import run as relecture
+            return relecture(self,args)
         if kind in CONSERVATION_JOBS:
             from .correspondances5643 import perform as conserve
             return conserve(self,kind,args)

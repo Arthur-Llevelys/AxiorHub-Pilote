@@ -1,7 +1,7 @@
 """
 title: AxiorHub Avocat
 author: AxiorHub
-version: 5.6.50
+version: 5.6.51
 description: Cabinet opérant avec apprentissage métier explicite, banc juridique et routage local-first contrôlé.
 requirements: pydantic
 """

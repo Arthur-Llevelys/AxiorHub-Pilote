@@ -116,7 +116,7 @@ class Web160Tests(unittest.TestCase):
         bad,_=call('wrong');good,body=call(token)
         self.assertTrue(bad['status'].startswith('401'))
         self.assertTrue(good['status'].startswith('200'))
-        self.assertEqual(json.loads(body)['info']['version'],'5.6.50')
+        self.assertEqual(json.loads(body)['info']['version'],'5.6.51')
 
 
 class OpenWebUI160Tests(unittest.TestCase):

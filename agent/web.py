@@ -129,7 +129,7 @@ REASONS.update(_REASONS5636)
 for _k5636, _v5636 in _DEFAULTS5636.items():
     REASONS.setdefault(_k5636, _v5636)
 JOB_LABELS = {'microsoft5636': 'Agenda Microsoft 365 : copie et lecture des rendez-vous', 'corporate5636': 'Corporate : préparation des actes de l’opération', 'outils5636': 'Outils IA : grille d’analyse, playbook ou mémo juridique', 'relances5636': 'Préparation des relances d’impayés (Invoice Ninja, lecture seule)', 'initiative5636': 'Initiative : analyse du courriel ou exécution du plan validé',
-              'pj_courriel5636': 'Rangement des pièces jointes d’un courriel dans le dossier','fiche_dossier5627':'Préparation de la fiche du dossier (résumé, faits, parties, chronologie)','extract_facts460':'Recherche de faits dans les pièces du dossier','analyze_deadline450':'Analyse d’une pièce (événement de départ et échéance)','analyze_notice440':'Analyse d’un avis de procédure (dates, agenda, brouillon)','live_mail430':'Contrôle des courriels et préparation des réponses',
+              'pj_courriel5636': 'Rangement des pièces jointes d’un courriel dans le dossier','fiche_dossier5627':'Préparation de la fiche du dossier (résumé, faits, parties, chronologie)','recit5651':'Rédaction du rappel des faits ou de la procédure','relecture5651':'Relecture d’un document Word (propositions)','extract_facts460':'Recherche de faits dans les pièces du dossier','analyze_deadline450':'Analyse d’une pièce (événement de départ et échéance)','analyze_notice440':'Analyse d’un avis de procédure (dates, agenda, brouillon)','live_mail430':'Contrôle des courriels et préparation des réponses',
               'live_calendar430':'Surveillance des échéances et audiences',
               'live_documents430':'Surveillance des documents des dossiers',
               'sync':'Découverte des dossiers et correspondants','approve':'Confirmation d’association',
@@ -460,7 +460,10 @@ class App:
         from . import membres5650 as _m50
         args={k:v[0] for k,v in parse_qs(env.get('QUERY_STRING',''),max_num_fields=30).items()}
         try:
-            code=_m50.gate(env,self._state_dir5642(),path,args)
+            def _paths50():
+                from .common import load_matters as _lm50
+                return {m['id']:m.get('path','') for m in _lm50(load_config(self.config_path),unfiltered=True)}
+            code=_m50.gate(env,self._state_dir5642(),path,args,_paths50)
         except Exception:   # noqa: BLE001 — contrôle impossible : refus pour un compte cloisonnable, jamais pour l'administrateur
             from .web567 import actor as _a50
             if _a50(env)[1]=='administrateur':
@@ -1357,6 +1360,12 @@ class App:
             else:
                 # 5.3.0 : poste de pilotage (conversation avec l'agent, à relire, activité, journée Nextcloud).
                 from .cockpit530 import page as cockpit_page
+                try:   # 5.6.51 (A06) : file unique « À décider / À relire », mêmes éléments que Dossier et Produire
+                    from .file5651 import html as queue5651
+                    from .membres5650 import viewer_hidden
+                    main+=queue5651(desk,prefix,None,str(args.get('file') or ''),viewer_hidden() or frozenset(),8)
+                except Exception:   # noqa: BLE001 — la file ne doit jamais empêcher l'affichage du poste de pilotage
+                    pass
                 main+=(cockpit_page(desk,prefix,owner=str(auth.get('owner') or 'cabinet'))+'<div id="ax-toast" role="status" aria-live="polite"></div>'
                        '<script defer src="'+e(prefix)+'/static/v500.js"></script><script defer src="'+e(prefix)+'/static/v530.js"></script>'
                        '<script defer src="'+e(prefix)+'/static/v550.js"></script><script defer src="'+e(prefix)+'/static/v569.js"></script>')
@@ -1370,7 +1379,14 @@ class App:
             else:
                 from .production420_ui import production_page
                 from .conflicts500 import banner_html
-                main+=banner_html(desk,prefix)+production_page(desk,args,form,link)
+                main+=banner_html(desk,prefix)
+                try:   # 5.6.51 (A06) : projets et modifications à relire, mêmes éléments que Aujourd'hui et Dossier
+                    from .file5651 import html as queue5651
+                    from .membres5650 import viewer_hidden
+                    main+=queue5651(desk,prefix,None,'relire',viewer_hidden() or frozenset(),8)
+                except Exception:   # noqa: BLE001
+                    pass
+                main+=production_page(desk,args,form,link)
         elif path=='/apprentissage':
             from .learning410_ui import page as learning_page
             main+=learning_page(desk,form)

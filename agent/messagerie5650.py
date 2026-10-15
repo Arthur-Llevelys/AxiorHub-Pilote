@@ -239,19 +239,48 @@ def remove(desk, me, message_id, hidden=frozenset()):
     desk.db.commit()
 
 
-def messages(desk, me, tid, hidden=frozenset(), after=0, limit=60):
-    row = _check(desk, tid, me, hidden)
-    rows = desk.db.execute('SELECT * FROM (SELECT * FROM messages5650 WHERE thread=? AND id>? ORDER BY id DESC LIMIT ?) ORDER BY id',
-                           (row['id'], int(after or 0), max(1, min(int(limit), 200)))).fetchall()
-    out = [{'id': r['id'], 'auteur': r['author'], 'nom': r['author_name'], 'role': r['author_role'], 'genre': r['kind'], 'moi': r['author'] == me,
+def _public(r, me):
+    return {'id': r['id'], 'auteur': r['author'], 'nom': r['author_name'], 'role': r['author_role'], 'genre': r['kind'], 'moi': r['author'] == me,
             'texte': '' if r['deleted'] else r['text'], 'retire': bool(r['deleted']), 'lien': '' if r['deleted'] else r['link'],
-            'lien_libelle': r['link_label'], 'quand': r['at']} for r in rows]
-    if out:
-        part = _participant(desk, row['id'], me)
-        if part:
-            desk.db.execute('UPDATE participants5650 SET last_read=MAX(last_read,?) WHERE thread=? AND owner=?', (out[-1]['id'], row['id'], me))
-            desk.db.commit()
-    return out
+            'lien_libelle': r['link_label'], 'quand': r['at']}
+
+
+def messages_page(desk, me, tid, hidden=frozenset(), after=0, before=0, limit=60):
+    """Un lot de messages, sans trou (5.6.51, audit B04) :
+    - ``after`` : les messages SUIVANTS, dans l'ordre croissant (« plus_recents » : il en reste) ;
+    - ``before`` : l'historique précédant ce message (« plus_anciens ») ;
+    - ni l'un ni l'autre : ouverture au premier message non lu s'il y en a, sinon les plus récents.
+    La lecture est marquée jusqu'au dernier message livré dans l'ordre (jamais au-delà, jamais pour l'historique)."""
+    row = _check(desk, tid, me, hidden)
+    limit = max(1, min(int(limit), 200))
+    after, before = int(after or 0), int(before or 0)
+    part = _participant(desk, row['id'], me)
+    if not after and not before and part:
+        unread = desk.db.execute('SELECT 1 FROM messages5650 WHERE thread=? AND id>? AND author<>? AND deleted=0 LIMIT 1',
+                                 (row['id'], part['last_read'], me)).fetchone()
+        if unread and part['last_read']:
+            after = part['last_read']
+    if before:
+        rows = desk.db.execute('SELECT * FROM messages5650 WHERE thread=? AND id<? ORDER BY id DESC LIMIT ?', (row['id'], before, limit + 1)).fetchall()
+        older, rows = len(rows) > limit, list(reversed(rows[:limit]))
+        newer = False
+    elif after:
+        rows = desk.db.execute('SELECT * FROM messages5650 WHERE thread=? AND id>? ORDER BY id ASC LIMIT ?', (row['id'], after, limit + 1)).fetchall()
+        newer, rows = len(rows) > limit, rows[:limit]
+        older = bool(desk.db.execute('SELECT 1 FROM messages5650 WHERE thread=? AND id<=? LIMIT 1', (row['id'], after)).fetchone())
+    else:
+        rows = desk.db.execute('SELECT * FROM messages5650 WHERE thread=? ORDER BY id DESC LIMIT ?', (row['id'], limit + 1)).fetchall()
+        older, rows = len(rows) > limit, list(reversed(rows[:limit]))
+        newer = False
+    out = [_public(r, me) for r in rows]
+    if out and part and not before:
+        desk.db.execute('UPDATE participants5650 SET last_read=MAX(last_read,?) WHERE thread=? AND owner=?', (out[-1]['id'], row['id'], me))
+        desk.db.commit()
+    return {'messages': out, 'plus_recents': newer, 'plus_anciens': older}
+
+
+def messages(desk, me, tid, hidden=frozenset(), after=0, limit=60):
+    return messages_page(desk, me, tid, hidden, after=after, limit=limit)['messages']
 
 
 # ------------------------------------------------------------------------------------------------ listes
