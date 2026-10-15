@@ -1,0 +1,29 @@
+{
+  "version": "5.6.49",
+  "base": "5.6.48 publiée",
+  "date_utc": "2026-10-15T00:00:00+00:00",
+  "cahier_des_charges": "Demande du cabinet du 15 octobre 2026 : les connecteurs GoodLegal, OpenLegi et LibreJustice doivent être utilisés avant toute réponse ; périmètre choisi : questions et documents, réponses aux courriels seulement quand le courriel pose une question de droit.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2224,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 94,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5649.py : Unit (raison de chaque connecteur non utilisé, requête sans noms ni numéros, détection d’une question de droit dans un courriel, sources vérifiées puis pistes, cache d’une heure, panne sans blocage, références non sourcées signalées, rubrique des Paramètres) ; DocumentsAndQuestions (recherche avant rédaction, nom du client jamais transmis, sources au modèle, bilan dans la fiche de contrôle, référence non sourcée ajoutée aux points à compléter, absence de connecteur utilisable signalée ; reprend aussi les essais 5.2.0 des documents) ; Assistant ; MailReplies (courriel d’organisation sans recherche ; question de droit : seule la question part, dépôt automatique bloqué si une référence n’est pas sourcée).",
+  "exapp": {
+    "version": "0.1.8",
+    "moteur": "5.6.49"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "not_verified_here": [
+    "appel réel des connecteurs GoodLegal, OpenLegi et LibreJustice du cabinet (aucune clé utilisée ici)",
+    "pertinence des résultats renvoyés par chaque fournisseur"
+  ],
+  "adjusted_tests": []
+}

@@ -5582,5 +5582,15 @@
 "Action sur le compte invalide.": "Ungültige Kontoaktion.",
 "Compte introuvable : rechargez la page.": "Konto nicht gefunden: Laden Sie die Seite neu.",
 "Choisissez d’abord votre mot de passe personnel (page de connexion).": "Wählen Sie zuerst Ihr persönliches Passwort (Anmeldeseite).",
-"logiciel libre (AGPL-#.#)": "freie Software (AGPL-#.#)"
+"logiciel libre (AGPL-#.#)": "freie Software (AGPL-#.#)",
+"Recherche avant chaque réponse": "Recherche vor jeder Antwort",
+"Avant une question à l’agent, un document ou une réponse de l’assistant (et avant la réponse à un courriel qui pose une question de droit), AxiorHub interroge les connecteurs juridiques ci-dessous avec une requête anonymisée, sans nom ni pièce, et donne au modèle les textes et décisions trouvés.": "Vor einer Frage an den Agenten, einem Dokument oder einer Antwort des Assistenten (und vor der Antwort auf eine E-Mail mit einer Rechtsfrage) fragt AxiorHub die folgenden juristischen Konnektoren mit einer anonymisierten Anfrage ab, ohne Namen oder Unterlagen, und gibt dem Modell die gefundenen Texte und Entscheidungen.",
+"Connecteur": "Konnektor",
+"Utilisé avant les réponses": "Vor Antworten genutzt",
+"Aucun connecteur juridique déclaré.": "Kein juristischer Konnektor eingerichtet.",
+"Un connecteur s’active, se teste et reçoit l’usage « analyse juridique » dans": "Ein Konnektor wird aktiviert, getestet und erhält den Zweck „juristische Analyse“ unter",
+"Non — connecteur désactivé": "Nein — Konnektor deaktiviert",
+"Non — envoi de requêtes anonymisées non autorisé pour ce connecteur": "Nein — Senden anonymisierter Anfragen für diesen Konnektor nicht erlaubt",
+"Non — test de connexion non réussi : refaites le test du connecteur": "Nein — Verbindungstest fehlgeschlagen: Test des Konnektors wiederholen",
+"Non — usage « analyse juridique » non coché pour ce connecteur": "Nein — Zweck „juristische Analyse“ für diesen Konnektor nicht angekreuzt"
 }

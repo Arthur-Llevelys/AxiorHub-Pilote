@@ -3,6 +3,28 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.49 — Recherche juridique avant chaque réponse
+
+Constat du 15 octobre 2026 : les connecteurs juridiques du cabinet (GoodLegal, OpenLegi, LibreJustice…) n’étaient consultés que par la
+page Recherche juridique, la préparation d’audience et les missions. Une question à l’agent, une note, des conclusions, un courrier ou une
+réponse de l’assistant étaient rédigés sans eux : le modèle citait le droit de mémoire, avec des erreurs (essai du cabinet sur
+l’article 1240 du Code civil : « responsabilité de plein droit » au lieu de responsabilité pour faute).
+
+- **Recherche avant la rédaction** : questions et documents (courrier, note, consultation, conclusions, mise en demeure, assignation…),
+  réponses de l’assistant, et réponses aux courriels reçus quand le courriel pose une question de droit. Les connecteurs utilisables
+  sont interrogés avant que le modèle écrive ; les textes et décisions trouvés lui sont donnés comme sources (L1, L2…).
+- **Ce qui part** : une requête courte, sans noms propres (retirés), puis anonymisée (noms du dossier, adresses, téléphones, IBAN,
+  numéros RG). Pour un courriel, seules les phrases qui posent la question partent. Aucune pièce ni aucun courriel entier.
+- **Statut des sources** : seule une décision revérifiée sur la source officielle est « vérifiée » ; le reste est une piste, citée
+  avec la mention « (à vérifier) ». Le modèle ne doit inventer aucune référence et marque [À VÉRIFIER : …] un point de droit sans source.
+- **Traçabilité** : la fiche de contrôle de chaque document (et les limites de chaque réponse) indique les connecteurs consultés, ceux
+  qui n’ont pas répondu, ceux qui ne sont pas utilisés et pourquoi. Une référence citée qui ne vient d’aucune source consultée est
+  ajoutée aux points à compléter ; dans une réponse à un courriel, elle bloque le dépôt automatique du brouillon.
+- **Paramètres › Sources juridiques** : nouvelle rubrique « Recherche avant chaque réponse » : chaque connecteur, utilisé ou non, avec
+  la raison (désactivé, envoi non autorisé, test de connexion à refaire, usage « analyse juridique » non coché).
+- Une même question n’est pas renvoyée aux connecteurs pendant une heure ; une panne d’un connecteur n’empêche jamais la réponse,
+  qui le dit.
+
 ## 5.6.48 — Page de connexion, premier compte, déconnexion et mot de passe oublié
 
 Demande du cabinet (14 octobre 2026) : à la première installation, rien n’indiquait comment choisir l’identifiant et le mot de passe,

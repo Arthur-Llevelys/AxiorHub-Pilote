@@ -183,6 +183,8 @@ def sources_page(desk, auth, prefix, args, shell):
          'oui' if status['enabled'] else 'non', status['cache_entries'],
          rows or '<tr><td colspan="4">Aucune source configurée.</td></tr>',
          log_rows or '<tr><td colspan="3">Aucune requête.</td></tr>')
+    from .juridique5649 import panel_html   # 5.6.49 : connecteurs consultés avant chaque réponse, sinon pourquoi
+    body += panel_html(desk, prefix)
     return shell('Sources juridiques', body, prefix, auth['csrf'], '/verification')
 
 

@@ -298,10 +298,13 @@ def _model(desk,matter_id=''):
         return Model(cfg)
 
 
-def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
+def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None):
     task = ('Réécris intégralement le document ci-dessous selon la demande de modification, en conservant ce qui n’est pas visé.'
             if previous_text else 'Rédige le document demandé.')
     payload = {'demande': request, 'matter':matter_id,'type': KINDS.get(kind, kind), 'dossier': ctx, 'document_actuel': previous_text}
+    if legal:   # 5.6.49 : textes et décisions trouvés par les connecteurs juridiques avant la rédaction
+        from .juridique5649 import for_model
+        payload.update(for_model(legal))
     if matter_id:   # 5.6.29 : consignes permanentes de l'avocat pour ce dossier
         from .pause5629 import consignes
         if consignes(desk, matter_id):
@@ -341,7 +344,7 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id=''):
     if len(serialized)>90000:raise Stop('configuration_styles_ou_instruction_depasse_contexte')
     raw = model.complete([{'role': 'system', 'content': SYSTEM % writer_intro(desk)},
                                  {'role': 'user', 'content': task + ' Réponds en JSON : titre, nom_fichier (court, sans extension), paragraphes '
-                                  '(style titre/intertitre/texte/liste), sources (identifiants P1, C2… réellement utilisés), a_completer.\n\n' +
+                                  '(style titre/intertitre/texte/liste), sources (identifiants P1, C2, L1… réellement utilisés), a_completer.\n\n' +
                                   serialized}],
                                 temperature=0, max_tokens=7000, json_schema=SCHEMA_OUT)
     out = json.loads(raw)
@@ -507,8 +510,14 @@ def run(desk, args, dav=None):
         reuse = (piece.get('couverture') or {}).get('reuse') or {}
         if reuse.get('message'):
             notes.append('%s : %s' % (PurePosixPath(str(piece.get('fichier', ''))).name, reuse['message']))
+    from . import juridique5649   # 5.6.49 : recherche juridique AVANT la rédaction (connecteurs du cabinet, requête anonymisée)
+    from .live430 import progress
+    progress(desk, 'Recherche juridique avant rédaction (connecteurs du cabinet)', matter['id'])
+    legal = juridique5649.research(desk, matter['id'], row['request'], 'document')
+    if juridique5649.summary(legal):
+        notes.append(juridique5649.summary(legal))
     try:
-        doc = draft(desk, row['request'], row['kind'], ctx, previous_text, matter['id'])
+        doc = draft(desk, row['request'], row['kind'], ctx, previous_text, matter['id'], legal)
     except Exception as ex:
         detail = getattr(ex, 'detail', None) or {}
         if detail.get('precision'):   # 5.6.42 (F05) : la cause précise (instantané introuvable…) est conservée dans l'état du travail
@@ -539,6 +548,10 @@ def run(desk, args, dav=None):
     if couverture:
         doc['couverture_trame'] = couverture
     text = pilote5613.plain_text(doc)
+    unsourced = juridique5649.unsourced_references(text, legal)   # 5.6.49 : référence citée sans source consultée
+    if unsourced:
+        doc['a_completer'] = list(doc.get('a_completer') or []) + ['Référence à vérifier (absente des sources juridiques consultées) : ' + r
+                                                                   for r in unsourced]
     control = pilote5613.control_document(desk, row['kind'], text, matter['id'])     # 5.6.13 : contrôle juridique de la rédaction libre
     template_info = {'id': '', 'label': 'Word générique'}
     internal = bool(desk.settings('docreq5614:internal_notes_in_body', False))
@@ -599,9 +612,13 @@ def run(desk, args, dav=None):
               'url': '', 'revision_coverage':doc.get('revision_coverage',{}), 'context': {k: len(v) for k, v in ctx.items() if isinstance(v, list)},
               'control': control, 'template': template_info, 'manifest': ctx['manifeste'], 'revision_diff': diff, 'rule_proposal': proposal,
               'couverture_trame': doc.get('couverture_trame'),   # 5.6.42 (F06) : sections attendues, rédigées, à reprendre
+              'recherche_juridique': {'statut': legal['statut'], 'resume': juridique5649.summary(legal), 'references_a_verifier': unsourced,
+                                      'sources': [{k: s[k] for k in ('id', 'statut', 'titre', 'reference', 'url')} for s in legal['sources']],
+                                      'rapports': legal['rapports']},   # 5.6.49
               'text_sha256': hashlib.sha256(text.encode()).hexdigest(),
               # 5.6.14 (U06) : fiche de contrôle séparée du document destiné au correspondant
               'control_sheet': {'demande': row['request'][:600], 'sources': doc['sources'], 'a_completer': doc['a_completer'], 'controle': control.get('summary', ''),
+                                'recherche_juridique': juridique5649.summary(legal),
                                 'modele': template_info.get('label', ''), 'champs_manquants': template_info.get('missing_fields', []), 'notes': notes}}
     stage(desk,rid,path,data,result)
     saved = desk.db.execute('SELECT * FROM docreq520 WHERE id=?',(rid,)).fetchone()

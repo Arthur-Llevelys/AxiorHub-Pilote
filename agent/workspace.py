@@ -254,6 +254,9 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     if attachment_coverage:coverage={**coverage,'piece_televersee':attachment_coverage}
     from .composition567 import compact_sources
     sources=compact_sources(desk,sources,question,model,limit)
+    from . import juridique5649   # 5.6.49 : recherche juridique avant la réponse (connecteurs du cabinet, requête anonymisée)
+    legal=juridique5649.research(desk,matter['id'] if matter else '',question,'assistant')
+    sources+=juridique5649.as_sources(legal)
     turns=list(reversed(history(desk,scope)[:4]))
     from .relevance370 import correction_guidance
     from .learning392 import learning_context
@@ -266,10 +269,11 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         'apprentissage_metier':learning_context(desk,matter['id'] if matter else '','assistant'),
         'historique_non_probant':[{'question':r['question'][:1000],
             'reponse':json.loads(r['response'])['answer'][:1500]} for r in turns],
-        'limites':('Sélection d’extraits indexés seulement. Aucune recherche juridique externe. '
+        'limites':('Sélection d’extraits indexés seulement. '+(juridique5649.summary(legal) or 'Aucune recherche juridique externe.')+' '
                    'Aucune opération exécutée par la conversation. La recherche générale peut '
                    'parcourir plusieurs dossiers ; une action de rédaction doit ensuite être '
                    'rattachée à un courriel et à un dossier précis.')}
+    if legal.get('sources'):payload['regle_sources_juridiques']=juridique5649.RULE
     fit_chat_context(payload,limit)
     if not sources:
         payload['limites']+=' Aucune source lisible disponible : demander des précisions, ne pas inventer de faits.'
@@ -281,6 +285,9 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     validate(result,CHAT)
     if any(x not in {s['id'] for s in sources} for x in result['source_ids']):
         raise Stop('source_conversation_invalide')
+    if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
+    unsourced=juridique5649.unsourced_references(result.get('answer',''),legal)
+    if unsourced:result['limits'].append('Référence(s) à vérifier, absente(s) des sources juridiques consultées : '+' ; '.join(unsourced))
     if attachment_coverage:
         result['limits'].append('Pièce téléversée : '+str(attachment_coverage['extracted_chars'])+' caractères extraits, '
             +str(attachment_coverage['parts_analyzed'])+' section(s) analysée(s). '

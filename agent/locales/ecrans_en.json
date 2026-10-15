@@ -5582,5 +5582,15 @@
 "Action sur le compte invalide.": "Invalid account action.",
 "Compte introuvable : rechargez la page.": "Account not found: reload the page.",
 "Choisissez d’abord votre mot de passe personnel (page de connexion).": "First choose your personal password (sign-in page).",
-"logiciel libre (AGPL-#.#)": "free software (AGPL-#.#)"
+"logiciel libre (AGPL-#.#)": "free software (AGPL-#.#)",
+"Recherche avant chaque réponse": "Research before every answer",
+"Avant une question à l’agent, un document ou une réponse de l’assistant (et avant la réponse à un courriel qui pose une question de droit), AxiorHub interroge les connecteurs juridiques ci-dessous avec une requête anonymisée, sans nom ni pièce, et donne au modèle les textes et décisions trouvés.": "Before a question to the agent, a document or an assistant answer (and before replying to an email that asks a legal question), AxiorHub queries the legal connectors below with an anonymised request, without names or documents, and gives the model the texts and decisions found.",
+"Connecteur": "Connector",
+"Utilisé avant les réponses": "Used before answers",
+"Aucun connecteur juridique déclaré.": "No legal connector declared.",
+"Un connecteur s’active, se teste et reçoit l’usage « analyse juridique » dans": "A connector is enabled, tested and given the “legal analysis” purpose in",
+"Non — connecteur désactivé": "No — connector disabled",
+"Non — envoi de requêtes anonymisées non autorisé pour ce connecteur": "No — sending anonymised requests not allowed for this connector",
+"Non — test de connexion non réussi : refaites le test du connecteur": "No — connection test failed: run the connector test again",
+"Non — usage « analyse juridique » non coché pour ce connecteur": "No — “legal analysis” purpose not ticked for this connector"
 }

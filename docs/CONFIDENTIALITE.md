@@ -37,6 +37,15 @@ distantes sont désactivées tant que vous ne les configurez pas, et elles sont 
 Vérifiez les conditions contractuelles du fournisseur (absence d'entraînement sur vos données, localisation,
 conservation) et inscrivez le traitement à votre registre (RGPD, article 30).
 
+## Connecteurs juridiques (recherche avant chaque réponse, 5.6.49)
+
+Quand un connecteur juridique (GoodLegal, OpenLegi, LibreJustice…) est activé, testé, autorisé à recevoir des requêtes anonymisées et
+coché pour l'usage « analyse juridique », AxiorHub l'interroge avant de rédiger une réponse ou un document. Seule part une **requête
+courte** : la demande sans noms propres, puis anonymisée (noms du dossier, parties connues, adresses, téléphones, IBAN, numéros RG).
+Pour un courriel reçu, seules les phrases qui posent la question de droit partent. Aucune pièce, aucun courriel entier, aucun
+document rédigé n'est transmis. Chaque recherche est journalisée (journal d'audit `juridique5649_recherche`). Les conditions
+d'utilisation de chaque fournisseur restent à vérifier par le cabinet.
+
 ## Recommandations d'exploitation
 
 - Serveur dédié au cabinet, mises à jour de sécurité automatiques (`unattended-upgrades`).

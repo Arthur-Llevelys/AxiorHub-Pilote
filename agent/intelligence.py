@@ -284,6 +284,11 @@ def prepare_draft(desk,args):
             sources += [item for item in memory_sources(desk,m['id'],mail.subject,
                 desk.c.get('legal_memory',{}).get('assistant_records',10))
                 if item.get('memory_status') in ('validated','pinned')]
+        legal=None
+        from . import juridique5649   # 5.6.49 : un courriel qui pose une question de droit déclenche la recherche juridique
+        if juridique5649.is_legal_question(mail.subject+' '+mail.text[:6000]):
+            legal=juridique5649.research(desk,m['id'],juridique5649.mail_question(mail.subject,mail.text),'courriel')
+            sources+=juridique5649.as_sources(legal)
         slots=[]
         if style=='slots':
             cc=desk.c['calendar'];now=datetime.now(timezone.utc)
@@ -297,6 +302,7 @@ def prepare_draft(desk,args):
                  'available_slots':slots,'coverage':coverage}
         from .assistant567 import drafting_preferences
         payload['preferences_assistant']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
+        if legal and legal.get('sources'):payload['regle_sources_juridiques']=juridique5649.RULE
         if m['id']:   # 5.6.29 : consignes permanentes de l'avocat pour ce dossier
             from .pause5629 import consignes
             if consignes(desk,m['id']):payload['consignes_permanentes_du_dossier']=consignes(desk,m['id'])
@@ -313,6 +319,12 @@ def prepare_draft(desk,args):
         if any(x not in valid for x in result['source_ids']):raise Stop('source_brouillon_invalide')
         if result['body'] and len(result['body'])>7000:raise Stop('brouillon_trop_long')
         if attachment_notes:result['limits'].append('Pièce(s) jointe(s) non lue(s) : '+' ; '.join(attachment_notes)[:400])
+        if legal:
+            if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
+            unsourced=juridique5649.unsourced_references(result.get('body') or '',legal)
+            if unsourced:
+                result['requires_decision']=True
+                result['limits'].append('Référence(s) à vérifier, absente(s) des sources juridiques consultées : '+' ; '.join(unsourced))
         if dropped:
             result['requires_decision']=True
             result['limits'].append(str(dropped)+' source(s) omise(s) pour respecter le contexte du modèle ; '
