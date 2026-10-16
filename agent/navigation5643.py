@@ -32,7 +32,7 @@ PRODUCTION_VIEWS = {'resultats': '/production', 'rediger': '/studio', 'documents
                     'parcours': '/playbooks', 'analyses': '/outils-ia', 'projets': '/projets'}
 
 # Menu complémentaire : besoins distincts des six accès principaux (cible 6 à 10 entrées visibles).
-PANEL = ('recherche', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant', 'guide_utilisation')
+PANEL = ('recherche', 'facturation', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant', 'guide_utilisation')
 
 # Destination canonique des sous-sections (trouvées par la recherche ; leur page reste servie).
 PARENT = {

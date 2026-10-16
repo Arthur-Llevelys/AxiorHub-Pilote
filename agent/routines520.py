@@ -727,7 +727,12 @@ def run(desk, args):
     occurrence = str(args.get('occurrence') or '')
     if occurrence:
         from . import routines5652
-        routines5652.start_occurrence(desk, occurrence)
+        try:
+            routines5652.start_occurrence(desk, occurrence)
+        except Stop as ex:
+            if str(ex).split(':')[0] == 'routine_arretee':
+                return {'report': '', 'message': 'Passage non exécuté : routine en pause, supprimée ou arrêtée.'}
+            raise
         try:
             out = _run_5651(desk, args)
         except Exception as ex:

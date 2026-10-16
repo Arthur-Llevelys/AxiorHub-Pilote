@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent / 'locales'
 _LOCK = threading.Lock()
 _CACHE = {}
-SKIP = re.compile(r'(<(script|style|textarea|pre|code)\b[^>]*>.*?</\2\s*>)', re.S | re.I)
+SKIP = re.compile(r'(<(script|style|textarea|pre|code|section(?=[^>]*\btranslate="no"))\b[^>]*>.*?</\2\s*>)', re.S | re.I)   # 5.6.53 : section translate="no" (document en français)
 TEXT = re.compile(r'(^|>)([^<>]+)(?=<|$)')   # aussi en bord de segment (texte suivi d'un <textarea> mis à part)
 ATTR = re.compile(r'\b(placeholder|title|aria-label|alt|data-confirm)="([^"]*)"')
 BUTTON_VALUE = re.compile(r'(<input\b[^>]*\btype="(?:submit|button)"[^>]*\bvalue=")([^"]*)(")', re.I)

@@ -1,0 +1,68 @@
+/* AxiorHub 5.6.53 — facturation et honoraires ; fiche d'opération externe (U01) */
+.b53 .b53-top{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;justify-content:space-between}
+.b53 h1{margin:0;font-size:1.45rem;flex-basis:100%}
+.b53 details.b53-create{border:0;padding:0;margin:0;background:none;box-shadow:none}
+.b53-preview h3{margin:.2em 0 .4em;font-size:1.15rem}.b53-preview h4{margin:.9em 0 .3em;font-size:1rem}.b53-preview p{margin:.25em 0}
+.b53-preview mark{background:#fef3c7;color:#92400e;border-radius:4px;padding:0 2px}
+.b53-ptable{width:100%;border-collapse:collapse;margin:.4em 0;font-size:.85rem}.b53-ptable th,.b53-ptable td{border:1px solid var(--ws-border,#d7e0ee);padding:4px 6px;text-align:left}
+.b53-search label{display:flex;flex-direction:column;gap:4px;font-size:.9rem}
+.b53-search input{min-width:min(320px,100%)}
+.b53-create{position:relative}
+.b53-create[open]>form{position:absolute;right:0;z-index:20;min-width:min(360px,92vw);background:var(--ws-surface,#fff);border:1px solid var(--ws-border,#d7e0ee);
+  border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(15,23,42,.15)}
+.b53-note{font-size:.9rem;color:var(--ws-muted,#475569)}
+.b53-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.b53-tabs a{padding:6px 12px;border-radius:999px;border:1px solid var(--ws-border,#d7e0ee);text-decoration:none;color:inherit}
+.b53-tabs a[aria-current=page]{background:var(--ws-accent,#1d4ed8);border-color:var(--ws-accent,#1d4ed8);color:#fff}
+.b53-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.b53-card{border:1px solid var(--ws-border,#d7e0ee);border-radius:12px;padding:12px 14px;background:var(--ws-surface,#fff);display:flex;flex-direction:column;gap:6px;min-width:0}
+.b53-card h3{margin:0;font-size:1.05rem}
+.b53-matter{font-weight:600;color:var(--ws-text,#0f172a);margin:0}
+.b53-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.b53-form{display:flex;flex-direction:column;gap:8px}
+.m5-form.b53-inline{display:inline-flex;flex-direction:row;flex-wrap:wrap;gap:6px;align-items:flex-end;margin:0;padding:0;border:0;background:none;box-shadow:none;max-width:none}
+.m5-form.b53-inline.ghost button{background:none;color:var(--ws-accent,#1d4ed8);border:1px solid var(--ws-border,#d7e0ee)}
+.b53-form fieldset{border:1px solid var(--ws-border,#d7e0ee);border-radius:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.b53-row{display:grid;grid-template-columns:minmax(60px,.7fr) minmax(80px,.8fr) minmax(90px,1fr) minmax(110px,1.4fr) auto;gap:6px;align-items:center;padding-bottom:6px;border-bottom:1px dashed var(--ws-border,#e5eaf2)}
+.b53-row input[name$="_libelle"]{grid-column:1/-1}
+.b53-table-wrap{overflow-x:auto}
+.b53-table{width:100%;border-collapse:collapse}
+.b53-table th,.b53-table td{text-align:left;padding:8px;border-bottom:1px solid var(--ws-border,#e5eaf2);vertical-align:top}
+.b53-doc-head h2{margin:0}
+.b53-totals{font-size:1rem}
+.b53-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+.b53-preview-wrap{position:sticky;top:12px}
+.b53-preview{word-break:break-word;background:var(--ws-surface,#fff);border:1px solid var(--ws-border,#d7e0ee);border-radius:10px;padding:14px;
+  max-height:80vh;overflow:auto;font:0.9rem/1.45 Georgia,'Times New Roman',serif;position:relative}
+.b53-preview.b53-draft{background-image:repeating-linear-gradient(-30deg,transparent 0 120px,rgba(185,28,28,.06) 120px 160px)}
+.b53-issues{list-style:none;padding:0;margin:8px 0;display:flex;flex-direction:column;gap:4px}
+.b53-issues li,.b53-list li{padding:4px 8px;border-radius:8px}
+.b53-issues li.ko,.b53-list li.ko{background:#fef2f2;color:#991b1b}
+.b53-issues li.warn{background:#fffbeb;color:#92400e}
+.b53-issues li.ok,.b53-list li.ok{background:#f0fdf4;color:#166534}
+.b53-list{list-style:none;padding:0;margin:6px 0;display:flex;flex-direction:column;gap:4px}
+.b53-warn{color:#92400e}
+.b53-error{color:#b91c1c;font-weight:600}
+.b53-empty{color:var(--ws-muted,#475569)}
+.b53-dl,.cx53-dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 14px;margin:8px 0}
+.b53-dl dt,.cx53-dl dt{font-weight:600}
+.b53-dl dd,.cx53-dl dd{margin:0;overflow-wrap:anywhere}
+.b53-section{margin:18px 0}
+.b53-client>summary{cursor:pointer;font-weight:600}
+.cx53-sheet{max-width:880px}
+.cx53-list{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+:root[data-theme=dark] .b53-card,:root[data-theme=dark] .b53-preview,:root[data-theme=dark] .b53-create[open]>form{background:#1a2029;border-color:#2b3441}
+:root[data-theme=dark] .b53-matter{color:#f1f5f9}
+:root[data-theme=dark] .b53-issues li.ko,:root[data-theme=dark] .b53-list li.ko{background:#3b1414;color:#fecaca}
+:root[data-theme=dark] .b53-issues li.warn{background:#3a2a0a;color:#fde68a}
+:root[data-theme=dark] .b53-issues li.ok,:root[data-theme=dark] .b53-list li.ok{background:#12301c;color:#bbf7d0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .b53-card,:root:not([data-theme="light"]) .b53-preview,
+ :root:not([data-theme="light"]) .b53-create[open]>form{background:#1a2029;border-color:#2b3441}
+ :root:not([data-theme="light"]) .b53-matter{color:#f1f5f9}
+ :root:not([data-theme="light"]) .b53-issues li.ko,:root:not([data-theme="light"]) .b53-list li.ko{background:#3b1414;color:#fecaca}
+ :root:not([data-theme="light"]) .b53-issues li.warn{background:#3a2a0a;color:#fde68a}
+ :root:not([data-theme="light"]) .b53-issues li.ok,:root:not([data-theme="light"]) .b53-list li.ok{background:#12301c;color:#bbf7d0}}
+@media (max-width:900px){.b53-grid{grid-template-columns:1fr}.b53-preview-wrap{position:static}}
+@media (max-width:640px){.b53-row{grid-template-columns:1fr 1fr}.b53-row input[name$="_libelle"]{grid-column:1/-1}.b53-cards{grid-template-columns:1fr}
+ .b53-create[open]>form{position:static;min-width:0}}
+:root[data-theme=dark] .b53-preview mark{background:#3a2a0a;color:#fde68a}

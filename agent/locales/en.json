@@ -754,5 +754,7 @@
  "vj.title": "Legal watch",
  "vj.tz": "Time zone",
  "vj.use_connector": "Also query the enabled legal source (recent decisions)",
- "vj.use_tavily": "Internet search with Tavily (key set by the administrator)"
+ "vj.use_tavily": "Internet search with Tavily (key set by the administrator)",
+ "fn.facturation.label": "Billing and fees",
+ "fn.facturation.desc": "Quotes, fee agreements, invoices and credit notes; mission pricing; electronic invoices"
 }

@@ -9,6 +9,7 @@ MIGRATION = {
     'dossiers': 'Dossiers → portefeuille et ouverture de fiche',
     'courriels': 'Courriels → boîte, pièces jointes et brouillons',
     'planning': 'Agenda et tâches → Agenda en ligne (calendriers configurés) / Agenda personnel (local, jamais copié), Tâches, Organiser la semaine',
+    'facturation': 'Facturation et honoraires (5.6.53) → page unique : à préparer, documents, règlements, chiffrage (Honorium), réglages et modèles ; épinglable au menu principal',
     'talk': 'Talk (5.6.43, facultatif) → accès principal après Agenda et tâches, activé par chaque utilisateur dans Paramètres › Connexions',
     'taches': 'Agenda et tâches → vue Tâches',
     'production': 'Produire → choix du travail et validations (Rédiger, Réviser, Bordereau, Mission complète)',

@@ -34,8 +34,10 @@ CREATE INDEX IF NOT EXISTS docreq520_updated ON docreq520(updated);
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 # 5.3.0 : rangement dans l'arborescence du cabinet (sous-dossier utilisé seulement s'il existe dans le dossier du client).
 FOLDER_GROUPS = {'conclusions': 'procedure', 'assignation': 'procedure', 'acte_procedure': 'procedure', 'courrier': 'correspondance', 'courriel': 'correspondance',
-                 'mise_en_demeure': 'correspondance', 'compte_rendu': 'correspondance', 'contrat': 'projets', 'note': 'livrables'}
-DEFAULT_FOLDERS = {'procedure': 'PROCEDURE', 'correspondance': 'CORRESPONDANCES', 'projets': 'PROJETS', 'livrables': 'LIVRABLES'}
+                 'mise_en_demeure': 'correspondance', 'compte_rendu': 'correspondance', 'contrat': 'projets', 'note': 'livrables',
+                 'convention_honoraires': 'facturation', 'facture': 'facturation', 'devis': 'facturation'}
+DEFAULT_FOLDERS = {'procedure': 'PROCEDURE', 'correspondance': 'CORRESPONDANCES', 'projets': 'PROJETS', 'livrables': 'LIVRABLES',
+                   'facturation': 'FACTURATION'}   # 5.6.53 : factures, avoirs, devis, conventions et lettres de mission du dossier
 KIND_WORDS = (('acte_procedure', ('constitution d’avocat', "constitution d'avocat", 'acte de constitution', 'notification de constitution')),   # 5.6.36
               ('conclusions', ('conclusions', 'conclusion')), ('assignation', ('assignation', 'requete', 'requête', 'acte introductif')),
               ('mise_en_demeure', ('mise en demeure',)), ('contrat', ('contrat', 'avenant', 'statuts', 'protocole', 'acte de cession', 'pacte')),

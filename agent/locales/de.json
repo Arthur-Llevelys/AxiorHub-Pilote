@@ -754,5 +754,7 @@
  "vj.title": "Rechtsbeobachtung",
  "vj.tz": "Zeitzone",
  "vj.use_connector": "Auch die aktivierte Rechtsquelle abfragen (neue Entscheidungen)",
- "vj.use_tavily": "Internetsuche mit Tavily (Schlüssel vom Administrator eingerichtet)"
+ "vj.use_tavily": "Internetsuche mit Tavily (Schlüssel vom Administrator eingerichtet)",
+ "fn.facturation.label": "Abrechnung und Honorare",
+ "fn.facturation.desc": "Angebote, Honorarvereinbarungen, Rechnungen und Gutschriften; Mandatskalkulation; E-Rechnungen"
 }

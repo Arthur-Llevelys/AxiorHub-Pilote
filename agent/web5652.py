@@ -8,10 +8,13 @@ import json
 from .common import Stop, load_matters, matter_display
 
 WRITE_ROUTES = ('routine/creer', 'routine/modifier', 'routine/activer', 'routine/dupliquer', 'routine/supprimer', 'routine/lancer')
-READ_ROUTES = ('routines', 'routine/apercu', 'routine/historique', 'file/decider')
+READ_ROUTES = ('routines', 'routine/apercu', 'routine/historique', 'operation/fiche')
+DECIDE_ROUTES = ('file/decider',)   # 5.6.53 (F08) : décision de relecture = droit « valider », pas une lecture
+PERSONAL_ROUTES = ('connexion-perso/enregistrer', 'connexion-perso/effacer-secret', 'connexion-perso/deconnecter', 'connexion-perso/capacites',
+                   'connexion-perso/oauth/debut')
 CONNECTION_ADMIN = ('connexion/enregistrer', 'connexion/secret', 'connexion/effacer-secret', 'connexion/deconnecter', 'connexion/capacites',
                     'connexion/oauth/debut')
-CONNECTION_USE = ('connexion/tester', 'outil/appeler', 'outil/preparer', 'operation/valider', 'operation/annuler', 'operations')
+CONNECTION_USE = ('connexion/tester', 'outil/appeler', 'outil/preparer', 'operation/valider', 'operation/annuler', 'operation/reprendre', 'operations')
 
 
 def allowed(role, route):
@@ -20,6 +23,8 @@ def allowed(role, route):
         return False
     if route in READ_ROUTES:
         return True
+    if route in DECIDE_ROUTES or route in PERSONAL_ROUTES:
+        return role in ('administrateur', 'avocat')
     if route in WRITE_ROUTES:
         return role in ('administrateur', 'avocat')
     if route in CONNECTION_ADMIN:
@@ -43,12 +48,15 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out(rt.listing(desk, owner, role, int(args.get('limite') or 50), int(args.get('debut') or 0)))
         if route == 'routine/historique':
             return json_out({'passages': rt.runs(desk, owner, role, str(args.get('id') or ''))})
+        if route == 'operation/fiche':
+            from . import connexions5652 as cx
+            return json_out(cx.sheet(desk, owner, role, str(args.get('id') or '')))
         if route == 'operations':
             from . import connexions5652 as cx
             return json_out({'operations': cx.operations(desk, owner, role, str(args.get('dossier') or ''))})
         raise Stop('methode_refusee')
     data = _post(env, auth, 200_000)
-    if route.startswith('connexion/') or route.startswith('outil/') or route.startswith('operation/'):
+    if route.startswith(('connexion/', 'connexion-perso/', 'outil/', 'operation/')):
         from . import connexions5652 as cx
         return json_out(cx.api(desk, owner, role, route, data, prefix))
     if route == 'routine/apercu':

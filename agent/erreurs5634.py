@@ -317,6 +317,73 @@ MESSAGES = {
     'dossier_drive_non_choisi': 'Choisissez d’abord un dossier Google Drive.',   # 5.6.52
     'identifiant_decision_requis': 'Indiquez l’identifiant de la décision.',   # 5.6.52
     'lecture_test_sans_resultat': 'Le test a répondu sans résultat : vérifiez les droits du compte.',   # 5.6.52
+    'compte_a_revalider': 'Le compte du service a changé depuis la préparation : relisez l’opération sur le compte actuel (« Préparer à nouveau »).',   # 5.6.53
+    'connexion_personnelle_non_deleguee': 'Cette opération utilise la connexion personnelle d’un autre compte, sans délégation : elle ne peut pas être validée par vous.',   # 5.6.53
+    'connexions_personnelles_desactivees': 'Les connexions personnelles sont désactivées par l’administrateur du cabinet.',   # 5.6.53
+    'fiche_modifiee_depuis_affichage': 'La fiche a changé depuis son affichage : rechargez la page et relisez-la avant de valider.',   # 5.6.53
+    'identifiant_requete_invalide': 'Identifiant de demande invalide : rechargez la page.',   # 5.6.53
+    'apercu_seulement_avant_emission': 'Une facture non émise n’existe qu’en aperçu : approuvez-la puis émettez-la.',   # 5.6.53
+    'approbation_requise_ou_perimee': 'Le document doit être approuvé dans sa version actuelle (toute modification annule l’approbation).',   # 5.6.53
+    'aucun_temps_a_facturer': 'Aucun temps validé à facturer : tous sont déjà facturés ou réservés dans un autre brouillon.',   # 5.6.53
+    'aucun_trajet_configure': 'Aucun trajet de facturation électronique n’est configuré (Facturation › Réglages).',   # 5.6.53
+    'autorite_facturation_invalide': 'Outil de numérotation inconnu.',   # 5.6.53
+    'avoir_superieur_a_la_facture': 'L’avoir ne peut pas dépasser la facture qu’il corrige.',   # 5.6.53
+    'avoir_sur_facture_emise_seulement': 'Un avoir se prépare depuis une facture émise.',   # 5.6.53
+    'bibliotheque_illisible': 'Bibliothèque illisible : fichier JSON au format Honorium attendu.',   # 5.6.53
+    'controles_structure_en_echec': 'Les contrôles de la facture structurée ont échoué : corrigez avant toute transmission.',   # 5.6.53
+    'convention_requise_pour_provision': 'Une facture de provision s’appuie sur une convention approuvée ou signée.',   # 5.6.53
+    'convention_requise_pour_solde': 'Une facture de solde s’appuie sur une convention approuvée ou signée.',   # 5.6.53
+    'delai_paiement_invalide': 'Délai de paiement invalide (60 jours au plus entre professionnels).',   # 5.6.53
+    'diligence_deja_facturee_invoice_ninja': 'Ce temps a déjà été facturé dans Invoice Ninja.',   # 5.6.53
+    'diligence_deja_reservee': 'Cette diligence est déjà réservée dans un autre brouillon ou une autre facture.',   # 5.6.53
+    'diligences_invalides': 'Liste de diligences invalide.',   # 5.6.53
+    'document_a_completer': 'Le document a des points bloquants : complétez-le (voir les contrôles) avant de l’approuver ou de l’émettre.',   # 5.6.53
+    'document_emis_non_modifiable': 'Document émis : il ne se modifie plus ; une correction passe par un avoir.',   # 5.6.53
+    'document_financier_absent': 'Document de facturation introuvable.',   # 5.6.53
+    'emission_reservee_aux_factures': 'Seules les factures et les avoirs s’émettent avec un numéro fiscal.',   # 5.6.53
+    'estimation_a_retenir': 'Retenez d’abord un montant pour l’estimation avant de préparer la convention.',   # 5.6.53
+    'estimation_absente': 'Estimation introuvable pour ce dossier.',   # 5.6.53
+    'etat_document_invalide': 'État inconnu pour ce document.',   # 5.6.53
+    'facturx_requis_pour_la_transmission': 'La transmission demande une facture Factur-X (PDF/A-3 avec XML) : LibreOffice est nécessaire pour la produire.',   # 5.6.53
+    'fichier_illisible': 'Fichier illisible.',   # 5.6.53
+    'forfait_zero_sans_gratuite': 'Un forfait de 0 € doit être déclaré comme « mission gratuite ou remise totale », avec son motif.',   # 5.6.53
+    'iban_invalide': 'IBAN invalide.',   # 5.6.53
+    'libelle_ligne_requis': 'Chaque ligne doit avoir un libellé.',   # 5.6.53
+    'lignes_invalides': 'Lignes du document invalides.',   # 5.6.53
+    'logo_illisible': 'Image du logo illisible.',   # 5.6.53
+    'logo_png_ou_jpeg_requis': 'Logo au format PNG ou JPEG seulement (un SVG peut contenir du script).',   # 5.6.53
+    'logo_trop_lourd': 'Logo trop lourd (1 Mo au plus).',   # 5.6.53
+    'modele_absent': 'Modèle introuvable.',   # 5.6.53
+    'modele_avec_macros_refuse': 'Modèle refusé : il contient des macros.',   # 5.6.53
+    'modele_honoraires_inconnu': 'Modèle de dossier inconnu dans la bibliothèque des diligences.',   # 5.6.53
+    'modele_liens_externes_refuses': 'Modèle refusé : il référence des ressources externes.',   # 5.6.53
+    'modele_objets_incorpores_refuses': 'Modèle refusé : il contient des objets incorporés.',   # 5.6.53
+    'modele_trop_lourd': 'Modèle trop lourd (5 Mo au plus).',   # 5.6.53
+    'modele_word_requis': 'Un vrai fichier Word (.docx) est attendu.',   # 5.6.53
+    'motif_avoir_requis': 'Indiquez le motif de l’avoir.',   # 5.6.53
+    'motif_gratuite_requis': 'Indiquez le motif de la gratuité ou de la remise totale.',   # 5.6.53
+    'nature_ligne_invalide': 'Nature de ligne inconnue (honoraires, frais refacturés ou débours).',   # 5.6.53
+    'niveau_invalide': 'Niveau de complexité inconnu.',   # 5.6.53
+    'numerotation_concurrente': 'Une autre émission a eu lieu au même instant : réessayez (aucun numéro n’a été perdu ni doublé).',   # 5.6.53
+    'numerotation_par_outil_de_reference': 'La numérotation relève de l’outil de référence choisi (Invoice Ninja ou Pennylane) : AxiorHub ne délivre pas de second numéro.',   # 5.6.53
+    'pdf_a_indisponible': 'Conversion PDF/A indisponible (LibreOffice) : les fichiers Word et XML restent produits.',   # 5.6.53
+    'pdf_non_modifiable': 'Le PDF produit ne permet pas d’y joindre le XML sans réécriture : facture non Factur-X.',   # 5.6.53
+    'preuve_accord_requise': 'Indiquez la preuve de l’accord (document signé ou courriel d’accord confirmé par vous).',   # 5.6.53
+    'qualite_client_invalide': 'Qualité du client inconnue (professionnel, particulier ou organisme public).',   # 5.6.53
+    'regime_tva_invalide': 'Régime de TVA inconnu (TVA française ou franchise en base choisie).',   # 5.6.53
+    'reglement_sur_facture_emise_seulement': 'Un règlement s’enregistre sur une facture émise.',   # 5.6.53
+    'siren_invalide': 'SIREN invalide (9 chiffres).',   # 5.6.53
+    'siren_particulier_refuse': 'Un particulier n’a pas de SIREN : aucun identifiant n’est fabriqué.',   # 5.6.53
+    'siret_invalide': 'SIRET invalide (14 chiffres).',   # 5.6.53
+    'statut_diligence_invalide': 'Statut de diligence inconnu (inclus, option, exclu).',   # 5.6.53
+    'trajet_facturation_invalide': 'Trajet de facturation électronique inconnu.',   # 5.6.53
+    'trajet_non_qualifie': 'Ce trajet n’est pas encore qualifié (format et routage à valider avec la plateforme) : transmission bloquée.',   # 5.6.53
+    'transmission_apres_emission': 'La transmission porte sur une facture émise.',   # 5.6.53
+    'type_document_financier_invalide': 'Type de document inconnu.',   # 5.6.53
+    'type_facture_invalide': 'Type de facture inconnu.',   # 5.6.53
+    'type_modele_invalide': 'Type de modèle inconnu ou ne correspondant pas au document.',   # 5.6.53
+    'unite_ligne_invalide': 'Unité inconnue (forfait, heure, unité).',   # 5.6.53
+    'xml_joint_illisible': 'Le XML joint au PDF ne se relit pas à l’identique : facture non Factur-X.',   # 5.6.53
     # 5.6.35 : contrat /integration/v1 (application Nextcloud)
     'operation_non_signee': 'La requête ne correspond pas à l’opération autorisée par Nextcloud : elle est refusée.',
     'contexte_sans_fuseau': 'Contexte Nextcloud invalide : l’expiration doit comporter un fuseau horaire.',
@@ -339,6 +406,9 @@ MESSAGES = {
     'resultat_indisponible': 'Le résultat n’est pas encore disponible.',
     'resultat_modifie_depuis_lecture': 'Le résultat a changé depuis votre lecture : rechargez-le avant d’approuver.',
 }
+
+
+FIELDS_5653 = {'montant': 'montant', 'forfait': 'forfait', 'taux_horaire': 'taux horaire', 'quantite': 'quantité', 'prix_unitaire': 'prix unitaire', 'duree': 'durée', 'montant_retenu': 'montant retenu', 'provision': 'provision', 'delai': 'délai', 'taux_tva': 'taux de TVA', 'part_gain': 'part du gain', 'reduction': 'réduction', 'charges': 'charges', 'revenu': 'revenu', 'cotisations': 'cotisations', 'heures_facturables': 'heures facturables', 'majoration': 'majoration', 'cout_horaire': 'coût horaire'}
 
 
 def explain(code, detail=None):
@@ -375,6 +445,9 @@ def explain(code, detail=None):
         return 'Délai dépassé%s : le service n’a pas répondu à temps ; le travail peut être repris.%s' % (where, ref)
     if code.startswith('reglage_hors_plage_'):
         return 'Valeur hors de la plage autorisée pour %s.' % code[len('reglage_hors_plage_'):]
+    m53 = re.fullmatch(r'([a-z_]+)_(invalide|requis)', code)
+    if m53 and code not in MESSAGES and m53.group(1) in FIELDS_5653:   # 5.6.53 : nombres et montants contrôlés
+        return ('Valeur invalide : %s (nombre positif attendu).' if m53.group(2) == 'invalide' else 'Information requise : %s.') % FIELDS_5653[m53.group(1)]
     if code.startswith('ar24_'):
         return 'AR24 a refusé la demande (%s) : vérifiez le compte et le destinataire.%s' % (code[5:], ref)   # 5.6.52
     if code in MESSAGES:

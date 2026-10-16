@@ -754,5 +754,7 @@
  "vj.title": "Vigilancia jurídica",
  "vj.tz": "Zona horaria",
  "vj.use_connector": "Consultar también la fuente jurídica activada (resoluciones recientes)",
- "vj.use_tavily": "Búsqueda en Internet con Tavily (clave configurada por el administrador)"
+ "vj.use_tavily": "Búsqueda en Internet con Tavily (clave configurada por el administrador)",
+ "fn.facturation.label": "Facturación y honorarios",
+ "fn.facturation.desc": "Presupuestos, convenios, facturas y abonos; cálculo de misiones; facturas electrónicas"
 }

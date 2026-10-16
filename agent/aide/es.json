@@ -1837,5 +1837,33 @@
   "example": "Llamada con una colaboradora ficticia desde la página Talk.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "facturation": {
+  "objective": "Preparar, controlar y emitir presupuestos, cartas de encargo, convenios, facturas y abonos; calcular una misión; seguir los cobros.",
+  "when": "Al abrir un expediente, al cumplir una etapa facturable, cuando procede una provisión o cuando llega un pago.",
+  "prerequisites": "La ficha del despacho (identidad, régimen de IVA elegido) en «Ajustes y modelos»; la condición del cliente en cada documento.",
+  "steps": [
+   "Pulse «Crear», elija el tipo y el expediente, luego «Preparar el borrador».",
+   "Complete el cliente, las líneas y la información señalada, luego «Guardar y recalcular».",
+   "Revise la vista previa y los controles, luego «Aprobar esta versión».",
+   "Para una factura: «Emitir (número definitivo)»; los archivos se guardan en la carpeta FACTURATION del cliente."
+  ],
+  "result": "Un documento numerado, sus archivos (Word, PDF/A-3 Factur-X con LibreOffice, XML CII y UBL) y el seguimiento del cobro.",
+  "verify": "Los totales de la vista previa, del PDF y del XML coinciden; la vista «Cobros» muestra el saldo.",
+  "errors": [
+   [
+    "«Falta el motivo de IVA»",
+    "Elija el régimen del despacho (Ajustes) y la condición del cliente; un tipo del 0 % no equivale a franquicia."
+   ],
+   [
+    "«Esta diligencia ya está reservada»",
+    "El tiempo ya figura en otro borrador o factura: ábralo o abandónelo."
+   ]
+  ],
+  "example": "Factura de provisión del 30 % sobre un convenio ficticio a tanto alzado de 1 200 € sin IVA.",
+  "buttons": [
+   "Préparer le brouillon"
+  ],
+  "version": "5.6.36"
  }
 }

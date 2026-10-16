@@ -3,6 +3,23 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.53 — Audit 5.6.52 : opérations externes fiabilisées, facturation et honoraires, dossier FACTURATION
+
+Corrections et livraisons de l’audit « AxiorHub Pilote 5.6.52 » (détail : `CONFORMITE-5.6.53.md`).
+
+- **Opérations externes (F01 à F05, U01)** : un compte de service modifié impose une nouvelle revue ; une panne avant envoi se
+  réessaie sans doublon ; une signature n’est « terminée » qu’une fois le signé et ses preuves archivés ; un brouillon distant n’est
+  jamais présenté comme envoyé ; une connexion personnelle ne sert qu’à son titulaire ou à un délégué ; fiche d’opération complète
+  avant « Valider et transmettre ».
+- **Routines et droits (F06 à F08)** : création idempotente, pause effective sur les passages en file, droit « Réglages » exigé pour
+  configurer les connexions du cabinet.
+- **Facturation et honoraires** : nouvelle page (À préparer, Documents, Règlements, chiffrage Honorium, réglages et modèles) ;
+  devis, lettres de mission, conventions, factures et avoirs depuis huit modèles Word ; qualification de TVA explicite ;
+  numérotation unique à l’émission ; anti-double facturation ; règlements ; Factur-X (PDF/A-3 + CII), UBL ; profil secret
+  professionnel ; transmission par un seul trajet validé.
+- **Dossier FACTURATION** dans chaque dossier client : factures, avoirs, devis, conventions et preuves y sont rangés, jamais parmi
+  les pièces.
+
 ## 5.6.52 — Audit 5.6.51 : corrections F01 à F10, routines personnalisées, connexions API utilisables par l’IA
 
 Corrections et livraisons de l’audit « AxiorHub Pilote 5.6.51 » (détail : `CONFORMITE-5.6.52.md`).

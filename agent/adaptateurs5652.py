@@ -311,17 +311,22 @@ class Youtrust(Adapter):
         return {'compte': 'clé API valide', 'demandes_visibles': len(out.get('data') or [])}
 
     def cap_signature_send_approved(self, p):
+        step = p.get('_step') or (lambda *a, **k: None)      # 5.6.53 (F04) : chaque étape réussie est journalisée aussitôt
         req = self.request('POST', '/signature_requests', {'name': p['title'][:128], 'delivery_mode': 'email', 'external_id': p['reference'][:128],
                                                            'timezone': 'Europe/Paris'})
         rid = req['id']
+        step('creation', rid)
         doc = self.request('POST', '/signature_requests/%s/documents' % rid,
                            multipart=({'nature': 'signable_document', 'parse_anchors': 'false'}, {'file': (p['filename'], p['content'], 'application/pdf')}))
+        step('document', doc.get('id', ''))
         for i, s in enumerate(p['signers']):
-            self.request('POST', '/signature_requests/%s/signers' % rid, {
+            out = self.request('POST', '/signature_requests/%s/signers' % rid, {
                 'info': {'first_name': s['first_name'], 'last_name': s['last_name'], 'email': s['email'], 'locale': 'fr'},
                 'signature_level': 'electronic_signature', 'signature_authentication_mode': s.get('authentication', 'otp_email'),
                 'fields': [{'document_id': doc['id'], 'type': 'signature', 'page': int(p.get('page', 1)), 'x': 70 + 160 * (i % 3), 'y': 700}]})
+            step('signataire', (out or {}).get('id', ''), s['email'])
         act = self.request('POST', '/signature_requests/%s/activate' % rid, {})
+        step('activation', rid)
         return {'remote_ref': rid, 'etat': act.get('status') or 'ongoing'}
 
     def cap_signature_status(self, p):

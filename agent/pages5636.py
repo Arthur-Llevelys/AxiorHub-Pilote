@@ -9,6 +9,8 @@ PAGES = {
     '/relances': 'Relances d’impayés',
     '/complement-word': 'Complément Word',
     '/microsoft-retour': 'Microsoft 365',
+    '/facturation': 'Facturation et honoraires',   # 5.6.53 (audit 5.6.52, § 4)
+    '/operation': 'Opération externe',   # 5.6.53 (U01) : fiche de ce qui engage le cabinet, avant « Valider et transmettre »
     '/connexions-retour': 'Connexions',   # 5.6.52 : retour d'autorisation OAuth (Microsoft Graph, Google Workspace, DocuSign)
     '/complement-word/volet': 'AxiorHub',
     '/toutes-les-fonctions': 'Toutes les fonctions',
@@ -51,6 +53,14 @@ def page(desk, auth, prefix, env, args, path, shell):
         body = relances5636.page_html(desk, prefix, args)
     elif path == '/toutes-les-fonctions':
         return shell(_all_title(), all_functions_html(desk, prefix), prefix, auth['csrf'], path)
+    elif path == '/facturation':
+        from . import web5653
+        body = web5653.page(desk, auth, prefix, env, args)
+    elif path == '/operation':
+        from .web567 import actor
+        from . import connexions5652
+        owner, role = actor(env)
+        body = connexions5652.sheet_html(desk, prefix, owner, role, str(args.get('id') or ''))
     elif path == '/connexions-retour':
         from html import escape as _e
         from .web567 import actor

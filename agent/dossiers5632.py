@@ -21,11 +21,13 @@ from .common import Stop, clean_path, under
 
 SETTING = 'docreq5632:extra_folders'
 USAGES = {'nos_pieces': 'Nos pièces', 'pieces_adverses': 'Pièces adverses', 'ecrits': 'Écrits du cabinet (appris pour le style)',
-          'travail': 'Autre dossier de travail'}
+          'travail': 'Autre dossier de travail',
+          'facturation': 'Facturation (factures, avoirs, devis, conventions d’honoraires) — jamais des pièces'}   # 5.6.53
 DEFAULTS = ({'pattern': 'NOS PIECES', 'usage': 'nos_pieces'},
             {'pattern': 'PIECES ADVERSES - {{partie_adverse01}}', 'usage': 'pieces_adverses'},
             {'pattern': 'PIECES ADVERSES - {{partie_adverse02}}', 'usage': 'pieces_adverses'},
-            {'pattern': 'PIECES ADVERSES - {{partie_adverse03}}', 'usage': 'pieces_adverses'})
+            {'pattern': 'PIECES ADVERSES - {{partie_adverse03}}', 'usage': 'pieces_adverses'},
+            {'pattern': 'FACTURATION', 'usage': 'facturation'})   # 5.6.53 : demande de l'avocat
 MAX_FOLDERS = 20
 VAR = re.compile(r'\{\{\s*(partie_adverse0[1-9]|client)\s*\}\}')
 NAME_OK = re.compile(r"[\w .'’()&\-]{1,80}")
@@ -57,6 +59,8 @@ def configured(desk):
     for item in raw if isinstance(raw, list) else []:
         if isinstance(item, dict) and item.get('pattern') and item.get('usage') in USAGES:
             out.append({'pattern': str(item['pattern'])[:120], 'usage': item['usage']})
+    if not any(x['usage'] == 'facturation' for x in out) and not desk.settings('dossiers5653:facturation_retiree', False):
+        out.append({'pattern': 'FACTURATION', 'usage': 'facturation'})   # 5.6.53 : ajouté aux réglages existants (retirable)
     return out
 
 
@@ -78,6 +82,7 @@ def save(desk, data):
         rows.append({'pattern': pattern, 'usage': usage})
     if len(rows) > MAX_FOLDERS:
         raise Stop('trop_de_dossiers_de_travail')
+    desk.setting('dossiers5653:facturation_retiree', not any(r['usage'] == 'facturation' for r in rows))
     desk.setting(SETTING, rows)
     return rows
 

@@ -108,6 +108,8 @@ def _schedule_5642(desk,stamp=None):
             desk.setting('connexions5652:last_poll',stamp)
             from .connexions5652 import poll as poll5652
             poll5652(desk)
+            from .facturation5653 import sync_deliveries   # 5.6.53 : statuts de transmission projetés sur les factures (un dépôt n'est pas un règlement)
+            sync_deliveries(desk)
     except Exception as ex:   # noqa: BLE001
         emit(desk,'blocked','Connexions : suivi des opérations impossible ('+str(ex)[:120]+').',dedupe='connexions5652-poll')
     try:   # 5.6.51 (A07) : préparations d'audience ou d'échéance confirmée, au plus une vérification par heure

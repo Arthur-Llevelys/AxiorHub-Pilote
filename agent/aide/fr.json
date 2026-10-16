@@ -1837,5 +1837,33 @@
   "example": "Appel avec une collaboratrice fictive depuis la page Talk.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "facturation": {
+  "objective": "Préparer, contrôler et émettre devis, lettres de mission, conventions, factures et avoirs ; chiffrer une mission ; suivre les règlements.",
+  "when": "À l’ouverture d’un dossier, quand une étape facturable est accomplie, quand une provision est prévue ou quand un règlement arrive.",
+  "prerequisites": "La fiche du cabinet (identité, régime de TVA choisi) dans « Réglages et modèles » ; la qualité du client dans chaque document.",
+  "steps": [
+   "Cliquez sur « Créer », choisissez le type et le dossier, puis « Préparer le brouillon ».",
+   "Complétez le client, les lignes et les informations signalées, puis « Enregistrer et recalculer ».",
+   "Relisez l’aperçu et les contrôles, puis « Approuver cette version ».",
+   "Pour une facture : « Émettre (numéro définitif) » ; les fichiers sont rangés dans le dossier FACTURATION du client."
+  ],
+  "result": "Un document numéroté, ses fichiers (Word, PDF/A-3 Factur-X si LibreOffice est présent, XML CII et UBL) et son suivi de règlement.",
+  "verify": "Les totaux de l’aperçu, du PDF et du XML concordent ; l’onglet « Règlements » montre le solde.",
+  "errors": [
+   [
+    "« Le motif de TVA manque »",
+    "Choisissez le régime du cabinet (Réglages) et la qualité du client ; un taux de 0 % ne vaut pas franchise."
+   ],
+   [
+    "« Cette diligence est déjà réservée »",
+    "Le temps figure déjà dans un autre brouillon ou une facture : ouvrez-le ou abandonnez-le."
+   ]
+  ],
+  "example": "Facture de provision de 30 % sur une convention fictive au forfait de 1 200 € HT.",
+  "buttons": [
+   "Préparer le brouillon"
+  ],
+  "version": "5.6.36"
  }
 }

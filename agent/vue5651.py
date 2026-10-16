@@ -663,6 +663,11 @@ def travaux_html(desk, auth, prefix, m, args):
     out += _card('Missions', (''.join(card_html(x, prefix) for x in ms) or '<p class="ax-muted">Aucune mission pour ce dossier.</p>'), 'd51-missions')
     sid = str(args.get('relecture') or '')
     out += review_html(desk, prefix, mid, sid)
+    try:   # 5.6.53 : honoraires et facturation du dossier (convention, déjà facturé, provisions, reste à facturer, solde connu)
+        from .web5653 import matter_block_html
+        out += matter_block_html(desk, prefix, mid, owner)
+    except Stop:
+        pass
     try:   # 5.6.52 (I01, I02, I07, I12) : préparer une signature, un recommandé ou un courrier ; identifier le client (SIREN)
         from .connexions5652 import matter_panel_html
         out += matter_panel_html(desk, prefix, mid, owner)

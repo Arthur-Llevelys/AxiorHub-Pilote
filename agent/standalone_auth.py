@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5653/'):   # 5.6.53 : facturation et honoraires (lecture : tous ; écritures : avocat, administrateur ou droit « facturation »)
+        from .web5653 import allowed as allowed5653
+        return allowed5653(role, api[len('m5653/'):])
     if api.startswith('m5652/'):   # 5.6.52 : routines (création et modification : avocat, administrateur) ; connexions API
         from .web5652 import allowed as allowed5652
         return allowed5652(role, api[len('m5652/'):])

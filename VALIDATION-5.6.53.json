@@ -1,0 +1,60 @@
+{
+  "version": "5.6.53",
+  "base": "5.6.52 publiée",
+  "date_utc": "2026-10-16T00:00:00+00:00",
+  "cahier_des_charges": "Audit « AxiorHub Pilote 5.6.52 et cahier des charges Facturation et honoraires » du 16 octobre 2026 : F01 à F08, U01, H01 à H03, lots 1 à 4 ; demande de l’avocat : dossier FACTURATION ; limites détaillées dans CONFORMITE-5.6.53.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2356,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 98,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "audit_counter_tests": {
+    "contre_tests_5652 (F01 à F08)": "8/8 passent (tests/test_contre5652.py)",
+    "contre_tests_honorium (H01, H02)": "2/2 passent sur Honorium V5.1.7 (0/2 sur V5.1.6)",
+    "contre_tests_5651": "11/11 passent",
+    "contre_tests_5650": "5/5 passent",
+    "contre_tests_5643": "10/10 passent"
+  },
+  "new_tests": "tests/test_v5653.py : moteur d’honoraires (exemple de référence de l’audit, H02, H03, bibliothèque) ; fiscalité (H01, franchise justifiée, UE et hors UE sans substitution automatique, clause de retard) ; facturation (brouillon sans numéro, émission unique et séquence continue, fichiers dans FACTURATION, XML CII et UBL concordants, PDF/A-3 avec XML joint, secret professionnel, approbation invalidée par une modification, régime non qualifié bloquant, temps réservés une seule fois, avoir et règlements, droits et dossier réservé, convention, provision et solde, propositions refusées durables, classement en gestion) ; modèles (catalogue, import contrôlé, rendu Word) ; lot 0 (compte changé sans POST, reprise sans doublon, délégation, fiche et empreinte, idempotence 409, lancement manuel en pause, catégories de droits).",
+  "exapp": {
+    "version": "0.1.12",
+    "moteur": "5.6.53"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "honorium": {
+    "version": "V5.1.7",
+    "livraison": "zip séparé (non publié)",
+    "corrections": [
+      "H01",
+      "H02",
+      "H03"
+    ]
+  },
+  "behaviour_changes": [
+    "Configurer une connexion API du cabinet demande désormais le droit « Réglages » (avocat : non par défaut) ; les connexions personnelles restent permises par la politique du cabinet.",
+    "Une opération préparée sur un compte de service modifié doit être préparée à nouveau.",
+    "Une signature dont les preuves ne sont pas archivées reste « archivage à reprendre » au lieu de « terminée ».",
+    "Mettre une routine en pause suspend aussi ses passages déjà en file.",
+    "Le dossier FACTURATION fait partie des dossiers de travail par défaut (retirable dans les réglages).",
+    "Nouvelle page « Facturation et honoraires » ; le bloc « Honoraires et facturation » apparaît dans l’onglet Travaux du dossier."
+  ],
+  "not_verified_here": [
+    "installation du cabinet",
+    "validation XSD, Schematron EN 16931 et PDF/A (veraPDF)",
+    "acceptation par une plateforme agréée",
+    "connecteurs réels",
+    "ouverture des fichiers produits dans les outils du cabinet",
+    "relecture juridique des modèles"
+  ],
+  "adjusted_tests": [
+    "tests/test_v5632.py (WorkingFolders, 3 tests) : FACTURATION ajouté en dernier aux dossiers de travail par défaut (demande de l’avocat) ; listes attendues complétées, aucune assertion retirée.",
+    "tests/test_v5652.py (Base.connect) : l’avocat des essais reçoit le droit « Réglages » pour configurer une connexion du cabinet (F08) ; les contre-tests de l’audit sont inchangés."
+  ]
+}

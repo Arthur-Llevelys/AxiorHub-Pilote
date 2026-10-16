@@ -23,6 +23,7 @@ from datetime import date, datetime, time as dtime, timedelta, timezone
 import hashlib
 import json
 import re
+import sqlite3
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .common import Stop, load_matters, matter_display
@@ -34,7 +35,6 @@ CREATE TABLE IF NOT EXISTS routines5652(id TEXT PRIMARY KEY, owner TEXT NOT NULL
   enabled INTEGER NOT NULL DEFAULT 1, deleted_at TEXT, version INTEGER NOT NULL DEFAULT 1, permissions_json TEXT NOT NULL DEFAULT '{}',
   legacy_kind TEXT NOT NULL DEFAULT '', active_since TEXT NOT NULL, request_key TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
   updated_by TEXT NOT NULL DEFAULT '');
-CREATE UNIQUE INDEX IF NOT EXISTS routines5652_request ON routines5652(owner, request_key);
 CREATE TABLE IF NOT EXISTS routines5652_versions(routine_id TEXT NOT NULL, version INTEGER NOT NULL, snapshot_json TEXT NOT NULL, author TEXT NOT NULL,
   action TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY(routine_id, version, action));
 CREATE TABLE IF NOT EXISTS routines5652_occ(id TEXT PRIMARY KEY, routine_id TEXT NOT NULL, definition_version INTEGER NOT NULL, schedule_key TEXT NOT NULL,
@@ -87,6 +87,13 @@ def _sha(*parts):
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    have = {r[1] for r in desk.db.execute('PRAGMA table_info(routines5652)')}
+    if 'created_by' not in have:                             # 5.6.53 (F06) : auteur distinct du propriétaire de portée
+        desk.db.execute("ALTER TABLE routines5652 ADD COLUMN created_by TEXT NOT NULL DEFAULT ''")
+        desk.db.execute("ALTER TABLE routines5652 ADD COLUMN request_hash TEXT NOT NULL DEFAULT ''")
+        desk.db.execute("UPDATE routines5652 SET created_by=CASE WHEN owner='cabinet' THEN updated_by ELSE owner END")
+        desk.db.commit()
+    desk.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS routines5653_request ON routines5652(created_by, request_key)')
 
 
 def cabinet_tz(desk):
@@ -300,25 +307,39 @@ def create(desk, actor, role, data):
     key = str(data.get('request_key') or '')
     if key and not re.fullmatch(r'[A-Za-z0-9-]{8,80}', key):
         raise Stop('identifiant_requete_invalide')
-    if key:
-        old = desk.db.execute('SELECT * FROM routines5652 WHERE owner=? AND request_key=?', (actor, key)).fetchone()
-        if old:
-            return dict(old)
     fields = _clean(desk, actor, data, _hidden_for(desk, actor))
     if fields['scope'] == 'cabinet' and role not in ('administrateur', 'avocat'):
         raise Stop('role_insuffisant')
     owner = 'cabinet' if fields['scope'] == 'cabinet' else actor
+    # 5.6.53 (F06) : clé d'idempotence propre à l'AUTEUR (created_by, request_key) et empreinte du contenu : même clé et même contenu =
+    # routine existante ; même clé et contenu différent = conflit (409) ; la portée n'entre pas dans la clé.
+    content = _sha(json.dumps({k: fields[k] for k in sorted(fields)}, sort_keys=True, ensure_ascii=False))
+    if key:
+        old = desk.db.execute('SELECT * FROM routines5652 WHERE created_by=? AND request_key=?', (actor, key)).fetchone()
+        if old:
+            if old['request_hash'] and old['request_hash'] != content:
+                raise Stop('cle_idempotence_deja_utilisee')
+            return dict(old)
     rid = 'r52-' + _sha(actor, key or _iso(), fields['title'], _now().timestamp())[:20]
     now = _iso()
     fields['timezone'] = fields['timezone'] or str(cabinet_tz(desk))
     _tz(fields['timezone'])
     enabled = 0 if str(data.get('enabled', 'true')).lower() in ('false', '0', 'off', 'non') else 1
-    desk.db.execute('INSERT INTO routines5652(id,owner,scope,title,objective,instruction,task_type,matters_json,matter_scope,schedule_json,timezone,catchup_hours,'
-                    'max_matters,enabled,version,permissions_json,active_since,request_key,created_at,updated_at,updated_by) '
-                    'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)',
-                    (rid, owner, fields['scope'], fields['title'], fields['objective'], fields['instruction'], fields['task_type'], fields['matters_json'],
-                     fields['matter_scope'], fields['schedule_json'], fields['timezone'], fields['catchup_hours'], fields['max_matters'], enabled,
-                     fields['permissions_json'], now, key or None, now, now, actor))
+    try:
+        desk.db.execute('INSERT INTO routines5652(id,owner,scope,title,objective,instruction,task_type,matters_json,matter_scope,schedule_json,timezone,'
+                        'catchup_hours,max_matters,enabled,version,permissions_json,active_since,request_key,created_at,updated_at,updated_by,created_by,'
+                        'request_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?)',
+                        (rid, owner, fields['scope'], fields['title'], fields['objective'], fields['instruction'], fields['task_type'], fields['matters_json'],
+                         fields['matter_scope'], fields['schedule_json'], fields['timezone'], fields['catchup_hours'], fields['max_matters'], enabled,
+                         fields['permissions_json'], now, key or None, now, now, actor, actor, content if key else ''))
+    except sqlite3.IntegrityError:
+        desk.db.rollback()                                   # requête concurrente avec la même clé : la routine déjà créée fait foi
+        old = desk.db.execute('SELECT * FROM routines5652 WHERE created_by=? AND request_key=?', (actor, key)).fetchone() if key else None
+        if not old:
+            raise Stop('cle_idempotence_deja_utilisee') from None
+        if old['request_hash'] and old['request_hash'] != content:
+            raise Stop('cle_idempotence_deja_utilisee') from None
+        return dict(old)
     row = get(desk, rid)
     _log_version(desk, row, actor, 'creation')
     desk.db.commit()
@@ -358,6 +379,13 @@ def update(desk, actor, role, rid, data, version):
         raise Stop('version_en_conflit')
     desk.db.execute("UPDATE routines5652_occ SET state='annulee',error_code='remplacee_par_nouvelle_version',updated=? WHERE routine_id=? "
                     "AND state IN ('reservee','a_reprogrammer','reportee_pause') AND job_id IS NULL", (now, rid))
+    if not enabled:
+        # 5.6.53 (F07) : « Mettre en pause » suspend les passages AUTOMATIQUES non commencés, y compris déjà en file ; un passage en cours
+        # reçoit une demande d'arrêt prise au prochain point de contrôle. Les lancements manuels déjà demandés restent permis.
+        desk.db.execute("UPDATE routines5652_occ SET state='reportee_pause',error_code='routine_en_pause',updated=? WHERE routine_id=? AND manual=0 "
+                        "AND state IN ('reservee','en_file','a_reprogrammer')", (now, rid))
+        desk.db.execute("UPDATE routines5652_occ SET state='arret_demande',error_code='routine_en_pause',updated=? WHERE routine_id=? AND manual=0 "
+                        "AND state='en_cours'", (now, rid))
     new = get(desk, rid)
     _log_version(desk, new, actor, 'modification')
     desk.db.commit()
@@ -679,17 +707,33 @@ def start_occurrence(desk, oid):
     if not oid:
         return None
     occ = _occurrence(desk, oid)
-    if occ['state'] in ('annulee', 'arret_demande'):
-        desk.db.execute("UPDATE routines5652_occ SET state='annulee',updated=? WHERE id=?", (_iso(), oid))
+    if occ['state'] in ('annulee', 'arret_demande', 'reportee_pause'):
+        if occ['state'] != 'reportee_pause':
+            desk.db.execute("UPDATE routines5652_occ SET state='annulee',updated=? WHERE id=?", (_iso(), oid))
+            desk.db.commit()
+        raise Stop('routine_arretee')
+    # 5.6.53 (F07) : la définition est RELUE au démarrage ; une routine en pause ou supprimée ne démarre pas un passage automatique
+    row = desk.db.execute('SELECT enabled,deleted_at FROM routines5652 WHERE id=?', (occ['routine_id'],)).fetchone()
+    if row is None or row['deleted_at'] or (not row['enabled'] and not occ['manual']):
+        desk.db.execute('UPDATE routines5652_occ SET state=?,error_code=?,updated=? WHERE id=?',
+                        ('annulee' if (row is None or row['deleted_at']) else 'reportee_pause', 'routine_supprimee' if (row is None or row['deleted_at'])
+                         else 'routine_en_pause', _iso(), oid))
         desk.db.commit()
         raise Stop('routine_arretee')
-    desk.db.execute("UPDATE routines5652_occ SET state='en_cours',updated=? WHERE id=? AND state IN ('reservee','en_file','a_reprogrammer')", (_iso(), oid))
+    cur = desk.db.execute("UPDATE routines5652_occ SET state='en_cours',updated=? WHERE id=? AND state IN ('reservee','en_file','a_reprogrammer')", (_iso(), oid))
     desk.db.commit()
+    if not cur.rowcount and occ['state'] != 'en_cours':
+        raise Stop('routine_arretee')
     return occ
 
 
 def checkpoint(desk, oid):
-    if oid and desk.db.execute("SELECT 1 FROM routines5652_occ WHERE id=? AND state='arret_demande'", (oid,)).fetchone():
+    """Point de contrôle avant chaque étape : arrêt demandé, routine supprimée ou mise en pause (passage automatique) = arrêt."""
+    if not oid:
+        return
+    row = desk.db.execute('SELECT o.state,o.manual,r.enabled,r.deleted_at FROM routines5652_occ o LEFT JOIN routines5652 r ON r.id=o.routine_id WHERE o.id=?',
+                          (oid,)).fetchone()
+    if row and (row['state'] == 'arret_demande' or row['deleted_at'] or (not row['enabled'] and not row['manual'])):
         raise Stop('routine_arretee')
 
 

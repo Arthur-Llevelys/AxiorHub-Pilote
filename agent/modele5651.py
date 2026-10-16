@@ -410,7 +410,7 @@ def classify_name(path, text=''):
     """Nature par règles (nom puis début du texte) ; « a_classer » si rien de sûr."""
     name = fold(PurePosixPath(path).name)
     folders = fold(str(PurePosixPath(path).parent))
-    if re.search(r'comptabilit|honoraires|facturation du cabinet', folders) or re.search(r'honoraires', name):
+    if re.search(r'comptabilit|honoraires|facturation', folders) or re.search(r'honoraires|^facture|^avoir|^devis', name):
         return 'gestion'                                                   # gestion du cabinet : jamais une pièce par défaut
     for nature, pattern in NATURE_RULES:
         if re.search(pattern, name):

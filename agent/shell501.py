@@ -44,7 +44,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -111,6 +111,15 @@ def nav_html(prefix, active_path):
             entries.insert(at, ('/talk', '☏', _t('fn.talk.label')))
     except Exception:   # noqa: BLE001 — l'entrée facultative ne bloque jamais le menu
         pass
+    try:   # 5.6.53 : « Facturation et honoraires » épinglée au menu principal par l'utilisateur, juste après les dossiers
+        from .i18n5631 import _ctx as _lang_ctx53, t as _t53
+        from .web5653 import pinned as _pinned53
+        cfg53 = context()
+        if cfg53 is not None and _pinned53(_Desk53(cfg53), getattr(_lang_ctx53, 'owner', '') or 'cabinet'):
+            at53 = next(i for i, x in enumerate(entries) if x[0] == '/dossiers') + 1
+            entries.insert(at53, ('/facturation', '€', _t53('fn.facturation.label')))
+    except Exception:   # noqa: BLE001 — l'entrée facultative ne bloque jamais le menu
+        pass
     try:   # 5.6.50 : messagerie interne du cabinet, juste après les courriels (pastille « non lus » posée par v5650.js)
         from .i18n5631 import t as _t50
         at50 = next(i for i, x in enumerate(entries) if x[0] == '/courriels') + 1
@@ -119,6 +128,28 @@ def nav_html(prefix, active_path):
         pass
     return ('<nav aria-label="' + th('nav.primary') + '" class="ws-primary">' + _links(prefix, entries, active) + '</nav>' +
             panel_html(prefix, active_path, context(), role(), current()))
+
+
+class _Desk53:
+    """Lecture du réglage d'épinglage sans ouvrir de bureau complet (base de l'état, lecture seule)."""
+    def __init__(self, cfg):
+        self.c = cfg
+
+    def settings(self, key, default=None):
+        import json
+        import sqlite3
+        from pathlib import Path
+        db = Path(self.c.get('state_dir', '.')) / 'desk.sqlite3'
+        if not db.is_file():
+            return default
+        con = sqlite3.connect('file:%s?mode=ro' % db.as_posix(), uri=True, timeout=2)
+        try:
+            row = con.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
+        except sqlite3.Error:
+            return default
+        finally:
+            con.close()
+        return json.loads(row[0]) if row else default
 
 
 def tools_html(prefix, path):

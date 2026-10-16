@@ -754,5 +754,7 @@
  "vj.title": "Veille juridique",
  "vj.tz": "Fuseau horaire",
  "vj.use_connector": "Interroger aussi la source juridique activée (décisions récentes)",
- "vj.use_tavily": "Recherche Internet par Tavily (clé réglée par l’administrateur)"
+ "vj.use_tavily": "Recherche Internet par Tavily (clé réglée par l’administrateur)",
+ "fn.facturation.label": "Facturation et honoraires",
+ "fn.facturation.desc": "Devis, conventions, factures et avoirs ; chiffrage des missions ; factures électroniques"
 }

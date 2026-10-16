@@ -54,7 +54,9 @@ FUNCTIONS = (
     ('missions', 'communiquer', '/missions', ('Missions', 'Confier une mission'), ('ai',)),
     ('assistant', 'communiquer', '/assistant', ('Assistant', 'Conversation'), ('ai',)),
     ('cabinet', 'temps', '/cabinet', ('Gestion du cabinet',), ()),
-    ('honoraires', 'temps', '/honoraires', ('Temps et honoraires', 'Diligences', 'Préparer une facture'), ()),
+    ('facturation', 'temps', '/facturation', ('Facturation et honoraires', 'Factures', 'Devis', 'Convention d’honoraires', 'Lettre de mission', 'Avoir',
+                                              'Facture électronique', 'Factur-X', 'Honorium', 'Chiffrer une mission'), ()),   # 5.6.53
+    ('honoraires', 'temps', '/honoraires', ('Temps et honoraires', 'Diligences', 'Temps passés'), ()),
     ('relances', 'temps', '/relances', ('Impayés', 'Relances', 'Invoice Ninja', 'Factures échues'), ('invoice',)),   # 5.6.36
     ('rendez_vous', 'temps', '/rendez-vous', ('Rendez-vous',), ()),
     ('conflits', 'temps', '/conflits', ('Conflits d’intérêts',), ()),

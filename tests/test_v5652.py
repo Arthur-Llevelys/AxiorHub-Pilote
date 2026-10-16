@@ -136,6 +136,9 @@ class Base(unittest.TestCase):
         ad.Maileva._cache.clear()
 
     def connect(self, provider, oauth=False, caps=None):
+        # 5.6.53 (F08) : configurer une connexion du CABINET demande le droit « réglages » ; il est accordé ici à l'avocat des essais.
+        from agent import membres5650
+        membres5650.set_rights(self.desk.c['state_dir'], 'admin@example.test', 'avocat@example.test', 'avocat', {'reglages': True})
         spec = cx.PROVIDERS[provider]
         data = {'provider': provider, 'environment': 'test'}
         for f in spec['fields']:

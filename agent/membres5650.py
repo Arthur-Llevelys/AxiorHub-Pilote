@@ -278,6 +278,16 @@ def category(method, path, action=''):
         return 'reglages'
     if api.startswith(ADMIN_API) or action in ADMIN_ACTIONS:
         return 'reglages'
+    if api.startswith('m5653/') and method not in ('GET', 'HEAD'):   # 5.6.53 : facturation et honoraires
+        route5653 = api[len('m5653/'):].split('?', 1)[0]
+        if route5653 in ('cabinet/enregistrer', 'honoraires/reglages', 'logo/importer', 'bibliotheque/importer'):
+            return 'reglages'
+        if route5653 not in ('estimation/calculer', 'epingler'):
+            return 'facturation'
+    if api.startswith('m5652/'):                             # 5.6.53 (F08) : capacité métier déclarée par route
+        cat5652 = M5652_CATEGORIES.get(api[len('m5652/'):].split('?', 1)[0])
+        if cat5652:
+            return cat5652
     if method in ('GET', 'HEAD'):
         return None
     if api in SEND_API:
@@ -291,6 +301,11 @@ def category(method, path, action=''):
     if (api.startswith(BILLING_PREFIXES) and api != 'm500/time/bareme') or action in BILLING_ACTIONS:
         return 'facturation'
     return None
+
+
+M5652_CATEGORIES = {'connexion/enregistrer': 'reglages', 'connexion/secret': 'reglages', 'connexion/effacer-secret': 'reglages',
+                    'connexion/deconnecter': 'reglages', 'connexion/capacites': 'reglages', 'connexion/oauth/debut': 'reglages',
+                    'file/decider': 'valider', 'operation/valider': 'operation', 'operation/reprendre': 'operation'}
 
 
 def allowed(state_dir, owner, role, method, path, action=''):
@@ -308,6 +323,10 @@ def allowed(state_dir, owner, role, method, path, action=''):
         rights = effective_rights(state_dir, owner, role)
     except Stop:
         return False
+    if cat == 'operation':                                  # le service contrôle ensuite le droit précis (envoyer ou facturation)
+        if not (rights.get('envoyer') or rights.get('facturation')):
+            return False
+        return bool(base)
     if not rights.get(cat):
         return False
     if base:

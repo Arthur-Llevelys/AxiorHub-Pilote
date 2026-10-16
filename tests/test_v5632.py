@@ -57,14 +57,14 @@ class WorkingFolders(Base):
         desk = self.desk()
         patterns = [x['pattern'] for x in d.configured(desk)]
         self.assertEqual(patterns, ['NOS PIECES', 'PIECES ADVERSES - {{partie_adverse01}}', 'PIECES ADVERSES - {{partie_adverse02}}',
-                                    'PIECES ADVERSES - {{partie_adverse03}}'])
+                                    'PIECES ADVERSES - {{partie_adverse03}}', 'FACTURATION'])   # 5.6.53 : FACTURATION ajouté
 
     def test_placeholders_are_resolved_from_the_adverse_parties_in_order(self):
         from agent import dossiers5632 as d
         desk = self.desk()
         self._parties(desk, 'SARL Alpha', 'M. Beta / Gamma')
         rows = d.resolve(desk, self.M)
-        self.assertEqual([r['name'] for r in rows], ['NOS PIECES', 'PIECES ADVERSES - SARL Alpha', 'PIECES ADVERSES - M. Beta Gamma', None])
+        self.assertEqual([r['name'] for r in rows], ['NOS PIECES', 'PIECES ADVERSES - SARL Alpha', 'PIECES ADVERSES - M. Beta Gamma', None, 'FACTURATION'])
         self.assertEqual(rows[1]['path'], '/Cabinet/Clients/DOSSIER TEST/PIECES ADVERSES - SARL Alpha')
         self.assertIn('partie adverse n° 3', rows[3]['reason'])                      # 3e partie absente : signalée, rien d'inventé
         self.assertEqual(rows[1]['label'], 'Pièces adverses — SARL Alpha')
@@ -119,8 +119,8 @@ class WorkingFolders(Base):
         self.assertEqual(state['NOS PIECES'], True)
         self.assertEqual(state['PIECES ADVERSES - {{partie_adverse01}}'], False)
         result = d.create_missing(desk, self.M, dav)
-        self.assertEqual(result['created'], ['PIECES ADVERSES - SARL Alpha'])            # parties 2 et 3 absentes : rien d'inventé
-        self.assertEqual(dav.created, ['/Cabinet/Clients/DOSSIER TEST/PIECES ADVERSES - SARL Alpha'])
+        self.assertEqual(result['created'], ['PIECES ADVERSES - SARL Alpha', 'FACTURATION'])   # parties 2 et 3 absentes : rien d'inventé
+        self.assertEqual(dav.created, ['/Cabinet/Clients/DOSSIER TEST/PIECES ADVERSES - SARL Alpha', '/Cabinet/Clients/DOSSIER TEST/FACTURATION'])
         self.assertEqual(d.create_missing(desk, self.M, dav)['created'], [])              # deuxième clic : aucun doublon
 
     def test_document_rules_may_file_into_a_working_folder(self):

@@ -1837,5 +1837,33 @@
   "example": "Call with a fictitious colleague from the Talk page.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "facturation": {
+  "objective": "Prepare, check and issue quotes, engagement letters, fee agreements, invoices and credit notes; price a matter; track payments.",
+  "when": "When a matter opens, when a billable step is done, when a retainer is due or when a payment arrives.",
+  "prerequisites": "The firm sheet (identity, chosen VAT regime) in “Settings and templates”; the client’s status in each document.",
+  "steps": [
+   "Click “Create”, choose the type and the matter, then “Prepare the draft”.",
+   "Complete the client, lines and flagged information, then “Save and recalculate”.",
+   "Review the preview and checks, then “Approve this version”.",
+   "For an invoice: “Issue (final number)”; files are stored in the client’s FACTURATION folder."
+  ],
+  "result": "A numbered document, its files (Word, PDF/A-3 Factur-X when LibreOffice is installed, CII and UBL XML) and payment tracking.",
+  "verify": "Preview, PDF and XML totals match; the “Payments” view shows the balance.",
+  "errors": [
+   [
+    "“The VAT ground is missing”",
+    "Choose the firm’s regime (Settings) and the client’s status; a 0 % rate does not mean the franchise scheme."
+   ],
+   [
+    "“This work item is already reserved”",
+    "The time is already in another draft or invoice: open it or abandon it."
+   ]
+  ],
+  "example": "30 % retainer invoice on a fictitious fixed-fee agreement of €1,200 excl. VAT.",
+  "buttons": [
+   "Préparer le brouillon"
+  ],
+  "version": "5.6.36"
  }
 }

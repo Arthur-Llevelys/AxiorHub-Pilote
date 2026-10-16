@@ -1837,5 +1837,33 @@
   "example": "Anruf mit einer fiktiven Kollegin über die Talk-Seite.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "facturation": {
+  "objective": "Angebote, Mandatsschreiben, Honorarvereinbarungen, Rechnungen und Gutschriften vorbereiten, prüfen und ausstellen; Mandate kalkulieren; Zahlungen verfolgen.",
+  "when": "Bei Aktenanlage, nach einem abrechenbaren Schritt, bei fälligem Vorschuss oder bei Zahlungseingang.",
+  "prerequisites": "Das Kanzleiblatt (Identität, gewählte Umsatzsteuerregelung) unter „Einstellungen und Vorlagen“; die Eigenschaft des Mandanten in jedem Dokument.",
+  "steps": [
+   "„Erstellen“ anklicken, Typ und Akte wählen, dann „Entwurf vorbereiten“.",
+   "Mandant, Positionen und markierte Angaben ergänzen, dann „Speichern und neu berechnen“.",
+   "Vorschau und Prüfungen lesen, dann „Diese Fassung freigeben“.",
+   "Für eine Rechnung: „Ausstellen (endgültige Nummer)“; die Dateien liegen im Ordner FACTURATION des Mandanten."
+  ],
+  "result": "Ein nummeriertes Dokument, seine Dateien (Word, PDF/A-3 Factur-X mit LibreOffice, CII- und UBL-XML) und die Zahlungsverfolgung.",
+  "verify": "Die Summen in Vorschau, PDF und XML stimmen überein; die Ansicht „Zahlungen“ zeigt den Saldo.",
+  "errors": [
+   [
+    "„Der Umsatzsteuergrund fehlt“",
+    "Regelung der Kanzlei (Einstellungen) und Eigenschaft des Mandanten wählen; 0 % bedeutet keine Kleinunternehmerregelung."
+   ],
+   [
+    "„Diese Leistung ist bereits reserviert“",
+    "Die Zeit steht schon in einem anderen Entwurf oder einer Rechnung: öffnen oder verwerfen."
+   ]
+  ],
+  "example": "Vorschussrechnung über 30 % einer fiktiven Pauschalvereinbarung von 1.200 € netto.",
+  "buttons": [
+   "Préparer le brouillon"
+  ],
+  "version": "5.6.36"
  }
 }
