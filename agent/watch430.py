@@ -103,6 +103,13 @@ def _schedule_5642(desk,stamp=None):
         jobs.extend(schedule_rules(desk,stamp))
     except Exception as ex:   # noqa: BLE001
         emit(desk,'blocked','Règles de messagerie : planification impossible ('+str(ex)[:120]+').',dedupe='courrier5632-schedule')
+    try:   # 5.6.52 (I01 à I15) : suivi borné des opérations transmises (signatures, recommandés, courriers, factures), toutes les 15 minutes
+        if stamp-float(desk.settings('connexions5652:last_poll',0) or 0)>=900:
+            desk.setting('connexions5652:last_poll',stamp)
+            from .connexions5652 import poll as poll5652
+            poll5652(desk)
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Connexions : suivi des opérations impossible ('+str(ex)[:120]+').',dedupe='connexions5652-poll')
     try:   # 5.6.51 (A07) : préparations d'audience ou d'échéance confirmée, au plus une vérification par heure
         from .missions5651 import schedule as schedule5651
         jobs.extend(schedule5651(desk,stamp))

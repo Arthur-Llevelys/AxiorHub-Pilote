@@ -120,7 +120,12 @@ def research(desk, matter_id, question, purpose='redaction', researcher=None):
     usable = [c for c in state if c['utilise']]
     base = {'statut': 'aucune_source_active', 'connecteurs': state, 'sources': [], 'verifiees': 0, 'pistes': 0, 'rapports': [],
             'requete': '', 'objet': purpose, 'quand': desk.now()}
-    if not usable:
+    try:   # 5.6.52 (I03 à I05) : connexions juridiques directes vérifiées (Judilibre, Pappers Justice, Légifrance)
+        from .connexions5652 import available_tools
+        direct = any(t['outil'] in ('jurisprudence.rechercher', 'droit.rechercher_documentation', 'droit.rechercher_texte') for t in available_tools(desk, 'cabinet'))
+    except Exception:   # noqa: BLE001
+        direct = False
+    if not usable and not direct:
         return base
     query = neutral_query(question)
     if len(query) < 8:
@@ -129,14 +134,25 @@ def research(desk, matter_id, question, purpose='redaction', researcher=None):
     cached = desk.settings(key)
     if isinstance(cached, dict) and time.time() - float(cached.get('at') or 0) < TTL and isinstance(cached.get('data'), dict):
         return {**cached['data'], 'connecteurs': state, 'cache': True}
-    try:
-        if researcher is None:
-            from .legal_research import research_enabled_mcp as researcher
-        found = researcher(desk, matter_id or '', query, MAX_LEADS)
-    except Stop as ex:
-        return {**base, 'statut': 'echec', 'erreur': str(ex), 'requete': query}
-    except Exception as ex:   # noqa: BLE001 — la rédaction continue, sans source, et le dit
-        return {**base, 'statut': 'echec', 'erreur': type(ex).__name__, 'requete': query}
+    found = {'leads': [], 'verified_authorities': [], 'connectors': []}
+    if usable:
+        try:
+            if researcher is None:
+                from .legal_research import research_enabled_mcp as researcher
+            found = researcher(desk, matter_id or '', query, MAX_LEADS)
+        except Stop as ex:
+            if not direct:
+                return {**base, 'statut': 'echec', 'erreur': str(ex), 'requete': query}
+        except Exception as ex:   # noqa: BLE001 — la rédaction continue, sans source, et le dit
+            if not direct:
+                return {**base, 'statut': 'echec', 'erreur': type(ex).__name__, 'requete': query}
+    if direct:
+        try:
+            from .connexions5652 import legal_leads
+            more, reports = legal_leads(desk, query)
+            found = {**found, 'leads': list(found.get('leads') or []) + more, 'connectors': list(found.get('connectors') or []) + reports}
+        except Exception:   # noqa: BLE001
+            pass
     sources, seen = [], set()
     for v in (found.get('verified_authorities') or [])[:MAX_VERIFIED]:
         ref = str(v.get('identifier') or v.get('ecli') or '')

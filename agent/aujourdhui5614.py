@@ -25,7 +25,16 @@ def _local(desk, stamp):
         return str(stamp)[:16].replace('T', ' ')
 
 
-def routines_bar_html(desk, prefix):
+def routines_bar_html(desk, prefix, auth=None):
+    """5.6.52 (R01) : bloc de gestion des routines (mêmes définitions que les réglages) ; repli sur la barre 5.6.14 en cas d'incident."""
+    try:
+        from .web5652 import routines_block
+        return routines_block(desk, auth or {'owner': 'cabinet'}, prefix)
+    except Exception:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
+        return _routines_bar_5651(desk, prefix)
+
+
+def _routines_bar_5651(desk, prefix):
     from . import routines520 as r5
     parts = []
     for kind, label in ROUTINES:

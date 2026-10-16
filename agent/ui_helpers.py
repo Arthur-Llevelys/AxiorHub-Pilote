@@ -74,6 +74,7 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5628.js"></script>'   # 5.6.28 : messagerie (répondre, transférer, classer)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5643.js"></script>'   # 5.6.43 : classement dans le dossier client
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5647.js"></script>'   # 5.6.47 : recherche dans les listes de dossiers
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5652.js"></script>'   # 5.6.52 : routines et connexions
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5651.js"></script>'   # 5.6.51 : file « À décider / À relire », page Dossier
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5650.js"></script>'   # 5.6.50 : messagerie interne (pastille, conversations)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/rules568.js"></script>'

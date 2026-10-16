@@ -304,7 +304,8 @@ def narrative(desk, mid, kind='faits'):
         return None
     out = dict(row)
     out['paragraphs'] = json.loads(row['paragraphs'] or '[]')
-    out['stale'] = row['basis'] != _basis(desk, mid, kind)
+    from .recit5651 import basis
+    out['stale'] = row['basis'] != basis(desk, mid, kind)
     return out
 
 
@@ -322,7 +323,8 @@ def _basis(desk, mid, kind):
 def structured_recital(desk, mid):
     """Rappel structuré sans modèle : faits datés dans l'ordre, contexte sans date, positions attribuées, points contestés."""
     from . import modele5651
-    infos = [a for a in modele5651.assertions(desk, mid, 'fait') if a['review'] in ('enregistre', 'propose', 'a_verifier') and a['relevance'] != 'hors_sujet']
+    infos = [a for a in modele5651.assertions(desk, mid, 'fait', current_only=True) if a['review'] in ('enregistre', 'propose', 'a_verifier')
+             and a['relevance'] != 'hors_sujet']
     names = {p['id']: p['display_name'] for p in modele5651.parties(desk, mid, include_merged=True)}
     groups = {'dates': [], 'sans_date': [], 'contestes': []}
     for a in infos:
@@ -343,6 +345,9 @@ def _info_line(prefix, mid, a, actions=True):
     who = (' — <span class="d51-who">selon %s</span>' % e(a['who'])) if a.get('who') else ''
     badge = '<span class="d51-badge d51-review-%s">%s</span><span class="d51-badge d51-proof">%s</span>' % (
         e(a['review']), e(modele5651.REVIEW.get(a['review'], a['review'])), e(modele5651.PROOF.get(a['proof'], a['proof'])))
+    if a.get('validity') in ('historique', 'a_recontroler'):
+        badge += '<span class="d51-badge d51-review-a_verifier" title="%s">%s</span>' % (e(a.get('validity_note', ''), quote=True),
+                                                                                       e(modele5651.VALIDITY[a['validity']]))
     form = ''
     if actions:
         proofs = ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == a['proof'] else '', e(v)) for k, v in modele5651.PROOF.items())
@@ -386,7 +391,10 @@ def faits_html(desk, auth, prefix, m, args):
     review_filter = str(args.get('etat') or '')
     page = max(1, int(args.get('page') or 1)) if str(args.get('page') or '1').isdigit() else 1
     reviews = (review_filter,) if review_filter in modele5651.REVIEW else ('propose', 'a_verifier', 'enregistre')
-    rows = modele5651.assertions(desk, mid, kind if kind in modele5651.KINDS else None, reviews)
+    if review_filter == 'historique':   # 5.6.52 (F03) : informations dont la source a été remplacée ou retirée
+        rows = [a for a in modele5651.assertions(desk, mid, kind if kind in modele5651.KINDS else None) if a['validity'] == 'historique']
+    else:
+        rows = modele5651.assertions(desk, mid, kind if kind in modele5651.KINDS else None, reviews, current_only=True)
     names = {p['id']: p['display_name'] for p in modele5651.parties(desk, mid, include_merged=True)}
     for a in rows:
         a['who'] = names.get(a['author']) or (a['author_label'] if a['author'] != 'document' else '')
@@ -396,7 +404,7 @@ def faits_html(desk, auth, prefix, m, args):
                       for k, v in (('', 'Tout'),) + tuple(modele5651.KINDS.items()))
     states = ''.join('<a href="%s"%s>%s</a>' % (e(prefix + _q(mid, 'faits', type=kind, etat=k), quote=True), ' aria-current="true"' if k == review_filter else '', e(v))
                      for k, v in (('', 'À utiliser'), ('propose', 'Proposées'), ('a_verifier', 'À vérifier'), ('enregistre', 'Enregistrées'), ('hors_sujet', 'Hors sujet'),
-                                  ('refuse', 'Refusées')))
+                                  ('refuse', 'Refusées'), ('historique', 'Historique')))
     add = ('<details><summary>Ajouter une information</summary><form class="m5-form" data-api="m5651/information/ajouter" data-reload><input type="hidden" name="matter" value="%s">'
            '<label>Type<select name="kind">%s</select></label><label>Texte<textarea name="texte" rows="2" maxlength="2000" required></textarea></label>'
            '<label>Date (si connue)<input name="date" maxlength="40"></label><label>Qualification<select name="proof">%s</select></label>'
@@ -420,7 +428,7 @@ def timeline(desk, mid, which='tout'):
     items = []
     names = {p['id']: p['display_name'] for p in modele5651.parties(desk, mid, include_merged=True)}
     if which in ('litige', 'tout'):
-        for a in modele5651.assertions(desk, mid, 'fait', ('enregistre', 'propose', 'a_verifier')):
+        for a in modele5651.assertions(desk, mid, 'fait', ('enregistre', 'propose', 'a_verifier'), current_only=True):
             if a['relevance'] == 'hors_sujet':
                 continue
             items.append({'date': a['date_value'], 'precision': a['date_precision'], 'kind': 'litige', 'nature': 'Fait', 'text': a['text'],
@@ -655,6 +663,11 @@ def travaux_html(desk, auth, prefix, m, args):
     out += _card('Missions', (''.join(card_html(x, prefix) for x in ms) or '<p class="ax-muted">Aucune mission pour ce dossier.</p>'), 'd51-missions')
     sid = str(args.get('relecture') or '')
     out += review_html(desk, prefix, mid, sid)
+    try:   # 5.6.52 (I01, I02, I07, I12) : préparer une signature, un recommandé ou un courrier ; identifier le client (SIREN)
+        from .connexions5652 import matter_panel_html
+        out += matter_panel_html(desk, prefix, mid, owner)
+    except Stop:
+        pass
     rules = apprentissage5651.rules(desk, owner, mid)
     if rules:
         out += _card('Règles apprises de vos corrections', '<ul class="d51-list">%s</ul>' % ''.join(
@@ -694,10 +707,11 @@ def review_html(desk, prefix, mid, sid=''):
             props = []
             for p in s['proposals']:
                 decide = ''
-                if p['state'] in ('proposee', 'acceptee'):
+                if p['state'] in ('proposee', 'acceptee', 'appliquee'):
                     decide = ('<form class="m5-form d51-inline" data-api="m5651/relecture/decider" data-reload><input type="hidden" name="matter" value="%s">'
                               '<input type="hidden" name="id" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="action" value="accepter">'
-                              '<button class="ax-btn" type="submit">Accepter</button></form>'
+                              + ('<input type="hidden" name="sources_verifiees" value="true"><button class="ax-btn" type="submit">Accepter (sources actuelles vérifiées)</button></form>'
+                                 if p['a_recontroler'] else '<button class="ax-btn" type="submit">Accepter</button></form>') +
                               '<form class="m5-form d51-inline" data-api="m5651/relecture/decider" data-reload><input type="hidden" name="matter" value="%s">'
                               '<input type="hidden" name="id" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="action" value="refuser">'
                               '<button class="ax-btn ghost" type="submit">Refuser</button></form>'
@@ -713,12 +727,14 @@ def review_html(desk, prefix, mid, sid=''):
                         e(mid, quote=True), e(p['id'], quote=True), p['version'], e(p['replacement']))
                 props.append('<li class="d51-prop d51-prop-%s"><div class="ax-muted">§%d · %s · %s%s%s</div><div class="d51-diff"><del>%s</del><ins>%s</ins></div>'
                              '<p class="ax-muted">%s</p>%s</li>' % (
-                                 e(p['state']), p['para_index'] + 1, e(relecture5651.NATURES.get(p['nature'], p['nature'])), e(relecture5651.STATES.get(p['state'], p['state'])),
+                                 e(p['state']), p['para_index'] + 1, e(relecture5651.NATURES.get(p['nature'], p['nature'])),
+                                 e(relecture5651.STATES.get(p['state'], p['state']) + (' · incluse dans la version %s' % ', '.join(str(n) for n in p['exports'])
+                                                                                      if p['exports'] else '')),
                                  ' · <strong>source modifiée : à recontrôler</strong>' if p['a_recontroler'] else '', (' · ' + e(p['conflict'])) if p['conflict'] else '',
                                  e(p['expected'][:1500]), e(p['replacement'][:1500]), e(p['motif']), decide))
-            accepted = sum(1 for p in s['proposals'] if p['state'] == 'acceptee')
+            accepted = sum(1 for p in s['proposals'] if p['state'] in ('acceptee', 'appliquee') and p['accepted_version'] == p['version'])
             apply_btn = ('<form class="m5-form" data-api="m5651/relecture/appliquer" data-reload><input type="hidden" name="matter" value="%s"><input type="hidden" name="session" value="%s">'
-                         '<button class="ax-btn" type="submit">Créer une nouvelle version avec les %d modification(s) acceptée(s)</button>'
+                         '<button class="ax-btn" type="submit">Créer une version avec les %d décision(s) acceptée(s) (cumulatives)</button>'
                          '<p class="ax-muted">Nouveau fichier à côté de l’original, en suivi des modifications Word ; l’original n’est pas modifié.</p>'
                          '<p role="status" class="m5-status"></p></form>') % (e(mid, quote=True), e(sid, quote=True), accepted) if accepted else ''
             state_note = '' if s['state'] == 'terminee' else '<p class="d51-warn"%s>Propositions %s : relecture non finalisée.</p>' % (

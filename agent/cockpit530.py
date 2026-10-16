@@ -1023,7 +1023,7 @@ def routines_html(desk, prefix):
     panels += '<div class="c530-panel" role="tabpanel" data-panel="docs" hidden>%s</div>' % (
         ('<ul class="c530-list">%s</ul>' % docs) if docs else '<p class="c530-empty">Aucun document en attente.</p>')
     buttons = ''.join('<button type="button" role="tab" class="c530-pill" data-tab="%s" aria-selected="%s">%s</button>' % (k, 'true' if k == 'briefing' else 'false', e(n)) for k, n in tabs)
-    return ('<div class="c530-head"><h2 id="c530-t-routines">Routines du cabinet</h2><div class="c530-pills" role="tablist" aria-label="Routines">%s</div></div>%s'
+    return ('<div class="c530-head"><h2 id="c530-t-routines">Comptes rendus des routines</h2><div class="c530-pills" role="tablist" aria-label="Comptes rendus des routines">%s</div></div>%s'
             '<p class="c530-note"><a href="%s">Heures, jours, signature et exclusions</a></p>') % (buttons, panels, e(prefix + '/aujourdhui?vue=essentiel'))
 
 
@@ -1111,7 +1111,7 @@ def page(desk, prefix, csrf='', owner='cabinet'):
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
             '<div id="c530-drawer-content"></div></div></div></div>') % (
-        e(prefix, quote=True), e(when), header, routines_bar_html(desk, prefix), routines_html(desk, prefix), style_html(desk, prefix),
+        e(prefix, quote=True), e(when), header, routines_bar_html(desk, prefix, {'owner': owner}), routines_html(desk, prefix), style_html(desk, prefix),
         thread_html(desk, prefix), options, decisions_html(desk, owner, prefix),
         review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
@@ -1185,8 +1185,9 @@ def handle(desk, name, data, method='POST', args=None):
         from . import routines520
         if kind not in routines520.KINDS:
             raise Stop('routine_inconnue')
-        job = desk.enqueue('routine520', {'kind': kind})
-        return {'message': 'Génération lancée (travail n° %d).' % job}
+        from . import routines5652   # 5.6.52 (R06) : passage manuel identifiable, idempotent, distinct de la récurrence
+        occ = routines5652.run_now(desk, 'cabinet', 'administrateur', 'r520-' + kind)
+        return {'message': 'Génération lancée (travail n° %s).' % occ.get('job_id')}
     if n == 'nextcloud':
         from . import deck530
         return deck530.save_settings(desk, data)

@@ -260,6 +260,63 @@ MESSAGES = {
     'type_rappel_invalide': 'Type de rappel inconnu.',   # 5.6.51
     'aucune_information_pour_le_rappel': 'Aucune information du dossier à rédiger : actualisez d’abord les données.',   # 5.6.51
     'rappel_sans_source': 'Le rappel proposé ne s’appuyait sur aucune information du dossier : rien n’a été enregistré.',   # 5.6.51
+    'routine_absente': 'Routine introuvable : elle a peut-être été supprimée.',   # 5.6.52
+    'nom_routine_requis': 'Donnez un nom à la routine (120 caractères au plus).',   # 5.6.52
+    'type_routine_invalide': 'Type de tâche inconnu pour cette routine.',   # 5.6.52
+    'consigne_routine_requise': 'Indiquez la consigne de la routine (4 000 caractères au plus).',   # 5.6.52
+    'dossiers_routine_requis': 'Choisissez au moins un dossier pour cette routine.',   # 5.6.52
+    'portee_routine_invalide': 'Portée inconnue (cabinet ou personnelle).',   # 5.6.52
+    'limites_routine_invalides': 'Limites invalides : nombre d’éléments et durée maximale hors des bornes autorisées.',   # 5.6.52
+    'fuseau_invalide': 'Fuseau horaire inconnu.',   # 5.6.52
+    'frequence_routine_invalide': 'Fréquence inconnue (une fois, chaque jour, certains jours, chaque mois).',   # 5.6.52
+    'heure_routine_invalide': 'Heure invalide : indiquez HH:MM.',   # 5.6.52
+    'jours_routine_invalides': 'Cochez au moins un jour de la semaine.',   # 5.6.52
+    'jour_du_mois_invalide': 'Jour du mois invalide (1 à 31, ou dernier jour).',   # 5.6.52
+    'date_routine_invalide': 'Date invalide : indiquez une date à venir.',   # 5.6.52
+    'routine_historique_desactivable': 'Les routines historiques (briefing, tri, bilan) ne se suppriment pas : désactivez-les.',   # 5.6.52
+    'occurrence_absente': 'Passage de routine introuvable.',   # 5.6.52
+    'routine_arretee': 'La routine a été désactivée ou modifiée pendant son exécution : le passage s’est arrêté proprement.',   # 5.6.52
+    'remplacee_par_nouvelle_version': 'Passage annulé : la routine a été modifiée avant son exécution.',   # 5.6.52
+    'routine_supprimee': 'Passage annulé : la routine a été supprimée.',   # 5.6.52
+    'pause_au_dela_du_passage': 'Passage non exécuté : la pause a duré au-delà de l’horaire suivant.',   # 5.6.52
+    'source_a_recontroler': 'La source de cette proposition a changé : contrôlez-la, puis cochez « sources vérifiées » pour l’accepter.',   # 5.6.52
+    'source_retiree': 'La source de cette proposition a été retirée du dossier.',   # 5.6.52
+    'sources_modifiees_a_recontroler': 'Des sources ont changé depuis l’acceptation : les propositions concernées sont à revoir.',   # 5.6.52
+    'connexion_absente': 'Connexion introuvable.',   # 5.6.52
+    'fournisseur_inconnu': 'Fournisseur inconnu.',   # 5.6.52
+    'environnement_invalide': 'Environnement inconnu (bac à sable ou production).',   # 5.6.52
+    'parametre_connexion_invalide': 'Paramètre de connexion invalide.',   # 5.6.52
+    'connexion_a_autoriser': 'Connexion à autoriser : utilisez « Connecter mon compte » dans Paramètres › Connexions.',   # 5.6.52
+    'oauth_non_prevu': 'Ce fournisseur ne s’autorise pas par compte : renseignez sa clé d’API.',   # 5.6.52
+    'identifiant_application_requis': 'Renseignez l’identifiant d’application fourni par le service.',   # 5.6.52
+    'etat_oauth_invalide': 'Autorisation expirée ou déjà utilisée : recommencez depuis Paramètres › Connexions.',   # 5.6.52
+    'autorisation_refusee': 'Le service a refusé l’autorisation : rien n’a été enregistré.',   # 5.6.52
+    'adresse_retour_invalide': 'Adresse de retour invalide : elle doit être en HTTPS sur l’adresse publique du moteur.',   # 5.6.52
+    'outil_inconnu': 'Outil de connexion inconnu.',   # 5.6.52
+    'outil_a_effet_externe_preparer_une_operation': 'Cet outil agit chez le fournisseur : préparez une opération, qui sera validée avant envoi.',   # 5.6.52
+    'ia_externe_non_autorisee': 'L’envoi de données à une IA externe n’est pas autorisé pour cette connexion.',   # 5.6.52
+    'aucune_connexion_verifiee_pour_cet_outil': 'Aucune connexion vérifiée et active ne propose cet outil.',   # 5.6.52
+    'document_pdf_requis': 'Un document PDF du dossier est requis.',   # 5.6.52
+    'operation_absente': 'Opération introuvable.',   # 5.6.52
+    'capacite_desactivee': 'Cette capacité est désactivée pour la connexion : activez-la dans Paramètres › Connexions.',   # 5.6.52
+    'document_modifie_depuis_validation': 'Le document a changé depuis sa préparation : préparez une nouvelle opération.',   # 5.6.52
+    'operation_deja_transmise': 'Opération déjà transmise : aucun second envoi.',   # 5.6.52
+    'objet_requis': 'Indiquez l’objet.',   # 5.6.52
+    'signataire_incomplet': 'Signataire incomplet : prénom, nom et adresse électronique.',   # 5.6.52
+    'destinataire_incomplet': 'Destinataire incomplet : nom et adresse électronique.',   # 5.6.52
+    'adresse_incomplete': 'Adresse postale incomplète.',   # 5.6.52
+    'capacite_non_codee': 'Cette capacité n’est pas encore disponible pour ce fournisseur.',   # 5.6.52
+    'test_non_disponible': 'Test de connexion indisponible pour ce fournisseur.',   # 5.6.52
+    'reponse_fournisseur_invalide': 'Réponse du fournisseur illisible : l’opération est à vérifier chez le fournisseur.',   # 5.6.52
+    'jeton_fournisseur_invalide': 'Jeton refusé par le fournisseur : reconnectez le compte.',   # 5.6.52
+    'societe_incorrecte': 'Identifiant de société inconnu chez ce fournisseur.',   # 5.6.52
+    'compte_docusign_introuvable': 'Compte DocuSign introuvable pour cet utilisateur.',   # 5.6.52
+    'compte_b2brouter_introuvable': 'Compte B2Brouter introuvable : vérifiez l’identifiant de compte.',   # 5.6.52
+    'signature_non_terminee': 'Signature non terminée : le document signé n’est pas encore disponible.',   # 5.6.52
+    'dossier_onedrive_non_choisi': 'Choisissez d’abord un dossier OneDrive.',   # 5.6.52
+    'dossier_drive_non_choisi': 'Choisissez d’abord un dossier Google Drive.',   # 5.6.52
+    'identifiant_decision_requis': 'Indiquez l’identifiant de la décision.',   # 5.6.52
+    'lecture_test_sans_resultat': 'Le test a répondu sans résultat : vérifiez les droits du compte.',   # 5.6.52
     # 5.6.35 : contrat /integration/v1 (application Nextcloud)
     'operation_non_signee': 'La requête ne correspond pas à l’opération autorisée par Nextcloud : elle est refusée.',
     'contexte_sans_fuseau': 'Contexte Nextcloud invalide : l’expiration doit comporter un fuseau horaire.',
@@ -318,6 +375,8 @@ def explain(code, detail=None):
         return 'Délai dépassé%s : le service n’a pas répondu à temps ; le travail peut être repris.%s' % (where, ref)
     if code.startswith('reglage_hors_plage_'):
         return 'Valeur hors de la plage autorisée pour %s.' % code[len('reglage_hors_plage_'):]
+    if code.startswith('ar24_'):
+        return 'AR24 a refusé la demande (%s) : vérifiez le compte et le destinataire.%s' % (code[5:], ref)   # 5.6.52
     if code in MESSAGES:
         return MESSAGES[code] + (where + ref if (where or ref) else '')
     from .web440 import human

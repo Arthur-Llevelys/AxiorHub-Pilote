@@ -25,9 +25,9 @@ CREATE TABLE IF NOT EXISTS d51_queue_log(id INTEGER PRIMARY KEY AUTOINCREMENT, k
 STATES = {'a_examiner': 'À examiner', 'approuve': 'Approuvé', 'refuse': 'Refusé', 'reporte': 'Reporté', 'remplace': 'Remplacé', 'perime': 'Périmé'}
 CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des documents', 'informations': 'Informations proposées',
            'contradiction': 'Contradiction', 'lacune': 'Information nécessaire', 'relecture': 'Modifications proposées',
-           'livrable': 'Projet à relire', 'strategie': 'Choix stratégique'}
-FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie'), 'relire': ('relecture', 'livrable')}
-NOT_BATCHABLE = ('strategie', 'livrable', 'lacune')     # choix stratégiques et engagements : jamais en validation regroupée
+           'livrable': 'Projet à relire', 'strategie': 'Choix stratégique', 'engagement': 'Envoi ou engagement à valider'}
+FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement'), 'relire': ('relecture', 'livrable')}
+NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement')     # choix stratégiques et engagements : jamais en validation regroupée
 
 
 def _now():
@@ -119,7 +119,25 @@ def _items_for(desk, prefix, m):
     return items
 
 
-def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_closed=False):
+def _global_items(desk, prefix, actor, role):
+    """5.6.52 : éléments du cabinet sans dossier — comptes rendus de routines (R06) et opérations de connexion à valider (I…)."""
+    found = []
+    for module in ('routines5652', 'connexions5652'):
+        try:
+            mod = __import__('agent.' + module, fromlist=['queue_items'])
+            found += mod.queue_items(desk, prefix, actor, role)
+        except Exception:   # noqa: BLE001 — module ou table absents : aucune entrée
+            continue
+    for it in found:
+        it.setdefault('matter', '')
+        it.setdefault('matter_name', 'Cabinet')
+        it['key'] = _sha(it['matter'], it['object'], it['class'])
+        it['priority'] = it.get('priority', 'normale')
+        it['priority_reason'] = it.get('priority_reason', '')
+    return found
+
+
+def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_closed=False, actor='cabinet', role='administrateur'):
     """Éléments actifs (à examiner, ou reportés arrivés à échéance) ; un élément décidé sur sa révision courante disparaît partout."""
     ensure_schema(desk)
     matters = [m for m in load_matters(desk.c) if str(m['id']) not in hidden and (matter is None or str(m['id']) == str(matter))]
@@ -141,11 +159,15 @@ def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_clo
         matters = [m for m in matters if str(m['id']) in active]
     out = []
     now = _now()
+    batches = []
     for m in matters:
         try:
-            found = _items_for(desk, prefix, m)
+            batches.append(_items_for(desk, prefix, m))
         except Stop:
             continue
+    if matter is None or matter == '':
+        batches.append(_global_items(desk, prefix, actor, role))
+    for found in batches:
         for it in found:
             if view and it['class'] not in FILTERS.get(view, ()):
                 continue
@@ -163,14 +185,14 @@ def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_clo
     return out
 
 
-def decide(desk, owner, key, state, revision, motif='', days=1, prefix='', hidden=frozenset()):
+def decide(desk, owner, key, state, revision, motif='', days=1, prefix='', hidden=frozenset(), expected_matter=None, actor=None, role='administrateur'):
     """Décision sur la révision affichée ; si l'objet a changé, refus « version en conflit » et élément périmé."""
     ensure_schema(desk)
     if state not in ('approuve', 'refuse', 'reporte'):
         raise Stop('decision_file_invalide')
-    current = next((i for i in items(desk, prefix, None, '', hidden, include_closed=True) if i['key'] == key), None)
-    if current is None:
-        raise Stop('element_absent')
+    current = next((i for i in items(desk, prefix, None, '', hidden, include_closed=True, actor=actor or owner, role=role) if i['key'] == key), None)
+    if current is None or (expected_matter is not None and current['matter'] != expected_matter):
+        raise Stop('element_absent')                     # 5.6.52 (F01) : clé d'un autre dossier refusée comme absente
     if str(revision) != str(current['revision']):
         _store(desk, key, current['matter'], current['class'], 'perime', str(revision), owner, 'révision dépassée')
         raise Stop('version_en_conflit')
@@ -181,10 +203,13 @@ def decide(desk, owner, key, state, revision, motif='', days=1, prefix='', hidde
     if current['class'] == 'contradiction' and state == 'approuve':
         desk.db.execute('UPDATE d51_changes SET acknowledged=1 WHERE id=?', (current['change'],))
         desk.db.commit()
+    if current.get('occurrence') and state == 'approuve':   # 5.6.52 : compte rendu de routine relu
+        desk.db.execute('UPDATE routines5652_occ SET reviewed=1 WHERE id=?', (current['occurrence'],))
+        desk.db.commit()
     return {'key': key, 'state': state, 'until': until}
 
 
-def decide_batch(desk, owner, entries, state, prefix='', hidden=frozenset()):
+def decide_batch(desk, owner, entries, state, prefix='', hidden=frozenset(), expected_matter=None):
     """Validation regroupée : éléments homogènes (même classe), hors choix stratégiques et engagements ; chaque révision est contrôlée."""
     if not isinstance(entries, list) or not entries:
         raise Stop('selection_vide')
@@ -197,7 +222,8 @@ def decide_batch(desk, owner, entries, state, prefix='', hidden=frozenset()):
     done, conflicts = [], []
     for e in entries:
         try:
-            done.append(decide(desk, owner, str(e.get('key')), state, str(e.get('revision')), str(e.get('motif') or ''), prefix=prefix, hidden=hidden)['key'])
+            done.append(decide(desk, owner, str(e.get('key')), state, str(e.get('revision')), str(e.get('motif') or ''), prefix=prefix, hidden=hidden,
+                               expected_matter=expected_matter)['key'])
         except Stop as ex:
             conflicts.append({'key': e.get('key'), 'error': str(ex)})
     return {'decided': done, 'conflicts': conflicts}
@@ -216,10 +242,10 @@ def history(desk, matter, limit=50):
     return [dict(r) for r in desk.db.execute('SELECT * FROM d51_queue_log WHERE matter=? ORDER BY id DESC LIMIT ?', (matter, int(limit)))]
 
 
-def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title=True):
+def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title=True, actor='cabinet', role='administrateur'):
     """Cartes courtes (dossier, action attendue, conséquence, choix) ; détails techniques repliés ; filtres À décider / À relire."""
     from html import escape as e
-    rows = items(desk, prefix, matter, view, hidden)
+    rows = items(desk, prefix, matter, view, hidden, actor=actor, role=role)
     base = (prefix + '/dossier?id=' + matter + '&') if matter else (prefix + '/aujourdhui?')
     tabs = ''.join('<a href="%s"%s>%s</a>' % (e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(label))
                    for k, label in (('', 'Tout'), ('decider', 'À décider'), ('relire', 'À relire')))
@@ -237,9 +263,9 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
             else:
                 state = {'approuver': 'approuve', 'relu': 'approuve', 'reporter': 'reporte'}[c]
                 label = {'approuver': 'Pris en compte', 'relu': 'Relu', 'reporter': 'Reporter'}[c]
-                buttons.append('<form class="m5-form q51-inline" data-api="m5651/file/decider" data-reload><input type="hidden" name="matter" value="%s">'
+                buttons.append('<form class="m5-form q51-inline" data-api="%s" data-reload><input type="hidden" name="matter" value="%s">'
                                '<input type="hidden" name="key" value="%s"><input type="hidden" name="revision" value="%s"><input type="hidden" name="state" value="%s">'
-                               '<button class="ax-btn%s" type="submit">%s</button></form>' % (e(it['matter'], quote=True), e(it['key'], quote=True),
+                               '<button class="ax-btn%s" type="submit">%s</button></form>' % ('m5651/file/decider' if it['matter'] else 'm5652/file/decider', e(it['matter'], quote=True), e(it['key'], quote=True),
                                                                                              e(str(it['revision']), quote=True), state,
                                                                                              ' ghost' if state == 'reporte' else '', label))
         cards.append('<li class="q51-item q51-%s"><div class="q51-head"><span class="q51-class">%s</span>%s<strong class="q51-matter">%s</strong></div>'

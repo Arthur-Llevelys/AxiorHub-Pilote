@@ -36,11 +36,16 @@ CREATE TABLE IF NOT EXISTS d51_proposals(id TEXT PRIMARY KEY, session TEXT NOT N
   decided_by TEXT NOT NULL DEFAULT '', decided_at TEXT NOT NULL DEFAULT '', accepted_version INTEGER NOT NULL DEFAULT 0, conflict TEXT NOT NULL DEFAULT '',
   created TEXT NOT NULL, updated TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS d51_proposals_session ON d51_proposals(session, para_index);
+CREATE TABLE IF NOT EXISTS d51_review_exports(id INTEGER PRIMARY KEY AUTOINCREMENT, session TEXT NOT NULL, matter TEXT NOT NULL, number INTEGER NOT NULL,
+  path TEXT NOT NULL DEFAULT '', sha TEXT NOT NULL DEFAULT '', base_sha TEXT NOT NULL, included TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'en_cours',
+  author TEXT NOT NULL, created TEXT NOT NULL, UNIQUE(session, number));
 '''
+MIGRATIONS = (('d51_proposals', 'prev_anchor', "TEXT NOT NULL DEFAULT ''"), ('d51_proposals', 'next_anchor', "TEXT NOT NULL DEFAULT ''"),
+              ('d51_proposals', 'unique_anchor', 'INTEGER NOT NULL DEFAULT 0'))
 JOB = 'relecture5651'
 BATCH = 12
 NATURES = {'style': 'Formulation (style)', 'fait': 'Ajout ou correction factuelle', 'demande': 'Demande modifiée ou nouvelle', 'droit': 'Fondement juridique'}
-STATES = {'proposee': 'Proposée', 'acceptee': 'Acceptée', 'refusee': 'Refusée', 'appliquee': 'Appliquée', 'perimee': 'Périmée (texte modifié depuis)',
+STATES = {'proposee': 'Proposée', 'acceptee': 'Acceptée', 'refusee': 'Refusée', 'appliquee': 'Acceptée', 'perimee': 'Périmée (texte modifié depuis)',
           'manuelle': 'À reporter à la main'}
 _PARA_TEXT = re.compile(r'<w:t(?: [^>]*)?>([^<]*)</w:t>|<w:(tab)\b[^>]*/>|<w:(br|cr)\b[^>]*/>')
 _PPR = re.compile(r'^(<w:p\b[^>]*>)(<w:pPr>.*?</w:pPr>)?', re.S)
@@ -68,6 +73,11 @@ def _norm(text):
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    cols = {r[1] for r in desk.db.execute('PRAGMA table_info(d51_proposals)')}
+    for table, column, decl in MIGRATIONS:   # 5.6.52 : bases 5.6.51
+        if column not in cols:
+            desk.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table, column, decl))
+            desk.db.commit()
 
 
 # ------------------------------------------------------------------------------------------------ lecture Word
@@ -172,12 +182,11 @@ def apply_to_docx(raw, accepted, author='AxiorHub'):
     z = _xml_parts(raw)
     xml = z.read('word/document.xml').decode('utf-8')
     paras = paragraphs(raw)
-    by_anchor = {(p['anchor'], p['occurrence']): p for p in paras}
     stamp = datetime.now(timezone.utc).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
     counter = [91000]
     edits, applied, manual, stale = [], [], [], []
     for prop in accepted:
-        p = by_anchor.get((prop['anchor'], prop['occurrence']))
+        p = locate(paras, prop)
         if p is None or _sha(_norm(p['text']))[:24] != prop['anchor'] or _norm(p['text']) != _norm(prop['expected']):
             stale.append(prop['id'])
             continue
@@ -195,6 +204,32 @@ def apply_to_docx(raw, accepted, author='AxiorHub'):
             data = xml.encode('utf-8') if info.filename == 'word/document.xml' else z.read(info.filename)
             out.writestr(info, data)
     return buf.getvalue(), applied, manual, stale
+
+
+def _neighbours_ok(paras, p, prop):
+    i = paras.index(p)
+    prev = paras[i - 1]['anchor'] if i > 0 else ''
+    nxt = paras[i + 1]['anchor'] if i + 1 < len(paras) else ''
+    return ((not prop.get('prev_anchor') or prop['prev_anchor'] == prev) and (not prop.get('next_anchor') or prop['next_anchor'] == nxt))
+
+
+def locate(paras, prop):
+    """5.6.52 (audit 5.6.51, F06) : le passage relu est retrouvé (1) à sa position, s'il y porte le même texte et les mêmes voisins, ou
+    (2) ailleurs seulement si son texte était unique à la relecture et l'est resté, voisins compris. Tout autre cas (doublon supprimé,
+    inséré ou déplacé) est périmé : jamais de report sur un autre paragraphe identique selon son rang."""
+    idx = prop.get('para_index')
+    if idx is not None:
+        if 0 <= int(idx) < len(paras):
+            p = paras[int(idx)]
+            if p['anchor'] == prop['anchor'] and _neighbours_ok(paras, p, prop):
+                return p
+        if prop.get('unique_anchor'):
+            same = [p for p in paras if p['anchor'] == prop['anchor']]
+            if len(same) == 1 and _neighbours_ok(paras, same[0], prop):
+                return same[0]
+        return None
+    same = [p for p in paras if p['anchor'] == prop['anchor']]   # appel sans position (outils internes) : texte unique seulement
+    return same[0] if len(same) == 1 and same[0]['occurrence'] == prop.get('occurrence', 0) else None
 
 
 # ------------------------------------------------------------------------------------------------ sessions et propositions
@@ -280,7 +315,7 @@ def run(desk, args, model=None, client=None):
     indices = json.loads(s['scope'] or '[]')
     targets = [p for p in paras if _norm(p['text']) and (not indices or p['index'] in indices)]
     from .contexte5651 import for_drafting
-    structure = for_drafting(desk, s['matter'], s['instruction'], s['owner'], budget=8000)
+    structure = for_drafting(desk, s['matter'], s['instruction'], s['owner'], budget=8000, document=s['path'], document_version=s['etag'])
     sources_versions = {}
     for r in desk.db.execute('SELECT path,etag FROM d51_documents WHERE matter=?', (s['matter'],)):
         sources_versions[PurePosixPath(r['path']).name] = {'path': r['path'], 'etag': r['etag']}
@@ -300,6 +335,9 @@ def run(desk, args, model=None, client=None):
         except ValueError:
             raise Stop('reponse_modele_invalide') from None
         allowed = {p['index']: p for p in batch}
+        counts = {}
+        for q in paras:
+            counts[q['anchor']] = counts.get(q['anchor'], 0) + 1
         now = _now()
         for prop in out.get('propositions') or []:
             p = allowed.get(prop.get('index')) if isinstance(prop, dict) else None
@@ -309,14 +347,25 @@ def run(desk, args, model=None, client=None):
             nature = prop.get('nature') if prop.get('nature') in NATURES else 'style'
             srcs = [sources_versions.get(str(x).rsplit('/', 1)[-1], {'label': str(x)[:120]}) for x in (prop.get('sources') or [])[:8]]
             pid = _sha('|'.join((s['id'], p['anchor'], str(p['occurrence']))))[:32]
-            desk.db.execute('INSERT OR IGNORE INTO d51_proposals(id,session,matter,para_index,zone,anchor,occurrence,expected,replacement,motif,nature,sources,created,updated) '
-                            'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (pid, s['id'], s['matter'], p['index'], p['zone'], p['anchor'], p['occurrence'], p['text'],
-                                                                  new[:8000], _norm(prop.get('motif'))[:500], nature, json.dumps(srcs, ensure_ascii=False), now, now))
+            i = p['index']
+            prev = paras[i - 1]['anchor'] if i > 0 else ''
+            nxt = paras[i + 1]['anchor'] if i + 1 < len(paras) else ''
+            desk.db.execute('INSERT OR IGNORE INTO d51_proposals(id,session,matter,para_index,zone,anchor,occurrence,expected,replacement,motif,nature,sources,'
+                            'prev_anchor,next_anchor,unique_anchor,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                            (pid, s['id'], s['matter'], p['index'], p['zone'], p['anchor'], p['occurrence'], p['text'], new[:8000],
+                             _norm(prop.get('motif'))[:500], nature, json.dumps(srcs, ensure_ascii=False), prev, nxt,
+                             1 if counts.get(p['anchor']) == 1 else 0, now, now))
         desk.db.execute('UPDATE d51_review_sessions SET done_batches=?,updated=? WHERE id=?', (b + 1, now, s['id']))
         desk.db.commit()
     desk.db.execute("UPDATE d51_review_sessions SET state='terminee',updated=? WHERE id=?", (_now(), s['id']))
     desk.db.commit()
     return {'session': s['id'], 'state': 'terminee', 'propositions': desk.db.execute('SELECT COUNT(*) FROM d51_proposals WHERE session=?', (s['id'],)).fetchone()[0]}
+
+
+def _changed_sources(desk, mid, sources):
+    """Sources dont la version courante diffère de celle utilisée (ou qui ont disparu) ; données du dossier actualisées d'abord (F02)."""
+    current = {r['path']: r['etag'] for r in desk.db.execute('SELECT path,etag FROM d51_documents WHERE matter=?', (mid,))}
+    return [x for x in sources if x.get('path') and current.get(x['path']) != x.get('etag')]
 
 
 def session(desk, mid, sid):
@@ -331,24 +380,46 @@ def session(desk, mid, sid):
         p = dict(r)
         p['sources'] = json.loads(p['sources'] or '[]')
         # une nouvelle version d'une source utilisée marque la proposition à recontrôler
-        p['a_recontroler'] = any(x.get('path') and current.get(x['path']) not in (None, x.get('etag')) for x in p['sources'])
+        p['a_recontroler'] = any(x.get('path') and current.get(x['path']) != x.get('etag') for x in p['sources'])
+        p['exports'] = []
         out['proposals'].append(p)
+    out['exports'] = [dict(r) for r in desk.db.execute("SELECT * FROM d51_review_exports WHERE session=? AND state='ok' ORDER BY number", (sid,))]
+    for ex in out['exports']:
+        for pid, ver in json.loads(ex['included'] or '[]'):
+            for p in out['proposals']:
+                if p['id'] == pid and p['version'] == ver:
+                    p['exports'].append(ex['number'])
     return out
 
 
-def decide(desk, mid, pid, author, action, version, text=None):
-    """Accepter / Refuser / Modifier une proposition ; la version affichée est exigée (une modification invalide l'acceptation)."""
+def decide(desk, mid, pid, author, action, version, text=None, sources_ok=False):
+    """Accepter / Refuser / Modifier une proposition ; la version affichée est exigée (une modification invalide l'acceptation).
+    5.6.52 (F05) : une source modifiée depuis la proposition empêche l'acceptation, sauf nouvelle décision prise sur les sources
+    actuelles affichées (``sources_ok``), qui rattache alors la proposition à ces versions."""
     ensure_schema(desk)
     p = desk.db.execute('SELECT * FROM d51_proposals WHERE id=? AND matter=?', (pid, mid)).fetchone()
     if not p:
         raise Stop('proposition_absente')
     if int(version) != p['version']:
         raise Stop('version_en_conflit')
-    if p['state'] in ('appliquee', 'perimee'):
+    if p['state'] == 'perimee':
         raise Stop('proposition_close')
     now = _now()
     if action == 'accepter':
-        desk.db.execute("UPDATE d51_proposals SET state='acceptee',accepted_version=version,decided_by=?,decided_at=?,updated=? WHERE id=?", (author, now, now, pid))
+        sources = json.loads(p['sources'] or '[]')
+        changed = _changed_sources(desk, mid, sources)
+        if changed:
+            if not sources_ok:
+                raise Stop('source_a_recontroler')
+            current = {r['path']: r['etag'] for r in desk.db.execute('SELECT path,etag FROM d51_documents WHERE matter=?', (mid,))}
+            if any(x['path'] not in current for x in changed):
+                raise Stop('source_retiree')
+            sources = [dict(x, etag=current.get(x['path'], x.get('etag'))) if x.get('path') else x for x in sources]
+            desk.db.execute('UPDATE d51_proposals SET sources=? WHERE id=?', (json.dumps(sources, ensure_ascii=False), pid))
+        cur = desk.db.execute("UPDATE d51_proposals SET state='acceptee',accepted_version=version,conflict='',decided_by=?,decided_at=?,updated=? "
+                              "WHERE id=? AND version=?", (author, now, now, pid, int(version)))
+        if not cur.rowcount:
+            raise Stop('version_en_conflit')
     elif action == 'refuser':   # le passage d'origine reste intact
         desk.db.execute("UPDATE d51_proposals SET state='refusee',accepted_version=0,decided_by=?,decided_at=?,updated=? WHERE id=?", (author, now, now, pid))
     elif action == 'modifier':
@@ -364,39 +435,82 @@ def decide(desk, mid, pid, author, action, version, text=None):
 
 
 def apply(desk, mid, sid, author, client=None):
-    """Nouveau fichier avec les propositions acceptées (révisions natives) ; jamais d'écrasement de l'original."""
+    """Nouvelle version du document avec TOUTES les décisions valides de la session (révisions natives) ; jamais d'écrasement.
+
+    5.6.52 (audit 5.6.51) : chaque export repart du document d'origine et reprend l'ensemble cumulatif des acceptations encore valides
+    (F07) ; une acceptation dont une source a changé est invalidée avant export (F05) ; une ancre ambiguë est périmée (F06) ; les
+    exports sont numérotés par session, réservés avant écriture et idempotents (même base, mêmes décisions : même export)."""
     ensure_schema(desk)
     s = desk.db.execute('SELECT * FROM d51_review_sessions WHERE id=? AND matter=?', (sid, mid)).fetchone()
     if not s:
         raise Stop('relecture_absente')
-    accepted = [dict(r) for r in desk.db.execute("SELECT * FROM d51_proposals WHERE session=? AND state='acceptee' AND accepted_version=version", (sid,))]
+    try:
+        from .modele5651 import ensure_current
+        ensure_current(desk, mid)
+    except Exception:   # noqa: BLE001
+        pass
+    accepted = [dict(r) for r in desk.db.execute("SELECT * FROM d51_proposals WHERE session=? AND state IN ('acceptee','appliquee') "
+                                                  "AND accepted_version=version ORDER BY para_index", (sid,))]
+    invalid = []
+    for prop in accepted:
+        changed = _changed_sources(desk, mid, json.loads(prop['sources'] or '[]'))
+        if changed:
+            invalid.append(prop['id'])
+            desk.db.execute("UPDATE d51_proposals SET state='proposee',accepted_version=0,conflict=?,updated=? WHERE id=?",
+                            ('source modifiée ou retirée depuis l’acceptation : ' + ', '.join(sorted({c['path'].rsplit('/', 1)[-1] for c in changed}))[:300],
+                             _now(), prop['id']))
+    desk.db.commit()
+    accepted = [a for a in accepted if a['id'] not in invalid]
     if not accepted:
-        raise Stop('aucune_proposition_acceptee')
+        raise Stop('sources_modifiees_a_recontroler' if invalid else 'aucune_proposition_acceptee')
     client = client or _client(desk)
     st = client.stat(s['path'])
     raw = client.download({'path': s['path'], 'etag': st['etag'], 'size': st.get('size', 0)})
+    base = _sha(raw)
     data, applied, manual, stale = apply_to_docx(raw, accepted, author)
-    if not applied:
-        _mark(desk, stale, 'perimee', 'texte du paragraphe modifié depuis la proposition')
-        _mark(desk, manual, 'manuelle', 'paragraphe avec champ, note, lien ou objet')
-        raise Stop('aucune_modification_applicable')
-    src = PurePosixPath(s['path'])
-    stamp = datetime.now().strftime('%Y-%m-%d %H%M%S')
-    target = str(src.with_name('%s - relecture AxiorHub %s.docx' % (src.stem[:80], stamp)))
-    client.put_file(target, data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    check = client.download({'path': target, 'etag': ''})
-    if _sha(check) != _sha(data):
-        raise Stop('ecriture_non_verifiee')
-    _mark(desk, applied, 'appliquee', '')
-    _mark(desk, stale, 'perimee', 'texte du paragraphe modifié depuis la proposition' + (' (le fichier a changé depuis la demande)' if st['etag'] != s['etag'] else ''))
+    _mark(desk, stale, 'perimee', 'texte du paragraphe modifié, déplacé ou dupliqué depuis la proposition' +
+          (' (le fichier a changé depuis la demande)' if base != s['doc_sha'] else ''))
     _mark(desk, manual, 'manuelle', 'paragraphe avec champ, note, lien ou objet : à reporter à la main')
+    desk.db.commit()
+    if not applied:
+        raise Stop('aucune_modification_applicable')
+    versions = {a['id']: a['version'] for a in accepted}
+    included = sorted([pid, versions[pid]] for pid in applied)
+    last = desk.db.execute("SELECT * FROM d51_review_exports WHERE session=? AND state='ok' ORDER BY number DESC LIMIT 1", (sid,)).fetchone()
+    if last and last['base_sha'] == base and json.loads(last['included']) == included:
+        return {'path': last['path'], 'sha256': last['sha'], 'applied': len(applied), 'manual': len(manual), 'stale': len(stale),
+                'invalidated': len(invalid), 'version': last['number'], 'deja_cree': True, 'file_changed_since_request': base != s['doc_sha']}
+    if desk.db.in_transaction:
+        desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        number = 1 + desk.db.execute('SELECT COALESCE(MAX(number),0) FROM d51_review_exports WHERE session=?', (sid,)).fetchone()[0]
+        cur = desk.db.execute("INSERT INTO d51_review_exports(session,matter,number,base_sha,included,author,created) VALUES(?,?,?,?,?,?,?)",
+                              (sid, mid, number, base, json.dumps(included), author, _now()))
+        desk.db.commit()
+    except BaseException:
+        desk.db.rollback()
+        raise
+    export_id = cur.lastrowid
+    src = PurePosixPath(s['path'])
+    target = str(src.with_name('%s - relecture AxiorHub %s v%d.docx' % (src.stem[:80], sid[:6], number)))
+    try:
+        client.put_file(target, data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        check = client.download({'path': target, 'etag': ''})
+        if _sha(check) != _sha(data):
+            raise Stop('ecriture_non_verifiee')
+    except BaseException:
+        desk.db.execute("UPDATE d51_review_exports SET state='echec' WHERE id=?", (export_id,))
+        desk.db.commit()
+        raise
+    desk.db.execute("UPDATE d51_review_exports SET state='ok',path=?,sha=? WHERE id=?", (target, _sha(data), export_id))
     desk.db.execute('UPDATE d51_review_sessions SET output_path=?,output_sha=?,updated=? WHERE id=?', (target, _sha(data), _now(), sid))
     desk.db.commit()
     from .memoire5651 import record_change
-    record_change(desk, mid, 'nouveau_document', 'document', target, _sha(data)[:16], 'Relecture appliquée : ' + PurePosixPath(target).name,
-                  {'applied': len(applied), 'manual': len(manual), 'stale': len(stale)})
-    return {'path': target, 'sha256': _sha(data), 'applied': len(applied), 'manual': len(manual), 'stale': len(stale),
-            'file_changed_since_request': st['etag'] != s['etag']}
+    record_change(desk, mid, 'nouveau_document', 'document', target, _sha(data)[:16], 'Relecture appliquée (version %d) : %s' % (number, PurePosixPath(target).name),
+                  {'applied': len(applied), 'manual': len(manual), 'stale': len(stale), 'invalidated': len(invalid)})
+    return {'path': target, 'sha256': _sha(data), 'applied': len(applied), 'manual': len(manual), 'stale': len(stale), 'invalidated': len(invalid),
+            'version': number, 'file_changed_since_request': base != s['doc_sha']}
 
 
 def _mark(desk, ids, state, conflict):
@@ -408,8 +522,13 @@ def pending_sessions(desk, mid):
     ensure_schema(desk)
     out = []
     for s in desk.db.execute("SELECT s.id,s.path,COUNT(p.id) n,MAX(p.updated) u FROM d51_review_sessions s JOIN d51_proposals p ON p.session=s.id "
-                             "WHERE s.matter=? AND p.state IN ('proposee','acceptee') GROUP BY s.id", (mid,)):
-        out.append({'session': s['id'], 'name': PurePosixPath(s['path']).name, 'count': s['n'], 'revision': s['u']})
+                             "WHERE s.matter=? AND p.state IN ('proposee','acceptee','appliquee') GROUP BY s.id", (mid,)):
+        last = desk.db.execute("SELECT included FROM d51_review_exports WHERE session=? AND state='ok' ORDER BY number DESC LIMIT 1", (s['id'],)).fetchone()
+        done = {tuple(x) for x in json.loads(last['included'])} if last else set()
+        waiting = [r for r in desk.db.execute("SELECT id,version,state FROM d51_proposals WHERE session=? AND state IN ('proposee','acceptee','appliquee')",
+                                              (s['id'],)) if r['state'] == 'proposee' or (r['id'], r['version']) not in done]
+        if waiting:   # 5.6.52 : une décision déjà incluse dans la dernière version n'est plus « à relire »
+            out.append({'session': s['id'], 'name': PurePosixPath(s['path']).name, 'count': len(waiting), 'revision': s['u']})
     return out
 
 

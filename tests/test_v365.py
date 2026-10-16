@@ -104,7 +104,7 @@ class Browser365(unittest.TestCase):
     def test_openapi_exposes_long_document_progress_and_365(self):
         from agent.api import openapi
         spec=openapi('https://cabinet.test')
-        self.assertEqual(spec['info']['version'],'5.6.51')
+        self.assertEqual(spec['info']['version'],'5.6.52')
         self.assertIn('/long-documents/{run_id}',spec['paths'])
 
 

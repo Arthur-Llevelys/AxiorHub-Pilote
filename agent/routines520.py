@@ -162,15 +162,22 @@ def save_settings(desk, form):
     s['news'] = form.get('news') == 'yes'
     desk.setting('routines520', s)
     desk.audit('routines_520_reglages', {k: s[k]['enabled'] for k in ('briefing', 'tri', 'bilan')})
+    try:   # 5.6.52 (R06, R07) : mêmes définitions dans Paramètres et dans Aujourd'hui
+        from . import routines5652
+        routines5652.migrate(desk)
+    except Stop:
+        pass
     return s
 
 
 # ======================================================================================== planification
 def tick(desk, now=None):
-    """5.6.43 (§ 16.1) : origine « automatic » pour tout ce que ce planificateur met en file."""
+    """5.6.52 (audit 5.6.51, F10, R07) : planificateur unique des routines (``routines5652``) — occurrences durables, mise en file
+    transactionnelle, file pleine = passage à reprogrammer (jamais marqué fait). 5.6.43 (§ 16.1) : origine « automatic »."""
     from .arret5643 import automatic
+    from . import routines5652
     with automatic(desk):
-        return _tick_5642(desk, now)
+        return routines5652.tick(desk, now)
 
 
 def _tick_5642(desk, now=None):
@@ -716,6 +723,26 @@ def _nextcloud_week(desk, monday):
 
 
 def run(desk, args):
+    """5.6.52 : le passage planifié ou demandé (``occurrence``) reçoit son résultat vérifié ; un arrêt demandé est respecté."""
+    occurrence = str(args.get('occurrence') or '')
+    if occurrence:
+        from . import routines5652
+        routines5652.start_occurrence(desk, occurrence)
+        try:
+            out = _run_5651(desk, args)
+        except Exception as ex:
+            routines5652.finish(desk, occurrence, 'echec', {'produit': [], 'a_decider': [], 'impossible': [str(ex).split(':')[0][:200]], 'prochaine': ''})
+            raise
+        report = latest(desk, str(args.get('kind', '')))
+        notes = (report or {}).get('notes') or []
+        routines5652.finish(desk, occurrence, 'partielle' if notes else 'terminee',
+                            {'produit': [KINDS.get(str(args.get('kind', '')), '') + ' dans « Aujourd’hui »'], 'a_decider': [], 'impossible': notes[:5],
+                             'prochaine': ''}, out.get('report') or '')
+        return out
+    return _run_5651(desk, args)
+
+
+def _run_5651(desk, args):
     kind = str(args.get('kind', ''))
     if kind == 'briefing':
         rid = briefing(desk)
@@ -832,4 +859,7 @@ def render_markdown(text):
 def perform(desk, kind, args):
     if kind == 'routine520':
         return run(desk, args)
+    if kind == 'routine5652':   # 5.6.52 : routines personnalisées (synthèse, nouveautés, missions)
+        from .routines5652 import execute
+        return execute(desk, args)
     raise Stop('action_inconnue')

@@ -348,6 +348,58 @@ INDIRECT_SQL = {
     'project': ("SELECT matter FROM document_projects_v220 WHERE id=?",),
     'task': ("SELECT matter FROM work_tasks_v211 WHERE id=?",),
 }
+# 5.6.52 (audit 5.6.51, F01) : objets désignés par un identifiant propre à une route ; leur dossier réel est lu sur le serveur, jamais
+# déduit du dossier déclaré par le navigateur. Une règle de style (sans dossier) relève du contrôle de propriétaire du service.
+ROUTE_OBJECTS = {
+    'm5651/regle': (('id', 'SELECT matter FROM d51_learned WHERE id=?'),),
+    'm5651/information': (('id', 'SELECT matter FROM d51_assertions WHERE id=?'), ('avec', 'SELECT matter FROM d51_assertions WHERE id=?')),
+    'm5651/partie': (('id', 'SELECT matter FROM d51_parties WHERE id=?'),),
+    'm5651/partie/fusion': (('a', 'SELECT matter FROM d51_parties WHERE id=?'), ('b', 'SELECT matter FROM d51_parties WHERE id=?')),
+    'm5651/partie/separer': (('a', 'SELECT matter FROM d51_parties WHERE id=?'), ('b', 'SELECT matter FROM d51_parties WHERE id=?')),
+    'm5651/partie/annuler-fusion': (('decision', 'SELECT matter FROM d51_party_decisions WHERE id=?'),),
+    'm5651/procedure': (('id', 'SELECT matter FROM d51_procedures WHERE id=?'),),
+    'm5651/decision-cabinet': (('remplace', 'SELECT matter FROM d51_cabinet_decisions WHERE id=?'),),
+    'm5651/decision-cabinet/retirer': (('id', 'SELECT matter FROM d51_cabinet_decisions WHERE id=?'),),
+    'm5651/lacune': (('id', 'SELECT matter FROM d51_gaps WHERE id=?'),),
+    'm5651/relecture/decider': (('id', 'SELECT matter FROM d51_proposals WHERE id=?'),),
+    'm5651/relecture/appliquer': (('session', 'SELECT matter FROM d51_review_sessions WHERE id=?'),),
+    'm5651/file/decider': (('key', 'SELECT matter FROM d51_queue WHERE key=?'),),
+    **{'m5652/routine/' + r: (('id', 'SELECT matter_scope FROM routines5652 WHERE id=?'),)
+       for r in ('modifier', 'activer', 'dupliquer', 'supprimer', 'lancer', 'historique')},
+    'm5652/outil/appeler': (('operation', 'SELECT matter FROM connexion_ops5652 WHERE id=?'),),
+    'm5652/operation/valider': (('id', 'SELECT matter FROM connexion_ops5652 WHERE id=?'),),
+    'm5652/operation/annuler': (('id', 'SELECT matter FROM connexion_ops5652 WHERE id=?'),),
+}
+
+
+def route_objects(state_dir, path, args):
+    """Dossiers réels des objets désignés par identifiant dans une route connue (lecture seule ; objet inconnu : rien)."""
+    api = str(path or '').split('/api440/', 1)[-1].split('?', 1)[0].rstrip('/') if '/api440/' in str(path or '') else ''
+    specs = ROUTE_OBJECTS.get(api)
+    if not specs:
+        return set()
+    import sqlite3
+    found = set()
+    try:
+        db = sqlite3.connect('file:%s?mode=ro' % (Path(str(state_dir)) / 'desk.sqlite3').as_posix(), uri=True, timeout=2)
+    except sqlite3.Error:
+        return found
+    try:
+        for key, sql in specs:
+            value = str(args.get(key) or '')
+            if not value:
+                continue
+            try:
+                row = db.execute(sql, (value,)).fetchone()
+            except sqlite3.Error:
+                continue
+            if row and row[0]:
+                for m in str(row[0]).split(','):
+                    if m.strip():
+                        found.add(m.strip())
+    finally:
+        db.close()
+    return found
 
 
 def _request_values(env, path, args):
@@ -432,7 +484,7 @@ def gate(env, state_dir, path, args, matter_paths=None):
     hidden = hidden_for(state_dir, owner, role)
     set_viewer(hidden)
     _presence(state_dir, owner, role, env)
-    if hidden and _matters_of(state_dir, _request_values(env, path, args), matter_paths) & hidden:
+    if hidden and (_matters_of(state_dir, _request_values(env, path, args), matter_paths) | route_objects(state_dir, path, args)) & hidden:
         return 'dossier_reserve'
     return None
 

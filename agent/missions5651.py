@@ -35,7 +35,7 @@ GOALS = {'repondre': ('Répondre à des écritures adverses', 'conclusions'), 'a
          'audience': ('Préparer une audience', 'audience'), 'autre': ('Autre résultat (note, courrier, synthèse…)', 'livrable')}
 MODES = {'a_la_demande': 'À la demande', 'preparation_automatique': 'Préparation automatique'}
 PALIERS = (14, 7, 2)
-PREP_STATES = {'prevue': 'Prévue', 'lancee': 'Lancée', 'annulee': 'Annulée (date modifiée ou événement annulé)', 'sautee': 'Rattrapée par un palier plus récent',
+PREP_STATES = {'prevue': 'Prévue', 'lancee': 'Lancée', 'reservee': 'En cours de lancement', 'annulee': 'Annulée (date modifiée ou événement annulé)', 'sautee': 'Rattrapée par un palier plus récent',
                'bloquee': 'Non lancée (dossier en pause ou archivé)'}
 ACTIVE_STATES = ('active', 'decision', 'suspendue', 'suspendue_budget', 'bloquee', 'a_valider', 'suggested')
 
@@ -253,7 +253,7 @@ def plan(desk, mid, today=None):
             desk.db.execute('INSERT OR IGNORE INTO d51_preparations(key,matter,event_kind,event_id,event_version,event_date,palier,due,state,created,updated) '
                             'VALUES(?,?,?,?,?,?,?,?,?,?,?)', (key, mid, ev['kind'], ev['id'], ev['version'], ev['date'], n,
                                                               (event_day - timedelta(days=n)).isoformat(), 'prevue', now, now))
-    for r in desk.db.execute("SELECT key FROM d51_preparations WHERE matter=? AND state='prevue'", (mid,)).fetchall():
+    for r in desk.db.execute("SELECT key FROM d51_preparations WHERE matter=? AND state IN ('prevue','bloquee')", (mid,)).fetchall():
         if r['key'] not in current:   # date reportée, événement annulé ou non confirmé : aucune ancienne relance
             desk.db.execute("UPDATE d51_preparations SET state='annulee',reason='événement modifié, annulé ou non confirmé',updated=? WHERE key=?", (now, r['key']))
     desk.db.commit()
@@ -278,7 +278,9 @@ def run_due(desk, mid, today=None, owner='cabinet'):
     launched = []
     by_event = {}
     for p in preps:
-        if p['state'] == 'prevue' and date.fromisoformat(p['due']) <= today:
+        # 5.6.52 (audit 5.6.51, F08) : une préparation bloquée par une pause ou un archivage temporaire redevient éligible à la reprise
+        # (même événement, même version : sa clé est encore courante) ; une préparation annulée ou d'une date reportée ne revient jamais.
+        if p['state'] in ('prevue', 'bloquee') and date.fromisoformat(p['due']) <= today:
             by_event.setdefault((p['event_kind'], p['event_id'], p['event_version']), []).append(p)
     now = _now()
     for evkey, due in by_event.items():
@@ -286,13 +288,21 @@ def run_due(desk, mid, today=None, owner='cabinet'):
         latest, older = due[0], due[1:]
         for p in older:
             desk.db.execute("UPDATE d51_preparations SET state='sautee',reason=?,updated=? WHERE key=?", ('rattrapé par le palier J-%d' % latest['palier'], now, p['key']))
+        if any(p['state'] == 'lancee' for p in preps if (p['event_kind'], p['event_id'], p['event_version']) == evkey):
+            continue                                        # un palier de cet événement est déjà produit : pas de second rattrapage
         if is_paused(desk, mid) or _closed(desk, mid):
-            desk.db.execute("UPDATE d51_preparations SET state='bloquee',reason=?,updated=? WHERE key=?",
-                            ('dossier en pause' if is_paused(desk, mid) else 'dossier archivé', now, latest['key']))
+            reason = 'dossier en pause depuis le %s' % now[:10] if is_paused(desk, mid) else 'dossier archivé le %s' % now[:10]
+            if latest['state'] != 'bloquee':
+                desk.db.execute("UPDATE d51_preparations SET state='bloquee',reason=?,updated=? WHERE key=?", (reason, now, latest['key']))
             continue
         still = {(e['kind'], e['id'], e['version']) for e in confirmed_events(desk, mid)}
         if evkey not in still:                              # revérifié juste avant l'effet
             desk.db.execute("UPDATE d51_preparations SET state='annulee',reason='événement modifié avant lancement',updated=? WHERE key=?", (now, latest['key']))
+            continue
+        # réservation atomique du palier avant toute création de mission (deux planificateurs : un seul lancement)
+        cur = desk.db.execute("UPDATE d51_preparations SET state='reservee',updated=? WHERE key=? AND state IN ('prevue','bloquee')", (now, latest['key']))
+        desk.db.commit()
+        if not cur.rowcount:
             continue
         from . import taches5614
         label = 'audience' if latest['event_kind'] == 'audience' else 'échéance'
@@ -300,7 +310,8 @@ def run_due(desk, mid, today=None, owner='cabinet'):
                                            'instruction': 'Préparation automatique J-%d de l’%s du %s : dossier d’audience (synthèse actualisée, chronologie utile, '
                                                           'prétentions en présence, pièces clés et pièces manquantes, questions, projet de note de plaidoirie).'
                                                           % (latest['palier'], label, latest['event_date'])}, owner)
-        desk.db.execute("UPDATE d51_preparations SET state='lancee',mission=?,updated=? WHERE key=?", (mission['id'], now, latest['key']))
+        desk.db.execute("UPDATE d51_preparations SET state='lancee',mission=?,reason=CASE WHEN reason<>'' THEN reason || ' ; repris le ' || ? ELSE '' END,"
+                        "updated=? WHERE key=?", (mission['id'], now[:10], now, latest['key']))
         launched.append(latest['key'])
     desk.db.commit()
     return launched

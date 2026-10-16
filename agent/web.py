@@ -1363,7 +1363,8 @@ class App:
                 try:   # 5.6.51 (A06) : file unique « À décider / À relire », mêmes éléments que Dossier et Produire
                     from .file5651 import html as queue5651
                     from .membres5650 import viewer_hidden
-                    main+=queue5651(desk,prefix,None,str(args.get('file') or ''),viewer_hidden() or frozenset(),8)
+                    from .i18n5631 import role as _role52
+                    main+=queue5651(desk,prefix,None,str(args.get('file') or ''),viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
                 except Exception:   # noqa: BLE001 — la file ne doit jamais empêcher l'affichage du poste de pilotage
                     pass
                 main+=(cockpit_page(desk,prefix,owner=str(auth.get('owner') or 'cabinet'))+'<div id="ax-toast" role="status" aria-live="polite"></div>'
@@ -1383,7 +1384,8 @@ class App:
                 try:   # 5.6.51 (A06) : projets et modifications à relire, mêmes éléments que Aujourd'hui et Dossier
                     from .file5651 import html as queue5651
                     from .membres5650 import viewer_hidden
-                    main+=queue5651(desk,prefix,None,'relire',viewer_hidden() or frozenset(),8)
+                    from .i18n5631 import role as _role52
+                    main+=queue5651(desk,prefix,None,'relire',viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
                 except Exception:   # noqa: BLE001
                     pass
                 main+=production_page(desk,args,form,link)

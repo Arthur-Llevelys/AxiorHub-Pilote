@@ -1,0 +1,47 @@
+{
+  "version": "5.6.52",
+  "base": "5.6.51 publiée",
+  "date_utc": "2026-10-16T00:00:00+00:00",
+  "cahier_des_charges": "Audit « AxiorHub Pilote 5.6.51 » du 16 octobre 2026 : défauts F01 à F10, routines personnalisées R01 à R09, connexions API utilisables par l’IA I01 à I15 ; limites et éléments non faits détaillés dans CONFORMITE-5.6.52.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2321,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 97,
+    "note": "Total compté par la suite elle-même (unittest discover), sans ajout ni estimation ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "audit_counter_tests": {
+    "contre_tests_5651 (F01 à F10)": "11/11 passent (tests/test_contre5651.py)",
+    "contre_tests_5650 (B01 à B05)": "5/5 passent",
+    "contre_tests_5643 (anciens F01 à F10)": "10/10 passent"
+  },
+  "new_tests": "tests/test_v5652.py : connexions (registre des quinze fournisseurs, AR24 signé et chiffré, échecs normalisés sans secret, outils limités aux connexions vérifiées, annuaire public, OAuth avec état et PKCE, chaque capacité appelée sur le bon point d’accès avec son authentification) ; opérations (préparation, validation, suivi, archive des preuves, document modifié, réponse perdue = résultat à vérifier, déconnexion) ; routines (migration stable, création idempotente, conflit de version, heure d’été, file pleine, pause et reprise, lancement manuel, file « À relire », accès personnel).",
+  "provider_status": "Quinze fournisseurs : codés et testés sur serveur simulé selon les documentations officielles ; aucun testé en bac à sable réel ni reçu en production (accès du cabinet nécessaires).",
+  "exapp": {
+    "version": "0.1.11",
+    "moteur": "5.6.52"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Les routines briefing, tri et bilan deviennent des routines historiques gérées dans le bloc « Routines » d’Aujourd’hui ; leurs réglages et horaires sont conservés.",
+    "Les applications de relecture Word créent un fichier numéroté cumulatif à chaque nouvelle décision (« … relecture AxiorHub <id> vN.docx ») au lieu d’un fichier par application.",
+    "Les informations dont la source a été remplacée passent en « historique » et ne servent plus aux rédactions.",
+    "Paramètres › Connexions comporte la section « Connexions API utilisables par l’IA » ; aucune connexion n’est active sans secret, test réel et capacités activées."
+  ],
+  "not_verified_here": [
+    "bac à sable et production des quinze fournisseurs",
+    "notifications entrantes (webhooks) : non implémentées",
+    "installation du cabinet",
+    "comptes rendus de routines avec le modèle local du cabinet",
+    "ouverture des révisions Word dans les éditeurs du cabinet"
+  ],
+  "adjusted_tests": [
+    "tests/test_d5651.py (Learning) : set_status reçoit le dossier attendu (F01).",
+    "tests/test_d5651.py (Review) : états attendus mis à jour (acceptation conservée jusqu’à l’export) et exports cumulatifs numérotés (F07, « deja_cree » pour le même ensemble de décisions)."
+  ]
+}

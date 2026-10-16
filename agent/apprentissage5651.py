@@ -121,17 +121,38 @@ def learn(desk, author, data):
     return dict(desk.db.execute('SELECT * FROM d51_learned WHERE id=?', (ident,)).fetchone())
 
 
-def set_status(desk, ident, author, status, admin=False):
-    """Désactiver, réactiver ou annuler (retirer) une règle ; une règle de style n'est modifiable que par son auteur."""
+def resolve_rule(desk, ident):
     ensure_schema(desk)
-    if status not in ('active', 'desactivee', 'annulee'):
-        raise Stop('etat_regle_invalide')
-    row = desk.db.execute('SELECT * FROM d51_learned WHERE id=?', (ident,)).fetchone()
+    row = desk.db.execute('SELECT * FROM d51_learned WHERE id=?', (str(ident or ''),)).fetchone()
     if not row:
         raise Stop('regle_absente')
-    if row['scope'] == 'style' and row['owner'] != author and not admin:
-        raise Stop('role_insuffisant')
-    desk.db.execute('UPDATE d51_learned SET status=?,version=version+1,updated=? WHERE id=?', (status, _now(), ident))
+    return row
+
+
+def authorize_rule(row, author, expected_matter, admin=False):
+    """5.6.52 (audit 5.6.51, F01) : une règle de dossier ou de document appartient à SON dossier, comparé au dossier autorisé de la
+    requête (jamais l'inverse) ; une règle de style appartient à son auteur. Refus sans effet ni contenu (« règle absente »)."""
+    if row['scope'] == 'style':
+        if row['owner'] != author and not admin:
+            raise Stop('role_insuffisant')
+        return
+    if not expected_matter or str(row['matter']) != str(expected_matter):
+        raise Stop('regle_absente')
+    from .membres5650 import viewer_hidden
+    if str(row['matter']) in (viewer_hidden() or frozenset()):
+        raise Stop('regle_absente')
+
+
+def set_status(desk, ident, author, status, admin=False, expected_matter=None, expected_version=None):
+    """Désactiver, réactiver ou annuler (retirer) une règle : objet résolu sur le serveur, dossier réel contrôlé, version attendue."""
+    if status not in ('active', 'desactivee', 'annulee'):
+        raise Stop('etat_regle_invalide')
+    row = resolve_rule(desk, ident)
+    authorize_rule(row, author, expected_matter, admin)
+    version = row['version'] if expected_version in (None, '') else int(expected_version)
+    cur = desk.db.execute('UPDATE d51_learned SET status=?,version=version+1,updated=? WHERE id=? AND version=?', (status, _now(), ident, version))
+    if not cur.rowcount:
+        raise Stop('version_en_conflit')
     if row['rule410']:
         from .learning410 import set_rule_status
         try:

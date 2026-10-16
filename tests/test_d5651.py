@@ -418,7 +418,9 @@ class Review(Base):
         self.assertIn('Le bailleur conteste.', xml)                                  # refus : passage d'origine conservé
         self.assertIn('<w:ins ', xml)
         states = {p['para_index']: p['state'] for p in rl.session(self.desk, MID, s['id'])['proposals']}
-        self.assertEqual(states, {0: 'appliquee', 1: 'refusee', 2: 'proposee'})
+        self.assertEqual(states, {0: 'acceptee', 1: 'refusee', 2: 'proposee'})   # 5.6.52 (F07) : la décision reste distincte de l'export
+        self.assertEqual(rl.session(self.desk, MID, s['id'])['proposals'][0]['exports'], [1])
+        self.assertTrue(rl.apply(self.desk, MID, s['id'], 'avocat@example.test', client=self.client)['deja_cree'])   # second clic idempotent
 
     def test_texte_modifie_entre_temps_proposition_perimee(self):
         accepted = [{'id': 'p', 'anchor': rl.paragraphs(_docx(P2))[0]['anchor'], 'occurrence': 0, 'expected': 'Le bailleur conteste.', 'replacement': 'Autre'}]
@@ -465,7 +467,9 @@ class Learning(Base):
         rules = [r['consigne'] for r in ap.rules_for(self.desk, MID, 'avocat@example.test')]
         self.assertIn('Ne pas invoquer la force majeure dans ce dossier', rules)
         self.assertEqual(ap.rules_for(self.desk, 'DOS-AUTRE', 'autre@example.test'), [])   # un autre dossier, un autre compte : rien
-        ap.set_status(self.desk, local['id'], 'avocat@example.test', 'desactivee')
+        with self.assertRaisesRegex(Stop, 'regle_absente'):                         # 5.6.52 (F01) : dossier attendu obligatoire
+            ap.set_status(self.desk, local['id'], 'avocat@example.test', 'desactivee', expected_matter='DOS-AUTRE')
+        ap.set_status(self.desk, local['id'], 'avocat@example.test', 'desactivee', expected_matter=MID)
         self.assertNotIn('Ne pas invoquer la force majeure dans ce dossier', [r['consigne'] for r in ap.rules_for(self.desk, MID, 'avocat@example.test')])
         status = self.desk.db.execute('SELECT status FROM business_rules_v410 WHERE id=?', (local['rule410'],)).fetchone()[0]
         self.assertEqual(status, 'paused')

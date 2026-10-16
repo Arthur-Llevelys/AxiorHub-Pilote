@@ -257,6 +257,12 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     from . import juridique5649   # 5.6.49 : recherche juridique avant la réponse (connecteurs du cabinet, requête anonymisée)
     legal=juridique5649.research(desk,matter['id'] if matter else '',question,'assistant')
     sources+=juridique5649.as_sources(legal)
+    try:   # 5.6.52 (I01 à I15) : outils de lecture des connexions vérifiées, choisis par l'agent, exécutés par le serveur
+        from .connexions5652 import agent_research
+        from .i18n5631 import role as _role52
+        sources+=agent_research(desk,getattr(desk,'mission_owner567','cabinet'),_role52(),question,matter['id'] if matter else '',model)
+    except Exception:   # noqa: BLE001 — la réponse se fait sans outil externe
+        pass
     turns=list(reversed(history(desk,scope)[:4]))
     from .relevance370 import correction_guidance
     from .learning392 import learning_context

@@ -88,8 +88,14 @@ def _connexions(desk, auth, prefix, env, cap):
     from .integration5636 import settings_html as _app_nextcloud   # 5.6.36 : comptes Nextcloud reliés (clés personnelles révocables)
     from .microsoft5636 import settings_html as _microsoft   # 5.6.36 : agenda Microsoft 365 (Outlook)
     from .talk5643 import settings_html as _talk   # 5.6.43 (§ 22) : page Talk facultative, propre à chaque utilisateur
-    owner = web567.actor(env)[0]
-    return (_section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_microsoft(desk, prefix, env)) +
+    owner, role52 = web567.actor(env)
+    from .connexions5652 import settings_html as _connexions52   # 5.6.52 (I01 à I15) : connexions API utilisables par l'IA
+    from .microsoft5636 import redirect_uri as _ms_redirect
+    from urllib.parse import parse_qs
+    _args52 = {k: v[0] for k, v in parse_qs(env.get('QUERY_STRING', '')).items()}
+    _retour52 = _ms_redirect(env, prefix).rsplit('/', 1)[0] + '/connexions-retour'
+    return (_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) +
+            _section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_microsoft(desk, prefix, env)) +
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
 

@@ -57,6 +57,10 @@ def api(env, desk, auth, prefix, name, args, method):
         raise Stop('dossier_reserve')
     modele5651.ensure_schema(desk)
     memoire5651.ensure_schema(desk)
+    from .membres5650 import route_objects
+    real = route_objects(desk.c['state_dir'], '/api440/' + name, data)
+    if real - {mid}:                                   # 5.6.52 (F01) : objet d'un autre dossier désigné sous ce dossier
+        raise Stop('element_absent')
     version = data.get('version')
     if route == 'analyser':
         return json_out({**modele5651.rebuild(desk, mid, force=True), 'message': 'Données du dossier actualisées.'})
@@ -121,9 +125,9 @@ def api(env, desk, auth, prefix, name, args, method):
     if route in ('file/decider', 'file/lot'):
         from . import file5651
         if route == 'file/lot':
-            return json_out(file5651.decide_batch(desk, owner, data.get('elements') or [], str(data.get('state') or ''), prefix, hidden))
+            return json_out(file5651.decide_batch(desk, owner, data.get('elements') or [], str(data.get('state') or ''), prefix, hidden, mid))
         out = file5651.decide(desk, owner, str(data.get('key') or ''), str(data.get('state') or ''), str(data.get('revision') or ''),
-                              str(data.get('motif') or ''), int(data.get('jours') or 1) if str(data.get('jours') or '1').isdigit() else 1, prefix, hidden)
+                              str(data.get('motif') or ''), int(data.get('jours') or 1) if str(data.get('jours') or '1').isdigit() else 1, prefix, hidden, mid)
         return json_out({**out, 'message': 'Décision enregistrée.'})
     if route == 'mission':
         from . import missions5651
@@ -155,7 +159,8 @@ def api(env, desk, auth, prefix, name, args, method):
         if data.get('action') == 'modifier':
             row = desk.db.execute('SELECT expected,replacement,session FROM d51_proposals WHERE id=? AND matter=?', (str(data.get('id') or ''), mid)).fetchone()
             before = dict(row) if row else None
-        out = relecture5651.decide(desk, mid, str(data.get('id') or ''), owner, str(data.get('action') or ''), version or 0, data.get('texte'))
+        out = relecture5651.decide(desk, mid, str(data.get('id') or ''), owner, str(data.get('action') or ''), version or 0, data.get('texte'),
+                                   sources_ok=_bool(data.get('sources_verifiees')))
         learned = None
         if before and data.get('portee'):   # A08 : la correction est retenue selon la portée choisie
             from . import apprentissage5651
@@ -166,12 +171,14 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'relecture/appliquer':
         from . import relecture5651
         out = relecture5651.apply(desk, mid, str(data.get('session') or ''), owner)
-        return json_out({**out, 'message': 'Nouvelle version créée : %d modification(s) en suivi, %d à reporter à la main, %d périmée(s).'
-                         % (out['applied'], out['manual'], out['stale'])})
+        return json_out({**out, 'message': ('Version %d déjà créée avec ces décisions.' % out['version']) if out.get('deja_cree') else
+                         'Version %d créée : %d modification(s) en suivi, %d à reporter à la main, %d périmée(s), %d à recontrôler (source modifiée).'
+                         % (out['version'], out['applied'], out['manual'], out['stale'], out['invalidated'])})
     if route == 'regle':
         from . import apprentissage5651
-        return json_out({'regle': apprentissage5651.set_status(desk, str(data.get('id') or ''), owner, str(data.get('status') or ''), role == 'administrateur'),
-                         'message': 'Règle mise à jour.'})
+        out = apprentissage5651.set_status(desk, str(data.get('id') or ''), owner, str(data.get('status') or ''), role == 'administrateur',
+                                           expected_matter=mid, expected_version=data.get('version'))
+        return json_out({'regle': {'id': out['id'], 'status': out['status'], 'version': out['version']}, 'message': 'Règle mise à jour.'})
     if route == 'rappel':
         kind = str(data.get('kind') or 'faits')
         if kind not in ('faits', 'procedure'):

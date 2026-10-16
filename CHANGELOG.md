@@ -3,6 +3,24 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.52 — Audit 5.6.51 : corrections F01 à F10, routines personnalisées, connexions API utilisables par l’IA
+
+Corrections et livraisons de l’audit « AxiorHub Pilote 5.6.51 » (détail : `CONFORMITE-5.6.52.md`).
+
+- **Accès (F01)** : une règle, une information, une relecture, une routine ou une opération désignée par son identifiant est contrôlée
+  sur son dossier réel ; un dossier réservé est refusé sans lecture ni écriture.
+- **Données du dossier (F02 à F04)** : contexte de rédaction actualisé après chaque indexation ; informations d’une version remplacée
+  classées « historique » ; rappels des faits signalés périmés dès que leurs informations changent.
+- **Relecture Word (F05 à F07, F09)** : source modifiée = acceptation à recontrôler ; ancre par position et voisins ; applications
+  cumulatives dans des fichiers numérotés ; règles « ce document » appliquées.
+- **Préparations et routines (F08, F10)** : reprise après une pause ; une routine n’est jamais perdue quand la file est pleine.
+- **Routines personnalisées** sur Aujourd’hui : créer, modifier, dupliquer, mettre en pause, supprimer, lancer ; jours, heure, mois ou
+  date unique ; dossiers choisis ; aperçu et historique des passages ; comptes rendus dans « À relire » ; jamais d’envoi, de signature
+  ni de facturation par une routine.
+- **Connexions API** dans Paramètres › Connexions : AR24, Youtrust, Légifrance, Judilibre, Pappers Justice, Pennylane, DocuSign,
+  SuperPDP, B2Brouter, GoCardless, Chorus Pro, Maileva, Microsoft Graph, Google Workspace, Axonaut. L’IA consulte les connexions
+  vérifiées en lecture ; toute écriture (signature, recommandé, courrier, facture, prélèvement) est une opération préparée puis validée.
+
 ## 5.6.51 — Audit 5.6.50 : frontières d’accès, page Dossier refondue, huit fonctions d’autonomie
 
 Corrections et livraisons de l’audit « AxiorHub Pilote 5.6.50 » (détail : `CONFORMITE-5.6.51.md`).

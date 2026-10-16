@@ -111,8 +111,8 @@ USER_JOBS |= {'proactive34_now'}
 USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
               'billing_review35','classify_comparable35'}
 USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
-JOBS |= {'recit5651','relecture5651'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
-USER_JOBS |= {'recit5651','relecture5651'}
+JOBS |= {'recit5651','relecture5651','routine5652'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
+USER_JOBS |= {'recit5651','relecture5651','routine5652'}
 JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
 USER_JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}
 CONSERVATION_JOBS = ('archive_correspondence5643','file_mail_attachments5643')
@@ -784,6 +784,16 @@ class Desk:
         self.db.commit()
         return {'note_interne':'disponible','brouillon_imap_cree':False}
 
+    def _current5652(self, mid):
+        """5.6.52 (audit 5.6.51, F02) : actualisation idempotente des données structurées du dossier (sans IA) après une ingestion."""
+        if not mid:
+            return None
+        try:
+            from .modele5651 import ensure_current
+            return ensure_current(self, str(mid))
+        except Exception:   # noqa: BLE001 — l'ingestion est faite ; l'état partiel est rendu visible par le contexte
+            return None
+
     def perform(self, kind, args):
         if kind=='recit5651':   # 5.6.51 (D06, D09) : rappel des faits ou de la procédure, paragraphes sourcés
             from .recit5651 import run as recit
@@ -838,7 +848,9 @@ class Desk:
             return file_attachments(self,str(args.get('key') or ''),str(args.get('matter') or ''),'automatique')
         if kind=='digest_pieces5632':   # 5.6.32 : fiches de pièces (examen du dossier entier)
             from .synthese5632 import build_job
-            return build_job(self,args)
+            out=build_job(self,args)
+            self._current5652(args.get('matter') or args.get('mid'))   # 5.6.52 (F02) : données du dossier actualisées après lecture
+            return out
         if kind=='mailrules5632':   # 5.6.32 : règles « Déplacer » de la messagerie
             from .courrier5632 import apply_moves
             return apply_moves(self)
@@ -941,7 +953,7 @@ class Desk:
         if kind=='task5614':
             from .taches5614 import perform
             return perform(self,args)
-        if kind=='routine520':
+        if kind in ('routine520','routine5652'):   # 5.6.52 : routines personnalisées
             from .routines520 import perform
             return perform(self,kind,args)
         if kind in {'edit_personal_event','edit_personal_task'}:
@@ -1060,6 +1072,7 @@ class Desk:
             before=index.db.execute('SELECT MAX(indexed_at) FROM knowledge_chunks WHERE matter=?',(matter['id'],)).fetchone()[0]
             items,stale=index.sync_page(DAV(self.c['nextcloud']),matter,self.c['documents'],100)
             embedding=index.ensure_embeddings(matter)
+            self._current5652(matter['id'])   # 5.6.52 (F02) : nouveaux documents pris en compte sans ouvrir la page
             after=index.db.execute('SELECT MAX(indexed_at) FROM knowledge_chunks WHERE matter=?',(matter['id'],)).fetchone()[0]
             return {'fichiers':len(items),'en_attente':len(stale),'embeddings':embedding,
                     'contenu_modifie':before!=after,'inventaire':index.last_page_state}

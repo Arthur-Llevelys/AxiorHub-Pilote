@@ -121,8 +121,22 @@ def _sha(*parts):
     return hashlib.sha256('|'.join(str(p) for p in parts).encode('utf-8')).hexdigest()[:24]
 
 
+MIGRATIONS = (('d51_assertions', 'validity', "TEXT NOT NULL DEFAULT 'courante'"),
+              ('d51_assertions', 'validity_note', "TEXT NOT NULL DEFAULT ''"),
+              ('d51_rebuilds', 'state', "TEXT NOT NULL DEFAULT 'ok'"),
+              ('d51_rebuilds', 'error', "TEXT NOT NULL DEFAULT ''"))
+VALIDITY = {'courante': 'Courante', 'historique': 'Historique (source remplacée ou retirée)',
+            'a_recontroler': 'Enregistrée, source remplacée : à recontrôler'}
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    changed = False
+    for table, column, decl in MIGRATIONS:   # 5.6.52 : colonnes ajoutées aux bases 5.6.51
+        cols = {r[1] for r in desk.db.execute('PRAGMA table_info(%s)' % table)}
+        if column not in cols:
+            desk.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table, column, decl))
+            changed = True
+    if changed:
+        desk.db.commit()
 
 
 def _matter(desk, mid):
@@ -540,9 +554,11 @@ def save_procedure(desk, mid, author, data):
 
 
 # ------------------------------------------------------------------------------------------------ informations (D06, D07)
-def assertions(desk, mid, kind=None, reviews=None, limit=None):
+def assertions(desk, mid, kind=None, reviews=None, limit=None, current_only=False):
     ensure_schema(desk)
     sql, params = 'SELECT * FROM d51_assertions WHERE matter=?', [mid]
+    if current_only:
+        sql += " AND validity<>'historique'"
     if kind:
         sql += ' AND kind=?'
         params.append(kind)
@@ -731,7 +747,12 @@ def rebuild(desk, mid, force=False):
     digests = {}
     try:
         synthese5632.schema(desk)
-        for r in desk.db.execute("SELECT path,text_sha,file_version,digest,status FROM piece_digests5634 WHERE matter=? ORDER BY created", (mid,)):
+        current_etag = {d['path']: d['etag'] for d in inv}
+        for r in desk.db.execute("SELECT path,text_sha,file_version,digest,status FROM piece_digests5634 WHERE matter=? ORDER BY created, rowid", (mid,)):
+            # 5.6.52 (F03) : relevé courant = celui de la version indexée ; à défaut (version non renseignée), le plus récent
+            known = digests.get(r['path'])
+            if known and known['etag'] == current_etag.get(r['path']) and r['file_version'] != current_etag.get(r['path']):
+                continue
             digests[r['path']] = {'sha': r['text_sha'], 'etag': r['file_version'], 'data': json.loads(r['digest'] or '{}'), 'status': r['status']}
     except Exception:   # noqa: BLE001
         pass
@@ -957,10 +978,54 @@ def rebuild(desk, mid, force=False):
                               review_state=review_state, proof='a_verifier', relevance='pertinent' if review_state == 'enregistre' else 'a_examiner')
     except Exception:   # noqa: BLE001 — mémoire absente
         pass
+    _refresh_validity(desk, mid, {p: d['etag'] for p, d in digests.items()}, {d['path'] for d in inv})
     memoire5651.sync_gaps(desk, mid)
     desk.db.execute('INSERT OR REPLACE INTO d51_rebuilds(matter,at,counters,revision) VALUES(?,?,?,?)', (mid, now, json.dumps(counters), revision))
     desk.db.commit()
     return counters
+
+
+def _refresh_validity(desk, mid, current_versions, indexed):
+    """5.6.52 (audit 5.6.51, F03) : une information issue d'un relevé n'est courante que si l'une de ses sources est la version
+    actuelle d'un document encore indexé. Sinon elle devient historique (consultable, jamais présentée comme actuelle) ; une information
+    enregistrée par l'avocat n'est jamais retirée : elle est signalée « à recontrôler ». Un document remplacé n'est pas un fait faux."""
+    now = _now()
+    for row in desk.db.execute("SELECT id,origin,review,sources,validity FROM d51_assertions WHERE matter=? AND origin='releve'", (mid,)).fetchall():
+        sources = json.loads(row['sources'] or '[]')
+        live = [s for s in sources if s.get('path') in indexed and (not s.get('etag') or s.get('etag') == current_versions.get(s.get('path'))
+                                                                     or s.get('path') not in current_versions)]
+        if live:
+            validity, note = 'courante', ''
+        else:
+            gone = [s.get('path', '').rsplit('/', 1)[-1] for s in sources]
+            note = ('source remplacée ou retirée : ' + ', '.join(sorted(set(gone)))[:300])
+            validity = 'a_recontroler' if row['review'] == 'enregistre' else 'historique'
+        if validity != row['validity']:
+            desk.db.execute('UPDATE d51_assertions SET validity=?,validity_note=?,updated=? WHERE id=?', (validity, note, now, row['id']))
+            if validity == 'a_recontroler':
+                from . import memoire5651
+                memoire5651.record_change(desk, mid, 'correction', 'information', row['id'], 'source:' + now, 'Information enregistrée dont la source a '
+                                          'changé : à recontrôler', {'note': note}, commit=False)
+
+
+def ensure_current(desk, mid):
+    """5.6.52 (audit 5.6.51, F02) : données structurées du dossier à jour avant toute lecture (page, rédactions, missions, relecture).
+    Idempotent (empreinte de révision, aucun appel au modèle) ; un échec est enregistré et rendu explicite, jamais masqué."""
+    ensure_schema(desk)
+    try:
+        out = rebuild(desk, mid)
+        return {'state': 'ok', **out}
+    except Stop as ex:
+        code = str(ex).split(':')[0]
+    except Exception as ex:   # noqa: BLE001 — reconstruction impossible : contexte partiel signalé
+        code = 'reconstruction_impossible:' + type(ex).__name__
+    try:
+        desk.db.rollback()
+        desk.db.execute("UPDATE d51_rebuilds SET state='partiel',error=? WHERE matter=?", (code[:200], mid))
+        desk.db.commit()
+    except Exception:   # noqa: BLE001
+        pass
+    return {'state': 'partiel', 'error': code}
 
 
 def last_rebuild(desk, mid):

@@ -9,6 +9,7 @@ PAGES = {
     '/relances': 'Relances d’impayés',
     '/complement-word': 'Complément Word',
     '/microsoft-retour': 'Microsoft 365',
+    '/connexions-retour': 'Connexions',   # 5.6.52 : retour d'autorisation OAuth (Microsoft Graph, Google Workspace, DocuSign)
     '/complement-word/volet': 'AxiorHub',
     '/toutes-les-fonctions': 'Toutes les fonctions',
     '/messagerie': 'Messagerie du cabinet',   # 5.6.50
@@ -50,6 +51,17 @@ def page(desk, auth, prefix, env, args, path, shell):
         body = relances5636.page_html(desk, prefix, args)
     elif path == '/toutes-les-fonctions':
         return shell(_all_title(), all_functions_html(desk, prefix), prefix, auth['csrf'], path)
+    elif path == '/connexions-retour':
+        from html import escape as _e
+        from .web567 import actor
+        from . import connexions5652
+        try:
+            out = connexions5652.oauth_finish(desk, actor(env)[0], args)
+            body = '<p>%s</p>' % _e('Compte autorisé et vérifié : %s.' % ', '.join(str(v) for v in (out.get('identite') or {}).values() if v) if out.get('ok')
+                                    else 'Autorisation enregistrée, mais le test de lecture a échoué : %s.' % out.get('erreur', ''))
+        except Stop as ex:
+            body = '<p>%s</p>' % _e('Autorisation non enregistrée : %s.' % str(ex).split(':')[0])
+        body += '<p><a class="ax-btn" href="%s">Retour aux connexions</a></p>' % _e(prefix + '/parametres?rubrique=connexions#cx52', quote=True)
     elif path == '/microsoft-retour':
         from . import microsoft5636
         body = microsoft5636.return_page(desk, prefix, args)

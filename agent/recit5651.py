@@ -29,7 +29,7 @@ def _items(desk, mid, kind):
     from . import modele5651
     names = {p['id']: p['display_name'] for p in modele5651.parties(desk, mid, include_merged=True)}
     if kind == 'faits':
-        rows = [a for a in modele5651.assertions(desk, mid, 'fait', ('enregistre', 'propose', 'a_verifier')) if a['relevance'] != 'hors_sujet']
+        rows = [a for a in modele5651.assertions(desk, mid, 'fait', ('enregistre', 'propose', 'a_verifier'), current_only=True) if a['relevance'] != 'hors_sujet']
         rows.sort(key=lambda a: (a['review'] != 'enregistre', a['date_value'] == '', a['date_value']))
         return {a['id'][:10]: {'texte': a['text'], 'auteur': names.get(a['author']) or a['author_label'] or 'document',
                                'qualification': modele5651.PROOF.get(a['proof'], a['proof']), 'controle': modele5651.REVIEW.get(a['review'], ''),
@@ -45,8 +45,16 @@ def _items(desk, mid, kind):
     return out
 
 
+def basis(desk, mid, kind, items=None):
+    """5.6.52 (audit 5.6.51, F04) : empreinte déterministe des données EXACTES transmises au modèle (JSON canonique : identifiants,
+    textes, attribution, contrôle, qualification, dates, procédures, actes, décisions, sources) — pas un nombre ni une date maximale."""
+    import hashlib
+    items = _items(desk, mid, kind) if items is None else items
+    return hashlib.sha256(json.dumps(items, sort_keys=True, ensure_ascii=False, default=str).encode('utf-8')).hexdigest()
+
+
 def run(desk, args, model=None):
-    from .vue5651 import _basis, _schema
+    from .vue5651 import _schema
     mid, kind = str(args.get('matter') or ''), str(args.get('kind') or 'faits')
     if kind not in SYSTEM:
         raise Stop('type_rappel_invalide')
@@ -56,6 +64,7 @@ def run(desk, args, model=None):
     items = _items(desk, mid, kind)
     if not items:
         raise Stop('aucune_information_pour_le_rappel')
+    snapshot = basis(desk, mid, kind, items)          # instantané figé AVANT l'appel au modèle
     if model is None:
         from .docrequest520 import _model
         model = _model(desk, mid)
@@ -75,9 +84,17 @@ def run(desk, args, model=None):
             paras.append({'texte': text[:4000], 'informations': ids[:20]})
     if not paras:
         raise Stop('rappel_sans_source')
-    version = 1 + desk.db.execute('SELECT COALESCE(MAX(version),0) FROM d51_narratives WHERE matter=? AND kind=?', (mid, kind)).fetchone()[0]
-    desk.db.execute('INSERT INTO d51_narratives(matter,kind,version,paragraphs,basis,model,created) VALUES(?,?,?,?,?,?,?)',
-                    (mid, kind, version, json.dumps(paras, ensure_ascii=False), _basis(desk, mid, kind), str(getattr(model, 'name', '') or '')[:80],
-                     datetime.now(timezone.utc).isoformat(timespec='seconds')))
-    desk.db.commit()
-    return {'matter': mid, 'kind': kind, 'version': version, 'paragraphes': len(paras)}
+    if desk.db.in_transaction:
+        desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')               # version réservée atomiquement (deux rédactions concurrentes)
+    try:
+        version = 1 + desk.db.execute('SELECT COALESCE(MAX(version),0) FROM d51_narratives WHERE matter=? AND kind=?', (mid, kind)).fetchone()[0]
+        desk.db.execute('INSERT INTO d51_narratives(matter,kind,version,paragraphs,basis,model,created) VALUES(?,?,?,?,?,?,?)',
+                        (mid, kind, version, json.dumps(paras, ensure_ascii=False), snapshot, str(getattr(model, 'name', '') or '')[:80],
+                         datetime.now(timezone.utc).isoformat(timespec='seconds')))
+        desk.db.commit()
+    except BaseException:
+        desk.db.rollback()
+        raise
+    stale = snapshot != basis(desk, mid, kind)
+    return {'matter': mid, 'kind': kind, 'version': version, 'paragraphes': len(paras), 'a_actualiser': stale}
