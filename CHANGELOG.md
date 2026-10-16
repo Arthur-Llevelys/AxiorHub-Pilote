@@ -3,6 +3,14 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.54 — Correctif : identifiants des documents de facturation
+
+- Deux brouillons de facturation, avoirs ou estimations créés dans la même seconde (machine rapide, double clic sans clé de demande)
+  recevaient le même identifiant technique : la seconde création échouait. Les identifiants sont désormais aléatoires ; aucune donnée
+  existante n’est modifiée. Constaté par la recette GitHub de la 5.6.53 (2 erreurs sous Linux) ; test de non-régression ajouté.
+- Deux règlements identiques sans référence enregistrés le même jour (par exemple deux chèques du même montant) étaient fusionnés en un
+  seul : ils restent désormais distincts ; un règlement avec référence n’est toujours enregistré qu’une fois.
+
 ## 5.6.53 — Audit 5.6.52 : opérations externes fiabilisées, facturation et honoraires, dossier FACTURATION
 
 Corrections et livraisons de l’audit « AxiorHub Pilote 5.6.52 » (détail : `CONFORMITE-5.6.53.md`).

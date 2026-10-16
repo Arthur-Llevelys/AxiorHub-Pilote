@@ -180,6 +180,8 @@ class Billing(base.Base):
         self.assertEqual(paid['payment_state'], 'partielle')
         paid = fact.record_payment(self.desk, ACTOR, 'avocat', inv['id'], '1040', '2026-10-12', 'virement', 'VIR-2')
         self.assertEqual(paid['payment_state'], 'reglee')
+        again = fact.record_payment(self.desk, ACTOR, 'avocat', inv['id'], '1040', '2026-10-12', 'virement', 'VIR-2')   # même référence : une fois
+        self.assertEqual(len(again['payments']), 2)
         av = fact.credit_note(self.desk, ACTOR, 'avocat', inv['id'], 'Erreur de quantité')
         self.assertEqual(av['origin'], inv['id'])
         av = fact.approve(self.desk, ACTOR, 'avocat', av['id'], av['version'])
@@ -241,6 +243,43 @@ class Billing(base.Base):
     def test_fichier_classe_dans_facturation_jamais_piece(self):
         from agent import modele5651
         self.assertEqual(modele5651.classify_name('/Dossiers/DEMO/FACTURATION/F-2026-0001 - Facture - Alpha.pdf'), 'gestion')
+
+
+class SameSecond(base.Base):
+    """5.6.54 : deux brouillons, avoirs ou estimations créés dans la même seconde (machine rapide, double clic) restent distincts."""
+
+    invoice = Billing.invoice
+
+    def setUp(self):
+        base.Base.setUp(self)
+        fact.save_entity(self.desk, 'admin@example.test', 'administrateur', ENTITY)
+        fact.save_client(self.desk, ACTOR, 'avocat', MID, CLIENT)
+
+    def test_creations_dans_la_meme_seconde(self):
+        with patch.object(fact, '_now', return_value='2026-10-16T10:00:00+00:00'), patch.object(fees, '_now', return_value='2026-10-16T10:00:00+00:00'):
+            a, b = self.invoice(), self.invoice()
+            self.assertNotEqual(a['id'], b['id'])
+            e1 = fees.save_estimate(self.desk, ACTOR, MID, {'mode': 'forfait', 'taux_horaire': '200', 'diligences': [{'minutes': 60}]})
+            e2 = fees.save_estimate(self.desk, ACTOR, MID, {'mode': 'forfait', 'taux_horaire': '200', 'diligences': [{'minutes': 60}]})
+            self.assertNotEqual(e1['id'], e2['id'])
+
+
+class Payments(base.Base):
+    """5.6.54 : deux règlements identiques sans référence le même jour sont deux règlements."""
+    invoice = Billing.invoice
+    approve_issue = Billing.approve_issue
+
+    def setUp(self):
+        base.Base.setUp(self)
+        fact.save_entity(self.desk, 'admin@example.test', 'administrateur', ENTITY)
+        fact.save_client(self.desk, ACTOR, 'avocat', MID, CLIENT)
+
+    def test_reglements_sans_reference_distincts(self):
+        inv = self.approve_issue(self.invoice())
+        fact.record_payment(self.desk, ACTOR, 'avocat', inv['id'], '720', '2026-10-10', 'chèque')
+        out = fact.record_payment(self.desk, ACTOR, 'avocat', inv['id'], '720', '2026-10-10', 'chèque')
+        self.assertEqual(len(out['payments']), 2)
+        self.assertEqual(out['payment_state'], 'reglee')
 
 
 class Templates(unittest.TestCase):

@@ -23,6 +23,7 @@ import hashlib
 import json
 from pathlib import PurePosixPath
 import re
+import secrets
 
 from .common import Stop, clean_path, load_matters, matter_display
 from . import fiscal5653 as fiscal
@@ -428,7 +429,7 @@ def prepare(desk, actor, role, kind, mid, data, request_key=''):
     snap['termes_confidentiels'] = _confidential_terms(desk, m)
     snap = compute(snap, ent, cli)
     template = models.default_for(desk, TEMPLATE_KIND.get(kind) or ('convention_temps' if subtype == 'temps' else 'convention_forfait'))
-    doc_id = 'fin-' + hashlib.sha256((actor + mid + kind + _now() + key).encode()).hexdigest()[:18]
+    doc_id = 'fin-' + secrets.token_hex(9)                    # 5.6.54 : identifiant technique unique (pas d'horodatage à la seconde)
     now = _now()
     desk.db.execute('INSERT INTO b53_documents(id,kind,subtype,matter,state,snapshot_json,template_id,engagement,created_by,created,updated,request_key,request_hash) '
                     'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', (doc_id, kind, subtype, str(mid), 'brouillon', json.dumps(snap, ensure_ascii=False), template['id'],
@@ -964,7 +965,7 @@ def credit_note(desk, actor, role, doc_id, reason, lines=None):
     if snap['totaux']['ttc_cents'] > src['snapshot']['totaux']['ttc_cents']:
         raise Stop('avoir_superieur_a_la_facture')
     template = models.default_for(desk, 'avoir')
-    did = 'fin-' + hashlib.sha256((actor + doc_id + _now()).encode()).hexdigest()[:18]
+    did = 'fin-' + secrets.token_hex(9)                       # 5.6.54 : identifiant technique unique
     now = _now()
     desk.db.execute('INSERT INTO b53_documents(id,kind,subtype,matter,state,snapshot_json,template_id,origin,engagement,created_by,created,updated) '
                     'VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', (did, 'avoir', '', src['matter'], 'brouillon', json.dumps(snap, ensure_ascii=False), template['id'], doc_id,
@@ -985,7 +986,10 @@ def record_payment(desk, actor, role, doc_id, amount, day, method, reference='')
         raise Stop('montant_invalide')
     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(day or '')):
         raise Stop('date_invalide')
-    pid = 'pay-' + hashlib.sha256((doc_id + str(value) + str(day) + str(reference) + str(method)).encode()).hexdigest()[:16]
+    # 5.6.54 : un règlement portant une référence (virement, chèque) n'est enregistré qu'une fois ; sans référence, deux règlements
+    # identiques le même jour sont deux règlements distincts (aucune fusion silencieuse).
+    ref = str(reference or '').strip()
+    pid = ('pay-' + hashlib.sha256((doc_id + '|' + ref).encode()).hexdigest()[:16]) if ref else 'pay-' + secrets.token_hex(8)
     desk.db.execute('INSERT OR IGNORE INTO b53_payments(id,document,amount_cents,day,method,source,reference,actor,created) VALUES(?,?,?,?,?,?,?,?,?)',
                     (pid, doc_id, value, day, str(method or 'virement')[:40], 'saisie', str(reference)[:120], actor, _now()))
     _refresh_payment_state(desk, doc_id)

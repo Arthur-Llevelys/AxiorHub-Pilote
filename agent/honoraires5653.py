@@ -23,6 +23,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import secrets
 
 from .common import Stop
 
@@ -411,7 +412,7 @@ def ensure_schema(desk):
 def save_estimate(desk, actor, matter, inputs):
     ensure_schema(desk)
     result = estimate(desk, inputs)
-    eid = 'est-' + hashlib.sha256((matter + result['reference_calcul'] + _now()).encode()).hexdigest()[:16]
+    eid = 'est-' + secrets.token_hex(8)                       # 5.6.54 : identifiant technique unique
     now = _now()
     desk.db.execute('INSERT INTO b53_estimates(id,matter,inputs_json,result_json,engine_version,state,proposed_cents,created_by,created,updated) '
                     'VALUES(?,?,?,?,?,?,?,?,?,?)', (eid, matter, json.dumps(inputs, ensure_ascii=False, default=str), json.dumps(result, ensure_ascii=False),

@@ -1,0 +1,26 @@
+{
+  "version": "5.6.54",
+  "base": "5.6.53 publiée",
+  "date_utc": "2026-10-16T00:00:00+00:00",
+  "cahier_des_charges": "Correctif de la 5.6.53 : identifiants techniques des documents de facturation, avoirs et estimations (collision dans la même seconde constatée par la recette GitHub). Le périmètre fonctionnel est celui de CONFORMITE-5.6.53.md.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2359,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 99,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5653.py (SameSecond) : deux brouillons et deux estimations créés à la même seconde restent distincts (échoue sur la 5.6.53) ; (Payments) : deux règlements identiques sans référence restent deux règlements ; même référence enregistrée une fois.",
+  "exapp": {
+    "version": "0.1.13",
+    "moteur": "5.6.54"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [],
+  "adjusted_tests": []
+}
