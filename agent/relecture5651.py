@@ -445,8 +445,8 @@ def apply(desk, mid, sid, author, client=None):
     if not s:
         raise Stop('relecture_absente')
     try:
-        from .modele5651 import ensure_current
-        ensure_current(desk, mid)
+        from .modele5651 import refresh
+        refresh(desk, mid, 1000)
     except Exception:   # noqa: BLE001
         pass
     accepted = [dict(r) for r in desk.db.execute("SELECT * FROM d51_proposals WHERE session=? AND state IN ('acceptee','appliquee') "

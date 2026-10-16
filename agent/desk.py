@@ -111,7 +111,7 @@ USER_JOBS |= {'proactive34_now'}
 USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
               'billing_review35','classify_comparable35'}
 USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
-JOBS |= {'recit5651','relecture5651','routine5652'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
+JOBS |= {'recit5651','relecture5651','routine5652','actualiser5655'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
 USER_JOBS |= {'recit5651','relecture5651','routine5652'}
 JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
 USER_JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}
@@ -785,16 +785,21 @@ class Desk:
         return {'note_interne':'disponible','brouillon_imap_cree':False}
 
     def _current5652(self, mid):
-        """5.6.52 (audit 5.6.51, F02) : actualisation idempotente des données structurées du dossier (sans IA) après une ingestion."""
+        """5.6.52 (F02), revu en 5.6.55 : après une ingestion, le dossier est marqué « à actualiser » et une actualisation de faible
+        priorité est mise en file — la reconstruction ne se fait plus dans le travail d'indexation (elle bloquait le travailleur et la
+        base sur les grands dossiers, et donc les brouillons automatiques)."""
         if not mid:
             return None
         try:
-            from .modele5651 import ensure_current
-            return ensure_current(self, str(mid))
+            from .modele5651 import schedule_refresh
+            return schedule_refresh(self, str(mid))
         except Exception:   # noqa: BLE001 — l'ingestion est faite ; l'état partiel est rendu visible par le contexte
             return None
 
     def perform(self, kind, args):
+        if kind=='actualiser5655':   # 5.6.55 : actualisation différée des données structurées d'un dossier (faible priorité)
+            from .modele5651 import ensure_current
+            return ensure_current(self,str(args.get('matter') or ''))
         if kind=='recit5651':   # 5.6.51 (D06, D09) : rappel des faits ou de la procédure, paragraphes sourcés
             from .recit5651 import run as recit
             return recit(self,args)

@@ -74,6 +74,16 @@ class UpgradeTests(unittest.TestCase):
 
 @unittest.skipUnless(os.geteuid() == 0, 'Installation root simulée dans un dossier temporaire')
 class UpgradeFilesystemTests(unittest.TestCase):
+    def test_upgrade_from_5654_is_supported_and_reversible(self):
+        later=self.base/'releases'/'5.6.54'
+        shutil.copytree(self.old,later)
+        (self.base/'current').unlink();(self.base/'current').symlink_to(later)
+        self.apply();self.assertEqual((self.base/'current').resolve().name,upgrade.VERSION)
+        receipt=json.loads(upgrade.receipt_path(self.base).read_text())
+        self.assertEqual((receipt['previous_version'],receipt['target_version']),('5.6.54',upgrade.VERSION))
+        upgrade.rollback(self.base,self.config,self.state)
+        self.assertEqual((self.base/'current').resolve(),later)
+
     def test_upgrade_from_5653_is_supported_and_reversible(self):
         later=self.base/'releases'/'5.6.53'
         shutil.copytree(self.old,later)

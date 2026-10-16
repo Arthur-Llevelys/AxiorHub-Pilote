@@ -20,9 +20,8 @@ READ = ('documents', 'document', 'apercu', 'resume', 'propositions', 'modeles', 
 SETTINGS = ('cabinet/enregistrer', 'honoraires/reglages', 'logo/importer', 'bibliotheque/importer')
 WRITE = ('client/enregistrer', 'client/siren', 'estimation/enregistrer', 'estimation/retenir', 'estimation/refuser', 'document/preparer', 'document/modifier',
          'document/controler', 'document/approuver', 'document/emettre', 'document/deposer', 'document/etat', 'document/abandonner', 'document/avoir',
-         'document/reglement', 'document/transmettre', 'proposition/decider', 'proposition/preparer', 'modele/importer', 'modele/choisir', 'epingler')
-VIEWS = (('a-preparer', 'À préparer'), ('documents', 'Documents'), ('reglements', 'Règlements'), ('honoraires', 'Chiffrer une mission'),
-         ('reglages', 'Réglages et modèles'))
+         'document/reglement', 'document/transmettre', 'proposition/decider', 'proposition/preparer', 'modele/importer', 'modele/choisir', 'epingler',
+         'dossier/perimetre')
 
 
 def allowed(role, route):
@@ -187,7 +186,8 @@ def post(desk, owner, role, route, data, prefix=''):
         fees.refuse(desk, owner, did, data.get('version') or 0)
         return {'message': 'Estimation écartée.'}
     if route == 'document/preparer':
-        d = fact.prepare(desk, owner, role, str(data.get('type') or ''), str(data.get('dossier') or ''), data, str(data.get('request_key') or ''))
+        d = fact.prepare(desk, owner, role, str(data.get('type') or ''), str(data.get('dossier') or data.get('matter') or ''), data,
+                         str(data.get('request_key') or ''))
         return {'document': d['id'], 'goto': '?' + urlencode({'document': d['id']}), 'message': '%s préparé(e) en brouillon.' % d['kind_label']}
     if route == 'document/modifier':
         d = fact.get(desk, did)
@@ -245,6 +245,11 @@ def post(desk, owner, role, route, data, prefix=''):
         fact._require(desk, owner, role, 'facturation')
         models.choose(desk, str(data.get('type') or ''), str(data.get('modele') or ''))
         return {'message': 'Modèle choisi par défaut.'}
+    if route == 'dossier/perimetre':                       # 5.6.55 : « Pas un dossier client » / « Réintégrer »
+        from . import facturation5655 as f55
+        decision = str(data.get('decision') or '')
+        f55.set_scope(desk, owner, role, str(data.get('dossier') or ''), decision)
+        return {'message': 'Dossier écarté de la facturation (réintégrable dans l’onglet Dossiers).' if decision == 'exclure' else 'Dossier réintégré.'}
     if route == 'epingler':
         pins = dict(desk.settings('facturation5653:epingle', {}) or {})
         pins[owner] = data.get('epingler') in (True, 'true', 'on', '1')
@@ -292,32 +297,57 @@ def _matter_options(desk, selected=''):
     return '<option value="">Choisir un dossier…</option>' + opts
 
 
+VIEWS = (('tableau', 'Tableau de bord'), ('documents', 'Documents'), ('dossiers', 'Dossiers'), ('honoraires', 'Chiffrer une mission'),
+         ('reglages', 'Réglages et modèles'))
+OLD_VIEWS = {'a-preparer': 'tableau', 'reglements': 'documents'}
+TYPE_LABELS = {'echue': 'Échue', 'a_emettre': 'À émettre', 'a_envoyer': 'À envoyer', 'brouillon': 'Brouillon', 'temps_a_facturer': 'Proposition',
+               'provision_prevue': 'Proposition', 'budget_proche': 'Alerte', 'sans_convention': 'Proposition'}
+DOC_FILTERS = (('', 'Tous'), ('brouillons', 'Brouillons'), ('a-emettre', 'À émettre'), ('impayees', 'Impayées'), ('emises', 'Émises'),
+               ('engagements', 'Devis et conventions'))
+NEW_TYPES = (('facture', 'Facture', 'Honoraires, temps passé, provision ou solde'), ('devis', 'Devis', 'Proposition chiffrée avant accord'),
+             ('convention', 'Convention d’honoraires', 'Forfait ou temps passé, à faire signer'), ('lettre_mission', 'Lettre de mission', 'Mission et conditions'))
+
+
+def _client_options(desk, selected=''):
+    """Dossiers CLIENTS seulement (pas les dossiers internes du cabinet), les plus actifs en premier ; recherche ajoutée par v5647.js."""
+    from . import facturation5655 as f55
+    try:
+        recent = {r[0]: r[1] for r in desk.db.execute('SELECT matter,last_external_activity FROM matter_portfolio')}
+    except Exception:   # noqa: BLE001
+        recent = {}
+    rows = sorted(f55.client_matters(desk), key=lambda m: (recent.get(str(m['id'])) or '', matter_display(m)), reverse=True)
+    return '<option value="">Choisir un dossier client…</option>' + ''.join(
+        '<option value="%s"%s>%s</option>' % (e(str(m['id']), quote=True), ' selected' if str(m['id']) == str(selected) else '', e(matter_display(m))) for m in rows)
+
+
 def page(desk, auth, prefix, env, args):
     from .web567 import actor
     owner, role = actor(env)
-    view = str(args.get('vue') or 'a-preparer')
+    view = OLD_VIEWS.get(str(args.get('vue') or ''), str(args.get('vue') or 'tableau'))
+    if str(args.get('vue') or '') == 'reglements' and not args.get('filtre'):
+        args = {**args, 'filtre': 'impayees'}
     head = _header(desk, prefix, owner, args)
     if args.get('document'):
         try:
             body = document_html(desk, prefix, owner, role, str(args['document']))
         except Stop as ex:
-            body = '<p class="b53-error">%s</p>' % e(_message(str(ex).split(':')[0]))
+            body = '<p class="b53-error">%s</p></div>' % e(_message(str(ex).split(':')[0]))
         return head + body
     tabs = ''.join('<a href="%s"%s>%s</a>' % (e('?' + urlencode({'vue': k}), quote=True), ' aria-current="page"' if k == view else '', e(v)) for k, v in VIEWS)
     head += '<nav class="b53-tabs" aria-label="Vues de la facturation">%s</nav>' % tabs
     try:
         if view == 'documents':
             body = documents_html(desk, prefix, args)
-        elif view == 'reglements':
-            body = payments_html(desk, prefix)
+        elif view == 'dossiers':
+            body = matters_html(desk, prefix, args)
         elif view == 'honoraires':
             body = estimate_html(desk, prefix, owner, role, args)
         elif view == 'reglages':
             body = settings_html(desk, prefix, owner, role)
         else:
-            body = suggestions_html(desk, prefix)
+            body = dashboard_html(desk, prefix)
     except Stop as ex:
-        body = '<p class="b53-error">%s</p>' % e(_message(str(ex).split(':')[0]))
+        body = '<p class="b53-error">%s</p></div>' % e(_message(str(ex).split(':')[0]))
     return head + body
 
 
@@ -327,54 +357,131 @@ def _message(code):
 
 
 def _header(desk, prefix, owner, args):
-    q = str(args.get('q') or '')
-    create = _form('document/preparer', '<input type="hidden" name="request_key" data-r52-key value=""><label>Type<select name="type" required>%s</select></label>'
-                   '<label>Sous-type (facture)<select name="sous_type">%s</select></label><label>Dossier<select name="dossier" required>%s</select></label>' % (
-                       ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in fact.KINDS.items() if k != 'avoir'),
-                       ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in fact.INVOICE_TYPES.items()), _matter_options(desk, args.get('dossier') or '')),
+    from . import facturation5655 as f55
+    types = ''.join('<label class="b55-type"><input type="radio" name="type" value="%s"%s required><span><strong>%s</strong><small>%s</small></span></label>' % (
+        k, ' checked' if k == 'facture' else '', e(label), e(desc)) for k, label, desc in NEW_TYPES)
+    create = _form('document/preparer', '<input type="hidden" name="request_key" data-r52-key value=""><fieldset class="b55-types"><legend>Type de document</legend>%s'
+                   '</fieldset><label>Dossier<select name="matter" required>%s</select></label><label>Pour une facture<select name="sous_type">%s</select></label>' % (
+                       types, _client_options(desk, args.get('dossier') or ''),
+                       ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in fact.INVOICE_TYPES.items())),
                    'Préparer le brouillon', reload=False)
     pin = _form('epingler', _hidden(epingler='false' if pinned(desk, owner) else 'true'),
-                'Retirer du menu principal' if pinned(desk, owner) else 'Épingler au menu principal', cls='b53-inline')
-    return ('<div class="b53"><div class="b53-top"><h1>Facturation et honoraires</h1><form class="b53-search" method="get"><label>Rechercher un client ou un dossier'
-            '<input name="q" value="%s" maxlength="80"></label><input type="hidden" name="vue" value="documents"></form>'
-            '<details class="b53-create"><summary class="ax-btn">Créer</summary>%s<p class="b53-note">Un avoir se crée depuis la facture émise qu’il corrige.</p></details>'
-            '%s</div><p class="b53-note">%s · Les clés des prestataires restent dans <a href="%s">Paramètres › Connexions</a>. Aucun envoi, aucune signature ni '
-            'émission sans votre validation.</p>') % (
-        e(q, quote=True), create, pin, e(fact.emission_obligation(fact.entity(desk))), e(prefix + '/parametres?rubrique=connexions#cx52', quote=True))
+                'Retirer du menu principal' if pinned(desk, owner) else 'Épingler au menu principal', cls='b53-inline ghost')
+    missing = f55.setup_missing(desk)
+    setup = ('<div class="b55-setup" role="status"><strong>Avant d’émettre une facture :</strong> complétez la fiche du cabinet (%s). '
+             '<a class="ax-btn" href="?vue=reglages#b55-cabinet">Compléter la fiche</a></div>') % e(', '.join(missing)) if missing else ''
+    return ('<div class="b53"><header class="b55-head"><div><h1>Facturation et honoraires</h1><p class="b53-note">Préparer, émettre et suivre les honoraires '
+            'de vos dossiers clients. Aucun envoi, aucune signature ni émission sans votre validation.</p></div><div class="b55-head-actions">'
+            '<details class="b53-create b55-new"><summary class="ax-btn">Nouveau document</summary>%s</details>%s</div></header>%s') % (create, pin, setup)
 
 
-def suggestions_html(desk, prefix):
-    props = fact.suggestions(desk, refresh=True)
-    if not props:
-        return '<p class="b53-empty">Rien à préparer pour l’instant : chaque proposition cite son déclencheur et ne revient pas après un refus.</p></div>'
-    cards = ''.join(
-        '<article class="b53-card" id="prop-%s"><h3>%s</h3><p class="b53-matter">%s%s</p><p>%s</p><p class="b53-note">Source : %s%s</p><div class="b53-actions">%s%s%s</div></article>' % (
-            e(p['key']), e(p['titre']), e(p['matter_name']), (' — ' + e(p['client'])) if p['client'] else '', e(p['declencheur'].get('raison', '')),
-            e(p['declencheur'].get('source') or 'registre de facturation'), (' · montant envisagé : ' + _money(p['montant_cents'])) if p['montant_cents'] else '',
-            _form('proposition/preparer', _hidden(cle=p['key']) + '<input type="hidden" name="request_key" data-r52-key value="">', p['action'], reload=False, cls='b53-inline'),
-            _form('proposition/decider', _hidden(cle=p['key'], decision='reportee'), 'Reporter d’une semaine', cls='b53-inline ghost'),
-            _form('proposition/decider', _hidden(cle=p['key'], decision='refusee'), 'Ne plus proposer', cls='b53-inline ghost')) for p in props)
-    return '<div class="b53-cards">%s</div></div>' % cards
+def _row_action(prefix, item):
+    if item.get('proposition'):
+        main = _form('proposition/preparer', _hidden(cle=item['proposition']) + '<input type="hidden" name="request_key" data-r52-key value="">', item['action'],
+                     reload=False, cls='b53-inline')
+        more = ('<details class="b55-more"><summary aria-label="Autres choix">…</summary><div>%s%s%s</div></details>') % (
+            _form('proposition/decider', _hidden(cle=item['proposition'], decision='reportee'), 'Reporter d’une semaine', cls='b53-inline ghost'),
+            _form('proposition/decider', _hidden(cle=item['proposition'], decision='refusee'), 'Ne plus proposer', cls='b53-inline ghost'),
+            _form('dossier/perimetre', _hidden(dossier=item['matter'], decision='exclure'), 'Pas un dossier client', cls='b53-inline ghost'))
+        return main + more
+    return '<a class="ax-btn" href="%s">%s</a>' % (e('?' + urlencode({'document': item['document']}), quote=True), e(item['action']))
+
+
+def _todo_row(prefix, item):
+    anchor = (' id="prop-%s"' % e(item['proposition'], quote=True)) if item.get('proposition') else ''   # lien depuis « Aujourd'hui »
+    return ('<li class="b55-row b55-%s"%s><span class="b55-badge">%s</span><div class="b55-main"><a class="b55-matter" href="%s">%s</a>'
+            '<span class="b55-what">%s</span><span class="b53-note">%s</span></div><div class="b55-side"><span class="b55-amount">%s</span>%s</div></li>') % (
+        e(item['type']), anchor, e(TYPE_LABELS.get(item['type'], '')), e(prefix + '/dossier?' + urlencode({'id': item['matter'], 'vue': 'travaux'}), quote=True),
+        e(item['matter_name']), e(item['titre']), e(item.get('detail') or ''), _money(item.get('montant_cents')) if item.get('montant_cents') else '',
+        _row_action(prefix, item))
+
+
+def dashboard_html(desk, prefix):
+    from . import facturation5655 as f55
+    board = f55.dashboard(desk)
+    items = f55.todo(desk)
+    kpis = (('?vue=dossiers', 'À facturer', _money(board['a_facturer_cents']), 'temps validés non facturés'),
+            ('?vue=documents&filtre=impayees', 'Impayés', _money(board['impayes_cents']),
+             '%d facture%s, dont %d échue%s' % (board['impayes_nombre'], 's' if board['impayes_nombre'] > 1 else '', board['echus_nombre'],
+                                                 's' if board['echus_nombre'] > 1 else '')),
+            ('?vue=documents&filtre=brouillons', 'Brouillons en cours', str(board['brouillons']), 'à terminer ou à émettre'),
+            ('?vue=documents&filtre=emises', 'Encaissé ce mois', _money(board['encaisse_mois_cents']), 'règlements enregistrés'))
+    cards = ''.join('<a class="b55-kpi" href="%s"><span>%s</span><strong>%s</strong><small>%s</small></a>' % (e(h, quote=True), e(t), e(v), e(s)) for h, t, v, s in kpis)
+    first, rest = items[:10], items[10:]
+    todo = ''.join(_todo_row(prefix, i) for i in first)
+    if rest:
+        todo += '<li class="b55-rest"><details><summary>Afficher les %d autres</summary><ul class="b55-list">%s</ul></details></li>' % (
+            len(rest), ''.join(_todo_row(prefix, i) for i in rest))
+    recent = fact.documents(desk, limit=5)
+    rec = ''.join('<li><a href="%s">%s %s</a> — %s · %s · %s</li>' % (e('?' + urlencode({'document': d['id']}), quote=True), e(d['kind_label']),
+                                                                      e(d['number'] or '(brouillon)'), e(d['matter_name']), e(d['state_label']), _money(d['ttc_cents']))
+                  for d in recent)
+    partial = ('<p class="b53-warn">Lecture partielle (%d dossier%s) : montants à confirmer.</p>' % (len(board['lecture_partielle']),
+                                                                                                   's' if len(board['lecture_partielle']) > 1 else '')
+               if board['lecture_partielle'] else '')
+    return ('<section class="b55-kpis" aria-label="Chiffres clés">%s</section>%s<section class="b55-section"><h2>À faire</h2>%s</section>'
+            '<section class="b55-section"><h2>Derniers documents</h2><ul class="b53-list">%s</ul><p><a href="?vue=documents">Tous les documents</a></p></section>'
+            '<p class="b53-note">Calculé le %s. Seuls les dossiers clients sont pris en compte ; les dossiers internes du cabinet sont écartés '
+            '(<a href="?vue=dossiers#b55-ecartes">voir les dossiers écartés</a>).</p></div>') % (
+        cards, partial, ('<ul class="b55-list">%s</ul>' % todo) if todo else '<p class="b53-empty">Rien à faire pour l’instant.</p>',
+        rec or '<li>Aucun document.</li>', e(_fr_stamp(board['calcule_le'])))
+
+
+def _doc_filter(d, f):
+    if f == 'brouillons':
+        return d['state'] in ('brouillon', 'a_controler')
+    if f == 'a-emettre':
+        return d['state'] == 'approuve' and d['kind'] in ('facture', 'avoir') and not d['number']
+    if f == 'impayees':
+        return d['kind'] == 'facture' and bool(d['number']) and d['payment_state'] in ('impayee', 'partielle')
+    if f == 'emises':
+        return d['kind'] in ('facture', 'avoir') and bool(d['number'])
+    if f == 'engagements':
+        return d['kind'] in ('devis', 'convention', 'lettre_mission')
+    return True
 
 
 def documents_html(desk, prefix, args):
     q = str(args.get('q') or '').strip().lower()
-    rows = [d for d in fact.documents(desk) if not q or q in (d['matter'] + ' ' + d['matter_name'] + ' ' + d['client'] + ' ' + d['number']).lower()]
-    body = ''.join('<tr><td><a href="%s">%s %s</a></td><td><strong>%s</strong><br><span class="b53-note">%s</span></td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
-        e('?' + urlencode({'document': d['id']}), quote=True), e(d['kind_label']), e(d['number'] or '(brouillon)'), e(d['matter_name']), e(d['client']),
-        e(d['state_label']), _money(d['ttc_cents']), e(d['payment_label'] if d['kind'] == 'facture' and d['number'] else '')) for d in rows)
-    return ('<div class="b53-table-wrap"><table class="b53-table"><thead><tr><th>Document</th><th>Dossier et client</th><th>État</th><th>TTC</th><th>Règlement</th></tr></thead>'
-            '<tbody>%s</tbody></table></div></div>') % (body or '<tr><td colspan="5">Aucun document.</td></tr>')
+    f = str(args.get('filtre') or '')
+    chips = ''.join('<a href="%s"%s>%s</a>' % (e('?' + urlencode({'vue': 'documents', 'filtre': k, 'q': args.get('q') or ''}), quote=True),
+                                               ' aria-current="true"' if k == f else '', e(v)) for k, v in DOC_FILTERS)
+    rows = [d for d in fact.documents(desk) if _doc_filter(d, f) and (not q or q in (d['matter'] + ' ' + d['matter_name'] + ' ' + d['client'] + ' ' + d['number']).lower())]
+    body = ''.join('<tr><td><a href="%s">%s %s</a></td><td><strong>%s</strong></td><td>%s</td><td class="b55-num">%s</td><td>%s</td><td>%s</td></tr>' % (
+        e('?' + urlencode({'document': d['id']}), quote=True), e(d['kind_label']), e(d['number'] or '(brouillon)'), e(d['matter_name']), e(d['state_label']),
+        _money(d['ttc_cents']), e(d['payment_label'] if d['kind'] == 'facture' and d['number'] else ''), e(d['issue_date'] or d['updated'][:10])) for d in rows)
+    return ('<div class="b55-filters"><nav class="cx52-families" aria-label="Filtres">%s</nav><form class="b55-search" method="get"><input type="hidden" name="vue" '
+            'value="documents"><input type="hidden" name="filtre" value="%s"><label>Rechercher un client, un dossier ou un numéro<input name="q" value="%s" maxlength="80">'
+            '</label></form></div><div class="b53-table-wrap"><table class="b53-table"><thead><tr><th>Document</th><th>Dossier</th><th>État</th><th>TTC</th>'
+            '<th>Règlement</th><th>Date</th></tr></thead><tbody>%s</tbody></table></div></div>') % (
+        chips, e(f, quote=True), e(args.get('q') or '', quote=True), body or '<tr><td colspan="6">Aucun document.</td></tr>')
 
 
-def payments_html(desk, prefix):
-    rows = [d for d in fact.documents(desk) if d['kind'] == 'facture' and d['number']]
-    body = ''.join('<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
-        e('?' + urlencode({'document': d['id']}), quote=True), e(d['number']), e(d['matter_name']), _money(d['net_cents']), e(d['payment_label']),
-        e(d['issue_date'])) for d in rows)
-    return ('<p class="b53-note">Un dépôt sur une plateforme n’est pas un règlement : seuls les règlements enregistrés ou rapprochés comptent. Date de lecture : %s.</p>'
-            '<div class="b53-table-wrap"><table class="b53-table"><thead><tr><th>Facture</th><th>Dossier</th><th>Net à payer</th><th>Règlement</th><th>Émise le</th></tr>'
-            '</thead><tbody>%s</tbody></table></div></div>') % (_fr_stamp(fact._now()), body or '<tr><td colspan="5">Aucune facture émise.</td></tr>')
+def matters_html(desk, prefix, args):
+    from . import facturation5655 as f55
+    rows = f55.overview(desk, args.get('q') or '')
+    body = ''
+    for r in rows:
+        conv = r['convention']
+        sub = 'temps' if r['a_facturer_cents'] else 'libre'
+        body += ('<tr><td><a class="b55-matter" href="%s">%s</a></td><td>%s</td><td class="b55-num">%s</td><td class="b55-num">%s</td><td class="b55-num">%s</td>'
+                 '<td class="b55-actions">%s<a class="ax-btn ghost" href="%s">Documents</a></td></tr>') % (
+            e(prefix + '/dossier?' + urlencode({'id': r['id'], 'vue': 'travaux'}), quote=True), e(r['nom']),
+            e(('%s (%s)' % (conv['numero'] or 'sans référence', conv['etat'])) if conv else 'aucune'), _money(r['a_facturer_cents']),
+            _money(r['facture_ht_cents']), _money(r['solde_cents']),
+            _form('document/preparer', _hidden(type='facture', matter=r['id'], sous_type=sub) + '<input type="hidden" name="request_key" data-r52-key value="">',
+                  'Facturer', reload=False, cls='b53-inline'), e('?' + urlencode({'vue': 'documents', 'q': r['id']}), quote=True))
+    out = ex = ''
+    for x in f55.excluded(desk):
+        ex += '<li><strong>%s</strong> — %s %s</li>' % (e(x['nom']), e(x['motif']), _form('dossier/perimetre', _hidden(dossier=x['id'], decision='inclure'),
+                                                                                    'Réintégrer', cls='b53-inline ghost'))
+    out = ('<form class="b55-search" method="get"><input type="hidden" name="vue" value="dossiers"><label>Rechercher un dossier client<input name="q" value="%s" '
+           'maxlength="80"></label></form><div class="b53-table-wrap"><table class="b53-table"><thead><tr><th>Dossier client</th><th>Convention</th><th>À facturer</th>'
+           '<th>Facturé HT</th><th>Solde</th><th></th></tr></thead><tbody>%s</tbody></table></div><details class="b55-section" id="b55-ecartes"><summary>Dossiers '
+           'écartés de la facturation (%d)</summary><p class="b53-note">Dossiers internes du cabinet reconnus par leur nom, dossiers archivés et dossiers que vous avez '
+           'exclus. Réintégrez un dossier client écarté par erreur.</p><ul class="b53-list">%s</ul></details></div>') % (
+        e(args.get('q') or '', quote=True), body or '<tr><td colspan="6">Aucun dossier client.</td></tr>', ex.count('<li>'), ex or '<li>Aucun.</li>')
+    return out
 
 
 def estimate_html(desk, prefix, owner, role, args):
@@ -458,12 +565,12 @@ def settings_html(desk, prefix, owner, role):
     upload = ('<label>Type<select name="type">%s</select></label><label>Titre<input name="titre" maxlength="120"></label><label>Fichier Word (.docx)<input type="file" accept=".docx" '
               'data-b53-file required></label>') % ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in models.KINDS.items())
     logo = '<label>Logo (PNG ou JPEG, 1 Mo au plus)<input type="file" accept="image/png,image/jpeg" data-b53-file required></label>'
-    return ('<section class="b53-section"><h2>Cabinet émetteur et fiscalité</h2><p class="b53-note">Un taux de 0 %% ne vaut jamais franchise : le régime est choisi ici et '
+    return ('<section class="b53-section" id="b55-cabinet"><h2>Cabinet émetteur et fiscalité</h2><p class="b53-note">%s</p><p class="b53-note">Un taux de 0 %% ne vaut jamais franchise : le régime est choisi ici et '
             'justifié. Ces réglages relèvent du droit « Réglages ».</p>%s</section><section class="b53-section"><h2>Honoraires (moteur Honorium)</h2><p class="b53-note">'
             'Coût de revient : %s €/h ; taux cible : %s €/h (majoration sur le coût, pas une marge sur le chiffre d’affaires).</p>%s'
             '<details><summary>Importer une bibliothèque Honorium (JSON)</summary>%s</details></section><section class="b53-section"><h2>Modèles et présentation</h2>'
             '<ul class="b53-list">%s</ul><details><summary>Importer un modèle Word</summary>%s</details><details><summary>Logo</summary>%s</details></section></div>') % (
-        _form('cabinet/enregistrer', cab, 'Enregistrer la fiche du cabinet'), e(econ['cout_horaire'].replace('.', ',')), e(econ['taux_cible'].replace('.', ',')),
+        e(fact.emission_obligation(ent)), _form('cabinet/enregistrer', cab, 'Enregistrer la fiche du cabinet'), e(econ['cout_horaire'].replace('.', ',')), e(econ['taux_cible'].replace('.', ',')),
         _form('honoraires/reglages', fee_form, 'Enregistrer'), _form('bibliotheque/importer', '<label>Fichier JSON<input type="file" accept=".json" data-b53-file required></label>',
                                                                      'Importer'),
         tpl_rows, _form('modele/importer', upload, 'Importer le modèle'), _form('logo/importer', logo, 'Enregistrer le logo'))
@@ -621,7 +728,14 @@ def matter_block_html(desk, prefix, mid, owner='cabinet', role='avocat'):
     docs = ''.join('<li><a href="%s">%s %s</a> — %s · %s</li>' % (e(prefix + '/facturation?' + urlencode({'document': d['id']}), quote=True), e(d['kind_label']),
                                                                    e(d['number'] or '(brouillon)'), e(d['state_label']), _money(d['ttc_cents'])) for d in s['documents'])
     partial = ('<p class="b53-warn">Lecture partielle (%s) : ce n’est pas une absence d’impayé.</p>' % e(', '.join(s['lecture_partielle']))) if s['lecture_partielle'] else ''
+    from . import facturation5655 as f55
+    m = fact._matter(desk, mid)
+    kind, why = f55.classify(desk, m)
+    scope = (_form('dossier/perimetre', _hidden(dossier=mid, decision='exclure'), 'Pas un dossier client', cls='b53-inline ghost') if kind == 'client' else
+             '<p class="b53-note">Écarté de la facturation : %s.</p>%s' % (e(why), _form('dossier/perimetre', _hidden(dossier=mid, decision='inclure'),
+                                                                                    'Réintégrer dans la facturation', cls='b53-inline ghost')))
     return ('<section class="d51-block b53-matter-block"><h3>Honoraires et facturation</h3><dl class="b53-dl">%s</dl>%s<p class="b53-note">Lu le %s.</p>'
-            '<ul class="b53-list">%s</ul><p><a class="ax-btn" href="%s">Ouvrir la facturation du dossier</a> <a class="ax-btn ghost" href="%s">Chiffrer une mission</a></p></section>') % (
+            '<ul class="b53-list">%s</ul><p><a class="ax-btn" href="%s">Ouvrir la facturation du dossier</a> <a class="ax-btn ghost" href="%s">Chiffrer une mission</a></p>'
+            '%s</section>') % (
         ''.join('<dt>%s</dt><dd>%s</dd>' % (e(k), e(v)) for k, v in rows), partial, e(_fr_stamp(s['synchronise_le'])), docs or '<li>Aucun document.</li>',
-        e(prefix + '/facturation?' + urlencode({'vue': 'documents', 'q': str(mid)}), quote=True), e(prefix + '/facturation?' + urlencode({'vue': 'honoraires', 'dossier': mid}), quote=True))
+        e(prefix + '/facturation?' + urlencode({'vue': 'documents', 'q': str(mid)}), quote=True), e(prefix + '/facturation?' + urlencode({'vue': 'honoraires', 'dossier': mid}), quote=True), scope)

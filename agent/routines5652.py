@@ -812,11 +812,14 @@ def _period_since(desk, routine_id, oid):
 def _run_news(desk, oid, snap, matters, result, owner):
     from . import memoire5651, modele5651, routines520
     since = _period_since(desk, snap['id'], oid)
-    targets = matters or [m['id'] for m in load_matters(desk.c)][:int(snap.get('max_matters') or 10)]
+    if not matters:                                            # 5.6.55 : dossiers clients seulement (pas les dossiers internes du cabinet)
+        from .facturation5655 import client_matters
+        matters = [m['id'] for m in client_matters(desk)]
+    targets = matters[:int(snap.get('max_matters') or 10)]
     lines = []
     for mid in targets:
         checkpoint(desk, oid)
-        st = modele5651.ensure_current(desk, mid)
+        st = modele5651.refresh(desk, mid)
         if st.get('state') != 'ok':
             result['impossible'].append('dossier %s : données non actualisées (%s)' % (mid, st.get('error', '')))
         news = [c for c in memoire5651.changes(desk, mid, 0, False, 100) if c['created'] >= _iso(since)]

@@ -1142,15 +1142,19 @@ def suggestions(desk, matters=None, refresh=True):
     convention, phase, type) : une proposition refusée ou reportée ne réapparaît pas à chaque passage."""
     ensure_schema(desk)
     from .membres5650 import viewer_hidden
+    from . import facturation5655 as scope55                   # 5.6.55 : périmètre des dossiers clients
+    scope55.note_seen(desk)
+    clients = {str(m['id']) for m in scope55.client_matters(desk)}
     hidden = viewer_hidden() or frozenset()
-    all_matters = [m for m in load_matters(desk.c) if str(m['id']) not in hidden and (matters is None or str(m['id']) in matters)]
+    all_matters = [m for m in load_matters(desk.c) if str(m['id']) not in hidden and str(m['id']) in clients
+                   and (matters is None or str(m['id']) in matters)]
     if refresh:
         now = _now()
         for m in all_matters[:300]:
             mid = str(m['id'])
             conv = _active_convention(desk, mid)
             found = []
-            if not conv and not desk.db.execute("SELECT 1 FROM b53_documents WHERE matter=? AND kind IN ('convention','lettre_mission') AND state NOT IN ('abandonne')",
+            if not conv and scope55.is_new(desk, mid) and not desk.db.execute("SELECT 1 FROM b53_documents WHERE matter=? AND kind IN ('convention','lettre_mission') AND state NOT IN ('abandonne')",
                                                 (mid,)).fetchone() and str(m.get('status') or 'active') not in ('archive', 'clos', 'archived'):
                 found.append(('sans_convention', '', None, {'raison': 'Aucune convention ni lettre de mission enregistrée pour ce dossier.'}))
             entries = billable_time(desk, mid)
@@ -1218,7 +1222,7 @@ def queue_items(desk, prefix='', actor='cabinet', role='administrateur'):
         for s in suggestions(desk, refresh=False)[:20]:
             items.append({'class': 'decision', 'object': 'proposition:' + s['key'], 'revision': s['key'], 'matter': s['matter'], 'matter_name': s['matter_name'],
                           'title': '%s — %s' % (s['titre'], s['declencheur'].get('raison', '')), 'consequence': s['action'],
-                          'href': prefix + '/facturation?vue=a-preparer#prop-' + s['key'], 'choices': ('ouvrir',)})
+                          'href': prefix + '/facturation?vue=tableau#prop-' + s['key'], 'choices': ('ouvrir',)})
         return items
     except Stop:
         return []

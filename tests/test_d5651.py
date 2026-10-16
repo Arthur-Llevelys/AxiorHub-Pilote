@@ -342,10 +342,13 @@ W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
 
 
 def _docx(paragraphs_xml):
+    # 5.6.55 : date fixe dans l'archive ; deux appels à cheval sur une seconde paire donnaient des octets différents (recette 5.6.54)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w') as z:
-        z.writestr('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
-        z.writestr('word/document.xml', '<?xml version="1.0"?><w:document %s><w:body>%s</w:body></w:document>' % (W, paragraphs_xml))
+        z.writestr(zipfile.ZipInfo('[Content_Types].xml', (2026, 1, 1, 0, 0, 0)),
+                   '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+        z.writestr(zipfile.ZipInfo('word/document.xml', (2026, 1, 1, 0, 0, 0)),
+                   '<?xml version="1.0"?><w:document %s><w:body>%s</w:body></w:document>' % (W, paragraphs_xml))
     return buf.getvalue()
 
 

@@ -798,6 +798,8 @@ def rebuild(desk, mid, force=False):
                             'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', (mid, d['path'], d['etag'], name, nature, 'regle', reading,
                                                                  error_category(d['error']) if d['error'] else '', d['error'], date, d['modified'], d['sha256'], now))
         counters['documents'] += 1
+        if counters['documents'] % COMMIT_EVERY == 0:
+            desk.db.commit()                                         # 5.6.55 : verrou d'écriture relâché par lots
     # usage comme pièce : bordereaux et communications existants (5.1.0 / 5.2.0) ; jamais déduit du seul nom de dossier
     try:
         from . import pieces510, pieces520
@@ -1006,6 +1008,75 @@ def _refresh_validity(desk, mid, current_versions, indexed):
                 from . import memoire5651
                 memoire5651.record_change(desk, mid, 'correction', 'information', row['id'], 'source:' + now, 'Information enregistrée dont la source a '
                                           'changé : à recontrôler', {'note': note}, commit=False)
+
+
+INLINE_MAX = 300          # 5.6.55 : au-delà, pas de reconstruction pendant une rédaction (actualisation en arrière-plan)
+AUTO_MAX = 1500           # au-delà, actualisation sur demande seulement (bouton « Actualiser les données » de la page Dossier)
+COMMIT_EVERY = 200        # écritures validées par lots : la base n'est jamais verrouillée le temps d'un grand dossier
+
+
+def doc_count(desk, mid):
+    """Nombre de documents indexés du dossier (lecture seule de l'index) ; None si l'index est illisible."""
+    try:
+        from .index import DocumentIndex
+        index = DocumentIndex(desk.c['state_dir'])
+        try:
+            return index.db.execute('SELECT COUNT(*) FROM docs WHERE matter=?', (str(mid),)).fetchone()[0]
+        finally:
+            index.db.close()
+    except Exception:   # noqa: BLE001
+        return None
+
+
+def mark_dirty(desk, mid):
+    ensure_schema(desk)
+    cur = desk.db.execute("UPDATE d51_rebuilds SET state='a_actualiser' WHERE matter=?", (str(mid),))
+    if not cur.rowcount:
+        desk.db.execute("INSERT OR IGNORE INTO d51_rebuilds(matter,at,counters,revision,state) VALUES(?,?,?,?,?)", (str(mid), '', '{}', '', 'a_actualiser'))
+    desk.db.commit()
+
+
+def _client_matter(desk, mid):
+    try:
+        from .facturation5655 import classify
+        m = next((x for x in load_matters(desk.c) if str(x['id']) == str(mid)), None)
+        return bool(m) and classify(desk, m)[0] == 'client'
+    except Exception:   # noqa: BLE001
+        return True
+
+
+def schedule_refresh(desk, mid):
+    """Après une indexation ou un relevé : dossier marqué « à actualiser » et UNE actualisation de faible priorité mise en file
+    (dossiers clients de taille raisonnable ; dossiers internes et très volumineux : sur demande)."""
+    if not mid:
+        return None
+    mid = str(mid)
+    mark_dirty(desk, mid)
+    count = doc_count(desk, mid)
+    if count is None or count > AUTO_MAX or not _client_matter(desk, mid):
+        return None
+    marker = '%"matter": "' + mid.replace('%', '') + '"%'
+    if desk.db.execute("SELECT 1 FROM jobs WHERE kind='actualiser5655' AND status IN ('pending','running') AND args LIKE ?", (marker,)).fetchone():
+        return None
+    try:
+        return desk.enqueue('actualiser5655', {'matter': mid}, priority=60)
+    except Stop:
+        return None
+
+
+def refresh(desk, mid, inline_max=INLINE_MAX):
+    """Avant une lecture (rédaction, routine, relecture) : petit dossier = contrôle et reconstruction immédiats (comme en 5.6.52) ;
+    grand dossier = données existantes utilisées telles quelles, actualisation mise en file si elles sont marquées « à actualiser »
+    (état « partiel » signalé au modèle). Jamais de reconstruction d'un grand dossier sur le chemin d'une rédaction."""
+    count = doc_count(desk, mid)
+    if count is not None and count <= inline_max:
+        return ensure_current(desk, mid)
+    ensure_schema(desk)
+    row = desk.db.execute('SELECT state FROM d51_rebuilds WHERE matter=?', (str(mid),)).fetchone()
+    if row and row['state'] == 'ok':
+        return {'state': 'ok', 'inchange': True}
+    schedule_refresh(desk, mid)
+    return {'state': 'partiel', 'error': 'actualisation_en_arriere_plan'}
 
 
 def ensure_current(desk, mid):

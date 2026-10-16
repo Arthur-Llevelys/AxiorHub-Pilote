@@ -1,0 +1,35 @@
+{
+  "version": "5.6.55",
+  "base": "5.6.54 publiée",
+  "date_utc": "2026-10-16T00:00:00+00:00",
+  "cahier_des_charges": "Retours du cabinet sur la 5.6.54 : (1) l’agent ne rédige plus de brouillons de réponse de lui-même (tâches « en file », aucune en cours) ; (2) la page « Facturation et honoraires » propose des conventions pour tous les dossiers, y compris « 01 - Modèles » ; la refondre pour qu’elle soit utile et ergonomique pour l’avocat.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé",
+    "total": 2369,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 100,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5655.py : Scope (dossiers internes reconnus, correspondant client prioritaire) ; Billing55 (aucune convention proposée pour les dossiers existants, exclure puis réintégrer, droit requis, tableau de bord et ordre « À faire », fiche du cabinet incomplète) ; Refresh (l’indexation planifie une seule actualisation sans reconstruire, priorité après les brouillons ; un grand dossier n’est jamais reconstruit pendant une rédaction ; le bouton « Actualiser les données » d’un grand dossier met une seule tâche prioritaire en file sans reconstruire dans la requête ; un petit dossier est à jour avant rédaction).",
+  "exapp": {
+    "version": "0.1.14",
+    "moteur": "5.6.55"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Actualisation des données d’un dossier : tâche « actualiser5655 » (priorité 60) au lieu d’une reconstruction immédiate après indexation ou synthèse.",
+    "Rédaction : un dossier de plus de 300 pièces n’est plus reconstruit en ligne ; état « partiel » signalé, actualisation planifiée.",
+    "Bouton « Actualiser les données » (m5651/analyser) : dossier de plus de 300 pièces = tâche « actualiser5655 » priorité 5, réponse immédiate.",
+    "Facturation : propositions et listes limitées aux dossiers clients ; « sans convention » limitée aux dossiers apparus après la mise à jour.",
+    "Facturation : vues « tableau », « documents », « dossiers », « honoraires », « reglages » ; les anciens liens « a-preparer » et « reglements » restent valides."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5653.py::test_suggestion_refusee_ne_revient_pas : le dossier fictif est marqué comme nouveau avant de vérifier la proposition « sans convention » (comportement voulu de la 5.6.55).",
+    "tests/test_d5651.py::_docx : date fixe dans l’archive de test ; la recette GitHub de la 5.6.54 a échoué une fois quand deux constructions du même fichier tombaient de part et d’autre d’une seconde paire (aucun changement du logiciel)."
+  ]
+}

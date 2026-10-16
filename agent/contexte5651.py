@@ -42,7 +42,7 @@ def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document
         memoire5651.ensure_schema(desk)
     except Exception:   # noqa: BLE001
         return {'etat_du_contexte': 'indisponible (base du dossier inaccessible)'}
-    status = modele5651.ensure_current(desk, mid)
+    status = modele5651.refresh(desk, mid)   # 5.6.55 : jamais de reconstruction d'un grand dossier pendant une rédaction
     try:
         parties = modele5651.parties(desk, mid)
         proc = modele5651.reference_procedure(desk, mid)

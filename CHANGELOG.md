@@ -3,6 +3,27 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.55 — Brouillons automatiques rétablis ; page « Facturation et honoraires » refondue
+
+- Brouillons automatiques : depuis la 5.6.52, chaque lot d’indexation et chaque synthèse reconstruisait aussitôt toutes les données du
+  dossier concerné (pièces, faits, chronologie). Sur un grand dossier ou un dossier interne volumineux (« 09 - Scanner »), ce travail
+  occupait le travailleur unique et la base pendant de longues minutes : les autres tâches, dont la rédaction des brouillons de réponse,
+  restaient « en file ». L’actualisation est désormais une tâche distincte de faible priorité (« Actualisation des données du dossier »),
+  une seule par dossier, réservée aux dossiers clients d’au plus 1 500 pièces et enregistrée par lots ; une rédaction n’attend jamais
+  la reconstruction d’un grand dossier (elle utilise les dernières données lues et le signale). Sur un dossier de plus de 300 pièces,
+  le bouton « Actualiser les données » de la fiche lance une tâche prioritaire au lieu de faire attendre la page. Les tâches en file
+  reprennent après la mise à jour.
+- Facturation : la page ne propose plus de convention d’honoraires pour tous les dossiers. Seuls les dossiers clients sont concernés ;
+  les dossiers internes du cabinet reconnus par leur nom (« 01 - Modèles », « 09 - Scanner », bibliothèque, comptabilité…) et les
+  dossiers archivés sont écartés, avec un bouton « Pas un dossier client » et une liste « Dossiers écartés » pour réintégrer un dossier.
+  La proposition « sans convention » ne vise plus que les dossiers apparus après la mise à jour ; les propositions existantes de ce type
+  sont retirées.
+- Nouvelle page en cinq onglets : « Tableau de bord » (à facturer, impayés et échus, brouillons, encaissé du mois ; liste « À faire »
+  classée par urgence : facture échue, document approuvé à émettre, à envoyer, brouillon, temps à facturer, provision, budget),
+  « Documents » (filtres brouillons, à émettre, impayées, émises, devis et conventions ; recherche), « Dossiers » (dossiers clients avec
+  facturé, encaissé, solde et bouton « Facturer »), « Honoraires » et « Réglages ». « Nouveau document » choisit le type puis le dossier
+  client ; la fiche du cabinet incomplète (SIREN, adresse, régime de TVA, IBAN) est signalée avant toute émission.
+
 ## 5.6.54 — Correctif : identifiants des documents de facturation
 
 - Deux brouillons de facturation, avoirs ou estimations créés dans la même seconde (machine rapide, double clic sans clé de demande)

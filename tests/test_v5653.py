@@ -234,6 +234,10 @@ class Billing(base.Base):
         self.assertEqual(summary['convention']['numero'], conv['number'])
 
     def test_suggestion_refusee_ne_revient_pas(self):
+        from agent import facturation5655 as f55          # 5.6.55 : « sans convention » ne vise que les dossiers apparus après la mise en service
+        f55.note_seen(self.desk)
+        self.desk.db.execute('UPDATE b55_matter_seen SET baseline=0 WHERE matter=?', (MID,))
+        self.desk.db.commit()
         props = [s for s in fact.suggestions(self.desk, [MID]) if s['kind'] == 'sans_convention']
         self.assertTrue(props)
         fact.decide_suggestion(self.desk, ACTOR, 'avocat', props[0]['key'], 'refusee')

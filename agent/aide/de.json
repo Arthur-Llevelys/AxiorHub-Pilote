@@ -1843,13 +1843,13 @@
   "when": "Bei Aktenanlage, nach einem abrechenbaren Schritt, bei fälligem Vorschuss oder bei Zahlungseingang.",
   "prerequisites": "Das Kanzleiblatt (Identität, gewählte Umsatzsteuerregelung) unter „Einstellungen und Vorlagen“; die Eigenschaft des Mandanten in jedem Dokument.",
   "steps": [
-   "„Erstellen“ anklicken, Typ und Akte wählen, dann „Entwurf vorbereiten“.",
+   "„Neues Dokument“ anklicken, Typ und Mandantenakte wählen, dann „Entwurf vorbereiten“.",
    "Mandant, Positionen und markierte Angaben ergänzen, dann „Speichern und neu berechnen“.",
    "Vorschau und Prüfungen lesen, dann „Diese Fassung freigeben“.",
    "Für eine Rechnung: „Ausstellen (endgültige Nummer)“; die Dateien liegen im Ordner FACTURATION des Mandanten."
   ],
   "result": "Ein nummeriertes Dokument, seine Dateien (Word, PDF/A-3 Factur-X mit LibreOffice, CII- und UBL-XML) und die Zahlungsverfolgung.",
-  "verify": "Die Summen in Vorschau, PDF und XML stimmen überein; die Ansicht „Zahlungen“ zeigt den Saldo.",
+  "verify": "Die Summen in Vorschau, PDF und XML stimmen überein; die Registerkarte „Dokumente“, Filter „Unbezahlt“, zeigt den Saldo.",
   "errors": [
    [
     "„Der Umsatzsteuergrund fehlt“",

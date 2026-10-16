@@ -1843,13 +1843,13 @@
   "when": "À l’ouverture d’un dossier, quand une étape facturable est accomplie, quand une provision est prévue ou quand un règlement arrive.",
   "prerequisites": "La fiche du cabinet (identité, régime de TVA choisi) dans « Réglages et modèles » ; la qualité du client dans chaque document.",
   "steps": [
-   "Cliquez sur « Créer », choisissez le type et le dossier, puis « Préparer le brouillon ».",
+   "Cliquez sur « Nouveau document », choisissez le type et le dossier client, puis « Préparer le brouillon ».",
    "Complétez le client, les lignes et les informations signalées, puis « Enregistrer et recalculer ».",
    "Relisez l’aperçu et les contrôles, puis « Approuver cette version ».",
    "Pour une facture : « Émettre (numéro définitif) » ; les fichiers sont rangés dans le dossier FACTURATION du client."
   ],
   "result": "Un document numéroté, ses fichiers (Word, PDF/A-3 Factur-X si LibreOffice est présent, XML CII et UBL) et son suivi de règlement.",
-  "verify": "Les totaux de l’aperçu, du PDF et du XML concordent ; l’onglet « Règlements » montre le solde.",
+  "verify": "Les totaux de l’aperçu, du PDF et du XML concordent ; l’onglet « Documents », filtre « Impayées », montre le solde.",
   "errors": [
    [
     "« Le motif de TVA manque »",

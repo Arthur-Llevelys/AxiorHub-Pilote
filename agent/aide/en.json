@@ -1843,13 +1843,13 @@
   "when": "When a matter opens, when a billable step is done, when a retainer is due or when a payment arrives.",
   "prerequisites": "The firm sheet (identity, chosen VAT regime) in “Settings and templates”; the client’s status in each document.",
   "steps": [
-   "Click “Create”, choose the type and the matter, then “Prepare the draft”.",
+   "Click “New document”, choose the type and the client matter, then “Prepare the draft”.",
    "Complete the client, lines and flagged information, then “Save and recalculate”.",
    "Review the preview and checks, then “Approve this version”.",
    "For an invoice: “Issue (final number)”; files are stored in the client’s FACTURATION folder."
   ],
   "result": "A numbered document, its files (Word, PDF/A-3 Factur-X when LibreOffice is installed, CII and UBL XML) and payment tracking.",
-  "verify": "Preview, PDF and XML totals match; the “Payments” view shows the balance.",
+  "verify": "Preview, PDF and XML totals match; the “Documents” tab, “Unpaid” filter, shows the balance.",
   "errors": [
    [
     "“The VAT ground is missing”",

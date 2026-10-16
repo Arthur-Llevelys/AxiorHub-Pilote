@@ -63,6 +63,13 @@ def api(env, desk, auth, prefix, name, args, method):
         raise Stop('element_absent')
     version = data.get('version')
     if route == 'analyser':
+        if (modele5651.doc_count(desk, mid) or 0) > modele5651.INLINE_MAX:      # 5.6.55 : grand dossier = tâche prioritaire, pas d'attente ici
+            modele5651.mark_dirty(desk, mid)
+            pending = desk.db.execute("SELECT 1 FROM jobs WHERE kind='actualiser5655' AND status IN ('pending','running') AND args LIKE ?",
+                                      ('%"matter": "' + mid.replace('%', '') + '"%',)).fetchone()
+            if not pending:
+                desk.enqueue('actualiser5655', {'matter': mid}, priority=5)
+            return json_out({'state': 'en_file', 'message': 'Actualisation lancée en arrière-plan ; la dernière version reste consultable.'})
         return json_out({**modele5651.rebuild(desk, mid, force=True), 'message': 'Données du dossier actualisées.'})
     if route == 'lu':
         memoire5651.mark_read(desk, mid, owner)
