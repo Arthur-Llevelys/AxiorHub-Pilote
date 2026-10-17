@@ -1072,7 +1072,7 @@ def header_html(desk):
     return '<span class="c530-status"><span class="c530-live" aria-hidden="true"></span>%d en cours · %d en file%s</span>%s' % (running, pending, e(nxt), alert)
 
 
-def page(desk, prefix, csrf='', owner='cabinet'):
+def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     ensure_schema(desk)
     from .aujourdhui5614 import decisions_html, routines_bar_html   # 5.6.14 (U01, U02) : routines en tête, « À décider » compact
     z = tz(desk)
@@ -1086,8 +1086,7 @@ def page(desk, prefix, csrf='', owner='cabinet'):
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
             # 5.6.17 : le cadre « Routines du cabinet » (briefing, tri, bilan, documents) est en tête de page, avant le Pilote.
             '<div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section>'
-            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section>'
-            '<section class="c530-card" id="c5632-veille" aria-labelledby="c5632-t-veille">__VEILLE5632__</section></div>'
+            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section></div>'
             # 5.6.19 : le Pilote est la fenêtre flottante (bouton robot) ; l'ancien composeur reste masqué (script v530 toujours lié).
             '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer hidden>%s'
             '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
@@ -1106,6 +1105,9 @@ def page(desk, prefix, csrf='', owner='cabinet'):
             '<div class="c530-cols"><section class="c530-card" id="c530-review" aria-labelledby="c530-t-review">%s</section>'
             '<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>'
             '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section></div>'
+            # 5.6.56 (audit 5.6.55, N02, § 5.3) : veille sur toute la largeur du contenu, puis la file unique en bas, dans ce conteneur.
+            '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">__VEILLE5632__</section>'
+            '<div class="c5656-queue" id="c5656-file">__FILE5656__</div>'
             '<p class="c530-note"><a href="%s">Vue « essentiel du jour » (5.2)</a> · <a href="%s">Ancien cockpit</a></p>'
             '<div class="c530-drawer" id="c530-drawer" hidden><div class="c530-backdrop" data-close="1" aria-hidden="true"></div>'
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
@@ -1116,7 +1118,7 @@ def page(desk, prefix, csrf='', owner='cabinet'):
         review_html(desk, prefix), feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
     from .sante5636 import panel_html
-    return html.replace('__VEILLE5632__', veille_card(desk, prefix, owner)) + panel_html(desk, prefix)
+    return html.replace('__VEILLE5632__', veille_card(desk, prefix, owner)).replace('__FILE5656__', queue or '') + panel_html(desk, prefix)
 
 
 def veille_card(desk, prefix, owner='cabinet'):

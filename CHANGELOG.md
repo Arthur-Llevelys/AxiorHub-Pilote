@@ -3,6 +3,40 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.56 — Audit 5.6.55 : 27 corrections (facturation, cloisonnement, identités, rédaction, veille)
+
+- Facturation :
+  - émission sous verrou sur la ligne relue : un abandon ou une modification concurrente l’emporte ;
+  - numérotation annulée avec l’émission en cas de panne ;
+  - document émis rendu depuis son paquet d’émission figé, octets originaux conservés ;
+  - cumul des avoirs plafonné ;
+  - provisions émises imputées au solde même partiellement réglées ;
+  - totaux sur tous les documents ;
+  - règlements : conflit si une référence est réutilisée avec un autre contenu, dates du calendrier réelles ;
+  - IBAN contrôlé (MOD 97) ;
+  - brouillons recalculés après modification du client, blocage chiffré après changement du régime du cabinet ;
+  - fichiers publiés relus et comparés à leur empreinte (« conflit » sans écrasement, copie de l’original) ;
+  - tableau de bord limité aux dossiers visibles ;
+  - le formulaire « Nouveau document » et les autres créations ouvrent la fiche créée ;
+  - choix d’une entreprise dans l’annuaire ;
+  - aperçu nommé « textuel », états calculs, données, format, fichiers et transmission séparés.
+- Cloisonnement : un contact relié à un dossier réservé n’est plus lisible, modifiable ni archivable par un compte exclu ; le
+  cloisonnement d’une requête est effacé à la fin de la réponse.
+- Identités du cabinet : un seul registre (adresses, adresse d’expédition, identifiant, alias) pour la messagerie, la proactivité, les
+  propositions et les associations. Les propositions qui visaient le cabinet sont écartées. Le panneau « Vos adresses reconnues par
+  l’agent » propose un test de classification.
+- Rédaction :
+  - l’intention réelle (réponse au fond, demande de précision, relance…) est transmise à la rédaction et au contrôle, qui ne
+    requalifie plus toute réponse en demande de précision ;
+  - la rédaction de documents reçoit les décisions et consignes du dossier.
+- Veille : les anciens profils sont réellement planifiés ; un passage resté en attente sans travail est repris ; nouveaux états
+  « en file », « en cours » et « mise en file refusée ».
+- Contacts : rôles des correspondants conservés à l’import ; les homonymes aux courriels différents ne sont plus fusionnés ; la
+  création et le lien sont atomiques ; un filtre sans résultat l’indique et propose de réinitialiser.
+- Aujourd’hui : la veille occupe toute la largeur ; la file « À décider / À relire » est en bas, à la largeur des routines.
+- Connexion depuis la racine : retour à Aujourd’hui.
+- Les 33 contre-tests de l’audit et son test JavaScript font partie de la suite. Détail : CONFORMITE-5.6.56.md.
+
 ## 5.6.55 — Brouillons automatiques rétablis ; page « Facturation et honoraires » refondue
 
 - Brouillons automatiques : depuis la 5.6.52, chaque lot d’indexation et chaque synthèse reconstruisait aussitôt toutes les données du

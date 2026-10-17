@@ -178,7 +178,9 @@ def own_addresses(cfg):
         value = str(cfg.get(key) or '').strip().lower()
         if '@' in value:
             own.add(value)
-    return own
+    # 5.6.56 (audit 5.6.55, § 3.1) : registre unique des identités du cabinet (adresses, expédition, identifiant, alias, identités)
+    from .sens5643 import identities
+    return own | set(identities(cfg))
 
 
 def recipient_issue(mail, cfg, allowed_recipients=()):

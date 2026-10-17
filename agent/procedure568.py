@@ -251,7 +251,8 @@ def _inform(desk,run,matter,summary,events,warnings,recipe):
     # Le fallback interne est clair et n'invente jamais un client ou un dominus litis.
     known={str(x.get('email') or '').lower() for x in matter.get('correspondents',[]) if x.get('role') in ('client','tiers')}
     if profile.get('partner_email'):known.add(profile['partner_email'].lower())
-    own={str(x).lower() for x in desk.c['mail'].get('own_addresses',[])}|{str(desk.c['mail']['from_address']).lower()}
+    from .mailbox import own_addresses as _own5656
+    own=_own5656(desk.c['mail'])                              # 5.6.56
     if recipient.lower() not in known|own:raise Stop('destinataire_non_confirme')
     subject='[Projet] '+matter_display(matter)+' · '+PurePosixPath(run['path']).name
     body=greeting+',\n\nProjet d’information — à relire avant envoi.\n\n'+summary+'\n\n'

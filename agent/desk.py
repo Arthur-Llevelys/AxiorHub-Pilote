@@ -402,6 +402,7 @@ class Desk:
                                        "AND json_valid(j.args)").fetchall():
                 self.db.execute("UPDATE jobs SET matter_ref=?,args=json_set(args,'$.matter',?) WHERE id=?",(job['matter_id'],job['matter_id'],job['id']))
             self.db.commit();self.setting('correspondances5644:jobs_matter',True)
+        self.quarantine_own5656()
         from .legal_memory import ensure_schema
         ensure_schema(self)
         from .metier500 import ensure_schema as ensure_metier500_schema   # 5.0.0 : tables additives
@@ -613,12 +614,30 @@ class Desk:
         finally:
             self.db.execute('PRAGMA busy_timeout=%d' % (int(getattr(self, '_busy', 10)) * 1000))
 
+    def quarantine_own5656(self):
+        """5.6.56 (audit 5.6.55, § 3.2) : propositions de correspondant encore ouvertes qui visent une identité du cabinet -> écartées
+        (« ecartee_cabinet »), historique conservé ; exécuté à la préparation de la base (démarrage, mise à jour)."""
+        try:
+            from .mailbox import own_addresses as _own5656
+            own = sorted(_own5656(self.c.get('mail', {})))
+            marks = ','.join('?' for _ in own)
+            # aucune écriture au démarrage s'il n'y a rien à écarter (5.6.44 : démarrage sans verrou d'écriture inutile)
+            if own and self.db.execute("SELECT 1 FROM proposals WHERE status='pending' AND lower(email) IN (%s) LIMIT 1" % marks, own).fetchone():
+                n = self.db.execute("UPDATE proposals SET status='ecartee_cabinet',updated=? WHERE status='pending' AND lower(email) IN (%s)"
+                                    % marks, [now()] + own).rowcount
+                self.db.commit()
+                return n
+        except (sqlite3.Error, KeyError, TypeError):
+            pass
+        return 0
+
     def propose(self, matter, email, evidence):
         try:
             email = email_value(email)
         except Stop:
             return
-        if email in {x.lower() for x in self.c['mail']['own_addresses']}:
+        from .mailbox import own_addresses as _own5656
+        if email in _own5656(self.c['mail']):                 # 5.6.56 (N04) : toutes les identités du cabinet
             return
         if any(p['email'].lower()==email for p in matter.get('correspondents', [])):
             return
@@ -701,7 +720,8 @@ class Desk:
         role=args.get('role','')
         if role not in ROLES:
             raise Stop('role_a_choisir')
-        if email in {x.lower() for x in self.c['mail']['own_addresses']}:
+        from .mailbox import own_addresses as _own5656
+        if email in _own5656(self.c['mail']):                 # 5.6.56 (N05)
             raise Stop('adresse_du_cabinet')
         previous=[p for p in matter.get('correspondents',[]) if p['email'].lower()==email]
         matter['correspondents']=[p for p in matter.get('correspondents',[]) if p['email'].lower()!=email]+[{'email':email,'role':role}]

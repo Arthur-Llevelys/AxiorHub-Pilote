@@ -164,7 +164,10 @@ RELATED = (('/mise-en-service', 'Mise en service'), ('/parametres/agents', 'Agen
 def _messagerie(desk, auth, prefix, env, cap):
     from .web5632 import courrier_section
     from .envoi5636 import settings_html
-    return _section(settings_html(desk, prefix) + courrier_section(desk, prefix))
+    from urllib.parse import parse_qs
+    from .sens5643 import identities_html                      # 5.6.56 (audit 5.6.55, § 3.1)
+    args = {k: v[0] for k, v in parse_qs(env.get('QUERY_STRING', ''), max_num_fields=10).items()}
+    return _section(identities_html(desk.c.get('mail', {}), args) + settings_html(desk, prefix) + courrier_section(desk, prefix))
 
 
 def _veille(desk, auth, prefix, env, cap):

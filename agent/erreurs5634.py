@@ -347,7 +347,13 @@ MESSAGES = {
     'facturx_requis_pour_la_transmission': 'La transmission demande une facture Factur-X (PDF/A-3 avec XML) : LibreOffice est nécessaire pour la produire.',   # 5.6.53
     'fichier_illisible': 'Fichier illisible.',   # 5.6.53
     'forfait_zero_sans_gratuite': 'Un forfait de 0 € doit être déclaré comme « mission gratuite ou remise totale », avec son motif.',   # 5.6.53
-    'iban_invalide': 'IBAN invalide.',   # 5.6.53
+    'iban_invalide': 'IBAN invalide : longueur du pays ou clé de contrôle incorrecte.',   # 5.6.53, 5.6.56 (clé MOD 97)
+    'facture_modifiee_depuis_validation': 'Ce document a été modifié ou abandonné depuis votre validation : ouvrez la version actuelle.',   # 5.6.56
+    'avoir_superieur_au_restant': 'Les avoirs déjà émis et celui-ci dépasseraient la facture d’origine : réduisez cet avoir.',   # 5.6.56
+    'reference_reglement_deja_utilisee': 'Cette référence correspond déjà à un règlement d’un autre montant, d’une autre date ou d’un autre moyen : vérifiez avant de corriger.',   # 5.6.56
+    'date_invalide': 'Date invalide : indiquez une date qui existe au calendrier (AAAA-MM-JJ).',   # 5.6.56
+    'publication_non_verifiee': 'Le fichier déposé n’a pas pu être relu à l’identique : nouvel essai possible.',   # 5.6.56
+    'contact_absent': 'Ce contact n’existe pas.',   # 5.6.56
     'libelle_ligne_requis': 'Chaque ligne doit avoir un libellé.',   # 5.6.53
     'lignes_invalides': 'Lignes du document invalides.',   # 5.6.53
     'logo_illisible': 'Image du logo illisible.',   # 5.6.53

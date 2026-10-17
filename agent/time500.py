@@ -109,7 +109,8 @@ def _is_sent(desk, row):
         return True
     if 'sent' in folder or 'envoy' in folder:
         return True
-    own = {str(x).lower() for x in cfg.get('own_addresses', []) + [cfg.get('from_address', ''), cfg.get('username', '')] if x}
+    from .sens5643 import identities as _id5656               # 5.6.56 : registre unique des identités (sans dépendre de la messagerie)
+    own = {str(x).lower() for x in cfg.get('own_addresses', []) + [cfg.get('from_address', ''), cfg.get('username', '')] if x} | set(_id5656(cfg))
     sender = re.sub(r'.*<([^>]+)>.*', r'\1', str(row['sender'] or '')).strip().lower()
     return bool(sender and sender in own)
 

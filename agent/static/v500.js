@@ -61,6 +61,11 @@
         var go = res && res.id && form.getAttribute('data-api') === 'm500/conflicts/check' ? '?id=' + encodeURIComponent(res.id) : '';
         if (res && typeof res.goto === 'string' && /^\?[\w=&%.-]*$/.test(res.goto)) { go = res.goto; }   // 5.6.36 : page de l'élément créé (même page)
         setTimeout(function () { if (go) { location.href = location.pathname + go; } else { location.reload(); } }, 500);
+      } else if (res && !res.noreload && typeof res.goto === 'string' && /^\?[\w=&%.-]*$/.test(res.goto)) {
+        // 5.6.56 (audit 5.6.55, N09) : contrat commun — un objet créé dont le serveur donne la page validée (même page) est ouvert,
+        // même sur un formulaire sans data-reload.
+        var dest = res.goto;
+        setTimeout(function () { location.href = location.pathname + dest; }, 500);
       }
     }).catch(function (e) { toast(e.message, true); }).then(function () { busy(btn, false); });
   });

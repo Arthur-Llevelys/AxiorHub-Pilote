@@ -756,5 +756,8 @@
  "vj.use_connector": "Interroger aussi la source juridique activée (décisions récentes)",
  "vj.use_tavily": "Recherche Internet par Tavily (clé réglée par l’administrateur)",
  "fn.facturation.label": "Facturation et honoraires",
- "fn.facturation.desc": "Devis, conventions, factures et avoirs ; chiffrage des missions ; factures électroniques"
+ "fn.facturation.desc": "Devis, conventions, factures et avoirs ; chiffrage des missions ; factures électroniques",
+ "vj.queued": "Collecte en file : elle démarre dès que l’agent est disponible.",
+ "vj.running": "Collecte en cours…",
+ "vj.queue_refused": "Mise en file refusée (file pleine) : nouvelle tentative au prochain cycle, ou cliquez sur « Actualiser »."
 }

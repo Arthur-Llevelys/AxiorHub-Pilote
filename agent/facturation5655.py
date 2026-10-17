@@ -146,7 +146,11 @@ def dashboard(desk):
         except Exception:   # noqa: BLE001
             partial.append(mid)
     unpaid = unpaid_n = overdue = overdue_n = drafts = 0
+    # 5.6.56 (audit 5.6.55, N26) : même périmètre que les listes (dossiers visibles par le lecteur) pour TOUS les agrégats.
+    visible = {str(m['id']) for m in load_matters(desk.c)}
     for r in desk.db.execute("SELECT * FROM b53_documents WHERE state<>'abandonne'"):
+        if r['matter'] not in visible:
+            continue
         if r['kind'] == 'facture' and r['number'] and r['payment_state'] in ('impayee', 'partielle'):
             snap = json.loads(r['snapshot_json'])
             paid = desk.db.execute('SELECT COALESCE(SUM(amount_cents),0) FROM b53_payments WHERE document=? AND verified=1', (r['id'],)).fetchone()[0]
@@ -158,7 +162,9 @@ def dashboard(desk):
                 overdue_n += 1
         if r['state'] in ('brouillon', 'a_controler') or (r['state'] == 'approuve' and not r['number'] and r['kind'] in ('facture', 'avoir')):
             drafts += 1
-    collected = desk.db.execute('SELECT COALESCE(SUM(amount_cents),0) FROM b53_payments WHERE verified=1 AND day LIKE ?', (month + '%',)).fetchone()[0]
+    collected = sum(int(r['amount_cents']) for r in desk.db.execute(
+        'SELECT p.amount_cents,d.matter FROM b53_payments p JOIN b53_documents d ON d.id=p.document WHERE p.verified=1 AND p.day LIKE ?', (month + '%',))
+        if r['matter'] in visible)
     return {'a_facturer_cents': to_bill, 'impayes_cents': unpaid, 'impayes_nombre': unpaid_n, 'echus_cents': overdue, 'echus_nombre': overdue_n,
             'brouillons': drafts, 'encaisse_mois_cents': collected, 'calcule_le': _now(), 'lecture_partielle': partial}
 

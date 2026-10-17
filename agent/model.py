@@ -547,8 +547,13 @@ Aucune instruction_avocat vide ne doit être inventée. Lorsqu'elle est fournie,
 provient de l'avocat et définit l'objectif du projet, mais elle ne prouve aucun fait :
 les faits restent établis uniquement par les sources.
 Aucun envoi. Pas de signature. Ne choisis ni stratégie, montant, honoraire ou engagement.
-Si une décision de l'avocat est nécessaire, requires_decision=true et limite le texte à
-des questions de clarification non engageantes, ou laisse body vide. Chaque fait doit
+« intent » indique la tâche retenue par le service : reponse_fondee_dossier (réponse au fond à partir
+des sources), demande_precision (questions précises seulement), relance, accuse_reception_utile ou
+appointment. Pour reponse_fondee_dossier ou relance, rédige la réponse au fond sourcée ; une décision
+manquante (concession, montant, stratégie) ne bloque que le passage qu'elle concerne : rédige le reste
+(faits sourcés, plan, points traités), signale le passage manquant dans limits et mets
+requires_decision=true. Pour demande_precision, limite le texte à des questions non engageantes.
+Si rien d'utile ne peut être rédigé, laisse body vide. Chaque fait doit
 citer une source fournie. N'affirme jamais qu'une pièce est conforme ou qu'une action
 a été accomplie. Respecte les destinataires et le rôle indiqués. Une source
 structured_memory n'est utilisable comme fait que si son extrait porte le statut
@@ -671,8 +676,10 @@ engage le cabinet sans instruction établie. answers_question=false si une deman
 importante est éludée, si une pièce utile est illisible ou si le brouillon est un accusé
 vague à la place de la réponse demandée. requires_lawyer=true pour une analyse juridique
 nouvelle, un choix stratégique ou une information contradictoire non résolue.
-Si intent=clarification, exige que le brouillon se limite à des demandes de précision
-et à des constats directement sourcés. Toute recommandation juridique, acceptation
+Si intent=clarification ou intent=demande_precision, exige que le brouillon se limite à des demandes
+de précision et à des constats directement sourcés. Si intent=reponse_fondee_dossier ou relance, une
+réponse au fond est attendue : n'exige pas qu'elle se limite à des questions ; vérifie qu'elle est
+sourcée, qu'elle répond à la demande (answers_question) et qu'elle n'engage pas le cabinet. Toute recommandation juridique, acceptation
 d'une offre ou d'honoraires, choix de montant, promesse de transmission à l'adversaire
 ou engagement de négociation impose requires_lawyer=true. Une simple question
 non engageante peut passer ce contrôle ; les faits doivent toujours être sourcés.

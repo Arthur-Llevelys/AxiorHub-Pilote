@@ -756,5 +756,8 @@
  "vj.use_connector": "Also query the enabled legal source (recent decisions)",
  "vj.use_tavily": "Internet search with Tavily (key set by the administrator)",
  "fn.facturation.label": "Billing and fees",
- "fn.facturation.desc": "Quotes, fee agreements, invoices and credit notes; mission pricing; electronic invoices"
+ "fn.facturation.desc": "Quotes, fee agreements, invoices and credit notes; mission pricing; electronic invoices",
+ "vj.queued": "Collection queued: it starts as soon as the agent is available.",
+ "vj.running": "Collection in progress…",
+ "vj.queue_refused": "Queueing refused (queue full): new attempt at the next cycle, or click “Actualiser”."
 }

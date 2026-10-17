@@ -38,7 +38,7 @@
     if (!form) { return; }
     var fileInput = form.querySelector('input[type=file][data-b53-file]');
     var route = (form.getAttribute('data-api') || '').trim();
-    if (!fileInput && route !== 'm5653/document/transmettre') { return; }
+    if (!fileInput && route !== 'm5653/document/transmettre' && route !== 'm5653/client/siren') { return; }
     ev.preventDefault();
     ev.stopImmediatePropagation();
     var btn = form.querySelector('button[type=submit]');
@@ -56,11 +56,56 @@
       .then(function (v) {
         status(form, v.message || 'Fait.');
         if (v.operation && route === 'm5653/document/transmettre') { window.location.assign(prefix + '/operation?id=' + encodeURIComponent(v.operation)); return; }
+        if (route === 'm5653/client/siren') { candidates(form, v); return; }
         if (form.hasAttribute('data-reload')) { window.setTimeout(function () { window.location.reload(); }, 600); }
       })
       .catch(function (e) { status(form, e.message); })
       .then(function () { if (btn) { btn.disabled = false; } });
   }, true);
+  /* 5.6.56 (audit 5.6.55, § 7.2) : résultats de l'annuaire présentés un par un ; « Utiliser cette entreprise » remplit la fiche du
+     client sans l'enregistrer (les autres saisies sont conservées) ; c'est l'enregistrement par l'avocat qui confirme. */
+  function candidates(form, v) {
+    var box = form.querySelector('.b56-candidates');
+    if (!box) { return; }
+    box.textContent = '';
+    var rows = v.candidats || [];
+    if (!rows.length) { box.textContent = 'Aucun résultat : saisissez les informations du client à la main.'; return; }
+    var list = document.createElement('ul');
+    list.className = 'b56-candidate-list';
+    rows.forEach(function (r) {
+      var li = document.createElement('li');
+      var title = document.createElement('strong');
+      title.textContent = (r.nom || '(sans nom)') + (r.siren ? ' — SIREN ' + r.siren : '');
+      var info = document.createElement('span');
+      info.className = 'b53-note';
+      info.textContent = [r.siege, r.etat === 'C' ? 'cessée' : (r.etat === 'A' ? 'active' : r.etat), v.source, v.date ? 'lu le ' + v.date : '']
+        .filter(function (x) { return x; }).join(' · ');
+      var use = document.createElement('button');
+      use.type = 'button';
+      use.className = 'ax-btn ghost';
+      use.textContent = 'Utiliser cette entreprise';
+      use.addEventListener('click', function () {
+        var holder = form.closest('details') || document;
+        var target = holder.querySelector('form[data-api="m5653/client/enregistrer"]');
+        if (!target) { return; }
+        var set = function (name, value) {
+          var f = target.querySelector('[name="' + name + '"]');
+          if (f && value) { f.value = value; }
+        };
+        set('nom', r.nom); set('siren', r.siren); set('adresse_ligne1', r.adresse_ligne1); set('code_postal', r.code_postal); set('ville', r.ville);
+        set('country', 'FR');
+        var src = target.querySelector('input[name="source"]');
+        if (!src) { src = document.createElement('input'); src.type = 'hidden'; src.name = 'source'; target.appendChild(src); }
+        src.value = (v.source || 'annuaire public') + (v.date ? ', lu le ' + v.date : '') + ' — choisi par l’avocat';
+        status(form, 'Fiche remplie avec « ' + (r.nom || '') + ' » : vérifiez puis cliquez sur « Enregistrer le client ».');
+        var first = target.querySelector('[name="nom"]');
+        if (first) { first.focus(); }
+      });
+      li.appendChild(title); li.appendChild(document.createTextNode(' ')); li.appendChild(info); li.appendChild(use);
+      list.appendChild(li);
+    });
+    box.appendChild(list);
+  }
   document.addEventListener('click', function (ev) {
     var btn = ev.target.closest && ev.target.closest('[data-b53-calc]');
     if (!btn) { return; }

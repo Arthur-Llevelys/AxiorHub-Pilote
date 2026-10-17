@@ -20,7 +20,7 @@ READ = ('documents', 'document', 'apercu', 'resume', 'propositions', 'modeles', 
 SETTINGS = ('cabinet/enregistrer', 'honoraires/reglages', 'logo/importer', 'bibliotheque/importer')
 WRITE = ('client/enregistrer', 'client/siren', 'estimation/enregistrer', 'estimation/retenir', 'estimation/refuser', 'document/preparer', 'document/modifier',
          'document/controler', 'document/approuver', 'document/emettre', 'document/deposer', 'document/etat', 'document/abandonner', 'document/avoir',
-         'document/reglement', 'document/transmettre', 'proposition/decider', 'proposition/preparer', 'modele/importer', 'modele/choisir', 'epingler',
+         'document/reglement', 'document/restaurer', 'document/transmettre', 'proposition/decider', 'proposition/preparer', 'modele/importer', 'modele/choisir', 'epingler',
          'dossier/perimetre')
 
 
@@ -158,12 +158,20 @@ def post(desk, owner, role, route, data, prefix=''):
         out = fees.import_library(desk, _b64(data))
         return {'message': 'Bibliothèque importée : %d diligences.' % out['diligences']}
     if route == 'client/enregistrer':
-        fact.save_client(desk, owner, role, str(data.get('dossier') or ''), data)
-        return {'message': 'Client enregistré.'}
+        mid = str(data.get('dossier') or '')
+        fact.save_client(desk, owner, role, mid, data)
+        changed = fact.recalculate_drafts(desk, owner, role, mid)   # 5.6.56 (§ 7.3) : brouillons du client recalculés, approbation périmée
+        detail = ' ; '.join('%s : TVA %s → %s, TTC %s → %s' % (c['libelle'], _money_txt(c['tva_avant']), _money_txt(c['tva_apres']), _money_txt(c['ttc_avant']),
+                                                               _money_txt(c['ttc_apres'])) for c in changed if c['change'])
+        return {'message': ('Client enregistré. %d brouillon(s) recalculé(s)%s' % (len(changed), (' — ' + detail) if detail else '.')) if changed
+                else 'Client enregistré.'}
     if route == 'client/siren':
         out = fact.lookup_siren(desk, owner, role, str(data.get('dossier') or ''), data.get('recherche'))
         rows = ' ; '.join(' — '.join(str(r.get(k)) for k in ('siren', 'nom', 'siege') if r.get(k)) for r in out['resultats'][:3])
-        return {**out, 'noreload': True, 'message': ('%s (%s) : %s. %s' % (out['source'], out['date'][:10], rows or 'aucun résultat', out['note']))[:700]}
+        # 5.6.56 (§ 7.2) : candidats rendus au formulaire (« Utiliser cette entreprise » remplit la fiche ; l'enregistrement confirme)
+        return {**out, 'noreload': True, 'candidats': [{k: r.get(k) for k in ('siren', 'siret', 'nom', 'siege', 'adresse_ligne1', 'code_postal', 'ville', 'etat')}
+                                                       for r in out['resultats'][:5]],
+                'message': ('%s (%s) : %s. %s' % (out['source'], out['date'][:10], rows or 'aucun résultat', out['note']))[:700]}
     if route == 'estimation/calculer':
         r = fees.estimate(desk, _estimate_inputs(desk, data))
         return {'resultat': fees.client_view(r), 'interne': r['interne'], 'noreload': True,
@@ -217,8 +225,11 @@ def post(desk, owner, role, route, data, prefix=''):
         return {'document': d['id'], 'goto': '?' + urlencode({'document': d['id']}), 'message': 'Avoir préparé en brouillon.'}
     if route == 'document/reglement':
         d = fact.record_payment(desk, owner, role, did, data.get('montant'), str(data.get('date') or ''), str(data.get('moyen') or 'virement'),
-                                str(data.get('reference') or ''))
+                                str(data.get('reference') or ''), str(data.get('request_key') or ''))
         return {'message': 'Règlement enregistré : %s.' % d['payment_label']}
+    if route == 'document/restaurer':                          # 5.6.56 (N24) : copie de l'original émis, rien n'est écrasé
+        d = fact.restore_copy(desk, owner, role, did)
+        return {'message': 'Original émis redéposé en copie dans FACTURATION.' if d['files_state'] == 'publies' else 'Restauration incomplète.'}
     if route == 'document/transmettre':
         out = fact.submit(desk, owner, role, did)
         return {'goto_url': prefix + '/operation?id=' + out['operation'], 'operation': out['operation'],
@@ -282,6 +293,10 @@ def _form(api, body, button, reload=True, extra='', cls='', confirm=''):
     return ('<form class="m5-form b53-form %s" data-api="m5653/%s"%s%s>%s<div class="b53-actions"><button class="ax-btn" type="submit">%s</button>%s</div>'
             '<p role="status" class="m5-status"></p></form>') % (cls, api, ' data-reload' if reload else '', (' data-confirm="%s"' % e(confirm, quote=True)) if confirm else '',
                                                                body, e(button), extra)
+
+
+def _money_txt(cents):
+    return fees.fmt(int(cents or 0))
 
 
 def _hidden(**kw):
@@ -364,7 +379,7 @@ def _header(desk, prefix, owner, args):
                    '</fieldset><label>Dossier<select name="matter" required>%s</select></label><label>Pour une facture<select name="sous_type">%s</select></label>' % (
                        types, _client_options(desk, args.get('dossier') or ''),
                        ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in fact.INVOICE_TYPES.items())),
-                   'Préparer le brouillon', reload=False)
+                   'Préparer le brouillon', reload=True)
     pin = _form('epingler', _hidden(epingler='false' if pinned(desk, owner) else 'true'),
                 'Retirer du menu principal' if pinned(desk, owner) else 'Épingler au menu principal', cls='b53-inline ghost')
     missing = f55.setup_missing(desk)
@@ -378,7 +393,7 @@ def _header(desk, prefix, owner, args):
 def _row_action(prefix, item):
     if item.get('proposition'):
         main = _form('proposition/preparer', _hidden(cle=item['proposition']) + '<input type="hidden" name="request_key" data-r52-key value="">', item['action'],
-                     reload=False, cls='b53-inline')
+                     reload=True, cls='b53-inline')
         more = ('<details class="b55-more"><summary aria-label="Autres choix">…</summary><div>%s%s%s</div></details>') % (
             _form('proposition/decider', _hidden(cle=item['proposition'], decision='reportee'), 'Reporter d’une semaine', cls='b53-inline ghost'),
             _form('proposition/decider', _hidden(cle=item['proposition'], decision='refusee'), 'Ne plus proposer', cls='b53-inline ghost'),
@@ -470,7 +485,7 @@ def matters_html(desk, prefix, args):
             e(('%s (%s)' % (conv['numero'] or 'sans référence', conv['etat'])) if conv else 'aucune'), _money(r['a_facturer_cents']),
             _money(r['facture_ht_cents']), _money(r['solde_cents']),
             _form('document/preparer', _hidden(type='facture', matter=r['id'], sous_type=sub) + '<input type="hidden" name="request_key" data-r52-key value="">',
-                  'Facturer', reload=False, cls='b53-inline'), e('?' + urlencode({'vue': 'documents', 'q': r['id']}), quote=True))
+                  'Facturer', reload=True, cls='b53-inline'), e('?' + urlencode({'vue': 'documents', 'q': r['id']}), quote=True))
     out = ex = ''
     for x in f55.excluded(desk):
         ex += '<li><strong>%s</strong> — %s %s</li>' % (e(x['nom']), e(x['motif']), _form('dossier/perimetre', _hidden(dossier=x['id'], decision='inclure'),
@@ -507,7 +522,7 @@ def estimate_html(desk, prefix, owner, role, args):
                       % e(str(fees.euros(est['retained_cents'] if est['retained_cents'] is not None else est['proposed_cents'])), quote=True), 'Retenir ce montant', cls='b53-inline'),
                 _form('document/preparer', _hidden(type='convention', dossier=mid, estimation=est['id'], mode=r['mode']) +
                       '<input type="hidden" name="request_key" data-r52-key value=""><label>Mission<input name="mission" maxlength="300"></label>', 'Préparer la convention',
-                      reload=False, cls='b53-inline') if est['state'] in ('retenue', 'signee') else '')
+                      reload=True, cls='b53-inline') if est['state'] in ('retenue', 'signee') else '')
     form = ('<label>Dossier<select name="dossier" required>%s</select></label><label>Modèle de dossier (bibliothèque Honorium du cabinet)<select name="modele">'
             '<option value="">Diligences saisies ci-dessous</option>%s</select></label><label>Niveau<select name="niveau">%s</select></label>'
             '<label>Mode<select name="mode">%s</select></label><label>Taux horaire HT<input name="taux_horaire" value="%s" inputmode="decimal"></label>'
@@ -521,7 +536,7 @@ def estimate_html(desk, prefix, owner, role, args):
                 for i in range(4)))
     return ('<p class="b53-note">Durées et coefficients : hypothèses du cabinet (bibliothèque Honorium), pas un barème de la profession. Le serveur calcule ; '
             'le montant PROPOSÉ se recalcule, le montant RETENU est votre décision, le montant SIGNÉ est figé par la convention.</p>%s%s</div>') % (
-        _form('estimation/enregistrer', form, 'Calculer et enregistrer l’estimation', reload=False, extra='<button class="ax-btn ghost" type="button" data-b53-calc>Calculer sans enregistrer</button>'),
+        _form('estimation/enregistrer', form, 'Calculer et enregistrer l’estimation', reload=True, extra='<button class="ax-btn ghost" type="button" data-b53-calc>Calculer sans enregistrer</button>'),
         est_html)
 
 
@@ -627,7 +642,7 @@ def document_html(desk, prefix, owner, role, doc_id):
                       '<option value="%s"%s>%s</option>' % (k, ' selected' if cli.get('kind') == k else '', e(v)) for k, v in fact.fiscal.CLIENT_KINDS.items()),
                   'Enregistrer le client'),
             _form('client/siren', _hidden(dossier=d['matter']) + '<label>SIREN ou nom<input name="recherche" maxlength="120"></label>', 'Rechercher (données publiques)',
-                  reload=False, cls='b53-inline'))
+                  reload=False, cls='b53-inline b56-siren', extra='<div class="b56-candidates" aria-live="polite"></div>'))
     actions = []
     if editable:
         actions.append(_form('document/controler', _hidden(id=d['id']), 'Contrôler', cls='b53-inline ghost'))
@@ -640,6 +655,10 @@ def document_html(desk, prefix, owner, role, doc_id):
     if d['kind'] in ('facture', 'avoir') and d['state'] == 'approuve' and not d['number']:
         actions.append(_form('document/emettre', _hidden(id=d['id']) + '<input type="hidden" name="cle" data-r52-key value="">',
                              'Émettre (numéro définitif)', cls='b53-inline', confirm='Émettre maintenant ? Le numéro attribué ne sera jamais réutilisé.'))
+    if d['kind'] in ('facture', 'avoir') and d['number'] and d['files_state'] == 'conflit':
+        actions.append('<p class="b53-note ko" role="status">Un fichier de ce document a été modifié dans FACTURATION après l’émission. L’original émis est '
+                       'conservé dans AxiorHub ; le fichier modifié n’est ni écrasé ni supprimé.</p>')
+        actions.append(_form('document/restaurer', _hidden(id=d['id']), 'Déposer une copie de l’original émis', cls='b53-inline'))
     if d['kind'] in ('facture', 'avoir') and d['number'] and d['files_state'] == 'a_publier':
         actions.append(_form('document/emettre', _hidden(id=d['id'], cle=d['issue_key'] or ''), 'Publier les fichiers (nouvel essai)', cls='b53-inline'))
     if d['kind'] in ('devis', 'convention', 'lettre_mission') and d['state'] in ('approuve', 'envoye', 'en_signature', 'accepte', 'signe'):
@@ -653,9 +672,10 @@ def document_html(desk, prefix, owner, role, doc_id):
     if d['kind'] == 'facture' and d['number']:
         actions.append(_form('document/reglement', _hidden(id=d['id']) + '<label>Montant reçu<input name="montant" inputmode="decimal" required></label><label>Date<input type="date" '
                              'name="date" required></label><label>Moyen<select name="moyen"><option>virement</option><option>chèque</option><option>prélèvement</option>'
-                             '<option>carte</option></select></label><label>Référence<input name="reference" maxlength="120"></label>', 'Enregistrer un règlement', cls='b53-inline'))
+                             '<option>carte</option></select></label><label>Référence<input name="reference" maxlength="120"></label>'
+                             '<input type="hidden" name="request_key" data-r52-key value="">', 'Enregistrer un règlement', cls='b53-inline'))
         actions.append(_form('document/avoir', _hidden(id=d['id']) + '<label>Motif de l’avoir<input name="motif" maxlength="300" required></label>', 'Préparer un avoir',
-                             reload=False, cls='b53-inline ghost'))
+                             reload=True, cls='b53-inline ghost'))
         if fact.entity(desk)['transport'] != 'aucun' and not d['delivery_op']:
             actions.append(_form('document/transmettre', _hidden(id=d['id']), 'Transmettre par le trajet configuré', reload=False, cls='b53-inline'))
     if d['delivery_op']:
@@ -668,17 +688,24 @@ def document_html(desk, prefix, owner, role, doc_id):
             'réussis' if structure.get('ok') else 'en échec', ''.join('<li class="%s">%s %s</li>' % ('ok' if c['ok'] else 'ko', '✓' if c['ok'] else '✗', e(c['regle']))
                                                                          for c in structure['controles']), e(', '.join(structure.get('non_verifie') or [])), e(structure.get('facturx') or ''))
     issues = ''.join('<li class="ko">%s</li>' % e(b) for b in checks['bloquants']) + ''.join('<li class="warn">%s</li>' % e(w) for w in checks['avertissements'])
+    fmt = ('contrôles internes %s ; XSD et Schematron officiels non exécutés' % ('réussis' if structure.get('ok') else 'en échec')) if structure.get('controles') else 'non vérifié'
+    transmission = {'transmission_en_cours': 'en cours', 'deposee': 'déposée', 'rejetee': 'rejetée'}.get(d['state'], 'non effectuée' if d['number'] else '—')
+    files_label = {'publies': 'publiés et relus', 'a_publier': 'à publier', 'conflit': 'modifiés dans le stockage'}.get(d['files_state'], '—')
+    states = ('<dl class="b56-states"><div><dt>Calculs</dt><dd>vérifiés par le serveur</dd></div><div><dt>Données</dt><dd>%s</dd></div>'
+              '<div><dt>Format structuré</dt><dd>%s</dd></div><div><dt>Fichiers</dt><dd>%s</dd></div><div><dt>Transmission</dt><dd>%s</dd></div></dl>') % (
+        e('%d point(s) à compléter' % len(checks['bloquants']) if checks['bloquants'] else 'complètes'), e(fmt), e(files_label), e(transmission))
     preview_text = prev['texte']
     if not d['number'] and d['kind'] in ('facture', 'avoir'):
         for k in ('numero facture', 'numero avoir', 'date emission', 'date echeance'):
             preview_text = preview_text.replace('[à compléter : %s]' % k, '(attribué à l’émission)')
     return ('<article class="b53-doc"><header class="b53-doc-head"><h2>%s %s</h2><p class="b53-matter"><a href="%s">%s</a> — %s</p><p class="b53-state">%s%s · version %d</p>'
             '<p class="b53-totals">HT %s · TVA %s · TTC %s%s · <strong>net à payer %s</strong></p></header><div class="b53-grid"><div class="b53-edit">%s%s'
-            '<ul class="b53-issues">%s</ul><div class="b53-actions b53-doc-actions">%s</div>%s%s</div><div class="b53-preview-wrap"><p class="b53-note">Aperçu %s</p>'
+            '<ul class="b53-issues">%s</ul>' + states + '<div class="b53-actions b53-doc-actions">%s</div>%s%s</div><div class="b53-preview-wrap"><p class="b53-note">Aperçu textuel %s '
+            '— mise en page indicative : le Word et le PDF produits font foi.</p>'
             '<section class="b53-preview%s" translate="no" lang="fr">%s</section></div></div></article></div>') % (
         e(d['kind_label']), e(d['number'] or '(brouillon)'), e(prefix + '/dossier?' + urlencode({'id': d['matter'], 'vue': 'travaux'}), quote=True), e(matter_display(m)),
         e(cli.get('nom') or 'client à compléter'), e(d['state_label']), (' · ' + e(d['payment_label'])) if d['kind'] == 'facture' and d['number'] else '', d['version'],
-        _money(t['ht_cents']), _money(t['tva_cents']), _money(t['ttc_cents']), (' · déjà réglé ' + _money(t['deja_regle_cents'])) if t['deja_regle_cents'] else '',
+        _money(t['ht_cents']), _money(t['tva_cents']), _money(t['ttc_cents']), (' · provisions facturées déduites ' + _money(t['deja_regle_cents'])) if t['deja_regle_cents'] else '',
         _money(t['net_a_payer_cents']), client_form, editor, issues or '<li class="ok">Aucun point bloquant.</li>', ''.join(actions),
         ('<h3>Fichiers dans FACTURATION</h3><ul class="b53-list">%s</ul>' % files) if files else '', struct_html,
         'non fiscal (brouillon)' if not d['number'] or d['state'] in fact.EDITABLE else 'du document émis', '' if d['number'] and d['kind'] in ('facture', 'avoir') else ' b53-draft',

@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS b53_events(id INTEGER PRIMARY KEY AUTOINCREMENT, docu
   actor TEXT NOT NULL DEFAULT '', at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS b53_payments(id TEXT PRIMARY KEY, document TEXT NOT NULL, amount_cents INTEGER NOT NULL, day TEXT NOT NULL, method TEXT NOT NULL,
   source TEXT NOT NULL, reference TEXT NOT NULL DEFAULT '', verified INTEGER NOT NULL DEFAULT 1, actor TEXT NOT NULL, created TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS b56_issued_files(document TEXT NOT NULL, key TEXT NOT NULL, sha256 TEXT NOT NULL, size INTEGER NOT NULL,
+  data BLOB NOT NULL, created TEXT NOT NULL, PRIMARY KEY(document, key));
 CREATE TABLE IF NOT EXISTS b53_suggestions(key TEXT PRIMARY KEY, matter TEXT NOT NULL, kind TEXT NOT NULL, trigger_json TEXT NOT NULL, amount_cents INTEGER,
   state TEXT NOT NULL, until TEXT NOT NULL DEFAULT '', document TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, updated TEXT NOT NULL);
 '''
@@ -96,9 +98,49 @@ def _sha(obj):
 
 
 def ensure_schema(desk):
-    desk.db.executescript(SCHEMA)
+    desk.db.executescript(SCHEMA)                             # 5.6.56 (N27) : sans validation implicite dans une transaction
     fees.ensure_schema(desk)
     models.ensure_schema(desk)
+
+
+def day_value(value, required=True):
+    """5.6.56 (N25) : date du calendrier (AAAA-MM-JJ) réellement existante ; le 31 février est refusé, jamais « corrigé »."""
+    v = str(value or '').strip()
+    if not v:
+        if required:
+            raise Stop('date_invalide')
+        return ''
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', v):
+        raise Stop('date_invalide')
+    try:
+        return date.fromisoformat(v).isoformat()
+    except ValueError:
+        raise Stop('date_invalide') from None
+
+
+IBAN_LENGTHS = {'FR': 27, 'MC': 27, 'BE': 16, 'LU': 20, 'DE': 22, 'ES': 24, 'IT': 27, 'CH': 21, 'GB': 22, 'NL': 18, 'PT': 25, 'IE': 22, 'AT': 20}
+
+
+def iban_ok(value):
+    """5.6.56 (N12) : forme, longueur du pays et clé MOD 97 (ISO 13616). Une clé juste ne prouve pas la titularité du compte."""
+    s = re.sub(r'\s+', '', str(value or '')).upper()
+    if not re.fullmatch(r'[A-Z]{2}\d{2}[A-Z0-9]{10,30}', s):
+        return False
+    if IBAN_LENGTHS.get(s[:2]) and len(s) != IBAN_LENGTHS[s[:2]]:
+        return False
+    return int(''.join(str(ord(c) - 55) if c.isalpha() else c for c in s[4:] + s[:4])) % 97 == 1
+
+
+def luhn_ok(digits):
+    """Clé de Luhn des SIREN et SIRET (contrôle indicatif : quelques établissements publics y font exception)."""
+    d = re.sub(r'\s+', '', str(digits or ''))
+    if not d.isdigit():
+        return False
+    total = 0
+    for i, c in enumerate(reversed(d)):
+        n = int(c) * (2 if i % 2 else 1)
+        total += n - 9 if n > 9 else n
+    return total % 10 == 0
 
 
 def _event(desk, doc_id, kind, detail=None, actor=''):
@@ -156,7 +198,7 @@ def save_entity(desk, actor, role, data):
         raise Stop('siren_invalide')
     if ident.get('siret') and not re.fullmatch(r'\d{14}', ident['siret'].replace(' ', '')):
         raise Stop('siret_invalide')
-    if ident.get('iban') and not re.fullmatch(r'[A-Z]{2}\d{2}[A-Z0-9 ]{10,40}', ident['iban'].upper()):
+    if ident.get('iban') and not iban_ok(ident['iban']):        # 5.6.56 (N12) : longueur du pays et clé MOD 97
         raise Stop('iban_invalide')
     fis = dict(cur['fiscal'])
     if 'regime_cabinet' in data:
@@ -420,8 +462,11 @@ def prepare(desk, actor, role, kind, mid, data, request_key=''):
             raise Stop('convention_requise_pour_solde')
         snap['lignes'] = [{'nature': 'honoraires', 'libelle': 'Honoraires convenus — solde', 'quantite': '1', 'unite': 'forfait',
                            'prix_unitaire_ht_cents': conv['snapshot']['totaux']['ht_cents'], 'sources': [{'type': 'solde', 'id': conv['id']}]}]
-        snap['imputations'] = [{'facture_id': p['id'], 'numero': p['number'], 'montant_ttc_cents': p['snapshot']['totaux']['ttc_cents']}
-                               for p in _paid_provisions(desk, mid)]
+        # 5.6.56 (N19) : toute provision ÉMISE est imputée, qu'elle soit réglée ou non (sinon la même part d'honoraires restait due
+        # deux fois) ; le reste dû sur la provision demeure sur la facture de provision. Les avoirs déjà émis sur une provision sont déduits.
+        snap['imputations'] = [{'facture_id': p['id'], 'numero': p['number'], 'montant_ttc_cents': p['imputable_ttc_cents'],
+                                'regle_cents': p['regle_cents'], 'etat_reglement': p['payment_state']}
+                               for p in _invoiced_provisions(desk, mid) if p['imputable_ttc_cents'] > 0]
     for l in data.get('lignes') or []:
         snap['lignes'].append(l)
     if kind == 'convention' and est:
@@ -495,13 +540,31 @@ def _active_convention(desk, mid):
     return None
 
 
-def _paid_provisions(desk, mid):
+def _credited(desk, origin_id, exclude=''):
+    """Montants (HT, TTC) déjà rectifiés par des avoirs ÉMIS sur une facture."""
+    ht = ttc = 0
+    for r in desk.db.execute("SELECT snapshot_json FROM b53_documents WHERE kind='avoir' AND origin=? AND number IS NOT NULL AND id<>?",
+                             (str(origin_id), str(exclude or ''))):
+        t = json.loads(r['snapshot_json'])['totaux']
+        ht, ttc = ht + int(t['ht_cents']), ttc + int(t['ttc_cents'])
+    return ht, ttc
+
+
+def _invoiced_provisions(desk, mid):
+    """5.6.56 (N19) : provisions émises du dossier, avec le montant imputable (TTC émis moins avoirs) et les règlements reçus."""
     out = []
     for r in desk.db.execute("SELECT id FROM b53_documents WHERE matter=? AND kind='facture' AND subtype='provision' AND number IS NOT NULL", (str(mid),)):
         d = get(desk, r['id'])
-        if d['payment_state'] == 'reglee':
-            out.append(d)
+        _, credited = _credited(desk, d['id'])
+        d['imputable_ttc_cents'] = int(d['snapshot']['totaux']['ttc_cents']) - credited
+        d['regle_cents'] = sum(int(p['amount_cents']) for p in d['payments'] if p['verified'])
+        out.append(d)
     return out
+
+
+def _paid_provisions(desk, mid):
+    """Compatibilité : provisions émises et entièrement réglées."""
+    return [d for d in _invoiced_provisions(desk, mid) if d['payment_state'] == 'reglee']
 
 
 def update(desk, actor, role, doc_id, changes, version):
@@ -522,10 +585,7 @@ def update(desk, actor, role, doc_id, changes, version):
     if 'dates' in changes and isinstance(changes['dates'], dict):
         for k in ('prestation', 'echeance', 'validite'):
             if k in changes['dates']:
-                v = str(changes['dates'][k] or '')[:10]
-                if v and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', v):
-                    raise Stop('date_invalide')
-                snap['dates'][k] = v
+                snap['dates'][k] = day_value(str(changes['dates'][k] or '')[:10], required=False)   # 5.6.56 (N25)
     if 'profil_secret' in changes:
         snap['profil_secret'] = changes['profil_secret'] not in (False, 'false', '0', 'off')
     if 'template_id' in changes:
@@ -550,6 +610,24 @@ def update(desk, actor, role, doc_id, changes, version):
     _event(desk, doc_id, 'modification', {'approbation': 'invalidee' if row['approved_hash'] else ''}, actor)
     desk.db.commit()
     return get(desk, doc_id)
+
+
+def recalculate_drafts(desk, actor, role, mid):
+    """5.6.56 (audit 5.6.55, § 7.3) : après modification du client, les brouillons du dossier sont recalculés (nouvelle version,
+    approbation périmée, contrôles refaits) ; le changement de TVA et de total est rendu à l'écran. Les documents émis ne changent pas."""
+    _require(desk, actor, role, 'facturation')
+    out = []
+    for r in desk.db.execute("SELECT id,version,kind,snapshot_json FROM b53_documents WHERE matter=? AND state IN ('brouillon','a_controler','approuve') "
+                             "AND number IS NULL", (str(mid),)).fetchall():
+        before = json.loads(r['snapshot_json'])['totaux']
+        try:
+            d = update(desk, actor, role, r['id'], {}, r['version'])
+        except Stop:
+            continue
+        after = d['snapshot']['totaux']
+        out.append({'id': r['id'], 'libelle': KINDS.get(r['kind'], r['kind']), 'tva_avant': before['tva_cents'], 'tva_apres': after['tva_cents'],
+                    'ttc_avant': before['ttc_cents'], 'ttc_apres': after['ttc_cents'], 'change': before != after})
+    return out
 
 
 def abandon(desk, actor, role, doc_id, version):
@@ -599,7 +677,8 @@ def _values(desk, d, ent, cli, number='', issue_date=''):
          'total_ht': fees.fmt(t['ht_cents']), 'total_ttc': fees.fmt(t['ttc_cents']), 'ventilation_tva': vent or None, 'net_a_payer': fees.fmt(t['net_a_payer_cents']),
          'devise': 'EUR', 'mentions_tva': fis['mention'] or ('TVA au taux de %s %%.' % fis['taux'] if fis['regime'] == 'normal' else None),
          'remises_et_majorations': '', 'debours_qualifies': 'aucun' if not any(l['nature'] == 'debours' for l in snap['lignes']) else None,
-         'imputation_acomptes_factures': '; '.join('Provision %s déduite : %s TTC' % (i['numero'], fees.fmt(i['montant_ttc_cents'])) for i in snap['imputations']) or '',
+         'imputation_acomptes_factures': '; '.join('Provision %s facturée, déduite : %s TTC' % (i['numero'], fees.fmt(i['montant_ttc_cents']))
+                                                   for i in snap['imputations']) or '',
          'references_factures_anterieures': '', 'detail_client_autorise': snap['textes'].get('detail_client_autorise', ''),
          'modalites_paiement': terms.get('modalites'), 'beneficiaire': ident.get('beneficiaire') or ident.get('nom'), 'iban': ident.get('iban'),
          'conditions_escompte': terms.get('escompte'), 'clause_retard_adaptee_client': fiscal.late_payment_clause(fis['perimetre']),
@@ -633,6 +712,19 @@ def _values(desk, d, ent, cli, number='', issue_date=''):
     return v
 
 
+def render_inputs(desk, d):
+    """5.6.56 (audit 5.6.55, N17) : entrées du rendu. Brouillon = fiches de travail actuelles ; document ÉMIS = paquet d'émission
+    figé (émetteur, client, conditions, profil fiscal du cabinet), jamais le profil courant. Un ancien document dont le paquet ne
+    contient pas les conditions est rendu avec les conditions actuelles et signalé comme reconstruction partielle."""
+    ent = entity(desk)
+    em = (d.get('snapshot') or {}).get('emis') or {}
+    if d.get('number') and em and d.get('kind') in ('facture', 'avoir'):
+        frozen = {**ent, 'identite': em.get('emetteur') or ent['identite'], 'conditions': em.get('conditions') or ent['conditions'],
+                  'fiscal': em.get('fiscal_cabinet') or ent['fiscal'], 'partiel': not em.get('conditions')}
+        return frozen, em.get('client') or client(desk, d['matter'])
+    return ent, client(desk, d['matter'])
+
+
 def _line_values(d):
     out = []
     for l in d['snapshot']['lignes']:
@@ -646,7 +738,7 @@ def _line_values(d):
 def preview(desk, actor, role, doc_id):
     """Aperçu NON FISCAL (aucun numéro attribué) : texte rendu, variables manquantes et contrôles."""
     d = get(desk, doc_id)
-    ent, cli = entity(desk), client(desk, d['matter'])
+    ent, cli = render_inputs(desk, d)                          # 5.6.56 (N17)
     template = models.get(desk, d['template_id'])
     text, missing = models.render_text(template, _values(desk, d, ent, cli, number=d['number'] or '', issue_date=d['issue_date']), _line_values(d))
     return {'texte': text, 'variables_manquantes': missing, 'controles': check(desk, actor, role, doc_id, persist=False)}
@@ -659,16 +751,49 @@ REQUIRED_FOR_ISSUE = ('cabinet_identite', 'cabinet_adresse', 'cabinet_siren', 'c
 def check(desk, actor, role, doc_id, persist=True):
     """Rapport de contrôle en langage clair : bloquants (empêchent l'approbation ou l'émission) et avertissements. Aucun envoi."""
     d = get(desk, doc_id)
-    ent, cli = entity(desk), client(desk, d['matter'])
+    report = _report(desk, d)
+    if persist:
+        desk.db.execute('UPDATE b53_documents SET checks_json=?,state=CASE WHEN state=\'brouillon\' THEN \'a_controler\' ELSE state END WHERE id=?',
+                        (json.dumps(report, ensure_ascii=False), doc_id))
+        desk.db.commit()
+    return report
+
+
+def _report(desk, d):
+    """Contrôles déterministes d'un document (lecture seule, aucune validation de transaction : utilisable sous le verrou d'émission)."""
+    ent, cli = render_inputs(desk, d)
     snap = d['snapshot']
     blockers, warnings = list(snap['fiscal']['bloquants']), []
+    current_fiscal = snap['fiscal']
+    if d['state'] in EDITABLE:
+        # 5.6.56 (audit 5.6.55, N10 et N11) : qualité du client ou régime du cabinet modifiés depuis le calcul du brouillon -> recalcul
+        # explicite exigé (« Enregistrer et recalculer ») ; les montants ne sont jamais réécrits à l'insu de l'avocat.
+        current_fiscal = fiscal.qualify(ent, cli, snap.get('choix_fiscal') or {})
+        if current_fiscal != snap['fiscal']:
+            try:
+                after = compute(snap, ent, cli)['totaux']
+                delta = ' (TVA du brouillon %s ; après recalcul %s, total TTC %s)' % (fees.fmt(snap['totaux']['tva_cents']), fees.fmt(after['tva_cents']),
+                                                                                    fees.fmt(after['ttc_cents']))
+            except Stop:
+                delta = ''
+            blockers.append('Client ou régime fiscal du cabinet modifié depuis le calcul : cliquez sur « Enregistrer et recalculer » avant '
+                            'd’approuver%s.' % delta)
+            blockers.extend(b for b in current_fiscal['bloquants'] if b not in blockers)
     if not snap['lignes']:
         blockers.append('Aucune ligne : ajoutez au moins une prestation.')
     if d['kind'] in ('facture', 'avoir'):
         if not cli.get('kind'):
             blockers.append('La qualité du client manque (professionnel, particulier ou organisme public).')
-        if snap['fiscal']['perimetre'] == 'b2b_fr' and not cli.get('siren'):
+        if current_fiscal['perimetre'] == 'b2b_fr' and not cli.get('siren'):
             blockers.append('Le SIREN du client professionnel manque (mention obligatoire des factures entre professionnels).')
+        ident = ent['identite']
+        if ident.get('iban') and not iban_ok(ident['iban']) and d['state'] in EDITABLE:
+            blockers.append('L’IBAN du cabinet est invalide (longueur ou clé de contrôle) : corrigez-le dans Réglages avant de l’imprimer sur une facture.')
+        for label, value in (('SIREN du cabinet', ident.get('siren')), ('SIRET du cabinet', ident.get('siret')), ('SIREN du client', cli.get('siren'))):
+            if value and not luhn_ok(value):
+                warnings.append('%s : la clé de contrôle ne correspond pas ; vérifiez le numéro au registre.' % label)
+        if ident.get('siren') and ident.get('siret') and not re.sub(r'\s+', '', ident['siret']).startswith(re.sub(r'\s+', '', ident['siren'])):
+            warnings.append('Le SIRET du cabinet ne commence pas par son SIREN.')
         if any(l['nature'] == 'debours' for l in snap['lignes']):
             blockers.append('Une ligne de débours doit être qualifiée (article 267 du CGI) : utilisez « frais refacturés » ou retirez-la.')
         if snap['totaux']['net_a_payer_cents'] < 0:
@@ -694,12 +819,22 @@ def check(desk, actor, role, doc_id, persist=True):
         conv = get(desk, snap['reference_convention']['id']) if snap['reference_convention'].get('id') else None
         if conv and conv['subtype'] == 'forfait':
             warnings.append('La convention prévoit un forfait : ces temps ne doivent pas être facturés en plus des diligences incluses au forfait.')
+    for p in d.get('payments') or []:                          # 5.6.56 (N25) : dates impossibles enregistrées avant la 5.6.56
+        try:
+            day_value(p['day'])
+        except Stop:
+            warnings.append('Règlement du %s : date impossible enregistrée avant la 5.6.56, à corriger (la valeur saisie est conservée).' % p['day'])
+    if d['kind'] == 'avoir' and d.get('origin'):                 # 5.6.56 (N18) : cumul des avoirs émis sur la facture d'origine
+        try:
+            src = json.loads(desk.db.execute('SELECT snapshot_json FROM b53_documents WHERE id=?', (d['origin'],)).fetchone()['snapshot_json'])['totaux']
+            done_ht, done_ttc = _credited(desk, d['origin'], exclude=d['id'])
+            if snap['totaux']['ttc_cents'] > src['ttc_cents'] - done_ttc or snap['totaux']['ht_cents'] > src['ht_cents'] - done_ht:
+                blockers.append('Facture d’origine : %s TTC ; déjà rectifié : %s ; encore rectifiable : %s. Réduisez l’avoir.' % (
+                    fees.fmt(src['ttc_cents']), fees.fmt(done_ttc), fees.fmt(max(0, src['ttc_cents'] - done_ttc))))
+        except (TypeError, KeyError):
+            blockers.append('Facture d’origine de l’avoir introuvable.')
     report = {'bloquants': blockers, 'avertissements': warnings, 'variables_manquantes': missing, 'controle_le': _now(),
               'conforme': not blockers, 'portee': 'Contrôles AxiorHub (mentions, fiscalité, calculs) ; validation XSD/Schematron et plateforme non incluses.'}
-    if persist:
-        desk.db.execute('UPDATE b53_documents SET checks_json=?,state=CASE WHEN state=\'brouillon\' THEN \'a_controler\' ELSE state END WHERE id=?',
-                        (json.dumps(report, ensure_ascii=False), doc_id))
-        desk.db.commit()
     return report
 
 
@@ -779,21 +914,35 @@ def issue(desk, actor, role, doc_id, idem_key):
         raise Stop('document_a_completer')
     if desk.db.in_transaction:
         desk.db.commit()
+    # 5.6.56 (audit 5.6.55, N16, N18, N27) : sous le verrou, la ligne est RELUE en entier ; état, version et empreinte approuvée
+    # doivent être ceux validés ; les contrôles sont refaits sans validation implicite ; l'UPDATE exige la version et l'état attendus.
+    # Numéro, instantané, réservations, version et événement forment un seul bloc : une panne avant le COMMIT annule tout.
     desk.db.execute('BEGIN IMMEDIATE')
     try:
-        fresh = desk.db.execute('SELECT number,version,issue_key FROM b53_documents WHERE id=?', (doc_id,)).fetchone()
-        if fresh['number']:
+        d = get(desk, doc_id)
+        if d['number']:
             desk.db.rollback()
             return get(desk, doc_id)
+        if d['state'] != 'approuve' or not d['approved_hash'] or approval_hash(desk, d) != d['approved_hash']:
+            raise Stop('facture_modifiee_depuis_validation')
+        if _report(desk, d)['bloquants']:
+            raise Stop('document_a_completer')
+        ent = entity(desk)
+        if ent['autorite'] != 'interne':
+            raise Stop('numerotation_par_outil_de_reference')
         series, number = _next_number(desk, d['kind'])
         today = _today(desk).isoformat()
         snap = d['snapshot']
         if not snap['dates'].get('echeance'):
             snap['dates']['echeance'] = (date.fromisoformat(today) + timedelta(days=int(ent['conditions'].get('delai_paiement_jours') or 30))).isoformat()
-        snap['emis'] = {'numero': number, 'date': today, 'emetteur': ent['identite'], 'client': client(desk, d['matter']), 'fiscal': snap['fiscal']}
-        desk.db.execute("UPDATE b53_documents SET state='emise',number=?,series=?,issue_date=?,issue_key=?,snapshot_json=?,files_state='a_publier',"
-                        "payment_state='impayee',version=version+1,updated=? WHERE id=? AND number IS NULL", (number, series, today, key,
-                                                                                                             json.dumps(snap, ensure_ascii=False), _now(), doc_id))
+        snap['emis'] = {'numero': number, 'date': today, 'emetteur': ent['identite'], 'client': client(desk, d['matter']), 'fiscal': snap['fiscal'],
+                        'conditions': ent['conditions'], 'fiscal_cabinet': ent['fiscal'], 'modele': d['template_id'], 'entite_version': ent['version']}
+        cur = desk.db.execute("UPDATE b53_documents SET state='emise',number=?,series=?,issue_date=?,issue_key=?,snapshot_json=?,files_state='a_publier',"
+                              "payment_state='impayee',version=version+1,updated=? WHERE id=? AND version=? AND state='approuve' AND number IS NULL "
+                              "AND approved_hash=?", (number, series, today, key, json.dumps(snap, ensure_ascii=False), _now(), doc_id, d['version'],
+                                                      d['approved_hash']))
+        if cur.rowcount != 1:
+            raise Stop('facture_modifiee_depuis_validation')
         desk.db.execute("UPDATE b53_allocations SET state='facture' WHERE document=?", (doc_id,))
         desk.db.execute('INSERT INTO b53_versions(document,version,snapshot_json,author,action,at) VALUES(?,?,?,?,?,?)',
                         (doc_id, d['version'] + 1, json.dumps(snap, ensure_ascii=False), actor, 'emission', _now()))
@@ -851,9 +1000,9 @@ def _safe_name(text):
 def build_files(desk, d):
     """Fichiers depuis l'instantané (facture et avoir : Word, PDF/A-3 avec XML CII si LibreOffice est présent, XML CII et UBL)."""
     from . import facturx5653 as fx
-    ent, cli = entity(desk), client(desk, d['matter'])
+    ent, cli = render_inputs(desk, d)                          # 5.6.56 (N17) : Word, PDF et XML depuis le même paquet émis
     template = models.get(desk, d['template_id'])
-    values = _values(desk, d, ent, (d['snapshot'].get('emis') or {}).get('client') or cli, number=d['number'] or '', issue_date=d['issue_date'])
+    values = _values(desk, d, ent, cli, number=d['number'] or '', issue_date=d['issue_date'])
     docx, missing = models.render_docx(template, values, _line_values(d), models.logo(desk), draft=not d['number'] and d['kind'] in ('facture', 'avoir'))
     files = {'docx': docx}
     report = {}
@@ -887,8 +1036,51 @@ def build_files(desk, d):
     return files, report, missing
 
 
+FILE_KINDS = (('docx', '.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'), ('pdf', '.pdf', 'application/pdf'),
+              ('cii', ' - factur-x.xml', 'application/xml'), ('ubl', ' - UBL.xml', 'application/xml'))
+
+
+def issued_files(desk, d, client_dav=None):
+    """5.6.56 (N17, N24) : octets ORIGINAUX d'une facture ou d'un avoir émis, conservés dans AxiorHub à la première production ;
+    toute republication sert ces octets (aucune reconstruction silencieuse depuis le profil courant). Document émis avant la 5.6.56 :
+    les fichiers déjà publiés dont l'empreinte correspond à celle enregistrée sont repris comme originaux (jamais une reconstruction)."""
+    ensure_schema(desk)
+    if not (d['number'] and d['kind'] in ('facture', 'avoir')):
+        files, report, _ = build_files(desk, d)
+        return files, report
+    rows = {r['key']: bytes(r['data']) for r in desk.db.execute('SELECT key,data FROM b56_issued_files WHERE document=?', (d['id'],))}
+    if not rows and d['files'] and client_dav is not None:
+        for key, entry in d['files'].items():
+            try:
+                st = client_dav.stat(entry['chemin'])
+                data = client_dav.download({'path': entry['chemin'], 'etag': st['etag'], 'size': st.get('size', 0)})
+            except (Stop, KeyError, TypeError):
+                continue
+            if hashlib.sha256(data).hexdigest() == entry.get('sha256'):
+                desk.db.execute('INSERT OR IGNORE INTO b56_issued_files(document,key,sha256,size,data,created) VALUES(?,?,?,?,?,?)',
+                                (d['id'], key, entry['sha256'], len(data), data, _now()))
+                rows[key] = data
+        desk.db.commit()
+    if rows or d['files']:
+        return rows, dict((d['checks'] or {}).get('structure') or {})
+    files, report, _ = build_files(desk, d)
+    for key, data in files.items():
+        if data:
+            desk.db.execute('INSERT OR IGNORE INTO b56_issued_files(document,key,sha256,size,data,created) VALUES(?,?,?,?,?,?)',
+                            (d['id'], key, hashlib.sha256(data).hexdigest(), len(data), data, _now()))
+    desk.db.commit()
+    return files, report
+
+
+def _remote_sha(client_dav, path):
+    st = client_dav.stat(path)
+    return hashlib.sha256(client_dav.download({'path': path, 'etag': st['etag'], 'size': st.get('size', 0)})).hexdigest()
+
+
 def publish(desk, doc_id):
-    """Publication atomique dans FACTURATION : écriture exclusive, relecture et empreinte ; aucun écrasement. Reprise idempotente."""
+    """Publication dans FACTURATION : écriture exclusive, RELECTURE et empreinte de chaque fichier, y compris des fichiers déjà
+    publiés (5.6.56, N24). Un fichier modifié dans le stockage n'est jamais écrasé : état « conflit », original conservé dans AxiorHub
+    et restaurable en copie. Reprise idempotente."""
     d = get(desk, doc_id)
     m = _matter(desk, d['matter'])
     from .document_projects import _dav
@@ -898,36 +1090,93 @@ def publish(desk, doc_id):
         client_dav.ensure_folder(folder, clean_path(m['path']))
     except Stop:
         pass
-    files, report, missing = build_files(desk, d)
+    files, report = issued_files(desk, d, client_dav)
     who = _safe_name(((d['snapshot'].get('emis') or {}).get('client') or client(desk, d['matter'])).get('nom') or 'client')
     stem = '%s - %s - %s' % (d['number'] or ('brouillon ' + d['id'][-6:]), KINDS[d['kind']], who)
     published = dict(d['files'])
-    ok = True
-    for key, ext, ctype in (('docx', '.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'), ('pdf', '.pdf', 'application/pdf'),
-                            ('cii', ' - factur-x.xml', 'application/xml'), ('ubl', ' - UBL.xml', 'application/xml')):
+    ok, conflict = True, False
+    now = _now()
+    for key, ext, ctype in FILE_KINDS:
         data = files.get(key)
-        if not data or key in published:
+        if key in published:                                   # déjà publié : relu et comparé à l'empreinte ENREGISTRÉE
+            path, recorded = published[key]['chemin'], published[key].get('sha256')
+            try:
+                remote = _remote_sha(client_dav, path)
+            except Stop:
+                remote = None
+            if remote is not None and remote == recorded:
+                published[key]['verifie_le'] = now
+                published[key].pop('etat', None)
+                continue
+            if remote is None:                                 # fichier absent : l'original conservé est redéposé (rien n'est écrasé)
+                if data and hashlib.sha256(data).hexdigest() == recorded:
+                    try:
+                        client_dav.put_file(path, data, ctype)
+                        if _remote_sha(client_dav, path) == recorded:
+                            published[key].update(verifie_le=now, restaure_le=now)
+                            published[key].pop('etat', None)
+                            continue
+                    except Stop:
+                        pass
+                ok = False
+                published[key]['etat'] = 'absent_du_stockage'
+                continue
+            ok, conflict = False, True
+            published[key]['etat'] = 'modifie_dans_le_stockage'
+            report.setdefault('conflits', []).append(path)
             continue
-        path = folder + '/' + stem + ext
+        if not data:
+            continue
         sha = hashlib.sha256(data).hexdigest()
+        path = folder + '/' + stem + ext
         try:
             client_dav.put_file(path, data, ctype)
         except Stop:
-            try:
-                st = client_dav.stat(path)
-                existing = client_dav.download({'path': path, 'etag': st['etag'], 'size': st.get('size', 0)})
-                if hashlib.sha256(existing).hexdigest() != sha:
-                    ok = False
-                    report.setdefault('conflits', []).append(path)
-                    continue
-            except Stop:
-                ok = False
-                continue
-        published[key] = {'chemin': path, 'sha256': sha}
-    state = 'publies' if ok else 'a_publier'
+            pass
+        try:
+            remote = _remote_sha(client_dav, path)            # 5.6.56 : relecture systématique avant de déclarer « publié »
+        except Stop:
+            ok = False
+            continue
+        if remote != sha:
+            ok, conflict = False, True
+            report.setdefault('conflits', []).append(path)
+            continue
+        published[key] = {'chemin': path, 'sha256': sha, 'verifie_le': now}
+    state = 'publies' if ok else ('conflit' if conflict else 'a_publier')
     desk.db.execute('UPDATE b53_documents SET files_json=?,files_state=?,checks_json=?,updated=? WHERE id=?',
                     (json.dumps(published, ensure_ascii=False), state, json.dumps({**d['checks'], 'structure': report}, ensure_ascii=False, default=str), _now(), doc_id))
     _event(desk, doc_id, 'publication', {'fichiers': [v['chemin'] for v in published.values()], 'etat': state})
+    desk.db.commit()
+    return get(desk, doc_id)
+
+
+def restore_copy(desk, actor, role, doc_id):
+    """5.6.56 (N24) : fichier émis modifié dans le stockage -> l'ORIGINAL conservé est déposé en copie à côté (« original émis »),
+    le fichier modifié n'est ni écrasé ni supprimé ; le registre pointe ensuite sur la copie vérifiée."""
+    _require(desk, actor, role, 'facturation')
+    d = get(desk, doc_id)
+    if d['files_state'] != 'conflit':
+        return d
+    from .document_projects import _dav
+    client_dav = _dav(desk)
+    files, _ = issued_files(desk, d)
+    published = dict(d['files'])
+    now = _now()
+    for key, ext, ctype in FILE_KINDS:
+        entry = published.get(key) or {}
+        if entry.get('etat') != 'modifie_dans_le_stockage' or not files.get(key):
+            continue
+        base = entry['chemin'][:-len(ext)] if entry['chemin'].endswith(ext) else entry['chemin']
+        path = base + ' (original émis)' + ext
+        client_dav.put_file(path, files[key], ctype)
+        sha = hashlib.sha256(files[key]).hexdigest()
+        if _remote_sha(client_dav, path) != sha:
+            raise Stop('publication_non_verifiee')
+        published[key] = {'chemin': path, 'sha256': sha, 'verifie_le': now, 'remplace': entry['chemin']}
+    state = 'publies' if not any((v or {}).get('etat') for v in published.values()) else 'conflit'
+    desk.db.execute('UPDATE b53_documents SET files_json=?,files_state=?,updated=? WHERE id=?', (json.dumps(published, ensure_ascii=False), state, now, doc_id))
+    _event(desk, doc_id, 'restauration_original', {'fichiers': [v['chemin'] for v in published.values()]}, actor)
     desk.db.commit()
     return get(desk, doc_id)
 
@@ -961,9 +1210,14 @@ def credit_note(desk, actor, role, doc_id, reason, lines=None):
     snap['lignes'] = lines if lines else [{k: v for k, v in l.items()} for l in snap['lignes']]
     snap['textes']['motif_avoir'] = str(reason)[:500]
     snap['textes']['facture_origine'] = '%s du %s' % (src['number'], src['issue_date'])
-    snap = compute(snap, entity(desk), client(desk, src['matter']))
+    em = src['snapshot'].get('emis') or {}
+    hist = {**entity(desk), 'fiscal': em.get('fiscal_cabinet') or entity(desk)['fiscal']}
+    snap = compute(snap, hist, em.get('client') or client(desk, src['matter']))   # 5.6.56 : régime et client HISTORIQUES de la facture
+    done_ht, done_ttc = _credited(desk, src['id'])
     if snap['totaux']['ttc_cents'] > src['snapshot']['totaux']['ttc_cents']:
         raise Stop('avoir_superieur_a_la_facture')
+    if snap['totaux']['ttc_cents'] > src['snapshot']['totaux']['ttc_cents'] - done_ttc or snap['totaux']['ht_cents'] > src['snapshot']['totaux']['ht_cents'] - done_ht:
+        raise Stop('avoir_superieur_au_restant')                 # 5.6.56 (N18) : cumul des avoirs émis
     template = models.default_for(desk, 'avoir')
     did = 'fin-' + secrets.token_hex(9)                       # 5.6.54 : identifiant technique unique
     now = _now()
@@ -975,8 +1229,12 @@ def credit_note(desk, actor, role, doc_id, reason, lines=None):
     return get(desk, did)
 
 
-def record_payment(desk, actor, role, doc_id, amount, day, method, reference=''):
-    """Règlement constaté (montant, date, moyen) ; l'état « réglée » vient des règlements enregistrés, jamais d'un simple marquage."""
+def record_payment(desk, actor, role, doc_id, amount, day, method, reference='', request_key=''):
+    """Règlement constaté (montant, date, moyen) ; l'état « réglée » vient des règlements enregistrés, jamais d'un simple marquage.
+
+    5.6.56 (audit 5.6.55, N21) : même référence et même contenu = résultat antérieur rendu, sans nouvel événement ; même référence
+    avec un autre montant, une autre date ou un autre moyen = conflit explicite (aucun faux succès). Sans référence, deux règlements
+    identiques restent deux règlements (5.6.54) ; seule la même clé de requête (double clic, nouvel envoi HTTP) les confond."""
     _require(desk, actor, role, 'facturation')
     d = get(desk, doc_id)
     if d['kind'] != 'facture' or not d['number']:
@@ -984,16 +1242,29 @@ def record_payment(desk, actor, role, doc_id, amount, day, method, reference='')
     value = fees.cents(fees.dec(amount, 'montant'))
     if value <= 0:
         raise Stop('montant_invalide')
-    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(day or '')):
-        raise Stop('date_invalide')
-    # 5.6.54 : un règlement portant une référence (virement, chèque) n'est enregistré qu'une fois ; sans référence, deux règlements
-    # identiques le même jour sont deux règlements distincts (aucune fusion silencieuse).
-    ref = str(reference or '').strip()
-    pid = ('pay-' + hashlib.sha256((doc_id + '|' + ref).encode()).hexdigest()[:16]) if ref else 'pay-' + secrets.token_hex(8)
-    desk.db.execute('INSERT OR IGNORE INTO b53_payments(id,document,amount_cents,day,method,source,reference,actor,created) VALUES(?,?,?,?,?,?,?,?,?)',
-                    (pid, doc_id, value, day, str(method or 'virement')[:40], 'saisie', str(reference)[:120], actor, _now()))
+    day = day_value(day)                                       # 5.6.56 (N25) : date du calendrier réelle
+    meth = str(method or 'virement')[:40]
+    ref = re.sub(r'\s+', ' ', str(reference or '')).strip()[:120]
+    rkey = str(request_key or '')
+    if rkey and not re.fullmatch(r'[A-Za-z0-9-]{8,80}', rkey):
+        raise Stop('identifiant_requete_invalide')
+    if ref:
+        pid = 'pay-' + hashlib.sha256((doc_id + '|' + ref.upper()).encode()).hexdigest()[:16]
+    elif rkey:
+        pid = 'pay-' + hashlib.sha256((doc_id + '|requete|' + actor + '|' + rkey).encode()).hexdigest()[:16]
+    else:
+        pid = 'pay-' + secrets.token_hex(8)
+    old = desk.db.execute('SELECT * FROM b53_payments WHERE id=?', (pid,)).fetchone()
+    if not old and ref:                                        # anciens identifiants (référence non normalisée, 5.6.54)
+        old = desk.db.execute('SELECT * FROM b53_payments WHERE document=? AND upper(trim(reference))=?', (doc_id, ref.upper())).fetchone()
+    if old:
+        if (int(old['amount_cents']), old['day'], old['method']) == (value, day, meth):
+            return get(desk, doc_id)                           # répétition identique : rien de plus n'est écrit
+        raise Stop('reference_reglement_deja_utilisee')
+    desk.db.execute('INSERT INTO b53_payments(id,document,amount_cents,day,method,source,reference,actor,created) VALUES(?,?,?,?,?,?,?,?,?)',
+                    (pid, doc_id, value, day, meth, 'saisie', ref, actor, _now()))
     _refresh_payment_state(desk, doc_id)
-    _event(desk, doc_id, 'reglement', {'montant': value, 'date': day}, actor)
+    _event(desk, doc_id, 'reglement', {'montant': value, 'date': day, 'reglement': pid}, actor)
     desk.db.commit()
     return get(desk, doc_id)
 
@@ -1079,13 +1350,15 @@ def mark_engagement(desk, actor, role, doc_id, state, version, proof=''):
 
 # ------------------------------------------------------------------------------------------------ vues
 def documents(desk, matter='', kinds=None, limit=200):
+    """Liste visible (``limit`` = taille de page ; ``None`` = tous les documents, pour les agrégats — 5.6.56, N20)."""
     ensure_schema(desk)
     from .membres5650 import viewer_hidden
     hidden = viewer_hidden() or frozenset()
     sql = 'SELECT * FROM b53_documents WHERE state<>\'abandonne\'' + (' AND matter=?' if matter else '') + ' ORDER BY updated DESC LIMIT ?'
     out = []
     names = {str(m['id']): (matter_display(m), str(m.get('client_name') or '')) for m in load_matters(desk.c)}
-    for r in desk.db.execute(sql, ((str(matter), int(limit)) if matter else (int(limit),))):
+    page = -1 if limit is None else int(limit)
+    for r in desk.db.execute(sql, ((str(matter), page) if matter else (page,))):
         if r['matter'] in hidden or (kinds and r['kind'] not in kinds):
             continue
         snap = json.loads(r['snapshot_json'])
@@ -1104,13 +1377,14 @@ def matter_summary(desk, mid):
     _matter(desk, mid)
     partial = []
     conv = _active_convention(desk, mid)
-    docs = documents(desk, mid)
+    docs = documents(desk, mid, limit=None)                    # 5.6.56 (N20) : totaux sur l'ensemble, la liste reste paginée à l'affichage
     issued = [x for x in docs if x['kind'] == 'facture' and x['number']]
     credits = [x for x in docs if x['kind'] == 'avoir' and x['number']]
     billed_ht = sum(x['ht_cents'] for x in issued) - sum(x['ht_cents'] for x in credits)
     paid = desk.db.execute("SELECT COALESCE(SUM(p.amount_cents),0) FROM b53_payments p JOIN b53_documents d ON d.id=p.document WHERE d.matter=? AND p.verified=1",
                            (str(mid),)).fetchone()[0]
     provisions_paid = sum(x['ttc_cents'] for x in issued if x['subtype'] == 'provision' and x['payment_state'] == 'reglee')
+    provisions_billed = sum(x['ttc_cents'] for x in issued if x['subtype'] == 'provision')
     due = sum(x['net_cents'] for x in issued) - sum(x['net_cents'] for x in credits)
     try:
         from . import time500
@@ -1126,7 +1400,7 @@ def matter_summary(desk, mid):
     return {'convention': {'id': conv['id'], 'numero': conv['number'], 'etat': conv['state_label'], 'version': conv['version'],
                            'montant_ht_cents': conv['snapshot']['totaux']['ht_cents'], 'mode': conv['subtype']} if conv else None,
             'budget_cents': budget, 'niveau_budget': level, 'temps_valides_cents': validated, 'deja_facture_ht_cents': billed_ht,
-            'provisions_encaissees_cents': provisions_paid, 'reste_a_facturer_ht_cents': to_bill, 'solde_connu_cents': due - paid,
+            'provisions_encaissees_cents': provisions_paid, 'provisions_facturees_cents': provisions_billed, 'reste_a_facturer_ht_cents': to_bill, 'solde_connu_cents': due - paid,
             'synchronise_le': _now(), 'lecture_partielle': partial, 'documents': docs[:12]}
 
 

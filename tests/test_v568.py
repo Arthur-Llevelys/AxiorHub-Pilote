@@ -98,6 +98,8 @@ class Settings(Base):
         settings.save(self.desk,{'vacation_until':'2099-01-01'});self.assertEqual(settings.mode(self.desk,'cabinet','DEMO'),'observe')
     def test_identity_removed_from_server_configuration_is_rechecked(self):
         self.desk.c['mail']['own_addresses']=[]
+        # 5.6.56 (audit 5.6.55, N03) : l'adresse d'expédition et l'identifiant restent des identités du cabinet ; les retirer aussi
+        self.desk.c['mail']['from_address']='';self.desk.c['mail']['username']='login-technique'
         with self.assertRaisesRegex(Stop,'identite_hors'):settings.check_owner(self.desk,'cabinet')
 
 

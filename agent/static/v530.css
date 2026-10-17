@@ -139,3 +139,6 @@ aside details.ws-rubriques .ws-sub a{padding:7px 13px;font-size:.92rem}
 .c530-ico:hover,.c530-ico:focus-visible{border-color:#dfe3e9;color:inherit}.c530-ico.trash:hover{color:#b3261e}
 .c530-ico[hidden]{display:none}
 .c530-dayform{display:grid;gap:10px}.c530-dayform label{display:grid;gap:4px}.c530-dayform input{font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px}
+/* 5.6.56 (audit 5.6.55, N02, § 5.3) : veille et file unique sur toute la largeur du contenu d'Aujourd'hui */
+.c530 .c5656-wide,.c530 .c5656-queue{grid-column:1/-1;width:100%;max-width:none;box-sizing:border-box;margin-top:16px}
+.c530 .c5656-queue>*{max-width:none;width:100%;box-sizing:border-box}

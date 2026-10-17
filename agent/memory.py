@@ -7,7 +7,7 @@ import re
 import sqlite3
 
 from .common import Stop, digest, fold
-from .mailbox import addresses, ids
+from .mailbox import addresses, ids, own_addresses
 
 
 def authored(text):
@@ -138,7 +138,7 @@ class SentMemory:
         return found
 
     def ingest(self, sent, matters, proposals):
-        own = {x.lower() for x in self.c['mail']['own_addresses']}
+        own = own_addresses(self.c['mail'])                  # 5.6.56 : registre unique des identités
         matter, recipients = scope(sent, matters, own)
         if not matter:
             return 'scope_excluded'
@@ -235,7 +235,7 @@ class SentMemory:
             counts['examined']+=1
             try:
                 head = box.fetch(folder,uid,headers_only=True)
-                matter, _, reason = scope_detail(head, matters, {x.lower() for x in self.c['mail']['own_addresses']})
+                matter, _, reason = scope_detail(head, matters, own_addresses(self.c['mail']))
                 outcome = reason
                 if matter:
                     sent = box.fetch(folder,uid)

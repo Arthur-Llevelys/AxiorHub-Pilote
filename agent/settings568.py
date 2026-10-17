@@ -38,7 +38,8 @@ def owners(desk):
 
 def check_owner(desk,owner):
     p=profile(desk,owner)
-    configured={str(x).lower() for x in desk.c['mail'].get('own_addresses',[])}
+    from .mailbox import own_addresses as _own5656
+    configured=_own5656(desk.c['mail'])                       # 5.6.56 (N03) : même registre que la messagerie
     if p['enabled'] and (set(p['aliases']+[p['primary_address']])-{''})-configured:raise Stop('identite_hors_compte_configure')
     if owner=='cabinet':return
     import os, sqlite3
@@ -78,7 +79,8 @@ def save(desk, data, owner='cabinet'):
     if set(p['roles'])-set(ROLES):raise Stop('role_agent_invalide')
     p['primary_address']=str(p['primary_address']).strip().lower()
     p['aliases']=[x.lower() for x in p['aliases']]
-    configured={str(x).lower() for x in desk.c['mail'].get('own_addresses',[])}
+    from .mailbox import own_addresses as _own5656
+    configured=_own5656(desk.c['mail'])                       # 5.6.56 (N03)
     identities=set(p['aliases']+[p['primary_address']])-{''}
     if any(not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+',a) for a in identities) or identities-configured:
         raise Stop('identite_hors_compte_configure')

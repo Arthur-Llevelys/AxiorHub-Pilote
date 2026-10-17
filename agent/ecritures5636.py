@@ -68,9 +68,24 @@ class TimedConnection(sqlite3.Connection):
             self._t0 = time.monotonic()
             self._where = _caller()
 
+    _explicit = False
+
     def execute(self, *args, **kwargs):
         was = self.in_transaction
+        if args and isinstance(args[0], str) and args[0].lstrip()[:5].upper() == 'BEGIN':
+            # 5.6.56 : avant la 5.6.56, executescript validait implicitement les écritures en attente ; plusieurs opérations ouvraient
+            # ensuite leur propre transaction (BEGIN IMMEDIATE) en comptant sur cette validation. Des écritures en attente d'une
+            # transaction IMPLICITE sont donc validées avant un BEGIN ; un BEGIN dans une transaction EXPLICITE reste une erreur.
+            if was and not self._explicit:
+                self.commit()
+                was = False
+            cur = super().execute(*args, **kwargs)
+            self._explicit = True
+            self._start(was)
+            return cur
         cur = super().execute(*args, **kwargs)
+        if not self.in_transaction:
+            self._explicit = False
         self._start(was)
         return cur
 
@@ -87,16 +102,35 @@ class TimedConnection(sqlite3.Connection):
             if spent >= THRESHOLD:
                 _record(self.state_dir, 'transaction', self._where, spent)
 
+    def executescript(self, script):
+        """5.6.56 (audit 5.6.55, N27) : ``sqlite3.executescript`` VALIDE la transaction en cours avant d'exécuter son script. Une
+        initialisation de schéma appelée depuis une opération métier (émission, numérotation) cassait donc son atomicité. Dans une
+        transaction, les instructions sont exécutées une à une, sans validation implicite ; hors transaction, comportement inchangé."""
+        if not self.in_transaction:
+            return super().executescript(script)
+        buf = ''
+        for line in str(script).splitlines(keepends=True):
+            buf += line
+            if sqlite3.complete_statement(buf):
+                if buf.strip():
+                    super().execute(buf)
+                buf = ''
+        if buf.strip():
+            super().execute(buf)
+        return self.cursor()
+
     def commit(self):
         try:
             return super().commit()
         finally:
+            self._explicit = False
             self._finish()
 
     def rollback(self):
         try:
             return super().rollback()
         finally:
+            self._explicit = False
             self._finish()
 
 

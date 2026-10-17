@@ -756,5 +756,8 @@
  "vj.use_connector": "Auch die aktivierte Rechtsquelle abfragen (neue Entscheidungen)",
  "vj.use_tavily": "Internetsuche mit Tavily (Schlüssel vom Administrator eingerichtet)",
  "fn.facturation.label": "Abrechnung und Honorare",
- "fn.facturation.desc": "Angebote, Honorarvereinbarungen, Rechnungen und Gutschriften; Mandatskalkulation; E-Rechnungen"
+ "fn.facturation.desc": "Angebote, Honorarvereinbarungen, Rechnungen und Gutschriften; Mandatskalkulation; E-Rechnungen",
+ "vj.queued": "Erfassung in der Warteschlange: Sie beginnt, sobald der Agent verfügbar ist.",
+ "vj.running": "Erfassung läuft…",
+ "vj.queue_refused": "Einreihung abgelehnt (Warteschlange voll): neuer Versuch im nächsten Zyklus, oder klicken Sie auf „Actualiser“."
 }

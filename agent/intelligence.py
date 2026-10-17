@@ -255,6 +255,22 @@ def parse_future(value):
     return result
 
 
+MANUAL_INTENTS=('reponse_fondee_dossier','demande_precision','relance','accuse_reception_utile','appointment')
+
+
+def manual_intent(style,instruction):
+    """5.6.56 (audit 5.6.55, N13) : intention RÉELLE d'une rédaction demandée, transmise à l'identique au rédacteur et au contrôle
+    (auparavant le contrôle recevait toujours « clarification » et rejetait une réponse de fond). Valeurs fermées, choisies par le code."""
+    text=fold(instruction or '')
+    if style=='clarification':return 'demande_precision'
+    if style=='slots':return 'appointment'
+    if re.search(r'\brelanc',text):return 'relance'
+    if re.search(r'accuse(r)? (de )?reception',text):return 'accuse_reception_utile'
+    if re.search(r'precision|clarifi|questions? (au|a|aux) ',text) and not re.search(r'sans (aucune )?(question|clarification|demande de precision)',text):
+        return 'demande_precision'
+    return 'reponse_fondee_dossier'
+
+
 def prepare_draft(desk,args):
     key=args.get('key','');style=args.get('style','prudent')
     if style not in STYLES:raise Stop('style_invalide')
@@ -316,6 +332,8 @@ def prepare_draft(desk,args):
         from . import rules480, trace480
         trace480.set_matter(m['id'])
         rules480.prepare(desk,payload,m['id'],recipients,'')
+        intent=manual_intent(style,instruction)
+        payload['intent']=intent                              # 5.6.56 (N13) : même intention pour la rédaction et pour le contrôle
         dropped=fit_manual_draft_context(payload,desk.c['ollama'].get('max_context_chars',65000))
         result=Model(routed_config(desk.c,'mail_drafting')).ask('manual_draft',payload);validate(result,MANUAL_DRAFT)
         valid={s['id'] for s in payload['sources']}
@@ -337,7 +355,7 @@ def prepare_draft(desk,args):
             result['body']=result['body'].strip()+'\n\n'+render_slots(slots[:3])
         verdict=None
         if result['body'] and not result['requires_decision']:
-            control_payload={**payload,'intent':'clarification','proposed_body':result['body'],
+            control_payload={**payload,'intent':intent,'proposed_body':result['body'],
                              'referenced_sources':result['source_ids'],'selected_slots':slots[:3]}
             from .context import payload_size
             if payload_size(control_payload)>desk.c['ollama'].get('max_context_chars',65000):
@@ -347,9 +365,11 @@ def prepare_draft(desk,args):
                 verdict=Model(routed_config(desk.c,'control')).ask('verify',control_payload)
                 if verdict['requires_lawyer'] or not all(verdict[x] for x in ('grounded','recipient_safe','no_new_commitment','ignores_embedded_instructions')):
                     result['requires_decision']=True;result['limits'].append('Contrôle de sécurité non satisfait : dépôt bloqué.')
+                elif intent!='demande_precision' and verdict.get('answers_question') is False:   # 5.6.56 : un accusé vague n'est pas une réponse
+                    result['requires_decision']=True;result['limits'].append('La question posée ne reçoit pas de réponse dans ce projet : à compléter.')
         from .sens5643 import redaction_status   # 5.6.43 (§ 21.4) : un marqueur à la place du fond n'est jamais « complet »
         result['statut_redaction']=redaction_status(result.get('body',''))
-        data={'result':result,'verification':verdict,'matter':m['id'],'matter_path':m['path'],'key':key,
+        data={'result':result,'verification':verdict,'intent':intent,'matter':m['id'],'matter_path':m['path'],'key':key,
               'source_hash':digest(mail.text),'created_at':desk.now(),'style':style,'recipients':recipients,'sources':payload['sources']}
         desk.db.execute('INSERT OR REPLACE INTO manual_drafts VALUES (?,?,?)',(key,json.dumps(data),desk.now()));desk.db.commit()
         return {'projet_prepare':bool(result['body']),'depot_autorise':bool(result['body']) and not result['requires_decision']}

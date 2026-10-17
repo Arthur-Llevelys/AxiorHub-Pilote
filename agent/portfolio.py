@@ -291,7 +291,8 @@ def _matter_signals(mail,matters):
 
 
 def _participants(mail,c):
-    own={x.lower() for x in c['mail']['own_addresses']}
+    from .mailbox import own_addresses as _own5656
+    own=_own5656(c['mail'])                                   # 5.6.56
     values=set([mail.sender]+addresses(mail.msg.get('To',''))+addresses(mail.msg.get('Cc','')))-own-{''}
     return sorted(values)
 

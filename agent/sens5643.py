@@ -20,7 +20,12 @@ SALUTATIONS = re.compile(r'^\s*(?:madame|monsieur|ma(?:î|i)tre|cher|ch(?:è|e)r
 
 
 def _norm(value):
-    return str(value or '').strip().lower()
+    """Adresse normalisée ; une valeur « Nom <adresse> » est analysée (5.6.56), jamais réécrite (pas d'alias inventé)."""
+    raw = str(value or '').strip()
+    if '<' in raw:
+        found = [a for _, a in getaddresses([raw]) if '@' in str(a or '')]
+        raw = found[0] if found else raw
+    return raw.strip().lower()
 
 
 def identities(mail_cfg):
@@ -46,17 +51,48 @@ def _addresses(header):
 
 
 def direction(mail, mail_cfg):
-    own = identities(mail_cfg)
     author = _addresses(mail.msg.get('From', ''))
     author = author[0] if author else _norm(getattr(mail, 'sender', ''))
+    return classify(author, mail.msg.get('To', ''), mail.msg.get('Cc', ''), mail_cfg)
+
+
+def classify(author, to, cc, mail_cfg):
+    """Sens d'un message d'après ses SEULS en-têtes (jamais d'après une citation dans le corps)."""
+    own = identities(mail_cfg)
+    author = _norm(author)
     if '@' not in author:
         return 'unknown'
     if author not in own:
         return 'received'
-    recipients = _addresses(mail.msg.get('To', '')) + _addresses(mail.msg.get('Cc', ''))
+    recipients = _addresses(to) + _addresses(cc)
     if recipients and all(r in own for r in recipients):
         return 'internal'
     return 'sent'
+
+
+ORIGINS = {'own_addresses': 'Autres adresses du cabinet (réglage)', 'from_address': 'Adresse d’expédition', 'username': 'Identifiant de connexion',
+           'aliases': 'Alias', 'identities': 'Identité déclarée'}
+DIRECTIONS = {'received': 'reçu (un projet de réponse peut être préparé)', 'sent': 'envoyé par le cabinet (aucune réponse automatique)',
+              'internal': 'interne ou copie personnelle (aucune réponse)', 'unknown': 'expéditeur illisible'}
+
+
+def identities_html(mail_cfg, args=None):
+    """5.6.56 (audit 5.6.55, § 3.1) : « Vos adresses reconnues par l'agent », leur provenance, et un test de classification."""
+    from html import escape as e
+    rows = ''.join('<li><strong>%s</strong> — %s</li>' % (e(a), e(ORIGINS.get(o, o))) for a, o in sorted(identities(mail_cfg).items()))
+    args = args or {}
+    test = ''
+    if args.get('test_de'):
+        verdict = classify(str(args.get('test_de'))[:200], str(args.get('test_a') or '')[:400], '', mail_cfg)
+        test = '<p role="status">Message de %s à %s : <strong>%s</strong>.</p>' % (e(str(args['test_de'])[:200]), e(str(args.get('test_a') or '—')[:400]),
+                                                                              e(DIRECTIONS.get(verdict, verdict)))
+    return ('<section class="ax-card" id="identites5656"><h2>Vos adresses reconnues par l’agent</h2><p class="ax-muted">Un message écrit depuis l’une de '
+            'ces adresses est un envoi du cabinet : l’agent n’y répond jamais automatiquement et ne la propose jamais comme correspondant d’un dossier. '
+            'Un confrère du même domaine n’est pas assimilé au cabinet. Les adresses se règlent dans Connexions › Courriels.</p><ul>%s</ul>'
+            '<form method="get" class="crm-search"><input type="hidden" name="rubrique" value="messagerie"><label>Expéditeur<input name="test_de" '
+            'type="email" maxlength="200" required></label><label>Destinataire<input name="test_a" type="email" maxlength="200"></label>'
+            '<button class="ax-btn ghost" type="submit">Tester la classification</button></form>%s</section>') % (
+        rows or '<li class="ax-muted">Aucune adresse du cabinet configurée.</li>', test)
 
 
 def check_recipients(to, cc, mail_cfg):

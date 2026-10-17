@@ -517,6 +517,9 @@ def create_job(desk, ctx, data):
         mission = ''
         if args['operation'] == 'instruction':
             from . import integration5636
+            # 5.6.56 : la mission ouvre sa propre transaction ; la réservation est validée d'abord (une réservation sans travail est
+            # reprise par la demande suivante, voir ci-dessus). Avant la 5.6.56, cette validation venait implicitement d'executescript.
+            desk.db.commit()
             job, mission = integration5636.start_instruction(desk, ctx, args)
         else:
             job = _enqueue(desk, args)   # même transaction : la réservation n'est validée qu'avec son travail

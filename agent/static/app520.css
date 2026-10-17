@@ -912,6 +912,9 @@ aside details.ws-rubriques .ws-sub a{padding:7px 13px;font-size:.92rem}
 .c530-ico:hover,.c530-ico:focus-visible{border-color:#dfe3e9;color:inherit}.c530-ico.trash:hover{color:#b3261e}
 .c530-ico[hidden]{display:none}
 .c530-dayform{display:grid;gap:10px}.c530-dayform label{display:grid;gap:4px}.c530-dayform input{font:inherit;padding:8px;border:1px solid #dfe3e9;border-radius:8px}
+/* 5.6.56 (audit 5.6.55, N02, § 5.3) : veille et file unique sur toute la largeur du contenu d'Aujourd'hui */
+.c530 .c5656-wide,.c530 .c5656-queue{grid-column:1/-1;width:100%;max-width:none;box-sizing:border-box;margin-top:16px}
+.c530 .c5656-queue>*{max-width:none;width:100%;box-sizing:border-box}
 /* ==== v550.css ==== */
 /* AxiorHub 5.5.0 — « Mon style », carte du poste de pilotage, menu plus robuste. Variables du thème commun (clair et sombre). */
 
@@ -2241,3 +2244,13 @@ textarea.b5639-preview{width:100%;box-sizing:border-box;min-height:220px;border:
 .b53 .m5-form label.b55-type{display:flex;flex-direction:row;align-items:flex-start;gap:8px;font-weight:400}
 @media (max-width:640px){.b53 .b53-form fieldset.b55-types{grid-template-columns:1fr}}
 .b55-badge{justify-self:start}
+/* 5.6.56 (audit 5.6.55, § 7.2, § 7.6) : états séparés du document ; candidats de l'annuaire */
+.b53 .b56-states{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:12px 0}
+.b53 .b56-states>div{border:1px solid var(--ax-line,#d8dde6);border-radius:8px;padding:6px 10px;background:var(--ax-surface,#fff)}
+.b53 .b56-states dt{font-size:.78rem;color:var(--ax-muted,#5b6472);margin:0}
+.b53 .b56-states dd{margin:2px 0 0;font-weight:600;font-size:.9rem}
+.b53 .b56-candidates{flex-basis:100%}
+.b53 .b56-candidate-list{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}
+.b53 .b56-candidate-list li{display:grid;gap:4px;border:1px solid var(--ax-line,#d8dde6);border-radius:8px;padding:8px 10px}
+.b53 .b56-candidate-list .ax-btn{justify-self:start}
+@media (prefers-color-scheme:dark){.b53 .b56-states>div,.b53 .b56-candidate-list li{background:transparent;border-color:#3a4150}}

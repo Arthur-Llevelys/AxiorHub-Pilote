@@ -521,6 +521,8 @@ def _same_origin(env, auth):
 def _next_path(prefix, value):
     """Retour après connexion : chemin interne d'AxiorHub seulement (jamais une autre adresse)."""
     value = str(value or '')
+    if value in ('', prefix, prefix + '/'):                    # 5.6.56 (audit 5.6.55, N01) : la racine mène à Aujourd'hui
+        return prefix + '/aujourdhui'
     if value.startswith(prefix + '/') and not value.startswith('//') and '\\' not in value and len(value) < 600 and not urlsplit(value).netloc:
         return value
     return prefix + '/aujourdhui'

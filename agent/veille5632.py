@@ -53,6 +53,10 @@ def schema(desk):
       matter TEXT NOT NULL DEFAULT '', run_id INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS veille_items5632_owner ON veille_items5632(owner, status, consulted);
     ''')
+    cols = {r[1] for r in desk.db.execute('PRAGMA table_info(veille_runs5632)')}
+    if 'job_id' not in cols:                                   # 5.6.56 (N07) : travail associé au passage, pour la réconciliation
+        desk.db.execute("ALTER TABLE veille_runs5632 ADD COLUMN job_id TEXT NOT NULL DEFAULT ''")
+        desk.db.commit()
 
 
 # --------------------------------------------------------------------------------------------- profil
@@ -69,7 +73,9 @@ def default_profile(desk, owner):
         hour = old.get('briefing_time') or '07:30'
     except Exception:   # noqa: BLE001 — aucun ancien réglage
         tz, hour = 'Europe/Paris', '07:30'
-    return {'enabled': bool(themes), 'themes': themes, 'feeds': [f[0] for f in FEEDS], 'custom_feeds': custom[:20], 'connector': True,
+    raw = desk.settings('proactive568:profile:' + owner, None)
+    explicit_off = isinstance(raw, dict) and raw.get('news_enabled') is False   # 5.6.56 : une veille désactivée n'est jamais réactivée
+    return {'enabled': bool(themes) and not explicit_off, 'themes': themes, 'feeds': [f[0] for f in FEEDS], 'custom_feeds': custom[:20], 'connector': True,
             'tavily': False, 'mode': 'daily', 'days': [0, 1, 2, 3, 4], 'weekday': 0, 'hour': hour, 'tz': tz,
             'max_results': 5, 'tavily_calls_per_run': 3, 'tavily_monthly_calls': 300, 'lookback_days': 14}
 
@@ -138,8 +144,45 @@ def save_profile(desk, owner, data):
 
 
 def owners(desk):
+    """Propriétaires d'un profil de veille. 5.6.56 (audit 5.6.55, N06) : un ancien profil (« proactive568 ») repris à l'écran est
+    MATÉRIALISÉ une fois dans le nouveau registre (migration idempotente, activation antérieure respectée) : il est réellement
+    planifié, sans demander à l'utilisateur d'enregistrer de nouveau un réglage présenté comme actif."""
     rows = desk.db.execute("SELECT key FROM settings WHERE key LIKE 'veille5632:profile:%'").fetchall()
-    return [r['key'].split(':', 2)[-1] for r in rows]
+    found = [r['key'].split(':', 2)[-1] for r in rows]
+    for r in desk.db.execute("SELECT key FROM settings WHERE key LIKE 'proactive568:profile:%'").fetchall():
+        owner = r['key'].split(':', 2)[-1]
+        if owner in found:
+            continue
+        p = default_profile(desk, owner)
+        if p['themes']:
+            desk.setting('veille5632:profile:' + owner, {**p, 'migre_de': 'proactive568', 'migre_le': _now().isoformat()})
+            found.append(owner)
+    return found
+
+
+def _job_active(desk, run):
+    """Le passage a-t-il un travail réellement vivant (en file ou en cours) ?"""
+    ids = [str(run['job_id'] or '')] if 'job_id' in run.keys() else []
+    for jid in [i for i in ids if i]:
+        row = desk.db.execute("SELECT 1 FROM jobs WHERE CAST(id AS TEXT)=? AND status IN ('pending','running','cancel_requested')", (jid,)).fetchone()
+        if row:
+            return True
+    marker = '%"slot": "' + str(run['slot']).replace('%', '') + '"%'
+    return bool(desk.db.execute("SELECT 1 FROM jobs WHERE kind='veille5632_collect' AND status IN ('pending','running','cancel_requested') "
+                                "AND args LIKE ? AND args LIKE ?", (marker, '%"owner": "' + str(run['owner']).replace('%', '') + '"%')).fetchone())
+
+
+def _enqueue_run(desk, run, priority):
+    """Mise en file d'un passage ; un refus (file pleine) est consigné sur le passage, qui sera repris au cycle suivant."""
+    try:
+        job = desk.enqueue('veille5632_collect', {'owner': run['owner'], 'slot': run['slot']}, priority=priority)
+    except Stop as ex:
+        desk.db.execute("UPDATE veille_runs5632 SET error=?,job_id='' WHERE id=?", (('mise_en_file_refusee:' + str(ex))[:200], run['id']))
+        desk.db.commit()
+        raise
+    desk.db.execute("UPDATE veille_runs5632 SET job_id=?,error='' WHERE id=?", (str(job or ''), run['id']))
+    desk.db.commit()
+    return job
 
 
 # --------------------------------------------------------------------------------------------- planification
@@ -187,19 +230,25 @@ def schedule(desk, stamp=None):
         slot = current_slot(p, now)
         if not slot or not p['themes']:
             continue
-        cur = desk.db.execute("INSERT OR IGNORE INTO veille_runs5632(owner,slot,state,created) VALUES(?,?,'pending',?)", (owner, slot, now.isoformat()))
+        desk.db.execute("INSERT OR IGNORE INTO veille_runs5632(owner,slot,state,created) VALUES(?,?,'pending',?)", (owner, slot, now.isoformat()))
         desk.db.commit()
-        if cur.rowcount:
-            jobs.append(desk.enqueue('veille5632_collect', {'owner': owner, 'slot': slot}, priority=65))
+        run = desk.db.execute('SELECT * FROM veille_runs5632 WHERE owner=? AND slot=?', (owner, slot)).fetchone()
+        # 5.6.56 (audit 5.6.55, N07) : un passage « en attente » sans travail vivant (mise en file refusée, travail perdu) est
+        # réconcilié ; un passage terminé, annulé ou en cours n'est jamais relancé.
+        if run['state'] == 'pending' and not _job_active(desk, run):
+            jobs.append(_enqueue_run(desk, run, 65))
     return jobs
 
 
 def refresh(desk, owner='cabinet'):
     """« Actualiser » : une seule collecte à la fois ; un second clic rejoint la collecte en cours au lieu d'en lancer une autre."""
     schema(desk)
-    active = desk.db.execute("SELECT id,slot FROM veille_runs5632 WHERE owner=? AND state IN ('pending','running') ORDER BY id DESC LIMIT 1", (owner,)).fetchone()
-    if active:
+    active = desk.db.execute("SELECT * FROM veille_runs5632 WHERE owner=? AND state IN ('pending','running') ORDER BY id DESC LIMIT 1", (owner,)).fetchone()
+    if active and _job_active(desk, active):                 # 5.6.56 (N07) : on ne « rejoint » qu'un travail réellement vivant
         return {'run': active['id'], 'slot': active['slot'], 'joined': True}
+    if active and active['state'] == 'pending':              # passage orphelin : réparé par ce clic
+        job = _enqueue_run(desk, active, 20)
+        return {'run': active['id'], 'slot': active['slot'], 'job': job, 'joined': False, 'repare': True}
     slot = 'manual-' + _now().strftime('%Y-%m-%dT%H:%M')
     desk.db.execute("INSERT OR IGNORE INTO veille_runs5632(owner,slot,state,created) VALUES(?,?,'pending',?)", (owner, slot, _now().isoformat()))
     desk.db.commit()
@@ -516,7 +565,7 @@ def state(desk, owner='cabinet'):
     due = next_due(p)
     return {'configured': bool(p['themes']) and p['enabled'], 'last_success': desk.settings('veille5632:last_success:' + owner, ''),
             'last_attempt': desk.settings('veille5632:last_attempt:' + owner, ''), 'next_run': due.isoformat() if due else '',
-            'last_state': last['state'] if last else '', 'failed_sources': [s for s in json.loads(last['sources'] or '[]') if s.get('status') != 'ok'] if last else [],
+            'last_state': last['state'] if last else '', 'last_error': (last['error'] or '') if last else '', 'failed_sources': [s for s in json.loads(last['sources'] or '[]') if s.get('status') != 'ok'] if last else [],
             'unread': desk.db.execute("SELECT COUNT(*) FROM veille_items5632 WHERE owner=? AND status='new'", (owner,)).fetchone()[0]}
 
 
@@ -573,6 +622,12 @@ def card_html(desk, prefix, owner='cabinet'):
         body += '<p>' + th('vj.nothing_new') + '</p>'
     elif st['last_state'] == 'failed':
         body += '<p class="v5632-partial">' + th('vj.failed') + '</p>'
+    elif st['last_state'] == 'pending' and st['last_error'].startswith('mise_en_file_refusee'):   # 5.6.56 (§ 6.3) : états distincts
+        body += '<p class="v5632-partial">' + th('vj.queue_refused') + '</p>'
+    elif st['last_state'] == 'pending':
+        body += '<p>' + th('vj.queued') + '</p>'
+    elif st['last_state'] == 'running':
+        body += '<p>' + th('vj.running') + '</p>'
     else:
         body += '<p>' + th('vj.not_run') + '</p>'
     body += '<p class="v5632-meta">' + th('vj.meta', last=_date(st['last_success']) or '—', attempt=_date(st['last_attempt']) or '—',

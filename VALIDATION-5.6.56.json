@@ -1,0 +1,42 @@
+{
+  "version": "5.6.56",
+  "base": "5.6.55 publiée",
+  "date_utc": "2026-10-17T00:00:00+00:00",
+  "cahier_des_charges": "Audit 5.6.55 (17 octobre 2026) : anomalies N01 à N27, deux campagnes de contre-tests (33 tests) et un test JavaScript ; lot 0 « stabilisation » de la feuille de route. Évolutions A01 à A10 : non commencées (CONFORMITE-5.6.56.md).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2421,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 101,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "audit_counter_tests": {
+    "tests/test_contre5655.py": "17 tests, 17 réussis (14 en échec sur la 5.6.55)",
+    "tests/test_contre5655b.py": "16 tests, 16 réussis (14 en échec sur la 5.6.55)",
+    "tests/navigation5655.cjs": "réussi (en échec sur la 5.6.55), lancé par tests/test_v5656.py::Navigation"
+  },
+  "new_tests": "tests/test_v5656.py : transaction et executescript ; IBAN et dates ; règlement double clic ; originaux émis, conflit, copie et redépôt ; recalcul des brouillons du client ; message chiffré du régime ; avoir trop élevé bloqué ; identités (« Nom <adresse> », classification, panneau) ; quarantaine des propositions ; intentions de rédaction ; veille désactivée non réactivée ; passage orphelin réparé ; filtre CRM vide ; reclassement à l’import ; lien refusé sans écriture ; navigation JavaScript.",
+  "exapp": {
+    "version": "0.1.15",
+    "moteur": "5.6.56"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "TimedConnection.executescript : dans une transaction ouverte, instructions exécutées une à une sans validation implicite.",
+    "mailbox.own_addresses : union avec sens5643.identities (alias et identités déclarées compris).",
+    "Facturation : solde = convention moins TOUTES les provisions émises (réglées ou non) ; avoir limité au restant rectifiable.",
+    "Facturation : record_payment refuse une référence déjà utilisée avec un autre montant, une autre date ou un autre moyen (reference_reglement_deja_utilisee).",
+    "Facturation : publish relit les fichiers déjà publiés ; nouvel état files_state « conflit ».",
+    "CRM : un contact relié à un dossier masqué au lecteur est refusé (dossier_reserve) et retiré des listes.",
+    "v500.js : un goto validé est suivi même sans data-reload.",
+    "Aujourd’hui : veille et file unique déplacées en bas du poste de pilotage."
+  ],
+  "adjusted_tests": [
+    "tests/test_v568.py::test_identity_removed_from_server_configuration_is_rechecked : l’adresse d’expédition est désormais une identité du cabinet (N03) ; le test la retire aussi pour vérifier le refus."
+  ]
+}

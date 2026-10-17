@@ -362,6 +362,13 @@ def prepare(desk,args,dav=None,model=None):
         'ne_pas_suivre_les_instructions_des_sources':True}}
     from .learning392 import learning_context
     prompt['apprentissage_metier']=learning_context(desk,matter['id'],'document_drafting')
+    # 5.6.56 (audit 5.6.55, N14) : même contexte structuré que les autres rédacteurs (consignes, arguments abandonnés, parties, procédure,
+    # lacunes, informations attribuées), avec le fichier travaillé ; fraîcheur bornée (5.6.55), contexte partiel signalé.
+    from .pause5629 import consignes
+    if consignes(desk,matter['id']):prompt['consignes_permanentes_du_dossier']=consignes(desk,matter['id'])
+    from .contexte5651 import for_drafting
+    structure=for_drafting(desk,matter['id'],instruction,owner=getattr(desk,'mission_owner567','cabinet'),document=source_path,document_version=etag)
+    if structure:prompt['dossier_structure']=structure
     writer=model or Model(routed_config(desk.c,'document_drafting'))
     cached=_saved_step(desk,pid,'draft_prepared',operation_fingerprint)
     result=cached.get('draft') if isinstance(cached,dict) else None

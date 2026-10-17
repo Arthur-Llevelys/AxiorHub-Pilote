@@ -886,8 +886,10 @@ class RechercheEntreprises(Adapter):
         res = []
         for r in out.get('results') or []:
             siege = r.get('siege') or {}
+            voie = ' '.join(str(siege.get(k)) for k in ('numero_voie', 'indice_repetition', 'type_voie', 'libelle_voie') if siege.get(k))
             res.append({'siren': r.get('siren'), 'nom': r.get('nom_complet') or r.get('nom_raison_sociale'), 'siege': siege.get('adresse'),
-                        'etat': r.get('etat_administratif'), 'dirigeants': [d.get('nom') or d.get('denomination') for d in (r.get('dirigeants') or [])][:5]})
+                        'siret': siege.get('siret'), 'adresse_ligne1': voie or None, 'code_postal': siege.get('code_postal'),
+                        'ville': siege.get('libelle_commune'), 'etat': r.get('etat_administratif'), 'dirigeants': [d.get('nom') or d.get('denomination') for d in (r.get('dirigeants') or [])][:5]})
         return {'resultats': res, 'source': 'API Recherche d’entreprises (data.gouv.fr)', 'date': datetime.now(timezone.utc).date().isoformat(),
                 'limite': 'Données d’annuaire : elles ne prouvent pas le pouvoir de signer de la personne qui engage le client.'}
 

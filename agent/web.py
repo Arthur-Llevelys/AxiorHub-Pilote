@@ -583,6 +583,19 @@ class App:
         return good
 
     def __call__(self, env, start_response):
+        # 5.6.56 : le cloisonnement de la requête (dossiers masqués au lecteur) ne survit pas à la réponse sur le même fil d'exécution ;
+        # une réponse diffusée en flux (générateur) le conserve jusqu'à la fin de sa lecture.
+        from .membres5650 import clear as _clear5656
+        try:
+            out=self._serve5656(env,start_response)
+        except BaseException:
+            _clear5656()
+            raise
+        if isinstance(out,(list,tuple)):
+            _clear5656()
+        return out
+
+    def _serve5656(self, env, start_response):
         headers=[('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),
                  # Native form POSTs use navigation mode. Under no-referrer,
                  # Fetch serializes their Origin as null, which we must reject.
@@ -1360,14 +1373,16 @@ class App:
             else:
                 # 5.3.0 : poste de pilotage (conversation avec l'agent, à relire, activité, journée Nextcloud).
                 from .cockpit530 import page as cockpit_page
+                queue56=''
                 try:   # 5.6.51 (A06) : file unique « À décider / À relire », mêmes éléments que Dossier et Produire
                     from .file5651 import html as queue5651
                     from .membres5650 import viewer_hidden
                     from .i18n5631 import role as _role52
-                    main+=queue5651(desk,prefix,None,str(args.get('file') or ''),viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
+                    queue56=queue5651(desk,prefix,None,str(args.get('file') or ''),viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
                 except Exception:   # noqa: BLE001 — la file ne doit jamais empêcher l'affichage du poste de pilotage
                     pass
-                main+=(cockpit_page(desk,prefix,owner=str(auth.get('owner') or 'cabinet'))+'<div id="ax-toast" role="status" aria-live="polite"></div>'
+                # 5.6.56 (audit 5.6.55, N02) : la file est rendue EN BAS du poste de pilotage, dans son conteneur (même largeur que les routines)
+                main+=(cockpit_page(desk,prefix,owner=str(auth.get('owner') or 'cabinet'),queue=queue56)+'<div id="ax-toast" role="status" aria-live="polite"></div>'
                        '<script defer src="'+e(prefix)+'/static/v500.js"></script><script defer src="'+e(prefix)+'/static/v530.js"></script>'
                        '<script defer src="'+e(prefix)+'/static/v550.js"></script><script defer src="'+e(prefix)+'/static/v569.js"></script>')
         elif path=='/studio':

@@ -65,31 +65,73 @@ def _clean(data):
     return out
 
 
+def _hidden():
+    """Dossiers masqués au lecteur de la requête (dossiers réservés) ; vide hors requête (tâches internes)."""
+    try:
+        from .membres5650 import viewer_hidden
+        return viewer_hidden() or frozenset()
+    except Exception:   # noqa: BLE001
+        return frozenset()
+
+
+def _restricted(desk, contact, hidden=None):
+    """5.6.56 (audit 5.6.55, N15) : un contact relié à un dossier masqué au lecteur est entièrement soustrait à ce lecteur (fiche,
+    listes, modifications, archivage) : ses notes et liens peuvent révéler le dossier. Tous les liens sont examinés, pas le premier."""
+    hidden = _hidden() if hidden is None else hidden
+    if not hidden:
+        return False
+    return any(r[0] in hidden for r in desk.db.execute('SELECT matter FROM contact_links5636 WHERE contact=?', (str(contact),)))
+
+
+def _guard(desk, contact):
+    if _restricted(desk, contact):
+        raise Stop('dossier_reserve')
+
+
 def label(c):
     who = ' '.join(x for x in (c.get('first_name', ''), c.get('name', '')) if x).strip()
     return who + ((' (' + c['company'] + ')') if c.get('company') and c.get('kind') == 'personne' else '')
 
 
+def _check_link(desk, matter, role):
+    if matter not in {m['id'] for m in load_matters(desk.c)}:
+        raise Stop('dossier_absent')
+    if role not in ROLES:
+        raise Stop('role_contact_invalide')
+
+
 def save(desk, data, owner='cabinet', source='manuel', commit=True):
-    """5.6.37 (F08) : ``commit=False`` = écriture dans la transaction de l'appelant (opération Corporate), sans validation ni journal."""
+    """5.6.37 (F08) : ``commit=False`` = écriture dans la transaction de l'appelant (opération Corporate), sans validation ni journal.
+
+    5.6.56 (audit 5.6.55, N23) : dossier et rôle du lien contrôlés AVANT toute écriture ; fiche et lien validés ensemble (un refus ne
+    laisse aucune fiche à moitié créée). N15 : une fiche reliée à un dossier masqué au lecteur ne peut pas être modifiée par lui."""
     schema(desk)
     clean = _clean(data)
     ident = str(data.get('id') or '')
+    role = str(data.get('role') or clean['category'])
+    if data.get('matter'):
+        _check_link(desk, str(data['matter']), role)
     now = _now()
-    if ident:
-        if not desk.db.execute('SELECT 1 FROM contacts5636 WHERE id=?', (ident,)).fetchone():
-            raise Stop('contact_absent')
-        desk.db.execute('UPDATE contacts5636 SET %s, updated=? WHERE id=?' % ','.join('%s=?' % k for k in FIELDS),
-                        [clean[k] for k in FIELDS] + [now, ident])
-    else:
-        ident = uuid.uuid4().hex
-        desk.db.execute('INSERT INTO contacts5636(id,%s,source,created,updated) VALUES(?,%s,?,?,?)' % (','.join(FIELDS), ','.join('?' for _ in FIELDS)),
-                        [ident] + [clean[k] for k in FIELDS] + [source, now, now])
+    try:
+        if ident:
+            if not desk.db.execute('SELECT 1 FROM contacts5636 WHERE id=?', (ident,)).fetchone():
+                raise Stop('contact_absent')
+            _guard(desk, ident)
+            desk.db.execute('UPDATE contacts5636 SET %s, updated=? WHERE id=?' % ','.join('%s=?' % k for k in FIELDS),
+                            [clean[k] for k in FIELDS] + [now, ident])
+        else:
+            ident = uuid.uuid4().hex
+            desk.db.execute('INSERT INTO contacts5636(id,%s,source,created,updated) VALUES(?,%s,?,?,?)' % (','.join(FIELDS), ','.join('?' for _ in FIELDS)),
+                            [ident] + [clean[k] for k in FIELDS] + [source, now, now])
+        if data.get('matter'):
+            link(desk, ident, str(data['matter']), role, commit=False)
+    except BaseException:
+        if commit:
+            desk.db.rollback()
+        raise
     if commit:
         desk.db.commit()
         desk.audit('crm5636_contact', {'id': ident, 'category': clean['category'], 'owner': owner})
-    if data.get('matter'):
-        link(desk, ident, str(data['matter']), str(data.get('role') or clean['category']), commit=commit)
     return get(desk, ident)
 
 
@@ -101,8 +143,11 @@ def find_or_create(desk, data, source='initiative', commit=True):
     if clean['email']:
         row = desk.db.execute('SELECT id FROM contacts5636 WHERE email=? AND archived=0', (clean['email'],)).fetchone()
     if row is None:
-        row = desk.db.execute('SELECT id FROM contacts5636 WHERE lower(name)=lower(?) AND lower(first_name)=lower(?) AND category=? AND archived=0',
-                              (clean['name'], clean['first_name'], clean['category'])).fetchone()
+        # 5.6.56 (audit 5.6.55, N22) : l'homonymie seule ne fusionne jamais deux adresses différentes ; le rapprochement par nom ne vaut
+        # que si l'une des deux fiches n'a pas de courriel.
+        row = desk.db.execute("SELECT id FROM contacts5636 WHERE lower(name)=lower(?) AND lower(first_name)=lower(?) AND category=? AND archived=0 "
+                              "AND (email='' OR ?='') ORDER BY email='' DESC LIMIT 1",
+                              (clean['name'], clean['first_name'], clean['category'], clean['email'])).fetchone()
     if row is not None:
         if data.get('matter'):
             link(desk, row['id'], str(data['matter']), str(data.get('role') or clean['category']), commit=commit)
@@ -112,12 +157,10 @@ def find_or_create(desk, data, source='initiative', commit=True):
 
 def link(desk, contact, matter, role, commit=True):
     schema(desk)
-    if matter not in {m['id'] for m in load_matters(desk.c)}:
-        raise Stop('dossier_absent')
-    if role not in ROLES:
-        raise Stop('role_contact_invalide')
+    _check_link(desk, matter, role)
     if not desk.db.execute('SELECT 1 FROM contacts5636 WHERE id=?', (contact,)).fetchone():
         raise Stop('contact_absent')
+    _guard(desk, contact)
     desk.db.execute('INSERT OR IGNORE INTO contact_links5636 VALUES(?,?,?,?)', (contact, matter, role, _now()))
     if commit:
         desk.db.commit()
@@ -126,6 +169,7 @@ def link(desk, contact, matter, role, commit=True):
 
 def unlink(desk, contact, matter, role):
     schema(desk)
+    _guard(desk, contact)
     desk.db.execute('DELETE FROM contact_links5636 WHERE contact=? AND matter=? AND role=?', (contact, matter, role))
     desk.db.commit()
     return get(desk, contact)
@@ -133,6 +177,9 @@ def unlink(desk, contact, matter, role):
 
 def archive(desk, contact, value=True):
     schema(desk)
+    if not desk.db.execute('SELECT 1 FROM contacts5636 WHERE id=?', (contact,)).fetchone():
+        raise Stop('contact_absent')
+    _guard(desk, contact)
     desk.db.execute('UPDATE contacts5636 SET archived=?, updated=? WHERE id=?', (1 if value else 0, _now(), contact))
     desk.db.commit()
     return {'id': contact, 'archived': bool(value), 'message': 'Contact archivé (il reste consultable).' if value else 'Contact rétabli.'}
@@ -143,6 +190,7 @@ def get(desk, contact):
     row = desk.db.execute('SELECT * FROM contacts5636 WHERE id=?', (contact,)).fetchone()
     if not row:
         raise Stop('contact_absent')
+    _guard(desk, contact)
     out = dict(row)
     labels = _labels(desk)
     out['links'] = [{'matter': r['matter'], 'matter_label': labels.get(r['matter'], r['matter']), 'role': r['role'], 'role_label': ROLES.get(r['role'], r['role'])}
@@ -173,16 +221,26 @@ def search(desk, q='', category='', matter='', archived=False, limit=200):
     rows = desk.db.execute('SELECT * FROM contacts5636 WHERE ' + ' AND '.join(where) + ' ORDER BY lower(name), lower(first_name) LIMIT ?',
                            params + [max(1, min(int(limit), 1000))]).fetchall()
     out = []
+    hidden = _hidden()
     for r in rows:
         c = dict(r)
-        c['label'] = label(c)
         c['matters'] = [x['matter'] for x in desk.db.execute('SELECT DISTINCT matter FROM contact_links5636 WHERE contact=?', (r['id'],))]
+        if hidden and set(c['matters']) & hidden:                # 5.6.56 (N15) : même prédicat que la fiche
+            continue
+        c['label'] = label(c)
         out.append(c)
     return out
 
 
+def count(desk, archived=False):
+    """Nombre total de contacts visibles (affiché à côté d'un filtre sans résultat)."""
+    return len(search(desk, archived=archived, limit=1000))
+
+
 def for_matter(desk, mid):
     schema(desk)
+    if str(mid) in _hidden():
+        return []
     rows = desk.db.execute('SELECT c.*, l.role FROM contact_links5636 l JOIN contacts5636 c ON c.id=l.contact WHERE l.matter=? AND c.archived=0 '
                            'ORDER BY l.role, lower(c.name)', (mid,)).fetchall()
     return [{**dict(r), 'label': label(dict(r)), 'role_label': ROLES.get(r['role'], r['role'])} for r in rows]
@@ -194,7 +252,11 @@ def import_existing(desk, owner='cabinet'):
     added = linked = 0
     role_map = {'client': ('client', 'client'), 'adverse': ('partie_adverse', 'partie_adverse'), 'confrere': ('confrere', 'avocat_adverse'),
                 'avocat_adverse': ('confrere', 'avocat_adverse'), 'juridiction': ('juridiction', 'juridiction'), 'greffe': ('juridiction', 'juridiction'),
-                'expert': ('expert', 'expert'), 'huissier': ('commissaire', 'commissaire'), 'commissaire': ('commissaire', 'commissaire')}
+                'expert': ('expert', 'expert'), 'huissier': ('commissaire', 'commissaire'), 'commissaire': ('commissaire', 'commissaire'),
+                # 5.6.56 (audit 5.6.55, N08) : rôles canoniques des correspondants (Desk.ROLES) ; un partenaire n'est jamais classé adversaire
+                'confrere_adverse': ('confrere', 'avocat_adverse'), 'commissaire_justice': ('commissaire', 'commissaire'),
+                'prospect': ('prospect', 'autre'), 'tiers': ('autre', 'autre'), 'administration': ('autre', 'autre'),
+                'autre_partie': ('autre', 'autre'), 'personnel': ('autre', 'autre')}
     for m in load_matters(desk.c):
         for c in m.get('correspondents') or []:
             email = str(c.get('email') or '').strip().lower()
@@ -204,6 +266,12 @@ def import_existing(desk, owner='cabinet'):
             before = desk.db.execute('SELECT id FROM contacts5636 WHERE email=?', (email,)).fetchone()
             contact = find_or_create(desk, {'name': str(c.get('name') or email.split('@')[0]), 'email': email, 'category': category,
                                             'matter': m['id'], 'role': role}, source='import')
+            # 5.6.56 (audit 5.6.55, § 8.2) : un contact IMPORTÉ resté « autre » faute de conversion est reclassé, s'il n'a jamais été
+            # corrigé à la main (créé = modifié) ; une catégorie choisie par l'utilisateur n'est jamais remplacée.
+            if (before is not None and contact.get('source') == 'import' and contact.get('category') == 'autre' and category != 'autre'
+                    and contact.get('created') == contact.get('updated')):
+                desk.db.execute("UPDATE contacts5636 SET category=? WHERE id=? AND category='autre' AND created=updated", (category, contact['id']))
+                desk.db.commit()
             added += before is None
             linked += 1
         try:
@@ -275,6 +343,9 @@ def page_html(desk, prefix, args):
             '0' if c['archived'] else '1', 'Rétablir' if c['archived'] else 'Archiver')
     q, cat, mid = str(args.get('q') or ''), str(args.get('categorie') or ''), str(args.get('dossier') or '')
     rows = search(desk, q, cat, mid)
+    total = count(desk) if (q or cat or mid) and not rows else len(rows)
+    empty = ('<li class="ax-muted">0 résultat pour ce filtre (%d contact(s) au total). <a href="%s">Réinitialiser les filtres</a></li>' % (
+        total, e(prefix + '/contacts-crm', quote=True))) if (q or cat or mid) else '<li class="ax-muted">Aucun contact.</li>'
     chips = ''.join('<a class="crm-chip%s" href="%s">%s</a>' % (' on' if k == cat else '', e(prefix + '/contacts-crm?categorie=' + k, quote=True), e(v))
                     for k, v in (('', 'Tous'),) + tuple(CATEGORIES.items()))
     cards = ''.join('<li><a href="%s"><strong>%s</strong></a> <span class="ax-muted">%s%s%s</span>%s</li>' % (
@@ -293,7 +364,7 @@ def page_html(desk, prefix, args):
             '<section class="ax-card"><h2>Nouveau contact</h2>%s<div class="ax-muted"><form class="m5-form m5-inline" data-api="m5636/contacts/importer" '
             'data-reload="1"><button class="ax-btn ghost" type="submit">Importer de nouveau les correspondants des dossiers</button></form></div></section></div>') % (
         first, e(q, quote=True), matter_opts.replace('value="%s"' % e(mid, quote=True), 'value="%s" selected' % e(mid, quote=True)) if mid else matter_opts,
-        e(cat, quote=True), chips, len(rows), cards or '<li class="ax-muted">Aucun contact.</li>', _contact_form(None, matter_opts))
+        e(cat, quote=True), chips, len(rows), cards or empty, _contact_form(None, matter_opts))
 
 
 def matter_block(desk, prefix, mid):
