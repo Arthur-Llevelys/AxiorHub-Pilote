@@ -1,0 +1,29 @@
+{
+  "version": "5.6.58",
+  "base": "5.6.57 publiée",
+  "date_utc": "2026-10-17T00:00:00+00:00",
+  "cahier_des_charges": "Correctif constaté lors des captures pour la page de présentation : file unique effacée par une proposition de facturation (classe « decision » inconnue de file5651, présente depuis la 5.6.53) ; note des modèles de facture visible dans l’aperçu ; échéances présentées comme des rendez-vous.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2442,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 103,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5658.py : proposition de facturation et élément inconnu dans la file (la file reste affichée, choix inconnu ignoré) ; note des modèles de facture absente de l’aperçu ; distinction échéance / audience / rendez-vous.",
+  "exapp": {
+    "version": "0.1.17",
+    "moteur": "5.6.58"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "File « À décider / À relire » : les propositions de facturation y figurent (filtre « À décider ») au lieu de faire disparaître la file.",
+    "Agenda : les événements « Échéance… » reçoivent le bouton « Préparer cette échéance »."
+  ],
+  "adjusted_tests": []
+}

@@ -91,9 +91,15 @@ def _event(desk, event_id):
     return dict(row) if row else None
 
 
+KIND_LABELS = {'audience': 'Audience', 'echeance': 'Échéance', 'rendez_vous': 'Rendez-vous'}
+PREP_BUTTONS = {'audience': 'Préparer l’audience', 'echeance': 'Préparer cette échéance', 'rendez_vous': 'Préparer ce rendez-vous'}
+
+
 def event_kind(title):
     t = fold(title or '')
     words = ('audience', 'plaidoirie', 'refere', 'mise en etat', 'comparution', 'delibere', 'tribunal', 'cour d', 'conseil de prud')
+    if t.startswith('echeance') or 'date limite' in t or 'delai' in t:     # 5.6.58 : une échéance n'est pas un rendez-vous
+        return 'echeance'
     return 'audience' if any(w in t for w in words) else 'rendez_vous'
 
 
@@ -177,7 +183,7 @@ def launch_note(desk, owner, key):
     p = preparation(desk, key)
     s = p['snapshot']
     consigne = ('Préparer la note de %s « %s » du %s. Points ouverts : %s. Ne pas reprendre : %s.' % (
-        'l’audience' if p['kind'] == 'audience' else 'rendez-vous', p['event_title'], _date_fr(p['event_start']),
+        {'audience': 'l’audience', 'echeance': 'l’échéance'}.get(p['kind'], 'rendez-vous'), p['event_title'], _date_fr(p['event_start']),
         '; '.join(x['donnee'] for x in s['points_ouverts'][:8]) or 'aucun',
         '; '.join(str(x.get('argument') or '') for x in s['a_ne_pas_reprendre'][:5]) or 'rien'))[:3000]
     m = missions5651.start(desk, owner, {'matter': p['matter'], 'objectif': 'audience' if p['kind'] == 'audience' else 'autre', 'consigne': consigne,
@@ -195,7 +201,7 @@ def pack_html(p, prefix=''):
             '<div class="p57-grid"><section><h4>Synthèse</h4><ul>%s%s%s</ul></section><section><h4>Chronologie</h4><ul>%s</ul></section>'
             '<section><h4>Derniers écrits</h4><ul>%s</ul></section><section><h4>Pièces clés</h4><ul>%s</ul></section>'
             '<section><h4>Points ouverts</h4><ul>%s</ul>%s</section></div></article>') % (
-        e(p['id'], quote=True), e('Audience' if p['kind'] == 'audience' else 'Rendez-vous'), e(p['event_title']), e(_date_fr(p['event_start'])),
+        e(p['id'], quote=True), e(KIND_LABELS.get(p['kind'], 'Rendez-vous')), e(p['event_title']), e(_date_fr(p['event_start'])),
         p['version'], e(_date_fr(p['updated'])), e(s.get('etat') or ''),
         ''.join('<li>%s : %s</li>' % (e(k.replace('_', ' ').capitalize()), e(str(v))) for k, v in proc.items()),
         ''.join('<li>%s%s</li>' % (e(x['nom']), ' (client)' if x.get('client_du_cabinet') else '') for x in s['synthese']['parties'][:8]),
@@ -592,14 +598,15 @@ def matter_html(desk, prefix, mid, owner='cabinet'):
     ev_rows = ''.join('<li>%s — %s <form class="m5-form d51-inline" data-api="m5657/preparation/creer" data-reload>%s<input type="hidden" name="evenement" value="%s">'
                       '<button class="ax-btn ghost" type="submit">%s</button></form></li>' % (
                           e(_date_fr(ev['starts'])), e(ev['title'] or 'Événement'), hidden_mid, e(ev['id'], quote=True),
-                          'Préparer l’audience' if event_kind(ev['title']) == 'audience' else 'Préparer ce rendez-vous') for ev in events[:6])
+                          PREP_BUTTONS[event_kind(ev['title'])]) for ev in events[:6])
     prep_rows = ''
     for p in preps[:3]:
         full = preparation(desk, p['id'])
         prep_rows += pack_html(full, prefix) + (
             '<form class="m5-form d51-inline" data-api="m5657/preparation/note" data-reload><input type="hidden" name="preparation" value="%s">'
             '<button class="ax-btn" type="submit">%s</button><p role="status" class="m5-status"></p></form>' % (
-                e(p['id'], quote=True), 'Note en cours (mission)' if p['mission'] else 'Préparer une note de %s' % ('plaidoirie' if p['kind'] == 'audience' else 'rendez-vous')))
+                e(p['id'], quote=True), 'Note en cours (mission)' if p['mission'] else 'Préparer une note de %s' % (
+                    {'audience': 'plaidoirie', 'echeance': 'préparation'}.get(p['kind'], 'rendez-vous'))))
     a04 = ('<section class="d51-card" id="p57-preparation"><h3>Préparation d’audience ou de rendez-vous</h3><p class="ax-muted">Fiche immédiate tirée du '
            'dossier (synthèse, chronologie, derniers écrits, pièces clés, points ouverts) ; la note de préparation est une mission relue avant usage.</p>'
            '<ul class="d51-list">%s</ul>%s</section>') % (ev_rows or '<li class="ax-muted">Aucun événement de ce dossier dans les trois prochaines semaines.</li>',

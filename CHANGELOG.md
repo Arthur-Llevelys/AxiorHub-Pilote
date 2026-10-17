@@ -3,6 +3,17 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.58 — Correctif : file unique robuste, aperçu des factures, échéances
+
+- Aujourd’hui : la file « À décider / À relire » disparaissait entièrement dès qu’une proposition de facturation (temps validés non
+  facturés, brouillon à reprendre) était en attente. Ces propositions s’affichent désormais comme « Proposition à décider », et un
+  élément de type inconnu est présenté « À examiner » au lieu d’effacer la file.
+- Présentations de facture sobre, moderne et compacte : la note interne du modèle n’apparaît plus dans l’aperçu textuel ; le titre
+  affiché est « Facture d’honoraires ».
+- Préparation depuis l’agenda : une échéance (« Échéance : … », date limite, délai) n’est plus présentée comme un rendez-vous ;
+  bouton « Préparer cette échéance » et note de préparation.
+- Captures d’écran à jour (docs/captures/fr, 10 à 18), réalisées avec des données fictives.
+
 ## 5.6.57 — Parcours de bout en bout : file unique, missions jusqu’au Word, préfacture ; préparation, pièces, suivi client, contacts, reprise
 
 - Parcours 1 (courriel reçu → brouillon prêt à relire) :

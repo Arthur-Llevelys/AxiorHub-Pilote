@@ -27,8 +27,9 @@ CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des do
            'contradiction': 'Contradiction', 'lacune': 'Information nécessaire', 'relecture': 'Modifications proposées',
            'livrable': 'Projet à relire', 'strategie': 'Choix stratégique', 'engagement': 'Envoi ou engagement à valider',
            # 5.6.57 (A09) : décisions attendues par l'agent et projets à relire d'Aujourd'hui, désormais dans la même file
-           'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire'}
-FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent'),
+           'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire',
+           'decision': 'Proposition à décider'}                # 5.6.58 : propositions de facturation (sans cette classe, la file disparaissait)
+FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision'),
            'relire': ('relecture', 'livrable', 'projet')}
 NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent')     # choix stratégiques et engagements : jamais en validation regroupée
 
@@ -265,7 +266,7 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                                '<input type="hidden" name="a" value="%s"><input type="hidden" name="b" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>'
                                % ('fusion' if c == 'fusionner' else 'separer', e(it['matter'], quote=True), e(it['a'], quote=True), e(it['b'], quote=True),
                                   '' if c == 'fusionner' else ' ghost', 'Même personne' if c == 'fusionner' else 'Personnes distinctes'))
-            else:
+            elif c in ('approuver', 'relu', 'reporter'):
                 state = {'approuver': 'approuve', 'relu': 'approuve', 'reporter': 'reporte'}[c]
                 label = {'approuver': 'Pris en compte', 'relu': 'Relu', 'reporter': 'Reporter'}[c]
                 buttons.append('<form class="m5-form q51-inline" data-api="%s" data-reload><input type="hidden" name="matter" value="%s">'
@@ -275,7 +276,7 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                                                                                              ' ghost' if state == 'reporte' else '', label))
         cards.append('<li class="q51-item q51-%s"><div class="q51-head"><span class="q51-class">%s</span>%s<strong class="q51-matter">%s</strong></div>'
                      '<p class="q51-title">%s</p>%s<div class="q51-actions">%s</div></li>' % (
-                         e(it['class']), e(CLASSES[it['class']]), ' <span class="q51-prio" title="%s">Prioritaire</span>' % e(it['priority_reason'], quote=True)
+                         e(it['class']), e(CLASSES.get(it['class'], 'À examiner')), ' <span class="q51-prio" title="%s">Prioritaire</span>' % e(it['priority_reason'], quote=True)
                          if it['priority'] == 'haute' else '', e(it['matter_name']), e(it['title']),
                          '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
     more = '<p class="ax-muted">%d autre(s) élément(s).</p>' % (len(rows) - limit) if len(rows) > limit else ''

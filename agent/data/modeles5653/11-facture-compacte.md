@@ -1,6 +1,6 @@
-# Facture — présentation compacte
+# Facture d’honoraires
 
-Présentation de facture livrée par AxiorHub (5.6.57). Variables résolues par le serveur ; à valider avant utilisation.
+Version de travail 2026-10-17. Présentation livrée par AxiorHub ; variables résolues par le serveur, à valider avant utilisation.
 
 {{logo}}
 {{cabinet_identite}}
