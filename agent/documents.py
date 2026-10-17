@@ -139,6 +139,30 @@ def command(args, timeout=90):
         raise Stop('extracteur_absent_ou_delai_depasse') from None
 
 
+def _docx_masked(root):
+    """5.6.59 : éléments de texte d'un Word rendus invisibles (texte masqué, taille d'au plus 2 points) → {id(élément): texte}."""
+    out = {}
+    for run in root.iter():
+        if run.tag.rsplit('}', 1)[-1] != 'r':
+            continue
+        props = next((c for c in run if c.tag.rsplit('}', 1)[-1] == 'rPr'), None)
+        if props is None:
+            continue
+        hidden = False
+        for c in props:
+            name = c.tag.rsplit('}', 1)[-1]
+            val = next((v for k, v in c.attrib.items() if k.rsplit('}', 1)[-1] == 'val'), None)
+            if name in ('vanish', 'specVanish') and str(val).lower() not in ('0', 'false', 'off'):
+                hidden = True
+            elif name == 'sz' and str(val or '').isdigit() and int(val) <= 4:
+                hidden = True
+        if hidden:
+            for t in run.iter():
+                if t.tag.rsplit('}', 1)[-1] == 't':
+                    out[id(t)] = t.text or ''
+    return out
+
+
 def ocr(path):
     tsv = command([_tool('tesseract'),str(path),'stdout','-l','fra+eng','tsv'])
     words = [r for r in csv.DictReader(io.StringIO(tsv),delimiter='\t')
@@ -175,7 +199,7 @@ def extract(raw, name, cfg):
                         shared=[''.join(node.itertext()) for node in shared_root if node.tag.rsplit('}',1)[-1]=='si']
                 if ext == '.docx':
                     paths += [n for n in ('word/footnotes.xml', 'word/endnotes.xml') if n in z.namelist()]
-                out = []
+                out, hidden_words = [], []
                 for p in paths:
                     root = xml_bytes(z.read(p))
                     if ext == '.xlsx':
@@ -190,13 +214,20 @@ def extract(raw, name, cfg):
                                 values.append(raw_value)
                             if any(values):out.append('\t'.join(values)+'\n')
                         continue
+                    masked = _docx_masked(root) if ext == '.docx' else {}   # 5.6.59 : texte masqué (bouclier5659)
+                    hidden_words.extend(masked.values())
                     for node in root.iter():
                         tag = node.tag.rsplit('}', 1)[-1]
+                        if ext == '.docx' and tag == 't' and id(node) in masked:
+                            continue
                         if ext == '.docx' and tag in ('t', 'tab', 'br', 'p'):
                             out.append((node.text or '') if tag == 't' else '\n')
                         elif ext == '.odt' and tag in ('p', 'h'):
                             out.append(''.join(node.itertext()) + '\n')
                 text = ''.join(out)
+                if hidden_words:
+                    from .bouclier5659 import hidden_marker
+                    text += hidden_marker(''.join(hidden_words), 'du document Word')
         except (zipfile.BadZipFile, KeyError, RuntimeError):
             raise Stop('document_office_non_lisible') from None
     elif ext == '.eml':

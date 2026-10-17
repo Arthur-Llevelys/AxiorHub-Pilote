@@ -149,7 +149,15 @@ def html(desk, prefix):
             '<div><dt>Worker</dt><dd>%s</dd></div><div><dt>Travail en cours</dt><dd>%s</dd></div><div><dt>Plus ancien travail en attente</dt><dd>%s</dd></div>'
             '<div><dt>Collectes de veille orphelines</dt><dd>%d</dd></div><div><dt>Modèle et contexte</dt><dd>%s · contexte %s · %s caractères au plus</dd></div></dl>'
             '<details><summary>En attente par type</summary><ul>%s</ul></details><details><summary>Échecs des 24 dernières heures</summary><ul>%s</ul></details>'
-            '</section>') % (
+            '%s</section>') % (
         ('<ul class="e5657-problems" role="status">%s</ul>' % probs) if probs else '<p class="ok" role="status">La file avance normalement.</p>',
         worker, cur, oldest, s['veille_orphans'], e(str(ctx.get('model') or 'modèle non renseigné')), e(str(ctx.get('num_ctx') or 'automatique')),
-        e(str(ctx.get('max_context_chars'))), pend, errs)
+        e(str(ctx.get('max_context_chars'))), pend, errs, _securite(desk, prefix))
+
+
+def _securite(desk, prefix):
+    try:   # 5.6.59 : alertes de sécurité de l'IA
+        from .web5659 import overview_line
+        return overview_line(desk, prefix)
+    except Exception:   # noqa: BLE001
+        return ''

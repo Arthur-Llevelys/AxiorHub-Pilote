@@ -759,5 +759,9 @@
  "fn.facturation.desc": "Devis, conventions, factures et avoirs ; chiffrage des missions ; factures électroniques",
  "vj.queued": "Collecte en file : elle démarre dès que l’agent est disponible.",
  "vj.running": "Collecte en cours…",
- "vj.queue_refused": "Mise en file refusée (file pleine) : nouvelle tentative au prochain cycle, ou cliquez sur « Actualiser »."
+ "vj.queue_refused": "Mise en file refusée (file pleine) : nouvelle tentative au prochain cycle, ou cliquez sur « Actualiser ».",
+ "fn.savoir_faire.label": "Savoir-faire du cabinet",
+ "fn.savoir_faire.desc": "Structures de courrier, listes de vérification, clauses et méthodes approuvées, utilisées par l’agent",
+ "fn.securite_ia.label": "Sécurité de l’IA",
+ "fn.securite_ia.desc": "Instructions cachées dans les courriels, documents et images : alertes et décisions"
 }

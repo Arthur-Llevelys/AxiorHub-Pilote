@@ -41,7 +41,8 @@ DECISION_KINDS = {'objectif': 'Objectif du client', 'consigne': 'Consigne du cab
 CHANGE_KINDS = {'nouveau_document': 'Nouveau document', 'nouvelle_version': 'Nouvelle version d’un document', 'nouveau_courriel': 'Nouveau courriel',
                 'classement': 'Document classé', 'correction': 'Correction de l’avocat', 'contradiction': 'Information contradictoire',
                 'montant_modifie': 'Montant modifié', 'evenement': 'Événement de procédure', 'lecture': 'Lecture du document',
-                'decision_cabinet': 'Décision du cabinet', 'projet_a_recontroler': 'Projet à recontrôler'}
+                'decision_cabinet': 'Décision du cabinet', 'projet_a_recontroler': 'Projet à recontrôler',
+                'bilan_piece': 'Bilan de pièce'}   # 5.6.59 (A02)
 BLOCKING = {'engagement': 'Bloque l’engagement (envoi, dépôt, signature)', 'paragraphe': 'Bloque seulement les passages concernés',
             'facultatif': 'Facultatif'}
 GAP_KINDS = {'information': 'Information à fournir', 'fichier_illisible': 'Fichier illisible', 'connecteur': 'Échec d’un connecteur',

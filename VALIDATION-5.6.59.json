@@ -1,0 +1,36 @@
+{
+  "version": "5.6.59",
+  "base": "5.6.58 publiée",
+  "date_utc": "2026-10-17T00:00:00+00:00",
+  "cahier_des_charges": "Demande du cabinet du 17 octobre 2026 : A02 (résumé de dossier exploitable, bilan de changement) et A07 (bibliothèque de savoir-faire) de l’audit 5.6.55 (§ 15.3 et 15.8) ; protection de l’IA contre les injections d’instructions dans les courriels, documents et images.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2462,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 104,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5659.py : attaques reconnues en quatre langues et phrases ordinaires sans alerte ; nettoyage des caractères invisibles et des faux jetons ; images externes retirées des sorties ; texte masqué retiré d’un courriel HTML et d’un Word ; alerte élevée qui force la relecture, journalisée avec sa source, présente dans la file puis retirée après examen ; consigne de l’avocat non analysée ; résumé de dossier complet et sourcé, dates proposées séparées, version stable puis nouvelle version ; bilan de pièce (point de départ, pièce non lue, renommage sans bilan) ; savoir-faire : approbation, phase, mots-clés, nouvelle version, retrait, revue dépassée, instruction hostile refusée, anonymisation, compétence du travail et usage journalisé, droits des routes.",
+  "exapp": {
+    "version": "0.1.18",
+    "moteur": "5.6.59"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Appels du modèle : sources nettoyées (caractères invisibles, faux jetons) ; message d’alerte ajouté quand une source contient des instructions adressées à une IA ; sur alerte élevée, verdicts de contrôle forcés (relecture par l’avocat).",
+    "Courriels HTML et documents Word : le texte masqué n’est plus lu comme le reste ; une ligne « [AxiorHub : … texte masqué retiré …] » le signale.",
+    "Page Dossier : carte « Le dossier en bref » en tête de la vue d’ensemble ; carte « Faire d’une rédaction corrigée un savoir-faire » dans Travaux.",
+    "File « À décider / À relire » : classes « Sécurité de l’IA » et « Savoir-faire à approuver ».",
+    "Menu : « Savoir-faire du cabinet » (Modèles et apprentissage) et « Sécurité de l’IA » (Paramètres)."
+  ],
+  "not_done": [
+    "A07 « Mesure » (comparaison sur cinquante situations de référence, avec et sans savoir-faire) : non livrée ; les campagnes d’évaluation existantes (apprentissage5651.evaluate) restent disponibles.",
+    "Texte invisible d’un PDF (rendu invisible, blanc sur blanc) : non retiré à l’extraction ; il est analysé comme le reste du texte."
+  ],
+  "adjusted_tests": []
+}

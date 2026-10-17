@@ -50,17 +50,36 @@ def modified_utf7(s):
     return ''.join(out)
 
 
+_VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'}
+_MASKED = re.compile(r'display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)|font-size\s*:\s*(?:0|0?\.\d+|1)(?:px|pt|em|rem)?\s*(?:;|$)|'
+                     r'(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)[^"]*overflow\s*:\s*hidden|overflow\s*:\s*hidden[^"]*(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)', re.I)
+
+
 class PlainHTML(HTMLParser):
+    """Texte d'un courriel HTML. 5.6.59 : le texte masqué par la mise en forme (display:none, taille nulle, opacité nulle, attribut
+    hidden) n'est pas lu comme le reste ; il est mis de côté et signalé (``bouclier5659.hidden_marker``)."""
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.parts, self.hidden = [], 0
+        self.parts, self.hidden, self.masked_parts, self.stack = [], 0, [], []
+    def _masked(self):
+        return bool(self.stack) and self.stack[-1][1]
     def handle_starttag(self, tag, attrs):
         if tag in ('script', 'style', 'head'): self.hidden += 1
         if tag in ('p', 'br', 'div', 'li', 'tr'): self.parts.append('\n')
+        if tag not in _VOID:
+            a = dict((k, v or '') for k, v in attrs)
+            self.stack.append((tag, self._masked() or 'hidden' in a or bool(_MASKED.search(a.get('style', '')))))
+    def handle_startendtag(self, tag, attrs):
+        if tag in ('p', 'br', 'div', 'li', 'tr'): self.parts.append('\n')
     def handle_endtag(self, tag):
         if tag in ('script', 'style', 'head') and self.hidden: self.hidden -= 1
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                del self.stack[i:]
+                break
     def handle_data(self, data):
-        if not self.hidden: self.parts.append(data)
+        if self.hidden: return
+        (self.masked_parts if self._masked() else self.parts).append(data)
 
 
 def body_text(msg):
@@ -75,7 +94,8 @@ def body_text(msg):
     if body.get_content_type() == 'text/html':
         p = PlainHTML()
         p.feed(text)
-        text = ''.join(p.parts)
+        from .bouclier5659 import hidden_marker
+        text = ''.join(p.parts) + hidden_marker(''.join(p.masked_parts))
     return text.strip()
 
 

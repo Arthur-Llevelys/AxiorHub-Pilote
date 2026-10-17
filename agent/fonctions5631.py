@@ -73,6 +73,7 @@ FUNCTIONS = (
     ('regles', 'modeles', '/regles', ('Règles et autonomie', 'Règles de tri'), ()),
     ('autonomie', 'modeles', '/autonomie', ('Autonomie de l’agent', 'Mode prudent'), ()),
     ('apprentissage', 'modeles', '/apprentissage', ('Apprentissage métier', 'Règles métier'), ()),
+    ('savoir_faire', 'modeles', '/savoir-faire', ('Savoir-faire du cabinet', 'Clauses approuvées', 'Listes de vérification', 'Structures de courrier'), ()),   # 5.6.59
     ('competences', 'modeles', '/competences', ('Compétences', 'Skills', 'Assistant juridique', 'Approbation des comptes', 'RGPD'), ('ai',)),
     ('projets', 'modeles', '/projets', ('Projets en attente', 'Travail préparé'), ()),
     ('preparation', 'modeles', '/preparation-proactive', ('Préparation proactive',), ()),
@@ -86,6 +87,7 @@ FUNCTIONS = (
     ('mcp', 'regler', '/mcp', ('Connecteurs MCP', 'Skills', 'Plugins'), ()),
     ('routage', 'regler', '/routage-hybride', ('Routage hybride', 'IA externe', 'OpenRouter'), ()),
     ('evaluations', 'regler', '/evaluations', ('Banc juridique', 'Évaluations métier'), ('ai',)),
+    ('securite_ia', 'regler', '/securite-ia', ('Sécurité de l’IA', 'Injection d’instructions', 'Instructions cachées'), ()),   # 5.6.59
     ('tracabilite', 'regler', '/tracabilite', ('Traçabilité', 'Données vues par le modèle'), ()),
     ('qualite', 'regler', '/qualite', ('Qualité', 'Motifs de blocage'), ()),
     ('ecosysteme', 'regler', '/ecosysteme', ('Écosystème', 'Services du cabinet'), ()),

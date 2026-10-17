@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5659/'):   # 5.6.59 : savoir-faire du cabinet et sécurité de l'IA
+        from .web5659 import allowed as allowed5659
+        return allowed5659(role, api[len('m5659/'):])
     if api.startswith('m5657/'):   # 5.6.57 : parcours (brouillons automatiques, contacts, préparations, pièces, suivi, diligences)
         from .web5657 import allowed as allowed5657
         return allowed5657(role, api[len('m5657/'):])

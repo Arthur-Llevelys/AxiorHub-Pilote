@@ -759,5 +759,9 @@
  "fn.facturation.desc": "Quotes, fee agreements, invoices and credit notes; mission pricing; electronic invoices",
  "vj.queued": "Collection queued: it starts as soon as the agent is available.",
  "vj.running": "Collection in progress…",
- "vj.queue_refused": "Queueing refused (queue full): new attempt at the next cycle, or click “Actualiser”."
+ "vj.queue_refused": "Queueing refused (queue full): new attempt at the next cycle, or click “Actualiser”.",
+ "fn.savoir_faire.label": "Firm know-how",
+ "fn.savoir_faire.desc": "Approved letter structures, checklists, clauses and methods used by the agent",
+ "fn.securite_ia.label": "AI security",
+ "fn.securite_ia.desc": "Hidden instructions in emails, documents and images: alerts and decisions"
 }

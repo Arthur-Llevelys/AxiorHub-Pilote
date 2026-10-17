@@ -982,6 +982,11 @@ def rebuild(desk, mid, force=False):
         pass
     _refresh_validity(desk, mid, {p: d['etag'] for p, d in digests.items()}, {d['path'] for d in inv})
     memoire5651.sync_gaps(desk, mid)
+    try:   # 5.6.59 (A02) : bilan de chaque pièce nouvellement lue dont le texte est nouveau
+        from .resume5659 import after_rebuild
+        after_rebuild(desk, mid)
+    except Exception:   # noqa: BLE001 — un bilan impossible n'empêche jamais l'actualisation
+        pass
     desk.db.execute('INSERT OR REPLACE INTO d51_rebuilds(matter,at,counters,revision) VALUES(?,?,?,?)', (mid, now, json.dumps(counters), revision))
     desk.db.commit()
     return counters

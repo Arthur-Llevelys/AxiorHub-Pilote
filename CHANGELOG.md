@@ -3,6 +3,30 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.59 — Le dossier en bref, savoir-faire du cabinet, protection contre les instructions cachées
+
+- Protection de l’IA contre les instructions cachées dans les courriels, documents et images (injection d’instructions) :
+  - avant chaque appel du modèle, local ou externe : caractères invisibles retirés (dont les caractères « tag » Unicode qui cachent
+    du texte), faux jetons de conversation neutralisés ;
+  - détection en français, anglais, allemand et espagnol (texte adressé à une IA, demande d’ignorer ses consignes, de cacher quelque
+    chose à l’avocat, de révéler ses instructions, d’approuver sans contrôle, de transmettre des données, image externe porteuse de
+    paramètres) ; le modèle est prévenu par un message du système ;
+  - sur une alerte élevée, un contrôle ne peut plus conclure à l’absence de problème : aucun brouillon n’est déposé
+    automatiquement, le travail passe en relecture ; les images externes sont retirées des textes produits ;
+  - texte masqué d’un courriel HTML (display:none, taille ou opacité nulle, attribut hidden) et d’un document Word (texte masqué,
+    taille minuscule) retiré à la lecture et signalé ; le texte lu par OCR dans une image suit le même contrôle ;
+  - journal des alertes, page « Sécurité de l’IA », alertes élevées dans la file « À décider / À relire », ligne dans
+    « L’agent en un coup d’œil ».
+- Le dossier en bref (A02), en tête de la page Dossier : qui représente qui, objectif du client, situation, prochaines dates
+  confirmées (les dates proposées sont comptées à part), décisions du cabinet, changements récents, pièces et informations à
+  rechercher ; chaque élément renvoie à sa source ; résumé calculé sans IA et versionné par l’empreinte de ses entrées.
+- Bilan de pièce (A02) : une pièce nouvellement lue produit un bilan de ses apports (faits, demandes, événements, parties, échéances,
+  décisions de justice) dans « Depuis votre dernière lecture » ; une simple mise en forme ou un renommage n’en produit pas.
+- Savoir-faire du cabinet (A07) : structures de courrier, listes de vérification, clauses approuvées, méthodes de relecture et
+  trames, versionnées, anonymisées si elles viennent d’un dossier, approuvées avant réutilisation (droit « valider »), avec date de
+  revue ; l’agent en reçoit au plus deux par travail, rapprochées de la vraie consigne et de la phase ; usage journalisé. Une
+  rédaction corrigée se propose depuis l’onglet Travaux du dossier.
+
 ## 5.6.58 — Correctif : file unique robuste, aperçu des factures, échéances
 
 - Aujourd’hui : la file « À décider / À relire » disparaissait entièrement dès qu’une proposition de facturation (temps validés non

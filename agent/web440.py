@@ -460,6 +460,18 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code == 'version_en_conflit' else
                              ('404 Not Found' if code in ('routine_absente', 'connexion_absente', 'operation_absente', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m5659/'):   # 5.6.59 : savoir-faire du cabinet et sécurité de l'IA
+        from . import web5659
+        try:
+            return web5659.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
+                            '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
+                            ('409 Conflict' if code == 'version_deja_decidee' else ('404 Not Found' if code.endswith('_absent') or code.endswith('_absente')
+                                                                                   else '400 Bad Request')))
     if name.startswith('m5657/'):   # 5.6.57 : parcours de la 5.6.57
         from . import web5657
         try:

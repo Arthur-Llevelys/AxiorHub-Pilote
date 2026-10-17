@@ -28,10 +28,11 @@ CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des do
            'livrable': 'Projet à relire', 'strategie': 'Choix stratégique', 'engagement': 'Envoi ou engagement à valider',
            # 5.6.57 (A09) : décisions attendues par l'agent et projets à relire d'Aujourd'hui, désormais dans la même file
            'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire',
+           'securite': 'Sécurité de l’IA', 'savoir': 'Savoir-faire à approuver',   # 5.6.59
            'decision': 'Proposition à décider'}                # 5.6.58 : propositions de facturation (sans cette classe, la file disparaissait)
-FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision'),
+FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision', 'securite', 'savoir'),
            'relire': ('relecture', 'livrable', 'projet')}
-NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent')     # choix stratégiques et engagements : jamais en validation regroupée
+NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir')     # choix stratégiques et engagements : jamais en validation regroupée
 
 
 def _now():
@@ -126,7 +127,7 @@ def _items_for(desk, prefix, m):
 def _global_items(desk, prefix, actor, role):
     """5.6.52 : éléments du cabinet sans dossier — comptes rendus de routines (R06) et opérations de connexion à valider (I…)."""
     found = []
-    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657'):
+    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659'):
         try:
             mod = __import__('agent.' + module, fromlist=['queue_items'])
             found += mod.queue_items(desk, prefix, actor, role)

@@ -51,7 +51,7 @@ PARENT = {
     # Gestion du cabinet
     'honoraires': 'cabinet', 'relances': 'cabinet', 'conflits': 'cabinet', 'prescriptions': 'cabinet', 'pilotage_mensuel': 'cabinet',
     # Modèles et apprentissage
-    'modeles_word': 'mon_style', 'modeles_actes': 'mon_style', 'progres': 'mon_style', 'apprentissage': 'mon_style', 'memoire': 'mon_style',
+    'modeles_word': 'mon_style', 'modeles_actes': 'mon_style', 'savoir_faire': 'mon_style', 'securite_ia': 'parametres', 'progres': 'mon_style', 'apprentissage': 'mon_style', 'memoire': 'mon_style',
     # Décisions et travaux : Aujourd'hui / Courriels
     'initiatives': 'aujourdhui', 'engagements': 'aujourdhui', 'associations': 'courriels', 'orchestrateur': 'courriels',
     'accueil_administratif': 'courriels',

@@ -257,6 +257,9 @@ def _change_detail(c):
         parts.append('<div class="d51-diff"><del>%s</del> <ins>%s</ins></div>' % (e(str(d.get('ancien', ''))[:300]), e(str(d.get('nouveau', ''))[:300])))
     if d.get('source'):
         parts.append('<span class="ax-muted">Source : %s</span>' % e(d['source']))
+    if d.get('apports'):   # 5.6.59 (A02) : bilan d'une pièce nouvellement lue
+        parts.append('<ul class="r59-apports">%s</ul>' % ''.join('<li>%s : %s</li>' % (e(str(a.get('type', ''))), e(str(a.get('texte', ''))[:200]))
+                                                                 for a in d['apports'][:12]))
     for p in (d.get('projets') or [])[:3]:
         parts.append('<div class="ax-muted">Projet %s : %s</div>' % (e(p['travail'][:8]), e(' / '.join('§%d' % x['paragraphe'] for x in p['passages'][:6]))))
     return ''.join(parts)
@@ -286,7 +289,9 @@ def apercu_html(desk, auth, prefix, m, args):
     mid = m['id']
     owner = str(auth.get('owner') or 'cabinet')
     st = analysis_state(desk, mid)
-    out = '<div class="d51-grid">'
+    from . import resume5659   # 5.6.59 (A02) : le dossier en bref, chaque élément avec sa source
+    out = resume5659.html(desk, prefix, m)
+    out += '<div class="d51-grid">'
     out += '<div class="d51-col">' + situation_html(desk, prefix, m, st) + parties_html(desk, prefix, mid) + decisions_html(desk, prefix, mid) + '</div>'
     out += ('<div class="d51-col">' + news_html(desk, prefix, mid, owner) +
             file5651.html(desk, prefix, mid, str(args.get('file') or ''), membres5650.viewer_hidden() or frozenset(), 12) + '</div>')
@@ -687,6 +692,15 @@ def travaux_html(desk, auth, prefix, m, args):
                 e(apprentissage5651.SCOPES[r['scope']]), e(apprentissage5651.CATEGORIES[r['category']]), e(r['instruction'][:300]), r['version'],
                 e('active' if r['status'] == 'active' else 'désactivée'), e(mid, quote=True), e(r['id'], quote=True),
                 'desactivee' if r['status'] == 'active' else 'active', 'Désactiver' if r['status'] == 'active' else 'Réactiver') for r in rules[:40]), 'd51-rules')
+    from .savoir5659 import KINDS as _kinds59   # 5.6.59 (A07) : une rédaction corrigée devient une ressource du cabinet (anonymisée, à approuver)
+    out += _card('Faire d’une rédaction corrigée un savoir-faire du cabinet', (
+        '<p class="ax-muted">Collez le passage corrigé (structure, clause, liste de vérification…). Les noms des parties, le client, les adresses, '
+        'dates, montants et numéros de rôle sont remplacés avant l’enregistrement ; la ressource n’est utilisée qu’après approbation.</p>'
+        '<form class="m5-form" data-api="m5659/savoir/proposer"><input type="hidden" name="matter" value="%s"><label>Type<select name="kind">%s</select></label>'
+        '<label>Titre<input name="title" required maxlength="200"></label><label>Mots-clés<input name="keywords" maxlength="400"></label>'
+        '<label>Texte<textarea name="body" rows="5" required maxlength="20000"></textarea></label><button class="ax-btn ghost" type="submit">Proposer</button>'
+        '<p role="status" class="m5-status"></p></form>') % (e(mid, quote=True), ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in _kinds59.items())),
+        'd59-savoir')
     out += '<details class="d51-legacy" open><summary>Documents préparés et échanges avec l’agent</summary>%s</details>' % dossier5627.travaux_html(desk, prefix, m)
     return out
 

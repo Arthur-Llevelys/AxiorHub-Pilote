@@ -861,6 +861,8 @@ class Model:
         return value
 
     def _leaf(self,messages,temperature,max_tokens,json_schema):
+        from .bouclier5659 import protect_messages   # 5.6.59 : sources nettoyées, alerte transmise au modèle, constats journalisés
+        messages=protect_messages(self.cfg,messages,getattr(self,'_trace',('',None))[0])
         from .competences5632 import current_instructions   # 5.6.32 (R16) : seules les compétences retenues pour la tâche
         from .competences5643 import assemble   # 5.6.43 (§ 7.3) : un seul assemblage, sans doublon, dans un budget unique
         skill_text=assemble(str(self.cfg.get('skill_instructions') or ''),current_instructions())
@@ -1003,6 +1005,14 @@ class Model:
         return content.strip()
 
     def ask(self, stage, data):
+        from . import bouclier5659   # 5.6.59 : instructions cachées dans les sources neutralisées et signalées
+        with bouclier5659.guarded():
+            data, findings = bouclier5659.protect_payload(self.cfg, stage, data)
+            bouclier5659._local.payload_done = True
+            value = self._ask(stage, data)
+            return bouclier5659.enforce(stage, value, bouclier5659.call_alerts() or findings)
+
+    def _ask(self, stage, data):
         self._external_context=data
         if self.cfg.get('secours') and self.provider_type=='ollama':
             return self._secours('ask',stage,data)

@@ -759,5 +759,9 @@
  "fn.facturation.desc": "Presupuestos, convenios, facturas y abonos; cálculo de misiones; facturas electrónicas",
  "vj.queued": "Recogida en cola: empieza en cuanto el agente esté disponible.",
  "vj.running": "Recogida en curso…",
- "vj.queue_refused": "Puesta en cola rechazada (cola llena): nuevo intento en el próximo ciclo, o pulse «Actualiser»."
+ "vj.queue_refused": "Puesta en cola rechazada (cola llena): nuevo intento en el próximo ciclo, o pulse «Actualiser».",
+ "fn.savoir_faire.label": "Saber hacer del despacho",
+ "fn.savoir_faire.desc": "Estructuras de carta, listas de verificación, cláusulas y métodos aprobados que usa el agente",
+ "fn.securite_ia.label": "Seguridad de la IA",
+ "fn.securite_ia.desc": "Instrucciones ocultas en correos, documentos e imágenes: alertas y decisiones"
 }

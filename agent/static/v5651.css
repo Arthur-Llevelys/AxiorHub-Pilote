@@ -104,3 +104,22 @@
 .p57-grid h4{margin:4px 0}.p57-grid ul{margin:0;padding-left:18px}
 .p57-text{white-space:pre-wrap;font-family:inherit;background:var(--ax-surface-2,#f5f7fa);padding:8px;border-radius:6px;max-width:100%;overflow-wrap:anywhere}
 .p57-req,.p57-up{border-top:1px solid var(--ax-line,#d8dde6);padding:8px 0}
+/* 5.6.59 (A02) : le dossier en bref */
+.d51 .r59{border-left:4px solid var(--ax-accent,#2d5fa8)}
+.d51 .r59-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px}
+@media (max-width:820px){.d51 .r59-grid{grid-template-columns:minmax(0,1fr)}}
+.d51 .r59-block h4{margin:0 0 4px;font-size:.9rem;color:var(--ax-muted-text,#55606f)}
+.d51 .r59-list{margin:0;padding-left:18px}
+.d51 .r59-list li{margin:2px 0}
+.d51 .r59-client{font-weight:600}
+.d51 .r59-apports,.r59-apports{margin:4px 0 0;padding-left:18px;font-size:.85rem;color:var(--ax-muted-text,#55606f)}
+.d51 .r59-foot{margin-top:10px;font-size:.8rem}
+/* 5.6.59 (A07) : savoir-faire du cabinet ; sécurité de l'IA */
+.s59-list,.b59-list{list-style:none;padding:0;margin:12px 0}
+.s59-item,.b59-item{border:1px solid var(--ax-line,#d8dde6);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:var(--ax-surface,#fff)}
+.s59-body{white-space:pre-wrap;font:inherit;font-size:.9rem;background:var(--ax-surface-2,#f4f6fa);padding:8px;border-radius:6px;max-height:320px;overflow:auto}
+.s59-pending{border-top:1px dashed var(--ax-line,#d8dde6);margin-top:8px;padding-top:8px}
+.s59-form label{display:block;margin:6px 0}
+.s59-ok{background:#e6f4ea}.s59-warn{background:#fff4e0}.s59-off{background:#eceff3}
+.b59-eleve{border-left:4px solid #b3261e}.b59-moyen{border-left:4px solid #b26a00}
+.b59-line{margin:8px 0 0}

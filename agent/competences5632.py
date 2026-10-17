@@ -387,6 +387,7 @@ def for_job(desk, row, args):
     """Contexte d'un travail : compétences retenues (manuel via args['skills'] ou automatique), instructions transmises au modèle,
     usage enregistré (version réellement utilisée)."""
     selection = []
+    text, phase = '', ''
     try:   # 5.6.43 (cahier v9, § 7.1-7.2) : vraie consigne relue en base et méthode choisie selon la phase du travail
         from .competences5643 import real_instruction, select
         manual = args.get('skills') if isinstance(args, dict) else None
@@ -399,6 +400,13 @@ def for_job(desk, row, args):
         selection = []
     _ctx.selection = selection
     _ctx.text = instructions_for(desk, selection) if selection else ''
+    try:   # 5.6.59 (A07) : savoir-faire approuvé du cabinet, rapproché de la vraie consigne et de la phase
+        from .savoir5659 import for_job_text
+        extra, _chosen = for_job_text(desk, row, args, text, phase)
+        if extra:
+            _ctx.text = (_ctx.text + '\n\n' + extra) if _ctx.text else extra
+    except Exception:   # noqa: BLE001 — une bibliothèque indisponible n'empêche jamais le travail
+        pass
     try:
         if selection:
             for sel in selection:
