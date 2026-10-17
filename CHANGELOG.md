@@ -3,6 +3,35 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.57 — Parcours de bout en bout : file unique, missions jusqu’au Word, préfacture ; préparation, pièces, suivi client, contacts, reprise
+
+- Parcours 1 (courriel reçu → brouillon prêt à relire) :
+  - une seule file « À décider / À relire » sur Aujourd’hui, Dossier et Produire, qui reprend aussi les décisions attendues par
+    l’agent et les projets à relire ; « Ouvrir » mène à la carte d’action de chaque décision ;
+  - états réels des travaux : en file, en cours, projet prêt, une question bloque ce passage, échec avec nouvel essai prévu ;
+  - « L’agent en un coup d’œil » en tête de « Pourquoi rien n’est produit ? » : signe de vie du worker, travail en cours, plus
+    ancien travail en attente, collectes de veille orphelines, erreurs du modèle.
+- Parcours 2 (mission → Word révisable) :
+  - autorisation donnée une fois (Paramètres › Documents) de créer les nouvelles versions de brouillon sans code de confirmation,
+    dans le sous-dossier de brouillons, sans jamais écraser un fichier ;
+  - relecture Word avec le passage d’origine et la proposition côte à côte, le motif et les sources ; « Reformuler » ; acceptation
+    groupée des seules modifications de formulation.
+- Parcours 3 (diligences → préfacture → facture) :
+  - temps proposés chaque jour à partir des événements du dossier, avec leur source et leur traitement au regard de la
+    convention, confirmés dans la page du dossier et rappelés dans Facturation › À faire ;
+  - aperçu PDF réel produit depuis le même Word que le document ;
+  - trois présentations de facture (sobre par défaut, moderne, compacte) aux mêmes variables et contrôles.
+- Préparation d’audience ou de rendez-vous depuis l’agenda : fiche immédiate et versionnée (synthèse, chronologie, derniers écrits,
+  pièces clés, points ouverts), puis note de préparation en mission.
+- Demande de pièces guidée : une demande regroupée au client, déposée en brouillon sur action ; rapprochement des documents reçus
+  confirmé par l’avocat.
+- Point d’avancement client proposé après une étape vérifiable : jamais une action seulement préparée annoncée comme accomplie ;
+  refus définitif ; fréquence réglable par dossier.
+- Contacts alimentés par la boîte mail : lecture des seuls en-têtes, progressive et sans relecture ; adresses du cabinet, de service
+  et listes exclues ; nouveaux contacts « À classer ».
+- « Reprendre là où j’en étais » sur Aujourd’hui (pages de travail revérifiées) et recherche étendue aux documents de facturation et
+  aux décisions du cabinet.
+
 ## 5.6.56 — Audit 5.6.55 : 27 corrections (facturation, cloisonnement, identités, rédaction, veille)
 
 - Facturation :

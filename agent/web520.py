@@ -241,6 +241,8 @@ def diagnostic_page(desk, auth, prefix, args, shell):
     d = diagnosis(desk)
     html = ('<div class="d520"><h1>Pourquoi rien n’est produit ?</h1><p class="ax-muted">Un seul écran pour comprendre une panne : services, file de travail, '
             'erreurs récentes et leur motif, dossiers bloqués, connexions et dernière recette automatique.</p>')
+    from . import etat5657                                      # 5.6.57 : l'agent en un coup d'œil
+    html += etat5657.html(desk, prefix)
     from . import sante5636
     points = sante5636.checks(desk)
     if points:   # 5.6.36 : ton informatif et, pour chaque point, le bouton qui le règle

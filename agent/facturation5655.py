@@ -169,8 +169,8 @@ def dashboard(desk):
             'brouillons': drafts, 'encaisse_mois_cents': collected, 'calcule_le': _now(), 'lecture_partielle': partial}
 
 
-PRIORITY = {'echue': 0, 'a_emettre': 1, 'a_envoyer': 2, 'brouillon': 3, 'temps_a_facturer': 4, 'provision_prevue': 4, 'budget_proche': 5,
-            'sans_convention': 6}
+PRIORITY = {'echue': 0, 'a_emettre': 1, 'a_envoyer': 2, 'brouillon': 3, 'temps_a_facturer': 4, 'provision_prevue': 4, 'diligences': 4,
+            'budget_proche': 5, 'sans_convention': 6}
 
 
 def todo(desk, refresh=True):
@@ -211,6 +211,16 @@ def todo(desk, refresh=True):
             continue
         items.append({'matter': s['matter'], 'matter_name': s['matter_name'], 'client': s['client'], 'type': s['kind'], 'titre': s['titre'],
                       'action': s['action'], 'detail': s['declencheur'].get('raison', ''), 'montant_cents': s['montant_cents'], 'proposition': s['key']})
+    try:   # 5.6.57 (A05) : diligences proposées par l'agent, à confirmer avant toute préfacture
+        for r in desk.db.execute("SELECT matter,COUNT(*) n,SUM(minutes_est) mins FROM time500_proposals WHERE status='a_valider' GROUP BY matter"):
+            if r['matter'] not in clients:
+                continue
+            items.append({'matter': r['matter'], 'matter_name': names[r['matter']][0], 'client': names[r['matter']][1], 'type': 'diligences',
+                          'titre': '%d diligence(s) proposée(s) à confirmer (%d min estimées)' % (r['n'], r['mins'] or 0),
+                          'action': 'Confirmer les diligences', 'detail': 'Estimations tirées des événements du dossier : rien n’est facturé sans confirmation.',
+                          'montant_cents': None, 'lien': '/dossier?id=%s&vue=travaux#p57-diligences' % r['matter']})
+    except Exception:   # noqa: BLE001 — module temps non initialisé
+        pass
     items.sort(key=lambda x: (PRIORITY.get(x['type'], 9), -(x.get('montant_cents') or 0), x['matter_name'].lower()))
     return items
 

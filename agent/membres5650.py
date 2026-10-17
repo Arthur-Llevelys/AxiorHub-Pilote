@@ -284,6 +284,11 @@ def category(method, path, action=''):
             return 'reglages'
         if route5653 not in ('estimation/calculer', 'epingler'):
             return 'facturation'
+    if api.startswith('m5657/') and method not in ('GET', 'HEAD'):   # 5.6.57 : droit déclaré par route
+        from .web5657 import CATEGORIES as _cat5657
+        cat5657 = _cat5657.get(api[len('m5657/'):].split('?', 1)[0])
+        if cat5657:
+            return cat5657
     if api.startswith('m5652/'):                             # 5.6.53 (F08) : capacité métier déclarée par route
         cat5652 = M5652_CATEGORIES.get(api[len('m5652/'):].split('?', 1)[0])
         if cat5652:

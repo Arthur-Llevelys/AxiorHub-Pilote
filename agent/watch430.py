@@ -117,6 +117,16 @@ def _schedule_5642(desk,stamp=None):
         jobs.extend(schedule5651(desk,stamp))
     except Exception as ex:   # noqa: BLE001
         emit(desk,'blocked','Préparation proactive : planification impossible ('+str(ex)[:120]+').',dedupe='preparation5651-schedule')
+    try:   # 5.6.57 : contacts depuis la boîte (si activé), diligences proposées (une fois par jour), points d'avancement client
+        from .crm5657 import schedule as schedule5657
+        jobs.extend(schedule5657(desk,stamp))
+        from . import parcours5657
+        parcours5657.estimate_daily(desk,stamp)
+        if stamp-float(desk.settings('suivi5657:last',0) or 0)>=21600:
+            desk.setting('suivi5657:last',stamp)
+            parcours5657.propose_updates(desk)
+    except Exception as ex:   # noqa: BLE001 — ces propositions ne doivent pas interrompre la surveillance
+        emit(desk,'blocked','Parcours 5.6.57 : planification impossible ('+str(ex)[:120]+').',dedupe='parcours5657-schedule')
     try:   # 5.6.32 (R12) : veille juridique planifiée, au plus un travail par utilisateur et par créneau
         from .veille5632 import schedule as schedule5632
         jobs.extend(schedule5632(desk,stamp))

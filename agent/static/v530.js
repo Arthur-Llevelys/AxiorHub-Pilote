@@ -329,7 +329,8 @@
     if (ev.target.closest('[data-close]')) { closeDrawer(); return; }
     var act = ev.target.closest('[data-act]'); if (!act) return;
     var foot = act.closest('[data-item]'), id = foot.getAttribute('data-item'), name = act.getAttribute('data-act');
-    var done = function (res) { toast(res.message); closeDrawer(); part('review', '#c530-review'); part('feed', '#c530-feed'); part('thread', '.c530-thread-wrap'); };
+    var done = function (res) { toast(res.message); closeDrawer(); part('review', '#c530-review'); part('feed', '#c530-feed'); part('thread', '.c530-thread-wrap');
+      if (document.querySelector('#c5656-file')) { if (location.hash) { history.replaceState(null, '', location.pathname + location.search); } setTimeout(function () { location.reload(); }, 600); } };
     busy(act, true);
     if (name === 'revise') {
       var input = $('#c530-rev', drawer), key = $('input[name=key]', drawer);
@@ -339,6 +340,13 @@
     }
   });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !drawer.hidden) closeDrawer(); });
+  // 5.6.57 (A09) : la file unique ouvre un projet à relire par « #relire=<id> » ; après une action, la file est relue
+  function openFromHash() {
+    var m = /^#relire=(.+)$/.exec(location.hash || '');
+    if (m) { openItem(decodeURIComponent(m[1]), null); }
+  }
+  window.addEventListener('hashchange', openFromHash);
+  openFromHash();
 
   // ---------------------------------------------------------------- actualisation douce (pas quand l'onglet est caché)
   // 5.6.9 : relecture de secours espacée quand le flux en direct est connecté (il déclenche déjà les mises à jour).

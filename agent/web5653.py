@@ -16,7 +16,7 @@ from . import facturation5653 as fact
 from . import honoraires5653 as fees
 from . import modeles5653 as models
 
-READ = ('documents', 'document', 'apercu', 'resume', 'propositions', 'modeles', 'bibliotheque/modeles', 'bibliotheque/diligences', 'estimation/calculer')
+READ = ('documents', 'document', 'apercu', 'apercu-fichier', 'resume', 'propositions', 'modeles', 'bibliotheque/modeles', 'bibliotheque/diligences', 'estimation/calculer')
 SETTINGS = ('cabinet/enregistrer', 'honoraires/reglages', 'logo/importer', 'bibliotheque/importer')
 WRITE = ('client/enregistrer', 'client/siren', 'estimation/enregistrer', 'estimation/retenir', 'estimation/refuser', 'document/preparer', 'document/modifier',
          'document/controler', 'document/approuver', 'document/emettre', 'document/deposer', 'document/etat', 'document/abandonner', 'document/avoir',
@@ -108,6 +108,11 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out(fact.get(desk, str(args.get('id') or '')))
         if route == 'apercu':
             return json_out(fact.preview(desk, owner, role, str(args.get('id') or '')))
+        if route == 'apercu-fichier':                            # 5.6.57 : aperçu PDF réel (ou Word si LibreOffice est absent)
+            import base64
+            out = fact.preview_file(desk, owner, role, str(args.get('id') or ''))
+            return json_out({'download': {'name': out['name'], 'mime': out['mime'], 'base64': base64.b64encode(out['data']).decode('ascii')},
+                             'limite': out['limite']})
         if route == 'resume':
             return json_out(fact.matter_summary(desk, str(args.get('dossier') or '')))
         if route == 'propositions':
@@ -315,7 +320,7 @@ def _matter_options(desk, selected=''):
 VIEWS = (('tableau', 'Tableau de bord'), ('documents', 'Documents'), ('dossiers', 'Dossiers'), ('honoraires', 'Chiffrer une mission'),
          ('reglages', 'Réglages et modèles'))
 OLD_VIEWS = {'a-preparer': 'tableau', 'reglements': 'documents'}
-TYPE_LABELS = {'echue': 'Échue', 'a_emettre': 'À émettre', 'a_envoyer': 'À envoyer', 'brouillon': 'Brouillon', 'temps_a_facturer': 'Proposition',
+TYPE_LABELS = {'diligences': 'Diligences', 'echue': 'Échue', 'a_emettre': 'À émettre', 'a_envoyer': 'À envoyer', 'brouillon': 'Brouillon', 'temps_a_facturer': 'Proposition',
                'provision_prevue': 'Proposition', 'budget_proche': 'Alerte', 'sans_convention': 'Proposition'}
 DOC_FILTERS = (('', 'Tous'), ('brouillons', 'Brouillons'), ('a-emettre', 'À émettre'), ('impayees', 'Impayées'), ('emises', 'Émises'),
                ('engagements', 'Devis et conventions'))
@@ -343,6 +348,11 @@ def page(desk, auth, prefix, env, args):
         args = {**args, 'filtre': 'impayees'}
     head = _header(desk, prefix, owner, args)
     if args.get('document'):
+        try:   # 5.6.57 (A10) : point de reprise
+            from .reprise5657 import note as _note57
+            _note57(desk, owner, '/facturation', {'document': str(args['document'])})
+        except Exception:   # noqa: BLE001
+            pass
         try:
             body = document_html(desk, prefix, owner, role, str(args['document']))
         except Stop as ex:
@@ -399,6 +409,8 @@ def _row_action(prefix, item):
             _form('proposition/decider', _hidden(cle=item['proposition'], decision='refusee'), 'Ne plus proposer', cls='b53-inline ghost'),
             _form('dossier/perimetre', _hidden(dossier=item['matter'], decision='exclure'), 'Pas un dossier client', cls='b53-inline ghost'))
         return main + more
+    if item.get('lien'):                                        # 5.6.57 : diligences à confirmer dans la page du dossier
+        return '<a class="ax-btn" href="%s">%s</a>' % (e(prefix + item['lien'], quote=True), e(item['action']))
     return '<a class="ax-btn" href="%s">%s</a>' % (e('?' + urlencode({'document': item['document']}), quote=True), e(item['action']))
 
 
@@ -702,13 +714,15 @@ def document_html(desk, prefix, owner, role, doc_id):
             '<p class="b53-totals">HT %s · TVA %s · TTC %s%s · <strong>net à payer %s</strong></p></header><div class="b53-grid"><div class="b53-edit">%s%s'
             '<ul class="b53-issues">%s</ul>' + states + '<div class="b53-actions b53-doc-actions">%s</div>%s%s</div><div class="b53-preview-wrap"><p class="b53-note">Aperçu textuel %s '
             '— mise en page indicative : le Word et le PDF produits font foi.</p>'
-            '<section class="b53-preview%s" translate="no" lang="fr">%s</section></div></div></article></div>') % (
+            '<p class="b57-pdf"><button type="button" class="ax-btn ghost" data-b57-pdf="%s">Ouvrir l’aperçu PDF réel</button> '
+            '<span class="b53-note" role="status"></span></p><section class="b53-preview%s" translate="no" lang="fr">%s</section></div></div></article></div>') % (
         e(d['kind_label']), e(d['number'] or '(brouillon)'), e(prefix + '/dossier?' + urlencode({'id': d['matter'], 'vue': 'travaux'}), quote=True), e(matter_display(m)),
         e(cli.get('nom') or 'client à compléter'), e(d['state_label']), (' · ' + e(d['payment_label'])) if d['kind'] == 'facture' and d['number'] else '', d['version'],
         _money(t['ht_cents']), _money(t['tva_cents']), _money(t['ttc_cents']), (' · provisions facturées déduites ' + _money(t['deja_regle_cents'])) if t['deja_regle_cents'] else '',
         _money(t['net_a_payer_cents']), client_form, editor, issues or '<li class="ok">Aucun point bloquant.</li>', ''.join(actions),
         ('<h3>Fichiers dans FACTURATION</h3><ul class="b53-list">%s</ul>' % files) if files else '', struct_html,
-        'non fiscal (brouillon)' if not d['number'] or d['state'] in fact.EDITABLE else 'du document émis', '' if d['number'] and d['kind'] in ('facture', 'avoir') else ' b53-draft',
+        'non fiscal (brouillon)' if not d['number'] or d['state'] in fact.EDITABLE else 'du document émis', e(d['id'], quote=True),
+        '' if d['number'] and d['kind'] in ('facture', 'avoir') else ' b53-draft',
         markdown_html(preview_text))
 
 

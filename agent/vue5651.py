@@ -659,6 +659,11 @@ def travaux_html(desk, auth, prefix, m, args):
             '<li><strong>%s</strong> <span class="d51-badge">%s</span> <span class="ax-muted">%s</span><div>%s</div></li>' % (
                 e(g['expected']), e(memoire5651.GAP_KINDS.get(g['kind'], g['kind'])), e(memoire5651.BLOCKING[g['blocking']]), gap_form(g))
             for g in gaps[:30]) + '<p class="ax-muted">Les parties qui ne dépendent pas de ces informations continuent ; rien n’est inventé à leur place.</p>', 'd51-gaps')
+    try:   # 5.6.57 : préparation d'audience ou de rendez-vous, demande de pièces, point client, diligences proposées
+        from .parcours5657 import matter_html as _p57
+        out += _p57(desk, prefix, mid, owner)
+    except Stop:
+        pass
     ms = missions_of(desk, mid, owner, admin, prefix)
     out += _card('Missions', (''.join(card_html(x, prefix) for x in ms) or '<p class="ax-muted">Aucune mission pour ce dossier.</p>'), 'd51-missions')
     sid = str(args.get('relecture') or '')
@@ -720,24 +725,35 @@ def review_html(desk, prefix, mid, sid=''):
                               '<form class="m5-form d51-inline" data-api="m5651/relecture/decider" data-reload><input type="hidden" name="matter" value="%s">'
                               '<input type="hidden" name="id" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="action" value="refuser">'
                               '<button class="ax-btn ghost" type="submit">Refuser</button></form>'
-                              '<details><summary>Modifier</summary><form class="m5-form" data-api="m5651/relecture/decider" data-reload><input type="hidden" name="matter" value="%s">'
+                              '<details><summary>Reformuler</summary><form class="m5-form" data-api="m5651/relecture/decider" data-reload><input type="hidden" name="matter" value="%s">'
                               '<input type="hidden" name="id" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="action" value="modifier">'
                               '<label>Texte<textarea name="texte" rows="3" maxlength="8000">%s</textarea></label>'
                               '<label>Retenir cette correction pour<select name="portee"><option value="">Ne pas retenir</option><option value="document">Ce document</option>'
                               '<option value="dossier">Ce dossier</option><option value="style">Mon style habituel</option></select></label>'
                               '<label>Catégorie<select name="categorie"><option value="style">Style</option><option value="mise_en_forme">Mise en forme</option>'
                               '<option value="exactitude">Exactitude factuelle</option><option value="attribution">Attribution</option><option value="strategie">Stratégie</option></select></label>'
-                              '<button class="ax-btn ghost" type="submit">Enregistrer la modification</button><p role="status" class="m5-status"></p></form></details>') % (
+                              '<button class="ax-btn ghost" type="submit">Enregistrer ma formulation</button><p role="status" class="m5-status"></p></form></details>') % (
                         e(mid, quote=True), e(p['id'], quote=True), p['version'], e(mid, quote=True), e(p['id'], quote=True), p['version'],
                         e(mid, quote=True), e(p['id'], quote=True), p['version'], e(p['replacement']))
-                props.append('<li class="d51-prop d51-prop-%s"><div class="ax-muted">§%d · %s · %s%s%s</div><div class="d51-diff"><del>%s</del><ins>%s</ins></div>'
-                             '<p class="ax-muted">%s</p>%s</li>' % (
+                # 5.6.57 (A08) : passage d'origine et proposition côte à côte, motif et sources ; « Reformuler » à la place de « Modifier »
+                srcs = ''.join('<li>%s</li>' % e(PurePosixPath(str(x.get('path') or x.get('titre') or x.get('id') or '')).name or str(x.get('id') or ''))
+                               for x in (p['sources'] or [])[:6])
+                props.append(('<li class="d51-prop d51-prop-%s"><div class="ax-muted">§%d · %s · %s%s%s</div><div class="d51-diff d5657-sbs">'
+                             '<div><span class="d5657-lab">Passage d’origine</span><del>%s</del></div><div><span class="d5657-lab">Proposition</span><ins>%s</ins></div></div>'
+                             '<p class="d5657-why"><strong>Motif :</strong> %s</p>' + (('<details><summary>Sources (%d)</summary><ul>%s</ul></details>' % (len(p['sources']), srcs))
+                                                                                      if srcs else '<p class="ax-muted">Aucune source citée : vérifiez le passage.</p>') +
+                             '%s</li>') % (
                                  e(p['state']), p['para_index'] + 1, e(relecture5651.NATURES.get(p['nature'], p['nature'])),
                                  e(relecture5651.STATES.get(p['state'], p['state']) + (' · incluse dans la version %s' % ', '.join(str(n) for n in p['exports'])
                                                                                       if p['exports'] else '')),
                                  ' · <strong>source modifiée : à recontrôler</strong>' if p['a_recontroler'] else '', (' · ' + e(p['conflict'])) if p['conflict'] else '',
                                  e(p['expected'][:1500]), e(p['replacement'][:1500]), e(p['motif']), decide))
             accepted = sum(1 for p in s['proposals'] if p['state'] in ('acceptee', 'appliquee') and p['accepted_version'] == p['version'])
+            styles = sum(1 for p in s['proposals'] if p['nature'] == 'style' and p['state'] == 'proposee' and not p['a_recontroler'])
+            style_btn = ('<form class="m5-form d51-inline" data-api="m5657/relecture/style" data-reload><input type="hidden" name="matter" value="%s">'
+                         '<input type="hidden" name="session" value="%s"><button class="ax-btn ghost" type="submit">Accepter les %d modification(s) de formulation</button>'
+                         '<p class="ax-muted">Les faits, demandes et fondements juridiques restent à décider un par un.</p><p role="status" class="m5-status"></p></form>') % (
+                e(mid, quote=True), e(sid, quote=True), styles) if styles > 1 else ''
             apply_btn = ('<form class="m5-form" data-api="m5651/relecture/appliquer" data-reload><input type="hidden" name="matter" value="%s"><input type="hidden" name="session" value="%s">'
                          '<button class="ax-btn" type="submit">Créer une version avec les %d décision(s) acceptée(s) (cumulatives)</button>'
                          '<p class="ax-muted">Nouveau fichier à côté de l’original, en suivi des modifications Word ; l’original n’est pas modifié.</p>'
@@ -745,8 +761,8 @@ def review_html(desk, prefix, mid, sid=''):
             state_note = '' if s['state'] == 'terminee' else '<p class="d51-warn"%s>Propositions %s : relecture non finalisée.</p>' % (
                 ' data-d51-waiting' if s['state'] in ('en_attente', 'en_cours') else '', 
                 'en cours de génération' if s['state'] in ('en_attente', 'en_cours') else 'partielles')
-            detail = '<div id="d51-review"><h4>%s</h4>%s<ul class="d51-list">%s</ul>%s</div>' % (
-                e(PurePosixPath(s['path']).name), state_note, ''.join(props) or '<li class="ax-muted">Aucune proposition pour l’instant.</li>', apply_btn)
+            detail = '<div id="d51-review"><h4>%s</h4>%s%s<ul class="d51-list">%s</ul>%s</div>' % (
+                e(PurePosixPath(s['path']).name), state_note, style_btn, ''.join(props) or '<li class="ax-muted">Aucune proposition pour l’instant.</li>', apply_btn)
     return _card('Relecture Word', start + ('<ul class="d51-list">%s</ul>' % lst if lst else '') + detail, 'd51-relecture')
 
 
@@ -756,6 +772,11 @@ def page(desk, auth, prefix, args, shell):
     from . import modele5651
     mid = str(args.get('id') or args.get('matter') or '')
     m = _matter(desk, mid)
+    try:   # 5.6.57 (A10) : point de reprise
+        from .reprise5657 import note as _note57
+        _note57(desk, str(auth.get('owner') or 'cabinet'), '/dossier', {'id': m['id'], 'vue': str(args.get('vue') or '')})
+    except Exception:   # noqa: BLE001
+        pass
     view = str(args.get('vue') or '')
     view = ALIASES.get(view, view)
     if view not in dict(TABS):

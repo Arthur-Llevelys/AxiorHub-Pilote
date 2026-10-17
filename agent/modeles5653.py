@@ -50,7 +50,8 @@ def _catalog():
     out = []
     for item in raw:
         kind = CATALOG_KIND.get(item.get('type'), item.get('type'))
-        out.append({'id': 'defaut:' + item['id'], 'kind': kind, 'title': KINDS.get(kind, item['id']), 'version': item['version'], 'origin': 'defaut',
+        out.append({'id': 'defaut:' + item['id'], 'kind': kind, 'title': item.get('title') or KINDS.get(kind, item['id']), 'version': item['version'], 'origin': 'defaut',
+                    'presentation': item.get('presentation', ''), 'defaut': bool(item.get('defaut')),
                     'file': str(DATA / item['word']), 'markdown': str(DATA / item['markdown']), 'variables': item['variables'],
                     'line_variables': item.get('line_variables') or [], 'statut': item.get('statut'), 'author': 'AxiorHub (modèle de base)',
                     'checked_at': item['version'][:10], 'scope': 'cabinet', 'structured': bool(item.get('financial_structured_export_required'))})
@@ -86,7 +87,8 @@ def default_for(desk, kind):
         return imported[0]
     if not items:
         raise Stop('modele_absent')
-    return items[0]
+    preferred = [t for t in items if t.get('defaut')]           # 5.6.57 (§ 7.5) : présentation sobre par défaut pour les factures
+    return preferred[0] if preferred else items[0]
 
 
 # ------------------------------------------------------------------------------------------------ import contrôlé

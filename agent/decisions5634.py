@@ -222,6 +222,11 @@ def page(desk, auth, prefix, env, args, shell):
         if kind not in DETAIL_KINDS or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', ident):
             raise Stop('decision_absente')
         d = describe(desk, kind, ident, owner, role == 'administrateur')
+        try:   # 5.6.57 (A10) : point de reprise
+            from .reprise5657 import note as _note57
+            _note57(desk, owner, '/decision', {'type': kind, 'id': ident})
+        except Exception:   # noqa: BLE001
+            pass
     except Stop as ex:
         from .web440 import human
         return shell('Détail de la demande', '<h1>Détail de la demande</h1><p>%s</p><p><a class="ax-btn" href="%s">Retour à Aujourd’hui</a></p>' % (

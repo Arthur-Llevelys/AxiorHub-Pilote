@@ -1181,6 +1181,33 @@ def restore_copy(desk, actor, role, doc_id):
     return get(desk, doc_id)
 
 
+def preview_file(desk, actor, role, doc_id):
+    """5.6.57 (§ 7.5) : aperçu PDF RÉEL — le même Word que celui qui sera produit (mention « BROUILLON » avant émission), converti par
+    LibreOffice ; un document émis rend ses fichiers originaux. Sans LibreOffice : le Word est rendu, avec cette limite indiquée."""
+    d = get(desk, doc_id)
+    issued = bool(d['number'] and d['kind'] in ('facture', 'avoir'))
+    stem = _safe_name('%s %s' % (KINDS.get(d['kind'], 'Document'), d['number'] or 'brouillon')) or 'apercu'
+    if issued:
+        files, _ = issued_files(desk, d)
+        if files.get('pdf'):
+            return {'name': stem + '.pdf', 'mime': 'application/pdf', 'data': files['pdf'], 'limite': ''}
+        docx = files.get('docx')
+    else:
+        ent, cli = render_inputs(desk, d)
+        template = models.get(desk, d['template_id'])
+        docx, _ = models.render_docx(template, _values(desk, d, ent, cli, number=d['number'] or '', issue_date=d['issue_date']), _line_values(d),
+                                     models.logo(desk), draft=True)
+    from . import facturx5653 as fx
+    try:
+        pdf = fx.office_pdf(docx) if docx else None
+    except Stop:
+        pdf = None
+    if pdf:
+        return {'name': stem + '.pdf', 'mime': 'application/pdf', 'data': pdf, 'limite': ''}
+    return {'name': stem + '.docx', 'mime': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'data': docx or b'',
+            'limite': 'LibreOffice absent : aperçu fourni au format Word (mise en page identique au document produit).'}
+
+
 def export_draft(desk, actor, role, doc_id):
     """Brouillon ou document non fiscal (devis, convention, lettre) déposé dans FACTURATION en Word (et PDF si possible)."""
     _require(desk, actor, role, 'facturation')

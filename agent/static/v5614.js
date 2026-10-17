@@ -57,6 +57,17 @@
     else if (lastFocus && lastFocus.isConnected) lastFocus.focus();
   }
   open?.addEventListener('click', () => showPanel(panel.hidden));
+  // 5.6.57 (A09) : « Ouvrir » d'une décision dans la file unique : panneau d'action ouvert sur la carte de cette décision
+  function openDecision() {
+    const m = /^#decision=(.+)$/.exec(location.hash || '');
+    if (!m || !panel) return;
+    showPanel(true);
+    const key = decodeURIComponent(m[1]);
+    const card = [...panel.querySelectorAll('.c5614-card')].find(c => c.dataset.key === key);
+    if (card) { card.scrollIntoView({block: 'center'}); card.focus(); }
+  }
+  window.addEventListener('hashchange', openDecision);
+  openDecision();
   close?.addEventListener('click', () => showPanel(false));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && panel && !panel.hidden) showPanel(false); });
   const badge = () => {

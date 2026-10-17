@@ -1,0 +1,35 @@
+{
+  "version": "5.6.57",
+  "base": "5.6.56 publiée",
+  "date_utc": "2026-10-17T00:00:00+00:00",
+  "cahier_des_charges": "Demande du cabinet du 17 octobre 2026 : parcours 1, 2 et 3 (audit 5.6.55, § 15 : A01, A08, A09, A05, § 7.5) ; collecte des contacts depuis la boîte (§ 8.3) ; préparation d’audience ou de rendez-vous (A04) ; demande de pièces guidée (A03) ; point d’avancement client (A06) ; recherche transversale et reprise (A10).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2438,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 102,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5657.py : file unique (décisions et projets, « Relu » partout, même objet dans le dossier) ; états réels et vue d’ensemble ; versions de brouillon (code sans autorisation, création sans écrasement avec autorisation) ; droits des routes ; présentations de facture et défaut ; aperçu PDF réel ou Word ; diligences proposées puis confirmées ; préparation versionnée ; demande de pièces regroupée, rapprochée, lacune résolue ; dépôt jamais au cabinet ; point client proposé, refusé, fréquence ; collecte des contacts (exclusions, curseur, UIDVALIDITY, correction conservée) ; point de reprise revérifié ; recherche facturation.",
+  "exapp": {
+    "version": "0.1.16",
+    "moteur": "5.6.57"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Aujourd’hui : le centre « À décider » et le cadre « À relire » rejoignent la file unique (bas de page) ; carte « Reprendre là où j’en étais ».",
+    "Factures : nouvelle présentation sobre par défaut pour les nouveaux documents (les brouillons existants gardent leur modèle).",
+    "Projets documentaires : avec l’autorisation « documents5657:brouillons_auto », création immédiate d’une nouvelle version (noms _v2, _v3…).",
+    "Cycle de surveillance : diligences proposées une fois par jour ; points d’avancement client vérifiés toutes les six heures ; collecte des contacts si activée.",
+    "CRM : nouvelle catégorie « À classer »."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5653.py::Templates.test_huit_modeles_et_import_controle : 11 modèles livrés (3 présentations de facture ajoutées).",
+    "tests/test_v5617.py et tests/test_v5619.py (ordre d’Aujourd’hui) : repère « À relire » remplacé par la file unique, où les projets à relire sont désormais affichés."
+  ]
+}

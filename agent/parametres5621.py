@@ -135,9 +135,21 @@ def _routines(desk, auth, prefix, env, cap):
     return body
 
 
+def _auto_versions_html(desk):
+    """5.6.57 : autorisation des nouvelles versions de brouillon (création de fichiers de travail seulement)."""
+    on = bool(desk.settings('documents5657:brouillons_auto', False))
+    return ('<section class="ax-card" id="brouillons5657"><h2>Nouvelles versions de brouillon</h2><p class="ax-muted">Autorisez une fois l’agent à créer '
+            'lui-même la nouvelle version de travail d’un projet (conclusions, courrier, contrat…) dans le sous-dossier de brouillons du dossier. '
+            'Il ne remplace jamais un fichier, n’envoie rien, ne dépose rien et ne signe rien ; le contenu reste à relire.</p>'
+            '<form class="m5-form" data-api="m5657/documents/auto" data-reload><label class="r52-day"><input type="checkbox" name="actif"%s> '
+            'Créer automatiquement les nouvelles versions de brouillon</label><button class="ax-btn" type="submit">Enregistrer</button>'
+            '<p role="status" class="m5-status"></p></form></section>') % (' checked' if on else '')
+
+
 def _documents(desk, auth, prefix, env, cap):
     from . import web440, web_rules568
     body = _section(web440.settings_page(desk, auth, prefix, {}, render=cap))
+    body += _section(_auto_versions_html(desk))                 # 5.6.57 : nouvelles versions de brouillon
     body += _section(web_rules568.agendas(desk, auth, prefix, {}, shell=cap))
     body += _section(_legacy(desk, prefix, auth['csrf'], 'modeles'), 'Modèles Word')
     body += _section(_links(prefix, (('/modeles-word', 'Documents du cabinet'), ('/modeles', 'Modèles et livrables'))))

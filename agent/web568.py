@@ -176,6 +176,12 @@ def page(desk,auth,prefix,env,path):
         from .audience5613 import page as audience_page    # 5.6.13
         return audience_page(desk,auth,prefix,env,env.get('axiorhub.args',{}))
     if path=='/missions-complexes':
+        if env.get('axiorhub.args',{}).get('id'):   # 5.6.57 (A10) : point de reprise
+            try:
+                from .reprise5657 import note as _note57
+                _note57(desk,str(auth.get('owner') or 'cabinet'),'/missions-complexes',{'id':str(env['axiorhub.args']['id'])})
+            except Exception:   # noqa: BLE001
+                pass
         from .missions5614_ui import page as missions_page   # 5.6.14
         return missions_page(desk,auth,prefix,env,env.get('axiorhub.args',{}))
     if path=='/profils':

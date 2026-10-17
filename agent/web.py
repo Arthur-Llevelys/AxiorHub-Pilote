@@ -135,7 +135,7 @@ JOB_LABELS = {'microsoft5636': 'Agenda Microsoft 365 : copie et lecture des rend
               'sync':'Découverte des dossiers et correspondants','approve':'Confirmation d’association',
               'reject':'Rejet d’une proposition','associate':'Enregistrement d’un correspondant',
               'remove_contact':'Retrait d’une association','retry':'Reprise d’un courriel',
-              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier',
+              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier','crm_collecte5657':'Contacts tirés de la boîte mail',
               'review':'Préparation des points à décider','forget':'Oubli d’un exemple',
               'run':'Analyse des nouveaux courriels','learn':'Apprentissage des réponses envoyées',
               'discover':'Parcours des dossiers','browse':'Recherche dans Nextcloud',
@@ -1382,6 +1382,11 @@ class App:
                 except Exception:   # noqa: BLE001 — la file ne doit jamais empêcher l'affichage du poste de pilotage
                     pass
                 # 5.6.56 (audit 5.6.55, N02) : la file est rendue EN BAS du poste de pilotage, dans son conteneur (même largeur que les routines)
+                try:   # 5.6.57 (A09) : cartes d'action des décisions de l'agent, ouvertes depuis la file (pas de seconde liste)
+                    from .aujourdhui5614 import decisions_html as _dec57
+                    queue56+='<div class="c5657-actions-panel">'+_dec57(desk,str(auth.get('owner') or 'cabinet'),prefix)+'</div>'
+                except Exception:   # noqa: BLE001
+                    pass
                 main+=(cockpit_page(desk,prefix,owner=str(auth.get('owner') or 'cabinet'),queue=queue56)+'<div id="ax-toast" role="status" aria-live="polite"></div>'
                        '<script defer src="'+e(prefix)+'/static/v500.js"></script><script defer src="'+e(prefix)+'/static/v530.js"></script>'
                        '<script defer src="'+e(prefix)+'/static/v550.js"></script><script defer src="'+e(prefix)+'/static/v569.js"></script>')

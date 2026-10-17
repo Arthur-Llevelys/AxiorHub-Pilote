@@ -49,9 +49,20 @@ def recherche_page(desk, auth, prefix, args, shell):
             '<fieldset class="cf-kinds"><legend>Sources</legend>%s</fieldset></form>'
             '<div id="cf-status" class="vf-note" role="status" aria-live="polite"></div>'
             '<div id="cf-results" class="cf-results" aria-live="polite"></div>'
-            '<details class="cf-index"><summary>État de l’index</summary>%s</details>') % (
-        e(args.get('q', ''), quote=True), _matter_options(desk, args.get('matter', '')), kinds, index_html(st))
+            '%s<details class="cf-index"><summary>État de l’index</summary>%s</details>') % (
+        e(args.get('q', ''), quote=True), _matter_options(desk, args.get('matter', '')), kinds, _extra5657(desk, args.get('q', ''), prefix), index_html(st))
     return shell('Recherche', body, prefix, auth['csrf'], '/recherche')
+
+
+def _extra5657(desk, q, prefix):
+    """5.6.57 (A10) : documents de facturation et décisions enregistrées du cabinet correspondant à la recherche."""
+    if not str(q or '').strip():
+        return ''
+    try:
+        from .reprise5657 import search_html
+        return search_html(desk, str(q), prefix)
+    except Exception:   # noqa: BLE001
+        return ''
 
 
 def index_html(st):

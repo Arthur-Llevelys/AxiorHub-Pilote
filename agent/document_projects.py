@@ -291,6 +291,27 @@ def _outputs(matter,document_type,destination,day):
     return [clean_path(destination+'/'+name) for name in names]
 
 
+def auto_versions_allowed(desk,args):
+    """5.6.57 (A01, § 4.4) : autorisation donnée UNE fois (cabinet, réglage « documents5657:brouillons_auto ») ou par la mission
+    (« autorisation_mission »). Elle vaut pour la création d'une NOUVELLE version de travail dans le sous-dossier de brouillons du
+    dossier (jamais d'écrasement, jamais d'envoi, de dépôt ni de signature) ; elle ne vaut pas validation juridique du contenu."""
+    if str(args.get('auto_version','')).lower() in ('non','false','0'):return False
+    return bool(desk.settings('documents5657:brouillons_auto',False)) or str(args.get('autorisation_mission','')).lower() in ('oui','true','1')
+
+
+def _unique_outputs(client,destination,outputs):
+    """Noms libres dans le dossier de destination : une version existante n'est jamais remplacée (suffixe _v2, _v3…)."""
+    try:present={PurePosixPath(x['path']).name for x in client.list_folder(destination) if not x.get('directory')}
+    except (Stop,KeyError,TypeError,AttributeError):present=set()
+    out=[]
+    for path in outputs:
+        p=PurePosixPath(path);name=p.name;n=2
+        while name in present:
+            name='%s_v%d%s'%(p.stem,n,p.suffix);n+=1
+        present.add(name);out.append(str(p.parent/name))
+    return out
+
+
 def prepare(desk,args,dav=None,model=None):
     ensure_schema(desk)
     if not desk.c.get('document_projects',{}).get('enabled',True):raise Stop('projets_documentaires_desactives')
@@ -395,6 +416,8 @@ def prepare(desk,args,dav=None,model=None):
     if not under(destination,matter['path']) or destination==clean_path(matter['path']):
         raise Stop('destination_documents_invalide')
     day=datetime.now(timezone.utc).date().isoformat();outputs=_outputs(matter,document_type,destination,day)
+    auto_version=auto_versions_allowed(desk,args)
+    if auto_version:outputs=_unique_outputs(client,destination,outputs)   # 5.6.57 : nouvelle version, jamais d'écrasement
     code=f'{secrets.randbelow(1_000_000):06d}'
     data={'proposal_id':pid,'matter':matter,'document_type':document_type,
       'document_label':DOCUMENT_TYPES[document_type][0],'instruction':instruction,
@@ -462,6 +485,14 @@ def prepare(desk,args,dav=None,model=None):
       'type':document_type,'source_sha256':source['sha256'],'preview_hash':preview_hash,
       'automatic':data['automatic'],'control_status':control['status']})
     preview=_public(data,created,expires,project_status,preview_hash)
+    if project_status=='pending' and auto_version:
+        # 5.6.57 : périmètre autorisé — la nouvelle version de travail est créée tout de suite, sans code à recopier ; mêmes contrôles
+        # que la confirmation manuelle (source inchangée, destination dans le dossier, fichiers nouveaux, journal de reprise).
+        result=confirm_creation(desk,{'project_id':pid,'confirmation_code':code,'destination_folder':destination,'source_path':source['path']},dav=client)
+        desk.audit('document_version_auto',{'project':pid,'matter':matter['id'],'files':[x['path'] for x in result.get('created_files',[])]})
+        preview['auto_creation']=result;preview['status']='done' if result.get('created_files') else preview.get('status')
+        preview['confirmation_instructions']='Nouvelle version de travail créée dans le dossier (création autorisée) : relisez-la ; rien n’a été envoyé ni déposé.'
+        return preview
     if project_status=='pending':
         preview['confirmation_code']=code
         preview['confirmation_instructions']='Recopier le code et confirmer exactement le fichier source et le dossier de destination. Aucun fichier n\'est encore créé.'

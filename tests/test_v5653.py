@@ -288,7 +288,7 @@ class Payments(base.Base):
 
 class Templates(unittest.TestCase):
     def test_huit_modeles_et_import_controle(self):
-        self.assertEqual(len(models._catalog()), 8)
+        self.assertEqual(len(models._catalog()), 11)                       # 5.6.57 : trois présentations de facture ajoutées
         good = io.BytesIO()
         with zipfile.ZipFile(good, 'w') as z:
             z.writestr('[Content_Types].xml', '<Types/>')

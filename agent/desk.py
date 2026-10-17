@@ -111,7 +111,7 @@ USER_JOBS |= {'proactive34_now'}
 USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
               'billing_review35','classify_comparable35'}
 USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
-JOBS |= {'recit5651','relecture5651','routine5652','actualiser5655'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
+JOBS |= {'recit5651','relecture5651','routine5652','actualiser5655','crm_collecte5657'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
 USER_JOBS |= {'recit5651','relecture5651','routine5652'}
 JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
 USER_JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}
@@ -817,6 +817,9 @@ class Desk:
             return None
 
     def perform(self, kind, args):
+        if kind=='crm_collecte5657':   # 5.6.57 (§ 8.3) : contacts alimentés par la boîte mail, passage borné et reprenable
+            from .crm5657 import collect
+            return collect(self)
         if kind=='actualiser5655':   # 5.6.55 : actualisation différée des données structurées d'un dossier (faible priorité)
             from .modele5651 import ensure_current
             return ensure_current(self,str(args.get('matter') or ''))

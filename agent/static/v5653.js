@@ -106,6 +106,28 @@
     });
     box.appendChild(list);
   }
+  /* 5.6.57 (§ 7.5) : aperçu PDF RÉEL du document, produit depuis le même Word ; ouvert dans un nouvel onglet (téléchargé si le
+     navigateur bloque l'ouverture). */
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-b57-pdf]');
+    if (!b) { return; }
+    var note = b.parentNode.querySelector('[role=status]');
+    b.disabled = true;
+    if (note) { note.textContent = 'Préparation de l’aperçu…'; }
+    fetch(prefix + '/api440/m5653/apercu-fichier?id=' + encodeURIComponent(b.getAttribute('data-b57-pdf')), {credentials: 'same-origin'})
+      .then(function (r) { return r.json().then(function (v) { if (!r.ok) { throw new Error(v.message || v.error); } return v; }); })
+      .then(function (v) {
+        var d = v.download;
+        var blob = new Blob([Uint8Array.from(atob(d.base64), function (c) { return c.charCodeAt(0); })], {type: d.mime});
+        var url = URL.createObjectURL(blob);
+        var win = d.mime === 'application/pdf' ? window.open(url, '_blank') : null;
+        if (!win) { var a = document.createElement('a'); a.href = url; a.download = d.name; document.body.appendChild(a); a.click(); a.remove(); }
+        if (note) { note.textContent = v.limite || (win ? 'Aperçu ouvert dans un nouvel onglet.' : 'Aperçu téléchargé.'); }
+        setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      })
+      .catch(function (e) { if (note) { note.textContent = e.message; } })
+      .then(function () { b.disabled = false; });
+  });
   document.addEventListener('click', function (ev) {
     var btn = ev.target.closest && ev.target.closest('[data-b53-calc]');
     if (!btn) { return; }

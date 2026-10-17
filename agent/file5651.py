@@ -25,9 +25,12 @@ CREATE TABLE IF NOT EXISTS d51_queue_log(id INTEGER PRIMARY KEY AUTOINCREMENT, k
 STATES = {'a_examiner': 'À examiner', 'approuve': 'Approuvé', 'refuse': 'Refusé', 'reporte': 'Reporté', 'remplace': 'Remplacé', 'perime': 'Périmé'}
 CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des documents', 'informations': 'Informations proposées',
            'contradiction': 'Contradiction', 'lacune': 'Information nécessaire', 'relecture': 'Modifications proposées',
-           'livrable': 'Projet à relire', 'strategie': 'Choix stratégique', 'engagement': 'Envoi ou engagement à valider'}
-FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement'), 'relire': ('relecture', 'livrable')}
-NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement')     # choix stratégiques et engagements : jamais en validation regroupée
+           'livrable': 'Projet à relire', 'strategie': 'Choix stratégique', 'engagement': 'Envoi ou engagement à valider',
+           # 5.6.57 (A09) : décisions attendues par l'agent et projets à relire d'Aujourd'hui, désormais dans la même file
+           'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire'}
+FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent'),
+           'relire': ('relecture', 'livrable', 'projet')}
+NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent')     # choix stratégiques et engagements : jamais en validation regroupée
 
 
 def _now():
@@ -122,7 +125,7 @@ def _items_for(desk, prefix, m):
 def _global_items(desk, prefix, actor, role):
     """5.6.52 : éléments du cabinet sans dossier — comptes rendus de routines (R06) et opérations de connexion à valider (I…)."""
     found = []
-    for module in ('routines5652', 'connexions5652', 'facturation5653'):
+    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657'):
         try:
             mod = __import__('agent.' + module, fromlist=['queue_items'])
             found += mod.queue_items(desk, prefix, actor, role)
@@ -167,6 +170,8 @@ def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_clo
             continue
     if matter is None or matter == '':
         batches.append(_global_items(desk, prefix, actor, role))
+    else:                                                      # 5.6.57 (A09) : mêmes objets dans la page du dossier
+        batches.append([g for g in _global_items(desk, prefix, actor, role) if str(g.get('matter') or '') == str(matter)])
     for found in batches:
         for it in found:
             if view and it['class'] not in FILTERS.get(view, ()):

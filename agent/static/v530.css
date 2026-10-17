@@ -142,3 +142,19 @@ aside details.ws-rubriques .ws-sub a{padding:7px 13px;font-size:.92rem}
 /* 5.6.56 (audit 5.6.55, N02, § 5.3) : veille et file unique sur toute la largeur du contenu d'Aujourd'hui */
 .c530 .c5656-wide,.c530 .c5656-queue{grid-column:1/-1;width:100%;max-width:none;box-sizing:border-box;margin-top:16px}
 .c530 .c5656-queue>*{max-width:none;width:100%;box-sizing:border-box}
+/* 5.6.57 (A01, A09) : état réel des travaux ; deux colonnes sans le cadre « À relire » (rejoint la file unique) */
+.c530 .c5657-etat{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:.75rem;font-weight:600;background:var(--ax-surface-2,#eef1f6);color:var(--ax-text,#1f2430);border:1px solid var(--ax-line,#d8dde6)}
+.c530 .c5657-cols{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:820px){.c530 .c5657-cols{grid-template-columns:minmax(0,1fr)}}
+.e5657-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:10px 0}
+.e5657-grid>div{border:1px solid var(--ax-line,#d8dde6);border-radius:8px;padding:8px 10px}
+.e5657-grid dt{font-size:.8rem;color:var(--ax-muted,#5b6472)}.e5657-grid dd{margin:2px 0 0;font-weight:600}
+.e5657-problems{margin:6px 0;padding-left:18px;color:var(--ax-danger,#a3261b)}
+/* 5.6.57 : la file unique est la seule liste ; le centre « À décider » ne garde que son panneau d'action */
+.c5657-actions-panel .c5614-summary{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.c5657-actions-panel .c5614-decisions{border:0;padding:0;margin:0;background:none;box-shadow:none}
+/* 5.6.57 (A10) : reprise et recherche transversale */
+.r5657-search{display:flex;gap:8px;margin:6px 0 10px}.r5657-search input{flex:1;min-width:0}
+.r5657-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}.r5657-list a{font-weight:600}
+@media (max-width:1150px){.c530 .c5657-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:820px){.c530 .c5657-cols{grid-template-columns:minmax(0,1fr)}}

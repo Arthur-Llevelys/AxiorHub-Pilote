@@ -17,7 +17,8 @@ import uuid
 from .common import Stop, load_matters, matter_display
 
 CATEGORIES = {'client': 'Client', 'partie_adverse': 'Partie adverse', 'confrere': 'Confrère', 'juridiction': 'Juridiction',
-              'commissaire': 'Commissaire de justice', 'expert': 'Expert', 'prospect': 'Prospect', 'autre': 'Autre'}
+              'commissaire': 'Commissaire de justice', 'expert': 'Expert', 'prospect': 'Prospect', 'autre': 'Autre',
+              'a_classer': 'À classer'}                       # 5.6.57 : contacts collectés depuis la boîte, rôle non deviné
 ROLES = {'client': 'Client', 'partie_adverse': 'Partie adverse', 'avocat_adverse': 'Avocat de la partie adverse', 'confrere': 'Confrère',
          'juridiction': 'Juridiction', 'commissaire': 'Commissaire de justice', 'expert': 'Expert', 'dirigeant': 'Dirigeant',
          'associe': 'Associé', 'temoin': 'Témoin', 'autre': 'Autre'}
@@ -356,6 +357,11 @@ def page_html(desk, prefix, args):
     first = '' if desk.settings('crm5636:import', '') else (
         '<div class="notice">Le répertoire est vide ou récent : <form class="m5-form m5-inline" data-api="m5636/contacts/importer" data-reload="1">'
         '<button class="ax-btn" type="submit">Importer les correspondants et parties des dossiers</button></form></div>')
+    try:   # 5.6.57 (§ 8.3) : alimentation progressive depuis la boîte mail
+        from .crm5657 import panel_html as _crm57
+        first += _crm57(desk, prefix)
+    except Exception:   # noqa: BLE001
+        pass
     return ('<h1>Contacts & CRM</h1><p class="ax-muted">Clients, parties, confrères, juridictions et experts, reliés à chaque dossier avec leur rôle. '
             'Rien n’est envoyé à l’extérieur.</p>%s<form method="get" class="crm-search"><input type="search" name="q" value="%s" placeholder="Nom, société, '
             'courriel, téléphone, SIREN…" aria-label="Rechercher un contact"><select name="dossier" aria-label="Dossier"><option value="">Tous les dossiers</option>%s'

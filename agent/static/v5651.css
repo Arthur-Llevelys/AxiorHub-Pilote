@@ -91,3 +91,16 @@
  :root:not([data-theme="light"]) .d51-warn{background:#3a2a12;border-color:#7a5a20;color:#ffd9a0}
  :root:not([data-theme="light"]) .d51-diff del{background:#3b1d1d;color:#fecaca}:root:not([data-theme="light"]) .d51-diff ins{background:#14301f;color:#bbf7d0}}
 @media (max-width:900px){.d51-grid{grid-template-columns:1fr}.d51-table thead{display:none}.d51-table td{display:block;border:0;padding:2px 0}.d51-table tr{display:block;border-bottom:1px solid var(--ws-border,#e5eaf2);padding:6px 0}.d51-table td[data-label]::before{content:attr(data-label) " : ";font-weight:600;color:var(--ws-muted,#475569)}.d51-dl{grid-template-columns:1fr}}
+/* 5.6.57 (A08) : relecture Word — passage d'origine et proposition côte à côte */
+.d51-diff.d5657-sbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.d5657-sbs>div{border:1px solid var(--ax-line,#d8dde6);border-radius:8px;padding:8px 10px;min-width:0;overflow-wrap:anywhere}
+.d5657-sbs del,.d5657-sbs ins{display:block;text-decoration:none}.d5657-sbs del{color:var(--ax-muted,#5b6472)}
+.d5657-lab{display:block;font-size:.75rem;font-weight:600;color:var(--ax-muted,#5b6472);margin-bottom:4px}
+.d5657-why{margin:6px 0}
+@media (max-width:700px){.d51-diff.d5657-sbs{grid-template-columns:minmax(0,1fr)}}
+/* 5.6.57 : fiche de préparation, demandes de pièces, point client */
+.p57-pack{border:1px solid var(--ax-line,#d8dde6);border-radius:10px;padding:10px 12px;margin:10px 0}
+.p57-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.p57-grid h4{margin:4px 0}.p57-grid ul{margin:0;padding-left:18px}
+.p57-text{white-space:pre-wrap;font-family:inherit;background:var(--ax-surface-2,#f5f7fa);padding:8px;border-radius:6px;max-width:100%;overflow-wrap:anywhere}
+.p57-req,.p57-up{border-top:1px solid var(--ax-line,#d8dde6);padding:8px 0}

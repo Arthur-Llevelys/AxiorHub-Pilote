@@ -44,7 +44,7 @@ class TodayLayout(t14.Base):
         self.assertLess(body.index('id="c5614-routines"'),body.index('id="c530-routines"'))      # barre compacte, puis le cadre complet
         self.assertLess(body.index('id="c530-routines"'),body.index('data-legacy-composer'))     # cadre des routines en tête (5.6.19 : Pilote flottant)
         self.assertLess(body.index('id="c530-style"'),body.index('data-legacy-composer'))
-        self.assertLess(body.index('id="c530-routines"'),body.index('id="c530-review"'))
+        self.assertLess(body.index('id="c530-routines"'),body.index('id="c5656-file"'))   # 5.6.57 : « À relire » rejoint la file unique
         self.assertEqual(body.count('id="c530-routines"'),1)
         js=(ROOT/'agent'/'static'/'v567.js').read_text(encoding='utf-8')
         self.assertIn("if (embedded) { dock.scrollIntoView",js);self.assertNotIn("launcher.hidden = true",js)
