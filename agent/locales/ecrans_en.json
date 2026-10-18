@@ -6524,5 +6524,22 @@
 "Analyse interrompue": "Analysis interrupted",
 "Interrompus": "Interrupted",
 "Analyses automatiques interrompues (#) — rien n’est perdu ; relancez ou écartez": "Interrupted automatic analyses (#) — nothing is lost; restart or dismiss",
-"Rien d’autre à décider ni à relire.": "Nothing else to decide or review."
+"Rien d’autre à décider ni à relire.": "Nothing else to decide or review.",
+"ChatGPT (votre abonnement)": "ChatGPT (your subscription)",
+"Continuer avec ChatGPT": "Continue with ChatGPT",
+"Confidentialité : à lire avant de connecter": "Confidentiality: read before connecting",
+"Gérer l’usage": "Manage usage",
+"Modèle ChatGPT": "ChatGPT model",
+"Utiliser ChatGPT dans AxiorHub": "Use ChatGPT in AxiorHub",
+"J’autorise l’envoi des textes, pseudonymisés, à OpenAI": "I allow texts to be sent, pseudonymised, to OpenAI",
+"Actualiser la liste des modèles": "Refresh the model list",
+"Après la connexion (AxiorHub installé sur un serveur)": "After signing in (AxiorHub installed on a server)",
+"Adresse affichée après l’accord": "Address shown after consent",
+"Terminer la connexion": "Complete the connection",
+"Vous utilisez votre abonnement ChatGPT.": "You’re using your ChatGPT plan.",
+"J’ai compris": "Got it",
+"Documents concernés (non communiqués au client)": "Documents concerned (not sent to the client)",
+"utilisation de l’abonnement autorisée": "subscription use allowed",
+"Compte connecté :": "Connected account:",
+"Vérifier maintenant": "Check now"
 }

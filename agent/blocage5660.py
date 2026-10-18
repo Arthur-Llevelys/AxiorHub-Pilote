@@ -119,6 +119,72 @@ def watchdog(desk, ref=None):
 
 
 # ------------------------------------------------------------------------------------------------ diagnostic
+def _hours(seconds):
+    seconds = int(seconds)
+    return '%d h %02d' % (seconds // 3600, seconds % 3600 // 60) if seconds >= 3600 else '%d min' % max(1, seconds // 60)
+
+
+def _load_24h(rows, ref):
+    """5.6.62 : temps de travail des workers sur 24 h, par type de travail (durée = fin − début) ; None sans données."""
+    since = (ref - timedelta(hours=24)).isoformat()
+    totals, counts, workers = {}, {}, set()
+    try:
+        found = rows("SELECT kind,started,finished,worker FROM jobs WHERE finished>=? AND started IS NOT NULL AND started<>''", (since,))
+    except Exception:   # noqa: BLE001 — colonnes absentes (base ancienne)
+        return None
+    for r in found:
+        try:
+            a, b = datetime.fromisoformat(str(r['started'])), datetime.fromisoformat(str(r['finished']))
+        except (TypeError, ValueError):
+            continue
+        if a.tzinfo is None:
+            a = a.replace(tzinfo=timezone.utc)
+        if b.tzinfo is None:
+            b = b.replace(tzinfo=timezone.utc)
+        seconds = max(0.0, min((b - a).total_seconds(), 24 * 3600))
+        totals[r['kind']] = totals.get(r['kind'], 0) + seconds
+        counts[r['kind']] = counts.get(r['kind'], 0) + 1
+        if r['worker']:
+            workers.add(str(r['worker']))
+    total = sum(totals.values())
+    if total < 60:
+        return None
+    n = max(1, len(workers))
+    top = sorted(totals.items(), key=lambda kv: -kv[1])[:4]
+    return {'ratio': min(1.0, total / (n * 24 * 3600)), 'total': _hours(total), 'workers': n,
+            'top': ' ; '.join('%s : %s en %d fois' % (_kind_label(k), _hours(s), counts[k]) for k, s in top)}
+
+
+def _kind_label(kind):
+    """5.6.62 : libellé en clair du type de travail (code entre parenthèses pour le support)."""
+    try:
+        from .web import JOB_LABELS
+        label = JOB_LABELS.get(kind)
+    except Exception:   # noqa: BLE001 — diagnostic autonome : le code suffit
+        label = None
+    return '%s (%s)' % (label, kind) if label else kind
+
+
+def _top_reasons(rows, kind, since):
+    """5.6.62 : motifs des échecs, du plus fréquent au moins fréquent (3 au plus), en clair."""
+    counts = {}
+    for r in rows("SELECT result FROM jobs WHERE status='error' AND kind=? AND finished>=? ORDER BY id DESC LIMIT 200", (kind, since)):
+        try:
+            data = json.loads(r['result'] or '{}')
+        except (ValueError, TypeError):
+            data = {}
+        code = str((data.get('erreur') or data.get('error') or data.get('code') or 'motif non enregistré') if isinstance(data, dict) else data)[:120]
+        counts[code] = counts.get(code, 0) + 1
+    if not counts:
+        return ''
+    try:
+        from .erreurs5634 import MESSAGES
+    except Exception:   # noqa: BLE001
+        MESSAGES = {}
+    top = sorted(counts.items(), key=lambda kv: -kv[1])[:3]
+    return ' Motifs : ' + ' ; '.join('%s (%d)' % (MESSAGES.get(c, c), n) for c, n in top) + '.'
+
+
 def diagnose(db, state_dir, ref=None):
     """Blocages connus, du plus grave au moins grave. ``db`` : connexion sqlite3 (``row_factory = sqlite3.Row``), lecture seule suffit."""
     ref = ref or now_utc()
@@ -200,7 +266,15 @@ def diagnose(db, state_dir, ref=None):
         add('demande_en_attente', 'attention', 'Une demande attend depuis %d min' % user_age, 'Demandes de l’avocat (priorité haute) non démarrées.')
     for r in rows("SELECT kind,COUNT(*) n,MAX(finished) last FROM jobs WHERE status='error' AND finished>=? GROUP BY kind HAVING n>=3 ORDER BY n DESC LIMIT 5",
                   ((ref - timedelta(hours=24)).isoformat(),)):
-        add('echecs_repetes', 'attention', '%d échecs de « %s » en 24 h' % (r['n'], r['kind']), 'Dernier : %s.' % str(r['last'])[:16].replace('T', ' '))
+        add('echecs_repetes', 'attention', '%d échecs de « %s » en 24 h' % (r['n'], _kind_label(r['kind'])),
+            'Dernier : %s.%s' % (str(r['last'])[:16].replace('T', ' '), _top_reasons(rows, r['kind'], (ref - timedelta(hours=24)).isoformat())))
+    load = _load_24h(rows, ref)
+    if load:
+        add('charge_ia', 'attention' if load['ratio'] >= 0.75 else 'info',
+            'Charge des workers sur 24 h : %d %% (%s de travail pour %d worker(s))' % (round(load['ratio'] * 100), load['total'], load['workers']),
+            'Principaux : %s.' % load['top'], action='Si la charge dépasse 75 %% : régime économe (Paramètres › Modèles d’IA), modèle local plus '
+            'rapide, ou automatismes moins fréquents. Depuis la 5.6.62, les travaux périodiques attendent la fin du précédent et cèdent la '
+            'place aux demandes de l’avocat.' if load['ratio'] >= 0.75 else '')
     for r in rows("SELECT id,owner,slot FROM veille_runs5632 WHERE state='pending' AND COALESCE(job_id,'')='' ORDER BY id"):
         add('veille_orpheline', 'info', 'Passage de veille sans travail : %s' % r['slot'], 'Il sera clos ou relancé au prochain cycle.')
     order = {'bloquant': 0, 'attention': 1, 'info': 2}

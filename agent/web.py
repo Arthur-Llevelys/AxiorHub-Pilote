@@ -237,6 +237,21 @@ JOB_LABELS.update({'coach_hearing35':'Coaching de plaidoirie',
   'classify_comparable35':'Comparaison de la jurisprudence'})
 
 
+# 5.6.62 : libellés manquants (le code interne du travail s'affichait dans « Ce que fait l'agent »)
+JOB_LABELS.update({'advance_playbook380':'Poursuite d’un déroulé de travail','archive_correspondence5643':'Conservation des courriels du dossier',
+  'briefing_oral5632':'Préparation du briefing oral','cancel_playbook5643':'Arrêt d’un déroulé de travail',
+  'complete_playbook_step380':'Étape d’un déroulé de travail','delete_mail_rule370':'Suppression d’une règle de courriel',
+  'digest_pieces5632':'Synthèse des nouvelles pièces','file_mail_attachments5643':'Classement des pièces jointes reçues',
+  'import_mcp_legal_results':'Import de résultats de recherche juridique','mailrules5632':'Application des règles de courriel',
+  'maj_local5661':'Mise à jour d’AxiorHub sur ce poste','prepare_ecosystem_action380':'Préparation d’une action dans un service connecté',
+  'recherche5634':'Recherche juridique','record_correction370':'Enregistrement d’une correction de l’avocat',
+  'refresh_matter_graph380':'Actualisation des liens du dossier','refresh_unpaid_invoices':'Actualisation des factures impayées',
+  'retry_playbook_step5643':'Reprise d’une étape de déroulé','review_action380':'Relecture d’une action proposée',
+  'routine5652':'Routine du cabinet','run_business_evaluation380':'Évaluation métier de l’agent',
+  'run_legal_benchmark410':'Évaluation juridique de l’agent','save_ecosystem_service380':'Enregistrement d’un service connecté',
+  'save_mail_rule370':'Enregistrement d’une règle de courriel','search_index490':'Mise à jour de l’index de recherche',
+  'set_automation_level370':'Réglage du niveau d’automatisme','set_learning_rule392':'Enregistrement d’une règle apprise',
+  'start_playbook380':'Démarrage d’un déroulé de travail','veille5632_collect':'Collecte de la veille juridique'})
 JOB_LABELS.update({'sent568_scan':'Lecture des envois et suivi des engagements',
   'document568_scan':'Recherche de nouveaux documents correspondant à vos règles',
   'document568_compile':'Interprétation de votre mission en règle modifiable',

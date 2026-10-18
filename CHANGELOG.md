@@ -3,6 +3,33 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.62 — ChatGPT avec votre abonnement, Aujourd’hui réorganisé, textes lisibles partout
+
+- ChatGPT avec l’abonnement de l’utilisateur (Plus ou Pro), sans clé API, par le programme officiel d’OpenAI « Sign in with
+  ChatGPT » (logiciels libres hébergés par l’utilisateur) : Paramètres › Modèles d’IA › ChatGPT, « Continuer avec ChatGPT ».
+  Inscription dynamique, PKCE, jeton d’identité vérifié, jetons chiffrés et renouvelés seuls, déconnexion avec révocation ; API
+  Responses avec `store: false`. Même pseudonymisation, même bouclier et même autorisation « données externes » que les autres
+  fournisseurs. Poste : retour d’OpenAI reçu par AxiorHub ; serveur : adresse de retour recopiée. Mode d’emploi :
+  `docs/CHATGPT-ABONNEMENT.md`.
+- Aujourd’hui : « À décider / À relire » prend la première colonne ; « Reprendre là où j’en étais » passe en bas de page.
+- Point d’avancement client : le client lit la nature du travail (« un projet de courrier »), jamais un nom de fichier interne ;
+  l’avocat voit les documents concernés, leur emplacement et un bouton « Ouvrir dans Nextcloud ».
+- Tâches « Relire : … » en double dans Ma journée (copie locale et tâche relue depuis Nextcloud) : fusionnées, plus jamais créées en
+  double ; un projet existant en .docx, .pdf et .md n’apparaît qu’une fois (Word en priorité).
+- Textes illisibles corrigés : sous-menu « Autres pages de réglage et d’outillage » de Paramètres, « Contexte détecté » du Pilote,
+  lien « Guide d’utilisation » du panneau « Toutes les fonctions », largeur de la colonne de Paramètres ; mode sombre (menus,
+  cartes, états). Contrôle automatique des contrastes passé sur toutes les pages principales (`scripts/audit-contraste.js`).
+- « Ce que fait l’agent » : chaque type de travail a un libellé en clair (plus de « search_index490 »).
+- `manage.py diagnostic-file` : motifs des échecs répétés, en clair, avec leur nombre.
+- Mises à jour : bouton « Vérifier maintenant » (sans attendre la vérification automatique, toutes les 6 heures).
+- L’IA ne tourne plus en continu : un travail périodique (surveillance, orchestration, pilotage, production, Deck, suivi des envois…)
+  ne revient qu’un intervalle complet APRÈS la fin du précédent (et non depuis sa mise en file) ; quand une demande de l’avocat attend
+  ou que la file des travaux automatiques est chargée, les travaux périodiques non essentiels attendent leur tour (les nouveaux
+  courriels ne sont jamais différés). Diagnostic : « Charge des workers sur 24 h » avec les travaux qui occupent le plus l’IA.
+- Aucun blocage du traitement par l’IA : une réponse de ChatGPT silencieuse ou sans fin échoue avec un message clair (délai de
+  lecture, plafond de 30 min) ; messagerie injoignable : la liste des brouillons n’est relue que 10 min plus tard (le worker n’attend
+  plus jusqu’à 45 s toutes les 2 min).
+
 ## 5.6.61 — Veille qui passe et qui est pertinente, pièce jointe illisible non bloquante, mise à jour signée depuis GitHub
 
 - Un travail qui a besoin du verrou exclusif (veille, indexation…) et l’a attendu trois fois le réserve : aucun nouveau travail à verrou

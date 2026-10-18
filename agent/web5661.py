@@ -2,8 +2,8 @@
 (installation automatique la nuit, ou sur clic) — administrateur seulement."""
 from .common import Stop
 
-WRITE = ('maj/demander', 'maj/automatique')
-CATEGORIES = {'maj/demander': 'reglages', 'maj/automatique': 'reglages'}
+WRITE = ('maj/demander', 'maj/automatique', 'maj/verifier')   # 5.6.62 : « Vérifier maintenant »
+CATEGORIES = {'maj/demander': 'reglages', 'maj/automatique': 'reglages', 'maj/verifier': 'reglages'}
 WORK = ('file/missions',)   # 5.6.61 : Relancer / Écarter depuis la file (mêmes droits que m567/mission/control)
 
 
@@ -43,6 +43,11 @@ def api(env, desk, auth, prefix, name, args, method):
         return json_out({'ok': True, 'message': ('%d travail relancé.' if action == 'resume' else '%d travail écarté.') % done
                          if done == 1 else ('%d travaux relancés.' if action == 'resume' else '%d travaux écartés.') % done})
     from . import maj5661
+    if route == 'maj/verifier':   # 5.6.62 : lecture immédiate du flux public des versions (sinon au plus toutes les 6 h)
+        state = maj5661.check(desk, force=True)
+        new = maj5661.available(desk)
+        return json_out({'ok': True, 'message': ('Nouvelle version disponible : %s.' % new) if new else (
+            'Pas d’accès à GitHub pour l’instant.' if state.get('error') else 'Vous avez la dernière version publiée.')})
     if route == 'maj/automatique':
         return json_out(maj5661.set_automatic(desk, str(data.get('actif') or '') in ('on', '1', 'true')))
     return json_out(maj5661.request(desk, owner, str(data.get('version') or '')))

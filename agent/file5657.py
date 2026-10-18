@@ -35,7 +35,8 @@ def _reason(code):
         text = human(code)
     except Exception:   # noqa: BLE001
         text = code
-    return text if text and text != code else code.replace('_', ' ').capitalize() + '.'
+    text = text if text and text != code else code.replace('_', ' ').capitalize()
+    return text.rstrip(' .') + '.'   # 5.6.62 : jamais « .. »
 
 
 def _rev(*parts):

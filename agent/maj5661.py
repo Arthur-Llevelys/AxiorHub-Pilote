@@ -307,6 +307,9 @@ def html(desk, prefix, role):
                                           else 'Dernière version publiée : inconnue.')
     if state.get('checked'):
         body += '<p class="ax-muted">Dernière vérification : %s.</p>' % e(state['checked'][:16].replace('T', ' '))
+    if role == 'administrateur':   # 5.6.62 : sans attendre la vérification automatique (toutes les 6 h)
+        body += ('<form class="m5-form d51-inline" data-api="m5661/maj/verifier" data-reload><button class="ax-btn ghost" type="submit">'
+                 'Vérifier maintenant</button><p role="status" class="m5-status"></p></form>')
     ready = signer_ready()
     if kind == 'autre':
         if new:

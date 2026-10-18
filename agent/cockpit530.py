@@ -314,7 +314,8 @@ def _drafts(desk, refresh=True):
                      'items': [{k: x.get(k, '') for k in ('uid', 'subject', 'to', 'date', 'agent_key', 'message_id', 'in_reply_to')}
                                for x in listing['items'] if x.get('agent')]}
         except Exception:
-            cache = {**cache, 'at': time.time(), 'ok': False}
+            # 5.6.62 : messagerie injoignable — nouvel essai dans 10 min (et non 2) : le worker ne reste pas bloqué jusqu'à 45 s toutes les 2 min
+            cache = {**cache, 'at': time.time() + 480, 'ok': False}
         desk.setting('cockpit530:drafts', cache)
     return cache
 
@@ -368,11 +369,13 @@ def review_items(desk, cached_only=False):
         out.append({'id': item, 'type': 'Courriel', 'title': d['subject'] or '(sans objet)', 'matter': mid, 'matter_label': labels.get(mid, ''),
                     'when': d.get('date', ''), 'dest': 'Brouillons (messagerie) — à %s' % (d.get('to') or 'destinataire')})
     seen = set()
+    stems = set()   # 5.6.62 : un même projet en .docx, .pdf et .md n'apparaît qu'une fois (Word en priorité)
     since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
     try:
         for r in desk.db.execute("SELECT * FROM docreq520 WHERE status='cree' AND updated>=? ORDER BY updated DESC LIMIT 40", (since,)):
             item = 'doc:' + digest(r['path'])[:24]
             seen.add(r['path'])
+            stems.add((r['matter'], r['path'].rsplit('.', 1)[0].lower()))
             if item in done:
                 continue
             res = json.loads(r['result'] or '{}')
@@ -387,11 +390,17 @@ def review_items(desk, cached_only=False):
         for r in desk.db.execute("SELECT * FROM production_deliverables_v420 WHERE status IN ('verified','verifying','prepared') AND deliverable_kind<>'mail_draft' "
                                  "AND updated>=? ORDER BY updated DESC LIMIT 40", (since14,)):
             files = json.loads(r['verification'] or '{}').get('files', [])
-            for f in files[:3]:
+            rank = {'.docx': 0, '.odt': 1, '.pdf': 2, '.md': 3, '.txt': 4}
+            files = sorted(files[:6], key=lambda f: rank.get('.' + str(f.get('path', '')).rsplit('.', 1)[-1].lower(), 9))
+            for f in files:
                 path = str(f.get('path', ''))
                 if not path or path in seen or not path.lower().endswith(('.docx', '.odt', '.pdf', '.md', '.txt')):
                     continue
+                stem = (r['matter'], path.rsplit('.', 1)[0].lower())
+                if stem in stems:
+                    continue
                 seen.add(path)
+                stems.add(stem)
                 item = 'doc:' + digest(path)[:24]
                 if item in done:
                     continue
@@ -1118,11 +1127,12 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
             '<path d="M4 12l16-8-6 16-2-7z"/></svg>Envoyer</button></div></div>'
             '<p class="c530-note">L’agent continue son travail automatique pendant la conversation. Rien n’est envoyé, déposé ni signé sans vous. Ctrl+Entrée pour envoyer.</p></section>%s'
             # 5.6.57 (A09) : « À relire » rejoint la file unique « À décider / À relire » (en bas de page)
-            '<div class="c530-cols c5657-cols">__REPRISE5657__<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>'
+            # 5.6.62 : la file « À décider / À relire » prend la première colonne ; « Reprendre là où j’en étais » passe en bas de page
+            '<div class="c530-cols c5657-cols"><div class="c5662-file" id="c5656-file">__FILE5656__</div><section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>'
             '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section></div>'
             # 5.6.56 (audit 5.6.55, N02, § 5.3) : veille sur toute la largeur du contenu, puis la file unique en bas, dans ce conteneur.
             '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">__VEILLE5632__</section>'
-            '<div class="c5656-queue" id="c5656-file">__FILE5656__</div>'
+            '<div class="c5656-wide c5662-reprise">__REPRISE5657__</div>'
             '<p class="c530-note"><a href="%s">Vue « essentiel du jour » (5.2)</a> · <a href="%s">Ancien cockpit</a></p>'
             '<div class="c530-drawer" id="c530-drawer" hidden><div class="c530-backdrop" data-close="1" aria-hidden="true"></div>'
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'

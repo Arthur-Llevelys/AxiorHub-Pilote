@@ -106,6 +106,7 @@ def _automation_tick_5642(desk):
     workflow=desk.c.get('nextcloud_workflow') or {}
     if workflow.get('enabled'):
         schedules.append(('sync_caldav_tasks','nextcloud_tasks_interval_minutes',15))
+    from . import cadence5662   # 5.6.62 : repos après la fin du précédent ; contre-pression si la file est chargée
     for job,key,default in schedules:
         setting_key='nextcloud_tasks_enabled' if job=='sync_caldav_tasks' else job+'_enabled'
         if not desk.settings('automation:'+setting_key,cfg.get(setting_key,True)):continue
@@ -113,7 +114,8 @@ def _automation_tick_5642(desk):
             from . import autonomy480
             if not autonomy480.allows(desk,'classement','agir'):continue
         last=desk.settings('auto:'+job,0)
-        if now_ts-last>=economie569.interval(desk,job,int(cfg.get(key,default)))*60:
+        every=economie569.interval(desk,job,int(cfg.get(key,default)))
+        if now_ts-last>=every*60 and cadence5662.allow(desk,job,every,now_ts):
             # Reconciliation and portfolio refresh are background hygiene. They
             # must never overtake a draft or a question explicitly requested by
             # the lawyer.
@@ -124,7 +126,7 @@ def _automation_tick_5642(desk):
     if desk.settings('automation:proactive_enabled',proactive.get('enabled',True)):
         minutes=economie569.interval(desk,'monitor_all',max(5,int(proactive.get('monitor_interval_minutes',30))))
         last=desk.settings('auto:monitor_all',0)
-        if now_ts-last>=minutes*60:
+        if now_ts-last>=minutes*60 and cadence5662.allow(desk,'monitor_all',minutes,now_ts):
             desk.enqueue('monitor_all');desk.setting('auto:monitor_all',now_ts)
         if desk.settings('automation:daily_dashboard_enabled',proactive.get('daily_dashboard_enabled',True)):
             try:local=datetime.now(ZoneInfo(proactive.get('timezone','Europe/Paris')))
@@ -137,25 +139,25 @@ def _automation_tick_5642(desk):
     if desk.settings('automation:orchestrator_enabled',orchestrator.get('enabled',False)):
         minutes=max(5,int(orchestrator.get('mail_monitor_interval_minutes',5)))
         last=desk.settings('auto:orchestrator_mail_sweep',0)
-        if now_ts-last>=minutes*60:
+        if now_ts-last>=minutes*60 and cadence5662.allow(desk,'orchestrator_mail_sweep',minutes,now_ts):
             desk.enqueue('orchestrator_mail_sweep',priority=40)
             desk.setting('auto:orchestrator_mail_sweep',now_ts)
     elif desk.settings('automation:autonomy_enabled',autonomy.get('enabled',False)):
         minutes=max(5,int(autonomy.get('mail_monitor_interval_minutes',5)))
         last=desk.settings('auto:autonomy_mail_sweep',0)
-        if now_ts-last>=minutes*60:
+        if now_ts-last>=minutes*60 and cadence5662.allow(desk,'autonomy_mail_sweep',minutes,now_ts):
             desk.enqueue('autonomy_mail_sweep',priority=40)
             desk.setting('auto:autonomy_mail_sweep',now_ts)
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):
         minutes=economie569.interval(desk,'refresh_cabinet_pilotage',max(5,int(pilot.get('refresh_interval_minutes',30))))
         last=desk.settings('auto:refresh_cabinet_pilotage',0)
-        if now_ts-last>=minutes*60:
+        if now_ts-last>=minutes*60 and cadence5662.allow(desk,'refresh_cabinet_pilotage',minutes,now_ts):
             desk.enqueue('refresh_cabinet_pilotage',priority=65)
             desk.setting('auto:refresh_cabinet_pilotage',now_ts)
         test_minutes=economie569.interval(desk,'run_continuous_business_tests',max(15,int(pilot.get('continuous_tests_interval_minutes',60))))
         last_test=desk.settings('auto:run_continuous_business_tests',0)
-        if now_ts-last_test>=test_minutes*60:
+        if now_ts-last_test>=test_minutes*60 and cadence5662.allow(desk,'run_continuous_business_tests',test_minutes,now_ts):
             desk.enqueue('run_continuous_business_tests',priority=90)
             desk.setting('auto:run_continuous_business_tests',now_ts)
     from .proactive34 import schedule
@@ -164,7 +166,7 @@ def _automation_tick_5642(desk):
     if desk.settings('automation:production_enabled',production.get('enabled',True)):
         minutes=economie569.interval(desk,'production_cycle391',max(5,int(production.get('interval_minutes',5))))
         last=desk.settings('auto:production_cycle391',0)
-        if now_ts-last>=minutes*60:
+        if now_ts-last>=minutes*60 and cadence5662.allow(desk,'production_cycle391',minutes,now_ts):
             desk.enqueue('production_cycle391',{'limit':int(production.get('batch_size',20))},priority=35)
             desk.setting('auto:production_cycle391',now_ts)
         day=datetime.now(timezone.utc).date().isoformat()

@@ -6524,5 +6524,22 @@
 "Analyse interrompue": "Analyse unterbrochen",
 "Interrompus": "Unterbrochen",
 "Analyses automatiques interrompues (#) — rien n’est perdu ; relancez ou écartez": "Unterbrochene automatische Analysen (#) — nichts geht verloren; neu starten oder verwerfen",
-"Rien d’autre à décider ni à relire.": "Sonst nichts zu entscheiden oder zu prüfen."
+"Rien d’autre à décider ni à relire.": "Sonst nichts zu entscheiden oder zu prüfen.",
+"ChatGPT (votre abonnement)": "ChatGPT (Ihr Abonnement)",
+"Continuer avec ChatGPT": "Mit ChatGPT fortfahren",
+"Confidentialité : à lire avant de connecter": "Vertraulichkeit: vor dem Verbinden lesen",
+"Gérer l’usage": "Nutzung verwalten",
+"Modèle ChatGPT": "ChatGPT-Modell",
+"Utiliser ChatGPT dans AxiorHub": "ChatGPT in AxiorHub verwenden",
+"J’autorise l’envoi des textes, pseudonymisés, à OpenAI": "Ich erlaube die pseudonymisierte Übermittlung der Texte an OpenAI",
+"Actualiser la liste des modèles": "Modellliste aktualisieren",
+"Après la connexion (AxiorHub installé sur un serveur)": "Nach der Anmeldung (AxiorHub auf einem Server installiert)",
+"Adresse affichée après l’accord": "Nach der Zustimmung angezeigte Adresse",
+"Terminer la connexion": "Verbindung abschließen",
+"Vous utilisez votre abonnement ChatGPT.": "Sie nutzen Ihr ChatGPT-Abonnement.",
+"J’ai compris": "Verstanden",
+"Documents concernés (non communiqués au client)": "Betroffene Dokumente (nicht an den Mandanten übermittelt)",
+"utilisation de l’abonnement autorisée": "Nutzung des Abonnements erlaubt",
+"Compte connecté :": "Verbundenes Konto:",
+"Vérifier maintenant": "Jetzt prüfen"
 }
