@@ -1,0 +1,29 @@
+{
+  "version": "5.6.63",
+  "base": "5.6.62 publiée",
+  "date_utc": "2026-10-18T00:00:00+00:00",
+  "cahier_des_charges": "Diagnostic du cabinet du 18 octobre 2026 (5.6.62) : charge 22 %, surveillance des documents 1 693 fois en 24 h (3 h 30) ; échecs « document_trop_long_pour_analyse » et « ocr_qualite_insuffisante » des analyses d’échéances.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2537,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 108,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5663.py : nouveau tour de surveillance 30/60 min après la fin du précédent, lots d’un tour en cours enchaînés, fin de tour enregistrée ; échéances : long document lu en entier, scan illisible signalé une fois sans nouvel essai, autre erreur toujours signalée.",
+  "exapp": {
+    "version": "0.1.22",
+    "moteur": "5.6.63"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "watch430 : repos entre deux tours complets (live430:documents_sweep_done, live430:documents_sweep_minutes, economie569 INTERVALS live_documents430 30/60).",
+    "echeances450.analyze : max_document_chars ≥ 2 000 000 (analyse par règles) ; pièce illisible enregistrée « blocked » avec le motif, signalée une fois."
+  ],
+  "adjusted_tests": []
+}

@@ -18,7 +18,8 @@ DEFAULT_QUOTA = 20
 INTERVALS = {'health': (30, 120), 'refresh_cabinet_pilotage': (30, 120), 'run_continuous_business_tests': (1440, 1440),   # 5.6.32 : une fois par jour (contrôles de cohérence, sans IA)
             
              'production_cycle391': (5, 15), 'classify_portfolio': (360, 1440), 'reconcile_inbox': (15, 60),
-             'monitor_all': (30, 120), 'index_all': (360, 1440)}
+             'monitor_all': (30, 120), 'index_all': (360, 1440),
+             'live_documents430': (30, 60)}   # 5.6.62 : repos entre deux tours complets de surveillance des documents
 # Travaux automatiques qui appellent le modèle : soumis au quota journalier (jamais les demandes de l'avocat).
 AUTOMATIC_LLM = frozenset(('refresh_brief', 'sync_legal_memory', 'extract_facts460', 'refresh_operational_memory',
                            'analyze_notice440', 'analyze_deadline450'))

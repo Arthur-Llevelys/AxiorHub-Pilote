@@ -3,6 +3,18 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.63 — Surveillance des documents espacée, analyses d’échéances sans échec inutile
+
+Charge mesurée chez le cabinet le 18 octobre 2026 avec le nouveau diagnostic de la 5.6.62 : workers occupés 22 % du temps, dont
+3 h 30 pour la seule surveillance des documents des dossiers (1 693 passages en 24 h).
+
+- Surveillance des documents : les lots d’un tour s’enchaînent toujours, mais un nouveau tour complet de tous les dossiers ne commence
+  que 30 min après la fin du précédent (60 min en régime économe ; réglage `live430:documents_sweep_minutes`). Avant : nouveau tour
+  5 min après, la surveillance ne s’arrêtait jamais.
+- Échéances (recherche par règles, sans modèle d’IA) : un long document est lu en entier (la limite de 100 000 caractères, faite pour
+  le contexte d’un modèle, ne s’applique plus) ; une pièce illisible (scan de mauvaise qualité, sans texte) est signalée une fois
+  — « vérifiez vous-même si elle fait courir un délai » — au lieu d’échouer à chaque passage.
+
 ## 5.6.62 — ChatGPT avec votre abonnement, Aujourd’hui réorganisé, textes lisibles partout
 
 - ChatGPT avec l’abonnement de l’utilisateur (Plus ou Pro), sans clé API, par le programme officiel d’OpenAI « Sign in with
