@@ -463,6 +463,11 @@ def observe_inventory(desk, matter_id, items, today=None, limit=10):
     return queued
 
 
+UNREADABLE = {'ocr_qualite_insuffisante': 'scan de qualité insuffisante', 'ocr_sans_texte_reconnu': 'aucun texte reconnu',
+              'document_sans_texte_exploitable': 'aucun texte exploitable', 'pdf_scan_ocr_necessaire': 'scan sans reconnaissance de texte',
+              'document_trop_long_pour_analyse': 'document trop long'}
+
+
 def analyze(desk, args, dav=None, extractor=None, today=None):
     ensure_schema(desk)
     path, etag, mid = str(args.get('path', '')), str(args.get('etag', '')), str(args.get('matter', ''))
@@ -479,8 +484,26 @@ def analyze(desk, args, dav=None, extractor=None, today=None):
     raw = client.download(stat)
     if extractor is None:
         from .documents import extract
-        extractor = lambda data, filename: extract(data, filename, desk.c.get('documents', {}))
-    text = extractor(raw, name)
+        # 5.6.62 : recherche par règles, sans modèle d'IA : la limite de taille (faite pour le contexte d'un modèle) ne s'applique pas
+        cfg = dict(desk.c.get('documents', {}))
+        cfg['max_document_chars'] = max(int(cfg.get('max_document_chars', 100000) or 100000), 2_000_000)
+        extractor = lambda data, filename: extract(data, filename, cfg)
+    try:
+        text = extractor(raw, name)
+    except Stop as ex:
+        code = str(ex)
+        if code not in UNREADABLE:
+            raise
+        # 5.6.62 : pièce illisible — signalée une fois à l'avocat, enregistrée (pas de nouvel essai à chaque passage, pas d'« échec »)
+        result = {'status': 'blocked', 'matter': mid, 'path': path, 'illisible': code, 'evenements': 0, 'echeances_creees': 0, 'deja_connues': 0,
+                  'message': 'Pièce « %s » illisible (%s) : vérifiez vous-même si elle fait courir un délai.' % (name, UNREADABLE[code])}
+        now = desk.now()
+        desk.db.execute('INSERT OR REPLACE INTO deadline_obs450 VALUES(?,?,?,?,?,?,?,?)',
+                        (ident, mid, path, etag, 'done', json.dumps(result, ensure_ascii=False), now, now))
+        desk.db.commit()
+        from .live430 import emit
+        emit(desk, 'echeance', result['message'] + ' (dossier %s)' % matter_label(desk, mid), matter=mid, dedupe='deadline450-illisible|' + ident)
+        return result
     events = extract_start_events(text, today)
     created, existing = [], []
     for event in events:

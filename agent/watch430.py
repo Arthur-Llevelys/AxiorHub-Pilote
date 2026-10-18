@@ -76,8 +76,15 @@ def _schedule_5642(desk,stamp=None):
     if desk.settings('missions567:pause',False) or not desk.settings('live430:enabled',True):
         heartbeat(desk,'surveillance','paused','Surveillance en pause');return []
     jobs=[]
+    from . import economie569
+    # 5.6.62 : un nouveau tour de tous les dossiers ne commence que 30 min (60 en régime économe) après la fin du précédent ; les lots
+    # d'un tour en cours s'enchaînent toujours. Avant : 1 693 passages en 24 h chez le cabinet, la surveillance ne s'arrêtait jamais.
+    sweep=economie569.interval(desk,'live_documents430',int(desk.settings('live430:documents_sweep_minutes',30) or 30))*60
     for kind,interval in [('live_mail430',300),('live_calendar430',180),('live_documents430',300)]:
         last=desk.settings('live430:last:'+kind,0)
+        if (kind=='live_documents430' and int(desk.settings('live430:document_cursor',0) or 0)==0
+                and stamp-float(desk.settings('live430:documents_sweep_done',0) or 0)<sweep):
+            continue
         if stamp-float(last)>=interval:
             latest=desk.db.execute('SELECT id,status,attempts,result FROM jobs WHERE kind=? ORDER BY id DESC LIMIT 1',(kind,)).fetchone()
             if (kind in ('live_calendar430','live_documents430') and latest and latest['status']=='error' and latest['attempts']>=3
@@ -328,6 +335,8 @@ def documents_check(desk,dav=None):
     next_cursor=(cursor+len(selected))%len(matters);desk.setting('live430:document_cursor',next_cursor)
     # Finish a whole sweep in bounded lots, yielding to replies between each lot.
     more=next_cursor!=0 or bool(partial)
+    if not more:   # 5.6.62 : tour complet terminé ; le suivant attend l'intervalle de repos (_schedule_5642)
+        desk.setting('live430:documents_sweep_done',time.time())
     heartbeat(desk,'documents','active','Lot '+str(cursor+1)+'–'+str(cursor+len(selected))+' / '+str(len(matters))+' dossiers · '+str(partial)+' inventaires partiels',time.time()+300)
     # 5.6.36 : plus de Stop('dossiers_illisibles') : trois lots de dossiers illisibles suspendaient toute la surveillance des documents.
     return {'changed':changed,'partial':partial,'failed':failed,'continue_scan':more,'remote_write':False}
