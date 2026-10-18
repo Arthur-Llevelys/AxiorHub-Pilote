@@ -7,6 +7,17 @@ from . import settings568,proactive568,plans568,voice568,news568
 from .web567 import actor
 
 MESSAGES={
+ # 5.6.61 : motifs d'échec affichés en clair dans « Vos missions » et « À décider / À relire » (ils apparaissaient en code brut)
+ 'analyse_section_incomplete':'Un passage du document n’a pas été résumé correctement par le modèle d’IA.',
+ 'analyse_section_source_invalide':'Le modèle d’IA a cité une autre source que le passage analysé.',
+ 'synthese_progressive_incomplete':'La synthèse d’un long document n’a pas abouti.',
+ 'synthese_progressive_source_invalide':'La synthèse d’un long document n’a pas cité toutes ses sources.',
+ 'fragment_document_depasse_contexte':'Un passage du document est trop long pour le modèle d’IA.',
+ 'lot_synthese_depasse_contexte':'La synthèse d’un long document est trop longue pour le modèle d’IA.',
+ 'contexte_trop_long':'Le contexte dépasse la capacité du modèle d’IA.',
+ 'source_document_invalide':'Le modèle d’IA a cité une source introuvable dans le dossier.',
+ 'traitement_deja_en_cours':'Un autre traitement était en cours ; il suffit de relancer.',
+ 'ocr_sans_texte_reconnu':'Document scanné sans texte reconnu.',
  'adresse_utilisateur_requise':'Indiquez l’adresse de l’utilisateur dont les envois doivent être suivis.',
  'identite_hors_compte_configure':'Choisissez une identité déjà autorisée dans Connexions › Courriels.',
  'identite_deja_observee':'Cette identité est déjà suivie par un autre profil actif ; cela évite les doublons.',

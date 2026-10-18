@@ -3,6 +3,44 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.61 — Veille qui passe et qui est pertinente, pièce jointe illisible non bloquante, mise à jour signée depuis GitHub
+
+- Un travail qui a besoin du verrou exclusif (veille, indexation…) et l’a attendu trois fois le réserve : aucun nouveau travail à verrou
+  partagé (réponses de l’assistant, brouillons) ne démarre avant lui, seuls les travaux sans verrou continuent. Constaté après la
+  5.6.60 : une suite continue de réponses de l’assistant repoussait la veille indéfiniment.
+- « Actualiser » dans la veille : la collecte déjà en file prend la priorité d’une demande de l’avocat ; les collectes mises en file
+  avant la 5.6.60 avec l’ancienne priorité sont relevées.
+- Aujourd’hui : les brouillons préparés par l’agent dans la messagerie s’affichent de nouveau dans « À décider / À relire ». Depuis
+  la 5.6.57, leur liste n’était relue que par l’ancien cadre « À relire », qui n’est plus affiché ; le worker la relit désormais
+  toutes les 2 minutes. Si la file ne peut pas être affichée, un message le dit au lieu de la faire disparaître.
+- File « À décider / À relire » claire et exploitable : titres lisibles (l’objet, jamais la consigne interne donnée au modèle), motif
+  réel d’un échec en clair, boutons « Relancer » et « Écarter » dans la carte, tentatives d’un même objet regroupées, projets à
+  relire avant les décisions, analyses automatiques interrompues jamais « prioritaires » et repliées en fin de file, onglets avec
+  compteurs (Tout, À relire, À décider, Interrompus), dossier cliquable.
+- « Vos missions » : même présentation (objet en titre, action de l’agent en sous-titre, motif en clair, plus de « Traitement
+  démarré » sur une mission interrompue, bouton « Relancer »).
+- Lecture des longs documents : un résumé de passage trop long est coupé à la fin d’une phrase et signalé « […] » au lieu de faire
+  échouer toute l’analyse (« analyse_section_incomplete ») ; une réponse sans identifiant de source vaut pour le passage analysé.
+- Projets documentaires : les pièces transmises au modèle sont limitées à sa capacité réelle (auparavant 84 000 caractères pour une
+  limite de 65 000 : « Le contexte dépasse la capacité du modèle » sur tout dossier fourni) ; une référence de pièce inconnue
+  recopiée par le modèle est retirée et signalée à l’avocat au lieu de faire échouer le projet (« source document invalide ») ;
+  une source juridique inconnue reste bloquante.
+- Assistant : une pièce jointe illisible ou introuvable (scan sans texte reconnu, format à convertir, document déplacé…) n’empêche plus
+  la réponse ; elle est signalée dans la réponse, et le modèle est prévenu de ne pas en déduire le contenu.
+- Veille juridique pertinente : la recherche Internet (Tavily) est faite en mode « actualités » ; un résultat sans date, trop ancien ou
+  ayant l’allure d’une page permanente (formation, diplôme, librairie, « guide complet ») n’est plus publié ; un connecteur juridique
+  non configuré n’est plus présenté comme une panne (« collecte partielle ») ; les résultats sans date déjà collectés sont masqués une
+  fois (toujours consultables).
+- Mise à jour depuis la page des versions GitHub, sans ligne de commande, sur les trois plateformes : AxiorHub annonce la nouvelle
+  version (Paramètres › Confort et maintenance › Mises à jour, vue d’ensemble) et l’administrateur clique « Mettre à jour ».
+  Serveur Linux : un service système, installé et activé automatiquement par `install.sh` et le paquet Debian, télécharge l’archive,
+  vérifie son empreinte et sa SIGNATURE, installe par la mise à jour habituelle, contrôle les services et revient à la version
+  précédente sinon. Windows 11 : l’installateur signé est vérifié puis lancé en mode silencieux (même dossier, mêmes raccourcis) et
+  l’application se rouvre. Ubuntu poste : le paquet signé est vérifié puis installé après le mot de passe demandé par Ubuntu.
+  Une version non signée par la clé livrée avec AxiorHub n’est jamais installée. Option « Installer automatiquement les nouvelles
+  versions la nuit » (2 h – 5 h, une tentative par version). Mode d’emploi : `docs/MISE-A-JOUR-SIGNEE.md` ; signature des versions :
+  `scripts/signer-version.ps1`.
+
 ## 5.6.60 — File de travail débloquée, diagnostic des blocages, page Paramètres réorganisée
 
 - Correctif : un seul dossier dont l’IA était mise en pause figeait toute la file de travail. Le balayage de surveillance des

@@ -29,10 +29,14 @@ CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des do
            # 5.6.57 (A09) : décisions attendues par l'agent et projets à relire d'Aujourd'hui, désormais dans la même file
            'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire',
            'securite': 'Sécurité de l’IA', 'savoir': 'Savoir-faire à approuver',   # 5.6.59
-           'decision': 'Proposition à décider'}                # 5.6.58 : propositions de facturation (sans cette classe, la file disparaissait)
+           'decision': 'Proposition à décider',                # 5.6.58 : propositions de facturation (sans cette classe, la file disparaissait)
+           'echec_agent': 'Analyse interrompue'}               # 5.6.61 : missions interrompues, regroupées et repliées en fin de file
 FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision', 'securite', 'savoir'),
-           'relire': ('relecture', 'livrable', 'projet')}
-NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir')     # choix stratégiques et engagements : jamais en validation regroupée
+           'relire': ('relecture', 'livrable', 'projet'),
+           'echecs': ('echec_agent',)}
+NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir', 'echec_agent')
+# 5.6.61 : ordre de lecture — ce que l'avocat attend (prioritaire), puis ce qui est prêt à relire, puis les décisions, enfin les échecs automatiques
+RANK = {'projet': 0, 'livrable': 0, 'relecture': 1, 'echec_agent': 9}     # choix stratégiques et engagements : jamais en validation regroupée
 
 
 def _now():
@@ -188,7 +192,7 @@ def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_clo
                         continue
             it.setdefault('state', 'a_examiner')
             out.append(it)
-    out.sort(key=lambda i: (i['priority'] != 'haute', i['matter_name'], i['class']))
+    out.sort(key=lambda i: (i['priority'] != 'haute', RANK.get(i['class'], 5), i['matter_name'], i['class']))
     return out
 
 
@@ -250,18 +254,30 @@ def history(desk, matter, limit=50):
 
 
 def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title=True, actor='cabinet', role='administrateur'):
-    """Cartes courtes (dossier, action attendue, conséquence, choix) ; détails techniques repliés ; filtres À décider / À relire."""
+    """Cartes courtes (dossier, action attendue, motif, choix) ; filtres avec compteurs ; analyses automatiques interrompues repliées.
+
+    5.6.61 (retour du 18 octobre 2026) : titres lisibles (jamais l'instruction interne de l'agent), motif réel d'un échec, Relancer /
+    Écarter dans la carte, doublons regroupés, projets à relire avant les décisions, échecs automatiques en fin de file."""
     from html import escape as e
-    rows = items(desk, prefix, matter, view, hidden, actor=actor, role=role)
+    from urllib.parse import quote as _q
+    every = items(desk, prefix, matter, '', hidden, actor=actor, role=role)
+    rows = [it for it in every if not view or it['class'] in FILTERS.get(view, ())]
     base = (prefix + '/dossier?id=' + matter + '&') if matter else (prefix + '/aujourdhui?')
-    tabs = ''.join('<a href="%s"%s>%s</a>' % (e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(label))
-                   for k, label in (('', 'Tout'), ('decider', 'À décider'), ('relire', 'À relire')))
-    cards = []
-    for it in rows[:limit]:
+    counts = {k: sum(1 for it in every if not k or it['class'] in FILTERS[k]) for k in ('', 'decider', 'relire', 'echecs')}
+    tabs = ''.join('<a href="%s"%s>%s <span class="q51-n">%d</span></a>' % (
+        e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(label), counts[k])
+        for k, label in (('', 'Tout'), ('relire', 'À relire'), ('decider', 'À décider'), ('echecs', 'Interrompus')) if k in ('', view) or counts[k])
+
+    def card(it):
         buttons = []
         for c in it['choices']:
             if c == 'ouvrir':
-                buttons.append('<a class="ax-btn ghost" href="%s">Ouvrir</a>' % e(it['href'], quote=True))
+                buttons.append('<a class="ax-btn ghost" href="%s">%s</a>' % (e(it['href'], quote=True), 'Détail' if it['class'] == 'echec_agent' else 'Ouvrir'))
+            elif c in ('relancer', 'ecarter'):
+                buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/missions" data-reload><input type="hidden" name="ids" value="%s">'
+                               '<input type="hidden" name="action" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>' % (
+                                   e(','.join(it['missions']), quote=True), 'resume' if c == 'relancer' else 'cancel', '' if c == 'relancer' else ' ghost',
+                                   'Relancer' if c == 'relancer' else 'Écarter'))
             elif c in ('fusionner', 'separer'):
                 buttons.append('<form class="m5-form q51-inline" data-api="m5651/partie/%s" data-reload><input type="hidden" name="matter" value="%s">'
                                '<input type="hidden" name="a" value="%s"><input type="hidden" name="b" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>'
@@ -275,13 +291,25 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                                '<button class="ax-btn%s" type="submit">%s</button></form>' % ('m5651/file/decider' if it['matter'] else 'm5652/file/decider', e(it['matter'], quote=True), e(it['key'], quote=True),
                                                                                              e(str(it['revision']), quote=True), state,
                                                                                              ' ghost' if state == 'reporte' else '', label))
-        cards.append('<li class="q51-item q51-%s"><div class="q51-head"><span class="q51-class">%s</span>%s<strong class="q51-matter">%s</strong></div>'
-                     '<p class="q51-title">%s</p>%s<div class="q51-actions">%s</div></li>' % (
-                         e(it['class']), e(CLASSES.get(it['class'], 'À examiner')), ' <span class="q51-prio" title="%s">Prioritaire</span>' % e(it['priority_reason'], quote=True)
-                         if it['priority'] == 'haute' else '', e(it['matter_name']), e(it['title']),
-                         '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
-    more = '<p class="ax-muted">%d autre(s) élément(s).</p>' % (len(rows) - limit) if len(rows) > limit else ''
+        where = e(it['matter_name'])
+        if it['matter'] and not matter:
+            where = '<a href="%s">%s</a>' % (e(prefix + '/dossier?id=' + _q(str(it['matter']), safe=''), quote=True), where)
+        return ('<li class="q51-item q51-%s"><div class="q51-head"><span class="q51-class">%s</span>%s<span class="q51-matter">%s</span></div>'
+                '<p class="q51-title">%s</p>%s%s<div class="q51-actions">%s</div></li>' % (
+                    e(it['class']), e(CLASSES.get(it['class'], 'À examiner')),
+                    ' <span class="q51-prio" title="%s">Prioritaire</span>' % e(it['priority_reason'], quote=True) if it['priority'] == 'haute' else '',
+                    where, e(it['title']),
+                    '<p class="q51-sub">%s</p>' % e(it['action']) if it.get('action') else '',
+                    '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
+    main = [it for it in rows if it['class'] != 'echec_agent' or it['priority'] == 'haute' or view == 'echecs']
+    folded = [it for it in rows if it not in main]
+    cards = [card(it) for it in main[:limit]]
+    more = '<p class="ax-muted">%d autre(s) élément(s).</p>' % (len(main) - limit) if len(main) > limit else ''
+    if folded:
+        more += ('<details class="q51-folded"><summary>Analyses automatiques interrompues (%d) — rien n’est perdu ; relancez ou écartez</summary>'
+                 '<ul class="q51-list">%s</ul></details>') % (len(folded), ''.join(card(it) for it in folded[:limit]))
     head = ('<h2 id="q51-t">À décider / À relire</h2>' if title else '') + '<nav class="q51-filters" aria-label="Filtres de la file">%s</nav>' % tabs
     if not rows:
         return '<section class="q51" aria-labelledby="q51-t">%s<p class="ax-muted">Rien à décider ni à relire pour l’instant.</p></section>' % head
-    return '<section class="q51" aria-labelledby="q51-t">%s<ul class="q51-list">%s</ul>%s</section>' % (head, ''.join(cards), more)
+    return '<section class="q51" aria-labelledby="q51-t">%s<ul class="q51-list">%s</ul>%s</section>' % (
+        head, ''.join(cards) or '<li class="ax-muted">Rien d’autre à décider ni à relire.</li>', more)

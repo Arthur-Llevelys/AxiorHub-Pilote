@@ -115,6 +115,10 @@ def main(argv):
                 systemctl('daemon-reload', check=False)
                 for unit in stopped:
                     systemctl('start', unit, check=False)
+            # 5.6.61 : service de mise à jour signée (bouton dans Paramètres) installé et activé sans ligne de commande
+            helper = BASE / 'current' / 'miseajour.py'
+            if not DRY and helper.is_file():
+                subprocess.run(['python3', '-B', str(helper), '--installer-auto'], check=False)
             note('Puis : sudo python3 ' + str(BASE / 'current' / 'install-interface.py')
                  + ' (lien de configuration, unités, environnement de l’interface), et sudo python3 '
                  + str(BASE / 'current' / 'manage.py') + ' readiness')

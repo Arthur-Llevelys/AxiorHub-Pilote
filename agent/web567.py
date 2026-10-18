@@ -82,7 +82,8 @@ def cards(rows, prefix):
     out = ''
     for row in rows:
         result, job = row.get('result') or {}, row.get('job') or {}
-        out += '<article class="mission567-card" data-mission-id="' + e(row['id']) + '"><div class="mission567-state">' + e(row['label']) + '</div><h3>' + e(row['instruction']) + '</h3>'
+        out += ('<article class="mission567-card" data-mission-id="' + e(row['id']) + '"><div class="mission567-state">' + e(row['label']) + '</div><h3>'
+                + e(row.get('title') or row['instruction']) + '</h3>' + ('<p class="mission567-sub">' + e(row['subtitle']) + '</p>' if row.get('subtitle') else ''))
         out += '<p>' + e(row['matter_label'] or 'Cabinet') + '</p><p class="muted">' + e(job.get('progress') or (row.get('plan') or {}).get('deliverable', '')) + '</p>'
         if result.get('text'):
             out += '<details><summary>Lire la réponse et ses sources</summary><pre>' + e(result['text']) + '</pre></details>'

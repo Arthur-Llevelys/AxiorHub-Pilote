@@ -75,7 +75,7 @@ class Proactive190Tests(unittest.TestCase):
         self.assertEqual(job['kind'],'monitor_matter');self.assertGreater(job['priority'],0)
 
     def test_api_and_openwebui_expose_monitoring_without_send(self):
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.60')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.61')
         job=dispatch(self.d,'/matters/DOS-001/monitor','POST',{})
         self.assertEqual(job['status'],'queued')
         self.assertIn('signals',dispatch(self.d,'/signals','GET',query={}))
@@ -98,7 +98,7 @@ class Web190Tests(unittest.TestCase):
         dashboard=self.request('/dashboard')['body'];watch=self.request('/surveillance')['body']
         # 5.6.34 (chapitre 6) : la surveillance devient « Alertes du cabinet », avec des actions explicites
         self.assertIn('VOTRE JOURNÉE',dashboard);self.assertIn('Alertes du cabinet',watch)
-        self.assertIn('Actualiser les alertes de tous les dossiers',watch);self.assertIn('Version 5.6.60',watch)
+        self.assertIn('Actualiser les alertes de tous les dossiers',watch);self.assertIn('Version 5.6.61',watch)
         self.assertNotIn('http-equiv="refresh"',dashboard+watch)
 
 

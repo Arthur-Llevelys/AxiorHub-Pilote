@@ -237,6 +237,13 @@ def schedule(desk, stamp=None):
         # réconcilié ; un passage terminé, annulé ou en cours n'est jamais relancé.
         if run['state'] == 'pending' and not _job_active(desk, run):
             jobs.append(_enqueue_run(desk, run, 29))   # 5.6.60 : programmée par l'avocat, devant les travaux de maintenance
+    try:   # 5.6.61 : une fois, résultats Internet sans date déjà collectés masqués
+        hide_undated_web(desk)
+    except Exception:   # noqa: BLE001
+        pass
+    # 5.6.61 : collectes mises en file avant la 5.6.60 avec l'ancienne priorité (65) : relevées
+    desk.db.execute("UPDATE jobs SET priority=29 WHERE kind='veille5632_collect' AND status='pending' AND priority>29")
+    desk.db.commit()
     try:
         from .blocage5660 import close_orphan_veille
         close_orphan_veille(desk)
@@ -250,6 +257,10 @@ def refresh(desk, owner='cabinet'):
     schema(desk)
     active = desk.db.execute("SELECT * FROM veille_runs5632 WHERE owner=? AND state IN ('pending','running') ORDER BY id DESC LIMIT 1", (owner,)).fetchone()
     if active and _job_active(desk, active):                 # 5.6.56 (N07) : on ne « rejoint » qu'un travail réellement vivant
+        # 5.6.61 : rejoindre ne suffit pas : la collecte en file prend la priorité d'une demande de l'avocat
+        desk.db.execute("UPDATE jobs SET priority=MIN(priority,20),not_before=NULL WHERE kind='veille5632_collect' AND status='pending' "
+                        "AND args LIKE ? AND args LIKE ?", ('%"slot": "' + str(active['slot']).replace('%', '') + '"%', '%"owner": "' + str(owner).replace('%', '') + '"%'))
+        desk.db.commit()
         return {'run': active['id'], 'slot': active['slot'], 'joined': True}
     if active and active['state'] == 'pending':              # passage orphelin : réparé par ce clic
         job = _enqueue_run(desk, active, 20)
@@ -399,8 +410,9 @@ def tavily_search(desk, query, max_results=5, days=7, domains=(), http=None, p=N
         raise Stop('plafond_tavily_atteint')
     used['calls'] += 1
     desk.setting(_usage_key(), used)                       # réservation avant l'effet
-    body = {'query': str(query)[:400], 'search_depth': 'basic', 'max_results': max(1, min(10, int(max_results))), 'include_answer': False,
-            'include_raw_content': False, 'include_images': False, 'time_range': 'week' if days <= 7 else 'month'}
+    # 5.6.61 : mode « actualités » (articles datés) au lieu d'une recherche générale qui renvoyait formations, livres et guides permanents
+    body = {'query': str(query)[:400], 'topic': 'news', 'search_depth': 'basic', 'max_results': max(1, min(10, int(max_results))),
+            'include_answer': False, 'include_raw_content': False, 'include_images': False, 'time_range': 'week' if days <= 7 else 'month'}
     if domains:
         body['include_domains'] = list(domains)[:20]
     client = http or HTTP(TAVILY, timeout=30)
@@ -490,6 +502,65 @@ def _publish(desk, owner, run_id, theme, reason, item, source_kind, source):
     return cur.rowcount
 
 
+# adresse : rubriques de catalogue (formations, diplômes, librairie) ; titre : seulement des formules sans ambiguïté
+# (« du » ou « cours » sont des mots ordinaires : « arrêt du Conseil d'État », « au cours de »)
+EVERGREEN_PATH = re.compile(r"(?:^|[\s/_-])(?:formations?|masters?|diplomes?|cursus|offre-de-formation|catalogue|isbn|librairie|boutique|"
+                            r"livres?|ouvrages?|fiche-de-revision|guide-complet)(?:$|[\s/_.,:-])")
+EVERGREEN_TITLE = re.compile(r"\b(?:choisir sa formation|offre de formation|guide complet|master \d|master droit|diplome universitaire|"
+                             r"fiche de revision|cours de droit)\b|^du |^diu |^master ")
+BOOKSHOP_HOSTS = ('lgdj.fr', 'amazon.fr', 'amazon.com', 'fnac.com', 'decitre.fr', 'cultura.com', 'leslibraires.fr', 'onisep.fr', 'studyrama.com',
+                  'letudiant.fr', 'univ-droit.fr')
+
+
+def _web_date(value):
+    """Date de publication d'un résultat Internet (ISO ou RFC 2822) → AAAA-MM-JJ, ou '' si absente ou illisible."""
+    value = str(value or '').strip()
+    if not value:
+        return ''
+    try:
+        stamp = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        try:
+            from email.utils import parsedate_to_datetime
+            stamp = parsedate_to_datetime(value)
+        except (TypeError, ValueError, IndexError):
+            return ''
+    return stamp.date().isoformat()
+
+
+def web_relevant(item, days):
+    """5.6.61 : un résultat Internet n'entre dans la veille que s'il est daté, récent et n'a pas l'allure d'une page permanente
+    (formation, diplôme, librairie, guide). Renvoie (garder, motif)."""
+    host = (urlsplit(item.get('url') or '').hostname or '').lower()
+    if any(host == h or host.endswith('.' + h) for h in BOOKSHOP_HOSTS):
+        return False, 'librairie_ou_formation'
+    path = fold(urlsplit(item.get('url') or '').path.replace('/', ' / '))
+    title = fold(item.get('title') or '')
+    if EVERGREEN_PATH.search(' ' + path + ' ') or EVERGREEN_TITLE.search(title.strip()):
+        return False, 'page_permanente'
+    published = _web_date(item.get('published'))
+    if not published:
+        return False, 'sans_date'
+    if published < (_now() - timedelta(days=max(1, int(days)))).date().isoformat():
+        return False, 'trop_ancien'
+    return True, ''
+
+
+def hide_undated_web(desk, owner=None):
+    """5.6.61, une fois : résultats Internet déjà collectés sans date ou hors sujet masqués (toujours consultables, filtre « masqués »)."""
+    schema(desk)
+    if desk.settings('veille5661:nettoyage', False):
+        return 0
+    n = 0
+    for r in desk.db.execute("SELECT id,url,title,published FROM veille_items5632 WHERE source_kind='tavily' AND status='new'").fetchall():
+        keep, _ = web_relevant({'url': r['url'], 'title': r['title'], 'published': r['published'] or ''}, 3650)
+        if not keep:
+            n += desk.db.execute("UPDATE veille_items5632 SET status='hidden' WHERE id=?", (r['id'],)).rowcount
+    desk.setting('veille5661:nettoyage', True)
+    desk.db.commit()
+    return n
+
+
 def collect(desk, args, fetch=None, call=None, http=None):
     """Travail de veille : collecte, déduplication, classement, publication ; état terminé / partiel / échoué selon les sources."""
     schema(desk)
@@ -510,8 +581,8 @@ def collect(desk, args, fetch=None, call=None, http=None):
             for t in p['themes']:
                 try:
                     rows = connector_recent(desk, t, p['lookback_days'], call)
-                    if rows is None:
-                        results.append({'source': 'connecteur', 'status': 'unavailable', 'error': 'aucun_connecteur_actif'})
+                    if rows is None:   # 5.6.61 : connecteur non configuré : source absente, pas une panne de la collecte
+                        results.append({'source': 'connecteur juridique', 'status': 'skipped', 'error': 'aucun_connecteur_actif'})
                         break
                     n = sum(_publish(desk, owner, run_id, t['name'], 'Recherche par thème : ' + ', '.join(t['keywords'][:3]), r, 'connector', r.get('provider', ''))
                             for r in rows)
@@ -521,16 +592,22 @@ def collect(desk, args, fetch=None, call=None, http=None):
         if p['tavily'] and tavily_key_path(desk):
             for t in p['themes'][:max(0, p['tavily_calls_per_run'])]:
                 try:
-                    rows = tavily_search(desk, ' '.join(t['keywords'][:5]) + ' droit', p['max_results'], p['lookback_days'], http=http, p=p)
-                    n = sum(_publish(desk, owner, run_id, t['name'], 'Recherche Internet : ' + ', '.join(t['keywords'][:3]), r, 'tavily', 'Tavily') for r in rows)
-                    results.append({'source': 'Tavily · ' + t['name'], 'status': 'ok', 'items': len(rows), 'added': n})
+                    rows = tavily_search(desk, ' '.join(t['keywords'][:5]) + ' actualité juridique', p['max_results'], p['lookback_days'], http=http, p=p)
+                    kept = []
+                    for r in rows:                     # 5.6.61 : datés, récents, pas de page permanente
+                        keep, _why = web_relevant(r, p['lookback_days'])
+                        if keep:
+                            kept.append({**r, 'published': _web_date(r.get('published'))})
+                    n = sum(_publish(desk, owner, run_id, t['name'], 'Recherche Internet : ' + ', '.join(t['keywords'][:3]), r, 'tavily', 'Tavily') for r in kept)
+                    results.append({'source': 'Tavily · ' + t['name'], 'status': 'ok', 'items': len(rows), 'kept': len(kept), 'added': n})
                 except Stop as ex:
                     results.append({'source': 'Tavily · ' + t['name'], 'status': 'error', 'error': str(ex)})
                     if str(ex) in ('plafond_tavily_atteint', 'quota_tavily_atteint', 'cle_tavily_refusee'):
                         break
         added = sum(r.get('added', 0) for r in results)
         ok = [r for r in results if r['status'] == 'ok']
-        state = 'done' if ok and len(ok) == len(results) else ('partial' if ok else 'failed')
+        counted = [r for r in results if r['status'] != 'skipped']
+        state = 'done' if ok and len(ok) == len(counted) else ('partial' if ok else 'failed')
         if not results:
             state = 'failed'
         desk.db.execute('UPDATE veille_runs5632 SET state=?, finished=?, added=?, sources=?, lease_until=\'\', error=? WHERE id=?',
@@ -570,7 +647,7 @@ def state(desk, owner='cabinet'):
     due = next_due(p)
     return {'configured': bool(p['themes']) and p['enabled'], 'last_success': desk.settings('veille5632:last_success:' + owner, ''),
             'last_attempt': desk.settings('veille5632:last_attempt:' + owner, ''), 'next_run': due.isoformat() if due else '',
-            'last_state': last['state'] if last else '', 'last_error': (last['error'] or '') if last else '', 'failed_sources': [s for s in json.loads(last['sources'] or '[]') if s.get('status') != 'ok'] if last else [],
+            'last_state': last['state'] if last else '', 'last_error': (last['error'] or '') if last else '', 'failed_sources': [s for s in json.loads(last['sources'] or '[]') if s.get('status') not in ('ok', 'skipped')] if last else [],
             'unread': desk.db.execute("SELECT COUNT(*) FROM veille_items5632 WHERE owner=? AND status='new'", (owner,)).fetchone()[0]}
 
 

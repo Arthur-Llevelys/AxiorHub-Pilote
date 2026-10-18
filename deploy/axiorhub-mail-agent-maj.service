@@ -1,0 +1,11 @@
+[Unit]
+Description=AxiorHub Pilote — mise à jour signée depuis la page des versions GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 -B /opt/axiorhub-mail-agent/current/miseajour.py --executer
+TimeoutStartSec=50min
+UMask=0077

@@ -197,6 +197,12 @@ def _poste(desk, auth, prefix, env, cap):
     for key in ('mobile', 'recherche', 'clavier'):
         body += _section(sections.get(key, ''))
     body += _section(_legacy(desk, prefix, auth['csrf'], 'maintenance'), 'Maintenance')
+    try:   # 5.6.61 : avis de nouvelle version et mise à jour signée
+        from .maj5661 import html as _maj
+        from .web567 import actor as _actor
+        body += _section(_maj(desk, prefix, _actor(env)[1]))
+    except Exception:   # noqa: BLE001
+        pass
     try:
         from .blocage5660 import html as _blocages
         diag = _blocages(desk, prefix)
@@ -233,6 +239,12 @@ def _status_rows(desk):
         from .blocage5660 import diagnose
         blocking = [f for f in diagnose(desk.db, c['state_dir']) if f['severity'] == 'bloquant']
         rows.append(('poste', 'File de travail de l’agent', ('%d blocage(s) : %s' % (len(blocking), blocking[0]['title'])) if blocking else 'Aucun blocage détecté'))
+    except Exception:   # noqa: BLE001
+        pass
+    try:   # 5.6.61 : mises à jour
+        from .maj5661 import available, installed_version
+        new = available(desk)
+        rows.append(('poste', 'Version d’AxiorHub', ('%s — nouvelle version %s disponible' % (installed_version(), new)) if new else installed_version()))
     except Exception:   # noqa: BLE001
         pass
     try:

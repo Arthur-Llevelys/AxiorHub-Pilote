@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5661/'):   # 5.6.61 : mise à jour signée (administrateur)
+        from .web5661 import allowed as allowed5661
+        return allowed5661(role, api[len('m5661/'):])
     if api.startswith('m5660/'):   # 5.6.60 : actions du diagnostic de la file
         from .web5660 import allowed as allowed5660
         return allowed5660(role, api[len('m5660/'):])

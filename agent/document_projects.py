@@ -265,7 +265,16 @@ def _check_model(result,valid,official):
     all_ids=[]
     for field in ('source_ids','introduction_source_ids'):all_ids+=result[field]
     for item in result['sections']+result['requests']+result['exhibits_referenced']:all_ids+=item['source_ids']
-    if any(x not in valid for x in all_ids):raise Stop('source_document_invalide')
+    unknown=sorted({x for x in all_ids if x not in valid})
+    # 5.6.61 : une référence de pièce inconnue (identifiant mal recopié par le modèle) ne fait plus échouer tout le projet : elle est
+    # retirée et signalée à l'avocat. Une source juridique inconnue reste bloquante (jurisprudence possiblement inventée).
+    if any(x.startswith('legal-') for x in unknown):raise Stop('source_document_invalide')
+    if unknown:
+        for field in ('source_ids','introduction_source_ids'):result[field]=[x for x in result[field] if x in valid]
+        for item in result['sections']+result['requests']+result['exhibits_referenced']:
+            item['source_ids']=[x for x in item['source_ids'] if x in valid]
+        result['points_for_lawyer']=list(result.get('points_for_lawyer') or [])+[
+            'Références de pièces inconnues retirées (%s) : vérifier les passages qui s’y appuyaient.'%', '.join(unknown[:8])]
     # Legal leads may inform questions for the lawyer but cannot support text.
     for item in result['sections']+result['requests']:
         if any(x.startswith('legal-') and x not in official for x in item['source_ids']):
@@ -391,6 +400,13 @@ def prepare(desk,args,dav=None,model=None):
     structure=for_drafting(desk,matter['id'],instruction,owner=getattr(desk,'mission_owner567','cabinet'),document=source_path,document_version=etag)
     if structure:prompt['dossier_structure']=structure
     writer=model or Model(routed_config(desk.c,'document_drafting'))
+    # 5.6.61 : le paquet était borné à 84 000 caractères alors que le modèle refuse au-delà de sa limite (65 000 par défaut) :
+    # « Le contexte dépasse la capacité du modèle » à coup sûr sur un dossier fourni. Les sources les moins prioritaires sont retirées
+    # jusqu'à ce que la demande complète tienne, avec une marge pour la protection des contenus (5.6.59).
+    limit=int((getattr(writer,'cfg',None) or {}).get('max_context_chars',65000))-3000
+    while len(json.dumps(prompt,ensure_ascii=False))>limit and len(packet)>1:
+        packet.pop(-2 if legal and len(packet)>2 else -1)
+    valid={x['id'] for x in packet};official={x['id'] for x in legal if x['officially_verified'] and x['id'] in valid}
     cached=_saved_step(desk,pid,'draft_prepared',operation_fingerprint)
     result=cached.get('draft') if isinstance(cached,dict) else None
     if not isinstance(result,dict):

@@ -338,6 +338,20 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
             row['state'] = state
     row['label'] = LABELS.get(row['state'], row['state'])
     row['matter_label'] = next((matter_display(m) for m in load_matters(desk.c) if m['id'] == row['matter']), '')
+    # 5.6.61 : présentation — l'instruction d'une mission automatique contient la consigne de sécurité donnée au modèle ; l'avocat voit
+    # l'objet (« Document nouveau ou modifié : X ») et l'action de l'agent, le motif d'échec en clair, jamais une progression périmée.
+    from .file5657 import mission_text, _reason
+    action, subject = mission_text(row.get('instruction', ''))
+    row['title'], row['subtitle'], row['automatic'] = (subject, action, True) if subject else (row.get('instruction', ''), '', False)
+    job = row.get('job')
+    if isinstance(job, dict):
+        if row['state'] not in ('creating', 'queued', 'running'):
+            job['progress'] = ''
+        if job.get('error'):
+            job['error'] = _reason(job['error'])
+    for x in row.get('exceptions') or []:
+        if isinstance(x, dict) and x.get('message') and ' ' not in str(x['message']).strip():
+            x['message'] = _reason(x['message'])
     return row
 
 

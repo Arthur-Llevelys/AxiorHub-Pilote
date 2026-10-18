@@ -113,6 +113,8 @@ USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
 USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
 JOBS |= {'recit5651','relecture5651','routine5652','actualiser5655','crm_collecte5657'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
 USER_JOBS |= {'recit5651','relecture5651','routine5652'}
+JOBS |= {'maj_local5661'}   # 5.6.61 : mise à jour signée d'un poste (Windows, Ubuntu) depuis la page des versions
+USER_JOBS |= {'maj_local5661'}
 JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
 USER_JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}
 CONSERVATION_JOBS = ('archive_correspondence5643','file_mail_attachments5643')
@@ -817,6 +819,9 @@ class Desk:
             return None
 
     def perform(self, kind, args):
+        if kind=='maj_local5661':   # 5.6.61 : téléchargement, empreinte, signature, puis installateur du poste
+            from .maj5661 import local_update
+            return local_update(self,args)
         if kind=='crm_collecte5657':   # 5.6.57 (§ 8.3) : contacts alimentés par la boîte mail, passage borné et reprenable
             from .crm5657 import collect
             return collect(self)
@@ -1151,9 +1156,18 @@ class Desk:
         with open(Path(self.c['state_dir'])/'run.lock','a') as probe:
             try:fcntl.flock(probe,fcntl.LOCK_SH|fcntl.LOCK_NB)
             except BlockingIOError:busy=True
-        row=self.db.execute("SELECT * FROM jobs WHERE status='pending' AND (not_before IS NULL OR not_before<=?)"+
-          (" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643')" if busy else '')+
-          ' ORDER BY '+PICK_ORDER+' LIMIT 1',(now(),)).fetchone()
+        free_kinds=" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643')"
+        from .blocage5660 import RESERVE_AFTER
+        # 5.6.61 : un travail qui attend le verrou exclusif depuis 3 essais le réserve : aucun nouveau travail à verrou partagé (réponses de
+        # l'assistant, brouillons) ne démarre avant lui ; seuls les travaux sans verrou continuent. Sans cela, une suite continue de réponses
+        # de l'assistant pouvait repousser indéfiniment la veille (constaté le 18 octobre 2026).
+        reserved=None if busy else self.db.execute("SELECT * FROM jobs WHERE status='pending' AND lock_waits>=? ORDER BY lock_waits DESC,id LIMIT 1",
+                                                   (RESERVE_AFTER,)).fetchone()
+        if reserved and (not reserved['not_before'] or reserved['not_before']<=now()):
+            row=reserved
+        else:
+            row=self.db.execute("SELECT * FROM jobs WHERE status='pending' AND (not_before IS NULL OR not_before<=?)"+
+              (free_kinds if busy or reserved else '')+' ORDER BY '+PICK_ORDER+' LIMIT 1',(now(),)).fetchone()
         if not row:
             self.db.commit()
             return False
@@ -1237,8 +1251,10 @@ class Desk:
                 # 5.6.60 : attente différée (10 s à 5 min), sans compter de tentative ; le motif est noté pour le diagnostic
                 from .blocage5660 import backoff_seconds, holder
                 waits=int(row['lock_waits'] or 0)+1
+                from .blocage5660 import RESERVE_AFTER
+                delay=15 if waits>=RESERVE_AFTER else backoff_seconds(waits)   # 5.6.61 : travail réservataire réessayé souvent
                 changed = self.db.execute("UPDATE jobs SET status='pending',attempts=MAX(attempts-1,0),lock_waits=?,not_before=?,blocked_by=? "
-                                          "WHERE id=? AND status='running'",(waits,(datetime.now(timezone.utc)+timedelta(seconds=backoff_seconds(waits))).isoformat(),
+                                          "WHERE id=? AND status='running'",(waits,(datetime.now(timezone.utc)+timedelta(seconds=delay)).isoformat(),
                                                                               holder(self.c['state_dir'])['holder'][:120],row['id'])).rowcount
                 self.db.commit()
                 if changed:
@@ -1457,6 +1473,18 @@ def worker(c,worker_id='1'):
                     last_watch=time.monotonic()
                     from .blocage5660 import watchdog
                     watchdog(desk)
+                    if str(worker_id)=='1':
+                        try:   # 5.6.61 : avis de nouvelle version (flux public des versions, au plus toutes les 6 h)
+                            from .maj5661 import auto_tick as _maj_auto, check as _maj_check
+                            _maj_check(desk)
+                            _maj_auto(desk)   # mode « automatique la nuit », si l'administrateur l'a choisi
+                        except Exception:   # noqa: BLE001 — jamais bloquant pour la file
+                            pass
+                        try:   # 5.6.61 : brouillons de l'agent dans la messagerie (« À relire »), relus au plus toutes les 2 min
+                            from .cockpit530 import _drafts as _drafts530
+                            _drafts530(desk, refresh=True)
+                        except Exception:   # noqa: BLE001 — messagerie injoignable : la liste précédente reste affichée
+                            pass
                 desk.work_once()
                 pause=3.0
             except (sqlite3.OperationalError,Stop) as error:

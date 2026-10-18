@@ -188,6 +188,20 @@ def fit_chat_context(payload,limit):
     return payload
 
 
+UNREADABLE={'ocr_sans_texte_reconnu':'aucun texte reconnu (scan ou image)','ocr_qualite_insuffisante':'lecture trop incertaine',
+            'document_sans_texte_exploitable':'aucun texte exploitable','pdf_scan_ocr_necessaire_installer_poppler_et_tesseract':'scan à lire par OCR (outils absents)',
+            'piece_trop_volumineuse':'pièce trop volumineuse','http_404':'pièce introuvable (déplacée ou supprimée ?)',
+            'document_office_non_lisible':'document Office illisible','extraction_locale_echouee':'lecture impossible',
+            'document_trop_long_pour_analyse':'document trop long'}
+
+
+def unreadable_reason(code):
+    """5.6.61 : motif lisible d'une pièce jointe non lue, ou '' si l'erreur n'est pas une simple pièce illisible."""
+    code=str(code or '').split(':')[0]
+    if code.startswith('format_a_convertir_'):return 'format à convertir ('+code[len('format_a_convertir_'):]+')'
+    return UNREADABLE.get(code,'')
+
+
 def chat(desk,args,dav,model,box=None,return_result=False):
     from .model import CHAT,validate
     scope,matter,report=chat_scope(desk.c,args)
@@ -198,13 +212,19 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     attachment_ids=args.get('attachment_ids') if isinstance(args.get('attachment_ids'),list) else []
     if not attachment_ids and args.get('attachment_id'):attachment_ids=[args['attachment_id']]
     if len(attachment_ids)>3:raise Stop('trois_pieces_maximum')
-    attachment_reports=[]
+    attachment_reports=[];unreadable=[]
     for attachment_id in attachment_ids:
         from .long_context363 import analyze_attachment
-        extracted,current_coverage=analyze_attachment(desk,attachment_id,question,
-            args.get('matter',''),args.get('key',''),model,limit)
+        try:
+            extracted,current_coverage=analyze_attachment(desk,attachment_id,question,
+                args.get('matter',''),args.get('key',''),model,limit)
+        except Stop as ex:   # 5.6.61 : une pièce illisible ou introuvable n'empêche plus la réponse ; elle est signalée
+            if not unreadable_reason(str(ex)):raise
+            unreadable.append(unreadable_reason(str(ex)));continue
         sources.extend(extracted)
         attachment_reports.append(current_coverage)
+    if unreadable:
+        question=question+'\n\n[Information AxiorHub : %d pièce(s) jointe(s) non lue(s) (%s) ; ne pas en déduire leur contenu.]'%(len(unreadable),'; '.join(unreadable))
     if attachment_reports:
         attachment_coverage={'extracted_chars':sum(x.get('extracted_chars',0) for x in attachment_reports),
           'parts_analyzed':sum(x.get('parts_analyzed',0) for x in attachment_reports),
@@ -307,6 +327,8 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         (scope,question,json.dumps(result),json.dumps(sources),now()))
     desk.db.execute('DELETE FROM conversations WHERE scope=? AND id NOT IN (SELECT id FROM conversations WHERE scope=? ORDER BY id DESC LIMIT 100)',(scope,scope))
     desk.db.commit()
+    if return_result and unreadable and isinstance(result.get('answer'),str):
+        result={**result,'answer':result['answer']+'\n\nPièce(s) jointe(s) non lue(s) : '+'; '.join(unreadable)+'. La réponse ne s’appuie pas sur leur contenu.'}
     if return_result:
         return {**result,'sources':[{'id':s['id'],'matter':s.get('matter',''),
             'path':s.get('path',''),'modified':s.get('modified',''),

@@ -1,0 +1,9 @@
+[Unit]
+Description=AxiorHub Pilote — demande de mise à jour depuis l'interface
+
+[Path]
+PathExists=/var/lib/axiorhub-mail-agent/maj/demande.json
+Unit=axiorhub-mail-agent-maj.service
+
+[Install]
+WantedBy=multi-user.target

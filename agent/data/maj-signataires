@@ -1,0 +1,5 @@
+# Clé publique de signature des versions d'AxiorHub Pilote (format « allowed_signers » d'OpenSSH).
+# Chaque version publiée est signée avec la clé privée correspondante (ssh-keygen -Y sign -n axiorhub-release) ;
+# AxiorHub n'installe une mise à jour que si sa signature est vérifiée avec cette clé.
+# Empreinte : SHA256:CT0tDcpqhyBIhBuf4p7QvNX0kWPWFhoBMFky+lfjS4w
+axiorhub-pilote namespaces="axiorhub-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEk0eaFg0FSR7nIMSqW+TOtI36RV9N/NkVul2FAFFJZH signature-axiorhub

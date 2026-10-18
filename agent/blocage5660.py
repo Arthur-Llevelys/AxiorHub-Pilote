@@ -35,6 +35,7 @@ LIMITS = {'assistant_answer': 20, 'prepare_reply': 30, 'prepare_draft': 30, 'liv
 DEFAULT_LIMIT = 180
 STALE_QUESTION_HOURS = 6
 BACKOFF_MIN, BACKOFF_MAX = 10, 300
+RESERVE_AFTER = 3            # 5.6.61 : après 3 attentes du verrou, le travail le réserve (plus de nouveau travail à verrou partagé avant lui)
 SEVERITY = {'bloquant': 'Bloquant', 'attention': 'À surveiller', 'info': 'Information'}
 
 

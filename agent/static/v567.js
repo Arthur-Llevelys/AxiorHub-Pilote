@@ -145,7 +145,9 @@
   }
   function card(m) {
     const c = el('article', undefined, 'mission567-card'); c.dataset.missionId = m.id;
-    c.append(el('div', m.label, 'mission567-state'), el('h3', m.instruction), el('p', m.matter_label || 'Cabinet'));
+    c.append(el('div', m.label, 'mission567-state'), el('h3', m.title || m.instruction));
+    if (m.subtitle) c.append(el('p', m.subtitle, 'mission567-sub'));   // 5.6.61 : action de l'agent, sous l'objet
+    c.append(el('p', m.matter_label || 'Cabinet'));
     c.append(el('p', m.job?.progress || m.plan.deliverable, 'muted'));
     const r = m.result || {};
     if (r.text) {const d = el('details'); d.append(el('summary', 'Lire la réponse et ses sources'), el('pre', r.text)); c.append(d);}
@@ -177,7 +179,7 @@
     }
     if (m.state === 'error') c.append(el('p', m.job?.error || (m.exceptions || []).map(x => x.message).join(' '), 'warn'));
     if (['creating', 'queued', 'running', 'error', 'paused','suggested'].includes(m.state)) {
-      const d = el('details'), active = ['creating', 'queued', 'running'].includes(m.state), b = el('button', active ? 'Suspendre' : (m.state==='suggested' ? 'Démarrer la préparation' : 'Reprendre'));
+      const d = el('details'), active = ['creating', 'queued', 'running'].includes(m.state), b = el('button', active ? 'Suspendre' : (m.state==='suggested' ? 'Démarrer la préparation' : (m.state==='error' ? 'Relancer' : 'Reprendre')));
       b.type = 'button'; b.dataset.missionControl = active ? 'pause' : 'resume'; if (m.state==='suggested' || m.state==='error') c.append(b); else {d.append(el('summary', 'Autres actions'), b); c.append(d);}
     }
     const d = el('details'), list = el('ol'); m.plan.steps.forEach(x => list.append(el('li', x)));

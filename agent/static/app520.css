@@ -2050,6 +2050,15 @@ textarea.b5639-preview{width:100%;box-sizing:border-box;min-height:220px;border:
 .q51-matter{margin-left:auto}
 .q51-title{margin:4px 0;font-weight:600}
 .q51-why{margin:0 0 6px;font-size:.9rem;color:var(--ws-muted,#475569)}
+/* 5.6.61 : file lisible — compteurs, action de l’agent, échecs automatiques repliés, carte « Projet à relire » mise en avant */
+.q51-n{display:inline-block;min-width:1.4em;padding:0 5px;margin-left:2px;border-radius:999px;background:var(--ws-soft,#eef2f7);color:inherit;font-size:.8rem;text-align:center}
+.q51-filters a[aria-current=true] .q51-n{background:rgba(255,255,255,.25)}
+.q51-sub{margin:0 0 4px;font-size:.85rem;color:var(--ws-muted,#475569)}
+.q51-matter a{color:inherit}
+.q51-projet,.q51-livrable{border-left:4px solid var(--ws-accent,#1d4ed8)}
+.q51-echec_agent{border-left:4px solid #d97706}
+.q51-folded{margin-top:10px}.q51-folded>summary{cursor:pointer;font-weight:600;color:var(--ws-muted,#475569);padding:6px 0}
+.q51-folded>.q51-list{margin-top:6px}
 .q51-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .q51-inline{display:inline-flex}
 /* missions */

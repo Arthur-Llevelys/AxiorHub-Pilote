@@ -1379,8 +1379,11 @@ class App:
                     from .membres5650 import viewer_hidden
                     from .i18n5631 import role as _role52
                     queue56=queue5651(desk,prefix,None,str(args.get('file') or ''),viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
-                except Exception:   # noqa: BLE001 — la file ne doit jamais empêcher l'affichage du poste de pilotage
-                    pass
+                except Exception as _qerr:   # noqa: BLE001 — la file ne doit jamais empêcher l'affichage du poste de pilotage
+                    import logging as _lg56   # 5.6.61 : consignée et signalée (elle disparaissait sans explication)
+                    _lg56.getLogger(__name__).exception('file À décider / À relire : %s',_qerr)
+                    queue56=('<section class="c530-card"><h2>À décider / À relire</h2><p class="d51-warn" role="alert">La file n’a pas pu être '
+                             'affichée (%s). Les éléments sont conservés ; voir le journal de l’interface.</p></section>')%e(type(_qerr).__name__)
                 # 5.6.56 (audit 5.6.55, N02) : la file est rendue EN BAS du poste de pilotage, dans son conteneur (même largeur que les routines)
                 try:   # 5.6.57 (A09) : cartes d'action des décisions de l'agent, ouvertes depuis la file (pas de seconde liste)
                     from .aujourdhui5614 import decisions_html as _dec57

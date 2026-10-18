@@ -1,0 +1,37 @@
+{
+  "version": "5.6.61",
+  "base": "5.6.60 publiée",
+  "date_utc": "2026-10-18T00:00:00+00:00",
+  "cahier_des_charges": "Retour du cabinet du 18 octobre 2026 après la 5.6.60 : « Actualiser » affiche « Collecte lancée » mais la veille ne démarre pas ; diagnostic : collecte en file avec l’ancienne priorité, puis attente du verrou exclusif pendant une suite continue de réponses de l’assistant ; échecs de réponses sur une pièce jointe sans texte reconnu ; demande d’une mise à jour depuis la page GitHub (choix du cabinet : avis et bouton, signature et empreinte).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2508,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 106,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5661.py : le travail qui attend le verrou passe avant une réponse plus prioritaire ; pendant son attente seuls les travaux sans verrou passent ; « Actualiser » relève la priorité de la collecte rejointe ; anciennes collectes relevées ; réponse de l’assistant donnée malgré une pièce jointe illisible, une autre erreur n’est pas masquée ; avis de nouvelle version (flux lu au plus toutes les 6 h), demande contrôlée (administrateur, dernière version, service activé), aucune ligne de commande affichée ; poste : travail de la file, installateur Windows lancé hors de l’arbre du worker, Ubuntu pkexec puis installateur graphique, installateur modifié ou empreinte fausse jamais lancé, signature SSHSIG vérifiée en Python ; mode automatique la nuit, une tentative par version ; activation par install.sh et le paquet Debian ; Aujourd’hui : brouillons relus par le worker, file qui signale son erreur ; projet documentaire : paquet réduit à la limite du modèle, pièce inconnue retirée et signalée, source juridique inconnue bloquante ; file lisible (consigne interne jamais affichée, doublons regroupés, motif en clair, Relancer / Écarter groupés, échecs automatiques repliés, compteurs) ; missions lisibles ; résumé de passage trop long coupé au lieu d’échouer ; service système : version signée installée, archive remplacée avec son empreinte refusée (signature), empreinte fausse, version différente de la dernière publiée ou plus ancienne refusées, archive à chemin sortant refusée ; veille : seules les actualités datées entrent (mode actualités, pages permanentes écartées), connecteur absent non compté comme une panne, nettoyage unique des résultats sans date.",
+  "exapp": {
+    "version": "0.1.20",
+    "moteur": "5.6.61"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "File : réservation du verrou après 3 attentes (blocage5660.RESERVE_AFTER).",
+    "Veille : « Actualiser » relève la priorité de la collecte en file à 20 ; collectes en file relevées à 29.",
+    "Assistant : pièces jointes illisibles signalées dans la réponse au lieu d’un échec.",
+    "Worker 1 : lecture du flux public des versions GitHub au plus toutes les 6 h (avis de nouvelle version).",
+    "Nouveau script root miseajour.py et unités axiorhub-mail-agent-maj.path/.service, installées et activées par install.sh et le paquet Debian (« miseajour.py --installer-auto », jamais bloquant) avec la clé livrée dans agent/data/maj-signataires ; une clé posée par l’administrateur n’est pas remplacée.",
+    "Postes Windows et Ubuntu : nouveau travail maj_local5661 (priorité 5) ; réglage maj5661:automatique (désactivé par défaut).",
+    "Worker 1 : liste des brouillons de l’agent (IMAP, dossier Brouillons) relue au plus toutes les 2 min.",
+    "Nouvelle route /api440/m5661/file/missions (Relancer / Écarter plusieurs missions ; mêmes droits que m567/mission/control) ; classe de file « echec_agent ».",
+    "long_documents365 : réponses de passage (2 600) et de synthèse (3 200) coupées au lieu d’échouer.",
+    "Projets documentaires : sources retirées jusqu’à la limite max_context_chars du modèle moins 3 000 ; références de pièces inconnues retirées et ajoutées aux points pour l’avocat."
+  ],
+  "adjusted_tests": []
+}
