@@ -112,6 +112,7 @@ def main():
     p.add_argument('--config', default='/etc/axiorhub-mail-agent/config.json')
     sub = p.add_subparsers(dest='command',required=True)
     for cmd in ['configure','doctor','readiness','run','discover','link','index','status','purge-index','learn','memory-status','mail-folders','draft-status','recette-production']: sub.add_parser(cmd)
+    diag = sub.add_parser('diagnostic-file'); diag.add_argument('--json', action='store_true')   # 5.6.60 : blocages de la file, lecture seule
     set_url=sub.add_parser('set-url')
     set_url.add_argument('key',choices=['roundcube','roundcube_drafts','openwebui','nextcloud','onlyoffice','invoice_ninja'])
     set_url.add_argument('value')
@@ -125,6 +126,14 @@ def main():
         from agent.setup import configure
         configure(args.config); return 0
     c = load_config(args.config)
+    if args.command=='diagnostic-file':   # 5.6.60 : lecture seule (base ouverte en lecture), aucune écriture
+        import sqlite3
+        from agent.blocage5660 import diagnose, text_report
+        db=sqlite3.connect('file:'+str(Path(c['state_dir'])/'desk.sqlite3')+'?mode=ro',uri=True);db.row_factory=sqlite3.Row
+        try:findings=diagnose(db,c['state_dir'])
+        finally:db.close()
+        print(json.dumps(findings,ensure_ascii=False,indent=1) if args.json else text_report(findings))
+        return 1 if any(f['severity']=='bloquant' for f in findings) else 0
     if args.command=='doctor': return doctor(c)
     if args.command=='readiness':   # 5.6.9 : mise en service, même rapport que l'écran Outils › Mise en service
         from agent.desk import Desk

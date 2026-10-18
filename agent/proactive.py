@@ -227,15 +227,18 @@ def monitor_all(desk,args):
     matters=sorted((m for m in load_matters(desk.c) if m['id'] in active),key=lambda x:x['id'])
     remaining=[m for m in matters if m['id']>after]
     free=max(0,98-desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0])
-    selected=[]
+    selected,skipped,last=[],[],after
     for matter in remaining[:min(limit,free)]:
         try:desk.enqueue('monitor_matter',{'matter':matter['id']},priority=60)
         except Stop as ex:
+            if str(ex) in ('agent_en_pause_sur_ce_dossier','relances_suspendues_apres_trois_echecs'):
+                skipped.append(matter['id']);last=matter['id'];continue   # 5.6.60 : dossier en pause ou en échec répété : passé, jamais bloquant
             if str(ex)!='file_attente_pleine':raise
             break   # 5.6.36 : plafond des travaux automatiques atteint : le lot s'arrête là, la suite reprendra au prochain passage
-        selected.append(matter)
-    return {'dossiers_mis_en_attente':len(selected),'suite':len(remaining)>len(selected) and bool(selected),
-            'after':selected[-1]['id'] if selected else after,'reporte':len(remaining)-len(selected)}
+        selected.append(matter);last=matter['id']
+    done=len(selected)+len(skipped)
+    return {'dossiers_mis_en_attente':len(selected),'dossiers_en_pause_passes':len(skipped),'suite':len(remaining)>done and done>0,
+            'after':last,'reporte':len(remaining)-done}
 
 
 def signals(desk,state='open',matter='',limit=100):

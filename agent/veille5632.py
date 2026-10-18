@@ -236,7 +236,12 @@ def schedule(desk, stamp=None):
         # 5.6.56 (audit 5.6.55, N07) : un passage « en attente » sans travail vivant (mise en file refusée, travail perdu) est
         # réconcilié ; un passage terminé, annulé ou en cours n'est jamais relancé.
         if run['state'] == 'pending' and not _job_active(desk, run):
-            jobs.append(_enqueue_run(desk, run, 65))
+            jobs.append(_enqueue_run(desk, run, 29))   # 5.6.60 : programmée par l'avocat, devant les travaux de maintenance
+    try:
+        from .blocage5660 import close_orphan_veille
+        close_orphan_veille(desk)
+    except Exception:   # noqa: BLE001
+        pass
     return jobs
 
 

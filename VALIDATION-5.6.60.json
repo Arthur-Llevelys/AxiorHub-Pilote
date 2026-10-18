@@ -1,0 +1,35 @@
+{
+  "version": "5.6.60",
+  "base": "5.6.59 publiée",
+  "date_utc": "2026-10-18T00:00:00+00:00",
+  "cahier_des_charges": "Incident du 18 octobre 2026 sur un serveur du cabinet (file figée depuis le 15 : 62 travaux en attente, veille jamais lancée, travail monitor_all à 118 739 essais) ; demande de corriger ces défauts et de vérifier l’absence d’autres blocages ; réorganisation de la page Paramètres sans retirer de fonction ni de réglage.",
+  "cause": "proactive.monitor_all ne tolérait que le refus « file pleine » ; un dossier en pause faisait lever « agent_en_pause_sur_ce_dossier », le travail était suspendu puis remis en file immédiatement (desk.work_once, reprise 5.6.44 F09) faute de pause le concernant.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2477,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 105,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5660.py : balayage avec un dossier en pause (cas constaté) ; suspension sans pause qui ne boucle plus ; attente du verrou différée sans tentative, le travail suivant passe ; durée maximale ; question trop ancienne non relancée ; diagnostic (pause, travail trop long, attente du verrou, file figée) ; veille orpheline close ; article de flux republié non dupliqué ; Paramètres : aucun réglage perdu (repère de chaque ancienne rubrique), anciennes rubriques et adresses, vue d’ensemble, sommaire et sections repliables.",
+  "exapp": {
+    "version": "0.1.19",
+    "moteur": "5.6.60"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Travaux en attente du verrou : délai croissant (colonne not_before), attentes et détenteur notés (lock_waits, blocked_by) ; migration 0660.",
+    "Durées maximales par type de travail (blocage5660.LIMITS) ; l’arrêt est demandé au-delà.",
+    "Veille programmée en priorité 29 (devant la maintenance).",
+    "Paramètres : rubriques « sources », « veille » et « comptes » servies par « recherche » et « cabinet » ; « /confort » ouvre « poste »."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5621.py::Hub.test_each_rubrique_renders_its_settings_once : l’accueil téléphonique et l’envoi sont vérifiés dans « Courriels et accueil », le clavier dans « Confort et maintenance » (ancienne rubrique « Cabinet et accueil » répartie).",
+    "tests/test_v490.py::Web.test_confort_page_lists_commands_shortcuts_and_the_decision_on_sending : la décision d’envoi est cherchée aussi dans « Courriels et accueil », où elle se trouve désormais."
+  ]
+}

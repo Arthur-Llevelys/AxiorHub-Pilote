@@ -50,8 +50,13 @@ class Hub(t14.Base):
         self.assertNotIn('class="ws-tabs"', body)
         body = self._get('/parametres?rubrique=documents')
         self.assertIn('id="ax-office-settings"', body); self.assertIn('Rôle et procédure par dossier', body)
+        # 5.6.60 : « Cabinet et accueil » est réparti : accueil téléphonique et envoi avec les courriels, confort et maintenance à part
+        body = self._get('/parametres?rubrique=messagerie')
+        self.assertIn('Accueil téléphonique et WhatsApp', body); self.assertIn('id="envoi"', body)
+        body = self._get('/parametres?rubrique=poste')
+        self.assertIn('id="clavier"', body); self.assertIn('Maintenance', body)
         body = self._get('/parametres?rubrique=cabinet')
-        self.assertIn('Accueil téléphonique et WhatsApp', body); self.assertIn('id="envoi"', body); self.assertIn('id="clavier"', body)
+        self.assertIn('Cabinet et utilisateurs', body); self.assertIn('Confidentialité', body)
         self.assertNotIn('id="voix"', body); self.assertNotIn('id="assistant567-preferences"', body)
 
     def test_old_addresses_open_the_matching_rubrique(self):

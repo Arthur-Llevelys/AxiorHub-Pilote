@@ -152,7 +152,15 @@ def html(desk, prefix):
             '%s</section>') % (
         ('<ul class="e5657-problems" role="status">%s</ul>' % probs) if probs else '<p class="ok" role="status">La file avance normalement.</p>',
         worker, cur, oldest, s['veille_orphans'], e(str(ctx.get('model') or 'modèle non renseigné')), e(str(ctx.get('num_ctx') or 'automatique')),
-        e(str(ctx.get('max_context_chars'))), pend, errs, _securite(desk, prefix))
+        e(str(ctx.get('max_context_chars'))), pend, errs, _blocages(desk, prefix) + _securite(desk, prefix))
+
+
+def _blocages(desk, prefix):
+    try:   # 5.6.60 : blocages connus de la file
+        from .blocage5660 import html as _html
+        return _html(desk, prefix)
+    except Exception:   # noqa: BLE001
+        return ''
 
 
 def _securite(desk, prefix):

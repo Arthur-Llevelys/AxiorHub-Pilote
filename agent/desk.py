@@ -1151,9 +1151,9 @@ class Desk:
         with open(Path(self.c['state_dir'])/'run.lock','a') as probe:
             try:fcntl.flock(probe,fcntl.LOCK_SH|fcntl.LOCK_NB)
             except BlockingIOError:busy=True
-        row=self.db.execute("SELECT * FROM jobs WHERE status='pending'"+
+        row=self.db.execute("SELECT * FROM jobs WHERE status='pending' AND (not_before IS NULL OR not_before<=?)"+
           (" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643')" if busy else '')+
-          ' ORDER BY '+PICK_ORDER+' LIMIT 1').fetchone()
+          ' ORDER BY '+PICK_ORDER+' LIMIT 1',(now(),)).fetchone()
         if not row:
             self.db.commit()
             return False
@@ -1176,7 +1176,7 @@ class Desk:
             check_authority(self,_args)
             from .pause5629 import check_running,with_consignes   # 5.6.29
             check_running(self,row,_args)
-            progress(self,'Traitement démarré')
+            if not int(row['lock_waits'] or 0):progress(self,'Traitement démarré')   # 5.6.60 : pas un événement par attente du verrou
             self.audit('job_started',{'job_id':row['id'],'kind':row['kind'],
               'args_sha256':digest(row['args'])})
             if row['kind'] in ('run','live_mail430'):
@@ -1201,7 +1201,8 @@ class Desk:
                     from .live430 import heartbeat
                     heartbeat(self,'courriels','active',str(result.get('examined',0))+' courriels examinés',time.time()+300)
                 if result.get('busy'):
-                    changed=self.db.execute("UPDATE jobs SET status='pending' WHERE id=? AND status='running'",(row['id'],)).rowcount
+                    changed=self.db.execute("UPDATE jobs SET status='pending',attempts=MAX(attempts-1,0),not_before=? WHERE id=? AND status='running'",
+                                            ((datetime.now(timezone.utc)+timedelta(seconds=30)).isoformat(),row['id'])).rowcount
                     self.db.commit()
                     if not changed:raise Stop('operation_annulee')
                     self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
@@ -1233,7 +1234,12 @@ class Desk:
             status='done'
         except Stop as e:
             if str(e)=='traitement_deja_en_cours':
-                changed = self.db.execute("UPDATE jobs SET status='pending' WHERE id=? AND status='running'",(row['id'],)).rowcount
+                # 5.6.60 : attente différée (10 s à 5 min), sans compter de tentative ; le motif est noté pour le diagnostic
+                from .blocage5660 import backoff_seconds, holder
+                waits=int(row['lock_waits'] or 0)+1
+                changed = self.db.execute("UPDATE jobs SET status='pending',attempts=MAX(attempts-1,0),lock_waits=?,not_before=?,blocked_by=? "
+                                          "WHERE id=? AND status='running'",(waits,(datetime.now(timezone.utc)+timedelta(seconds=backoff_seconds(waits))).isoformat(),
+                                                                              holder(self.c['state_dir'])['holder'][:120],row['id'])).rowcount
                 self.db.commit()
                 if changed:
                     self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
@@ -1275,7 +1281,15 @@ class Desk:
             # 5.6.44 (F09) : la reprise a pu intervenir pendant l'interruption ; sans pause en vigueur, le travail repart sans second clic.
             from .pause5629 import is_paused
             if not self.settings('missions567:pause',False) and not (actual['matter_ref'] and is_paused(self,actual['matter_ref'])):
-                self.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL WHERE id=? AND status='suspended'",(row['id'],))
+                # 5.6.60 : relance unique et différée ; au-delà de 3 essais, la « pause » vient d'ailleurs (un dossier en pause rencontré par
+                # un balayage, par exemple) : erreur explicite au lieu d'une boucle qui fige la file (118 739 essais constatés).
+                if int(row['attempts'] or 0)+1<3:
+                    self.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL,not_before=? WHERE id=? AND status='suspended'",
+                                    ((datetime.now(timezone.utc)+timedelta(seconds=60)).isoformat(),row['id']))
+                else:
+                    self.db.execute("UPDATE jobs SET status='error',stop_reason=NULL,result=? WHERE id=? AND status='suspended'",
+                                    (json.dumps({'erreur':'suspension_sans_pause_en_vigueur','message':'Arrêté : le travail se suspendait pour une pause '
+                                                 'qui ne le concerne pas (dossier en pause rencontré en chemin). Relancez-le après contrôle.'},ensure_ascii=False),row['id']))
                 actual=self.db.execute('SELECT status,result FROM jobs WHERE id=?',(row['id'],)).fetchone()
         status=actual['status'];result=json.loads(actual['result'] or '{}')
         if row['kind']=='proactive34_cycle' and status!='done':
@@ -1426,6 +1440,7 @@ def worker(c,worker_id='1'):
             finally:db.close()
         threading.Thread(target=pulse,daemon=True).start()
         pause=3.0
+        last_watch=0.0
         while True:
             try:
                 if c.get('_path'):
@@ -1438,6 +1453,10 @@ def worker(c,worker_id='1'):
                 try:
                     if str(worker_id)=='1':automation_tick(desk)
                 except Stop:pass
+                if time.monotonic()-last_watch>60:   # 5.6.60 : durée maximale par type de travail
+                    last_watch=time.monotonic()
+                    from .blocage5660 import watchdog
+                    watchdog(desk)
                 desk.work_once()
                 pause=3.0
             except (sqlite3.OperationalError,Stop) as error:

@@ -35,6 +35,17 @@ def producer_lock(config, kind, args):
         yield
 
 
+def _older_than(desk, job_id, hours):
+    from datetime import datetime, timedelta, timezone
+    row = desk.db.execute('SELECT created FROM jobs WHERE id=?', (job_id,)).fetchone()
+    try:
+        created = datetime.fromisoformat(str(row['created']))
+    except (TypeError, ValueError):
+        return False
+    created = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - created > timedelta(hours=hours)
+
+
 def recover(desk, worker_id):
     rows=desk.db.execute("SELECT id,kind,status,args,attempts FROM jobs WHERE status IN ('running','cancel_requested') AND (worker=? OR (worker IS NULL AND ?='1'))",(str(worker_id),str(worker_id))).fetchall()
     counts={'resumed':0,'cancelled':0,'review':0}
@@ -48,6 +59,10 @@ def recover(desk, worker_id):
             except Exception as ex:
                 state,result='error',{'erreur':'reprise_mission_impossible:'+str(ex)[:80]}
             counts['resumed' if state=='pending' else ('cancelled' if state=='cancelled' else 'review')]+=1
+        elif row['kind']=='assistant_answer' and _older_than(desk,row['id'],6):
+            # 5.6.60 : une question posée il y a plus de 6 h n'est plus relancée à chaque redémarrage
+            state,result='error',{'erreur':'question_trop_ancienne','message':'Question trop ancienne pour être reprise automatiquement : reposez-la.'}
+            counts['review']+=1
         elif row['kind'] in REPLAY_SAFE and int(row['attempts'] or 0)<3:
             state,result='pending',None;counts['resumed']+=1
         else:

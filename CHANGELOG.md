@@ -3,6 +3,28 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.60 — File de travail débloquée, diagnostic des blocages, page Paramètres réorganisée
+
+- Correctif : un seul dossier dont l’IA était mise en pause figeait toute la file de travail. Le balayage de surveillance des
+  dossiers échouait sur ce dossier, se mettait en « suspendu pour pause », puis était aussitôt remis en file faute de pause qui le
+  concerne, et repris toutes les 3 secondes en tête de file (118 739 essais constatés sur un serveur) : veille, indexation et
+  surveillance restaient en attente. Le balayage passe désormais les dossiers en pause, et un travail suspendu sans pause en vigueur
+  n’est plus relancé qu’avec un délai, puis arrêté avec un message clair au-delà de trois essais.
+- Tête de file : un travail qui attend le verrou général attend un délai croissant (10 s à 5 min) sans compter de tentative ; le
+  worker passe aux travaux suivants ; le détenteur du verrou est noté.
+- Durée maximale par type de travail : au-delà, l’arrêt est demandé automatiquement (réponse de l’assistant : 20 min, brouillon :
+  30 min, veille : 1 h, rédaction longue : 4 h, indexation : 6 h, autres : 3 h). Une question posée il y a plus de 6 h n’est plus
+  relancée au redémarrage du service.
+- Veille programmée : passe devant les travaux de maintenance ; un passage orphelin d’un créneau dépassé est clos.
+- Diagnostic des blocages dans « L’agent en un coup d’œil » et dans Paramètres › Confort et maintenance (pause de l’IA, verrou tenu
+  trop longtemps, travaux trop longs, arrêts non confirmés, attente du verrou, workers silencieux, file pleine ou figée, échecs
+  répétés, veille orpheline), avec « Arrêter ce travail » et « Réessayer maintenant » ; commande serveur en lecture seule
+  `manage.py diagnostic-file`.
+- Page Paramètres réorganisée sans retirer de réglage : menu latéral en cinq familles, vue d’ensemble (état des réglages), recherche
+  d’une rubrique, sommaire et sections repliables ; « Cabinet et accueil » réparti (accueil téléphonique et envoi avec les
+  courriels ; confort et maintenance à part ; comptes avec le cabinet) ; sources juridiques et veille réunies. Les anciennes
+  adresses et rubriques restent servies.
+
 ## 5.6.59 — Le dossier en bref, savoir-faire du cabinet, protection contre les instructions cachées
 
 - Protection de l’IA contre les instructions cachées dans les courriels, documents et images (injection d’instructions) :

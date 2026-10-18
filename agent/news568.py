@@ -66,6 +66,8 @@ def collect(desk,owner='cabinet',fetch=None):
             for r in rows:
                 content=fold(r['title']+' '+r['summary']);fields=[f for f in p['legal_fields'] if fold(f) in content]
                 if not fields:continue
+                # 5.6.60 : un même article (même adresse) dont la date de publication change d'une lecture à l'autre n'est pas dupliqué
+                if r['url'] and desk.db.execute('SELECT 1 FROM news_v568 WHERE owner=? AND url=? LIMIT 1',(owner,r['url'])).fetchone():continue
                 nid=hashlib.sha256(json.dumps([owner,r['url'],r['published']],ensure_ascii=False).encode()).hexdigest()
                 cur=desk.db.execute('INSERT OR IGNORE INTO news_v568 VALUES(?,?,?,?,?,?,?,?,?)',(nid,owner,source,r['url'],r['title'],r['published'],r['summary'],json.dumps(fields,ensure_ascii=False),desk.now()));desk.db.commit();added+=cur.rowcount
             desk.setting('proactive568:news_source:'+owner+':'+hashlib.sha256(source.encode()).hexdigest(),{'checked':desk.now(),'items':len(rows),'ok':True})

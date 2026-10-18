@@ -812,6 +812,7 @@ class Web(unittest.TestCase):
 
     def test_confort_page_lists_commands_shortcuts_and_the_decision_on_sending(self):
         html = self.call('/confort')['body'].decode() + self.call('/parametres/assistant')['body'].decode()   # 5.6.21 : dictée dans « Voix », envoi et raccourcis dans « Cabinet »
+        html += self.call('/parametres', query='rubrique=messagerie')['body'].decode()   # 5.6.60 : l'envoi rejoint « Courriels et accueil »
         for needle in ('Ajoute que je suis disponible le 12', 'Envoie…', 'REFUSÉ', 'désactivé', 'Ouvrir dans la messagerie', 'Aucun serveur d’envoi', 'uniquement des nombres',
                        '<kbd>g puis c</kbd>', 'Ctrl + Entrée', 'Raccourcis clavier'):
             self.assertIn(needle, html, needle)
