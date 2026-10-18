@@ -277,6 +277,10 @@ def sync_tasks(desk,dav=None):
     now_dt=datetime.now(timezone.utc)
     agenda=calendar_events(desk,(now_dt-timedelta(days=7)).isoformat(),
                            (now_dt+timedelta(days=180)).isoformat(),refresh=True,dav=client)
+    try:   # 5.6.62 : copie locale d'une tâche « Relire : … » fusionnée avec la tâche relue depuis Nextcloud
+        from .deck530 import merge_duplicate_tasks
+        merge_duplicate_tasks(desk)
+    except Exception:pass   # noqa: BLE001
     desk.db.commit();return {'synchronized':len(seen),'remote_absent':missing,'task_calendar':urls[0],
       'calendar_events':agenda['counts'],'at':desk.now()}
 

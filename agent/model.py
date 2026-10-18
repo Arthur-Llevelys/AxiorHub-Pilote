@@ -720,6 +720,12 @@ class Model:
             self.capabilities = [str(x) for x in (shown.get('capabilities') or [])] if isinstance(shown.get('capabilities'), list) else None
             if shown.get('remote_host') or shown.get('remote_model'):
                 raise Stop('modele_distant_refuse')
+        elif self.provider_type=='chatgpt':
+            # 5.6.62 : abonnement ChatGPT (Sign in with ChatGPT) ; même autorisation « données externes » qu'un fournisseur à clé API.
+            if not cfg.get('external_data_allowed',False):
+                raise Stop('fournisseur_externe_non_autorise')
+            from .chatgpt5662 import access_token
+            access_token(cfg.get('state_dir',''))   # jeton valide ou erreur claire avant toute transmission de contenu
         elif self.provider_type in ('openai','mistral','openrouter','anthropic'):
             if not cfg.get('external_data_allowed',False):
                 raise Stop('fournisseur_externe_non_autorise')
@@ -930,6 +936,9 @@ class Model:
             if self.provider_type=='anthropic':
                 content=self._anthropic(messages,temperature,max_tokens,json_schema)
                 return pseudo.restore(content,json_mode=json_schema is not None)
+            if self.provider_type=='chatgpt':   # 5.6.62 : API Responses, store false, flux ; pseudonymisé ci-dessus comme les autres
+                content=self._chatgpt(messages,json_schema)
+                return pseudo.restore(content,json_mode=json_schema is not None)
             content=self._openai_compatible(messages,temperature,max_tokens,json_schema)
             return pseudo.restore(content,json_mode=json_schema is not None)
         if not isinstance(content,str) or not content.strip():raise Stop('reponse_ia_vide')
@@ -969,6 +978,19 @@ class Model:
                 content=content[content.index('{'):content.rindex('}')+1]
         if not content:raise Stop('reponse_ia_vide')
         return content
+
+    def _chatgpt(self,messages,json_schema):
+        from .ai_gateway import record_usage
+        from .chatgpt5662 import respond
+        from .arret5643 import interruptible
+        try:
+            text,usage=interruptible(lambda:respond(self.cfg.get('state_dir',''),self.cfg['model'],messages,json_schema,
+                                                    self.cfg.get('structured_mode','strict')=='strict',timeout=self.cfg.get('timeout_seconds',240)),self.cfg)
+        except Stop:
+            record_usage(self.cfg,{},0.0,'error',messages)
+            raise
+        record_usage(self.cfg,{'usage':usage},0.0,'done',messages)   # preuve de transmission (empreinte, taille) ; coût : abonnement
+        return text
 
     def _openai_compatible(self,messages,temperature,max_tokens,json_schema):
         from .ai_gateway import estimate_and_check_budget,record_usage

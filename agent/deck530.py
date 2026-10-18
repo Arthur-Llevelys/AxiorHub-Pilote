@@ -206,6 +206,31 @@ def sync(desk, deck=None, dav=None):
         report['cards_created'], report['cards_moved'], report['tasks_created'], report['tasks_done'])}
 
 
+def merge_duplicate_tasks(desk):
+    """5.6.62 : avant cette version, une tâche « Relire : … » créée par AxiorHub était enregistrée sous un identifiant local, puis relue depuis
+    Nextcloud sous un second : elle apparaissait deux fois dans « Ma journée ». La copie locale est fusionnée (base locale seulement ;
+    rien n'est supprimé dans Nextcloud)."""
+    try:
+        rows = desk.db.execute("SELECT id,external_uid FROM work_tasks_v211 WHERE source='cockpit530'").fetchall()
+    except Exception:   # noqa: BLE001 — table absente
+        return 0
+    merged = 0
+    for r in rows:
+        twin = digest('caldav-vtodo|' + r['external_uid'])
+        if twin == r['id'] or not desk.db.execute('SELECT 1 FROM work_tasks_v211 WHERE id=?', (twin,)).fetchone():
+            continue
+        desk.db.execute('UPDATE deck530_tasks SET task_id=? WHERE task_id=?', (twin, r['id']))
+        desk.db.execute('DELETE FROM work_tasks_v211 WHERE id=?', (r['id'],))
+        try:
+            desk.db.execute('DELETE FROM tasks WHERE id=?', (r['id'],))
+        except Exception:   # noqa: BLE001
+            pass
+        merged += 1
+    if merged:
+        desk.db.commit()
+    return merged
+
+
 def _sync_tasks(desk, want, dav=None):
     from .workplan import _dav, _workflow_cfg, ensure_schema as wp_schema
     cfg = _workflow_cfg(desk)
@@ -213,6 +238,7 @@ def _sync_tasks(desk, want, dav=None):
     if not url:
         return {'tasks_note': 'Aucune liste de tâches AxiorHub configurée (configure-nextcloud-workflow.py).'}
     wp_schema(desk)
+    merge_duplicate_tasks(desk)
     client = dav or _dav(desk)
     from . import cockpit530
     tz = cockpit530.tz(desk)
@@ -226,7 +252,8 @@ def _sync_tasks(desk, want, dav=None):
             # 5.6.32 : identifiant DÉTERMINÉ par le document (et non aléatoire) et lien enregistré AVANT l'écriture : un passage interrompu
             # après la création (base occupée, coupure) ne crée plus une deuxième ou troisième tâche identique ; la tâche existante est reprise.
             uid = 'axiorhub-%s@mail-agent.local' % digest('deck530-task|' + url + '|' + item)[:32]
-            tid = digest('task530|' + uid)[:32]
+            # 5.6.62 : même identifiant que la relecture des tâches Nextcloud (workplan.sync_tasks) : une seule ligne par tâche
+            tid = digest('caldav-vtodo|' + uid)
             due = datetime.combine(datetime.now(tz).date(), dtime(18, 0), tz)
             name = ('Relire : ' + title)[:300]
             now = desk.now()
@@ -269,6 +296,9 @@ def tick(desk, now=None):
         return None
     now = now or time.time()
     if now - float(desk.settings('deck530:last_tick', 0) or 0) < 300:
+        return None
+    from .cadence5662 import allow   # 5.6.62 : 5 min de repos après la fin de la synchronisation précédente ; différée si la file est chargée
+    if not allow(desk, 'deck530_sync', 5):
         return None
     desk.setting('deck530:last_tick', now)
     return desk.enqueue('deck530_sync', {}, priority=60)

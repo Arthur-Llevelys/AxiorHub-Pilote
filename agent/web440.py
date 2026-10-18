@@ -460,6 +460,16 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code == 'version_en_conflit' else
                              ('404 Not Found' if code in ('routine_absente', 'connexion_absente', 'operation_absente', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m5662/'):   # 5.6.62 : connexion ChatGPT (abonnement)
+        from . import web5662
+        try:
+            return web5662.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
+                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5661/'):   # 5.6.61 : mise à jour signée depuis la page des versions
         from . import web5661
         try:

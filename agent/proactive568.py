@@ -409,7 +409,8 @@ def schedule(desk,stamp=None):
         for kind,interval in (('sent568_scan',300),('received568_scan',300),('proactive568_cycle',30)):
             if kind=='proactive568_cycle' and not needs_cycle(desk,owner):continue
             key='proactive568:last:'+owner+':'+kind
-            if stamp-float(desk.settings(key,0))>=interval:
+            from .cadence5662 import allow   # 5.6.62 : repos après la fin du précédent ; différé si la file est chargée
+            if stamp-float(desk.settings(key,0))>=interval and allow(desk,kind,interval/60):
                 jobs.append(desk.enqueue(kind,{'owner':owner},priority=55));desk.setting(key,stamp)
         local=datetime.fromtimestamp(stamp,ZoneInfo(p['timezone']))
         if p['news_enabled'] and 'A6' in p['roles'] and local.weekday() in p['weekdays'] and local.strftime('%H:%M')>=p['briefing_time']:

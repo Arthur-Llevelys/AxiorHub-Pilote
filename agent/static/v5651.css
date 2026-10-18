@@ -166,3 +166,38 @@ details.p5660-sec>.p5660-body{padding:0 14px 14px}
 .b60-list li{margin:6px 0}
 .b60-bloquant .d51-badge{background:#f9dedc;color:#8c1d18}
 .b60-attention .d51-badge{background:#fff4e0}
+
+/* 5.6.62 : la file « À décider / À relire » occupe la première colonne d’Aujourd’hui ; « Reprendre là où j’en étais » en bas */
+.c530 .c5662-file{min-width:0}.c530 .c5662-file .q51{margin:0;height:100%;box-sizing:border-box}
+.c530 .c5662-file .q51-list{max-height:75vh;overflow:auto;padding-right:2px}
+.c530 .c5662-file .q51-head{flex-wrap:wrap}.c530 .c5662-file .q51-matter{margin-left:0}
+.c530 .c5662-reprise{margin-top:16px}
+/* 5.6.62 : « Autres pages de réglage et d’outillage » lisible (liens blancs sur blanc hérités du menu latéral sombre) */
+/* la colonne de Paramètres est un <aside> : les règles du menu principal (largeur 245/260 px, 78 px replié, fond sombre, marges) ne s’y appliquent plus */
+main aside.p5660-side,.ws-collapsed main aside.p5660-side{position:sticky;top:12px;inset:auto;width:auto;min-width:0;height:auto;min-height:0;padding:0;margin:0;overflow:visible;background:transparent;color:inherit;box-shadow:none;z-index:auto;transition:none;display:flex;flex-direction:column;gap:10px}
+@media (max-width:900px){main aside.p5660-side,.ws-collapsed main aside.p5660-side{position:static}}
+.p5660-side .p5662-tools{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:.9rem}
+.p5660-side .p5662-tools a{display:block;padding:6px 10px;border-radius:6px;color:var(--ax-accent,#1f4e9c);background:transparent;text-decoration:none;font-weight:500}
+.p5660-side .p5662-tools a:hover,.p5660-side .p5662-tools a:focus-visible{background:rgba(31,78,156,.10);color:var(--ax-accent,#1f4e9c);text-decoration:underline}
+/* 5.6.62 : fenêtre Pilote (bouton robot) — c’est un <aside> : « aside p » (texte clair du menu latéral sombre) rendait « Contexte détecté » illisible */
+.ws-ai-dock .ws-ai-auto-context{color:var(--ws-ink,#111827)}
+.ws-ai-dock p:not([class]),.ws-ai-dock .ws-ai-auto-context small{color:inherit}
+/* 5.6.62 : panneau « Toutes les fonctions » (fond blanc, ouvert depuis le menu latéral sombre) : « #ws-sidebar a » rendait ses liens blancs */
+#ws-sidebar .f5631-panel .f5631-help a,#ws-sidebar .f5631-panel a:not([class]){color:var(--g31-accent,#1f4e9c)}
+/* 5.6.62 : mode sombre — menu de Paramètres, états des routines, onglets de la file, aide du Pilote (contrastes trop faibles) */
+:root[data-theme=dark] .p5621-tabs[data-p5660-nav] a{color:#e5e7eb}:root[data-theme=dark] .p5621-tabs[data-p5660-nav] a:hover{background:#2b3441}:root[data-theme=dark] .p5621-tabs[data-p5660-nav] a[aria-current="page"]{background:#2d5fa8;color:#fff}:root[data-theme=dark] .p5660-family-title{color:#a3adba}:root[data-theme=dark] .c5614-state{color:#aeb8c4}:root[data-theme=dark] .q51-filters a[aria-current=true]{background:#2d5fa8;border-color:#2d5fa8;color:#fff}:root[data-theme=dark] .q51-prio{color:#fca5a5}:root[data-theme=dark] .ws-ai-hint{color:#b6c0cc}:root[data-theme=dark] a.button{background:#2d5fa8;color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .p5621-tabs[data-p5660-nav] a{color:#e5e7eb}:root:not([data-theme="light"]) .p5621-tabs[data-p5660-nav] a:hover{background:#2b3441}:root:not([data-theme="light"]) .p5621-tabs[data-p5660-nav] a[aria-current="page"]{background:#2d5fa8;color:#fff}:root:not([data-theme="light"]) .p5660-family-title{color:#a3adba}:root:not([data-theme="light"]) .c5614-state{color:#aeb8c4}:root:not([data-theme="light"]) .q51-filters a[aria-current=true]{background:#2d5fa8;border-color:#2d5fa8;color:#fff}:root:not([data-theme="light"]) .q51-prio{color:#fca5a5}:root:not([data-theme="light"]) .ws-ai-hint{color:#b6c0cc}:root:not([data-theme="light"]) a.button{background:#2d5fa8;color:#fff}}
+/* 5.6.62 : variables de texte en mode sombre (non définies : les textes gardaient le gris du mode clair) */
+:root[data-theme=dark]{--ax-muted-text:#a3adba;--ax-text:#e5e7eb;--ax-surface:#1a2029;--ax-surface-2:#232a35;--ax-line:#2b3441}
+:root[data-theme=dark] .p5621-intro,:root[data-theme=dark] .p5621-intro strong{color:#b6c0cc}
+:root[data-theme=dark] .d27-pausebtn{color:#fbbf24!important;border-color:#a16207!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ax-muted-text:#a3adba;--ax-text:#e5e7eb;--ax-surface:#1a2029;--ax-surface-2:#232a35;--ax-line:#2b3441}:root:not([data-theme="light"]) .p5621-intro,:root:not([data-theme="light"]) .p5621-intro strong{color:#b6c0cc}:root:not([data-theme="light"]) .d27-pausebtn{color:#fbbf24!important;border-color:#a16207!important}}
+/* 5.6.62 : mode sombre — Connexions (onglet actif, états) */
+:root[data-theme=dark] .cx52-families a[aria-current="true"]{background:#2d5fa8;border-color:#2d5fa8;color:#fff}:root[data-theme=dark] .cx52-state-acces_enregistres,:root[data-theme=dark] .cx52-state-a_autoriser{color:#fbbf24}:root[data-theme=dark] .cx52-state-non_configuree{color:#b6c0cc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cx52-families a[aria-current="true"]{background:#2d5fa8;border-color:#2d5fa8;color:#fff}:root:not([data-theme="light"]) .cx52-state-acces_enregistres,:root:not([data-theme="light"]) .cx52-state-a_autoriser{color:#fbbf24}:root:not([data-theme="light"]) .cx52-state-non_configuree{color:#b6c0cc}}
+/* 5.6.62 : mode sombre — compteurs de la file, titres repliables, états d’erreur */
+:root[data-theme=dark] .q51-n{background:#2b3441;color:#e5e7eb}:root[data-theme=dark] details>summary{color:#d3dbe5}:root[data-theme=dark] li.is-error,:root[data-theme=dark] .is-error{color:#fca5a5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .q51-n{background:#2b3441;color:#e5e7eb}:root:not([data-theme="light"]) details>summary{color:#d3dbe5}:root:not([data-theme="light"]) li.is-error,:root:not([data-theme="light"]) .is-error{color:#fca5a5}}
+/* 5.6.62 : mode sombre — états du guide, diagnostic */
+:root[data-theme=dark] .h5631-state{background:#2b3441}:root[data-theme=dark] .h5631-state.ok{color:#86efac}:root[data-theme=dark] .h5631-state.todo{color:#fcd34d}:root[data-theme=dark] dt{color:#b6c0cc}:root[data-theme=dark] span.ko,:root[data-theme=dark] .ko{color:#fca5a5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .h5631-state{background:#2b3441}:root:not([data-theme="light"]) .h5631-state.ok{color:#86efac}:root:not([data-theme="light"]) .h5631-state.todo{color:#fcd34d}:root:not([data-theme="light"]) dt{color:#b6c0cc}:root:not([data-theme="light"]) span.ko,:root:not([data-theme="light"]) .ko{color:#fca5a5}}

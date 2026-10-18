@@ -38,12 +38,12 @@ def _private_write(path, data):
             os.unlink(temp)
 
 
-def write(path, value):
+def write(path, value, limit=4096):
     path = Path(path)
     if path.is_symlink():
         raise Stop('secret_lien_symbolique_refuse')
     value = str(value or '').strip()
-    if not value or len(value) > 4096 or any(x in value for x in ('\n', '\r', '\0')):
+    if not value or len(value) > int(limit) or any(x in value for x in ('\n', '\r', '\0')):
         raise Stop('secret_invalide')
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(path.parent, 0o700)

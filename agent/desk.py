@@ -386,6 +386,7 @@ class Desk:
         CREATE INDEX IF NOT EXISTS work_items_state ON work_items(state,updated);
         CREATE INDEX IF NOT EXISTS assistant_messages_thread ON assistant_messages(thread_id,id);
         ''')
+        self.db.execute('CREATE INDEX IF NOT EXISTS jobs_kind_finished5662 ON jobs(kind,finished)')   # 5.6.62 : cadence (repos)
         columns={row[1] for row in self.db.execute('PRAGMA table_info(jobs)')}
         if 'priority' not in columns:
             self.db.execute('ALTER TABLE jobs ADD COLUMN priority INTEGER NOT NULL DEFAULT 50')

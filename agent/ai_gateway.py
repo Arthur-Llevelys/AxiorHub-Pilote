@@ -17,7 +17,7 @@ import urllib.parse
 from .common import Stop, private_json, read_secret
 
 
-PROVIDER_TYPES = {'ollama', 'openai', 'mistral', 'openrouter', 'anthropic'}
+PROVIDER_TYPES = {'ollama', 'openai', 'mistral', 'openrouter', 'anthropic'}   # + « chatgpt » (5.6.62), réglé par chatgpt5662 (sans clé API)
 # 5.4.0 : modèles Anthropic proposés (le nom exact reste modifiable dans Paramètres › IA).
 ANTHROPIC_MODELS = (('claude-sonnet-5-5', 'Claude Sonnet 5.5 — rédaction et analyse (recommandé)'),
                     ('claude-opus-5-5', 'Claude Opus 5.5 — analyses longues et complexes'),
@@ -117,7 +117,7 @@ def public_providers(config):
             'model': cfg.get('model', ''),
             'enabled': bool(cfg.get('enabled', True)),
             'external_data_allowed': bool(cfg.get('external_data_allowed', False)),
-            'secret_configured': bool(secret and Path(secret).is_file()),
+            'secret_configured': bool(secret and Path(secret).is_file()) or cfg.get('type') == 'chatgpt',
             'zdr_required': bool(cfg.get('zdr_required', False)),
             'monthly_budget_usd': float(cfg.get('monthly_budget_usd', 0) or 0),
             'per_request_budget_usd': float(cfg.get('per_request_budget_usd', 0) or 0),

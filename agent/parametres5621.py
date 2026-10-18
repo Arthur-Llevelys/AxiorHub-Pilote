@@ -126,6 +126,13 @@ def _ia(desk, auth, prefix, env, cap):
     from . import ia540, web5634
     body = web5634.profile_panel(desk, prefix)   # 5.6.34 : Modèles locaux, profil Juridique, Tester, Restaurer
     body += _section(ia540.page(desk, prefix, cap, auth['csrf']))
+    try:   # 5.6.62 : ChatGPT avec l'abonnement de l'utilisateur (sans clé API)
+        from .chatgpt5662 import html as _chatgpt
+        from .web5662 import local_browser
+        from .web567 import actor as _actor
+        body += _section(_chatgpt(desk, prefix, _actor(env)[1], local_browser(env)))
+    except Exception:   # noqa: BLE001
+        pass
     body += _section(_legacy(desk, prefix, auth['csrf'], 'ia'), 'Fournisseurs : état et tests')
     body += _section(_legacy(desk, prefix, auth['csrf'], 'extensions'), 'Connecteurs et extensions')
     body += _section('<p>L’adresse et le modèle Ollama se règlent dans la rubrique <a href="' + e(prefix + '/parametres?rubrique=connexions') + '">Connexions</a> (locale ou réseau du cabinet).</p>')
@@ -329,7 +336,9 @@ def _sidebar(prefix, current):
     tools = ''.join('<a href="%s">%s</a>' % (e(prefix + p, quote=True), e(label)) for p, label in RELATED)
     return ('<aside class="p5660-side"><label class="p5660-find">Trouver un réglage<input type="search" data-p5660-find '
             'placeholder="Ex. signature, Ollama"></label><nav class="p5621-tabs" data-p5660-nav aria-label="Rubriques des paramètres">%s</nav>'
-            '<details class="p5660-tools"><summary>Autres pages de réglage et d’outillage</summary><nav aria-label="Autres pages">%s</nav></details></aside>'
+            '<details class="p5660-tools"><summary>Autres pages de réglage et d’outillage</summary>'
+            # 5.6.62 : pas de <nav> ici — les règles du menu latéral sombre (« nav a », « aside nav a ») rendaient ces liens blancs sur blanc
+            '<div class="p5662-tools" role="navigation" aria-label="Autres pages">%s</div></details></aside>'
             % (groups, tools))
 
 

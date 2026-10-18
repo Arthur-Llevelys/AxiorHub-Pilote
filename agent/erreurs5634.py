@@ -233,6 +233,30 @@ MESSAGES = {
     'selection_non_regroupable': 'Les choix stratégiques, les projets et les engagements se décident un par un.',   # 5.6.51
     'document_word_illisible': 'Document Word illisible.',   # 5.6.51
     'fichier_hors_dossier': 'Ce fichier n’appartient pas au dossier.',   # 5.6.51
+    'chatgpt_non_connecte': 'ChatGPT n’est pas connecté : Paramètres › Modèles d’IA › ChatGPT, « Continuer avec ChatGPT ».',   # 5.6.62
+    'chatgpt_reconnexion_requise': 'La connexion à ChatGPT a expiré ou a été retirée : reconnectez-vous (Paramètres › Modèles d’IA › ChatGPT).',
+    'chatgpt_limite_usage_atteinte': 'Limite d’utilisation de votre abonnement ChatGPT atteinte : consultez ChatGPT › Paramètres › Utilisation '
+                                     '(chatgpt.com/settings/usage). Le modèle local reste disponible.',
+    'chatgpt_compte_non_eligible': 'Ce compte ou cet espace ChatGPT ne peut pas utiliser son abonnement dans AxiorHub (offre Plus ou Pro requise, '
+                                   'selon les règles d’OpenAI).',
+    'chatgpt_indisponible': 'ChatGPT est momentanément indisponible ; réessayez plus tard.',
+    'chatgpt_option_non_prise_en_charge': 'Cette demande utilise une option que l’abonnement ChatGPT n’accepte pas.',
+    'chatgpt_acces_refuse': 'OpenAI a refusé l’accès (droit ou région non pris en charge).',
+    'chatgpt_generation_echouee': 'ChatGPT n’a pas pu terminer la réponse.',
+    'chatgpt_tentative_inconnue': 'Cette adresse ne correspond à aucune connexion en cours : cliquez de nouveau sur « Continuer avec ChatGPT ».',
+    'chatgpt_tentative_expiree': 'La connexion a expiré (15 min) : cliquez de nouveau sur « Continuer avec ChatGPT ».',
+    'chatgpt_autorisation_refusee': 'Vous avez refusé l’accès sur la page d’OpenAI : rien n’a été enregistré.',
+    'chatgpt_autorisation_echouee': 'OpenAI n’a pas accordé l’accès ; réessayez.',
+    'chatgpt_client_different': 'Le retour d’OpenAI ne correspond pas à l’inscription de ce compte : connexion refusée.',
+    'chatgpt_compte_different': 'Ce n’est pas le compte ChatGPT déjà connecté : déconnectez d’abord le compte actuel.',
+    'chatgpt_inscription_incomplete': 'Inscription incomplète chez OpenAI : recommencez la connexion.',
+    'chatgpt_code_absent': 'Adresse incomplète : copiez l’adresse entière affichée après votre accord.',
+    'chatgpt_code_refuse': 'Ce code a déjà servi ou a expiré : recommencez la connexion.',
+    'chatgpt_jeton_identite_invalide': 'Le jeton d’identité d’OpenAI n’a pas pu être vérifié : connexion refusée.',
+    'chatgpt_client_invalide': 'Inscription refusée par OpenAI : recommencez la connexion.',
+    'chatgpt_port_local_indisponible': 'Impossible d’attendre le retour d’OpenAI sur ce poste (port local occupé).',
+    'fichier_nextcloud_introuvable': 'Fichier introuvable dans Nextcloud : il a peut-être été déplacé, renommé ou supprimé. Son emplacement '
+                                     'prévu est indiqué à côté du bouton.',   # 5.6.62
     'relecture_word_seulement': 'La relecture par propositions porte sur un document Word (.docx).',   # 5.6.51
     'consigne_relecture_invalide': 'Indiquez une consigne de relecture (3 à 4 000 caractères).',   # 5.6.51
     'aucun_paragraphe_a_relire': 'Aucun paragraphe à relire dans la portée demandée.',   # 5.6.51

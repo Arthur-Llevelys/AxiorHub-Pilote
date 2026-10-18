@@ -408,20 +408,75 @@ def set_frequency(desk, mid, value):
     return value
 
 
+# 5.6.62 : le client lit la nature du travail, jamais un nom de fichier interne (« projet_courriel_traparic_pieces_1_7.docx »)
+CLIENT_KINDS = {'conclusions': 'de conclusions', 'assignation': 'd’acte de procédure', 'courrier': 'de courrier', 'courriel': 'de courriel',
+                'mise_en_demeure': 'de mise en demeure', 'contrat': 'de contrat', 'note': 'de note', 'compte_rendu': 'de compte rendu'}
+
+
+def _client_fact(kind):
+    return 'Nous avons préparé un projet %s.' % CLIENT_KINDS.get(str(kind or ''), 'de document')
+
+
+def _trigger_source(desk, cle):
+    """(nature, chemin) du document à l'origine d'une étape — affiché à l'avocat seulement."""
+    try:
+        if cle.startswith('doc:'):
+            r = desk.db.execute('SELECT kind,path FROM docreq520 WHERE id=?', (cle[4:],)).fetchone()
+            if r:
+                from .cockpit530 import TYPE_LABELS
+                return TYPE_LABELS.get(r['kind'], 'Document'), r['path']
+        if cle.startswith('rel:'):
+            r = desk.db.execute('SELECT path,output_path FROM d51_review_sessions WHERE id=?', (cle[4:],)).fetchone()
+            if r:
+                return 'Document revu', r['output_path'] or r['path']
+    except Exception:   # noqa: BLE001 — table absente
+        pass
+    return '', ''
+
+
+def _refresh_update(desk, m, u):
+    """Point proposé avant la 5.6.62 : texte client recalculé (sans nom de fichier) ; rien n'est déposé ni envoyé."""
+    if 'Nous avons préparé un projet : ' not in u['body'] and 'Nous avons revu le document ' not in u['body']:
+        return u
+    for t in u['triggers']:
+        if t['cle'].startswith('doc:'):
+            r = desk.db.execute('SELECT kind FROM docreq520 WHERE id=?', (t['cle'][4:],)).fetchone()
+            t['fait'] = _client_fact(r['kind'] if r else '')
+        elif t['cle'].startswith('rel:'):
+            t['fait'] = 'Nous avons revu un document de votre dossier.'
+    subject, body = _update_text(desk, m, u['triggers'])
+    desk.db.execute('UPDATE p57_updates SET triggers_json=?,subject=?,body=?,updated=? WHERE id=?',
+                    (json.dumps(u['triggers'], ensure_ascii=False), subject, body, _now(), u['id']))
+    desk.db.commit()
+    return update(desk, u['id'])
+
+
+def _sources_html(desk, m, u):
+    from .cockpit530 import _matters
+    root = (_matters(desk).get(m['id']) or {}).get('path', '')
+    rows = []
+    for t in u['triggers']:
+        label, path = _trigger_source(desk, t['cle'])
+        if not path:
+            continue
+        where = path[len(root):].lstrip('/') if root and path.startswith(root) else path
+        rows.append('<li>%s — <code>%s</code> <button type="button" class="ax-btn ghost" data-open-path="%s" data-open-matter="%s">Ouvrir dans Nextcloud'
+                    '</button></li>' % (e(label), e(where), e(path, quote=True), e(m['id'], quote=True)))
+    return ('<details><summary>Documents concernés (non communiqués au client)</summary><ul class="d51-list">%s</ul></details>' % ''.join(rows)) if rows else ''
+
+
 def _triggers(desk, mid, since):
     """Étapes vérifiables depuis ``since`` : projets produits et relus, relectures appliquées, rendez-vous passés, pièces rapprochées."""
     out = []
     q = lambda sql, params: [dict(r) for r in desk.db.execute(sql, params)]
     try:
         for r in q("SELECT id,kind,path,updated FROM docreq520 WHERE matter=? AND status='cree' AND updated>=?", (mid, since)):
-            out.append({'cle': 'doc:' + r['id'], 'quand': r['updated'], 'fait': 'Nous avons préparé un projet : %s.' % r['path'].rsplit('/', 1)[-1],
-                        'nature': 'prepare'})
+            out.append({'cle': 'doc:' + r['id'], 'quand': r['updated'], 'fait': _client_fact(r['kind']), 'nature': 'prepare'})
     except Exception:   # noqa: BLE001
         pass
     try:
         for r in q("SELECT id,path,updated FROM d51_review_sessions WHERE matter=? AND output_path<>'' AND updated>=?", (mid, since)):
-            out.append({'cle': 'rel:' + r['id'], 'quand': r['updated'], 'fait': 'Nous avons revu le document %s.' % r['path'].rsplit('/', 1)[-1],
-                        'nature': 'prepare'})
+            out.append({'cle': 'rel:' + r['id'], 'quand': r['updated'], 'fait': 'Nous avons revu un document de votre dossier.', 'nature': 'prepare'})
     except Exception:   # noqa: BLE001
         pass
     try:
@@ -646,13 +701,14 @@ def matter_html(desk, prefix, mid, owner='cabinet'):
            '<button class="ax-btn" type="submit">Préparer une demande regroupée</button><p role="status" class="m5-status"></p></form></section>') % (
         req_rows, hidden_mid, gap_boxes or '<p class="ax-muted">Aucune information manquante enregistrée : saisissez les pièces à demander.</p>')
     # A06
-    ups = [update(desk, r['id']) for r in desk.db.execute("SELECT id FROM p57_updates WHERE matter=? AND state='proposee' ORDER BY created DESC LIMIT 2",
-                                                          (m['id'],))]
-    up_rows = ''.join(('<article class="p57-up"><p><strong>%s</strong></p><pre class="p57-text">%s</pre><form class="m5-form d51-inline" data-api="m5657/suivi/deposer" '
+    ups = [_refresh_update(desk, m, update(desk, r['id'])) for r in desk.db.execute(
+        "SELECT id FROM p57_updates WHERE matter=? AND state='proposee' ORDER BY created DESC LIMIT 2", (m['id'],)).fetchall()]
+    up_rows = ''.join(('<article class="p57-up"><p><strong>%s</strong></p><pre class="p57-text">%s</pre>' + _sources_html(desk, m, u) +
+                       '<form class="m5-form d51-inline" data-api="m5657/suivi/deposer" '
                        'data-reload><input type="hidden" name="point" value="%s"><button class="ax-btn" type="submit">Déposer en brouillon</button></form>'
                        '<form class="m5-form d51-inline" data-api="m5657/suivi/decider" data-reload><input type="hidden" name="point" value="%s">'
                        '<input type="hidden" name="decision" value="refusee"><button class="ax-btn ghost" type="submit">Ne pas envoyer</button></form></article>') % (
-        e(u['subject']), e(u['body']), e(u['id'], quote=True), e(u['id'], quote=True)) for u in ups)
+        e(u['subject']), e(u['body']), e(u['id'], quote=True), e(u['id'], quote=True)) for u in ups)   # noqa: E501
     freq = frequency(desk, m['id'])
     a06 = ('<section class="d51-card" id="p57-suivi"><h3>Point d’avancement client</h3><p class="ax-muted">Proposé après une étape vérifiable ; une action seulement '
            'préparée n’est jamais annoncée comme accomplie. Rien n’est envoyé.</p>%s<form class="m5-form d51-inline" data-api="m5657/suivi/preparer" data-reload>%s'
