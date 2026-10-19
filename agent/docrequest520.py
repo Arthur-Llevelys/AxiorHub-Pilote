@@ -239,7 +239,10 @@ def context(desk, matter, request, dav=None, attachments=(), selected_documents=
         index = DocumentIndex(desk.c['state_dir'], desk.c.get('rag'), desk.c.get('ollama'))
         ranked, _ = index.ranked_chunks(matter, [request, matter.get('client_name', '')], limit=12)
         for n, (row, _score) in enumerate(ranked, 1):
-            ctx['extraits'].append({'source': 'P%d' % n, 'fichier': str(row[2]).rsplit('/', 1)[-1], 'texte': str(row[7])[:1800]})
+            entry = {'source': 'P%d' % n, 'fichier': str(row[2]).rsplit('/', 1)[-1], 'texte': str(row[7])[:1800]}
+            if index.source_confidential(matter, row[1]):   # 5.6.65 (R01) : statut de la pièce entière, pas du seul passage
+                entry['confidentiel'] = True
+            ctx['extraits'].append(entry)
     except Exception:
         notes.append('Index des pièces indisponible : seule la liste des fichiers est connue.')
     try:
@@ -267,8 +270,19 @@ def context(desk, matter, request, dav=None, attachments=(), selected_documents=
     except Exception:
         pass
     try:
-        for r in desk.db.execute("SELECT title,content FROM legal_memory_records WHERE matter=? AND status IN ('validated','pinned') ORDER BY updated DESC LIMIT 25", (matter['id'],)):
-            ctx['faits'].append({'fait': (r['title'] or '')[:200], 'detail': (r['content'] or '')[:500]})
+        # 5.6.65 (audit 5.6.64, R11) : la provenance des faits validés est gardée, pour que le contrôle d'usage s'y applique ; une
+        # validation interne d'un fait ne lève pas les restrictions de sa source.
+        for r in desk.db.execute("SELECT title,content,sources FROM legal_memory_records WHERE matter=? AND status IN ('validated','pinned') ORDER BY updated DESC LIMIT 25", (matter['id'],)):
+            try:
+                paths = [str(x.get('path', '') if isinstance(x, dict) else x) for x in json.loads(r['sources'] or '[]')]
+            except (ValueError, TypeError):
+                paths = []
+            fact = {'fait': (r['title'] or '')[:200], 'detail': (r['content'] or '')[:500]}
+            if paths:
+                fact['sources'] = [p.rsplit('/', 1)[-1] for p in paths if p][:5]
+            else:
+                fact['provenance'] = 'aucune pièce rattachée : à vérifier avant toute communication à un tiers'
+            ctx['faits'].append(fact)
     except Exception:
         pass
     return ctx, notes
@@ -313,9 +327,16 @@ def _without_confidential(ctx, kind):
     removed = 0
     for key, name_key, text_key, subject_key in (('extraits', 'fichier', 'texte', ''), ('courriels', '', 'extrait', 'objet')):
         rows = list(ctx.get(key) or [])
-        kept = [x for x in rows if not is_confidential(x.get(name_key, '') if name_key else '', x.get(text_key, ''), x.get(subject_key, '') if subject_key else '')]
+        kept = [x for x in rows if not x.get('confidentiel')
+                and not is_confidential(x.get(name_key, '') if name_key else '', x.get(text_key, ''), x.get(subject_key, '') if subject_key else '')]
         removed += len(rows) - len(kept)
-        ctx[key] = kept
+        ctx[key] = [{k: v for k, v in x.items() if k != 'confidentiel'} for x in kept]
+    facts = list(ctx.get('faits') or [])   # 5.6.65 (R11) : faits validés issus d'une correspondance confidentielle
+    kept = [x for x in facts if not any(is_confidential(s) for s in x.get('sources') or ())
+            and not is_confidential('', x.get('detail', ''), x.get('fait', ''))]
+    removed += len(facts) - len(kept)
+    if facts:
+        ctx['faits'] = kept
     chosen = [x.get('fichier', '') for x in ctx.get('pieces_jointes') or [] if is_confidential(x.get('fichier', ''), x.get('texte', ''))]
     if removed:
         ctx['correspondances_confidentielles_ecartees'] = ('%d correspondance(s) confidentielle(s) entre avocats écartée(s) (article 66-5 de la '

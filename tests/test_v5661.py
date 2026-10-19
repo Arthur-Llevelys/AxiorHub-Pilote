@@ -23,16 +23,17 @@ class File(base.Base):
         return self.desk.db.execute('SELECT status FROM jobs WHERE id=?', (jid,)).fetchone()[0]
 
     def test_le_travail_qui_attend_le_verrou_passe_avant_les_reponses(self):
-        reserved = self._job('health', {'n': '1'}, lock_waits=3, priority=29)
-        answer = self._job('health', {'n': '2'}, priority=0)                    # plus prioritaire, mais arrivé après la réservation
+        # 5.6.65 : « index » (verrou exclusif) au lieu de « health », devenu un contrôle hors verrou de production (R16)
+        reserved = self._job('index', {'n': '1'}, lock_waits=3, priority=29)
+        answer = self._job('index', {'n': '2'}, priority=0)                    # plus prioritaire, mais arrivé après la réservation
         with patch('agent.desk.Desk.perform', return_value={'ok': True}):
             self.desk.work_once()
         self.assertEqual(self._status(reserved), 'done')
         self.assertEqual(self._status(answer), 'pending')
 
     def test_pendant_l_attente_seuls_les_travaux_sans_verrou_passent(self):
-        self._job('health', {'n': '3'}, lock_waits=4, not_before='2999-01-01T00:00:00+00:00')
-        answer = self._job('health', {'n': '4'}, priority=0)
+        self._job('index', {'n': '3'}, lock_waits=4, not_before='2999-01-01T00:00:00+00:00')
+        answer = self._job('index', {'n': '4'}, priority=0)
         live = self._job('live_calendar430', {'n': '5'})
         with patch('agent.watch430.perform', return_value={'ok': True}), patch('agent.desk.Desk.perform', return_value={'ok': True}):
             self.desk.work_once()

@@ -84,13 +84,18 @@ def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document
     ranked = sorted(infos, key=lambda a: (a['review'] != 'enregistre', a['relevance'] != 'pertinent', a['date_value'] == '', a['date_value']))
     used, facts, undated, claims = 0, [], [], []
     from .confidentiel5664 import LABEL as _CONF, source_is_confidential
-    withheld = 0
+    withheld = mixed = 0
     for a in ranked:
         # 5.6.64 (art. 66-5) : information tirée uniquement de correspondances confidentielles entre avocats — jamais transmise pour une
         # rédaction destinée à un tiers ; reprise, marquée, pour un usage interne (assistant, préparation, note interne)
-        conf = bool(a['sources']) and all(source_is_confidential(s) for s in a['sources'])
+        # 5.6.65 (audit 5.6.64, R03) : une information appuyée EN PARTIE sur une correspondance confidentielle n'est pas transmise non
+        # plus (rien ne garantit que les autres pièces prouvent seules ce qui vient de la correspondance) ; l'avocat la retrouve dans la
+        # fiche du dossier et peut l'enregistrer à nouveau à partir des seules pièces communicables.
+        flags = [source_is_confidential(s) for s in a['sources'] or []]
+        conf = any(flags)
         if conf and not confidential:
             withheld += 1
+            mixed += 0 if all(flags) else 1
             continue
         if a['kind'] == 'argument' and memoire5651.is_abandoned(desk, mid, a['text']):
             continue
@@ -116,7 +121,9 @@ def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document
         out['demandes_et_montants'] = claims
     if withheld:
         out['correspondances_confidentielles'] = ('%d information(s) tirée(s) de correspondances confidentielles entre avocats non transmise(s) '
-                                                  '(article 66-5) : document destiné à un tiers.' % withheld)
+                                                  '(article 66-5) : document destiné à un tiers.' % withheld
+                                                  + (' Dont %d aussi appuyée(s) par d’autres pièces : à reprendre, si nécessaire, à partir '
+                                                     'de ces seules pièces.' % mixed if mixed else ''))
     if gaps:
         out['informations_manquantes'] = [{'donnee': g['expected'], 'portee': memoire5651.BLOCKING[g['blocking']]} for g in gaps[:20]]
     try:

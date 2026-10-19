@@ -124,6 +124,8 @@ def resolve_origin(desk, kind, args, priority, explicit=None):
             row = None
         if row and row[0] in ('user', 'automatic', 'control'):
             return row[0]
+    if kind == 'automation_setting':   # 5.6.65 : un réglage enregistré depuis l'interface (priorité 80) reste une action de l'avocat
+        return 'user'
     if str((args or {}).get('automatic') or '') == 'yes' or int(priority if priority is not None else 0) >= AUTOMATIC_PRIORITY:
         return 'automatic'
     return 'user'

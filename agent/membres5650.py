@@ -402,6 +402,9 @@ ROUTE_OBJECTS = {
     **{'m5652/routine/' + r: (('id', 'SELECT matter_scope FROM routines5652 WHERE id=?'),)
        for r in ('modifier', 'activer', 'dupliquer', 'supprimer', 'lancer', 'historique')},
     'm5652/outil/appeler': (('operation', 'SELECT matter FROM connexion_ops5652 WHERE id=?'),),
+    # 5.6.65 (audit 5.6.64, R12) : une ressource de savoir-faire tirée d'un dossier réservé, désignée par son identifiant
+    **{'m5659/savoir/' + r: (('resource', "SELECT origin_matter FROM s59_versions WHERE resource=? AND origin_matter<>'' ORDER BY version DESC LIMIT 1"),)
+       for r in ('proposer', 'decider', 'retirer')},
     'm5652/operation/valider': (('id', 'SELECT matter FROM connexion_ops5652 WHERE id=?'),),
     'm5652/operation/annuler': (('id', 'SELECT matter FROM connexion_ops5652 WHERE id=?'),),
 }

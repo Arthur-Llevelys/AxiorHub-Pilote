@@ -114,7 +114,7 @@ class CorrespondancesConfidentielles(base.Base):
 
     def test_sources_d_un_projet_documentaire(self):
         from agent.confidentiel5664 import filter_packet
-        packet = [{'kind': 'base_document', 'path': '/D/Lettre confidentielle.docx', 'excerpt': ''},
+        packet = [{'kind': 'base_document', 'path': '/D/Lettre confidentielle.docx', 'excerpt': '', 'selection': 'explicite'},   # 5.6.65 : désignée par l'avocat
                   {'kind': 'document', 'path': '/D/COURRIEL CONFIDENTIEL DE ME X.eml', 'excerpt': ''},
                   {'kind': 'mail', 'path': '', 'excerpt': 'Correspondance confidentielle entre avocats', 'metadata': {'subject': 'Proposition'}},
                   {'kind': 'document', 'path': '/D/Assignation.pdf', 'excerpt': 'Le demandeur'}]

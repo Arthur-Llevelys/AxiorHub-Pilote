@@ -112,7 +112,7 @@ def monitor_matter(desk,args):
     if scanning and previous is not None:current=previous
     created=[]
     if previous is None and current and not indexed:
-        try:desk.enqueue('index',{'matter':mid},priority=50)
+        try:desk.admit([('index',{'matter':mid},50)])   # 5.6.65 (R08) : même plafond que la surveillance des documents
         except Stop:pass
     if previous is not None:
         new=sorted(set(current)-set(previous))
@@ -127,7 +127,7 @@ def monitor_matter(desk,args):
             created.append(_signal(desk,mid,'documents_changed','normal',
               'Pièces nouvelles ou modifiées dans '+matter.get('client_name',mid),detail,names,
               'Examiner les pièces puis actualiser la mémoire ou la stratégie si elles sont utiles.',fingerprint=fp))
-            try:desk.enqueue('index',{'matter':mid},priority=50)
+            try:desk.admit([('index',{'matter':mid},50)])   # 5.6.65 (R08) : même plafond que la surveillance des documents
             except Stop:pass
     if not current and (matter.get('registered_at') or matter.get('correspondents')):
         created.append(_signal(desk,mid,'matter_not_indexed','low','Dossier non encore indexé',

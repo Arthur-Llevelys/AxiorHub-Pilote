@@ -82,6 +82,20 @@ def automatic(kind, priority):
     return int(priority or 0) >= 40 and kind not in USER_JOBS and kind not in ('automation_setting', 'docrequest520')
 
 
+def automatic_row(row):
+    """5.6.65 (audit 5.6.64, R17) : même contrat que le contrôleur d'arrêt — origine « automatic » : automatique ; « user » ou « control » :
+    jamais ; la déduction par le type et la priorité ne sert qu'aux travaux antérieurs à la 5.6.43 (origine « legacy » ou absente)."""
+    try:
+        origin = row['origin']
+    except (IndexError, KeyError, TypeError):
+        origin = None
+    if origin == 'automatic':
+        return True
+    if origin in ('user', 'control'):
+        return False
+    return automatic(row['kind'], row['priority'])
+
+
 def report(desk):
     from .web import JOB_LABELS
     label = lambda k: JOB_LABELS.get(k, k)
@@ -89,9 +103,14 @@ def report(desk):
     for r in desk.db.execute("SELECT id,kind,started,worker FROM jobs WHERE status IN ('running','cancel_requested') ORDER BY id"):
         running.append({'id': r['id'], 'kind': r['kind'], 'label': label(r['kind']), 'since': r['started'] or '', 'seconds': int(_age_seconds(r['started'])),
                         'worker': r['worker'] or ''})
-    pending = []
-    for r in desk.db.execute("SELECT kind, COUNT(*) n, MIN(created) oldest, MIN(priority) p FROM jobs WHERE status='pending' GROUP BY kind ORDER BY n DESC, oldest"):
-        pending.append({'kind': r['kind'], 'label': label(r['kind']), 'count': r['n'], 'oldest': r['oldest'] or '', 'automatic': automatic(r['kind'], r['p'])})
+    groups = {}
+    for r in desk.db.execute("SELECT kind,origin,priority,created FROM jobs WHERE status='pending'"):
+        key = (r['kind'], automatic_row(r))   # 5.6.65 (R17) : une demande manuelle n'est pas comptée avec les automatismes du même type
+        g = groups.setdefault(key, {'kind': r['kind'], 'label': label(r['kind']), 'count': 0, 'oldest': '', 'automatic': key[1]})
+        g['count'] += 1
+        if r['created'] and (not g['oldest'] or r['created'] < g['oldest']):
+            g['oldest'] = r['created']
+    pending = sorted(groups.values(), key=lambda g: (-g['count'], g['oldest']))
     surveillance = []
     for kind, name in SURVEILLANCE:
         row = desk.db.execute('SELECT id,status,attempts,result,finished FROM jobs WHERE kind=? ORDER BY id DESC LIMIT 1', (kind,)).fetchone()
@@ -112,14 +131,18 @@ def report(desk):
 # ---------------------------------------------------------------------------------------- actions
 def purge_automatic(desk):
     """Annule les travaux automatiques en attente. Les demandes de l'avocat (brouillon demandé, document, réglage…) sont conservées."""
-    rows = desk.db.execute("SELECT id,kind,priority FROM jobs WHERE status='pending'").fetchall()
-    ids = [r['id'] for r in rows if automatic(r['kind'], r['priority'])]
-    for jid in ids:
-        desk.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE id=? AND status='pending'",
-                        (now(), json.dumps({'message': 'Travail automatique annulé depuis le diagnostic ; il sera reprogrammé.'}), jid))
+    rows = desk.db.execute("SELECT id,kind,priority,origin FROM jobs WHERE status='pending'").fetchall()
+    ids = []
+    for r in rows:
+        if not automatic_row(r):
+            continue
+        # transition conditionnelle : un travail pris par un worker entre-temps n'est pas annoncé comme annulé
+        if desk.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE id=? AND status='pending'",
+                           (now(), json.dumps({'message': 'Travail automatique annulé depuis le diagnostic ; il sera reprogrammé.'}), r['id'])).rowcount:
+            ids.append(r['id'])
     desk.db.commit()
     desk.audit('file_521_travaux_automatiques_annules', {'count': len(ids)})
-    kept = len(rows) - len(ids)
+    kept = desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]
     return {'cancelled': len(ids), 'kept': kept,
             'message': '%d travail(aux) automatique(s) annulé(s) ; %d demande(s) de votre part conservée(s). Les contrôles reprendront à leur prochain passage.' % (len(ids), kept)}
 

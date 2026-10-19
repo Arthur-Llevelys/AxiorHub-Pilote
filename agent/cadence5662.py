@@ -34,13 +34,18 @@ def busy(desk, now_ts=None):
     now_ts = now_ts or datetime.now(timezone.utc).timestamp()
     try:
         from .desk import AUTOMATIC_PRIORITY
-        user = desk.db.execute("SELECT MIN(created) FROM jobs WHERE status='pending' AND priority<?", (AUTOMATIC_PRIORITY,)).fetchone()[0]
+        # 5.6.65 (audit 5.6.64, R14) : même prédicat d'éligibilité que le worker (travail échu) ; l'ancienneté part du moment où le
+        # travail est devenu exécutable (création ou fin du report), sans être remise à zéro par une attente de verrou.
+        now_iso = datetime.fromtimestamp(now_ts, timezone.utc).isoformat()
+        ready = "MAX(created,COALESCE(not_before,created))"
+        due = "status='pending' AND (not_before IS NULL OR not_before<=?)"
+        user = desk.db.execute("SELECT MIN(%s) FROM jobs WHERE %s AND priority<?" % (ready, due), (now_iso, AUTOMATIC_PRIORITY)).fetchone()[0]
         if user and now_ts - (_ts(user) or now_ts) > USER_WAIT_SECONDS:
             return 'demande_avocat_en_attente'
-        # seuls comptent les travaux qui ATTENDENT (mis en file depuis plus de 2 min) : un passage du planificateur ne se bloque pas lui-même
+        # seuls comptent les travaux qui ATTENDENT (exécutables depuis plus de 2 min) : un passage du planificateur ne se bloque pas lui-même
         waited = datetime.fromtimestamp(now_ts - WAITING_SECONDS, timezone.utc).isoformat()
-        n, oldest = desk.db.execute("SELECT COUNT(*),MIN(created) FROM jobs WHERE status='pending' AND priority>=? AND created<=?",
-                                    (AUTOMATIC_PRIORITY, waited)).fetchone()
+        n, oldest = desk.db.execute("SELECT COUNT(*),MIN(%s) FROM jobs WHERE %s AND priority>=? AND %s<=?" % (ready, due, ready),
+                                    (now_iso, AUTOMATIC_PRIORITY, waited)).fetchone()
     except Exception:   # noqa: BLE001 — table absente (installation neuve) : aucune contre-pression
         return ''
     if n >= BACKLOG:

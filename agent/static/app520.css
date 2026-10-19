@@ -2189,6 +2189,10 @@ main aside.p5660-side,.ws-collapsed main aside.p5660-side{position:sticky;top:12
 /* 5.6.64 : mode sombre — bouton plein en tête de section repliable (« Prendre en charge une mission ») : texte foncé sur fond clair */
 :root[data-theme=dark] details>summary.ax-btn:not(.ghost){color:#0b1220}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) details>summary.ax-btn:not(.ghost){color:#0b1220}}
+/* 5.6.65 : savoir-faire — badges d'état lisibles en mode sombre (fond clair conservé, texte foncé) */
+.d51-badge.s59-ok{color:#14532d}.d51-badge.s59-warn{color:#6b4300}.d51-badge.s59-off{color:#334155}
+:root[data-theme=dark] .d51-badge.s59-ok{background:#14301f;border-color:#2f6b45;color:#bbf7d0}:root[data-theme=dark] .d51-badge.s59-warn{background:#3a2a12;border-color:#7a5a20;color:#ffd9a0}:root[data-theme=dark] .d51-badge.s59-off{background:#2b3441;color:#d3dbe5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .d51-badge.s59-ok{background:#14301f;border-color:#2f6b45;color:#bbf7d0}:root:not([data-theme="light"]) .d51-badge.s59-warn{background:#3a2a12;border-color:#7a5a20;color:#ffd9a0}:root:not([data-theme="light"]) .d51-badge.s59-off{background:#2b3441;color:#d3dbe5}}
 /* ==== v5652.css ==== */
 /* AxiorHub 5.6.52 — routines du cabinet (Aujourd'hui) et connexions API (Paramètres) */
 .r52.c5614-routines{display:block}

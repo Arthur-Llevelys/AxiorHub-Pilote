@@ -431,7 +431,8 @@ def memory_sources(desk,mid,question='',limit=12):
       'path':'Mémoire structurée du dossier','modified':row['updated'],
       'excerpt':('[STATUT : '+labels[row['status']]+', confiance '+str(round(row['confidence'],2))+'] '
         +row['record_type']+' — '+row['title']+'\n'+row['content']+'\nSources originales : '
-        +', '.join(row['sources'])),'partial':False,'memory_status':row['status']} for row in selected]
+        +', '.join(row['sources'])),'partial':False,'memory_status':row['status'],
+      'source_paths':[str(x) for x in row['sources']]} for row in selected]   # 5.6.65 (R11) : provenance gardée pour le contrôle d'usage
 
 
 def validated_fact_sources(desk,mid,question='',limit=12):

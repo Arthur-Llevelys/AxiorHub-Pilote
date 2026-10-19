@@ -105,11 +105,11 @@ class LegalBenchmark410Tests(unittest.TestCase):
 
     def test_api_exposes_41_learning_and_benchmark(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.64')
+        self.assertEqual(spec['info']['version'],'5.6.65')
         for path in ('/learning/business-rules','/evaluations/legal',
                      '/evaluations/legal/cases','/evaluations/legal/run'):
             self.assertIn(path,spec['paths'])
-        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.64')
+        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.65')
 
 
 class Browser410Tests(unittest.TestCase):
@@ -129,7 +129,7 @@ class Browser410Tests(unittest.TestCase):
             self.assertIn(label,sub)
         self.assertIn('apprentissage et modèles',sub)   # ancien nom conservé pour la recherche
         self.assertIn('Apprentissage métier',body);self.assertIn('Banc juridique',body)
-        self.assertIn('Version 5.6.64',body)
+        self.assertIn('Version 5.6.65',body)
 
     def test_produce_hub_contains_the_six_expected_outputs(self):
         body=self.request('/production')['body']

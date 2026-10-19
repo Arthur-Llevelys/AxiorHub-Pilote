@@ -318,19 +318,21 @@ def documents_check(desk,dav=None):
                 continue
             # 5.6.64 : au plus 6 analyses de dossier en attente (indexation, surveillance, faits) ; au-delà, ou si une demande de l'avocat
             # attend, le dossier reste « à traiter » (non acquitté) et sera repris à un prochain tour — plus de salve à la reprise de l'IA.
+            # 5.6.65 (audit 5.6.64, R08) : la place du lot ENTIER (jusqu'à 3 analyses) est réservée d'un coup par Desk.admit ; 5 analyses
+            # en attente + un lot de 3 ne font plus 8.
             from .cadence5662 import busy as _busy
-            heavy=desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending' AND kind IN ('index','monitor_matter','extract_facts460')").fetchone()[0]
-            if heavy>=6 or _busy(desk):
+            if _busy(desk):
                 deferred+=1;continue
-            changed+=1;emit(desk,'documents','Inventaire initial ou documents modifiés dans '+matter_option(matter),getattr(desk,'active_job_id',None),mid)
-            from .proactive568 import document_events
-            document_events(desk,matter,legacy_items)
+            from . import economie569
+            facts=economie569.quota_ok(desk,'extract_facts460')
+            batch=[('index',{'matter':mid},50),('monitor_matter',{'matter':mid},55)]+([('extract_facts460',{'matter':mid},58)] if facts else [])
             try:
-                desk.enqueue('index',{'matter':mid},priority=50)
-                desk.enqueue('monitor_matter',{'matter':mid},priority=55)
-                from . import economie569
-                if economie569.quota_ok(desk,'extract_facts460'):desk.enqueue('extract_facts460',{'matter':mid},priority=58)
-                else:
+                if desk.admit(batch) is None:
+                    deferred+=1;continue
+                changed+=1;emit(desk,'documents','Inventaire initial ou documents modifiés dans '+matter_option(matter),getattr(desk,'active_job_id',None),mid)
+                from .proactive568 import document_events
+                document_events(desk,matter,legacy_items)
+                if not facts:
                     economie569.defer(desk,'extract_facts460',{'matter':mid})   # 5.6.11 : différée, reprise le lendemain
                     emit(desk,'documents','Recherche de faits différée au lendemain (quota journalier du régime économe) : '+matter_option(matter),getattr(desk,'active_job_id',None),mid,dedupe='econome-facts-'+mid+'-'+time.strftime('%Y%m%d'))
                 acknowledged(desk,'documents',mid)
