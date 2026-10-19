@@ -26,7 +26,10 @@ CREATE TABLE IF NOT EXISTS crm57_seen(email TEXT PRIMARY KEY, name TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS crm57_runs(id INTEGER PRIMARY KEY AUTOINCREMENT, started TEXT NOT NULL, finished TEXT NOT NULL DEFAULT '', read INTEGER NOT NULL DEFAULT 0,
   created INTEGER NOT NULL DEFAULT 0, enriched INTEGER NOT NULL DEFAULT 0, excluded INTEGER NOT NULL DEFAULT 0, errors INTEGER NOT NULL DEFAULT 0,
   detail TEXT NOT NULL DEFAULT '', more INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS crm57_retries(folder TEXT NOT NULL, uidvalidity TEXT NOT NULL, uid INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+  error TEXT NOT NULL DEFAULT '', updated TEXT NOT NULL, PRIMARY KEY(folder, uidvalidity, uid));
 '''
+RETRY_LIMIT = 3   # 5.6.65 (audit 5.6.64, R05) : un message illisible est relu aux passages suivants ; abandonné après 3 échecs, signalé
 SETTINGS = 'crm5657:collecte'
 SERVICE = re.compile(r'^(no[-_.]?reply|donotreply|ne[-_.]?pas[-_.]?repondre|mailer[-_.]?daemon|postmaster|bounces?|notifications?|alertes?|newsletter)'
                      r'([+._-].*)?@', re.I)
@@ -155,10 +158,21 @@ def collect(desk, box=None, limit=None):
             for uid in uids[:budget]:
                 try:
                     mail = mailbox.fetch(folder, str(uid), headers_only=True)
-                except Stop:
+                except Stop as ex:
+                    # 5.6.65 (R05) : un échec de lecture n'acquitte plus le message ; le lot s'arrête et reprend sur ce message au passage
+                    # suivant. Après 3 échecs, il est abandonné et signalé (message disparu ou illisible), pour ne pas bloquer le dossier.
                     stats['errors'] += 1
-                    last = uid
-                    continue
+                    desk.db.execute('INSERT INTO crm57_retries(folder,uidvalidity,uid,attempts,error,updated) VALUES(?,?,?,1,?,?) '
+                                    'ON CONFLICT(folder,uidvalidity,uid) DO UPDATE SET attempts=attempts+1,error=excluded.error,updated=excluded.updated',
+                                    (folder, str(validity), uid, str(ex)[:120], _now()))
+                    attempts = desk.db.execute('SELECT attempts FROM crm57_retries WHERE folder=? AND uidvalidity=? AND uid=?',
+                                               (folder, str(validity), uid)).fetchone()[0]
+                    if attempts >= RETRY_LIMIT:
+                        stats['detail'].append('%s : message %d illisible après %d essais, ignoré (%s)' % (folder, uid, attempts, str(ex).split(':')[0]))
+                        last = uid
+                        continue
+                    stats['more'] = 1
+                    break
                 when = mail.timestamp.astimezone(timezone.utc).isoformat(timespec='seconds') if getattr(mail, 'timestamp', None) else _now()
                 for name, addr, header in _addresses(mail.msg):
                     why = _excluded(addr, own, mail.msg, header)
@@ -169,7 +183,10 @@ def collect(desk, box=None, limit=None):
                                             (addr, name, when, when, why))
                             stats['excluded'] += 1
                         continue
-                    if seen:
+                    # 5.6.65 (R06) : une adresse écartée pour un message (liste de diffusion, envoi automatique) est réexaminée quand elle
+                    # écrit un message ordinaire : l'exclusion valait pour ce message, pas pour l'adresse.
+                    revisit = bool(seen and seen['excluded'] and not seen['contact'])
+                    if seen and not revisit:
                         desk.db.execute('UPDATE crm57_seen SET last_seen=MAX(last_seen,?),messages=messages+1,name=CASE WHEN name=\'\' THEN ? ELSE name END '
                                         'WHERE email=?', (when, name, addr))
                         continue
@@ -186,8 +203,13 @@ def collect(desk, box=None, limit=None):
                             crm.link(desk, contact, mid, role, commit=False)
                         except Stop:
                             pass
-                    desk.db.execute('INSERT INTO crm57_seen(email,name,first_seen,last_seen,messages,contact) VALUES(?,?,?,?,1,?)',
-                                    (addr, name, when, when, contact))
+                    if revisit:   # première observation et compteur conservés
+                        desk.db.execute("UPDATE crm57_seen SET contact=?,excluded='',last_seen=MAX(last_seen,?),messages=messages+1,"
+                                        "name=CASE WHEN name='' THEN ? ELSE name END WHERE email=?", (contact, when, name, addr))
+                    else:
+                        desk.db.execute('INSERT INTO crm57_seen(email,name,first_seen,last_seen,messages,contact) VALUES(?,?,?,?,1,?)',
+                                        (addr, name, when, when, contact))
+                desk.db.execute('DELETE FROM crm57_retries WHERE folder=? AND uidvalidity=? AND uid=?', (folder, str(validity), uid))
                 stats['read'] += 1
                 budget -= 1
                 last = uid

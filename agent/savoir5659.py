@@ -55,6 +55,39 @@ def _now():
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    _recheck_5665(desk)
+
+
+# 5.6.65 (audit 5.6.64, R07) : champs de prose réutilisés ailleurs (transmis au modèle avec la compétence) ; tous anonymisés.
+PROSE = ('title', 'body', 'domain', 'jurisdiction', 'act_type', 'objective', 'limits', 'keywords')
+RECHECK = 'savoir5665:recontrole_anonymisation'
+
+
+def _recheck_5665(desk):
+    """Une fois : les versions tirées d'un dossier sont réanonymisées sur tous leurs champs (avant la 5.6.65, seuls le titre et le texte
+    l'étaient, et une nouvelle version sans « matter » n'était pas traitée). Une version approuvée dont le contenu change repasse « à
+    approuver » : son usage automatique est suspendu jusqu'à la revue, le texte n'est pas perdu."""
+    try:
+        if desk.settings(RECHECK, False):
+            return
+    except Exception:   # noqa: BLE001 — base sans table de réglages (outil isolé)
+        return
+    rows = desk.db.execute("SELECT * FROM s59_versions WHERE origin_matter<>''").fetchall()
+    for v in rows:
+        changed = {}
+        for f in PROSE:
+            value, n = anonymize(desk, v['origin_matter'], v[f])
+            if n and value != v[f]:
+                changed[f] = value
+        if not changed and v['anonymized']:
+            continue
+        changed['anonymized'] = 1
+        if v['status'] == 'approuvee' and len(changed) > 1:
+            changed['status'] = 'proposee'
+            changed['motif'] = 'Réanonymisée par la 5.6.65 (objectif, limites ou mots-clés nominatifs) : à revoir avant nouvel usage.'
+        desk.db.execute('UPDATE s59_versions SET %s WHERE resource=? AND version=?' % ','.join('%s=?' % k for k in changed),
+                        (*changed.values(), v['resource'], v['version']))
+    desk.setting(RECHECK, True)
 
 
 def _words(text):
@@ -147,21 +180,23 @@ def propose(desk, author, data, matter=''):
     ensure_schema(desk)
     fields = _clean_fields(data)
     origin, anonymized = 'creation', 0
-    if matter:
-        fields['body'], n = anonymize(desk, matter, fields['body'])
-        fields['title'] = anonymize(desk, matter, fields['title'])[0]
-        origin, anonymized = 'dossier', 1
     rid = str(data.get('resource') or '')
     now = _now()
-    if rid:
+    if rid:   # 5.6.65 (R07b) : origine de la révision résolue AVANT le traitement du contenu (le formulaire n'envoie pas « matter »)
         row = desk.db.execute('SELECT state FROM s59_resources WHERE id=?', (rid,)).fetchone()
         if not row:
             raise Stop('savoir_faire_absent')
-        version = desk.db.execute('SELECT COALESCE(MAX(version),0)+1 FROM s59_versions WHERE resource=?', (rid,)).fetchone()[0]
-        if not matter:
-            prev = desk.db.execute('SELECT origin,origin_matter,anonymized FROM s59_versions WHERE resource=? ORDER BY version DESC LIMIT 1', (rid,)).fetchone()
-            origin, anonymized = prev['origin'], prev['anonymized']
+        prev = desk.db.execute('SELECT origin,origin_matter FROM s59_versions WHERE resource=? ORDER BY version DESC LIMIT 1', (rid,)).fetchone()
+        if prev and prev['origin_matter']:
+            if matter and str(matter) != prev['origin_matter']:
+                raise Stop('savoir_faire_autre_dossier')
             matter = prev['origin_matter']
+    if matter:   # 5.6.65 (R07) : chaque champ réutilisable est anonymisé, pas seulement le titre et le texte
+        for f in PROSE:
+            fields[f] = anonymize(desk, matter, fields[f])[0]
+        origin, anonymized = 'dossier', 1
+    if rid:
+        version = desk.db.execute('SELECT COALESCE(MAX(version),0)+1 FROM s59_versions WHERE resource=?', (rid,)).fetchone()[0]
         desk.db.execute('UPDATE s59_resources SET updated=? WHERE id=?', (now, rid))
     else:
         rid, version = 's59-' + secrets.token_hex(6), 1
@@ -214,13 +249,29 @@ def withdraw(desk, author, rid, active=False):
     return {'ok': True}
 
 
+def _hidden():
+    from .membres5650 import viewer_hidden
+    return viewer_hidden() or frozenset()
+
+
+def visible_version(v, hidden=None):
+    """5.6.65 (audit 5.6.64, R12) : une version tirée d'un dossier réservé reste dans le périmètre de ce dossier tant qu'elle n'est pas
+    approuvée (publiée au cabinet) ; un compte exclu du dossier ne la lit, ne la compte ni ne la modifie."""
+    hidden = _hidden() if hidden is None else hidden
+    return not (v['origin_matter'] and v['origin_matter'] in hidden and v['status'] != 'approuvee')
+
+
 def listing(desk):
     """Ressources avec leur version en usage (approuvée), leur dernière version et leur état de revue."""
     ensure_schema(desk)
     today = date.today().isoformat()
+    hidden = _hidden()
     out = []
     for r in desk.db.execute('SELECT * FROM s59_resources ORDER BY updated DESC').fetchall():
-        versions = [dict(v) for v in desk.db.execute('SELECT * FROM s59_versions WHERE resource=? ORDER BY version DESC', (r['id'],))]
+        versions = [dict(v) for v in desk.db.execute('SELECT * FROM s59_versions WHERE resource=? ORDER BY version DESC', (r['id'],))
+                    if visible_version(v, hidden)]
+        if not versions:
+            continue
         for v in versions:
             v['variables'] = json.loads(v['variables'] or '[]')
         used = next((v for v in versions if v['status'] == 'approuvee'), None)
@@ -314,13 +365,16 @@ def queue_items(desk, prefix='', actor='cabinet', role='administrateur'):
         return []
     ensure_schema(desk)
     out = []
-    for v in desk.db.execute("SELECT v.resource,v.version,v.title,v.author,v.created FROM s59_versions v JOIN s59_resources r ON r.id=v.resource "
-                             "WHERE v.status='proposee' AND r.state='active' ORDER BY v.created LIMIT 20"):
+    hidden = _hidden()
+    for v in desk.db.execute("SELECT v.resource,v.version,v.title,v.author,v.created,v.origin_matter,v.status FROM s59_versions v JOIN s59_resources r "
+                             "ON r.id=v.resource WHERE v.status='proposee' AND r.state='active' ORDER BY v.created LIMIT 40"):
+        if not visible_version(v, hidden):
+            continue
         out.append({'class': 'savoir', 'object': 'savoir5659:%s:%d' % (v['resource'], v['version']), 'revision': str(v['version']),
                     'title': 'Savoir-faire à approuver : %s' % v['title'][:120],
                     'consequence': 'Proposé par %s le %s. L’agent ne l’utilisera qu’après approbation.' % (v['author'], v['created'][:10]),
                     'href': prefix + '/savoir-faire#' + v['resource'], 'choices': ('ouvrir',)})
-    return out
+    return out[:20]
 
 
 # ------------------------------------------------------------------------------------------------ page

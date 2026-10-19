@@ -118,6 +118,14 @@ USER_JOBS |= {'maj_local5661'}
 JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
 USER_JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}
 CONSERVATION_JOBS = ('archive_correspondence5643','file_mail_attachments5643')
+# 5.6.65 (R08) : analyses de dossier lancées automatiquement ; au plus 6 en attente, quel que soit le producteur (Desk.admit)
+ANALYSIS_FAMILY = frozenset(('index','monitor_matter','extract_facts460'))
+ANALYSIS_CAP = 6
+# 5.6.65 (audit 5.6.64, R16) : contrôles de santé — sondes en lecture (IMAP, Nextcloud, fournisseurs IA), bornées par leurs propres délais,
+# sans génération ; ils ne prennent plus le verrou exclusif de production (une sonde lente retardait toutes les rédactions).
+CONTROL_JOBS = ('health',)
+# Travaux qui n'attendent jamais le verrou général exclusif : ils ne peuvent pas « réserver » ce verrou (R09).
+NON_EXCLUSIVE_JOBS = frozenset(('live_calendar430','live_documents430','automation_setting','run','live_mail430')+CONSERVATION_JOBS+CONTROL_JOBS)
 USER_JOBS |= {'refresh_matter_graph380','start_playbook380','advance_playbook380',
               'complete_playbook_step380','prepare_ecosystem_action380','run_business_evaluation380'}
 USER_JOBS |= {'production_cycle390','advance_playbooks390'}
@@ -501,7 +509,9 @@ class Desk:
         if len(raw)>maximum:
             raise Stop('action_trop_longue')
         if not self.db.in_transaction:self.db.execute('BEGIN IMMEDIATE')
-        old = self.db.execute("SELECT id FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested')", (kind,raw)).fetchone()
+        # 5.6.65 (audit 5.6.64, R13) : une demande identique à un travail suspendu par la pause retrouve ce travail (même identifiant) au
+        # lieu d'en créer un second, que la reprise aurait exécuté en double.
+        old = self.db.execute("SELECT id FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested','suspended')", (kind,raw)).fetchone()
         if old:
             if not transactional:self.db.commit()
             return old[0]
@@ -537,6 +547,35 @@ class Desk:
             except Stop:
                 pass
         return cur.lastrowid
+
+    def admit(self, batch, family=None, cap=None):
+        """5.6.65 (audit 5.6.64, R08) : admission commune d'un lot de travaux automatiques. Dans UNE transaction (BEGIN IMMEDIATE, aucun
+        appel réseau) : les travaux déjà en file sont dédoublonnés, la place nécessaire au lot ENTIER est comparée au plafond de la famille,
+        puis tout le lot est inséré, ou rien. Renvoie les identifiants, ou None si le lot ne tient pas (l'appelant garde le dossier « à
+        traiter » et réessaie à un tour suivant). ``batch`` : liste de (type, arguments, priorité)."""
+        family = ANALYSIS_FAMILY if family is None else frozenset(family)
+        cap = ANALYSIS_CAP if cap is None else int(cap)
+        if not self.db.in_transaction:self.db.execute('BEGIN IMMEDIATE')
+        try:
+            marks=','.join('?'*len(family))
+            pending=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending' AND kind IN (%s)"%marks,tuple(family)).fetchone()[0]
+            needed=0
+            for kind,args,_priority in batch:
+                if kind not in family:continue
+                raw=json.dumps(args or {},sort_keys=True)
+                if not self.db.execute("SELECT 1 FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested','suspended')",
+                                       (kind,raw)).fetchone():
+                    needed+=1
+            if needed and pending+needed>cap:
+                self.db.rollback()
+                return None
+            ids=[self.enqueue(kind,args,priority=priority,transactional=True) for kind,args,priority in batch]
+            self.db.commit()
+        except BaseException:
+            if self.db.in_transaction:self.db.rollback()
+            raise
+        for jid,(_kind,args,_priority) in zip(ids,batch):self.notify_queued(jid,args)
+        return ids
 
     def notify_queued(self, job_id, args=None):
         """Notification « demande enregistrée », après validation ; une panne est journalisée, jamais remontée (le travail existe)."""
@@ -1157,13 +1196,17 @@ class Desk:
         with open(Path(self.c['state_dir'])/'run.lock','a') as probe:
             try:fcntl.flock(probe,fcntl.LOCK_SH|fcntl.LOCK_NB)
             except BlockingIOError:busy=True
-        free_kinds=" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643')"
+        free_kinds=" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643','health')"
         from .blocage5660 import RESERVE_AFTER
         # 5.6.61 : un travail qui attend le verrou exclusif depuis 3 essais le réserve : aucun nouveau travail à verrou partagé (réponses de
         # l'assistant, brouillons) ne démarre avant lui ; seuls les travaux sans verrou continuent. Sans cela, une suite continue de réponses
         # de l'assistant pouvait repousser indéfiniment la veille (constaté le 18 octobre 2026).
-        reserved=None if busy else self.db.execute("SELECT * FROM jobs WHERE status='pending' AND lock_waits>=? ORDER BY lock_waits DESC,id LIMIT 1",
-                                                   (RESERVE_AFTER,)).fetchone()
+        # 5.6.65 (audit 5.6.64, R09) : seul un travail qui attend le verrou général EXCLUSIF réserve le passage ; un travail qui attend le
+        # verrou d'UN dossier (réponse, brouillon) diffère ce dossier et laisse les autres dossiers avancer.
+        from .queue567 import SCOPED
+        waiting=[] if busy else self.db.execute("SELECT * FROM jobs WHERE status='pending' AND lock_waits>=? ORDER BY lock_waits DESC,id",
+                                                (RESERVE_AFTER,)).fetchall()
+        reserved=next((r for r in waiting if r['kind'] not in SCOPED and r['kind'] not in NON_EXCLUSIVE_JOBS),None)
         if reserved and (not reserved['not_before'] or reserved['not_before']<=now()):
             row=reserved
         else:
@@ -1228,8 +1271,9 @@ class Desk:
             elif row['kind']=='automation_setting':
                 # 5.2.1 : simple réglage local, appliqué même si une analyse tient le verrou.
                 result=self.perform(row['kind'],json.loads(row['args']))
-            elif row['kind'] in CONSERVATION_JOBS:
+            elif row['kind'] in CONSERVATION_JOBS or row['kind'] in CONTROL_JOBS:
                 # 5.6.43 (§ 13.5) : copie déterministe, sans IA ; elle n'attend pas une inférence qui tient le verrou global.
+                # 5.6.65 (R16) : idem pour les contrôles de santé (lecture seule, sans génération).
                 result=self.perform(row['kind'],json.loads(row['args']))
             else:
                 from .queue521 import note_holder
@@ -1433,6 +1477,57 @@ def _patient(desk,action,label,limit):
             time.sleep(pause);waited+=pause;pause=min(pause*2,15.0)
 
 
+SUPERVISION_SECONDS=30   # 5.6.65 (audit 5.6.64, R15) : cadence du superviseur des durées, indépendante des travaux
+
+
+class _Supervision:
+    """Accès minimal à la base pour le superviseur : sa propre connexion (jamais celle du worker, utilisée par un autre fil)."""
+    def __init__(self,c):
+        self.c=c
+        self.db=sqlite3.connect(Path(c['state_dir'])/'desk.sqlite3',timeout=5)
+        self.db.row_factory=sqlite3.Row
+
+    def now(self):
+        return now()
+
+    def audit(self,action,data):
+        from .cabinet_pilot import append_audit
+        self.db.execute('BEGIN IMMEDIATE')
+        try:
+            stamp=now()
+            self.db.execute('INSERT INTO audit VALUES(NULL,?,?,?)',(stamp,action,json.dumps(data)))
+            append_audit(self,stamp,action,data)
+            self.db.commit()
+        except BaseException:
+            self.db.rollback()
+            raise
+
+
+def _supervise(c,stop):
+    """5.6.65 (R15) : les durées maximales sont contrôlées toutes les 30 s, même quand tous les workers sont pris par un travail bloqué
+    (avant : le contrôle n'avait lieu qu'entre deux travaux). Le superviseur continue pendant la pause de l'IA ; il n'appelle jamais le
+    modèle et ne garde aucune transaction ouverte : il ne fait que DEMANDER l'arrêt (cancel_requested), que le travail acquitte."""
+    from .blocage5660 import watchdog
+    sup=None
+    try:
+        while not stop.is_set():
+            try:
+                if sup is None:sup=_Supervision(c)
+                watchdog(sup)
+            except sqlite3.Error:   # base momentanément occupée : nouvel essai au cycle suivant
+                try:
+                    if sup is not None and sup.db.in_transaction:sup.db.rollback()
+                except sqlite3.Error:
+                    pass
+            except Exception:   # noqa: BLE001 — le superviseur ne s'arrête jamais sur une erreur
+                pass
+            stop.wait(SUPERVISION_SECONDS)
+    finally:
+        if sup is not None:
+            try:sup.db.close()
+            except sqlite3.Error:pass
+
+
 def worker(c,worker_id='1'):
     # Multiple atomic claimers; mutating producers still share run.lock.
     import threading
@@ -1456,6 +1551,7 @@ def worker(c,worker_id='1'):
                     stop.wait(10)
             finally:db.close()
         threading.Thread(target=pulse,daemon=True).start()
+        threading.Thread(target=_supervise,args=(c,stop),daemon=True,name='supervision5665').start()
         pause=3.0
         last_watch=0.0
         while True:

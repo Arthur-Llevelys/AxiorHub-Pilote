@@ -54,7 +54,8 @@ class File(base.Base):
         self.assertEqual(json.loads(row['result'])['erreur'], 'suspension_sans_pause_en_vigueur')
 
     def test_attente_du_verrou_differee_sans_tentative(self):
-        first, second = self._job(n=1), self._job(n=2)
+        # 5.6.65 : « index » (verrou de production) au lieu de « health », devenu un contrôle hors verrou (audit 5.6.64, R16)
+        first, second = self._job('index', n=1), self._job('index', n=2)
 
         @contextmanager
         def busy(config, kind, args):

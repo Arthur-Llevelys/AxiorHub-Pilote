@@ -117,7 +117,12 @@ def http(method, url, data=None, headers=None, timeout=60, stream=False):
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *a, **k):
             return None
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    # 5.6.65 (audit 5.6.64, R10) : connexions suivies du mécanisme d'arrêt (arret5643) : « Arrêter » ou la pause ferment réellement le
+    # flux en cours ; vérification TLS par défaut et refus des redirections conservés.
+    import ssl
+    from .common import _TrackedHTTPHandler, _TrackedHTTPSHandler
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect(), _TrackedHTTPHandler(),
+                                         _TrackedHTTPSHandler(context=ssl.create_default_context()))
     from . import __version__
     req = urllib.request.Request(url, data=data, method=method, headers={'User-Agent': 'AxiorHub-Pilote/%s' % __version__, **(headers or {})})
     try:

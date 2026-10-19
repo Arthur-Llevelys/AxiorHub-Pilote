@@ -3,6 +3,52 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.65 — Corrections de l’audit de la 5.6.64 (confidentialité, savoir-faire, contacts, file de travail)
+
+Audit développeur du 19 octobre 2026 sur la 5.6.64 : 17 anomalies reproduites (R01 à R17), aucune bloquante (P0). Les 26 contre-tests
+du dossier technique de l’audit sont intégrés à la suite (`tests/test_audit5664.py`, `tests/test_files5664.py`) et réussissent tous.
+
+**Correspondances confidentielles entre avocats**
+- R01 : le statut « confidentiel » est celui de la pièce entière (nom, objet, début du texte), calculé avant le découpage et hérité par
+  chaque passage. Un passage éloigné de la mention n’est plus transmis. Les pièces déjà indexées sont requalifiées à la lecture, sans
+  réindexation.
+- R02 : une base de travail choisie automatiquement (fichier le plus récent) n’est jamais une correspondance confidentielle ; la
+  suivante, ou le modèle interne, est retenue. Une base désignée par l’avocat reste possible, avec la règle de non-citation.
+- R03 : une information appuyée en partie sur une correspondance confidentielle n’est plus transmise pour un document destiné à un
+  tiers ; un message invite à la reprendre à partir des seules pièces communicables. Elle reste, marquée, pour l’usage interne.
+- R04 : un texte officiel vérifié par le serveur qui cite l’article 66-5 n’est plus écarté ; « confidentialité » (accord, clause) ne
+  désigne plus une correspondance.
+- R11 : les faits validés de la mémoire du dossier gardent leur provenance ; ceux tirés d’une correspondance confidentielle ne
+  reviennent plus par les rédactions libres. Un fait sans pièce rattachée est signalé « à vérifier avant communication ».
+
+**Savoir-faire du cabinet**
+- R07 : tous les champs réutilisés (titre, texte, objectif, limites, domaine, juridiction, type d’acte, mots-clés) sont anonymisés,
+  y compris pour une nouvelle version envoyée sans dossier. Les versions existantes sont recontrôlées une fois ; une version approuvée
+  modifiée par ce contrôle repasse « à approuver ».
+- R12 : un savoir-faire tiré d’un dossier réservé reste dans le périmètre de ce dossier tant qu’il n’est pas approuvé : un compte
+  exclu ne le voit ni dans la page, ni dans la file, et ne peut pas le modifier par son identifiant.
+
+**Contacts**
+- R05 : un courriel momentanément illisible n’est plus sauté : il est relu au passage suivant ; après trois échecs, il est abandonné
+  et signalé.
+- R06 : une adresse écartée pour un message de liste de diffusion est réexaminée quand elle écrit un message personnel.
+
+**File de travail et arrêt**
+- R08 : au plus 6 analyses de dossier en attente, place du lot entier réservée en une fois, pour tous les producteurs.
+- R09 : un travail qui attend le verrou d’un dossier ne bloque plus les autres dossiers.
+- R10 : « Arrêter » et la pause ferment réellement une réponse ChatGPT en cours.
+- R13 : une demande identique à un travail suspendu par la pause ne crée plus de doublon.
+- R14 : un travail reporté à plus tard ne compte plus comme une charge actuelle.
+- R15 : les durées maximales sont surveillées toutes les 30 secondes par un superviseur indépendant, même si tous les workers sont pris.
+- R16 : le contrôle de santé ne prend plus le verrou de production : une sonde lente ne retarde plus les rédactions.
+- R17 : « Annuler les travaux automatiques » respecte l’origine enregistrée : une indexation demandée par l’avocat est conservée.
+
+**Mode sombre** : les étiquettes d’état de la page « Savoir-faire du cabinet » (« En usage », « à approuver ») redeviennent
+lisibles (contrôle des contrastes repassé en clair et en sombre sur Aujourd’hui, Paramètres et Savoir-faire).
+
+**Mise à jour depuis Paramètres** : bouton vérifié sur la version 5.6.64 publiée (flux, téléchargement, empreinte, signature, pour
+Windows, Ubuntu poste et serveur) et installation silencieuse Windows 5.6.63 → 5.6.64 essayée dans un dossier isolé.
+
 ## 5.6.64 — Aujourd’hui centré sur les décisions du jour, plus de salve d’analyses, fichiers parasites ignorés, correspondances confidentielles
 
 Retour du cabinet du 19 octobre 2026 : 133 éléments dans « À décider / À relire » (76 « À décider »), dont beaucoup sans intérêt ;

@@ -1,0 +1,48 @@
+{
+  "version": "5.6.65",
+  "base": "5.6.64 publiée",
+  "date_utc": "2026-10-19T00:00:00+00:00",
+  "cahier_des_charges": "Audit développeur de la 5.6.64 (19 octobre 2026) : anomalies R01 à R17 ; vérification du bouton de mise à jour.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2588,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 110,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "audit": {
+    "contre_tests": "tests/test_audit5664.py (15) et tests/test_files5664.py (11), repris du dossier technique de l’audit",
+    "resultat_sur_5664": "20 échecs reproduits (R01-R17, R07b, R09b, R14b), 6 contrôles réussis",
+    "resultat_sur_5665": "26 réussis",
+    "adaptation": "R15 : le test attend un cycle du superviseur indépendant (cadence réduite à 50 ms) au lieu de lire l’état immédiatement, comme le prévoit l’audit."
+  },
+  "new_tests": "tests/test_v5665.py : index existant requalifié sans réindexation, base explicite gardée et automatique écartée, piste juridique non vérifiée contrôlée, fait de la mémoire avec provenance, information mixte gardée en interne, message illisible abandonné après 3 essais, adresse de service toujours exclue, version approuvée publiée et brouillon privé, révision rattachée à un autre dossier refusée, route par identifiant contrôlée, admission du lot entier, travail futur compté une fois échu, purge des lignes anciennes.",
+  "mise_a_jour": {
+    "flux": "releases.atom lu, 5.6.64 retenue",
+    "windows": "téléchargement, empreinte et signature conformes ; installation silencieuse 5.6.63 → 5.6.64 essayée dans un dossier isolé (raccourci et version mis à jour)",
+    "poste": "téléchargement, empreinte et signature conformes (installation apt non lancée)",
+    "serveur": "flux, archive, empreinte et signature (ssh-keygen et Python) conformes ; archive modifiée refusée ; install.sh non exécuté (Linux)"
+  },
+  "exapp": {
+    "version": "0.1.24",
+    "moteur": "5.6.65"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "index.put_source/source_confidential : statut de confidentialité de la source (meta correspondance_confidentielle, politique_confidentialite) ; document_projects : base « explicite »/« automatique », base confidentielle automatique écartée ; confidentiel5664.filter_packet : PUBLIC_KINDS, source_paths ; NAME_RX exclut « confidentialité ».",
+    "contexte5651.for_drafting : information mixte écartée pour un tiers ; docrequest520 : faits avec provenance, filtrés ; legal_memory.memory_sources : source_paths.",
+    "savoir5659 : PROSE anonymisés, origine résolue avant, recontrôle unique (savoir5665:recontrole_anonymisation), visible_version ; membres5650.ROUTE_OBJECTS m5659/savoir/*.",
+    "crm5657 : crm57_retries, RETRY_LIMIT=3 ; réexamen des adresses exclues sans contact.",
+    "desk : admit (ANALYSIS_FAMILY, ANALYSIS_CAP=6), dédoublonnage des travaux suspendus, réservation limitée aux travaux à verrou exclusif (NON_EXCLUSIVE_JOBS), CONTROL_JOBS (health) hors verrou, superviseur _supervise (SUPERVISION_SECONDS=30) ; cadence5662.busy : travaux échus seulement ; queue521.automatic_row ; chatgpt5662 : connexions suivies.",
+    "arret5643.resolve_origin : un réglage (automation_setting) mis en file sans contexte est une action de l’avocat (« user ») ; la purge par origine (R17) ne l’annule donc pas."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5664.py::CorrespondancesConfidentielles.test_sources_d_un_projet_documentaire : la base gardée est marquée « explicite » (R02).",
+    "tests/test_v5661.py (2 tests) et tests/test_v5660.py::test_attente_du_verrou_differee_sans_tentative : « index » remplace « health » comme exemple de travail à verrou exclusif (R16)."
+  ]
+}

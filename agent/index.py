@@ -58,6 +58,10 @@ class DocumentIndex:
         self.remove_knowledge(mid,source_id)
         stamp=datetime.now(timezone.utc).isoformat();parts=chunks(text)
         meta=dict(meta or {})
+        # 5.6.65 (audit 5.6.64, R01) : statut de confidentialité de la SOURCE entière, calculé avant le découpage et hérité par chaque
+        # fragment (un passage éloigné de la mention « confidentiel » ne la perd plus).
+        from .confidentiel5664 import FLAG,POLICY,source_is_confidential_text
+        meta[FLAG]=source_is_confidential_text(path,text,meta.get('subject',''));meta['politique_confidentialite']=POLICY
         if len(parts)>=CHUNK_LIMIT:   # 5.6.11 : couverture partielle signalée dans les métadonnées, jamais silencieuse
             meta['coverage']='partial';meta['indexed_chunks']=len(parts)
         for i,part in enumerate(parts):
@@ -65,6 +69,26 @@ class DocumentIndex:
             self.db.execute('INSERT INTO knowledge_chunks VALUES (?,?,?,?,?,?,?,?,?,?)',values)
             self.db.execute('INSERT INTO knowledge_fts VALUES (?,?,?,?,?)',(mid,source_id,i,path,part))
         self.db.commit();return source_id,True
+
+    def source_confidential(self,matter,source_id):
+        """5.6.65 (R01) : statut de la source entière ; pour un index antérieur (fichier inchangé, jamais réindexé), il est recalculé
+        sur le début du document puis enregistré dans chaque fragment."""
+        from .confidentiel5664 import FLAG,POLICY,source_is_confidential_text
+        mid=matter['id'] if isinstance(matter,dict) else matter
+        rows=self.db.execute('SELECT path,text,meta FROM knowledge_chunks WHERE matter=? AND source_id=? ORDER BY chunk_no LIMIT 2',(mid,source_id)).fetchall()
+        if not rows:return False
+        try:meta=json.loads(rows[0][2]) if rows[0][2] else {}
+        except ValueError:meta={}
+        if meta.get('politique_confidentialite')==POLICY and FLAG in meta:return bool(meta[FLAG])
+        value=source_is_confidential_text(rows[0][0],''.join(r[1] or '' for r in rows),meta.get('subject',''))
+        for chunk_no,raw in self.db.execute('SELECT chunk_no,meta FROM knowledge_chunks WHERE matter=? AND source_id=?',(mid,source_id)).fetchall():
+            try:m=json.loads(raw) if raw else {}
+            except ValueError:m={}
+            m[FLAG]=value;m['politique_confidentialite']=POLICY
+            self.db.execute('UPDATE knowledge_chunks SET meta=? WHERE matter=? AND source_id=? AND chunk_no=?',
+                            (json.dumps(m,ensure_ascii=False),mid,source_id,chunk_no))
+        self.db.commit()
+        return value
 
     def ensure_embeddings(self,matter,budget=None):
         if not self.rag.get('enabled'):return {'created':0,'pending':0,'error':''}
