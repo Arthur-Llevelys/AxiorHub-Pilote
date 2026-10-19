@@ -549,7 +549,11 @@ class Page(t51.Web):
         desk.db.commit()
         today = self.request('/aujourdhui', cookie=self.admin)['body']
         self.assertIn('À décider / À relire', today)
-        self.assertIn('information(s) proposée(s) à examiner', today)
+        # 5.6.64 : la tenue des fiches n'encombre plus Aujourd'hui ; résumée en bas de la file, traitée depuis le dossier
+        self.assertNotIn('information(s) proposée(s) à examiner', today)
+        self.assertIn('point(s) de fiches de dossiers', today)
+        dossier = self.request('/dossier', query='id=DOS-001', cookie=self.admin)['body']
+        self.assertIn('information(s) proposée(s) à examiner', dossier)
 
     def test_pagination_au_dela_de_500_informations(self):
         desk = Desk(self.f.c)

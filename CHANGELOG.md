@@ -3,6 +3,31 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.64 — Aujourd’hui centré sur les décisions du jour, plus de salve d’analyses, fichiers parasites ignorés, correspondances confidentielles
+
+Retour du cabinet du 19 octobre 2026 : 133 éléments dans « À décider / À relire » (76 « À décider »), dont beaucoup sans intérêt ;
+32 travaux en file quelques minutes après la reprise de l’IA ; 100 fichiers « en erreur » sur 203 dans un dossier (fichiers
+temporaires, archives), chacun avec sa lacune « Lecture de … ».
+
+- Aujourd’hui : la file ne montre que les décisions et relectures du jour (décisions attendues par l’agent, projets et brouillons de
+  moins de 14 jours, engagements, contradictions, sécurité, facturation). La tenue des fiches de dossiers (identités, classements,
+  informations proposées, lacunes, relectures de modifications), les points d’avancement client proposés et les projets anciens sont
+  résumés en bas, par dossier, avec un lien : ils se traitent depuis chaque dossier. La page du dossier garde tout.
+- Reprise de l’IA : au plus 6 analyses de dossier en attente (indexation, surveillance immédiate, recherche de faits) ; au-delà, ou
+  si une de vos demandes attend, un dossier modifié reste « à traiter » et est repris à un tour suivant. Plus de salve.
+- Fichiers qui ne sont pas des pièces (temporaires, verrous d’Office ou de LibreOffice, raccourcis, vignettes) : retirés de
+  l’inventaire du dossier, sans lacune. Archives et formats non pris en charge : plus de lacune « Lecture de … ». Les lacunes de ce
+  type déjà ouvertes sont fermées sans bruit ; les abandons passés sortent des cartes « Changements récents » et « Depuis votre
+  dernière lecture ».
+- Correspondances confidentielles entre avocats (article 66-5 de la loi du 31 décembre 1971) : reconnues par leur nom ou leur objet
+  (« confidentiel », sauf « non confidentiel ») ou par une formule propre à la correspondance entre confrères dans le texte ; une
+  clause de confidentialité dans un contrat ne suffit pas. Elles restent lisibles par l’avocat (fiche du dossier, assistant,
+  préparation de rendez-vous, routines), marquées « confidentiel — usage interne » à côté de chaque source, mais ne sont jamais
+  transmises comme source d’un document rédigé (projets documentaires, rédactions libres, y compris notes et consultations qui
+  peuvent être remises au client). Une pièce choisie par l’avocat est gardée, avec un avertissement au modèle.
+- Mode sombre : le bouton « Prendre en charge une mission » de la page du dossier redevient lisible (contrôle des contrastes repassé
+  en clair et en sombre sur Aujourd’hui et la page du dossier).
+
 ## 5.6.63 — Surveillance des documents espacée, analyses d’échéances sans échec inutile
 
 Charge mesurée chez le cabinet le 18 octobre 2026 avec le nouveau diagnostic de la 5.6.62 : workers occupés 22 % du temps, dont

@@ -264,7 +264,7 @@ def documents_check(desk,dav=None):
     client=dav or DAV(desk.c['nextcloud']);skip=set(ignored(desk))
     matters=[m for m in indexable_matters(desk.c) if m['id'] not in skip]
     if not matters:return {'abstention':'Aucun dossier indexable.'}
-    cursor=int(desk.settings('live430:document_cursor',0))%len(matters);changed=0;partial=0
+    cursor=int(desk.settings('live430:document_cursor',0))%len(matters);changed=0;partial=0;deferred=0
     selected=matters[cursor:cursor+3]
     progress(desk,'Surveillance Nextcloud · '+str(len(selected))+' dossiers dans ce lot')
     failed=0
@@ -316,6 +316,12 @@ def documents_check(desk,dav=None):
                 # départ. Avant, chaque dossier lu pour la première fois (y compris ceux de 2019) était indexé, surveillé et analysé.
                 acknowledged(desk,'documents',mid)
                 continue
+            # 5.6.64 : au plus 6 analyses de dossier en attente (indexation, surveillance, faits) ; au-delà, ou si une demande de l'avocat
+            # attend, le dossier reste « à traiter » (non acquitté) et sera repris à un prochain tour — plus de salve à la reprise de l'IA.
+            from .cadence5662 import busy as _busy
+            heavy=desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending' AND kind IN ('index','monitor_matter','extract_facts460')").fetchone()[0]
+            if heavy>=6 or _busy(desk):
+                deferred+=1;continue
             changed+=1;emit(desk,'documents','Inventaire initial ou documents modifiés dans '+matter_option(matter),getattr(desk,'active_job_id',None),mid)
             from .proactive568 import document_events
             document_events(desk,matter,legacy_items)
@@ -339,7 +345,7 @@ def documents_check(desk,dav=None):
         desk.setting('live430:documents_sweep_done',time.time())
     heartbeat(desk,'documents','active','Lot '+str(cursor+1)+'–'+str(cursor+len(selected))+' / '+str(len(matters))+' dossiers · '+str(partial)+' inventaires partiels',time.time()+300)
     # 5.6.36 : plus de Stop('dossiers_illisibles') : trois lots de dossiers illisibles suspendaient toute la surveillance des documents.
-    return {'changed':changed,'partial':partial,'failed':failed,'continue_scan':more,'remote_write':False}
+    return {'changed':changed,'partial':partial,'failed':failed,'deferred':deferred,'continue_scan':more,'remote_write':False}
 
 
 def perform(desk,kind,args):

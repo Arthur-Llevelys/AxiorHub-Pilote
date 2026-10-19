@@ -302,9 +302,35 @@ def _model(desk,matter_id=''):
         return Model(cfg)
 
 
+def _without_confidential(ctx, kind):
+    """5.6.64 (art. 66-5) : pour un document destiné à un tiers, les extraits et courriels retrouvés automatiquement qui sont des
+    correspondances confidentielles entre avocats sont retirés ; une pièce jointe choisie par l'avocat est gardée avec un avertissement
+    (réponse au même confrère, par exemple)."""
+    from .confidentiel5664 import is_confidential
+    if not isinstance(ctx, dict):
+        return ctx
+    ctx = dict(ctx)
+    removed = 0
+    for key, name_key, text_key, subject_key in (('extraits', 'fichier', 'texte', ''), ('courriels', '', 'extrait', 'objet')):
+        rows = list(ctx.get(key) or [])
+        kept = [x for x in rows if not is_confidential(x.get(name_key, '') if name_key else '', x.get(text_key, ''), x.get(subject_key, '') if subject_key else '')]
+        removed += len(rows) - len(kept)
+        ctx[key] = kept
+    chosen = [x.get('fichier', '') for x in ctx.get('pieces_jointes') or [] if is_confidential(x.get('fichier', ''), x.get('texte', ''))]
+    if removed:
+        ctx['correspondances_confidentielles_ecartees'] = ('%d correspondance(s) confidentielle(s) entre avocats écartée(s) (article 66-5 de la '
+                                                           'loi du 31 décembre 1971).' % removed)
+    if chosen:
+        ctx['attention_confidentialite'] = ('Pièce(s) choisie(s) par l’avocat qui sont des correspondances confidentielles entre avocats : %s. '
+                                            'Ne pas les citer ni les reproduire dans un document destiné à la juridiction ou au client ; seule '
+                                            'une réponse confidentielle au même confrère peut y faire référence.' % ', '.join(chosen[:5]))
+    return ctx
+
+
 def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None):
     task = ('Réécris intégralement le document ci-dessous selon la demande de modification, en conservant ce qui n’est pas visé.'
             if previous_text else 'Rédige le document demandé.')
+    ctx = _without_confidential(ctx, kind)   # 5.6.64 : art. 66-5
     payload = {'demande': request, 'matter':matter_id,'type': KINDS.get(kind, kind), 'dossier': ctx, 'document_actuel': previous_text}
     if legal:   # 5.6.49 : textes et décisions trouvés par les connecteurs juridiques avant la rédaction
         from .juridique5649 import for_model

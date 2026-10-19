@@ -25,7 +25,7 @@ def _proof(value):
     return PROOF.get(value, value)
 
 
-def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document='', document_version=''):
+def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document='', document_version='', confidential=False):
     """Dictionnaire « dossier_structure » (vide si le dossier n'a encore aucune donnée structurée).
 
     5.6.52 (audit 5.6.51) : les données sont mises à jour avant lecture (F02) ; un échec est signalé (« contexte partiel ») au lieu
@@ -83,10 +83,20 @@ def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document
         return entry
     ranked = sorted(infos, key=lambda a: (a['review'] != 'enregistre', a['relevance'] != 'pertinent', a['date_value'] == '', a['date_value']))
     used, facts, undated, claims = 0, [], [], []
+    from .confidentiel5664 import LABEL as _CONF, source_is_confidential
+    withheld = 0
     for a in ranked:
+        # 5.6.64 (art. 66-5) : information tirée uniquement de correspondances confidentielles entre avocats — jamais transmise pour une
+        # rédaction destinée à un tiers ; reprise, marquée, pour un usage interne (assistant, préparation, note interne)
+        conf = bool(a['sources']) and all(source_is_confidential(s) for s in a['sources'])
+        if conf and not confidential:
+            withheld += 1
+            continue
         if a['kind'] == 'argument' and memoire5651.is_abandoned(desk, mid, a['text']):
             continue
         entry = item(a)
+        if conf:
+            entry['confidentialite'] = _CONF + ' : correspondance entre avocats (art. 66-5), ne jamais citer ni communiquer'
         size = len(json.dumps(entry, ensure_ascii=False))
         if used + size > budget:
             out['limite_du_contexte'] = 'Contexte borné à %d caractères : informations de moindre priorité non transmises.' % budget
@@ -104,6 +114,9 @@ def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document
         out['faits_contexte_date_non_determinee'] = undated
     if claims:
         out['demandes_et_montants'] = claims
+    if withheld:
+        out['correspondances_confidentielles'] = ('%d information(s) tirée(s) de correspondances confidentielles entre avocats non transmise(s) '
+                                                  '(article 66-5) : document destiné à un tiers.' % withheld)
     if gaps:
         out['informations_manquantes'] = [{'donnee': g['expected'], 'portee': memoire5651.BLOCKING[g['blocking']]} for g in gaps[:20]]
     try:

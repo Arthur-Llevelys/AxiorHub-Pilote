@@ -35,6 +35,29 @@ FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction'
            'relire': ('relecture', 'livrable', 'projet'),
            'echecs': ('echec_agent',)}
 NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir', 'echec_agent')
+# 5.6.64 : sur Aujourd'hui, seules les décisions et relectures du jour ; la tenue des fiches de dossiers (identités, classements,
+# informations proposées, lacunes, relectures de modifications) et les points d'avancement client se traitent depuis chaque dossier
+# (résumé cliquable en bas de la file). Les projets à relire de plus de 14 jours n'y figurent plus (toujours visibles dans le dossier).
+CURATION = frozenset(('identite', 'classement', 'informations', 'lacune', 'relecture'))
+TODAY_DAYS = 14
+
+
+def today_split(every, now=None):
+    """(éléments du jour, fiches à revoir, points client, anciens projets) pour la vue d'Aujourd'hui."""
+    limit = ((now or datetime.now(timezone.utc)) - timedelta(days=TODAY_DAYS)).isoformat()
+    keep, curation, client, old = [], [], [], []
+    for it in every:
+        if it['class'] in CURATION:
+            curation.append(it)
+        elif str(it.get('object', '')).startswith('suivi:'):
+            client.append(it)
+        elif it['class'] in ('projet', 'livrable') and it.get('when') and str(it['when']) < limit:
+            old.append(it)
+        else:
+            keep.append(it)
+    return keep, curation, client, old
+
+
 # 5.6.61 : ordre de lecture — ce que l'avocat attend (prioritaire), puis ce qui est prêt à relire, puis les décisions, enfin les échecs automatiques
 RANK = {'projet': 0, 'livrable': 0, 'relecture': 1, 'echec_agent': 9}     # choix stratégiques et engagements : jamais en validation regroupée
 
@@ -105,7 +128,7 @@ def _items_for(desk, prefix, m):
         pass
     try:
         for r in desk.db.execute("SELECT id,title,updated FROM missions5614 WHERE matter=? AND validation='a_decider'", (mid,)).fetchall():
-            items.append({'class': 'livrable', 'object': 'mission:' + r['id'], 'revision': r['updated'], 'title': 'Projet prêt à relire : ' + r['title'],
+            items.append({'class': 'livrable', 'object': 'mission:' + r['id'], 'revision': r['updated'], 'when': r['updated'], 'title': 'Projet prêt à relire : ' + r['title'],
                           'consequence': 'Valider ou demander une correction depuis la mission ; aucun envoi.', 'href': prefix + '/missions-complexes?id=' + r['id'],
                           'choices': ('ouvrir',)})
     except Exception:   # noqa: BLE001
@@ -114,7 +137,7 @@ def _items_for(desk, prefix, m):
         since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
         for r in desk.db.execute("SELECT id,request,path,updated FROM docreq520 WHERE matter=? AND status='cree' AND updated>=? ORDER BY updated DESC LIMIT 20",
                                  (mid, since)).fetchall():
-            items.append({'class': 'livrable', 'object': 'document:' + r['id'], 'revision': r['updated'], 'title': 'Document produit à relire : ' + r['request'][:120],
+            items.append({'class': 'livrable', 'object': 'document:' + r['id'], 'revision': r['updated'], 'when': r['updated'], 'title': 'Document produit à relire : ' + r['request'][:120],
                           'consequence': 'Marquer comme relu le retire de toutes les vues.', 'href': q('travaux'), 'choices': ('relu', 'reporter')})
     except Exception:   # noqa: BLE001
         pass
@@ -261,6 +284,10 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
     from html import escape as e
     from urllib.parse import quote as _q
     every = items(desk, prefix, matter, '', hidden, actor=actor, role=role)
+    summary = ''
+    if not matter:   # 5.6.64 : vue « du jour » sur Aujourd'hui
+        every, curation, client, old = today_split(every)
+        summary = _today_summary(prefix, curation, client, old)
     rows = [it for it in every if not view or it['class'] in FILTERS.get(view, ())]
     base = (prefix + '/dossier?id=' + matter + '&') if matter else (prefix + '/aujourdhui?')
     counts = {k: sum(1 for it in every if not k or it['class'] in FILTERS[k]) for k in ('', 'decider', 'relire', 'echecs')}
@@ -310,6 +337,37 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                  '<ul class="q51-list">%s</ul></details>') % (len(folded), ''.join(card(it) for it in folded[:limit]))
     head = ('<h2 id="q51-t">À décider / À relire</h2>' if title else '') + '<nav class="q51-filters" aria-label="Filtres de la file">%s</nav>' % tabs
     if not rows:
-        return '<section class="q51" aria-labelledby="q51-t">%s<p class="ax-muted">Rien à décider ni à relire pour l’instant.</p></section>' % head
-    return '<section class="q51" aria-labelledby="q51-t">%s<ul class="q51-list">%s</ul>%s</section>' % (
-        head, ''.join(cards) or '<li class="ax-muted">Rien d’autre à décider ni à relire.</li>', more)
+        return '<section class="q51" aria-labelledby="q51-t">%s<p class="ax-muted">Rien à décider ni à relire pour l’instant.</p>%s</section>' % (head, summary)
+    return '<section class="q51" aria-labelledby="q51-t">%s<ul class="q51-list">%s</ul>%s%s</section>' % (
+        head, ''.join(cards) or '<li class="ax-muted">Rien d’autre à décider ni à relire.</li>', more, summary)
+
+
+def _today_summary(prefix, curation, client, old):
+    """Résumé de ce qui ne figure pas sur Aujourd'hui, par dossier, avec un lien vers chaque dossier."""
+    from html import escape as e
+    from urllib.parse import quote as _q
+
+    def by_matter(group, view):
+        counts = {}
+        for it in group:
+            if it.get('matter'):
+                key = (it['matter'], it.get('matter_name') or it['matter'])
+                counts[key] = counts.get(key, 0) + 1
+        top = sorted(counts.items(), key=lambda kv: -kv[1])[:10]
+        links = ', '.join('<a href="%s">%s</a> (%d)' % (e(prefix + '/dossier?id=' + _q(str(m), safe='') + '&vue=' + view, quote=True), e(name), n)
+                          for (m, name), n in top)
+        return links + (' …' if len(counts) > 10 else '')
+    parts = []
+    if curation:
+        parts.append('<li><strong>%d point(s) de fiches de dossiers</strong> (identités, classements, informations proposées) — à revoir depuis '
+                     'chaque dossier, quand vous y travaillez : %s</li>' % (len(curation), by_matter(curation, 'vue')))
+    if client:
+        parts.append('<li><strong>%d point(s) d’avancement client proposé(s)</strong> — onglet Travaux du dossier : %s</li>' % (
+            len(client), by_matter(client, 'travaux')))
+    if old:
+        parts.append('<li><strong>%d projet(s) de plus de %d jours</strong> non relus — toujours visibles dans leur dossier : %s</li>' % (
+            len(old), TODAY_DAYS, by_matter(old, 'travaux')))
+    if not parts:
+        return ''
+    return ('<details class="q51-folded"><summary>Hors de la vue du jour (%d) — tenue des dossiers, sans urgence</summary><ul class="d51-list">%s</ul>'
+            '</details>') % (len(curation) + len(client) + len(old), ''.join(parts))

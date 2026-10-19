@@ -101,7 +101,7 @@ def review_items(desk, prefix=''):
         mid = str(x.get('matter') or '')
         if mid in hidden or (x.get('request') and mid):        # demandes documentaires d'un dossier : déjà dans la file (« livrable »)
             continue
-        out.append({'class': 'projet', 'object': 'relire:' + x['id'], 'revision': _rev(x.get('when'), x.get('title')), 'matter': mid,
+        out.append({'class': 'projet', 'object': 'relire:' + x['id'], 'revision': _rev(x.get('when'), x.get('title')), 'matter': mid, 'when': x.get('when', ''),
                     'matter_name': x.get('matter_label') or 'Dossier non identifié', 'title': '%s : %s' % (x.get('type') or 'Projet', x.get('title') or ''),
                     'consequence': 'Destination : %s.' % x['dest'] if x.get('dest') else '', 'href': prefix + '/aujourdhui#relire=' + quote(x['id'], safe=''),
                     'choices': ('ouvrir', 'relu', 'reporter')})
