@@ -761,6 +761,11 @@ def rebuild(desk, mid, force=False):
         return {**previous['counters'], 'inchange': True}
     first = previous is None
     # 1. Documents : nature (règles, relevé, décision de l'avocat), état de lecture, catégorie d'erreur
+    from .memoire5651 import not_a_document
+    junk = [d['path'] for d in inv if not_a_document(PurePosixPath(d['path']).name)]
+    if junk:   # 5.6.64 : fichiers temporaires, verrous, raccourcis : retirés de l'inventaire du dossier (ils comptaient « en erreur »)
+        desk.db.executemany('DELETE FROM d51_documents WHERE matter=? AND path=?', [(mid, p) for p in junk])
+    inv = [d for d in inv if d['path'] not in set(junk)]
     for d in inv:
         nature = classify_name(d['path'], d['text'])
         dig = (digests.get(d['path']) or {}).get('data') or {}

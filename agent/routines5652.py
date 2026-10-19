@@ -872,7 +872,7 @@ def _run_synthesis(desk, oid, snap, matters, result):
         data['dossiers'] = {}
         for mid in matters:
             checkpoint(desk, oid)
-            data['dossiers'][mid] = for_drafting(desk, mid, snap['instruction'], snap['owner'], budget=4000)
+            data['dossiers'][mid] = for_drafting(desk, mid, snap['instruction'], snap['owner'], budget=4000, confidential=True)
     checkpoint(desk, oid)
     lang = routines520.langue(desk)
     text = routines520.ask(desk, 'Exécute la consigne de la routine « %s » à partir des seules données fournies ; rédige un compte rendu en '

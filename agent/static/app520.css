@@ -2182,6 +2182,13 @@ main aside.p5660-side,.ws-collapsed main aside.p5660-side{position:sticky;top:12
 /* 5.6.62 : mode sombre — états du guide, diagnostic */
 :root[data-theme=dark] .h5631-state{background:#2b3441}:root[data-theme=dark] .h5631-state.ok{color:#86efac}:root[data-theme=dark] .h5631-state.todo{color:#fcd34d}:root[data-theme=dark] dt{color:#b6c0cc}:root[data-theme=dark] span.ko,:root[data-theme=dark] .ko{color:#fca5a5}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .h5631-state{background:#2b3441}:root:not([data-theme="light"]) .h5631-state.ok{color:#86efac}:root:not([data-theme="light"]) .h5631-state.todo{color:#fcd34d}:root:not([data-theme="light"]) dt{color:#b6c0cc}:root:not([data-theme="light"]) span.ko,:root:not([data-theme="light"]) .ko{color:#fca5a5}}
+/* 5.6.64 : correspondance confidentielle entre avocats (art. 66-5) — usage interne */
+.d51-badge.c5664-conf{background:#fdf0d5;border-color:#d4a24c;color:#6b4300}
+:root[data-theme=dark] .d51-badge.c5664-conf{background:#3a2a12;border-color:#7a5a20;color:#ffd9a0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .d51-badge.c5664-conf{background:#3a2a12;border-color:#7a5a20;color:#ffd9a0}}
+/* 5.6.64 : mode sombre — bouton plein en tête de section repliable (« Prendre en charge une mission ») : texte foncé sur fond clair */
+:root[data-theme=dark] details>summary.ax-btn:not(.ghost){color:#0b1220}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) details>summary.ax-btn:not(.ghost){color:#0b1220}}
 /* ==== v5652.css ==== */
 /* AxiorHub 5.6.52 — routines du cabinet (Aujourd'hui) et connexions API (Paramètres) */
 .r52.c5614-routines{display:block}

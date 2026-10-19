@@ -293,7 +293,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         'preferences_assistant':__import__('agent.assistant567',fromlist=['drafting_preferences']).drafting_preferences(desk,getattr(desk,'mission_owner567','cabinet')),
         'corrections_approuvees':correction_guidance(desk,matter['id'] if matter else ''),
         'apprentissage_metier':learning_context(desk,matter['id'] if matter else '','assistant'),
-        'dossier_structure':__import__('agent.contexte5651',fromlist=['for_drafting']).for_drafting(desk,matter['id'],question) if matter else {},
+        'dossier_structure':__import__('agent.contexte5651',fromlist=['for_drafting']).for_drafting(desk,matter['id'],question,confidential=True) if matter else {},
         'historique_non_probant':[{'question':r['question'][:1000],
             'reponse':json.loads(r['response'])['answer'][:1500]} for r in turns],
         'limites':('Sélection d’extraits indexés seulement. '+(juridique5649.summary(legal) or 'Aucune recherche juridique externe.')+' '

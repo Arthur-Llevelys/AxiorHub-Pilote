@@ -151,8 +151,10 @@ def record_change(desk, mid, kind, object_kind, object_id, version, title, detai
 
 def changes(desk, mid, since=0, technical=False, limit=200):
     ensure_schema(desk)
-    rows = desk.db.execute('SELECT * FROM d51_changes WHERE matter=? AND id>? AND technical=? ORDER BY id DESC LIMIT ?',
-                           (mid, int(since or 0), 1 if technical else 0, int(limit))).fetchall()
+    # 5.6.64 : les lacunes « Lecture de … » abandonnées avant cette version restent hors des cartes du dossier (journal technique)
+    rows = desk.db.execute("SELECT * FROM d51_changes WHERE matter=? AND id>? AND technical=? AND NOT (? = 0 AND object_kind='lacune' "
+                           "AND title LIKE 'Lacune abandonnée : Lecture de %') ORDER BY id DESC LIMIT ?",
+                           (mid, int(since or 0), 1 if technical else 0, 1 if technical else 0, int(limit))).fetchall()
     out = []
     for r in rows:
         d = dict(r)
@@ -237,6 +239,31 @@ def mark_dependents(desk, mid, reason, paths=None, amounts=None, commit=True):
 
 
 # ------------------------------------------------------------------------------------------------ A04 lacunes
+# 5.6.64 : fichiers qui ne sont pas des pièces (temporaires, verrous d'Office ou de LibreOffice, raccourcis, vignettes) : aucune lacune ;
+# archives et formats non pris en charge : aucune lacune non plus (rien à « lire » pour l'avocat). Chez le cabinet : 100 fichiers « en
+# erreur » sur 203 dans un dossier, une lacune « Lecture de … » chacun, 93 abandonnées à la main.
+import re as _re
+JUNK_RX = _re.compile(r'(^~\$|^\.~lock\.|^~|\.tmp$|\.temp$|\.lnk$|\.part$|\.crdownload$|^thumbs\.db$|^desktop\.ini$|^\.ds_store$|^\._)', _re.I)
+
+
+def not_a_document(name):
+    return bool(JUNK_RX.search(str(name or '').strip()))
+
+
+def _quiet_close_unreadable(desk, mid):
+    """Lacunes « Lecture de … » ouvertes pour un fichier qui n'est pas une pièce ou un format non pris en charge : closes sans bruit."""
+    rows = desk.db.execute("SELECT g.id,g.expected,d.reading FROM d51_gaps g LEFT JOIN d51_documents d ON d.matter=g.matter AND d.path=g.searched "
+                           "WHERE g.matter=? AND g.kind='fichier_illisible' AND g.state='ouverte'", (mid,)).fetchall()
+    closed = 0
+    for r in rows:
+        name = r['expected'][len('Lecture de « '):-2] if r['expected'].startswith('Lecture de « ') else ''
+        if not_a_document(name) or r['reading'] in (None, 'non_prise_en_charge'):
+            desk.db.execute("UPDATE d51_gaps SET state='abandonnee',answer=?,updated=? WHERE id=?",
+                            ('Fermée automatiquement : pas une pièce à lire (5.6.64).', _now(), r['id']))
+            closed += 1
+    if closed:
+        desk.db.commit()
+    return closed
 def gaps(desk, mid, state='ouverte'):
     ensure_schema(desk)
     rows = [dict(r) for r in desk.db.execute('SELECT * FROM d51_gaps WHERE matter=?' + (' AND state=?' if state else '') + ' ORDER BY created',
@@ -283,7 +310,8 @@ def resolve_gap(desk, mid, ident, author, answer='', state='resolue'):
         return dict(row)
     desk.db.execute('UPDATE d51_gaps SET state=?,answer=?,updated=? WHERE id=?', (state, str(answer)[:2000], _now(), ident))
     record_change(desk, mid, 'correction', 'lacune', ident, state, 'Information fournie : ' + row['expected'][:120] if state == 'resolue'
-                  else 'Lacune abandonnée : ' + row['expected'][:120], {'answer': str(answer)[:500], 'auteur': author}, commit=False)
+                  else 'Lacune abandonnée : ' + row['expected'][:120], {'answer': str(answer)[:500], 'auteur': author},
+                  technical=row['kind'] == 'fichier_illisible', commit=False)   # 5.6.64 : journal technique pour un fichier illisible
     desk.db.commit()
     return dict(desk.db.execute('SELECT * FROM d51_gaps WHERE id=?', (ident,)).fetchone())
 
@@ -302,7 +330,10 @@ def sync_gaps(desk, mid):
                 n += 1
     except Exception:   # noqa: BLE001 — missions absentes
         pass
-    for r in desk.db.execute("SELECT path,name,error_category FROM d51_documents WHERE matter=? AND reading IN ('erreur','protegee','non_prise_en_charge')", (mid,)).fetchall():
+    _quiet_close_unreadable(desk, mid)
+    for r in desk.db.execute("SELECT path,name,error_category FROM d51_documents WHERE matter=? AND reading IN ('erreur','protegee')", (mid,)).fetchall():
+        if not_a_document(r['name']):
+            continue
         open_gap(desk, mid, 'Lecture de « %s »' % r['name'], 'Document illisible (%s) : son contenu n’est pas pris en compte.' % (r['error_category'] or 'erreur'),
                  r['path'], [], 'facultatif', 'fichier_illisible')
         n += 1

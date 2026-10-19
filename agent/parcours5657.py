@@ -107,7 +107,7 @@ def pack(desk, mid, question=''):
     """Fiche de préparation (instantané) à partir des données du dossier ; aucune estimation de délai par le modèle."""
     from . import contexte5651, modele5651, memoire5651
     m = _matter(desk, mid)
-    ctx = contexte5651.for_drafting(desk, mid, question or 'préparation de rendez-vous')
+    ctx = contexte5651.for_drafting(desk, mid, question or 'préparation de rendez-vous', confidential=True)
     docs = []
     try:
         docs = modele5651.documents(desk, mid)

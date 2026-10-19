@@ -1,0 +1,34 @@
+{
+  "version": "5.6.64",
+  "base": "5.6.63 publiée",
+  "date_utc": "2026-10-19T00:00:00+00:00",
+  "cahier_des_charges": "Retour du cabinet du 19 octobre 2026 : file « À décider / À relire » de 133 éléments peu pertinents, 32 travaux en file quelques minutes après la reprise de l’IA (indexation, surveillance immédiate, recherche de faits par dossier), lacunes « Lecture de … » pour des fichiers temporaires et des archives (93 abandonnées à la main).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2548,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 109,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5664.py : tri entre le jour et la tenue des dossiers (fiches, points client, projets anciens) et résumé par dossier ; page du dossier inchangée ; aucune lacune pour un fichier qui n’est pas une pièce ni pour une archive, lacunes anciennes fermées sans bruit ; journal sans lacunes de lecture abandonnées ; dossier modifié reporté (non acquitté) quand 6 analyses attendent ; correspondances confidentielles reconnues (nom, objet, formules propres aux confrères ; pas une clause de contrat), retirées des sources d’un projet documentaire (document travaillé gardé), du contexte structuré et des rédactions libres de tout type, gardées et marquées pour les usages internes, pièce choisie par l’avocat gardée avec un avertissement, marque sur la fiche du dossier.",
+  "exapp": {
+    "version": "0.1.23",
+    "moteur": "5.6.64"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "file5651.html : vue du jour sur Aujourd’hui (today_split, CURATION, TODAY_DAYS=14, résumé _today_summary).",
+    "watch430.documents_check : dossier modifié reporté si ≥ 6 analyses en attente ou si cadence5662.busy ; résultat « deferred ».",
+    "memoire5651 : not_a_document (JUNK_RX), sync_gaps sans lacune pour non_prise_en_charge, _quiet_close_unreadable ; resolve_gap technique pour fichier_illisible ; changes() masque les anciens abandons « Lecture de … ».",
+    "modele5651 : fichiers non-pièces retirés de d51_documents.",
+    "confidentiel5664 (nouveau) : is_confidential, filter_packet, source_is_confidential ; document_projects filtre les sources et ajoute la règle « ne_jamais_citer_une_correspondance_confidentielle_entre_avocats » ; contexte5651.for_drafting(confidential=False) écarte ces informations (True pour workspace, parcours5657, routines5652, avec la mention « confidentialite ») ; docrequest520._without_confidential ; badge c5664-conf (vue5651)."
+  ],
+  "adjusted_tests": [
+    "tests/test_d5651.py::Page.test_mission_par_l_api_et_file_sur_aujourdhui : l’information proposée n’est plus sur Aujourd’hui (résumée en bas de la file) mais reste sur la page du dossier — changement voulu."
+  ]
+}

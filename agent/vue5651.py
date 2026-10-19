@@ -53,7 +53,10 @@ def _source_links(prefix, mid, sources, limit=3):
             label = PurePosixPath(s['path']).name + (' p. %s' % s['page'] if s.get('page') else '')
             href = prefix + doc_href(s['path'], mid) + ('#page=%s' % s['page'] if s.get('page') else '')
             title = (' title="%s"' % e(s['extrait'][:300], quote=True)) if s.get('extrait') else ''
-            out.append('<a class="d51-src" href="%s"%s>%s</a>' % (e(href, quote=True), title, e(label)))
+            from .confidentiel5664 import LABEL as _CONF, source_is_confidential
+            badge = ' <span class="d51-badge c5664-conf" title="Correspondance entre avocats (art. 66-5) : jamais citée dans un document pour un tiers">%s</span>' % e(_CONF) \
+                if source_is_confidential(s) else ''
+            out.append('<a class="d51-src" href="%s"%s>%s</a>%s' % (e(href, quote=True), title, e(label), badge))
         elif s.get('label'):
             out.append('<span class="d51-src">%s</span>' % e(s['label']))
     more = ' <span class="ax-muted">+%d</span>' % (len(sources) - limit) if len(sources or []) > limit else ''
