@@ -101,10 +101,20 @@ def review_items(desk, prefix=''):
         mid = str(x.get('matter') or '')
         if mid in hidden or (x.get('request') and mid):        # demandes documentaires d'un dossier : déjà dans la file (« livrable »)
             continue
-        out.append({'class': 'projet', 'object': 'relire:' + x['id'], 'revision': _rev(x.get('when'), x.get('title')), 'matter': mid, 'when': x.get('when', ''),
-                    'matter_name': x.get('matter_label') or 'Dossier non identifié', 'title': '%s : %s' % (x.get('type') or 'Projet', x.get('title') or ''),
-                    'consequence': 'Destination : %s.' % x['dest'] if x.get('dest') else '', 'href': prefix + '/aujourdhui#relire=' + quote(x['id'], safe=''),
-                    'choices': ('ouvrir', 'relu', 'reporter')})
+        # 5.6.66 : courriel à relire et envoyer, note interne, ou document — trois rubriques distinctes sur Aujourd'hui
+        cls = 'note_interne' if x.get('internal') else ('courriel' if x.get('type') == 'Courriel' else 'projet')
+        if cls == 'courriel':
+            title, why = x.get('title') or '(sans objet)', 'À : %s%s' % (x.get('to') or 'destinataire', '' if x.get('agent', True) else
+                                                                        ' — brouillon sans marque de l’agent (réenregistré dans la messagerie ?)')
+        elif cls == 'note_interne':
+            title, why = (x.get('title') or '').replace('[À traiter] ', '', 1).replace('[Projet] ', '', 1), \
+                'Brouillon adressé au cabinet : « Ranger dans le dossier » en fait un document Word du dossier et retire le brouillon.'
+        else:
+            title, why = '%s : %s' % (x.get('type') or 'Projet', x.get('title') or ''), ('Destination : %s.' % x['dest'] if x.get('dest') else '')
+        out.append({'class': cls, 'object': 'relire:' + x['id'], 'revision': _rev(x.get('when'), x.get('title')), 'matter': mid, 'when': x.get('when', ''),
+                    'matter_name': x.get('matter_label') or 'Dossier non identifié', 'title': title, 'consequence': why,
+                    'href': prefix + '/aujourdhui#relire=' + quote(x['id'], safe=''), 'item': x['id'],
+                    'choices': ('ouvrir', 'ranger', 'relu') if cls == 'note_interne' else ('ouvrir', 'relu', 'reporter')})
     return out
 
 

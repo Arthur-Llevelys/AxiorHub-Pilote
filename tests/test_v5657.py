@@ -29,12 +29,12 @@ class Queue(base.Base):
             rows = file5651.items(self.desk, '/p')
             classes = {r['class'] for r in rows}
             self.assertIn('decision_agent', classes)
-            self.assertIn('projet', classes)
+            self.assertIn('courriel', classes)   # 5.6.66 : un brouillon de courriel a sa rubrique (« Courriels à relire et envoyer »)
             dec = next(r for r in rows if r['class'] == 'decision_agent')
             self.assertEqual(dec['href'], '/p/aujourdhui#decision=mission%3Aabc')
-            proj = next(r for r in rows if r['class'] == 'projet')
+            proj = next(r for r in rows if r['class'] == 'courriel')
             file5651.decide(self.desk, ACTOR, proj['key'], 'approuve', proj['revision'], prefix='/p')     # « Relu » : retiré partout
-            self.assertFalse([r for r in file5651.items(self.desk, '/p') if r['class'] == 'projet'])
+            self.assertFalse([r for r in file5651.items(self.desk, '/p') if r['class'] == 'courriel'])
             self.assertTrue([r for r in file5651.items(self.desk, '/p', MID) if r['class'] == 'decision_agent'])   # même objet dans le dossier
 
     def test_etats_reels_et_vue_d_ensemble(self):

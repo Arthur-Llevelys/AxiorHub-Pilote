@@ -30,11 +30,17 @@ CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des do
            'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire',
            'securite': 'Sécurité de l’IA', 'savoir': 'Savoir-faire à approuver',   # 5.6.59
            'decision': 'Proposition à décider',                # 5.6.58 : propositions de facturation (sans cette classe, la file disparaissait)
-           'echec_agent': 'Analyse interrompue'}               # 5.6.61 : missions interrompues, regroupées et repliées en fin de file
+           'echec_agent': 'Analyse interrompue',               # 5.6.61 : missions interrompues, regroupées et repliées en fin de file
+           'courriel': 'Courriel à relire', 'note_interne': 'Note interne'}   # 5.6.66 : rubriques séparées
 FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision', 'securite', 'savoir'),
-           'relire': ('relecture', 'livrable', 'projet'),
-           'echecs': ('echec_agent',)}
-NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir', 'echec_agent')
+           'relire': ('relecture', 'livrable', 'projet', 'courriel', 'note_interne'),
+           'echecs': ('echec_agent',),
+           'courriels': ('courriel',), 'documents': ('relecture', 'livrable', 'projet'), 'notes': ('note_interne',)}
+# 5.6.66 (retour du cabinet du 20 octobre 2026 : « ça mélange un peu tout ») : sur Aujourd'hui, une rubrique par nature, les courriels
+# à relire et envoyer en premier ; les notes internes à part, avec « Ranger dans le dossier ».
+TODAY_GROUPS = (('courriels', 'Courriels à relire et envoyer', 12), ('decider', 'À décider', 10), ('documents', 'Documents à examiner', 8),
+                ('notes', 'Notes internes', 6))
+NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir', 'echec_agent', 'courriel', 'note_interne')
 # 5.6.64 : sur Aujourd'hui, seules les décisions et relectures du jour ; la tenue des fiches de dossiers (identités, classements,
 # informations proposées, lacunes, relectures de modifications) et les points d'avancement client se traitent depuis chaque dossier
 # (résumé cliquable en bas de la file). Les projets à relire de plus de 14 jours n'y figurent plus (toujours visibles dans le dossier).
@@ -51,7 +57,7 @@ def today_split(every, now=None):
             curation.append(it)
         elif str(it.get('object', '')).startswith('suivi:'):
             client.append(it)
-        elif it['class'] in ('projet', 'livrable') and it.get('when') and str(it['when']) < limit:
+        elif it['class'] in ('projet', 'livrable', 'note_interne') and it.get('when') and str(it['when']) < limit:
             old.append(it)
         else:
             keep.append(it)
@@ -59,7 +65,7 @@ def today_split(every, now=None):
 
 
 # 5.6.61 : ordre de lecture — ce que l'avocat attend (prioritaire), puis ce qui est prêt à relire, puis les décisions, enfin les échecs automatiques
-RANK = {'projet': 0, 'livrable': 0, 'relecture': 1, 'echec_agent': 9}     # choix stratégiques et engagements : jamais en validation regroupée
+RANK = {'courriel': -1, 'projet': 0, 'livrable': 0, 'relecture': 1, 'note_interne': 2, 'echec_agent': 9}     # choix stratégiques et engagements : jamais en validation regroupée
 
 
 def _now():
@@ -290,10 +296,13 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
         summary = _today_summary(prefix, curation, client, old)
     rows = [it for it in every if not view or it['class'] in FILTERS.get(view, ())]
     base = (prefix + '/dossier?id=' + matter + '&') if matter else (prefix + '/aujourdhui?')
-    counts = {k: sum(1 for it in every if not k or it['class'] in FILTERS[k]) for k in ('', 'decider', 'relire', 'echecs')}
+    keys = ('', 'courriels', 'decider', 'documents', 'notes', 'echecs') if not matter else ('', 'relire', 'decider', 'echecs')
+    counts = {k: sum(1 for it in every if not k or it['class'] in FILTERS[k]) for k in set(keys) | {view} if k in FILTERS or not k}
+    labels = {'': 'Tout', 'relire': 'À relire', 'decider': 'À décider', 'echecs': 'Interrompus', 'courriels': 'Courriels', 'documents': 'Documents',
+              'notes': 'Notes internes'}
     tabs = ''.join('<a href="%s"%s>%s <span class="q51-n">%d</span></a>' % (
-        e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(label), counts[k])
-        for k, label in (('', 'Tout'), ('relire', 'À relire'), ('decider', 'À décider'), ('echecs', 'Interrompus')) if k in ('', view) or counts[k])
+        e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(labels[k]), counts[k])
+        for k in keys if k in counts and (k in ('', view) or counts[k]))
 
     def card(it):
         buttons = []
@@ -305,6 +314,9 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                                '<input type="hidden" name="action" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>' % (
                                    e(','.join(it['missions']), quote=True), 'resume' if c == 'relancer' else 'cancel', '' if c == 'relancer' else ' ghost',
                                    'Relancer' if c == 'relancer' else 'Écarter'))
+            elif c == 'ranger':   # 5.6.66 : note interne déposée comme brouillon → document Word du dossier
+                buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/ranger-notes" data-reload><input type="hidden" name="items" value="%s">'
+                               '<button class="ax-btn" type="submit">Ranger dans le dossier</button></form>' % e(it.get('item', ''), quote=True))
             elif c in ('fusionner', 'separer'):
                 buttons.append('<form class="m5-form q51-inline" data-api="m5651/partie/%s" data-reload><input type="hidden" name="matter" value="%s">'
                                '<input type="hidden" name="a" value="%s"><input type="hidden" name="b" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>'
@@ -328,6 +340,8 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                     where, e(it['title']),
                     '<p class="q51-sub">%s</p>' % e(it['action']) if it.get('action') else '',
                     '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
+    if not matter and view in ('', 'relire'):
+        return _today_html(desk, prefix, every, rows, card, tabs, summary, title, limit)
     main = [it for it in rows if it['class'] != 'echec_agent' or it['priority'] == 'haute' or view == 'echecs']
     folded = [it for it in rows if it not in main]
     cards = [card(it) for it in main[:limit]]
@@ -340,6 +354,36 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
         return '<section class="q51" aria-labelledby="q51-t">%s<p class="ax-muted">Rien à décider ni à relire pour l’instant.</p>%s</section>' % (head, summary)
     return '<section class="q51" aria-labelledby="q51-t">%s<ul class="q51-list">%s</ul>%s%s</section>' % (
         head, ''.join(cards) or '<li class="ax-muted">Rien d’autre à décider ni à relire.</li>', more, summary)
+
+
+def _today_html(desk, prefix, every, rows, card, tabs, summary, title, limit):
+    """5.6.66 : Aujourd'hui — une rubrique par nature, courriels d'abord ; analyses interrompues et tenue des dossiers repliées."""
+    from html import escape as e
+    parts = []
+    grouped = {c for key, _, _ in TODAY_GROUPS for c in FILTERS[key]} | {'echec_agent'}
+    for key, label, size in TODAY_GROUPS:
+        group = [it for it in rows if it['class'] in FILTERS[key]
+                 or (key == 'decider' and it['class'] not in grouped)]   # type sans rubrique : jamais perdu, rangé dans « À décider »
+        if not group:
+            continue
+        extra = ''
+        if key == 'notes':
+            items = ','.join(it.get('item', '') for it in group if it.get('item'))
+            if items:
+                extra = ('<form class="m5-form q51-inline" data-api="m5661/file/ranger-notes" data-reload><input type="hidden" name="items" value="%s">'
+                         '<button class="ax-btn ghost" type="submit">Tout ranger dans les dossiers</button><p role="status" class="m5-status"></p></form>'
+                         % e(items[:4000], quote=True))
+        more = ('<p class="ax-muted"><a href="%s">%d autre(s) — tout voir</a></p>' % (e(prefix + '/aujourdhui?file=' + key, quote=True), len(group) - size)
+                if len(group) > size else '')
+        parts.append('<div class="q51-group q51-g-%s"><h3>%s <span class="q51-n">%d</span></h3>%s<ul class="q51-list">%s</ul>%s</div>' % (
+            key, e(label), len(group), extra, ''.join(card(it) for it in group[:size]), more))
+    folded = [it for it in rows if it['class'] == 'echec_agent']
+    if folded:
+        parts.append('<details class="q51-folded"><summary>Analyses automatiques interrompues (%d) — rien n’est perdu ; relancez ou écartez</summary>'
+                     '<ul class="q51-list">%s</ul></details>' % (len(folded), ''.join(card(it) for it in folded[:limit])))
+    head = ('<h2 id="q51-t">À décider / À relire</h2>' if title else '') + '<nav class="q51-filters" aria-label="Filtres de la file">%s</nav>' % tabs
+    body = ''.join(parts) or '<p class="ax-muted">Rien à décider ni à relire pour l’instant.</p>'
+    return '<section class="q51 q51-today" aria-labelledby="q51-t">%s%s%s</section>' % (head, body, summary)
 
 
 def _today_summary(prefix, curation, client, old):

@@ -1,0 +1,36 @@
+{
+  "version": "5.6.66",
+  "base": "5.6.65 publiée",
+  "date_utc": "2026-10-20T00:00:00+00:00",
+  "cahier_des_charges": "Retour du cabinet du 20 octobre 2026 : « À décider / À relire » mélange tout — courriels préparés à mettre en évidence, notes internes à ranger dans le dossier concerné (ou un dossier neutre « A TRAITER »), types séparés.",
+  "diagnostic_serveur": "Lecture seule sur le serveur du cabinet : aucun travail suspendu, examens des courriels terminés toutes les quelques minutes — les courriels étaient traités ; le problème était leur affichage.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2601,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 111,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5666.py : ancien examen suspendu n’absorbe plus la surveillance des courriels ; le planificateur relance l’examen ; pendant la pause la demande identique retrouve le travail suspendu (R13 conservé), plus après la levée ; nettoyage des suspensions orphelines (et au démarrage du worker) ; note rangée dans le dossier sans écrasement ; repli « A TRAITER » ; brouillon d’avis rattaché à son dossier ; nature de chaque brouillon (note interne, courriel, réponse sans marque) ; rubriques dans l’ordre, courriels d’abord ; rangement des notes (réponse à un tiers jamais rangée, dossier inconnu → « A TRAITER ») ; droits de la route.",
+  "exapp": {
+    "version": "0.1.25",
+    "moteur": "5.6.66"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "desk.enqueue / Desk.admit : un travail suspendu n’est retrouvé que si sa pause est en vigueur (arret5643.pause_in_effect).",
+    "arret5643.release_stale (appelé par resume et queue567.recover) : suspensions orphelines reprises (avocat, < 6 h) ou closes.",
+    "notices440 : audience « interne » → notes5666.deposit (Word dans le dossier, sinon « A TRAITER »), plus de brouillon IMAP ; cockpit530._draft_matter : dossier retrouvé par la clé du brouillon d’avis.",
+    "cockpit530 : brouillons retenus = marque de l’agent, Message-ID axiorhub- ou réponse (In-Reply-To) ; is_internal_note ; file5657 : classes « courriel » et « note_interne » ; file5651 : TODAY_GROUPS, _today_html.",
+    "notes5666.file_drafts (travail ranger_notes5666, route m5661/file/ranger-notes) ; un type sans rubrique est rangé dans « À décider » (jamais perdu)."
+  ],
+  "adjusted_tests": [
+    "tests/test_v440_notices.py : test_no_profile_makes_internal_note et test_idempotent — la note interne est un document du dossier, plus un brouillon « [À traiter] » (changement demandé par le cabinet) ; FakeDAV accepte put_file.",
+    "tests/test_v5657.py (file unique) et tests/test_v5661.py (titres lisibles) : un brouillon de courriel est de classe « courriel » et l’onglet s’appelle « Courriels » (rubriques par nature)."
+  ]
+}

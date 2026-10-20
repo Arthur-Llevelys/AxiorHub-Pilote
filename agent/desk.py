@@ -113,6 +113,8 @@ USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
 USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
 JOBS |= {'recit5651','relecture5651','routine5652','actualiser5655','crm_collecte5657'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
 USER_JOBS |= {'recit5651','relecture5651','routine5652'}
+JOBS |= {'ranger_notes5666'}   # 5.6.66 : notes internes déposées en brouillon → documents Word des dossiers
+USER_JOBS |= {'ranger_notes5666'}
 JOBS |= {'maj_local5661'}   # 5.6.61 : mise à jour signée d'un poste (Windows, Ubuntu) depuis la page des versions
 USER_JOBS |= {'maj_local5661'}
 JOBS |= {'archive_correspondence5643','file_mail_attachments5643'}   # 5.6.43 (§ 10-14) : conservation courriel / pièces (sans IA)
@@ -511,7 +513,14 @@ class Desk:
         if not self.db.in_transaction:self.db.execute('BEGIN IMMEDIATE')
         # 5.6.65 (audit 5.6.64, R13) : une demande identique à un travail suspendu par la pause retrouve ce travail (même identifiant) au
         # lieu d'en créer un second, que la reprise aurait exécuté en double.
-        old = self.db.execute("SELECT id FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested','suspended')", (kind,raw)).fetchone()
+        # 5.6.66 : … seulement tant que la pause qui l'a suspendu est en vigueur. En 5.6.65, un ancien travail resté « suspendu » (pause
+        # levée depuis) absorbait toutes les nouvelles demandes identiques : la surveillance des courriels ne tournait plus.
+        old = None
+        for cand in self.db.execute("SELECT id,status,stop_reason,matter_ref FROM jobs WHERE kind=? AND args=? "
+                                    "AND status IN ('pending','running','cancel_requested','suspended') ORDER BY id DESC", (kind,raw)).fetchall():
+            if cand['status'] != 'suspended' or arret5643.pause_in_effect(self, cand):
+                old = cand
+                break
         if old:
             if not transactional:self.db.commit()
             return old[0]
@@ -563,8 +572,10 @@ class Desk:
             for kind,args,_priority in batch:
                 if kind not in family:continue
                 raw=json.dumps(args or {},sort_keys=True)
-                if not self.db.execute("SELECT 1 FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested','suspended')",
-                                       (kind,raw)).fetchone():
+                from . import arret5643
+                if not any(c['status']!='suspended' or arret5643.pause_in_effect(self,c) for c in self.db.execute(
+                        "SELECT status,stop_reason,matter_ref FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested','suspended')",
+                        (kind,raw)).fetchall()):
                     needed+=1
             if needed and pending+needed>cap:
                 self.db.rollback()
@@ -859,6 +870,9 @@ class Desk:
             return None
 
     def perform(self, kind, args):
+        if kind=='ranger_notes5666':
+            from .notes5666 import file_drafts
+            return file_drafts(self,args)
         if kind=='maj_local5661':   # 5.6.61 : téléchargement, empreinte, signature, puis installateur du poste
             from .maj5661 import local_update
             return local_update(self,args)

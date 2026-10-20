@@ -101,6 +101,49 @@ def global_paused(desk):
     return bool(desk.settings(PAUSE_GLOBAL, False))
 
 
+def pause_in_effect(desk, row):
+    """5.6.66 : la pause qui a suspendu ce travail est-elle toujours en vigueur ? (pause de l'IA, ou pause de SON dossier)"""
+    reason = row['stop_reason'] if 'stop_reason' in row.keys() else None
+    if reason == 'pause':
+        return global_paused(desk)
+    if reason == 'pause_dossier':
+        paused = desk.settings(PAUSE_MATTERS, {}) or {}
+        return isinstance(paused, dict) and str(row['matter_ref'] or '') in paused
+    return False
+
+
+STALE_USER_HOURS = 6
+
+
+def release_stale(desk):
+    """5.6.66 : travaux restés « suspendus » alors que leur pause est levée (reprise passée par un autre chemin, version antérieure).
+    Une demande de l'avocat de moins de 6 h est remise en file ; tout le reste est clos avec un motif lisible (les contrôles périodiques
+    sont reprogrammés par leur planificateur). Renvoie (remis en file, clos)."""
+    from datetime import datetime, timedelta, timezone
+    rows = desk.db.execute("SELECT id,kind,origin,priority,args,created,stop_reason,matter_ref FROM jobs WHERE status='suspended'").fetchall()
+    limit = (datetime.now(timezone.utc) - timedelta(hours=STALE_USER_HOURS)).isoformat()
+    revived = closed = 0
+    for r in rows:
+        if pause_in_effect(desk, r):
+            continue
+        try:
+            args = json.loads(r['args'] or '{}')
+        except (TypeError, ValueError):
+            args = {}
+        if not is_automatic_row(r, args if isinstance(args, dict) else {}) and str(r['created'] or '') >= limit:
+            revived += desk.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL WHERE id=? AND status='suspended'",
+                                       (r['id'],)).rowcount
+        else:
+            closed += desk.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE id=? AND status='suspended'",
+                                      (desk.now(), json.dumps({'message': 'Suspendu par une pause levée depuis ; clos (les contrôles '
+                                                               'automatiques sont reprogrammés, une demande ancienne est à relancer si besoin).'},
+                                                              ensure_ascii=False), r['id'])).rowcount
+    desk.db.commit()
+    if revived or closed:
+        desk.audit('arret5666_suspendus_sans_pause', {'remis_en_file': revived, 'clos': closed})
+    return revived, closed
+
+
 def matter_of(args):
     args = args or {}
     return str(args.get('matter') or args.get('matter_id') or '')
@@ -233,6 +276,7 @@ def resume(desk, matter=None):
             desk.db.execute("UPDATE jobs SET status='running',stop_reason=NULL WHERE id=? AND status='cancel_requested' AND stop_reason=?",
                             (r['id'], r['stop_reason']))
     desk.db.commit()
+    release_stale(desk)   # 5.6.66 : et les travaux suspendus par une pause déjà levée
     return count
 
 
