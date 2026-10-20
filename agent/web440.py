@@ -460,6 +460,16 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code == 'version_en_conflit' else
                              ('404 Not Found' if code in ('routine_absente', 'connexion_absente', 'operation_absente', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m5667/'):   # 5.6.67 : corrections récurrentes, répartition des modèles, banc d'essai
+        from . import web5667
+        try:
+            return web5667.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
+                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5662/'):   # 5.6.62 : connexion ChatGPT (abonnement)
         from . import web5662
         try:

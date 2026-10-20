@@ -113,6 +113,8 @@ USER_JOBS |= {'coach_hearing35','prepare_call35','record_call35','calculate35',
 USER_JOBS |= {'retry_playbook_step5643','cancel_playbook5643'}
 JOBS |= {'recit5651','relecture5651','routine5652','actualiser5655','crm_collecte5657'}   # 5.6.51 (audit 5.6.50) : rappels rédigés du dossier, relecture Word par propositions
 USER_JOBS |= {'recit5651','relecture5651','routine5652'}
+JOBS |= {'apprentissage5667','banc5667'}   # 5.6.67 : corrections récurrentes et documents (quotidien) ; banc d'essai sur les cas du cabinet
+USER_JOBS |= {'banc5667'}
 JOBS |= {'ranger_notes5666'}   # 5.6.66 : notes internes déposées en brouillon → documents Word des dossiers
 USER_JOBS |= {'ranger_notes5666'}
 JOBS |= {'maj_local5661'}   # 5.6.61 : mise à jour signée d'un poste (Windows, Ubuntu) depuis la page des versions
@@ -781,6 +783,15 @@ class Desk:
         references=[x.strip() for x in args.get('references','').split(',') if x.strip()]
         if len(references)>20 or any(len(x)>120 for x in references):
             raise Stop('references_trop_longues')
+        if args.get('proposal'):   # 5.6.67 (point 2) : le RG cité dans l'objet du courriel confirmé est appris pour ce dossier
+            from .association5667 import rg_variants
+            row=self.db.execute('SELECT evidence FROM proposals WHERE key=?',(args['proposal'],)).fetchone()
+            try:evidence=json.loads(row[0]) if row else []
+            except (ValueError,TypeError):evidence=[]
+            for item in evidence if isinstance(evidence,list) else []:
+                found=rg_variants(item.get('source','') if isinstance(item,dict) else '',in_text=True)
+                for variant in found[:2]:   # « 25/00042 » et « 25-00042 » : les deux écritures usuelles
+                    if variant not in references and len(references)<20:references.append(variant)
         matter['references']=list(dict.fromkeys(matter.get('references',[])+references))
         save_matter(self.c,matter)
         feedback_path=Path(self.c['state_dir'])/'match-feedback.json'
@@ -870,6 +881,12 @@ class Desk:
             return None
 
     def perform(self, kind, args):
+        if kind=='apprentissage5667':
+            from .apprentissage5667 import perform as _learn
+            return _learn(self,kind,args)
+        if kind=='banc5667':
+            from .modeles5667 import perform as _bench
+            return _bench(self,kind,args)
         if kind=='ranger_notes5666':
             from .notes5666 import file_drafts
             return file_drafts(self,args)

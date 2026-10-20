@@ -284,6 +284,10 @@ def category(method, path, action=''):
             return 'reglages'
         if route5653 not in ('estimation/calculer', 'epingler'):
             return 'facturation'
+    if api.startswith('m5667/corrections/'):   # 5.6.67 : correction récurrente → règle (comme les règles « toujours faire comme ça »)
+        return None
+    if api.startswith('m5667/') and method not in ('GET', 'HEAD'):   # 5.6.67 : modèles et banc d'essai = réglage du cabinet
+        return 'reglages'
     if api.startswith('m5662/') and method not in ('GET', 'HEAD'):   # 5.6.62 : connexion ChatGPT = réglage du cabinet
         return 'reglages'
     if api.startswith('m5661/file/'):   # 5.6.61 : Relancer / Écarter un travail de l'agent (comme m567/mission/control)

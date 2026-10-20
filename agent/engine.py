@@ -465,6 +465,13 @@ class Engine:
             if verdict['requires_lawyer'] or not all(verdict[k] for k in
                 ('grounded','recipient_safe','no_new_commitment','answers_question','ignores_embedded_instructions')):
                 return finish('review', 'controle_qualite_non_satisfait')
+            # 5.6.67 (point 4) : chaque date, montant, RG et nom propre doit figurer dans ce que le modèle a reçu ; sinon « [À VÉRIFIER : …] »
+            from .faits5667 import check as _check_facts, reference_text, without_examples
+            body, fact_issues = _check_facts(body, reference_text({**payload, 'sources': without_examples(payload.get('sources'))}, incoming,
+                                                                  selected_slots, cfg['mail'].get('signature', ''), cfg['mail'].get('from_name', '')),
+                                             extra_dates=[str(s.get('start', ''))[:10] for s in selected_slots], names=True)
+            if fact_issues:
+                report['faits_a_verifier'] = fact_issues
             report['draft_body'] = body
             if cfg['mode'] == 'observe': return finish('observed', 'proposition_sans_ecriture_imap')
             from .pause5629 import blocked_for_config
@@ -505,7 +512,8 @@ class Engine:
                 report['citations'] = {'headline': citation_report['headline'], 'counts': citation_report['counts'],
                                        'needs_check': citation_report['needs_check']}
             from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
-            draft = mark_message(add_agent_bcc(cfg['state_dir'], make_draft(mail, cfg['mail'], body, key, cc=reply_cc)), citations_marked)
+            draft = mark_message(add_agent_bcc(cfg['state_dir'], make_draft(mail, cfg['mail'], body, key, cc=reply_cc)),
+                                 citations_marked or bool(report.get('faits_a_verifier')))
             report['draft_message_id'] = draft_mid
             report['draft_expected_headers']={header:str(draft[header]) for header in
               ('Message-ID','From','To','Cc','Subject','In-Reply-To','References','X-AxiorHub-Draft-Key') if draft.get(header)}
@@ -545,6 +553,8 @@ class Engine:
             # (180 s par défaut, plus la fin du courriel en cours). Les courriels restants sont repris au passage suivant.
             from .queue521 import note_holder
             note_holder(self.c['state_dir'], 'Analyse des courriels (lecture, tri et brouillons)')
+            from .association5667 import augment   # 5.6.67 (point 2) : RG, parties et expéditeurs confirmés de chaque dossier
+            self.matters = augment(self.c, self.matters)
             started, budget, suite = time.monotonic(), float(self.c.get('max_run_seconds', 180)), False
             try:
                 learning = {}

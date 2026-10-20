@@ -243,7 +243,8 @@ JOB_LABELS.update({'advance_playbook380':'Poursuite d’un déroulé de travail'
   'complete_playbook_step380':'Étape d’un déroulé de travail','delete_mail_rule370':'Suppression d’une règle de courriel',
   'digest_pieces5632':'Synthèse des nouvelles pièces','file_mail_attachments5643':'Classement des pièces jointes reçues',
   'import_mcp_legal_results':'Import de résultats de recherche juridique','mailrules5632':'Application des règles de courriel',
-  'maj_local5661':'Mise à jour d’AxiorHub sur ce poste','ranger_notes5666':'Rangement des notes internes dans les dossiers','prepare_ecosystem_action380':'Préparation d’une action dans un service connecté',
+  'maj_local5661':'Mise à jour d’AxiorHub sur ce poste','ranger_notes5666':'Rangement des notes internes dans les dossiers','apprentissage5667':'Apprentissage des corrections et mesure des documents',
+  'banc5667':'Banc d’essai des modèles sur vos cas','prepare_ecosystem_action380':'Préparation d’une action dans un service connecté',
   'recherche5634':'Recherche juridique','record_correction370':'Enregistrement d’une correction de l’avocat',
   'refresh_matter_graph380':'Actualisation des liens du dossier','refresh_unpaid_invoices':'Actualisation des factures impayées',
   'retry_playbook_step5643':'Reprise d’une étape de déroulé','review_action380':'Relecture d’une action proposée',
@@ -1816,6 +1817,7 @@ class App:
                 main+='<div class="contact"><span>'+e(label)+' · '+('actif' if active else 'inactif')+'</span>'+form('automation_setting','Désactiver' if active else 'Activer',{'key':key,'value':'no' if active else 'yes'})+'</div>'
             orchestrator=c.get('orchestrator',{})
             for key,label in [('automatic_mail_drafts_enabled','Dépôt automatique des réponses sûres dans Brouillons'),
+                              ('mail_projects_to_complete_enabled','Projets de réponse « à compléter » pour les courriels juridiques (jamais envoyés)'),
                               ('automatic_legal_projects_enabled','Préparation automatique des projets d’actes')]:
                 active=desk.settings('automation:'+key,orchestrator.get(key,True))
                 main+='<div class="contact"><span>'+e(label)+' · '+('actif' if active else 'en pause')+'</span>'+form('automation_setting','Mettre en pause' if active else 'Reprendre',{'key':key,'value':'no' if active else 'yes'})+'</div>'

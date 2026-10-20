@@ -125,6 +125,12 @@ def _connexions(desk, auth, prefix, env, cap):
 def _ia(desk, auth, prefix, env, cap):
     from . import ia540, web5634
     body = web5634.profile_panel(desk, prefix)   # 5.6.34 : Modèles locaux, profil Juridique, Tester, Restaurer
+    try:   # 5.6.67 (point 6) : répartition recommandée et banc d'essai sur les cas du cabinet
+        from .modeles5667 import html as _models_html
+        from .web567 import actor as _actor67
+        body += _models_html(desk, prefix, _actor67(env)[1] == 'administrateur')
+    except Exception:   # noqa: BLE001
+        pass
     body += _section(ia540.page(desk, prefix, cap, auth['csrf']))
     try:   # 5.6.62 : ChatGPT avec l'abonnement de l'utilisateur (sans clé API)
         from .chatgpt5662 import html as _chatgpt

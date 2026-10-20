@@ -237,9 +237,11 @@ def context(desk, matter, request, dav=None, attachments=(), selected_documents=
     try:
         from .index import DocumentIndex
         index = DocumentIndex(desk.c['state_dir'], desk.c.get('rag'), desk.c.get('ollama'))
-        ranked, _ = index.ranked_chunks(matter, [request, matter.get('client_name', '')], limit=12)
+        ranked, _ = index.ranked_chunks(matter, [request, matter.get('client_name', '')], limit=12, min_relative=0.3)   # 5.6.67 (point 3)
         for n, (row, _score) in enumerate(ranked, 1):
-            entry = {'source': 'P%d' % n, 'fichier': str(row[2]).rsplit('/', 1)[-1], 'texte': str(row[7])[:1800]}
+            # 5.6.67 (point 3) : passage étiqueté (pièce, date, nature) ; les plus pertinents d'abord
+            entry = {'source': 'P%d' % n, 'fichier': str(row[2]).rsplit('/', 1)[-1], 'date': str(row[4] or '')[:10],
+                     'nature': str(row[5] or ''), 'texte': str(row[7])[:1800]}
             if index.source_confidential(matter, row[1]):   # 5.6.65 (R01) : statut de la pièce entière, pas du seul passage
                 entry['confidentiel'] = True
             ctx['extraits'].append(entry)
@@ -394,9 +396,14 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None):
     from .composition567 import compact_context, revise
     payload['dossier']=compact_context(desk,ctx,request,matter_id,model)
     if len(previous_text)>16000:
-        return revise(desk,{**payload,'document_actuel':''},previous_text,model,SYSTEM % writer_intro(desk),SCHEMA_OUT)
+        return check_document(revise(desk,{**payload,'document_actuel':''},previous_text,model,SYSTEM % writer_intro(desk),SCHEMA_OUT),
+                              payload,previous_text)
     serialized=json.dumps(payload,ensure_ascii=False)
     if len(serialized)>90000:raise Stop('configuration_styles_ou_instruction_depasse_contexte')
+    if not previous_text and kind in STEPWISE_KINDS and desk.settings(STEPWISE_SETTING, True):
+        doc = _stepwise(model, payload, SYSTEM % writer_intro(desk))   # 5.6.67 (point 4) : plan, puis section par section
+        if doc:
+            return check_document(doc, payload, previous_text)
     raw = model.complete([{'role': 'system', 'content': SYSTEM % writer_intro(desk)},
                                  {'role': 'user', 'content': task + ' Réponds en JSON : titre, nom_fichier (court, sans extension), paragraphes '
                                   '(style titre/intertitre/texte/liste), sources (identifiants P1, C2, L1… réellement utilisés), a_completer.\n\n' +
@@ -406,8 +413,100 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None):
     paras = [p for p in out.get('paragraphes', []) if str(p.get('texte', '')).strip()]
     if not paras:
         raise Stop('document_vide')
-    return {'titre': str(out.get('titre', ''))[:200], 'nom_fichier': str(out.get('nom_fichier', ''))[:120], 'paragraphes': paras[:600],
-            'sources': [str(x)[:20] for x in out.get('sources', [])][:60], 'a_completer': [str(x)[:300] for x in out.get('a_completer', [])][:40]}
+    doc = {'titre': str(out.get('titre', ''))[:200], 'nom_fichier': str(out.get('nom_fichier', ''))[:120], 'paragraphes': paras[:600],
+           'sources': [str(x)[:20] for x in out.get('sources', [])][:60], 'a_completer': [str(x)[:300] for x in out.get('a_completer', [])][:40]}
+    return check_document(doc, payload, previous_text)
+
+
+# 5.6.67 (point 4) : un document long est rédigé par étapes — un plan court tiré du dossier, puis chaque section avec ses seules
+# sources. Un modèle local tient bien mieux une section ciblée qu'un acte entier en une fois. Si le plan n'est pas exploitable, la
+# rédaction d'un seul tenant (comportement antérieur) reprend la main : rien n'est perdu.
+STEPWISE_KINDS = frozenset(('conclusions', 'assignation', 'note', 'contrat', 'compte_rendu', 'mise_en_demeure'))
+STEPWISE_SETTING = 'redaction5667:par_etapes'
+PLAN_SCHEMA = {'type': 'object', 'properties': {
+    'titre': {'type': 'string'}, 'nom_fichier': {'type': 'string'},
+    'sections': {'type': 'array', 'items': {'type': 'object', 'properties': {
+        'titre': {'type': 'string'}, 'objet': {'type': 'string'}, 'sources': {'type': 'array', 'items': {'type': 'string'}}},
+        'required': ['titre', 'objet']}}},
+    'required': ['titre', 'sections']}
+SECTION_SCHEMA = {'type': 'object', 'properties': {
+    'paragraphes': SCHEMA_OUT['properties']['paragraphes'], 'sources': {'type': 'array', 'items': {'type': 'string'}},
+    'a_completer': {'type': 'array', 'items': {'type': 'string'}}}, 'required': ['paragraphes']}
+SOURCE_LISTS = ('extraits', 'courriels', 'pieces_jointes')
+
+
+def _source_ids(dossier):
+    return {str(x.get('source')) for key in SOURCE_LISTS for x in (dossier or {}).get(key) or [] if isinstance(x, dict) and x.get('source')}
+
+
+def _subset(dossier, wanted):
+    """Le dossier transmis pour une section : ses seules sources (extraits, courriels, pièces), le reste du contexte inchangé."""
+    if not isinstance(dossier, dict) or not wanted:
+        return dossier
+    out = dict(dossier)
+    for key in SOURCE_LISTS:
+        out[key] = [x for x in dossier.get(key) or [] if isinstance(x, dict) and str(x.get('source')) in wanted]
+    return out
+
+
+def _stepwise(model, payload, system):
+    try:
+        raw = model.complete([{'role': 'system', 'content': system},
+                              {'role': 'user', 'content': 'Établis d’abord le PLAN du document demandé, à partir du dossier : 3 à 8 sections, '
+                               'dans l’ordre ; pour chacune, son titre, son objet en une phrase et les identifiants des sources (P1, C2, J1…) '
+                               'qui la fondent. Si une trame est fournie (« trame_bibliotheque »), reprends exactement ses sections, '
+                               'dans son ordre. Réponds en JSON : titre, nom_fichier (court, sans extension), sections.\n\n'
+                               + json.dumps(payload, ensure_ascii=False)}],
+                             temperature=0, max_tokens=1500, json_schema=PLAN_SCHEMA)
+        plan = json.loads(raw)
+    except (Stop, ValueError, TypeError):
+        return None
+    sections = [s for s in (plan.get('sections') if isinstance(plan, dict) else None) or []
+                if isinstance(s, dict) and str(s.get('titre', '')).strip()][:8]
+    if len(sections) < 2:
+        return None
+    known = _source_ids(payload.get('dossier'))
+    outline = [{'n': i + 1, 'titre': str(s['titre'])[:160], 'objet': str(s.get('objet', ''))[:300]} for i, s in enumerate(sections)]
+    paragraphs, used, missing = [], [], []
+    for i, section in enumerate(sections):
+        wanted = {str(x) for x in section.get('sources') or [] if str(x) in known}
+        part = {**payload, 'dossier': _subset(payload.get('dossier'), wanted), 'plan_du_document': outline,
+                'section_a_rediger': outline[i]}
+        try:
+            raw = model.complete([{'role': 'system', 'content': system},
+                                  {'role': 'user', 'content': 'Rédige UNIQUEMENT la section %d/%d « %s » du document « %s » (objet : %s). '
+                                   'Ne rédige ni le titre du document ni les autres sections ; pas de répétition. Réponds en JSON : '
+                                   'paragraphes (style texte/liste/intertitre), sources (identifiants réellement utilisés), a_completer.\n\n'
+                                   % (i + 1, len(sections), outline[i]['titre'], str(plan.get('titre', ''))[:160], outline[i]['objet'])
+                                   + json.dumps(part, ensure_ascii=False)}],
+                                 temperature=0, max_tokens=2500, json_schema=SECTION_SCHEMA)
+            out = json.loads(raw)
+        except (Stop, ValueError, TypeError):
+            return None
+        body = [p for p in (out.get('paragraphes') if isinstance(out, dict) else None) or [] if isinstance(p, dict) and str(p.get('texte', '')).strip()]
+        if not body:
+            return None
+        paragraphs.append({'style': 'intertitre', 'texte': outline[i]['titre']})
+        paragraphs += [{'style': p.get('style') if p.get('style') in ('intertitre', 'texte', 'liste') else 'texte', 'texte': p['texte']} for p in body]
+        used += [str(x)[:20] for x in out.get('sources', []) if str(x)[:20] not in used]
+        missing += [str(x)[:300] for x in out.get('a_completer', [])]
+    return {'titre': str(plan.get('titre', ''))[:200], 'nom_fichier': str(plan.get('nom_fichier', ''))[:120], 'paragraphes': paragraphs[:600],
+            'sources': used[:60], 'a_completer': missing[:40], 'redaction': 'par_etapes', 'sections': len(sections)}
+
+
+def check_document(doc, payload, previous_text=''):
+    """5.6.67 (point 4) : dates, montants et RG du document absents de ce que le modèle a reçu → « [À VÉRIFIER : …] » et un point
+    à compléter. Le document de départ d'une révision compte comme source."""
+    from .faits5667 import check as _check_facts, reference_text, summary as _facts_summary
+    reference = reference_text(payload, previous_text)
+    issues = []
+    for p in doc['paragraphes']:
+        p['texte'], found = _check_facts(str(p.get('texte', '')), reference)
+        issues += found
+    if issues:
+        doc['a_completer'] = (doc.get('a_completer') or []) + [_facts_summary(issues)[:300]]
+        doc['faits_a_verifier'] = issues[:30]
+    return doc
 
 
 def build_docx(doc, ctx, request, internal_notes=False):
@@ -671,6 +770,7 @@ def run(desk, args, dav=None):
                                       'sources': [{k: s[k] for k in ('id', 'statut', 'titre', 'reference', 'url')} for s in legal['sources']],
                                       'rapports': legal['rapports']},   # 5.6.49
               'text_sha256': hashlib.sha256(text.encode()).hexdigest(),
+              'texte_produit': text[:60000],   # 5.6.67 (point 5) : comparé plus tard à la version de l'avocat (part conservée)
               # 5.6.14 (U06) : fiche de contrôle séparée du document destiné au correspondant
               'control_sheet': {'demande': row['request'][:600], 'sources': doc['sources'], 'a_completer': doc['a_completer'], 'controle': control.get('summary', ''),
                                 'recherche_juridique': juridique5649.summary(legal),

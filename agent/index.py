@@ -10,6 +10,60 @@ from .documents import extract
 from .rag import CHUNK_LIMIT,Embedder,chunks,cosine,lexical_terms
 
 
+def _labelled(text,path,kind):
+    name=str(path or '').rsplit('/',1)[-1]
+    return ('Pièce : %s — %s\n%s'%(name,kind or 'document',text)) if name else str(text or '')
+
+
+RERANK_POOL=60        # 5.6.67 (point 3) : candidats retenus par la recherche (mots et sens) avant le second tri
+DIVERSITY=0.5        # pénalité d'un passage presque identique à un passage déjà retenu
+KEEP_AT_LEAST=4       # nombre minimal de passages gardés quand un seuil relatif est demandé
+
+
+def _tokens(text):
+    return set(lexical_terms([text]))
+
+
+def rerank(rows,scores,query_tokens,limit=10,kinds=None,min_relative=0.0):
+    """5.6.67 (point 3) : second tri des passages trouvés. Pertinence = score de recherche (60 %), part des mots de la demande présents
+    dans le passage (30 %), nom de la pièce qui reprend la demande (10 %) ; puis sélection diversifiée (un passage presque identique à un
+    passage déjà retenu est pénalisé), au plus deux passages par pièce, les plus pertinents d'abord. ``min_relative`` écarte les passages
+    nettement moins pertinents que le meilleur (au moins KEEP_AT_LEAST gardés) : moins de passages, mais meilleurs, pour un modèle local."""
+    # Le vivier est déjà limité à deux passages par pièce : une grande pièce ne peut pas l'occuper entier et priver les autres pièces.
+    pool=[];per_source={}
+    for k in sorted(scores,key=lambda k:(-scores[k],rows[k][2],k[1])):
+        if kinds and rows[k][5] not in kinds:continue
+        if per_source.get(rows[k][1],0)>=2:continue
+        per_source[rows[k][1]]=per_source.get(rows[k][1],0)+1;pool.append(k)
+        if len(pool)>=RERANK_POOL:break
+    if not pool:return []
+    query=set(query_tokens or ())
+    top=max(scores[k] for k in pool) or 1.0
+    info={}
+    for k in pool:
+        row=rows[k];words=_tokens(row[7] or '')
+        coverage=len(query & words)/len(query) if query else 0.0
+        named=1.0 if query & _tokens(str(row[2]).rsplit('/',1)[-1]) else 0.0
+        info[k]=(0.6*(scores[k]/top)+0.3*coverage+0.1*named,words)
+    selected=[];per_source={};chosen=[]
+    remaining=list(pool)
+    while remaining and len(selected)<limit:
+        def value(k):
+            rel,words=info[k]
+            similar=max((len(words & w)/len(words | w) if (words or w) else 0.0) for w in chosen) if chosen else 0.0
+            return rel-DIVERSITY*similar
+        best=max(remaining,key=lambda k:(value(k),-pool.index(k)))
+        remaining.remove(best)
+        row=rows[best]
+        if per_source.get(row[1],0)>=2:continue
+        per_source[row[1]]=per_source.get(row[1],0)+1
+        selected.append((row,round(info[best][0],4)));chosen.append(info[best][1])
+    if min_relative and selected:
+        best_rel=selected[0][1] or 1.0
+        selected=[x for i,x in enumerate(selected) if i<KEEP_AT_LEAST or x[1]>=min_relative*best_rel]
+    return selected
+
+
 class DocumentIndex:
     def __init__(self,state_dir,rag=None,ollama=None):
         self.db=sqlite3.connect(Path(state_dir)/'documents.sqlite3',timeout=30)
@@ -95,13 +149,15 @@ class DocumentIndex:
         mid=matter['id'] if isinstance(matter,dict) else matter
         model=self.rag.get('embedding_model','qwen3-embedding:0.6b')
         limit=budget or self.rag.get('embedding_chunks_per_run',24)
-        rows=self.db.execute('''SELECT c.source_id,c.chunk_no,c.text FROM knowledge_chunks c
+        rows=self.db.execute('''SELECT c.source_id,c.chunk_no,c.text,c.path,c.kind FROM knowledge_chunks c
           LEFT JOIN knowledge_embeddings e ON e.matter=c.matter AND e.source_id=c.source_id
           AND e.chunk_no=c.chunk_no AND e.model=? WHERE c.matter=? AND e.source_id IS NULL
           ORDER BY c.indexed_at,c.source_id,c.chunk_no LIMIT ?''',(model,mid,limit+1)).fetchall()
         selected=rows[:limit]
         if not selected:return {'created':0,'pending':0,'error':''}
-        try:vectors=self.embedder().embed([r[2] for r in selected])
+        # 5.6.67 (point 3) : chaque passage est étiqueté (nom de la pièce, nature) avant le calcul de son empreinte : un passage « hors
+        # contexte » se retrouve par sa pièce (« conclusions adverses », « jugement »…), pas seulement par ses mots.
+        try:vectors=self.embedder().embed([_labelled(r[2],r[3],r[4]) for r in selected])
         except Stop as ex:return {'created':0,'pending':len(rows),'error':str(ex)}
         for row,vector in zip(selected,vectors):
             self.db.execute('INSERT OR REPLACE INTO knowledge_embeddings VALUES (?,?,?,?,?)',
@@ -195,7 +251,7 @@ class DocumentIndex:
         self.db.execute('DELETE FROM docs WHERE matter=? AND path=?',(matter,path))
         self.db.execute('DELETE FROM search WHERE matter=? AND path=?',(matter,path));self.db.commit()
 
-    def ranked_chunks(self,matter,terms,limit=10,kinds=None):
+    def ranked_chunks(self,matter,terms,limit=10,kinds=None,min_relative=0.0):
         mid=matter['id'] if isinstance(matter,dict) else matter
         tokens=lexical_terms(terms);scores={};rows={}
         if tokens:
@@ -221,14 +277,7 @@ class DocumentIndex:
         if not scores:
             for row in self.db.execute('SELECT * FROM knowledge_chunks WHERE matter=? ORDER BY modified DESC,indexed_at DESC LIMIT 30',(mid,)):
                 key=(row[1],row[6]);rows[key]=row;scores[key]=0
-        selected=[];per_source={}
-        for key in sorted(scores,key=lambda k:(-scores[k],rows[k][2],k[1])):
-            row=rows[key]
-            if kinds and row[5] not in kinds:continue
-            if per_source.get(row[1],0)>=2:continue
-            per_source[row[1]]=per_source.get(row[1],0)+1;selected.append((row,scores[key]))
-            if len(selected)>=limit:break
-        return selected,semantic_error
+        return rerank(rows,scores,tokens,limit,kinds,min_relative),semantic_error
 
     def sources(self,dav,matter,terms,cfg):
         inventory,stale=self.sync_page(dav,matter,cfg,max(25,cfg.get('index_updates_per_run',10)))

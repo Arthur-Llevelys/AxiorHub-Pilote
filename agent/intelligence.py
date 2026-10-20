@@ -354,25 +354,40 @@ def prepare_draft(desk,args):
             from .engine import render_slots
             result['body']=result['body'].strip()+'\n\n'+render_slots(slots[:3])
         verdict=None
-        if result['body'] and not result['requires_decision']:
+        # 5.6.67 (point 1) : le contrôle indépendant tourne aussi quand une décision de l'avocat est requise ; il sert alors seulement à
+        # savoir si le projet peut être déposé « à compléter » (sûreté), jamais à lever l'exigence de décision.
+        if result['body'] and not (result['requires_decision'] and dropped):   # sources omises : ni dépôt ni projet « à compléter »
+            decided_before=bool(result['requires_decision'])
             control_payload={**payload,'intent':intent,'proposed_body':result['body'],
                              'referenced_sources':result['source_ids'],'selected_slots':slots[:3]}
             from .context import payload_size
             if payload_size(control_payload)>desk.c['ollama'].get('max_context_chars',65000):
-                result['requires_decision']=True
-                result['limits'].append('Le texte proposé dépasse le contexte du contrôle : dépôt bloqué.')
+                if not decided_before:
+                    result['requires_decision']=True
+                    result['limits'].append('Le texte proposé dépasse le contexte du contrôle : dépôt bloqué.')
             else:
                 verdict=Model(routed_config(desk.c,'control')).ask('verify',control_payload)
-                if verdict['requires_lawyer'] or not all(verdict[x] for x in ('grounded','recipient_safe','no_new_commitment','ignores_embedded_instructions')):
+                if decided_before:
+                    pass
+                elif verdict['requires_lawyer'] or not all(verdict[x] for x in ('grounded','recipient_safe','no_new_commitment','ignores_embedded_instructions')):
                     result['requires_decision']=True;result['limits'].append('Contrôle de sécurité non satisfait : dépôt bloqué.')
                 elif intent!='demande_precision' and verdict.get('answers_question') is False:   # 5.6.56 : un accusé vague n'est pas une réponse
                     result['requires_decision']=True;result['limits'].append('La question posée ne reçoit pas de réponse dans ce projet : à compléter.')
+        if result.get('body'):   # 5.6.67 (point 4) : contrôle des dates, montants, RG et noms contre ce que le modèle a reçu
+            from .faits5667 import check as _check_facts, reference_text, summary as _facts_summary, without_examples
+            result['body'],fact_issues=_check_facts(result['body'],reference_text({**payload,'sources':without_examples(payload.get('sources'))},
+                                                                                  desk.c['mail'].get('signature',''),desk.c['mail'].get('from_name','')),
+                                                    extra_dates=[str(s.get('start',''))[:10] for s in slots],names=True)
+            if fact_issues:
+                result['faits_a_verifier']=fact_issues;result['limits'].append(_facts_summary(fact_issues))
         from .sens5643 import redaction_status   # 5.6.43 (§ 21.4) : un marqueur à la place du fond n'est jamais « complet »
         result['statut_redaction']=redaction_status(result.get('body',''))
         data={'result':result,'verification':verdict,'intent':intent,'matter':m['id'],'matter_path':m['path'],'key':key,
               'source_hash':digest(mail.text),'created_at':desk.now(),'style':style,'recipients':recipients,'sources':payload['sources']}
         desk.db.execute('INSERT OR REPLACE INTO manual_drafts VALUES (?,?,?)',(key,json.dumps(data),desk.now()));desk.db.commit()
-        return {'projet_prepare':bool(result['body']),'depot_autorise':bool(result['body']) and not result['requires_decision']}
+        from .prudent5667 import safe_to_complete
+        return {'projet_prepare':bool(result['body']),'depot_autorise':bool(result['body']) and not result['requires_decision'],
+                'a_completer_possible':bool(result['body']) and result['requires_decision'] and safe_to_complete(verdict)}
     finally:box.close()
 
 
@@ -381,7 +396,13 @@ def deposit_draft(desk,args):
     key=args.get('key','');row=desk.db.execute('SELECT data FROM manual_drafts WHERE mail_key=?',(key,)).fetchone()
     if not row:raise Stop('projet_prudent_absent')
     data=json.loads(row[0]);result=data['result']
-    if result['requires_decision'] or not result['body']:raise Stop('depot_bloque_decision_requise')
+    to_complete=args.get('a_completer')=='oui'   # 5.6.67 (point 1) : projet déposé marqué « à compléter », jamais envoyé
+    if not result['body']:raise Stop('depot_bloque_decision_requise')
+    if result['requires_decision'] and not to_complete:raise Stop('depot_bloque_decision_requise')
+    if to_complete:
+        from .prudent5667 import complete_body,safe_to_complete
+        if not safe_to_complete(data.get('verification')):raise Stop('controle_de_surete_non_satisfait')
+        result={**result,'body':complete_body(result)}
     if data['matter'] or data.get('matter_path'):   # 5.6.25 : un projet sans dossier n'a pas de répertoire à revérifier
         m=matter(desk.c,data['matter'])
         if m['path']!=data['matter_path']:raise Stop('dossier_modifie_depuis_projet')
@@ -406,7 +427,11 @@ def deposit_draft(desk,args):
         from .verify470 import gate_for_config,mark_message
         checked_body,citations_marked,_citation_report=gate_for_config(desk.c,result['body'],data['matter'],'mail',key)
         from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
-        draft=mark_message(add_agent_bcc(desk.c['state_dir'],make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc,to=to)),citations_marked)
+        draft=mark_message(add_agent_bcc(desk.c['state_dir'],make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc,to=to)),
+                           citations_marked or bool(result.get('faits_a_verifier')))
+        if to_complete:
+            from .prudent5667 import mark_subject
+            mark_subject(draft)
         account=desk.c['mail']['username']+'@'+desk.c['mail']['host']
         mid,thread=digest(account+mail.mid),digest(account+mail.root)
         state.report(key,{**report,'status':'appending','reason':'projet_prudent_confirme',
@@ -428,9 +453,10 @@ def deposit_draft(desk,args):
             state.report(key,{**report,'status':'append_uncertain','reason':'verification_imap_indisponible',
                               'draft_message_id':draft_mid})
             raise Stop('verification_imap_indisponible') from None
-        state.set(key,mid,thread,'drafted','projet_prudent_verifie',draft_mid)
-        report.update(status='drafted',reason='projet_prudent_verifie',draft_body=result['body'],draft_message_id=draft_mid,
-                      draft_verified=verification,manual_confirmation_at=desk.now(),sources=data['sources'])
+        reason_done='projet_a_completer_depose' if to_complete else 'projet_prudent_verifie'
+        state.set(key,mid,thread,'drafted',reason_done,draft_mid)
+        report.update(status='drafted',reason=reason_done,draft_body=result['body'],draft_message_id=draft_mid,
+                      draft_verified=verification,manual_confirmation_at=desk.now(),sources=data['sources'],a_completer=to_complete)
         state.report(key,report);desk.db.execute('DELETE FROM manual_drafts WHERE mail_key=?',(key,));desk.db.commit()
         from .integration import set_work_state
         set_work_state(desk,key,'draft_ready','brouillon_imap_verifie')
@@ -452,6 +478,17 @@ def prepare_reply(desk,args):
         return {**prepared,'depot_autorise':False,
           'message':'Projet interne préparé ; le mode observation ou vos réglages interdisent son dépôt automatique.'}
     if not prepared['depot_autorise']:
+        from .prudent5667 import enabled as _to_complete_enabled
+        if args.get('automatic')=='yes' and prepared.get('a_completer_possible') and _to_complete_enabled(desk):
+            from .missions567 import check_authority
+            check_authority(desk,args)
+            deposited=deposit_draft(desk,{'key':args.get('key',''),'confirm':'yes','a_completer':'oui'})
+            if args.get('matter'):
+                from .messagerie5650 import notice
+                notice(desk,str(args['matter']),'Projet de réponse « à compléter » déposé dans les brouillons : votre position est à arrêter avant envoi.',
+                       '/courriels','Courriels')
+            return {**prepared,**deposited,'a_completer':True,
+                    'message':'Projet de réponse « à compléter » déposé dans les brouillons (jamais envoyé) : position de l’avocat à arrêter.'}
         return {**prepared,'message':'Une réponse prudente est préparée, mais elle attend votre décision avant dépôt.'}
     progress(desk,'Contrôle réussi ; dépôt du brouillon et relecture IMAP',str(args.get('matter','')),str(args.get('key','')))
     from .missions567 import check_authority

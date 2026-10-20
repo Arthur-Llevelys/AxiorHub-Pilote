@@ -122,6 +122,11 @@ def _automation_tick_5642(desk):
             priority=(60 if job in ('reconcile_inbox','classify_portfolio') else
                       50 if job=='sync_caldav_tasks' else None)
             desk.enqueue(job,priority=priority);desk.setting('auto:'+job,now_ts)
+    try:   # 5.6.67 (point 5) : une fois par jour, corrections récurrentes et mesure des documents (sans appel au modèle)
+        last=desk.settings('auto:apprentissage5667',0)
+        if now_ts-last>=86400 and cadence5662.allow(desk,'apprentissage5667',1440,now_ts):
+            desk.enqueue('apprentissage5667',priority=70);desk.setting('auto:apprentissage5667',now_ts)
+    except Stop:pass
     proactive=desk.c.get('proactive',{})
     if desk.settings('automation:proactive_enabled',proactive.get('enabled',True)):
         minutes=economie569.interval(desk,'monitor_all',max(5,int(proactive.get('monitor_interval_minutes',30))))
@@ -185,7 +190,7 @@ def perform(desk,kind,args):
                        'proactive_enabled','daily_dashboard_enabled','autonomy_enabled',
                        'automatic_document_previews_enabled','document_control_enabled',
                        'automatic_mail_drafts_enabled','automatic_legal_projects_enabled',
-                       'automatic_internal_files_enabled','production_enabled',
+                       'automatic_internal_files_enabled','production_enabled','mail_projects_to_complete_enabled',
                        'diligence_proposals_enabled','billing_proposals_enabled'):
             if key not in ('orchestrator_enabled','opinion_projects_enabled','cabinet_pilotage_enabled',
                            'preparation34_enabled'):
@@ -195,7 +200,7 @@ def perform(desk,kind,args):
             desk.c.setdefault('proactive',{})[key.removesuffix('_enabled')+'_enabled' if key=='daily_dashboard_enabled' else 'enabled']=value
             desk.setting('automation:'+key,value)
         elif key in ('autonomy_enabled','automatic_document_previews_enabled',
-                     'automatic_mail_drafts_enabled','automatic_legal_projects_enabled',
+                     'automatic_mail_drafts_enabled','automatic_legal_projects_enabled','mail_projects_to_complete_enabled',
                      'automatic_internal_files_enabled',
                      'document_control_enabled','diligence_proposals_enabled','billing_proposals_enabled'):
             desk.setting('automation:'+key,value)

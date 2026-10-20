@@ -1,0 +1,33 @@
+{
+  "version": "5.6.67",
+  "base": "5.6.66 publiée",
+  "date_utc": "2026-10-20T00:00:00+00:00",
+  "cahier_des_charges": "Demande du cabinet du 20 octobre 2026 : points 1 à 6 (projets à compléter, rattachement appris, second tri des passages, rédaction par étapes et contrôle des faits, corrections récurrentes et mesure des documents, répartition des modèles et banc d’essai sur les cas du cabinet).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2625,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 112,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5667.py (22) : corps et objet « à compléter », dépôt seulement après contrôle de sûreté, envoi refusé ; RG et parties propres au dossier, nom partagé écarté, date jamais prise pour un RG, expéditeur confirmé, RG appris à la confirmation ; second tri (diversité, seuil, au moins 4 passages), étiquette ; contrôle des faits (dates, montants, RG, noms ; idempotent ; date du jour ; anciens envois exclus) ; plan puis sections, repli d’un seul tenant, document contrôlé ; corrections récurrentes → règle adoptée ou écartée, jamais un fait ni un nom, part des documents gardée ; répartition recommandée, application vérifiée, banc sur les cas anonymisés, droits des routes.",
+  "exapp": {
+    "version": "0.1.26",
+    "moteur": "5.6.67"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "intelligence.prepare_draft : contrôle indépendant exécuté aussi quand une décision est requise (sûreté seulement, sauf sources omises) ; a_completer_possible ; deposit_draft(a_completer=oui) ; prepare_reply dépose le projet « à compléter » (prudent5667) ; envoi refusé si « [À COMPLÉTER » (brouillon_a_completer).",
+    "association5667.augment (engine.run) : learned_references / learned_names / learned_senders ; matcher : signaux partie_du_dossier, correspondant_confirme ; Desk.associate apprend le RG de l’objet.",
+    "index.rerank (RERANK_POOL=60, DIVERSITY=0,5, min_relative) ; ensure_embeddings étiquette les passages ; document_projects et docrequest520 : min_relative=0,3 ; extraits datés et typés.",
+    "faits5667 (engine, intelligence, docrequest520, document_projects) ; docrequest520._stepwise (redaction5667:par_etapes, STEPWISE_KINDS).",
+    "apprentissage5667 (travail quotidien apprentissage5667, page Progrès) ; docreq520 garde texte_produit ; mémoire des envois : table pairs5667.",
+    "modeles5667 (Paramètres › IA, travail banc5667) ; routes m5667/*."
+  ],
+  "adjusted_tests": []
+}
