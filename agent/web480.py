@@ -151,6 +151,11 @@ def progres_page(desk, auth, prefix, args, shell):
         '<label class="vf-check"><input type="checkbox" id="r-confirm"> Je confirme cette règle</label>'
         '<div class="vf-buttons"><button type="button" class="ax-btn" id="r-create">Créer la règle</button></div></div></section>'
     ) % (_subnav(prefix, '/progres'), kinds, roles, dashboard_html(data), tones_html(desk), rules_html(desk, prefix), scope_opts, matters, rule_types)
+    try:   # 5.6.67 (point 5) : corrections récurrentes proposées, part des documents gardée
+        from .apprentissage5667 import html as _learn_html
+        body += _learn_html(desk, prefix)
+    except Exception:   # noqa: BLE001 — la page reste disponible
+        pass
     return shell('Progrès de l’agent', body, prefix, auth['csrf'], '/progres')
 
 

@@ -25,16 +25,21 @@ def rank(mail,matters,history=(),evidence=None):
     for m in matters:
         score=0;reasons=[]
         people=[p for p in m.get('correspondents',[]) if p.get('email','').lower()==sender]
-        refs=[m['id']]+m.get('references',[])
+        # 5.6.67 (point 2) : RG connus du dossier (fiche, avis de procédure) — comptés comme des références explicites
+        refs=[m['id']]+m.get('references',[])+m.get('learned_references',[])
         explicit=[r for r in refs if boundary(r,current)]
         old=[r for r in refs if boundary(r,historical)]
         names=[m.get('client_name','')]+m.get('aliases',[])
         named=[n for n in names if len(fold(n))>=5 and fold(n) in current]
+        parties=[n for n in m.get('learned_names',[]) if boundary(n,current) and n not in named]   # 5.6.67 : parties propres au dossier
+        confirmed=sender in m.get('learned_senders',[])                                             # 5.6.67 : rattachement déjà confirmé
         folder=m.get('path','').rsplit('/',1)[-1]
         full_folder=bool(len(fold(folder))>=12 and boundary(folder,current))
         if people:score+=70;reasons.append({'signal':'adresse_exacte','weight':70,'value':sender})
         if explicit:score+=60;reasons.append({'signal':'reference_explicite','weight':60,'value':explicit[:3]})
         if named:score+=25;reasons.append({'signal':'nom_dans_message','weight':25,'value':named[:2]})
+        if parties:score+=25;reasons.append({'signal':'partie_du_dossier','weight':25,'value':parties[:2]})
+        if confirmed and not people:score+=45;reasons.append({'signal':'correspondant_confirme','weight':45,'value':sender})
         if full_folder:score+=50;reasons.append({'signal':'nom_dossier_complet','weight':50,'value':folder})
         if old:score+=15;reasons.append({'signal':'reference_dans_fil','weight':15,'value':old[:2]})
         if domain in domain_owners and domain_owners[domain]=={m['id']}:score+=12;reasons.append({'signal':'domaine_unique','weight':12,'value':domain})

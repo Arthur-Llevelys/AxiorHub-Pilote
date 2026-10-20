@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5667/'):   # 5.6.67 : corrections (avocat, administrateur) ; modèles et banc (administrateur)
+        from .web5667 import allowed as allowed5667
+        return allowed5667(role, api[len('m5667/'):])
     if api.startswith('m5662/'):   # 5.6.62 : connexion ChatGPT (administrateur)
         from .web5662 import allowed as allowed5662
         return allowed5662(role, api[len('m5662/'):])

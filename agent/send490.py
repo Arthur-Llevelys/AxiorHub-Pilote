@@ -198,6 +198,9 @@ def _check_sendable(desk, mail):
     subject = str(msg.get('Subject', ''))
     if VERIFY_MARK.search(subject) or VERIFY_MARK.search(body_text(msg)[:400]):
         raise Stop('brouillon_a_verifier')
+    from .sens5643 import MARKER as _to_complete   # 5.6.67 : un projet « à compléter » n'est jamais envoyé en l'état
+    if _to_complete.search(subject) or _to_complete.search(body_text(msg)):
+        raise Stop('brouillon_a_completer')
     recipients = _recipients(msg)
     for part in msg.iter_attachments():
         if part.get_content_maintype() == 'message' or part.get_payload(decode=True) is None:

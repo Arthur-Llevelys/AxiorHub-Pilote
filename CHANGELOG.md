@@ -3,6 +3,34 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.67 — Réponses plus pertinentes et documents mieux préparés, même avec un modèle local
+
+Demande du cabinet du 20 octobre 2026 : six améliorations pour que l’IA prépare mieux courriels, documents et notes, y compris avec un
+modèle open source (632 courriels examinés en 7 jours, 1 brouillon préparé).
+
+1. **Plus de courriels préparés.** Un courriel juridique ou stratégique d’un dossier connu reçoit désormais un projet de réponse
+   « à compléter » dans les Brouillons : faits et pièces du dossier, plan, et « [À COMPLÉTER : …] » là où votre position est à arrêter.
+   Objet et première ligne marqués « [À COMPLÉTER] » ; jamais envoyé, et l’envoi depuis AxiorHub le refuse tant qu’un marqueur reste.
+   Déposé seulement si le contrôle indépendant confirme qu’il est fondé sur les sources, sans risque pour le destinataire et sans
+   instruction cachée suivie ; jamais quand des sources ont dû être omises. Réglage : « Projets de réponse à compléter » (actif).
+2. **Rattachement au bon dossier.** Les numéros RG connus d’un dossier (fiche, avis de procédure) et les noms de ses parties qui lui
+   sont propres servent au rapprochement des courriels ; un RG qui ne désigne qu’un dossier y rattache le courriel (le rôle du
+   correspondant n’est jamais deviné), un indice partagé par plusieurs dossiers n’est pas utilisé. Un expéditeur que vous avez
+   confirmé pour un seul dossier compte comme un indice. Confirmer une association apprend le RG cité dans l’objet du courriel.
+3. **Les bons passages.** Second tri des passages retrouvés (pertinence fine, part des mots de la demande, nom de la pièce, diversité :
+   un passage presque identique à un autre est écarté), les plus pertinents d’abord ; les rédactions reçoivent moins de passages, mais
+   meilleurs. Chaque passage est étiqueté (pièce, date, nature) et l’empreinte des nouveaux passages tient compte du nom de la pièce.
+4. **Rédiger par étapes et vérifier.** Les documents longs (conclusions, assignation, note, contrat, compte rendu, mise en demeure)
+   sont rédigés en deux temps : un plan court tiré du dossier, puis chaque section avec ses seules sources ; si le plan n’est pas
+   exploitable, la rédaction d’un seul tenant reprend. Après toute rédaction (courriel, document, projet d’acte), chaque date, montant,
+   numéro RG — et dans un courriel chaque nom en capitales — absent de ce que le modèle a reçu est marqué « [À VÉRIFIER : …] ».
+5. **Apprendre de vos corrections, mesurablement.** Les phrases que vous ajoutez ou retirez régulièrement (au moins 3 envois au même
+   profil de destinataire) deviennent des règles proposées dans Progrès de l’agent (« Adopter » / « Écarter ») ; seules des phrases de
+   forme, jamais un fait ni un nom. Les documents produits sont relus dans Nextcloud après deux jours : part du texte gardée, par type.
+6. **Le bon modèle pour chaque tâche.** Paramètres › IA propose une répartition (rapide, approfondi, contrôle) selon les modèles
+   installés dans Ollama, appliquée en un clic ; un banc d’essai fait rédiger par un modèle local les réponses à vos cas réels
+   (jusqu’à 20, anonymisés) et les compare aux vôtres. Les cas ne sortent jamais du cabinet.
+
 ## 5.6.66 — « À décider / À relire » par rubriques, notes internes rangées dans le dossier
 
 Retour du cabinet du 20 octobre 2026 : les réponses préparées par l’IA étaient noyées, dans « À décider / À relire », parmi des dizaines

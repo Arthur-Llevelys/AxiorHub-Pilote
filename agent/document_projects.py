@@ -228,7 +228,7 @@ def _legal_sources(desk,matter,raw):
 def _source_packet(desk,matter,instruction,base_source,base_text,legal,document_type=''):
     index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
     ranked,_=index.ranked_chunks(matter,[instruction,matter.get('client_name',''),
-      'nouveaux arguments echanges pieces jointes'],limit=34)
+      'nouveaux arguments echanges pieces jointes'],limit=34,min_relative=0.3)   # 5.6.67 (point 3)
     packet=[];seen=set()
     base_id='base-'+base_source['sha256'][:20]
     packet.append({'id':base_id,'kind':'base_document','path':base_source['path'],
@@ -446,6 +446,16 @@ def prepare(desk,args,dav=None,model=None):
         result=writer.ask('document_project',prompt)
         _step(desk,pid,'draft_prepared',operation_fingerprint,{'draft':result})
     _check_model(result,valid,official)
+    # 5.6.67 (point 4) : dates, montants et RG absents des sources transmises → « [À VÉRIFIER : …] » et un point pour l'avocat
+    from .faits5667 import check as _check_facts, reference_text, summary as _facts_summary
+    _reference=reference_text(prompt);_fact_issues=[]
+    result['introduction'],_found=_check_facts(result.get('introduction',''),_reference);_fact_issues+=_found
+    for _section in result['sections']:
+        _section['body'],_found=_check_facts(_section.get('body',''),_reference);_fact_issues+=_found
+    for _request in result['requests']:
+        _request['text'],_found=_check_facts(_request.get('text',''),_reference);_fact_issues+=_found
+    if _fact_issues:
+        result['points_for_lawyer']=list(result.get('points_for_lawyer') or [])+[_facts_summary(_fact_issues)]
     emails=[];attachments=[];email_paths=set();attachment_keys=set();base_stamp=_modified(source)
     for source_item in packet:
         meta=source_item.get('metadata',{})

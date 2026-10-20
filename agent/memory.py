@@ -108,6 +108,8 @@ class SentMemory:
             id TEXT PRIMARY KEY, account TEXT, scope TEXT, matter TEXT,
             recipients TEXT, role TEXT, text TEXT, status TEXT,
             source_key TEXT, created TEXT)''')
+        # 5.6.67 (point 6) : réponse envoyée ↔ courriel reçu auquel elle répond (cas du banc d'essai, jamais transmis)
+        self.db.execute('CREATE TABLE IF NOT EXISTS pairs5667 (sent_key TEXT PRIMARY KEY, incoming_message_id TEXT NOT NULL, created TEXT NOT NULL)')
         self.db.execute('''CREATE TABLE IF NOT EXISTS excluded_examples(
             key TEXT PRIMARY KEY, reason TEXT, created TEXT)''')
         # Old examples remain in their old table for rollback. Only the client scope
@@ -124,6 +126,19 @@ class SentMemory:
 
     def account(self):
         return digest(self.c['mail']['username']+'@'+self.c['mail']['host'])
+
+    def backfill_pairs(self):
+        """5.6.67 : pour les envois antérieurs, le courriel reçu est retrouvé par le texte exact du brouillon de l'agent."""
+        added=0
+        for r in self.proposals():
+            body=r.get('draft_body') or ''
+            if not body:continue
+            row=self.db.execute("SELECT key FROM examples_v2 WHERE provenance='matched_draft_and_sent' AND draft=?",(body,)).fetchone()
+            if row:
+                added+=self.db.execute('INSERT OR IGNORE INTO pairs5667 VALUES (?,?,?)',(row[0],str(r['incoming_message_id']),
+                                                                                     datetime.now(timezone.utc).isoformat())).rowcount
+        self.db.commit()
+        return added
 
     def proposals(self):
         found = []
@@ -186,6 +201,10 @@ class SentMemory:
                         (key, matter['id']+'@'+digest(matter['path']), json.dumps(recipients), sent.timestamp.isoformat(),
                          text, draft, json.dumps(stats), provenance, self.account(), audience(matter, recipients)))
         self.db.commit()
+        if provenance=='matched_draft_and_sent' and draft and matches[0].get('incoming_message_id'):
+            self.db.execute('INSERT OR IGNORE INTO pairs5667 VALUES (?,?,?)',(key,str(matches[0]['incoming_message_id']),
+                                                                             datetime.now(timezone.utc).isoformat()))
+            self.db.commit()
         if provenance=='matched_draft_and_sent' and draft:
             from . import learning480
             triage=matches[0].get('triage') if isinstance(matches[0].get('triage'),dict) else {}
