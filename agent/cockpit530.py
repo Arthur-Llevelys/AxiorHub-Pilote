@@ -298,7 +298,7 @@ def greeting_text(desk):
         examined = 0
     items = review_items(desk, cached_only=True)
     mails = sum(1 for x in items if x['type'] == 'Courriel')
-    docs = len(items) - mails
+    docs = sum(1 for x in items if x['type'] not in ('Courriel', 'Note interne'))
     return ('Bonjour Maître. Depuis hier soir : %d courriel(s) analysé(s) ; %d brouillon(s) et %d document(s) à relire. '
             'Donnez-moi une instruction, ou laissez-moi continuer seul.' % (examined, mails, docs))
 
@@ -310,9 +310,13 @@ def _drafts(desk, refresh=True):
         try:
             from . import drafts440
             listing = drafts440.list_drafts(desk.c['mail'], 40)
+            # 5.6.66 : aussi les réponses en attente sans marque de l'agent (brouillon réenregistré par la messagerie, qui retire
+            # l'en-tête X-AxiorHub) : une réponse préparée ne disparaît plus d'Aujourd'hui.
             cache = {'at': time.time(), 'ok': True, 'validity': listing['uidvalidity'],
-                     'items': [{k: x.get(k, '') for k in ('uid', 'subject', 'to', 'date', 'agent_key', 'message_id', 'in_reply_to')}
-                               for x in listing['items'] if x.get('agent')]}
+                     'items': [{**{k: x.get(k, '') for k in ('uid', 'subject', 'to', 'date', 'agent_key', 'message_id', 'in_reply_to')},
+                                'agent': bool(x.get('agent'))}
+                               for x in listing['items'] if x.get('agent') or x.get('in_reply_to')
+                               or str(x.get('message_id', '')).startswith('axiorhub-')]}
         except Exception:
             # 5.6.62 : messagerie injoignable — nouvel essai dans 10 min (et non 2) : le worker ne reste pas bloqué jusqu'à 45 s toutes les 2 min
             cache = {**cache, 'at': time.time() + 480, 'ok': False}
@@ -352,7 +356,32 @@ def _draft_matter(desk, d):
                 row = None
             if row:
                 return row[0]
+    # 5.6.66 : brouillon d'un avis de procédure (« Avis de renvoi – … ») : sa clé est tirée de l'avis, qui connaît son dossier
+    agent_keys = {k for k in keys if k}
+    if agent_keys:
+        try:
+            from .common import digest
+            for row in desk.db.execute('SELECT id,matter FROM notices440 ORDER BY updated DESC LIMIT 500').fetchall():
+                if digest('notice-draft440|' + row['id']) in agent_keys and row['matter']:
+                    return row['matter']
+        except Exception:   # noqa: BLE001 — table absente
+            pass
     return ''
+
+
+NOTE_PREFIXES = ('[À traiter]', '[Projet]')
+
+
+def is_internal_note(desk, d):
+    """5.6.66 : brouillon de note interne — adressé au seul cabinet, ou titré « [À traiter] » / « [Projet] » par l'agent."""
+    subject = str(d.get('subject') or '').strip()
+    if d.get('agent', True) and subject.startswith(NOTE_PREFIXES):
+        return True
+    from email.utils import getaddresses
+    from .mailbox import own_addresses
+    own = {a.lower() for a in own_addresses(desk.c.get('mail', {}))}
+    to = [a.lower() for _, a in getaddresses([str(d.get('to') or '')]) if a]
+    return bool(to) and all(a in own for a in to)
 
 
 def review_items(desk, cached_only=False):
@@ -366,8 +395,11 @@ def review_items(desk, cached_only=False):
         if item in done:
             continue
         mid = _draft_matter(desk, d)
-        out.append({'id': item, 'type': 'Courriel', 'title': d['subject'] or '(sans objet)', 'matter': mid, 'matter_label': labels.get(mid, ''),
-                    'when': d.get('date', ''), 'dest': 'Brouillons (messagerie) — à %s' % (d.get('to') or 'destinataire')})
+        internal = is_internal_note(desk, d)   # 5.6.66 : note interne (adressée au cabinet) ≠ courriel à envoyer
+        out.append({'id': item, 'type': 'Note interne' if internal else 'Courriel', 'title': d['subject'] or '(sans objet)', 'matter': mid,
+                    'matter_label': labels.get(mid, ''), 'when': d.get('date', ''), 'to': d.get('to', ''), 'internal': internal,
+                    'agent': d.get('agent', True), 'uid': d.get('uid', ''), 'validity': cache.get('validity', ''),
+                    'dest': 'Brouillons (messagerie) — à %s' % (d.get('to') or 'destinataire')})
     seen = set()
     stems = set()   # 5.6.62 : un même projet en .docx, .pdf et .md n'apparaît qu'une fois (Word en priorité)
     since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()

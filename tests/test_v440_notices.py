@@ -18,9 +18,19 @@ class FakeDAV:
     def __init__(self):
         self.puts = []
         self.existing = []
+        self.files = {}   # 5.6.66 : notes internes déposées dans le dossier
 
     def stat(self, path):
+        if path.endswith('.docx') and path not in self.files:
+            raise Stop('http_404')
         return {'path': path, 'etag': '"e1"', 'size': 10}
+
+    def put_file(self, path, data, content_type=''):
+        self.files[path] = data
+        return path
+
+    def ensure_folder(self, path, boundary):
+        return path
 
     def download(self, item):
         return b'raw'
@@ -115,14 +125,21 @@ class NoticeTests(unittest.TestCase):
     def test_idempotent(self):
         self.run_job()
         self.run_job()
-        self.assertEqual(len(Box.drafts), 1)
+        self.assertEqual((len(Box.drafts), len(self.dav.files)), (0, 1))   # 5.6.66 : une seule note interne, aucun brouillon
         self.assertEqual(len(self.dav.puts), 2)
 
     def test_no_profile_makes_internal_note(self):
+        # 5.6.66 (demande du cabinet) : document Word rangé dans le dossier, plus de brouillon « [À traiter] » adressé au cabinet
         result = self.run_job()
         self.assertEqual(result['recipient_kind'], 'interne')
-        self.assertEqual(Box.drafts[0]['To'], 'cabinet@example.test')
-        self.assertTrue(Box.drafts[0]['Subject'].startswith('[À traiter]'))
+        self.assertEqual(Box.drafts, [])
+        path = result['note_interne']
+        self.assertTrue(path.startswith('/Dossiers/DEMO/') and ' - Note interne - Avis de renvoi' in path and path.endswith('.docx'), path)
+        self.assertEqual(result['note_emplacement'], 'dossier')
+        import io, zipfile
+        xml = zipfile.ZipFile(io.BytesIO(self.dav.files[path])).read('word/document.xml').decode()
+        self.assertIn('12 décembre 2026', xml)
+        self.assertNotIn('[À traiter]', xml)
 
     def test_existing_calendar_event_not_duplicated(self):
         self.dav.existing = [{'start': '2026-12-12T09:30:00+01:00', 'summary': 'Audience Client DEMO'}]

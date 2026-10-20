@@ -4,7 +4,7 @@ from .common import Stop
 
 WRITE = ('maj/demander', 'maj/automatique', 'maj/verifier')   # 5.6.62 : « Vérifier maintenant »
 CATEGORIES = {'maj/demander': 'reglages', 'maj/automatique': 'reglages', 'maj/verifier': 'reglages'}
-WORK = ('file/missions',)   # 5.6.61 : Relancer / Écarter depuis la file (mêmes droits que m567/mission/control)
+WORK = ('file/missions', 'file/ranger-notes')   # 5.6.61 : Relancer / Écarter depuis la file ; 5.6.66 : ranger les notes internes
 
 
 def allowed(role, route):
@@ -25,6 +25,13 @@ def api(env, desk, auth, prefix, name, args, method):
     if method != 'POST':
         raise Stop('methode_refusee')
     data = _post(env, auth, 2_000)
+    if route == 'file/ranger-notes':   # 5.6.66 : notes internes déposées en brouillon → documents Word des dossiers
+        items = [x for x in str(data.get('items') or '').split(',') if x.strip()][:60]
+        if not items:
+            raise Stop('aucune_note_designee')
+        job = desk.enqueue('ranger_notes5666', {'items': items, 'par': str(owner)[:80]}, origin='user')
+        return json_out({'ok': True, 'job': job, 'message': 'Rangement de %d note(s) interne(s) lancé : documents Word dans les dossiers, '
+                                                            'brouillons envoyés à la corbeille de la messagerie.' % len(items)})
     if route == 'file/missions':
         from . import missions567
         action = str(data.get('action') or '')

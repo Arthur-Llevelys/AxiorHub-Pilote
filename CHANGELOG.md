@@ -3,6 +3,31 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.66 — « À décider / À relire » par rubriques, notes internes rangées dans le dossier
+
+Retour du cabinet du 20 octobre 2026 : les réponses préparées par l’IA étaient noyées, dans « À décider / À relire », parmi des dizaines
+de notes internes (« [À traiter] Avis de renvoi… ») ; certaines n’y apparaissaient pas du tout.
+
+- Aujourd’hui : « À décider / À relire » est séparé en rubriques — « Courriels à relire et envoyer » en premier, puis « À décider »,
+  « Documents à examiner » et « Notes internes » ; analyses interrompues et tenue des dossiers restent repliées. Filtres par rubrique.
+- Une réponse préparée dont le brouillon a perdu la marque de l’agent (réenregistré par la messagerie, qui retire l’en-tête
+  X-AxiorHub) figure désormais dans « Courriels à relire et envoyer » ; auparavant elle n’apparaissait que dans la page Courriels.
+- Notes internes déjà déposées en brouillon (adressées au cabinet, « [À traiter] », « [Projet] ») : bouton « Ranger dans le dossier »
+  et « Tout ranger dans les dossiers » — chacune devient un document Word de son dossier (sinon « A TRAITER ») et le brouillon va dans
+  la corbeille de la messagerie (restaurable ; sans corbeille, il reste en place). Une réponse à un tiers n’est jamais rangée.
+- Correction d’un risque introduit par la 5.6.65 : une demande identique à un travail « suspendu » le retrouvait (audit 5.6.64, R13),
+  même quand la pause qui l’avait suspendu était levée depuis ; un ancien examen des courriels resté « suspendu » aurait pu absorber
+  chaque nouvel examen. Ce n’était pas le cas sur le serveur du cabinet (vérifié en lecture seule), mais seul un travail suspendu par une
+  pause encore en vigueur est désormais retrouvé.
+- Au démarrage des workers et à chaque reprise, les travaux restés suspendus après la fin de leur pause sont repris (demande de
+  l’avocat de moins de 6 heures) ou clos avec un motif (contrôles automatiques, reprogrammés par leur planificateur).
+- Notes internes : un avis de procédure (avis de renvoi, de procédure, calendrier) sans destinataire paramétré donne maintenant un
+  document Word « AAAA-MM-JJ - Note interne - … » rangé directement dans le dossier concerné ; à défaut (dossier inaccessible ou non
+  identifié), dans un dossier neutre « A TRAITER » à la racine des dossiers. Plus de brouillon « [À traiter] » adressé au cabinet.
+  Un fichier existant n’est jamais remplacé.
+- Les brouillons d’information des avis de procédure (au confrère, au client) indiquent leur dossier sur Aujourd’hui (« Dossier non
+  identifié » auparavant).
+
 ## 5.6.65 — Corrections de l’audit de la 5.6.64 (confidentialité, savoir-faire, contacts, file de travail)
 
 Audit développeur du 19 octobre 2026 sur la 5.6.64 : 17 anomalies reproduites (R01 à R17), aucune bloquante (P0). Les 26 contre-tests

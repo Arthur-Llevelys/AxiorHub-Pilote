@@ -560,7 +560,7 @@ class FileLisible(base.Base):
         self.assertIn('>Relancer</button>', html)
         self.assertIn('>Écarter</button>', html)
         self.assertIn('Tout <span class="q51-n">3</span>', html)
-        self.assertIn('À relire <span class="q51-n">1</span>', html)
+        self.assertIn('Courriels <span class="q51-n">1</span>', html)   # 5.6.66 : rubriques par nature sur Aujourd'hui
 
     def test_onglet_interrompus_deplie(self):
         html = self._render('echecs')

@@ -390,8 +390,8 @@ def compose(desk, matter, extraction, events, name, labels, audience, greeting, 
     else:
         intro = ('Note interne – aucun destinataire n’est paramétré pour ce dossier. Le document « %s » a été '
                  'détecté dans le dossier %s%s.' % (name, labels or matter.get('client_name', ''), rg))
-        outro = ('Choisissez le rôle du cabinet et le confrère à informer dans Paramètres → Rôle par dossier, '
-                 'puis adaptez ce message avant de l’envoyer.')
+        outro = ('Pour qu’AxiorHub prépare directement le courriel d’information, indiquez le rôle du cabinet et le confrère ou le '
+                 'client à informer dans Paramètres → Rôle par dossier.')
     body = intro + juris + '\n\nDates retenues :\n' + '\n'.join(lines) + verify + '\n\n' + outro
     if audience != 'interne' and signature:
         body += '\n' + signature
@@ -465,7 +465,21 @@ def analyze(desk, args, dav=None, mailbox_factory=None, extractor=None):
     allowed = (desk.c.get('mode') == 'drafts' and
                desk.settings('automation:automatic_mail_drafts_enabled',
                              desk.c.get('orchestrator', {}).get('automatic_mail_drafts_enabled', True)))
-    if not allowed:
+    if audience == 'interne':
+        # 5.6.66 (demande du cabinet, 20 octobre 2026) : la note interne est un document Word rangé dans le dossier concerné (à défaut,
+        # dans « A TRAITER ») ; elle n'encombre plus les brouillons de la messagerie ni la file « À relire ».
+        if desk.c.get('mode') == 'observe':
+            result.update({'status': 'prepared', 'projet_prepare': True, 'proposed_body': body,
+                           'message': 'Dates traitées ; note interne préparée (mode observation : aucun fichier écrit).'})
+        else:
+            from .notes5666 import deposit
+            note = deposit(desk, client, matter, subject.replace('[À traiter] ', '', 1), body.split('\n'))
+            created = [c for c in calendar if c.get('calendar') == 'cree']
+            result.update({'note_interne': note['chemin'], 'note_emplacement': note['emplacement'],
+                           'message': 'Avis analysé : %d date(s) retenue(s), %d inscrite(s) à l’agenda, note interne « %s » rangée %s.' % (
+                               len(usable), len(created), note['nom'],
+                               'dans le dossier' if note['emplacement'] == 'dossier' else 'dans « A TRAITER »')})
+    elif not allowed:
         result.update({'status': 'prepared', 'projet_prepare': True, 'proposed_body': body,
                        'message': 'Dates traitées ; le dépôt automatique du brouillon est désactivé dans vos réglages.'})
     else:
@@ -495,7 +509,8 @@ def analyze(desk, args, dav=None, mailbox_factory=None, extractor=None):
                     (json.dumps(result, ensure_ascii=False, default=str), desk.now(), ident))
     desk.db.commit()
     desk.audit('avis_procedure_440_traite', {'matter': mid, 'path': path, 'events': len(usable),
-                                              'draft': bool(result.get('brouillon_imap')), 'recipient': audience})
+                                              'draft': bool(result.get('brouillon_imap')), 'recipient': audience,
+                                              'note': bool(result.get('note_interne'))})
     return result
 
 

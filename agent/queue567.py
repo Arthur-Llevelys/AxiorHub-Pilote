@@ -73,4 +73,9 @@ def recover(desk, worker_id):
             desk.db.execute("UPDATE jobs SET status='cancelled',finished=? WHERE id=? AND status='cancel_requested'",(desk.now(),row['id']))
     desk.db.commit()
     if rows:desk.audit('reprise567_apres_redemarrage',counts)
+    try:   # 5.6.66 : travaux suspendus par une pause déjà levée (voir arret5643.release_stale)
+        from .arret5643 import release_stale
+        release_stale(desk)
+    except Exception:   # noqa: BLE001 — jamais bloquant au démarrage
+        if desk.db.in_transaction:desk.db.rollback()
     return counts
