@@ -311,6 +311,7 @@ def prepare_draft(desk,args):
             events=DAV(desk.c['nextcloud']).events(cc['urls'],now-timedelta(days=1),now+timedelta(days=cc.get('availability_days',10)+1),cc['timezone'])
             slots=available_slots(events,now,cc)[:3];sources += [{'id':s['id'],'kind':'available_slot',**s} for s in slots]
         payload={'incoming':mail.public(),'style':style,'instruction_avocat':instruction,
+                 **({'mode_projet':'a_completer'} if args.get('mode_projet')=='a_completer' else {}),   # 5.6.69 : jamais de page blanche
                  'dossier':{'id':m['id'],'nom':m['client_name']} if m['id'] else {'id':'','nom':'Aucun dossier',
                      'consigne':'Aucun dossier rattaché : répondre seulement à partir du courriel, de ses pièces jointes et de l’instruction de '
                                 'l’avocat ; ne rien affirmer sur un dossier ; signaler ce qui devra être vérifié.'},
@@ -469,7 +470,9 @@ def prepare_reply(desk,args):
     """One-click safe path: prepare, verify and append when no decision is needed."""
     from .live430 import progress
     progress(desk,'Consultation des sources et préparation de la réponse',str(args.get('matter','')),str(args.get('key','')))
-    prepared=prepare_draft(desk,{**args,'style':'prudent','instruction':args.get('instruction','')})
+    from .prudent5667 import enabled as _projets_a_completer
+    mode=('a_completer' if args.get('automatic')=='yes' and _projets_a_completer(desk) else '')   # 5.6.69 : projet « à compléter » plutôt que rien
+    prepared=prepare_draft(desk,{**args,'style':'prudent','instruction':args.get('instruction',''),'mode_projet':mode})
     if not prepared['projet_prepare']:
         return {**prepared,'message':'Aucun texte fiable ne peut être proposé sans votre décision.'}
     if (getattr(desk,'c',{}).get('mode')=='observe' or

@@ -5,7 +5,7 @@
 <p align="center"><strong>Der KI-Ausführungsagent für die Anwaltskanzlei</strong><br>
 E-Mails, Akten, Anlagen, Fristen, Kalender und Schriftsatzentwürfe, auf Ihrem eigenen Server, mit lokaler KI oder pseudonymisierter externer KI.</p>
 
-<p align="center">Erstellt von <strong>Timo RAINIO</strong>, Rechtsanwalt (Barreau de Lyon) · Lizenz <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.68</p>
+<p align="center">Erstellt von <strong>Timo RAINIO</strong>, Rechtsanwalt (Barreau de Lyon) · Lizenz <a href="LICENSE">AGPL-3.0-or-later</a> · Version 5.6.69</p>
 
 <p align="center"><a href="README.md">Français</a> · <a href="README.en.md">English</a> · <strong>Deutsch</strong> · <a href="README.es.md">Español</a></p>
 
@@ -310,12 +310,12 @@ sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y git python3 python3-venv
 
 # 2. AxiorHub Pilote herunterladen und das geprüfte Archiv bauen (Prüfsummenmanifest, vom Installer kontrolliert)
-sudo git clone --branch v5.6.68 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
+sudo git clone --branch v5.6.69 https://github.com/Arthur-Llevelys/AxiorHub-Pilote.git /opt/axiorhub-src
 cd /opt/axiorhub-src
-sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.68.tar.gz
+sudo python3 scripts/build-release.py /tmp/axiorhub-mail-agent-5.6.69.tar.gz
 
 # 3. Installieren (oder aktualisieren): Code in /opt/axiorhub-mail-agent, Konfiguration in /etc/axiorhub-mail-agent
-cd /tmp && tar -xzf axiorhub-mail-agent-5.6.68.tar.gz && cd axiorhub-mail-agent-5.6.68
+cd /tmp && tar -xzf axiorhub-mail-agent-5.6.69.tar.gz && cd axiorhub-mail-agent-5.6.69
 sudo bash install.sh
 
 # 4. Postfach, Nextcloud, Kalender und KI einrichten (Passwörter verdeckt eingegeben), dann prüfen
@@ -326,7 +326,7 @@ sudo axiorhub-mail doctor
 sudo python3 /opt/axiorhub-mail-agent/current/install-interface.py
 ```
 
-Alternative: Das Debian-Paket `axiorhub-pilote_5.6.68_all.deb` (`sudo apt install ./axiorhub-pilote_5.6.68_all.deb`, gebaut mit
+Alternative: Das Debian-Paket `axiorhub-pilote_5.6.69_all.deb` (`sudo apt install ./axiorhub-pilote_5.6.69_all.deb`, gebaut mit
 `scripts/build-deb.py`, siehe [Entwickeln](#entwickeln)) ersetzt Schritt 3; die Schritte 4 und 5 bleiben. Zum Aktualisieren das Archiv
 der neuen Version ausführen (`sudo bash install.sh`); schlägt es fehl, bleibt die bisherige Version aktiv (zurück:
 `sudo python3 upgrade.py --rollback`).
@@ -336,9 +336,9 @@ der neuen Version ausführen (`sudo bash install.sh`); schlägt es fehl, bleibt 
 **Voraussetzungen**: Windows 11 (64 Bit) und Microsoft Edge (vorinstalliert); [Ollama für Windows](https://ollama.com/download/windows)
 oder ein externer KI-Anbieter; optional: Tesseract OCR, LibreOffice. Python ist enthalten.
 
-1. Laden Sie `AxiorHub-Pilote-Setup-5.6.68.exe` und die zugehörige `.sha256`-Datei von der Seite *Releases* des Repositorys herunter,
+1. Laden Sie `AxiorHub-Pilote-Setup-5.6.69.exe` und die zugehörige `.sha256`-Datei von der Seite *Releases* des Repositorys herunter,
    oder bauen Sie sie (`python scripts\build-windows.py dist\windows`).
-2. Prüfsumme in PowerShell kontrollieren: `Get-FileHash .\AxiorHub-Pilote-Setup-5.6.68.exe -Algorithm SHA256`.
+2. Prüfsumme in PowerShell kontrollieren: `Get-FileHash .\AxiorHub-Pilote-Setup-5.6.69.exe -Algorithm SHA256`.
 3. Installer starten (ohne Administratorrechte). Zeigt SmartScreen „Der Computer wurde durch Windows geschützt“: **Weitere
    Informationen › Trotzdem ausführen**.
 4. **AxiorHub Pilote** im Startmenü öffnen: Das Fenster öffnet sich, bereits angemeldet, auf den ersten Einstellungen.
@@ -356,8 +356,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen3:8b
 
 # AxiorHub Pilote (Paket und .sha256 von der Seite Releases des Repositorys)
-sha256sum -c axiorhub-pilote-poste_5.6.68_amd64.deb.sha256
-sudo apt install ./axiorhub-pilote-poste_5.6.68_amd64.deb
+sha256sum -c axiorhub-pilote-poste_5.6.69_amd64.deb.sha256
+sudo apt install ./axiorhub-pilote-poste_5.6.69_amd64.deb
 ```
 
 **AxiorHub Pilote** über das Anwendungsmenü starten (oder `axiorhub-pilote` im Terminal): Das Fenster öffnet sich, bereits angemeldet,
@@ -480,8 +480,8 @@ Siehe [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (auf Französisch).
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -q
 python3 scripts/privacy-scan.py
-python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.68.tar.gz
-python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.68_all.deb --archive dist/axiorhub-mail-agent-5.6.68.tar.gz
+python3 scripts/build-release.py dist/axiorhub-mail-agent-5.6.69.tar.gz
+python3 scripts/build-deb.py dist/axiorhub-pilote_5.6.69_all.deb --archive dist/axiorhub-mail-agent-5.6.69.tar.gz
 python scripts/build-windows.py dist/windows   # unter Windows, nach pip install -r scripts/windows-requirements.txt
 ```
 

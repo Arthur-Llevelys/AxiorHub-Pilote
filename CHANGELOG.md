@@ -3,6 +3,26 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.69 — Analyses payantes répétées supprimées, projets « à compléter » réellement rédigés
+
+Diagnostic du cabinet du 21 octobre 2026 (lecture seule du serveur) : pas de brouillon, analyses de documents en erreur,
+préparations bloquées, et des appels payants répétés au fournisseur externe pour les mêmes courriels.
+
+- **Orchestration des courriels.** Un courriel déjà analysé était réanalysé (classement et analyse différentielle) à chaque
+  rafraîchissement de la mémoire du dossier, plusieurs fois par jour : c’est ce qui épuisait le plafond mensuel. L’analyse n’est
+  refaite que si le courriel, son rattachement ou son tri changent.
+- **Projets « à compléter » réellement rédigés.** En préparation automatique, le modèle rendait un texte vide dès qu’une décision de
+  l’avocat manquait (« Aucun texte fiable ne peut être proposé »). Il rédige désormais le projet (faits sourcés,
+  plan, réponse aux points posés) avec « [À COMPLÉTER : …] » là où votre position manque ; dépôt aux mêmes conditions de sûreté
+  qu’en 5.6.67, jamais envoyé.
+- **Analyses de documents.** Un passage sans réponse du modèle (page blanche, image) ne fait plus échouer toute l’analyse
+  (« analyse de section incomplète ») : il est signalé « à vérifier sur l’original ». Une synthèse vide reprend les relevés du lot.
+- **IA externe : la demande tient dans la taille autorisée.** Les rédactions confiées à un fournisseur externe sont dimensionnées
+  15 000 caractères sous la taille maximale (place des consignes), au lieu d’être refusées (« contexte trop long »).
+- **À décider.** Le regroupement des missions automatiques fonctionne même quand le titre de la carte est coupé ; les préparations
+  automatiques arrêtées « Document nouveau ou modifié » d’un même dossier forment une seule carte. « Ne plus proposer pour ce dossier »
+  met aussi en pause ces préparations.
+
 ## 5.6.68 — Plafond de l’IA compté juste, relais local, file « À décider » allégée
 
 Retours du cabinet du 21 octobre 2026 (captures d’« Aujourd’hui », des erreurs et de « Sécurité de l’IA ») : routines « rédigées sans
