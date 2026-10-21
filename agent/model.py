@@ -504,6 +504,8 @@ def routed_config(config, purpose):
         base['context_mode']=_params['context_mode']
         if _params['context_mode']=='fixe':base['num_ctx']=_params['num_ctx']
     base['external_policy_config']=config
+    if provider_type!='ollama':   # 5.6.69 : place laissée aux consignes ; la politique mesure les messages transmis
+        base['max_context_chars']=max(8000,min(int(base.get('max_context_chars') or 65000),int(hybrid.get('max_external_characters') or 120000)-15000))
     if config.get('state_dir'):base['state_dir']=config['state_dir']
     base['pseudo']=pseudo_sources(config)
     from .extensions364 import active_skill_instructions
@@ -556,7 +558,9 @@ appointment. Pour reponse_fondee_dossier ou relance, rédige la réponse au fond
 manquante (concession, montant, stratégie) ne bloque que le passage qu'elle concerne : rédige le reste
 (faits sourcés, plan, points traités), signale le passage manquant dans limits et mets
 requires_decision=true. Pour demande_precision, limite le texte à des questions non engageantes.
-Si rien d'utile ne peut être rédigé, laisse body vide. Chaque fait doit
+Si rien d'utile ne peut être rédigé, laisse body vide, sauf si « mode_projet » vaut « a_completer » : body n'est alors jamais vide ;
+rédige le projet de réponse (faits sourcés, plan, réponse aux points posés) et écris « [À COMPLÉTER : …] » à chaque endroit où une
+décision, une position, un montant ou une information de l'avocat manque, avec requires_decision=true. Chaque fait doit
 citer une source fournie. N'affirme jamais qu'une pièce est conforme ou qu'une action
 a été accomplie. Respecte les destinataires et le rôle indiqués. Une source
 structured_memory n'est utilisable comme fait que si son extrait porte le statut

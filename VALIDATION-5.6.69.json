@@ -1,0 +1,32 @@
+{
+  "version": "5.6.69",
+  "base": "5.6.68 publiée",
+  "date_utc": "2026-10-21T00:00:00+00:00",
+  "cahier_des_charges": "Diagnostic du 21 octobre 2026 : aucun brouillon, analyses de documents en erreur, préparations bloquées, appels payants répétés par l’orchestrateur, cartes « À décider » non regroupées.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2654,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 114,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5669.py (7) : mémoire du dossier rafraîchie sans nouvelle analyse ; mode « à compléter » transmis en préparation automatique et consigne au modèle ; passage sans réponse signalé ; taille externe ; regroupement malgré un titre coupé et des plans « Document nouveau ou modifié » ; exclusion qui met en pause les préparations.",
+  "exapp": {
+    "version": "0.1.28",
+    "moteur": "5.6.69"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "orchestrator.orchestrate_mail : empreinte sans memory_version.",
+    "intelligence.prepare_reply : mode_projet=a_completer (automatique, réglage actif) ; prepare_draft le transmet ; MANUAL_DRAFT_PROMPT : body jamais vide dans ce mode.",
+    "long_documents365._ask / _merge : réponse vide signalée ou relevés repris au lieu d’une erreur.",
+    "model.routed_config : max_context_chars d’un fournisseur externe ≤ max_external_characters − 15 000.",
+    "file5657 : instruction complète lue en base (_full_title), plans « Document nouveau ou modifié » regroupés ; bruit5668.exclude_matter met en pause les plans automatiques du dossier."
+  ],
+  "adjusted_tests": []
+}

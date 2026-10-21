@@ -26,6 +26,20 @@ def mission_text(title):
     return text.strip(), ''
 
 
+DOC_EVENT = 'Document nouveau ou modifié'
+
+
+def _full_title(desk, card):
+    """5.6.69 : instruction complète de la mission (le titre de la carte est coupé à 160 caractères, consigne de sécurité comprise)."""
+    try:
+        row = desk.db.execute('SELECT instruction FROM missions_v567 WHERE id=?', (str(card.get('id') or ''),)).fetchone()
+        if row:
+            return 'Mission : ' + str(row[0])
+    except Exception:   # noqa: BLE001
+        pass
+    return card.get('title')
+
+
 def _reason(code):
     code = str(code or '').strip()
     if not code:
@@ -72,8 +86,17 @@ def decision_items(desk, prefix='', actor='cabinet'):
             if reason not in group['reasons']:
                 group['reasons'].append(reason)
             continue
+        if c.get('kind') == 'plan' and str(c.get('title') or '').startswith(DOC_EVENT):
+            # 5.6.69 : plans automatiques « Document nouveau ou modifié » d'un même dossier : une carte
+            group = waiting.setdefault((mid, DOC_EVENT), {
+                'class': 'decision_agent', 'object': 'attente:' + mid + ':plans', 'matter': mid, 'matter_name': c.get('matter_label') or 'Cabinet',
+                'action': '', 'subjects': [], 'reasons': [], 'missions': [], 'plans': [], 'verb': 'Préparation interne arrêtée',
+                'href': prefix + '/aujourdhui#decision=' + quote(c['key'], safe='')})
+            group['plans'].append(str(c['id']))
+            group['subjects'].append(str(c.get('title')))
+            continue
         if c.get('kind') == 'mission' and c.get('state') == 'decision':
-            action, subject = mission_text(c.get('title'))
+            action, subject = mission_text(_full_title(desk, c))
             if subject:   # 5.6.68 : missions automatiques en attente regroupées par dossier (33 cartes « 09 - Scanner » le 21 octobre 2026)
                 group = waiting.setdefault((mid, action), {
                     'class': 'decision_agent', 'object': 'attente:' + mid + ':' + action[:120], 'matter': mid,
@@ -103,6 +126,19 @@ def decision_items(desk, prefix='', actor='cabinet'):
         del g['reasons']
         out.append(g)
     for g in waiting.values():
+        if g.get('plans') is not None:   # 5.6.69 : plans automatiques arrêtés
+            n = len(g['plans'])
+            names = [s.split(' : ', 1)[-1] for s in g['subjects']]
+            g['title'] = g['subjects'][0] if n == 1 else '%d documents : préparation interne arrêtée' % n
+            g['consequence'] = (('Concernés : %s%s. ' % (', '.join(names[:4]), '…' if n > 4 else '')) if n > 1 else '') + (
+                'Une étape attend une décision ou une reprise. « Ne plus proposer pour ce dossier » arrête ces préparations automatiques.')
+            g['revision'] = _rev(*sorted(g['plans']))
+            g['choices'] = ('ouvrir', 'exclure') if g['matter'] else ('ouvrir',)
+            g['priority'], g['priority_reason'] = 'normale', ''
+            for k in ('subjects', 'reasons', 'verb', 'plans'):
+                del g[k]
+            out.append(g)
+            continue
         n = len(g['missions'])
         names = [s.split(' : ', 1)[-1] for s in g['subjects']]
         g['title'] = g['subjects'][0] if n == 1 else '%d documents en attente d’une décision — %s' % (n, g['verb'].rstrip(' .'))

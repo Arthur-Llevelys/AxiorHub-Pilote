@@ -52,6 +52,18 @@ def exclude_matter(desk, matter, actor='cabinet'):
         desk.db.commit()
     except Exception:   # noqa: BLE001 — table absente avant la première mission
         cancelled = 0
-    desk.audit('proactivite5668_dossier_exclu', {'matter': matter, 'missions_ecartees': cancelled, 'par': str(actor)[:80]})
+    paused = 0
+    try:   # 5.6.69 : préparations automatiques de ce dossier (pièces nouvelles) mises en pause
+        from . import plans568
+        for row in desk.db.execute("SELECT DISTINCT p.id,p.owner FROM plans_v568 p JOIN events_v568 e ON e.plan_id=p.id WHERE p.matter=? "
+                                   "AND e.source='document' AND p.state IN ('active','blocked')", (matter,)).fetchall():
+            try:
+                plans568.control(desk, {'id': row[0], 'action': 'pause'}, row[1])
+                paused += 1
+            except Stop:
+                continue
+    except Exception:   # noqa: BLE001 — tables absentes avant la première préparation
+        pass
+    desk.audit('proactivite5668_dossier_exclu', {'matter': matter, 'missions_ecartees': cancelled, 'plans_suspendus': paused, 'par': str(actor)[:80]})
     return {'ok': True, 'ecartees': cancelled,
             'message': 'Dossier exclu des missions automatiques ; %d mission(s) en attente écartée(s). Réversible dans Paramètres › Proactivité.' % cancelled}

@@ -167,7 +167,8 @@ def orchestrate_mail(desk,args,classifier=None,analyst=None):
     from .autonomy import operational_memory, _proposals_for_mail
     memory=operational_memory(desk,mid);packet=_source_packet(desk,matter,key,report,memory)
     fingerprint=digest(json.dumps({'mail':{k:report.get(k) for k in ('subject','sender','received_at','triage','indexed_attachments')},
-      'matter':mid,'memory_version':memory.get('version',0),'association':reason},sort_keys=True,ensure_ascii=False))
+      'matter':mid,'association':reason},sort_keys=True,ensure_ascii=False))   # 5.6.69 : sans la version de la mémoire du dossier
+    # (rafraîchie plusieurs fois par jour) : chaque rafraîchissement relançait l'analyse payante de tous les courriels récents.
     old=desk.db.execute('SELECT * FROM mail_orchestrations_v260 WHERE mail_key=?',(key,)).fetchone()
     if old and old['fingerprint']==fingerprint:
         classification=_loads(old['classification'],{});differential=_loads(old['differential'],{})

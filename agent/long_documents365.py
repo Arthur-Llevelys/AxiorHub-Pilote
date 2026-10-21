@@ -145,7 +145,8 @@ def _ask(model,question,source,limit,position,skill_guidance=''):
     result=model.ask('chat',payload);validate(result,CHAT)
     if result.get('source_ids') not in ([source['id']],[]):raise Stop('analyse_section_source_invalide')   # 5.6.61 : liste vide = ce passage
     answer=str(result.get('answer','')).strip()
-    if not answer:raise Stop('analyse_section_incomplete')
+    if not answer:   # 5.6.69 : passage sans réponse du modèle (page blanche, image) signalé ; le reste de l'analyse continue
+        return '[%s : le modèle n’a rien relevé dans ce passage ; à vérifier sur l’original.]' % str(source.get('citation') or source.get('id') or 'Passage')
     return _clip(answer,2600)
 
 
@@ -165,7 +166,8 @@ def _merge(model,question,items,limit,source_id,level,number,skill_guidance=''):
     expected=[x['id'] for x in sources]
     if set(result.get('source_ids',[]))!=set(expected):raise Stop('synthese_progressive_source_invalide')
     answer=str(result.get('answer','')).strip()
-    if not answer:raise Stop('synthese_progressive_incomplete')
+    if not answer:   # 5.6.69 : synthèse vide → relevés du lot mis bout à bout (rien n'est perdu)
+        answer='\n'.join(str(x.get('excerpt') or '') for x in items)
     answer=_clip(answer,3200)
     return {'id':source_id+'-s'+str(level)+'-'+str(number),'kind':'analyse_progressive',
       'path':items[0]['path'].split(' · ')[0]+' · '+items[0]['citation']+'–'+items[-1]['citation'],
