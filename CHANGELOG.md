@@ -3,6 +3,37 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.68 — Plafond de l’IA compté juste, relais local, file « À décider » allégée
+
+Retours du cabinet du 21 octobre 2026 (captures d’« Aujourd’hui », des erreurs et de « Sécurité de l’IA ») : routines « rédigées sans
+IA », aucun brouillon de courriel depuis la veille, 33 décisions pour le dossier « 09 - Scanner », motifs d’erreur illisibles et deux
+« instructions suspectes » sans courriel ni pièce.
+
+- **Plafond atteint : le modèle local prend le relais.** Quand le plafond mensuel d’un fournisseur externe (ou son quota) est atteint,
+  la demande passe au modèle local Ollama de la même fonction au lieu d’une production « sans IA » (routines, réponses de
+  l’assistant, brouillons). Le refus du plafond a lieu avant tout envoi ; si le modèle local est absent, la cause réelle reste affichée.
+- **Réservations des appels en échec.** Un appel en échec gardait sa réservation estimée jusqu’à la fin du mois, même sans facturation.
+  Un refus (4xx, sauf délai 408), une panne du fournisseur (5xx) ou une connexion impossible libèrent désormais la réservation ; un
+  délai dépassé ou une coupure restent « incertains ». La consommation affichée ne compte plus les appels en échec.
+- **Paramètres › IA › Plafond du mois** : par fournisseur, plafond, dépensé, réservé incertain, reste et utilisation ; l’administrateur
+  peut libérer les réservations incertaines après contrôle de la facture du fournisseur (journalisé).
+- **Bandeau sur Aujourd’hui** quand un plafond est atteint ou utilisé à 90 %, avec le lien vers le réglage.
+- **IA externe : taille mesurée sur ce qui part.** La politique comptait la donnée et les messages qui la contiennent (deux à trois fois
+  la taille réelle) : « contexte trop long » pour des questions ordinaires à l’assistant.
+- **Assistant** : une pièce sélectionnée illisible (scan de mauvaise qualité) est signalée et la réponse se fait avec les autres sources.
+- **Indexation de tous les dossiers** : un dossier en pause est sauté (le lot s’arrêtait sur « suspension sans pause en vigueur »).
+- **À décider allégé.** Un dossier de dépôt (« Scanner », « Numérisation », « A TRAITER », « A classer »…) ne déclenche plus de mission
+  automatique par pièce. Les missions automatiques en attente d’une décision sont regroupées par dossier en une carte, avec le motif,
+  les pièces concernées, « Écarter » et « Ne plus proposer pour ce dossier » (exclusion de la proactivité, réversible).
+- **Motifs en clair** dans « Erreurs des 7 derniers jours », les routines et les travaux interrompus (plafond, scans, conclusions
+  multiples, dossier regroupant plusieurs affaires, pause, relances suspendues).
+- **Sécurité de l’IA.** Le banc d’essai des modèles, qui contient exprès des instructions piégées fictives, n’est plus ni nettoyé ni
+  signalé ; ses anciennes alertes passent en « fausse alerte (banc d’essai) ». Le texte masqué retiré des lettres d’information est une
+  « Information — rien à faire », repliée en bas de page et hors du compte « à examiner ».
+- **Routines du cabinet** : cartes alignées en haut, de même hauteur, sur toute la largeur.
+- Une ancre vers une section repliée (lien du bandeau vers le plafond) ouvre cette section.
+- Jeux d’essai des versions 5.6.67 et 5.6.68 : noms de parties et numéros de procédure remplacés par des valeurs entièrement fictives.
+
 ## 5.6.67 — Réponses plus pertinentes et documents mieux préparés, même avec un modèle local
 
 Demande du cabinet du 20 octobre 2026 : six améliorations pour que l’IA prépare mieux courriels, documents et notes, y compris avec un

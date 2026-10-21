@@ -211,7 +211,7 @@ def estimate_and_check_budget(cfg, messages, max_tokens):
     return reserve(cfg,messages,max_tokens,_usage_db)
 
 
-def record_usage(cfg, result, estimated, status='done', messages=None):
+def record_usage(cfg, result, estimated, status='done', messages=None, error=''):
     if cfg.get('provider_type')=='ollama':return 0.0
     usage=result.get('usage',{}) if isinstance(result,dict) else {}
     input_tokens=int(usage.get('prompt_tokens') or usage.get('input_tokens') or 0)
@@ -219,6 +219,9 @@ def record_usage(cfg, result, estimated, status='done', messages=None):
     actual=(input_tokens*float(cfg.get('input_usd_per_million',0) or 0)+
             output_tokens*float(cfg.get('output_usd_per_million',0) or 0))/1_000_000
     cost=actual if actual else float(estimated or 0)
+    from .budget5668 import not_billed
+    released=status!='done' and not_billed(error)   # 5.6.68 : refus ou panne du fournisseur, rien de facturé
+    if released:cost=0.0
     if not cfg.get('state_dir'):return cost
     db=_usage_db(cfg['state_dir'])
     try:
@@ -236,7 +239,7 @@ def record_usage(cfg, result, estimated, status='done', messages=None):
                hashlib.sha256(canonical.encode()).hexdigest(),len(canonical),
                json.dumps(roles,ensure_ascii=False),json.dumps(policy,sort_keys=True),status))
         from .budget567 import settle
-        settle(db,cfg,status)
+        settle(db,cfg,status,released)
         db.commit()
     finally:db.close()
     return cost
@@ -247,7 +250,8 @@ def usage_snapshot(desk, provider_id=''):
     try:
         where='at LIKE ?';params=[prefix]
         if provider_id:where+=' AND provider=?';params.append(_provider_id(provider_id))
-        rows=db.execute('SELECT provider,COUNT(*) requests,COALESCE(SUM(input_tokens),0) input_tokens,COALESCE(SUM(output_tokens),0) output_tokens,ROUND(COALESCE(SUM(estimated_cost_usd),0),6) cost_usd FROM ai_usage_v391 WHERE '+where+' GROUP BY provider ORDER BY provider',params).fetchall()
+        # 5.6.68 : coût des seuls appels terminés (un appel en échec n'est plus additionné à son estimation)
+        rows=db.execute("SELECT provider,COUNT(*) requests,COALESCE(SUM(input_tokens),0) input_tokens,COALESCE(SUM(output_tokens),0) output_tokens,ROUND(COALESCE(SUM(CASE WHEN status='done' THEN estimated_cost_usd ELSE 0 END),0),6) cost_usd FROM ai_usage_v391 WHERE "+where+' GROUP BY provider ORDER BY provider',params).fetchall()
         return [dict(zip(('provider','requests','input_tokens','output_tokens','cost_usd'),row)) for row in rows]
     finally:db.close()
 

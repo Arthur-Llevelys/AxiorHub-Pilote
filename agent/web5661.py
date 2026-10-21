@@ -35,7 +35,7 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'file/missions':
         from . import missions567
         action = str(data.get('action') or '')
-        ids = [x for x in str(data.get('ids') or '').split(',') if x][:20]
+        ids = [x for x in str(data.get('ids') or '').split(',') if x][:60]   # 5.6.68 : missions regroupées (jusqu'à 60)
         if action not in ('resume', 'cancel') or not ids:
             raise Stop('demande_invalide')
         done, errors = 0, []

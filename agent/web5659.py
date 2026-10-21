@@ -106,7 +106,7 @@ def securite_page(desk, auth, prefix, env, args):
         raise Stop('role_insuffisant')
     rows = bouclier5659.alerts(desk, None, 200)
     c = bouclier5659.counts(desk)
-    items = []
+    items, infos = [], []   # 5.6.68 : alertes d'abord ; les informations (texte masqué retiré) repliées en bas
     for r in rows:
         findings = ''.join('<li><strong>%s</strong>%s%s</li>' % (
             e(f.get('label', '')), (' — ' + e(bouclier5659._where(f))) if bouclier5659._where(f) else '',
@@ -114,7 +114,7 @@ def securite_page(desk, auth, prefix, env, args):
         acts = ''.join('<form class="m5-form d51-inline" data-api="m5659/securite/decider" data-reload><input type="hidden" name="alerte" value="%d">'
                        '<input type="hidden" name="etat" value="%s"><button class="ax-btn ghost" type="submit">%s</button></form>' % (r['id'], st, e(label))
                        for st, label in (('vue', 'Examinée'), ('fausse_alerte', 'Fausse alerte')) if st != r['state'])
-        items.append('<li class="b59-item b59-%s" id="alerte-%d"><div><span class="d51-badge">%s</span> <strong>%s</strong> <span class="ax-muted">%s</span> · '
+        (infos if r['level'] == 'info' else items).append('<li class="b59-item b59-%s" id="alerte-%d"><div><span class="d51-badge">%s</span> <strong>%s</strong> <span class="ax-muted">%s</span> · '
                      '<span class="ax-muted">%s</span><span class="ax-muted">%s</span></div>'
                      '<ul>%s</ul><div class="ax-muted">État : %s%s</div>%s</li>' % (
                          e(r['level']), r['id'], e(bouclier5659.LEVEL_LABELS.get(r['level'], r['level'])), e(r['at'][:16].replace('T', ' ')),
@@ -128,6 +128,10 @@ def securite_page(desk, auth, prefix, env, args):
              'à la lecture et signalé.</p><p class="ax-muted">30 derniers jours : %d alerte(s), dont %d élevée(s) ; %d à examiner.</p>') % (
         c['total'], c['eleve'], c['a_examiner'])
     body = ('<ul class="b59-list">%s</ul>' % ''.join(items)) if items else '<p class="ax-muted">Aucune alerte enregistrée.</p>'
+    if infos:
+        body += ('<details class="b5668-infos"><summary>Informations : texte masqué retiré à la lecture (%d) — rien à faire</summary><p class="ax-muted">'
+                 'Les lettres d’information (Lefebvre Dalloz, sommaires de revues…) contiennent souvent du texte invisible (aperçu, suivi). Il est '
+                 'retiré avant toute lecture par l’IA ; ces lignes en gardent la trace.</p><ul class="b59-list">%s</ul></details>') % (len(infos), ''.join(infos))
     return '<div class="b59"><h1>Sécurité de l’IA</h1>%s%s</div>' % (intro, body)
 
 

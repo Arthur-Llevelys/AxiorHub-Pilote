@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5668/'):   # 5.6.68 : exclure un dossier (avocat, administrateur) ; plafond IA (administrateur)
+        from .web5668 import allowed as allowed5668
+        return allowed5668(role, api[len('m5668/'):])
     if api.startswith('m5667/'):   # 5.6.67 : corrections (avocat, administrateur) ; modèles et banc (administrateur)
         from .web5667 import allowed as allowed5667
         return allowed5667(role, api[len('m5667/'):])

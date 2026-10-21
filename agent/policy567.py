@@ -72,6 +72,8 @@ def check_external(cfg, payload=None, messages=None):
         # Sans contexte identifié, il est impossible de prouver qu'aucun dossier
         # exclu n'est transmis. Le modèle local reste utilisable.
         raise Stop('politique_externe_contexte_non_identifie')
-    size = len(json.dumps([payload, messages], ensure_ascii=False, default=str))
+    # 5.6.68 : taille de ce qui part réellement (les messages) ; avant, la donnée et les messages qui la contiennent étaient comptés
+    # ensemble (deux à trois fois la taille réelle), d'où « contexte trop long » pour des demandes ordinaires de l'assistant.
+    size = len(json.dumps(messages if messages is not None else payload, ensure_ascii=False, default=str))
     if size > rules['max_external_characters']:
         raise Stop('politique_externe_contexte_trop_long')

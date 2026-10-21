@@ -240,10 +240,16 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         for ordinal,path in enumerate(selected,1):
             path=clean_path(str(path))
             if not under(path,matter['path']):raise Stop('source_mission_autre_dossier')
-            text=extract(dav.download(dav.stat(path)),PurePosixPath(path).name,
-                         {**desk.c['documents'],'max_document_chars':2_000_000})
-            if not isinstance(text,str):text=text.get('text','')
-            if not text.strip():raise Stop('document_sans_texte_exploitable')
+            try:   # 5.6.68 : scan illisible → signalé, la réponse se fait avec les autres sources
+                text=extract(dav.download(dav.stat(path)),PurePosixPath(path).name,
+                             {**desk.c['documents'],'max_document_chars':2_000_000})
+                if not isinstance(text,str):text=text.get('text','')
+                if not text.strip():raise Stop('document_sans_texte_exploitable')
+            except Stop as ex:
+                if not unreadable_reason(str(ex)):raise
+                unreadable.append(PurePosixPath(path).name+' : '+unreadable_reason(str(ex)))
+                question=question+'\n\n[Information AxiorHub : pièce sélectionnée non lue (%s) ; ne pas en déduire son contenu.]'%unreadable[-1]
+                continue
             sid='selection567-'+str(ordinal)
             if len(text)>6000 or len(pages_from_text(text))>1:
                 items,proof=analyze_pages(desk,pages_from_text(text),sid,path,question,model,limit,'assistant')

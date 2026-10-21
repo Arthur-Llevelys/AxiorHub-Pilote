@@ -1109,7 +1109,8 @@ class Desk:
         if kind=='index_all':
             from .portfolio import portfolio_rows
             active={row['matter'] for row in portfolio_rows(self,['active'],limit=5000)}
-            cases=sorted((m for m in load_matters(self.c) if m['id'] in active),
+            from .pause5629 import is_paused   # 5.6.68 : un dossier en pause est sauté (avant : tout le lot s'arrêtait)
+            cases=sorted((m for m in load_matters(self.c) if m['id'] in active and not is_paused(self,m['id'])),
                          key=lambda m:m['id'])
             remaining=[m for m in cases if m['id']>args.get('after','')]
             pending=self.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]
@@ -1125,8 +1126,9 @@ class Desk:
             index=DocumentIndex(self.c['state_dir'])
             cases=sorted(load_matters(self.c),key=lambda m:m['id'])
             remaining=[]
+            from .pause5629 import is_paused
             for m in cases:
-                if m['id']<=args.get('after',''):continue
+                if m['id']<=args.get('after','') or is_paused(self,m['id']):continue
                 indexed=index.db.execute('SELECT 1 FROM knowledge_chunks WHERE matter=? LIMIT 1',(m['id'],)).fetchone()
                 known=self.db.execute('SELECT 1 FROM legal_memory_records WHERE matter=? LIMIT 1',(m['id'],)).fetchone()
                 if indexed and not known:remaining.append(m)

@@ -343,6 +343,8 @@ def document_events(desk,matter,items):
     for owner in settings568.owners(desk):
         p=settings568.profile(desk,owner)
         if not p['enabled'] or matter['id'] in p['excluded_matters']:continue
+        from .bruit5668 import depot_folder
+        if depot_folder(matter):continue   # 5.6.68 : dossier de dépôt (scanner, à classer) : pas de mission par pièce
         for path,meta in list(sorted(items.items()))[:2000]:
             if path in own or 'axiorhub' in fold(path.rsplit('/',1)[-1]) or not path.lower().endswith(('.pdf','.docx','.txt','.odt')):continue
             try:

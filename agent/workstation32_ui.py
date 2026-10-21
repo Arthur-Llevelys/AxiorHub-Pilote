@@ -202,6 +202,9 @@ def settings_page(desk,args,form,link):
         usage=usage_snapshot(desk)
         out+='</div><h3>Consommation externe du mois</h3>'
         out+=('<p class="empty">Aucune requête externe comptabilisée ce mois.</p>' if not usage else '<div class="table"><table><thead><tr><th>Fournisseur</th><th>Requêtes</th><th>Jetons entrée</th><th>Jetons sortie</th><th>Coût estimé USD</th></tr></thead><tbody>'+''.join('<tr><td>'+e(x['provider'])+'</td><td>'+e(x['requests'])+'</td><td>'+e(x['input_tokens'])+'</td><td>'+e(x['output_tokens'])+'</td><td>'+e(x['cost_usd'])+'</td></tr>' for x in usage)+'</tbody></table></div>')
+        from .budget5668 import settings_html as _budget5668   # 5.6.68 : plafond, dépensé, réservé incertain, reste
+        from .i18n5631 import role as _role5668
+        out+=_budget5668(desk,'',_role5668())
         out+='<h3>Modèle utilisé par fonction</h3><p>Le changement est testé avant activation. Pour préserver le secret professionnel, les fonctions restent sur Ollama tant qu’un fournisseur externe n’est pas expressément sélectionné.</p>'
         active={key:row for key,row in providers.items() if row.get('enabled') or key=='ollama'}
         options=''.join('<option value="'+e(key)+'">'+e(key+' · '+row['type'])+'</option>' for key,row in active.items())
