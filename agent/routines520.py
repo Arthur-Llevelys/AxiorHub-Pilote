@@ -462,7 +462,7 @@ def briefing(desk, today=None):
     except Exception as ex:
         text = _briefing_plain(data, s, lang)
         status = 'sans_ia'
-        notes.append('Rédigé sans IA (modèle indisponible : %s).' % str(ex)[:80])
+        notes.append('Rédigé sans IA (modèle indisponible : %s).' % _motif5668(ex))
     rid = _store(desk, 'briefing', today.isoformat(), text, data, notes, status)
     try:   # 5.6.32 : le résumé oral est préparé dans la foulée (prêt à la lecture du matin)
         from .oral5632 import get as oral
@@ -539,7 +539,7 @@ def tri(desk, now=None):
                         it['reply_today'] = bool(line.get('reponse_attendue_aujourdhui'))
         except Exception as ex:
             model_ok = False
-            notes.append('Classement et résumés sans IA (modèle indisponible : %s).' % str(ex)[:80])
+            notes.append('Classement et résumés sans IA (modèle indisponible : %s).' % _motif5668(ex))
         for it in items:
             it.setdefault('summary', it['excerpt'][:160] or it['subject'])
             it.setdefault('reply_today', it['category'] == 'urgent')
@@ -686,7 +686,7 @@ def bilan(desk, now=None):
         status = 'ok'
     except Exception as ex:
         status = 'sans_ia'
-        notes.append('Rédigé sans IA (modèle indisponible : %s).' % str(ex)[:80])
+        notes.append('Rédigé sans IA (modèle indisponible : %s).' % _motif5668(ex))
         text = '\n'.join(['# ' + lib(lang, 'bilan', 'Bilan de la semaine du %s au %s') % (monday.strftime('%d/%m/%Y'), local.date().strftime('%d/%m/%Y')), '',
                           '## ' + lib(lang, 'achievements', 'Réalisations'),
                           _md_items(produced, lambda x: '%s — %s (%s)' % (x['type'], x['dossier'] or lib(lang, 'firm', 'cabinet'), x['date']), lang),
@@ -868,3 +868,9 @@ def perform(desk, kind, args):
         from .routines5652 import execute
         return execute(desk, args)
     raise Stop('action_inconnue')
+
+
+def _motif5668(ex):
+    """5.6.68 : motif lisible (« Plafond mensuel… ») au lieu du code « budget_mensuel_fournisseur_depasse »."""
+    from .messages5668 import short
+    return short(str(ex), 140).rstrip(' .')

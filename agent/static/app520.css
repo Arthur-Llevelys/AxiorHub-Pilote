@@ -2256,6 +2256,19 @@ main aside.p5660-side,.ws-collapsed main aside.p5660-side{position:sticky;top:12
  :root:not([data-theme="light"]) .r52-preview{background:#243042}
  :root:not([data-theme="light"]) .r52-badge.r52-on{color:#86efac}:root:not([data-theme="light"]) .r52-badge.r52-off{color:#fcd34d}}
 @media (max-width:700px){.r52-cards,.cx52-list{grid-template-columns:1fr}}
+/* 5.6.68 : cartes des routines alignées en haut, sur toute la largeur (avant : centrées verticalement et colonne vide à droite) */
+.r52 .r52-cards{grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:stretch}
+.r52 .r52-card .c5614-actions{margin-top:auto}
+/* 5.6.68 : plafond de l'IA externe (Aujourd'hui) et informations repliées (Sécurité de l'IA) */
+.b5668-banner{margin:.4rem 0 .8rem;padding:.6rem .9rem;border:1px solid #f0c36d;border-left:4px solid #b45309;border-radius:10px;background:#fffbeb;color:#1f2a36}
+.b5668-banner.b5668-full{border-color:#f5b4b4;border-left-color:#b91c1c;background:#fef2f2}
+.b5668-banner p{margin:.2rem 0}.b5668-banner ul{margin:.2rem 0 .4rem 1.1rem;padding:0}
+.b5668-ko{color:#b91c1c}
+.b5668-infos{margin-top:1rem}.b5668-infos>summary{cursor:pointer;font-weight:600}
+html[data-theme="dark"] .b5668-banner,body.dark .b5668-banner{background:#2a2414;border-color:#7a5b1c;border-left-color:#f59e0b;color:#e8edf3}
+html[data-theme="dark"] .b5668-banner.b5668-full,body.dark .b5668-banner.b5668-full{background:#2b1717;border-color:#7f2d2d;border-left-color:#f87171}
+html[data-theme="dark"] .b5668-ko,body.dark .b5668-ko{color:#fca5a5}
+@media (max-width:700px){.r52 .r52-cards{grid-template-columns:1fr}}
 /* ==== v5653.css ==== */
 /* AxiorHub 5.6.53 — facturation et honoraires ; fiche d'opération externe (U01) */
 .b53 .b53-top{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;justify-content:space-between}

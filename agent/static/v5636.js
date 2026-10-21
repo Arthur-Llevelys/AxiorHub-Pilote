@@ -364,3 +364,19 @@
     if (f) { f.src = f.src; }
   });
 })();
+/* 5.6.68 : un lien vers une ancre placée dans une section repliée (Paramètres › IA › plafond du mois) ouvre cette section */
+(function () {
+  'use strict';
+  function reveal() {
+    var id = decodeURIComponent((location.hash || '').slice(1));
+    if (!id) { return; }
+    var t = document.getElementById(id);
+    if (!t) { return; }
+    for (var p = t.parentElement; p; p = p.parentElement) {
+      if (p.tagName === 'DETAILS' && !p.open) { p.open = true; }
+    }
+    t.scrollIntoView({block: 'start'});
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', reveal); } else { reveal(); }
+  window.addEventListener('hashchange', reveal);
+})();

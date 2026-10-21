@@ -55,7 +55,7 @@ def decision_items(desk, prefix='', actor='cabinet'):
     from . import aujourdhui5614
     out = []
     hidden = _hidden()
-    failures = {}
+    failures, waiting = {}, {}
     for c in aujourdhui5614.items(desk, actor, prefix):
         mid = str(c.get('matter') or '')
         if mid in hidden or (c.get('kind') == 'mission5614' and c.get('decision_kind') == 'validation'):
@@ -72,6 +72,19 @@ def decision_items(desk, prefix='', actor='cabinet'):
             if reason not in group['reasons']:
                 group['reasons'].append(reason)
             continue
+        if c.get('kind') == 'mission' and c.get('state') == 'decision':
+            action, subject = mission_text(c.get('title'))
+            if subject:   # 5.6.68 : missions automatiques en attente regroupées par dossier (33 cartes « 09 - Scanner » le 21 octobre 2026)
+                group = waiting.setdefault((mid, action), {
+                    'class': 'decision_agent', 'object': 'attente:' + mid + ':' + action[:120], 'matter': mid,
+                    'matter_name': c.get('matter_label') or 'Cabinet', 'action': '', 'subjects': [], 'reasons': [], 'missions': [], 'verb': action,
+                    'href': prefix + '/aujourdhui#decision=' + quote(c['key'], safe='')})
+                group['missions'].append(str(c['id']))
+                group['subjects'].append(subject)
+                why = str(c.get('question') or '').strip()
+                if why and why not in group['reasons']:
+                    group['reasons'].append(why)
+                continue
         out.append({'class': 'decision_agent', 'object': 'decision:' + c['key'], 'revision': _rev(c.get('state'), c.get('title'), c.get('question')),
                     'matter': mid, 'matter_name': c.get('matter_label') or 'Cabinet', 'title': c.get('title') or 'Décision attendue',
                     # « Ouvrir » : la carte d'action de cette décision (réponses, choix du dossier, adoption d'une règle…) sur Aujourd'hui
@@ -88,6 +101,20 @@ def decision_items(desk, prefix='', actor='cabinet'):
         g['priority'] = 'normale' if g['automatic'] else 'haute'   # une analyse automatique n'est jamais « prioritaire » pour l'avocat
         g['priority_reason'] = '' if g['automatic'] else 'Votre demande est interrompue'
         del g['reasons']
+        out.append(g)
+    for g in waiting.values():
+        n = len(g['missions'])
+        names = [s.split(' : ', 1)[-1] for s in g['subjects']]
+        g['title'] = g['subjects'][0] if n == 1 else '%d documents en attente d’une décision — %s' % (n, g['verb'].rstrip(' .'))
+        g['consequence'] = ((' '.join(g['reasons'][:2]) + ' ') if g['reasons'] else '') + (
+            ('Concernés : %s%s. ' % (', '.join(names[:4]), '…' if n > 4 else '')) if n > 1 else '') + (
+            'Sans décision, rien ne démarre. Écartez si ces documents ne demandent pas d’analyse.')
+        g['missions'] = g['missions'][:60]
+        g['revision'] = _rev(*sorted(g['missions']))
+        g['choices'] = ('ouvrir', 'ecarter', 'exclure') if g['matter'] else ('ouvrir', 'ecarter')
+        g['priority'], g['priority_reason'] = 'normale', ''
+        for k in ('subjects', 'reasons', 'verb'):
+            del g[k]
         out.append(g)
     return out
 

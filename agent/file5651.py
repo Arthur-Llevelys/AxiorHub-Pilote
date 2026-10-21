@@ -314,6 +314,11 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                                '<input type="hidden" name="action" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>' % (
                                    e(','.join(it['missions']), quote=True), 'resume' if c == 'relancer' else 'cancel', '' if c == 'relancer' else ' ghost',
                                    'Relancer' if c == 'relancer' else 'Écarter'))
+            elif c == 'exclure':   # 5.6.68 : plus de mission automatique pour ce dossier (dossier de dépôt, scanner…)
+                buttons.append('<form class="m5-form q51-inline" data-api="m5668/proactivite/exclure" data-reload data-confirm="Ne plus proposer de '
+                               'mission automatique pour ce dossier ? Les missions en attente seront écartées ; réversible dans Paramètres › Proactivité.">'
+                               '<input type="hidden" name="matter" value="%s"><button class="ax-btn ghost" type="submit">Ne plus proposer pour ce dossier'
+                               '</button></form>' % e(it['matter'], quote=True))
             elif c == 'ranger':   # 5.6.66 : note interne déposée comme brouillon → document Word du dossier
                 buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/ranger-notes" data-reload><input type="hidden" name="items" value="%s">'
                                '<button class="ax-btn" type="submit">Ranger dans le dossier</button></form>' % e(it.get('item', ''), quote=True))

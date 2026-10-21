@@ -59,9 +59,10 @@ def reserve(cfg, messages, max_tokens, db_factory):
         db.close()
 
 
-def settle(db, cfg, status):
-    """Une panne peut avoir consommé des tokens : ne pas libérer sa réservation automatiquement."""
+def settle(db, cfg, status, released=False):
+    """Une panne peut avoir consommé des tokens : sa réservation reste « incertaine ». 5.6.68 : un échec certain non facturé (refus 4xx,
+    panne 5xx, connexion impossible) la libère (``released``)."""
     ident = cfg.pop('_budget_reservation', '')
     if ident:
         db.execute('UPDATE ai_reservations_v567 SET state=? WHERE id=? AND state=\'reserved\'',
-                   ('closed' if status == 'done' else 'uncertain', ident))
+                   ('closed' if status == 'done' or released else 'uncertain', ident))

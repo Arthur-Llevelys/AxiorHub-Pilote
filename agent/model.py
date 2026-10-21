@@ -523,6 +523,9 @@ def routed_config(config, purpose):
             base['hybrid_config']=config
             base['display_provider']='hybride · Ollama/OpenRouter'
             base['display_model']=str(base.get('model',''))+' → '+str(candidate.get('model',''))
+    if 'ollama' in config and provider_type!='ollama' and not base.get('hybrid_external'):
+        from .budget5668 import local_fallback   # 5.6.68 : plafond atteint → modèle local, au lieu d'une production « sans IA »
+        base=local_fallback(base,config,providers,purpose,role)
     if 'ollama' in config:
         from .secours564 import attach
         base=attach(base,config,purpose)          # 5.6.4 : secours externe si le modèle local est trop lent
@@ -852,6 +855,19 @@ class Model:
                     record(config,retry,'external_after_local_failure');return value
                 except Stop as external_error:
                     record(config,retry,'external_error',str(external_error));raise error
+        if self.cfg.get('budget_fallback'):
+            from .budget5668 import BUDGET_CODES,note_fallback
+            try:
+                return self._traced(messages,temperature,max_tokens,json_schema)
+            except Stop as error:
+                # 5.6.68 : refus du plafond AVANT tout envoi ; le modèle local de la même fonction prend le relais
+                if str(error) not in BUDGET_CODES:raise
+                fallback=self.cfg['budget_fallback']
+                try:value=self._call_child(fallback,'complete',messages,temperature,max_tokens,json_schema)
+                except Stop:raise error from None
+                self.last_provider='ollama';self.last_model=str(fallback.get('model') or '')
+                note_fallback(self.cfg,str(error))
+                return value
         return self._traced(messages,temperature,max_tokens,json_schema)
 
     def _traced(self,messages,temperature,max_tokens,json_schema):
@@ -964,7 +980,7 @@ class Model:
         from .arret5643 import interruptible
         try:result=interruptible(lambda:self.http.json('POST','/messages',req),self.cfg)
         except Stop as error:
-            record_usage(self.cfg,{},estimated,'error',messages)
+            record_usage(self.cfg,{},estimated,'error',messages,error=str(error))
             self.usage_cost_known=False
             raise self._translate_error(error) from None
         self.usage_cost_usd+=float(record_usage(self.cfg,result,estimated,'done',messages) or 0)
@@ -1011,7 +1027,7 @@ class Model:
         from .arret5643 import interruptible
         try:result=interruptible(lambda:self.http.json('POST','/chat/completions',req),self.cfg)
         except Stop as error:
-            record_usage(self.cfg,{},estimated,'error',messages)
+            record_usage(self.cfg,{},estimated,'error',messages,error=str(error))
             self.usage_cost_known=False
             raise self._translate_error(error) from None
         self.usage_cost_usd+=float(record_usage(self.cfg,result,estimated,'done',messages) or 0)

@@ -1,0 +1,34 @@
+{
+  "version": "5.6.68",
+  "base": "5.6.67 publiée",
+  "date_utc": "2026-10-21T00:00:00+00:00",
+  "cahier_des_charges": "Retours du cabinet du 21 octobre 2026 : plafond de l’IA externe consommé par les échecs, routines sans IA, peu de brouillons, décisions « 09 - Scanner », motifs illisibles, alertes du banc d’essai, routines décalées.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2646,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 113,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5668.py (20) : réservation libérée sur refus/panne/connexion, délai dépassé incertain, codes ; état du plafond, bandeau, libération journalisée, page Paramètres › IA, consommation sans échecs ; configuration du relais local, relais sur plafond, autre erreur ou relais indisponible ; taille externe mesurée sur les messages ; banc d’essai sans alerte, migration des alertes ; dossier de dépôt, carte regroupée, exclusion d’un dossier, bouton dans la file ; motifs en clair, droits des routes, routines alignées ; indexation sans dossier en pause.",
+  "exapp": {
+    "version": "0.1.27",
+    "moteur": "5.6.68"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "budget567.settle(released) ; ai_gateway.record_usage(error=) : refus/panne/connexion → réservation close et coût 0 ; usage_snapshot : coût des seuls appels terminés.",
+    "model.routed_config : budget_fallback (budget5668.local_fallback) pour une route externe directe ; Model.complete bascule sur le modèle local pour BUDGET_CODES (budget5668:dernier_repli).",
+    "policy567.check_external : taille des messages transmis (sinon de la donnée).",
+    "workspace.chat : pièce sélectionnée illisible signalée ; desk index_all / memory_all : dossiers en pause sautés.",
+    "bouclier5659 : purpose bench569 exempté ; état « information » pour le niveau info ; migration unique (bouclier5668:migre).",
+    "proactive568.document_events : dossiers de dépôt sautés (bruit5668.depot_folder) ; file5657 : missions automatiques en attente regroupées ; file5651 : choix « exclure » ; web5661 : jusqu’à 60 missions par lot ; routes m5668/*.",
+    "web440.human : messages5668 ; routines520 : motif lisible ; v5652.css : grille des routines ; v5636.js : ancre dans une section repliée."
+  ],
+  "adjusted_tests": []
+}

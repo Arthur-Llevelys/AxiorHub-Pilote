@@ -284,6 +284,10 @@ def category(method, path, action=''):
             return 'reglages'
         if route5653 not in ('estimation/calculer', 'epingler'):
             return 'facturation'
+    if api.startswith('m5668/budget/') and method not in ('GET', 'HEAD'):   # 5.6.68 : plafond de l'IA = réglage du cabinet
+        return 'reglages'
+    if api.startswith('m5668/proactivite/') and method not in ('GET', 'HEAD'):   # 5.6.68 : comme Écarter une mission
+        return None
     if api.startswith('m5667/corrections/'):   # 5.6.67 : correction récurrente → règle (comme les règles « toujours faire comme ça »)
         return None
     if api.startswith('m5667/') and method not in ('GET', 'HEAD'):   # 5.6.67 : modèles et banc d'essai = réglage du cabinet
