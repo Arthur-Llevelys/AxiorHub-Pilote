@@ -87,7 +87,10 @@ def monitor_matter(desk,args):
     cfg=desk.c.get('proactive',{});now_dt=datetime.now(timezone.utc);stamp=desk.now()
     index=DocumentIndex(desk.c['state_dir']);indexed=_snapshot(index,mid);current=indexed
     live_error='';scanning=False
-    if cfg.get('monitor_live_nextcloud',True):
+    from .surveillance5671 import skip_live_inventory
+    # 5.6.71 : la veille des documents vient de relire Nextcloud : pas de seconde relecture (sauf première observation du dossier)
+    reuse=skip_live_inventory(desk,args) and bool(desk.db.execute('SELECT 1 FROM matter_watch WHERE matter=?',(mid,)).fetchone())
+    if cfg.get('monitor_live_nextcloud',True) and not reuse:
         try:
             client=DAV(desk.c['nextcloud'])
             if hasattr(client,'inventory_step'):
@@ -109,6 +112,7 @@ def monitor_matter(desk,args):
         except Stop as ex:live_error=str(ex)
     prior=desk.db.execute('SELECT snapshot FROM matter_watch WHERE matter=?',(mid,)).fetchone()
     previous=json.loads(prior[0]) if prior else None
+    if reuse and previous is not None:current=previous   # inventaire connu conservé : aucun faux « fichiers modifiés »
     if scanning and previous is not None:current=previous
     created=[]
     if previous is None and current and not indexed:
@@ -229,7 +233,7 @@ def monitor_all(desk,args):
     free=max(0,98-desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0])
     selected,skipped,last=[],[],after
     for matter in remaining[:min(limit,free)]:
-        try:desk.enqueue('monitor_matter',{'matter':matter['id']},priority=60)
+        try:desk.enqueue('monitor_matter',{'matter':matter['id'],'tour':'oui'},priority=60)   # 5.6.71 : tour périodique (voir surveillance5671)
         except Stop as ex:
             if str(ex) in ('agent_en_pause_sur_ce_dossier','relances_suspendues_apres_trois_echecs'):
                 skipped.append(matter['id']);last=matter['id'];continue   # 5.6.60 : dossier en pause ou en échec répété : passé, jamais bloquant

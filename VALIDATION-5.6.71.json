@@ -1,0 +1,36 @@
+{
+  "version": "5.6.71",
+  "base": "5.6.70 publiée",
+  "date_utc": "2026-10-22T00:00:00+00:00",
+  "cahier_des_charges": "Diagnostic du 22 octobre 2026 : surveillances de dossier répétées (agenda), activité de l’agent illisible, courriels sans dossier confirmé jamais rédigés, réponses en attente de décision sans action possible.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2693,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 117,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5671.py (15) : veille des documents récente et tour espacé ; tour sans relecture Nextcloud ni faux changement ; tour marqué ; agenda modifié → seul le dossier désigné ; travaux techniques masqués, utilité et résultat affichés ; contrôles d’intégrité nocturnes ; réponses « sans dossier » (fenêtre, une tentative, réglages, message du cabinet exclu, rattachement incertain, dossier supposé jamais utilisé) ; carte « à relire », dépôt du texte relu ou « à compléter », écarter, dossier réservé ; éditeur de la page du courriel ; droits et câblage.",
+  "exapp": {
+    "version": "0.1.30",
+    "moteur": "5.6.71"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "watch430.calendar_check : surveillance5671.after_calendar au lieu de monitor_all.",
+    "proactive.monitor_all : surveillances marquées « tour » ; monitor_matter : pas de relecture Nextcloud pendant le tour si la veille des documents a terminé un passage depuis moins de 2 h ; operations : tour espacé à 6 h dans ce cas.",
+    "cockpit530.feed : activite5671 (utilité, résultat, travaux techniques masqués) ; operations : contrôles d’intégrité nocturnes (activite5671.integrity_due).",
+    "operations : reponses5671.schedule toutes les 10 minutes ; intelligence.prepare_draft : ignorer_dossier_suppose.",
+    "file5651 : source reponses5671 et choix sous forme d’action ; web.py /mail : éditeur de la réponse en attente."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5670.py : Php.test_machine_et_paquet isole le repli glob (correctif publié en eac4aaf).",
+    "tests/test_v430.py : un changement d’agenda ne met plus en file le tour complet des dossiers (comportement voulu).",
+    "tests/test_v569.py : contrôles d’intégrité une fois par nuit, plus à l’heure (comportement voulu)."
+  ]
+}

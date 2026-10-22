@@ -3,6 +3,28 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.71 — Surveillance des dossiers allégée, activité de l’agent lisible, réponses « sans dossier », réponses en attente visibles
+
+Diagnostic du cabinet du 22 octobre 2026 (lecture seule) : environ 1 500 surveillances de dossier par jour, chacune relisant Nextcloud ;
+« Ce que fait l’agent » incompréhensible ; très peu de brouillons, car les courriels sans dossier confirmé n’étaient jamais rédigés et
+les réponses préparées en attente de décision n’avaient aucun bouton.
+
+- **Surveillance allégée.** Un événement d’agenda nouveau ou modifié ne relance plus le tour complet de tous les dossiers : seule la
+  surveillance du dossier qu’il désigne (au plus 5). Quand la veille des documents tourne, le tour périodique ne relit plus Nextcloud
+  (elle le fait déjà et signale chaque fichier modifié) et passe à 6 heures au moins.
+- **« Ce que fait l’agent » lisible.** Chaque travail dit à quoi il sert ; chaque passage terminé dit ce qu’il a produit
+  (« 11 courriels analysés · 2 réponses mises en préparation · 6 en attente de votre décision ») ; les passages sans résultat et les
+  travaux techniques (contrôles d’intégrité, index de recherche, nettoyage de la boîte, actualisation interne) ne sont plus listés.
+  Les contrôles d’intégrité (sans IA) tournent une fois par nuit.
+- **Réponses « sans dossier ».** Un courriel qui appelle une réponse mais dont le dossier n’est pas confirmé (expéditeur inconnu,
+  prospect, correspondant à confirmer, rattachement incertain) reçoit une réponse préparée à partir du seul courriel et de ses pièces
+  jointes, marquée « [À COMPLÉTER] » et déposée dans Brouillons si le contrôle de sûreté l’autorise. Jamais envoyée ; le dossier
+  seulement supposé par l’agent n’est jamais utilisé ; une seule tentative automatique par courriel ; réglage dans Paramètres › Messagerie.
+- **Réponses en attente de décision.** Une réponse préparée que le contrôle n’autorise pas à déposer devient une carte « Courriels à
+  relire et envoyer » avec le motif ; la page du courriel permet de relire et modifier le texte puis de le déposer dans Brouillons, de
+  le déposer tel quel « à compléter » (si le contrôle de sûreté l’autorise) ou de l’écarter. Avant, aucun bouton ne le permettait.
+- Recette : le test du contrôle PHP ne dépend plus du PHP réellement installé sur la machine.
+
 ## 5.6.70 — Facturation électronique intégrée, messagerie et Dossier enrichis, visioconférence Jitsi, blocage automatique des accès suspects
 
 Demande du cabinet du 22 octobre 2026.

@@ -189,16 +189,19 @@ def calendar_check(desk,dav=None):
     events=client.events(*parameters,include_cancelled=True) if isinstance(client,DAV) else client.events(*parameters)
     from .proactive568 import calendar_events
     calendar_events(desk,events)
-    changed=0;dirty=[]
+    changed=0;dirty=[];moved=[]
     for event in events:
         # UID + occurrence, not moving query boundaries, avoids recurrent noise.
         key=event.get('source_url','')+'|'+event.get('uid','')+'|'+event.get('start','')
         state=observe(desk,'calendar',key,event)
         if state!='unchanged':
-            dirty.append(key)
+            dirty.append(key);moved.append(event)
             changed+=1;emit(desk,'calendar','Événement agenda '+('détecté' if state=='new' else 'modifié')+' : '+str(event.get('summary') or event.get('title') or 'Événement')[:250],getattr(desk,'active_job_id',None))
     if changed:
-        desk.enqueue('monitor_all',priority=55)
+        # 5.6.71 : seuls les dossiers désignés par les événements modifiés sont surveillés (avant : tour complet de tous les dossiers
+        # à chaque événement, plus d'un millier de relectures Nextcloud par jour).
+        from .surveillance5671 import after_calendar
+        after_calendar(desk,moved)
         if desk.settings('automation:production_enabled',desk.c.get('production',{}).get('enabled',True)):
             desk.enqueue('production_cycle391',{'limit':20},priority=35)
         for key in dirty:acknowledged(desk,'calendar',key)

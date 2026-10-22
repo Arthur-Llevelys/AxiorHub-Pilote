@@ -2442,3 +2442,11 @@ html[data-theme="dark"] .ef70-ko,body.dark .ef70-ko{color:#fca5a5}
 @media (max-width:700px){#bx5625-rows{grid-template-columns:30px minmax(0,1fr)}.c5670-searchbar .c5670-find{max-width:none}}
 html[data-theme="dark"] .b53-tabs a[aria-current=page],body.dark .b53-tabs a[aria-current=page]{color:#0b1220}
 html[data-theme="dark"] .d51-state-partielle,body.dark .d51-state-partielle{color:#facc15}
+/* ==== v5671.css ==== */
+/* AxiorHub 5.6.71 — réponse préparée en attente de décision (page du courriel) */
+.r5671{margin:16px 0;padding:14px 16px;border:1px solid var(--ws-border,#cbd5e1);border-radius:10px}
+.r5671 h2{margin:0 0 8px}
+.r5671 label{display:block;font-weight:600;margin:10px 0 4px}
+.r5671 textarea{width:100%;box-sizing:border-box;font:inherit;line-height:1.5;padding:10px;border:1px solid var(--ws-border,#cbd5e1);border-radius:8px}
+.r5671-actions{margin:10px 0 0}
+.r5671-inline,.q51-inline[data-c5671]{display:inline-block;margin:8px 8px 0 0}

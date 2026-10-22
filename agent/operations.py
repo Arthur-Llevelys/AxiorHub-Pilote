@@ -130,6 +130,8 @@ def _automation_tick_5642(desk):
     proactive=desk.c.get('proactive',{})
     if desk.settings('automation:proactive_enabled',proactive.get('enabled',True)):
         minutes=economie569.interval(desk,'monitor_all',max(5,int(proactive.get('monitor_interval_minutes',30))))
+        from .surveillance5671 import round_minutes
+        minutes=round_minutes(desk,minutes)   # 5.6.71 : 6 h au moins quand la veille des documents tourne
         last=desk.settings('auto:monitor_all',0)
         if now_ts-last>=minutes*60 and cadence5662.allow(desk,'monitor_all',minutes,now_ts):
             desk.enqueue('monitor_all');desk.setting('auto:monitor_all',now_ts)
@@ -153,6 +155,10 @@ def _automation_tick_5642(desk):
         if now_ts-last>=minutes*60 and cadence5662.allow(desk,'autonomy_mail_sweep',minutes,now_ts):
             desk.enqueue('autonomy_mail_sweep',priority=40)
             desk.setting('auto:autonomy_mail_sweep',now_ts)
+    try:   # 5.6.71 : réponses « sans dossier » (courriels qui appellent une réponse, dossier non confirmé), toutes les 10 minutes
+        from . import reponses5671
+        reponses5671.schedule(desk,now_ts)
+    except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):
         minutes=economie569.interval(desk,'refresh_cabinet_pilotage',max(5,int(pilot.get('refresh_interval_minutes',30))))
@@ -162,7 +168,8 @@ def _automation_tick_5642(desk):
             desk.setting('auto:refresh_cabinet_pilotage',now_ts)
         test_minutes=economie569.interval(desk,'run_continuous_business_tests',max(15,int(pilot.get('continuous_tests_interval_minutes',60))))
         last_test=desk.settings('auto:run_continuous_business_tests',0)
-        if now_ts-last_test>=test_minutes*60 and cadence5662.allow(desk,'run_continuous_business_tests',test_minutes,now_ts):
+        from .activite5671 import integrity_due
+        if integrity_due(now_ts,last_test) and cadence5662.allow(desk,'run_continuous_business_tests',test_minutes,now_ts):   # 5.6.71 : une fois par nuit
             desk.enqueue('run_continuous_business_tests',priority=90)
             desk.setting('auto:run_continuous_business_tests',now_ts)
     from .proactive34 import schedule
