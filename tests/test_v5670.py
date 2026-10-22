@@ -226,7 +226,8 @@ class Php(unittest.TestCase):
             self.assertEqual(st['etat'], 'vulnerable')
             self.assertIn('PHP2Shell', php5670.health_item(st)['text'])
             php5670._CACHE.clear()
-            self.assertEqual(php5670.host_status(which=lambda n: None, doc_root=tmp + '/autre', now=1)['present'], False)
+            with patch.object(php5670.glob, 'glob', return_value=[]):   # machine de recette : un /usr/bin/php8.x réel ne doit pas compter
+                self.assertEqual(php5670.host_status(which=lambda n: None, doc_root=tmp + '/autre', now=1)['present'], False)
             self.assertIsNone(php5670.health_item({'present': False}))
             php5670._CACHE.clear()
 
