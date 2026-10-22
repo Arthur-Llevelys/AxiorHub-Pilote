@@ -284,6 +284,12 @@ def category(method, path, action=''):
             return 'reglages'
         if route5653 not in ('estimation/calculer', 'epingler'):
             return 'facturation'
+    if api.startswith('m5670/courriels/'):   # 5.6.70 : « Traiter avec l'IA » = dépôt de brouillons (comme « Répondre avec l'IA »)
+        return 'deposer'
+    if api.startswith('m5670/efacture/'):   # 5.6.70 : facturation électronique
+        return 'facturation'
+    if api.startswith(('m5670/visio/reglage', 'm5670/visio/tester', 'm5670/securite/')) and method not in ('GET', 'HEAD'):
+        return 'reglages'
     if api.startswith('m5668/budget/') and method not in ('GET', 'HEAD'):   # 5.6.68 : plafond de l'IA = réglage du cabinet
         return 'reglages'
     if api.startswith('m5668/proactivite/') and method not in ('GET', 'HEAD'):   # 5.6.68 : comme Écarter une mission

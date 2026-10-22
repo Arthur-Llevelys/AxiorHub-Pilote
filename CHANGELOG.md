@@ -3,6 +3,46 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.70 — Facturation électronique intégrée, messagerie et Dossier enrichis, visioconférence Jitsi, blocage automatique des accès suspects
+
+Demande du cabinet du 22 octobre 2026.
+
+- **Objet des projets « à compléter ».** Un brouillon qui contient encore « [À COMPLÉTER : …] » porte la mention dans son objet,
+  visible dès la liste des brouillons.
+- **Facturation électronique (Facturation › Facturation électronique).** Avec SUPERPDP ou B2Brouter configuré dans Connexions :
+  envoi des factures Factur-X (B2Brouter accepte désormais le Factur-X), réception des factures fournisseurs (liste, téléchargement,
+  enregistrement dans le dossier des factures fournisseurs de l’espace de fichiers), suivi du traitement des factures émises
+  (statuts de la plateforme), comptes rendus de déclaration (e-reporting) et **export par période pour l’expert-comptable** :
+  un ZIP avec les factures émises et reçues (CSV lisible par un tableur, PDF en option) et une notice.
+- **Messagerie.** « 📁 Joindre depuis Nextcloud » dans la rédaction d’un courriel : parcourir les dossiers du cabinet ou chercher
+  un fichier par son nom, 10 fichiers et 15 Mo au plus ; les dossiers réservés à d’autres membres restent invisibles.
+- **Onglet « Courriels » du Dossier** : les courriels rattachés au dossier, avec sélection et traitement par l’IA.
+- **Recherche dans les listes de dossiers.** Chaque liste déroulante de choix d’un dossier client reçoit une case de recherche
+  (sans tenir compte des accents) et un bouton pour sélectionner le dossier trouvé.
+- **« Traiter avec l’IA » plusieurs courriels** (Boîte de réception, page Courriels, onglet Courriels du Dossier) : cocher des
+  courriels écartés par l’agent — par exemple la demande d’un prospect — puis demander une réponse pour chacun (25 au plus). Dossier
+  établi par l’agent s’il existe, sinon réponse « sans dossier » fondée sur le courriel et ses pièces ; jamais un dossier deviné,
+  jamais un dossier réservé. Les réponses arrivent dans « À relire » ; rien n’est envoyé.
+- **Visioconférence Jitsi.** Réglage de l’adresse de votre serveur Jitsi (Paramètres › Messagerie), bouton « 🎥 Lien de
+  visioconférence » dans la rédaction et case « Visioconférence » à la création d’un rendez-vous (lien unique ajouté au lieu et à la
+  description). Script `deploy/jitsi/installer-jitsi.sh` : Jitsi sous Docker sur des ports distincts (10080/10443 en local, 10010/UDP
+  pour les flux), accès authentifié pour créer une salle, invités admis ; exemple de mandataire Apache fourni.
+- **Sécurité : blocage automatique des accès suspects.** Une adresse qui sonde 5 fois en 10 minutes des chemins d’attaque connus
+  (fichiers PHP, .env, .git, wp-admin…) ou qui échoue 10 fois à se connecter en 10 minutes est bloquée 15 minutes, puis 1 heure,
+  puis 24 heures en cas de récidive ; le poste de l’avocat (réseau local, adresse de confiance) n’est jamais bloqué. Paramètres › Cabinet › Sécurité des
+  accès : blocages en cours, levée, blocage manuel, adresses de confiance. Journal `securite-acces.log` exploitable par fail2ban.
+- **Audit de sécurité.** L’adresse du visiteur n’est plus lue dans la première entrée de X-Forwarded-For (falsifiable) mais
+  uniquement derrière un mandataire de confiance (local ou AXIORHUB_TRUSTED_PROXIES), entrée la plus à droite non fiable : la limite
+  des tentatives de connexion ne pouvait plus être contournée ni s’appliquer à tous les visiteurs à la fois.
+- **Correctifs PHP du 21 octobre 2026 (CVE-2026-109618 et CVE-2026-109619).** AxiorHub n’utilise pas PHP, mais le serveur qui
+  héberge Nextcloud ou WordPress, oui : Santé et Paramètres › Cabinet signalent une version vulnérable (corrigée à partir de 8.5.12,
+  8.4.27, 8.3.36 et 8.2.35). Script `deploy/securite/durcir-serveur.sh` : rapport par défaut ; `--appliquer` met à jour PHP,
+  redémarre PHP-FPM/Apache, installe fail2ban (SSH, AxiorHub, Nextcloud) et les mises à jour automatiques ; `--pare-feu` règle ufw.
+- **Bandeau « Plafond mensuel de l’IA externe bientôt atteint »** : bouton « Masquer ». Il ne revient que si la situation change
+  (nouveau mois, autre fournisseur concerné).
+- Boîte de réception : espacement entre les boutons ; cases à cocher étroites devant les courriels. Thème sombre : onglet actif de la
+  Facturation et état « Analyse partielle » lisibles.
+
 ## 5.6.69 — Analyses payantes répétées supprimées, projets « à compléter » réellement rédigés
 
 Diagnostic du cabinet du 21 octobre 2026 (lecture seule du serveur) : pas de brouillon, analyses de documents en erreur,

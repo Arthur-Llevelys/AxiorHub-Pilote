@@ -316,6 +316,15 @@ def build(desk, data):
         if not re.fullmatch(r'[a-z]+', main or '') or not re.fullmatch(r'[a-z0-9.+-]+', sub or ''):
             main, sub = 'application', 'octet-stream'
         msg.add_attachment(raw, maintype=main, subtype=sub, filename=name)
+    if data.get('nextcloud'):   # 5.6.70 : documents de l'espace de fichiers, relus au moment du dépôt
+        from .fichiers5670 import attachments as _nc_files
+        paths = data.get('nextcloud') if isinstance(data.get('nextcloud'), list) else []
+        if len(files) + len(paths) > MAX_FILES:
+            raise Stop('dix_pieces_jointes_maximum')
+        for name, raw, kind in _nc_files(desk, paths):
+            total += len(raw)
+            main, _, sub_ = kind.partition('/')
+            msg.add_attachment(raw, maintype=main or 'application', subtype=sub_ or 'octet-stream', filename=name)
     if total > MAX_UPLOAD:
         raise Stop('pieces_jointes_trop_lourdes_15_mo_maximum')
     return msg, stamp

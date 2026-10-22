@@ -39,6 +39,13 @@ def checks(desk):
         elif 'demande(s) en attente' in text:
             item.update(id='file', actions=[{'href': 'diagnostic#file', 'label': 'Voir la file de travail'}])
         out.append(item)
+    try:   # 5.6.70 : PHP du serveur non corrigé contre « PHP2Shell »
+        from .php5670 import health_item, host_status
+        php = health_item(host_status())
+        if php:
+            out.append(php)
+    except Exception:   # noqa: BLE001
+        pass
     gone = unreadable(desk)
     if gone:
         out.append({'id': 'illisibles', 'level': 'info', 'text': '%d dossier(s) n’ont pas pu être lus par la surveillance des documents.' % len(gone),

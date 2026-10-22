@@ -152,6 +152,33 @@
     }
     var files = el('input', { type: 'file', multiple: 'multiple', 'aria-label': 'Joindre des fichiers' });
     form.appendChild(el('label', { 'class': 'bx5628-attach' }, [el('span', { text: '📎 Joindre des fichiers (15 Mo au total)' }), files]));
+    // 5.6.70 : documents de l'espace Nextcloud et lien de visioconférence
+    var cloud = [], cloudList = el('ul', { 'class': 'c5670-chips' });
+    var drawChips = function () {
+      cloudList.textContent = '';
+      cloud.forEach(function (f, i) {
+        var x = el('button', { type: 'button', 'class': 'ax-btn ghost', text: '✕', 'aria-label': 'Retirer ' + f.nom });
+        x.addEventListener('click', function () { cloud.splice(i, 1); drawChips(); });
+        cloudList.appendChild(el('li', {}, [el('span', { text: '📄 ' + f.nom }), x]));
+      });
+    };
+    var ncBtn = el('button', { type: 'button', 'class': 'ax-btn ghost', text: '📁 Joindre depuis Nextcloud' });
+    ncBtn.addEventListener('click', function () {
+      if (!window.axh5670) return;
+      window.axh5670.pickNextcloud(function (f) {
+        if (cloud.some(function (x) { return x.chemin === f.chemin; })) return;
+        if (cloud.length >= 10) { toast('10 fichiers au plus.', true); return; }
+        cloud.push(f); drawChips();
+      });
+    });
+    var visioBtn = el('button', { type: 'button', 'class': 'ax-btn ghost', text: '🎥 Lien de visioconférence' });
+    visioBtn.addEventListener('click', function () {
+      if (!window.axh5670) return;
+      window.axh5670.visioLink().then(function (u) {
+        editor.focus(); document.execCommand('insertText', false, '\nVisioconférence : ' + u + '\n');
+      }).catch(function (e) { toast(e.message, true); });
+    });
+    form.appendChild(el('div', { 'class': 'c5670-compose' }, [ncBtn, visioBtn, cloudList]));
     var sendBtn = el('button', { type: 'submit', 'class': 'ax-btn', text: 'Envoyer' });
     var saveBtn = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Enregistrer le brouillon' });
     var cancel = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Fermer' });
@@ -166,7 +193,8 @@
       return Promise.all(Array.prototype.map.call(files.files || [], readFile)).then(function (list) {
         return { mode: t.mode, source_uid: t.source_uid || '', source_folder: t.source_folder || '', to: $('input', to).value, cc: $('input', cc).value,
                  bcc: $('input', bcc).value, subject: $('input', subject).value, html: editor.innerHTML, draft_uid: state.draftUid,
-                 keep: keep.filter(function (k) { return k.checked; }).map(function (k) { return k.value; }), files: list };
+                 keep: keep.filter(function (k) { return k.checked; }).map(function (k) { return k.value; }), files: list,
+                 nextcloud: cloud.map(function (f) { return f.chemin; }) };
       });
     }
     cancel.addEventListener('click', function () { c.clear(); });

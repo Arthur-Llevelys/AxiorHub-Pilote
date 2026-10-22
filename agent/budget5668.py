@@ -160,13 +160,34 @@ def _money(x):
     return ('%.2f $' % float(x)).replace('.', ',')
 
 
-def banner_html(desk, prefix, role=''):
-    """Bandeau d'Aujourd'hui : plafond atteint (ou presque), avec ce que fait AxiorHub et où régler."""
+DISMISS_KEY = 'budget5668:masque:'   # 5.6.70 : bandeau masqué par un membre, jusqu'au prochain changement d'état
+
+
+def _alert_rows(desk):
+    return [r for r in status(desk) if r['enabled'] and r['monthly'] and (r['exhausted'] or r['ratio'] >= WARN_RATIO)]
+
+
+def _signature(rows):
+    """Mois et état de chaque fournisseur : un nouveau mois, un plafond atteint ou un nouveau fournisseur font revenir le bandeau."""
+    return datetime.now(timezone.utc).strftime('%Y-%m') + ';' + ','.join(sorted('%s:%s' % (r['provider'], 'atteint' if r['exhausted'] else 'bientot')
+                                                                               for r in rows))
+
+
+def dismiss(desk, owner='cabinet'):
+    rows = _alert_rows(desk)
+    if not rows:
+        return {'ok': True, 'message': 'Aucun bandeau à masquer.'}
+    desk.setting(DISMISS_KEY + str(owner)[:120], _signature(rows))
+    return {'ok': True, 'message': 'Bandeau masqué. Il reviendra si la situation change (plafond atteint, nouveau mois).'}
+
+
+def banner_html(desk, prefix, role='', owner='cabinet'):
+    """Bandeau d'Aujourd'hui : plafond atteint (ou presque), avec ce que fait AxiorHub et où régler ; masquable (5.6.70)."""
     try:
-        rows = [r for r in status(desk) if r['enabled'] and r['monthly'] and (r['exhausted'] or r['ratio'] >= WARN_RATIO)]
+        rows = _alert_rows(desk)
     except Exception:   # noqa: BLE001 — la page s'affiche toujours
         return ''
-    if not rows:
+    if not rows or desk.settings(DISMISS_KEY + str(owner)[:120], '') == _signature(rows):
         return ''
     last = desk.settings(FALLBACK_KEY, {}) or {}
     recent = bool(last.get('at')) and str(last['at']) >= (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
@@ -183,7 +204,9 @@ def banner_html(desk, prefix, role=''):
                 'avant le 1er du mois ou le relèvement du plafond.')
     else:
         what = 'Au-delà du plafond, le modèle local (Ollama) prendra le relais s’il est installé.'
-    return ('<div class="b5668-banner%s" role="status"><p><strong>%s</strong> %s</p><ul>%s</ul><p><a class="ax-btn ghost" href="%s">Voir et régler le plafond</a></p></div>') % (
+    return ('<div class="b5668-banner%s" role="status"><p><strong>%s</strong> %s</p><ul>%s</ul><p class="b5668-actions"><a class="ax-btn ghost" href="%s">'
+            'Voir et régler le plafond</a><form class="m5-form m5-inline m5-mini" data-api="m5670/bandeau/masquer" data-reload><button class="ax-btn ghost" '
+            'type="submit">Masquer</button></form></p></div>') % (
         ' b5668-full' if exhausted else '', 'Plafond mensuel de l’IA externe atteint.' if exhausted else 'Plafond mensuel de l’IA externe bientôt atteint.',
         what, ''.join(parts), e(prefix + '/parametres?tab=ia#b5668-budget', quote=True))
 

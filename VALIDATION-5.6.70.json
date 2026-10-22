@@ -1,0 +1,37 @@
+{
+  "version": "5.6.70",
+  "base": "5.6.69 publiée",
+  "date_utc": "2026-10-22T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 22 octobre 2026 : objet des projets « à compléter », facturation électronique SUPERPDP et B2Brouter (envoi, réception, suivi, e-reporting, export par période), pièces Nextcloud dans la messagerie, onglet Courriels du Dossier, recherche dans les listes de dossiers, traitement par l’IA de courriels choisis, visioconférence Jitsi sur ports distincts, audit de sécurité et blocage automatique, correctifs PHP du 21 octobre 2026, bandeau du plafond masquable.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2676,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 116,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5670.py (21) : objet marqué ; SUPERPDP et B2Brouter simulés (réception, téléchargement, e-reporting, envoi par import) ; export ZIP et droit facturation ; garde (adresse derrière mandataire, sondes, paliers, adresses protégées, liste de confiance, App web, échecs de connexion) ; PHP ; Jitsi ; lot « Traiter avec l’IA » dont dossier réservé ; onglet Courriels ; fichiers Nextcloud (racines, dossiers réservés, pièces, brouillon) ; bandeau ; routes et droits ; scripts shell (bash -n, ignoré sous Windows).",
+  "not_tested_live": [
+    "API SUPERPDP et B2Brouter (réponses simulées d’après leur documentation publique)",
+    "installation réelle de Jitsi (docker-jitsi-meet)",
+    "configuration fail2ban et ufw sur un serveur réel"
+  ],
+  "exapp": {
+    "version": "0.1.29",
+    "moteur": "5.6.70"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "mailbox.make_draft : objet marqué « [À COMPLÉTER] » si le corps en contient (prudent5667.mark_subject).",
+    "adaptateurs5652 : SUPERPDP et B2Brouter einvoice.receive_detail et ereporting.list ; B2Brouter envoie le Factur-X par import ; facturation5653.QUALIFIED_TRANSPORTS inclut b2brouter.",
+    "web.App._guard5670 et standalone_auth : 403 pour une adresse bloquée, 404 et enregistrement pour une sonde ; connexion5648 et standalone_auth : adresse cliente via garde5670.client_ip, échecs enregistrés.",
+    "vue5651 : onglet « Courriels » du Dossier ; webmail5628.build : pièces « nextcloud » ; agenda5634 : lien de visio.",
+    "budget5668.banner_html : bouton Masquer mémorisé par mois et état des fournisseurs."
+  ],
+  "adjusted_tests": []
+}

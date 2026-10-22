@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5670/'):   # 5.6.70 : traitement par lot, visio (tous) ; facturation électronique (avocat, administrateur) ; sécurité (administrateur)
+        from .web5670 import allowed as allowed5670
+        return allowed5670(role, api[len('m5670/'):])
     if api.startswith('m5668/'):   # 5.6.68 : exclure un dossier (avocat, administrateur) ; plafond IA (administrateur)
         from .web5668 import allowed as allowed5668
         return allowed5668(role, api[len('m5668/'):])
@@ -278,7 +281,15 @@ class StandaloneAuth:
         return user
 
     def _client(self, env):
-        return (env.get('REMOTE_ADDR') or 'inconnu')[:64]
+        from .garde5670 import client_ip   # 5.6.70 : adresse réelle derrière le proxy (X-Forwarded-For d'un proxy de confiance)
+        return client_ip(env)
+
+    def _garde(self):
+        """5.6.70 : garde des accès (une par thread, comme la base des comptes)."""
+        if getattr(self._connections, 'garde', None) is None or self._connections.garde.db is not self.db:
+            from .garde5670 import Garde
+            self._connections.garde = Garde(self.db, self.state)
+        return self._connections.garde
 
     def _limited(self, scope, kind):
         count, window = LOGIN_LIMITS[kind]
@@ -399,6 +410,58 @@ class StandaloneAuth:
                 '<p><a href="/">← Retour</a> · <a href="/logout">Se déconnecter</a></p>') % (lines, csrf, role_options('avocat'))
         return self._respond(start, '200 OK', self._page('Comptes du cabinet', body, wide=True))
 
+    def access_page(self, env, start, user):
+        """5.6.70 : « Sécurité des accès » — adresses bloquées, indices des dernières 24 heures, adresses de confiance."""
+        from .garde5670 import REASONS, when
+        import ipaddress
+        garde, msg = self._garde(), ''
+        if env.get('REQUEST_METHOD') == 'POST':
+            form = self._form(env)
+            if not self._same_origin(env) or not hmac.compare_digest(form.get('csrf', ''), self._csrf(user)):
+                return self._respond(start, '400 Bad Request', self._page('Sécurité des accès', '<p class="warn">Formulaire expiré : rechargez la page.</p>'))
+            ip, op = form.get('ip', '').strip()[:64], form.get('op', '')
+            try:
+                ipaddress.ip_address(ip)
+            except ValueError:
+                msg = '<p class="warn">Adresse invalide.</p>'
+            else:
+                if op == 'lever':
+                    garde.lift(ip, user['email'])
+                    msg = '<p class="ok">Blocage levé pour %s.</p>' % escape(ip)
+                elif op == 'confiance':
+                    garde.allow(ip, form.get('note', ''), user['email'])
+                    msg = '<p class="ok">%s ajoutée aux adresses de confiance (jamais bloquée).</p>' % escape(ip)
+                elif op == 'retirer':
+                    garde.disallow(ip)
+                    msg = '<p class="ok">%s retirée des adresses de confiance.</p>' % escape(ip)
+                elif op == 'bloquer':
+                    garde.ban(ip, 'manuel', user['email'], seconds=86400)
+                    msg = '<p class="ok">%s bloquée 24 heures.</p>' % escape(ip)
+                self._log(user['email'], 'securite_acces_' + op, ip)
+        csrf = escape(self._csrf(user), quote=True)
+        mk = lambda ip, op, label: ('<form method="post" class="inline"><input type="hidden" name="csrf" value="%s"><input type="hidden" name="ip" value="%s">'
+                                    '<button name="op" value="%s" class="ghost">%s</button></form>') % (csrf, escape(ip, quote=True), op, label)
+        bans = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
+            escape(b['ip']), escape(REASONS.get(b['reason'], b['reason'])), when(b['since']), when(b['until']), mk(b['ip'], 'lever', 'Lever le blocage'))
+            for b in garde.active())
+        recent = ''.join('<tr><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>%s</td></tr>' % (
+            escape(r['ip']), 'Sondes' if r['kind'] == 'sonde' else 'Échecs de connexion', r['n'], when(r['last']), mk(r['ip'], 'bloquer', 'Bloquer 24 h'))
+            for r in garde.recent())
+        allowed = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td></tr>' % (escape(a['ip']), escape(a['note'] or '—'), mk(a['ip'], 'retirer', 'Retirer'))
+                          for a in garde.allowed_list())
+        body = (msg + '<p class="muted">Une adresse qui sonde des failles connues (5 fois en 10 minutes) ou échoue 10 fois à se connecter est bloquée '
+                '15 minutes, puis 1 heure, puis 24 heures en cas de récidive. Les blocages sont aussi écrits dans « securite-acces.log » pour le '
+                'pare-feu du serveur (fail2ban). Votre adresse actuelle : <strong>%s</strong>.</p>'
+                '<h2>Adresses bloquées</h2><table><thead><tr><th>Adresse</th><th>Motif</th><th>Depuis</th><th>Jusqu’au</th><th></th></tr></thead><tbody>%s</tbody></table>'
+                '<h2>Indices des dernières 24 heures</h2><table><thead><tr><th>Adresse</th><th>Nature</th><th>Nombre</th><th>Dernier</th><th></th></tr></thead><tbody>%s</tbody></table>'
+                '<h2>Adresses de confiance</h2><table><thead><tr><th>Adresse</th><th>Note</th><th></th></tr></thead><tbody>%s</tbody></table>'
+                '<fieldset><legend>Ajouter une adresse de confiance</legend><form method="post"><input type="hidden" name="csrf" value="%s"><div class="grid">'
+                '<label>Adresse IP<input name="ip" maxlength="64" required></label><label>Note<input name="note" maxlength="120"></label></div>'
+                '<button name="op" value="confiance">Ajouter</button></form></fieldset><p><a href="/">← Retour</a> · <a href="/comptes">Comptes</a></p>') % (
+            escape(self._client(env)), bans or '<tr><td colspan="5" class="muted">Aucune adresse bloquée.</td></tr>',
+            recent or '<tr><td colspan="5" class="muted">Aucun indice.</td></tr>', allowed or '<tr><td colspan="3" class="muted">Aucune.</td></tr>', csrf)
+        return self._respond(start, '200 OK', self._page('Sécurité des accès', body, wide=True))
+
     def _account_action(self, user, form):
         op = form.get('op', '')
         admins = lambda: self.db.execute("SELECT COUNT(*) FROM users WHERE role='administrateur' AND active=1").fetchone()[0]
@@ -491,6 +554,14 @@ class StandaloneAuth:
         if path is None:
             return self._respond(start, '400 Bad Request', self._page('Adresse refusée', '<p class="warn">Adresse invalide.</p>'))
         env['PATH_INFO'] = path
+        if path not in ('/healthz', '/readyz'):   # 5.6.70 : adresse bloquée ou sonde de faille connue — refus avant tout traitement
+            from .garde5670 import is_probe
+            ip, garde = self._client(env), self._garde()
+            if garde.banned(ip):
+                return self._respond(start, '403 Forbidden', 'Accès temporairement bloqué.', [('Retry-After', '900')], kind='text/plain; charset=utf-8')
+            if is_probe(path):
+                garde.record(ip, 'sonde', path[:120])
+                return self._respond(start, '404 Not Found', 'Introuvable.', kind='text/plain; charset=utf-8')
         # Le backend valide lui-même Bearer et JWT OnlyOffice. Ne remplacer
         # aucun jeton de service par le privilège de l'interface.
         if path.startswith('/api/') and env.get('HTTP_AUTHORIZATION', '').startswith('Bearer '):
@@ -547,6 +618,10 @@ class StandaloneAuth:
             if role != 'administrateur':
                 return self._forbidden(start)
             return self.accounts_page(env, start, user)
+        if path == '/securite-acces':   # 5.6.70 : blocages automatiques, levée, adresses de confiance
+            if role != 'administrateur':
+                return self._forbidden(start)
+            return self.access_page(env, start, user)
         if path.startswith('/installation'):
             if role != 'administrateur':
                 return self._forbidden(start)
@@ -673,6 +748,7 @@ class StandaloneAuth:
                 return self._respond(start, '303 See Other', '', [('Location', '/'), ('Set-Cookie', 'axiorhub_session=' + self._session(row['id'])
                                                                                          + '; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Lax' % (SESSION_HOURS * 3600))])
             self._attempt(*scopes)
+            self._garde().record(self._client(env), 'echec_connexion', email[:80])   # 5.6.70 : blocage au-delà de 10 échecs en 10 minutes
             error = 'Identifiants incorrects.'
         count = self.db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
         body = (('<p class="notice">' + escape(error) + '</p>') if error else '') + (

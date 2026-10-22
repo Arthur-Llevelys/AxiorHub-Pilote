@@ -199,6 +199,15 @@ def _cabinet(desk, auth, prefix, env, cap):
         body += _section(_legacy(desk, prefix, auth['csrf'], tab), title)
     body += _section(_links(prefix, (('/parametres/droits', 'Droits et accès des comptes'), ('/securite-ia', 'Sécurité de l’IA'),
                                      ('/tracabilite', 'Traçabilité : données vues par le modèle'))), 'Droits, sécurité et traçabilité')
+    from .web567 import actor as _actor70
+    if _actor70(env)[1] == 'administrateur':   # 5.6.70 : blocage des accès suspects et correctifs PHP du serveur
+        from .garde5670 import section_html as _garde, client_ip
+        from .php5670 import host_status, settings_html as _php
+        try:
+            body += _section(_garde(desk.c['state_dir'], client_ip(env)))
+        except Exception:   # noqa: BLE001 — la page s'affiche toujours
+            pass
+        body += _section(_php(host_status()))
     return body
 
 
@@ -298,6 +307,9 @@ def _messagerie(desk, auth, prefix, env, cap):
     from . import web567, web490
     body += _section(web490.confort_sections(desk, auth, prefix, {}).get('envoi', ''))
     body += _section(web567.preferences_page(desk, auth, prefix, env, shell=cap), keep='Accueil téléphonique et WhatsApp')
+    from .visio5670 import settings_html as _visio   # 5.6.70 : visioconférence Jitsi du cabinet
+    from .web567 import actor as _actor70
+    body += _section(_visio(desk, prefix, _actor70(env)[1]))
     return body
 
 

@@ -24,6 +24,25 @@ MESSAGES = {
     'generation_ia_incomplete': 'Réponse du modèle coupée avant la fin : relancez.',
     'reponse_ia_vide': 'Le modèle n’a rien répondu : relancez.',
     'fonction_ia_invalide': 'Fonction d’IA inconnue.',
+    # 5.6.70
+    'courriel_introuvable': 'Courriel introuvable dans la messagerie (déplacé ou supprimé ?) : ouvrez-le depuis la Boîte de réception.',
+    'aucun_courriel_selectionne': 'Cochez au moins un courriel.',
+    'vingt_cinq_courriels_maximum': '25 courriels au plus par lot.',
+    'aucune_plateforme_de_facturation_verifiee': 'Aucune plateforme de facturation électronique vérifiée : configurez SuperPDP ou B2Brouter dans '
+                                                 'Paramètres › Connexions et activez « Recevoir les factures ».',
+    'facture_recue_absente': 'Facture reçue introuvable : actualisez la liste.',
+    'fichier_facture_indisponible': 'La plateforme n’a pas fourni le fichier de cette facture.',
+    'periode_invalide': 'Période invalide : la date de fin doit suivre la date de début (400 jours au plus).',
+    'dossier_hors_racines_nextcloud': 'Ce dossier est hors de l’espace de fichiers du cabinet.',
+    'chemin_hors_espace_du_cabinet': 'Ce document est hors de l’espace de fichiers du cabinet.',
+    'recherche_trop_courte': 'Tapez au moins deux caractères.',
+    'adresse_visio_https_requise': 'Indiquez l’adresse HTTPS du serveur Jitsi (https://…).',
+    'adresse_visio_sans_chemin': 'Indiquez seulement l’adresse du serveur Jitsi, sans chemin.',
+    'visio_non_configuree': 'Visioconférence non configurée : Paramètres › Courriels et accueil › Visioconférence.',
+    'serveur_visio_injoignable': 'Le serveur Jitsi ne répond pas : vérifiez son adresse et son installation.',
+    'adresse_ip_invalide': 'Adresse IP invalide.',
+    'dix_pieces_jointes_maximum': '10 pièces jointes au plus.',
+    'pieces_jointes_trop_lourdes_15_mo_maximum': 'Pièces jointes trop lourdes : 15 Mo au plus au total.',
 }
 
 
