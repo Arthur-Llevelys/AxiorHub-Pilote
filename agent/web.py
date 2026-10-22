@@ -1989,6 +1989,10 @@ class App:
             manual=desk.db.execute('SELECT data FROM manual_drafts WHERE mail_key=?',(key,)).fetchone()
             if manual:
                 draft=json.loads(manual[0]);value=draft['result']
+            if manual and value['body'] and value['requires_decision']:   # 5.6.71 : relire, modifier, déposer, ou écarter (avant : aucun bouton)
+                from .reponses5671 import editor_html as _editor5671
+                main+=_editor5671(key,value,draft.get('verification'))
+            elif manual:
                 main+='<section class="note"><h2>Réponse préparée</h2>'+block(value['body'] or 'Aucun texte fiable ne peut être proposé sans votre décision.')
                 if value['limits']:main+='<p class="notice">'+e(' · '.join(value['limits']))+'</p>'
                 if value['body'] and not value['requires_decision']:
@@ -2306,7 +2310,7 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
-        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script><script defer src="'+e(url('/static/v5670.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script><script defer src="'+e(url('/static/v5670.js'))+'"></script><script defer src="'+e(url('/static/v5671.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
 def fold_for_search(value):

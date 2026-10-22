@@ -310,6 +310,9 @@ def _messagerie(desk, auth, prefix, env, cap):
     from .visio5670 import settings_html as _visio   # 5.6.70 : visioconférence Jitsi du cabinet
     from .web567 import actor as _actor70
     body += _section(_visio(desk, prefix, _actor70(env)[1]))
+    if _actor70(env)[1] == 'administrateur':   # 5.6.71 : réponses « sans dossier » automatiques
+        from .web5671 import settings_html as _sans_dossier
+        body += _section(_sans_dossier(desk))
     return body
 
 

@@ -160,7 +160,7 @@ def _items_for(desk, prefix, m):
 def _global_items(desk, prefix, actor, role):
     """5.6.52 : éléments du cabinet sans dossier — comptes rendus de routines (R06) et opérations de connexion à valider (I…)."""
     found = []
-    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659'):
+    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659', 'reponses5671'):
         try:
             mod = __import__('agent.' + module, fromlist=['queue_items'])
             found += mod.queue_items(desk, prefix, actor, role)
@@ -307,7 +307,12 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
     def card(it):
         buttons = []
         for c in it['choices']:
-            if c == 'ouvrir':
+            if isinstance(c, dict):   # 5.6.71 : action propre à une source (formulaire envoyé par v5671.js)
+                buttons.append('<form class="q51-inline" data-c5671="%s" data-reload%s>%s<button class="ax-btn%s" type="submit">%s</button></form>' % (
+                    e(c['api'], quote=True), (' data-confirm="%s"' % e(c['confirm'], quote=True)) if c.get('confirm') else '',
+                    ''.join('<input type="hidden" name="%s" value="%s">' % (e(k, quote=True), e(str(v), quote=True)) for k, v in (c.get('fields') or {}).items()),
+                    ' ghost' if c.get('ghost') else '', e(c['label'])))
+            elif c == 'ouvrir':
                 buttons.append('<a class="ax-btn ghost" href="%s">%s</a>' % (e(it['href'], quote=True), 'Détail' if it['class'] == 'echec_agent' else 'Ouvrir'))
             elif c in ('relancer', 'ecarter'):
                 buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/missions" data-reload><input type="hidden" name="ids" value="%s">'

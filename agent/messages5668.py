@@ -24,6 +24,16 @@ MESSAGES = {
     'generation_ia_incomplete': 'Réponse du modèle coupée avant la fin : relancez.',
     'reponse_ia_vide': 'Le modèle n’a rien répondu : relancez.',
     'fonction_ia_invalide': 'Fonction d’IA inconnue.',
+    # 5.6.71
+    'projet_prudent_absent': 'Cette réponse préparée n’existe plus (déjà déposée ou écartée) : rechargez la page.',
+    'controle_de_surete_non_satisfait': 'Le contrôle de sûreté n’autorise pas le dépôt tel quel : relisez et modifiez le texte, puis déposez-le.',
+    'courriel_modifie_depuis_projet': 'Le courriel a changé depuis la préparation de la réponse : demandez une nouvelle réponse.',
+    'dossier_modifie_depuis_projet': 'Le répertoire du dossier a changé depuis la préparation de la réponse : demandez une nouvelle réponse.',
+    'depot_bloque_decision_requise': 'Votre décision est nécessaire : relisez le texte puis « Déposer ce texte dans Brouillons ».',
+    'brouillon_deja_depose_ou_incertain': 'Un brouillon a déjà été déposé pour ce courriel (ou son dépôt est en cours de vérification).',
+    'texte_vide': 'Le texte de la réponse est vide.',
+    'texte_trop_long': 'Texte trop long (20 000 caractères au plus).',
+    'decision_requise': 'Choisissez : déposer le texte relu, ou tel quel « à compléter ».',
     # 5.6.70
     'courriel_introuvable': 'Courriel introuvable dans la messagerie (déplacé ou supprimé ?) : ouvrez-le depuis la Boîte de réception.',
     'aucun_courriel_selectionne': 'Cochez au moins un courriel.',

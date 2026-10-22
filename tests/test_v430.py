@@ -125,7 +125,8 @@ class Live430Tests(unittest.TestCase):
             def events(self,*args):return [{'uid':'u1','start':'2026-10-05T10:00:00Z','summary':'Audience'}]
         self.assertEqual(calendar_check(self.d,Dav())['changed'],1)
         self.assertEqual(calendar_check(self.d,Dav())['changed'],0)
-        self.assertEqual(self.d.db.execute("SELECT COUNT(*) FROM jobs WHERE kind='monitor_all'").fetchone()[0],1)
+        # 5.6.71 : un événement modifié ne relance plus le tour complet des dossiers ; « Audience » seul ne désigne aucun dossier
+        self.assertEqual(self.d.db.execute("SELECT COUNT(*) FROM jobs WHERE kind IN ('monitor_all','monitor_matter')").fetchone()[0],0)
         self.assertFalse(self.f.box.appended)
 
     def test_document_inventory_dictionary_etag_change_and_no_content_download(self):

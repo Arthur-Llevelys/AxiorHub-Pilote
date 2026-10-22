@@ -93,7 +93,8 @@ class Economy(t530.Base):
         eco.save(self.desk, {'enabled': False, 'daily_jobs': 20})
         operations.automation_tick(self.desk)
         kinds = {r[0] for r in self.desk.db.execute('SELECT kind FROM jobs')}
-        self.assertIn('health', kinds);self.assertIn('run_continuous_business_tests', kinds)
+        self.assertIn('health', kinds)
+        self.assertNotIn('run_continuous_business_tests', kinds)   # 5.6.71 : contrôles d'intégrité une fois par nuit (activite5671.integrity_due)
 
 
 class Interface(t530.Base):

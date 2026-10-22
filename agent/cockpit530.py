@@ -29,7 +29,7 @@ TYPE_CLASS = {'Courriel': 'mail', 'Conclusions': 'proc', 'Acte de procédure': '
               'Mise en demeure': 'corr', 'Compte rendu': 'corr', 'Contrat': 'conseil', 'Note': 'conseil'}
 NOISE = {'live_calendar430', 'live_documents430', 'health', 'snapshot_metrics420', 'automation_setting', 'deck530_sync', 'verify_deliverable420',
          'refresh_operational_memory', 'sync_legal_memory', 'extract_facts460', 'build_daily_dashboard', 'memory_all', 'index_all', 'monitor_all',
-         'orchestrator_mail_sweep', 'autonomy_mail_sweep', 'sync', 'discover'}
+         'autonomy_mail_sweep', 'sync', 'discover'}   # 5.6.71 : la préparation des réponses figure dans « Fait » quand elle a produit
 MAIL_KINDS = {'run', 'live_mail430'}
 
 
@@ -682,7 +682,8 @@ def feed(desk):
     from .web import JOB_LABELS
     from . import queue521
     labels = _labels(desk)
-    label = lambda k: 'Analyse des nouveaux courriels' if k in MAIL_KINDS else JOB_LABELS.get(k, k)
+    from . import activite5671   # 5.6.71 : à quoi sert chaque travail, ce qu'il a produit ; travaux techniques non listés
+    label = lambda k: 'Analyse des nouveaux courriels' if k in MAIL_KINDS else (activite5671.ORCHESTRATOR_LABEL if k == 'orchestrator_mail_sweep' else JOB_LABELS.get(k, k))
     out = {'en_cours': [], 'fait': [], 'bloque': []}
     ensure_schema(desk)   # 5.6.24 : table des blocages masqués
 
@@ -698,31 +699,28 @@ def feed(desk):
             return ''
     for r in desk.db.execute("SELECT id,kind,args,status,created,started FROM jobs WHERE status IN ('running','pending','cancel_requested','suspended') "
                              "ORDER BY CASE status WHEN 'running' THEN 0 WHEN 'cancel_requested' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, priority, id LIMIT 40"):
-        if r['kind'] in NOISE:
+        if r['kind'] in NOISE or r['kind'] == 'orchestrator_mail_sweep' or activite5671.hidden(r['kind'], r['args']):
             continue
         last = desk.db.execute('SELECT message FROM live_events_v430 WHERE job_id=? ORDER BY id DESC LIMIT 1', (r['id'],)).fetchone() if r['status'] == 'running' else None
         out['en_cours'].append({'job': r['id'], 'status':r['status'], 'etat': business_state(r['kind'], r['status'])[1], 'text': label(r['kind']),
                                 'matter': matter_of(r['args']), 'running': r['status'] in ('running','cancel_requested'),
                                 'when': ('arrêt demandé' if r['status']=='cancel_requested' else ('suspendu (pause de l’IA)' if r['status']=='suspended' else
                                          (_ago(queue521._age_seconds(r['started'] or r['created'])) if r['status'] == 'running' else 'en file'))),
-                                'detail': (last['message'] if last else '')})
+                                'detail': (last['message'] if last else activite5671.purpose(r['kind']))})
         if len(out['en_cours']) >= 8:
             break
     since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     for r in desk.db.execute("SELECT id,kind,args,finished,result FROM jobs WHERE status='done' AND finished>=? ORDER BY id DESC LIMIT 60", (since,)):
-        if r['kind'] in NOISE or len(out['fait']) >= 10:
+        if r['kind'] in NOISE or activite5671.hidden(r['kind'], r['args']) or len(out['fait']) >= 10:
             continue
         msg = desk.db.execute('SELECT business_message FROM production_deliverables_v420 WHERE job_id=? ORDER BY updated DESC LIMIT 1', (r['id'],)).fetchone() \
             if _table(desk, 'production_deliverables_v420') else None
-        detail = ''
-        if r['kind'] in MAIL_KINDS:
-            try:
-                n = int(json.loads(r['result'] or '{}').get('examined', 0))
-            except (ValueError, TypeError):
-                n = 0
-            if not n:
-                continue
-            detail = '%d courriel(s) examiné(s)' % n
+        try:
+            shown, detail = activite5671.done_detail(r['kind'], r['result'])
+        except (ValueError, TypeError):
+            shown, detail = True, ''
+        if not shown:
+            continue
         out['fait'].append({'job': r['id'], 'text': msg['business_message'] if msg else label(r['kind']), 'matter': matter_of(r['args']), 'when': _local(desk, r['finished']),
                             'detail': detail, 'etat': business_state(r['kind'], 'done', r['result'])[1]})
     for r in desk.db.execute("SELECT id,kind,args,priority,finished,result FROM jobs WHERE status='error' AND finished>=? ORDER BY id DESC LIMIT 40", (since,)):
@@ -730,7 +728,7 @@ def feed(desk):
             code = json.loads(r['result'] or '{}').get('erreur', 'action_interrompue')
         except ValueError:
             code = 'action_interrompue'
-        if r['kind'] in NOISE or (code == queue521.INTERRUPTED and queue521.automatic(r['kind'], r['priority'])) or len(out['bloque']) >= 8 \
+        if r['kind'] in NOISE or r['kind'] == 'orchestrator_mail_sweep' or (code == queue521.INTERRUPTED and queue521.automatic(r['kind'], r['priority'])) or len(out['bloque']) >= 8 \
                 or desk.db.execute('SELECT 1 FROM cockpit5624_dismissed WHERE job=?', (r['id'],)).fetchone():
             continue
         out['bloque'].append({'job': r['id'], 'text': label(r['kind']), 'matter': matter_of(r['args']), 'when': _local(desk, r['finished']), 'detail': _reason(code),
@@ -741,8 +739,9 @@ def feed(desk):
         n = State(desk.c['state_dir']).db.execute("SELECT COUNT(*) FROM messages WHERE status='review' AND updated>=? AND "
                                                   "(reason LIKE '%correspondant%' OR reason LIKE '%dossier%')", (since,)).fetchone()[0]
         if n:
-            out['bloque'].insert(0, {'text': '%d courriel(s) sans brouillon : correspondant ou dossier à confirmer' % n, 'matter': '', 'when': '24 h',
-                                     'detail': 'Confirmez l’expéditeur et son dossier : les messages suivants seront rédigés.', 'link': '/associations',
+            out['bloque'].insert(0, {'text': '%d courriel(s) : correspondant ou dossier à confirmer' % n, 'matter': '', 'when': '24 h',
+                                     'detail': 'Une réponse « sans dossier » (à compléter) est préparée pour ceux qui appellent une réponse ; '
+                                               'confirmez l’expéditeur et son dossier pour des réponses fondées sur le dossier.', 'link': '/associations',
                                      'link_label': 'Rattacher'})
     except Exception:
         pass
@@ -827,7 +826,7 @@ def retry(desk, data):
     except (TypeError, ValueError):
         raise Stop('travail_invalide') from None
     row = desk.db.execute("SELECT kind,args FROM jobs WHERE id=? AND status='error'", (jid,)).fetchone()
-    if not row or row['kind'] not in JOBS or row['kind'] in NOISE:
+    if not row or row['kind'] not in JOBS or row['kind'] in NOISE or row['kind'] == 'orchestrator_mail_sweep':
         raise Stop('travail_invalide')
     job = desk.enqueue(row['kind'], json.loads(row['args'] or '{}'))
     return {'message': 'Relancé (travail n° %d).' % job}

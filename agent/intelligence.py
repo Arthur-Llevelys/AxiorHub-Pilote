@@ -279,7 +279,9 @@ def prepare_draft(desk,args):
     box=Mailbox(desk.c['mail'])
     try:
         report,mail=fetch_source(desk,key,box)
-        if not report.get('matter') and args.get('sans_dossier')=='oui':   # 5.6.25 : réponse demandée par l'avocat sans dossier
+        # 5.6.25 : réponse sans dossier demandée par l'avocat ; 5.6.71 : réponse « sans dossier » automatique — le dossier seulement
+        # supposé par l'agent (rattachement à confirmer) est ignoré, jamais utilisé comme source.
+        if args.get('sans_dossier')=='oui' and (not report.get('matter') or args.get('ignorer_dossier_suppose')=='oui'):
             m={'id':'','client_name':'','path':''}
         else:m=matter(desk.c,report.get('matter',''))
         recipients=report.get('reply_recipients') or [mail.sender]
