@@ -318,7 +318,7 @@ def _matter_options(desk, selected=''):
 
 
 VIEWS = (('tableau', 'Tableau de bord'), ('documents', 'Documents'), ('dossiers', 'Dossiers'), ('honoraires', 'Chiffrer une mission'),
-         ('reglages', 'Réglages et modèles'))
+         ('electronique', 'Facturation électronique'), ('reglages', 'Réglages et modèles'))   # 5.6.70 : SuperPDP, B2Brouter, e-reporting, export
 OLD_VIEWS = {'a-preparer': 'tableau', 'reglements': 'documents'}
 TYPE_LABELS = {'diligences': 'Diligences', 'echue': 'Échue', 'a_emettre': 'À émettre', 'a_envoyer': 'À envoyer', 'brouillon': 'Brouillon', 'temps_a_facturer': 'Proposition',
                'provision_prevue': 'Proposition', 'budget_proche': 'Alerte', 'sans_convention': 'Proposition'}
@@ -369,6 +369,9 @@ def page(desk, auth, prefix, env, args):
             body = estimate_html(desk, prefix, owner, role, args)
         elif view == 'reglages':
             body = settings_html(desk, prefix, owner, role)
+        elif view == 'electronique':
+            from .efacture5670 import html as _efacture
+            body = _efacture(desk, prefix, owner, role) + '</div>'
         else:
             body = dashboard_html(desk, prefix)
     except Stop as ex:

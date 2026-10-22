@@ -570,7 +570,8 @@ class App:
         raw=environ.get('HTTP_AUTHORIZATION','')
         if not auth.get('hash'):   # 5.6.48 : premier lancement, aucun compte encore créé
             return False
-        client=(environ.get('HTTP_X_FORWARDED_FOR','') or environ.get('REMOTE_ADDR','')).split(',')[0].strip()[:64]
+        from .garde5670 import client_ip as _ip5670
+        client=_ip5670(environ)   # 5.6.70 (audit) : adresse vue par le proxy, jamais la première de X-Forwarded-For (falsifiable)
         if len(raw)>2048:
             return False
         key=hashlib.sha256((raw+auth['hash']).encode()).hexdigest()
@@ -611,7 +612,29 @@ class App:
             _clear5656()
         return out
 
+    def _guard5670(self, env, start_response):
+        """5.6.70 : adresse bloquée ou sonde de faille connue — réponse minimale avant tout traitement ; None sinon."""
+        path=env.get('PATH_INFO','') or '/'
+        if path in ('/healthz','/readyz'):return None
+        state=self._state_dir5642()
+        if not state:return None
+        from .garde5670 import client_ip,is_probe,open_garde
+        try:g=open_garde(state)
+        except (OSError,sqlite3.Error):return None
+        try:
+            ip=client_ip(env)
+            if g.banned(ip):status,body='403 Forbidden','Accès temporairement bloqué.'
+            elif is_probe(path):g.record(ip,'sonde',path[:120]);status,body='404 Not Found','Introuvable.'
+            else:return None
+        except sqlite3.Error:return None
+        finally:g.db.close()
+        raw=body.encode('utf-8')
+        start_response(status,[('Content-Type','text/plain; charset=utf-8'),('Content-Length',str(len(raw))),('Cache-Control','no-store'),('X-Content-Type-Options','nosniff')])
+        return [raw]
+
     def _serve5656(self, env, start_response):
+        _blocked=self._guard5670(env,start_response)
+        if _blocked is not None:return _blocked
         headers=[('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),
                  # Native form POSTs use navigation mode. Under no-referrer,
                  # Fetch serializes their Origin as null, which we must reject.
@@ -2283,7 +2306,7 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
-        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
+        return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script><script defer src="'+e(url('/static/v5670.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
 def fold_for_search(value):

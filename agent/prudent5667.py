@@ -39,5 +39,6 @@ def mark_subject(message):
     subject = str(message.get('Subject', ''))
     if not subject.startswith(PREFIX.strip()):
         message.replace_header('Subject', PREFIX + subject)
-    message['X-AxiorHub-A-Completer'] = 'oui'
+    if message.get('X-AxiorHub-A-Completer') is None:   # 5.6.70 : appel répété sans en-tête en double
+        message['X-AxiorHub-A-Completer'] = 'oui'
     return message

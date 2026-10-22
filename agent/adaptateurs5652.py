@@ -576,6 +576,18 @@ class SuperPDP(ClientCredentialsMixin, Adapter):
         out = self.request('GET', '/v1.beta/invoices?' + urlencode({'direction': 'in', 'limit': min(int(p.get('limit', 20)), 50)}))
         return {'factures': (out.get('data') or out.get('items') or out if isinstance(out, list) else [])[:50]}
 
+    def cap_einvoice_receive_detail(self, p):
+        """5.6.70 : factures reçues avec leur contenu EN 16931 (numéro, date, vendeur, totaux), les plus récentes d'abord."""
+        query = [('direction', 'in'), ('order', 'desc'), ('limit', str(min(int(p.get('limit', 100)), 1000))), ('expand[]', 'en_invoice')]
+        out = self.request('GET', '/v1.beta/invoices?' + urlencode(query))
+        data = out.get('data') if isinstance(out, dict) else out
+        return {'factures': (data or [])[:1000]}
+
+    def cap_ereporting_list(self, p):
+        """5.6.70 : e-reportings transmis à l'administration (PPF), vendeur et acheteur, les plus récents d'abord."""
+        out = self.request('GET', '/v1.beta/ereportings?' + urlencode({'order': 'desc', 'limit': min(int(p.get('limit', 100)), 1000)}))
+        return {'rapports': (out.get('data') if isinstance(out, dict) else out) or []}
+
     def cap_einvoice_status(self, p):
         out = self.request('GET', '/v1.beta/invoice_events?' + urlencode({'invoice_id': p['remote_ref']}))
         return {'evenements': (out.get('data') if isinstance(out, dict) else out) or []}
@@ -584,7 +596,8 @@ class SuperPDP(ClientCredentialsMixin, Adapter):
         return {'fichiers': {'facture': self.request('GET', '/v1.beta/invoices/%s/download' % quote(str(p['remote_ref'])), raw=True, accept='*/*')}}
 
     def cap_einvoice_send_approved(self, p):
-        out = self.ctx.http(self.base).request('POST', self.base + '/v1.beta/invoices', p['content'],
+        ref = str(p.get('reference') or '')[:36]   # 5.6.70 : identifiant externe (rapprochement, pas de double dépôt)
+        out = self.ctx.http(self.base).request('POST', self.base + '/v1.beta/invoices' + (('?' + urlencode({'external_id': ref})) if ref else ''), p['content'],
                                                {**self.headers(), 'Content-Type': p.get('content_type', 'application/xml'), 'Accept': 'application/json'}, 5_000_000)
         data = json.loads(out or b'{}')
         return {'remote_ref': str(data.get('id') or ''), 'etat': data.get('status') or 'deposee'}
@@ -610,6 +623,12 @@ class B2Brouter(Adapter):
 
     def cap_einvoice_send_approved(self, p):
         acc = self.ctx.params.get('account_id', '')
+        if p.get('content'):   # 5.6.70 : facture Factur-X émise par AxiorHub, importée telle quelle puis envoyée par B2Brouter
+            hdr = {**self.headers(), 'Content-Type': 'application/octet-stream', 'Accept': 'application/json'}
+            target = self.base + '/accounts/%s/invoices/import?%s' % (quote(acc), urlencode({'send_after_import': 'true', 'issued': 'true'}))
+            raw = self.ctx.http(target).request('POST', target, p['content'], hdr, 5_000_000)
+            inv = (json.loads(raw or b'{}').get('invoice') or json.loads(raw or b'{}'))
+            return {'remote_ref': str(inv.get('id') or ''), 'etat': inv.get('state') or 'sending'}
         out = self.request('POST', '/accounts/%s/invoices' % quote(acc), {'invoice': p['invoice'], 'send_after_import': False})
         inv = out.get('invoice') or {}
         self.request('POST', '/invoices/send_invoice/%s' % quote(str(inv.get('id'))), {})
@@ -623,6 +642,18 @@ class B2Brouter(Adapter):
         acc = self.ctx.params.get('account_id', '')
         out = self.request('GET', '/accounts/%s/invoices?%s' % (quote(acc), urlencode({'type': 'ReceivedInvoice', 'limit': min(int(p.get('limit', 20)), 50)})))
         return {'factures': [{'id': i.get('id'), 'numero': i.get('number'), 'date': i.get('date'), 'etat': i.get('state')} for i in out.get('invoices') or []]}
+
+    def cap_einvoice_receive_detail(self, p):
+        """5.6.70 : factures reçues (fournisseur, montants, état) — liste réduite de l'API."""
+        acc = self.ctx.params.get('account_id', '')
+        out = self.request('GET', '/accounts/%s/invoices?%s' % (quote(acc), urlencode({'type': 'ReceivedInvoice', 'limit': min(int(p.get('limit', 100)), 500)})))
+        return {'factures': out.get('invoices') or []}
+
+    def cap_ereporting_list(self, p):
+        """5.6.70 : comptes rendus fiscaux (tax reports) transmis par B2Brouter."""
+        acc = self.ctx.params.get('account_id', '')
+        out = self.request('GET', '/accounts/%s/tax_reports?%s' % (quote(acc), urlencode({'limit': min(int(p.get('limit', 100)), 500)})))
+        return {'rapports': out.get('tax_reports') or []}
 
     def cap_einvoice_download(self, p):
         return {'fichiers': {'facture.pdf': self.request('GET', '/invoices/%s/as/pdf.invoice' % quote(str(p['remote_ref'])), raw=True, accept='*/*')}}

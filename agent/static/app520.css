@@ -2408,3 +2408,37 @@ html[data-theme="dark"] .b5668-ko,body.dark .b5668-ko{color:#fca5a5}
 .b53 .b56-candidate-list li{display:grid;gap:4px;border:1px solid var(--ax-line,#d8dde6);border-radius:8px;padding:8px 10px}
 .b53 .b56-candidate-list .ax-btn{justify-self:start}
 @media (prefers-color-scheme:dark){.b53 .b56-states>div,.b53 .b56-candidate-list li{background:transparent;border-color:#3a4150}}
+/* ==== v5670.css ==== */
+/* AxiorHub 5.6.70 — recherche de dossier, traitement par lot, pièces Nextcloud, facturation électronique, sécurité */
+.c5670-searchbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 6px}
+.c5670-searchbar .c5670-find{flex:1 1 180px;min-width:150px;max-width:340px}
+.c5670-searchbar .ax-btn{padding:4px 10px}
+.c5670-count{font-size:.85rem}
+#bx5625-rows{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:stretch}
+#bx5625-rows>:not(.c5670-pick):not(.ax-row){grid-column:1/-1}
+.c5670-pick{display:flex;align-items:center;justify-content:center;width:30px;min-width:0;max-width:30px;margin:0;padding:0;cursor:pointer;border-bottom:1px solid var(--ws-border,#e2e8f0)}
+.c5670-pick input{width:18px;height:18px;margin:0}
+#bx5625 .bx5625-head>.ax-btn,#bx5625 .bx5625-head>button{margin:0 8px 6px 0}
+.c5670-bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 10px}
+.c5670-list{list-style:none;margin:0;padding:0}
+.c5670-mail{padding:6px 0;border-bottom:1px solid var(--ws-border,#e2e8f0)}
+.c5670-compose{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.c5670-chips{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0}
+.c5670-chips li{display:flex;align-items:center;gap:4px;padding:2px 4px 2px 8px;border:1px solid var(--ws-border,#cbd5e1);border-radius:999px;font-size:.9rem}
+.c5670-chips .ax-btn{padding:0 6px;min-height:0}
+.c5670-picker{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.c5670-picker-box{background:var(--ws-surface,#fff);color:inherit;border-radius:14px;padding:16px 18px;width:min(640px,100%);max-height:86vh;overflow:auto;box-shadow:0 18px 50px rgba(15,23,42,.25)}
+.c5670-row{display:flex;gap:8px}.c5670-row input{flex:1}
+.c5670-files{list-style:none;margin:8px 0;padding:0;max-height:52vh;overflow:auto}
+.c5670-entry{display:block;width:100%;text-align:left;padding:7px 8px;border:0;border-bottom:1px solid var(--ws-border,#e2e8f0);background:none;color:inherit;cursor:pointer;font:inherit}
+.c5670-entry:hover,.c5670-entry:focus{background:var(--ws-surface-alt,#f1f5f9)}
+.ef70 table td.num{text-align:right;white-space:nowrap}
+.ef70-ko{color:#b91c1c;font-weight:600}
+.ef70-actions{display:flex;flex-wrap:wrap;gap:6px}
+.ef70-period{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
+.b5668-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+html[data-theme="dark"] .c5670-picker-box,body.dark .c5670-picker-box{background:#1f232b;color:#e8edf3}
+html[data-theme="dark"] .ef70-ko,body.dark .ef70-ko{color:#fca5a5}
+@media (max-width:700px){#bx5625-rows{grid-template-columns:30px minmax(0,1fr)}.c5670-searchbar .c5670-find{max-width:none}}
+html[data-theme="dark"] .b53-tabs a[aria-current=page],body.dark .b53-tabs a[aria-current=page]{color:#0b1220}
+html[data-theme="dark"] .d51-state-partielle,body.dark .d51-state-partielle{color:#facc15}

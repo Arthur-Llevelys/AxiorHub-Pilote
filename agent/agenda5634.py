@@ -830,7 +830,8 @@ def api(desk, route, data, method, owner='cabinet'):
     if route == 'agenda/repartir':
         return decide_legacy(desk, data.get('id'), data.get('decision'), owner)
     if route == 'agenda/creer':
-        return create(desk, data, owner)
+        from .visio5670 import with_link   # 5.6.70 : lien Jitsi ajouté au rendez-vous si demandé
+        return create(desk, with_link(desk, data), owner)
     if route == 'agenda/modifier':
         return update(desk, data, owner)
     if route == 'agenda/annuler':

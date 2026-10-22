@@ -43,8 +43,8 @@ UNITS = {'forfait': 'forfait', 'heure': 'heure', 'unite': 'unité'}
 SERIES = {'facture': 'F', 'avoir': 'AV', 'devis': 'D', 'convention': 'C', 'lettre_mission': 'LM'}
 TEMPLATE_KIND = {'devis': 'devis', 'lettre_mission': 'lettre_mission', 'facture': 'facture', 'avoir': 'avoir'}
 AUTHORITIES = {'interne': 'AxiorHub (numérotation interne)', 'invoice_ninja': 'Invoice Ninja', 'pennylane': 'Pennylane'}
-TRANSPORTS = {'aucun': 'Aucun (envoi du PDF au client)', 'superpdp': 'SuperPDP (Factur-X)', 'b2brouter': 'B2Brouter', 'chorus_pro': 'Chorus Pro'}
-QUALIFIED_TRANSPORTS = ('aucun', 'superpdp')                   # B2Brouter et Chorus Pro : charges utiles à qualifier avant activation
+TRANSPORTS = {'aucun': 'Aucun (envoi du PDF au client)', 'superpdp': 'SuperPDP (Factur-X)', 'b2brouter': 'B2Brouter (Factur-X)', 'chorus_pro': 'Chorus Pro'}
+QUALIFIED_TRANSPORTS = ('aucun', 'superpdp', 'b2brouter')      # 5.6.70 : B2Brouter importe le Factur-X tel quel ; Chorus Pro : à qualifier
 FOLDER = 'FACTURATION'
 
 SCHEMA = '''

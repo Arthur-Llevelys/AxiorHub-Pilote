@@ -529,7 +529,9 @@ def _next_path(prefix, value):
 
 
 def _client(env):
-    return (str(env.get('HTTP_X_FORWARDED_FOR') or '').split(',')[0].strip() or str(env.get('REMOTE_ADDR') or 'inconnu'))[:64]
+    # 5.6.70 (audit) : la PREMIÈRE adresse de X-Forwarded-For est écrite par le client (falsifiable) ; on prend celle qu'a vue le proxy
+    from .garde5670 import client_ip
+    return client_ip(env)
 
 
 def _redirect(location, headers=()):
@@ -599,6 +601,16 @@ def _login(db, env, auth, prefix, query, secure, lang_headers):
             user = check_password(db, auth, ident, str(form.get('password') or ''), _client(env))
         except Stop as ex:
             error = str(ex)
+            if error == 'identifiants_incorrects':   # 5.6.70 : 10 échecs en 10 minutes bloquent l'adresse (garde des accès)
+                try:   # même base que la garde du service web (acces5670.sqlite3, à côté de la base des comptes)
+                    from .garde5670 import open_garde
+                    _g70 = open_garde(str(Path(db.execute('PRAGMA database_list').fetchone()[2]).parent))
+                    try:
+                        _g70.record(_client(env), 'echec_connexion', ident[:80])
+                    finally:
+                        _g70.db.close()
+                except Exception:   # noqa: BLE001
+                    pass
         else:
             token, age = open_session(db, auth, user, form.get('remember') == '1', _client(env))
             target = prefix + '/connexion/changer' if user['must_change'] else nxt

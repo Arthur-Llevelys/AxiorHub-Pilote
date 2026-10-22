@@ -16,8 +16,8 @@ from urllib.parse import urlencode
 from .common import Stop, matter_display
 
 TABS = (('apercu', 'Vue d’ensemble'), ('faits', 'Faits et arguments'), ('procedure', 'Procédure'), ('pieces', 'Pièces'),
-        ('correspondances', 'Correspondances'), ('travaux', 'Travaux'))
-ALIASES = {'fiche': 'apercu', '': 'apercu', 'courriels': 'correspondances'}
+        ('courriels', 'Courriels'), ('correspondances', 'Correspondances'), ('travaux', 'Travaux'))   # 5.6.70 : onglet « Courriels »
+ALIASES = {'fiche': 'apercu', '': 'apercu'}
 PAGE = 50
 ANALYSIS = {'jamais': 'Analyse jamais lancée', 'reperage': 'Repérage effectué (sans lecture par l’IA)', 'partielle': 'Analyse partielle',
             'a_jour': 'Synthèse à jour'}
@@ -645,6 +645,26 @@ def correspondances_html(desk, auth, prefix, m, args):
         '<details class="d51-legacy" open><summary>Courriels rattachés au dossier</summary>%s</details>' % dossier5627.courriels_html(desk, prefix, m)
 
 
+def courriels_html(desk, auth, prefix, m, args):
+    """5.6.70 : courriels rattachés au dossier ; cocher puis « Traiter avec l'IA », ou écrire depuis la messagerie."""
+    from .dossier5627 import STATE_LABELS
+    try:
+        rows = desk.db.execute('SELECT mail_key,subject,sender,received,state FROM work_items WHERE matter=? ORDER BY COALESCE(received,updated) DESC '
+                               'LIMIT 300', (m['id'],)).fetchall()
+    except Exception:   # noqa: BLE001 — table absente avant le premier courriel
+        rows = []
+    items = ''.join('<li class="c5670-mail"><label class="m5-check"><input type="checkbox" data-c5670-key="%s"> <span><strong>%s</strong>'
+                    '<span class="ax-muted"> · %s · %s · %s</span></span></label></li>' % (
+                        e(r['mail_key'], quote=True), e(r['subject'] or 'sans objet'), e(str(r['sender'] or '')[:80]),
+                        e(_date_fr(str(r['received'] or '')[:10])), e(STATE_LABELS.get(r['state'], r['state'] or ''))) for r in rows)
+    return _card('Courriels rattachés au dossier (%d)' % len(rows), (
+        '<div class="c5670-bar" data-c5670-batch><button type="button" class="ax-btn" data-c5670-traiter disabled>✨ Traiter avec l’IA</button>'
+        '<label class="m5-check"><input type="checkbox" data-c5670-all> Tout cocher</label><a class="ax-btn ghost" href="%s">Ouvrir la messagerie</a>'
+        '<span class="ax-muted">Une réponse est préparée pour chaque courriel coché, dans ce dossier ; elle arrive dans « À relire » (rien n’est envoyé).</span></div>'
+        '<ul class="c5670-list">%s</ul>') % (e(prefix + '/courriels?vue=boite', quote=True),
+                                             items or '<li class="ax-muted">Aucun courriel rattaché à ce dossier.</li>'), 'd51-courriels')
+
+
 def travaux_html(desk, auth, prefix, m, args):
     from . import dossier5627, memoire5651, relecture5651, apprentissage5651
     from .missions5651 import card_html, missions_of
@@ -806,7 +826,7 @@ def page(desk, auth, prefix, args, shell):
             pass
     body = header_html(desk, prefix, m, view, auth)
     renderer = {'apercu': apercu_html, 'faits': faits_html, 'procedure': procedure_html, 'pieces': pieces_html,
-                'correspondances': correspondances_html, 'travaux': travaux_html}[view]
+                'courriels': courriels_html, 'correspondances': correspondances_html, 'travaux': travaux_html}[view]
     body += renderer(desk, auth, prefix, m, args)
     if view == 'apercu':   # 5.6.50 : discussion du dossier ; 5.6.36 : intervenants
         from .i18n5631 import role as _role50

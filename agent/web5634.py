@@ -471,6 +471,7 @@ def agenda_panel(desk, prefix):
             'min="5" max="1440" step="5" value="60"></label><label class="m34-check"><input type="checkbox" name="all_day" value="1"> Toute la journée</label></div>'
             '<div class="m34-row"><label>Dossier<select name="matter"><option value="">Sans dossier</option>%s</select></label><label>Lieu<input name="location" maxlength="200"></label></div>'
             '<fieldset class="m34-reminders"><legend>Rappels</legend>%s</fieldset><label>Notes<textarea name="notes" rows="2" maxlength="2000"></textarea></label>'
+            + _visio5670(desk) +
             '<button class="ax-btn" type="submit">Enregistrer</button><p role="status" class="m34-status"></p></form></details>'
             '%s<h3>Prochains événements de l’Agenda personnel</h3><div class="m34-row m34-filter"><label>Rechercher<input type="search" '
             'data-m34-agenda-search placeholder="Intitulé, lieu ou dossier"></label><label>Dossier<select data-m34-agenda-matter><option value="">'
@@ -642,3 +643,15 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'pieces/registre':
         return json_out({'job_id': desk.enqueue('refresh_exhibit_registry', {'matter': str(data.get('matter') or '')}), 'message': 'Actualisation du registre des pièces lancée.'})
     raise Stop('route_inconnue')
+
+
+def _visio5670(desk):
+    """5.6.70 : case « Visioconférence » du formulaire d'agenda, si un serveur Jitsi est configuré."""
+    try:
+        from .visio5670 import config
+        if not config(desk)['enabled']:
+            return ''
+    except Exception:   # noqa: BLE001
+        return ''
+    return ('<label class="m34-check"><input type="checkbox" name="visio" value="1"> Visioconférence (lien Jitsi ajouté au lieu et aux notes)'
+            '</label>')

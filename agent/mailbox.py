@@ -495,6 +495,10 @@ def make_draft(mail, cfg, body, key, cc=(), to=None):
     result['In-Reply-To'] = mail.mid
     chain = list(dict.fromkeys(mail.refs + [mail.mid]))
     result['References'] = ' '.join(chain[-40:])
+    from .sens5643 import MARKER   # 5.6.70 : un projet contenant « [À COMPLÉTER » est marqué dans l'objet, quel que soit le chemin de dépôt
+    if MARKER.search(body or ''):
+        from .prudent5667 import mark_subject
+        mark_subject(result)
     result['X-AxiorHub-Draft-Key'] = key
     result.set_content(body.strip() + '\n\n' + cfg['signature'].strip() + '\n')
     return result
