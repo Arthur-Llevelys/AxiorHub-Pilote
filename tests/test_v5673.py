@@ -343,7 +343,10 @@ PAGE = ('<!doctype html><html lang="fr"><head><title>Essai</title></head><body><
 class NavigateurReel(unittest.TestCase):
     def test_plan_clic_saisie_et_saisie_protegee(self):
         tmp = tempfile.mkdtemp()
-        b = cdp5673.Browser(tmp + '/profil', downloads_dir=tmp + '/dl', headless=True).start()
+        try:
+            b = cdp5673.Browser(tmp + '/profil', downloads_dir=tmp + '/dl', headless=True).start()
+        except Stop as ex:   # machine de recette Ubuntu : Chrome présent mais bac à sable refusé (AppArmor) ; un poste réel n'est pas concerné
+            self.skipTest('navigateur présent mais non démarrable sur cette machine (%s)' % ex)
         try:
             tab = nv.Tab(b.cdp)
             tab.navigate('data:text/html;charset=utf-8,' + urllib.parse.quote(PAGE))
