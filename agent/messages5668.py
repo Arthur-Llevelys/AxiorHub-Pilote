@@ -24,6 +24,12 @@ MESSAGES = {
     'generation_ia_incomplete': 'Réponse du modèle coupée avant la fin : relancez.',
     'reponse_ia_vide': 'Le modèle n’a rien répondu : relancez.',
     'fonction_ia_invalide': 'Fonction d’IA inconnue.',
+    # 5.6.74
+    'association_reservee_au_serveur': 'L’association d’un téléphone se fait sur la version serveur d’AxiorHub (accessible en HTTPS).',
+    'compte_requis': 'Connectez-vous avec votre compte pour associer un téléphone.',
+    'dix_appareils_maximum': 'Dix appareils au plus par compte : retirez-en un avant d’en associer un autre.',
+    'appareil_introuvable': 'Appareil introuvable (déjà retiré ?).',
+    'adresse_publique_inconnue': 'Adresse publique du serveur inconnue : ouvrez AxiorHub par son adresse https habituelle, puis réessayez.',
     # 5.6.73
     'navigateur_reserve_au_poste': 'Le navigateur supervisé fonctionne dans l’application AxiorHub Pilote pour Windows ou Ubuntu (poste de l’avocat).',
     'navigateur_absent_du_poste': 'Aucun navigateur compatible sur ce poste : installez Microsoft Edge, Google Chrome ou Chromium.',

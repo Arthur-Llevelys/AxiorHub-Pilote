@@ -1,0 +1,11 @@
+/* AxiorHub 5.6.74 — téléphones associés et page « À valider » */
+.ap74-qr{margin:12px 0;padding:12px;border:1px solid var(--ws-border,#cbd5e1);border-radius:10px;max-width:420px}
+.ap74-img{display:block;width:260px;height:260px;background:#fff;border-radius:6px}
+.ap74-link code{word-break:break-all}
+.ap74-list{list-style:none;margin:6px 0 0;padding:0}
+.ap74-list li{padding:6px 0;border-bottom:1px solid var(--ws-border,#e2e8f0)}
+.ap74-mobile .q51-item{padding:12px 0}
+.ap74-mobile .q51-title{font-size:1.05rem}
+.ap74-mobile .q51-actions .ax-btn,.ap74-mobile .q51-actions button{min-height:44px;padding:10px 14px}
+.ap74-mobile .q51-actions form,.ap74-mobile .q51-actions a{margin:6px 8px 0 0}
+@media (max-width:850px){body:has(.ap74-mobile) aside{display:none}body:has(.ap74-mobile) #ws-sidebar-toggle{display:none}}

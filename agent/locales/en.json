@@ -760,6 +760,8 @@
  "vj.queued": "Collection queued: it starts as soon as the agent is available.",
  "vj.running": "Collection in progress…",
  "vj.queue_refused": "Queueing refused (queue full): new attempt at the next cycle, or click “Actualiser”.",
+ "fn.mobile.label": "To approve (phone)",
+ "fn.mobile.desc": "What awaits your decision, large for the phone linked by QR code",
  "fn.navigateur.label": "Supervised browser",
  "fn.navigateur.desc": "The agent browses portals and registries in a visible window; you approve payments, sending and filings",
  "fn.savoir_faire.label": "Firm know-how",

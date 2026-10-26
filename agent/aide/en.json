@@ -1948,5 +1948,31 @@
   "example": "Retrieve the registration extract of a fictitious company and save it in matter DOS-001.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "mobile": {
+  "objective": "Approve or review from your phone what awaits your decision, after linking it by QR code.",
+  "when": "When travelling, in court or away from the office, when a prepared reply or an operation awaits your approval.",
+  "prerequisites": "The server version of AxiorHub (reachable over HTTPS) and an account; a phone with a camera.",
+  "steps": [
+   "On the computer: Paramètres › Poste et maintenance › Téléphones associés › “Associer un téléphone”.",
+   "Scan the QR code with the phone’s camera and tap “Associer” on the page that opens.",
+   "The phone lands on “À valider”: review, authorise, file a reply “à compléter” or set it aside.",
+   "To keep it at hand, add the page to the home screen; turn on notifications if you wish."
+  ],
+  "result": "The phone stays signed in to your account for 90 days, until you remove it or change your password.",
+  "verify": "The phone appears under “Téléphones associés”; “Retirer” closes its session at once.",
+  "errors": [
+   [
+    "“This code has expired or has already been used”",
+    "Show a new QR code from the computer: it is valid for 10 minutes, once."
+   ],
+   [
+    "“Ten devices at most per account”",
+    "Remove an unused device before linking another one."
+   ]
+  ],
+  "example": "Authorise from the phone the filing of a reply “à compléter” to the fictitious client of matter DOS-001.",
+  "buttons": [],
+  "version": "5.6.36"
  }
 }

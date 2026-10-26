@@ -54,7 +54,8 @@ def counts(desk, today=None):
             "SELECT COUNT(*) FROM deadlines450 WHERE status NOT IN ('terminee','annulee') AND due<>'' AND due<=?", (limit,)).fetchone()[0]
     except Exception:
         deadlines = 0
-    return {'drafts': int(drafts), 'deadlines': int(deadlines)}
+    from .appareils5674 import pending_count   # 5.6.74 : éléments « À décider / À relire » (nombre seulement)
+    return {'drafts': int(drafts), 'deadlines': int(deadlines), 'decisions': pending_count(desk)}
 
 
 def neutral_text(c):
@@ -63,12 +64,15 @@ def neutral_text(c):
         parts.append('%d brouillon%s à valider' % (c['drafts'], 's' if c['drafts'] > 1 else ''))
     if c['deadlines']:
         parts.append('%d échéance%s proche%s' % (c['deadlines'], 's' if c['deadlines'] > 1 else '', 's' if c['deadlines'] > 1 else ''))
+    if c.get('decisions'):
+        parts.append('%d point%s à décider' % (c['decisions'], 's' if c['decisions'] > 1 else ''))
     return ' · '.join(parts)
 
 
 def summary(desk, today=None):
     c = counts(desk, today)
-    return {'drafts': c['drafts'], 'deadlines': c['deadlines'], 'total': c['drafts'] + c['deadlines'],
+    return {'drafts': c['drafts'], 'deadlines': c['deadlines'], 'decisions': c.get('decisions', 0),
+            'total': c['drafts'] + c['deadlines'] + c.get('decisions', 0),
             'text': neutral_text(c), 'title': 'AxiorHub'}
 
 
@@ -192,7 +196,8 @@ def dispatch(desk, today=None, force=False, now=None):
     c = counts(desk, today)
     last = desk.settings('mobile490:last_counts', {'drafts': 0, 'deadlines': 0})
     desk.setting('mobile490:last_counts', c)
-    if not force and c['drafts'] <= last.get('drafts', 0) and c['deadlines'] <= last.get('deadlines', 0):
+    if not force and c['drafts'] <= last.get('drafts', 0) and c['deadlines'] <= last.get('deadlines', 0) and \
+            c.get('decisions', 0) <= last.get('decisions', 0):
         return {'sent': 0, 'reason': 'rien_de_nouveau'}
     subject = 'mailto:' + (desk.c['mail'].get('from_address') or 'contact@invalid.example')
     sent, dead = 0, []

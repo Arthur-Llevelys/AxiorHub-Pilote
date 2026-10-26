@@ -393,7 +393,7 @@ class Mobile(SendBase):
         blob = json.dumps(s, ensure_ascii=False)
         for secret in ('SECRETCO', 'CONFIDENTIEL', 'client-secret', 'DEMO', 'BERTIN', 'confrere'):
             self.assertNotIn(secret, blob)
-        self.assertEqual(set(s), {'drafts', 'deadlines', 'total', 'text', 'title'})
+        self.assertEqual(set(s), {'drafts', 'deadlines', 'decisions', 'total', 'text', 'title'})
         self.assertEqual(mobile490.neutral_text({'drafts': 0, 'deadlines': 0}), '')
         self.assertEqual(mobile490.neutral_text({'drafts': 1, 'deadlines': 0}), '1 brouillon à valider')
 
@@ -803,7 +803,7 @@ class Web(unittest.TestCase):
 
     def test_mobile_routes(self):
         r, out = self.get('mobile/summary')
-        self.assertEqual(set(out), {'drafts', 'deadlines', 'total', 'text', 'title'})
+        self.assertEqual(set(out), {'drafts', 'deadlines', 'decisions', 'total', 'text', 'title'})
         r, out = self.post('mobile/subscribe', {'endpoint': 'https://evil.example.test/x', 'confirm': 'yes'})
         self.assertTrue(r['status'].startswith('400'))
         r, out = self.post('mobile/subscribe', {'endpoint': 'https://fcm.googleapis.com/fcm/send/a', 'confirm': 'yes'})

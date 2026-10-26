@@ -760,6 +760,8 @@
  "vj.queued": "Collecte en file : elle démarre dès que l’agent est disponible.",
  "vj.running": "Collecte en cours…",
  "vj.queue_refused": "Mise en file refusée (file pleine) : nouvelle tentative au prochain cycle, ou cliquez sur « Actualiser ».",
+ "fn.mobile.label": "À valider (téléphone)",
+ "fn.mobile.desc": "Ce qui attend votre décision, en grand pour le téléphone associé par QR code",
  "fn.navigateur.label": "Navigateur supervisé",
  "fn.navigateur.desc": "L’agent consulte les portails et registres dans une fenêtre visible ; vous validez paiements, envois et dépôts",
  "fn.savoir_faire.label": "Savoir-faire du cabinet",

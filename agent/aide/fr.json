@@ -1948,5 +1948,31 @@
   "example": "Récupérer l’extrait d’immatriculation d’une société fictive et l’enregistrer dans le dossier DOS-001.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "mobile": {
+  "objective": "Valider ou relire depuis votre téléphone ce qui attend votre décision, après l’avoir associé par QR code.",
+  "when": "En déplacement, à l’audience ou hors du bureau, quand une réponse préparée ou une opération attend votre accord.",
+  "prerequisites": "La version serveur d’AxiorHub (accessible en HTTPS) et un compte ; un téléphone avec appareil photo.",
+  "steps": [
+   "Sur l’ordinateur : Paramètres › Poste et maintenance › Téléphones associés › « Associer un téléphone ».",
+   "Scannez le QR code avec l’appareil photo du téléphone et touchez « Associer » sur la page qui s’ouvre.",
+   "Le téléphone arrive sur « À valider » : relisez, autorisez, déposez une réponse « à compléter » ou écartez.",
+   "Pour l’avoir sous la main, ajoutez la page à l’écran d’accueil ; activez les notifications si vous le souhaitez."
+  ],
+  "result": "Le téléphone reste connecté à votre compte 90 jours, jusqu’à ce que vous le retiriez ou changiez de mot de passe.",
+  "verify": "Le téléphone figure dans « Téléphones associés » ; « Retirer » ferme aussitôt sa session.",
+  "errors": [
+   [
+    "« Ce code a expiré ou a déjà servi »",
+    "Affichez un nouveau QR code depuis l’ordinateur : il est valable 10 minutes, une seule fois."
+   ],
+   [
+    "« Dix appareils au plus par compte »",
+    "Retirez un appareil inutilisé avant d’en associer un autre."
+   ]
+  ],
+  "example": "Autoriser depuis le téléphone le dépôt d’une réponse « à compléter » au client fictif du dossier DOS-001.",
+  "buttons": [],
+  "version": "5.6.36"
  }
 }

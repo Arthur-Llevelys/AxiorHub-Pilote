@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.73
+# Composants tiers et compatibilité — AxiorHub 5.6.74
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -26,6 +26,7 @@ pont vocal optionnel. Les paquets transitifs exacts de l’image de base doivent
 | gradio_client | 1.13.3 | Apache-2.0 | pont vocal optionnel | compatible |
 | python-multipart | 0.0.20 | Apache-2.0 | pont vocal optionnel | compatible |
 | Uvicorn | 0.35.0 | BSD-3-Clause | pont vocal optionnel | compatible |
+| Segno | 1.6.6 | BSD-3-Clause | QR code d’association d’un téléphone (5.6.74), copie locale sans dépendance | texte inclus dans `agent/_vendor/segno/LICENSE` ; modules repris sans modification (`__init__`, `consts`, `encoder`, `utils`, `writers`) |
 | Row-Bot (extraits adaptés) | commit fca083b (25/10/2026) | Apache-2.0 | navigateur supervisé du poste : plan de page, contrôle des conséquences, classement des adresses (`agent/nav5673.py`) | compatible (Apache-2.0 vers AGPL-3.0) ; texte dans `LICENSES/Apache-2.0.txt`, mention dans `NOTICE-row-bot` |
 
 Les modèles IA, services MCP, plugins Lawve, services Nextcloud, Roundcube,

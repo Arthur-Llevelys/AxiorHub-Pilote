@@ -44,7 +44,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -199,7 +199,7 @@ def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='
     from .navigation5643 import production_tabs_html   # 5.6.43 (§ 20) : onglets de Produire sur chacune de ses pages
     body = production_tabs_html(prefix, path) + body
     html = (head_html(title, prefix, css, head) + toast + sidebar_html(prefix, path) + '<main id="ws-main">' + topbar_html(prefix, title, path) + body + '</main>' + scripts +
-            _messages_json() + '<script defer src="' + e(prefix) + '/static/v5631.js"></script><script defer src="' + e(prefix) + '/static/v5632.js"></script><script defer src="' + e(prefix) + '/static/v5634.js"></script><script defer src="' + e(prefix) + '/static/v5636.js"></script><script defer src="' + e(prefix) + '/static/v5670.js"></script><script defer src="' + e(prefix) + '/static/v5671.js"></script><script defer src="' + e(prefix) + '/static/v5673.js"></script></body></html>')
+            _messages_json() + '<script defer src="' + e(prefix) + '/static/v5631.js"></script><script defer src="' + e(prefix) + '/static/v5632.js"></script><script defer src="' + e(prefix) + '/static/v5634.js"></script><script defer src="' + e(prefix) + '/static/v5636.js"></script><script defer src="' + e(prefix) + '/static/v5670.js"></script><script defer src="' + e(prefix) + '/static/v5671.js"></script><script defer src="' + e(prefix) + '/static/v5673.js"></script><script defer src="' + e(prefix) + '/static/v5674.js"></script></body></html>')
     from .ui_helpers import enhance
     return enhance(html, prefix, csrf, audio, matters, path, selected_matter)
 

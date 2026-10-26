@@ -1,0 +1,41 @@
+{
+  "version": "5.6.74",
+  "base": "5.6.73",
+  "date_utc": "2026-10-26T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 26 octobre 2026 : associer un téléphone par QR code et valider depuis le téléphone (version serveur).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2724,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 120,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5674.py (6) : QR code (image de même origine, refusée sans session ou pour un autre identifiant), aperçu sans consommation, association, page « À valider », usage unique, retrait qui ferme la session ; invitation expirée, tentatives limitées ; invitation réservée à un compte connecté, dix appareils au plus ; poste sans association ; notification neutre ; câblage et licence Segno.",
+  "live_checks": "Application réelle en version serveur dans un navigateur (ordinateur puis écran de téléphone) : QR code affiché, page « Associer ce téléphone », association, page « À valider », retrait. Défaut trouvé et corrigé : « Referrer-Policy: no-referrer » faisait envoyer « Origin: null » au bouton « Associer », refusé par le contrôle de même origine.",
+  "third_party": {
+    "segno": {
+      "version": "1.6.6",
+      "licence": "BSD-3-Clause",
+      "sha256_sdist": "e60933afc4b52137d323a4434c8340e0ce1e58cec71439e46680d4db188f11b3"
+    }
+  },
+  "exapp": {
+    "version": "0.1.33",
+    "moteur": "5.6.74"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "connexion5648.handle : route publique /connexion/appareil (appareils5674.pairing).",
+    "mobile490 : compteur « decisions » (points à décider) dans le résumé neutre et le déclenchement des notifications.",
+    "pages5636 : page /mobile ; fonctions5631 : entrée « À valider (téléphone) » ; parametres5621 : section Téléphones associés.",
+    "v5651.css : compteur de l’onglet actif de la file (contraste)."
+  ],
+  "adjusted_tests": [
+    "tests/test_v490.py : le résumé neutre comporte la clé « decisions » (nombre seul)."
+  ]
+}
