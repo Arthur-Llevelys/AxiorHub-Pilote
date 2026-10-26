@@ -78,6 +78,8 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api in ('m5674/inviter', 'm5674/retirer'):   # 5.6.74 : ses propres téléphones, tous les rôles
+        return True
     if api.startswith('m5673/'):   # 5.6.73 : navigateur supervisé (avocat, assistant) ; sites autorisés (avocat)
         from .web5673 import allowed as allowed5673
         return allowed5673(role, api[len('m5673/'):])

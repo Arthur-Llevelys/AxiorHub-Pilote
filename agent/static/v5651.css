@@ -71,7 +71,9 @@
 .q51-why{margin:0 0 6px;font-size:.9rem;color:var(--ws-muted,#475569)}
 /* 5.6.61 : file lisible — compteurs, action de l’agent, échecs automatiques repliés, carte « Projet à relire » mise en avant */
 .q51-n{display:inline-block;min-width:1.4em;padding:0 5px;margin-left:2px;border-radius:999px;background:var(--ws-soft,#eef2f7);color:inherit;font-size:.8rem;text-align:center}
-.q51-filters a[aria-current=true] .q51-n{background:rgba(255,255,255,.25)}
+.q51-filters a[aria-current=true] .q51-n{background:#fff;color:#0b3b82}   /* 5.6.74 : contraste du compteur de l'onglet actif */
+:root[data-theme=dark] .q51-filters a[aria-current=true] .q51-n{background:#0b1220;color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .q51-filters a[aria-current=true] .q51-n{background:#0b1220;color:#fff}}
 .q51-sub{margin:0 0 4px;font-size:.85rem;color:var(--ws-muted,#475569)}
 .q51-matter a{color:inherit}
 .q51-projet,.q51-livrable{border-left:4px solid var(--ws-accent,#1d4ed8)}

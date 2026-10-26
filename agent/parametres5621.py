@@ -218,6 +218,9 @@ def _poste(desk, auth, prefix, env, cap):
     body = ''
     for key in ('mobile', 'recherche', 'clavier'):
         body += _section(sections.get(key, ''))
+        if key == 'mobile':   # 5.6.74 : téléphones associés par QR code
+            from .appareils5674 import settings_html as _ap74
+            body += _section(_ap74(desk.c['state_dir'], auth, env.get('axiorhub.user')))
     body += _section(_legacy(desk, prefix, auth['csrf'], 'maintenance'), 'Maintenance')
     try:   # 5.6.61 : avis de nouvelle version et mise à jour signée
         from .maj5661 import html as _maj

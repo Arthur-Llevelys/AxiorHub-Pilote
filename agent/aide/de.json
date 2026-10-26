@@ -1948,5 +1948,31 @@
   "example": "Den Registerauszug einer fiktiven Gesellschaft abrufen und in der Akte DOS-001 speichern.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "mobile": {
+  "objective": "Vom Telefon aus freigeben oder prüfen, was auf Ihre Entscheidung wartet, nachdem es per QR-Code verbunden wurde.",
+  "when": "Unterwegs, bei Gericht oder außerhalb der Kanzlei, wenn eine vorbereitete Antwort oder ein Vorgang auf Ihre Freigabe wartet.",
+  "prerequisites": "Die Serverversion von AxiorHub (per HTTPS erreichbar) und ein Konto; ein Telefon mit Kamera.",
+  "steps": [
+   "Am Computer: Paramètres › Poste et maintenance › Téléphones associés › „Associer un téléphone“.",
+   "Scannen Sie den QR-Code mit der Kamera des Telefons und tippen Sie auf der geöffneten Seite auf „Associer“.",
+   "Das Telefon öffnet „À valider“: prüfen, freigeben, eine Antwort „à compléter“ ablegen oder verwerfen.",
+   "Legen Sie die Seite auf den Startbildschirm; aktivieren Sie bei Bedarf die Benachrichtigungen."
+  ],
+  "result": "Das Telefon bleibt 90 Tage mit Ihrem Konto verbunden, bis Sie es entfernen oder Ihr Passwort ändern.",
+  "verify": "Das Telefon erscheint unter „Téléphones associés“; „Retirer“ beendet seine Sitzung sofort.",
+  "errors": [
+   [
+    "„Dieser Code ist abgelaufen oder wurde schon verwendet“",
+    "Zeigen Sie am Computer einen neuen QR-Code an: 10 Minuten gültig, nur einmal."
+   ],
+   [
+    "„Höchstens zehn Geräte pro Konto“",
+    "Entfernen Sie ein ungenutztes Gerät, bevor Sie ein weiteres verbinden."
+   ]
+  ],
+  "example": "Vom Telefon die Ablage einer Antwort „à compléter“ an den fiktiven Mandanten der Akte DOS-001 freigeben.",
+  "buttons": [],
+  "version": "5.6.36"
  }
 }

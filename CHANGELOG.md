@@ -3,6 +3,23 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.74 — Associer un téléphone par QR code, valider depuis le téléphone (version serveur)
+
+Demande du cabinet du 26 octobre 2026 (inspirée de l’association d’appareils de Row-Bot).
+
+- **Associer un téléphone** (Paramètres › Poste et maintenance › Téléphones associés) : « Associer un téléphone » affiche un QR code ;
+  l’appareil photo du téléphone ouvre « Associer ce téléphone » (compte affiché, nom de l’appareil), puis « Associer ». Invitation à usage
+  unique, valable 10 minutes, liée au compte connecté ; seule l’empreinte du jeton est conservée ; un aperçu de lien ne la consomme
+  jamais ; tentatives limitées par adresse. Session du téléphone : 90 jours, révocable (« Retirer »), fermée aussi par un changement de
+  mot de passe ; dix appareils au plus par compte.
+- **Valider depuis le téléphone** : page « À valider » (`/mobile`) — la file « À décider / À relire » du compte, en grand, avec les mêmes
+  boutons qu’à l’ordinateur (relire, déposer une réponse « à compléter », écarter, autoriser une opération…). Les notifications (4.9.0)
+  annoncent aussi, en nombres seulement, les points à décider.
+- Version serveur seulement : un poste Windows ou Ubuntu n’est pas joignable depuis un téléphone.
+- QR code produit sur le serveur par Segno 1.6.6 (BSD-3-Clause), copie locale `agent/_vendor/segno` ; image servie à la même origine, au
+  seul compte qui l’a demandée, gardée en mémoire 10 minutes.
+- Contraste : compteur de l’onglet actif de la file « À décider » lisible en thème clair et sombre.
+
 ## 5.6.73 — Navigateur supervisé (application Windows et Ubuntu)
 
 Demande du cabinet du 26 octobre 2026 : reprendre de Row-Bot (Apache 2.0) le pilotage d’un navigateur, adapté à un cabinet d’avocats.

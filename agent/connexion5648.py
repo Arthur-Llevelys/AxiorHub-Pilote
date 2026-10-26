@@ -585,6 +585,10 @@ def handle(env, auth, cfg, prefix, path):
             return _new_password(db, env, auth, state, prefix, query)
         if path == '/connexion/changer':
             return _change(db, env, auth, prefix)
+        if path == '/connexion/appareil':   # 5.6.74 : associer un téléphone (invitation à usage unique du QR code)
+            from .appareils5674 import SCHEMA as _ap74, pairing as _pairing
+            db.executescript(_ap74)
+            return _pairing(db, env, auth, prefix, secure, _form_data(env) if method == 'POST' else None, query)
         return _redirect(prefix + '/connexion')
     finally:
         db.close()

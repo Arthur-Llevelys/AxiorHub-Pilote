@@ -1948,5 +1948,31 @@
   "example": "Obtener el extracto registral de una sociedad ficticia y guardarlo en el expediente DOS-001.",
   "buttons": [],
   "version": "5.6.36"
+ },
+ "mobile": {
+  "objective": "Validar o revisar desde el teléfono lo que espera su decisión, tras vincularlo por código QR.",
+  "when": "De viaje, en el tribunal o fuera del despacho, cuando una respuesta preparada o una operación espera su aprobación.",
+  "prerequisites": "La versión servidor de AxiorHub (accesible por HTTPS) y una cuenta; un teléfono con cámara.",
+  "steps": [
+   "En el ordenador: Paramètres › Poste et maintenance › Téléphones associés › «Associer un téléphone».",
+   "Escanee el código QR con la cámara del teléfono y toque «Associer» en la página que se abre.",
+   "El teléfono llega a «À valider»: revise, autorice, deposite una respuesta «à compléter» o descártela.",
+   "Para tenerla a mano, añada la página a la pantalla de inicio; active las notificaciones si lo desea."
+  ],
+  "result": "El teléfono queda conectado a su cuenta 90 días, hasta que lo retire o cambie su contraseña.",
+  "verify": "El teléfono aparece en «Téléphones associés»; «Retirer» cierra su sesión de inmediato.",
+  "errors": [
+   [
+    "«Este código ha caducado o ya se ha usado»",
+    "Muestre un nuevo código QR desde el ordenador: vale 10 minutos, una sola vez."
+   ],
+   [
+    "«Diez dispositivos como máximo por cuenta»",
+    "Retire un dispositivo sin uso antes de vincular otro."
+   ]
+  ],
+  "example": "Autorizar desde el teléfono el depósito de una respuesta «à compléter» al cliente ficticio del expediente DOS-001.",
+  "buttons": [],
+  "version": "5.6.36"
  }
 }

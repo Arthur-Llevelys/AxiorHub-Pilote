@@ -73,6 +73,7 @@ FUNCTIONS = (
     ('regles', 'modeles', '/regles', ('Règles et autonomie', 'Règles de tri'), ()),
     ('autonomie', 'modeles', '/autonomie', ('Autonomie de l’agent', 'Mode prudent'), ()),
     ('apprentissage', 'modeles', '/apprentissage', ('Apprentissage métier', 'Règles métier'), ()),
+    ('mobile', 'communiquer', '/mobile', ('À valider', 'Téléphone', 'Mobile', 'Validations', 'Associer un téléphone', 'QR code'), ()),   # 5.6.74
     ('navigateur', 'rechercher', '/navigateur', ('Navigateur supervisé', 'Navigateur', 'Portail des juridictions', 'Infogreffe', 'Registre des sociétés',
                                                  'Sites autorisés'), ()),   # 5.6.73
     ('savoir_faire', 'modeles', '/savoir-faire', ('Savoir-faire du cabinet', 'Clauses approuvées', 'Listes de vérification', 'Structures de courrier'), ()),   # 5.6.59
