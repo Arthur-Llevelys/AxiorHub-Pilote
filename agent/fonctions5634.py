@@ -10,6 +10,7 @@ MIGRATION = {
     'courriels': 'Courriels → boîte, pièces jointes et brouillons',
     'planning': 'Agenda et tâches → Agenda en ligne (calendriers configurés) / Agenda personnel (local, jamais copié), Tâches, Organiser la semaine',
     'facturation': 'Facturation et honoraires (5.6.53) → page unique : à préparer, documents, règlements, chiffrage (Honorium), réglages et modèles ; épinglable au menu principal',
+    'navigateur': 'Navigateur supervisé (5.6.73) → Rechercher : consultation de portails et registres dans une fenêtre visible du poste, actions engageantes validées par l’avocat',
     'savoir_faire': 'Savoir-faire du cabinet (5.6.59) → Modèles et apprentissage : ressources versionnées, anonymisées, approuvées, utilisées par l’agent',
     'securite_ia': 'Sécurité de l’IA (5.6.59) → Paramètres : alertes sur les instructions cachées dans les courriels, documents et images',
     'talk': 'Talk (5.6.43, facultatif) → accès principal après Agenda et tâches, activé par chaque utilisateur dans Paramètres › Connexions',

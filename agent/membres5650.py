@@ -284,6 +284,8 @@ def category(method, path, action=''):
             return 'reglages'
         if route5653 not in ('estimation/calculer', 'epingler'):
             return 'facturation'
+    if api.startswith('m5673/sites') and method not in ('GET', 'HEAD'):   # 5.6.73 : liste des sites du navigateur = réglage du cabinet
+        return 'reglages'
     if api.startswith('m5671/reponse/'):   # 5.6.71 : déposer ou écarter une réponse préparée = dépôt de brouillons
         return 'deposer'
     if api.startswith('m5671/reglage/') and method not in ('GET', 'HEAD'):

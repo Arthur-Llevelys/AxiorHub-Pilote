@@ -3,6 +3,26 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.73 — Navigateur supervisé (application Windows et Ubuntu)
+
+Demande du cabinet du 26 octobre 2026 : reprendre de Row-Bot (Apache 2.0) le pilotage d’un navigateur, adapté à un cabinet d’avocats.
+
+- **Navigateur supervisé** (Toutes les fonctions › Navigateur supervisé). L’avocat confie une tâche (« récupère l’extrait
+  d’immatriculation », « consulte l’état de la procédure ») ; l’agent travaille pas à pas dans une fenêtre Edge / Chrome visible, avec un
+  profil propre à AxiorHub (connexions conservées d’une séance à l’autre). Aucune dépendance ajoutée : le navigateur déjà installé est
+  piloté par le protocole DevTools.
+- **Ce qui attend l’avocat.** Jamais de saisie de mot de passe, de code à usage unique ni de numéro de carte : l’agent s’arrête et l’avocat
+  le fait dans la fenêtre. Payer, réserver avec un montant, envoyer / déposer / signer / transmettre / notifier, supprimer, modifier un
+  compte : « Autoriser » ou « Refuser », quoi que propose le modèle. Une vérification anti-robots (CAPTCHA) est toujours faite par
+  l’avocat ; l’agent ne tente jamais de la contourner.
+- **Sites.** Liste du cabinet préremplie (juridictions, Légifrance, registres des sociétés, professions, administrations), modifiable ; un
+  autre site demande l’accord une fois (ou « toujours ») ; jamais ce poste ni le réseau local.
+- **Résultats.** Fichiers téléchargés et pages enregistrées (texte et page complète) rangés dans « Pièces récupérées » du dossier choisi,
+  sinon gardés sur le poste ; historique des séances sans paramètres d’adresse ni texte saisi.
+- **Contrôle.** « Prendre la main » / « Rendre la main », « Arrêter », « Fermer le navigateur » ; une séance à la fois.
+- Licences : extraits adaptés de Row-Bot (Copyright 2026 Row-Bot Contributors, Apache 2.0) — `LICENSES/Apache-2.0.txt`, `NOTICE-row-bot`,
+  `THIRD_PARTY_NOTICES.md`, SBOM.
+
 ## 5.6.72 — Alerte « modèle local d’IA injoignable », nouvelles tentatives après une coupure
 
 Incident du cabinet du 22 octobre 2026 : le moteur local (Ollama, sur un autre poste du réseau) s’est arrêté un soir ; pendant plus de

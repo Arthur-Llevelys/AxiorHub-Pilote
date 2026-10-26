@@ -73,6 +73,8 @@ FUNCTIONS = (
     ('regles', 'modeles', '/regles', ('Règles et autonomie', 'Règles de tri'), ()),
     ('autonomie', 'modeles', '/autonomie', ('Autonomie de l’agent', 'Mode prudent'), ()),
     ('apprentissage', 'modeles', '/apprentissage', ('Apprentissage métier', 'Règles métier'), ()),
+    ('navigateur', 'rechercher', '/navigateur', ('Navigateur supervisé', 'Navigateur', 'Portail des juridictions', 'Infogreffe', 'Registre des sociétés',
+                                                 'Sites autorisés'), ()),   # 5.6.73
     ('savoir_faire', 'modeles', '/savoir-faire', ('Savoir-faire du cabinet', 'Clauses approuvées', 'Listes de vérification', 'Structures de courrier'), ()),   # 5.6.59
     ('competences', 'modeles', '/competences', ('Compétences', 'Skills', 'Assistant juridique', 'Approbation des comptes', 'RGPD'), ('ai',)),
     ('projets', 'modeles', '/projets', ('Projets en attente', 'Travail préparé'), ()),

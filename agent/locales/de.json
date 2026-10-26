@@ -760,6 +760,8 @@
  "vj.queued": "Erfassung in der Warteschlange: Sie beginnt, sobald der Agent verfügbar ist.",
  "vj.running": "Erfassung läuft…",
  "vj.queue_refused": "Einreihung abgelehnt (Warteschlange voll): neuer Versuch im nächsten Zyklus, oder klicken Sie auf „Actualiser“.",
+ "fn.navigateur.label": "Überwachter Browser",
+ "fn.navigateur.desc": "Der Agent nutzt Portale und Register in einem sichtbaren Fenster; Zahlungen, Versand und Einreichungen geben Sie frei",
  "fn.savoir_faire.label": "Know-how der Kanzlei",
  "fn.savoir_faire.desc": "Freigegebene Briefaufbauten, Checklisten, Klauseln und Methoden, die der Agent verwendet",
  "fn.securite_ia.label": "KI-Sicherheit",
