@@ -463,6 +463,15 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code == 'version_en_conflit' else
                              ('404 Not Found' if code in ('routine_absente', 'connexion_absente', 'operation_absente', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m5672/'):   # 5.6.72 : test du modèle local d'IA (bandeau « injoignable »)
+        from . import ia5672
+        try:
+            return ia5672.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))}, '400 Bad Request')
     if name.startswith('m5671/'):   # 5.6.71 : réponses préparées en attente (déposer, écarter), réponses « sans dossier »
         from . import web5671
         try:

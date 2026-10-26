@@ -3,6 +3,18 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.72 — Alerte « modèle local d’IA injoignable », nouvelles tentatives après une coupure
+
+Incident du cabinet du 22 octobre 2026 : le moteur local (Ollama, sur un autre poste du réseau) s’est arrêté un soir ; pendant plus de
+12 heures, aucun courriel n’a été trié ni rédigé, sans aucun signal sur « Aujourd’hui ».
+
+- **Alerte sur « Aujourd’hui ».** Quand des travaux échouent depuis plus de 10 minutes parce que le modèle local ne répond pas, un
+  bandeau le dit : heure de la première panne, dernier appel réussi, adresse du moteur, points à vérifier (machine allumée et sans
+  veille, Ollama démarré et accessible depuis le réseau) et bouton « Tester maintenant ». Il disparaît dès qu’un appel ou le test réussit.
+- **Nouvelles tentatives.** Une réponse « sans dossier » qui a échoué parce que l’IA était injoignable, en pause ou surchargée est
+  retentée quand l’IA répond de nouveau (3 essais au plus) ; aucune tentative n’est lancée pendant la coupure.
+- Recette : un test de planification du point du matin ne dépend plus de la date réelle.
+
 ## 5.6.71 — Surveillance des dossiers allégée, activité de l’agent lisible, réponses « sans dossier », réponses en attente visibles
 
 Diagnostic du cabinet du 22 octobre 2026 (lecture seule) : environ 1 500 surveillances de dossier par jour, chacune relisant Nextcloud ;

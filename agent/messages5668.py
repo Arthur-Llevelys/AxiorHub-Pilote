@@ -24,6 +24,8 @@ MESSAGES = {
     'generation_ia_incomplete': 'Réponse du modèle coupée avant la fin : relancez.',
     'reponse_ia_vide': 'Le modèle n’a rien répondu : relancez.',
     'fonction_ia_invalide': 'Fonction d’IA inconnue.',
+    # 5.6.72
+    'moteur_ollama_non_configure': 'Aucun modèle local (Ollama) n’est configuré : voir Paramètres › IA.',
     # 5.6.71
     'projet_prudent_absent': 'Cette réponse préparée n’existe plus (déjà déposée ou écartée) : rechargez la page.',
     'controle_de_surete_non_satisfait': 'Le contrôle de sûreté n’autorise pas le dépôt tel quel : relisez et modifiez le texte, puis déposez-le.',
