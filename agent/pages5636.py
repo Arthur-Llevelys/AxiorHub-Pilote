@@ -17,6 +17,7 @@ PAGES = {
     '/messagerie': 'Messagerie du cabinet',   # 5.6.50
     '/savoir-faire': 'Savoir-faire du cabinet',   # 5.6.59 (A07)
     '/securite-ia': 'Sécurité de l’IA',   # 5.6.59 : instructions cachées dans les sources
+    '/navigateur': 'Navigateur supervisé',   # 5.6.73 : poste Windows ou Ubuntu
     '/parametres/droits': 'Droits et accès',   # 5.6.50 (administrateur)   # 5.6.37 : page du menu « Toutes les fonctions » (interface affichée dans Nextcloud)
 }
 
@@ -35,6 +36,9 @@ def page(desk, auth, prefix, env, args, path, shell):
             raise Stop('role_insuffisant')
         from . import web5650
         body = web5650.droits_page(desk, auth, prefix, env, args)
+    elif path == '/navigateur':   # 5.6.73
+        from . import web5673
+        body = web5673.page_html(desk, prefix, args, env, auth)
     elif path == '/savoir-faire':
         from . import web5659
         body = web5659.savoir_page(desk, auth, prefix, env, args)

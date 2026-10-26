@@ -760,6 +760,8 @@
  "vj.queued": "Collection queued: it starts as soon as the agent is available.",
  "vj.running": "Collection in progress…",
  "vj.queue_refused": "Queueing refused (queue full): new attempt at the next cycle, or click “Actualiser”.",
+ "fn.navigateur.label": "Supervised browser",
+ "fn.navigateur.desc": "The agent browses portals and registries in a visible window; you approve payments, sending and filings",
  "fn.savoir_faire.label": "Firm know-how",
  "fn.savoir_faire.desc": "Approved letter structures, checklists, clauses and methods used by the agent",
  "fn.securite_ia.label": "AI security",

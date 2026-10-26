@@ -24,6 +24,23 @@ MESSAGES = {
     'generation_ia_incomplete': 'Réponse du modèle coupée avant la fin : relancez.',
     'reponse_ia_vide': 'Le modèle n’a rien répondu : relancez.',
     'fonction_ia_invalide': 'Fonction d’IA inconnue.',
+    # 5.6.73
+    'navigateur_reserve_au_poste': 'Le navigateur supervisé fonctionne dans l’application AxiorHub Pilote pour Windows ou Ubuntu (poste de l’avocat).',
+    'navigateur_absent_du_poste': 'Aucun navigateur compatible sur ce poste : installez Microsoft Edge, Google Chrome ou Chromium.',
+    'navigateur_demarrage_impossible': 'Le navigateur n’a pas pu démarrer : fermez les fenêtres du navigateur d’AxiorHub restées ouvertes, puis réessayez.',
+    'navigateur_ferme': 'La fenêtre du navigateur a été fermée : relancez la tâche.',
+    'navigateur_delai_depasse': 'Le navigateur ne répond plus : arrêtez la séance puis relancez-la.',
+    'une_seance_est_deja_en_cours': 'Une séance du navigateur est déjà en cours : arrêtez-la ou attendez sa fin.',
+    'aucune_decision_attendue': 'Aucune décision n’est attendue pour cette séance.',
+    'aucune_seance': 'Aucune séance du navigateur en cours.',
+    'tache_trop_courte': 'Décrivez la tâche en quelques mots.',
+    'tache_trop_longue': 'Tâche trop longue (2 000 caractères au plus).',
+    'site_invalide': 'Site invalide : indiquez un nom de domaine public, par exemple infogreffe.fr.',
+    'repere_absent_de_la_page': 'Le contrôle visé n’est plus sur la page.',
+    'option_introuvable': 'Option introuvable dans la liste.',
+    'arrete_par_l_avocat': 'Arrêté par l’avocat.',
+    'delai_de_decision_depasse': 'Aucune décision en 30 minutes : séance arrêtée.',
+    'reponse_ia_invalide': 'Réponse du modèle inexploitable deux fois de suite : séance arrêtée.',
     # 5.6.72
     'moteur_ollama_non_configure': 'Aucun modèle local (Ollama) n’est configuré : voir Paramètres › IA.',
     # 5.6.71

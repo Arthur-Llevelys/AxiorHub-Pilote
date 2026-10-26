@@ -7,9 +7,9 @@
     "timestamp": "2026-10-06T00:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.72",
+      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.73",
       "name": "AxiorHub Pilote",
-      "version": "5.6.72",
+      "version": "5.6.73",
       "licenses": [
         {
           "license": {
@@ -258,6 +258,21 @@
           }
         }
       ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:github/siddsachar/row-bot@fca083b",
+      "name": "row-bot",
+      "version": "fca083b",
+      "purl": "pkg:github/siddsachar/row-bot@fca083b",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "description": "Extraits adaptés : agent/nav5673.py (navigateur supervisé)"
     }
   ],
   "dependencies": [

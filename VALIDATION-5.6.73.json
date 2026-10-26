@@ -1,0 +1,43 @@
+{
+  "version": "5.6.73",
+  "base": "5.6.72",
+  "date_utc": "2026-10-26T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 26 octobre 2026 : navigateur supervisé repris de Row-Bot (Apache 2.0) pour les applications Windows et Ubuntu : sites des juridictions, registres des sociétés, plateformes de la profession, tout site autorisé.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2717,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 119,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub. Le test avec un navigateur réel est ignoré là où aucun navigateur Chromium n’est installé."
+  },
+  "new_tests": "tests/test_v5673.py (15) : adresses refusées ; sites et sous-domaines ; conséquences en français et vocabulaire juridique ; plan de page et repères stables ; validation avant dépôt et refus ; mot de passe jamais saisi et historique sans texte ; site hors liste puis « toujours » ; réseau local jamais ; téléchargement rangé dans le dossier ; vérification anti-robots faite par l’avocat ; une séance à la fois et arrêt ; droits et poste seulement ; liste des sites ; câblage et licences ; navigateur réel.",
+  "not_tested_live": [
+    "sites réels en fenêtre visible (les essais automatiques sans fenêtre sont bloqués par les protections anti-robots des sites publics)",
+    "Ubuntu (Chrome / Chromium) : non essayé sur un poste réel",
+    "modèle local réel dans la boucle (modèle simulé)"
+  ],
+  "third_party": {
+    "row-bot": {
+      "commit": "fca083b",
+      "licence": "Apache-2.0",
+      "fichiers": [
+        "agent/nav5673.py"
+      ]
+    }
+  },
+  "exapp": {
+    "version": "0.1.32",
+    "moteur": "5.6.73"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "pages5636 : page /navigateur ; fonctions5631 : entrée « Navigateur supervisé » ; locales fr, en, de, es.",
+    "web440 / standalone_auth / membres5650 : routes m5673 (sites = réglage du cabinet)."
+  ],
+  "adjusted_tests": []
+}

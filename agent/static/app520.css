@@ -2450,3 +2450,16 @@ html[data-theme="dark"] .d51-state-partielle,body.dark .d51-state-partielle{colo
 .r5671 textarea{width:100%;box-sizing:border-box;font:inherit;line-height:1.5;padding:10px;border:1px solid var(--ws-border,#cbd5e1);border-radius:8px}
 .r5671-actions{margin:10px 0 0}
 .r5671-inline,.q51-inline[data-c5671]{display:inline-block;margin:8px 8px 0 0}
+/* ==== v5673.css ==== */
+/* AxiorHub 5.6.73 — navigateur supervisé */
+.n5673 textarea,.n5673 select{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--ws-border,#cbd5e1);border-radius:8px}
+.n5673 label{display:block;font-weight:600;margin:10px 0 4px}
+.n5673-start .ax-btn{margin-top:10px}
+.n5673-live{margin:16px 0}
+.n5673-ask{border:2px solid #b45309;border-radius:10px;padding:12px 14px;margin:10px 0;background:#fffbeb;color:#1f2937}
+.n5673-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.n5673-actions input{flex:1 1 220px;min-width:0;font:inherit;padding:6px 8px;border:1px solid var(--ws-border,#cbd5e1);border-radius:8px}
+.n5673-summary{white-space:pre-wrap}
+.n5673-steps ol{margin:6px 0 0 18px;padding:0}
+.n5673-sites{margin:12px 0}
+html[data-theme="dark"] .n5673-ask,body.dark .n5673-ask{background:#3b2a06;color:#fde68a;border-color:#f59e0b}

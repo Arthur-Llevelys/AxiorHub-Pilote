@@ -78,6 +78,9 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api.startswith('m5673/'):   # 5.6.73 : navigateur supervisé (avocat, assistant) ; sites autorisés (avocat)
+        from .web5673 import allowed as allowed5673
+        return allowed5673(role, api[len('m5673/'):])
     if api == 'm5672/ia/tester':   # 5.6.72 : test du modèle local (lecture de sa version), tous les rôles
         return True
     if api.startswith('m5671/'):   # 5.6.71 : réponses préparées (tous) ; réglage « sans dossier » (administrateur)
