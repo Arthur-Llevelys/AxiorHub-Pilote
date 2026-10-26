@@ -48,11 +48,21 @@ def enabled(desk):
     return True
 
 
+MAX_ATTEMPTS = 3
+
+
 def _attempted(desk, key):
+    """Déjà tenté ? 5.6.72 : un échec dû à l'IA injoignable, en pause ou surchargée ne compte pas (3 essais au plus)."""
     if desk.db.execute('SELECT 1 FROM manual_drafts WHERE mail_key=?', (key,)).fetchone():
         return True
     marker = '%"key": "' + key + '"%'
-    return bool(desk.db.execute("SELECT 1 FROM jobs WHERE kind='prepare_reply' AND args LIKE ?", (marker,)).fetchone())
+    rows = desk.db.execute("SELECT status,json_extract(result,'$.erreur') FROM jobs WHERE kind='prepare_reply' AND args LIKE ?", (marker,)).fetchall()
+    if not rows:
+        return False
+    from .ia5672 import TRANSIENT
+    if all(r[0] == 'error' and str(r[1] or '').split(':')[0] in TRANSIENT for r in rows) and len(rows) < MAX_ATTEMPTS:
+        return False
+    return True
 
 
 def candidates(desk, limit=PER_PASS, now=None):
@@ -98,6 +108,9 @@ def candidates(desk, limit=PER_PASS, now=None):
 def sweep(desk, now=None):
     if not enabled(desk):
         return {'mis_en_preparation': 0, 'desactive': True}
+    from .ia5672 import local_down
+    if local_down(desk, now)['down']:   # 5.6.72 : pas de tentative pendant une coupure du modèle local
+        return {'mis_en_preparation': 0, 'ia_injoignable': True}
     queued = []
     for key in candidates(desk, PER_PASS, now):
         try:

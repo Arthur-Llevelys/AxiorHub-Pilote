@@ -1,0 +1,32 @@
+{
+  "version": "5.6.72",
+  "base": "5.6.71 publiée",
+  "date_utc": "2026-10-23T00:00:00+00:00",
+  "cahier_des_charges": "Incident du 22 octobre 2026 : moteur local injoignable plus de 12 heures sans signal ; réponses « sans dossier » tentées pendant la coupure jamais retentées.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent",
+    "total": 2701,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 118,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5672.py (7) : alerte après 10 minutes et levée au retour ; autres erreurs sans alerte ; bouton « Tester » ; bandeau et droits ; échecs dus à l’IA retentés (3 au plus), échecs de fond non retentés ; aucune tentative pendant la coupure.",
+  "exapp": {
+    "version": "0.1.31",
+    "moteur": "5.6.72"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "cockpit530.page : bandeau ia5672 avant celui du plafond.",
+    "reponses5671 : _attempted ignore les échecs transitoires (ia5672.TRANSIENT, 3 essais) ; sweep suspendu pendant une panne.",
+    "web440 / standalone_auth : route m5672/ia/tester (tous les rôles, lecture de la version du moteur)."
+  ],
+  "adjusted_tests": [
+    "tests/test_v340.py : l’échec simulé est daté sur l’horloge du test (le test dépendait de la date réelle, passée le 25/10/2026)."
+  ]
+}

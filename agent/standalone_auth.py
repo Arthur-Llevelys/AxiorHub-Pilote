@@ -78,6 +78,8 @@ def allowed(role, method, path, action=''):
         return False
     if api == 'm5631/langue':
         return True
+    if api == 'm5672/ia/tester':   # 5.6.72 : test du modèle local (lecture de sa version), tous les rôles
+        return True
     if api.startswith('m5671/'):   # 5.6.71 : réponses préparées (tous) ; réglage « sans dossier » (administrateur)
         from .web5671 import allowed as allowed5671
         return allowed5671(role, api[len('m5671/'):])

@@ -1131,6 +1131,7 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     ensure_schema(desk)
     from .aujourdhui5614 import decisions_html, routines_bar_html   # 5.6.14 (U01, U02) : routines en tête, « À décider » compact
     from .budget5668 import banner_html as _banner5668            # 5.6.68 : plafond de l'IA externe atteint
+    from .ia5672 import banner_html as _banner5672                # 5.6.72 : modèle local d'IA injoignable
     z = tz(desk)
     days = ('lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche')
     months = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')
@@ -1170,7 +1171,7 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
             '<div id="c530-drawer-content"></div></div></div></div>') % (
-        e(prefix, quote=True), e(when), header, _banner5668(desk, prefix, owner=owner) + routines_bar_html(desk, prefix, {'owner': owner}), routines_html(desk, prefix), style_html(desk, prefix),
+        e(prefix, quote=True), e(when), header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + routines_bar_html(desk, prefix, {'owner': owner}), routines_html(desk, prefix), style_html(desk, prefix),
         thread_html(desk, prefix), options, '',
         feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
