@@ -1,0 +1,33 @@
+{
+  "version": "5.6.75",
+  "base": "5.6.74",
+  "date_utc": "2026-10-27T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 27 octobre 2026 : connecteur Claude avec option de pseudonymisation ; Claude prépare brouillons et notes par le connecteur ; mémoire et plugins.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2741,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 121,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5675.py (16) : navigateur supervisé dans « Toutes les fonctions », aucune fonction orpheline ; inactif par défaut, métadonnées RFC 9728/8414 ; inscription limitée aux adresses de Claude ; parcours complet connexion, accord, PKCE, jetons, rotation ; code rejoué, refus, PKCE absent ; identité publiée (CIMD) et port local libre ; mot de passe changé ; outils et pseudonymisation stable, confidentiel refusé ; note rétablie ; brouillon jamais envoyé ; fait avec extrait exact ; savoir-faire sans donnée réelle ; dossier exclu invisible ; lecture seule, ressources, invites ; réglages, connexions et téléchargements ; droits et câblage.",
+  "live_checks": "Application réelle en version serveur, en HTTPS local, interrogée par le client officiel du SDK MCP (Python, 1.26) : découverte par la réponse 401, inscription dynamique, PKCE, écran « Autoriser Claude », jetons, protocole 2025-11-25, 12 outils, résultats pseudonymisés, brouillon déposé sans envoi, invites et ressources. Écran d’accord et section des Paramètres vus dans un navigateur.",
+  "exapp": {
+    "version": "0.1.34",
+    "moteur": "5.6.75"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "web.py : routes publiques /.well-known/oauth-*, /.well-known/openid-configuration, /oauth/*, /claude/mcp (claude5675.handle), avant toute authentification par session ou Basic ; inactives tant que le connecteur est désactivé.",
+    "notes5666.deposit : libellé du fichier (« Note interne » ou « Projet »).",
+    "parametres5621 : section « Claude (connecteur) » dans Modèles d’IA ; standalone_auth : m5675/retirer et m5675/pseudonymiser.",
+    "deploy/vps/apache/axiorhub.conf : Referrer-Policy same-origin.",
+    "navigation5643 : « navigateur » dans le menu « Toutes les fonctions » ; « mobile » rattaché à Aujourd’hui."
+  ],
+  "adjusted_tests": []
+}

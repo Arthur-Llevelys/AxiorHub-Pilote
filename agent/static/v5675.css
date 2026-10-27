@@ -1,0 +1,9 @@
+/* AxiorHub 5.6.75 — connecteur Claude (Paramètres › Modèles d'IA) */
+.cl75-form{display:grid;gap:8px;max-width:640px;margin:8px 0 14px}
+.cl75-form label{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cl75-form select{min-height:36px}
+.cl75-form .ax-btn{justify-self:start}
+.cl75-url{word-break:break-all;user-select:all;font-size:.95rem}
+.cl75-steps{padding-left:1.3em}
+.cl75-steps li{margin:4px 0}
+.cl75-journal{margin-top:10px}

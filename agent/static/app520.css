@@ -2477,3 +2477,13 @@ html[data-theme="dark"] .n5673-ask,body.dark .n5673-ask{background:#3b2a06;color
 .ap74-mobile .q51-actions .ax-btn,.ap74-mobile .q51-actions button{min-height:44px;padding:10px 14px}
 .ap74-mobile .q51-actions form,.ap74-mobile .q51-actions a{margin:6px 8px 0 0}
 @media (max-width:850px){body:has(.ap74-mobile) aside{display:none}body:has(.ap74-mobile) #ws-sidebar-toggle{display:none}}
+/* ==== v5675.css ==== */
+/* AxiorHub 5.6.75 — connecteur Claude (Paramètres › Modèles d'IA) */
+.cl75-form{display:grid;gap:8px;max-width:640px;margin:8px 0 14px}
+.cl75-form label{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cl75-form select{min-height:36px}
+.cl75-form .ax-btn{justify-self:start}
+.cl75-url{word-break:break-all;user-select:all;font-size:.95rem}
+.cl75-steps{padding-left:1.3em}
+.cl75-steps li{margin:4px 0}
+.cl75-journal{margin-top:10px}

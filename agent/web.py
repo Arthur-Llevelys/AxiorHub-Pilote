@@ -716,6 +716,10 @@ class App:
                 _public={'status':'200 OK','kind':'application/manifest+json; charset=utf-8',
                          'body':json.dumps(_manifest490(_prefix),ensure_ascii=False) if env['REQUEST_METHOD']=='GET' else '',
                          'csp':"default-src 'none'"}
+            if _public is None:
+                from . import claude5675 as _cl75
+                if _cl75.is_route(_path,_prefix):   # 5.6.75 : connecteur Claude (OAuth 2.1 et MCP distant, jeton propre au connecteur)
+                    _public=_cl75.handle(env,auth,self.config_path,_prefix,_path)
             if _public is None and (_path in ('/connexion','/deconnexion','/static/connexion5648.css') or _path.startswith('/connexion/')):
                 from . import connexion5648 as _cx48
                 if _cx48.enabled(auth):   # 5.6.48 : page de connexion, premier compte, mot de passe oublié, déconnexion
