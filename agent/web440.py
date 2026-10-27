@@ -463,6 +463,16 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code == 'version_en_conflit' else
                              ('404 Not Found' if code in ('routine_absente', 'connexion_absente', 'operation_absente', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m5675/'):   # 5.6.75 : connecteur Claude (réglages, connexions du compte, compétence et plugin)
+        from . import claude5675
+        try:
+            return claude5675.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
+                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
     if name.startswith('m5674/'):   # 5.6.74 : téléphones associés par QR code (version serveur)
         from . import appareils5674
         try:

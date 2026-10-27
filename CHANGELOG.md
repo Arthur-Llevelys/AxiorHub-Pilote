@@ -3,6 +3,39 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.75 — Connecteur Claude : AxiorHub dans Claude (claude.ai, Claude Desktop, mobile), pseudonymisé, préparer sans jamais envoyer
+
+Demande du cabinet du 27 octobre 2026 : utiliser AxiorHub depuis Claude avec l’abonnement de l’avocat, option de pseudonymisation,
+brouillons et notes préparés par Claude, mémoire et plugins.
+
+- **Connecteur personnalisé de Claude** (voie autorisée par Anthropic : aucun jeton d’abonnement Claude n’est lu par AxiorHub). Adresse
+  `https://<serveur>/<préfixe>/claude/mcp` (MCP « Streamable HTTP », réponses JSON). Connexion par OAuth 2.1 avec PKCE (S256) : métadonnées
+  RFC 9728 et RFC 8414 (avec et sans préfixe), inscription dynamique RFC 7591 limitée aux adresses de retour de Claude (claude.ai, claude.com)
+  et de l’ordinateur (Claude Code, port libre), identité publiée de Claude (document de métadonnées CIMD, lu seulement sur les domaines
+  d’Anthropic), jetons d’accès d’une heure et de renouvellement de 30 jours à usage unique, code rejoué = accès fermé, révocation RFC 7009.
+  L’avocat se connecte avec SON compte AxiorHub (page de connexion 5.6.48) puis « Autoriser Claude » (compte, ce que Claude reçoit, adresse
+  de retour, mise en garde contre un lien reçu d’un tiers). Changer de mot de passe ou désactiver le compte ferme l’accès.
+- **Pseudonymisation** (5.4.0) de tout ce que Claude reçoit : activée par défaut, imposée à tous les comptes tant que l’administrateur ne la
+  laisse pas au choix de chacun. Marqueurs STABLES pour le compte (table de correspondance conservée sur le serveur, jamais transmise) :
+  cohérents d’une conversation à l’autre et dans la mémoire de Claude. Les marqueurs écrits par Claude sont rétablis au dépôt ; un
+  marqueur inconnu est laissé tel quel et signalé (objet « À VÉRIFIER » d’un brouillon).
+- **Lecture** : dossiers du compte (dossiers réservés à d’autres membres et dossiers exclus de l’IA externe jamais visibles), fiche,
+  recherche, lecture d’un document ou courriel indexé, « À décider », échéances et agenda, mémoire du dossier, savoir-faire approuvé. Les
+  correspondances confidentielles entre avocats (5.6.64) ne sont jamais transmises.
+- **Préparer, jamais envoyer** : brouillon de courriel déposé dans « Brouillons » (relu, vérifié, citations contrôlées, réponse dans le fil
+  d’un courriel reçu) ; note interne ou projet d’acte en document Word dans le dossier (sinon « A TRAITER ») ; fait proposé à la mémoire du
+  dossier avec un extrait EXACT du document source ; savoir-faire générique proposé à la bibliothèque (marqueurs non rétablis). Tout reste à
+  valider dans AxiorHub. Réglage du cabinet « lecture seule » ; droit « Déposer des brouillons » du compte respecté.
+- **Mémoire et plugins de Claude** : consignes et savoir-faire en ressources MCP, mémoire et fiche d’un dossier en modèles de ressources,
+  invites (« Faire le point du jour », « Préparer une réponse », « Note de synthèse », « Projet d’acte ») ; compétence (skill) Claude et
+  plugin Claude (Claude Code, Cowork) téléchargeables, préremplis avec l’adresse du serveur.
+- **Paramètres › Modèles d’IA › Claude (connecteur)** : réglages du cabinet (administrateur), adresse et pas à pas, connexions Claude du
+  compte (retirer, pseudonymiser), derniers appels. Version serveur seulement, désactivé par défaut.
+- **Toutes les fonctions** : « Navigateur supervisé » (5.6.73) y figure désormais ; il n’était trouvé que par la recherche. « À valider
+  (téléphone) » est rattaché à « Aujourd’hui ». Un test vérifie qu’aucune fonction n’est plus trouvable seulement par la recherche.
+- Modèle Apache du VPS : « Referrer-Policy: same-origin » (avec « no-referrer », les formulaires partaient avec « Origin: null » et étaient
+  refusés).
+
 ## 5.6.74 — Associer un téléphone par QR code, valider depuis le téléphone (version serveur)
 
 Demande du cabinet du 26 octobre 2026 (inspirée de l’association d’appareils de Row-Bot).

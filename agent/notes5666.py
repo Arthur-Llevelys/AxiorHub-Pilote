@@ -21,12 +21,13 @@ def neutral_folder(desk, matter=None):
     return clean_path(root + '/' + NEUTRAL), root
 
 
-def deposit(desk, client, matter, title, lines, day=None):
-    """Dépose la note (titre, lignes de texte) ; renvoie {'chemin', 'emplacement': 'dossier' | 'a_traiter'}."""
+def deposit(desk, client, matter, title, lines, day=None, label='Note interne'):
+    """Dépose la note (titre, lignes de texte) ; renvoie {'chemin', 'emplacement': 'dossier' | 'a_traiter'}. ``label`` : « Note interne »,
+    ou « Projet » pour un projet d'acte préparé avec Claude (5.6.75)."""
     from .docrequest520 import _free_path, _safe_name, build_docx
     doc = {'titre': title, 'paragraphes': [{'style': 'texte', 'texte': line} for line in lines if str(line).strip()]}
     data = build_docx(doc, {}, '')
-    base = '%s - Note interne - %s' % ((day or datetime.now()).strftime('%Y-%m-%d'), _safe_name(title))
+    base = '%s - %s - %s' % ((day or datetime.now()).strftime('%Y-%m-%d'), label, _safe_name(title))
     targets = []
     if matter and matter.get('path'):
         targets.append(('dossier', clean_path(matter['path']), None))

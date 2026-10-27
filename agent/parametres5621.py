@@ -29,7 +29,7 @@ FAMILIES = (('Démarrer', ('apercu',)), ('Connexions et courriels', ('connexions
             ('Cabinet', ('cabinet', 'poste')))
 KEYWORDS = {'connexions': 'imap smtp mot de passe serveur nextcloud webdav caldav agenda google outlook ollama invoice ninja talk api connexion',
             'messagerie': 'signature police bcc copie cachee regles tri envoyer envoi whatsapp telephone twilio identites adresses',
-            'ia': 'modele profil temperature contexte mistral openai openrouter anthropic economie quota hybride externe pseudonymisation',
+            'ia': 'modele profil temperature contexte mistral openai openrouter anthropic economie quota hybride externe pseudonymisation claude connecteur mcp',
             'voix': 'dictee transcription synthese kokoro espeak whisper micro vitesse',
             'recherche': 'legifrance judilibre justicelibre openlegi goodlegal librejustice tavily flux rss themes veille jurisprudence',
             'routines': 'briefing matin bilan heures jours exclusions roles automatismes initiatives agents',
@@ -137,6 +137,11 @@ def _ia(desk, auth, prefix, env, cap):
         from .web5662 import local_browser
         from .web567 import actor as _actor
         body += _section(_chatgpt(desk, prefix, _actor(env)[1], local_browser(env)))
+    except Exception:   # noqa: BLE001
+        pass
+    try:   # 5.6.75 : connecteur Claude (MCP distant, version serveur)
+        from .claude5675 import settings_html as _claude
+        body += _section(_claude(desk.c['state_dir'], auth, env.get('axiorhub.user')))
     except Exception:   # noqa: BLE001
         pass
     body += _section(_legacy(desk, prefix, auth['csrf'], 'ia'), 'Fournisseurs : état et tests')

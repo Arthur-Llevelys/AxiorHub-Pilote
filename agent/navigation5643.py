@@ -32,7 +32,9 @@ PRODUCTION_VIEWS = {'resultats': '/production', 'rediger': '/studio', 'documents
                     'parcours': '/playbooks', 'analyses': '/outils-ia', 'projets': '/projets'}
 
 # Menu complémentaire : besoins distincts des six accès principaux (cible 6 à 10 entrées visibles).
-PANEL = ('recherche', 'facturation', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant', 'guide_utilisation')
+# 5.6.75 : le navigateur supervisé (5.6.73) n'avait ni place dans ce menu ni page parente : seule la recherche le trouvait.
+PANEL = ('recherche', 'navigateur', 'facturation', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant',
+         'guide_utilisation')
 
 # Destination canonique des sous-sections (trouvées par la recherche ; leur page reste servie).
 PARENT = {
@@ -53,7 +55,7 @@ PARENT = {
     # Modèles et apprentissage
     'modeles_word': 'mon_style', 'modeles_actes': 'mon_style', 'savoir_faire': 'mon_style', 'securite_ia': 'parametres', 'progres': 'mon_style', 'apprentissage': 'mon_style', 'memoire': 'mon_style',
     # Décisions et travaux : Aujourd'hui / Courriels
-    'initiatives': 'aujourdhui', 'engagements': 'aujourdhui', 'associations': 'courriels', 'orchestrateur': 'courriels',
+    'initiatives': 'aujourdhui', 'engagements': 'aujourdhui', 'mobile': 'aujourdhui','associations': 'courriels', 'orchestrateur': 'courriels',
     'accueil_administratif': 'courriels',
     # Paramètres de l'agent, Diagnostic et suivi, Connexions et intégrations
     'agents': 'parametres', 'regles': 'parametres', 'autonomie': 'parametres', 'competences': 'parametres', 'preparation': 'parametres',
