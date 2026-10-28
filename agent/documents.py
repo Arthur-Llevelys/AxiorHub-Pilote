@@ -33,7 +33,7 @@ def _pdf_pages(raw, cfg):
             page=page.strip()
             if len(page)<30:raise Stop('pdf_scan_ocr_necessaire_installer_poppler_et_tesseract')
             pages.append({'page':number,'label':'p. '+str(number),'text':page,'extraction':'text','citation_kind':'page'})
-        return pages
+        return _scrub_pages(raw, pages)
     with tempfile.TemporaryDirectory(prefix='axiorhub-pages-') as td:
         source=Path(td)/'input.pdf';source.write_bytes(raw)
         info=command([_tool('pdfinfo'),str(source)])
@@ -56,7 +56,15 @@ def _pdf_pages(raw, cfg):
             if not page:raise Stop('page_pdf_sans_texte_exploitable')
             pages.append({'page':number,'label':'p. '+str(number),'text':page,
                           'extraction':method,'citation_kind':'page'})
-        return pages
+        return _scrub_pages(raw, pages)
+
+
+def _scrub_pages(raw, pages):
+    """5.6.77 : texte caché des PDF retiré et signalé (pdfmasque5677), page par page."""
+    from .pdfmasque5677 import scrub
+    for item, text in zip(pages, scrub(raw, [p['text'] for p in pages])):
+        item['text'] = text
+    return pages
 
 
 def extract_pages(raw, name, cfg):
@@ -244,7 +252,8 @@ def extract(raw, name, cfg):
                 if len(texts) > cfg.get('max_pdf_pages', 60): raise Stop('pdf_trop_long_ou_protege')
                 if any(len(page.strip()) < 30 for page in texts) and not ''.join(texts).strip():
                     raise Stop('pdf_scan_ocr_necessaire_installer_poppler_et_tesseract')
-                text = '\n'.join('[Page %d]\n%s' % (i + 1, page) for i, page in enumerate(texts))
+                from .pdfmasque5677 import scrub   # 5.6.77 : texte caché des PDF
+                text = '\n'.join('[Page %d]\n%s' % (i + 1, page) for i, page in enumerate(scrub(raw, texts)))
             else:
                 info = command([_tool('pdfinfo'), str(source)])
                 match = re.search(r'^Pages:\s+(\d+)', info, re.M)
@@ -264,8 +273,9 @@ def extract(raw, name, cfg):
                         command([_tool('pdftoppm'), '-f', str(i+1), '-l', str(i+1),
                                  '-scale-to', '1800', '-singlefile', '-png', str(source), stem])
                         page = ocr(stem + '.png')
-                    out.append('[Page ' + str(i+1) + ']\n' + page)
-                text = '\n'.join(out)
+                    out.append(page)
+                from .pdfmasque5677 import scrub   # 5.6.77 : texte caché des PDF
+                text = '\n'.join('[Page ' + str(i+1) + ']\n' + page for i, page in enumerate(scrub(raw, out)))
     text = text.replace('\x00', '').strip()
     if not text: raise Stop('document_sans_texte_exploitable')
     if len(text) > cfg.get('max_document_chars', 100000):

@@ -1,0 +1,32 @@
+{
+  "version": "5.6.77",
+  "base": "5.6.76",
+  "date_utc": "2026-10-28T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 28 octobre 2026 : renforcer la pseudonymisation (clés de contrôle, codes de raisonnement, homonymes, autotest et tests de mutation) et repérer le texte caché des PDF (blanc, minuscule, hors page, invisible).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2769,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 123,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5677.py (16) : clés Luhn, IBAN, NIR (Corse), SIRET ; numéros coupés ou sans mention ; montants, dates, articles et codes conservés ; ordre des noms, homonymes, titre professionnel, nom isolé cité avant la personne ; sociétés ; reprise de la table du connecteur Claude ; autotest vert ; huit mutations toutes détectées ; page Modèles d’IA ; PDF : cinq motifs et la police réduite par matrice, aucun faux positif (OCR, bandeau, fond blanc peint, PDF tronqué), lecture avec et sans Poppler, texte retiré et signalé, alerte élevée ; câblage.",
+  "live_checks": "PDF de 14 pages produit par LibreOffice (polices sous-ensembles) : phrase blanche repérée page 12, en-tête de tableau blanc sur bandeau bleu non signalé, 0,36 s. Corpus de droit du travail fictif : codes conservés, numéros masqués.",
+  "exapp": {
+    "version": "0.1.36",
+    "moteur": "5.6.77"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "pseudo540 : NIR, IBAN, SIREN, carte, RG, Portalis, RPPS, sinistre, immatriculation ; codes conservés ; clé des personnes indépendante de l’ordre des mots ; nom isolé rapproché de la seule personne du même nom.",
+    "documents : texte caché des PDF retiré et signalé (pdfmasque5677).",
+    "claude5675 : table conservée reprise par Pseudonymizer.adopt.",
+    "ia540 : ligne « Autotest du pseudonymiseur »."
+  ],
+  "adjusted_tests": []
+}
