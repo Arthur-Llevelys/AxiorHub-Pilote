@@ -47,7 +47,8 @@ FUNCTIONS = (
     ('engagements', 'communiquer', '/engagements', ('Engagements et suites', 'Promesses'), ('mail',)),
     ('accueil_administratif', 'communiquer', '/accueil-administratif', ('Accueil téléphonique', 'Twilio', 'WhatsApp'), ('telephony',)),
     ('contacts', 'communiquer', '/contacts', ('Correspondants',), ()),
-    ('contacts_crm', 'communiquer', '/contacts-crm', ('CRM', 'Clients', 'Parties adverses', 'Confrères', 'Intervenants', 'Répertoire'), ()),   # 5.6.36
+    ('contacts_crm', 'communiquer', '/contacts-crm', ('CRM', 'Clients', 'Parties adverses', 'Confrères', 'Intervenants', 'Répertoire', 'Opportunités', 'Prospects', 'Pipeline',
+                                                     'Suivi commercial', 'Nouveaux clients'), ()),   # 5.6.36 ; 5.6.76 : opportunités
     ('initiatives', 'communiquer', '/initiatives', ('Assistant proactif', 'Plan d’actions', 'Assignation reçue', 'Proactivité'), ('mail',)),
     ('associations', 'communiquer', '/associations', ('Associations proposées', 'Adresse et dossier'), ('mail',)),
     ('orchestrateur', 'communiquer', '/orchestrateur-avis', ('Orchestrateur et avis', 'Notifications'), ('mail',)),

@@ -1011,6 +1011,49 @@ def t_savoir_propose(ctx, args):
 NO_RESTORE = frozenset({'proposer_savoir_faire'})
 
 
+# 5.6.76 : opportunités et prospects (crm5676) — lecture, et propositions à valider dans AxiorHub (« À décider »)
+def t_opportunites(ctx, args):
+    from . import crm5676
+    stages = [s for s in crm5676.OPEN] if not args.get('closes') else None
+    rows = crm5676.listing(ctx.desk, stages, 300)
+    out = [{'opportunite': r['id'], 'objet': r['title'], 'prospect': r['contact_label'], 'etape': r['stage_label'], 'matiere': r['domain'],
+            'honoraires_estimes': r['amount'] if r['amount_cents'] else '', 'source': r['source_label'], 'prochaine_action': r['next_action'],
+            'le': r['next_date'], 'en_retard': r['overdue'], **({'dossier': r['matter']} if r['matter'] else {})} for r in rows]
+    k = crm5676.indicators(ctx.desk)
+    return {'opportunites': out, 'indicateurs': {'en_cours': k['en_cours'], 'honoraires_en_cours': crm5676.euros(k['montant_en_cours_cents']),
+                                                 'taux_transformation_pct': k['taux_transformation'], 'relances_echues': k['relances_echues']},
+            'rappel': 'Les étapes, la recherche de conflits et l’ouverture du dossier se décident dans AxiorHub.'}
+
+
+def t_proposer_opportunite(ctx, args):
+    from . import crm5676
+    _need_writing(ctx)
+    data = {'name': args.get('nom'), 'first_name': args.get('prenom'), 'company': args.get('societe'), 'email': args.get('courriel'),
+            'title': args.get('objet'), 'domain': args.get('matiere'), 'amount': args.get('honoraires_estimes'),
+            'source': args.get('source') or 'autre', 'reason': str(args.get('motif') or '')[:300]}
+    if not str(data['name'] or '').strip() or not str(data['title'] or '').strip():
+        raise Stop('nom_et_objet_requis')
+    if ctx.masque.leftovers(' '.join(str(v or '') for v in data.values())):
+        raise Stop('marqueur_inconnu_dans_la_proposition')
+    crm5676.cents(data['amount'])   # montant contrôlé dès la proposition
+    crm5676.propose(ctx.desk, 'opportunite', 'claude', data, author='claude:' + ctx.owner)
+    return {'propose': True, 'message': 'Opportunité proposée dans « À décider » : l’avocat la crée ou l’écarte.'}
+
+
+def t_proposer_relance(ctx, args):
+    from . import crm5676
+    _need_writing(ctx)
+    opp = crm5676.get(ctx.desk, str(args.get('opportunite') or ''))
+    if opp['stage'] not in crm5676.OPEN:
+        raise Stop('opportunite_close')
+    action = str(args.get('action') or '').strip()[:300]
+    when = crm5676._day(args.get('date'), required=True)
+    if not action:
+        raise Stop('action_requise')
+    crm5676.propose(ctx.desk, 'relance', 'claude', {'next_action': action, 'next_date': when}, opp=opp['id'], author='claude:' + ctx.owner)
+    return {'propose': True, 'message': 'Relance proposée dans « À décider ». Pour le courriel de relance : preparer_brouillon (jamais envoyé).'}
+
+
 # ------------------------------------------------------------------------------------------------ déclaration des outils
 def _schema(props, required=()):
     return {'type': 'object', 'properties': props, 'required': list(required), 'additionalProperties': False}
@@ -1056,6 +1099,20 @@ TOOLS = [
               'titre': {**S, 'maxLength': 200}, 'contenu': {**S, 'maxLength': 20000}, 'domaine': {**S, 'maxLength': 120},
               'objectif': {**S, 'maxLength': 1000}, 'limites': {**S, 'maxLength': 2000}, 'dossier': S},
              ('nature', 'titre', 'contenu')), t_savoir_propose, False),
+    ('opportunites', 'Opportunités et prospects', 'Suivi commercial du cabinet : opportunités en cours (prospect, objet, étape, honoraires estimés, '
+     'prochaine action et date, retard) et indicateurs. « closes » : inclure les gagnées et perdues.',
+     _schema({'closes': {'type': 'boolean'}}), t_opportunites, True),
+    ('proposer_opportunite', 'Proposer une opportunité', 'Propose un nouveau prospect et sa demande ; l’opportunité n’est créée que si l’avocat '
+     'l’accepte dans « À décider ».',
+     _schema({'nom': {**S, 'maxLength': 200}, 'prenom': {**S, 'maxLength': 200}, 'societe': {**S, 'maxLength': 200}, 'courriel': {**S, 'maxLength': 200},
+              'objet': {**S, 'maxLength': 200}, 'matiere': {**S, 'maxLength': 120}, 'honoraires_estimes': {**S, 'maxLength': 20},
+              'source': {'type': 'string', 'enum': ['site', 'recommandation_client', 'recommandation_confrere', 'client_existant', 'reseau', 'annuaire',
+                                                    'courriel', 'autre']},
+              'motif': {**S, 'maxLength': 300}}, ('nom', 'objet')), t_proposer_opportunite, False),
+    ('proposer_relance', 'Proposer une relance', 'Propose la prochaine action d’une opportunité (« opportunite » : identifiant renvoyé par '
+     'opportunites) et sa date (AAAA-MM-JJ) ; l’avocat l’enregistre dans « À décider ».',
+     _schema({'opportunite': {**S, 'maxLength': 40}, 'action': {**S, 'maxLength': 300}, 'date': {**S, 'maxLength': 10}},
+             ('opportunite', 'action', 'date')), t_proposer_relance, False),
 ]
 BY_NAME = {t[0]: t for t in TOOLS}
 
@@ -1476,6 +1533,8 @@ def skill_markdown(resource):
             '6. **Décisions.** Ce qui est « à décider » (`a_decider`) se tranche dans AxiorHub, pas dans la conversation.\n\n'
             '## Parcours types\n\n'
             '- *Point du jour* : `a_decider`, puis `echeances` (14 jours) ; classer par urgence.\n'
+            '- *Prospects* : `opportunites` (relances en retard d’abord) ; `proposer_relance` pour la prochaine action, `preparer_brouillon` pour le '
+            'courriel de relance ; `proposer_opportunite` pour un nouveau prospect évoqué par l’utilisateur.\n'
             '- *Réponse à un courriel* : `fiche_dossier` → `chercher` le courriel → `lire_document` → `memoire_dossier` → `preparer_brouillon` '
             '(`repondre_a` = chemin du courriel).\n'
             '- *Note de synthèse* : `fiche_dossier` → `memoire_dossier` → pièces utiles → `deposer_note`.\n'

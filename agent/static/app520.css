@@ -2487,3 +2487,28 @@ html[data-theme="dark"] .n5673-ask,body.dark .n5673-ask{background:#3b2a06;color
 .cl75-steps{padding-left:1.3em}
 .cl75-steps li{margin:4px 0}
 .cl75-journal{margin-top:10px}
+/* ==== v5676.css ==== */
+/* AxiorHub 5.6.76 — opportunités et prospects (Contacts & CRM) */
+.op76-tabs{margin:0 0 12px}
+.op76-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.op76-kpi div{border:1px solid var(--ws-border,#cbd5e1);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.op76-kpi strong{font-size:1.25rem}
+.op76-kpi span{font-size:.85rem;opacity:.85}
+.op76-board{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:10px;overflow-x:auto;margin:10px 0 16px;padding-bottom:4px}
+.op76-col{border:1px solid var(--ws-border,#cbd5e1);border-radius:10px;padding:8px;min-width:220px}
+.op76-col h2{font-size:1rem;margin:2px 4px 8px}
+.op76-col ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.op76-card{border:1px solid var(--ws-border,#cbd5e1);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:3px}
+.op76-card.op76-late{border-left:4px solid #b42318}
+.op76-card.op76-today{border-left:4px solid #b54708}
+.op76-amount{font-weight:600}
+.op76-next{font-size:.85rem}
+.op76-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;align-items:end}
+.op76-form label{display:flex;flex-direction:column;gap:4px}
+.op76-form .op76-wide,.op76-form h3{grid-column:1/-1}
+.op76-form .ax-btn{justify-self:start}
+.op76-stages{display:flex;flex-wrap:wrap;gap:6px}
+.op76-stages button[aria-current=true]{font-weight:700;opacity:1}
+.op76-ok{border-left:4px solid #1a7f37;padding-left:8px}
+.op76-warn{border-left:4px solid #b54708;padding-left:8px}
+@media (max-width:850px){.op76-board{grid-template-columns:repeat(4,minmax(240px,82vw))}}

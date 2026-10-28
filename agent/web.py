@@ -135,7 +135,7 @@ JOB_LABELS = {'microsoft5636': 'Agenda Microsoft 365 : copie et lecture des rend
               'sync':'Découverte des dossiers et correspondants','approve':'Confirmation d’association',
               'reject':'Rejet d’une proposition','associate':'Enregistrement d’un correspondant',
               'remove_contact':'Retrait d’une association','retry':'Reprise d’un courriel',
-              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier','crm_collecte5657':'Contacts tirés de la boîte mail',
+              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier','crm_collecte5657':'Contacts tirés de la boîte mail','opportunites5676':'Prospects repérés dans les courriels',
               'review':'Préparation des points à décider','forget':'Oubli d’un exemple',
               'run':'Analyse des nouveaux courriels','learn':'Apprentissage des réponses envoyées',
               'discover':'Parcours des dossiers','browse':'Recherche dans Nextcloud',

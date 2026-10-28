@@ -1,0 +1,32 @@
+{
+  "version": "5.6.76",
+  "base": "5.6.75",
+  "date_utc": "2026-10-28T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 28 octobre 2026 : fonction CRM de suivi des opportunités et des prospects ; détection proposée dans les courriels (modèle local) ; ouverture au connecteur Claude (lecture et propositions).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2752,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 122,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5676.py (10) : création, relance échue dans « À décider », étapes bloquées sans recherche de conflits, proposition et relance à 7 jours, perte avec motif, opportunité close ; conflit à examiner bloquant jusqu’à la décision ; Gagné : dossier ouvert, client relié, convention en brouillon, réservé aux avocats ; montants et emplacement ; dossier réservé invisible ; détection proposée puis acceptée, jamais relue ; détection désactivable et réservée au modèle local ; pages ; câblage ; outils du connecteur Claude (pseudonymisés, propositions sans création).",
+  "live_checks": "Application réelle en version serveur dans un navigateur : tableau des opportunités, indicateurs, « À décider » (prospect détecté, action du jour), « Créer l’opportunité », étape refusée sans recherche de conflits, recherche de conflits puis étape franchie ; contraste conforme en thème clair et sombre.",
+  "exapp": {
+    "version": "0.1.35",
+    "moteur": "5.6.76"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "pages5636 : /contacts-crm a deux onglets (Contacts, Opportunités).",
+    "file5651 : classe « prospect » (À décider), source crm5676 ; operations : détection toutes les 15 minutes ; desk : travail opportunites5676.",
+    "claude5675 : outils opportunites, proposer_opportunite, proposer_relance.",
+    "fonctions5631 : alias de recherche de Contacts & CRM."
+  ],
+  "adjusted_tests": []
+}

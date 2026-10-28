@@ -29,10 +29,12 @@ CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des do
            # 5.6.57 (A09) : décisions attendues par l'agent et projets à relire d'Aujourd'hui, désormais dans la même file
            'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire',
            'securite': 'Sécurité de l’IA', 'savoir': 'Savoir-faire à approuver',   # 5.6.59
+           'prospect': 'Prospect à suivre',                   # 5.6.76 : opportunités proposées, relances échues
            'decision': 'Proposition à décider',                # 5.6.58 : propositions de facturation (sans cette classe, la file disparaissait)
            'echec_agent': 'Analyse interrompue',               # 5.6.61 : missions interrompues, regroupées et repliées en fin de file
            'courriel': 'Courriel à relire', 'note_interne': 'Note interne'}   # 5.6.66 : rubriques séparées
-FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision', 'securite', 'savoir'),
+FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision', 'securite', 'savoir',
+                      'prospect'),
            'relire': ('relecture', 'livrable', 'projet', 'courriel', 'note_interne'),
            'echecs': ('echec_agent',),
            'courriels': ('courriel',), 'documents': ('relecture', 'livrable', 'projet'), 'notes': ('note_interne',)}
@@ -40,7 +42,8 @@ FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction'
 # à relire et envoyer en premier ; les notes internes à part, avec « Ranger dans le dossier ».
 TODAY_GROUPS = (('courriels', 'Courriels à relire et envoyer', 12), ('decider', 'À décider', 10), ('documents', 'Documents à examiner', 8),
                 ('notes', 'Notes internes', 6))
-NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir', 'echec_agent', 'courriel', 'note_interne')
+NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir', 'echec_agent', 'courriel', 'note_interne',
+                 'prospect')
 # 5.6.64 : sur Aujourd'hui, seules les décisions et relectures du jour ; la tenue des fiches de dossiers (identités, classements,
 # informations proposées, lacunes, relectures de modifications) et les points d'avancement client se traitent depuis chaque dossier
 # (résumé cliquable en bas de la file). Les projets à relire de plus de 14 jours n'y figurent plus (toujours visibles dans le dossier).
@@ -160,7 +163,7 @@ def _items_for(desk, prefix, m):
 def _global_items(desk, prefix, actor, role):
     """5.6.52 : éléments du cabinet sans dossier — comptes rendus de routines (R06) et opérations de connexion à valider (I…)."""
     found = []
-    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659', 'reponses5671'):
+    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659', 'reponses5671', 'crm5676'):
         try:
             mod = __import__('agent.' + module, fromlist=['queue_items'])
             found += mod.queue_items(desk, prefix, actor, role)

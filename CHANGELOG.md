@@ -3,6 +3,33 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.76 — Opportunités et prospects : suivi commercial du cabinet (CRM), en complément des fonctions métier
+
+Demande du cabinet du 28 octobre 2026 : une fonction CRM de suivi des opportunités et des prospects, avec détection proposée dans les
+courriels et accès par le connecteur Claude.
+
+- **Contacts & CRM › Opportunités** (`/contacts-crm?vue=opportunites`) : tableau par étape (Nouveau contact › Premier échange › Conflit
+  vérifié › Proposition envoyée, puis Gagné / Perdu). Chaque opportunité : prospect (fiche contact « Prospect »), objet, matière,
+  honoraires estimés, source (site, recommandation d’un client ou d’un confrère, client existant, réseau…) et toujours une prochaine action
+  datée ; historique de chaque modification.
+- **Conflit d’intérêts obligatoire** avant « Conflit vérifié » et « Proposition envoyée » : recherche lancée depuis l’opportunité (prospect
+  et parties adverses connues) ; un rapprochement bloque jusqu’à l’examen du rapport (« Poursuivre »), « Décliner » bloque toujours.
+- **Proposition** (devis, convention, lettre de mission) : date d’envoi et relance proposée à 7 jours.
+- **Gagné** (avocat ou administrateur) : ouvre le dossier (répertoire Nextcloud sous une racine autorisée, correspondant), relie le contact
+  comme client, et prépare la **convention d’honoraires en brouillon** au montant estimé (Facturation et honoraires ; rien n’est émis).
+- **Perdu** : motif obligatoire (honoraires, conflit, hors domaine, sans suite, autre cabinet, décliné…).
+- **« À décider »** : rubrique « Prospect à suivre » — actions arrivées à échéance (aujourd’hui ou en retard) et propositions à accepter
+  ou écarter.
+- **Détection proposée** (réglable) : toutes les 15 minutes, le modèle LOCAL lit au plus 4 courriels récents d’expéditeurs inconnus, sans
+  dossier, et propose une opportunité quand il y reconnaît une demande de nouveau client. Rien n’est créé sans l’avocat ; aucun courriel
+  n’est relu deux fois ; jamais de modèle externe ; le texte du courriel est traité comme une donnée, jamais comme une instruction.
+- **Indicateurs** : opportunités et honoraires estimés en cours, taux de transformation et délai moyen sur 12 mois, résultats par source,
+  motifs de perte.
+- **Connecteur Claude** : outils `opportunites` (lecture, pseudonymisée), `proposer_opportunite` et `proposer_relance` (propositions à
+  valider dans « À décider ») ; compétence Claude mise à jour.
+- Cloisonnement : une opportunité dont le contact ou le dossier est réservé à d’autres membres n’est jamais montrée.
+- Recherche de fonctions : « Opportunités », « Prospects », « Pipeline », « Suivi commercial », « Nouveaux clients ».
+
 ## 5.6.75 — Connecteur Claude : AxiorHub dans Claude (claude.ai, Claude Desktop, mobile), pseudonymisé, préparer sans jamais envoyer
 
 Demande du cabinet du 27 octobre 2026 : utiliser AxiorHub depuis Claude avec l’abonnement de l’avocat, option de pseudonymisation,

@@ -80,6 +80,8 @@ def allowed(role, method, path, action=''):
         return True
     if api in ('m5674/inviter', 'm5674/retirer'):   # 5.6.74 : ses propres téléphones, tous les rôles
         return True
+    if api.startswith('m5676/'):   # 5.6.76 : opportunités (tous) ; « Gagné » et réglage de la détection contrôlés par le service
+        return True
     if api.startswith('m5675/'):   # 5.6.75 : ses propres connexions Claude (tous) ; réglages du connecteur (administrateur)
         return api in ('m5675/retirer', 'm5675/pseudonymiser')
     if api.startswith('m5673/'):   # 5.6.73 : navigateur supervisé (avocat, assistant) ; sites autorisés (avocat)
