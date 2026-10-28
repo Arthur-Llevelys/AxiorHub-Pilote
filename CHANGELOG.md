@@ -3,6 +3,39 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.77 — Pseudonymisation plus sûre avant l’IA externe et texte caché des PDF
+
+Demande du cabinet du 28 octobre 2026, après lecture du retour d’expérience d’un confrère sur la conformité de son infrastructure d’IA :
+renforcer ce qui part vers une IA externe (dont Claude par le connecteur) et ce qui entre par les pièces adverses.
+
+**Pseudonymisation** (tout envoi à une IA non locale, connecteur Claude compris) :
+- **Numéros validés par leur clé**, pour en reconnaître davantage sans masquer n’importe quel nombre :
+  - IBAN par la clé modulo 97, y compris coupé sur deux lignes (la fin d’un IBAN partait auparavant en clair) ;
+  - NIR avec espaces, points ou tirets, Corse 2A/2B, masqué même si la clé est erronée ; NIR coupé par un retour à la ligne reconnu
+    par sa clé ;
+  - SIREN reconnu par la formule de Luhn sans la mention « SIREN » ; carte bancaire écrite d’un bloc ;
+  - nouveaux : numéro RG, numéro Portalis, RPPS, numéro de sinistre, immatriculation de véhicule.
+- **Codes de raisonnement conservés** : IDCC, convention SYNTEC, CSG/CRDS, PMSS, réduction Fillon, AGIRC-ARRCO, DSN, ECLI, rôles (DRH…)
+  ne sont plus pris pour des noms de personnes ; articles, dates et montants restent intacts.
+- **Personnes et homonymes** :
+  - « Paul DURAND » et « DURAND Paul » reçoivent le même marqueur ;
+  - un « DURAND » isolé reçoit le marqueur de la seule personne connue de ce nom, même cité avant elle ;
+  - s’il existe des homonymes (Sophie DURAND, Paul DURAND), le nom isolé reçoit son propre marqueur : pas d’erreur d’imputation ;
+  - « Maître DURAND » n’est jamais rapproché d’un homonyme (avocat, notaire, commissaire de justice).
+- **Sociétés** : « ZORVAL SAS » et « la société ZORVAL » sont reconnues comme sociétés.
+- **Autotest** visible dans Paramètres › Modèles d’IA (« Aperçu de ce qui part ») : un corpus fictif vérifie ces règles à chaque
+  affichage. Les tests de la version cassent volontairement le moteur de huit façons (tests de mutation) et vérifient que l’autotest
+  le voit à chaque fois.
+- La table conservée du connecteur Claude est reprise : les marqueurs déjà donnés à Claude restent les mêmes.
+
+**Texte caché des PDF** (bouclier 5.6.59, qui couvrait déjà le HTML des courriels et Word) :
+- repérés à la lecture : texte blanc sur fond blanc, police d’au plus 2 points, texte hors de la page, texte invisible ou transparent ;
+- la couche de texte d’un PDF numérisé puis reconnu (OCR) n’est pas signalée, ni un titre blanc sur un bandeau de couleur ;
+- le passage est retiré du texte lu et remplacé par « [AxiorHub : texte masqué retiré du PDF, page N : …] » ; l’alerte est élevée s’il
+  s’adresse à une IA, et le travail passe en relecture ;
+- contrôle local, sans réseau ni OCR ; une page illisible n’empêche jamais la lecture de la pièce.
+- Aide « Sécurité de l’IA » complétée (fr, en, de, es).
+
 ## 5.6.76 — Opportunités et prospects : suivi commercial du cabinet (CRM), en complément des fonctions métier
 
 Demande du cabinet du 28 octobre 2026 : une fonction CRM de suivi des opportunités et des prospects, avec détection proposée dans les

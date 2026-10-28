@@ -140,7 +140,8 @@ def page(desk, prefix, shell, csrf):
         ('<table class="vf-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>Modèle</th><th>Fonction</th><th>Remplacements</th><th>Caractères</th><th></th></tr></thead>'
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ok">Aucun envoi externe sur les 7 derniers jours.</p>',
         e(prefix + '/static/v540.js'))
-    from . import economie569
+    from . import economie569, pseudo5677
+    body = body.replace('<form class="m5-form" id="p540-form"', pseudo5677.autotest_html() + '<form class="m5-form" id="p540-form"', 1)
     body = body.replace('<h2 class="ia540-sub">IA externe sûre</h2>', economie569.section_html(desk, prefix) + '<h2 class="ia540-sub">IA externe sûre</h2>', 1)
     return shell('Intelligence artificielle', body, prefix, csrf, '/ia-externe')
 

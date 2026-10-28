@@ -25,6 +25,8 @@ import sqlite3
 import time
 import unicodedata
 
+from .pseudo5677 import CARD_FREE, CODES, NIR_WRAPPED, SIREN_FREE, iban_spans, luhn, nir_key_ok, siren_ok
+
 CATEGORIES = ('PERSONNE', 'SOCIETE', 'ADRESSE', 'COURRIEL', 'TELEPHONE', 'IBAN', 'NUMERO', 'DATE_NAISSANCE', 'REFERENCE', 'DOSSIER', 'CHEMIN')
 LABELS = {'PERSONNE': 'Personnes', 'SOCIETE': 'Sociétés', 'ADRESSE': 'Adresses', 'COURRIEL': 'Courriels', 'TELEPHONE': 'Téléphones',
           'IBAN': 'IBAN', 'NUMERO': 'Numéros (sécurité sociale, SIRET, carte)', 'DATE_NAISSANCE': 'Dates de naissance',
@@ -56,7 +58,7 @@ RECOMMANDÉE ACCUSE ACCUSÉ RECEPTION RÉCEPTION AVIS RECEPISSE CONVOCATION AUDI
 DEUXIEME DEUXIÈME TROISIEME TROISIÈME SECONDE INSTANCE APPEL CASSATION REFERE RÉFÉRÉ FOND MISE ETAT ÉTAT GENERAL GÉNÉRAL TOTAL
 MONTANT SOMME EUROS PRIX FACTURE DEVIS CONTRAT AVENANT STATUTS PROTOCOLE ACCORD TRANSACTION CONVENTION HONORAIRES PROVISION
 NB PS CC CCI BCC CCE ISO GMT UTC PM AM NO NUM N°
-'''.split())
+'''.split()) | CODES   # 5.6.77 : codes utiles au raisonnement (IDCC, CSG, PMSS, ECLI…)
 CIVILITY = r"(?:M\.|MM\.|Mme|Mmes|Mlle|Monsieur|Madame|Mademoiselle|Maître|Maitre|Me|Mr|Mrs|Ms|Dr|Docteur|Pr|Professeur|Feu)"
 COMPANY_FORMS = r"(?:SASU|SAS|SARL|EURL|SCI|SCP|SNC|SELARL|SELAS|SELAFA|SA|GIE|GAEC|EARL|Société|Societe|Sté|Ste|Association|Fondation|Groupe|Cabinet|Etablissements|Établissements|Ets)"
 FIRST_NAMES = set('''
@@ -153,10 +155,20 @@ def known_entities(config):
 PATTERNS = [
     ('COURRIEL', re.compile(r"(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}(?![\w-])")),
     ('IBAN', re.compile(r'\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\b')),
-    ('NUMERO', re.compile(r'\b[12][ ]?\d{2}[ ]?(?:0[1-9]|1[0-2]|[2-9]\d)[ ]?(?:\d{2}|2[AB])[ ]?\d{3}[ ]?\d{3}(?:[ ]?\d{2})\b')),   # NIR
+    # NIR (5.6.77 : espace, point ou tiret ; masqué même si la clé est erronée)
+    ('NUMERO', re.compile(r'(?<!\d)[1-478][ .\-]?\d{2}[ .\-]?(?:0[1-9]|1[0-2]|[2-9]\d)[ .\-]?(?:\d{2}|2[AB])[ .\-]?\d{3}[ .\-]?\d{3}'
+                          r'(?:[ .\-]?\d{2})?(?!\d)')),
     ('NUMERO', re.compile(r'\b(?:\d{4}[ -]){3}\d{4}\b')),                                                                       # carte
     ('NUMERO', re.compile(r'\b\d{3}[ ]?\d{3}[ ]?\d{3}[ ]?\d{5}\b')),                                                            # SIRET
     ('NUMERO', re.compile(r'(?i)(?:siren|rcs[^\d\n]{0,30})\s*:?\s*(\d{3}[ ]?\d{3}[ ]?\d{3})\b')),                                # SIREN
+    # 5.6.77 : RG, Portalis, RPPS, sinistre, immatriculation
+    ('REFERENCE', re.compile(r'(?i)\bR\.?G\.?\s*(?:n[°o]\.?\s*)?:?\s*(\d{2}\s?/\s?\d{3,6})\b')),
+    ('REFERENCE', re.compile(r'(?i)\bPortalis\s*:?\s*([A-Z0-9]{3,5}(?:-[A-Z0-9]{1,6}){2,4})\b')),
+    ('NUMERO', re.compile(r'(?i)\bRPPS\s*(?:n[°o]\.?\s*)?:?\s*(\d{11})\b')),
+    ('NUMERO', re.compile(r'(?i)\bsinistre\s+(?:AT(?:\s*/\s*MP)?\s+)?(?:n[°o]\.?|num[ée]ro)\s*:?\s*(\d[\d ./\-]{5,22}\d)')),
+    ('NUMERO', re.compile(r'(?i:\bimmatricul[ée]e?s?|\bplaque(?: d.immatriculation)?)\s*(?:n[°o]\.?\s*)?:?\s*'
+                          r'([A-Z]{2}[ \-]?\d{3}[ \-]?[A-Z]{2}|\d{1,4}[ \-]?[A-Z]{1,3}[ \-]?(?:\d{2}|2[AB]))\b')),
+    ('NUMERO', re.compile(r'\b[A-HJ-NP-TV-Z]{2}-\d{3}-[A-HJ-NP-TV-Z]{2}\b')),                                                    # plaque SIV
     ('TELEPHONE', re.compile(r'(?<![\d+])(?:(?:\+|00)33[ .-]?[1-9]|0[1-9])(?:[ .-]?\d{2}){4}(?!\d)')),
     ('TELEPHONE', re.compile(r'(?<![\d+])\+(?!33)\d{2,3}(?:[ .-]?\d{2,4}){3,5}(?!\d)')),
     ('DATE_NAISSANCE', re.compile(r'(?i)\b(?:né|née|nés|nées|naissance)\s+le\s+(\d{1,2}(?:er)?[ /.\-]+(?:\d{1,2}|[a-zéû]+)[ /.\-]+\d{2,4})')),
@@ -166,26 +178,65 @@ PATTERNS = [
                            r"(?:\s*[,–-]?\s*\d{5}\s+[%s][\w'’\-]+(?:\s[%s][\w'’\-]+){0,2})?" % (UP, UP))),
     ('CHEMIN', re.compile(r'(?<![\w/])/(?:CABINET|Dossiers?|Clients?|Affaires?|remote\.php)[^\s\]\[{}<>"\']{3,}', re.I)),
     ('SOCIETE', re.compile(r"\b%s\s+((?:[%s0-9][\w&'’\-]*)(?:[ ](?:[%s0-9&][\w&'’\-]*)){0,3})" % (COMPANY_FORMS, UP, UP))),
-    ('PERSONNE', re.compile(r"\b%s\s+((?:%s|%s)(?:[ \-](?:%s|%s)){0,3})" % (CIVILITY, WORD_UPPER, WORD_CAP, WORD_UPPER, WORD_CAP))),
+    # 5.6.77 : « la société ZORVAL »
+    ('SOCIETE', re.compile(r"(?i:\bsoci[ée]t[ée])\s+(%s(?:[ \-]%s){0,3})" % (WORD_UPPER, WORD_UPPER))),
+    ('PERSONNE', re.compile(r"\b(%s)\s+((?:%s|%s)(?:[ \-](?:%s|%s)){0,3})" % (CIVILITY, WORD_UPPER, WORD_CAP, WORD_UPPER, WORD_CAP))),
 ]
+# 5.6.77 : « ZORVAL SAS » (forme sociale après le nom) ; titres professionnels jamais rapprochés d'un homonyme
+COMPANY_AFTER = re.compile(r"\b((?:%s|%s)(?:[ ](?:%s|%s)){0,2})[ ](SASU|SAS|SARL|EURL|SCI|SNC|SELARL|SELAS|SELAFA|SA|GIE|SCP)\b"
+                           % (WORD_UPPER, WORD_CAP, WORD_UPPER, WORD_CAP))
+PROFESSIONAL = {'maître', 'maitre', 'me', 'dr', 'docteur', 'pr', 'professeur'}
 UPPER_NAME = re.compile(r"\b(?:(%s)[ \-]+)?(%s(?:[ \-]%s){0,2})\b(?:[ \-]+(%s))?" % (WORD_CAP, WORD_UPPER, WORD_UPPER, WORD_CAP))
 FIRST_LAST = re.compile(r"\b(%s)(?:[ \-](%s))?\s+(%s|%s)\b" % (WORD_CAP, WORD_CAP, WORD_UPPER, WORD_CAP))
+
+
+def entity_key(category, original):
+    """Clé d'une entité : forme repliée ; pour une personne, mots triés (« Paul DURAND » = « DURAND Paul »). 5.6.77."""
+    folded = re.sub(r'\s+', ' ', _fold(original))
+    return ' '.join(sorted(folded.split(' '))) if category == 'PERSONNE' else folded
+
+
+def surname_of(original):
+    """Nom de famille d'un nom complet (« Paul DURAND » → « durand ») ; '' pour un nom seul ou sans prénom reconnu. 5.6.77."""
+    words = str(original or '').split()
+    if len(words) < 2:
+        return ''
+    upper = [w for w in words if len(w) >= 2 and w == w.upper() and re.search('[%s]' % UP, w)]
+    rest = [w for w in words if w not in upper]
+    if upper and rest and all(all(_fold(p) in FIRST_NAMES for p in w.split('-')) for w in rest):
+        return _fold(' '.join(upper))
+    if not upper and len(words) == 2 and all(_fold(p) in FIRST_NAMES for p in words[0].split('-')):
+        return _fold(words[1])
+    return ''
 
 
 class Pseudonymizer:
     def __init__(self, config=None, known=None):
         self.known = known if known is not None else (known_entities(config or {}) if config else [])
-        self.forward = {}      # (catégorie, forme repliée) -> marqueur
+        self.forward = {}      # (catégorie, clé : entity_key) -> marqueur
         self.back = {}         # marqueur -> texte d'origine
         self.counts = {c: 0 for c in CATEGORIES}
+        self.surnames = {}     # 5.6.77 : nom de famille replié -> {clé du nom complet: texte d'origine}
         self.known_cat = {_fold(x): c for x, c in self.known}
         self.known_rx = (re.compile(r'(?<![\w@])(?:%s)(?![\w@])' % '|'.join(re.escape(x) for x, _ in self.known), re.I)
                          if self.known else None)
 
     # ------------------------------------------------------------------ marqueurs
-    def token(self, category, original):
+    def _register(self, original):
+        name = surname_of(original)
+        if name:
+            self.surnames.setdefault(name, {})[entity_key('PERSONNE', original)] = original
+
+    def token(self, category, original, link=True):
         original = original.strip()
-        key = (category, _fold(original))
+        if category == 'PERSONNE':
+            if link and len(original.split()) == 1:
+                # nom isolé : marqueur de la seule personne connue de ce nom ; homonymes → marqueur propre
+                fulls = self.surnames.get(_fold(original)) or {}
+                if len(fulls) == 1:
+                    return self.token('PERSONNE', next(iter(fulls.values())), link=False)
+            self._register(original)
+        key = (category, entity_key(category, original))
         if key in self.forward:
             return self.forward[key]
         n = sum(1 for k in self.forward if k[0] == category) + 1
@@ -193,6 +244,13 @@ class Pseudonymizer:
         self.forward[key], self.back[tok] = tok, original
         self.counts[category] += 1
         return tok
+
+    def adopt(self, tok, category, original):
+        """Reprend un marqueur déjà attribué (table conservée d'un compte), sans le compter comme nouveau. 5.6.77."""
+        self.forward[(category, entity_key(category, original))] = tok
+        self.back[tok] = original
+        if category == 'PERSONNE':
+            self._register(original)
 
     def _outside(self, text, func):
         """Applique func aux seuls segments qui ne sont pas déjà des marqueurs."""
@@ -216,27 +274,81 @@ class Pseudonymizer:
             return whole[:start] + self.token(category, value) + whole[end:]
         return self._outside(text, lambda seg: regex.sub(repl, seg))
 
+    def _spans(self, text, category, spans):
+        """Remplace des intervalles [(début, fin)] d'un segment par des marqueurs."""
+        out, last = [], 0
+        for a, b in spans:
+            out.append(text[last:a])
+            out.append(self.token(category, text[a:b]))
+            last = b
+        out.append(text[last:])
+        return ''.join(out)
+
+    @staticmethod
+    def _upper_span(m):
+        """Partie à masquer d'une suite en MAJUSCULES (avec le prénom qui l'entoure), ou None pour un sigle."""
+        words = re.split(r'[ \-]+', m.group(2))
+        if all(w.strip("'’").upper() in NOT_NAMES or len(w) < 2 for w in words):
+            return None
+        use1 = bool(m.group(1)) and _fold(m.group(1)) in FIRST_NAMES        # prénom avant le NOM
+        use3 = bool(m.group(3)) and _fold(m.group(3)) in FIRST_NAMES        # NOM suivi du prénom
+        return (m.start(1) if use1 else m.start(2)), (m.end(3) if use3 else m.end(2))
+
+    def _company_after(self, seg):
+        """« ZORVAL SAS » : société ; les mots d'en-tête (« Contre », « LA ») ne font pas partie du nom. 5.6.77."""
+        def repl(m):
+            words = m.group(1).split(' ')
+            while words and (words[0].upper() in NOT_NAMES or _fold(words[0]) in ('contre', 'entre', 'pour', 'chez', 'par')):
+                words.pop(0)
+            if not words:
+                return m.group(0)
+            name = ' '.join(words) + ' ' + m.group(2)
+            return m.group(0)[:len(m.group(0)) - len(name)] + self.token('SOCIETE', name)
+        return COMPANY_AFTER.sub(repl, seg)
+
+    def _prescan(self, s):
+        """5.6.77 : noms complets du texte relevés d'abord, pour qu'un nom isolé qui les précède soit rapproché correctement."""
+        for m in UPPER_NAME.finditer(s):
+            span = self._upper_span(m)
+            if span:
+                self._register(s[span[0]:span[1]])
+        for m in FIRST_LAST.finditer(s):
+            if _fold(m.group(1)) in FIRST_NAMES:
+                self._register(m.group(0))
+
     # ------------------------------------------------------------------ texte
     def text(self, value):
         s = str(value)
         if not s.strip():
             return s
+        self._prescan(s)
         if self.known_rx is not None:
             s = self._outside(s, lambda seg: self.known_rx.sub(
                 lambda m: self.token(self.known_cat.get(_fold(m.group(0)), 'PERSONNE'), m.group(0)), seg))
+        # 5.6.77 : numéros validés par leur clé (IBAN coupé sur deux lignes, NIR coupé, SIREN et carte par Luhn)
+        s = self._outside(s, lambda seg: self._spans(seg, 'IBAN', iban_spans(seg)))
+        s = self._outside(s, lambda seg: NIR_WRAPPED.sub(
+            lambda m: self.token('NUMERO', m.group(0)) if nir_key_ok(''.join(m.groups())) else m.group(0), seg))
         for cat, rx in PATTERNS:
+            if cat == 'PERSONNE' and rx.groups == 2:
+                s = self._outside(s, lambda seg: rx.sub(lambda m: m.group(0)[:m.start(2) - m.start(0)] + self.token(
+                    'PERSONNE', m.group(2), link=_fold(m.group(1)) not in PROFESSIONAL), seg))
+                continue
             s = self._sub(rx, cat, s, 1 if rx.groups else 0)
+            if cat == 'SOCIETE' and rx is PATTERNS[-3][1]:
+                s = self._outside(s, self._company_after)
+        s = self._outside(s, lambda seg: SIREN_FREE.sub(
+            lambda m: self.token('NUMERO', m.group(0)) if siren_ok(m.group(1) + m.group(3) + m.group(4)) else m.group(0), seg))
+        s = self._outside(s, lambda seg: CARD_FREE.sub(
+            lambda m: self.token('NUMERO', m.group(0)) if luhn(m.group(0)) or len(m.group(0)) == 16 else m.group(0), seg))
 
         def upper(seg):
             def repl(m):
-                words = re.split(r'[ \-]+', m.group(2))
-                if all(w.strip("'’").upper() in NOT_NAMES or len(w) < 2 for w in words):
+                span = self._upper_span(m)
+                if not span:
                     return m.group(0)
                 whole, base = m.group(0), m.start(0)
-                use1 = bool(m.group(1)) and _fold(m.group(1)) in FIRST_NAMES        # prénom avant le NOM
-                use3 = bool(m.group(3)) and _fold(m.group(3)) in FIRST_NAMES        # NOM suivi du prénom
-                start = (m.start(1) if use1 else m.start(2)) - base
-                end = (m.end(3) if use3 else m.end(2)) - base
+                start, end = span[0] - base, span[1] - base
                 return whole[:start] + self.token('PERSONNE', whole[start:end]) + whole[end:]
             return UPPER_NAME.sub(repl, seg)
         s = self._outside(s, upper)

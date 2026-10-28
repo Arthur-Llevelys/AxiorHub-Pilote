@@ -572,8 +572,7 @@ class Masque:
         self.ps = Pseudonymizer(desk.c)
         desk.db.execute(MASKS)
         for tok, cat, key, original in desk.db.execute('SELECT marqueur,categorie,cle,original FROM claude5675_masques WHERE compte=?', (self.account,)):
-            self.ps.forward[(cat, key)] = tok
-            self.ps.back[tok] = original
+            self.ps.adopt(tok, cat, original)   # 5.6.77 : clé recalculée (ordre des noms), homonymes
             self.known.add(tok)
 
     def out(self, value):
