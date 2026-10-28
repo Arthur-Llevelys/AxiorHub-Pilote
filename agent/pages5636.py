@@ -50,8 +50,10 @@ def page(desk, auth, prefix, env, args, path, shell):
         from . import web5659
         body = web5659.securite_page(desk, auth, prefix, env, args)
     elif path == '/contacts-crm':
-        from . import crm5636
-        body = crm5636.page_html(desk, prefix, args)
+        from . import crm5636, crm5676
+        from .web567 import actor
+        view = 'opportunites' if args.get('vue') == 'opportunites' else ''   # 5.6.76 : suivi des opportunités et des prospects
+        body = crm5676.tabs_html(prefix, view) + (crm5676.page_html(desk, prefix, args, actor(env)[1]) if view else crm5636.page_html(desk, prefix, args))
     elif path == '/initiatives':
         from . import initiatives5636
         body = initiatives5636.page_html(desk, prefix, args, env)

@@ -115,6 +115,7 @@ JOBS |= {'recit5651','relecture5651','routine5652','actualiser5655','crm_collect
 USER_JOBS |= {'recit5651','relecture5651','routine5652'}
 JOBS |= {'apprentissage5667','banc5667'}   # 5.6.67 : corrections récurrentes et documents (quotidien) ; banc d'essai sur les cas du cabinet
 USER_JOBS |= {'banc5667'}
+JOBS |= {'opportunites5676'}   # 5.6.76 : prospects repérés dans les courriels par le modèle local (propositions)
 JOBS |= {'ranger_notes5666'}   # 5.6.66 : notes internes déposées en brouillon → documents Word des dossiers
 USER_JOBS |= {'ranger_notes5666'}
 JOBS |= {'maj_local5661'}   # 5.6.61 : mise à jour signée d'un poste (Windows, Ubuntu) depuis la page des versions
@@ -893,6 +894,9 @@ class Desk:
         if kind=='maj_local5661':   # 5.6.61 : téléchargement, empreinte, signature, puis installateur du poste
             from .maj5661 import local_update
             return local_update(self,args)
+        if kind=='opportunites5676':
+            from .crm5676 import detect
+            return detect(self)
         if kind=='crm_collecte5657':   # 5.6.57 (§ 8.3) : contacts alimentés par la boîte mail, passage borné et reprenable
             from .crm5657 import collect
             return collect(self)
