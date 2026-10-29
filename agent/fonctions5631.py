@@ -35,7 +35,7 @@ FUNCTIONS = (
                                              'Registre des mouvements de titres', 'Création de société', 'Transfert de siège', 'Changement de dirigeant',
                                              'Bibliothèque de modèles', 'Statuts', 'Pacte d’associés', 'Lettre d’intention'), ('storage',)),   # 5.6.39
     ('profils', 'dossier', '/profils', ('Profils procéduraux', 'Procédures approuvées'), ()),
-    ('strategie', 'dossier', '/strategy', ('Stratégie', 'Espace stratégique'), ('storage',)),
+    ('strategie', 'dossier', '/strategy', ('Stratégie', 'Question stratégique'), ('storage',)),   # 5.6.79 : dans le dossier, onglet Travail
     ('studio', 'dossier', '/studio', ('Studio de production',), ('ai',)),
     ('playbooks', 'dossier', '/playbooks', ('Parcours guidés', 'Mise en demeure'), ('ai',)),
     ('recherche', 'rechercher', '/recherche', ('Rechercher', 'Recherche dans le cabinet', 'Recherche locale'), ()),
@@ -64,7 +64,7 @@ FUNCTIONS = (
     ('prescriptions', 'temps', '/prescriptions', ('Prescription', 'Forclusion'), ()),
     ('pilotage_mensuel', 'temps', '/pilotage-mensuel', ('Pilotage mensuel', 'Indicateurs'), ()),
     ('assistance_metier', 'temps', '/assistance-metier', ('Calculs', 'Intérêts', 'Indexation', 'Revue de facturation'), ()),
-    ('modeles_word', 'modeles', '/modeles-word', ('Documents du cabinet', 'Modèles Word', 'Balises'), ()),
+    ('modeles_word', 'modeles', '/modeles-word', ('Modèle de courrier', 'Documents du cabinet', 'Modèles Word', 'Balises'), ()),
     ('modeles_actes', 'modeles', '/modeles', ('Modèles d’actes', 'Mentions obligatoires'), ()),
     ('mon_style', 'modeles', '/mon-style', ('Mon style', 'Apprentissage et modèles'), ()),
     ('complement_word', 'modeles', '/complement-word', ('Word', 'Office', 'Complément', 'Add-in', 'Microsoft Word'), ()),   # 5.6.36

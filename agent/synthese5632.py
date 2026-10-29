@@ -58,7 +58,14 @@ PROMPT = ('Tu relèves, sans interpréter, les éléments factuels d’un fragme
           'renseigne « devise » (EUR, USD…) et « role » (demande_client, demande_adverse, condamnation, paiement, prix ou autre). '
           'L’extrait d’un fait daté ou d’un montant contient cette date ou ce montant. '
           'N’indique pas de numéro de page : il est déduit de l’extrait. « exhaustif » vaut false si '
-          'tu n’as pas pu tout relever. Réponse en JSON conforme au schéma.')
+          'tu n’as pas pu tout relever. '
+          # 5.6.79 : consignes resserrées pour les modèles open source (relevés plus courts, plus nets, mieux attribués)
+          'Un fait = une phrase courte « qui a fait quoi, quand » qui NOMME l’acteur (la société X, M. Y, le tribunal) : jamais « il est '
+          'allégué », « selon les documents » ni « le document indique ». Ne relève pas comme fait l’en-tête, les coordonnées, le numéro de '
+          'rôle, la liste des pièces ni les formules de style. « date » : la date du fait si le texte la donne, sinon vide. « parties » : '
+          'les personnes et sociétés parties au litige, avec leur dénomination complète telle qu’écrite ; jamais les avocats, juges, '
+          'greffiers ni commissaires de justice. « nature » : le type du document en quelques mots (« conclusions d’intimé », « jugement », '
+          '« contrat de bail », « courrier »). Réponse en JSON conforme au schéma.')
 CHUNK = 9000
 PER_JOB = 6
 MAX_ATTEMPTS = 3

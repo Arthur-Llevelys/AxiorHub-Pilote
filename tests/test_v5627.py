@@ -112,12 +112,12 @@ class Fiche(t530.Base):
     def test_page_layout_navigation_and_views(self):
         page = self.request('/dossier', query='id=' + MID)['body']
         for text in ('← Tous les dossiers', 'De quoi s’agit-il ?', 'Préparer la fiche du dossier', 'Travailler avec l’agent', 'Parties', 'Procédure',
-                     'Chronologie clé', 'Rappel des faits', 'Tous les documents', '/static/v5627.js', 'aria-current="page">Vue d’ensemble'):   # 5.6.51 (D03)
+                     'Chronologie clé', 'Tous les documents', '/static/v5627.js', 'aria-current="page">Synthèse'):   # 5.6.79 : onglet Synthèse
             self.assertIn(text, page)
         self.assertNotIn('<aside class="d27-side"', page)
-        pieces = self.request('/dossier', query='id=%s&vue=pieces' % MID)['body']
-        self.assertIn('Assignation tribunal de commerce.pdf', pieces)
-        self.assertIn('data-d27-filter', pieces)
+        pieces = self.request('/dossier', query='id=%s&vue=pieces' % MID)['body']   # 5.6.79 : onglet Documents ; vue technique détaillée
+        self.assertIn('Assignation tribunal de commerce', pieces)
+        self.assertIn('data-d27-filter', self.request('/dossier', query='id=%s&vue=pieces-detail' % MID)['body'])
         self.assertIn('Courriels rattachés', self.request('/dossier', query='id=%s&vue=courriels' % MID)['body'])
         self.assertIn('Documents préparés par l’agent', self.request('/dossier', query='id=%s&vue=travaux' % MID)['body'])
         self.assertIn('Dossier introuvable', self.request('/dossier', query='id=INCONNU')['body'])

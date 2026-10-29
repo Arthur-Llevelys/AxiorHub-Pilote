@@ -1,0 +1,40 @@
+{
+  "version": "5.6.79",
+  "base": "5.6.78",
+  "date_utc": "2026-10-29T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 29 octobre 2026 : refonte de la liste des dossiers (dossiers travaillés par l’IA, tableau triable) et de la page d’un dossier (aperçu des documents, procédure et correspondants trouvés, informations pertinentes), extraction plus fiable avec les modèles open source, Stratégie intégrée au dossier, courrier Word simplifié, bouton micro unique, conversation vocale en temps réel.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2788,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 125,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5679.py (14) : en-têtes de conclusions et de jugement (juridiction, chambre, RG, qualités, avocats plaidant et postulant), rien de deviné ; reconstruction (procédure en cours du plus haut degré, antérieure, RG cité ignoré, choix de l’avocat conservé) ; titres lisibles et intervenants ; page Dossier (onglets, anciennes vues, illisibles) ; liste (cartes, tri) ; aperçu Word échappé sans texte masqué, PDF en cadre de même origine, fichier hors dossier refusé, faux PDF refusé ; question stratégique (file, doublon, rôle) ; correspondant repéré enregistré ; nouveau courrier (sans modèle, brouillon Word écrit) ; bouton micro et vague selon la voix ; consignes des modèles.",
+  "live_checks": "Application réelle en local (dossier fictif) : liste et cartes, cinq onglets, aperçu Word et PDF dans le volet, contraste clair et sombre (un défaut corrigé : puce active en mode sombre), largeur téléphone sans défilement horizontal.",
+  "exapp": {
+    "version": "0.1.38",
+    "moteur": "5.6.79"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "/dossier : page dossier5679 (cinq onglets, aperçu) ; vue5651 conservée pour les écrans détaillés.",
+    "/dossiers : dossiers5679 (cartes IA, tableau triable).",
+    "modele5651.rebuild : en-têtes des actes (entete5679), procédure de référence par degré ; relecture unique (REBUILD_METHOD).",
+    "synthese5632.PROMPT et recit5651.SYSTEM[faits] : consignes resserrées.",
+    "/strategy?matter= : renvoi vers l’onglet Travail du dossier ; /strategy : choix du dossier.",
+    "/dossier/apercu, /dossier/fichier, /api440/m5679/* : nouvelles routes.",
+    "v310.js : bouton micro ; ui_helpers et v568.js : bouton « vague »."
+  ],
+  "adjusted_tests": [
+    "tests/test_v180.py : la page Stratégie renvoie vers le dossier (onglet Travail) et ne montre plus matrice ni atelier.",
+    "tests/test_d5651.py : libellés des cinq nouveaux onglets ; pagination des informations sur la vue détaillée (vue=informations).",
+    "tests/test_v5627.py : onglet Synthèse ; titre lisible des documents ; filtres techniques sur la vue pieces-detail.",
+    "tests/test_v5612.py : bouton « Conversation vocale » (icône vague) au lieu de « 💬 Dialoguer »."
+  ]
+}

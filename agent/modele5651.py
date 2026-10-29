@@ -718,6 +718,7 @@ EVENT_WORDS = (('signification', r'signifi'), ('audience', r'audience|renvoi|pla
 def _revision(desk, mid, inv, digests):
     """Empreinte de tout ce que lit la reconstruction : un dossier inchangé n'est jamais réanalysé (A03, pas de boucle)."""
     parts = sorted(d['path'] + d['etag'] + d['sha256'] + d['state'] for d in inv) + sorted(k + v['sha'] + v['status'] for k, v in digests.items())
+    parts.append(REBUILD_METHOD)   # 5.6.79 : une nouvelle règle de reconstruction (en-têtes des actes) relit chaque dossier une fois
     for sql, empty in (("SELECT COALESCE(MAX(version),0) FROM fiche5627 WHERE matter=?", [0]),
                        ("SELECT COUNT(*),COALESCE(MAX(id),0) FROM corrections5644 WHERE matter=?", [0, 0]),
                        ("SELECT COUNT(*),COALESCE(MAX(updated),'') FROM legal_memory_records WHERE matter=?", [0, '']),
@@ -836,15 +837,33 @@ def rebuild(desk, mid, force=False):
     rg = dossier5644.single(desk, mid, 'case_number', {'value': proc.get('numero_rg'), 'title': proc.get('numero_rg'), 'status': 'derived'}
                             if proc.get('numero_rg') else None)
     ref_id = ''
+    # 5.6.79 : en-têtes des actes lus sans IA (juridiction, RG, qualités, avocats) ; la procédure la plus récente et du plus haut degré
+    # devient la référence, sauf choix de l'avocat ou fiche de travail plus précise (même RG, ou degré supérieur)
+    header_ref = _from_headers(desk, mid, inv, now)
+    avocat_ref = desk.db.execute("SELECT id FROM d51_procedures WHERE matter=? AND origin='avocat' AND reference=1", (mid,)).fetchone()
+    if header_ref and not avocat_ref:
+        from .entete5679 import instance_rank, same_case_number
+        fiche_rg, fiche_juri = (rg or {}).get('value') or '', (juri or {}).get('value') or ''
+        if not (fiche_rg or fiche_juri) or same_case_number(fiche_rg, header_ref['rg']) or \
+                instance_rank(header_ref['juridiction']) >= instance_rank(fiche_juri):
+            desk.db.execute("UPDATE d51_procedures SET reference=CASE WHEN id=? THEN 1 ELSE 0 END WHERE matter=? AND origin<>'avocat'",
+                            (header_ref['id'], mid))
+            if proc.get('stade') and not header_ref['stade']:
+                desk.db.execute('UPDATE d51_procedures SET stade=? WHERE id=?', (str(proc['stade'])[:200], header_ref['id']))
+            ref_id = header_ref['id']
+            juri = rg = None                                                 # la fiche ne crée pas une seconde procédure de référence
     if juri or rg:
-        existing = desk.db.execute("SELECT * FROM d51_procedures WHERE matter=? AND origin<>'avocat' AND reference=1", (mid,)).fetchone()
+        existing = desk.db.execute("SELECT * FROM d51_procedures WHERE matter=? AND origin='fiche' AND (reference=1 OR id=?) ORDER BY reference DESC",
+                                   (mid, _sha(mid, 'procedure', 'reference'))).fetchone()
         avocat = desk.db.execute("SELECT id FROM d51_procedures WHERE matter=? AND origin='avocat' AND reference=1", (mid,)).fetchone()
         values = ((juri or {}).get('value') or '', (rg or {}).get('value') or '', proc.get('stade') or '')
+        if not avocat:
+            desk.db.execute("UPDATE d51_procedures SET reference=0 WHERE matter=? AND origin='entete'", (mid,))
         if avocat:
             ref_id = avocat['id']                                          # procédure de référence choisie par l'avocat : jamais écrasée
         elif existing:
             ref_id = existing['id']
-            desk.db.execute('UPDATE d51_procedures SET juridiction=?,rg=?,stade=?,updated=? WHERE id=?', (*values, now, ref_id))
+            desk.db.execute('UPDATE d51_procedures SET juridiction=?,rg=?,stade=?,reference=1,updated=? WHERE id=?', (*values, now, ref_id))
         else:
             ref_id = _sha(mid, 'procedure', 'reference')
             desk.db.execute("INSERT OR IGNORE INTO d51_procedures(id,matter,juridiction,rg,stade,statut,reference,origin,review,sources,created,updated) "
@@ -995,6 +1014,73 @@ def rebuild(desk, mid, force=False):
     desk.db.execute('INSERT OR REPLACE INTO d51_rebuilds(matter,at,counters,revision) VALUES(?,?,?,?)', (mid, now, json.dumps(counters), revision))
     desk.db.commit()
     return counters
+
+
+REBUILD_METHOD = '5679.1'
+HEADER_NATURES = ('conclusions', 'assignation', 'requete', 'jugement', 'ordonnance', 'arret', 'signification')
+
+
+def _from_headers(desk, mid, inv, now):
+    """5.6.79 : procédures, qualités et avocats lus sans IA dans l'en-tête des actes ; retourne la procédure la plus récente du plus haut
+    degré ({'id', 'juridiction', 'rg', 'stade'}) ou None. Un champ déjà renseigné (par l'avocat notamment) n'est jamais remplacé."""
+    from . import entete5679 as en
+    docs = {r['path']: r for r in desk.db.execute('SELECT path,name,nature,doc_date,modified FROM d51_documents WHERE matter=?', (mid,))}
+    found = []
+    for d in inv:
+        row = docs.get(d['path'])
+        if not row or row['nature'] not in HEADER_NATURES or not d.get('text'):
+            continue
+        try:
+            head = en.read(d['text'])
+        except Exception:   # noqa: BLE001 — un texte inattendu ne bloque jamais l'actualisation
+            continue
+        if head['juridiction']:   # un numéro de rôle sans juridiction est souvent celui d'une affaire citée : aucune procédure créée
+            found.append(((row['doc_date'] or row['modified'] or '')[:10], row, head))
+    if not found:
+        return None
+    found.sort(key=lambda x: x[0])
+    procs = {}
+    for when, row, head in found:
+        key = re.sub(r'[^0-9a-z]', '', en.fold(head['rg'])) or en.fold(head['juridiction'])
+        source = {'path': row['path'], 'page': 1, 'extrait': ' … '.join(head['extraits'])[:500]}
+        current = None
+        if head['rg']:
+            for r in desk.db.execute('SELECT * FROM d51_procedures WHERE matter=? AND rg<>\'\'', (mid,)).fetchall():
+                if en.same_case_number(r['rg'], head['rg']):
+                    current = r
+                    break
+        if current is None:
+            current = desk.db.execute('SELECT * FROM d51_procedures WHERE id=?', (_sha(mid, 'procedure', 'entete', key),)).fetchone()
+        if current is None:
+            pid = _sha(mid, 'procedure', 'entete', key)
+            desk.db.execute("INSERT INTO d51_procedures(id,matter,juridiction,chambre,rg,statut,reference,origin,review,sources,created,updated) "
+                            "VALUES(?,?,?,?,?,'active',0,'entete','propose',?,?,?)",
+                            (pid, mid, head['juridiction'][:200], head['chambre'][:200], head['rg'][:60], json.dumps([source], ensure_ascii=False), now, now))
+        else:
+            pid = current['id']
+            sources = json.loads(current['sources'] or '[]')
+            if not any(isinstance(s, dict) and s.get('path') == row['path'] for s in sources):
+                sources = (sources + [source])[-8:]
+            desk.db.execute("UPDATE d51_procedures SET juridiction=CASE WHEN juridiction='' THEN ? ELSE juridiction END,"
+                            "chambre=CASE WHEN chambre='' THEN ? ELSE chambre END,rg=CASE WHEN rg='' THEN ? ELSE rg END,sources=? WHERE id=?",
+                            (head['juridiction'][:200], head['chambre'][:200], head['rg'][:60], json.dumps(sources, ensure_ascii=False), pid))
+        procs[pid] = (en.instance_rank(head['juridiction']), when, head)
+        for p in head['parties']:
+            _party_for(desk, mid, p['nom'], 'entete', row['name'], counsel=', '.join(p['avocats']), role=en.ROLE_LABELS.get(p['qualite'], ''),
+                       procedure_id=pid)
+            if p['avocats']:   # qualité et avocat de cette procédure, même si la partie existait déjà
+                desk.db.execute('UPDATE d51_participations SET counsel=? WHERE procedure_id=? AND party_id IN '
+                                '(SELECT id FROM d51_parties WHERE matter=?) AND counsel=\'\' AND role=?',
+                                (', '.join(p['avocats'])[:200], pid, mid, en.ROLE_LABELS.get(p['qualite'], '')))
+        if row['nature'] in DECISION_NATURES and head['juridiction']:
+            desk.db.execute("UPDATE d51_judgments SET juridiction=? WHERE matter=? AND path=? AND juridiction=''", (head['juridiction'][:200], mid, row['path']))
+    best = max(procs.items(), key=lambda kv: (kv[1][0], kv[1][1]))
+    top_rank = best[1][0]
+    for pid, (rank, _, _) in procs.items():   # une procédure d'un degré inférieur est l'historique de l'affaire (jugement frappé d'appel)
+        if rank < top_rank:
+            desk.db.execute("UPDATE d51_procedures SET statut='historique' WHERE id=? AND origin<>'avocat' AND statut='active'", (pid,))
+    r = desk.db.execute('SELECT id,juridiction,rg,stade FROM d51_procedures WHERE id=?', (best[0],)).fetchone()
+    return dict(r) if r else None
 
 
 def _refresh_validity(desk, mid, current_versions, indexed):

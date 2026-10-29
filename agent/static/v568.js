@@ -121,6 +121,8 @@
   // 5.6.12 : un seul panneau Pilote. La conversation vocale vit dans le panneau de l'assistant (bouton « Dialoguer ») ;
   // le bouton flottant n'existe plus que sur une page sans panneau.
   const dockVoice=document.querySelector('#ws-ai-voice'),talkButton=document.querySelector('#ws-ai-talk'),dockEl=document.querySelector('#ws-ai-dock');
+  const liveBtn=document.querySelector('#ws-ai-live');   // 5.6.79 : bouton « vague » flottant (conversation en temps réel)
+  const liveState=on=>{if(liveBtn){liveBtn.classList.toggle('is-live',on);liveBtn.setAttribute('aria-pressed',String(on));}};
   const launch=talkButton||el('button','🎙','voice568-launch');
   if(!talkButton){launch.type='button';launch.title='Conversation vocale avec l’assistant IA';launch.setAttribute('aria-label',launch.title);launch.setAttribute('aria-expanded','false');launch.setAttribute('aria-controls','voice568-panel');}
   const pane=el('aside',undefined,'voice568-panel');pane.id='voice568-panel';pane.hidden=true;pane.setAttribute('aria-label','Conversation vocale');
@@ -163,7 +165,7 @@
       speaking.onerror=()=>{playResolve=null;resolve();};speaking.play().catch(()=>{playResolve=null;resolve();});
     });
   }
-  function stopSession(){window.axiorhubPilot?.setMic(false);running=false;generation++;processing=false;controller?.abort();controller=null;clearInterval(vad);vad=null;
+  function stopSession(){window.axiorhubPilot?.setMic(false);liveState(false);running=false;generation++;processing=false;controller?.abort();controller=null;clearInterval(vad);vad=null;
     if(rec&&rec.state!=='inactive')rec.stop();rec=null;stream?.getTracks().forEach(t=>t.stop());stream=null;audioContext?.close().catch(()=>{});audioContext=null;stopSpeech();mode.disabled=false;start.disabled=false;voiceNote('Microphone et lecture arrêtés. Une mission déjà confiée garde son état dans Missions.');}
   async function read(text,g){
     if(!text||g!==generation||!running)return;stopSpeech();
@@ -236,7 +238,7 @@
       const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
       if(g!==generation){s.getTracks().forEach(t=>t.stop());return;}
       stream=s;audioContext=new AudioContext();await audioContext.resume();analyser=audioContext.createAnalyser();analyser.fftSize=1024;audioContext.createMediaStreamSource(s).connect(analyser);
-      running=true;mode.disabled=true;start.disabled=true;window.axiorhubPilot?.setMic(true);voiceNote('Microphone actif · parlez, puis laissez une courte pause.');recordTurn();
+      running=true;liveState(true);mode.disabled=true;start.disabled=true;window.axiorhubPilot?.setMic(true);voiceNote('Microphone actif · parlez, puis laissez une courte pause.');recordTurn();
       const data=new Float32Array(analyser.fftSize);
       vad=setInterval(()=>{
         if(!running||!analyser)return;analyser.getFloatTimeDomainData(data);const rms=Math.sqrt(data.reduce((sum,x)=>sum+x*x,0)/data.length),now=Date.now();
@@ -253,6 +255,7 @@
     const visible=pane.hidden;showVoice(visible);if(visible)startSession();else stopSession();
   });
   close.addEventListener('click',()=>{stopSession();showVoice(false);launch.focus();});
+  liveBtn?.addEventListener('click',()=>{if(running){stopSession();showVoice(false);return;}if(!pane.hidden){startSession();return;}launch.click();});
   start.addEventListener('click',startSession);stop.addEventListener('click',stopSession);
   send.addEventListener('click',()=>{if(processing)return;if(!running){voiceNote('Démarrez le dialogue avant d’envoyer le texte corrigé.');return;}if(rec){rec.skipTranscript=true;rec.stop();rec=null;}submit(transcript.value,generation);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!pane.hidden){stopSession();pane.hidden=true;launch.setAttribute('aria-expanded','false');}});

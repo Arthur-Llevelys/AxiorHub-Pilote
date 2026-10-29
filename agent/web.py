@@ -228,6 +228,7 @@ CONFIRM_REASONS = {
     'divulgation_a_un_tiers_a_valider', 'index_dossier_a_completer',
     'demande_ambigue', 'aucun_document_exploitable',
 }
+JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',
   'create_cabinet_letter':'Création confirmée du courrier Word'})
@@ -796,6 +797,8 @@ class App:
                         headers=[(n,_r440['csp'] if n=='Content-Security-Policy' else v) for n,v in headers]
                     if _r440.get('frame_office'):   # 5.6.36 : volet du complément Word (Word sur le web l'affiche dans un cadre Office)
                         headers=[(n,v) for n,v in headers if n!='X-Frame-Options']
+                    if _r440.get('frame_self'):   # 5.6.79 : aperçu PDF de la page Dossier, dans un cadre d'AxiorHub seulement
+                        headers=[(n,'SAMEORIGIN' if n=='X-Frame-Options' else v) for n,v in headers]
                 elif path=='/live/events' and env['REQUEST_METHOD']=='GET':
                     from .live430 import stream
                     after=live_cursor(env.get('HTTP_LAST_EVENT_ID') or args.get('after') or 0)
@@ -1331,7 +1334,7 @@ class App:
                '/projets':'Projets en attente','/recherche-juridique':'Recherche juridique',
                '/audiences-word':'Audiences et Word','/orchestrateur-avis':'Orchestrateur et avis',
                '/pilotage':'Pilotage du cabinet','/accueil':'Tableau de bord · Mon cabinet','/guide':'Guide pratique',
-               '/modeles-word':'Documents du cabinet','/aujourdhui':'Aujourd’hui',
+               '/modeles-word':'Modèle de courrier','/aujourdhui':'Aujourd’hui',
                '/production':'Produire','/studio':'Studio de production','/apprentissage':'Apprentissage métier',
                '/playbooks':'Playbooks','/ecosysteme':'Écosystème AxiorHub','/evaluations':'Évaluations métier',
                '/preparation-proactive':'Préparation proactive',
@@ -2089,31 +2092,8 @@ class App:
             if not groups and not legacy:main+='<p class="empty">Aucune confirmation groupée nécessaire. Les rapprochements certains sont appliqués automatiquement.</p>'
             main+='<h2>Associer directement une adresse</h2><p>Ouvrez un dossier pour ajouter ou corriger un correspondant sans utiliser le terminal.</p>'+link('/dossiers','Ouvrir les dossiers')
         elif path=='/dossiers':
-            roots=c['nextcloud'].get('matter_roots') or c['nextcloud']['roots']
-            from .portfolio import portfolio_rows,portfolio_summary
-            summary=portfolio_summary(desk);pc=summary['counts'];query=args.get('q','')
-            selected_state=args.get('state','all' if query else 'active')
-            if selected_state not in ('active','dormant','archived','to_confirm','all'):selected_state='active'
-            main+='<section class="portfolio-head"><div><h2>Portefeuille du cabinet</h2><p>La découverte est limitée à <strong>'+e(', '.join(roots))+'</strong>. Une indexation technique ne rend jamais un ancien dossier actif.</p></div>'+form('organize_cabinet','✨ Organiser automatiquement mon cabinet',{'restart':'yes'})+'</section>'
-            tabs=[('active','Actifs',pc.get('active',0)),('dormant','En sommeil',pc.get('dormant',0)),('to_confirm','À confirmer',pc.get('to_confirm',0)),('archived','Archivés',pc.get('archived',0)),('all','Tous',sum(pc.values()))]
-            main+='<nav class="tabs portfolio-tabs">'+''.join('<a class="'+('active' if selected_state==key else '')+'" href="'+e(url('/dossiers',state=key))+'">'+e(label)+' <strong>'+str(count)+'</strong></a>' for key,label,count in tabs)+'</nav>'
-            main+='<details class="technical"><summary>Indexation et mémoire de maintenance</summary>'+form('index_all','Indexer progressivement tous les dossiers enregistrés')+form('memory_all','Construire progressivement les mémoires des dossiers déjà indexés')+'<p>Ces opérations sont découpées en petits lots annulables. Pour obtenir rapidement un dossier, ouvrez sa fiche et cliquez sur « Actualiser les données du dossier ».</p></details>'
-            main+='<form method="get" enctype="application/x-www-form-urlencoded"><input type="hidden" name="state" value="all"><label>Rechercher dans tous les dossiers<input name="q" value="'+e(query)+'" placeholder="Nom, référence ou chemin"></label><button>Rechercher</button></form>'
-            from .workspace_ui import directory_panel
-            main+='<details class="technical"'+(' open' if args.get('mail_key') else '')+'><summary>Créer ou enregistrer un dossier Nextcloud absent de la liste</summary>'+directory_panel(c,desk,matters,args,form,link)+'</details>'
-            index=DocumentIndex(c['state_dir']);rows=[]
-            listed=portfolio_rows(desk,None if selected_state=='all' else [selected_state],limit=5000,refresh_missing=False)
-            for item in listed:
-                m=by_id[item['matter']]
-                if fold_for_search(query) not in fold_for_search(m['path']+' '+m['id']):continue
-                n=index.db.execute("SELECT COUNT(*) FROM docs WHERE matter=? AND error='' AND text<>''",(m['id'],)).fetchone()[0]
-                state_label={'active':'🟢 Actif','dormant':'🟡 En sommeil','archived':'⚪ Archivé','to_confirm':'🟠 À confirmer'}[item['state']]
-                rows.append('<tr><td>'+link('/dossier',matter_label(m),id=m['id'])+(' <span class="d27-badge" title="Aucun travail automatique de l’IA">⏸ IA en pause</span>' if m['id'] in __import__('agent.pause5629',fromlist=['paused']).paused(desk) else '')+'<small>'+e(m['id'])+'</small></td><td><span class="portfolio-state '+e(item['state'])+'">'+state_label+'</span></td><td>'+e(date(item['last_external_activity']))+'</td><td>'+str(len(m.get('correspondents',[])))+'</td><td>'+str(n)+'</td></tr>')
-            main+='<div class="table"><table><thead><tr><th>Dossier</th><th>État</th><th>Dernière activité sourcée</th><th>Correspondants</th><th>Textes indexés</th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>'
-            discovery=desk.settings('last_discovery')
-            if discovery:main+='<h2>Avancement du parcours Nextcloud</h2>'+block(json.dumps(discovery,ensure_ascii=False,indent=2))
-            sync=desk.settings('last_sync')
-            if sync:main+='<h2>Dernière découverte</h2>'+block(json.dumps(sync,ensure_ascii=False,indent=2))
+            from .dossiers5679 import page_html as _dossiers5679   # 5.6.79 : liste refondue (dossiers travaillés par l'IA, tableau triable)
+            main+=_dossiers5679(c,desk,matters,args,prefix,form,link)
         elif path=='/matter':
             m=by_id.get(args.get('id'))
             if not m:raise Stop('dossier_absent')

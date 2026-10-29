@@ -507,9 +507,11 @@ class Page(t51.Web):
         idx.db.commit()
         idx.db.close()
         page = self.request('/dossier', query='id=DOS-001', cookie=self.admin)['body']
-        for label in ('Vue d’ensemble', 'Faits et arguments', 'Procédure', 'Pièces', 'Correspondances', 'Travaux', 'Prendre en charge une mission',
-                      'Nos objectifs et consignes', 'Depuis votre dernière lecture', 'À décider / À relire'):
+        # 5.6.79 : cinq onglets (Synthèse, Documents, Faits et procédure, Échanges, Travail) ; anciennes vues toujours servies
+        for label in ('Synthèse', 'Documents', 'Faits et procédure', 'Échanges', 'Travail', 'Prendre en charge une mission',
+                      'Depuis votre dernière lecture', 'À décider / À relire'):
             self.assertIn(label, page)
+        self.assertIn('Nos objectifs et consignes', self.request('/dossier', query='id=DOS-001&vue=faits', cookie=self.admin)['body'])
         self.assertNotIn('Ancienne page (surveillance, mémoire, réglages)', page)
         for view in ('faits', 'procedure', 'pieces', 'correspondances', 'travaux', 'fiche', 'courriels'):
             r = self.request('/dossier', query='id=DOS-001&vue=' + view, cookie=self.admin)
@@ -561,9 +563,9 @@ class Page(t51.Web):
         md.ensure_schema(desk)
         for i in range(520):
             md.add_assertion(desk, 'DOS-001', 'avocat@example.test', {'texte': 'Information fictive numéro %d' % i})
-        body = self.request('/dossier', query='id=DOS-001&vue=faits', cookie=self.admin)['body']
+        body = self.request('/dossier', query='id=DOS-001&vue=informations', cookie=self.admin)['body']   # 5.6.79 : liste détaillée
         self.assertIn('Page 1 / 11 (520 éléments)', body)
-        last = self.request('/dossier', query='id=DOS-001&vue=faits&page=11', cookie=self.admin)['body']
+        last = self.request('/dossier', query='id=DOS-001&vue=informations&page=11', cookie=self.admin)['body']
         self.assertIn('Page 11 / 11', last)
         self.assertEqual(last.count('class="d51-info"'), 20)
 

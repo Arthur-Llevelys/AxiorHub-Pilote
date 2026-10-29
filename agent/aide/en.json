@@ -33,14 +33,14 @@
   "version": "5.6.36"
  },
  "dossiers": {
-  "objective": "Find a case, open its file and link the cases present in your files.",
+  "objective": "Find a case, see the ones the AI worked on recently and open their page.",
   "when": "To start working on a matter or register an existing one.",
   "prerequisites": "A document space set up (local folder or Nextcloud).",
   "steps": [
-   "Open Cases.",
-   "Type a name or reference, then click “Search”.",
-   "For a matter missing from the list, give its folder then “Check and save the case”.",
-   "Open the case to see its file, parties and timeline."
+   "Open Cases: the three cases the AI worked on most recently are shown first, with their proceedings and next date.",
+   "Type a name or reference and click “Search”; click a column heading to sort.",
+   "For a case missing from the list, expand “Firm portfolio”, enter its folder, then “Check and register the case”.",
+   "Open the case: Summary, Documents (preview on the right), Facts and proceedings, Exchanges, Work."
   ],
   "result": "The case appears in the portfolio with its working file.",
   "verify": "The file shows the folder name and the date it was last read.",
@@ -353,17 +353,17 @@
   "version": "5.6.36"
  },
  "strategie": {
-  "objective": "Work on a case’s strategy in a dedicated space.",
-  "when": "To consider a case’s options before drafting.",
+  "objective": "Ask a strategic question about a case and get a sourced analysis, inside the case itself.",
+  "when": "To compare a case’s options (settlement, appeal, missing documents) before deciding or drafting.",
   "prerequisites": "The case accessible.",
   "steps": [
-   "Open Strategy.",
-   "Choose the case.",
-   "Click “Open”.",
-   "Note and compare the options."
+   "Open Strategy, choose the case and click “Open” (or open the case directly).",
+   "In the case’s Work tab, write your question in the “Strategic question” card.",
+   "Click “Analyse”: the analysis appears in the card when it is ready.",
+   "Click a cited document to show it in the preview on the right."
   ],
-  "result": "A strategy space specific to the case.",
-  "verify": "Your notes stay attached to the case.",
+  "result": "An internal analysis: proposed approach, options with strengths and risks, decisions expected from you.",
+  "verify": "Each option points to the documents used; nothing is sent or filed.",
   "errors": [
    [
     "Case missing",
@@ -918,16 +918,16 @@
   "version": "5.6.36"
  },
  "modeles_word": {
-  "objective": "Import your Word templates, check their tags and preview every page.",
-  "when": "To produce letters in the firm’s layout.",
+  "objective": "Import the firm’s Word template once; “New letter” then uses it in every case.",
+  "when": "When setting up, or when your letterhead changes.",
   "prerequisites": "LibreOffice installed for the preview (on Windows as on Linux).",
   "steps": [
-   "Open Firm documents.",
+   "Open Settings › Letter template.",
    "Choose your DOCX file.",
    "Click “Import and preview”.",
-   "Check the detected tags and every page, then approve the template."
+   "Check the detected tags and every page, then approve the template. In a case: Work tab › New letter."
   ],
-  "result": "An approved template used for new drafts; the original is not changed.",
+  "result": "An approved template; each new letter is a Word draft saved in the case, and the template itself is not changed.",
   "verify": "The preview shows each page of the template with a fictitious example.",
   "errors": [
    [

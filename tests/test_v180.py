@@ -91,7 +91,7 @@ class Strategic180Tests(unittest.TestCase):
         self.assertEqual(act_projects(self.d,'DOS-001')[0]['status'],'validated')
 
     def test_api_exposes_and_queues_all_three_workflows(self):
-        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.78')
+        self.assertEqual(openapi('https://cabinet.test')['info']['version'],'5.6.79')
         a=dispatch(self.d,'/matters/DOS-001/strategy','POST',{'objective':'Comparer les options.'})
         b=dispatch(self.d,'/matters/DOS-001/matrix','POST',{'objective':'Cartographier les preuves.'})
         c=dispatch(self.d,'/matters/DOS-001/act-projects','POST',{'act_type':'conclusions','instruction':'Préparer une trame.'})
@@ -113,11 +113,12 @@ class Web180Tests(unittest.TestCase):
     request=test_desk.WebTests.request
 
     def test_strategy_page_is_visible_source_safe_and_does_not_refresh(self):
-        page=self.request('/strategy',query='matter=DOS-001')['body']
-        self.assertIn('Espace stratégique',page);self.assertIn('Matrice faits / pièces / prétentions',page)
-        self.assertIn('Atelier de projets d’actes',page);self.assertIn('name="objective"',page)
-        self.assertIn('name="act_type"',page);self.assertNotIn('http-equiv="refresh"',page)
-        self.assertIn('Version 5.6.78',page)
+        # 5.6.79 : la question stratégique se pose dans le dossier (onglet Travail) ; /strategy?matter=… y renvoie, /strategy choisit le dossier
+        r=self.request('/strategy',query='matter=DOS-001')
+        self.assertTrue(r['status'].startswith('303'));self.assertIn('vue=travail',r['headers']['Location'])
+        page=self.request('/strategy')['body']
+        self.assertIn('Question stratégique',page);self.assertIn('name="matter"',page);self.assertNotIn('http-equiv="refresh"',page)
+        self.assertIn('Version 5.6.79',page)
 
 
 if __name__=='__main__':unittest.main()

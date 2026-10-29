@@ -33,14 +33,14 @@
   "version": "5.6.36"
  },
  "dossiers": {
-  "objective": "Encontrar un expediente, abrir su ficha y vincular los expedientes presentes en sus archivos.",
+  "objective": "Encontrar un expediente, ver aquellos en los que la IA ha trabajado recientemente y abrir su página.",
   "when": "Para empezar a trabajar en un asunto o registrar uno existente.",
   "prerequisites": "Un espacio de documentos configurado (carpeta local o Nextcloud).",
   "steps": [
-   "Abra Expedientes.",
-   "Escriba un nombre o una referencia y pulse «Buscar».",
-   "Para un asunto ausente de la lista, indique su carpeta y pulse «Verificar y registrar el expediente».",
-   "Abra el expediente para ver su ficha, sus partes y su cronología."
+   "Abra Expedientes: los tres expedientes trabajados más recientemente por la IA aparecen arriba, con su procedimiento y su próxima fecha.",
+   "Escriba un nombre o una referencia y pulse «Buscar»; pulse un encabezado de columna para ordenar.",
+   "Para un asunto ausente de la lista, despliegue «Cartera del despacho», indique su carpeta y pulse «Verificar y registrar el expediente».",
+   "Abra el expediente: Síntesis, Documentos (vista previa a la derecha), Hechos y procedimiento, Intercambios, Trabajo."
   ],
   "result": "El expediente aparece en la cartera con su ficha de trabajo.",
   "verify": "La ficha muestra el nombre de la carpeta y la fecha de la última lectura.",
@@ -353,17 +353,17 @@
   "version": "5.6.36"
  },
  "strategie": {
-  "objective": "Trabajar la estrategia de un expediente en un espacio dedicado.",
-  "when": "Para reflexionar sobre las opciones de un expediente antes de redactar.",
+  "objective": "Plantear una pregunta estratégica sobre un expediente y obtener un análisis con fuentes, dentro del propio expediente.",
+  "when": "Para comparar las opciones de un expediente (acuerdo, apelación, documentos que faltan) antes de decidir o redactar.",
   "prerequisites": "El expediente accesible.",
   "steps": [
-   "Abra Estrategia.",
-   "Elija el expediente.",
-   "Pulse «Abrir».",
-   "Anote y compare las opciones."
+   "Abra Estrategia, elija el expediente y pulse «Abrir» (o abra directamente el expediente).",
+   "En la pestaña Trabajo del expediente, escriba su pregunta en la tarjeta «Pregunta estratégica».",
+   "Pulse «Analizar»: el análisis aparece en la tarjeta cuando está listo.",
+   "Pulse un documento citado para verlo en la vista previa de la derecha."
   ],
-  "result": "Un espacio estratégico propio del expediente.",
-  "verify": "Sus notas quedan vinculadas al expediente.",
+  "result": "Un análisis interno: orientación propuesta, opciones con fortalezas y riesgos, decisiones que le corresponden.",
+  "verify": "Cada opción remite a los documentos utilizados; no se envía ni se presenta nada.",
   "errors": [
    [
     "Expediente ausente",
@@ -918,16 +918,16 @@
   "version": "5.6.36"
  },
  "modeles_word": {
-  "objective": "Importar sus plantillas Word, comprobar sus etiquetas y previsualizar todas las páginas.",
-  "when": "Para producir sus cartas con la presentación del despacho.",
+  "objective": "Importar una vez la plantilla Word del despacho; «Nueva carta» la usa después en cada expediente.",
+  "when": "En la puesta en marcha, o cuando cambia su membrete.",
   "prerequisites": "LibreOffice instalado para la vista previa (en Windows y en Linux).",
   "steps": [
-   "Abra Documentos del despacho.",
+   "Abra Parámetros › Plantilla de carta.",
    "Elija su archivo DOCX.",
    "Pulse «Importar y previsualizar».",
-   "Compruebe las etiquetas detectadas y todas las páginas y valide la plantilla."
+   "Revise las etiquetas detectadas y todas las páginas y valide la plantilla. En un expediente: pestaña Trabajo › Nueva carta."
   ],
-  "result": "Una plantilla validada para los nuevos proyectos; el original no se modifica.",
+  "result": "Una plantilla validada; cada nueva carta es un borrador Word guardado en el expediente y la plantilla no se modifica.",
   "verify": "La vista previa muestra cada página de la plantilla con un ejemplo ficticio.",
   "errors": [
    [

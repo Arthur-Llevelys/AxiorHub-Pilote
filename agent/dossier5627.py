@@ -960,8 +960,8 @@ def travaux_html(desk, prefix, m):
 
 
 def page(desk, auth, prefix, args, shell):
-    from .vue5651 import page as page5651   # 5.6.51 (audit 5.6.50, D03) : page de référence en six onglets
-    return page5651(desk, auth, prefix, args, shell)
+    from .dossier5679 import page as page5679   # 5.6.79 : page refondue (cinq onglets, aperçu des documents)
+    return page5679(desk, auth, prefix, args, shell)
 
 
 def page_5650(desk, auth, prefix, args, shell):
