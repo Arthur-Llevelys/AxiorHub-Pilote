@@ -3,6 +3,63 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.79 — Dossiers refondus : liste, page dossier avec aperçu, procédure lue dans les actes
+
+Demande du cabinet du 29 octobre 2026 : revoir entièrement la liste des dossiers et la page d’un dossier (informations mélangées ou
+peu pertinentes, procédure et correspondants non trouvés, dernières conclusions introuvables et sans aperçu), simplifier ou retirer les
+pages Stratégie et Créer un courrier Word, remplacer les boutons de dictée par un bouton micro et proposer la conversation vocale.
+
+**Liste des dossiers** :
+- en tête, les trois dossiers sur lesquels l’IA a travaillé le plus récemment : procédure en cours, dernier travail de l’IA, prochaine
+  date, dernier événement daté ;
+- tableau triable par dossier, numéro, état, dernière activité, travail de l’IA, nombre de correspondants, correspondant principal et
+  textes indexés (tri par le serveur, sans script) ;
+- les correspondants comptent aussi les expéditeurs des courriels rattachés (hors adresses du cabinet) ;
+- les outils du portefeuille (organisation, indexation, création d’un dossier) sont repliés en bas de page.
+
+**Page d’un dossier**, cinq onglets et un volet d’aperçu :
+- **Synthèse** : parties avec leur qualité et leurs avocats, procédure en cours et procédures antérieures, prochaines dates, objectif du
+  client, dernières écritures et décisions, documents récents, travail récent de l’IA, ce qui reste à traiter ; les fichiers illisibles
+  (scans, fichiers protégés) sont regroupés sur une ligne au lieu d’une liste « à obtenir » ;
+- **Documents** : tous les fichiers classés (écritures, décisions, actes et RPVA, nos pièces, pièces adverses, courriers, autres,
+  illisibles), du plus récent au plus ancien, avec recherche ; un fichier nommé par un numéro est présenté par sa nature et sa date ;
+- **aperçu à droite** : un clic sur un document, ou sur une source citée n’importe où dans la page, l’affiche sans quitter le dossier
+  (PDF dans le lecteur du navigateur, Word mis en forme, images, autres formats en texte) ; boutons Modifier et Télécharger ; le texte
+  masqué de Word n’est jamais affiché ; le fichier n’est servi que s’il appartient au dossier ;
+- **Faits et procédure** : procédure en cours en tête, rappel des faits dont chaque paragraphe renvoie à ses pièces (et non plus à des
+  identifiants techniques), chronologie, parties ;
+- **Échanges** : intervenants (parties et avocats lus dans les actes, correspondants, expéditeurs repérés, avec un bouton pour les
+  enregistrer comme correspondants), courriels du dossier, correspondances conservées ;
+- **Travail** : question stratégique, nouveau courrier, missions, informations à fournir ; les autres outils sont repliés.
+- Les anciennes adresses restent valables ; les écrans détaillés de la 5.6.51 restent accessibles par des liens.
+
+**Procédure, qualités et avocats lus sans IA** : la première page des conclusions, assignations, requêtes, jugements, arrêts et
+ordonnances est lue par règles (juridiction, chambre, numéro de rôle, Portalis, parties avec leur qualité, avocats plaidant et
+postulant, que la qualité soit écrite avant ou après le nom). La procédure la plus récente du plus haut degré devient la procédure en
+cours ; celles d’un degré inférieur passent en procédures antérieures. Un choix ou une correction de l’avocat n’est jamais remplacé. Un
+numéro de rôle sans juridiction (affaire citée) ne crée aucune procédure. Chaque dossier est relu une fois à la mise à jour.
+
+**Consignes cadrées pour les modèles open source** : le relevé des pièces demande des faits courts qui nomment l’acteur, sans « selon les
+documents », sans en-têtes ni coordonnées, et des parties sans les avocats ni les magistrats ; le rappel des faits est écrit en phrases
+courtes, sans formules répétées. Ces consignes s’appliquent aux pièces lues à partir de cette version.
+
+**Stratégie** : la question stratégique se pose dans le dossier (onglet Travail) ; la réponse y reste, avec ses pièces sources
+cliquables. La page Stratégie ne sert plus qu’à choisir le dossier ; la matrice et l’atelier de projets d’actes sont retirés de
+l’interface (les analyses existantes restent conservées).
+
+**Courrier Word** : le modèle du cabinet s’importe une fois dans Paramètres › Modèle de courrier. Dans le dossier, « Nouveau courrier »
+demande le destinataire (proposé parmi les intervenants), l’objet, la formule d’appel, le mode d’envoi et ce que le courrier doit dire ;
+l’IA rédige le corps (sans les correspondances confidentielles entre avocats), le modèle est rempli et le brouillon Word est enregistré
+dans le dossier. Rien n’est envoyé.
+
+**Voix** :
+- la dictée est un seul bouton micro (icône) ; son libellé reste lu par les lecteurs d’écran et affiché en infobulle ;
+- quand la dictée locale et une voix locale (Kokoro, eSpeak, Chatterbox) sont réglées, un bouton « vague » ouvre l’assistant et démarre
+  la conversation vocale en temps réel (parlez, l’assistant répond à voix haute, parlez pour l’interrompre) ; la vague s’anime pendant
+  la conversation.
+
+Aide mise à jour (fr, en, de, es) : Dossiers, Stratégie, Modèle de courrier.
+
 ## 5.6.78 — Correctif : texte caché des PDF repéré aussi sur le serveur Linux
 
 La recette GitHub de la 5.6.77 a échoué sur Linux : le contrôle du texte caché des PDF importait une bibliothèque pypdf installée à part,

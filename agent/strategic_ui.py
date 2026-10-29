@@ -13,6 +13,15 @@ def block(value):return '<pre>'+e(value)+'</pre>'
 
 
 def panel(c,desk,matters,args,form,link):
+    """5.6.79 : la question stratégique se pose dans le dossier (onglet Travail) ; cette page ne sert plus qu'à choisir le dossier."""
+    options='<option value="">Choisir un dossier…</option>'+''.join('<option value="'+e(m['id'])+'">'+e(matter_display(m))+'</option>'
+      for m in sorted(matters,key=lambda x:matter_display(x).casefold()))
+    return ('<section class="strategy-intro"><h2>Question stratégique</h2><p>Posez votre question dans le dossier concerné : onglet <strong>Travail</strong>, '
+            'carte « Question stratégique ». La réponse y reste, avec ses pièces sources.</p><form method="get" enctype="application/x-www-form-urlencoded">'
+            '<label>Dossier<select name="matter" required>'+options+'</select></label><button>Ouvrir</button></form></section>')
+
+
+def panel_5650(c,desk,matters,args,form,link):
     mid=args.get('matter','');by_id={m['id']:m for m in matters}
     options='<option value="">Choisir un dossier…</option>'+''.join(
       '<option value="'+e(m['id'])+'"'+(' selected' if m['id']==mid else '')+'>'+e(matter_display(m))+'</option>'

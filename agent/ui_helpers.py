@@ -23,7 +23,17 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
     examples=EXAMPLES.get(path, ['Analyse cette page et propose les prochaines actions utiles.',
       'Recherche dans le cabinet les sources utiles à ma demande.'])
     chips=''.join('<button type="button" class="ws-ai-example" data-ai-example="'+escape(x,quote=True)+'">'+escape(x)+'</button>' for x in examples)
-    return ('<button type="button" id="ws-ai-launcher" aria-controls="ws-ai-dock" aria-expanded="false" '
+    # 5.6.79 : bouton « vague » de conversation vocale en temps réel quand la dictée locale et une voix locale (Kokoro, eSpeak, Chatterbox)
+    # sont réglées ; il ouvre le panneau et démarre le dialogue (v568.js)
+    live = ''
+    try:
+        from .shell501 import context as _ctx5679
+        if audio_enabled and ((_ctx5679() or {}).get('speech568') or {}).get('provider', 'espeak') in ('kokoro', 'espeak', 'chatterbox'):
+            live = ('<button type="button" id="ws-ai-live" class="ws-ai-live" aria-pressed="false" title="Conversation vocale en temps réel avec l’assistant" '
+                    'aria-label="Conversation vocale en temps réel avec l’assistant"><svg class="w79" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="2" y="9" width="2.4" height="6" rx="1.2"/><rect x="6.4" y="6" width="2.4" height="12" rx="1.2"/><rect x="10.8" y="3" width="2.4" height="18" rx="1.2"/><rect x="15.2" y="6" width="2.4" height="12" rx="1.2"/><rect x="19.6" y="9" width="2.4" height="6" rx="1.2"/></svg></button>')
+    except Exception:   # noqa: BLE001 — sans configuration lisible, pas de bouton
+        live = ''
+    return (live + '<button type="button" id="ws-ai-launcher" aria-controls="ws-ai-dock" aria-expanded="false" '
       'title="Ouvrir l’assistant AxiorHub"><span aria-hidden="true">🤖</span><span class="sr-only">Assistant AxiorHub</span></button>'
       '<aside id="ws-ai-dock" class="ws-ai-dock" hidden aria-label="Assistant AxiorHub">'
       '<header><div><strong>Pilote</strong><small>Texte, documents et voix dans un même fil · missions internes, aucun envoi automatique</small></div>'
@@ -38,12 +48,12 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
       '<option value="mission">Mission complexe (assignation, conclusions)</option><option value="facturation">Facturation Invoice Ninja (client, projet, devis)</option></select></label>'
       # 5.6.19 : un seul bouton d'envoi, explicite ; les commandes de contexte (chips) sont retirées — l'instruction se dit ou s'écrit.
       '<p class="ws-ai-sendrow"><button type="button" id="ws-ai-send" class="ws-ai-send">Envoyer l’instruction</button>'
-      '<span class="ws-ai-hint">Ctrl+Entrée envoie aussi. Pour dicter : « Commencer la dictée » sous l’instruction.</span></p>'
+      '<span class="ws-ai-hint">Ctrl+Entrée envoie aussi. Pour dicter : le bouton micro sous l’instruction.</span></p>'
       '<p id="ws-ai-plan" class="ws-ai-plan" role="status" hidden></p></div>'
       '<ul id="ws-ai-files" class="ws-ai-files" aria-label="Pièces jointes de la conversation" hidden></ul>'
       '<details><summary>Options de la mission</summary><div class="ws-ai-context"><label>Échéance facultative<input id="ws-ai-due" type="date"></label>'
       '<label>Niveau d’autonomie<select id="ws-ai-autonomy"><option value="prepare">Préparer automatiquement</option><option value="suggest">Proposer seulement</option></select></label></div></details>'
-      '<div class="ws-ai-tools"><button type="button" id="ws-ai-talk" aria-controls="ws-ai-voice" aria-expanded="false"'+('' if audio_enabled else ' disabled')+' title="Conversation vocale par tours, dans ce même panneau">💬 Dialoguer</button>'
+      '<div class="ws-ai-tools"><button type="button" id="ws-ai-talk" class="ws-ai-wave" aria-controls="ws-ai-voice" aria-expanded="false"'+('' if audio_enabled else ' disabled')+' title="Conversation vocale en temps réel : parlez, l’assistant répond à voix haute ; parlez pour l’interrompre"><svg class="w79" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="2" y="9" width="2.4" height="6" rx="1.2"/><rect x="6.4" y="6" width="2.4" height="12" rx="1.2"/><rect x="10.8" y="3" width="2.4" height="18" rx="1.2"/><rect x="15.2" y="6" width="2.4" height="12" rx="1.2"/><rect x="19.6" y="9" width="2.4" height="6" rx="1.2"/></svg>Conversation vocale</button>'
       '<label class="ws-ai-file">📎 Documents (3 max.)<input type="file" multiple id="ws-ai-file" accept=".pdf,.docx,.txt,.md,.csv,.odt,.eml"></label>'
       '<button type="button" id="ws-ai-clear" title="Effacer l’affichage de la conversation (les missions restent dans Outils › Missions)">Effacer la conversation</button></div>'
       '<div class="mission567-audio"><button type="button" data-briefing567>Écouter le briefing</button><button type="button" data-read567>Lire la réponse</button><button type="button" data-audio-pause567>Pause / reprise</button><button type="button" data-audio-stop567>Arrêter la lecture</button></div><p id="ws-ai-status" role="status">Assistant repliable. Les résultats restent internes et sourcés.</p>'

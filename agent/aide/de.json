@@ -33,14 +33,14 @@
   "version": "5.6.36"
  },
  "dossiers": {
-  "objective": "Eine Akte finden, ihr Aktenblatt öffnen und die Akten in Ihren Dateien verknüpfen.",
+  "objective": "Eine Akte finden, die zuletzt von der KI bearbeiteten Akten sehen und ihre Seite öffnen.",
   "when": "Um an einem Mandat zu arbeiten oder ein bestehendes Mandat zu erfassen.",
   "prerequisites": "Ein eingerichteter Dokumentenbereich (lokaler Ordner oder Nextcloud).",
   "steps": [
-   "Öffnen Sie „Akten“.",
-   "Geben Sie einen Namen oder ein Aktenzeichen ein und klicken Sie auf „Suchen“.",
-   "Für ein fehlendes Mandat geben Sie seinen Ordner an und klicken auf „Akte prüfen und speichern“.",
-   "Öffnen Sie die Akte, um Aktenblatt, Beteiligte und Chronologie zu sehen."
+   "Öffnen Sie „Akten“: Die drei zuletzt von der KI bearbeiteten Akten stehen oben, mit Verfahren und nächstem Termin.",
+   "Geben Sie einen Namen oder ein Aktenzeichen ein und klicken Sie auf „Suchen“; klicken Sie auf eine Spaltenüberschrift, um zu sortieren.",
+   "Für eine fehlende Akte klappen Sie „Kanzleibestand“ auf, geben das Verzeichnis an und klicken auf „Akte prüfen und erfassen“.",
+   "Öffnen Sie die Akte: Übersicht, Dokumente (Vorschau rechts), Sachverhalt und Verfahren, Korrespondenz, Arbeit."
   ],
   "result": "Die Akte erscheint im Bestand mit ihrem Arbeitsblatt.",
   "verify": "Das Aktenblatt zeigt den Ordnernamen und das Datum des letzten Lesens.",
@@ -353,17 +353,17 @@
   "version": "5.6.36"
  },
  "strategie": {
-  "objective": "Die Strategie einer Akte in einem eigenen Bereich erarbeiten.",
-  "when": "Um die Optionen einer Akte vor dem Abfassen zu überlegen.",
+  "objective": "Eine strategische Frage zu einer Akte stellen und eine belegte Analyse erhalten, direkt in der Akte.",
+  "when": "Um die Optionen einer Akte (Vergleich, Berufung, fehlende Unterlagen) vor einer Entscheidung oder dem Abfassen zu vergleichen.",
   "prerequisites": "Die Akte zugänglich.",
   "steps": [
-   "Öffnen Sie „Strategie“.",
-   "Wählen Sie die Akte.",
-   "Klicken Sie auf „Öffnen“.",
-   "Notieren und vergleichen Sie die Optionen."
+   "Öffnen Sie „Strategie“, wählen Sie die Akte und klicken Sie auf „Öffnen“ (oder öffnen Sie die Akte direkt).",
+   "Schreiben Sie Ihre Frage im Reiter „Arbeit“ der Akte in die Karte „Strategische Frage“.",
+   "Klicken Sie auf „Analysieren“: Die Analyse erscheint in der Karte, sobald sie fertig ist.",
+   "Klicken Sie auf ein zitiertes Dokument, um es rechts in der Vorschau anzuzeigen."
   ],
-  "result": "Ein Strategiebereich für die Akte.",
-  "verify": "Ihre Notizen bleiben an der Akte.",
+  "result": "Eine interne Analyse: vorgeschlagene Ausrichtung, Optionen mit Stärken und Risiken, von Ihnen erwartete Entscheidungen.",
+  "verify": "Jede Option verweist auf die verwendeten Dokumente; nichts wird versandt oder eingereicht.",
   "errors": [
    [
     "Akte fehlt",
@@ -918,16 +918,16 @@
   "version": "5.6.36"
  },
  "modeles_word": {
-  "objective": "Ihre Word-Vorlagen importieren, Platzhalter prüfen und jede Seite in der Vorschau ansehen.",
-  "when": "Um Briefe im Layout der Kanzlei zu erstellen.",
+  "objective": "Die Word-Vorlage der Kanzlei einmal importieren; „Neues Schreiben“ verwendet sie dann in jeder Akte.",
+  "when": "Bei der Inbetriebnahme oder wenn sich Ihr Briefkopf ändert.",
   "prerequisites": "LibreOffice für die Vorschau installiert (unter Windows wie unter Linux).",
   "steps": [
-   "Öffnen Sie „Kanzleidokumente“.",
+   "Öffnen Sie Einstellungen › Briefvorlage.",
    "Wählen Sie Ihre DOCX-Datei.",
    "Klicken Sie auf „Importieren und Vorschau“.",
-   "Prüfen Sie erkannte Platzhalter und jede Seite und genehmigen Sie die Vorlage."
+   "Prüfen Sie die erkannten Platzhalter und alle Seiten und geben Sie die Vorlage frei. In einer Akte: Reiter Arbeit › Neues Schreiben."
   ],
-  "result": "Eine genehmigte Vorlage für neue Entwürfe; das Original bleibt unverändert.",
+  "result": "Eine freigegebene Vorlage; jedes neue Schreiben ist ein Word-Entwurf in der Akte, die Vorlage selbst bleibt unverändert.",
   "verify": "Die Vorschau zeigt jede Seite der Vorlage mit einem fiktiven Beispiel.",
   "errors": [
    [

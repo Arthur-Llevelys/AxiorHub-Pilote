@@ -33,14 +33,14 @@
   "version": "5.6.36"
  },
  "dossiers": {
-  "objective": "Retrouver un dossier, ouvrir sa fiche et rattacher les dossiers présents dans vos fichiers.",
+  "objective": "Retrouver un dossier, voir ceux sur lesquels l’IA a travaillé récemment et ouvrir leur page.",
   "when": "Pour commencer à travailler sur une affaire ou enregistrer une affaire existante.",
   "prerequisites": "Un espace de documents configuré (dossier local ou Nextcloud).",
   "steps": [
-   "Ouvrez Dossiers.",
-   "Tapez un nom ou une référence puis cliquez sur « Rechercher ».",
-   "Pour une affaire absente de la liste, indiquez son répertoire puis « Vérifier et enregistrer le dossier ».",
-   "Ouvrez le dossier pour voir sa fiche, ses parties et sa chronologie."
+   "Ouvrez Dossiers : les trois dossiers travaillés récemment par l’IA apparaissent en tête, avec leur procédure et leur prochaine date.",
+   "Tapez un nom ou une référence puis cliquez sur « Rechercher » ; cliquez sur un en-tête de colonne pour trier.",
+   "Pour une affaire absente de la liste, dépliez « Portefeuille du cabinet », indiquez son répertoire puis « Vérifier et enregistrer le dossier ».",
+   "Ouvrez le dossier : Synthèse, Documents (aperçu à droite), Faits et procédure, Échanges, Travail."
   ],
   "result": "Le dossier apparaît dans le portefeuille avec sa fiche de travail.",
   "verify": "La fiche affiche le nom du répertoire et la date de dernière lecture.",
@@ -353,17 +353,17 @@
   "version": "5.6.36"
  },
  "strategie": {
-  "objective": "Travailler la stratégie d’un dossier dans un espace dédié.",
-  "when": "Pour réfléchir aux options d’un dossier avant de rédiger.",
+  "objective": "Poser une question stratégique sur un dossier et obtenir une analyse sourcée, dans le dossier lui-même.",
+  "when": "Pour comparer les options d’un dossier (transaction, appel, pièces manquantes) avant de décider ou de rédiger.",
   "prerequisites": "Le dossier accessible.",
   "steps": [
-   "Ouvrez Stratégie.",
-   "Choisissez le dossier.",
-   "Cliquez sur « Ouvrir ».",
-   "Notez et comparez les options."
+   "Ouvrez Stratégie et choisissez le dossier, puis cliquez sur « Ouvrir » (ou ouvrez directement le dossier).",
+   "Dans l’onglet Travail du dossier, écrivez votre question dans la carte « Question stratégique ».",
+   "Cliquez sur « Analyser » : l’analyse s’affiche dans la carte quand elle est prête.",
+   "Cliquez sur une pièce citée pour l’afficher dans l’aperçu à droite."
   ],
-  "result": "Un espace stratégique propre au dossier.",
-  "verify": "Vos notes restent attachées au dossier.",
+  "result": "Une analyse interne : orientation proposée, options avec forces et risques, décisions attendues de vous.",
+  "verify": "Chaque option renvoie aux pièces utilisées ; rien n’est envoyé ni déposé.",
   "errors": [
    [
     "Dossier absent",
@@ -918,16 +918,16 @@
   "version": "5.6.36"
  },
  "modeles_word": {
-  "objective": "Importer vos modèles Word, vérifier leurs balises et prévisualiser toutes les pages.",
-  "when": "Pour produire vos courriers à la présentation du cabinet.",
+  "objective": "Importer une fois le modèle Word du cabinet, utilisé ensuite par « Nouveau courrier » dans chaque dossier.",
+  "when": "Lors de la mise en service, ou quand votre papier à en-tête change.",
   "prerequisites": "LibreOffice installé pour l’aperçu (sous Windows comme sous Linux).",
   "steps": [
-   "Ouvrez Documents du cabinet.",
+   "Ouvrez Paramètres › Modèle de courrier.",
    "Choisissez votre fichier DOCX.",
    "Cliquez sur « Importer et prévisualiser ».",
-   "Contrôlez les balises détectées et toutes les pages, puis validez le modèle."
+   "Contrôlez les balises détectées et toutes les pages, puis validez le modèle. Dans un dossier : onglet Travail › Nouveau courrier."
   ],
-  "result": "Un modèle validé, utilisé pour les nouveaux projets ; l’original n’est pas modifié.",
+  "result": "Un modèle validé ; chaque nouveau courrier est un brouillon Word enregistré dans le dossier, l’original du modèle n’est pas modifié.",
   "verify": "L’aperçu affiche chaque page du modèle avec un exemple fictif.",
   "errors": [
    [
