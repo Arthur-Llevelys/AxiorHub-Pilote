@@ -1,0 +1,29 @@
+{
+  "version": "5.6.78",
+  "base": "5.6.77",
+  "date_utc": "2026-10-29T00:00:00+00:00",
+  "cahier_des_charges": "Correctif de la 5.6.77 : recette GitHub en échec sur Linux (texte caché des PDF non repéré sans pypdf installé à part).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2773,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 124,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5678.py (3) : repérage avec la seule copie embarquée de pypdf ; lecture d’un PDF comme sur le serveur (pypdf absent, pdftotext simulé), texte invisible retiré et signalé ; import de la copie embarquée.",
+  "live_checks": "Échec de la recette 5.6.77 reproduit en local en rendant « import pypdf » impossible (8 échecs), puis corrigé.",
+  "exapp": {
+    "version": "0.1.37",
+    "moteur": "5.6.78"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "pdfmasque5677 : pypdf importé depuis agent/_vendor."
+  ],
+  "adjusted_tests": []
+}

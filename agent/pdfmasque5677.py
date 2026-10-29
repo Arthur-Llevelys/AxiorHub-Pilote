@@ -27,6 +27,11 @@ import math
 import re
 import time
 
+# 5.6.78 : copie embarquée de pypdf (comme pieces510). Le serveur Linux n'a pas d'autre pypdf : importé ailleurs, le contrôle
+# échouait en silence et ne repérait rien.
+from ._vendor.pypdf import PdfReader
+from ._vendor.pypdf.generic import ContentStream, NameObject
+
 REASONS = {'invisible': 'texte invisible', 'transparent': 'texte transparent', 'minuscule': 'police d’au plus 2 points',
            'hors_page': 'texte hors de la page', 'blanc': 'texte blanc sur fond blanc'}
 TINY = 2.0
@@ -227,11 +232,9 @@ def hidden_pages(raw, max_pages=400, budget=20.0):
     """[{page, motifs, texte}] des pages d'un PDF qui portent du texte caché. Jamais d'exception : [] en cas de doute."""
     started = time.monotonic()
     try:
-        from pypdf import PdfReader
         reader = PdfReader(io.BytesIO(raw))
         if reader.is_encrypted:
             return []
-        from pypdf.generic import ContentStream, NameObject
         pages = list(reader.pages)
     except Exception:  # noqa: BLE001 - PDF mal formé, chiffré ou inattendu : la lecture normale continue
         return []

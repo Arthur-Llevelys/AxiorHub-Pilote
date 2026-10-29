@@ -3,6 +3,17 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.78 — Correctif : texte caché des PDF repéré aussi sur le serveur Linux
+
+La recette GitHub de la 5.6.77 a échoué sur Linux : le contrôle du texte caché des PDF importait une bibliothèque pypdf installée à part,
+présente sur le poste de développement mais absente du serveur. L’import échouait en silence et aucun texte caché n’était repéré.
+
+- Le contrôle utilise désormais la copie de pypdf embarquée dans AxiorHub (comme l’analyse des pièces) : il fonctionne sur le serveur,
+  le poste Linux et l’application Windows.
+- Nouveaux tests dans les conditions du serveur (aucun pypdf installé à part, Poppler présent).
+- Installer directement la 5.6.78 : la 5.6.77 n’apporte pas le contrôle des PDF sur un serveur Linux. La pseudonymisation renforcée de la
+  5.6.77 n’est pas concernée.
+
 ## 5.6.77 — Pseudonymisation plus sûre avant l’IA externe et texte caché des PDF
 
 Demande du cabinet du 28 octobre 2026, après lecture du retour d’expérience d’un confrère sur la conformité de son infrastructure d’IA :
