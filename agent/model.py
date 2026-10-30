@@ -911,6 +911,8 @@ class Model:
             options.update({'num_ctx':num_ctx,'num_predict':max_tokens})
             # 5.6.47 : en flux, le délai porte sur le silence entre deux morceaux et non sur toute la génération (longues fiches de dossier)
             req={'model':self.cfg['model'],'stream':True,'messages':messages,'options':options}
+            # 5.6.80 : le modèle reste chargé 30 min (5 par défaut) : plus de rechargement de plusieurs dizaines de secondes à la première question
+            req['keep_alive']=self.cfg.get('keep_alive','30m')
             if json_schema is not None:req['format']=json_schema
             caps=getattr(self,'capabilities',None)
             if self.cfg.get('disable_thinking',True) and (caps is None or 'thinking' in caps):req['think']=False   # option non envoyée si non prise en charge

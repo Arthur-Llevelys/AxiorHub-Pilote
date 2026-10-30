@@ -228,6 +228,8 @@ CONFIRM_REASONS = {
     'divulgation_a_un_tiers_a_valider', 'index_dossier_a_completer',
     'demande_ambigue', 'aucun_document_exploitable',
 }
+REASONS['trop_de_pieces_jointes']='Vingt documents au plus par demande.'   # 5.6.80
+REASONS['piece_extraite_plus_de_2000000_caracteres']='Document trop long : plus de 2 millions de caractères extraits.'
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',
@@ -844,10 +846,10 @@ class App:
                     if env.get('HTTP_ORIGIN')!=auth['origin'] or not hmac.compare_digest(env.get('HTTP_X_CSRF_TOKEN',''),auth['csrf']):
                         raise Stop('origine_ou_csrf_refuse')
                     length=int(env.get('CONTENT_LENGTH','0') or 0)
-                    if not 0<length<=8_000_000:raise Stop('taille_piece_assistant_invalide')
+                    from .improvements36 import MAX_ATTACHMENT_BYTES,upload_attachment
+                    if not 0<length<=MAX_ATTACHMENT_BYTES:raise Stop('taille_piece_assistant_invalide')
                     if env.get('CONTENT_TYPE','').split(';')[0]!='application/octet-stream':
                         raise Stop('type_piece_assistant_invalide')
-                    from .improvements36 import upload_attachment
                     filename=unquote(env.get('HTTP_X_ATTACHMENT_NAME',''),encoding='utf-8',errors='strict')
                     body=json.dumps(upload_attachment(Desk(cfg),env['wsgi.input'].read(length),filename,
                         env.get('HTTP_X_ATTACHMENT_MATTER',''),env.get('HTTP_X_ATTACHMENT_KEY','')),ensure_ascii=False)
@@ -1306,6 +1308,9 @@ class App:
         except Exception:   # noqa: BLE001
             pass
         raw=body if isinstance(body,bytes) else body.encode('utf-8')
+        if '/static/' in env.get('PATH_INFO','') and status.startswith('200') and re.search(r'(?:^|&)v=',env.get('QUERY_STRING','')):
+            # 5.6.80 : adresses versionnées : le navigateur garde scripts et styles au lieu de les recharger (38 fichiers) à chaque page
+            headers=[(n,'private, max-age=31536000, immutable' if n=='Cache-Control' else v) for n,v in headers]
         if env.get('axiorhub.nc_origin'):   # 5.6.37 : réponse à une session Nextcloud : cadre permis au seul site Nextcloud de la clé
             from .nextcloud5637 import frame_headers
             headers=frame_headers(headers,'' if env['axiorhub.nc_origin']=='self' else env['axiorhub.nc_origin'])

@@ -148,7 +148,7 @@ class NextcloudSession(_Linked):
         self.assertIn("frame-ancestors 'self' " + NC, csp)
         self.assertNotIn("frame-ancestors 'none'", csp)
         self.assertNotIn('X-Frame-Options', page['headers'])
-        self.assertIn('/static/v5637.js"></script>', page['body'])
+        self.assertRegex(page['body'], r'/static/v5637\.js\?v=[0-9.]+"></script>')   # 5.6.80 : adresses versionnées
         basic = self.get('/dossiers', auth=True)                                            # connexion par mot de passe : jamais dans un cadre
         self.assertEqual(basic['headers']['X-Frame-Options'], 'DENY')
         self.assertIn("frame-ancestors 'none'", basic['headers']['Content-Security-Policy'])
@@ -264,7 +264,7 @@ class EmbeddedLook(_Linked):
         self.assertIn('/static/v5637.js', STATIC)
         from agent.ui_helpers import enhance
         html = enhance('<html><head></head><body></body></html>', '/agent-courriel', 'x', False)
-        self.assertIn('<script defer src="/agent-courriel/static/v5637.js"></script>', html)  # premier script différé
+        self.assertRegex(html, r'<script defer src="/agent-courriel/static/v5637\.js\?v=[0-9.]+"></script>')   # 5.6.80 : adresses versionnées
         self.assertLess(html.index('v5637.js'), html.index('v320.js'))
 
 

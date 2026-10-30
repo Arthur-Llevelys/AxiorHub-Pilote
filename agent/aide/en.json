@@ -741,6 +741,14 @@
    [
     "Answer without source",
     "Check it before using it."
+   ],
+   [
+    "Answer “The AI model is busy or too slow”",
+    "The AI did not answer in time: the passages shown come from the search, with no analysis. Try again in a moment."
+   ],
+   [
+    "Answer based on a few passages of an attachment",
+    "Only the passages useful to the question are read. Ask for a “complete summary” to have the whole document read."
    ]
   ],
   "example": "Fictitious question: “Which hearings this week?”.",

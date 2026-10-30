@@ -195,12 +195,16 @@
       context:{page:cfg.path||'/',selected_documents:selectedDocs,mission_id:parentId,mail_key:pilot?pilot.mailKey():''}};
     lastPayload=payload;
     try{
-      voiceNote('Demande transmise · '+(scope||'cabinet'));let m=await api('voice/turn',payload,controller.signal);lastPayload=null;parent=m.id;
+      voiceNote('Demande transmise · '+(scope||'cabinet'));
+      // 5.6.80 : l'IA tarde : les passages trouvés sans modèle s'affichent ; la lecture vocale de la réponse suivra
+      const quick=setTimeout(()=>{if(g===generation&&running&&processing){voiceNote('L’IA rédige sa réponse…');window.axiorhubPassages?.(payload.instruction,scope,answer);}},4000);
+      let m;try{m=await api('voice/turn',payload,controller.signal);}catch(e){clearTimeout(quick);throw e;}lastPayload=null;parent=m.id;
       while(running&&g===generation&&['creating','queued','running'].includes(m.state)){
         voiceNote(m.label+(m.job?.progress?' · '+m.job.progress:''));
-        await new Promise(resolve=>setTimeout(resolve,1200));if(!running||g!==generation)return;
+        await new Promise(resolve=>setTimeout(resolve,600));if(!running||g!==generation)return;
         const r=await fetch(prefix+'/api440/m567/mission?id='+encodeURIComponent(m.id),{credentials:'same-origin',signal:controller.signal});m=await r.json();if(!r.ok)throw new Error(m.message||m.error);
       }
+      clearTimeout(quick);
       if(g!==generation)return;
       const text=m.result?.text||((m.exceptions||[]).map(x=>x.message).join(' '))||m.label;answer.replaceChildren(el('pre',text));
       // 5.6.12 / 5.6.13 : le tour vocal rejoint le fil commun et devient la mission courante du panneau (continuité texte / voix)
@@ -247,7 +251,7 @@
       },100);
     }catch(e){if(g===generation){stopSession();voiceNote(e.message);}}
   }
-  function showVoice(visible){pane.hidden=!visible;if(dockVoice)dockVoice.hidden=!visible;launch.setAttribute('aria-expanded',String(visible));}
+  function showVoice(visible){pane.hidden=!visible;if(dockVoice){dockVoice.hidden=!visible;if(visible)dockEl?.scrollTo?.({top:0});}launch.setAttribute('aria-expanded',String(visible));}
   // 5.6.13 : la fermeture générale du panneau (×, Échap, bouton « Arrêter » de l'indicateur Micro actif) arrête le micro et la lecture
   window.axiorhubVoice={stop:()=>{stopSession();showVoice(false);},running:()=>running};
   launch.addEventListener('click',()=>{
@@ -260,6 +264,11 @@
   send.addEventListener('click',()=>{if(processing)return;if(!running){voiceNote('Démarrez le dialogue avant d’envoyer le texte corrigé.');return;}if(rec){rec.skipTranscript=true;rec.stop();rec=null;}submit(transcript.value,generation);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!pane.hidden){stopSession();pane.hidden=true;launch.setAttribute('aria-expanded','false');}});
   window.addEventListener('pagehide',stopSession);document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)stopSession();});
+  // 5.6.80 : clic sur la vague pendant le chargement : la conversation démarre dès que le script est prêt
+  window.axiorhubPilotReady=true;
+  document.querySelector('#ws-ai-launcher')?.classList.remove('is-waiting');liveBtn?.classList.remove('is-waiting');
+  if(window.__axPending==='ws-ai-live'&&pane.hidden)launch.click();
+  window.__axPending='';
   (window.axiorhubProfile567||fetch(prefix+'/api440/m567/profile',{credentials:'same-origin'}).then(r=>r.ok?r.json():null)).then(p=>{if(p?.name)name.textContent=p.name+' · assistant IA vocal';}).catch(()=>{});
   document.addEventListener('axiorhub:activity',()=>{clearTimeout(timer);timer=setTimeout(()=>{refresh();refreshPulse();},350);});
   (function tick(){setTimeout(()=>{if(!document.hidden){refresh();refreshPulse();}tick();},window.axiorhubLive?.connected?60000:10000);})();refresh();refreshPulse();

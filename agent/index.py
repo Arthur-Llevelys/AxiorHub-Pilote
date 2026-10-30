@@ -24,6 +24,16 @@ def _tokens(text):
     return set(lexical_terms([text]))
 
 
+def fuse(lexical,semantic,k=60):
+    """5.6.80 : fusion par rangs (RRF) de la recherche plein texte et de la recherche sémantique. Les deux scores ne sont pas comparables :
+    leur simple somme laissait la similarité écraser les correspondances exactes (nom d'une partie, numéro de rôle, article)."""
+    scores={}
+    for ranking in (lexical,semantic):
+        for rank,key in enumerate(dict.fromkeys(ranking),1):
+            scores[key]=scores.get(key,0)+1/(k+rank)
+    return scores
+
+
 def rerank(rows,scores,query_tokens,limit=10,kinds=None,min_relative=0.0):
     """5.6.67 (point 3) : second tri des passages trouvés. Pertinence = score de recherche (60 %), part des mots de la demande présents
     dans le passage (30 %), nom de la pièce qui reprend la demande (10 %) ; puis sélection diversifiée (un passage presque identique à un
@@ -82,6 +92,7 @@ class DocumentIndex:
           matter TEXT,source_id TEXT,chunk_no INTEGER,model TEXT,vector TEXT,
           PRIMARY KEY(matter,source_id,chunk_no,model));
         CREATE INDEX IF NOT EXISTS knowledge_path ON knowledge_chunks(matter,path);
+        CREATE TABLE IF NOT EXISTS vector_deleted5680(matter TEXT NOT NULL,source_id TEXT NOT NULL,PRIMARY KEY(matter,source_id));
         CREATE TABLE IF NOT EXISTS inventory_scans(
           matter TEXT PRIMARY KEY,generation TEXT NOT NULL,cursor INTEGER NOT NULL,
           started TEXT NOT NULL,updated TEXT NOT NULL);
@@ -102,7 +113,21 @@ class DocumentIndex:
     def remove_knowledge(self,matter,source_id):
         self.db.execute('DELETE FROM knowledge_chunks WHERE matter=? AND source_id=?',(matter,source_id))
         self.db.execute('DELETE FROM knowledge_fts WHERE matter=? AND source_id=?',(matter,source_id))
+        if self.rag.get('qdrant_url') and self.db.execute('SELECT 1 FROM knowledge_embeddings WHERE matter=? AND source_id=? LIMIT 1',(matter,source_id)).fetchone():
+            # 5.6.80 : retiré aussi de l'index vectoriel au prochain passage (aucun appel réseau ici)
+            self.db.execute('INSERT OR IGNORE INTO vector_deleted5680 VALUES(?,?)',(matter,source_id))
         self.db.execute('DELETE FROM knowledge_embeddings WHERE matter=? AND source_id=?',(matter,source_id))
+
+    def query_vector(self,terms):
+        """5.6.80 : (empreinte de la question, erreur) ; délai court, jamais d'exception."""
+        try:embedder=self.embedder()
+        except Stop as ex:return None,str(ex)
+        if not embedder:return None,''
+        text='\n'.join(terms)[:4000]
+        try:
+            short=getattr(embedder,'embed_query',None)
+            return (short(text) if short else embedder.embed([text])[0]),''
+        except Stop as ex:return None,str(ex)
 
     def put_source(self,matter,path,text,etag,modified='',kind='document',meta=None):
         mid=matter['id'] if isinstance(matter,dict) else matter
@@ -253,27 +278,33 @@ class DocumentIndex:
 
     def ranked_chunks(self,matter,terms,limit=10,kinds=None,min_relative=0.0):
         mid=matter['id'] if isinstance(matter,dict) else matter
-        tokens=lexical_terms(terms);scores={};rows={}
+        tokens=lexical_terms(terms);scores={};rows={};lexical=[]
         if tokens:
             query=' OR '.join('"'+t+'"' for t in tokens)
             try:
                 for row in self.db.execute('''SELECT c.*,bm25(knowledge_fts) FROM knowledge_fts
                   JOIN knowledge_chunks c ON c.matter=knowledge_fts.matter AND c.source_id=knowledge_fts.source_id
                   AND c.chunk_no=knowledge_fts.chunk_no WHERE knowledge_fts MATCH ? AND c.matter=? ORDER BY bm25(knowledge_fts) LIMIT 60''',(query,mid)):
-                    key=(row[1],row[6]);rows[key]=row;scores[key]=scores.get(key,0)+1/(1+max(0,row[-1]+20))
+                    key=(row[1],row[6]);rows[key]=row[:-1];lexical.append(key)
             except sqlite3.OperationalError:pass
-        semantic_error=''
-        try:embedder=self.embedder()
-        except Stop as ex:embedder=None;semantic_error=str(ex)
-        if embedder:
-            try:q=embedder.embed(['\n'.join(terms)[:4000]])[0]
-            except Stop as ex:q=None;semantic_error=str(ex)
-            if q is not None:
-                model=self.rag.get('embedding_model','qwen3-embedding:0.6b')
+        q,semantic_error=self.query_vector(terms)
+        semantic=[]
+        if q is not None:
+            from . import vecteurs5680
+            hits=vecteurs5680.search(self.rag,q,mid,60)
+            if hits is not None:   # 5.6.80 : Qdrant ; chaque passage est relu ici (un passage retiré entre-temps est ignoré)
+                for _,source_id,chunk_no,_score in hits:
+                    row=self.db.execute('SELECT * FROM knowledge_chunks WHERE matter=? AND source_id=? AND chunk_no=?',(mid,source_id,chunk_no)).fetchone()
+                    if row:
+                        key=(row[1],row[6]);rows[key]=row;semantic.append(key)
+            else:
+                model=self.rag.get('embedding_model','qwen3-embedding:0.6b');found=[]
                 for row in self.db.execute('''SELECT c.*,e.vector FROM knowledge_chunks c JOIN knowledge_embeddings e
                   ON e.matter=c.matter AND e.source_id=c.source_id AND e.chunk_no=c.chunk_no
                   WHERE c.matter=? AND e.model=?''',(mid,model)):
-                    key=(row[1],row[6]);rows[key]=row[:-1];scores[key]=scores.get(key,0)+max(0,cosine(q,json.loads(row[-1])))
+                    key=(row[1],row[6]);rows[key]=row[:-1];found.append((max(0,cosine(q,json.loads(row[-1]))),key))
+                semantic=[k for _,k in sorted(found,key=lambda x:-x[0])[:60]]
+        scores=fuse(lexical,semantic)
         if not scores:
             for row in self.db.execute('SELECT * FROM knowledge_chunks WHERE matter=? ORDER BY modified DESC,indexed_at DESC LIMIT 30',(mid,)):
                 key=(row[1],row[6]);rows[key]=row;scores[key]=0
@@ -302,6 +333,45 @@ class DocumentIndex:
           'embedding_model':self.rag.get('embedding_model',''),'embedding_pending':embedding.get('pending',0),
           'semantic_error':semantic_error or embedding.get('error',''),'inventory_complete':page.get('complete',True)}
 
+    def fast_sources(self,matter,terms,cfg):
+        """5.6.80 : sources d'une question, sans synchronisation ni calcul d'empreintes : l'index est tenu à jour par les travaux de fond.
+        Retourne None si le dossier n'a encore aucun passage indexé (l'appelant reprend alors ``sources``)."""
+        mid=matter['id']
+        if not self.db.execute('SELECT 1 FROM knowledge_chunks WHERE matter=? LIMIT 1',(mid,)).fetchone():return None
+        ranked,semantic_error=self.ranked_chunks(matter,terms,limit=max(2,cfg.get('max_documents_per_mail',5)*2))
+        grouped={}
+        for row,score in ranked:
+            item=grouped.setdefault(row[1],{'id':'doc-'+row[1][:16],'kind':'document','source_kind':row[5],
+                'path':row[2],'etag':row[3],'modified':row[4],'excerpts':[],'score':round(score,4),
+                'metadata':json.loads(row[8]),'partial':True})
+            item['excerpts'].append('[Extrait '+str(row[6]+1)+']\n'+row[7])
+        sources=[]
+        for item in grouped.values():
+            item['excerpt']='\n\n'.join(item.pop('excerpts'));sources.append(item)
+            if len(sources)>=cfg.get('max_documents_per_mail',5):break
+        failed=[{'path':p,'reason':e} for p,e in self.db.execute("SELECT path,error FROM docs WHERE matter=? AND error<>''",(mid,))]
+        return sources,{'selected_files':len(sources),'not_exhaustive':True,'failed':failed,'semantic_error':semantic_error,
+          'retrieval':'hybrid_fts_embeddings' if self.rag.get('enabled') else 'fts','embedding_model':self.rag.get('embedding_model',''),
+          'index_sans_synchronisation':True}
+
+    def lexical_passages(self,matter,terms,limit=4):
+        """5.6.80 : passages trouvés par le seul index plein texte (aucun modèle, aucun réseau) ; ``matter`` vide : tout le cabinet."""
+        tokens=lexical_terms(terms)
+        if not tokens:return []
+        query=' OR '.join('"'+t+'"' for t in tokens)
+        from .membres5650 import viewer_hidden
+        hidden=viewer_hidden();out=[];per_source={}
+        sql='''SELECT c.matter,c.source_id,c.path,c.text FROM knowledge_fts JOIN knowledge_chunks c ON c.matter=knowledge_fts.matter
+               AND c.source_id=knowledge_fts.source_id AND c.chunk_no=knowledge_fts.chunk_no WHERE knowledge_fts MATCH ?'''
+        try:
+            rows=self.db.execute(sql+(' AND c.matter=?' if matter else '')+' ORDER BY bm25(knowledge_fts) LIMIT 40',(query,matter) if matter else (query,)).fetchall()
+        except sqlite3.OperationalError:return []
+        for mid,source,path,text in rows:
+            if mid in hidden or per_source.get(source,0)>=1:continue
+            per_source[source]=1;out.append({'matter':mid,'path':path,'excerpt':text})
+            if len(out)>=limit:break
+        return out
+
     def overview_sources(self,matter,limit=12):
         ranked,_=self.ranked_chunks(matter,[matter.get('client_name',''),matter['id'],'chronologie instruction demande échéance paiement contrat'],limit=limit)
         return [{'id':'knowledge-'+row[1][:16]+'-'+str(row[6]),'path':row[2],'kind':row[5],
@@ -314,7 +384,7 @@ class DocumentIndex:
         are deliberately capped so a large cabinet cannot monopolise the worker.
         """
         limit=max(1,min(int(limit),30));tokens=lexical_terms(terms);scores={};rows={}
-        lexical_count=0
+        lexical_count=0;lexical=[]
         if tokens:
             query=' OR '.join('"'+t+'"' for t in tokens)
             try:
@@ -323,16 +393,23 @@ class DocumentIndex:
                   AND c.source_id=knowledge_fts.source_id AND c.chunk_no=knowledge_fts.chunk_no
                   WHERE knowledge_fts MATCH ? ORDER BY bm25(knowledge_fts) LIMIT 240''',(query,)):
                     key=(row[0],row[1],row[6]);rows[key]=row[:-1]
-                    scores[key]=scores.get(key,0)+1/(1+max(0,row[-1]+20));lexical_count+=1
+                    lexical.append(key);lexical_count+=1
             except sqlite3.OperationalError:pass
-        semantic_error='';semantic_scanned=0
-        try:embedder=self.embedder()
-        except Stop as ex:embedder=None;semantic_error=str(ex)
-        if embedder:
-            try:q=embedder.embed(['\n'.join(terms)[:4000]])[0]
-            except Stop as ex:q=None;semantic_error=str(ex)
-            if q is not None:
-                model=self.rag.get('embedding_model','qwen3-embedding:0.6b')
+        semantic_scanned=0;semantic=[];engine='sqlite'
+        q,semantic_error=self.query_vector(terms)
+        if q is not None:
+            from . import vecteurs5680
+            from .membres5650 import viewer_hidden
+            hits=vecteurs5680.search(self.rag,q,None,200,viewer_hidden())
+            if hits is not None:   # 5.6.80 : Qdrant parcourt tout le corpus ; SQLite restait limité aux 6 000 passages les plus récents
+                engine='qdrant'
+                for mid,source_id,chunk_no,score in hits:
+                    if score<0.35:continue
+                    row=self.db.execute('SELECT * FROM knowledge_chunks WHERE matter=? AND source_id=? AND chunk_no=?',(mid,source_id,chunk_no)).fetchone()
+                    if row:
+                        key=(row[0],row[1],row[6]);rows[key]=row;semantic.append(key);semantic_scanned+=1
+            else:
+                model=self.rag.get('embedding_model','qwen3-embedding:0.6b');found=[]
                 # Recent chunks are a bounded semantic complement. Lexical search
                 # above remains complete over every indexed chunk.
                 for row in self.db.execute('''SELECT c.*,e.vector FROM knowledge_chunks c
@@ -341,8 +418,9 @@ class DocumentIndex:
                   ORDER BY c.indexed_at DESC LIMIT 6000''',(model,)):
                     semantic_scanned+=1;score=max(0,cosine(q,json.loads(row[-1])))
                     if score<0.35:continue
-                    key=(row[0],row[1],row[6]);rows[key]=row[:-1]
-                    scores[key]=scores.get(key,0)+score
+                    key=(row[0],row[1],row[6]);rows[key]=row[:-1];found.append((score,key))
+                semantic=[k for _,k in sorted(found,key=lambda x:-x[0])]
+        scores=fuse(lexical,semantic)
         selected=[];per_matter={};per_source={}
         from .membres5650 import viewer_hidden
         hidden5650=viewer_hidden()
@@ -359,7 +437,7 @@ class DocumentIndex:
             if len(selected)>=limit:break
         total=self.db.execute('SELECT COUNT(*) FROM knowledge_chunks').fetchone()[0]
         return selected,{'indexed_chunks':total,'lexical_candidates':lexical_count,
-            'semantic_chunks_scanned':semantic_scanned,'semantic_cap':6000,
+            'semantic_chunks_scanned':semantic_scanned,'semantic_cap':0 if engine=='qdrant' else 6000,'vector_engine':engine,
             'not_exhaustive':True,'semantic_error':semantic_error,
             'retrieval':'hybrid_fts_embeddings' if self.rag.get('enabled') else 'fts'}
 

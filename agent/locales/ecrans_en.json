@@ -6565,5 +6565,12 @@
 "Légèrement modifiés": "Slightly edited",
 "Réécrits": "Rewritten",
 "Texte conservé (moyenne)": "Text kept (average)",
-"Projets de réponse « à compléter » pour les courriels juridiques (jamais envoyés)": "Reply drafts “to complete” for legal emails (never sent)"
+"Projets de réponse « à compléter » pour les courriels juridiques (jamais envoyés)": "Reply drafts “to complete” for legal emails (never sent)",
+"Import refusé : vingt documents maximum, # Mo chacun.": "Import refused: twenty documents maximum, # MB each.",
+"Vingt documents maximum, # Mo chacun.": "Twenty documents maximum, # MB each.",
+"Ctrl+Entrée envoie aussi. Pour dicter : le bouton micro sous l’instruction.": "Ctrl+Enter also sends. To dictate: the microphone button under the instruction.",
+"Ouverture de l’assistant…": "Opening the assistant…",
+"L’IA rédige sa réponse…": "The AI is writing its answer…",
+"L’IA rédige sa réponse. Premiers passages trouvés dans les pièces (sans analyse) :": "The AI is writing its answer. First passages found in the documents (not analysed):",
+"Vingt documents au plus par demande.": "Twenty documents at most per request."
 }

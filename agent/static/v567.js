@@ -103,10 +103,12 @@
   file.addEventListener('change', async () => {
     const files = [...file.files], scope = matter.value;
     if (!files.length) return;
-    if (attachments.length + files.length > 3 || files.some(x => x.size < 1 || x.size > 8000000)) {note('Trois documents maximum, 8 Mo chacun.'); return;}
+    if (attachments.length + files.length > 20 || files.some(x => x.size < 1 || x.size > 30000000)) {note('Vingt documents maximum, 30 Mo chacun.'); return;}
     uploadBusy = true; send.disabled = true; note('Extraction locale des documents…');
     try {
+      let done = 0;
       for (const f of files) {
+        note('Extraction locale… document ' + (++done) + ' sur ' + files.length);
         const r = await fetch(prefix + '/assistant/attachment', {method: 'POST', credentials: 'same-origin', body: f,
           headers: {'Content-Type': 'application/octet-stream', 'X-CSRF-Token': csrf,
                     'X-Attachment-Name': encodeURIComponent(f.name), 'X-Attachment-Matter': scope}});
@@ -114,7 +116,7 @@
         if (scope !== matter.value) throw new Error('Dossier changé pendant l’import : recommencez.');
         attachments.push(data.attachment_id);
       }
-      note(files.length + ' document(s) prêt(s). L’analyse progressive reprendra toutes les pages extraites.');
+      note(files.length + ' document(s) prêt(s). Seuls les passages utiles à votre demande iront à l’IA ; demandez une « synthèse complète » pour tout faire lire.');
     } catch (e) {note(e.message);} finally {uploadBusy = false; send.disabled = sending; file.value = ''; renderFiles(); schedulePlan();}
   });
   const el = (tag, text, cls) => {const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (cls) node.className = cls; return node;};
@@ -229,6 +231,9 @@
       mail_key: q.get('key') || ''}, channel: inputChannel};
     sending = true; send.disabled = true; send.textContent = 'Demande enregistrée…'; note('Votre mission est en cours d’enregistrement.');
     try {
+      // 5.6.80 : si l'IA tarde, les passages trouvés sans modèle s'affichent après 4 s
+      const asked = payload.instruction, scope5680 = payload.matter;
+      setTimeout(() => {if (currentMission && ['creating','queued','running'].includes(currentMission.state)) window.axiorhubPassages?.(asked, scope5680, current);}, 4000);
       const m = await api('mission/create', payload); retryPayload = null; attachments = []; file.value = ''; renderFiles(); if (plan) plan.hidden = true; show(m); refreshList();
     } catch (e) {retryPayload = payload; send.textContent = 'Vérifier / reprendre cette demande'; note(e.message + ' Le même identifiant sera réutilisé pour éviter un doublon.');}
     finally {sending = false; send.disabled = uploadBusy;}
@@ -296,6 +301,8 @@
   });
   // 5.6.13 : état de conversation partagé entre le texte et la voix (dossier, pièces jointes, courriel, mission courante, fil)
   const mic = dock.querySelector('#ws-ai-mic');
+  // 5.6.80 : un clic fait pendant le chargement (v5680.js) a déjà ouvert le panneau : on termine son ouverture
+  if (!dock.hidden && !embedded && window.__axPending) {launcher.setAttribute('aria-expanded', 'true'); question.focus(); refreshCurrent(); loadMatters();}
   window.axiorhubPilot = {
     matter: () => matter.value, attachments: () => [...attachments], mailKey: () => q.get('key') || '',
     selectedDocuments, current: () => currentMission, addTurn, show, note,

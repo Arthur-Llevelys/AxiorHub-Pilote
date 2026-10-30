@@ -741,6 +741,14 @@
    [
     "Respuesta sin fuente",
     "Compruébela antes de usarla."
+   ],
+   [
+    "Respuesta «El modelo de IA está ocupado o es demasiado lento»",
+    "La IA no respondió a tiempo: los pasajes mostrados proceden de la búsqueda, sin análisis. Inténtelo de nuevo en un momento."
+   ],
+   [
+    "Respuesta basada en algunos pasajes de un adjunto",
+    "Solo se leen los pasajes útiles para la pregunta. Pida una «síntesis completa» para que se lea todo el documento."
    ]
   ],
   "example": "Pregunta ficticia: «¿Qué audiencias hay esta semana?».",

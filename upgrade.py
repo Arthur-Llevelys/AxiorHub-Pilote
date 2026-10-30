@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import posixpath
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -21,8 +22,8 @@ import uuid
 BASE = Path('/opt/axiorhub-mail-agent')
 CONFIG = Path('/etc/axiorhub-mail-agent/config.json')
 STATE = Path('/var/lib/axiorhub-mail-agent')
-VERSION = '5.6.79'
-SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37','5.6.38','5.6.39','5.6.40','5.6.41','5.6.42','5.6.43','5.6.44','5.6.45','5.6.46','5.6.47','5.6.48','5.6.49','5.6.50','5.6.51','5.6.52','5.6.53','5.6.54','5.6.55','5.6.56','5.6.57','5.6.58','5.6.59','5.6.60','5.6.61','5.6.62','5.6.63','5.6.64','5.6.65','5.6.66','5.6.67','5.6.68','5.6.69','5.6.70','5.6.71','5.6.72','5.6.73','5.6.74','5.6.75','5.6.76','5.6.77','5.6.78')
+VERSION = '5.6.80'
+SUPPORTED_PREVIOUS = ('3.5.0','3.5.1','3.6.0','3.6.1','3.6.2','3.6.3','3.6.4','3.6.5','3.7.0','3.8.0','3.8.1','3.9.0','3.9.1','3.9.2','3.9.3','4.0.0','4.1.0','4.1.1','4.2.0','4.3.0','4.3.1','4.4.0','4.5.0','4.6.0','4.7.0','4.8.0','4.9.0','5.0.0','5.0.1','5.1.0','5.2.0','5.2.1','5.3.0','5.4.0','5.5.0','5.6.0','5.6.1','5.6.2','5.6.3','5.6.4','5.6.5','5.6.6','5.6.7','5.6.8','5.6.9','5.6.10','5.6.11','5.6.12','5.6.13','5.6.14','5.6.15','5.6.16','5.6.17','5.6.18','5.6.19','5.6.20','5.6.21','5.6.22','5.6.23','5.6.24','5.6.25','5.6.26','5.6.27','5.6.28','5.6.29','5.6.30','5.6.31','5.6.32','5.6.33','5.6.34','5.6.35','5.6.36','5.6.37','5.6.38','5.6.39','5.6.40','5.6.41','5.6.42','5.6.43','5.6.44','5.6.45','5.6.46','5.6.47','5.6.48','5.6.49','5.6.50','5.6.51','5.6.52','5.6.53','5.6.54','5.6.55','5.6.56','5.6.57','5.6.58','5.6.59','5.6.60','5.6.61','5.6.62','5.6.63','5.6.64','5.6.65','5.6.66','5.6.67','5.6.68','5.6.69','5.6.70','5.6.71','5.6.72','5.6.73','5.6.74','5.6.75','5.6.76','5.6.77','5.6.78','5.6.79')
 
 
 def digest(data):
@@ -513,6 +514,9 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
           'config_backup':str(backup)}
         # Snapshot real SQLite files while services are stopped. Online backup
         # also incorporates committed WAL pages; copying the main file cannot.
+        # 5.6.80 : place faite AVANT la copie (le disque peut être presque plein) ; la dernière sauvegarde reste, la nouvelle s'y ajoute
+        removed,freed=prune_database_backups(backup_dir,DB_BACKUP_GENERATIONS-1)
+        if removed:print('Anciennes sauvegardes de bases retirées : %d fichier(s), %.1f Go libérés.' % (removed,freed/1_000_000_000))
         databases=[]
         for path in state.glob('*.sqlite3'):
             with path.open('rb') as handle:valid=handle.read(16)==b'SQLite format 3\x00'
@@ -526,6 +530,33 @@ def upgrade(source, base=BASE, config=CONFIG, state=STATE, quiesce=None):
         atomic(receipt_path(base),json.dumps(receipt).encode(),0,0,0o600)
         switch(base,release)
         print('Mise à jour directe %s → %s terminée. Configuration, secrets, dossiers, index et état conservés.' % (old.name, VERSION))
+
+
+DB_BACKUP_GENERATIONS = 2
+DB_BACKUP_NAME = re.compile(r'^.+-before-(\d+\.\d+\.\d+)-[0-9a-f]{32}\.sqlite3$')
+
+
+def prune_database_backups(backup_dir, keep=DB_BACKUP_GENERATIONS):
+    """5.6.80 : garde les sauvegardes de bases des ``keep`` dernières mises à jour. Chacune copie toutes les bases, index des documents compris :
+    sans limite, plusieurs centaines de Go s'accumulaient dans /etc. Seuls les fichiers au nom exact de ces sauvegardes sont retirés ; les copies
+    de configuration, très légères, restent. Une suppression impossible n'empêche pas la mise à jour. Retourne (fichiers retirés, octets libérés)."""
+    generations = {}
+    for path in Path(backup_dir).glob('*-before-*.sqlite3'):
+        found = DB_BACKUP_NAME.match(path.name)
+        if found and path.is_file() and not path.is_symlink():
+            generations.setdefault(found.group(1), []).append(path)
+    newest = sorted(generations, key=lambda v: max(p.stat().st_mtime for p in generations[v]), reverse=True)
+    removed, freed = 0, 0
+    for version in newest[max(0, keep):]:
+        for path in generations[version]:
+            try:
+                size = path.stat().st_size
+                path.unlink()
+                removed += 1
+                freed += size
+            except OSError:
+                pass
+    return removed, freed
 
 
 def receipt_path(base=BASE):
