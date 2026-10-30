@@ -40,6 +40,11 @@ WORD = re.compile(r'[0-9a-z]{3,}')
 STOP_WORDS = frozenset(('les des une pour dans que qui sur par avec est son ses aux pas plus cette ces mais ont ete sont nous vous leur leurs '
                         'comme tout tous fait etre elle elles ils aussi donc ainsi quel quelle quels quelles dont sans entre vers chez '
                         'peut doit faut cela ceci quoi comment pourquoi quand'))
+# 5.6.81 : phrases sans objet (essai du micro, politesse) : rien à chercher dans les pièces du cabinet
+SMALL_TALK = frozenset(('ok okay alors bon bien tres bonjour bonsoir salut coucou hello allo merci super parfait voila hein test tester teste essai essayer '
+                        'micro ca cela fonctionne fonctionner fonctionnes marche marcher marches entends entendre entendez ecoute ecoutes ecoutez recois '
+                        'recevez tu te toi je me moi on il y a as ai avez es etes est ce que qu quoi comment va vas allez vous nous la le les de du un une et '
+                        'ou si pas ne maintenant encore m t s l d n j c').split())
 log = logging.getLogger(__name__)
 
 
@@ -292,8 +297,29 @@ def legal_research(desk, matter_id, question, voice):
     return bounded(run, s['legal_voice_seconds'] if voice else s['legal_assistant_seconds'], empty)
 
 
+def small_talk(question):
+    """Vrai si la phrase n'a aucun objet : chaque mot relève de la conversation (« est-ce que ça fonctionne ? », « bonjour », « merci »)."""
+    words = re.findall(r'[0-9a-z]+', fold(str(question or '')))
+    return bool(words) and len(words) <= 14 and not set(words) - SMALL_TALK
+
+
+def small_talk_answer(question):
+    """Réponse immédiate, sans modèle ni pièce : aucune donnée ne sort et aucun document sans rapport n'est cité."""
+    polite = 'merci' in re.findall(r'[0-9a-z]+', fold(str(question or '')))
+    return {'answer': ('Je vous en prie. ' if polite else 'Oui, je vous reçois bien. ') + 'Sur quel dossier ou quelle question voulez-vous travailler ?',
+            'source_ids': [], 'limits': [], 'proposed_actions': [], 'sources': [], 'conversation': True}
+
+
+def conversation_only(args, matter, key, question):
+    """Phrase de conversation posée à l'échelle du cabinet, sans dossier, pièce ni courriel : dans un dossier, elle peut prolonger l'échange."""
+    context = args.get('page_context') if isinstance(args.get('page_context'), dict) else {}
+    return not (matter or key or args.get('attachment_id') or args.get('attachment_ids') or context.get('selected_documents')) and small_talk(question)
+
+
 def passages(config, matter, question, limit=4):
     """Passages trouvés sans modèle (index plein texte) : quelques millisecondes, disponible même si l'IA est occupée."""
+    if not matter and small_talk(question):
+        return []
     from .index import DocumentIndex
     index = DocumentIndex(config['state_dir'])
     try:

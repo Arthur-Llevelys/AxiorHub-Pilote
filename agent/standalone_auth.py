@@ -31,7 +31,7 @@ from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles', '/guide-installation')
-ADMIN_API = ('m5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
+ADMIN_API = ('m5681/', 'm5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
              'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme', 'm5631/guide/', 'm5632/admin/')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',

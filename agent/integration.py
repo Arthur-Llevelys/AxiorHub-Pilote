@@ -214,8 +214,9 @@ def answer_question(desk, args):
     try:
         route = routed_config(desk.c,purpose)
         route['timeout_seconds'] = rapide5680.deadline(desk.c,purpose,route.get('timeout_seconds',240))
+        quick = rapide5680.small_talk_answer(row['content']) if rapide5680.conversation_only(args,matter,key,row['content']) else None   # 5.6.81
         try:
-            result = chat(desk, {'matter': matter, 'key': key, 'question': row['content'],
+            result = quick or chat(desk, {'matter': matter, 'key': key, 'question': row['content'],
                                  'attachment_id':args.get('attachment_id',''),
                                  'attachment_ids':args.get('attachment_ids',[]),
                                  'page_context':_page_context(args.get('page_context'),matter),'rapide':True,'purpose':purpose},
@@ -247,7 +248,7 @@ def answer_question(desk, args):
             'sources': len(result.get('sources', [])), 'proposed_actions': result.get('proposed_actions', []),
             **({'repli': True} if result.get('repli') else {}),
             # le contrôle par un second modèle retarderait la voix ; une réponse de repli ne contient aucune rédaction à contrôler
-            **({'sans_controle': True} if result.get('repli') or rapide5680.is_voice(purpose) else {})}
+            **({'sans_controle': True} if result.get('repli') or result.get('conversation') or rapide5680.is_voice(purpose) else {})}
 
 
 def threads(desk, limit=30):

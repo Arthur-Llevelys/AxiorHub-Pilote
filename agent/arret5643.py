@@ -34,7 +34,7 @@ STOP_CODES = frozenset({'operation_annulee', 'ia_en_pause', 'automatismes_en_pau
                         'controle_pause_indisponible'})
 # Travaux sans appel au modèle : ils restent exécutables pendant la pause de l'IA (contrôles, réglages, surveillance des agendas et
 # fichiers, dépôts déjà validés, conservation des courriels et des pièces).
-DETERMINISTIC = frozenset({'automation_setting', 'live_calendar430', 'live_documents430', 'deposit_draft', 'archive_correspondence5643',
+DETERMINISTIC = frozenset({'maj_local5661', 'automation_setting', 'live_calendar430', 'live_documents430', 'deposit_draft', 'archive_correspondence5643',
                            'file_mail_attachments5643', 'verify_deliverable420'})
 POLL_SECONDS = 1.0
 

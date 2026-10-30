@@ -133,10 +133,13 @@
   const answer=el('div',undefined,'voice568-answer');answer.setAttribute('aria-live','polite');
   const transmission=el('details'),transmissionTitle=el('summary','Données de lecture vocale'),transmissionText=el('pre');transmission.append(transmissionTitle,transmissionText);
   const start=el('button','Démarrer le dialogue'),stop=el('button','Arrêter'),send=el('button','Envoyer le texte corrigé');[start,stop,send].forEach(b=>{b.type='button';});
-  pane.append(header,context,mode,el('p','La discussion donne des réponses. Le mode mission autorise les préparations internes ; aucun envoi ni invitation automatique.'),status,transcript,send,answer,transmission,start,stop);if(dockVoice){pane.classList.add('voice568-embedded');dockVoice.append(pane);}else document.body.append(launch,pane);
+  pane.append(header,context,mode,el('p','La discussion donne des réponses. Le mode mission autorise les préparations internes ; aucun envoi ni invitation automatique.'),status,answer,transcript,send,transmission,start,stop);if(dockVoice){pane.classList.add('voice568-embedded');dockVoice.append(pane);}else document.body.append(launch,pane);
   let running=false,stream=null,rec=null,chunks=[],bytes=0,audioContext=null,analyser=null,vad=null,lastSound=0,turnStart=0,voiced=false,processing=false,speaking=null,audioURL='',scope='',parent='',generation=0;
   let controller=null,lastPayload=null;
   const token=()=>crypto.randomUUID();
+  let dictationFailures=0;
+  // 5.6.81 : ni affichés ni lus à voix haute : les balises de mise en forme de la réponse
+  function plain(text){return String(text).replace(/\*\*|__|`/g,'').replace(/^\s{0,3}#{1,6}\s+/gm,'').replace(/^\s*[*-]\s+/gm,'• ');}
   function voiceNote(text){status.textContent=text;}
   let speechGeneration=0,playResolve=null;
   // 5.6.11 : une interruption (parole, Arrêter, fermeture) résout aussi l'attente de lecture en cours : la conversation revient à l'écoute.
@@ -206,7 +209,7 @@
       }
       clearTimeout(quick);
       if(g!==generation)return;
-      const text=m.result?.text||((m.exceptions||[]).map(x=>x.message).join(' '))||m.label;answer.replaceChildren(el('pre',text));
+      const text=plain(m.result?.text||((m.exceptions||[]).map(x=>x.message).join(' '))||m.label);answer.replaceChildren(el('pre',text));answer.scrollIntoView?.({block:'nearest'});
       // 5.6.12 / 5.6.13 : le tour vocal rejoint le fil commun et devient la mission courante du panneau (continuité texte / voix)
       if(window.axiorhubPilot){window.axiorhubPilot.addTurn(payload.instruction,text,'voice');try{window.axiorhubPilot.show(m);}catch(e){}}
       else{const thread=document.querySelector('#ws-ai-result');if(thread){const turn=el('article',undefined,'ws-ai-turn');turn.append(el('p','🎙 '+payload.instruction,'ws-ai-turn-me'),el('pre',text));thread.prepend(turn);}}
@@ -229,8 +232,12 @@
         const response=await fetch(prefix+'/dictation',{method:'POST',credentials:'same-origin',signal:controller.signal,body:blob,headers:{'Content-Type':r.mimeType.split(';')[0],'X-CSRF-Token':csrf}});
         const v=await response.json();if(!response.ok)throw new Error(v.message||v.error||'Transcription indisponible.');
         if(g!==generation||!running)return;
-        transcript.value=v.text;await submit(v.text,g);
-      }catch(e){if(g===generation){processing=false;if(e.name!=='AbortError')voiceNote(e.message);if(running&&!rec)recordTurn();}}
+        dictationFailures=0;transcript.value=v.text;await submit(v.text,g);
+      }catch(e){if(g===generation){processing=false;
+        if(e.name==='AbortError'){if(running&&!rec)recordTurn();return;}
+        // 5.6.81 : la transcription ne se rétablit pas seule : après deux échecs de suite, le micro ne reste pas ouvert pour rien
+        if(++dictationFailures>=2){stopSession();voiceNote(e.message+' Micro arrêté : écrivez votre question ci-dessous.');transcript.focus();return;}
+        voiceNote(e.message+' Nouvel essai au prochain tour de parole, ou écrivez votre question ci-dessous.');if(running&&!rec)recordTurn();}}
     };r.start(250);
   }
   async function startSession(){

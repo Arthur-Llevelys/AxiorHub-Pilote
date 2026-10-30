@@ -3,6 +3,10 @@ import json
 import secrets
 from .common import HTTP, Stop, read_secret
 
+# 5.6.81 : la cause réelle plutôt qu'un code technique (« http 502 ») : le pont répond 502 quand le moteur Vocal n'a pas pu transcrire
+DICTATION_ERRORS={'http_500':'transcription_locale_en_echec','http_502':'transcription_locale_en_echec','http_503':'transcription_locale_en_echec',
+                  'connexion_http_indisponible':'pont_vocal_injoignable','delai_http_depasse':'transcription_trop_longue','http_429':'transcription_en_cours'}
+
 
 def dictate(config,raw,content_type):
     audio=config.get('audio',{})
@@ -14,9 +18,14 @@ def dictate(config,raw,content_type):
     body=(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="dictation.{extension}"\r\nContent-Type: {content_type}\r\n\r\n').encode()+raw+f'\r\n--{boundary}--\r\n'.encode()
     client=HTTP(audio.get('bridge_base_url','http://127.0.0.1:9011'),local_only=True,local_hosts=audio.get('local_hosts',()),
                 timeout=min(240,int(audio.get('dictation_timeout_seconds',180))))
-    result=client.request('POST',client.base+'/v1/audio/transcriptions',body,
-      {'Authorization':'Bearer '+read_secret(audio['bridge_token_file']),
-       'Content-Type':'multipart/form-data; boundary='+boundary},200000)
+    try:
+        result=client.request('POST',client.base+'/v1/audio/transcriptions',body,
+          {'Authorization':'Bearer '+read_secret(audio['bridge_token_file']),
+           'Content-Type':'multipart/form-data; boundary='+boundary},200000)
+    except Stop as error:
+        code=str(error).split(':')[0]
+        if code in DICTATION_ERRORS:raise Stop(DICTATION_ERRORS[code]) from None
+        raise
     try:text=json.loads(result)['text']
     except (ValueError,KeyError,TypeError):raise Stop('transcription_invalide') from None
     if not isinstance(text,str) or len(text)>30000:raise Stop('transcription_invalide')

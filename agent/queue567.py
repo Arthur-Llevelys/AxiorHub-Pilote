@@ -59,10 +59,13 @@ def _older_than(desk, job_id, hours):
 
 
 def recover(desk, worker_id):
-    rows=desk.db.execute("SELECT id,kind,status,args,attempts FROM jobs WHERE status IN ('running','cancel_requested') AND (worker=? OR (worker IS NULL AND ?='1'))",(str(worker_id),str(worker_id))).fetchall()
+    rows=desk.db.execute("SELECT id,kind,status,args,attempts,stop_reason FROM jobs WHERE status IN ('running','cancel_requested') AND (worker=? OR (worker IS NULL AND ?='1'))",(str(worker_id),str(worker_id))).fetchall()
     counts={'resumed':0,'cancelled':0,'review':0}
     for row in rows:
-        if row['status']=='cancel_requested':
+        if row['status']=='cancel_requested' and row['stop_reason'] in ('pause','pause_dossier'):
+            # 5.6.81 : arrêté par une pause (mise à jour comprise) : repris à la levée de la pause, jamais perdu
+            state,result='suspended',{'message':'Suspendu : IA en pause. Repris automatiquement à la reprise.'};counts['resumed']+=1
+        elif row['status']=='cancel_requested':
             state,result='cancelled',{'message':'Arrêt confirmé au redémarrage ; les dépôts déjà effectués restent conservés.'};counts['cancelled']+=1
         elif row['kind']=='task5614':   # 5.6.24 (F02) : rapprochement des opérations avant toute reprise d'une tâche de mission
             try:
@@ -80,7 +83,7 @@ def recover(desk, worker_id):
         else:
             state,result='error',{'erreur':'service_redemarre_verifier_avant_relance'};counts['review']+=1
         # 5.6.43 (§ 16.2) : transition conditionnelle ; une annulation enregistrée entre-temps n'est jamais remise en file
-        changed=desk.db.execute('UPDATE jobs SET status=?,finished=?,result=? WHERE id=? AND status=?',(state,None if state=='pending' else desk.now(),json.dumps(result) if result else None,row['id'],row['status'])).rowcount
+        changed=desk.db.execute('UPDATE jobs SET status=?,finished=?,result=? WHERE id=? AND status=?',(state,None if state in ('pending','suspended') else desk.now(),json.dumps(result) if result else None,row['id'],row['status'])).rowcount
         if not changed and state=='pending':
             desk.db.execute("UPDATE jobs SET status='cancelled',finished=? WHERE id=? AND status='cancel_requested'",(desk.now(),row['id']))
     desk.db.commit()

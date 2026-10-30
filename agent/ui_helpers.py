@@ -75,6 +75,7 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     from .ecrans5632 import signature as _ecrans5634
     if _lang5634() not in ('fr',''):head+='<meta name="axiorhub-ecrans" content="'+escape(_ecrans5634(_lang5634()),quote=True)+'">'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5680.js"></script>'   # 5.6.80 : très court, le premier exécuté : boutons de l'assistant actifs aussitôt
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5681.js"></script>'   # 5.6.81 : liste des modèles des fournisseurs
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5637.js"></script>'   # 5.6.37 : en premier des scripts différés (classe posée avant v320.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5634t.js"></script>'   # 5.6.34 : en premier, traduit ce que les scripts écrivent
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v310.js"></script>'

@@ -228,6 +228,13 @@ CONFIRM_REASONS = {
     'divulgation_a_un_tiers_a_valider', 'index_dossier_a_completer',
     'demande_ambigue', 'aucun_document_exploitable',
 }
+REASONS['transcription_locale_en_echec']='La transcription locale a échoué : le moteur Vocal du serveur est arrêté ou en erreur.'   # 5.6.81
+REASONS['pont_vocal_injoignable']='Le service de transcription locale ne répond pas : le pont vocal du serveur est arrêté.'
+REASONS['transcription_trop_longue']='La transcription a pris trop de temps : le moteur Vocal du serveur est surchargé.'
+REASONS['transcription_en_cours']='Une transcription est déjà en cours. Réessayez dans quelques secondes.'
+REASONS['cle_api_fournisseur_absente']='Clé API absente : enregistrez d’abord la clé de ce fournisseur.'
+REASONS['liste_modeles_non_disponible']='La liste des modèles n’est pas disponible pour ce fournisseur.'   # 5.6.81
+REASONS['liste_modeles_fournisseur_invalide']='Le fournisseur a renvoyé une liste de modèles illisible.'
 REASONS['trop_de_pieces_jointes']='Vingt documents au plus par demande.'   # 5.6.80
 REASONS['piece_extraite_plus_de_2000000_caracteres']='Document trop long : plus de 2 millions de caractères extraits.'
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79

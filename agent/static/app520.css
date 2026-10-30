@@ -2663,8 +2663,16 @@ html[data-theme="dark"] .n5673-ask,body.dark .n5673-ask{background:#3b2a06;color
 #ws-ai-mic-stop{width:auto;min-width:0;height:auto;padding:3px 10px;font-size:.8rem;line-height:1.3;white-space:nowrap;margin:0}
 #ws-ai-launcher.is-waiting,#ws-ai-live.is-waiting{opacity:.75;outline:3px solid var(--ws-accent,#1d4ed8);outline-offset:2px}
 #ws-ai-voice{margin:0 0 10px}
-.ax5680-passages{border-left:4px solid var(--ws-accent,#1d4ed8);background:var(--ws-surface-alt,#f5f8ff);border-radius:6px;padding:8px 12px;margin:8px 0}
-.ax5680-passages .ax5680-head{margin:0 0 6px;font-weight:600;font-size:.9rem}
+.ax5680-passages{border-left:4px solid var(--ws-accent,#1d4ed8);background:var(--ws-surface,#f5f8ff);color:var(--ws-ink,#152b47);border-radius:6px;padding:8px 12px;margin:8px 0}
+#ws-ai-dock .ax5680-passages .ax5680-head,.ax5680-passages .ax5680-head{margin:0 0 6px;font-weight:600;font-size:.9rem;color:var(--ws-ink,#152b47);opacity:1}
 .ax5680-passages article{margin:6px 0 0}
 .ax5680-passages article p{margin:2px 0 0;font-size:.88rem;line-height:1.4}
 #ws-ai-dock .voice568-status,.voice568-panel .voice568-status{color:var(--ws-ink,#152b47);font-weight:600;opacity:1}
+/* ==== v5681.css ==== */
+/* AxiorHub 5.6.81 — fournisseurs d'IA : liste des modèles, profil Mixte */
+.m81-load{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 8px}
+.m81-note{font-size:.85rem}
+.voice568-panel .voice568-answer{max-height:none;overflow:visible}
+.ia540 .m81-profil{border-radius:10px;padding:10px 14px;margin:0 0 12px}
+.ia540 .m81-profil h3{margin:0 0 6px}
+.ia540 .m81-profil .m5-form{border:0;padding:0;margin:6px 0 0;background:none;max-width:640px}
