@@ -130,8 +130,9 @@ def _context(desk, data, matter, owner='cabinet'):
         if path not in paths:
             paths.append(path)
     attachments = data.get('attachments') or []
-    if not isinstance(attachments, list) or len(attachments) > 3:
-        raise Stop('trois_pieces_maximum')
+    from .improvements36 import MAX_ATTACHMENTS
+    if not isinstance(attachments, list) or len(attachments) > MAX_ATTACHMENTS:
+        raise Stop('trop_de_pieces_jointes')
     key = str(raw.get('mail_key') or '')
     if key:
         from .workspace import chat_scope

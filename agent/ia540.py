@@ -87,6 +87,28 @@ def apply_mixed(desk, provider_id, model, local_model='', test=True):
 
 
 # ======================================================================================== page
+def _search_card(desk):
+    """5.6.80 : moteur de recherche réellement utilisé pour les passages (index vectoriel Qdrant ou recherche intégrée)."""
+    from .index import DocumentIndex
+    from . import vecteurs5680
+    rag = desk.c.get('rag') or {}
+    index = DocumentIndex(desk.c['state_dir'], rag, desk.c.get('ollama'))
+    try:
+        s = vecteurs5680.status(index, rag)
+    finally:
+        index.db.close()
+    if s['etat'] == 'actif':
+        text = 'Qdrant actif : %d passage(s) copié(s) sur %d. Recherche sur tout le cabinet.' % (s['copies'], s['total'])
+        cls = 'ok'
+    elif s['etat'] == 'indisponible':
+        text = 'Qdrant réglé mais indisponible (%s) : la recherche intégrée prend le relais.' % s['erreur']
+        cls = 'm5-warn'
+    else:
+        text = 'Recherche intégrée (%d passage(s) avec empreinte). Facultatif : Qdrant, voir docker-compose.qdrant.yml, puis Paramètres › Intelligence artificielle.' % s['total']
+        cls = 'ok'
+    return '<p class="%s" id="ia5680-recherche">Recherche des passages : %s</p>' % (cls, e(text))
+
+
 def page(desk, prefix, shell, csrf):
     from .ai_gateway import ANTHROPIC_MODELS, provider_registry
     from . import pseudo540
@@ -109,6 +131,7 @@ def page(desk, prefix, shell, csrf):
         e(_local(x['at'])), e(x['provider']), e(x['model']), e(x['purpose']),
         e(', '.join('%s : %d' % (pseudo540.LABELS.get(k, k), n) for k, n in x['counts'].items()) or 'aucun remplacement'), x['characters'], x['id']) for x in log)
     labels = sorted(((m['id'], matter_display(m)) for m in _matters(desk)), key=lambda x: x[1].lower())
+    search_card = _search_card(desk)
     matter_opts = ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in labels)
     body = ('<div class="ia540"><h1>Intelligence artificielle</h1>'
             '<p class="ax-muted">Une seule rubrique : modèles locaux, routage par fonction, régime économe et consommation, puis l’IA externe sûre. '
@@ -141,7 +164,7 @@ def page(desk, prefix, shell, csrf):
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ok">Aucun envoi externe sur les 7 derniers jours.</p>',
         e(prefix + '/static/v540.js'))
     from . import economie569, pseudo5677
-    body = body.replace('<form class="m5-form" id="p540-form"', pseudo5677.autotest_html() + '<form class="m5-form" id="p540-form"', 1)
+    body = body.replace('<form class="m5-form" id="p540-form"', pseudo5677.autotest_html() + search_card + '<form class="m5-form" id="p540-form"', 1)
     body = body.replace('<h2 class="ia540-sub">IA externe sûre</h2>', economie569.section_html(desk, prefix) + '<h2 class="ia540-sub">IA externe sûre</h2>', 1)
     return shell('Intelligence artificielle', body, prefix, csrf, '/ia-externe')
 

@@ -1,9 +1,11 @@
 """Matter-scoped hybrid retrieval: FTS plus local Ollama embeddings."""
 import json
 import math
+import time
 from .common import HTTP,Stop,digest,fold
 
 
+_CHECKED={}
 CHUNK_LIMIT=2000   # 5.6.11 : 7 Mo de texte environ ; avant, tout document était coupé à 200 fragments sans avertissement
 
 
@@ -25,8 +27,18 @@ class Embedder:
     def __init__(self,ollama,rag):
         self.model=rag.get('embedding_model','qwen3-embedding:0.6b')
         self.http=HTTP(ollama['url'],local_only=True,timeout=rag.get('timeout_seconds',180))
-        shown=self.http.json('POST','/api/show',{'model':self.model})
-        if shown.get('remote_host') or shown.get('remote_model'):raise Stop('modele_embedding_distant_refuse')
+        self.query_timeout=rag.get('query_timeout_seconds',8)
+        key=(ollama['url'],self.model)   # 5.6.80 : contrôle du modèle une fois par heure, plus à chaque question
+        if time.monotonic()-_CHECKED.get(key,-3600)>=3600:
+            shown=self.http.json('POST','/api/show',{'model':self.model})
+            if shown.get('remote_host') or shown.get('remote_model'):raise Stop('modele_embedding_distant_refuse')
+            _CHECKED[key]=time.monotonic()
+
+    def embed_query(self,text):
+        """5.6.80 : empreinte d'une question, délai court : modèle occupé → recherche plein texte, sans faire attendre l'avocat."""
+        previous=self.http.timeout;self.http.timeout=self.query_timeout
+        try:return self.embed([text])[0]
+        finally:self.http.timeout=previous
 
     def embed(self,texts):
         if not texts:return []

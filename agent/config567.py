@@ -52,6 +52,7 @@ FIELDS = (
  ('google_calendar568.redirect_uri','URI de retour OAuth HTTPS (/api440/m568/google/callback)','url','https://agent.example.com/api440/m568/google/callback','Google Calendar'),
  ('ollama.url','Adresse Ollama (locale ou réseau du cabinet, ex. http://192.168.1.10:11434)','local_url','http://127.0.0.1:11434','Intelligence artificielle'),
  ('ollama.model','Modèle Ollama','text','qwen3:8b','Intelligence artificielle'),
+ ('rag.qdrant_url','Index vectoriel Qdrant, facultatif (ex. http://127.0.0.1:6333) ; vide : recherche intégrée','optional_local_url','','Intelligence artificielle'),
  ('ollama.num_ctx','Fenêtre de contexte (tokens)','integer',32768,'Intelligence artificielle'),
  # 5.6.34 (chap. 5) : profil du modèle local ; réglés depuis Paramètres › IA › Modèles locaux
  ('llm.profile','Profil du modèle','llm_profile','juridique','Profil du modèle'),
@@ -255,13 +256,16 @@ def _validate(kind,value,key):
     if kind=='email' and value and not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+',value):raise Stop('adresse_connexion_invalide')
     if kind=='smtp_security' and value not in ('starttls','ssl'):raise Stop('smtp_securite_invalide')
     if kind=='imap_security' and value not in ('','ssl','starttls'):raise Stop('imap_securite_invalide')   # 5.6.30
+    if kind=='optional_local_url':   # 5.6.80 : service local facultatif (Qdrant) : vide = non utilisé
+        if not value:return ''
+        kind='local_url'
     if kind in ('url','local_url'):
         p=urlsplit(value)
         if not p.netloc or p.username or p.password or p.query or p.fragment:raise Stop('url_connexion_invalide')
         if kind=='url' and p.scheme!='https':raise Stop('https_obligatoire')
         if kind=='local_url':
             from .common import HTTP
-            hosts=('ollama','vocal','whisper','kokoro','chatterbox')
+            hosts=('ollama','vocal','whisper','kokoro','chatterbox','qdrant')
             HTTP(value,local_only=True,local_hosts=hosts,timeout=5)
         value=value.rstrip('/')
     return value

@@ -741,6 +741,14 @@
    [
     "Antwort ohne Quelle",
     "Prüfen Sie sie vor der Verwendung."
+   ],
+   [
+    "Antwort „Das KI-Modell ist ausgelastet oder zu langsam“",
+    "Die KI hat nicht rechtzeitig geantwortet: Die angezeigten Passagen stammen aus der Suche, ohne Analyse. Versuchen Sie es gleich noch einmal."
+   ],
+   [
+    "Antwort stützt sich auf wenige Passagen eines Anhangs",
+    "Nur die für die Frage nützlichen Passagen werden gelesen. Bitten Sie um eine „vollständige Zusammenfassung“, damit das ganze Dokument gelesen wird."
    ]
   ],
   "example": "Fiktive Frage: „Welche Verhandlungen diese Woche?“.",

@@ -1,5 +1,6 @@
 from html import escape
 import json
+import re
 
 
 EXAMPLES = {
@@ -40,6 +41,7 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
       '<span id="ws-ai-mic" class="ws-ai-mic" hidden role="status"><span class="ws-ai-mic-dot" aria-hidden="true"></span>Micro actif <button type="button" id="ws-ai-mic-stop">Arrêter</button></span>'
       '<button type="button" id="ws-ai-wide" aria-pressed="false" title="Mode élargi pour les analyses longues">⤢</button>'
       '<button type="button" id="ws-ai-close" aria-label="Replier l’assistant (arrête le micro et la lecture)">×</button></header>'
+      '<section id="ws-ai-voice" class="ws-ai-voice" hidden aria-label="Conversation vocale"></section>'
       '<div class="ws-ai-body"><p class="ws-ai-auto-context"><strong>Contexte détecté</strong><br>Page : '+escape(path or '/')+(' · dossier : '+escape(selected_matter) if selected_matter else '')+'<br><small>Le dossier, les documents sélectionnés et la dernière mission de ce dossier sont repris. Une ambiguïté sera signalée.</small></p>'
       '<label>Dossier facultatif<input id="ws-ai-matter-search" type="search" placeholder="Client, adversaire, référence, alias…" autocomplete="off" aria-controls="ws-ai-matter"><select id="ws-ai-matter">'+''.join(options)+'</select></label>'
       '<label>Instruction<textarea id="ws-ai-question" rows="6" maxlength="12000" placeholder="Décrivez le résultat attendu…"></textarea></label>'
@@ -54,18 +56,25 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
       '<details><summary>Options de la mission</summary><div class="ws-ai-context"><label>Échéance facultative<input id="ws-ai-due" type="date"></label>'
       '<label>Niveau d’autonomie<select id="ws-ai-autonomy"><option value="prepare">Préparer automatiquement</option><option value="suggest">Proposer seulement</option></select></label></div></details>'
       '<div class="ws-ai-tools"><button type="button" id="ws-ai-talk" class="ws-ai-wave" aria-controls="ws-ai-voice" aria-expanded="false"'+('' if audio_enabled else ' disabled')+' title="Conversation vocale en temps réel : parlez, l’assistant répond à voix haute ; parlez pour l’interrompre"><svg class="w79" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="2" y="9" width="2.4" height="6" rx="1.2"/><rect x="6.4" y="6" width="2.4" height="12" rx="1.2"/><rect x="10.8" y="3" width="2.4" height="18" rx="1.2"/><rect x="15.2" y="6" width="2.4" height="12" rx="1.2"/><rect x="19.6" y="9" width="2.4" height="6" rx="1.2"/></svg>Conversation vocale</button>'
-      '<label class="ws-ai-file">📎 Documents (3 max.)<input type="file" multiple id="ws-ai-file" accept=".pdf,.docx,.txt,.md,.csv,.odt,.eml"></label>'
+      '<label class="ws-ai-file">📎 Documents (20 max.)<input type="file" multiple id="ws-ai-file" accept=".pdf,.docx,.txt,.md,.csv,.odt,.eml"></label>'
       '<button type="button" id="ws-ai-clear" title="Effacer l’affichage de la conversation (les missions restent dans Outils › Missions)">Effacer la conversation</button></div>'
       '<div class="mission567-audio"><button type="button" data-briefing567>Écouter le briefing</button><button type="button" data-read567>Lire la réponse</button><button type="button" data-audio-pause567>Pause / reprise</button><button type="button" data-audio-stop567>Arrêter la lecture</button></div><p id="ws-ai-status" role="status">Assistant repliable. Les résultats restent internes et sourcés.</p>'
-      '<section id="ws-ai-voice" class="ws-ai-voice" hidden aria-label="Conversation vocale"></section>'
       '<section id="ws-ai-result" aria-live="polite"><div id="ws-ai-current"></div><section id="ws-ai-history" class="ws-ai-history" aria-label="Fil de la conversation"></section></section><details><summary>Exemples de demandes</summary><div class="ws-ai-examples">'+chips+'</div></details></div></aside>'
       '<script type="application/json" id="ws-ai-config">'+json.dumps({'prefix':prefix,'csrf':csrf,'path':path,'selected_matter':selected_matter,'mission_api':True},ensure_ascii=False).replace('</','<\\/')+'</script>')
+
+def versioned(html):
+    """5.6.80 : adresses versionnées des scripts et des styles, gardés par le navigateur : 38 fichiers n'ont plus à être rechargés à chaque page,
+    et les boutons répondent dès l'affichage. Une nouvelle version change les adresses."""
+    from . import __version__
+    return re.sub(r'((?:src|href)="[^"?]*/static/[^"?]+\.(?:js|css))"',lambda m:m.group(1)+'?v='+__version__+'"',html)
+
 
 def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=''):
     head='<meta name="axiorhub-prefix" content="'+escape(prefix,quote=True)+'"><meta name="axiorhub-csrf" content="'+escape(csrf,quote=True)+'"><meta name="axiorhub-audio" content="'+('enabled' if audio_enabled else 'disabled')+'">'
     from .i18n5631 import current as _lang5634
     from .ecrans5632 import signature as _ecrans5634
     if _lang5634() not in ('fr',''):head+='<meta name="axiorhub-ecrans" content="'+escape(_ecrans5634(_lang5634()),quote=True)+'">'
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5680.js"></script>'   # 5.6.80 : très court, le premier exécuté : boutons de l'assistant actifs aussitôt
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5637.js"></script>'   # 5.6.37 : en premier des scripts différés (classe posée avant v320.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5634t.js"></script>'   # 5.6.34 : en premier, traduit ce que les scripts écrivent
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v310.js"></script>'
@@ -103,4 +112,5 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     html=html.replace('</head>',head+'</head>',1)
     from .live430 import enhance_forms,chrome
     html=enhance_forms(html,prefix)
-    return html.replace('</body>',chrome(prefix)+assistant_dock(prefix,csrf,matters or [],path,audio_enabled,selected_matter)+'</body>',1)
+    html=html.replace('</body>',chrome(prefix)+assistant_dock(prefix,csrf,matters or [],path,audio_enabled,selected_matter)+'</body>',1)
+    return versioned(html)

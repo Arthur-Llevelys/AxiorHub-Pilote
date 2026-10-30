@@ -16,6 +16,18 @@ REPLAY_SAFE |= {'digest_pieces5632'}
 
 @contextmanager
 def producer_lock(config, kind, args):
+    if kind == 'assistant_answer':
+        # 5.6.80 : une question ne modifie ni dossier ni document : elle n'attend plus le verrou général (tenu pendant toute une génération par
+        # les travaux de fond) ni le verrou du dossier ; seules deux réponses d'un même fil restent exclusives.
+        locks = Path(config['state_dir']) / 'producer-locks567'
+        locks.mkdir(mode=0o700, exist_ok=True)
+        with (locks / (hashlib.sha256(('fil:' + str(args.get('thread') or args.get('message') or '')).encode()).hexdigest() + '.lock')).open('a') as resource:
+            try:
+                fcntl.flock(resource, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise Stop('traitement_deja_en_cours') from None
+            yield
+        return
     if kind not in SCOPED:
         from .desk import run_lock
         with run_lock(config):

@@ -149,7 +149,8 @@ def submit_question(desk, question, matter='', mail_key='', thread_id='', attach
     attachments=[]
     if isinstance(attachment_ids,list):attachments=[str(x) for x in attachment_ids if x]
     elif attachment_id:attachments=[str(attachment_id)]
-    if len(attachments)>3 or len(set(attachments))!=len(attachments):raise Stop('trois_pieces_maximum')
+    from .improvements36 import MAX_ATTACHMENTS
+    if len(attachments)>MAX_ATTACHMENTS or len(set(attachments))!=len(attachments):raise Stop('trop_de_pieces_jointes')
     if attachment_id and not attachments:attachments=[str(attachment_id)]
     for ident in attachments:
         from .improvements36 import attachment_source
@@ -207,18 +208,29 @@ def answer_question(desk, args):
     matter = args.get('matter', '')
     key = args.get('key', '')
     box = Mailbox(desk.c['mail']) if key else None
+    from . import rapide5680
+    purpose = args.get('purpose','assistant')
+    rapide5680.mark(desk.c['state_dir'])   # 5.6.80 : les travaux automatiques laissent passer cette question
     try:
-        result = chat(desk, {'matter': matter, 'key': key, 'question': row['content'],
-                             'attachment_id':args.get('attachment_id',''),
-                             'attachment_ids':args.get('attachment_ids',[]),
-                             'page_context':_page_context(args.get('page_context'),matter)},
-                      DAV(desk.c['nextcloud']) if matter else None,
-                      Model(routed_config(desk.c,args.get('purpose','assistant'))), box, return_result=True)
+        route = routed_config(desk.c,purpose)
+        route['timeout_seconds'] = rapide5680.deadline(desk.c,purpose,route.get('timeout_seconds',240))
+        try:
+            result = chat(desk, {'matter': matter, 'key': key, 'question': row['content'],
+                                 'attachment_id':args.get('attachment_id',''),
+                                 'attachment_ids':args.get('attachment_ids',[]),
+                                 'page_context':_page_context(args.get('page_context'),matter),'rapide':True,'purpose':purpose},
+                          DAV(desk.c['nextcloud']) if matter else None,
+                          Model(route), box, return_result=True)
+        except Stop as error:
+            if str(error) not in rapide5680.BUSY_CODES:
+                raise
+            result = rapide5680.fallback_answer(desk.c,matter,row['content'])   # modèle occupé : les passages trouvés, annoncés comme tels
     except Exception:
         desk.db.execute('UPDATE assistant_messages SET status=?,updated=? WHERE id=?',
                         ('error', desk.now(), message_id)); desk.db.commit()
         raise
     finally:
+        rapide5680.clear(desk.c['state_dir'])
         if box:
             box.close()
     desk.db.execute('UPDATE assistant_messages SET status=?,updated=? WHERE id=?',
@@ -232,7 +244,10 @@ def answer_question(desk, args):
                     (desk.now(), row['thread_id']))
     desk.db.commit()
     return {'thread_id': row['thread_id'], 'status': 'done',
-            'sources': len(result.get('sources', [])), 'proposed_actions': result.get('proposed_actions', [])}
+            'sources': len(result.get('sources', [])), 'proposed_actions': result.get('proposed_actions', []),
+            **({'repli': True} if result.get('repli') else {}),
+            # le contrôle par un second modèle retarderait la voix ; une réponse de repli ne contient aucune rédaction à contrôler
+            **({'sans_controle': True} if result.get('repli') or rapide5680.is_voice(purpose) else {})}
 
 
 def threads(desk, limit=30):

@@ -109,6 +109,10 @@ def split_document(text,size=4000):
     return parts
 
 
+MAX_ATTACHMENTS = 20                # 5.6.80 : seuls les passages utiles partent au modèle (rapide5680)
+MAX_ATTACHMENT_BYTES = 30_000_000
+
+
 def upload_attachment(desk, raw, filename, matter='', key=''):
     from .documents import extract,extract_pages
     attachment_schema(desk)
@@ -119,11 +123,11 @@ def upload_attachment(desk, raw, filename, matter='', key=''):
     name=PurePosixPath(str(filename or '').replace('\\','/')).name
     if not name or len(name)>150 or not re.fullmatch(r'[^\x00-\x1f/\\]+\.(?:pdf|docx|txt|md|csv|odt|eml)',name,re.I):
         raise Stop('format_piece_assistant_invalide')
-    if not 0<len(raw)<=8_000_000:raise Stop('taille_piece_assistant_invalide')
+    if not 0<len(raw)<=MAX_ATTACHMENT_BYTES:raise Stop('taille_piece_assistant_invalide')
     scope,_,_=chat_scope(desk.c,{'matter':matter,'key':key})
-    cfg={**desk.c.get('documents',{}),'max_file_bytes':8_000_000,
-         'max_file_bytes_long':8_000_000,'max_document_chars':500000,
-         'max_document_chars_long':2_000_000}
+    cfg={**desk.c.get('documents',{}),'max_file_bytes':MAX_ATTACHMENT_BYTES,
+         'max_file_bytes_long':MAX_ATTACHMENT_BYTES,'max_document_chars':2_000_000,
+         'max_document_chars_long':2_000_000,'max_pdf_pages':600}
     if PurePosixPath(name).suffix.lower() in ('.pdf','.docx'):
         pages=extract_pages(raw,name,cfg)
         content='\n'.join('[Page '+str(x['page'])+']\n'+x['text'] for x in pages)
@@ -131,7 +135,7 @@ def upload_attachment(desk, raw, filename, matter='', key=''):
         result=extract(raw,name,cfg)
         content=result if isinstance(result,str) else result.get('text','')
     if not content.strip():raise Stop('piece_assistant_sans_texte')
-    if len(content)>500000:raise Stop('piece_extraite_plus_de_500000_caracteres')
+    if len(content)>2_000_000:raise Stop('piece_extraite_plus_de_2000000_caracteres')
     ident=secrets.token_hex(16)
     # Original bytes are not persisted. Store the complete extracted text in
     # scoped SQLite rows; retaining only the first 12,000 chars hid later pages.

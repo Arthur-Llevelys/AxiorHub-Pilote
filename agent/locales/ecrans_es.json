@@ -728,7 +728,7 @@
 "Contrôlé : jamais": "Controlado: nunca",
 "Conversation avec l’agent": "Conversación con el agente",
 "Conversation avec l’assistant et historique": "Conversación con el asistente e historial",
-"Conversation vocale": "Conversación por voz",
+"Conversation vocale": "Conversación de voz",
 "Conversation vocale par tours, dans ce même panneau": "Conversación por voz por turnos, en este mismo panel",
 "Conversation vocale rapide": "Conversación por voz rápida",
 "Conversation vocale rapide — fournisseur": "Conversación por voz rápida — proveedor",
@@ -2791,7 +2791,7 @@
 "📁 Choisir…": "📁 Elegir…",
 "📁 Nextcloud / OnlyOffice · Configurer": "📁 Nextcloud / OnlyOffice · Configurar",
 "📄 Prévisualisations documentaires": "📄 Vistas previas documentales",
-"📎 Documents (# max.)": "📎 Documentos (# máx.)",
+"📎 Documents (# max.)": "📎 Documentos (máx. #)",
 "📝 Mes brouillons · Configurer": "📝 Mis borradores · Configurar",
 "🔎 Recherche générale dans le cabinet": "🔎 Búsqueda general en el despacho",
 "🔭 Surveiller tous les dossiers": "🔭 Vigilar todos los expedientes",
@@ -6565,5 +6565,12 @@
 "Légèrement modifiés": "Ligeramente modificados",
 "Réécrits": "Reescritos",
 "Texte conservé (moyenne)": "Texto conservado (media)",
-"Projets de réponse « à compléter » pour les courriels juridiques (jamais envoyés)": "Borradores de respuesta «a completar» para correos jurídicos (nunca enviados)"
+"Projets de réponse « à compléter » pour les courriels juridiques (jamais envoyés)": "Borradores de respuesta «a completar» para correos jurídicos (nunca enviados)",
+"Import refusé : vingt documents maximum, # Mo chacun.": "Importación rechazada: veinte documentos como máximo, de # MB cada uno.",
+"Vingt documents maximum, # Mo chacun.": "Veinte documentos como máximo, de # MB cada uno.",
+"Ctrl+Entrée envoie aussi. Pour dicter : le bouton micro sous l’instruction.": "Ctrl+Intro también envía. Para dictar: el botón de micrófono bajo la instrucción.",
+"Ouverture de l’assistant…": "Abriendo el asistente…",
+"L’IA rédige sa réponse…": "La IA está redactando su respuesta…",
+"L’IA rédige sa réponse. Premiers passages trouvés dans les pièces (sans analyse) :": "La IA está redactando su respuesta. Primeros pasajes encontrados en los documentos (sin análisis):",
+"Vingt documents au plus par demande.": "Veinte documentos como máximo por solicitud."
 }

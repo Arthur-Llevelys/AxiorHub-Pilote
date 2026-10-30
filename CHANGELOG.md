@@ -3,6 +3,52 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.80 — Assistant plus rapide et plus pertinent : boutons immédiats, voie rapide, replis, Qdrant, 20 pièces jointes
+
+Demande du cabinet du 30 octobre 2026 : réaction trop longue du bouton de l’assistant et de la conversation vocale, solution de repli,
+limite de trois documents, intégration de Qdrant pour ne plus consommer tout le contexte de l’IA.
+
+**Boutons immédiats** :
+- les 38 scripts et styles étaient rechargés à chaque page (`no-store`), et le bouton restait sans effet tant qu’ils n’étaient pas prêts.
+  Leurs adresses sont désormais versionnées et le navigateur les garde : aucune requête dès la deuxième page ;
+- un très court script chargé en premier ouvre le panneau au clic, même pendant le chargement, puis reprend la demande ;
+- la conversation vocale s’affiche en tête du panneau, avec son état lisible ; le bouton « Arrêter » de l’indicateur micro n’est plus coupé.
+
+**Voie rapide des questions** :
+- un fil dédié traite les questions de l’avocat (texte et voix) sans attendre la file des travaux de fond ni le verrou général ;
+- pendant une question, les travaux automatiques cèdent le passage avant leur prochain appel au modèle (90 s au plus) ;
+- le modèle local reste chargé 30 minutes : plus de rechargement à la première question ;
+- la question ne déclenche plus de synchronisation Nextcloud ni de calcul d’empreintes : l’index tenu à jour en fond suffit (un dossier
+  jamais indexé garde le chemin complet) ;
+- contexte réduit : 14 000 caractères à la voix, 32 000 à l’écrit (60 000 auparavant) ; réglable (`rapide5680`) ;
+- à la voix : pas de choix d’outils par le modèle, pas de contrôle par un second modèle, recherche juridique seulement si la question
+  porte sur le droit applicable. À l’écrit, la recherche juridique est bornée à 15 s et le contrôle est conservé.
+
+**Replis** :
+- passages trouvés sans IA affichés après 4 s si le modèle n’a pas encore répondu ;
+- modèle silencieux (60 s à la voix, 150 s à l’écrit) ou injoignable : la réponse donne les passages trouvés, annoncés comme une réponse
+  sans analyse ; le secours externe déjà réglé reste prioritaire ;
+- empreinte de la question en 8 s au plus, sinon recherche plein texte ; recherche juridique lente abandonnée.
+
+**Recherche plus pertinente** :
+- Qdrant, facultatif (`docker-compose.qdrant.yml`, réglage « Index vectoriel Qdrant ») : tout le cabinet est interrogé, et plus seulement
+  les 6 000 passages les plus récents ; 40 ms contre 1,6 s sur 20 000 passages d’essai. Les empreintes sont copiées en fond, y compris
+  celles déjà calculées. Qdrant ne reçoit que des vecteurs et des identifiants, jamais de texte ; il n’écoute que localement ;
+- service absent ou en panne : la recherche intégrée prend le relais, sans effet sur les réponses ; l’état s’affiche dans Modèles d’IA ;
+- fusion par rangs de la recherche plein texte et de la recherche sémantique : un nom de partie, un numéro de rôle ou un article exact ne
+  sont plus écrasés par la similarité.
+
+**Pièces jointes** : 20 documents de 30 Mo (3 de 8 Mo auparavant), PDF jusqu’à 600 pages. Seuls les passages utiles à la question partent
+au modèle, chaque pièce gardant au moins son meilleur passage ; ce qui tient dans le budget est donné en entier, sans génération
+intermédiaire. Une « synthèse complète » d’une pièce longue reste possible à l’écrit. La réponse indique combien de passages ont été retenus.
+
+**Sauvegardes avant mise à jour** : chaque mise à jour copiait toutes les bases, index des documents compris, dans
+`/etc/axiorhub-mail-agent/backups`, sans jamais retirer les anciennes copies : plusieurs centaines de Go pouvaient s’y accumuler. Seules
+les bases des deux dernières mises à jour sont désormais gardées ; les anciennes sont retirées avant la copie, dès l’installation de cette
+version. Les copies de configuration, très légères, restent.
+
+Aide « Assistant » complétée (fr, en, de, es).
+
 ## 5.6.79 — Dossiers refondus : liste, page dossier avec aperçu, procédure lue dans les actes
 
 Demande du cabinet du 29 octobre 2026 : revoir entièrement la liste des dossiers et la page d’un dossier (informations mélangées ou

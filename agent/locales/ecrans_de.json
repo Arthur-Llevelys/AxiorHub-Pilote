@@ -728,7 +728,7 @@
 "Contrôlé : jamais": "Geprüft: nie",
 "Conversation avec l’agent": "Unterhaltung mit dem Agenten",
 "Conversation avec l’assistant et historique": "Unterhaltung mit dem Assistenten und Verlauf",
-"Conversation vocale": "Sprachunterhaltung",
+"Conversation vocale": "Sprachgespräch",
 "Conversation vocale par tours, dans ce même panneau": "Sprachunterhaltung im Wechsel, in diesem Bereich",
 "Conversation vocale rapide": "Schnelle Sprachunterhaltung",
 "Conversation vocale rapide — fournisseur": "Schnelle Sprachunterhaltung — Anbieter",
@@ -6565,5 +6565,12 @@
 "Légèrement modifiés": "Leicht geändert",
 "Réécrits": "Umgeschrieben",
 "Texte conservé (moyenne)": "Beibehaltener Text (Durchschnitt)",
-"Projets de réponse « à compléter » pour les courriels juridiques (jamais envoyés)": "Antwortentwürfe „zu ergänzen“ für juristische E-Mails (nie gesendet)"
+"Projets de réponse « à compléter » pour les courriels juridiques (jamais envoyés)": "Antwortentwürfe „zu ergänzen“ für juristische E-Mails (nie gesendet)",
+"Import refusé : vingt documents maximum, # Mo chacun.": "Import abgelehnt: höchstens zwanzig Dokumente mit je # MB.",
+"Vingt documents maximum, # Mo chacun.": "Höchstens zwanzig Dokumente mit je # MB.",
+"Ctrl+Entrée envoie aussi. Pour dicter : le bouton micro sous l’instruction.": "Strg+Eingabe sendet ebenfalls. Zum Diktieren: die Mikrofontaste unter der Anweisung.",
+"Ouverture de l’assistant…": "Assistent wird geöffnet…",
+"L’IA rédige sa réponse…": "Die KI verfasst ihre Antwort…",
+"L’IA rédige sa réponse. Premiers passages trouvés dans les pièces (sans analyse) :": "Die KI verfasst ihre Antwort. Erste in den Dokumenten gefundene Passagen (ohne Analyse):",
+"Vingt documents au plus par demande.": "Höchstens zwanzig Dokumente pro Anfrage."
 }

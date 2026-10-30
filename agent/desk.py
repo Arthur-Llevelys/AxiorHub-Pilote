@@ -1228,7 +1228,7 @@ class Desk:
             box.close()
         raise Stop('action_inconnue')
 
-    def work_once(self):
+    def work_once(self,only=None):
         # User-visible replies always take precedence over maintenance. A large
         # discovery/index backlog must never postpone a requested draft.
         if not self.db.in_transaction:self.db.execute('BEGIN IMMEDIATE')
@@ -1254,6 +1254,9 @@ class Desk:
         else:
             row=self.db.execute("SELECT * FROM jobs WHERE status='pending' AND (not_before IS NULL OR not_before<=?)"+
               (free_kinds if busy or reserved else '')+' ORDER BY '+PICK_ORDER+' LIMIT 1',(now(),)).fetchone()
+        if only:   # 5.6.80 : voie rapide : seules les questions, sans égard aux réservations du verrou général, qu'elles n'utilisent pas
+            row=self.db.execute("SELECT * FROM jobs WHERE status='pending' AND (not_before IS NULL OR not_before<=?) AND kind IN (%s) ORDER BY priority,id LIMIT 1"
+                                %','.join('?'*len(only)),(now(),*only)).fetchone()
         if not row:
             self.db.commit()
             return False
@@ -1324,7 +1327,7 @@ class Desk:
                 with producer_lock(self.c,row['kind'],_args), for_job(self,row,_args):
                     note_holder(self.c['state_dir'],'Travail n° %s (%s)'%(row['id'],row['kind']))
                     result=self.perform(row['kind'],with_consignes(self,json.loads(row['args'])))
-            if isinstance(result,dict):
+            if isinstance(result,dict) and not result.get('sans_controle'):   # 5.6.80 : conversation vocale et réponse de repli
                 try:
                     from .relevance370 import review_result
                     control=review_result(self,row['id'],row['kind'],result)
@@ -1594,6 +1597,10 @@ def worker(c,worker_id='1'):
             finally:db.close()
         threading.Thread(target=pulse,daemon=True).start()
         threading.Thread(target=_supervise,args=(c,stop),daemon=True,name='supervision5665').start()
+        if str(worker_id)=='1':   # 5.6.80 : les questions de l'avocat n'attendent pas la file
+            from .rapide5680 import LANE_ID,start_fast_lane
+            _patient(desk,lambda:recover(desk,LANE_ID),'reprise des questions interrompues',startup_wait())
+            start_fast_lane(c,stop)
         pause=3.0
         last_watch=0.0
         while True:
@@ -1608,6 +1615,12 @@ def worker(c,worker_id='1'):
                 try:
                     if str(worker_id)=='1':automation_tick(desk)
                 except Stop:pass
+                if str(worker_id)=='1':
+                    try:   # 5.6.80 : copie progressive des empreintes vers l'index vectoriel (sans effet s'il n'est pas réglé)
+                        from .vecteurs5680 import sync_tick
+                        sync_tick(desk.c)
+                    except Exception:   # noqa: BLE001 — jamais bloquant pour la file
+                        pass
                 if time.monotonic()-last_watch>60:   # 5.6.60 : durée maximale par type de travail
                     last_watch=time.monotonic()
                     from .blocage5660 import watchdog

@@ -741,6 +741,14 @@
    [
     "Réponse sans source",
     "Vérifiez-la avant de l’utiliser."
+   ],
+   [
+    "Réponse « Le modèle d’IA est occupé ou trop lent »",
+    "L’IA n’a pas répondu à temps : les passages affichés viennent de la recherche, sans analyse. Réessayez dans un instant."
+   ],
+   [
+    "Réponse fondée sur quelques passages d’une pièce jointe",
+    "Seuls les passages utiles à la question sont lus. Demandez une « synthèse complète » pour faire lire toute la pièce."
    ]
   ],
   "example": "Question fictive : « Quelles audiences cette semaine ? ».",

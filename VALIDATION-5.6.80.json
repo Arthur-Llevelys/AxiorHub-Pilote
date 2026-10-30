@@ -1,0 +1,40 @@
+{
+  "version": "5.6.80",
+  "base": "5.6.79",
+  "date_utc": "2026-10-30T00:00:00+00:00",
+  "cahier_des_charges": "Demande du 30 octobre 2026 : réaction immédiate des boutons de l’assistant, solution de repli, plus de trois documents, intégration de Qdrant, pertinence et rapidité de l’IA.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2819,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 127,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5680.py (30) : passages choisis (BM25, chaque pièce représentée, budget), lecture complète, voix ; fusion par rangs ; travaux automatiques qui cèdent le passage (borné, drapeau périmé) ; voie rapide limitée aux questions ; question sans verrou général (recette Linux) ; repli sur modèle occupé, erreur ordinaire conservée ; délais et budgets ; source lente abandonnée ; recherche sans synchronisation ; passages sans modèle et droits ; 20 pièces au plus ; adresses versionnées et cache ; Qdrant : sans réglage rien ne change, copie par lots sans texte et reprise, suppression, pièce réindexée recopiée, filtre par dossier et dossiers réservés, repli et attente d’une minute, résultats relus dans SQLite, empreinte lente, tout le corpus ; sauvegardes limitées aux deux dernières mises à jour, configuration et fichiers inconnus intacts ; interface.",
+  "live_checks": "Qdrant 1.20.0 réel en local, vecteurs fictifs : création, copie de 20 000 passages en 12,9 s, filtre par dossier, dossiers réservés, suppression ; 40 ms par recherche sur tout le corpus contre 1 639 ms pour 6 000 passages en SQLite ; service absent : repli. Navigateur : 44 fichiers sur 44 servis par le cache à la deuxième page ; vague : panneau ouvert et voix en tête ; pastille micro entière ; état vocal lisible en clair et en sombre. Micro bloqué dans le navigateur d’essai : dialogue parlé non essayé.",
+  "exapp": {
+    "version": "0.1.39",
+    "moteur": "5.6.80"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "desk.work_once(only=…) et fil voie-rapide5680 dans le worker 1.",
+    "queue567.producer_lock : assistant_answer hors verrou général, un verrou par fil.",
+    "arret5643.before_model_call : travaux automatiques en attente pendant une question.",
+    "workspace.chat : mode rapide (contexte, sources, pièces jointes, recherche juridique bornée).",
+    "integration.answer_question : délai réduit, réponse de repli, sans contrôle à la voix.",
+    "index : fusion par rangs, Qdrant facultatif, fast_sources, lexical_passages.",
+    "ui_helpers : adresses ?v=, script v5680.js en premier ; web.py : cache immuable des adresses versionnées.",
+    "model : keep_alive 30 min.",
+    "pièces jointes : 20 documents, 30 Mo, 600 pages.",
+    "upgrade : sauvegardes de bases limitées aux deux dernières mises à jour (prune_database_backups)."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5637.py : adresses de scripts versionnées (?v=)."
+  ]
+}

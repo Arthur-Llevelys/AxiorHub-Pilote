@@ -349,6 +349,8 @@ def reason_to_stop(state_dir=None, job=None):
 
 
 def before_model_call(cfg):
+    from .rapide5680 import yield_to_questions
+    yield_to_questions(current_job())   # 5.6.80 : un travail automatique laisse passer une question de l'avocat
     reason = reason_to_stop((cfg or {}).get('state_dir'))
     if reason:
         raise Stop(reason)

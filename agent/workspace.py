@@ -211,8 +211,21 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     limit=min(60000,desk.c['ollama'].get('max_context_chars',65000))
     attachment_ids=args.get('attachment_ids') if isinstance(args.get('attachment_ids'),list) else []
     if not attachment_ids and args.get('attachment_id'):attachment_ids=[args['attachment_id']]
-    if len(attachment_ids)>3:raise Stop('trois_pieces_maximum')
+    from .improvements36 import MAX_ATTACHMENTS
+    if len(attachment_ids)>MAX_ATTACHMENTS:raise Stop('trop_de_pieces_jointes')
     attachment_reports=[];unreadable=[]
+    # 5.6.80 : question rapide : seuls les passages utiles partent au modèle ; l'analyse progressive (une génération par section) ne sert
+    # plus qu'à une lecture complète demandée d'une pièce trop longue, jamais à la voix
+    rapide=bool(args.get('rapide'));full_limit=limit;compact=True
+    from . import rapide5680
+    voice=rapide5680.is_voice(args.get('purpose'))
+    if rapide:
+        budget=int(rapide5680.context_limit(desk.c,args.get('purpose'),limit)*0.6)
+        picked,report_pick,attachment_ids,unread=rapide5680.attachment_sources(desk,attachment_ids,question,args.get('matter',''),args.get('key',''),budget,voice)
+        sources.extend(picked);unreadable.extend(unread)
+        if report_pick:attachment_reports.append(report_pick)
+        if not attachment_ids:
+            limit=rapide5680.context_limit(desk.c,args.get('purpose'),limit);compact=False
     for attachment_id in attachment_ids:
         from .long_context363 import analyze_attachment
         try:
@@ -269,8 +282,9 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         sources+=memory_sources(desk,matter['id'],question,8)
         from .strategic import assistant_sources
         sources+=assistant_sources(desk,matter['id'],4)
-        docs,coverage=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama')).sources(dav,matter,[question],
-                         {**desk.c['documents'],'max_documents_per_mail':3})
+        index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
+        fast=index.fast_sources(matter,[question],{**desk.c['documents'],'max_documents_per_mail':3}) if rapide else None
+        docs,coverage=fast if fast is not None else index.sources(dav,matter,[question],{**desk.c['documents'],'max_documents_per_mail':3})
         sources+=docs
     elif not report:
         found,coverage=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama')).global_sources(
@@ -278,17 +292,21 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         sources+=found
     if selected_reports:coverage={**coverage,'selections':selected_reports}
     if attachment_coverage:coverage={**coverage,'piece_televersee':attachment_coverage}
-    from .composition567 import compact_sources
-    sources=compact_sources(desk,sources,question,model,limit)
+    if compact:
+        from .composition567 import compact_sources
+        sources=compact_sources(desk,sources,question,model,limit)
     from . import juridique5649   # 5.6.49 : recherche juridique avant la réponse (connecteurs du cabinet, requête anonymisée)
-    legal=juridique5649.research(desk,matter['id'] if matter else '',question,'assistant')
+    # 5.6.80 : bornée pour une question ; à la voix, seulement si la question porte sur le droit applicable
+    legal=(rapide5680.legal_research(desk,matter['id'] if matter else '',question,voice) if rapide
+           else juridique5649.research(desk,matter['id'] if matter else '',question,'assistant'))
     sources+=juridique5649.as_sources(legal)
-    try:   # 5.6.52 (I01 à I15) : outils de lecture des connexions vérifiées, choisis par l'agent, exécutés par le serveur
-        from .connexions5652 import agent_research
-        from .i18n5631 import role as _role52
-        sources+=agent_research(desk,getattr(desk,'mission_owner567','cabinet'),_role52(),question,matter['id'] if matter else '',model)
-    except Exception:   # noqa: BLE001 — la réponse se fait sans outil externe
-        pass
+    if not voice:   # 5.6.80 : le choix des outils par le modèle allongerait chaque tour de parole
+        try:   # 5.6.52 (I01 à I15) : outils de lecture des connexions vérifiées, choisis par l'agent, exécutés par le serveur
+            from .connexions5652 import agent_research
+            from .i18n5631 import role as _role52
+            sources+=agent_research(desk,getattr(desk,'mission_owner567','cabinet'),_role52(),question,matter['id'] if matter else '',model)
+        except Exception:   # noqa: BLE001 — la réponse se fait sans outil externe
+            pass
     turns=list(reversed(history(desk,scope)[:4]))
     from .relevance370 import correction_guidance
     from .learning392 import learning_context
@@ -307,7 +325,12 @@ def chat(desk,args,dav,model,box=None,return_result=False):
                    'parcourir plusieurs dossiers ; une action de rédaction doit ensuite être '
                    'rattachée à un courriel et à un dossier précis.')}
     if legal.get('sources'):payload['regle_sources_juridiques']=juridique5649.RULE
-    fit_chat_context(payload,limit)
+    if rapide:
+        rapide5680.trim_payload(payload,limit)
+        try:fit_chat_context(payload,limit)
+        except Stop:fit_chat_context(payload,full_limit)   # sources indispensables plus longues que le budget : budget complet
+    else:
+        fit_chat_context(payload,limit)
     if not sources:
         payload['limites']+=' Aucune source lisible disponible : demander des précisions, ne pas inventer de faits.'
     result=model.ask('chat',payload)
@@ -321,7 +344,12 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
     unsourced=juridique5649.unsourced_references(result.get('answer',''),legal)
     if unsourced:result['limits'].append('Référence(s) à vérifier, absente(s) des sources juridiques consultées : '+' ; '.join(unsourced))
-    if attachment_coverage:
+    if attachment_coverage and attachment_reports and attachment_reports[0].get('passages_total'):
+        pick=attachment_reports[0]
+        if not pick.get('integral'):   # 5.6.80 : l'avocat sait que la réponse repose sur des passages choisis
+            result['limits'].append('Pièces jointes : '+str(pick['passages_retenus'])+' passage(s) sur '+str(pick['passages_total'])+' retenu(s) pour cette question ; '
+                'demandez une « synthèse complète » pour tout faire lire.')
+    elif attachment_coverage:
         result['limits'].append('Pièce téléversée : '+str(attachment_coverage['extracted_chars'])+' caractères extraits, '
             +str(attachment_coverage['parts_analyzed'])+' section(s) analysée(s). '
             +('Ancien import limité : téléversez de nouveau le fichier pour couvrir toutes les pages.'

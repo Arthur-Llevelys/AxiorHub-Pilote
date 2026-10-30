@@ -15,7 +15,7 @@
   dock.querySelectorAll('[data-ai-example]').forEach(b=>b.addEventListener('click',()=>{question.value=b.dataset.aiExample;question.focus();}));
   file.addEventListener('change',async()=>{
     attachmentIds=[];const chosen=[...file.files];if(!chosen.length)return;
-    if(chosen.length>3||chosen.some(x=>x.size<1||x.size>8000000)){status.textContent='Import refusé : trois documents maximum, 8 Mo chacun.';return;}
+    if(chosen.length>20||chosen.some(x=>x.size<1||x.size>30000000)){status.textContent='Import refusé : vingt documents maximum, 30 Mo chacun.';return;}
     status.textContent='Extraction locale de '+chosen.length+' document(s)…';
     try{let extracted=0;
       for(const current of chosen){const response=await fetch(prefix+'/assistant/attachment',{method:'POST',credentials:'same-origin',body:current,
