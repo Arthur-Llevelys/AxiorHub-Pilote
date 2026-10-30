@@ -3,6 +3,41 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.81 — Fournisseurs d’IA préréglés, profil Mixte en un clic, IA en pause pendant les mises à jour
+
+Demandes du cabinet du 30 octobre 2026 : préparer les modèles par défaut d’Ollama, ChatGPT, Anthropic, Mistral et OpenRouter dans les
+réglages ; profil Mixte avec Mistral Large 4 ; coût visible avec des montants raisonnables ; IA en pause avant une mise à jour.
+
+**Bouton « Charger les modèles »** (Paramètres › Modèles d’IA, Fournisseurs) : la liste vient du fournisseur lui-même, avec la clé
+enregistrée, et aucune donnée de dossier n’est envoyée. Un nouveau modèle apparaît sans attendre une mise à jour d’AxiorHub. Les modèles
+d’empreintes, de voix ou d’image sont écartés. Le tarif se remplit lorsqu’il est connu : celui publié par OpenRouter, ou celui relevé sur la
+page officielle du fournisseur. Faute de source sûre, le champ reste à renseigner : aucun tarif n’est inventé.
+
+**Profil Mixte en un clic** (Paramètres › Modèles d’IA, Mode d’utilisation) : Ollama en local pour le tri des courriels, la lecture des
+pièces et le contrôle ; Mistral Large 4 pour la rédaction, l’analyse juridique, l’assistant et la conversation vocale, toujours
+pseudonymisés. La case d’autorisation d’envoi reste à cocher par l’avocat ; elle n’est jamais déduite du bouton. La transcription de la voix
+reste locale.
+
+**Coût** : 50 $ par mois et 0,50 $ par requête sont préremplis et modifiables ; Mistral Large 4 est prérenseigné à 0,70 $ en entrée et
+2,10 $ en sortie par million de jetons. Plafond atteint, le modèle local prend le relais et rien n’est facturé au-delà. OpenRouter continue
+d’exiger des plafonds saisis. Un modèle sans tarif connu reste refusé par le contrôle des dépenses tant que son tarif n’est pas renseigné.
+
+**Mises à jour** : l’IA se met en pause avant l’installation, attend 20 secondes au plus la fin des travaux en cours, puis reprend seule
+une fois la nouvelle version installée. Les travaux arrêtés par la pause sont repris, y compris s’ils étaient en cours à l’arrêt des
+services (ils étaient annulés auparavant). Si la mise à jour n’aboutit pas, l’IA reprend au bout de 45 minutes. Une pause décidée par
+l’avocat est conservée. Le travail de mise à jour d’un poste n’est pas bloqué par la pause.
+
+**Conversation vocale** : quand la transcription locale échoue, l’écran donne la cause (moteur Vocal arrêté ou en erreur, pont vocal
+injoignable, transcription trop longue) au lieu de « http 502 ». Après deux échecs de suite, le micro s’arrête et le curseur passe dans le
+champ de texte. La réponse s’affiche juste sous l’état, en entier et sans balises de mise en forme (ni affichées ni lues à voix haute),
+et l’intitulé des premiers passages trouvés est lisible en clair comme en sombre. Une phrase sans objet posée à l’échelle du cabinet
+(« est-ce que ça fonctionne ? », « bonjour », « merci ») reçoit une réponse immédiate, sans modèle ni recherche dans les pièces : elle ne
+fait plus citer des documents sans rapport. Dans un dossier ou avec une pièce, la question suit son chemin habituel.
+
+**Correctif** : l’emplacement du réglage Qdrant est indiqué correctement : Paramètres › Connexions, section Intelligence artificielle.
+
+Aide « Paramètres » complétée (fr, en, de, es).
+
 ## 5.6.80 — Assistant plus rapide et plus pertinent : boutons immédiats, voie rapide, replis, Qdrant, 20 pièces jointes
 
 Demande du cabinet du 30 octobre 2026 : réaction trop longue du bouton de l’assistant et de la conversation vocale, solution de repli,

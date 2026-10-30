@@ -1626,6 +1626,11 @@ def worker(c,worker_id='1'):
                     from .blocage5660 import watchdog
                     watchdog(desk)
                     if str(worker_id)=='1':
+                        try:   # 5.6.81 : l'IA mise en pause par une mise à jour reprend une fois la version installée
+                            from .maj5661 import resume_after_update
+                            resume_after_update(desk)
+                        except Exception:   # noqa: BLE001 — jamais bloquant pour la file
+                            pass
                         try:   # 5.6.61 : avis de nouvelle version (flux public des versions, au plus toutes les 6 h)
                             from .maj5661 import auto_tick as _maj_auto, check as _maj_check
                             _maj_check(desk)

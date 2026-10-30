@@ -1,0 +1,37 @@
+{
+  "version": "5.6.81",
+  "base": "5.6.80",
+  "date_utc": "2026-10-30T00:00:00+00:00",
+  "cahier_des_charges": "Demandes du 30 octobre 2026 : fournisseurs d’IA préréglés, bouton « Charger les modèles », profil Mixte avec Mistral Large 4 (conversation vocale pseudonymisée comprise), coût visible avec des montants préenregistrés, IA en pause avant une mise à jour. Signalement du même jour : conversation vocale en erreur « http 502 ».",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2854,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 128,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5681.py (34) : lecture des listes de chaque fournisseur, tarif vérifié seulement, liste gardée une heure et actualisable, fournisseur sans clé ; tarif et plafonds préremplis, montants de l’avocat conservés, OpenRouter toujours exigeant ; profil Mixte : autorisation jamais déduite, routes (voix comprise), version datée, modèle absent, plafonds conservés ; pages et droits ; pause : serveur, poste, demande refusée, attente bornée, pause de l’avocat conservée, reprise après installation ou échec, pause levée à la main, travail repris après redémarrage, annulation conservée ; causes de la dictée, micro coupé après deux échecs ; phrases sans objet (sans modèle ni passages, dossier ou pièce non concernés), réponse vocale sans balises et en entier ; emplacement de Qdrant.",
+  "live_checks": "Navigateur, application réelle en local : carte du profil Mixte, cinq boutons « Charger les modèles », plafonds préremplis, message sans clé, message Ollama absent ; panneau vocal : réponse longue visible en entier, passages lisibles en clair (17,4:1) et en sombre (14,6:1). Sur le serveur du cabinet, signalé par l’avocat : après relance du conteneur de transcription arrêté, la dictée fonctionne. Non essayés faute de clé et de serveur : liste réelle de Mistral et des autres fournisseurs (seule la lecture de réponses fictives est testée), profil Mixte en conditions réelles, mise à jour réelle, dialogue parlé avec micro réel.",
+  "exapp": {
+    "version": "0.1.40",
+    "moteur": "5.6.81"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "ai_gateway.save_provider : tarif connu et plafonds par défaut repris s’ils sont vides (OpenRouter inchangé).",
+    "arret5643.DETERMINISTIC : maj_local5661 ajouté.",
+    "maj5661 : pause_before_update, resume_after_update ; desk : reprise vérifiée au démarrage et chaque minute (worker 1).",
+    "queue567.recover : un travail arrêté par une pause redevient suspendu au lieu d’être annulé.",
+    "audio.dictate : codes de cause (transcription_locale_en_echec, pont_vocal_injoignable, transcription_trop_longue, transcription_en_cours).",
+    "v568.js : micro coupé après deux échecs de transcription de suite ; réponse sous l’état, nettoyée de ses balises.",
+    "rapide5680 : small_talk, small_talk_answer, conversation_only ; passages vides pour une phrase sans objet à l’échelle du cabinet.",
+    "integration.answer_question : réponse immédiate à une phrase sans objet, sans modèle ni contrôle.",
+    "v5680.css : encadré des passages sur les couleurs du thème (illisible en sombre auparavant)."
+  ],
+  "adjusted_tests": []
+}

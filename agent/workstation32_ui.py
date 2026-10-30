@@ -9,6 +9,13 @@ from .workstation32 import briefing, contacts, search, SOURCES
 from .improvements36 import matter_option
 
 
+
+def _load_models(provider_id):
+    """5.6.81 : bouton « Charger les modèles » : la liste vient du fournisseur (aucune donnée de dossier)."""
+    return ('<div class="m81-load"><button type="button" class="ax-btn ghost" data-m81-load="'+e(provider_id)+'">Charger les modèles</button>'
+            '<span class="m81-note ax-muted" data-m81-note role="status"></span><datalist id="ax-models-'+e(provider_id)+'"></datalist></div>')
+
+
 def e(value):return esc(str(value if value is not None else ''),quote=True)
 
 
@@ -181,18 +188,21 @@ def settings_page(desk,args,form,link):
             out+='<article class="ws-provider"><h3>'+e(provider_id)+' · '+e(row['type'])+'</h3><p>État : <strong>'+e(health.get('status','non testé'))+'</strong>'+((' · '+e(health.get('message') or health.get('error'))) if health.get('error') else '')+'</p>'
             if row['type']=='ollama':
                 out+='<p>'+e(row.get('url',''))+' · '+e(row.get('model',''))+' · traitement local.</p>'+form('test_ai_provider','Tester Ollama',{'provider_id':'ollama'})
+                out+=_load_models('ollama')
             else:
+                from .modeles5681 import DEFAULT_MONTHLY_USD,DEFAULT_REQUEST_USD,tariff
+                prices=tariff(row.get('model')) or (0,0)
                 out+=form('save_ai_provider','Enregistrer le fournisseur',extra=
                     '<input type="hidden" name="provider_id" value="'+e(provider_id)+'"><input type="hidden" name="provider_type" value="'+e(row['type'])+'">'
                     '<label>Adresse API HTTPS<input type="url" required name="url" maxlength="500" value="'+e(row.get('url',''))+'"></label>'
-                    '<label>Modèle par défaut<input required name="model" maxlength="160" value="'+e(row.get('model',''))+'"'+(' list="ax-anthropic-models"' if row['type']=='anthropic' else '')+'></label>'
+                    '<label>Modèle par défaut<input required name="model" maxlength="160" value="'+e(row.get('model',''))+'"'+(' list="ax-anthropic-models"' if row['type']=='anthropic' else '')+'></label>'+_load_models(provider_id)
                     +(('<datalist id="ax-anthropic-models">'+''.join('<option value="'+e(k)+'">'+e(v)+'</option>' for k,v in ANTHROPIC_MODELS)+'</datalist>'
                        '<p class="hint">Claude Sonnet 5.5 pour la rédaction, Haiku 4.5 pour le tri, Opus 5.5 pour les analyses lourdes.</p>') if row['type']=='anthropic' else '')+
                     '<label>Nouvelle clé API'+(' (déjà configurée, laisser vide pour la conserver)' if row.get('secret_configured') else '')+'<input type="password" name="api_key" maxlength="4096" autocomplete="new-password"></label>'
-                    '<fieldset><legend>Coût et politique de données</legend><label>Plafond mensuel en USD<input type="number" min="0" max="100000" step="0.01" name="monthly_budget_usd" value="'+e(row.get('monthly_budget_usd',0))+'"></label>'
-                    '<label>Plafond par requête en USD<input type="number" min="0" max="100000" step="0.001" name="per_request_budget_usd" value="'+e(row.get('per_request_budget_usd',0))+'"></label>'
-                    '<label>Tarif entrée / million de jetons<input type="number" min="0" max="100000" step="0.001" name="input_usd_per_million" value="'+e(row.get('input_usd_per_million',0))+'"></label>'
-                    '<label>Tarif sortie / million de jetons<input type="number" min="0" max="100000" step="0.001" name="output_usd_per_million" value="'+e(row.get('output_usd_per_million',0))+'"></label>'
+                    '<fieldset><legend>Coût et politique de données</legend><label>Plafond mensuel en USD<input type="number" min="0" max="100000" step="0.01" name="monthly_budget_usd" value="'+e(row.get('monthly_budget_usd') or DEFAULT_MONTHLY_USD)+'"></label>'
+                    '<label>Plafond par requête en USD<input type="number" min="0" max="100000" step="0.001" name="per_request_budget_usd" value="'+e(row.get('per_request_budget_usd') or DEFAULT_REQUEST_USD)+'"></label>'
+                    '<label>Tarif entrée / million de jetons<input type="number" min="0" max="100000" step="0.001" name="input_usd_per_million" value="'+e(row.get('input_usd_per_million') or prices[0])+'"></label>'
+                    '<label>Tarif sortie / million de jetons<input type="number" min="0" max="100000" step="0.001" name="output_usd_per_million" value="'+e(row.get('output_usd_per_million') or prices[1])+'"></label>'
                     '<label class="ws-check"><input type="checkbox" name="zdr_required" value="yes"'+(' checked' if row.get('zdr_required') else '')+'> Exiger le routage sans conservation (ZDR) lorsqu’il est pris en charge</label></fieldset>'
                     '<label class="ws-check"><input type="checkbox" name="enabled" value="yes"'+(' checked' if row.get('enabled') else '')+'> Activer ce fournisseur</label>'
                     '<label class="ws-check"><input type="checkbox" name="allow_external" value="yes"'+(' checked' if row.get('external_data_allowed') else '')+'> J’autorise l’envoi au fournisseur des données nécessaires aux fonctions qui lui seront attribuées</label>')

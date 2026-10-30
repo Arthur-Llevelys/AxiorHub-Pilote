@@ -33,6 +33,9 @@ NIGHT = (2, 5)
 KEY = 'maj5661:etat'
 AUTO = 'maj5661:automatique'
 TRIED = 'maj5661:tentative_automatique'
+UPDATE_PAUSE = 'maj5681:pause'
+UPDATE_WAIT_SECONDS = 20
+UPDATE_PAUSE_SECONDS = 45 * 60
 VERSION_RX = re.compile(r'^\d+\.\d+\.\d+$')
 MAX_BYTES = 400 * 1024 * 1024
 
@@ -144,18 +147,63 @@ def request(desk, owner, version):
     if kind in ('windows', 'poste'):
         job = desk.enqueue('maj_local5661', {'version': version, 'par': str(owner)[:80]}, priority=5)
         desk.audit('maj5661_demandee', {'version': version, 'par': str(owner)[:80], 'plateforme': kind})
-        return {'ok': True, 'job': job, 'message': 'Mise à jour vers %s lancée : téléchargement et vérification, puis installation.' % version}
+        pause_before_update(desk, version, keep=job)
+        return {'ok': True, 'job': job, 'message': 'Mise à jour vers %s lancée : IA en pause, téléchargement et vérification, puis installation. L’IA reprendra seule.' % version}
     if kind != 'serveur' or not activated():
         raise Stop('mise_a_jour_automatique_non_activee')
     folder = request_dir(desk)
     if (folder / 'demande.json').exists():
         raise Stop('mise_a_jour_deja_demandee')
+    pause_before_update(desk, version)
     tmp = folder / ('.demande-%s.json' % os.getpid())
     tmp.write_text(json.dumps({'version': version, 'par': str(owner)[:80], 'le': _now().isoformat()}), encoding='utf-8')
     os.replace(tmp, folder / 'demande.json')
     desk.audit('maj5661_demandee', {'version': version, 'par': str(owner)[:80], 'plateforme': kind})
-    return {'ok': True, 'message': 'Mise à jour vers %s demandée : elle démarre dans quelques secondes ; AxiorHub sera indisponible '
-                                   'une à deux minutes.' % version}
+    return {'ok': True, 'message': 'Mise à jour vers %s demandée : l’IA est mise en pause, puis AxiorHub sera indisponible une à deux minutes. '
+                                   'L’IA reprendra seule.' % version}
+
+
+def pause_before_update(desk, version, keep=None, sleep=None):
+    """5.6.81 : met l'IA en pause avant d'installer : les travaux en cours s'arrêtent proprement et repartiront à la reprise, au lieu d'être coupés par
+    l'arrêt des services. Attente bornée. Une pause déjà décidée par l'avocat est conservée : la mise à jour ne la lèvera pas."""
+    import time
+    from .arret5643 import DETERMINISTIC, global_paused, pause_all
+    if global_paused(desk):
+        return False
+    pause_all(desk, True, 'mise-a-jour')
+    desk.setting(UPDATE_PAUSE, {'version': str(version), 'le': _now().isoformat()})
+    marks = ','.join('?' * len(DETERMINISTIC))
+    for _ in range(UPDATE_WAIT_SECONDS):
+        active = desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('running','cancel_requested') AND id<>? AND kind NOT IN (%s)" % marks,
+                                 (int(keep or 0), *DETERMINISTIC)).fetchone()[0]
+        desk.db.commit()
+        if not active:
+            break
+        (sleep or time.sleep)(1)
+    return True
+
+
+def resume_after_update(desk, now=None):
+    """5.6.81 : lève la pause posée par une mise à jour une fois la version installée ; si elle n'aboutit pas, au bout de 45 minutes : l'IA ne reste
+    jamais en pause par oubli. Une pause levée à la main efface simplement le repère. Retourne True si l'IA a repris."""
+    from .arret5643 import global_paused, pause_all
+    mark = desk.settings(UPDATE_PAUSE, {})
+    if not isinstance(mark, dict) or not mark.get('version'):
+        return False
+    if not global_paused(desk):
+        desk.setting(UPDATE_PAUSE, {})
+        return False
+    try:
+        age = ((now or _now()) - datetime.fromisoformat(str(mark.get('le')))).total_seconds()
+    except (TypeError, ValueError):
+        age = UPDATE_PAUSE_SECONDS
+    done = _tuple(installed_version()) >= _tuple(mark['version'])
+    if not done and age < UPDATE_PAUSE_SECONDS:
+        return False
+    desk.setting(UPDATE_PAUSE, {})
+    pause_all(desk, False, 'mise-a-jour')
+    desk.audit('maj5681_ia_reprise', {'version': mark['version'], 'installee': done})
+    return True
 
 
 def set_automatic(desk, on):
@@ -322,8 +370,8 @@ def html(desk, prefix, role):
     elif new and admin:
         body += ('<form class="m5-form" data-api="m5661/maj/demander" data-reload><input type="hidden" name="version" value="%s">'
                  '<button class="ax-btn" type="submit">Mettre à jour vers %s</button><p role="status" class="m5-status"></p></form>'
-                 '<p class="ax-muted">AxiorHub télécharge la version, vérifie son empreinte et sa signature, puis l’installe ; vos données et '
-                 'réglages sont conservés.</p>') % (e(new, quote=True), e(new))
+                 '<p class="ax-muted">AxiorHub met l’IA en pause, télécharge la version, vérifie son empreinte et sa signature, puis l’installe ; '
+                 'l’IA reprend seule ensuite, et vos données et réglages sont conservés.</p>') % (e(new, quote=True), e(new))
     elif new:
         body += '<p class="ax-muted">La mise à jour est lancée par un administrateur.</p>'
     if admin and ready and kind != 'autre':

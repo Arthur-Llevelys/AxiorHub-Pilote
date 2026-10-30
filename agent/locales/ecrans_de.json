@@ -6572,5 +6572,13 @@
 "Ouverture de l’assistant…": "Assistent wird geöffnet…",
 "L’IA rédige sa réponse…": "Die KI verfasst ihre Antwort…",
 "L’IA rédige sa réponse. Premiers passages trouvés dans les pièces (sans analyse) :": "Die KI verfasst ihre Antwort. Erste in den Dokumenten gefundene Passagen (ohne Analyse):",
-"Vingt documents au plus par demande.": "Höchstens zwanzig Dokumente pro Anfrage."
+"Vingt documents au plus par demande.": "Höchstens zwanzig Dokumente pro Anfrage.",
+"Charger les modèles": "Modelle laden",
+"Interrogation du fournisseur…": "Anbieter wird abgefragt…",
+"Profil Mixte recommandé": "Empfohlenes gemischtes Profil",
+"Activer ce profil": "Dieses Profil aktivieren",
+"Clé API Mistral": "Mistral-API-Schlüssel",
+"Clé Mistral déjà enregistrée.": "Mistral-Schlüssel bereits gespeichert.",
+"J’autorise l’envoi à Mistral des données pseudonymisées nécessaires à ces fonctions": "Ich erlaube die Übermittlung der für diese Funktionen nötigen pseudonymisierten Daten an Mistral",
+"AxiorHub met l’IA en pause, télécharge la version, vérifie son empreinte et sa signature, puis l’installe ; l’IA reprend seule ensuite, et vos données et réglages sont conservés.": "AxiorHub pausiert die KI, lädt die Version herunter, prüft Prüfsumme und Signatur und installiert sie; danach läuft die KI von selbst weiter, Ihre Daten und Einstellungen bleiben erhalten."
 }

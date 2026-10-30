@@ -153,6 +153,11 @@ def save_provider(desk, provider_id, provider_type, url, model, api_key='',
         raise Stop('budget_fournisseur_invalide')
     if provider_type=='openrouter' and enabled and (not monthly_budget_usd or not per_request_budget_usd):
         raise Stop('plafonds_openrouter_requis')
+    from .modeles5681 import DEFAULT_MONTHLY_USD,DEFAULT_REQUEST_USD,tariff   # 5.6.81 : tarif connu et plafonds raisonnables repris s'ils sont vides
+    known=tariff(model)
+    if known and not input_usd_per_million and not output_usd_per_million:input_usd_per_million,output_usd_per_million=known
+    monthly_budget_usd=monthly_budget_usd or DEFAULT_MONTHLY_USD
+    per_request_budget_usd=per_request_budget_usd or DEFAULT_REQUEST_USD
     previous = desk.settings('ai:provider:' + provider_id, {})
     path = str(previous.get('secret_file') or '') if isinstance(previous, dict) else ''
     if api_key:

@@ -104,7 +104,7 @@ def _search_card(desk):
         text = 'Qdrant réglé mais indisponible (%s) : la recherche intégrée prend le relais.' % s['erreur']
         cls = 'm5-warn'
     else:
-        text = 'Recherche intégrée (%d passage(s) avec empreinte). Facultatif : Qdrant, voir docker-compose.qdrant.yml, puis Paramètres › Intelligence artificielle.' % s['total']
+        text = 'Recherche intégrée (%d passage(s) avec empreinte). Facultatif : Qdrant, voir docker-compose.qdrant.yml, puis Paramètres › Connexions, section Intelligence artificielle.' % s['total']
         cls = 'ok'
     return '<p class="%s" id="ia5680-recherche">Recherche des passages : %s</p>' % (cls, e(text))
 
@@ -119,6 +119,7 @@ def page(desk, prefix, shell, csrf):
     models = ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in ANTHROPIC_MODELS)
     models += ''.join('<option value="%s"></option>' % e(v.get('model', ''), quote=True) for _, v in usable if v.get('model'))
     local_model = (desk.c.get('ollama') or {}).get('model', '')
+    from .modeles5681 import form_html as _mixte5681
     mixed = ('<form class="m5-form" data-api="m540/mode" data-reload="1"><input type="hidden" name="mode" value="mixte">'
              '<label class="m5-field">Fournisseur pour la rédaction et l’analyse<select name="provider" required>%s</select></label>'
              '<label class="m5-field">Modèle<input name="model" list="ia540-models" maxlength="160" required placeholder="claude-sonnet-5-5"></label><datalist id="ia540-models">%s</datalist>'
@@ -137,7 +138,7 @@ def page(desk, prefix, shell, csrf):
             '<p class="ax-muted">Une seule rubrique : modèles locaux, routage par fonction, régime économe et consommation, puis l’IA externe sûre. '
             'Tout envoi à un fournisseur non local est <strong>pseudonymisé sur le serveur</strong>, puis la réponse est rétablie localement.</p>'
             '%s<h2 class="ia540-sub">IA externe sûre</h2><p class="ax-muted">Ce que l’agent envoie hors du serveur, quand et sous quelle forme.</p>'
-            '<section class="ax-card"><h2>Mode d’utilisation</h2><p><strong>Actuellement :</strong> %s</p>'
+            '<section class="ax-card"><h2>Mode d’utilisation</h2><p><strong>Actuellement :</strong> %s</p>%s'
             '<div class="ia540-modes"><article><h3>Tout en local</h3><p>Modèle Ollama du serveur pour tout. Confidentialité maximale ; vitesse limitée par le serveur.</p>'
             '<form class="m5-form m5-inline" data-api="m540/mode" data-reload="1"><input type="hidden" name="mode" value="local"><button class="ax-btn ghost" type="submit">Tout en local</button></form></article>'
             '<article><h3>Mixte (recommandé hors local)</h3><p>Tri des courriels, lecture des pièces jointes et contrôle indépendant en local ; rédaction, assistant, analyse, '
@@ -159,7 +160,7 @@ def page(desk, prefix, shell, csrf):
             '<li>Les noms écrits en minuscules ou les prénoms rares sans civilité peuvent échapper à la détection : vérifiez l’aperçu sur vos textes types.</li>'
             '<li>Préférez un fournisseur avec engagement de non-conservation ou hébergement européen, et un contrat de traitement des données.</li></ul></section>'
             '</div><script defer src="%s"></script>') % (
-        local_models_html(desk, prefix), e(cur['label']), mixed, e(prefix + '/routage-hybride'), secours_html(desk, prefix), matter_opts,
+        local_models_html(desk, prefix), e(cur['label']), _mixte5681(desk), mixed, e(prefix + '/routage-hybride'), secours_html(desk, prefix), matter_opts,
         ('<table class="vf-table"><thead><tr><th>Date</th><th>Fournisseur</th><th>Modèle</th><th>Fonction</th><th>Remplacements</th><th>Caractères</th><th></th></tr></thead>'
          '<tbody>%s</tbody></table>' % rows) if rows else '<p class="ok">Aucun envoi externe sur les 7 derniers jours.</p>',
         e(prefix + '/static/v540.js'))
