@@ -174,7 +174,9 @@ def submit_question(desk, question, matter='', mail_key='', thread_id='', attach
         (thread_id, 'user', question, 'queued', '[]', desk.now(), desk.now()))
     message_id = cur.lastrowid
     safe_context=_page_context(page_context,selected['id'] if selected else '')
-    job = desk.enqueue('assistant_answer', {'message': message_id, 'thread': thread_id,
+    from .membres5650 import viewer_hidden
+    # 5.6.83 : la réponse se prépare hors de la requête : les dossiers réservés de cette personne l'accompagnent
+    job = desk.enqueue('assistant_answer', {'message': message_id, 'thread': thread_id, 'masques': sorted(viewer_hidden()),
                                              'mission_id':mission_id,
                                              'matter': matter, 'key': mail_key,
                                              'attachment_id':attachments[0] if attachments else '',
@@ -208,9 +210,10 @@ def answer_question(desk, args):
     matter = args.get('matter', '')
     key = args.get('key', '')
     box = Mailbox(desk.c['mail']) if key else None
-    from . import rapide5680
+    from . import membres5650, rapide5680
     purpose = args.get('purpose','assistant')
     rapide5680.mark(desk.c['state_dir'])   # 5.6.80 : les travaux automatiques laissent passer cette question
+    membres5650.set_viewer(args.get('masques') or ())   # 5.6.83 : mêmes dossiers masqués que pour l'auteur de la question
     try:
         route = routed_config(desk.c,purpose)
         route['timeout_seconds'] = rapide5680.deadline(desk.c,purpose,route.get('timeout_seconds',240))
@@ -231,6 +234,7 @@ def answer_question(desk, args):
                         ('error', desk.now(), message_id)); desk.db.commit()
         raise
     finally:
+        membres5650.clear()
         rapide5680.clear(desk.c['state_dir'])
         if box:
             box.close()

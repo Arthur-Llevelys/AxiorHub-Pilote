@@ -175,7 +175,52 @@ DOCS = {
         '# ORDRE DE MOUVEMENT DE TITRES', '',
         'Le soussigné {{cedant}} donne l’ordre à la société {{denomination}} de virer au compte de {{cessionnaire}} '
         '{{nombre}} {{nature_titres}} ({{categorie}}) inscrites à son compte.', '',
-        'Date de l’ordre : {{date_cession_fr}}', '', 'Signature du titulaire', '{{cedant}}']),
+        'Compte du titulaire : [À COMPLÉTER]', 'Compte du bénéficiaire : [À COMPLÉTER]',
+        'Date demandée pour l’inscription : [À COMPLÉTER]', 'Date de l’ordre : {{date_cession_fr}}', '',
+        'Signature du titulaire ou de son mandataire', '{{cedant}}']),
+    # 5.6.83 (CO01, cahier complément § 7) : l'instruction signée, l'inscription en compte et sa preuve sont trois objets distincts
+    'instruction_teneur': ('Instruction au teneur de comptes', HEADER + [
+        '# INSTRUCTION AU TENEUR DE COMPTES', '',
+        'Le soussigné {{dirigeant}}, {{fonction_dirigeant}} de la société {{denomination}}, demande au teneur des comptes de titres [À COMPLÉTER : '
+        'société elle-même ou mandataire] de procéder, au vu de l’ordre de mouvement signé par {{cedant}}, à l’inscription de {{nombre}} '
+        '{{nature_titres}} ({{categorie}}) au compte de {{cessionnaire}}.', '',
+        'Cette instruction ne vaut pas inscription : le transfert résulte de l’inscription elle-même.', '',
+        'Fait à {{ville}}, le {{date_acte_fr}}', '', '{{dirigeant}}']),
+    'renonciation_preemption': ('Renonciation au droit de préemption', HEADER + [
+        '# RENONCIATION AU DROIT DE PRÉEMPTION', '',
+        'Le soussigné [À COMPLÉTER : titulaire du droit], informé du projet de cession de {{nombre}} {{nature_titres}} par {{cedant}} au profit de '
+        '{{cessionnaire}} au prix de {{prix_unitaire_fr}} par titre, déclare renoncer, pour cette seule cession, au droit de préemption qu’il tient de '
+        '[À COMPLÉTER : article des statuts ou du pacte].', '',
+        'Fait à {{ville}}, le {{date_acte_fr}}', '', '[À COMPLÉTER : signature]']),
+    # 5.6.83 (CO01) : branche des parts sociales : aucun ordre de mouvement ; modèles à faire valider par un avocat avant activation
+    'acte_cession_parts': ('Acte de cession de parts sociales', [
+        '# ACTE DE CESSION DE PARTS SOCIALES', '', '# ENTRE LES SOUSSIGNÉS :', '',
+        '{{cedant}}, ci-après « le Cédant »,', 'd’une part,', '', 'ET', '', '{{cessionnaire}}, ci-après « le Cessionnaire »,', 'd’autre part,', '',
+        '# IL A ÉTÉ CONVENU CE QUI SUIT :', '',
+        '# Article 1 — Cession',
+        'Le Cédant cède au Cessionnaire, qui accepte, {{nombre}} parts sociales ({{categorie}}) de la société {{denomination}}, {{forme_long}} '
+        'au capital de {{capital_fr}}, dont le siège est {{siege}}, {{rcs_mention}}.', '',
+        '# Article 2 — Prix', 'La cession est consentie moyennant le prix de {{prix_unitaire_fr}} par part, soit un prix total de {{prix_total_fr}}, '
+        'payé [À COMPLÉTER : modalités de paiement].', '',
+        '# Article 3 — Propriété et jouissance', 'Le Cessionnaire sera propriétaire des parts cédées à compter du [À COMPLÉTER : date de réalisation] et '
+        'en aura la jouissance à compter du [À COMPLÉTER : date de jouissance]. {{mention_agrement}}', '',
+        '# Article 4 — Déclarations', 'Le Cédant déclare que les parts cédées sont libres de tout nantissement, gage ou droit quelconque. '
+        '[À COMPLÉTER : garanties, situation matrimoniale, le cas échéant]', '',
+        '# Article 5 — Opposabilité et formalités', 'La cession sera rendue opposable à la société par signification ou par dépôt d’un original du présent '
+        'acte au siège social contre remise par le gérant d’une attestation de ce dépôt. Elle sera opposable aux tiers après ces formalités et la publication '
+        'des statuts modifiés au registre du commerce et des sociétés. Les droits d’enregistrement sont à la charge du Cessionnaire.', '',
+        'Fait à [À COMPLÉTER], le {{date_cession_fr}}, en [À COMPLÉTER] exemplaires.', '', 'Le Cédant                                   Le Cessionnaire']),
+    'notification_cession': ('Notification du projet de cession', HEADER + [
+        '# NOTIFICATION DU PROJET DE CESSION DE PARTS SOCIALES', '',
+        '{{cedant}} notifie à la société {{denomination}} et à chacun de ses associés le projet de céder {{nombre}} parts sociales ({{categorie}}) à '
+        '{{cessionnaire}}, au prix de {{prix_unitaire_fr}} par part.', '',
+        'Destinataires et mode de notification : [À COMPLÉTER : liste des associés et mode prévu par les statuts].', '',
+        'Fait à {{ville}}, le {{date_acte_fr}}', '', '{{cedant}}']),
+    'attestation_depot': ('Attestation de dépôt de l’acte de cession', HEADER + [
+        '# ATTESTATION DE DÉPÔT AU SIÈGE SOCIAL', '',
+        'Je soussigné(e) {{dirigeant}}, {{fonction_dirigeant}} de la société {{denomination}}, atteste que {{cedant}} a déposé au siège social un original de '
+        'l’acte de cession de {{nombre}} parts sociales au profit de {{cessionnaire}}, le [À COMPLÉTER : date du dépôt].', '',
+        'Fait à {{ville}}, le {{date_acte_fr}}', '', '{{dirigeant}}']),
     'agrement': ('Décision d’agrément du cessionnaire', HEADER + [
         '# {{organe_titre_modif}}', '# DU {{date_acte_fr}}', '',
         '{{decideur_modif}}, informé(e) du projet de cession de {{nombre}} {{nature_titres}} par {{cedant}} au profit de {{cessionnaire}}, '
@@ -249,8 +294,17 @@ OPERATIONS = {
     'dirigeant': ('Changement de dirigeant', ['decision_dirigeant', 'demission', 'acceptation_fonctions', 'non_condamnation', 'annonce_dirigeant',
                                               'pouvoir_inpi']),
     'modification': ('Autre modification statutaire', ['decision_modification', 'annonce_modification', 'pouvoir_inpi']),
-    'cession': ('Cession de titres', ['acte_cession', 'ordre_mouvement', 'agrement', 'attestation_inscription']),
+    'cession': ('Cession de titres', ['acte_cession', 'ordre_mouvement', 'agrement', 'attestation_inscription', 'instruction_teneur', 'renonciation_preemption']),
     'diligence': ('Autre diligence en droit des sociétés', ['decision_diligence', 'annonce_diligence', 'pouvoir_inpi']),
     'creation': ('Création de société', ['statuts', 'liste_souscripteurs', 'non_condamnation', 'attestation_domiciliation', 'annonce_constitution',
                                          'pouvoir_inpi']),
 }
+
+# 5.6.83 (CO01) : un jeu de documents par branche, choisi d'après la forme sociale ; un ordre de mouvement n'appartient pas à une cession de parts
+CESSION_PARTS = ['notification_cession', 'acte_cession_parts', 'agrement', 'attestation_depot']
+OPTIONAL_DOCS = ('demission', 'agrement', 'instruction_teneur', 'renonciation_preemption')
+
+
+def documents_of(kind, nature):
+    """Documents proposés pour une opération ; ``nature`` = « parts sociales » ou « actions » (FORMS)."""
+    return list(CESSION_PARTS) if kind == 'cession' and nature == 'parts sociales' else list(OPERATIONS[kind][1])

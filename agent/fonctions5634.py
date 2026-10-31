@@ -25,6 +25,7 @@ MIGRATION = {
     'pieces': 'Dossier → Pièces ; bordereau accessible depuis Produire',
     'profils': 'Paramètres → Profils procéduraux validés',
     'strategie': 'Dossier → Arguments et analyse de scénarios',
+    'formulaires': 'Produire → Formulaires officiels',
     'studio': 'Produire → modes avancés de rédaction',
     'playbooks': 'Produire → Parcours guidés',
     'recherche': 'Recherche → Fichiers et messages du cabinet',

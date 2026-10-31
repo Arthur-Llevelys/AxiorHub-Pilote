@@ -247,6 +247,20 @@ def veille_settings(desk, env, prefix, admin=True):
     return out + '</section>'
 
 
+def _package_html(s):
+    """5.6.83 : droits déclarés, ressources conservées et décision pour chaque script : la carte ne vaut pas test d'exécution."""
+    if s['origin'] != 'import':
+        return ''
+    rights = s.get('rights') or {}
+    labels = {'service': 'remplacé par un service', 'indisponible': 'indisponible'}
+    scripts = s.get('scripts') or []
+    lines = ''.join('<li><code>%s</code> : %s%s</li>' % (e(x.get('path', '')), e(labels.get(x.get('decision'), x.get('decision', ''))), (' — ' + e(x['reason'])) if x.get('reason') else '') for x in scripts[:30])
+    return ('<details class="k5632-package"><summary>Paquet : %d ressource(s), %d script(s)</summary><p>Droits : %s%s</p>%s%s</details>') % (
+        s.get('resources') or 0, len(scripts), e(rights.get('declared') or 'non déclarés'), ' — usage commercial non autorisé par défaut' if rights.get('non_commercial') else '',
+        '<ul>%s</ul>' % lines if lines else '',
+        '<p class="k5632-missing">Références absentes : réimportez l’archive d’origine ; rien n’est reconstitué.</p>' if s.get('a_reimporter') else '')
+
+
 def skills_page(desk, auth, prefix, env, shell):
     from .web567 import actor
     from .competences5632 import listing, auto_mode
@@ -260,6 +274,7 @@ def skills_page(desk, auth, prefix, env, shell):
             req = '<p class="k5632-missing">%s</p>' % th('sk.missing', what=', '.join(s['missing']))
         elif s['verified_missing']:
             req = '<p class="k5632-partial">%s</p>' % th('sk.partial', what=', '.join(s['verified_missing']))
+        req += _package_html(s)
         cards += ('<article class="k5632-card" data-enabled="%s"><h3>%s <small>v%s · %s</small></h3><p>%s</p><p class="f5632-hint">%s%s%s</p>%s'
                   '<div class="k5632-actions">%s%s<a class="k5632-export" href="%s">%s</a></div></article>') % (
             '1' if s['enabled'] else '0', e(s['name']), e(s['version']), th('sk.origin.' + s['origin']), e(s['description']),
@@ -268,14 +283,17 @@ def skills_page(desk, auth, prefix, env, shell):
                        i18n.t('sk.disable' if s['enabled'] else 'sk.enable'), reload=True),
             _form('skills/copy', '<input type="hidden" name="id" value="%s">' % e(s['id'], quote=True), i18n.t('sk.copy'), reload=True),
             e(prefix + '/api440/m5632/skills/export?id=' + s['id'], quote=True), th('sk.export'))
+    from .liaisons5683 import overview
+    capacities = ''.join('<li>%s : <strong>%s</strong></li>' % (e(c['capacite'].replace('_', ' ')), e(c['libelle'])) for c in overview(desk))
     create = ''.join('<label>%s<textarea name="%s" rows="%d"%s></textarea></label>' % (th('sk.f.' + f), f, 1 if f == 'nom' else 3, ' required' if f in ('nom', 'objectif') else '')
                      for f in ('nom', 'objectif', 'situations', 'etapes', 'resultat', 'controles', 'exemples', 'limites'))
-    body = ('<div class="k5632"><h1>%s</h1><p>%s</p>%s<div class="k5632-grid">%s</div><section><h2>%s</h2><p>%s</p>%s</section>'
+    body = ('<div class="k5632"><h1>%s</h1><p>%s</p>%s<div class="k5632-grid">%s</div><section><h2>Capacités des services connectés</h2><p class="f5632-hint">Une connexion réussie prouve l’accès à la liste '
+            'des outils, pas qu’une recherche ou une lecture fonctionne.</p><ul>%s</ul></section><section><h2>%s</h2><p>%s</p>%s</section>'
             '<section><h2>%s</h2><p>%s</p>%s</section></div>') % (
         th('sk.title'), th('sk.intro'),
         (_form('admin/skills/auto', '<input type="hidden" name="on" value="%s">' % ('0' if auto_mode(desk) else '1'), i18n.t('sk.auto_off' if auto_mode(desk) else 'sk.auto_on'), reload=True)
          if role == 'administrateur' else ''),
-        cards, th('sk.create'), th('sk.create_intro'), _form('skills/create', create, i18n.t('sk.create_btn'), reload=True),
+        cards, capacities, th('sk.create'), th('sk.create_intro'), _form('skills/create', create, i18n.t('sk.create_btn'), reload=True),
         th('sk.import'), th('sk.import_intro'), _form('skills/import', '<input type="file" data-m5632-file accept=".md,.zip" required>', i18n.t('sk.import_btn'), reload=True))
     return shell(i18n.t('sk.title'), body, prefix, auth['csrf'], '/competences')
 

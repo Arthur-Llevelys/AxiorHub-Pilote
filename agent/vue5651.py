@@ -151,6 +151,9 @@ def header_html(desk, prefix, m, view, auth):
     more = ''.join('<li><a href="%s">%s</a></li>' % (e(prefix + href, quote=True), e(label)) for href, label in (
         ('/documents?' + urlencode({'matter': mid}), 'Tous les documents'), ('/strategy?' + urlencode({'matter': mid}), 'Stratégie'),
         ('/modeles-word?' + urlencode({'matter': mid}), 'Créer un courrier Word')))
+    from . import operations5683   # 5.6.83 : l'opération apparaît aussi dans le dossier
+    more += ''.join('<li><a href="%s">Cession de %s — %s</a></li>' % (e(prefix + '/corporate?societe=%s&vue=cessions&dossier=%s' % (o['company'], o['id']), quote=True),
+                                                                     'parts' if o['branch'] == 'parts' else 'actions', e(o['denomination'])) for o in operations5683.for_matter(desk, mid)[:8])
     tabs = ''.join('<a href="%s"%s>%s</a>' % (e(prefix + _q(mid, key), quote=True), ' aria-current="page"' if key == view else '', e(label)) for key, label in TABS)
     return ('<div class="d27 d51" data-d27-matter="%s"><nav class="d27-back"><a href="%s">← Tous les dossiers</a></nav>'
             '<header class="d27-head"><div class="d27-title"><h1>%s</h1><p class="d27-muted">Référence %s%s</p></div>'

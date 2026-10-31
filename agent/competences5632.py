@@ -122,11 +122,16 @@ def listing(desk, owner='cabinet', caps=None):
         missing = [c for c in need if c not in caps]
         verified_missing = [c for c in (req.get('verified_draft') or []) if c not in caps]
         versions = [r['version'] for r in desk.db.execute('SELECT version FROM skills5632 WHERE id=? ORDER BY created', (st['id'],))]
+        from .competences5683 import resources as _resources83
+        kept = len(_resources83(desk, st['id'], st['active_version']))
         out.append({'id': st['id'], 'name': row['name'], 'description': row['description'], 'origin': row['origin'], 'scope': st['scope'],
                     'owner': st['owner'], 'version': st['active_version'], 'versions': versions, 'enabled': bool(st['enabled']),
                     'sha256': row['sha256'], 'license': manifest.get('license', ''), 'source': manifest.get('source', ''),
                     'author': manifest.get('author', ''), 'missing': missing, 'verified_missing': verified_missing,
-                    'situations': manifest.get('situations', []), 'parent': row['parent']})
+                    'situations': manifest.get('situations', []), 'parent': row['parent'], 'rights': manifest.get('rights') or {}, 'resources': kept,
+                    'scripts': manifest.get('script_decisions') or [],
+                    # 5.6.83 : ancien import dont les références n'ont pas été conservées : à réimporter, rien n'est fabriqué
+                    'a_reimporter': row['origin'] == 'import' and not kept and len(manifest.get('files') or []) > 1})
     return out
 
 
@@ -183,7 +188,7 @@ def _insert(desk, sid, version, origin, owner, scope, name, desc, manifest, inst
     if len(instructions) > 200_000:
         raise Stop('instructions_competence_trop_longues')
     desk.db.execute('INSERT INTO skills5632 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (sid, version, origin, owner, scope, name[:120], desc[:600], json.dumps(manifest, ensure_ascii=False), instructions, _sha(instructions), parent, _now()))
+                    (sid, version, origin, owner, scope, name[:120], desc[:4000], json.dumps(manifest, ensure_ascii=False), instructions, _sha(instructions), parent, _now()))
     st = desk.db.execute('SELECT * FROM skill_state5632 WHERE id=?', (sid,)).fetchone()
     if st:
         desk.db.execute('UPDATE skill_state5632 SET active_version=?, updated=? WHERE id=?', (version, _now(), sid))
@@ -205,70 +210,56 @@ def create(desk, owner, data, scope='personal'):
 
 
 def _frontmatter(text):
-    m = re.match(r'^---\s*\n(.*?)\n---\s*\n', text, re.S)
-    meta = {}
-    if m:
-        for line in m.group(1).splitlines():
-            k, _, v = line.partition(':')
-            if k.strip():
-                meta[k.strip()] = v.strip().strip('"')
-    return meta
+    from .yaml5683 import frontmatter
+    return frontmatter(text)[0]     # 5.6.83 (SK01) : lecture stricte : blocs, listes, métadonnées imbriquées, clés dupliquées refusées
+
+
+def _items(value):
+    """Situations ou phases : liste YAML, ou texte séparé par des virgules (forme historique)."""
+    if isinstance(value, (list, tuple)):
+        return [str(x).strip() for x in value if str(x).strip()]
+    return [x.strip() for x in re.split(r'[,;]', str(value or '')) if x.strip()]
 
 
 def import_skill(desk, owner, raw, filename, scope='personal'):
-    """SKILL.md seul ou archive .zip : seuls les fichiers texte déclaratifs sont lus ; scripts et binaires sont refusés et listés."""
+    """SKILL.md seul ou archive .zip : inventaire complet ou refus ; aucun script exécuté ; ressources conservées par version (5.6.83)."""
+    from . import competences5683 as c83
     schema(desk)
+    c83.schema(desk)
     name = PurePosixPath(str(filename or '').replace('\\', '/')).name.lower()
-    blocked, texts = [], {}
+    package = {'files': [], 'blocked': [], 'scripts': [], 'archive_sha256': ''}
     if name.endswith('.zip'):
-        if not 0 < len(raw) <= 12_000_000:
-            raise Stop('taille_archive_competence_invalide')
-        try:
-            z = zipfile.ZipFile(io.BytesIO(raw))
-            total = 0
-            for info in z.infolist()[:300]:
-                path = PurePosixPath(info.filename)
-                if path.is_absolute() or '..' in path.parts or (info.external_attr >> 16) & 0o170000 == 0o120000:
-                    raise Stop('chemin_archive_competence_refuse')
-                if info.is_dir():
-                    continue
-                total += info.file_size
-                if total > 30_000_000:
-                    raise Stop('archive_competence_trop_grande')
-                if path.suffix.lower() in EXECUTABLE or path.suffix.lower() not in ('.md', '.txt', '.json'):
-                    blocked.append(str(path))
-                    continue
-                data = z.read(info)
-                if len(data) > 1_000_000 or b'\x00' in data:
-                    blocked.append(str(path))
-                    continue
-                texts[str(path)] = data.decode('utf-8', 'replace')
-        except zipfile.BadZipFile:
-            raise Stop('archive_competence_invalide') from None
+        package = c83.inspect(raw)
+        skill_file = next(f for f in package['files'] if PurePosixPath(f['path']).name.lower() == 'skill.md')
+        skill = skill_file['data'].decode('utf-8', 'replace')
     elif name.endswith('.md'):
-        texts['SKILL.md'] = raw.decode('utf-8', 'replace') if isinstance(raw, bytes) else str(raw)
+        skill = raw.decode('utf-8', 'replace') if isinstance(raw, bytes) else str(raw)
     else:
         raise Stop('format_competence_invalide')
-    skill = next((t for p, t in texts.items() if p.lower().endswith('skill.md')), None)
-    if not skill:
-        raise Stop('skill_md_absent')
     meta = _frontmatter(skill)
-    slug = re.sub(r'[^a-z0-9]+', '-', fold(meta.get('name') or PurePosixPath(name).stem)).strip('-')[:60] or 'competence'
+    slug = re.sub(r'[^a-z0-9]+', '-', fold(str(meta.get('name') or PurePosixPath(name).stem))).strip('-')[:60] or 'competence'
     sid = 'import.' + slug
-    desc = meta.get('description', '')[:600]
+    desc = str(meta.get('description') or '')[:4000]
     existing = desk.db.execute('SELECT COUNT(*) FROM skills5632 WHERE id=?', (sid,)).fetchone()[0]
     version = '1.%d.0' % existing
     sha = _sha(skill)
     if desk.db.execute('SELECT 1 FROM skills5632 WHERE id=? AND sha256=?', (sid, sha)).fetchone():
         raise Stop('competence_deja_importee')
-    situations = [x.strip() for x in re.split(r'[,;]', meta.get('situations', '')) if x.strip()]
-    phases = [x.strip() for x in re.split(r'[,;]', meta.get('phases', '') or meta.get('phase', '')) if x.strip()]   # 5.6.43 (§ 26.1)
-    manifest = _manifest_for(sid, meta.get('name') or slug, desc, version, 'import', situations,
-                             {'files': sorted(texts), 'blocked_files': blocked, 'scripts_executed': False, 'filename': name,
-                              'phases': phases, 'references_injected': False})
-    _insert(desk, sid, version, 'import', owner, 'cabinet' if scope == 'cabinet' else 'personal', meta.get('name') or slug, desc, manifest, skill)
-    desk.audit('competence5632_importee', {'id': sid, 'version': version, 'blocked': len(blocked), 'scripts_executed': False})
-    return {'id': sid, 'version': version, 'blocked_files': blocked, 'files': sorted(texts), 'state': 'a_relire'}
+    situations = _items(meta.get('situations'))
+    phases = _items(meta.get('phases') or meta.get('phase'))   # 5.6.43 (§ 26.1)
+    decisions = c83.script_decisions(package['scripts'])
+    manifest = _manifest_for(sid, str(meta.get('name') or slug), desc, version, 'import', situations,
+                             {'files': sorted(f['path'] for f in package['files']) or ['SKILL.md'], 'blocked_files': sorted(package['blocked'] + package['scripts']),
+                              'scripts_executed': False, 'filename': name, 'phases': phases, 'references_injected': False, 'schema_version': 'axiorhub.skill/2',
+                              'metadata': meta.get('metadata') if isinstance(meta.get('metadata'), dict) else {}, 'archive_sha256': package['archive_sha256'],
+                              'rights': c83.rights_of(meta, package['files']), 'script_decisions': decisions,
+                              'resources': [{k: f[k] for k in ('path', 'kind', 'sha256', 'size')} for f in package['files']]})
+    manifest['license'] = manifest['rights']['declared']
+    _insert(desk, sid, version, 'import', owner, 'cabinet' if scope == 'cabinet' else 'personal', str(meta.get('name') or slug), desc, manifest, skill)
+    c83.store_resources(desk, sid, version, package['files'])
+    desk.audit('competence5632_importee', {'id': sid, 'version': version, 'blocked': len(package['blocked']), 'scripts': len(package['scripts']), 'scripts_executed': False})
+    return {'id': sid, 'version': version, 'blocked_files': manifest['blocked_files'], 'files': manifest['files'], 'state': 'a_relire', 'rights': manifest['rights'],
+            'script_decisions': decisions}
 
 
 def edit(desk, owner, sid, instructions):
@@ -317,12 +308,8 @@ def set_enabled(desk, owner, sid, on, version=None):
 
 
 def export(desk, sid, version=None):
-    row = _row(desk, sid, version)
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
-        z.writestr('SKILL.md', row['instructions'])
-        z.writestr('manifest.json', row['manifest'])
-    return buf.getvalue()
+    from .competences5683 import export_package
+    return export_package(desk, _row(desk, sid, version))    # 5.6.83 (SK02) : ressources et empreintes restituées
 
 
 # --------------------------------------------------------------------------------------------- sélection par tâche
@@ -358,15 +345,21 @@ def resolve(desk, text, owner='cabinet', manual=None, auto=None):
     return chosen
 
 
-def instructions_for(desk, selection, budget=BUDGET):
+def instructions_for(desk, selection, budget=BUDGET, query='', phase=''):
+    """5.6.83 (SK03) : noyau et sections utiles à l'étape dans le budget ; une section n'est jamais coupée, ce qui reste hors contexte est signalé."""
+    from .competences5683 import load_for_step
     blocks, used = [], 0
+    _ctx.loaded = {}
     for sel in selection:
         row = _row(desk, sel['id'], sel['version'])
-        text = row['instructions']
-        if used + len(text) > budget:   # 5.6.43 (§ 7.3) : jamais coupée au milieu de ses limites ou contrôles : non transmise, signalée
+        room = budget - used
+        text, omitted, loaded = load_for_step(desk, sel, row, room, query, phase) if room > 0 else ('', [], [])
+        _ctx.loaded[sel['id']] = (loaded, omitted)
+        if not text.strip():   # 5.6.43 (§ 7.3) : jamais coupée au milieu de ses limites ou contrôles : non transmise, signalée
             blocks.append('[Compétence « %s » non transmise : elle dépasse la place disponible dans le contexte.]' % row['name'])
             continue
-        blocks.append('COMPÉTENCE « %s » version %s (%s)\n%s' % (row['name'], row['version'], sel['reason'], text))
+        note = '\n[Sections non chargées à cette étape : %s.]' % ', '.join(omitted[:12]) if omitted else ''
+        blocks.append('COMPÉTENCE « %s » version %s (%s)\n%s%s' % (row['name'], row['version'], sel['reason'], text, note))
         used += len(text)
     return '\n\n'.join(blocks)
 
@@ -399,7 +392,7 @@ def for_job(desk, row, args):
     except Exception:   # noqa: BLE001 — une compétence indisponible n'empêche jamais le travail
         selection = []
     _ctx.selection = selection
-    _ctx.text = instructions_for(desk, selection) if selection else ''
+    _ctx.text = instructions_for(desk, selection, query=text, phase=phase) if selection else ''
     try:   # 5.6.59 (A07) : savoir-faire approuvé du cabinet, rapproché de la vraie consigne et de la phase
         from .savoir5659 import for_job_text
         extra, _chosen = for_job_text(desk, row, args, text, phase)
@@ -413,6 +406,20 @@ def for_job(desk, row, args):
                 desk.db.execute('INSERT INTO skill_usage5632(skill,version,job_id,kind,mode,reason,at) VALUES(?,?,?,?,?,?,?)',
                                 (sel['id'], sel['version'], row['id'] if row else None, row['kind'] if row else '', sel['mode'], sel['reason'][:300], _now()))
             desk.db.commit()
-        yield selection
+            from . import competences5683   # 5.6.83 : journal des étapes : version, ressources chargées et sections omises
+            for sel in selection:
+                loaded, omitted = (getattr(_ctx, 'loaded', None) or {}).get(sel['id'], ((), ()))
+                competences5683.start_run(desk, row['id'] if row else None, sel, phase, str((args or {}).get('matter') or ''), str((args or {}).get('owner') or ''),
+                                          str((args or {}).get('id') or ''), sel['mode'], loaded, omitted)
+        try:
+            yield selection
+        except BaseException as error:
+            if selection and row:
+                from . import competences5683
+                competences5683.finish_runs(desk, row['id'], 'bloque', str(error))
+            raise
+        if selection and row:
+            from . import competences5683
+            competences5683.finish_runs(desk, row['id'], 'termine')
     finally:
         _ctx.selection, _ctx.text = [], ''

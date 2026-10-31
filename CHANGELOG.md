@@ -3,6 +3,46 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.83 — Cessions de parts et d’actions, formulaires officiels, compétences complètes, discussion reliée aux courriels et à l’agenda
+
+Complément du cahier des charges du 31 octobre 2026, première partie. Le détail ligne par ligne, y compris ce qui n’est pas livré, est dans
+`docs/RECETTE-5.6.83.md`. Fonds et bail, bibliothèque de modèles et fonctions de conseil viennent en 5.6.84.
+
+**Discussion** : l’assistant lit désormais vos courriels et votre agenda quand la question les vise, sans que vous ayez à les lui transmettre :
+« résume mes mails du jour », « retrouve le mail de DURAND », « qu’ai-je demain ? », « quoi de neuf ? ». La lecture ne marque aucun courriel comme lu.
+La date du jour est transmise au modèle. Sous la réponse, AxiorHub indique ce qui a été consulté. Si la messagerie ne répond pas, la réponse le dit ;
+si le modèle est occupé, la liste relevée s’affiche sans analyse.
+
+**Choix des documents** : à pertinence égale, la pièce la plus récente passe d’abord (l’ordre inverse faisait remonter les plus anciennes). Dossiers
+actifs et pièces récentes sont favorisés ; un dossier nommé dans la question borne la recherche ; une question sans objet précis ne ramène plus de pièces au hasard.
+
+**Correctif de confidentialité** : la réponse se préparait hors de la requête, sans les dossiers réservés de la personne. Dans une recherche générale, un
+extrait d’un dossier réservé à d’autres membres pouvait donc remonter. Les dossiers masqués accompagnent désormais la question.
+
+**Cessions de parts et actions** : nouvel onglet dans Corporate, sur la même société, les mêmes détentions et les mêmes registres. Fiche unique, prochaine
+action visible, quatre vues : Dossier de l’opération, Étapes, Documents, Formalités. Branche parts sociales pour SARL et EURL, branche actions pour SAS et SASU ;
+les autres formes sont en périmètre limité, avec préparation manuelle assistée. Un ordre de mouvement n’est plus proposé pour une cession de parts. Situation
+avant et après par titulaire, anomalie si statuts, tableau Excel et registre diffèrent, sans rien réécrire. Générer ne change aucun registre. Une cession ne se réalise plus sur
+un simple texte : il faut une pièce du dossier ou une signature vérifiée. Sept dates distinctes ; pour des actions, le mouvement porte la date d’inscription en compte. Une
+rectification crée une écriture corrective et garde l’historique. Modifier le prix signale les documents périmés et conserve un acte signé.
+
+**Règles datées** : droits d’enregistrement calculés sans IA (actions 0,1 %, parts 3 % avec abattement, prépondérance immobilière 5 %), avec assiette, composantes et
+sources relues le 31 octobre 2026. Une donnée manquante donne « À confirmer ». Chaque règle reste à valider par un avocat. Le 2759-SD n’est proposé que pour une cession
+d’actions sans acte. Le délai d’agrément part de la dernière notification établie ; son expiration ne vaut jamais accord automatique.
+
+**Formalités** : À préparer, Prête à contrôler, Autorisée, Transmise, Reçue, Acceptée, Rejetée. Récépissé exigé au retour. Aucun dépôt automatique.
+
+**Formulaires officiels** : nouvelle page, 13 formulaires avec source, millésime et empreinte. Téléchargement depuis les sites officiels, version différente signalée avant
+usage. 2672-SD, 2676-SD et 2759-SD se remplissent depuis le dossier ; les PDF sans champs donnent une fiche de données à recopier, sans imiter le Cerfa. L’IA, sur demande,
+ne reçoit que les libellés, jamais les données du dossier. Relecture obligatoire. 2670, 1674 et la requête en conciliation restent à préciser.
+
+**Compétences** : lecture YAML complète, ressources conservées par version et restituées à l’export, chargement des sections utiles à l’étape selon la place réelle du modèle,
+droits affichés, décision pour chaque script (aucun n’est exécuté), journal des étapes, capacités des services connectés, vérification d’une référence sans se fier au code 200.
+
+**Aperçu** : les classeurs Excel s’affichent en lecture seule dans le volet de lecture.
+
+**Non livré** : page fonds et bail, bibliothèque de 66 modèles, fonctions de conseil, essais réels des neuf paquets sur Ollama, Mistral et ChatGPT. Motifs dans `docs/RECETTE-5.6.83.md`.
+
 ## 5.6.82 — Mode de l’IA : modèle choisi pour chaque travail, abonnement ChatGPT seul, API Mistral ou Claude
 
 Cahier des charges du 31 octobre 2026. Socle livré : politique centrale, mode abonnement strict, routage par niveau, recherche rapide et

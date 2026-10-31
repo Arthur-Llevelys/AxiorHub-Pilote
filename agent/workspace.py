@@ -208,6 +208,9 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     question=args.get('question','').strip()
     if not question or len(question)>12000:raise Stop('question_requise_12000_caracteres_maximum')
     sources=[];coverage={};attachment_coverage=None;selected_reports=[]
+    from . import acces5683   # 5.6.83 : courriels et agenda lus quand la question les vise ; date du jour transmise
+    from .membres5650 import viewer_hidden
+    hidden=viewer_hidden();cabinet_sources=[];cabinet_access={};cabinet_only=False
     limit=min(60000,desk.c['ollama'].get('max_context_chars',65000))
     attachment_ids=args.get('attachment_ids') if isinstance(args.get('attachment_ids'),list) else []
     if not attachment_ids and args.get('attachment_id'):attachment_ids=[args['attachment_id']]
@@ -219,6 +222,10 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     rapide=bool(args.get('rapide'));full_limit=limit;compact=True
     from . import rapide5680
     voice=rapide5680.is_voice(args.get('purpose'))
+    previous=history(desk,scope)
+    cabinet_sources,cabinet_access,cabinet_only=acces5683.gather(desk,question,matter['id'] if matter else '',hidden,previous[0]['question'] if previous else '',voice)
+    sources.extend(cabinet_sources)
+    if not cabinet_access.get('courriels') and not cabinet_access.get('agenda'):cabinet_only=False
     if rapide:
         budget=int(rapide5680.context_limit(desk.c,args.get('purpose'),limit)*0.6)
         picked,report_pick,attachment_ids,unread=rapide5680.attachment_sources(desk,attachment_ids,question,args.get('matter',''),args.get('key',''),budget,voice)
@@ -283,13 +290,23 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         from .strategic import assistant_sources
         sources+=assistant_sources(desk,matter['id'],4)
         index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
-        fast=index.fast_sources(matter,[question],{**desk.c['documents'],'max_documents_per_mail':3}) if rapide else None
+        fast=index.fast_sources(matter,[question],{**desk.c['documents'],'max_documents_per_mail':3,'recent5683':acces5683.wants_recent(question)}) if rapide else None
         docs,coverage=fast if fast is not None else index.sources(dav,matter,[question],{**desk.c['documents'],'max_documents_per_mail':3})
         sources+=docs
-    elif not report:
-        found,coverage=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama')).global_sources(
-            [question],limit=12)
-        sources+=found
+    elif not report and not (cabinet_only and not acces5683.wants_documents(question)):
+        # 5.6.83 : un dossier nommé dans la question borne la recherche ; ailleurs, seuls les mots qui portent l'objet sont cherchés
+        index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
+        named=acces5683.named_matters(desk,question,hidden);terms=acces5683.focus_terms(question)
+        added=0
+        for current in named:
+            fast=index.fast_sources(current,[question],{**desk.c['documents'],'max_documents_per_mail':4,'recent5683':acces5683.wants_recent(question)})
+            if fast:
+                sources+=[{**s,'matter':current['id']} for s in fast[0]];coverage=fast[1];added+=len(fast[0])
+        if not added and terms:
+            found,coverage=index.global_sources([' '.join(terms)],limit=12,weights=acces5683.portfolio_weights(desk),recent=acces5683.wants_recent(question),floor=0.5)
+            sources+=found
+        elif not added:
+            coverage={'recherche':'aucun objet précis dans la question : aucune pièce choisie au hasard'}
     if selected_reports:coverage={**coverage,'selections':selected_reports}
     if attachment_coverage:coverage={**coverage,'piece_televersee':attachment_coverage}
     if compact:
@@ -311,6 +328,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     from .relevance370 import correction_guidance
     from .learning392 import learning_context
     payload={'question_avocat':question,'dossier':{'id':matter['id'],'nom':matter['client_name']} if matter else None,
+        'acces_cabinet':cabinet_access,
         'sources':sources,'couverture_documentaire':coverage,
         'contexte_interface':args.get('page_context',{}) if isinstance(args.get('page_context'),dict) else {},
         'preferences_cabinet':desk.settings('cabinet:profile',{}),
@@ -333,7 +351,12 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         fit_chat_context(payload,limit)
     if not sources:
         payload['limites']+=' Aucune source lisible disponible : demander des précisions, ne pas inventer de faits.'
-    result=model.ask('chat',payload)
+    try:
+        result=model.ask('chat',payload)
+    except Stop as error:   # 5.6.83 : modèle occupé : la liste relevée reste utile, annoncée comme non analysée
+        if str(error) in rapide5680.BUSY_CODES and return_result and any(s.get('kind') in ('liste_courriels','agenda') for s in sources):
+            return acces5683.fallback_answer([s for s in sources if s.get('kind') in ('liste_courriels','agenda')],cabinet_access)
+        raise
     # Compatibility with deterministic test/local adapters from 1.4; the real
     # 1.5 Model already enforces the complete schema before returning.
     if isinstance(result,dict) and set(result)=={'answer','source_ids','limits'}:
@@ -342,6 +365,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     if any(x not in {s['id'] for s in sources} for x in result['source_ids']):
         raise Stop('source_conversation_invalide')
     if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
+    result['limits'].extend(acces5683.limits_of(cabinet_access))
     unsourced=juridique5649.unsourced_references(result.get('answer',''),legal)
     if unsourced:result['limits'].append('Référence(s) à vérifier, absente(s) des sources juridiques consultées : '+' ; '.join(unsourced))
     if attachment_coverage and attachment_reports and attachment_reports[0].get('passages_total'):

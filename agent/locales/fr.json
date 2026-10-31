@@ -149,6 +149,8 @@
  "fn.contacts_crm.label": "Contacts & CRM",
  "fn.corporate.desc": "Secrétariat juridique : approbation des comptes, cessions, dirigeants, registres",
  "fn.corporate.label": "Corporate",
+ "fn.formulaires.desc": "Cerfa et déclarations : remplissage depuis le dossier, données à recopier",
+ "fn.formulaires.label": "Formulaires officiels",
  "fn.courriels.desc": "Boîte de réception, brouillons à relire, répondre et classer",
  "fn.courriels.label": "Courriels",
  "fn.diagnostic.desc": "Pourquoi rien n’est produit : services, erreurs, connexions",

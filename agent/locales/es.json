@@ -149,6 +149,8 @@
  "fn.contacts_crm.label": "Contactos y CRM",
  "fn.corporate.desc": "Secretaría societaria: aprobación de cuentas, transmisiones, administradores, libros",
  "fn.corporate.label": "Societario",
+ "fn.formulaires.desc": "Formularios Cerfa y declaraciones: relleno desde el expediente, datos que copiar",
+ "fn.formulaires.label": "Formularios oficiales",
  "fn.courriels.desc": "Bandeja de entrada, borradores por revisar, responder y archivar",
  "fn.courriels.label": "Correos",
  "fn.diagnostic.desc": "Por qué no se produce nada: servicios, errores, conexiones",

@@ -829,7 +829,11 @@ class _CorporateBase(t34.Base):
         if row['state'] == 'en_file':
             self.run_job(out['id'])
         planned = _json.loads(row['data']).get('date_ag') or '2026-10-12'
-        return self.co.realize(self.desk, {'id': out['id'], 'date': planned, 'justificatif': 'PV signé (essai fictif)'})
+        # 5.6.83 (CT04) : une cession exige une pièce signée présente dans le dossier
+        from agent.common import load_matters
+        piece = next(m for m in load_matters(self.desk.c) if m['id'] == MID)['path'].rstrip('/') + '/Acte signe.pdf'
+        self.docs.files[piece] = b'%PDF-1.4 fictif'
+        return self.co.realize(self.desk, {'id': out['id'], 'date': planned, 'justificatif': 'PV signé (essai fictif)', 'piece': piece}, dav=self.docs)
 
 
 class Corporate(_CorporateBase):

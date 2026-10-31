@@ -24,6 +24,11 @@ def _tokens(text):
     return set(lexical_terms([text]))
 
 
+def _descending(text):
+    """Clé de tri : ordre décroissant d'une date ISO."""
+    return [-ord(ch) for ch in str(text or '')]
+
+
 def fuse(lexical,semantic,k=60):
     """5.6.80 : fusion par rangs (RRF) de la recherche plein texte et de la recherche sémantique. Les deux scores ne sont pas comparables :
     leur simple somme laissait la similarité écraser les correspondances exactes (nom d'une partie, numéro de rôle, article)."""
@@ -281,7 +286,7 @@ class DocumentIndex:
         self.db.execute('DELETE FROM docs WHERE matter=? AND path=?',(matter,path))
         self.db.execute('DELETE FROM search WHERE matter=? AND path=?',(matter,path));self.db.commit()
 
-    def ranked_chunks(self,matter,terms,limit=10,kinds=None,min_relative=0.0):
+    def ranked_chunks(self,matter,terms,limit=10,kinds=None,min_relative=0.0,recent=False):
         mid=matter['id'] if isinstance(matter,dict) else matter
         tokens=lexical_terms(terms);scores={};rows={};lexical=[]
         if tokens:
@@ -310,6 +315,9 @@ class DocumentIndex:
                     key=(row[1],row[6]);rows[key]=row[:-1];found.append((max(0,cosine(q,json.loads(row[-1]))),key))
                 semantic=[k for _,k in sorted(found,key=lambda x:-x[0])[:60]]
         scores=fuse(lexical,semantic)
+        if recent:   # 5.6.83 : « le dernier courrier », « les pièces récentes » : la date compte dans le classement
+            from .acces5683 import freshness
+            scores={k:v*freshness(rows[k][4],True) for k,v in scores.items()}
         if not scores:
             for row in self.db.execute('SELECT * FROM knowledge_chunks WHERE matter=? ORDER BY modified DESC,indexed_at DESC LIMIT 30',(mid,)):
                 key=(row[1],row[6]);rows[key]=row;scores[key]=0
@@ -343,7 +351,7 @@ class DocumentIndex:
         Retourne None si le dossier n'a encore aucun passage indexé (l'appelant reprend alors ``sources``)."""
         mid=matter['id']
         if not self.db.execute('SELECT 1 FROM knowledge_chunks WHERE matter=? LIMIT 1',(mid,)).fetchone():return None
-        ranked,semantic_error=self.ranked_chunks(matter,terms,limit=max(2,cfg.get('max_documents_per_mail',5)*2))
+        ranked,semantic_error=self.ranked_chunks(matter,terms,limit=max(2,cfg.get('max_documents_per_mail',5)*2),recent=bool(cfg.get('recent5683')))
         grouped={}
         for row,score in ranked:
             item=grouped.setdefault(row[1],{'id':'doc-'+row[1][:16],'kind':'document','source_kind':row[5],
@@ -382,7 +390,7 @@ class DocumentIndex:
         return [{'id':'knowledge-'+row[1][:16]+'-'+str(row[6]),'path':row[2],'kind':row[5],
                  'modified':row[4],'excerpt':row[7],'score':round(score,4)} for row,score in ranked]
 
-    def global_sources(self,terms,limit=12):
+    def global_sources(self,terms,limit=12,weights=None,recent=False,floor=0.35):
         """Bounded cabinet-wide retrieval with explicit matter and source labels.
 
         Lexical candidates cover the complete indexed corpus. Semantic candidates
@@ -392,7 +400,7 @@ class DocumentIndex:
         lexical_count=0;lexical=[]
         if tokens:
             query=' OR '.join('"'+t+'"' for t in tokens)
-            try:
+            try:   # lexical : tout le corpus indexé
                 for row in self.db.execute('''SELECT c.*,bm25(knowledge_fts) FROM knowledge_fts
                   JOIN knowledge_chunks c ON c.matter=knowledge_fts.matter
                   AND c.source_id=knowledge_fts.source_id AND c.chunk_no=knowledge_fts.chunk_no
@@ -409,7 +417,7 @@ class DocumentIndex:
             if hits is not None:   # 5.6.80 : Qdrant parcourt tout le corpus ; SQLite restait limité aux 6 000 passages les plus récents
                 engine='qdrant'
                 for mid,source_id,chunk_no,score in hits:
-                    if score<0.35:continue
+                    if score<floor:continue
                     row=self.db.execute('SELECT * FROM knowledge_chunks WHERE matter=? AND source_id=? AND chunk_no=?',(mid,source_id,chunk_no)).fetchone()
                     if row:
                         key=(row[0],row[1],row[6]);rows[key]=row;semantic.append(key);semantic_scanned+=1
@@ -422,14 +430,18 @@ class DocumentIndex:
                   AND e.chunk_no=c.chunk_no WHERE e.model=?
                   ORDER BY c.indexed_at DESC LIMIT 6000''',(model,)):
                     semantic_scanned+=1;score=max(0,cosine(q,json.loads(row[-1])))
-                    if score<0.35:continue
+                    if score<floor:continue
                     key=(row[0],row[1],row[6]);rows[key]=row[:-1];found.append((score,key))
                 semantic=[k for _,k in sorted(found,key=lambda x:-x[0])]
         scores=fuse(lexical,semantic)
+        if weights is not None:   # 5.6.83 : dossier actif et pièce récente d'abord, à pertinence comparable ; aucun dossier exclu
+            from .acces5683 import freshness
+            scores={k:v*(weights or {}).get(rows[k][0],1.0)*freshness(rows[k][4],recent) for k,v in scores.items()}
         selected=[];per_matter={};per_source={}
         from .membres5650 import viewer_hidden
         hidden5650=viewer_hidden()
-        for key in sorted(scores,key=lambda k:(-scores[k],rows[k][4],k[2])):
+        # 5.6.83 : à score égal, la pièce la plus récente passe d'abord (l'ordre croissant faisait remonter les plus anciennes)
+        for key in sorted(scores,key=lambda k:(-scores[k],_descending(rows[k][4]),k[2])):
             row=rows[key];mid=row[0];source=row[1]
             if mid in hidden5650:continue   # 5.6.50 : dossier réservé à d'autres membres
             if per_matter.get(mid,0)>=4 or per_source.get((mid,source),0)>=2:continue
