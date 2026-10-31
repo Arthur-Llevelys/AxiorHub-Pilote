@@ -1,0 +1,201 @@
+{
+ "releve_le": "2026-10-31",
+ "formulaires": [
+  {
+   "id": "2672-sd",
+   "numero": "2672-SD",
+   "titre": "Extrait d’acte de mutation de fonds de commerce ou de clientèle",
+   "millesime": "12-2018",
+   "cerfa": "cerfa 11275*05",
+   "format": "champs",
+   "page": "https://www.impots.gouv.fr/formulaire/2672-sd/extrait-dacte-de-mutation-de-fonds-de-commerce-ou-de-clientele",
+   "service_guide": "",
+   "sha256": "359830375d3b3be8ea2700690332ea16fdb50c89be2646946d0d47a28cc96524",
+   "taille": 813162,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Mutation de fonds de commerce ou de clientèle. Parcours complet en 5.6.84."
+  },
+  {
+   "id": "2676-sd",
+   "numero": "2676-SD",
+   "titre": "État du matériel et des marchandises neuves cédés",
+   "millesime": "",
+   "cerfa": "",
+   "format": "champs",
+   "page": "https://www.impots.gouv.fr/formulaire/2676-sd/etat-du-materiel-et-des-marchandises-neuves-cedees",
+   "service_guide": "",
+   "sha256": "65083d62578a16bdb3e863bb7527d6843a580f6463a2332bd5a92514d4cdfccc",
+   "taille": 351972,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Inventaire joint à une mutation de fonds."
+  },
+  {
+   "id": "2759-sd",
+   "numero": "2759-SD",
+   "titre": "Cession de droits sociaux non constatée par un acte",
+   "millesime": "08-2026",
+   "cerfa": "10408*23",
+   "format": "champs",
+   "page": "https://www.impots.gouv.fr/formulaire/2759-sd/declaration-de-cessions-de-droits-sociaux-non-constatees-par-un-acte",
+   "service_guide": "",
+   "sha256": "a29617d79767061f2949b4ff41d65d300051af6085a6e7caf417e74b5d6ea383",
+   "taille": 715492,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Uniquement une cession non constatée par un acte ; jamais un substitut à un acte requis."
+  },
+  {
+   "id": "2065-sd",
+   "numero": "2065-SD",
+   "titre": "Déclaration de résultats à l’impôt sur les sociétés",
+   "millesime": "2026",
+   "cerfa": "",
+   "format": "plat",
+   "page": "https://www.impots.gouv.fr/formulaire/2065-sd/impot-sur-les-societes",
+   "service_guide": "",
+   "sha256": "c4f8d73574b6aa5667dba91ad8a918aaca3c71587f4d863938d0223f207d06de",
+   "taille": 210706,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Déclaration annuelle : en pratique déposée par voie électronique."
+  },
+  {
+   "id": "2072-s-a1-sd",
+   "numero": "2072-S-A1-SD",
+   "titre": "Annexe 1 à la déclaration des sociétés immobilières non soumises à l’impôt sur les sociétés",
+   "millesime": "2026",
+   "cerfa": "",
+   "format": "plat",
+   "page": "https://www.impots.gouv.fr/formulaire/2072-s-sd/declaration-des-societes-immobilieres-non-soumises-limpot-sur-les-societes",
+   "service_guide": "",
+   "sha256": "45189e2e7aa06318bc2d45958b6b7f6f86034670cdae56bff94bc7f9325f4303",
+   "taille": 55956,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Annexe de la déclaration 2072-S-SD."
+  },
+  {
+   "id": "2561",
+   "numero": "2561",
+   "titre": "Déclaration récapitulative des opérations sur valeurs mobilières et revenus de capitaux mobiliers",
+   "millesime": "2026",
+   "cerfa": "11428*28",
+   "format": "plat",
+   "page": "https://www.impots.gouv.fr/formulaire/2561/declaration-recapitulative-des-operations-sur-valeurs-mobilieres-et-revenus-de-capi",
+   "service_guide": "",
+   "sha256": "8db53b0e23c7c21e9225de760496618b4e167c086d845e267b1cc52b88b0efc6",
+   "taille": 189760,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Déclaration annuelle de l’établissement payeur."
+  },
+  {
+   "id": "cerfa-12948",
+   "numero": "Cerfa 12948",
+   "titre": "Demande en injonction de payer",
+   "millesime": "",
+   "cerfa": "12948*06",
+   "format": "plat",
+   "page": "https://www.formulaires.service-public.gouv.fr/gf/cerfa_12948.do",
+   "service_guide": "https://www.service-public.gouv.fr/simulateur/calcul/12948",
+   "sha256": "6b766a5556dbc82835ee3617e3cfd32af088f618ce3e6941eeeb1e3b97255f6b",
+   "taille": 98874,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Requête en injonction de payer."
+  },
+  {
+   "id": "cerfa-13644",
+   "numero": "Cerfa 13644",
+   "titre": "Déclaration de cession d’un fonds de commerce, d’un fonds artisanal, d’un bail commercial ou de terrains",
+   "millesime": "",
+   "cerfa": "13644*02",
+   "format": "plat",
+   "page": "https://www.formulaires.service-public.gouv.fr/gf/cerfa_13644.do",
+   "service_guide": "",
+   "sha256": "20888e76d401389999e1677e9ffb48ac08abe30fe553330fa714c4fe4afbf09a",
+   "taille": 678681,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Version courante *02 : la version *01 est remplacée."
+  },
+  {
+   "id": "cerfa-14023",
+   "numero": "Cerfa 14023",
+   "titre": "Demande de permission de voirie",
+   "millesime": "",
+   "cerfa": "14023*01",
+   "format": "plat",
+   "page": "https://www.formulaires.service-public.gouv.fr/gf/cerfa_14023.do",
+   "service_guide": "",
+   "sha256": "427a33eebf10159d9ed4f43c798f89e74d6a903d90b9d8fc272419eae86d4f71",
+   "taille": 178633,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Autorisation d’occupation du domaine public."
+  },
+  {
+   "id": "cerfa-15586",
+   "numero": "Cerfa 15586",
+   "titre": "Requête aux fins de saisine du conseil de prud’hommes par un salarié",
+   "millesime": "",
+   "cerfa": "15586*09",
+   "format": "plat",
+   "page": "https://www.formulaires.service-public.gouv.fr/gf/cerfa_15586.do",
+   "service_guide": "https://www.service-public.gouv.fr/simulateur/calcul/15586",
+   "sha256": "7476bbce14f4e033efb3bca7e10aa03e8bc8eaded0f53487c20d76b81c55df00",
+   "taille": 299755,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Saisine prud’homale par le salarié."
+  },
+  {
+   "id": "cerfa-16041",
+   "numero": "Cerfa 16041",
+   "titre": "Requête aux fins de saisine du juge des contentieux de la protection",
+   "millesime": "",
+   "cerfa": "16041*02",
+   "format": "plat",
+   "page": "https://www.formulaires.service-public.gouv.fr/gf/cerfa_16041.do",
+   "service_guide": "",
+   "sha256": "a085578072e7e6e4714b9a071e35fb090d4594f0ff18b9dcf76e6c35b0e78550",
+   "taille": 99578,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Saisine du juge des contentieux de la protection."
+  },
+  {
+   "id": "cerfa-16042",
+   "numero": "Cerfa 16042",
+   "titre": "Requête au tribunal judiciaire (demande d’un montant jusqu’à 5 000 €)",
+   "millesime": "",
+   "cerfa": "16042*02",
+   "format": "plat",
+   "page": "https://www.formulaires.service-public.gouv.fr/gf/cerfa_16042.do",
+   "service_guide": "https://www.service-public.gouv.fr/simulateur/calcul/16042",
+   "sha256": "f5e3c555703c1c71840778475822fd78a1e75874095f84560627013657e199e0",
+   "taille": 377836,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Demande en paiement ou autre demande, dans ce périmètre."
+  },
+  {
+   "id": "cerfa-16146",
+   "numero": "Cerfa 16146",
+   "titre": "Demande d’aide juridictionnelle",
+   "millesime": "",
+   "cerfa": "16146*03",
+   "format": "plat",
+   "page": "https://www.formulaires.service-public.gouv.fr/gf/cerfa_16146.do",
+   "service_guide": "https://www.service-public.gouv.fr/simulateur/calcul/16146",
+   "sha256": "56bbd485ea6d3cd96048f3fc719b89a3ff7818f156410ba37b78befd548092ac",
+   "taille": 293275,
+   "releve_le": "2026-10-31",
+   "applicabilite": "Le fichier déclare un formulaire mais ne contient aucun champ."
+  }
+ ],
+ "non_identifies": [
+  {
+   "demande": "2670",
+   "note": "Numéro introuvable sur impots.gouv.fr le 31 octobre 2026 : préciser l’intitulé."
+  },
+  {
+   "demande": "1674",
+   "note": "Numéro introuvable sur impots.gouv.fr le 31 octobre 2026 : préciser l’intitulé."
+  },
+  {
+   "demande": "Requête en conciliation",
+   "note": "Aucun Cerfa identifié à ce nom : préciser le formulaire visé."
+  }
+ ]
+}

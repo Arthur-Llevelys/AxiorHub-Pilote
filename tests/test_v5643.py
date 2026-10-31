@@ -542,7 +542,7 @@ class CompetencesParPhase(fixtures.Base):
         self.assertNotIn('règle règle', cut)                             # jamais coupée au milieu
         self.assertIn('non transmise', cut)
         src = (ROOT / 'agent' / 'model.py').read_text(encoding='utf-8')
-        self.assertIn("skill_text=assemble(str(self.cfg.get('skill_instructions') or ''),current_instructions())", src)
+        self.assertIn("skill_text=assemble(str(self.cfg.get('skill_instructions') or ''),current_instructions(),budget_chars(self.cfg,messages,max_tokens))", src)
 
     def test_import_conserve_les_phases_declarees(self):
         raw = ('---\nname: Méthode fictive\ndescription: "Essai"\nsituations: contrôle; relecture\nphases: controle\n---\n\n# Méthode\n1. Vérifier.\n').encode()

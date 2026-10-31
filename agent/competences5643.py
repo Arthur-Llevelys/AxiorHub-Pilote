@@ -140,8 +140,12 @@ def assemble(legacy, selected, budget=UNIFIED_BUDGET):
             continue
         seen.add(key)
         if used + len(block) > budget:
-            skipped += 1
-            continue
+            from .competences5683 import trim_block     # 5.6.83 (SK03) : sections entières dans la place restante, plutôt qu'un refus global
+            kept = trim_block(block, budget - used) if block.startswith('COMPÉTENCE « ') else ''
+            if not kept:
+                skipped += 1
+                continue
+            block = kept
         out.append(block)
         used += len(block)
     if skipped:

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from .common import Stop, clean_path, fold, load_matters, matter_display
 from .erreurs5634 import Qualified
-from .corporate_modeles5636 import DOCS, OPERATIONS
+from .corporate_modeles5636 import DOCS, OPERATIONS, OPTIONAL_DOCS, documents_of
 
 FORMS = {
     'SAS': ('société par actions simplifiée', 'actions', 'Président', False),
@@ -1027,11 +1027,14 @@ def operation_submit(desk, data, owner='cabinet'):
         raise Stop('operation_inconnue')
     d = _clean_data(desk, kind, data)
     op = uuid.uuid4().hex
-    docs = [x for x in OPERATIONS[kind][1] if data.get('doc_' + x, x not in ('demission', 'agrement'))]
+    nature = FORMS.get(company(desk, str(data.get('company') or ''))['forme'], ('', ''))[1] if kind == 'cession' else ''
+    docs = [x for x in documents_of(kind, nature) if data.get('doc_' + x, x not in OPTIONAL_DOCS)]   # 5.6.83 (CO01) : parts ou actions
     if kind == 'dirigeant' and d.get('motif') == 'demission' and 'demission' not in docs and data.get('doc_demission') is None:
         docs.insert(1, 'demission')
     if kind == 'cession' and d.get('agrement') and 'agrement' not in docs and data.get('doc_agrement') is None:
         docs.insert(2, 'agrement')
+    if kind == 'cession' and str(data.get('dossier5683') or ''):
+        d['dossier5683'] = str(data['dossier5683'])[:64]   # 5.6.83 : rattachement à la fiche d'opération
     docs += ['perso_' + r['id'] for r in own_deeds(desk, kind) if data.get('doc_perso_' + r['id'], True) not in (False, '', '0', 'false')]
     if not docs:
         raise Stop('aucun_document_choisi')
@@ -1120,7 +1123,29 @@ def realization_state(row):
     return True, external, ''
 
 
-def realize(desk, data, owner='cabinet', externe=False):
+def _proof_reference(desk, row, data, dav=None):
+    """5.6.83 (CT04) : pour une cession, le justificatif écrit ne suffit plus : il faut une pièce présente dans le dossier de la société ou un
+    événement de signature vérifié de la fiche d'opération. Aucun mouvement n'est écrit sans cette référence. Contrôle fait AVANT la transaction."""
+    event = str(data.get('evenement') or '')
+    if event:
+        from . import operations5683
+        found = operations5683.signature_event(desk, row['id'], event)
+        if not found:
+            raise Stop('evenement_signature_inconnu')
+        return {'type': 'evenement', 'id': event, 'jour': found['day']}
+    if not str(data.get('piece') or '').strip():
+        raise Stop('piece_justificative_requise')
+    piece = clean_path(str(data['piece']))
+    c = company(desk, row['company'])
+    matter = next((m for m in load_matters(desk.c) if m['id'] == c['matter']), None)
+    if not matter or not (piece + '/').startswith(matter['path'].rstrip('/') + '/'):
+        raise Stop('piece_hors_dossier')
+    from .dav import DAV
+    info = (dav or DAV(desk.c['nextcloud'])).stat(piece)
+    return {'type': 'piece', 'chemin': piece, 'empreinte': str(info.get('etag') or '')}
+
+
+def realize(desk, data, owner='cabinet', externe=False, dav=None):
     """5.6.37 (audit F09) : l'avocat constate que la décision a été prise (AG tenue, acte signé) : effets inscrits d'un bloc, avec la date
     de la décision et le justificatif ; contrôles refaits sur l'état actuel des registres.
     5.6.39 (audit 5.6.37) : F03 — le parcours courant exige des actes prêts ; le parcours « actes externes » est distinct et exige une
@@ -1140,6 +1165,8 @@ def realize(desk, data, owner='cabinet', externe=False):
         raise Stop('justificatif_requis')
     if externe and str(data.get('actes_externes') or '') not in ('1', 'true', 'on', 'True'):
         raise Stop('confirmation_actes_externes_requise')
+    known = desk.db.execute('SELECT id, company, kind FROM operations5636 WHERE id=?', (op,)).fetchone()
+    proof_ref = _proof_reference(desk, known, data, dav) if known and known['kind'] == 'cession' else None
     if not desk.db.in_transaction:
         desk.db.execute('BEGIN IMMEDIATE')
     try:
@@ -1159,6 +1186,8 @@ def realize(desk, data, owner='cabinet', externe=False):
             d[planned_key + '_prevue'] = planned
             d[planned_key] = day
         c = company(desk, row['company'])
+        if row['kind'] == 'cession' and str(data.get('date_transfert') or ''):   # 5.6.83 (CT07) : date du transfert distincte de la signature
+            d['date_cession'] = str(data['date_transfert'])[:10]
         for key in ('date_effet', 'date_cession'):
             if key in d and not d.get(key):
                 d[key] = day
@@ -1166,6 +1195,8 @@ def realize(desk, data, owner='cabinet', externe=False):
              else _apply_effects(desk, c, row['kind'], d, op, decision_day=day))
         d.update(effets='realises', date_decision=day, realise_le=date.today().isoformat(), realise_par=owner, justificatif=proof,
                  mode_realisation='actes_externes' if externe else 'actes_prepares')
+        if proof_ref:
+            d['preuve'] = proof_ref
         cur = desk.db.execute('UPDATE operations5636 SET state=?, data=?, updated=? WHERE id=? AND state=? AND updated=?',
                               ('realisee', json.dumps(d, ensure_ascii=False), _now(), op, row['state'], row['updated']))
         if not cur.rowcount:
@@ -1573,9 +1604,11 @@ def _realize_forms(o, d):
     planned = str(d.get(DATE_DECISION.get(o['kind'], ''), '') or '')[:10]
     ident = e(o['id'], quote=True)
     fields = ('<input type="hidden" name="id" value="%s"><label>Date de la décision<input type="date" name="date" value="%s" required></label>'
-              '<label>Justificatif<input name="justificatif" required placeholder="PV signé, acte signé, décision de l’associé unique…"></label>%s') % (
+              '<label>Justificatif<input name="justificatif" required placeholder="PV signé, acte signé, décision de l’associé unique…"></label>%s%s') % (
         ident, e(planned, quote=True), ('<label class="e5636-switch"><input type="checkbox" name="confirmer_date" value="1"> La décision a été prise à '
-                                        'cette date (différente de la date prévue, %s)</label>' % e(planned)) if planned else '')
+                                        'cette date (différente de la date prévue, %s)</label>' % e(planned)) if planned else '',
+        # 5.6.83 (CT04) : pièce signée présente dans le dossier
+        '<label>Pièce signée dans le dossier<input name="piece" required placeholder="/Clients/…/Acte signé.pdf"></label>' if o['kind'] == 'cession' else '')
     html = ''
     if ok:
         html += ('<form class="m5-form m5-inline c5637-realise" data-api="m5636/corporate/realiser" data-reload="1">%s'
@@ -1593,12 +1626,13 @@ def _realize_forms(o, d):
 
 
 def operation_form(desk, prefix, c, kind, labels):
-    title, docs = OPERATIONS[kind]
+    title = OPERATIONS[kind][0]
+    docs = documents_of(kind, FORMS.get((c or {}).get('forme'), ('', ''))[1])   # 5.6.83 (CO01) : parts ou actions selon la forme sociale
     fields = ''.join(_field(desk, c, kind, k, lab, typ, default, labels) for k, lab, typ, default in FIELDS[kind])
     fields += ''.join(_field(desk, c, kind, k, lab, 'text', '', labels) for k, lab in custom_fields(desk, kind))
     mapping = desk.settings(SETTINGS_TEMPLATES, {}) or {}
     checks = ''.join('<label class="e5636-switch"><input type="checkbox" name="doc_%s"%s> %s <small>(%s)</small></label>' % (
-        d, '' if d in ('demission', 'agrement') else ' checked', e(DOCS[d][0]), 'modèle du cabinet' if mapping.get(d) else 'modèle générique') for d in docs)
+        d, '' if d in OPTIONAL_DOCS else ' checked', e(DOCS[d][0]), 'modèle du cabinet' if mapping.get(d) else 'modèle générique') for d in docs)
     checks += ''.join('<label class="e5636-switch"><input type="checkbox" name="doc_perso_%s" checked> %s <small>(mes actes)</small></label>' % (
         e(r['id'], quote=True), e(r['label'])) for r in own_deeds(desk, kind))
     checks += variables_html(desk, kind, prefix, (c or {}).get('id', ''))
@@ -1742,7 +1776,8 @@ def page_html(desk, prefix, args):
             'les pièces d’immatriculation sont préparés à partir d’une seule saisie.</p></section>')
     else:
         c = company(desk, cid)
-        tabs = (('fiche', 'Fiche'), ('operations', 'Opérations'), ('capital', 'Table de capitalisation'), ('registres', 'Registres'), ('actes', 'Actes préparés'),
+        tabs = (('fiche', 'Fiche'), ('operations', 'Opérations'), ('cessions', 'Cessions de parts et actions'), ('capital', 'Table de capitalisation'),
+                ('registres', 'Registres'), ('actes', 'Actes préparés'),
                 ('modeles', 'Modèles et formulaires'), ('bibliotheque', 'Bibliothèque de modèles'))
         main = '<header class="c5636-head"><h2>%s <small>%s</small></h2><nav class="tabs">%s</nav></header>' % (
             e(c['denomination']) + (' (en formation)' if c['data'].get('statut') == 'en_formation' else ''), e(FORMS.get(c['forme'], ('',))[0]),
@@ -1783,6 +1818,9 @@ def page_html(desk, prefix, args):
                                             for x in decisions) or '<tr><td colspan="4" class="ax-muted">Registre vide.</td></tr>')
         elif view == 'actes':
             main += operations_html(desk, prefix, cid)
+        elif view == 'cessions':   # 5.6.83 (cahier complément § 7)
+            from . import operations5683
+            main += operations5683.page_html(desk, prefix, c, args)
         elif view == 'bibliotheque':   # 5.6.39 : variables pré-remplies depuis cette société
             from . import bibliotheque5639
             main += bibliotheque5639.page_html(desk, prefix, args, cid)

@@ -34,6 +34,7 @@ FUNCTIONS = (
     ('corporate', 'dossier', '/corporate', ('Secrétariat juridique', 'Approbation des comptes', 'AGO', 'Cession de titres', 'Table de capitalisation',
                                              'Registre des mouvements de titres', 'Création de société', 'Transfert de siège', 'Changement de dirigeant',
                                              'Bibliothèque de modèles', 'Statuts', 'Pacte d’associés', 'Lettre d’intention'), ('storage',)),   # 5.6.39
+    ('formulaires', 'dossier', '/formulaires', ('Formulaires officiels', 'Cerfa', 'Remplir un formulaire', '2759-SD', '2672-SD', 'Injonction de payer', 'Aide juridictionnelle'), ('storage',)),   # 5.6.83
     ('profils', 'dossier', '/profils', ('Profils procéduraux', 'Procédures approuvées'), ()),
     ('strategie', 'dossier', '/strategy', ('Stratégie', 'Question stratégique'), ('storage',)),   # 5.6.79 : dans le dossier, onglet Travail
     ('studio', 'dossier', '/studio', ('Studio de production',), ('ai',)),

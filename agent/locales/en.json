@@ -149,6 +149,8 @@
  "fn.contacts_crm.label": "Contacts & CRM",
  "fn.corporate.desc": "Corporate secretarial work: accounts approval, transfers, directors, registers",
  "fn.corporate.label": "Corporate",
+ "fn.formulaires.desc": "Cerfa forms and returns: filled from the matter, data to copy",
+ "fn.formulaires.label": "Official forms",
  "fn.courriels.desc": "Inbox, drafts to review, reply and file",
  "fn.courriels.label": "Emails",
  "fn.diagnostic.desc": "Why nothing is produced: services, errors, connections",

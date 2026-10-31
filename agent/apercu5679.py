@@ -18,7 +18,7 @@ from urllib.parse import quote, urlencode
 import xml.etree.ElementTree as ET
 import zipfile
 
-from .common import Stop
+from .common import Stop, xml_bytes
 
 W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
 IMAGES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
@@ -49,6 +49,8 @@ def kind_of(path):
         return 'image'
     if ext == '.docx':
         return 'docx'
+    if ext == '.xlsx':
+        return 'xlsx'
     if ext in TEXTS:
         return 'texte'
     return 'autre'
@@ -152,6 +154,58 @@ def docx_html(raw):
     return ''.join(out) or '<p class="a79-empty">Document sans texte.</p>'
 
 
+def xlsx_sheets(raw, max_rows=200, max_cols=40):
+    """5.6.83 : lecture seule d'un classeur, sans bibliothèque : feuilles, chaînes partagées, valeurs affichées. Formules non recalculées."""
+    ns = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+    rel = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+    try:
+        with zipfile.ZipFile(BytesIO(raw)) as z:
+            names = set(z.namelist())
+            shared = []
+            if 'xl/sharedStrings.xml' in names:
+                shared = [''.join(t.text or '' for t in si.iter(ns + 't')) for si in xml_bytes(z.read('xl/sharedStrings.xml')).findall(ns + 'si')]
+            links = {}
+            if 'xl/_rels/workbook.xml.rels' in names:
+                links = {r.get('Id'): r.get('Target', '') for r in xml_bytes(z.read('xl/_rels/workbook.xml.rels'))}
+            sheets = []
+            for sheet in xml_bytes(z.read('xl/workbook.xml')).iter(ns + 'sheet'):
+                target = 'xl/' + links.get(sheet.get(rel), '').lstrip('/').removeprefix('xl/')
+                if target not in names:
+                    continue
+                rows = []
+                for row in xml_bytes(z.read(target)).iter(ns + 'row'):
+                    if len(rows) >= max_rows:
+                        break
+                    cells = {}
+                    for cell in row.findall(ns + 'c'):
+                        ref = re.sub(r'[0-9]', '', cell.get('r', '')) or 'A'
+                        col = 0
+                        for ch in ref:
+                            col = col * 26 + ord(ch.upper()) - 64
+                        if col > max_cols:
+                            continue
+                        value = cell.findtext(ns + 'v') or ''
+                        if cell.get('t') == 's' and value.isdigit():
+                            value = shared[int(value)] if int(value) < len(shared) else ''
+                        elif cell.get('t') == 'inlineStr':
+                            value = ''.join(t.text or '' for t in cell.iter(ns + 't'))
+                        cells[col] = value
+                    rows.append([cells.get(i, '') for i in range(1, max(cells, default=0) + 1)])
+                sheets.append((sheet.get('name') or 'Feuille', rows))
+            return sheets
+    except (zipfile.BadZipFile, KeyError, ET.ParseError, ValueError):
+        raise Stop('classeur_illisible') from None
+
+
+def xlsx_html(raw):
+    """Aperçu simple d'un classeur : texte échappé, sans édition (GridCraft reporté)."""
+    out = []
+    for name, rows in xlsx_sheets(raw):
+        lines = ''.join('<tr>%s</tr>' % ''.join('<td>%s</td>' % e(c) for c in r) for r in rows if any(c.strip() for c in r))
+        out.append('<h3>%s</h3>%s' % (e(name), ('<div class="o5636-scroll"><table class="o5636-grid"><tbody>%s</tbody></table></div>' % lines) if lines else '<p class="ax-muted">Feuille vide.</p>'))
+    return ''.join(out) or '<p class="ax-muted">Classeur vide.</p>'
+
+
 def text_html(text):
     text = str(text or '')[:MAX_TEXT]
     text = re.sub(r'\[Page (\d+)\]', '\n\n— page \\1 —\n', text)
@@ -196,6 +250,11 @@ def preview(desk, prefix, mid, path):
             if not text:
                 raise
             return {**out, 'kind': 'html', 'html': text_html(text), 'note': 'Mise en forme indisponible (%s) : texte indexé.' % ex}
+    if kind == 'xlsx':
+        try:
+            return {**out, 'kind': 'html', 'html': xlsx_html(_download(desk, path)), 'note': 'Aperçu en lecture seule, valeurs enregistrées dans le classeur (200 premières lignes par feuille).'}
+        except Stop:   # classeur protégé ou abîmé : texte indexé, sinon téléchargement
+            pass
     text, error = _indexed_text(desk, m['id'], path)
     if text:
         return {**out, 'kind': 'html', 'html': text_html(text), 'note': 'Texte extrait du document (mise en forme non reproduite).'}

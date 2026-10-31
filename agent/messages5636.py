@@ -4,6 +4,36 @@ Chaque message dit ce qui bloque et comment le corriger, sans jargon. Ajoutés �
 """
 
 REASONS = {
+    # 5.6.83 : cessions et formulaires
+    'piece_justificative_requise': 'Indiquez la pièce signée présente dans le dossier : le texte du justificatif ne suffit pas pour une cession.',
+    'piece_hors_dossier': 'Cette pièce n’est pas dans le dossier de la société : choisissez un fichier de ce dossier.',
+    'evenement_signature_inconnu': 'Cet événement de signature n’est pas rattaché à cette opération.',
+    'fiche_modifiee_entre_temps': 'La fiche a été modifiée entre-temps : rechargez la page puis recommencez.',
+    'consequences_a_confirmer': 'Cette modification périme des documents.',
+    'dates_a_completer': 'Dates à compléter avant la réalisation.',
+    'perimetre_limite_a_confirmer': 'Forme sociale hors du périmètre livré : cochez la préparation manuelle assistée dans la fiche.',
+    'validation_avocat_requise': 'Cette étape demande la validation d’un avocat.',
+    'signature_non_constatee': 'Ajoutez d’abord le justificatif de signature, ou indiquez des actes établis hors d’AxiorHub.',
+    'anomalie_a_resoudre': 'Une différence entre statuts, tableau et registre reste à résoudre avant la réalisation.',
+    'operation_non_realisee': 'Cette opération n’a pas été réalisée : aucune rectification n’est nécessaire.',
+    'motif_requis': 'Indiquez le motif de la rectification.',
+    'transition_formalite_invalide': 'Cette formalité ne peut pas passer directement à cet état.',
+    'recepisse_requis': 'Indiquez le récépissé présent dans le dossier.',
+    'formalite_inconnue': 'Cette formalité n’existe plus.',
+    'formalite_modifiee_entre_temps': 'La formalité a changé entre-temps : rechargez la page.',
+    'justificatif_invalide': 'Choisissez la nature du justificatif.',
+    'donnee_inconnue': 'Cette donnée n’existe plus.',
+    'statut_invalide': 'État demandé invalide.',
+    'classeur_illisible': 'Ce classeur Excel est illisible : enregistrez-le à nouveau au format .xlsx.',
+    'regle_inconnue': 'Cette règle n’existe plus.',
+    'formulaire_inconnu': 'Ce formulaire n’est pas au catalogue.',
+    'formulaire_indisponible': 'Le site officiel n’a pas fourni le formulaire : réessayez plus tard.',
+    'formulaire_hote_refuse': 'Seuls les sites officiels sont autorisés pour télécharger un formulaire.',
+    'formulaire_trop_volumineux': 'Ce formulaire dépasse la taille autorisée.',
+    'formulaire_a_telecharger': 'Téléchargez d’abord le formulaire depuis le site officiel.',
+    'formulaire_chiffre': 'Ce formulaire est chiffré : il ne peut pas être rempli ici.',
+    'formulaire_version_a_verifier': 'Le formulaire téléchargé diffère de la version relevée : vérifiez-le puis confirmez cette version.',
+    'fichier_nom_indisponible': 'Trop de fichiers portent ce nom dans le dossier.',
     # modèles Word du cabinet (import d'un modèle de courrier)
     'balise_modele_word_inconnue': 'Votre modèle contient une balise que AxiorHub ne connaît pas : corrigez son orthographe (accolades comprises, '
                                    'sans espace ni majuscule) ou supprimez-la.',

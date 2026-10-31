@@ -149,6 +149,8 @@
  "fn.contacts_crm.label": "Kontakte & CRM",
  "fn.corporate.desc": "Gesellschaftssekretariat: Jahresabschluss, Übertragungen, Organe, Register",
  "fn.corporate.label": "Gesellschaftsrecht",
+ "fn.formulaires.desc": "Cerfa-Formulare und Erklärungen: aus der Akte ausfüllen, Daten zum Übertragen",
+ "fn.formulaires.label": "Amtliche Formulare",
  "fn.courriels.desc": "Posteingang, zu prüfende Entwürfe, antworten und ablegen",
  "fn.courriels.label": "E-Mails",
  "fn.diagnostic.desc": "Warum nichts erstellt wird: Dienste, Fehler, Verbindungen",

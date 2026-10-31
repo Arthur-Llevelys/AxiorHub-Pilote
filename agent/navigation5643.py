@@ -45,7 +45,7 @@ PARENT = {
     'taches': 'planning', 'rendez_vous': 'planning',
     # Produire
     'studio': 'production', 'documents': 'production', 'missions_complexes': 'production', 'playbooks': 'production',
-    'outils_ia': 'production', 'projets': 'production', 'agents_documents': 'production', 'missions': 'production',
+    'formulaires': 'production', 'outils_ia': 'production', 'projets': 'production', 'agents_documents': 'production', 'missions': 'production',
     # Recherche et ses modes
     'recherche_juridique': 'recherche', 'verification': 'recherche', 'sources': 'recherche', 'veille': 'recherche', 'surveillance': 'recherche',
     # Contacts & CRM

@@ -1,0 +1,40 @@
+{
+  "version": "5.6.83",
+  "base": "5.6.82",
+  "date_utc": "2026-10-31T00:00:00+00:00",
+  "cahier_des_charges": "Complément AxiorHub Avocat conseil, compétences et cessions et annexe technique du 31 octobre 2026, première partie (5.6.84 pour fonds, bail, modèles et conseil) ; remplissage de formulaires par l’IA ; demande du cabinet sur la lecture des courriels et de l’agenda par la discussion et le choix des documents.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 3032,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 130,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5683.py : droits et règles datées, CT01-CT10, UX01, UX03, OP01, OP02, formulaires, aperçu Excel, discussion, SK01-SK12, SK17. Messagerie et fournisseurs simulés.",
+  "mutations": "28 défauts introduits dans les protections (preuve de réalisation, branche, anomalie, dates, idempotence, formalités, droits, versions de formulaire, dossiers réservés, classement) : tous détectés, après renforcement de quatre tests.",
+  "live_checks": "Navigateur, application réelle en local : onglet Cessions, Préparer la suite, page Formulaires, largeur téléphone, clair et sombre. Réel : 13 formulaires téléchargés depuis les sites officiels, empreintes identiques ; remplissage des trois PDF à champs relu ; neuf archives importées dans une base temporaire. Non essayés : vraie messagerie, neuf paquets sur Ollama, Mistral et ChatGPT réels, Firefox.",
+  "exapp": {
+    "version": "0.1.42",
+    "moteur": "5.6.83"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "corporate5636.realize : une cession exige une pièce du dossier ou une signature vérifiée ; date_transfert distincte.",
+    "corporate5636 et corporate_modeles5636 : documents de cession selon la branche parts ou actions ; ordre de mouvement complété.",
+    "workspace.chat : courriels et agenda lus selon la question, acces_cabinet transmis, recherche générale sur les mots utiles, dossier nommé, repli sur la liste.",
+    "integration : dossiers masqués transmis à la file et rétablis pendant la réponse.",
+    "index.global_sources : égalité au profit du plus récent, pondération par activité et fraîcheur, seuil réglable ; ranked_chunks : fraîcheur à la demande.",
+    "model.CHAT_PROMPT : consignes sur acces_cabinet.",
+    "competences5632, competences5643, model : import complet, chargement progressif, budget réel.",
+    "apercu5679 : aperçu des classeurs."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5636.py : l’aide de réalisation joint une pièce du dossier (CT04).",
+    "tests/test_v5643.py : ligne littérale d’assemblage des compétences alignée sur le chargement par sections."
+  ]
+}
