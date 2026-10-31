@@ -238,6 +238,7 @@ REASONS['liste_modeles_non_disponible']='La liste des modèles n’est pas dispo
 REASONS['liste_modeles_fournisseur_invalide']='Le fournisseur a renvoyé une liste de modèles illisible.'
 REASONS['trop_de_pieces_jointes']='Vingt documents au plus par demande.'   # 5.6.80
 REASONS['piece_extraite_plus_de_2000000_caracteres']='Document trop long : plus de 2 millions de caractères extraits.'
+JOB_LABELS.update({'office_analysis5684':'Analyse d’une modification dans l’éditeur','cession5684_run':'Cession : analyses et brouillons internes'})   # 5.6.84
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',

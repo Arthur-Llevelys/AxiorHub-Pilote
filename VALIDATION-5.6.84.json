@@ -1,0 +1,42 @@
+{
+  "version": "5.6.84",
+  "base": "5.6.83",
+  "date_utc": "2026-10-31T00:00:00+00:00",
+  "cahier_des_charges": "Cahier des charges AxiorHub Avocat 5.6.84 et annexe technique : cessions de fonds et de droit au bail, bibliothèque unique, plugin EuroOffice, sauvegarde, autonomie bornée.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 3139,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 131,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5684.py : CE01-CE15, BI01-BI08, OF (partie serveur), SV01-SV07, OP01-OP05, SE01-SE05, UX01, migration. tests/core5684.cjs : logique du plugin sous Node. Modèle et Nextcloud simulés.",
+  "mutations": "79 défauts introduits dans les protections (décisions, prêt à signer, modèles validés, justificatifs, ventilation, mandat, règles, commandes, exécuteur, révisions, pause, annulation, jetons, empreintes, sauvegarde, compte des documents, dossier déduit) ; 68 détectés d’emblée, 10 après renforcement des tests, tous rejoués ; 1 restant sur un contrôle en doublon de la protection centrale des dossiers réservés, retiré du code.",
+  "live_checks": "Réel : EuroOffice 9.3.7, compilation 60 (empreinte épinglée dans docs/OFFICE-CAPACITES-5.6.84.md) à travers le serveur AxiorHub de développement : démarrage du plugin, frappe observée, analyse avec modèle simulé, proposition appliquée, pas de boucle, Ctrl+S vérifié, retour arrière, clé stable, acte généré ouvert et lu. Page Cessions : quatre vues, clair et sombre, largeur téléphone, focus, panneau. Cases du 2672-SD contrôlées sur le rendu du vrai formulaire. Non essayés : vrais modèles, vrai Nextcloud, JWT de l’éditeur en réel, IME, gros collages, déplacement de paragraphes, statuts 3 et 7 réels.",
+  "exapp": {
+    "version": "0.1.43",
+    "moteur": "5.6.84"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "office440.open_document : clé de génération stable, identifiant de document, dossier déduit du chemin, plugin déclaré si l’observation est active.",
+    "office440.handle_callback : reçu de sauvegarde persistant, statuts 3 et 7 durables, relecture de la copie de conflit.",
+    "web440 office/config : identité réelle de la personne connectée.",
+    "operations5683 : motif de rejet exigé, référence du destinataire, compte des documents pour les écritures, comparaison de valeurs non numériques.",
+    "formulaires5683 : compte des documents pour le dépôt.",
+    "document_projects.auto_versions_allowed : mandat d’une opération de cession pour son propre dossier.",
+    "bibliotheque5639 : familles commun, fonds, bail, état de validation, filtre et retour à l’opération.",
+    "operations.health : reprise des sauvegardes interrompues, rétention du miroir et des copies en échec (14 jours).",
+    "navigation5643 : facturation retirée du menu principal, dans Toutes les fonctions."
+  ],
+  "adjusted_tests": [
+    "tests/test_v440_office.py : la clé reste stable pendant la génération (changement voulu par le cahier) ; un second enregistrement a sa propre adresse.",
+    "tests/test_v5683.py : un rejet de formalité porte son motif (CE13).",
+    "tests/test_v410.py, test_v501.py, test_v5631.py, test_v5643.py, test_v5682.py : menu principal sans la facturation, panneau de deux entrées de plus (annexe, navigation_requirements)."
+  ]
+}

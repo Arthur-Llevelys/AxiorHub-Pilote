@@ -26,6 +26,7 @@ MIGRATION = {
     'profils': 'Paramètres → Profils procéduraux validés',
     'strategie': 'Dossier → Arguments et analyse de scénarios',
     'formulaires': 'Produire → Formulaires officiels',
+    'cessions': 'Toutes les fonctions → Cessions de fonds et de bail',
     'studio': 'Produire → modes avancés de rédaction',
     'playbooks': 'Produire → Parcours guidés',
     'recherche': 'Recherche → Fichiers et messages du cabinet',

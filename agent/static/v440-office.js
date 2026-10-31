@@ -52,6 +52,7 @@
     };
     script.onload = function () {
       var cfg = d.config;
+      if (d.document_id) { window.axOfficeOpened = d.document_id; window.dispatchEvent(new CustomEvent('ax-office-opened', {detail: {document_id: d.document_id}})); }   // 5.6.84 : panneau de suivi
       cfg.events = {
         onAppReady: function () { clearTimeout(timer); say(d.editable ? 'Prêt — vos modifications sont enregistrées automatiquement dans Nextcloud.' : 'Lecture seule.'); },
         onDocumentStateChange: function (ev) { say(ev.data ? 'Modification en cours…' : 'Enregistré dans Nextcloud.'); },

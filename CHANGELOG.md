@@ -3,6 +3,40 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.84 — Cessions de fonds et de droit au bail, bibliothèque de modèles versionnée, EuroOffice observé, sauvegarde prouvée
+
+Cahier des charges AxiorHub Avocat 5.6.84 et son annexe technique. Le détail des 61 scénarios, y compris ce qui n’a pas pu être essayé, est dans `docs/RECETTE-5.6.84.md`.
+
+**Cessions** : nouvelle page avec deux sous-boutons, Fonds de commerce et Droit au bail. Une opération se rattache à un dossier existant, plusieurs sont possibles, aucun client n’est dupliqué.
+Quatre vues : Vue d’ensemble, Informations, Documents, Formalités et suivi. Chaque donnée garde sa source et son état : proposé, confirmé, contradictoire ou manquant. Deux sources différentes restent
+visibles côte à côte ; une nouvelle extraction ne remplace jamais une décision de l’avocat. Une information manquante n’arrête pas le reste, mais un acte avec réserves ne passe pas « prêt à signer ».
+« Prendre en charge cette opération » autorise les travaux internes, pas l’envoi, la signature, le dépôt ni le paiement. AxiorHub ne libère jamais un prix séquestré.
+
+**Règles datées** : publication, oppositions sur la dernière publication, information des salariés avant et après la loi n° 2026-403 (jours frontière à vérifier), préemption, enregistrement, garantie du cédant,
+droits de l’article 719 tranche par tranche, marchandises neuves. Textes relus le 31 octobre 2026. Une date manquante ou une règle non validée donne « À vérifier ». Les taxes additionnelles ne sont pas chiffrées.
+
+**Formulaires** : le 2672-SD se prépare depuis l’opération, avec contrôle de la ventilation ; une ventilation fausse est refusée. L’identité des parties reste à saisir par l’avocat. Le 2676-SD reste à compléter
+d’après l’inventaire. Une formalité rejetée exige son motif et sa preuve ; une référence du destinataire peut être notée.
+
+**Bibliothèque unique** : 43 références (14 communes, 19 fonds, 10 bail), livrées à l’état de brouillon, à valider par un avocat. Versions figées : brouillon, à relire, validé, à réviser, retiré. Personnaliser crée une
+nouvelle version ; le modèle livré et les documents anciens restent. Un champ inconnu est refusé avant publication. Un modèle non validé reste utilisable à la main, signalé comme tel, jamais en autonomie.
+
+**EuroOffice** : clé stable pendant toute une session de coédition ; un enregistrement forcé ne crée plus deux salles d’édition. « Enregistré » n’apparaît qu’après relecture du fichier distant. Un échec reste
+visible, un doublon ou un retard ne fait pas reculer une version, un fichier changé ailleurs donne une copie de conflit vérifiée, une sauvegarde interrompue est reprise. Rien à installer sur le serveur bureautique.
+
+**Observation pendant l’édition (désactivée par défaut)** : le plugin voit ce que l’avocat écrit, AxiorHub analyse les changements utiles et propose des corrections dans un panneau à côté du document, avec
+observé, proposé et enregistré bien séparés. Une proposition vise une version précise, ne s’applique jamais sur un texte changé, et un chiffre ou une date demande toujours une décision. À deux dans le document,
+aucune écriture automatique. Le retour arrière est une modification inverse conditionnelle. Une analyse active et une suivante au plus, pause, annulation, plafond journalier.
+
+**Travail sans éditeur** : une nouvelle version contrôlée, publiée avec contrôle d’ETag ; si un éditeur s’ouvre pendant le travail, le résultat devient une proposition.
+
+**Navigation** : « Honoraires et facturation » rejoint Toutes les fonctions.
+
+**Corrections trouvées pendant les essais** : une valeur texte d’une fiche pouvait faire échouer la page d’une cession ; les opérations écrivaient avec le compte de messagerie au lieu du compte des documents ; le dossier
+d’un document ouvert venait du navigateur, il est désormais déduit par le serveur.
+
+**Non essayé** : vrais modèles (Ollama, Mistral, ChatGPT), vrai Nextcloud avec jeton JWT de l’éditeur, composition IME, gros collages, déplacement de paragraphes. Motifs dans `docs/RECETTE-5.6.84.md`.
+
 ## 5.6.83 — Cessions de parts et d’actions, formulaires officiels, compétences complètes, discussion reliée aux courriels et à l’agenda
 
 Complément du cahier des charges du 31 octobre 2026, première partie. Le détail ligne par ligne, y compris ce qui n’est pas livré, est dans

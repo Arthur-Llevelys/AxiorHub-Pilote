@@ -580,7 +580,7 @@ class StandaloneAuth:
         # aucun jeton de service par le privilège de l'interface.
         if path.startswith('/api/') and env.get('HTTP_AUTHORIZATION', '').startswith('Bearer '):
             return self._proxy(env, start, None, preserve_authorization=True)
-        if re.fullmatch(r'/office/(file|callback)/[A-Za-z0-9._-]{16,2048}', path):
+        if re.fullmatch(r'/office/(file|callback)/[A-Za-z0-9._-]{16,2048}', path) or re.fullmatch(r'/office/(plugin|bridge)/[A-Za-z0-9._/-]{1,120}', path):   # 5.6.84 : plugin, jeton court
             return self._proxy(env, start, None, preserve_authorization=True)
         if path in ('/reception567/twilio','/reception567/whatsapp'):
             return self._proxy(env,start,None,preserve_authorization=True)

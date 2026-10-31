@@ -55,6 +55,13 @@ def _extra_items(desk, owner, prefix, labels, limit):
     """5.6.13 : missions manuelles bloquées, demandes de document sans dossier ou en échec, courriels à rattacher, règles proposées."""
     out = []
     linked = set()
+    try:      # 5.6.84 : points de fond des cessions, avec lien vers l'endroit concerné
+        from . import cessions5684
+        from .membres5650 import viewer_hidden
+        for n, row in enumerate(cessions5684.decision_items(desk, prefix, labels, viewer_hidden())):
+            out.append({'kind': 'cession', 'id': 'cession-%d' % n, 'state': 'decision', 'title': row['title'], 'matter': '', 'matter_label': row['matter'], 'explanation': row['detail'], 'candidates': [], 'url': row['url']})
+    except sqlite3.OperationalError:
+        pass
     try:
         from .missions567 import get as mission_get, ensure_schema
         ensure_schema(desk)

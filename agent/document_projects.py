@@ -308,6 +308,9 @@ def auto_versions_allowed(desk,args):
     (« autorisation_mission »). Elle vaut pour la création d'une NOUVELLE version de travail dans le sous-dossier de brouillons du
     dossier (jamais d'écrasement, jamais d'envoi, de dépôt ni de signature) ; elle ne vaut pas validation juridique du contenu."""
     if str(args.get('auto_version','')).lower() in ('non','false','0'):return False
+    if args.get('operation'):      # 5.6.84 : le mandat d'une opération de cession, pour son propre dossier ; les contrôles ci-dessous restent les mêmes
+        from .cessions5684 import mandate_allows
+        if mandate_allows(desk,args['operation'],args.get('matter','')):return True
     return bool(desk.settings('documents5657:brouillons_auto',False)) or str(args.get('autorisation_mission','')).lower() in ('oui','true','1')
 
 

@@ -92,8 +92,11 @@ class OfficeTests(unittest.TestCase):
         self.assertTrue(cfg['editorConfig']['callbackUrl'].startswith('https://courriel.example.test/agent-courriel/office/callback/'))
         claims = office.jwt_decode(cfg['token'], 'secret-jwt-123456')
         self.assertEqual(claims['document']['key'], cfg['document']['key'])
-        # a new ETag means a new Document Server key
+        # 5.6.84 : la clé ne change pas pendant la génération, même si l'ETag change (enregistrement forcé) ; une nouvelle clé suit la clôture
         self.nc.add(self.PATH, docx('autre'))
+        self.assertEqual(self.opened()['config']['document']['key'], cfg['document']['key'])
+        from agent import office_gen5684
+        office_gen5684.close(self.desk, office_gen5684.by_key(self.desk, cfg['document']['key'])['generation_id'])
         self.assertNotEqual(self.opened()['config']['document']['key'], cfg['document']['key'])
 
     def test_unsupported_and_out_of_scope_paths(self):
@@ -134,7 +137,8 @@ class OfficeTests(unittest.TestCase):
         self.assertEqual(len(self.nc.puts), 1)
         # later edit in the same session still replaces (ETag was refreshed)
         later = docx('version 3')
-        office.handle_callback(self.desk, token, auth, body, client=self.nc, fetcher=lambda d, u: later)
+        token2, auth2, body2 = self.callback_for(opened, url='https://myoffice.example.test/cache/autre.docx')   # 5.6.84 : un autre enregistrement a sa propre adresse
+        office.handle_callback(self.desk, token2, auth2, body2, client=self.nc, fetcher=lambda d, u: later)
         self.assertEqual(self.nc.files[self.PATH], later)
 
     def test_conflict_creates_copy_and_never_overwrites(self):

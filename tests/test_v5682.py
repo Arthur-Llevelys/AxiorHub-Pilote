@@ -706,10 +706,10 @@ class Sobriete(Strict):
 class Refonte(base.Base):
     def test_menu_du_cahier(self):
         from agent import fonctions5631, navigation5643, shell501
-        self.assertEqual([p for p, *_ in shell501.PRIMARY], ['/aujourdhui', '/courriels', '/dossiers', '/planning', '/production', '/facturation'])
+        self.assertEqual([p for p, *_ in shell501.PRIMARY], ['/aujourdhui', '/courriels', '/dossiers', '/planning', '/production'])     # 5.6.84 : facturation dans Toutes les fonctions
         self.assertEqual(fonctions5631.PRIMARY, navigation5643.PRIMARY)
         self.assertEqual(navigation5643.visibility('parametres'), 'primary')      # lien propre, sans doublon dans Toutes les fonctions
-        self.assertEqual(navigation5643.visibility('facturation'), 'primary')
+        self.assertEqual(navigation5643.visibility('facturation'), 'panel')
 
     def test_bibliotheques_servies_localement(self):
         from agent import web440

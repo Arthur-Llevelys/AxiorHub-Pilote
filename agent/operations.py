@@ -32,6 +32,10 @@ def health(desk):
     if desk.c.get('rag',{}).get('enabled'):
         try:Embedder(desk.c['ollama'],desk.c['rag']);result['embeddings']='ok'
         except Stop as ex:result['embeddings']=str(ex)
+    try:
+        from .office440 import maintenance      # 5.6.84 : reprise des sauvegardes interrompues, rétention du miroir
+        result['office5684']=maintenance(desk)
+    except Stop as ex:result['office5684']=str(ex)
     desk.setting('health',result);return result
 
 

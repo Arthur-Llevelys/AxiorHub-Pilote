@@ -1,0 +1,23 @@
+{
+  "name": "AxiorHub",
+  "guid": "asc.{5e1c9a84-3f27-4b6d-9d10-a71b2c3d5684}",
+  "version": "0.1.0",
+  "minVersion": "7.0.0",
+  "baseUrl": "",
+  "variations": [
+    {
+      "description": "Observation et modifications autorisées",
+      "url": "index.html",
+      "icons": ["icon.png", "icon.png"],
+      "isViewer": false,
+      "EditorsSupport": ["word"],
+      "type": "background",
+      "isVisual": false,
+      "isModal": false,
+      "isInsideMode": false,
+      "initDataType": "none",
+      "initData": "",
+      "buttons": []
+    }
+  ]
+}

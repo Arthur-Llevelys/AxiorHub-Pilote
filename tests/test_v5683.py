@@ -414,7 +414,7 @@ class Cessions(t36._CorporateBase):
         with self.assertRaises(Stop) as ctx:
             ops.filing_update(self.desk, {'id': did, 'formalite': fid, 'statut': 'acceptee'}, 'avocate', 'avocat', self.docs)
         self.assertEqual(str(ctx.exception), 'recepisse_requis')
-        ops.filing_update(self.desk, {'id': did, 'formalite': fid, 'statut': 'rejetee', 'piece': self.piece('Rejet.pdf')}, 'avocate', 'avocat', self.docs)
+        ops.filing_update(self.desk, {'id': did, 'formalite': fid, 'statut': 'rejetee', 'motif': 'Pièce manquante', 'piece': self.piece('Rejet.pdf')}, 'avocate', 'avocat', self.docs)
         ops.filing_update(self.desk, {'id': did, 'formalite': fid, 'statut': 'a_preparer'}, 'avocate', 'avocat', self.docs)
 
     def test_op01_ordre_des_etats_et_role(self):

@@ -686,7 +686,7 @@ class NavigationSansDoublons(unittest.TestCase):
         visible = re.findall(r'<li data-search="[^"]*"><a href="/agent-courriel([^"]+)"', html)
         for route in ('/aujourdhui', '/courriels', '/dossiers', '/parametres', '/planning', '/production', '/accueil'):
             self.assertNotIn(route, visible)
-        self.assertTrue(6 <= len(visible) <= 10, visible)
+        self.assertTrue(6 <= len(visible) <= 12, visible)     # 5.6.84 : Honoraires et facturation, Cessions
         self.assertEqual(len(visible), len(set(visible)))
 
     def test_toute_fonction_reste_trouvable_et_mene_a_sa_destination(self):
@@ -864,7 +864,7 @@ class PageTalk(unittest.TestCase):
         nav = self.web.request('/aujourdhui')['body'].split('class="ws-primary"')[1].split('</nav>')[0]
         order = re.findall(r'href="/agent-courriel(/[a-z]+)"', nav)
         self.assertEqual(order[order.index('/planning') + 1], '/talk')          # juste après « Agenda et tâches »
-        self.assertEqual(len(order), 8)   # 5.6.50 : + Messagerie (après Courriels)
+        self.assertEqual(len(order), 7)   # 5.6.50 : + Messagerie (après Courriels) ; 5.6.84 : facturation dans Toutes les fonctions
         self.assertEqual(order[order.index('/courriels') + 1], '/messagerie')
         self.assertFalse(self.talk.visible(self.desk.c, 'autre-utilisateur'))   # préférence propre à chaque utilisateur
         with self.assertRaisesRegex(Stop, 'reglage_modifie_entre_temps'):
