@@ -333,6 +333,8 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                 state = 'cancelled'
             row['job'] = {'id': job['id'], 'status': job['status'], 'progress': job['progress'] or '',
                           'error': result.get('erreur', '') if job['status'] == 'error' else ''}
+            from .routage5682 import for_job
+            row['choix_ia'] = for_job(desk.c['state_dir'], job['id'])   # 5.6.82 : modèle réel, effort, raison courte, consommation
             if state != row['state']:
                 desk.db.execute('UPDATE missions_v567 SET state=?,updated=? WHERE id=?', (state, desk.now(), ident))
                 desk.db.commit()

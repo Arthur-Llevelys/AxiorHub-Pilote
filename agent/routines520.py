@@ -594,6 +594,8 @@ def _propose_reply(desk, mail, item):
     known = State(desk.c['state_dir']).get(key)
     if known and known[0] in ('drafted', 'appending', 'append_uncertain'):
         return {'uid': item['uid'], 'status': 'deja_present'}
+    if desk.db.execute('SELECT 1 FROM manual_drafts WHERE mail_key=?', (key,)).fetchone():   # 5.6.82 : projet déjà prêt : pas de second calcul
+        return {'uid': item['uid'], 'status': 'deja_present'}
     job = desk.enqueue('prepare_reply', {'key': key, 'matter': matter, 'instruction': '', 'origine': 'tri_matinal', 'automatic': 'yes'},
                        origin='automatic')
     desk.audit('routines_520_reponse_demandee', {'uid': item['uid'], 'job': job})

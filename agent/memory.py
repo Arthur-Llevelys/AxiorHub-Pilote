@@ -261,11 +261,7 @@ class SentMemory:
                     outcome = self.ingest(sent, matters, proposals)
                 counts['reasons'][outcome] = counts['reasons'].get(outcome, 0) + 1
                 if outcome in ('sent_example','matched_draft_and_sent','matched_recipient_change','sent_example_ambiguous_draft_link'):
-                    counts['stored']+=1
-                    try:
-                        from .desk import Desk
-                        Desk(self.c).enqueue('memory_insight',{'key':digest(self.account()+sent.mid)})
-                    except (Stop,OSError):pass
+                    counts['stored']+=1     # 5.6.82 : l'exemple est conservé ; son analyse par l'IA se fait sur demande (bouton du courriel)
                 else:
                     counts['skipped']+=1
                 if outcome in ('matched_draft_and_sent','matched_recipient_change'): counts['matched']+=1

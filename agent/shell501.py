@@ -8,7 +8,7 @@ from html import escape as e
 import threading
 
 # 5.3.0 : menu réduit au poste de pilotage ; les rubriques historiques restent à un clic, regroupées.
-PRIMARY = (('/aujourdhui', '◎', 'Aujourd’hui'), ('/dossiers', '▦', 'Dossiers'), ('/courriels', '✉', 'Courriels'), ('/planning', '◷', 'Agenda et tâches'), ('/production', '＋', 'Produire'), ('/parametres', '⚙', 'Paramètres'))
+PRIMARY = (('/aujourdhui', '◎', 'Aujourd’hui'), ('/courriels', '✉', 'Courriels'), ('/dossiers', '▦', 'Dossiers'), ('/planning', '◷', 'Agenda et tâches'), ('/production', '＋', 'Produire'), ('/facturation', '€', 'Honoraires'))
 RUBRIQUES = (('/documents','▤','Documents'),('/echeances','⚖','Échéances'),('/recherche','⌕','Recherche'),('/cabinet','▣','Cabinet'),('/mon-style','✎','Apprentissage et modèles'))
 
 # Pages secondaires : l'entrée du menu qui reste surlignée.
@@ -44,7 +44,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css', 'v5682.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -91,7 +91,7 @@ def _links(prefix, entries, active):
 def _primary():
     # 5.6.31 (LG02) : libellés traduits selon la langue de la requête ; routes et icônes inchangées.
     from .i18n5631 import t
-    keys = {'/aujourdhui': 'aujourdhui', '/dossiers': 'dossiers', '/courriels': 'courriels', '/planning': 'planning', '/production': 'production', '/parametres': 'parametres'}
+    keys = {'/facturation': 'facturation', '/aujourdhui': 'aujourdhui', '/dossiers': 'dossiers', '/courriels': 'courriels', '/planning': 'planning', '/production': 'production', '/parametres': 'parametres'}
     return tuple((p, icon, t('fn.%s.label' % keys[p])) for p, icon, _ in PRIMARY)
 
 
@@ -111,23 +111,17 @@ def nav_html(prefix, active_path):
             entries.insert(at, ('/talk', '☏', _t('fn.talk.label')))
     except Exception:   # noqa: BLE001 — l'entrée facultative ne bloque jamais le menu
         pass
-    try:   # 5.6.53 : « Facturation et honoraires » épinglée au menu principal par l'utilisateur, juste après les dossiers
-        from .i18n5631 import _ctx as _lang_ctx53, t as _t53
-        from .web5653 import pinned as _pinned53
-        cfg53 = context()
-        if cfg53 is not None and _pinned53(_Desk53(cfg53), getattr(_lang_ctx53, 'owner', '') or 'cabinet'):
-            at53 = next(i for i, x in enumerate(entries) if x[0] == '/dossiers') + 1
-            entries.insert(at53, ('/facturation', '€', _t53('fn.facturation.label')))
-    except Exception:   # noqa: BLE001 — l'entrée facultative ne bloque jamais le menu
-        pass
     try:   # 5.6.50 : messagerie interne du cabinet, juste après les courriels (pastille « non lus » posée par v5650.js)
         from .i18n5631 import t as _t50
         at50 = next(i for i, x in enumerate(entries) if x[0] == '/courriels') + 1
         entries.insert(at50, ('/messagerie', '❝', _t50('fn.messagerie.label')))
     except Exception:   # noqa: BLE001
         pass
+    from .i18n5631 import t as _t82
+    settings = ('<a class="m82-settings" href="' + e(prefix + '/parametres') + '"' + (' aria-current="page"' if active == '/parametres' else '') + '><span aria-hidden="true">⚙</span> ' +
+                e(_t82('fn.parametres.label')) + '</a>')     # 5.6.82 : hors des six entrées de travail, toujours à portée
     return ('<nav aria-label="' + th('nav.primary') + '" class="ws-primary">' + _links(prefix, entries, active) + '</nav>' +
-            panel_html(prefix, active_path, context(), role(), current()))
+            panel_html(prefix, active_path, context(), role(), current()) + settings)
 
 
 class _Desk53:
@@ -166,7 +160,7 @@ def topbar_html(prefix, title, path=''):
             'aria-controls="ws-sidebar" aria-expanded="true" aria-label="' + th('top.fold') + '" title="' + th('top.fold') + '"><span aria-hidden="true">☰</span></button>'
             '<span>' + th('top.workspace') + ' / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
             'id="ws-theme-toggle" aria-label="' + th('top.dark') + '" title="' + th('top.dark') + '"><span aria-hidden="true">☾</span></button>'
-            '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '">⌕ ' + th('top.search') + '</a>' +
+            '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '" data-m82-quick title="Ctrl+K" aria-keyshortcuts="Control+K">⌕ ' + th('top.search') + '</a>' +
             help_link + menu_html(prefix) + '</div></header>')
 
 

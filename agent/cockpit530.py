@@ -1131,7 +1131,11 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     ensure_schema(desk)
     from .aujourdhui5614 import decisions_html, routines_bar_html   # 5.6.14 (U01, U02) : routines en tête, « À décider » compact
     from .budget5668 import banner_html as _banner5668            # 5.6.68 : plafond de l'IA externe atteint
-    from .ia5672 import banner_html as _banner5672                # 5.6.72 : modèle local d'IA injoignable
+    from .ia5672 import banner_html as _banner5672_local          # 5.6.72 : modèle local d'IA injoignable
+
+    def _banner5672(desk, prefix):                                 # 5.6.82 : limite d'usage de l'abonnement, distincte d'une panne
+        from .ia5682 import banner_html
+        return banner_html(desk, prefix) + _banner5672_local(desk, prefix)
     z = tz(desk)
     days = ('lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche')
     months = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')

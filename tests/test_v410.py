@@ -105,11 +105,11 @@ class LegalBenchmark410Tests(unittest.TestCase):
 
     def test_api_exposes_41_learning_and_benchmark(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.81')
+        self.assertEqual(spec['info']['version'],'5.6.82')
         for path in ('/learning/business-rules','/evaluations/legal',
                      '/evaluations/legal/cases','/evaluations/legal/run'):
             self.assertIn(path,spec['paths'])
-        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.81')
+        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.82')
 
 
 class Browser410Tests(unittest.TestCase):
@@ -123,13 +123,14 @@ class Browser410Tests(unittest.TestCase):
         self.assertEqual(nav.count('<a '),7)   # 5.6.50 : six accès de travail + Messagerie
         # 5.6.31 (NV01) : les anciennes rubriques sont dans le panneau unique « Toutes les fonctions ».
         sub=re.search(r'<details class="f5631-all".*?</details>',body,re.S).group(0)
-        for label in ('Aujourd’hui','Dossiers','Courriels','Agenda et tâches','Produire','Paramètres'):
+        for label in ('Aujourd’hui','Dossiers','Courriels','Agenda et tâches','Produire','Facturation et honoraires'):   # 5.6.82 : six entrées du cahier
             self.assertIn(label,nav)
+        self.assertIn('Paramètres',body.split('</nav>',1)[1])   # Paramètres reste à portée, hors des entrées de travail
         for label in ('Documents','Échéances','Recherche dans le cabinet','Gestion du cabinet','Mon style'):
             self.assertIn(label,sub)
         self.assertIn('apprentissage et modèles',sub)   # ancien nom conservé pour la recherche
         self.assertIn('Apprentissage métier',body);self.assertIn('Banc juridique',body)
-        self.assertIn('Version 5.6.81',body)
+        self.assertIn('Version 5.6.82',body)
 
     def test_produce_hub_contains_the_six_expected_outputs(self):
         body=self.request('/production')['body']

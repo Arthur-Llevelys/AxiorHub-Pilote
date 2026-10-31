@@ -32,6 +32,8 @@
     }).then(function (d) {
       if (d && d.error) throw new Error(d.message || d.error);
       toast((d && d.message) || 'Enregistré.');
+      var card = form.closest('.q51-item');
+      if (card && window.ax82CardDone && window.ax82CardDone(card, d)) return;   // 5.6.82 : la carte se met à jour sur place
       if (form.hasAttribute('data-reload')) setTimeout(function () { location.reload(); }, 900);
     }).catch(function (err) {
       toast(err.message || 'Action impossible.', true);

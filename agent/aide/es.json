@@ -1234,7 +1234,8 @@
 "Modifique el ajuste.",
 "Pulse «Guardar los cambios».",
 "Pruebe con «Probar IMAP», «Probar Nextcloud / agendas» o «Probar Ollama».",
-"Para una IA externa: guarde su clave, pulse «Charger les modèles» y elija el modelo; la tarifa conocida y los topes vienen rellenados."
+"Para una IA externa: guarde su clave, pulse «Charger les modèles» y elija el modelo; la tarifa conocida y los topes vienen rellenados.",
+"Para elegir cómo trabaja la IA: abra «Mode de l’IA» y elija la suscripción ChatGPT, la API de Mistral, la API de Claude, solo local o automático. AxiorHub toma luego, para cada tarea, el modelo más económico que convenga."
 ],
 "result": "Los ajustes guardados, sin recargar la página.",
 "verify": "El mensaje de la prueba indica lo que se ha verificado realmente.",

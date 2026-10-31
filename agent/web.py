@@ -232,6 +232,7 @@ REASONS['transcription_locale_en_echec']='La transcription locale a échoué : l
 REASONS['pont_vocal_injoignable']='Le service de transcription locale ne répond pas : le pont vocal du serveur est arrêté.'
 REASONS['transcription_trop_longue']='La transcription a pris trop de temps : le moteur Vocal du serveur est surchargé.'
 REASONS['transcription_en_cours']='Une transcription est déjà en cours. Réessayez dans quelques secondes.'
+REASONS['autorisation_donnees_externes_requise']='Cochez l’autorisation d’envoi des données pseudonymisées pour retenir ce mode.'
 REASONS['cle_api_fournisseur_absente']='Clé API absente : enregistrez d’abord la clé de ce fournisseur.'
 REASONS['liste_modeles_non_disponible']='La liste des modèles n’est pas disponible pour ce fournisseur.'   # 5.6.81
 REASONS['liste_modeles_fournisseur_invalide']='Le fournisseur a renvoyé une liste de modèles illisible.'

@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED_DIRS = {'.git', '__pycache__', '.pytest_cache', 'dist', 'build', '_vendor'}  # _vendor : bibliothèques tierces (auteurs publics)
 # Données d'exploitation (jamais publiées) : seulement les dossiers « data » de la racine et du VPS ; agent/data et tests/data sont contrôlés.
 EXCLUDED_ROOTS = ('data/', 'deploy/vps/data/')
-EXCLUDED_FILES = {'scripts/privacy-scan.py', '.privacy-denylist', 'MANIFEST.sha256', 'SBOM.cdx.json'}
+EXCLUDED_FILES = {'scripts/privacy-scan.py', '.privacy-denylist', 'MANIFEST.sha256', 'SBOM.cdx.json', 'agent/static/carbon5682.js', 'agent/static/pdfjs5682.js', 'agent/static/pdf.worker5682.js'}  # bibliothèques tierces minifiées
 BINARY = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.tgz', '.woff', '.woff2', '.ttf', '.sqlite3'}
 OFFICE = {'.docx', '.xlsx', '.pptx', '.odt', '.ods'}
 # L'auteur est nommé volontairement (attribution, licence AGPL §7 b) dans ces fichiers seulement.

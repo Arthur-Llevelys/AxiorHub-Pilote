@@ -13,8 +13,8 @@ Aucune page n'est supprimée et aucune route n'est redirigée à l'aveugle : les
 """
 from html import escape as e
 
-PRIMARY = ('aujourdhui', 'dossiers', 'courriels', 'planning', 'production', 'parametres')
-CONDITIONAL_PRIMARY = ('talk',)   # § 22 : septième accès principal, seulement pour l'utilisateur qui l'active
+PRIMARY = ('aujourdhui', 'courriels', 'dossiers', 'planning', 'production', 'facturation')
+CONDITIONAL_PRIMARY = ('talk', 'parametres')   # § 22 : septième accès principal, seulement pour l'utilisateur qui l'active
 
 # Onglets de Produire (destination unique pour lancer, suivre et relire un travail).
 PRODUCTION_TABS = (
@@ -33,7 +33,7 @@ PRODUCTION_VIEWS = {'resultats': '/production', 'rediger': '/studio', 'documents
 
 # Menu complémentaire : besoins distincts des six accès principaux (cible 6 à 10 entrées visibles).
 # 5.6.75 : le navigateur supervisé (5.6.73) n'avait ni place dans ce menu ni page parente : seule la recherche le trouvait.
-PANEL = ('recherche', 'navigateur', 'facturation', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant',
+PANEL = ('recherche', 'navigateur', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant',
          'guide_utilisation')
 
 # Destination canonique des sous-sections (trouvées par la recherche ; leur page reste servie).

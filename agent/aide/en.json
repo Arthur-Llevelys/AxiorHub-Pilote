@@ -1234,7 +1234,8 @@
 "Change the setting.",
 "Click “Save changes”.",
 "Test with “Test IMAP”, “Test Nextcloud / calendars” or “Test Ollama”.",
-"For an external AI: save its key, click “Charger les modèles”, choose the model; the known price and the caps are prefilled."
+"For an external AI: save its key, click “Charger les modèles”, choose the model; the known price and the caps are prefilled.",
+"To choose how the AI works: open “Mode de l’IA” and pick the ChatGPT subscription, the Mistral API, the Claude API, local only or automatic. AxiorHub then takes, for each task, the most economical suitable model."
 ],
 "result": "Settings saved, without reloading the page.",
 "verify": "The test message states what was actually checked.",

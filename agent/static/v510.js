@@ -43,7 +43,7 @@
       var rows = $$('tbody tr[data-key]', table).map(function (tr) {
         return { key: tr.getAttribute('data-key'), include: $('.p5-inc', tr).checked, title: $('.p5-title', tr).value, date: $('.p5-date', tr).value };
       });
-      var order = $('.p5-order'), body = { draft: btn.getAttribute('data-draft'), rows: rows, order: order ? order.value : '' };
+      var order = $('.p5-order'), body = { draft: btn.getAttribute('data-draft'), rows: rows, order: order ? order.value : '', revision: btn.getAttribute('data-revision') };
       btn.disabled = true;
       call('m510/table', body).then(function () { toast('Tableau enregistré.'); setTimeout(function () { location.reload(); }, 400); })
         .catch(function (e) { toast(e.message, true); }).then(function () { btn.disabled = false; });

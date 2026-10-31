@@ -98,7 +98,8 @@ def _schedule_5642(desk,stamp=None):
     if stamp-float(desk.settings('live431:last_daily',0))>=86400:
         # Reuse progressive dossier checks, not a second analysis engine.
         desk.enqueue('monitor_all',priority=65)
-        desk.enqueue('index_all',priority=70)
+        if desk.settings('automation:index_all_enabled',(desk.c.get('automation') or {}).get('index_all_enabled',True)):
+            desk.enqueue('index_all',priority=70)     # 5.6.82 : l'interrupteur d'indexation s'applique aussi à ce contrôle quotidien
         desk.setting('live431:last_daily',stamp)
         emit(desk,'detected','Contrôle quotidien approfondi des dossiers mis en file.')
     from .activity431 import maintenance

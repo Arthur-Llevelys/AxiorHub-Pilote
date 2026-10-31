@@ -145,7 +145,7 @@ def header_html(desk, prefix, m, view):
 
 PREVIEW = ('<section class="d79-preview" id="d79-preview" role="complementary" hidden aria-label="Aperçu du document"><div class="d79-preview-head"><strong data-d79-title>Aperçu</strong>'
            '<span class="d79-preview-actions"><a class="ax-btn ghost" data-d79-open hidden>Modifier</a><a class="ax-btn ghost" data-d79-dl>Télécharger</a>'
-           '<button type="button" class="ax-btn ghost" data-d79-close aria-label="Fermer l’aperçu">×</button></span></div>'
+           '<button type="button" class="ax-btn ghost" data-d79-close aria-label="Fermer l’aperçu et revenir à la liste"><span class="m82-back">Retour à la liste</span><span class="m82-x" aria-hidden="true">×</span></button></span></div>'
            '<p class="ax-muted" data-d79-note hidden></p><div class="d79-preview-body" data-d79-body tabindex="0"></div></section>')
 
 

@@ -1,0 +1,41 @@
+{
+  "version": "5.6.82",
+  "base": "5.6.81",
+  "date_utc": "2026-10-31T00:00:00+00:00",
+  "cahier_des_charges": "Cahier des charges développeur AxiorHub Pilote 5.6.82 du 31 octobre 2026 : lots A à D ; demande complémentaire du cabinet : abonnement ChatGPT avec les modèles les moins coûteux pour les tâches simples et les plus capables pour les tâches complexes, même réglage pour les API Mistral et Claude, interface améliorée.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 2940,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 129,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5682.py : RT01-RT07, CG01-CG14, UX01, API Mistral et Claude, migration, route explicite, dossier exclu. Fournisseurs simulés.",
+  "live_checks": "Navigateur, application réelle en local : bloc Mode de l’IA à 1280 px et à 390 px, sombre (contraste minimal 6,4:1), enregistrement du mode local, refus lisibles, recherche rapide avec faute de frappe. Non essayés, faute de compte et de clé : connexion ChatGPT réelle, rédaction complète et arrêt sur abonnement réel, listes réelles de Mistral et de Claude, transfert réel poste vers serveur, Firefox.",
+  "exapp": {
+    "version": "0.1.41",
+    "moteur": "5.6.82"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "model.routed_config : politique centrale avant les réglages historiques ; Model : aiguillage et point de passage gate.",
+    "policy567.check_external : règles de la politique centrale ; route explicite reconnue en mode manuel (Mixte).",
+    "model._anthropic : température réservée aux anciens modèles, output_config.effort, max_tokens élargi, refus du modèle signalé.",
+    "chatgpt5662 : effort et liste blanche, correction unique d’un effort refusé, consentement redemandé si le forfait n’est pas autorisé, catalogue lié au compte, canal abonnement.",
+    "desk : limite ou indisponibilité de l’abonnement : travail reporté sur sa ligne.",
+    "index : recherche par le sens soumise à la politique.",
+    "ai_gateway : registre de consommation, réglage ai:politique chargé, ancienne marque de gratuité remplacée.",
+    "ia540 : le mode mixte reprend la main sur la politique centrale.",
+    "sobriete5682 et orchestrator, engine, proactive, proactive34, production390, production420, routines520, memory, mailbox, model, watch430 : appels automatiques bornés.",
+    "production420 : dossier inactif signalé sans projet automatique ; production390 : stratégie ancienne sans parcours automatique.",
+    "mailbox : non-lus limités à 14 jours si lookback_days vaut 0."
+  ],
+  "adjusted_tests": [
+    "tests/test_v410.py : le menu principal attend Facturation et honoraires au lieu de Paramètres (six entrées du cahier) ; Paramètres vérifié sous le menu."
+  ]
+}

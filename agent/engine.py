@@ -532,14 +532,22 @@ class Engine:
                 return finish('append_uncertain', 'verification_imap_indisponible')
             return finish('drafted', 'brouillon_imap_verifie')
         except Stop as e:
-            return finish('review', str(e))
+            from .chatgpt5682 import HELD_CODES
+            # 5.6.82 : limite ou plafond : le courriel reste à traiter, il n'est pas écarté vers la revue
+            return finish('retry' if str(e) in HELD_CODES else 'review', str(e))
         except Exception:
             # No raw exception text: protocol replies may contain private data.
+            # 5.6.82 : une seule reprise : un courriel en erreur repassait à chaque relevé, avec ses appels au modèle
+            if old and old[0] == 'error':
+                return finish('review', 'erreur_interne_repetee')
             return finish('error', 'erreur_interne_consulter_diagnostic')
 
     def run(self):
         from .pause5629 import blocked_for_config
         reason = blocked_for_config(self.c)
+        if reason:return {'examined':0,'skipped':reason}
+        from .sobriete5682 import hold
+        reason = hold(self.c)     # 5.6.82 : limite ou plafond : aucun courriel relu pour un appel qui serait refusé
         if reason:return {'examined':0,'skipped':reason}
         if (self.c.get('mail') or {}).get('enabled', True) is False:
             return {'examined': 0, 'skipped': 'messagerie_desactivee'}   # 5.6.31 (R00) : aucune connexion IMAP si la messagerie n'est pas choisie

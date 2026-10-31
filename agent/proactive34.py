@@ -241,6 +241,8 @@ def run_cycle(desk,args,now=None,calendar=None,writing_selector=None):
             existing=desk.db.execute("SELECT 1 FROM proactive_notices_v340 WHERE matter=? AND category IN ('hearing','hearing_blocked') AND source_id=? AND fingerprint=?",(mid,eid,fp)).fetchone()
             if existing:continue
             if counts['hearings']>=3:warnings.append('Plus de trois audiences J−14 : examen reporté au prochain cycle.');break
+            from .sobriete5682 import hearing_prepared
+            if hearing_prepared(desk,mid):continue    # 5.6.82 : préparation déjà lancée par les parcours : pas de seconde analyse
             try:
                 chosen=selector(desk,{'matter':mid})
                 arguments={'matter':mid,'instruction':'Audience de plaidoirie « '+title[:250]+

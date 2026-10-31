@@ -102,11 +102,16 @@ class DocumentIndex:
         CREATE INDEX IF NOT EXISTS inventory_seen_generation
           ON inventory_seen(matter,generation);
         ''')
-        self.db.commit();self.rag=rag or {};self.ollama=ollama or {};self._embedder=None
+        self.db.commit();self.rag=rag or {};self.ollama=ollama or {};self._embedder=None;self.state_dir=state_dir
         self.last_page_state={'complete':True,'next_cursor':None,'seen':0}
 
+    def _semantique(self):
+        """5.6.82 : pas de modèle local caché dans un mode à fournisseur unique : recherche textuelle, sauf option explicite."""
+        from .politique5682 import embeddings_allowed
+        return bool(self.rag.get('enabled')) and embeddings_allowed(getattr(self,'state_dir',''))
+
     def embedder(self):
-        if not self.rag.get('enabled'):return None
+        if not self._semantique():return None
         if self._embedder is None:self._embedder=Embedder(self.ollama,self.rag)
         return self._embedder
 
@@ -170,7 +175,7 @@ class DocumentIndex:
         return value
 
     def ensure_embeddings(self,matter,budget=None):
-        if not self.rag.get('enabled'):return {'created':0,'pending':0,'error':''}
+        if not self._semantique():return {'created':0,'pending':0,'error':''}
         mid=matter['id'] if isinstance(matter,dict) else matter
         model=self.rag.get('embedding_model','qwen3-embedding:0.6b')
         limit=budget or self.rag.get('embedding_chunks_per_run',24)

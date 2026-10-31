@@ -57,6 +57,8 @@
         (res.warnings || []).forEach(function (w) { toast(w, true); });
         toast(res.noreload && typeof res.message === 'string' ? res.message : 'Projet établi : relisez-le, corrigez-le puis enregistrez-le.');   // 5.6.40 : aperçu
       } else { toast(res && typeof res.message === 'string' ? res.message : 'Enregistré.'); }
+      var card = form.closest('.q51-item');
+      if (card && window.ax82CardDone && !(res && res.goto) && window.ax82CardDone(card, res)) return;   // 5.6.82 : la carte se met à jour sur place
       if (form.hasAttribute('data-reload') && !(res && res.noreload)) {   // 5.6.40 : aperçu de la bibliothèque, saisies conservées
         var go = res && res.id && form.getAttribute('data-api') === 'm500/conflicts/check' ? '?id=' + encodeURIComponent(res.id) : '';
         if (res && typeof res.goto === 'string' && /^\?[\w=&%.-]*$/.test(res.goto)) { go = res.goto; }   // 5.6.36 : page de l'élément créé (même page)

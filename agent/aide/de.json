@@ -1234,7 +1234,8 @@
 "Ändern Sie die Einstellung.",
 "Klicken Sie auf „Änderungen speichern“.",
 "Testen Sie mit „IMAP testen“, „Nextcloud / Kalender testen“ oder „Ollama testen“.",
-"Für eine externe KI: Schlüssel speichern, auf „Charger les modèles“ klicken, Modell wählen; bekannter Tarif und Obergrenzen sind vorausgefüllt."
+"Für eine externe KI: Schlüssel speichern, auf „Charger les modèles“ klicken, Modell wählen; bekannter Tarif und Obergrenzen sind vorausgefüllt.",
+"So legen Sie die Arbeitsweise der KI fest: Öffnen Sie „Mode de l’IA“ und wählen Sie das ChatGPT-Abonnement, die Mistral-API, die Claude-API, nur lokal oder automatisch. AxiorHub nimmt dann für jede Aufgabe das sparsamste geeignete Modell."
 ],
 "result": "Gespeicherte Einstellungen, ohne die Seite neu zu laden.",
 "verify": "Die Testmeldung nennt, was tatsächlich geprüft wurde.",

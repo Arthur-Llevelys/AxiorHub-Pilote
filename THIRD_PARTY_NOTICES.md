@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.81
+# Composants tiers et compatibilité — AxiorHub 5.6.82
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -66,3 +66,10 @@ Python ; aucun SDK Google ni code de service Google n'est incorporé au paquet.
 L'utilisation de l'API reste soumise aux autorisations du compte et aux conditions
 du fournisseur. Nextcloud et les autres serveurs CalDAV restent des services
 séparés. Les migrations 0568/0569 n'ajoutent aucune dépendance Python tierce.
+
+## Interface (5.6.82)
+
+Fichiers construits avec esbuild à partir des paquets npm officiels, hébergés localement dans `agent/static/`, sans ressource externe ni télémétrie.
+
+- `carbon5682.js` : Carbon Web Components 2.66.0 (`@carbon/web-components`, IBM), Apache-2.0, et ses dépendances (Lit, BSD-3-Clause).
+- `pdfjs5682.js`, `pdf.worker5682.js` : PDF.js 6.4.299 (`pdfjs-dist`, Mozilla), Apache-2.0.

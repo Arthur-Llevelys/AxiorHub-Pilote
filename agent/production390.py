@@ -159,10 +159,12 @@ def after_job(desk, row, args, status, result):
 
 def _trigger_playbooks(desk, limit=12):
     ensure_schema(desk)
+    if not desk.settings('automation:automatic_legal_projects_enabled',desk.c.get('orchestrator',{}).get('automatic_legal_projects_enabled',True)):
+        return {'created':[],'blocked':[]}   # 5.6.82 : l'interrupteur « projets d'actes » s'applique aussi aux parcours
     from .operating380 import start_playbook
     rows=desk.db.execute("""SELECT * FROM proactive_signals
       WHERE state='open' AND matter<>'' AND category IN
-      ('documents_changed','upcoming_appointment','upcoming_deadline','stale_strategy')
+      ('documents_changed','upcoming_appointment','upcoming_deadline')
       ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,
       due,last_seen DESC LIMIT ?""",(limit*3,)).fetchall()
     created=[];blocked=[]
@@ -177,9 +179,9 @@ def _trigger_playbooks(desk, limit=12):
             playbook='litigation_hearing_v1'
         elif row['category']=='upcoming_deadline' and any(x in text for x in ('conclusion','assignation','mémoire')):
             playbook='litigation_hearing_v1'
-        elif row['category']=='stale_strategy':
-            playbook='opponent_writings_v1'
         if not playbook:continue
+        from .sobriete5682 import hearing_prepared
+        if playbook=='litigation_hearing_v1' and hearing_prepared(desk,row['matter']):continue
         tid=digest('|'.join([row['category'],row['id'],row['fingerprint']]))
         if desk.db.execute('SELECT 1 FROM production_triggers_v390 WHERE id=?',(tid,)).fetchone():continue
         try:

@@ -12,7 +12,7 @@ from html import escape as e
 from . import i18n5631 as i18n
 
 GROUPS = ('dossier', 'rechercher', 'communiquer', 'temps', 'modeles', 'regler')
-PRIMARY = ('aujourdhui', 'dossiers', 'courriels', 'planning', 'production', 'parametres')
+PRIMARY = ('aujourdhui', 'courriels', 'dossiers', 'planning', 'production', 'facturation')
 
 # identifiant, groupe, route, anciens noms / alias de recherche, prérequis (capacités)
 FUNCTIONS = (

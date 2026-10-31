@@ -119,9 +119,10 @@ def monitor_matter(desk,args):
         try:desk.admit([('index',{'matter':mid},50)])   # 5.6.65 (R08) : même plafond que la surveillance des documents
         except Stop:pass
     if previous is not None:
-        new=sorted(set(current)-set(previous))
+        from .sobriete5682 import own_file     # 5.6.82 : les fichiers produits par AxiorHub ne relancent pas d'analyse
+        new=sorted(path for path in set(current)-set(previous) if not own_file(path))
         changed=sorted(path for path in set(current)&set(previous)
-                       if current[path]['etag']!=previous[path]['etag'])
+                       if current[path]['etag']!=previous[path]['etag'] and not own_file(path))
         if new or changed:
             names=(new+changed)[:12]
             detail=('Nouveaux fichiers : '+', '.join(new[:6]) if new else '')
