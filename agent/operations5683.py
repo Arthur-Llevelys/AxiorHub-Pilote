@@ -239,7 +239,10 @@ def propose_field(desk, did, field, value, origin, excerpt='', kind='texte'):
 
 
 def _same(a, b):
-    x, y = co._dec(a), co._dec(b)
+    try:
+        x, y = co._dec(a), co._dec(b)
+    except Stop:        # 5.6.84 : une désignation n'est pas un montant
+        x = y = None
     try:
         return x == y if x is not None and y is not None else str(a).casefold().strip() == str(b).casefold().strip()
     except Exception:   # noqa: BLE001 — valeurs non comparables : différence signalée
@@ -270,7 +273,7 @@ def read_excel(desk, data, owner='cabinet', client=None):
     matter = next((m for m in load_matters(desk.c) if m['id'] == dos['matter']), None)
     if not matter or not (path + '/').startswith(matter['path'].rstrip('/') + '/'):
         raise Stop('piece_hors_dossier')
-    dav = client or DAV(desk.c['nextcloud'])
+    dav = client or DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud'])
     sheets = xlsx_sheets(dav.download(dav.stat(path)))
     found = 0
     for _, rows in sheets:
@@ -532,7 +535,7 @@ def add_proof(desk, data, owner='cabinet', client=None):
     matter = next((m for m in load_matters(desk.c) if m['id'] == dos['matter']), None)
     if not piece or not matter or not (piece + '/').startswith(matter['path'].rstrip('/') + '/'):
         raise Stop('piece_hors_dossier')
-    info = (client or DAV(desk.c['nextcloud'])).stat(piece)
+    info = (client or DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud'])).stat(piece)
     new = _event(desk, dos, kind, day, '%s:%s:%s' % (kind, day, piece[-80:]), {'piece': piece, 'empreinte': str(info.get('etag') or ''), 'par': str(owner)})
     if new:
         dos['data'].setdefault('dates', {})[EVENT_DATE[kind]] = day
@@ -640,10 +643,18 @@ def create_filings(desk, dos, owner):
         desk.db.execute('INSERT OR IGNORE INTO filings5683(id,dossier,kind,label,destinataire,preparateur,updated) VALUES(?,?,?,?,?,?,?)', (uuid.uuid4().hex, dos['id'], kind, label, target, str(owner), _now()))
 
 
+def _filing_columns(desk):
+    known = {r[1] for r in desk.db.execute('PRAGMA table_info(filings5683)')}
+    for name in ('motif', 'reference'):       # 5.6.84 : rejet motivé, référence du destinataire
+        if name not in known:
+            desk.db.execute("ALTER TABLE filings5683 ADD COLUMN %s TEXT NOT NULL DEFAULT ''" % name)
+
+
 def filing_update(desk, data, owner='cabinet', role='avocat', client=None):
     """États de la formalité : « Transmise » reste distinct de « Acceptée » ; un récépissé est exigé au retour ; une transition répétée n'a aucun effet (OP01, OP02)."""
     from .dav import DAV
     dos = _row(desk, data.get('id'))
+    _filing_columns(desk)
     row = desk.db.execute('SELECT * FROM filings5683 WHERE id=? AND dossier=?', (str(data.get('formalite') or ''), dos['id'])).fetchone()
     if not row:
         raise Stop('formalite_inconnue')
@@ -654,19 +665,23 @@ def filing_update(desk, data, owner='cabinet', role='avocat', client=None):
         raise Stop('transition_formalite_invalide')
     if target in LAWYER_ONLY_STATES and role == 'assistant':
         raise Stop('validation_avocat_requise')
+    motif = _clean(data.get('motif'), 400) if target == 'rejetee' else ''
+    if target == 'rejetee' and not motif:
+        raise Stop('motif_rejet_requis')
+    reference = _clean(data.get('reference', row['reference']), 120)
     piece = row['recepisse']
     if target in FILING_NEEDS_PIECE:
         piece = clean_path(str(data.get('piece') or ''))
         matter = next((m for m in load_matters(desk.c) if m['id'] == dos['matter']), None)
         if not piece or not matter or not (piece + '/').startswith(matter['path'].rstrip('/') + '/'):
             raise Stop('recepisse_requis')
-        (client or DAV(desk.c['nextcloud'])).stat(piece)
+        (client or DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud'])).stat(piece)
     validator = str(owner) if target in LAWYER_ONLY_STATES else row['validateur']
-    cur = desk.db.execute('UPDATE filings5683 SET statut=?, recepisse=?, validateur=?, mandat=?, cout=?, updated=? WHERE id=? AND statut=?',
-                          (target, piece, validator, _clean(data.get('mandat', row['mandat']), 200), _clean(data.get('cout', row['cout']), 40), _now(), row['id'], row['statut']))
+    cur = desk.db.execute('UPDATE filings5683 SET statut=?, recepisse=?, validateur=?, mandat=?, cout=?, motif=?, reference=?, updated=? WHERE id=? AND statut=?',
+                          (target, piece, validator, _clean(data.get('mandat', row['mandat']), 200), _clean(data.get('cout', row['cout']), 40), motif, reference, _now(), row['id'], row['statut']))
     if not cur.rowcount:
         raise Stop('formalite_modifiee_entre_temps')
-    _event(desk, dos, 'formalite', _now(), 'formalite:%s:%s:%s' % (row['id'][:12], target, _now()), {'statut': target, 'par': str(owner)})
+    _event(desk, dos, 'formalite', _now(), 'formalite:%s:%s:%s' % (row['id'][:12], target, _now()), {'statut': target, 'par': str(owner), 'motif': motif, 'reference': reference})
     desk.db.commit()
     desk.audit('operation5683_formalite', {'id': dos['id'], 'kind': row['kind'], 'statut': target, 'owner': owner})
     return {'id': dos['id'], 'message': 'Formalité : %s.' % FILING_LABEL[target]}
@@ -680,7 +695,7 @@ def final_attestation(desk, dos, client=None):
     row = desk.db.execute('SELECT data, result FROM operations5636 WHERE id=?', (dos['operation'],)).fetchone()
     c = co.company(desk, dos['company'])
     d = json.loads(row['data'])
-    dav = client or DAV(desk.c['nextcloud'])
+    dav = client or DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud'])
     ctx = co.build_context(desk, c, 'cession', d, ['attestation_inscription'], dav, None)
     raw, _ = co.render(desk, 'attestation_inscription', ctx, dav)
     folder = json.loads(row['result'] or '{}').get('folder')
@@ -873,14 +888,17 @@ def _documents_view(desk, prefix, dos):
 
 
 def _filings_view(desk, dos):
+    _filing_columns(desk)
     rows = desk.db.execute('SELECT * FROM filings5683 WHERE dossier=? ORDER BY rowid', (dos['id'],)).fetchall()
     cards = ''
     for r in rows:
         moves = ''.join('<form class="m5-form m5-inline" data-api="m5683/formalite" data-reload="1">%s%s<button class="ax-btn ghost" type="submit">%s</button></form>' % (
             _hidden(dos, '<input type="hidden" name="formalite" value="%s"><input type="hidden" name="statut" value="%s">' % (e(r['id'], quote=True), t)),
-            '<label>Récépissé dans le dossier<input name="piece" required></label>' if t in FILING_NEEDS_PIECE else '', e(FILING_LABEL[t])) for t in FILING_NEXT.get(r['statut'], ()))
-        cards += '<li class="o83-filing"><strong>%s</strong> <span class="ax-muted">%s — %s%s</span>%s</li>' % (
-            e(r['label']), e(r['destinataire']), e(FILING_LABEL[r['statut']]), (' — récépissé : ' + e(r['recepisse'].rsplit('/', 1)[-1])) if r['recepisse'] else '', moves)
+            ('<label>%s dans le dossier<input name="piece" required></label>' % ('Preuve du rejet' if t == 'rejetee' else 'Récépissé') if t in FILING_NEEDS_PIECE else '') + ('<label>Motif du rejet<input name="motif" required></label>' if t == 'rejetee' else '')
+            + ('<label>Référence du destinataire<input name="reference"></label>' if t == 'transmise' else ''), e(FILING_LABEL[t])) for t in FILING_NEXT.get(r['statut'], ()))
+        cards += '<li class="o83-filing"><strong>%s</strong> <span class="ax-muted">%s — %s%s%s%s</span>%s</li>' % (
+            e(r['label']), e(r['destinataire']), e(FILING_LABEL[r['statut']]), (' — référence : ' + e(r['reference'])) if r['reference'] else '', (' — motif : ' + e(r['motif'])) if r['motif'] else '',
+            (' — %s : ' % ('preuve' if r['statut'] == 'rejetee' else 'récépissé') + e(r['recepisse'].rsplit('/', 1)[-1])) if r['recepisse'] else '', moves)
     return ('<section class="ax-card"><h3>Formalités</h3><p class="ax-muted">Transmission à la main avec rattachement du récépissé : aucun dépôt automatique n’est annoncé.</p>%s</section>' % (
         ('<ul class="o83-filings">%s</ul>' % cards) if cards else '<p class="ax-muted">Les formalités s’ouvrent après la réalisation justifiée.</p>'))
 

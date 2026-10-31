@@ -2818,3 +2818,27 @@ cds-inline-notification:not(:defined) { display: block; padding: .6rem .8rem; bo
 .o83-scope{padding:8px 12px;border-radius:8px}
 .o83-form h3 small{font-weight:400}
 @media (max-width:640px){.o83-fiche{grid-template-columns:1fr}.o83-tabs a{flex:1 1 45%;text-align:center}}
+/* ==== v5684.css ==== */
+/* 5.6.84 : cessions de fonds et de bail, panneau de l'éditeur */
+.o84-tabs{display:flex;gap:8px;margin:10px 0 16px}
+.o84-tabs a{padding:9px 18px;border-radius:8px;border:1px solid var(--ax-line,#d5d9e2);color:inherit;text-decoration:none;font-size:16px}
+.o84-tabs a[aria-current=page]{font-weight:700;border-width:2px;border-color:currentColor;text-decoration:underline;text-underline-offset:3px}
+.o84-tabs a:focus-visible,.o84-panel button:focus-visible{outline:3px solid currentColor;outline-offset:2px}
+.o84-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start;margin:16px 0}
+.o84-actions{display:flex;flex-wrap:wrap;gap:8px}
+.o84-steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0 0 12px;padding:0}
+.o84-steps li{display:flex;flex-direction:column;padding:6px 10px;border:1px solid var(--ax-line,#d5d9e2);border-radius:8px;font-size:14px}
+.o84-steps .o84-step-fait{font-weight:700;border-width:2px;border-color:currentColor}
+.o84-docs{list-style:none;margin:8px 0;padding:0;display:grid;gap:6px}
+.o84-editor{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px}
+.o84-editor #ax-office-panel[hidden]{display:none}
+.o84-editor:has(#ax-office-panel[hidden]){grid-template-columns:minmax(0,1fr)}
+.o84-panel{height:calc(100vh - 150px);min-height:480px;overflow:auto;padding:12px;border:1px solid var(--ax-line,#d5d9e2);border-radius:10px;font-size:15px;background:var(--ax-surface,#fff)}
+.o84-panel h2{font-size:16px;margin:12px 0 6px}
+.o84-state{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;margin:0}
+.o84-state dt{font-weight:700}
+.o84-state dd{margin:0}
+.o84-diff{padding:6px;border:1px solid var(--ax-line,#d5d9e2);border-radius:6px;margin:6px 0}
+.o84-diff del{text-decoration:line-through}
+.o84-diff ins{text-decoration:underline;font-weight:600}
+@media (max-width:900px){.o84-editor{grid-template-columns:1fr}.o84-panel{height:auto}}

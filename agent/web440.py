@@ -17,7 +17,7 @@ from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
 STATIC = {'/static/carbon5682.js': 'text/javascript', '/static/pdfjs5682.js': 'text/javascript', '/static/pdf.worker5682.js': 'text/javascript',
-          '/static/v5682.js': 'text/javascript', '/static/v5682.css': 'text/css', '/static/v5683.css': 'text/css', '/static/v5681.js': 'text/javascript', '/static/v5680.js': 'text/javascript', '/static/v5679.js': 'text/javascript', '/static/v5674.js': 'text/javascript', '/static/v5673.js': 'text/javascript', '/static/v5671.js': 'text/javascript', '/static/v5670.js': 'text/javascript', '/static/v5660.js': 'text/javascript', '/static/v5653.js': 'text/javascript', '/static/v5653.css': 'text/css', '/static/v5652.js': 'text/javascript', '/static/v5652.css': 'text/css', '/static/v5651.js': 'text/javascript', '/static/v5651.css': 'text/css', '/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
+          '/static/v5682.js': 'text/javascript', '/static/v5682.css': 'text/css', '/static/v5683.css': 'text/css', '/static/v5684.css': 'text/css', '/static/v5684-office.js': 'text/javascript', '/static/v5681.js': 'text/javascript', '/static/v5680.js': 'text/javascript', '/static/v5679.js': 'text/javascript', '/static/v5674.js': 'text/javascript', '/static/v5673.js': 'text/javascript', '/static/v5671.js': 'text/javascript', '/static/v5670.js': 'text/javascript', '/static/v5660.js': 'text/javascript', '/static/v5653.js': 'text/javascript', '/static/v5653.css': 'text/css', '/static/v5652.js': 'text/javascript', '/static/v5652.css': 'text/css', '/static/v5651.js': 'text/javascript', '/static/v5651.css': 'text/css', '/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
           '/static/v470.css': 'text/css', '/static/v470.js': 'text/javascript',
@@ -254,6 +254,15 @@ def allowed_path(desk, path):
 # --------------------------------------------------------- unauthenticated
 def public(env, cfg, path, method):
     """Document Server routes, protected by short-lived signed tokens."""
+    if re.fullmatch(r'/office/(plugin|bridge)/[A-Za-z0-9._/-]{1,120}', path):   # 5.6.84 : fichiers du plugin et pont à jeton court
+        from . import web5684
+        desk = Desk(cfg)
+        try:
+            return web5684.public(env, desk, path, method, str(env.get('HTTP_X_AXIORHUB_PREFIX') or '/agent-courriel'))
+        except Stop as ex:
+            return {'status': '403 Forbidden', 'kind': 'text/plain; charset=utf-8', 'body': 'Accès refusé : ' + str(ex)}
+        finally:
+            desk.db.close()
     match = re.fullmatch(r'/office/(file|callback)/([A-Za-z0-9_\-.]{20,2000})', path)
     if not match:
         return None
@@ -624,6 +633,9 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code in ('version_en_conflit', 'cle_idempotence_deja_utilisee', 'numerotation_concurrente', 'diligence_deja_reservee')
                              else ('404 Not Found' if code in ('document_financier_absent', 'estimation_absente', 'modele_absent', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m5684/'):   # 5.6.84 : cessions de fonds et de bail, modèles, panneau de l'éditeur
+        from . import web5684
+        return web5684.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5683/'):   # 5.6.83 : cessions de parts et actions, compétences, formulaires, règles datées
         from . import web5683
         return web5683.api(env, desk, auth, prefix, name, args, method)
@@ -774,7 +786,9 @@ def api(env, desk, auth, prefix, name, args, method):
             if name == 'office/config':
                 path = allowed_path(desk, args.get('path', ''))
                 mode = 'view' if args.get('mode') == 'view' else 'edit'
-                opened = office440.open_document(desk, auth, path, user_name=desk.c['mail'].get('from_name', 'Cabinet'), mode=mode)
+                from .web567 import actor
+                owner5684, role5684 = actor(env)   # 5.6.84 : la personne connectée, plus l'identité fixe « cabinet »
+                opened = office440.open_document(desk, auth, path, user_name=owner5684 if owner5684 != 'cabinet' else desk.c['mail'].get('from_name', 'Cabinet'), mode=mode, user_id=owner5684, role=role5684)
                 return json_out(opened)
             if name == 'office/diagnostic':
                 return json_out({'checks': office440.diagnostic(desk, auth)})
@@ -1101,15 +1115,15 @@ def editor_page(desk, auth, prefix, args):
             '<a class="ax-btn ghost" href="%s">Vérifier les citations</a>'
             '<span id="ax-docstate" class="ax-muted">Chargement de l’éditeur…</span>'
             '<button type="button" id="ax-diag" class="ax-btn ghost">Un problème ?</button></div>'
-            '<div id="ax-office-wrap"><div id="ax-office"></div></div>'
+            '<div class="o84-editor"><div id="ax-office-wrap"><div id="ax-office"></div></div><div id="ax-office-panel" class="o84-panel" role="complementary" aria-label="Suivi du document" hidden></div></div>'
             '<div id="ax-office-help" class="ax-card" hidden></div>'
             '<script type="application/json" id="ax-office-boot">%s</script>'
-            '<script defer src="%s"></script>') % (
+            '<script defer src="%s"></script><script defer src="%s"></script>') % (
         e(prefix + '/documents'), e(name),
         e(prefix + '/verification?' + urlencode({'path': path, 'matter': args.get('matter', '')}), quote=True),
         json.dumps({'path': path, 'server': cfg['server_url'], 'matter': args.get('matter', ''),
                     'mode': 'view' if args.get('mode') == 'view' else 'edit'}).replace('</', '<\\/'),
-        e(prefix + '/static/v440-office.js'))
+        e(prefix + '/static/v440-office.js'), e(prefix + '/static/v5684-office.js'))
     html = shell(name, body, prefix, auth['csrf'], '/documents')
     origin = cfg['server_url']
     ds = urlsplit(origin)
@@ -1127,7 +1141,13 @@ def settings_page(desk, auth, prefix, args, render=None):
     base = office440.public_base(desk, auth)
     engines = ''.join('<option value="%s"%s>%s</option>' % (v, ' selected' if cfg['engine'] == v else '', t) for v, t in (
         ('onlyoffice', 'ONLYOFFICE Document Server'), ('euro-office', 'Euro-Office')))
-    office = ('<section class="ax-card" id="ax-office-settings"><h2>1 · Modifier les documents dans l’interface</h2>'
+    from . import office_bridge5684
+    flags5684 = office_bridge5684.flags(desk)
+    observation = ('<section class="ax-card" id="ax-office-5684"><h2>Observation pendant l’édition</h2><p class="ax-muted">Le plugin AxiorHub est servi par cette application : rien à installer sur le serveur de documents. L’analyse consomme le modèle choisi, '
+                   'au plus une fois toutes les %d secondes par document et seulement si la modification peut avoir un effet.</p><form class="m5-form" data-api="m5684/office/reglage" data-reload="1">'
+                   '<label class="e5636-switch"><input type="checkbox" name="observation" value="1"%s> Activer l’observation et l’analyse</label><label class="e5636-switch"><input type="checkbox" name="auto_apply" value="1"%s> Autoriser l’écriture automatique en mode Rédiger en autonomie</label>'
+                   '<button class="ax-btn ghost" type="submit">Enregistrer</button></form></section>') % (flags5684['min_seconds'], ' checked' if flags5684['observation'] else '', ' checked' if flags5684['auto_apply'] else '')
+    office = (observation + '<section class="ax-card" id="ax-office-settings"><h2>1 · Modifier les documents dans l’interface</h2>'
               '<p class="ax-muted">Les deux serveurs (ONLYOFFICE, Euro-Office) s’intègrent par le même principe : cette page affiche leur éditeur ; '
               'le serveur relit le fichier ici via une adresse signée et renvoie vos modifications à l’agent, qui les écrit dans Nextcloud.</p>'
               '<label>Moteur<select id="of-engine">%s</select></label>'

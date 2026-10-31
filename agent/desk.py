@@ -82,10 +82,11 @@ JOBS |= {'live_mail430','live_calendar430','live_documents430'}
 JOBS |= {'pieces_scan510','pieces_create510'}
 JOBS |= {'edit_personal_event','edit_personal_task'}
 JOBS |= {'routine520','docrequest520','deck530_sync','style550_scan','maildraft5613','task5614'}
+JOBS |= {'office_analysis5684','cession5684_run'}   # 5.6.84
 JOBS |= {'document568_run','document568_scan','document568_compile'}
 JOBS |= {'sent568_scan','received568_scan','followup568_prepare','proactive568_cycle','talk568_prepare','news568_collect'}
 
-USER_JOBS = {'prepare_reply','deposit_draft','associate','approve','retry','retry_matter',
+USER_JOBS = {'office_analysis5684','cession5684_run','prepare_reply','deposit_draft','associate','approve','retry','retry_matter',
              'run','chat','assistant_answer','review','prepare_draft','execute_actions',
              'mark_handled','analyze_strategy','build_matrix','draft_act','monitor_matter',
              'ack_signal','snooze_signal','resolve_signal','build_daily_dashboard'}
@@ -1026,6 +1027,12 @@ class Desk:
         if kind=='assistant_answer':
             from .integration import answer_question
             return answer_question(self,args)
+        if kind=='office_analysis5684':   # 5.6.84 : analyse d'une modification pendant l'édition
+            from .office_bridge5684 import run_analysis
+            return run_analysis(self,args)
+        if kind=='cession5684_run':
+            from .cessions5684 import run as cession_run
+            return cession_run(self,args)
         if kind in {'refresh_brief','validate_fact','pin_fact','archive_fact','attachment_review',
                     'deadline_review','confirm_event','confirm_task','ignore_deadline','prepare_draft',
                     'prepare_reply','deposit_draft','feedback','add_rule','mark_handled','execute_actions'}:

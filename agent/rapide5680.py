@@ -23,7 +23,7 @@ import time
 
 from .common import Stop, fold
 
-INTERACTIVE = ('assistant_answer',)
+INTERACTIVE = ('assistant_answer', 'office_analysis5684')   # 5.6.84 : l'avocat attend dans l'éditeur
 LANE_ID = 'rapide'
 FLAG = 'interactif5680.flag'
 FLAG_MAX_AGE = 240            # un drapeau plus ancien (processus arrêté en pleine réponse) n'a plus d'effet

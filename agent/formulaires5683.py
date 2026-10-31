@@ -315,7 +315,7 @@ def generate(desk, data, owner, client=None):
     fid = str(data.get('formulaire') or '')
     mid = str(data.get('matter') or '')
     form = form_of(fid)
-    dav = client or DAV(desk.c['nextcloud'])
+    dav = client or DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud'])
     extra = {}
     if str(data.get('dossier') or ''):
         mid, extra = cession_values(desk, str(data['dossier']))

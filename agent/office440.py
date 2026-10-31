@@ -29,7 +29,7 @@ import urllib.request
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
-from .common import HTTP, Stop, clean_path
+from .common import HTTP, Stop, clean_path, load_matters, under
 
 EDITABLE = {
     'docx': 'word', 'odt': 'word', 'rtf': 'word', 'txt': 'word', 'doc': 'word', 'dotx': 'word',
@@ -211,6 +211,12 @@ def dav_client(desk):
     return DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud'])
 
 
+def matter_of(desk, path):
+    """5.6.84 : le dossier d'un document se déduit de son emplacement, côté serveur ; une valeur envoyée par le navigateur n'est pas une preuve de droit."""
+    rows = [m for m in load_matters(desk.c) if m.get('path') and under(path, m['path'])]
+    return max(rows, key=lambda m: len(m['path']))['id'] if rows else ''
+
+
 def extension(path):
     return PurePosixPath(path).suffix.lower().lstrip('.')
 
@@ -226,7 +232,7 @@ def public_base(desk, auth):
     return auth['origin'].rstrip('/') + auth.get('prefix', '/agent-courriel')
 
 
-def open_document(desk, auth, path, user_name='Cabinet', mode='edit', client=None):
+def open_document(desk, auth, path, user_name='Cabinet', mode='edit', client=None, user_id='cabinet', matter='', role='avocat'):
     """Build the editor configuration for one Nextcloud file."""
     ensure_schema(desk)
     cfg = settings(desk)
@@ -240,11 +246,13 @@ def open_document(desk, auth, path, user_name='Cabinet', mode='edit', client=Non
     info = client.stat(path)
     if info['size'] > desk.c.get('nextcloud', {}).get('max_file_bytes', 40_000_000) * 3:
         raise Stop('piece_trop_volumineuse')
-    key = hashlib.sha256((path + '|' + info['etag']).encode()).hexdigest()[:40]
+    from . import office_gen5684     # 5.6.84 : une seule clé pour tous les participants pendant toute la génération
+    generation = office_gen5684.open_generation(desk, path, info, matter_of(desk, path) or matter)
+    key = generation['doc_key']
     now = desk.now()
     desk.db.execute('''INSERT INTO office_sessions440(doc_key,path,base_etag,matter,opened,updated)
       VALUES(?,?,?,?,?,?) ON CONFLICT(doc_key) DO UPDATE SET updated=excluded.updated''',
-                    (key, path, info['etag'], '', now, now))
+                    (key, path, generation['current_etag'] or info['etag'], '', now, now))
     desk.db.commit()
     base = public_base(desk, auth)
     file_token = sign(desk, {'t': 'file', 'k': key, 'p': path})
@@ -259,18 +267,25 @@ def open_document(desk, auth, path, user_name='Cabinet', mode='edit', client=Non
                                      'review': True, 'copy': True}},
         'editorConfig': {'mode': 'edit' if editable else 'view', 'lang': 'fr',
                          'callbackUrl': base + '/office/callback/' + callback_token,
-                         'user': {'id': 'cabinet', 'name': user_name},
+                         'user': {'id': str(user_id)[:128], 'name': str(user_name)[:128]},
                          'customization': {'autosave': True, 'forcesave': True, 'compactHeader': True,
                                            'feedback': False, 'help': False, 'hideRightMenu': False,
                                            'uiTheme': 'default-light'}},
         'type': 'desktop', 'width': '100%', 'height': '100%',
     }
+    plugin = None
+    from . import office_bridge5684 as bridge
+    if ext == 'docx' and bridge.flags(desk)['observation']:   # 5.6.84 : plugin servi par AxiorHub ; jeton court dans la configuration signée, jamais dans une adresse
+        plugin = bridge.open_session(desk, {'generation_id': generation['generation_id'], 'document_id': generation['document_id'], 'editable': editable}, user_id, role)
+        browser = auth['origin'].rstrip('/') + auth.get('prefix', '/agent-courriel')
+        config['editorConfig']['plugins'] = {'autostart': [bridge.GUID], 'pluginsData': [browser + '/office/plugin/config.json'],
+                                             'options': {bridge.GUID: {k: plugin[k] for k in ('token', 'session_id', 'document_id')}}}
     secret = jwt_secret(desk)
     if secret:
         config['token'] = jwt_encode(config, secret)
     desk.audit('document_ouvert_dans_editeur_440', {'path': path, 'mode': config['editorConfig']['mode']})
     return {'config': config, 'server_url': cfg['server_url'], 'path': path, 'etag': info['etag'],
-            'name': PurePosixPath(path).name, 'editable': editable}
+            'name': PurePosixPath(path).name, 'editable': editable, 'document_id': generation['document_id'], 'generation_id': generation['generation_id']}
 
 
 # ------------------------------------------------------ routes used by the server
@@ -309,7 +324,9 @@ def _is_valid_content(ext, data):
     return True
 
 
-def save_edited(desk, row, data, status, client=None):
+def save_edited(desk, row, data, status, client=None, force_copy=False, copy_path=''):
+    """Écriture avec précondition ETag, puis relecture, y compris pour une copie de conflit (5.6.84). Une copie existante est reprise plutôt que multipliée ;
+    ``force_copy`` : une génération ancienne ne remplace jamais l'original."""
     key, path = row['doc_key'], row['path']
     ext = extension(path)
     if not _is_valid_content(ext, data):
@@ -318,21 +335,24 @@ def save_edited(desk, row, data, status, client=None):
     with _lock(key):
         row = desk.db.execute('SELECT * FROM office_sessions440 WHERE doc_key=?', (key,)).fetchone()
         if row['last_sha'] == sha:
-            return {'outcome': 'unchanged', 'path': path}
+            return {'outcome': 'unchanged', 'path': path, 'sha256': sha, 'etag': row['base_etag']}
         client = client or dav_client(desk)
         outcome, saved_path = 'copy', path
         try:
             current = client.stat(path)
         except Stop:
             current = None
-        if current is not None and current['etag'] == row['base_etag']:
+        if current is not None and current['etag'] == row['base_etag'] and not force_copy and not copy_path:
             try:
                 client.replace_file(path, data, current['etag'])
                 outcome = 'replaced'
             except Stop as ex:
                 if str(ex) != 'version_nextcloud_modifiee':
                     raise
-        if outcome == 'copy':
+        if outcome == 'copy' and copy_path:
+            client.replace_file(copy_path, data, client.stat(copy_path)['etag'])
+            saved_path = copy_path
+        elif outcome == 'copy':
             stamp = time.strftime('%Y%m%d-%H%M')
             p = PurePosixPath(path)
             for n in range(0, 20):
@@ -344,13 +364,10 @@ def save_edited(desk, row, data, status, client=None):
                 except Stop as ex:
                     if str(ex) != 'http_412' or n == 19:
                         raise
-        if outcome == 'replaced':
-            fresh = client.stat(path)
-            if hashlib.sha256(client.download(fresh)).hexdigest() != sha:
-                raise Stop('relecture_nextcloud_non_conforme')
-            etag = fresh['etag']
-        else:
-            etag = row['base_etag']
+        fresh = client.stat(saved_path)
+        if hashlib.sha256(client.download(fresh)).hexdigest() != sha:
+            raise Stop('relecture_nextcloud_non_conforme')
+        etag = fresh['etag'] if outcome == 'replaced' else row['base_etag']
         desk.db.execute('UPDATE office_sessions440 SET base_etag=?,last_sha=?,updated=? WHERE doc_key=?',
                         (etag, sha, desk.now(), key))
         desk.db.execute('INSERT INTO office_saves440(doc_key,path,outcome,saved_path,sha256,bytes,status,at) '
@@ -358,7 +375,21 @@ def save_edited(desk, row, data, status, client=None):
         desk.db.commit()
         desk.audit('document_enregistre_depuis_editeur_440', {'path': path, 'saved_path': saved_path,
                                                               'outcome': outcome, 'sha256': sha, 'bytes': len(data)})
-        return {'outcome': outcome, 'path': saved_path}
+        return {'outcome': outcome, 'path': saved_path, 'sha256': sha, 'etag': fresh['etag']}
+
+
+def maintenance(desk, client=None):
+    """5.6.84 : tâche de santé : reprise des sauvegardes interrompues par un redémarrage, puis rétention. Rien d'actif si l'éditeur n'est pas configuré."""
+    from . import office_gen5684
+    office_gen5684.schema(desk)
+    if desk.db.execute("SELECT 1 FROM office_saves5684 WHERE state IN ('pending','fetching','writing') LIMIT 1").fetchone():
+        def write(gen, content):
+            row = desk.db.execute('SELECT * FROM office_sessions440 WHERE doc_key=?', (gen['doc_key'],)).fetchone()
+            if not row:
+                raise Stop('session_editeur_inconnue')
+            return save_edited(desk, row, content, 6, client, gen['state'] in ('closed', 'expired'), gen['conflict_path'])
+        office_gen5684.resume(desk, write, client or dav_client(desk))
+    return office_gen5684.purge(desk)
 
 
 def handle_callback(desk, token, authorization, body_bytes, client=None, fetcher=None):
@@ -384,17 +415,31 @@ def handle_callback(desk, token, authorization, body_bytes, client=None, fetcher
     if not row or row['path'] != claims['p']:
         raise Stop('session_editeur_inconnue')
     status = int(data.get('status', 0))
-    if status in (1, 4):
+    from . import office_gen5684
+    generation = office_gen5684.by_key(desk, claims['k'])
+    if generation is None:      # session ouverte avant la mise à jour : elle finit son cycle sous sa clé
+        info = (client or dav_client(desk)).stat(row['path'])
+        generation = office_gen5684.open_generation(desk, row['path'], {**info, 'etag': row['base_etag']})
+    if status == 1:
+        office_gen5684.touch(desk, generation['generation_id'], data.get('users') if isinstance(data.get('users'), list) else None)
         return {'error': 0}
-    if status in (3, 7):
+    if status == 4:
+        office_gen5684.close(desk, generation['generation_id'])
+        return {'error': 0}
+    if status in (3, 7):    # acquittement du protocole ; l'échec reste durable et visible (5.6.84), jamais une preuve de sauvegarde
+        office_gen5684.record_failure(desk, generation, status)
         desk.audit('editeur_documents_440_erreur_enregistrement', {'path': row['path'], 'status': status})
         return {'error': 0}
     if status in (2, 6):
         url = str(data.get('url') or '')
         if not url:
             raise Stop('url_editeur_absente')
-        edited = (fetcher or _fetch_edited)(desk, url)
-        save_edited(desk, row, edited, status, client)
+        if status == 2:
+            office_gen5684.close(desk, generation['generation_id'], 'closing')
+        office_gen5684.save(desk, generation, status, str(data.get('lastsave') or ''), url, lambda: (fetcher or _fetch_edited)(desk, url),
+                            lambda content, force, copy: save_edited(desk, row, content, status, client, force, copy))
+        if status == 2:
+            office_gen5684.close(desk, generation['generation_id'])
         return {'error': 0}
     return {'error': 0}
 

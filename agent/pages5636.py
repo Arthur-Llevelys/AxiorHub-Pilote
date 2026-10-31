@@ -7,6 +7,7 @@ PAGES = {
     '/outils-ia': 'Outils IA',
     '/corporate': 'Corporate',
     '/formulaires': 'Formulaires officiels',
+    '/cessions': 'Cessions de fonds et de bail',
     '/relances': 'Relances d’impayés',
     '/complement-word': 'Complément Word',
     '/microsoft-retour': 'Microsoft 365',
@@ -64,6 +65,9 @@ def page(desk, auth, prefix, env, args, path, shell):
     elif path == '/outils-ia':
         from . import outils5636
         body = outils5636.page_html(desk, prefix, args)
+    elif path == '/cessions':   # 5.6.84
+        from . import web5684
+        body = web5684.cessions_page(desk, prefix, args, env)
     elif path == '/formulaires':   # 5.6.83
         from . import formulaires5683
         from .web567 import actor

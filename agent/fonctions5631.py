@@ -12,7 +12,7 @@ from html import escape as e
 from . import i18n5631 as i18n
 
 GROUPS = ('dossier', 'rechercher', 'communiquer', 'temps', 'modeles', 'regler')
-PRIMARY = ('aujourdhui', 'courriels', 'dossiers', 'planning', 'production', 'facturation')
+PRIMARY = ('aujourdhui', 'courriels', 'dossiers', 'planning', 'production')
 
 # identifiant, groupe, route, anciens noms / alias de recherche, prérequis (capacités)
 FUNCTIONS = (
@@ -34,6 +34,7 @@ FUNCTIONS = (
     ('corporate', 'dossier', '/corporate', ('Secrétariat juridique', 'Approbation des comptes', 'AGO', 'Cession de titres', 'Table de capitalisation',
                                              'Registre des mouvements de titres', 'Création de société', 'Transfert de siège', 'Changement de dirigeant',
                                              'Bibliothèque de modèles', 'Statuts', 'Pacte d’associés', 'Lettre d’intention'), ('storage',)),   # 5.6.39
+    ('cessions', 'dossier', '/cessions', ('Cessions de fonds et de bail', 'Cession de fonds', 'Fonds de commerce', 'Droit au bail', 'Cession de bail'), ('storage',)),   # 5.6.84
     ('formulaires', 'dossier', '/formulaires', ('Formulaires officiels', 'Cerfa', 'Remplir un formulaire', '2759-SD', '2672-SD', 'Injonction de payer', 'Aide juridictionnelle'), ('storage',)),   # 5.6.83
     ('profils', 'dossier', '/profils', ('Profils procéduraux', 'Procédures approuvées'), ()),
     ('strategie', 'dossier', '/strategy', ('Stratégie', 'Question stratégique'), ('storage',)),   # 5.6.79 : dans le dossier, onglet Travail
@@ -56,7 +57,7 @@ FUNCTIONS = (
     ('missions', 'communiquer', '/missions', ('Missions', 'Confier une mission'), ('ai',)),
     ('assistant', 'communiquer', '/assistant', ('Assistant', 'Conversation'), ('ai',)),
     ('cabinet', 'temps', '/cabinet', ('Gestion du cabinet',), ()),
-    ('facturation', 'temps', '/facturation', ('Facturation et honoraires', 'Factures', 'Devis', 'Convention d’honoraires', 'Lettre de mission', 'Avoir',
+    ('facturation', 'temps', '/facturation', ('Honoraires et facturation', 'Facturation et honoraires', 'Factures', 'Devis', 'Convention d’honoraires', 'Lettre de mission', 'Avoir',
                                               'Facture électronique', 'Factur-X', 'Honorium', 'Chiffrer une mission'), ()),   # 5.6.53
     ('honoraires', 'temps', '/honoraires', ('Temps et honoraires', 'Diligences', 'Temps passés'), ()),
     ('relances', 'temps', '/relances', ('Impayés', 'Relances', 'Invoice Ninja', 'Factures échues'), ('invoice',)),   # 5.6.36

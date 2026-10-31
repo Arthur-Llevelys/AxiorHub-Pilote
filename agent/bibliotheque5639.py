@@ -39,16 +39,17 @@ from .common import Stop, fold, load_matters, matter_display
 from .erreurs5634 import Qualified
 from . import bibliotheque_fr5639 as _fr
 from . import bibliotheque_intl5639 as _intl
+from . import bibliotheque_cessions5684 as _cessions
 from . import bibliotheque_word5640 as W5
 
-BUILTIN = {t['id']: t for t in _fr.TEMPLATES + _intl.TEMPLATES}
+BUILTIN = {t['id']: t for t in _fr.TEMPLATES + _intl.TEMPLATES + _cessions.TEMPLATES}
 LANGS = ('fr', 'en', 'de', 'es')
 DROITS = {'FR': 'Droit français', 'DE': 'Droit allemand', 'ES': 'Droit espagnol', 'EN': 'Droit anglais (Angleterre et pays de Galles)'}
 LANGUES = {'fr': 'français', 'de': 'allemand', 'es': 'espagnol', 'en': 'anglais'}
 DROIT_OF_LANG = {'fr': 'FR', 'de': 'DE', 'es': 'ES', 'en': 'EN'}
 LANG_OF_DROIT = {v: k for k, v in DROIT_OF_LANG.items()}
 CATEGORIES = {'statuts': 'Statuts', 'pacte': 'Pactes d’associés et d’actionnaires', 'operation': 'Opérations : LOI, protocoles, cessions',
-              'contrat': 'Contrats'}
+              'contrat': 'Contrats', 'commun': 'Commun', 'fonds': 'Fonds de commerce', 'bail': 'Droit au bail'}   # 5.6.84 : familles de la même bibliothèque
 MISSING = {'fr': '[À COMPLÉTER : %s]', 'de': '[ZU ERGÄNZEN: %s]', 'es': '[A COMPLETAR: %s]', 'en': '[TO BE COMPLETED: %s]'}
 ARTICLE = {'fr': 'Article %d — %s', 'de': '§ %d %s', 'es': 'Artículo %d. %s', 'en': '%d. %s'}
 NOTICE = {
@@ -1116,14 +1117,19 @@ def page_html(desk, prefix, args, cid=''):
     if ident:
         return detail_html(desk, prefix, args, ident, cid)
     items = [t for t in catalog(desk) if (droit == 'tous' or t['droit'] == droit) and (not cat or t['categorie'] == cat)]
+    family = str(args.get('famille') or '')
+    if family in ('fonds', 'bail'):       # 5.6.84 : depuis une opération, ses modèles et les modèles communs ; même catalogue, pas de seconde page
+        items = [t for t in items if t['categorie'] in ('commun', family)]
+    back = re.fullmatch(r'(fonds|bail):([a-f0-9]{32})', str(args.get('retour') or ''))
+    back_html = '<p><a class="ax-btn ghost" href="%s/cessions?type=%s&operation=%s">Revenir à l’opération</a></p>' % (e(prefix, quote=True), back[1], back[2]) if back else ''
     company_form = ''
     if cid:
         from . import corporate5636 as co
         company_form = co.company(desk, cid)['forme']
-    filters = ('<form class="b5639-filters" method="get" action="%s/corporate"><input type="hidden" name="vue" value="bibliotheque">%s'
+    filters = back_html + ('<form class="b5639-filters" method="get" action="%s/corporate"><input type="hidden" name="vue" value="bibliotheque">%s'
                '<label>Droit<select name="droit">%s</select></label><label>Catégorie<select name="categorie"><option value="">Toutes</option>%s</select>'
                '</label><button class="ax-btn ghost" type="submit">Afficher</button></form>') % (
-        e(prefix, quote=True), ('<input type="hidden" name="societe" value="%s">' % e(cid, quote=True)) if cid else '',
+        e(prefix, quote=True), (('<input type="hidden" name="societe" value="%s">' % e(cid, quote=True)) if cid else '') + (('<input type="hidden" name="famille" value="%s"><input type="hidden" name="retour" value="%s">' % (e(family, quote=True), e(back[0], quote=True))) if back else ''),
         ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == droit else '', e(v)) for k, v in list(DROITS.items()) + [('tous', 'Tous les droits')]),
         ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == cat else '', e(v)) for k, v in CATEGORIES.items()))
     law_form = ('<details class="b5640-law"><summary>Droit applicable par défaut du cabinet : <strong>%s</strong></summary><p class="ax-muted">Le droit '
@@ -1161,6 +1167,8 @@ def page_html(desk, prefix, args, cid=''):
 
 def _badges(t, company_form=''):
     out = []
+    if t.get('famille'):      # 5.6.84 : trame à valider avant toute génération autonome
+        out.append('<span class="b5639-badge">À valider</span>')
     if company_form and company_form in t.get('formes', ()):
         out.append('<span class="b5639-badge on">%s</span>' % e(company_form))
     if t['droit'] != 'FR':
@@ -1204,6 +1212,11 @@ def _ready_html(desk, args, owner=None):
 
 
 def detail_html(desk, prefix, args, ident, cid=''):
+    from . import modeles5684
+    return modeles5684.panel_html(desk, template(desk, ident)) + _detail_html(desk, prefix, args, ident, cid)
+
+
+def _detail_html(desk, prefix, args, ident, cid=''):
     lang = _lang()
     t = template(desk, ident)
     data = prefill(desk, cid) if cid else {}
