@@ -27,6 +27,7 @@ ERROR_MESSAGES = {
     'acces_fournisseur_refuse': 'La clé ne possède pas les droits nécessaires.',
     'modele_ou_route_fournisseur_absent': 'Adresse API ou modèle introuvable.',
     'quota_fournisseur_depasse': 'Quota, crédit ou limite de débit atteint.',
+    'credit_fournisseur_epuise': 'Crédit épuisé chez ce fournisseur (erreur 402) : rechargez-le sur son site.',
     'generation_ia_delai_depasse': 'Le fournisseur n’a pas répondu dans le délai imparti.',
     'fournisseur_ia_injoignable': 'Connexion impossible depuis le serveur AxiorHub.',
     'secret_absent_ou_permissions_trop_larges': 'Clé absente ou permissions du fichier secret trop larges.',

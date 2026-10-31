@@ -20,8 +20,10 @@ from pathlib import Path
 
 from .common import Stop
 
-BUDGET_CODES = frozenset(('budget_mensuel_fournisseur_depasse', 'budget_requete_fournisseur_depasse', 'quota_fournisseur_depasse'))
+BUDGET_CODES = frozenset(('budget_mensuel_fournisseur_depasse', 'budget_requete_fournisseur_depasse', 'quota_fournisseur_depasse', 'credit_fournisseur_epuise'))
 FALLBACK_KEY = 'budget5668:dernier_repli'
+CREDIT_KEY = 'budget5668:credit_epuise'
+CREDIT_DAYS = 7     # au-delà, le bandeau s'efface : une nouvelle erreur le ramène
 WARN_RATIO = 0.9
 STALE_SECONDS = 3600   # une réservation « reserved » plus ancienne qu'une heure appartient à un appel interrompu sans retour
 
@@ -33,7 +35,7 @@ def not_billed(code):
     if m:
         status = int(m.group(1))
         return status != 408 and 400 <= status <= 599
-    return code in ('connexion_http_indisponible',)
+    return code in ('connexion_http_indisponible', 'credit_fournisseur_epuise')
 
 
 def _month():
@@ -181,8 +183,61 @@ def dismiss(desk, owner='cabinet'):
     return {'ok': True, 'message': 'Bandeau masqué. Il reviendra si la situation change (plafond atteint, nouveau mois).'}
 
 
+def note_credit(cfg):
+    """5.6.85 : le fournisseur a répondu 402. Trace par fournisseur pour le bandeau d'Aujourd'hui ; ne lève jamais d'exception."""
+    try:
+        state = str(cfg.get('state_dir') or '')
+        if not state:
+            return
+        db = sqlite3.connect(Path(state) / 'desk.sqlite3', timeout=5)
+        try:
+            row = db.execute('SELECT value FROM settings WHERE key=?', (CREDIT_KEY,)).fetchone()
+            value = json.loads(row[0]) if row else {}
+            value[str(cfg.get('provider_id') or 'fournisseur')] = datetime.now(timezone.utc).isoformat()
+            db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)', (CREDIT_KEY, json.dumps(value, ensure_ascii=False)))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:   # noqa: BLE001
+        pass
+
+
+def _credit_rows(desk):
+    """Fournisseurs sans crédit : une réponse réussie après l'erreur prouve que le crédit est revenu."""
+    limit = (datetime.now(timezone.utc) - timedelta(days=CREDIT_DAYS)).isoformat()
+    rows = []
+    for provider, at in sorted((desk.settings(CREDIT_KEY, {}) or {}).items()):
+        if str(at) < limit:
+            continue
+        try:
+            done = desk.db.execute("SELECT 1 FROM ai_usage_v391 WHERE provider=? AND status='done' AND at>? LIMIT 1", (provider, str(at))).fetchone()
+        except sqlite3.Error:
+            done = None
+        if not done:
+            rows.append(provider)
+    return rows
+
+
+def _credit_html(desk, prefix):
+    rows = _credit_rows(desk)
+    if not rows:
+        return ''
+    return ('<div class="b5668-banner b5668-full" role="alert"><p><strong>Crédit épuisé chez %s.</strong> Ce fournisseur refuse les demandes (erreur 402). Rechargez le crédit sur son site. '
+            'En attendant, AxiorHub passe à une autre connexion cochée en mode automatique, ou au modèle local s’il est installé ; sinon, rien n’est produit.</p>'
+            '<p class="b5668-actions"><a class="ax-btn ghost" href="%s">Voir les connexions d’IA</a></p></div>') % (e(', '.join(rows)), e(prefix + '/parametres?tab=ia', quote=True))
+
+
 def banner_html(desk, prefix, role='', owner='cabinet'):
-    """Bandeau d'Aujourd'hui : plafond atteint (ou presque), avec ce que fait AxiorHub et où régler ; masquable (5.6.70)."""
+    """Bandeaux d'Aujourd'hui : crédit épuisé chez un fournisseur, puis plafond du cabinet."""
+    try:
+        credit = _credit_html(desk, prefix)
+    except Exception:   # noqa: BLE001 — la page s'affiche toujours
+        credit = ''
+    return credit + _budget_banner(desk, prefix, owner)
+
+
+def _budget_banner(desk, prefix, owner):
+    """Plafond atteint (ou presque), avec ce que fait AxiorHub et où régler ; masquable (5.6.70)."""
     try:
         rows = _alert_rows(desk)
     except Exception:   # noqa: BLE001 — la page s'affiche toujours

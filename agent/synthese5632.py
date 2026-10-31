@@ -87,7 +87,7 @@ def _budget(desk):
         minutes = BUDGET_MINUTES
     return max(1, min(minutes, 120)) * 60
 PROVIDER_DOWN = {'moteur_ollama_injoignable', 'fournisseur_ia_injoignable', 'generation_ia_delai_depasse', 'modele_ollama_absent',
-                 'connexion_http_indisponible', 'delai_http_depasse', 'quota_fournisseur_depasse'}
+                 'connexion_http_indisponible', 'delai_http_depasse', 'quota_fournisseur_depasse', 'credit_fournisseur_epuise'}
 SHORT = {3: {'faits': 20, 'demandes': 40, 'montants': 12, 'parties': 12, 'references': 15, 'points_cles': 12}, 2: {'faits': 8, 'demandes': 12}}
 
 

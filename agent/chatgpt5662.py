@@ -554,7 +554,7 @@ def respond(state_dir, model, messages, json_schema=None, strict=True, transport
             if ex.status == 401 and not renewed:
                 renewed = True
                 continue
-            raise Stop({401: 'chatgpt_reconnexion_requise', 403: 'chatgpt_acces_refuse', 429: 'chatgpt_limite_usage_atteinte',
+            raise Stop({401: 'chatgpt_reconnexion_requise', 402: 'chatgpt_compte_non_eligible', 403: 'chatgpt_acces_refuse', 429: 'chatgpt_limite_usage_atteinte',
                         503: 'chatgpt_indisponible'}.get(ex.status, 'chatgpt_generation_echouee')) from None
         try:
             return read_stream(iter(resp.readline, b'') if hasattr(resp, 'readline') else resp)

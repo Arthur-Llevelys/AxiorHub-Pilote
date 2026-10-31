@@ -31,7 +31,7 @@ YIELD_MAX_SECONDS = 90
 DEFAULTS = {'voice_seconds': 60, 'assistant_seconds': 150, 'voice_context': 14000, 'assistant_context': 32000,
             'legal_voice_seconds': 6, 'legal_assistant_seconds': 15}
 BUSY_CODES = {'moteur_ollama_injoignable', 'fournisseur_ia_injoignable', 'generation_ia_delai_depasse', 'modele_ollama_absent',
-              'connexion_http_indisponible', 'delai_http_depasse', 'quota_fournisseur_depasse'}
+              'connexion_http_indisponible', 'delai_http_depasse', 'quota_fournisseur_depasse', 'credit_fournisseur_epuise'}
 FULL_READING = re.compile(r'\b(resum|synthe|relis|relire|relecture|integral|ensemble d|tout le document|toute la piece|tout ce document|entierement|'
                           r'en entier|chronolog|compar|incoherenc|contradiction|liste toutes|liste tous|analyse complete|analyser complete)')
 LEGAL_WORDS = re.compile(r'\b(jurisprudence|arret|article|loi|code|decret|cour de cassation|conseil d.etat|texte applicable|fondement juridique|'
