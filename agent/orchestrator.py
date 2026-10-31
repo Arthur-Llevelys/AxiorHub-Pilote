@@ -178,11 +178,14 @@ def orchestrate_mail(desk,args,classifier=None,analyst=None):
     from .learning392 import learning_context
     learned_triage=learning_context(desk,mid,'mail_triage')
     learned_drafting=learning_context(desk,mid,'mail_drafting')
-    fast=classifier or Model(routed_config(desk.c,'mail_triage'))
-    classification=fast.ask('mail_orchestration_classification',{'matter':{'id':mid,'name':matter.get('client_name','')},
-      'association':{'confidence':confidence,'reason':reason},'sources':packet,
-      'apprentissage_metier':learned_triage,
-      'rules':{'internal_only':True,'no_external_action':True}})
+    from .sobriete5682 import classification_from_triage
+    classification=None if classifier else classification_from_triage(report.get('triage'),[x['id'] for x in packet])   # 5.6.82 : déjà trié à l'arrivée
+    if classification is None:
+        fast=classifier or Model(routed_config(desk.c,'mail_triage'))
+        classification=fast.ask('mail_orchestration_classification',{'matter':{'id':mid,'name':matter.get('client_name','')},
+          'association':{'confidence':confidence,'reason':reason},'sources':packet,
+          'apprentissage_metier':learned_triage,
+          'rules':{'internal_only':True,'no_external_action':True}})
     validate(classification,MAIL_ORCHESTRATION_CLASSIFICATION)
     _validate_sources(classification,valid)
     blocked=reason!='association_unique_fiable' or classification['ambiguous_matter']
@@ -242,10 +245,19 @@ def sweep(desk,args):
     from .balayage5611 import recent_work_items
     rows=recent_work_items(desk,cfg,'orchestrator',limit*5)
     done=[];warnings=[]
+    from .arret5643 import STOP_CODES
+    from .ia5672 import TRANSIENT
+    from .sobriete5682 import hold,mail_failures,note_mail_failure
+    if hold(desk.c):rows=[]
+    failed=mail_failures(desk)
     for row in rows:
         if len(done)>=limit:break
+        if row['mail_key'] in failed:continue   # 5.6.82 : trois échecs : plus de nouvel appel pour ce courriel
         try:done.append(orchestrate_mail(desk,{'mail_key':row['mail_key']}))
-        except Stop as ex:warnings.append({'mail_key':row['mail_key'],'reason':str(ex)})
+        except Stop as ex:
+            warnings.append({'mail_key':row['mail_key'],'reason':str(ex)})
+            if str(ex) in TRANSIENT or str(ex) in STOP_CODES:break   # panne, pause ou limite : le reste de la liste attend
+            note_mail_failure(desk,row['mail_key'],str(ex))
     return {'orchestrated':len(done),'notifications':len(done),'items':done,'warnings':warnings,
       'external_actions':0,'documents_created':0,'emails_sent':0,'billing_finalized':0}
 

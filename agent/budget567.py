@@ -25,7 +25,7 @@ def reserve(cfg, messages, max_tokens, db_factory):
     if cfg.get('provider_type') == 'ollama':
         return 0.0
     price_in, price_out = money(cfg.get('input_usd_per_million')), money(cfg.get('output_usd_per_million'))
-    if not (price_in or price_out) and not cfg.get('pricing_confirmed_free', False):
+    if not (price_in or price_out) and cfg.get('canal') != 'abonnement':
         raise Stop('tarif_fournisseur_non_renseigne')
     # Majoration conservative : caractères UTF-8 / 2 au lieu d'une moyenne
     # anglophone / 4. Ce reste une estimation, jamais une garantie de facture.

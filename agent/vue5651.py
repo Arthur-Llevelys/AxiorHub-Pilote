@@ -473,8 +473,8 @@ def chronology_html(desk, auth, prefix, mid, which, view):
     undated = [i for i in items if not i['date']]
 
     def li(i):
-        return '<li class="d51-ev d51-ev-%s"><span class="d51-date">%s</span> <span class="d51-kind">%s</span> %s%s %s</li>' % (
-            e(i['kind']), e(_date_fr(i['date'], i['precision']) + PRECISION.get(i['precision'], '') if i['date'] else 'date non déterminée'), e(i['nature']), e(i['text']),
+        return '<li class="d51-ev d51-ev-%s" data-date="%s" data-precision="%s" data-nature="%s"><span class="d51-date">%s</span> <span class="d51-kind">%s</span> %s%s %s</li>' % (
+            e(i['kind']), e(i['date'] or '', quote=True), e(i['precision'] or '', quote=True), e(i['nature'] or '', quote=True), e(_date_fr(i['date'], i['precision']) + PRECISION.get(i['precision'], '') if i['date'] else 'date non déterminée'), e(i['nature']), e(i['text']),
             (' — <span class="d51-who">%s</span>' % e(i['actor'])) if i['actor'] else '', _source_links(prefix, mid, i['sources'], 2))
     filters = ''.join('<a href="%s"%s>%s</a>' % (e(prefix + _q(mid, view, chrono=k) + '#d51-chrono', quote=True), ' aria-current="true"' if k == which else '', e(v))
                       for k, v in CHRONO_FILTERS)

@@ -398,6 +398,7 @@ def _record_prepared_event(desk, source_id, matter, kind, label, message, source
 def trigger_events(desk, limit=30):
     """Turn recognised cabinet events into idempotent internal, reversible work."""
     ensure_schema(desk);limit=max(1,min(int(limit),100));queued=[];prepared=[];abstained=[]
+    projects_allowed=desk.settings('automation:automatic_legal_projects_enabled',desk.c.get('orchestrator',{}).get('automatic_legal_projects_enabled',True))
     signals=list(desk.db.execute("SELECT * FROM proactive_signals WHERE state='open' AND matter<>'' ORDER BY last_seen DESC LIMIT ?",(limit*3,)))
     for row in signals:
         if _event_already_handled(desk,row['id']):continue
@@ -418,9 +419,14 @@ def trigger_events(desk, limit=30):
               'instruction':'Synthétiser les prétentions et arguments adverses, relever les contradictions et pièces manquantes, puis préparer un projet interne de réponse.'}
         elif row['category'] in ('upcoming_appointment','upcoming_deadline') and any(x in text for x in ('audience','plaidoirie','tribunal','cour ')):
             if playbook_active:continue
-            kind='prepare_hearing';payload={**common,'objective':'Préparer la note de plaidoirie, les arguments, réponses adverses et la liste des pièces pour l’audience à venir.'}
+            kind='prepare_hearing';payload={**common,'instruction':'Préparer la note de plaidoirie, les arguments, réponses adverses et la liste des pièces pour l’audience à venir.'}
+        if kind.startswith('prepare_') and not projects_allowed:continue   # 5.6.82 : l'interrupteur « projets d'actes » s'applique ici aussi
+        if kind=='prepare_hearing':
+            from .sobriete5682 import hearing_prepared
+            if hearing_prepared(desk,row['matter']):continue
         if kind:
-            queued.append(_enqueue_once(desk,kind,payload,5))
+            try:queued.append(_enqueue_once(desk,kind,payload,5))
+            except Stop as ex:abstained.append({'source_id':row['id'],'reason':str(ex)})   # dossier en échec ou file pleine : le cycle continue
         if len(queued)>=limit:break
     try:
         decisions=list(desk.db.execute("""SELECT * FROM cabinet_decisions_v290
@@ -429,10 +435,8 @@ def trigger_events(desk, limit=30):
     except Exception:decisions=[]
     for row in decisions:
         if row['action_kind']=='review_inactive_matter' and row['matter'] and not _event_already_handled(desk,row['id']):
-            payload={'matter':row['matter'],'document_type':'note_interne','automatic':'yes',
-              'trigger_kind':'inactive_matter','trigger_source_id':row['id'],'trigger_reason':row['title'],
-              'instruction':'Analyser l’inactivité du dossier et préparer deux options internes : relance utile ou clôture, avec les vérifications et décisions nécessaires.'}
-            queued.append(_enqueue_once(desk,'prepare_document_project',payload,15))
+            # 5.6.82 : un dossier inactif est signalé à l'avocat ; il n'est pas réanalysé d'office par l'IA
+            prepared.append(_record_prepared_event(desk,row['id'],row['matter'],'inactive_matter','Dossier inactif à examiner',row['title']+' — '+row['summary'],[row['source_id']]))
         elif row['action_kind'] in ('review_billing','review_unbilled_work'):
             prepared.append(_record_prepared_event(desk,row['id'],row['matter'],'completed_work',
               'Temps et facturation à contrôler',row['title']+' — '+row['summary'],[row['source_id']]))
@@ -445,13 +449,14 @@ def advance_matter(desk, args):
     if not matter:raise Stop('dossier_absent')
     jobs=[]
     jobs.append(_enqueue_once(desk,'index',{'matter':mid},15))
-    jobs.append(_enqueue_once(desk,'refresh_brief',{'matter':mid},20))
+    from .sobriete5682 import brief_after
+    if not brief_after(desk,mid):jobs.append(_enqueue_once(desk,'refresh_brief',{'matter':mid},20))
     jobs.append(_enqueue_once(desk,'refresh_matter_graph380',{'matter':mid},25))
     signals=list(desk.db.execute("SELECT * FROM proactive_signals WHERE matter=? AND state='open' ORDER BY due,last_seen DESC LIMIT 30",(mid,)))
     hearing=next((x for x in signals if x['category'] in ('upcoming_appointment','upcoming_deadline') and re.search(r'audience|plaidoirie|tribunal|cour',x['title']+' '+x['detail'],re.I)),None)
     changed=next((x for x in signals if x['category']=='documents_changed' and re.search(r'conclusion|écriture|assignation|contrat',x['title']+' '+x['detail'],re.I)),None)
     if hearing:
-        jobs.append(_enqueue_once(desk,'prepare_hearing',{'matter':mid,'objective':'Préparer les travaux internes utiles pour l’audience.','automatic':'yes','trigger_kind':'audience_j14','trigger_reason':hearing['title']},5))
+        jobs.append(_enqueue_once(desk,'prepare_hearing',{'matter':mid,'instruction':'Préparer les travaux internes utiles pour l’audience.','automatic':'yes','trigger_kind':'audience_j14','trigger_reason':hearing['title']},5))
     elif changed:
         dtype='contrat' if re.search(r'contrat',changed['title']+' '+changed['detail'],re.I) else 'conclusions'
         jobs.append(_enqueue_once(desk,'prepare_document_project',{'matter':mid,'document_type':dtype,'instruction':'Analyser le nouveau document, actualiser les arguments et préparer le projet interne utile.','automatic':'yes','trigger_kind':'nouveau_document','trigger_reason':changed['title']},5))

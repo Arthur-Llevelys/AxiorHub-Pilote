@@ -153,6 +153,12 @@
     c.append(el('p', m.job?.progress || m.plan.deliverable, 'muted'));
     const r = m.result || {};
     if (r.text) {const d = el('details'); d.append(el('summary', 'Lire la réponse et ses sources'), el('pre', r.text)); c.append(d);}
+    if (m.choix_ia) {   // 5.6.82 : ce qui a été choisi et pourquoi, sans raisonnement interne
+      const x = m.choix_ia, d = el('details', undefined, 'm82-choix');
+      d.append(el('summary', 'Choix de l’IA'), el('p', x.modele + ' · effort ' + x.effort + (x.provisoire ? ' · choix provisoire, non encore mesuré au banc' : '')), el('p', x.raison),
+               el('p', (x.canal ? x.canal + ' · ' : '') + 'consommation : ' + x.consommation));
+      c.append(d);
+    }
     // 5.6.13 : résultat produit — fichier ou brouillon, emplacement, contrôles effectués, points à compléter
     if (r.location) c.append(el('p', 'Emplacement : ' + r.location + (r.template ? ' · modèle : ' + r.template : ''), 'ws-ai-result-meta'));
     if (r.checks) { c.append(checksLine(r.checks)); if (r.checks.legal_control_detail) c.append(el('p', 'Contrôle : ' + r.checks.legal_control_detail, 'ws-ai-result-meta')); }

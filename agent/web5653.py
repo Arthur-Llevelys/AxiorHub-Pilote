@@ -393,8 +393,7 @@ def _header(desk, prefix, owner, args):
                        types, _client_options(desk, args.get('dossier') or ''),
                        ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in fact.INVOICE_TYPES.items())),
                    'Préparer le brouillon', reload=True)
-    pin = _form('epingler', _hidden(epingler='false' if pinned(desk, owner) else 'true'),
-                'Retirer du menu principal' if pinned(desk, owner) else 'Épingler au menu principal', cls='b53-inline ghost')
+    pin = ''      # 5.6.82 : Honoraires est une entrée permanente du menu, le bouton d'épinglage n'a plus d'objet
     missing = f55.setup_missing(desk)
     setup = ('<div class="b55-setup" role="status"><strong>Avant d’émettre une facture :</strong> complétez la fiche du cabinet (%s). '
              '<a class="ax-btn" href="?vue=reglages#b55-cabinet">Compléter la fiche</a></div>') % e(', '.join(missing)) if missing else ''

@@ -55,6 +55,9 @@ _MASKED = re.compile(r'display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*
                      r'(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)[^"]*overflow\s*:\s*hidden|overflow\s*:\s*hidden[^"]*(?:max-)?height\s*:\s*0(?:px)?\s*(?:;|$)', re.I)
 
 
+DEFAULT_UNSEEN_DAYS = 14
+
+
 class PlainHTML(HTMLParser):
     """Texte d'un courriel HTML. 5.6.59 : le texte masqué par la mise en forme (display:none, taille nulle, opacité nulle, attribut
     hidden) n'est pas lu comme le reste ; il est mis de côté et signalé (``bouclier5659.hidden_marker``)."""
@@ -327,7 +330,7 @@ class Mailbox:
 
     def unseen(self):
         criteria = ['UNSEEN','UNDELETED']
-        days = self.cfg.get('lookback_days',0)
+        days = self.cfg.get('lookback_days',0) or DEFAULT_UNSEEN_DAYS   # 5.6.82 : jamais tout l'historique des non-lus
         if days > 0:
             since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%d-%b-%Y')
             criteria += ['SINCE',since]

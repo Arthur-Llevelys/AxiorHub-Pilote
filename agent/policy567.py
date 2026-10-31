@@ -48,6 +48,17 @@ def matter_ids(config, value):
     return found
 
 
+def _explicit_route(config, cfg, rules, purpose):
+    if rules['mode'] != 'manual':
+        return False
+    from .ai_gateway import PURPOSES
+    routes = config.get('model_routing') or {}
+    route = routes.get(purpose) if isinstance(routes.get(purpose), dict) else {}
+    role = PURPOSES.get(purpose, ('', ''))[1]
+    chosen = str(route.get('provider') or routes.get(role + '_provider') or '')
+    return bool(chosen) and chosen != 'ollama' and chosen == str(cfg.get('provider_id') or '')
+
+
 def check_external(cfg, payload=None, messages=None):
     """Refuse avant toute génération distante. Ne révèle ni texte ni référence dans l'erreur."""
     if cfg.get('provider_type', cfg.get('type', 'ollama')) == 'ollama':
@@ -56,13 +67,20 @@ def check_external(cfg, payload=None, messages=None):
     if not isinstance(config, dict):
         raise Stop('politique_externe_absente')
     from .hybrid400 import policy
+    from .politique5682 import external_rules
+    size = len(json.dumps(messages if messages is not None else payload, ensure_ascii=False, default=str))
+    if external_rules(config, cfg, matter_ids(config, [cfg.get('external_context'), payload, messages]), size):
+        return
     rules = policy(config)
     if rules['mode'] == 'local':
         raise Stop('politique_externe_mode_local')
     purpose = str(cfg.get('purpose') or '')
-    if purpose not in rules['allowed_purposes']:
+    # 5.6.82 : une fonction confiée explicitement à ce fournisseur (mode Mixte, routage par fonction) vaut décision de l'administrateur ;
+    # le contrôle hybride, seul, refusait sinon tout envoi d'une route pourtant réglée et autorisée.
+    routed = _explicit_route(config, cfg, rules, purpose)
+    if purpose not in rules['allowed_purposes'] and not routed:
         raise Stop('politique_externe_fonction_locale')
-    if not rules['external_client_data_approved'] or not cfg.get('external_data_allowed'):
+    if not (rules['external_client_data_approved'] or routed) or not cfg.get('external_data_allowed'):
         raise Stop('politique_externe_non_autorisee')
     ids = matter_ids(config, [cfg.get('external_context'), payload, messages])
     excluded = set(rules['excluded_matters'])

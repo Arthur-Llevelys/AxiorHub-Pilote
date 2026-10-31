@@ -1,0 +1,125 @@
+/* 5.6.82 : mode de l'IA, recherche rapide, lisibilité commune (16 px, focus visible, cibles de 44 px, largeur 390 px). */
+.m82 .m82-state { padding: .6rem .8rem; border-radius: 8px; background: var(--ws-surface); color: var(--ws-ink); }
+.m82 fieldset { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: .5rem; min-width: 0; }
+.m82 legend { font-weight: 600; margin-bottom: .4rem; padding: 0; }
+.m82 .m82-modes { grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); }
+.m82 .m82-modes legend { grid-column: 1 / -1; }
+.m82 label.m82-mode { display: flex; flex-direction: row; gap: .7rem; align-items: flex-start; padding: .7rem .8rem; border: 1px solid var(--ws-line, #8a8f98); border-radius: 8px; cursor: pointer; min-height: 44px; }
+.m82-mode:has(input:checked) { border-width: 2px; padding: calc(.7rem - 1px) calc(.8rem - 1px); }
+.m82-mode:has(input:checked) strong::after { content: ' · retenu'; font-weight: 400; }
+.m82 label.m82-mode input[type=radio] { margin: .25rem 0 0; width: 1.1rem; height: 1.1rem; flex: none; min-height: 0; }
+.m82 .m82-mode .m5-field { margin-top: .3rem; }
+.m82-mode span { display: grid; gap: .25rem; min-width: 0; }
+.m82-mode small, .m82 fieldset > small { font-size: .9rem; line-height: 1.4; }
+.m82-need { font-weight: 600; }
+.m82-boxes { display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
+.m82 .m82-prefs { display: block; }
+.m82 label.m82-pref { display: inline-flex; flex-direction: row; gap: .45rem; align-items: center; min-height: 44px; margin-right: 1rem; }
+.m82 label.m82-pref input { width: 1.1rem; height: 1.1rem; margin: 0; min-height: 0; }
+.m82-adv { margin: .6rem 0; }
+.m82-adv > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.m82-adv h4 { margin: .9rem 0 .3rem; }
+.m82-table { overflow-x: auto; max-width: 100%; }
+.m82-off td { opacity: .7; }
+.m82-inline { margin: .4rem 0 .8rem; }
+.m82-banner { margin-bottom: 1rem; }
+.m81-profil { margin-top: 1rem; }
+
+.m82-quick { position: fixed; inset: 0; z-index: 9000; background: rgba(15, 18, 25, .45); display: flex; justify-content: center; align-items: flex-start; padding: 10vh 16px 16px; }
+.m82-quick[hidden] { display: none; }
+.m82-quick-box { background: var(--ws-surface); color: var(--ws-ink); width: min(40rem, 100%); max-height: 76vh; overflow: auto; border-radius: 12px; padding: 1rem; box-shadow: 0 12px 40px rgba(0, 0, 0, .35); }
+.m82-quick-box input[type=search] { width: 100%; font-size: 1.05rem; padding: .7rem .8rem; min-height: 44px; box-sizing: border-box; color: var(--ws-ink); background: transparent; border: 1px solid var(--ws-line, #8a8f98); border-radius: 8px; }
+.m82-quick-box ul { list-style: none; margin: .4rem 0; padding: 0; }
+.m82-quick-box li a { display: grid; gap: .1rem; padding: .55rem .6rem; border-radius: 8px; text-decoration: none; color: inherit; min-height: 44px; box-sizing: border-box; }
+.m82-quick-box li a:hover, .m82-quick-box li a:focus { outline: 2px solid currentColor; outline-offset: -2px; }
+.m82-quick-box small { font-size: .9rem; opacity: .85; }
+.m82-quick-status { margin: .4rem 0 0; font-size: .9rem; min-height: 1.2em; }
+.m82-quick-more { display: inline-block; margin-top: .3rem; color: inherit; }
+.m82-choix { margin-top: .5rem; }
+.m82-choix > summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+.m82-choix p { margin: .2rem 0; }
+
+/* Base graphique Carbon : ses composants suivent les couleurs d'AxiorHub (clair et sombre) ; formulaires natifs conservés, à l'échelle et aux formes Carbon. */
+:root { --cds-layer-01: var(--ws-surface); --cds-layer: var(--ws-surface); --cds-text-primary: var(--ws-ink); --cds-text-secondary: var(--ws-ink); --cds-background: var(--ws-surface);
+  --cds-border-subtle-01: var(--ws-border, #8a8f98); --cds-focus: currentColor; --m82-radius: 4px; }
+.ax-btn, .ax-main input:not([type=checkbox]):not([type=radio]), .ax-main select, .ax-main textarea { border-radius: var(--m82-radius); }
+.ax-card, .d51-card, .ax-main .card { border-radius: var(--m82-radius); }
+.ax-main h1 { font-size: 2rem; line-height: 1.25; font-weight: 400; }
+.ax-main h2 { font-size: 1.5rem; line-height: 1.33; font-weight: 400; }
+.ax-main h3 { font-size: 1.25rem; line-height: 1.4; font-weight: 600; }
+.ax-main h4 { font-size: 1rem; line-height: 1.5; font-weight: 600; }
+.ax-btn { min-height: 40px; }
+cds-tag.q51-class { margin: 0; max-inline-size: 100%; }
+cds-tag:not(:defined) { display: inline-block; padding: .1rem .5rem; border: 1px solid currentColor; border-radius: 12px; font-size: .85rem; }
+cds-inline-notification:not(:defined) { display: block; padding: .6rem .8rem; border-left: 3px solid currentColor; }
+.m82-banner { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.m82-banner cds-inline-notification { flex: 1 1 22rem; max-inline-size: none; }
+
+/* Menu : les six entrées de travail, Toutes les fonctions, puis Paramètres. */
+.m82-settings { display: flex; gap: .55rem; align-items: center; min-height: 44px; padding: 0 .75rem; color: inherit; text-decoration: none; border-radius: var(--m82-radius); }
+.m82-settings[aria-current] { font-weight: 700; text-decoration: underline; }
+
+/* Lecture : liste et document côte à côte, largeur réglable ; un seul écran à la fois sur téléphone. */
+.d79-layout.d79-with-preview { grid-template-columns: minmax(0, 1fr) 12px minmax(320px, var(--m82-pane, 46%)); gap: 4px; }
+.m82-split { width: 12px; align-self: stretch; cursor: col-resize; border: 0; padding: 0; background: transparent; position: relative; touch-action: none; }
+.m82-split::after { content: ''; position: absolute; inset: 0 5px; background: currentColor; opacity: .3; }
+.m82-split:hover::after, .m82-split:focus-visible::after { opacity: .9; }
+.m82-back { display: none; }
+.m82-pdf { display: flex; flex-direction: column; height: 100%; min-height: 420px; }
+.m82-pdf-bar { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; padding: .4rem .6rem; border-bottom: 1px solid var(--ws-border, #8a8f98); position: sticky; top: 0; background: var(--ws-surface); z-index: 1; }
+.m82-pdf-bar input { width: 4.5rem; }
+.m82-pdf-page { overflow: auto; flex: 1; padding: .6rem; text-align: center; }
+.m82-pdf-page canvas { max-width: none; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+
+/* Assistant : un seul volet, à droite, repliable. */
+.ws-ai-dock:not(.ws-ai-dock--embedded) { left: auto !important; right: 0 !important; top: 0 !important; bottom: 0 !important; transform: none !important; width: min(560px, 100vw) !important;
+  height: 100dvh !important; max-height: 100dvh !important; border-radius: 0 !important; }
+.ws-ai-dock--wide:not(.ws-ai-dock--embedded) { width: min(1000px, 100vw) !important; }
+#ws-ai-dock .m82-active { margin: .3rem 0; padding: .4rem .6rem; border-left: 3px solid currentColor; font-weight: 600; font-size: 1rem; color: var(--ws-ink); }
+.ws-topbar-actions #ws-ai-live { position: static !important; inset: auto !important; width: 44px; height: 44px; box-shadow: none !important; }
+
+/* File : carte traitée sur place. */
+.q51-item.m82-done { opacity: .75; }
+.q51-item.m82-done .q51-actions { display: none; }
+.m82-done-note { font-weight: 600; margin: .3rem 0 0; }
+
+/* Chronologie : frise avec zoom et filtres, liste conservée (seule présentée sur téléphone). */
+.m82-frise { margin: .6rem 0 1rem; }
+.m82-frise-bar { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-bottom: .5rem; }
+.m82-frise-bar button[aria-pressed=true] { font-weight: 700; text-decoration: underline; }
+.m82-axis { position: relative; height: 112px; overflow-x: auto; border-bottom: 2px solid currentColor; }
+.m82-track { position: relative; height: 100%; min-width: 100%; }
+.m82-mark { position: absolute; bottom: 0; height: 28px; min-width: 12px; padding: 0; background: var(--ws-ink); border: 2px solid var(--ws-ink); cursor: pointer; }
+.m82-mark[data-precision=mois], .m82-mark[data-precision=annee] { background: transparent; }
+.m82-year { position: absolute; top: 0; font-size: .85rem; border-left: 1px solid currentColor; padding-left: .25rem; height: 60px; opacity: .8; }
+.d51-ev.m82-hit { outline: 2px solid currentColor; outline-offset: 2px; }
+.d51-ev[hidden] { display: none; }
+
+/* Bordereau : glisser-déposer en plus des boutons Monter et Descendre. */
+.p5-table tr[draggable=true] { cursor: grab; }
+.p5-table tr.m82-drag { opacity: .5; }
+
+.d51-kind { background: transparent !important; color: inherit !important; border: 1px solid currentColor; }
+.d51-filters a[aria-current=true] { color: #fff !important; }
+
+/* Socle commun : indications sans couleur seule, focus visible partout, rien ne déborde de la page sur un téléphone. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+#ax-main, .ax-main { font-size: 1rem; line-height: 1.5; }
+.ax-main p, .ax-main li, .ax-main td, .ax-main label { font-size: max(1rem, 1em); }
+.ax-main small, .ax-main .ax-muted { font-size: .9rem; }
+.ws-topbar-actions a, .ws-icon-button { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 1180px) {
+  .m82-split { display: none; }
+  .m82-back { display: inline; }
+  .m82-x { display: none; }
+}
+@media (max-width: 640px) {
+  .m82-frise { display: none; }
+  .ax-btn, .ax-main button { min-height: 44px; }
+  .vf-table { display: block; overflow-x: auto; max-width: 100%; }
+  .ws-topbar-actions { flex-wrap: wrap; }
+  #ws-main { max-width: 100vw; overflow-x: clip; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}

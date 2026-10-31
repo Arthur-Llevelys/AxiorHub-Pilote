@@ -22,6 +22,10 @@
     } catch (err) { return ''; }
     return '';
   }
+  function pageOf(a) {
+    var found = a && a.href ? /#page=(\d+)/.exec(a.href) : null;
+    return found ? Number(found[1]) : 1;
+  }
   function show(open) {
     pane.hidden = !open;
     if (layout) layout.classList.toggle('d79-with-preview', open);
@@ -52,6 +56,7 @@
       if (v.open_url) { openLink.href = v.open_url; openLink.hidden = false; }
       if (v.note) { note.textContent = v.note; note.hidden = false; }
       if (v.kind === 'pdf') {
+        if (window.ax82Pdf && window.ax82Pdf(body, v, pageOf(trigger))) return;   // 5.6.82 : lecteur intégré, ouvert à la page citée
         var frame = document.createElement('iframe'); frame.src = v.url; frame.title = 'Aperçu : ' + (v.title || ''); frame.className = 'd79-frame';
         body.append(frame);
       } else if (v.kind === 'image') {

@@ -692,12 +692,15 @@ def sort_rows(rows, order, conclusions_text=''):
     return sorted(rows, key=lambda r: (not r.get('include'), by_name(r)))
 
 
-def update_table(desk, did, rows_in, case=None, opts=None, order=None):
+def update_table(desk, did, rows_in, case=None, opts=None, order=None, revision=None):
     """Enregistre le tableau corrigé par l'avocat : ordre, intitulés, dates, pièces retenues, paramètres du bordereau."""
     draft = get(desk, did)
     if draft['status'] in ('en_creation', 'cree'):
         raise Stop('bordereau_deja_cree')
     data = draft['data']
+    if revision not in (None, '') and str(revision) != str(data.get('revision', 0)):   # 5.6.82 : modification concurrente : rien n'est écrasé
+        raise Stop('version_en_conflit')
+    data['revision'] = int(data.get('revision', 0) or 0) + 1
     by_key = {r['key']: r for r in data['rows']}
     if rows_in is not None:
         if not isinstance(rows_in, list) or len(rows_in) > MAX_ROWS:

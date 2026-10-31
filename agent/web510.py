@@ -195,12 +195,12 @@ def _table_html(draft):
             '<p class="vf-note">Cochez les pièces à communiquer, corrigez les intitulés et les dates, réordonnez avec ↑ ↓, puis enregistrez. Rien n’est écrit dans Nextcloud à ce stade. '
             'Analyse du %s, dossier « %s ».</p>'
             '<div class="p5-scroll" data-first="%d"><div class="p5-row"><label class="m5-field">Classer selon<select class="p5-order">%s</select></label>'
-            '<button type="button" class="ax-btn p5-save" data-draft="%s">Enregistrer le tableau</button></div>'
+            '<button type="button" class="ax-btn ghost" id="m82-undo" disabled>Annuler le déplacement</button><button type="button" class="ax-btn p5-save" data-revision="%d" data-draft="%s">Enregistrer le tableau</button></div>'
             '<table class="vf-table p5-table"><thead><tr><th></th><th>Retenir</th><th>N°</th><th>Intitulé</th><th>Date</th><th>Fichier</th></tr></thead><tbody>%s</tbody></table></div>'
             '%s</section>') % (
         len(p5.included(data)), len(data['rows']), e(data['scan']['at'][:16].replace('T', ' ')), e(data['scan']['folder']), p5.first_number(data),
         ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == order else '', v) for k, v in (('nom', 'numéro ou nom de fichier'), ('chronologique', 'date (chronologique)'), ('conclusions', 'ordre de citation dans les conclusions'))),
-        e(draft['id'], quote=True), ''.join(rows) or '<tr><td colspan="6">Aucun PDF trouvé.</td></tr>',
+        int(data.get('revision', 0) or 0), e(draft['id'], quote=True), ''.join(rows) or '<tr><td colspan="6">Aucun PDF trouvé.</td></tr>',
         ('<details><summary>Fichiers non retenus faute de format PDF (%d)</summary><ul>%s</ul></details>' % (len(data.get('others', [])), others)) if others else '')
 
 
@@ -392,7 +392,7 @@ def handle(desk, name, data, method='POST', args=None):
         job = desk.enqueue('pieces_scan510', {'matter': s('matter'), 'order': s('order'), 'source_folder': s('source_folder')[:300]}, priority=0)
         return {'job_id': job}
     if n == 'table':
-        return p5.update_table(desk, s('draft'), data.get('rows'), order=s('order') or None)
+        return p5.update_table(desk, s('draft'), data.get('rows'), order=s('order') or None, revision=s('revision'))
     if n == 'case':
         case = {k: s(k) for k, _ in p5.CASE_FIELDS}
         case['conclusions_path'] = s('conclusions_path')

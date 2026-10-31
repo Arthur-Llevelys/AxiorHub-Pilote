@@ -16,7 +16,8 @@ from html import escape as e
 
 LOCAL_DOWN = ('moteur_ollama_injoignable', 'modele_ollama_absent')
 TRANSIENT = frozenset(LOCAL_DOWN + ('fournisseur_ia_injoignable', 'generation_ia_delai_depasse', 'connexion_http_indisponible', 'delai_http_depasse',
-                                    'ia_en_pause', 'preparation_suspendue', 'file_attente_pleine'))
+                                    'ia_en_pause', 'preparation_suspendue', 'file_attente_pleine', 'chatgpt_limite_usage_atteinte', 'chatgpt_indisponible',
+                                    'plafond_automatique_atteint'))
 DELAY_MINUTES = 10
 PROBE_KEY = 'ia5672:test_reussi'
 

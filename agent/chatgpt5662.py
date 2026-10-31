@@ -66,9 +66,9 @@ REFRESH_DEAD = {'invalid_grant', 'invalid_refresh_token', 'token_expired', 'refr
 
 
 class HTTPFailure(Stop):
-    def __init__(self, status, code='', detail=''):
+    def __init__(self, status, code='', detail='', param=''):
         super().__init__('http_%s' % status)
-        self.status, self.code, self.detail = int(status), str(code or ''), str(detail or '')[:300]
+        self.status, self.code, self.detail, self.param = int(status), str(code or ''), str(detail or '')[:300], str(param or '')[:80]
 
 
 def _now():
@@ -104,6 +104,14 @@ def _error_of(body):
     return '', str(data.get('detail') or '') if isinstance(data, dict) else ''
 
 
+def _param_of(body):
+    try:
+        err = json.loads(body or b'{}').get('error')
+    except (ValueError, UnicodeError, AttributeError):
+        return ''
+    return str(err.get('param') or '') if isinstance(err, dict) else ''
+
+
 def http(method, url, data=None, headers=None, timeout=60, stream=False):
     """Requête vers auth.openai.com ou api.openai.com ; aucune redirection suivie ; erreur avec son code OpenAI (jamais le corps
     complet, jamais un jeton). ``stream`` : rend la réponse ouverte (événements du flux)."""
@@ -128,8 +136,9 @@ def http(method, url, data=None, headers=None, timeout=60, stream=False):
     try:
         resp = opener.open(req, timeout=timeout)
     except urllib.error.HTTPError as e:
-        code, detail = _error_of(e.read(65536))
-        raise HTTPFailure(e.code, code, detail) from None
+        body = e.read(65536)
+        code, detail = _error_of(body)
+        raise HTTPFailure(e.code, code, detail, _param_of(body)) from None
     except TimeoutError:
         raise Stop('delai_http_depasse') from None
     except (urllib.error.URLError, OSError):
@@ -241,6 +250,8 @@ def start(desk, owner, port=DEFAULT_PORT):
             params['id_token_hint'] = record['id_token']
         if acc.get('email'):
             params['login_hint'] = acc['email']
+        if acc.get('etat') == 'connecte' and not acc.get('plan'):
+            params['prompt'] = 'consent'      # 5.6.82 : réactivation choisie par l'avocat ; jamais à chaque connexion ordinaire
     else:
         params['agent_name_hint'] = AGENT_NAME
     desk.setting(ATTEMPT_KEY, {'state': state, 'nonce': nonce, 'verifier': verifier, 'redirect_uri': redirect, 'client_id': client_id,
@@ -334,15 +345,24 @@ def complete(desk, returned, transport=None):
     save_record(desk.c['state_dir'], record)
     plan = PLAN_SCOPE in scopes
     desk.setting(ACCOUNT_KEY, {'email': record['email'], 'subject': record['subject'], 'client_id': client_id, 'scopes': scopes,
-                               'plan': plan, 'connecte_le': record['saved_at'], 'par': attempt.get('owner', ''), 'etat': 'connecte',
+                               'espace': _workspace(claims), 'plan': plan, 'connecte_le': record['saved_at'], 'par': attempt.get('owner', ''), 'etat': 'connecte',
                                'bienvenue_vue': bool(previous.get('bienvenue_vue')) and previous.get('client_id') == client_id})
     desk.audit('chatgpt5662_connecte', {'par': attempt.get('owner', ''), 'abonnement_utilisable': plan})
+    from . import chatgpt5682
+    chatgpt5682.clear(desk.c['state_dir'])
     if plan:
         try:
-            refresh_models(desk, transport)
+            from .catalogue5682 import refresh
+            refresh(desk, PROVIDER_ID, transport)    # 5.6.82 : catalogue lié au compte ; celui d'un autre compte ne survit pas
         except Stop:
             pass
     return {'ok': True, 'plan': plan, 'email': record['email']}
+
+
+def _workspace(claims):
+    """Espace de travail du jeton d'identité, s'il est fourni ; vide sinon (affiché « Non fourni »)."""
+    auth = claims.get('https://api.openai.com/auth') if isinstance(claims.get('https://api.openai.com/auth'), dict) else {}
+    return str(auth.get('chatgpt_account_id') or claims.get('chatgpt_account_id') or '')[:120]
 
 
 def access_token(state_dir, transport=None, force=False):
@@ -383,7 +403,10 @@ def refresh_models(desk, transport=None):
     token = access_token(desk.c['state_dir'], transport)
     data = _json((transport or http)('GET', API + '/models', None, {'Authorization': 'Bearer ' + token, 'Accept': 'application/json'}))
     rows = data.get('models') if isinstance(data.get('models'), list) else data.get('data') or []
-    models = [{'slug': str(m.get('slug') or m.get('id') or ''), 'nom': str(m.get('display_name') or m.get('slug') or m.get('id') or '')}
+    # 5.6.82 : ordre du serveur conservé ; capacités reprises si le serveur les donne, sinon inconnues (jamais supposées)
+    models = [{'slug': str(m.get('slug') or m.get('id') or ''), 'nom': str(m.get('display_name') or m.get('slug') or m.get('id') or ''),
+               'contexte': m.get('context_window') or m.get('max_context_window'), 'entrees': m.get('input_modalities'),
+               'efforts': [str(x.get('effort') if isinstance(x, dict) else x) for x in m.get('supported_reasoning_levels') or []]}
               for m in rows if isinstance(m, dict) and m.get('visibility', 'list') == 'list' and (m.get('slug') or m.get('id'))]
     desk.setting(MODELS_KEY, {'modeles': models[:40], 'le': _now().isoformat()})
     return models
@@ -434,7 +457,7 @@ def save_provider(desk, owner, model, enabled, allow_external):
         raise Stop('modele_fournisseur_invalide')
     value = {'type': 'chatgpt', 'url': API, 'model': model, 'enabled': bool(enabled), 'external_data_allowed': bool(allow_external),
              'secret_file': '', 'timeout_seconds': 240, 'max_context_chars': 120000, 'temperature': 0, 'structured_mode': 'strict',
-             'zdr_required': False, 'pricing_confirmed_free': True, 'state_dir': desk.c['state_dir']}
+             'zdr_required': False, 'canal': 'abonnement', 'state_dir': desk.c['state_dir']}
     desk.setting('ai:provider:' + PROVIDER_ID, value)
     desk.c.setdefault('ai_providers', {})[PROVIDER_ID] = value
     desk.audit('fournisseur_ia_modifie', {'provider': PROVIDER_ID, 'type': 'chatgpt', 'enabled': value['enabled'],
@@ -443,7 +466,7 @@ def save_provider(desk, owner, model, enabled, allow_external):
 
 
 # ------------------------------------------------------------------------------------------------ inférence (API Responses)
-def build_request(model, messages, json_schema=None, strict=True):
+def build_request(model, messages, json_schema=None, strict=True, effort=None):
     """Messages AxiorHub → requête Responses admise pour l'abonnement : consignes dans ``instructions`` (les éléments « system » sont
     refusés), historique complet dans ``input``, ``store: false``, ``stream: true`` ; aucun paramètre non admis (température, max…)."""
     system = '\n\n'.join(str(m.get('content') or '') for m in messages if m.get('role') == 'system')
@@ -455,7 +478,10 @@ def build_request(model, messages, json_schema=None, strict=True):
     if json_schema is not None:
         req['text'] = {'format': {'type': 'json_schema', 'name': 'axiorhub_result', 'schema': json_schema, 'strict': True} if strict
                        else {'type': 'json_object'}}
-    return req
+    from .chatgpt5682 import clean_request, effort_field
+    if effort_field(effort):
+        req['reasoning'] = effort_field(effort)
+    return clean_request(req)
 
 
 STREAM_MAX_SECONDS = 1800   # plafond d'une réponse en flux (le délai de lecture porte sur le silence entre deux événements)
@@ -505,25 +531,38 @@ def read_stream(lines, deadline=None):
     return text.strip(), usage
 
 
-def respond(state_dir, model, messages, json_schema=None, strict=True, transport=None, timeout=240):
-    """Une requête Responses (une reprise après renouvellement si le jeton est refusé). Rend (texte, usage)."""
-    body = json.dumps(build_request(model, messages, json_schema, strict), ensure_ascii=False).encode()
-    for attempt in (1, 2):
-        token = access_token(state_dir, transport, force=attempt == 2)
+def respond(state_dir, model, messages, json_schema=None, strict=True, transport=None, timeout=240, effort=None, info=None):
+    """Une requête Responses. Rend (texte, usage). Reprises bornées : une après renouvellement si le jeton est refusé, une sans le réglage
+    d'effort s'il n'est pas admis (noté dans ``info`` pour ne plus l'envoyer à ce modèle)."""
+    info = info if info is not None else {}
+    renewed = False
+    while True:
+        body = json.dumps(build_request(model, messages, json_schema, strict, effort), ensure_ascii=False).encode()
+        token = access_token(state_dir, transport, force=renewed)
         try:
             resp = (transport or http)('POST', API + '/responses', body, {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json',
                                                                          'Accept': 'text/event-stream'}, timeout=timeout, stream=True)
         except HTTPFailure as ex:
             if ex.code in PLAN_ERRORS:
-                if PLAN_ERRORS[ex.code] == 'chatgpt_reconnexion_requise' and attempt == 1:
+                if PLAN_ERRORS[ex.code] == 'chatgpt_reconnexion_requise' and not renewed:
+                    renewed = True
+                    continue
+                if PLAN_ERRORS[ex.code] == 'chatgpt_option_non_prise_en_charge' and effort and 'reasoning' in (ex.param or 'reasoning'):
+                    effort, info['effort_refuse'] = None, True
                     continue
                 raise Stop(PLAN_ERRORS[ex.code]) from None
-            if ex.status == 401 and attempt == 1:
+            if ex.status == 401 and not renewed:
+                renewed = True
                 continue
             raise Stop({401: 'chatgpt_reconnexion_requise', 403: 'chatgpt_acces_refuse', 429: 'chatgpt_limite_usage_atteinte',
                         503: 'chatgpt_indisponible'}.get(ex.status, 'chatgpt_generation_echouee')) from None
         try:
             return read_stream(iter(resp.readline, b'') if hasattr(resp, 'readline') else resp)
+        except Stop as ex:
+            if str(ex) == 'chatgpt_option_non_prise_en_charge' and effort:   # refus arrivé dans le flux : même correction, une seule fois
+                effort, info['effort_refuse'] = None, True
+                continue
+            raise
         except (TimeoutError, OSError):
             raise Stop('generation_ia_delai_depasse') from None   # flux silencieux au-delà du délai : erreur claire, sans blocage
         finally:
@@ -531,7 +570,6 @@ def respond(state_dir, model, messages, json_schema=None, strict=True, transport
                 resp.close()
             except Exception:   # noqa: BLE001
                 pass
-    raise Stop('chatgpt_reconnexion_requise')
 
 
 # ------------------------------------------------------------------------------------------------ retour local (postes)
@@ -613,12 +651,13 @@ def html(desk, prefix, role, local):
             '<li>AxiorHub demande à OpenAI de ne pas conserver les échanges (<code>store: false</code>). Dans ChatGPT › Paramètres › '
             'Gestion des données, <strong>désactivez « Améliorer le modèle pour tous »</strong>.</li>'
             '<li>Un abonnement ChatGPT est personnel : chaque avocat devrait utiliser son propre compte.</li>'
-            '<li>Programme en aperçu : OpenAI peut changer les modèles, limites ou conditions ; gardez un modèle local en secours.</li>'
+            '<li>Programme en aperçu : OpenAI peut changer les modèles, limites ou conditions.</li>'
             '</ul></details>')
     body = head
     connected = acc.get('etat') == 'connecte'
     if connected:
         body += '<p>Compte connecté : <strong>%s</strong> · ' % e(acc.get('email') or 'compte ChatGPT')
+        body += 'espace : %s · ' % e(acc.get('espace') or 'non fourni')
         body += ('<span class="ax-ok">utilisation de l’abonnement autorisée</span>' if acc.get('plan') else
                  '<span class="d51-warn">utilisation de l’abonnement NON autorisée</span> — reconnectez-vous et acceptez cette permission.')
         body += ' · <a href="%s" target="_blank" rel="noopener">Gérer l’usage</a></p>' % e(USAGE_URL, quote=True)
@@ -660,4 +699,6 @@ def html(desk, prefix, role, local):
                  '<label class="m5-field">Adresse affichée après l’accord<input name="adresse" maxlength="4000" autocomplete="off" '
                  'placeholder="http://127.0.0.1:1455/auth/callback?code=…"></label><button class="ax-btn" type="submit">Terminer la connexion</button>'
                  '<p role="status" class="m5-status"></p></form></details>') % (' open' if pending else '')
+    from .ia5682 import transfer_html
+    body += transfer_html(connected and bool(acc.get('plan')), local)
     return '<section class="ax-card" id="chatgpt5662"><h2>ChatGPT (votre abonnement)</h2>%s</section>' % body

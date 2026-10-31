@@ -235,6 +235,22 @@ MESSAGES = {
     'fichier_hors_dossier': 'Ce fichier n’appartient pas au dossier.',   # 5.6.51
     'chatgpt_non_connecte': 'ChatGPT n’est pas connecté : Paramètres › Modèles d’IA › ChatGPT, « Continuer avec ChatGPT ».',   # 5.6.62
     'chatgpt_reconnexion_requise': 'La connexion à ChatGPT a expiré ou a été retirée : reconnectez-vous (Paramètres › Modèles d’IA › ChatGPT).',
+    'fournisseur_interdit_par_politique': 'Ce fournisseur n’est pas permis par le mode choisi (Paramètres › Modèles d’IA).',   # 5.6.82
+    'chatgpt_usage_plan_non_autorise': 'La connexion ChatGPT n’autorise pas l’usage de votre forfait : reconnectez-vous et acceptez cette permission.',
+    'aucun_modele_admissible': 'Aucun modèle de cette connexion ne convient à ce travail : il reste à vérifier. Actualisez le catalogue (Paramètres › Modèles d’IA).',
+    'contexte_insuffisant': 'Ce travail dépasse le contexte admis par les modèles disponibles : il reste à vérifier.',
+    'sortie_structuree_absente': 'Aucun modèle disponible ne sait rendre ce résultat structuré : le travail reste à vérifier.',
+    'niveau_local_non_mesure': 'Le modèle local n’a pas été mesuré pour ce niveau de travail : il reste à vérifier.',
+    'tarif_inconnu': 'Le tarif de ce modèle n’est pas connu : renseignez-le dans Fournisseurs.',
+    'plafond_automatique_atteint': 'Plafond journalier des appels automatiques atteint : ces travaux reprennent demain. Vos demandes restent traitées (Paramètres › Modèles d’IA, volet avancé).',
+    'budget_mission_atteint': 'Le plafond local de cette mission est atteint : le travail reste à vérifier (Paramètres › Modèles d’IA, volet avancé).',
+    'escalade_sans_modele_superieur': 'Aucun modèle supérieur n’est disponible pour cette étape.',
+    'catalogue_modeles_vide': 'Cette connexion ne propose aucun modèle utilisable.',
+    'politique_ia_absente': 'Le mode de l’IA n’est pas réglé.',
+    'fournisseur_ia_requis': 'Cochez au moins une connexion.',
+    'reponse_ia_refusee': 'Le modèle a refusé cette demande : le travail reste à vérifier.',
+    'phrase_de_passe_trop_courte': 'La phrase de passe doit compter 12 caractères au moins.',
+    'paquet_session_invalide': 'Ce paquet est illisible ou la phrase de passe est fausse. La connexion en place n’a pas changé.',
     'chatgpt_limite_usage_atteinte': 'Limite d’utilisation de votre abonnement ChatGPT atteinte : consultez ChatGPT › Paramètres › Utilisation '
                                      '(chatgpt.com/settings/usage). Le modèle local reste disponible.',
     'chatgpt_compte_non_eligible': 'Ce compte ou cet espace ChatGPT ne peut pas utiliser son abonnement dans AxiorHub (offre Plus ou Pro requise, '

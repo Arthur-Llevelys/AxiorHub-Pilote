@@ -27,6 +27,10 @@ def _routes(desk):
 def current(desk):
     from .ai_gateway import PURPOSES
     from .hybrid400 import policy
+    from . import politique5682
+    rule = politique5682.read(desk.c)
+    if rule and rule['mode'] != 'local':
+        return {'mode': rule['mode'], 'label': politique5682.LABELS[rule['mode']] + ' : modèle et effort choisis pour chaque travail'}
     mode = policy(desk.c)['mode']
     if mode == 'hybrid':
         return {'mode': 'hybride', 'label': 'Hybride : local, avec bascule vers OpenRouter au-delà d’un seuil'}
@@ -54,7 +58,18 @@ def _set_mode(desk, mode):
     desk.c['hybrid_routing'] = value
 
 
+def _reset_policy(desk):
+    """5.6.82 : un réglage par fonction reprend la main sur la politique centrale, sans ambiguïté sur ce qui s'applique."""
+    from .politique5682 import KEY, normalize
+    raw = desk.settings(KEY, {}) or {}
+    if raw and raw.get('mode') != 'routes':
+        value = {**normalize(raw), 'mode': 'routes'}
+        desk.setting(KEY, value)
+        desk.c['politique_ia'] = value
+
+
 def set_local(desk):
+    _reset_policy(desk)
     _set_mode(desk, 'local')
     desk.audit('ia540_mode', {'mode': 'local'})
     return {'message': 'Toutes les fonctions utilisent désormais le modèle local. Rien ne sort du serveur.'}
@@ -81,6 +96,7 @@ def apply_mixed(desk, provider_id, model, local_model='', test=True):
     routes = {p: ({'provider': 'ollama', 'model': local_model} if p in LOCAL_PURPOSES else {'provider': provider_id, 'model': model}) for p in PURPOSES}
     _write_routes(desk, routes)
     _set_mode(desk, 'manual')
+    _reset_policy(desk)
     desk.audit('ia540_mode', {'mode': 'mixte', 'provider': provider_id, 'model': model, 'local_model': local_model})
     return {'message': 'Mode mixte activé : tri, pièces jointes et contrôle en local (%s) ; rédaction et analyse via %s (%s), avec pseudonymisation.' % (
         local_model, provider_id, model)}
@@ -134,9 +150,11 @@ def page(desk, prefix, shell, csrf):
     labels = sorted(((m['id'], matter_display(m)) for m in _matters(desk)), key=lambda x: x[1].lower())
     search_card = _search_card(desk)
     matter_opts = ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in labels)
+    from .ia5682 import card as _politique5682
     body = ('<div class="ia540"><h1>Intelligence artificielle</h1>'
             '<p class="ax-muted">Une seule rubrique : modèles locaux, routage par fonction, régime économe et consommation, puis l’IA externe sûre. '
             'Tout envoi à un fournisseur non local est <strong>pseudonymisé sur le serveur</strong>, puis la réponse est rétablie localement.</p>'
+            + _politique5682(desk) +
             '%s<h2 class="ia540-sub">IA externe sûre</h2><p class="ax-muted">Ce que l’agent envoie hors du serveur, quand et sous quelle forme.</p>'
             '<section class="ax-card"><h2>Mode d’utilisation</h2><p><strong>Actuellement :</strong> %s</p>%s'
             '<div class="ia540-modes"><article><h3>Tout en local</h3><p>Modèle Ollama du serveur pour tout. Confidentialité maximale ; vitesse limitée par le serveur.</p>'
@@ -262,5 +280,6 @@ def apply_external_all(desk, provider_id, model):
         raise Stop('modele_fournisseur_invalide')
     _write_routes(desk, {p: {'provider': provider_id, 'model': model} for p in PURPOSES})
     _set_mode(desk, 'manual')
+    _reset_policy(desk)
     desk.audit('ia540_mode', {'mode': 'externe', 'provider': provider_id, 'model': model})
     return {'message': 'Toutes les fonctions utilisent %s (%s), avec pseudonymisation.' % (provider_id, model)}

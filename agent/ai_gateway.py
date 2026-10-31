@@ -21,7 +21,7 @@ PROVIDER_TYPES = {'ollama', 'openai', 'mistral', 'openrouter', 'anthropic'}   # 
 # 5.4.0 : modèles Anthropic proposés (le nom exact reste modifiable dans Paramètres › IA).
 ANTHROPIC_MODELS = (('claude-sonnet-5-5', 'Claude Sonnet 5.5 — rédaction et analyse (recommandé)'),
                     ('claude-opus-5-5', 'Claude Opus 5.5 — analyses longues et complexes'),
-                    ('claude-haiku-4-5-20251001', 'Claude Haiku 4.5 — tri et tâches rapides'))
+                    ('claude-haiku-5-5', 'Claude Haiku 5.5 — tri et tâches rapides'))
 ERROR_MESSAGES = {
     'authentification_fournisseur_refusee': 'Clé API refusée par le fournisseur.',
     'acces_fournisseur_refuse': 'La clé ne possède pas les droits nécessaires.',
@@ -247,6 +247,10 @@ def record_usage(cfg, result, estimated, status='done', messages=None, error='')
         settle(db,cfg,status,released)
         db.commit()
     finally:db.close()
+    try:
+        from .conso5682 import note
+        note(cfg,usage,status)   # 5.6.82 : canal, jetons d'entrée, en cache et de sortie, tels que fournis
+    except (sqlite3.Error,OSError):pass
     return cost
 
 
@@ -294,7 +298,7 @@ def save_route(desk, purpose, provider_id, model):
 
 
 def load_runtime_settings(desk):
-    _load_rows(desk.c,desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid' OR key='ai:secours'"))
+    _load_rows(desk.c,desk.db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid' OR key='ai:secours' OR key='ai:politique'"))
 
 
 def _load_rows(config,rows):
@@ -306,6 +310,8 @@ def _load_rows(config,rows):
         except (ValueError, TypeError):
             continue
         if row['key'].startswith('ai:provider:') and isinstance(value, dict):
+            if value.get('type')=='chatgpt':   # 5.6.82 : un abonnement n'est pas une API gratuite : canal explicite à la place de l'ancienne marque
+                value.pop('pricing_confirmed_free',None);value['canal']='abonnement'
             providers[row['key'].split(':', 2)[-1]] = value
         elif row['key'].startswith('ai:route:') and isinstance(value, dict):
             routing[row['key'].split(':', 2)[-1]] = value
@@ -313,6 +319,8 @@ def _load_rows(config,rows):
             config['hybrid_routing']=value
         elif row['key']=='ai:secours' and isinstance(value,dict):
             config['secours_routing']=value
+        elif row['key']=='ai:politique' and isinstance(value,dict):
+            config['politique_ia']=value
 
 
 def load_config_settings(config):
@@ -321,7 +329,7 @@ def load_config_settings(config):
     if not path.is_file():return
     try:
         db=sqlite3.connect(path,timeout=2);db.row_factory=sqlite3.Row
-        rows=db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid' OR key='ai:secours'").fetchall()
+        rows=db.execute("SELECT key,value FROM settings WHERE key LIKE 'ai:provider:%' OR key LIKE 'ai:route:%' OR key='ai:hybrid' OR key='ai:secours' OR key='ai:politique'").fetchall()
         _load_rows(config,rows)
     except sqlite3.Error:
         return

@@ -1234,7 +1234,8 @@
 "Modifiez le réglage.",
 "Cliquez sur « Enregistrer les changements ».",
 "Testez avec « Tester IMAP », « Tester Nextcloud / agendas » ou « Tester Ollama ».",
-"Pour une IA externe : enregistrez sa clé, cliquez sur « Charger les modèles », choisissez le modèle ; le tarif connu et les plafonds sont préremplis."
+"Pour une IA externe : enregistrez sa clé, cliquez sur « Charger les modèles », choisissez le modèle ; le tarif connu et les plafonds sont préremplis.",
+"Pour choisir comment l’IA travaille : ouvrez « Mode de l’IA », retenez l’abonnement ChatGPT, l’API Mistral, l’API Claude, le local ou le choix automatique. AxiorHub prend ensuite pour chaque travail le modèle le plus économe qui convient."
 ],
 "result": "Les réglages enregistrés, sans recharger la page.",
 "verify": "Le message de test indique ce qui a réellement été vérifié.",

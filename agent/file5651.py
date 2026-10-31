@@ -346,7 +346,7 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
         where = e(it['matter_name'])
         if it['matter'] and not matter:
             where = '<a href="%s">%s</a>' % (e(prefix + '/dossier?id=' + _q(str(it['matter']), safe=''), quote=True), where)
-        return ('<li class="q51-item q51-%s"><div class="q51-head"><span class="q51-class">%s</span>%s<span class="q51-matter">%s</span></div>'
+        return ('<li class="q51-item q51-%s"><div class="q51-head"><cds-tag class="q51-class" size="md" type="cool-gray">%s</cds-tag>%s<span class="q51-matter">%s</span></div>'
                 '<p class="q51-title">%s</p>%s%s<div class="q51-actions">%s</div></li>' % (
                     e(it['class']), e(CLASSES.get(it['class'], 'À examiner')),
                     ' <span class="q51-prio" title="%s">Prioritaire</span>' % e(it['priority_reason'], quote=True) if it['priority'] == 'haute' else '',

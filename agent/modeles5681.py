@@ -15,7 +15,9 @@ import re
 from .common import HTTP, Stop
 
 # Dollars par million de jetons (entrée, sortie). Relevés sur la page officielle du fournisseur, date en commentaire.
-TARIFS = {'mistral-large-4': (0.70, 2.10)}        # docs.mistral.ai/models/mistral-large-4-0, relevé le 30 octobre 2026
+TARIFS = {'mistral-large-4': (0.70, 2.10),        # docs.mistral.ai/models/mistral-large-4-0, relevé le 30 octobre 2026
+          'mistral-small-latest': (0.15, 0.60), 'mistral-small-2603': (0.15, 0.60),   # docs.mistral.ai, relevé le 31 octobre 2026
+          'claude-haiku-5-5': (0.10, 0.50), 'claude-sonnet-5-5': (2.0, 10.0), 'claude-opus-5-5': (4.0, 20.0), 'claude-fable-5-1': (10.0, 50.0)}
 DEFAULT_MONTHLY_USD = 50.0
 DEFAULT_REQUEST_USD = 0.50
 MIXTE_MODEL = 'mistral-large-4'
@@ -72,7 +74,9 @@ def parse(provider_type, data):
         caps = x.get('capabilities')
         if isinstance(caps, dict) and caps.get('completion_chat') is False:      # Mistral : indique ce que chaque modèle sait faire
             continue
-        out.append(_row(name, str(x.get('display_name') or x.get('name') or ''), x.get('pricing') if isinstance(x.get('pricing'), dict) else None))
+        row = _row(name, str(x.get('display_name') or x.get('name') or ''), x.get('pricing') if isinstance(x.get('pricing'), dict) else None)
+        row['contexte'] = x.get('max_input_tokens') or x.get('max_context_length')   # 5.6.82 : fenêtre annoncée par le fournisseur, si elle l'est
+        out.append(row)
     return sorted(out, key=lambda r: r['id'].lower())
 
 

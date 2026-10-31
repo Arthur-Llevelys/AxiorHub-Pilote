@@ -166,6 +166,8 @@ def retry_job(desk, job_id):
 
 
 def _ollama_answers(desk):
+    from .politique5682 import local_required
+    if not local_required(desk.c):return True   # 5.6.82 : mode à fournisseur unique : Ollama n'est pas requis, son absence n'est pas une panne
     try:
         cfg=desk.c.get('ollama') or {}
         HTTP(cfg['url'],local_only=True,timeout=5).json('GET','/api/tags')

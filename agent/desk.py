@@ -1351,6 +1351,16 @@ class Desk:
                     self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
                     return False
                 e=Stop('operation_annulee')
+            from .chatgpt5682 import HELD_CODES,next_check
+            if str(e) in HELD_CODES:
+                # 5.6.82 : limite ou indisponibilité de l'abonnement : le travail garde sa ligne et revient à l'échéance, sans nouvelle mission
+                changed=self.db.execute("UPDATE jobs SET status='pending',attempts=MAX(attempts-1,0),not_before=?,blocked_by=? WHERE id=? AND status='running'",
+                                        (next_check(self.c['state_dir'],str(e)),str(e),row['id'])).rowcount
+                self.db.commit()
+                if changed:
+                    self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
+                    return False
+                e=Stop('operation_annulee')
             result={'erreur':str(e)};status='error'
             if getattr(e,'detail',None):   # 5.6.34 (B15) : service, étape, statut, corrélation, ressource anonymisée (aucun secret)
                 from .erreurs5634 import public as _public_detail
@@ -1451,7 +1461,11 @@ class Desk:
             # Continue in bounded batches, allowing other queued jobs between lots.
             self._then('index',json.loads(row['args']))
         if status=='done' and row['kind']=='index' and result.get('contenu_modifie') and not result.get('en_attente'):
-            self._then('refresh_brief',json.loads(row['args']))
+            from .sobriete5682 import brief_after
+            _brief_args=json.loads(row['args']);_later=brief_after(self,_brief_args.get('matter'))
+            _brief=self._then('refresh_brief',_brief_args)
+            if _brief and _later:      # 5.6.82 : changements rapprochés regroupés en une seule synthèse, jamais perdue
+                self.db.execute("UPDATE jobs SET not_before=? WHERE id=? AND status='pending'",(_later,_brief));self.db.commit()
         if status=='done' and row['kind']=='refresh_brief':
             self._then('sync_legal_memory',json.loads(row['args']))
         autonomy_active=self.settings('automation:autonomy_enabled',

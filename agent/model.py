@@ -449,6 +449,8 @@ masque une incertitude déterminante. Retourne uniquement le JSON demandé.
 
 
 ANTHROPIC_VERSION='2023-06-01'
+LISTED={}
+LEGACY_CLAUDE=re.compile(r'claude-(3|haiku-4-5|sonnet-4-[0-6](?!\d)|sonnet-4-\d{8}|opus-4-[0-6](?!\d)|opus-4-\d{8})')
 
 
 def pseudo_sources(config):
@@ -470,6 +472,10 @@ def routed_config(config, purpose):
         role=PURPOSES[purpose][1]
     else:
         raise Stop('fonction_ia_invalide')
+    if 'ollama' in config:   # 5.6.82 : politique centrale ; mode à fournisseur unique ou automatique : aucun repli hérité d'anciens réglages
+        from .politique5682 import routed as _politique5682
+        _chosen=_politique5682(config,purpose,role)
+        if _chosen is not None:return _chosen
     routes=config.get('model_routing',{}) if 'ollama' in config else {}
     route=routes.get(purpose,{}) if isinstance(routes.get(purpose,{}),dict) else {}
     from .hybrid400 import policy as hybrid_policy
@@ -708,7 +714,11 @@ class Model:
         self.provider_id = str(cfg.get('provider_id') or cfg.get('id') or 'ollama')
         self.last_provider=self.provider_id;self.last_model=str(cfg.get('model') or '')
         self.usage_cost_usd=0.0
-        self.usage_cost_known=(self.provider_type=='ollama' or bool(cfg.get('input_usd_per_million') or cfg.get('output_usd_per_million')))
+        self.usage_cost_known=(self.provider_type in ('ollama','routeur') or bool(cfg.get('input_usd_per_million') or cfg.get('output_usd_per_million')))
+        if cfg.get('routeur5682'):return   # 5.6.82 : aiguillage seul ; le transport est celui de la décision, créé à chaque étape
+        if cfg.get('trace5682'):self._trace=cfg['trace5682']
+        from .politique5682 import gate
+        gate(cfg)
         if self.provider_type == 'ollama':
             self.http = HTTP(cfg['url'], local_only=True, timeout=cfg.get('timeout_seconds', 240), local_hosts=cfg.get('local_hosts', ()))
             try:
@@ -745,11 +755,17 @@ class Model:
                 self.http.headers['anthropic-version']=ANTHROPIC_VERSION
             else:
                 self.http.headers['Authorization']='Bearer '+secret
+            if cfg.get('sans_liste5682'):return   # 5.6.82 : modèle pris dans le catalogue de la connexion, déjà lu
             # A read-only model listing produces a clear authentication/network
             # diagnostic before a confidential prompt is ever transmitted.
-            models=self.http.json('GET','/models')
-            rows=models.get('data',[]) if isinstance(models,dict) else []
-            if not isinstance(rows,list):raise Stop('liste_modeles_fournisseur_invalide')
+            # 5.6.82 : au plus une fois par heure et par clé (trois lectures par relevé auparavant) ; toujours pour un contrôle de connexion.
+            import hashlib,time
+            mark=(str(cfg.get('url')),hashlib.sha256(secret.encode()).hexdigest())
+            if cfg.get('diagnostic5682') or time.monotonic()-LISTED.get(mark,-3600)>=3600:
+                models=self.http.json('GET','/models')
+                rows=models.get('data',[]) if isinstance(models,dict) else []
+                if not isinstance(rows,list):raise Stop('liste_modeles_fournisseur_invalide')
+                LISTED[mark]=time.monotonic()
         else:
             raise Stop('type_fournisseur_invalide')
 
@@ -825,6 +841,10 @@ class Model:
             temperature=float(self.cfg.get('temperature',0) or 0)
         self._external_context={'payload':getattr(self,'_trace',('',None))[1],
                                 'messages':messages,'inherited':self.cfg.get('external_context')}
+        if self.cfg.get('routeur5682'):
+            from . import routage5682
+            stage,data=getattr(self,'_trace',('',None))
+            return routage5682.run(self,messages,temperature,max_tokens,json_schema,stage,data)
         if self.cfg.get('secours') and self.provider_type=='ollama':
             return self._secours('complete',messages,temperature,max_tokens,json_schema)
         decision=self._hybrid_choice('completion',messages=messages,max_tokens=max_tokens)
@@ -980,7 +1000,12 @@ class Model:
         if json_schema is not None:
             system+=('\n\nRéponds UNIQUEMENT par un objet JSON valide, sans texte autour ni bloc de code, conforme à ce schéma JSON : '+
                      json.dumps(json_schema,ensure_ascii=False))
-        req={'model':self.cfg['model'],'max_tokens':max_tokens,'temperature':max(0.0,min(float(temperature or 0),1.0)),'messages':convo}
+        # 5.6.82 : les modèles Claude actuels refusent la température (erreur 400) et pensent toujours : le réglage est l'effort, et la
+        # réflexion compte dans max_tokens. La température reste envoyée aux seuls modèles anciens qui l'admettent.
+        legacy=bool(LEGACY_CLAUDE.match(str(self.cfg['model'])))
+        req={'model':self.cfg['model'],'max_tokens':int(max_tokens) if legacy else max(int(max_tokens)*2,8000),'messages':convo}
+        if legacy:req['temperature']=max(0.0,min(float(temperature or 0),1.0))
+        elif self.cfg.get('effort5682'):req['output_config']={'effort':self.cfg['effort5682']}
         if system.strip():req['system']=system
         estimated=estimate_and_check_budget(self.cfg,messages,max_tokens)
         from .arret5643 import interruptible
@@ -992,6 +1017,7 @@ class Model:
         self.usage_cost_usd+=float(record_usage(self.cfg,result,estimated,'done',messages) or 0)
         if not isinstance(result,dict) or not isinstance(result.get('content'),list):raise Stop('reponse_fournisseur_invalide')
         if result.get('stop_reason')=='max_tokens':raise Stop('generation_ia_incomplete')
+        if result.get('stop_reason')=='refusal':raise Stop('reponse_ia_refusee')
         if any(isinstance(b,dict) and b.get('type')=='tool_use' for b in result['content']):raise Stop('appel_outil_ia_refuse')
         content=''.join(str(b.get('text') or '') for b in result['content'] if isinstance(b,dict) and b.get('type')=='text').strip()
         if json_schema is not None and content:
@@ -1005,12 +1031,20 @@ class Model:
         from .ai_gateway import record_usage
         from .chatgpt5662 import respond
         from .arret5643 import interruptible
+        from . import chatgpt5682
+        state=self.cfg.get('state_dir','');info={}
         try:
-            text,usage=interruptible(lambda:respond(self.cfg.get('state_dir',''),self.cfg['model'],messages,json_schema,
-                                                    self.cfg.get('structured_mode','strict')=='strict',timeout=self.cfg.get('timeout_seconds',240)),self.cfg)
-        except Stop:
-            record_usage(self.cfg,{},0.0,'error',messages)
+            text,usage=interruptible(lambda:respond(state,self.cfg['model'],messages,json_schema,
+                                                    self.cfg.get('structured_mode','strict')=='strict',timeout=self.cfg.get('timeout_seconds',240),
+                                                    effort=self.cfg.get('effort5682') or None,info=info),self.cfg)
+        except Stop as error:
+            record_usage(self.cfg,{},0.0,'error',messages,error=str(error))
+            if str(error) in chatgpt5682.DEFER_CODES:chatgpt5682.defer(state,str(error))   # 5.6.82 : report borné, sans nouvelle mission
             raise
+        if info.get('effort_refuse'):
+            from .catalogue5682 import mark_refused
+            mark_refused(state,self.provider_id,self.cfg['model'],'reasoning')
+        chatgpt5682.clear(state)
         record_usage(self.cfg,{'usage':usage},0.0,'done',messages)   # preuve de transmission (empreinte, taille) ; coût : abonnement
         return text
 
@@ -1131,13 +1165,17 @@ class Model:
             try:
                 value = json.loads(content)
                 validate(value, schema)
+                self._trace=('',None);self.escalade5682=None
                 return value
             except (KeyError, ValueError, TypeError):
                 failure, detail = Stop('json_ia_invalide'), 'JSON illisible'
             except SchemaError as ex:
                 failure, detail = ex, describe(ex.errors)
             if attempt == 2 or self.cfg.get('schema_retry') is False:
+                self.escalade5682=None
                 raise failure
+            if self.cfg.get('routeur5682'):   # 5.6.82 : schéma invalide : la reprise unique passe au niveau supérieur, s'il existe
+                self.escalade5682=getattr(self,'last_decision5682',None)
             messages = messages + [{'role': 'assistant', 'content': str(content)[:2000]},
                                    {'role': 'user', 'content': 'Ta réponse précédente n’est pas conforme au schéma demandé (' + detail[:600] +
                                     '). Réponds de nouveau, uniquement par un objet JSON conforme.'}]
@@ -1147,7 +1185,7 @@ def provider_diagnostic(cfg):
     """Return a secret-free, actionable provider diagnostic."""
     started=__import__('time').monotonic()
     try:
-        model=Model(cfg)
+        model=Model({**cfg,'diagnostic5682':True})   # 5.6.82 : contrôle de la connexion, sans contenu : possible quel que soit le mode
         elapsed=round((__import__('time').monotonic()-started)*1000)
         return {'status':'ok','provider':cfg.get('provider_id') or cfg.get('id') or 'ollama',
                 'type':model.provider_type,'model':cfg.get('model',''),'url':cfg.get('url',''),

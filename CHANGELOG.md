@@ -3,6 +3,57 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.82 — Mode de l’IA : modèle choisi pour chaque travail, abonnement ChatGPT seul, API Mistral ou Claude
+
+Cahier des charges du 31 octobre 2026. Socle livré : politique centrale, mode abonnement strict, routage par niveau, recherche rapide et
+lisibilité. Le détail ligne par ligne, y compris ce qui n’est pas livré, est dans `docs/RECETTE-5.6.82.md`. Guide : `docs/GUIDE-IA-5.6.82.md`.
+
+**Mode de l’IA** (Paramètres › Modèles d’IA) : IA locale uniquement, abonnement ChatGPT uniquement, API Mistral uniquement, API Claude
+uniquement, ou automatique parmi les connexions cochées. Préférence distincte : automatique, réponse rapide, analyse approfondie ; elle
+n’élargit jamais les fournisseurs permis. Une mise à jour ne change rien : les choix par fonction restent en place tant qu’aucun mode
+n’est retenu.
+
+**Choix du modèle** : AxiorHub décrit chaque travail sans appeler de modèle, puis prend le plus économe qui convient. Abonnement : Luna pour
+les tâches simples, Terra pour la rédaction courante, Sol pour les analyses complexes ; Astra reste une option. Mistral : Small, puis Large.
+Claude : Haiku, Sonnet, Opus ; Fable reste une option. La longueur seule ne fait pas monter le niveau, et une pièce absente non plus. La
+décision est enregistrée avant l’appel ; une seule escalade par étape, après un contrôle précis. Une pause, une annulation, une erreur
+d’authentification ou une limite n’entraînent ni escalade ni changement de fournisseur.
+
+**Abonnement ChatGPT seul** : tous les appels passent par la connexion autorisée, sans repli et sans Ollama ; la recherche devient textuelle,
+sauf option distincte. Catalogue lié au compte, modèles retirés écartés, paramètres en liste blanche, effort refusé corrigé une fois. Limite
+atteinte : travaux reportés de 15 minutes à 4 heures, sans doublon, avec un bandeau sur Aujourd’hui. L’abonnement n’est plus marqué comme une
+API gratuite : canal explicite, valeurs inconnues affichées « Non fournie », crédits présentés comme un repère. AxiorHub n’achète aucun crédit.
+
+**Serveur** : transfert chiffré d’une connexion faite sur un poste ; le serveur garde son identifiant et gère seul les renouvellements.
+
+**Suivi** : « Choix de l’IA » sur chaque mission (modèle réel, effort, raison courte, consommation), journal et consommation du mois dans le
+volet avancé, plafond local par mission conservé après un redémarrage.
+
+**Interface** : base graphique Carbon (composants d’état et de notification, échelle et formes sur tout le logiciel, formulaires conservés). Menu
+ramené à six entrées de travail : Aujourd’hui, Courriels, Dossiers, Agenda et tâches, Produire, Honoraires ; Paramètres en lien séparé, sans doublon.
+Lecture : liste et document côte à côte, largeur réglable à la souris ou au clavier, lecteur PDF.js ouvert à la page citée, retour explicite sur
+téléphone. Assistant dans un seul volet à droite, dossier de la demande affiché en clair, conversation vocale dans la barre du haut. File À décider et
+À relire : la carte se met à jour sans recharger la page. Chronologie : frise avec zoom et filtres (faits, procédure, correspondances, audiences) ;
+une date au mois ou à l’année reste une plage. Bordereau : glisser-déposer, annulation, conflit expliqué si le tableau a changé ailleurs. Recherche
+rapide partout (Ctrl+K), tolérante aux fautes, droits appliqués sur le serveur ; filtres et position retrouvés au retour ; focus visible, cibles
+tactiles, texte courant à 16 px, préférence de réduction des animations.
+
+**Sobriété des appels automatiques** (audit du 31 octobre 2026) : sans nouveauté, aucun appel. Un plafond journalier borne les appels automatiques
+(300 par défaut, dont 30 sur modèles avancés) ; atteint, les travaux attendent le lendemain et les demandes de l’avocat restent traitées. Courriel en
+échec : trois essais au plus. Le tri fait à l’arrivée n’est plus refait par l’orchestrateur. Une audience n’est préparée qu’une fois. Plusieurs
+changements rapprochés donnent une seule synthèse du dossier. Les fichiers produits par AxiorHub ne relancent plus d’analyse. Dossier inactif et
+stratégie ancienne sont signalés sans analyse d’office. L’analyse des courriels envoyés se fait sur demande. Les non-lus sont limités à 14 jours si
+aucune durée n’est réglée. La liste des modèles d’une API est lue une fois par heure. L’interrupteur « projets d’actes » s’applique à tous les parcours.
+
+**Correctifs** :
+
+- Profil Mixte et choix par fonction : le contrôle final refusait tout envoi à un fournisseur externe pourtant réglé et autorisé.
+- API Claude : la température n’est plus envoyée aux modèles actuels, qui la refusent ; l’effort la remplace, et un refus du modèle est signalé.
+- Modèle Claude économe proposé mis à jour (Haiku 5.5).
+
+**Non livré** : banc de cinquante cas (à constituer par le cabinet), reclassement documentaire, Carbon AI Chat, connexions ChatGPT séparées par
+membre. Motifs dans `docs/RECETTE-5.6.82.md`.
+
 ## 5.6.81 — Fournisseurs d’IA préréglés, profil Mixte en un clic, IA en pause pendant les mises à jour
 
 Demandes du cabinet du 30 octobre 2026 : préparer les modèles par défaut d’Ollama, ChatGPT, Anthropic, Mistral et OpenRouter dans les
