@@ -1,0 +1,34 @@
+{
+  "version": "5.6.85",
+  "base": "5.6.84",
+  "date_utc": "2026-10-31T00:00:00+00:00",
+  "cahier_des_charges": "Correctif demandé par le cabinet : erreurs HTTP 402 de l’IA, rien de produit.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 3161,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 132,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5685.py : traduction du 402, relais local, repli entre connexions, réservation libérée, bandeau, message. Fournisseurs simulés.",
+  "mutations": "8 défauts introduits dans le correctif, tous détectés.",
+  "live_checks": "Aucun essai contre un vrai fournisseur sans crédit.",
+  "exapp": {
+    "version": "0.1.44",
+    "moteur": "5.6.85"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "model._translate_error : http_402 → credit_fournisseur_epuise.",
+    "budget5668 : relais local, trace par fournisseur, bandeau d’Aujourd’hui.",
+    "routage5682 : repli en mode automatique, réservation libérée.",
+    "rapide5680, synthese5632 : traité comme un fournisseur indisponible.",
+    "chatgpt5662 : 402 → compte non éligible."
+  ],
+  "adjusted_tests": []
+}

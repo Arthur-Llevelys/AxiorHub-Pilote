@@ -779,6 +779,10 @@ class Model:
     def _translate_error(self,error):
         code=str(error)
         if code=='http_401':return Stop('authentification_fournisseur_refusee')
+        if code=='http_402':      # 5.6.85 : crédit épuisé chez le fournisseur ; relais possible, comme pour un plafond
+            from .budget5668 import note_credit
+            note_credit(self.cfg)
+            return Stop('credit_fournisseur_epuise')
         if code=='http_403':return Stop('acces_fournisseur_refuse')
         if code=='http_404':return Stop('modele_ou_route_fournisseur_absent')
         if code=='http_429':return Stop('quota_fournisseur_depasse')

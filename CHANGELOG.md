@@ -3,6 +3,16 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.85 — Erreur 402 d’un fournisseur d’IA : crédit épuisé, relais et message clair
+
+Correctif. Quand un fournisseur d’IA répondait 402 (crédit épuisé), AxiorHub ne reconnaissait pas ce code : le travail s’arrêtait sur « http 402 », sans relais et sans explication, et rien n’était produit.
+
+- Le code 402 devient « Crédit épuisé chez le fournisseur », avec un message en clair.
+- En mode automatique, AxiorHub passe à une autre connexion cochée. Dans le fonctionnement historique, le modèle local prend le relais s’il est installé. Un mode réglé sur un seul fournisseur ne change pas de fournisseur : la demande s’arrête avec le message.
+- Un bandeau dans Aujourd’hui nomme le fournisseur concerné. Il disparaît dès qu’une réponse réussit après la recharge, ou après sept jours sans nouvelle erreur.
+- Une demande refusée pour ce motif n’entre plus dans la consommation incertaine.
+- Abonnement ChatGPT : un 402 signale un compte non éligible.
+
 ## 5.6.84 — Cessions de fonds et de droit au bail, bibliothèque de modèles versionnée, EuroOffice observé, sauvegarde prouvée
 
 Cahier des charges AxiorHub Avocat 5.6.84 et son annexe technique. Le détail des 61 scénarios, y compris ce qui n’a pas pu être essayé, est dans `docs/RECETTE-5.6.84.md`.

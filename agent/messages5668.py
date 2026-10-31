@@ -4,6 +4,7 @@ jours », les routines et les cartes « Interrompus »."""
 MESSAGES = {
     'budget_mensuel_fournisseur_depasse': 'Plafond mensuel du fournisseur d’IA externe atteint : réglez-le dans Paramètres › IA. Depuis 5.6.68, '
                                           'le modèle local prend le relais quand il est installé.',
+    'credit_fournisseur_epuise': 'Crédit épuisé chez le fournisseur d’IA (erreur 402) : rechargez-le sur son site. Une autre connexion cochée ou le modèle local prend le relais s’ils sont disponibles.',
     'budget_requete_fournisseur_depasse': 'Demande plus coûteuse que le plafond par requête du fournisseur d’IA externe (Paramètres › IA).',
     'budget_fournisseur_non_configure': 'Plafonds du fournisseur d’IA externe non renseignés (Paramètres › IA).',
     'tarif_fournisseur_non_renseigne': 'Tarifs du fournisseur d’IA externe non renseignés (Paramètres › IA).',

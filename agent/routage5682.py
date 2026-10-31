@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS decisions_5682_at ON decisions_5682(at);
 '''
 ESCALATE_ON = frozenset(('json_ia_invalide', 'schema_ia_invalide', 'generation_ia_incomplete', 'reponse_ia_vide'))
 # Mode automatique : panne, limite ou plafond d'une connexion : repli sur une autre connexion cochée, jamais au-delà de cette liste.
-FALLBACK_ON = frozenset(('fournisseur_ia_injoignable', 'moteur_ollama_injoignable', 'modele_ollama_absent', 'generation_ia_delai_depasse', 'quota_fournisseur_depasse',
+FALLBACK_ON = frozenset(('fournisseur_ia_injoignable', 'moteur_ollama_injoignable', 'modele_ollama_absent', 'generation_ia_delai_depasse', 'quota_fournisseur_depasse', 'credit_fournisseur_epuise',
                          'budget_mensuel_fournisseur_depasse', 'budget_requete_fournisseur_depasse', 'chatgpt_limite_usage_atteinte', 'chatgpt_indisponible'))
 OUTPUT_TOKENS = {'low': 1, 'medium': 1.5, 'high': 2}
 KEEP_DAYS = 180
@@ -284,7 +284,7 @@ def run(parent, messages, temperature, max_tokens, json_schema, stage, data):
         except Stop as error:
             code = str(error)
             close(state_dir, decision, 'erreur', code)
-            conso5682.settle(state_dir, decision['reservation'], 'liberee' if code in STOP_CODES else 'incertain')
+            conso5682.settle(state_dir, decision['reservation'], 'liberee' if code in STOP_CODES or code == 'credit_fournisseur_epuise' else 'incertain')     # 402 : rien de consommé
             if code not in STOP_CODES and code in FALLBACK_ON and decision['mode'] == 'auto':
                 tried.append(decision['fournisseur'])
                 try:
