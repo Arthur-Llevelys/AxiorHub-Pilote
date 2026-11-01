@@ -181,6 +181,9 @@ def file_attachments(desk, mail_key, matter='', owner='cabinet', dav=None, mailb
     day = str(stamp)[:10]
     sender = re.sub(r'[^\w .@-]', '', str(report.get('sender') or mail.msg.get('From', '') or 'expediteur').split('<')[-1].rstrip('>'))[:60] or 'expediteur'
     folder = base.rstrip('/') + '/PJ courriels/' + day + ' - ' + _safe_name(sender)
+    from . import cloud_nommage5688 as nommage   # 5.6.88 : règle du cabinet pour cette nature ; sans règle, le rangement habituel
+    naming = nommage.context_of(matters[matter], date=day, expediteur=sender)
+    folder = nommage.folder_for(desk, 'piece_jointe', base, folder, naming)
     from .dav import DAV
     client = dav or DAV(desk.c['nextcloud'])
     filed, skipped = [], []
@@ -195,6 +198,7 @@ def file_attachments(desk, mail_key, matter='', owner='cabinet', dav=None, mailb
             skipped.append(name)
             continue
         client.ensure_folder(folder, base)
+        name = nommage.apply(desk, 'piece_jointe', name, naming)
         stem, dot, ext = name.rpartition('.')
         for n in range(1, 30):   # création exclusive : un fichier du même nom n'est jamais remplacé, la copie est numérotée
             target = folder + '/' + (name if n == 1 else ((stem + ' (%d).' % n + ext) if dot else (name + ' (%d)' % n)))

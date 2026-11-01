@@ -223,6 +223,10 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     from . import rapide5680
     voice=rapide5680.is_voice(args.get('purpose'))
     previous=history(desk,scope)
+    from . import societe5688   # 5.6.88 : sociétés citées : situation lue sans modèle, attente bornée, avant tout le reste
+    controle=args['societe5688'] if isinstance(args.get('societe5688'),dict) else societe5688.avant(desk,question,matter['id'] if matter else '','voix' if voice else 'assistant')
+    from . import vueia5688   # 5.6.88 : catégories ouvertes au modèle pour cette personne, contrôlées avant chaque lecture
+    open_mail,open_documents=not vueia5688.blocked(desk,'courriels'),not vueia5688.blocked(desk,'documents')
     cabinet_sources,cabinet_access,cabinet_only=acces5683.gather(desk,question,matter['id'] if matter else '',hidden,previous[0]['question'] if previous else '',voice)
     sources.extend(cabinet_sources)
     if not cabinet_access.get('courriels') and not cabinet_access.get('agenda'):cabinet_only=False
@@ -250,7 +254,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
           'parts_analyzed':sum(x.get('parts_analyzed',0) for x in attachment_reports),
           'legacy_partial':any(x.get('legacy_partial') for x in attachment_reports),
           'documents':len(attachment_reports)}
-    selected=(args.get('page_context') or {}).get('selected_documents',[])
+    selected=(args.get('page_context') or {}).get('selected_documents',[]) if open_documents else []
     if selected:
         if not isinstance(selected,list) or len(selected)>20 or not matter or dav is None:
             raise Stop('documents_selectionnes_contexte_invalide')
@@ -277,7 +281,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
                 selected_reports.append({'path':path,**proof})
             else:
                 sources.append({'id':sid,'kind':'piece_jointe_locale','path':path,'excerpt':text,'partial':False})
-    if report:
+    if report and open_mail:
         mail=box.fetch(report['source_mailbox'],report['source_uid'])
         account=desk.c['mail']['username']+'@'+desk.c['mail']['host']
         if mail.key(account)!=args['key']:raise Stop('identite_imap_modifiee')
@@ -285,14 +289,19 @@ def chat(desk,args,dav,model,box=None,return_result=False):
             'date':mail.timestamp.isoformat(),'excerpt':mail.text[:18000],
             'partial':len(mail.text)>18000})
     if matter:
-        from .legal_memory import memory_sources
-        sources+=memory_sources(desk,matter['id'],question,8)
-        from .strategic import assistant_sources
-        sources+=assistant_sources(desk,matter['id'],4)
-        index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
-        fast=index.fast_sources(matter,[question],{**desk.c['documents'],'max_documents_per_mail':3,'recent5683':acces5683.wants_recent(question)}) if rapide else None
-        docs,coverage=fast if fast is not None else index.sources(dav,matter,[question],{**desk.c['documents'],'max_documents_per_mail':3})
-        sources+=docs
+        if open_documents:   # 5.6.88 : mémoire et analyses sont tirées des pièces : elles suivent la catégorie « Documents »
+            from .legal_memory import memory_sources
+            sources+=memory_sources(desk,matter['id'],question,8)
+            from .strategic import assistant_sources
+            sources+=assistant_sources(desk,matter['id'],4)
+            index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
+            fast=index.fast_sources(matter,[question],{**desk.c['documents'],'max_documents_per_mail':3,'recent5683':acces5683.wants_recent(question)}) if rapide else None
+            docs,coverage=fast if fast is not None else index.sources(dav,matter,[question],{**desk.c['documents'],'max_documents_per_mail':3})
+            sources+=docs
+        else:
+            coverage={'recherche':'documents '+vueia5688.REFUSED}
+    elif not open_documents:
+        coverage={'recherche':'documents '+vueia5688.REFUSED}
     elif not report and not (cabinet_only and not acces5683.wants_documents(question)):
         # 5.6.83 : un dossier nommé dans la question borne la recherche ; ailleurs, seuls les mots qui portent l'objet sont cherchés
         index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
@@ -307,6 +316,8 @@ def chat(desk,args,dav,model,box=None,return_result=False):
             sources+=found
         elif not added:
             coverage={'recherche':'aucun objet précis dans la question : aucune pièce choisie au hasard'}
+    if not open_mail:   # 5.6.88 : les courriels indexés avec les pièces suivent la catégorie « Courriels »
+        sources=[s for s in sources if not str(s.get('source_kind') or s.get('kind') or '').startswith('email')]
     if selected_reports:coverage={**coverage,'selections':selected_reports}
     if attachment_coverage:coverage={**coverage,'piece_televersee':attachment_coverage}
     if compact:
@@ -335,7 +346,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         'preferences_assistant':__import__('agent.assistant567',fromlist=['drafting_preferences']).drafting_preferences(desk,getattr(desk,'mission_owner567','cabinet')),
         'corrections_approuvees':correction_guidance(desk,matter['id'] if matter else ''),
         'apprentissage_metier':learning_context(desk,matter['id'] if matter else '','assistant'),
-        'dossier_structure':__import__('agent.contexte5651',fromlist=['for_drafting']).for_drafting(desk,matter['id'],question,confidential=True) if matter else {},
+        'dossier_structure':__import__('agent.contexte5651',fromlist=['for_drafting']).for_drafting(desk,matter['id'],question,confidential=True) if matter and open_documents else {},
         'historique_non_probant':[{'question':r['question'][:1000],
             'reponse':json.loads(r['response'])['answer'][:1500]} for r in turns],
         'limites':('Sélection d’extraits indexés seulement. '+(juridique5649.summary(legal) or 'Aucune recherche juridique externe.')+' '
@@ -343,6 +354,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
                    'parcourir plusieurs dossiers ; une action de rédaction doit ensuite être '
                    'rattachée à un courriel et à un dossier précis.')}
     if legal.get('sources'):payload['regle_sources_juridiques']=juridique5649.RULE
+    payload.update(societe5688.pour_modele(controle))
     if rapide:
         rapide5680.trim_payload(payload,limit)
         try:fit_chat_context(payload,limit)
@@ -355,7 +367,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         result=model.ask('chat',payload)
     except Stop as error:   # 5.6.83 : modèle occupé : la liste relevée reste utile, annoncée comme non analysée
         if str(error) in rapide5680.BUSY_CODES and return_result and any(s.get('kind') in ('liste_courriels','agenda') for s in sources):
-            return acces5683.fallback_answer([s for s in sources if s.get('kind') in ('liste_courriels','agenda')],cabinet_access)
+            return societe5688.poser_reponse(acces5683.fallback_answer([s for s in sources if s.get('kind') in ('liste_courriels','agenda')],cabinet_access),controle)
         raise
     # Compatibility with deterministic test/local adapters from 1.4; the real
     # 1.5 Model already enforces the complete schema before returning.
@@ -364,8 +376,11 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     validate(result,CHAT)
     if any(x not in {s['id'] for s in sources} for x in result['source_ids']):
         raise Stop('source_conversation_invalide')
+    societe5688.poser_reponse(result,controle)   # 5.6.88 : posé par le logiciel, quoi que le modèle ait écrit
     if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
     result['limits'].extend(acces5683.limits_of(cabinet_access))
+    if not open_documents:result['limits'].append('Documents non consultés : '+vueia5688.REFUSED+'.')
+    if report and not open_mail:result['limits'].append('Courriel de cette conversation non lu : '+vueia5688.REFUSED+'.')
     unsourced=juridique5649.unsourced_references(result.get('answer',''),legal)
     if unsourced:result['limits'].append('Référence(s) à vérifier, absente(s) des sources juridiques consultées : '+' ; '.join(unsourced))
     if attachment_coverage and attachment_reports and attachment_reports[0].get('passages_total'):

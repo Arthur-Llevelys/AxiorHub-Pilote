@@ -159,11 +159,19 @@ def document_picker(desk, mid, name, label, kinds=None, multiple=False):
 def audiences_page(desk, auth, prefix, env, args, shell):
     from . import audience5613
     mid = str(args.get('matter') or '')
-    tab = 'preparer' if args.get('onglet') == 'preparer' else 'fiche'
+    tab = str(args.get('onglet')) if args.get('onglet') in ('preparer', 'suivi') else 'fiche'
     body = '<h1>Audiences</h1><p class="m34-intro">La fiche réunit ce que l’on sait de la prochaine audience, sans nouvel appel à l’IA. La préparation de la plaidoirie est un travail lancé explicitement.</p>'
     body += '<nav class="m34-tabs" aria-label="Audiences">%s</nav>' % ''.join(
         '<a href="%s"%s>%s</a>' % (e(prefix + '/audiences?' + urlencode({'onglet': k, **({'matter': mid} if mid else {})}), quote=True),
-                                    ' aria-current="page"' if k == tab else '', e(label)) for k, label in (('fiche', 'Fiche'), ('preparer', 'Préparer')))
+                                    ' aria-current="page"' if k == tab else '', e(label)) for k, label in (('fiche', 'Fiche'), ('preparer', 'Préparer'), ('suivi', 'Suivi des audiences')))
+    if tab == 'suivi':   # 5.6.88 : liste du cabinet, détail d'une audience, agendas distants
+        from . import agenda5688
+        from .web567 import actor
+        try:
+            return shell('Audiences', body + agenda5688.suivi_html(desk, auth, prefix, args, actor(env)[1]), prefix, auth['csrf'], '/production')
+        except Stop as ex:
+            from .erreurs5634 import explain
+            return shell('Audiences', body + '<p class="notice">%s</p>' % e(explain(str(ex))), prefix, auth['csrf'], '/production')
     body += matter_picker(desk, prefix, '/audiences', mid, {'onglet': tab})
     if args.get('q') and not mid:
         body += matter_results_html(desk, prefix, '/audiences', args['q'], {'onglet': tab})
@@ -599,14 +607,14 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out(full_index(desk, str(args.get('matter') or ''), str(args.get('path') or '')))
         if route.startswith('agenda/'):
             from . import agenda5634
-            return json_out(agenda5634.api(desk, route, args, 'GET', owner))
+            return json_out(agenda5634.api(desk, route, args, 'GET', owner, role, auth))
         raise Stop('route_inconnue')
     if method != 'POST':
         raise Stop('methode_refusee')
     data = _post(env, auth, 9_000_000 if route == 'agenda/importer' else 260_000)
     if route.startswith('agenda/'):
         from . import agenda5634
-        return json_out(agenda5634.api(desk, route, data, 'POST', owner))
+        return json_out(agenda5634.api(desk, route, data, 'POST', owner, role, auth))
     if role not in ('administrateur', 'avocat') and route not in ('alerte',):
         raise Stop('role_insuffisant')
     if route == 'decision/annuler':

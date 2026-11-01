@@ -307,6 +307,8 @@ def prepare_draft(desk,args):
         if juridique5649.is_legal_question(mail.subject+' '+mail.text[:6000]):
             legal=juridique5649.research(desk,m['id'],juridique5649.mail_question(mail.subject,mail.text),'courriel')
             sources+=juridique5649.as_sources(legal)
+        from . import societe5688   # 5.6.88 : sociétés citées par l'avocat ou le courriel ; le résultat va à la zone de vérification, jamais au corps
+        controle=societe5688.avant(desk,instruction+'\n'+mail.subject+'\n'+mail.text[:2000],m['id'],'courriel')
         slots=[]
         if style=='slots':
             cc=desk.c['calendar'];now=datetime.now(timezone.utc)
@@ -322,6 +324,7 @@ def prepare_draft(desk,args):
         from .assistant567 import drafting_preferences
         payload['preferences_assistant']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
         if legal and legal.get('sources'):payload['regle_sources_juridiques']=juridique5649.RULE
+        payload.update(societe5688.pour_modele(controle,'tiers'))
         if m['id']:   # 5.6.29 : consignes permanentes de l'avocat pour ce dossier
             from .pause5629 import consignes
             if consignes(desk,m['id']):payload['consignes_permanentes_du_dossier']=consignes(desk,m['id'])
@@ -346,6 +349,7 @@ def prepare_draft(desk,args):
         if any(x not in valid for x in result['source_ids']):raise Stop('source_brouillon_invalide')
         if result['body'] and len(result['body'])>7000:raise Stop('brouillon_trop_long')
         if attachment_notes:result['limits'].append('Pièce(s) jointe(s) non lue(s) : '+' ; '.join(attachment_notes)[:400])
+        societe5688.poser_brouillon(result,controle)
         if legal:
             if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
             unsourced=juridique5649.unsourced_references(result.get('body') or '',legal)

@@ -10,6 +10,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import re
 import secrets
 import time
 from urllib.parse import quote, urlencode, urlsplit
@@ -39,6 +40,8 @@ ENV_URLS = {
     'google_workspace': {'test': 'https://www.googleapis.com', 'production': 'https://www.googleapis.com'},
     'axonaut': {'test': 'https://axonaut.com/api/v2', 'production': 'https://axonaut.com/api/v2'},
     'recherche_entreprises': {'test': 'https://recherche-entreprises.api.gouv.fr', 'production': 'https://recherche-entreprises.api.gouv.fr'},
+    # 5.6.88 : la préproduction de l'INPI a ses propres comptes : un compte du cabinet n'y entre pas ; même hôte pour les deux environnements
+    'inpi_rne': {'test': 'https://registre-national-entreprises.inpi.fr', 'production': 'https://registre-national-entreprises.inpi.fr'},
 }
 GOOGLE_HOSTS = ('https://www.googleapis.com', 'https://gmail.googleapis.com', 'https://oauth2.googleapis.com', 'https://openidconnect.googleapis.com')
 
@@ -822,7 +825,8 @@ class MicrosoftGraph(OAuthCodeMixin, Adapter):
 
 
 # ------------------------------------------------------------------------------------------------ I14 Google Workspace
-GOOGLE_SCOPES = {'calendar.read': 'https://www.googleapis.com/auth/calendar.readonly', 'mail.read': 'https://www.googleapis.com/auth/gmail.readonly',
+GOOGLE_SCOPES = {'calendar.read': 'https://www.googleapis.com/auth/calendar.readonly', 'calendar.write': 'https://www.googleapis.com/auth/calendar.events',
+                 'mail.read': 'https://www.googleapis.com/auth/gmail.readonly',
                  'mail.create_draft': 'https://www.googleapis.com/auth/gmail.compose', 'documents.read_selected': 'https://www.googleapis.com/auth/drive.readonly',
                  'documents.export': 'https://www.googleapis.com/auth/drive.readonly'}
 
@@ -846,6 +850,41 @@ class GoogleWorkspace(OAuthCodeMixin, Adapter):
                                                                                               'singleEvents': 'true', 'orderBy': 'startTime'})))
         return {'evenements': [{'titre': x.get('summary'), 'debut': (x.get('start') or {}).get('dateTime') or (x.get('start') or {}).get('date')}
                                for x in out.get('items') or []]}
+
+    def _event_path(self, ident=''):
+        cal = quote(self.ctx.params.get('calendar_id') or 'primary', safe='')
+        return '/calendar/v3/calendars/%s/events%s' % (cal, '/' + quote(str(ident), safe='') if ident else '')
+
+    def cap_calendar_write(self, p):
+        """5.6.88 : copie des audiences (propagation5688 seulement ; cette capacité n'est pas un outil de l'agent). Aucun invité, aucune
+        notification (sendUpdates=none) ; création à identifiant choisi par AxiorHub : une reprise ne crée pas de doublon ; modification et
+        suppression conditionnelles (If-Match) : Google refuse (http_412) si l'événement a changé depuis la lecture."""
+        action, ident = p.get('action'), str(p.get('id') or '')
+        match = {'If-Match': p['etag']} if p.get('etag') else None
+        if action == 'lire':
+            try:
+                return {'evenement': self.request('GET', self._event_path(ident))}
+            except Stop as ex:
+                if str(ex).split(':')[0] in ('http_404', 'http_410'):
+                    return {'evenement': None}
+                raise
+        if action == 'creer':
+            try:
+                return {'evenement': self.request('POST', self._event_path() + '?sendUpdates=none', {**p['corps'], 'id': ident})}
+            except Stop as ex:
+                if str(ex).split(':')[0] != 'http_409':
+                    raise
+                return {'evenement': self.request('GET', self._event_path(ident))}
+        if action == 'modifier':
+            return {'evenement': self.request('PATCH', self._event_path(ident) + '?sendUpdates=none', p['corps'], headers=match)}
+        if action == 'supprimer':
+            try:
+                self.request('DELETE', self._event_path(ident) + '?sendUpdates=none', headers=match)
+            except Stop as ex:
+                if str(ex).split(':')[0] not in ('http_404', 'http_410'):
+                    raise
+            return {'evenement': None}
+        raise Stop('action_agenda_inconnue')
 
     def cap_mail_read(self, p):
         out = self.request('GET', '', url='https://gmail.googleapis.com/gmail/v1/users/me/messages?' + urlencode({'maxResults': min(int(p.get('limit', 10)), 25)}))
@@ -925,7 +964,65 @@ class RechercheEntreprises(Adapter):
                 'limite': 'Données d’annuaire : elles ne prouvent pas le pouvoir de signer de la personne qui engage le client.'}
 
 
+class InpiRne(Adapter):
+    """Registre national des entreprises (documentations INPI « Actes » v4.0 et « Comptes annuels » v6-1, relues le 2026-11-01 ; aucun appel réel fait pendant le développement).
+    Jeton obtenu à chaque passage, gardé dans l'instance seulement ; identifiant et mot de passe ne sortent du coffre que pour cette connexion, et ne vont dans aucune erreur."""
+    provider = 'inpi_rne'
+    DOCUMENTS = {'acte': 'actes', 'bilan': 'bilans'}
+
+    def __init__(self, ctx):
+        super().__init__(ctx)
+        self._jeton = ''
+
+    def _connexion(self):
+        if self._jeton:
+            return self._jeton
+        url = self.base + '/api/sso/login'
+        corps = json.dumps({'username': self.ctx.secret('username'), 'password': self.ctx.secret('password')}).encode('utf-8')
+        out = self.ctx.http(url).request('POST', url, corps, {'Content-Type': 'application/json', 'Accept': 'application/json'}, 2_000_000)
+        try:
+            self._jeton = str(json.loads(out)['token'])
+        except (ValueError, KeyError, TypeError):
+            raise Stop('jeton_fournisseur_invalide') from None
+        if not self._jeton:
+            raise Stop('jeton_fournisseur_invalide')
+        return self._jeton
+
+    def headers(self):
+        return {'Authorization': 'Bearer ' + self._connexion()}
+
+    def identity(self):
+        self._connexion()
+        return {'compte': 'compte INPI reconnu'}
+
+    def cap_registre_documents(self, p):
+        """Liste brute des actes et des comptes ; aucun fichier n'est lu ici."""
+        siren = re.sub(r'\D', '', str(p.get('siren') or ''))
+        if len(siren) != 9:
+            raise Stop('siren_invalide')
+        out = self.request('GET', '/api/companies/%s/attachments' % siren)
+        return {'actes': out.get('actes') or [], 'bilans': out.get('bilans') or []} if isinstance(out, dict) else {'actes': [], 'bilans': []}
+
+    def cap_registre_telecharger(self, p):
+        """PDF d'un acte ou d'un compte. La documentation montre une réponse binaire ou un ``data:application/pdf;base64,…`` : les deux sont acceptés, rien d'autre."""
+        dossier, ident = self.DOCUMENTS.get(str(p.get('nature') or '')), str(p.get('id') or '')
+        if not dossier or not re.fullmatch(r'[\w-]{1,120}', ident):
+            raise Stop('document_registre_invalide')
+        raw = self.request('GET', '/api/%s/%s/download' % (dossier, quote(ident, safe='')), raw=True, limit=int(p.get('limite') or 30_000_000) * 2, accept='application/pdf, application/json, */*')
+        debut = raw[:64].strip().lstrip(b'"')
+        if debut.startswith(b'data:application/pdf;base64,'):
+            try:
+                raw = base64.b64decode(raw.strip().strip(b'"').split(b',', 1)[1], validate=False)
+            except ValueError:
+                raise Stop('document_registre_illisible') from None
+        if not raw.startswith(b'%PDF-'):
+            raise Stop('document_registre_illisible')
+        if len(raw) > int(p.get('limite') or 30_000_000):
+            raise Stop('reponse_trop_volumineuse')
+        return {'fichier': raw, 'taille': len(raw)}
+
+
 ADAPTERS = {'ar24': AR24, 'youtrust': Youtrust, 'legifrance_piste': Legifrance, 'judilibre_piste': Judilibre, 'pappers_justice': PappersJustice,
             'pennylane': Pennylane, 'docusign': DocuSign, 'superpdp': SuperPDP, 'b2brouter': B2Brouter, 'gocardless': GoCardless,
             'chorus_pro': ChorusPro, 'maileva': Maileva, 'microsoft_graph': MicrosoftGraph, 'google_workspace': GoogleWorkspace, 'axonaut': Axonaut,
-            'recherche_entreprises': RechercheEntreprises}
+            'recherche_entreprises': RechercheEntreprises, 'inpi_rne': InpiRne}

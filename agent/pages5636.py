@@ -1,4 +1,5 @@
 """5.6.36 : pages ajoutées (menu « Toutes les fonctions ») — une route, un titre, un rendu ; même enveloppe que les autres pages."""
+from .common import Stop
 
 PAGES = {
     '/contacts-crm': 'Contacts & CRM',
@@ -12,6 +13,7 @@ PAGES = {
     '/complement-word': 'Complément Word',
     '/microsoft-retour': 'Microsoft 365',
     '/facturation': 'Facturation et honoraires',   # 5.6.53 (audit 5.6.52, § 4)
+    '/contribution': 'Contribution au chiffre d’affaires',   # 5.6.88 : réservée au droit « facturation »
     '/operation': 'Opération externe',   # 5.6.53 (U01) : fiche de ce qui engage le cabinet, avant « Valider et transmettre »
     '/connexions-retour': 'Connexions',   # 5.6.52 : retour d'autorisation OAuth (Microsoft Graph, Google Workspace, DocuSign)
     '/complement-word/volet': 'AxiorHub',
@@ -20,7 +22,11 @@ PAGES = {
     '/savoir-faire': 'Savoir-faire du cabinet',   # 5.6.59 (A07)
     '/securite-ia': 'Sécurité de l’IA',   # 5.6.59 : instructions cachées dans les sources
     '/navigateur': 'Navigateur supervisé',   # 5.6.73 : poste Windows ou Ubuntu
+    '/mes-taches': 'Mes tâches',   # 5.6.88 : responsable, échéance, rappel, statut
     '/mobile': 'À valider',   # 5.6.74 : page du téléphone associé
+    '/mon-compte': 'Mon compte',   # 5.6.88 : double authentification et jetons d'API de la personne
+    '/parametres/journal-audit': 'Journal d’audit',   # 5.6.88 (administrateur)
+    '/parametres/ia-visible': 'Ce que l’IA peut voir',   # 5.6.88 (administrateur)
     '/parametres/droits': 'Droits et accès',   # 5.6.50 (administrateur)   # 5.6.37 : page du menu « Toutes les fonctions » (interface affichée dans Nextcloud)
 }
 
@@ -33,6 +39,10 @@ def page(desk, auth, prefix, env, args, path, shell):
     if path == '/messagerie':   # 5.6.50 : messagerie interne du cabinet
         from . import web5650
         body = web5650.messagerie_page(desk, auth, prefix, env, args)
+    elif path in ('/mon-compte', '/parametres/journal-audit', '/parametres/ia-visible'):   # 5.6.88
+        from . import securite5688
+        render = {'/mon-compte': securite5688.compte_page, '/parametres/journal-audit': securite5688.journal_page, '/parametres/ia-visible': securite5688.vue_ia_page}[path]
+        body = render(desk, auth, prefix, env, args)
     elif path == '/parametres/droits':
         from .web567 import actor
         if actor(env)[1] != 'administrateur':
@@ -42,6 +52,9 @@ def page(desk, auth, prefix, env, args, path, shell):
     elif path == '/mobile':   # 5.6.74
         from . import appareils5674
         body = appareils5674.mobile_page(desk, prefix, args, env)
+    elif path == '/mes-taches':   # 5.6.88
+        from . import agenda5688
+        body = agenda5688.mes_taches_page(desk, auth, prefix, env, args)
     elif path == '/navigateur':   # 5.6.73
         from . import web5673
         body = web5673.page_html(desk, prefix, args, env, auth)
@@ -54,8 +67,12 @@ def page(desk, auth, prefix, env, args, path, shell):
     elif path == '/contacts-crm':
         from . import crm5636, crm5676
         from .web567 import actor
-        view = 'opportunites' if args.get('vue') == 'opportunites' else ''   # 5.6.76 : suivi des opportunités et des prospects
-        body = crm5676.tabs_html(prefix, view) + (crm5676.page_html(desk, prefix, args, actor(env)[1]) if view else crm5636.page_html(desk, prefix, args))
+        view = args.get('vue') if args.get('vue') in ('opportunites', 'veille') else ''   # 5.6.76 : opportunités et prospects ; 5.6.88 : veille des sociétés
+        if view == 'veille':
+            from . import crm5688
+            body = crm5676.tabs_html(prefix, view) + crm5688.page_html(desk, prefix)
+        else:
+            body = crm5676.tabs_html(prefix, view) + (crm5676.page_html(desk, prefix, args, actor(env)[1]) if view else crm5636.page_html(desk, prefix, args))
     elif path == '/initiatives':
         from . import initiatives5636
         body = initiatives5636.page_html(desk, prefix, args, env)
@@ -83,6 +100,9 @@ def page(desk, auth, prefix, env, args, path, shell):
     elif path == '/facturation':
         from . import web5653
         body = web5653.page(desk, auth, prefix, env, args)
+    elif path == '/contribution':
+        from . import contribution5688
+        body = contribution5688.page(desk, auth, prefix, env, args)
     elif path == '/operation':
         from .web567 import actor
         from . import connexions5652
@@ -99,6 +119,7 @@ def page(desk, auth, prefix, env, args, path, shell):
         except Stop as ex:
             body = '<p>%s</p>' % _e('Autorisation non enregistrée : %s.' % str(ex).split(':')[0])
         body += '<p><a class="ax-btn" href="%s">Retour aux connexions</a></p>' % _e(prefix + '/parametres?rubrique=connexions#cx52', quote=True)
+        body += '<p><a class="ax-btn ghost" href="%s">Stockage des documents</a></p>' % _e(prefix + '/parametres?rubrique=stockage', quote=True)   # 5.6.88 : stockages cloud
     elif path == '/microsoft-retour':
         from . import microsoft5636
         body = microsoft5636.return_page(desk, prefix, args)

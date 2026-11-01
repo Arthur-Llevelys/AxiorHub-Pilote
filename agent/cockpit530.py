@@ -1048,7 +1048,7 @@ def toggle_task(desk, data):
 
 
 # ======================================================================================== routines et style
-def routines_html(desk, prefix):
+def routines_html(desk, prefix, owner='cabinet'):
     from . import routines520 as r5
     tabs = [('briefing', 'Briefing du matin'), ('tri', 'Tri des courriels'), ('bilan', 'Bilan de la semaine'), ('docs', 'Documents à préparer')]
     panels = ''
@@ -1062,6 +1062,8 @@ def routines_html(desk, prefix):
                 body += panel_html(rep['id'])
         else:
             body = '<p class="c530-empty">Pas encore produit.</p>'
+        if kind == 'briefing':   # 5.6.88 : liste de la personne connectée, lue dans la base à l'affichage (aucun appel au modèle)
+            body = _matin5688(desk, prefix, owner) + body
         body += '<form class="m5-form m5-inline" data-api="m530/routine" data-reload="1"><input type="hidden" name="kind" value="%s"><button class="ax-btn ghost" type="submit">Générer maintenant</button></form>' % kind
         panels += '<div class="c530-panel" role="tabpanel" data-panel="%s"%s>%s</div>' % (kind, '' if kind == 'briefing' else ' hidden', body)
     labels = _labels(desk)
@@ -1127,11 +1129,20 @@ def header_html(desk):
     return '<span class="c530-status"><span class="c530-live" aria-hidden="true"></span>%d en cours · %d en file%s</span>%s' % (running, pending, e(nxt), alert)
 
 
+def _matin5688(desk, prefix, owner):
+    try:
+        from .matin5688 import html as matin
+        return matin(desk, prefix, owner)
+    except Exception:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
+        return ''
+
+
 def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     ensure_schema(desk)
     from .aujourdhui5614 import decisions_html, routines_bar_html   # 5.6.14 (U01, U02) : routines en tête, « À décider » compact
     from .budget5668 import banner_html as _banner5668            # 5.6.68 : plafond de l'IA externe atteint
     from .ia5672 import banner_html as _banner5672_local          # 5.6.72 : modèle local d'IA injoignable
+    from .reversibilite5688 import banner_html as _banner5688     # 5.6.88 : pas de sauvegarde réussie depuis 48 h
 
     def _banner5672(desk, prefix):                                 # 5.6.82 : limite d'usage de l'abonnement, distincte d'une panne
         from .ia5682 import banner_html
@@ -1146,8 +1157,8 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     html = ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
             # 5.6.17 : le cadre « Routines du cabinet » (briefing, tri, bilan, documents) est en tête de page, avant le Pilote.
-            '<div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section>'
-            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section></div>'
+            '<!--t88-haut--><div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section><!--/b88:routines-->'
+            '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section><!--/b88:style--></div><!--/t88-haut-->'
             # 5.6.19 : le Pilote est la fenêtre flottante (bouton robot) ; l'ancien composeur reste masqué (script v530 toujours lié).
             '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer hidden>%s'
             '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
@@ -1165,17 +1176,17 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
             '<p class="c530-note">L’agent continue son travail automatique pendant la conversation. Rien n’est envoyé, déposé ni signé sans vous. Ctrl+Entrée pour envoyer.</p></section>%s'
             # 5.6.57 (A09) : « À relire » rejoint la file unique « À décider / À relire » (en bas de page)
             # 5.6.62 : la file « À décider / À relire » prend la première colonne ; « Reprendre là où j’en étais » passe en bas de page
-            '<div class="c530-cols c5657-cols"><div class="c5662-file" id="c5656-file">__FILE5656__</div><section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>'
-            '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section></div>'
+            '<!--t88-bas--><div class="c530-cols c5657-cols"><div class="c5662-file" id="c5656-file">__FILE5656__</div><!--/b88:file--><section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section><!--/b88:activite-->'
+            '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section><!--/b88:journee--></div>'
             # 5.6.56 (audit 5.6.55, N02, § 5.3) : veille sur toute la largeur du contenu, puis la file unique en bas, dans ce conteneur.
-            '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">__VEILLE5632__</section>'
-            '<div class="c5656-wide c5662-reprise">__REPRISE5657__</div>'
-            '<p class="c530-note"><a href="%s">Vue « essentiel du jour » (5.2)</a> · <a href="%s">Ancien cockpit</a></p>'
+            '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">__VEILLE5632__</section><!--/b88:veille--><!--t88-extra-->'
+            '<div class="c5656-wide c5662-reprise">__REPRISE5657__</div><!--/b88:reprise--><!--/t88-bas-->'
+            '<!--t88-panneau--><p class="c530-note"><a href="%s">Vue « essentiel du jour » (5.2)</a> · <a href="%s">Ancien cockpit</a></p>'
             '<div class="c530-drawer" id="c530-drawer" hidden><div class="c530-backdrop" data-close="1" aria-hidden="true"></div>'
             '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
             '<div id="c530-drawer-content"></div></div></div></div>') % (
-        e(prefix, quote=True), e(when), header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + routines_bar_html(desk, prefix, {'owner': owner}), routines_html(desk, prefix), style_html(desk, prefix),
+        e(prefix, quote=True), e(when), header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix) + routines_bar_html(desk, prefix, {'owner': owner}) + _matin5688(desk, prefix, owner), routines_html(desk, prefix, owner), style_html(desk, prefix),
         thread_html(desk, prefix), options, '',
         feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
@@ -1185,8 +1196,24 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
         reprise = _reprise57(desk, owner, prefix)
     except Exception:   # noqa: BLE001 — la carte de reprise ne doit jamais empêcher l'affichage d'Aujourd'hui
         reprise = ''
-    return (html.replace('__VEILLE5632__', veille_card(desk, prefix, owner)).replace('__FILE5656__', queue or '').replace('__REPRISE5657__', reprise)
-            + panel_html(desk, prefix))
+    html = html.replace('__VEILLE5632__', veille_card(desk, prefix, owner)).replace('__FILE5656__', queue or '').replace('__REPRISE5657__', reprise)
+    return _personnel5688(desk, prefix, html, owner) + panel_html(desk, prefix)
+
+
+def _personnel5688(desk, prefix, html, owner):
+    """5.6.88 : blocs facultatifs (veille des sociétés, mémoire à valider), ordre, masquage et couleur de la personne ; un incident rend la page d'origine."""
+    from . import tableau5688
+    try:
+        from . import crm5688, memoire5688
+        from .i18n5631 import role
+        from .membres5650 import viewer_hidden
+        hidden = viewer_hidden() or frozenset()
+        extras = {'societes': crm5688.today_html(desk, prefix), 'memoire': memoire5688.panel_html(desk, owner, '', hidden)}
+        return tableau5688.appliquer(desk, html, owner, extras, role())
+    except Exception as ex:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
+        import logging
+        logging.getLogger(__name__).exception('page personnelle : %s', ex)
+        return tableau5688._sans_reperes(html)
 
 
 def veille_card(desk, prefix, owner='cabinet'):

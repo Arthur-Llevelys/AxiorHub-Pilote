@@ -98,9 +98,67 @@ def cabinet_page(desk, auth, prefix, args, shell):
 
 
 # ------------------------------------------------------------------------------------ temps et honoraires
-def honoraires_page(desk, auth, prefix, args, shell):
+def _people(desk, auth=None):
+    """5.6.88 : personnes du cabinet (annuaire des comptes), plus celles déjà citées dans les temps."""
+    from .membres5650 import directory
+    try:
+        people = dict(directory(desk, auth))
+    except Exception:   # noqa: BLE001 — annuaire illisible : les temps restent affichables avec l'identifiant du compte
+        people = {}
+    m5.ensure_schema(desk)
+    for row in desk.db.execute("SELECT DISTINCT author FROM time500_entries WHERE author<>''"):
+        people.setdefault(row[0], {'owner': row[0], 'name': row[0]})
+    return people
+
+
+def _person_opts(people, selected='', blank=''):
+    out = ['<option value="">%s</option>' % e(blank)] if blank else []
+    for owner, member in sorted(people.items(), key=lambda kv: str(kv[1].get('name') or kv[0]).casefold()):
+        out.append('<option value="%s"%s>%s</option>' % (e(owner, quote=True), ' selected' if owner == selected else '', e(str(member.get('name') or owner))))
+    return ''.join(out)
+
+
+def _person_field(people, selected):
+    return '<label class="m5-field">Personne<select name="author">%s</select></label>' % _person_opts(people, selected, time500.NOT_ATTRIBUTED)
+
+
+def _time_filter_html(desk, prefix, args, viewer, people):
+    """Temps par personne, tous dossiers : filtres personne, dossier, période ; sans le droit « facturation », seuls ses propres temps."""
+    only = time500.restricted_to(desk, viewer)
+    chosen, matter = str(args.get('personne', '')), str(args.get('matter', ''))
+    since, until = str(args.get('du', '')), str(args.get('au', ''))
+    author = None
+    if only is not None:
+        chosen = only
+    elif chosen == '-':                                       # filtre « Non attribué »
+        author = ''
+    elif chosen:
+        author = time500.clean_author(chosen)
+    try:
+        rows = time500.entries(desk, matter, author, since, until, viewer)
+    except Stop:
+        rows, since, until = [], '', ''
+    choice = ''
+    if only is None:
+        choice = ('<label class="m5-field">Personne<select name="personne"><option value="">Toutes</option><option value="-"%s>%s</option>%s</select></label>' % (
+            ' selected' if chosen == '-' else '', e(time500.NOT_ATTRIBUTED), _person_opts(people, chosen)))
+    html = ('<section id="personnes"><h2>Temps par personne</h2>%s<form class="m5-inline m5-goto" method="get" action="%s/honoraires#personnes">%s'
+            '<label class="m5-field">Dossier<select name="matter">%s</select></label><label class="m5-field">Du<input type="date" name="du" value="%s"></label>'
+            '<label class="m5-field">Au<input type="date" name="au" value="%s"></label><button class="ax-btn ghost" type="submit">Filtrer</button></form>') % (
+        '<p class="vf-note">Sans le droit « Facturation et temps passé », seuls vos propres temps sont affichés.</p>' if only is not None else '',
+        e(prefix, quote=True), choice, _opts(desk, matter, 'Tous les dossiers'), e(since, quote=True), e(until, quote=True))
+    if not rows:
+        return html + '<p class="vf-note">Aucun temps validé pour ce choix.</p></section>'
+    totals = ''.join('<tr><th scope="row">%s</th><td>%s</td><td>%s</td></tr>' % (e(time500.person_label(people, t['author'])), e(m5.hours(t['minutes'])), e(m5.euros(t['amount_cents'])))
+                     for t in time500.by_person(rows))
+    return html + ('<table class="vf-table"><thead><tr><th>Personne</th><th>Temps validé</th><th>Valeur HT</th></tr></thead><tbody>%s</tbody></table></section>' % totals)
+
+
+def honoraires_page(desk, auth, prefix, args, shell, viewer=None):
     matter = args.get('matter', '')
     m5.log_access(desk, 'honoraires', 'page', matter)
+    people = _people(desk, auth)
+    me = viewer[0] if viewer else ''
     html = ('<h1>Temps et honoraires</h1><p class="ax-muted">Les temps estimés par l’agent ne sont que des <strong>propositions</strong> : rien n’est enregistré, compté dans un budget ou rapproché '
             'de la facturation sans votre validation. %s</p>' % e(LOCAL_NOTE))
     # propositions
@@ -114,7 +172,7 @@ def honoraires_page(desk, auth, prefix, args, shell):
     for p in props:
         items = ''.join('<li>%s <span class="vf-note">(%d min)</span></li>' % (e(i['label']), i['minutes']) for i in p['items'])
         inner = (_hidden(id=p['id']) + _field('Durée validée (minutes)', 'minutes', str(p['minutes_est']), 'number', 'min="1" max="1440" required')
-                 + _field('Libellé', 'label', 'Temps validé', 'text', 'maxlength="200"'))
+                 + _person_field(people, me) + _field('Libellé', 'label', 'Temps validé', 'text', 'maxlength="200"'))
         html += ('<article class="m5-proposal"><h3>%s — %s <span class="vf-badge muted">estimation : %s</span></h3><p class="vf-note">%s</p>'
                  '<details><summary>Détail des éléments pris en compte</summary><ul>%s</ul></details>'
                  '<form class="m5-form m5-inline" data-api="m500/time/validate" data-reload="1">%s<button class="ax-btn" type="submit">Valider ce temps</button>'
@@ -137,8 +195,9 @@ def honoraires_page(desk, auth, prefix, args, shell):
         html += '<p class="vf-note">Aucun dossier n’a encore de conditions, de temps validé ou de facture. Choisissez un dossier pour définir ses conditions.</p>'
     html += ('<form class="m5-inline m5-goto" method="get" action="%s/honoraires"><label class="m5-field">Ouvrir un dossier<select name="matter">%s</select></label>'
              '<button class="ax-btn ghost" type="submit">Afficher</button></form></section>') % (e(prefix), _opts(desk, matter))
+    html += _time_filter_html(desk, prefix, args, viewer, people)
     if matter:
-        html += _matter_detail(desk, matter, prefix)
+        html += _matter_detail(desk, matter, prefix, viewer, people)
     bar = time500.bareme(desk)
     fields = ''.join(_field(time500.BAREME_LABELS[k], k, str(bar[k]), 'number', 'min="1" max="2000"') for k in time500.BAREME_DEFAUT)
     html += ('<details class="m5-bareme"><summary>Barème d’estimation (modifiable)</summary><p class="vf-note">L’agent estime : chaque courriel reçu ou envoyé (les suivants du même fil le même jour comptent moitié, au plus trois), chaque pièce créée ou '
@@ -147,9 +206,13 @@ def honoraires_page(desk, auth, prefix, args, shell):
     return _page(shell, prefix, auth, 'Temps et honoraires', '/honoraires', html)
 
 
-def _matter_detail(desk, matter, prefix):
+def _matter_detail(desk, matter, prefix, viewer=None, people=None):
     from . import facturation569   # 5.6.9 : écritures Invoice Ninja après validation
     s = time500.summary(desk, matter)
+    people = people if people is not None else _people(desk)
+    only = time500.restricted_to(desk, viewer)                # 5.6.88 : lignes des autres réservées au droit « facturation »
+    if only is not None:
+        s['entries'] = [x for x in s['entries'] if x.get('author') == only]
     t = s['terms']
     label = m5.matter_label(desk, matter)
     html = '<section id="detail"><h2>%s</h2>' % e(label)
@@ -170,10 +233,14 @@ def _matter_detail(desk, matter, prefix):
     # temps validés
     html += '<h3>Temps validés</h3>'
     if s['entries']:
-        html += '<table class="vf-table"><thead><tr><th>Jour</th><th>Durée</th><th>Taux</th><th>Valeur HT</th><th>Libellé</th><th>Origine</th><th>Annuler</th><th>Invoice Ninja</th></tr></thead><tbody>'
+        html += '<table class="vf-table"><thead><tr><th>Jour</th><th>Personne</th><th>Durée</th><th>Taux</th><th>Valeur HT</th><th>Libellé</th><th>Origine</th><th>Annuler</th><th>Invoice Ninja</th></tr></thead><tbody>'
         for en in s['entries']:
-            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
-                e(en['day']), e(m5.hours(en['minutes'])), e(m5.euros(en['rate_cents']) if en['rate_cents'] else 'non défini'), e(m5.euros(en['amount_cents'])), e(en['label']),
+            who = e(time500.person_label(people, en.get('author')))
+            if not en.get('author') and only is None:         # temps ancien : l'attribuer ici alimente la contribution au chiffre d'affaires
+                who += _form('m500/time/author', _hidden(id=en['id']) + '<label class="m5-field">Attribuer à<select name="author">%s</select></label>' % _person_opts(people, '', time500.NOT_ATTRIBUTED),
+                             'Attribuer', cls='m5-inline m5-mini')
+            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
+                e(en['day']), who, e(m5.hours(en['minutes'])), e(m5.euros(en['rate_cents']) if en['rate_cents'] else 'non défini'), e(m5.euros(en['amount_cents'])), e(en['label']),
                 e('Proposition validée' if en['origin'] == 'proposition_validee' else 'Saisie'),
                 _form('m500/time/cancel', _hidden(id=en['id']) + _field('Motif', 'reason', '', 'text', 'required minlength="5" maxlength="300"'), 'Annuler', cls='m5-inline m5-mini'),
                 facturation569.task_button_html(desk, en))
@@ -181,7 +248,7 @@ def _matter_detail(desk, matter, prefix):
     else:
         html += '<p class="vf-note">Aucun temps validé pour ce dossier.</p>'
     html += _form('m500/time/add', _hidden(matter=matter) + _field('Jour', 'day', date.today().isoformat(), 'date', 'required') + _field('Minutes', 'minutes', '', 'number', 'min="1" max="1440" required') +
-                  _field('Libellé', 'label', '', 'text', 'maxlength="200"'), 'Saisir un temps (validé d’emblée)', cls='m5-inline')
+                  _person_field(people, viewer[0] if viewer else '') + _field('Libellé', 'label', '', 'text', 'maxlength="200"'), 'Saisir un temps (validé d’emblée)', cls='m5-inline')
     html += facturation569.section_html(desk, matter, prefix)
     # rapprochement
     rec = time500.reconcile(desk, matter)
@@ -506,13 +573,22 @@ def _download(name, mime, text):
     return {'download': {'filename': name, 'mime': mime, 'text': text}}
 
 
-def handle(desk, name, data, method='POST', args=None):
+def handle(desk, name, data, method='POST', args=None, viewer=None):
     args = args or {}
+    me = viewer[0] if viewer else ''
     n = name[len('m500/'):] if name.startswith('m500/') else name
     if method == 'GET':
         if n == 'time/summary':
             m5.log_access(desk, 'honoraires', 'resume', args.get('matter', ''))
-            return time500.summary(desk, args.get('matter', ''))
+            out = time500.summary(desk, args.get('matter', ''))
+            only = time500.restricted_to(desk, viewer)        # 5.6.88 : lignes de temps des autres selon le droit « facturation »
+            if only is not None:
+                out['entries'] = [x for x in out['entries'] if x.get('author') == only]
+            return out
+        if n == 'time/entries':                               # 5.6.88 : filtres par personne, dossier et période
+            m5.log_access(desk, 'honoraires', 'temps_par_personne', args.get('matter', ''))
+            rows = time500.entries(desk, args.get('matter', ''), args.get('personne') if 'personne' in args else None, args.get('du', ''), args.get('au', ''), viewer)
+            return {'entries': rows, 'totaux': time500.by_person(rows)}
         if n == 'time/overview':
             m5.log_access(desk, 'honoraires', 'liste', '')
             return {'rows': time500.overview(desk)}
@@ -520,7 +596,7 @@ def handle(desk, name, data, method='POST', args=None):
             m5.log_access(desk, 'honoraires', 'rapprochement', args.get('matter', ''))
             return time500.reconcile(desk, args.get('matter', ''))
         if n == 'time/export':
-            return _download('temps-%s.csv' % args.get('matter', 'dossier'), 'text/csv', time500.export_entries(desk, args.get('matter', '')))
+            return _download('temps-%s.csv' % args.get('matter', 'dossier'), 'text/csv', time500.export_entries(desk, args.get('matter', ''), viewer))
         if n == 'meeting/list':
             return {'events': meeting500.upcoming(desk, int(args.get('days', 7) or 7), int(args.get('past', 2) or 2))}
         if n == 'meeting/fiche':
@@ -561,11 +637,13 @@ def handle(desk, name, data, method='POST', args=None):
         from .facturation569 import log_time
         return log_time(desk, _s(data, 'id'), confirm=data.get('confirm'))
     if n == 'time/validate':
-        return time500.validate(desk, _s(data, 'id'), data.get('minutes'), _s(data, 'label'), data.get('rate'))
+        return time500.validate(desk, _s(data, 'id'), data.get('minutes'), _s(data, 'label'), data.get('rate'), _s(data, 'author', me) if 'author' in data else me)
     if n == 'time/reject':
         return time500.reject(desk, _s(data, 'id'), _s(data, 'note'))
     if n == 'time/add':
-        return time500.add_manual(desk, _s(data, 'matter'), _s(data, 'day'), data.get('minutes'), _s(data, 'label'), data.get('rate'))
+        return time500.add_manual(desk, _s(data, 'matter'), _s(data, 'day'), data.get('minutes'), _s(data, 'label'), data.get('rate'), _s(data, 'author', me) if 'author' in data else me)
+    if n == 'time/author':                                    # 5.6.88 : attribuer ou corriger la personne d'un temps
+        return time500.set_author(desk, _s(data, 'id'), _s(data, 'author'), me)
     if n == 'time/cancel':
         return time500.cancel_entry(desk, _s(data, 'id'), _s(data, 'reason'))
     if n == 'time/terms':

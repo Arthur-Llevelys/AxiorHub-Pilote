@@ -104,6 +104,23 @@ def _check_server_account(auth, login, password):
     return None
 
 
+def _code_refused(desk, env, data):
+    """Administrateur du serveur : si sa double authentification est active ou exigée, le code accompagne le mot de passe."""
+    from . import connexion5648 as cx, totp5688
+    auth = env.get('axiorhub.auth') or {}
+    if not cx.enabled(auth):
+        return False
+    db = cx.connect(desk.c['state_dir'])
+    try:
+        if not totp5688.need(db, 'cabinet'):
+            return False
+        return not totp5688.attempt(db, 'cabinet', str(data.get('code') or ''), _client(env))
+    except Stop:
+        return True
+    finally:
+        db.close()
+
+
 def pair(desk, env, data):
     """Relie un compte Nextcloud à un compte AxiorHub : identifiants vérifiés une fois, clé personnelle remise."""
     from .integration5634 import Refused
@@ -124,6 +141,8 @@ def pair(desk, env, data):
         account = {'user': str(env.get('HTTP_X_AXIORHUB_USER') or login), 'role': str(env.get('HTTP_X_AXIORHUB_ROLE') or 'avocat')}
     else:
         account = _check_server_account(env.get('axiorhub.auth'), login, password)
+        if account is not None and _code_refused(desk, env, data):   # 5.6.88 : le mot de passe seul ne relie pas un compte protégé
+            account = None
     if account is None:
         now = time.time()
         for s in scopes:

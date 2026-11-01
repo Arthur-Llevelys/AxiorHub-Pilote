@@ -1,0 +1,15 @@
+/* 5.6.88 : Paramètres › Stockage des documents */
+.c88-cards,.c88-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.c88-card,.c88-copy,.c88-rule{border:1px solid var(--ax-line,#e5e7eb);border-radius:8px;padding:12px;min-width:0}
+.c88-copy+.c88-copy{margin-top:12px}
+.c88-card h3,.c88-copy h3,.c88-rule h3{margin:0 0 6px;font-size:1rem;overflow-wrap:anywhere}
+.c88-card code{overflow-wrap:anywhere}
+.c88-facts{margin:6px 0;padding-left:18px;font-size:.875rem}
+.c88-facts li{overflow-wrap:anywhere}
+.c88-rule label{display:block;margin-bottom:8px}
+.c88-rule input{width:100%;box-sizing:border-box}
+.c88-state{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:.75rem;font-weight:600;border:1px solid currentColor}
+.c88-alert{margin:6px 0;padding:8px 10px;border-left:4px solid currentColor;font-weight:600;overflow-wrap:anywhere}
+.c88-table{overflow-x:auto}
+.c88-table table{width:100%;border-collapse:collapse;font-size:.875rem}
+.c88-table th,.c88-table td{padding:6px 8px;border-bottom:1px solid var(--ax-line,#e5e7eb);text-align:left;vertical-align:top;overflow-wrap:anywhere}

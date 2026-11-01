@@ -37,6 +37,8 @@ http_post = None   # remplaçable dans les tests : http_post(url, headers) -> st
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    if 'owner' not in {r[1] for r in desk.db.execute('PRAGMA table_info(push_subs490)')}:   # 5.6.88 : rappels au téléphone de la personne désignée
+        desk.db.execute("ALTER TABLE push_subs490 ADD COLUMN owner TEXT NOT NULL DEFAULT ''")
     desk.db.commit()
 
 
@@ -66,13 +68,18 @@ def neutral_text(c):
         parts.append('%d échéance%s proche%s' % (c['deadlines'], 's' if c['deadlines'] > 1 else '', 's' if c['deadlines'] > 1 else ''))
     if c.get('decisions'):
         parts.append('%d point%s à décider' % (c['decisions'], 's' if c['decisions'] > 1 else ''))
+    if c.get('reminders'):
+        parts.append('%d rappel%s d’agenda' % (c['reminders'], 's' if c['reminders'] > 1 else ''))
     return ' · '.join(parts)
 
 
-def summary(desk, today=None):
+def summary(desk, today=None, owner=''):
     c = counts(desk, today)
+    if owner:   # 5.6.88 : rappels d'agenda de la personne, en nombre seulement
+        from .rappels5688 import unread_count
+        c['reminders'] = unread_count(desk, owner)
     return {'drafts': c['drafts'], 'deadlines': c['deadlines'], 'decisions': c.get('decisions', 0),
-            'total': c['drafts'] + c['deadlines'] + c.get('decisions', 0),
+            'total': c['drafts'] + c['deadlines'] + c.get('decisions', 0) + c.get('reminders', 0),
             'text': neutral_text(c), 'title': 'AxiorHub'}
 
 
@@ -139,7 +146,7 @@ def status(desk):
             'summary': summary(desk)}
 
 
-def subscribe(desk, endpoint, label='', confirm=''):
+def subscribe(desk, endpoint, label='', confirm='', owner=''):
     ensure_schema(desk)
     if confirm != 'yes':
         raise Stop('confirmation_notifications_requise')
@@ -151,8 +158,8 @@ def subscribe(desk, endpoint, label='', confirm=''):
     exists = desk.db.execute('SELECT 1 FROM push_subs490 WHERE id=?', (sid,)).fetchone()
     if not exists and desk.db.execute('SELECT COUNT(*) FROM push_subs490').fetchone()[0] >= MAX_SUBSCRIPTIONS:
         raise Stop('trop_d_appareils')
-    desk.db.execute('INSERT OR REPLACE INTO push_subs490(id,endpoint,label,created) VALUES(?,?,?,?)',
-                    (sid, endpoint, re.sub(r'[^\w .\-]', '', str(label))[:40], datetime.now(timezone.utc).isoformat()))
+    desk.db.execute('INSERT OR REPLACE INTO push_subs490(id,endpoint,label,created,owner) VALUES(?,?,?,?,?)',
+                    (sid, endpoint, re.sub(r'[^\w .\-]', '', str(label))[:40], datetime.now(timezone.utc).isoformat(), str(owner)[:200]))
     desk.db.commit()
     desk.setting('mobile490:push', True)
     desk.audit('mobile_490_abonnement', {'devices': desk.db.execute('SELECT COUNT(*) FROM push_subs490').fetchone()[0]})

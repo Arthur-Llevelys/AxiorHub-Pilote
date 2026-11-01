@@ -34,7 +34,9 @@ for name in "${RUNNING[@]}"; do
 done
 if ((${#STOPPED[@]})); then "${COMPOSE[@]}" stop -t 300 "${STOPPED[@]}"; fi
 "${COMPOSE[@]}" exec -T nextcloud-db sh -c 'exec mariadb-dump --single-transaction -u root -p"$MYSQL_ROOT_PASSWORD" nextcloud' > "$WORK/nextcloud-db.sql"
-tar -C "$HERE/data" -czf "$WORK/donnees.tar.gz" nextcloud axiorhub roundcube
+# 5.6.88 : les archives de la sauvegarde automatique (Paramètres) et les exports ont leur propre rétention : ils n'entrent pas dans ce snapshot.
+# Cette sauvegarde automatique couvre AxiorHub seul ; ce script reste nécessaire pour Nextcloud et sa base. Voir docs/REVERSIBILITE-5.6.88.md.
+tar -C "$HERE/data" --exclude='sauvegardes5688' --exclude='exports5688' --exclude='.travail5688' -czf "$WORK/donnees.tar.gz" nextcloud axiorhub roundcube
 cp "$HERE/.env" "$WORK/env.sauvegarde"
 cp "$HERE/docker-compose.yml" "$WORK/docker-compose.sauvegarde.yml"
 python3 "$HERE/verify-backup.py" "$WORK/donnees.tar.gz" > "$WORK/verification.json"

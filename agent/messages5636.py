@@ -4,6 +4,20 @@ Chaque message dit ce qui bloque et comment le corriger, sans jargon. Ajoutés �
 """
 
 REASONS = {
+    # 5.6.88 : temps par personne, contribution, relances, accusés, relevé électronique
+    'mois_invalide': 'Choisissez un mois valide (AAAA-MM).',
+    'repartition_differente_de_100': 'La répartition doit totaliser exactement 100 %.',
+    'repartition_invalide': 'Chaque part doit être un pourcentage entre 0 et 100, avec quatre décimales au plus.',
+    'cible_repartition_absente': 'Cette facture ou ce règlement n’existe plus.',
+    'personne_requise': 'Choisissez la personne.',
+    'pourcentage_invalide': 'Le pourcentage doit être compris entre 0 et 100.',
+    'pourcentage_requis': 'Indiquez le pourcentage.',
+    'quote_invalide': 'Chaque part doit être un pourcentage entre 0 et 100.',
+    'seuil_invalide': 'Le seuil doit être un montant positif.',
+    'reglage_hors_plage_paliers': 'Indiquez d’un à trois paliers croissants, entre 1 et 365 jours.',
+    'accuse_absent': 'Cet accusé n’est plus à relire.',
+    'accuse_perime': 'Le règlement n’est plus enregistré : l’accusé est retiré, aucun brouillon déposé.',
+    'intervalle_releve_invalide': 'Choisissez un intervalle de 1 à 24 heures.',
     # 5.6.84 : cessions de fonds et de bail, éditeur
     'type_cession_inconnu': 'Choisissez Fonds de commerce ou Droit au bail.',
     'role_cession_inconnu': 'Choisissez la partie conseillée.',

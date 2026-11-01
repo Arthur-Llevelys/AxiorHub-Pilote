@@ -32,7 +32,13 @@ def deposit(desk, client, matter, title, lines, day=None, label='Note interne'):
     base = '%s - %s - %s' % ((day or datetime.now()).strftime('%Y-%m-%d'), label, _safe_name(title))
     targets = []
     if matter and matter.get('path'):
-        targets.append(('dossier', clean_path(matter['path']), None))
+        folder = clean_path(matter['path'])
+        if label == 'Note interne':     # 5.6.88 : règle de nommage du cabinet ; sans règle, le nom habituel
+            from . import cloud_nommage5688 as nommage
+            naming = nommage.context_of(matter, date=(day or datetime.now()).date().isoformat(), titre=_safe_name(title))
+            base = nommage.apply(desk, 'note', base + '.docx', naming)[:-len('.docx')]
+            folder = nommage.folder_for(desk, 'note', folder, folder, naming)
+        targets.append(('dossier', folder, clean_path(matter['path']) if folder != clean_path(matter['path']) else None))
     try:
         folder, root = neutral_folder(desk, matter)
         targets.append(('a_traiter', folder, root))

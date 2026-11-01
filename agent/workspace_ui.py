@@ -80,6 +80,11 @@ def assistant_panel(c,desk,matters,args,form,link):
             elif row['status']=='error':out+='<p class="notice">⚠️ La réponse n’a pas pu être produite. Consultez l’opération correspondante.</p>'
             try:sources=json.loads(row['sources'] or '[]')
             except ValueError:sources=[]
+            situations=[x for x in sources if x.get('kind')=='situation_societe']   # 5.6.88 : carte de situation, posée par le logiciel
+            sources=[x for x in sources if x.get('kind')!='situation_societe']
+            if situations:
+                from .societe5688 import carte_html
+                out+=''.join(carte_html(x) for x in situations)
             if sources:
                 out+='<details><summary>📚 Sources citées ('+str(len(sources))+')</summary>'
                 for source in sources:

@@ -17,8 +17,8 @@ AUTH = {'origin': 'https://courriel.example.test', 'prefix': '/agent-courriel', 
 def docx(text):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w') as z:
-        z.writestr('[Content_Types].xml', '<Types/>')
-        z.writestr('word/document.xml', '<w:document>' + text + '</w:document>')
+        for name, content in (('[Content_Types].xml', '<Types/>'), ('word/document.xml', '<w:document>' + text + '</w:document>')):
+            z.writestr(zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0)), content)   # 5.6.88 : date fixe, deux appels donnent les mêmes octets
     return buf.getvalue()
 
 
@@ -155,6 +155,7 @@ class OfficeTests(unittest.TestCase):
 
     def test_callback_security(self):
         opened = self.opened()
+        before = self.nc.files[self.PATH]   # 5.6.88 : docx() porte l'heure du ZIP, on compare au fichier réellement déposé
         token, auth, body = self.callback_for(opened)
         with self.assertRaises(Stop):  # missing JWT
             office.handle_callback(self.desk, token, '', body, client=self.nc, fetcher=lambda d, u: docx('x'))
@@ -166,7 +167,7 @@ class OfficeTests(unittest.TestCase):
             office.handle_callback(self.desk, *wrong_key, client=self.nc, fetcher=lambda d, u: docx('x'))
         with self.assertRaises(Stop):  # content that is not a zip container
             office.handle_callback(self.desk, token, auth, body, client=self.nc, fetcher=lambda d, u: b'MZ not a docx')
-        self.assertEqual(self.nc.files[self.PATH], docx('version 1'))
+        self.assertEqual(self.nc.files[self.PATH], before)
         # status 1 (editing) and 4 (closed without change) only acknowledge
         for status in (1, 4):
             t, a, b = self.callback_for(opened, status=status, url='')

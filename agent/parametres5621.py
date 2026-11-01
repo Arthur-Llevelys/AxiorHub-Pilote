@@ -15,6 +15,7 @@ from urllib.parse import urlencode
 RUBRIQUES = (
     ('apercu', 'Vue d’ensemble', 'État des réglages, premiers pas et accès rapide à chaque rubrique'),
     ('connexions', 'Connexions', 'Nextcloud, messagerie (IMAP, SMTP), agendas, Ollama, Invoice Ninja, services externes, Talk, Microsoft 365'),
+    ('stockage', 'Stockage des documents', 'Nextcloud, Google Drive, SharePoint, OneDrive ou Dropbox : choix, copie, nommage et cloisonnement'),
     ('messagerie', 'Courriels et accueil', 'Adresses du cabinet, signature, police, copie cachée, règles de classement, envoi, accueil téléphonique et WhatsApp'),
     ('ia', 'Modèles d’IA', 'Profil des modèles, routage, régime économe, consommation, IA externe, fournisseurs, connecteurs'),
     ('voix', 'Voix', 'Synthèse, dictée, conversation, vitesse, mode discret, assistant, tests'),
@@ -22,12 +23,13 @@ RUBRIQUES = (
     ('routines', 'Routines et automatismes', 'Heures, jours, signature, exclusions, briefing, rôles, automatismes, agents documentaires'),
     ('documents', 'Documents et procédure', 'Éditeur de documents, brouillons, avis de procédure, rôle par dossier, agendas, modèles Word'),
     ('cabinet', 'Cabinet, comptes et confidentialité', 'Comptes et mots de passe, cabinet et utilisateurs, confidentialité, droits et sécurité'),
-    ('poste', 'Confort et maintenance', 'Mobile, recherche, raccourcis clavier, maintenance, diagnostic de l’agent'),
+    ('poste', 'Confort et maintenance', 'Mobile, recherche, raccourcis clavier, sauvegarde et export, maintenance, diagnostic de l’agent'),
 )
-FAMILIES = (('Démarrer', ('apercu',)), ('Connexions et courriels', ('connexions', 'messagerie')),
+FAMILIES = (('Démarrer', ('apercu',)), ('Connexions et courriels', ('connexions', 'stockage', 'messagerie')),
             ('Intelligence artificielle', ('ia', 'voix', 'recherche')), ('Travail de l’agent', ('routines', 'documents')),
             ('Cabinet', ('cabinet', 'poste')))
-KEYWORDS = {'connexions': 'imap smtp mot de passe serveur nextcloud webdav caldav agenda google outlook ollama invoice ninja talk api connexion',
+KEYWORDS = {'stockage': 'stockage cloud nextcloud google drive sharepoint onedrive dropbox copie migration nommage rangement cloisonnement partage oauth',
+            'connexions': 'imap smtp mot de passe serveur nextcloud webdav caldav agenda google outlook ollama invoice ninja talk api connexion',
             'messagerie': 'signature police bcc copie cachee regles tri envoyer envoi whatsapp telephone twilio identites adresses',
             'ia': 'modele profil temperature contexte mistral openai openrouter anthropic economie quota hybride externe pseudonymisation claude connecteur mcp',
             'voix': 'dictee transcription synthese kokoro espeak whisper micro vitesse',
@@ -35,7 +37,7 @@ KEYWORDS = {'connexions': 'imap smtp mot de passe serveur nextcloud webdav calda
             'routines': 'briefing matin bilan heures jours exclusions roles automatismes initiatives agents',
             'documents': 'word onlyoffice collabora brouillon versions procedure role dossier modeles agendas',
             'cabinet': 'compte administrateur identifiant mot de passe utilisateurs confidentialite droits acces securite',
-            'poste': 'mobile clavier raccourcis maintenance purge sauvegarde diagnostic blocage file etat systeme'}
+            'poste': 'mobile clavier raccourcis maintenance purge sauvegarde chiffree restauration phrase export reversibilite manifeste webdav s3 diagnostic blocage file etat systeme'}
 RUBRIQUE_ALIASES = {'sources': 'recherche', 'veille': 'recherche', 'comptes': 'cabinet'}   # anciennes rubriques fusionnées
 ALIASES = {'/parametres/connexions': 'connexions', '/parametres/assistant': 'voix', '/parametres/proactivite': 'routines',
            '/ia-externe': 'ia', '/confort': 'poste', '/atelier/reglages': 'documents', '/parametres/agendas': 'documents'}
@@ -122,6 +124,11 @@ def _connexions(desk, auth, prefix, env, cap):
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
 
+def _stockage(desk, auth, prefix, env, cap):   # 5.6.88 : stockages cloud, copie, nommage, cloisonnement
+    from .web_cloud5688 import section_html
+    return _section(section_html(desk, auth, prefix, env))
+
+
 def _ia(desk, auth, prefix, env, cap):
     from . import ia540, web5634
     body = web5634.profile_panel(desk, prefix)   # 5.6.34 : Modèles locaux, profil Juridique, Tester, Restaurer
@@ -203,8 +210,12 @@ def _cabinet(desk, auth, prefix, env, cap):
     for tab, title in (('cabinet', 'Cabinet et utilisateurs'), ('confidentialite', 'Confidentialité')):
         body += _section(_legacy(desk, prefix, auth['csrf'], tab), title)
     body += _section(_links(prefix, (('/parametres/droits', 'Droits et accès des comptes'), ('/securite-ia', 'Sécurité de l’IA'),
+                                     ('/parametres/ia-visible', 'Ce que l’IA peut voir'), ('/parametres/journal-audit', 'Journal d’audit'),
                                      ('/tracabilite', 'Traçabilité : données vues par le modèle'))), 'Droits, sécurité et traçabilité')
     from .web567 import actor as _actor70
+    if _actor70(env)[1] == 'administrateur':   # 5.6.88 : option du cabinet et état de la double authentification de chaque compte
+        from .securite5688 import admin_block as _admin88
+        body += _admin88(desk, auth, prefix)
     if _actor70(env)[1] == 'administrateur':   # 5.6.70 : blocage des accès suspects et correctifs PHP du serveur
         from .garde5670 import section_html as _garde, client_ip
         from .php5670 import host_status, settings_html as _php
@@ -226,6 +237,14 @@ def _poste(desk, auth, prefix, env, cap):
         if key == 'mobile':   # 5.6.74 : téléphones associés par QR code
             from .appareils5674 import settings_html as _ap74
             body += _section(_ap74(desk.c['state_dir'], auth, env.get('axiorhub.user')))
+    from .web567 import actor as _actor88
+    if _actor88(env)[1] == 'administrateur':   # 5.6.88 : sauvegarde automatique, export intégral, vérification d'un export
+        try:
+            from .reversibilite5688 import sections as _rev88
+            for part in _rev88(desk, prefix):
+                body += _section(part)
+        except Exception:   # noqa: BLE001 — la page s'affiche toujours
+            pass
     body += _section(_legacy(desk, prefix, auth['csrf'], 'maintenance'), 'Maintenance')
     try:   # 5.6.61 : avis de nouvelle version et mise à jour signée
         from .maj5661 import html as _maj
@@ -256,6 +275,7 @@ def _status_rows(desk):
     nc = c.get('nextcloud') or {}
     ollama = c.get('ollama') or {}
     rows = [('connexions', 'Messagerie', ('Configurée — ' + str(mail.get('host'))) if mail.get('host') and mail.get('enabled', True) is not False else 'Non configurée (facultative)'),
+            ('stockage', 'Dossiers du cabinet', 'Stockage cloud : ' + str((nc.get('stockage_cloud') or {}).get('provider')).replace('cloud_', '').replace('_', ' ')) if nc.get('stockage_cloud') else
             ('connexions', 'Dossiers du cabinet', 'Dossier local : ' + str(nc.get('local_path')) if nc.get('local_path') else
              ('Nextcloud : ' + str(nc.get('url')) if nc.get('url') and 'example.com' not in str(nc.get('url')) else 'À configurer')),
             ('ia', 'Modèle d’IA local', (str(ollama.get('model')) + ((' — ' + str(ollama.get('url'))) if ollama.get('url') else '')) if ollama.get('model') else 'À configurer')]
@@ -269,6 +289,11 @@ def _status_rows(desk):
         from .blocage5660 import diagnose
         blocking = [f for f in diagnose(desk.db, c['state_dir']) if f['severity'] == 'bloquant']
         rows.append(('poste', 'File de travail de l’agent', ('%d blocage(s) : %s' % (len(blocking), blocking[0]['title'])) if blocking else 'Aucun blocage détecté'))
+    except Exception:   # noqa: BLE001
+        pass
+    try:   # 5.6.88 : sauvegarde automatique
+        from .reversibilite5688 import apercu
+        rows.append(('poste', 'Sauvegarde', apercu(desk)))
     except Exception:   # noqa: BLE001
         pass
     try:   # 5.6.61 : mises à jour
@@ -340,7 +365,7 @@ def _comptes(desk, auth, prefix, env, cap):
     return _section(section_html(desk, auth, prefix))
 
 
-BUILDERS = {'apercu': _apercu, 'connexions': _connexions, 'ia': _ia, 'voix': _voix, 'routines': _routines, 'documents': _documents,
+BUILDERS = {'apercu': _apercu, 'connexions': _connexions, 'stockage': _stockage, 'ia': _ia, 'voix': _voix, 'routines': _routines, 'documents': _documents,
             'cabinet': _cabinet, 'poste': _poste, 'recherche': _recherche, 'messagerie': _messagerie}
 
 

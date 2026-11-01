@@ -444,6 +444,13 @@ def analysis_html(prefix, mid, st):
         retry, steps, e(st['revision']))
 
 
+def _add_task5688(desk, prefix, mid):
+    """5.6.88 : créer une tâche directement depuis le dossier."""
+    from .audiences5688 import members
+    from .taches5688 import add_form
+    return add_form(prefix, members(desk), origine='dossier', ref=mid, matter=mid, heading='Ajouter une tâche à ce dossier')
+
+
 def render(desk, prefix, mid, key, data):
     """HTML d'une rubrique (hors synthèse et faits, rendues par web460 avec les sections historiques)."""
     empty = lambda text: '<p class="fc-empty">%s</p>' % e(text)
@@ -535,6 +542,7 @@ def render(desk, prefix, mid, key, data):
             body += '<h3>Avis et actes analysés</h3><ul class="fc-list">%s</ul>' % ''.join('<li>%s <span class="fc-muted">%s</span></li>' % (e(PurePosixPath(x['path']).name), e(str(x['updated'])[:10])) for x in data['avis'])
     elif key == 'actions':
         body += '<ul class="fc-list">%s</ul>' % (''.join('<li>%s</li>' % _a(prefix, p['href'], p['label']) for p in data['items']) or '<li class="fc-empty">Rien en attente.</li>')
+        body += _add_task5688(desk, prefix, mid)
         if data.get('tasks'):
             body += '<h3>Tâches ouvertes</h3><ul class="fc-list">%s</ul>' % ''.join('<li>%s%s</li>' % (e(t['title']), (' <span class="fc-muted">(échéance %s)</span>' % e(t['due'][:10])) if t['due'] else '') for t in data['tasks'])
     return '<section class="ax-card fc-rubrique" id="rubrique-%s"><h2>%s</h2>%s</section>' % (e(key), e(data['label']), body)

@@ -88,11 +88,15 @@ class EngineClient {
 
 	/**
 	 * Appairage : identifiants AxiorHub transmis une fois (HTTPS) ; renvoie la clé personnelle.
+	 * 0.4.4 : le code de double authentification n'est transmis que s'il est rempli (un moteur antérieur reçoit la même requête qu'avant).
 	 * @return array{status:int, body:array<string,mixed>}
 	 */
-	public function pair(string $url, bool $allowLocal, string $login, string $password, string $label): array {
-		return $this->request('POST', $url . '/integration/v1/pair', ['Accept' => 'application/json'],
-			['login' => $login, 'password' => $password, 'label' => $label], $allowLocal);
+	public function pair(string $url, bool $allowLocal, string $login, #[\SensitiveParameter] string $password, string $label, #[\SensitiveParameter] string $code = ''): array {
+		$body = ['login' => $login, 'password' => $password, 'label' => $label];
+		if ($code !== '') {
+			$body['code'] = $code;
+		}
+		return $this->request('POST', $url . '/integration/v1/pair', ['Accept' => 'application/json'], $body, $allowLocal);
 	}
 
 	/** @return array{status:int, body:array<string,mixed>} */

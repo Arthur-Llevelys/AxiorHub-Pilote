@@ -1727,6 +1727,8 @@
 ],
 "version": "5.6.36"
 },
+"mes_taches": {"objective": "Ihnen zugewiesene Aufgaben mit Frist, Erinnerung und Status sehen.", "when": "Täglich und um einem Kollegen eine Aufgabe zuzuweisen.", "prerequisites": "Keine.", "steps": ["Aufgabe anlegen und Verantwortlichen wählen.", "Bei Bedarf Frist und Erinnerung setzen.", "Ihre Erinnerungen unten auf der Seite einstellen."], "result": "Der Verantwortliche erhält Erinnerungen sieben Tage und einen Tag vorher, in der Anwendung, auf dem gekoppelten Telefon und, falls aktiviert, per E-Mail an seine Kontoadresse.", "verify": "Die Aufgabe erscheint in seiner Liste und am Fälligkeitstag in seiner Tagesliste.", "errors": [], "example": "Fiktive Aufgabe: Kollegen MARTIN wegen der Unterlagen 12 bis 15 der Akte DOS-001 erinnern.", "buttons": ["Créer la tâche", "Enregistrer mes rappels"], "version": "5.6.36"},
+"audiences_suivi": {"objective": "Jede Verhandlung verfolgen: wer hingeht, vor welchem Gericht, unter welchem Aktenzeichen, in welchem Stand.", "when": "Zur Wochenplanung oder um zu prüfen, ob ein Anwalt benannt ist.", "prerequisites": "Keine. Für Kopien ein in den Einstellungen verbundener Outlook- oder Google-Kalender.", "steps": ["Nach Anwalt und Zeitraum filtern.", "Eine Verhandlung öffnen und ergänzen.", "Anwalt benennen und speichern."], "result": "Der Eintrag folgt dem Kalenderereignis. Ohne Anwalt erscheint „Sans avocat désigné“. Eine Änderung in Outlook oder Google wird nie ohne Ihre Entscheidung überschrieben.", "verify": "Der Name des Anwalts erscheint, und die Zeile Outlook oder Google meldet die Kopie.", "errors": [], "example": "Fiktive Verhandlung am Gericht Valbrune, Aktenzeichen 24/01234, Akte DOS-001.", "buttons": ["Enregistrer l’audience"], "version": "5.6.36"},
 "cessions": {"objective": "Eine Übertragung von Handelsgeschäft oder Mietrecht aus einer Akte bis zu Urkunden und Formalitäten führen.", "when": "Für einen solchen Vorgang.", "prerequisites": "Eine Akte der Kanzlei und ihre Unterlagen.", "steps": ["Art wählen.", "Vorgang in einer Akte anlegen und übernehmen.", "Daten bestätigen und Dokumente vorbereiten."], "result": "Die Urkunden werden in „JURIDIQUE“ abgelegt; Register ändern sich erst beim Erfassen des Vollzugs. Muster liefern zu prüfende Entwürfe; ausländische Muster sind von einem örtlichen Berater zu prüfen.", "verify": "Öffnen Sie „Register“: Der Beschluss erscheint mit dem bestätigten Datum; „Vorbereitete Urkunden“ zeigt den Stand jedes Vorgangs.", "errors": [], "example": "Fiktive Gesellschaft EXEMPLE SAS mit 10 000 € Kapital: SAS-Satzung mit Zustimmungs-, Vorkaufs- und Mitveräußerungsklausel.", "buttons": ["Créer l’opération"], "version": "5.6.36"},
 "formulaires": {"objective": "Ein amtliches Formular aus den Daten einer Akte ausfüllen oder die zu übertragenden Daten vorbereiten, wenn das PDF keine Felder hat.", "when": "Für die Steuererklärungen, Anträge und Prozesskostenhilfe-Formulare des Katalogs.", "prerequisites": "Nextcloud: eine Akte der Kanzlei. Das Formular wird von der amtlichen Website geladen.", "steps": ["Formular herunterladen und Fassung prüfen.", "Akte wählen und das Ausfüllen starten.", "Die im Ordner FORMULAIRES abgelegte Datei prüfen."], "result": "Die Urkunden werden in „JURIDIQUE“ abgelegt; Register ändern sich erst beim Erfassen des Vollzugs. Muster liefern zu prüfende Entwürfe; ausländische Muster sind von einem örtlichen Berater zu prüfen.", "verify": "Öffnen Sie „Register“: Der Beschluss erscheint mit dem bestätigten Datum; „Vorbereitete Urkunden“ zeigt den Stand jedes Vorgangs.", "errors": [], "example": "Fiktive Gesellschaft EXEMPLE SAS mit 10 000 € Kapital: SAS-Satzung mit Zustimmungs-, Vorkaufs- und Mitveräußerungsklausel.", "buttons": ["Télécharger depuis le site officiel", "Remplir depuis le dossier"], "version": "5.6.36"},
 "corporate": {
@@ -1766,10 +1768,40 @@
 ],
 "version": "5.6.36"
 },
+"contribution": {
+"objective": "Sehen, was jede Person Monat für Monat zum vereinnahmten Umsatz beiträgt, und ihre Beteiligung schätzen.",
+"when": "Zur Vorbereitung eines Gesprächs oder einer Beteiligung anhand der erfassten Zahlungen.",
+"prerequisites": "Das Recht „Abrechnung und Zeiten“; in AxiorHub ausgestellte Rechnungen, erfasste Zahlungen und möglichst personenbezogene Zeiten.",
+"steps": [
+"Wählen Sie den Monat und gegebenenfalls die Person und klicken Sie auf „Afficher“.",
+"Geben Sie unter „Clés de rétrocession“ Person, Startmonat, Prozentsatz und gegebenenfalls Schwelle ein und klicken Sie auf „Enregistrer la clé“.",
+"Prüfen Sie die Zahlungsdetails; „Ajuster“ korrigiert die Aufteilung einer Zahlung oder Rechnung auf insgesamt 100 %.",
+"Klicken Sie auf „Exporter le relevé (CSV)“, um die Übersicht aufzubewahren."
+],
+"result": "Eine unverbindliche Übersicht je Person: vereinnahmte Nettohonorare, Bemessungsgrundlage, Beteiligung und zugewiesene Rundungscent. Keine Buchung.",
+"verify": "Die Summe der Übersicht entspricht der Summe der Detailzeilen; jeder angepasste Cent steht unter „Écarts d’arrondi“.",
+"errors": [
+[
+"„La répartition doit totaliser exactement 100 %“",
+"Korrigieren Sie die Prozentsätze unter „Ajuster“."
+],
+[
+"Alles steht auf „Non attribué“",
+"Ordnen Sie die Zeiten unter Zeiten und Honorare einer Person zu oder passen Sie die Aufteilung von Hand an."
+]
+],
+"example": "Fiktive Rechnung F-2026-0042: 1 000,00 € netto vereinnahmt, 60 % MARTIN und 40 % BERNARD nach abgerechneten Zeiten; fiktiver Schlüssel von 30 % über 200,00 €.",
+"buttons": [
+"Afficher",
+"Exporter le relevé (CSV)",
+"Enregistrer la clé"
+],
+"version": "5.6.36"
+},
 "relances": {
-"objective": "Jeden Morgen Mahnungsentwürfe für fällige Invoice-Ninja-Rechnungen vorbereiten, vor jedem Versand zu prüfen.",
+"objective": "Jeden Morgen Mahnentwürfe für fällige Rechnungen vorbereiten, ob in AxiorHub ausgestellt oder aus Invoice Ninja bekannt, zur Prüfung vor jedem Versand.",
 "when": "Um offene Rechnungen zu verfolgen, ohne eine zu vergessen oder zu oft zu mahnen.",
-"prerequisites": "Invoice Ninja verbunden (nur Lesen); E-Mail, um Mahnungen in Entwürfe zu legen.",
+"prerequisites": "Für in AxiorHub ausgestellte Rechnungen ist keine Verbindung nötig. Invoice Ninja ist optional (nur Lesen). E-Mail, um Mahnungen unter Entwürfe abzulegen.",
 "steps": [
 "Öffnen Sie „Einstellungen“: Uhrzeit, Karenzzeit, Intervall und Höchststufe, dann „Speichern“ klicken.",
 "Jeden Morgen erscheinen Entwürfe; klicken Sie auf „Jetzt vorbereiten“, um nicht zu warten.",
@@ -1780,7 +1812,7 @@
 "verify": "Öffnen Sie Entwürfe: Die Mahnung liegt dort; Invoice Ninja wird nie verändert.",
 "errors": [
 [
-"„Invoice Ninja ist noch nicht verbunden“",
+"Keine Rechnung aus Invoice Ninja in den Entwürfen",
 "Richten Sie Invoice Ninja unter Einstellungen › Verbindungen ein."
 ],
 [
@@ -1989,6 +2021,87 @@
 ],
 "example": "Vom Telefon die Ablage einer Antwort „à compléter“ an den fiktiven Mandanten der Akte DOS-001 freigeben.",
 "buttons": [],
+"version": "5.6.36"
+},
+"mon_compte": {
+"objective": "Ihr Konto mit einem sechsstelligen Code schützen und Ihre API-Token verwalten.",
+"when": "Um die Anmeldung zu stärken, oder wenn die Kanzlei es verlangt.",
+"prerequisites": "Ein persönliches Konto und eine Authenticator-App auf Ihrem Telefon.",
+"steps": [
+"Öffnen Sie Mein Konto unten im Menü.",
+"Wählen Sie „Activer la double authentification“ und scannen Sie den QR-Code.",
+"Geben Sie den ersten Code ein und notieren Sie Ihre zehn Ersatzcodes.",
+"Erstellen Sie bei Bedarf ein API-Token: Es wird nur einmal angezeigt."
+],
+"result": "Die Anmeldung verlangt nach dem Passwort einen Code.",
+"verify": "Der Status „Aktiv“ wird mit der Zahl der verbleibenden Ersatzcodes angezeigt.",
+"errors": [
+[
+"Code abgelehnt",
+"Prüfen Sie die Uhrzeit des Telefons und warten Sie auf den nächsten Code."
+],
+[
+"Telefon verloren",
+"Verwenden Sie einen Ersatzcode oder bitten Sie den Administrator um Zurücksetzung."
+]
+],
+"example": "Ein Lese-Token für 90 Tage für ein Skript erstellen, das die Akte DOS-001 abruft.",
+"buttons": [
+"Activer la double authentification",
+"Créer le jeton"
+],
+"version": "5.6.36"
+},
+"journal_audit": {
+"objective": "Ermitteln, wer was getan hat, und prüfen, dass das Protokoll unverändert ist.",
+"when": "Für eine Prüfung, eine Haftungsfrage oder einen Vorfall.",
+"prerequisites": "Administrator sein.",
+"steps": [
+"Öffnen Sie das Prüfprotokoll.",
+"Filtern Sie nach Datum, Aktion, Urheber oder Suche, dann „Filtrer“.",
+"Lesen Sie den Kettenstatus oben auf der Seite.",
+"Exportieren Sie mit „Exporter (CSV)“."
+],
+"result": "Die Liste der Ereignisse mit Urheber, soweit bekannt.",
+"verify": "„Chaîne intacte“ wird angezeigt; ein Bruch nennt das betroffene Ereignis.",
+"errors": [
+[
+"Urheber „système“",
+"Die Aktion stammt aus einer automatischen Arbeit ohne angemeldete Person."
+],
+[
+"Kette gebrochen",
+"Bewahren Sie eine Kopie der Datenbank auf und suchen Sie die Ursache vor jeder Wiederherstellung."
+]
+],
+"example": "Die Exporte dieses Monats zur Akte DOS-001 auflisten.",
+"buttons": [
+"Filtrer",
+"Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"vue_ia": {
+"objective": "Kategorie für Kategorie wählen, was der Assistent und der Claude-Connector lesen dürfen.",
+"when": "Um zu begrenzen, was an Modelle übermittelt wird.",
+"prerequisites": "Administrator sein.",
+"steps": [
+"Öffnen Sie Was die KI sehen darf.",
+"Entfernen Sie das Häkchen bei den zu sperrenden Kategorien.",
+"Wählen Sie „Enregistrer“."
+],
+"result": "Der Assistent nennt in seiner Antwort, was er nicht eingesehen hat.",
+"verify": "Stellen Sie eine Frage zu einer gesperrten Kategorie: Die Antwort weist darauf hin.",
+"errors": [
+[
+"Automatische Sortierung der E-Mails",
+"Sie wird unter Autonomie des Agenten eingestellt, nicht hier."
+]
+],
+"example": "Rechnungen für die KI sperren und die Dokumente der Akte DOS-001 offen lassen.",
+"buttons": [
+"Enregistrer"
+],
 "version": "5.6.36"
 }
 }

@@ -763,9 +763,10 @@ def page_html(desk, prefix, args, role='administrateur'):
 
 
 def tabs_html(prefix, view):
-    return ('<nav class="ws-tabs op76-tabs" aria-label="Contacts et opportunités"><a href="%s"%s>Contacts</a><a href="%s"%s>Opportunités</a></nav>') % (
-        e(prefix + '/contacts-crm', quote=True), '' if view == 'opportunites' else ' aria-current="page"',
-        e(prefix + '/contacts-crm?vue=opportunites', quote=True), ' aria-current="page"' if view == 'opportunites' else '')
+    return ('<nav class="ws-tabs op76-tabs" aria-label="Contacts et opportunités"><a href="%s"%s>Contacts</a><a href="%s"%s>Opportunités</a><a href="%s"%s>Veille des sociétés</a></nav>') % (
+        e(prefix + '/contacts-crm', quote=True), '' if view else ' aria-current="page"',
+        e(prefix + '/contacts-crm?vue=opportunites', quote=True), ' aria-current="page"' if view == 'opportunites' else '',
+        e(prefix + '/contacts-crm?vue=veille', quote=True), ' aria-current="page"' if view == 'veille' else '')
 
 
 # ------------------------------------------------------------------------------------------------ API (m5676/…)

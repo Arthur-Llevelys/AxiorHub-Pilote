@@ -5,6 +5,7 @@ import json
 from pathlib import PurePosixPath
 from urllib.parse import urlencode
 
+from . import cloud5688
 from .common import Stop, clean_path, under
 
 STATUS = {'pending': 'en file', 'running': 'en cours', 'done': 'terminé', 'error': 'bloqué', 'cancelled': 'annulé',
@@ -40,13 +41,13 @@ def _prepared(desk, key):
         return False
 
 
-def _file_actions(prefix, path, matter):
+def _file_actions(desk, prefix, path, matter):
     name = PurePosixPath(path).name
     out = []
     if name.lower().endswith(EDITABLE):
         out.append('<a class="ax-btn ghost c530-small" href="%s">Ouvrir dans l’éditeur</a>' % e(prefix + '/documents/edit?' + urlencode({'path': path, 'matter': matter})))
-    out.append('<button type="button" class="ax-btn ghost c530-small" data-open-path="%s" data-open-matter="%s">Ouvrir dans Nextcloud</button>' % (
-        e(path, quote=True), e(matter, quote=True)))
+    out.append('<button type="button" class="ax-btn ghost c530-small" data-open-path="%s" data-open-matter="%s">%s</button>' % (
+        e(path, quote=True), e(matter, quote=True), e(cloud5688.ouvrir_libelle(desk.c))))
     return ' '.join(out)
 
 
@@ -69,7 +70,7 @@ def describe(desk, prefix, kind, args):
             if row['revision_of']:
                 rows.append(('Nouvelle version de', e(_rel(matters, row['matter'], row['revision_of']))))
             if row['path']:
-                rows.append(('Document produit', '%s<br>%s' % (e(_rel(matters, row['matter'], row['path'])), _file_actions(prefix, row['path'], row['matter']))))
+                rows.append(('Document produit', '%s<br>%s' % (e(_rel(matters, row['matter'], row['path'])), _file_actions(desk, prefix, row['path'], row['matter']))))
             res = json.loads(row['result'] or '{}')
             if res.get('to_complete'):
                 rows.append(('À compléter', e(' ; '.join(res['to_complete'][:8]))))
@@ -84,7 +85,7 @@ def describe(desk, prefix, kind, args):
         path = str(args['path'])
         rows.append(('Pièce' if kind in ('analyze_deadline450', 'analyze_notice440', 'pieces_scan510') else 'Fichier',
                      '<strong>%s</strong><br><span class="c530-sub">%s</span><br>%s' % (
-                         e(PurePosixPath(path).name), e(str(PurePosixPath(_rel(matters, matter, path)).parent)), _file_actions(prefix, path, matter))))
+                         e(PurePosixPath(path).name), e(str(PurePosixPath(_rel(matters, matter, path)).parent)), _file_actions(desk, prefix, path, matter))))
     for k, v in args.items():
         if k in HIDDEN or k in ('matter', 'matter_id', 'path', 'key', 'mail_key', 'request') or v in ('', None, [], {}):
             continue
@@ -111,7 +112,7 @@ def results(desk, prefix, job_id, status, raw_result):
             for f in json.loads(r['verification'] or '{}').get('files', [])[:4]:
                 p = str(f.get('path', ''))
                 if p:
-                    line += '<br>%s %s' % (e(_rel(matters, r['matter'], p)), _file_actions(prefix, p, r['matter']))
+                    line += '<br>%s %s' % (e(_rel(matters, r['matter'], p)), _file_actions(desk, prefix, p, r['matter']))
             out.append(line)
     try:
         res = json.loads(raw_result or '{}')

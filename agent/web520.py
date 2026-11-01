@@ -478,6 +478,7 @@ def routines_html(desk, prefix, form, today):
 
 # ======================================================================================== demande de document (page Documents)
 def docrequest_html(desk, prefix, selected=''):
+    from . import cloud5688
     from urllib.parse import urlencode
     from . import docrequest520 as dr
     from .web500 import _opts
@@ -504,7 +505,7 @@ def docrequest_html(desk, prefix, selected=''):
             name = r['path'].rsplit('/', 1)[-1]
             line += '<div class="ax-actions"><a class="ax-btn" href="%s">Modifier « %s »</a>%s</div>' % (
                 e(prefix + '/documents/edit?' + urlencode({'path': r['path'], 'matter': r['matter']})), e(name),
-                (' <a class="ax-btn ghost" target="_blank" rel="noopener noreferrer" href="%s">Ouvrir dans Nextcloud</a>' % e(res['url'], quote=True))
+                (' <a class="ax-btn ghost" target="_blank" rel="noopener noreferrer" href="%s">%s</a>' % (e(res['url'], quote=True), e(cloud5688.ouvrir_libelle(desk.c))))
                 if str(res.get('url', '')).startswith('https://') else '')
             if res.get('to_complete'):
                 line += '<p class="vf-note">À compléter : %s</p>' % e(' ; '.join(res['to_complete'][:6]))

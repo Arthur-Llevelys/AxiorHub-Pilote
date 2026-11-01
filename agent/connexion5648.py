@@ -36,7 +36,8 @@ ADMIN_ID = 0
 SESSION_HOURS = 12
 REMEMBER_DAYS = 30
 RESET_MINUTES = 30
-LIMITS = {'ident': (5, 900), 'ip': (20, 900), 'reset': (3, 3600)}
+LIMITS = {'ident': (5, 900), 'ip': (20, 900), 'reset': (3, 3600), 'mfa': (5, 900)}   # 5.6.88 : essais de la double authentification
+MFA_COOKIE = 'axh_mfa'   # 5.6.88 : étape du code, entre le mot de passe et la session (10 minutes)
 MIN_ADMIN = 16
 MIN_USER = 12
 ROLES = {'administrateur': 'Administrateur', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
@@ -83,6 +84,14 @@ def connect(state_dir):
     db = sqlite3.connect(str(path), timeout=10)
     db.row_factory = sqlite3.Row
     db.executescript(SCHEMA)
+    from .totp5688 import SCHEMA as _mfa_schema
+    db.executescript(_mfa_schema)
+    if 'mfa' not in {r[1] for r in db.execute('PRAGMA table_info(sessions)')}:   # 5.6.88 : génération à laquelle le code a été donné
+        try:
+            db.execute('ALTER TABLE sessions ADD COLUMN mfa INTEGER NOT NULL DEFAULT 0')
+            db.commit()
+        except sqlite3.OperationalError:   # deux requêtes simultanées : la colonne vient d'être ajoutée
+            pass
     try:
         path.chmod(0o600)
     except OSError:
@@ -186,7 +195,8 @@ def check_password(db, auth, ident, password, client='inconnu'):
     return user
 
 
-def open_session(db, auth, user, remember=False, client=''):
+def open_session(db, auth, user, remember=False, client='', mfa=0):
+    """``mfa`` : génération de la double authentification à laquelle le code vient d'être donné (0 : aucun code donné)."""
     token = secrets.token_urlsafe(32)
     now = _now()
     life = timedelta(days=REMEMBER_DAYS) if remember else timedelta(hours=SESSION_HOURS)
@@ -195,8 +205,8 @@ def open_session(db, auth, user, remember=False, client=''):
     else:
         stamp = _user_stamp(db.execute('SELECT * FROM users WHERE id=?', (user['id'],)).fetchone())
     db.execute('DELETE FROM sessions WHERE expires<?', (now.isoformat(),))
-    db.execute('INSERT INTO sessions VALUES(?,?,?,?,?,?,?)', (_token_hash(token), user['id'], stamp, now.isoformat(), (now + life).isoformat(),
-                                                            1 if remember else 0, str(client)[:64]))
+    db.execute('INSERT INTO sessions(token_hash,user_id,stamp,created,expires,remember,client,mfa) VALUES(?,?,?,?,?,?,?,?)',
+               (_token_hash(token), user['id'], stamp, now.isoformat(), (now + life).isoformat(), 1 if remember else 0, str(client)[:64], int(mfa or 0)))
     db.commit()
     return token, int(life.total_seconds()) if remember else None
 
@@ -217,6 +227,12 @@ def session_user(db, auth, token):
         if not found or not hmac.compare_digest(row['stamp'], _user_stamp(found)):
             return None
         user = _user_dict(found)
+    # 5.6.88 : session ouverte sans le code à la génération en cours (« Se souvenir de moi », téléphone, avant l'activation) : fermée
+    from . import totp5688
+    state = totp5688.verdict(db, user['owner'], row['mfa'])
+    if state == 'refus':
+        return None
+    user['activation_2fa'] = state == 'activation'
     user['session'] = row['token_hash']
     return user
 
@@ -231,12 +247,18 @@ def revoke(db, user_id, keep=''):
     db.commit()
 
 
-def cookie_value(env):
+def cookie_value(env, cookie=COOKIE):
     for part in str(env.get('HTTP_COOKIE') or '').split(';'):
         name, _, value = part.strip().partition('=')
-        if name == COOKIE:
+        if name == cookie:
             return value
     return ''
+
+
+def _mfa_cookie(prefix, token, secure):
+    """Cookie de l'étape du code : limité aux pages de connexion, effacé dès la session ouverte."""
+    age = 'Max-Age=0' if token is None else 'Max-Age=600'
+    return 'Set-Cookie', '%s=%s; Path=%s/connexion; %s; HttpOnly; SameSite=Lax%s' % (MFA_COOKIE, token or '', prefix or '', age, '; Secure' if secure else '')
 
 
 def cookie_header(prefix, token, max_age=None, secure=True):
@@ -299,13 +321,15 @@ def list_users(db):
     return [dict(r) for r in db.execute('SELECT id,ident,email,name,role,active,must_change,created,last_login FROM users ORDER BY ident')]
 
 
-def add_user(db, actor, data):
+def add_user(db, actor, data, delegated=False):
     ident = str(data.get('ident') or '').strip()
     if not IDENT.fullmatch(ident):
         raise Stop('identifiant_invalide')
     role = str(data.get('role') or 'avocat')
     if role not in ROLES:
         raise Stop('role_invalide')
+    if delegated and role == 'administrateur':   # 5.6.88 : le droit « gérer les comptes » ne crée jamais d'administrateur
+        raise Stop('role_insuffisant')
     password = str(data.get('password') or '')
     if len(password) < MIN_USER:
         raise Stop('mot_de_passe_trop_court_12')
@@ -323,7 +347,7 @@ def add_user(db, actor, data):
     return {'message': 'Compte « %s » créé (%s). Mot de passe provisoire à changer à la première connexion.' % (ident, ROLES[role])}
 
 
-def update_user(db, actor, data):
+def update_user(db, actor, data, delegated=False):
     try:
         uid = int(data.get('id'))
     except (TypeError, ValueError):
@@ -332,6 +356,9 @@ def update_user(db, actor, data):
     if not row:
         raise Stop('compte_absent')
     action = str(data.get('action') or '')
+    # 5.6.88 : le droit « gérer les comptes » ne touche ni un administrateur, ni son propre compte, et ne nomme aucun administrateur
+    if delegated and (row['role'] == 'administrateur' or row['ident'] == actor or str(data.get('role') or '') == 'administrateur'):
+        raise Stop('role_insuffisant')
     if action == 'desactiver':
         db.execute('UPDATE users SET active=0 WHERE id=?', (uid,))
         revoke(db, uid)
@@ -467,6 +494,7 @@ MESSAGES = {
     'lien_expire': 'Ce lien n’est plus valable : demandez-en un nouveau.',
     'compte_administrateur_existe': 'Le compte administrateur existe déjà : connectez-vous.',
     'origine_refusee': 'Formulaire refusé : rouvrez la page de connexion depuis l’adresse d’AxiorHub.',
+    'code_incorrect': 'Code incorrect, ou déjà utilisé : attendez le code suivant de votre application.',
 }
 
 
@@ -585,6 +613,8 @@ def handle(env, auth, cfg, prefix, path):
             return _new_password(db, env, auth, state, prefix, query)
         if path == '/connexion/changer':
             return _change(db, env, auth, prefix)
+        if path == '/connexion/double-authentification':   # 5.6.88 : le code, entre le mot de passe et la session
+            return _second_factor(db, env, auth, prefix, secure)
         if path == '/connexion/appareil':   # 5.6.74 : associer un téléphone (invitation à usage unique du QR code)
             from .appareils5674 import SCHEMA as _ap74, pairing as _pairing
             db.executescript(_ap74)
@@ -616,7 +646,11 @@ def _login(db, env, auth, prefix, query, secure, lang_headers):
                 except Exception:   # noqa: BLE001
                     pass
         else:
-            token, age = open_session(db, auth, user, form.get('remember') == '1', _client(env))
+            from . import totp5688
+            if totp5688.need(db, user['owner']) == 'code':   # 5.6.88 : le mot de passe seul n'ouvre aucune session
+                pending = totp5688.pending_open(db, user['owner'], user['id'], form.get('remember') == '1', nxt, _client(env))
+                return _redirect(prefix + '/connexion/double-authentification', [_mfa_cookie(prefix, pending, secure)])
+            token, age = open_session(db, auth, user, form.get('remember') == '1', _client(env), totp5688.generation(db, user['owner']))
             target = prefix + '/connexion/changer' if user['must_change'] else nxt
             return _redirect(target, [cookie_header(prefix, token, age, secure)])
     status = '429 Too Many Requests' if error == 'trop_de_tentatives' else ('401 Unauthorized' if error else '200 OK')
@@ -634,6 +668,48 @@ def _login(db, env, auth, prefix, query, secure, lang_headers):
             '<p class="cx48-links"><a href="%s/connexion/oubli">Mot de passe oublié ?</a></p>') % (
         e(prefix, quote=True), e(nxt, quote=True), e(ident, quote=True), e(prefix, quote=True))
     return _html(_page(prefix, 'Connexion', body, 'Connectez-vous pour ouvrir l’espace de travail du cabinet.'), status, lang_headers)
+
+
+def _pending_user(db, auth, row):
+    if int(row['user_id']) == ADMIN_ID:
+        return None if first_run(auth) else admin_user(auth, db)
+    found = db.execute('SELECT * FROM users WHERE id=? AND active=1', (int(row['user_id']),)).fetchone()
+    return _user_dict(found) if found else None
+
+
+def _second_factor(db, env, auth, prefix, secure):
+    """5.6.88 : deuxième étape de la connexion. La session ne s'ouvre qu'ici, et garde « Se souvenir de moi » demandé au mot de passe."""
+    from . import totp5688
+    token = cookie_value(env, MFA_COOKIE)
+    row = totp5688.pending_get(db, token)
+    user = _pending_user(db, auth, row) if row else None
+    if not user or not totp5688.active(db, row['owner']):
+        return _redirect(prefix + '/connexion', [_mfa_cookie(prefix, None, secure)])
+    error = ''
+    if env.get('REQUEST_METHOD') == 'POST':
+        try:
+            kind = totp5688.attempt(db, row['owner'], str(_form_data(env).get('code') or ''), _client(env))
+        except Stop as ex:
+            error = str(ex)
+            _log(db, user['ident'], 'double_auth_bloquee', _client(env))
+        else:
+            if kind:
+                totp5688.pending_close(db, token)
+                session, age = open_session(db, auth, user, bool(row['remember']), _client(env), totp5688.generation(db, row['owner']))
+                _log(db, user['ident'], 'double_auth_' + kind, _client(env))
+                target = prefix + '/connexion/changer' if user['must_change'] else _next_path(prefix, row['suite'])
+                return _redirect(target, [cookie_header(prefix, session, age, secure), _mfa_cookie(prefix, None, secure)])
+            error = 'code_incorrect'
+            _log(db, user['ident'], 'double_auth_refusee', _client(env))
+    status = '429 Too Many Requests' if error == 'trop_de_tentatives' else ('401 Unauthorized' if error else '200 OK')
+    body = (_notice(error) + '<form method="post" action="%s/connexion/double-authentification" class="cx48-form" autocomplete="off">'
+            '<label for="cx48-code">Code à six chiffres de votre application d’authentification</label>'
+            '<input id="cx48-code" name="code" required autofocus maxlength="24" autocomplete="one-time-code" autocapitalize="none" spellcheck="false">'
+            '<button type="submit">Valider</button></form>'
+            '<p class="cx48-small">Téléphone perdu ? Saisissez un de vos codes de secours : chacun ne sert qu’une fois. Sans code de secours, '
+            'demandez à l’administrateur du cabinet de réinitialiser cette protection.</p>'
+            '<p class="cx48-links"><a href="%s/connexion">Retour à la connexion</a></p>') % (e(prefix, quote=True), e(prefix, quote=True))
+    return _html(_page(prefix, 'Double authentification', body, 'Une dernière étape : prouvez que c’est bien vous.'), status)
 
 
 def _first(db, env, auth, state, prefix):
@@ -743,14 +819,15 @@ def _change(db, env, auth, prefix):
 # ------------------------------------------------------------------------------------------------ menu : compte et déconnexion
 def user_block(prefix, user):
     """Pied du menu : nom, rôle, « Se déconnecter » (formulaire POST, même origine)."""
-    return ('<div class="cx48-user"><span class="cx48-user-name">%s</span><small>%s</small>'
+    return ('<div class="cx48-user"><span class="cx48-user-name">%s</span><small>%s</small><a class="cx48-account" href="%s/mon-compte">Mon compte</a>'
             '<form method="post" action="%s/deconnexion"><button type="submit" class="cx48-logout">Se déconnecter</button></form></div>') % (
-        e(user.get('name') or user.get('ident') or ''), e(ROLES.get(user.get('role'), '')), e(prefix, quote=True))
+        e(user.get('name') or user.get('ident') or ''), e(ROLES.get(user.get('role'), '')), e(prefix, quote=True), e(prefix, quote=True))
 
 
 # ------------------------------------------------------------------------------------------------ réinitialisation sur le serveur
 def cli_reset(argv=None):
-    """``sudo python3 reinitialiser-acces.py`` : nouveau mot de passe pour un compte (administrateur compris), sessions fermées."""
+    """``sudo python3 reinitialiser-acces.py`` : nouveau mot de passe pour un compte (administrateur compris), sessions fermées.
+    5.6.88 : ``--2fa <identifiant>`` retire la double authentification d'un compte (téléphone et codes de secours perdus)."""
     import getpass
     import os
     config = Path('/etc/axiorhub-mail-agent/config.json')
@@ -761,6 +838,10 @@ def cli_reset(argv=None):
     db = connect(state)
     names = [str(auth.get('username') or 'admin')] + [u['ident'] for u in list_users(db)]
     print('Comptes : ' + ', '.join(names))
+    if argv and argv[0] == '--2fa':
+        target = (argv[1] if len(argv) > 1 else input('Identifiant : ')).strip()
+        print(cli_reset_2fa(db, names[0], target))
+        return
     ident = (argv[0] if argv else input('Identifiant à réinitialiser : ')).strip()
     password = getpass.getpass('Nouveau mot de passe : ')
     if password != getpass.getpass('Répétez le mot de passe : '):
@@ -792,9 +873,26 @@ def cli_reset(argv=None):
     print('Mot de passe de « %s » réinitialisé ; ses sessions sont fermées.' % ident)
 
 
+def cli_reset_2fa(db, admin_ident, ident):
+    """5.6.88 : accès root au serveur : retire la double authentification, ferme les sessions du compte ; rien n'est demandé au réseau."""
+    from . import totp5688
+    if ident.lower() == admin_ident.lower():
+        owner, uid = 'cabinet', ADMIN_ID
+    else:
+        row = db.execute('SELECT * FROM users WHERE lower(ident)=?', (ident.lower(),)).fetchone()
+        if not row:
+            raise SystemExit('Compte inconnu.')
+        owner, uid = row['ident'], row['id']
+    totp5688.reset(db, owner)
+    revoke(db, uid)
+    _log(db, 'serveur', 'double_auth_reinitialisee', ident)
+    return 'Double authentification retirée pour « %s » ; ses sessions sont fermées.' % ident
+
+
 # ------------------------------------------------------------------------------------------------ Paramètres › Comptes (version serveur)
-def settings_html(state_dir, auth):
-    """Adresse de récupération de l'administrateur et comptes du cabinet (création, rôle, désactivation, mot de passe provisoire)."""
+def settings_html(state_dir, auth, delegated=False):
+    """Adresse de récupération de l'administrateur et comptes du cabinet (création, rôle, désactivation, mot de passe provisoire).
+    5.6.88 : ``delegated`` : vue du droit « gérer les comptes », sans l'adresse de l'administrateur ni les comptes administrateurs."""
     db = connect(state_dir)
     try:
         email = _setting(db, 'admin_email')
@@ -802,7 +900,10 @@ def settings_html(state_dir, auth):
         smtp_note = ''
     finally:
         db.close()
-    options = lambda current: ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == current else '', e(v)) for k, v in ROLES.items())
+    if delegated:
+        users = [u for u in users if u['role'] != 'administrateur']
+    grantable = {k: v for k, v in ROLES.items() if not (delegated and k == 'administrateur')}
+    options = lambda current: ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == current else '', e(v)) for k, v in grantable.items())
     rows = ''.join(
         '<tr><td><strong>%s</strong><br><small>%s</small></td><td>%s</td><td>%s</td><td>%s</td><td class="cx48-actions">'
         '<form class="m5-form m5-inline" data-api="m5636/comptes/modifier" data-reload><input type="hidden" name="id" value="%d">'
@@ -820,14 +921,15 @@ def settings_html(state_dir, auth):
             u['id'], options(u['role']), u['id'], 'desactiver' if u['active'] else 'activer', 'danger' if u['active'] else 'ghost',
             'Désactiver' if u['active'] else 'Réactiver', u['id'])
         for u in users)
-    return ('<section class="ax-card" id="recuperation"><h2>Adresse de récupération</h2>'
-            '<p class="ax-muted">« Mot de passe oublié » envoie un lien valable 30 minutes à cette adresse (envoi par le serveur SMTP de '
-            'Paramètres › Messagerie). Sans adresse ou sans envoi configuré, le mot de passe se réinitialise sur le serveur : '
-            '<code>sudo python3 /opt/axiorhub-mail-agent/current/reinitialiser-acces.py</code>.</p>'
-            '<form class="m5-form" data-api="m5636/comptes/recuperation" autocomplete="off">'
-            '<label>Adresse électronique de l’administrateur<input type="email" name="email" value="%s" maxlength="200" autocomplete="email"></label>'
-            '<button class="ax-btn" type="submit">Enregistrer l’adresse</button><p role="status" class="m5-status"></p></form></section>'
-            '<section class="ax-card" id="comptes-cabinet"><h2>Comptes du cabinet</h2>'
+    recovery = ('' if delegated else (
+        '<section class="ax-card" id="recuperation"><h2>Adresse de récupération</h2>'
+        '<p class="ax-muted">« Mot de passe oublié » envoie un lien valable 30 minutes à cette adresse (envoi par le serveur SMTP de '
+        'Paramètres › Messagerie). Sans adresse ou sans envoi configuré, le mot de passe se réinitialise sur le serveur : '
+        '<code>sudo python3 /opt/axiorhub-mail-agent/current/reinitialiser-acces.py</code>.</p>'
+        '<form class="m5-form" data-api="m5636/comptes/recuperation" autocomplete="off">'
+        '<label>Adresse électronique de l’administrateur<input type="email" name="email" value="%s" maxlength="200" autocomplete="email"></label>'
+        '<button class="ax-btn" type="submit">Enregistrer l’adresse</button><p role="status" class="m5-status"></p></form></section>') % e(email, quote=True))
+    return ('%s<section class="ax-card" id="comptes-cabinet"><h2>Comptes du cabinet</h2>'
             '<p class="ax-muted">Chaque avocat ou assistant se connecte avec son propre compte. Le mot de passe provisoire est à changer à la '
             'première connexion. Droits : l’avocat travaille sur tous les dossiers sans les réglages techniques ; l’assistant consulte, '
             'prépare et gère l’agenda, sans valider ni déposer.</p>'
@@ -840,7 +942,7 @@ def settings_html(state_dir, auth):
             '<label>Rôle<select name="role">%s</select></label>'
             '<label>Mot de passe provisoire (12 caractères au moins)<input type="password" name="password" minlength="12" required autocomplete="new-password"></label>'
             '<button class="ax-btn" type="submit">Créer le compte</button><p role="status" class="m5-status"></p></form></details></section>') % (
-        e(email, quote=True),
+        recovery,
         ('<div class="ax-table-wrap"><table class="cx48-table"><thead><tr><th>Compte</th><th>Rôle</th><th>Adresse</th><th>État</th><th>Actions</th>'
          '</tr></thead><tbody>%s</tbody></table></div>' % rows) if rows else '<p>Aucun autre compte pour l’instant.</p>',
         options('avocat'))

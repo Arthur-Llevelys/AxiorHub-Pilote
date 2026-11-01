@@ -126,16 +126,29 @@ REASONS.update({
  'requete_en_cours_verifier_activite':'Cette demande est déjà réservée. Vérifiez son résultat dans le panneau Activité avant de la relancer.'})
 from .messages5636 import REASONS as _REASONS5636, DEFAULTS as _DEFAULTS5636   # 5.6.36 : refus lisibles (modèles Word, base occupée, fonctions)
 REASONS.update(_REASONS5636)
+REASONS.update({'categorie_fermee_a_l_ia':'Le réglage « Ce que l’IA peut voir », ou les droits de ce compte, ferment cette catégorie à l’IA.',
+  'code_double_authentification_incorrect':'Code incorrect : vérifiez l’heure de votre téléphone et saisissez le code affiché.',
+  'double_authentification_non_commencee':'Cliquez d’abord sur « Activer la double authentification ».',
+  'double_authentification_deja_active':'La double authentification est déjà active sur ce compte.',
+  'double_authentification_inactive':'La double authentification n’est pas active sur ce compte.',
+  'double_authentification_exigee':'Le cabinet exige la double authentification : elle ne peut pas être retirée.',
+  'double_authentification_a_activer':'Le cabinet exige la double authentification : activez-la d’abord dans Mon compte.',
+  'activez_d_abord_votre_double_authentification':'Activez d’abord la double authentification de votre propre compte.',
+  'trop_de_tentatives':'Trop de tentatives : réessayez dans 15 minutes.',
+  'comptes_nominatifs_requis':'Cette installation n’a pas de comptes nominatifs.',
+  'jeton_nom_requis':'Donnez un nom au jeton.','jeton_portee_invalide':'Choisissez lecture ou écriture.','jeton_duree_invalide':'Choisissez une durée proposée.',
+  'jetons_trop_nombreux':'Vingt jetons actifs au plus : révoquez-en un.','jeton_absent_ou_deja_revoque':'Ce jeton n’existe pas ou est déjà révoqué.',
+  'vue_ia_invalide':'Réglage invalide : rechargez la page.','compte_absent':'Compte introuvable.','filtre_journal_invalide':'Filtre invalide : vérifiez les dates.'})
 for _k5636, _v5636 in _DEFAULTS5636.items():
     REASONS.setdefault(_k5636, _v5636)
-JOB_LABELS = {'microsoft5636': 'Agenda Microsoft 365 : copie et lecture des rendez-vous', 'corporate5636': 'Corporate : préparation des actes de l’opération', 'outils5636': 'Outils IA : grille d’analyse, playbook ou mémo juridique', 'relances5636': 'Préparation des relances d’impayés (Invoice Ninja, lecture seule)', 'initiative5636': 'Initiative : analyse du courriel ou exécution du plan validé',
+JOB_LABELS = {'migration5688': 'Copie des documents vers un autre stockage', 'propagation5688': 'Agendas Outlook et Google : copie des audiences', 'microsoft5636': 'Agenda Microsoft 365 : copie et lecture des rendez-vous', 'corporate5636': 'Corporate : préparation des actes de l’opération', 'outils5636': 'Outils IA : grille d’analyse, playbook ou mémo juridique', 'relances5636': 'Préparation des relances d’impayés (Invoice Ninja, lecture seule)', 'initiative5636': 'Initiative : analyse du courriel ou exécution du plan validé',
               'pj_courriel5636': 'Rangement des pièces jointes d’un courriel dans le dossier','fiche_dossier5627':'Préparation de la fiche du dossier (résumé, faits, parties, chronologie)','recit5651':'Rédaction du rappel des faits ou de la procédure','relecture5651':'Relecture d’un document Word (propositions)','extract_facts460':'Recherche de faits dans les pièces du dossier','analyze_deadline450':'Analyse d’une pièce (événement de départ et échéance)','analyze_notice440':'Analyse d’un avis de procédure (dates, agenda, brouillon)','live_mail430':'Contrôle des courriels et préparation des réponses',
               'live_calendar430':'Surveillance des échéances et audiences',
               'live_documents430':'Surveillance des documents des dossiers',
               'sync':'Découverte des dossiers et correspondants','approve':'Confirmation d’association',
               'reject':'Rejet d’une proposition','associate':'Enregistrement d’un correspondant',
               'remove_contact':'Retrait d’une association','retry':'Reprise d’un courriel',
-              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier','crm_collecte5657':'Contacts tirés de la boîte mail','opportunites5676':'Prospects repérés dans les courriels',
+              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier','crm_collecte5657':'Contacts tirés de la boîte mail','registre5688':'Statuts et actes du registre','opportunites5676':'Prospects repérés dans les courriels','veille5688':'Veille des sociétés (BODACC)','memoire5688':'Repérage de ce qui mérite d’être retenu',
               'review':'Préparation des points à décider','forget':'Oubli d’un exemple',
               'run':'Analyse des nouveaux courriels','learn':'Apprentissage des réponses envoyées',
               'discover':'Parcours des dossiers','browse':'Recherche dans Nextcloud',
@@ -239,6 +252,7 @@ REASONS['liste_modeles_fournisseur_invalide']='Le fournisseur a renvoyé une lis
 REASONS['trop_de_pieces_jointes']='Vingt documents au plus par demande.'   # 5.6.80
 REASONS['piece_extraite_plus_de_2000000_caracteres']='Document trop long : plus de 2 millions de caractères extraits.'
 JOB_LABELS.update({'office_analysis5684':'Analyse d’une modification dans l’éditeur','cession5684_run':'Cession : analyses et brouillons internes'})   # 5.6.84
+JOB_LABELS['efacture5688']='Relevé des plateformes de facturation électronique'   # 5.6.88
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',
@@ -255,7 +269,7 @@ JOB_LABELS.update({'advance_playbook380':'Poursuite d’un déroulé de travail'
   'complete_playbook_step380':'Étape d’un déroulé de travail','delete_mail_rule370':'Suppression d’une règle de courriel',
   'digest_pieces5632':'Synthèse des nouvelles pièces','file_mail_attachments5643':'Classement des pièces jointes reçues',
   'import_mcp_legal_results':'Import de résultats de recherche juridique','mailrules5632':'Application des règles de courriel',
-  'maj_local5661':'Mise à jour d’AxiorHub sur ce poste','ranger_notes5666':'Rangement des notes internes dans les dossiers','apprentissage5667':'Apprentissage des corrections et mesure des documents',
+  'sauvegarde5688':'Sauvegarde chiffrée du cabinet','export5688':'Export intégral du cabinet','controle5688':'Contrôle d’une archive','maj_local5661':'Mise à jour d’AxiorHub sur ce poste','ranger_notes5666':'Rangement des notes internes dans les dossiers','apprentissage5667':'Apprentissage des corrections et mesure des documents',
   'banc5667':'Banc d’essai des modèles sur vos cas','prepare_ecosystem_action380':'Préparation d’une action dans un service connecté',
   'recherche5634':'Recherche juridique','record_correction370':'Enregistrement d’une correction de l’avocat',
   'refresh_matter_graph380':'Actualisation des liens du dossier','refresh_unpaid_invoices':'Actualisation des factures impayées',
@@ -513,11 +527,17 @@ class App:
         jamais crus : l'administrateur garde l'identité du cabinet (« cabinet ») ; un autre compte reçoit la sienne et les droits de son
         rôle (mêmes règles que la distribution autonome). Renvoie une réponse de refus ou de redirection, sinon None."""
         from . import connexion5648 as _cx48
+        if env.get('axiorhub.jeton5688'):   # 5.6.88 : identité du jeton personnel (version serveur et distribution autonome)
+            return self._identite_jeton5688(env,auth,path)
         if not _cx48.enabled(auth) or env.get('axiorhub.nc_origin') or str(env.get('HTTP_AUTHORIZATION','')).startswith('Bearer '):
             return None
         for key in ('HTTP_X_AXIORHUB_USER','HTTP_X_AXIORHUB_ROLE'):
             env.pop(key,None)
         user=env.get('axiorhub.user')
+        if user and user.get('activation_2fa'):   # 5.6.88 : exigée par le cabinet : seule l'activation est ouverte à cette session
+            from .securite5688 import activation_gate as _gate88
+            _deny88=_gate88(env.get('REQUEST_METHOD','GET'),prefix,path)
+            if _deny88 is not None:return _deny88
         if not user or user['id']==_cx48.ADMIN_ID:
             auth['owner']='cabinet'
             return None
@@ -547,12 +567,50 @@ class App:
         status,body=_refused48(env,'role_insuffisant','Cette page est réservée à un autre rôle du cabinet (administrateur ou avocat).','',prefix,'')
         return {'status':'403 Forbidden','kind':'text/html; charset=utf-8','body':body}
 
+    def _identite_jeton5688(self, env, auth, path):
+        from . import jetons5688
+        def audit(data):
+            desk=Desk(load_config(self.config_path))
+            try:desk.audit('jeton5688_appel',data)
+            finally:desk.db.close()
+        return jetons5688.identity(env,auth,path,env['axiorhub.jeton5688'],self._state_dir5642(),audit)
+
     def _state_dir5642(self):
         """5.6.42 : dossier d'état du service (compte de l'interface modifié depuis les paramètres), lu une fois."""
         if not hasattr(self,'_state5642'):
             try:self._state5642=str(load_config(self.config_path).get('state_dir') or '')
             except Exception:self._state5642=''   # noqa: BLE001
         return self._state5642
+
+    def _basic_refuse5688(self, auth):
+        """5.6.88 : l'en-tête « Basic » de l'administrateur ne franchit pas sa double authentification (active ou exigée). Base des
+        comptes illisible : refus, jamais de passage sans contrôle."""
+        from . import connexion5648 as _cx48
+        if not _cx48.enabled(auth):
+            return False
+        from . import totp5688
+        try:
+            db=_cx48.connect(self._state_dir5642())
+            try:return bool(totp5688.need(db,'cabinet'))
+            finally:db.close()
+        except (OSError,sqlite3.Error):
+            return True
+
+    def _jeton5688(self, environ, auth, raw):
+        """5.6.88 : jeton d'API d'une personne : valable sur /api/v1 seulement ; tout est relu à chaque appel."""
+        from . import jetons5688
+        prefix=auth.get('prefix','/agent-courriel');path=environ.get('PATH_INFO','/')
+        if path.startswith(prefix+'/'):path=path[len(prefix):]
+        if not jetons5688.available(auth) or jetons5688.scoped_path(path) is None:
+            return None
+        try:
+            db=jetons5688.connect(self._state_dir5642())
+            try:found=jetons5688.lookup(db,auth,raw)
+            finally:db.close()
+        except (OSError,sqlite3.Error):
+            return None
+        if found:environ['axiorhub.jeton5688']=found
+        return found
 
     def authenticate(self, environ, auth):
         # 5.6.38 : la session Nextcloud (cookie axh_nc) est vérifiée même si le navigateur envoie aussi l'identifiant Basic mémorisé
@@ -586,6 +644,8 @@ class App:
         client=_ip5670(environ)   # 5.6.70 (audit) : adresse vue par le proxy, jamais la première de X-Forwarded-For (falsifiable)
         if len(raw)>2048:
             return False
+        if raw.startswith('Basic ') and self._basic_refuse5688(auth):   # 5.6.88 : contrôlé avant le cache de 60 secondes
+            return False
         key=hashlib.sha256((raw+auth['hash']).encode()).hexdigest()
         with self.mutex:
             if self.auth_cache.get(key,0)>time.time():
@@ -593,6 +653,12 @@ class App:
             self.failures=[x for x in self.failures if x[0]>time.time()-60]
             if len([x for x in self.failures if x[1]==client])>=10 or len(self.failures)>=200:
                 return False
+        from .jetons5688 import PREFIX as _prefix5688
+        if raw.startswith('Bearer '+_prefix5688):   # 5.6.88 : jeton personnel, jamais confondu avec le jeton de service
+            found=self._jeton5688(environ,auth,raw[7:])
+            if found is None:
+                with self.mutex:self.failures.append((time.time(),client))
+            return found is not None
         if raw.startswith('Bearer ') and auth.get('api_token_sha256'):
             return hmac.compare_digest(hashlib.sha256(raw[7:].encode()).hexdigest(),
                                        auth['api_token_sha256'])
@@ -802,6 +868,9 @@ class App:
                 from .web440 import route as _route440
                 _r440=_route440(env,cfg,auth,prefix,path,args,env['REQUEST_METHOD'])
                 if _r440 is not None:
+                    if _r440.get('stream') is not None:   # 5.6.88 : gros fichier diffusé par morceaux, jamais chargé en mémoire
+                        start_response(_r440['status'],headers+_r440.get('headers',[])+[('Content-Type',_r440['kind']),('Content-Length',str(_r440['length']))])
+                        return _r440['stream']
                     status=_r440['status'];kind=_r440['kind'];body=_r440['body']
                     headers.extend(_r440.get('headers',[]))
                     if _r440.get('csp'):
@@ -1559,7 +1628,7 @@ class App:
             if vue not in ('agenda','taches','organiser'):vue='organiser' if (args.get('proposal') or args.get('job')) else 'agenda'
             main+='<nav class="ws-tabs planning-tabs" aria-label="Rubriques de l’agenda">'+''.join(
                 '<a'+(' aria-current="page"' if vue==key else '')+' href="'+e(url('/planning',vue=key))+'">'+e(label)+'</a>'
-                for key,label in (('agenda','Agenda'),('taches','Tâches'),('organiser','Organiser la semaine')))+'</nav>'
+                for key,label in (('agenda','Agenda'),('taches','Tâches'),('organiser','Organiser la semaine')))+'<a href="'+e(url('/mes-taches'))+'">Mes tâches</a><a href="'+e(url('/audiences',onglet='suivi'))+'">Audiences</a></nav>'
             agenda_view=''
             if vue=='agenda':   # 5.6.43 (cahier v9, § 17) : deux sous-vues, une seule source rendue
                 from .agenda5643 import resolve_view,subnav_html
@@ -2066,6 +2135,8 @@ class App:
                 for item in a['result']['items']:
                     main+='<details><summary>'+e(item['filename'])+' · '+e(item['quality'])+'</summary>'+block(item['summary'])+'<p>Classement suggéré : '+e(item['suggested_folder'])+'</p><ul>'+''.join('<li>'+e(x)+'</li>' for x in item['cautions'])+'</ul></details>'
                 for error in a.get('errors',[]):main+='<p class="notice">'+e(error['filename']+' : '+error['error'])+'</p>'
+            from .taches5688 import mail_form as _mail_form5688   # 5.6.88 : création directe par la personne ; une date proposée par l'IA reste ci-dessous
+            main+=_mail_form5688(desk,auth,prefix,key,r,selected)
             dates=desk.db.execute('SELECT * FROM deadline_proposals WHERE mail_key=? ORDER BY created DESC',(key,)).fetchall()
             if dates:
                 main+='<h2>Dates proposées — aucune création automatique</h2>'
@@ -2209,7 +2280,8 @@ class App:
             if not data['emails']:main+='<p class="empty">Aucun courriel n’est encore indexé dans ce dossier.</p>'
             main+='</section><section id="ws-matter-files"><h2>Fichiers Nextcloud</h2><p>'+str(len(data['folders']))+' sous-dossier(s), '+str(len(data['documents']))+' fichier(s), dont '+str(data['document_errors'])+' erreur(s) d’extraction.</p>'
             nc=c['nextcloud'].get('url','').rstrip('/')
-            if urlsplit(nc).scheme=='https':main+='<p><a rel="noreferrer" target="_blank" href="'+e(nc+'/index.php/apps/files/?'+urlencode({'dir':m['path']}))+'">Ouvrir ce dossier dans Nextcloud</a></p>'
+            from . import cloud5688
+            if urlsplit(nc).scheme=='https' and not cloud5688.actif(c):main+='<p><a rel="noreferrer" target="_blank" href="'+e(nc+'/index.php/apps/files/?'+urlencode({'dir':m['path']}))+'">Ouvrir ce dossier dans Nextcloud</a></p>'
             if data['folders']:main+='<details><summary>Arborescence des dossiers</summary><ul>'+''.join('<li>'+e(x)+'</li>' for x in data['folders'])+'</ul></details>'
             for doc in sorted(data['documents'],key=lambda x:moment(x['modified']),reverse=True)[:200]:
                 main+='<details><summary>'+e(doc['name'])+'</summary><small>'+e(date(doc['modified']))+' · '+e(doc['path'])+'</small>'+block((doc['error'] or doc['text'])[:1800])+'</details>'

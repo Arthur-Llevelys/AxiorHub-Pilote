@@ -1727,6 +1727,8 @@
 ],
 "version": "5.6.36"
 },
+"mes_taches": {"objective": "Voir les tâches qui vous sont confiées, avec leur échéance, leur rappel et leur statut.", "when": "Chaque jour, et pour confier une tâche à un membre du cabinet.", "prerequisites": "Aucun.", "steps": ["Créez une tâche et choisissez son responsable.", "Indiquez une échéance et un rappel si besoin.", "Réglez vos rappels en bas de page."], "result": "Le responsable reçoit ses rappels J-7 et J-1 dans l’application, sur son téléphone associé et, s’il l’active, par courriel à l’adresse de son compte.", "verify": "La tâche apparaît dans « Mes tâches » du responsable et dans sa liste du jour à l’échéance.", "errors": [], "example": "Tâche fictive : relancer le confrère MARTIN sur les pièces 12 à 15 du dossier DOS-001.", "buttons": ["Créer la tâche", "Enregistrer mes rappels"], "version": "5.6.36"},
+"audiences_suivi": {"objective": "Suivre chaque audience du cabinet : qui s’y rend, devant quelle juridiction, sous quel RG et dans quel état.", "when": "Pour préparer la semaine ou vérifier qu’une audience a un avocat.", "prerequisites": "Aucun. Pour la copie, un agenda Outlook ou Google relié dans Paramètres › Connexions.", "steps": ["Filtrez par avocat et par période.", "Ouvrez une audience pour compléter la fiche.", "Désignez l’avocat, puis enregistrez."], "result": "La fiche suit l’événement de l’agenda. Une audience sans avocat porte la mention « Sans avocat désigné ». Une modification faite dans Outlook ou Google n’est jamais écrasée sans votre choix.", "verify": "La colonne de l’avocat affiche son nom et la ligne Outlook ou Google indique « copié ».", "errors": [], "example": "Audience fictive de mise en état au tribunal de Valbrune, RG 24/01234, dossier DOS-001.", "buttons": ["Enregistrer l’audience"], "version": "5.6.36"},
 "cessions": {"objective": "Conduire une cession de fonds de commerce ou de droit au bail depuis un dossier existant jusqu’aux actes et au suivi des formalités.", "when": "Pour une opération de fonds ou de bail, avec un ou plusieurs actes.", "prerequisites": "Un dossier du cabinet et ses pièces.", "steps": ["Choisissez Fonds de commerce ou Droit au bail.", "Créez l’opération dans un dossier, puis prenez-la en charge.", "Confirmez les informations et préparez les documents."], "result": "Les actes sont déposés dans « JURIDIQUE » ; les registres changent seulement quand vous enregistrez la réalisation. Les modèles de la bibliothèque donnent des projets à relire ; les modèles étrangers sont à faire valider par un conseil local.", "verify": "Ouvrez « Registres » : la décision figure à la date confirmée ; « Actes préparés » montre l’état de chaque opération.", "errors": [], "example": "Société fictive EXEMPLE SAS au capital de 10 000 € : statuts de SAS avec clauses d’agrément, de préemption et de sortie conjointe.", "buttons": ["Créer l’opération"], "version": "5.6.36"},
 "formulaires": {"objective": "Remplir un formulaire officiel depuis les données d’un dossier, ou préparer les données à recopier quand le PDF n’a pas de champs.", "when": "Pour les déclarations fiscales, les requêtes et l’aide juridictionnelle du catalogue.", "prerequisites": "Nextcloud : un dossier du cabinet. Le formulaire est téléchargé depuis le site officiel.", "steps": ["Téléchargez le formulaire et vérifiez sa version.", "Choisissez le dossier puis lancez le remplissage.", "Relisez le fichier déposé dans le dossier FORMULAIRES."], "result": "Les actes sont déposés dans « JURIDIQUE » ; les registres changent seulement quand vous enregistrez la réalisation. Les modèles de la bibliothèque donnent des projets à relire ; les modèles étrangers sont à faire valider par un conseil local.", "verify": "Ouvrez « Registres » : la décision figure à la date confirmée ; « Actes préparés » montre l’état de chaque opération.", "errors": [], "example": "Société fictive EXEMPLE SAS au capital de 10 000 € : statuts de SAS avec clauses d’agrément, de préemption et de sortie conjointe.", "buttons": ["Télécharger depuis le site officiel", "Remplir depuis le dossier"], "version": "5.6.36"},
 "corporate": {
@@ -1766,10 +1768,40 @@
 ],
 "version": "5.6.36"
 },
+"contribution": {
+"objective": "Voir ce que chaque collaborateur apporte au chiffre d’affaires encaissé, mois par mois, et estimer sa rétrocession.",
+"when": "Pour préparer un point de collaboration ou une rétrocession, à partir des règlements enregistrés.",
+"prerequisites": "Le droit « Facturation et temps passé » ; des factures émises dans AxiorHub, des règlements enregistrés, et de préférence des temps attribués à chaque personne.",
+"steps": [
+"Choisissez le mois et, si besoin, la personne, puis cliquez sur « Afficher ».",
+"Dans « Clés de rétrocession », indiquez la personne, le mois de début, le pourcentage et le seuil éventuel, puis cliquez sur « Enregistrer la clé ».",
+"Vérifiez le détail des encaissements ; « Ajuster » corrige la répartition d’un règlement ou d’une facture, pour un total de 100 %.",
+"Cliquez sur « Exporter le relevé (CSV) » pour conserver le relevé."
+],
+"result": "Un relevé indicatif par personne : base HT encaissée, assiette, rétrocession, et les centimes d’arrondi attribués. Ce n’est pas une écriture comptable.",
+"verify": "Le total du relevé égale la somme des bases HT du détail ; chaque centime ajusté est listé dans « Écarts d’arrondi ».",
+"errors": [
+[
+"« La répartition doit totaliser exactement 100 % »",
+"Corrigez les pourcentages saisis dans « Ajuster »."
+],
+[
+"Tout est « Non attribué »",
+"Attribuez les temps à une personne dans Temps et honoraires, ou ajustez la répartition à la main."
+]
+],
+"example": "Facture fictive F-2026-0042 : 1 000,00 € HT encaissés, 60 % MARTIN et 40 % BERNARD selon les temps facturés ; clé fictive de 30 % au-delà de 200,00 €.",
+"buttons": [
+"Afficher",
+"Exporter le relevé (CSV)",
+"Enregistrer la clé"
+],
+"version": "5.6.36"
+},
 "relances": {
-"objective": "Préparer chaque matin des projets de relance pour les factures échues d’Invoice Ninja, à relire avant tout envoi.",
+"objective": "Préparer chaque matin des projets de relance pour les factures échues, émises dans AxiorHub ou connues d’Invoice Ninja, à relire avant tout envoi.",
 "when": "Pour suivre les impayés sans oublier une facture ni relancer trop souvent.",
-"prerequisites": "Invoice Ninja relié (lecture seule) ; messagerie pour déposer les relances dans Brouillons.",
+"prerequisites": "Pour les factures internes : rien à relier. Pour Invoice Ninja, facultatif : la connexion en lecture seule. Messagerie pour déposer les relances dans Brouillons.",
 "steps": [
 "Ouvrez « Réglages » : heure, délai de grâce, intervalle et niveau maximal, puis cliquez sur « Enregistrer ».",
 "Chaque matin, les projets apparaissent ; cliquez sur « Préparer maintenant » pour ne pas attendre.",
@@ -1780,7 +1812,7 @@
 "verify": "Ouvrez Brouillons : la relance s’y trouve ; Invoice Ninja n’est jamais modifié.",
 "errors": [
 [
-"« Invoice Ninja n’est pas encore relié »",
+"Aucune facture d’Invoice Ninja dans les projets",
 "Renseignez Invoice Ninja dans Paramètres › Connexions."
 ],
 [
@@ -1989,6 +2021,87 @@
 ],
 "example": "Autoriser depuis le téléphone le dépôt d’une réponse « à compléter » au client fictif du dossier DOS-001.",
 "buttons": [],
+"version": "5.6.36"
+},
+"mon_compte": {
+"objective": "Protéger votre compte par un code à six chiffres et gérer vos jetons d’API.",
+"when": "Pour renforcer votre connexion, ou quand le cabinet l’exige.",
+"prerequisites": "Un compte nominatif et une application d’authentification sur votre téléphone.",
+"steps": [
+"Ouvrez Mon compte, en pied du menu.",
+"Choisissez « Activer la double authentification » et scannez le QR code.",
+"Saisissez le premier code puis notez vos dix codes de secours.",
+"Si besoin, créez un jeton d’API : il n’est affiché qu’une fois."
+],
+"result": "La connexion demande un code après le mot de passe.",
+"verify": "L’état « Active » s’affiche, avec le nombre de codes de secours restants.",
+"errors": [
+[
+"Code refusé",
+"Vérifiez l’heure du téléphone et attendez le code suivant."
+],
+[
+"Téléphone perdu",
+"Utilisez un code de secours, ou demandez à l’administrateur de réinitialiser la protection."
+]
+],
+"example": "Créer un jeton en lecture de 90 jours pour un script qui consulte le dossier DOS-001.",
+"buttons": [
+"Activer la double authentification",
+"Créer le jeton"
+],
+"version": "5.6.36"
+},
+"journal_audit": {
+"objective": "Retrouver qui a fait quoi et vérifier que le journal n’a pas été modifié.",
+"when": "Pour un contrôle, une question de responsabilité ou un incident.",
+"prerequisites": "Être administrateur.",
+"steps": [
+"Ouvrez Journal d’audit.",
+"Filtrez par date, action, auteur ou recherche, puis « Filtrer ».",
+"Lisez l’état de la chaîne en haut de page.",
+"Exportez avec « Exporter (CSV) »."
+],
+"result": "La liste des événements, avec leur auteur quand il est connu.",
+"verify": "« Chaîne intacte » s’affiche ; une rupture indique l’événement concerné.",
+"errors": [
+[
+"Auteur « système »",
+"L’action vient d’un travail automatique, sans personne connectée."
+],
+[
+"Chaîne rompue",
+"Conservez une copie de la base et cherchez la cause avant toute restauration."
+]
+],
+"example": "Lister les exports du mois sur le dossier DOS-001.",
+"buttons": [
+"Filtrer",
+"Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"vue_ia": {
+"objective": "Choisir, catégorie par catégorie, ce que l’assistant et le connecteur Claude peuvent lire.",
+"when": "Pour limiter ce qui est transmis aux modèles.",
+"prerequisites": "Être administrateur.",
+"steps": [
+"Ouvrez Ce que l’IA peut voir.",
+"Décochez les catégories à fermer.",
+"Choisissez « Enregistrer »."
+],
+"result": "L’assistant indique dans sa réponse ce qu’il n’a pas consulté.",
+"verify": "Posez une question sur une catégorie fermée : la réponse le signale.",
+"errors": [
+[
+"Tri automatique des courriels",
+"Il se règle dans Autonomie de l’agent, pas ici."
+]
+],
+"example": "Fermer les factures à l’IA tout en gardant les documents du dossier DOS-001.",
+"buttons": [
+"Enregistrer"
+],
 "version": "5.6.36"
 }
 }

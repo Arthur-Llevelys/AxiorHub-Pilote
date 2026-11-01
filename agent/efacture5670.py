@@ -407,6 +407,11 @@ def export(desk, owner, role, du='', au='', with_files=True, dav=None):
 
 
 # ------------------------------------------------------------------------------------------------ page
+def _auto_html(desk, role):
+    from .efacture5688 import status_html                     # 5.6.88 : relevé automatique
+    return status_html(desk, role)
+
+
 def html(desk, prefix, owner, role):
     from . import facturation5653 as fact
     from . import honoraires5653 as fees
@@ -422,7 +427,7 @@ def html(desk, prefix, owner, role):
                 '« Recevoir les factures ».</li>' % e(prefix + '/parametres/connexions', quote=True),
         e(route), 'Chaque envoi reste une opération à valider ; rien ne part sans vous.',
         ('<form class="m5-form m5-inline" data-api="m5670/efacture/actualiser" data-reload><button class="ax-btn" type="submit">Actualiser depuis les '
-         'plateformes</button><p role="status" class="m5-status"></p></form>') if rows else '')
+         'plateformes</button><p role="status" class="m5-status"></p></form>' + _auto_html(desk, role)) if rows else '')
     em = issued(desk, limit=40)
     em_rows = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td class="num">%s</td><td>%s</td><td%s>%s</td><td>%s</td></tr>' % (
         e(d['number']), e(d['issue_date']), e(d['client'] or d['matter_name']), e(fees.fmt(d['ttc_cents'])), e(d['state_label']),

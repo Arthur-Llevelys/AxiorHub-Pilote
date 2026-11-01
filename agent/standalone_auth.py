@@ -31,7 +31,7 @@ from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles', '/guide-installation')
-ADMIN_API = ('m5682/', 'm5681/', 'm5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
+ADMIN_API = ('m5688cloud/', 'rev5688/', 'm5682/', 'm5681/', 'm5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
              'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme', 'm5631/guide/', 'm5632/admin/')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
@@ -48,6 +48,7 @@ ASSISTANT_PATHS = ('/assistant/attachment',)
 PUBLIC_PATH = re.compile(r'^/static/[A-Za-z0-9][A-Za-z0-9._-]{0,80}$')
 SESSION_HOURS = 12
 LOGIN_LIMITS = {'email': (5, 900), 'ip': (20, 900), 'reset': (3, 3600)}     # échecs permis par fenêtre (secondes)
+MFA_COOKIE = 'axiorhub_mfa'   # 5.6.88 : étape du code de la double authentification, entre le mot de passe et la session
 
 
 def _b64(raw): return base64.urlsafe_b64encode(raw).decode().rstrip('=')
@@ -67,6 +68,8 @@ def allowed(role, method, path, action=''):
     path = path.rstrip('/') or '/'
     if path.startswith('/api/') and method not in ('GET', 'HEAD'):
         return False                       # 5.6.3 : API d'intégration en écriture réservée à l'administrateur
+    if path == '/api/v1/cabinet/audit':    # 5.6.88 : journal d'audit réservé à l'administrateur, comme sa page
+        return False
     api = path[len('/api440/'):] if path.startswith('/api440/') else ''
     if path not in ('/parametres/assistant','/parametres/proactivite','/parametres/agents','/parametres/agendas') and (any(path == p or path.startswith(p + '/') or path.startswith(p + '?') for p in ADMIN_PATHS) or path in ('/installation', '/comptes')):
         return False
@@ -80,6 +83,12 @@ def allowed(role, method, path, action=''):
         return True
     if api in ('m5674/inviter', 'm5674/retirer'):   # 5.6.74 : ses propres téléphones, tous les rôles
         return True
+    if api.startswith('m5688s/'):   # 5.6.88 : son propre compte (tous) ; journal, réglages et réinitialisations (administrateur)
+        from .securite5688 import allowed as allowed5688s
+        return allowed5688s(role, api[len('m5688s/'):])
+    if api.startswith('m5688/'):   # 5.6.88 : fiche, veille, page personnelle, note commune, mémoire (tous) ; réglage de la mémoire (administrateur)
+        from .web5688 import allowed as allowed5688
+        return allowed5688(role, api[len('m5688/'):])
     if api.startswith('m5676/'):   # 5.6.76 : opportunités (tous) ; « Gagné » et réglage de la détection contrôlés par le service
         return True
     if api.startswith('m5675/'):   # 5.6.75 : ses propres connexions Claude (tous) ; réglages du connecteur (administrateur)
@@ -208,6 +217,9 @@ class StandaloneAuth:
           password_hash TEXT,salt TEXT,active INTEGER,created TEXT);
           CREATE TABLE IF NOT EXISTS reset_tokens(token_hash TEXT PRIMARY KEY,user_id INTEGER,expires TEXT,used INTEGER);''')
         cols = {r[1] for r in self.db.execute('PRAGMA table_info(users)')}
+        from .totp5688 import SCHEMA as _mfa_schema
+        from .jetons5688 import SCHEMA as _jetons_schema
+        self.db.executescript(_mfa_schema + _jetons_schema)   # 5.6.88 : double authentification et jetons d'API, dans la base des comptes
         for name, sql in (('authz', 'ALTER TABLE users ADD COLUMN authz INTEGER NOT NULL DEFAULT 1'),   # 5.6.37 (audit F02)
                           ('role', "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'avocat'"),
                           ('name', "ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''"),
@@ -227,6 +239,8 @@ class StandaloneAuth:
           CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
           CREATE TABLE IF NOT EXISTS login_attempts(id INTEGER PRIMARY KEY, scope TEXT NOT NULL, at REAL NOT NULL);
           CREATE INDEX IF NOT EXISTS login_attempts_scope ON login_attempts(scope, at);''')
+        if 'mfa' not in {r[1] for r in self.db.execute('PRAGMA table_info(sessions)')}:   # 5.6.88 : génération à laquelle le code a été donné
+            self.db.execute('ALTER TABLE sessions ADD COLUMN mfa INTEGER NOT NULL DEFAULT 0')
         self.db.commit()
         for target, mode in ((self.state, 0o700), (self.state / 'users.sqlite3', 0o600)):
             try:
@@ -254,13 +268,14 @@ class StandaloneAuth:
     def _hash(self, password, salt):
         return hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1).hex()
 
-    def _session(self, user_id):
-        """Nouvelle session : jeton aléatoire remis au navigateur, seule son empreinte est conservée (révocable à tout moment)."""
+    def _session(self, user_id, mfa=0):
+        """Nouvelle session : jeton aléatoire remis au navigateur, seule son empreinte est conservée (révocable à tout moment).
+        5.6.88 : ``mfa`` : génération de la double authentification à laquelle le code vient d'être donné."""
         token = secrets.token_urlsafe(32)
         now = _now()
         self.db.execute('DELETE FROM sessions WHERE expires<?', (now.isoformat(),))
-        self.db.execute('INSERT INTO sessions VALUES (?,?,?,?)', (hashlib.sha256(token.encode()).hexdigest(), int(user_id), now.isoformat(),
-                                                               (now + timedelta(hours=SESSION_HOURS)).isoformat()))
+        self.db.execute('INSERT INTO sessions(token_hash,user_id,created,expires,mfa) VALUES (?,?,?,?,?)',
+                        (hashlib.sha256(token.encode()).hexdigest(), int(user_id), now.isoformat(), (now + timedelta(hours=SESSION_HOURS)).isoformat(), int(mfa or 0)))
         self.db.commit()
         return token
 
@@ -286,12 +301,17 @@ class StandaloneAuth:
         if not token or len(token) > 200:
             return None
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        row = self.db.execute('SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>? AND u.active=1',
+        row = self.db.execute('SELECT u.*, s.mfa AS session_mfa FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>? AND u.active=1',
                               (token_hash, _now().isoformat())).fetchone()
         if not row:
             return None
+        from . import totp5688   # 5.6.88 : session ouverte sans le code à la génération en cours : fermée
+        state = totp5688.verdict(self.db, row['email'], row['session_mfa'])
+        if state == 'refus':
+            return None
         user = dict(row)
         user['session'] = token_hash
+        user['activation_2fa'] = state == 'activation'
         return user
 
     def _client(self, env):
@@ -478,6 +498,10 @@ class StandaloneAuth:
 
     def _account_action(self, user, form):
         op = form.get('op', '')
+        if (user['role'] or 'avocat') != 'administrateur':   # 5.6.88 : droit « gérer les comptes » : jamais un administrateur
+            target = self.db.execute('SELECT role FROM users WHERE id=?', (int(form.get('id', '0') or 0),)).fetchone() if str(form.get('id', '0')).isdigit() else None
+            if form.get('role') == 'administrateur' or (target and target['role'] == 'administrateur'):
+                return '<p class="warn">Réservé à un administrateur.</p>'
         admins = lambda: self.db.execute("SELECT COUNT(*) FROM users WHERE role='administrateur' AND active=1").fetchone()[0]
         if op == 'create':
             email = form.get('email', '').strip().lower()
@@ -604,6 +628,8 @@ class StandaloneAuth:
         if (PUBLIC_PATH.match(path) or path == '/a-propos') and env.get('REQUEST_METHOD', 'GET') in ('GET', 'HEAD'):
             return self._proxy(env, start, None)
         user = self._user(env)
+        if path == '/double-authentification':   # 5.6.88 : le code, entre le mot de passe et la session
+            return self._second_factor(env, start)
         if path == '/logout':
             if user:
                 self.db.execute('DELETE FROM sessions WHERE token_hash=?', (user['session'],))
@@ -626,10 +652,15 @@ class StandaloneAuth:
         if path == '/mot-de-passe':
             return self.change_password_page(env, start, user)
         role = user['role'] or 'avocat'
+        if user.get('activation_2fa'):   # 5.6.88 : exigée par le cabinet : seule l'activation est ouverte à cette session
+            from .securite5688 import activation_gate
+            denied = activation_gate(env.get('REQUEST_METHOD', 'GET'), '', path)
+            if denied is not None:
+                return self._respond(start, denied['status'], denied['body'], denied.get('headers'), kind=denied['kind'])
         if path.rstrip('/') in ('/comptes', '/installation') and path != path.rstrip('/'):
             path = env['PATH_INFO'] = path.rstrip('/')
         if path == '/comptes':
-            if role != 'administrateur':
+            if role != 'administrateur' and not self._delegue5688(user):   # 5.6.88 : droit « gérer les comptes », hors administrateurs
                 return self._forbidden(start)
             return self.accounts_page(env, start, user)
         if path == '/securite-acces':   # 5.6.70 : blocages automatiques, levée, adresses de confiance
@@ -663,6 +694,54 @@ class StandaloneAuth:
             return self._forbidden(start, json_api=path.startswith('/api'))
         return self._proxy(env, start, user)
 
+    def _state5688(self):
+        return self.app._state_dir5642() if hasattr(self.app, '_state_dir5642') else ''
+
+    def _delegue5688(self, user):
+        from .membres5650 import can_manage_accounts
+        state = self._state5688()
+        return bool(state) and can_manage_accounts(state, user['email'], user['role'] or 'avocat')
+
+    def _second_factor(self, env, start):
+        """5.6.88 : deuxième étape de la connexion : la session ne s'ouvre qu'après un code juste."""
+        from . import totp5688
+        from .common import Stop
+        token = next((p.strip().split('=', 1)[1] for p in env.get('HTTP_COOKIE', '').split(';') if p.strip().startswith(MFA_COOKIE + '=')), '')
+        row = totp5688.pending_get(self.db, token)
+        found = self.db.execute('SELECT * FROM users WHERE id=? AND active=1', (row['user_id'],)).fetchone() if row else None
+        drop = ('Set-Cookie', MFA_COOKIE + '=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax')
+        if not found or not totp5688.active(self.db, row['owner']):
+            return self._respond(start, '303 See Other', '', [('Location', '/login'), drop])
+        error = ''
+        if env.get('REQUEST_METHOD') == 'POST':
+            form = self._form(env)
+            if not self._same_origin(env):
+                error = 'Formulaire refusé : rouvrez la page de connexion.'
+            else:
+                try:
+                    kind = totp5688.attempt(self.db, row['owner'], form.get('code', ''), self._client(env))
+                except Stop:
+                    self._log(row['owner'], 'double_auth_bloquee', self._client(env))
+                    return self._respond(start, '429 Too Many Requests', self._page('Double authentification', '<p class="warn">Trop de tentatives. Réessayez dans '
+                                                                                    '15 minutes, ou demandez à l’administrateur de réinitialiser cette protection.</p>'),
+                                         [('Retry-After', '900')])
+                if kind:
+                    totp5688.pending_close(self.db, token)
+                    self._log(row['owner'], 'double_auth_' + kind, self._client(env))
+                    self.db.execute('UPDATE users SET last_login=? WHERE id=?', (_now().isoformat(), found['id']))
+                    self.db.commit()
+                    session = self._session(found['id'], totp5688.generation(self.db, row['owner']))
+                    return self._respond(start, '303 See Other', '', [('Location', '/'), drop, ('Set-Cookie', 'axiorhub_session=' + session + '; Path=/; Max-Age=%d; HttpOnly; '
+                                                                                                'Secure; SameSite=Lax' % (SESSION_HOURS * 3600))])
+                self._log(row['owner'], 'double_auth_refusee', self._client(env))
+                error = 'Code incorrect, ou déjà utilisé : attendez le code suivant de votre application.'
+        body = (('<p class="warn">%s</p>' % escape(error)) if error else '') + (
+            '<form method="post" action="/double-authentification" autocomplete="off"><label>Code à six chiffres de votre application d’authentification'
+            '<input name="code" required autofocus maxlength="24" autocomplete="one-time-code"></label><button>Valider</button></form>'
+            '<p class="muted">Téléphone perdu ? Saisissez un de vos codes de secours : chacun ne sert qu’une fois. Sans code de secours, demandez à '
+            'l’administrateur du cabinet de réinitialiser cette protection.</p>')
+        return self._respond(start, '401 Unauthorized' if error else '200 OK', self._page('Double authentification', body))
+
     def _pair5636(self, env, start):
         """5.6.36 : appairage d'un compte Nextcloud : adresse et mot de passe vérifiés ici (comptes du cabinet), puis transmis au moteur
         comme compte vérifié ; en cas d'échec, le moteur compte la tentative (limitation des essais)."""
@@ -678,6 +757,17 @@ class StandaloneAuth:
         email = str(data.get('login') or '').strip().lower()[:200] if isinstance(data, dict) else ''
         row = self.db.execute('SELECT * FROM users WHERE email=? AND active=1', (email,)).fetchone() if email else None
         computed = self._hash(str(data.get('password') or '') if isinstance(data, dict) else '', row['salt'] if row else '00' * 16)
+        from . import totp5688
+        from .common import Stop
+        if row and hmac.compare_digest(row['password_hash'], computed) and totp5688.need(self.db, row['email']):
+            # 5.6.88 : relier Nextcloud ne franchit pas la double authentification : le code accompagne le mot de passe
+            kind = ''
+            try:
+                kind = totp5688.attempt(self.db, row['email'], str(data.get('code') or ''), self._client(env))
+            except Stop:
+                pass
+            if not kind:
+                row = None
         if row and hmac.compare_digest(row['password_hash'], computed):
             env['HTTP_X_AXIORHUB_USER'] = row['email']
             env['HTTP_X_AXIORHUB_ROLE'] = row['role']
@@ -732,7 +822,7 @@ class StandaloneAuth:
             if close:
                 close()
         if b'</aside>' in body:
-            bar = ('<div class="ws-user"><span>%s</span><small>%s</small><span class="ws-user-links">%s<a href="/logout">Se déconnecter</a></span></div>' % (
+            bar = ('<div class="ws-user"><span>%s</span><small>%s</small><span class="ws-user-links"><a href="/mon-compte">Mon compte</a> · %s<a href="/logout">Se déconnecter</a></span></div>' % (
                 escape(user['name'] or user['email']), escape(ROLES.get(user['role'], user['role'])),
                 '<a href="/comptes">Comptes</a> · ' if user['role'] == 'administrateur' else '')).encode()
             body = body.replace(b'</aside>', bar + b'</aside>', 1)
@@ -756,10 +846,16 @@ class StandaloneAuth:
             # Même calcul que le compte existe ou non : la durée de réponse ne révèle pas les adresses enregistrées.
             computed = self._hash(form.get('password', ''), row['salt'] if row else '00' * 16)
             if row and hmac.compare_digest(row['password_hash'], computed):
-                self.db.execute('UPDATE users SET last_login=? WHERE id=?', (_now().isoformat(), row['id']))
+                from . import totp5688
                 self.db.execute('DELETE FROM login_attempts WHERE scope=?', (scopes[0],))
                 self.db.commit()
-                return self._respond(start, '303 See Other', '', [('Location', '/'), ('Set-Cookie', 'axiorhub_session=' + self._session(row['id'])
+                if totp5688.need(self.db, email) == 'code':   # 5.6.88 : le mot de passe seul n'ouvre aucune session
+                    pending = totp5688.pending_open(self.db, email, row['id'], False, '/', self._client(env))
+                    return self._respond(start, '303 See Other', '', [('Location', '/double-authentification'),
+                                                                      ('Set-Cookie', MFA_COOKIE + '=' + pending + '; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax')])
+                self.db.execute('UPDATE users SET last_login=? WHERE id=?', (_now().isoformat(), row['id']))
+                self.db.commit()
+                return self._respond(start, '303 See Other', '', [('Location', '/'), ('Set-Cookie', 'axiorhub_session=' + self._session(row['id'], totp5688.generation(self.db, email))
                                                                                          + '; Path=/; Max-Age=%d; HttpOnly; Secure; SameSite=Lax' % (SESSION_HOURS * 3600))])
             self._attempt(*scopes)
             self._garde().record(self._client(env), 'echec_connexion', email[:80])   # 5.6.70 : blocage au-delà de 10 échecs en 10 minutes

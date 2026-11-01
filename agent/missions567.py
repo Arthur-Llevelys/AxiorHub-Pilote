@@ -66,6 +66,7 @@ def check_authority(desk, args):
     if not row:
         raise Stop('autorisation_mission_absente')
     desk.mission_owner567 = row['owner']
+    _limit_ai(desk, row['owner'])
     if row['state'] in ('cancelled', 'cancel_requested'):   # 5.6.34 (B16) : vérifié avant chaque effet
         raise Stop('mission_annulee')
     if row['state'] == 'paused' or row['job_status'] in ('cancelled','cancel_requested'):
@@ -84,6 +85,24 @@ def check_authority(desk, args):
         raise Stop('autorisation_mission_revoquee')
     if member[1] == 'assistant' and row['kind'] == 'mail':
         raise Stop('depot_brouillon_role_insuffisant')
+
+
+def _limit_ai(desk, owner):
+    """5.6.88 : une mission lit pour son propriétaire : ses droits bornent « Ce que l'IA peut voir » (registre illisible : tout fermé
+    de ce que les droits peuvent fermer, jamais ouvert)."""
+    from . import membres5650
+    membres5650.set_author(owner)
+    if owner == 'cabinet':
+        membres5650.set_ai_denied(())
+        return
+    try:
+        row = desk.db.execute('SELECT role FROM membres5650 WHERE owner=?', (owner,)).fetchone()
+    except sqlite3.Error:   # annuaire pas encore créé
+        row = None
+    try:
+        membres5650.set_ai_denied(membres5650.ai_limits(desk.c['state_dir'], owner, row['role'] if row else 'avocat'))
+    except Stop:
+        membres5650.set_ai_denied(('factures', 'temps'))
 
 
 def _event(desk, ident, kind, detail):
@@ -260,7 +279,7 @@ def _launch(desk, row):
             from .integration import submit_question
             out = submit_question(desk, row['instruction'], row['matter'], ctx['mail_key'], attachment_ids=ctx['attachments'],
                                   thread_id=ctx.get('thread_id',''), page_context={k:ctx.get(k) for k in ('page','selected_documents','active_mission','recent_results')}, mission_id=row['id'],
-                                  purpose='voice_conversation' if ctx.get('channel')=='voice' else 'assistant')
+                                  purpose='voice_conversation' if ctx.get('channel')=='voice' else 'assistant', auteur=row['owner'])
             job, ref = out['job_id'], 'ask:' + out['thread_id']
         desk.db.execute("UPDATE missions_v567 SET state='queued',job_id=?,ref=?,updated=? WHERE id=?", (job, ref, desk.now(), row['id']))
         desk.db.commit()

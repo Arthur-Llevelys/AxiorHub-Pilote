@@ -1,5 +1,12 @@
 """5.6.36 : relances d'impayés — chaque matin, les factures échues d'Invoice Ninja donnent des projets de relance à valider.
 
+5.6.88 : les factures émises dans AxiorHub (``b53_documents``) sont suivies aussi, par paliers après l'échéance (J+15, J+30, J+60 par défaut,
+réglables) ; Invoice Ninja devient une source facultative. Même mécanisme : projet à relire, dépôt dans Brouillons sur décision de l'avocat,
+jamais d'envoi. Une facture réglée, en litige, exclue ou sous avoir n'est pas relancée ; un palier n'est proposé qu'une fois par facture
+(index unique en base) ; le solde est relu à la préparation et au dépôt. Ton adapté à un client d'avocat : ni menace ni mise en demeure,
+aucune mention du dossier, rappel de la possibilité d'un échéancier et d'une observation (``_text_cabinet``). Ces factures portent l'identifiant
+``b53:<id>`` dans ``relances5636.invoice``.
+
 - Lecture seule d'Invoice Ninja (synchronisation existante des impayés, méthode GET) : aucune écriture, aucun paiement, aucun envoi.
 - Une facture échue depuis plus de N jours (délai de grâce) reçoit un projet de relance ; le niveau monte à chaque relance déposée
   (1 : rappel courtois ; 2 : relance ; 3 : dernière relance avant mise en demeure), jamais plus d'une relance par intervalle.
@@ -18,8 +25,13 @@ from decimal import Decimal, InvalidOperation
 from .common import Stop, load_matters, matter_display
 
 SETTINGS = 'relances5636:reglages'
-DEFAULTS = {'enabled': True, 'hour': 8, 'grace_days': 3, 'interval_days': 10, 'max_level': 3}
+DEFAULTS = {'enabled': True, 'hour': 8, 'grace_days': 3, 'interval_days': 10, 'max_level': 3, 'paliers': [15, 30, 60], 'factures_internes': True, 'accuse_paiement': True}
 LEVELS = {1: 'Rappel courtois', 2: 'Relance', 3: 'Dernière relance avant mise en demeure'}
+PALIERS = {1: 'Rappel courtois', 2: 'Deuxième rappel', 3: 'Dernier rappel'}   # 5.6.88 : factures internes, ton adapté au client d'un avocat
+INTERNAL = 'b53:'
+# 5.6.88 : statuts de plateforme qui suspendent toute relance (en litige, suspendue, refusée, rejetée, irrecevable, encaissée sans règlement saisi)
+STOP_CODES = ('fr:207', 'fr:208', 'fr:210', 'fr:212', 'fr:213', 'fr:501', 'refused', 'paid', 'allegedly_paid', 'payment_processed')
+STOP_STATES = ('rectifiee', 'rejetee')
 
 
 def schema(desk):
@@ -40,6 +52,8 @@ def schema(desk):
     desk.db.execute('DROP INDEX IF EXISTS relances5636_level')
     desk.db.execute('DROP INDEX IF EXISTS relances5636_ouverte')   # 5.6.39 : l'état « à relire » est aussi un projet ouvert
     desk.db.execute("CREATE UNIQUE INDEX IF NOT EXISTS relances5636_ouvertes ON relances5636(invoice) WHERE state IN ('a_valider','a_relire','deposee')")
+    # 5.6.88 : une facture interne ne reçoit jamais deux fois le même palier, quel que soit l'état du projet précédent
+    desk.db.execute("CREATE UNIQUE INDEX IF NOT EXISTS relances5688_palier ON relances5636(invoice, level) WHERE substr(invoice,1,4)='b53:'")
     runs = {r[1] for r in desk.db.execute('PRAGMA table_info(relances_runs5636)')}
     for name, decl in (('state', "TEXT NOT NULL DEFAULT 'lancee'"), ('job', 'INTEGER'), ('next_retry', "TEXT NOT NULL DEFAULT ''"),
                        ('last_error', "TEXT NOT NULL DEFAULT ''")):
@@ -58,6 +72,10 @@ def settings(desk):
 def save_settings(desk, data, owner='cabinet'):
     cur = settings(desk)
     cur['enabled'] = bool(data.get('enabled'))
+    if data.get('formulaire5688'):                            # 5.6.88 : cases et paliers du formulaire complet
+        cur['factures_internes'] = bool(data.get('factures_internes'))
+        cur['accuse_paiement'] = bool(data.get('accuse_paiement'))
+        cur['paliers'] = _paliers(data)
     for k, lo, hi in (('hour', 5, 12), ('grace_days', 0, 60), ('interval_days', 3, 60), ('max_level', 1, 3)):
         if str(data.get(k, '')).strip():
             try:
@@ -67,6 +85,21 @@ def save_settings(desk, data, owner='cabinet'):
     desk.setting(SETTINGS, cur)
     desk.audit('relances5636_reglages', {'owner': owner, **cur})
     return {**cur, 'message': 'Réglages des relances enregistrés.'}
+
+
+def _paliers(data):
+    """Un à trois paliers en jours après l'échéance, strictement croissants ; une case vide retire le palier."""
+    values = []
+    for key in ('palier_1', 'palier_2', 'palier_3'):
+        raw = str(data.get(key, '')).strip()
+        if raw:
+            try:
+                values.append(int(raw))
+            except ValueError:
+                raise Stop('reglage_hors_plage_paliers') from None
+    if not values or any(not 1 <= v <= 365 for v in values) or values != sorted(set(values)):
+        raise Stop('reglage_hors_plage_paliers')
+    return values
 
 
 def configured(desk):
@@ -81,10 +114,18 @@ def _tz(desk):
         return timezone.utc
 
 
+def internal_invoices(desk):
+    """Y a-t-il des factures émises dans AxiorHub à suivre ? (table absente : non.)"""
+    try:
+        return bool(desk.db.execute("SELECT 1 FROM b53_documents WHERE kind='facture' AND number IS NOT NULL LIMIT 1").fetchone())
+    except Exception:   # noqa: BLE001
+        return False
+
+
 def schedule(desk, stamp=None):
-    """Cycle de surveillance : une fois par jour, à partir de l'heure choisie (matin), si Invoice Ninja est relié."""
+    """Cycle de surveillance : une fois par jour, à partir de l'heure choisie (matin), si Invoice Ninja est relié ou si des factures internes existent."""
     s = settings(desk)
-    if not s['enabled'] or not configured(desk):
+    if not s['enabled'] or not (configured(desk) or (s['factures_internes'] and internal_invoices(desk))):
         return []
     schema(desk)
     now = datetime.fromtimestamp(stamp, timezone.utc) if stamp else datetime.now(timezone.utc)
@@ -136,6 +177,8 @@ def _recipient(desk, matter, client_id, http=None):
         for c in (m or {}).get('correspondents') or []:
             if c.get('role') == 'client' and c.get('email'):
                 return str(c['email']).lower()
+    if not client_id:                                         # 5.6.88 : facture interne, pas de fiche Invoice Ninja à interroger
+        return ''
     try:   # contact principal du client dans Invoice Ninja (lecture)
         from .workstation import HTTP, read_secret
         cfg = desk.c.get('invoice_ninja', {})
@@ -174,12 +217,114 @@ def _text(level, number, amount, due, url, sign):
     return subject, body
 
 
+def internal_recipient(desk, matter):
+    """Adresse du client facturé : fiche client de la facturation, sinon contacts et correspondants du dossier."""
+    from . import facturation5653 as fact
+    try:
+        mail = str(fact.client(desk, matter).get('email') or '').strip().lower()
+    except Stop:
+        mail = ''
+    if mail:
+        return mail
+    try:
+        return _recipient(desk, matter, '')
+    except Stop:                                              # registre des dossiers illisible : destinataire à compléter par l'avocat
+        return ''
+
+
+def _text_cabinet(level, number, amount, due, sign, reminded):
+    """Facture interne. Le client d'un avocat n'est ni menacé ni mis en demeure ; le message ne dit rien du dossier. « Votre précédent rappel »
+    n'est écrit que si un rappel a réellement été envoyé (``reminded``). Le dernier palier rappelle la voie de la contestation, sans pression."""
+    due_fr = '/'.join(reversed(due.split('-'))) if re.fullmatch(r'\d{4}-\d{2}-\d{2}', due or '') else due
+    close = 'Nous vous prions d’agréer, Madame, Monsieur, l’expression de nos salutations distinguées.'
+    open_door = 'Si vous rencontrez une difficulté ou si vous souhaitez convenir d’un échéancier, n’hésitez pas à nous en faire part.'
+    if level == 1:
+        subject = 'Rappel — facture %s' % number
+        body = ('Madame, Monsieur,\n\nSauf erreur de notre part, la facture n° %s, échue le %s, présente à ce jour un solde de %s.\n\nSi votre règlement est en cours, '
+                'nous vous prions de ne pas tenir compte de ce message. %s\n\n%s\n\n%s') % (number, due_fr, amount, open_door, close, sign)
+    elif level == 2:
+        subject = 'Deuxième rappel — facture %s' % number
+        start = 'Nous revenons vers vous à la suite de notre précédent rappel :' if reminded else 'Nous revenons vers vous :'
+        body = ('Madame, Monsieur,\n\n%s la facture n° %s, échue le %s, présente à ce jour un solde de %s.\n\nNous vous remercions de bien vouloir procéder à son '
+                'règlement. %s\n\n%s\n\n%s') % (start, number, due_fr, amount, open_door, close, sign)
+    else:
+        subject = 'Dernier rappel — facture %s' % number
+        body = ('Madame, Monsieur,\n\nLa facture n° %s, échue le %s, présente toujours un solde de %s. Nous vous remercions de bien vouloir procéder à son règlement ou de '
+                'prendre contact avec nous pour convenir ensemble d’une solution.\n\nSi cette facture appelle de votre part une observation, nous vous invitons à nous en '
+                'faire part ; vous pouvez également saisir le bâtonnier de notre Ordre.\n\n%s\n\n%s') % (number, due_fr, amount, close, sign)
+    return subject, body
+
+
+def internal_state(desk, row, balance=None):
+    """Motif de ne pas relancer une facture interne (ligne de ``b53_documents``), ou '' si elle reste relançable. Relu à la préparation et au dépôt."""
+    from . import facturation5653 as fact
+    ident = INTERNAL + row['id']
+    if desk.db.execute('SELECT 1 FROM relances_exclues5636 WHERE invoice=?', (ident,)).fetchone():
+        return 'facture exclue des relances'
+    if row['state'] in STOP_STATES:
+        return 'facture rectifiée par avoir ou rejetée par la plateforme'
+    if desk.db.execute("SELECT 1 FROM b53_documents WHERE kind='avoir' AND origin=? AND state<>'abandonne' LIMIT 1", (row['id'],)).fetchone():
+        return 'avoir émis ou en préparation sur cette facture'
+    try:
+        code = desk.db.execute('SELECT code FROM ef5670_suivi WHERE document=? ORDER BY at DESC LIMIT 1', (row['id'],)).fetchone()
+    except Exception:   # noqa: BLE001 — suivi des plateformes jamais initialisé
+        code = None
+    if code and code['code'] in STOP_CODES:
+        return 'litige ou statut de plateforme à examiner (%s)' % code['code']
+    balance = fact.invoice_balance(desk, row['id']) if balance is None else balance
+    if balance <= 0 or row['payment_state'] == 'reglee':
+        return 'facture réglée'
+    return ''
+
+
+def _prepare_internal(desk, s, today, sign):
+    """Projets des factures émises dans AxiorHub : le palier suivant non encore proposé, dans l'ordre, dès que son délai est atteint."""
+    from . import facturation5653 as fact, honoraires5653 as fees
+    fact.ensure_schema(desk)
+    paliers = [int(x) for x in s['paliers']][:min(3, int(s['max_level']))]
+    created = 0
+    for row in desk.db.execute("SELECT * FROM b53_documents WHERE kind='facture' AND number IS NOT NULL ORDER BY issue_date, id").fetchall():
+        ident = INTERNAL + row['id']
+        snap = json.loads(row['snapshot_json'])
+        due = str((snap.get('dates') or {}).get('echeance') or row['issue_date'] or '')
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', due):
+            continue
+        late = (today - date.fromisoformat(due)).days
+        reached = sum(1 for p in paliers if late >= p)
+        if not reached or internal_state(desk, row):
+            continue
+        history = desk.db.execute('SELECT level,state,sent_at,updated FROM relances5636 WHERE invoice=?', (ident,)).fetchall()
+        if any(h['state'] in ('a_valider', 'a_relire', 'deposee') for h in history):
+            continue                                          # projet ouvert : il attend la décision de l'avocat
+        done = {h['level'] for h in history}
+        level = next((n for n in range(1, reached + 1) if n not in done), None)
+        if level is None:
+            continue
+        marks = [h['sent_at'] or h['updated'] for h in history if h['state'] in ('envoyee', 'ecartee')]
+        if marks and (today - datetime.fromisoformat(max(marks)).astimezone(_tz(desk)).date()).days < int(s['interval_days']):
+            continue
+        balance = fact.invoice_balance(desk, row['id'])       # solde relu au moment de préparer
+        amount = fees.fmt(balance)
+        reminded = any(h['state'] == 'envoyee' for h in history)
+        subject, body = _text_cabinet(level, row['number'], amount, due, sign, reminded)
+        now = datetime.now(timezone.utc).isoformat()
+        cur = desk.db.execute('INSERT OR IGNORE INTO relances5636(invoice,number,client_id,matter,level,recipient,subject,body,balance,currency,due_date,state,'
+                              'created,updated,generated_body) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                              (ident, row['number'], '', row['matter'], level, internal_recipient(desk, row['matter']), subject, body, amount, 'EUR', due, 'a_valider', now, now, body))
+        created += cur.rowcount
+    desk.db.commit()
+    return created
+
+
 def prepare(desk, today=None, refresh=True, http=None):
     """Synchronise les impayés (lecture), puis prépare les projets de relance du jour. Renvoie le nombre de nouveaux projets."""
     schema(desk)
     from .workstation import ensure_schema as invoices_schema
     invoices_schema(desk)
     s = settings(desk)
+    internal = 0
+    if s['factures_internes']:                                # 5.6.88 : avant Invoice Ninja, dont une panne ne doit pas les priver de leur relance
+        internal = _prepare_internal(desk, s, today or datetime.now(_tz(desk)).date(), (desk.c.get('mail') or {}).get('from_name') or 'Le cabinet')
     if refresh:
         from .workstation import refresh_unpaid_invoices
         refresh_unpaid_invoices(desk, http=http)
@@ -218,12 +363,13 @@ def prepare(desk, today=None, refresh=True, http=None):
                                amount, currency, inv['due_date'], 'a_valider', now, now, body))
         created += cur.rowcount
     desk.db.commit()
-    desk.audit('relances5636_preparees', {'count': created})
+    created += internal
+    desk.audit('relances5636_preparees', {'count': created, 'factures_internes': internal})
     return {'created': created, 'message': '%d projet(s) de relance préparé(s).' % created}
 
 
 def job(desk, args):
-    return prepare(desk)
+    return prepare(desk, refresh=configured(desk))
 
 
 def pending_count(desk):
@@ -257,9 +403,26 @@ def _fresh_invoice(desk, invoice, http=None):
     return {'balance': balance, 'paid': paid, 'due_date': str(data.get('due_date') or '')}
 
 
+def _check_internal(desk, row):
+    """5.6.88 : même contrôle pour une facture interne, relue dans le registre local (aucun appel extérieur, jamais de réserve)."""
+    from . import facturation5653 as fact, honoraires5653 as fees
+    doc = desk.db.execute('SELECT * FROM b53_documents WHERE id=?', (row['invoice'][len(INTERNAL):],)).fetchone()
+    if not doc:
+        return 'perimee', 'facture introuvable dans le registre'
+    balance = fact.invoice_balance(desk, doc['id'])
+    motif = internal_state(desk, doc, balance)
+    if motif:
+        return 'perimee', motif
+    amount = fees.fmt(balance)
+    desk.db.execute('UPDATE relances5636 SET checked_at=?, check_note=? WHERE id=?', (datetime.now(timezone.utc).isoformat(), 'solde_reverifie', row['id']))
+    return ('modifiee', amount) if amount != row['balance'] else ('ok', amount)
+
+
 def check_before_deposit(desk, row, http=None):
     """5.6.37 (audit F14) : la facture est relue avant tout dépôt. Réglée, annulée ou exclue : le projet est périmé. Solde modifié : le projet
     est actualisé pour relecture. Vérification impossible : réserve explicite (le projet n'est pas annoncé « à jour »)."""
+    if str(row['invoice']).startswith(INTERNAL):
+        return _check_internal(desk, row)
     now = datetime.now(timezone.utc).isoformat()
     if desk.db.execute('SELECT 1 FROM relances_exclues5636 WHERE invoice=?', (row['invoice'],)).fetchone():
         return 'perimee', 'facture exclue des relances'
@@ -315,8 +478,12 @@ def deposit(desk, rid, data, owner='cabinet', http=None):
         edited = not row['generated_body'] or row['body'] != row['generated_body']
         if not edited:   # texte généré : reconstruit avec le nouveau solde (données structurées)
             sign = (desk.c.get('mail') or {}).get('from_name') or 'Le cabinet'
-            cached = desk.db.execute('SELECT invoice_url FROM invoice_ninja_cache_v310 WHERE id=?', (row['invoice'],)).fetchone()
-            subject, body = _text(row['level'], row['number'] or row['invoice'], info, row['due_date'], cached['invoice_url'] if cached else '', sign)
+            if str(row['invoice']).startswith(INTERNAL):
+                reminded = bool(desk.db.execute("SELECT 1 FROM relances5636 WHERE invoice=? AND state='envoyee'", (row['invoice'],)).fetchone())
+                subject, body = _text_cabinet(row['level'], row['number'], info, row['due_date'], sign, reminded)
+            else:
+                cached = desk.db.execute('SELECT invoice_url FROM invoice_ninja_cache_v310 WHERE id=?', (row['invoice'],)).fetchone()
+                subject, body = _text(row['level'], row['number'] or row['invoice'], info, row['due_date'], cached['invoice_url'] if cached else '', sign)
             desk.db.execute('UPDATE relances5636 SET subject=?, body=?, generated_body=? WHERE id=?', (subject, body, body, row['id']))
         desk.db.execute("UPDATE relances5636 SET state='a_relire', previous_balance=balance, balance=?, check_note='solde_modifie', updated=? WHERE id=?",
                         (info, now, row['id']))
@@ -358,13 +525,13 @@ def confirm_sent(desk, rid, owner='cabinet', sent=True):
     return {'id': row['id'], 'message': 'Envoi confirmé.' if sent else 'Relance marquée non envoyée.'}
 
 
-def dismiss(desk, rid, owner='cabinet', exclude=False):
+def dismiss(desk, rid, owner='cabinet', exclude=False, reason='avocat'):
     row = _get(desk, rid)
     if row['state'] not in ('a_valider', 'a_relire', 'deposee'):
         raise Stop('relance_absente')
     desk.db.execute("UPDATE relances5636 SET state='ecartee', updated=? WHERE id=?", (datetime.now(timezone.utc).isoformat(), row['id']))
     if exclude:
-        desk.db.execute('INSERT OR REPLACE INTO relances_exclues5636 VALUES(?,?,?)', (row['invoice'], 'avocat', datetime.now(timezone.utc).isoformat()))
+        desk.db.execute('INSERT OR REPLACE INTO relances_exclues5636 VALUES(?,?,?)', (row['invoice'], reason, datetime.now(timezone.utc).isoformat()))
     desk.db.commit()
     desk.audit('relances5636_ecartee', {'invoice': row['invoice'], 'exclude': exclude, 'owner': owner})
     return {'id': row['id'], 'message': 'Facture exclue des relances.' if exclude else 'Projet de relance écarté.'}
@@ -378,23 +545,34 @@ def page_html(desk, prefix, args):
         labels = {m['id']: matter_display(m) for m in load_matters(desk.c)}
     except Stop:
         pass
-    html = ('<h1>Relances d’impayés</h1><p class="ax-muted">Chaque matin (à partir de %dh), AxiorHub lit les factures impayées d’Invoice Ninja et '
-            'prépare un projet de relance pour chaque facture échue. Vous relisez, corrigez, puis déposez la relance dans Brouillons : '
+    html = ('<h1>Relances d’impayés</h1><p class="ax-muted">Chaque matin (à partir de %dh), AxiorHub relit les factures émises dans AxiorHub et, s’il est relié, '
+            'les impayés d’Invoice Ninja, puis prépare un projet de relance pour chaque facture échue. Vous relisez, corrigez, puis déposez la relance dans Brouillons : '
             'rien n’est envoyé ni modifié dans Invoice Ninja.</p>') % int(s['hour'])
     if not configured(desk):
-        html += ('<p class="ax-card">Invoice Ninja n’est pas encore relié : <a href="%s">Paramètres › Connexions</a>.</p>'
-                 % e(prefix + '/parametres?rubrique=connexions', quote=True))
+        html += ('<p class="ax-card ax-muted">Invoice Ninja n’est pas relié (facultatif) : seules les factures émises dans AxiorHub sont suivies. '
+                 '<a href="%s">Paramètres › Connexions</a>.</p>' % e(prefix + '/parametres?rubrique=connexions', quote=True))
+    paliers = list(s['paliers']) + ['', '', '']
     html += ('<details class="ax-card"><summary>Réglages</summary><form class="m5-form" data-api="m5636/relances/reglages" data-reload="1">'
              '<label class="e5636-switch"><input type="checkbox" name="enabled"%s> Préparer les relances chaque matin</label>'
              '<label>Heure (5 à 12)<input type="number" name="hour" min="5" max="12" value="%d"></label>'
              '<label>Délai de grâce après échéance (jours)<input type="number" name="grace_days" min="0" max="60" value="%d"></label>'
              '<label>Intervalle entre deux relances (jours)<input type="number" name="interval_days" min="3" max="60" value="%d"></label>'
-             '<label>Niveau maximal<select name="max_level">%s</select></label><button class="ax-btn" type="submit">Enregistrer</button></form>'
+             '<label>Niveau maximal<select name="max_level">%s</select></label>'
+             '<input type="hidden" name="formulaire5688" value="1"><label class="e5636-switch"><input type="checkbox" name="factures_internes"%s> Suivre les factures '
+             'émises dans AxiorHub</label><fieldset class="f88-paliers"><legend>Paliers des factures internes (jours après l’échéance)</legend>'
+             '<label>Premier<input type="number" name="palier_1" min="1" max="365" value="%s"></label><label>Deuxième<input type="number" name="palier_2" min="1" max="365" value="%s"></label>'
+             '<label>Troisième<input type="number" name="palier_3" min="1" max="365" value="%s"></label></fieldset>'
+             '<label class="e5636-switch"><input type="checkbox" name="accuse_paiement"%s> Proposer un accusé à chaque règlement (projet à relire, jamais envoyé seul)</label>'
+             '<button class="ax-btn" type="submit">Enregistrer</button></form>'
              '<form class="m5-form m5-inline" data-api="m5636/relances/preparer" data-reload="1"><button class="ax-btn ghost" type="submit">'
              'Préparer maintenant</button></form></details>') % (
         ' checked' if s['enabled'] else '', int(s['hour']), int(s['grace_days']), int(s['interval_days']),
-        ''.join('<option value="%d"%s>%d — %s</option>' % (k, ' selected' if k == int(s['max_level']) else '', k, e(v)) for k, v in LEVELS.items()))
-    rows = desk.db.execute("SELECT * FROM relances5636 WHERE state IN ('a_valider','a_relire') ORDER BY due_date, id").fetchall()
+        ''.join('<option value="%d"%s>%d — %s</option>' % (k, ' selected' if k == int(s['max_level']) else '', k, e(v)) for k, v in LEVELS.items()),
+        ' checked' if s['factures_internes'] else '', e(str(paliers[0]), quote=True), e(str(paliers[1]), quote=True), e(str(paliers[2]), quote=True),
+        ' checked' if s['accuse_paiement'] else '')
+    from .membres5650 import viewer_hidden
+    hidden = viewer_hidden() or frozenset()                   # 5.6.88 : dossiers réservés à d'autres comptes
+    rows = [r for r in desk.db.execute("SELECT * FROM relances5636 WHERE state IN ('a_valider','a_relire') ORDER BY due_date, id").fetchall() if r['matter'] not in hidden]
     if not rows:
         html += '<p class="ax-card ax-muted">Aucune relance à valider.</p>'
     for r in rows:
@@ -405,28 +583,34 @@ def page_html(desk, prefix, args):
                  '<div class="ax-actions"><button class="ax-btn" type="submit">Déposer dans Brouillons</button>'
                  '<button class="ax-btn ghost" type="submit" data-extra="ecarter=1">Écarter</button>'
                  '<button class="ax-btn ghost" type="submit" data-extra="exclure=1" data-confirm="Ne plus relancer cette facture ?">Ne plus relancer</button>'
+                 '<button class="ax-btn ghost" type="submit" data-extra="litige=1" data-confirm="Marquer cette facture en litige et ne plus la relancer ?">Facture en litige</button>'
                  '</div></form></article>') % (
-            e(r['number'] or r['invoice']), e(r['balance']), e(LEVELS.get(r['level'], '')), e(r['due_date']),
+            e(r['number'] or r['invoice']), e(r['balance']), e(_level_label(r)), e(r['due_date']),
             e(labels.get(r['matter'], 'dossier non relié') if r['matter'] else 'dossier non relié'), r['id'], e(r['recipient'], quote=True),
             e(r['subject'], quote=True), e(r['body']), _review_html(r))
-    sent = desk.db.execute("SELECT * FROM relances5636 WHERE state='deposee' ORDER BY updated DESC").fetchall()
+    sent = [r for r in desk.db.execute("SELECT * FROM relances5636 WHERE state='deposee' ORDER BY updated DESC").fetchall() if r['matter'] not in hidden]
     if sent:
         html += '<section class="ax-card"><h2>Relances déposées : envoi à confirmer</h2><p class="ax-muted">Le niveau suivant (« Malgré notre précédent rappel… ») ' \
                 'n’est proposé qu’après un envoi confirmé.</p><ul class="o5636-list">%s</ul></section>' % ''.join(
                     ('<li><strong>Facture %s</strong> — %s · déposée le %s<form class="m5-form m5-inline" data-api="m5636/relances/envoi" data-reload="1">'
                      '<input type="hidden" name="id" value="%d"><button class="ax-btn ghost" type="submit">Marquer comme envoyée</button>'
                      '<button class="ax-btn ghost" type="submit" data-extra="non_envoyee=1">Non envoyée</button></form></li>') % (
-                        e(r['number'] or r['invoice']), e(LEVELS.get(r['level'], '')), e(r['updated'][:10]), r['id']) for r in sent)
+                        e(r['number'] or r['invoice']), e(_level_label(r)), e(r['updated'][:10]), r['id']) for r in sent)
     return html
+
+
+def _level_label(r):
+    return (PALIERS if str(r['invoice']).startswith(INTERNAL) else LEVELS).get(r['level'], '')
 
 
 def _review_html(r):
     """5.6.39 (audit 5.6.37, F06) : projet à relire après un changement de solde — ancien et nouveau solde, date du contrôle, confirmation."""
     if r['state'] != 'a_relire':
         return ''
-    return ('<p class="r5639-relire" role="alert">Solde modifié dans Invoice Ninja : %s → <strong>%s</strong> (contrôle du %s). Vérifiez le montant '
+    return ('<p class="r5639-relire" role="alert">Solde modifié%s : %s → <strong>%s</strong> (contrôle du %s). Vérifiez le montant '
             'cité dans le message.</p><label class="e5636-switch"><input type="checkbox" name="relu" value="1"> J’ai relu la relance avec ce solde '
-            '(%s)</label>') % (e(r['previous_balance'] or '—'), e(r['balance']), e((r['checked_at'] or '')[:16].replace('T', ' ')), e(r['balance']))
+            '(%s)</label>') % ('' if str(r['invoice']).startswith(INTERNAL) else ' dans Invoice Ninja', e(r['previous_balance'] or '—'), e(r['balance']),
+                               e((r['checked_at'] or '')[:16].replace('T', ' ')), e(r['balance']))
 
 
 def api_post(desk, route, data, owner):
@@ -435,10 +619,10 @@ def api_post(desk, route, data, owner):
     if route == 'relances/reglages':
         return save_settings(desk, data, owner)
     if route == 'relances/preparer':
-        if not configured(desk):
-            raise Stop('invoice_ninja_non_configure')
-        return prepare(desk)
+        return prepare(desk, refresh=configured(desk))        # 5.6.88 : Invoice Ninja facultatif
     if route == 'relances/deposer':
+        if data.get('litige'):                                # 5.6.88 : exclusion motivée, reprise par le registre des exclusions
+            return dismiss(desk, data.get('id'), owner, exclude=True, reason='litige')
         if data.get('exclure'):
             return dismiss(desk, data.get('id'), owner, exclude=True)
         if data.get('ecarter'):

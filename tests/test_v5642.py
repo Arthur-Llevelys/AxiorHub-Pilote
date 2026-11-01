@@ -381,7 +381,7 @@ class NextcloudApp043(unittest.TestCase):
         self.assertIn('/personal/probe', built)
         fr = json.loads((APP / 'l10n' / 'fr.json').read_text(encoding='utf-8'))['translations']
         self.assertEqual(fr['Where is AxiorHub installed?'], 'Où est installé AxiorHub ?')
-        self.assertIn('<version>0.4.3</version>', (APP / 'appinfo' / 'info.xml').read_text(encoding='utf-8'))
+        self.assertIn('<version>0.4.4</version>', (APP / 'appinfo' / 'info.xml').read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

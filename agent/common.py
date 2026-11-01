@@ -369,6 +369,8 @@ def load_config(path):
     load_config_settings(c)
     from .extensions364 import load_config_settings as load_extension_settings
     load_extension_settings(c)
+    from .cloud5688 import apply_selection   # 5.6.88 : choix central du stockage ; sans choix enregistré, rien ne change
+    apply_selection(c)
     return c
 
 

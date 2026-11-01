@@ -148,6 +148,7 @@
       state.current = m;
       panel.textContent = '';
       if (window.axh5628) panel.appendChild(window.axh5628.toolbar(m, ctx()));
+      if (m.key) panel.appendChild(el('p', {}, [el('a', { 'class': 'ax-btn ghost', href: prefix + '/mes-taches?' + new URLSearchParams({ courriel: m.key, matter: m.matter || '' }).toString(), text: 'Créer une tâche' })]));   // 5.6.88
       var head = el('div', { 'class': 'bx5625-mhead' }, [el('h2', { text: m.subject || '(sans objet)' }),
         el('p', { 'class': 'ax-muted', text: 'De : ' + m.from + ' · ' + when(m.date) }),
         el('p', { 'class': 'ax-muted', text: 'À : ' + m.to + (m.cc ? ' · Cc : ' + m.cc : '') }),

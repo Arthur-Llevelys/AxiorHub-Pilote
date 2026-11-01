@@ -1,70 +1,8 @@
-/* 5.6.82 : recherche rapide partout (Ctrl+K), état de la liste conservé au retour, transfert de la connexion ChatGPT. */
+/* 5.6.82 : état de la liste conservé au retour, transfert de la connexion ChatGPT. La palette Ctrl+K est unique depuis la 5.6.88 : v420.js. */
 (function () {
   'use strict';
   var meta = function (n) { var m = document.querySelector('meta[name="' + n + '"]'); return m ? m.content : ''; };
   var prefix = function () { return meta('axiorhub-prefix') || ''; };
-  var panel = null, timer = null, back = null, seq = 0;
-
-  function build() {
-    panel = document.createElement('div');
-    panel.id = 'm82-quick'; panel.className = 'm82-quick'; panel.hidden = true;
-    panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-label', 'Recherche rapide');
-    var box = document.createElement('div'); box.className = 'm82-quick-box';
-    var input = document.createElement('input');
-    input.type = 'search'; input.id = 'm82-quick-q'; input.placeholder = 'Dossier, client, fonction…'; input.autocomplete = 'off';
-    input.setAttribute('aria-label', 'Rechercher un dossier ou une fonction'); input.setAttribute('aria-controls', 'm82-quick-list');
-    var list = document.createElement('ul'); list.id = 'm82-quick-list'; list.setAttribute('aria-label', 'Résultats');
-    var status = document.createElement('p'); status.className = 'm82-quick-status'; status.setAttribute('role', 'status');
-    var more = document.createElement('a'); more.className = 'm82-quick-more'; more.textContent = 'Rechercher dans les pièces et les courriels';
-    more.href = prefix() + '/rechercher';
-    box.append(input, status, list, more); panel.append(box); document.body.append(panel);
-    panel.addEventListener('click', function (ev) { if (ev.target === panel) closePanel(); });
-    input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { run(input.value); }, 140); });
-    input.addEventListener('keydown', function (ev) {
-      var links = Array.prototype.slice.call(list.querySelectorAll('a'));
-      if (ev.key === 'Enter' && links.length) { ev.preventDefault(); links[0].click(); }
-      if (ev.key === 'ArrowDown' && links.length) { ev.preventDefault(); links[0].focus(); }
-    });
-    list.addEventListener('keydown', function (ev) {
-      var links = Array.prototype.slice.call(list.querySelectorAll('a')), i = links.indexOf(document.activeElement);
-      if (ev.key === 'ArrowDown' && links[i + 1]) { ev.preventDefault(); links[i + 1].focus(); }
-      if (ev.key === 'ArrowUp') { ev.preventDefault(); (links[i - 1] || input).focus(); }
-    });
-  }
-
-  function run(value) {
-    var list = document.getElementById('m82-quick-list'), status = panel.querySelector('.m82-quick-status'), mine = ++seq;
-    if (value.trim().length < 2) { list.replaceChildren(); status.textContent = ''; return; }
-    fetch(prefix() + '/api440/q5682/recherche?q=' + encodeURIComponent(value), { credentials: 'same-origin' })
-      .then(function (r) { return r.ok ? r.json() : { resultats: [] }; })
-      .then(function (data) {
-        if (mine !== seq) return;
-        list.replaceChildren();
-        (data.resultats || []).forEach(function (r) {
-          var li = document.createElement('li'), a = document.createElement('a'), t = document.createElement('strong'), k = document.createElement('small');
-          a.href = prefix() + r.url; t.textContent = r.titre; k.textContent = r.type + (r.detail ? ' · ' + r.detail : '');
-          a.append(t, k); li.append(a); list.append(li);
-        });
-        status.textContent = (data.resultats || []).length ? (data.resultats.length + ' résultat(s)') : 'Aucun résultat.';
-      }).catch(function () { if (mine === seq) status.textContent = 'Recherche indisponible.'; });
-  }
-
-  function openPanel() {
-    if (!panel) build();
-    back = document.activeElement; panel.hidden = false;
-    var input = document.getElementById('m82-quick-q'); input.value = ''; run(''); input.focus();
-  }
-  function closePanel() { if (!panel || panel.hidden) return; panel.hidden = true; if (back && back.focus) back.focus(); }
-
-  document.addEventListener('keydown', function (ev) {
-    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === 'k' || ev.key === 'K')) { ev.preventDefault(); if (panel && !panel.hidden) closePanel(); else openPanel(); }
-    if (ev.key === 'Escape') closePanel();
-  });
-  document.addEventListener('click', function (ev) {
-    var a = ev.target.closest && ev.target.closest('[data-m82-quick]');
-    if (a && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey) { ev.preventDefault(); openPanel(); }
-  });
-
   /* Liste des dossiers et autres listes filtrées : filtres, position et sélection retrouvés au retour (préférence de vue, sans donnée métier). */
   function viewKey() { return 'm82-vue:' + location.pathname + location.search; }
   function saveView() {
@@ -195,7 +133,8 @@
     }
     var dock = document.getElementById('ws-ai-dock');
     document.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape' && dock && !dock.hidden && !(panel && !panel.hidden)) { var c = document.getElementById('ws-ai-close'); if (c) c.click(); var l = document.getElementById('ws-ai-launcher'); if (l) l.focus(); }
+      var palette = document.getElementById('ws-command-palette');
+      if (ev.key === 'Escape' && dock && !dock.hidden && !(palette && !palette.hidden)) { var c = document.getElementById('ws-ai-close'); if (c) c.click(); var l = document.getElementById('ws-ai-launcher'); if (l) l.focus(); }
     });
   }
 

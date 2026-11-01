@@ -31,7 +31,7 @@ LIMITS = {'assistant_answer': 20, 'prepare_reply': 30, 'prepare_draft': 30, 'liv
           'docrequest520': 240, 'prepare_document_project': 240, 'prepare_hearing': 240, 'prepare_word_project': 240,
           'prepare_legal_opinion': 240, 'prepare_transcript_report': 240, 'task5614': 240, 'mission567': 240,
           'index': 360, 'index_all': 360, 'discover': 360, 'digest_pieces5632': 360, 'actualiser5655': 360, 'fiche_dossier5627': 240,
-          'analyser_dossier5624': 360, 'search_index490': 360}
+          'analyser_dossier5624': 360, 'search_index490': 360, 'sauvegarde5688': 480, 'export5688': 480, 'controle5688': 240}
 DEFAULT_LIMIT = 180
 STALE_QUESTION_HOURS = 6
 BACKOFF_MIN, BACKOFF_MAX = 10, 300

@@ -34,6 +34,8 @@ declare(strict_types=1);
 			<input type="url" name="engineUrl" value="<?php p($_['engine_url']); ?>" placeholder="https://courriel.example.test/agent-courriel" required size="50"></label></p>
 		<p><label><?php p($l->t('AxiorHub login')); ?><br><input type="text" name="login" autocomplete="username" required></label></p>
 		<p><label><?php p($l->t('AxiorHub password')); ?><br><input type="password" name="password" autocomplete="current-password" required></label></p>
+		<p><label><?php p($l->t('Two-factor authentication code')); ?><br><input type="text" name="code" autocomplete="one-time-code" maxlength="64" aria-describedby="axh-personal-code-hint"></label><br>
+			<span class="axh-hint" id="axh-personal-code-hint"><?php p($l->t('Only if your AxiorHub account is protected: enter the current code or a recovery code, otherwise leave empty. It is used once and never stored.')); ?></span></p>
 		<p><label><input type="checkbox" name="allowLocal" <?php if ($_['allow_local']) { p('checked'); } ?>> <?php p($l->t('Engine on this server (local address)')); ?></label></p>
 		<p class="axh-hint"><?php p($l->t('Your password is used once to obtain a personal key and is never stored. The administrator of AxiorHub must first allow Nextcloud accounts (AxiorHub › Settings › Connections › Nextcloud app).')); ?></p>
 		<p><button type="button" id="axh-personal-probe"><?php p($l->t('Test the address')); ?></button>

@@ -3,7 +3,7 @@
 [Français](README.md) · **English**
 
 Nextcloud app that shows **the AxiorHub Pilote interface** — legal software designed for French lawyers (avocats) — right inside
-Nextcloud: Today, cases, emails, calendar and tasks, deeds, Corporate, legal research, Pilot. Version 0.4.3 (development version), for
+Nextcloud: Today, cases, emails, calendar and tasks, deeds, Corporate, legal research, Pilot. Version 0.4.4 (development version), for
 AxiorHub Pilote 5.6.42 or later. AxiorHub works with French procedure, courts and legal sources; its documents are written in French,
 and its interface is also translated into English, German and Spanish.
 
@@ -102,10 +102,10 @@ Updates then appear in **Apps › Updates**.
 As long as the app is not listed in your App Store, or on a server without access to it:
 
 ```bash
-cd /tmp && git clone --branch v0.4.3 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.3.tar.gz
+cd /tmp && git clone --branch v0.4.4 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
+python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.4.tar.gz
 cd /path/to/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.3.tar.gz -C apps
+sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.4.tar.gz -C apps
 sudo -u www-data php occ app:enable axiorhub_pilote
 ```
 
@@ -125,6 +125,8 @@ Each lawyer opens **Personal settings › AxiorHub Pilote** and enters:
 The password is used **once** to obtain a personal key; it is neither stored nor logged. The key is encrypted in the user's preferences
 and can be revoked on both sides (“Unlink” in Nextcloud, “Revoke” in AxiorHub). The **AxiorHub Pilote** icon of the Nextcloud top bar
 then opens the AxiorHub interface.
+
+If the AxiorHub account is protected by two-factor authentication (engine 5.6.88 or later), also enter the current code or a recovery code in “Two-factor authentication code”; it is neither stored nor logged. Leave this field empty otherwise.
 
 If AxiorHub runs on the same server as Nextcloud and is reached through a local address (`http://127.0.0.1:…` of the server), tick
 “Engine on this server (local address)”.

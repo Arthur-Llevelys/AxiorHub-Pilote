@@ -81,6 +81,11 @@ def daily_digest(desk):
 def automation_tick(desk):
     """5.6.43 (§ 16.1) : origine « automatic » pour tout ce que ce planificateur met en file."""
     from .arret5643 import automatic
+    try:   # 5.6.88 : sauvegarde quotidienne et rétention des exports ; avant le reste : ni la pause de l'IA ni une erreur plus loin ne les arrêtent
+        from . import export5688, sauvegarde5688
+        sauvegarde5688.schedule(desk)
+        export5688.schedule(desk)
+    except Exception:pass   # jamais bloquant ; l'absence de réussite se voit dans « Aujourd'hui » après 48 h
     with automatic(desk):
         return _automation_tick_5642(desk)
 
@@ -167,9 +172,19 @@ def _automation_tick_5642(desk):
         from . import notes5666
         notes5666.schedule(desk,now_ts)
     except Exception:pass   # une messagerie injoignable n'arrête jamais la boucle des automatismes
+    try:   # 5.6.88 : facturation électronique, relevé en lecture seule (factures reçues, statuts, comptes rendus), si une plateforme est configurée
+        from . import efacture5688
+        efacture5688.schedule(desk,now_ts)
+    except Exception:pass   # une plateforme injoignable n'arrête jamais la boucle des automatismes
     try:   # 5.6.76 : prospects repérés dans les courriels (modèle local, propositions), toutes les 15 minutes
         from . import crm5676
         crm5676.schedule(desk,now_ts)
+    except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.88 : veille des sociétés (un passage par jour au plus, sans modèle) ; mentions dans les tâches ; rétention de la mémoire proposée
+        from . import crm5688,memoire5688,notes5688
+        crm5688.schedule(desk,now_ts)
+        notes5688.scanner_taches(desk,now_ts)
+        memoire5688.entretien(desk,now_ts)
     except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):

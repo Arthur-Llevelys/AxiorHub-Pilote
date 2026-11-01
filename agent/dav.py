@@ -27,6 +27,9 @@ class DAV:
     def __new__(cls, cfg=None, *args, **kwargs):
         # 5.6.22 : un dossier de travail local (client Nextcloud de bureau, partage monté) prend la place de WebDAV pour les
         # fichiers, avec la même interface ; les agendas restent en CalDAV si l'accès WebDAV est aussi renseigné.
+        if cls is DAV and isinstance(cfg, dict) and cfg.get('stockage_cloud'):   # 5.6.88 : stockage cloud choisi par un administrateur (cloud5688)
+            from .cloud5688 import backend_class
+            return object.__new__(backend_class(cfg))
         if cls is DAV and isinstance(cfg, dict) and cfg.get('local_path'):
             return object.__new__(LocalFolder)
         return object.__new__(cls)

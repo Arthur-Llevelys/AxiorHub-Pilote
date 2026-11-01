@@ -115,6 +115,36 @@ class EngineClientTest extends TestCase {
 		$this->assertSame('acces_refuse_par_le_frontal', $out['body']['code']);
 	}
 
+	/** 0.4.4 : sans code, la requête reste celle attendue par un moteur antérieur à la double authentification. */
+	public function testPairWithoutCodeSendsNoCodeField(): void {
+		$client = $this->client([$this->response(200, '{"key_id":"k","secret":"s"}')]);
+		$client->pair('https://moteur.example.test/agent-courriel', false, 'avocat-fictif', 'mot-de-passe-fictif', 'alice');
+		$this->assertSame('https://moteur.example.test/agent-courriel/integration/v1/pair', $this->sent[0]['url']);
+		$this->assertSame(['login' => 'avocat-fictif', 'password' => 'mot-de-passe-fictif', 'label' => 'alice'],
+			json_decode($this->sent[0]['options']['body'], true));
+	}
+
+	public function testPairWithCodeSendsItOnceWithTheCredentials(): void {
+		$client = $this->client([$this->response(200, '{"key_id":"k","secret":"s"}')]);
+		$client->pair('https://moteur.example.test/agent-courriel', false, 'avocat-fictif', 'mot-de-passe-fictif', 'alice', '123456');
+		$this->assertCount(1, $this->sent);
+		$this->assertSame(['login' => 'avocat-fictif', 'password' => 'mot-de-passe-fictif', 'label' => 'alice', 'code' => '123456'],
+			json_decode($this->sent[0]['options']['body'], true));
+	}
+
+	public function testRefusedPairLogsNeitherThePasswordNorTheCode(): void {
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->expects($this->once())->method('info')->with('AxiorHub engine error',
+			$this->callback(fn ($context) => !str_contains((string)json_encode($context), '654321') && !str_contains((string)json_encode($context), 'mot-de-passe-fictif')));
+		$http = $this->createMock(IClient::class);
+		$http->method('post')->willReturn($this->response(401, '{"code":"identifiants_refuses"}'));
+		$service = $this->createMock(IClientService::class);
+		$service->method('newClient')->willReturn($http);
+		$client = new EngineClient($service, $this->createMock(EngineSettings::class), $this->createMock(UserLink::class), $logger);
+		$out = $client->pair('https://moteur.example.test', false, 'avocat-fictif', 'mot-de-passe-fictif', 'alice', '654321');
+		$this->assertSame([401, 'identifiants_refuses'], [$out['status'], $out['body']['code']]);
+	}
+
 	public function testQueryIsSentSeparatelyFromTheSignedOperation(): void {
 		$client = $this->client([$this->response(200, '{"results":[]}')], $this->cred());
 		$client->call('GET', '/integration/v1/search', 'alice', ['*'], null, ['q' => 'bail commercial']);

@@ -139,7 +139,7 @@ def _page_context(value, selected_matter=''):
     return context
 
 
-def submit_question(desk, question, matter='', mail_key='', thread_id='', attachment_id='', attachment_ids=None, page_context=None, mission_id='', purpose='assistant'):
+def submit_question(desk, question, matter='', mail_key='', thread_id='', attachment_id='', attachment_ids=None, page_context=None, mission_id='', purpose='assistant', auteur=''):
     if purpose not in ('assistant','voice_conversation'):raise Stop('fonction_ia_invalide')
     from .workspace import chat_scope
     question = (question or '').strip()
@@ -174,14 +174,17 @@ def submit_question(desk, question, matter='', mail_key='', thread_id='', attach
         (thread_id, 'user', question, 'queued', '[]', desk.now(), desk.now()))
     message_id = cur.lastrowid
     safe_context=_page_context(page_context,selected['id'] if selected else '')
-    from .membres5650 import viewer_hidden
+    from .membres5650 import ai_denied, viewer_hidden
     # 5.6.83 : la réponse se prépare hors de la requête : les dossiers réservés de cette personne l'accompagnent
+    # 5.6.88 : et ce que ses droits lui ferment : l'assistant n'ouvre jamais ce qu'elle ne peut pas ouvrir
     job = desk.enqueue('assistant_answer', {'message': message_id, 'thread': thread_id, 'masques': sorted(viewer_hidden()),
+                                             'vue_ia': sorted(ai_denied()),
                                              'mission_id':mission_id,
                                              'matter': matter, 'key': mail_key,
                                              'attachment_id':attachments[0] if attachments else '',
                                              'attachment_ids':attachments,
-                                             'page_context':safe_context,'purpose':purpose})
+                                             'page_context':safe_context,'purpose':purpose,
+                                             **({'auteur':str(auteur)} if auteur else {})})   # 5.6.88 : seule une demande d'une personne identifiée alimente la mémoire proposée
     desk.db.execute('UPDATE assistant_messages SET job_id=? WHERE id=?', (job, message_id))
     desk.db.execute('UPDATE assistant_threads SET updated=? WHERE id=?', (desk.now(), thread_id))
     desk.db.commit()
@@ -214,12 +217,15 @@ def answer_question(desk, args):
     purpose = args.get('purpose','assistant')
     rapide5680.mark(desk.c['state_dir'])   # 5.6.80 : les travaux automatiques laissent passer cette question
     membres5650.set_viewer(args.get('masques') or ())   # 5.6.83 : mêmes dossiers masqués que pour l'auteur de la question
+    membres5650.set_ai_denied(args.get('vue_ia') or ())   # 5.6.88 : mêmes limites que ses droits
     try:
         route = routed_config(desk.c,purpose)
         route['timeout_seconds'] = rapide5680.deadline(desk.c,purpose,route.get('timeout_seconds',240))
         quick = rapide5680.small_talk_answer(row['content']) if rapide5680.conversation_only(args,matter,key,row['content']) else None   # 5.6.81
+        from . import societe5688   # 5.6.88 : lu ici pour que la réponse de repli porte aussi le contrôle, sans modèle
+        controle = {} if quick else societe5688.avant(desk,row['content'],matter,'voix' if rapide5680.is_voice(purpose) else 'assistant')
         try:
-            result = quick or chat(desk, {'matter': matter, 'key': key, 'question': row['content'],
+            result = quick or chat(desk, {'matter': matter, 'key': key, 'question': row['content'], 'societe5688': controle,
                                  'attachment_id':args.get('attachment_id',''),
                                  'attachment_ids':args.get('attachment_ids',[]),
                                  'page_context':_page_context(args.get('page_context'),matter),'rapide':True,'purpose':purpose},
@@ -228,7 +234,7 @@ def answer_question(desk, args):
         except Stop as error:
             if str(error) not in rapide5680.BUSY_CODES:
                 raise
-            result = rapide5680.fallback_answer(desk.c,matter,row['content'])   # modèle occupé : les passages trouvés, annoncés comme tels
+            result = societe5688.poser_reponse(rapide5680.fallback_answer(desk.c,matter,row['content']),controle)   # modèle occupé : les passages trouvés, annoncés comme tels
     except Exception:
         desk.db.execute('UPDATE assistant_messages SET status=?,updated=? WHERE id=?',
                         ('error', desk.now(), message_id)); desk.db.commit()
@@ -244,10 +250,14 @@ def answer_question(desk, args):
         (thread_id,role,content,status,sources,job_id,created,updated)
         VALUES (?,?,?,?,?,NULL,?,?)''',
         (row['thread_id'], 'assistant', result['answer'], 'done',
-         json.dumps(result.get('sources', []), ensure_ascii=False), desk.now(), desk.now()))
+         json.dumps(result.get('sources', []) + societe5688.sources_carte(controle), ensure_ascii=False), desk.now(), desk.now()))
     desk.db.execute('UPDATE assistant_threads SET updated=? WHERE id=?',
                     (desk.now(), row['thread_id']))
     desk.db.commit()
+    try:   # 5.6.88 : propositions à retenir (motifs, sans modèle par défaut) ; ne retarde ni n'empêche jamais la réponse
+        from . import memoire5688
+        memoire5688.apres_echange(desk,str(args.get('auteur') or ''),row['thread_id'],message_id,matter,row['content'],purpose)
+    except Exception:pass
     return {'thread_id': row['thread_id'], 'status': 'done',
             'sources': len(result.get('sources', [])), 'proposed_actions': result.get('proposed_actions', []),
             **({'repli': True} if result.get('repli') else {}),

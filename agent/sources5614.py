@@ -61,19 +61,31 @@ def snapshot(desk, matter_id, mission='', dav=None, limit_files=2000):
         notes.append('Inventaire Nextcloud indisponible : ' + str(ex)[:80])
         total_files = None
     mails = []
+    from . import vueia5688   # 5.6.88 : l'inventaire transmis au modèle respecte « Ce que l'IA peut voir »
+    if vueia5688.blocked(desk, 'documents'):
+        files, total_files = [], 0
+        notes.append('Documents non inventoriés : ' + vueia5688.REFUSED + '.')
     try:
+        if vueia5688.blocked(desk, 'courriels'):
+            raise LookupError('vue_ia')
         for r in desk.db.execute('SELECT folder,uid,sender,mail_date FROM portfolio_mail_links WHERE matter=? ORDER BY mail_date DESC LIMIT 200', (matter['id'],)):
             mails.append({'id': 'm-' + digest('%s|%s|%s' % (matter['id'], r['folder'], r['uid']))[:16], 'kind': 'mail', 'folder': r['folder'], 'uid': str(r['uid']),
                           'sender': r['sender'], 'date': str(r['mail_date'])[:19], 'status': 'inventorie'})
+    except LookupError:
+        notes.append('Courriels non inventoriés : ' + vueia5688.REFUSED + '.')
     except Exception:
         notes.append('Courriels rattachés non lus (table absente).')
     events = []
     try:
+        if vueia5688.blocked(desk, 'agenda'):
+            raise LookupError('vue_ia')
         for r in desk.db.execute('SELECT id,uid,title,starts,ends,location,etag,fetched FROM calendar_cache WHERE matter=? ORDER BY starts LIMIT 100', (matter['id'],)):
             events.append({'id': 'e-' + digest(matter['id'] + '|' + str(r['uid']))[:16], 'kind': 'event', 'uid': r['uid'], 'title': r['title'][:200], 'starts': r['starts'][:19],
                            'ends': (r['ends'] or '')[:19], 'location': (r['location'] or '')[:120], 'version': r['etag'] or '', 'fetched': (r['fetched'] or '')[:19],
                            'certainty': 'inscrit_agenda', 'status': 'inventorie',
                            'note': 'Date inscrite à l’agenda du cabinet : son caractère officiel (fixation par le greffe) reste à confirmer par une pièce.'})
+    except LookupError:
+        notes.append('Agenda non inventorié : ' + vueia5688.REFUSED + '.')
     except Exception:
         notes.append('Agenda non lu (table absente).')
     data = {'matter': matter['id'], 'matter_label': matter_display(matter), 'root': matter['path'], 'files': files, 'mails': mails, 'events': events,

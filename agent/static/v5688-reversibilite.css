@@ -1,0 +1,20 @@
+/* 5.6.88 : sauvegarde automatique, export intégral, vérification d'un export (Paramètres) */
+.rev88 h3{margin:1.2rem 0 .3rem;font-size:1rem}
+.rev88-form{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:flex-end;margin:.5rem 0}
+.rev88-form .m5-status{flex:1 1 100%;margin:0}
+.rev88-champ{display:flex;flex-direction:column;gap:.2rem;flex:1 1 16rem;min-width:0}
+.rev88-champ span{font-weight:600;font-size:.875rem}
+.rev88-champ input,.rev88-champ select{max-width:100%}
+.rev88-coche{flex:1 1 100%}
+.rev88-choix{flex:1 1 100%;border:1px solid var(--ax-line,#d0d7de);border-radius:8px;padding:.4rem .8rem;margin:0}
+.rev88-choix label{display:block;padding:.15rem 0}
+.rev88-liste{margin:.4rem 0;padding-left:1.1rem}
+.rev88-liste li{margin:.35rem 0;overflow-wrap:anywhere}
+.rev88-liste progress{inline-size:12rem;max-inline-size:100%;vertical-align:middle}
+.rev88-defile{overflow-x:auto}
+.rev88-table{border-collapse:collapse;width:100%}
+.rev88-table th,.rev88-table td{padding:.3rem .6rem;text-align:left;border-bottom:1px solid var(--ax-line,#d0d7de)}
+.rev88-table .rev88-form{margin:0}
+.rev88-etat th{white-space:nowrap}
+.rev88-etat td{overflow-wrap:anywhere}
+.rev88 code{overflow-wrap:anywhere}

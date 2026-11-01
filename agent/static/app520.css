@@ -2854,3 +2854,192 @@ cds-inline-notification:not(:defined) { display: block; padding: .6rem .8rem; bo
 .r86-pending a:focus-visible{outline:3px solid currentColor;outline-offset:2px}
 .r86-pending strong{display:block;font-weight:600;overflow-wrap:anywhere}
 .r86-pending span{display:block;font-size:.8125rem}
+/* ==== v5688-securite.css ==== */
+/* 5.6.88 : Mon compte (double authentification, jetons), journal d'audit, ce que l'IA peut voir. Couleurs du thème, clair et sombre. */
+.m88-qr { display: inline-block; padding: 8px; background: #fff; border-radius: 8px; line-height: 0; }
+.m88-qr svg { width: 220px; height: 220px; max-width: 100%; }
+.m88-steps { margin: 0 0 12px 18px; padding: 0; }
+.m88-once { display: block; margin-top: 12px; font-weight: 600; }
+.m88-once textarea { display: block; width: 100%; margin-top: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.m88-acces { margin: 0; padding-left: 18px; }
+.m88-acces li { margin: 4px 0; }
+.m88-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.m88-filters label { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.m88-journal td { vertical-align: top; }
+.m88-payload { max-width: 420px; overflow-wrap: anywhere; font-size: .86rem; color: var(--ax-muted, inherit); }
+.m88-pages { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.m88-ok, .m88-bad { padding: 10px 12px; border-radius: 8px; border: 1px solid; }
+.m88-ok { background: #e8f6ee; color: #14532d; border-color: #86c9a2; }
+.m88-bad { background: #fdecec; color: #7f1d1d; border-color: #e6a3a3; }
+.m88-vue { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
+.m88-vue span { display: flex; flex-direction: column; gap: 2px; }
+.m88-vue small { color: var(--ax-muted, inherit); }
+.m50-fine { margin: 10px 0 4px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .m88-ok { background: #123524; color: #c9f0d8; border-color: #2f7d55; }
+  :root:not([data-theme="light"]) .m88-bad { background: #421a1a; color: #fbd5d5; border-color: #9b4a4a; }
+}
+:root[data-theme="dark"] .m88-ok { background: #123524; color: #c9f0d8; border-color: #2f7d55; }
+:root[data-theme="dark"] .m88-bad { background: #421a1a; color: #fbd5d5; border-color: #9b4a4a; }
+/* ==== v5688-reversibilite.css ==== */
+/* 5.6.88 : sauvegarde automatique, export intégral, vérification d'un export (Paramètres) */
+.rev88 h3{margin:1.2rem 0 .3rem;font-size:1rem}
+.rev88-form{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:flex-end;margin:.5rem 0}
+.rev88-form .m5-status{flex:1 1 100%;margin:0}
+.rev88-champ{display:flex;flex-direction:column;gap:.2rem;flex:1 1 16rem;min-width:0}
+.rev88-champ span{font-weight:600;font-size:.875rem}
+.rev88-champ input,.rev88-champ select{max-width:100%}
+.rev88-coche{flex:1 1 100%}
+.rev88-choix{flex:1 1 100%;border:1px solid var(--ax-line,#d0d7de);border-radius:8px;padding:.4rem .8rem;margin:0}
+.rev88-choix label{display:block;padding:.15rem 0}
+.rev88-liste{margin:.4rem 0;padding-left:1.1rem}
+.rev88-liste li{margin:.35rem 0;overflow-wrap:anywhere}
+.rev88-liste progress{inline-size:12rem;max-inline-size:100%;vertical-align:middle}
+.rev88-defile{overflow-x:auto}
+.rev88-table{border-collapse:collapse;width:100%}
+.rev88-table th,.rev88-table td{padding:.3rem .6rem;text-align:left;border-bottom:1px solid var(--ax-line,#d0d7de)}
+.rev88-table .rev88-form{margin:0}
+.rev88-etat th{white-space:nowrap}
+.rev88-etat td{overflow-wrap:anywhere}
+.rev88 code{overflow-wrap:anywhere}
+/* ==== v5688-agenda.css ==== */
+/* 5.6.88 : suivi des audiences, Mes tâches, liste du matin. Couleurs reprises du thème : contraste clair et sombre assuré par les variables. */
+.t88-form{display:grid;gap:10px;margin:10px 0}
+.t88-form label{display:grid;gap:4px;font-size:.875rem}
+.t88-form input:not([type=checkbox]),.t88-form select,.t88-form textarea{width:100%;min-width:0;box-sizing:border-box}
+.t88-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.t88-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:12px 0}
+.t88-filters label{display:grid;gap:4px;font-size:.875rem}
+.t88-add,.t88-edit{margin:10px 0}
+.t88-add>summary,.t88-edit>summary{cursor:pointer;font-weight:600}
+.t88-list{list-style:none;margin:8px 0;padding:0}
+.t88-item{padding:10px 0;border-bottom:1px solid var(--ax-line,#d6dbe1)}
+.t88-title{margin:0 0 4px;font-weight:600;display:block;overflow-wrap:anywhere}
+.t88-chips{display:flex;flex-wrap:wrap;gap:6px}
+.t88-chip{display:inline-block;padding:1px 8px;border:1px solid var(--ax-line,#d6dbe1);border-radius:999px;font-size:.8125rem;color:inherit;text-decoration:none}
+.t88-late{font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.t88-group h2{font-size:1rem;margin:16px 0 4px}
+.t88-count{font-weight:400}
+.t88-empty{margin:12px 0}
+.t88-notes{white-space:pre-wrap;overflow-wrap:anywhere}
+.t88-facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:8px 0}
+.t88-facts dt{font-weight:600}
+.t88-facts dd{margin:0;overflow-wrap:anywhere}
+.t88-matin{margin:12px 0}
+.t88-matin h2{font-size:1.0625rem;margin:0 0 8px}
+.t88-matin-block h3{font-size:.9375rem;margin:8px 0 2px}
+.t88-matin-block ul{margin:0;padding-left:18px}
+.t88-matin-block li{overflow-wrap:anywhere}
+.t88-mail{margin:12px 0}
+@media (max-width:640px){.t88-facts{grid-template-columns:1fr}.t88-filters{align-items:stretch;flex-direction:column}}
+/* ==== v5688-facturation.css ==== */
+/* 5.6.88 : facturation — solde du dossier, contribution au chiffre d'affaires, paliers de relance, accusés de paiement */
+.f88-solde{margin:4px 0 0;font-size:.9375rem;font-weight:600}
+.f88-solde a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.f88-indicatif{margin:0 0 16px;padding:10px 14px;border-left:4px solid currentColor;border-radius:4px;background:var(--ax-soft,rgba(127,127,127,.12));color:inherit}
+.f88-filtre{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:0 0 16px}
+.f88-paliers{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0;padding:8px 12px;border:1px solid var(--ax-line,#d1d5db);border-radius:6px}
+.f88-paliers legend{padding:0 4px;font-size:.875rem}
+.f88-paliers label{min-width:7rem}
+.f88-parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:8px}
+.f88-accuse{padding:8px 0;border-top:1px solid var(--ax-line,#d1d5db)}
+.f88-accuse h4{margin:0 0 6px;font-size:.9375rem}
+.f88-accuses textarea{width:100%}
+/* ==== v5688-crm.css ==== */
+/* 5.6.88 (lot crm) : palette unique, veille des sociétés, note commune, page Aujourd'hui personnelle. Les couleurs d'accent reprennent tableau5688.ACCENTS. */
+.m82-quick-group { margin: .5rem 0 .1rem; font-size: .85rem; font-weight: 600; }
+.v88-list { list-style: none; margin: .4rem 0 0; padding: 0; }
+.v88-list > li { padding: .5rem 0; border-top: 1px solid var(--ws-border, #cfddf0); overflow-wrap: anywhere; }
+.v88-list > li:first-child { border-top: 0; }
+.v88-panne { margin: .5rem 0; padding: .55rem .7rem; border-left: 4px solid currentColor; background: var(--ws-surface-alt, #f7f8fa); color: var(--ws-ink, #181a20); }
+.v88-scroll { overflow-x: auto; }
+.n88-note textarea { width: 100%; box-sizing: border-box; min-height: 9rem; }
+.n88-conflit { margin: .6rem 0; padding: .7rem; border: 2px solid currentColor; border-radius: 8px; }
+.n88-conflit[hidden] { display: none; }
+.n88-conflit pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; margin: .4rem 0; }
+.n88-versions li { margin: .3rem 0; }
+.n88-mentions { position: absolute; z-index: 9100; list-style: none; margin: 0; padding: .2rem; min-width: 14rem; max-width: calc(100vw - 32px); max-height: 14rem; overflow: auto; background: var(--ws-surface, #fff); color: var(--ws-ink, #181a20); border: 1px solid var(--ws-border, #cfddf0); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); }
+.n88-mentions[hidden] { display: none; }
+.n88-mentions li { padding: .4rem .55rem; border-radius: 6px; cursor: pointer; min-height: 32px; box-sizing: border-box; }
+.n88-mentions li[aria-selected=true] { outline: 2px solid currentColor; outline-offset: -2px; }
+.n88-mentions small { opacity: .85; }
+.t88-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.t88-item { min-width: 0; }
+.t88-item > * { height: 100%; box-sizing: border-box; }
+.t88-large { grid-column: 1 / -1; }
+.t88-large > * { height: auto; }
+@media (max-width: 820px) { .t88-grid { grid-template-columns: minmax(0, 1fr); } }
+.t88-panel { margin-top: 8px; }
+.t88-panel > summary { cursor: pointer; min-height: 32px; }
+.t88-list { list-style: decimal inside; margin: .4rem 0; padding: 0; }
+.t88-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem; padding: .3rem 0; border-top: 1px solid var(--ws-border, #cfddf0); cursor: grab; }
+.t88-moves { display: inline-flex; gap: .3rem; }
+.t88-colors { display: flex; flex-wrap: wrap; gap: .6rem 1rem; border: 1px solid var(--ws-border, #cfddf0); border-radius: 8px; padding: .5rem .7rem; }
+.t88-color { display: inline-flex; align-items: center; gap: .35rem; min-height: 32px; }
+.t88-swatch { display: inline-block; width: 1.1rem; height: 1.1rem; border-radius: 50%; border: 1px solid var(--ws-ink, #181a20); background: var(--t88-swatch, #1769cf); }
+.t88-swatch[data-swatch=violet] { --t88-swatch: #5b34b8; }
+.t88-swatch[data-swatch=vert] { --t88-swatch: #136c4a; }
+.t88-swatch[data-swatch=bordeaux] { --t88-swatch: #96244b; }
+.t88-swatch[data-swatch=ardoise] { --t88-swatch: #3f5569; }
+.t88-swatch[data-swatch=cuivre] { --t88-swatch: #8f4a12; }
+.t88-memoire { margin-top: .8rem; }
+.c530[data-accent=violet] { --ws-accent: #5b34b8; --ws-accent-hover: #472a91; --ws-accent-soft: #efeafb; --ax-accent: #5b34b8; --ax-accent-ink: #fff; }
+.c530[data-accent=vert] { --ws-accent: #136c4a; --ws-accent-hover: #0e5238; --ws-accent-soft: #e4f4ec; --ax-accent: #136c4a; --ax-accent-ink: #fff; }
+.c530[data-accent=bordeaux] { --ws-accent: #96244b; --ws-accent-hover: #771a3b; --ws-accent-soft: #fbe9ef; --ax-accent: #96244b; --ax-accent-ink: #fff; }
+.c530[data-accent=ardoise] { --ws-accent: #3f5569; --ws-accent-hover: #2f4254; --ws-accent-soft: #e9eef3; --ax-accent: #3f5569; --ax-accent-ink: #fff; }
+.c530[data-accent=cuivre] { --ws-accent: #8f4a12; --ws-accent-hover: #723a0d; --ws-accent-soft: #f9ecdf; --ax-accent: #8f4a12; --ax-accent-ink: #fff; }
+:root[data-theme=dark] .c530[data-accent=violet] { --ws-accent: #c4adff; --ws-accent-hover: #ddd0ff; --ws-accent-soft: #332a52; --ax-accent: #c4adff; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=vert] { --ws-accent: #63d3a4; --ws-accent-hover: #9be6c6; --ws-accent-soft: #1f3d33; --ax-accent: #63d3a4; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=bordeaux] { --ws-accent: #ffa3bd; --ws-accent-hover: #ffc9d8; --ws-accent-soft: #4a2433; --ax-accent: #ffa3bd; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=ardoise] { --ws-accent: #adc4da; --ws-accent-hover: #cfdeec; --ws-accent-soft: #2c3a48; --ax-accent: #adc4da; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=cuivre] { --ws-accent: #f2b47c; --ws-accent-hover: #f8d2ae; --ws-accent-soft: #46301e; --ax-accent: #f2b47c; --ax-accent-ink: #0b1220; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) .c530[data-accent=violet] { --ws-accent: #c4adff; --ws-accent-hover: #ddd0ff; --ws-accent-soft: #332a52; --ax-accent: #c4adff; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=vert] { --ws-accent: #63d3a4; --ws-accent-hover: #9be6c6; --ws-accent-soft: #1f3d33; --ax-accent: #63d3a4; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=bordeaux] { --ws-accent: #ffa3bd; --ws-accent-hover: #ffc9d8; --ws-accent-soft: #4a2433; --ax-accent: #ffa3bd; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=ardoise] { --ws-accent: #adc4da; --ws-accent-hover: #cfdeec; --ws-accent-soft: #2c3a48; --ax-accent: #adc4da; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=cuivre] { --ws-accent: #f2b47c; --ws-accent-hover: #f8d2ae; --ws-accent-soft: #46301e; --ax-accent: #f2b47c; --ax-accent-ink: #0b1220; }
+}
+/* ==== v5688-cloud.css ==== */
+/* 5.6.88 : Paramètres › Stockage des documents */
+.c88-cards,.c88-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.c88-card,.c88-copy,.c88-rule{border:1px solid var(--ax-line,#e5e7eb);border-radius:8px;padding:12px;min-width:0}
+.c88-copy+.c88-copy{margin-top:12px}
+.c88-card h3,.c88-copy h3,.c88-rule h3{margin:0 0 6px;font-size:1rem;overflow-wrap:anywhere}
+.c88-card code{overflow-wrap:anywhere}
+.c88-facts{margin:6px 0;padding-left:18px;font-size:.875rem}
+.c88-facts li{overflow-wrap:anywhere}
+.c88-rule label{display:block;margin-bottom:8px}
+.c88-rule input{width:100%;box-sizing:border-box}
+.c88-state{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:.75rem;font-weight:600;border:1px solid currentColor}
+.c88-alert{margin:6px 0;padding:8px 10px;border-left:4px solid currentColor;font-weight:600;overflow-wrap:anywhere}
+.c88-table{overflow-x:auto}
+.c88-table table{width:100%;border-collapse:collapse;font-size:.875rem}
+.c88-table th,.c88-table td{padding:6px 8px;border-bottom:1px solid var(--ax-line,#e5e7eb);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+/* ==== v5688-societe.css ==== */
+/* 5.6.88 : carte de situation d'une société (assistant, fiche contact, page du dossier) */
+.so88-carte { --so88-alerte: #a3201a; --so88-attention: #7a4f00; --so88-neutre: #4a5560; --so88-ok: #1b6e3c; margin: .6rem 0; padding: .7rem .85rem; border-left: 4px solid var(--so88-neutre); border-radius: 6px;
+  background: var(--ws-surface-alt, #f7f8fa); color: inherit; overflow-wrap: anywhere; }
+:root[data-theme=dark] .so88-carte { --so88-alerte: #ffb4ab; --so88-attention: #ffcf70; --so88-neutre: #b9c4cf; --so88-ok: #7fdca4; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) .so88-carte { --so88-alerte: #ffb4ab; --so88-attention: #ffcf70; --so88-neutre: #b9c4cf; --so88-ok: #7fdca4; }
+}
+.so88-carte.so88-v-alerte { border-left-color: var(--so88-alerte); }
+.so88-carte.so88-v-attention, .so88-carte.so88-v-incertaine { border-left-color: var(--so88-attention); }
+.so88-carte.so88-v-rien_trouve { border-left-color: var(--so88-ok); }
+.so88-carte h3 { margin: 0 0 .35rem; font-size: 1rem; }
+.so88-carte h3 small { font-weight: 400; }
+.so88-etat { display: inline-block; margin-left: .4rem; padding: 0 .4rem; border: 1px solid currentColor; border-radius: 4px; font-size: .78rem; font-weight: 600; color: var(--so88-neutre); }
+.so88-v-alerte .so88-etat { color: var(--so88-alerte); }
+.so88-v-attention .so88-etat, .so88-v-incertaine .so88-etat { color: var(--so88-attention); }
+.so88-v-rien_trouve .so88-etat { color: var(--so88-ok); }
+.so88-alertes { list-style: none; margin: .3rem 0; padding: 0; }
+.so88-alertes li { margin: .25rem 0; padding-left: .55rem; border-left: 3px solid var(--so88-attention); }
+.so88-alertes li.so88-alerte { border-left-color: var(--so88-alerte); font-weight: 600; }
+.so88-points { margin: .4rem 0 0; }
+.so88-points > div { display: grid; grid-template-columns: minmax(7.5rem, 11rem) 1fr; gap: .15rem .6rem; padding: .15rem 0; }
+.so88-points dt { font-weight: 600; }
+.so88-points dd { margin: 0; }
+.so88-points .so88-non_verifie dd { font-style: italic; }
+.so88-points small { opacity: 1; color: inherit; }
+@media (max-width: 34rem) { .so88-points > div { grid-template-columns: 1fr; } }

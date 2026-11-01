@@ -16,6 +16,8 @@ MIGRATION = {
     'securite_ia': 'Sécurité de l’IA (5.6.59) → Paramètres : alertes sur les instructions cachées dans les courriels, documents et images',
     'talk': 'Talk (5.6.43, facultatif) → accès principal après Agenda et tâches, activé par chaque utilisateur dans Paramètres › Connexions',
     'taches': 'Agenda et tâches → vue Tâches',
+    'mes_taches': 'Mes tâches (5.6.88) → Communiquer : tâches de la personne, sans responsable, rappels',
+    'audiences_suivi': 'Audiences → Suivi des audiences (5.6.88) : liste par avocat et période, détail, agendas Outlook et Google',
     'production': 'Produire → choix du travail et validations (Rédiger, Réviser, Bordereau, Mission complète)',
     'documents': 'Produire → Rédiger un document ; moteur conservé',
     'echeances': 'Dossier → Échéances ; vue globale dans Agenda',
@@ -72,6 +74,9 @@ MIGRATION = {
     'routage': 'Paramètres → IA et choix local ou externe',
     'evaluations': 'Paramètres → Évaluations métier ; rôle autorisé',
     'tracabilite': 'Paramètres → Journaux ; preuve contextualisée dans chaque résultat',
+    'mon_compte': 'Mon compte (5.6.88) → pied du menu : double authentification et jetons d’API de la personne',
+    'journal_audit': 'Journal d’audit (5.6.88) → Paramètres, administrateur : filtres, export et vérification de la chaîne',
+    'vue_ia': 'Ce que l’IA peut voir (5.6.88) → Paramètres, administrateur : catégories ouvertes au modèle',
     'qualite': 'Produire → Contrôles ; vue globale dans État et aide',
     'ecosysteme': 'Paramètres → Connexions et services',
     'administration': 'Paramètres → Administration ; accès selon le rôle',
@@ -84,6 +89,7 @@ MIGRATION = {
     'outils_ia': 'Toutes les fonctions → Outils IA (grilles, playbooks, mémos) ; playbooks aussi dans le complément Word',
     'corporate': 'Toutes les fonctions → Corporate (sociétés, opérations, actes, table de capitalisation, registres)',
     'relances': 'Toutes les fonctions → Relances d’impayés ; carte dans Initiatives',
+    'contribution': 'Toutes les fonctions → Contribution au chiffre d’affaires (droit « Facturation et temps passé »)',
     'complement_word': 'Toutes les fonctions → Complément Word (manifeste et volet)',
 }
 # Anciens liens → nouveau parcours (le dossier « matter » est conservé) ; les liens de contrôle (hearing=, word=, job=) restent servis.

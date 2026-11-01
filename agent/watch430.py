@@ -160,6 +160,13 @@ def _schedule_5642(desk,stamp=None):
         agenda_tick(desk,stamp)
     except Exception as ex:   # noqa: BLE001
         emit(desk,'blocked','Agenda local : rappels ou sauvegarde impossibles ('+str(ex)[:120]+').',dedupe='agenda5634-tick')
+    try:   # 5.6.88 : fiches d'audience, rappels à la personne désignée, reprise des copies vers Outlook et Google
+        from .agenda5688 import tick as agenda_tick5688
+        agenda_tick5688(desk,stamp)
+        from .propagation5688 import schedule as schedule5688
+        jobs.extend(schedule5688(desk,stamp))
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Agenda : rappels ou copies impossibles ('+str(ex)[:120]+').',dedupe='agenda5688-tick')
     heartbeat(desk,'surveillance','active','Contrôle périodique et réveil IMAP',stamp+max(0,300-(stamp-float(desk.settings('live430:last:live_mail430',0)))))
     return jobs
 

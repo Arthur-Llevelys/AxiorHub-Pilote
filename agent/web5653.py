@@ -16,12 +16,13 @@ from . import facturation5653 as fact
 from . import honoraires5653 as fees
 from . import modeles5653 as models
 
-READ = ('documents', 'document', 'apercu', 'apercu-fichier', 'resume', 'propositions', 'modeles', 'bibliotheque/modeles', 'bibliotheque/diligences', 'estimation/calculer')
+READ = ('documents', 'document', 'apercu', 'apercu-fichier', 'resume', 'propositions', 'modeles', 'bibliotheque/modeles', 'bibliotheque/diligences', 'estimation/calculer',
+        'contribution/releve', 'contribution/export')   # 5.6.88 : le service exige en plus le droit « facturation » (lecture réservée)
 SETTINGS = ('cabinet/enregistrer', 'honoraires/reglages', 'logo/importer', 'bibliotheque/importer')
 WRITE = ('client/enregistrer', 'client/siren', 'estimation/enregistrer', 'estimation/retenir', 'estimation/refuser', 'document/preparer', 'document/modifier',
          'document/controler', 'document/approuver', 'document/emettre', 'document/deposer', 'document/etat', 'document/abandonner', 'document/avoir',
          'document/reglement', 'document/restaurer', 'document/transmettre', 'proposition/decider', 'proposition/preparer', 'modele/importer', 'modele/choisir', 'epingler',
-         'dossier/perimetre')
+         'dossier/perimetre', 'contribution/parts', 'contribution/parts/retirer', 'contribution/cle', 'contribution/cle/retirer', 'accuse/deposer')   # 5.6.88
 
 
 def allowed(role, route):
@@ -123,6 +124,9 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out({'modeles': fees.models(desk)})
         if route == 'bibliotheque/diligences':
             return json_out({'diligences': fees.diligences_for(desk, str(args.get('modele') or ''), str(args.get('niveau') or 'standard'))})
+        if route.startswith('contribution/'):                    # 5.6.88 : contribution des collaborateurs au chiffre d'affaires
+            from . import contribution5688
+            return json_out(contribution5688.api_get(desk, owner, role, route, args, auth))
         raise Stop('methode_refusee')
     data = _post(env, auth, 8_000_000)
     return json_out(post(desk, owner, role, route, data, prefix))
@@ -231,7 +235,17 @@ def post(desk, owner, role, route, data, prefix=''):
     if route == 'document/reglement':
         d = fact.record_payment(desk, owner, role, did, data.get('montant'), str(data.get('date') or ''), str(data.get('moyen') or 'virement'),
                                 str(data.get('reference') or ''), str(data.get('request_key') or ''))
-        return {'message': 'Règlement enregistré : %s.' % d['payment_label']}
+        from . import accuses5688
+        tail = ' Un projet d’accusé de paiement est à relire sur cette page ; rien n’est envoyé.' if accuses5688.pending(desk, did) else ''
+        return {'message': 'Règlement enregistré : %s.%s' % (d['payment_label'], tail)}
+    if route == 'accuse/deposer':                              # 5.6.88 : rien n'est envoyé ; le dépôt reste une décision de l'avocat
+        from . import accuses5688
+        if data.get('ecarter'):
+            return accuses5688.dismiss(desk, owner, role, did)
+        return accuses5688.deposit(desk, owner, role, did, data)
+    if route.startswith('contribution/'):                      # 5.6.88
+        from . import contribution5688
+        return contribution5688.api_post(desk, owner, role, route, data)
     if route == 'document/restaurer':                          # 5.6.56 (N24) : copie de l'original émis, rien n'est écrasé
         d = fact.restore_copy(desk, owner, role, did)
         return {'message': 'Original émis redéposé en copie dans FACTURATION.' if d['files_state'] == 'publies' else 'Restauration incomplète.'}
@@ -448,7 +462,8 @@ def dashboard_html(desk, prefix):
     partial = ('<p class="b53-warn">Lecture partielle (%d dossier%s) : montants à confirmer.</p>' % (len(board['lecture_partielle']),
                                                                                                    's' if len(board['lecture_partielle']) > 1 else '')
                if board['lecture_partielle'] else '')
-    return ('<section class="b55-kpis" aria-label="Chiffres clés">%s</section>%s<section class="b55-section"><h2>À faire</h2>%s</section>'
+    from .accuses5688 import section_html as _accuses          # 5.6.88 : projets d'accusé de paiement à relire
+    return ('<section class="b55-kpis" aria-label="Chiffres clés">%s</section>%s<section class="b55-section"><h2>À faire</h2>%s</section>' + _accuses(desk).replace('%', '%%') +
             '<section class="b55-section"><h2>Derniers documents</h2><ul class="b53-list">%s</ul><p><a href="?vue=documents">Tous les documents</a></p></section>'
             '<p class="b53-note">Calculé le %s. Seuls les dossiers clients sont pris en compte ; les dossiers internes du cabinet sont écartés '
             '(<a href="?vue=dossiers#b55-ecartes">voir les dossiers écartés</a>).</p></div>') % (
@@ -701,6 +716,9 @@ def document_html(desk, prefix, owner, role, doc_id):
         struct_html = '<details><summary>Contrôles de la facture structurée (%s)</summary><ul class="b53-list">%s</ul><p class="b53-note">Non vérifié ici : %s.</p><p>%s</p></details>' % (
             'réussis' if structure.get('ok') else 'en échec', ''.join('<li class="%s">%s %s</li>' % ('ok' if c['ok'] else 'ko', '✓' if c['ok'] else '✗', e(c['regle']))
                                                                          for c in structure['controles']), e(', '.join(structure.get('non_verifie') or [])), e(structure.get('facturx') or ''))
+    if d['kind'] == 'facture' and d['number']:                # 5.6.88 : projets d'accusé de paiement de cette facture
+        from .accuses5688 import section_html as _accuses
+        struct_html = _accuses(desk, d['id']) + struct_html
     issues = ''.join('<li class="ko">%s</li>' % e(b) for b in checks['bloquants']) + ''.join('<li class="warn">%s</li>' % e(w) for w in checks['avertissements'])
     fmt = ('contrôles internes %s ; XSD et Schematron officiels non exécutés' % ('réussis' if structure.get('ok') else 'en échec')) if structure.get('controles') else 'non vérifié'
     transmission = {'transmission_en_cours': 'en cours', 'deposee': 'déposée', 'rejetee': 'rejetée'}.get(d['state'], 'non effectuée' if d['number'] else '—')
@@ -758,6 +776,8 @@ def markdown_html(text):
 # ------------------------------------------------------------------------------------------------ bloc du dossier
 def matter_block_html(desk, prefix, mid, owner='cabinet', role='avocat'):
     """Bloc « Honoraires et facturation » de la page Dossier (onglet Travaux) ; une lecture partielle est signalée comme telle."""
+    if fact.fees_hidden():                                     # 5.6.88 : droit fin « voir les honoraires », la page Dossier reste ouverte
+        return ''
     try:
         s = fact.matter_summary(desk, mid)
     except Stop as ex:

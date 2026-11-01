@@ -26,7 +26,7 @@ class PersonalControllerTest extends TestCase {
 	public function testSuccessfulLinkStoresTheKeyNeverThePassword(): void {
 		$engine = $this->createMock(EngineClient::class);
 		$engine->method('health')->willReturn(['status' => 200, 'body' => ['version' => '5.6.36', 'contract' => '1.2']]);
-		$engine->expects($this->once())->method('pair')->with('https://moteur.example.test/agent-courriel', false, 'avocat-fictif', 'mot-de-passe-fictif', 'alice')
+		$engine->expects($this->once())->method('pair')->with('https://moteur.example.test/agent-courriel', false, 'avocat-fictif', 'mot-de-passe-fictif', 'alice', '')
 			->willReturn(['status' => 200, 'body' => ['key_id' => str_repeat('c', 32), 'secret' => 'cle-fictive', 'user' => 'avocat-fictif', 'role' => 'avocat']]);
 		$links = $this->createMock(UserLink::class);
 		$links->expects($this->once())->method('store')->with('alice', 'https://moteur.example.test/agent-courriel', false,
@@ -45,6 +45,40 @@ class PersonalControllerTest extends TestCase {
 		$links->expects($this->never())->method('store');
 		$out = $this->controller($engine, $links)->link('https://moteur.example.test', 'avocat-fictif', 'faux');
 		$this->assertSame([401, 'identifiants_refuses', 'pair'], [$out->getStatus(), $out->getData()['code'], $out->getData()['step']]);
+	}
+
+	/** 0.4.4 : compte protégé — le code suit le mot de passe jusqu'au moteur ; il n'est ni stocké ni renvoyé. */
+	public function testTwoFactorCodeIsPassedToTheEngineNeverStoredNorReturned(): void {
+		$engine = $this->createMock(EngineClient::class);
+		$engine->method('health')->willReturn(['status' => 200, 'body' => ['version' => '5.6.88']]);
+		$engine->expects($this->once())->method('pair')->with('https://moteur.example.test', false, 'avocat-fictif', 'mot-de-passe-fictif', 'alice', '123456')
+			->willReturn(['status' => 200, 'body' => ['key_id' => str_repeat('c', 32), 'secret' => 'cle-fictive', 'user' => 'avocat-fictif', 'role' => 'avocat']]);
+		$links = $this->createMock(UserLink::class);
+		$links->expects($this->once())->method('store')->with('alice', 'https://moteur.example.test', false, $this->callback(fn ($key) => !in_array('123456', $key, true)));
+		$out = $this->controller($engine, $links)->link('https://moteur.example.test', 'avocat-fictif', 'mot-de-passe-fictif', false, ' 123456 ');
+		$this->assertSame(200, $out->getStatus());
+		$this->assertStringNotContainsString('123456', json_encode($out->getData()));
+	}
+
+	public function testOversizedTwoFactorCodeStopsBeforeReachingTheEngine(): void {
+		$engine = $this->createMock(EngineClient::class);
+		$engine->expects($this->never())->method('health');
+		$engine->expects($this->never())->method('pair');
+		$out = $this->controller($engine, $this->createMock(UserLink::class))->link('https://moteur.example.test', 'a', 'b', false, str_repeat('1', 65));
+		$this->assertSame([400, 'identifiants_requis'], [$out->getStatus(), $out->getData()['code']]);
+	}
+
+	/** Un secret ne doit pas apparaître dans une trace d'exception. */
+	public function testPasswordAndCodeAreMarkedSensitive(): void {
+		foreach ([[PersonalController::class, 'link'], [EngineClient::class, 'pair']] as [$class, $method]) {
+			$sensitive = [];
+			foreach ((new \ReflectionMethod($class, $method))->getParameters() as $parameter) {
+				if ($parameter->getAttributes('SensitiveParameter') !== []) {
+					$sensitive[] = $parameter->getName();
+				}
+			}
+			$this->assertSame(['password', 'code'], $sensitive);
+		}
 	}
 
 	public function testUnreachableEngineStopsBeforeSendingThePassword(): void {
