@@ -1,0 +1,26 @@
+/* 5.6.88 : carte de situation d'une société (assistant, fiche contact, page du dossier) */
+.so88-carte { --so88-alerte: #a3201a; --so88-attention: #7a4f00; --so88-neutre: #4a5560; --so88-ok: #1b6e3c; margin: .6rem 0; padding: .7rem .85rem; border-left: 4px solid var(--so88-neutre); border-radius: 6px;
+  background: var(--ws-surface-alt, #f7f8fa); color: inherit; overflow-wrap: anywhere; }
+:root[data-theme=dark] .so88-carte { --so88-alerte: #ffb4ab; --so88-attention: #ffcf70; --so88-neutre: #b9c4cf; --so88-ok: #7fdca4; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) .so88-carte { --so88-alerte: #ffb4ab; --so88-attention: #ffcf70; --so88-neutre: #b9c4cf; --so88-ok: #7fdca4; }
+}
+.so88-carte.so88-v-alerte { border-left-color: var(--so88-alerte); }
+.so88-carte.so88-v-attention, .so88-carte.so88-v-incertaine { border-left-color: var(--so88-attention); }
+.so88-carte.so88-v-rien_trouve { border-left-color: var(--so88-ok); }
+.so88-carte h3 { margin: 0 0 .35rem; font-size: 1rem; }
+.so88-carte h3 small { font-weight: 400; }
+.so88-etat { display: inline-block; margin-left: .4rem; padding: 0 .4rem; border: 1px solid currentColor; border-radius: 4px; font-size: .78rem; font-weight: 600; color: var(--so88-neutre); }
+.so88-v-alerte .so88-etat { color: var(--so88-alerte); }
+.so88-v-attention .so88-etat, .so88-v-incertaine .so88-etat { color: var(--so88-attention); }
+.so88-v-rien_trouve .so88-etat { color: var(--so88-ok); }
+.so88-alertes { list-style: none; margin: .3rem 0; padding: 0; }
+.so88-alertes li { margin: .25rem 0; padding-left: .55rem; border-left: 3px solid var(--so88-attention); }
+.so88-alertes li.so88-alerte { border-left-color: var(--so88-alerte); font-weight: 600; }
+.so88-points { margin: .4rem 0 0; }
+.so88-points > div { display: grid; grid-template-columns: minmax(7.5rem, 11rem) 1fr; gap: .15rem .6rem; padding: .15rem 0; }
+.so88-points dt { font-weight: 600; }
+.so88-points dd { margin: 0; }
+.so88-points .so88-non_verifie dd { font-style: italic; }
+.so88-points small { opacity: 1; color: inherit; }
+@media (max-width: 34rem) { .so88-points > div { grid-template-columns: 1fr; } }

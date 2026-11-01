@@ -76,7 +76,7 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     from .ecrans5632 import signature as _ecrans5634
     if _lang5634() not in ('fr',''):head+='<meta name="axiorhub-ecrans" content="'+escape(_ecrans5634(_lang5634()),quote=True)+'">'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5680.js"></script>'   # 5.6.80 : très court, le premier exécuté : boutons de l'assistant actifs aussitôt
-    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5682.js"></script>'   # 5.6.82 : recherche rapide (Ctrl+K), état des listes
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5682.js"></script>'   # 5.6.82 : état des listes, lecteurs (palette Ctrl+K : v420.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5681.js"></script>'   # 5.6.81 : liste des modèles des fournisseurs
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5637.js"></script>'   # 5.6.37 : en premier des scripts différés (classe posée avant v320.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5634t.js"></script>'   # 5.6.34 : en premier, traduit ce que les scripts écrivent
@@ -102,6 +102,7 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5650.js"></script>'   # 5.6.50 : messagerie interne (pastille, conversations)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/rules568.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v420.js"></script>'
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5688-crm.js"></script>'   # 5.6.88 : mentions, note commune, page personnelle
     head+='<meta name="htmx-config" content=\'{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"selfRequestsOnly":true}\'>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/htmx.min.js"></script><script defer src="'+escape(prefix,quote=True)+'/static/v430.js"></script>'
     head+='<link rel="icon" type="image/png" sizes="150x150" href="'+escape(prefix,quote=True)+'/static/axiorhub-icon.png">'

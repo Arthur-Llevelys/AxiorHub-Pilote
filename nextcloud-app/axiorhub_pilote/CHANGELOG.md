@@ -1,5 +1,14 @@
 # Journal des versions — application Nextcloud AxiorHub Pilote
 
+## 0.4.4 — version de développement (avec le moteur 5.6.88)
+
+- **Double authentification à la liaison** : champ facultatif « Code de double authentification » dans les paramètres personnels, pour
+  relier un compte AxiorHub protégé (code du moment ou code de secours). Le code suit le chemin du mot de passe : transmis une seule
+  fois au moteur, jamais conservé ni journalisé, masqué dans les traces d'exception, et vidé du formulaire après chaque essai.
+- **Compatibilité** : le champ `code` n'est envoyé à `POST /integration/v1/pair` que s'il est rempli ; sans code, la requête reste celle
+  des versions précédentes et les moteurs antérieurs (5.6.42 ou ultérieur) fonctionnent comme avant.
+- **Message d'échec** : un refus demande de vérifier l'identifiant et le mot de passe, ainsi que le code si le compte est protégé.
+
 ## 0.4.3 — version de développement (avec le moteur 5.6.42)
 
 - **Choix guidé de la configuration** (audit 5.6.41) dans les paramètres personnels : « Sur un serveur (recommandé) », « Sur cet ordinateur,

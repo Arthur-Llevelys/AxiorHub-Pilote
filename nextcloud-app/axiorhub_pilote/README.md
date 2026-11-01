@@ -3,7 +3,7 @@
 **Français** · [English](README.en.md)
 
 Application Nextcloud qui affiche **l'interface d'AxiorHub Pilote** — logiciel juridique destiné aux avocats français — directement
-dans Nextcloud : Aujourd'hui, dossiers, courriels, agenda et tâches, actes, Corporate, recherche juridique, Pilote. Version 0.4.3
+dans Nextcloud : Aujourd'hui, dossiers, courriels, agenda et tâches, actes, Corporate, recherche juridique, Pilote. Version 0.4.4
 (version de développement), pour AxiorHub Pilote 5.6.42 ou ultérieur.
 
 **ATTENTION : VERSION EXPERIMENTALE**
@@ -101,10 +101,10 @@ Les mises à jour apparaissent ensuite dans **Applications › Mises à jour**.
 Tant que l'application n'apparaît pas dans votre boutique, ou sur un serveur sans accès à la boutique :
 
 ```bash
-cd /tmp && git clone --branch v0.4.3 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
-python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.3.tar.gz
+cd /tmp && git clone --branch v0.4.4 https://github.com/Arthur-Llevelys/AxiorHub-Pilote-Nextcloud.git axh-app
+python3 axh-app/scripts/build-package.py /tmp/axiorhub_pilote-0.4.4.tar.gz
 cd /chemin/vers/nextcloud
-sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.3.tar.gz -C apps
+sudo -u www-data tar -xzf /tmp/axiorhub_pilote-0.4.4.tar.gz -C apps
 sudo -u www-data php occ app:enable axiorhub_pilote
 ```
 
@@ -124,6 +124,8 @@ Chaque avocat ouvre **Paramètres personnels › AxiorHub Pilote** et saisit :
 Le mot de passe sert **une seule fois** à obtenir une clé personnelle ; il n'est ni conservé, ni journalisé. La clé est chiffrée dans
 les préférences de l'utilisateur et se révoque des deux côtés (« Délier » dans Nextcloud, « Révoquer » dans AxiorHub). L'icône
 **AxiorHub Pilote** de la barre Nextcloud ouvre ensuite l'interface d'AxiorHub.
+
+Si le compte AxiorHub est protégé par la double authentification (moteur 5.6.88 ou ultérieur), saisissez aussi le code du moment ou un code de secours dans « Code de double authentification » ; il n'est ni conservé, ni journalisé. Laissez ce champ vide dans les autres cas.
 
 Si AxiorHub est sur le même serveur que Nextcloud et joint par une adresse locale (`http://127.0.0.1:…` du serveur), cochez « Moteur sur
 ce serveur (adresse locale) ».

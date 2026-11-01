@@ -1,5 +1,6 @@
 /* 0.3.0 : paramètres personnels « AxiorHub Pilote » — relier, tester et délier son compte AxiorHub.
-   Le mot de passe saisi part une seule fois vers le serveur Nextcloud, qui obtient la clé personnelle ; il n'est jamais conservé. */
+   Le mot de passe saisi (et, 0.4.4, le code de double authentification s'il est rempli) part une seule fois vers le serveur Nextcloud,
+   qui obtient la clé personnelle ; ils ne sont jamais conservés. */
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 import { t } from '@nextcloud/l10n'
@@ -13,7 +14,7 @@ const statusLinked = document.getElementById('axh-personal-status-linked')
 const REASONS = {
 	adresse_locale_requise: () => t('axiorhub_pilote', 'Enter an address of this computer: http://127.0.0.1:<port>, http://localhost:<port> or http://[::1]:<port>.'),
 	adresse_locale_invalide: () => t('axiorhub_pilote', 'This address is not valid.'),
-	identifiants_refuses: () => t('axiorhub_pilote', 'Login or password refused by AxiorHub.'),
+	identifiants_refuses: () => t('axiorhub_pilote', 'Linking refused by AxiorHub: check your login and password, and the two-factor authentication code if your account is protected.'),
 	trop_de_tentatives: () => t('axiorhub_pilote', 'Too many attempts: try again in 15 minutes.'),
 	application_nextcloud_non_autorisee: () => t('axiorhub_pilote', 'AxiorHub does not allow Nextcloud accounts yet: in AxiorHub, Settings › Connections › Nextcloud app, tick “Allow linking accounts from Nextcloud”.'),
 	integration_desactivee: () => t('axiorhub_pilote', 'AxiorHub does not allow Nextcloud accounts yet: in AxiorHub, Settings › Connections › Nextcloud app, tick “Allow linking accounts from Nextcloud”.'),
@@ -120,16 +121,22 @@ form?.addEventListener('submit', async (ev) => {
 	button.disabled = true
 	say(status, t('axiorhub_pilote', 'Linking…'))
 	try {
-		const { data } = await axios.post(api('/personal/link'), {
+		const payload = {
 			engineUrl: String(f.get('engineUrl') || ''), login: String(f.get('login') || ''), password: String(f.get('password') || ''),
 			allowLocal: f.get('allowLocal') === 'on',
-		})
+		}
+		const code = String(f.get('code') || '').trim()
+		if (code) {
+			payload.code = code
+		}
+		const { data } = await axios.post(api('/personal/link'), payload)
 		form.querySelector('input[name=password]').value = ''
 		say(status, t('axiorhub_pilote', 'Account linked: {user}.', { user: data.axiorhub_user }))
 		setTimeout(() => window.location.reload(), 900)
 	} catch (error) {
 		say(status, reason(error), true)
 	} finally {
+		form.querySelector('input[name=code]').value = ''   // 0.4.4 : un code ne sert qu'une fois, jamais gardé pour un nouvel essai
 		button.disabled = false
 	}
 })

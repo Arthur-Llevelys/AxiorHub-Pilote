@@ -1,0 +1,12 @@
+/* 5.6.88 : facturation — solde du dossier, contribution au chiffre d'affaires, paliers de relance, accusés de paiement */
+.f88-solde{margin:4px 0 0;font-size:.9375rem;font-weight:600}
+.f88-solde a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.f88-indicatif{margin:0 0 16px;padding:10px 14px;border-left:4px solid currentColor;border-radius:4px;background:var(--ax-soft,rgba(127,127,127,.12));color:inherit}
+.f88-filtre{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:0 0 16px}
+.f88-paliers{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0;padding:8px 12px;border:1px solid var(--ax-line,#d1d5db);border-radius:6px}
+.f88-paliers legend{padding:0 4px;font-size:.875rem}
+.f88-paliers label{min-width:7rem}
+.f88-parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:8px}
+.f88-accuse{padding:8px 0;border-top:1px solid var(--ax-line,#d1d5db)}
+.f88-accuse h4{margin:0 0 6px;font-size:.9375rem}
+.f88-accuses textarea{width:100%}

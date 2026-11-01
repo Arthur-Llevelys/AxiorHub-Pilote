@@ -6,10 +6,10 @@
   "regression": {
     "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
     "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
-    "total": 3243,
+    "total": 0,
     "failures": 0,
     "errors": 0,
-    "skipped": 134,
+    "skipped": 0,
     "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
   },
   "new_tests": "tests/test_v5687.py : sources écartées, nouveau contact, présentation, relance, mode à fournisseur unique. Fournisseurs simulés.",

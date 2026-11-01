@@ -21,11 +21,13 @@ FUNCTIONS = (
     ('courriels', 'communiquer', '/courriels', ('Messagerie', 'Boîte de réception', 'Brouillons'), ('mail',)),
     ('planning', 'communiquer', '/planning', ('Agenda', 'Calendrier'), ()),
     ('taches', 'communiquer', '/planning?vue=taches', ('Tâches', 'À faire'), ()),
+    ('mes_taches', 'communiquer', '/mes-taches', ('Mes tâches', 'Mes rappels', 'Tâches confiées', 'Responsable d’une tâche'), ()),   # 5.6.88
     ('talk', 'communiquer', '/talk', ('Nextcloud Talk', 'Visio', 'Visioconférence', 'Appel', 'Discussion'), ()),   # 5.6.43 (§ 22) : facultatif
     ('production', 'dossier', '/production', ('Produire', 'Livrables'), ('ai',)),
     ('documents', 'dossier', '/documents', ('Rédiger un document', 'Courrier'), ('storage', 'ai')),
     ('echeances', 'dossier', '/echeances', ('Délais', 'Échéances de procédure', 'Retrouver un délai'), ()),
     ('audience', 'dossier', '/audiences', ('Fiche d’audience', 'Plaidoirie', 'Audiences'), ('storage',)),
+    ('audiences_suivi', 'dossier', '/audiences?onglet=suivi', ('Suivi des audiences', 'Rôle d’audience', 'Audiences du cabinet', 'Audience sans avocat'), ()),   # 5.6.88
     ('audiences_word', 'dossier', '/audiences?onglet=preparer', ('Audiences et Word', 'Préparer la plaidoirie', 'Révision Word', 'Réviser un document'), ('storage', 'ai')),
     ('missions_complexes', 'dossier', '/missions-complexes', ('Assignation', 'Conclusions', 'Rédiger une assignation'), ('storage', 'ai')),
     ('pieces', 'dossier', '/pieces', ('Bordereau', 'Préparer un bordereau', 'Pièces numérotées'), ('storage',)),
@@ -49,7 +51,7 @@ FUNCTIONS = (
     ('engagements', 'communiquer', '/engagements', ('Engagements et suites', 'Promesses'), ('mail',)),
     ('accueil_administratif', 'communiquer', '/accueil-administratif', ('Accueil téléphonique', 'Twilio', 'WhatsApp'), ('telephony',)),
     ('contacts', 'communiquer', '/contacts', ('Correspondants',), ()),
-    ('contacts_crm', 'communiquer', '/contacts-crm', ('CRM', 'Clients', 'Parties adverses', 'Confrères', 'Intervenants', 'Répertoire', 'Opportunités', 'Prospects', 'Pipeline',
+    ('contacts_crm', 'communiquer', '/contacts-crm', ('CRM', 'Clients', 'Parties adverses', 'Confrères', 'Intervenants', 'Répertoire', 'Veille des sociétés', 'BODACC', 'Opportunités', 'Prospects', 'Pipeline',
                                                      'Suivi commercial', 'Nouveaux clients'), ()),   # 5.6.36 ; 5.6.76 : opportunités
     ('initiatives', 'communiquer', '/initiatives', ('Assistant proactif', 'Plan d’actions', 'Assignation reçue', 'Proactivité'), ('mail',)),
     ('associations', 'communiquer', '/associations', ('Associations proposées', 'Adresse et dossier'), ('mail',)),
@@ -60,7 +62,8 @@ FUNCTIONS = (
     ('facturation', 'temps', '/facturation', ('Honoraires et facturation', 'Facturation et honoraires', 'Factures', 'Devis', 'Convention d’honoraires', 'Lettre de mission', 'Avoir',
                                               'Facture électronique', 'Factur-X', 'Honorium', 'Chiffrer une mission'), ()),   # 5.6.53
     ('honoraires', 'temps', '/honoraires', ('Temps et honoraires', 'Diligences', 'Temps passés'), ()),
-    ('relances', 'temps', '/relances', ('Impayés', 'Relances', 'Invoice Ninja', 'Factures échues'), ('invoice',)),   # 5.6.36
+    ('relances', 'temps', '/relances', ('Impayés', 'Relances', 'Invoice Ninja', 'Factures échues', 'Accusé de paiement'), ()),   # 5.6.36 ; 5.6.88 : Invoice Ninja facultatif
+    ('contribution', 'temps', '/contribution', ('Contribution au chiffre d’affaires', 'Rétrocession', 'Rétrocessions', 'Collaborateurs', 'Relevé mensuel'), ()),   # 5.6.88
     ('rendez_vous', 'temps', '/rendez-vous', ('Rendez-vous',), ()),
     ('conflits', 'temps', '/conflits', ('Conflits d’intérêts',), ()),
     ('prescriptions', 'temps', '/prescriptions', ('Prescription', 'Forclusion'), ()),
@@ -95,6 +98,9 @@ FUNCTIONS = (
     ('evaluations', 'regler', '/evaluations', ('Banc juridique', 'Évaluations métier'), ('ai',)),
     ('securite_ia', 'regler', '/securite-ia', ('Sécurité de l’IA', 'Injection d’instructions', 'Instructions cachées'), ()),   # 5.6.59
     ('tracabilite', 'regler', '/tracabilite', ('Traçabilité', 'Données vues par le modèle'), ()),
+    ('mon_compte', 'regler', '/mon-compte', ('Mon compte', 'Double authentification', 'Code à six chiffres', 'Jetons d’API', '2FA', 'TOTP'), ()),   # 5.6.88
+    ('journal_audit', 'regler', '/parametres/journal-audit', ('Journal d’audit', 'Audit', 'Qui a fait quoi'), ()),   # 5.6.88
+    ('vue_ia', 'regler', '/parametres/ia-visible', ('Ce que l’IA peut voir', 'Accès de l’IA', 'Confidentialité de l’IA'), ()),   # 5.6.88
     ('qualite', 'regler', '/qualite', ('Qualité', 'Motifs de blocage'), ()),
     ('ecosysteme', 'regler', '/ecosysteme', ('Écosystème', 'Services du cabinet'), ()),
     ('administration', 'regler', '/administration', ('Administration', 'Raccourcis'), ()),
@@ -113,7 +119,7 @@ def capabilities(cfg):
     out = set()
     if mail.get('enabled', True) is not False and 'example.com' not in str(mail.get('host', 'example.com')):
         out.add('mail')
-    if nc.get('local_path') or 'example.com' not in str(nc.get('url', 'example.com')):
+    if nc.get('local_path') or nc.get('stockage_cloud') or 'example.com' not in str(nc.get('url', 'example.com')):
         out.add('storage')
     if (cfg.get('ollama') or {}).get('url') or (cfg.get('ai_gateway') or {}).get('providers'):
         out.add('ai')

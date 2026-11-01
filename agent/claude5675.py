@@ -311,11 +311,18 @@ def _current_user(db, env, auth):
 
 
 def _user_stamp(db, auth, user_id):
-    from . import connexion5648 as cx
+    from . import connexion5648 as cx, totp5688
     if int(user_id) == cx.ADMIN_ID:
-        return '' if cx.first_run(auth) else cx.admin_stamp(auth)
-    row = db.execute('SELECT * FROM users WHERE id=? AND active=1', (int(user_id),)).fetchone()
-    return cx._user_stamp(row) if row else ''
+        base, owner = '' if cx.first_run(auth) else cx.admin_stamp(auth), 'cabinet'
+    else:
+        row = db.execute('SELECT * FROM users WHERE id=? AND active=1', (int(user_id),)).fetchone()
+        base, owner = (cx._user_stamp(row), row['ident']) if row else ('', '')
+    # 5.6.88 : une autorisation donnée avant la double authentification (ou avant sa réinitialisation) ne vaut plus ; sans activation
+    # alors qu'elle est exigée, rien ne passe. Génération 0 : empreinte inchangée, les connexions existantes restent valables.
+    if not base or totp5688.need(db, owner) == 'activation':
+        return ''
+    gen = totp5688.generation(db, owner)
+    return hashlib.sha256(('%s|%d' % (base, gen)).encode()).hexdigest()[:24] if gen else base
 
 
 def authorize(db, env, auth, query, form):
@@ -372,6 +379,8 @@ def authorize(db, env, auth, query, form):
         return _redirect(prefix + '/connexion?' + urlencode({'suite': prefix + '/oauth/autoriser?demande=' + ident}))
     if user.get('must_change'):
         return _error_page(prefix, 'Changez d’abord votre mot de passe provisoire dans AxiorHub, puis relancez la connexion depuis Claude.', '403 Forbidden')
+    if user.get('activation_2fa'):   # 5.6.88 : double authentification exigée par le cabinet, pas encore activée sur ce compte
+        return _error_page(prefix, 'Activez d’abord la double authentification dans AxiorHub (Mon compte), puis relancez la connexion depuis Claude.', '403 Forbidden')
     imposed = setting(db, 'pseudo_impose')
     writing = setting(db, 'ecriture')
     if method != 'POST':
@@ -609,6 +618,7 @@ class Ctx:
         hidden = set(membres5650.hidden_for(state, self.owner, self.role)) | excluded_ids(desk)
         self.hidden = frozenset(hidden)
         membres5650.set_viewer(self.hidden)
+        membres5650.set_ai_denied(membres5650.ai_limits(state, self.owner, self.role) if self.owner != 'cabinet' else ())   # 5.6.88
         self.masque = Masque(desk, 'u:%s' % user['id'], self.pseudo)
         self.prefix = urls(auth)['prefix']
 
@@ -670,6 +680,17 @@ def _confidential(index, mid, path, text=''):
 
 
 # ------------------------------------------------------------------------------------------------ outils : lecture
+def _closed(ctx, category):
+    """5.6.88 : catégorie fermée à l'IA par le cabinet ou par les droits de la personne (« Ce que l'IA peut voir »)."""
+    from . import vueia5688
+    return vueia5688.blocked(ctx.desk, category)
+
+
+def _need(ctx, category):
+    if _closed(ctx, category):
+        raise Stop('categorie_fermee_a_l_ia')
+
+
 def t_dossiers(ctx, args):
     from .common import fold, matter_display
     wanted = fold(args.get('recherche', ''))
@@ -695,7 +716,8 @@ def t_fiche(ctx, args):
     from .legal_memory import memory_records, memory_summary
     m = _matter(ctx, args.get('dossier'))
     mid = m['id']
-    brief = ctx.desk.db.execute('SELECT data,created FROM case_briefs WHERE matter=? ORDER BY version DESC LIMIT 1', (mid,)).fetchone()
+    closed_docs, closed_agenda = _closed(ctx, 'documents'), _closed(ctx, 'agenda')   # 5.6.88 : rubriques fermées : ni lues ni transmises
+    brief = None if closed_docs else ctx.desk.db.execute('SELECT data,created FROM case_briefs WHERE matter=? ORDER BY version DESC LIMIT 1', (mid,)).fetchone()
     resume = {}
     if brief:
         try:
@@ -704,23 +726,24 @@ def t_fiche(ctx, args):
             resume = {}
     index = _index(ctx)
     docs = []
-    for path, modified, error in index.db.execute('SELECT path,modified,error FROM docs WHERE matter=? ORDER BY modified DESC LIMIT 40', (mid,)):
+    for path, modified, error in () if closed_docs else index.db.execute('SELECT path,modified,error FROM docs WHERE matter=? ORDER BY modified DESC LIMIT 40', (mid,)):
         docs.append({'nom': PurePosixPath(path).name, 'chemin': path, 'modifie': modified,
                      **({'confidentiel': 'correspondance confidentielle entre avocats : contenu non transmis'} if _confidential(index, mid, path) else {}),
                      **({'illisible': True} if error else {})})
-    tasks = [{'tache': r['title'], 'echeance': r['due'], 'etat': r['status']} for r in
-             ctx.desk.db.execute("SELECT * FROM tasks WHERE matter=? AND status NOT IN ('completed','cancelled') ORDER BY due LIMIT 30", (mid,))]
+    tasks = [] if closed_agenda else [{'tache': r['title'], 'echeance': r['due'], 'etat': r['status']} for r in
+                                      ctx.desk.db.execute("SELECT * FROM tasks WHERE matter=? AND status NOT IN ('completed','cancelled') ORDER BY due LIMIT 30", (mid,))]
     from . import echeances450
-    deadlines = [{'echeance': d.get('due', ''), 'nature': d.get('rule_label', ''), 'statut': d.get('status_label', '')}
-                 for d in echeances450.listing(ctx.desk, mid)][:20]
-    facts = [{'titre': r['title'], 'contenu': r['content'][:800], 'date': r['event_date'], 'statut': 'validé' if r['status'] in ('validated', 'pinned') else 'à valider'}
-             for r in memory_records(ctx.desk, mid, ['pinned', 'validated'], 30)]
+    deadlines = [] if closed_agenda else [{'echeance': d.get('due', ''), 'nature': d.get('rule_label', ''), 'statut': d.get('status_label', '')}
+                                          for d in echeances450.listing(ctx.desk, mid)][:20]
+    facts = [] if closed_docs else [{'titre': r['title'], 'contenu': r['content'][:800], 'date': r['event_date'], 'statut': 'validé' if r['status'] in ('validated', 'pinned') else 'à valider'}
+                                    for r in memory_records(ctx.desk, mid, ['pinned', 'validated'], 30)]
     return {'dossier': mid, 'nom': matter_display(m), 'client': m.get('client_name', ''), 'resume': resume, 'documents': docs, 'taches': tasks,
-            'echeances': deadlines, 'faits_valides': facts, 'memoire': memory_summary(ctx.desk, mid),
+            'echeances': deadlines, 'faits_valides': facts, 'memoire': {} if closed_docs else memory_summary(ctx.desk, mid),
             'avertissement': 'Fiche fondée sur les contenus indexés : vérifier les pièces originales.'}
 
 
 def t_chercher(ctx, args):
+    _need(ctx, 'documents')
     question = str(args.get('question') or '').strip()
     if not question or len(question) > 1000:
         raise Stop('recherche_requise_1000_caracteres_maximum')
@@ -733,8 +756,9 @@ def t_chercher(ctx, args):
     else:
         rows, _ = index.global_sources([question], limit=limit * 2)
     out, withheld = [], 0
+    closed_mail = _closed(ctx, 'courriels')   # 5.6.88 : les courriels indexés suivent la catégorie « Courriels »
     for r in rows:
-        if r['matter'] in ctx.hidden:
+        if r['matter'] in ctx.hidden or (closed_mail and str(r.get('kind') or '').startswith('email')):
             continue
         if index.source_confidential(r['matter'], r['source_id']):
             withheld += 1
@@ -771,9 +795,12 @@ def _document(ctx, path):
 
 
 def t_lire(ctx, args):
+    _need(ctx, 'documents')
     path = str(args.get('chemin') or '').strip()
     if not path or len(path) > 2000:
         raise Stop('chemin_requis')
+    if _closed(ctx, 'courriels') and _index(ctx).db.execute("SELECT 1 FROM knowledge_chunks WHERE path=? AND kind LIKE 'email%' LIMIT 1", (path,)).fetchone():
+        raise Stop('categorie_fermee_a_l_ia')
     doc = _document(ctx, path)
     start = max(0, int(args.get('debut') or 0))
     size = max(500, min(int(args.get('longueur') or 12000), 30000))
@@ -795,6 +822,7 @@ def t_a_decider(ctx, args):
 
 
 def t_echeances(ctx, args):
+    _need(ctx, 'agenda')
     from . import agenda5634, echeances450
     days = max(1, min(int(args.get('jours') or 30), 180))
     m = _matter(ctx, args.get('dossier'), required=False)
@@ -815,6 +843,7 @@ def t_echeances(ctx, args):
 
 
 def t_memoire(ctx, args):
+    _need(ctx, 'documents')   # 5.6.88 : faits tirés des pièces
     from .common import fold
     from .legal_memory import memory_records, timeline
     m = _matter(ctx, args.get('dossier'))
@@ -876,6 +905,7 @@ def t_brouillon(ctx, args):
     reply = None
     source = str(args.get('repondre_a') or '').strip()
     if source:
+        _need(ctx, 'courriels')   # 5.6.88 : répondre à un courriel, c'est le lire
         index = _index(ctx)
         row = index.db.execute("SELECT matter,meta FROM knowledge_chunks WHERE path=? AND kind='email_received' LIMIT 1", (source,)).fetchone()
         if not row or row[0] in ctx.hidden or row[0] not in {x['id'] for x in _matters(ctx)}:
@@ -1011,15 +1041,28 @@ NO_RESTORE = frozenset({'proposer_savoir_faire'})
 
 
 # 5.6.76 : opportunités et prospects (crm5676) — lecture, et propositions à valider dans AxiorHub (« À décider »)
+def t_situation(ctx, args):
+    """5.6.88 : registres publics, sans modèle ni donnée du cabinet : aucune catégorie de « Ce que l'IA peut voir » ne la coupe (``societe5688``)."""
+    from .societe5688 import pour_connecteur
+    data, noms = pour_connecteur(ctx.desk, args.get('siren', ''), args.get('nom', ''))
+    if ctx.masque.enabled:   # noms lus à l'instant : la pseudonymisation du compte les connaît ; un lien mènerait à la société : retiré
+        ctx.masque.ps.ajouter(noms)
+        for row in (data.get('alertes') or []) + (data.get('points') or []):
+            row.pop('lien', None)
+    return data
+
+
 def t_opportunites(ctx, args):
+    _need(ctx, 'contacts')   # 5.6.88 : prospects ; les montants suivent la catégorie « Factures et honoraires »
     from . import crm5676
+    fees = not _closed(ctx, 'factures')
     stages = [s for s in crm5676.OPEN] if not args.get('closes') else None
     rows = crm5676.listing(ctx.desk, stages, 300)
     out = [{'opportunite': r['id'], 'objet': r['title'], 'prospect': r['contact_label'], 'etape': r['stage_label'], 'matiere': r['domain'],
-            'honoraires_estimes': r['amount'] if r['amount_cents'] else '', 'source': r['source_label'], 'prochaine_action': r['next_action'],
+            'honoraires_estimes': r['amount'] if r['amount_cents'] and fees else '', 'source': r['source_label'], 'prochaine_action': r['next_action'],
             'le': r['next_date'], 'en_retard': r['overdue'], **({'dossier': r['matter']} if r['matter'] else {})} for r in rows]
     k = crm5676.indicators(ctx.desk)
-    return {'opportunites': out, 'indicateurs': {'en_cours': k['en_cours'], 'honoraires_en_cours': crm5676.euros(k['montant_en_cours_cents']),
+    return {'opportunites': out, 'indicateurs': {'en_cours': k['en_cours'], 'honoraires_en_cours': crm5676.euros(k['montant_en_cours_cents']) if fees else '',
                                                  'taux_transformation_pct': k['taux_transformation'], 'relances_echues': k['relances_echues']},
             'rappel': 'Les étapes, la recherche de conflits et l’ouverture du dossier se décident dans AxiorHub.'}
 
@@ -1098,6 +1141,9 @@ TOOLS = [
               'titre': {**S, 'maxLength': 200}, 'contenu': {**S, 'maxLength': 20000}, 'domaine': {**S, 'maxLength': 120},
               'objectif': {**S, 'maxLength': 1000}, 'limites': {**S, 'maxLength': 2000}, 'dossier': S},
              ('nature', 'titre', 'contenu')), t_savoir_propose, False),
+    ('situation_societe', 'Situation d’une société', 'À appeler avant de répondre sur une société : état, procédure collective, radiation, dernier dépôt de comptes, d’après le BODACC et l’annuaire public, '
+     'avec date et source. Lecture seule. « non_verifie » ne veut jamais dire « rien à signaler ». Plusieurs candidats : ne rien affirmer, demander le SIREN.',
+     _schema({'siren': {**S, 'maxLength': 20, 'description': 'SIREN ou SIRET.'}, 'nom': {**S, 'maxLength': 120, 'description': 'Dénomination, si le SIREN est inconnu.'}}), t_situation, True),
     ('opportunites', 'Opportunités et prospects', 'Suivi commercial du cabinet : opportunités en cours (prospect, objet, étape, honoraires estimés, '
      'prochaine action et date, retard) et indicateurs. « closes » : inclure les gagnées et perdues.',
      _schema({'closes': {'type': 'boolean'}}), t_opportunites, True),

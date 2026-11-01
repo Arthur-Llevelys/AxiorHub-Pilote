@@ -12,6 +12,7 @@ Principes communs aux cinq fonctions (temps et honoraires, rendez-vous, conflits
 from .common import matter_display
 from datetime import datetime, timezone
 import re
+import sqlite3
 
 from .common import Stop
 
@@ -79,16 +80,30 @@ CREATE TABLE IF NOT EXISTS report500_snapshots(
 '''
 
 
+def _migrate5688(desk):
+    """5.6.88 : personne qui a passé chaque temps. Les lignes antérieures gardent une valeur vide, affichée « Non attribué »."""
+    if 'author' in {r[1] for r in desk.db.execute('PRAGMA table_info(time500_entries)')}:
+        return
+    try:
+        desk.db.execute("ALTER TABLE time500_entries ADD COLUMN author TEXT NOT NULL DEFAULT ''")
+    except sqlite3.OperationalError as ex:
+        if 'duplicate column' not in str(ex):                 # deux processus au même instant : la colonne existe déjà
+            raise
+    desk.db.execute('CREATE INDEX IF NOT EXISTS time500_entries_author ON time500_entries(author, day)')
+
+
 def ensure_schema(desk):
     # Contrôle léger : ``executescript`` valide toute transaction en cours, il ne doit donc pas être rejoué à chaque appel
     # (journal d'accès, passage de conflits dans la file de travail…).
+    present = False
     try:
-        if desk.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='report500_snapshots'").fetchone():
-            return
+        present = bool(desk.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='report500_snapshots'").fetchone())
     except Exception:
         pass
-    desk.db.executescript(SCHEMA)
-    desk.db.commit()
+    if not present:
+        desk.db.executescript(SCHEMA)
+        desk.db.commit()
+    _migrate5688(desk)
 
 
 def now():

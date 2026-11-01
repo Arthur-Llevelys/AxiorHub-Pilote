@@ -145,6 +145,24 @@
       .forEach(([ok, label]) => p.append(el('span', (ok ? '✓ ' : '○ ') + label, 'ws-ai-check ' + (ok ? 'ok' : 'ko'))));
     return p;
   }
+  // 5.6.88 : carte de situation d'une société, même contenu que societe5688.carte_html ; textContent seulement, adresses https seulement
+  function societeCard(s) {
+    const labels = {alerte: 'Alerte', attention: 'À lire', non_verifie: 'Non vérifié', rien_trouve: 'Rien trouvé dans ces sources', incertaine: 'Identification incertaine', inconnue: 'Inconnue de l’annuaire'};
+    const box = el('section', undefined, 'so88-carte so88-v-' + s.verdict); box.setAttribute('aria-label', 'Situation de la société');
+    const h = el('h3', s.nom); if (s.siren) h.append(' ', el('small', 'SIREN ' + s.siren)); h.append(' ', el('span', labels[s.verdict] || s.verdict, 'so88-etat')); box.append(h);
+    const link = u => {if (!/^https:\/\//.test(u || '')) return null; const a = el('a', 'Voir la source'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; return a;};
+    if ((s.alertes || []).length) {
+      const ul = el('ul', undefined, 'so88-alertes'); ul.setAttribute('role', 'list');
+      s.alertes.forEach(a => {const li = el('li', a.texte + ' ', 'so88-' + a.niveau), u = link(a.lien); if (u) li.append(u); ul.append(li);}); box.append(ul);
+    }
+    if ((s.points || []).length) {
+      const dl = el('dl', undefined, 'so88-points');
+      s.points.forEach(p => {const row = el('div', undefined, 'so88-' + p.etat), dd = el('dd', p.texte + ' '), u = link(p.lien); dd.append(el('small', p.date || '')); if (u) dd.append(' ', u); row.append(el('dt', p.titre), dd); dl.append(row);});
+      box.append(dl);
+    }
+    return box;
+  }
+
   function card(m) {
     const c = el('article', undefined, 'mission567-card'); c.dataset.missionId = m.id;
     c.append(el('div', m.label, 'mission567-state'), el('h3', m.title || m.instruction));
@@ -153,6 +171,7 @@
     c.append(el('p', m.job?.progress || m.plan.deliverable, 'muted'));
     const r = m.result || {};
     if (r.text) {const d = el('details'); d.append(el('summary', 'Lire la réponse et ses sources'), el('pre', r.text)); c.append(d);}
+    (r.sources || []).filter(x => x && x.kind === 'situation_societe').forEach(x => c.append(societeCard(x)));   // 5.6.88 : contrôle posé par le logiciel
     if (m.choix_ia) {   // 5.6.82 : ce qui a été choisi et pourquoi, sans raisonnement interne
       const x = m.choix_ia, d = el('details', undefined, 'm82-choix');
       d.append(el('summary', 'Choix de l’IA'), el('p', x.modele + ' · effort ' + x.effort + (x.provisoire ? ' · choix provisoire, non encore mesuré au banc' : '')), el('p', x.raison),
@@ -204,7 +223,7 @@
       if (man.non_lus_total) ul.append(el('li', man.non_lus_total + ' fichier(s) du dossier non lu(s) : ' + (man.non_lus || []).slice(0, 8).join(', ') + (man.non_lus_total > 8 ? '…' : '')));
       m2.append(ul); d.append(m2);
     }
-    (r.sources || []).slice(0, 30).forEach(x => d.append(el('p', typeof x === 'string' ? x : JSON.stringify(x))));
+    (r.sources || []).filter(x => !(x && x.kind === 'situation_societe')).slice(0, 30).forEach(x => d.append(el('p', typeof x === 'string' ? x : JSON.stringify(x))));
     (r.notes || []).forEach(x => d.append(el('p', x, 'muted')));
     if (r.proof) d.append(el('p', 'Relecture : ' + r.proof)); c.append(d); return c;
   }

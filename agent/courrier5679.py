@@ -136,12 +136,20 @@ def run(desk, args, model=None):
             'destination_subfolder', '20_Actes_et_conclusions/90_AxiorHub_Brouillons')).strip('/'))
         if not under(folder, matter['path']) or folder == matter['path']:
             raise Stop('destination_word_invalide')
+        from . import cloud_nommage5688 as nommage   # 5.6.88 : règle du cabinet pour les courriers ; sans règle, le nom et le rangement habituels
+        naming = nommage.context_of(matter, titre=data['objet'])
+        folder = nommage.folder_for(desk, 'courrier', matter['path'], folder, naming)
         client.ensure_folder(folder, matter['path'])
         existing = {x['path']: x for x in client.list_folder(folder) if not x.get('directory')}
-        path = clean_path(folder + '/' + cd._name(matter['id'], date.today().isoformat(), existing))
-        if path in existing:
-            raise Stop('nom_fichier_deja_existant')
-        client.put_file(path, raw, cd.DOCX)
+        usual = cd._name(matter['id'], date.today().isoformat(), existing)
+        named = nommage.apply(desk, 'courrier', usual, naming)
+        if named != usual:
+            path = nommage.put_unique(client, folder, named, raw, cd.DOCX)
+        else:
+            path = clean_path(folder + '/' + usual)
+            if path in existing:
+                raise Stop('nom_fichier_deja_existant')
+            client.put_file(path, raw, cd.DOCX)
         desk.db.execute("UPDATE courriers5679 SET state='pret',path=?,error='',updated=? WHERE id=?", (path, _now(), ident))
         desk.db.commit()
         desk.audit('courrier5679_cree', {'matter': matter['id'], 'path': path, 'template_sha256': tpl['sha256']})

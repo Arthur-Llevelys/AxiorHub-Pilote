@@ -330,7 +330,7 @@ def _dav(desk):
     """Accès aux fichiers du cabinet (Nextcloud ou dossier local) ; message clair s'il n'est pas configuré."""
     from .dav import DAV
     cfg = desk.c.get('nextcloud') or {}
-    if not (cfg.get('url') or cfg.get('local_path')):
+    if not (cfg.get('url') or cfg.get('local_path') or cfg.get('stockage_cloud')):
         raise Stop('nextcloud_ou_dossier_local_a_configurer')
     return DAV(cfg)
 

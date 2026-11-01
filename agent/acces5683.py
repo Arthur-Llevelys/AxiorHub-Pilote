@@ -164,6 +164,9 @@ def read_mail(desk, question, matter='', hidden=(), voice=False, box=None, today
     start, end, label, explicit = period(question, today)
     terms = focus_terms(question)
     state = {'consultes': False, 'periode': label, 'du': start.isoformat(), 'au': end.isoformat(), 'trouves': 0, 'lus': 0}
+    from . import vueia5688   # 5.6.88 : contrôlé avant toute connexion à la boîte
+    if vueia5688.blocked(desk, 'courriels'):
+        return [], {**state, 'erreur': vueia5688.REFUSED}
     if not cfg.get('host'):
         return [], {**state, 'erreur': 'messagerie non configurée'}
     limits = LIMITS['voice' if voice else 'assistant']
@@ -238,6 +241,9 @@ def read_agenda(desk, question, matter='', hidden=(), today=None, owner='cabinet
     low, high = start.isoformat(), (end + timedelta(days=1)).isoformat()
     labels = _labels(desk)
     rows, state = [], {'consulte': False, 'periode': label, 'du': low, 'au': end.isoformat(), 'trouves': 0}
+    from . import vueia5688   # 5.6.88 : aucune ligne d'agenda lue si la catégorie est fermée
+    if vueia5688.blocked(desk, 'agenda'):
+        return [], {**state, 'refuse': vueia5688.REFUSED}
     fetched = None
     try:
         for r in desk.db.execute('SELECT title, location, starts, ends, matter FROM calendar_cache WHERE starts>=? AND starts<? ORDER BY starts LIMIT 200', (low, high)):
@@ -306,7 +312,9 @@ def limits_of(access):
         else:
             out.append('Courriels consultés (%s) : %d trouvé(s), %d lu(s)%s.' % (mail['periode'], mail.get('trouves', 0), mail.get('lus', 0), '' if mail.get('complet', True) else ', liste partielle'))
     agenda = access.get('agenda')
-    if agenda and not agenda.get('consulte'):
+    if agenda and agenda.get('refuse'):
+        out.append('Agenda non consulté : %s.' % agenda['refuse'])
+    elif agenda and not agenda.get('consulte'):
         out.append('Agenda non consulté : instantané indisponible.')
     elif agenda:
         out.append('Agenda consulté (%s) : %d élément(s)%s.' % (agenda['periode'], agenda.get('trouves', 0), ' ; dernier relevé ancien, à vérifier' if agenda.get('instantane_ancien') else ''))

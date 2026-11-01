@@ -101,6 +101,26 @@ def _documents(desk, mid):
 
 
 # ------------------------------------------------------------------------------------------------ en-tête
+def balance_html(desk, prefix, mid):
+    """5.6.88 : solde à jour, visible sur tous les onglets du dossier (le détail reste replié dans le bloc Honoraires). Relu à chaque affichage."""
+    from . import facturation5653 as fact, honoraires5653 as fees
+    if fact.fees_hidden():                                    # droit fin « voir les honoraires » : rien, pas même la mention du solde
+        return ''
+    try:
+        b = fact.matter_balance(desk, mid)
+    except Exception:   # noqa: BLE001 — jamais une panne de la page du dossier ; ni un faux « rien à payer »
+        log.exception('dossier5679 : solde')
+        return '<p class="f88-solde ax-muted">Solde du dossier : lecture impossible pour l’instant.</p>'
+    if b['factures']:
+        text = ('Trop-perçu : %s' % fees.fmt(-b['solde_cents'])) if b['solde_cents'] < 0 else (
+            'Solde dû : %s' % fees.fmt(b['solde_cents']) if b['solde_cents'] else 'Solde : à jour, rien à régler')
+    else:
+        text = 'Solde : aucune facture émise'
+    if b['ninja']:
+        text += ' · Invoice Ninja, impayés connus : %s (à part)' % fees.fmt(b['ninja']['impayes_cents'])
+    return '<p class="f88-solde"><a href="%s">%s</a></p>' % (e(prefix + '/facturation?' + urlencode({'vue': 'documents', 'q': str(mid)}), quote=True), e(text))
+
+
 def header_html(desk, prefix, m, view):
     from . import modele5651
     from .pause5629 import is_paused
@@ -131,7 +151,7 @@ def header_html(desk, prefix, m, view):
     running = '<span class="d51-running" role="status">⏳ Analyse en cours</span>' if st['running'] else ''
     return ('<div class="d27 d51 d79" data-d27-matter="%s" data-d79-matter="%s"><nav class="d27-back"><a href="%s">← Tous les dossiers</a></nav>'
             '<header class="d79-head"><div class="d79-title"><h1>%s</h1><p class="d79-meta">%s</p>'
-            '<p class="d79-state"><span class="d51-state d51-state-%s">%s</span> <span class="ax-muted">%s</span>%s</p></div>'
+            '<p class="d79-state"><span class="d51-state d51-state-%s">%s</span> <span class="ax-muted">%s</span>%s</p>' + balance_html(desk, prefix, mid).replace('%', '%%') + '</div>'
             '<div class="d79-actions">%s'
             '<form class="m5-form d51-inline" data-api="m5651/analyser" data-reload><input type="hidden" name="matter" value="%s">'
             '<button class="ax-btn ghost" type="submit" title="Reconstruit parties, procédures, documents et informations à partir des lectures déjà faites (sans IA)">'
@@ -600,6 +620,10 @@ def travail_html(desk, auth, prefix, m, args):
         except Exception:   # noqa: BLE001
             log.exception('dossier5679 : %s', label)
     out += '<details class="d79-fold"%s><summary>Relecture Word, honoraires, signature et envois</summary>%s</details>' % (' open' if args.get('relecture') else '', tools)
+    from .societe5688 import matter_block_html as _societes   # 5.6.88 : sociétés reliées au dossier ; contrôle à la demande
+    societes = _safe('Situation des sociétés', _societes, desk, prefix, mid, args)
+    if societes:
+        out += '<details class="d79-fold"%s><summary>Situation des sociétés du dossier</summary>%s</details>' % (' open' if args.get('situation') else '', societes)
     out += '<details class="d79-fold"><summary>Documents préparés et échanges avec l’agent</summary>%s</details>' % _safe(
         'Documents préparés', dossier5627.travaux_html, desk, prefix, m)
     return out

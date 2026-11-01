@@ -56,7 +56,7 @@ class Fake:
         return Client()
 
 
-SECRETS = {'api_key': 'cle-fictive-123456', 'token': 'jeton-fictif-123456', 'private_key': 'cle-privee-fictive', 'client_secret': 'secret-fictif-123456',
+SECRETS = {'username': 'compte-inpi-fictif', 'api_key': 'cle-fictive-123456', 'token': 'jeton-fictif-123456', 'private_key': 'cle-privee-fictive', 'client_secret': 'secret-fictif-123456',
            'api_token': 'jeton-societe-fictif', 'access_token': 'sandbox_jeton_fictif', 'password': 'mot-de-passe-fictif', 'technical_password': 'mdp-technique-fictif'}
 PARAMS = {'sender_account': 'expediteur@example.test', 'client_id': 'client-fictif-abcdef', 'account_id': 'compte-fictif', 'company_id': '42',
           'username': 'compte@example.test', 'technical_login': 'TECH_FICTIF', 'tenant': 'common'}
@@ -90,6 +90,7 @@ def ar24_route(payload):
 def install_identity_routes(fake):
     fake.on('GET', 'sandbox.ar24.fr/api/user', ar24_route({'id': 7, 'email': 'expediteur@example.test', 'company': 'Cabinet fictif'}))
     fake.on('GET', '/signature_requests?limit=1', {'data': []})
+    fake.on('POST', 'registre-national-entreprises.inpi.fr/api/sso/login', {'token': 'jeton-inpi-fictif'})
     fake.on('POST', 'oauth/token', {'access_token': 'jeton-piste-fictif', 'expires_in': 3600})
     fake.on('POST', '/consult/getArticle', {'article': {'id': 'LEGIARTI000032041571', 'num': '1240', 'etat': 'VIGUEUR', 'texte': 'Tout fait quelconque…'}})
     fake.on('POST', 'lf-engine-app/search', {'results': [{'titles': [{'title': 'Code civil'}], 'sections': [{'extracts': [{'id': 'LEGIARTI000032041571', 'num': '1240'}]}]}]})
@@ -155,7 +156,7 @@ class Base(unittest.TestCase):
 # ---------------------------------------------------------------------------------------------------- connexions
 class Connections(Base):
     def test_quinze_fournisseurs_test_reel_simule_et_aucun_secret_renvoye(self):
-        self.assertEqual(len(cx.PROVIDERS), 15)
+        self.assertEqual(len(cx.PROVIDERS), 16)                                                  # 5.6.88 : + INPI, registre national des entreprises
         for pid in cx.PROVIDERS:
             oauth = bool(cx.PROVIDERS[pid].get('oauth'))
             view = self.connect(pid, oauth)
@@ -454,6 +455,8 @@ CASES = [
      [('POST', '/me/messages', {'id': 'm1'})], 'Authorization'),
     ('microsoft_graph', 'contacts.read', {}, ('GET', '/me/contacts'), [('GET', '/me/contacts', {'value': []})], 'Authorization'),
     ('google_workspace', 'calendar.read', {}, ('GET', '/calendar/v3/calendars/primary/events'), [('GET', '/calendar/v3/', {'items': []})], 'Authorization'),
+    ('google_workspace', 'calendar.write', {'action': 'creer', 'id': 'a5688fictif', 'corps': {'summary': 'Audience AxiorHub'}}, ('POST', '/calendar/v3/calendars/primary/events?sendUpdates=none'),
+     [('POST', '/calendar/v3/', {'id': 'a5688fictif'})], 'Authorization'),
     ('google_workspace', 'mail.read', {}, ('GET', 'gmail.googleapis.com/gmail/v1/users/me/messages'), [('GET', 'gmail/v1/users/me/messages', {'messages': []})],
      'Authorization'),
     ('google_workspace', 'mail.create_draft', {'subject': 'Objet', 'body': 'Texte', 'to': ['a@example.test']}, ('POST', 'gmail/v1/users/me/drafts'),
@@ -461,6 +464,10 @@ CASES = [
     ('google_workspace', 'documents.export', {'id': 'f1'}, ('GET', '/drive/v3/files/f1/export'),
      [('GET', '/drive/v3/files/f1?fields', {'id': 'f1', 'name': 'Note', 'mimeType': 'application/vnd.google-apps.document', 'version': '3'}),
       ('GET', '/drive/v3/files/f1/export', b'%PDF')], 'Authorization'),
+    ('inpi_rne', 'registre.documents', {'siren': '123456782'}, ('GET', 'registre-national-entreprises.inpi.fr/api/companies/123456782/attachments'),
+     [('GET', '/attachments', {'actes': [], 'bilans': []})], 'Authorization'),
+    ('inpi_rne', 'registre.telecharger', {'nature': 'acte', 'id': 'acte-1'}, ('GET', 'registre-national-entreprises.inpi.fr/api/actes/acte-1/download'),
+     [('GET', '/api/actes/acte-1/download', b'%PDF-1.4 fictif')], 'Authorization'),
     ('axonaut', 'crm.lookup', {'siret': '00000000000000'}, ('GET', '/api/v2/companies?siret='), [('GET', '/api/v2/companies?', [{'id': 1, 'name': 'Alpha'}])], 'userApiKey'),
     ('axonaut', 'billing.prepare_when_supported', {'quotation': {'company_id': 1}}, ('POST', '/api/v2/quotations'), [('POST', '/api/v2/quotations', {'id': 4})], 'userApiKey'),
 ]
@@ -479,7 +486,7 @@ class EveryCapability(Base):
             self.fake.calls.clear()
             out = adapter.call(cap, params)
             self.assertIsInstance(out, dict, (provider, cap))
-            business = [c for c in self.fake.calls if not any(w in urllib.parse.urlsplit(c[1]).path for w in ('oauth', 'token', 'userinfo'))]
+            business = [c for c in self.fake.calls if not any(w in urllib.parse.urlsplit(c[1]).path for w in ('oauth', 'token', 'userinfo', 'sso/login'))]
             self.assertTrue(any(c[0] == method and fragment in c[1] for c in business), (provider, cap, [c[:2] for c in business]))
             self.assertTrue(all(header in c[3] for c in business), (provider, cap, header))
             for secret in SECRETS.values():

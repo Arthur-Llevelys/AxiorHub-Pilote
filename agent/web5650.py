@@ -63,7 +63,7 @@ def messagerie_page(desk, auth, prefix, env, args):
         '<section class="m50-main" id="m50-main"><header class="m50-head"><h2 id="m50-title">…</h2><p class="m50-people" id="m50-people"></p>'
         '<div class="m50-tools" id="m50-tools"></div></header><ol class="m50-messages" id="m50-messages" aria-live="polite"></ol>'
         '<form class="m50-compose" id="m50-compose"><label for="m50-text" class="m50-sr">Votre message</label>'
-        '<textarea id="m50-text" rows="3" maxlength="8000" required placeholder="Écrire un message… (@identifiant pour mentionner)"></textarea>'
+        '<textarea id="m50-text" rows="3" maxlength="8000" required data-mention data-matter="' + e(str(args.get('dossier') or ''), quote=True) + '" placeholder="Écrire un message… (@identifiant pour mentionner)"></textarea>'
         '<button class="ax-btn" type="submit">Envoyer</button><p role="status" class="m50-status" id="m50-status"></p></form></section>')
     body = ('<div class="m50"><h1>Messagerie du cabinet</h1><p class="ax-muted">Conversations entre membres du cabinet, sur le serveur du cabinet. '
             'L’agent peut y déposer des avis ; il ne lit pas les conversations.</p>'
@@ -113,6 +113,13 @@ def matter_card(desk, auth, prefix, mid, role, me):
                 '</section>') % (e(state), e(prefix + '/messagerie?dossier=' + mid, quote=True))
     except Exception:   # noqa: BLE001 — la page du dossier ne dépend pas de la messagerie
         card = ''
+    try:   # 5.6.88 : note commune et faits à retenir de ce dossier
+        from . import memoire5688, notes5688
+        from .membres5650 import hidden_for
+        hidden = hidden_for(desk.c['state_dir'], me, role)
+        card = notes5688.card_html(desk, mid, hidden) + memoire5688.panel_html(desk, me, mid, hidden) + card
+    except Exception:   # noqa: BLE001 — la page du dossier ne dépend pas de ces blocs
+        pass
     return card + access_card(desk, auth, prefix, mid, role)
 
 

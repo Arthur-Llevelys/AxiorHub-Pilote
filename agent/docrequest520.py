@@ -350,7 +350,7 @@ def _without_confidential(ctx, kind):
     return ctx
 
 
-def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None):
+def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None, controle=None):
     task = ('Réécris intégralement le document ci-dessous selon la demande de modification, en conservant ce qui n’est pas visé.'
             if previous_text else 'Rédige le document demandé.')
     ctx = _without_confidential(ctx, kind)   # 5.6.64 : art. 66-5
@@ -358,6 +358,9 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None):
     if legal:   # 5.6.49 : textes et décisions trouvés par les connecteurs juridiques avant la rédaction
         from .juridique5649 import for_model
         payload.update(for_model(legal))
+    if controle:   # 5.6.88 : situation des sociétés citées : à prendre en compte, sans la reproduire dans le document
+        from .societe5688 import pour_modele
+        payload.update(pour_modele(controle, 'tiers'))
     if matter_id:   # 5.6.29 : consignes permanentes de l'avocat pour ce dossier
         from .pause5629 import consignes
         if consignes(desk, matter_id):
@@ -670,8 +673,11 @@ def run(desk, args, dav=None):
     legal = juridique5649.research(desk, matter['id'], row['request'], 'document')
     if juridique5649.summary(legal):
         notes.append(juridique5649.summary(legal))
+    from . import societe5688   # 5.6.88 : le contrôle va dans la fiche de contrôle, jamais dans le document
+    controle = societe5688.avant(desk, row['request'], matter['id'], 'document')
+    notes.extend(societe5688.notes_internes(controle))
     try:
-        doc = draft(desk, row['request'], row['kind'], ctx, previous_text, matter['id'], legal)
+        doc = draft(desk, row['request'], row['kind'], ctx, previous_text, matter['id'], legal, controle)
     except Exception as ex:
         detail = getattr(ex, 'detail', None) or {}
         if detail.get('precision'):   # 5.6.42 (F05) : la cause précise (instantané introuvable…) est conservée dans l'état du travail

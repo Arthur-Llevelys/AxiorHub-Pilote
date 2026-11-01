@@ -55,11 +55,14 @@ def _mail_model(desk, matter_id=''):
     return Model(cfg)
 
 
-def compose(desk, instruction, matter, ctx):
+def compose(desk, instruction, matter, ctx, controle=None):
     from .cabinet560 import writer_intro
     from .assistant567 import drafting_preferences
     model = _mail_model(desk, matter['id'] if matter else '')
     payload = {'demande': instruction, 'dossier': ctx or {}, 'preferences': drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))}
+    if controle:   # 5.6.88 : situation des sociétés citées, pour l'avocat ; rien de cela dans le corps
+        from .societe5688 import pour_modele
+        payload.update(pour_modele(controle, 'tiers'))
     try:
         from .learning410 import applicable_context
         rules = [r['instruction'] for r in applicable_context(desk, matter['id'] if matter else '', 'mail_drafting', record=True)['rules']][:20]
@@ -76,6 +79,8 @@ def compose(desk, instruction, matter, ctx):
                          temperature=0, max_tokens=3000, json_schema=SCHEMA_OUT)
     out = json.loads(raw)
     subject, body = re.sub(r'[\r\n]+', ' ', str(out.get('objet') or '')).strip()[:200], str(out.get('corps') or '').strip()
+    from .societe5688 import retirer_du_corps
+    body = retirer_du_corps(body)
     if not subject or not body or len(body) > 12000:
         raise Stop('courriel_vide_ou_trop_long')
     if re.search(r'<script|BEGIN.*PRIVATE KEY', body, re.I):
@@ -233,7 +238,10 @@ def perform(desk, args, box=None):
         draft = {'subject': previous.get('subject', ''), 'to_complete': previous.get('to_complete', []), 'sources': previous.get('sources', [])}
         result = {k: v for k, v in previous.items() if k != 'error'}
     else:
-        draft = compose(desk, instruction, matter, ctx)
+        from . import societe5688   # 5.6.88 : fiche de contrôle seulement, jamais le corps
+        controle = societe5688.avant(desk, instruction, matter['id'] if matter else '', 'courriel')
+        notes.extend(societe5688.notes_internes(controle))
+        draft = compose(desk, instruction, matter, ctx, controle)
         msg = build_message(cfg, ident, draft['subject'], draft['body'], draft['to_complete'])
         import base64
         result = {'subject': draft['subject'], 'to_complete': draft['to_complete'], 'sources': draft['sources'], 'notes': notes,

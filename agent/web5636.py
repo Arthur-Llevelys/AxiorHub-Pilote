@@ -49,7 +49,10 @@ def api(env, desk, auth, prefix, name, args, method):
         from . import talk5643
         return json_out(talk5643.save(desk, owner, data) if route == 'talk/enregistrer' else talk5643.test(desk, data, env))
     if route in ('comptes/recuperation', 'comptes/ajouter', 'comptes/modifier'):   # 5.6.48 : comptes de la version serveur
-        if role != 'administrateur':
+        from . import membres5650
+        # 5.6.88 : le droit « gérer les comptes » ouvre la création et la modification, jamais l'adresse de l'administrateur
+        delegated = role != 'administrateur' and route != 'comptes/recuperation' and membres5650.can_manage_accounts(desk.c['state_dir'], owner, role)
+        if role != 'administrateur' and not delegated:
             raise Stop('role_insuffisant')
         from . import connexion5648
         if not connexion5648.enabled(auth):
@@ -60,8 +63,8 @@ def api(env, desk, auth, prefix, name, args, method):
                 saved = connexion5648.set_admin_email(db48, data.get('email'))
                 return json_out({'message': ('Adresse de récupération enregistrée : %s.' % saved) if saved else 'Adresse de récupération retirée.'})
             if route == 'comptes/ajouter':
-                return json_out(connexion5648.add_user(db48, owner, data))
-            return json_out(connexion5648.update_user(db48, owner, data))
+                return json_out(connexion5648.add_user(db48, owner, data, delegated))
+            return json_out(connexion5648.update_user(db48, owner, data, delegated))
         finally:
             db48.close()
     if route == 'compte/mot-de-passe':   # 5.6.42 : identifiant et mot de passe de l'interface (administrateur)

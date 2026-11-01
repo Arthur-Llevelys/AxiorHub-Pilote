@@ -3,6 +3,26 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.88 — Sécurité des comptes, sauvegarde, temps par personne, audiences, veille des sociétés, stockage cloud
+
+Version fonctionnelle. Aucun réglage existant ne change : les nouvelles fonctions sont facultatives ou désactivées tant que le cabinet ne les a pas choisies. Les services extérieurs (Google, Microsoft, Dropbox, plateformes de facturation, INPI) n’ont été exercés que par des simulations.
+
+- **Comptes** : double authentification par application, codes de secours, option cabinet pour l’exiger ; jetons d’API par personne, avec portée, expiration et trace ; droits fins pour exporter, supprimer, valider un modèle, transmettre une facture, gérer les comptes et voir les honoraires.
+- **Journal d’audit** : écran réservé à l’administrateur, avec filtres, auteur, export et état de vérification de la chaîne.
+- **Ce que l’IA peut voir** : réglage par catégorie pour la conversation, la voix, les missions, les outils de connexions et le connecteur Claude. Le tri des courriels et l’analyse des pièces en arrière-plan n’en dépendent pas : la page le dit.
+- **Sauvegarde automatique chiffrée** : quotidienne, avec un second emplacement WebDAV ou compatible S3 si l’administrateur l’autorise, rétention réglable, contrôle d’une archive, alerte dans Aujourd’hui.
+- **Export intégral** : archive en formats ouverts, avec manifeste d’empreintes vérifiable, sans secret.
+- **Temps par personne et contribution au chiffre d’affaires** : relevé mensuel indicatif, clés de rétrocession, calcul exact au centime.
+- **Relances sur les factures internes**, accusé de paiement préparé, solde en tête du dossier, relevé automatique de l’état des factures électroniques. Rien n’est envoyé ni transmis sans décision humaine.
+- **Audiences** : fiche avec juridiction, chambre, avocat et notes ; copie vers Outlook et Google avec mise à jour et annulation, sans écraser une modification distante.
+- **Tâches** : responsable, échéance, rappel, statut ; création depuis un dossier, une audience ou un courriel ; page « Mes tâches », liste du matin par personne, rappels à J-7 et J-1.
+- **CRM** : recherche unique Ctrl+K sur les dossiers, contacts, factures, documents et courriels ; fiche remplie depuis les registres publics ; veille BODACC des sociétés suivies ; tableau de bord personnel ; note commune de dossier avec versions et mentions ; mémoire proposée après chaque échange, à valider.
+- **Contrôle d’une société** : quand une question porte sur une société identifiée, le logiciel lit le BODACC et l’annuaire public avant de répondre, et signale lui-même une procédure collective, une radiation ou une absence de dépôt publié. Sur un dossier et avec un compte INPI du cabinet, les statuts et actes récents rejoignent le dossier.
+- **Application Nextcloud 0.4.4** : champ de code pour relier un compte protégé par la double authentification.
+- **Stockage des documents** : Google Drive, SharePoint ou OneDrive, Dropbox, en plus de Nextcloud, avec copie contrôlée, règles de nommage et cloisonnement des dossiers réservés sur confirmation. Nextcloud reste le stockage par défaut.
+
+Correctifs : recherche Ctrl+K ouverte en double ; `Stop` non importé sur la page des droits ; test instable de l’éditeur.
+
 ## 5.6.87 — Réponses utiles aux nouveaux contacts, relance avec une autre IA, traitement plus robuste
 
 Correctif. Une réponse à un courriel sans dossier se limitait à des marqueurs : l’IA n’avait le droit d’utiliser que le courriel lui-même et ne savait rien du cabinet.

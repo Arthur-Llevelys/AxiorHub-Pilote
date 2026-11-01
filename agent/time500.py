@@ -32,6 +32,7 @@ KIND_LABELS = {'courriel_recu': 'Courriel reçu', 'courriel_envoye': 'Courriel e
                'rendez_vous': 'Rendez-vous'}
 ACCEPTED_LINKS = ('automatic', 'confirmed')
 ALERT_LEVELS = {'proche': 'Budget bientôt atteint', 'depasse': 'Budget dépassé'}
+NOT_ATTRIBUTED = 'Non attribué'   # 5.6.88 : temps antérieurs à la colonne « author », ou sans personne désignée
 
 
 # ----------------------------------------------------------------------------------------------- barème
@@ -301,8 +302,27 @@ def _amount(minutes, rate_cents):
     return int(round(minutes * rate_cents / 60.0))
 
 
-def validate(desk, pid, minutes=None, label='', rate=None):
+def clean_author(value):
+    """Identifiant de compte de la personne (annuaire ``membres5650``) ; vide : « Non attribué »."""
+    return re.sub(r'[\x00-\x1f\x7f]+', '', str(value or '')).strip()[:120]
+
+
+def person_label(people, author):
+    if not author:
+        return NOT_ATTRIBUTED
+    member = (people or {}).get(author) or {}
+    return str(member.get('name') or author)
+
+
+def _insert_entry(desk, verb, entry_id, matter, day, minutes, rate_cents, label, origin, proposal_id, author):
+    desk.db.execute(verb + ' INTO time500_entries(id,matter,day,minutes,rate_cents,amount_cents,label,origin,proposal_id,validated_at,created,author) '
+                    'VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', (entry_id, matter, str(day), minutes, rate_cents, _amount(minutes, rate_cents), label, origin, proposal_id,
+                                                        m5.now(), m5.now(), clean_author(author)))
+
+
+def validate(desk, pid, minutes=None, label='', rate=None, author=''):
     """Validation explicite par l'avocat : seul chemin qui transforme une estimation en temps enregistré."""
+    m5.ensure_schema(desk)
     row = desk.db.execute("SELECT * FROM time500_proposals WHERE id=? AND status='a_valider'", (pid,)).fetchone()
     if not row:
         raise Stop('proposition_absente_ou_traitee')
@@ -316,9 +336,8 @@ def validate(desk, pid, minutes=None, label='', rate=None):
     t = terms(desk, row['matter'])
     rate_cents = m5.cents(rate) if rate not in (None, '') else t['rate_cents']
     entry_id = digest('time500-entry|' + pid)
-    desk.db.execute('INSERT OR REPLACE INTO time500_entries VALUES(?,?,?,?,?,?,?,?,?,?,?)',
-                    (entry_id, row['matter'], row['day'], chosen, rate_cents, _amount(chosen, rate_cents),
-                     str(label or 'Temps validé')[:200], 'proposition_validee', pid, m5.now(), m5.now()))
+    _insert_entry(desk, 'INSERT OR REPLACE', entry_id, row['matter'], row['day'], chosen, rate_cents, str(label or 'Temps validé')[:200],
+                  'proposition_validee', pid, author)
     desk.db.execute("UPDATE time500_proposals SET status='valide', decided=? WHERE id=?", (m5.now(), pid))
     desk.db.commit()
     desk.audit('temps_500_valide', {'matter': row['matter'], 'minutes': chosen, 'modified': chosen != row['minutes_est']})
@@ -336,7 +355,7 @@ def reject(desk, pid, note=''):
     return {'rejected': True}
 
 
-def add_manual(desk, matter, day, minutes, label='', rate=None):
+def add_manual(desk, matter, day, minutes, label='', rate=None, author=''):
     """Saisie à la main : c'est l'avocat qui saisit, donc la valeur est validée d'emblée."""
     m5.ensure_schema(desk)
     m5.require_matter(desk, matter)
@@ -350,13 +369,80 @@ def add_manual(desk, matter, day, minutes, label='', rate=None):
     t = terms(desk, matter)
     rate_cents = m5.cents(rate) if rate not in (None, '') else t['rate_cents']
     entry_id = digest('time500-manual|%s|%s|%s|%s' % (matter, day, minutes, m5.now()))
-    desk.db.execute('INSERT INTO time500_entries VALUES(?,?,?,?,?,?,?,?,?,?,?)',
-                    (entry_id, matter, str(day), minutes, rate_cents, _amount(minutes, rate_cents), str(label or 'Temps saisi')[:200],
-                     'saisie_manuelle', '', m5.now(), m5.now()))
+    _insert_entry(desk, 'INSERT', entry_id, matter, day, minutes, rate_cents, str(label or 'Temps saisi')[:200], 'saisie_manuelle', '', author)
     desk.db.commit()
     desk.audit('temps_500_saisi', {'matter': matter, 'minutes': minutes})
     m5.log_access(desk, 'honoraires', 'temps_saisi', matter)
     return {'entry_id': entry_id, 'amount_cents': _amount(minutes, rate_cents), 'rate_missing': rate_cents <= 0}
+
+
+def set_author(desk, entry_id, author, actor=''):
+    """Attribuer ou corriger la personne d'un temps (droit « facturation », comme toute écriture ``m500/time/``) ; tracé dans le journal."""
+    m5.ensure_schema(desk)
+    row = desk.db.execute('SELECT matter,author FROM time500_entries WHERE id=?', (str(entry_id),)).fetchone()
+    if not row:
+        raise Stop('temps_absent')
+    author = clean_author(author)
+    desk.db.execute('UPDATE time500_entries SET author=? WHERE id=?', (author, str(entry_id)))
+    desk.db.commit()
+    desk.audit('temps_5688_personne', {'matter': row['matter'], 'avant': row['author'], 'apres': author, 'par': str(actor)[:80]})
+    m5.log_access(desk, 'honoraires', 'temps_attribue', row['matter'])
+    return {'author': author}
+
+
+def sees_all(desk, owner, role):
+    """Voir les temps des autres = droits « Facturation et temps passé » et « Voir les honoraires » (rôle puis réglage du compte). Registre illisible : non."""
+    if role == 'administrateur':
+        return True
+    from .membres5650 import effective_rights
+    try:
+        rights = effective_rights(desk.c['state_dir'], owner, role)
+        return bool(rights.get('facturation') and rights.get('voir_honoraires', True))
+    except Stop:
+        return False
+
+
+def restricted_to(desk, viewer):
+    """Compte dont les lignes de temps sont seules visibles ; None : toutes (droit « facturation », ou appel interne sans utilisateur)."""
+    if viewer is None or sees_all(desk, viewer[0], viewer[1]):
+        return None
+    return str(viewer[0])
+
+
+def entries(desk, matter='', author=None, since='', until='', viewer=None):
+    """Temps validés filtrés (dossier, personne, période), dans la limite des droits du compte ; dossiers réservés exclus (``load_matters``)."""
+    m5.ensure_schema(desk)
+    sql, params = 'SELECT * FROM time500_entries WHERE 1=1', []
+    if matter:
+        sql += ' AND matter=?'
+        params.append(str(matter))
+    if author is not None:                                    # '' : les temps non attribués
+        sql += ' AND author=?'
+        params.append(str(author))
+    only = restricted_to(desk, viewer)
+    if only is not None:
+        sql += ' AND author=?'
+        params.append(only)
+    for clause, value in ((' AND day>=?', since), (' AND day<=?', until)):
+        if value:
+            try:
+                date.fromisoformat(str(value))
+            except ValueError:
+                raise Stop('date_invalide') from None
+            sql += clause
+            params.append(str(value))
+    known = m5.matter_index(desk)
+    return [dict(r) for r in desk.db.execute(sql + ' ORDER BY day DESC, created DESC', params) if r['matter'] in known]
+
+
+def by_person(rows):
+    """Totaux par personne d'une liste de temps : [{'author', 'minutes', 'amount_cents'}], « Non attribué » en dernier."""
+    totals = {}
+    for r in rows:
+        t = totals.setdefault(r.get('author') or '', {'author': r.get('author') or '', 'minutes': 0, 'amount_cents': 0})
+        t['minutes'] += int(r['minutes'])
+        t['amount_cents'] += int(r['amount_cents'])
+    return sorted(totals.values(), key=lambda x: (not x['author'], x['author']))
 
 
 def cancel_entry(desk, entry_id, reason):
@@ -585,12 +671,13 @@ def alerts_now(desk):
     return out
 
 
-def export_entries(desk, matter):
-    s = summary(desk, matter)
+def export_entries(desk, matter, viewer=None):
+    m5.require_matter(desk, matter)
+    rows = entries(desk, matter, viewer=viewer)               # 5.6.88 : mêmes droits que l'écran
     out = io.StringIO()
     w = csv.writer(out, delimiter=';')
-    w.writerow(['dossier', 'date', 'minutes', 'taux_horaire_ht', 'montant_ht', 'origine', 'libelle'])
-    for e in sorted(s['entries'], key=lambda x: x['day']):
-        w.writerow([matter, e['day'], e['minutes'], '%.2f' % (e['rate_cents'] / 100), '%.2f' % (e['amount_cents'] / 100), e['origin'], e['label']])
+    w.writerow(['dossier', 'date', 'minutes', 'taux_horaire_ht', 'montant_ht', 'origine', 'libelle', 'personne'])
+    for e in sorted(rows, key=lambda x: x['day']):
+        w.writerow([matter, e['day'], e['minutes'], '%.2f' % (e['rate_cents'] / 100), '%.2f' % (e['amount_cents'] / 100), e['origin'], e['label'], e.get('author') or NOT_ATTRIBUTED])
     m5.log_access(desk, 'honoraires', 'export_csv', matter)
     return out.getvalue()

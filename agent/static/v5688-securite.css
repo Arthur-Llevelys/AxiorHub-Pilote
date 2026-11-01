@@ -1,0 +1,26 @@
+/* 5.6.88 : Mon compte (double authentification, jetons), journal d'audit, ce que l'IA peut voir. Couleurs du thème, clair et sombre. */
+.m88-qr { display: inline-block; padding: 8px; background: #fff; border-radius: 8px; line-height: 0; }
+.m88-qr svg { width: 220px; height: 220px; max-width: 100%; }
+.m88-steps { margin: 0 0 12px 18px; padding: 0; }
+.m88-once { display: block; margin-top: 12px; font-weight: 600; }
+.m88-once textarea { display: block; width: 100%; margin-top: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.m88-acces { margin: 0; padding-left: 18px; }
+.m88-acces li { margin: 4px 0; }
+.m88-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.m88-filters label { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.m88-journal td { vertical-align: top; }
+.m88-payload { max-width: 420px; overflow-wrap: anywhere; font-size: .86rem; color: var(--ax-muted, inherit); }
+.m88-pages { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.m88-ok, .m88-bad { padding: 10px 12px; border-radius: 8px; border: 1px solid; }
+.m88-ok { background: #e8f6ee; color: #14532d; border-color: #86c9a2; }
+.m88-bad { background: #fdecec; color: #7f1d1d; border-color: #e6a3a3; }
+.m88-vue { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
+.m88-vue span { display: flex; flex-direction: column; gap: 2px; }
+.m88-vue small { color: var(--ax-muted, inherit); }
+.m50-fine { margin: 10px 0 4px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .m88-ok { background: #123524; color: #c9f0d8; border-color: #2f7d55; }
+  :root:not([data-theme="light"]) .m88-bad { background: #421a1a; color: #fbd5d5; border-color: #9b4a4a; }
+}
+:root[data-theme="dark"] .m88-ok { background: #123524; color: #c9f0d8; border-color: #2f7d55; }
+:root[data-theme="dark"] .m88-bad { background: #421a1a; color: #fbd5d5; border-color: #9b4a4a; }

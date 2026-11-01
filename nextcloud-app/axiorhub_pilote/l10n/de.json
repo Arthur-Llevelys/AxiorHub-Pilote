@@ -103,7 +103,6 @@
   "Linked to the AxiorHub account:": "Verknüpft mit dem AxiorHub-Konto:",
   "Linked to {user} · AxiorHub {version}": "Verknüpft mit {user} · AxiorHub {version}",
   "Linking…": "Verknüpfung läuft…",
-  "Login or password refused by AxiorHub.": "Anmeldename oder Passwort von AxiorHub abgelehnt.",
   "Nextcloud refuses this local address: tick “Engine on this server (local address)”.": "Nextcloud lehnt diese lokale Adresse ab: Kreuzen Sie „Engine auf diesem Server (lokale Adresse)“ an.",
   "No case found for this search.": "Keine Akte entspricht dieser Suche.",
   "No case is available to you. Link your AxiorHub account in Personal settings › AxiorHub Pilote.": "Ihnen steht keine Akte zur Verfügung. Verknüpfen Sie Ihr AxiorHub-Konto unter Persönliche Einstellungen › AxiorHub Pilote.",
@@ -189,7 +188,10 @@
   "Test the address": "Adresse testen",
   "AxiorHub {version} answers at this address.": "AxiorHub {version} antwortet unter dieser Adresse.",
   "This AxiorHub is installed on a workstation: choose “On this computer, with Nextcloud on the same computer (discovery mode)”.": "Dieses AxiorHub ist auf einem Arbeitsplatz installiert: Wählen Sie „Auf diesem Computer, mit Nextcloud auf demselben Computer (Testmodus)“.",
-  "This AxiorHub is a server version: choose “On a server (recommended)”.": "Dieses AxiorHub ist eine Serverversion: Wählen Sie „Auf einem Server (empfohlen)“."
+  "This AxiorHub is a server version: choose “On a server (recommended)”.": "Dieses AxiorHub ist eine Serverversion: Wählen Sie „Auf einem Server (empfohlen)“.",
+  "Two-factor authentication code": "Code der Zwei-Faktor-Authentifizierung",
+  "Only if your AxiorHub account is protected: enter the current code or a recovery code, otherwise leave empty. It is used once and never stored.": "Nur wenn Ihr AxiorHub-Konto geschützt ist: Geben Sie den aktuellen Code oder einen Wiederherstellungscode ein, andernfalls leer lassen. Er wird einmalig verwendet und nie gespeichert.",
+  "Linking refused by AxiorHub: check your login and password, and the two-factor authentication code if your account is protected.": "Verknüpfung von AxiorHub abgelehnt: Prüfen Sie Anmeldename und Passwort sowie den Code der Zwei-Faktor-Authentifizierung, falls Ihr Konto geschützt ist."
  },
  "pluralForm": "nplurals=2; plural=(n != 1);"
 }

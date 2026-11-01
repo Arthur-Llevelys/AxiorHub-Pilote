@@ -91,7 +91,8 @@ def mode(desk):
             'label': 'Agenda personnel (local, non synchronisé)',
             'help': ('Vos rendez-vous, audiences et échéances sont enregistrés dans AxiorHub, sur l’instance utilisée (ce poste ou votre '
                      'serveur), sans copie vers un agenda en ligne. L’export .ics reste une action explicite ; les agendas Nextcloud, CalDAV ou '
-                     'Google se consultent dans « Agenda en ligne ».')}
+                     'Google se consultent dans « Agenda en ligne ». Seules les audiences peuvent être copiées vers Outlook ou Google, si vous '
+                     'avez activé cette copie (Audiences › Suivi des audiences).')}
 
 
 # ------------------------------------------------------------------------------------------------ validation
@@ -244,6 +245,9 @@ def create(desk, data, owner='cabinet', source='local', uid='', recurrence_id=''
     _mirror(desk, row)
     desk.db.commit()   # F18 : enregistré localement AVANT toute copie réseau
     desk.audit('agenda5634_cree', {'id': ident, 'kind': row['kind'], 'matter': row['matter'], 'source': source})
+    if row['kind'] == 'audience':   # 5.6.88 : l'audience a sa fiche, rattachée à cet événement
+        from .audiences5688 import on_event
+        on_event(desk, row, 'cree')
     state = row['sync_state']   # 5.6.43 (§ 17.3) : « copy » n'a plus d'effet ; aucune copie réseau à la création
     return {'id': ident, 'event': public(row), 'message': _message(state, 'Événement enregistré')}
 
@@ -295,6 +299,8 @@ def update(desk, data, owner='cabinet'):
     _mirror(desk, row)
     desk.db.commit()
     desk.audit('agenda5634_modifie', {'id': row['id']})
+    from .audiences5688 import on_event   # 5.6.88 : la fiche d'audience et les copies Outlook ou Google suivent
+    on_event(desk, row, 'modifie')
     state = _copy(desk, row) if mirrored else row['sync_state']
     row['sync_state'] = state
     return {'id': row['id'], 'event': public(row), 'message': _message(state, 'Événement modifié')}
@@ -316,6 +322,9 @@ def cancel(desk, ident, scope='occurrence'):
         _mirror(desk, r)
     desk.db.commit()
     desk.audit('agenda5634_annule', {'id': row['id'], 'portee': scope, 'nombre': len(targets)})
+    from .audiences5688 import on_event   # 5.6.88 : l'annulation suit vers la fiche et les copies Outlook ou Google
+    for r in targets:
+        on_event(desk, r, 'annule')
     if mode(desk)['sync']:
         for r in targets:
             if r.get('calendar_scope') == 'legacy_bridge' and r.get('copy_policy') == 'mirror':   # 5.6.43 : jamais un événement personnel
@@ -795,6 +804,8 @@ def tick(desk, stamp=None):
                            ((now - timedelta(hours=1)).isoformat(), (now + timedelta(days=8)).isoformat())).fetchall()
     tz = _tz(desk)
     for r in rows:
+        if r['kind'] == 'audience':   # 5.6.88 : les rappels d'audience vont à l'avocat désigné (rappels5688), sans doublon ici
+            continue
         begins = datetime.fromisoformat(r['starts'])
         for minutes in json.loads(r['reminders']):
             if begins - timedelta(minutes=minutes) <= now < begins + timedelta(minutes=5):
@@ -816,7 +827,10 @@ def tick(desk, stamp=None):
 
 
 # ------------------------------------------------------------------------------------------------ API
-def api(desk, route, data, method, owner='cabinet'):
+def api(desk, route, data, method, owner='cabinet', role='administrateur', auth=None):
+    if route.startswith(('agenda/audience/', 'agenda/tache/', 'agenda/rappel/', 'agenda/distant/')):   # 5.6.88 : mêmes droits que l'agenda
+        from .agenda5688 import api as api5688
+        return api5688(desk, route, data, method, owner, role, auth)
     if method == 'GET':
         if route == 'agenda/liste':
             return {'mode': mode(desk), 'events': listing(desk, matter=str(data.get('matter') or ''))}

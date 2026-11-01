@@ -17,6 +17,7 @@ Sources des données reconnues :
 Limite assumée : une pseudonymisation n'est pas une anonymisation ; un détail factuel peut encore permettre une réidentification.
 L'aperçu (Paramètres › IA) montre exactement ce qui part.
 """
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -226,6 +227,10 @@ def surname_of(original):
     return ''
 
 
+# 5.6.88 : noms lus dans les registres pour la question en cours ([(texte, catégorie)]) : masqués comme des noms connus du cabinet, quelle que soit leur casse
+NOMS_DU_TOUR = ContextVar('axiorhub_noms5688', default=())
+
+
 class Pseudonymizer:
     def __init__(self, config=None, known=None):
         self.known = known if known is not None else (known_entities(config or {}) if config else [])
@@ -234,9 +239,21 @@ class Pseudonymizer:
         self.counts = {c: 0 for c in CATEGORIES}
         self.surnames = {}     # 5.6.77 : nom de famille replié -> {clé du nom complet: texte d'origine}
         self.method = False    # 5.6.86 : texte d'une compétence en cours de traitement
+        self._compile()
+        self.ajouter(NOMS_DU_TOUR.get())
+
+    def _compile(self):
         self.known_cat = {_fold(x): c for x, c in self.known}
         self.known_rx = (re.compile(r'(?<![\w@])(?:%s)(?![\w@])' % '|'.join(re.escape(x) for x, _ in self.known), re.I)
                          if self.known else None)
+
+    def ajouter(self, noms):
+        """5.6.88 : noms de plus pour cette requête ; les plus longs d'abord, comme ``known_entities``."""
+        extra = [(re.sub(r'\s+', ' ', str(x)).strip(), c) for x, c in noms or ()]
+        extra = [(x, c) for x, c in extra if len(x) >= 3 and _fold(x) not in self.known_cat]
+        if extra:
+            self.known = sorted(list(self.known) + extra, key=lambda x: -len(x[0]))
+            self._compile()
 
     # ------------------------------------------------------------------ marqueurs
     def _register(self, original):

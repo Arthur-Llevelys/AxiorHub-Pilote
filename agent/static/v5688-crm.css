@@ -1,0 +1,54 @@
+/* 5.6.88 (lot crm) : palette unique, veille des sociétés, note commune, page Aujourd'hui personnelle. Les couleurs d'accent reprennent tableau5688.ACCENTS. */
+.m82-quick-group { margin: .5rem 0 .1rem; font-size: .85rem; font-weight: 600; }
+.v88-list { list-style: none; margin: .4rem 0 0; padding: 0; }
+.v88-list > li { padding: .5rem 0; border-top: 1px solid var(--ws-border, #cfddf0); overflow-wrap: anywhere; }
+.v88-list > li:first-child { border-top: 0; }
+.v88-panne { margin: .5rem 0; padding: .55rem .7rem; border-left: 4px solid currentColor; background: var(--ws-surface-alt, #f7f8fa); color: var(--ws-ink, #181a20); }
+.v88-scroll { overflow-x: auto; }
+.n88-note textarea { width: 100%; box-sizing: border-box; min-height: 9rem; }
+.n88-conflit { margin: .6rem 0; padding: .7rem; border: 2px solid currentColor; border-radius: 8px; }
+.n88-conflit[hidden] { display: none; }
+.n88-conflit pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; margin: .4rem 0; }
+.n88-versions li { margin: .3rem 0; }
+.n88-mentions { position: absolute; z-index: 9100; list-style: none; margin: 0; padding: .2rem; min-width: 14rem; max-width: calc(100vw - 32px); max-height: 14rem; overflow: auto; background: var(--ws-surface, #fff); color: var(--ws-ink, #181a20); border: 1px solid var(--ws-border, #cfddf0); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); }
+.n88-mentions[hidden] { display: none; }
+.n88-mentions li { padding: .4rem .55rem; border-radius: 6px; cursor: pointer; min-height: 32px; box-sizing: border-box; }
+.n88-mentions li[aria-selected=true] { outline: 2px solid currentColor; outline-offset: -2px; }
+.n88-mentions small { opacity: .85; }
+.t88-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.t88-item { min-width: 0; }
+.t88-item > * { height: 100%; box-sizing: border-box; }
+.t88-large { grid-column: 1 / -1; }
+.t88-large > * { height: auto; }
+@media (max-width: 820px) { .t88-grid { grid-template-columns: minmax(0, 1fr); } }
+.t88-panel { margin-top: 8px; }
+.t88-panel > summary { cursor: pointer; min-height: 32px; }
+.t88-list { list-style: decimal inside; margin: .4rem 0; padding: 0; }
+.t88-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem; padding: .3rem 0; border-top: 1px solid var(--ws-border, #cfddf0); cursor: grab; }
+.t88-moves { display: inline-flex; gap: .3rem; }
+.t88-colors { display: flex; flex-wrap: wrap; gap: .6rem 1rem; border: 1px solid var(--ws-border, #cfddf0); border-radius: 8px; padding: .5rem .7rem; }
+.t88-color { display: inline-flex; align-items: center; gap: .35rem; min-height: 32px; }
+.t88-swatch { display: inline-block; width: 1.1rem; height: 1.1rem; border-radius: 50%; border: 1px solid var(--ws-ink, #181a20); background: var(--t88-swatch, #1769cf); }
+.t88-swatch[data-swatch=violet] { --t88-swatch: #5b34b8; }
+.t88-swatch[data-swatch=vert] { --t88-swatch: #136c4a; }
+.t88-swatch[data-swatch=bordeaux] { --t88-swatch: #96244b; }
+.t88-swatch[data-swatch=ardoise] { --t88-swatch: #3f5569; }
+.t88-swatch[data-swatch=cuivre] { --t88-swatch: #8f4a12; }
+.t88-memoire { margin-top: .8rem; }
+.c530[data-accent=violet] { --ws-accent: #5b34b8; --ws-accent-hover: #472a91; --ws-accent-soft: #efeafb; --ax-accent: #5b34b8; --ax-accent-ink: #fff; }
+.c530[data-accent=vert] { --ws-accent: #136c4a; --ws-accent-hover: #0e5238; --ws-accent-soft: #e4f4ec; --ax-accent: #136c4a; --ax-accent-ink: #fff; }
+.c530[data-accent=bordeaux] { --ws-accent: #96244b; --ws-accent-hover: #771a3b; --ws-accent-soft: #fbe9ef; --ax-accent: #96244b; --ax-accent-ink: #fff; }
+.c530[data-accent=ardoise] { --ws-accent: #3f5569; --ws-accent-hover: #2f4254; --ws-accent-soft: #e9eef3; --ax-accent: #3f5569; --ax-accent-ink: #fff; }
+.c530[data-accent=cuivre] { --ws-accent: #8f4a12; --ws-accent-hover: #723a0d; --ws-accent-soft: #f9ecdf; --ax-accent: #8f4a12; --ax-accent-ink: #fff; }
+:root[data-theme=dark] .c530[data-accent=violet] { --ws-accent: #c4adff; --ws-accent-hover: #ddd0ff; --ws-accent-soft: #332a52; --ax-accent: #c4adff; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=vert] { --ws-accent: #63d3a4; --ws-accent-hover: #9be6c6; --ws-accent-soft: #1f3d33; --ax-accent: #63d3a4; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=bordeaux] { --ws-accent: #ffa3bd; --ws-accent-hover: #ffc9d8; --ws-accent-soft: #4a2433; --ax-accent: #ffa3bd; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=ardoise] { --ws-accent: #adc4da; --ws-accent-hover: #cfdeec; --ws-accent-soft: #2c3a48; --ax-accent: #adc4da; --ax-accent-ink: #0b1220; }
+:root[data-theme=dark] .c530[data-accent=cuivre] { --ws-accent: #f2b47c; --ws-accent-hover: #f8d2ae; --ws-accent-soft: #46301e; --ax-accent: #f2b47c; --ax-accent-ink: #0b1220; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) .c530[data-accent=violet] { --ws-accent: #c4adff; --ws-accent-hover: #ddd0ff; --ws-accent-soft: #332a52; --ax-accent: #c4adff; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=vert] { --ws-accent: #63d3a4; --ws-accent-hover: #9be6c6; --ws-accent-soft: #1f3d33; --ax-accent: #63d3a4; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=bordeaux] { --ws-accent: #ffa3bd; --ws-accent-hover: #ffc9d8; --ws-accent-soft: #4a2433; --ax-accent: #ffa3bd; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=ardoise] { --ws-accent: #adc4da; --ws-accent-hover: #cfdeec; --ws-accent-soft: #2c3a48; --ax-accent: #adc4da; --ax-accent-ink: #0b1220; }
+  :root:not([data-theme=light]) .c530[data-accent=cuivre] { --ws-accent: #f2b47c; --ws-accent-hover: #f8d2ae; --ws-accent-soft: #46301e; --ax-accent: #f2b47c; --ax-accent-ink: #0b1220; }
+}

@@ -55,6 +55,14 @@ PROVIDERS = {
                         'caps': {'case_law.search': ('Rechercher des décisions', 'lecture', None), 'case_law.read': ('Lire une décision', 'lecture', None),
                                  'case_law.verify_reference': ('Contrôler un numéro de pourvoi ou de RG', 'lecture', None)},
                         'usage': 'Décisions en données ouvertes (périmètre et anonymisation limités).'},
+    # 5.6.88 : hors de TOOLS : aucun modèle ne l'appelle ; seul le travail de récupération des statuts (inpi5688) s'en sert, identifiants au coffre
+    'inpi_rne': {'label': 'INPI, registre national des entreprises', 'family': 'droit', 'auth': 'Compte gratuit data.inpi.fr, avec l’accès API « Entreprises » activé dans « Mes accès API / SFTP »',
+                 'access': 'https://data.inpi.fr/login', 'docs': 'https://data.inpi.fr/content/editorial/Acces_API_Entreprises',
+                 'fields': [F('username', 'Adresse du compte INPI', True), F('password', 'Mot de passe du compte INPI', True)],
+                 'caps': {'registre.documents': ('Lister les statuts, actes et comptes publics d’une société', 'lecture', None),
+                          'registre.telecharger': ('Télécharger ces documents dans le dossier', 'lecture', None)},
+                 'usage': 'Statuts, actes et comptes publics d’une société, rangés dans le dossier pour être analysés.',
+                 'note': 'Service gratuit. Licence INPI : pas d’usage pour la prospection. Quota : 10 000 appels ou 10 000 Mo par jour. Les comptes confidentiels ne sont pas accessibles.'},
     'pappers_justice': {'label': 'Pappers Justice', 'family': 'droit', 'auth': 'Clé API (Bearer) de l’offre API Pappers Justice',
                         'access': 'https://justice.pappers.fr/api', 'docs': 'https://justice.pappers.fr/api/documentation',
                         'fields': [F('api_key', 'Clé API', True)],
@@ -140,6 +148,7 @@ PROVIDERS = {
                                     F('drive_folder_id', 'Dossier Drive autorisé (facultatif)', required=False)],
                          'oauth': True,
                          'caps': {'calendar.read': ('Lire l’agenda', 'lecture', None), 'mail.read': ('Lire les courriels', 'lecture', None),
+                                  'calendar.write': ('Copier les audiences dans cet agenda', 'ecriture', 'agenda'),   # 5.6.88 : absent de TOOLS, jamais un outil de l'agent
                                   'mail.create_draft': ('Créer un brouillon Gmail (jamais d’envoi)', 'brouillon', None),
                                   'documents.read_selected': ('Lister le dossier Drive choisi', 'lecture', None), 'documents.export': ('Exporter un document (PDF)', 'lecture', None)},
                          'usage': 'Gmail, Drive et Docs en plus de l’agenda Google.'},
@@ -162,6 +171,9 @@ TOOLS = {
     'devis.preparer': ('billing.prepare_when_supported', 'ecriture'), 'prelevement.preparer_mandat': ('payment.prepare_mandate', 'ecriture'),
     'facturation.transmettre': ('einvoice.send_approved', 'ecriture'),   # 5.6.53 : facture émise (Factur-X) par le trajet configuré
 }
+# 5.6.88 : catégorie du réglage « Ce que l'IA peut voir » lue par chaque outil de lecture
+TOOL_CATEGORY = {'agenda.lire': 'agenda', 'courriel.lire': 'courriels', 'contacts.lire': 'contacts', 'client.rechercher': 'contacts', 'documents.lister': 'documents',
+                 'facturation.rechercher_client': 'factures', 'facturation.etat': 'factures', 'facturation.reglements': 'factures'}
 LEGAL_TOOLS = ('droit.verifier_article', 'droit.rechercher_texte', 'jurisprudence.rechercher', 'jurisprudence.verifier', 'droit.rechercher_documentation')
 
 SCHEMA = '''
@@ -275,10 +287,18 @@ def _shared_piste(desk):
     return cid, path if path.is_file() else None
 
 
+def _spec(provider):
+    """Fiche d'un fournisseur ; 5.6.88 : les stockages cloud ont la leur (cloud5688), hors des outils proposés à l'agent."""
+    if provider in PROVIDERS:
+        return PROVIDERS[provider]
+    from .cloud5688 import PROVIDERS as storages
+    return storages.get(provider, {})
+
+
 def state_of(desk, row):
     if row is None:
         return 'non_configuree'
-    spec = PROVIDERS.get(row['provider'], {})
+    spec = _spec(row['provider'])
     secrets_set = json.loads(row['secrets_json'] or '{}')
     params = json.loads(row['params_json'] or '{}')
     if row['last_error'].startswith(('http_401', 'jeton', 'autorisation_refusee', 'expiree')):
@@ -302,7 +322,7 @@ def state_of(desk, row):
 def _context(desk, row):
     from .adaptateurs5652 import Context
     params = json.loads(row['params_json'] or '{}')
-    spec = PROVIDERS.get(row['provider'], {})
+    spec = _spec(row['provider'])
     if params.get('partage_piste') and spec.get('piste'):
         cid, _ = _shared_piste(desk)
         params['client_id'] = cid
@@ -323,6 +343,9 @@ def _context(desk, row):
 
 def adapter(desk, row):
     from .adaptateurs5652 import ADAPTERS
+    if row['provider'] not in ADAPTERS:
+        from .cloud5688 import adapter_class
+        return adapter_class(row['provider'])(_context(desk, row))
     return ADAPTERS[row['provider']](_context(desk, row))
 
 
@@ -349,7 +372,7 @@ def save(desk, owner, role, data):
     change pas la génération."""
     ensure_schema(desk)
     provider = str(data.get('provider') or '')
-    spec = PROVIDERS.get(provider)
+    spec = _spec(provider)
     if not spec:
         raise Stop('fournisseur_inconnu')
     env = str(data.get('environment') or '')
@@ -469,6 +492,7 @@ def disconnect(desk, owner, role, conn_id):
     if not _visible(row, owner, role):
         raise Stop('connexion_absente')
     _may_configure(desk, row['owner'], owner, role)
+    revocation = _revoke(desk, row)
     for name in ('access', 'refresh'):
         path = _vault(desk, conn_id, name)
         if path.is_file():
@@ -479,8 +503,17 @@ def disconnect(desk, owner, role, conn_id):
     desk.db.execute("UPDATE connexion_ops5652 SET state='annulee',error='connexion_deconnectee',updated=? WHERE connection=? AND state IN "
                     "('a_valider','a_revalider','a_revalider_compte','echec_avant_envoi')", (_now(), conn_id))
     desk.db.commit()
-    desk.audit('connexion5652_deconnectee', {'provider': row['provider']})
-    return public_view(desk, _row(desk, conn_id))
+    desk.audit('connexion5652_deconnectee', {'provider': row['provider'], **({'revocation': revocation} if revocation else {})})
+    return {**public_view(desk, _row(desk, conn_id)), **({'revocation': revocation} if revocation else {})}
+
+
+def _revoke(desk, row):
+    """5.6.88 : révocation chez le fournisseur si son adaptateur la sait faire. Un échec est dit, et n'empêche pas d'effacer les jetons du coffre."""
+    try:
+        ad = adapter(desk, row)
+        return ad.revoke() if hasattr(ad, 'revoke') and not row['disconnected'] else ''
+    except Stop:
+        return 'echec'
 
 
 def test(desk, owner, role, conn_id):
@@ -506,7 +539,7 @@ def test(desk, owner, role, conn_id):
 
 def public_view(desk, row):
     """Vue sans secret : noms des secrets enregistrés et leurs dates seulement."""
-    spec = PROVIDERS.get(row['provider'], {})
+    spec = _spec(row['provider'])
     caps = json.loads(row['caps_json'] or '{}')
     return {'id': row['id'], 'provider': row['provider'], 'label': row['label'], 'owner': row['owner'], 'environment': row['environment'],
             'params': json.loads(row['params_json'] or '{}'), 'secrets_enregistres': json.loads(row['secrets_json'] or '{}'),
@@ -522,7 +555,7 @@ def oauth_start(desk, owner, role, conn_id, redirect):
     row = _row(desk, conn_id)
     if not _visible(row, owner, role):
         raise Stop('connexion_absente')
-    spec = PROVIDERS[row['provider']]
+    spec = _spec(row['provider'])
     if not spec.get('oauth'):
         raise Stop('oauth_non_prevu')
     params = json.loads(row['params_json'] or '{}')
@@ -541,6 +574,7 @@ def oauth_start(desk, owner, role, conn_id, redirect):
              'code_challenge': challenge, 'code_challenge_method': 'S256'}
     if row['provider'] == 'google_workspace':
         query.update(access_type='offline', prompt='consent', include_granted_scopes='true')
+    query.update(getattr(ad, 'authorize_extra', None) or {})   # 5.6.88 : accès hors ligne, propre à chaque stockage cloud
     return {'url': ad.authorize_url + '?' + urlencode(query), 'redirect_uri': redirect, 'scopes': scopes}
 
 
@@ -691,7 +725,8 @@ def agent_research(desk, owner, role, question, matter='', model=None, max_calls
     Aucune écriture : une préparation d'envoi passe toujours par une opération validée."""
     q = str(question or '')
     # l'annuaire public n'est proposé que si la question vise une entreprise : pas d'appel au modèle inutile à chaque réponse
-    tools = [t for t in available_tools(desk, owner) if t['nature'] == 'lecture'
+    from . import vueia5688   # 5.6.88 : un outil qui lit une catégorie fermée n'est même pas proposé au modèle
+    tools = [t for t in available_tools(desk, owner) if t['nature'] == 'lecture' and not vueia5688.blocked(desk, TOOL_CATEGORY.get(t['outil'], ''))
              and (t['fournisseur'] != 'recherche_entreprises' or re.search(r'\b\d{9}\b|\bsiren\b|\bsiret\b', q, re.I))]
     if not tools or not q.strip():
         return []

@@ -283,7 +283,7 @@
       Object.keys(extra || {}).forEach(function (k) { i.setAttribute(k, extra[k]); });
       l.appendChild(i); form.appendChild(l); return i;
     }
-    var title = field('Intitulé', 'title', 'text', values.title, { required: 'required', minlength: '3', maxlength: '200' });
+    var title = field('Intitulé', 'title', 'text', values.title, isEvent ? { required: 'required', minlength: '3', maxlength: '200' } : { required: 'required', minlength: '3', maxlength: '200', 'data-mention': '', 'aria-description': '@identifiant pour mentionner quelqu’un' });
     var start, duration, due;
     if (isEvent) {
       var d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1);

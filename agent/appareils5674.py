@@ -158,21 +158,27 @@ def pairing(db, env, auth, prefix, secure, form=None, query=None):
     if not account:
         return cx._html(cx._page(prefix, 'Associer un téléphone', cx._notice(text='Compte désactivé.')), '403 Forbidden', headers)
     if env.get('REQUEST_METHOD') != 'POST':
-        body = ('<p>Associer ce téléphone au compte <strong>%s</strong> ? Il pourra consulter AxiorHub et valider ce qui vous attend, '
-                'pendant %d jours ou jusqu’à ce que vous le retiriez.</p>'
-                '<form method="post" action="%s/connexion/appareil" class="cx48-form"><input type="hidden" name="jeton" value="%s">'
-                '<label for="ap74-nom">Nom de cet appareil</label><input id="ap74-nom" name="nom" maxlength="60" value="Téléphone" required>'
-                '<button type="submit" class="cx48-btn">Associer</button></form>'
-                '<p class="cx48-note">Ce n’est pas vous ? Fermez cette page : rien n’est associé sans ce bouton.</p>') % (
-            e(account), DEVICE_DAYS, e(prefix, quote=True), e(token, quote=True))
+        body = _pair_form(prefix, token, account, _code_needed(db, row))
         return cx._html(cx._page(prefix, 'Associer un téléphone', body), '200 OK', headers)
+    owner = _owner_of(db, row['user_id'])
+    if _code_needed(db, row):   # 5.6.88 : le QR code seul ne suffit pas : le téléphone donne un code de la double authentification
+        from . import totp5688
+        try:
+            good = totp5688.attempt(db, owner, str(form.get('code') or ''), client)
+        except Stop as ex:
+            return cx._html(cx._page(prefix, 'Associer un téléphone', cx._notice(str(ex))), '429 Too Many Requests', headers)
+        if not good:
+            cx._log(db, account[:80], 'double_auth_refusee', 'appareil')
+            return cx._html(cx._page(prefix, 'Associer un téléphone', cx._notice('code_incorrect') + _pair_form(prefix, token, account, True)),
+                            '401 Unauthorized', headers)
     label = re.sub(r'[\x00-\x1f<>]+', '', str(form.get('nom') or 'Téléphone')).strip()[:60] or 'Téléphone'
     db.execute('UPDATE appareils5674_invitations SET used=1 WHERE token_hash=?', (row['token_hash'],))
     if int(row['user_id']) == cx.ADMIN_ID:
         user = cx.admin_user(auth, db)
     else:
         user = cx._user_dict(db.execute('SELECT * FROM users WHERE id=?', (int(row['user_id']),)).fetchone())
-    session, _ = cx.open_session(db, auth, user, True, 'appareil')
+    from . import totp5688
+    session, _ = cx.open_session(db, auth, user, True, 'appareil', totp5688.generation(db, owner))
     expires = _now() + timedelta(days=DEVICE_DAYS)
     db.execute('UPDATE sessions SET expires=? WHERE token_hash=?', (expires.isoformat(), cx._token_hash(session)))
     db.execute('INSERT INTO appareils5674 VALUES(?,?,?,?,?,?)', (secrets.token_hex(8), cx._token_hash(session), int(row['user_id']), label,
@@ -180,6 +186,31 @@ def pairing(db, env, auth, prefix, secure, form=None, query=None):
     db.commit()
     cx._log(db, account[:80], 'appareil_associe', label)
     return cx._redirect(prefix + '/mobile?associe=1', headers + [cx.cookie_header(prefix, session, DEVICE_DAYS * 86400, secure)])
+
+
+def _owner_of(db, user_id):
+    from . import connexion5648 as cx
+    if int(user_id) == cx.ADMIN_ID:
+        return 'cabinet'
+    row = db.execute('SELECT ident FROM users WHERE id=?', (int(user_id),)).fetchone()
+    return row['ident'] if row else ''
+
+
+def _code_needed(db, row):
+    from . import totp5688
+    return totp5688.active(db, _owner_of(db, row['user_id']))
+
+
+def _pair_form(prefix, token, account, code):
+    field = ('<label for="ap74-code">Code de votre application d’authentification</label>'
+             '<input id="ap74-code" name="code" required maxlength="24" autocomplete="one-time-code" autocapitalize="none" spellcheck="false">') if code else ''
+    return ('<p>Associer ce téléphone au compte <strong>%s</strong> ? Il pourra consulter AxiorHub et valider ce qui vous attend, '
+            'pendant %d jours ou jusqu’à ce que vous le retiriez.</p>'
+            '<form method="post" action="%s/connexion/appareil" class="cx48-form"><input type="hidden" name="jeton" value="%s">'
+            '<label for="ap74-nom">Nom de cet appareil</label><input id="ap74-nom" name="nom" maxlength="60" value="Téléphone" required>%s'
+            '<button type="submit" class="cx48-btn">Associer</button></form>'
+            '<p class="cx48-note">Ce n’est pas vous ? Fermez cette page : rien n’est associé sans ce bouton.</p>') % (
+        e(account), DEVICE_DAYS, e(prefix, quote=True), e(token, quote=True), field)
 
 
 def devices(state_dir, user):

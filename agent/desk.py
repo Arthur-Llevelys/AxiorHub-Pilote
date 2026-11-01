@@ -49,8 +49,11 @@ JOBS |= {'prepare_document_project','create_document_files'}
 JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_dossier5624','fiche_dossier5627'}
 JOBS |= {'search_index490'}
 JOBS |= {'digest_pieces5632','veille5632_collect','briefing_oral5632','mailrules5632'}   # 5.6.32
+JOBS |= {'propagation5688'}   # 5.6.88 : audiences copiées vers Outlook et Google (création, mise à jour, annulation, contrôle)
+JOBS |= {'efacture5688'}   # 5.6.88 : relevé des plateformes de facturation électronique (lecture seule)
 JOBS |= {'pj_courriel5636','initiative5636','relances5636','outils5636','corporate5636','microsoft5636'}   # 5.6.36 : pièces jointes rangées ; initiatives (analyse, exécution du plan validé)
 JOBS |= {'recherche5634'}   # 5.6.34 : recherche juridique par le registre unique des sources
+JOBS |= {'migration5688'}   # 5.6.88 : copie d'un stockage vers un autre, par lots
 JOBS |= {'autonomy_mail_sweep','refresh_operational_memory','review_autonomy_proposal'}
 JOBS |= {'legal_research','import_mcp_legal_results','verify_official_decision','identify_latest_writings','refresh_exhibit_registry'}
 JOBS |= {'identify_party_writings','compare_devices','prepare_hearing','create_hearing_files',
@@ -118,6 +121,9 @@ JOBS |= {'apprentissage5667','banc5667'}   # 5.6.67 : corrections récurrentes e
 USER_JOBS |= {'banc5667'}
 JOBS |= {'courrier5679'}   # 5.6.79 : nouveau courrier rédigé sur le modèle Word du cabinet (page Dossier)
 USER_JOBS |= {'courrier5679'}
+JOBS |= {'veille5688','memoire5688'}   # 5.6.88 : veille des sociétés (BODACC, sans modèle) ; repérage facultatif des faits et préférences, plafonné
+JOBS |= {'registre5688'}   # 5.6.88 : statuts, actes et comptes publics (INPI) copiés dans le dossier, hors de la réponse
+USER_JOBS |= {'registre5688'}
 JOBS |= {'opportunites5676'}   # 5.6.76 : prospects repérés dans les courriels par le modèle local (propositions)
 JOBS |= {'ranger_notes5666'}   # 5.6.66 : notes internes déposées en brouillon → documents Word des dossiers
 USER_JOBS |= {'ranger_notes5666'}
@@ -131,7 +137,8 @@ ANALYSIS_FAMILY = frozenset(('index','monitor_matter','extract_facts460'))
 ANALYSIS_CAP = 6
 # 5.6.65 (audit 5.6.64, R16) : contrôles de santé — sondes en lecture (IMAP, Nextcloud, fournisseurs IA), bornées par leurs propres délais,
 # sans génération ; ils ne prennent plus le verrou exclusif de production (une sonde lente retardait toutes les rédactions).
-CONTROL_JOBS = ('health',)
+JOBS |= {'sauvegarde5688','export5688','controle5688'}   # 5.6.88 : sauvegarde chiffrée, export intégral, contrôle d'une archive (sans IA)
+CONTROL_JOBS = ('health','sauvegarde5688','export5688','controle5688')   # 5.6.88 : sans IA, leur propre verrou : ils ne bloquent pas les rédactions
 # Travaux qui n'attendent jamais le verrou général exclusif : ils ne peuvent pas « réserver » ce verrou (R09).
 NON_EXCLUSIVE_JOBS = frozenset(('live_calendar430','live_documents430','automation_setting','run','live_mail430')+CONSERVATION_JOBS+CONTROL_JOBS)
 USER_JOBS |= {'refresh_matter_graph380','start_playbook380','advance_playbook380',
@@ -641,6 +648,7 @@ class Desk:
 
     def audit(self, action, data):
         stamp=now()
+        data=_with_author(self,data)   # 5.6.88 : auteur connu de la requête ou de la mission en cours
         self.db.execute('INSERT INTO audit VALUES(NULL,?,?,?)',(stamp,action,json.dumps(data)))
         from .cabinet_pilot import append_audit
         append_audit(self,stamp,action,data)
@@ -885,6 +893,15 @@ class Desk:
             return None
 
     def perform(self, kind, args):
+        if kind=='sauvegarde5688':
+            from .sauvegarde5688 import executer as _save
+            return _save(self,args.get('declencheur') or 'automatique')
+        if kind=='controle5688':
+            from .sauvegarde5688 import controle_travail as _check
+            return _check(self,args)
+        if kind=='export5688':
+            from .export5688 import executer as _export
+            return _export(self,args.get('export'))
         if kind=='apprentissage5667':
             from .apprentissage5667 import perform as _learn
             return _learn(self,kind,args)
@@ -900,6 +917,15 @@ class Desk:
         if kind=='courrier5679':   # 5.6.79 : corps rédigé par l'IA, modèle Word rempli, brouillon enregistré dans le dossier
             from .courrier5679 import run as courrier5679
             return courrier5679(self,args)
+        if kind=='veille5688':
+            from .crm5688 import verifier
+            return verifier(self)
+        if kind=='registre5688':
+            from .inpi5688 import perform as registre5688
+            return registre5688(self,args)
+        if kind=='memoire5688':
+            from .memoire5688 import extraire
+            return extraire(self,args)
         if kind=='opportunites5676':
             from .crm5676 import detect
             return detect(self)
@@ -951,12 +977,21 @@ class Desk:
         if kind=='outils5636':   # 5.6.36 : grille d'analyse, playbook appliqué à un contrat, mémo juridique
             from .outils5636 import job
             return job(self,args)
+        if kind=='propagation5688':   # 5.6.88 : copies d'audiences décidées par une personne ; une modification distante n'est jamais écrasée
+            from .propagation5688 import job
+            return job(self,args)
+        if kind=='efacture5688':   # 5.6.88 : relevé des plateformes de facturation électronique (lecture seule)
+            from .efacture5688 import job
+            return job(self,args)
         if kind=='relances5636':   # 5.6.36 : projets de relance des factures échues (Invoice Ninja en lecture)
             from .relances5636 import job
             return job(self,args)
         if kind=='initiative5636':   # 5.6.36 : analyse d'un courriel (plan proposé) ou exécution des étapes validées
             from .initiatives5636 import job
             return job(self,args)
+        if kind=='migration5688':   # 5.6.88 : un lot de copie, lancé par un administrateur
+            from .cloud_migration5688 import job as _migration5688
+            return _migration5688(self,args)
         if kind=='pj_courriel5636':   # 5.6.36 : rangement des pièces jointes (option activée par l'avocat)
             from .ged5636 import file_attachments
             return file_attachments(self,str(args.get('key') or ''),str(args.get('matter') or ''),'automatique')
@@ -1245,7 +1280,7 @@ class Desk:
         with open(Path(self.c['state_dir'])/'run.lock','a') as probe:
             try:fcntl.flock(probe,fcntl.LOCK_SH|fcntl.LOCK_NB)
             except BlockingIOError:busy=True
-        free_kinds=" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643','health')"
+        free_kinds=" AND kind IN ('live_calendar430','live_documents430','automation_setting','archive_correspondence5643','file_mail_attachments5643','health','sauvegarde5688','export5688','controle5688')"
         from .blocage5660 import RESERVE_AFTER
         # 5.6.61 : un travail qui attend le verrou exclusif depuis 3 essais le réserve : aucun nouveau travail à verrou partagé (réponses de
         # l'assistant, brouillons) ne démarre avant lui ; seuls les travaux sans verrou continuent. Sans cela, une suite continue de réponses
@@ -1271,6 +1306,8 @@ class Desk:
         self.db.execute("UPDATE jobs SET status='running',started=?,worker=?,attempts=attempts+1 WHERE id=? AND status='pending'",(now(),worker_id,row['id']))
         self.db.commit()
         self.active_job_id=row['id']
+        from .membres5650 import new_job as _new_job5688
+        _new_job5688()   # 5.6.88 : aucune limite ni aucun auteur hérités du travail précédent de ce fil
         from . import secours564;secours564.begin(row['id'],row['created'],row['kind'])
         try:
             _args=json.loads(row['args'] or '{}');_args=_args if isinstance(_args,dict) else {}
@@ -1567,6 +1604,16 @@ class _Supervision:
         except BaseException:
             self.db.rollback()
             raise
+
+
+def _with_author(desk,data):
+    """5.6.88 : ajoute ``auteur`` au contenu du journal quand il est connu (personne de la requête, propriétaire de la mission en cours). Un
+    appel qui nomme déjà son auteur, un contenu qui n'est pas un objet ou un travail sans personne restent inchangés."""
+    if not isinstance(data,dict) or 'auteur' in data:
+        return data
+    from .membres5650 import current_author
+    who=current_author()
+    return {**data,'auteur':str(who)[:120]} if who else data
 
 
 def _supervise(c,stop):

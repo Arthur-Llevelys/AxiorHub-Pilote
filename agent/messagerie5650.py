@@ -172,7 +172,7 @@ def follow(desk, me, tid, on, hidden=frozenset()):
 # ------------------------------------------------------------------------------------------------ messages
 def _mentions(text, members):
     found = []
-    for token in re.findall(r'@([\w.+\-@]{2,120})', text):
+    for token in re.findall(r'(?<![\w.+\-])@([\w.+\-@]{2,120})', text):   # 5.6.88 : une adresse de courriel n'est pas une mention
         token = token.rstrip('.').lower()
         for owner, m in members.items():
             names = {owner.lower(), owner.split('@')[0].lower(), re.sub(r'\s+', '', str(m.get('name') or '')).lower()}

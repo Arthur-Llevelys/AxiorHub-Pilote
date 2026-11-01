@@ -185,6 +185,8 @@ def sources_page(desk, auth, prefix, args, shell):
          log_rows or '<tr><td colspan="3">Aucune requête.</td></tr>')
     from .juridique5649 import panel_html   # 5.6.49 : connecteurs consultés avant chaque réponse, sinon pourquoi
     body += panel_html(desk, prefix)
+    from .societe5688 import panel_html as societes_html   # 5.6.88 : contrôle des sociétés avant la réponse (réglage général)
+    body += societes_html(desk, prefix)
     return shell('Sources juridiques', body, prefix, auth['csrf'], '/verification')
 
 

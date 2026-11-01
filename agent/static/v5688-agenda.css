@@ -1,0 +1,29 @@
+/* 5.6.88 : suivi des audiences, Mes tâches, liste du matin. Couleurs reprises du thème : contraste clair et sombre assuré par les variables. */
+.t88-form{display:grid;gap:10px;margin:10px 0}
+.t88-form label{display:grid;gap:4px;font-size:.875rem}
+.t88-form input:not([type=checkbox]),.t88-form select,.t88-form textarea{width:100%;min-width:0;box-sizing:border-box}
+.t88-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.t88-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:12px 0}
+.t88-filters label{display:grid;gap:4px;font-size:.875rem}
+.t88-add,.t88-edit{margin:10px 0}
+.t88-add>summary,.t88-edit>summary{cursor:pointer;font-weight:600}
+.t88-list{list-style:none;margin:8px 0;padding:0}
+.t88-item{padding:10px 0;border-bottom:1px solid var(--ax-line,#d6dbe1)}
+.t88-title{margin:0 0 4px;font-weight:600;display:block;overflow-wrap:anywhere}
+.t88-chips{display:flex;flex-wrap:wrap;gap:6px}
+.t88-chip{display:inline-block;padding:1px 8px;border:1px solid var(--ax-line,#d6dbe1);border-radius:999px;font-size:.8125rem;color:inherit;text-decoration:none}
+.t88-late{font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.t88-group h2{font-size:1rem;margin:16px 0 4px}
+.t88-count{font-weight:400}
+.t88-empty{margin:12px 0}
+.t88-notes{white-space:pre-wrap;overflow-wrap:anywhere}
+.t88-facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:8px 0}
+.t88-facts dt{font-weight:600}
+.t88-facts dd{margin:0;overflow-wrap:anywhere}
+.t88-matin{margin:12px 0}
+.t88-matin h2{font-size:1.0625rem;margin:0 0 8px}
+.t88-matin-block h3{font-size:.9375rem;margin:8px 0 2px}
+.t88-matin-block ul{margin:0;padding-left:18px}
+.t88-matin-block li{overflow-wrap:anywhere}
+.t88-mail{margin:12px 0}
+@media (max-width:640px){.t88-facts{grid-template-columns:1fr}.t88-filters{align-items:stretch;flex-direction:column}}

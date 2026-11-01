@@ -14,7 +14,7 @@ Lectures (GET, tous les rôles ; contrôles métier dans les modules) :
 from .common import Stop
 
 WORK = ('courriels/traiter', 'visio/lien', 'bandeau/masquer')
-LAWYER = ('efacture/actualiser', 'efacture/enregistrer', 'efacture/dossier')
+LAWYER = ('efacture/actualiser', 'efacture/enregistrer', 'efacture/dossier', 'efacture/releve')   # 5.6.88 : réglage du relevé automatique
 ADMIN = ('visio/reglage', 'visio/tester', 'securite/lever', 'securite/bloquer', 'securite/confiance', 'securite/retirer')
 
 
@@ -64,6 +64,9 @@ def api(env, desk, auth, prefix, name, args, method):
         if out['erreurs']:
             msg += ' Incidents : ' + ' ; '.join(out['erreurs'][:4])
         return json_out({'ok': True, 'message': msg, **out})
+    if route == 'efacture/releve':
+        from .efacture5688 import save_settings
+        return json_out(save_settings(desk, owner, role, data))
     if route == 'efacture/enregistrer':
         from .efacture5670 import store
         return json_out(store(desk, owner, role, str(data.get('id') or '')))

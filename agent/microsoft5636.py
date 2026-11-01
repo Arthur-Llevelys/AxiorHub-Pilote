@@ -165,9 +165,9 @@ def _access(desk, http=None):
     return tok['access_token']
 
 
-def _graph(desk, method, path, body=None, http=None, token=None):
+def _graph(desk, method, path, body=None, http=None, token=None, extra=None):
     client = http or HTTP(GRAPH, timeout=30)
-    headers = {'Authorization': 'Bearer ' + (token or _access(desk)), 'Accept': 'application/json', 'Prefer': 'outlook.timezone="UTC"'}
+    headers = {'Authorization': 'Bearer ' + (token or _access(desk)), 'Accept': 'application/json', 'Prefer': 'outlook.timezone="UTC"', **(extra or {})}
     if body is not None:
         headers['Content-Type'] = 'application/json'
     raw = client.request(method, path if path.startswith('https://') else GRAPH + path, None if body is None else json.dumps(body).encode(), headers, 4_000_000)
@@ -225,7 +225,7 @@ def push_event(desk, event, http=None):
     schema(desk)
     if event.get('source') == SOURCE or desk.db.execute('SELECT 1 FROM ms_links5636 WHERE local_id=?', (event['id'],)).fetchone():
         return None
-    body = {'subject': event['title'][:250], 'categories': ['AxiorHub'], 'isAllDay': bool(event.get('all_day')),
+    body = {'subject': event['title'][:250], 'categories': ['AxiorHub'], 'isAllDay': bool(event.get('all_day')), 'transactionId': transaction_id(event['id']),
             'body': {'contentType': 'text', 'content': (event.get('description') or '') + '\n\n(Événement créé par AxiorHub Pilote.)'},
             'location': {'displayName': event.get('location') or ''}}
     body.update(graph_times(desk, event))
@@ -234,6 +234,46 @@ def push_event(desk, event, http=None):
                                                                            datetime.now(timezone.utc).isoformat()))
     desk.db.commit()
     return out.get('id')
+
+
+def transaction_id(local_id, generation=0):
+    """5.6.88 : identité stable d'une création : Graph ne crée pas un second événement si le même envoi est repris après une erreur."""
+    return hashlib.sha256(('axiorhub|%s|%d' % (local_id, generation)).encode()).hexdigest()[:40]
+
+
+REMOTE_FIELDS = 'id,iCalUId,subject,start,end,location,isAllDay,isCancelled,categories'
+
+
+def _event_path(graph_id):
+    return '/v1.0/me/events/' + quote(str(graph_id), safe='')
+
+
+def get_remote(desk, graph_id, http=None):
+    """Lecture d'un événement Outlook par son identifiant ; None s'il n'existe plus."""
+    try:
+        return _graph(desk, 'GET', _event_path(graph_id) + '?$select=' + REMOTE_FIELDS, http=http)
+    except Stop as ex:
+        if str(ex).split(':')[0] in ('http_404', 'http_410'):
+            return None
+        raise
+
+
+def create_remote(desk, body, http=None):
+    return _graph(desk, 'POST', '/v1.0/me/events', body, http)
+
+
+def update_remote(desk, graph_id, body, etag, http=None):
+    """If-Match : si Outlook a changé depuis la lecture, Graph refuse (http_412) au lieu d'écraser."""
+    out = _graph(desk, 'PATCH', _event_path(graph_id), body, http, extra={'If-Match': etag} if etag else None)
+    return out
+
+
+def delete_remote(desk, graph_id, etag, http=None):
+    try:
+        _graph(desk, 'DELETE', _event_path(graph_id), http=http, extra={'If-Match': etag} if etag else None)
+    except Stop as ex:
+        if str(ex).split(':')[0] not in ('http_404', 'http_410'):
+            raise
 
 
 def pull(desk, http=None, now=None):
@@ -295,7 +335,8 @@ def sync(desk, http=None):
     if config(desk).get('push'):
         schema(desk)
         since = config(desk).get('connected_at', '')
-        rows = desk.db.execute("SELECT * FROM agenda5634 WHERE status='actif' AND source='local' AND created>=? AND starts>? "
+        # 5.6.88 : les audiences passent par propagation5688 (intitulé neutre par défaut, mise à jour et annulation suivies)
+        rows = desk.db.execute("SELECT * FROM agenda5634 WHERE status='actif' AND source='local' AND kind<>'audience' AND created>=? AND starts>? "
                                "AND id NOT IN (SELECT local_id FROM ms_links5636) LIMIT 30", (since, datetime.now(timezone.utc).isoformat())).fetchall()
         for r in rows:
             try:

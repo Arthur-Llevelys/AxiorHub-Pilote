@@ -478,6 +478,8 @@ def prepare(desk,args,dav=None,model=None):
     if not under(destination,matter['path']) or destination==clean_path(matter['path']):
         raise Stop('destination_documents_invalide')
     day=datetime.now(timezone.utc).date().isoformat();outputs=_outputs(matter,document_type,destination,day)
+    from . import cloud_nommage5688 as nommage   # 5.6.88 : règle du cabinet pour le document produit ; sans règle, le nom habituel
+    outputs[0]=clean_path(destination+'/'+nommage.apply(desk,'document',PurePosixPath(outputs[0]).name,nommage.context_of(matter,titre=document_type.replace('_',' '))))
     auto_version=auto_versions_allowed(desk,args)
     if auto_version:outputs=_unique_outputs(client,destination,outputs)   # 5.6.57 : nouvelle version, jamais d'écrasement
     code=f'{secrets.randbelow(1_000_000):06d}'

@@ -17,7 +17,8 @@ use OCP\IUserSession;
 
 /**
  * 0.3.0 : paramètres personnels « AxiorHub Pilote » — relier, tester, délier SON compte AxiorHub.
- * Le mot de passe AxiorHub n'est utilisé que pour obtenir la clé personnelle ; il n'est ni conservé, ni journalisé, ni renvoyé.
+ * Le mot de passe AxiorHub et, 0.4.4, le code de double authentification ne servent qu'à obtenir la clé personnelle : ni conservés,
+ * ni journalisés, ni renvoyés.
  */
 class PersonalController extends Controller {
 	public function __construct(
@@ -47,14 +48,15 @@ class PersonalController extends Controller {
 	}
 
 	#[NoAdminRequired]
-	public function link(string $engineUrl, string $login, string $password, bool $allowLocal = false): DataResponse {
+	public function link(string $engineUrl, string $login, #[\SensitiveParameter] string $password, bool $allowLocal = false, #[\SensitiveParameter] string $code = ''): DataResponse {
 		$uid = $this->uid();
+		$code = trim($code);
 		try {
 			$url = UserLink::checkUrl($engineUrl, $allowLocal);
 		} catch (\InvalidArgumentException $e) {
 			return new DataResponse(['code' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		}
-		if (trim($login) === '' || $password === '' || strlen($password) > 1024) {
+		if (trim($login) === '' || $password === '' || strlen($password) > 1024 || strlen($code) > 64) {
 			return new DataResponse(['code' => 'identifiants_requis'], Http::STATUS_BAD_REQUEST);
 		}
 		$health = $this->engine->health($url, $allowLocal);
@@ -62,7 +64,7 @@ class PersonalController extends Controller {
 			return new DataResponse(['code' => (string)($health['body']['code'] ?? 'moteur_injoignable'), 'message' => (string)($health['body']['message'] ?? ''),
 				'step' => 'health'], Http::STATUS_BAD_GATEWAY);
 		}
-		$out = $this->engine->pair($url, $allowLocal, trim($login), $password, mb_substr($uid, 0, 100));
+		$out = $this->engine->pair($url, $allowLocal, trim($login), $password, mb_substr($uid, 0, 100), $code);
 		if ($out['status'] !== 200 || !isset($out['body']['key_id'], $out['body']['secret'])) {
 			return new DataResponse(['code' => (string)($out['body']['code'] ?? 'appairage_refuse'), 'message' => (string)($out['body']['message'] ?? ''),
 				'step' => 'pair'], $out['status'] >= 400 ? $out['status'] : Http::STATUS_BAD_GATEWAY);

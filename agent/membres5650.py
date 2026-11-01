@@ -6,6 +6,10 @@
   à un compte avocat ou assistant(e) : envoyer des courriels, déposer des brouillons, valider les décisions et productions, gérer
   l'agenda, facturation et temps, réglages du cabinet. Un administrateur garde tous ses droits ; la gestion des comptes et des droits
   reste réservée aux administrateurs, quel que soit le réglage.
+- **Droits par action** (5.6.88) : exporter, supprimer, valider un modèle, transmettre une facture, gérer les comptes, voir les honoraires.
+  Sans réglage propre au compte, la règle du rôle s'applique exactement comme avant la mise à jour : rien n'est retiré, rien n'est ouvert.
+  Un droit retiré refuse ; un droit accordé ouvre la route de travail de l'avocat. « Gérer les comptes » ne donne jamais accès à un
+  compte administrateur ni au registre des droits.
 - **Dossiers réservés** (facultatif) : un dossier peut être réservé à certains comptes ; les autres comptes (hors administrateurs) ne
   le voient plus dans les listes, les recherches, l'assistant et la messagerie, et toute requête qui le désigne est refusée.
   Les travaux de l'agent (en arrière-plan, pour le cabinet) ne sont pas cloisonnés.
@@ -28,12 +32,22 @@ FILE = 'acces5650.json'
 RIGHTS = (('envoyer', 'Envoyer des courriels'), ('deposer', 'Déposer des brouillons dans la messagerie'),
           ('valider', 'Valider les décisions et les productions'), ('agenda', 'Gérer l’agenda et les tâches'),
           ('facturation', 'Facturation et temps passé'), ('reglages', 'Réglages du cabinet'))
+# 5.6.88 : droits fins des actions sensibles. Ils s'ajoutent aux six droits par famille, sans en changer le sens.
+FINE_RIGHTS = (('exporter', 'Exporter des données (CSV, archives)'), ('supprimer', 'Supprimer définitivement'),
+               ('valider_modele', 'Valider un modèle de document'), ('transmettre_facture', 'Transmettre une facture'),
+               ('gerer_comptes', 'Gérer les comptes (hors administrateurs)'), ('voir_honoraires', 'Voir les honoraires, factures et temps passés'))
+FINE_IDS = tuple(r for r, _ in FINE_RIGHTS)
+RIGHTS = RIGHTS + FINE_RIGHTS
 RIGHT_IDS = tuple(r for r, _ in RIGHTS)
 ROLES = {'administrateur': 'Administrateur', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 # Droits de chaque rôle avant tout réglage (mêmes règles que standalone_auth.allowed).
 ROLE_DEFAULTS = {'administrateur': {r: True for r in RIGHT_IDS},
-                 'avocat': {'envoyer': True, 'deposer': True, 'valider': True, 'agenda': True, 'facturation': True, 'reglages': False},
-                 'assistant': {'envoyer': False, 'deposer': False, 'valider': False, 'agenda': True, 'facturation': False, 'reglages': False}}
+                 'avocat': {'envoyer': True, 'deposer': True, 'valider': True, 'agenda': True, 'facturation': True, 'reglages': False,
+                            'exporter': True, 'supprimer': True, 'valider_modele': True, 'transmettre_facture': True, 'gerer_comptes': False,
+                            'voir_honoraires': True},
+                 'assistant': {'envoyer': False, 'deposer': False, 'valider': False, 'agenda': True, 'facturation': False, 'reglages': False,
+                               'exporter': True, 'supprimer': False, 'valider_modele': False, 'transmettre_facture': False, 'gerer_comptes': False,
+                               'voir_honoraires': True}}
 SEND_API = frozenset({'send/prepare', 'send/confirm', 'send/matter', 'm5628/envoyer', 'm5628/envoyer/confirmer'})
 DEPOSIT_API = frozenset({'m5628/brouillon', 'm5625/boite/repondre'})
 DEPOSIT_ACTIONS = frozenset({'deposit_draft', 'prepare_reply', 'prepare_draft'})
@@ -55,11 +69,13 @@ AGENDA_ACTIONS = frozenset({'create_agenda_event', 'edit_agenda_event', 'cancel_
 BILLING_PREFIXES = ('m500/invoice/', 'm500/time/', 'm568/ninja/')
 BILLING_ACTIONS = frozenset({'link_invoice_client', 'billing_review35', 'record_provision'})
 # Gestion des comptes et des droits : jamais accordée par un réglage (pas d'élévation de privilège).
-ACCOUNT_ROUTES = ('m5636/comptes/', 'm5636/compte/', 'm5650/droits', 'm5650/reserve', 'm5650/restaurer')
+ACCOUNT_ROUTES = ('m5688cloud/', 'm5636/comptes/', 'm5636/compte/', 'm5650/droits', 'm5650/reserve', 'm5650/restaurer', 'm5688s/admin/', 'm5688s/journal')
 MATTER_KEYS = ('matter', 'matter_id', 'dossier', 'mid')
 MATTER_ID_PATHS = ('/dossier', '/fiche', '/chronologie', '/pieces')
 
 _viewer = ContextVar('axiorhub_viewer5650', default=None)
+_author = ContextVar('axiorhub_auteur5688', default='')          # 5.6.88 : auteur du journal d'audit pour la requête en cours
+_ai_denied = ContextVar('axiorhub_vue_ia5688', default=frozenset())   # 5.6.88 : ce que la personne ne peut pas ouvrir, donc l'assistant non plus
 _lock = threading.Lock()
 _seen = {}
 
@@ -344,7 +360,76 @@ M5652_CATEGORIES = {'connexion/enregistrer': 'reglages', 'connexion/secret': 're
                     'file/decider': 'valider', 'operation/valider': 'operation', 'operation/reprendre': 'operation'}
 
 
+# 5.6.88 : droits fins. Reconnus par la forme de la route : une nouvelle exportation ou suppression est couverte sans autre écriture.
+EXPORT_ROUTE = re.compile(r'(^|/)(export|csv)$')
+DELETE_ROUTE = re.compile(r'(^|/)(supprimer|delete)$')
+TEMPLATE_ACTIONS = frozenset({'approve_cabinet_template'})
+TEMPLATE_API = frozenset({'m5684/modele/etat'})
+INVOICE_SEND_API = frozenset({'m5653/document/transmettre'})
+FEES_API = ('m5653/', 'm500/time/', 'm500/invoice/', 'm500/report/', 'm568/ninja/', 'm5670/efacture/', 'm5636/relances')
+FEES_PAGES = ('/facturation', '/honoraires', '/relances', '/pilotage-mensuel', '/contribution')
+FEES_V1 = ('/api/v1/invoice-ninja/', '/api/v1/cabinet/provisions', '/api/v1/autonomy/billing', '/api/v1/assistance/billing')
+WIDENING = ('supprimer', 'valider_modele', 'transmettre_facture')
+DELEGATED_ACCOUNTS = ('m5636/comptes/ajouter', 'm5636/comptes/modifier')
+API_MATTER = re.compile(r'/api/v1/matters/([A-Za-z0-9_-]{1,80})(?:/|$)')
+
+
+def fine_rights(method, path, action=''):
+    """Droits fins en jeu dans une requête (plusieurs possibles : exporter des temps passés relève aussi des honoraires)."""
+    from .standalone_auth import normalize
+    path = normalize(path) or ''
+    path = path.rstrip('/') or '/'
+    api = path[len('/api440/'):].split('?', 1)[0] if path.startswith('/api440/') else ''
+    out = []
+    if api and EXPORT_ROUTE.search(api):
+        out.append('exporter')
+    if (api and DELETE_ROUTE.search(api) and method not in ('GET', 'HEAD')) or str(action).startswith('delete_'):
+        out.append('supprimer')
+    if action in TEMPLATE_ACTIONS or (api in TEMPLATE_API and method not in ('GET', 'HEAD')):
+        out.append('valider_modele')
+    if api in INVOICE_SEND_API:
+        out.append('transmettre_facture')
+    if api.startswith(FEES_API) or path in FEES_PAGES or path.startswith(FEES_V1):
+        out.append('voir_honoraires')
+    return out
+
+
+def can_manage_accounts(state_dir, owner, role):
+    """Délégation expresse seulement : aucun rôle autre qu'administrateur ne l'a par défaut."""
+    if role == 'administrateur':
+        return True
+    try:
+        return load(state_dir)['droits'].get(str(owner), {}).get('gerer_comptes') is True
+    except Stop:
+        return False
+
+
 def allowed(state_dir, owner, role, method, path, action=''):
+    """5.6.88 : règle par famille (``family_allowed``), puis droits fins. Sans réglage propre au compte, le résultat est celui d'avant la
+    mise à jour, quelle que soit la valeur affichée par défaut : aucun droit ne se retire ni ne s'ouvre tout seul."""
+    from .standalone_auth import allowed as role_allowed, normalize
+    base = family_allowed(state_dir, owner, role, method, path, action)
+    if role == 'administrateur' or not owner or not state_dir:
+        return base
+    fine = fine_rights(method, path, action)
+    clean = (normalize(path) or '').rstrip('/')
+    delegated = clean[len('/api440/'):] in DELEGATED_ACCOUNTS if clean.startswith('/api440/') else False
+    if not fine and not delegated:
+        return base
+    try:
+        own = load(state_dir)['droits'].get(str(owner), {})
+    except Stop:
+        return False
+    if delegated:
+        return bool(base) or own.get('gerer_comptes') is True
+    if any(own.get(r) is False for r in fine):
+        return False
+    if base:
+        return True
+    return any(own.get(r) is True for r in fine if r in WIDENING) and role_allowed('avocat', method, path, action)
+
+
+def family_allowed(state_dir, owner, role, method, path, action=''):
     """Règle du rôle (standalone_auth.allowed), puis droit EFFECTIF du compte (5.6.51, audit B02 : un droit faux refuse, qu'il vienne
     du rôle ou d'un réglage ; un droit accordé au-delà du rôle n'ouvre qu'une route de travail connue, jamais la gestion des comptes).
     Registre des accès illisible : refus pour tout compte qui n'est pas administrateur (audit B05)."""
@@ -390,6 +475,36 @@ def set_viewer(hidden):
 
 def clear():
     _viewer.set(None)
+    _author.set('')
+    _ai_denied.set(frozenset())
+
+
+def new_job():
+    _author.set('')
+    _ai_denied.set(frozenset())
+
+
+def current_author():
+    return _author.get()
+
+
+def set_author(owner):
+    _author.set(str(owner or ''))
+
+
+def ai_denied():
+    return _ai_denied.get()
+
+
+def set_ai_denied(categories):
+    _ai_denied.set(frozenset(categories or ()))
+
+
+def ai_limits(state_dir, owner, role):
+    """Catégories que les droits de cette personne lui ferment : l'assistant n'ouvre jamais ce qu'elle ne peut pas ouvrir."""
+    if role == 'administrateur' or not state_dir:
+        return frozenset()
+    return frozenset() if effective_rights(state_dir, owner, role).get('voir_honoraires') else frozenset(('factures', 'temps'))
 
 
 INDIRECT_KEYS = ('lien', 'link_id', 'request', 'mission', 'mission_id', 'project', 'task', 'job', 'job_id')
@@ -541,7 +656,13 @@ def gate(env, state_dir, path, args, matter_paths=None):
     owner, role = actor(env)
     hidden = hidden_for(state_dir, owner, role)
     set_viewer(hidden)
+    set_ai_denied(ai_limits(state_dir, owner, role))
+    service = str(env.get('HTTP_AUTHORIZATION') or '').startswith('Bearer ') and not env.get('HTTP_X_AXIORHUB_USER') and not env.get('axiorhub.jeton5688')
+    set_author('jeton_service' if service else owner)   # 5.6.88 : le jeton de service n'a pas d'identité : il est nommé comme tel
     _presence(state_dir, owner, role, env)
+    named = API_MATTER.match(str(path or ''))   # 5.6.88 : l'API désigne un dossier dans son adresse
+    if hidden and named and named.group(1) in hidden:
+        return 'dossier_reserve'
     if hidden and (_matters_of(state_dir, _request_values(env, path, args), matter_paths) | route_objects(state_dir, path, args)) & hidden:
         return 'dossier_reserve'
     return None
@@ -643,7 +764,11 @@ def page_html(desk, auth, prefix, args):
         defaults = ROLE_DEFAULTS.get(m['role'], ROLE_DEFAULTS['assistant'])
         checks = ''.join('<label class="m50-check"><input type="checkbox" name="%s"%s> %s%s</label>' % (
             r, ' checked' if rights[r] else '', e(lbl), ' <small>(réglage propre à ce compte)</small>' if rights[r] != defaults[r] else '')
-            for r, lbl in RIGHTS)
+            for r, lbl in RIGHTS if r not in FINE_IDS)
+        fine = ''.join('<label class="m50-check"><input type="checkbox" name="%s"%s> %s%s</label>' % (
+            r, ' checked' if rights[r] else '', e(lbl), ' <small>(réglage propre à ce compte)</small>' if rights[r] != defaults[r] else '')
+            for r, lbl in FINE_RIGHTS)
+        checks += '<p class="m50-fine"><strong>Actions sensibles</strong></p>' + fine
         cards.append('<article class="m50-member">%s<form class="m5-form" data-api="m5650/droits" data-reload>'
                      '<input type="hidden" name="owner" value="%s"><input type="hidden" name="role" value="%s"><div class="m50-checks">%s</div>'
                      '<button class="ax-btn ghost" type="submit">Enregistrer les droits</button><p role="status" class="m5-status"></p></form></article>' % (
@@ -676,7 +801,10 @@ def access_card(desk, auth, prefix, mid, role):
     checks = ''.join('<label class="m50-check"><input type="checkbox" name="%s"%s> %s</label>' % (
         e('compte:' + m['owner'], quote=True), ' checked' if m['owner'] in owners else '', e(label(m)))
         for m in sorted(members, key=lambda m: (m['name'] or '').lower()))
-    return ('<section class="ax-card" id="acces-dossier"><h2>Accès au dossier</h2><p class="ax-muted">%s</p>'
+    note88 = ''
+    if (desk.c.get('nextcloud') or {}).get('stockage_cloud'):   # 5.6.88 : la réservation ne ferme pas seule l'accès chez le fournisseur
+        note88 = '<p class="ax-muted">Cette réservation vaut dans AxiorHub. Chez le fournisseur du stockage, les accès restent ceux d’avant : <a href="%s">voir ce qui changerait et le répercuter</a>.</p>' % e(prefix + '/parametres?rubrique=stockage#cloisonnement', quote=True)
+    return ('<section class="ax-card" id="acces-dossier"><h2>Accès au dossier</h2><p class="ax-muted">%s</p>' + note88 +
             '<form class="m5-form" data-api="m5650/reserve" data-reload><input type="hidden" name="matter" value="%s"><div class="m50-checks">%s</div>'
             '<button class="ax-btn ghost" type="submit">Enregistrer l’accès</button><p role="status" class="m5-status"></p></form></section>') % (
         e('Réservé aux comptes cochés et aux administrateurs.' if owners else 'Tous les comptes du cabinet voient ce dossier. Cochez des comptes pour le leur réserver.'),

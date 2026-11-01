@@ -1,0 +1,38 @@
+{
+  "version": "5.6.88",
+  "base": "5.6.87",
+  "date_utc": "2026-11-01T00:00:00+00:00",
+  "cahier_des_charges": "Fonctions demandées par le cabinet : sécurité des comptes, réversibilité, temps et facturation, audiences et tâches, CRM et veille, contrôle des sociétés, stockage cloud.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 4031,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 135,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub. Après cette suite, seuls les SIREN d’essai de test_v5688_crm et test_v5688_societe ont changé ; ces fichiers et test_v5688_facturation ont été rejoués (301 tests, 0 échec)."
+  },
+  "new_tests": "tests/test_v5688_securite, reversibilite, facturation, agenda, crm, societe, cloud : faux services HTTP locaux uniquement.",
+  "mutations": "Environ 120 défauts introduits dans la sécurité, la sauvegarde, le cloud et le contrôle des sociétés ; tous détectés sauf quatre, équivalents ou redondants. Pas de campagne chiffrée pour la facturation, l’agenda et le CRM, seulement des tests dédiés.",
+  "live_checks": "Aucun service réel. Google, Microsoft, Dropbox, SuperPDP, B2Brouter, INPI, WebDAV et S3 n’ont été exercés que par des simulations ; BODACC et l’annuaire public ont seulement été lus à la main pour relever la forme des champs.",
+  "exapp": {
+    "version": "0.1.47",
+    "moteur": "5.6.88"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "champ de code pour relier un compte protégé"
+  },
+  "behaviour_changes": [
+    "/api/v1/cabinet/audit réservé à l’administrateur.",
+    "Accès Basic d’un administrateur refusé dès que sa double authentification est active.",
+    "Abonnements push anciens rattachés au seul compte « cabinet ».",
+    "Rappels d’audience envoyés par rappels5688."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5652.py : ligne ajoutée pour la capacité calendar.write.",
+    "tests/test_v440_office.py : fichiers ZIP de test à date fixe, deux fichiers créés à des secondes différentes faisaient échouer la comparaison.",
+    "tests/test_v5642.py : application Nextcloud 0.4.4.",
+    "tests/test_v5652.py : fournisseur INPI, connexion sso/login sans en-tête d’autorisation."
+  ]
+}

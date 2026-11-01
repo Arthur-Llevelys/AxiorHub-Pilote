@@ -104,7 +104,6 @@ OC.L10N.register(
  "Linked to the AxiorHub account:": "Relié au compte AxiorHub :",
  "Linked to {user} · AxiorHub {version}": "Relié à {user} · AxiorHub {version}",
  "Linking…": "Liaison en cours…",
- "Login or password refused by AxiorHub.": "Identifiant ou mot de passe refusé par AxiorHub.",
  "Nextcloud refuses this local address: tick “Engine on this server (local address)”.": "Nextcloud refuse cette adresse locale : cochez « Moteur sur ce serveur (adresse locale) ».",
  "No case found for this search.": "Aucun dossier ne correspond à cette recherche.",
  "No case is available to you. Link your AxiorHub account in Personal settings › AxiorHub Pilote.": "Aucun dossier ne vous est accessible. Reliez votre compte AxiorHub dans Paramètres personnels › AxiorHub Pilote.",
@@ -190,6 +189,9 @@ OC.L10N.register(
  "Test the address": "Tester l’adresse",
  "AxiorHub {version} answers at this address.": "AxiorHub {version} répond à cette adresse.",
  "This AxiorHub is installed on a workstation: choose “On this computer, with Nextcloud on the same computer (discovery mode)”.": "Cet AxiorHub est installé sur un poste de travail : choisissez « Sur cet ordinateur, avec Nextcloud sur le même ordinateur (mode découverte) ».",
- "This AxiorHub is a server version: choose “On a server (recommended)”.": "Cet AxiorHub est une version serveur : choisissez « Sur un serveur (recommandé) »."
+ "This AxiorHub is a server version: choose “On a server (recommended)”.": "Cet AxiorHub est une version serveur : choisissez « Sur un serveur (recommandé) ».",
+ "Two-factor authentication code": "Code de double authentification",
+ "Only if your AxiorHub account is protected: enter the current code or a recovery code, otherwise leave empty. It is used once and never stored.": "Uniquement si votre compte AxiorHub est protégé : saisissez le code du moment ou un code de secours ; sinon, laissez vide. Il sert une seule fois et n’est jamais conservé.",
+ "Linking refused by AxiorHub: check your login and password, and the two-factor authentication code if your account is protected.": "Liaison refusée par AxiorHub : vérifiez votre identifiant et votre mot de passe, ainsi que le code de double authentification si votre compte est protégé."
 },
     "nplurals=2; plural=(n > 1);");

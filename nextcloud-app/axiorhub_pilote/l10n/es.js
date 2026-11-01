@@ -104,7 +104,6 @@ OC.L10N.register(
  "Linked to the AxiorHub account:": "Vinculado a la cuenta de AxiorHub:",
  "Linked to {user} · AxiorHub {version}": "Vinculado a {user} · AxiorHub {version}",
  "Linking…": "Vinculando…",
- "Login or password refused by AxiorHub.": "Usuario o contraseña rechazados por AxiorHub.",
  "Nextcloud refuses this local address: tick “Engine on this server (local address)”.": "Nextcloud rechaza esta dirección local: marque «Motor en este servidor (dirección local)».",
  "No case found for this search.": "Ningún expediente corresponde a esta búsqueda.",
  "No case is available to you. Link your AxiorHub account in Personal settings › AxiorHub Pilote.": "No tiene acceso a ningún expediente. Vincule su cuenta de AxiorHub en Ajustes personales › AxiorHub Pilote.",
@@ -190,6 +189,9 @@ OC.L10N.register(
  "Test the address": "Probar la dirección",
  "AxiorHub {version} answers at this address.": "AxiorHub {version} responde en esta dirección.",
  "This AxiorHub is installed on a workstation: choose “On this computer, with Nextcloud on the same computer (discovery mode)”.": "Este AxiorHub está instalado en un puesto de trabajo: elija «En este ordenador, con Nextcloud en el mismo ordenador (modo descubrimiento)».",
- "This AxiorHub is a server version: choose “On a server (recommended)”.": "Este AxiorHub es una versión servidor: elija «En un servidor (recomendado)»."
+ "This AxiorHub is a server version: choose “On a server (recommended)”.": "Este AxiorHub es una versión servidor: elija «En un servidor (recomendado)».",
+ "Two-factor authentication code": "Código de autenticación de dos factores",
+ "Only if your AxiorHub account is protected: enter the current code or a recovery code, otherwise leave empty. It is used once and never stored.": "Solo si su cuenta de AxiorHub está protegida: introduzca el código actual o un código de recuperación; si no, déjelo vacío. Se usa una sola vez y nunca se guarda.",
+ "Linking refused by AxiorHub: check your login and password, and the two-factor authentication code if your account is protected.": "Vinculación rechazada por AxiorHub: compruebe su usuario y su contraseña, así como el código de autenticación de dos factores si su cuenta está protegida."
 },
     "nplurals=2; plural=(n != 1);");

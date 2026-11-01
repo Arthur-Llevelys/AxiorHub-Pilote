@@ -1727,6 +1727,8 @@
 ],
 "version": "5.6.36"
 },
+"mes_taches": {"objective": "Ver las tareas que le han sido asignadas, con su plazo, recordatorio y estado.", "when": "Cada día, y para asignar una tarea a un compañero.", "prerequisites": "Ninguno.", "steps": ["Cree una tarea y elija al responsable.", "Indique un plazo y un recordatorio si hace falta.", "Ajuste sus recordatorios al final de la página."], "result": "El responsable recibe recordatorios siete días y un día antes, en la aplicación, en el teléfono vinculado y, si lo activa, por correo a la dirección de su cuenta.", "verify": "La tarea aparece en su lista y, en la fecha, en su lista del día.", "errors": [], "example": "Tarea ficticia: reclamar al compañero MARTIN los documentos 12 a 15 del expediente DOS-001.", "buttons": ["Créer la tâche", "Enregistrer mes rappels"], "version": "5.6.36"},
+"audiences_suivi": {"objective": "Seguir cada audiencia: quién acude, ante qué tribunal, con qué número de autos y en qué estado.", "when": "Para preparar la semana o comprobar que una audiencia tiene abogado.", "prerequisites": "Ninguno. Para las copias, un calendario Outlook o Google conectado en Ajustes.", "steps": ["Filtre por abogado y periodo.", "Abra una audiencia para completarla.", "Designe al abogado y guarde."], "result": "La ficha sigue al evento del calendario. Sin abogado aparece «Sans avocat désigné». Un cambio hecho en Outlook o Google nunca se sobrescribe sin su decisión.", "verify": "Aparece el nombre del abogado y la línea Outlook o Google indica la copia.", "errors": [], "example": "Audiencia ficticia en el tribunal de Valbrune, autos 24/01234, expediente DOS-001.", "buttons": ["Enregistrer l’audience"], "version": "5.6.36"},
 "cessions": {"objective": "Llevar una cesión de fondo o de arrendamiento desde un expediente hasta las escrituras y los trámites.", "when": "Para una operación de ese tipo.", "prerequisites": "Un expediente del despacho y sus documentos.", "steps": ["Elija el tipo.", "Cree la operación en un expediente y hágase cargo.", "Confirme los datos y prepare los documentos."], "result": "Las actas se depositan en «JURIDIQUE»; los libros solo cambian al registrar la realización. Los modelos dan proyectos por revisar; los modelos extranjeros deben validarse por un asesor local.", "verify": "Abra «Libros»: la decisión figura en la fecha confirmada; «Actas preparadas» muestra el estado de cada operación.", "errors": [], "example": "Sociedad ficticia EXEMPLE SAS con un capital de 10 000 €: estatutos de SAS con cláusulas de aprobación, adquisición preferente y acompañamiento.", "buttons": ["Créer l’opération"], "version": "5.6.36"},
 "formulaires": {"objective": "Rellenar un formulario oficial con los datos de un expediente o preparar los datos que copiar cuando el PDF no tiene campos.", "when": "Para las declaraciones fiscales, las solicitudes y la asistencia jurídica gratuita del catálogo.", "prerequisites": "Nextcloud: un expediente del despacho. El formulario se descarga del sitio oficial.", "steps": ["Descargue el formulario y compruebe su versión.", "Elija el expediente e inicie el relleno.", "Revise el archivo guardado en la carpeta FORMULAIRES."], "result": "Las actas se depositan en «JURIDIQUE»; los libros solo cambian al registrar la realización. Los modelos dan proyectos por revisar; los modelos extranjeros deben validarse por un asesor local.", "verify": "Abra «Libros»: la decisión figura en la fecha confirmada; «Actas preparadas» muestra el estado de cada operación.", "errors": [], "example": "Sociedad ficticia EXEMPLE SAS con un capital de 10 000 €: estatutos de SAS con cláusulas de aprobación, adquisición preferente y acompañamiento.", "buttons": ["Télécharger depuis le site officiel", "Remplir depuis le dossier"], "version": "5.6.36"},
 "corporate": {
@@ -1766,10 +1768,40 @@
 ],
 "version": "5.6.36"
 },
+"contribution": {
+"objective": "Ver lo que cada colaborador aporta a la facturación cobrada, mes a mes, y estimar su retrocesión.",
+"when": "Para preparar una reunión con un colaborador o una retrocesión, a partir de los cobros registrados.",
+"prerequisites": "El derecho «Facturación y tiempos»; facturas emitidas en AxiorHub, cobros registrados y, si es posible, tiempos atribuidos a cada persona.",
+"steps": [
+"Elija el mes y, si es necesario, la persona, y haga clic en «Afficher».",
+"En «Clés de rétrocession», indique la persona, el mes de inicio, el porcentaje y el umbral opcional, y haga clic en «Enregistrer la clé».",
+"Compruebe el detalle de los cobros; «Ajuster» corrige el reparto de un cobro o de una factura, con un total del 100 %.",
+"Haga clic en «Exporter le relevé (CSV)» para conservar la relación."
+],
+"result": "Una relación orientativa por persona: honorarios cobrados sin IVA, base, retrocesión y céntimos de redondeo asignados. No es un asiento contable.",
+"verify": "El total de la relación coincide con la suma de las líneas del detalle; cada céntimo ajustado figura en «Écarts d’arrondi».",
+"errors": [
+[
+"«La répartition doit totaliser exactement 100 %»",
+"Corrija los porcentajes indicados en «Ajuster»."
+],
+[
+"Todo aparece como «Non attribué»",
+"Atribuya los tiempos a una persona en Tiempos y honorarios, o ajuste el reparto a mano."
+]
+],
+"example": "Factura ficticia F-2026-0042: 1 000,00 € sin IVA cobrados, 60 % MARTIN y 40 % BERNARD según los tiempos facturados; clave ficticia del 30 % por encima de 200,00 €.",
+"buttons": [
+"Afficher",
+"Exporter le relevé (CSV)",
+"Enregistrer la clé"
+],
+"version": "5.6.36"
+},
 "relances": {
-"objective": "Preparar cada mañana borradores de recordatorio para las facturas vencidas de Invoice Ninja, a revisar antes de cualquier envío.",
+"objective": "Preparar cada mañana borradores de recordatorio de las facturas vencidas, emitidas en AxiorHub o conocidas por Invoice Ninja, para revisarlos antes de cualquier envío.",
 "when": "Para seguir los impagos sin olvidar ninguna factura ni reclamar demasiado a menudo.",
-"prerequisites": "Invoice Ninja conectado (solo lectura); correo para dejar los recordatorios en Borradores.",
+"prerequisites": "Nada que conectar para las facturas emitidas en AxiorHub. Invoice Ninja es opcional (solo lectura). Correo para dejar los recordatorios en Borradores.",
 "steps": [
 "Abra «Ajustes»: hora, plazo de gracia, intervalo y nivel máximo, y haga clic en «Guardar».",
 "Cada mañana aparecen los borradores; haga clic en «Preparar ahora» para no esperar.",
@@ -1780,7 +1812,7 @@
 "verify": "Abra Borradores: el recordatorio está ahí; Invoice Ninja nunca se modifica.",
 "errors": [
 [
-"«Invoice Ninja aún no está conectado»",
+"Ninguna factura de Invoice Ninja en los borradores",
 "Configure Invoice Ninja en Ajustes › Conexiones."
 ],
 [
@@ -1989,6 +2021,87 @@
 ],
 "example": "Autorizar desde el teléfono el depósito de una respuesta «à compléter» al cliente ficticio del expediente DOS-001.",
 "buttons": [],
+"version": "5.6.36"
+},
+"mon_compte": {
+"objective": "Proteger su cuenta con un código de seis cifras y gestionar sus tokens de API.",
+"when": "Para reforzar su acceso, o cuando el despacho lo exige.",
+"prerequisites": "Una cuenta nominativa y una aplicación de autenticación en su teléfono.",
+"steps": [
+"Abra Mi cuenta, al pie del menú.",
+"Elija «Activer la double authentification» y escanee el código QR.",
+"Introduzca el primer código y anote sus diez códigos de respaldo.",
+"Si lo necesita, cree un token de API: solo se muestra una vez."
+],
+"result": "El acceso pide un código tras la contraseña.",
+"verify": "Se muestra el estado «Activa» con los códigos de respaldo restantes.",
+"errors": [
+[
+"Código rechazado",
+"Compruebe la hora del teléfono y espere el código siguiente."
+],
+[
+"Teléfono perdido",
+"Use un código de respaldo o pida al administrador que restablezca la protección."
+]
+],
+"example": "Crear un token de lectura de 90 días para un script que consulta el expediente DOS-001.",
+"buttons": [
+"Activer la double authentification",
+"Créer le jeton"
+],
+"version": "5.6.36"
+},
+"journal_audit": {
+"objective": "Saber quién hizo qué y comprobar que el registro no se ha alterado.",
+"when": "Para un control, una cuestión de responsabilidad o un incidente.",
+"prerequisites": "Ser administrador.",
+"steps": [
+"Abra el Registro de auditoría.",
+"Filtre por fecha, acción, autor o búsqueda, y pulse «Filtrer».",
+"Lea el estado de la cadena en la parte superior.",
+"Exporte con «Exporter (CSV)»."
+],
+"result": "La lista de eventos, con su autor cuando se conoce.",
+"verify": "Se muestra «Chaîne intacte»; una ruptura indica el evento afectado.",
+"errors": [
+[
+"Autor «système»",
+"La acción procede de un trabajo automático, sin persona conectada."
+],
+[
+"Cadena rota",
+"Conserve una copia de la base y busque la causa antes de restaurar."
+]
+],
+"example": "Listar las exportaciones del mes del expediente DOS-001.",
+"buttons": [
+"Filtrer",
+"Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"vue_ia": {
+"objective": "Elegir, categoría por categoría, lo que el asistente y el conector Claude pueden leer.",
+"when": "Para limitar lo que se transmite a los modelos.",
+"prerequisites": "Ser administrador.",
+"steps": [
+"Abra Lo que la IA puede ver.",
+"Desmarque las categorías que quiera cerrar.",
+"Elija «Enregistrer»."
+],
+"result": "El asistente indica en su respuesta lo que no consultó.",
+"verify": "Pregunte sobre una categoría cerrada: la respuesta lo señala.",
+"errors": [
+[
+"Clasificación automática del correo",
+"Se ajusta en Autonomía del agente, no aquí."
+]
+],
+"example": "Cerrar las facturas a la IA y mantener los documentos del expediente DOS-001.",
+"buttons": [
+"Enregistrer"
+],
 "version": "5.6.36"
 }
 }

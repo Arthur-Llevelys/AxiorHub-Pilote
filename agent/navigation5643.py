@@ -33,7 +33,7 @@ PRODUCTION_VIEWS = {'resultats': '/production', 'rediger': '/studio', 'documents
 
 # Menu complémentaire : besoins distincts des six accès principaux (cible 6 à 10 entrées visibles).
 # 5.6.75 : le navigateur supervisé (5.6.73) n'avait ni place dans ce menu ni page parente : seule la recherche le trouvait.
-PANEL = ('facturation', 'cessions', 'recherche', 'navigateur', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant',
+PANEL = ('facturation', 'contribution', 'cessions', 'recherche', 'navigateur', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant',
          'guide_utilisation')
 
 # Destination canonique des sous-sections (trouvées par la recherche ; leur page reste servie).
@@ -42,7 +42,7 @@ PARENT = {
     'echeances': 'dossiers', 'audience': 'dossiers', 'audiences_word': 'dossiers', 'pieces': 'dossiers', 'pieces_donnees': 'dossiers',
     'profils': 'dossiers', 'strategie': 'dossiers',
     # Agenda et tâches
-    'taches': 'planning', 'rendez_vous': 'planning',
+    'taches': 'planning', 'rendez_vous': 'planning', 'mes_taches': 'planning', 'audiences_suivi': 'dossiers',   # 5.6.88 : onglets d'Agenda et tâches (menu complémentaire plein)
     # Produire
     'studio': 'production', 'documents': 'production', 'missions_complexes': 'production', 'playbooks': 'production',
     'formulaires': 'production', 'outils_ia': 'production', 'projets': 'production', 'agents_documents': 'production', 'missions': 'production',
@@ -62,6 +62,7 @@ PARENT = {
     'diagnostic': 'parametres', 'etat_systeme': 'parametres', 'qualite': 'parametres', 'evaluations': 'parametres', 'tracabilite': 'parametres',
     'mise_en_service': 'parametres', 'mcp': 'parametres', 'routage': 'parametres', 'ecosysteme': 'parametres', 'complement_word': 'parametres',
     'guide_installation': 'parametres', 'administration': 'parametres', 'a_propos': 'parametres',
+    'journal_audit': 'parametres', 'vue_ia': 'parametres', 'mon_compte': 'parametres',   # 5.6.88 (Mon compte s'ouvre aussi en pied du menu)
 }
 HIDDEN = {'tableau_de_bord': 'aujourdhui'}   # ancien tableau de bord : retiré du menu ; « Aujourd'hui » est l'accueil de travail unique
 PARENT_LABELS = {'dossiers': 'Dossiers', 'planning': 'Agenda et tâches', 'production': 'Produire', 'recherche': 'Recherche',

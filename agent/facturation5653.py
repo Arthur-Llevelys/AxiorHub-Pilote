@@ -441,12 +441,14 @@ def prepare(desk, actor, role, kind, mid, data, request_key=''):
         snap['estimation'] = {'id': est['id'], 'propose_cents': est['proposed_cents'], 'retenu_cents': est['retained_cents'], 'moteur': est['engine_version']}
     if kind == 'facture' and subtype == 'temps':
         entries = billable_time(desk, mid)
+        if data.get('personne') is not None:                  # 5.6.88 : facture limitée aux temps d'une personne
+            entries = [x for x in entries if (x.get('author') or '') == str(data['personne'])]
         chosen = set(data.get('temps') or [e['id'] for e in entries])
         for e in entries:
             if e['id'] in chosen:
                 snap['lignes'].append({'nature': 'honoraires', 'libelle': e['label'] or 'Diligences', 'quantite': str((Decimal(e['minutes']) / 60).quantize(Decimal('0.01'))),
                                        'unite': 'heure', 'prix_unitaire_ht_cents': e['rate_cents'], 'periode': e['day'],
-                                       'sources': [{'type': 'temps', 'id': e['id']}]})
+                                       'sources': [{'type': 'temps', 'id': e['id'], 'auteur': e.get('author') or ''}]})
         if not snap['lignes']:
             raise Stop('aucun_temps_a_facturer')
     if kind == 'facture' and subtype == 'provision':
@@ -1293,7 +1295,22 @@ def record_payment(desk, actor, role, doc_id, amount, day, method, reference='',
     _refresh_payment_state(desk, doc_id)
     _event(desk, doc_id, 'reglement', {'montant': value, 'date': day, 'reglement': pid}, actor)
     desk.db.commit()
+    try:                                                       # 5.6.88 : projet d'accusé de paiement, à relire ; rien n'est envoyé
+        from . import accuses5688
+        accuses5688.propose(desk, doc_id, pid)
+    except Exception as ex:   # noqa: BLE001 — le règlement est enregistré : l'accusé n'est qu'une proposition
+        desk.db.rollback()
+        desk.audit('accuses5688_echec', {'document': doc_id, 'raison': str(ex)[:120]})
     return get(desk, doc_id)
+
+
+def invoice_balance(desk, doc_id):
+    """5.6.88 : reste dû d'une facture émise, en centimes (net à payer moins règlements vérifiés), relu à chaque appel."""
+    d = desk.db.execute('SELECT snapshot_json FROM b53_documents WHERE id=?', (str(doc_id),)).fetchone()
+    if not d:
+        raise Stop('document_financier_absent')
+    paid = desk.db.execute('SELECT COALESCE(SUM(amount_cents),0) FROM b53_payments WHERE document=? AND verified=1', (str(doc_id),)).fetchone()[0]
+    return int(json.loads(d['snapshot_json'])['totaux']['net_a_payer_cents']) - int(paid)
 
 
 def _refresh_payment_state(desk, doc_id):
@@ -1394,6 +1411,37 @@ def documents(desk, matter='', kinds=None, limit=200):
                     'state_label': STATES.get(r['state'], r['state']), 'number': r['number'] or '', 'issue_date': r['issue_date'],
                     'ht_cents': snap['totaux']['ht_cents'], 'ttc_cents': snap['totaux']['ttc_cents'], 'net_cents': snap['totaux']['net_a_payer_cents'],
                     'payment_state': r['payment_state'], 'payment_label': PAYMENT_STATES.get(r['payment_state'], ''), 'version': r['version'], 'updated': r['updated']})
+    return out
+
+
+def fees_hidden():
+    """5.6.88 : droit fin « voir les honoraires » retiré au compte de la requête (lu par ``membres5650.gate``). La page Dossier n'est pas une route
+    d'honoraires pour la passerelle : ce qu'elle affiche de la facturation doit le vérifier ici. Hors requête : faux."""
+    from .membres5650 import ai_denied
+    return 'factures' in ai_denied()
+
+
+def matter_balance(desk, mid):
+    """5.6.88 : solde à jour du dossier, pour l'en-tête de sa page : même calcul que le bloc « Honoraires et facturation » (factures émises
+    moins avoirs émis moins règlements vérifiés), relu à chaque affichage, plus les impayés Invoice Ninja connus, jamais additionnés."""
+    if fees_hidden():
+        raise Stop('role_insuffisant')
+    ensure_schema(desk)
+    _matter(desk, mid)
+    docs = [x for x in documents(desk, mid, limit=None) if x['number'] and x['kind'] in ('facture', 'avoir')]
+    due = sum(x['net_cents'] * (1 if x['kind'] == 'facture' else -1) for x in docs)
+    paid = desk.db.execute('SELECT COALESCE(SUM(p.amount_cents),0) FROM b53_payments p JOIN b53_documents d ON d.id=p.document WHERE d.matter=? AND p.verified=1',
+                           (str(mid),)).fetchone()[0]
+    out = {'factures': len(docs), 'solde_cents': due - paid, 'lu_le': _now(), 'ninja': None}
+    try:
+        from . import time500
+        from . import metier500 as m5
+        m5.ensure_schema(desk)
+        unpaid = time500.cached_unpaid(desk, mid)
+        if unpaid['linked'] and unpaid['balance']:
+            out['ninja'] = {'impayes_cents': fees.cents(Decimal(str(unpaid['balance'])))}
+    except Exception:   # noqa: BLE001 — source facultative
+        pass
     return out
 
 

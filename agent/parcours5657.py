@@ -452,6 +452,7 @@ def _refresh_update(desk, m, u):
 
 
 def _sources_html(desk, m, u):
+    from . import cloud5688
     from .cockpit530 import _matters
     root = (_matters(desk).get(m['id']) or {}).get('path', '')
     rows = []
@@ -460,8 +461,8 @@ def _sources_html(desk, m, u):
         if not path:
             continue
         where = path[len(root):].lstrip('/') if root and path.startswith(root) else path
-        rows.append('<li>%s — <code>%s</code> <button type="button" class="ax-btn ghost" data-open-path="%s" data-open-matter="%s">Ouvrir dans Nextcloud'
-                    '</button></li>' % (e(label), e(where), e(path, quote=True), e(m['id'], quote=True)))
+        rows.append('<li>%s — <code>%s</code> <button type="button" class="ax-btn ghost" data-open-path="%s" data-open-matter="%s">%s'
+                    '</button></li>' % (e(label), e(where), e(path, quote=True), e(m['id'], quote=True), e(cloud5688.ouvrir_libelle(desk.c))))
     return ('<details><summary>Documents concernés (non communiqués au client)</summary><ul class="d51-list">%s</ul></details>' % ''.join(rows)) if rows else ''
 
 

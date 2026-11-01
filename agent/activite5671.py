@@ -12,7 +12,7 @@ import time
 
 # Travaux techniques : jamais listés dans « Ce que fait l'agent ».
 TECHNICAL = frozenset(('run_continuous_business_tests', 'refresh_cabinet_pilotage', 'search_index490', 'reconcile_inbox', 'production_cycle391',
-                       'classify_portfolio', 'apprentissage5667', 'actualiser5655', 'snapshot_metrics420'))
+                       'classify_portfolio', 'apprentissage5667', 'actualiser5655', 'snapshot_metrics420', 'veille5688', 'memoire5688', 'sauvegarde5688', 'controle5688', 'registre5688'))
 
 PURPOSES = {
     'live_mail430': 'Relève les nouveaux courriels et les trie (dossier, réponse attendue, publicité…)',

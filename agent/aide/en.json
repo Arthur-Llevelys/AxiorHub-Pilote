@@ -1727,6 +1727,8 @@
 ],
 "version": "5.6.36"
 },
+"mes_taches": {"objective": "See the tasks assigned to you with their due date, reminder and status.", "when": "Every day, and to assign a task to a colleague.", "prerequisites": "None.", "steps": ["Create a task and choose who is responsible.", "Set a due date and a reminder if needed.", "Adjust your reminders at the bottom of the page."], "result": "The person responsible gets reminders seven days and one day before, in the app, on the paired phone and, if enabled, by email to their account address.", "verify": "The task appears in that person’s list and in their daily list on the due date.", "errors": [], "example": "Fictitious task: chase colleague MARTIN about documents 12 to 15 in matter DOS-001.", "buttons": ["Créer la tâche", "Enregistrer mes rappels"], "version": "5.6.36"},
+"audiences_suivi": {"objective": "Track every hearing: who attends, before which court, under which case number and in which state.", "when": "To plan the week or check that a hearing has a lawyer.", "prerequisites": "None. For copies, an Outlook or Google calendar connected in Settings.", "steps": ["Filter by lawyer and period.", "Open a hearing to complete it.", "Assign the lawyer and save."], "result": "The record follows the calendar event. A hearing with no lawyer shows “Sans avocat désigné”. A change made in Outlook or Google is never overwritten without your choice.", "verify": "The lawyer’s name appears and the Outlook or Google line says it was copied.", "errors": [], "example": "Fictitious case-management hearing at the Valbrune court, case 24/01234, matter DOS-001.", "buttons": ["Enregistrer l’audience"], "version": "5.6.36"},
 "cessions": {"objective": "Run a business or lease transfer from an existing matter to the deeds and formalities.", "when": "For a business or lease transfer operation.", "prerequisites": "A firm matter and its documents.", "steps": ["Choose Business or Lease.", "Create the operation in a matter, then take charge of it.", "Confirm the data and prepare the documents."], "result": "Deeds are saved in “JURIDIQUE”; registers only change when you record completion. Library templates produce drafts to review; foreign templates must be validated by local counsel.", "verify": "Open “Registers”: the decision appears at the confirmed date; “Prepared deeds” shows the state of each operation.", "errors": [], "example": "Fictitious company EXEMPLE SAS with a capital of €10,000: SAS articles with approval, pre-emption and tag-along clauses.", "buttons": ["Créer l’opération"], "version": "5.6.36"},
 "formulaires": {"objective": "Fill an official form from a matter’s data, or prepare the data to copy when the PDF has no fields.", "when": "For the tax returns, applications and legal aid forms in the catalogue.", "prerequisites": "Nextcloud: a firm matter. The form is downloaded from the official website.", "steps": ["Download the form and check its version.", "Choose the matter and start filling.", "Review the file placed in the FORMULAIRES folder."], "result": "Deeds are saved in “JURIDIQUE”; registers only change when you record completion. Library templates produce drafts to review; foreign templates must be validated by local counsel.", "verify": "Open “Registers”: the decision appears at the confirmed date; “Prepared deeds” shows the state of each operation.", "errors": [], "example": "Fictitious company EXEMPLE SAS with a capital of €10,000: SAS articles with approval, pre-emption and tag-along clauses.", "buttons": ["Télécharger depuis le site officiel", "Remplir depuis le dossier"], "version": "5.6.36"},
 "corporate": {
@@ -1766,10 +1768,40 @@
 ],
 "version": "5.6.36"
 },
+"contribution": {
+"objective": "See what each colleague brings to collected revenue, month by month, and estimate their revenue share.",
+"when": "To prepare a review with a colleague or a revenue share, from the payments recorded.",
+"prerequisites": "The “Billing and time” right; invoices issued in AxiorHub, recorded payments and, ideally, time attributed to each person.",
+"steps": [
+"Choose the month and, if needed, the person, then click “Afficher”.",
+"Under “Clés de rétrocession”, enter the person, start month, percentage and optional threshold, then click “Enregistrer la clé”.",
+"Check the payment detail; “Ajuster” corrects the split of a payment or an invoice, for a total of 100%.",
+"Click “Exporter le relevé (CSV)” to keep the statement."
+],
+"result": "An indicative statement per person: fees collected excluding tax, basis, share and the rounding cents assigned. It is not an accounting entry.",
+"verify": "The statement total equals the sum of the detail lines; every adjusted cent is listed under “Écarts d’arrondi”.",
+"errors": [
+[
+"“La répartition doit totaliser exactement 100 %”",
+"Correct the percentages entered in “Ajuster”."
+],
+[
+"Everything is “Non attribué”",
+"Attribute time to a person in Time and fees, or adjust the split by hand."
+]
+],
+"example": "Fictitious invoice F-2026-0042: EUR 1,000.00 excl. tax collected, 60% MARTIN and 40% BERNARD by billed time; fictitious key of 30% above EUR 200.00.",
+"buttons": [
+"Afficher",
+"Exporter le relevé (CSV)",
+"Enregistrer la clé"
+],
+"version": "5.6.36"
+},
 "relances": {
-"objective": "Prepare each morning reminder drafts for overdue Invoice Ninja invoices, to be reviewed before anything is sent.",
+"objective": "Prepare each morning reminder drafts for overdue invoices, issued in AxiorHub or known to Invoice Ninja, to be reviewed before anything is sent.",
 "when": "To follow unpaid invoices without forgetting one or chasing too often.",
-"prerequisites": "Invoice Ninja connected (read-only); mail to place reminders in Drafts.",
+"prerequisites": "Nothing to connect for invoices issued in AxiorHub. Invoice Ninja is optional (read-only). Mail to place reminders in Drafts.",
 "steps": [
 "Open “Settings”: time, grace period, interval and maximum level, then click “Save”.",
 "Every morning drafts appear; click “Prepare now” not to wait.",
@@ -1780,7 +1812,7 @@
 "verify": "Open Drafts: the reminder is there; Invoice Ninja is never changed.",
 "errors": [
 [
-"“Invoice Ninja is not connected yet”",
+"No Invoice Ninja invoice in the drafts",
 "Set up Invoice Ninja in Settings › Connections."
 ],
 [
@@ -1989,6 +2021,87 @@
 ],
 "example": "Authorise from the phone the filing of a reply “à compléter” to the fictitious client of matter DOS-001.",
 "buttons": [],
+"version": "5.6.36"
+},
+"mon_compte": {
+"objective": "Protect your account with a six-digit code and manage your API tokens.",
+"when": "To strengthen your sign-in, or when the firm requires it.",
+"prerequisites": "A named account and an authenticator app on your phone.",
+"steps": [
+"Open My account, at the bottom of the menu.",
+"Choose “Activer la double authentification” and scan the QR code.",
+"Enter the first code, then write down your ten backup codes.",
+"If needed, create an API token: it is shown only once."
+],
+"result": "Signing in asks for a code after the password.",
+"verify": "The “Active” state is shown, with the number of backup codes left.",
+"errors": [
+[
+"Code refused",
+"Check the phone’s clock and wait for the next code."
+],
+[
+"Phone lost",
+"Use a backup code, or ask the administrator to reset the protection."
+]
+],
+"example": "Create a 90-day read token for a script that consults matter DOS-001.",
+"buttons": [
+"Activer la double authentification",
+"Créer le jeton"
+],
+"version": "5.6.36"
+},
+"journal_audit": {
+"objective": "Find who did what and check that the log has not been altered.",
+"when": "For a review, a liability question or an incident.",
+"prerequisites": "Being an administrator.",
+"steps": [
+"Open the Audit log.",
+"Filter by date, action, author or search, then “Filtrer”.",
+"Read the chain state at the top of the page.",
+"Export with “Exporter (CSV)”."
+],
+"result": "The list of events, with their author when known.",
+"verify": "“Chaîne intacte” is shown; a break names the event concerned.",
+"errors": [
+[
+"Author “système”",
+"The action comes from automatic work, with nobody signed in."
+],
+[
+"Broken chain",
+"Keep a copy of the database and find the cause before any restore."
+]
+],
+"example": "List this month’s exports on matter DOS-001.",
+"buttons": [
+"Filtrer",
+"Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"vue_ia": {
+"objective": "Choose, category by category, what the assistant and the Claude connector can read.",
+"when": "To limit what is sent to models.",
+"prerequisites": "Being an administrator.",
+"steps": [
+"Open What the AI can see.",
+"Untick the categories to close.",
+"Choose “Enregistrer”."
+],
+"result": "The assistant says in its answer what it did not consult.",
+"verify": "Ask about a closed category: the answer reports it.",
+"errors": [
+[
+"Automatic mail sorting",
+"It is set in Agent autonomy, not here."
+]
+],
+"example": "Close invoices to the AI while keeping the documents of matter DOS-001.",
+"buttons": [
+"Enregistrer"
+],
 "version": "5.6.36"
 }
 }
