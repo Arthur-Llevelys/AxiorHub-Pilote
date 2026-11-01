@@ -320,6 +320,8 @@ def external_config(config, decision):
       'purpose': decision['purpose'], 'state_dir': config.get('state_dir', ''),
       '_hybrid_decision_done': True, 'external_policy_config': config})
     from .extensions364 import active_skill_instructions
+    from .model import pseudo_sources      # 5.6.86 : les noms connus du cabinet comptent aussi pour cet envoi
+    result['pseudo'] = pseudo_sources(config)
     result['skill_instructions'] = active_skill_instructions(config, decision['purpose'])
     return result
 

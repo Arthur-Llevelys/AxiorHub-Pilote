@@ -33,13 +33,22 @@ KIND_PHASE = {
     'fiche_dossier5627': 'analyse', 'digest_pieces5632': 'analyse', 'legal_research': 'analyse', 'prepare_hearing': 'analyse',
     # rédaction d'un courriel
     'prepare_reply': 'redaction_courriel', 'prepare_draft': 'redaction_courriel', 'run': 'redaction_courriel',
-    'live_mail430': 'redaction_courriel',
+    'live_mail430': 'redaction_courriel', 'maildraft5613': 'redaction_courriel',
+    'assistant_answer': 'analyse',
     # rédaction d'un document
     'docrequest520': 'redaction_document', 'prepare_document_project': 'redaction_document', 'prepare_word_project': 'redaction_document',
     'prepare_legal_opinion': 'redaction_document', 'prepare_cabinet_letter': 'redaction_document', 'corporate5636': 'redaction_document',
+    'routine520': 'redaction_document', 'recit5651': 'redaction_document',
     # contrôle
     'verify_deliverable420': 'controle', 'verify_official_decision': 'controle',
 }
+# 5.6.86 : travaux demandés par l'avocat qui suivent la compétence générale du cabinet. Les parcours automatiques fréquents (surveillance, tri) n'en font pas partie :
+# ils coûteraient des appels plus lourds à chaque passage. Discussion : section utile seulement, pour rester rapide.
+GENERAL_SETTING = 'competences5686:generale'
+GENERAL_DEFAULT = 'assistant juridique'
+GENERAL_KINDS = frozenset(('prepare_reply', 'prepare_draft', 'maildraft5613', 'assistant_answer', 'docrequest520', 'prepare_document_project', 'prepare_word_project',
+                           'prepare_legal_opinion', 'prepare_cabinet_letter', 'task5614', 'initiative5636', 'routine520', 'recit5651'))
+CHAT_BUDGET = 12_000
 TASK_TYPE_PHASE = (('controle', 'controle'), ('verif', 'controle'), ('relecture', 'controle'), ('analyse', 'analyse'),
                    ('recherche', 'analyse'), ('courriel', 'redaction_courriel'), ('mail', 'redaction_courriel'),
                    ('redaction', 'redaction_document'), ('document', 'redaction_document'), ('acte', 'redaction_document'),
@@ -97,8 +106,19 @@ def skill_phases(manifest):
     return [scores[0][1]] if scores and (len(scores) == 1 or scores[0][0] > scores[1][0]) else []
 
 
-def select(desk, text, phase, owner='cabinet', manual=None, auto=None):
-    """Méthode de phase (une au plus) puis spécialisation par mots-clés (une au plus). Le choix manuel de l'avocat prime."""
+def general_skill(desk, rows):
+    """Compétence générale du cabinet : celle choisie dans la page Compétences, sinon « Assistant juridique » si elle est active. Choix vide : aucune."""
+    chosen = desk.settings(GENERAL_SETTING, None)
+    if chosen == '':
+        return None
+    return next((s for s in rows if s['id'] == chosen), None) if chosen else next((s for s in rows if fold(s['name']) == GENERAL_DEFAULT), None)
+
+
+def select(desk, text, phase, owner='cabinet', manual=None, auto=None, kind=''):
+    """Méthode de phase (une au plus) puis spécialisation par mots-clés (une au plus). Le choix manuel de l'avocat prime.
+
+    5.6.86 : une méthode qui déclare sa phase passe d'abord, puis la compétence générale pour les travaux demandés par l'avocat, puis une phase déduite des mots-clés. Avant, une
+    compétence spécialisée (comptes annuels) pouvait servir de méthode à des travaux sans rapport, et une compétence générale ne servait jamais aux réponses ni à la discussion."""
     from . import competences5632 as c
     if manual:
         return c.resolve(desk, text, owner, manual=manual)
@@ -114,7 +134,14 @@ def select(desk, text, phase, owner='cabinet', manual=None, auto=None):
                 methods.add(s['id'])
                 if phase in (manifest.get('phases') or []):
                     declared.add(s['id'])   # une méthode qui déclare sa phase prime sur une phase déduite des mots-clés
-        method = sorted(declared)[0] if declared else (sorted(methods)[0] if methods else None)
+        general = general_skill(desk, rows) if kind in GENERAL_KINDS else None
+        if declared:
+            method = sorted(declared)[0]
+        elif general:
+            method = general['id']
+            methods.add(method)
+        else:
+            method = sorted(methods)[0] if methods and phase != 'decision' else None     # décider quoi préparer : uniquement une méthode faite pour cela
         if method:
             s = next(x for x in rows if x['id'] == method)
             chosen.append({'id': s['id'], 'version': s['version'], 'mode': 'phase', 'reason': 'Méthode de la phase « %s »' % PHASE_LABELS[phase]})

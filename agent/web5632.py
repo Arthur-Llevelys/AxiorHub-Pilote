@@ -70,6 +70,15 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'admin/veille/tavily':
         from .veille5632 import save_tavily_key
         return json_out(save_tavily_key(desk, data.get('key')))
+    if route == 'admin/skills/generale':
+        from .competences5632 import listing
+        from .competences5643 import GENERAL_SETTING
+        chosen = str(data.get('id') or '')
+        if chosen and chosen not in {s['id'] for s in listing(desk, owner) if s['enabled']}:
+            raise Stop('competence_introuvable')
+        desk.setting(GENERAL_SETTING, chosen)
+        desk.audit('competence5686_generale', {'id': chosen, 'owner': owner})
+        return json_out({'message': i18n.t('sk.general_saved')})
     if route == 'admin/skills/auto':
         desk.setting('competences5632:auto', data.get('on') in (True, 'true', '1', 'on'))
         return json_out({'auto': data.get('on') in (True, 'true', '1', 'on')})
@@ -261,6 +270,16 @@ def _package_html(s):
         '<p class="k5632-missing">Références absentes : réimportez l’archive d’origine ; rien n’est reconstitué.</p>' if s.get('a_reimporter') else '')
 
 
+def _general_form(desk, rows):
+    """5.6.86 : compétence suivie pour les réponses aux courriels, la discussion et les documents demandés, quel que soit le fournisseur d'IA."""
+    from .competences5643 import general_skill
+    active = [s for s in rows if s['enabled']]
+    current = general_skill(desk, active)
+    options = '<option value="">%s</option>' % i18n.th('sk.general_none') + ''.join('<option value="%s"%s>%s</option>' % (
+        e(s['id'], quote=True), ' selected' if current and s['id'] == current['id'] else '', e(s['name'])) for s in active)
+    return '<p class="f5632-hint">%s</p>%s' % (i18n.th('sk.general_hint'), _form('admin/skills/generale', '<label>%s<select name="id">%s</select></label>' % (i18n.th('sk.general'), options), i18n.t('sk.general_save'), reload=True))
+
+
 def skills_page(desk, auth, prefix, env, shell):
     from .web567 import actor
     from .competences5632 import listing, auto_mode
@@ -292,7 +311,7 @@ def skills_page(desk, auth, prefix, env, shell):
             '<section><h2>%s</h2><p>%s</p>%s</section></div>') % (
         th('sk.title'), th('sk.intro'),
         (_form('admin/skills/auto', '<input type="hidden" name="on" value="%s">' % ('0' if auto_mode(desk) else '1'), i18n.t('sk.auto_off' if auto_mode(desk) else 'sk.auto_on'), reload=True)
-         if role == 'administrateur' else ''),
+         + _general_form(desk, rows) if role == 'administrateur' else ''),
         cards, capacities, th('sk.create'), th('sk.create_intro'), _form('skills/create', create, i18n.t('sk.create_btn'), reload=True),
         th('sk.import'), th('sk.import_intro'), _form('skills/import', '<input type="file" data-m5632-file accept=".md,.zip" required>', i18n.t('sk.import_btn'), reload=True))
     return shell(i18n.t('sk.title'), body, prefix, auth['csrf'], '/competences')

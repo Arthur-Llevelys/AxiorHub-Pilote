@@ -26,6 +26,33 @@ ARRAY_CAP = 20
 _TYPES = {'object', 'array', 'string', 'integer', 'number', 'boolean', 'null'}
 
 
+STRICT_REFUSED = ('minLength', 'maxLength', 'uniqueItems', 'default', 'title', '$schema', '$id')
+
+
+def strict_form(schema):
+    """5.6.86 : forme admise par le mode strict d'OpenAI : tout objet fermé, tout champ obligatoire, sans borne de longueur. Sans cela, la demande est refusée d'emblée
+    (constaté sur la rédaction de courriels et les initiatives) ; les autres fonctions passaient parce que leurs schémas respectaient déjà ces règles.
+    Un champ facultatif reste vide dans la réponse ; les bornes de longueur restent appliquées par l'application."""
+    if not isinstance(schema, dict):
+        return schema
+    out = {}
+    for key, value in schema.items():
+        if key in STRICT_REFUSED:
+            continue
+        if key == 'properties':
+            out[key] = {name: strict_form(item) for name, item in value.items()}
+        elif key == 'items':
+            out[key] = strict_form(value)
+        elif key in ('anyOf', 'oneOf'):
+            out['anyOf'] = [strict_form(item) for item in value]
+        else:
+            out[key] = value
+    if 'properties' in out:
+        out['additionalProperties'] = False
+        out['required'] = list(out['properties'])
+    return out
+
+
 class SchemaError(Stop):
     def __init__(self, errors, code='schema_ia_invalide'):
         super().__init__(code)

@@ -60,7 +60,15 @@ PLAN_ERRORS = {'subscription_sharing_usage_limit_exceeded': 'chatgpt_limite_usag
                'subscription_sharing_route_not_supported': 'chatgpt_acces_refuse',
                'subscription_sharing_invalid_user': 'chatgpt_reconnexion_requise',
                'chatpass_v2_scope_not_authorized': 'chatgpt_acces_refuse',
-               'chatpass_v2_invalid_authorization_context': 'chatgpt_acces_refuse'}
+               'chatpass_v2_invalid_authorization_context': 'chatgpt_acces_refuse',
+               'context_length_exceeded': 'contexte_trop_long',                       # 5.6.86 : codes généraux des réponses
+               'rate_limit_exceeded': 'chatgpt_limite_usage_atteinte',
+               'insufficient_quota': 'chatgpt_limite_usage_atteinte',
+               'model_not_found': 'modele_ou_route_fournisseur_absent'}
+TRANSIENT_STATUS = (500, 502, 504)
+TRANSIENT_CODES = ('server_error', 'internal_error', 'server_is_overloaded', 'overloaded')
+RETRY_SECONDS = 3
+FAILURE_KEY = 'chatgpt5662:dernier_echec'
 REFRESH_DEAD = {'invalid_grant', 'invalid_refresh_token', 'token_expired', 'refresh_token_expired', 'refresh_token_invalidated',
                 'refresh_token_reused'}
 
@@ -69,6 +77,29 @@ class HTTPFailure(Stop):
     def __init__(self, status, code='', detail='', param=''):
         super().__init__('http_%s' % status)
         self.status, self.code, self.detail, self.param = int(status), str(code or ''), str(detail or '')[:300], str(param or '')[:80]
+
+
+class GenerationFailed(Stop):
+    """Échec annoncé dans le flux : même code public, motif d'OpenAI conservé pour le diagnostic."""
+
+    def __init__(self, code='', detail=''):
+        super().__init__('chatgpt_generation_echouee')
+        self.code, self.detail = str(code or ''), str(detail or '')[:300]
+
+
+def note_failure(state_dir, model, status=0, code='', detail='', param=''):
+    """5.6.86 : motif réel du dernier échec, pour Paramètres › IA. Reste sur le serveur du cabinet, sans le texte envoyé ; ne lève jamais d'exception."""
+    try:
+        import sqlite3
+        db = sqlite3.connect(Path(state_dir) / 'desk.sqlite3', timeout=5)
+        try:
+            value = {'at': _now().isoformat(), 'modele': str(model)[:80], 'statut': int(status or 0), 'code': str(code)[:80], 'param': str(param)[:80], 'detail': str(detail)[:200]}
+            db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)', (FAILURE_KEY, json.dumps(value, ensure_ascii=False)))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:   # noqa: BLE001
+        pass
 
 
 def _now():
@@ -476,7 +507,8 @@ def build_request(model, messages, json_schema=None, strict=True, effort=None):
     if system:
         req['instructions'] = system
     if json_schema is not None:
-        req['text'] = {'format': {'type': 'json_schema', 'name': 'axiorhub_result', 'schema': json_schema, 'strict': True} if strict
+        from .schema5634 import strict_form
+        req['text'] = {'format': {'type': 'json_schema', 'name': 'axiorhub_result', 'schema': strict_form(json_schema), 'strict': True} if strict
                        else {'type': 'json_object'}}
     from .chatgpt5682 import clean_request, effort_field
     if effort_field(effort):
@@ -520,7 +552,9 @@ def read_stream(lines, deadline=None):
         elif kind in ('response.failed', 'error'):
             err = (ev.get('response') or {}).get('error') or ev.get('error') or ev
             code = str((err or {}).get('code') or '')
-            raise Stop(PLAN_ERRORS.get(code, 'chatgpt_generation_echouee'))
+            if code in PLAN_ERRORS:
+                raise Stop(PLAN_ERRORS[code])
+            raise GenerationFailed(code, (err or {}).get('message'))
         elif kind == 'response.incomplete':
             raise Stop('generation_ia_incomplete')
     if not done:
@@ -535,7 +569,7 @@ def respond(state_dir, model, messages, json_schema=None, strict=True, transport
     """Une requête Responses. Rend (texte, usage). Reprises bornées : une après renouvellement si le jeton est refusé, une sans le réglage
     d'effort s'il n'est pas admis (noté dans ``info`` pour ne plus l'envoyer à ce modèle)."""
     info = info if info is not None else {}
-    renewed = False
+    renewed = retried = False
     while True:
         body = json.dumps(build_request(model, messages, json_schema, strict, effort), ensure_ascii=False).encode()
         token = access_token(state_dir, transport, force=renewed)
@@ -554,10 +588,22 @@ def respond(state_dir, model, messages, json_schema=None, strict=True, transport
             if ex.status == 401 and not renewed:
                 renewed = True
                 continue
+            if ex.status in TRANSIENT_STATUS and not retried:       # 5.6.86 : incident passager d'OpenAI : un seul nouvel essai
+                retried = True
+                time.sleep(RETRY_SECONDS)
+                continue
+            note_failure(state_dir, model, ex.status, ex.code, ex.detail, ex.param)
             raise Stop({401: 'chatgpt_reconnexion_requise', 402: 'chatgpt_compte_non_eligible', 403: 'chatgpt_acces_refuse', 429: 'chatgpt_limite_usage_atteinte',
                         503: 'chatgpt_indisponible'}.get(ex.status, 'chatgpt_generation_echouee')) from None
         try:
             return read_stream(iter(resp.readline, b'') if hasattr(resp, 'readline') else resp)
+        except GenerationFailed as ex:
+            if ex.code in TRANSIENT_CODES and not retried:
+                retried = True
+                time.sleep(RETRY_SECONDS)
+                continue
+            note_failure(state_dir, model, 0, ex.code, ex.detail)
+            raise
         except Stop as ex:
             if str(ex) == 'chatgpt_option_non_prise_en_charge' and effort:   # refus arrivé dans le flux : même correction, une seule fois
                 effort, info['effort_refuse'] = None, True

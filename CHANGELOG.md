@@ -3,6 +3,23 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.86 — Pseudonymisation renforcée, compétence générale pour toutes les IA, réponses sans dossier retrouvables, échecs ChatGPT corrigés
+
+Correctif. Une réponse préparée sans dossier existait bien, mais on ne la trouvait pas : Aujourd’hui triait les courriels par nom de dossier et n’en montrait que 12, la page Courriels ne listait que les brouillons déjà
+déposés, et le panneau du travail ne menait pas à la réponse.
+
+- **Aujourd’hui** : les courriels à relire vont du plus récent au plus ancien, avec ou sans dossier. « Tout voir » montre tout (la liste s’arrêtait à 30).
+- **Page Courriels** : nouvelle rubrique « Réponses à décider » en tête de l’onglet À relire, pour les réponses préparées pas encore déposées dans Brouillons.
+- **Panneau du travail** : bouton « Ouvrir la réponse préparée », mention « Sans dossier ». Le message indique le nom du dossier au lieu de son numéro, et « sans dossier » au lieu de « pour le cabinet ».
+- **Réponse demandée depuis la boîte de réception** : comme pour une préparation automatique, elle est déposée « à compléter » dans Brouillons si le contrôle de sûreté le permet. Sinon, elle attend dans « Réponses à décider ». Rien n’est envoyé.
+- La file ne perd plus les réponses en attente les plus anciennes quand beaucoup de réponses ont été préparées.
+
+**Abonnement ChatGPT** : certaines fonctions, dont la rédaction d’un courriel et les initiatives, demandaient un format de réponse que le mode strict d’OpenAI refuse (champs facultatifs, bornes de longueur) : la demande était rejetée en une à deux secondes. Le format est désormais mis en conformité à un seul endroit, pour toutes les fonctions et pour les connexions par API en mode strict. Le message « ChatGPT n’a pas pu terminer la réponse » cachait aussi le motif donné par OpenAI. Il est désormais conservé et affiché dans Paramètres › IA. Un incident passager d’OpenAI reçoit un seul nouvel essai. Une demande trop longue, une limite d’usage ou un modèle absent donnent leur vrai message.
+
+**Pseudonymisation** : défauts corrigés, valables pour tout envoi à une IA externe. Les 64 prénoms accentués de la liste n’étaient jamais reconnus. Dans un texte transmis en JSON, un nom placé juste après un saut de ligne, comme une signature, n’était pas détecté. Un nom masqué une fois l’est désormais partout, dans une autre casse, dans l’autre ordre ou seul. La civilité en minuscules et le lieu de naissance sont pris en compte. Les titres en majuscules d’une compétence ne sont plus remplacés par des marqueurs.
+
+**Compétences** : une compétence générale du cabinet, choisie dans la page Compétences, sert aux réponses aux courriels, à la discussion, aux documents, aux routines, aux récits et aux demandes de document. Par défaut, c’est « Assistant juridique » si elle est active. Avant, elle ne servait ni aux réponses ni à la discussion. Elle part de la même façon vers Ollama, Mistral, OpenRouter, Anthropic et ChatGPT. La surveillance automatique n’en dépend pas, pour ne pas alourdir chaque passage. Une compétence spécialisée ne sert plus de méthode à des travaux sans rapport. En mode hybride, l’envoi externe tient compte des noms connus du cabinet.
+
 ## 5.6.85 — Erreur 402 d’un fournisseur d’IA : crédit épuisé, relais et message clair
 
 Correctif. Quand un fournisseur d’IA répondait 402 (crédit épuisé), AxiorHub ne reconnaissait pas ce code : le travail s’arrêtait sur « http 402 », sans relais et sans explication, et rien n’était produit.

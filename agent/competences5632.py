@@ -388,11 +388,12 @@ def for_job(desk, row, args):
         text, _deliverable, phase = real_instruction(desk, kind, args)
         owner = str((args or {}).get('owner') or 'cabinet')
         if manual or text or phase:
-            selection = select(desk, text, phase, owner, manual=[str(x) for x in manual] if isinstance(manual, list) else None)
+            selection = select(desk, text, phase, owner, manual=[str(x) for x in manual] if isinstance(manual, list) else None, kind=kind)
     except Exception:   # noqa: BLE001 — une compétence indisponible n'empêche jamais le travail
         selection = []
     _ctx.selection = selection
-    _ctx.text = instructions_for(desk, selection, query=text, phase=phase) if selection else ''
+    from .competences5643 import CHAT_BUDGET
+    _ctx.text = instructions_for(desk, selection, CHAT_BUDGET if row and row['kind'] == 'assistant_answer' else BUDGET, query=text, phase=phase) if selection else ''
     try:   # 5.6.59 (A07) : savoir-faire approuvé du cabinet, rapproché de la vraie consigne et de la phase
         from .savoir5659 import for_job_text
         extra, _chosen = for_job_text(desk, row, args, text, phase)

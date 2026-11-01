@@ -1,0 +1,11 @@
+/* 5.6.86 : réponses à décider, en tête de la page Courriels */
+.r86-pending{padding:12px 16px;border-bottom:1px solid var(--ax-line,#e5e7eb)}
+.r86-pending h2{font-size:1rem;margin:0 0 4px}
+.r86-pending p{margin:0 0 8px;font-size:.875rem}
+.r86-pending ul{list-style:none;margin:0;padding:0;max-height:38vh;overflow:auto}
+.r86-pending li+li{border-top:1px solid var(--ax-line,#e5e7eb)}
+.r86-pending a{display:block;padding:8px 0;color:inherit;text-decoration:none}
+.r86-pending a:hover strong,.r86-pending a:focus-visible strong{text-decoration:underline}
+.r86-pending a:focus-visible{outline:3px solid currentColor;outline-offset:2px}
+.r86-pending strong{display:block;font-weight:600;overflow-wrap:anywhere}
+.r86-pending span{display:block;font-size:.8125rem}

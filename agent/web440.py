@@ -970,7 +970,8 @@ def drafts_page(desk, auth, prefix, args):
     except Exception:
         error = 'La messagerie IMAP ne répond pas. Vérifiez la connexion dans Paramètres → Connexions.'
     from .conflicts500 import banner_html
-    notice = banner_html(desk, prefix)
+    from .reponses5671 import section_html
+    notice = banner_html(desk, prefix) + section_html(desk, prefix)
     rows = ''
     for item in listing['items']:
         rows += ('<button type="button" class="ax-row" data-uid="%s" data-search="%s">'
