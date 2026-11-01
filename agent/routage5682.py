@@ -90,7 +90,7 @@ def _models_for(config, rule, provider_id, provider):
                 out.append({'slug': slug, 'nom': slug, 'niveau': level, 'statut': 'actif', 'capacites': {'contexte': None, 'efforts': []}})
         return out
     rows = catalogue5682.active(config.get('state_dir'), provider_id)
-    if kind in ('openai', 'openrouter') and provider.get('model'):
+    if (kind in ('openai', 'openrouter') or politique5682.forced_provider()) and provider.get('model'):
         # Passerelles sans famille connue : le modèle réglé par l'administrateur compte comme standard.
         slug = str(provider['model'])
         rows = [({**r, 'niveau': r.get('niveau') or 'standard'} if r['slug'] == slug else r) for r in rows]

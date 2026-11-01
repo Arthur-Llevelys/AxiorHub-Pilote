@@ -3,6 +3,17 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.87 — Réponses utiles aux nouveaux contacts, relance avec une autre IA, traitement plus robuste
+
+Correctif. Une réponse à un courriel sans dossier se limitait à des marqueurs : l’IA n’avait le droit d’utiliser que le courriel lui-même et ne savait rien du cabinet.
+
+- **Nouveaux contacts** : l’IA reformule la demande, indique les questions juridiques à examiner, présentées comme des points à analyser, répond autant que possible, liste les pièces utiles et propose la suite. Elle ne conclut pas et ne cite pas d’article absent des sources.
+- **Présentation du cabinet** : nouveau champ dans Paramètres, section « Réponses sans dossier » (domaines, modalités, honoraires indicatifs). L’IA reprend seulement ce texte ; le reste est marqué « [À COMPLÉTER] ».
+- **Relancer avec une autre IA** : sur la page du courriel, depuis un brouillon déposé par l’agent et depuis le panneau du travail. Choix parmi les connexions actives et autorisées, consigne facultative. Le choix vaut pour cette seule demande, même dans un mode à fournisseur unique ; la nouvelle réponse est relue avant tout dépôt. Rien n’est envoyé.
+- **« Source orchestration invalide »** : une référence de pièce inconnue citée par le modèle n’arrête plus le traitement du courriel. Elle est écartée, et une proposition qui ne reposait que sur elle est retirée.
+
+- **Notes internes** : elles restaient des brouillons de messagerie tant qu’on ne cliquait pas sur « Tout ranger dans les dossiers ». Elles deviennent toutes les 15 minutes un document Word du dossier, ou du dossier « A TRAITER » sans dossier identifié. Seules les notes de l’agent sont concernées ; le brouillon va dans la corbeille de la messagerie. Réglage dans Paramètres.
+
 ## 5.6.86 — Pseudonymisation renforcée, compétence générale pour toutes les IA, réponses sans dossier retrouvables, échecs ChatGPT corrigés
 
 Correctif. Une réponse préparée sans dossier existait bien, mais on ne la trouvait pas : Aujourd’hui triait les courriels par nom de dossier et n’en montrait que 12, la page Courriels ne listait que les brouillons déjà

@@ -285,7 +285,7 @@ def summary(result):
     unused = ['%s (%s)' % (c['name'], c['raison']) for c in result.get('connecteurs', []) if not c['utilise']]
     statut = result.get('statut')
     if statut == 'aucune_source_active':
-        line = 'Recherche juridique avant rédaction : aucun connecteur utilisable' + ((' — ' + ' ; '.join(unused)) if unused else ' (aucun configuré)') + '.'
+        line = 'Recherche juridique avant rédaction : aucun connecteur utilisable' + ((' — ' + ' ; '.join(unused)) if unused else ' (aucun configuré)') + '. Activez-en un dans les connexions pour des réponses sourcées.'
     elif statut == 'echec':
         line = 'Recherche juridique avant rédaction impossible (%s) : le droit cité est à vérifier.' % (result.get('erreur') or 'erreur')
     elif statut == 'non_juridique':

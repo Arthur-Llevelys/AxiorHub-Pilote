@@ -106,6 +106,7 @@
         el('p', { 'class': 'ax-muted', text: (d.agent_key ? 'Préparé par l’agent · ' : '') + 'Dossier « ' + d.folder + ' » · de ' + d.from })
       ]);
       editor.appendChild(head);
+      if (d.mail_key) head.appendChild(el('a', { 'class': 'ax-btn ghost', href: prefix + '/mail?key=' + encodeURIComponent(d.mail_key) + '#relance5687', text: 'Relancer avec une autre IA' }));
       if (!d.editable) {
         editor.appendChild(el('p', { 'class': 'ax-alert', text: 'Ce brouillon contient un élément qui ne peut pas être conservé à l’identique (message joint ou structure particulière). Corrigez-le dans la messagerie.' }));
       }

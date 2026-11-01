@@ -2008,6 +2008,8 @@ class App:
             if selected:main+='<button type="button" class="secondary" data-s5636-pj="'+e(key)+'" data-matter="'+e(selected)+'">📎 Ranger les pièces jointes dans le dossier</button> '
             main+='<button type="button" class="secondary" data-s5636-plan="'+e(key)+'">🧭 Proposer un plan d’actions</button> <span class="s5636-pj-out" role="status"></span></p>'
             manual=desk.db.execute('SELECT data FROM manual_drafts WHERE mail_key=?',(key,)).fetchone()
+            from .reponses5671 import retry_html as _retry5687
+            main+=_retry5687(desk,key)    # 5.6.87 : relancer avec une autre IA, projet déposé ou non
             if manual:
                 draft=json.loads(manual[0]);value=draft['result']
             if manual and value['body'] and value['requires_decision']:   # 5.6.71 : relire, modifier, déposer, ou écarter (avant : aucun bouton)

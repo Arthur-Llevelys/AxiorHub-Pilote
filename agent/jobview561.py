@@ -172,6 +172,8 @@ def job_html(desk, prefix, job_id):
         ('<button type="button" class="ax-btn danger" data-cancel-job="%d">Annuler ce travail</button>' % jid) if row['status'] in ('pending', 'running') else '')
     if _prepared(desk, args.get('key')):       # 5.6.86 : le travail mène à la réponse, avec ou sans dossier
         retry += '<a class="ax-btn" href="%s">Ouvrir la réponse préparée</a>' % e(prefix + '/mail?' + urlencode({'key': args['key']}), quote=True)
+    elif row['kind'] == 'prepare_reply' and args.get('key'):
+        retry += '<a class="ax-btn ghost" href="%s">Relancer avec une autre IA</a>' % e(prefix + '/mail?' + urlencode({'key': args['key']}) + '#relance5687', quote=True)
     origin = 'votre demande' if int(row['priority'] if 'priority' in keys and row['priority'] is not None else 50) < 40 else 'automatique'
     body = ('<dl class="c561-dl">%s</dl>' % ''.join('<dt>%s</dt><dd>%s</dd>' % (e(k), v) for k, v in what)) if what else (
         '<p class="c530-sub">Travail général, sans dossier ni fichier particulier.</p>')

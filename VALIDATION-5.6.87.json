@@ -1,0 +1,35 @@
+{
+  "version": "5.6.87",
+  "base": "5.6.86",
+  "date_utc": "2026-11-01T00:00:00+00:00",
+  "cahier_des_charges": "Correctif demandé par le cabinet : réponse inutile à un nouveau contact, relance avec une autre IA, erreur source_orchestration_invalide.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 3243,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 134,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5687.py : sources écartées, nouveau contact, présentation, relance, mode à fournisseur unique. Fournisseurs simulés.",
+  "mutations": "15 défauts introduits dans le correctif, tous détectés après renforcement d’un test.",
+  "live_checks": "Aucun : la qualité réelle de la réponse dépend du modèle et n’a pas été mesurée.",
+  "exapp": {
+    "version": "0.1.46",
+    "moteur": "5.6.87"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "orchestrator : _clean_sources remplace le refus de tout le traitement.",
+    "model : consignes de rédaction et de contrôle pour un premier contact.",
+    "intelligence.prepare_draft : intention premier_contact sans dossier ; prepare_reply : relance sans dépôt.",
+    "politique5682 : one_provider, choix de connexion le temps d’un travail.",
+    "reponses5671, web5671, web, web440, jobview561, v440.js : relance et présentation du cabinet.",
+    "notes5666.schedule, operations : rangement automatique des notes de l’agent."
+  ],
+  "adjusted_tests": []
+}

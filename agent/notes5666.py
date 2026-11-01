@@ -10,6 +10,8 @@ from pathlib import PurePosixPath
 from .common import Stop, clean_path, under
 
 NEUTRAL = 'A TRAITER'
+AUTO_SETTING = 'notes5687:rangement_auto'
+AUTO_MINUTES = 15
 DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 
@@ -48,6 +50,28 @@ def deposit(desk, client, matter, title, lines, day=None, label='Note interne'):
             last = str(ex)
             continue
     raise Stop(last)
+
+
+def waiting(desk):
+    """5.6.87 : notes de l'agent encore en brouillon. Un brouillon écrit par l'avocat pour lui-même n'en fait pas partie, et une note déjà rangée n'est pas reprise."""
+    from . import cockpit530
+    cockpit530.ensure_schema(desk)
+    cache = cockpit530._drafts(desk)
+    validity = str(cache.get('validity', ''))
+    done = {r[0] for r in desk.db.execute('SELECT item FROM cockpit530_reviewed')}
+    items = ('mail:%s:%s' % (validity, d['uid']) for d in cache.get('items', []) if d.get('agent') and cockpit530.is_internal_note(desk, d))
+    return [item for item in items if item not in done]
+
+
+def schedule(desk, now_ts):
+    """Boucle des automatismes : avant, rien ne se rangeait sans le bouton « Tout ranger dans les dossiers », et les notes restaient dans la messagerie."""
+    if not desk.settings(AUTO_SETTING, True) or now_ts - float(desk.settings('auto:notes5687', 0) or 0) < AUTO_MINUTES * 60:
+        return None
+    desk.setting('auto:notes5687', now_ts)
+    if desk.db.execute("SELECT 1 FROM jobs WHERE kind='ranger_notes5666' AND status IN ('pending','running') LIMIT 1").fetchone():
+        return None
+    items = waiting(desk)
+    return desk.enqueue('ranger_notes5666', {'items': items[:60]}, priority=45) if items else None
 
 
 def _strip_prefix(subject):

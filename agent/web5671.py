@@ -7,8 +7,8 @@
 """
 from .common import Stop
 
-WORK = ('reponse/deposer', 'reponse/ecarter')
-ADMIN = ('reglage/sans-dossier',)
+WORK = ('reponse/deposer', 'reponse/ecarter', 'reponse/relancer')
+ADMIN = ('reglage/sans-dossier', 'reglage/presentation', 'reglage/notes')
 
 
 def allowed(role, route):
@@ -39,6 +39,18 @@ def api(env, desk, auth, prefix, name, args, method):
                                     a_completer=str(data.get('a_completer') or '') == 'oui'))
     if route == 'reponse/ecarter':
         return json_out(rep.ecarter(desk, owner, key))
+    if route == 'reponse/relancer':
+        return json_out(rep.relancer(desk, owner, key, str(data.get('fournisseur') or ''), str(data.get('instruction') or '')))
+    if route == 'reglage/notes':
+        from .notes5666 import AUTO_SETTING
+        on = str(data.get('actif') or '') in ('1', 'oui', 'true', 'on')
+        desk.setting(AUTO_SETTING, on)
+        desk.audit('notes5687_reglage', {'actif': on, 'par': str(owner)[:80]})
+        return json_out({'ok': True, 'message': 'Rangement automatique des notes %s.' % ('activé' if on else 'désactivé')})
+    if route == 'reglage/presentation':
+        desk.setting(rep.PRESENTATION, str(data.get('presentation') or '').strip()[:4000])
+        desk.audit('reponses5687_presentation', {'par': str(owner)[:80]})
+        return json_out({'ok': True, 'message': 'Présentation du cabinet enregistrée.'})
     on = str(data.get('actif') or '') in ('1', 'oui', 'true', 'on') or data.get('actif') is True
     desk.setting(rep.SETTING, on)
     desk.audit('reponses5671_reglage', {'actif': on, 'par': str(owner)[:80]})
@@ -49,11 +61,19 @@ def settings_html(desk):
     """Paramètres › Messagerie : réglage des réponses « sans dossier » automatiques."""
     from html import escape as e
     from . import reponses5671 as rep
+    from .notes5666 import AUTO_SETTING
     on = bool(desk.settings(rep.SETTING, True))
+    notes = bool(desk.settings(AUTO_SETTING, True))
     return ('<section class="ax-card" id="reponses5671"><h2>Réponses « sans dossier »</h2>'
             '<p class="ax-muted">Pour un courriel qui appelle une réponse mais dont le dossier n’est pas confirmé (expéditeur inconnu, prospect, '
             'correspondant à confirmer), l’agent prépare une réponse à partir du seul courriel et de ses pièces jointes, marquée « [À COMPLÉTER] » '
             'et déposée dans Brouillons si le contrôle de sûreté l’autorise. Jamais envoyée ; jamais un dossier deviné. État : <strong>%s</strong>.</p>'
             '<form class="r5671-form" data-c5671="m5671/reglage/sans-dossier" data-reload><input type="hidden" name="actif" value="%s">'
-            '<button class="ax-btn%s" type="submit">%s</button></form></section>') % (
-        'activées' if on else 'désactivées', '0' if on else '1', ' ghost' if on else '', e('Désactiver' if on else 'Activer'))
+            '<button class="ax-btn%s" type="submit">%s</button></form><h3>Présentation du cabinet pour les nouveaux contacts</h3><p class="ax-muted">Domaines, modalités d’intervention, honoraires indicatifs. '
+            'L’IA reprend seulement ce texte ; le reste est marqué « [À COMPLÉTER] ». Il est pseudonymisé comme le reste.</p>'
+            '<form class="r5671-form" data-c5671="m5671/reglage/presentation" data-reload><label for="r5687-p">Présentation</label><textarea id="r5687-p" name="presentation" rows="6">%s</textarea>'
+            '<button class="ax-btn ghost" type="submit">Enregistrer</button></form><h3>Notes internes</h3><p class="ax-muted">Les notes de l’agent deviennent un document Word du dossier, ou du dossier « A TRAITER » sans dossier identifié, '
+            'toutes les 15 minutes. Le brouillon part dans la corbeille de la messagerie. État : <strong>%s</strong>.</p><form class="r5671-form" data-c5671="m5671/reglage/notes" data-reload><input type="hidden" name="actif" value="%s">'
+            '<button class="ax-btn ghost" type="submit">%s</button></form></section>') % (
+        'activées' if on else 'désactivées', '0' if on else '1', ' ghost' if on else '', e('Désactiver' if on else 'Activer'), e(str(desk.settings(rep.PRESENTATION, '') or '')),
+        'actif' if notes else 'désactivé', '0' if notes else '1', 'Désactiver' if notes else 'Activer')

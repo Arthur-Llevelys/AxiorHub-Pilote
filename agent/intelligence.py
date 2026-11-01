@@ -11,7 +11,7 @@ from .common import Stop,digest,fold,load_matters,private_json
 from .dav import DAV,available_slots
 from .documents import extract
 from .index import DocumentIndex
-from .mailbox import Mailbox,exclusion,make_draft
+from .mailbox import Mailbox,draft_key,exclusion,make_draft
 from .model import (Model,CASE_BRIEF,LEGAL_MEMORY,ATTACHMENT_REVIEW,
                     DEADLINE_REVIEW,MANUAL_DRAFT,routed_config,validate)
 from .state import State
@@ -315,7 +315,7 @@ def prepare_draft(desk,args):
         payload={'incoming':mail.public(),'style':style,'instruction_avocat':instruction,
                  **({'mode_projet':'a_completer'} if args.get('mode_projet')=='a_completer' else {}),   # 5.6.69 : jamais de page blanche
                  'dossier':{'id':m['id'],'nom':m['client_name']} if m['id'] else {'id':'','nom':'Aucun dossier',
-                     'consigne':'Aucun dossier rattaché : répondre seulement à partir du courriel, de ses pièces jointes et de l’instruction de '
+                     'consigne':'Aucun dossier rattaché : les faits viennent du courriel, de ses pièces jointes et de l’instruction de '
                                 'l’avocat ; ne rien affirmer sur un dossier ; signaler ce qui devra être vérifié.'},
                  'recipient_role':report.get('recipient_role',''),'reply_recipients':recipients,'sources':sources,
                  'available_slots':slots,'coverage':coverage}
@@ -336,6 +336,9 @@ def prepare_draft(desk,args):
         trace480.set_matter(m['id'])
         rules480.prepare(desk,payload,m['id'],recipients,'')
         intent=manual_intent(style,instruction)
+        if not m['id'] and intent=='reponse_fondee_dossier':     # 5.6.87 : sans dossier, une réponse utile au nouveau contact plutôt qu'un texte vide de fond
+            from .reponses5671 import first_contact
+            intent='premier_contact';payload['premier_contact']=first_contact(desk)
         payload['intent']=intent                              # 5.6.56 (N13) : même intention pour la rédaction et pour le contrôle
         dropped=fit_manual_draft_context(payload,desk.c['ollama'].get('max_context_chars',65000))
         result=Model(routed_config(desk.c,'mail_drafting')).ask('manual_draft',payload);validate(result,MANUAL_DRAFT)
@@ -385,6 +388,8 @@ def prepare_draft(desk,args):
                 result['faits_a_verifier']=fact_issues;result['limits'].append(_facts_summary(fact_issues))
         from .sens5643 import redaction_status   # 5.6.43 (§ 21.4) : un marqueur à la place du fond n'est jamais « complet »
         result['statut_redaction']=redaction_status(result.get('body',''))
+        if args.get('fournisseur') and result.get('body'):      # 5.6.87 : relance avec une autre IA : relue avant tout dépôt
+            result['requires_decision']=True;result['limits'].append('Réponse relancée avec une autre IA : à relire avant dépôt.')
         data={'result':result,'verification':verdict,'intent':intent,'matter':m['id'],'matter_path':m['path'],'key':key,
               'source_hash':digest(mail.text),'created_at':desk.now(),'style':style,'recipients':recipients,'sources':payload['sources']}
         desk.db.execute('INSERT OR REPLACE INTO manual_drafts VALUES (?,?,?)',(key,json.dumps(data),desk.now()));desk.db.commit()
@@ -460,7 +465,9 @@ def deposit_draft(desk,args):
         state.set(key,mid,thread,'drafted',reason_done,draft_mid)
         report.update(status='drafted',reason=reason_done,draft_body=result['body'],draft_message_id=draft_mid,
                       draft_verified=verification,manual_confirmation_at=desk.now(),sources=data['sources'],a_completer=to_complete)
-        state.report(key,report);desk.db.execute('DELETE FROM manual_drafts WHERE mail_key=?',(key,));desk.db.commit()
+        state.report(key,report);desk.db.execute('DELETE FROM manual_drafts WHERE mail_key=?',(key,))
+        desk.db.execute('CREATE TABLE IF NOT EXISTS reply_drafts5687(draft_key TEXT PRIMARY KEY, mail_key TEXT NOT NULL)')    # 5.6.87 : du brouillon au courriel, pour relancer
+        desk.db.execute('INSERT OR REPLACE INTO reply_drafts5687 VALUES(?,?)',(draft_key(draft),key));desk.db.commit()
         from .integration import set_work_state
         set_work_state(desk,key,'draft_ready','brouillon_imap_verifie')
         return {'brouillon_imap':'verifie','dossier':desk.c['mail']['drafts'],
@@ -468,8 +475,18 @@ def deposit_draft(desk,args):
     finally:box.close()
 
 
+def _relance(desk,args):
+    """5.6.87 : même préparation avec la connexion choisie par l'avocat, pour cette seule demande ; rien n'est déposé sans sa relecture."""
+    from .politique5682 import one_provider
+    from .prudent5667 import enabled
+    with one_provider(str(args['fournisseur'])):
+        prepared=prepare_draft(desk,{**args,'style':'prudent','instruction':args.get('instruction',''),'mode_projet':'a_completer' if enabled(desk) else ''})
+    return {**prepared,'message':'Nouvelle réponse préparée : à relire dans Courriels.' if prepared['projet_prepare'] else 'Aucun texte fiable n’a pu être préparé avec cette IA.'}
+
+
 def prepare_reply(desk,args):
     """One-click safe path: prepare, verify and append when no decision is needed."""
+    if args.get('fournisseur'):return _relance(desk,args)
     from .live430 import progress
     progress(desk,'Consultation des sources et préparation de la réponse',str(args.get('matter','')),str(args.get('key','')))
     from .prudent5667 import enabled as _projets_a_completer
