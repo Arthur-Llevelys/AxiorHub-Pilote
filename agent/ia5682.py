@@ -3,6 +3,7 @@
 Vocabulaire de l'abonnement (règles d'OpenAI) : « Utilise votre abonnement ChatGPT », « Gérer l'usage », « Limite d'usage atteinte ».
 Jamais « gratuit » ni « illimité », aucune économie en euros déduite des tarifs d'API. Une valeur non accessible s'affiche « Non fournie ».
 """
+from datetime import datetime, timedelta, timezone
 from html import escape as e
 
 from . import catalogue5682, conso5682, politique5682, routage5682, tache5682
@@ -50,8 +51,19 @@ def _plan_state(desk):
     plan = 'Utilise votre abonnement ChatGPT' if acc.get('plan') else 'Connexion sans usage du forfait : reconnectez-vous pour l’autoriser'
     deferred = chatgpt5682.deferred(desk.c['state_dir'])
     extra = (' · <strong>Limite d’usage atteinte</strong>, prochaine vérification à %s' % e(_time(deferred['jusqu_a']))) if deferred else ''
-    return ('<p class="m82-state"><strong>%s</strong>%s · limites restantes : Non fournie · crédits : Non fournie · <a href="%s" target="_blank" rel="noopener">Gérer l’usage</a></p>'
-            % (e(plan), extra, e(chatgpt5662.USAGE_URL, quote=True)))
+    return ('<p class="m82-state"><strong>%s</strong>%s · limites restantes : Non fournie · crédits : Non fournie · <a href="%s" target="_blank" rel="noopener">Gérer l’usage</a></p>%s'
+            % (e(plan), extra, e(chatgpt5662.USAGE_URL, quote=True), _last_failure(desk)))
+
+
+def _last_failure(desk):
+    """5.6.86 : le motif donné par OpenAI, pour comprendre « ChatGPT n’a pas pu terminer la réponse »."""
+    from . import chatgpt5662
+    from .cockpit530 import _local
+    last = desk.settings(chatgpt5662.FAILURE_KEY, {}) or {}
+    if not last.get('at') or str(last['at']) < (datetime.now(timezone.utc) - timedelta(days=7)).isoformat():
+        return ''
+    parts = [x for x in (last.get('modele'), ('statut %d' % last['statut']) if last.get('statut') else '', last.get('code'), last.get('param'), last.get('detail')) if x]
+    return '<p class="ax-muted">Dernier échec, %s : %s.</p>' % (e(_local(desk, last['at'], '%d/%m %H:%M')), e(' · '.join(parts) or 'motif non fourni par OpenAI'))
 
 
 def _time(stamp):

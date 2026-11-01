@@ -143,7 +143,8 @@ def pending(desk):
     """Réponses préparées que le contrôle n'a pas autorisé à déposer : [(clé, données, mise à jour)]."""
     hidden = _hidden()
     out = []
-    for row in desk.db.execute('SELECT mail_key,data,updated FROM manual_drafts ORDER BY updated DESC LIMIT 100'):
+    # 5.6.86 : la limite porte sur les réponses en attente, pas sur tout l'historique des réponses préparées
+    for row in desk.db.execute("SELECT mail_key,data,updated FROM manual_drafts WHERE data LIKE '%\"requires_decision\": true%' ORDER BY updated DESC LIMIT 200"):
         try:
             data = json.loads(row['data'])
         except (TypeError, ValueError):
@@ -187,6 +188,20 @@ def queue_items(desk, prefix='', actor='cabinet', role='administrateur'):
                     'choices': ('ouvrir', {'api': 'm5671/reponse/ecarter', 'label': 'Écarter', 'ghost': True, 'fields': {'key': key},
                                            'confirm': 'Écarter cette réponse préparée ? Le courriel reste dans la messagerie.'})})
     return out
+
+
+def section_html(desk, prefix):
+    """5.6.86 : page Courriels. Une réponse non déposée n'est pas dans Brouillons : elle doit se trouver à l'endroit où l'avocat la cherche, avec ou sans dossier."""
+    from .cockpit530 import _local
+    rows = ''
+    cards = queue_items(desk, prefix)
+    for it in cards:
+        rows += '<li><a href="%s"><strong>%s</strong><span>%s · %s</span></a></li>' % (
+            e(it['href'], quote=True), e(it['title'].removeprefix('Réponse préparée, à décider : ')), e(it['matter_name']), e(_local(desk, str(it['when']), '%d/%m %H:%M')))
+    if not rows:
+        return ''
+    return ('<section class="r86-pending" aria-labelledby="r86-t"><h2 id="r86-t">Réponses à décider <span class="q51-n">%d</span></h2><p class="ax-muted">Préparées par l’agent, pas encore déposées dans '
+            'Brouillons. Ouvrez-en une pour la relire, la modifier et la déposer.</p><ul>%s</ul></section>') % (len(cards), rows)
 
 
 def _store(desk, key, data):

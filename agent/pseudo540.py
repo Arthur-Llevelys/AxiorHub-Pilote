@@ -59,7 +59,7 @@ DEUXIEME DEUXIÈME TROISIEME TROISIÈME SECONDE INSTANCE APPEL CASSATION REFERE 
 MONTANT SOMME EUROS PRIX FACTURE DEVIS CONTRAT AVENANT STATUTS PROTOCOLE ACCORD TRANSACTION CONVENTION HONORAIRES PROVISION
 NB PS CC CCI BCC CCE ISO GMT UTC PM AM NO NUM N°
 '''.split()) | CODES   # 5.6.77 : codes utiles au raisonnement (IDCC, CSG, PMSS, ECLI…)
-CIVILITY = r"(?:M\.|MM\.|Mme|Mmes|Mlle|Monsieur|Madame|Mademoiselle|Maître|Maitre|Me|Mr|Mrs|Ms|Dr|Docteur|Pr|Professeur|Feu)"
+CIVILITY = r"(?:M\.|MM\.|Mme|Mmes|Mlle|Monsieur|Madame|Mademoiselle|Maître|Maitre|Me|Mr|Mrs|Ms|Dr|Docteur|Pr|Professeur|Feu|monsieur|madame|mademoiselle|maître|maitre|mme|mlle)"
 COMPANY_FORMS = r"(?:SASU|SAS|SARL|EURL|SCI|SCP|SNC|SELARL|SELAS|SELAFA|SA|GIE|GAEC|EARL|Société|Societe|Sté|Ste|Association|Fondation|Groupe|Cabinet|Etablissements|Établissements|Ets)"
 FIRST_NAMES = set('''
 adam adrien agathe agnès alain alexandra alexandre alexis alice aline amandine amélie anaïs andré andrée angélique anne annie antoine antonin
@@ -82,6 +82,20 @@ vanessa véronique victor victoria vincent virginie xavier yann yannick yves yve
 def _fold(text):
     text = unicodedata.normalize('NFKD', str(text or '').replace('’', "'"))
     return ''.join(c for c in text if not unicodedata.combining(c)).lower().strip()
+
+
+FIRST_NAMES = {_fold(x) for x in FIRST_NAMES}     # 5.6.86 : comparés sans accent : Hélène, François, Éric n'étaient jamais reconnus
+
+# 5.6.86 : dans un texte déjà sérialisé en JSON, un saut de ligne s'écrit « \\n » : le « n » collait au mot suivant, et un nom en début de ligne (une signature) n'était pas vu
+JSON_BREAK = re.compile(r'(?<!\\)\\([nrt])')
+JSON_CHAR = re.compile(r'(?<!\\)\\u([0-9a-fA-F]{4})')
+BREAKS = {'n': '\x1c', 'r': '\x1d', 't': '\x1e'}
+BREAKS_BACK = {v: '\\' + k for k, v in BREAKS.items()}
+
+
+def _json_char(m):
+    code = int(m.group(1), 16)
+    return chr(code) if code >= 0x80 and not 0xD800 <= code <= 0xDFFF else m.group(0)
 
 
 # ---------------------------------------------------------------------------------------- entités connues du cabinet
@@ -173,8 +187,8 @@ PATTERNS = [
     ('TELEPHONE', re.compile(r'(?<![\d+])\+(?!33)\d{2,3}(?:[ .-]?\d{2,4}){3,5}(?!\d)')),
     ('DATE_NAISSANCE', re.compile(r'(?i)\b(?:né|née|nés|nées|naissance)\s+le\s+(\d{1,2}(?:er)?[ /.\-]+(?:\d{1,2}|[a-zéû]+)[ /.\-]+\d{2,4})')),
     ('ADRESSE', re.compile(r"\b\d{1,4}(?:\s?(?:bis|ter|quater))?,?\s+(?i:rue|avenue|av\.|boulevard|bd|place|pl\.|chemin|allée|allee|impasse|quai|route|"
-                           r"cours|square|passage|voie|résidence|residence|lotissement|lieu-dit|hameau|montée|montee|cité|cite)\b[^\n,;()]{2,60}?"
-                           r"(?=\s*(?:[,;()\n]|$|\.\s|[–-]\s|à\s|\d{5}\b))"
+                           r"cours|square|passage|voie|résidence|residence|lotissement|lieu-dit|hameau|montée|montee|cité|cite)\b[^\n\x1c-\x1e,;()]{2,60}?"
+                           r"(?=\s*(?:[,;()\n\x1c-\x1e]|$|\.\s|[–-]\s|à\s|\d{5}\b))"
                            r"(?:\s*[,–-]?\s*\d{5}\s+[%s][\w'’\-]+(?:\s[%s][\w'’\-]+){0,2})?" % (UP, UP))),
     ('CHEMIN', re.compile(r'(?<![\w/])/(?:CABINET|Dossiers?|Clients?|Affaires?|remote\.php)[^\s\]\[{}<>"\']{3,}', re.I)),
     ('SOCIETE', re.compile(r"\b%s\s+((?:[%s0-9][\w&'’\-]*)(?:[ ](?:[%s0-9&][\w&'’\-]*)){0,3})" % (COMPANY_FORMS, UP, UP))),
@@ -187,7 +201,9 @@ COMPANY_AFTER = re.compile(r"\b((?:%s|%s)(?:[ ](?:%s|%s)){0,2})[ ](SASU|SAS|SARL
                            % (WORD_UPPER, WORD_CAP, WORD_UPPER, WORD_CAP))
 PROFESSIONAL = {'maître', 'maitre', 'me', 'dr', 'docteur', 'pr', 'professeur'}
 UPPER_NAME = re.compile(r"\b(?:(%s)[ \-]+)?(%s(?:[ \-]%s){0,2})\b(?:[ \-]+(%s))?" % (WORD_CAP, WORD_UPPER, WORD_UPPER, WORD_CAP))
-FIRST_LAST = re.compile(r"\b(%s)(?:[ \-](%s))?\s+(%s|%s)\b" % (WORD_CAP, WORD_CAP, WORD_UPPER, WORD_CAP))
+FIRST_LAST = re.compile(r"\b(%s)(?:[ \-](%s))?[ \t]+(%s|%s)\b" % (WORD_CAP, WORD_CAP, WORD_UPPER, WORD_CAP))
+ANY_WORD = re.compile(r"\b(?:%s|%s)\b" % (WORD_UPPER, WORD_CAP))
+BIRTH_PLACE = re.compile(r"(?:\[DATE_NAISSANCE_\d+\]|\b[Nn]ée?s?)\s+à\s+([%s][\w'’\-]+(?:[ \-][%s][\w'’\-]+){0,3})" % (UP, UP))
 
 
 def entity_key(category, original):
@@ -217,6 +233,7 @@ class Pseudonymizer:
         self.back = {}         # marqueur -> texte d'origine
         self.counts = {c: 0 for c in CATEGORIES}
         self.surnames = {}     # 5.6.77 : nom de famille replié -> {clé du nom complet: texte d'origine}
+        self.method = False    # 5.6.86 : texte d'une compétence en cours de traitement
         self.known_cat = {_fold(x): c for x, c in self.known}
         self.known_rx = (re.compile(r'(?<![\w@])(?:%s)(?![\w@])' % '|'.join(re.escape(x) for x, _ in self.known), re.I)
                          if self.known else None)
@@ -321,6 +338,25 @@ class Pseudonymizer:
         s = str(value)
         if not s.strip():
             return s
+        s = JSON_BREAK.sub(lambda m: BREAKS[m.group(1)], JSON_CHAR.sub(_json_char, s))
+        s = self._masked(s)
+        for mark, back in BREAKS_BACK.items():
+            s = s.replace(mark, back)
+        return s
+
+    def _same_names(self, seg):
+        """5.6.86 : un nom masqué une fois l'est partout : autre casse, ordre inversé, nom de famille seul (« Madame Hélène KERVILAC » puis « Hélène Kervilac », « Kervilac »)."""
+        for tok, original in list(self.back.items()):
+            words = original.split()
+            if tok.startswith('[PERSONNE_') and len(words) >= 2:
+                for order in (words, words[::-1]):
+                    seg = re.sub(r'(?<![\w@])' + r'[ \t\-]+'.join(re.escape(w) for w in order) + r'(?![\w@])', tok, seg, flags=re.I)
+        return seg
+
+    def _surnames_alone(self, seg):
+        return ANY_WORD.sub(lambda m: self.token('PERSONNE', m.group(0)) if _fold(m.group(0)) in self.surnames and m.group(0).upper() not in NOT_NAMES else m.group(0), seg)
+
+    def _masked(self, s):
         self._prescan(s)
         if self.known_rx is not None:
             s = self._outside(s, lambda seg: self.known_rx.sub(
@@ -351,7 +387,8 @@ class Pseudonymizer:
                 start, end = span[0] - base, span[1] - base
                 return whole[:start] + self.token('PERSONNE', whole[start:end]) + whole[end:]
             return UPPER_NAME.sub(repl, seg)
-        s = self._outside(s, upper)
+        if not self.method:
+            s = self._outside(s, upper)
 
         def first_last(seg):
             def repl(m):
@@ -359,7 +396,9 @@ class Pseudonymizer:
                     return m.group(0)
                 return self.token('PERSONNE', m.group(0))
             return FIRST_LAST.sub(repl, seg)
-        return self._outside(s, first_last)
+        s = self._outside(s, first_last)
+        s = BIRTH_PLACE.sub(lambda m: m.group(0)[:m.start(1) - m.start(0)] + self.token('ADRESSE', m.group(1)), s)
+        return self._outside(self._outside(s, self._same_names), self._surnames_alone)
 
     def apply(self, value):
         if isinstance(value, dict):
@@ -370,11 +409,14 @@ class Pseudonymizer:
             return self.text(value)
         return value
 
-    def apply_messages(self, messages):
+    def apply_messages(self, messages, method_at=None):
+        """``method_at`` : rang du texte d'une compétence : ses titres en majuscules ne sont pas des noms (5.6.86)."""
         out = []
-        for m in messages:
+        for rank, m in enumerate(messages):
             if isinstance(m, dict) and isinstance(m.get('content'), str):
+                self.method = rank == method_at
                 out.append({**m, 'content': self.text(m['content'])})
+                self.method = False
             else:
                 out.append(self.apply(m))
         return out

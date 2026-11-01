@@ -156,6 +156,8 @@ def _history(matter, status, controlled=False, deposited=False, informed=False):
 
 def _business_message(kind, matter, status, result, paths):
     name = matter or 'le cabinet'
+    if status == 'prepared' and kind == 'prepare_reply' and not matter:     # 5.6.86 : une réponse sans dossier n'est pas un travail « pour le cabinet »
+        return 'Projet de réponse préparé, sans dossier ; à relire dans Courriels.'
     if status == 'verified' and kind in ('prepare_reply','followup568_prepare'):
         verification = result.get('draft_verified') or {}
         folder = verification.get('folder') or result.get('dossier') or 'Drafts'
@@ -173,6 +175,15 @@ def _business_message(kind, matter, status, result, paths):
     if status == 'error':
         return 'Production interrompue pour '+name+'. La cause est affichée et le traitement peut être relancé.'
     return JOB_META.get(kind, ('', 'Travail interne'))[1]+' enregistré pour '+name+'.'
+
+
+def _matter_label(desk, matter):
+    """Nom lisible du dossier ; à défaut, son identifiant."""
+    try:
+        from .common import load_matters, matter_display
+        return next((matter_display(m) for m in load_matters(desk.c) if str(m['id']) == str(matter)), matter) if matter else matter
+    except Exception:   # noqa: BLE001 — le message reste enregistré
+        return matter
 
 
 def record_job(desk, row, args, status, result):
@@ -210,7 +221,7 @@ def record_job(desk, row, args, status, result):
         verification.update({k:(result.get('draft_verified') or {}).get(k) for k in
           ('folder','uid','uidvalidity','verified_at')})
     target = str(result.get('dossier') or (str(PurePosixPath(files[0]['path']).parent) if files else ''))
-    message = _business_message(kind, matter, business_status, result, files)
+    message = _business_message(kind, _matter_label(desk, matter), business_status, result, files)
     desk.db.execute('''INSERT OR REPLACE INTO production_deliverables_v420
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',(
       ident, int(row['id']), kind, str(args.get('trigger_kind') or 'job'), source,

@@ -49,6 +49,7 @@ NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agen
 # (résumé cliquable en bas de la file). Les projets à relire de plus de 14 jours n'y figurent plus (toujours visibles dans le dossier).
 CURATION = frozenset(('identite', 'classement', 'informations', 'lacune', 'relecture'))
 TODAY_DAYS = 14
+ALL_CARDS = 300
 
 
 def today_split(every, now=None):
@@ -224,7 +225,9 @@ def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_clo
                         continue
             it.setdefault('state', 'a_examiner')
             out.append(it)
-    out.sort(key=lambda i: (i['priority'] != 'haute', RANK.get(i['class'], 5), i['matter_name'], i['class']))
+    # 5.6.86 : les courriels du plus récent au plus ancien, quel que soit le dossier ; triés par nom, ceux « Sans dossier » passaient après les 12 premières cartes
+    out.sort(key=lambda i: str(i.get('when') or ''), reverse=True)
+    out.sort(key=lambda i: (i['priority'] != 'haute', RANK.get(i['class'], 5), '' if i['class'] == 'courriel' else i['matter_name'], i['class']))
     return out
 
 
@@ -293,6 +296,7 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
     from html import escape as e
     from urllib.parse import quote as _q
     every = items(desk, prefix, matter, '', hidden, actor=actor, role=role)
+    limit = max(limit, ALL_CARDS) if view else limit      # 5.6.86 : « tout voir » montre tout
     summary = ''
     if not matter:   # 5.6.64 : vue « du jour » sur Aujourd'hui
         every, curation, client, old = today_split(every)

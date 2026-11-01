@@ -1,0 +1,42 @@
+{
+  "version": "5.6.86",
+  "base": "5.6.85",
+  "date_utc": "2026-11-01T00:00:00+00:00",
+  "cahier_des_charges": "Correctif demandé par le cabinet : réponses aux courriels sans dossier introuvables.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 3212,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 133,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5686.py : tri, tout voir, rubrique de la page Courriels, panneau du travail, messages, dépôt à compléter. Données fictives.",
+  "mutations": "46 défauts introduits dans le correctif, tous détectés après renforcement d’un test.",
+  "live_checks": "Application réelle en local avec réponses fictives : rubrique de la page Courriels, tri d’Aujourd’hui, clair et sombre. Relevé du serveur du cabinet : échecs limités à deux fonctions à schéma propre, refus en moins de 3 secondes. Non essayé : messagerie réelle, ouverture d’une réponse réelle depuis la rubrique, appel réel à ChatGPT avec le format corrigé.",
+  "exapp": {
+    "version": "0.1.45",
+    "moteur": "5.6.86"
+  },
+  "nextcloud_app": {
+    "version": "0.4.3",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "file5651.items : courriels triés par date, sans regroupement par nom de dossier ; vues filtrées jusqu’à 300 cartes.",
+    "reponses5671 : section_html, recherche limitée aux réponses en attente.",
+    "web440.drafts_page : rubrique Réponses à décider.",
+    "jobview561 : lien vers la réponse préparée, mention Sans dossier.",
+    "production420 : nom du dossier dans le message, réponse sans dossier.",
+    "intelligence.prepare_reply : dépôt à compléter aussi pour une demande depuis la boîte.",
+    "chatgpt5662 : motif conservé, un nouvel essai sur incident, codes généraux reconnus.",
+    "ia5682 : dernier échec affiché.",
+    "schema5634.strict_form : format strict appliqué par chatgpt5662 et model.",
+    "competences5643 : compétence générale, phases des courriels créés, de la discussion, des routines et des récits ; méthode de décision uniquement déclarée.",
+    "hybrid400.external_config : sources de pseudonymisation.",
+    "web5632 : choix de la compétence générale.",
+    "pseudo540 : prénoms accentués, texte JSON, reprises d’un nom, civilité en minuscules, lieu de naissance, mode méthode pour les compétences."
+  ],
+  "adjusted_tests": []
+}

@@ -473,7 +473,8 @@ def prepare_reply(desk,args):
     from .live430 import progress
     progress(desk,'Consultation des sources et préparation de la réponse',str(args.get('matter','')),str(args.get('key','')))
     from .prudent5667 import enabled as _projets_a_completer
-    mode=('a_completer' if args.get('automatic')=='yes' and _projets_a_completer(desk) else '')   # 5.6.69 : projet « à compléter » plutôt que rien
+    requested=args.get('automatic')=='yes' or args.get('origine')=='boite5625'   # 5.6.86 : aussi quand l'avocat demande la réponse depuis la boîte : elle doit arriver dans Brouillons
+    mode=('a_completer' if requested and _projets_a_completer(desk) else '')   # 5.6.69 : projet « à compléter » plutôt que rien
     prepared=prepare_draft(desk,{**args,'style':'prudent','instruction':args.get('instruction',''),'mode_projet':mode})
     if not prepared['projet_prepare']:
         return {**prepared,'message':'Aucun texte fiable ne peut être proposé sans votre décision.'}
@@ -484,7 +485,7 @@ def prepare_reply(desk,args):
           'message':'Projet interne préparé ; le mode observation ou vos réglages interdisent son dépôt automatique.'}
     if not prepared['depot_autorise']:
         from .prudent5667 import enabled as _to_complete_enabled
-        if args.get('automatic')=='yes' and prepared.get('a_completer_possible') and _to_complete_enabled(desk):
+        if requested and prepared.get('a_completer_possible') and _to_complete_enabled(desk):
             from .missions567 import check_authority
             check_authority(desk,args)
             deposited=deposit_draft(desk,{'key':args.get('key',''),'confirm':'yes','a_completer':'oui'})
