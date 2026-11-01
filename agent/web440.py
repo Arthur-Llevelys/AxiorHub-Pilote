@@ -782,7 +782,9 @@ def api(env, desk, auth, prefix, name, args, method):
             if name == 'drafts':
                 return json_out(drafts440.list_drafts(mail, int(args.get('limit', 40) or 40)))
             if name == 'draft':
-                return json_out(drafts440.get_draft(mail, args.get('uid', ''), args.get('validity', '')))
+                from .reponses5671 import mail_of_draft      # 5.6.87 : lien « Relancer avec une autre IA »
+                draft5687 = drafts440.get_draft(mail, args.get('uid', ''), args.get('validity', ''))
+                return json_out({**draft5687, 'mail_key': mail_of_draft(desk, draft5687.get('agent_key'))})
             if name == 'office/config':
                 path = allowed_path(desk, args.get('path', ''))
                 mode = 'view' if args.get('mode') == 'view' else 'edit'

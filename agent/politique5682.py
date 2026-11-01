@@ -12,10 +12,12 @@ La préférence (automatique, rapide, approfondie) ajuste la profondeur ; elle n
 approfondie » n'autorise ni une dépense de plus ni l'envoi d'un dossier exclu. Le contrôle est relu dans la base avant chaque
 construction de modèle : une pause, un changement de mode ou une révocation entre la sélection et l'appel est pris en compte.
 """
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sqlite3
+import threading
 
 from .common import Stop
 
@@ -70,7 +72,37 @@ def normalize(raw):
     return value
 
 
+_choice = threading.local()
+
+
+@contextmanager
+def one_provider(provider_id):
+    """5.6.87 : relance demandée par l'avocat : cette connexion seule, le temps de ce travail et sur ce fil ; la politique du cabinet reste inchangée."""
+    _choice.provider = str(provider_id)
+    try:
+        yield
+    finally:
+        _choice.provider = ''
+
+
+def forced_provider():
+    return getattr(_choice, 'provider', '')
+
+
+def _with_choice(rule):
+    provider = forced_provider()
+    return {**rule, 'mode': 'auto', 'fournisseurs': [provider], 'consentement': True} if rule and provider else rule
+
+
 def read(config):
+    return _with_choice(_read(config))
+
+
+def read_fresh(state_dir):
+    return _with_choice(_read_fresh(state_dir))
+
+
+def _read(config):
     """Politique chargée avec la configuration ; None si l'installation garde ses réglages par fonction."""
     raw = (config or {}).get('politique_ia')
     if not isinstance(raw, dict):
@@ -79,7 +111,7 @@ def read(config):
     return None if rule['mode'] == 'routes' else rule
 
 
-def read_fresh(state_dir):
+def _read_fresh(state_dir):
     """Même lecture, directement dans la base : valeur en vigueur à l'instant de l'appel, quel que soit le processus."""
     path = Path(str(state_dir or '')) / 'desk.sqlite3'
     if not state_dir or not path.is_file():

@@ -163,6 +163,10 @@ def _automation_tick_5642(desk):
         from . import reponses5671
         reponses5671.schedule(desk,now_ts)
     except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.87 : notes internes de l'agent rangées dans leur dossier, toutes les 15 minutes
+        from . import notes5666
+        notes5666.schedule(desk,now_ts)
+    except Exception:pass   # une messagerie injoignable n'arrête jamais la boucle des automatismes
     try:   # 5.6.76 : prospects repérés dans les courriels (modèle local, propositions), toutes les 15 minutes
         from . import crm5676
         crm5676.schedule(desk,now_ts)

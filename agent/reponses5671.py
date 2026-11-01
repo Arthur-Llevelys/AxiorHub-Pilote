@@ -204,6 +204,66 @@ def section_html(desk, prefix):
             'Brouillons. Ouvrez-en une pour la relire, la modifier et la déposer.</p><ul>%s</ul></section>') % (len(cards), rows)
 
 
+PRESENTATION = 'reponses5687:presentation'
+TYPES = {'ollama': 'Ollama (local)', 'mistral': 'Mistral', 'anthropic': 'Anthropic', 'openrouter': 'OpenRouter', 'openai': 'OpenAI', 'chatgpt': 'ChatGPT'}
+
+
+def first_contact(desk):
+    """5.6.87 : ce que le modèle peut dire du cabinet à un nouveau contact : le texte de Paramètres, et rien d'autre."""
+    text = str(desk.settings(PRESENTATION, '') or '').strip()
+    return {'cabinet': text or 'Présentation du cabinet non renseignée : compétence, modalités et honoraires à compléter par l’avocat.'}
+
+
+def connections(desk):
+    """Connexions à proposer pour une relance : actives, et autorisées à recevoir des données si elles sont externes."""
+    from .ai_gateway import provider_registry
+    rows = []
+    for pid, p in sorted(provider_registry(desk.c).items()):
+        kind = p.get('type', 'ollama')
+        if p.get('enabled', True) and (kind == 'ollama' or p.get('external_data_allowed')) and p.get('model'):
+            rows.append((pid, '%s — %s' % (TYPES.get(kind, kind), p['model'])))
+    return rows
+
+
+def relancer(desk, owner, key, provider, instruction=''):
+    """Nouvelle rédaction du même courriel avec la connexion choisie. Chaque demande garde son propre brouillon ; rien n'est déposé sans relecture, rien n'est envoyé."""
+    from .desk import report_for
+    from .state import State
+    if not re.fullmatch(r'[a-f0-9]{64}', str(key or '')):
+        raise Stop('courriel_introuvable')
+    if str(provider) not in dict(connections(desk)):
+        raise Stop('fournisseur_ia_inactif')
+    report = report_for(desk.c, key)
+    mid = str(report.get('matter') or '')
+    if mid in _hidden():
+        raise Stop('dossier_reserve')
+    instruction = re.sub(r'[ \t]+', ' ', str(instruction or '')).strip()[:4000]
+    State(desk.c['state_dir']).report(key, {**report, 'manual_request': {'by': str(owner), 'at': desk.now(), 'instruction': instruction[:500], 'attachments': True}})
+    job = desk.enqueue('prepare_reply', {'key': key, 'matter': mid, 'instruction': instruction, 'pieces_jointes': 'oui', 'sans_dossier': 'oui' if not mid else '', 'fournisseur': str(provider), 'origine': 'relance5687'}, priority=0)
+    desk.audit('reponses5687_relance', {'key': key[:16], 'fournisseur': str(provider), 'job': job, 'par': str(owner)[:80]})
+    return {'job_id': job, 'message': 'Relance demandée (travail n° %d). La nouvelle réponse arrivera dans Courriels, rubrique « Réponses à décider ».' % job}
+
+
+def mail_of_draft(desk, draft_key):
+    """Courriel d'origine d'un brouillon déposé par l'agent ; vide pour un brouillon plus ancien que la 5.6.87."""
+    try:
+        row = desk.db.execute('SELECT mail_key FROM reply_drafts5687 WHERE draft_key=?', (str(draft_key or ''),)).fetchone()
+    except Exception:   # noqa: BLE001 — table créée au premier dépôt
+        return ''
+    return row[0] if row else ''
+
+
+def retry_html(desk, key):
+    """Page du courriel : relancer la rédaction avec une autre IA, en précisant au besoin ce qui manquait."""
+    rows = connections(desk)
+    if not rows:
+        return ''
+    return ('<section class="r5671" id="relance5687" aria-labelledby="r5687-t"><h2 id="r5687-t">Relancer avec une autre IA</h2><form class="r5671-form" data-c5671="m5671/reponse/relancer"><input type="hidden" name="key" value="%s">'
+            '<label>Intelligence artificielle<select name="fournisseur">%s</select></label><label>Ce qu’il faut améliorer (facultatif)<textarea name="instruction" rows="3"></textarea></label>'
+            '<div class="r5671-actions"><button class="ax-btn ghost" type="submit">Relancer la rédaction</button></div><p role="status" class="m5-status"></p></form></section>') % (
+        e(key, quote=True), ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in rows))
+
+
 def _store(desk, key, data):
     desk.db.execute('UPDATE manual_drafts SET data=?,updated=? WHERE mail_key=?', (json.dumps(data, ensure_ascii=False), desk.now(), key))
     desk.db.commit()

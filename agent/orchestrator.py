@@ -95,14 +95,20 @@ def _source_packet(desk,matter,key,report,memory):
     return packet
 
 
-def _validate_sources(data,valid):
-    ids=[]
+def _clean_sources(data,valid,fallback):
+    """5.6.87 : une référence inconnue n'arrête plus tout le traitement du courriel : elle est écartée. Une proposition qui ne reposait que sur elle est retirée, car rien ne l'étaye."""
+    dropped=0
     for field in ('source_ids','new_source_ids','existing_source_ids','contradicting_source_ids'):
-        ids+=data.get(field,[])
-    for row in data.get('changes',[]):ids+=row.get('source_ids',[])
-    for row in data.get('proposed_diligences',[]):ids+=row.get('source_ids',[])
-    for row in data.get('proposed_billing_entries',[]):ids+=row.get('source_ids',[])
-    if any(x not in valid for x in ids):raise Stop('source_orchestration_invalide')
+        if field in data:
+            kept=[x for x in data[field] if x in valid];dropped+=len(data[field])-len(kept);data[field]=kept
+    for field in ('changes','proposed_diligences','proposed_billing_entries'):
+        rows=[]
+        for row in data.get(field,[]):
+            kept=[x for x in row.get('source_ids',[]) if x in valid];dropped+=len(row.get('source_ids',[]))-len(kept)
+            if kept or not row.get('source_ids'):rows.append({**row,'source_ids':kept})
+        if field in data:data[field]=rows
+    if 'source_ids' in data and not data['source_ids']:data['source_ids']=[fallback]
+    return dropped
 
 
 def _reply_job(desk,key,classification,differential,cfg):
@@ -187,7 +193,7 @@ def orchestrate_mail(desk,args,classifier=None,analyst=None):
           'apprentissage_metier':learned_triage,
           'rules':{'internal_only':True,'no_external_action':True}})
     validate(classification,MAIL_ORCHESTRATION_CLASSIFICATION)
-    _validate_sources(classification,valid)
+    _clean_sources(classification,valid,packet[0]['id'])
     blocked=reason!='association_unique_fiable' or classification['ambiguous_matter']
     differential={'summary':'','changes':[],'new_source_ids':[],'existing_source_ids':[],
       'contradicting_source_ids':[],'recommended_project':'none','document_type':'none',
@@ -201,7 +207,7 @@ def orchestrate_mail(desk,args,classifier=None,analyst=None):
           'apprentissage_metier':learned_drafting,
           'rules':{'proposal_only':True,'no_send':True,'no_nextcloud_write':True,
             'no_final_billing':True,'lawyer_confirmation_required':True}})
-        validate(differential,MAIL_CASE_DIFFERENTIAL);_validate_sources(differential,valid)
+        validate(differential,MAIL_CASE_DIFFERENTIAL);_clean_sources(differential,valid,packet[0]['id'])
         blocked=bool(differential['blocking_reasons'])
     project_kind='';job_id=None
     if (not blocked and classification['actionable']

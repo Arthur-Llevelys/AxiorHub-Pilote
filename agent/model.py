@@ -487,9 +487,12 @@ def routed_config(config, purpose):
     route=routes.get(purpose,{}) if isinstance(routes.get(purpose,{}),dict) else {}
     from .hybrid400 import policy as hybrid_policy
     hybrid=hybrid_policy(config) if 'ollama' in config else {'mode':'manual'}
+    from .politique5682 import forced_provider
+    forced=forced_provider()    # 5.6.87 : relance avec la connexion choisie par l'avocat
+    if forced:hybrid={**hybrid,'mode':'manual'}
     # Hybrid means local by default. Existing explicit per-function routes are
     # retained as external candidates, not silently used for every request.
-    provider_id=('ollama' if hybrid['mode'] in ('local','hybrid') else
+    provider_id=forced or ('ollama' if hybrid['mode'] in ('local','hybrid') else
       str(route.get('provider') or routes.get(role+'_provider') or 'ollama'))
     providers=provider_registry(config) if 'ollama' in config else {'ollama':dict(config)}
     provider=providers.get(provider_id)
@@ -502,8 +505,8 @@ def routed_config(config, purpose):
     # pass its model identifier to Ollama.
     route_model=(str(route.get('model') or '')
       if str(route.get('provider') or provider_id)==provider_id else '')
-    chosen=str(route_model or routes.get(role+'_model') or '')
-    if role=='control' and not chosen and 'ollama' in config:
+    chosen='' if forced else str(route_model or routes.get(role+'_model') or '')
+    if role=='control' and not forced and not chosen and 'ollama' in config:
         chosen=str(config.get('autonomy',{}).get('control_model',''))
     if chosen:base['model']=chosen
     if not base.get('model'):raise Stop('modele_fournisseur_absent')
@@ -558,6 +561,12 @@ et end, ou chaîne vide si insuffisant. Ne crée rien dans l'agenda. Cite incomi
 En cas d'ambiguïté, confiance low et explique-la.
 """
 MANUAL_DRAFT_PROMPT="""Prépare un projet de réponse prudent selon le style demandé.
+Si « premier_contact » est présent, le courriel ne se rattache à aucun dossier : c'est souvent une personne qui sollicite le cabinet. Rédige alors une vraie réponse d'avocat, utile
+à son lecteur, jamais un simple accusé : remercie, reformule précisément le projet ou la question, puis, à partir de ta connaissance générale du droit français et de la compétence
+transmise, indique les questions juridiques que la situation soulève et les régimes à examiner, présentés comme des points à analyser et jamais comme une conclusion. Réponds aux
+questions posées autant que possible à ce stade, en disant de quoi dépend la réponse. Indique les pièces ou informations à transmettre et la suite proposée. Présente la compétence, les modalités
+d'intervention et les honoraires uniquement d'après premier_contact.cabinet ; ce qui n'y figure pas s'écrit « [À COMPLÉTER : …] ». Ces points généraux n'ont pas besoin de source_id. Ne cite pas un
+numéro d'article ou une décision absents des sources : nomme le régime en général. Si le courriel n'est pas une demande de ce type, réponds simplement à ce qui est demandé.
 Si la requête contient « profil_de_ton » et « regles_du_cabinet », ce sont des consignes de forme
 approuvées par l'avocat (formules, registre, longueur) : applique-les, sans jamais en tirer un fait ni
 modifier ce que le destinataire a le droit de savoir. En cas de conflit, la confidentialité prime.
@@ -687,6 +696,8 @@ Ne confirme jamais de rendez-vous. Signale si une autre durée est nécessaire.
 
 VERIFY_PROMPT = """Contrôle le brouillon proposé contre le dernier message, le rôle
 du destinataire et les sources. C'est un contrôle de qualité, pas une validation juridique.
+Si intent=premier_contact : des questions juridiques générales présentées comme points à analyser ne sont pas des faits du dossier et ne rendent pas grounded=false ; elles n'imposent pas
+requires_lawyer. Une présentation du cabinet conforme à premier_contact.cabinet n'est pas un engagement. Tout honoraire, acceptation de mission ou conclusion juridique absents de ces données reste une erreur.
 grounded=false si un fait, une date, un montant, une réception de document, un dépôt,
 une action accomplie ou l'absence d'un événement n'est pas établi par les sources.
 La réponse doit être appropriée à chacun des reply_recipients, y compris les copies.
