@@ -457,7 +457,7 @@ class Critiques(AvecBanc):
     def test_IMP08C_nouvelle_version_appelle_une_nouvelle_qualification(self):
         run_id, _ = self.complet()
         banc.recevoir(self.desk, run_id, 'consultation', ADMIN, self.cle())
-        with patch('agent.__version__', '5.6.90'):
+        with patch('agent.__version__', '9.9.99'):   # une version ultérieure quelconque, indépendante du passage de version
             self.assertEqual(next(f for f in banc.reception(self.desk, run_id)['familles'] if f['famille'] == 'consultation')['recue'], 'a_requalifier')
 
 

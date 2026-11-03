@@ -190,6 +190,17 @@ class Calcul(unittest.TestCase):
 
 
 class Validation(unittest.TestCase):
+    def test_HO21_localtime_refuse_meme_si_le_systeme_le_lit(self):
+        """5.6.90 : sous Linux, ZoneInfo('localtime') réussit ; le nom n'est pas dans la base IANA et doit être refusé."""
+        from zoneinfo import ZoneInfo
+        from agent import horaires_ia5689 as h
+        h._noms_iana.cache_clear()
+        self.addCleanup(h._noms_iana.cache_clear)
+        with patch.object(h, 'available_timezones', lambda: {'Europe/Paris', 'UTC'}), patch.object(h, 'ZoneInfo', lambda nom: ZoneInfo('UTC')):
+            with self.assertRaises(Stop):
+                h._zone('localtime')
+            self.assertEqual(str(h._zone('Europe/Paris')), 'UTC')
+
     def test_HO21_validation_serveur_des_heures_du_fuseau_et_des_plages(self):
         ok = {'id': 'x', 'days': [1], 'kind': 'period', 'start': '18:00', 'end': '07:00'}
         cas = [({'id': 'x', 'days': [1], 'kind': 'period', 'start': '24:00', 'end': '07:00'}, 'horaires_heure_invalide'),

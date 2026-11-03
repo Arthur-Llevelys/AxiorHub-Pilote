@@ -22,6 +22,7 @@ Une réponse du modèle reçue après le début d'une pause n'est ni publiée ni
 recalcule à partir des sources du moment. L'arrêt du calcul chez le fournisseur n'est jamais affirmé : seule l'interruption est demandée.
 """
 from datetime import date, datetime, timedelta, timezone
+import functools
 import hashlib
 from html import escape
 import json
@@ -78,9 +79,22 @@ def politique_defaut():
 
 
 # ---------------------------------------------------------------- validation
+@functools.lru_cache(maxsize=1)
+def _noms_iana():
+    """Noms de la base de fuseaux, lus une fois. Vide si la base ne se liste pas : la lecture du fuseau tranche alors seule."""
+    try:
+        return frozenset(available_timezones())
+    except (OSError, ValueError, ImportError):
+        return frozenset()
+
+
 def _zone(nom):
-    """Fuseau IANA ; une base absente (serveur sans ``tzdata``) donne le même refus qu'un nom inconnu : jamais de repli silencieux sur UTC."""
+    """Fuseau IANA ; une base absente (serveur sans ``tzdata``) donne le même refus qu'un nom inconnu : jamais de repli silencieux sur UTC.
+    5.6.90 : sous Linux, ``ZoneInfo('localtime')`` lit le fichier du système ; ce n'est pas un fuseau IANA, il est refusé."""
     if not isinstance(nom, str) or not NOM_FUSEAU.fullmatch(nom):
+        raise Stop('horaires_fuseau_inconnu')
+    noms = _noms_iana()
+    if noms and nom not in noms:
         raise Stop('horaires_fuseau_inconnu')
     try:
         return ZoneInfo(nom)

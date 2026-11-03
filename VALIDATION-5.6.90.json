@@ -1,0 +1,33 @@
+{
+  "version": "5.6.90",
+  "base": "5.6.89",
+  "date_utc": "2026-11-03T00:00:00+00:00",
+  "cahier_des_charges": "Correctif : recette Linux de la 5.6.89 en échec (fuseau localtime accepté, test daté).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 5023,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 137,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5689_horaires.py : localtime refusé même si le système le lit.",
+  "mutations": "Retrait du contrôle de la base IANA : le nouveau test échoue.",
+  "live_checks": "Aucun.",
+  "exapp": {
+    "version": "0.1.49",
+    "moteur": "5.6.90"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "horaires_ia5689._zone : nom absent de la base des fuseaux refusé."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5666.py : dates relatives au jour.",
+    "tests/test_v5689_qualif.py : version ultérieure quelconque."
+  ]
+}

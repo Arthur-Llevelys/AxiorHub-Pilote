@@ -135,6 +135,7 @@
   "VALIDATION-5.6.88.json",
   "VALIDATION-5.6.89.json",
   "VALIDATION-5.6.9.json",
+  "VALIDATION-5.6.90.json",
   "activate-local-dictation.py",
   "agent/__init__.py",
   "agent/_vendor/__init__.py",
