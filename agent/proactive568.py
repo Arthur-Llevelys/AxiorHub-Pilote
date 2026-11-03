@@ -408,7 +408,9 @@ def schedule(desk,stamp=None):
         except Stop:continue
         if desk.c.get('document_agents568',{}).get('incoming_paths') and stamp-float(desk.settings('document568:last_scan:'+owner,0))>=300:
             jobs.append(desk.enqueue('document568_scan',{'owner':owner},priority=50));desk.setting('document568:last_scan:'+owner,stamp)
+        from .charge5693 import intervalle_minutes   # 5.6.93 : fréquence de surveillance (suites de missions toutes les 2 min au moins, plus le 30 s)
         for kind,interval in (('sent568_scan',300),('received568_scan',300),('proactive568_cycle',30)):
+            interval=intervalle_minutes(desk,kind,interval/60)*60
             if kind=='proactive568_cycle' and not needs_cycle(desk,owner):continue
             key='proactive568:last:'+owner+':'+kind
             from .cadence5662 import allow   # 5.6.62 : repos après la fin du précédent ; différé si la file est chargée

@@ -134,6 +134,8 @@ def _automation_tick_5642(desk):
             if not autonomy480.allows(desk,'classement','agir'):continue
         last=desk.settings('auto:'+job,0)
         every=economie569.interval(desk,job,int(cfg.get(key,default)))
+        from .charge5693 import intervalle_minutes   # 5.6.93 : fréquence de surveillance (relevé des correspondants, santé, classement)
+        every=intervalle_minutes(desk,job,every)
         if now_ts-last>=every*60 and cadence5662.allow(desk,job,every,now_ts):
             # Reconciliation and portfolio refresh are background hygiene. They
             # must never overtake a draft or a question explicitly requested by
@@ -151,6 +153,8 @@ def _automation_tick_5642(desk):
         minutes=economie569.interval(desk,'monitor_all',max(5,int(proactive.get('monitor_interval_minutes',30))))
         from .surveillance5671 import round_minutes
         minutes=round_minutes(desk,minutes)   # 5.6.71 : 6 h au moins quand la veille des documents tourne
+        from .charge5693 import intervalle_minutes as _freq5693
+        minutes=_freq5693(desk,'monitor_all',minutes)   # 5.6.93
         last=desk.settings('auto:monitor_all',0)
         if now_ts-last>=minutes*60 and cadence5662.allow(desk,'monitor_all',minutes,now_ts):
             desk.enqueue('monitor_all');desk.setting('auto:monitor_all',now_ts)
@@ -182,6 +186,12 @@ def _automation_tick_5642(desk):
         from . import livrables_travaux5689
         livrables_travaux5689.schedule(desk,now_ts)
     except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.93 : opérations de livrables rapprochées de leur travail, une seule fois, sans réveiller une annulation
+        if not desk.settings('operations5693:migre', False):
+            from . import operations5693
+            operations5693.migrer(desk, appliquer=True)
+            desk.setting('operations5693:migre', True)
+    except Exception:pass   # une reprise impossible n'arrête jamais la boucle des automatismes
     try:   # 5.6.89 : classement des documents repris une seule fois : additif, répétable, sans lecture du stockage ni effet externe
         if not desk.settings('contentieux5689:migre', False):
             from . import contentieux_pieces5689
@@ -209,6 +219,8 @@ def _automation_tick_5642(desk):
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):
         minutes=economie569.interval(desk,'refresh_cabinet_pilotage',max(5,int(pilot.get('refresh_interval_minutes',30))))
+        from .charge5693 import intervalle_minutes as _pilot5693
+        minutes=_pilot5693(desk,'refresh_cabinet_pilotage',minutes)   # 5.6.93
         last=desk.settings('auto:refresh_cabinet_pilotage',0)
         if now_ts-last>=minutes*60 and cadence5662.allow(desk,'refresh_cabinet_pilotage',minutes,now_ts):
             desk.enqueue('refresh_cabinet_pilotage',priority=65)
@@ -224,6 +236,8 @@ def _automation_tick_5642(desk):
     production=desk.c.get('production',{})
     if desk.settings('automation:production_enabled',production.get('enabled',True)):
         minutes=economie569.interval(desk,'production_cycle391',max(5,int(production.get('interval_minutes',5))))
+        from .charge5693 import intervalle_minutes as _freq5693
+        minutes=_freq5693(desk,'production_cycle391',minutes)   # 5.6.93
         last=desk.settings('auto:production_cycle391',0)
         if now_ts-last>=minutes*60 and cadence5662.allow(desk,'production_cycle391',minutes,now_ts):
             desk.enqueue('production_cycle391',{'limit':int(production.get('batch_size',20))},priority=35)

@@ -332,6 +332,8 @@ def category(method, path, action=''):
         return 'reglages'
     if api.startswith('m5689/horaires') and method not in ('GET', 'HEAD'):   # 5.6.89 : horaires de l'IA et dérogation = réglage du cabinet
         return 'reglages'
+    if api.startswith('m5689/charge') and method not in ('GET', 'HEAD'):   # 5.6.93 : fréquence de surveillance des documents = réglage du cabinet
+        return 'reglages'
     if api.startswith('m5668/budget/') and method not in ('GET', 'HEAD'):   # 5.6.68 : plafond de l'IA = réglage du cabinet
         return 'reglages'
     if api.startswith('m5668/proactivite/') and method not in ('GET', 'HEAD'):   # 5.6.68 : comme Écarter une mission

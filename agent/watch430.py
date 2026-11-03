@@ -101,7 +101,9 @@ def _schedule_5642(desk,stamp=None):
     # 5.6.62 : un nouveau tour de tous les dossiers ne commence que 30 min (60 en régime économe) après la fin du précédent ; les lots
     # d'un tour en cours s'enchaînent toujours. Avant : 1 693 passages en 24 h chez le cabinet, la surveillance ne s'arrêtait jamais.
     sweep=economie569.interval(desk,'live_documents430',int(desk.settings('live430:documents_sweep_minutes',30) or 30))*60
-    for kind,interval in [('live_mail430',300),('live_calendar430',180),('live_documents430',LOT_DOCUMENTS)]:
+    from . import charge5693   # 5.6.93 : fréquence de surveillance (normale, économe, minimale) ; la relève des courriels garde ses 5 minutes
+    sweep=charge5693.repos_tour_secondes(desk,sweep)
+    for kind,interval in [('live_mail430',300),('live_calendar430',charge5693.intervalle_minutes(desk,'live_calendar430',3)*60),('live_documents430',LOT_DOCUMENTS)]:
         last=desk.settings('live430:last:'+kind,0)
         if (kind=='live_documents430' and int(desk.settings('live430:document_cursor',0) or 0)==0
                 and stamp-float(desk.settings('live430:documents_sweep_done',0) or 0)<sweep):
@@ -297,13 +299,22 @@ def documents_check(desk,dav=None):
     matters=[m for m in indexable_matters(desk.c) if m['id'] not in skip]
     if not matters:return {'abstention':'Aucun dossier indexable.'}
     cursor=int(desk.settings('live430:document_cursor',0))%len(matters);changed=0;partial=0;deferred=0
-    selected=matters[cursor:cursor+3]
+    # 5.6.93 : avec Nextcloud, l'ETag de chaque dossier (un PROPFIND par répertoire parent) suffit à passer les dossiers inchangés ; seuls
+    # les dossiers modifiés (au plus 3 par lot) sont relus, et seulement dans leurs sous-répertoires dont l'ETag a changé (charge5693).
+    from . import charge5693
+    etag_mode=charge5693.mode_etag(desk,client)
+    if etag_mode:
+        lot,advance,unchanged=charge5693.lot_documents(desk,client,matters,cursor)
+    else:
+        lot=[(m,None,False) for m in matters[cursor:cursor+3]];advance=len(lot);unchanged=0
+    selected=[m for m,_,_ in lot];settle=[]
     progress(desk,'Surveillance Nextcloud · '+str(len(selected))+' dossiers dans ce lot')
     failed=0
-    for matter in selected:
+    for matter,root_etag,full in lot:
         mid=matter['id'];setting='live430:scan:'+mid
         try:
-            scan,complete=client.inventory_step(matter['path'],desk.settings(setting,None))
+            scan,complete=(charge5693.inventaire_step(desk,client,matter,root_etag,full) if etag_mode
+                           else client.inventory_step(matter['path'],desk.settings(setting,None)))
         except Stop as ex:
             # 5.6.3 : un dossier illisible est signalé et passé ; il ne suspend plus la surveillance de tout le cabinet.
             # 5.6.36 : il est nommé dans « Pourquoi rien n'est produit ? » avec son motif, « Réessayer » et « Ne plus surveiller ».
@@ -322,7 +333,7 @@ def documents_check(desk,dav=None):
             emit(desk,'documents','Fichier au nom ambigu ignoré : '+href,getattr(desk,'active_job_id',None),mid,dedupe='refused-'+href)
         client.refused=[]
         if not complete:
-            desk.setting(setting,scan);partial+=1;continue
+            desk.setting(setting,None if etag_mode else scan);partial+=1;continue   # 5.6.93 : en mode ETag, la reprise est dans le cache
         desk.setting(setting,None)
         # Inventory metadata (not contents) is sufficient to detect a change.
         items=scan.get('files',{})
@@ -331,16 +342,21 @@ def documents_check(desk,dav=None):
         from .automation568 import observe as observe_agents
         managed=observe_agents(desk,matter,items)
         legacy_items={path:meta for path,meta in items.items() if path not in managed}
+        whole=True   # 5.6.93 : un observateur arrivé à sa limite (10 pièces par passage) laisse le dossier à relire au prochain tour
         try:
             from .notices440 import observe_inventory
-            observe_inventory(desk,mid,legacy_items)
+            whole=(observe_inventory(desk,mid,legacy_items) or 0)<10 and whole
         except Exception as ex:
+            whole=False
             emit(desk,'documents','Analyse des avis impossible : '+str(ex)[:120],getattr(desk,'active_job_id',None),mid)
         try:
             from .echeances450 import observe_inventory as observe_deadlines
-            observe_deadlines(desk,mid,legacy_items)
+            whole=(observe_deadlines(desk,mid,legacy_items) or 0)<10 and whole
         except Exception as ex:
+            whole=False
             emit(desk,'documents','Analyse des échéances impossible : '+str(ex)[:120],getattr(desk,'active_job_id',None),mid)
+        if etag_mode and whole:
+            settle.append((mid,root_etag,full))
         if state!='unchanged':
             from .improvements36 import matter_option
             if not recent_change(items):
@@ -372,14 +388,19 @@ def documents_check(desk,dav=None):
                 # file automatique pleine : le dossier reste « à traiter » et sera repris au prochain passage, sans échec de la surveillance
                 emit(desk,'documents','Analyse reportée ('+str(ex)+') : '+matter_option(matter),getattr(desk,'active_job_id',None),mid,
                      dedupe='report-'+mid+'-'+time.strftime('%Y%m%d%H'))
-    next_cursor=(cursor+len(selected))%len(matters);desk.setting('live430:document_cursor',next_cursor)
+    for mid,root_etag,full in settle:   # 5.6.93 : un dossier encore « à traiter » n'est jamais réglé (charge5693.regler le vérifie)
+        charge5693.regler(desk,mid,root_etag,full)
+    next_cursor=(cursor+advance)%len(matters);desk.setting('live430:document_cursor',next_cursor)
     # Finish a whole sweep in bounded lots, yielding to replies between each lot.
     more=next_cursor!=0 or bool(partial)
     if not more:   # 5.6.62 : tour complet terminé ; le suivant attend l'intervalle de repos (_schedule_5642)
         desk.setting('live430:documents_sweep_done',time.time())
-    heartbeat(desk,'documents','active','Lot '+str(cursor+1)+'–'+str(cursor+len(selected))+' / '+str(len(matters))+' dossiers · '+str(partial)+' inventaires partiels',time.time()+300)
+    heartbeat(desk,'documents','active','Lot '+str(cursor+1)+'–'+str(cursor+advance)+' / '+str(len(matters))+' dossiers · '+str(partial)+' inventaires partiels'
+              +(' · '+str(unchanged)+' inchangés (ETag)' if unchanged else ''),time.time()+300)
     # 5.6.36 : plus de Stop('dossiers_illisibles') : trois lots de dossiers illisibles suspendaient toute la surveillance des documents.
-    return {'changed':changed,'partial':partial,'failed':failed,'deferred':deferred,'continue_scan':more,'remote_write':False}
+    result={'changed':changed,'partial':partial,'failed':failed,'deferred':deferred,'continue_scan':more,'remote_write':False}
+    if etag_mode:result['unchanged']=unchanged
+    return result
 
 
 def perform(desk,kind,args):

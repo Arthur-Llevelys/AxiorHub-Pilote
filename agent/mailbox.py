@@ -270,6 +270,8 @@ class Mailbox:
         except (imaplib.IMAP4.error, OSError): pass
 
     def select(self, folder):
+        from .charge5693 import compter
+        compter('imap')   # 5.6.93 : commandes IMAP comptées (page « Charge du serveur »)
         result, _ = self.conn.select(imap_quote(modified_utf7(folder)), readonly=True)
         if result != 'OK': raise Stop('dossier_imap_inaccessible')
         _, vv = self.conn.response('UIDVALIDITY')
@@ -279,12 +281,16 @@ class Mailbox:
 
     def search(self, folder, *criteria):
         self.select(folder)
+        from .charge5693 import compter
+        compter('imap')
         status, result = self.conn.uid('SEARCH', None, *criteria)
         if status != 'OK': raise Stop('recherche_imap_echouee')
         return result[0].decode().split() if result and result[0] else []
 
     def fetch(self, folder, uid, headers_only=False):
         validity = self.select(folder)
+        from .charge5693 import compter
+        compter('imap', 2)
         status, rr = self.conn.uid('FETCH', uid, '(UID FLAGS INTERNALDATE RFC822.SIZE)')
         meta = b' '.join(x for x in rr if isinstance(x, bytes))
         if status != 'OK' or not meta: raise Stop('message_imap_disparu')

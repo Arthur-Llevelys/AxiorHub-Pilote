@@ -43,6 +43,8 @@ class Embedder:
 
     def embed(self,texts):
         if not texts:return []
+        from .charge5693 import compter
+        compter('embeddings',len(texts))   # 5.6.93 : passages envoyés au calcul d'empreintes
         from .arret5643 import before_model_call
         before_model_call({'state_dir':self.state_dir})
         from .data_policy5689 import exiger   # 5.6.89 : adresse locale imposée par HTTP(local_only=True) ; la politique illisible bloque aussi cet accès

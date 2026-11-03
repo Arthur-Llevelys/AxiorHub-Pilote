@@ -186,6 +186,8 @@ def ocr(path):
 
 
 def extract(raw, name, cfg):
+    from .charge5693 import compter
+    compter('extraction')   # 5.6.93 : extraction de texte comptée (page « Charge du serveur »)
     started = time.monotonic()
     if len(raw) > cfg.get('max_file_bytes', 15_000_000): raise Stop('piece_trop_volumineuse')
     ext = Path(name).suffix.lower()

@@ -71,6 +71,12 @@ REASONS = {
     'donnee_inconnue': 'Cette donnée n’existe plus.',
     'statut_invalide': 'État demandé invalide.',
     'classeur_illisible': 'Ce classeur Excel est illisible : enregistrez-le à nouveau au format .xlsx.',
+    # 5.6.93 (N09) : export CSV d'un classeur, complet ou refusé
+    'export_trop_volumineux': 'Ce classeur dépasse la taille qu’un export CSV complet peut reprendre : rien n’a été exporté, aucun fichier tronqué. Exportez une feuille à la fois, ou allégez le classeur.',
+    'feuille_a_choisir': 'Ce classeur contient plusieurs feuilles : choisissez la feuille à exporter, ou l’archive de toutes les feuilles.',
+    'feuille_absente': 'Cette feuille n’existe pas dans cette version du classeur : rechargez la page et choisissez une feuille de la liste.',
+    'classeur_incomplet': 'Une feuille annoncée par ce classeur est absente du fichier : l’export est refusé plutôt que partiel. Enregistrez à nouveau le classeur.',
+    'classeur_refuse': 'Ce classeur contient des déclarations XML refusées par sécurité : rien n’a été exporté. Enregistrez-le à nouveau depuis votre tableur.',
     'regle_inconnue': 'Cette règle n’existe plus.',
     'formulaire_inconnu': 'Ce formulaire n’est pas au catalogue.',
     'formulaire_indisponible': 'Le site officiel n’a pas fourni le formulaire : réessayez plus tard.',

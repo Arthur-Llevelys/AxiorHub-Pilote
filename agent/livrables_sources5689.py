@@ -15,8 +15,11 @@ import time
 
 from .common import Stop, digest
 from .livrables5689 import RANG, _now, nature
+from .registre5693 import ANCIEN_PLAFOND, Parcours, lignes
 
-LIMITE = 2000
+# 5.6.93 (N03) : plus aucun plafond de lecture. Chaque journal est parcouru par pages (``registre5693.Parcours``) avec un curseur stable (clé de mise à jour,
+# identifiant) ; ``LIMITE`` n'est plus que l'ancien plafond, gardé pour repérer à la réparation les sources qui ont pu être tronquées.
+LIMITE = ANCIEN_PLAFOND
 TERMINE = ('done', 'partial')
 
 
@@ -80,9 +83,17 @@ def _labels_doc(kind):
     return TYPE_LABELS.get(kind, 'Document')
 
 
-def docreq_rows(desk):
-    for r in desk.db.execute("SELECT * FROM docreq520 WHERE status='cree' AND path<>'' ORDER BY updated ASC LIMIT ?", (LIMITE,)).fetchall():
-        yield r['id'], partial(_docreq, desk, r)
+RETRAITS_DEMANDE = ('annule', 'annulation_demandee', 'echec', 'supprime')
+
+
+def _docreq_retenue(desk, r):
+    """Créée avec un fichier : une sortie. Annulée ou en échec : un retrait. En cours : rien à dire encore."""
+    if r['status'] == 'cree' and r['path']:
+        return True
+    return False if r['status'] in RETRAITS_DEMANDE else None
+
+
+docreq_rows = lignes(Parcours('docrequest520', 'docreq520 t', 't.updated', 't.id', lambda desk, r: partial(_docreq, desk, r), _docreq_retenue, objet_sql='t.id', suppressions=True))
 
 
 def docreq_running(desk):
@@ -110,9 +121,10 @@ def _titre_projet(data, path):
     return str(data.get('title') or data.get('titre') or (PurePosixPath(path).stem if path else '') or 'Projet de document')
 
 
-def _project_rows(desk, table, service):
-    for r in desk.db.execute("SELECT * FROM %s WHERE status IN ('done','partial','pending','creating') ORDER BY created ASC LIMIT ?" % table, (LIMITE,)).fetchall():
-        yield r['id'], partial(_projet, service, r, _titre_projet)
+def _project_rows(table, service):
+    """Projet créé, partiel, en attente ou en création : une sortie ; abandonné ou expiré : un retrait (la carte sans fichier quitte la file)."""
+    return lignes(Parcours(service, '%s t' % table, 'MAX(t.created, t.decided)', 't.id', lambda desk, r: partial(_projet, service, r, _titre_projet),
+                           lambda desk, r: r['status'] in ('done', 'partial', 'pending', 'creating'), objet_sql='t.id', suppressions=True))
 
 
 def _project_signature(table):
@@ -137,9 +149,9 @@ def _cession(row):
              'protected': 'signe' if row['state'] == 'signe' else '', 'provenance': {'producteur': 'cessions5684', 'operation': row['dossier'], 'modele_id': inputs.get('modele', ''), 'modele_version': inputs.get('version', ''), 'etat_modele': inputs.get('etat_modele', ''), 'formulaire': inputs.get('formulaire', '')}}]
 
 
-def cession_rows(desk):
-    for r in desk.db.execute('SELECT d.*, o.matter AS matter FROM deliverables5683 d LEFT JOIN operation_dossiers5683 o ON o.id=d.dossier ORDER BY d.at ASC LIMIT ?', (LIMITE,)).fetchall():
-        yield r['id'], partial(_cession, r)
+# « signé » ne change pas la date de la ligne : la signature de la source le compte à part, et ce changement sans nouvelle clé provoque une relecture complète.
+cession_rows = lignes(Parcours('cessions5684', 'deliverables5683 t LEFT JOIN operation_dossiers5683 o ON o.id=t.dossier', 't.at', 't.id', lambda desk, r: partial(_cession, r),
+                               colonnes='t.*, o.matter AS matter', objet_sql="t.dossier || ':' || t.doc"))
 
 
 def _corporate(desk, row):
@@ -151,9 +163,8 @@ def _corporate(desk, row):
     return out
 
 
-def corporate_rows(desk):
-    for r in desk.db.execute("SELECT * FROM operations5636 WHERE result LIKE '%\"files\"%' ORDER BY updated ASC LIMIT ?", (LIMITE,)).fetchall():
-        yield r['id'], partial(_corporate, desk, r)
+corporate_rows = lignes(Parcours('corporate5636', 'operations5636 t', 't.updated', 't.id', lambda desk, r: partial(_corporate, desk, r), lambda desk, r: '"files"' in str(r['result'] or ''),
+                                 objet_sql='t.id', prefixe=True))
 
 
 # ------------------------------------------------------------------------------------------------ courriers, notes, honoraires
@@ -162,9 +173,8 @@ def _courrier(row):
              'provenance': {'producteur': 'courrier5679'}}]
 
 
-def courrier_rows(desk):
-    for r in desk.db.execute("SELECT * FROM courriers5679 WHERE state='pret' AND path<>'' ORDER BY updated ASC LIMIT ?", (LIMITE,)).fetchall():
-        yield r['id'], partial(_courrier, r)
+courrier_rows = lignes(Parcours('courrier5679', 'courriers5679 t', 't.updated', 't.id', lambda desk, r: partial(_courrier, r), lambda desk, r: r['state'] == 'pret' and bool(r['path']),
+                                objet_sql='t.id', suppressions=True))
 
 
 def _note(desk, row):
@@ -188,20 +198,38 @@ def _note_journal(desk, row, titres):
              'verified': state == 'verified', 'evidence': 'journal de rangement (notes5666)', 'when': row['updated'], 'provenance': {'producteur': 'notes5666', 'brouillon_source': row['item']}}]
 
 
-def note_rows(desk):
-    marks = {r['item']: r for r in desk.db.execute("SELECT item, title, at FROM cockpit530_reviewed WHERE decision='range' ORDER BY at ASC LIMIT ?", (LIMITE,)).fetchall()}
-    titres = {k: str(r['title']).rpartition(' — ')[0] for k, r in marks.items()}
-    journal = set()
+def _titre_marque(desk, item):
+    row = desk.db.execute("SELECT title FROM cockpit530_reviewed WHERE item=? AND decision='range'", (item,)).fetchone()
+    return {item: str(row['title']).rpartition(' — ')[0]} if row else {}
+
+
+def _hors_journal(desk, r):
+    """Note rangée avant le journal de rangement : le marqueur seul la décrit ; avec un journal, c'est lui qui fait foi."""
     try:
-        rows = desk.db.execute('SELECT * FROM rangement5689 ORDER BY updated ASC LIMIT ?', (LIMITE,)).fetchall()
+        return None if desk.db.execute('SELECT 1 FROM rangement5689 WHERE item=? LIMIT 1', (r['item'],)).fetchone() else True
     except sqlite3.OperationalError:    # journal créé au premier rangement
-        rows = []
-    for r in rows:
-        journal.add(r['item'])
-        yield r['item'], partial(_note_journal, desk, r, titres)
-    for item, r in marks.items():
-        if item not in journal:     # notes rangées avant le journal
-            yield item, partial(_note, desk, r)
+        return True
+
+
+class _JournalRangement(Parcours):
+    """Journal de rangement : absent tant qu'aucune note n'a été rangée ; vide alors, pas en panne."""
+
+    def page(self, desk, apres=None, jusqua=None, limite=500):
+        try:
+            return super().page(desk, apres, jusqua, limite)
+        except sqlite3.OperationalError:
+            return []
+
+    def fin(self, desk):
+        try:
+            return super().fin(desk)
+        except sqlite3.OperationalError:
+            return None
+
+
+note_rows = lignes(_JournalRangement('notes5666.journal', 'rangement5689 t', 't.updated', 't.rowid', lambda desk, r: partial(_note_journal, desk, r, _titre_marque(desk, r['item'])), objet_sql='t.item'),
+                   Parcours('notes5666.marques', 'cockpit530_reviewed t', 't.at', 't.item', lambda desk, r: partial(_note, desk, r), _hors_journal, colonnes='t.item, t.title, t.at',
+                            prefiltre="t.decision='range'", objet_sql='t.item'))
 
 
 def note_signature(desk):
@@ -231,9 +259,8 @@ def _facture(row):
              'review_required': not issued, 'provenance': {'producteur': 'facturation5653', 'document_financier': row['id'], 'etat': row['state']}}]
 
 
-def facture_rows(desk):
-    for r in desk.db.execute("SELECT * FROM b53_documents WHERE files_json NOT IN ('','{}') ORDER BY updated ASC LIMIT ?", (LIMITE,)).fetchall():
-        yield r['id'], partial(_facture, r)
+facture_rows = lignes(Parcours('facturation5653', 'b53_documents t', 't.updated', 't.id', lambda desk, r: partial(_facture, r), lambda desk, r: str(r['files_json'] or '') not in ('', '{}'),
+                               objet_sql='t.id'))
 
 
 # ------------------------------------------------------------------------------------------------ travailleur et missions
@@ -249,9 +276,8 @@ def _production(row):
              'provenance': {'producteur': 'production420', 'tache': _col(row, 'job_id'), 'livrable': row['id']}}]
 
 
-def production_rows(desk):
-    for r in desk.db.execute("SELECT * FROM production_deliverables_v420 WHERE status IN ('verified','verifying','prepared') AND deliverable_kind<>'mail_draft' ORDER BY updated ASC LIMIT ?", (LIMITE,)).fetchall():
-        yield r['id'], partial(_production, r)
+production_rows = lignes(Parcours('production420', 'production_deliverables_v420 t', 't.updated', 't.id', lambda desk, r: partial(_production, r),
+                                  lambda desk, r: r['status'] in ('verified', 'verifying', 'prepared') or None, prefiltre="t.deliverable_kind<>'mail_draft'", objet_sql='t.id'))
 
 
 def _mission(row):
@@ -264,9 +290,8 @@ def _mission(row):
              'title': PurePosixPath(path).stem, 'when': row['updated'], 'provenance': {'producteur': 'missions5614', 'operation': row['id']}}]
 
 
-def mission_rows(desk):
-    for r in desk.db.execute("SELECT o.*, m.matter AS matter FROM ops5614 o LEFT JOIN missions5614 m ON m.id=o.mission WHERE o.state='confirme' AND o.remote_ref<>'' ORDER BY o.updated ASC LIMIT ?", (LIMITE,)).fetchall():
-        yield r['id'], partial(_mission, r)
+mission_rows = lignes(Parcours('missions5614', 'ops5614 t LEFT JOIN missions5614 m ON m.id=t.mission', 't.updated', 't.id', lambda desk, r: partial(_mission, r),
+                               lambda desk, r: (r['state'] == 'confirme' and bool(r['remote_ref'])) or None, colonnes='t.*, m.matter AS matter', objet_sql='t.id'))
 
 
 # ------------------------------------------------------------------------------------------------ courriels : réponses préparées et brouillons déposés
@@ -335,30 +360,40 @@ def _reponse(desk, key, data, updated, subject_of):
              'reserve': True, 'reserve_note': ' · '.join(str(x) for x in (value.get('limits') or []))[:400], 'provenance': {'producteur': 'reponses5671', 'apercu': 'reponses5671'}}]
 
 
-def reponse_rows(desk):
+def _sujet(desk, key):
     from .desk import report_for
-    from .livrables5689 import reponse_deposee
+    try:
+        return str(report_for(desk.c, key).get('subject') or 'Réponse préparée')[:160]
+    except Stop:
+        return 'Réponse préparée'
 
-    def subject(key):
-        try:
-            return str(report_for(desk.c, key).get('subject') or 'Réponse préparée')[:160]
-        except Stop:
-            return 'Réponse préparée'
-    deposited = reponse_deposee(desk)
-    for row in desk.db.execute("SELECT mail_key,data,updated FROM manual_drafts WHERE data LIKE '%\"requires_decision\": true%' ORDER BY updated ASC LIMIT 200").fetchall():
-        if row['mail_key'] in deposited:     # brouillon déjà déposé : la réponse et son dépôt ne font qu'une carte
-            continue
-        data = _json(row['data'])
-        if not (data.get('result') or {}).get('requires_decision'):
-            continue
-        yield row['mail_key'], partial(_reponse, desk, row['mail_key'], data, row['updated'], subject)
+
+def _reponse_retenue(desk, r):
+    """Réponse qui attend une décision : une carte ; déjà déposée comme brouillon : une seule carte, celle du dépôt ; décidée : un retrait."""
+    try:
+        data = _json(r['data'])
+    except ValueError:
+        return True             # ligne abîmée : son erreur est comptée à la lecture, sans emporter les autres
+    if not isinstance(data, dict) or not (data.get('result') or {}).get('requires_decision'):
+        return False
+    deposited = desk.db.execute("SELECT 1 FROM prepared_items5689 WHERE response_id=? AND deposit_state='depose' AND lifecycle='current' LIMIT 1", (r['mail_key'],)).fetchone()
+    return None if deposited else True
+
+
+def _lire_reponse(desk, r):
+    return lambda: _reponse(desk, r['mail_key'], _json(r['data']), r['updated'], partial(_sujet, desk))
+
+
+# 5.6.93 (N03) : plus de plafond de 200 réponses ; toutes celles qui attendent une décision sont lues, page après page.
+reponse_rows = lignes(Parcours('reponses5671', 'manual_drafts t', 't.updated', 't.mail_key', _lire_reponse, _reponse_retenue, colonnes='t.mail_key, t.data, t.updated',
+                               prefiltre="t.data LIKE '%requires_decision%'", objet_sql='t.mail_key', suppressions=True))
 
 
 # Ordre utile : les journaux de création d'abord (empreinte connue), le travailleur ensuite, qui n'ajoute alors qu'un lien.
 SOURCES = (
     {'id': 'docrequest520', 'label': 'Demandes de documents', 'signature': _signature('docreq520'), 'rows': docreq_rows, 'running': docreq_running},
-    {'id': 'document_projects', 'label': 'Projets de documents', 'signature': _project_signature('document_projects_v220'), 'rows': lambda desk: _project_rows(desk, 'document_projects_v220', 'document_projects'), 'running': _project_running('document_projects_v220')},
-    {'id': 'word_legal', 'label': 'Révisions Word', 'signature': _project_signature('word_projects_v250'), 'rows': lambda desk: _project_rows(desk, 'word_projects_v250', 'word_legal'), 'running': _project_running('word_projects_v250')},
+    {'id': 'document_projects', 'label': 'Projets de documents', 'signature': _project_signature('document_projects_v220'), 'rows': _project_rows('document_projects_v220', 'document_projects'), 'running': _project_running('document_projects_v220')},
+    {'id': 'word_legal', 'label': 'Révisions Word', 'signature': _project_signature('word_projects_v250'), 'rows': _project_rows('word_projects_v250', 'word_legal'), 'running': _project_running('word_projects_v250')},
     {'id': 'cessions5684', 'label': 'Cessions et opérations', 'signature': lambda desk: tuple(desk.db.execute("SELECT COUNT(*), COALESCE(MAX(at),''), SUM(state='signe') FROM deliverables5683").fetchone()), 'rows': cession_rows},   # « signé » ne change pas la date : compté à part
     {'id': 'corporate5636', 'label': 'Corporate', 'signature': _signature('operations5636'), 'rows': corporate_rows},
     {'id': 'bibliotheque5639', 'label': 'Bibliothèque de modèles', 'signature': lambda desk: 0, 'rows': lambda desk: ()},         # sans journal : inscrit à la génération

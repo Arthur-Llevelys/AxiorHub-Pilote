@@ -287,6 +287,17 @@ def diagnose(db, state_dir, ref=None):
             'place aux demandes de l’avocat.' if load['ratio'] >= 0.75 else '')
     for r in rows("SELECT id,owner,slot FROM veille_runs5632 WHERE state='pending' AND COALESCE(job_id,'')='' ORDER BY id"):
         add('veille_orpheline', 'info', 'Passage de veille sans travail : %s' % r['slot'], 'Il sera clos ou relancé au prochain cycle.')
+    # 5.6.93 (N02, N10) : demandes de livrables sans travail, ou restées actives après l'arrêt de leur travail (lecture seule)
+    for table, label, demande, actifs, filtre in (('prepared_exports5689', 'export', 'demande', "('demande','en_cours','ecriture')", ''),
+                                                  ('document_patches5689', 'proposition IA', 'demandee', "('demandee')", " AND o.origin='ia'")):
+        sans = rows("SELECT COUNT(*) n FROM %s o LEFT JOIN jobs j ON j.id=o.job_id WHERE o.state=? AND j.id IS NULL%s" % (table, filtre), (demande,))
+        if sans and sans[0]['n']:
+            add('operation_sans_travail', 'attention', '%d demande(s) d’%s sans travail associé' % (sans[0]['n'], label),
+                'Elles ne progresseront pas seules.', action='La maintenance des documents préparés les reprend par petits lots, droits revérifiés ; renvoyer la même demande la reprend aussitôt.')
+        decale = rows("SELECT COUNT(*) n FROM %s o JOIN jobs j ON j.id=o.job_id WHERE o.state IN %s AND j.status IN ('cancelled','error')" % (table, actifs))
+        if decale and decale[0]['n']:
+            add('operation_etat_decale', 'info', '%d demande(s) d’%s affichée(s) en attente alors que leur travail est terminé' % (decale[0]['n'], label),
+                'Leur état est corrigé à la prochaine lecture ou maintenance ; un travail annulé n’est jamais remis en file.')
     order = {'bloquant': 0, 'attention': 1, 'info': 2}
     out.sort(key=lambda f: order[f['severity']])
     return out

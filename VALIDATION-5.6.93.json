@@ -1,0 +1,33 @@
+{
+  "version": "5.6.93",
+  "base": "5.6.92",
+  "date_utc": "2026-11-03T00:00:00+00:00",
+  "cahier_des_charges": "Audit et cahier de corrections du cabinet sur la 5.6.90 (N01 à N10, 30 scénarios) ; charge du serveur relevée par le cabinet.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 5125,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 140,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et en partie dans un conteneur Debian."
+  },
+  "new_tests": "tests/test_v5693_operations, registre, apercu, charge : scénarios N01 T1 à N10 T3, journée de cabinet simulée avec compteurs de requêtes.",
+  "mutations": "Garde des droits, création atomique, projection d’état, assainisseur, garde des formules, budget de requêtes, filtre des dossiers réservés : chaque retrait fait échouer un test.",
+  "live_checks": "reproductions_5690.py --expect-fixed : aucun défaut reproduit sous Windows et sous Linux. Aucun service réel.",
+  "exapp": {
+    "version": "0.1.52",
+    "moteur": "5.6.93"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Export CSV : une feuille au choix ou un ZIP de toutes ; refus au-delà de la limite.",
+    "Outil Open WebUI à réimporter (docs/OPEN-WEBUI-OUTIL-5.6.93.md).",
+    "Travaux automatiques : doublons fusionnés, fenêtre par dossier, plafond horaire ; jamais pour la relève des courriels ni les demandes de l’avocat.",
+    "Un travail annulé n’est plus jamais remis en file par une relance de mission."
+  ],
+  "adjusted_tests": []
+}

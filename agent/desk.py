@@ -565,6 +565,13 @@ class Desk:
         if deferred:
             from . import horaires_ia5689
             return horaires_ia5689.differer(self,kind,raw,priority,origin,parent_job_id,arret5643.matter_of(args) or None,transactional)
+        # 5.6.93 : travail automatique : un doublon du même dossier rejoint le travail en attente ; fenêtre de regroupement et plafond horaire
+        # par type reportent le départ (jamais de refus, jamais la relève des courriels ni une demande de l'avocat).
+        from . import charge5693
+        merged,not_before=charge5693.admission(self,kind,args,origin,chained)
+        if merged:
+            if not transactional:self.db.commit()
+            return merged
         # 5.6.5 : les travaux automatiques (priorité 30 et plus) ont leur propre plafond ; ils ne peuvent plus remplir la file au point de
         # refuser une demande de l'avocat (avant : 100 travaux en attente, quels qu'ils soient, et plus rien n'entrait).
         if priority>=AUTOMATIC_PRIORITY and not chained:
@@ -579,6 +586,8 @@ class Desk:
         cur = self.db.execute('''INSERT INTO jobs
             (kind,args,status,created,finished,result,priority,origin,parent_job_id,matter_ref) VALUES (?,?,?, ?,NULL,NULL,?,?,?,?)''',
             (kind,raw,'pending',now(),priority,origin,parent_job_id,arret5643.matter_of(args) or None))
+        if not_before:
+            self.db.execute('UPDATE jobs SET not_before=? WHERE id=?',(not_before,cur.lastrowid))   # 5.6.93 : départ regroupé ou plafonné
         if transactional:
             return cur.lastrowid
         self.db.commit()
@@ -664,6 +673,12 @@ class Desk:
         cancel_descendants(self,job_id)
         row=self.db.execute('SELECT status,kind FROM jobs WHERE id=?',(job_id,)).fetchone()
         if not row:raise Stop('operation_absente')
+        if row['status']=='cancelled':
+            try:
+                from .operations5693 import apres_arret
+                apres_arret(self,job_id)   # 5.6.93 (N10) : l'export ou la proposition liée devient « annulé » aussitôt, jamais remise en file
+            except (Stop,sqlite3.Error):
+                pass                       # la lecture et la maintenance rattraperont ce décalage
         if row['status'] not in ('cancelled','cancel_requested'):raise Stop('operation_deja_terminee')
         state=row['status']
         if not changed:   # second arrêt : idempotent (R10), sans nouvel audit ni annonce ; « already » permet de le dire à l'utilisateur
@@ -752,9 +767,15 @@ class Desk:
     def scan_mail(self, box, matters):
         cutoff = datetime.now(timezone.utc)-timedelta(days=90)
         total=0
+        from . import charge5693   # 5.6.93 : seuls les messages arrivés depuis le dernier relevé sont relus (tout, une fois par jour)
+        fingerprint=digest(json.dumps(sorted([m['id']]+list(m.get('references',[]))+[m.get('client_name','')] for m in matters)))
         for folder in dict.fromkeys([self.c['mail']['inbox'], self.c['mail']['sent']]):
             uids=box.search(folder,'UNDELETED','SINCE',cutoff.strftime('%d-%b-%Y'))
-            for uid in uids[-80:]:
+            recent=uids[-80:];todo=charge5693.courriels_a_lire(self,folder,getattr(box,'validity',''),recent,fingerprint)
+            for uid in todo+[None]:
+                if uid is None:   # relevé noté seulement une fois tous les messages lus (une lecture en échec sera refaite)
+                    charge5693.courriels_lus(self,folder,getattr(box,'validity',''),recent,fingerprint,len(todo)==len(recent))
+                    break
                 mail=box.fetch(folder,uid,headers_only=True)
                 if mail.msg.get('List-Id') or mail.msg.get('List-Unsubscribe') or mail.msg.get('Auto-Submitted','no').lower()!='no':
                     continue
@@ -787,9 +808,13 @@ class Desk:
         cursor=self.settings('document_cursor',0)%len(cases)
         selected=(cases+cases)[cursor:cursor+min(3,len(cases))]
         index=DocumentIndex(self.c['state_dir'],self.c.get('rag'),self.c.get('ollama')); done=0; failures=0
+        from . import charge5693
         for matter in selected:
             try:
-                index.sync_page(dav,matter,self.c['documents'],budget=25)
+                _same,_etag=charge5693.index_inchange(self,dav,matter,index.db)   # 5.6.93 : dossier inchangé : pas de relecture Nextcloud
+                if not _same:
+                    index.sync_page(dav,matter,self.c['documents'],budget=25)
+                    if index.last_page_state.get('complete'):charge5693.noter_index(self,matter['id'],_etag)
             except Stop:
                 failures+=1
                 continue
@@ -1266,7 +1291,13 @@ class Desk:
             matter=next(m for m in load_matters(self.c) if m['id']==args['matter'])
             index=DocumentIndex(self.c['state_dir'],self.c.get('rag'),self.c.get('ollama'))
             before=index.db.execute('SELECT MAX(indexed_at) FROM knowledge_chunks WHERE matter=?',(matter['id'],)).fetchone()[0]
-            items,stale=index.sync_page(DAV(self.c['nextcloud']),matter,self.c['documents'],100)
+            _dav=DAV(self.c['nextcloud'])
+            from . import charge5693   # 5.6.93 : dossier inchangé depuis sa dernière indexation complète (ETag Nextcloud) : rien n'est relu
+            _same,_etag=charge5693.index_inchange(self,_dav,matter,index.db)
+            if _same:
+                return {**charge5693.resultat_index_inchange(index,matter['id']),'embeddings':index.ensure_embeddings(matter)}
+            items,stale=index.sync_page(_dav,matter,self.c['documents'],100)
+            if index.last_page_state.get('complete') and not stale:charge5693.noter_index(self,matter['id'],_etag)
             embedding=index.ensure_embeddings(matter)
             self._current5652(matter['id'])   # 5.6.52 (F02) : nouveaux documents pris en compte sans ouvrir la page
             after=index.db.execute('SELECT MAX(indexed_at) FROM knowledge_chunks WHERE matter=?',(matter['id'],)).fetchone()[0]
@@ -1344,6 +1375,8 @@ class Desk:
         worker_id=getattr(self,'worker_id','manual')
         self.db.execute("UPDATE jobs SET status='running',started=?,worker=?,attempts=attempts+1 WHERE id=? AND status='pending'",(now(),worker_id,row['id']))
         self.db.commit()
+        from .charge5693 import debut_travail as _debut5693
+        _debut5693(self)   # 5.6.93 : les requêtes comptées jusqu'ici ne sont pas attribuées à ce travail
         self.active_job_id=row['id']
         from .membres5650 import new_job as _new_job5688
         _new_job5688()   # 5.6.88 : aucune limite ni aucun auteur hérités du travail précédent de ce fil
@@ -1513,6 +1546,11 @@ class Desk:
         status=actual['status'];result=json.loads(actual['result'] or '{}')
         from .horaires_ia5689 import apres_travail
         apres_travail(self,row['id'],status)
+        try:
+            from .operations5693 import apres_travail as _operation5693
+            _operation5693(self,row['id'],row['kind'],status)   # 5.6.93 (N10) : annulation ou échec reportés sur l'export ou la proposition
+        except (Stop,sqlite3.Error):
+            pass
         if row['kind']=='proactive34_cycle' and status!='done':
             self.db.execute("UPDATE proactive_cycles_v340 SET state='error',finished=? WHERE job_id=?",
                             (now(),row['id']))
@@ -1559,6 +1597,8 @@ class Desk:
           (result.get('message') or 'Suspendu : l’IA est en pause.') if status=='suspended' and pause_reason=='pause_horaire' else 'Traitement interrompu ; consultez le motif et relancez après contrôle.')
         emit(self,'produced' if outcome and outcome['status']=='verified' and row['kind'] not in ('run','live_mail430') else status,message,row['id'])
         self.active_job_id=None;trace480.end();secours564.end()
+        from .charge5693 import fin_travail as _fin5693
+        _fin5693(self,row['kind'])   # 5.6.93 : requêtes au stockage, IMAP, lectures, extractions et empreintes de ce travail
         # 5.6.92 : le lot suivant d'un tour des dossiers n'est plus enchaîné aussitôt. La boucle de surveillance le lance au plus un toutes
         # les 5 minutes (watch430, LOT_DOCUMENTS) : avant, plus de 400 lots en 3 heures relisaient Nextcloud sans répit chez le cabinet.
         if status=='done' and result.get('messages_remis_en_attente',0):
@@ -1589,8 +1629,8 @@ class Desk:
                 record_automatic_project(self,parameters,result)
             if result.get('matter',{}).get('id'):
                 self._then('refresh_operational_memory',{'matter':result['matter']['id']},priority=55)
-        if autonomy_active and status=='done' and row['kind'] in ('index','refresh_brief','sync_legal_memory'):
-            parameters=json.loads(row['args'])
+        if autonomy_active and status=='done' and row['kind'] in ('index','refresh_brief','sync_legal_memory') and not result.get('inchange'):
+            parameters=json.loads(row['args'])   # 5.6.93 : une indexation sautée (dossier inchangé) ne relance rien
             if parameters.get('matter'):
                 self._then('refresh_operational_memory',{'matter':parameters['matter']},priority=55)
         if (status=='done' and row['kind']=='index' and

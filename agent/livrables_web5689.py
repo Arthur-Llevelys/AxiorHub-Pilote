@@ -16,7 +16,8 @@ WRITE = {'livrables': ('modifier-ia', 'exporter', 'relecture', 'copie-travail'),
 LAWYER_ONLY = ('decider', 'inverser')
 STATUS = {'version_perimee': '409 Conflict', 'conflit_edition_concurrente': '409 Conflict', 'cle_idempotence_deja_utilisee': '409 Conflict', 'version_plus_disponible': '409 Conflict', 'proposition_deja_traitee': '409 Conflict',
           'dossier_reserve': '403 Forbidden', 'role_insuffisant': '403 Forbidden', 'droit_export_retire': '403 Forbidden', 'validation_avocat_requise': '403 Forbidden', 'original_protege': '403 Forbidden', 'destination_non_autorisee': '403 Forbidden',
-          'livrable_absent': '404 Not Found', 'version_inconnue': '404 Not Found', 'proposition_absente': '404 Not Found', 'export_absent': '404 Not Found', 'route_inconnue': '404 Not Found', 'fichier_nextcloud_introuvable': '404 Not Found', 'http_404': '404 Not Found'}
+          'livrable_absent': '404 Not Found', 'version_inconnue': '404 Not Found', 'proposition_absente': '404 Not Found', 'export_absent': '404 Not Found', 'route_inconnue': '404 Not Found', 'fichier_nextcloud_introuvable': '404 Not Found', 'http_404': '404 Not Found',
+          'file_attente_pleine': '503 Service Unavailable', 'compte_desactive': '403 Forbidden', 'autorisation_a_renouveler': '403 Forbidden', 'relance_invalide': '409 Conflict', 'operation_encore_active': '409 Conflict'}   # 5.6.93
 MESSAGES = {'version_perimee': 'Le document a changé depuis votre affichage : rechargez la page ; rien n’a été écrasé.',
             'conflit_edition_concurrente': 'Quelqu’un a modifié le document pendant ce temps : la proposition n’a pas été appliquée. Comparez les versions avant de choisir.',
             'version_plus_disponible': 'Cette version n’est plus dans le fichier : aucune autre version n’est servie à sa place. L’historique de versions du stockage permet de la retrouver.',
@@ -29,7 +30,11 @@ MESSAGES = {'version_perimee': 'Le document a changé depuis votre affichage : r
             'livrable_absent': 'Ce document n’est pas ou plus au registre.', 'version_inconnue': 'Cette version n’est pas connue du registre.', 'proposition_absente': 'Cette proposition n’existe pas ou plus.', 'proposition_deja_traitee': 'Cette proposition a déjà été traitée.',
             'instruction_vide_ou_trop_longue': 'Décrivez la modification souhaitée (3 à 2000 caractères).', 'version_de_base_absente': 'Version de base absente : rechargez la page.', 'curseur_invalide': 'Page de résultats invalide.', 'filtre_invalide': 'Filtre invalide.',
             'passage_structure_a_preserver': 'Ce paragraphe contient un renvoi, une image ou un lien qu’une réécriture entière ferait disparaître : proposez de modifier seulement le texte concerné.', 'proposition_non_inversable': 'Cette modification comporte un retrait : elle ne s’annule pas automatiquement. Comparez les versions et rédigez la correction.',
-            'cible_ambigue_ou_absente': 'Le passage visé est introuvable ou n’est pas unique dans le document.', 'ancre_word_absente': 'Le paragraphe visé est introuvable dans cette version.', 'ancre_word_ambigue': 'Le paragraphe visé apparaît plusieurs fois : précisez-le.'}
+            'cible_ambigue_ou_absente': 'Le passage visé est introuvable ou n’est pas unique dans le document.', 'ancre_word_absente': 'Le paragraphe visé est introuvable dans cette version.', 'ancre_word_ambigue': 'Le paragraphe visé apparaît plusieurs fois : précisez-le.',
+            # 5.6.93 (N02, N10)
+            'file_attente_pleine': 'File de travail pleine : rien n’a été enregistré. Renvoyez la même demande dans quelques minutes ; elle ne sera créée qu’une fois.',
+            'relance_invalide': 'La demande à relancer est introuvable ou concerne un autre document.', 'operation_encore_active': 'La demande précédente n’est pas terminée : suivez-la ou annulez-la avant de relancer.',
+            'compte_desactive': 'Ce compte est désactivé.', 'autorisation_a_renouveler': 'Demande ancienne sans auteur vérifiable : refaites-la.'}
 DEPOT = {'depose': 'Brouillon déposé dans la messagerie', 'a_decider': 'Réponse à décider, pas encore déposée', 'retire': 'Brouillon retiré de la messagerie'}
 SOURCE_STATE = {'fresh': 'À jour', 'stale': 'Ancien', 'unavailable': 'Source indisponible', 'partial': 'Lecture partielle', 'empty': 'Vide', 'running': 'En cours'}
 
@@ -102,11 +107,11 @@ def _api(env, desk, auth, prefix, name, args, method):
         _exiger_export(droits)
         if row['version_id'] != str(data.get('version_id') or row['version_id']):
             raise Stop('version_perimee')
-        out = export.demander(desk, row, data.get('format'), data.get('destination'), data.get('cle'), owner)
-        return _out({**out, 'message': 'Export en cours : il sera indiqué « Exporté » une fois le fichier relu.' if not out['done'] else 'Déjà exporté.'})
+        out = export.demander(desk, row, data.get('format'), data.get('destination'), data.get('cle'), owner, role=role, relance_de=str(data.get('relance_de') or ''))
+        return _out(out)          # 5.6.93 (N10) : message tiré de l'état réel (en file, suspendu, annulé…), jamais « en cours » par défaut
     if action == 'modifier-ia':
-        out = patches.demander_ia(desk, row, data, owner)
-        return _out({**out, 'message': 'Demande enregistrée : une proposition à comparer apparaîtra ici. Rien n’est modifié sans votre décision.'})
+        out = patches.demander_ia(desk, row, data, owner, role)
+        return _out(out)
     if action == 'copie-travail':
         copy = patches.copie_de_travail(desk, row, owner, data.get('cle'))
         return _out({'document_id': copy['document_id'], 'href': prefix + '/livrables/' + copy['document_id'], 'message': 'Copie de travail créée ; l’original n’a pas été touché.'})
@@ -151,7 +156,7 @@ def _lecture(desk, prefix, parts, args, owner, role, hidden, droits):
     if parts[1] == 'exports' and len(parts) == 3:
         row = export.etat(desk, parts[2])
         liv.charger(desk, row['document_id'], hidden, droits=droits)
-        return _out(export._public(row))
+        return _out(export._public(row, desk))
     version = str(args.get('version') or '')
     row = liv.charger(desk, parts[1], hidden, version_id=version or None, droits=droits)
     if len(parts) == 2:
@@ -317,10 +322,16 @@ def _propositions_html(desk, row, droits):
             actions = _bouton_form(api_name, 'Accepter', {**base, 'decision': 'accepter'}, False) + _bouton_form(api_name, 'Refuser', {**base, 'decision': 'refuser'})
         elif p['state'] == 'appliquee' and droits.get('valider') and p['result_version_id'] == row['version_id']:
             actions = _bouton_form('m5689/documents/propositions/%s/inverser' % p['id'], 'Proposer l’annulation', {'cle': uuid.uuid4().hex})
+        elif p.get('action') == 'relancer' and p['origin'] == 'ia' and row['lifecycle'] == 'current' and row['production_state'] in ('verified', 'published'):
+            # 5.6.93 (N10) : relancer = une NOUVELLE demande, reliée à celle-ci ; la demande annulée ou en échec reste telle quelle
+            actions = _bouton_form('m5689/livrables/%s/modifier-ia' % row['document_id'], 'Relancer dans une nouvelle opération',
+                                   {'cle': uuid.uuid4().hex, 'relance_de': p['id'], 'instruction': p.get('instruction', ''), 'selection': p.get('selection', ''), 'version_id': row['version_id'], 'sha256': row['sha256']})
         conflict = ''
         if p['conflict'] and p['conflict'].get('choix'):
             conflict = '<p class="l89-alerte">Le document a changé : la proposition n’a pas été appliquée. %s</p>' % e(' · '.join(p['conflict']['choix']))
-        out.append('<article class="l89-proposition"><h3>%s</h3><p class="ax-muted">%s%s</p>%s%s<div class="l89-actions">%s</div></article>' % (e(p['state_label']), 'Proposition de l’IA' if p['origin'] == 'ia' else 'Proposition', (' — ' + e(p['motif'][:200])) if p['motif'] else '', conflict, compare, actions))
+        if p.get('message') and p['state'] not in ('proposee', 'appliquee'):     # 5.6.93 : état réel du travail et motif lisible
+            conflict += '<p class="ax-muted" role="status">%s</p>' % e(p['message'])
+        out.append('<article class="l89-proposition"><h3>%s</h3><p class="ax-muted">%s%s</p>%s%s<div class="l89-actions">%s</div></article>' % (e(p.get('etat_affiche') or p['state_label']), 'Proposition de l’IA' if p['origin'] == 'ia' else 'Proposition', (' — ' + e(p['motif'][:200])) if p['motif'] else '', conflict, compare, actions))
     return '<section class="ax-card" aria-labelledby="l89-t-prop"><h2 id="l89-t-prop">Propositions de modification</h2><p class="ax-muted">%s</p>%s</section>' % (e(patches.NOTE_COMPARAISON), ''.join(out))
 
 
@@ -330,10 +341,10 @@ def _detail_page(desk, env, auth, prefix, ident, args, shell):
     row = liv.charger(desk, ident, hidden, version_id=version or None, droits=droits)
     retour = _retour_sur(args.get('return_to') or args.get('retour'), prefix)
     labels, matters = liv._labels(desk)
-    note, viewer = '', ''
+    note, viewer, feuilles = '', '', []
     try:
         out = apercu.apercu(desk, row, prefix, version_demandee=version)
-        row, note = out['row'], out['note']
+        row, note, feuilles = out['row'], out['note'], out.get('feuilles') or []
         api_base = prefix + '/api440/m5689/livrables/' + row['document_id']
         query = '?version=' + e(row['version_id'], quote=True)
         if out['preview_kind'] == 'image' and out['url']:
@@ -362,10 +373,11 @@ def _detail_page(desk, env, auth, prefix, ident, args, shell):
     if actions['download']:
         bar.append('<a class="ax-btn ghost" href="%s">Télécharger</a>' % e('%s/api440/%s/telecharger?version=%s' % (prefix, base, row['version_id']), quote=True))
     if actions['export']:
-        fmt = ''.join('<option value="%s">%s</option>' % (e(f, quote=True), e(f.upper())) for f in view['allowed_formats'])
+        from . import export_tableur5693 as tableur      # 5.6.93 (N09) : feuille choisie, ce que le CSV ne garde pas, anciens exports à recontrôler
+        fmt = tableur.options_html(view['allowed_formats'], feuilles)
         dest = ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in view['destinations'].items())
-        bar.append('<details class="l89-export"><summary class="ax-btn ghost">Exporter</summary><form class="m5-form" data-api="%s/exporter" data-export="1"><input type="hidden" name="version_id" value="%s"><input type="hidden" name="cle" value="%s"><label>Format<select name="format">%s</select></label><label>Destination<select name="destination">%s</select></label>'
-                   '<button class="ax-btn" type="submit">Lancer l’export</button><p role="status" class="m5-status"></p></form></details>' % (e(base, quote=True), e(row['version_id'], quote=True), uuid.uuid4().hex, fmt, dest))
+        bar.append('<details class="l89-export"><summary class="ax-btn ghost">Exporter</summary><form class="m5-form" data-api="%s/exporter" data-export="1"><input type="hidden" name="version_id" value="%s"><input type="hidden" name="cle" value="%s"><label>Format<select name="format">%s</select></label><label>Destination<select name="destination">%s</select></label>%s'
+                   '<button class="ax-btn" type="submit">Lancer l’export</button><p role="status" class="m5-status"></p></form></details>' % (e(base, quote=True), e(row['version_id'], quote=True), uuid.uuid4().hex, fmt, dest, tableur.notes_html(desk, row, view['allowed_formats'])))
     if row['protected'] or (row['path'] and not actions['ai_edit'] and row['lifecycle'] == 'current' and row['production_state'] in ('verified', 'published')):
         bar.append(_bouton_form(base + '/copie-travail', 'Créer une copie de travail', {'cle': uuid.uuid4().hex}))
     review = ''
@@ -374,6 +386,8 @@ def _detail_page(desk, env, auth, prefix, ident, args, shell):
         review = '<div class="l89-actions">%s%s%s</div>' % (_bouton_form(base + '/relecture', 'Marquer relu', {**fields, 'decision': 'relu'}, False), _bouton_form(base + '/relecture', 'Demander des modifications', {**fields, 'decision': 'modifications'}), _bouton_form(base + '/relecture', 'Écarter', {**fields, 'decision': 'ecarte'}))
     if row['path'] and row['lifecycle'] == 'current':
         review += _bouton_form(base + '/controler', 'Relancer les contrôles', {})
+        from .registre_web5693 import suivi_html      # 5.6.93 (N05, N06) : suivi du fichier (Réessayer, Retrouver, Retirer du suivi) et doublon suggéré
+        review += suivi_html(desk, row, prefix, role)
     versions = _versions(desk, row)
     history = ''.join('<li>%s version %d — %s, %s (%s)</li>' % ('<strong>Affichée :</strong>' if v['version_id'] == row['version_id'] else '<a href="%s">Voir</a>' % e('%s/livrables/%s?%s' % (prefix, row['document_id'], urlencode({'version': v['version_id'], 'retour': retour})), quote=True), v['version'], e(liv.STATE[v['state']]), e(liv.REVIEW[v['review']]), e(_date(v['at']))) for v in versions)
     depot = ('<p>État de dépôt : <strong>%s</strong></p>' % e(DEPOT.get(row['deposit_state'], row['deposit_state']))) if row['deposit_state'] else ''

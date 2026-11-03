@@ -905,9 +905,10 @@ def dispatch(desk, path, method, payload=None, query=None):
     if match and method=='GET':return {'messages':thread_messages(desk,match[1])}
     match=re.fullmatch(r'/jobs/(\d+)',path)
     if match and method=='GET':
-        row=desk.db.execute('SELECT id,kind,status,priority,created,finished,result FROM jobs WHERE id=?',(int(match[1]),)).fetchone()
+        row=desk.db.execute('SELECT id,kind,status,priority,created,finished,result,stop_reason,not_before,blocked_by FROM jobs WHERE id=?',(int(match[1]),)).fetchone()
         if not row:raise Stop('operation_absente')
-        return dict(row)
+        from .operations5693 import statut_travail
+        return {**dict(row),'suivi':statut_travail(desk,row['id'])}   # 5.6.93 (N08) : contrat de statut partagé avec l'outil Open WebUI
     match=re.fullmatch(r'/jobs/(\d+)/cancel',path)
     if match and method=='POST':return desk.cancel_job(match[1])
     match=re.fullmatch(r'/jobs/(\d+)/retry',path)
