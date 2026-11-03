@@ -28,7 +28,7 @@ ETATS = {'non_configuree': 'Non configurée', 'declaree': 'Déclarée', 'simulee
 MOTIFS = {'service_non_configure': 'Service non configuré', 'aucune_preuve_valide': 'Aucune preuve valide', 'non_qualifiee_sur_service_reel': 'Non qualifiée sur service réel', 'preuve_d_une_autre_version': 'Preuve d’une autre version',
           'version_incompatible': 'Version incompatible : à requalifier', 'preuve_du_cabinet_a_renouveler': 'Preuve du cabinet à renouveler', 'capacite_revoquee': 'Capacité révoquée'}
 # Version et date des essais automatiques de cette publication : à renouveler avec elle, sinon la preuve ne vaut plus.
-VERSION_PREUVE, DATE_PREUVE = '5.6.90', '2026-11-03'
+VERSION_PREUVE, DATE_PREUVE = '5.6.91', '2026-11-03'
 # Fonction → {'version', 'date', 'reference'} : preuve sur service réel, remise par une personne. Vide en 5.6.89.
 QUALIFIEES_REEL = {}
 # Publication d'une version incompatible : preuve antérieure à ce seuil nulle, étapes concernées suspendues jusqu'à requalification. Vide en 5.6.89.

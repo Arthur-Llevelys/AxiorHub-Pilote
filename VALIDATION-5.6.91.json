@@ -1,0 +1,32 @@
+{
+  "version": "5.6.91",
+  "base": "5.6.90",
+  "date_utc": "2026-11-03T00:00:00+00:00",
+  "cahier_des_charges": "Correctif : recette Linux de la 5.6.90 en échec (localtime listé par la base des fuseaux de Debian).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 5024,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 138,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub. Un test de seuil de version, faussé par les passages de version successifs, a été rendu indépendant après cette suite et rejoué sous Windows et sous Linux sans échec."
+  },
+  "new_tests": "tests/test_v5689_horaires.py : noms du système refusés même s’ils figurent dans la base des fuseaux ; test lancé aussi dans un conteneur Debian.",
+  "mutations": "Retrait du contrôle de la base IANA : le nouveau test échoue.",
+  "live_checks": "test_v5689_horaires exécuté sous Linux (conteneur python:3.12 Debian, base des fuseaux du système).",
+  "exapp": {
+    "version": "0.1.50",
+    "moteur": "5.6.91"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "horaires_ia5689._zone : noms propres au système refusés nommément."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5689_qualif.py : seuil de version postérieur à toute version."
+  ]
+}
