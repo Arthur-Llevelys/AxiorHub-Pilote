@@ -113,12 +113,13 @@ class NotesInternes(base.Base):
 
 class RubriquesDuJour(base.Base):
     """Retour du cabinet du 20 octobre 2026 : « À décider / À relire » mélangeait tout — courriels à envoyer noyés parmi les notes internes."""
+    JOUR = (datetime.now(timezone.utc) - timedelta(days=2)).strftime('%Y-%m-%d')   # 5.6.90 : une date fixe sortait de la fenêtre de 14 jours de la file
     CACHE = {'at': 9e18, 'ok': True, 'validity': '5', 'items': [
-        {'uid': '1', 'subject': '[À traiter] Avis de renvoi – DEMO – 2 décembre 2026', 'to': 'cabinet@example.test', 'date': '2026-10-20', 'agent': True,
+        {'uid': '1', 'subject': '[À traiter] Avis de renvoi – DEMO – 2 décembre 2026', 'to': 'cabinet@example.test', 'date': JOUR, 'agent': True,
          'agent_key': 'k1', 'message_id': 'axiorhub-k1@mail-agent.local', 'in_reply_to': ''},
-        {'uid': '2', 'subject': 'Re: Calendrier de procédure', 'to': 'confrere@example.test', 'date': '2026-10-20', 'agent': False,
+        {'uid': '2', 'subject': 'Re: Calendrier de procédure', 'to': 'confrere@example.test', 'date': JOUR, 'agent': False,
          'agent_key': '', 'message_id': 'x@example.test', 'in_reply_to': 'orig@example.test'},
-        {'uid': '3', 'subject': 'Information au client', 'to': 'client@example.test', 'date': '2026-10-20', 'agent': True,
+        {'uid': '3', 'subject': 'Information au client', 'to': 'client@example.test', 'date': JOUR, 'agent': True,
          'agent_key': 'k3', 'message_id': 'axiorhub-k3@mail-agent.local', 'in_reply_to': ''}]}
 
     def _items(self):

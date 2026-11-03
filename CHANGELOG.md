@@ -3,6 +3,13 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.90 — Correctif : fuseau horaire refusé sous Linux
+
+Correctif de la 5.6.89, révélé par la recette sous Linux.
+
+- **Pauses horaires** : sous Linux, le nom « localtime » était accepté comme fuseau du cabinet, alors qu’il désigne le réglage du serveur et non un fuseau IANA. Il est refusé, comme tout nom absent de la base des fuseaux.
+- **Tests** : un test de la file d’Aujourd’hui utilisait des brouillons à date fixe, sortis de la fenêtre de 14 jours ; ses dates sont désormais relatives au jour de l’essai. Un test du banc d’essai ne dépend plus du numéro de version.
+
 ## 5.6.89 — Audit 5.6.88 : anomalies corrigées, livrables unifiés, interface Carbon, pauses horaires, dossier structuré
 
 Version fonctionnelle fondée sur l’audit de la 5.6.88. Les services extérieurs et les modèles réels n’ont pas été exercés : les fonctions qui en dépendent restent à qualifier, et la page Banc d’essai l’indique fonction par fonction.
