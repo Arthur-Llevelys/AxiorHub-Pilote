@@ -43,7 +43,8 @@ KEYWORDS = {'demarrage': 'assistant demarrage profil cabinet identite alias adre
             'documents': 'word onlyoffice collabora brouillon versions procedure role dossier modeles agendas',
             'cabinet': 'compte administrateur identifiant mot de passe utilisateurs confidentialite droits acces securite',
             'interface': 'theme carbon clair sombre accueil aujourdhui ancienne interface retour anciennes vues cockpit essentiel',
-            'poste': 'mobile clavier raccourcis maintenance purge sauvegarde chiffree restauration phrase export reversibilite manifeste webdav s3 diagnostic blocage file etat systeme'}
+            'poste': 'mobile clavier raccourcis maintenance purge sauvegarde chiffree restauration phrase export reversibilite manifeste webdav s3 diagnostic blocage file etat systeme '
+                     'charge serveur frequence surveillance documents requetes nextcloud'}
 RUBRIQUE_ALIASES = {'sources': 'recherche', 'veille': 'recherche', 'comptes': 'cabinet'}   # anciennes rubriques fusionnées
 ALIASES = {'/parametres/connexions': 'connexions', '/parametres/assistant': 'voix', '/parametres/proactivite': 'routines',
            '/ia-externe': 'ia', '/confort': 'poste', '/atelier/reglages': 'documents', '/parametres/agendas': 'documents'}
@@ -252,6 +253,11 @@ def _poste(desk, auth, prefix, env, cap):
         except Exception:   # noqa: BLE001 — la page s'affiche toujours
             pass
     body += _section(_legacy(desk, prefix, auth['csrf'], 'maintenance'), 'Maintenance')
+    try:   # 5.6.93 : charge du serveur (travaux, requêtes au stockage, dernier tour des documents) et fréquence de surveillance
+        from .charge_web5693 import section_html as _charge93
+        body += _section(_charge93(desk, prefix, *_actor88(env)))
+    except Exception:   # noqa: BLE001 — la page s'affiche toujours
+        pass
     try:   # 5.6.61 : avis de nouvelle version et mise à jour signée
         from .maj5661 import html as _maj
         from .web567 import actor as _actor

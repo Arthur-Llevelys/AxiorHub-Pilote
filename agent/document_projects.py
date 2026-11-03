@@ -663,7 +663,8 @@ def _docx(base,paragraphs):
                   '</w:rPr><w:t>Projet AxiorHub — document à contrôler</w:t></w:r></w:p></w:ftr>')
                   .encode('utf-8'))
             zout.writestr(info,raw)
-        zout.writestr('word/document.xml',document)
+        # 5.6.93 : date fixe ; avec l'heure du moment, un même texte republié une seconde plus tard devenait une nouvelle version
+        zout.writestr(zipfile.ZipInfo('word/document.xml',date_time=(2020,1,1,0,0,0)),document,compress_type=zipfile.ZIP_DEFLATED)
     return out.getvalue()
 
 

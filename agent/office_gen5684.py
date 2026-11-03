@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS office_leases5684(document_id TEXT PRIMARY KEY, owner
 
 def schema(desk):
     desk.db.executescript(SCHEMA)
+    from .registre5693 import IDENTITES
+    desk.db.executescript(IDENTITES)       # 5.6.93 (N06) : identité composite stockage + compte + identifiant de fichier
     desk.db.commit()
 
 
@@ -55,17 +57,27 @@ def _begin(desk):
 
 
 def document_for(desk, path, info, matter=''):
-    """Identifiant interne stable : retrouvé par l'identifiant Nextcloud, donc conservé après un renommage. Le chemin n'est qu'un emplacement."""
+    """Identifiant interne stable : retrouvé par l'identifiant Nextcloud, donc conservé après un renommage. Le chemin n'est qu'un emplacement.
+
+    5.6.93 (N06) : l'identité est composite (stockage + compte + identifiant de fichier). Un autre identifiant connu au même chemin est un autre fichier :
+    il reçoit sa propre identité au lieu de reprendre celle de l'ancien."""
+    from . import registre5693 as reg
     fileid = str(info.get('fileid') or '')
-    row = desk.db.execute('SELECT * FROM office_documents5684 WHERE fileid=? AND fileid<>""', (fileid,)).fetchone() if fileid else None
-    row = row or desk.db.execute('SELECT * FROM office_documents5684 WHERE path=? ORDER BY created LIMIT 1', (path,)).fetchone()
+    row = reg.par_identifiant(desk, fileid) if fileid else None
+    if not row:
+        for candidate in desk.db.execute('SELECT * FROM office_documents5684 WHERE path=? ORDER BY created', (path,)).fetchall():
+            if not fileid or not candidate['fileid'] or candidate['fileid'] == fileid:
+                row = candidate
+                break
     now = desk.now()
     if row:
         if row['path'] != path or (fileid and row['fileid'] != fileid) or (matter and row['matter'] != matter):
             desk.db.execute('UPDATE office_documents5684 SET path=?, fileid=?, matter=?, updated=? WHERE document_id=?', (path, fileid or row['fileid'], matter or row['matter'], now, row['document_id']))
+        reg.noter_identifiant(desk, fileid, row['document_id'])
         return row['document_id']
     document_id = uuid.uuid4().hex
     desk.db.execute('INSERT INTO office_documents5684 VALUES(?,?,?,?,?,?)', (document_id, path, fileid, matter, now, now))
+    reg.noter_identifiant(desk, fileid, document_id)
     return document_id
 
 

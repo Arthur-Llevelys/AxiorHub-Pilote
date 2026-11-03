@@ -20,7 +20,7 @@ import uuid
 import zipfile
 
 from .common import Stop, xml_bytes, xml_office
-from . import livrables5689 as liv, livrables_apercu5689 as apercu
+from . import livrables5689 as liv, livrables_apercu5689 as apercu, operations5693 as op5693
 
 SCHEMA = '''CREATE TABLE IF NOT EXISTS document_patches5689(id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL UNIQUE, parameters TEXT NOT NULL DEFAULT '', item_id TEXT NOT NULL, document_id TEXT NOT NULL, base_version_id TEXT NOT NULL, base_sha256 TEXT NOT NULL, operations TEXT NOT NULL DEFAULT '[]',
     motif TEXT NOT NULL DEFAULT '', sources TEXT NOT NULL DEFAULT '[]', instruction TEXT NOT NULL DEFAULT '', selection TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL DEFAULT 'humain', state TEXT NOT NULL, result_sha256 TEXT NOT NULL DEFAULT '', result_version_id TEXT NOT NULL DEFAULT '', conflict TEXT NOT NULL DEFAULT '',
@@ -28,7 +28,8 @@ SCHEMA = '''CREATE TABLE IF NOT EXISTS document_patches5689(id TEXT PRIMARY KEY,
 CREATE INDEX IF NOT EXISTS document_patches5689_document ON document_patches5689(document_id, created);'''
 JOB = 'modifier_livrable5689'
 STATES = {'demandee': 'Proposition demandée', 'proposee': 'À décider', 'application': 'Application en cours', 'appliquee': 'Acceptée, nouvelle version enregistrée', 'refusee': 'Refusée', 'perimee': 'Périmée : le document a changé',
-          'conflit': 'Conflit à résoudre', 'editeur': 'Transmise à l’éditeur ouvert', 'echec': 'Échec'}
+          'conflit': 'Conflit à résoudre', 'editeur': 'Transmise à l’éditeur ouvert', 'echec': 'Échec',
+          'annule': 'Demande annulée', 'acces_retire': 'Accès retiré : demande arrêtée', 'a_autoriser': 'Autorisation à renouveler'}     # 5.6.93 : états fermés (N01, N10)
 MAX_OPS = 30
 WORD = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
 STRUCTURE = ('fldChar', 'fldSimple', 'instrText', 'bookmarkStart', 'drawing', 'pict', 'object', 'hyperlink', 'footnoteReference', 'endnoteReference', 'commentRangeStart', 'sdt')
@@ -42,6 +43,7 @@ SCHEMA_OUT = {'type': 'object', 'properties': {'propositions': {'type': 'array',
 def schema(desk):
     desk.db.executescript(SCHEMA)
     desk.db.commit()
+    op5693.ensure_schema(desk, 'proposition')     # 5.6.93 : acteur, cabinet, relance (N01, N10)
 
 
 def _now():
@@ -55,10 +57,32 @@ def _cle(value):
     return value
 
 
-def _public(row):
-    ops = json.loads(row['operations'] or '[]')
-    return {'id': row['id'], 'document_id': row['document_id'], 'base_version_id': row['base_version_id'], 'base_sha256': row['base_sha256'], 'state': row['state'], 'state_label': STATES[row['state']], 'origin': row['origin'], 'motif': row['motif'], 'sources': json.loads(row['sources'] or '[]'),
-            'operations': ops, 'comparaison': comparaison(ops), 'note': NOTE_COMPARAISON, 'result_version_id': row['result_version_id'], 'error': row['error'], 'conflict': json.loads(row['conflict']) if row['conflict'] else None, 'job_id': row['job_id']}
+def _public(row, desk=None):
+    operations = json.loads(row['operations'] or '[]')
+    out = {'id': row['id'], 'document_id': row['document_id'], 'base_version_id': row['base_version_id'], 'base_sha256': row['base_sha256'], 'state': row['state'], 'state_label': STATES[row['state']], 'origin': row['origin'], 'motif': row['motif'], 'sources': json.loads(row['sources'] or '[]'),
+           'operations': operations, 'comparaison': comparaison(operations), 'note': NOTE_COMPARAISON, 'result_version_id': row['result_version_id'], 'error': row['error'], 'conflict': json.loads(row['conflict']) if row['conflict'] else None, 'job_id': row['job_id']}
+    if desk is not None and row['origin'] == 'ia':      # 5.6.93 (N10) : projection commune avec le travail de rédaction
+        vue = op5693.vue(desk, 'proposition', row, STATES)
+        out.update(vue, instruction=row['instruction'], selection=row['selection'], message=_message(row, vue))
+        if row['state'] == 'echec':
+            from .erreurs5634 import explain
+            out['motif'] = out['motif'] or explain(row['error'])
+    return out
+
+
+def _message(row, vue):
+    state = row['state']
+    if state == 'demandee':
+        return '%s : une proposition à comparer apparaîtra ici. Rien n’est modifié sans votre décision.' % vue['etat_affiche']
+    if state == 'annule':
+        return 'Demande déjà annulée : aucune proposition n’a été rédigée. Pour recommencer, relancez dans une nouvelle opération.'
+    if state == 'acces_retire':
+        return 'Demande arrêtée, accès retiré (%s) : le document n’a pas été transmis au modèle. Corrigez les droits, puis relancez.' % (vue['motif'] or row['error'])
+    if state == 'a_autoriser':
+        return 'Demande ancienne sans auteur vérifiable : refaites-la.'
+    if state == 'echec':
+        return 'Échec de la proposition (%s). Vous pouvez relancer dans une nouvelle opération.' % str(row['error'] or '').replace('_', ' ')
+    return STATES[state] + '.'
 
 
 def comparaison(ops):
@@ -245,12 +269,13 @@ def _get(desk, ident):
     row = desk.db.execute('SELECT * FROM document_patches5689 WHERE id=?', (str(ident),)).fetchone()
     if not row:
         raise Stop('proposition_absente')
-    return row
+    return op5693.rapprocher(desk, 'proposition', row)     # 5.6.93 (N10) : un travail arrêté ou en échec ne laisse pas la demande « demandée »
 
 
 def liste(desk, document_id, limite=30):
     schema(desk)
-    return [_public(r) for r in desk.db.execute('SELECT * FROM document_patches5689 WHERE document_id=? ORDER BY created DESC LIMIT ?', (document_id, int(limite)))]
+    rows = desk.db.execute('SELECT * FROM document_patches5689 WHERE document_id=? ORDER BY created DESC LIMIT ?', (document_id, int(limite))).fetchall()
+    return [_public(op5693.rapprocher(desk, 'proposition', r), desk) for r in rows]
 
 
 def _marquer(desk, ident, **fields):
@@ -414,8 +439,19 @@ def copie_de_travail(desk, row, owner, cle, client=None):
     raise Stop('fichier_nom_indisponible')
 
 
-def demander_ia(desk, row, data, owner):
-    """Demande de modification assistée : portée sur livrable, version de base, sélection éventuelle et instruction. Elle crée un travail suivi ; le modèle ne produit qu'une proposition."""
+def _reprise_ia(desk, old, parameters, owner, role):
+    """Même clé : même demande, réparée si elle n'a jamais reçu son travail (N02). La clé d'un autre compte ne se réutilise pas (N01 T3)."""
+    if old['parameters'] != parameters or (old['actor_id'] or old['requested_by']) != str(owner)[:160]:
+        raise Stop('cle_idempotence_deja_utilisee')
+    old = op5693.rapprocher(desk, 'proposition', old)
+    if op5693.orpheline(desk, 'proposition', old):
+        old = op5693.reparer(desk, 'proposition', old['id'], str(owner)[:160], role)
+    return old
+
+
+def demander_ia(desk, row, data, owner, role=''):
+    """Demande de modification assistée : portée sur livrable, version de base, sélection éventuelle et instruction. Elle crée un travail suivi ; le modèle ne produit qu'une proposition.
+    5.6.93 (N02) : la demande et son travail naissent ensemble ou pas du tout ; l'acteur et son rôle sont notés pour la garde du travail (N01)."""
     schema(desk)
     cle = _cle(data.get('cle'))
     instruction = re.sub(r'\s+', ' ', str(data.get('instruction') or '')).strip()
@@ -425,29 +461,39 @@ def demander_ia(desk, row, data, owner):
     parameters = hashlib.sha256(json.dumps([row['document_id'], data.get('version_id'), instruction, selection], ensure_ascii=False).encode()).hexdigest()
     old = desk.db.execute('SELECT * FROM document_patches5689 WHERE idempotency_key=?', (cle,)).fetchone()
     if old:
-        if old['parameters'] != parameters:
-            raise Stop('cle_idempotence_deja_utilisee')
-        return _public(old)
+        return _public(_reprise_ia(desk, old, parameters, owner, role), desk)
     _droit_modifier(row)
     _base_conforme(row, data.get('version_id'), data.get('sha256'))
     ident, now = uuid.uuid4().hex, _now()
-    desk.db.execute('INSERT INTO document_patches5689(id,idempotency_key,parameters,item_id,document_id,base_version_id,base_sha256,instruction,selection,origin,state,requested_by,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (ident, cle, parameters, row['id'], row['document_id'], row['version_id'], row['sha256'], instruction, selection, 'ia', 'demandee', str(owner)[:160], now, now))
-    desk.db.commit()
-    job = desk.enqueue(JOB, {'proposition': ident, 'matter': row['matter_id']})
-    _marquer(desk, ident, job_id=job)
-    return _public(_get(desk, ident))
+    colonnes = {'id': ident, 'idempotency_key': cle, 'parameters': parameters, 'item_id': row['id'], 'document_id': row['document_id'], 'base_version_id': row['version_id'], 'base_sha256': row['sha256'],
+                'instruction': instruction, 'selection': selection, 'origin': 'ia', 'state': 'demandee', 'requested_by': str(owner)[:160], 'created': now, 'updated': now,
+                **op5693.admission(owner, role), 'relance_de': op5693.relance(desk, 'proposition', data.get('relance_de'), row['document_id'])}
+    created, nouveau = op5693.creer(desk, 'proposition', colonnes, {'matter': row['matter_id']})
+    if not nouveau:
+        created = _reprise_ia(desk, created, parameters, owner, role)
+    return _public(created, desk)
 
 
 def travail_ia(desk, args, model=None, client=None):
-    """Travail : le modèle lit la version de base et les données du dossier autorisé, puis propose. Aucune écriture dans le fichier ici."""
+    """Travail : le modèle lit la version de base et les données du dossier autorisé, puis propose. Aucune écriture dans le fichier ici.
+    5.6.93 (N01) : la garde commune résout l'acteur ACTUEL avant la lecture, avant l'appel au modèle et avant de présenter la proposition."""
+    with op5693.isoler():
+        return _travail_ia(desk, args, model, client)
+
+
+def _travail_ia(desk, args, model=None, client=None):
     from . import pause5629, relecture5651
     from .contexte5651 import for_drafting
     from .word_legal import inspect_docx
     patch = _get(desk, args.get('proposition'))
+    if patch['state'] == 'annule':           # annulée : jamais reprise par ce travail
+        raise Stop('operation_annulee')
+    if patch['state'] in ('acces_retire', 'a_autoriser'):
+        raise Stop(patch['error'] or 'autorisation_a_renouveler')
     if patch['state'] != 'demandee':
         return {'ok': True, 'proposition': patch['id'], 'state': patch['state']}
     row = liv.charger(desk, patch['document_id'])
+    acteur = op5693.proteger(desk, 'proposition', patch, row)
     if row['version_id'] != patch['base_version_id']:
         _marquer(desk, patch['id'], state='perimee', error='version_perimee')
         raise Stop('version_perimee')
@@ -459,9 +505,10 @@ def travail_ia(desk, args, model=None, client=None):
     if not targets:
         _marquer(desk, patch['id'], state='echec', error='selection_introuvable')
         raise Stop('selection_introuvable')
-    structure = for_drafting(desk, row['matter_id'], patch['instruction'], patch['requested_by'], budget=8000, document=row['path'], document_version=row['etag']) if row['matter_id'] else {}
+    structure = for_drafting(desk, row['matter_id'], patch['instruction'], acteur['actor_id'], budget=8000, document=row['path'], document_version=row['etag']) if row['matter_id'] else {}
     model = model or relecture5651._model(desk, row['matter_id'])
     payload = {'consigne': patch['instruction'], 'paragraphes': [{'index': p['position'], 'texte': p['text']} for p in targets[:120]], 'dossier_structure': structure}
+    op5693.proteger(desk, 'proposition', patch, row)       # droits relus juste avant de transmettre le texte au modèle
     answer = model.complete([{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': json.dumps(payload, ensure_ascii=False)}], temperature=0, max_tokens=5000, json_schema=SCHEMA_OUT)
     try:
         rows = json.loads(answer).get('propositions') or []
@@ -480,5 +527,7 @@ def travail_ia(desk, args, model=None, client=None):
         _marquer(desk, patch['id'], state='refusee', error='aucune_modification_proposee')
         return {'ok': True, 'proposition': patch['id'], 'state': 'refusee', 'message': 'Le modèle n’a rien proposé de changer.'}
     valider(raw, ops, [])
+    pause5629.checkpoint(desk)                      # réponse arrivée après un arrêt : ignorée, rien n'est présenté
+    op5693.proteger(desk, 'proposition', patch, row)
     _marquer(desk, patch['id'], operations=json.dumps(ops, ensure_ascii=False), sources=json.dumps(sources[:30], ensure_ascii=False), motif=patch['instruction'][:1000], state='proposee')
     return {'ok': True, 'proposition': patch['id'], 'state': 'proposee', 'message': '%d modification(s) proposée(s), à décider.' % len(ops)}

@@ -1,7 +1,7 @@
 """
 title: AxiorHub Avocat
 author: AxiorHub
-version: 5.6.92
+version: 5.6.93
 description: Cabinet opérant avec apprentissage métier explicite, banc juridique et routage local-first contrôlé.
 requirements: pydantic
 """
@@ -13,6 +13,17 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
+
+# 5.6.93 (N08) : version de CET outil, lue dans son en-tête et rendue avec chaque suivi : une copie importée plus ancienne que le serveur se voit.
+# Remplacement : docs/OPEN-WEBUI-OUTIL-5.6.93.md ; une mise à jour du moteur ne remplace pas la copie déjà importée dans Open WebUI.
+OUTIL_VERSION=(re.search(r"^version:\s*(\S+)",__doc__ or "",re.M) or re.match(r"(.+)","inconnue")).group(1)
+# Contrat de statut partagé avec le serveur (agent/operations5693.STATUTS) : état du travail -> (code, libellé, terminal).
+CONTRAT_STATUT={"pending":("en_file","En file",False),"running":("en_cours","En cours",False),"suspended":("suspendu","Suspendu",False),
+                "cancel_requested":("arret_demande","Arrêt demandé ; confirmation encore attendue",False),"cancelled":("annule","Annulé ; aucune reprise automatique",True),
+                "error":("echec","Échec",True),"done":("termine","Terminé",True)}
+ATTENTES={"attente_budget":"En attente : plafond de budget atteint","attente_fournisseur":"En attente : fournisseur d’IA indisponible ou limite d’abonnement",
+          "attente_decision":"En attente d’une décision"}
+SUSPENSIONS={"pause":"pause manuelle de l’IA","pause_dossier":"dossier en pause","pause_horaire":"pause programmée"}
 
 
 class Tools:
@@ -58,20 +69,60 @@ class Tools:
         except (URLError, TimeoutError, ValueError):
             return {"error": "API AxiorHub momentanément indisponible"}
 
+    def _suivi(self, result: dict, job_id) -> dict:
+        """5.6.93 (N08) : lecture du contrat de statut partagé. Le serveur 5.6.93 fournit « suivi » ; un serveur plus ancien est lu avec la même table."""
+        suivi=result.get("suivi") if isinstance(result.get("suivi"),dict) else None
+        status=str(result.get("status") or "")
+        if not suivi:
+            etat,libelle,terminal=CONTRAT_STATUT.get(status,("inconnu","État inconnu",False))
+            raw=result.get("result")
+            if isinstance(raw,str):
+                try:raw=json.loads(raw)
+                except ValueError:raw={}
+            raw=raw if isinstance(raw,dict) else {}
+            motif=str(result.get("stop_reason") or "") if status in ("suspended","cancelled","cancel_requested") else str(raw.get("erreur") or result.get("blocked_by") or "")
+            if status=="pending" and str(result.get("blocked_by") or "").startswith("budget_"):etat,libelle="attente_budget",ATTENTES["attente_budget"]
+            if status=="suspended":libelle="Suspendu : "+SUSPENSIONS.get(motif,"pause en vigueur")
+            suivi={"etat":etat,"libelle":libelle,"terminal":terminal,"motif":motif,"reprise":result.get("not_before"),"message":str(raw.get("message") or "")}
+        return {"job_id":result.get("id") or job_id,"etat":suivi.get("etat","inconnu"),"libelle":suivi.get("libelle",""),"terminal":bool(suivi.get("terminal")),
+                "motif":suivi.get("motif",""),"reprise":suivi.get("reprise"),"message":suivi.get("message","")}
+
     def _wait(self, job_id: int) -> dict:
+        """Suit LE MÊME travail : un état suspendu ou une attente (budget, décision) est rendu aussitôt avec son motif ; à l'expiration, le dernier état
+        constaté est transmis tel quel. Une erreur réseau donne « état inconnu ». Aucun nouveau travail n'est jamais créé pour obtenir un résultat."""
         deadline=time.monotonic()+self.valves.JOB_WAIT_SECONDS
-        while time.monotonic()<deadline:
+        last=None
+        suivre="Suivez-la avec verifier_une_operation(numero=%s) ; aucune nouvelle opération n’a été créée."%job_id
+        while True:
             result=self._call("/jobs/"+str(job_id))
-            if result.get("error"):return result
-            if result.get("status") in ("done","error","cancelled"):
-                raw=result.get("result")
-                if isinstance(raw,str):
-                    try:result["result"]=json.loads(raw)
-                    except ValueError:pass
-                return result
+            if result.get("error"):
+                if "status" in result:          # refus explicite du serveur (droits, opération absente) : rendu tel quel
+                    return {**result,"job_id":job_id,"etat":"refuse","outil_version":OUTIL_VERSION}
+                known=(" Dernier état constaté : "+last["libelle"]+".") if last else ""
+                return {"status":"inconnu","etat":"inconnu","job_id":job_id,"outil_version":OUTIL_VERSION,"erreur":result.get("error"),
+                        "message":"État inconnu : AxiorHub ne répond pas."+known+" "+suivre}
+            raw=result.get("result")
+            if isinstance(raw,str):
+                try:result["result"]=json.loads(raw)
+                except ValueError:pass
+            suivi=self._suivi(result,job_id)
+            last=suivi
+            if suivi["terminal"] or suivi["etat"] not in ("en_file","en_cours","arret_demande"):
+                return {**result,**suivi,"status":result.get("status"),"outil_version":OUTIL_VERSION}
+            if time.monotonic()>=deadline:
+                return {**result,**suivi,"status":result.get("status"),"outil_version":OUTIL_VERSION,
+                        "message":"Dernier état constaté au bout de %d s : %s. %s"%(self.valves.JOB_WAIT_SECONDS,suivi["libelle"],suivre)}
             time.sleep(2)
-        return {"status":"still_running","job_id":job_id,
-          "message":"Le traitement continue. Utilisez verifier_une_operation pour récupérer son résultat."}
+
+    def version_de_l_outil(self) -> dict:
+        """Affiche la version de cet outil importé et celle du serveur AxiorHub : un écart signifie que l’outil importé dans Open WebUI doit être remplacé."""
+        server=self._call("/capabilities")
+        version=str(server.get("version") or "") if isinstance(server,dict) else ""
+        out={"outil_version":OUTIL_VERSION,"serveur_version":version or "inconnue"}
+        if version and version!=OUTIL_VERSION:
+            out["action"]=("Outil importé différent du serveur : dans Open WebUI, Espace de travail › Outils, ouvrez l’outil AxiorHub, remplacez tout son code par le fichier "
+                           "préparé par install-openwebui-tool.py, enregistrez, puis vérifiez que ses Valves (jeton) sont toujours renseignées.")
+        return out
 
     def _queued(self, result: dict) -> dict:
         if result.get("error") or not result.get("job_id"):return result
@@ -457,8 +508,10 @@ class Tools:
         return self._call("/document-projects/"+checked+"/deterministic-control")
 
     def verifier_une_operation(self, numero: int) -> dict:
-        """Récupère l’état et le résultat d’une opération longue déjà lancée."""
-        return self._call("/jobs/"+str(numero))
+        """Récupère l’état et le résultat d’une opération longue déjà lancée, sans en créer une nouvelle."""
+        result=self._call("/jobs/"+str(numero))
+        if result.get("error"):return {**result,"outil_version":OUTIL_VERSION}
+        return {**result,**self._suivi(result,numero),"outil_version":OUTIL_VERSION}
 
     def rechercher_dans_le_cabinet(self, question: str, limite: int = 12) -> dict:
         """Recherche les documents et courriels dans tous les dossiers, avec chemins sources."""

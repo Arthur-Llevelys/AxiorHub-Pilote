@@ -51,19 +51,52 @@
     var data = {};
     Array.prototype.forEach.call(form.querySelectorAll('input,select'), function (f) { if (f.name) data[f.name] = f.value; });
     function say(text) { if (status) status.textContent = text; }
+    // 5.6.93 (N10) : l'état affiché est celui que le serveur projette (en file, suspendu, annulé, échec…), jusqu'à un état terminal réel.
+    function texte(d) {
+      return (d.message || d.etat_affiche || d.state_label) + (d.fichier ? ' : ' + d.fichier : '') + (d.fichier_partiel ? ' Fichier ' + (d.fichier_partiel_ecrit ? 'écrit' : 'peut-être écrit') + ' avant l’arrêt : ' + d.fichier_partiel + ' (non déclaré exporté).' : '');
+    }
+    function cle() {
+      var a = new Uint8Array(16);
+      (window.crypto || window.msCrypto).getRandomValues(a);
+      return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    }
+    function relancer(d) {
+      if (!status || d.action !== 'relancer' || form.querySelector('.l89-relancer')) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ax-btn ghost l89-relancer';
+      b.textContent = 'Relancer dans une nouvelle opération';
+      b.addEventListener('click', function () {
+        var k = cle(), champ = form.querySelector('input[name="cle"]');
+        if (champ) champ.value = k;          // la nouvelle opération a sa propre clé ; renvoyer le formulaire ne rejoue pas l'ancienne
+        data.cle = k;
+        data.relance_de = d.id;
+        b.remove();
+        envoyer(data);
+      });
+      status.parentNode.insertBefore(b, status.nextSibling);
+    }
     function suivre(id, essais) {
-      if (essais <= 0) { say('Export toujours en cours : revenez sur cette page pour en voir le résultat.'); return; }
       fetch(prefix + '/api440/m5689/livrables/exports/' + encodeURIComponent(id), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.error) { say(d.message || 'Suivi de l’export impossible.'); return; }
-        say(d.state_label + (d.fichier ? ' : ' + d.fichier : '') + (d.erreur ? ' (' + d.erreur + ')' : ''));
-        if (!d.done && d.state !== 'echec') setTimeout(function () { suivre(id, essais - 1); }, 3000);
-      }).catch(function () { setTimeout(function () { suivre(id, essais - 1); }, 5000); });
+        say(texte(d));
+        if (d.terminal) { relancer(d); return; }
+        if (essais > 1) setTimeout(function () { suivre(id, essais - 1); }, 3000);
+        else say(texte(d) + ' Dernier état constaté ; revenez sur cette page pour la suite.');
+      }).catch(function () {
+        if (essais > 1) setTimeout(function () { suivre(id, essais - 1); }, 5000);
+        else say('État inconnu : le serveur ne répond pas. Renvoyez la même demande plus tard ; elle ne créera pas de second fichier.');
+      });
     }
-    say('Demande envoyée…');
-    fetch(prefix + '/api440/' + form.getAttribute('data-api'), { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(data) }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.error) { say(d.message || d.error); return; }
-      say(d.message || d.state_label);
-      suivre(d.id, 60);
-    }).catch(function () { say('Réponse perdue : renvoyez la demande, elle ne créera pas de second fichier.'); });
+    function envoyer(body) {
+      say('Demande envoyée…');
+      fetch(prefix + '/api440/' + form.getAttribute('data-api'), { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(body) }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.error) { say(d.message || d.error); return; }
+        say(texte(d));
+        if (d.terminal) { relancer(d); return; }
+        suivre(d.id, 60);
+      }).catch(function () { say('Réponse perdue : renvoyez la demande, elle ne créera pas de second fichier.'); });
+    }
+    envoyer(data);
   }, true);
 })();

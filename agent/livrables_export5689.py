@@ -18,13 +18,15 @@ import uuid
 import zipfile
 
 from .common import Stop, clean_path
-from . import livrables5689 as liv, livrables_apercu5689 as apercu
+from . import livrables5689 as liv, livrables_apercu5689 as apercu, operations5693 as ops
 
 SCHEMA = '''CREATE TABLE IF NOT EXISTS prepared_exports5689(id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL UNIQUE, parameters TEXT NOT NULL, item_id TEXT NOT NULL, document_id TEXT NOT NULL, version_id TEXT NOT NULL, format TEXT NOT NULL, destination TEXT NOT NULL,
     state TEXT NOT NULL DEFAULT 'demande', output_path TEXT NOT NULL DEFAULT '', expected_sha256 TEXT NOT NULL DEFAULT '', sha256 TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL DEFAULT 0, job_id INTEGER, requested_by TEXT NOT NULL, error TEXT NOT NULL DEFAULT '',
     created TEXT NOT NULL, updated TEXT NOT NULL)'''
 JOB = 'export_livrable5689'
-STATES = {'demande': 'Export demandé', 'en_cours': 'Export en cours', 'ecriture': 'Écriture du fichier', 'exporte': 'Exporté', 'echec': 'Échec de l’export'}
+STATES = {'demande': 'Export demandé', 'en_cours': 'Export en cours', 'ecriture': 'Écriture du fichier', 'exporte': 'Exporté', 'echec': 'Échec de l’export',
+          'annule': 'Export annulé', 'acces_retire': 'Accès retiré : export arrêté', 'a_autoriser': 'Autorisation à renouveler'}    # 5.6.93 : états fermés (N01, N10)
+FERMES = ('annule', 'acces_retire', 'a_autoriser')
 PREVIEW_CSP = {'pdf': "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; object-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'",
                'image': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"}
 SIGNATURES = {'.pdf': b'%PDF-', '.png': b'\x89PNG', '.jpg': b'\xff\xd8\xff', '.jpeg': b'\xff\xd8\xff', '.gif': b'GIF8', '.webp': b'RIFF'}
@@ -33,6 +35,7 @@ SIGNATURES = {'.pdf': b'%PDF-', '.png': b'\x89PNG', '.jpg': b'\xff\xd8\xff', '.j
 def schema(desk):
     desk.db.execute(SCHEMA)
     desk.db.commit()
+    ops.ensure_schema(desk, 'export')     # 5.6.93 : acteur, cabinet, relance (N01, N10)
 
 
 def _now():
@@ -51,9 +54,13 @@ def _disposition(name, inline=False):
 
 
 def verifier_sortie(fmt, data):
-    """Réouverture réelle du fichier produit : un fichier écrit n'est pas encore un fichier valable."""
+    """Réouverture réelle du fichier produit : un fichier écrit n'est pas encore un fichier valable.
+    5.6.93 (N09) : un export de classeur est rapproché de sa portée (feuille, plage, lignes, colonnes, statut complet), pas seulement de son encodage."""
     if not data:
         return False
+    from . import export_tableur5693 as tableur
+    if tableur.est_jeton(fmt) or (fmt == 'csv' and (getattr(data, 'preuve', None) or tableur._PREUVES.get(hashlib.sha256(data).hexdigest()))):
+        return tableur.verifier(fmt, data)
     if fmt == 'pdf':
         if not data.startswith(b'%PDF-'):
             return False
@@ -92,16 +99,10 @@ def convertir(raw, source, cible):
         if not data:
             raise Stop('conversion_indisponible')
         return data
-    if source == 'xlsx' and cible == 'csv':
-        from .apercu5679 import xlsx_sheets
-        sheets = xlsx_sheets(raw, max_rows=100000, max_cols=200)
-        if not sheets:
-            raise Stop('classeur_illisible')
-        out = io.StringIO()
-        writer = csv.writer(out, delimiter=';')
-        for row in sheets[0][1]:
-            writer.writerow([_garde_cellule(c) for c in row])
-        return out.getvalue().encode('utf-8')
+    if source == 'xlsx':        # 5.6.93 (N09) : lecteur d'export en flux, distinct de l'aperçu borné ; toute la portée choisie ou un refus explicite
+        from . import export_tableur5693 as tableur
+        if cible == 'csv' or tableur.est_jeton(cible):
+            return tableur.exporter(raw, cible)
     raise Stop('format_non_disponible')
 
 
@@ -143,14 +144,48 @@ def telecharger(desk, row, fmt='', inline=False, version_demandee='', client=Non
     return {'status': '200 OK', 'kind': mime, 'body': data, 'headers': headers + [('Content-Disposition', _disposition(_nom(row, fmt)))]}
 
 
-def _public(row):
+def _message(row, vue):
+    """5.6.93 (N10) : l'état réel, jamais « en cours » par défaut. Une demande annulée le reste ; recommencer crée une nouvelle opération."""
+    state, motif = row['state'], vue['motif'] or str(row['error'] or '').replace('_', ' ')
+    if state == 'exporte':
+        return 'Exporté et relu dans le stockage.'
+    if state == 'annule':
+        return 'Demande déjà annulée : rien n’a été exporté par cette demande. Pour recommencer, relancez dans une nouvelle opération.'
+    if state == 'acces_retire':
+        return 'Export arrêté, accès retiré (%s). Corrigez les droits, puis relancez dans une nouvelle opération.' % motif
+    if state == 'a_autoriser':
+        return 'Demande ancienne sans auteur vérifiable : rien n’a été exporté. Refaites la demande.'
+    if state == 'echec':
+        return 'Échec de l’export (%s). Vous pouvez relancer dans une nouvelle opération.' % motif
+    return '%s : il sera indiqué « Exporté » une fois le fichier relu.' % vue['etat_affiche']
+
+
+def _public(row, desk=None):
     state = row['state']
-    return {'id': row['id'], 'state': state, 'state_label': STATES[state], 'done': state == 'exporte', 'format': row['format'], 'destination': row['destination'], 'job_id': row['job_id'], 'erreur': row['error'], 'cle': row['idempotency_key'],
-            'version_id': row['version_id'], 'fichier': PurePosixPath(row['output_path']).name if state == 'exporte' else ''}
+    out = {'id': row['id'], 'state': state, 'state_label': STATES[state], 'done': state == 'exporte', 'format': row['format'], 'destination': row['destination'], 'job_id': row['job_id'], 'erreur': row['error'], 'cle': row['idempotency_key'],
+           'version_id': row['version_id'], 'fichier': PurePosixPath(row['output_path']).name if state == 'exporte' else ''}
+    if desk is not None:      # 5.6.93 (N10) : projection commune avec le travail associé
+        vue = ops.vue(desk, 'export', row, STATES)
+        partiel = PurePosixPath(row['output_path']).name if state != 'exporte' and row['output_path'] and state in FERMES + ('echec',) else ''
+        out.update(vue, message=_message(row, vue), fichier_partiel=partiel, fichier_partiel_ecrit=bool(partiel and row['sha256']))
+    return out
 
 
-def demander(desk, row, fmt, destination, cle, owner, caps=None):
-    """Crée le travail d'export. La même clé rend le même travail, même si la réponse précédente s'est perdue ; aucune seconde écriture."""
+def _reprise(desk, old, parameters, owner, role):
+    """Même clé : même opération, réparée si elle n'a jamais reçu son travail (N02). La clé d'un autre compte ne se réutilise pas (N01 T3)."""
+    if old['parameters'] != parameters:
+        raise Stop('cle_idempotence_deja_utilisee')
+    if (old['actor_id'] or old['requested_by']) != str(owner)[:160]:
+        raise Stop('cle_idempotence_deja_utilisee')
+    old = ops.rapprocher(desk, 'export', old)
+    if ops.orpheline(desk, 'export', old):
+        old = ops.reparer(desk, 'export', old['id'], str(owner)[:160], role)
+    return old
+
+
+def demander(desk, row, fmt, destination, cle, owner, caps=None, role='', relance_de=''):
+    """Crée le travail d'export. La même clé rend le même travail, même si la réponse précédente s'est perdue ; aucune seconde écriture.
+    5.6.93 (N02) : l'opération et son travail naissent ensemble ou pas du tout ; l'acteur et son rôle sont notés pour la garde du travail (N01)."""
     schema(desk)
     cle = str(cle or '')
     if not re.fullmatch(r'[A-Za-z0-9_-]{8,80}', cle):
@@ -158,9 +193,7 @@ def demander(desk, row, fmt, destination, cle, owner, caps=None):
     parameters = json.dumps([row['document_id'], row['version_id'], str(fmt), str(destination)])
     old = desk.db.execute('SELECT * FROM prepared_exports5689 WHERE idempotency_key=?', (cle,)).fetchone()
     if old:
-        if old['parameters'] != parameters:
-            raise Stop('cle_idempotence_deja_utilisee')
-        return _public(old)
+        return _public(_reprise(desk, old, parameters, owner, role), desk)
     caps = apercu.capacites(desk) if caps is None else caps
     allowed = apercu.formats(row, caps)
     if str(fmt) not in allowed:
@@ -168,14 +201,14 @@ def demander(desk, row, fmt, destination, cle, owner, caps=None):
     if str(destination) not in apercu.destinations(desk, row):
         raise Stop('destination_non_autorisee')
     ident, now = uuid.uuid4().hex, _now()
-    desk.db.execute('INSERT INTO prepared_exports5689(id,idempotency_key,parameters,item_id,document_id,version_id,format,destination,requested_by,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
-                    (ident, cle, parameters, row['id'], row['document_id'], row['version_id'], str(fmt), str(destination), str(owner)[:160], now, now))
-    desk.db.commit()
-    job = desk.enqueue(JOB, {'export': ident, 'matter': row['matter_id']})
-    desk.db.execute('UPDATE prepared_exports5689 SET job_id=? WHERE id=?', (job, ident))
-    desk.db.commit()
+    colonnes = {'id': ident, 'idempotency_key': cle, 'parameters': parameters, 'item_id': row['id'], 'document_id': row['document_id'], 'version_id': row['version_id'], 'format': str(fmt),
+                'destination': str(destination), 'requested_by': str(owner)[:160], 'created': now, 'updated': now, **ops.admission(owner, role),
+                'relance_de': ops.relance(desk, 'export', relance_de, row['document_id'])}
+    created, nouveau = ops.creer(desk, 'export', colonnes, {'matter': row['matter_id']})
+    if not nouveau:         # requête concurrente de même clé, arrivée la première
+        return _public(_reprise(desk, created, parameters, owner, role), desk)
     desk.audit('livrable5689_export_demande', {'export': ident, 'document': row['document_id'][:40], 'format': str(fmt), 'par': str(owner)[:80]})
-    return _public(desk.db.execute('SELECT * FROM prepared_exports5689 WHERE id=?', (ident,)).fetchone())
+    return _public(created, desk)
 
 
 def etat(desk, ident):
@@ -183,7 +216,7 @@ def etat(desk, ident):
     row = desk.db.execute('SELECT * FROM prepared_exports5689 WHERE id=?', (str(ident),)).fetchone()
     if not row:
         raise Stop('export_absent')
-    return row
+    return ops.rapprocher(desk, 'export', row)      # 5.6.93 (N10) : un travail arrêté ne laisse pas l'export « demandé »
 
 
 def _chemin_libre(client, folder, name):
@@ -214,18 +247,28 @@ def _echec(desk, ident, code):
 
 
 def executer(desk, args, client=None):
-    """Travail d'export : droits du dossier revérifiés au moment d'agir, fichier converti contrôlé, écriture exclusive, relecture. Reprise sans doublon après coupure."""
+    """Travail d'export : droits du dossier revérifiés au moment d'agir, fichier converti contrôlé, écriture exclusive, relecture. Reprise sans doublon après coupure.
+    5.6.93 (N01) : la garde commune résout l'acteur ACTUEL avant toute lecture, avant la publication et avant la finalisation d'une reprise."""
+    with ops.isoler():
+        return _executer(desk, args, client)
+
+
+def _executer(desk, args, client=None):
     from . import pause5629
+    from .arret5643 import STOP_CODES
     schema(desk)
     ident = str(args.get('export') or '')
     row = etat(desk, ident)
     if row['state'] == 'exporte':
         return {'ok': True, 'export': ident, 'state': 'exporte', 'message': 'Déjà exporté.'}
+    if row['state'] in FERMES:          # annulé, accès retiré, autorisation à renouveler : jamais repris par ce travail
+        raise Stop('operation_annulee' if row['state'] == 'annule' else (row['error'] or 'autorisation_a_renouveler'))
     client = apercu._client(desk, client)
     item = liv._item(desk, row['item_id'])
     if not item:
         _echec(desk, ident, 'livrable_absent')
         raise Stop('livrable_absent')
+    ops.proteger(desk, 'export', row, item)
     if row['output_path'] and row['expected_sha256']:      # coupure après l'écriture : la preuve se trouve dans le stockage, pas dans notre mémoire
         try:
             info = client.stat(row['output_path'])
@@ -252,18 +295,23 @@ def executer(desk, args, client=None):
         if not verifier_sortie(row['format'], data):
             raise Stop('conversion_non_verifiee')
         sha = hashlib.sha256(data).hexdigest()
+        ops.proteger(desk, 'export', row, item)        # 5.6.93 (N01 T2) : droits relus après conversion, avant toute publication
         client.ensure_folder(dest['folder'], dest['boundary'])
         path = row['output_path'] or _chemin_libre(client, dest['folder'], _nom(item, row['format']))
         desk.db.execute("UPDATE prepared_exports5689 SET state='ecriture', output_path=?, expected_sha256=?, updated=? WHERE id=?", (path, sha, _now(), ident))
         desk.db.commit()
         pause5629.checkpoint(desk)
         client.put_file(path, data, liv.MIME.get('.' + row['format'], 'application/octet-stream'))      # exclusif : aucun fichier existant n'est remplacé
+        desk.db.execute('UPDATE prepared_exports5689 SET sha256=?, size=? WHERE id=?', (sha, len(data), ident))     # écrit : un arrêt d'ici la fin le signale comme fichier partiel
+        desk.db.commit()
         info = client.stat(path)
         back = client.download({**info, 'path': path})
         if hashlib.sha256(back).hexdigest() != sha or not verifier_sortie(row['format'], back):
             raise Stop('export_non_verifie')
+        pause5629.checkpoint(desk)                     # arrêt demandé pendant l'écriture : fichier signalé, jamais déclaré « Exporté »
+        ops.proteger(desk, 'export', row, item)
     except Stop as ex:
-        if str(ex) in ('operation_annulee',):
+        if str(ex) in STOP_CODES or str(ex).split(':')[0] in ops.REVOCATIONS:      # arrêt, pause ou révocation : l'état vient de la projection ou de la garde
             raise
         _echec(desk, ident, str(ex))
         raise

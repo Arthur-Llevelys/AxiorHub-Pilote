@@ -20,12 +20,14 @@ def main():
         report['tool_version_current']=('version: '+__version__) in source
         report['tool_has_hybrid_routing']='def afficher_le_routage_hybride(' in source
         report['tool_has_job_wait']='def _wait(' in source
+        report['tool_has_status_contract']='CONTRAT_STATUT=' in source   # 5.6.93 (N08) : suspendu, attente, état inconnu rendus sans faux « en cours »
+        report['imported_copy_note']='La copie importée dans Open WebUI se vérifie avec la fonction version_de_l_outil de l’outil (docs/OPEN-WEBUI-OUTIL-5.6.93.md).'
         url=auth['origin']+auth.get('prefix','/agent-courriel')+'/api/v1/capabilities'
         request=Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
         with urlopen(request,timeout=30) as response:data=json.loads(response.read().decode())
         report['api_status']='ok';report['api_version']=data.get('version','')
         report['compatible']=(report['token_matches_interface'] and
-          report['tool_version_current'] and report['tool_has_hybrid_routing'] and
+          report['tool_version_current'] and report['tool_has_hybrid_routing'] and report['tool_has_status_contract'] and
           data.get('version')==__version__)
     except FileNotFoundError as error:
         report.update(api_status='error',error='fichier_absent',detail=str(error),compatible=False)

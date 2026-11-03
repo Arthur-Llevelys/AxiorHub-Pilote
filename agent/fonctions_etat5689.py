@@ -12,6 +12,7 @@
 **Conservation** : ``conservation`` compare le registre en service à ``fonctions_reference5688`` (identifiants, routes, alias, droits, prérequis). Tout ajout est listé, tout retrait ou écart fait échouer le contrôle.
 """
 from datetime import datetime, timezone
+from pathlib import Path
 import uuid
 
 from . import connector_readiness5689 as prep
@@ -27,8 +28,20 @@ RELEVES_CONSERVES = 5000
 ETATS = {'non_configuree': 'Non configurée', 'declaree': 'Déclarée', 'simulee': 'Testée en simulation', 'qualifiee_reel': 'Qualifiée sur service réel', 'disponible': 'Disponible dans le périmètre autorisé', 'degradee': 'Dégradée'}
 MOTIFS = {'service_non_configure': 'Service non configuré', 'aucune_preuve_valide': 'Aucune preuve valide', 'non_qualifiee_sur_service_reel': 'Non qualifiée sur service réel', 'preuve_d_une_autre_version': 'Preuve d’une autre version',
           'version_incompatible': 'Version incompatible : à requalifier', 'preuve_du_cabinet_a_renouveler': 'Preuve du cabinet à renouveler', 'capacite_revoquee': 'Capacité révoquée'}
-# Version et date des essais automatiques de cette publication : à renouveler avec elle, sinon la preuve ne vaut plus.
-VERSION_PREUVE, DATE_PREUVE = '5.6.91', '2026-11-03'
+# Version et date des essais automatiques de cette publication. 5.6.93 : tirées de la version publiée et de son VALIDATION ; en 5.6.92,
+# la valeur écrite à la main était restée à la version précédente et les fonctions internes s'affichaient « Déclarée ».
+def _preuve_de_publication():
+    import json
+    from . import __version__
+    fichier = Path(__file__).resolve().parent.parent / ('VALIDATION-%s.json' % __version__)
+    try:
+        date = str(json.loads(fichier.read_text(encoding='utf-8')).get('date_utc') or '')[:10]
+    except (OSError, ValueError):
+        date = ''
+    return __version__, date
+
+
+VERSION_PREUVE, DATE_PREUVE = _preuve_de_publication()
 # Fonction → {'version', 'date', 'reference'} : preuve sur service réel, remise par une personne. Vide en 5.6.89.
 QUALIFIEES_REEL = {}
 # Publication d'une version incompatible : preuve antérieure à ce seuil nulle, étapes concernées suspendues jusqu'à requalification. Vide en 5.6.89.

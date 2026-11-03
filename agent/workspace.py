@@ -46,9 +46,18 @@ def discover(desk,dav):
     roots=discovery_roots(c)
     fingerprint=digest(json.dumps([c['nextcloud'].get('url'),c['nextcloud'].get('username'),roots]))
     progress=desk.settings('discovery_progress',{})
+    from . import charge5693   # 5.6.93 : Nextcloud : un répertoire (hors dossiers) dont l'ETag n'a pas changé depuis le dernier parcours complet n'est pas relu
     if progress.get('fingerprint')!=fingerprint or not progress.get('queue'):
+        same,root_etags=charge5693.decouverte_inchangee(desk,dav,roots)
+        if same and progress.get('fingerprint')==fingerprint:
+            result={**(desk.settings('last_discovery',{}) or {}),'dossiers_decouverts':0,'repertoires_lus':0,'repertoires_restants':0,
+                    'parcours_partiel':False,'inchange':True,'at':now()}
+            desk.setting('last_discovery',result)
+            return result
         progress={'fingerprint':fingerprint,'queue':[[r,0] for r in roots],
-                  'visited':[],'added':0,'errors':[],'depth_limited':0,'started':now()}
+                  'visited':[],'added':0,'errors':[],'depth_limited':0,'started':now(),'root_etags':root_etags,'folders':{}}
+    known=charge5693.decouverte_precedente(desk,dav)
+    folders=progress.setdefault('folders',{})
     queue=progress['queue'];visited=set(progress['visited'])
     matters=load_matters(c);paths={m['path'] for m in matters};ids={m['id'] for m in matters}
     batch=0;start=time.monotonic()
@@ -59,6 +68,7 @@ def discover(desk,dav):
         try:children=dav.list_folder(path)
         except Stop as ex:
             progress['errors']=(progress['errors']+[{'path':path,'reason':str(ex)}])[-30:]
+            folders.pop(path,None)   # 5.6.93 : un répertoire illisible sera relu au prochain parcours, même inchangé
             continue
         catalog(desk,path)
         for item in children:
@@ -80,11 +90,16 @@ def discover(desk,dav):
                 # A recognized matter is a scope, not a container of unrelated cases.
                 continue
             if depth<12:
+                etag=item.get('etag') or ''
+                if etag:folders[child]=etag
+                if etag and known.get(child)==etag:continue   # 5.6.93 : sous-arborescence inchangée : aucun dossier nouveau possible
                 queue.append([child,depth+1])
             else:progress['depth_limited']+=1
         desk.db.commit()
     if len(queue)+len(visited)>50000:raise Stop('catalogue_trop_volumineux')
     progress['visited']=sorted(visited)
+    if not queue and progress.get('root_etags') and not progress.get('errors'):
+        charge5693.decouverte_terminee(desk,progress['root_etags'],folders)
     desk.setting('discovery_progress',progress)
     result={'dossiers_decouverts':progress['added'],'repertoires_lus':len(visited),
             'repertoires_restants':len(queue),'parcours_partiel':bool(queue),

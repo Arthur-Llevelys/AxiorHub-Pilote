@@ -91,6 +91,8 @@ def provisoire(version_id):
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
     desk.db.commit()
+    from . import registre5693      # 5.6.93 : colonnes de collecte (N03), de contrôle (N05) et table des identités (N06), par migration idempotente
+    registre5693.ensure_schema(desk)
 
 
 @contextmanager
@@ -142,9 +144,18 @@ def _ext(path):
 
 
 def _document_of(desk, x):
-    """Identité stable. Le chemin n'en est jamais la seule base : même empreinte, même dossier et même format, ailleurs, c'est un renommage."""
+    """Identité stable (5.6.93, N06) : d'abord l'identité composite stockage + compte + identifiant de fichier, puis le lien de création du producteur, puis
+    une identité provisoire de chemin. Une empreinte identique prouve un contenu identique, pas le même fichier : elle ne rapproche jamais deux documents
+    (``registre5693.suggerer_doublon`` en fait une suggestion)."""
     if x.get('document_id'):
         return x['document_id']
+    from . import office_gen5684 as gen, registre5693
+    fileid = str(x.get('fileid') or '')
+    if fileid:
+        gen.schema(desk)
+        known = registre5693.par_identifiant(desk, fileid)
+        if known:
+            return gen.document_for(desk, str(x.get('path') or known['path']), {'fileid': fileid}, str(x.get('matter') or ''))
     linked = desk.db.execute("SELECT i.document_id FROM prepared_source_links5689 l JOIN prepared_items5689 i ON i.id=l.item_id WHERE l.link_kind='producteur' AND l.source_service=? AND l.source_object_id=? ORDER BY i.version_number DESC LIMIT 1",
                              (x['service'], str(x['object']))).fetchone()
     if linked:
@@ -152,13 +163,8 @@ def _document_of(desk, x):
     path = str(x.get('path') or '')
     if not path:
         return 'doc-' + digest('%s|%s' % (x['service'], x['object']))[:32]
-    if x.get('sha256'):
-        same = desk.db.execute('SELECT document_id, path FROM prepared_items5689 WHERE sha256=? AND matter_id=? ORDER BY created LIMIT 1', (x['sha256'], str(x.get('matter') or ''))).fetchone()
-        if same and _ext(same['path']) == _ext(path):
-            return same['document_id']
-    from . import office_gen5684 as gen
     gen.schema(desk)
-    return gen.document_for(desk, path, {'fileid': str(x.get('fileid') or '')}, str(x.get('matter') or ''))
+    return gen.document_for(desk, path, {'fileid': fileid}, str(x.get('matter') or ''))
 
 
 def _lien(desk, item_id, service, objet, version, kind='producteur', label=''):
@@ -258,6 +264,9 @@ def _nouvelle_version(desk, x, document_id, version_id, current=None, reserved=N
         _lien(desk, ident, 'source', str(source)[:300], '', 'source', str(source)[:200])
     if current:
         desk.db.execute("UPDATE prepared_items5689 SET lifecycle='replaced', updated=? WHERE id=?", (now, current['id']))
+    elif path and x.get('sha256'):      # 5.6.93 (N06) : même contenu qu'un autre document : une suggestion à examiner, jamais une fusion
+        from . import registre5693
+        registre5693.suggerer_doublon(desk, item)
     if x.get('verified') and path and not provisoire(version_id):      # ancien indicateur : preuve de stockage, et rien d'autre (§ 40)
         from . import verification5689
         verification5689.preuve_stockage_ancienne(desk, item, str(x.get('evidence') or x['service']))
@@ -350,8 +359,13 @@ def deja_publiee(desk, reservation, client):
         return False
 
 
-def _echec(desk, item_id, state, reason):
+def _echec(desk, item_id, state, reason, controle=None):
+    """État constaté, et (5.6.93, N05) erreur structurée du contrôle : un fichier absent ou différent reçoit un délai progressif avant le prochain essai,
+    au lieu de revenir en tête de chaque lot. ``controle`` : compter l'échec (par défaut, pour un état « partiel », celui des contrôles)."""
+    from . import registre5693
+    registre5693.ensure_schema(desk)
     desk.db.execute('UPDATE prepared_items5689 SET production_state=?, state_reason=?, updated=? WHERE id=?', (state, str(reason)[:120], _now(), item_id))
+    registre5693.noter_echec(desk, item_id, reason, state == 'partial' if controle is None else controle)
     desk.db.commit()
 
 
@@ -380,6 +394,8 @@ def constater(desk, reservation, client, path='', raw=None):
 
 
 def manifeste(desk, row, path, sha, info, size):
+    from . import registre5693
+    registre5693.ensure_schema(desk)      # colonnes de contrôle (5.6.93), avant la transaction
     now = _now()
     version_id = 'sha256:' + sha
     with _atomique(desk):
@@ -391,15 +407,17 @@ def manifeste(desk, row, path, sha, info, size):
             desk.db.execute('DELETE FROM prepared_items5689 WHERE id=?', (row['id'],))
             return _item(desk, twin['id'])
         desk.db.execute("UPDATE prepared_items5689 SET lifecycle='replaced', updated=? WHERE document_id=? AND lifecycle='current' AND id<>?", (now, row['document_id'], row['id']))
-        desk.db.execute("UPDATE prepared_items5689 SET version_id=?, path=?, mime_type=?, file_id=?, sha256=?, etag=?, size=?, production_state='verified', state_reason='', lifecycle='current', updated=? WHERE id=?",
-                        (version_id, path, _mime(path, row['mime_type']), str(info.get('fileid') or row['file_id']), sha, str(info.get('etag') or ''), int(size), now, row['id']))
+        desk.db.execute("UPDATE prepared_items5689 SET version_id=?, path=?, mime_type=?, file_id=?, sha256=?, etag=?, size=?, production_state='verified', state_reason='', lifecycle='current', updated=?, "
+                        "checked_at=?, next_check_at='', failure_count=0, check_error='' WHERE id=?",      # 5.6.93 (N05) : un fichier relu et conforme clôt l'incident de contrôle
+                        (version_id, path, _mime(path, row['mime_type']), str(info.get('fileid') or row['file_id']), sha, str(info.get('etag') or ''), int(size), now, now, row['id']))
         item = _item(desk, row['id'])
         desk.db.execute('DELETE FROM prepared_representations5689 WHERE item_id=? AND role=\'principal\' AND path<>?', (row['id'], path))
         _representation(desk, item, path, 'principal', sha, info.get('etag'), size, True, row['mime_type'])
         if info.get('fileid'):
-            from . import office_gen5684 as gen
+            from . import office_gen5684 as gen, registre5693
             gen.schema(desk)
             desk.db.execute('UPDATE office_documents5684 SET path=?, fileid=?, updated=? WHERE document_id=?', (path, str(info['fileid']), now, row['document_id']))
+            registre5693.noter_identifiant(desk, info['fileid'], row['document_id'])
         from . import verification5689
         verification5689.preuve_stockage(desk, item, info, size)
     desk.audit('livrable5689_manifeste', {'document': row['document_id'][:40], 'version': version_id[:40], 'source': row['source_service']})
@@ -408,27 +426,33 @@ def manifeste(desk, row, path, sha, info, size):
 
 def reconcilier(desk, client, age_minutes=10, limite=30, pause=None):
     """Sortie réservée puis restée sans suite : on regarde ce qui existe ; on ne recrée rien. Absente, elle redevient un échec visible, à relancer."""
+    from . import registre5693
     ensure_schema(desk)
     limit = (datetime.now(timezone.utc) - timedelta(minutes=age_minutes)).isoformat()
     done = {'verifies': 0, 'absents': 0, 'differents': 0}
-    for row in desk.db.execute("SELECT * FROM prepared_items5689 WHERE production_state='preparing' AND path<>'' AND updated<=? ORDER BY updated LIMIT ?", (limit, limite)).fetchall():
-        if pause:
-            pause()
-        try:
-            info = client.stat(row['path'])
-            data = client.download({**info, 'path': row['path']})
-        except Stop as ex:
-            if str(ex) in ('http_404', 'fichier_nextcloud_introuvable'):
-                _echec(desk, row['id'], 'failed', 'sortie_non_publiee')
-                done['absents'] += 1
-            continue
-        sha = hashlib.sha256(data).hexdigest()
-        if row['sha256'] and sha != row['sha256']:
-            _echec(desk, row['id'], 'partial', 'fichier_different_de_la_sortie_attendue')
-            done['differents'] += 1
-            continue
-        manifeste(desk, dict(row), row['path'], sha, info, len(data))
-        done['verifies'] += 1
+    if registre5693.en_panne(desk):      # 5.6.93 (N05) : stockage en panne, attente en cours : aucune requête
+        return {**done, 'arret': 'stockage_en_attente'}
+    try:
+        for row in desk.db.execute("SELECT * FROM prepared_items5689 WHERE production_state='preparing' AND path<>'' AND updated<=? ORDER BY updated LIMIT ?", (limit, limite)).fetchall():
+            if pause:
+                pause()
+            try:
+                info = client.stat(row['path'])
+                data = client.download({**info, 'path': row['path']})
+            except Stop as ex:
+                if str(ex) in ('http_404', 'fichier_nextcloud_introuvable'):
+                    _echec(desk, row['id'], 'failed', 'sortie_non_publiee')
+                    done['absents'] += 1
+                continue
+            sha = hashlib.sha256(data).hexdigest()
+            if row['sha256'] and sha != row['sha256']:
+                _echec(desk, row['id'], 'partial', 'fichier_different_de_la_sortie_attendue')
+                done['differents'] += 1
+                continue
+            manifeste(desk, dict(row), row['path'], sha, info, len(data))
+            done['verifies'] += 1
+    except registre5693.Borne as ex:     # borne de requêtes ou panne : le passage s'arrête, rien n'est conclu des sorties non relues
+        done['arret'] = str(ex)
     return done
 
 
@@ -452,63 +476,97 @@ def nouvelle_version_constatee(desk, row, path, raw, info, service='synchronisat
 
 
 def _deplace(desk, client, row):
-    """Fichier absent de son emplacement : renommé dans le même dossier ? Même contenu, même version, seule la localisation change. Une seule lecture de dossier, au travail d'arrière-plan."""
-    if not row['sha256']:
+    """Fichier absent de son emplacement : renommé dans le même dossier ? Une seule lecture de dossier, au travail d'arrière-plan.
+
+    5.6.93 (N06) : un renommage n'est accepté qu'avec une preuve (``registre5693.renommage_prouve``) : le même identifiant de fichier, ou, pour une ligne
+    ancienne dont l'identifiant n'a jamais été lu, un candidat unique au même contenu et inconnu du registre. Un autre fichier au même contenu n'est pas
+    ce document : il reste distinct."""
+    from . import registre5693
+    if not row['sha256'] and not row['file_id']:
         return False
     try:
         items = client.list_folder(str(PurePosixPath(row['path']).parent))
     except Stop:
         return False
-    for item in items:
-        if item.get('directory') or _ext(item.get('path')) != _ext(row['path']) or (row['size'] and item.get('size') != row['size']):
-            continue
-        try:
-            raw = client.download(item)
-        except Stop:
-            continue
-        if hashlib.sha256(raw).hexdigest() == row['sha256']:
-            from . import verification5689
-            verification5689.invalider(desk, row['document_id'], row['version_id'], 'stockage')
-            manifeste(desk, dict(row), item['path'], row['sha256'], {'etag': item.get('etag'), 'fileid': row['file_id']}, len(raw))
-            return True
-    return False
-
-
-def synchroniser_fichiers(desk, client, limite=40, pause=None):
-    """Travail d'arrière-plan, borné : c'est lui, et non l'affichage, qui compare le stockage au registre (empreintes calculées à la synchronisation)."""
-    ensure_schema(desk)
-    out = {'controles': 0, 'nouvelles_versions': 0, 'absents': 0, 'verifies': 0}
-    since = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
-    rows = desk.db.execute("SELECT * FROM prepared_items5689 WHERE lifecycle='current' AND path<>'' AND production_state IN ('published','verified','partial') AND source_at>=? "
-                           "ORDER BY production_state='verified', updated LIMIT ?", (since, limite)).fetchall()
-    for row in rows:
-        if pause:
-            pause()
-        out['controles'] += 1
-        try:
-            info = client.stat(row['path'])
-        except Stop as ex:
-            if str(ex) in ('http_404', 'fichier_nextcloud_introuvable'):
-                if _deplace(desk, client, row):
-                    out['verifies'] += 1
-                    continue
-                _echec(desk, row['id'], 'partial', 'fichier_introuvable_a_cet_emplacement')
-                from . import verification5689
-                verification5689.invalider(desk, row['document_id'], row['version_id'], 'stockage')
-                out['absents'] += 1
-            continue
-        if row['production_state'] == 'verified' and row['etag'] and info.get('etag') == row['etag']:
-            desk.db.execute('UPDATE prepared_items5689 SET updated=? WHERE id=?', (_now(), row['id']))
-            continue
-        raw = client.download({**info, 'path': row['path']})
-        sha = hashlib.sha256(raw).hexdigest()
-        if row['sha256'] and sha != row['sha256']:
-            nouvelle_version_constatee(desk, dict(row), row['path'], raw, info)
-            out['nouvelles_versions'] += 1
+    item, info, preuve = registre5693.renommage_prouve(desk, client, row, items)
+    if not item:
+        return False
+    from . import verification5689
+    verification5689.invalider(desk, row['document_id'], row['version_id'], 'stockage')
+    if preuve == 'identifiant' and info.get('etag') != row['etag']:      # même fichier, déplacé ; son contenu se relit à son nouvel emplacement
+        desk.db.execute('UPDATE prepared_items5689 SET path=?, updated=? WHERE id=?', (item['path'], _now(), row['id']))
+        desk.db.execute("UPDATE prepared_representations5689 SET path=?, updated=? WHERE item_id=? AND role='principal'", (item['path'], _now(), row['id']))
+        moved = _item(desk, row['id'])
+        raw = client.download({**info, 'path': item['path']})
+        if hashlib.sha256(raw).hexdigest() != row['sha256']:
+            nouvelle_version_constatee(desk, moved, item['path'], raw, info)
         else:
-            manifeste(desk, dict(row), row['path'], sha, info, len(raw))
-            out['verifies'] += 1
+            manifeste(desk, moved, item['path'], row['sha256'], info, len(raw))
+    else:
+        manifeste(desk, dict(row), item['path'], row['sha256'], {'etag': info.get('etag') or item.get('etag'), 'fileid': info.get('fileid') or row['file_id']}, info.get('_raw_size') or row['size'])
+    desk.audit('registre5693_renommage', {'document': row['document_id'][:40], 'preuve': preuve})
+    return True
+
+
+def synchroniser_fichiers(desk, client, limite=40, pause=None, borne=None):
+    """Travail d'arrière-plan, borné : c'est lui, et non l'affichage, qui compare le stockage au registre (empreintes calculées à la synchronisation).
+
+    5.6.93 (N05) : les contrôles dus sont choisis par ``registre5693.selection`` (part réservée aux documents valides et aux versions nouvelles, rotation
+    par date du dernier contrôle) ; un absent attend un délai croissant ; trois échecs du stockage d'affilée arrêtent le passage et ouvrent une attente
+    croissante, sans rien reprocher aux documents ; chaque requête est comptée et le passage s'arrête à sa borne (``requetes``, ``borne``)."""
+    from . import registre5693
+    ensure_schema(desk)
+    counted = registre5693.compter(client, borne or registre5693.REQUETES_PAR_PASSAGE)
+    start = counted.requetes
+    out = {'controles': 0, 'nouvelles_versions': 0, 'absents': 0, 'verifies': 0, 'requetes': 0, 'borne': counted.borne, 'panne': False, 'arret': ''}
+    if registre5693.en_panne(desk):
+        out.update(panne=True, arret='stockage_en_attente')
+        registre5693.mesurer(desk, out)
+        return out
+    since = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
+    rows = registre5693.selection(desk, limite, since)
+    try:
+        for row in rows:
+            if pause:
+                pause()
+            out['controles'] += 1
+            try:
+                info = counted.stat(row['path'])
+            except Stop as ex:
+                if str(ex) in registre5693.ABSENT:
+                    if _deplace(desk, counted, row):
+                        registre5693.noter_succes(desk, row['id'])
+                        out['verifies'] += 1
+                        continue
+                    _echec(desk, row['id'], 'partial', 'fichier_introuvable_a_cet_emplacement', controle=True)
+                    from . import verification5689
+                    verification5689.invalider(desk, row['document_id'], row['version_id'], 'stockage')
+                    out['absents'] += 1
+                continue        # stockage injoignable : le document n'est pas mis en cause, il reste dû
+            if row['production_state'] == 'verified' and row['etag'] and info.get('etag') == row['etag']:
+                registre5693.noter_succes(desk, row['id'], info.get('fileid'))
+                continue
+            try:
+                raw = counted.download({**info, 'path': row['path']})
+            except Stop:
+                continue        # lecture interrompue : le document reste dû, rien n'est conclu
+            sha = hashlib.sha256(raw).hexdigest()
+            if row['sha256'] and sha != row['sha256']:
+                fresh = nouvelle_version_constatee(desk, dict(row), row['path'], raw, info)
+                registre5693.noter_succes(desk, row['id'], info.get('fileid'))
+                registre5693.noter_succes(desk, fresh['id'], info.get('fileid'))     # la version nouvelle vient d'être lue : contrôlée
+                out['nouvelles_versions'] += 1
+            else:
+                manifeste(desk, dict(row), row['path'], sha, info, len(raw))
+                registre5693.noter_succes(desk, row['id'], info.get('fileid'))
+                out['verifies'] += 1
+    except registre5693.Borne as ex:
+        out['arret'] = str(ex)
+        out['panne'] = counted.panne
+    out['requetes'] = counted.requetes - start
+    registre5693.noter_panne(desk, counted)
     desk.db.commit()
+    registre5693.mesurer(desk, out)
     return out
 
 
@@ -614,7 +672,7 @@ def importer_marqueurs(desk):
 
 
 # -------------------------------------------------------------------------------------------- synchronisation locale (sans réseau)
-def _sync_source(desk, src, force):
+def _sync_source(desk, src, force, fond=False):
     sid = src['id']
     row = desk.db.execute('SELECT * FROM prepared_sources5689 WHERE source=?', (sid,)).fetchone()
     now = _now()
@@ -633,6 +691,20 @@ def _sync_source(desk, src, force):
         return
     except Exception:   # noqa: BLE001
         store('unavailable', 'Source illisible pour l’instant : les documents déjà connus restent affichés.', ok=False)
+        return
+    if getattr(src.get('rows'), 'parcours', None):
+        # 5.6.93 (N03) : parcours par pages, curseur persistant ; la signature n'est consommée qu'à la fin du lot, « Collecte partielle » jusque-là
+        from . import registre5693
+        try:
+            registre5693.collecter(desk, src, force, fond, signature)
+        except Exception as ex:   # noqa: BLE001 — une source en panne ne vide pas les autres ; le curseur garde la dernière page validée
+            if desk.db.in_transaction:
+                desk.db.rollback()
+            desk.audit('livrables5689_source_illisible', {'source': sid, 'cause': type(ex).__name__})
+            desk.db.execute("UPDATE prepared_sources5689 SET state='unavailable', message=?, last_try=? WHERE source=?", ('Source illisible pour l’instant : les documents déjà connus restent affichés.', now, sid))
+            if not desk.db.execute('SELECT 1 FROM prepared_sources5689 WHERE source=?', (sid,)).fetchone():
+                store('unavailable', 'Source illisible pour l’instant : les documents déjà connus restent affichés.', ok=False)
+            desk.db.commit()
         return
     if row and row['signature'] == signature and row['state'] != 'unavailable' and not force:
         return
@@ -655,13 +727,14 @@ def _sync_source(desk, src, force):
     store('partial' if errors else 'fresh', ('%d ligne(s) illisible(s) ignorée(s) ; les autres documents restent affichés.' % errors) if errors else '', signature, errors, count)
 
 
-def synchroniser(desk, force=False):
-    """Lecture des journaux locaux des producteurs, sans réseau et sans écrire aucun fichier. Coût négligeable quand rien n'a changé (une signature par source)."""
+def synchroniser(desk, force=False, fond=False):
+    """Lecture des journaux locaux des producteurs, sans réseau et sans écrire aucun fichier. Coût négligeable quand rien n'a changé (une signature par source).
+    5.6.93 (N03) : à l'affichage, une page par source au plus ; ``fond`` (travail d'arrière-plan) ou ``force`` lisent jusqu'à 40 pages par source."""
     from . import livrables_sources5689 as sources
     ensure_schema(desk)
     try:
         for src in sources.SOURCES:
-            _sync_source(desk, src, force)
+            _sync_source(desk, src, force, fond)
         importer_marqueurs(desk)
         desk.db.commit()
         return True
@@ -747,7 +820,14 @@ def carte(row, labels, matters, reps=(), desk=None, prefix=''):
             'kind': row['kind'], 'nature': NATURES.get(row['kind'], 'Document'), 'title': row['title'], 'state': state, 'state_label': STATE[state], 'production_label': PRODUCTION.get(row['production_state'], ''), 'state_reason': row['state_reason'],
             'review': row['review_state'], 'review_label': REVIEW[row['review_state']], 'verified': row['production_state'] == 'verified', 'reserve': bool(row['reserve']), 'reserve_note': row['reserve_note'], 'protected': row['protected'],
             'location_ref': 'loc-' + row['id'], 'location': _emplacement(desk, row, matters), 'updated_at': row['source_at'] or row['updated'], 'href': prefix + '/livrables/' + row['document_id'],
-            'formats': sorted({r['format'] for r in reps}), 'exports': sum(1 for r in reps if r['role'] == 'export'), 'source': row['source_service'], 'deposit_state': row['deposit_state'], 'response_id': row['response_id']}
+            'formats': sorted({r['format'] for r in reps}), 'exports': sum(1 for r in reps if r['role'] == 'export'), 'source': row['source_service'], 'deposit_state': row['deposit_state'], 'response_id': row['response_id'],
+            'controle': _controle(row)}
+
+
+def _controle(row):
+    """5.6.93 (N05) : état réel du suivi du fichier et actions possibles (Réessayer, Retrouver le fichier, Retirer du suivi) ; aucune requête au stockage."""
+    from . import registre5693
+    return registre5693.controle(row)
 
 
 def _labels(desk):

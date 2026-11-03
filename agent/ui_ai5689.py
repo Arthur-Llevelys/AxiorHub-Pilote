@@ -724,7 +724,7 @@ def repondre(desk, data, owner, role, prefix=''):
             t.update(etat='a_faire', motif='')
     _maj(desk, ident, champs=json.dumps(champs, ensure_ascii=False), taches=json.dumps(taches, ensure_ascii=False), etat='en_cours', resultat='{}')
     ligne = desk.db.execute('SELECT job_id FROM missions_v567 WHERE id=?', (ident,)).fetchone()
-    desk.db.execute("UPDATE jobs SET status='pending',finished=NULL,result=NULL,not_before=NULL,blocked_by='' WHERE id=? AND status IN ('done','error','cancelled')", (ligne['job_id'],))
+    desk.db.execute("UPDATE jobs SET status='pending',finished=NULL,result=NULL,not_before=NULL,blocked_by='' WHERE id=? AND status IN ('done','error')", (ligne['job_id'],))
     desk.db.execute("UPDATE missions_v567 SET state='queued',exceptions='[]',updated=? WHERE id=?", (desk.now(), ident))
     desk.db.commit()
     return missions567.get(desk, ident, missions567.owner_for(owner), role == 'administrateur', prefix)

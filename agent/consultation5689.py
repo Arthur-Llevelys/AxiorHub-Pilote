@@ -550,7 +550,7 @@ def _relancer(desk, ident, acteur, role):
     if not row or not row['job_id']:
         missions567.control(desk, {'id': ident, 'action': 'resume'}, row['owner'] if row else 'cabinet', True)
     else:
-        desk.db.execute("UPDATE jobs SET status='pending',finished=NULL,result=NULL,not_before=NULL,blocked_by='' WHERE id=? AND status IN ('done','error','cancelled')", (row['job_id'],))
+        desk.db.execute("UPDATE jobs SET status='pending',finished=NULL,result=NULL,not_before=NULL,blocked_by='' WHERE id=? AND status IN ('done','error')", (row['job_id'],))
         desk.db.execute("UPDATE missions_v567 SET state='queued',exceptions='[]',updated=? WHERE id=?", (desk.now(), ident))
         desk.db.commit()
     return vue(desk, ident, acteur, role)

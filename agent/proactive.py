@@ -95,15 +95,18 @@ def monitor_matter(desk,args):
             client=DAV(desk.c['nextcloud'])
             if hasattr(client,'inventory_step'):
                 key='watch_scan_v300:'+mid
-                saved=desk.db.execute('SELECT value FROM settings WHERE key=?',(key,)).fetchone()
-                scan,complete=client.inventory_step(matter['path'],json.loads(saved[0]) if saved else None)
+                from . import charge5693   # 5.6.93 : Nextcloud : arborescence reprise du cache tant que l'ETag n'a pas changé (une requête)
+                etag_mode=charge5693.mode_etag(desk,client)
+                saved=None if etag_mode else desk.db.execute('SELECT value FROM settings WHERE key=?',(key,)).fetchone()
+                scan,complete=(charge5693.inventaire_step(desk,client,matter) if etag_mode
+                               else client.inventory_step(matter['path'],json.loads(saved[0]) if saved else None))
                 if complete:
                     current=scan['files'];desk.db.execute('DELETE FROM settings WHERE key=?',(key,))
                     for name in current:current[name]['error']=indexed.get(name,{}).get('error','')
                     desk.db.execute("UPDATE proactive_signals SET state='resolved' WHERE matter=? AND category='watch_unavailable'",(mid,))
                 else:
                     scanning=True
-                    desk.db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',(key,json.dumps(scan)))
+                    if not etag_mode:desk.db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',(key,json.dumps(scan)))
                 desk.db.commit()
             else:
                 inventory=client.inventory_large(matter['path'])

@@ -22,6 +22,8 @@ DOMAINES = {
     'capacites': 'ui_web5689',
     'benchmarks': 'qualif_web5689',       # banc d'essai et état des fonctions
     'fonctions': 'qualif_web5689',
+    'charge': 'charge_web5693',           # 5.6.93 : charge du serveur, fréquence de surveillance des documents
+    'registre': 'registre_web5693',       # 5.6.93 : collecte des journaux, suivi des fichiers, doublons suggérés
 }
 
 

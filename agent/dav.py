@@ -24,6 +24,10 @@ OC = '{http://owncloud.org/ns}'
 
 
 class DAV:
+    # 5.6.93 : vrai seulement pour Nextcloud, qui propage l'ETag d'un dossier à chaque changement de sa sous-arborescence ; un dossier local,
+    # un serveur WebDAV quelconque ou un stockage cloud ne le garantissent pas : leur surveillance relit tout, comme avant.
+    etag_propage = False
+
     def __new__(cls, cfg=None, *args, **kwargs):
         # 5.6.22 : un dossier de travail local (client Nextcloud de bureau, partage monté) prend la place de WebDAV pour les
         # fichiers, avec la même interface ; les agendas restent en CalDAV si l'accès WebDAV est aussi renseigné.
@@ -51,10 +55,25 @@ class DAV:
         self.http = nextcloud_http(cfg['url'], cfg)
         self.files = self.http.base + '/remote.php/dav/files/' + U.quote(cfg['username'], safe='')
         self.calendar_home = self.http.base + '/remote.php/dav/calendars/' + U.quote(cfg['username'], safe='') + '/'
+        self.etag_propage = True   # 5.6.93 : Nextcloud (voir charge5693)
 
     def request_xml(self, method, url, body, depth='1'):
+        from .charge5693 import compter
+        compter('stockage')   # 5.6.93 : chaque requête au stockage est comptée (page « Charge du serveur »)
         return xml_bytes(self.http.request(method, url, body.encode(),
                          {'Content-Type': 'application/xml; charset=utf-8', 'Depth': depth}))
+
+    def folder_etag(self, path):
+        """5.6.93 : ETag d'un dossier (PROPFIND de profondeur 0) ; '' si le serveur n'en donne pas. Une seule requête, aucun contenu lu."""
+        body = '<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getetag/></d:prop></d:propfind>'
+        root = self.request_xml('PROPFIND', self.file_url(path) + '/', body, depth='0')
+        for response in root.findall(D+'response'):
+            for ps in response.findall(D+'propstat'):
+                if ' 200 ' in ps.findtext(D+'status', ''):
+                    prop = ps.find(D+'prop')
+                    if prop.find('.//'+D+'collection') is None: raise Stop('chemin_est_un_fichier')
+                    return prop.findtext(D+'getetag', '') or ''
+        raise Stop('entree_dav_inaccessible')
 
     def file_url(self, path):
         path = clean_path(path)
@@ -93,7 +112,12 @@ class DAV:
                     raise
                 self.refused = getattr(self, 'refused', []) + [href[-120:]]
                 continue
-            if p == clean_path(path): continue
+            if p == clean_path(path):
+                # 5.6.93 : ETag du dossier lui-même, propagé par Nextcloud ; il sert à sauter une sous-arborescence inchangée (charge5693)
+                self.etags_dossiers = getattr(self, 'etags_dossiers', {})
+                if len(self.etags_dossiers) > 20000: self.etags_dossiers.clear()
+                self.etags_dossiers[p] = prop.findtext(D+'getetag', '') or ''
+                continue
             if not under(p, path): raise Stop('reponse_dav_hors_dossier')
             if any(s.startswith('.') or fold(s) in {'secrets','mots de passe'} for s in p.split('/') if s): continue
             out.append({'path': p, 'directory': prop.find('.//'+D+'collection') is not None,
@@ -215,6 +239,8 @@ class DAV:
 
     def download(self, item):
         if item.get('size', 0) > self.cfg.get('max_file_bytes', 15_000_000): raise Stop('piece_trop_volumineuse')
+        from .charge5693 import compter
+        compter('stockage'); compter('lecture_fichier')   # 5.6.93
         headers = {'If-Match': item['etag']} if item.get('etag') else {}
         return self.http.request('GET', self.file_url(item['path']), headers=headers,
                                  limit=self.cfg.get('max_file_bytes', 15_000_000))
@@ -749,6 +775,8 @@ class LocalFolder(DAV):
         if item.get('size', 0) > limit: raise Stop('piece_trop_volumineuse')
         _, target = self._fs(item['path'])
         if not target.is_file(): raise _local_missing(str(locals().get('target') or ''))
+        from .charge5693 import compter
+        compter('lecture_fichier')   # 5.6.93
         data, _ = self._read(target, limit)
         if item.get('etag') and item['etag'] != self._etag_bytes(data): raise Stop('http_412')   # F13 : comparaison sur les octets lus
         return data

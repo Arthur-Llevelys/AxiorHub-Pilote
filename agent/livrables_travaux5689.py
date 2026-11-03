@@ -4,6 +4,8 @@ La synchronisation est le seul moment où le registre lit le stockage hors d'une
 """
 import time
 
+from .common import Stop
+
 INTERVAL_MINUTES = 10
 
 
@@ -19,14 +21,24 @@ def schedule(desk, now_ts=None):
 
 
 def synchroniser(desk, client=None):
-    from . import livrables5689 as liv, pause5629
+    from . import livrables5689 as liv, pause5629, registre5693
     from .office440 import dav_client
-    liv.synchroniser(desk)
-    client = client or dav_client(desk)
 
     def pause():
         pause5629.checkpoint(desk)
-    return {'ok': True, 'reservations': liv.reconcilier(desk, client, pause=pause), 'fichiers': liv.synchroniser_fichiers(desk, client, pause=pause)}
+    pause()                                  # 5.6.93 (N05 T3) : un travail annulé ou mis en pause ne lit ni ne répare rien
+    registre5693.migrer(desk)                # 5.6.93 : réparation répétable, par petits lots, sans effet externe (collecte, contrôles, identités)
+    liv.synchroniser(desk, fond=True)        # 5.6.93 (N03) : l'arrière-plan lit la suite des journaux ; l'affichage n'en lit qu'une page
+    client = registre5693.compter(client or dav_client(desk))     # 5.6.93 : une seule borne de requêtes au stockage pour tout le passage
+    out = {'ok': True, 'reservations': liv.reconcilier(desk, client, pause=pause), 'fichiers': liv.synchroniser_fichiers(desk, client, pause=pause)}
+    try:      # 5.6.93 (N02, N10) : petits lots ; un incident ici ne remet pas en cause la synchronisation déjà faite
+        from .operations5693 import maintenance
+        out['operations'] = maintenance(desk, pause=pause)
+    except Stop:                 # arrêt ou pause du travail de synchronisation : comme partout ailleurs
+        raise
+    except Exception as ex:      # noqa: BLE001
+        out['operations'] = {'erreur': type(ex).__name__}
+    return out
 
 
 def perform(desk, kind, args):

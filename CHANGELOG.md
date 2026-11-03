@@ -3,6 +3,17 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.93 — Audit 5.6.90 : droits des travaux, collecte complète, exports fidèles, charge du serveur
+
+Corrections de l’audit du cabinet sur la 5.6.90 (N01 à N10) et réduction des passages automatiques.
+
+- **Droits revérifiés à chaque effet** : un export ou une modification IA demandé avant le retrait d’un droit ne lit plus, n’écrit plus et n’envoie plus rien au modèle. Aucun repli vers un administrateur.
+- **Une demande, un travail** : une file pleine ou une coupure ne laisse plus une demande sans travail ; une demande annulée reste annulée et l’état affiché suit le travail réel partout, Open WebUI compris.
+- **Registre des documents** : collecte par pages sans plafond (le 2 001e document n’est plus oublié), contrôles des fichiers absents espacés sans bloquer les autres, deux fichiers identiques gardent deux identités.
+- **Aperçu et export** : un courriel HTML contenant une balise meta s’affiche en entier ; l’export CSV conserve toute la feuille ou refuse clairement, une feuille au choix ou un ZIP de toutes, avec preuve de complétude.
+- **Charge du serveur** : les dossiers Nextcloud inchangés ne sont plus relus (ETag de dossier, relecture complète une fois par jour), indexation, découverte et relevé des correspondants incrémentaux, doublons de travaux fusionnés, plafond horaire par type. Nouvelle page Paramètres › Confort et maintenance › Charge du serveur, avec la fréquence de surveillance normale, économe ou minimale. La relève des courriels n’est jamais espacée.
+- **Banc d’essai** : les fonctions internes ne s’affichent plus « Déclarée » par erreur (5.6.92).
+
 ## 5.6.92 — Correctif : surveillance des documents espacée, bouton de pause visible
 
 Correctif urgent demandé par le cabinet.

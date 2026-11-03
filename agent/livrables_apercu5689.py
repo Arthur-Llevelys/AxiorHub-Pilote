@@ -26,7 +26,11 @@ TEXTS = ('.txt', '.md')
 EDITABLE_AI = ('.docx',)
 ALLOWED = {'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'ul', 'ol', 'li', 'blockquote', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'pre', 'code', 'hr', 'sub', 'sup', 'table', 'thead', 'tbody', 'tr', 'td', 'th'}
 VOID = {'br', 'hr'}
-DROP = {'script', 'style', 'head', 'title', 'iframe', 'object', 'embed', 'svg', 'math', 'template', 'form', 'input', 'button', 'select', 'textarea', 'link', 'meta', 'base', 'video', 'audio', 'source', 'applet', 'frame', 'frameset'}
+# 5.6.93 (audit 5.6.90, N04) : deux familles distinctes. Les éléments vides du HTML n'ont ni contenu ni fermeture : ignorés ou remplacés, ils ne changent jamais la profondeur
+# du contenu masqué (avant, un simple <meta> laissait le compteur positif et tout le corps disparaissait). Les éléments masqués voient tout leur contenu retiré.
+VIDES = {'area', 'base', 'basefont', 'bgsound', 'br', 'col', 'embed', 'frame', 'hr', 'image', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'}
+MASQUES = {'script', 'style', 'head', 'title', 'iframe', 'object', 'svg', 'math', 'template', 'button', 'select', 'textarea', 'video', 'audio', 'applet', 'frameset', 'noembed', 'noframes'}
+DROP = (VIDES - ALLOWED) | MASQUES | {'form'}   # jamais reproduites ; le contenu d'un <form> reste lisible, ses commandes non
 FRAME_CSP = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
 FRAME_CSS = ('body{font:15px/1.55 system-ui,sans-serif;margin:0;padding:18px;color:#1c1c1c;background:#fff;word-break:break-word}table{border-collapse:collapse;max-width:100%}td,th{border:1px solid #8a8a8a;padding:4px 8px;text-align:left}'
              '.a79-center{text-align:center}.a79-right{text-align:right}.a79-li{margin-left:1.2em}.a89-tete{border-bottom:1px solid #8a8a8a;margin-bottom:12px;padding-bottom:8px}.a89-bloque{font-style:italic}'
@@ -38,18 +42,37 @@ class _Assaini(HTMLParser):
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.out, self.stack, self.hidden, self.images, self.liens = [], [], 0, 0, 0
+        self.out, self.stack, self.images, self.liens, self.visibles = [], [], 0, 0, 0
         self.href = []
+        self.masque = []        # 5.6.93 : pile des éléments masqués ouverts, avec la profondeur visible à leur ouverture
+        self.corps = False      # le corps a commencé (balise <body> ou texte visible)
+
+    @property
+    def hidden(self):
+        return len(self.masque)
 
     def handle_starttag(self, tag, attrs):
-        if tag in DROP:
-            self.hidden += 1
+        if tag == 'body':       # un <head> resté ouvert se termine au début du corps, comme dans un navigateur
+            heads = [i for i, (t, _) in enumerate(self.masque) if t == 'head']
+            if heads:
+                del self.masque[heads[0]:]
+            self.corps = True
             return
-        if self.hidden:
+        if tag == 'head' and self.corps:    # un <head> tardif, après le début du corps, est ignoré comme dans un navigateur
             return
-        if tag == 'img':
-            self.images += 1
-            self.out.append('<span class="a89-bloque">[image non chargée]</span>')
+        if tag in VIDES:        # sans contenu ni fermeture : la profondeur masquée ne bouge pas
+            if self.masque:
+                return
+            if tag == 'img' or (tag == 'input' and str(dict(attrs).get('type') or '').lower() == 'image'):
+                self.images += 1
+                self.out.append('<span class="a89-bloque">[image non chargée]</span>')
+            elif tag in VOID:
+                self.out.append('<%s>' % tag)
+            return
+        if tag in MASQUES:
+            self.masque.append((tag, len(self.stack)))
+            return
+        if self.masque:
             return
         if tag == 'a':
             self.href.append(str(dict(attrs).get('href') or '').strip())
@@ -58,22 +81,36 @@ class _Assaini(HTMLParser):
             return
         keep = ''.join(' %s="%s"' % (k, e(v, quote=True)) for k, v in attrs if k in ('colspan', 'rowspan') and tag in ('td', 'th') and str(v).isdigit())
         self.out.append('<%s%s>' % (tag, keep))
-        if tag not in VOID:
-            self.stack.append(tag)
+        self.stack.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        """<br/>, <meta/>, <div/> : un élément vide ne reçoit jamais de fermeture ; un autre s'ouvre et se ferme aussitôt."""
+        self.handle_starttag(tag, attrs)
+        if tag not in VIDES and tag != 'body':
+            self.handle_endtag(tag)
+
+    def _lien(self):
+        href = self.href.pop() if self.href else ''
+        if href:
+            self.liens += 1
+            self.out.append(' <span class="a89-bloque">[lien : %s]</span>' % e(href[:200]))
 
     def handle_endtag(self, tag):
-        if tag in DROP:
-            self.hidden = max(0, self.hidden - 1)
+        if tag in VIDES:        # </br>, </meta> : rien à fermer
             return
-        if self.hidden:
-            return
+        if self.masque:
+            ouverts = [i for i, (t, _) in enumerate(self.masque) if t == tag]
+            if ouverts:
+                del self.masque[ouverts[-1]:]
+                return
+            # fermeture d'un élément visible ouvert avant la zone masquée : la balise masquée n'a jamais été fermée, la zone s'arrête avec son parent
+            if tag not in self.stack[:self.masque[0][1]]:
+                return
+            del self.masque[:]
         if tag == 'a':
-            href = self.href.pop() if self.href else ''
-            if href:
-                self.liens += 1
-                self.out.append(' <span class="a89-bloque">[lien : %s]</span>' % e(href[:200]))
+            self._lien()
             return
-        if tag in VOID or tag not in ALLOWED or tag not in self.stack:
+        if tag not in ALLOWED or tag not in self.stack:
             return
         while self.stack:
             top = self.stack.pop()
@@ -82,10 +119,14 @@ class _Assaini(HTMLParser):
                 break
 
     def handle_data(self, data):
-        if not self.hidden:
+        if not self.masque:
+            self.visibles += len(data.strip())
+            self.corps = self.corps or bool(data.strip())
             self.out.append(e(data))
 
     def resultat(self):
+        while self.href:        # lien jamais fermé : l'adresse reste affichée, inerte
+            self._lien()
         while self.stack:
             self.out.append('</%s>' % self.stack.pop())
         return ''.join(self.out)
@@ -160,24 +201,80 @@ def _adresses(value):
     return ', '.join(a or n for n, a in getaddresses([str(value or '')]))
 
 
-def _courriel_html(sujet, emetteur, destinataires, copie, corps_html, corps_texte, pieces):
+NOTE_VIDE = 'Message vide : ce courriel ne contient aucun texte.'
+NOTE_ILLISIBLE = 'Format non lisible : le contenu de ce message n’a pas pu être décodé. Le message d’origine est intact ; téléchargez-le pour l’ouvrir.'
+NOTE_ECHEC = 'Échec de l’assainissement : la mise en forme de ce message n’a pas pu être affichée sans risque. Le message d’origine est intact ; téléchargez-le pour l’ouvrir.'
+_BALISE = re.compile(r'<[^>]*>')
+_NEUTRALISE = re.compile(r'<span class="a89-bloque">.*?</span>')
+
+
+def _texte_source(html):
+    """Texte grossier du HTML d'origine, hors éléments masqués : sert seulement à reconnaître un aperçu vidé à tort, jamais à l'afficher."""
+    from html import unescape
+    text = str(html or '')
+    for tag in MASQUES:
+        text = re.sub(r'<%s\b.*?</%s\s*>' % (tag, tag), ' ', text, flags=re.I | re.S)
+    return unescape(_BALISE.sub(' ', text)).strip()
+
+
+def corps_courriel(corps_html, corps_texte, html_illisible=False):
+    """5.6.93 (N04) : corps affichable d'un courriel, recalculé à chaque ouverture ; le message d'origine n'est jamais réécrit.
+
+    {'html', 'note', 'etat'} avec etat : 'html' (aperçu mis en forme), 'texte' (corps texte), 'vide' (message réellement vide), 'illisible' (format non décodable), 'echec' (assainissement
+    en échec). Un aperçu HTML vide alors qu'un corps texte existe se replie sur ce texte, avec la mention « aperçu texte » ; jamais le HTML brut à la place."""
+    from .apercu5679 import text_html
+    texte = str(corps_texte or '')
+    secours = text_html(texte) if texte.strip() else ''
+    if html_illisible:
+        if secours:
+            return {'html': secours, 'note': 'Aperçu texte : la version mise en forme de ce message n’est pas lisible (encodage inconnu).', 'etat': 'illisible'}
+        return {'html': '', 'note': NOTE_ILLISIBLE, 'etat': 'illisible'}
+    if str(corps_html or '').strip():
+        try:
+            safe, images, liens = assainir(corps_html)
+        except Exception:   # noqa: BLE001 — parseur en échec, quelle qu'en soit la cause
+            if secours:
+                return {'html': secours, 'note': 'Aperçu texte : la mise en forme de ce message n’a pas pu être nettoyée sans risque.', 'etat': 'echec'}
+            return {'html': '', 'note': NOTE_ECHEC, 'etat': 'echec'}
+        note = (('%d image(s) distante(s) non chargée(s). ' % images if images else '') + ('%d lien(s) affiché(s) sans être actifs.' % liens if liens else '')).strip()
+        if _BALISE.sub('', _NEUTRALISE.sub('', safe)).strip():
+            return {'html': safe, 'note': note, 'etat': 'html'}
+        if secours:
+            return {'html': secours, 'note': ('Aperçu texte : la version mise en forme ne contient aucun texte affichable. ' + note).strip(), 'etat': 'texte'}
+        if images or liens:
+            return {'html': safe, 'note': note, 'etat': 'html'}
+        if _texte_source(corps_html):
+            return {'html': '', 'note': NOTE_ECHEC, 'etat': 'echec'}
+        return {'html': '<p class="a79-empty">%s</p>' % e(NOTE_VIDE), 'note': NOTE_VIDE, 'etat': 'vide'}
+    if secours:
+        return {'html': secours, 'note': '', 'etat': 'texte'}
+    return {'html': '<p class="a79-empty">%s</p>' % e(NOTE_VIDE), 'note': NOTE_VIDE, 'etat': 'vide'}
+
+
+def _courriel_html(sujet, emetteur, destinataires, copie, corps_html, corps_texte, pieces, html_illisible=False):
     head = '<div class="a89-tete"><p><strong>%s</strong></p><p>De : %s</p><p>À : %s</p>%s%s</div>' % (
         e(sujet or '(sans objet)'), e(emetteur or '—'), e(destinataires or '—'), ('<p>Copie : %s</p>' % e(copie)) if copie else '',
         ('<p>Pièces jointes : %s</p>' % e(', '.join(pieces))) if pieces else '')
-    if corps_html:
-        safe, images, liens = assainir(corps_html)
-        note = ('%d image(s) distante(s) non chargée(s). ' % images if images else '') + ('%d lien(s) affiché(s) sans être actifs.' % liens if liens else '')
-        return head + safe, note.strip()
-    from .apercu5679 import text_html
-    return head + text_html(corps_texte), ''
+    corps = corps_courriel(corps_html, corps_texte, html_illisible)
+    return head + corps['html'], corps['note']
+
+
+def _contenu(part):
+    """(texte, lisible) : une partie au jeu de caractères inconnu ou abîmée est signalée, pas confondue avec un message vide."""
+    if part is None:
+        return '', True
+    try:
+        return str(part.get_content() or ''), True
+    except (LookupError, UnicodeError, ValueError, KeyError, AssertionError):
+        return '', False
 
 
 def _eml(raw):
     msg = message_from_bytes(raw, policy=policy.default)
-    html_part = msg.get_body(preferencelist=('html',))
-    text_part = msg.get_body(preferencelist=('plain',))
-    return _courriel_html(str(msg.get('Subject', '')), _adresses(msg.get('From')), _adresses(msg.get('To')), _adresses(msg.get('Cc')), html_part.get_content() if html_part else '', text_part.get_content() if text_part else '',
-                          [str(p.get_filename() or 'pièce') for p in msg.iter_attachments()])
+    corps_html, html_ok = _contenu(msg.get_body(preferencelist=('html',)))
+    corps_texte, texte_ok = _contenu(msg.get_body(preferencelist=('plain',)))
+    return _courriel_html(str(msg.get('Subject', '')), _adresses(msg.get('From')), _adresses(msg.get('To')), _adresses(msg.get('Cc')), corps_html, corps_texte,
+                          [str(p.get_filename() or 'pièce') for p in msg.iter_attachments()], html_illisible=not html_ok or (not texte_ok and not corps_html))
 
 
 def _brouillon(desk, row):
@@ -246,8 +343,15 @@ def apercu(desk, row, prefix='', client=None, version_demandee=''):
         out['html'] = apercu5679.text_html(extract(raw, PurePosixPath(row['path']).name, {'max_document_chars': 400000}))
         out['note'] = 'Texte extrait du document : mise en forme non reproduite.'
     elif ext == '.xlsx':
-        out['html'] = apercu5679.xlsx_html(raw)
-        out['note'] = 'Lecture seule : valeurs enregistrées dans le classeur (200 premières lignes par feuille).'
+        from .export_tableur5693 import noms_feuilles
+        out['feuilles'] = noms_feuilles(raw)       # 5.6.93 (N09) : le choix de la feuille à exporter, lu sur la version affichée
+        try:
+            out['html'] = apercu5679.xlsx_html(raw)
+            out['note'] = 'Lecture seule : valeurs enregistrées dans le classeur (200 premières lignes et 40 premières colonnes par feuille). L’export CSV reprend toute la feuille.'
+        except Stop as ex:
+            if str(ex) != 'xml_refuse' or not out['feuilles']:
+                raise
+            out['note'] = 'Classeur trop volumineux pour l’aperçu : l’export CSV complet reste possible, feuille par feuille.'
     elif ext == '.csv':
         out['html'] = _table_csv(raw)
         out['note'] = 'Lecture seule : 200 premières lignes.'
@@ -296,8 +400,9 @@ def formats(row, caps):
         return out
     if ext == 'docx' and caps.get('convertisseur'):
         out.append('pdf')
-    if ext == 'xlsx':
-        out.append('csv')
+    if ext == 'xlsx':           # 5.6.93 (N09) : la portée fait partie du format ; l'ancien « csv » (première feuille, lecteur borné) n'est plus proposé
+        from .export_tableur5693 import Formats
+        return Formats(out + ['feuille1.csv', 'feuilles.zip'])
     return out
 
 
