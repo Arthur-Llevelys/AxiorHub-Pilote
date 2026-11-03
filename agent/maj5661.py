@@ -167,8 +167,8 @@ def pause_before_update(desk, version, keep=None, sleep=None):
     """5.6.81 : met l'IA en pause avant d'installer : les travaux en cours s'arrêtent proprement et repartiront à la reprise, au lieu d'être coupés par
     l'arrêt des services. Attente bornée. Une pause déjà décidée par l'avocat est conservée : la mise à jour ne la lèvera pas."""
     import time
-    from .arret5643 import DETERMINISTIC, global_paused, pause_all
-    if global_paused(desk):
+    from .arret5643 import DETERMINISTIC, manual_paused, pause_all
+    if manual_paused(desk):   # 5.6.89 : la seule pause de l'avocat : une plage programmée ne dispense pas d'arrêter les travaux avant d'installer
         return False
     pause_all(desk, True, 'mise-a-jour')
     desk.setting(UPDATE_PAUSE, {'version': str(version), 'le': _now().isoformat()})
@@ -186,11 +186,11 @@ def pause_before_update(desk, version, keep=None, sleep=None):
 def resume_after_update(desk, now=None):
     """5.6.81 : lève la pause posée par une mise à jour une fois la version installée ; si elle n'aboutit pas, au bout de 45 minutes : l'IA ne reste
     jamais en pause par oubli. Une pause levée à la main efface simplement le repère. Retourne True si l'IA a repris."""
-    from .arret5643 import global_paused, pause_all
+    from .arret5643 import manual_paused, pause_all
     mark = desk.settings(UPDATE_PAUSE, {})
     if not isinstance(mark, dict) or not mark.get('version'):
         return False
-    if not global_paused(desk):
+    if not manual_paused(desk):
         desk.setting(UPDATE_PAUSE, {})
         return False
     try:

@@ -44,7 +44,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css', 'v5682.css', 'v5683.css', 'v5684.css', 'v5686.css', 'v5688-securite.css', 'v5688-reversibilite.css', 'v5688-agenda.css', 'v5688-facturation.css', 'v5688-crm.css', 'v5688-cloud.css', 'v5688-societe.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css', 'v5682.css', 'v5683.css', 'v5684.css', 'v5686.css', 'v5688-securite.css', 'v5688-reversibilite.css', 'v5688-agenda.css', 'v5688-facturation.css', 'v5688-crm.css', 'v5688-cloud.css', 'v5688-societe.css', 'v5689-cabinet.css', 'v5689-livrables.css', 'v5689-dossier.css', 'v5689-carbon-jetons.css', 'v5689-carbon.css', 'v5689-ia.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -56,9 +56,20 @@ def _version():
     return __version__
 
 
-def set_context(cfg):
-    """Mémorise la configuration de la requête en cours (pour l'assistant : dossiers, dictée)."""
+def set_context(cfg, args=None, chemin=None):
+    """Mémorise la configuration de la requête en cours (pour l'assistant : dossiers, dictée), ses paramètres (5.6.89 : retour contextuel) et son chemin réel (le gabarit ne reçoit que l'entrée de menu active)."""
     _ctx.cfg = cfg
+    _ctx.args = args if args is not None else getattr(_ctx, 'args', {})
+    _ctx.chemin = chemin if chemin is not None else getattr(_ctx, 'chemin', '')
+    _ctx.drapeaux = None
+
+
+def drapeaux():
+    """5.6.89 : drapeaux de l'interface, lus une fois par requête."""
+    if getattr(_ctx, 'drapeaux', None) is None:
+        from .ui_drapeaux5689 import de_config
+        _ctx.drapeaux = de_config(context())
+    return _ctx.drapeaux
 
 
 def context():
@@ -82,9 +93,11 @@ def active_primary(path):
 
 
 def _links(prefix, entries, active):
+    from .ui_navigation5689 import icone_menu       # 5.6.89 : SVG locaux sous le thème ; sinon le signe d'origine
+    carbon = drapeaux().get('theme')
     return ''.join(
         '<a href="' + e(prefix + p) + '" aria-label="' + e(label) + '" title="' + e(label) + '"' + (' aria-current="page"' if p == active else '') +
-        '><span class="ws-nav-icon" aria-hidden="true">' + e(icon) + '</span><span class="ws-nav-label">' + e(label) + '</span></a>'
+        '><span class="ws-nav-icon" aria-hidden="true">' + (icone_menu(p, icon) if carbon else e(icon)) + '</span><span class="ws-nav-label">' + e(label) + '</span></a>'
         for p, icon, label in entries)
 
 
@@ -151,16 +164,21 @@ def tools_html(prefix, path):
     return ''
 
 
-def topbar_html(prefix, title, path=''):
+def topbar_html(prefix, title, path='', retour=True):
     from .fonctions5631 import for_path
     from .i18n5631 import menu_html, th
+    from .ui_navigation5689 import retour_html      # 5.6.89 (§ 14) : retour contextuel commun à tous les détails
     fid = for_path(path) if path else ''
     help_link = '<a class="l5631-help" href="' + e(prefix + '/guide-utilisation' + ('?fonction=' + fid if fid else '')) + '">' + th('top.help') + '</a>'
+    carbon = drapeaux().get('theme')                # 5.6.89 : le signe reste dans le code (v320.js l'écrit), masqué sous le thème ; le SVG local prend sa place
+    from .ui_components5689 import icone
+    menu_svg, theme_svg, cherche_svg = (icone('menu'), '<span hidden aria-hidden="true">☾</span>' + icone('sombre', classe='ui89-si-clair') + icone('clair', classe='ui89-si-sombre'), icone('recherche', taille=16) + ' ') if carbon else ('', '', '')
     return ('<header class="ws-topbar"><div class="ws-topbar-leading"><button type="button" class="ws-icon-button" id="ws-sidebar-toggle" '
-            'aria-controls="ws-sidebar" aria-expanded="true" aria-label="' + th('top.fold') + '" title="' + th('top.fold') + '"><span aria-hidden="true">☰</span></button>'
-            '<span>' + th('top.workspace') + ' / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
-            'id="ws-theme-toggle" aria-label="' + th('top.dark') + '" title="' + th('top.dark') + '"><span aria-hidden="true">☾</span></button>'
-            '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '" data-m82-quick title="Ctrl+K" aria-keyshortcuts="Control+K">⌕ ' + th('top.search') + '</a>' +
+            'aria-controls="ws-sidebar" aria-expanded="true" aria-label="' + th('top.fold') + '" title="' + th('top.fold') + '">' + (menu_svg or '<span aria-hidden="true">☰</span>') + '</button>' +
+            (retour_html(prefix, path, getattr(_ctx, 'args', {})) if retour else '') +
+            '<span class="ws-ariane">' + th('top.workspace') + ' / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
+            'id="ws-theme-toggle" aria-label="' + th('top.dark') + '" title="' + th('top.dark') + '">' + (theme_svg or '<span aria-hidden="true">☾</span>') + '</button>'
+            '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '" data-m82-quick title="Ctrl+K" aria-keyshortcuts="Control+K">' + (cherche_svg or '⌕ ') + th('top.search') + '</a>' +
             help_link + menu_html(prefix) + '</div></header>')
 
 
@@ -192,7 +210,7 @@ def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='
     audio = bool((cfg.get('audio') or {}).get('enabled'))
     from .navigation5643 import production_tabs_html   # 5.6.43 (§ 20) : onglets de Produire sur chacune de ses pages
     body = production_tabs_html(prefix, path) + body
-    html = (head_html(title, prefix, css, head) + toast + sidebar_html(prefix, path) + '<main id="ws-main">' + topbar_html(prefix, title, path) + body + '</main>' + scripts +
+    html = (head_html(title, prefix, css, head) + toast + sidebar_html(prefix, path) + '<main id="ws-main">' + topbar_html(prefix, title, path, 'data-ui89-retour' not in body) + body + '</main>' + scripts +
             _messages_json() + '<script defer src="' + e(prefix) + '/static/v5631.js"></script><script defer src="' + e(prefix) + '/static/v5632.js"></script><script defer src="' + e(prefix) + '/static/v5634.js"></script><script defer src="' + e(prefix) + '/static/v5636.js"></script><script defer src="' + e(prefix) + '/static/v5670.js"></script><script defer src="' + e(prefix) + '/static/v5671.js"></script><script defer src="' + e(prefix) + '/static/v5673.js"></script><script defer src="' + e(prefix) + '/static/v5674.js"></script></body></html>')
     from .ui_helpers import enhance
     return enhance(html, prefix, csrf, audio, matters, path, selected_matter)

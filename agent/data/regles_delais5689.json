@@ -1,0 +1,186 @@
+{
+  "version": "2026-11-02",
+  "avertissement": "Textes relus le 2 novembre 2026. Une relecture du texte n'est pas une validation : chaque règle reste à valider par l'avocat, pour son périmètre, avant qu'une date soit tenue pour certaine.",
+  "statut": "a_valider_avocat",
+  "verification": {
+    "date": "2026-11-02",
+    "moyen": "Copie de Légifrance interrogée par article (identifiants LEGIARTI), base à jour au 1er novembre 2026",
+    "limite": "Lecture des textes seule : ni la jurisprudence, ni les régimes spéciaux n'ont été examinés."
+  },
+  "perimetre_commun": "Procédure civile de droit commun devant une juridiction siégeant en France métropolitaine. Tout autre cas donne « À vérifier ».",
+  "evenements": {
+    "signification_jugement": "Signification ou notification du jugement",
+    "signification_ordonnance_refere": "Signification de l’ordonnance de référé",
+    "signification_decision_cassation": "Notification de la décision attaquée",
+    "declaration_appel": "Déclaration d’appel",
+    "conclusions_appelant": "Notification des conclusions de l’appelant",
+    "avis_greffe_circuit": "Réception de l’avis du greffe invitant à signifier la déclaration d’appel"
+  },
+  "conditions": {
+    "regime_commun": {
+      "question": "La procédure relève-t-elle du droit commun, sans texte spécial fixant un autre délai ou un autre point de départ ?",
+      "choix": {"oui": "Oui", "non": "Non, un texte spécial s’applique"},
+      "admis": ["oui"]
+    },
+    "recours_ouvert": {
+      "question": "La décision est-elle susceptible de ce recours (premier ressort, voie ouverte) ?",
+      "choix": {"oui": "Oui", "non": "Non"},
+      "admis": ["oui"]
+    },
+    "siege_juridiction": {
+      "question": "Où siège la juridiction saisie ?",
+      "choix": {"metropole": "France métropolitaine, hors Alsace-Moselle", "alsace_moselle": "Bas-Rhin, Haut-Rhin ou Moselle", "outre_mer": "Outre-mer"},
+      "admis": ["metropole", "alsace_moselle"],
+      "source": "CPC art. 643 et 644"
+    },
+    "lieu_partie": {
+      "question": "Où demeure la partie qui doit agir ?",
+      "choix": {"metropole": "France métropolitaine", "outre_mer": "Outre-mer (liste de l’article 643)", "etranger": "Étranger"},
+      "admis": ["metropole", "outre_mer", "etranger"],
+      "source": "CPC art. 643"
+    },
+    "lieu_partie_915_4": {
+      "question": "Où demeure la partie qui doit conclure ou signifier ?",
+      "choix": {"metropole": "France métropolitaine", "outre_mer": "Outre-mer", "etranger": "Étranger"},
+      "admis": ["metropole"],
+      "source": "CPC art. 915-4"
+    },
+    "matiere": {
+      "question": "La matière est-elle contentieuse ou gracieuse ?",
+      "choix": {"contentieuse": "Contentieuse", "gracieuse": "Gracieuse"},
+      "admis": ["contentieuse"],
+      "source": "CPC art. 538"
+    },
+    "mentions_680": {
+      "question": "L’acte de notification indique-t-il de manière très apparente le délai de recours et ses modalités ?",
+      "choix": {"oui": "Oui", "non": "Non ou douteux"},
+      "admis": ["oui"],
+      "source": "CPC art. 680"
+    },
+    "aide_juridictionnelle": {
+      "question": "Une demande d’aide juridictionnelle a-t-elle été déposée pour ce recours ou ces conclusions ?",
+      "choix": {"non": "Non", "oui": "Oui"},
+      "admis": ["non"],
+      "source": "Décret n° 2020-1717, art. 43"
+    },
+    "circuit": {
+      "question": "Quel est le circuit de l’appel ?",
+      "choix": {"mise_en_etat": "Procédure avec mise en état", "bref_delai": "Bref délai (art. 906 et suivants)", "autre": "Autre"},
+      "admis": ["mise_en_etat"],
+      "source": "CPC art. 906-2 et 908"
+    },
+    "interruption_915_3": {
+      "question": "Une médiation, une conciliation, une convention de procédure participative ou une audience de règlement amiable a-t-elle interrompu le délai ?",
+      "choix": {"non": "Non", "oui": "Oui"},
+      "admis": ["non"],
+      "source": "CPC art. 915-3"
+    },
+    "date_declaration_appel": {
+      "question": "Quelle est la date de la déclaration d’appel ? (le régime en dépend)",
+      "type": "date",
+      "source": "Décret n° 2023-1391, art. 16"
+    }
+  },
+  "regles": [
+    {
+      "id": "appel_contentieux",
+      "version": 1,
+      "libelle": "Appel d’un jugement en matière contentieuse",
+      "base": "appel_jugement_contentieux",
+      "evenement": "signification_jugement",
+      "perimetre": "Jugement rendu en matière contentieuse, procédure civile de droit commun, juridiction siégeant en métropole.",
+      "conditions": ["regime_commun", "recours_ouvert", "siege_juridiction", "lieu_partie", "matiere", "mentions_680", "aide_juridictionnelle"],
+      "reserves": ["Contrôler la régularité de la notification et son destinataire.", "Une pluralité de parties ou de notifications se vérifie à la main."],
+      "statut": "a_valider_avocat",
+      "sources": [
+        {"reference": "CPC art. 538", "legiarti": "LEGIARTI000006410858", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006410858", "texte": "Le délai de recours par une voie ordinaire est d'un mois en matière contentieuse ; il est de quinze jours en matière gracieuse."},
+        {"reference": "CPC art. 528", "legiarti": "LEGIARTI000006410842", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006410842", "texte": "Le délai à l'expiration duquel un recours ne peut plus être exercé court à compter de la notification du jugement, à moins que ce délai n'ait commencé à courir, en vertu de la loi, dès la date du jugement."},
+        {"reference": "CPC art. 643", "legiarti": "LEGIARTI000034747123", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000034747123", "texte": "Lorsque la demande est portée devant une juridiction qui a son siège en France métropolitaine, les délais de comparution, d'appel, d'opposition, de tierce opposition dans l'hypothèse prévue à l'article 586 alinéa 3, de recours en révision et de pourvoi en cassation sont augmentés de : 1. Un mois pour les personnes qui demeurent en Guadeloupe, en Guyane, à la Martinique, à La Réunion, à Mayotte, à Saint-Barthélemy, à Saint-Martin, à Saint-Pierre-et-Miquelon, en Polynésie française, dans les îles Wallis et Futuna, en Nouvelle-Calédonie et dans les Terres australes et antarctiques françaises ; 2. Deux mois pour celles qui demeurent à l'étranger."}
+      ]
+    },
+    {
+      "id": "appel_refere",
+      "version": 1,
+      "libelle": "Appel d’une ordonnance de référé",
+      "base": "appel_ordonnance_refere",
+      "evenement": "signification_ordonnance_refere",
+      "perimetre": "Ordonnance de référé susceptible d’appel, procédure civile de droit commun, juridiction siégeant en métropole.",
+      "conditions": ["regime_commun", "recours_ouvert", "siege_juridiction", "lieu_partie", "mentions_680", "aide_juridictionnelle"],
+      "reserves": ["Contrôler la régularité de la notification et son destinataire."],
+      "statut": "a_valider_avocat",
+      "sources": [
+        {"reference": "CPC art. 490", "legiarti": "LEGIARTI000006410760", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006410760", "texte": "Le délai d'appel ou d'opposition est de quinze jours."},
+        {"reference": "CPC art. 528", "legiarti": "LEGIARTI000006410842", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006410842", "texte": "Le délai à l'expiration duquel un recours ne peut plus être exercé court à compter de la notification du jugement, à moins que ce délai n'ait commencé à courir, en vertu de la loi, dès la date du jugement."}
+      ]
+    },
+    {
+      "id": "pourvoi_civil",
+      "version": 1,
+      "libelle": "Pourvoi en cassation en matière civile",
+      "base": "pourvoi_cassation",
+      "evenement": "signification_decision_cassation",
+      "perimetre": "Pourvoi en matière civile sans disposition contraire, juridiction siégeant en métropole.",
+      "conditions": ["regime_commun", "recours_ouvert", "siege_juridiction", "lieu_partie", "mentions_680"],
+      "reserves": ["L’article 612 réserve les dispositions contraires : les vérifier.", "L’effet d’une demande d’aide juridictionnelle sur ce délai n’est pas couvert : à contrôler s’il y a lieu."],
+      "statut": "a_valider_avocat",
+      "sources": [
+        {"reference": "CPC art. 612", "legiarti": "LEGIARTI000006410964", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006410964", "texte": "Le délai de pourvoi en cassation est de deux mois, sauf disposition contraire."},
+        {"reference": "CPC art. 528", "legiarti": "LEGIARTI000006410842", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006410842", "texte": "Le délai à l'expiration duquel un recours ne peut plus être exercé court à compter de la notification du jugement, à moins que ce délai n'ait commencé à courir, en vertu de la loi, dès la date du jugement."}
+      ]
+    },
+    {
+      "id": "conclusions_appelant_908",
+      "version": 1,
+      "libelle": "Conclusions de l’appelant, procédure avec mise en état",
+      "base": "conclusions_appelant",
+      "evenement": "declaration_appel",
+      "perimetre": "Instance d’appel introduite à compter du 1er septembre 2024, procédure avec mise en état, partie demeurant en métropole.",
+      "conditions": ["regime_commun", "siege_juridiction", "lieu_partie_915_4", "circuit", "interruption_915_3", "aide_juridictionnelle"],
+      "reserves": ["Le président peut modifier certains délais : vérifier le dossier de la cour."],
+      "statut": "a_valider_avocat",
+      "sources": [
+        {"reference": "CPC art. 908", "legiarti": "LEGIARTI000048869023", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048869023", "texte": "A peine de caducité de la déclaration d'appel, relevée d'office, l'appelant dispose d'un délai de trois mois à compter de la déclaration d'appel pour remettre ses conclusions au greffe."},
+        {"reference": "CPC art. 915-4", "legiarti": "LEGIARTI000048852852", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048852852", "texte": "Les délais prévus au premier alinéa de l'article 906-1, à l'article 906-2, au troisième alinéa de l'article 902 et à l'article 908 sont augmentés"},
+        {"reference": "CPC art. 915-3", "legiarti": "LEGIARTI000051928840", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000051928840", "texte": "Les délais impartis pour conclure et former appel incident ou provoqué mentionnés aux articles 906-2 et 908 à 910 sont interrompus"}
+      ]
+    },
+    {
+      "id": "conclusions_intime_909",
+      "version": 1,
+      "libelle": "Conclusions de l’intimé, procédure avec mise en état",
+      "base": "conclusions_intime",
+      "evenement": "conclusions_appelant",
+      "perimetre": "Instance d’appel introduite à compter du 1er septembre 2024, procédure avec mise en état, partie demeurant en métropole.",
+      "conditions": ["regime_commun", "siege_juridiction", "lieu_partie_915_4", "circuit", "interruption_915_3", "aide_juridictionnelle", "date_declaration_appel"],
+      "reserves": ["Le délai court de la notification faite à l’intimé : contrôler sa date et sa forme."],
+      "statut": "a_valider_avocat",
+      "sources": [
+        {"reference": "CPC art. 909", "legiarti": "LEGIARTI000048868939", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048868939", "texte": "L'intimé dispose, à peine d'irrecevabilité relevée d'office, d'un délai de trois mois à compter de la notification qui lui est faite des conclusions de l'appelant prévues à l'article 908 pour remettre ses conclusions au greffe et former, le cas échéant, appel incident ou appel provoqué."},
+        {"reference": "CPC art. 915-4", "legiarti": "LEGIARTI000048852852", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048852852", "texte": "Les délais prescrits aux intimés et intervenants forcés par les articles 906-2,909 et 910 sont augmentés dans les mêmes conditions et selon les mêmes modalités."},
+        {"reference": "CPC art. 915-3", "legiarti": "LEGIARTI000051928840", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000051928840", "texte": "Les délais impartis pour conclure et former appel incident ou provoqué mentionnés aux articles 906-2 et 908 à 910 sont interrompus"}
+      ]
+    },
+    {
+      "id": "signification_da_902",
+      "version": 1,
+      "libelle": "Signification de la déclaration d’appel après avis du greffe",
+      "base": "signification_da_appelant",
+      "evenement": "avis_greffe_circuit",
+      "perimetre": "Instance d’appel introduite à compter du 1er septembre 2024, hors bref délai, partie demeurant en métropole. La date à saisir est celle de la réception de l’avis, pas celle de son envoi.",
+      "conditions": ["regime_commun", "siege_juridiction", "lieu_partie_915_4", "circuit", "date_declaration_appel"],
+      "reserves": ["Si l’intimé constitue avocat avant la signification, il est procédé par notification à son avocat."],
+      "statut": "a_valider_avocat",
+      "sources": [
+        {"reference": "CPC art. 902", "legiarti": "LEGIARTI000048868957", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048868957", "texte": "A peine de caducité de la déclaration d'appel relevée d'office, la signification doit être effectuée dans le mois suivant la réception de cet avis."},
+        {"reference": "CPC art. 915-4", "legiarti": "LEGIARTI000048852852", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048852852", "texte": "Les délais prévus au premier alinéa de l'article 906-1, à l'article 906-2, au troisième alinéa de l'article 902 et à l'article 908 sont augmentés"}
+      ]
+    }
+  ],
+  "calcul": {
+    "sources": [
+      {"reference": "CPC art. 640", "legiarti": "LEGIARTI000006411001", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006411001", "texte": "Lorsqu'un acte ou une formalité doit être accompli avant l'expiration d'un délai, celui-ci a pour origine la date de l'acte, de l'événement, de la décision ou de la notification qui le fait courir."},
+      {"reference": "CPC art. 641", "legiarti": "LEGIARTI000006411002", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006411002", "texte": "Lorsqu'un délai est exprimé en mois ou en années, ce délai expire le jour du dernier mois ou de la dernière année qui porte le même quantième que le jour de l'acte, de l'événement, de la décision ou de la notification qui fait courir le délai. A défaut d'un quantième identique, le délai expire le dernier jour du mois."},
+      {"reference": "CPC art. 642", "legiarti": "LEGIARTI000006411003", "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006411003", "texte": "Le délai qui expirerait normalement un samedi, un dimanche ou un jour férié ou chômé est prorogé jusqu'au premier jour ouvrable suivant."}
+    ]
+  }
+}

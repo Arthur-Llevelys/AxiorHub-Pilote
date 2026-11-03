@@ -1,0 +1,8 @@
+{
+  "accueil": "home", "tableau": "dashboard", "recherche": "search", "courriel": "email", "discussion": "chat", "video": "video", "dossier": "folder", "document": "document",
+  "document_taches": "document--tasks", "agenda": "calendar", "tache": "task", "facture": "receipt", "montant": "currency", "societe": "enterprise", "partenariat": "partnership",
+  "contrat": "license--draft", "ia": "ai-label", "ia_resultats": "ai-recommend", "ok": "checkmark", "alerte": "warning", "retour": "arrow--left", "modifier": "edit",
+  "telecharger": "download", "pause": "pause", "stop": "stop", "lancer": "play", "reglages": "settings", "menu": "menu", "fermer": "close", "plus": "overflow-menu--horizontal",
+  "ajouter": "add", "info": "information", "suite": "chevron--right", "personne": "user", "clair": "light", "sombre": "asleep", "actualiser": "renew", "heure": "time",
+  "erreur": "error--filled", "valide": "checkmark--filled", "vigilance": "warning--alt--filled", "aide": "help", "fonctions": "apps", "routine": "repeat", "imprimer": "printer", "voir": "view"
+}

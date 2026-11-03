@@ -28,7 +28,8 @@ STEPS = (('indexation', 'Indexation des pièces et courriels'), ('faits', 'Reche
          ('chronologie', 'Chronologie du dossier'), ('synthese', 'Synthèse du dossier (modèle)'))
 RUBRIQUES = (('synthese', 'Synthèse'), ('parties', 'Parties'), ('faits', 'Faits et procédure'), ('pretentions', 'Arguments des parties'),
              ('chronologie', 'Chronologie'), ('procedure', 'Juridiction et échéances'), ('pieces', 'Pièces'), ('textes', 'Textes et jurisprudence'),
-             ('ecritures', 'Écritures et projets'), ('simulation', 'Simulation'), ('decisions', 'Décisions'), ('actions', 'Actions'))
+             ('ecritures', 'Écritures et projets'), ('simulation', 'Simulation'), ('decisions', 'Décisions'), ('actions', 'Actions'),
+             ('structure', 'Dossier structuré'), ('conseil', 'Conseil'))   # 5.6.89 : mémoire typée, mission de consultation, revue de contrat, accords
 STATE_LABELS = {'jamais': 'jamais lancée', 'en_cours': 'en cours', 'ok': 'terminée', 'erreur': 'en erreur', 'ignoree': 'ignorée', 'a_jour': 'à jour',
                 'perimee': 'périmée (sources ou faits modifiés depuis)', 'partielle': 'partielle'}
 
@@ -59,6 +60,11 @@ def source_revision(desk, mid):
         from .legal_memory import ensure_schema as lm_schema
         lm_schema(desk)
         parts.append(str(tuple(desk.db.execute('SELECT COUNT(*),MAX(updated),SUM(revision) FROM legal_memory_records WHERE matter=?', (mid,)).fetchone())))
+    except Exception:
+        pass
+    try:   # 5.6.89 : une correction, une version ou un retrait de source rend la synthèse périmée
+        parts.append(str(tuple(desk.db.execute('SELECT COUNT(*),MAX(updated),SUM(revision) FROM case_assertions5689 WHERE matter=?', (mid,)).fetchone())))
+        parts.append(str(tuple(desk.db.execute("SELECT COUNT(*),SUM(etat='courante') FROM source_versions5689 WHERE matter=?", (mid,)).fetchone())))
     except Exception:
         pass
     return hashlib.sha256('|'.join(parts).encode()).hexdigest()[:16]
@@ -242,6 +248,15 @@ def rubrique(desk, mid, key):
     st = state(desk, mid)
     busy = st['overall'] == 'en_cours'
     out = {'key': key, 'label': dict(RUBRIQUES).get(key, key), 'items': [], 'state': 'vide', 'note': '', 'analysis': st}
+    if key in ('structure', 'conseil'):   # 5.6.89 : le contrôle de la requête a déjà écarté un dossier réservé ; il est refait ici sur le périmètre de la requête
+        from .membres5650 import viewer_hidden
+        if str(mid) in (viewer_hidden() or frozenset()):
+            raise Stop('dossier_reserve')
+        if key == 'structure':
+            from . import assertions5689
+            out['projection'] = assertions5689.projection(desk, mid, 'cabinet', 'administrateur')
+        out['state'] = 'present'
+        return out
     records = _records(desk, mid) if key in ('parties', 'faits', 'pretentions', 'decisions', 'procedure', 'synthese') else []
     active = [r for r in records if r['status'] in ('pinned', 'validated', 'suggested')]
     refused = [r for r in records if r['status'] == 'disputed']
@@ -454,6 +469,13 @@ def _add_task5688(desk, prefix, mid):
 def render(desk, prefix, mid, key, data):
     """HTML d'une rubrique (hors synthèse et faits, rendues par web460 avec les sections historiques)."""
     empty = lambda text: '<p class="fc-empty">%s</p>' % e(text)
+    if key == 'structure':
+        from . import assertions5689
+        return assertions5689.rendu_html(desk, prefix, mid, data['projection'])
+    if key == 'conseil':
+        from . import consultation5689
+        from .membres5650 import current_author, viewer_role
+        return consultation5689.rubrique_html(desk, prefix, mid, current_author() or 'cabinet', viewer_role())
     head = ''
     if data['state'] == 'en_cours':
         head = '<p class="fc-muted">Analyse en cours : les données ci-dessous sont celles de la dernière analyse terminée.</p>'

@@ -71,6 +71,8 @@ def check_authority(desk, args):
         raise Stop('mission_annulee')
     if row['state'] == 'paused' or row['job_status'] in ('cancelled','cancel_requested'):
         raise Stop('preparation_suspendue')
+    from .connector_readiness5689 import garde_mission
+    garde_mission(desk, row['kind'])   # 5.6.89 : capacité révoquée ou refusée : seules les missions qui en dépendent s'arrêtent, relu avant chaque effet
     if row['owner'] == 'cabinet':
         return                         # installation avec authentification serveur
     root = auth_root()
@@ -164,10 +166,21 @@ def _context(desk, data, matter, owner='cabinet'):
     page = str(raw.get('page') or '/')
     if not re.fullmatch(r'/[A-Za-z0-9/_-]{0,160}', page):
         page = '/'
+    extra = {}
+    if raw.get('ui') is not None:   # 5.6.89 : contexte du panneau, revalidé sur le serveur : il n'élargit rien, le dossier reste celui de la mission
+        from .ui_ai5689 import pour_mission
+        vu = pour_mission(desk, raw['ui'], matter['id'] if matter else '', owner)
+        for path in vu['documents']:
+            path = clean_path(path)
+            if not matter or not under(path, matter['path']):
+                raise Stop('source_mission_autre_dossier')
+            if path not in paths and len(paths) < 20:
+                paths.append(path)
+        extra = {'fonction': vu['fonction_libelle'], 'objets': vu['objets']}
     return {'page': page, 'selected_documents': paths, 'mail_key': key,
             'attachments': list(dict.fromkeys(str(a) for a in attachments)),
             'parent_mission':parent_id, 'active_mission':active, 'recent_results':recent, 'thread_id':thread_id,
-            'due': str(data.get('due') or '')[:32], 'channel': 'voice' if data.get('channel') == 'voice' else 'text'}
+            'due': str(data.get('due') or '')[:32], 'channel': 'voice' if data.get('channel') == 'voice' else 'text', **extra}
 
 
 def create(desk, data, owner='cabinet'):
@@ -217,6 +230,12 @@ def create(desk, data, owner='cabinet'):
                 'plan': {'deliverable': 'Facturation Invoice Ninja', 'steps': ['Vérifier société, client facturé et tarif', 'Créer ou rattacher le projet', 'Préparer le devis en brouillon (aperçu)', 'Relire dans Invoice Ninja'], 'restrictions': ['Aucun envoi', 'Aucune conversion', 'Aucun paiement']},
                 'result': {'message': 'Parcours de facturation : ' + ('données manquantes à compléter.' if info['missing'] else 'tout est prêt.'), 'open_url': '/honoraires?' + urlencode({'matter': chosen}), 'missing': info['missing']}, 'context': ctx, 'job': None}
     kind = {'question': 'question', 'analysis': 'question', 'document': 'document', 'mail': 'mail'}[intent['intent']]
+    conseil = data.get('conseil5689') if isinstance(data.get('conseil5689'), dict) else None   # 5.6.89 : consultation ou revue de contrat depuis le dossier (contrat de mission dans consultation5689)
+    if conseil:
+        kind = 'conseil'
+    assistance = data.get('assistance5689') if isinstance(data.get('assistance5689'), dict) else None   # 5.6.89 : action du panneau IA (posé par ui_ai5689.creer, retiré des demandes du navigateur)
+    if assistance:
+        kind = 'assistance'
     if kind == 'document' and not chosen and not exceptions:
         exceptions.append({'code': 'dossier_requis', 'message': 'Choisissez le dossier où préparer ce document.',
                            'candidates': [{'id': m['id'], 'label': matter_display(m)} for m in list(matters.values())[:100]]})
@@ -234,6 +253,10 @@ def create(desk, data, owner='cabinet'):
     if autonomy not in ('prepare','suggest'):
         raise Stop('autonomie_mission_invalide')
     plan['autonomy']=autonomy
+    if conseil:
+        plan.update(deliverable=conseil['livrable'], steps=conseil['etapes'], document_kind='')
+    if assistance:
+        plan.update(deliverable=assistance['livrable'], steps=assistance['etapes'], document_kind='')
     canonical = json.dumps({'instruction': text, 'matter': chosen, 'kind': kind, 'context': ctx,'autonomy':autonomy}, ensure_ascii=False, sort_keys=True)
     fp = hashlib.sha256(canonical.encode()).hexdigest()
     ident, stamp = secrets.token_hex(16), desk.now()
@@ -261,7 +284,13 @@ def create(desk, data, owner='cabinet'):
 def _launch(desk, row):
     ctx, plan = json.loads(row['context']), json.loads(row['plan'])
     try:
-        if row['kind'] == 'mail' and not ctx.get('mail_key'):
+        if row['kind'] == 'conseil':
+            job = desk.enqueue('mission_conseil5689', {'mission_id': row['id'], 'matter': row['matter'], 'owner': row['owner']}, priority=0)
+            ref = 'conseil:' + row['id']
+        elif row['kind'] == 'assistance':
+            job = desk.enqueue('assistance5689', {'mission_id': row['id'], 'matter': row['matter'], 'owner': row['owner']}, priority=0)
+            ref = 'assistance:' + row['id']
+        elif row['kind'] == 'mail' and not ctx.get('mail_key'):
             # 5.6.13 : courriel demandé sans courriel sélectionné → brouillon neuf dans Drafts (jamais un Word par défaut)
             job = desk.enqueue('maildraft5613', {'instruction': row['instruction'], 'matter': row['matter'], 'mission_id': row['id'],
                                'attachments': ctx.get('attachments', []), 'selected_documents': ctx.get('selected_documents', [])}, priority=0)
@@ -278,7 +307,7 @@ def _launch(desk, row):
         else:
             from .integration import submit_question
             out = submit_question(desk, row['instruction'], row['matter'], ctx['mail_key'], attachment_ids=ctx['attachments'],
-                                  thread_id=ctx.get('thread_id',''), page_context={k:ctx.get(k) for k in ('page','selected_documents','active_mission','recent_results')}, mission_id=row['id'],
+                                  thread_id=ctx.get('thread_id',''), page_context={k:ctx.get(k) for k in ('page','selected_documents','active_mission','recent_results','fonction','objets')}, mission_id=row['id'],
                                   purpose='voice_conversation' if ctx.get('channel')=='voice' else 'assistant', auteur=row['owner'])
             job, ref = out['job_id'], 'ask:' + out['thread_id']
         desk.db.execute("UPDATE missions_v567 SET state='queued',job_id=?,ref=?,updated=? WHERE id=?", (job, ref, desk.now(), row['id']))
@@ -343,6 +372,12 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                         proof = json.loads(doc['result'] or '{}')
                         if not row['exceptions']:
                             row['exceptions'] = [{'code': 'dossier_ambigu', 'message': 'Quel dossier concerne cette demande ?', 'candidates': proof.get('candidates', [])}]
+                elif row['kind'] == 'conseil':
+                    from .consultation5689 import resultat_mission
+                    state, row['result'] = resultat_mission(desk, ident, prefix)
+                elif row['kind'] == 'assistance':
+                    from .ui_ai5689 import resultat_mission as resultat_assistance
+                    state, row['result'] = resultat_assistance(desk, ident, prefix)
                 elif row['kind'] == 'question' and row['ref'].startswith('ask:'):
                     answer = desk.db.execute("SELECT content,sources FROM assistant_messages WHERE thread_id=? AND role='assistant' ORDER BY id DESC LIMIT 1", (row['ref'][4:],)).fetchone()
                     if answer:
@@ -354,6 +389,8 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                           'error': result.get('erreur', '') if job['status'] == 'error' else ''}
             from .routage5682 import for_job
             row['choix_ia'] = for_job(desk.c['state_dir'], job['id'])   # 5.6.82 : modèle réel, effort, raison courte, consommation
+            from .data_policy5689 import synthese_mission
+            row['synthese_donnees'] = synthese_mission(desk, job['id'])   # 5.6.89 : Données utilisées, Services destinataires, Limites
             if state != row['state']:
                 desk.db.execute('UPDATE missions_v567 SET state=?,updated=? WHERE id=?', (state, desk.now(), ident))
                 desk.db.commit()
@@ -374,6 +411,10 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
     for x in row.get('exceptions') or []:
         if isinstance(x, dict) and x.get('message') and ' ' not in str(x['message']).strip():
             x['message'] = _reason(x['message'])
+    from .pilote5613 import result_lines
+    row['lignes'] = result_lines(row)   # 5.6.89 (B11) : résultat demandé, résultat préparé, dépôt vérifié
+    from .ui_ai5689 import pour_carte
+    row['resultat5689'] = pour_carte(desk, row)   # 5.6.89 : même contrat de résultat pour toute mission
     return row
 
 

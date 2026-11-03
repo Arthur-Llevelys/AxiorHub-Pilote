@@ -105,6 +105,7 @@ class Adapter:
     provider = ''
     base_key = ''
     auth = 'bearer'
+    version = '1'      # 5.6.89 : version retenue dans chaque preuve de capacité ; la changer périme les preuves de cet adaptateur
 
     def __init__(self, ctx):
         self.ctx = ctx
@@ -812,6 +813,22 @@ class MicrosoftGraph(OAuthCodeMixin, Adapter):
                                                     'toRecipients': [{'emailAddress': {'address': a}} for a in p.get('to', [])[:20]]})
         return {'remote_ref': out.get('id', ''), 'etat': 'brouillon'}
 
+    def test_relire(self, ref, marque):
+        """5.6.89 : réouverture du brouillon de test ; ``changeKey`` change dès qu'une personne le modifie."""
+        out = self.request('GET', '/me/messages/%s?$select=subject,isDraft,changeKey,toRecipients' % quote(str(ref), safe=''))
+        return {'empreinte': str(out.get('changeKey') or ''), 'conforme': bool(out.get('isDraft')) and marque in str(out.get('subject') or '') and not out.get('toRecipients')}
+
+    def test_retirer(self, ref):
+        self.request('POST', '/me/messages/%s/move' % quote(str(ref), safe=''), {'destinationId': 'deleteditems'})    # corbeille de la boîte
+        return {'corbeille': True}
+
+    def test_chercher(self, marque):
+        out = self.request('GET', '/me/mailFolders/drafts/messages?' + urlencode({'$search': '"%s"' % marque, '$select': 'id,subject', '$top': 2}))
+        rows = [m for m in out.get('value') or [] if marque in str(m.get('subject') or '')]
+        if len(rows) > 1:
+            raise Stop('plusieurs_ressources_de_test')
+        return rows[0].get('id', '') if rows else ''
+
     def cap_contacts_read(self, p):
         out = self.request('GET', '/me/contacts?' + urlencode({'$top': 25, '$select': 'displayName,emailAddresses,companyName'}))
         return {'contacts': [{'nom': c.get('displayName'), 'societe': c.get('companyName')} for c in out.get('value') or []]}
@@ -899,6 +916,27 @@ class GoogleWorkspace(OAuthCodeMixin, Adapter):
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         out = self.request('POST', '', {'message': {'raw': raw}}, url='https://gmail.googleapis.com/gmail/v1/users/me/drafts')
         return {'remote_ref': out.get('id', ''), 'etat': 'brouillon'}
+
+    def test_relire(self, ref, marque):
+        """5.6.89 : réouverture du brouillon de test ; l'empreinte couvre objet, destinataires et extrait."""
+        out = self.request('GET', '', url='https://gmail.googleapis.com/gmail/v1/users/me/drafts/%s?format=metadata' % quote(str(ref), safe=''))
+        message = out.get('message') or {}
+        heads = {str(h.get('name', '')).lower(): str(h.get('value', '')) for h in (message.get('payload') or {}).get('headers') or []}
+        sujet = heads.get('subject', '')
+        trace = '|'.join((sujet, heads.get('to', ''), str(message.get('snippet') or '')))
+        return {'empreinte': hashlib.sha256(trace.encode('utf-8')).hexdigest(), 'conforme': marque in sujet and not heads.get('to')}
+
+    def test_retirer(self, ref):
+        """La portée « compose » ne donne pas accès à la corbeille de Gmail : seul CE brouillon est supprimé, après relecture de son empreinte."""
+        self.request('DELETE', '', url='https://gmail.googleapis.com/gmail/v1/users/me/drafts/%s' % quote(str(ref), safe=''))
+        return {'corbeille': False}
+
+    def test_chercher(self, marque):
+        out = self.request('GET', '', url='https://gmail.googleapis.com/gmail/v1/users/me/drafts?' + urlencode({'q': 'subject:' + marque, 'maxResults': 2}))
+        rows = out.get('drafts') or []
+        if len(rows) > 1:
+            raise Stop('plusieurs_ressources_de_test')
+        return rows[0].get('id', '') if rows else ''
 
     def cap_documents_read_selected(self, p):
         folder = str(self.ctx.params.get('drive_folder_id') or '')

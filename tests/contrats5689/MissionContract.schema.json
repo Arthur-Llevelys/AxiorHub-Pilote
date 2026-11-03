@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "SourceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "version_id": {
+          "minLength": 1,
+          "title": "Version Id",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "locator_kind": {
+          "enum": [
+            "pdf_page",
+            "paragraph",
+            "bookmark",
+            "manual_event"
+          ],
+          "title": "Locator Kind",
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "version_id",
+        "sha256",
+        "locator_kind",
+        "locator"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "mission_id": {
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "cabinet_id": {
+      "title": "Cabinet Id",
+      "type": "string"
+    },
+    "matter_id": {
+      "title": "Matter Id",
+      "type": "string"
+    },
+    "mission_type": {
+      "enum": [
+        "consultation",
+        "contract_review",
+        "litigation",
+        "hearing",
+        "corporate_followup",
+        "email_reply"
+      ],
+      "title": "Mission Type",
+      "type": "string"
+    },
+    "objective": {
+      "minLength": 1,
+      "title": "Objective",
+      "type": "string"
+    },
+    "source_refs": {
+      "items": {
+        "$ref": "#/$defs/SourceRef"
+      },
+      "title": "Source Refs",
+      "type": "array"
+    },
+    "skill_versions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Skill Versions",
+      "type": "array"
+    },
+    "allowed_actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Actions",
+      "type": "array"
+    },
+    "budget_ref": {
+      "title": "Budget Ref",
+      "type": "string"
+    },
+    "expected_deliverables": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Expected Deliverables",
+      "type": "array"
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "running",
+        "waiting_information",
+        "waiting_decision",
+        "budget_wait",
+        "suspended",
+        "cancelled",
+        "failed",
+        "ready_for_review",
+        "completed"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "mission_id",
+    "cabinet_id",
+    "matter_id",
+    "mission_type",
+    "objective",
+    "source_refs",
+    "skill_versions",
+    "allowed_actions",
+    "budget_ref",
+    "expected_deliverables",
+    "state",
+    "revision"
+  ],
+  "title": "MissionContract",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Contrat logique proposé à intégrer ; objet métier complet, pas autorisation fournie par un client."
+}

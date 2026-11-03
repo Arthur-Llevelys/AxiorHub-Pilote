@@ -47,6 +47,8 @@ def preview(desk,text,owner='cabinet',matter=''):
 
 def _external_text(desk,text,owner,matter):
     if not desk.c.get('speech568',{}).get('external_allowed'):raise Stop('voix_externe_non_autorisee')
+    from .data_policy5689 import exiger
+    exiger(desk.c,'voix','elevenlabs',finalite='lecture_a_voix_haute',dossiers=(matter,) if matter else (),acteur=owner)   # 5.6.89
     from .policy567 import check_external
     check_external({'provider_type':'openai','purpose':'assistant','external_data_allowed':True,'external_policy_config':desk.c},
                    {'matter':matter,'text':text})

@@ -40,8 +40,8 @@
   });
 
   var FAST = 3000, POLL = 3000, RECONCILE = 30000, LEASE = 10000, MAX_BLOCKS = 200, MAX_CHARS = 100000;
-  var mirror = new Core.Mirror(), pacer = new Core.Pacer({quiet: 2000, maxWait: 10000}), origins = new Core.Origins(8000);
-  var token = '', session = '', documentId = '', clientId = 'c' + Math.random().toString(16).slice(2, 12), seq = 0, cursor = 0, revision = 0;
+  var mirror = new Core.Mirror(), pacer = new Core.Pacer({quiet: 2000, maxWait: 10000}), origins = new Core.Origins(8000), transport = new Core.Transport(mirror, {maxBlocks: MAX_BLOCKS, maxChars: MAX_CHARS});
+  var token = '', session = '', documentId = '', clientId = 'c' + Math.random().toString(16).slice(2, 12), cursor = 0, revision = 0, analysisDue = false, analysisTried = 0;
   var epoch = 0, holder = false, ready = false, busy = false, sentAt = 0, lastSnapshot = 0, modifiedSilently = false, lastEvent = 0, applying = false;
 
   function api(route, body) {
@@ -145,41 +145,66 @@
     });
   }
 
-  function send(origin, commandId) {
+  /* 5.6.89 (B08) : le corps d'un événement est figé à sa réservation ; un nouvel essai renvoie le même identifiant et la même séquence, le serveur acquitte sans nouvelle révision. */
+  function send(origin) {
     if (!ready || busy) return Promise.resolve();
-    var batch = mirror.takeBatch(MAX_BLOCKS, MAX_CHARS);
-    if (!batch.blocks.length && !batch.removed.length) return Promise.resolve();
+    var body = transport.next(function (batch, number) {
+      return {event_id: session + '-' + clientId + '-' + number, document_id: documentId, session_id: session, client_id: clientId, client_seq: number, base_revision: revision, observed_at: new Date().toISOString(),
+              origin: batch.command ? 'ai_command' : (origin || 'unknown'), command_id: batch.command, upsert_blocks: batch.blocks, removed_block_ids: batch.removed, limited_blocks: batch.limits,
+              structure_hash: mirror.structureHash(), snapshot_hash: mirror.snapshotHash(), coverage: plugin.cover || null};
+    });
+    if (!body) return Promise.resolve();
     busy = true;
-    seq += 1;
-    var body = {event_id: session + '-' + clientId + '-' + seq, document_id: documentId, session_id: session, client_id: clientId, client_seq: seq, base_revision: revision, observed_at: new Date().toISOString(),
-                origin: origin || 'unknown', command_id: commandId || null, upsert_blocks: batch.blocks, removed_block_ids: batch.removed, structure_hash: mirror.structureHash(), snapshot_hash: mirror.snapshotHash(), coverage: plugin.cover || null};
+    transport.sent();
     sentAt = Date.now();
     return api('/observations', body).then(function (r) {
+      var done = transport.acknowledged();
       revision = r.revision;
       busy = false;
-      if (r.reconcile) return snapshot().then(function () { return send('unknown'); });
-      if (batch.more) return send(origin, commandId);
-      if (r.analysable && origin !== 'ai_command') return api('/analyse', {}).catch(function () {});
-      return null;
+      analysisDue = analysisDue || !!r.analysable;
+      if (r.reconcile || done.recovered) {                        /* après une coupure : miroir réconcilié, puis analyse de la révision courante */
+        if (done.recovered) analysisDue = true;
+        return snapshot().then(function () { return send('unknown'); }).then(analyse);
+      }
+      if (done.more) return send(origin);
+      return analyse();
     }).catch(function (err) {
       busy = false;
-      if (err.status === 401 || err.status === 403) stopAll();
+      if (err.status === 401 || err.status === 403) { stopAll(); return; }
+      transport.failed(err.status, err.code, Date.now());
     });
   }
 
+  function analyse() {
+    if (!analysisDue) return null;
+    analysisTried = Date.now();
+    return api('/analyse', {}).then(function () { analysisDue = false; }).catch(function () {});
+  }
+
   function flush() {
-    if (!mirror.isDirty() || !pacer.due(Date.now())) return;
+    var now = Date.now();
+    if (transport.due(now)) { send(); return; }                   /* relance du même événement, sans nouvelle frappe */
+    if (analysisDue && !busy && !transport.inflight && now - analysisTried > 30000) analyse();
+    if (!mirror.isDirty() || !pacer.due(now)) return;
     pacer.reset();
     send('local_user');
+  }
+
+  /* 5.6.89 (B10) : un texte identique à l'écriture attendue d'une commande vient d'elle ; tout autre texte reste une saisie à analyser. */
+  function observeText(id, raw) {
+    var text = Core.clean(raw), known = mirror.blocks[id];
+    if (known && known.text === text) return null;
+    var command = origins.of('P-' + id, Date.now(), Core.sha256(text));
+    mirror.note(id, text);
+    if (command) mirror.attribute(id, command);
+    return command;
   }
 
   function onParagraph(data) {
     if (!data || data.paragraphId === undefined) return;
     lastEvent = Date.now();
     modifiedSilently = false;
-    var id = String(data.paragraphId), command = origins.of('P-' + id, lastEvent);
-    mirror.note(id, data.text);
-    if (command) { send('ai_command', command); return; }
+    if (observeText(String(data.paragraphId), data.text)) { send('local_user'); return; }
     pacer.touch(lastEvent);
   }
 
@@ -192,14 +217,13 @@
     return api('/commands/' + commandId + '/claim', {epoch: epoch}).then(function (patch) {
       return new Promise(function (resolve) {
         window.Asc.scope.cmd = {operations: patch.operations};
-        var blocks = patch.operations.map(function (o) { return o.anchor.block_id; });
-        origins.expect(commandId, blocks, Date.now());
+        origins.expect(commandId, Core.expectedWrites(patch.operations, mirror.blocks), Date.now());
         window.Asc.plugin.callCommand(applyPatch, false, true, function (res) {
           res = res || {results: []};
-          Object.keys(res.texts || {}).forEach(function (id) { mirror.note(id, res.texts[id]); });
+          Object.keys(res.texts || {}).forEach(function (id) { observeText(id, res.texts[id]); });
           var ack = {command_id: commandId, session_id: session, executor_epoch: epoch, status: Core.ackStatus(res.results), applied_operation_ids: res.results.filter(function (r) { return r.status === 'applied'; }).map(function (r) { return r.op_id; }),
                      snapshot_hash_after: mirror.snapshotHash(), error_code: (res.results.filter(function (r) { return r.code; })[0] || {}).code || null, acknowledged_at: new Date().toISOString()};
-          api('/commands/' + commandId + '/ack', ack).then(function () { return send('ai_command', commandId); }).then(resolve, resolve);
+          api('/commands/' + commandId + '/ack', ack).then(function () { return send('local_user'); }).then(resolve, resolve);
         });
       });
     }).catch(function () {}).then(function () { applying = false; });

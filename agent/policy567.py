@@ -37,7 +37,7 @@ def matter_ids(config, value):
     walk(value)
     text = '\n'.join(texts)
     try:
-        matters = load_matters(config)
+        matters = load_matters(config, unfiltered=True)    # 5.6.89 : un contrôle doit reconnaître aussi les dossiers masqués à ce compte, c'est là qu'il compte le plus
     except (Stop, OSError, KeyError, ValueError):
         matters = []
     for matter in matters:

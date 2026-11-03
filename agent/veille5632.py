@@ -404,6 +404,8 @@ def tavily_search(desk, query, max_results=5, days=7, domains=(), http=None, p=N
     path = tavily_key_path(desk)
     if not path:
         raise Stop('cle_tavily_absente')
+    from .data_policy5689 import exiger
+    exiger(desk.c, 'recherche_web', 'tavily', finalite='veille', requete=str(query)[:400])   # 5.6.89 : avant le compteur et le transfert
     p = p or {}
     used = usage(desk)
     if used['calls'] >= int(p.get('tavily_monthly_calls', 300)):

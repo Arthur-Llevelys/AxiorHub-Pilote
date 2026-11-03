@@ -16,17 +16,20 @@
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(body)
     };
     return fetch(prefix + '/api440/' + name, opts).then(function (r) {
-      return r.json().catch(function () { return { error: 'reponse_invalide', message: 'Réponse inattendue du serveur.' }; });
+      return r.json().catch(function () { return { error: 'reponse_invalide', message: 'Réponse inattendue du serveur.' }; }).then(function (d) {
+        if (r.ok === false && !(d && d.error)) { d = { error: 'http_' + r.status, message: 'Le serveur a refusé la demande : rien n’a été enregistré.' }; }   // 5.6.89 (FM02) : une erreur HTTP n'est jamais un succès
+        return d;
+      });
     }).then(function (d) {
-      if (d && d.error) { var e = new Error(d.message || d.error); e.code = d.error; throw e; }
+      if (d && d.error) { var e = new Error(d.message || d.error); e.code = d.error; e.champ = d.field || d.champ || ''; throw e; }
       return d;
     });
   }
   function busy(btn, on) { if (btn) { btn.disabled = on; btn.setAttribute('aria-busy', on ? 'true' : 'false'); } }
 
   function collect(form) {
-    var data = {};
-    $$('input,select,textarea', form).forEach(function (f) {
+    var data = window.ax89Form ? window.ax89Form.collect(form) : {};    // 5.6.89 : FormAdapter commun (case décochée, radio, liste, composants Carbon)
+    if (!window.ax89Form) $$('input,select,textarea', form).forEach(function (f) {
       if (!f.name || f.type === 'file' || f.closest('.m5-party-row')) return;
       if (f.type === 'checkbox') { data[f.name] = f.checked; return; }
       if (f.type === 'radio' && !f.checked) return;
@@ -44,13 +47,16 @@
     var form = ev.target.closest && ev.target.closest('form.m5-form[data-api]');   // 5.6.24 (F37) : un formulaire GET natif (sélecteur de dossier) n'est plus détourné
     if (!form || !form.getAttribute('data-api')) return;
     ev.preventDefault();
+    var adapte = window.ax89Form;
+    if (adapte && form.getAttribute('data-ui89-envoi') === '1') return;   // 5.6.89 (FM02) : double clic ou Entrée répétée : un seul envoi
     var conf = form.getAttribute('data-confirm');
     if (conf && !window.confirm(conf)) return;
+    if (adapte && !adapte.avant(form)) return;
     var data = collect(form), btn = ev.submitter || $('button[type=submit]', form);
     var extra = btn && btn.getAttribute('data-extra');
     if (extra) { var kv = extra.split('='); data[kv[0]] = kv.slice(1).join('='); }
     busy(btn, true);
-    call(form.getAttribute('data-api'), data).then(function (res) {
+    (adapte ? adapte.fichiers(form, data) : Promise.resolve(data)).then(function (payload) { return call(form.getAttribute('data-api'), payload); }).then(function (res) {
       var target = form.getAttribute('data-result');
       if (target && $(target) && typeof res.text === 'string') {
         $(target).value = res.text;
@@ -69,7 +75,7 @@
         var dest = res.goto;
         setTimeout(function () { location.href = location.pathname + dest; }, 500);
       }
-    }).catch(function (e) { toast(e.message, true); }).then(function () { busy(btn, false); });
+    }).catch(function (e) { toast(e.message, true); if (adapte) adapte.erreur(form, e); }).then(function () { busy(btn, false); if (adapte) adapte.apres(form); });
   });
 
   document.addEventListener('click', function (ev) {

@@ -395,7 +395,8 @@ def advance(desk, ident):
     m = desk.db.execute('SELECT * FROM missions5614 WHERE id=?', (ident,)).fetchone()
     if not m or m['state'] not in ('active', 'decision', 'bloquee'):
         return 0
-    if desk.settings('missions567:pause', False):
+    from .arret5643 import global_paused
+    if global_paused(desk):   # 5.6.89 : pause manuelle ou plage programmée
         return 0
     lim = limits(desk)
     now = _now_iso()

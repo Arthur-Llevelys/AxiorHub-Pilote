@@ -148,6 +148,9 @@ def select(desk, text, phase, owner='cabinet', manual=None, auto=None, kind=''):
     for extra in c.resolve(desk, text, owner, auto=True):
         if extra['id'] in methods or any(x['id'] == extra['id'] for x in chosen):
             continue     # pas une deuxième méthode de phase
+        declarees = json.loads(c._row(desk, extra['id'], extra['version'])['manifest']).get('phases') or []
+        if phase and declarees and phase not in declarees:
+            continue     # 5.6.89 : seules les compétences de l'étape sont chargées
         chosen.append({**extra, 'mode': 'specialisation'})
         break
     return chosen[:c.MAX_SELECTED]

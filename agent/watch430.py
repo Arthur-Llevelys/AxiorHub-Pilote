@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 from .portable import fcntl   # 5.6.25 : verrous portables Linux / Windows
 import hashlib
 import imaplib
+from importlib import import_module
 import json
 from pathlib import Path
 import select
@@ -71,10 +72,26 @@ def schedule(desk,stamp=None):
         return _schedule_5642(desk,stamp)
 
 
+def _pendant_la_plage(desk,stamp):
+    """5.6.89 : ce qui se passe de l'IA continue : routines notées comme reportées (identifiables, sans travail ni échec), rappels d'agenda."""
+    for step in ('routines520.tick','agenda5634.tick','agenda5688.tick'):
+        try:
+            module,name=step.split('.')
+            function=getattr(import_module('.'+module,__package__),name)
+            function(desk) if module=='routines520' else function(desk,stamp)
+        except Exception as ex:   # noqa: BLE001 — une source en panne n'arrête jamais la surveillance
+            emit(desk,'blocked','Pendant la pause programmée : '+step+' impossible ('+str(ex)[:120]+').',dedupe='horaires5689-'+step)
+    return []
+
+
 def _schedule_5642(desk,stamp=None):
     stamp=time.time() if stamp is None else stamp
     if desk.settings('missions567:pause',False) or not desk.settings('live430:enabled',True):
         heartbeat(desk,'surveillance','paused','Surveillance en pause');return []
+    from .arret5643 import global_paused
+    if global_paused(desk):   # 5.6.89 : plage programmée : rien n'est lu pour analyse, donc aucun curseur n'avance ; la reprise relit la boîte et les dossiers
+        heartbeat(desk,'surveillance','paused','Surveillance en pause programmée')
+        return _pendant_la_plage(desk,stamp)
     jobs=[]
     from . import economie569
     # 5.6.62 : un nouveau tour de tous les dossiers ne commence que 30 min (60 en régime économe) après la fin du précédent ; les lots
@@ -382,12 +399,13 @@ def _idle_loop(config,stop):
         try:
             cfg=load_config(config) if isinstance(config,(str,Path)) else config
             desk=Desk(cfg)
-            if desk.settings('missions567:pause',False) or not desk.settings('live430:enabled',True):stop.wait(15);continue
+            from .arret5643 import global_paused
+            if global_paused(desk) or not desk.settings('live430:enabled',True):stop.wait(15);continue   # 5.6.89 : plage programmée comprise
             box=Mailbox(cfg['mail'])
             # Reuse the dedicated connection. Refresh private configuration at
             # most five minutes later; check the pause flag every IDLE cycle.
             for _ in range(10):
-                if stop.is_set() or desk.settings('missions567:pause',False) or not desk.settings('live430:enabled',True):break
+                if stop.is_set() or global_paused(desk) or not desk.settings('live430:enabled',True):break
                 heartbeat(desk,'imap_idle','active','Connexion IMAP dédiée en lecture')
                 changed=idle_wait(box)
                 if changed is None:

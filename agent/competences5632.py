@@ -11,9 +11,11 @@
   d'emploi et mots-clés déclarés, limité aux compétences autorisées et dont les prérequis sont réunis ; raisons conservées ; au plus
   deux compétences ; seules leurs instructions sont transmises au modèle (plus de concaténation de toutes les compétences actives).
 - Une compétence décrit une méthode : elle n'accorde aucune permission ; le moteur garde le contrôle des effets.
+- 5.6.89 (chapitre 42) : manifeste complet (``manifeste``), compétence périmée non retenue, version figée dans la mission (``figer``), seules les
+  compétences de l'étape sont chargées. « Outils permis » et « fournisseurs qualifiés » ne font que restreindre : ils ne desserrent jamais la politique.
 """
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import io
 import json
@@ -47,6 +49,8 @@ def schema(desk):
       scope TEXT NOT NULL, user_choice INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS skill_usage5632(id INTEGER PRIMARY KEY AUTOINCREMENT, skill TEXT NOT NULL, version TEXT NOT NULL, job_id INTEGER,
       kind TEXT NOT NULL, mode TEXT NOT NULL, reason TEXT NOT NULL, at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS mission_skills5689(mission TEXT NOT NULL, skill TEXT NOT NULL, version TEXT NOT NULL, sha256 TEXT NOT NULL, etape TEXT NOT NULL, at TEXT NOT NULL,
+      PRIMARY KEY(mission, skill));
     ''')
 
 
@@ -88,6 +92,82 @@ def ensure_builtin(desk):
         installed.append(sid)
     desk.db.commit()
     return installed
+
+
+MANIFESTE = (('id', 'id'), ('version', 'version'), ('responsable', 'owner_ref'), ('licence', 'license'), ('juridictions', 'jurisdictions'), ('validite', 'valid_until'),
+             ('entrees', 'input_schema'), ('sorties', 'output_schema'), ('outils_permis', 'allowed_tools'), ('tests', 'tests'), ('fournisseurs_qualifies', 'qualified_providers'))
+
+
+def manifeste(manifest):
+    """Manifeste de compétence lisible : une valeur absente reste « None », jamais une qualification supposée. Les anciennes compétences ne sont ni certifiées ni réécrites."""
+    manifest = manifest if isinstance(manifest, dict) else {}
+    out = {}
+    for champ, cle in MANIFESTE:
+        valeur = manifest.get(champ, manifest.get(cle))
+        out[champ] = valeur if valeur not in ('', [], {}) else None
+    out['complet'] = all(out[c] is not None for c, _ in MANIFESTE)
+    return out
+
+
+def perimee(manifest, moment=None):
+    limite = manifeste(manifest)['validite']
+    if not limite:
+        return False
+    return str(limite)[:10] < (moment or datetime.now(timezone.utc)).strftime('%Y-%m-%d')
+
+
+def _restrictions(champ):
+    """Listes déclarées par les compétences de l'étape, relues sur la version retenue. Aucune liste déclarée : aucune restriction ajoutée."""
+    out = []
+    for sel in current_selection():
+        liste = sel.get(champ)
+        if isinstance(liste, list) and liste:
+            out.append(set(str(x) for x in liste))
+    return out
+
+
+def fournisseur_qualifie(provider_id, kind=''):
+    """Une compétence peut réduire les fournisseurs admis ; le routeur n'y voit jamais une exception à la politique des données."""
+    return all(str(provider_id) in liste or str(kind) in liste for liste in _restrictions('fournisseurs_qualifies'))
+
+
+def outils_autorises(tools):
+    """Intersection seulement : un outil absent des outils vérifiés n'apparaît jamais, quoi que déclare le manifeste."""
+    listes = _restrictions('outils_permis')
+    return [t for t in tools if all(t['outil'] in liste for liste in listes)]
+
+
+def figer(desk, mission, etape, selection):
+    """Version figée dans la mission : la première retenue reste celle de toute la mission, une mise à jour n'altère pas une analyse en cours."""
+    out = []
+    for sel in selection:
+        row = _row(desk, sel['id'], sel['version'])
+        if mission:
+            desk.db.execute('INSERT OR IGNORE INTO mission_skills5689 VALUES(?,?,?,?,?,?)', (str(mission), sel['id'], sel['version'], row['sha256'], str(etape or ''), _now()))
+            fige = desk.db.execute('SELECT version FROM mission_skills5689 WHERE mission=? AND skill=?', (str(mission), sel['id'])).fetchone()
+            if fige['version'] != sel['version']:
+                row = _row(desk, sel['id'], fige['version'])
+                sel = {**sel, 'version': fige['version'], 'reason': sel['reason'] + ' (version figée dans la mission)'}
+        fiche = manifeste(json.loads(row['manifest']))
+        out.append({**sel, 'outils_permis': fiche['outils_permis'] or [], 'fournisseurs_qualifies': fiche['fournisseurs_qualifies'] or []})
+    if mission:
+        desk.db.execute('DELETE FROM mission_skills5689 WHERE at<?', ((datetime.now(timezone.utc) - timedelta(days=800)).isoformat(),))
+        desk.db.commit()
+    return out
+
+
+def _racine(desk, row, args):
+    """Mission d'un travail : celle qu'il nomme, sinon le travail racine."""
+    nommee = str((args or {}).get('mission') or (args or {}).get('mission_id') or '')
+    if nommee or not row:
+        return nommee
+    ident = row['id']
+    for _ in range(12):
+        parent = desk.db.execute('SELECT parent_job_id FROM jobs WHERE id=?', (ident,)).fetchone()
+        if not parent or not parent[0]:
+            break
+        ident = parent[0]
+    return str(ident)
 
 
 def _row(desk, sid, version=None):
@@ -135,8 +215,9 @@ def listing(desk, owner='cabinet', caps=None):
     return out
 
 
-def available_capabilities(desk):
-    """Capacités utilisables par une compétence (déclarées par la configuration ; la preuve de connexion appartient au guide)."""
+def available_capabilities(desk, prouvees=False):
+    """Capacités utilisables par une compétence, déclarées par la configuration. Une déclaration n'est pas une preuve : 5.6.89, une capacité révoquée
+    disparaît toujours, et ``prouvees`` ne garde que ce qu'une preuve encore valide soutient (``connector_readiness5689``, seul juge de « Opérationnel »)."""
     caps = {'ai.generate', 'docx.generate'}
     from .fonctions5631 import capabilities
     c = capabilities(desk.c)
@@ -148,7 +229,8 @@ def available_capabilities(desk):
             caps.add('legal.text')
     except Exception:   # noqa: BLE001
         pass
-    return caps
+    from .connector_readiness5689 import filtrer_capacites
+    return filtrer_capacites(desk, caps, prouvees)
 
 
 # --------------------------------------------------------------------------------------------- création, import, versions
@@ -255,6 +337,10 @@ def import_skill(desk, owner, raw, filename, scope='personal'):
                               'rights': c83.rights_of(meta, package['files']), 'script_decisions': decisions,
                               'resources': [{k: f[k] for k in ('path', 'kind', 'sha256', 'size')} for f in package['files']]})
     manifest['license'] = manifest['rights']['declared']
+    for champ, cle in (('responsable', 'responsable'), ('juridictions', 'jurisdictions'), ('validite', 'valid_until'), ('entrees', 'inputs'), ('sorties', 'outputs'),
+                       ('outils_permis', 'allowed_tools'), ('tests', 'tests'), ('fournisseurs_qualifies', 'qualified_providers')):   # 5.6.89 : déclarations conservées, sans valeur d'autorisation
+        if meta.get(cle) not in (None, '', []):
+            manifest[champ] = _items(meta[cle]) if champ not in ('responsable', 'validite') else str(meta[cle])[:120]
     _insert(desk, sid, version, 'import', owner, 'cabinet' if scope == 'cabinet' else 'personal', str(meta.get('name') or slug), desc, manifest, skill)
     c83.store_resources(desk, sid, version, package['files'])
     desk.audit('competence5632_importee', {'id': sid, 'version': version, 'blocked': len(package['blocked']), 'scripts': len(package['scripts']), 'scripts_executed': False})
@@ -321,7 +407,7 @@ def resolve(desk, text, owner='cabinet', manual=None, auto=None):
     """Compétences retenues pour une tâche : choix manuel d'abord ; sinon (mode automatique) rapprochement déterministe des situations
     d'emploi et mots-clés ; seulement parmi les compétences activées, visibles et dont les prérequis d'analyse sont réunis."""
     caps = available_capabilities(desk)
-    rows = [s for s in listing(desk, owner, caps) if s['enabled'] and not s['missing']]
+    rows = [s for s in listing(desk, owner, caps) if s['enabled'] and not s['missing'] and not perimee(json.loads(_row(desk, s['id'], s['version'])['manifest']))]
     chosen = []
     if manual:
         for sid in manual:
@@ -372,6 +458,22 @@ def current_selection():
     return list(getattr(_ctx, 'selection', []) or [])
 
 
+@contextmanager
+def pour_etape(desk, mission, etape, texte, owner='cabinet'):
+    """5.6.89 : compétences de cette seule étape d'une mission, à leur version figée. Une compétence indisponible n'empêche pas l'étape : rien de plus n'est transmis."""
+    import sqlite3
+    avant = (getattr(_ctx, 'selection', []), getattr(_ctx, 'text', ''))
+    try:
+        selection = figer(desk, mission, etape, resolve(desk, texte, owner))
+        _ctx.selection, _ctx.text = selection, instructions_for(desk, selection, query=texte, phase=etape) if selection else ''
+    except (Stop, sqlite3.Error):
+        _ctx.selection, _ctx.text = [], ''
+    try:
+        yield _ctx.selection
+    finally:
+        _ctx.selection, _ctx.text = avant
+
+
 TEXT_KEYS = ('instruction', 'question', 'demande', 'request', 'prompt', 'consigne', 'text')
 
 
@@ -388,7 +490,7 @@ def for_job(desk, row, args):
         text, _deliverable, phase = real_instruction(desk, kind, args)
         owner = str((args or {}).get('owner') or 'cabinet')
         if manual or text or phase:
-            selection = select(desk, text, phase, owner, manual=[str(x) for x in manual] if isinstance(manual, list) else None, kind=kind)
+            selection = figer(desk, _racine(desk, row, args), phase, select(desk, text, phase, owner, manual=[str(x) for x in manual] if isinstance(manual, list) else None, kind=kind))
     except Exception:   # noqa: BLE001 — une compétence indisponible n'empêche jamais le travail
         selection = []
     _ctx.selection = selection

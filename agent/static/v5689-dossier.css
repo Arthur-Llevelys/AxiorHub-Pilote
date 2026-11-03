@@ -1,0 +1,14 @@
+/* 5.6.89 : dossier structuré et mission de conseil. Mise en forme sobre ; couleurs par les jetons de l'application, l'état se lit toujours aussi dans le texte. */
+.d89-synthese { font-weight: 600; }
+.d89-ligne { padding: .35rem 0; }
+.d89-src { display: block; font-size: .9em; }
+.d89-note { display: inline-block; border: 1px solid currentColor; border-radius: 4px; padding: 0 .4rem; margin: .15rem .25rem 0 0; font-size: .85em; }
+.d89-actions { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
+.d89-actions button { min-height: 32px; }
+.d89-actions button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.d89-bloc { border-top: 1px solid var(--ax-line, currentColor); padding: .5rem 0; }
+.d89-bloc summary { cursor: pointer; min-height: 32px; }
+.d89-bloc summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.d89-texte { white-space: pre-wrap; }
+.d89-etat:empty { display: none; }
+@media print { .d89-actions { display: none; } }

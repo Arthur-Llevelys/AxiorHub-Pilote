@@ -4,6 +4,7 @@ Tout est calculé sur le serveur, à chaque frappe, avec les droits de la person
 par le navigateur) : les dossiers réservés sont retirés AVANT les limites, et les factures ne sont cherchées qu'avec le droit « facturation ».
 Aucun modèle, aucun réseau : base locale et index plein texte, budget de temps court, résultat marqué ``partiel`` s'il est dépassé.
 """
+import json
 import re
 import sqlite3
 import time
@@ -19,6 +20,11 @@ GROUPES = (('dossiers', 'Dossiers'), ('contacts', 'Contacts'), ('factures', 'Fac
 
 def _q(value):
     return recherche5682._quote(value)
+
+
+def _liste(values):
+    """Liste passée à SQLite en un seul paramètre (``json_each``) : le nombre de dossiers n'a pas de limite de requête."""
+    return json.dumps(sorted(str(v) for v in values), ensure_ascii=False)
 
 
 def _dossiers(matters, query, hidden):
@@ -47,16 +53,12 @@ def _contacts(desk, query, hidden):
     for word in [w for w in re.split(r'\s+', query.lower()) if w][:6]:
         where.append("(lower(name||' '||first_name||' '||company||' '||email||' '||phone||' '||siren) LIKE ?)")
         params.append('%' + word.replace('%', '').replace('_', '') + '%')
+    if hidden:      # 5.6.89 (B04) : même règle que la fiche (relié à un dossier masqué = soustrait au lecteur), appliquée DANS la requête : une série de lignes masquées ne remplit plus la fenêtre lue
+        where.append('NOT EXISTS (SELECT 1 FROM contact_links5636 l WHERE l.contact=contacts5636.id AND l.matter IN (SELECT value FROM json_each(?)))')
+        params.append(_liste(hidden))
     rows = desk.db.execute('SELECT * FROM contacts5636 WHERE %s LIMIT ?' % ' AND '.join(where), params + [PAR_GROUPE * SUREVALUE * 4]).fetchall()
-    links = {}
-    if hidden and rows:
-        marks = ','.join('?' * len(rows))
-        for r in desk.db.execute('SELECT contact,matter FROM contact_links5636 WHERE contact IN (%s)' % marks, [r['id'] for r in rows]):
-            links.setdefault(r['contact'], set()).add(r['matter'])
     found = []
     for r in rows:
-        if links.get(r['id'], set()) & hidden:         # même règle que la fiche : relié à un dossier masqué = soustrait au lecteur
-            continue
         c = dict(r)
         label = crm5636.label(c)
         found.append((recherche5682.score(query, label), {'titre': label, 'detail': crm5636.CATEGORIES.get(c['category'], c['category']), 'url': '/contacts-crm?id=%s' % _q(c['id'])}))
@@ -65,23 +67,26 @@ def _contacts(desk, query, hidden):
 
 def _factures(desk, query, hidden, labels):
     """Seulement avec le droit « facturation » : l'appelant ne l'appelle pas sinon."""
+    # 5.6.89 (B04) : seules les factures des dossiers accessibles sont lues ; le filtre précède la limite. ``labels`` ne contient déjà que les dossiers autorisés.
+    allowed = _liste(m for m in labels if m not in hidden)
     try:
         rows = desk.db.execute("SELECT id,kind,number,state,matter,issue_date,snapshot_json FROM b53_documents WHERE lower(COALESCE(number,'')||' '||kind||' '||matter) LIKE ? "
-                               'ORDER BY updated DESC LIMIT ?', ('%' + query.lower().replace('%', '').replace('_', '') + '%', PAR_GROUPE * SUREVALUE)).fetchall()
+                               'AND matter IN (SELECT value FROM json_each(?)) ORDER BY updated DESC LIMIT ?',
+                               ('%' + query.lower().replace('%', '').replace('_', '') + '%', allowed, PAR_GROUPE * SUREVALUE)).fetchall()
     except sqlite3.Error:
         rows = []                              # module de facturation jamais ouvert
     extra = []
     folded = fold(query)
-    wanted = {mid for mid, label in labels.items() if folded in fold(label)}
+    wanted = {mid for mid, label in labels.items() if folded in fold(label) and mid not in hidden}
     if wanted:
         try:
-            extra = desk.db.execute('SELECT id,kind,number,state,matter,issue_date,snapshot_json FROM b53_documents WHERE matter IN (%s) ORDER BY updated DESC LIMIT ?' % ','.join('?' * len(wanted)),
-                                    list(wanted) + [PAR_GROUPE * SUREVALUE]).fetchall()
+            extra = desk.db.execute('SELECT id,kind,number,state,matter,issue_date,snapshot_json FROM b53_documents WHERE matter IN (SELECT value FROM json_each(?)) ORDER BY updated DESC LIMIT ?',
+                                    (_liste(wanted), PAR_GROUPE * SUREVALUE)).fetchall()
         except sqlite3.Error:
             extra = []
     seen, out = set(), []
     for r in list(rows) + list(extra):
-        if r['id'] in seen or r['matter'] in hidden or r['matter'] not in labels:
+        if r['id'] in seen or r['matter'] in hidden or r['matter'] not in labels:   # double contrôle : la requête a déjà filtré
             continue
         seen.add(r['id'])
         out.append({'titre': (r['number'] or 'Projet sans numéro') + ' · ' + r['kind'].replace('_', ' '), 'detail': ' · '.join(x for x in (labels[r['matter']], str(r['issue_date'] or '')) if x),
@@ -92,7 +97,7 @@ def _factures(desk, query, hidden, labels):
 
 
 def _plein_texte(desk, query, hidden, labels, deadline):
-    """Courriels et documents : index locaux en lecture, sans rafraîchissement ; les lignes masquées sont retirées avant la limite."""
+    """Courriels et documents : index locaux en lecture, sans rafraîchissement ; les lignes masquées sont exclues par la requête, avant sa limite (5.6.89, B04)."""
     from . import search490
     try:
         terms = search490.build_query(query)
@@ -104,7 +109,7 @@ def _plein_texte(desk, query, hidden, labels, deadline):
     db = None
     try:
         db = search490.connect(desk)
-        rows, partial = search490._local(db, expr, ['courriel'], '', '', '', deadline, limit)
+        rows, partial = search490._local(db, expr, ['courriel'], '', '', '', deadline, limit, hidden)
         mails = [r for r in rows if r['matter'] not in hidden]
     except sqlite3.Error:
         partial = True
@@ -115,7 +120,7 @@ def _plein_texte(desk, query, hidden, labels, deadline):
         partial = True
     else:
         try:
-            rows, late = search490._files(desk, expr, '', '', '', deadline, limit)
+            rows, late = search490._files(desk, expr, '', '', '', deadline, limit, hidden)
             docs, partial = [r for r in rows if r['matter'] not in hidden], partial or late
         except sqlite3.Error:
             partial = True

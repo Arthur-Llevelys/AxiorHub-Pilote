@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Demande de contexte UI à vérifier côté serveur",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "function_id": {
+      "type": "string",
+      "enum": [
+        "aujourdhui",
+        "dossiers",
+        "courriels",
+        "planning",
+        "taches",
+        "mes_taches",
+        "talk",
+        "production",
+        "documents",
+        "echeances",
+        "audience",
+        "audiences_suivi",
+        "audiences_word",
+        "missions_complexes",
+        "pieces",
+        "pieces_donnees",
+        "outils_ia",
+        "corporate",
+        "cessions",
+        "formulaires",
+        "profils",
+        "strategie",
+        "studio",
+        "playbooks",
+        "recherche",
+        "recherche_juridique",
+        "verification",
+        "sources",
+        "veille",
+        "surveillance",
+        "engagements",
+        "accueil_administratif",
+        "contacts",
+        "contacts_crm",
+        "initiatives",
+        "associations",
+        "orchestrateur",
+        "missions",
+        "assistant",
+        "cabinet",
+        "facturation",
+        "honoraires",
+        "relances",
+        "contribution",
+        "rendez_vous",
+        "conflits",
+        "prescriptions",
+        "pilotage_mensuel",
+        "assistance_metier",
+        "modeles_word",
+        "modeles_actes",
+        "mon_style",
+        "complement_word",
+        "progres",
+        "agents",
+        "agents_documents",
+        "regles",
+        "autonomie",
+        "apprentissage",
+        "mobile",
+        "navigateur",
+        "savoir_faire",
+        "competences",
+        "projets",
+        "preparation",
+        "memoire",
+        "parametres",
+        "guide_installation",
+        "guide_utilisation",
+        "mise_en_service",
+        "diagnostic",
+        "etat_systeme",
+        "mcp",
+        "routage",
+        "evaluations",
+        "securite_ia",
+        "tracabilite",
+        "mon_compte",
+        "journal_audit",
+        "vue_ia",
+        "qualite",
+        "ecosysteme",
+        "administration",
+        "tableau_de_bord",
+        "a_propos"
+      ]
+    },
+    "matter_id": {
+      "type": "string"
+    },
+    "selected_objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "version_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "id",
+          "version_id"
+        ]
+      }
+    },
+    "instruction": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "expected_result": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "answer",
+        "analysis",
+        "document",
+        "mail_draft",
+        "action_proposal"
+      ]
+    }
+  },
+  "required": [
+    "function_id",
+    "matter_id",
+    "selected_objects",
+    "instruction",
+    "expected_result"
+  ]
+}

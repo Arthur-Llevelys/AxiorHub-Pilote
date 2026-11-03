@@ -22,7 +22,9 @@
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(body)
     };
     return fetch(prefix + '/api440/' + name, opts).then(function (r) {
-      return r.json().catch(function () { return { error: 'reponse_invalide', message: 'Réponse inattendue du serveur.' }; });
+      return r.json().catch(function () { return { error: 'reponse_invalide', message: 'Réponse inattendue du serveur.' }; }).then(function (d) {
+        return (!r.ok && !(d && d.error)) ? { error: 'http_' + r.status, message: 'Le serveur a refusé la demande : rien n’a été enregistré.' } : d;   // 5.6.89 (FM02)
+      });
     }).then(function (d) {
       if (d && d.error) { var err = new Error(d.message || d.error); err.code = d.error; throw err; }
       return d;
@@ -31,7 +33,10 @@
   function busy(btn, on) { if (btn) { btn.disabled = on; btn.setAttribute('aria-busy', on ? 'true' : 'false'); } }
   function part(name, target) {
     return call('m530/part?name=' + encodeURIComponent(name) + '&prefix=' + encodeURIComponent(prefix)).then(function (d) {
-      var el = $(target); if (el && typeof d.html === 'string') el.innerHTML = d.html;
+      var el = $(target);
+      // 5.6.89 (OP02) : pas de remplacement sous le clavier ou sur un détail déplié ; la zone reste à jour au cycle suivant
+      if (el && (el.contains(document.activeElement) || (el.querySelector && el.querySelector('details[open]')))) return d;
+      if (el && typeof d.html === 'string' && el.innerHTML !== d.html) { var y = el.scrollTop; el.innerHTML = d.html; el.scrollTop = y; }
       if (name === 'feed') showFeed(state.feed);
       return d;
     }).catch(function () { /* l'écran reste utilisable : prochaine tentative au cycle suivant */ });

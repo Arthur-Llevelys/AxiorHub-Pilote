@@ -183,6 +183,10 @@
  "fn.honoraires.label": "Zeit und Honorare",
  "fn.initiatives.desc": "Vom Assistenten vorgeschlagene Maßnahmenpläne, freigegeben und ausgeführt",
  "fn.initiatives.label": "Initiativen",
+ "fn.contentieux.desc": "Ansprüche, Beweise, Schriftsätze, Fristen und Pakete der Akte",
+ "fn.contentieux.label": "Rechtsstreit",
+ "fn.livrables.desc": "Alle Arbeitsergebnisse mit Version und Status",
+ "fn.livrables.label": "Vorbereitete Dokumente",
  "fn.mcp.desc": "Juristische Konnektoren, Kompetenzen und Erweiterungen",
  "fn.mcp.label": "MCP-Konnektoren",
  "fn.memoire.desc": "Vom Agenten gemerkte gesendete Antworten",
@@ -788,5 +792,9 @@
  "fn.journal_audit.label": "Prüfprotokoll",
  "fn.journal_audit.desc": "Wer hat was getan, mit Kettenprüfung",
  "fn.vue_ia.label": "Was die KI sehen darf",
- "fn.vue_ia.desc": "Für Modelle freigegebene Kategorien, vom Server durchgesetzt"
+ "fn.vue_ia.desc": "Für Modelle freigegebene Kategorien, vom Server durchgesetzt",
+ "fn.banc_essai.label": "Vergleichstest und Funktionsstatus",
+ "fn.banc_essai.desc": "Aufträge nach festem Protokoll vergleichen und den Nachweis jeder Funktion sehen",
+ "fn.gouvernance_ia.label": "KI-Daten und Budget",
+ "fn.gouvernance_ia.desc": "Datenrichtlinie, Anbieter, Obergrenzen und Monatskosten"
 }

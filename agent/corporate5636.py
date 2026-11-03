@@ -25,6 +25,7 @@ import unicodedata
 import uuid
 from pathlib import Path
 
+from . import pause5629
 from .common import Stop, clean_path, fold, load_matters, matter_display
 from .erreurs5634 import Qualified
 from .corporate_modeles5636 import DOCS, OPERATIONS, OPTIONAL_DOCS, documents_of
@@ -1399,6 +1400,7 @@ def generate(desk, op_id, dav=None, model=None):
         if state not in PREPARABLE:   # abandon pendant la préparation : les actes suivants ne sont pas déposés
             stopped = state
             break
+        pause5629.checkpoint(desk)    # 5.6.89 (B07) : l'arrêt du travail vaut aussi entre deux actes
         try:
             raw, source = render(desk, doc, ctx, client)
         except Stop as exc:

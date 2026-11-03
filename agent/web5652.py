@@ -151,7 +151,7 @@ def _form(desk, prefix, action, row=None, matters=()):
         ' disabled' if legacy else '', ' selected' if row.get('scope', 'personnel') == 'personnel' else '', ' selected' if row.get('scope') == 'cabinet' else '')
 
 
-def routines_block(desk, auth, prefix, role=None):
+def routines_block(desk, auth, prefix, role=None, compact=False):
     """Bloc « Routines du cabinet » d'Aujourd'hui : cartes, ajout, modification, activation, duplication, suppression, lancement."""
     from . import routines5652 as rt
     from .i18n5631 import role as current_role
@@ -171,7 +171,7 @@ def routines_block(desk, auth, prefix, role=None):
         if last:
             res = last.get('result') or {}
             last_txt = '%s le %s' % (rt.STATES.get(last['state'], last['state']), last['local_label'])
-            if res.get('impossible'):
+            if res.get('impossible') and not compact:
                 last_txt += ' — ' + '; '.join(res['impossible'][:2])
         running = bool(last and last['state'] in rt.ACTIVE)
         state_badge = '<span class="r52-badge r52-%s">%s</span>' % ('on' if r['enabled'] else 'off', 'Activée' if r['enabled'] else 'En pause')
@@ -206,6 +206,14 @@ def routines_block(desk, auth, prefix, role=None):
             menu = ('<details class="r52-menu"><summary class="ax-btn ghost" aria-label="Autres actions">⋯</summary><div>'
                     '<form class="m5-form r52-inline" data-api="m5652/routine/dupliquer" data-reload><input type="hidden" name="id" value="%s">'
                     '<button class="ax-btn ghost" type="submit">Dupliquer</button></form>%s</div></details>') % (e(r['id'], quote=True), delete)
+        motif = ''
+        if compact and last and (last.get('result') or {}).get('impossible'):      # 5.6.89 (§ 11) : le motif complet s'ouvre à la demande, il n'étire plus la ligne
+            motif = '<details class="r52-motif"><summary>Motif</summary><p>%s</p></details>' % e('; '.join(last['result']['impossible'][:4]))
+        if compact and (edit or toggle or menu):                                  # activer, modifier, dupliquer, supprimer : toutes conservées, dans un menu secondaire
+            menu = ('<details class="r52-menu"><summary class="ax-btn ghost" aria-label="Gérer la routine : %s">Gérer</summary><div>%s%s%s</div></details>' % (
+                e(r['title'], quote=True), toggle, edit, menu.replace('<details class="r52-menu"><summary class="ax-btn ghost" aria-label="Autres actions">⋯</summary><div>', '', 1).rsplit('</div></details>', 1)[0]))
+            toggle = edit = ''
+        cap_txt += motif
         cards.append('<div class="c5614-routine r52-card%s" data-kind="%s" id="r52-%s"><div class="r52-head"><strong>%s</strong>%s</div>'
                      '<span class="c5614-state">%s</span><span class="r52-meta">%s%s%s</span>%s'
                      '<span class="c5614-actions">%s%s%s%s%s</span></div>' % (

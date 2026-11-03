@@ -497,6 +497,8 @@ def research_enabled_mcp(desk,matter,question,limit=8,official_fetcher=None):
     """Use enabled Lawve MCP connectors and independently verify official texts."""
     target=_matter(desk,matter) if str(matter or '').strip() else dict(GENERAL)
     anonymous,redactions=anonymize_query(desk,target,question)
+    from .data_policy5689 import exiger
+    exiger(desk.c,'recherche_web','sources_juridiques',finalite='recherche_juridique',requete=anonymous)   # 5.6.89 : requête telle qu'elle partirait
     from .extensions364 import legal_connector_search
     connector_results=legal_connector_search(desk,anonymous,limit)
     verified=[];leads=[];reports=[]

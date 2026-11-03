@@ -575,6 +575,8 @@ def generate(desk, data, owner='cabinet', dav=None):
                                   'options et relancez l’aperçu.' % (seen.split(':')[0], view_token(t).split(':')[0]))
     if where == 'ia':
         return _ask_ai(desk, t, data, owner)
+    from . import modeles5684
+    version = modeles5684.selectionner(desk, t['id'])    # 5.6.89 : un modèle retiré ne se sélectionne plus ; non validé, il reste utilisable à la main, signalé
     eff = effective(desk, t, data)
     if where == 'apercu':   # E02 : aperçu par le même moteur que le document final, sans rien enregistrer
         missing = missing_mentions(t, eff['texte'])
@@ -590,6 +592,10 @@ def generate(desk, data, owner='cabinet', dav=None):
         folder = '%s/JURIDIQUE' % matter['path'].rstrip('/')
         client.ensure_folder(folder, matter['path'])
         stem, n = name[:-5], 1
+        from . import livrables5689
+        sortie = livrables5689.Sortie(desk, 'bibliotheque5639', '%s:%s' % (t['id'], matter['id']), uuid.uuid4().hex, matter=matter['id'], title=name[:-5], path=folder + '/' + name, mime=DOCX_MIME, owner=owner,
+                                      provenance={'producteur': 'bibliotheque5639', 'modele_id': t['id'], 'modele_version': version['version'], 'etat_modele': version['state']},
+                                      reserve_note='' if version['state'] == 'validated' else 'Modèle non validé : à relire avec attention.')
         while True:
             target = folder + '/' + (name if n == 1 else '%s (%d).docx' % (stem, n))
             try:
@@ -599,6 +605,7 @@ def generate(desk, data, owner='cabinet', dav=None):
                 if str(exc) != 'http_412' or n > 20:
                     raise
                 n += 1
+        sortie.constater(client, target, raw)
         desk.audit('bibliotheque5639_document', {'modele': t['id'], 'dossier': matter['id'], 'owner': owner, 'source': eff['source'],
                                                  'clauses': sorted(k for k, v in flags.items() if v)})
         return {'path': target, 'message': 'Document « %s » déposé dans le dossier %s (JURIDIQUE) : projet à relire.' % (name, matter_display(matter))}
@@ -1162,7 +1169,9 @@ def page_html(desk, prefix, args, cid=''):
         ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in CATEGORIES.items()),
         ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == law else '', e(v)) for k, v in DROITS.items()),
         _word_input(), _syntax_help())
-    return intro + (''.join(groups) or '<p class="ax-muted">Aucun modèle pour ce filtre.</p>') + add_form
+    from .conseil_ui5689 import playbooks_html
+    from .membres5650 import current_author, viewer_hidden, viewer_role
+    return intro + (''.join(groups) or '<p class="ax-muted">Aucun modèle pour ce filtre.</p>') + add_form + playbooks_html(desk, current_author() or 'cabinet', viewer_role(), viewer_hidden() or frozenset())   # 5.6.89 : playbooks, à côté des modèles qu'ils complètent
 
 
 def _badges(t, company_form=''):

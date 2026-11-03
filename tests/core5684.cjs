@@ -30,26 +30,28 @@ assert.ok(m.isDirty());
 let batch = m.takeBatch(200, 100000);
 assert.deepStrictEqual(batch.blocks.map(b => b.block_id), ['P-1', 'P-2']);
 assert.strictEqual(batch.blocks[0].text_hash, Core.sha256('pendant la lecture'));
+assert.ok(m.ackBatch(batch));                                     /* 5.6.89 (B08) : un lot ne sort de la liste qu'à l'accusé du serveur */
 assert.strictEqual(m.isDirty(), false);
 
 /* même texte : aucun envoi ; retour à l'identique après annulation : envoyé */
 assert.strictEqual(m.update('1', 'pendant la lecture'), false);
 assert.strictEqual(m.update('1', 'corrigé'), true);
 assert.strictEqual(m.update('1', 'pendant la lecture'), true);
-m.takeBatch(200, 100000);
+m.ackBatch(m.takeBatch(200, 100000));
 
 /* OF06 : paragraphe disparu du document, identifiant retiré, pas d'ancre fantôme */
 const hash = m.snapshotHash();
 m.load([{id: '1', text: 'pendant la lecture'}]);
 batch = m.takeBatch(200, 100000);
 assert.deepStrictEqual(batch.removed, ['P-2']);
+m.ackBatch(batch);
 assert.notStrictEqual(m.snapshotHash(), hash);
 assert.strictEqual(m.blocks['2'], undefined);
 
 /* OF08 : un bloc qui change de nature est renvoyé */
 m.load([{id: '1', text: 'pendant la lecture', kind: 'table_cell'}]);
 assert.ok(m.isDirty());
-m.takeBatch(200, 100000);
+m.ackBatch(m.takeBatch(200, 100000));
 
 /* lot borné : la suite part au lot suivant, sans coupe silencieuse */
 const big = new Core.Mirror();
@@ -57,19 +59,23 @@ big.load(Array.from({length: 5}, (_, i) => ({id: String(i), text: 'x'.repeat(40)
 let first = big.takeBatch(2, 100000);
 assert.strictEqual(first.blocks.length, 2);
 assert.strictEqual(first.more, true);
+big.ackBatch(first);
 first = big.takeBatch(200, 50);
 assert.strictEqual(first.blocks.length, 1);
 assert.strictEqual(first.more, true);
+big.ackBatch(first);
 first = big.takeBatch(200, 100000);
 assert.strictEqual(first.blocks.length, 2);
 assert.strictEqual(first.more, false);
 
-/* OF18 : écriture de l'IA reconnue un court instant seulement */
+/* OF18 : écriture de l'IA reconnue un court instant seulement. 5.6.89 (B10) : à l'empreinte exacte du texte qu'elle a écrit, plus au seul identifiant du bloc */
 const origins = new Core.Origins(8000);
-origins.expect('cmd', ['P-1'], 1000);
-assert.strictEqual(origins.of('P-1', 2000), 'cmd');
-assert.strictEqual(origins.of('P-2', 2000), null);
-assert.strictEqual(origins.of('P-1', 9001), null);
+const ecrit = Core.sha256('Texte de la commande');
+origins.expect('cmd', [{block_id: 'P-1', hash: ecrit}], 1000);
+assert.strictEqual(origins.of('P-2', 2000, ecrit), null);
+assert.strictEqual(origins.of('P-1', 2000, ecrit), 'cmd');
+origins.expect('cmd', [{block_id: 'P-1', hash: ecrit}], 1000);
+assert.strictEqual(origins.of('P-1', 9001, ecrit), null);
 
 /* accusé : jamais « appliqué » sans relecture */
 assert.strictEqual(Core.ackStatus([]), 'failed');

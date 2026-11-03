@@ -1282,6 +1282,8 @@ def call_tool(ctx, db, name, args):
         args = {}
     with _lock(ctx.masque.account):   # deux appels simultanés ne créent jamais deux fois le même marqueur
         try:
+            from .data_policy5689 import exiger     # 5.6.89 : le connecteur est une destination comme une autre
+            exiger(ctx.desk.c, 'connecteur_claude', 'connecteur_claude', finalite=name, labels=('dossier',))
             given = ctx.masque.inp(args) if name not in NO_RESTORE else {**args, 'dossier': ctx.masque.inp(str(args.get('dossier') or ''))}
             result = tool[4](ctx, given)
             payload = ctx.masque.out(result)

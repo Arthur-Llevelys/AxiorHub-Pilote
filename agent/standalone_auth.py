@@ -31,7 +31,7 @@ from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles', '/guide-installation')
-ADMIN_API = ('m5688cloud/', 'rev5688/', 'm5682/', 'm5681/', 'm5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
+ADMIN_API = ('m5689/ui/drapeaux', 'm5689/capacites/pertinence', 'm5689/politique/enregistrer', 'm5689/politique/prestataire', 'm5689/politique/flux', 'm5689/budget/', 'm5688cloud/', 'rev5688/', 'm5682/', 'm5681/', 'm5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
              'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme', 'm5631/guide/', 'm5632/admin/')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
@@ -77,6 +77,8 @@ def allowed(role, method, path, action=''):
         return True
     if method != 'POST':
         return False
+    if api == 'm5689/budget/mission':   # 5.6.89 : coût d'une mission, lecture ouverte à ceux qui voient la mission
+        return True
     if api.startswith(ADMIN_API) or action in ADMIN_ACTIONS:
         return False
     if api == 'm5631/langue':
@@ -86,6 +88,9 @@ def allowed(role, method, path, action=''):
     if api.startswith('m5688s/'):   # 5.6.88 : son propre compte (tous) ; journal, réglages et réinitialisations (administrateur)
         from .securite5688 import allowed as allowed5688s
         return allowed5688s(role, api[len('m5688s/'):])
+    if api.startswith('m5689/'):   # 5.6.89 : chaque domaine décide de ses routes, inconnu refusé
+        from .web5689 import allowed as allowed5689
+        return allowed5689(role, api[len('m5689/'):])
     if api.startswith('m5688/'):   # 5.6.88 : fiche, veille, page personnelle, note commune, mémoire (tous) ; réglage de la mémoire (administrateur)
         from .web5688 import allowed as allowed5688
         return allowed5688(role, api[len('m5688/'):])

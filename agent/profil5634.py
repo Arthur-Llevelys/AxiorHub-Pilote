@@ -224,6 +224,8 @@ def neutral_test(config, http=None):
                'required': ['ok']}, 'messages': [{'role': 'user', 'content': 'Réponds {"ok": true} en JSON.'}]}
         if 'thinking' in out['capacites']:
             req['think'] = False
+        from .arret5643 import before_model_call
+        before_model_call(config)   # 5.6.89 : test du profil avec inférence : mêmes pauses que tout appel au modèle
         result = client.json('POST', '/api/chat', req)
         content = ((result.get('message') or {}).get('content') or '').strip()
         out['generation'] = bool(content)

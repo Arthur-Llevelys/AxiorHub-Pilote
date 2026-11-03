@@ -50,12 +50,32 @@ def save(desk, values):
 
 def blocked(desk, category):
     """Vrai si cette catégorie est fermée au modèle pour la requête en cours (réglage du cabinet, ou droits de la personne)."""
+    from .data_policy5689 import categorie_fermee   # 5.6.89 : politique illisible ou catégorie fermée par la politique commune : même réponse
     from .membres5650 import ai_denied
-    return category in ai_denied() or not cabinet(desk).get(category, True)
+    return category in ai_denied() or not cabinet(desk).get(category, True) or categorie_fermee(desk, category)
 
 
 def effective(desk):
     return {c: not blocked(desk, c) for c in IDS}
+
+
+def _circuits_html(desk, prefix):
+    """5.6.89 : trois circuits, dans le même langage, chacun avec ce qui le commande réellement. Le mode affiché est lu dans la politique, jamais supposé."""
+    from .data_policy5689 import etat_public
+    politique = etat_public(desk)
+    if politique['lisible']:
+        mode = 'Mode en vigueur : %s.' % politique['libelle']
+        if politique['categories_fermees']:
+            mode += ' Fermé par cette politique : %s.' % ', '.join(LABELS.get(c, c) for c in politique['categories_fermees'])
+    else:
+        mode = politique['message']
+    p = e(prefix, quote=True)
+    lignes = (('Lecture interactive', 'Une personne interroge l’assistant, confie une mission ou passe par le connecteur Claude.', 'Les cases ci-dessus, dans la limite des droits de la personne.'),
+              ('Automatisation', 'Tri des nouveaux courriels, relevé des échéances, indexation et analyse des pièces en arrière-plan.', 'L’<a href="%s/autonomie">autonomie de l’agent</a>. Les cases n’arrêtent pas ces travaux.' % p),
+              ('Transfert externe', 'Tout envoi vers un modèle ou un service hors du cabinet, qu’il vienne d’une question ou d’un automatisme.', 'La politique de <a href="%s/parametres/gouvernance">Données et budget de l’IA</a>. Fermer une case ne coupe pas, à soi seul, un transfert lancé par un automatisme.' % p))
+    corps = ''.join('<tr><th scope="row">%s</th><td>%s</td><td>%s</td></tr>' % (e(a), e(b), c) for a, b, c in lignes)
+    return ('<section class="ax-card" id="circuits"><h2>Trois circuits, trois réglages</h2><p role="status">%s</p><div class="table"><table><thead><tr><th>Circuit</th><th>Ce que c’est</th><th>Ce qui le commande</th></tr></thead>'
+            '<tbody>%s</tbody></table></div><p class="ax-muted">Le navigateur supervisé et l’interface de Nextcloud agissent sous le contrôle d’une personne : cette politique ne les couvre pas.</p></section>') % (e(mode), corps)
 
 
 def settings_html(desk, prefix):
@@ -75,4 +95,4 @@ def settings_html(desk, prefix):
             '<a href="%s/autonomie">Autonomie de l’agent</a>.</li>'
             '<li>Une pièce que vous joignez vous-même à une question.</li>'
             '<li>Le contrôle des sociétés citées dans une question : il lit des registres publics. Il ne se sert d’une fiche de contact que si « Contacts » est ouvert.</li>'
-            '<li>Ce qui a déjà été transmis à un modèle avant ce réglage.</li></ul></section>') % (e(state), checks, e(prefix, quote=True))
+            '<li>Ce qui a déjà été transmis à un modèle avant ce réglage.</li></ul></section>') % (e(state), checks, e(prefix, quote=True)) + _circuits_html(desk, prefix)

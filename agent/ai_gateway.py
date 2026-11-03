@@ -226,15 +226,18 @@ def record_usage(cfg, result, estimated, status='done', messages=None, error='')
             output_tokens*float(cfg.get('output_usd_per_million',0) or 0))/1_000_000
     cost=actual if actual else float(estimated or 0)
     from .budget5668 import not_billed
-    released=status!='done' and not_billed(error)   # 5.6.68 : refus ou panne du fournisseur, rien de facturé
+    released=status!='done' and (not_billed(error) or cfg.get('_emission5689')=='preparee')   # 5.6.68 : refus ou panne du fournisseur, rien de facturé ; 5.6.89 : ou rien n'est parti
     if released:cost=0.0
     if not cfg.get('state_dir'):return cost
     db=_usage_db(cfg['state_dir'])
+    from .budget_ledger5689 import ensure as ensure_ledger
+    db.row_factory=sqlite3.Row;ensure_ledger(db)
     try:
         db.execute('BEGIN IMMEDIATE')
         stamp=datetime.now(timezone.utc).isoformat()
-        db.execute('INSERT INTO ai_usage_v391(at,provider,purpose,model,input_tokens,output_tokens,estimated_cost_usd,status) VALUES(?,?,?,?,?,?,?,?)',
-          (stamp,cfg.get('provider_id',''),cfg.get('purpose',''),cfg.get('model',''),input_tokens,output_tokens,cost,status))
+        db.execute('INSERT INTO ai_usage_v391(at,provider,purpose,model,input_tokens,output_tokens,estimated_cost_usd,status,call_id) VALUES(?,?,?,?,?,?,?,?,?)',
+          (stamp,cfg.get('provider_id',''),cfg.get('purpose',''),cfg.get('model',''),input_tokens,output_tokens,cost,status,
+           str(cfg.get('_budget_call5689') or cfg.get('decision5682') or '')))   # 5.6.89 : ligne reliée au registre : elle n'est pas un second compteur
         if messages is not None:
             canonical=json.dumps(messages,ensure_ascii=False,sort_keys=True,separators=(',',':'))
             roles=[str(x.get('role') or '') for x in messages if isinstance(x,dict)]
@@ -245,7 +248,7 @@ def record_usage(cfg, result, estimated, status='done', messages=None, error='')
                hashlib.sha256(canonical.encode()).hexdigest(),len(canonical),
                json.dumps(roles,ensure_ascii=False),json.dumps(policy,sort_keys=True),status))
         from .budget567 import settle
-        settle(db,cfg,status,released)
+        settle(db,cfg,status,released,usage)
         db.commit()
     finally:db.close()
     try:

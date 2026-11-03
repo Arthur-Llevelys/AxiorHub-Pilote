@@ -86,6 +86,11 @@ def automation_tick(desk):
         sauvegarde5688.schedule(desk)
         export5688.schedule(desk)
     except Exception:pass   # jamais bloquant ; l'absence de réussite se voit dans « Aujourd'hui » après 48 h
+    try:   # 5.6.89 : planning de l'IA : recalculé à chaque passage, sans modèle ni travail en file ; n'écrit que si l'état change
+        from . import horaires_ia5689
+        horaires_ia5689.surveiller(desk)
+    except Exception:   # l'état réel est de toute façon relu avant chaque appel au modèle
+        if desk.db.in_transaction:desk.db.rollback()
     with automatic(desk):
         return _automation_tick_5642(desk)
 
@@ -94,8 +99,11 @@ def _automation_tick_5642(desk):
     if desk.settings('missions567:pause', False):
         return
     from . import economie569   # 5.6.9 : contrôles périodiques espacés en régime économe
+    from .arret5643 import global_paused
+    scheduled_pause=global_paused(desk)   # 5.6.89 : pendant une plage, seul ce qui se passe de l'IA tourne ; les passages manqués ne sont pas rejoués
     cfg=desk.c.get('automation',{});now_ts=datetime.now(timezone.utc).timestamp()
-    try:economie569.resume_deferred(desk)   # 5.6.11 : travaux différés par le quota, repris à leur échéance
+    try:
+        if not scheduled_pause:economie569.resume_deferred(desk)   # 5.6.11 : travaux différés par le quota, repris à leur échéance
     except Exception:pass
     try:
         from .reception567 import purge   # 5.6.11 : conservation des messages d'accueil appliquée chaque jour, pas seulement à l'ouverture de la liste
@@ -108,6 +116,8 @@ def _automation_tick_5642(desk):
             from .facturation5614 import pull
             pull(desk)
     except Exception:pass
+    if scheduled_pause:
+        return _tick_sans_ia(desk,cfg,now_ts)
     schedules=[('health','health_interval_minutes',30),('sync','sync_interval_minutes',30),
       ('reconcile_inbox','reconcile_interval_minutes',15),
       ('classify_portfolio','portfolio_interval_minutes',360),
@@ -168,6 +178,16 @@ def _automation_tick_5642(desk):
         from . import reponses5671
         reponses5671.schedule(desk,now_ts)
     except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.89 : registre des livrables comparé au stockage, toutes les 10 minutes (empreintes hors de l'affichage)
+        from . import livrables_travaux5689
+        livrables_travaux5689.schedule(desk,now_ts)
+    except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.89 : classement des documents repris une seule fois : additif, répétable, sans lecture du stockage ni effet externe
+        if not desk.settings('contentieux5689:migre', False):
+            from . import contentieux_pieces5689
+            if not contentieux_pieces5689.migrer(desk).get('echecs'):
+                desk.setting('contentieux5689:migre', True)
+    except Exception:pass   # une reprise impossible n'arrête jamais la boucle des automatismes
     try:   # 5.6.87 : notes internes de l'agent rangées dans leur dossier, toutes les 15 minutes
         from . import notes5666
         notes5666.schedule(desk,now_ts)
@@ -212,6 +232,18 @@ def _automation_tick_5642(desk):
         if desk.settings('auto:metrics420_day','')!=day:
             desk.enqueue('snapshot_metrics420',{'days':int(production.get('useful_metrics_days',30))},priority=90)
             desk.setting('auto:metrics420_day',day)
+
+
+def _tick_sans_ia(desk,cfg,now_ts):
+    """5.6.89 : pendant une plage programmée : contrôle de santé (sans inférence) et relevé en lecture seule de la facturation électronique."""
+    from . import cadence5662,economie569
+    every=economie569.interval(desk,'health',int(cfg.get('health_interval_minutes',30)))
+    if desk.settings('automation:health_enabled',cfg.get('health_enabled',True)) and now_ts-desk.settings('auto:health',0)>=every*60 and cadence5662.allow(desk,'health',every,now_ts):
+        desk.enqueue('health');desk.setting('auto:health',now_ts)
+    try:
+        from . import efacture5688
+        efacture5688.schedule(desk,now_ts)
+    except Exception:pass   # une plateforme injoignable n'arrête jamais la boucle des automatismes
 
 
 def perform(desk,kind,args):

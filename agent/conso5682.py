@@ -11,8 +11,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 
-from .common import Stop
-
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS conso_5682(
   id INTEGER PRIMARY KEY, at TEXT NOT NULL, fournisseur TEXT NOT NULL, modele TEXT NOT NULL, canal TEXT NOT NULL, fonction TEXT NOT NULL,
@@ -97,48 +95,22 @@ def estimate(prices, tokens_in, tokens_out):
 
 
 def used(state_dir, mission, unit):
-    db = connect(state_dir)
-    try:
-        row = db.execute("SELECT COALESCE(SUM(quantite),0) FROM reservations_5682 WHERE mission=? AND unite=? AND etat IN ('reserve','consomme','incertain')",
-                         (mission, unit)).fetchone()
-        return float(row[0] or 0)
-    finally:
-        db.close()
+    from .budget_ledger5689 import utilise_mission
+    return utilise_mission(state_dir, mission, unit)
 
 
-def reserve(state_dir, mission, quantity, unit, limit, decision=''):
-    """Réserve avant l'appel, en transaction. Sans mission (question directe) ou sans estimation, rien à cumuler."""
-    if not mission or quantity is None or unit == 'aucune':
+def reserve(state_dir, mission, quantity, unit, limit, decision='', provider='', model='', purpose=''):
+    """Réserve avant l'appel. 5.6.89 : adaptateur du registre commun : un seul compteur, et une ligne par décision même sans mission."""
+    if quantity is None or unit == 'aucune':
         return 0
-    db = connect(state_dir)
-    try:
-        db.execute('BEGIN IMMEDIATE')
-        spent = db.execute("SELECT COALESCE(SUM(quantite),0) FROM reservations_5682 WHERE mission=? AND unite=? AND etat IN ('reserve','consomme','incertain')",
-                           (mission, unit)).fetchone()[0]
-        if limit and float(spent or 0) + quantity > limit:
-            db.rollback()
-            raise Stop('budget_mission_atteint')
-        cur = db.execute('INSERT INTO reservations_5682(at,mission,perimetre,quantite,unite,etat,decision) VALUES(?,?,?,?,?,?,?)',
-                         (datetime.now(timezone.utc).isoformat(), mission, 'mission', quantity, unit, 'reserve', decision))
-        db.commit()
-        return cur.lastrowid
-    finally:
-        db.close()
+    from .budget_ledger5689 import reserver_mission
+    return reserver_mission(state_dir, mission, quantity, unit, limit, decision, provider, model, purpose)
 
 
 def settle(state_dir, ident, state, actual=None):
     """Rapproche la réservation : consommée, libérée (rien de facturé) ou incertaine (flux coupé : l'usage réel n'est pas connu)."""
-    if not ident:
-        return
-    db = connect(state_dir)
-    try:
-        if actual is not None and state == 'consomme':
-            db.execute('UPDATE reservations_5682 SET etat=?,quantite=? WHERE id=?', (state, actual, ident))
-        else:
-            db.execute('UPDATE reservations_5682 SET etat=? WHERE id=?', (state, ident))
-        db.commit()
-    finally:
-        db.close()
+    from .budget_ledger5689 import regler_mission
+    regler_mission(state_dir, ident, state, actual)
 
 
 def snapshot(state_dir):

@@ -117,7 +117,7 @@ class DocumentIndex:
 
     def embedder(self):
         if not self._semantique():return None
-        if self._embedder is None:self._embedder=Embedder(self.ollama,self.rag)
+        if self._embedder is None:self._embedder=Embedder(self.ollama,self.rag,getattr(self,'state_dir',''))
         return self._embedder
 
     def remove_knowledge(self,matter,source_id):

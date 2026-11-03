@@ -208,7 +208,8 @@ def ensure_schema(desk):
 
 def dav_client(desk):
     from .dav import DAV
-    return DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud'])
+    from .connector_readiness5689 import brider_ecriture   # 5.6.89 : écritures refusées si la capacité est révoquée ; les lectures continuent
+    return brider_ecriture(desk, DAV(desk.c.get('nextcloud_documents') or desk.c['nextcloud']))
 
 
 def matter_of(desk, path):

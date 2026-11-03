@@ -1,0 +1,45 @@
+{
+  "version": "5.6.89",
+  "base": "5.6.88",
+  "date_utc": "2026-11-03T00:00:00+00:00",
+  "cahier_des_charges": "Audit AxiorHub Pilote 5.6.88 et dossier développeur 5.6.89 : 12 anomalies, 120 scénarios de réception, 85 fonctions.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 5021,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 136,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub. Un test de mutation devenu périmé par un changement de libellé de code a été corrigé après cette suite, et test_v5689_carbon rejoué en entier sans échec."
+  },
+  "new_tests": "tests/test_v5689_*.py : chaque scénario de réception porte son identifiant. Un test à ce nom n’établit pas la réception : voir limites.",
+  "scenarios": {
+    "total": 120,
+    "avec_test": 120,
+    "limites": "Faux services et fournisseurs simulés. Parties exigeant un service réel, EuroOffice réel, un parcours clavier complet, une impression réelle ou un avis d’avocat non réalisées."
+  },
+  "mutations": "Plus de 250 défauts introduits sur les garde-fous, lot par lot, sur copie ou en mémoire ; survivants traités ou documentés comme équivalents dans les comptes rendus de lots.",
+  "live_checks": "Navigateur intégré, données fictives : contraste et identifiants sur 39 pages, parcours Retour, panneaux, formulaires Carbon, drapeaux, panneau IA avec faux modèle. Aucun modèle réel, aucun compte réel, aucun EuroOffice réel, aucune restauration sur machine isolée, benchmark comparatif non exécuté.",
+  "exapp": {
+    "version": "0.1.48",
+    "moteur": "5.6.89"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Thème et accueil Carbon actifs par défaut, désactivables.",
+    "Actions IA contextuelles actives par défaut.",
+    "Panne du modèle local : pas de bascule externe sans choix exprès.",
+    "Modèle bloqué au-delà de 120 % de sa réservation jusqu’à acquittement.",
+    "Relance automatique identique retenue 6 h après une erreur définitive.",
+    "direction() rend unknown pour plusieurs auteurs ou un Reply-To extérieur.",
+    "Pause générale pendant un courriel : le courriel revient à la reprise."
+  ],
+  "adjusted_tests": [
+    "tests/core5684.cjs : accusé du lot et empreinte, contrat B08 et B10.",
+    "tests/test_v5688_cloud.py : le faux Drive accepte le PATCH v2 conditionnel.",
+    "tests/test_v5652.py et tests/test_v5642.py : inchangés depuis la 5.6.88."
+  ]
+}

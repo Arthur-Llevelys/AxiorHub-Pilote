@@ -19,6 +19,8 @@ from pathlib import PurePosixPath
 import time
 import uuid
 
+from . import pause5629
+from .arret5643 import STOP_CODES
 from .common import Stop, clean_path
 from . import cloud_gestion5688 as gestion
 
@@ -207,6 +209,7 @@ def step(desk, ident, budget=BUDGET, clients=None):
         for item in items:
             if desk.db.execute('SELECT state FROM cloud_migrations5688 WHERE id=?', (row['id'],)).fetchone()['state'] != 'en_cours':
                 return {'state': 'en_pause'}
+            pause5629.checkpoint(desk)      # 5.6.89 (B07) : hors du try interne : un arrêt n'est pas un échec de copie
             try:
                 _copy(desk, row, item, source, target, limit)
             except Stop as ex:
@@ -219,6 +222,10 @@ def step(desk, ident, budget=BUDGET, clients=None):
                 desk.db.commit()
     except Stop as ex:
         code = str(ex).split(':')[0]
+        if code in STOP_CODES:              # le motif d'arrêt remonte au gestionnaire de travail ; la copie repart de ses lignes déjà faites
+            desk.db.execute("UPDATE cloud_migrations5688 SET state='en_pause',last_error=?,lease=0,updated=? WHERE id=?", (code, _now(), row['id']))
+            desk.db.commit()
+            raise
         desk.db.execute("UPDATE cloud_migrations5688 SET state='en_pause',last_error=?,lease=0,updated=? WHERE id=?", (code, _now(), row['id']))
         desk.db.commit()
         desk.audit('cloud5688_copie_en_pause', {'migration': row['id'], 'erreur': code})

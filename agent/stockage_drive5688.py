@@ -8,7 +8,8 @@ Drive ne ressemble pas à WebDAV sur trois points, traités ici et signalés au 
   déterministe et le perdant retire sa propre copie, puis répond ``http_412``. Un document n'est jamais remplacé. Un doublon venu d'ailleurs
   (site Drive) reste signalé dans ``refused`` et bloque les écritures sur ce nom.
 - **Précondition de version** : l'API v3 n'expose pas d'ETag. La version est lue en v3, l'ETag en v2, puis le contenu est écrit par l'API v2
-  avec ``If-Match`` ; absence d'ETag : refus. Ce passage par la v2 n'a pas été éprouvé sur un vrai compte : le contrôle d'aptitude le rejoue.
+  avec ``If-Match`` ; absence d'ETag : refus. La mise à la corbeille suit la même voie (5.6.89 : elle passait par un PATCH v3 sans condition).
+  Ce passage par la v2 n'a pas été éprouvé sur un vrai compte : le contrôle d'aptitude le rejoue, écriture et corbeille, et la garantie n'est annoncée qu'après lui.
 
 **Portée** : ``drive.file`` (non sensible) par défaut. Elle suffit si AxiorHub écrit tout ce qu'il doit lire, mais elle ne montre pas un fichier
 déposé à la main dans Drive par un collaborateur. La portée complète ``drive`` (restreinte chez Google) est un choix explicite du cabinet.
@@ -246,6 +247,7 @@ class GoogleDriveStore(core.CloudStore):
         raise Stop('envoi_incomplet')
 
     def _trash_id(self, ident):
+        """Sans condition : réservé à la copie qu'AxiorHub vient de créer et qui a perdu (``_exclusive``). Un document du cabinet passe par ``_trash_tagged``."""
         self._call('PATCH', '/drive/v3/files/%s' % quote(ident, safe=''), body={'trashed': True}, safe=False)
 
     def _exclusive(self, parent, name, create):
@@ -290,7 +292,20 @@ class GoogleDriveStore(core.CloudStore):
     def _trash(self, meta):
         if meta.get('ambiguous'):
             raise Stop('nom_en_double_chez_le_fournisseur')
-        self._trash_id(meta['id'])
+        self._trash_tagged(meta, self.server_tag(meta))
+
+    def _trash_tagged(self, meta, tag):
+        """5.6.89 : corbeille conditionnelle, par la même voie que ``_put_tagged`` : l'API v3 n'accepte pas ``If-Match``, l'API v2 l'annonce. Le succès n'est retenu
+        qu'après relecture de l'état du fichier. Cette garantie reste à démontrer sur le compte du cabinet : le contrôle d'aptitude la rejoue (voir ``cloud5688.aptitude``)."""
+        url = '%s/drive/v2/files/%s?%s' % (self.api, quote(meta['id'], safe=''), urlencode({'supportsAllDrives': 'true'}))
+        status, _, _ = self._send('PATCH', url, json.dumps({'labels': {'trashed': True}}).encode(), {'Content-Type': 'application/json', 'If-Match': tag}, safe=False)
+        if status == 412:
+            raise Stop('version_nextcloud_modifiee')
+        if status not in (200, 201):
+            raise self._fail(status, 'PATCH', url)
+        _, raw = self._call('GET', '/drive/v3/files/%s' % quote(meta['id'], safe=''), {'fields': 'id,trashed'})
+        if self._json(raw).get('trashed') is not True:
+            raise Stop('corbeille_non_confirmee')
 
     def _mkdir(self, path):
         pure = PurePosixPath(path)

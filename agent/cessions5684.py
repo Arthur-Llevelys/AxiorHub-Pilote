@@ -12,7 +12,7 @@ import uuid
 
 from .common import Stop, clean_path, load_matters, matter_display
 from .erreurs5634 import Qualified
-from . import operations5683 as ops, regles5684
+from . import livrables5689, operations5683 as ops, regles5684
 
 KINDS = {'fonds_commerce': 'Fonds de commerce', 'droit_bail': 'Droit au bail'}
 URLS = {'fonds_commerce': 'fonds', 'droit_bail': 'bail'}
@@ -409,11 +409,16 @@ def prepare_document(desk, data, owner='cabinet', client=None, autonomous=False)
     number = desk.db.execute('SELECT COALESCE(MAX(version),0) FROM deliverables5683 WHERE dossier=? AND doc=?', (dos['id'], reference)).fetchone()[0] + 1
     base = re.sub(r'[\\/:*?"<>|]', '_', ref['titre'])[:90]
     path = '%s/%s v%d.docx' % (folder, base, number)
-    dav.put_file(path, eff['docx'], lib.DOCX_MIME)
     reserve = bool(lib.missing_mentions(t, eff['texte'])) or bool(missing(desk, dos)) or version['state'] != 'validated'
+    sortie = livrables5689.Sortie(desk, 'cessions5684', '%s:%s' % (dos['id'], reference), number, matter=dos['matter'], title=ref['titre'], kind='contrat', path=path, mime=lib.DOCX_MIME, sha256=hashlib.sha256(eff['docx']).hexdigest(), owner=owner,   # 5.6.89 (B03)
+                                  provenance={'producteur': 'cessions5684', 'operation': dos['id'], 'modele_id': ref['modele'], 'modele_version': version['version'], 'etat_modele': version['state']},
+                                  reserve_note='Document préparé avec réserves : données ou mentions à compléter, ou modèle non validé.' if reserve else '')
+    if not sortie.publiee(dav):     # reprise : la sortie attendue existe déjà, on ne la dépose pas deux fois
+        dav.put_file(path, eff['docx'], lib.DOCX_MIME)
     inputs = json.dumps({'modele': ref['modele'], 'version': version['version'], 'etat_modele': version['state'], 'reserve': reserve}, ensure_ascii=False)
     desk.db.execute('INSERT INTO deliverables5683 VALUES(?,?,?,?,?,?,?,?,?)', (uuid.uuid4().hex, dos['id'], reference, number, path, '', inputs, 'projet', ops._now()))
     desk.db.commit()
+    sortie.constater(dav, path)
     desk.audit('cession5684_document', {'id': dos['id'], 'reference': reference, 'version': number, 'modele': version['version'], 'etat_modele': version['state'], 'owner': owner})
     return {'id': dos['id'], 'path': path, 'reserve': reserve, 'message': '%s préparé%s.' % (ref['titre'], ' avec réserves' if reserve else '')}
 
@@ -678,8 +683,9 @@ def _documents(desk, prefix, dos):
     for item in have:
         ready = ('<form class="m5-form m5-inline" data-api="m5684/cession/pret" data-reload="1"><input type="hidden" name="id" value="%s"><input type="hidden" name="document" value="%s"><button class="ax-btn ghost" type="submit">Prêt à signer</button></form>' % (
             e(dos['id'], quote=True), e(item['id'], quote=True))) if item['state'] == 'projet' else ''
+        detail = livrables5689.lien_chemin(desk, prefix, item['path'])       # 5.6.89 (LIV01) : le titre ouvre la visionneuse commune
         rows += '<tr><td>%s</td><td>v%d</td><td>%s%s</td><td><a class="ax-btn ghost" href="%s/documents/edit?path=%s&matter=%s">Ouvrir dans EuroOffice</a></td><td>%s</td></tr>' % (
-            e(_label(item['doc'])), item['version'], e(DOC_STATES.get(item['state'], item['state'])), ' — réserves' if item['meta'].get('reserve') else '', e(prefix, quote=True), e(__import__('urllib.parse').parse.quote(item['path']), quote=True), e(dos['matter'], quote=True), ready)
+            ('<a href="%s">%s</a>' % (e(detail, quote=True), e(_label(item['doc'])))) if detail else e(_label(item['doc'])), item['version'], e(DOC_STATES.get(item['state'], item['state'])), ' — réserves' if item['meta'].get('reserve') else '', e(prefix, quote=True), e(__import__('urllib.parse').parse.quote(item['path']), quote=True), e(dos['matter'], quote=True), ready)
     choices = ''
     for reference in expected_docs(desk, dos):
         ref = _template_for(reference)

@@ -69,6 +69,8 @@ def _lire(desk, source, url, valide, ttl=CACHE_TTL, force=False):
     parts = urlsplit(url)
     if parts.scheme != 'https' or parts.netloc not in HOSTS:
         raise Stop('origine_http_refusee')
+    from .data_policy5689 import exiger
+    exiger(desk.c, 'recherche_web', 'registres_publics', finalite='registres', requete=url[:400])   # 5.6.89 : avant la lecture du cache et le transfert
     _schema(desk)
     key = hashlib.sha256(url.encode('utf-8')).hexdigest()
     now = time.time()

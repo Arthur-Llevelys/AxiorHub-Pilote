@@ -21,6 +21,16 @@ def schema(desk):
     desk.db.execute('''CREATE TABLE IF NOT EXISTS template_versions5684(template_id TEXT NOT NULL, version INTEGER NOT NULL, parent_version INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL, sha256 TEXT NOT NULL, text TEXT NOT NULL,
         legal_sources TEXT NOT NULL DEFAULT '[]', comment TEXT NOT NULL DEFAULT '', author TEXT NOT NULL DEFAULT '', validated_by TEXT NOT NULL DEFAULT '', review_date TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, PRIMARY KEY(template_id, version))''')
     desk.db.commit()
+    _colonnes(desk)
+
+
+def _colonnes(desk):
+    """5.6.89 : type de document, langue, domaine, champs obligatoires : colonnes ajoutées sans toucher aux versions existantes."""
+    known = {r[1] for r in desk.db.execute('PRAGMA table_info(template_versions5684)')}
+    for column in ('document_type', 'language', 'domain', 'required_fields'):
+        if column not in known:
+            desk.db.execute("ALTER TABLE template_versions5684 ADD COLUMN %s TEXT NOT NULL DEFAULT ''" % column)
+    desk.db.commit()
 
 
 def _sha(text):
@@ -43,6 +53,37 @@ def current(desk, ident):
         _seed(desk, lib.template(desk, ident))
         row = desk.db.execute('SELECT * FROM template_versions5684 WHERE template_id=? ORDER BY version DESC LIMIT 1', (ident,)).fetchone()
     return dict(row)
+
+
+def selectionner(desk, ident, autonome=False, document_type=''):
+    """5.6.89 (§ 39) : état du modèle à la sélection. Retiré : refusé. Génération autonome : version validée exigée, le reste est une limite explicite. À la main, un modèle non validé reste utilisable et signalé."""
+    row = current(desk, ident)
+    if row['state'] == 'withdrawn':
+        raise Stop('modele_retire')
+    if autonome and row['state'] != 'validated':
+        raise Stop('modele_non_valide')
+    if document_type and row['document_type'] and row['document_type'] != document_type:
+        raise Stop('modele_hors_parcours')
+    return row
+
+
+def renseigner(desk, data, owner='cabinet', role='avocat'):
+    """Fiche de la version courante : type, langue, domaine, champs obligatoires. Une version validée reste figée."""
+    row = current(desk, str(data.get('modele') or ''))
+    if row['state'] == 'validated':
+        raise Stop('modele_valide_fige')
+    fields = [x.strip() for x in str(data.get('champs_obligatoires') or '').split(',') if x.strip()]
+    desk.db.execute('UPDATE template_versions5684 SET document_type=?, language=?, domain=?, required_fields=? WHERE template_id=? AND version=?',
+                    (str(data.get('type') or '')[:60], str(data.get('langue') or '')[:12], str(data.get('domaine') or '')[:80], json.dumps(fields, ensure_ascii=False), row['template_id'], row['version']))
+    desk.db.commit()
+    desk.audit('modele5689_fiche', {'modele': row['template_id'], 'version': row['version'], 'owner': owner})
+    return {'message': 'Fiche du modèle enregistrée.'}
+
+
+def champs_manquants(desk, ident, valeurs):
+    """Champs obligatoires déclarés et non renseignés : une limite à montrer, pas un blocage silencieux."""
+    row = current(desk, ident)
+    return [f for f in json.loads(row.get('required_fields') or '[]') if not str((valeurs or {}).get(f) or '').strip()]
 
 
 def versions(desk, ident):
@@ -131,7 +172,10 @@ def panel_html(desk, t):
     moves = ''.join('<form class="m5-form m5-inline" data-api="m5684/modele/etat" data-reload="1"><input type="hidden" name="modele" value="%s"><input type="hidden" name="etat" value="%s"><button class="ax-btn ghost" type="submit">%s</button></form>' % (
         e(t['id'], quote=True), target, e(STATES[target])) for target in MOVES[row['state']])
     rows = ''.join('<li>v%d : %s%s%s</li>' % (v['version'], e(STATES[v['state']]), (' — ' + e(v['comment'])) if v['comment'] else '', (' — validé par %s le %s' % (e(v['validated_by']), e(v['review_date']))) if v['validated_by'] else '') for v in versions(desk, t['id']))
-    return ('<section class="ax-card"><h3>Validation du modèle</h3><p>Version %d : <strong>%s</strong>. Portée : %s.</p><div>%s</div><ul>%s</ul><details><summary>Publier une nouvelle version</summary><form class="m5-form" data-api="m5684/modele/version" data-reload="1">'
+    fiche = '' if row['state'] == 'validated' else ('<details><summary>Fiche du modèle</summary><form class="m5-form" data-api="m5684/modele/fiche" data-reload="1"><input type="hidden" name="modele" value="%s"><label>Type de document<input name="type" value="%s"></label><label>Langue<input name="langue" value="%s"></label>'
+                                                    '<label>Domaine<input name="domaine" value="%s"></label><label>Champs obligatoires, séparés par des virgules<input name="champs_obligatoires" value="%s"></label><button class="ax-btn ghost" type="submit">Enregistrer la fiche</button></form></details>' % (
+                                                        e(t['id'], quote=True), e(row['document_type'], quote=True), e(row['language'], quote=True), e(row['domain'], quote=True), e(', '.join(json.loads(row['required_fields'] or '[]')), quote=True)))
+    return fiche + ('<section class="ax-card"><h3>Validation du modèle</h3><p>Version %d : <strong>%s</strong>. Portée : %s.</p><div>%s</div><ul>%s</ul><details><summary>Publier une nouvelle version</summary><form class="m5-form" data-api="m5684/modele/version" data-reload="1">'
             '<input type="hidden" name="modele" value="%s"><label>Texte du modèle<textarea name="texte" rows="10" data-no-dictation>%s</textarea></label><label>Commentaire<input name="commentaire" required></label><label>Champs nouveaux, séparés par des virgules<input name="nouveaux_champs"></label>'
             '<button class="ax-btn ghost" type="submit">Publier cette version</button></form></details></section>') % (
         row['version'], e(STATES[row['state']]), e(t.get('portee') or 'à qualifier'), moves, rows, e(t['id'], quote=True), e(row['text']))

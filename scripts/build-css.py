@@ -14,6 +14,8 @@ from agent.shell501 import BUNDLE  # noqa: E402
 
 def build():
     static = ROOT / 'agent' / 'static'
+    from agent.ui_tokens5689 import ecrire    # 5.6.89 : feuille de jetons générée depuis le module, avant la concaténation
+    ecrire()
     parts = ['/* AxiorHub — feuille de style unique générée par scripts/build-css.py. Ne pas modifier : modifier les fichiers sources. */\n']
     for name in BUNDLE:
         parts.append('/* ==== %s ==== */\n%s\n' % (name, (static / name).read_text(encoding='utf-8').rstrip()))

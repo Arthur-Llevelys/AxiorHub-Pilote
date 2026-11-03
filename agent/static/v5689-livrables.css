@@ -1,0 +1,28 @@
+/* 5.6.89 : documents préparés et visionneuse commune. Rendu sobre, couleurs du thème ; le lot Carbon l'habillera. */
+.l89-liste{list-style:none;margin:.5rem 0;padding:0}
+.l89-ligne{border-bottom:1px solid var(--ax-border,#8a8a8a55);display:grid;gap:.15rem;padding:.6rem 0}
+.l89-ligne a{color:inherit;display:flex;flex-wrap:wrap;gap:.5rem;text-decoration:none}
+.l89-ligne a:hover strong,.l89-ligne a:focus strong{text-decoration:underline}
+.l89-nature{font-size:.82rem;font-weight:600;opacity:.85}
+.l89-meta{font-size:.85rem;opacity:.85}
+.l89-etats{display:flex;flex-wrap:wrap;gap:.35rem}
+.l89-etat{border:1px solid currentColor;border-radius:999px;font-size:.78rem;padding:0 .5rem}
+.l89-alerte{border-left:4px solid currentColor;margin:.5rem 0;padding:.35rem .7rem}
+.l89-note{font-size:.9rem;margin:.4rem 0}
+.l89-filtres{align-items:flex-end;display:flex;flex-wrap:wrap;gap:.75rem;margin:.75rem 0}
+.l89-filtres label{display:grid;font-size:.85rem;gap:.15rem}
+.l89-natures{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+.l89-natures a{border:1px solid var(--ax-border,#8a8a8a88);border-radius:999px;padding:.1rem .6rem;text-decoration:none}
+.l89-natures a[aria-current]{border-color:currentColor;font-weight:700}
+.l89-sources ul,.l89-controles,.l89-limites{list-style:none;margin:.3rem 0;padding:0}
+.l89-actions{align-items:flex-start;display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0}
+.l89-actions details[open]{flex-basis:100%}
+.l89-actions summary{cursor:pointer;display:inline-block}
+.l89-limites{font-size:.88rem;opacity:.9}
+.l89-cadre{background:#fff;border:1px solid var(--ax-border,#8a8a8a88);height:70vh;min-height:360px;width:100%}
+.l89-image{display:block;height:auto;max-width:100%}
+.l89-proposition{border-top:1px solid var(--ax-border,#8a8a8a55);padding-top:.6rem}
+.l89-compare{display:grid;gap:.2rem;margin:.4rem 0}
+.l89-avant{border-left:4px dashed currentColor;padding-left:.6rem}
+.l89-apres{border-left:4px solid currentColor;font-weight:600;padding-left:.6rem}
+@media (max-width:640px){.l89-filtres{align-items:stretch;flex-direction:column}.l89-cadre{height:60vh}}

@@ -398,6 +398,10 @@ class CloudStore(DAV):
     def _trash(self, meta):
         raise NotImplementedError
 
+    def _trash_tagged(self, meta, tag):
+        """Corbeille conditionnelle sur une marque donnée (5.6.89) : le contrôle d'aptitude y passe une marque périmée pour voir le fournisseur refuser."""
+        self._trash({**meta, 'etag': tag})
+
     def _mkdir(self, path):
         """Création d'un dossier sous un parent existant ; ``Stop('http_412')`` s'il existe déjà."""
         raise NotImplementedError
@@ -676,6 +680,7 @@ def aptitude(store, root):
           step('Relire la nouvelle version', lambda: store.read_archive(path, 1000) == second) and
           step('Refuser une version périmée, contrôle d’AxiorHub', lambda: expect('version_nextcloud_modifiee', lambda: store.replace_file(path, third, state['etag']))) and
           step('Refuser une version périmée, contrôle du fournisseur', lambda: expect('version_nextcloud_modifiee', lambda: store._put_tagged(store._file(path), third, state['tag']))) and
+          step('Refuser la corbeille sur une version périmée, contrôle du fournisseur', lambda: expect('version_nextcloud_modifiee', lambda: store._trash_tagged(store._file(path), state['tag']))) and
           step('Le contenu n’a pas changé', lambda: store.read_archive(path, 1000) == second))
     if state['created']:
         ok = step('Mettre le fichier d’essai à la corbeille', lambda: store.trash_file(path, store.stat(path)['etag'])) and ok

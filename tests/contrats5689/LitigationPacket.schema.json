@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "Exhibit": {
+      "additionalProperties": false,
+      "properties": {
+        "exhibit_id": {
+          "title": "Exhibit Id",
+          "type": "string"
+        },
+        "party_side": {
+          "enum": [
+            "cabinet",
+            "opponent",
+            "common",
+            "unknown"
+          ],
+          "title": "Party Side",
+          "type": "string"
+        },
+        "display_number": {
+          "title": "Display Number",
+          "type": "string"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/SourceRef"
+        }
+      },
+      "required": [
+        "exhibit_id",
+        "party_side",
+        "display_number",
+        "source_ref"
+      ],
+      "title": "Exhibit",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "version_id": {
+          "minLength": 1,
+          "title": "Version Id",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "locator_kind": {
+          "enum": [
+            "pdf_page",
+            "paragraph",
+            "bookmark",
+            "manual_event"
+          ],
+          "title": "Locator Kind",
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "version_id",
+        "sha256",
+        "locator_kind",
+        "locator"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "matter_id": {
+      "title": "Matter Id",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "assertion_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Assertion Refs",
+      "type": "array"
+    },
+    "evidence_links": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence Links",
+      "type": "array"
+    },
+    "exhibits": {
+      "items": {
+        "$ref": "#/$defs/Exhibit"
+      },
+      "title": "Exhibits",
+      "type": "array"
+    },
+    "deadline_candidate_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Deadline Candidate Refs",
+      "type": "array"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "matter_id",
+    "claims",
+    "assertion_refs",
+    "evidence_links",
+    "exhibits",
+    "deadline_candidate_refs",
+    "revision"
+  ],
+  "title": "LitigationPacket",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Contrat logique proposé à intégrer ; objet métier complet, pas autorisation fournie par un client."
+}

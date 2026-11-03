@@ -140,7 +140,7 @@ def _benchmark_recommendation(config, purpose):
     try:
         placeholders=','.join('?' for _ in tasks)
         rows=list(db.execute('''SELECT r.provider,r.model,ROUND(AVG(r.total_score),1) score,
-          COUNT(*) samples,SUM(r.hallucination_count) hallucinations
+          COUNT(*) samples,SUM(r.hallucination_count) hallucinations,ROUND(AVG(r.latency_ms)) delai
           FROM legal_benchmark_results_v410 r JOIN legal_benchmark_cases_v410 c ON c.id=r.case_id
           WHERE r.status='done' AND r.scorer_version=567 AND c.task_kind IN ('''+placeholders+''')
           GROUP BY r.provider,r.model ORDER BY score DESC,hallucinations,samples DESC''',tasks))
@@ -182,13 +182,9 @@ def _estimate(provider, characters, max_tokens):
 def _monthly_used(config, provider_id):
     state = str(config.get('state_dir') or '')
     if not state or not (Path(state)/'desk.sqlite3').is_file(): return 0.0
-    db = sqlite3.connect(Path(state)/'desk.sqlite3', timeout=10)
-    try:
-        prefix = datetime.now(timezone.utc).strftime('%Y-%m-')+'%'
-        try:
-            return float(db.execute("SELECT COALESCE(SUM(estimated_cost_usd),0) FROM ai_usage_v391 WHERE provider=? AND at LIKE ? AND status='done'", (provider_id, prefix)).fetchone()[0])
-        except sqlite3.Error: return 0.0
-    finally: db.close()
+    from .budget_ledger5689 import engage_fournisseur_usd   # 5.6.89 : même compteur que la réservation ; ici, simple lecture
+    try: return float(engage_fournisseur_usd(state, provider_id))
+    except sqlite3.Error: return 0.0
 
 
 def choose(config, purpose, stage='', payload=None, messages=None, metrics=None,

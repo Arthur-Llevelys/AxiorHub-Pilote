@@ -7,6 +7,9 @@
 5. parmi eux, consommation estimée la plus basse (le local d'abord, puis l'abonnement, puis l'API) ;
 6. effort, budget et décision enregistrés AVANT la génération, puis nouveau contrôle au moment de l'appel.
 
+5.6.89 (chapitre 44) : filtre par droits, destination admise (``data_policy5689``), capacités, qualité observée, contexte et budget, puis classement par
+coût et délai. Le moins cher n'est éligible qu'au seuil de qualité. Sans candidat qualifié : résultat partiel ou attente expliquée, jamais un repli externe pour masquer une panne du local.
+
 On ne fait pas essayer tous les modèles du moins capable au plus capable : l'escalade est unique par étape, à une frontière stable, et ne
 suit qu'un contrôle précis (schéma invalide, sortie incomplète, réponse vide). Une pause, une annulation, une erreur d'authentification ou
 une limite n'autorisent aucune escalade et aucun changement de fournisseur.
@@ -99,12 +102,16 @@ def _models_for(config, rule, provider_id, provider):
     return rows
 
 
-def _benchmarked(config, purpose, provider_id, slug):
+def _mesures(config, purpose):
+    """Scores observés au banc du cabinet, à partir de trois essais."""
     from .hybrid400 import _benchmark_recommendation
-    for row in _benchmark_recommendation(config, purpose).get('all', []):
-        if row['provider'] == provider_id and row['model'] == slug and int(row.get('samples') or 0) >= 3:
-            return True
-    return False
+    return {(r['provider'], r['model']): r for r in _benchmark_recommendation(config, purpose).get('all', []) if int(r.get('samples') or 0) >= 3}
+
+
+def _benchmarked(config, purpose, provider_id, slug, seuil=None):
+    """Mesuré au banc ; avec ``seuil``, mesuré ET au niveau de qualité retenu (5.6.89)."""
+    row = _mesures(config, purpose).get((provider_id, slug))
+    return bool(row) and (seuil is None or float(row.get('score') or 0) >= float(seuil))
 
 
 def _rank_level(wanted, row, allow_max):
@@ -134,6 +141,10 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
     from .hybrid400 import policy as hybrid_policy
     from . import chatgpt5682
     reserved = bool(matters & set(hybrid_policy(config)['excluded_matters']))
+    from . import budget_ledger5689, data_policy5689
+    from .competences5632 import fournisseur_qualifie
+    seuil = data_policy5689.qualite_minimale(config)      # politique illisible : Stop, aucune destination n'est choisie
+    mesures = _mesures(config, purpose)
     mission = _mission()
     prof = tache5682.profile(purpose, stage, payload, messages, rule['preference'], matter, owner, needs_json=needs_json)
     wanted = prof['niveau']
@@ -150,6 +161,13 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
             continue
         if kind != 'ollama' and reserved:            # dossier exclu des envois : le modèle local seul, s'il est permis
             excluded.append('politique_externe_dossier_exclu:' + provider_id)
+            continue
+        verdict = data_policy5689.destination_admise(config, provider_id, provider, purpose, matters)     # 5.6.89 : seules les destinations admises sont candidates
+        if not verdict['allowed']:
+            excluded.append(verdict['denial_reasons'][0].split(':')[0] + ':' + provider_id)
+            continue
+        if not fournisseur_qualifie(provider_id, kind):      # une compétence restreint, elle n'ouvre jamais
+            excluded.append('competence_non_qualifiee:' + provider_id)
             continue
         if kind == 'chatgpt' and rule['mode'] == 'auto' and chatgpt5682.deferred(state_dir):
             excluded.append('chatgpt_limite_usage_atteinte:' + provider_id)
@@ -176,24 +194,36 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
             if kind == 'ollama' and wanted in ('avance', 'maximal') and not _benchmarked(config, purpose, provider_id, slug):
                 excluded.append('niveau_local_non_mesure:' + slug)
                 continue
+            mesure = mesures.get((provider_id, slug))
+            if mesure and float(mesure.get('score') or 0) < seuil:     # 5.6.89 : le moins cher n'est éligible qu'au seuil de qualité
+                excluded.append('qualite_insuffisante:' + slug)
+                continue
             prices = catalogue5682.prices(provider, row)
             if kind not in ('ollama', 'chatgpt') and prices[0] is None:
                 excluded.append('tarif_inconnu:' + slug)
+                continue
+            if kind not in ('ollama', 'chatgpt') and not budget_ledger5689.admissible(state_dir, provider_id, provider, conso5682.estimate(prices, prof['jetons_estimes'], max_tokens)):
+                excluded.append('budget_fournisseur_insuffisant:' + slug)
                 continue
             if kind == 'ollama':
                 prices = (0.0, None, 0.0, 'aucune')
             elif kind == 'chatgpt' and prices[3] == 'usd':
                 prices = (None, None, None, 'credits')
-            found.append((provider_id, provider, row, gap, prices))
+            found.append((provider_id, provider, row, gap, prices, mesure))
     if not found:
         raise Stop('aucun_modele_admissible' if not excluded else excluded[0].split(':')[0])
+    qualifies = [item for item in found if item[5]]
+    if qualifies and len(qualifies) < len(found):           # un candidat non mesuré ne passe pas devant un candidat qualifié, même moins cher
+        excluded += ['non_mesure_ecarte:' + item[2]['slug'] for item in found if not item[5]]
+        found = qualifies
 
     def cost(item):
         unit = item[4][3]
         channel = 0 if unit == 'aucune' else (1 if unit == 'credits' else 2)
         estimate = conso5682.estimate(item[4], prof['jetons_estimes'], max_tokens)
-        return (item[3], channel, float('inf') if estimate is None else estimate, catalogue5682.NIVEAUX.index(item[2].get('niveau') or 'standard'))
-    provider_id, provider, row, gap, prices = min(found, key=cost)
+        delay = float((item[5] or {}).get('delai') or 'inf')
+        return (item[3], channel, float('inf') if estimate is None else estimate, delay, catalogue5682.NIVEAUX.index(item[2].get('niveau') or 'standard'))
+    provider_id, provider, row, gap, prices, _mesure = min(found, key=cost)
     if escalate_from and row['slug'] == escalate_from.get('modele') and provider_id == escalate_from.get('fournisseur'):
         raise Stop('escalade_sans_modele_superieur')
     automatic = _automatic()
@@ -206,18 +236,19 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
     estimate = conso5682.estimate(prices, prof['jetons_estimes'], tokens_out)
     limit = rule['plafond_mission_credits'] if prices[3] == 'credits' else rule['plafond_mission_usd']
     uid = secrets.token_hex(12)
-    reservation = conso5682.reserve(state_dir, mission, estimate, prices[3], limit, uid)
-    provisional = provider.get('type') != 'ollama' and not _benchmarked(config, purpose, provider_id, row['slug'])
+    reservation = conso5682.reserve(state_dir, mission, estimate, prices[3], limit, uid, provider_id, row['slug'], purpose)
+    provisional = provider.get('type') != 'ollama' and not mesures.get((provider_id, row['slug']))
     short = tache5682.short_reason({**prof, 'niveau': row.get('niveau') or wanted}, bool(escalate_from))
     if not effort and prof['effort']:
         short += ' Effort non réglable sur ce modèle : le modèle a été choisi en conséquence.'
     decision = {'uid': uid, 'mission': mission, 'etape': stage or 'completion', 'proprietaire': owner, 'fonction': purpose,
                 'dossier_h': hashlib.sha256(matter.encode()).hexdigest()[:16] if matter else '', 'type_tache': prof['type_tache'],
                 'niveau': row.get('niveau') or wanted, 'fournisseur': provider_id, 'type_fournisseur': provider.get('type', 'ollama'), 'modele': row['slug'],
-                'nom_modele': row.get('nom') or row['slug'], 'effort': effort, 'raisons': prof['raisons'] + excluded[:6], 'raison_courte': short,
+                'nom_modele': row.get('nom') or row['slug'], 'effort': effort, 'raisons': prof['raisons'] + excluded[:6] + (['changement_de_niveau:%s>%s' % (escalate_from.get('niveau'), row.get('niveau') or wanted), 'depense_supplementaire_estimee:%s' % estimate] if escalate_from else []), 'raison_courte': short,
                 'mode': rule['mode'], 'politique_version': rule['version'], 'estimation': estimate, 'unite': prices[3], 'provisoire': provisional,
                 'escalade_de': (escalate_from or {}).get('uid', ''), 'automatique': automatic, 'prix': prices, 'reservation': reservation, 'sources': prof['sources'],
-                'sources_manquantes': prof['sources_manquantes']}
+                'sources_manquantes': prof['sources_manquantes'],
+                'tache': {'fonction': purpose, 'nature': prof['type_tache'], 'volume': prof['jetons_estimes'], 'risque': row.get('niveau') or wanted, 'resultat': 'json' if needs_json else 'texte'}}
     _record(state_dir, decision)
     return decision
 
@@ -260,6 +291,7 @@ def child_config(parent_cfg, decision, config):
 
 def run(parent, messages, temperature, max_tokens, json_schema, stage, data):
     """Exécute une étape : décision, appel, au plus une escalade justifiée. Rien n'est concaténé : l'étape recommence entièrement sur le nouveau modèle."""
+    from . import data_policy5689
     from .arret5643 import STOP_CODES
     config = parent.cfg['external_policy_config']
     state_dir = config.get('state_dir')
@@ -288,6 +320,9 @@ def run(parent, messages, temperature, max_tokens, json_schema, stage, data):
             if code not in STOP_CODES and code in FALLBACK_ON and decision['mode'] == 'auto':
                 tried.append(decision['fournisseur'])
                 try:
+                    if (decision['type_fournisseur'] == 'ollama' and not data_policy5689.repli_externe_autorise(config)) or data_policy5689.repli_bloque(config):
+                        from .ai_gateway import provider_registry     # 5.6.89 : une panne n'est pas masquée par un autre fournisseur externe, d'autant que le coût de l'appel coupé reste inconnu
+                        tried += [p for p, item in provider_registry(config).items() if item.get('type', 'ollama') != 'ollama']
                     decision = decide(config, purpose, stage, data, messages, max_tokens, json_schema is not None, None, owner, tried)
                 except Stop:
                     raise error from None

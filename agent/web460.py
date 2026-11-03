@@ -153,7 +153,7 @@ def _top(desk, prefix, mid, label, onglet, analysis):
 
 
 def _head(prefix):
-    return '<link rel="stylesheet" href="%s/static/v460.css"><script defer src="%s/static/v460.js"></script>' % (e(prefix), e(prefix))
+    return '<link rel="stylesheet" href="%s/static/v460.css"><script defer src="%s/static/v460.js"></script><script defer src="%s/static/v5689-dossier.js"></script>' % (e(prefix), e(prefix), e(prefix))
 
 
 FACTS_PER_PAGE = 50

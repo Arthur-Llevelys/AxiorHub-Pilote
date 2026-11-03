@@ -127,12 +127,14 @@ def work_items(desk, states=None, limit=100):
 def _page_context(value, selected_matter=''):
     if not isinstance(value,dict):return {}
     context={}
-    for key,maximum in (('page',160),('active_mission',300)):
+    for key,maximum in (('page',160),('active_mission',300),('fonction',120)):
         if value.get(key):context[key]=str(value[key]).strip()[:maximum]
     documents=value.get('selected_documents',[])
     if isinstance(documents,list):context['selected_documents']=[str(x).strip()[:1000] for x in documents if str(x).strip()][:20]
     results=value.get('recent_results',[])
     if isinstance(results,list):context['recent_results']=[str(x).strip()[:800] for x in results if str(x).strip()][:5]
+    objets=value.get('objets',[])   # 5.6.89 : objets déjà revalidés par ui_ai5689.pour_mission
+    if isinstance(objets,list) and objets:context['objets']=[{k:str(o.get(k) or '')[:200] for k in ('titre','version','nature')} for o in objets if isinstance(o,dict)][:20]
     # The browser context may describe the current matter, but it can never
     # switch the server-side scope chosen and validated by chat_scope.
     context['matter']=str(selected_matter or '')[:80]

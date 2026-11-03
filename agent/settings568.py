@@ -109,7 +109,8 @@ def mode(desk,owner,matter=''):
     p=profile(desk,owner)
     order={'observe':0,'prepare':1,'organize':2}
     choices=[p['autonomy'], p['matter_modes'].get(matter,p['autonomy']), desk.settings('proactive568:cabinet_mode','organize')]
-    if not p['enabled'] or matter in p['excluded_matters'] or desk.settings('missions567:pause',False):return 'observe'
+    from .arret5643 import global_paused
+    if not p['enabled'] or matter in p['excluded_matters'] or global_paused(desk):return 'observe'   # 5.6.89 : plage programmée comprise
     from datetime import datetime
     if p['vacation_until'] and datetime.now(ZoneInfo(p['timezone'])).date().isoformat()<=p['vacation_until']:return 'observe'
     return min(choices,key=lambda x:order.get(x,0))

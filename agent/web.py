@@ -243,6 +243,8 @@ CONFIRM_REASONS = {
 }
 REASONS['transcription_locale_en_echec']='La transcription locale a échoué : le moteur Vocal du serveur est arrêté ou en erreur.'   # 5.6.81
 REASONS['pont_vocal_injoignable']='Le service de transcription locale ne répond pas : le pont vocal du serveur est arrêté.'
+REASONS['capacite_revoquee']='Cette capacité a été révoquée : rien n’a été fait. Elle se rétablit dans Paramètres, rubrique Démarrage du cabinet.'   # 5.6.89
+REASONS['ecriture_refusee_par_le_compte']='Le compte relié a refusé l’écriture lors de sa qualification : rien n’a été fait. Accordez-lui ce droit, puis relancez la qualification.'
 REASONS['transcription_trop_longue']='La transcription a pris trop de temps : le moteur Vocal du serveur est surchargé.'
 REASONS['transcription_en_cours']='Une transcription est déjà en cours. Réessayez dans quelques secondes.'
 REASONS['autorisation_donnees_externes_requise']='Cochez l’autorisation d’envoi des données pseudonymisées pour retenir ce mode.'
@@ -269,6 +271,9 @@ JOB_LABELS.update({'advance_playbook380':'Poursuite d’un déroulé de travail'
   'complete_playbook_step380':'Étape d’un déroulé de travail','delete_mail_rule370':'Suppression d’une règle de courriel',
   'digest_pieces5632':'Synthèse des nouvelles pièces','file_mail_attachments5643':'Classement des pièces jointes reçues',
   'import_mcp_legal_results':'Import de résultats de recherche juridique','mailrules5632':'Application des règles de courriel',
+  'candidat_delai5689':'Calcul d’un délai proposé','matrice_ia5689':'Préparation de la matrice des prétentions','rediger_acte5689':'Rédaction d’un acte par sections',
+  'extraction_dossier5689':'Lecture d’une source du dossier','mission_conseil5689':'Mission de conseil','assistance5689':'Assistance contextuelle','obligations5689':'Relevé des obligations d’un accord signé',
+  'synchro_livrables5689':'Comparaison du registre des documents au stockage','controle_livrable5689':'Contrôles d’un document préparé','export_livrable5689':'Export d’un document préparé','modifier_livrable5689':'Proposition de modification d’un document',
   'sauvegarde5688':'Sauvegarde chiffrée du cabinet','export5688':'Export intégral du cabinet','controle5688':'Contrôle d’une archive','maj_local5661':'Mise à jour d’AxiorHub sur ce poste','ranger_notes5666':'Rangement des notes internes dans les dossiers','apprentissage5667':'Apprentissage des corrections et mesure des documents',
   'banc5667':'Banc d’essai des modèles sur vos cas','prepare_ecosystem_action380':'Préparation d’une action dans un service connecté',
   'recherche5634':'Recherche juridique','record_correction370':'Enregistrement d’une correction de l’avocat',
@@ -864,7 +869,7 @@ class App:
                 env['axiorhub.config_path']=self.config_path
                 from .i18n5631 import begin as _lang_begin   # 5.6.31 (R17) : langue propre à cette requête et à cet utilisateur
                 from . import shell501 as _shell501
-                _shell501.set_context(cfg);_lang_begin(env,cfg,*actor(env))
+                _shell501.set_context(cfg,args,path);_lang_begin(env,cfg,*actor(env))
                 from .web440 import route as _route440
                 _r440=_route440(env,cfg,auth,prefix,path,args,env['REQUEST_METHOD'])
                 if _r440 is not None:
@@ -1353,6 +1358,8 @@ class App:
                     # 5.6.9 : /favicon.ico est demandé d'office par les navigateurs ; 5.6.11 : vraies tailles d'icônes PWA (192, 512, maskable).
                     name='axiorhub-icon.png' if path=='/favicon.ico' else path.rsplit('/',1)[-1]
                     body=(Path(__file__).parent/'static'/name).read_bytes();kind='image/png'
+                elif path in ('/static/plex-sans-400.woff2','/static/plex-sans-600.woff2'):   # 5.6.89 : police de l'interface, servie par l'application
+                    body=(Path(__file__).parent/'static'/path.rsplit('/',1)[-1]).read_bytes();kind='font/woff2'
                 else:
                     body=self.page(cfg,auth,path,args)
         except Stop as ex:
@@ -1538,6 +1545,8 @@ class App:
                     from .membres5650 import viewer_hidden
                     from .i18n5631 import role as _role52
                     main+=queue5651(desk,prefix,None,'relire',viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
+                    from .livrables_web5689 import section_html as _livrables5689   # 5.6.89 : même projection qu'Aujourd'hui et Dossier
+                    main+=_livrables5689(desk,prefix,None,8,prefix+'/production')
                 except Exception:   # noqa: BLE001
                     pass
                 main+=production_page(desk,args,form,link)
@@ -2504,9 +2513,13 @@ def log_interface_error(env,config_path=''):
 
 def serve(config_path,auth_path,port=8769,host='127.0.0.1'):
     from waitress import serve as waitress_serve
+    application=App(config_path,auth_path)
+    from . import __version__ as _version,budget_ledger5689,passerelle5689
+    _config=load_config(config_path)     # 5.6.89 : registre du budget et passerelle des appels sortants valent aussi pour le service web
+    budget_ledger5689.preparer(_config,'web',_version);passerelle5689.installer(_config)
     # send_bytes=1 : chaque écriture part tout de suite (sinon Waitress retient ~18 Ko et les événements du flux SSE restent en attente).
     # 5.6.20 : port et hôte paramétrables (mode poste) ; l'écoute reste locale par défaut.
-    waitress_serve(App(config_path,auth_path),host=host,port=int(port),threads=24,send_bytes=1,
+    waitress_serve(application,host=host,port=int(port),threads=24,send_bytes=1,
                    max_request_body_size=20_100_000,trusted_proxy='127.0.0.1',
                    trusted_proxy_headers={'x-forwarded-proto','x-forwarded-for'},clear_untrusted_proxy_headers=True)
 

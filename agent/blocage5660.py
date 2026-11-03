@@ -212,6 +212,16 @@ def diagnose(db, state_dir, ref=None):
                 action='Reprendre l’IA depuis Aujourd’hui ou Paramètres.')
     except (TypeError, ValueError):
         pass
+    try:   # 5.6.89 : pause programmée et incident du planning, depuis la même lecture que les contrôles
+        from . import horaires_ia5689
+        horaire = horaires_ia5689.lire_horaire(horaires_ia5689.photo(db), ref)
+        if horaire['incident']:
+            add('horaires_illisibles', 'bloquant', 'Horaires de l’IA illisibles', horaires_ia5689.INCIDENTS[horaire['incident']] + ' Les nouveaux appels à l’IA sont bloqués ; les services sans IA continuent.',
+                action='Corriger le réglage dans Paramètres › Horaires de fonctionnement.')
+        elif horaire['pause']:
+            add('pause_programmee', 'info', horaires_ia5689.synthese(horaire, ref), 'Pause prévue par le cabinet : les travaux reprennent seuls à la fin de la plage.')
+    except Exception:   # noqa: BLE001 — le diagnostic ne dépend jamais de ce contrôle
+        pass
     h = holder(state_dir)
     if h['since']:
         held_for = _age_minutes(h['since'], ref) or 0
@@ -255,7 +265,7 @@ def diagnose(db, state_dir, ref=None):
             'Au-delà, les nouveaux travaux automatiques sont refusés jusqu’à ce que la file se vide.')
     since = (ref - timedelta(hours=6)).isoformat()
     finished = (one("SELECT COUNT(*) FROM jobs WHERE finished>=? AND status IN ('done','error','cancelled')", (since,)) or [0])[0]
-    oldest = one("SELECT MIN(created) FROM jobs WHERE status='pending'")
+    oldest = one("SELECT MIN(created) FROM jobs WHERE status='pending' AND COALESCE(pause_secondes,0)=0")   # 5.6.89 : une reprise après une nuit de pause n'est pas une file figée
     oldest_age = _age_minutes(oldest[0], ref) if oldest and oldest[0] else None
     if pending and finished == 0 and oldest_age is not None and oldest_age > 360:
         add('file_figee', 'bloquant', 'File figée : %d travaux en attente, aucun terminé en 6 h' % pending,

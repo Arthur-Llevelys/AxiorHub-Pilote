@@ -418,13 +418,15 @@ def save(desk, owner, role, data):
                 write(_vault(desk, conn_id, f['name']), value)
             secrets_set[f['name']] = now
     caps = json.loads(row['caps_json']) if row else {}
+    from .connector_readiness5689 import revoquees
+    gardees = revoquees(desk, conn_id)                                          # 5.6.89 : enregistrer le formulaire ne lève pas une révocation
     for cap, (label, mode, right) in spec['caps'].items():
         key = 'cap_' + cap.replace('.', '_')
         if key in data:
             enabled = data[key] in (True, 'true', 'on', '1')
         else:
             enabled = caps.get(cap, {}).get('enabled', mode == 'lecture')       # écritures et IA externe désactivées par défaut
-        caps[cap] = {**caps.get(cap, {}), 'enabled': bool(enabled)}
+        caps[cap] = {**caps.get(cap, {}), 'enabled': bool(enabled) and cap not in gardees and '*' not in gardees}
     delegates = _delegates(row) if row else []
     if 'delegues' in data and scope_owner != 'cabinet':
         delegates = sorted({x.strip().lower() for x in re.split(r'[,;\s]+', str(data.get('delegues') or '')) if re.fullmatch(r'[^@\s]+@[^@\s]+', x.strip())})[:20]
@@ -518,7 +520,9 @@ def _revoke(desk, row):
 
 def test(desk, owner, role, conn_id):
     """Lecture réelle sans effet (identité ou ressource de test) ; l'état reflète le résultat, jamais un simple enregistrement.
-    5.6.53 : un test réussi ne revalide JAMAIS les opérations préparées sur une génération précédente (F01)."""
+    5.6.53 : un test réussi ne revalide JAMAIS les opérations préparées sur une génération précédente (F01).
+    5.6.89 : le résultat devient une preuve d'authentification, et d'elle seule : lecture et écriture se qualifient à part."""
+    from .connector_readiness5689 import noter_authentification
     row = _row(desk, conn_id)
     if not _visible(row, owner, role) or (row['owner'] != 'cabinet' and not can_use(row, owner)):
         raise Stop('connexion_absente')
@@ -529,11 +533,13 @@ def test(desk, owner, role, conn_id):
         code = str(ex).split(':')[0]
         desk.db.execute('UPDATE connexions5652 SET last_error=?,updated=? WHERE id=?', (code, now, conn_id))
         desk.db.commit()
+        noter_authentification(desk, _row(desk, conn_id), False, code)
         return {**public_view(desk, _row(desk, conn_id)), 'ok': False, 'erreur': code}
     caps = json.loads(row['caps_json'] or '{}')
     desk.db.execute("UPDATE connexions5652 SET identity_json=?,last_test=?,last_error='',disconnected=0,updated=? WHERE id=?",
                     (json.dumps({k: v for k, v in ident.items() if isinstance(v, (str, int, list))}, ensure_ascii=False)[:2000], now, now, conn_id))
     desk.db.commit()
+    noter_authentification(desk, _row(desk, conn_id), True)
     return {**public_view(desk, _row(desk, conn_id)), 'ok': True, 'identite': ident, 'capacites': caps}
 
 
@@ -541,7 +547,9 @@ def public_view(desk, row):
     """Vue sans secret : noms des secrets enregistrés et leurs dates seulement."""
     spec = _spec(row['provider'])
     caps = json.loads(row['caps_json'] or '{}')
+    from .connector_readiness5689 import vue_connexion
     return {'id': row['id'], 'provider': row['provider'], 'label': row['label'], 'owner': row['owner'], 'environment': row['environment'],
+            'qualification': vue_connexion(desk, row),   # 5.6.89 : preuves par capacité ; « vérifiée » ci-dessous reste une mention, pas une preuve
             'params': json.loads(row['params_json'] or '{}'), 'secrets_enregistres': json.loads(row['secrets_json'] or '{}'),
             'capacites': {c: {'label': spec.get('caps', {}).get(c, ('', '', None))[0], **v} for c, v in caps.items()},
             'identite': json.loads(row['identity_json'] or '{}'), 'dernier_test': row['last_test'], 'derniere_erreur': row['last_error'],
@@ -640,9 +648,10 @@ def _access_token(desk, conn_id):
 
 # ------------------------------------------------------------------------------------------------ outils de l'agent
 def _connections_for(desk, capability, owner):
+    from .connector_readiness5689 import avant_effet_connexion
     ensure_schema(desk)
     out = []
-    for row in desk.db.execute('SELECT * FROM connexions5652 ORDER BY CASE environment WHEN \'production\' THEN 0 ELSE 1 END, updated DESC'):
+    for row in desk.db.execute('SELECT * FROM connexions5652 ORDER BY CASE environment WHEN \'production\' THEN 0 ELSE 1 END, updated DESC').fetchall():
         if not can_use(row, owner):
             continue
         caps = json.loads(row['caps_json'] or '{}')
@@ -650,6 +659,10 @@ def _connections_for(desk, capability, owner):
             continue
         if state_of(desk, row) not in ('verifiee_lecture', 'verifiee_ecriture'):
             continue                                        # un connecteur non vérifié n'apparaît jamais parmi les outils
+        try:
+            avant_effet_connexion(desk, row, capability)    # 5.6.89 : révocation ou refus prouvé, relus ici quelle que soit la mention en cache
+        except Stop:
+            continue
         out.append(row)
     return out
 
@@ -681,7 +694,10 @@ def call_tool(desk, owner, role, tool, params, matter=''):
     params = params if isinstance(params, dict) else {}
     if mode == 'ia_externe' and not params.get('donnees_externes_autorisees'):
         raise Stop('ia_externe_non_autorisee')
+    from .data_policy5689 import exiger     # 5.6.89 : décision commune avant tout transfert ; le texte des paramètres n'est pas conservé
+    decision = dict(finalite='outil:' + tool, dossiers=(matter,) if matter else (), requete=json.dumps(params, ensure_ascii=False, default=str)[:2000], acteur=owner, role=role)
     if cap == 'company.lookup':
+        exiger(desk.c, 'outil_mcp', 'recherche_entreprises', **decision)
         result = public_adapter('recherche_entreprises').call(cap, params)
         provider, conn_id = 'recherche_entreprises', 'public'
     else:
@@ -690,12 +706,15 @@ def call_tool(desk, owner, role, tool, params, matter=''):
             raise Stop('aucune_connexion_verifiee_pour_cet_outil')
         row = rows[0]
         provider, conn_id = row['provider'], row['id']
+        exiger(desk.c, 'outil_mcp', provider, **decision)
         try:
             result = adapter(desk, row).call(cap, params)
         except Stop as ex:
             desk.db.execute('INSERT INTO connexion_calls5652(connection,tool,owner,matter,ok,error,at) VALUES(?,?,?,?,0,?,?)',
                             (conn_id, tool, owner, matter, str(ex).split(':')[0], _now()))
             desk.db.commit()
+            from .connector_readiness5689 import noter_refus
+            noter_refus(desk, row, cap, str(ex))             # 5.6.89 : droit retiré chez le service : la preuve de cette capacité tombe aussitôt
             raise
         caps = json.loads(row['caps_json'] or '{}')
         caps.setdefault(cap, {})['verified_at'] = _now()
@@ -728,6 +747,8 @@ def agent_research(desk, owner, role, question, matter='', model=None, max_calls
     from . import vueia5688   # 5.6.88 : un outil qui lit une catégorie fermée n'est même pas proposé au modèle
     tools = [t for t in available_tools(desk, owner) if t['nature'] == 'lecture' and not vueia5688.blocked(desk, TOOL_CATEGORY.get(t['outil'], ''))
              and (t['fournisseur'] != 'recherche_entreprises' or re.search(r'\b\d{9}\b|\bsiren\b|\bsiret\b', q, re.I))]
+    from .competences5632 import outils_autorises   # 5.6.89 : une compétence restreint les outils, elle n'en ajoute aucun
+    tools = outils_autorises(tools)
     if not tools or not q.strip():
         return []
     from .juridique5649 import neutral_query
@@ -906,6 +927,8 @@ def validate(desk, owner, role, op_id, version, sheet_hash=''):
         return dict(op)                                     # second clic : même opération, aucun nouvel envoi
     if int(version or 0) != op['version']:
         raise Stop('version_en_conflit')
+    from .connector_readiness5689 import avant_effet_connexion
+    avant_effet_connexion(desk, row, op['capability'])      # 5.6.89 : révocation relue avant l'effet, même si ``caps_json`` garde une ancienne vérification
     if not json.loads(row['caps_json'] or '{}').get(op['capability'], {}).get('enabled'):
         raise Stop('capacite_desactivee')
     if (op['connection_generation'] != row['generation'] or op['identity_hash'] != identity_hash(row) or op['environment'] != row['environment']
@@ -1466,7 +1489,8 @@ def settings_html(desk, prefix, owner, role, args=None, redirect=''):
                 e(pid), e(spec['label']), e(state), e(STATES[state]), e(FAMILIES[spec['family']]), e(spec['usage']),
                 ('<p class="cx52-note">%s</p>' % e(spec['note'])) if spec.get('note') else '', e(spec['access'], quote=True), e(spec['docs'], quote=True),
                 e(spec['auth']), (' · Adresse de retour à déclarer : <code>%s</code>' % e(redirect)) if spec.get('oauth') and redirect else '',
-                ('<p class="cx52-note">Compte vérifié : %s (dernier test : %s)</p>' % (e(ident), e(view['dernier_test'][:16].replace('T', ' ')))) if view and view['dernier_test'] else
+                ('<p class="cx52-note">Compte vérifié : %s (dernier test : %s). Ce test prouve l’accès, pas chaque capacité : la rubrique Démarrage du cabinet les qualifie une à une.</p>' % (
+                    e(ident), e(view['dernier_test'][:16].replace('T', ' ')))) if view and view['dernier_test'] else
                 ('<p class="cx52-note">Dernière erreur : %s</p>' % e(view['derniere_erreur'])) if view and view['derniere_erreur'] else '',
                 ' open' if not view else '', hidden, e(pid, quote=True), ' selected' if (view or {}).get('environment', 'test') == 'test' else '',
                 ' selected' if (view or {}).get('environment') == 'production' else '', ''.join(fields), caps, actions))

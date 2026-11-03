@@ -202,8 +202,8 @@ def own_addresses(cfg):
         if '@' in value:
             own.add(value)
     # 5.6.56 (audit 5.6.55, § 3.1) : registre unique des identités du cabinet (adresses, expédition, identifiant, alias, identités)
-    from .sens5643 import identities
-    return own | set(identities(cfg))
+    from .sens5643 import identities, retirees
+    return (own | set(identities(cfg))) - retirees(cfg)   # 5.6.89 : registre des adresses confirmées ou retirées, par compte
 
 
 def recipient_issue(mail, cfg, allowed_recipients=()):
@@ -467,6 +467,8 @@ class Mailbox:
     def append_draft(self, message):
         # Mailbox mutations: this draft APPEND and, since 5.2.0, append_reminder (own INBOX only). No STORE, COPY, EXPUNGE,
         # SMTP, sendmail, or calendar/file mutation is exposed.
+        from .connector_readiness5689 import garde_configuration
+        garde_configuration(self.cfg)   # 5.6.89 : révocation relue dans la base avant ce dépôt, quel que soit le circuit
         status, _ = self.conn.append(imap_quote(modified_utf7(self.cfg['drafts'])),
                                      '(\\Draft)', imaplib.Time2Internaldate(datetime.now(timezone.utc)),
                                      message.as_bytes(policy=policy.SMTP))

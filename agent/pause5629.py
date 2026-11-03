@@ -36,6 +36,9 @@ def blocked_for_config(config, mid=''):
     path = Path(config['state_dir']) / 'desk.sqlite3'
     if not path.is_file():
         return ''
+    from . import horaires_ia5689
+    from .arret5643 import current_job, job_stop_code   # 5.6.43 (§ 16) : l'arrêt du travail en cours est aussi relu avant chaque effet
+    job = current_job()
     db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=2)
     try:
         values = {key: json.loads(value) for key, value in db.execute(
@@ -44,15 +47,17 @@ def blocked_for_config(config, mid=''):
             return 'automatismes_en_pause'
         if str(mid or '') in (values.get(PAUSE_KEY, {}) or {}):
             return 'dossier_en_pause'
+        # 5.6.89 : politique fraîche, avant calcul et effet. Hors d'un travail, seule une dérogation couvrant les automatismes laisse passer.
+        schedule = horaires_ia5689.code_horaire(db, matter=str(mid or (job or {}).get('matter') or ''), automatic=bool(job.get('automatic')) if job else True)
     except (sqlite3.Error, ValueError, TypeError):
         raise Stop('controle_pause_indisponible') from None
     finally:
         db.close()
-    from .arret5643 import current_job, job_stop_code   # 5.6.43 (§ 16) : l'arrêt du travail en cours est aussi relu avant chaque effet
-    job = current_job()
     if job and job.get('job_id'):
-        return job_stop_code(job.get('state_dir') or config['state_dir'], job['job_id'])   # 5.6.44 (F09) : pause ≠ annulation
-    return ''
+        code = job_stop_code(job.get('state_dir') or config['state_dir'], job['job_id'])   # 5.6.44 (F09) : pause ≠ annulation
+        if code:
+            return code   # une annulation déjà posée n'est jamais remplacée par le motif horaire
+    return schedule
 
 
 def is_automatic(args, priority):
@@ -93,20 +98,27 @@ def check_enqueue(desk, kind, args, priority, origin=None):
     if desk.settings('missions567:pause', False) and automatic:
         raise Stop('automatismes_en_pause')
     mid = str((args or {}).get('matter') or (args or {}).get('matter_id') or '')
-    if not mid or not automatic:
+    if not automatic:
         return
-    if is_paused(desk, mid):
-        raise Stop('agent_en_pause_sur_ce_dossier')
-    count, _ = failures(desk, kind, mid)
-    if count >= FAILURES:
-        raise Stop('relances_suspendues_apres_trois_echecs')
+    if mid:
+        if is_paused(desk, mid):
+            raise Stop('agent_en_pause_sur_ce_dossier')
+        count, _ = failures(desk, kind, mid)
+        if count >= FAILURES:
+            raise Stop('relances_suspendues_apres_trois_echecs')
+    from .arret5643 import SANS_MODELE
+    if kind not in SANS_MODELE:   # 5.6.89 : en dernier ; Desk.enqueue enregistre alors le travail une fois, suspendu : un événement de la nuit n'est pas perdu
+        from .horaires_ia5689 import code_horaire
+        code = code_horaire(desk, matter=mid, automatic=True)
+        if code:
+            raise Stop(code)
 
 
 def check_running(desk, row, args):
     """Juste avant l'exécution : un travail automatique d'un dossier mis en pause entre-temps n'est pas exécuté.
     5.6.43 (§ 16) : pendant la pause de l'IA, tout travail qui appelle le modèle attend la reprise (état « suspendu ») ; seuls les travaux
     déterministes (sans IA) s'exécutent."""
-    from .arret5643 import DETERMINISTIC, is_automatic_row
+    from .arret5643 import DETERMINISTIC, SANS_MODELE, is_automatic_row
     mid = str((args or {}).get('matter') or (args or {}).get('matter_id') or '')
     automatic = is_automatic_row(row, args)
     if desk.settings('missions567:pause', False):
@@ -116,12 +128,22 @@ def check_running(desk, row, args):
             raise Stop('ia_en_pause')
     if mid and automatic and is_paused(desk, mid):
         raise Stop('agent_en_pause_sur_ce_dossier')
+    if (row['kind'] if 'kind' in row.keys() else '') not in SANS_MODELE:   # 5.6.89 : plage programmée, après la pause manuelle et celle du dossier ; demandes de l'avocat comprises
+        from .horaires_ia5689 import code_horaire
+        code = code_horaire(desk, matter=mid, automatic=automatic)
+        if code:
+            raise Stop(code)
 
 
 def checkpoint(desk):
     """Revalide l'état réel du job avant de poursuivre ou de produire un effet."""
     jid = getattr(desk, 'active_job_id', None)
     if not jid:
+        if getattr(desk, 'origin_context', None) == 'automatic':   # 5.6.89 : effet d'un automatisme hors travail, commencé avant le début de la plage
+            from .horaires_ia5689 import code_horaire
+            code = code_horaire(desk, automatic=True)
+            if code:
+                raise Stop(code)
         return
     from .arret5643 import stop_code
     row = desk.db.execute('SELECT kind,status,priority,args,stop_reason FROM jobs WHERE id=?', (jid,)).fetchone()

@@ -11,6 +11,7 @@ import re
 import secrets
 from zoneinfo import ZoneInfo
 
+from . import pause5629
 from .common import Stop, digest, fold, load_matters
 from .dav import DAV
 
@@ -523,6 +524,7 @@ def apply_plan(desk,args,dav=None):
         starts=(slot_by_position.get(task['position']) or [{}])[0].get('start','')
         zone=ZoneInfo(desk.c.get('planning',{}).get('timezone','Europe/Paris'))
         due=datetime.combine(date.fromisoformat(task['due']),day_time(17,0),zone).isoformat() if task['due'] else ''
+        pause5629.checkpoint(desk)   # 5.6.89 (B07) : annulation et pause relues avant chaque effet ; hors du try, le motif n'est pas pris pour un avertissement
         try:
             client.put_todo(cfg['task_calendar_url'],uid,display_title,description,starts,due,
                             REMOTE_STATES[task['status']],3 if task['due'] else 5,0)
@@ -545,6 +547,7 @@ def apply_plan(desk,args,dav=None):
     for slot in data['slots']:
         event_id=digest(pid+'|slot|'+str(slot['position'])+'|'+str(slot['part']))
         task=task_by_position.get(slot['position'],{'title':slot.get('title','Tâche')})
+        pause5629.checkpoint(desk)
         try:
             client.put_event(cfg['planning_calendar_url'],event_id,_display_title(task),
               datetime.fromisoformat(slot['start']),datetime.fromisoformat(slot['end']),

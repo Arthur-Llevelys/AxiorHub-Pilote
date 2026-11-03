@@ -64,7 +64,8 @@ def get(desk,ident,owner='cabinet',admin=False,prefix=''):
 def advance(desk,ident):
     row=desk.db.execute('SELECT * FROM plans_v568 WHERE id=?',(ident,)).fetchone()
     if not row or row['state'] not in ('active','blocked'):return
-    if desk.settings('missions567:pause',False):return
+    from .arret5643 import global_paused
+    if global_paused(desk):return   # 5.6.89 : pause manuelle ou plage programmée
     steps=[dict(s) for s in desk.db.execute('SELECT * FROM plan_steps_v568 WHERE plan_id=? ORDER BY position',(ident,)).fetchall()]
     states={};blocked=False
     for s in steps:

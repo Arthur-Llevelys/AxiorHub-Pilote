@@ -17,6 +17,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from . import pause5629
 from .common import Stop, private_json
 
 FONTS = {'arial': ('Arial', 'Arial, Helvetica, sans-serif'), 'helvetica': ('Helvetica', 'Helvetica, Arial, sans-serif'),
@@ -270,6 +271,7 @@ def apply_moves(desk, box=None, limit=200, include_old=False, now=None):
         criteria = ['UNDELETED'] if include_old else ['UNDELETED', 'SINCE', (now - timedelta(days=7)).strftime('%d-%b-%Y')]
         uids = list(reversed(box.search(inbox, *criteria)))[:limit]
         for uid in uids:
+            pause5629.checkpoint(desk)      # 5.6.89 (B07) : plus aucun déplacement après un arrêt
             try:
                 mail = box.fetch(inbox, uid, headers_only=True)
             except Stop:

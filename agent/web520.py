@@ -196,8 +196,9 @@ def _queue_html(d):
     rep = d['queue']['report']
     q = d['queue']
     lock = rep['lock']
-    html = '<section class="ax-card" id="file"><h2>File de travail</h2><p>%d en attente%s · %d en cours.</p>' % (
-        q['pending'], (' (la plus ancienne : %s)' % e(q['oldest'][:16].replace('T', ' '))) if q['oldest'] else '', q['running'])
+    from .travaux5689 import libelle_compteurs     # 5.6.89 (chap. 20) : mêmes mots et mêmes nombres que l'en-tête d'« Aujourd'hui »
+    html = '<section class="ax-card" id="file"><h2>File de travail</h2><p>%s%s. %s</p>' % (
+        e(libelle_compteurs(rep['compteurs'])), (' (la plus ancienne : %s)' % e(q['oldest'][:16].replace('T', ' '))) if q['oldest'] else '', e(rep['compteurs']['perimetre']))
     if rep['running']:
         html += '<h3>En cours</h3><table class="vf-table"><thead><tr><th>Travail</th><th>Depuis</th><th>Worker</th></tr></thead><tbody>%s</tbody></table>' % ''.join(
             '<tr><td>%s</td><td>%s%s</td><td>%s</td></tr>' % (e(r['label']), e(_minutes(r['seconds'])), ' <span class="warn">long</span>' if r['seconds'] > 900 else '', e(r['worker']))
@@ -269,7 +270,7 @@ def diagnostic_page(desk, auth, prefix, args, shell):
     html += ('<section class="ax-card" id="signalement"><h2>Signaler une anomalie</h2><p class="vf-note">Le texte préparé ne contient que la version, '
              'l’état des services et des codes d’erreur : aucun nom de dossier, de partie, de courriel ni de chemin. Relisez-le, puis collez-le dans un '
              'ticket ; n’y joignez jamais de capture d’écran ou de pièce d’un vrai dossier.</p><button type="button" class="ax-btn ghost" '
-             'data-s5636-report>Préparer un signalement anonymisé</button><textarea class="s5636-report" data-no-dictation readonly hidden rows="12"></textarea></section>')
+             'data-s5636-report>Préparer un signalement anonymisé</button><textarea class="s5636-report" data-no-dictation readonly hidden rows="12" aria-label="Signalement anonymisé"></textarea></section>')
     html += ('<section class="ax-card" id="erreurs"><h2>Erreurs des 7 derniers jours</h2>%s<p><a href="%s">Reprendre une demande dans « État du système »</a></p>'
              + ('<form class="m5-form m5-inline m5-mini" data-api="m5636/erreurs/ecarter" data-reload="1" data-confirm="Écarter ces erreurs ? Elles restent dans '
                 'l’historique ; les nouvelles erreurs seront de nouveau signalées."><button class="ax-btn ghost" type="submit">Écarter ces erreurs (déjà vues)</button></form>'

@@ -1155,6 +1155,61 @@
 ],
 "version": "5.6.36"
 },
+"contentieux": {
+"objective": "Einen Rechtsstreit anhand von Beweisen vorbereiten: Ansprüche, Tatsachen, Regeln, Belege, Einwände, dann Schriftsatz, Fristen, Verhandlung und Paket zur Übermittlung.",
+"when": "Sobald eine streitige Akte die ersten Anträge hat, dann vor jedem Schriftsatz oder jeder Verhandlung.",
+"prerequisites": "Eine geöffnete Akte. Das KI-Modell ist optional: Matrix, Belege, Kontrollen und Fristen funktionieren ohne es.",
+"steps": [
+"Öffnen Sie die Akte, dann den Link „Contentieux“.",
+"Übernehmen Sie die Anträge der Akte oder fügen Sie einen Anspruch hinzu und verknüpfen Sie Tatsachen, Regeln und Belege.",
+"Bestätigen Sie, was Sie behalten: Ein KI-Vorschlag bleibt ein Vorschlag.",
+"Bereiten Sie die Gliederung vor, starten Sie die Abfassung und lesen Sie die Kontrollen.",
+"Bereiten Sie ein Manifest vor, prüfen Sie es und genehmigen Sie es, wenn Sie das entscheiden."
+],
+"result": "Jeder Anspruch zeigt, was bekannt, bestritten oder fehlend ist; Schriftsatz, Vorbehalte und Belegliste stammen aus demselben Register.",
+"verify": "Eine Frist ohne entscheidende Angabe bleibt „Zu prüfen“. Jede Fristenregel muss von einem Anwalt bestätigt werden. AxiorHub reicht nichts ein: Ein Archiv ist kein Einreichungsnachweis.",
+"errors": [
+[
+"„Bestätigen Sie zuerst mindestens einen Anspruch“",
+"Ein Schriftsatz entsteht nicht aus Vorschlägen: Bestätigen Sie einen Anspruch der Kanzlei."
+],
+[
+"„Die Genehmigung deckt dieses Manifest nicht mehr“",
+"Eine Datei oder ein Empfänger hat sich geändert: Prüfen Sie das Paket und genehmigen Sie es erneut."
+]
+],
+"example": "Fiktive Akte DOS-001: Beleg 1 der Kanzlei und Beleg 1 von ZORVAL bleiben zwei verschiedene Belege.",
+"buttons": [],
+"version": "5.6.36"
+},
+"livrables": {
+"objective": "Alle vorbereiteten Dokumente an einem Ort finden, unabhängig von ihrer Herkunft, und sie öffnen, ändern, herunterladen oder exportieren.",
+"when": "Zum Prüfen eines Entwurfs, zum Verfolgen laufender Arbeiten oder zum Wiederfinden eines älteren ungeprüften Dokuments.",
+"prerequisites": "Zum Lesen keine. Der EuroOffice-Editor und die PDF-Umwandlung sind optional: Fehlen sie, erklärt die Dokumentseite dies.",
+"steps": [
+"Öffnen Sie Erstellen, Registerkarte „Vorbereitete Dokumente“.",
+"Filtern Sie nach Art, Datum, Prüfung oder Status.",
+"Öffnen Sie ein Dokument: Vorschau, Version, Kontrollen und Vorschläge stehen auf derselben Seite.",
+"Nutzen Sie „Mit KI ändern“, „Herunterladen“ oder „Exportieren“; eine Änderung bleibt ein Vorschlag, bis Sie ihn annehmen."
+],
+"result": "Jedes Dokument erscheint einmal, mit Version sowie getrenntem Erstellungs- und Prüfstatus.",
+"verify": "„Exportiert“ erscheint erst nach dem Zurücklesen der geschriebenen Datei; „Bereit zur Prüfung“ ist keine rechtliche Freigabe.",
+"errors": [
+[
+"Die Liste meldet „Unvollständige Liste“",
+"Eine Quelle konnte nicht gelesen werden: die übrigen Dokumente bleiben sichtbar. Siehe „Status der Quellen“."
+],
+[
+"Ein Dokument zeigt „Kontrolle ausstehend“",
+"Die Datei ist abgelegt, aber noch nicht zurückgelesen: der Abgleich läuft alle 10 Minuten."
+]
+],
+"example": "Fiktiver Vertrag DOS-001: Version 2 kommt nach der Prüfung von Version 1 wieder zur Prüfung.",
+"buttons": [
+"Filtrer"
+],
+"version": "5.6.36"
+},
 "projets": {
 "objective": "Automatisch vorbereitete Arbeit prüfen.",
 "when": "Regelmäßig, um Entwürfe freizugeben oder zu verwerfen.",
@@ -2078,6 +2133,56 @@
 "buttons": [
 "Filtrer",
 "Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"banc_essai": {
+"objective": "Vollständige Aufträge nach festem Protokoll vergleichen und sehen, was jede Funktion tatsächlich nachgewiesen hat.",
+"when": "Vor der Wahl einer Konfiguration oder zur Prüfung einer Funktion nach einem Update.",
+"prerequisites": "Administrator sein, um einen Test vorzubereiten; Anwalt sein, um eine Prüfung abzugeben.",
+"steps": [
+"Öffnen Sie Vergleichstest und Funktionsstatus.",
+"Laden Sie den Übungskorpus oder fixieren Sie Ihr Protokoll.",
+"Erfassen Sie beide Konfigurationen, dann planen und starten Sie den Test.",
+"Erfassen Sie die Ergebnisse, lassen Sie sie prüfen und beenden Sie den Test."
+],
+"result": "Der Vergleich je Familie zeigt Median, Streuung und Fallzahl oder den Grund, warum kein Schluss möglich ist.",
+"verify": "Jedes Ergebnis verweist auf einen Fall, eine Ausgabe und eine Messung; der Fingerabdruck des Korpus wird angezeigt.",
+"errors": [
+[
+"Abnahme verweigert",
+"Ein kritischer Fehler oder fehlende Daten verhindern die Abnahme dieser Familie: Lesen Sie den angezeigten Grund."
+]
+],
+"example": "AxiorHub und Claude Desktop am fiktiven Dossier DOS-001 vergleichen.",
+"buttons": [
+"Charger le corpus d’exercice fictif",
+"Enregistrer la configuration",
+"Créer le protocole"
+],
+"version": "5.6.36"
+},
+"gouvernance_ia": {
+"objective": "Festlegen, was die Kanzlei verlassen darf, an welche Dienste und zu welchen Kosten.",
+"when": "Vor dem Öffnen eines neuen KI-Dienstes oder um Obergrenzen festzulegen.",
+"prerequisites": "Administrator sein.",
+"steps": [
+"KI-Daten und Budget öffnen.",
+"Modus wählen, dann „Enregistrer la politique“.",
+"Obergrenzen festlegen, dann „Enregistrer les plafonds“."
+],
+"result": "Richtlinie und Obergrenzen gelten ab dem nächsten Schritt jeder Aufgabe.",
+"verify": "Aktueller Modus und Revision stehen oben auf der Seite.",
+"errors": [
+[
+"Richtlinie unlesbar",
+"Es wird nichts Neues gesendet: Einstellung korrigieren oder letzte Sicherung wiederherstellen."
+]
+],
+"example": "Choisir le mode local strict, puis fixer 50 $ par mois.",
+"buttons": [
+"Enregistrer la politique",
+"Enregistrer les plafonds"
 ],
 "version": "5.6.36"
 },

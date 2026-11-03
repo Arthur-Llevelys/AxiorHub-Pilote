@@ -15,7 +15,7 @@ import re
 from zoneinfo import ZoneInfo
 
 from .common import Stop,clean_path,digest,load_matters,matter_display,under,private_json
-from . import automation568 as rules,settings568,calendar568
+from . import automation568 as rules,pause5629,settings568,calendar568
 
 CASE_DEFAULT={'lawyer_name':'','role':'','partner_email':'','partner_name':'','circuit':'unknown','side':'unknown',
  'declaration_date':'','distance':'unknown','opponent_constituted':'unknown','ordinary_civil':False,
@@ -361,6 +361,7 @@ def execute(desk,ident,owner,client=None,model=None):
                     if not selected:pending.append('Aucun agenda destinataire configuré.');continue
                     for target in selected:
                         _authority(desk,ident,owner)
+                        pause5629.checkpoint(desk)   # 5.6.89 (B07) : motif d'arrêt relu avant chaque inscription
                         calendar_proofs.append(calendar568.deposit(desk,owner,matter['id'],event,target))
                 if not events:_effect(desk,ident,'calendar','verified',{'events':[],'deposits':[],'abstention':'Aucune date événementielle prouvée dans le document.'})
                 else:_effect(desk,ident,'calendar','verified' if not pending and calendar_proofs else 'prepared',{'events':events,'deposits':calendar_proofs,'pending':pending})

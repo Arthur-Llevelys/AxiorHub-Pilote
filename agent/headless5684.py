@@ -5,12 +5,10 @@ Si un éditeur s'ouvre pendant ce travail, le résultat devient une proposition 
 from pathlib import PurePosixPath
 import hashlib
 import io
-import re
 import time
-import xml.etree.ElementTree as ET
 import zipfile
 
-from .common import Stop, xml_bytes
+from .common import Stop, xml_bytes, xml_office
 from . import office_bridge5684 as bridge, office_gen5684 as gen
 
 W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
@@ -25,7 +23,7 @@ def _replace_in_xml(xml, expected, replacement):
     if total != 1:
         raise Stop('cible_ambigue_ou_absente')
     hits[0].text = hits[0].text.replace(expected, replacement)
-    return ET.tostring(root, encoding='utf-8', xml_declaration=True)
+    return xml_office(root, xml)
 
 
 def apply_operations(raw, operations):
@@ -59,8 +57,9 @@ def _proposal(desk, active, operations, reason):
     return bridge.create_command(desk, gen_id, active['document_id'], mirror['revision'], mirror['snapshot_hash'], ops, needs_decision=True, reason=reason, origin='serveur')
 
 
-def revise(desk, path, operations, owner='ia', client=None, reason='Modification préparée sans éditeur ouvert', pause=None):
-    """Coordination, lecture, nouvelle version, contrôle juste avant publication. Rend {'etat': 'publie' | 'proposition' | 'conflit', ...}."""
+def revise(desk, path, operations, owner='ia', client=None, reason='Modification préparée sans éditeur ouvert', pause=None, build=None):
+    """Coordination, lecture, nouvelle version, contrôle juste avant publication. Rend {'etat': 'publie' | 'proposition' | 'conflit', ...}.
+    ``build(octets lus)`` (5.6.89) : nouvelle version déjà composée par le parcours des propositions, sous le même bail et le même contrôle d'ETag."""
     gen.schema(desk)
     bridge.schema(desk)
     from .office440 import dav_client
@@ -73,7 +72,7 @@ def revise(desk, path, operations, owner='ia', client=None, reason='Modification
         if active:
             return {'etat': 'proposition', 'command_id': _proposal(desk, active, operations, reason)}
         raw = dav.download(info)
-        new = apply_operations(raw, operations)
+        new = build(raw) if build else apply_operations(raw, operations)
         if pause:
             pause()     # point d'essai : un éditeur peut s'ouvrir pendant le travail
         active = gen.active(desk, document_id)

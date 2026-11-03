@@ -152,6 +152,11 @@ def handler_for(fake):
             m = re.fullmatch(r'/drive/v2/files/([^/]+)', path)
             if m:
                 f = fake.drive[m.group(1)]
+                if self.command == 'PATCH':   # 5.6.89 : corbeille conditionnelle ; ``ignorer_*`` imite un service qui ne tiendrait pas la promesse
+                    if self.headers.get('If-Match') != f['etag'] and not getattr(fake, 'ignorer_condition', False):
+                        return self.reply(412, {'error': {'code': 412}})
+                    if not getattr(fake, 'ignorer_corbeille', False):
+                        f.update(etag_avant_corbeille=f['etag'], trashed=json.loads(body)['labels']['trashed'], etag='e-' + uuid.uuid4().hex)
                 return self.reply(200, {'etag': f['etag'], 'version': f['version']})
             m = re.fullmatch(r'/upload/drive/v2/files/([^/]+)', path)
             if m:

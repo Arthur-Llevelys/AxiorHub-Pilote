@@ -38,6 +38,7 @@ DOCUMENT_TYPES={
   'assignation_refere':("Projet d'assignation en référé",'assignation'),
   'mise_en_demeure':('Projet de mise en demeure','mise en demeure'),
   'courrier_confrere':('Courrier au confrère','courrier'),
+  'consultation':('Consultation juridique','consultation'),   # 5.6.89 : mission de consultation depuis le dossier
 }
 W='http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 R='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -120,7 +121,8 @@ def _dav(desk):
     # Document writes use the account whose roots define the matter registry.
     # A separate workflow account is accepted only when it has the same root.
     cfg=desk.c.get('nextcloud_documents') or desk.c['nextcloud']
-    return DAV(cfg)
+    from .connector_readiness5689 import brider_ecriture   # 5.6.89 : écritures refusées si la capacité est révoquée ; les lectures continuent
+    return brider_ecriture(desk,DAV(cfg))
 
 
 def _inventory(client,path):
@@ -145,6 +147,7 @@ def _source_tokens(document_type):
       'bcp':('bordereau','bcp'),'courrier':('courrier',),
       'document':(),'constitution':('constitution',),'assignation_refere':('assignation','refere'),
       'mise_en_demeure':('mise en demeure','mise_en_demeure'),'courrier_confrere':('confrere','courrier'),
+      'consultation':('consultation',),
     }[document_type]
 
 
@@ -296,7 +299,7 @@ def _outputs(matter,document_type,destination,day):
       'cgv':'CGV_projet','contrat':'Contrat_projet','charte_rgpd':'Charte_RGPD_projet',
       'bcp':'Bordereau_pieces','courrier':'Courrier_projet','document':'Document_projet',
       'constitution':'Constitution_avocat_projet','assignation_refere':'Assignation_refere_projet',
-      'mise_en_demeure':'Mise_en_demeure_projet','courrier_confrere':'Courrier_confrere_projet'}[document_type]
+      'mise_en_demeure':'Mise_en_demeure_projet','courrier_confrere':'Courrier_confrere_projet','consultation':'Consultation_projet'}[document_type]
     names=[stem+'_'+label+'_'+day+'.docx']
     if document_type=='conclusions':names.append('Bordereau_pieces_'+label+'_'+day+'.docx')
     names.append('Rapport_sources_et_modifications_'+day+'.pdf')
@@ -449,6 +452,9 @@ def prepare(desk,args,dav=None,model=None):
         result=writer.ask('document_project',prompt)
         _step(desk,pid,'draft_prepared',operation_fingerprint,{'draft':result})
     _check_model(result,valid,official)
+    limites_mission=[str(x) for x in (args.get('limites_mission') or [])][:12]   # 5.6.89 : la limite d'une mission figure dans le document, écrite par le serveur et non par le modèle
+    if limites_mission:
+        result['introduction']=('Limites de ce document : '+' '.join(limites_mission)+' '+str(result.get('introduction') or '')).strip()
     # 5.6.67 (point 4) : dates, montants et RG absents des sources transmises → « [À VÉRIFIER : …] » et un point pour l'avocat
     from .faits5667 import check as _check_facts, reference_text, summary as _facts_summary
     _reference=reference_text(prompt);_fact_issues=[]
@@ -617,7 +623,8 @@ def _blank_docx():
       '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>')
     out=BytesIO()
     with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
-        z.writestr('[Content_Types].xml',content);z.writestr('_rels/.rels',rels);z.writestr('word/document.xml',document)
+        for name,body in (('[Content_Types].xml',content),('_rels/.rels',rels),('word/document.xml',document)):
+            z.writestr(zipfile.ZipInfo(name,date_time=(2020,1,1,0,0,0)),body)   # 5.6.89 : date fixe ; l'empreinte comparée à la confirmation changeait avec la seconde
     return out.getvalue()
 
 

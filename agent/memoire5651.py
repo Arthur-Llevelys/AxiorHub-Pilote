@@ -59,6 +59,8 @@ def _sha(*parts):
 
 
 def ensure_schema(desk):
+    if desk.db.in_transaction and desk.db.execute("SELECT 1 FROM sqlite_master WHERE name='d51_draft_paragraphs'").fetchone():
+        return      # 5.6.89 : ``executescript`` validerait la transaction de l'appelant (correction et audit écrits ensemble)
     desk.db.executescript(SCHEMA)
 
 
@@ -69,8 +71,9 @@ def decisions(desk, mid, active_only=True):
     return [dict(r) for r in desk.db.execute(sql, (mid,))]
 
 
-def save_decision(desk, mid, author, data):
-    """Nouvelle décision, ou nouvelle version d'une décision existante (« replaces ») : l'ancienne reste dans l'historique."""
+def save_decision(desk, mid, author, data, commit=True):
+    """Nouvelle décision, ou nouvelle version d'une décision existante (« replaces ») : l'ancienne reste dans l'historique.
+    5.6.89 : ``commit=False`` pour écrire la décision dans la transaction de la mémoire typée (événement et audit compris)."""
     ensure_schema(desk)
     kind = str(data.get('kind') or '')
     if kind not in DECISION_KINDS:
@@ -98,7 +101,8 @@ def save_decision(desk, mid, author, data):
                     (ident, mid, kind, subject, text, motif, author, version, replaces, now, now))
     record_change(desk, mid, 'decision_cabinet', 'decision', ident, str(version), DECISION_KINDS[kind] + ' : ' + text[:120], {'motif': motif}, commit=False)
     mark_dependents(desk, mid, 'Décision du cabinet modifiée : %s' % text[:120], commit=False)
-    desk.db.commit()
+    if commit:
+        desk.db.commit()
     return ident
 
 

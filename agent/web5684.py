@@ -16,7 +16,7 @@ SOURCES = {'config.json': 'manifeste.json'}      # l'éditeur exige ce nom d'adr
 STATUS = {'jeton_invalide': '401 Unauthorized', 'jeton_expire_ou_incorrect': '401 Unauthorized', 'session_plugin_inconnue': '401 Unauthorized', 'session_plugin_fermee': '401 Unauthorized', 'generation_terminee': '409 Conflict',
           'executeur_perime': '409 Conflict', 'commande_non_disponible': '409 Conflict', 'proposition_perimee': '409 Conflict', 'dossier_reserve': '403 Forbidden', 'session_sans_ecriture': '403 Forbidden', 'observation_autre_document': '403 Forbidden',
           'observation_invalide': '422 Unprocessable Entity', 'empreinte_bloc_incoherente': '422 Unprocessable Entity', 'accuse_invalide': '422 Unprocessable Entity', 'observation_trop_volumineuse': '429 Too Many Requests'}
-LAWYER = ('cession/realiser', 'modele/version', 'office/reglage', 'regle')
+LAWYER = ('cession/realiser', 'modele/version', 'modele/fiche', 'office/reglage', 'regle')
 
 
 def _origin(url):
@@ -118,6 +118,8 @@ def api(env, desk, auth, prefix, name, args, method):
         return json_out(modeles5684.publish(desk, data, owner))
     if route == 'modele/etat':
         return json_out(modeles5684.move(desk, data, owner, role))
+    if route == 'modele/fiche':
+        return json_out(modeles5684.renseigner(desk, data, owner, role))
     if route == 'regle':
         from . import regles5683
         return json_out(regles5683.validate(desk, str(data.get('regle') or ''), owner, data.get('note')))

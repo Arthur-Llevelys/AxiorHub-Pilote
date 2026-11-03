@@ -26,7 +26,7 @@ Tout se passe dans **Paramètres › Stockage des documents**.
 2. Saisissez ses identifiants dans la fiche du fournisseur, puis **Enregistrer**. Le secret part au coffre chiffré et n'est plus jamais affiché.
 3. **Connecter le compte**, puis **Tester la lecture**.
 4. **Préparer le dossier AxiorHub** : le dossier et les racines sont créés chez le fournisseur.
-5. **Contrôler ce compte** : un fichier d'essai est créé, relu, remplacé, refusé quand il le faut, puis mis à la corbeille. Si une étape échoue, ce stockage ne peut pas être choisi.
+5. **Contrôler ce compte** : un fichier d'essai est créé, relu, remplacé, refusé quand il le faut, puis mis à la corbeille. Si une étape échoue, ce stockage ne peut pas être choisi. Depuis la 5.6.89, le contrôle vérifie aussi que le fournisseur refuse une mise à la corbeille sur une version périmée. Sur Google Drive, cette garantie n'est démontrée qu'après ce contrôle : un compte contrôlé avant la 5.6.89 doit le refaire.
 6. **Copier** les documents vers ce stockage (voir plus bas) et lire le bilan.
 7. **Utiliser ce stockage**.
 

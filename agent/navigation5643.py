@@ -25,6 +25,7 @@ PRODUCTION_TABS = (
     ('playbooks', '/playbooks', 'Parcours guidés'),
     ('outils_ia', '/outils-ia', 'Outils IA'),
     ('projets', '/projets', 'Projets préparés'),
+    ('livrables', '/livrables', 'Documents préparés'),   # 5.6.89 : registre commun, même lecture qu'Aujourd'hui et Dossier
 )
 PRODUCTION_PATHS = {route: fid for fid, route, _ in PRODUCTION_TABS}
 # Sous-vues demandées par le cahier (/production?vue=…) : elles ouvrent l'onglet correspondant.
@@ -39,13 +40,13 @@ PANEL = ('facturation', 'contribution', 'cessions', 'recherche', 'navigateur', '
 # Destination canonique des sous-sections (trouvées par la recherche ; leur page reste servie).
 PARENT = {
     # Dossiers et sous-sections du dossier choisi
-    'echeances': 'dossiers', 'audience': 'dossiers', 'audiences_word': 'dossiers', 'pieces': 'dossiers', 'pieces_donnees': 'dossiers',
+    'echeances': 'dossiers', 'audience': 'dossiers', 'audiences_word': 'dossiers', 'pieces': 'dossiers', 'pieces_donnees': 'dossiers', 'contentieux': 'dossiers',
     'profils': 'dossiers', 'strategie': 'dossiers',
     # Agenda et tâches
     'taches': 'planning', 'rendez_vous': 'planning', 'mes_taches': 'planning', 'audiences_suivi': 'dossiers',   # 5.6.88 : onglets d'Agenda et tâches (menu complémentaire plein)
     # Produire
     'studio': 'production', 'documents': 'production', 'missions_complexes': 'production', 'playbooks': 'production',
-    'formulaires': 'production', 'outils_ia': 'production', 'projets': 'production', 'agents_documents': 'production', 'missions': 'production',
+    'formulaires': 'production', 'outils_ia': 'production', 'projets': 'production', 'livrables': 'production', 'agents_documents': 'production', 'missions': 'production',
     # Recherche et ses modes
     'recherche_juridique': 'recherche', 'verification': 'recherche', 'sources': 'recherche', 'veille': 'recherche', 'surveillance': 'recherche',
     # Contacts & CRM
@@ -62,7 +63,7 @@ PARENT = {
     'diagnostic': 'parametres', 'etat_systeme': 'parametres', 'qualite': 'parametres', 'evaluations': 'parametres', 'tracabilite': 'parametres',
     'mise_en_service': 'parametres', 'mcp': 'parametres', 'routage': 'parametres', 'ecosysteme': 'parametres', 'complement_word': 'parametres',
     'guide_installation': 'parametres', 'administration': 'parametres', 'a_propos': 'parametres',
-    'journal_audit': 'parametres', 'vue_ia': 'parametres', 'mon_compte': 'parametres',   # 5.6.88 (Mon compte s'ouvre aussi en pied du menu)
+    'journal_audit': 'parametres', 'vue_ia': 'parametres', 'gouvernance_ia': 'parametres', 'banc_essai': 'parametres', 'mon_compte': 'parametres',   # 5.6.88 (Mon compte s'ouvre aussi en pied du menu)
 }
 HIDDEN = {'tableau_de_bord': 'aujourdhui'}   # ancien tableau de bord : retiré du menu ; « Aujourd'hui » est l'accueil de travail unique
 PARENT_LABELS = {'dossiers': 'Dossiers', 'planning': 'Agenda et tâches', 'production': 'Produire', 'recherche': 'Recherche',

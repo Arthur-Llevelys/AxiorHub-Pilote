@@ -124,7 +124,8 @@ def report(desk):
         suspended = kind != 'live_mail430' and row['status'] == 'error' and int(row['attempts'] or 0) >= 3 and code != 'dossiers_illisibles'
         surveillance.append({'kind': kind, 'label': name, 'state': row['status'], 'reason': code, 'suspended': suspended,
                              'at': (row['finished'] or '')[:16].replace('T', ' ')})
-    return {'running': running, 'pending': pending, 'lock': lock_state(desk.c['state_dir']), 'surveillance': surveillance,
+    from .travaux5689 import compteurs     # 5.6.89 (chap. 20) : la même lecture que l'en-tête d'« Aujourd'hui »
+    return {'running': running, 'pending': pending, 'lock': lock_state(desk.c['state_dir']), 'surveillance': surveillance, 'compteurs': compteurs(desk),
             'pending_total': sum(x['count'] for x in pending), 'pending_automatic': sum(x['count'] for x in pending if x['automatic'])}
 
 
