@@ -16,6 +16,21 @@
   const status = document.querySelector('#c569-status');
   const note = text => { if (status) status.textContent = text; };
 
+  // ---- 5.6.92 : bouton de pause de l'en-tête ; il suit et met à jour celui du bloc Routines s'il est affiché
+  document.addEventListener('click', async event => {
+    const b = event.target.closest('#a92-pause');
+    if (!b) return;
+    b.disabled = true;
+    try {
+      const v = await post('m568', 'automatismes/pause', {paused: b.dataset.paused !== '1'});
+      document.querySelectorAll('#a92-pause, #c5614-pause').forEach(x => {
+        x.dataset.paused = v.paused ? '1' : '0'; x.textContent = v.paused ? 'IA en pause — reprendre' : 'Pause de l’IA';
+        x.classList.toggle('warn', v.paused); x.classList.toggle('ghost', !v.paused); x.setAttribute('aria-pressed', String(v.paused));
+      });
+      note(v.message || '');
+    } catch (e) { note(e.message); } finally { b.disabled = false; }
+  });
+
   // ---- routines (U01) : lancement sans double clic, pause des automatismes
   const routines = document.querySelector('#c5614-routines');
   if (routines) {
