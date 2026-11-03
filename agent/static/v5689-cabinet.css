@@ -1,0 +1,36 @@
+/* 5.6.89 : assistant de démarrage du cabinet (Paramètres). Couleurs par les jetons de l'application ; l'état se lit toujours aussi dans le libellé. */
+.c5689-etapes { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: 1rem 0; padding: 0; }
+.c5689-etapes li { padding: .25rem 0; }
+.c5689-etapes li[aria-current="step"] { border-bottom: 3px solid currentColor; }
+.c5689-lien { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; min-height: 24px; }
+.c5689-lien:focus-visible, .c5689-case input:focus-visible, .c5689-mode input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.c5689-form { display: grid; gap: .75rem; max-width: 46rem; }
+.c5689-form label { display: grid; gap: .25rem; }
+.c5689-form label.c5689-case { display: flex; gap: .5rem; align-items: flex-start; }
+.c5689-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.c5689-modes { border: 1px solid var(--ax-border, currentColor); border-radius: 6px; padding: .75rem; display: grid; gap: .75rem; }
+.c5689-form label.c5689-mode { display: flex; gap: .5rem; align-items: flex-start; }
+.c5689-badge { display: inline-block; border: 1px solid currentColor; border-radius: 4px; padding: 0 .4rem; font-size: .85em; font-weight: 600; white-space: nowrap; }
+.c5689-operationnel, .c5689-prouvee, .c5689-fourni { color: #0a6b34; }
+.c5689-lecture_disponible, .c5689-ecriture_a_autoriser, .c5689-a_qualifier, .c5689-expiree, .c5689-partiel { color: #8a4b00; }
+.c5689-bloquee, .c5689-revoquee, .c5689-refusee, .c5689-politique_refuse, .c5689-droits_insuffisants, .c5689-non_fourni { color: #a4161a; }
+.c5689-non_configuree { color: inherit; }
+@media (prefers-color-scheme: dark) {
+  .c5689-operationnel, .c5689-prouvee, .c5689-fourni { color: #7fe0a6; }
+  .c5689-lecture_disponible, .c5689-ecriture_a_autoriser, .c5689-a_qualifier, .c5689-expiree, .c5689-partiel { color: #ffc266; }
+  .c5689-bloquee, .c5689-revoquee, .c5689-refusee, .c5689-politique_refuse, .c5689-droits_insuffisants, .c5689-non_fourni { color: #ff9a9e; }
+}
+.c5689-outils { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); margin: 1rem 0; }
+.c5689-outil { border: 1px solid var(--ax-border, currentColor); border-radius: 6px; padding: .75rem; min-width: 0; overflow-wrap: anywhere; }
+.c5689-outil h4 { margin: 0 0 .5rem; }
+.c5689-liste, .c5689-preuves { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.c5689-preuves { font-size: .9em; gap: .1rem; margin-top: .25rem; }
+.c5689-inline { display: inline-flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .25rem .5rem .25rem 0; }
+.c5689-case { display: inline-flex; gap: .5rem; align-items: flex-start; }
+.c5689-table { overflow-x: auto; margin: .75rem 0; }
+.c5689-table table { width: 100%; border-collapse: collapse; }
+.c5689-table th, .c5689-table td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--ax-border, currentColor); vertical-align: top; }
+.c5689-demo { border: 2px dashed currentColor; border-radius: 6px; padding: .75rem 1rem; margin: 1rem 0; }
+.c5689-marque { font-weight: 700; margin: 0 0 .5rem; }
+.c5689-fini { font-weight: 600; }
+.c5689-manifeste { margin-top: 1rem; }

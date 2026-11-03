@@ -15,7 +15,9 @@
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(body)
     };
     return fetch(prefix + '/api440/' + name, opts).then(function (r) {
-      return r.json().catch(function () { return { error: 'reponse_invalide', message: 'Réponse inattendue du serveur.' }; });
+      return r.json().catch(function () { return { error: 'reponse_invalide', message: 'Réponse inattendue du serveur.' }; }).then(function (d) {
+        return (!r.ok && !(d && d.error)) ? { error: 'http_' + r.status, message: 'Le serveur a refusé la demande : rien n’a été enregistré.' } : d;   // 5.6.89 (FM02)
+      });
     }).then(function (d) { if (d && d.error) { throw new Error(d.message || d.error); } return d; });
   }
   function renumber(table) {

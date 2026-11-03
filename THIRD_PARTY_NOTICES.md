@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.88
+# Composants tiers et compatibilité — AxiorHub 5.6.89
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -73,3 +73,14 @@ Fichiers construits avec esbuild à partir des paquets npm officiels, hébergés
 
 - `carbon5682.js` : Carbon Web Components 2.66.0 (`@carbon/web-components`, IBM), Apache-2.0, et ses dépendances (Lit, BSD-3-Clause).
 - `pdfjs5682.js`, `pdf.worker5682.js` : PDF.js 6.4.299 (`pdfjs-dist`, Mozilla), Apache-2.0.
+
+## Interface Carbon (5.6.89)
+
+`carbon5682.js`, `ui_icones5689.py`, `ui_jetons_carbon5689.py` et la police sont reconstruits par `python scripts/build-carbon.py` depuis `scripts/carbon5689/package-lock.json` (`npm ci --ignore-scripts`). Node et npm servent à construire, jamais à l'exécution ; aucun CDN n'est employé. Empreintes et versions : `scripts/carbon5689/manifeste.json`. Le paquet `carbon-components`, dont le support est terminé, n'est pas utilisé.
+
+- `@carbon/web-components` 2.66.0, `@carbon/icons` 11.91.0, `@carbon/icon-helpers` 10.47.0, `@carbon/themes` 11.84.0 (IBM) : Apache-2.0 (`LICENSES/Apache-2.0.txt`).
+- `lit` 3.3.3, `lit-html` 3.3.3, `lit-element` 4.2.2, `@lit/reactive-element` 2.1.2 : BSD-3-Clause (`LICENSES/BSD-3-Clause-Lit.txt`).
+- `@floating-ui/dom` 1.8.0, `@floating-ui/core` 1.8.0, `@floating-ui/utils` 0.2.12 : MIT (`LICENSES/MIT-floating-ui.txt`).
+- `plex-sans-400.woff2`, `plex-sans-600.woff2` : IBM Plex Sans 1.1.0 (`@ibm/plex-sans`), sous-ensemble latin, SIL Open Font License 1.1 (`LICENSES/OFL-1.1-IBM-Plex.txt`).
+
+Télémétrie : `@carbon/web-components` dépend de `@ibm/telemetry-js`, qui ne s'exécute qu'au script d'installation npm. La construction passe `--ignore-scripts` et pose `CARBON_TELEMETRY_DISABLED=1` et `IBM_TELEMETRY_DISABLED=true` : aucune mesure n'est émise, et ce paquet n'entre pas dans les fichiers servis.

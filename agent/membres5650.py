@@ -74,6 +74,7 @@ MATTER_KEYS = ('matter', 'matter_id', 'dossier', 'mid')
 MATTER_ID_PATHS = ('/dossier', '/fiche', '/chronologie', '/pieces')
 
 _viewer = ContextVar('axiorhub_viewer5650', default=None)
+_viewer_role = ContextVar('axiorhub_viewer_role5689', default='')
 _author = ContextVar('axiorhub_auteur5688', default='')          # 5.6.88 : auteur du journal d'audit pour la requête en cours
 _ai_denied = ContextVar('axiorhub_vue_ia5688', default=frozenset())   # 5.6.88 : ce que la personne ne peut pas ouvrir, donc l'assistant non plus
 _lock = threading.Lock()
@@ -277,6 +278,8 @@ def set_reserve(state_dir, matter, owners):
             data['reserves'].pop(str(matter), None)
         return data
     _update(state_dir, change)
+    from .cache_extraction5689 import sur_droits   # 5.6.89 : une révocation invalide les extractions de ce dossier
+    sur_droits(state_dir, matter)
     return owners
 
 
@@ -292,6 +295,8 @@ def category(method, path, action=''):
     if (path not in ('/parametres/assistant', '/parametres/proactivite', '/parametres/agents', '/parametres/agendas') and
             (any(path == p or path.startswith(p + '/') for p in ADMIN_PATHS) or path in ('/installation', '/comptes'))):
         return 'reglages'
+    if api == 'm5689/budget/mission':
+        return None
     if api.startswith(ADMIN_API) or action in ADMIN_ACTIONS:
         return 'reglages'
     if api.startswith('m5653/') and method not in ('GET', 'HEAD'):   # 5.6.53 : facturation et honoraires
@@ -300,6 +305,19 @@ def category(method, path, action=''):
             return 'reglages'
         if route5653 not in ('estimation/calculer', 'epingler'):
             return 'facturation'
+    if api.startswith(('m5689/dossiers/', 'm5689/assertions/', 'm5689/missions', 'm5689/playbooks', 'm5689/accords')) and method not in ('GET', 'HEAD'):   # 5.6.89 : valider un élément, publier un playbook, enregistrer un accord
+        from .dossier_web5689 import droit_requis
+        droit = droit_requis(api[len('m5689/'):])
+        return droit if droit in ('valider', 'valider_modele') else None
+    if api.startswith(('m5689/benchmarks', 'm5689/fonctions')) and method not in ('GET', 'HEAD'):   # 5.6.89 : banc d'essai = réglage du cabinet ; avis de relecteur = valider
+        from .qualif_web5689 import droit_requis
+        return droit_requis(api[len('m5689/'):], method)
+    if api.startswith('m5689/cabinet/') and method not in ('GET', 'HEAD'):   # 5.6.89 : profil et assistant du cabinet = réglage ; la démonstration fictive n'engage rien
+        return None if api.startswith('m5689/cabinet/demonstration') else 'reglages'
+    if api.startswith('m5689/contentieux/') and method not in ('GET', 'HEAD'):   # 5.6.89 : valider une prétention, une date, une règle ou autoriser un paquet = valider
+        from .contentieux_web5689 import VALIDATIONS
+        if api.split('?', 1)[0][len('m5689/'):] in VALIDATIONS:
+            return 'valider'
     if api.startswith('m5673/sites') and method not in ('GET', 'HEAD'):   # 5.6.73 : liste des sites du navigateur = réglage du cabinet
         return 'reglages'
     if api.startswith('m5671/reponse/'):   # 5.6.71 : déposer ou écarter une réponse préparée = dépôt de brouillons
@@ -311,6 +329,8 @@ def category(method, path, action=''):
     if api.startswith('m5670/efacture/'):   # 5.6.70 : facturation électronique
         return 'facturation'
     if api.startswith(('m5670/visio/reglage', 'm5670/visio/tester', 'm5670/securite/')) and method not in ('GET', 'HEAD'):
+        return 'reglages'
+    if api.startswith('m5689/horaires') and method not in ('GET', 'HEAD'):   # 5.6.89 : horaires de l'IA et dérogation = réglage du cabinet
         return 'reglages'
     if api.startswith('m5668/budget/') and method not in ('GET', 'HEAD'):   # 5.6.68 : plafond de l'IA = réglage du cabinet
         return 'reglages'
@@ -363,6 +383,7 @@ M5652_CATEGORIES = {'connexion/enregistrer': 'reglages', 'connexion/secret': 're
 # 5.6.88 : droits fins. Reconnus par la forme de la route : une nouvelle exportation ou suppression est couverte sans autre écriture.
 EXPORT_ROUTE = re.compile(r'(^|/)(export|csv)$')
 DELETE_ROUTE = re.compile(r'(^|/)(supprimer|delete)$')
+LIVRABLE_EXPORT = re.compile(r'^m5689/livrables/[^/]+/(telecharger|exporter)$')   # 5.6.89 : sortie d'un document vers le poste ou une autre destination
 TEMPLATE_ACTIONS = frozenset({'approve_cabinet_template'})
 TEMPLATE_API = frozenset({'m5684/modele/etat'})
 INVOICE_SEND_API = frozenset({'m5653/document/transmettre'})
@@ -381,7 +402,7 @@ def fine_rights(method, path, action=''):
     path = path.rstrip('/') or '/'
     api = path[len('/api440/'):].split('?', 1)[0] if path.startswith('/api440/') else ''
     out = []
-    if api and EXPORT_ROUTE.search(api):
+    if api and (EXPORT_ROUTE.search(api) or LIVRABLE_EXPORT.search(api)):
         out.append('exporter')
     if (api and DELETE_ROUTE.search(api) and method not in ('GET', 'HEAD')) or str(action).startswith('delete_'):
         out.append('supprimer')
@@ -476,6 +497,7 @@ def set_viewer(hidden):
 def clear():
     _viewer.set(None)
     _author.set('')
+    _viewer_role.set('')
     _ai_denied.set(frozenset())
 
 
@@ -486,6 +508,15 @@ def new_job():
 
 def current_author():
     return _author.get()
+
+
+def viewer_role():
+    """5.6.89 : rôle de la requête, pour décider d'afficher un bouton. Le service refait son contrôle. Sans requête : installation à authentification serveur."""
+    return _viewer_role.get() or 'administrateur'
+
+
+def set_viewer_role(role):
+    _viewer_role.set(str(role or ''))
 
 
 def set_author(owner):
@@ -656,6 +687,7 @@ def gate(env, state_dir, path, args, matter_paths=None):
     owner, role = actor(env)
     hidden = hidden_for(state_dir, owner, role)
     set_viewer(hidden)
+    set_viewer_role(role)
     set_ai_denied(ai_limits(state_dir, owner, role))
     service = str(env.get('HTTP_AUTHORIZATION') or '').startswith('Bearer ') and not env.get('HTTP_X_AXIORHUB_USER') and not env.get('axiorhub.jeton5688')
     set_author('jeton_service' if service else owner)   # 5.6.88 : le jeton de service n'a pas d'identité : il est nommé comme tel

@@ -1,0 +1,216 @@
+/* 5.6.89 : présentation Carbon de toute l'application, sous le seul attribut data-carbon de <body> : drapeau éteint, plus rien de ce fichier ne s'applique.
+   Les couleurs viennent des jetons (v5689-carbon-jetons.css, généré depuis ui_tokens5689.py) ; aucune palette propre à une page. Pages non migrées : elles suivent par les variables --ws-* et --ax-*. */
+
+/* ---- socle : texte, focus, cibles ---- */
+body[data-carbon] { background: var(--cds-background); color: var(--cds-text-primary); font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 1rem; line-height: 1.5; }
+:root body[data-carbon] h1, :root body[data-carbon] h2, :root body[data-carbon] h3, :root body[data-carbon] strong, :root body[data-carbon] b { font-weight: 600; }
+:where(body[data-carbon]) a { color: var(--cds-link-primary); }
+:where(body[data-carbon]) a:hover { color: var(--cds-link-primary-hover); }
+:where(body[data-carbon]) button, :where(body[data-carbon]) .button { background: var(--ui-marque); border-color: var(--ui-marque); color: var(--ui-sur-marque); }
+:root body[data-carbon] :focus-visible { outline: 2px solid var(--cds-focus); outline-offset: 1px; }
+:root body[data-carbon] .c530-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+:root body[data-carbon] .ui89-icone { flex: none; vertical-align: -.2em; }
+:root body[data-carbon] .ui89-si-sombre { display: none; }
+:root[data-theme=dark] body[data-carbon] .ui89-si-sombre { display: inline-block; }
+:root[data-theme=dark] body[data-carbon] .ui89-si-clair { display: none; }
+
+/* ---- formes : angles droits de Carbon, sans toucher aux pastilles et aux points d'état ---- */
+:root body[data-carbon] #ws-main .ax-card, :root body[data-carbon] #ws-main .card, :root body[data-carbon] #ws-main .c530-card, :root body[data-carbon] #ws-main .m5-form, :root body[data-carbon] #ws-main .ax-btn, :root body[data-carbon] #ws-main button,
+:root body[data-carbon] #ws-main input, :root body[data-carbon] #ws-main select, :root body[data-carbon] #ws-main textarea, :root body[data-carbon] #ws-main .notice, :root body[data-carbon] #ws-main .ws-heading, :root body[data-carbon] .ws-ai-dock,
+:root body[data-carbon] .f5631-panel, :root body[data-carbon] #ws-main section { border-radius: 0; }
+
+/* ---- boutons : bleu principal, texte explicite, survol et focus distincts ---- */
+:root body[data-carbon] .ax-btn, :root body[data-carbon] #ws-main button:not([class]) { align-items: center; background: var(--ui-marque); border: 1px solid var(--ui-marque); color: var(--ui-sur-marque); display: inline-flex; font: inherit; font-size: .9375rem; gap: .5rem; justify-content: center; min-height: 2.5rem; padding: .4rem 1rem; text-decoration: none; }
+:root body[data-carbon] .ax-btn:hover, :root body[data-carbon] #ws-main button:not([class]):hover { background: var(--ui-marque-survol); border-color: var(--ui-marque-survol); color: var(--ui-sur-marque); }
+:root body[data-carbon] .ax-btn:focus-visible { outline: 2px solid var(--cds-focus); outline-offset: 2px; }
+:root body[data-carbon] .ax-btn.ghost { background: transparent; border-color: transparent; color: var(--cds-link-primary); }
+:root body[data-carbon] .ax-btn.ghost:hover { background: var(--cds-layer-hover); border-color: transparent; color: var(--cds-link-primary-hover); }
+:root body[data-carbon] .ax-btn.warn { background: var(--ui-attention-doux); border-color: var(--ui-attention-texte); color: var(--ui-attention-texte); }
+:root body[data-carbon] .ax-btn[disabled], :root body[data-carbon] #ws-main button[disabled] { background: var(--cds-layer-02); border-color: var(--cds-layer-02); color: var(--cds-text-secondary); cursor: not-allowed; }
+:root body[data-carbon] .ax-btn[aria-busy=true]::after, :root body[data-carbon] button[aria-busy=true]::after { animation: ui89-tourne .8s linear infinite; border: 2px solid currentColor; border-radius: 50%; border-right-color: transparent; content: ''; display: inline-block; height: .9em; margin-left: .5rem; width: .9em; }
+@keyframes ui89-tourne { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { :root body[data-carbon] .ax-btn[aria-busy=true]::after, :root body[data-carbon] button[aria-busy=true]::after { animation: none; } }
+
+/* ---- champs : fond de champ, trait inférieur fort, erreur lisible sans la couleur ---- */
+:root body[data-carbon] #ws-main input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]), :root body[data-carbon] #ws-main select, :root body[data-carbon] #ws-main textarea, :root body[data-carbon] .m5-field input, :root body[data-carbon] .m5-field select, :root body[data-carbon] .m5-field textarea {
+  background: var(--cds-field); border: 0; border-bottom: 1px solid var(--cds-border-strong); color: var(--cds-text-primary); font: inherit; min-height: 2.5rem; padding: .4rem .75rem; }
+:root body[data-carbon] #ws-main input:focus, :root body[data-carbon] #ws-main select:focus, :root body[data-carbon] #ws-main textarea:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+:root body[data-carbon] #ws-main input[disabled], :root body[data-carbon] #ws-main select[disabled], :root body[data-carbon] #ws-main textarea[disabled] { color: var(--cds-text-secondary); cursor: not-allowed; opacity: .75; }
+:root body[data-carbon] ::placeholder { color: var(--cds-text-secondary); opacity: .85; }
+:root body[data-carbon] [aria-invalid=true] { outline: 2px solid var(--cds-support-error); outline-offset: -2px; }
+:root body[data-carbon] .ui89-erreur { align-items: flex-start; color: var(--cds-text-error); display: flex; font-size: .875rem; gap: .35rem; margin: .25rem 0; }
+:root body[data-carbon] .ui89-erreur::before { content: 'Erreur :'; font-weight: 600; }
+.ui89-aide { color: var(--ws-muted, inherit); display: block; font-size: .875rem; font-weight: 400; }
+.ui89-natif { height: 1px; opacity: 0; pointer-events: none; position: absolute; width: 1px; }
+.ui89-natif-bloc { display: none !important; }
+:root body[data-carbon] .m5-form { background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle-01); }
+:root body[data-carbon] .m5-field { font-size: .875rem; font-weight: 400; }
+:root body[data-carbon] .m5-form.m5-mini, :root body[data-carbon] .m5-form.q51-inline, :root body[data-carbon] .m5-form.r52-inline { background: none; border: 0; }
+
+/* ---- cartes et états ---- */
+:root body[data-carbon] .ax-card, :root body[data-carbon] .c530-card, :root body[data-carbon] .card { background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle-01); box-shadow: none; }
+.ui89-etat { align-items: flex-start; display: flex; gap: .6rem; padding: .75rem 1rem; }
+.ui89-etat p { margin: .15rem 0 0; }
+:root body[data-carbon] .ui89-etat { border-left: 3px solid var(--cds-border-strong); color: var(--cds-text-primary); }
+:root body[data-carbon] .ui89-etat[data-etat=vide] { background: var(--cds-layer-02); border-left-color: var(--cds-border-strong); }
+:root body[data-carbon] .ui89-etat[data-etat=chargement] { background: var(--ui-action-doux); border-left-color: var(--cds-interactive); }
+:root body[data-carbon] .ui89-etat[data-etat=partiel] { background: var(--ui-attention-doux); border-left-color: var(--ui-attention-texte); }
+:root body[data-carbon] .ui89-etat[data-etat=erreur] { background: var(--ui-erreur-doux); border-left-color: var(--cds-support-error); }
+:root body[data-carbon] .ui89-etat[data-etat=non_configure] { background: var(--cds-layer-02); border-left-color: var(--ui-ia); }
+
+/* ---- composants Carbon non chargés : le texte reste lisible ---- */
+cds-tag:not(:defined) { border: 1px solid currentColor; border-radius: 1rem; display: inline-block; font-size: .8125rem; padding: 0 .5rem; }
+cds-inline-notification:not(:defined) { border-left: 3px solid currentColor; display: block; padding: .5rem .75rem; }
+cds-inline-notification:not(:defined)::before { content: attr(title) ' '; font-weight: 600; }
+cds-inline-notification:not(:defined)::after { content: attr(subtitle); }
+
+/* ---- enveloppe : navigation graphite, barre haute claire ---- */
+:root body[data-carbon] #ws-sidebar { background: var(--ui-nav); border-right: 1px solid var(--ui-nav-bord); color: var(--ui-nav-texte); }
+:root body[data-carbon] #ws-sidebar a, :root body[data-carbon] #ws-sidebar summary { color: var(--ui-nav-texte); }
+:root body[data-carbon] #ws-sidebar a:hover { background: var(--ui-nav-actif); color: var(--ui-nav-texte); }
+:root body[data-carbon] #ws-sidebar a[aria-current=page] { background: var(--ui-nav-actif); box-shadow: inset 3px 0 0 var(--ui-nav-accent); color: var(--ui-nav-texte); }
+:root body[data-carbon] #ws-sidebar :focus-visible { outline-color: #ffffff; }
+:root body[data-carbon] .ws-nav-icon svg { display: block; }
+:root body[data-carbon] .ws-topbar { background: var(--cds-layer-01); border-bottom: 1px solid var(--cds-border-subtle-01); color: var(--cds-text-secondary); }
+:root body[data-carbon] .ws-topbar a { color: var(--cds-link-primary); }
+.ui89-retour { align-items: center; display: inline-flex; font-weight: 600; gap: .4rem; min-height: 2.5rem; text-decoration: none; }
+.ws-topbar .ui89-retour { margin-right: .75rem; white-space: nowrap; }
+:root body[data-carbon] .ui89-retour:hover span { text-decoration: underline; }
+:root body[data-carbon] .ws-icon-button { align-items: center; background: transparent; border: 0; color: var(--cds-text-primary); display: inline-flex; height: 2.5rem; justify-content: center; width: 2.5rem; }
+:root body[data-carbon] .ws-icon-button:hover { background: var(--cds-layer-hover); }
+
+:root body[data-carbon] .ws-topbar-actions > a, :root body[data-carbon] .ws-topbar-actions > .ws-ai-live { align-items: center; background: transparent; border: 0; border-radius: 0; box-shadow: none; color: var(--cds-link-primary); display: inline-flex; gap: .35rem; min-height: 2.5rem; padding: .25rem .6rem; }
+:root body[data-carbon] .ws-topbar-actions > a:hover, :root body[data-carbon] .ws-topbar-actions > .ws-ai-live:hover { background: var(--cds-layer-hover); }
+:root body[data-carbon] #ws-main .ws-ai-live, :root body[data-carbon] #ws-ai-live { background: transparent; border: 0; border-radius: 0; box-shadow: none; color: var(--cds-link-primary); height: 2.5rem; min-height: 2.5rem; padding: 0; position: static; width: 2.5rem; }
+:root body[data-carbon] #ws-ai-live:hover { background: var(--cds-layer-hover); }
+
+/* Écran étroit : menu replié en une rangée d'icônes ; le bouton de menu rend toutes les entrées. Rien ne s'empile au-dessus du contenu. */
+@media (max-width: 53rem) {
+  :root.ws-collapsed body[data-carbon] #ws-sidebar { height: auto; min-height: 0; overflow: visible; padding: 0 .25rem; position: static; width: 100%; }
+  :root.ws-collapsed body[data-carbon] #ws-sidebar > :not(.ws-primary) { display: none; }
+  :root.ws-collapsed body[data-carbon] #ws-sidebar .ws-primary { display: flex; flex-direction: row; flex-wrap: wrap; gap: 0; justify-content: space-around; margin: 0; }
+  :root.ws-collapsed body[data-carbon] #ws-sidebar .ws-primary a { align-items: center; border-radius: 0; display: inline-flex; height: 2.75rem; justify-content: center; margin: 0; min-height: 2.75rem; min-width: 2.75rem; padding: 0; width: 2.75rem; }
+  :root.ws-collapsed body[data-carbon] #ws-sidebar a[aria-current=page] { box-shadow: inset 0 -3px 0 var(--ui-nav-accent); }
+  :root body[data-carbon] .ws-topbar { flex-wrap: wrap; gap: .25rem; height: auto; padding: .25rem .5rem; }
+  :root body[data-carbon] .ws-topbar-leading { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+  :root body[data-carbon] .ws-ariane { min-width: 0; overflow-wrap: anywhere; }
+  :root body[data-carbon] .ws-topbar-actions { flex-wrap: wrap; gap: 0 .25rem; justify-content: flex-start; width: 100%; }
+  :root body[data-carbon] .ws-topbar-actions > a { font-size: .875rem; padding: .25rem .4rem; }
+}
+
+/* Redistribution : aucun champ, bouton ni tableau ne dépasse la largeur disponible (320 px, zoom 200 %). Un tableau large défile dans son propre cadre. */
+:root body[data-carbon] #ws-main input, :root body[data-carbon] #ws-main select, :root body[data-carbon] #ws-main textarea, :root body[data-carbon] #ws-main .ax-btn { max-width: 100%; min-width: 0; }
+:root body[data-carbon] #ws-main label, :root body[data-carbon] #ws-main form > *, :root body[data-carbon] #ws-main fieldset { min-width: 0; }
+:root body[data-carbon] #ws-main .ax-btn { white-space: normal; }
+:root body[data-carbon] #ws-main code, :root body[data-carbon] #ws-main .c5689-badge { overflow-wrap: anywhere; white-space: normal; }
+@media (max-width: 75rem) {
+  :root body[data-carbon] #ws-main table { display: block; max-width: 100%; overflow-x: auto; }
+  :root body[data-carbon] #ws-main .m5-form { max-width: 100%; }
+}
+
+/* Horaires : un conteneur masqué le reste, quelles que soient les règles de grille d'un parent. */
+:root body[data-carbon] [data-jours][hidden], :root body[data-carbon] [data-heures][hidden], :root body[data-carbon] [data-lendemain][hidden] { display: none; }
+
+/* ---- panneau latéral commun ---- */
+dialog.ui89-panneau { background: var(--ws-surface, #fff); border: 0; color: var(--ws-ink, #161616); height: 100dvh; margin: 0 0 0 auto; max-height: 100dvh; max-width: 100vw; overflow: auto; padding: 1.25rem 1.5rem; width: min(44rem, 100vw); }
+dialog.ui89-panneau::backdrop { background: rgba(22, 22, 22, .5); }
+.ui89-fermer { float: right; }
+
+/* ---- onglets de filtre ---- */
+.ui89-onglets { border-bottom: 1px solid var(--ws-border, #e0e0e0); display: flex; flex-wrap: wrap; gap: 0; }
+:root #ws-main .ui89-onglets [role=tab] { background: transparent; border-radius: 0; color: var(--ws-ink, inherit); min-height: 2.75rem; border: 0; border-bottom: 3px solid transparent; color: inherit; cursor: pointer; font: inherit; font-size: .9375rem; min-height: 2.75rem; padding: .5rem .9rem; }
+:root #ws-main .ui89-onglets [role=tab][aria-selected=true] { border-bottom-color: var(--ws-accent, #0f62fe); font-weight: 600; }
+:root #ws-main .ui89-onglets [role=tab]:hover { background: var(--cds-layer-hover, transparent); }
+.ui89-compte { color: var(--ws-muted, inherit); font-weight: 400; margin-left: .15rem; }
+
+/* ---- accueil ---- */
+.a89-layout { align-items: start; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1.72fr) minmax(17.5rem, 1fr); margin-top: 1rem; }
+.a89-principal, .a89-cote { display: grid; gap: 1.25rem; min-width: 0; }
+.a89-layout > .a89-principal > .c530-cols { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); margin: 0; }
+.a89-principal .t88-item, .a89-cote .t88-item { min-width: 0; }
+.a89 .t88-item > * { height: auto; }
+.a89-principal > .c530-cols .t88-item + .t88-item { margin-top: 0; }
+.a89-tete { align-items: flex-end; display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; justify-content: space-between; }
+.a89-commandes { align-items: center; display: flex; flex-wrap: wrap; gap: .75rem; justify-content: flex-end; }
+:root body[data-carbon] .a89-mission { background: var(--ui-ia); border-color: var(--ui-ia); color: var(--ui-sur-action); }
+:root body[data-carbon] .a89-mission:hover { background: var(--ui-ia); border-color: var(--ui-ia); color: var(--ui-sur-action); filter: brightness(1.15); }
+.a89-travail .c530-head { align-items: center; display: flex; gap: .75rem; justify-content: space-between; }
+.a89-travail h2 { align-items: center; display: flex; gap: .5rem; margin: 0; }
+.a89-liste { list-style: none; margin: 0; padding: 0; }
+.a89-ligne { align-items: flex-start; border-bottom: 1px solid var(--ws-border, #e0e0e0); display: flex; gap: .75rem; padding: .85rem 0; }
+.a89-pastille { align-items: center; background: var(--ws-accent-soft, #edf5ff); color: var(--ws-accent, #0f62fe); display: inline-flex; flex: none; height: 2.25rem; justify-content: center; width: 2.25rem; }
+.a89-corps { flex: 1; min-width: 0; }
+.a89-titre { color: var(--ws-ink, inherit) !important; display: block; font-weight: 600; overflow-wrap: anywhere; text-decoration: none; }
+.a89-titre:hover { text-decoration: underline; }
+.a89-dossier { font-size: .875rem; font-weight: 600; margin: .15rem 0; overflow-wrap: anywhere; }
+.a89-meta { color: var(--ws-muted, inherit); display: flex; flex-wrap: wrap; font-size: .875rem; gap: .15rem .75rem; margin: 0; }
+.a89-droite { align-items: center; display: flex; flex: none; flex-wrap: wrap; gap: .4rem; justify-content: flex-end; max-width: 15rem; }
+.a89-note, .a89-suite { font-size: .875rem; margin: .6rem 0 0; }
+.a89-pied { color: var(--ws-muted, inherit); font-size: .875rem; margin: .6rem 0 0; }
+.a89-plus > summary { cursor: pointer; font-weight: 600; min-height: 2.75rem; padding: .6rem 1rem; }
+.a89-plus { background: var(--ws-surface, #fff); border: 1px solid var(--ws-border, #e0e0e0); }
+.a89-comptes { border: 0 !important; height: 0; margin: 0; overflow: visible; padding: 0 !important; }
+.a89-acces { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin-top: 1rem; }
+.a89-acces a { align-items: center; display: inline-flex; gap: .4rem; min-height: 2.75rem; }
+@media (max-width: 73.75rem) { .a89-layout { grid-template-columns: minmax(0, 1fr); } .a89-cote { grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); } }
+@media (max-width: 35rem) { .a89-ligne { flex-wrap: wrap; } .a89-droite { justify-content: flex-start; max-width: none; padding-left: 3rem; width: 100%; } .a89-commandes { justify-content: flex-start; width: 100%; } .a89-mission { width: 100%; } }
+
+/* ---- reprises ponctuelles de couleurs codées en dur : même sens, jetons du thème ---- */
+:root body[data-carbon] p.ok, :root body[data-carbon] .ok { color: var(--cds-support-success); }
+:root body[data-carbon] .chooser > summary, :root body[data-carbon] .tabs a.active, :root body[data-carbon] .matter-hero .primary-actions > a { background: var(--ui-marque); border-color: var(--ui-marque); color: var(--ui-sur-marque); }
+:root body[data-carbon] .l89-natures a[aria-current] { background: var(--ui-marque); border-color: var(--ui-marque); color: var(--ui-sur-marque); }
+:root body[data-carbon] .l89-natures a[aria-current] .q51-n { background: transparent; color: inherit; }
+:root body[data-carbon] .d51-state-partielle { color: var(--ui-attention-texte); }
+:root body[data-carbon] .c5689-operationnel, :root body[data-carbon] .c5689-prouvee, :root body[data-carbon] .c5689-fourni { color: var(--cds-support-success); }
+:root body[data-carbon] .c5689-lecture_disponible, :root body[data-carbon] .c5689-ecriture_a_autoriser, :root body[data-carbon] .c5689-a_qualifier, :root body[data-carbon] .c5689-expiree, :root body[data-carbon] .c5689-partiel { color: var(--ui-attention-texte); }
+:root body[data-carbon] .c5689-bloquee, :root body[data-carbon] .c5689-revoquee, :root body[data-carbon] .c5689-refusee, :root body[data-carbon] .c5689-politique_refuse, :root body[data-carbon] .c5689-droits_insuffisants, :root body[data-carbon] .c5689-non_fourni { color: var(--cds-text-error); }
+
+/* ---- onglets de pages (Produire, Dossier, Paramètres) : lignes Carbon, page active écrite par le trait et la graisse ---- */
+:root body[data-carbon] .ws-tabs { border-bottom: 1px solid var(--cds-border-subtle-01); gap: 0; }
+:root body[data-carbon] .ws-tabs a { background: transparent; border: 0; border-bottom: 3px solid transparent; border-radius: 0; box-shadow: none; color: var(--cds-text-primary); font-weight: 400; min-height: 2.75rem; padding: .55rem .9rem; }
+:root body[data-carbon] .ws-tabs a:hover { background: var(--cds-layer-hover); color: var(--cds-text-primary); }
+:root body[data-carbon] .ws-tabs a[aria-current] { background: transparent; border-bottom-color: var(--ui-marque); color: var(--cds-text-primary); font-weight: 600; }
+:root body[data-carbon] .l89-actions .m5-form, :root body[data-carbon] .l89-actions form { background: none; border: 0; margin: 0; padding: 0; }
+:root body[data-carbon] .l89-ligne { border-bottom-color: var(--cds-border-subtle-01); }
+:root body[data-carbon] .l89-etat { background: var(--cds-layer-02); border: 0; color: var(--cds-text-primary); padding: .05rem .55rem; }
+:root body[data-carbon] .l89-natures a { color: var(--cds-text-primary); }
+:root body[data-carbon] .l89-alerte { background: var(--ui-attention-doux); border-left-color: var(--ui-attention-texte); }
+:root body[data-carbon] .l89-cadre { border-color: var(--cds-border-subtle-01); }
+:root body[data-carbon] .ws-heading a, :root body[data-carbon] .p5621-actions a { border-radius: 0; }
+
+/* Autres rangées d'onglets et de filtres : le bleu codé en dur devient la couleur d'action du thème. */
+:root body[data-carbon] .d27-tabs a[aria-current=page] { border-bottom-color: var(--ui-marque); color: var(--cds-text-primary); font-weight: 600; }
+:root body[data-carbon] .m5-tabs a[aria-current=page], :root body[data-carbon] .p5621-tabs a[aria-current=page], :root body[data-carbon] .bx5625-tabs a[aria-current=page], :root body[data-carbon] .tk28-chips a[aria-current=page], :root body[data-carbon] .bx5625-folder[aria-current] { background: var(--ui-marque); border-color: var(--ui-marque); color: var(--ui-sur-marque); }
+
+/* ---- routines : une ligne par routine, sur toute la largeur ---- */
+.a89 .r52-cards { display: block; }
+.a89 .r52-top { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; }
+.a89 .r52-card { align-items: center; border: 0; border-bottom: 1px solid var(--ws-border, #e0e0e0); border-radius: 0; display: grid; gap: .1rem .75rem; grid-template-columns: minmax(0, 1fr) auto; padding: .55rem 0; }
+.a89 .r52-card .r52-head { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; grid-column: 1; }
+.a89 .r52-card .c5614-state { display: none; }
+.a89 .r52-card .r52-meta, .a89 .r52-card .r52-missing, .a89 .r52-card .r52-motif { font-size: .875rem; grid-column: 1; }
+.a89 .r52-card .c5614-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .1rem; grid-column: 2; grid-row: 1 / span 3; justify-content: flex-end; }
+.a89 .r52-card .r52-menu[open] > div { background: var(--ws-surface, #fff); border: 1px solid var(--ws-border, #e0e0e0); padding: .5rem; position: absolute; right: 0; width: min(26rem, 90vw); z-index: 3; }
+.a89 .r52-card .r52-menu { position: relative; }
+.a89 .c5614-routines { background: var(--ws-surface, #fff); border: 1px solid var(--ws-border, #e0e0e0); box-shadow: none; padding: .9rem 1rem; }
+:root body[data-carbon] .a89 .r52-add > summary.ax-btn { background: transparent; border-color: transparent; color: var(--cds-link-primary) !important; }
+@media (max-width: 35rem) { .a89 .r52-card { grid-template-columns: minmax(0, 1fr); } .a89 .r52-card .c5614-actions { grid-column: 1; grid-row: auto; justify-content: flex-start; } }
+.q51-niveau { border: 1px solid currentColor; border-radius: 1rem; font-size: .75rem; font-weight: 400; margin-left: .5rem; padding: 0 .45rem; white-space: nowrap; }
+.q51-pourquoi { font-size: .875rem; }
+.a89-resume { background: var(--ws-surface, #fff); border: 1px solid var(--ws-border, #e0e0e0); border-top: 0; font-size: .9375rem; margin: 0; padding: .6rem 1rem; }
+.a89-incidents { background: var(--ws-surface, #fff); border: 1px solid var(--ws-border, #e0e0e0); padding: .75rem 1rem; }
+.a89-incidents h2 { align-items: center; display: flex; font-size: 1rem; gap: .4rem; margin: 0 0 .4rem; }
+
+/* ---- impression : le contenu seul, sans commandes ni défilement interne ---- */
+@media print {
+  #ws-sidebar, .ws-topbar, #ws-ai-dock, #ws-ai-launcher, #ws-ai-live, #ws-live-bar, #ws-live-panel, #ws-command-palette, #ax-toast, .c530-drawer, .a89-commandes, .a89-acces, .t88-panel, .ui89-onglets, .ax-btn, form.m5-form button, dialog, .c5614-side, .ws-tabs, nav { display: none !important; }
+  html, body, #ws-main { background: #fff !important; color: #161616 !important; display: block !important; height: auto !important; margin: 0 !important; max-height: none !important; min-height: 0 !important; overflow: visible !important; padding: 0 !important; width: auto !important; }
+  #ws-main * { max-height: none !important; overflow: visible !important; }
+  .c530, .a89-layout, .a89-principal, .a89-cote, .c530-cols { display: block !important; }
+  .a89-principal > *, .a89-cote > *, .t88-item { margin-bottom: 12pt; }
+  .c530-card, .ax-card, .a89-ligne { background: #fff !important; border-color: #8d8d8d !important; box-shadow: none !important; break-inside: avoid; color: #161616 !important; }
+  a { color: #161616 !important; text-decoration: underline; }
+  [hidden] { display: none !important; }
+  details { display: block; }
+  details > summary::marker { content: ''; }
+}

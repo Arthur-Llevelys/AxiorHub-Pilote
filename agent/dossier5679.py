@@ -123,6 +123,7 @@ def balance_html(desk, prefix, mid):
 
 def header_html(desk, prefix, m, view):
     from . import modele5651
+    from .ui_components5689 import action_ia_html   # 5.6.89 : même icône IA, sur ce dossier
     from .pause5629 import is_paused
     from .vue5651 import analysis_state
     from .missions5651 import panel_html
@@ -160,7 +161,7 @@ def header_html(desk, prefix, m, view):
             '<nav class="d79-tabs" aria-label="Vues du dossier">%s</nav>') % (
         e(mid, quote=True), e(mid, quote=True), e(prefix + '/dossiers', quote=True), e(matter_display(m)), ' · '.join(meta),
         e(st['state']), e(st['label']), e(('actualisé le ' + _date_fr(when[:10])) if when else ''), running,
-        pause_btn, e(mid, quote=True), panel_html(mid, files, prefix), more, paused, tabs)
+        pause_btn + action_ia_html('dossiers', {'dossier': mid, 'titre': matter_display(m), 'page': True}), e(mid, quote=True), panel_html(mid, files, prefix), more, paused, tabs)
 
 
 PREVIEW = ('<section class="d79-preview" id="d79-preview" role="complementary" hidden aria-label="Aperçu du document"><div class="d79-preview-head"><strong data-d79-title>Aperçu</strong>'
@@ -360,7 +361,7 @@ def documents_html(desk, auth, prefix, m, args):
     if cat == 'illisibles':
         from .vue5651 import coverage_html
         body += _safe('Couverture', coverage_html, desk, prefix, mid)
-    body += '<p class="ax-muted"><a href="%s">Vue détaillée des pièces, bordereaux et couverture de lecture</a></p>' % e(prefix + _q(mid, 'pieces-detail'), quote=True)
+    body += '<p class="ax-muted"><a href="%s">Vue détaillée des pièces, bordereaux et couverture de lecture</a> · <a href="%s">Contentieux : prétentions, preuves, actes, délais, paquets</a></p>' % (e(prefix + _q(mid, 'pieces-detail'), quote=True), e(prefix + '/contentieux?dossier=' + mid, quote=True))   # 5.6.89
     return _card('Documents du dossier', body, 'd79-documents')
 
 

@@ -1155,6 +1155,61 @@
 ],
 "version": "5.6.36"
 },
+"contentieux": {
+"objective": "Prepare litigation around evidence: claims, facts, rules, exhibits, objections, then pleading, deadlines, hearing and package to communicate.",
+"when": "As soon as a contentious matter has its first demands, then before each pleading or hearing.",
+"prerequisites": "An open matter. The AI model is optional: the matrix, exhibits, checks and deadlines work without it.",
+"steps": [
+"Open the matter, then the “Contentieux” link.",
+"Import the demands of the matter or add a claim, then link facts, rules and exhibits.",
+"Validate what you keep: an AI proposal stays a proposal.",
+"Prepare the pleading plan, start the drafting, then read the checks.",
+"Prepare a manifest, review it, then authorise it if you so decide."
+],
+"result": "Each claim shows what is known, disputed or missing; the pleading, its reservations and its exhibit list come from the same register.",
+"verify": "A deadline without a decisive datum stays “To verify”. Any deadline rule must be validated by a lawyer. AxiorHub files nothing: an archive is not proof of filing.",
+"errors": [
+[
+"“Validate at least one claim first”",
+"A pleading is not built on proposals: validate a claim of the firm."
+],
+[
+"“The authorisation no longer covers this manifest”",
+"A file or recipient changed: verify the package, then authorise it again."
+]
+],
+"example": "Fictional matter DOS-001: exhibit 1 of the firm and exhibit 1 of ZORVAL stay two distinct exhibits.",
+"buttons": [],
+"version": "5.6.36"
+},
+"livrables": {
+"objective": "Find every prepared document in one place, whoever produced it, and open, edit, download or export it.",
+"when": "To review a draft, follow work in progress or find an older unreviewed document.",
+"prerequisites": "None to read. The EuroOffice editor and PDF conversion are optional: the document page explains when they are missing.",
+"steps": [
+"Open Produce, “Prepared documents” tab.",
+"Filter by nature, date, review or state.",
+"Open a document: preview, version, checks and proposals are on the same page.",
+"Use “Edit with AI”, “Download” or “Export”; a change stays a proposal until you accept it."
+],
+"result": "Each document appears once, with its version and separate production and review states.",
+"verify": "“Exported” only appears after the written file has been read back; “Ready to review” is not a legal validation.",
+"errors": [
+[
+"The list says “Incomplete list”",
+"A source could not be read: other documents stay visible. See “Source status”."
+],
+[
+"A document shows “Check pending”",
+"The file is stored but not yet read back: the comparison with storage runs every 10 minutes."
+]
+],
+"example": "Fictional contract DOS-001: version 2 returns to review after version 1 was reviewed.",
+"buttons": [
+"Filtrer"
+],
+"version": "5.6.36"
+},
 "projets": {
 "objective": "Review automatically prepared work.",
 "when": "Regularly, to approve or dismiss drafts.",
@@ -2078,6 +2133,56 @@
 "buttons": [
 "Filtrer",
 "Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"banc_essai": {
+"objective": "Compare complete tasks on a frozen protocol, and see what each function has actually proven.",
+"when": "Before choosing a configuration, or to check a function after an update.",
+"prerequisites": "Be an administrator to prepare a run; be a lawyer to give a review.",
+"steps": [
+"Open Benchmark and function status.",
+"Load the practice set or freeze your protocol.",
+"Record both configurations, then plan and start the run.",
+"Enter the results, have them reviewed, then finish the run."
+],
+"result": "The comparison by family shows median, spread and sample size, or the reason why no conclusion is possible.",
+"verify": "Each result points to a case, an output and a measure; the corpus fingerprint is shown.",
+"errors": [
+[
+"Acceptance refused",
+"A critical error or missing data prevents accepting this family: read the reason shown."
+]
+],
+"example": "Compare AxiorHub and Claude Desktop on the fictional matter DOS-001.",
+"buttons": [
+"Charger le corpus d’exercice fictif",
+"Enregistrer la configuration",
+"Créer le protocole"
+],
+"version": "5.6.36"
+},
+"gouvernance_ia": {
+"objective": "Set what may leave the firm, to which services, and at what cost.",
+"when": "Before opening a new AI service, or to set the firm’s caps.",
+"prerequisites": "Be an administrator.",
+"steps": [
+"Open AI data and budget.",
+"Choose the mode, then “Enregistrer la politique”.",
+"Set the caps, then “Enregistrer les plafonds”."
+],
+"result": "The policy and caps apply from the next step of each task.",
+"verify": "The current mode and revision appear at the top of the page.",
+"errors": [
+[
+"Unreadable policy",
+"Nothing new is sent: fix the setting or restore the latest backup."
+]
+],
+"example": "Choisir le mode local strict, puis fixer 50 $ par mois.",
+"buttons": [
+"Enregistrer la politique",
+"Enregistrer les plafonds"
 ],
 "version": "5.6.36"
 },

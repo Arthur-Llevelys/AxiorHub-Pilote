@@ -37,8 +37,10 @@
 
   /* Composants Carbon : chargés seulement sur les pages qui en affichent (fichier local, sans ressource externe). */
   document.addEventListener('DOMContentLoaded', function () {
-    if (document.querySelector('cds-tag, cds-inline-notification')) {
-      var s = document.createElement('script'); s.src = versioned('carbon5682.js'); s.defer = true; document.head.append(s);
+    if (document.querySelector('cds-tag, cds-inline-notification, form[data-carbon]')) {
+      var s = document.createElement('script'); s.src = versioned('carbon5682.js'); s.defer = true;
+      s.onerror = function () { document.documentElement.setAttribute('data-carbon-absent', '1'); };   /* 5.6.89 : les champs natifs restent en place */
+      document.head.append(s);
     }
   });
 

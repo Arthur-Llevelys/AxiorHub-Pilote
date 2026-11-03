@@ -3,6 +3,24 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.89 — Audit 5.6.88 : anomalies corrigées, livrables unifiés, interface Carbon, pauses horaires, dossier structuré
+
+Version fonctionnelle fondée sur l’audit de la 5.6.88. Les services extérieurs et les modèles réels n’ont pas été exercés : les fonctions qui en dépendent restent à qualifier, et la page Banc d’essai l’indique fonction par fonction.
+
+- **12 anomalies de l’audit corrigées** : collecte des documents, versions relues, actes de cession absents de l’accueil, recherche et droits, faux positifs du bouclier, rangement des notes, annulation, observations EuroOffice, origine d’une correction humaine, demande de synthèse prise pour un courriel, liste du jour en double.
+- **Registre commun des livrables** et visionneuse : même document, même version et mêmes états dans Aujourd’hui, Produire et Dossier ; aperçu par format, modification proposée, téléchargement, export.
+- **Vérification séparée** : stockage, format, sources et cohérence, relecture humaine.
+- **Interface** : thème Carbon embarqué, nouvel accueil orienté vers le travail préparé, retour contextuel, formulaires, impression. Désactivable dans Paramètres › Interface ; toutes les fonctions sont conservées.
+- **Pauses horaires de l’IA**, désactivées par défaut, avec dérogation limitée et reprise sans doublon.
+- **Données et budget** : décision commune avant tout accès ou transfert, modes local strict, hybride et cloud, registre de budget unique, routage par qualité. Une panne du modèle local ne bascule plus vers un service externe sans choix exprès.
+- **Profil du cabinet** : assistant de démarrage, preuves de capacité par connexion, identité de courriel unique.
+- **Dossier structuré** : mémoire typée et sourcée, personnes et rôles, consultation, revue de contrat par playbook, accords signés et obligations.
+- **Contentieux** : matrice des prétentions, pièces, actes par sections, dossier d’audience, délais explicables, paquets de communication. Les règles de délai restent à valider par l’avocat ; aucun dépôt RPVA.
+- **Assistance contextuelle** sur chaque fonction, résultat accompagné de ses sources et limites.
+- **Banc d’essai** et état par fonction ; aucun résultat comparatif n’est livré.
+
+Correctifs : document rendu illisible dans Word après une modification, gras et renvois perdus, relations cassées par la composition, PDF produit depuis un fichier abîmé, citations mal rapprochées, dossier réservé non reconnu par policy567, extrait servi depuis le cache à un compte écarté, bouclier contourné par de faux jetons ; courriel écarté par une pause générale en plein traitement ; modèle Word vierge horodaté qui faisait échouer une confirmation ; corbeille Google Drive sans contrôle de version ; relance d’une mission en erreur.
+
 ## 5.6.88 — Sécurité des comptes, sauvegarde, temps par personne, audiences, veille des sociétés, stockage cloud
 
 Version fonctionnelle. Aucun réglage existant ne change : les nouvelles fonctions sont facultatives ou désactivées tant que le cabinet ne les a pas choisies. Les services extérieurs (Google, Microsoft, Dropbox, plateformes de facturation, INPI) n’ont été exercés que par des simulations.

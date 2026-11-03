@@ -30,6 +30,7 @@ TYPE_CLASS = {'Courriel': 'mail', 'Conclusions': 'proc', 'Acte de procédure': '
 NOISE = {'live_calendar430', 'live_documents430', 'health', 'snapshot_metrics420', 'automation_setting', 'deck530_sync', 'verify_deliverable420',
          'refresh_operational_memory', 'sync_legal_memory', 'extract_facts460', 'build_daily_dashboard', 'memory_all', 'index_all', 'monitor_all',
          'autonomy_mail_sweep', 'sync', 'discover'}   # 5.6.71 : la préparation des réponses figure dans « Fait » quand elle a produit
+NOISE |= {'synchro_livrables5689', 'controle_livrable5689'}   # 5.6.89 : tenue du registre des livrables, sans production
 MAIL_KINDS = {'run', 'live_mail430'}
 
 
@@ -391,58 +392,20 @@ def review_items(desk, cached_only=False):
     out = []
     cache = _drafts(desk, refresh=not cached_only)
     for d in cache.get('items', []):
-        item = 'mail:%s:%s' % (cache.get('validity', ''), d['uid'])
-        if item in done:
-            continue
-        mid = _draft_matter(desk, d)
-        internal = is_internal_note(desk, d)   # 5.6.66 : note interne (adressée au cabinet) ≠ courriel à envoyer
-        out.append({'id': item, 'type': 'Note interne' if internal else 'Courriel', 'title': d['subject'] or '(sans objet)', 'matter': mid,
-                    'matter_label': labels.get(mid, ''), 'when': d.get('date', ''), 'to': d.get('to', ''), 'internal': internal,
-                    'agent': d.get('agent', True), 'uid': d.get('uid', ''), 'validity': cache.get('validity', ''),
-                    'dest': 'Brouillons (messagerie) — à %s' % (d.get('to') or 'destinataire')})
-    seen = set()
-    stems = set()   # 5.6.62 : un même projet en .docx, .pdf et .md n'apparaît qu'une fois (Word en priorité)
-    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-    try:
-        for r in desk.db.execute("SELECT * FROM docreq520 WHERE status='cree' AND updated>=? ORDER BY updated DESC LIMIT 40", (since,)):
-            item = 'doc:' + digest(r['path'])[:24]
-            seen.add(r['path'])
-            stems.add((r['matter'], r['path'].rsplit('.', 1)[0].lower()))
+        try:   # 5.6.89 (B01) : une ligne mal formée n'emporte pas les suivantes
+            item = 'mail:%s:%s' % (cache.get('validity', ''), d['uid'])
             if item in done:
                 continue
-            res = json.loads(r['result'] or '{}')
-            root = matters.get(r['matter'], {}).get('path', '')
-            out.append({'id': item, 'type': TYPE_LABELS.get(r['kind'], 'Document'), 'title': res.get('title') or PurePosixPath(r['path']).stem,
-                        'matter': r['matter'], 'matter_label': labels.get(r['matter'], ''), 'when': r['updated'], 'path': r['path'], 'request': r['id'],
-                        'dest': r['path'][len(root):].lstrip('/') if root and r['path'].startswith(root) else r['path']})
-    except Exception:
-        pass
-    try:
-        since14 = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
-        for r in desk.db.execute("SELECT * FROM production_deliverables_v420 WHERE status IN ('verified','verifying','prepared') AND deliverable_kind<>'mail_draft' "
-                                 "AND updated>=? ORDER BY updated DESC LIMIT 40", (since14,)):
-            files = json.loads(r['verification'] or '{}').get('files', [])
-            rank = {'.docx': 0, '.odt': 1, '.pdf': 2, '.md': 3, '.txt': 4}
-            files = sorted(files[:6], key=lambda f: rank.get('.' + str(f.get('path', '')).rsplit('.', 1)[-1].lower(), 9))
-            for f in files:
-                path = str(f.get('path', ''))
-                if not path or path in seen or not path.lower().endswith(('.docx', '.odt', '.pdf', '.md', '.txt')):
-                    continue
-                stem = (r['matter'], path.rsplit('.', 1)[0].lower())
-                if stem in stems:
-                    continue
-                seen.add(path)
-                stems.add(stem)
-                item = 'doc:' + digest(path)[:24]
-                if item in done:
-                    continue
-                root = matters.get(r['matter'], {}).get('path', '')
-                up = fold(path)
-                kind = 'Acte de procédure' if '/procedure/' in up else ('Courrier' if '/correspondances/' in up else ('Contrat' if '/projets/' in up else 'Document'))
-                out.append({'id': item, 'type': kind, 'title': PurePosixPath(path).stem, 'matter': r['matter'], 'matter_label': labels.get(r['matter'], ''),
-                            'when': r['updated'], 'path': path, 'dest': path[len(root):].lstrip('/') if root and path.startswith(root) else path})
-    except Exception:
-        pass
+            mid = _draft_matter(desk, d)
+            internal = is_internal_note(desk, d)   # 5.6.66 : note interne (adressée au cabinet) ≠ courriel à envoyer
+            out.append({'id': item, 'type': 'Note interne' if internal else 'Courriel', 'title': d['subject'] or '(sans objet)', 'matter': mid,
+                        'matter_label': labels.get(mid, ''), 'when': d.get('date', ''), 'to': d.get('to', ''), 'internal': internal,
+                        'agent': d.get('agent', True), 'uid': d.get('uid', ''), 'validity': cache.get('validity', ''),
+                        'dest': 'Brouillons (messagerie) — à %s' % (d.get('to') or 'destinataire')})
+        except (KeyError, TypeError, AttributeError) as ex:
+            desk.audit('cockpit530_brouillon_illisible', {'ligne': str(d.get('uid', ''))[:40] if isinstance(d, dict) else '', 'cause': type(ex).__name__})
+    from . import livrables5689   # 5.6.89 (B01, B02, B03) : les documents viennent du registre commun, lu par Aujourd'hui, Produire et Dossier
+    out += livrables5689.a_relire(desk, labels, matters)
     out.sort(key=lambda x: str(x['when']), reverse=True)
     return out
 
@@ -450,13 +413,18 @@ def review_items(desk, cached_only=False):
 def review_html(desk, prefix):
     items = review_items(desk)
     note = '' if desk.settings('cockpit530:drafts', {}).get('ok', True) else '<p class="c530-note">Brouillons de la messagerie non lus pour l’instant (connexion).</p>'
+    from . import livrables5689
+    partial = any(s['state'] in ('unavailable', 'partial', 'stale') for s in livrables5689.etat_sources(desk))   # 5.6.89 (UX12) : jamais « Tout est relu » sur une lecture incomplète
+    if partial:
+        note += '<p class="c530-note">Liste incomplète : une source de documents n’a pas pu être lue entièrement.</p>'
     rows = ''.join(
         '<li class="c530-has-icons"><button type="button" class="c530-item" data-item="%s"><span class="c530-row"><span class="c530-type %s">%s</span><span class="c530-when">%s</span></span>'
         '<strong>%s</strong><span class="c530-sub">%s</span><span class="c530-dest">→ %s</span></button><span class="c530-icons">%s</span></li>' % (
             e(x['id'], quote=True), TYPE_CLASS.get(x['type'], 'doc'), e(x['type']), e(_local(desk, x['when'])), e(x['title']),
             e(x['matter_label'] or 'dossier non identifié'), e(x['dest']), _review_icons(x)) for x in items[:25])
+    empty = '<p class="c530-empty">Rien à afficher pour l’instant, mais la liste est incomplète.</p>' if partial else '<p class="c530-empty">Tout est relu. L’agent vous préviendra ici du prochain projet.</p>'
     return ('<div class="c530-head"><h2 id="c530-t-review">À relire <span class="c530-count">%d</span></h2><span class="c530-hint">un clic pour ouvrir</span></div>%s%s') % (
-        len(items), note, ('<ul class="c530-list">%s</ul>' % rows) if rows else '<p class="c530-empty">Tout est relu. L’agent vous préviendra ici du prochain projet.</p>')
+        len(items), note, ('<ul class="c530-list">%s</ul>' % rows) if rows else empty)
 
 
 ICONS = {'ignore': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 22 12a17 17 0 0 1-3.2 4.2M6.1 6.1A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4-.9"/></svg>',
@@ -485,6 +453,8 @@ def ignore_item(desk, data):
     x = _find(desk, str(data.get('item') or ''))
     desk.db.execute('INSERT OR REPLACE INTO cockpit530_reviewed VALUES(?,?,?,?)', (x['id'], 'ignore', ('%s — %s' % (x['title'], x['matter_label']))[:250], desk.now()))
     desk.db.commit()
+    from . import livrables5689
+    livrables5689.depuis_cockpit(desk, x['id'], 'ignore')
     desk.audit('cockpit5624_ignore', {'item': digest(x['id'])[:16]})
     return {'message': 'Retiré de « À relire ». Le fichier ou le brouillon reste en place.'}
 
@@ -509,6 +479,8 @@ def trash_item(desk, data):
     desk.db.execute("UPDATE docreq520 SET status='supprime',updated=? WHERE id=?", (desk.now(), x['request']))
     desk.db.execute('INSERT OR REPLACE INTO cockpit530_reviewed VALUES(?,?,?,?)', (x['id'], 'supprime', ('%s — %s' % (x['title'], x['matter_label']))[:250], desk.now()))
     desk.db.commit()
+    from . import livrables5689
+    livrables5689.depuis_cockpit(desk, x['id'], 'supprime')
     desk.audit('cockpit5624_document_supprime', {'item': digest(x['id'])[:16], 'request': x['request']})
     return {'message': 'Document « %s » supprimé (corbeille, restaurable).' % x['title']}
 
@@ -527,7 +499,7 @@ def dismiss_job(desk, data):
 
 def _find(desk, item):
     for x in review_items(desk, cached_only=True):
-        if x['id'] == item:
+        if x['id'] == item or ('path' in x and 'doc:' + digest(x['path'])[:24] == item):   # 5.6.89 : identité stable, ou chemin de la version courante
             return x
     raise Stop('element_a_relire_absent')
 
@@ -629,6 +601,8 @@ def review(desk, data):
     x = _find(desk, item)
     desk.db.execute('INSERT OR REPLACE INTO cockpit530_reviewed VALUES(?,?,?,?)', (item, decision, ('%s — %s' % (x['title'], x['matter_label']))[:250], desk.now()))
     desk.db.commit()
+    from . import livrables5689
+    livrables5689.depuis_cockpit(desk, x['id'], decision)   # 5.6.89 (B02) : la relecture porte sur le document et sa version, pas sur son chemin
     if x.get('request'):   # 5.6.14 (C12) : validation attachée au hash du contenu
         try:
             from .pilote5613 import record_validation
@@ -683,6 +657,7 @@ def feed(desk):
     from . import queue521
     labels = _labels(desk)
     from . import activite5671   # 5.6.71 : à quoi sert chaque travail, ce qu'il a produit ; travaux techniques non listés
+    from . import travaux5689    # 5.6.89 (chap. 20) : même lecture des états que l'en-tête et la file
     label = lambda k: 'Analyse des nouveaux courriels' if k in MAIL_KINDS else (activite5671.ORCHESTRATOR_LABEL if k == 'orchestrator_mail_sweep' else JOB_LABELS.get(k, k))
     out = {'en_cours': [], 'fait': [], 'bloque': []}
     ensure_schema(desk)   # 5.6.24 : table des blocages masqués
@@ -697,23 +672,23 @@ def feed(desk):
             return ' — '.join(x for x in (where, what) if x)
         except ValueError:
             return ''
-    for r in desk.db.execute("SELECT id,kind,args,status,created,started FROM jobs WHERE status IN ('running','pending','cancel_requested','suspended') "
+    for r in desk.db.execute("SELECT id,kind,args,status,created,started,priority,result,stop_reason,blocked_by,not_before FROM jobs WHERE status IN ('running','pending','cancel_requested','suspended') "
                              "ORDER BY CASE status WHEN 'running' THEN 0 WHEN 'cancel_requested' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, priority, id LIMIT 40"):
         if r['kind'] in NOISE or r['kind'] == 'orchestrator_mail_sweep' or activite5671.hidden(r['kind'], r['args']):
             continue
-        last = desk.db.execute('SELECT message FROM live_events_v430 WHERE job_id=? ORDER BY id DESC LIMIT 1', (r['id'],)).fetchone() if r['status'] == 'running' else None
-        out['en_cours'].append({'job': r['id'], 'status':r['status'], 'etat': business_state(r['kind'], r['status'])[1], 'text': label(r['kind']),
+        view = travaux5689.projection(desk, r)
+        out['en_cours'].append({'job': r['id'], 'status':r['status'], 'etat': view['label'], 'code_etat': view['etat'], 'text': label(r['kind']),
                                 'matter': matter_of(r['args']), 'running': r['status'] in ('running','cancel_requested'),
                                 'when': ('arrêt demandé' if r['status']=='cancel_requested' else ('suspendu (pause de l’IA)' if r['status']=='suspended' else
-                                         (_ago(queue521._age_seconds(r['started'] or r['created'])) if r['status'] == 'running' else 'en file'))),
-                                'detail': (last['message'] if last else activite5671.purpose(r['kind']))})
+                                         (_ago(queue521._age_seconds(r['started'] or r['created'])) if r['status'] == 'running' else 'en attente depuis ' + view['duree']))),
+                                'detail': ' · '.join(x for x in ((view['etape'] if r['status'] == 'running' and view['etape'] else activite5671.purpose(r['kind'])), travaux5689.phrase_attente(view)) if x)})
         if len(out['en_cours']) >= 8:
             break
     since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     for r in desk.db.execute("SELECT id,kind,args,finished,result FROM jobs WHERE status='done' AND finished>=? ORDER BY id DESC LIMIT 60", (since,)):
         if r['kind'] in NOISE or activite5671.hidden(r['kind'], r['args']) or len(out['fait']) >= 10:
             continue
-        msg = desk.db.execute('SELECT business_message FROM production_deliverables_v420 WHERE job_id=? ORDER BY updated DESC LIMIT 1', (r['id'],)).fetchone() \
+        msg = desk.db.execute('SELECT business_message,status FROM production_deliverables_v420 WHERE job_id=? ORDER BY updated DESC LIMIT 1', (r['id'],)).fetchone() \
             if _table(desk, 'production_deliverables_v420') else None
         try:
             shown, detail = activite5671.done_detail(r['kind'], r['result'])
@@ -722,17 +697,17 @@ def feed(desk):
         if not shown:
             continue
         out['fait'].append({'job': r['id'], 'text': msg['business_message'] if msg else label(r['kind']), 'matter': matter_of(r['args']), 'when': _local(desk, r['finished']),
-                            'detail': detail, 'etat': business_state(r['kind'], 'done', r['result'])[1]})
+                            'detail': detail, 'etat': travaux5689.etat(r['kind'], 'done', r['result'], verified=bool(msg and msg['status'] == 'verified'))[1]})
     for r in desk.db.execute("SELECT id,kind,args,priority,finished,result FROM jobs WHERE status='error' AND finished>=? ORDER BY id DESC LIMIT 40", (since,)):
         try:
             code = json.loads(r['result'] or '{}').get('erreur', 'action_interrompue')
         except ValueError:
             code = 'action_interrompue'
-        if r['kind'] in NOISE or r['kind'] == 'orchestrator_mail_sweep' or (code == queue521.INTERRUPTED and queue521.automatic(r['kind'], r['priority'])) or len(out['bloque']) >= 8 \
+        if r['kind'] in NOISE or r['kind'] == 'orchestrator_mail_sweep' or (code == queue521.INTERRUPTED and queue521.automatic(r['kind'], r['priority'])) \
                 or desk.db.execute('SELECT 1 FROM cockpit5624_dismissed WHERE job=?', (r['id'],)).fetchone():
             continue
         out['bloque'].append({'job': r['id'], 'text': label(r['kind']), 'matter': matter_of(r['args']), 'when': _local(desk, r['finished']), 'detail': _reason(code),
-                              'etat': business_state(r['kind'], 'error', r['result'], r['priority'])[1],
+                              'etat': travaux5689.etat(r['kind'], 'error', r['result'], r['priority'])[1],
                               'retry': r['id'] if r['kind'] not in ('automation_setting',) else 0})
     try:
         from .state import State
@@ -754,6 +729,8 @@ def feed(desk):
                                       'link': '/conflits?' + urlencode({'matter': p['matter']}), 'link_label': 'Examiner'})
     except Exception:
         pass
+    # 5.6.89 (chap. 20) : alertes identiques réunies sur une ligne, leur détail reste accessible
+    out['bloque'] = travaux5689.regrouper(out['bloque'], lambda a: (a['text'], a['detail'], a.get('link', '')))[:8]
     return out
 
 
@@ -782,7 +759,7 @@ def feed_html(desk, prefix, current='en_cours'):
     ensure_schema(desk)
     f = feed(desk)
     tabs = ''.join('<button type="button" class="c530-pill" data-feed="%s" aria-pressed="%s">%s · %d</button>' % (
-        k, 'true' if k == current else 'false', label, len(f[k])) for k, label in (('en_cours', 'En cours'), ('fait', 'Fait'), ('bloque', 'Bloqué')))
+        k, 'true' if k == current else 'false', label, len(f[k])) for k, label in (('en_cours', 'En cours et en attente'), ('fait', 'Fait'), ('bloque', 'Bloqué')))
     lists = ''
     for k in ('en_cours', 'fait', 'bloque'):
         rows = ''
@@ -807,16 +784,23 @@ def feed_html(desk, prefix, current='en_cours'):
                 '<strong>%s</strong>' % e(a['text']))
             if a.get('etat'):                                  # 5.6.57 (A01) : état réel (projet prêt, question, échec repris…)
                 title += ' <span class="c5657-etat">%s</span>' % e(a['etat'])
+            others = ''
+            if a.get('autres'):                                # 5.6.89 : une ligne par alerte identique, le détail reste dépliable
+                others = '<details class="c5689-autres"><summary>%d cas identiques</summary><ul>%s</ul></details>' % (a['nombre'], ''.join(
+                    '<li>%s</li>' % e(' · '.join(x for x in (o.get('matter'), o.get('when')) if x)) for o in a['autres']))
             rows += ('<li class="c530-act %s"%s><span class="c530-dot" aria-hidden="true"></span><div><div class="c530-row">%s<span class="c530-when">%s</span></div>'
-                     '%s%s%s%s</div></li>') % (
+                     '%s%s%s%s%s</div></li>') % (
                 k + (' running' if a.get('running') else '') + (' c561-clickable' if a.get('job') else ''),
                 (' data-job="%d"' % a['job']) if a.get('job') else '', title, e(a['when']),
                 ('<span class="c530-sub">%s</span>' % e(a['matter'])) if a['matter'] else '', ('<span class="c530-dest">%s</span>' % e(a['detail'])) if a['detail'] else '',
-                '<span class="c530-bar" aria-hidden="true"><span></span></span>' if a.get('running') else '', action)
+                '<span class="c530-bar" aria-hidden="true"><span></span></span>' if a.get('running') else '', others, action)
         empty = {'en_cours': 'Rien en cours : l’agent attend le prochain courriel ou votre instruction.', 'fait': 'Rien de terminé depuis 24 heures.',
                  'bloque': 'Aucun blocage.'}[k]
         lists += '<ul class="c530-list c530-feed" data-status="%s"%s>%s</ul>' % (k, '' if k == current else ' hidden', rows or '<li class="c530-empty">%s</li>' % e(empty))
-    return '<div class="c530-head"><h2 id="c530-t-agent">Ce que fait l’agent</h2></div><div class="c530-pills" role="group" aria-label="Filtrer l’activité">%s</div>%s' % (tabs, lists)
+    from .travaux5689 import ETATS, libelle_compteurs
+    shown = {k: sum(1 for a in f['en_cours'] if a.get('code_etat') == k) for k in ('en_cours', 'attente_calcul', 'suspendu')}
+    scope = '<p class="c530-note">Travaux visibles ici : %s. L’en-tête compte aussi les contrôles techniques.</p>' % e(libelle_compteurs(shown)) if f['en_cours'] else ''
+    return '<div class="c530-head"><h2 id="c530-t-agent">Ce que fait l’agent</h2></div><div class="c530-pills" role="group" aria-label="Filtrer l’activité">%s</div>%s%s' % (tabs, scope, lists)
 
 
 def retry(desk, data):
@@ -828,7 +812,7 @@ def retry(desk, data):
     row = desk.db.execute("SELECT kind,args FROM jobs WHERE id=? AND status='error'", (jid,)).fetchone()
     if not row or row['kind'] not in JOBS or row['kind'] in NOISE or row['kind'] == 'orchestrator_mail_sweep':
         raise Stop('travail_invalide')
-    job = desk.enqueue(row['kind'], json.loads(row['args'] or '{}'))
+    job = desk.enqueue(row['kind'], json.loads(row['args'] or '{}'), origin='user')   # 5.6.89 : clic de l'avocat après correction, jamais pris pour une relance automatique
     return {'message': 'Relancé (travail n° %d).' % job}
 
 
@@ -1048,6 +1032,9 @@ def toggle_task(desk, data):
 
 
 # ======================================================================================== routines et style
+LIEN_MATIN = '<p class="c530-note">Ce briefing vaut pour tout le cabinet. Pour vous aujourd’hui : <a href="#t88-matin">Ma liste du jour</a>.</p>'
+
+
 def routines_html(desk, prefix, owner='cabinet'):
     from . import routines520 as r5
     tabs = [('briefing', 'Briefing du matin'), ('tri', 'Tri des courriels'), ('bilan', 'Bilan de la semaine'), ('docs', 'Documents à préparer')]
@@ -1062,8 +1049,8 @@ def routines_html(desk, prefix, owner='cabinet'):
                 body += panel_html(rep['id'])
         else:
             body = '<p class="c530-empty">Pas encore produit.</p>'
-        if kind == 'briefing':   # 5.6.88 : liste de la personne connectée, lue dans la base à l'affichage (aucun appel au modèle)
-            body = _matin5688(desk, prefix, owner) + body
+        if kind == 'briefing':   # 5.6.89 (B12) : le briefing vaut pour tout le cabinet ; la liste personnelle n'est rendue qu'une fois, au-dessus, et ce lien y mène
+            body = LIEN_MATIN + body
         body += '<form class="m5-form m5-inline" data-api="m530/routine" data-reload="1"><input type="hidden" name="kind" value="%s"><button class="ax-btn ghost" type="submit">Générer maintenant</button></form>' % kind
         panels += '<div class="c530-panel" role="tabpanel" data-panel="%s"%s>%s</div>' % (kind, '' if kind == 'briefing' else ' hidden', body)
     labels = _labels(desk)
@@ -1113,8 +1100,8 @@ def style_html(desk, prefix):
 
 # ======================================================================================== page
 def header_html(desk):
-    running = desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='running'").fetchone()[0]
-    pending = desk.db.execute("SELECT COUNT(*) FROM jobs WHERE status='pending'").fetchone()[0]
+    from .travaux5689 import compteurs, libelle_compteurs   # 5.6.89 (chap. 20) : mêmes compteurs que la file, périmètre annoncé
+    counts = compteurs(desk)
     nxt = ''
     try:
         row = desk.db.execute("SELECT next_check FROM live_services_v430 WHERE name='surveillance'").fetchone()
@@ -1126,7 +1113,7 @@ def header_html(desk):
     # 5.6.36 : plus de bandeau rouge ; un indicateur neutre ouvre « Points à vérifier » en bas de page (chaque point a son bouton)
     from .sante5636 import indicator_html
     alert = indicator_html(desk, '')
-    return '<span class="c530-status"><span class="c530-live" aria-hidden="true"></span>%d en cours · %d en file%s</span>%s' % (running, pending, e(nxt), alert)
+    return '<span class="c530-status" title="%s"><span class="c530-live" aria-hidden="true"></span>%s%s</span>%s' % (e(counts['perimetre'], quote=True), e(libelle_compteurs(counts)), e(nxt), alert)
 
 
 def _matin5688(desk, prefix, owner):
@@ -1135,6 +1122,29 @@ def _matin5688(desk, prefix, owner):
         return matin(desk, prefix, owner)
     except Exception:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
         return ''
+
+
+COMPOSEUR = (
+            # 5.6.19 : le Pilote est la fenêtre flottante (bouton robot) ; l'ancien composeur reste masqué (script v530 toujours lié).
+            '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer hidden>%s'
+            '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
+            '<textarea id="c530-text" rows="3" maxlength="4000" placeholder="Demandez à l’agent… ex. « Prépare la réponse au confrère sur le calendrier de procédure dans le dossier LEROY »"></textarea>'
+            '<div class="c530-bar2"><div class="c530-dossier"><span class="c530-sub">Dossier :</span> <strong id="c530-dossier-label">à deviner d’après votre demande</strong> '
+            '<span class="c530-badge" id="c530-dossier-how">en attente</span> <label class="c530-sub">Corriger <select id="c530-override"><option value="">Laisser l’agent deviner</option>%s</select></label>'
+            '<span id="c530-files"></span></div>'
+            '<div class="c530-tools"><input type="file" id="c530-file" hidden multiple accept=".pdf,.docx,.odt,.txt,.md,.csv,.eml">'
+            '<button type="button" class="c530-icon" id="c530-attach" aria-label="Joindre un document" title="Joindre un document (PDF, Word, texte, courriel)">'
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>'
+            '<button type="button" class="c530-icon" id="c530-mic" aria-label="Dicter" title="Dicter" aria-pressed="false">'
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>'
+            '<button type="button" class="ax-btn c530-send" id="c530-send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
+            '<path d="M4 12l16-8-6 16-2-7z"/></svg>Envoyer</button></div></div>'
+            '<p class="c530-note">L’agent continue son travail automatique pendant la conversation. Rien n’est envoyé, déposé ni signé sans vous. Ctrl+Entrée pour envoyer.</p></section>')
+TIROIR = (
+            '<div class="c530-drawer" id="c530-drawer" hidden><div class="c530-backdrop" data-close="1" aria-hidden="true"></div>'
+            '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
+                        '<div id="c530-drawer-content"></div></div></div>')
 
 
 def page(desk, prefix, csrf='', owner='cabinet', queue=''):
@@ -1154,26 +1164,16 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     when = '%s %d %s %d' % (days[now.weekday()].capitalize(), now.day, months[now.month - 1], now.year)
     options = ''.join('<option value="%s">%s</option>' % (e(mid, quote=True), e(label)) for mid, label in sorted(_labels(desk).items(), key=lambda kv: fold(kv[1])))
     header = header_html(desk).replace('href="diagnostic"', 'href="%s"' % e(prefix + '/diagnostic', quote=True))
+    matin = _matin5688(desk, prefix, owner)
+    routines = routines_html(desk, prefix, owner)
+    if not matin:                  # 5.6.89 (B12) : pas de lien vers une carte absente
+        routines = routines.replace(LIEN_MATIN, '')
     html = ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
             # 5.6.17 : le cadre « Routines du cabinet » (briefing, tri, bilan, documents) est en tête de page, avant le Pilote.
             '<!--t88-haut--><div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section><!--/b88:routines-->'
             '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section><!--/b88:style--></div><!--/t88-haut-->'
-            # 5.6.19 : le Pilote est la fenêtre flottante (bouton robot) ; l'ancien composeur reste masqué (script v530 toujours lié).
-            '<section class="c530-card c530-composer" aria-label="Conversation avec l’agent" data-legacy-composer hidden>%s'
-            '<label class="c530-sr" for="c530-text">Instruction à l’agent</label>'
-            '<textarea id="c530-text" rows="3" maxlength="4000" placeholder="Demandez à l’agent… ex. « Prépare la réponse au confrère sur le calendrier de procédure dans le dossier LEROY »"></textarea>'
-            '<div class="c530-bar2"><div class="c530-dossier"><span class="c530-sub">Dossier :</span> <strong id="c530-dossier-label">à deviner d’après votre demande</strong> '
-            '<span class="c530-badge" id="c530-dossier-how">en attente</span> <label class="c530-sub">Corriger <select id="c530-override"><option value="">Laisser l’agent deviner</option>%s</select></label>'
-            '<span id="c530-files"></span></div>'
-            '<div class="c530-tools"><input type="file" id="c530-file" hidden multiple accept=".pdf,.docx,.odt,.txt,.md,.csv,.eml">'
-            '<button type="button" class="c530-icon" id="c530-attach" aria-label="Joindre un document" title="Joindre un document (PDF, Word, texte, courriel)">'
-            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>'
-            '<button type="button" class="c530-icon" id="c530-mic" aria-label="Dicter" title="Dicter" aria-pressed="false">'
-            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>'
-            '<button type="button" class="ax-btn c530-send" id="c530-send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
-            '<path d="M4 12l16-8-6 16-2-7z"/></svg>Envoyer</button></div></div>'
-            '<p class="c530-note">L’agent continue son travail automatique pendant la conversation. Rien n’est envoyé, déposé ni signé sans vous. Ctrl+Entrée pour envoyer.</p></section>%s'
+            '%s%s'
             # 5.6.57 (A09) : « À relire » rejoint la file unique « À décider / À relire » (en bas de page)
             # 5.6.62 : la file « À décider / À relire » prend la première colonne ; « Reprendre là où j’en étais » passe en bas de page
             '<!--t88-bas--><div class="c530-cols c5657-cols"><div class="c5662-file" id="c5656-file">__FILE5656__</div><!--/b88:file--><section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section><!--/b88:activite-->'
@@ -1182,22 +1182,50 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
             '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">__VEILLE5632__</section><!--/b88:veille--><!--t88-extra-->'
             '<div class="c5656-wide c5662-reprise">__REPRISE5657__</div><!--/b88:reprise--><!--/t88-bas-->'
             '<!--t88-panneau--><p class="c530-note"><a href="%s">Vue « essentiel du jour » (5.2)</a> · <a href="%s">Ancien cockpit</a></p>'
-            '<div class="c530-drawer" id="c530-drawer" hidden><div class="c530-backdrop" data-close="1" aria-hidden="true"></div>'
-            '<div class="c530-panelside" role="dialog" aria-modal="true" aria-labelledby="c530-drawer-title"><button type="button" class="c530-icon c530-close" data-close="1" aria-label="Fermer">'
-            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
-            '<div id="c530-drawer-content"></div></div></div></div>') % (
-        e(prefix, quote=True), e(when), header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix) + routines_bar_html(desk, prefix, {'owner': owner}) + _matin5688(desk, prefix, owner), routines_html(desk, prefix, owner), style_html(desk, prefix),
-        thread_html(desk, prefix), options, '',
+            '%s</div>') % (
+        e(prefix, quote=True), e(when), header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix) + routines_bar_html(desk, prefix, {'owner': owner}) + matin, routines, style_html(desk, prefix),
+        COMPOSEUR % (thread_html(desk, prefix), options), '',
         feed_html(desk, prefix), day_html(desk, prefix),
-        e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'))
+        e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'), TIROIR)
     from .sante5636 import panel_html
     try:
         from .reprise5657 import card_html as _reprise57
         reprise = _reprise57(desk, owner, prefix)
     except Exception:   # noqa: BLE001 — la carte de reprise ne doit jamais empêcher l'affichage d'Aujourd'hui
         reprise = ''
-    html = html.replace('__VEILLE5632__', veille_card(desk, prefix, owner)).replace('__FILE5656__', queue or '').replace('__REPRISE5657__', reprise)
+    file_seule = queue            # l'accueil 5.6.89 dit ces états dans Travail préparé, une seule fois
+    try:   # 5.6.89 (UX12, UX13) : liste incomplète ou anciens projets non relus, dits au-dessus de la file
+        from .livrables_web5689 import aujourdhui_html
+        queue = aujourdhui_html(desk, prefix) + (queue or '')
+    except Exception:   # noqa: BLE001 — ce bandeau ne doit jamais empêcher l'affichage d'Aujourd'hui
+        pass
+    veille = veille_card(desk, prefix, owner)
+    if _accueil5689(desk):        # 5.6.89 (§ 12) : mêmes morceaux, nouvelle disposition ; un incident rend l'ancienne page
+        try:
+            return _page5689(desk, prefix, owner, when, header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix), routines_bar_html(desk, prefix, {'owner': owner}, compact=True),
+                             matin, routines, options, file_seule, reprise, veille)
+        except Exception as ex:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
+            import logging
+            logging.getLogger(__name__).exception('accueil 5.6.89 : %s', ex)
+    html = html.replace('__VEILLE5632__', veille).replace('__FILE5656__', queue or '').replace('__REPRISE5657__', reprise)
     return _personnel5688(desk, prefix, html, owner) + panel_html(desk, prefix)
+
+
+def _accueil5689(desk):
+    from .ui_drapeaux5689 import lire
+    return lire(desk)['accueil']
+
+
+def _page5689(desk, prefix, owner, when, header, bandeaux, barre, matin, routines, options, queue, reprise, veille):
+    from . import accueil5689, crm5688, memoire5688
+    from .membres5650 import viewer_hidden
+    hidden = viewer_hidden() or frozenset()
+    blocs = {'routines': accueil5689.routines_bloc(barre, routines, accueil5689.resume_briefing(desk)), 'style': '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section>' % style_html(desk, prefix),
+             'file': '<div class="c5662-file" id="c5656-file">%s</div>' % (queue or ''), 'activite': '<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>' % feed_html(desk, prefix),
+             'journee': '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section>' % day_html(desk, prefix),
+             'veille': '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">%s</section>' % veille,
+             'reprise': ('<div class="c5656-wide c5662-reprise">%s</div>' % reprise) if reprise else '', 'societes': crm5688.today_html(desk, prefix), 'memoire': memoire5688.panel_html(desk, owner, '', hidden)}
+    return accueil5689.page(desk, prefix, owner, {'date': when, 'entete': header, 'bandeaux': bandeaux, 'matin': matin, 'blocs': blocs, 'composeur': COMPOSEUR % (thread_html(desk, prefix), options), 'tiroir': TIROIR})
 
 
 def _personnel5688(desk, prefix, html, owner):
@@ -1227,7 +1255,12 @@ def veille_card(desk, prefix, owner='cabinet'):
         return '<h2 id="c5632-t-veille">Veille juridique</h2><p>Veille momentanément indisponible.</p>'
 
 
-PARTS = {'thread': thread_html, 'review': review_html, 'feed': feed_html, 'day': day_html}
+def _travail5689(desk, prefix):
+    from .accueil5689 import travail_html
+    return travail_html(desk, prefix)
+
+
+PARTS = {'thread': thread_html, 'review': review_html, 'feed': feed_html, 'day': day_html, 'travail': _travail5689}
 
 
 def handle(desk, name, data, method='POST', args=None):

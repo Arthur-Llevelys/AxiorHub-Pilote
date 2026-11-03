@@ -773,7 +773,7 @@ def run(desk, args, dav=None):
               'control': control, 'template': template_info, 'manifest': ctx['manifeste'], 'revision_diff': diff, 'rule_proposal': proposal,
               'couverture_trame': doc.get('couverture_trame'),   # 5.6.42 (F06) : sections attendues, rédigées, à reprendre
               'recherche_juridique': {'statut': legal['statut'], 'resume': juridique5649.summary(legal), 'references_a_verifier': unsourced,
-                                      'sources': [{k: s[k] for k in ('id', 'statut', 'titre', 'reference', 'url')} for s in legal['sources']],
+                                      'sources': [{k: s.get(k, '') for k in ('id', 'statut', 'titre', 'reference', 'url', 'date')} for s in legal['sources']],
                                       'rapports': legal['rapports']},   # 5.6.49
               'text_sha256': hashlib.sha256(text.encode()).hexdigest(),
               'texte_produit': text[:60000],   # 5.6.67 (point 5) : comparé plus tard à la version de l'avocat (part conservée)

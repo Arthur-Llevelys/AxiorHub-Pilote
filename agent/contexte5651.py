@@ -126,6 +126,13 @@ def for_drafting(desk, mid, question='', owner='cabinet', budget=14000, document
                                                      'de ces seules pièces.' % mixed if mixed else ''))
     if gaps:
         out['informations_manquantes'] = [{'donnee': g['expected'], 'portee': memoire5651.BLOCKING[g['blocking']]} for g in gaps[:20]]
+    try:   # 5.6.89 : mémoire typée, catégories séparées ; une allégation reste attribuée et contestable
+        from .assertions5689 import pour_redaction
+        typee = pour_redaction(desk, mid, owner, interne=confidential)
+        if typee:
+            out['elements_du_dossier'] = typee
+    except Exception:   # noqa: BLE001 — jamais d'échec de rédaction pour ce complément
+        out['etat_elements_du_dossier'] = 'non transmis (lecture impossible)'
     try:
         from .apprentissage5651 import rules_for
         learned = rules_for(desk, mid, owner, document)

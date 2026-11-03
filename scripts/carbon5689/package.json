@@ -1,0 +1,15 @@
+{
+  "name": "axiorhub-carbon-5689",
+  "version": "5.6.89",
+  "private": true,
+  "description": "Construction locale de l'interface Carbon d'AxiorHub. Node et npm servent à construire, jamais à l'exécution.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "dependencies": {
+    "@carbon/icons": "11.91.0",
+    "@carbon/themes": "11.84.0",
+    "@carbon/web-components": "2.66.0",
+    "@ibm/plex-sans": "1.1.0",
+    "esbuild": "0.25.12"
+  }
+}

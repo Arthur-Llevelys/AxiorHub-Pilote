@@ -141,7 +141,14 @@ def _matter_labels(desk):
 
 
 # --------------------------------------------------------------------------------------------- fichiers
-def _files(desk, expr, matter, d_from, d_to, deadline, limit):
+def _sans_reserves(column, hidden):
+    """5.6.89 (B04) : clause et paramètre retirant les dossiers réservés DANS la requête, avant sa limite ; sans dossier réservé, rien."""
+    if not hidden:
+        return '', []
+    return " AND COALESCE(%s,'') NOT IN (SELECT value FROM json_each(?))" % column, [json.dumps(sorted(str(m) for m in hidden), ensure_ascii=False)]
+
+
+def _files(desk, expr, matter, d_from, d_to, deadline, limit, hidden=()):
     path = Path(desk.c['state_dir']) / 'documents.sqlite3'
     if not path.is_file():
         return [], False
@@ -164,8 +171,9 @@ def _files(desk, expr, matter, d_from, d_to, deadline, limit):
         if d_to:
             sql += ' AND c.modified<=?'
             params.append(d_to)
-        sql += ' ORDER BY rank LIMIT ?'
-        params.append(limit * 4)
+        clause, extra = _sans_reserves('c.matter', hidden)
+        sql += clause + ' ORDER BY rank LIMIT ?'
+        params += extra + [limit * 4]
         try:
             rows = db.execute(sql, params).fetchall()
         except sqlite3.OperationalError as ex:
@@ -188,7 +196,7 @@ def _files(desk, expr, matter, d_from, d_to, deadline, limit):
 
 
 # ------------------------------------------------------------------------- courriels, agenda et notes
-def _local(db, expr, kinds, matter, d_from, d_to, deadline, limit):
+def _local(db, expr, kinds, matter, d_from, d_to, deadline, limit, hidden=()):
     _guard(db, deadline)
     sql = ('SELECT s.kind,s.ref,s.matter,s.title,s.date,s.meta,snippet(s490_fts,1,char(1),char(2),\'…\',%d) AS snip,'
            'bm25(s490_fts,6.0,1.0) AS rank FROM s490_fts JOIN s490 s ON s.id=s490_fts.rowid WHERE s490_fts MATCH ?') % EXCERPT_WORDS
@@ -205,8 +213,9 @@ def _local(db, expr, kinds, matter, d_from, d_to, deadline, limit):
     if d_to:
         sql += ' AND s.date<=?'
         params.append(d_to)
-    sql += ' ORDER BY rank LIMIT ?'
-    params.append(limit)
+    clause, extra = _sans_reserves('s.matter', hidden)
+    sql += clause + ' ORDER BY rank LIMIT ?'
+    params += extra + [limit]
     try:
         rows = db.execute(sql, params).fetchall()
     except sqlite3.OperationalError as ex:
@@ -234,6 +243,8 @@ def search(desk, q, matter='', date_from='', date_to='', kinds=None, limit=30):
     if matter and matter not in {m['id'] for m in load_matters(desk.c)}:
         raise Stop('dossier_absent')
     refresh_local(desk)
+    from .membres5650 import viewer_hidden   # 5.6.50 : dossiers réservés à d'autres membres ; 5.6.89 (B04) : retirés avant la limite de chaque source
+    hidden = viewer_hidden() or frozenset()
     db = connect(desk)
     partial = False
     try:
@@ -246,22 +257,20 @@ def search(desk, q, matter='', date_from='', date_to='', kinds=None, limit=30):
                 if time.monotonic() > deadline:
                     partial_local = True
                 else:
-                    got, partial_local = _local(db, expr, local_kinds, matter, d_from, d_to, deadline, limit)
+                    got, partial_local = _local(db, expr, local_kinds, matter, d_from, d_to, deadline, limit, hidden)
                     results += got
             if 'fichier' in wanted:
                 if time.monotonic() > deadline:
                     partial_local = True
                 else:
-                    got, partial_files = _files(desk, expr, matter, d_from, d_to, deadline, limit)
+                    got, partial_files = _files(desk, expr, matter, d_from, d_to, deadline, limit, hidden)
                     results += got
                     partial_local = partial_local or partial_files
             partial = partial or partial_local
             if results or len(terms) == 1 or partial:
                 relaxed = bool(results) and joiner == ' OR '
                 break
-        from .membres5650 import viewer_hidden   # 5.6.50 : dossiers réservés à d'autres membres
-        hidden = viewer_hidden()
-        if hidden:
+        if hidden:      # double contrôle : les requêtes ont déjà exclu ces dossiers
             results = [r for r in results if r.get('matter') not in hidden]
         # fusion par rang réciproque : chaque source garde son ordre de pertinence
         by_kind, fused = {}, []
@@ -381,6 +390,14 @@ def refresh_local(desk, force=False):
                 refs.append(ref)
                 changed += _upsert(db, 'note', ref, r['matter'], 'Fait : ' + (r['category'] or 'dossier'), str(r['updated'] or '')[:19], r['text'] or '',
                                    {'label': 'Fait retenu pour le dossier', 'type': 'fait'})
+        except sqlite3.Error:
+            pass
+        try:   # 5.6.89 : mémoire typée ; le filtre des dossiers réservés de la recherche s'applique comme aux autres notes
+            for r in ddb.execute("SELECT id,matter,kind,statement,asserted_by,status,updated FROM case_assertions5689 WHERE status NOT IN ('rejected','superseded')"):
+                ref = 'element|' + r['id']
+                refs.append(ref)
+                changed += _upsert(db, 'note', ref, r['matter'], 'Élément du dossier', str(r['updated'] or '')[:19], '%s (selon %s)' % (r['statement'] or '', r['asserted_by'] or ''),
+                                   {'label': 'Élément du dossier', 'type': 'element', 'nature': r['kind'], 'statut': r['status']})
         except sqlite3.Error:
             pass
         try:

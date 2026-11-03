@@ -8,9 +8,14 @@
   cabinet reste un message reçu.
 - **Aucune réponse automatique à soi-même** : un message sortant ou interne ne déclenche aucun brouillon automatique ; un brouillon dont
   tous les destinataires principaux sont des adresses du cabinet (ou inexistants) est refusé au dépôt, quel que soit le circuit.
+- **5.6.89 (objectif 1)** : ce module reste le service unique d'identification. Il lit les adresses confirmées ou retirées du registre par compte
+  (``identity_aliases5689``, chargé avec la configuration) ; ``classer`` donne la classe métier : envoyé par le cabinet, copie à soi-même, tiers, ambigu.
+  Aucun domaine n'est assimilé au cabinet : seule une adresse exacte compte, et un auteur du cabinet dont la réponse irait ailleurs reste ambigu.
 """
 import re
+import sqlite3
 from email.utils import getaddresses
+from pathlib import Path
 
 from .common import Stop
 
@@ -43,7 +48,51 @@ def identities(mail_cfg):
             value = value.get('address') if isinstance(value, dict) else value
             if '@' in str(value or ''):
                 found.setdefault(_norm(value), key)
+    for value in mail_cfg.get('identites_confirmees', []) or []:     # 5.6.89 : registre par compte
+        found.setdefault(_norm(value), 'confirmee')
+    for value in retirees(mail_cfg):
+        found.pop(value, None)
     return found
+
+
+def retirees(mail_cfg):
+    """5.6.89 : adresses retirées du registre : une reprise ancienne erronée se corrige sans toucher au fichier de configuration."""
+    return {_norm(value) for value in mail_cfg.get('identites_retirees', []) or []}
+
+
+def _lignes(rows):
+    confirmees = sorted({r[0] for r in rows if r[1] == 'confirmee'})
+    return confirmees, sorted({r[0] for r in rows if r[1] == 'retiree'} - set(confirmees))
+
+
+def _poser(config, rows):
+    mail = config.setdefault('mail', {})
+    mail['identites_confirmees'], mail['identites_retirees'] = _lignes(rows)
+    mail['etat5689'] = str(config.get('state_dir') or '')
+
+
+def load_config_identites(config):
+    """5.6.89 : registre lu avec la configuration (même chemin que les réglages d'IA) ; base absente ou registre pas encore créé : rien ne change."""
+    path = Path(str(config.get('state_dir') or '')) / 'desk.sqlite3'
+    if not config.get('state_dir') or not path.is_file():
+        return
+    db = None
+    try:
+        db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=2)
+        _poser(config, db.execute('SELECT address,status FROM identity_aliases5689').fetchall())
+    except sqlite3.Error:
+        return
+    finally:
+        if db is not None:
+            db.close()
+
+
+def appliquer_identites(desk):
+    """5.6.89 : registre rechargé dans la configuration de la requête ou du travail en cours : un changement vaut tout de suite."""
+    try:
+        _poser(desk.c, desk.db.execute('SELECT address,status FROM identity_aliases5689').fetchall())
+    except sqlite3.OperationalError:
+        return
 
 
 def _addresses(header):
@@ -51,9 +100,17 @@ def _addresses(header):
 
 
 def direction(mail, mail_cfg):
-    author = _addresses(mail.msg.get('From', ''))
-    author = author[0] if author else _norm(getattr(mail, 'sender', ''))
-    return classify(author, mail.msg.get('To', ''), mail.msg.get('Cc', ''), mail_cfg)
+    get_all = getattr(mail.msg, 'get_all', None)
+    authors = [a for value in (get_all('From', []) if get_all else [mail.msg.get('From', '')]) for a in _addresses(value)]
+    if len(set(authors)) > 1:
+        return 'unknown'                                          # 5.6.89 : plusieurs auteurs : identité ambiguë, jamais une demande à traiter
+    author = authors[0] if authors else _norm(getattr(mail, 'sender', ''))
+    sens = classify(author, mail.msg.get('To', ''), mail.msg.get('Cc', ''), mail_cfg)
+    if sens in ('sent', 'internal'):
+        own = identities(mail_cfg)
+        if any(a not in own for a in _addresses(mail.msg.get('Reply-To', ''))):
+            return 'unknown'                                      # 5.6.89 : auteur du cabinet, réponse attendue ailleurs : à regarder, ni envoi certain ni demande
+    return sens
 
 
 def classify(author, to, cc, mail_cfg):
@@ -70,10 +127,19 @@ def classify(author, to, cc, mail_cfg):
     return 'sent'
 
 
+CLASSES = {'received': 'tiers', 'sent': 'envoye_cabinet', 'internal': 'copie_soi', 'unknown': 'ambigu'}
+CLASSES_LIBELLES = {'tiers': 'Tiers', 'envoye_cabinet': 'Envoyé par le cabinet', 'copie_soi': 'Copie à soi-même', 'ambigu': 'Identité ambiguë'}
+
+
+def classer(mail, mail_cfg):
+    """5.6.89 : classe métier d'un message : ``tiers``, ``envoye_cabinet``, ``copie_soi`` ou ``ambigu``. Seul ``tiers`` peut appeler une réponse."""
+    return CLASSES[direction(mail, mail_cfg)]
+
+
 ORIGINS = {'own_addresses': 'Autres adresses du cabinet (réglage)', 'from_address': 'Adresse d’expédition', 'username': 'Identifiant de connexion',
-           'aliases': 'Alias', 'identities': 'Identité déclarée'}
+           'aliases': 'Alias', 'identities': 'Identité déclarée', 'confirmee': 'Adresse confirmée par le cabinet'}
 DIRECTIONS = {'received': 'reçu (un projet de réponse peut être préparé)', 'sent': 'envoyé par le cabinet (aucune réponse automatique)',
-              'internal': 'interne ou copie personnelle (aucune réponse)', 'unknown': 'expéditeur illisible'}
+              'internal': 'interne ou copie personnelle (aucune réponse)', 'unknown': 'identité ambiguë ou expéditeur illisible (aucune réponse automatique)'}
 
 
 def identities_html(mail_cfg, args=None):

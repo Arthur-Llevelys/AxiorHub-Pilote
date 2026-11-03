@@ -16,7 +16,7 @@ from html import escape as e
 
 LOCAL_DOWN = ('moteur_ollama_injoignable', 'modele_ollama_absent')
 TRANSIENT = frozenset(LOCAL_DOWN + ('fournisseur_ia_injoignable', 'generation_ia_delai_depasse', 'connexion_http_indisponible', 'delai_http_depasse',
-                                    'ia_en_pause', 'preparation_suspendue', 'file_attente_pleine', 'chatgpt_limite_usage_atteinte', 'chatgpt_indisponible',
+                                    'ia_en_pause', 'ia_en_pause_horaire', 'horaires_ia_illisibles', 'preparation_suspendue', 'file_attente_pleine', 'chatgpt_limite_usage_atteinte', 'chatgpt_indisponible',
                                     'plafond_automatique_atteint'))
 DELAY_MINUTES = 10
 PROBE_KEY = 'ia5672:test_reussi'
@@ -97,6 +97,15 @@ def _local(desk, value):
 
 
 def banner_html(desk, prefix):
+    try:   # 5.6.89 : pause programmée ou incident du planning : un état affiché en mots, là où l'on regarde si l'IA travaille
+        from .horaires_ia5689 import bandeau_html
+        schedule = bandeau_html(desk, prefix)
+    except Exception:   # noqa: BLE001 — la page s'affiche toujours
+        schedule = ''
+    return schedule + _local_banner(desk, prefix)
+
+
+def _local_banner(desk, prefix):
     try:
         st = local_down(desk)
     except Exception:   # noqa: BLE001 — la page s'affiche toujours

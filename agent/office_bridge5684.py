@@ -6,6 +6,7 @@ périmée, elle n'est jamais appliquée. Une commande ne décrit que des opérat
 
 Mesures réelles sur EuroOffice 9.3.7 (docs/OFFICE-CAPACITES-5.6.84.md) : l'annulation native corrompt le texte dès qu'un autre participant a écrit ; le retour arrière est
 donc toujours une modification inverse conditionnelle, et l'écriture automatique est suspendue dès deux participants."""
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import re
@@ -21,6 +22,10 @@ TOKEN_TTL = 3600
 LEASE_SECONDS = 20
 MAX_BLOCKS = 200
 MAX_CHARS = 100_000
+MAX_BLOCK_CHARS = 30_000       # au-delà, un paragraphe arrive en segments
+MAX_SEGMENTS = 40
+MAX_LIMITS = 50
+ANALYSED_CHARS = 4_000         # part d'un bloc transmise au modèle ; une coupe est annoncée au panneau
 MAX_OPERATIONS = 20
 KEEP_OBSERVATIONS = 500
 KEEP_EVENTS = 300
@@ -60,12 +65,17 @@ CREATE TABLE IF NOT EXISTS office_executors5684(generation_id TEXT PRIMARY KEY, 
 CREATE TABLE IF NOT EXISTS office_events5684(id INTEGER PRIMARY KEY AUTOINCREMENT, generation_id TEXT NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS office_events5684_generation ON office_events5684(generation_id, id);
 CREATE TABLE IF NOT EXISTS office_rejections5684(document_id TEXT NOT NULL, text_hash TEXT NOT NULL, created TEXT NOT NULL, PRIMARY KEY(document_id, text_hash));
+CREATE TABLE IF NOT EXISTS office_segments5689(generation_id TEXT NOT NULL, block_id TEXT NOT NULL, total_hash TEXT NOT NULL, idx INTEGER NOT NULL, count INTEGER NOT NULL, kind TEXT NOT NULL, patchable INTEGER NOT NULL,
+    ordinal INTEGER NOT NULL, text TEXT NOT NULL, created TEXT NOT NULL, PRIMARY KEY(generation_id, block_id, total_hash, idx));
+CREATE TABLE IF NOT EXISTS office_limits5689(generation_id TEXT NOT NULL, block_id TEXT NOT NULL, chars INTEGER NOT NULL, reason TEXT NOT NULL, created TEXT NOT NULL, PRIMARY KEY(generation_id, block_id));
 '''
 
 
 def schema(desk):
     office_gen5684.schema(desk)
     desk.db.executescript(SCHEMA)
+    if 'analysable' not in {r[1] for r in desk.db.execute('PRAGMA table_info(office_observations5684)')}:      # 5.6.89 : l'accusé d'un doublon redit ce qu'avait rendu l'original
+        desk.db.execute('ALTER TABLE office_observations5684 ADD COLUMN analysable INTEGER NOT NULL DEFAULT 0')
     desk.db.commit()
 
 
@@ -157,14 +167,83 @@ def _check_observation(session, body):
             raise Stop('observation_invalide')
         if _sha(block.get('text', '')) != block.get('text_hash'):      # le client n'est pas une autorité : l'empreinte est recalculée
             raise Stop('empreinte_bloc_incoherente')
+        segment = block.get('segment')
+        if segment is not None and (not isinstance(segment, dict) or not isinstance(segment.get('index'), int) or not isinstance(segment.get('count'), int)
+                                    or not 0 <= segment['index'] < segment['count'] <= MAX_SEGMENTS or not SHA.match(str(segment.get('total_hash')))):
+            raise Stop('observation_invalide')
+    limited = body.get('limited_blocks')
+    if limited is not None and (not isinstance(limited, list) or len(limited) > MAX_LIMITS or not all(isinstance(x, dict) and x.get('block_id') for x in limited)):
+        raise Stop('observation_invalide')
+
+
+def _limit(desk, gen_id, block_id, chars, reason):
+    desk.db.execute('INSERT OR REPLACE INTO office_limits5689 VALUES(?,?,?,?,?)', (gen_id, str(block_id)[:160], int(chars or 0), str(reason)[:60], desk.now()))
+
+
+def _assemble(desk, gen_id, blocks):
+    """5.6.89 (B09) : les segments d'un long paragraphe sont gardés jusqu'au dernier, puis réassemblés et contrôlés sur l'empreinte totale. Il n'existe qu'un bloc et une ancre, jamais un par
+    segment. Renvoie (blocs complets, blocs encore incomplets)."""
+    whole, waiting = [], set()
+    desk.db.execute('DELETE FROM office_segments5689 WHERE created<?', ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),))
+    for block in blocks:
+        segment = block.get('segment')
+        if not segment:
+            whole.append(block)
+            continue
+        block_id, total = str(block['block_id'])[:160], str(segment['total_hash'])
+        desk.db.execute('DELETE FROM office_segments5689 WHERE generation_id=? AND block_id=? AND total_hash<>?', (gen_id, block_id, total))    # texte changé en cours d'envoi : l'ancien envoi est caduc
+        desk.db.execute('INSERT OR REPLACE INTO office_segments5689 VALUES(?,?,?,?,?,?,?,?,?,?)', (gen_id, block_id, total, segment['index'], segment['count'], block['kind'], 1 if block.get('patchable') else 0,
+                                                                                               int(block.get('ordinal') or 0), block['text'], desk.now()))
+        parts = desk.db.execute('SELECT idx, text FROM office_segments5689 WHERE generation_id=? AND block_id=? AND total_hash=? ORDER BY idx', (gen_id, block_id, total)).fetchall()
+        waiting.add(block_id)
+        if [r['idx'] for r in parts] != list(range(segment['count'])):
+            continue
+        text = ''.join(r['text'] for r in parts)
+        desk.db.execute('DELETE FROM office_segments5689 WHERE generation_id=? AND block_id=?', (gen_id, block_id))
+        waiting.discard(block_id)
+        if _sha(text) != total:          # rien de partiel n'entre au miroir : la limite est annoncée au panneau
+            _limit(desk, gen_id, block_id, len(text), 'segments_incoherents')
+            continue
+        whole.append({'block_id': block_id, 'semantic_tag': block.get('semantic_tag'), 'kind': block['kind'], 'text': text, 'text_hash': total, 'patchable': block.get('patchable'), 'ordinal': block.get('ordinal')})
+    return whole, waiting
+
+
+def _human_changes(changed, operations):
+    """5.6.89 (B10) : une commande n'explique que les textes exacts qu'elle a écrits. Tout autre changement du lot reste une saisie à analyser, quoi qu'annonce le navigateur."""
+    replaced, inserted = {}, set()
+    for op in operations:
+        if op['action'] == 'replace_text':
+            replaced.setdefault(op['anchor']['block_id'], []).append((op['anchor']['expected_text'], op['replacement']))
+        elif op['action'] == 'insert_after_block':
+            inserted.add(str(op['replacement']).rstrip('\r\n'))
+    out = []
+    for change in changed:
+        new, old, block_id = change['new'], change['old'], change['block_id']
+        if new is not None:
+            if old is None and new in inserted:
+                continue
+            if old and block_id in replaced:
+                text = old
+                for expected, replacement in replaced[block_id]:
+                    text = text.replace(expected, replacement, 1)
+                if text == new:
+                    continue
+        out.append(change)
+    return out
 
 
 def observe(desk, session, body):
     """Une observation : dédupliquée, révision attribuée par le serveur, propositions touchées marquées périmées. Une coupure de séquence demande une réconciliation."""
     _check_observation(session, body)
-    known = desk.db.execute('SELECT server_revision FROM office_observations5684 WHERE session_id=? AND client_id=? AND client_seq=?', (session['session_id'], body['client_id'], body['client_seq'])).fetchone()
-    if known:
-        return {'revision': known['server_revision'], 'duplicate': True, 'reconcile': False}
+    event_id = str(body['event_id'])[:160]
+    known = desk.db.execute('SELECT event_id, server_revision, snapshot_hash, analysable FROM office_observations5684 WHERE event_id=? OR (session_id=? AND client_id=? AND client_seq=?)',
+                            (event_id, session['session_id'], body['client_id'], body['client_seq'])).fetchone()
+    if known:       # 5.6.89 (B08) : réponse perdue puis nouvel essai : même accusé, ni révision ni analyse de plus ; il redit si une analyse reste à demander
+        if known['event_id'] != event_id or known['snapshot_hash'] != body['snapshot_hash']:
+            raise Stop('observation_evenement_different')
+        return {'revision': known['server_revision'], 'duplicate': True, 'reconcile': False, 'analysable': bool(known['analysable'])}
+    if session['client_id'] == body['client_id'] and body['client_seq'] <= session['last_seq']:       # événement déjà purgé du journal borné
+        return {'revision': _mirror(desk, session['generation_id'])['revision'], 'duplicate': True, 'reconcile': False, 'analysable': False}
     if not desk.db.in_transaction:
         desk.db.execute('BEGIN IMMEDIATE')
     try:
@@ -173,33 +252,44 @@ def observe(desk, session, body):
         revision = mirror['revision'] + 1
         gap = session['last_seq'] > 0 and body['client_seq'] != session['last_seq'] + 1
         changed = []
-        for ordinal, block in enumerate(body['upsert_blocks']):
+        blocks, incomplete = _assemble(desk, gen_id, body['upsert_blocks'])
+        for ordinal, block in enumerate(blocks):
             old = desk.db.execute('SELECT text, removed FROM office_blocks5684 WHERE generation_id=? AND block_id=?', (gen_id, str(block['block_id'])[:160])).fetchone()
             if (old is None and mirror['revision'] > 0) or (old is not None and (old['text'] != block['text'] or old['removed'])):     # l'instantané initial n'est pas une modification
                 changed.append({'block_id': str(block['block_id'])[:160], 'old': old['text'] if old else None, 'new': block['text']})
             desk.db.execute('INSERT OR REPLACE INTO office_blocks5684 VALUES(?,?,?,?,?,?,?,0,?,?)', (gen_id, str(block['block_id'])[:160], block.get('semantic_tag'), block['kind'], block['text'], block['text_hash'],
-                                                                                                  1 if block.get('patchable') else 0, revision, int(block.get('ordinal', ordinal))))
+                                                                                                  1 if block.get('patchable') else 0, revision, int(block.get('ordinal', ordinal) or 0)))
+            desk.db.execute('DELETE FROM office_limits5689 WHERE generation_id=? AND block_id=?', (gen_id, str(block['block_id'])[:160]))
+        for item in body.get('limited_blocks') or []:
+            _limit(desk, gen_id, item['block_id'], item.get('chars'), item.get('reason') or 'bloc_non_observe')
         for block_id in body['removed_block_ids']:
             changed.append({'block_id': str(block_id)[:160], 'old': '', 'new': None})
             desk.db.execute('UPDATE office_blocks5684 SET removed=1, revision=? WHERE generation_id=? AND block_id=?', (revision, gen_id, str(block_id)[:160]))
+            desk.db.execute('DELETE FROM office_limits5689 WHERE generation_id=? AND block_id=?', (gen_id, str(block_id)[:160]))
+        command = None
+        if body['origin'] == 'ai_command':
+            command = desk.db.execute('SELECT patch_json FROM office_commands5684 WHERE command_id=? AND generation_id=?', (str(body.get('command_id') or ''), gen_id)).fetchone()
+        human = _human_changes(changed, json.loads(command['patch_json'])['operations']) if command else changed
+        ai_echo = bool(command) and not human
+        origin = body['origin'] if body['origin'] != 'ai_command' else ('ai_command' if ai_echo else 'unknown')     # une origine annoncée n'est crue que si le texte le prouve
+        analysable = bool(substantive(human))
         desk.db.execute('UPDATE office_mirrors5684 SET revision=?, structure_hash=?, snapshot_hash=?, updated=? WHERE generation_id=?', (revision, body['structure_hash'], body['snapshot_hash'], desk.now(), gen_id))
-        desk.db.execute('INSERT INTO office_observations5684 VALUES(?,?,?,?,?,?,?,?,?,?,?)', (str(body['event_id'])[:160], session['session_id'], gen_id, str(body['client_id'])[:160], body['client_seq'], revision, body['snapshot_hash'],
-                                                                                           body['origin'], str(body.get('command_id') or '')[:160], json.dumps([c['block_id'] for c in changed]), desk.now()))
+        desk.db.execute('INSERT INTO office_observations5684(event_id,session_id,generation_id,client_id,client_seq,server_revision,snapshot_hash,origin,command_id,changed_blocks,created,analysable) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (event_id, session['session_id'], gen_id, str(body['client_id'])[:160], body['client_seq'], revision, body['snapshot_hash'], origin, str(body.get('command_id') or '')[:160],
+                         json.dumps([c['block_id'] for c in human]), desk.now(), int(analysable)))
         desk.db.execute('UPDATE office_sessions5684 SET last_seq=?, client_id=? WHERE session_id=?', (body['client_seq'], str(body['client_id'])[:160], session['session_id']))
         desk.db.execute('DELETE FROM office_observations5684 WHERE generation_id=? AND server_revision<?', (gen_id, revision - KEEP_OBSERVATIONS))
-        ai_echo = body['origin'] == 'ai_command' and bool(desk.db.execute('SELECT 1 FROM office_commands5684 WHERE command_id=?', (str(body.get('command_id') or ''),)).fetchone())
-        touched = {c['block_id'] for c in changed}
-        if touched and not ai_echo:
+        touched = {c['block_id'] for c in human}
+        if touched:
             _invalidate(desk, gen_id, touched)
         desk.db.commit()
     except Exception:
         if desk.db.in_transaction:
             desk.db.rollback()
         raise
-    quick = [] if ai_echo else quick_impacts(changed)
-    if changed and not ai_echo:
-        _on_edit(desk, session, changed)
-    return {'revision': revision, 'duplicate': False, 'reconcile': gap, 'changed': len(changed), 'impacts': quick, 'analysable': bool(not ai_echo and substantive(changed))}
+    if human:
+        _on_edit(desk, session, human)
+    return {'revision': revision, 'duplicate': False, 'reconcile': gap, 'changed': len(changed), 'impacts': quick_impacts(human), 'analysable': analysable, 'segments_en_attente': sorted(incomplete)}
 
 
 def _invalidate(desk, gen_id, touched):
@@ -255,6 +345,7 @@ def request_analysis(desk, session, force=False):
     for row in desk.db.execute("SELECT analysis_id, updated FROM office_analyses5684 WHERE generation_id=? AND status='running'", (gen_id,)).fetchall():
         if office_gen5684._age_hours(row['updated']) > STUCK_HOURS:
             desk.db.execute("UPDATE office_analyses5684 SET status='failed', result_json=?, updated=? WHERE analysis_id=?", (json.dumps({'motif': 'travailleur_interrompu'}), desk.now(), row['analysis_id']))
+            _next(desk, gen_id)         # 5.6.89 : la demande suivante ne reste pas orpheline d'une analyse perdue
     last = desk.db.execute("SELECT MAX(base_revision) FROM office_analyses5684 WHERE generation_id=? AND status NOT IN ('failed','cancelled')", (gen_id,)).fetchone()[0] or 0
     rows = [r['changed_blocks'] for r in desk.db.execute("SELECT changed_blocks FROM office_observations5684 WHERE generation_id=? AND server_revision>? AND origin<>'ai_command'", (gen_id, last))]
     ids = sorted({b for raw in rows for b in json.loads(raw)})
@@ -264,9 +355,10 @@ def request_analysis(desk, session, force=False):
     running = next((r for r in active if r['status'] == 'running'), None)
     waiting = next((r for r in active if r['status'] == 'queued'), None)
     if running or waiting:
-        if running and waiting:
-            desk.db.execute('UPDATE office_analyses5684 SET base_revision=?, base_hash=?, changed=?, updated=? WHERE analysis_id=?', (mirror['revision'], mirror['snapshot_hash'], json.dumps(ids), desk.now(), waiting['analysis_id']))
-        elif running:
+        if waiting:     # 5.6.89 (chap. 20) : la demande suivante reste unique et cumule les blocs des demandes qu'elle remplace ; aucun n'est oublié
+            merged = sorted(set(json.loads(waiting['changed'] or '[]')) | set(ids))
+            desk.db.execute('UPDATE office_analyses5684 SET base_revision=?, base_hash=?, changed=?, updated=? WHERE analysis_id=?', (mirror['revision'], mirror['snapshot_hash'], json.dumps(merged), desk.now(), waiting['analysis_id']))
+        else:
             _insert_analysis(desk, session, mirror, ids, job=False)
         desk.db.commit()
         return {'state': 'consolidee', 'revision': mirror['revision']}
@@ -320,8 +412,12 @@ def _context(desk, row):
         if found:
             sources = [{'id': s['id'], 'document': s.get('path', ''), 'version': s.get('etag', ''), 'extrait': str(s.get('excerpt') or '')[:1500]} for s in found[0]]
     from . import cessions5684
-    return {'modifies': [{'block_id': blocks[j]['block_id'], 'texte': blocks[j]['text'][:4000], 'modifiable': bool(blocks[j]['patchable'])} for j in near][:30],
+    return {'modifies': [{'block_id': blocks[j]['block_id'], 'texte': blocks[j]['text'][:ANALYSED_CHARS], 'modifiable': bool(blocks[j]['patchable']), **_cut_note(blocks[j]['text'])} for j in near][:30],
             'plan': [b['text'][:60] for b in blocks if len(b['text']) < 90][:30], 'donnees_confirmees': cessions5684.confirmed_values(desk, doc['path'] if doc else ''), 'sources': sources}, sources
+
+
+def _cut_note(text):
+    return {'longueur': len(text), 'texte_tronque': True} if len(text) > ANALYSED_CHARS else {}
 
 
 def _parse(raw):
@@ -347,8 +443,10 @@ def run_analysis(desk, args, model=None):
     desk.db.commit()
     data = None
     sources = []
+    limits = []
     try:
         context, sources = _context(desk, row)
+        limits = ['Paragraphe de %d caractères : seuls les %d premiers ont été analysés.' % (b['longueur'], ANALYSED_CHARS) for b in context['modifies'] if b.get('texte_tronque')]
         if model is None:
             from .docrequest520 import _model
             doc = desk.db.execute('SELECT matter FROM office_documents5684 WHERE document_id=?', (row['document_id'],)).fetchone()
@@ -388,7 +486,7 @@ def run_analysis(desk, args, model=None):
                 kept.append(cid)
             else:
                 refused += 1
-    result = {'summary': str(data.get('summary') or '')[:4000], 'impacts': impacts, 'missing_fields': [str(x)[:160] for x in (data.get('missing_fields') or [])][:30], 'proposed_patch_ids': kept, 'refused': refused}
+    result = {'summary': str(data.get('summary') or '')[:4000], 'impacts': impacts, 'missing_fields': [str(x)[:160] for x in (data.get('missing_fields') or [])][:30], 'proposed_patch_ids': kept, 'refused': refused, 'limites': limits}
     status = 'stale' if stale else ('partial' if refused else 'ready')
     desk.db.execute('UPDATE office_analyses5684 SET status=?, sources=?, result_json=?, updated=? WHERE analysis_id=?', (status, json.dumps(sources, ensure_ascii=False)[:60000], json.dumps(result, ensure_ascii=False), desk.now(), aid))
     _event(desk, gen_id, 'analysis', {'analysis_id': aid, 'status': status})
@@ -600,11 +698,17 @@ def cancel(desk, generation_id):
     """Annulation : état terminal durable, demandes en attente retirées, réponse tardive ignorée. Une écriture engagée atteint son point sûr et son résultat est signalé."""
     _mirror(desk, generation_id)
     now = desk.now()
+    jobs = [r['job'] for r in desk.db.execute("SELECT job FROM office_analyses5684 WHERE generation_id=? AND status IN ('queued','running') AND job IS NOT NULL", (generation_id,))]
     desk.db.execute("UPDATE office_analyses5684 SET status='cancelled', updated=? WHERE generation_id=? AND status IN ('queued','running')", (now, generation_id))
     desk.db.execute("UPDATE office_commands5684 SET state='cancelled', updated=? WHERE generation_id=? AND state IN ('proposed','authorized')", (now, generation_id))
     desk.db.execute('UPDATE office_mirrors5684 SET cancelled_at=?, updated=? WHERE generation_id=?', (now, now, generation_id))
     _event(desk, generation_id, 'cancel', {})
     desk.db.commit()
+    for job in jobs:      # 5.6.89 (chap. 20) : l'annulation atteint aussi le travail de fond et l'appel au modèle en cours
+        try:
+            desk.cancel_job(job)
+        except Stop:      # déjà terminé
+            pass
     return {'message': 'Travail de l’IA annulé pour cette session d’édition.'}
 
 
@@ -638,15 +742,21 @@ def close_session(desk, session):
     return {'ok': True}
 
 
+LIMIT_LABELS = {'paragraphe_trop_long': 'Un paragraphe de %d caractères dépasse la limite d’observation : l’IA ne le voit pas, le reste du document est observé.',
+                'segments_incoherents': 'Un long paragraphe de %d caractères est arrivé incomplet : il sera relu à sa prochaine modification.'}
+
+
 def panel(desk, document_id, user):
     """Trois états séparés pour le panneau : observé, proposé, enregistré. Rien n'est affiché « à jour » sans observation récente."""
     schema(desk)
     gen = office_gen5684.active(desk, document_id)
     save = office_gen5684.save_state(desk, document_id)
-    out = {'document_id': document_id, 'save': save, 'flags': flags(desk), 'analysis': None, 'proposals': [], 'history': [], 'observed': None, 'mode': 'propose', 'participants': 0}
+    out = {'document_id': document_id, 'save': save, 'flags': flags(desk), 'analysis': None, 'proposals': [], 'history': [], 'observed': None, 'mode': 'propose', 'participants': 0, 'limites': []}
     if not gen:
         return out
     gen_id = gen['generation_id']
+    out['limites'] = [LIMIT_LABELS[r['reason']] % r['chars'] if r['reason'] in LIMIT_LABELS else 'Une zone de %d caractères n’a pas pu être observée (%s) : l’IA ne la voit pas, le document reste intact.' % (r['chars'], r['reason'])
+                      for r in desk.db.execute('SELECT chars, reason FROM office_limits5689 WHERE generation_id=? ORDER BY created LIMIT 10', (gen_id,))]
     mirror = _mirror(desk, gen_id)
     session = desk.db.execute("SELECT * FROM office_sessions5684 WHERE generation_id=? AND user_id=? AND state='open' ORDER BY created DESC LIMIT 1", (gen_id, str(user))).fetchone()
     last = desk.db.execute('SELECT MAX(last_seen) FROM office_sessions5684 WHERE generation_id=?', (gen_id,)).fetchone()[0]

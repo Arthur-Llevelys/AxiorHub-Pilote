@@ -89,6 +89,14 @@ Poste Windows : quittez AxiorHub, renommez le dossier de données, copiez `etat/
 
 Faites un essai de restauration sur une machine de test au moins une fois par an : une sauvegarde qu'on n'a jamais relue n'est pas une garantie.
 
+Depuis la 5.6.89, un démarrage sans erreur ne suffit pas à conclure. Sur une copie prise au même instant que l'archive, comparez les deux états :
+
+```
+python3 -m agent.reversibilite5689 comparer ETAT_SOURCE ETAT_RESTAURE
+```
+
+La commande relit chaque table métier et contrôle que décisions, versions et références retrouvent leur cible. Voir aussi docs/EXPLOITATION-5.6.89.md, qui dit qui fait quoi selon l'hébergement.
+
 ### Format de l'archive
 
 Pour pouvoir relire une archive sans AxiorHub :

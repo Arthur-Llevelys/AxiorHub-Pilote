@@ -24,7 +24,8 @@ def chunks(text,size=3500,overlap=350,maximum=CHUNK_LIMIT):
 
 
 class Embedder:
-    def __init__(self,ollama,rag):
+    def __init__(self,ollama,rag,state_dir=''):
+        self.state_dir=state_dir or ollama.get('state_dir','')   # 5.6.89 : chaque calcul d'empreinte passe par la politique commune
         self.model=rag.get('embedding_model','qwen3-embedding:0.6b')
         self.http=HTTP(ollama['url'],local_only=True,timeout=rag.get('timeout_seconds',180))
         self.query_timeout=rag.get('query_timeout_seconds',8)
@@ -42,6 +43,10 @@ class Embedder:
 
     def embed(self,texts):
         if not texts:return []
+        from .arret5643 import before_model_call
+        before_model_call({'state_dir':self.state_dir})
+        from .data_policy5689 import exiger   # 5.6.89 : adresse locale imposée par HTTP(local_only=True) ; la politique illisible bloque aussi cet accès
+        exiger({'state_dir':self.state_dir},'embeddings','ollama',finalite='index',local=True,journal=False)
         result=self.http.json('POST','/api/embed',{'model':self.model,'input':texts,'truncate':True,
                                                    'options':{'temperature':0}})
         vectors=result.get('embeddings')

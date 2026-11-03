@@ -16,7 +16,7 @@ import unicodedata
 import zipfile
 import xml.etree.ElementTree as ET
 
-from .common import Stop, clean_path, digest, under
+from .common import Stop, clean_path, digest, under, xml_office
 from .documents import extract
 from .model import Model, WORD_REVISION_PLAN, routed_config, validate
 from .document_projects import _blank_docx, _dav, _inventory, _pdf, _resolve_matter
@@ -227,7 +227,7 @@ def _render_document(raw,plan,tracked=False):
         else:
             if tracked:_delete_runs(target,True,author,stamp,20000+position)
             else:body.remove(target)
-    return ET.tostring(root,encoding='utf-8',xml_declaration=True),names
+    return xml_office(root,document),names
 
 
 def render_docx(raw,plan,tracked=False):

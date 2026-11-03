@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5688-crm.js': 'text/javascript', '/static/carbon5682.js': 'text/javascript', '/static/pdfjs5682.js': 'text/javascript', '/static/pdf.worker5682.js': 'text/javascript',
+STATIC = {'/static/v5689-ia.js': 'text/javascript', '/static/v5689-ia.css': 'text/css', '/static/v5689-dossier.js': 'text/javascript', '/static/v5689-dossier.css': 'text/css', '/static/v5689-formulaires.js': 'text/javascript', '/static/v5689-navigation.js': 'text/javascript', '/static/v5689-carbon.css': 'text/css', '/static/v5689-carbon-jetons.css': 'text/css', '/static/v5689-livrables.js': 'text/javascript', '/static/v5689-livrables.css': 'text/css', '/static/v5689-cabinet.css': 'text/css', '/static/v5689-horaires.js': 'text/javascript','/static/v5688-crm.js': 'text/javascript', '/static/carbon5682.js': 'text/javascript', '/static/pdfjs5682.js': 'text/javascript', '/static/pdf.worker5682.js': 'text/javascript',
           '/static/v5688-reversibilite.js': 'text/javascript', '/static/v5688-reversibilite.css': 'text/css', '/static/v5682.js': 'text/javascript', '/static/v5682.css': 'text/css', '/static/v5683.css': 'text/css', '/static/v5684.css': 'text/css', '/static/v5684-office.js': 'text/javascript', '/static/v5681.js': 'text/javascript', '/static/v5680.js': 'text/javascript', '/static/v5679.js': 'text/javascript', '/static/v5674.js': 'text/javascript', '/static/v5673.js': 'text/javascript', '/static/v5671.js': 'text/javascript', '/static/v5670.js': 'text/javascript', '/static/v5660.js': 'text/javascript', '/static/v5653.js': 'text/javascript', '/static/v5653.css': 'text/css', '/static/v5652.js': 'text/javascript', '/static/v5652.css': 'text/css', '/static/v5651.js': 'text/javascript', '/static/v5651.css': 'text/css', '/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
@@ -309,6 +309,16 @@ def route(env, cfg, auth, prefix, path, args, method):
         import json as _json
         return {'status': '200 OK', 'kind': 'application/json; charset=utf-8',
                 'body': _json.dumps(dictionary(path[-7:-5]), ensure_ascii=False, separators=(',', ':'))}
+    if method == 'GET' and (path == '/livrables' or path.startswith('/livrables/')):   # 5.6.89 : documents préparés et visionneuse commune
+        from . import livrables_web5689
+        from .shell501 import set_context
+        set_context(cfg)
+        return livrables_web5689.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path == '/contentieux':   # 5.6.89 : matrice, pièces, actes, délais, audience, paquets d'un dossier
+        from . import contentieux_web5689
+        from .shell501 import set_context
+        set_context(cfg)
+        return contentieux_web5689.page_route(env, cfg, auth, prefix, path, args, shell)
     if method == 'GET' and path in ('/dossier/apercu', '/dossier/fichier'):   # 5.6.79 : aperçu des documents de la page Dossier
         from . import web5679
         return web5679.route(cfg, auth, prefix, path, args)
@@ -649,6 +659,9 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code in ('version_en_conflit', 'cle_idempotence_deja_utilisee', 'numerotation_concurrente', 'diligence_deja_reservee')
                              else ('404 Not Found' if code in ('document_financier_absent', 'estimation_absente', 'modele_absent', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m5689/'):   # 5.6.89 : routes par domaine
+        from . import web5689
+        return web5689.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5688/'):   # 5.6.88 : palette, registres publics, veille des sociétés, page personnelle, note commune, mémoire
         from . import web5688
         return web5688.api(env, desk, auth, prefix, name, args, method)

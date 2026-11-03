@@ -79,6 +79,27 @@ def xml_bytes(raw):
         raise Stop('xml_invalide') from None
 
 
+def xml_office(root, source):
+    """5.6.89 : réécriture d'une partie Word lue par ElementTree. Word nomme des préfixes en texte brut dans ``mc:Ignorable`` : un préfixe renommé ou une déclaration inutilisée
+    retirée rend le fichier illisible dans Word, alors que les autres lecteurs l'ouvrent. Préfixes et déclarations de la source sont donc repris tels quels."""
+    import io
+    declared = {}
+    for _event, (prefix, uri) in ET.iterparse(io.BytesIO(source), events=('start-ns',)):
+        if prefix:
+            declared.setdefault(prefix, uri)
+            try:
+                ET.register_namespace(prefix, uri)
+            except ValueError:
+                pass
+    data = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+    missing = b''.join((' xmlns:%s="%s"' % item).encode() for item in declared.items() if ('xmlns:%s=' % item[0]).encode() not in data)
+    if missing:
+        at = data.index(b'>', data.index(b'?>') + 2)      # fin de la balise racine, juste après la déclaration XML
+        at -= data[at - 1:at] == b'/'
+        data = data[:at] + missing + data[at:]
+    return data
+
+
 def clean_path(path):
     # Configuration and DAV paths are decoded once. Reject ambiguous encodings.
     if '\\' in path or any(ord(c) < 32 for c in path):
@@ -177,9 +198,21 @@ class _TrackedHTTPSHandler(urllib.request.HTTPSHandler):
         return self.do_open(_TrackedHTTPSConnection, req, context=self._context)
 
 
+EGRESS_GUARD = None   # 5.6.89 : posé par passerelle5689.installer dans les processus de service
+
+
+def _error_body(error):
+    """Début du corps d'une réponse en erreur ; une lecture impossible ne change pas l'erreur remontée."""
+    try:
+        return error.read(8192)
+    except OSError:
+        return b''
+
+
 class HTTP:
     def __init__(self, base, username=None, password=None, local_only=False, timeout=45, local_hosts=()):
         p = urllib.parse.urlsplit(base)
+        self.local_only = bool(local_only)
         if p.username or p.password or p.query or p.fragment or p.scheme not in ('https', 'http'):
             raise Stop('url_invalide')
         try:
@@ -215,6 +248,8 @@ class HTTP:
         p = urllib.parse.urlsplit(url)
         if (p.scheme, p.netloc) != self.origin or p.username or p.password or p.fragment:
             raise Stop('origine_http_refusee')
+        if EGRESS_GUARD is not None:
+            EGRESS_GUARD(self, method, url, data)
         req = urllib.request.Request(url, data=data, method=method,
                                      headers={**self.headers, **(headers or {})})
         try:
@@ -226,7 +261,7 @@ class HTTP:
                 return raw
         except urllib.error.HTTPError as e:   # 5.6.34 (B15) : code public inchangé, détail structuré et anonymisé
             from .erreurs5634 import http_error
-            raise http_error(e.code, method, url) from None
+            raise http_error(e.code, method, url, _error_body(e)) from None
         except TimeoutError:
             raise Stop('delai_http_depasse') from None
         except urllib.error.URLError as error:
@@ -281,7 +316,7 @@ class HTTP:
                         break
         except urllib.error.HTTPError as e:
             from .erreurs5634 import http_error
-            raise http_error(e.code, 'POST', url) from None
+            raise http_error(e.code, 'POST', url, _error_body(e)) from None
         except TimeoutError:
             raise Stop('delai_http_depasse') from None
         except urllib.error.URLError as error:
@@ -369,6 +404,8 @@ def load_config(path):
     load_config_settings(c)
     from .extensions364 import load_config_settings as load_extension_settings
     load_extension_settings(c)
+    from .sens5643 import load_config_identites   # 5.6.89 : adresses propres confirmées ou retirées, par compte
+    load_config_identites(c)
     from .cloud5688 import apply_selection   # 5.6.88 : choix central du stockage ; sans choix enregistré, rien ne change
     apply_selection(c)
     return c

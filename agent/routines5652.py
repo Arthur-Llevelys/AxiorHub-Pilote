@@ -517,7 +517,14 @@ def _write_legacy(desk):
 
 # ------------------------------------------------------------------------------------------------ planification (R04, R05, F10)
 def _globally_paused(desk):
-    return bool(desk.settings('missions567:pause', False))
+    from .arret5643 import global_paused
+    return global_paused(desk)   # 5.6.89 : pause manuelle ou plage programmée
+
+
+def _paused_code(desk):
+    """Motif affiché d'un passage reporté : un report dû aux horaires reste identifiable et ne compte jamais comme un échec."""
+    from .arret5643 import manual_paused
+    return 'pause_dossier' if not _globally_paused(desk) else ('pause_generale' if manual_paused(desk) else 'pause_horaire')
 
 
 def _matters_paused(desk, matters):
@@ -612,7 +619,7 @@ def tick(desk, now=None):
                                                                 json.dumps(_snapshot(row), ensure_ascii=False), 'reservee', _iso(now), _iso(now)))
             if paused:
                 desk.db.execute("UPDATE routines5652_occ SET state='reportee_pause',error_code=?,updated=? WHERE id=?",
-                                ('pause_generale' if _globally_paused(desk) else 'pause_dossier', _iso(now), occ_id))
+                                (_paused_code(desk), _iso(now), occ_id))
                 desk.db.commit()
                 continue
             job, err = _enqueue_occurrence(desk, row, occ_id)

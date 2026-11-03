@@ -119,7 +119,7 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'dp/start':
         from .procedure5632 import start
         paths = data.get('paths') if isinstance(data.get('paths'), list) else str(data.get('paths') or '').splitlines()
-        return json_out(start(desk, owner, str(data.get('matter') or ''), paths, str(data.get('instruction') or '')))
+        return json_out(start(desk, owner, str(data.get('matter') or ''), paths, str(data.get('instruction') or ''), acte=data.get('acte') if isinstance(data.get('acte'), dict) else None))
     if route == 'dp/decide':
         from .procedure5632 import decide
         targets = data.get('targets') if isinstance(data.get('targets'), list) else [data.get('targets')] if data.get('targets') else []

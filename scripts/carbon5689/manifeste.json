@@ -1,0 +1,79 @@
+{
+ "esbuild": "0.25.12",
+ "sorties": {
+  "agent/static/carbon5682.js": "75eaf742784cbf085e49b0b3327cabce247000c3b6c246eaf9b7c8408052a09e",
+  "agent/ui_icones5689.py": "03fa520cb03d8c815cac5da69ee00f806fba8933f655cdae34eae2c8ea94abbf",
+  "agent/ui_jetons_carbon5689.py": "7f0aec329aaad60de288d2d8f3d541c6de1021b4971c5ca6d52b59728cfcf42a",
+  "agent/static/plex-sans-400.woff2": "b5ad7bd39f996144915f0ad9849a90183b27d8c28ad97ed98af5b1bebc51f6b1",
+  "agent/static/plex-sans-600.woff2": "fff0ab3a88b0b4aa0b693e4f0201359a15183b08e3fa5696d1918d8f0ade8ad5"
+ },
+ "paquets_embarques": [
+  {
+   "name": "@carbon/icon-helpers",
+   "version": "10.47.0",
+   "license": "Apache-2.0"
+  },
+  {
+   "name": "@carbon/icons",
+   "version": "11.91.0",
+   "license": "Apache-2.0"
+  },
+  {
+   "name": "@carbon/web-components",
+   "version": "2.66.0",
+   "license": "Apache-2.0"
+  },
+  {
+   "name": "@floating-ui/core",
+   "version": "1.8.0",
+   "license": "MIT"
+  },
+  {
+   "name": "@floating-ui/dom",
+   "version": "1.8.0",
+   "license": "MIT"
+  },
+  {
+   "name": "@floating-ui/utils",
+   "version": "0.2.12",
+   "license": "MIT"
+  },
+  {
+   "name": "@lit/reactive-element",
+   "version": "2.1.2",
+   "license": "BSD-3-Clause"
+  },
+  {
+   "name": "lit",
+   "version": "3.3.3",
+   "license": "BSD-3-Clause"
+  },
+  {
+   "name": "lit-element",
+   "version": "4.2.2",
+   "license": "BSD-3-Clause"
+  },
+  {
+   "name": "lit-html",
+   "version": "3.3.3",
+   "license": "BSD-3-Clause"
+  }
+ ],
+ "autres_paquets_embarques": [
+  {
+   "name": "@carbon/icons",
+   "version": "11.91.0",
+   "license": "Apache-2.0"
+  },
+  {
+   "name": "@carbon/themes",
+   "version": "11.84.0",
+   "license": "Apache-2.0"
+  },
+  {
+   "name": "@ibm/plex-sans",
+   "version": "1.1.0",
+   "license": "OFL-1.1"
+  }
+ ]
+}

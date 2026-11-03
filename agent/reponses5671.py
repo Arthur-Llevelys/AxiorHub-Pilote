@@ -173,7 +173,15 @@ def queue_items(desk, prefix='', actor='cabinet', role='administrateur'):
         labels = {str(m['id']): matter_display(m) for m in load_matters(desk.c)}
     except Exception:   # noqa: BLE001
         pass
+    try:   # 5.6.89 (UX14) : brouillon déjà déposé pour cette réponse : sa carte de relecture porte la décision, celle-ci ferait double emploi
+        from .livrables5689 import reponse_deposee, synchroniser
+        synchroniser(desk)
+        deposited = reponse_deposee(desk)
+    except Exception:   # noqa: BLE001 — registre indisponible : on préfère deux cartes à une réponse perdue
+        deposited = set()
     for key, data, updated in pending(desk):
+        if key in deposited:
+            continue
         try:
             report = report_for(desk.c, key)
         except Stop:

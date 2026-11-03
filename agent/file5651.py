@@ -94,6 +94,15 @@ def _deadline_reason(desk, mid):
     return ('Échéance confirmée le %s' % row['due']) if row else ''
 
 
+def _lien_document(desk, prefix, request, fallback):
+    """5.6.89 (LIV01) : la visionneuse commune quand le document est au registre, la page du dossier sinon."""
+    try:
+        from .livrables5689 import lien_demande
+        return lien_demande(desk, prefix, request) or fallback
+    except Exception:   # noqa: BLE001 — registre pas encore créé
+        return fallback
+
+
 def _items_for(desk, prefix, m):
     from . import modele5651, memoire5651
     mid = m['id']
@@ -148,7 +157,7 @@ def _items_for(desk, prefix, m):
         for r in desk.db.execute("SELECT id,request,path,updated FROM docreq520 WHERE matter=? AND status='cree' AND updated>=? ORDER BY updated DESC LIMIT 20",
                                  (mid, since)).fetchall():
             items.append({'class': 'livrable', 'object': 'document:' + r['id'], 'revision': r['updated'], 'when': r['updated'], 'title': 'Document produit à relire : ' + r['request'][:120],
-                          'consequence': 'Marquer comme relu le retire de toutes les vues.', 'href': q('travaux'), 'choices': ('relu', 'reporter')})
+                          'consequence': 'Marquer comme relu le retire de toutes les vues.', 'href': _lien_document(desk, prefix, r['id'], q('travaux')), 'choices': ('relu', 'reporter')})
     except Exception:   # noqa: BLE001
         pass
     reason = _deadline_reason(desk, mid)
@@ -246,6 +255,9 @@ def decide(desk, owner, key, state, revision, motif='', days=1, prefix='', hidde
     if state == 'reporte':
         until = (datetime.now(timezone.utc) + timedelta(days=max(1, min(int(days or 1), 30)))).isoformat(timespec='seconds')
     _store(desk, key, current['matter'], current['class'], state, current['revision'], owner, motif, until)
+    if state == 'approuve' and current['class'] in ('projet', 'livrable', 'note_interne'):   # 5.6.89 (B02) : même décision pour toutes les vues, sur cette version
+        from .livrables5689 import depuis_file
+        depuis_file(desk, current, owner, role)
     if current['class'] == 'contradiction' and state == 'approuve':
         desk.db.execute('UPDATE d51_changes SET acknowledged=1 WHERE id=?', (current['change'],))
         desk.db.commit()
@@ -302,6 +314,12 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
         every, curation, client, old = today_split(every)
         summary = _today_summary(prefix, curation, client, old)
     rows = [it for it in every if not view or it['class'] in FILTERS.get(view, ())]
+    if view == 'documents' and not matter:      # 5.6.89 : vide, en cours, ancien ou source indisponible : quatre situations, quatre messages
+        try:
+            from .livrables_web5689 import etat_documents_html
+            summary = etat_documents_html(desk, prefix) + summary
+        except Exception:   # noqa: BLE001 — ce résumé ne doit jamais empêcher l'affichage de la file
+            pass
     base = (prefix + '/dossier?id=' + matter + '&') if matter else (prefix + '/aujourdhui?')
     keys = ('', 'courriels', 'decider', 'documents', 'notes', 'echecs') if not matter else ('', 'relire', 'decider', 'echecs')
     counts = {k: sum(1 for it in every if not k or it['class'] in FILTERS[k]) for k in set(keys) | {view} if k in FILTERS or not k}
@@ -309,7 +327,7 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
               'notes': 'Notes internes'}
     tabs = ''.join('<a href="%s"%s>%s <span class="q51-n">%d</span></a>' % (
         e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(labels[k]), counts[k])
-        for k in keys if k in counts and (k in ('', view) or counts[k]))
+        for k in keys if k in counts and (k in ('', view, 'documents') or counts[k]))   # 5.6.89 : le filtre Documents reste visible à zéro
 
     def card(it):
         buttons = []
@@ -353,7 +371,7 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
         return ('<li class="q51-item q51-%s"><div class="q51-head"><cds-tag class="q51-class" size="md" type="cool-gray">%s</cds-tag>%s<span class="q51-matter">%s</span></div>'
                 '<p class="q51-title">%s</p>%s%s<div class="q51-actions">%s</div></li>' % (
                     e(it['class']), e(CLASSES.get(it['class'], 'À examiner')),
-                    ' <span class="q51-prio" title="%s">Prioritaire</span>' % e(it['priority_reason'], quote=True) if it['priority'] == 'haute' else '',
+                    ' <span class="q51-prio" title="%s">Prioritaire</span><span class="q51-pourquoi">%s</span>' % (e(it['priority_reason'], quote=True), e(it['priority_reason'])) if it['priority'] == 'haute' else '',
                     where, e(it['title']),
                     '<p class="q51-sub">%s</p>' % e(it['action']) if it.get('action') else '',
                     '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
@@ -392,11 +410,11 @@ def _today_html(desk, prefix, every, rows, card, tabs, summary, title, limit):
                          % e(items[:4000], quote=True))
         more = ('<p class="ax-muted"><a href="%s">%d autre(s) — tout voir</a></p>' % (e(prefix + '/aujourdhui?file=' + key, quote=True), len(group) - size)
                 if len(group) > size else '')
-        parts.append('<div class="q51-group q51-g-%s"><h3>%s <span class="q51-n">%d</span></h3>%s<ul class="q51-list">%s</ul>%s</div>' % (
-            key, e(label), len(group), extra, ''.join(card(it) for it in group[:size]), more))
+        parts.append('<div class="q51-group q51-g-%s" data-niveau="%s"><h3>%s <span class="q51-n">%d</span><span class="q51-niveau">%s</span></h3>%s<ul class="q51-list">%s</ul>%s</div>' % (
+            key, 'decision' if key == 'decider' else 'relecture', e(label), len(group), 'Décision métier' if key == 'decider' else 'Relecture', extra, ''.join(card(it) for it in group[:size]), more))
     folded = [it for it in rows if it['class'] == 'echec_agent']
     if folded:
-        parts.append('<details class="q51-folded"><summary>Analyses automatiques interrompues (%d) — rien n’est perdu ; relancez ou écartez</summary>'
+        parts.append('<details class="q51-folded"><summary>Analyses automatiques interrompues (%d) — rien n’est perdu ; relancez ou écartez <span class="q51-niveau" data-niveau="incident">Incident technique</span></summary>'
                      '<ul class="q51-list">%s</ul></details>' % (len(folded), ''.join(card(it) for it in folded[:limit])))
     head = ('<h2 id="q51-t">À décider / À relire</h2>' if title else '') + '<nav class="q51-filters" aria-label="Filtres de la file">%s</nav>' % tabs
     body = ''.join(parts) or '<p class="ax-muted">Rien à décider ni à relire pour l’instant.</p>'

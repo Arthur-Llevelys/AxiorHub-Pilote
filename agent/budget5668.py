@@ -20,7 +20,8 @@ from pathlib import Path
 
 from .common import Stop
 
-BUDGET_CODES = frozenset(('budget_mensuel_fournisseur_depasse', 'budget_requete_fournisseur_depasse', 'quota_fournisseur_depasse', 'credit_fournisseur_epuise'))
+BUDGET_CODES = frozenset(('budget_mensuel_fournisseur_depasse', 'budget_requete_fournisseur_depasse', 'quota_fournisseur_depasse', 'credit_fournisseur_epuise',
+                          'budget_mois_atteint', 'budget_cabinet_atteint', 'budget_bloque_depassement'))   # 5.6.89 : plafonds du cabinet, même relais local
 FALLBACK_KEY = 'budget5668:dernier_repli'
 CREDIT_KEY = 'budget5668:credit_epuise'
 CREDIT_DAYS = 7     # au-delà, le bandeau s'efface : une nouvelle erreur le ramène
@@ -95,8 +96,12 @@ def release(desk, provider_id, actor='cabinet'):
         db.execute('BEGIN IMMEDIATE')
         n, amount = db.execute("SELECT COUNT(*),COALESCE(SUM(amount),0) FROM ai_reservations_v567 WHERE provider=? AND at LIKE ? AND "
                                "(state='uncertain' OR (state='reserved' AND at<?))", (provider_id, _month(), stale)).fetchone()
+        ids = [r[0] for r in db.execute("SELECT id FROM ai_reservations_v567 WHERE provider=? AND at LIKE ? AND (state='uncertain' OR (state='reserved' AND at<?))",
+                                        (provider_id, _month(), stale)).fetchall()]
         db.execute("UPDATE ai_reservations_v567 SET state='closed' WHERE provider=? AND at LIKE ? AND (state='uncertain' OR (state='reserved' AND at<?))",
                    (provider_id, _month(), stale))
+        from .budget_ledger5689 import liberer_refs
+        liberer_refs(db, ids, actor)     # 5.6.89 : même décision dans le registre commun, seule autorité sur les plafonds
         db.commit()
     except BaseException:
         db.rollback()

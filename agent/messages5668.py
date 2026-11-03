@@ -2,6 +2,22 @@
 jours », les routines et les cartes « Interrompus »."""
 
 MESSAGES = {
+    # 5.6.89 : politique des données et registre du budget
+    'politique_illisible': 'La politique des données est illisible : aucun nouvel envoi tant qu’elle n’est pas corrigée (Paramètres › Données et budget de l’IA).',
+    'mode_local_strict': 'Le mode local strict interdit cet envoi hors du périmètre déclaré.',
+    'nom_de_partie_dans_la_requete': 'La requête contient un nom de partie ou une référence de dossier : elle ne peut pas partir en mode local strict.',
+    'prestataire_non_admis': 'Ce prestataire n’est pas admis au registre du cabinet (Paramètres › Données et budget de l’IA).',
+    'region_inconnue': 'Lieu de traitement de ce prestataire non renseigné, alors que la politique l’exige.',
+    'region_non_admise': 'Lieu de traitement de ce prestataire non admis par la politique.',
+    'destination_non_autorisee': 'Destination non autorisée par la politique des données : rien n’a été envoyé.',
+    'service_prive_non_configure': 'Cette adresse mène à un service privé que le cabinet n’a pas configuré : rien n’a été envoyé.',
+    'qualite_insuffisante': 'Aucun modèle autorisé n’atteint le niveau de qualité retenu : le travail attend, rien n’a été envoyé ailleurs.',
+    'budget_mission_atteint': 'Plafond de la mission atteint : le travail attend une décision, rien n’a été transmis.',
+    'budget_mois_atteint': 'Plafond mensuel du cabinet atteint : rien n’a été transmis.',
+    'budget_cabinet_atteint': 'Plafond annuel du cabinet atteint : rien n’a été transmis.',
+    'budget_bloque_depassement': 'Une mesure réelle a dépassé l’estimation pour ce modèle : nouveaux appels bloqués jusqu’au contrôle (Paramètres › Données et budget de l’IA).',
+    'budget_plafonds_illisibles': 'Plafonds du cabinet illisibles : aucun nouvel appel payant tant qu’ils ne sont pas corrigés.',
+    'service_non_bornable': 'Le coût de ce service ne peut pas être borné : il faut une autorisation expresse de l’administrateur.',
     'budget_mensuel_fournisseur_depasse': 'Plafond mensuel du fournisseur d’IA externe atteint : réglez-le dans Paramètres › IA. Depuis 5.6.68, '
                                           'le modèle local prend le relais quand il est installé.',
     'credit_fournisseur_epuise': 'Crédit épuisé chez le fournisseur d’IA (erreur 402) : rechargez-le sur son site. Une autre connexion cochée ou le modèle local prend le relais s’ils sont disponibles.',

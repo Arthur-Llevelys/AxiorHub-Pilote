@@ -14,29 +14,35 @@ from urllib.parse import urlencode
 # Aucun réglage n'est retiré : les mêmes formulaires sont composés autrement ; les anciennes adresses et rubriques restent servies.
 RUBRIQUES = (
     ('apercu', 'Vue d’ensemble', 'État des réglages, premiers pas et accès rapide à chaque rubrique'),
+    ('demarrage', 'Démarrage du cabinet', 'Assistant en quatre étapes : identité, outils et authentification, modèles et compétences, mission de démonstration'),
     ('connexions', 'Connexions', 'Nextcloud, messagerie (IMAP, SMTP), agendas, Ollama, Invoice Ninja, services externes, Talk, Microsoft 365'),
     ('stockage', 'Stockage des documents', 'Nextcloud, Google Drive, SharePoint, OneDrive ou Dropbox : choix, copie, nommage et cloisonnement'),
     ('messagerie', 'Courriels et accueil', 'Adresses du cabinet, signature, police, copie cachée, règles de classement, envoi, accueil téléphonique et WhatsApp'),
     ('ia', 'Modèles d’IA', 'Profil des modèles, routage, régime économe, consommation, IA externe, fournisseurs, connecteurs'),
+    ('horaires', 'Horaires de fonctionnement', 'Pauses programmées de l’IA : plages, jours, fuseau du cabinet, dérogation temporaire'),
     ('voix', 'Voix', 'Synthèse, dictée, conversation, vitesse, mode discret, assistant, tests'),
     ('recherche', 'Recherche juridique et veille', 'Sources juridiques (JusticeLibre, OpenLegi, GoodLegal…), veille : thèmes, flux, fréquence, Tavily'),
     ('routines', 'Routines et automatismes', 'Heures, jours, signature, exclusions, briefing, rôles, automatismes, agents documentaires'),
     ('documents', 'Documents et procédure', 'Éditeur de documents, brouillons, avis de procédure, rôle par dossier, agendas, modèles Word'),
     ('cabinet', 'Cabinet, comptes et confidentialité', 'Comptes et mots de passe, cabinet et utilisateurs, confidentialité, droits et sécurité'),
     ('poste', 'Confort et maintenance', 'Mobile, recherche, raccourcis clavier, sauvegarde et export, maintenance, diagnostic de l’agent'),
+    ('interface', 'Interface', 'Présentation Carbon, nouvelle page Aujourd’hui, anciennes vues'),
 )
-FAMILIES = (('Démarrer', ('apercu',)), ('Connexions et courriels', ('connexions', 'stockage', 'messagerie')),
-            ('Intelligence artificielle', ('ia', 'voix', 'recherche')), ('Travail de l’agent', ('routines', 'documents')),
-            ('Cabinet', ('cabinet', 'poste')))
-KEYWORDS = {'stockage': 'stockage cloud nextcloud google drive sharepoint onedrive dropbox copie migration nommage rangement cloisonnement partage oauth',
+FAMILIES = (('Démarrer', ('apercu', 'demarrage')), ('Connexions et courriels', ('connexions', 'stockage', 'messagerie')),
+            ('IA et automatisations', ('ia', 'horaires', 'voix', 'recherche')), ('Travail de l’agent', ('routines', 'documents')),
+            ('Cabinet', ('cabinet', 'poste', 'interface')))
+KEYWORDS = {'demarrage': 'assistant demarrage profil cabinet identite alias adresses propres qualification preuves preparation demonstration fictive hebergement',
+            'stockage': 'stockage cloud nextcloud google drive sharepoint onedrive dropbox copie migration nommage rangement cloisonnement partage oauth',
             'connexions': 'imap smtp mot de passe serveur nextcloud webdav caldav agenda google outlook ollama invoice ninja talk api connexion',
             'messagerie': 'signature police bcc copie cachee regles tri envoyer envoi whatsapp telephone twilio identites adresses',
             'ia': 'modele profil temperature contexte mistral openai openrouter anthropic economie quota hybride externe pseudonymisation claude connecteur mcp',
+            'horaires': 'horaires pause programmee nuit plage fuseau derogation planning arret ia soir matin',
             'voix': 'dictee transcription synthese kokoro espeak whisper micro vitesse',
             'recherche': 'legifrance judilibre justicelibre openlegi goodlegal librejustice tavily flux rss themes veille jurisprudence',
             'routines': 'briefing matin bilan heures jours exclusions roles automatismes initiatives agents',
             'documents': 'word onlyoffice collabora brouillon versions procedure role dossier modeles agendas',
             'cabinet': 'compte administrateur identifiant mot de passe utilisateurs confidentialite droits acces securite',
+            'interface': 'theme carbon clair sombre accueil aujourdhui ancienne interface retour anciennes vues cockpit essentiel',
             'poste': 'mobile clavier raccourcis maintenance purge sauvegarde chiffree restauration phrase export reversibilite manifeste webdav s3 diagnostic blocage file etat systeme'}
 RUBRIQUE_ALIASES = {'sources': 'recherche', 'veille': 'recherche', 'comptes': 'cabinet'}   # anciennes rubriques fusionnées
 ALIASES = {'/parametres/connexions': 'connexions', '/parametres/assistant': 'voix', '/parametres/proactivite': 'routines',
@@ -210,7 +216,7 @@ def _cabinet(desk, auth, prefix, env, cap):
     for tab, title in (('cabinet', 'Cabinet et utilisateurs'), ('confidentialite', 'Confidentialité')):
         body += _section(_legacy(desk, prefix, auth['csrf'], tab), title)
     body += _section(_links(prefix, (('/parametres/droits', 'Droits et accès des comptes'), ('/securite-ia', 'Sécurité de l’IA'),
-                                     ('/parametres/ia-visible', 'Ce que l’IA peut voir'), ('/parametres/journal-audit', 'Journal d’audit'),
+                                     ('/parametres/ia-visible', 'Ce que l’IA peut voir'), ('/parametres/gouvernance', 'Données et budget de l’IA'), ('/banc-essai', 'Banc d’essai et état des fonctions'), ('/parametres/journal-audit', 'Journal d’audit'),
                                      ('/tracabilite', 'Traçabilité : données vues par le modèle'))), 'Droits, sécurité et traçabilité')
     from .web567 import actor as _actor70
     if _actor70(env)[1] == 'administrateur':   # 5.6.88 : option du cabinet et état de la double authentification de chaque compte
@@ -365,7 +371,25 @@ def _comptes(desk, auth, prefix, env, cap):
     return _section(section_html(desk, auth, prefix))
 
 
-BUILDERS = {'apercu': _apercu, 'connexions': _connexions, 'stockage': _stockage, 'ia': _ia, 'voix': _voix, 'routines': _routines, 'documents': _documents,
+def _horaires(desk, auth, prefix, env, cap):   # 5.6.89 : IA et automatisations › Horaires de fonctionnement
+    from .horaires_web5689 import section_html
+    from .web567 import actor
+    cap.head += '<script defer src="' + e(prefix, quote=True) + '/static/v5689-horaires.js"></script>'
+    return section_html(desk, prefix, *actor(env))
+
+
+def _demarrage(desk, auth, prefix, env, cap):   # 5.6.89 : assistant de démarrage du cabinet
+    from .cabinet_web5689 import settings_html
+    return _section(settings_html(desk, auth, prefix, env))
+
+
+def _interface(desk, auth, prefix, env, cap):   # 5.6.89 : drapeaux de la nouvelle interface, anciennes vues rangées
+    from .ui_drapeaux5689 import anciennes_vues_html, reglages_html
+    from .web567 import actor
+    return reglages_html(desk, actor(env)[1] == 'administrateur') + anciennes_vues_html(prefix)
+
+
+BUILDERS = {'apercu': _apercu, 'interface': _interface, 'demarrage': _demarrage, 'connexions': _connexions, 'stockage': _stockage, 'ia': _ia, 'horaires': _horaires, 'voix': _voix, 'routines': _routines, 'documents': _documents,
             'cabinet': _cabinet, 'poste': _poste, 'recherche': _recherche, 'messagerie': _messagerie}
 
 

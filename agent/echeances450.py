@@ -7,6 +7,9 @@ Le modèle de langage ne fixe jamais une date. Ce module :
 * tient l'agenda à jour sans doublon (identifiant d'événement stable) ;
 * contrôle la cohérence agenda / dossier / actes préparés et émet des rappels en cascade ;
 * journalise toute correction manuelle.
+
+5.6.89 (chapitre 38) : le candidat délai vit dans ``delais5689`` (événement, règle versionnée, données, étapes, validation) ; ``depuis_candidat`` porte au suivi une date validée.
+Le suivi de procédure et les agendas restent distincts : l'inscription dans un agenda est une action à part.
 """
 from .common import matter_display
 from datetime import date, datetime, timedelta, timezone
@@ -229,6 +232,27 @@ def create_deadline(desk, matter_id, rule_id, start, distance='none', alsace=Fal
     desk.db.commit()
     desk.audit('echeance_450_creee', {'matter': matter_id, 'rule': rule_id, 'origin': origin, 'due': due})
     return public(_row(desk, ident)) | {'created_now': True}
+
+
+def depuis_candidat(desk, dav, candidat, owner='cabinet', agenda=False):
+    """5.6.89 : date validée par un avocat sur une règle validée : elle rejoint le suivi, sans doublon. Une correction garde la même échéance (même événement d'agenda) et note que l'agenda est à reprendre.
+    L'agenda n'est écrit que sur demande expresse."""
+    ensure_schema(desk)
+    calcul, matter = candidat['calcul'], candidat['matter']
+    start, due, distance, alsace, regime = candidat['date_evenement'], calcul['date'], calcul.get('distance', 'none'), bool(calcul.get('alsace')), calcul.get('regime_date', '')
+    detail = json.dumps({'steps': calcul['etapes'], 'warnings': calcul['reserves'], 'rule_id': candidat['base'], 'regle': candidat['rule_id'], 'regle_version': candidat['rule_version'], 'candidat': candidat['id'], 'rules_version': calcul.get('moteur', ''), 'due': due}, ensure_ascii=False)
+    ident = candidat.get('deadline_id') or digest('deadline450|%s|%s|%s' % (matter, candidat['base'], start))
+    row = _row(desk, ident)
+    if not row:
+        ident = create_deadline(desk, matter, candidat['base'], start, distance, alsace, regime, candidat.get('source_path', ''), candidat.get('citation', ''), 'candidat5689', 'confirmee')['id']
+        row = _row(desk, ident)
+    a_reprendre = bool(row['calendar_uid']) and row['due'] != due
+    desk.db.execute("UPDATE deadlines450 SET rule_id=?,start_date=?,regime_date=?,distance=?,alsace=?,due=?,calc=?,error='',status='confirmee',calendar_state=?,updated=? WHERE id=?",
+                    (candidat['base'], start, regime, distance, int(alsace), due, detail, 'a_resynchroniser' if a_reprendre else row['calendar_state'], desk.now(), ident))
+    _journal(desk, ident, 'validation_candidat', 'Candidat %s validé par %s' % (candidat['id'][:12], str(owner)[:80]), {'due': row['due'], 'status': row['status']}, {'due': due, 'status': 'confirmee'})
+    desk.db.commit()
+    state = sync_calendar(desk, dav, ident) if agenda and dav is not None else ''
+    return public(_row(desk, ident)) | {'calendar': state}
 
 
 # --------------------------------------------------------------- agenda
@@ -507,6 +531,11 @@ def analyze(desk, args, dav=None, extractor=None, today=None):
     events = extract_start_events(text, today)
     created, existing = [], []
     for event in events:
+        try:     # 5.6.89 : même détection, côté candidat : l'événement seul ; un échec ici n'empêche pas l'analyse habituelle
+            from .delais5689 import depuis_detection
+            depuis_detection(desk, mid, event['event'], event['date'].isoformat(), path, etag, event['context'])
+        except Exception as error:   # noqa: BLE001
+            desk.audit('delais5689_detection_impossible', {'matter': mid, 'cause': type(error).__name__})
         row = create_deadline(desk, mid, event['rule_id'], event['date'].isoformat(), source_path=path,
                               excerpt=event['context']) if event['rule_id'] else None
         if not row:

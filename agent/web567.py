@@ -53,6 +53,7 @@ def api(env, desk, auth, prefix, name, args, method):
     if name == 'm567/mission/create':
         if role == 'assistant' and str((data.get('context') or {}).get('mail_key') or ''):
             raise Stop('depot_brouillon_role_insuffisant')
+        data.pop('assistance5689', None)   # 5.6.89 : circuit réservé au service, qui refait contexte et droits
         return json_out(missions567.create(desk, data, owner))
     if name == 'm567/mission/intent':   # 5.6.13 : résultat attendu annoncé avant de démarrer
         from .pilote5613 import preview
@@ -106,6 +107,9 @@ def cards(rows, prefix):
                     'Un projet déjà déposé reste dans le dossier.">Annuler la mission</button>')
         if row['state'] not in missions567.ACTIVE:
             out += '<button type="button" class="ghost" data-mission5636="retirer">Retirer de la liste</button>'
+        if row.get('synthese_donnees'):   # 5.6.89 : Données utilisées, Services destinataires, Limites
+            from .data_policy5689 import synthese_rendu
+            out += '<details><summary>Données et services</summary>' + synthese_rendu(row['synthese_donnees']) + '</details>'
         out += '<details><summary>Plan, limites et preuve</summary><ol>' + ''.join('<li>' + e(x) + '</li>' for x in (row.get('plan') or {}).get('steps', [])) + '</ol><p>' + e(' · '.join((row.get('plan') or {}).get('restrictions', []))) + '</p>'
         if result.get('proof'):
             out += '<p>Relecture : ' + e(str(result['proof'])) + '</p>'
@@ -175,7 +179,7 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
                               for v in (value or []))
                 body+=('<div class="nc5636-paths" data-nc5636-field="'+e(key)+'"><ul class="nc5636-chosen">'+(chips or '<li class="ax-muted nc5636-none">Aucun dossier choisi.</li>')+
                        '</ul><button type="button" class="ghost" data-nc5636-browse="'+e(key)+'">📁 Ajouter un dossier…</button>'
-                       '<details class="nc5636-raw"><summary>Saisie manuelle (avancé)</summary><textarea data-config567="'+e(key)+'" data-no-dictation rows="3">'+
+                       '<details class="nc5636-raw"><summary>Saisie manuelle (avancé)</summary><textarea aria-label="Saisie manuelle des chemins, un par ligne" data-config567="'+e(key)+'" data-no-dictation rows="3">'+
                        e('\n'.join(value or []))+'</textarea></details></div>')
             elif typ in ('lines','urls'):
                 body+='<textarea data-config567="'+e(key)+'" data-no-dictation rows="3">'+e('\n'.join(value or []))+'</textarea>'

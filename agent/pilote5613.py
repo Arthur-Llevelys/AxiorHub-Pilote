@@ -33,6 +33,24 @@ MAIL_WORDS = r'\b(courriel|courriels|mail|mails|e-mail|email|emails|message elec
 MAIL_VERBS = r'\b(prepare|preparer|redige|rediger|ecris|ecrire|reponds|repondre|repond|reponse|envoie|envoyer|brouillon)\b'
 PRODUCTION_WORDS = ('plaidoirie', 'audience', 'conclusions', 'contrat', 'assignation', 'requete', 'note', 'consultation', 'courrier',
                     'lettre', 'mise en demeure', 'compte rendu', 'protocole', 'avenant')
+# 5.6.89 (B11) : le mot « courriel » ne suffit jamais à déposer un brouillon. Une commande de rédaction nomme son objet (« prépare une réponse ») ; une demande de synthèse ou de
+# conseil (« fais le point », « comment répondre ») se traite dans le fil, même si elle parle de courriels.
+_MAIL_OBJECT = r'(?:courriels?|mails?|e-mails?|emails?|message electronique|brouillon|reponse)'
+_NOT_A_MAIL = r'(?:resume|synthese|point|note|analyse|liste|tableau|compte|recapitulatif|bilan|etat|releve|sujet|contenu|objet)'
+MAIL_COMMAND = (r'\b(?:prepare[rz]?|redige[rz]?|ecris|ecrire|ecrivez|envoie|envoyer|envoyez|compose[rz]?|fais|faire|faites|propose[rz]?|ebauche[rz]?|genere[rz]?|drafte)'
+                r'(?:[- ]moi|[- ]nous|[- ]lui|[- ]leur)?\s+(?:(?!' + _NOT_A_MAIL + r'\b)\S+\s+){0,4}?' + _MAIL_OBJECT + r'\b')
+NEGATED_COMMAND = r'\bne\s+(?:\S+\s+)?(?:prepare|redige|ecris|envoie|reponds|fais)\b[^.?!]*\b(?:pas|aucun|aucune|rien)\b'
+SYNTHESIS = (r'\b(?:fais|faire|faites|refais|refaire)(?:[- ]moi|[- ]nous)?\s+(?:\S+\s+){0,2}?point\b|\b(?:un|le|mon|notre)\s+(?:petit\s+|rapide\s+)?point\s+(?:rapide\s+)?sur\b|'
+             r'^(?:resume|resumer|resumez|synthetise|synthetiser|synthetisez|recapitule|recapituler|recapitulez)\b|'
+             r'\b(?:un|une|le|la|mon|ma)\s+(?:resume|synthese|recapitulatif)\b[^.?!]{0,60}' + MAIL_WORDS)
+ADVICE = r'\bconseil(?:le|les|lez|ler|s)?\b|\bque (?:dois-je|dois je|faut-il|faut il|puis-je|puis je)\b'
+
+
+def _mail_command(f, body):
+    """Commande explicite de rédaction d'un courriel, hors question sur la manière de répondre et hors négation."""
+    if any(body.startswith(s.rstrip() + ' ') or body == s.strip() for s in QUESTION_STARTS) or re.search(NEGATED_COMMAND, f):
+        return False
+    return bool(re.search(MAIL_COMMAND, f))
 
 
 # ---------------------------------------------------------------------------------------- intention
@@ -48,16 +66,24 @@ def classify_intent(text, mail_key=''):
     reasons = []
     if any(' ' + w + ' ' in f or f.rstrip().endswith(' ' + w) for w in NO_PRODUCTION):
         return {'intent': 'analysis', 'reasons': ['La demande exclut toute production (« sans rédiger », « dans le fil »…).']}
+    mail_command = _mail_command(f, body)
+    if not mail_command:          # 5.6.89 (B11) : synthèse et conseil passent avant les branches de production
+        if re.search(SYNTHESIS, body):
+            return {'intent': 'analysis', 'reasons': ['Demande de synthèse : réponse dans le fil, aucun brouillon ni document créé.']}
+        if re.search(ADVICE, body) and re.search(MAIL_WORDS + '|' + MAIL_VERBS, f):
+            return {'intent': 'question', 'reasons': ['Demande de conseil : réponse dans le fil, aucun brouillon créé.']}
     # 5.6.14 : parcours complexes (assignation, conclusions) et facturation, proposés puis confirmés avant lancement
     from .parcours5614 import detect
     if detect(text) and (doc_verb or first in ('reponds', 'repondre', 'repond', 'replique')):
         return {'intent': 'mission', 'reasons': ['Parcours « %s » proposé : mission complexe par tâches (cadrage, lectures, qualification, recherche, rédaction, contrôle).' % detect(text)]}
     if re.search(r'\b(devis|facture|invoice ninja|projet invoice|client factur)', f) and doc_verb:
         return {'intent': 'facturation', 'reasons': ['Parcours de facturation : aperçu client, projet et prestations, puis validation avant toute écriture Invoice Ninja.']}
-    if re.search(MAIL_WORDS, f) and (re.search(MAIL_VERBS, f) or doc_verb):
+    # 5.6.89 (B11) : « prépare une réponse à la mise en demeure » reste un document ; sans mot de courriel ni autre écrit nommé, la réponse attendue est un courriel
+    other_writing = not re.search(MAIL_WORDS, f) and any(' ' + w + ' ' in f for w in PRODUCTION_WORDS)
+    if mail_command and not other_writing:
         reasons.append('La demande vise un courriel' + (' en réponse au message sélectionné.' if mail_key else ' : un brouillon sera déposé dans Drafts, sans envoi.'))
         return {'intent': 'mail', 'reasons': reasons}
-    if first in ('reponds', 'repondre', 'repond') and not body.endswith('?'):
+    if first in ('reponds', 'repondre', 'repond') and not re.search(NEGATED_COMMAND, f) and (not body.endswith('?') or re.search(MAIL_WORDS, f)):
         return {'intent': 'mail', 'reasons': ['Demande de réponse : brouillon de courriel' + (' au message sélectionné.' if mail_key else ' dans Drafts, destinataire à renseigner.')]}
     if body.endswith('?') or any(f.lstrip().startswith(s) for s in QUESTION_STARTS):
         return {'intent': 'question', 'reasons': ['Formulation interrogative : réponse dans le fil, aucun document créé.']}
@@ -68,6 +94,24 @@ def classify_intent(text, mail_key=''):
     if mail_key and re.search(MAIL_VERBS, f):
         return {'intent': 'mail', 'reasons': ['Un courriel est sélectionné et la demande évoque une réponse.']}
     return {'intent': 'question', 'reasons': ['Aucun verbe de production reconnu : réponse dans le fil.']}
+
+
+def result_lines(mission):
+    """5.6.89 (B11) : trois lignes distinctes pour la carte d'une mission. « Résultat demandé » vient du plan ; « Résultat préparé » d'un résultat réel ; le dépôt n'est annoncé
+    qu'avec une preuve de relecture. Un plan de brouillon ne prouve jamais qu'un brouillon existe, et un échec dit ce qui n'a pas été fait."""
+    plan, result, state = mission.get('plan') or {}, mission.get('result') or {}, str(mission.get('state') or '')
+    lines = {'demande': ('Résultat demandé : ' + str(plan['deliverable'])) if plan.get('deliverable') else '', 'prepare': '', 'depot': '', 'echec': ''}
+    prepared = result.get('message') or result.get('location') or ('réponse disponible ci-dessous' if result.get('text') else '')
+    if state in ('prepared', 'verified', 'answered') and prepared:
+        lines['prepare'] = 'Résultat préparé : ' + str(prepared)
+    proof = str(result.get('proof') or '')
+    if state == 'verified' and proof:
+        lines['depot'] = ('Brouillon enregistré : ' if mission.get('kind') == 'mail' else 'Dépôt vérifié : ') + proof
+    if state == 'error':
+        reason = str((mission.get('job') or {}).get('error') or '').strip()
+        follow = 'Rien n’a été déposé : corrigez la cause puis relancez.' if mission.get('kind') in ('mail', 'document') else 'Vous pouvez relancer après correction.'
+        lines['echec'] = (reason + ' ' + follow).strip()
+    return lines
 
 
 def resolve_intent(text, requested='auto', mail_key=''):

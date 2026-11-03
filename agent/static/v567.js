@@ -168,7 +168,12 @@
     c.append(el('div', m.label, 'mission567-state'), el('h3', m.title || m.instruction));
     if (m.subtitle) c.append(el('p', m.subtitle, 'mission567-sub'));   // 5.6.61 : action de l'agent, sous l'objet
     c.append(el('p', m.matter_label || 'Cabinet'));
-    c.append(el('p', m.job?.progress || m.plan.deliverable, 'muted'));
+    // 5.6.89 (B11) : la ligne du plan dit ce qui est demandé ; seule une preuve annonce un dépôt
+    const lignes = m.lignes || {demande: m.plan.deliverable ? 'Résultat demandé : ' + m.plan.deliverable : ''};
+    if (m.job?.progress) c.append(el('p', m.job.progress, 'muted'));
+    if (lignes.demande) c.append(el('p', lignes.demande, 'muted'));
+    if (lignes.prepare) c.append(el('p', lignes.prepare, 'ws-ai-result-meta'));
+    if (lignes.depot) c.append(el('p', '✓ ' + lignes.depot, 'ws-ai-result-meta'));
     const r = m.result || {};
     if (r.text) {const d = el('details'); d.append(el('summary', 'Lire la réponse et ses sources'), el('pre', r.text)); c.append(d);}
     (r.sources || []).filter(x => x && x.kind === 'situation_societe').forEach(x => c.append(societeCard(x)));   // 5.6.88 : contrôle posé par le logiciel
@@ -178,6 +183,7 @@
                el('p', (x.canal ? x.canal + ' · ' : '') + 'consommation : ' + x.consommation));
       c.append(d);
     }
+    window.axiorhubIa5689?.carte(m, c);   // 5.6.89 : label IA : sources, limites, fournisseur, question regroupée
     // 5.6.13 : résultat produit — fichier ou brouillon, emplacement, contrôles effectués, points à compléter
     if (r.location) c.append(el('p', 'Emplacement : ' + r.location + (r.template ? ' · modèle : ' + r.template : ''), 'ws-ai-result-meta'));
     if (r.checks) { c.append(checksLine(r.checks)); if (r.checks.legal_control_detail) c.append(el('p', 'Contrôle : ' + r.checks.legal_control_detail, 'ws-ai-result-meta')); }
@@ -204,14 +210,14 @@
         const b = el('button', 'Préciser et démarrer'); b.type = 'button'; b.dataset.missionControl = 'resolve'; c.append(s, b);
       }
     }
-    if (m.state === 'error') c.append(el('p', m.job?.error || (m.exceptions || []).map(x => x.message).join(' '), 'warn'));
+    if (m.state === 'error') c.append(el('p', lignes.echec || m.job?.error || (m.exceptions || []).map(x => x.message).join(' '), 'warn'));
     if (['creating', 'queued', 'running', 'error', 'paused','suggested'].includes(m.state)) {
       const d = el('details'), active = ['creating', 'queued', 'running'].includes(m.state), b = el('button', active ? 'Suspendre' : (m.state==='suggested' ? 'Démarrer la préparation' : (m.state==='error' ? 'Relancer' : 'Reprendre')));
       b.type = 'button'; b.dataset.missionControl = active ? 'pause' : 'resume'; if (m.state==='suggested' || m.state==='error') c.append(b); else {d.append(el('summary', 'Autres actions'), b); c.append(d);}
     }
     const d = el('details'), list = el('ol'); m.plan.steps.forEach(x => list.append(el('li', x)));
     d.append(el('summary', 'Plan, sources et limites'), list, el('p', m.plan.restrictions.join(' · ')));
-    if (m.plan.intent_reasons?.length) d.append(el('p', 'Résultat attendu : ' + m.plan.deliverable + ' — ' + m.plan.intent_reasons.join(' ')));
+    if (m.plan.intent_reasons?.length) d.append(el('p', 'Résultat demandé : ' + m.plan.deliverable + ' — ' + m.plan.intent_reasons.join(' ')));
     const man = r.manifest;
     if (man && (man.fichiers_total || man.pieces_selectionnees?.length)) {
       const m2 = el('details'); m2.append(el('summary', 'Manifeste des sources'));
@@ -253,7 +259,7 @@
     const text = question.value.trim(); if (!text) {note('Décrivez le résultat attendu.'); return;}
     const payload = retryPayload || {request_key: token(), instruction: text, matter: matter.value, attachments: [...attachments], intent: intentSelect?.value || 'auto',
       autonomy:dock.querySelector('#ws-ai-autonomy').value, due: dock.querySelector('#ws-ai-due').value, context: {page: cfg.path || '/', selected_documents: selectedDocuments(), mission_id: currentMission?.matter === matter.value ? currentMission.id : '',
-      mail_key: q.get('key') || ''}, channel: inputChannel};
+      mail_key: q.get('key') || '', ui: window.axiorhubIa5689?.contexte()}, channel: inputChannel};
     sending = true; send.disabled = true; send.textContent = 'Demande enregistrée…'; note('Votre mission est en cours d’enregistrement.');
     try {
       // 5.6.80 : si l'IA tarde, les passages trouvés sans modèle s'affichent après 4 s

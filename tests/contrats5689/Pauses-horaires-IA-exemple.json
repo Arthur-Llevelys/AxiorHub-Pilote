@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "enabled": true,
+  "timezone": "Europe/Paris",
+  "scope": "cabinet",
+  "windows": [
+    {
+      "id": "soir",
+      "days": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "kind": "period",
+      "start": "18:00",
+      "end": "00:00"
+    },
+    {
+      "id": "nuit",
+      "days": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "kind": "period",
+      "start": "00:00",
+      "end": "07:00"
+    }
+  ]
+}

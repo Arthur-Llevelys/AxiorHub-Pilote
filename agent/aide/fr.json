@@ -1155,6 +1155,61 @@
 ],
 "version": "5.6.36"
 },
+"contentieux": {
+"objective": "Préparer un contentieux par preuves : prétentions, faits, règles, pièces, objections, puis acte, délais, audience et paquet à communiquer.",
+"when": "Dès qu’un dossier contentieux a ses premières demandes, puis avant chaque acte ou audience.",
+"prerequisites": "Un dossier ouvert. Le modèle d’IA est facultatif : la matrice, les pièces, les contrôles et les délais fonctionnent sans lui.",
+"steps": [
+"Ouvrez le dossier, puis le lien « Contentieux ».",
+"Reprenez les demandes du dossier ou ajoutez une prétention, puis reliez faits, règles et pièces.",
+"Validez ce que vous retenez : une proposition de l’IA reste proposée.",
+"Préparez le plan de l’acte, lancez la rédaction, puis lisez les contrôles.",
+"Préparez un manifeste, relisez-le, puis autorisez-le si vous le décidez."
+],
+"result": "Chaque demande montre ce qui est connu, contesté ou manquant, et l’acte, ses réserves et son bordereau viennent du même registre.",
+"verify": "Un délai sans donnée déterminante reste « À vérifier ». Toute règle de délai doit être validée par un avocat. AxiorHub ne dépose rien : une archive n’est pas une preuve de dépôt.",
+"errors": [
+[
+"« Validez d’abord au moins une prétention »",
+"Un acte ne se construit pas sur des propositions : validez une prétention du cabinet."
+],
+[
+"« L’autorisation ne couvre plus ce manifeste »",
+"Un fichier ou un destinataire a changé : vérifiez le paquet puis autorisez-le de nouveau."
+]
+],
+"example": "Dossier fictif DOS-001 : le n° 1 du cabinet et le n° 1 de ZORVAL restent deux pièces distinctes.",
+"buttons": [],
+"version": "5.6.36"
+},
+"livrables": {
+"objective": "Retrouver au même endroit tous les documents préparés, quel que soit leur producteur, et les ouvrir, les modifier, les télécharger ou les exporter.",
+"when": "Pour relire un projet, suivre ce qui est en cours ou retrouver un ancien document non relu.",
+"prerequisites": "Aucun pour consulter. L’éditeur EuroOffice et la conversion PDF sont facultatifs : leur absence est expliquée sur la page du document.",
+"steps": [
+"Ouvrez Produire, onglet « Documents préparés ».",
+"Filtrez par nature, date, relecture ou état.",
+"Ouvrez un document : aperçu, version, contrôles et propositions sont sur la même page.",
+"Utilisez « Modifier avec l’IA », « Télécharger » ou « Exporter » ; une modification reste une proposition tant que vous ne l’avez pas acceptée."
+],
+"result": "Chaque document apparaît une fois, avec sa version, son état de production et son état de relecture, séparés.",
+"verify": "L’état « Exporté » n’apparaît qu’après relecture du fichier écrit ; « Prêt à relire » n’est pas une validation juridique.",
+"errors": [
+[
+"La liste indique « Liste incomplète »",
+"Une source n’a pas pu être lue : les autres documents restent affichés. Consultez « État des sources »."
+],
+[
+"Un document est marqué « Vérification en attente »",
+"Le fichier est déposé mais pas encore relu : la comparaison avec le stockage a lieu toutes les 10 minutes."
+]
+],
+"example": "Contrat fictif DOS-001 : la version 2 revient à relire après la relecture de la version 1.",
+"buttons": [
+"Filtrer"
+],
+"version": "5.6.36"
+},
 "projets": {
 "objective": "Relire le travail préparé automatiquement.",
 "when": "Régulièrement, pour valider ou écarter les projets.",
@@ -2078,6 +2133,56 @@
 "buttons": [
 "Filtrer",
 "Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"banc_essai": {
+"objective": "Comparer des missions complètes sur un protocole figé, et voir ce que chaque fonction a réellement prouvé.",
+"when": "Avant de choisir une configuration, ou pour vérifier l’état d’une fonction après une mise à jour.",
+"prerequisites": "Être administrateur pour préparer un essai ; être avocat pour donner un avis de relecteur.",
+"steps": [
+"Ouvrez Banc d’essai et état des fonctions.",
+"Chargez le corpus d’exercice ou figez votre protocole.",
+"Consignez les deux configurations, puis prévoyez et démarrez l’essai.",
+"Saisissez les résultats, faites relire, puis terminez l’essai."
+],
+"result": "La comparaison par famille s’affiche avec la médiane, la dispersion et l’effectif, ou le motif pour lequel aucune conclusion n’est possible.",
+"verify": "Chaque résultat renvoie à un cas, une sortie et une mesure ; l’empreinte du corpus est affichée.",
+"errors": [
+[
+"Réception refusée",
+"Une erreur critique ou des données manquantes empêchent de recevoir cette famille : lisez le motif affiché."
+]
+],
+"example": "Comparer AxiorHub et Claude Desktop sur le dossier fictif DOS-001.",
+"buttons": [
+"Charger le corpus d’exercice fictif",
+"Enregistrer la configuration",
+"Créer le protocole"
+],
+"version": "5.6.36"
+},
+"gouvernance_ia": {
+"objective": "Fixer ce qui peut quitter le cabinet, vers quels services, et jusqu’à quel coût.",
+"when": "Avant d’ouvrir un nouveau service d’IA, ou pour fixer les plafonds du cabinet.",
+"prerequisites": "Être administrateur.",
+"steps": [
+"Ouvrez Données et budget de l’IA.",
+"Choisissez le mode, puis « Enregistrer la politique ».",
+"Fixez les plafonds, puis « Enregistrer les plafonds »."
+],
+"result": "La politique et les plafonds s’appliquent à l’étape suivante de chaque travail.",
+"verify": "Le mode en vigueur et sa révision s’affichent en tête de page.",
+"errors": [
+[
+"Politique illisible",
+"Aucun nouvel envoi n’est fait : corrigez le réglage ou restaurez la dernière sauvegarde."
+]
+],
+"example": "Choisir le mode local strict, puis fixer 50 $ par mois.",
+"buttons": [
+"Enregistrer la politique",
+"Enregistrer les plafonds"
 ],
 "version": "5.6.36"
 },

@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "items": [
+      {
+        "id": "ITEM-FICTIF-1",
+        "document_id": "DOC-FICTIF",
+        "version_id": "V1",
+        "matter_id": "DOS-EXEMPLE",
+        "kind": "contrat",
+        "title": "Contrat fictif de démonstration",
+        "state": "ready",
+        "review": "to_review",
+        "verified": true,
+        "location_ref": "STORAGE-FICTIF",
+        "updated_at": "2026-11-01T20:00:00Z"
+      }
+    ],
+    "sources": [
+      {
+        "id": "document_projects",
+        "state": "fresh",
+        "message": ""
+      }
+    ],
+    "next_cursor": null,
+    "scope": "cabinet et dossiers autorisés de la requête",
+    "generated_at": "2026-11-01T20:00:00Z"
+  },
+  "ui_context": {
+    "function_id": "documents",
+    "matter_id": "DOS-EXEMPLE",
+    "selected_objects": [
+      {
+        "id": "DOC-FICTIF",
+        "version_id": "V1"
+      }
+    ],
+    "instruction": "Vérifier la cohérence du contrat fictif avec les sources sélectionnées.",
+    "expected_result": "analysis"
+  }
+}

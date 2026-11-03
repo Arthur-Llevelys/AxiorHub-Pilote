@@ -1,0 +1,24 @@
+/* 5.6.89 : panneau IA contextuel, dans l'assistant existant. Couleurs par les jetons ; l'état se lit toujours dans le texte. Cibles de 32 px au moins, foyer visible. */
+.ui89-ia { align-items: center; background: transparent; border: 1px solid var(--cds-border-subtle, currentColor); border-radius: 4px; color: var(--cds-link-primary, inherit); cursor: pointer; display: inline-flex; height: 32px; justify-content: center; min-width: 32px; padding: 0; vertical-align: middle; }
+.ui89-ia:hover { background: var(--cds-layer-hover, transparent); }
+.ui89-ia:focus-visible, .ia89-action:focus-visible, .ia89-limites summary:focus-visible, .ia89-label summary:focus-visible { outline: 2px solid var(--cds-focus, currentColor); outline-offset: 2px; }
+.ia89-panneau { border: 1px solid var(--cds-border-subtle, var(--ax-line, currentColor)); border-radius: 4px; margin: 0 0 .75rem; padding: .5rem .75rem; }
+.ia89-tete { margin: 0 0 .25rem; overflow-wrap: anywhere; }
+.ia89-etat { color: var(--cds-text-secondary, inherit); font-size: .85em; margin: 0 0 .25rem; }
+.ia89-objets ul, .ia89-limites ul, .ia89-label ul { margin: .15rem 0 .35rem; padding-left: 1.1rem; }
+.ia89-objets li, .ia89-label li { overflow-wrap: anywhere; }
+.ia89-actions { display: flex; flex-direction: column; gap: .25rem; list-style: none; margin: .35rem 0; padding: 0; }
+.ia89-actions small { display: block; color: var(--cds-text-secondary, inherit); }
+.ia89-action { background: transparent; border: 1px solid var(--cds-border-strong, currentColor); border-radius: 4px; color: var(--cds-text-primary, inherit); cursor: pointer; min-height: 32px; padding: .2rem .6rem; text-align: left; width: 100%; }
+.ia89-action:hover:not(:disabled) { background: var(--cds-layer-hover, transparent); }
+.ia89-action:disabled { cursor: not-allowed; opacity: .75; }
+.ia89-ambigu, .ia89-refus, .ia89-reserve { border-left: 3px solid var(--cds-support-warning, currentColor); margin: .35rem 0; padding: .25rem .5rem; }
+.ia89-ambigu .ia89-action { display: inline-block; margin: .15rem 0; width: auto; }
+.ia89-manuel { border-left: 3px solid var(--cds-support-info, currentColor); margin: .35rem 0; padding: .25rem .5rem; }
+.ia89-limites, .ia89-label { margin-top: .35rem; }
+.ia89-limites summary, .ia89-label summary { cursor: pointer; min-height: 32px; }
+.ia89-limites p, .ia89-label p { margin: .15rem 0; }
+.ia89-question { border-top: 1px solid var(--cds-border-subtle, currentColor); margin-top: .35rem; padding-top: .35rem; }
+.ia89-question label { display: block; margin: .15rem 0; }
+.ia89-question input { max-width: 100%; }
+@media print { .ui89-ia, .ia89-panneau { display: none; } }

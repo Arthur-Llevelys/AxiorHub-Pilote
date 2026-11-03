@@ -955,7 +955,12 @@ def travaux_html(desk, prefix, m):
         e(r['request'][:180]), e(DOC_STATUS.get(r['status'], r['status'])), e(_date_fr(str(r['updated'])[:10])),
         (' ' + '<a href="%s">%s</a>' % (e(prefix + doc_href(r['path'], m['id']), quote=True), e(PurePosixPath(r['path']).name))) if r['path'] else '') for r in rows)
     thread, waiting = thread_html(desk, prefix, m['id'], 30)
-    return (_card('Documents préparés par l’agent', '<ul class="d27-list">%s</ul>' % (body or '<li class="d27-muted">Aucun document demandé pour ce dossier.</li>'))
+    try:   # 5.6.89 : même lecture qu'Aujourd'hui et Produire
+        from .livrables_web5689 import section_html
+        common = section_html(desk, prefix, m['id'], 8, prefix + '/dossier?id=' + m['id'] + '&vue=travaux', titre='Documents préparés par l’agent')
+    except Exception:   # noqa: BLE001 — cette section ne doit jamais empêcher l'affichage du dossier
+        common = ''
+    return (common + _card('Demandes de documents à l’agent', '<ul class="d27-list">%s</ul>' % (body or '<li class="d27-muted">Aucun document demandé pour ce dossier.</li>'))
             + _card('Échanges avec l’agent', '<div class="d27-thread" id="d27-thread"%s>%s</div>' % (' data-d27-waiting' if waiting else '', thread)))
 
 
@@ -983,6 +988,8 @@ def page_5650(desk, auth, prefix, args, shell):
         body += procedure_panel(desk, prefix, m)
         body += ('<p class="d5636-link"><a class="ax-btn ghost" href="%s">Données des pièces (types, parties, dates, montants, textes cités)</a></p>'
                  % e(prefix + '/pieces-donnees?dossier=' + m['id'], quote=True))   # 5.6.36 : GED
+        body += ('<p class="d5636-link"><a class="ax-btn ghost" href="%s">Contentieux (prétentions, preuves, actes, délais, paquets)</a></p>'
+                 % e(prefix + '/contentieux?dossier=' + m['id'], quote=True))   # 5.6.89
     if view == 'fiche':   # 5.6.50 : discussion du dossier (messagerie interne) et, pour l'administrateur, accès au dossier
         from .i18n5631 import role as _role50
         from .web5650 import matter_card

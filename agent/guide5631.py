@@ -632,6 +632,8 @@ def _ai_tests(desk, data, cfg, capability):
     if capability != 'generate':
         return out
     try:
+        from .arret5643 import before_model_call
+        before_model_call(cfg)   # 5.6.89 : diagnostic avec inférence : mêmes pauses que tout appel au modèle
         long_client = HTTP(ol['url'], local_only=True, local_hosts=ol.get('local_hosts', ()), timeout=120)
         reply = long_client.json('POST', '/api/generate', {'model': ol['model'], 'prompt': 'Réponds uniquement par le mot : prêt.', 'stream': False,
                                                           'options': {'num_predict': 12, 'temperature': 0}})

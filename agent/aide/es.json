@@ -1155,6 +1155,61 @@
 ],
 "version": "5.6.36"
 },
+"contentieux": {
+"objective": "Preparar un contencioso a partir de las pruebas: pretensiones, hechos, reglas, documentos, objeciones y, después, escrito, plazos, audiencia y paquete que comunicar.",
+"when": "En cuanto un asunto contencioso tiene sus primeras demandas y antes de cada escrito o audiencia.",
+"prerequisites": "Un asunto abierto. El modelo de IA es opcional: la matriz, los documentos, los controles y los plazos funcionan sin él.",
+"steps": [
+"Abra el asunto y luego el enlace «Contentieux».",
+"Recupere las demandas del asunto o añada una pretensión y vincule hechos, reglas y documentos.",
+"Valide lo que conserva: una propuesta de la IA sigue siendo una propuesta.",
+"Prepare el plan del escrito, inicie la redacción y lea los controles.",
+"Prepare un manifiesto, revíselo y autorícelo si así lo decide."
+],
+"result": "Cada pretensión muestra lo conocido, lo discutido y lo que falta; el escrito, sus reservas y su lista de documentos proceden del mismo registro.",
+"verify": "Un plazo sin un dato determinante queda «Por verificar». Toda regla de plazo debe ser validada por un abogado. AxiorHub no presenta nada: un archivo no es prueba de presentación.",
+"errors": [
+[
+"«Valide primero al menos una pretensión»",
+"Un escrito no se construye sobre propuestas: valide una pretensión del despacho."
+],
+[
+"«La autorización ya no cubre este manifiesto»",
+"Ha cambiado un archivo o un destinatario: verifique el paquete y vuelva a autorizarlo."
+]
+],
+"example": "Asunto ficticio DOS-001: el documento n.º 1 del despacho y el n.º 1 de ZORVAL siguen siendo dos documentos distintos.",
+"buttons": [],
+"version": "5.6.36"
+},
+"livrables": {
+"objective": "Encontrar en un solo lugar todos los documentos preparados, sea cual sea su origen, y abrirlos, modificarlos, descargarlos o exportarlos.",
+"when": "Para revisar un proyecto, seguir el trabajo en curso o recuperar un documento antiguo sin revisar.",
+"prerequisites": "Ninguno para consultar. El editor EuroOffice y la conversión a PDF son opcionales: la página del documento explica cuándo faltan.",
+"steps": [
+"Abra Producir, pestaña «Documentos preparados».",
+"Filtre por naturaleza, fecha, revisión o estado.",
+"Abra un documento: vista previa, versión, controles y propuestas están en la misma página.",
+"Use «Modificar con IA», «Descargar» o «Exportar»; un cambio sigue siendo una propuesta hasta que lo acepte."
+],
+"result": "Cada documento aparece una vez, con su versión y sus estados de producción y de revisión separados.",
+"verify": "«Exportado» solo aparece tras releer el archivo escrito; «Listo para revisar» no es una validación jurídica.",
+"errors": [
+[
+"La lista indica «Lista incompleta»",
+"No se pudo leer una fuente: los demás documentos siguen visibles. Consulte «Estado de las fuentes»."
+],
+[
+"Un documento muestra «Verificación pendiente»",
+"El archivo está depositado pero aún no releído: la comparación con el almacenamiento se hace cada 10 minutos."
+]
+],
+"example": "Contrato ficticio DOS-001: la versión 2 vuelve a revisión tras revisar la versión 1.",
+"buttons": [
+"Filtrer"
+],
+"version": "5.6.36"
+},
 "projets": {
 "objective": "Revisar el trabajo preparado automáticamente.",
 "when": "Con regularidad, para validar o descartar los proyectos.",
@@ -2078,6 +2133,56 @@
 "buttons": [
 "Filtrer",
 "Exporter (CSV)"
+],
+"version": "5.6.36"
+},
+"banc_essai": {
+"objective": "Comparar misiones completas con un protocolo fijado y ver lo que cada función ha probado realmente.",
+"when": "Antes de elegir una configuración, o para comprobar una función tras una actualización.",
+"prerequisites": "Ser administrador para preparar un ensayo; ser abogado para dar una revisión.",
+"steps": [
+"Abra Banco de pruebas y estado de las funciones.",
+"Cargue el corpus de ejercicio o fije su protocolo.",
+"Registre ambas configuraciones, luego prevea e inicie el ensayo.",
+"Introduzca los resultados, hágalos revisar y termine el ensayo."
+],
+"result": "La comparación por familia muestra mediana, dispersión y efectivo, o el motivo por el que no cabe conclusión.",
+"verify": "Cada resultado remite a un caso, una salida y una medida; se muestra la huella del corpus.",
+"errors": [
+[
+"Recepción rechazada",
+"Un error crítico o datos ausentes impiden recibir esta familia: lea el motivo indicado."
+]
+],
+"example": "Comparar AxiorHub y Claude Desktop en el expediente ficticio DOS-001.",
+"buttons": [
+"Charger le corpus d’exercice fictif",
+"Enregistrer la configuration",
+"Créer le protocole"
+],
+"version": "5.6.36"
+},
+"gouvernance_ia": {
+"objective": "Fijar qué puede salir del despacho, hacia qué servicios y con qué coste.",
+"when": "Antes de abrir un nuevo servicio de IA, o para fijar los topes del despacho.",
+"prerequisites": "Ser administrador.",
+"steps": [
+"Abra Datos y presupuesto de la IA.",
+"Elija el modo y luego «Enregistrer la politique».",
+"Fije los topes y luego «Enregistrer les plafonds»."
+],
+"result": "La política y los topes se aplican desde el paso siguiente de cada tarea.",
+"verify": "El modo vigente y su revisión aparecen al principio de la página.",
+"errors": [
+[
+"Política ilegible",
+"No se envía nada nuevo: corrija el ajuste o restaure la última copia."
+]
+],
+"example": "Choisir le mode local strict, puis fixer 50 $ par mois.",
+"buttons": [
+"Enregistrer la politique",
+"Enregistrer les plafonds"
 ],
 "version": "5.6.36"
 },

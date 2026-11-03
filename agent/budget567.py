@@ -1,7 +1,5 @@
-"""Réservation atomique d'un budget avant l'envoi, même avec plusieurs workers."""
-from datetime import datetime, timezone
+"""Réservation atomique d'un budget avant l'envoi, même avec plusieurs workers. 5.6.89 : adaptateur du registre commun ``budget_ledger5689``, seule autorité."""
 from decimal import Decimal, InvalidOperation
-import secrets
 
 from .common import Stop
 
@@ -36,33 +34,16 @@ def reserve(cfg, messages, max_tokens, db_factory):
         raise Stop('budget_requete_fournisseur_depasse')
     if not cfg.get('state_dir') or not per_request or not monthly:
         raise Stop('budget_fournisseur_non_configure')
-    db = db_factory(cfg['state_dir'])
-    try:
-        db.executescript(SCHEMA)
-        db.execute('BEGIN IMMEDIATE')
-        stamp = datetime.now(timezone.utc).isoformat()
-        prefix = stamp[:7] + '%'
-        provider = cfg.get('provider_id', '')
-        used = db.execute("SELECT COALESCE(SUM(estimated_cost_usd),0) FROM ai_usage_v391 WHERE provider=? AND at LIKE ? AND status='done'", (provider, prefix)).fetchone()[0]
-        pending = db.execute("SELECT COALESCE(SUM(amount),0) FROM ai_reservations_v567 WHERE provider=? AND at LIKE ? AND state IN ('reserved','uncertain')", (provider, prefix)).fetchone()[0]
-        if money(used) + money(pending) + amount > monthly:
-            raise Stop('budget_mensuel_fournisseur_depasse')
-        ident = secrets.token_hex(16)
-        db.execute('INSERT INTO ai_reservations_v567 VALUES (?,?,?,?,?)', (ident, stamp, provider, float(amount), 'reserved'))
-        db.commit()
-        cfg['_budget_reservation'] = ident
-        return float(amount)
-    except BaseException:
-        db.rollback()
-        raise
-    finally:
-        db.close()
+    from .budget_ledger5689 import reserver_appel   # 5.6.89 : le registre commun décide ; ai_reservations_v567 n'en est plus que la vue
+    return reserver_appel(cfg, amount, db_factory)
 
 
-def settle(db, cfg, status, released=False):
+def settle(db, cfg, status, released=False, usage=None):
     """Une panne peut avoir consommé des tokens : sa réservation reste « incertaine ». 5.6.68 : un échec certain non facturé (refus 4xx,
-    panne 5xx, connexion impossible) la libère (``released``)."""
+    panne 5xx, connexion impossible) la libère (``released``). 5.6.89 : le registre commun est réglé dans la même transaction."""
     ident = cfg.pop('_budget_reservation', '')
     if ident:
         db.execute('UPDATE ai_reservations_v567 SET state=? WHERE id=? AND state=\'reserved\'',
                    ('closed' if status == 'done' or released else 'uncertain', ident))
+    from .budget_ledger5689 import regler_appel
+    regler_appel(db, cfg, ident, status, released, usage)

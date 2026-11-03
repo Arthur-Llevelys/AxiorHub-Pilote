@@ -125,6 +125,14 @@ JOBS |= {'veille5688','memoire5688'}   # 5.6.88 : veille des sociétés (BODACC,
 JOBS |= {'registre5688'}   # 5.6.88 : statuts, actes et comptes publics (INPI) copiés dans le dossier, hors de la réponse
 USER_JOBS |= {'registre5688'}
 JOBS |= {'opportunites5676'}   # 5.6.76 : prospects repérés dans les courriels par le modèle local (propositions)
+JOBS |= {'synchro_livrables5689','controle_livrable5689','export_livrable5689','modifier_livrable5689'}   # 5.6.89 : registre des livrables, contrôles, export suivi, proposition assistée
+USER_JOBS |= {'export_livrable5689','modifier_livrable5689','controle_livrable5689'}
+JOBS |= {'extraction_dossier5689','mission_conseil5689','obligations5689'}   # 5.6.89 : lecture d'une source du dossier, consultation et revue de contrat, obligations d'un accord signé
+USER_JOBS |= {'extraction_dossier5689','mission_conseil5689','obligations5689'}
+JOBS |= {'assistance5689'}   # 5.6.89 : action du panneau IA, dans l'ordre commun
+USER_JOBS |= {'assistance5689'}
+JOBS |= {'matrice_ia5689','rediger_acte5689','candidat_delai5689'}   # 5.6.89 : contentieux : propositions pour la matrice, rédaction d'un acte par section, événement de délai
+USER_JOBS |= {'matrice_ia5689','rediger_acte5689','candidat_delai5689'}
 JOBS |= {'ranger_notes5666'}   # 5.6.66 : notes internes déposées en brouillon → documents Word des dossiers
 USER_JOBS |= {'ranger_notes5666'}
 JOBS |= {'maj_local5661'}   # 5.6.61 : mise à jour signée d'un poste (Windows, Ubuntu) depuis la page des versions
@@ -372,6 +380,8 @@ class Desk:
         load_runtime_settings(self)
         from .extensions364 import load_runtime_settings as load_extension_settings
         load_extension_settings(self)
+        from .sens5643 import appliquer_identites   # 5.6.89 : registre des adresses propres (lecture seule)
+        appliquer_identites(self)
 
     def _prepare(self):
         self.db.execute('PRAGMA journal_mode=WAL')
@@ -485,6 +495,8 @@ class Desk:
         ensure_hybrid400_schema(self)
         from .production420 import ensure_schema as ensure_production420_schema
         ensure_production420_schema(self)
+        from .horaires_ia5689 import ensure_schema as ensure_horaires5689_schema   # 5.6.89 : durée des suspensions programmées
+        ensure_horaires5689_schema(self)
 
     def now(self):return now()
 
@@ -500,7 +512,12 @@ class Desk:
             emit(self, 'documents', 'Analyse automatique différée au lendemain (quota journalier du régime économe) : ' + kind,
                  getattr(self, 'active_job_id', None), str((args or {}).get('matter', '')), dedupe='econome-' + kind + '-' + now()[:10])
             return None
-        return self.enqueue(kind, args, priority, chained=True)
+        try:
+            return self.enqueue(kind, args, priority, chained=True)
+        except Stop as error:      # 5.6.89 (chap. 20) : la suite d'un travail fini ne relance pas un travail identique retenu ; l'avocat peut toujours le relancer
+            if str(error) != 'relance_identique_refusee':
+                raise
+            return None
 
     def enqueue(self, kind, args=None, priority=None, chained=False, transactional=False, origin=None):
         """Met un travail en file. 5.6.39 (audit 5.6.37, F02) : ``transactional=True`` = le travail est inséré dans la transaction de
@@ -516,7 +533,14 @@ class Desk:
         from . import arret5643, pause5629   # 5.6.43 (cahier v9, § 16) : origine explicite, parent et contrôleur unique
         origin = arret5643.resolve_origin(self, kind, args, job_priority(kind) if priority is None else priority, origin)
         parent_job_id = arret5643.check_parent(self)
-        pause5629.check_enqueue(self, kind, args, job_priority(kind) if priority is None else priority, origin)
+        deferred = False
+        try:
+            pause5629.check_enqueue(self, kind, args, job_priority(kind) if priority is None else priority, origin)
+        except Stop as error:
+            if str(error) not in arret5643.CODES_HORAIRES:raise
+            deferred = True   # 5.6.89 : plage programmée : le déclencheur est enregistré une fois, suspendu, et repris à la fin de la plage
+        from .travaux5689 import check_relance
+        check_relance(self, kind, args, origin)   # 5.6.89 (chap. 20) : pas de relance automatique identique après une erreur que l'essai ne corrige pas
         raw = json.dumps(args or {}, sort_keys=True)
         maximum=120000 if kind=='prepare_transcript_report' else (60000 if kind in ('assistant_answer','prepare_document_project','prepare_hearing','prepare_word_project','prepare_legal_opinion','coach_hearing35','record_call35') else (24000 if kind in ('propose_work_plan','prepare_cabinet_letter') else
           (120000 if kind=='import_mcp_legal_results' else
@@ -529,7 +553,7 @@ class Desk:
         # 5.6.66 : … seulement tant que la pause qui l'a suspendu est en vigueur. En 5.6.65, un ancien travail resté « suspendu » (pause
         # levée depuis) absorbait toutes les nouvelles demandes identiques : la surveillance des courriels ne tournait plus.
         old = None
-        for cand in self.db.execute("SELECT id,status,stop_reason,matter_ref FROM jobs WHERE kind=? AND args=? "
+        for cand in self.db.execute("SELECT id,kind,origin,priority,args,status,stop_reason,matter_ref FROM jobs WHERE kind=? AND args=? "
                                     "AND status IN ('pending','running','cancel_requested','suspended') ORDER BY id DESC", (kind,raw)).fetchall():
             if cand['status'] != 'suspended' or arret5643.pause_in_effect(self, cand):
                 old = cand
@@ -538,6 +562,9 @@ class Desk:
             if not transactional:self.db.commit()
             return old[0]
         priority=job_priority(kind) if priority is None else max(0,min(int(priority),100))
+        if deferred:
+            from . import horaires_ia5689
+            return horaires_ia5689.differer(self,kind,raw,priority,origin,parent_job_id,arret5643.matter_of(args) or None,transactional)
         # 5.6.5 : les travaux automatiques (priorité 30 et plus) ont leur propre plafond ; ils ne peuvent plus remplir la file au point de
         # refuser une demande de l'avocat (avant : 100 travaux en attente, quels qu'ils soient, et plus rien n'entrait).
         if priority>=AUTOMATIC_PRIORITY and not chained:
@@ -587,7 +614,7 @@ class Desk:
                 raw=json.dumps(args or {},sort_keys=True)
                 from . import arret5643
                 if not any(c['status']!='suspended' or arret5643.pause_in_effect(self,c) for c in self.db.execute(
-                        "SELECT status,stop_reason,matter_ref FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested','suspended')",
+                        "SELECT kind,origin,priority,args,status,stop_reason,matter_ref FROM jobs WHERE kind=? AND args=? AND status IN ('pending','running','cancel_requested','suspended')",
                         (kind,raw)).fetchall()):
                     needed+=1
             if needed and pending+needed>cap:
@@ -908,6 +935,18 @@ class Desk:
         if kind=='banc5667':
             from .modeles5667 import perform as _bench
             return _bench(self,kind,args)
+        if kind in ('synchro_livrables5689','controle_livrable5689','export_livrable5689','modifier_livrable5689'):
+            from .livrables_travaux5689 import perform as _livrables
+            return _livrables(self,kind,args)
+        if kind in ('extraction_dossier5689','mission_conseil5689','obligations5689'):
+            from .consultation5689 import perform as _conseil
+            return _conseil(self,kind,args)
+        if kind=='assistance5689':
+            from .ui_ai5689 import perform as _assistance
+            return _assistance(self,kind,args)
+        if kind in ('matrice_ia5689','rediger_acte5689','candidat_delai5689'):
+            from .contentieux5689 import perform as _contentieux
+            return _contentieux(self,kind,args)
         if kind=='ranger_notes5666':
             from .notes5666 import file_drafts
             return file_drafts(self,args)
@@ -1308,12 +1347,13 @@ class Desk:
         self.active_job_id=row['id']
         from .membres5650 import new_job as _new_job5688
         _new_job5688()   # 5.6.88 : aucune limite ni aucun auteur hérités du travail précédent de ce fil
-        from . import secours564;secours564.begin(row['id'],row['created'],row['kind'])
+        from . import arret5643,secours564   # 5.6.89 : l'attente programmée n'est pas une attente de file : elle n'envoie rien chez un fournisseur externe
+        secours564.begin(row['id'],arret5643.active_created(row),row['kind'])
         try:
             _args=json.loads(row['args'] or '{}');_args=_args if isinstance(_args,dict) else {}
         except (ValueError,TypeError):_args={}
         trace480.begin(row['id'],row['kind'],_args.get('matter') or _args.get('matter_id') or '')
-        from . import arret5643   # 5.6.43 (§ 16) : les appels au modèle de ce fil sont rattachés au travail (interruption, pause)
+        # 5.6.43 (§ 16) : les appels au modèle de ce fil sont rattachés au travail (interruption, pause)
         _job_ctx=arret5643.job_context(self.c['state_dir'],row['id'],arret5643.matter_of(_args),arret5643.is_automatic_row(row,_args))
         _job_ctx.__enter__()
         pause_reason=''
@@ -1405,6 +1445,17 @@ class Desk:
                     self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
                     return False
                 e=Stop('operation_annulee')
+            from .budget_ledger5689 import ATTENTE_CODES,prochaine_verification
+            from .rapide5680 import INTERACTIVE
+            if (str(e) in ATTENTE_CODES or str(e)=='qualite_insuffisante') and row['kind'] not in INTERACTIVE:
+                # 5.6.89 : plafond atteint ou aucun modèle qualifié : le travail attend, relu à l'échéance ou dès que le plafond est relevé ; ce n'est pas un échec
+                changed=self.db.execute("UPDATE jobs SET status='pending',attempts=MAX(attempts-1,0),not_before=?,blocked_by=? WHERE id=? AND status='running'",
+                                        (prochaine_verification(str(e)),str(e),row['id'])).rowcount
+                self.db.commit()
+                if changed:
+                    self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
+                    return False
+                e=Stop('operation_annulee')
             result={'erreur':str(e)};status='error'
             if getattr(e,'detail',None):   # 5.6.34 (B15) : service, étape, statut, corrélation, ressource anonymisée (aucun secret)
                 from .erreurs5634 import public as _public_detail
@@ -1415,6 +1466,9 @@ class Desk:
             elif str(e) in ('automatismes_en_pause','ia_en_pause','controle_pause_indisponible'):
                 result={'message':'Suspendu : IA en pause. Repris à la reprise de l’IA.' if str(e)!='controle_pause_indisponible'
                         else 'Suspendu : l’état de pause n’a pas pu être vérifié ; reprise après contrôle.'};status='suspended';pause_reason='pause'
+            elif str(e) in arret5643.CODES_HORAIRES:   # 5.6.89 : prévu, donc ni échec ni annulation ; aucune tentative consommée, aucun coupe-circuit
+                result={'message':'Suspendu : pause programmée de l’IA. Repris automatiquement à la fin de la plage.' if str(e)==arret5643.CODE_HORAIRE
+                        else 'Suspendu : horaires de l’IA illisibles. Reprise après correction du réglage.'};status='suspended';pause_reason='pause_horaire'
             elif str(e)=='operation_annulee':
                 result={'message':'Annulé à la demande de l’avocat.'};status='cancelled'
         except Exception:
@@ -1425,19 +1479,24 @@ class Desk:
         self.db.execute("""UPDATE jobs SET
             status=CASE
               WHEN status='cancelled' THEN 'cancelled'
-              WHEN status='cancel_requested' AND COALESCE(stop_reason,'') IN ('pause','pause_dossier') AND ? IN ('suspended','done') THEN ?
+              WHEN status='cancel_requested' AND COALESCE(stop_reason,'') IN ('pause','pause_dossier','pause_horaire') AND ? IN ('suspended','done') THEN ?
               WHEN status='cancel_requested' THEN 'cancelled'
               ELSE ? END,
             stop_reason=CASE WHEN ?='suspended' AND status<>'cancelled' THEN COALESCE(stop_reason,?) ELSE stop_reason END,
             finished=?,
             result=CASE
               WHEN status='cancelled' THEN ?
-              WHEN status='cancel_requested' AND COALESCE(stop_reason,'') IN ('pause','pause_dossier') AND ? IN ('suspended','done') THEN ?
+              WHEN status='cancel_requested' AND COALESCE(stop_reason,'') IN ('pause','pause_dossier','pause_horaire') AND ? IN ('suspended','done') THEN ?
               WHEN status='cancel_requested' THEN ?
               ELSE ? END
             WHERE id=?""", (status,status,status,status,reason_code,now(),partial,status,json.dumps(result),partial,json.dumps(result),row['id']))
-        actual=self.db.execute('SELECT status,result,stop_reason,matter_ref FROM jobs WHERE id=?',(row['id'],)).fetchone()
-        if actual['status']=='suspended' and actual['stop_reason'] in ('pause','pause_dossier'):
+        actual=self.db.execute('SELECT kind,origin,priority,args,status,result,stop_reason,matter_ref FROM jobs WHERE id=?',(row['id'],)).fetchone()
+        if actual['status']=='suspended' and actual['stop_reason']=='pause_horaire':
+            from .horaires_ia5689 import apres_suspension
+            actual=apres_suspension(self,row['id'],actual)   # 5.6.89 : tentative rendue, durée notée ; une plage déjà finie relance le travail
+        elif actual['status']=='suspended' and actual['stop_reason'] in ('pause','pause_dossier') and arret5643._held_by_schedule(self,actual):
+            self.db.execute("UPDATE jobs SET stop_reason='pause_horaire' WHERE id=? AND status='suspended'",(row['id'],))   # 5.6.89 : la pause d'origine est levée, le planning prend le relais
+        elif actual['status']=='suspended' and actual['stop_reason'] in ('pause','pause_dossier'):
             # 5.6.44 (F09) : la reprise a pu intervenir pendant l'interruption ; sans pause en vigueur, le travail repart sans second clic.
             from .pause5629 import is_paused
             if not self.settings('missions567:pause',False) and not (actual['matter_ref'] and is_paused(self,actual['matter_ref'])):
@@ -1452,6 +1511,8 @@ class Desk:
                                                  'qui ne le concerne pas (dossier en pause rencontré en chemin). Relancez-le après contrôle.'},ensure_ascii=False),row['id']))
                 actual=self.db.execute('SELECT status,result FROM jobs WHERE id=?',(row['id'],)).fetchone()
         status=actual['status'];result=json.loads(actual['result'] or '{}')
+        from .horaires_ia5689 import apres_travail
+        apres_travail(self,row['id'],status)
         if row['kind']=='proactive34_cycle' and status!='done':
             self.db.execute("UPDATE proactive_cycles_v340 SET state='error',finished=? WHERE job_id=?",
                             (now(),row['id']))
@@ -1494,7 +1555,8 @@ class Desk:
         except (Stop,OSError,sqlite3.Error):pass
         from .live430 import emit
         outcome=self.db.execute('SELECT status,business_message FROM production_deliverables_v420 WHERE job_id=? ORDER BY updated DESC LIMIT 1',(row['id'],)).fetchone()
-        message=outcome['business_message'] if outcome else ('Traitement terminé ; résultat disponible.' if status=='done' else 'Traitement interrompu ; consultez le motif et relancez après contrôle.')
+        message=outcome['business_message'] if outcome else ('Traitement terminé ; résultat disponible.' if status=='done' else
+          (result.get('message') or 'Suspendu : l’IA est en pause.') if status=='suspended' and pause_reason=='pause_horaire' else 'Traitement interrompu ; consultez le motif et relancez après contrôle.')
         emit(self,'produced' if outcome and outcome['status']=='verified' and row['kind'] not in ('run','live_mail430') else status,message,row['id'])
         self.active_job_id=None;trace480.end();secours564.end()
         if status=='done' and row['kind']=='live_documents430' and result.get('continue_scan'):
@@ -1622,6 +1684,7 @@ def _supervise(c,stop):
     modèle et ne garde aucune transaction ouverte : il ne fait que DEMANDER l'arrêt (cancel_requested), que le travail acquitte."""
     from .blocage5660 import watchdog
     sup=None
+    schedule_desk=None
     try:
         while not stop.is_set():
             try:
@@ -1634,10 +1697,21 @@ def _supervise(c,stop):
                     pass
             except Exception:   # noqa: BLE001 — le superviseur ne s'arrête jamais sur une erreur
                 pass
+            try:   # 5.6.89 : transitions du planning, même quand tous les workers sont pris ; ni modèle, ni travail en file
+                from .horaires_ia5689 import superviser
+                schedule_desk=superviser(c,schedule_desk)
+            except Exception:   # noqa: BLE001 — l'état réel est de toute façon relu avant chaque appel au modèle
+                try:
+                    if schedule_desk is not None and schedule_desk.db.in_transaction:schedule_desk.db.rollback()
+                except sqlite3.Error:
+                    pass
             stop.wait(SUPERVISION_SECONDS)
     finally:
         if sup is not None:
             try:sup.db.close()
+            except sqlite3.Error:pass
+        if schedule_desk is not None:
+            try:schedule_desk.db.close()
             except sqlite3.Error:pass
 
 
@@ -1650,6 +1724,10 @@ def worker(c,worker_id='1'):
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         desk=Desk(c)
         desk.worker_id=str(worker_id)
+        from . import __version__ as _version,budget_ledger5689,passerelle5689
+        # 5.6.89 : même autorité de budget pour tous : schéma, reprise des réservations ouvertes, barrière contre les anciens travailleurs
+        _patient(desk,lambda:budget_ledger5689.preparer(c,'travailleur-'+str(worker_id),_version),'préparation du registre du budget',startup_wait())
+        passerelle5689.installer(c)
         from .queue567 import recover
         _patient(desk,lambda:recover(desk,worker_id),'reprise des travaux interrompus',startup_wait())
         stop=threading.Event()

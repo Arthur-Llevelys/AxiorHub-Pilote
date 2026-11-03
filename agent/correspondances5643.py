@@ -638,7 +638,7 @@ def _recapture(desk, link, box=None):
 
 # 5.6.44 : interruptions qui arrêtent un travail de conservation sans être des échecs du dépôt
 INTERRUPTIONS = frozenset({'operation_annulee', 'ia_en_pause', 'automatismes_en_pause', 'agent_en_pause_sur_ce_dossier', 'dossier_en_pause',
-                           'controle_pause_indisponible', 'autorisation_retiree', 'dossier_du_mandat_modifie'})
+                           'controle_pause_indisponible', 'autorisation_retiree', 'dossier_du_mandat_modifie', 'ia_en_pause_horaire', 'horaires_ia_illisibles'})
 
 
 def _failed_state(error):
@@ -1037,7 +1037,7 @@ def _run_mandates(desk, box, limit):
                                               'attachments_selection': json.loads(m['selection_json'] or '{}')}, box, mode='assisted', origin='automatic')
             out = confirm(desk, m['owner'], {'proposal_id': prop['proposal_id'], 'expected_version': 1, 'request_key': 'mandat-%s-%d' % (m['id'][:40], m['version'])})
         except Stop as ex:
-            if str(ex) in ('automatismes_en_pause', 'ia_en_pause', 'agent_en_pause_sur_ce_dossier', 'controle_pause_indisponible'):
+            if str(ex) in ('automatismes_en_pause', 'ia_en_pause', 'agent_en_pause_sur_ce_dossier', 'controle_pause_indisponible', 'ia_en_pause_horaire', 'horaires_ia_illisibles'):
                 continue   # reste en attente
             desk.db.execute("UPDATE mail_filing_mandates SET state='error', error_code=?, updated_at=? WHERE id=?", (str(ex)[:80], _now(), m['id']))
             desk.db.commit()

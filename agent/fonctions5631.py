@@ -31,6 +31,7 @@ FUNCTIONS = (
     ('audiences_word', 'dossier', '/audiences?onglet=preparer', ('Audiences et Word', 'Préparer la plaidoirie', 'Révision Word', 'Réviser un document'), ('storage', 'ai')),
     ('missions_complexes', 'dossier', '/missions-complexes', ('Assignation', 'Conclusions', 'Rédiger une assignation'), ('storage', 'ai')),
     ('pieces', 'dossier', '/pieces', ('Bordereau', 'Préparer un bordereau', 'Pièces numérotées'), ('storage',)),
+    ('contentieux', 'dossier', '/contentieux', ('Contentieux', 'Matrice des prétentions', 'Pièces par partie', 'Contrôles avant acte', 'Dossier d’audience', 'Paquet à communiquer'), ()),   # 5.6.89 : ouverte depuis le dossier
     ('pieces_donnees', 'dossier', '/pieces-donnees', ('GED', 'Données des pièces', 'Textes cités', 'Montants', 'Pièces jointes'), ('storage',)),   # 5.6.36
     ('outils_ia', 'dossier', '/outils-ia', ('Grilles d’analyse', 'Playbook de négociation', 'Mémos juridiques', 'Tableau comparatif'), ('ai',)),
     ('corporate', 'dossier', '/corporate', ('Secrétariat juridique', 'Approbation des comptes', 'AGO', 'Cession de titres', 'Table de capitalisation',
@@ -85,6 +86,7 @@ FUNCTIONS = (
     ('savoir_faire', 'modeles', '/savoir-faire', ('Savoir-faire du cabinet', 'Clauses approuvées', 'Listes de vérification', 'Structures de courrier'), ()),   # 5.6.59
     ('competences', 'modeles', '/competences', ('Compétences', 'Skills', 'Assistant juridique', 'Approbation des comptes', 'RGPD'), ('ai',)),
     ('projets', 'modeles', '/projets', ('Projets en attente', 'Travail préparé'), ()),
+    ('livrables', 'modeles', '/livrables', ('Documents préparés', 'Livrables', 'Visionneuse', 'Exporter un document'), ()),   # 5.6.89
     ('preparation', 'modeles', '/preparation-proactive', ('Préparation proactive',), ()),
     ('memoire', 'modeles', '/memoire', ('Mémoire', 'Réponses envoyées'), ()),
     ('parametres', 'regler', '/parametres', ('Réglages', 'Connexions'), ()),
@@ -101,6 +103,8 @@ FUNCTIONS = (
     ('mon_compte', 'regler', '/mon-compte', ('Mon compte', 'Double authentification', 'Code à six chiffres', 'Jetons d’API', '2FA', 'TOTP'), ()),   # 5.6.88
     ('journal_audit', 'regler', '/parametres/journal-audit', ('Journal d’audit', 'Audit', 'Qui a fait quoi'), ()),   # 5.6.88
     ('vue_ia', 'regler', '/parametres/ia-visible', ('Ce que l’IA peut voir', 'Accès de l’IA', 'Confidentialité de l’IA'), ()),   # 5.6.88
+    ('gouvernance_ia', 'regler', '/parametres/gouvernance', ('Données et budget de l’IA', 'Politique des données', 'Plafonds de l’IA', 'Coût mensuel', 'Prestataires'), ()),   # 5.6.89
+    ('banc_essai', 'regler', '/banc-essai', ('Banc d’essai', 'Comparatif', 'Comparer à Claude Desktop', 'État des fonctions', 'Qualification', 'Conservation des fonctions'), ()),   # 5.6.89
     ('qualite', 'regler', '/qualite', ('Qualité', 'Motifs de blocage'), ()),
     ('ecosysteme', 'regler', '/ecosysteme', ('Écosystème', 'Services du cabinet'), ()),
     ('administration', 'regler', '/administration', ('Administration', 'Raccourcis'), ()),

@@ -14,6 +14,29 @@ EXAMPLES = {
 }
 
 
+def _actions_ia():
+    """5.6.89 : drapeau ``actions_ia``. Illisible : le panneau reste celui d'avant."""
+    try:
+        from .shell501 import drapeaux
+        return bool(drapeaux().get('actions_ia'))
+    except Exception:   # noqa: BLE001 — l'assistant s'affiche toujours
+        return False
+
+
+def _fonction_page(path):
+    """Fonction de la page réellement affichée, onglet compris ; à défaut, celle de l'entrée de menu active."""
+    from urllib.parse import parse_qsl
+    from .fonctions5631 import FUNCTIONS, for_path
+    from .shell501 import _ctx
+    chemin = getattr(_ctx, 'chemin', '') or path
+    args = getattr(_ctx, 'args', None) or {}
+    for row in FUNCTIONS:
+        base, _, requete = row[2].partition('?')
+        if requete and base == chemin and all(args.get(k) == v for k, v in parse_qsl(requete)):
+            return row[0]
+    return for_path(chemin, args) or for_path(path, args)
+
+
 def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter=''):
     options=['<option value="">Tout le cabinet</option>']
     for matter in matters or []:
@@ -34,6 +57,7 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
                     'aria-label="Conversation vocale en temps réel avec l’assistant"><svg class="w79" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="2" y="9" width="2.4" height="6" rx="1.2"/><rect x="6.4" y="6" width="2.4" height="12" rx="1.2"/><rect x="10.8" y="3" width="2.4" height="18" rx="1.2"/><rect x="15.2" y="6" width="2.4" height="12" rx="1.2"/><rect x="19.6" y="9" width="2.4" height="6" rx="1.2"/></svg></button>')
     except Exception:   # noqa: BLE001 — sans configuration lisible, pas de bouton
         live = ''
+    ia5689=_actions_ia()
     return (live + '<button type="button" id="ws-ai-launcher" aria-controls="ws-ai-dock" aria-expanded="false" '
       'title="Ouvrir l’assistant AxiorHub"><span aria-hidden="true">🤖</span><span class="sr-only">Assistant AxiorHub</span></button>'
       '<aside id="ws-ai-dock" class="ws-ai-dock" hidden aria-label="Assistant AxiorHub">'
@@ -43,6 +67,7 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
       '<button type="button" id="ws-ai-close" aria-label="Replier l’assistant (arrête le micro et la lecture)">×</button></header>'
       '<section id="ws-ai-voice" class="ws-ai-voice" hidden aria-label="Conversation vocale"></section>'
       '<div class="ws-ai-body"><p class="ws-ai-auto-context"><strong>Contexte détecté</strong><br>Page : '+escape(path or '/')+(' · dossier : '+escape(selected_matter) if selected_matter else '')+'<br><small>Le dossier, les documents sélectionnés et la dernière mission de ce dossier sont repris. Une ambiguïté sera signalée.</small></p>'
+      +('<section id="ia5689-panneau" class="ia89-panneau" aria-label="Contexte et actions de cette page" hidden></section>' if ia5689 else '')+
       '<label>Dossier facultatif<input id="ws-ai-matter-search" type="search" placeholder="Client, adversaire, référence, alias…" autocomplete="off" aria-controls="ws-ai-matter"><select id="ws-ai-matter">'+''.join(options)+'</select></label>'
       '<div id="m82-active" class="m82-active" role="status"></div>'
       '<label>Instruction<textarea id="ws-ai-question" rows="6" maxlength="12000" placeholder="Décrivez le résultat attendu…"></textarea></label>'
@@ -61,7 +86,7 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
       '<button type="button" id="ws-ai-clear" title="Effacer l’affichage de la conversation (les missions restent dans Outils › Missions)">Effacer la conversation</button></div>'
       '<div class="mission567-audio"><button type="button" data-briefing567>Écouter le briefing</button><button type="button" data-read567>Lire la réponse</button><button type="button" data-audio-pause567>Pause / reprise</button><button type="button" data-audio-stop567>Arrêter la lecture</button></div><p id="ws-ai-status" role="status">Assistant repliable. Les résultats restent internes et sourcés.</p>'
       '<section id="ws-ai-result" aria-live="polite"><div id="ws-ai-current"></div><section id="ws-ai-history" class="ws-ai-history" aria-label="Fil de la conversation"></section></section><details><summary>Exemples de demandes</summary><div class="ws-ai-examples">'+chips+'</div></details></div></aside>'
-      '<script type="application/json" id="ws-ai-config">'+json.dumps({'prefix':prefix,'csrf':csrf,'path':path,'selected_matter':selected_matter,'mission_api':True},ensure_ascii=False).replace('</','<\\/')+'</script>')
+      '<script type="application/json" id="ws-ai-config">'+json.dumps({'prefix':prefix,'csrf':csrf,'path':path,'selected_matter':selected_matter,'mission_api':True,'ia5689':ia5689,'fonction':_fonction_page(path) if ia5689 else ''},ensure_ascii=False).replace('</','<\\/')+'</script>')
 
 def versioned(html):
     """5.6.80 : adresses versionnées des scripts et des styles, gardés par le navigateur : 38 fichiers n'ont plus à être rechargés à chaque page,
@@ -103,6 +128,11 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/rules568.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v420.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5688-crm.js"></script>'   # 5.6.88 : mentions, note commune, page personnelle
+    from .ui_navigation5689 import details_json as _details5689
+    head+='<meta name="axiorhub-details" content="'+escape(_details5689(),quote=True)+'">'
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5689-formulaires.js"></script>'   # 5.6.89 : FormAdapter, composants Carbon sur champs natifs
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5689-navigation.js"></script>'   # 5.6.89 : retour contextuel, panneaux, filtres
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5689-ia.js"></script>'   # 5.6.89 : contexte de la page pour l'assistant existant
     head+='<meta name="htmx-config" content=\'{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"selfRequestsOnly":true}\'>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/htmx.min.js"></script><script defer src="'+escape(prefix,quote=True)+'/static/v430.js"></script>'
     head+='<link rel="icon" type="image/png" sizes="150x150" href="'+escape(prefix,quote=True)+'/static/axiorhub-icon.png">'
@@ -114,6 +144,9 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
         from . import __version__
         head='<link rel="stylesheet" href="'+escape(prefix,quote=True)+'/static/app520.css?v='+escape(__version__,quote=True)+'">'+head
     html=html.replace('</head>',head+'</head>',1)
+    from .shell501 import drapeaux as _drapeaux5689
+    from .ui_drapeaux5689 import marquer as _marquer5689
+    html=_marquer5689(html,_drapeaux5689())   # 5.6.89 : le thème entier tient à cet attribut
     from .live430 import enhance_forms,chrome
     html=enhance_forms(html,prefix)
     html=html.replace('</body>',chrome(prefix)+assistant_dock(prefix,csrf,matters or [],path,audio_enabled,selected_matter)+'</body>',1)

@@ -183,6 +183,10 @@
  "fn.honoraires.label": "Time and fees",
  "fn.initiatives.desc": "Action plans proposed by the assistant, approved then carried out",
  "fn.initiatives.label": "Initiatives",
+ "fn.contentieux.desc": "Claims, evidence, pleadings, deadlines and packages of the matter",
+ "fn.contentieux.label": "Litigation",
+ "fn.livrables.desc": "All deliverables, their version and status",
+ "fn.livrables.label": "Prepared documents",
  "fn.mcp.desc": "Legal connectors, skills and extensions",
  "fn.mcp.label": "MCP connectors",
  "fn.memoire.desc": "Sent replies remembered by the agent",
@@ -788,5 +792,9 @@
  "fn.journal_audit.label": "Audit log",
  "fn.journal_audit.desc": "Who did what, with chain verification",
  "fn.vue_ia.label": "What the AI can see",
- "fn.vue_ia.desc": "Categories open to models, enforced by the server"
+ "fn.vue_ia.desc": "Categories open to models, enforced by the server",
+ "fn.banc_essai.label": "Benchmark and function status",
+ "fn.banc_essai.desc": "Compare tasks on a frozen protocol and see the proof behind each function",
+ "fn.gouvernance_ia.label": "AI data and budget",
+ "fn.gouvernance_ia.desc": "Data policy, providers, caps and monthly cost"
 }

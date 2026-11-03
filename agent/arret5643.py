@@ -9,6 +9,10 @@ Sémantique :
 - **Annulation** : terminale. Un travail en file passe à ``cancelled`` ; un travail actif à ``cancel_requested`` puis ``cancelled`` quand le
   worker le confirme ; ses enfants non achevés sont annulés et aucun enfant nouveau ne peut être créé.
 
+- **Pause programmée** (5.6.89, ``horaires_ia5689``) : motif interne ``pause_horaire``, code ``ia_en_pause_horaire``. Elle ne touche jamais au réglage de
+  la pause manuelle : elle se recalcule à chaque contrôle. Un travail suspendu par elle ne repart que si plus aucune pause ne le concerne, et il garde
+  la trace de la durée suspendue : l'attente programmée n'est ni de l'ancienneté ni une tentative.
+
 Les décisions sont lues dans la base à chaque contrôle (aucun cache faisant autorité). Si la vérification est impossible, le travail est
 suspendu avec le motif ``controle_pause_indisponible``.
 
@@ -17,6 +21,7 @@ le fournisseur ne renvoie rien), l'état du travail, la pause globale et la paus
 appel est fermée (le fournisseur local reçoit la déconnexion) et le résultat éventuel est ignoré. La fermeture du transport ne prouve pas
 que le calcul est arrêté chez le fournisseur : le journal le dit (« interruption demandée — calcul peut-être encore actif »).
 """
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import socket
@@ -30,38 +35,43 @@ ORIGINS = ('user', 'automatic', 'control', 'legacy')
 PAUSE_GLOBAL = 'missions567:pause'
 PAUSE_MATTERS = 'pause5629:matters'
 AUTOMATIC_PRIORITY = 30
+PAUSE_HORAIRE, CODE_HORAIRE, CODE_ILLISIBLE = 'pause_horaire', 'ia_en_pause_horaire', 'horaires_ia_illisibles'   # 5.6.89
+CODES_HORAIRES = (CODE_HORAIRE, CODE_ILLISIBLE)
 STOP_CODES = frozenset({'operation_annulee', 'ia_en_pause', 'automatismes_en_pause', 'agent_en_pause_sur_ce_dossier', 'dossier_en_pause',
-                        'controle_pause_indisponible'})
+                        'controle_pause_indisponible', CODE_HORAIRE, CODE_ILLISIBLE})
+PAUSE_MOTIFS = ('pause', 'pause_dossier', PAUSE_HORAIRE)
 # Travaux sans appel au modèle : ils restent exécutables pendant la pause de l'IA (contrôles, réglages, surveillance des agendas et
 # fichiers, dépôts déjà validés, conservation des courriels et des pièces).
-DETERMINISTIC = frozenset({'sauvegarde5688', 'export5688', 'controle5688', 'maj_local5661', 'automation_setting', 'live_calendar430', 'live_documents430', 'deposit_draft', 'archive_correspondence5643',
+DETERMINISTIC = frozenset({'synchro_livrables5689', 'controle_livrable5689', 'export_livrable5689', 'sauvegarde5688', 'export5688', 'controle5688', 'maj_local5661', 'automation_setting', 'live_calendar430', 'live_documents430', 'deposit_draft', 'archive_correspondence5643',
                            'file_mail_attachments5643', 'verify_deliverable420'})
+# 5.6.89 : travaux que la pause programmée laisse passer ; le contrôle de santé lit l'état des services sans inférence.
+SANS_MODELE = DETERMINISTIC | {'health'}
 POLL_SECONDS = 1.0
 
 _local = threading.local()
 
 
 # ---------------------------------------------------------------- lecture fraîche des décisions
-def _read(state_dir):
-    """(pause globale, dossiers en pause) lus sans cache dans la base de l'instance."""
-    path = Path(state_dir or '') / 'desk.sqlite3'
-    if not state_dir or not path.is_file():
-        return False, {}
+def _read_all(state_dir, now=None, matter='', automatic=False):
+    """5.6.89 : (pause manuelle, dossiers en pause, code du planning), une seule lecture sans cache de la base de l'instance."""
+    from . import horaires_ia5689 as horaires
+    values = horaires.photo(state_dir or '')
     try:
-        db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=2)
-    except sqlite3.Error:
+        matters = json.loads(values.get(PAUSE_MATTERS) or '{}')
+        manual = bool(json.loads(values.get(PAUSE_GLOBAL) or 'false'))
+    except (ValueError, TypeError):
         raise Stop('controle_pause_indisponible') from None
-    try:
-        values = {k: json.loads(v) for k, v in db.execute('SELECT key,value FROM settings WHERE key IN (?,?)', (PAUSE_GLOBAL, PAUSE_MATTERS))}
-        matters = values.get(PAUSE_MATTERS) or {}
-        return bool(values.get(PAUSE_GLOBAL, False)), (matters if isinstance(matters, dict) else {})
-    except (sqlite3.Error, ValueError, TypeError):
-        raise Stop('controle_pause_indisponible') from None
-    finally:
-        db.close()
+    code = horaires.code_de(horaires.lire_horaire(values, horaires._utc(now)), matter, automatic) if horaires.CLE_POLITIQUE in values else ''
+    return manual, (matters if isinstance(matters, dict) else {}), code
 
 
-PAUSE_REASONS = {'pause': 'ia_en_pause', 'pause_dossier': 'agent_en_pause_sur_ce_dossier'}
+def _read(state_dir, now=None):
+    """(pause globale, dossiers en pause) lus sans cache dans la base de l'instance. 5.6.89 : la pause globale inclut le planning."""
+    manual, matters, code = _read_all(state_dir, now, automatic=True)
+    return manual or bool(code), matters
+
+
+PAUSE_REASONS = {'pause': 'ia_en_pause', 'pause_dossier': 'agent_en_pause_sur_ce_dossier', PAUSE_HORAIRE: CODE_HORAIRE}
 
 
 def stop_code(status, stop_reason):
@@ -97,40 +107,140 @@ def job_stop_code(state_dir, job_id):
     return stop_code(*_job_state(state_dir, job_id))
 
 
-def global_paused(desk):
+def manual_paused(desk):
+    """5.6.89 : la seule pause décidée par l'avocat (réglage ``missions567:pause``), jamais écrite par le planning."""
     return bool(desk.settings(PAUSE_GLOBAL, False))
 
 
-def pause_in_effect(desk, row):
-    """5.6.66 : la pause qui a suspendu ce travail est-elle toujours en vigueur ? (pause de l'IA, ou pause de SON dossier)"""
+def global_paused(desk, now=None, matter=''):
+    """L'IA est-elle arrêtée pour un travail automatique ? Pause manuelle ou, depuis 5.6.89, plage programmée (sauf dérogation qui couvre l'automatisme)."""
+    if manual_paused(desk):
+        return True
+    from . import horaires_ia5689 as horaires
+    return bool(horaires.code_horaire(desk, now, matter, automatic=True))
+
+
+def _held_by_schedule(desk, row, args=None, now=None):
+    """5.6.89 : le planning retient-il ce travail ? Évalué pour lui : un travail déterministe passe, une dérogation vaut dans son périmètre."""
+    from . import horaires_ia5689 as horaires
+    keys = row.keys()
+    if 'kind' in keys and row['kind'] in SANS_MODELE:
+        return False
+    if args is None:
+        args = horaires._args(row) if 'args' in keys else {}
+    return bool(horaires.code_horaire(desk, now, str(row['matter_ref'] or ''), is_automatic_row(row, args)))
+
+
+def pause_in_effect(desk, row, now=None):
+    """5.6.66 : la pause qui a suspendu ce travail est-elle toujours en vigueur ? (pause de l'IA, ou pause de SON dossier)
+    5.6.89 : un travail suspendu par le planning reste retenu tant qu'un AUTRE motif le concerne : à 7 h, la pause manuelle ou celle du dossier
+    prend le relais et rien ne le relâche."""
     reason = row['stop_reason'] if 'stop_reason' in row.keys() else None
     if reason == 'pause':
-        return global_paused(desk)
+        return manual_paused(desk)
     if reason == 'pause_dossier':
         paused = desk.settings(PAUSE_MATTERS, {}) or {}
         return isinstance(paused, dict) and str(row['matter_ref'] or '') in paused
+    if reason == PAUSE_HORAIRE:
+        paused = desk.settings(PAUSE_MATTERS, {}) or {}
+        return manual_paused(desk) or (isinstance(paused, dict) and str(row['matter_ref'] or '') in paused) or _held_by_schedule(desk, row, now=now)
     return False
+
+
+def _clock():
+    from .horaires_ia5689 import maintenant
+    return maintenant()
+
+
+def _parsed(value, default):
+    try:
+        found = datetime.fromisoformat(str(value))
+        return found if found.tzinfo else found.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return default
+
+
+def _paused_seconds(row, now):
+    """Durée programmée déjà enregistrée, plus la suspension en cours : elle ne compte pas dans l'ancienneté active du travail."""
+    total = int(row['pause_secondes'] or 0)
+    if row['pause_debut']:
+        total += max(0, int((now - _parsed(row['pause_debut'], now)).total_seconds()))
+    return total
+
+
+def active_created(row):
+    """Création décalée de la durée suspendue par le planning : l'attente programmée ne compte ni comme ancienneté ni comme attente de file."""
+    seconds = int(row['pause_secondes'] or 0)
+    if not seconds:
+        return row['created']
+    found = _parsed(row['created'], None)
+    return (found + timedelta(seconds=seconds)).isoformat() if found else row['created']
+
+
+def _requeue(desk, row, now, delay=None):
+    """Remise en file conditionnelle : une annulation enregistrée entre-temps reste terminale. La durée de la pause est enregistrée."""
+    when = (now + timedelta(seconds=delay)).isoformat() if delay else None
+    return desk.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL,not_before=COALESCE(?,not_before),pause_debut=NULL,pause_secondes=? "
+                           "WHERE id=? AND status='suspended'", (when, _paused_seconds(row, now), row['id'])).rowcount
+
+
+def _hold_for_schedule(desk, row, now):
+    """La pause d'origine est levée mais le planning s'applique : le travail reste suspendu, au titre du planning."""
+    desk.db.execute("UPDATE jobs SET stop_reason=?,pause_debut=COALESCE(pause_debut,?) WHERE id=? AND status='suspended'", (PAUSE_HORAIRE, now.isoformat(), row['id']))
+
+
+def _close_job(desk, row, message, extra=None):
+    return desk.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE id=? AND status='suspended'",
+                           (desk.now(), json.dumps({'message': message, **(extra or {})}, ensure_ascii=False), row['id'])).rowcount
+
+
+def _delay_for(index):
+    """Reprise bornée : quelques travaux automatiques tout de suite, les suivants espacés par ``not_before``, sans rafale."""
+    from .horaires_ia5689 import REPRISE_ESPACEMENT, REPRISE_IMMEDIATE
+    return (index - REPRISE_IMMEDIATE + 1) * REPRISE_ESPACEMENT if index >= REPRISE_IMMEDIATE else None
+
+
+def _duplicate(desk, row):
+    """Même travail déjà en file ou en cours : à la reprise, un seul passage."""
+    return desk.db.execute("SELECT 1 FROM jobs WHERE kind=? AND args=? AND id<>? AND status IN ('pending','running','cancel_requested') LIMIT 1",
+                           (row['kind'], row['args'], row['id'])).fetchone() is not None
 
 
 STALE_USER_HOURS = 6
 
 
-def release_stale(desk):
+ECHEANCE_MESSAGE = 'Échéance dépassée pendant la pause programmée : ce travail ne repart pas seul. Revalidez-le, sources à jour, avant toute publication.'
+
+
+def release_stale(desk, now=None):
     """5.6.66 : travaux restés « suspendus » alors que leur pause est levée (reprise passée par un autre chemin, version antérieure).
     Une demande de l'avocat de moins de 6 h est remise en file ; tout le reste est clos avec un motif lisible (les contrôles périodiques
     sont reprogrammés par leur planificateur). Renvoie (remis en file, clos)."""
-    from datetime import datetime, timedelta, timezone
-    rows = desk.db.execute("SELECT id,kind,origin,priority,args,created,stop_reason,matter_ref FROM jobs WHERE status='suspended'").fetchall()
-    limit = (datetime.now(timezone.utc) - timedelta(hours=STALE_USER_HOURS)).isoformat()
-    revived = closed = 0
+    from . import horaires_ia5689 as horaires
+    now = now or _clock()
+    rows = desk.db.execute("SELECT id,kind,origin,priority,args,created,stop_reason,matter_ref,pause_debut,pause_secondes FROM jobs WHERE status='suspended' "
+                           "ORDER BY priority,id").fetchall()
+    limit = (now - timedelta(hours=STALE_USER_HOURS)).isoformat()
+    revived = closed = automatics = 0
     for r in rows:
-        if pause_in_effect(desk, r):
+        if pause_in_effect(desk, r, now):
             continue
-        try:
-            args = json.loads(r['args'] or '{}')
-        except (TypeError, ValueError):
-            args = {}
-        if not is_automatic_row(r, args if isinstance(args, dict) else {}) and str(r['created'] or '') >= limit:
+        args = horaires._args(r)
+        if _held_by_schedule(desk, r, args, now):   # 5.6.89 : pause d'origine levée, planning en vigueur : ni close ni reprise
+            _hold_for_schedule(desk, r, now)
+            continue
+        automatic_row = is_automatic_row(r, args)
+        if r['stop_reason'] == PAUSE_HORAIRE:
+            # 5.6.89 : la seule attente programmée ne rend pas une demande obsolète ; l'échéance absolue, elle, s'impose toujours.
+            active_age = now - _parsed(r['created'], now) - timedelta(seconds=_paused_seconds(r, now))
+            if horaires.motif_revalidation(args, now):
+                closed += _close_job(desk, r, ECHEANCE_MESSAGE, {'revalidation_requise': True})
+            elif not automatic_row and active_age > timedelta(hours=STALE_USER_HOURS):
+                closed += _close_job(desk, r, 'Demande ancienne, au-delà de la suspension programmée ; à relancer si besoin.')
+            else:
+                revived += _requeue(desk, r, now, _delay_for(automatics) if automatic_row else None)
+                automatics += 1 if automatic_row else 0
+        elif not automatic_row and str(r['created'] or '') >= limit:
             revived += desk.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL WHERE id=? AND status='suspended'",
                                        (r['id'],)).rowcount
         else:
@@ -253,30 +363,51 @@ def pause_all(desk, on, owner='cabinet'):
         counts['repris'] = resume(desk)
         desk.audit('arret5643_pause_globale', {'pause': False, 'owner': owner, **counts})
         message = 'IA reprise. %d travail(aux) suspendu(s) remis en file.' % counts['repris']
+        if global_paused(desk):   # 5.6.89 : « Reprendre » lève la pause manuelle, jamais les horaires enregistrés
+            message += ' La pause programmée reste en vigueur.'
     return {'paused': on, **counts, 'message': message}
 
 
-def resume(desk, matter=None):
-    """Remet en file les travaux suspendus par une pause levée (globale ou d'un dossier) ; jamais les travaux annulés."""
-    if global_paused(desk):
+def resume(desk, matter=None, now=None):
+    """Remet en file les travaux suspendus par une pause levée (globale ou d'un dossier) ; jamais les travaux annulés.
+    5.6.89 : chaque travail est réévalué. La pause manuelle prime ; un travail encore retenu par le planning reste suspendu à ce titre, sans que
+    « Reprendre » n'y change rien ; l'échéance dépassée impose une revalidation ; les demandes de l'avocat d'abord, puis les automatismes, espacés."""
+    if manual_paused(desk):
         return 0
+    from . import horaires_ia5689 as horaires
+    now = now or _clock()
     paused_matters = desk.settings(PAUSE_MATTERS, {}) or {}
     paused_matters = paused_matters if isinstance(paused_matters, dict) else {}
-    rows = desk.db.execute("SELECT id,matter_ref,stop_reason FROM jobs WHERE status='suspended'").fetchall()
-    ids = [r['id'] for r in rows if (matter is None or r['matter_ref'] == matter) and str(r['matter_ref'] or '') not in paused_matters]
-    count = 0
-    for jid in ids:
-        count += desk.db.execute("UPDATE jobs SET status='pending',stop_reason=NULL,result=NULL WHERE id=? AND status='suspended'",
-                                 (jid,)).rowcount
+    rows = desk.db.execute("SELECT id,kind,origin,priority,args,created,matter_ref,stop_reason,pause_debut,pause_secondes FROM jobs WHERE status='suspended' "
+                           "ORDER BY CASE origin WHEN 'automatic' THEN 1 ELSE 0 END,priority,id").fetchall()
+    count = automatics = 0
+    for r in rows:
+        if (matter is not None and r['matter_ref'] != matter) or str(r['matter_ref'] or '') in paused_matters:
+            continue
+        args = horaires._args(r)
+        if _held_by_schedule(desk, r, args, now):
+            if r['stop_reason'] != PAUSE_HORAIRE:
+                _hold_for_schedule(desk, r, now)
+            continue
+        if r['stop_reason'] == PAUSE_HORAIRE:
+            if horaires.motif_revalidation(args, now):
+                _close_job(desk, r, ECHEANCE_MESSAGE, {'revalidation_requise': True})
+                continue
+            if _duplicate(desk, r):
+                _close_job(desk, r, 'Regroupé avec un travail identique à la reprise.')
+                continue
+        automatic_row = is_automatic_row(r, args)
+        count += _requeue(desk, r, now, _delay_for(automatics) if automatic_row else None)
+        automatics += 1 if automatic_row else 0
     # 5.6.44 (F09) : reprise avant acquittement de la pause — la demande d'arrêt posée par la pause est retirée ; un travail encore actif
     # continue, et un travail interrompu entre-temps est remis en file par le worker (pas de second clic).
-    stopping = desk.db.execute("SELECT id,matter_ref,stop_reason FROM jobs WHERE status='cancel_requested' AND stop_reason IN ('pause','pause_dossier')").fetchall()
+    stopping = desk.db.execute("SELECT id,kind,origin,priority,args,matter_ref,stop_reason FROM jobs WHERE status='cancel_requested' AND stop_reason IN ('pause','pause_dossier','pause_horaire')").fetchall()
     for r in stopping:
-        if (matter is None or r['matter_ref'] == matter) and str(r['matter_ref'] or '') not in paused_matters:
+        if (matter is None or r['matter_ref'] == matter) and str(r['matter_ref'] or '') not in paused_matters and not _held_by_schedule(desk, r, now=now):
             desk.db.execute("UPDATE jobs SET status='running',stop_reason=NULL WHERE id=? AND status='cancel_requested' AND stop_reason=?",
                             (r['id'], r['stop_reason']))
     desk.db.commit()
-    release_stale(desk)   # 5.6.66 : et les travaux suspendus par une pause déjà levée
+    release_stale(desk, now)   # 5.6.66 : et les travaux suspendus par une pause déjà levée
     return count
 
 
@@ -304,7 +435,7 @@ def cancel_descendants(desk, job_id):
             "UPDATE jobs SET status='cancelled',finished=?,result=? WHERE parent_job_id=? AND status IN ('pending','suspended')",
             (stamp, json.dumps({'message': 'Annulé avec le travail parent.'}), parent)).rowcount
         stopping += desk.db.execute("UPDATE jobs SET status='cancel_requested',stop_reason='parent' WHERE parent_job_id=? AND "
-                                    "(status='running' OR (status='cancel_requested' AND stop_reason IN ('pause','pause_dossier')))", (parent,)).rowcount
+                                    "(status='running' OR (status='cancel_requested' AND stop_reason IN ('pause','pause_dossier','pause_horaire')))", (parent,)).rowcount
         todo.extend(children)
     desk.db.commit()
     return cancelled, stopping
@@ -330,8 +461,8 @@ def current_job():
     return getattr(_local, 'job', None)
 
 
-def reason_to_stop(state_dir=None, job=None):
-    """Motif d'arrêt courant ('' si l'appel au modèle peut se faire) : annulation, pause globale ou pause du dossier."""
+def reason_to_stop(state_dir=None, job=None, now=None):
+    """Motif d'arrêt courant ('' si l'appel au modèle peut se faire) : annulation, pause globale, pause du dossier, plage horaire."""
     job = job if job is not None else current_job()
     state_dir = (job or {}).get('state_dir') or state_dir
     if not state_dir:
@@ -340,12 +471,13 @@ def reason_to_stop(state_dir=None, job=None):
         code = job_stop_code(state_dir, job['job_id'])
         if code:
             return code
-    paused, matters = _read(state_dir)
+    automatic_job = bool(job and job.get('automatic'))
+    paused, matters, schedule = _read_all(state_dir, now, (job or {}).get('matter') or '', automatic_job)
     if paused:
         return 'ia_en_pause'
-    if job and job.get('automatic') and job.get('matter') and job['matter'] in matters:
+    if automatic_job and job.get('matter') and job['matter'] in matters:
         return 'agent_en_pause_sur_ce_dossier'
-    return ''
+    return schedule   # 5.6.89 : le planning vient après la pause manuelle et celle du dossier ; la dérogation ne neutralise que lui
 
 
 def before_model_call(cfg):
@@ -408,6 +540,9 @@ def register_connection(conn):
 def interruptible(call, cfg=None, poll=POLL_SECONDS):
     """Exécute ``call()`` (un appel HTTP au modèle) en surveillant l'arrêt. Hors d'un travail : appel direct après contrôle de pause."""
     before_model_call(cfg)
+    emission = (cfg or {}).get('_emettre5689')
+    if emission:
+        emission()      # 5.6.89 : la pause vient d'être réévaluée : la réservation passe « émise » juste avant le réseau
     job = current_job()
     if not job or not job.get('job_id'):
         return call()
@@ -442,6 +577,9 @@ def interruptible(call, cfg=None, poll=POLL_SECONDS):
         raise box['error']
     reason = reason_to_stop(job=job)   # le résultat d'un appel terminé après l'arrêt n'engage aucune action
     if reason:
+        if reason in PAUSE_REASONS.values() or reason in CODES_HORAIRES:   # 5.6.89 : réponse tardive gardée comme résultat partiel, jamais publiée
+            from .horaires_ia5689 import garder_reponse_tardive
+            garder_reponse_tardive(job, reason, box.get('value'))
         raise Stop(reason)
     return box.get('value')
 

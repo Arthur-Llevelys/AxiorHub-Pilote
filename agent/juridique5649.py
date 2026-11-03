@@ -130,6 +130,13 @@ def research(desk, matter_id, question, purpose='redaction', researcher=None):
     query = neutral_query(question)
     if len(query) < 8:
         return {**base, 'statut': 'echec', 'erreur': 'question_trop_courte'}
+    from .data_policy5689 import evaluer     # 5.6.89 : avant la lecture du cache et le transfert ; un refus se lit dans le bilan, comme toute recherche impossible
+    decision = evaluer(desk.c, 'recherche_web', 'sources_juridiques', finalite=str(purpose or ''), requete=query)
+    if not decision['allowed']:
+        return {**base, 'statut': 'echec', 'erreur': decision['denial_reasons'][0].split(':')[0]}
+    from .membres5650 import viewer_hidden
+    if matter_id and str(matter_id) in viewer_hidden():      # 5.6.89 : le cache est commun au cabinet : un compte écarté du dossier n'y lit rien
+        return {**base, 'statut': 'echec', 'erreur': 'dossier_reserve'}
     key = _key(matter_id, query, state)
     cached = desk.settings(key)
     if isinstance(cached, dict) and time.time() - float(cached.get('at') or 0) < TTL and isinstance(cached.get('data'), dict):

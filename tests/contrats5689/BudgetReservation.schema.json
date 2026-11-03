@@ -1,0 +1,78 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "reservation_id": {
+      "title": "Reservation Id",
+      "type": "string"
+    },
+    "cabinet_id": {
+      "title": "Cabinet Id",
+      "type": "string"
+    },
+    "mission_id": {
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "call_id": {
+      "title": "Call Id",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "currency": {
+      "pattern": "^[A-Z]{3}$",
+      "title": "Currency",
+      "type": "string"
+    },
+    "ceiling_micro": {
+      "minimum": 0,
+      "title": "Ceiling Micro",
+      "type": "integer"
+    },
+    "actual_micro": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actual Micro"
+    },
+    "pricing_version": {
+      "title": "Pricing Version",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "reserved",
+        "dispatched",
+        "uncertain",
+        "settled",
+        "released"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "reservation_id",
+    "cabinet_id",
+    "mission_id",
+    "call_id",
+    "idempotency_key",
+    "currency",
+    "ceiling_micro",
+    "pricing_version",
+    "state"
+  ],
+  "title": "BudgetReservation",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Contrat logique proposé à intégrer ; objet métier complet, pas autorisation fournie par un client."
+}

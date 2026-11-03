@@ -33,6 +33,7 @@
     if (save.state === 'failed') panel.appendChild(el('p', 'c5637-alert', 'Échec de l’enregistrement : ' + (save.error || '') + '. Utilisez « Télécharger comme » si le problème persiste.'));
     if (save.conflict_path) panel.appendChild(el('p', 'c5637-alert', 'Conflit : une copie a été enregistrée à côté du fichier.'));
     if (s.participants > 1) panel.appendChild(el('p', 'ax-muted', s.participants + ' personnes dans le document : aucune écriture automatique.'));
+    (s.limites || []).forEach(function (l) { panel.appendChild(el('p', 'c5637-alert', l)); });
     if (!s.flags.observation) { panel.appendChild(el('p', 'ax-muted', 'Observation désactivée dans Paramètres.')); return; }
     var mode = el('label', '', 'Mode ');
     var select = el('select');
@@ -47,6 +48,7 @@
     if (a && a.result && (a.status === 'ready' || a.status === 'partial')) {
       panel.appendChild(el('h2', '', 'Ce que cela change'));
       if (a.result.summary) panel.appendChild(el('p', '', a.result.summary));
+      (a.result.limites || []).forEach(function (l) { panel.appendChild(el('p', 'ax-muted', l)); });
       (a.result.impacts || []).forEach(function (i) { panel.appendChild(el('p', '', (i.needs_decision ? 'À décider : ' : '') + i.summary)); });
     }
     panel.appendChild(el('h2', '', 'Propositions'));

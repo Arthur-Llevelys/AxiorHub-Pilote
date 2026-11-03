@@ -787,7 +787,12 @@ class Model:
         else:
             raise Stop('type_fournisseur_invalide')
 
+    def _note_error(self,error):
+        from .travaux5689 import note_model_error   # 5.6.89 (chap. 20) : connecteur, modèle, étape et erreur utile, sans secret ni contenu
+        note_model_error(getattr(self,'cfg',None) or {},getattr(self,'stage5689',''),error)
+
     def _translate_error(self,error):
+        Model._note_error(self,error)
         code=str(error)
         if code=='http_401':return Stop('authentification_fournisseur_refusee')
         if code=='http_402':      # 5.6.85 : crédit épuisé chez le fournisseur ; relais possible, comme pour un plafond
@@ -834,8 +839,10 @@ class Model:
     def _secours(self,method,*args):
         """5.6.4 : génération locale bornée par le délai, puis fournisseurs externes dans l'ordre (toujours pseudonymisés)."""
         from . import secours564
+        from .data_policy5689 import repli_bloque
         from .hybrid400 import ESCALATABLE_LOCAL_ERRORS
         sec=self.cfg['secours'];local={k:v for k,v in self.cfg.items() if k!='secours'}
+        if repli_bloque(self.cfg.get('external_policy_config') or {'state_dir':self.cfg.get('state_dir')}):return self._call_child(local,method,*args)   # 5.6.89 : pas de secours hors politique
         local['timeout_seconds']=sec['delay'];first=None
         if secours564.waited()>=sec['delay']:
             reason='attente'
@@ -888,8 +895,9 @@ class Model:
             except Stop as error:
                 from .hybrid400 import ESCALATABLE_LOCAL_ERRORS,external_config,record,sanitize_external
                 code=str(error);config=self.cfg['hybrid_config']
+                from .data_policy5689 import repli_bloque
                 if (code not in ESCALATABLE_LOCAL_ERRORS or
-                    not decision.get('escalate_after_local_failure')):raise
+                    not decision.get('escalate_after_local_failure') or repli_bloque(config)):raise   # 5.6.89 : politique expresse : pas d'envoi externe pour masquer une panne
                 retry=self._hybrid_choice('completion',messages=messages,max_tokens=max_tokens,
                   force_external=True,local_error=code)
                 if not retry or not retry['external']:
@@ -929,12 +937,17 @@ class Model:
         return value
 
     def _leaf(self,messages,temperature,max_tokens,json_schema):
+        from .data_policy5689 import garde_modele   # 5.6.89 : politique des données, juste avant tout envoi, pour tous les fournisseurs (local compris)
+        garde_modele(self.cfg,messages,getattr(self,'_trace',('',None))[0])
         from .bouclier5659 import protect_messages   # 5.6.59 : sources nettoyées, alerte transmise au modèle, constats journalisés
         messages=protect_messages(self.cfg,messages,getattr(self,'_trace',('',None))[0])
         from .competences5632 import current_instructions   # 5.6.32 (R16) : seules les compétences retenues pour la tâche
         from .competences5643 import assemble   # 5.6.43 (§ 7.3) : un seul assemblage, sans doublon, dans un budget unique
         from .competences5683 import budget_chars   # 5.6.83 (SK03) : place réelle du modèle, messages et réponse réservés
         skill_text=assemble(str(self.cfg.get('skill_instructions') or ''),current_instructions(),budget_chars(self.cfg,messages,max_tokens))
+        if skill_text:   # 5.6.89 : une compétence importée passe le même nettoyage que les sources : pas de faux jeton de conversation dans un message du système
+            from .bouclier5659 import clean as _clean5689
+            skill_text=_clean5689(skill_text)[0]
         skill_at=None
         if skill_text:
             policy=('COMPÉTENCE EXTERNE APPROUVÉE PAR LE CABINET. Elle précise une méthode de travail, '
@@ -1032,8 +1045,10 @@ class Model:
         if legacy:req['temperature']=max(0.0,min(float(temperature or 0),1.0))
         elif self.cfg.get('effort5682'):req['output_config']={'effort':self.cfg['effort5682']}
         if system.strip():req['system']=system
-        estimated=estimate_and_check_budget(self.cfg,messages,max_tokens)
+        estimated=estimate_and_check_budget(self.cfg,messages,req['max_tokens'])   # 5.6.89 : borne de sortie réellement demandée (double pour la réflexion)
         from .arret5643 import interruptible
+        from .budget_ledger5689 import preparer_emission
+        preparer_emission(self.cfg)
         try:result=interruptible(lambda:self.http.json('POST','/messages',req),self.cfg)
         except Stop as error:
             record_usage(self.cfg,{},estimated,'error',messages,error=str(error))
@@ -1058,12 +1073,16 @@ class Model:
         from .arret5643 import interruptible
         from . import chatgpt5682
         state=self.cfg.get('state_dir','');info={}
+        from .budget_ledger5689 import noter_forfait,preparer_emission
+        noter_forfait(self.cfg)   # 5.6.89 : hors routeur aussi, une ligne au registre
+        preparer_emission(self.cfg)
         try:
             text,usage=interruptible(lambda:respond(state,self.cfg['model'],messages,json_schema,
                                                     self.cfg.get('structured_mode','strict')=='strict',timeout=self.cfg.get('timeout_seconds',240),
                                                     effort=self.cfg.get('effort5682') or None,info=info),self.cfg)
         except Stop as error:
             record_usage(self.cfg,{},0.0,'error',messages,error=str(error))
+            self._note_error(error)
             if str(error) in chatgpt5682.DEFER_CODES:chatgpt5682.defer(state,str(error))   # 5.6.82 : report borné, sans nouvelle mission
             raise
         if info.get('effort_refuse'):
@@ -1091,6 +1110,8 @@ class Model:
             else:req['response_format']={'type':'json_object'}
         estimated=estimate_and_check_budget(self.cfg,messages,max_tokens)
         from .arret5643 import interruptible
+        from .budget_ledger5689 import preparer_emission
+        preparer_emission(self.cfg)
         try:result=interruptible(lambda:self.http.json('POST','/chat/completions',req),self.cfg)
         except Stop as error:
             record_usage(self.cfg,{},estimated,'error',messages,error=str(error))
@@ -1110,6 +1131,7 @@ class Model:
 
     def ask(self, stage, data):
         from . import bouclier5659   # 5.6.59 : instructions cachées dans les sources neutralisées et signalées
+        self.stage5689=stage         # 5.6.89 : étape citée par le diagnostic d'une erreur
         with bouclier5659.guarded():
             data, findings = bouclier5659.protect_payload(self.cfg, stage, data)
             bouclier5659._local.payload_done = True

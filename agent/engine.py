@@ -49,6 +49,11 @@ def known_correspondent(cfg, sender, matters=None):
     return False
 
 
+CODES_HORAIRES = ('ia_en_pause_horaire', 'horaires_ia_illisibles')   # 5.6.89
+# 5.6.89 : une pause générale ou programmée suspend le courriel : il revient à la reprise. La pause d'un seul dossier garde son écart : elle peut durer et un nouvel essai à chaque relevé coûterait une analyse.
+CODES_A_REPRENDRE = CODES_HORAIRES + ('ia_en_pause', 'automatismes_en_pause', 'controle_pause_indisponible')
+
+
 class Engine:
     def __init__(self, config, mailbox=None, dav=None, model=None, state=None):
         self.c = config
@@ -476,7 +481,7 @@ class Engine:
             if cfg['mode'] == 'observe': return finish('observed', 'proposition_sans_ecriture_imap')
             from .pause5629 import blocked_for_config
             reason = blocked_for_config(cfg, report.get('matter') or '')
-            if reason:return finish('ignored',reason)
+            if reason:return finish('retry' if reason in CODES_A_REPRENDRE else 'ignored',reason)   # 5.6.89 : le courriel reste à traiter, jamais écarté
             from .desk import Desk
             policy_desk=Desk(cfg)
             try:
@@ -519,7 +524,7 @@ class Engine:
               ('Message-ID','From','To','Cc','Subject','In-Reply-To','References','X-AxiorHub-Draft-Key') if draft.get(header)}
             # Persist the report before the single allowed write.
             reason = blocked_for_config(cfg, report.get('matter') or '')
-            if reason:return finish('ignored',reason)
+            if reason:return finish('retry' if reason in CODES_A_REPRENDRE else 'ignored',reason)   # 5.6.89 : le courriel reste à traiter, jamais écarté
             self.state.report(key, {**report, 'status':'appending'})
             self.state.set(key, mid, thread, 'appending', 'enregistrement_reserve', draft_mid)
             try:
@@ -534,7 +539,7 @@ class Engine:
         except Stop as e:
             from .chatgpt5682 import HELD_CODES
             # 5.6.82 : limite ou plafond : le courriel reste à traiter, il n'est pas écarté vers la revue
-            return finish('retry' if str(e) in HELD_CODES else 'review', str(e))
+            return finish('retry' if str(e) in HELD_CODES or str(e) in CODES_A_REPRENDRE else 'review', str(e))
         except Exception:
             # No raw exception text: protocol replies may contain private data.
             # 5.6.82 : une seule reprise : un courriel en erreur repassait à chaque relevé, avec ses appels au modèle

@@ -12,6 +12,8 @@ SCOPED = {'docrequest520', 'prepare_reply', 'assistant_answer'} | READ568
 REPLAY_SAFE = SCOPED | {'live_calendar430', 'live_documents430','followup568_prepare','talk568_prepare','document568_run'}
 # 5.6.35 : relevés de pièces rejouables (fragments acquis en cache, état de chaque pièce conservé) — repris après redémarrage.
 REPLAY_SAFE |= {'digest_pieces5632'}
+# 5.6.89 (B06) : rangement des notes rejouable : le journal rangement5689 reprend chaque note à son étape manquante, sans recréer de fichier.
+REPLAY_SAFE |= {'ranger_notes5666'}
 
 
 @contextmanager
@@ -49,9 +51,10 @@ def producer_lock(config, kind, args):
 
 def _older_than(desk, job_id, hours):
     from datetime import datetime, timedelta, timezone
-    row = desk.db.execute('SELECT created FROM jobs WHERE id=?', (job_id,)).fetchone()
+    from .arret5643 import active_created
+    row = desk.db.execute('SELECT created,pause_secondes FROM jobs WHERE id=?', (job_id,)).fetchone()
     try:
-        created = datetime.fromisoformat(str(row['created']))
+        created = datetime.fromisoformat(str(active_created(row)))   # 5.6.89 : la durée d'une pause programmée n'est pas de l'ancienneté
     except (TypeError, ValueError):
         return False
     created = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
@@ -62,7 +65,7 @@ def recover(desk, worker_id):
     rows=desk.db.execute("SELECT id,kind,status,args,attempts,stop_reason FROM jobs WHERE status IN ('running','cancel_requested') AND (worker=? OR (worker IS NULL AND ?='1'))",(str(worker_id),str(worker_id))).fetchall()
     counts={'resumed':0,'cancelled':0,'review':0}
     for row in rows:
-        if row['status']=='cancel_requested' and row['stop_reason'] in ('pause','pause_dossier'):
+        if row['status']=='cancel_requested' and row['stop_reason'] in ('pause','pause_dossier','pause_horaire'):
             # 5.6.81 : arrêté par une pause (mise à jour comprise) : repris à la levée de la pause, jamais perdu
             state,result='suspended',{'message':'Suspendu : IA en pause. Repris automatiquement à la reprise.'};counts['resumed']+=1
         elif row['status']=='cancel_requested':

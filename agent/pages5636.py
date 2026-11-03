@@ -27,6 +27,8 @@ PAGES = {
     '/mon-compte': 'Mon compte',   # 5.6.88 : double authentification et jetons d'API de la personne
     '/parametres/journal-audit': 'Journal d’audit',   # 5.6.88 (administrateur)
     '/parametres/ia-visible': 'Ce que l’IA peut voir',   # 5.6.88 (administrateur)
+    '/parametres/gouvernance': 'Données et budget de l’IA',   # 5.6.89 (administrateur)
+    '/banc-essai': 'Banc d’essai et état des fonctions',   # 5.6.89 : hors de /parametres, un avocat y donne son avis de relecteur
     '/parametres/droits': 'Droits et accès',   # 5.6.50 (administrateur)   # 5.6.37 : page du menu « Toutes les fonctions » (interface affichée dans Nextcloud)
 }
 
@@ -43,6 +45,12 @@ def page(desk, auth, prefix, env, args, path, shell):
         from . import securite5688
         render = {'/mon-compte': securite5688.compte_page, '/parametres/journal-audit': securite5688.journal_page, '/parametres/ia-visible': securite5688.vue_ia_page}[path]
         body = render(desk, auth, prefix, env, args)
+    elif path == '/parametres/gouvernance':   # 5.6.89
+        from . import gouvernance_web5689
+        body = gouvernance_web5689.page(desk, auth, prefix, env, args)
+    elif path == '/banc-essai':   # 5.6.89
+        from . import qualif_web5689
+        body = qualif_web5689.page(desk, auth, prefix, env, args)
     elif path == '/parametres/droits':
         from .web567 import actor
         if actor(env)[1] != 'administrateur':

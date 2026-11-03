@@ -215,7 +215,9 @@ def configure(path):
                           'timeout_seconds':30,'max_pages':3,'read_only':True},
          'documents':{'ocr':True,'max_pdf_pages':60,'max_file_bytes':15000000,
                       'max_document_chars':100000,'max_documents_per_mail':5,
-                      'index_updates_per_run':25,'inventory_page_files':250}}
+                      'index_updates_per_run':25,'inventory_page_files':250},
+         # 5.6.89 : installation sur le serveur du cabinet ; adresses saisies ici par le titulaire, reprises comme confirmées par le profil du cabinet (aucun secret)
+         'cabinet5689':{'profil':'serveur_cabinet','adresses_saisies':[str(a).strip().lower() for a in mail['own_addresses']]}}
     private_json(c['matters_file'], [])
     private_json(target,c)
     gid = grp.getgrnam('axiorhub-mail').gr_gid

@@ -6,6 +6,7 @@ passe, de jeton ni de contenu de document). Le message montré à l'avocat dépe
 """
 from contextlib import contextmanager
 import hashlib
+import json
 import re
 import uuid
 from urllib.parse import urlsplit
@@ -43,11 +44,23 @@ def anonymize(resource):
     return '%s/%s%s#%s' % (prefix, head, '/…' if len(segments) > 2 or not p.scheme else '', tail)
 
 
-def http_error(code, method, url):
+def provider_error(body):
+    """5.6.89 (chap. 20) : champs structurés d'une erreur de fournisseur (type, code, paramètre). Le message libre n'est jamais repris : il peut recopier le texte envoyé."""
+    try:
+        data = json.loads(body or b'{}')
+    except (ValueError, UnicodeError, TypeError):
+        return {}
+    error = data.get('error') if isinstance(data, dict) else None
+    source = error if isinstance(error, dict) else (data if isinstance(data, dict) else {})
+    out = {k: str(source[k]) for k in ('type', 'code', 'param') if isinstance(source.get(k), (str, int)) and re.fullmatch(r'[A-Za-z0-9_.\[\]-]{1,60}', str(source[k]))}
+    return {k: v for k, v in out.items() if not v.startswith('sk-')}
+
+
+def http_error(code, method, url, body=None):
     """Erreur HTTP structurée (appelée par common.HTTP) : statut, opération, hôte et ressource anonymisée."""
     status = int(code)
     return Qualified('http_%d' % status, service=urlsplit(url).hostname or '', operation=method, remote_status=status,
-                     resource=anonymize(url), retryable=('http_%d' % status) in RETRYABLE)
+                     resource=anonymize(url), retryable=('http_%d' % status) in RETRYABLE, provider_error=provider_error(body) if status >= 400 else None)
 
 
 def local_missing(path):
@@ -163,6 +176,19 @@ MESSAGES = {
     'ia_en_pause': 'L’IA est en pause : ce travail reprendra quand vous cliquerez sur « IA en pause — reprendre ».',   # 5.6.43
     'automatismes_en_pause': 'L’IA est en pause : aucun travail automatique ne démarre avant la reprise.',   # 5.6.43
     'controle_pause_indisponible': 'L’état de pause n’a pas pu être vérifié : le travail est suspendu par précaution.',   # 5.6.43
+    'ia_en_pause_horaire': 'L’IA est en pause programmée : ce travail reprendra seul à la fin de la plage (Paramètres › Horaires de fonctionnement).',   # 5.6.89
+    'horaires_ia_illisibles': 'Les horaires de l’IA sont illisibles : les nouveaux appels à l’IA sont bloqués. Corrigez le réglage dans Paramètres › Horaires de fonctionnement.',   # 5.6.89
+    'horaires_format_invalide': 'Réglage des horaires invalide : rechargez la page.',   # 5.6.89
+    'horaires_fuseau_inconnu': 'Fuseau horaire inconnu sur ce serveur : choisissez un fuseau de la liste, par exemple Europe/Paris.',   # 5.6.89
+    'horaires_trop_de_plages': 'Cinquante plages au plus.',   # 5.6.89
+    'horaires_plage_en_double': 'Deux plages portent le même identifiant : rechargez la page.',   # 5.6.89
+    'horaires_jours_invalides': 'Choisissez au moins un jour pour chaque plage.',   # 5.6.89
+    'horaires_heure_invalide': 'Heure invalide : utilisez le format 24 h, par exemple 18:00.',   # 5.6.89
+    'horaires_debut_egal_fin': 'Le début et la fin sont identiques : choisissez « Journée entière » pour couvrir toute la journée.',   # 5.6.89
+    'revision_perimee': 'Ce réglage a été modifié entre-temps (autre onglet ou autre poste) : rechargez la page ; rien n’a été écrasé.',   # 5.6.89
+    'confirmation_pause_immediate_requise': 'Ce réglage met l’IA en pause dès maintenant : confirmez pour l’enregistrer.',   # 5.6.89
+    'aucune_pause_programmee_en_cours': 'Aucune pause programmée n’est en cours : il n’y a rien à autoriser.',   # 5.6.89
+    'derogation_perimetre_invalide': 'Périmètre de dérogation invalide : rechargez la page.',   # 5.6.89
     'origine_travail_invalide': 'Origine du travail invalide.',   # 5.6.43
     'reponse_a_soi_meme_refusee': 'Aucun brouillon adressé au cabinet lui-même : vérifiez les destinataires du message.',   # 5.6.43
     'destinataire_absent': 'Aucun destinataire extérieur pour ce brouillon.',   # 5.6.43
@@ -494,6 +520,10 @@ MESSAGES = {
     'trajet_non_qualifie': 'Ce trajet n’est pas encore qualifié (format et routage à valider avec la plateforme) : transmission bloquée.',   # 5.6.53
     'transmission_apres_emission': 'La transmission porte sur une facture émise.',   # 5.6.53
     'type_document_financier_invalide': 'Type de document inconnu.',   # 5.6.53
+    'relance_identique_refusee': 'Ce travail a échoué sur une erreur qu’un nouvel essai identique ne corrige pas : corrigez la cause puis relancez-le vous-même.',   # 5.6.89
+    'brouillon_source_absent': 'Le brouillon de cette note n’est plus dans la messagerie et son fichier n’a pas été retrouvé : vérifiez le dossier avant de la refaire.',   # 5.6.89
+    'note_non_verifiee_apres_depot': 'Le fichier de la note n’a pas pu être relu après son dépôt : le brouillon reste dans la messagerie.',   # 5.6.89
+    'observation_evenement_different': 'Le document a envoyé deux observations différentes sous le même numéro : la deuxième est refusée, le document est relu.',   # 5.6.89
     'type_facture_invalide': 'Type de facture inconnu.',   # 5.6.53
     'type_modele_invalide': 'Type de modèle inconnu ou ne correspondant pas au document.',   # 5.6.53
     'unite_ligne_invalide': 'Unité inconnue (forfait, heure, unité).',   # 5.6.53
@@ -573,7 +603,7 @@ def explain(code, detail=None):
 
 def public(detail):
     """Détail affichable (section technique repliée) : aucune donnée confidentielle n'y figure par construction."""
-    keep = ('service', 'operation', 'stage', 'remote_status', 'retryable', 'correlation_id', 'resource', 'cause')
+    keep = ('service', 'operation', 'stage', 'remote_status', 'retryable', 'correlation_id', 'resource', 'cause', 'provider_error')
     return {k: detail[k] for k in keep if k in detail}
 
 

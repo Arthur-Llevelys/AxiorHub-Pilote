@@ -8,7 +8,7 @@ seule fois et valent pour toutes les vues. Les actions détaillées (valider une
 page de l'objet (« Ouvrir »). Rien n'est envoyé, déposé ni signé depuis la file.
 """
 import hashlib
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 CLASSES = {'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire', 'echec_agent': 'Analyse interrompue'}
 # 5.6.61 : consigne de sécurité ajoutée aux missions automatiques (proactive568) ; jamais affichée comme titre à l'avocat
@@ -174,9 +174,13 @@ def review_items(desk, prefix=''):
                 'Brouillon adressé au cabinet : « Ranger dans le dossier » en fait un document Word du dossier et retire le brouillon.'
         else:
             title, why = '%s : %s' % (x.get('type') or 'Projet', x.get('title') or ''), ('Destination : %s.' % x['dest'] if x.get('dest') else '')
+            if x.get('reserve'):   # 5.6.89 (B03) : l'état de réserve se lit sur la carte
+                why = ('Réserves : %s ' % (x.get('reserve_note') or 'à compléter.')) + why
+            elif x.get('verified') is False:
+                why = 'Fichier déposé, vérification en attente. ' + why
         out.append({'class': cls, 'object': 'relire:' + x['id'], 'revision': _rev(x.get('when'), x.get('title')), 'matter': mid, 'when': x.get('when', ''),
                     'matter_name': x.get('matter_label') or 'Dossier non identifié', 'title': title, 'consequence': why,
-                    'href': prefix + '/aujourdhui#relire=' + quote(x['id'], safe=''), 'item': x['id'],
+                    'href': (prefix + '/livrables/' + x['document_id'] + '?' + urlencode({'retour': prefix + '/aujourdhui'})) if x.get('document_id') else prefix + '/aujourdhui#relire=' + quote(x['id'], safe=''), 'item': x['id'],
                     'choices': ('ouvrir', 'ranger', 'relu') if cls == 'note_interne' else ('ouvrir', 'relu', 'reporter')})
     return out
 

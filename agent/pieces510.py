@@ -25,6 +25,7 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
+from . import pause5629
 from .common import Stop, clean_path, digest, fold, load_matters, under
 
 OUTPUT_FOLDER = 'Pièces communiquées'
@@ -1156,6 +1157,12 @@ def docx_to_pdf(raw, timeout=120):
     office = which('libreoffice')
     if not office:
         return None
+    try:   # 5.6.89 : LibreOffice ouvre n'importe quel contenu comme du texte brut : un fichier abîmé rendrait un PDF d'apparence valable
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            if 'word/document.xml' not in archive.namelist() or archive.testzip():
+                return None
+    except zipfile.BadZipFile:
+        return None
     with tempfile.TemporaryDirectory(prefix='axiorhub-bordereau-', ignore_cleanup_errors=(__import__('os').name == 'nt')) as td:
         source = Path(td) / 'bordereau.docx'
         source.write_bytes(raw)
@@ -1363,6 +1370,7 @@ def create(desk, args, dav=None):
     client.ensure_folder(target, matter['path'])
     created = []
     for name, raw, kind in files:
+        pause5629.checkpoint(desk)      # 5.6.89 (B07) : arrêt relu avant chaque fichier du bordereau
         path = clean_path(target + '/' + name)
         parent = str(PurePosixPath(path).parent)
         if parent != target:

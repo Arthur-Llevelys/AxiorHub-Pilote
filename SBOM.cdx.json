@@ -7,9 +7,9 @@
     "timestamp": "2026-10-06T00:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.88",
+      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.89",
       "name": "AxiorHub Pilote",
-      "version": "5.6.88",
+      "version": "5.6.89",
       "licenses": [
         {
           "license": {
@@ -288,6 +288,162 @@
         }
       ],
       "description": "Copie locale : agent/_vendor/segno (QR code)"
+    },
+    {
+      "type": "library",
+      "name": "@carbon/web-components",
+      "version": "2.66.0",
+      "purl": "pkg:npm/%40carbon/web-components@2.66.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@carbon/icons",
+      "version": "11.91.0",
+      "purl": "pkg:npm/%40carbon/icons@11.91.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@carbon/icon-helpers",
+      "version": "10.47.0",
+      "purl": "pkg:npm/%40carbon/icon-helpers@10.47.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@carbon/themes",
+      "version": "11.84.0",
+      "purl": "pkg:npm/%40carbon/themes@11.84.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lit",
+      "version": "3.3.3",
+      "purl": "pkg:npm/lit@3.3.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lit-html",
+      "version": "3.3.3",
+      "purl": "pkg:npm/lit-html@3.3.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lit-element",
+      "version": "4.2.2",
+      "purl": "pkg:npm/lit-element@4.2.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@lit/reactive-element",
+      "version": "2.1.2",
+      "purl": "pkg:npm/%40lit/reactive-element@2.1.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@floating-ui/dom",
+      "version": "1.8.0",
+      "purl": "pkg:npm/%40floating-ui/dom@1.8.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@floating-ui/core",
+      "version": "1.8.0",
+      "purl": "pkg:npm/%40floating-ui/core@1.8.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@floating-ui/utils",
+      "version": "0.2.12",
+      "purl": "pkg:npm/%40floating-ui/utils@0.2.12",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@ibm/plex-sans",
+      "version": "1.1.0",
+      "purl": "pkg:npm/%40ibm/plex-sans@1.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "OFL-1.1"
+          }
+        }
+      ]
     }
   ],
   "dependencies": [

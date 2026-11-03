@@ -73,5 +73,5 @@ def html(desk, prefix, owner, day=None):
     tasks = ['<a href="%s">%s</a>%s' % (e(prefix + '/mes-taches#tache-' + t['id'], quote=True), e(t['title'][:200]), ' <small class="t88-late">en retard</small>' if t['retard'] else '') for t in data['taches']]
     deadlines = ['%s <small>%s</small>' % (e(d['label']), matter(d['matter'])) for d in data['echeances']]
     inner = _block('Mes audiences', hearings) + _block('Mes tâches', tasks) + _block('Échéances du jour', deadlines)
-    return ('<section class="c530-card t88-matin" id="t88-matin" aria-labelledby="t88-matin-titre"><h2 id="t88-matin-titre">Ma liste du jour</h2>%s</section>') % (
+    return ('<section class="c530-card t88-matin" id="t88-matin" tabindex="-1" aria-labelledby="t88-matin-titre"><h2 id="t88-matin-titre">Ma liste du jour</h2>%s</section>') % (
         inner or '<p class="c530-empty">Ni audience, ni tâche, ni échéance pour vous aujourd’hui.</p>')

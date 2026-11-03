@@ -1,0 +1,206 @@
+"""5.6.89 : page Aujourd'hui (audit 5.6.88, §§ 11 et 12) : le travail préparé d'abord, un seul défilement principal.
+
+Disposition : en tête le titre, l'état et une commande IA ; colonne principale : Travail préparé, routines compactes, décisions et relectures sur une même largeur ; colonne secondaire : liste du
+matin, agenda et activité ; en bas : veille et accès secondaires. Ce module ne calcule rien : il range les mêmes morceaux que ``cockpit530.page``, avec les mêmes identifiants, pour que les scripts
+(``v530.js``, ``v5614.js``) et les personnalisations de ``tableau5688`` s'appliquent sans changement. Drapeau ``accueil`` éteint : ``cockpit530.page`` rend l'ancienne page, sur les mêmes données.
+
+Travail préparé lit le registre ``livrables5689`` ; une source en panne s'annonce comme telle, jamais comme un zéro. Les filtres restent visibles à zéro.
+Alertes : décision métier, relecture et incident technique sont séparés ; un incident ne passe pas devant une échéance (§ 11).
+Personnalisation : l'ordre choisi vaut dans chaque colonne ; un ordre personnel réunit les blocs de travail dans la colonne principale, journée et activité restant en colonne secondaire.
+"""
+from datetime import datetime, timezone
+from html import escape as e
+import re
+from urllib.parse import urlencode
+
+from .ui_components5689 import etat_html, etiquette, filtres, icone
+
+COTE = ('journee', 'activite')                                   # colonne secondaire
+BAS = ('veille', 'societes', 'memoire', 'reprise')               # sous les colonnes, sur toute la largeur
+PREMIERS = 5                                                     # lignes par filtre ; le reste est dans Documents préparés
+RESUME = 220                                                     # caractères du résumé du briefing
+FILTRES = (('tout', 'Tout'), ('documents', 'Documents'), ('courriels', 'Courriels'), ('notes', 'Notes'))
+ICONE_NATURE = {'courriel': 'courriel', 'note': 'modifier', 'contrat': 'contrat', 'convention': 'contrat', 'conditions_generales': 'contrat', 'formulaire': 'document_taches'}
+
+
+def _famille(nature):
+    return 'courriels' if nature == 'courriel' else 'notes' if nature == 'note' else 'documents'
+
+
+def _heure(desk, valeur):
+    from .cockpit530 import _local                  # fuseau du cabinet, comme le reste de la page
+    try:
+        return _local(desk, valeur, '%H h %M')
+    except (TypeError, ValueError):
+        return ''
+
+
+def _ancien(valeur, jours):
+    try:
+        moment = datetime.fromisoformat(str(valeur).replace('Z', '+00:00'))
+        return (datetime.now(timezone.utc) - moment).days > jours
+    except (TypeError, ValueError):
+        return False
+
+
+def _ligne(desk, carte, prefix, jours):
+    """Une ligne : titre complet (jamais tronqué), dossier, nature écrite, version et état. Le titre ouvre le détail ; ``return_to`` y ramène."""
+    href = carte['href'] + '?' + urlencode({'return_to': prefix + '/aujourdhui'})
+    etats = []
+    if carte.get('kind') == 'courriel' and carte.get('deposit_state'):
+        pass                                           # une réponse préparée se dit par son dépôt, pas par une production en cours
+    elif carte.get('state') == 'preparing':
+        etats.append(etiquette(carte.get('production_label') or carte['state_label'], 'info'))
+    elif carte.get('state') in ('failed', 'partial'):
+        etats.append(etiquette(carte['state_label'], 'erreur'))
+    else:
+        etats.append(etiquette(carte.get('review_label') or 'À relire', 'succes'))
+    if carte.get('deposit_state'):                     # UX14 : l'état de dépôt est distinct de l'état du projet
+        from .livrables_web5689 import DEPOT
+        etats.append(etiquette(DEPOT.get(carte['deposit_state'], ''), 'neutre'))
+    if _ancien(carte.get('updated_at'), jours):
+        etats.append(etiquette('Ancien', 'attention', 'Préparé il y a plus de %d jours' % jours))
+    return ('<li class="a89-ligne" data-livrable="%s" data-famille="%s"><span class="a89-pastille" data-nature="%s">%s</span><div class="a89-corps"><a class="a89-titre" href="%s">%s</a>'
+            '<p class="a89-dossier">%s</p><p class="a89-meta"><span>%s</span><span>Version %d</span><span>%s</span></p></div><div class="a89-droite">%s<a class="ax-btn ghost" href="%s" aria-label="Ouvrir : %s">Ouvrir</a></div></li>') % (
+        e(carte['document_id'], quote=True), _famille(carte.get('kind')), e(carte.get('kind') or '', quote=True), icone(ICONE_NATURE.get(carte.get('kind'), 'document')), e(href, quote=True), e(carte['title']),
+        e(carte.get('matter_label') or 'Sans dossier'), e(carte.get('nature') or ''), carte.get('version') or 1, e(_heure(desk, carte.get('updated_at'))), ''.join(etats), e(href, quote=True), e(carte['title'], quote=True))
+
+
+def _lecture(desk, prefix):
+    from . import livrables5689 as liv
+    hidden, droits = liv.droits_requete()
+    return liv.projection(desk, hidden, droits, revue='to_review', limite=60, prefix=prefix), liv.RECENCE
+
+
+def travail_html(desk, prefix):
+    """Contenu de « Travail préparé », aussi servi seul à l'actualisation (``m530/part``). Une erreur de lecture est un état, pas une liste vide."""
+    try:
+        data, jours = _lecture(desk, prefix)
+    except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours, et ne fait pas croire à une liste vide
+        import logging
+        logging.getLogger(__name__).exception('travail préparé')
+        return etat_html('erreur', 'Documents préparés indisponibles', 'La lecture du registre a échoué : ce n’est pas un zéro. Réessayez dans un instant.',
+                         '<a class="ax-btn ghost" href="%s">Ouvrir la liste complète</a>' % e(prefix + '/livrables', quote=True))
+    par_nature = data['counts']['par_nature']
+    comptes = {'documents': sum(n for k, n in par_nature.items() if _famille(k) == 'documents'), 'courriels': par_nature.get('courriel', 0), 'notes': par_nature.get('note', 0)}
+    comptes['tout'] = sum(comptes.values())
+    entrees = [(k, v, comptes[k] if data['complet'] or comptes[k] else None) for k, v in FILTRES]
+    actif = 'documents' if comptes['documents'] or not comptes['tout'] else 'tout'
+    panneaux = []
+    for cle, libelle in FILTRES:
+        lignes = [c for c in data['items'] if cle == 'tout' or _famille(c.get('kind')) == cle]
+        corps = ''.join(_ligne(desk, c, prefix, jours) for c in lignes[:PREMIERS])
+        if corps:
+            contenu = '<ul class="a89-liste">%s</ul>' % corps
+        elif comptes[cle]:
+            contenu = etat_html('vide', '%d à voir dans la liste complète' % comptes[cle], 'Ils sont plus anciens que les éléments affichés ici.')
+        elif data['complet']:
+            contenu = etat_html('vide', 'Rien à relire dans %s' % ('le travail préparé' if cle == 'tout' else 'les ' + libelle.lower()), 'Toutes les sources ont répondu. Un nouveau projet apparaîtra ici dès qu’il est prêt.')
+        else:
+            contenu = etat_html('partiel', 'Liste incomplète', 'Une source n’a pas pu être lue : ce n’est pas un zéro certain.')
+        suite = ''
+        if comptes[cle] > PREMIERS:
+            suite = '<p class="a89-suite"><a href="%s">Voir les %d éléments</a></p>' % (e(prefix + '/livrables?' + urlencode({'revue': 'to_review', 'recence': 'tout'}), quote=True), comptes[cle])
+        panneaux.append('<div role="tabpanel" id="a89-liste-%s" aria-labelledby="a89-liste-onglet-%s" data-filtre-panneau="%s"%s tabindex="0">%s%s</div>' % (cle, cle, cle, '' if cle == actif else ' hidden', contenu, suite))
+    pannes = [s for s in data['sources'] if s['state'] in ('unavailable', 'partial')]
+    anciennes = [s for s in data['sources'] if s['state'] == 'stale']
+    alerte = ''
+    if pannes:
+        alerte = etat_html('partiel', 'Source indisponible : liste incomplète', ' · '.join('%s : %s' % (s['label'], s['message']) for s in pannes[:3]))
+    elif anciennes:
+        alerte = etat_html('partiel', 'Une source n’est pas à jour', ' · '.join('%s : %s' % (s['label'], s['message']) for s in anciennes[:3]))
+    vieux = data['counts']['a_relire_anciens']
+    note = ('<p class="a89-note"><a href="%s">%d document(s) de plus de %d jours non relus</a> : ils restent accessibles.</p>' % (
+        e(prefix + '/livrables?' + urlencode({'revue': 'to_review', 'recence': 'tout'}), quote=True), vieux, jours)) if vieux else ''
+    return alerte + filtres('Nature du travail préparé', entrees, actif, 'a89-liste') + ''.join(panneaux) + note
+
+
+def travail_carte(desk, prefix):
+    try:
+        from .livrables5689 import droits_requete, revision
+        hidden, droits = droits_requete()
+        jeton = revision(desk, hidden, droits)
+    except Exception:   # noqa: BLE001 — sans jeton, pas d'actualisation automatique
+        jeton = ''
+    return ('<section class="c530-card a89-travail" id="a89-travail" aria-labelledby="a89-t-travail" data-revision="%s"><div class="c530-head"><h2 id="a89-t-travail">%sTravail préparé</h2>'
+            '<a class="ax-btn ghost" href="%s">Tous les documents</a></div><div id="a89-travail-zone">%s</div><p class="a89-pied">Rien n’est envoyé sans votre validation.</p></section>') % (
+        e(jeton, quote=True), icone('document'), e(prefix + '/livrables', quote=True), travail_html(desk, prefix))
+
+
+def commande_html(prefix):
+    """Une seule commande IA en tête : elle ouvre le Pilote, qui reprend le contexte de la page. La présence de l'IA est dite par un label écrit, pas par la seule couleur."""
+    return ('<button type="button" class="ax-btn a89-mission" data-a89-pilote>%s<span>Confier une mission</span></button>' % icone('ia'))
+
+
+def incidents_html(desk, prefix):
+    """Incidents techniques : rangés à part, jamais au-dessus du travail. Le détail reste à un clic, avec le bouton de chaque point."""
+    from .sante5636 import panel_html
+    return panel_html(desk, prefix)
+
+
+def bandeaux_html(bandeaux):
+    """Bandeaux d'état (IA injoignable, plafond, sauvegarde) : rangés sous un titre écrit, à côté du travail, jamais devant lui. Ils ne se masquent pas."""
+    return ('<section class="a89-incidents" aria-labelledby="a89-t-incidents"><h2 id="a89-t-incidents">%sIncidents techniques</h2>%s</section>' % (icone('vigilance'), bandeaux)) if bandeaux.strip() else ''
+
+
+def acces_html(prefix):
+    """Accès secondaires : rangés en bas, trouvables aussi dans Toutes les fonctions et par Ctrl+K."""
+    liens = (('/facturation', 'Honoraires et facturation', 'facture'), ('/mon-style', 'Style du cabinet', 'modifier'), ('/diagnostic', 'Pourquoi rien n’est produit ?', 'aide'))
+    return '<div class="a89-acces" role="navigation" aria-label="Accès secondaires">%s</div>' % ''.join('<a href="%s">%s<span>%s</span></a>' % (e(prefix + url, quote=True), icone(nom), e(texte)) for url, texte, nom in liens)
+
+
+def resume_briefing(desk):
+    """Début du dernier briefing, en texte simple : deux lignes, jamais le rapport. Rien de produit : rien d'affiché, pas de résumé inventé."""
+    from . import routines520
+    try:
+        dernier = routines520.latest(desk, 'briefing')
+    except Exception:   # noqa: BLE001 — le résumé est facultatif
+        return ''
+    if not dernier or not dernier.get('text'):
+        return ''
+    texte = re.sub(r'\s+', ' ', re.sub(r'[*_#>`]+', ' ', dernier['text'])).strip()
+    if len(texte) > RESUME:
+        texte = texte[:RESUME].rsplit(' ', 1)[0] + ' …'
+    return ('<p class="a89-resume"><strong>Briefing du matin.</strong> %s <button type="button" class="ax-btn ghost" data-tab-open="briefing">Lire le compte rendu</button></p>' % e(texte))
+
+
+def routines_bloc(barre, routines, resume=''):
+    """Bloc Routines : lignes compactes (état, dernier passage, Voir, Lancer) ; les comptes rendus complets s'ouvrent dans un panneau, à la demande (§ 11)."""
+    return ('%s%s<section class="c530-card a89-comptes" id="c530-routines" aria-labelledby="c530-t-routines-court"><h2 class="c530-sr" id="c530-t-routines-court">Comptes rendus</h2>'
+            '<dialog class="ui89-panneau" id="a89-rapports" aria-labelledby="c530-t-routines"><button type="button" class="ax-btn ghost ui89-fermer" data-ui89-ferme>%s<span>Fermer</span></button>%s</dialog></section>') % (
+        barre, resume, icone('fermer', taille=16), routines)
+
+
+def _rangement(prefs, blocs):
+    ordre = [k for k in prefs['ordre'] if k not in prefs['masques'] and blocs.get(k)]
+    cote = [k for k in ordre if k in COTE]
+    if prefs['perso']:
+        return [k for k in ordre if k not in COTE and k != 'style'], cote, []
+    return [k for k in ordre if k not in COTE and k not in BAS and k != 'style'], cote, [k for k in ordre if k in BAS]
+
+
+def _item(bloc, html):
+    return '<div class="t88-item" data-bloc="%s">%s</div>' % (bloc, html)
+
+
+def page(desk, prefix, owner, morceaux):
+    """Assemble la page. ``morceaux`` vient de ``cockpit530.page`` : en-tête, bandeaux, blocs, composeur masqué, panneau, tiroir."""
+    from . import tableau5688
+    from .i18n5631 import role as role_courant
+    prefs = tableau5688.charger(desk, owner)
+    blocs = morceaux['blocs']
+    principal, cote, bas = _rangement(prefs, blocs)
+    accent = (' data-accent="%s"' % e(prefs['accent'], quote=True)) if prefs['accent'] else ''
+    style = ''
+    if blocs.get('style') and 'style' not in prefs['masques']:
+        style = '<details class="a89-plus"><summary>Style du cabinet</summary>%s</details>' % blocs['style']
+    col = ''.join(_item(k, blocs[k]) + (style + morceaux['composeur'] if k == 'routines' else '') for k in principal)
+    if morceaux['composeur'] not in col:
+        col = style + morceaux['composeur'] + col
+    note = ('<p class="c530-note">%d bloc(s) masqué(s) sur cette page. Vous pouvez les rétablir dans « Personnaliser cette page ».</p>' % len(prefs['masques'])) if prefs['masques'] else ''
+    return ('<div class="c530 a89" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div>'
+            '<div class="a89-commandes"><div class="c530-statusbar" id="c530-header">%s</div>%s</div></header>'
+            '<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s</div>') % (
+        e(prefix, quote=True), accent, e(morceaux['date']), morceaux['entete'], commande_html(prefix),
+        travail_carte(desk, prefix), col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
+        ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'])

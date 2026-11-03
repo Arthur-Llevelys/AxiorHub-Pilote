@@ -10,6 +10,9 @@ Mission ponctuelle intégrée à la page du dossier (aucune rubrique nouvelle, a
 4. un brouillon par destinataire (client, confrère) : contenu adapté au rôle, aucune information interne vers l'avocat adverse ; le texte
    n'affirme une inscription que si sa preuve existe ; dépôt IMAP relu, ou conservation locale signalée si la messagerie est indisponible.
 Aucun courriel ne part, aucune pièce n'est déplacée.
+
+5.6.89 (chapitre 37) : ``start`` peut préparer un acte depuis la matrice du contentieux, ``targets`` y ajoute les prétentions et ce qui leur manque, ``compose`` assemble l'acte (rôle « acte »).
+Cette sortie reste un projet interne : ``drafts`` ne connaît que le client et le confrère, et les lettres ne reprennent rien de la matrice.
 """
 from datetime import datetime, timezone
 import base64
@@ -60,12 +63,12 @@ def _read(desk, path):
     return pages, hashlib.sha256(raw).hexdigest(), meta.get('etag', '')
 
 
-def start(desk, owner, matter_id, paths, instruction='', reader=None):
+def start(desk, owner, matter_id, paths, instruction='', reader=None, acte=None):
     """Mission ponctuelle : lecture de tous les documents, dates sourcées, avertissements visibles ; rien n'est écrit dans l'agenda."""
     schema(desk)
     m = _matter(desk, matter_id)
     paths = [str(p) for p in (paths or []) if str(p).strip()][:20]
-    if not paths:
+    if not paths and not acte:
         raise Stop('documents_a_lire_requis')
     from .procedure568 import source_events
     desk.document_owner568 = owner
@@ -78,8 +81,10 @@ def start(desk, owner, matter_id, paths, instruction='', reader=None):
         warnings += found.get('warnings', []) if isinstance(found, dict) else []
         if any(p.get('extraction') == 'ocr' for p in pages):
             warnings.append('Lecture par reconnaissance de caractères (OCR) pour ' + path.rsplit('/', 1)[-1] + ' : contrôler les dates sur la pièce.')
-    mid = 'dp-' + hashlib.sha256(json.dumps([owner, m['id'], sorted(s['sha256'] for s in sources), instruction], ensure_ascii=False).encode()).hexdigest()[:20]
+    mid = 'dp-' + hashlib.sha256(json.dumps([owner, m['id'], sorted(s['sha256'] for s in sources), instruction] + ([acte] if acte else []), ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:20]
     if desk.db.execute('SELECT 1 FROM dp_missions5632 WHERE id=?', (mid,)).fetchone():
+        if acte:
+            _acte_de_mission(desk, owner, m['id'], mid, acte)
         return view(desk, owner, mid)   # même demande sur les mêmes versions : la mission existante est reprise, sans doublon
     now = _now()
     desk.db.execute('INSERT INTO dp_missions5632 VALUES(?,?,?,?,?,?,?,?,?,?)',
@@ -92,7 +97,15 @@ def start(desk, owner, matter_id, paths, instruction='', reader=None):
         desk.db.execute('INSERT OR IGNORE INTO dp_events5632(mission,key,data) VALUES(?,?,?)', (mid, ev['key'], json.dumps(ev, ensure_ascii=False)))
     desk.db.commit()
     desk.audit('dp5632_mission', {'mission': mid, 'matter': m['id'], 'documents': len(sources), 'events': len(events), 'warnings': len(warnings)})
+    if acte:
+        _acte_de_mission(desk, owner, m['id'], mid, acte)
     return view(desk, owner, mid)
+
+
+def _acte_de_mission(desk, owner, matter_id, mid, acte):
+    """5.6.89 : plan de l'acte, depuis les demandes et preuves du dossier ; même mission, même acte."""
+    from .contentieux_actes5689 import depuis_mission
+    return depuis_mission(desk, owner, matter_id, mid, acte if isinstance(acte, dict) else {})
 
 
 def _mission(desk, owner, mid):
@@ -105,13 +118,17 @@ def _mission(desk, owner, mid):
     return row
 
 
-def targets(desk, owner):
-    """Agendas autorisés (Nextcloud, Google) — jamais choisis par l'IA."""
+def targets(desk, owner, matter_id=''):
+    """Agendas autorisés (Nextcloud, Google) — jamais choisis par l'IA. 5.6.89 : avec un dossier, s'y ajoutent les prétentions de la matrice, cibles de rédaction ; ``decide`` n'accepte que des agendas."""
     from .calendar568 import effective_targets
     try:
-        return [{'id': t['id'], 'label': t['label'], 'provider': t['provider']} for t in effective_targets(desk, owner)]
+        agendas = [{'id': t['id'], 'label': t['label'], 'provider': t['provider']} for t in effective_targets(desk, owner)]
     except Exception:   # noqa: BLE001 — aucun agenda configuré
-        return []
+        agendas = []
+    if not matter_id:
+        return agendas
+    from .contentieux_actes5689 import cibles
+    return agendas + cibles(desk, matter_id)
 
 
 def view(desk, owner, mid):
@@ -124,8 +141,10 @@ def view(desk, owner, mid):
         events.append({**ev, 'decision': r['decision'], 'targets': json.loads(r['targets']), 'note': r['note'], 'effects': effects})
     drafts = [dict(d) for d in desk.db.execute('SELECT role,recipient,subject,state,updated FROM dp_drafts5632 WHERE mission=?', (mid,))]
     events.sort(key=lambda e: e.get('start', ''))
+    from .contentieux_actes5689 import de_la_mission, vue as vue_acte
+    lie = de_la_mission(desk, mid)
     return {'id': mid, 'matter': row['matter'], 'status': row['status'], 'revision': row['revision'], 'sources': json.loads(row['sources']),
-            'warnings': json.loads(row['warnings']), 'events': events, 'drafts': drafts, 'targets': targets(desk, owner)}
+            'warnings': json.loads(row['warnings']), 'events': events, 'drafts': drafts, 'targets': targets(desk, owner), 'acte': vue_acte(desk, lie, False) if lie else None}
 
 
 def decide(desk, owner, mid, key, action, target_ids=(), note='', revision=None):
@@ -199,8 +218,14 @@ def _fr_date(ev):
 
 def compose(desk, owner, mid, role, recipient):
     """Texte déterministe par rôle : le client reçoit dates et suites à prévoir ; le confrère, les seules dates de procédure.
-    Une inscription n'est mentionnée que si l'agenda l'a prouvée ; aucune stratégie ni note interne n'est reprise."""
+    Une inscription n'est mentionnée que si l'agenda l'a prouvée ; aucune stratégie ni note interne n'est reprise.
+    5.6.89 : rôle « acte » : le projet assemblé section par section, depuis le registre courant ; il ne passe jamais par ``drafts``."""
     data = view(desk, owner, mid)
+    if role == 'acte':
+        from .contentieux_actes5689 import texte_complet
+        if not data['acte']:
+            raise Stop('acte_absent')
+        return data['acte']['titre'], '\n\n'.join(titre + '\n' + texte for titre, texte in texte_complet(desk, data['acte']['id']))
     m = _matter(desk, data['matter'])
     lines = []
     for ev in data['events']:

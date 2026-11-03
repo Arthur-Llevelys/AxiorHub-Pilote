@@ -1,0 +1,64 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "cabinet_id": {
+      "title": "Cabinet Id",
+      "type": "string"
+    },
+    "actor_ref": {
+      "title": "Actor Ref",
+      "type": "string"
+    },
+    "purpose": {
+      "title": "Purpose",
+      "type": "string"
+    },
+    "source_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Refs",
+      "type": "array"
+    },
+    "destination_ref": {
+      "title": "Destination Ref",
+      "type": "string"
+    },
+    "policy_revision": {
+      "minimum": 0,
+      "title": "Policy Revision",
+      "type": "integer"
+    },
+    "allowed": {
+      "title": "Allowed",
+      "type": "boolean"
+    },
+    "denial_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Denial Reasons",
+      "type": "array"
+    },
+    "expires_at": {
+      "minLength": 1,
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "cabinet_id",
+    "actor_ref",
+    "purpose",
+    "source_refs",
+    "destination_ref",
+    "policy_revision",
+    "allowed",
+    "denial_reasons",
+    "expires_at"
+  ],
+  "title": "PolicyDecision",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Contrat logique proposé à intégrer ; objet métier complet, pas autorisation fournie par un client."
+}

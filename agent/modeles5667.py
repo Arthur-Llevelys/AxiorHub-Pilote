@@ -228,7 +228,7 @@ def run(desk, model_name, model=None, clock=time.monotonic):
         cfg = dict(desk.c.get('ollama') or {})
         if not cfg.get('url'):
             raise Stop('banc_modele_local_requis')
-        model = Model({**cfg, 'model': name, 'purpose': 'mail_drafting'})
+        model = Model({**cfg, 'state_dir': desk.c.get('state_dir', ''), 'model': name, 'purpose': 'mail_drafting'})   # 5.6.89 : banc d'essai soumis aux pauses, même hors d'un travail
     details, sims, covs, seconds, failures = [], [], [], [], 0
     for case in cases:
         started = clock()

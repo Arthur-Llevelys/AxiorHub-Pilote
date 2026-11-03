@@ -17,6 +17,7 @@ import io
 import json
 import re
 
+from . import pause5629
 from .common import Stop, load_matters, matter_display
 
 AUTO = 'ged5636:pj_automatique'
@@ -197,6 +198,7 @@ def file_attachments(desk, mail_key, matter='', owner='cabinet', dav=None, mailb
         if desk.db.execute('SELECT 1 FROM attachments_filed5636 WHERE mail_key=? AND sha256=?', (mail_key, sha)).fetchone():
             skipped.append(name)
             continue
+        pause5629.checkpoint(desk)      # 5.6.89 (B07) : les pièces déjà rangées restent, aucune autre n'est écrite après un arrêt
         client.ensure_folder(folder, base)
         name = nommage.apply(desk, 'piece_jointe', name, naming)
         stem, dot, ext = name.rpartition('.')

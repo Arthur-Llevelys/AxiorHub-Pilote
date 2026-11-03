@@ -183,6 +183,10 @@
  "fn.honoraires.label": "Temps et honoraires",
  "fn.initiatives.desc": "Plans d’actions proposés par l’assistant, validés puis exécutés",
  "fn.initiatives.label": "Initiatives",
+ "fn.contentieux.desc": "Prétentions, preuves, actes, délais et paquets du dossier",
+ "fn.contentieux.label": "Contentieux",
+ "fn.livrables.desc": "Tous les livrables, leur version et leur état",
+ "fn.livrables.label": "Documents préparés",
  "fn.mcp.desc": "Connecteurs juridiques, compétences et extensions",
  "fn.mcp.label": "Connecteurs MCP",
  "fn.memoire.desc": "Réponses envoyées retenues par l’agent",
@@ -788,5 +792,9 @@
  "fn.journal_audit.label": "Journal d’audit",
  "fn.journal_audit.desc": "Qui a fait quoi, avec vérification de la chaîne",
  "fn.vue_ia.label": "Ce que l’IA peut voir",
- "fn.vue_ia.desc": "Catégories ouvertes aux modèles, sous le contrôle du serveur"
+ "fn.vue_ia.desc": "Catégories ouvertes aux modèles, sous le contrôle du serveur",
+ "fn.banc_essai.label": "Banc d’essai et état des fonctions",
+ "fn.banc_essai.desc": "Comparer des missions sur un protocole figé et voir la preuve de chaque fonction",
+ "fn.gouvernance_ia.label": "Données et budget de l’IA",
+ "fn.gouvernance_ia.desc": "Politique des données, prestataires, plafonds et coût mensuel"
 }

@@ -19,6 +19,7 @@ import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+import uuid
 import zipfile
 
 from .common import Stop, clean_path, fold, load_matters
@@ -309,6 +310,16 @@ def _put(client, path, raw, kind):
     raise Stop('fichier_nom_indisponible')
 
 
+def _depot(desk, client, form, fid, mid, owner, path, raw, kind):
+    """5.6.89 : réservation au registre commun, dépôt exclusif, relecture. Un formulaire préparé reste à relire et n'est déposé nulle part."""
+    from . import livrables5689
+    sortie = livrables5689.Sortie(desk, 'formulaires5683', '%s:%s' % (fid, mid), uuid.uuid4().hex, matter=mid, title=str(form.get('titre') or form.get('nom') or fid), kind='formulaire', path=path, mime=kind, owner=owner,
+                                  provenance={'producteur': 'formulaires5683', 'formulaire': fid, 'millesime': form.get('millesime', '')}, reserve_note='Formulaire à relire avant usage.')
+    target = _put(client, path, raw, kind)
+    sortie.constater(client, target, raw)
+    return target
+
+
 def generate(desk, data, owner, client=None):
     """Dépose la copie remplie ou la fiche de données dans le dossier. Le vierge n'est pas modifié ; rien n'est déposé à une administration."""
     from .dav import DAV
@@ -323,7 +334,7 @@ def generate(desk, data, owner, client=None):
     stem = re.sub(r'[\\/:*?"<>|]', '_', '%s - %s' % (date.today().isoformat(), form['numero']))
     if form['format'] == 'plat':
         raw = data_sheet(form, values)
-        path = _put(dav, '%s/%s - données à recopier.docx' % (_folder(desk, mid, dav), stem), raw, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        path = _depot(desk, dav, form, fid, mid, owner, '%s/%s - données à recopier.docx' % (_folder(desk, mid, dav), stem), raw, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         desk.audit('formulaire5683_fiche', {'id': fid, 'matter': mid, 'owner': owner})
         return {'path': path, 'format': 'plat', 'message': 'PDF sans champs : fiche des données à recopier déposée dans le dossier.', 'service_guide': form.get('service_guide', '')}
     form, blank_raw = blank(desk, fid)
@@ -337,7 +348,7 @@ def generate(desk, data, owner, client=None):
                 if values.get(key):
                     chosen[name] = values[key]
     raw, written, empty = fill(blank_raw, chosen)
-    path = _put(dav, '%s/%s.pdf' % (_folder(desk, mid, dav), stem), raw, 'application/pdf')
+    path = _depot(desk, dav, form, fid, mid, owner, '%s/%s.pdf' % (_folder(desk, mid, dav), stem), raw, 'application/pdf')
     desk.audit('formulaire5683_rempli', {'id': fid, 'matter': mid, 'owner': owner, 'ecrits': len(written), 'vides': len(empty)})
     return {'path': path, 'format': 'champs', 'ecrits': len(written), 'vides': len(empty), 'message': '%d champ(s) remplis, %d laissés vides : relisez le formulaire avant usage.' % (len(written), len(empty))}
 
