@@ -196,9 +196,12 @@ class Validation(unittest.TestCase):
         from agent import horaires_ia5689 as h
         h._noms_iana.cache_clear()
         self.addCleanup(h._noms_iana.cache_clear)
-        with patch.object(h, 'available_timezones', lambda: {'Europe/Paris', 'UTC'}), patch.object(h, 'ZoneInfo', lambda nom: ZoneInfo('UTC')):
-            with self.assertRaises(Stop):
-                h._zone('localtime')
+        # 5.6.91 : base simulée comme celle de Debian, qui liste ces noms du système
+        with patch.object(h, 'available_timezones', lambda: {'Europe/Paris', 'UTC', 'localtime', 'Factory', 'posix/Europe/Paris'}), \
+                patch.object(h, 'ZoneInfo', lambda nom: ZoneInfo('UTC')):
+            for nom in ('localtime', 'Factory', 'posixrules', 'posix/Europe/Paris', 'right/UTC'):
+                with self.assertRaises(Stop, msg=nom):
+                    h._zone(nom)
             self.assertEqual(str(h._zone('Europe/Paris')), 'UTC')
 
     def test_HO21_validation_serveur_des_heures_du_fuseau_et_des_plages(self):

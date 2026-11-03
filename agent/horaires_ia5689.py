@@ -79,6 +79,11 @@ def politique_defaut():
 
 
 # ---------------------------------------------------------------- validation
+# 5.6.91 : la base de Debian et d'Ubuntu liste aussi ces noms : ce sont des fichiers du système, pas des fuseaux du cabinet.
+NOMS_SYSTEME = frozenset({'localtime', 'Factory', 'posixrules'})
+PREFIXES_SYSTEME = ('posix/', 'right/')
+
+
 @functools.lru_cache(maxsize=1)
 def _noms_iana():
     """Noms de la base de fuseaux, lus une fois. Vide si la base ne se liste pas : la lecture du fuseau tranche alors seule."""
@@ -91,7 +96,7 @@ def _noms_iana():
 def _zone(nom):
     """Fuseau IANA ; une base absente (serveur sans ``tzdata``) donne le même refus qu'un nom inconnu : jamais de repli silencieux sur UTC.
     5.6.90 : sous Linux, ``ZoneInfo('localtime')`` lit le fichier du système ; ce n'est pas un fuseau IANA, il est refusé."""
-    if not isinstance(nom, str) or not NOM_FUSEAU.fullmatch(nom):
+    if not isinstance(nom, str) or not NOM_FUSEAU.fullmatch(nom) or nom in NOMS_SYSTEME or nom.startswith(PREFIXES_SYSTEME):
         raise Stop('horaires_fuseau_inconnu')
     noms = _noms_iana()
     if noms and nom not in noms:

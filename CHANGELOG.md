@@ -3,6 +3,12 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.91 — Correctif : noms de fuseau propres au système refusés
+
+Correctif de la 5.6.90 : la base des fuseaux de Debian et d’Ubuntu liste elle-même « localtime » et « Factory ».
+
+- **Pauses horaires** : « localtime », « Factory », « posixrules » et les répertoires « posix/ » et « right/ » sont refusés nommément comme fuseau du cabinet. Vérifié dans un conteneur Debian.
+
 ## 5.6.90 — Correctif : fuseau horaire refusé sous Linux
 
 Correctif de la 5.6.89, révélé par la recette sous Linux.
