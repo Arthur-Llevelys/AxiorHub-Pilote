@@ -183,6 +183,13 @@ def _item(bloc, html):
     return '<div class="t88-item" data-bloc="%s">%s</div>' % (bloc, html)
 
 
+def pause_html(desk):
+    """5.6.92 : la pause générale de l'IA reste dans l'en-tête, visible même si le bloc Routines est masqué ou replié."""
+    en_pause = bool(desk.settings('missions567:pause', False))
+    return ('<button type="button" class="ax-btn %s a92-pause" id="a92-pause" data-paused="%s" aria-pressed="%s">%s</button>' % (
+        'warn' if en_pause else 'ghost', '1' if en_pause else '0', 'true' if en_pause else 'false', e('IA en pause — reprendre' if en_pause else 'Pause de l’IA')))
+
+
 def page(desk, prefix, owner, morceaux):
     """Assemble la page. ``morceaux`` vient de ``cockpit530.page`` : en-tête, bandeaux, blocs, composeur masqué, panneau, tiroir."""
     from . import tableau5688
@@ -197,10 +204,11 @@ def page(desk, prefix, owner, morceaux):
     col = ''.join(_item(k, blocs[k]) + (style + morceaux['composeur'] if k == 'routines' else '') for k in principal)
     if morceaux['composeur'] not in col:
         col = style + morceaux['composeur'] + col
+    pause = pause_html(desk)
     note = ('<p class="c530-note">%d bloc(s) masqué(s) sur cette page. Vous pouvez les rétablir dans « Personnaliser cette page ».</p>' % len(prefs['masques'])) if prefs['masques'] else ''
     return ('<div class="c530 a89" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div>'
-            '<div class="a89-commandes"><div class="c530-statusbar" id="c530-header">%s</div>%s</div></header>'
+            '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div></header>'
             '<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s</div>') % (
-        e(prefix, quote=True), accent, e(morceaux['date']), morceaux['entete'], commande_html(prefix),
+        e(prefix, quote=True), accent, e(morceaux['date']), pause, morceaux['entete'], commande_html(prefix),
         travail_carte(desk, prefix), col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
         ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'])

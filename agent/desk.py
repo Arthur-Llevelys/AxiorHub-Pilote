@@ -1559,8 +1559,8 @@ class Desk:
           (result.get('message') or 'Suspendu : l’IA est en pause.') if status=='suspended' and pause_reason=='pause_horaire' else 'Traitement interrompu ; consultez le motif et relancez après contrôle.')
         emit(self,'produced' if outcome and outcome['status']=='verified' and row['kind'] not in ('run','live_mail430') else status,message,row['id'])
         self.active_job_id=None;trace480.end();secours564.end()
-        if status=='done' and row['kind']=='live_documents430' and result.get('continue_scan'):
-            self._then('live_documents430',priority=70)
+        # 5.6.92 : le lot suivant d'un tour des dossiers n'est plus enchaîné aussitôt. La boucle de surveillance le lance au plus un toutes
+        # les 5 minutes (watch430, LOT_DOCUMENTS) : avant, plus de 400 lots en 3 heures relisaient Nextcloud sans répit chez le cabinet.
         if status=='done' and result.get('messages_remis_en_attente',0):
             self._then('run')
         if status=='done' and row['kind']=='index' and result.get('en_attente',0):

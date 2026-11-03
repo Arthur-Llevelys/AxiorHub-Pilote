@@ -72,6 +72,10 @@ def schedule(desk,stamp=None):
         return _schedule_5642(desk,stamp)
 
 
+# 5.6.92 : intervalle minimal entre deux lots de dossiers, y compris au milieu d'un tour (avant : lot suivant enchaîné sans attente).
+LOT_DOCUMENTS = 300
+
+
 def _pendant_la_plage(desk,stamp):
     """5.6.89 : ce qui se passe de l'IA continue : routines notées comme reportées (identifiables, sans travail ni échec), rappels d'agenda."""
     for step in ('routines520.tick','agenda5634.tick','agenda5688.tick'):
@@ -97,7 +101,7 @@ def _schedule_5642(desk,stamp=None):
     # 5.6.62 : un nouveau tour de tous les dossiers ne commence que 30 min (60 en régime économe) après la fin du précédent ; les lots
     # d'un tour en cours s'enchaînent toujours. Avant : 1 693 passages en 24 h chez le cabinet, la surveillance ne s'arrêtait jamais.
     sweep=economie569.interval(desk,'live_documents430',int(desk.settings('live430:documents_sweep_minutes',30) or 30))*60
-    for kind,interval in [('live_mail430',300),('live_calendar430',180),('live_documents430',300)]:
+    for kind,interval in [('live_mail430',300),('live_calendar430',180),('live_documents430',LOT_DOCUMENTS)]:
         last=desk.settings('live430:last:'+kind,0)
         if (kind=='live_documents430' and int(desk.settings('live430:document_cursor',0) or 0)==0
                 and stamp-float(desk.settings('live430:documents_sweep_done',0) or 0)<sweep):

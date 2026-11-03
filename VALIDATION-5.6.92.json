@@ -1,0 +1,31 @@
+{
+  "version": "5.6.92",
+  "base": "5.6.91",
+  "date_utc": "2026-11-03T00:00:00+00:00",
+  "cahier_des_charges": "Correctif urgent : 403 lots de surveillance des documents en 3 heures chez le cabinet ; bouton de pause introuvable.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 0,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub."
+  },
+  "new_tests": "tests/test_v5692_surveillance.py : pas d’enchaînement immédiat, un lot toutes les 5 min au plus sur une heure simulée, bouton dans l’en-tête.",
+  "mutations": "Rétablir l’enchaînement immédiat fait échouer le test.",
+  "live_checks": "Aucun sur le serveur du cabinet.",
+  "exapp": {
+    "version": "0.1.51",
+    "moteur": "5.6.92"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "desk : plus de _then pour live_documents430 ; watch430.LOT_DOCUMENTS = 300 s.",
+    "accueil5689 : bouton a92-pause dans l’en-tête."
+  ],
+  "adjusted_tests": []
+}

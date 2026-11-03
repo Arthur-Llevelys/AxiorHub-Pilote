@@ -3,6 +3,13 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.92 — Correctif : surveillance des documents espacée, bouton de pause visible
+
+Correctif urgent demandé par le cabinet.
+
+- **Surveillance des documents** : un tour de tous les dossiers se fait par lots. Chaque lot terminé relançait aussitôt le suivant ; chez le cabinet, plus de 400 lots en 3 heures relisaient Nextcloud sans répit et chargeaient le serveur. Les lots sont désormais espacés de 5 minutes au moins, soit 12 par heure au plus. Le repos de 30 minutes entre deux tours complets est conservé.
+- **Bouton « Pause de l’IA »** : il est dans l’en-tête de la page Aujourd’hui, visible même si le bloc Routines est masqué ou replié.
+
 ## 5.6.91 — Correctif : noms de fuseau propres au système refusés
 
 Correctif de la 5.6.90 : la base des fuseaux de Debian et d’Ubuntu liste elle-même « localtime » et « Factory ».

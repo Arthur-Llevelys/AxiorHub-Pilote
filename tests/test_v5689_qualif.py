@@ -754,7 +754,7 @@ class EtatFonctions(Base):
 
     def test_voie_de_qualification_reelle_gardee_par_preuve_version_et_revocation(self):
         """Elle n'est pas ouverte en 5.6.89 : on vérifie qu'à l'avenir une inscription seule ne suffira pas."""
-        preuve = {'version': '5.6.91', 'date': '2026-12-01', 'reference': 'Recette fictive'}
+        preuve = {'version': '5.6.92', 'date': '2026-12-01', 'reference': 'Recette fictive'}
         self.ia_prouvee()
         with patch.dict(etat.QUALIFIEES_REEL, {'assistant': preuve}):
             self.assertEqual(self.etat('assistant')['etat'], 'disponible')
