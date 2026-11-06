@@ -45,7 +45,9 @@ MOTIFS = {'dossier_reserve': 'le dossier est désormais réservé à d’autres 
 # Contrat de statut partagé (serveur, pages, outil Open WebUI) : état du travail -> (code, libellé, terminal).
 STATUTS = {'pending': ('en_file', 'En file', False), 'running': ('en_cours', 'En cours', False), 'suspended': ('suspendu', 'Suspendu', False),
            'cancel_requested': ('arret_demande', 'Arrêt demandé ; confirmation encore attendue', False), 'cancelled': ('annule', 'Annulé ; aucune reprise automatique', True),
-           'error': ('echec', 'Échec', True), 'done': ('termine', 'Terminé', True)}
+           'error': ('echec', 'Échec', True), 'done': ('termine', 'Terminé', True),
+           # 5.6.94 (F02) : travail automatique passé car ses relances sont suspendues ; ni erreur ni réussite.
+           'ignored': ('ignore', 'Ignoré : relances automatiques suspendues', True)}
 ATTENTES = {'attente_budget': 'En attente : plafond de budget atteint', 'attente_fournisseur': 'En attente : fournisseur d’IA indisponible ou limite d’abonnement',
             'attente_decision': 'En attente d’une décision'}
 SUSPENSIONS = {'pause': 'pause manuelle de l’IA', 'pause_dossier': 'dossier en pause', 'pause_horaire': 'pause programmée'}

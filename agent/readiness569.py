@@ -101,7 +101,9 @@ def run(desk):
         checks.append(_item('tts', 'Synthèse vocale (lecture)', False, str(ex)[:200], 'sudo apt-get install -y espeak-ng'))
     try:
         # 5.6.14 (section 32) : repli local effectif, distinct du moteur configuré ; capture = navigateur, transcription = passerelle
-        sp = desk.c.get('speech568', {})
+        sp = dict(desk.c.get('speech568', {}))
+        from .voix5694 import fournisseur as _voix94
+        sp['provider'] = _voix94(desk.c)   # 5.6.94 : Brindille par défaut (navigateur), repli serveur eSpeak
         fallback_ok = bool(__import__('agent.portable',fromlist=['which']).which('espeak-ng'))
         if sp.get('provider', 'espeak') != 'espeak':
             checks.append(_item('tts_fallback', 'Repli de synthèse (eSpeak NG local)', fallback_ok if sp.get('fallback_local', True) else None,

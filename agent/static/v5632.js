@@ -147,6 +147,7 @@
   var oral = { audio: null, url: '', gen: 0 };
   function oralStop(box) {
     oral.gen++;
+    if (window.axiorhubVoix) window.axiorhubVoix.stop();   // 5.6.94 : lecture commune (Brindille ou voix du serveur)
     if (oral.audio) { oral.audio.pause(); oral.audio = null; }
     if (oral.url) { URL.revokeObjectURL(oral.url); oral.url = ''; }
     if (box) { $('[data-o5632=stop]', box).hidden = true; $('[data-o5632=play]', box).hidden = false; }
@@ -208,6 +209,15 @@
       var parts = chunks(out.getAttribute('data-text') || out.textContent);
       if (!parts.length) return;
       b.hidden = true; $('[data-o5632=stop]', box).hidden = false; note.textContent = msg('oral_playing', 'Lecture en cours…');
+      if (window.axiorhubVoix) {   // 5.6.94 (V03, V05) : Brindille dans le navigateur, sinon la voix du serveur, phrase par phrase
+        var gen = oral.gen;
+        window.axiorhubVoix.speak(parts.join('\n\n'), { note: function (t) { note.textContent = t; } }).then(function (r) {
+          if (gen !== oral.gen) return;
+          oral.gen++; $('[data-o5632=stop]', box).hidden = true; $('[data-o5632=play]', box).hidden = false;
+          if (!(r && r.error)) note.textContent = msg('oral_done', 'Lecture terminée.');
+        }, function (e) { if (gen === oral.gen) { oralStop(box); note.textContent = e.message; } });
+        return;
+      }
       speak(box, parts, 0, oral.gen);
     } else if (action === 'stop') {
       oralStop(box); note.textContent = '';

@@ -60,8 +60,11 @@ class DAV:
     def request_xml(self, method, url, body, depth='1'):
         from .charge5693 import compter
         compter('stockage')   # 5.6.93 : chaque requête au stockage est comptée (page « Charge du serveur »)
-        return xml_bytes(self.http.request(method, url, body.encode(),
-                         {'Content-Type': 'application/xml; charset=utf-8', 'Depth': depth}))
+        from .traces5694 import etape
+        etape('nextcloud', method.lower())   # 5.6.94 (T06) : étape notée pour qualifier une erreur
+        brut = self.http.request(method, url, body.encode(), {'Content-Type': 'application/xml; charset=utf-8', 'Depth': depth})
+        compter('stockage_octets', len(brut) if isinstance(brut, (bytes, bytearray)) else 0)   # 5.6.94 (T01) : octets du lot Nextcloud
+        return xml_bytes(brut)
 
     def folder_etag(self, path):
         """5.6.93 : ETag d'un dossier (PROPFIND de profondeur 0) ; '' si le serveur n'en donne pas. Une seule requête, aucun contenu lu."""
@@ -241,9 +244,13 @@ class DAV:
         if item.get('size', 0) > self.cfg.get('max_file_bytes', 15_000_000): raise Stop('piece_trop_volumineuse')
         from .charge5693 import compter
         compter('stockage'); compter('lecture_fichier')   # 5.6.93
+        from .traces5694 import etape
+        etape('nextcloud', 'get')
         headers = {'If-Match': item['etag']} if item.get('etag') else {}
-        return self.http.request('GET', self.file_url(item['path']), headers=headers,
+        data = self.http.request('GET', self.file_url(item['path']), headers=headers,
                                  limit=self.cfg.get('max_file_bytes', 15_000_000))
+        compter('stockage_octets', len(data) if isinstance(data, (bytes, bytearray)) else 0)   # 5.6.94 (T01)
+        return data
 
     def stat(self, path):
         """Return metadata for one file (ETag, size, date, Nextcloud file id)."""

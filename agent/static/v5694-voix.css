@@ -1,0 +1,15 @@
+/* 5.6.94 (V08) : Paramètres › Voix. Couleurs des jetons Carbon (thèmes clair et sombre), aucune palette propre ; l'état se lit aussi en texte. */
+.v94-voix .v94-intro { max-width: 70ch; }
+.v94-voix .v94-actuelle { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; font-weight: 600; }
+.v94-voix .v94-cartes { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); list-style: none; margin: 1rem 0; padding: 0; }
+.v94-voix .v94-carte { background: var(--cds-layer-01, var(--ws-surface, #ffffff)); border: 1px solid var(--cds-border-subtle-01, #c6c6c6); color: var(--cds-text-primary, inherit); padding: .75rem 1rem; }
+.v94-voix .v94-carte[data-voix="brindille"] { border-left: 4px solid var(--cds-border-strong, #8d8d8d); }
+.v94-voix .v94-carte p { color: var(--cds-text-secondary, inherit); margin: .35rem 0 0; }
+.v94-voix .v94-essai, .v94-voix .v94-reglages, .v94-voix .v94-choix { background: var(--cds-layer-01, transparent); border: 1px solid var(--cds-border-subtle-01, #c6c6c6); margin: 1rem 0; padding: 1rem; }
+.v94-voix .v94-essai textarea { width: 100%; }
+.v94-voix .v94-boutons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.v94-voix input[type=range] { accent-color: var(--cds-interactive, currentColor); max-width: 24rem; width: 100%; }
+.v94-voix output { font-variant-numeric: tabular-nums; font-weight: 600; }
+.v94-voix .v94-licences { border-top: 1px solid var(--cds-border-subtle-01, #c6c6c6); font-size: .875rem; margin-top: 1.5rem; padding-top: .75rem; }
+.v94-voix .v94-credits { color: var(--cds-text-secondary, inherit); padding-left: 1.25rem; }
+.v94-voix a:focus-visible, .v94-voix button:focus-visible, .v94-voix input:focus-visible, .v94-voix textarea:focus-visible { outline: 2px solid var(--cds-focus, currentColor); outline-offset: 2px; }

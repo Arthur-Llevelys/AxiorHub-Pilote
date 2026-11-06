@@ -17,7 +17,7 @@ EFFORT_LABELS = {'low': 'faible', 'medium': 'standard', 'high': 'renforcé', '':
 STAGES = {
     'triage': ('classement', 'econome', 'low', 'faible'), 'mail_orchestration_classification': ('classement', 'econome', 'low', 'faible'),
     'attachment_review': ('extraction', 'econome', 'low', 'faible'), 'deadline_review': ('extraction', 'econome', 'low', 'moyen'),
-    'memory_insight': ('extraction', 'econome', 'low', 'faible'), 'case_brief': ('synthese', 'standard', 'medium', 'moyen'),
+    'memory_insight': ('extraction', 'econome', 'low', 'faible'), 'case_brief': ('synthese', 'standard', 'medium', 'moyen'), 'case_brief_part': ('synthese', 'standard', 'medium', 'moyen'),
     'dossier_fiche': ('synthese', 'standard', 'medium', 'moyen'), 'legal_memory': ('synthese', 'standard', 'medium', 'moyen'),
     'meeting_preparation': ('synthese', 'standard', 'medium', 'moyen'), 'transcript_report': ('synthese', 'standard', 'medium', 'moyen'),
     'compose': ('redaction_mail', 'standard', 'medium', 'moyen'), 'manual_draft': ('redaction_mail', 'standard', 'medium', 'moyen'),

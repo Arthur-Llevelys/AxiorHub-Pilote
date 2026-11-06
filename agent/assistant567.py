@@ -11,7 +11,8 @@ from .common import Stop, load_matters, matter_display
 
 DEFAULTS = {'name': 'Pilote', 'tone': 'sobre', 'length': 'courte', 'initiative': 'preparer',
             'lexicon': [], 'speech_enabled': True, 'speech_rate': 1.0, 'discreet': False,   # 5.6.19 : noms lus sauf mode discret choisi
-            'avatar': 'icone', 'numeric_success_rates': False}
+            'avatar': 'icone', 'numeric_success_rates': False,
+            'voice_isolation': True, 'stop_on_silence': True}   # 5.6.94 (V07) : Alkove dans le navigateur (isoler ma voix, fin de prise de parole)
 
 
 def profile(desk, owner='cabinet'):
@@ -35,7 +36,7 @@ def save_profile(desk, data, owner='cabinet'):
         if not 1 <= len(name) <= 40 or re.search(r'[<>\x00-\x1f]', name):
             raise Stop('nom_assistant_invalide')
         value['name'] = name
-    for name in ('speech_enabled', 'discreet'):
+    for name in ('speech_enabled', 'discreet', 'voice_isolation', 'stop_on_silence'):
         if name in data:
             if not isinstance(data[name], bool):
                 raise Stop('preference_assistant_invalide')

@@ -26,7 +26,8 @@ def _money(value):
 
 
 def preview(desk,text,owner='cabinet',matter=''):
-    cfg=desk.c.get('speech568',{});provider=cfg.get('provider','espeak')
+    from .voix5694 import fournisseur   # 5.6.94 (V03) : Brindille par défaut, lue dans le navigateur
+    cfg=desk.c.get('speech568',{});provider=fournisseur(desk.c)
     external=provider=='elevenlabs';amount=None;spoken=text;redactions={};allowed=True;reason=''
     try:
         if not assistant567.profile(desk,owner)['speech_enabled']:raise Stop('lecture_vocale_desactivee')
@@ -41,7 +42,7 @@ def preview(desk,text,owner='cabinet',matter=''):
     except Stop as exc:allowed=False;reason=str(exc)
     return {'provider':provider,'external':external,'characters':len(text),'estimated_usd':str(amount) if amount is not None else ('0' if not external else None),
             'allowed':allowed,'reason':reason,'transmitted_text':spoken if external and allowed else None,'redactions':redactions,'pseudonymized':external and spoken!=text,
-            'policy':'La politique externe globale et les exclusions de dossiers restent applicables.',
+            'policy':'La politique externe globale et les exclusions de dossiers restent applicables.','browser':provider=='brindille',
             'voice_id':str(cfg.get('voice','')),'matter':matter}
 
 
@@ -115,10 +116,15 @@ def synthesize(desk,text,owner='cabinet',matter=''):
     text=str(text or '').strip();p=assistant567.profile(desk,owner)
     if not p['speech_enabled']:raise Stop('lecture_vocale_desactivee')
     if not 1<=len(text)<=7000:raise Stop('texte_lecture_trop_long_7000_maximum')
-    cfg=desk.c.get('speech568',{});provider=cfg.get('provider','espeak')
-    if provider not in ('espeak','kokoro','chatterbox','elevenlabs'):raise Stop('fournisseur_voix_invalide')
+    from .voix5694 import FOURNISSEURS, fournisseur_serveur
+    from .lecture5694 import developper
+    cfg=desk.c.get('speech568',{});requested=cfg.get('provider') or 'brindille'
+    if requested not in FOURNISSEURS:raise Stop('fournisseur_voix_invalide')
+    # 5.6.94 (V03, V06) : Brindille est produite dans le navigateur ; le serveur ne lit qu'en repli, avec sa voix locale de repli.
+    provider=fournisseur_serveur(desk.c)
     spoken=text
     if provider=='elevenlabs':spoken,_=_external_text(desk,text,owner,matter)
+    else:spoken=developper(text)   # 5.6.94 (V04) : abréviations, sigles et nombres développés pour les voix locales
     secret=cfg.get('api_key_file','')
     credential_stamp=str(Path(secret).stat().st_mtime_ns) if secret and Path(secret).is_file() else ''
     digest=hashlib.sha256(json.dumps([owner,matter,text,spoken,provider,cfg.get('url'),cfg.get('voice'),cfg.get('model'),p['speech_rate'],credential_stamp],ensure_ascii=False).encode()).hexdigest()
@@ -127,11 +133,11 @@ def synthesize(desk,text,owner='cabinet',matter=''):
     with lockpath.open('a') as lock:
         os.chmod(lockpath,0o600);fcntl.flock(lock,fcntl.LOCK_EX)
         if path.is_file():return _cached_wav(path.read_bytes(),provider)
-        if provider=='espeak':raw=assistant567.speech(desk,text,owner)
+        if provider=='espeak':raw=assistant567.speech(desk,spoken,owner)
         elif provider in ('kokoro','chatterbox'):
             http=HTTP(cfg.get('url','http://127.0.0.1:8880'),local_only=True,local_hosts=('kokoro','chatterbox'),timeout=60)
             if secret:http.headers['Authorization']='Bearer '+read_secret(secret)
-            body={'input':text,'model':cfg.get('model') or ('kokoro' if provider=='kokoro' else 'chatterbox'),
+            body={'input':spoken,'model':cfg.get('model') or ('kokoro' if provider=='kokoro' else 'chatterbox'),
                   'voice':cfg.get('voice') or ('ff_siwis' if provider=='kokoro' else 'default'),
                   'response_format':'wav','speed':p['speech_rate'],'stream':False}   # 5.6.16 : fichier complet, pas de flux
             raw=http.request('POST',http.base+'/v1/audio/speech',json.dumps(body).encode(),{'Content-Type':'application/json'},32_000_000);raw=_wav(raw)
@@ -162,7 +168,7 @@ def synthesize(desk,text,owner='cabinet',matter=''):
         files=sorted(root.glob('*.wav'),key=lambda x:x.stat().st_mtime,reverse=True)
         for stale in files:
             if stale!=path and (time.time()-stale.stat().st_mtime>86400 or files.index(stale)>=100):stale.unlink(missing_ok=True)
-        desk.audit('synthese_vocale',{'owner':owner,'provider':provider,'characters':len(text),'external':provider=='elevenlabs'})
+        desk.audit('synthese_vocale',{'owner':owner,'provider':provider,'characters':len(text),'external':provider=='elevenlabs',**({'requested':requested} if requested!=provider else {})})
         return raw
 
 
@@ -189,7 +195,8 @@ def paragraph_pause_ms(cfg,lang='fr'):
 def speech(desk,text,owner='cabinet',matter=''):
     try:return synthesize(desk,text,owner,matter)
     except Stop as exc:
-        if desk.c.get('speech568',{}).get('provider','espeak')=='espeak' or not desk.c.get('speech568',{}).get('fallback_local',True):raise
+        from .voix5694 import fournisseur_serveur
+        if fournisseur_serveur(desk.c)=='espeak' or not desk.c.get('speech568',{}).get('fallback_local',True):raise
         desk.setting('voice568:last_fallback:'+owner,{'at':desk.now(),'reason':str(exc),'provider':'espeak'})
         return assistant567.speech(desk,text,owner)
 
@@ -235,7 +242,15 @@ def briefing(desk,owner='cabinet'):
 
 
 def diagnostic(desk):
-    cfg=desk.c.get('speech568',{});provider=cfg.get('provider','espeak')
+    from .voix5694 import fournisseur, fournisseur_serveur, fichiers_presents
+    cfg=desk.c.get('speech568',{});provider=fournisseur(desk.c)
+    if provider=='brindille':   # 5.6.94 : voix du navigateur ; le serveur vérifie ses fichiers et sa voix de repli
+        manquants=fichiers_presents();secours=fournisseur_serveur(desk.c)
+        local=secours!='espeak' or bool(__import__('agent.portable',fromlist=['which']).which('espeak-ng'))
+        return {'ok':not manquants,'provider':provider,'fallback':secours,'fallback_ready':local,'missing':manquants[:5],
+                'message':('Voix Brindille servie par AxiorHub et produite dans le navigateur ; le serveur ne synthétise rien. ' if not manquants else
+                           'Fichiers de la voix Brindille absents ou altérés : '+', '.join(manquants[:5])+'. ')+
+                          ('Voix de repli du serveur : '+secours+('.' if local else ' (eSpeak NG absent : installer espeak-ng).'))}
     if provider in ('kokoro','chatterbox'):
         http=HTTP(cfg.get('url','http://127.0.0.1:8880'),local_only=True,local_hosts=('kokoro','chatterbox'),timeout=8)
         if cfg.get('api_key_file'):http.headers['Authorization']='Bearer '+read_secret(cfg['api_key_file'])

@@ -9,6 +9,7 @@
 - **Coupe-circuit** : un travail automatique qui a échoué trois fois de suite pour le même dossier n'est plus relancé
   automatiquement ; il reste relançable à la main, et « Réautoriser » efface le compteur.
 """
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sqlite3
@@ -135,6 +136,19 @@ def check_running(desk, row, args):
             raise Stop(code)
 
 
+def check_suspended(desk, row, args):
+    """5.6.94 (F02) : au démarrage, un travail AUTOMATIQUE dont les relances sont suspendues pour ce dossier (trois échecs consécutifs) ne
+    tourne pas : il se termine « ignoré » avec son motif (avant : un échec de plus, compté dans « demandes en erreur »). Une demande de
+    l'avocat n'est jamais concernée."""
+    from .arret5643 import is_automatic_row
+    mid = str((args or {}).get('matter') or (args or {}).get('matter_id') or '')
+    if not mid or not is_automatic_row(row, args):
+        return
+    count, _ = failures(desk, row['kind'], mid)
+    if count >= FAILURES:
+        raise Stop('relances_suspendues_apres_trois_echecs')
+
+
 def checkpoint(desk):
     """Revalide l'état réel du job avant de poursuivre ou de produire un effet."""
     jid = getattr(desk, 'active_job_id', None)
@@ -211,8 +225,11 @@ def with_consignes(desk, args):
 
 def blocked(desk, mid, days=14):
     """Travaux automatiques de ce dossier suspendus après des échecs répétés (pour affichage et réautorisation)."""
-    rows = desk.db.execute("SELECT DISTINCT kind FROM jobs WHERE json_extract(args,'$.matter')=? AND status='error' AND finished>=datetime('now',?)",
-                           (mid, '-%d days' % days)).fetchall()
+    # 5.6.94 (F06) : borne calculée en Python au format des horodatages enregistrés (ISO 8601, « T », UTC). Avant : la borne SQLite
+    # « AAAA-MM-JJ HH:MM:SS », comparée en texte : tout le jour du bord entrait dans la fenêtre (« T » > « espace »).
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = desk.db.execute("SELECT DISTINCT kind FROM jobs WHERE json_extract(args,'$.matter')=? AND status='error' AND finished>=?",
+                           (mid, since)).fetchall()
     out = []
     for r in rows:
         count, last = failures(desk, r['kind'], mid)

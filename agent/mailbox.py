@@ -220,6 +220,8 @@ def recipient_issue(mail, cfg, allowed_recipients=()):
 def connect(cfg):
     from .common import release_before_network
     release_before_network('imap')   # 5.6.32 : aucun verrou SQLite tenu pendant la connexion à la messagerie
+    from .traces5694 import etape
+    etape('imap', 'connexion')   # 5.6.94 (T06) : étape notée pour qualifier une erreur, jamais son contenu
     """5.6.30 : connexion IMAP chiffrée — TLS direct (993, par défaut) ou STARTTLS (143, ou « security » = starttls) — avec la cause
     exacte d'un échec (serveur introuvable, port fermé, délai, port sans TLS direct, certificat refusé)."""
     host = str(cfg['host'])
@@ -257,6 +259,8 @@ class Mailbox:
     def __init__(self, cfg):
         self.cfg = cfg
         self.conn = connect(cfg)
+        from .traces5694 import etape
+        etape('imap', 'login')
         try:
             self.conn.login(cfg['username'], read_secret(cfg['password_file']))
         except imaplib.IMAP4.error:
@@ -272,6 +276,8 @@ class Mailbox:
     def select(self, folder):
         from .charge5693 import compter
         compter('imap')   # 5.6.93 : commandes IMAP comptées (page « Charge du serveur »)
+        from .traces5694 import etape
+        etape('imap', 'select')   # 5.6.94 (T06)
         result, _ = self.conn.select(imap_quote(modified_utf7(folder)), readonly=True)
         if result != 'OK': raise Stop('dossier_imap_inaccessible')
         _, vv = self.conn.response('UIDVALIDITY')
@@ -283,6 +289,8 @@ class Mailbox:
         self.select(folder)
         from .charge5693 import compter
         compter('imap')
+        from .traces5694 import etape
+        etape('imap', 'search')
         status, result = self.conn.uid('SEARCH', None, *criteria)
         if status != 'OK': raise Stop('recherche_imap_echouee')
         return result[0].decode().split() if result and result[0] else []
@@ -291,6 +299,8 @@ class Mailbox:
         validity = self.select(folder)
         from .charge5693 import compter
         compter('imap', 2)
+        from .traces5694 import etape
+        etape('imap', 'fetch')
         status, rr = self.conn.uid('FETCH', uid, '(UID FLAGS INTERNALDATE RFC822.SIZE)')
         meta = b' '.join(x for x in rr if isinstance(x, bytes))
         if status != 'OK' or not meta: raise Stop('message_imap_disparu')
@@ -306,6 +316,7 @@ class Mailbox:
         query = '(BODY.PEEK[HEADER])' if headers_only else '(BODY.PEEK[])'
         status, data = self.conn.uid('FETCH', uid, query)
         raw = b''.join(x[1] for x in data if isinstance(x, tuple) and isinstance(x[1], bytes))
+        compter('imap_octets', len(raw))   # 5.6.94 (T01) : octets du lot IMAP dans la trace du travail
         if status != 'OK' or not raw: raise Stop('lecture_imap_echouee')
         message = BytesParser(policy=policy.default).parsebytes(raw)
         return Mail(uid, validity, folder, flags, stamp, message)
@@ -317,6 +328,8 @@ class Mailbox:
         validity = self.select(folder)
         if expected_validity and str(expected_validity) != str(validity):
             raise Stop('uidvalidity_modifiee')
+        from .traces5694 import etape
+        etape('imap', 'fetch_raw')
         status, rr = self.conn.uid('FETCH', uid, '(UID FLAGS INTERNALDATE RFC822.SIZE)')
         meta = b' '.join(x for x in rr if isinstance(x, bytes))
         if status != 'OK' or not meta: raise Stop('message_imap_disparu')
@@ -475,6 +488,8 @@ class Mailbox:
         # SMTP, sendmail, or calendar/file mutation is exposed.
         from .connector_readiness5689 import garde_configuration
         garde_configuration(self.cfg)   # 5.6.89 : révocation relue dans la base avant ce dépôt, quel que soit le circuit
+        from .traces5694 import etape
+        etape('imap', 'append')
         status, _ = self.conn.append(imap_quote(modified_utf7(self.cfg['drafts'])),
                                      '(\\Draft)', imaplib.Time2Internaldate(datetime.now(timezone.utc)),
                                      message.as_bytes(policy=policy.SMTP))

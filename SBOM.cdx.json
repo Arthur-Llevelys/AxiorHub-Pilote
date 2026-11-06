@@ -7,9 +7,9 @@
     "timestamp": "2026-10-06T00:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.93",
+      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.94",
       "name": "AxiorHub Pilote",
-      "version": "5.6.93",
+      "version": "5.6.94",
       "licenses": [
         {
           "license": {
@@ -444,6 +444,128 @@
           }
         }
       ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:huggingface/edbrdi/brindille@d393e3d5161937f2064bcfef33213749af4979f0",
+      "name": "brindille",
+      "version": "d393e3d",
+      "purl": "pkg:huggingface/edbrdi/brindille@d393e3d5161937f2064bcfef33213749af4979f0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b5d0644528bcb1388ff7ec527d4fcd36eb14c6c536438e7e06d622112a176c94"
+        }
+      ],
+      "description": "Copie locale : agent/static/brindille (voix française produite dans le navigateur)"
+    },
+    {
+      "type": "data",
+      "bom-ref": "voice:kyutai/pocket-tts/estelle",
+      "name": "Estelle (Pocket TTS, Kyutai)",
+      "version": "brindille-d393e3d",
+      "licenses": [
+        {
+          "license": {
+            "id": "CC-BY-4.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "65e8b4063bf99c27d509c8427b61e7867e721d62e5cad4171faf795dc02f44c6"
+        }
+      ],
+      "description": "Voix intégrée à agent/static/brindille/model/tts.alk ; attribution dans Paramètres › Voix"
+    },
+    {
+      "type": "data",
+      "bom-ref": "data:mfa/french-dictionary/brindille",
+      "name": "fr.dict (dérivé du dictionnaire français du Montreal Forced Aligner)",
+      "version": "brindille-d393e3d",
+      "licenses": [
+        {
+          "license": {
+            "id": "CC-BY-4.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "7e87af1778069123739bcd07158b2b0241854c69b33334c98cd051841a039b53"
+        }
+      ],
+      "description": "agent/static/brindille/model/fr.dict.bin ; modifié (phonèmes du modèle, 19 662 mots)"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/alkove@0.4.2",
+      "name": "alkove",
+      "version": "0.4.2",
+      "purl": "pkg:npm/alkove@0.4.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8c8966c15deffd6aa86b34f4f3c614271b90f0de0893facaaa082e695c3ffdf9"
+        }
+      ],
+      "description": "Copie locale : agent/static/alkove (traitement du micro dans le navigateur)"
+    },
+    {
+      "type": "machine-learning-model",
+      "bom-ref": "pkg:huggingface/alkove-ai/alkove-focus-1-preview@8e91ef608366cf503fbd8aaa44bc2000dce899ed",
+      "name": "alkove-focus-1-preview",
+      "version": "8e91ef6",
+      "purl": "pkg:huggingface/alkove-ai/alkove-focus-1-preview@8e91ef608366cf503fbd8aaa44bc2000dce899ed",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 AND MIT"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a63cda32e023b8d76089f4c3df0cc2c69ba36017b8f6cdea1da1094ef8022b6a"
+        }
+      ],
+      "description": "Isolation de la voix ; dérivé de GTCRN (MIT)"
+    },
+    {
+      "type": "machine-learning-model",
+      "bom-ref": "pkg:huggingface/alkove-ai/alkove-cue-1-preview@0e1f30380bdfb3201b5d4fd7d9e4197f71f11a60",
+      "name": "alkove-cue-1-preview",
+      "version": "0e1f303",
+      "purl": "pkg:huggingface/alkove-ai/alkove-cue-1-preview@0e1f30380bdfb3201b5d4fd7d9e4197f71f11a60",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "19e8b6c66ee9ce23bba3b8011f03827c5ba4bb2fe8bec25fe07558a78950190a"
+        }
+      ],
+      "description": "Détection de fin de parole"
     }
   ],
   "dependencies": [

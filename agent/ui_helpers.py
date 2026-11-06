@@ -52,7 +52,8 @@ def assistant_dock(prefix, csrf, matters, path, audio_enabled, selected_matter='
     live = ''
     try:
         from .shell501 import context as _ctx5679
-        if audio_enabled and ((_ctx5679() or {}).get('speech568') or {}).get('provider', 'espeak') in ('kokoro', 'espeak', 'chatterbox'):
+        from .voix5694 import fournisseur as _voix94   # 5.6.94 : Brindille (navigateur) par défaut, voix locale aussi
+        if audio_enabled and _voix94(_ctx5679() or {}) in ('brindille', 'kokoro', 'espeak', 'chatterbox'):
             live = ('<button type="button" id="ws-ai-live" class="ws-ai-live" aria-pressed="false" title="Conversation vocale en temps réel avec l’assistant" '
                     'aria-label="Conversation vocale en temps réel avec l’assistant"><svg class="w79" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="2" y="9" width="2.4" height="6" rx="1.2"/><rect x="6.4" y="6" width="2.4" height="12" rx="1.2"/><rect x="10.8" y="3" width="2.4" height="18" rx="1.2"/><rect x="15.2" y="6" width="2.4" height="12" rx="1.2"/><rect x="19.6" y="9" width="2.4" height="6" rx="1.2"/></svg></button>')
     except Exception:   # noqa: BLE001 — sans configuration lisible, pas de bouton
@@ -105,6 +106,7 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5681.js"></script>'   # 5.6.81 : liste des modèles des fournisseurs
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5637.js"></script>'   # 5.6.37 : en premier des scripts différés (classe posée avant v320.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5634t.js"></script>'   # 5.6.34 : en premier, traduit ce que les scripts écrivent
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5694-voix.js"></script>'   # 5.6.94 : lecture (Brindille) et micro (Alkove) communs, avant les dictées
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v310.js"></script>'
     head+=''
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v320.js"></script>'

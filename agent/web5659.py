@@ -94,7 +94,7 @@ def savoir_page(desk, auth, prefix, env, args):
 
 STAGES = {'verify': 'Contrôle d’un projet de réponse', 'compose': 'Rédaction d’une réponse', 'triage': 'Tri d’un courriel',
           'chat': 'Conversation avec l’assistant', 'completion': 'Appel du modèle', 'document_project': 'Projet de document',
-          'document_control': 'Contrôle d’un document', 'case_brief': 'Fiche du dossier', 'dossier_fiche': 'Fiche du dossier',
+          'document_control': 'Contrôle d’un document', 'case_brief': 'Fiche du dossier', 'case_brief_part': 'Fiche du dossier (par rubrique)', 'dossier_fiche': 'Fiche du dossier',
           'attachment_review': 'Lecture d’une pièce jointe', 'act_project': 'Projet d’acte', 'manual_draft': 'Rédaction demandée'}
 
 

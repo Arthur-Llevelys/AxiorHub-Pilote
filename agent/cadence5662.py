@@ -70,4 +70,7 @@ def allow(desk, kind, minutes, now_ts=None):
     """Un travail périodique peut-il être mis en file maintenant ? (repos respecté, et file libre sauf travail essentiel)."""
     if not rested(desk, kind, minutes, now_ts):
         return False
+    from . import fiabilite5694
+    if kind in fiabilite5694.ATTENTE_PANNE and fiabilite5694.en_attente(desk, now_ts):
+        return False   # 5.6.94 (F01) : Nextcloud indisponible : Deck et Tâches attendent le nouvel essai (pas une erreur par passage)
     return kind in ESSENTIAL or not busy(desk, now_ts)   # différé : le planificateur réessaie au passage suivant (aucune écriture)

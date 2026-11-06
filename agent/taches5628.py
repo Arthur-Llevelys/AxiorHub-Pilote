@@ -83,8 +83,9 @@ def page(desk, link, form, url, args, last_sync='', sync_form=''):
                       for m in matters.values())
     head = ('<div class="tk28-head"><div><h2>Mes tâches</h2><p class="tk28-muted">%d tâche(s) ouverte(s)%s</p></div>'
             '<form class="tk28-filter" method="get" action="%s"><input type="hidden" name="vue" value="taches">%s'
-            '<select name="dossier" aria-label="Filtrer par dossier" onchange="this.form.submit()"><option value="">Tous les dossiers</option>%s</select>'
-            '<noscript><button>Filtrer</button></noscript></form></div>'
+            # 5.6.94 (P05) : bouton visible ; l'ancien « onchange » en ligne était bloqué par la CSP et le filtre ne s'appliquait jamais
+            '<select name="dossier" aria-label="Filtrer par dossier"><option value="">Tous les dossiers</option>%s</select>'
+            '<button type="submit" class="ax-btn ghost">Filtrer</button></form></div>'
             '<nav class="tk28-chips" aria-label="Période">%s</nav>') % (
         len(items), (' dont <strong class="tk28-late">%d en retard</strong>' % late) if late else '', e(url('/planning')),
         ('<input type="hidden" name="filtre" value="%s">' % e(chosen, quote=True)) if chosen else '', options,

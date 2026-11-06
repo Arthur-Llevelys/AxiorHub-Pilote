@@ -7,6 +7,7 @@
 - **titre lisible** d'un document : un fichier nommé par un numéro (« 7700112233.pdf ») est présenté par sa nature et sa date relevées.
 """
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from email.utils import parseaddr
 import json
 from pathlib import PurePosixPath
@@ -46,8 +47,9 @@ def last_ai_work(desk, days=120):
     for mid, when in _rows(desk.db, 'SELECT matter,MAX(created) FROM d51_narratives GROUP BY matter'):
         out[mid] = _later(out.get(mid), when, 'Rappel rédigé')
     kinds = tuple(AI_JOBS)
-    for kind, args, finished in _rows(desk.db, "SELECT kind,args,finished FROM jobs WHERE status='done' AND kind IN (%s) AND finished>=date('now',?) "
-                                               "ORDER BY id DESC LIMIT 5000" % ','.join('?' * len(kinds)), (*kinds, '-%d days' % days)):
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()   # 5.6.94 (F06) : borne exacte, au format des horodatages
+    for kind, args, finished in _rows(desk.db, "SELECT kind,args,finished FROM jobs WHERE status='done' AND kind IN (%s) AND finished>=? "
+                                               "ORDER BY id DESC LIMIT 5000" % ','.join('?' * len(kinds)), (*kinds, since)):
         try:
             mid = str((json.loads(args or '{}') or {}).get('matter') or '')
         except (ValueError, TypeError):
@@ -60,7 +62,8 @@ def last_ai_work(desk, days=120):
 def matter_ai_activity(desk, mid, limit=8):
     """Derniers travaux de l'IA sur un dossier : [{'date', 'libelle', 'detail'}], du plus récent au plus ancien."""
     items = []
-    n = _rows(desk.db, "SELECT COUNT(DISTINCT path),MAX(created) FROM piece_digests5634 WHERE matter=? AND created>=date('now','-30 days')", (mid,))
+    n = _rows(desk.db, "SELECT COUNT(DISTINCT path),MAX(created) FROM piece_digests5634 WHERE matter=? AND created>=?",
+              (mid, (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()))   # 5.6.94 (F06)
     if n and n[0][0]:
         items.append({'date': str(n[0][1]), 'libelle': 'Lecture des pièces', 'detail': '%d pièce(s) lue(s) sur les 30 derniers jours' % n[0][0]})
     for version, created in _rows(desk.db, 'SELECT version,created FROM fiche5627 WHERE matter=? ORDER BY version DESC LIMIT 1', (mid,)):

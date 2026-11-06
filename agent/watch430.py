@@ -112,8 +112,18 @@ def _schedule_5642(desk,stamp=None):
             latest=desk.db.execute('SELECT id,status,attempts,result FROM jobs WHERE kind=? ORDER BY id DESC LIMIT 1',(kind,)).fetchone()
             if (kind in ('live_calendar430','live_documents430') and latest and latest['status']=='error' and latest['attempts']>=3
                     and not _legacy_unreadable(latest)):
-                emit(desk,'blocked','Contrôle en lecture suspendu après trois tentatives ; corriger le motif puis utiliser Relancer.',latest['id'],dedupe='retry-exhausted-'+str(latest['id']))
+                from . import fiabilite5694   # 5.6.94 (F01) : erreur passagère de Nextcloud : un seul nouvel essai, espacé ; les autres attendent l'avocat
+                suite=fiabilite5694.reprise(desk,kind,stamp)
+                if suite and suite['due']:
+                    jobs.append(fiabilite5694.relancer(desk,kind));desk.setting('live430:last:'+kind,stamp)
+                elif suite:
+                    emit(desk,'blocked',fiabilite5694.ligne(desk,suite),latest['id'],dedupe='nextcloud-indisponible-%s-%d'%(suite['depuis'],suite['essais']))
+                else:
+                    emit(desk,'blocked','Contrôle en lecture suspendu après trois tentatives ; corriger le motif puis utiliser Relancer.',latest['id'],dedupe='retry-exhausted-'+str(latest['id']))
                 continue
+            if kind=='live_documents430':
+                from .fiabilite5694 import en_attente
+                if en_attente(desk,stamp):continue   # 5.6.94 (F01) : Nextcloud indisponible : aucun lot de dossiers avant le nouvel essai de l'agenda
             if latest and latest['status'] in ('pending','running','cancel_requested'):
                 jobs.append(latest['id']);desk.setting('live430:last:'+kind,stamp);continue
             jobs.append(desk.enqueue(kind,priority=5 if kind=='live_mail430' else 55))
@@ -296,6 +306,9 @@ def retry_folder(desk,mid,ignore=False,restore=False):
 
 def documents_check(desk,dav=None):
     client=dav or DAV(desk.c['nextcloud']);skip=set(ignored(desk))
+    from . import fiabilite5694
+    signales=unreadable(desk)
+    skip|=fiabilite5694.introuvables_au_repos(signales)   # 5.6.94 (F05) : un dossier introuvable (404) est réessayé une fois par jour au plus
     matters=[m for m in indexable_matters(desk.c) if m['id'] not in skip]
     if not matters:return {'abstention':'Aucun dossier indexable.'}
     cursor=int(desk.settings('live430:document_cursor',0))%len(matters);changed=0;partial=0;deferred=0
@@ -303,13 +316,17 @@ def documents_check(desk,dav=None):
     # les dossiers modifiés (au plus 3 par lot) sont relus, et seulement dans leurs sous-répertoires dont l'ETag a changé (charge5693).
     from . import charge5693
     etag_mode=charge5693.mode_etag(desk,client)
+    # 5.6.94 (F05) : un dossier signalé sur une erreur passagère (panne de Nextcloud, avant 5.6.94) est relu en tête du lot suivant, sans
+    # attendre un changement d'ETag (constaté : 27 signalements 503 jamais relus, l'ETag inchangé faisait passer le dossier).
+    prior=fiabilite5694.a_relire(signales,matters)[:charge5693.LOT_MAXIMUM];prior_ids={m['id'] for m in prior}
     if etag_mode:
-        lot,advance,unchanged=charge5693.lot_documents(desk,client,matters,cursor)
+        lot,advance,unchanged=charge5693.lot_documents(desk,client,matters,cursor,maximum=charge5693.LOT_MAXIMUM-len(prior))
     else:
         lot=[(m,None,False) for m in matters[cursor:cursor+3]];advance=len(lot);unchanged=0
+    lot=[(m,None,False) for m in prior]+[x for x in lot if x[0]['id'] not in prior_ids]
     selected=[m for m,_,_ in lot];settle=[]
     progress(desk,'Surveillance Nextcloud · '+str(len(selected))+' dossiers dans ce lot')
-    failed=0
+    failed=0;passager=None
     for matter,root_etag,full in lot:
         mid=matter['id'];setting='live430:scan:'+mid
         try:
@@ -319,10 +336,14 @@ def documents_check(desk,dav=None):
             # 5.6.3 : un dossier illisible est signalé et passé ; il ne suspend plus la surveillance de tout le cabinet.
             # 5.6.36 : il est nommé dans « Pourquoi rien n'est produit ? » avec son motif, « Réessayer » et « Ne plus surveiller ».
             failed+=1;desk.setting(setting,None)
+            if fiabilite5694.passagere(str(ex)):
+                # 5.6.94 (F01, F05) : Nextcloud indisponible : rien n'est signalé « illisible » ; le lot s'arrête et sera repris tel quel
+                passager=str(ex);break
             gone=unreadable(desk);prev=gone.get(mid) or {}
             from .improvements36 import matter_option
             gone[mid]={'label':matter_option(matter)[:160],'path':str(matter.get('path',''))[-160:],'code':str(ex)[:80],
-                       'at':datetime.now(timezone.utc).isoformat(),'count':int(prev.get('count',0))+1}
+                       'at':datetime.now(timezone.utc).isoformat(),'count':int(prev.get('count',0))+1,
+                       **({'candidats':prev['candidats']} if prev.get('candidats') else {})}   # 5.6.94 (F05) : emplacements retrouvés gardés
             desk.setting(UNREADABLE,dict(sorted(gone.items())[:300]))
             emit(desk,'documents','Dossier non lu ('+str(ex)[:60]+') : '+str(matter.get('path',''))[-120:],getattr(desk,'active_job_id',None),mid,
                  dedupe='illisible-'+mid+'-'+time.strftime('%Y%m%d'))
@@ -390,9 +411,9 @@ def documents_check(desk,dav=None):
                      dedupe='report-'+mid+'-'+time.strftime('%Y%m%d%H'))
     for mid,root_etag,full in settle:   # 5.6.93 : un dossier encore « à traiter » n'est jamais réglé (charge5693.regler le vérifie)
         charge5693.regler(desk,mid,root_etag,full)
-    next_cursor=(cursor+advance)%len(matters);desk.setting('live430:document_cursor',next_cursor)
+    next_cursor=cursor if passager else (cursor+advance)%len(matters);desk.setting('live430:document_cursor',next_cursor)   # 5.6.94 (F05)
     # Finish a whole sweep in bounded lots, yielding to replies between each lot.
-    more=next_cursor!=0 or bool(partial)
+    more=next_cursor!=0 or bool(partial) or bool(passager)
     if not more:   # 5.6.62 : tour complet terminé ; le suivant attend l'intervalle de repos (_schedule_5642)
         desk.setting('live430:documents_sweep_done',time.time())
     heartbeat(desk,'documents','active','Lot '+str(cursor+1)+'–'+str(cursor+advance)+' / '+str(len(matters))+' dossiers · '+str(partial)+' inventaires partiels'
@@ -400,6 +421,7 @@ def documents_check(desk,dav=None):
     # 5.6.36 : plus de Stop('dossiers_illisibles') : trois lots de dossiers illisibles suspendaient toute la surveillance des documents.
     result={'changed':changed,'partial':partial,'failed':failed,'deferred':deferred,'continue_scan':more,'remote_write':False}
     if etag_mode:result['unchanged']=unchanged
+    if passager:result['nextcloud_indisponible']=passager   # 5.6.94 (F05) : lot interrompu, repris au passage suivant
     return result
 
 

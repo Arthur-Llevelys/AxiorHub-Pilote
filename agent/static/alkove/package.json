@@ -1,0 +1,87 @@
+{
+  "name": "alkove",
+  "version": "0.4.2",
+  "description": "On-device voice input for the web: keep the user's voice, detect speech and wake words. No server, no key.",
+  "keywords": [
+    "voice",
+    "speech",
+    "audio",
+    "noise-suppression",
+    "noise-cancellation",
+    "voice-isolation",
+    "speech-enhancement",
+    "target-speaker-extraction",
+    "voice-activity-detection",
+    "vad",
+    "wake-word",
+    "hotword",
+    "keyword-spotting",
+    "speaker-verification",
+    "voiceprint",
+    "grapheme-to-phoneme",
+    "webrtc",
+    "voice-agent",
+    "on-device",
+    "react",
+    "browser",
+    "webassembly",
+    "wasm"
+  ],
+  "homepage": "https://alkove.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alkove-ai/alkove.git",
+    "directory": "packages/alkove"
+  },
+  "bugs": "https://github.com/alkove-ai/alkove/issues",
+  "author": "Eddy Bordi",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "^22.10.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "30.1.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "bin": {
+    "alkove": "dist/cli.js"
+  }
+}

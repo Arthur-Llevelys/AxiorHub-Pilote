@@ -58,7 +58,7 @@
     const button=event.currentTarget;
     if(recording){recording.stop();return;}
     if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){status.textContent='Micro indisponible dans ce navigateur.';return;}
-    try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});const chunks=[];
+    try{const stream=await (window.axiorhubMic?window.axiorhubMic.stream('dictee',{audio:true}):navigator.mediaDevices.getUserMedia({audio:true}));const chunks=[];
       const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/mp4'].find(x=>MediaRecorder.isTypeSupported(x));
       recording=new MediaRecorder(stream,{mimeType:mime});recording.ondataavailable=e=>chunks.push(e.data);button.textContent='⏹ Arrêter';status.textContent='Écoute locale en cours…';
       recording.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());button.textContent='🎙 Parler';const current=recording;recording=null;

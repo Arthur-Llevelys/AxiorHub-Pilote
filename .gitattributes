@@ -6,3 +6,6 @@
 *.docx binary
 *.pdf binary
 *.gz binary
+*.wasm binary
+*.alk binary
+*.bin binary

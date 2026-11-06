@@ -3,6 +3,21 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.94 — Fiabilité, voix française Brindille, dictée améliorée
+
+Fiabilité des travaux automatiques, traces locales sans texte des dossiers, parcours de navigateur vérifiés avant publication, et nouvelle voix produite dans le navigateur.
+
+- **Nextcloud indisponible** : après une erreur passagère (503, 502, 504, 429, coupure, délai), l’agenda et les dossiers sont réessayés seuls après 30 min, 1 h, 2 h puis 4 h au plus, en respectant `Retry-After`. Une erreur d’autorisation (401, 403) ou un dossier introuvable (404) attend toujours une décision. Pendant la panne, une seule ligne « Nextcloud indisponible depuis…, nouvel essai à… » remplace la liste des erreurs.
+- **Dossiers « illisibles »** : une panne passagère ne marque plus un dossier illisible ; les anciens signalements dus à un 503 sont relus et retirés. Un dossier introuvable est réessayé une fois par jour et propose « Retrouver son nouvel emplacement », « Utiliser cet emplacement » ou « Ne plus surveiller ».
+- **Travaux suspendus** : un travail automatique dont les relances sont suspendues est noté « Ignoré » au lieu de s’ajouter aux erreurs ; l’avancement d’un dossier passe le sous-travail suspendu. Les demandes de l’avocat ne sont jamais concernées. L’outil Open WebUI connaît ce nouvel état (à réimporter).
+- **Fiche vivante d’un gros dossier** : si la réponse de l’IA est coupée, la fiche est produite rubrique par rubrique ; une fiche incomplète est enregistrée comme partielle, avec les rubriques manquantes nommées.
+- **Nettoyage de la boîte À traiter** : seules les cartes dont la boîte a changé sont relues (compteurs du serveur IMAP), relecture complète une fois par jour. Sur un essai à 200 cartes : 3 commandes au lieu de 3 803 quand rien n’a changé.
+- **Dates** : les fenêtres de temps de la pause et du suivi n’englobent plus toute la journée du bord.
+- **Traces locales** : chaque travail laisse une trace (durée, service, étape, cause) au format OpenTelemetry, sans texte ni nom de dossier ; synthèse « Où ça bloque » dans Paramètres › Confort et maintenance › Charge du serveur ; envoi vers un collecteur seulement si l’administrateur le règle. Une coupure IMAP après connexion indique désormais sa cause au lieu de « consulter le journal ».
+- **Voix Brindille** : voix française par défaut, produite dans le navigateur (aucune charge pour le serveur), abréviations juridiques développées avant lecture. Kokoro, eSpeak et Chatterbox restent au choix, et servent de repli.
+- **Dictée et conversation vocale** : isolation de la voix et détection de fin de parole dans le navigateur (Alkove Focus et Cue) ; aucune empreinte vocale conservée.
+- **Parcours de navigateur** : pause, annulation, reprise, facture, livrable et téléchargement vérifiés dans un vrai navigateur par la recette GitHub. Corrigés à cette occasion : le filtre par dossier de Mes tâches (bouton visible) et les listes des formulaires, qui enfreignaient la politique de sécurité de la page (liste native conservée).
+
 ## 5.6.93 — Audit 5.6.90 : droits des travaux, collecte complète, exports fidèles, charge du serveur
 
 Corrections de l’audit du cabinet sur la 5.6.90 (N01 à N10) et réduction des passages automatiques.

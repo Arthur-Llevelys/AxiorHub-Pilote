@@ -1,7 +1,7 @@
 """
 title: AxiorHub Avocat
 author: AxiorHub
-version: 5.6.93
+version: 5.6.94
 description: Cabinet opérant avec apprentissage métier explicite, banc juridique et routage local-first contrôlé.
 requirements: pydantic
 """
@@ -20,7 +20,8 @@ OUTIL_VERSION=(re.search(r"^version:\s*(\S+)",__doc__ or "",re.M) or re.match(r"
 # Contrat de statut partagé avec le serveur (agent/operations5693.STATUTS) : état du travail -> (code, libellé, terminal).
 CONTRAT_STATUT={"pending":("en_file","En file",False),"running":("en_cours","En cours",False),"suspended":("suspendu","Suspendu",False),
                 "cancel_requested":("arret_demande","Arrêt demandé ; confirmation encore attendue",False),"cancelled":("annule","Annulé ; aucune reprise automatique",True),
-                "error":("echec","Échec",True),"done":("termine","Terminé",True)}
+                "error":("echec","Échec",True),"done":("termine","Terminé",True),
+                "ignored":("ignore","Ignoré : relances automatiques suspendues",True)}
 ATTENTES={"attente_budget":"En attente : plafond de budget atteint","attente_fournisseur":"En attente : fournisseur d’IA indisponible ou limite d’abonnement",
           "attente_decision":"En attente d’une décision"}
 SUSPENSIONS={"pause":"pause manuelle de l’IA","pause_dossier":"dossier en pause","pause_horaire":"pause programmée"}

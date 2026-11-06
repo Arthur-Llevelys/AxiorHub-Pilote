@@ -166,10 +166,18 @@ def _ia(desk, auth, prefix, env, cap):
 
 def _voix(desk, auth, prefix, env, cap):
     from . import web567, web568, web490
-    body = _section(web567.connections_page(desk, auth, prefix, env, shell=cap, groups=VOICE_GROUPS, tests=('voice',),
-                                            heading='Moteurs de voix : dictée, transcription et synthèse'))
-    body = re.sub(r'<details><summary>Variables Docker.*?</details>', '', body, count=1, flags=re.S)
-    body += _section(web567.preferences_page(desk, auth, prefix, env, shell=cap), strip=('Accueil téléphonique et WhatsApp',))
+    from .voix_web5694 import section_html as _voix5694
+    from .web567 import actor
+    # 5.6.94 (V08) : section Carbon en tête (choix de la voix, essai d'écoute, vitesse, Alkove, guide Kokoro, licences) ; les autres
+    # réglages restent en dessous. La voix et sa voix de repli, la vitesse ne se règlent qu'à un endroit : ôtés des formulaires repris.
+    cap.head += '<script defer src="' + e(prefix, quote=True) + '/static/v5694-voix-page.js"></script>'
+    body = _section(_voix5694(desk, prefix, *actor(env), env))
+    connexions = _section(web567.connections_page(desk, auth, prefix, env, shell=cap, groups=VOICE_GROUPS, tests=('voice',),
+                                                  heading='Moteurs de voix : dictée, transcription et synthèse'))
+    connexions = re.sub(r'<label>[^<]*<input[^>]*data-config567="speech568\.(?:provider|fallback_provider)"[^>]*></label>', '', connexions)
+    body += re.sub(r'<details><summary>Variables Docker.*?</details>', '', connexions, count=1, flags=re.S)
+    preferences = _section(web567.preferences_page(desk, auth, prefix, env, shell=cap), strip=('Accueil téléphonique et WhatsApp',))
+    body += re.sub(r'<label>Vitesse<input name="speech_rate"[^>]*></label>', '', preferences, count=1)
     body += _section(web568.preferences(desk, auth, prefix, env, shell=cap), keep='Voix et conversation rapide')
     body += _section(web490.confort_sections(desk, auth, prefix, {}).get('voix', ''))
     return body

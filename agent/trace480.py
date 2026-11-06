@@ -59,6 +59,8 @@ def begin(job_id='', job_kind='', matter=''):
 
 def end():
     CTX.set(None)
+    from . import traces5694   # 5.6.94 (T01) : fin du travail = fin de sa trace OpenTelemetry, sur tous les chemins de sortie du worker
+    traces5694.clore()
 
 
 def _clean_matter(value):
@@ -121,6 +123,8 @@ def _matter_of(data):
 
 def record_call(cfg, stage, data, messages, status='ok', error='', duration_ms=0):
     """Enregistre un appel de modèle. Ne lève jamais d'exception."""
+    from . import traces5694   # 5.6.94 (T01) : span enfant du travail en cours (fournisseur, modèle, durée, statut ; jamais le contenu)
+    traces5694.appel_modele(cfg, stage, status, error, duration_ms)
     try:
         state = str((cfg or {}).get('state_dir') or '')
         if not state:

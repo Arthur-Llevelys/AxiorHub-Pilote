@@ -11,6 +11,7 @@ L’outil `integrations/openwebui/axiorhub_tool.py` suit une opération longue (
 | Attente de budget, de fournisseur ou de décision | Immédiatement, avec le motif. |
 | Arrêt demandé | Il attend la confirmation (« Annulé »). |
 | Annulé, échec, terminé | Immédiatement, avec le résultat ou le motif. |
+| Ignoré (depuis la 5.6.94 : travail automatique dont les relances sont suspendues) | Immédiatement, avec le motif. |
 | Serveur injoignable | « État inconnu », avec le dernier état connu ; jamais « le traitement continue ». |
 
 Chaque réponse porte `outil_version`. La fonction `version_de_l_outil` compare cette version à celle du serveur.

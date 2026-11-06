@@ -278,9 +278,11 @@
       matter: c.querySelector('.mission567-choice')?.value || ''}); if (currentMission?.id === m.id) show(m); await refreshList();}
     catch (e) {note(e.message);} finally {b.disabled = false;}
   });
-  function stopAudio() {if (liveAudio) {liveAudio.pause(); liveAudio.src = ''; liveAudio = null;} if (audioURL) {URL.revokeObjectURL(audioURL); audioURL = '';}}
+  function stopAudio() {window.axiorhubVoix?.stop(); if (liveAudio) {liveAudio.pause(); liveAudio.src = ''; liveAudio = null;} if (audioURL) {URL.revokeObjectURL(audioURL); audioURL = '';}}
   async function read(text) {
     stopAudio(); if (!text) {note('Aucun texte à lire.'); return;} note('Préparation de la lecture vocale…');
+    // 5.6.94 (V03, V05) : lecture commune (Brindille dans le navigateur, sinon voix du serveur), phrase par phrase, coupée par « Arrêter »
+    if (window.axiorhubVoix) {try {await window.axiorhubVoix.speak(text, {matter: matter.value, note});} catch (e) {note(e.message);} return;}
     try {
       const response = await fetch(prefix + '/api440/m567/speech', {method: 'POST', credentials: 'same-origin',
         headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: JSON.stringify({text,matter:matter.value})});
@@ -293,7 +295,7 @@
     b.disabled = true; try {const brief = await api('briefing'); current.replaceChildren(el('pre', brief.text)); await read(brief.text);} catch (e) {note(e.message);} finally {b.disabled = false;}
   }));
   dock.querySelector('[data-read567]').addEventListener('click', () => read(currentMission?.result?.text || current.textContent));
-  dock.querySelector('[data-audio-pause567]').addEventListener('click', () => {if (liveAudio) liveAudio.paused ? liveAudio.play().catch(e => note(e.message)) : liveAudio.pause();});
+  dock.querySelector('[data-audio-pause567]').addEventListener('click', () => {if (window.axiorhubVoix?.speaking()) {window.axiorhubVoix.togglePause(); return;} if (liveAudio) liveAudio.paused ? liveAudio.play().catch(e => note(e.message)) : liveAudio.pause();});
   dock.querySelector('[data-audio-stop567]').addEventListener('click', stopAudio);
   dock.querySelector('#ws-ai-clear')?.addEventListener('click', () => {   // 5.6.19 : effacer l'affichage, pas l'historique des missions
     stopAudio(); current.replaceChildren(); history.replaceChildren(); currentMission = null; storage.set(''); shownStates = {};
@@ -305,7 +307,7 @@
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {note('Microphone indisponible dans ce navigateur.'); return;}
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      stream = await (window.axiorhubMic ? window.axiorhubMic.stream('dictee', {audio: true}) : navigator.mediaDevices.getUserMedia({audio: true}));   // 5.6.94 (V07) : voix isolée par Alkove
       const mime = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].find(m => MediaRecorder.isTypeSupported(m));
       const rec = new MediaRecorder(stream, mime ? {mimeType: mime} : {}), chunks = []; let bytes = 0;
       recorder = rec; const timeout = setTimeout(() => {if (rec.state !== 'inactive') rec.stop();}, 60000);
@@ -327,7 +329,7 @@
           note('Transcription visible, à rectifier si nécessaire. ' + (corrections ? corrections + ' correction(s) du lexique appliquée(s). ' : '') + 'La mission ne démarre qu’à votre demande.');
         } catch (e) {note(e.message);}
       };
-      rec.start(1000); button.textContent = '⏹ Arrêter la dictée'; window.axiorhubPilot.setMic(true); note('Microphone actif. La voix utilise les mêmes droits que le texte.');
+      rec.start(1000); button.textContent = '⏹ Arrêter la dictée'; window.axiorhubPilot.setMic(true); note('Microphone actif. La voix utilise les mêmes droits que le texte.' + (stream.axiorhubNote ? ' ' + stream.axiorhubNote : ''));
     } catch (e) {stream?.getTracks().forEach(t => t.stop()); note('Microphone non démarré : ' + e.message);}
   });
   // 5.6.13 : état de conversation partagé entre le texte et la voix (dossier, pièces jointes, courriel, mission courante, fil)
@@ -345,7 +347,8 @@
     event.preventDefault(); const f = new FormData(preferences), output = document.querySelector('#assistant567-preferences-status');
     const lexicon = String(f.get('lexicon') || '').split('\n').filter(x => x.trim()).map(x => {const at = x.indexOf('='); if(at<1) return {heard:'',written:''}; return {heard: x.slice(0, at).trim(), written: x.slice(at + 1).trim()};});
     try {profile = await api('profile', {name: f.get('name'), tone: f.get('tone'), length: f.get('length'), initiative:f.get('initiative'), speech_enabled: f.has('speech_enabled'),
-      discreet: f.has('discreet'), speech_rate: Number(f.get('speech_rate')), lexicon}); output.textContent = 'Préférences enregistrées.';}
+      // 5.6.94 : sur Paramètres › Voix, la vitesse se règle dans la section Voix ; son absence ne la remet pas à 0,7
+      discreet: f.has('discreet'), ...(f.has('speech_rate') ? {speech_rate: Number(f.get('speech_rate'))} : {}), lexicon}); output.textContent = 'Préférences enregistrées.';}
     catch (e) {output.textContent = e.message;}
   });
   window.axiorhubProfile567 = api('profile');   // 5.6.9 : une seule lecture du profil par page (v568.js la réutilise)
