@@ -135,7 +135,7 @@
   const start=el('button','Démarrer le dialogue'),stop=el('button','Arrêter'),send=el('button','Envoyer le texte corrigé');[start,stop,send].forEach(b=>{b.type='button';});
   pane.append(header,context,mode,el('p','La discussion donne des réponses. Le mode mission autorise les préparations internes ; aucun envoi ni invitation automatique.'),status,answer,transcript,send,transmission,start,stop);if(dockVoice){pane.classList.add('voice568-embedded');dockVoice.append(pane);}else document.body.append(launch,pane);
   let running=false,stream=null,rec=null,chunks=[],bytes=0,audioContext=null,analyser=null,vad=null,lastSound=0,turnStart=0,voiced=false,processing=false,speaking=null,audioURL='',scope='',parent='',generation=0;
-  let controller=null,lastPayload=null;
+  let controller=null,lastPayload=null,micSession=null,cueReady=false;   // 5.6.94 (V07) : capture Alkove (Focus, Cue)
   const token=()=>crypto.randomUUID();
   let dictationFailures=0;
   // 5.6.81 : ni affichés ni lus à voix haute : les balises de mise en forme de la réponse
@@ -143,7 +143,7 @@
   function voiceNote(text){status.textContent=text;}
   let speechGeneration=0,playResolve=null;
   // 5.6.11 : une interruption (parole, Arrêter, fermeture) résout aussi l'attente de lecture en cours : la conversation revient à l'écoute.
-  function stopSpeech(){speechGeneration++;speaking?.pause();speaking=null;if(audioURL)URL.revokeObjectURL(audioURL);audioURL='';const r=playResolve;playResolve=null;if(r)r();}
+  function stopSpeech(){speechGeneration++;window.axiorhubVoix?.stop();speaking?.pause();speaking=null;if(audioURL)URL.revokeObjectURL(audioURL);audioURL='';const r=playResolve;playResolve=null;if(r)r();}
   // 5.6.9 : lecture phrase par phrase. La première phrase est lue pendant que les suivantes se préparent ; une interruption
   // (parole, Arrêter, fermeture) vide la file. Le texte complet reste visible.
   function sentences(text){
@@ -169,13 +169,17 @@
     });
   }
   function stopSession(){window.axiorhubPilot?.setMic(false);liveState(false);running=false;generation++;processing=false;controller?.abort();controller=null;clearInterval(vad);vad=null;
-    if(rec&&rec.state!=='inactive')rec.stop();rec=null;stream?.getTracks().forEach(t=>t.stop());stream=null;audioContext?.close().catch(()=>{});audioContext=null;stopSpeech();mode.disabled=false;start.disabled=false;voiceNote('Microphone et lecture arrêtés. Une mission déjà confiée garde son état dans Missions.');}
+    if(rec&&rec.state!=='inactive')rec.stop();rec=null;stream?.getTracks().forEach(t=>t.stop());stream=null;micSession?.close?.();micSession=null;cueReady=false;audioContext?.close().catch(()=>{});audioContext=null;stopSpeech();mode.disabled=false;start.disabled=false;voiceNote('Microphone et lecture arrêtés. Une mission déjà confiée garde son état dans Missions.');}
   async function read(text,g){
     if(!text||g!==generation||!running)return;stopSpeech();
     const preview=await api('speech/preview',{text:text.slice(0,7000),matter:scope},controller?.signal);
     if(g!==generation||!running)return;
     transmissionTitle.textContent=preview.external?'Lecture ElevenLabs · estimation '+(preview.estimated_usd??'indisponible')+' USD'+(preview.pseudonymized?' · pseudonymes':''):'Lecture locale · '+preview.provider;
     transmissionText.textContent=preview.external?(preview.allowed?preview.transmitted_text:'Externe refusé : '+preview.reason+'. Le secours local configuré peut lire le texte.'):'Aucun texte transmis à un service vocal externe.';
+    // 5.6.94 (V03, V05) : lecture commune (Brindille dans le navigateur ou voix du serveur), interrompue par la parole ou « Arrêter »
+    if(window.axiorhubVoix){voiceNote('Lecture phrase par phrase. Parlez pour interrompre, ou appuyez sur Arrêter.');
+      try{await window.axiorhubVoix.speak(text.slice(0,7000),{matter:scope,note:voiceNote});}catch(e){voiceNote(e.message);}
+      if(g!==generation||!running)return;voiceNote('À vous. Le microphone reste actif.');return;}
     const sg=speechGeneration,parts=sentences(text.slice(0,7000));let next=fetchSpeech(parts[0],controller?.signal);
     voiceNote('Lecture phrase par phrase. Parlez pour interrompre, ou appuyez sur Arrêter.');
     for(let i=0;i<parts.length;i++){
@@ -246,15 +250,22 @@
     context.textContent='Contexte de la session : '+(scope||'tout le cabinet')+'. Arrêtez puis redémarrez pour changer de dossier.';
     try{
       const capabilities=await api('capabilities');if(!capabilities.dictation)throw new Error('Configurez d’abord la transcription locale dans Paramètres › Connexions › Voix.');
-      const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-      if(g!==generation){s.getTracks().forEach(t=>t.stop());return;}
+      const constraints={audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}};
+      const cap=window.axiorhubMic?await window.axiorhubMic.capture('conversation',constraints):{stream:await navigator.mediaDevices.getUserMedia(constraints)};
+      const s=cap.stream;
+      if(g!==generation){cap.close?.();s.getTracks().forEach(t=>t.stop());return;}
+      // 5.6.94 (V07) : « Arrêter quand je me tais » : fin de prise de parole détectée par Cue dès que les modèles tournent ; avant, ou sans Alkove, le volume
+      micSession=cap;cueReady=false;
+      if(cap.stopOnSilence&&cap.ready)cap.ready.then(()=>{if(micSession===cap)cueReady=true;}).catch(()=>{});
+      cap.on?.('speechstart',()=>{voiced=true;lastSound=Date.now();});
+      cap.on?.('turnend',()=>{if(micSession===cap&&cueReady&&rec?.state==='recording'&&!processing&&voiced)rec.stop();});
       stream=s;audioContext=new AudioContext();await audioContext.resume();analyser=audioContext.createAnalyser();analyser.fftSize=1024;audioContext.createMediaStreamSource(s).connect(analyser);
-      running=true;liveState(true);mode.disabled=true;start.disabled=true;window.axiorhubPilot?.setMic(true);voiceNote('Microphone actif · parlez, puis laissez une courte pause.');recordTurn();
+      running=true;liveState(true);mode.disabled=true;start.disabled=true;window.axiorhubPilot?.setMic(true);voiceNote('Microphone actif · parlez, puis laissez une courte pause.'+(cap.note?' '+cap.note:''));recordTurn();
       const data=new Float32Array(analyser.fftSize);
       vad=setInterval(()=>{
         if(!running||!analyser)return;analyser.getFloatTimeDomainData(data);const rms=Math.sqrt(data.reduce((sum,x)=>sum+x*x,0)/data.length),now=Date.now();
-        if(rms>0.035){lastSound=now;voiced=true;if(speaking&&rms>0.09){stopSpeech();voiceNote('Lecture interrompue. À vous.');}}
-        if(rec?.state==='recording'&&!processing&&((voiced&&now-lastSound>800&&now-turnStart>400)||now-turnStart>45000||bytes>7500000))rec.stop();
+        if(rms>0.035){lastSound=now;voiced=true;if((speaking||window.axiorhubVoix?.speaking())&&rms>0.09){stopSpeech();voiceNote('Lecture interrompue. À vous.');}}
+        if(rec?.state==='recording'&&!processing&&((!cueReady&&voiced&&now-lastSound>800&&now-turnStart>400)||now-turnStart>45000||bytes>7500000))rec.stop();
       },100);
     }catch(e){if(g===generation){stopSession();voiceNote(e.message);}}
   }

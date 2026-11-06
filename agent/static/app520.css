@@ -3383,3 +3383,35 @@ dialog.ui89-panneau::backdrop { background: rgba(22, 22, 22, .5); }
 .ia89-question label { display: block; margin: .15rem 0; }
 .ia89-question input { max-width: 100%; }
 @media print { .ui89-ia, .ia89-panneau { display: none; } }
+/* ==== v5694-traces.css ==== */
+/* 5.6.94 (lot traces, T05) : « Où ça bloque » dans Charge du serveur. Couleurs des jetons Carbon (clair et sombre) ; la frise
+   double toujours un texte (liste des étapes) : aucune information portée par la seule couleur. */
+.t5694 { margin-top: 1.5rem; }
+.t5694-table { margin: .75rem 0 1rem; }
+.t5694-mission { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); padding: .5rem 0; }
+.t5694-mission > summary { cursor: pointer; min-height: 2.5rem; padding: .5rem .25rem; }
+.t5694-mission > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 1px; }
+.t5694-frise { display: block; height: auto; margin: .5rem 0; max-height: 14rem; min-height: 1.5rem; width: 100%; }
+.t5694-frise .t5694-travail { fill: var(--cds-layer-accent-01, #e0e0e0); }
+.t5694-frise .t5694-modele { fill: var(--cds-interactive, #0f62fe); }
+.t5694-frise .t5694-lot { fill: var(--cds-support-info, #0043ce); fill-opacity: .55; }
+.t5694-frise .t5694-erreur { fill: var(--cds-support-error, #da1e28); }
+.t5694-etapes { margin: .25rem 0 .5rem 1.25rem; }
+.t5694-etapes li { margin: .15rem 0; }
+@media (max-width: 40rem) { .t5694-table { display: block; max-width: 100%; overflow-x: auto; } }
+/* ==== v5694-voix.css ==== */
+/* 5.6.94 (V08) : Paramètres › Voix. Couleurs des jetons Carbon (thèmes clair et sombre), aucune palette propre ; l'état se lit aussi en texte. */
+.v94-voix .v94-intro { max-width: 70ch; }
+.v94-voix .v94-actuelle { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; font-weight: 600; }
+.v94-voix .v94-cartes { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); list-style: none; margin: 1rem 0; padding: 0; }
+.v94-voix .v94-carte { background: var(--cds-layer-01, var(--ws-surface, #ffffff)); border: 1px solid var(--cds-border-subtle-01, #c6c6c6); color: var(--cds-text-primary, inherit); padding: .75rem 1rem; }
+.v94-voix .v94-carte[data-voix="brindille"] { border-left: 4px solid var(--cds-border-strong, #8d8d8d); }
+.v94-voix .v94-carte p { color: var(--cds-text-secondary, inherit); margin: .35rem 0 0; }
+.v94-voix .v94-essai, .v94-voix .v94-reglages, .v94-voix .v94-choix { background: var(--cds-layer-01, transparent); border: 1px solid var(--cds-border-subtle-01, #c6c6c6); margin: 1rem 0; padding: 1rem; }
+.v94-voix .v94-essai textarea { width: 100%; }
+.v94-voix .v94-boutons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.v94-voix input[type=range] { accent-color: var(--cds-interactive, currentColor); max-width: 24rem; width: 100%; }
+.v94-voix output { font-variant-numeric: tabular-nums; font-weight: 600; }
+.v94-voix .v94-licences { border-top: 1px solid var(--cds-border-subtle-01, #c6c6c6); font-size: .875rem; margin-top: 1.5rem; padding-top: .75rem; }
+.v94-voix .v94-credits { color: var(--cds-text-secondary, inherit); padding-left: 1.25rem; }
+.v94-voix a:focus-visible, .v94-voix button:focus-visible, .v94-voix input:focus-visible, .v94-voix textarea:focus-visible { outline: 2px solid var(--cds-focus, currentColor); outline-offset: 2px; }

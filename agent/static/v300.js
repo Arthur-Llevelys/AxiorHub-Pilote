@@ -50,7 +50,7 @@
       button.disabled=true;
       pending=true;
       try {
-        stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        stream=await (window.axiorhubMic?window.axiorhubMic.stream('dictee',{audio:true}):navigator.mediaDevices.getUserMedia({audio:true}));
         const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/mp4'].find(x=>MediaRecorder.isTypeSupported(x));
         if(!mime) throw new Error('format');
         recorder=new MediaRecorder(stream,{mimeType:mime,audioBitsPerSecond:64000});

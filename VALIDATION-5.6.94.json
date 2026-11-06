@@ -1,0 +1,33 @@
+{
+  "version": "5.6.94",
+  "base": "5.6.93",
+  "date_utc": "2026-11-06T00:00:00+00:00",
+  "cahier_des_charges": "Feuille de route 5.6.94 (V01-V09 voix, P01-P06 parcours, T01-T07 traces, F01-F06 fiabilité) approuvée par le cabinet ; constats du serveur (agenda suspendu après 503, dossiers illisibles).",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 5256,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 143,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "new_tests": "tests/test_v5694_voix (50), parcours (15), traces (32), fiabilite (34) ; parcours navigateur réels : scripts/parcours-navigateur.py (8 parcours, Edge Windows et Chromium Linux).",
+  "mutations": "Classement passager / définitif des erreurs Nextcloud : inverser 401 ou 503 fait échouer un test. Fiabilité : 25 des 34 tests échouent sur les modules remis en 5.6.93.",
+  "live_checks": "Brindille jouée dans Edge sans affichage (80 640 échantillons en 167 ms). Aucun vrai Nextcloud ni vrai serveur IMAP : codes de panne, Retry-After, STATUS et HIGHESTMODSEQ restent à constater sur le serveur.",
+  "exapp": {
+    "version": "0.1.53",
+    "moteur": "5.6.94"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Voix par défaut : Brindille dans le navigateur (le choix déjà enregistré est conservé).",
+    "Politique de sécurité des pages : wasm-unsafe-eval autorisé pour la voix et la dictée.",
+    "Nouveau statut de travail « ignored » ; outil Open WebUI à réimporter.",
+    "Erreurs Nextcloud passagères relancées seules ; 401/403/404 toujours en attente de décision."
+  ],
+  "adjusted_tests": []
+}

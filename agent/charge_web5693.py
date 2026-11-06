@@ -11,8 +11,8 @@ from zoneinfo import ZoneInfo
 from . import charge5693 as charge
 from .common import Stop
 
-LECTURE = ('charge',)
-ECRITURE = ('charge/frequence',)
+LECTURE = ('charge', 'charge/traces')                                            # 5.6.94 (T04) : téléchargement OTLP/JSON
+ECRITURE = ('charge/frequence', 'charge/traces/reglage', 'charge/traces/envoyer')   # 5.6.94 (T03, T04) : réglage et envoi au collecteur local
 
 
 def allowed(role, route):
@@ -24,19 +24,20 @@ def _erreur(error):
     from .web import REASONS
     from .web440 import json_out
     code = str(error).split(':')[0]
-    statut = ('403 Forbidden' if code == 'role_insuffisant' else '409 Conflict' if code == 'revision_perimee' else
+    statut = ('403 Forbidden' if code == 'role_insuffisant' else '409 Conflict' if code in ('revision_perimee', 'cle_idempotence_deja_utilisee') else
               '404 Not Found' if code == 'route_inconnue' else '400 Bad Request')
-    return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))}, statut)
+    from .traces_web5694 import MESSAGES   # 5.6.94 : refus des traces (collecteur non local, clé déjà employée…) en français clair
+    return json_out({'error': code, 'message': REASONS.get(code) or MESSAGES.get(code) or explain(code, getattr(error, 'detail', None))}, statut)
 
 
 def api(env, desk, auth, prefix, name, args, method):
     try:
-        return _route(env, desk, auth, name, method)
+        return _route(env, desk, auth, name, method, args)
     except Stop as error:
         return _erreur(error)
 
 
-def _route(env, desk, auth, name, method):
+def _route(env, desk, auth, name, method, args=None):
     from .horaires_web5689 import peut_modifier
     from .web440 import check_post, json_out
     from .web567 import actor
@@ -45,6 +46,11 @@ def _route(env, desk, auth, name, method):
     if method == 'GET':
         if route not in LECTURE:
             raise Stop('route_inconnue')
+        if route == 'charge/traces':   # 5.6.94 (T04) : export des traces, droit « Réglages » (aucun contenu, mais l'activité du cabinet)
+            if not peut_modifier(desk.c['state_dir'], owner, role):
+                raise Stop('role_insuffisant')
+            from .traces_web5694 import telecharger
+            return telecharger(desk, args)
         return json_out(charge.etat(desk))
     if method != 'POST':
         raise Stop('methode_refusee')
@@ -53,6 +59,9 @@ def _route(env, desk, auth, name, method):
     data = check_post(env, auth)
     if not peut_modifier(desk.c['state_dir'], owner, role):
         raise Stop('role_insuffisant')
+    if route.startswith('charge/traces/'):
+        from .traces_web5694 import ecrire
+        return json_out(ecrire(desk, route, data, owner))
     etat = charge.enregistrer_frequence(desk, str(data.get('valeur') or ''), data.get('revision'), owner)
     return json_out(etat)
 
@@ -129,10 +138,12 @@ def section_html(desk, prefix, owner, role):
         x['differes'], e(_heure(x['prochain'])))) if x['differes'] else '') for x in etat['attente'])
     courant = ('<h3>En ce moment</h3><ul>%s</ul>' % en_cours if en_cours else '<h3>En ce moment</h3><p class="ax-muted">Aucun travail en cours.</p>') + (
         '<h3>En attente</h3><ul>%s</ul>' % attente if attente else '')
+    from .traces_web5694 import section_sure   # 5.6.94 (T05) : où ça bloque, frise des travaux les plus lents, export des traces
+    blocages = section_sure(desk, prefix, ecriture)
     secours = '' if etat['actif'] else '<p class="ax-alert" role="status">Allègement 5.6.93 désactivé sur ce serveur (comportement de la 5.6.92).</p>'
     return ('<section class="ax-card" id="charge5693" aria-labelledby="charge5693-titre"><h2 id="charge5693-titre">Charge du serveur</h2>'
             '<p>Ce que les automatismes font en arrière-plan : travaux créés, requêtes à Nextcloud et à la messagerie, lectures de fichiers et appels '
             'à l’IA. Aucun contenu de dossier n’est affiché. Les dossiers inchangés ne sont plus relus, les analyses d’un même dossier sont regroupées '
             'et chaque type de travail a un plafond horaire : un travail en trop part plus tard, il n’est jamais perdu.</p>%s%s%s'
-            '<p>%s</p><p class="ax-muted">%s</p>%s%s%s<p><a class="ax-btn ghost" href="%s">Actualiser</a></p></section>') % (
-        secours, droit, formulaire, tour, e(suivi), travaux, mesures, courant, e(prefix + '/parametres?rubrique=poste#charge5693', quote=True))
+            '<p>%s</p><p class="ax-muted">%s</p>%s%s%s%s<p><a class="ax-btn ghost" href="%s">Actualiser</a></p></section>') % (
+        secours, droit, formulaire, tour, e(suivi), travaux, mesures, courant, blocages, e(prefix + '/parametres?rubrique=poste#charge5693', quote=True))

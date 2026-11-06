@@ -91,6 +91,7 @@ def _current_stage(history, status):
 
 def after_job(desk, row, args, status, result):
     """Keep the 3.9.0 projection and add a complete observable flow."""
+    if status=='ignored':return   # 5.6.94 (F02) : travail suspendu ignoré : ni incident ni production
     from .production390 import after_job as after_390
     after_390(desk,row,args,status,result)
     kind=row['kind'];

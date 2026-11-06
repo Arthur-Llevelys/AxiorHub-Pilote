@@ -31,6 +31,8 @@ def checks(desk):
         item = {'id': '', 'text': text, 'level': 'attention', 'actions': []}
         if 'suspendue après trois échecs' in text:
             item.update(id='surveillance', actions=[{'api': 'm520/queue/resume', 'label': 'Relancer la surveillance'}])
+        elif text.startswith('Nextcloud indisponible depuis'):   # 5.6.94 (F01) : nouvel essai automatique ; relance manuelle possible
+            item.update(id='nextcloud', level='info', actions=[{'api': 'm520/queue/resume', 'label': 'Relancer la surveillance'}])
         elif 'en erreur depuis 24 heures' in text:
             item.update(id='erreurs', level='info', actions=[
                 {'api': 'm5636/erreurs/ecarter', 'label': 'Écarter ces erreurs (déjà vues)',
@@ -47,8 +49,13 @@ def checks(desk):
     except Exception:   # noqa: BLE001
         pass
     gone = unreadable(desk)
-    if gone:
-        out.append({'id': 'illisibles', 'level': 'info', 'text': '%d dossier(s) n’ont pas pu être lus par la surveillance des documents.' % len(gone),
+    from .fiabilite5694 import INTROUVABLE
+    perdus = [mid for mid, x in gone.items() if isinstance(x, dict) and x.get('code') == INTROUVABLE]   # 5.6.94 (F05) : nommés à part
+    if perdus:
+        out.append({'id': 'introuvables', 'level': 'info', 'text': '%d dossier(s) introuvable(s) dans Nextcloud (déplacé, renommé ou supprimé ?).' % len(perdus),
+                    'actions': [{'href': 'diagnostic#illisibles', 'label': 'Retrouver leur emplacement'}]})
+    if len(gone) > len(perdus):
+        out.append({'id': 'illisibles', 'level': 'info', 'text': '%d dossier(s) n’ont pas pu être lus par la surveillance des documents.' % (len(gone) - len(perdus)),
                     'actions': [{'href': 'diagnostic#illisibles', 'label': 'Voir les dossiers concernés'}]})
     return out
 
@@ -106,12 +113,25 @@ def unreadable_html(desk, prefix):
         labels = {m['id']: matter_display(m) for m in load_matters(desk.c)}
     except Stop:
         pass
+    from .fiabilite5694 import INTROUVABLE, INTROUVABLE_TEXTE, passagere
+
+    def _motif(x):   # 5.6.94 (F05) : un 404 est un dossier introuvable ; une erreur passagère sera relue d'elle-même
+        if x.get('code') == INTROUVABLE:
+            return INTROUVABLE_TEXTE + ' Nouvel essai automatique une fois par jour.'
+        return _reason(x.get('code', '')) + (' Relu automatiquement au prochain lot.' if passagere(x.get('code')) else '')
+
+    def _actions(mid, x):
+        ignorer = _button({'api': 'm5636/dossier/ignorer', 'label': 'Ne plus surveiller', 'data': {'matter': mid},
+                           'confirm': 'Ne plus surveiller ce dossier ? Ses documents ne seront plus analysés automatiquement ; vous pourrez le rétablir ici.'}, prefix)
+        if x.get('code') != INTROUVABLE:
+            return _button({'api': 'm5636/dossier/reessayer', 'label': 'Réessayer', 'data': {'matter': mid}}, prefix) + ignorer
+        return (_button({'api': 'm5636/dossier/retrouver', 'label': 'Retrouver son nouvel emplacement', 'data': {'matter': mid}}, prefix) +
+                ''.join(_button({'api': 'm5636/dossier/deplacer', 'label': 'Utiliser ' + str(p)[-80:], 'data': {'matter': mid, 'path': p},
+                                 'confirm': 'Suivre désormais ce dossier à cet emplacement de Nextcloud ?'}, prefix) for p in (x.get('candidats') or [])[:5]) +
+                ignorer)
     rows = ''.join(
-        '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s%s</td></tr>' % (
-            e(x.get('label') or labels.get(mid, mid)), e(_reason(x.get('code', ''))), e(str(x.get('at', ''))[:16].replace('T', ' ')),
-            _button({'api': 'm5636/dossier/reessayer', 'label': 'Réessayer', 'data': {'matter': mid}}, prefix),
-            _button({'api': 'm5636/dossier/ignorer', 'label': 'Ne plus surveiller', 'data': {'matter': mid},
-                     'confirm': 'Ne plus surveiller ce dossier ? Ses documents ne seront plus analysés automatiquement ; vous pourrez le rétablir ici.'}, prefix))
+        '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
+            e(x.get('label') or labels.get(mid, mid)), e(_motif(x)), e(str(x.get('at', ''))[:16].replace('T', ' ')), _actions(mid, x))
         for mid, x in sorted(gone.items(), key=lambda kv: kv[1].get('label', '')))
     html = ('<section class="ax-card" id="illisibles"><h2>Dossiers non lus par la surveillance des documents</h2><p class="vf-note">Un dossier '
             'illisible (supprimé, renommé, droits retirés) est passé ; il ne bloque plus la surveillance des autres. Corrigez-le dans Nextcloud puis '

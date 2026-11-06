@@ -127,3 +127,26 @@ jobs:
           name: axiorhub-pilote-windows
           path: ${{ runner.temp }}/axiorhub-windows/*.exe
           if-no-files-found: error
+
+  navigateur:
+    # 5.6.94 (P03) : parcours dans un vrai navigateur (Playwright, Chromium) contre l'application servie par waitress sur 127.0.0.1.
+    # Outil de recette seulement : Playwright n'entre dans aucun paquet ni dans le serveur du cabinet.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dépendances du banc (versions figées)
+        run: python -m pip install --quiet playwright==1.63.0 waitress==3.0.2 cryptography==44.0.0
+      - name: Chromium et ses bibliothèques système
+        run: python -m playwright install --with-deps chromium
+      - name: Parcours navigateur
+        run: python scripts/parcours-navigateur.py --navigateur chromium --sortie "$RUNNER_TEMP/parcours"
+      - name: Captures et console des parcours en échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parcours-navigateur
+          path: ${{ runner.temp }}/parcours/
+          if-no-files-found: warn

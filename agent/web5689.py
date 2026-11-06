@@ -24,6 +24,7 @@ DOMAINES = {
     'fonctions': 'qualif_web5689',
     'charge': 'charge_web5693',           # 5.6.93 : charge du serveur, fréquence de surveillance des documents
     'registre': 'registre_web5693',       # 5.6.93 : collecte des journaux, suivi des fichiers, doublons suggérés
+    'voix': 'voix_web5694',               # 5.6.94 : texte préparé pour la voix du navigateur, choix de la voix (administrateur)
 }
 
 

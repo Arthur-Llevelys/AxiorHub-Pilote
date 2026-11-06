@@ -248,11 +248,17 @@ def compter(categorie, n=1):
     if compteurs is None:
         compteurs = _fil.compteurs = {}
     compteurs[categorie] = compteurs.get(categorie, 0) + int(n)
+    temps = getattr(_fil, 'temps', None)   # 5.6.94 (T01) : première et dernière requête, bornes du lot dans la trace du travail
+    if temps is None:
+        temps = _fil.temps = {}
+    maintenant = time.time_ns()
+    temps[categorie] = (temps.get(categorie, (maintenant,))[0], maintenant)
 
 
 def relever():
     compteurs = getattr(_fil, 'compteurs', None) or {}
     _fil.compteurs = {}
+    _fil.temps = {}
     return compteurs
 
 
@@ -471,6 +477,8 @@ def lot_documents(desk, dav, matters, curseur, maximum=LOT_MAXIMUM):
             continue
         parents[parent] = parents.get(parent, 0) + 1
     lus, selection, avance, inchanges, requetes = {}, [], 0, 0, 0
+    from .fiabilite5694 import passagere
+    arret = False                               # 5.6.94 (F05) : Nextcloud indisponible : plus aucune lecture d'ETag dans ce lot
     i = curseur
     while i < len(matters) and len(selection) < maximum:
         matter = matters[i]
@@ -496,8 +504,9 @@ def lot_documents(desk, dav, matters, curseur, maximum=LOT_MAXIMUM):
                 break
             try:
                 etag = dav.folder_etag(racine)
-            except Stop:
+            except Stop as erreur:
                 etag = ''                       # le lot relira le dossier et signalera l'erreur comme avant
+                arret = passagere(str(erreur))
             requetes += 1
         i += 1
         avance += 1
@@ -507,6 +516,8 @@ def lot_documents(desk, dav, matters, curseur, maximum=LOT_MAXIMUM):
             inchanges += 1
             continue
         selection.append((matter, etag or None, securite))
+        if arret:
+            break
     return selection, avance, inchanges
 
 

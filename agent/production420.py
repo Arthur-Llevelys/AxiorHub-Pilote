@@ -189,7 +189,7 @@ def _matter_label(desk, matter):
 def record_job(desk, row, args, status, result):
     """Record one and only one business outcome for a relevant technical job."""
     kind = row['kind']
-    if kind not in JOB_META: return None
+    if kind not in JOB_META or status == 'ignored': return None   # 5.6.94 (F02) : un travail suspendu ignoré n'est pas un incident
     ensure_schema(desk); result = result if isinstance(result, dict) else {}
     matter = _resolve_matter(desk, kind, args, result); files = _paths(result)
     verified_mail = result.get('brouillon_imap') == 'verifie'
@@ -458,23 +458,32 @@ def trigger_events(desk, limit=30):
 def advance_matter(desk, args):
     mid=str(args.get('matter') or '');matter=_matter(desk,mid)
     if not matter:raise Stop('dossier_absent')
-    jobs=[]
-    jobs.append(_enqueue_once(desk,'index',{'matter':mid},15))
+    jobs=[];ignores=[]
+    def suite(kind,payload,priority):
+        # 5.6.94 (F02) : un travail suspendu pour ce dossier (trois échecs, pause) est passé et nommé ; avant, son refus faisait échouer
+        # le travail entier, remis en file à chaque cycle de production et compté dans « demandes en erreur depuis 24 heures ».
+        from .fiabilite5694 import SUSPENSIONS
+        try:jobs.append(_enqueue_once(desk,kind,payload,priority))
+        except Stop as ex:
+            if str(ex) not in SUSPENSIONS:raise
+            ignores.append({'travail':kind,'motif':str(ex)})
+    suite('index',{'matter':mid},15)
     from .sobriete5682 import brief_after
-    if not brief_after(desk,mid):jobs.append(_enqueue_once(desk,'refresh_brief',{'matter':mid},20))
-    jobs.append(_enqueue_once(desk,'refresh_matter_graph380',{'matter':mid},25))
+    if not brief_after(desk,mid):suite('refresh_brief',{'matter':mid},20)
+    suite('refresh_matter_graph380',{'matter':mid},25)
     signals=list(desk.db.execute("SELECT * FROM proactive_signals WHERE matter=? AND state='open' ORDER BY due,last_seen DESC LIMIT 30",(mid,)))
     hearing=next((x for x in signals if x['category'] in ('upcoming_appointment','upcoming_deadline') and re.search(r'audience|plaidoirie|tribunal|cour',x['title']+' '+x['detail'],re.I)),None)
     changed=next((x for x in signals if x['category']=='documents_changed' and re.search(r'conclusion|écriture|assignation|contrat',x['title']+' '+x['detail'],re.I)),None)
     if hearing:
-        jobs.append(_enqueue_once(desk,'prepare_hearing',{'matter':mid,'instruction':'Préparer les travaux internes utiles pour l’audience.','automatic':'yes','trigger_kind':'audience_j14','trigger_reason':hearing['title']},5))
+        suite('prepare_hearing',{'matter':mid,'instruction':'Préparer les travaux internes utiles pour l’audience.','automatic':'yes','trigger_kind':'audience_j14','trigger_reason':hearing['title']},5)
     elif changed:
         dtype='contrat' if re.search(r'contrat',changed['title']+' '+changed['detail'],re.I) else 'conclusions'
-        jobs.append(_enqueue_once(desk,'prepare_document_project',{'matter':mid,'document_type':dtype,'instruction':'Analyser le nouveau document, actualiser les arguments et préparer le projet interne utile.','automatic':'yes','trigger_kind':'nouveau_document','trigger_reason':changed['title']},5))
+        suite('prepare_document_project',{'matter':mid,'document_type':dtype,'instruction':'Analyser le nouveau document, actualiser les arguments et préparer le projet interne utile.','automatic':'yes','trigger_kind':'nouveau_document','trigger_reason':changed['title']},5)
     recommendation=('Préparation d’audience lancée.' if hearing else
       ('Analyse documentaire et projet interne lancés.' if changed else 'Index, résumé et graphe arguments–preuves lancés.'))
     desk.audit('faire_avancer_dossier_420',{'matter':mid,'jobs':jobs,'external_action':False})
-    return {'matter':mid,'jobs':jobs,'message':recommendation,
+    if ignores:recommendation+=' Passé(s) : '+', '.join(x['travail'] for x in ignores)+' (relances suspendues ou pause sur ce dossier).'
+    return {'matter':mid,'jobs':jobs,'message':recommendation,'ignores':ignores,
       'external_actions':0,'email_sent':False,'rpva_filed':False,'signature_added':False}
 
 

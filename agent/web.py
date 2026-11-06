@@ -723,7 +723,7 @@ class App:
                  # Fetch serializes their Origin as null, which we must reject.
                  ('Referrer-Policy','same-origin'),('X-Frame-Options','DENY'),
                  ('Permissions-Policy','camera=(), microphone=(self), geolocation=()'),
-                 ('Content-Security-Policy',"default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; form-action 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
+                 ('Content-Security-Policy',"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; form-action 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'")]   # 5.6.94 (V02) : WebAssembly de la voix (Brindille, Alkove), sans 'unsafe-eval'
         status='200 OK';kind='text/html; charset=utf-8'
         from .common import set_request_mode
         set_request_mode('read' if env.get('REQUEST_METHOD') in ('GET','HEAD') else 'write')   # 5.6.32 : délai d'attente court pour l'affichage
@@ -860,7 +860,8 @@ class App:
                         frame_origin=(frame_origin+' '+talk_origin).strip()
                         headers=[(n,v) for n,v in headers if n!='Permissions-Policy']+[('Permissions-Policy',
                           'camera=(self "%s"), microphone=(self "%s"), display-capture=(self "%s"), fullscreen=(self "%s"), geolocation=()' % ((talk_origin,)*4))]
-                csp="default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; form-action 'self'; frame-src 'self'"+((' '+frame_origin) if frame_origin else '')+"; frame-ancestors 'none'; base-uri 'none'"
+                # 5.6.94 (V02) : 'wasm-unsafe-eval' seul autorise la compilation WebAssembly (voix Brindille, Alkove) ; jamais 'unsafe-eval' ni 'unsafe-inline'
+                csp="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self' data:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; form-action 'self'; frame-src 'self'"+((' '+frame_origin) if frame_origin else '')+"; frame-ancestors 'none'; base-uri 'none'"
                 headers=[(name,csp if name=='Content-Security-Policy' else value) for name,value in headers]
                 prefix=auth.get('prefix','/agent-courriel')
                 path=env.get('PATH_INFO','/')

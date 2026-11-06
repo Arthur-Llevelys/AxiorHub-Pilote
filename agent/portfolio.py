@@ -579,6 +579,14 @@ def reconcile_work_items(desk,box=None):
         repair_complete=True
         changes=[]   # 5.6.46 : décisions d'abord (lectures IMAP, réseau), écriture ensuite en une transaction courte
         if desk.db.in_transaction:desk.db.commit()
+        # 5.6.94 (F04) : passage incrémental. Avant : chaque passage (toutes les 15 min) relisait chaque carte ouverte dans la boîte, ses
+        # fils, ses brouillons et ses envois (près de 5 h de travail par jour chez le cabinet). Seules les cartes que les nouveaux messages
+        # (UIDNEXT) ou les drapeaux (HIGHESTMODSEQ, sinon un FETCH groupé) peuvent avoir changées sont relues ; relecture complète une fois par jour.
+        from . import fiabilite5694
+        etat=fiabilite5694.etat_boites(box)
+        try:plan=fiabilite5694.plan_rapprochement(desk,box,rows,etat,repair)
+        except Stop:plan=None   # relevé incrémental impossible : relecture complète, comme avant
+        verifies={};retires=set()
 
         def _work_state(_desk,key,state):
             changes.append((key,state,next(r['state'] for r in rows if r['mail_key']==key)))
@@ -586,14 +594,24 @@ def reconcile_work_items(desk,box=None):
             checked+=1
             legacy=repair and row['state']=='handled' and row['source_status']=='review'
             if legacy and row['mail_key'] in manual_keys:continue
+            if plan is not None and row['mail_key'] not in plan['verifier']:
+                decided=plan['decisions'].get(row['mail_key'])
+                if decided=='archived':
+                    _work_state(desk,row['mail_key'],'archived');archived+=1;retires.add(row['mail_key'])
+                elif decided=='handled':
+                    _work_state(desk,row['mail_key'],'handled');handled+=1;retires.add(row['mail_key'])
+                elif row['state']!='backlog' and (_dt(row['received']) or datetime.now(timezone.utc))<cutoff:
+                    _work_state(desk,row['mail_key'],'backlog');backlog+=1   # même règle d'ancienneté que la relecture complète
+                continue
             try:
                 report=report_for(desk.c,row['mail_key'])
                 mail=box.fetch(report['source_mailbox'],report['source_uid'],headers_only=True)
             except Stop as ex:
                 if str(ex)=='message_imap_disparu':
-                    _work_state(desk,row['mail_key'],'archived');archived+=1
+                    _work_state(desk,row['mail_key'],'archived');archived+=1;retires.add(row['mail_key'])
                 elif legacy:repair_complete=False
                 continue
+            verifies[row['mail_key']]=str(report['source_uid'])
             if '\\Deleted' in mail.flags:
                 _work_state(desk,row['mail_key'],'archived');archived+=1;continue
             if '\\Answered' in mail.flags:
@@ -602,7 +620,9 @@ def reconcile_work_items(desk,box=None):
                 reason=(box.preflight(mail,report.get('draft_message_id'),allow_seen=True)
                         if isinstance(box,Mailbox) else
                         box.preflight(mail,report.get('draft_message_id')))
-            except Stop:
+            except Stop as preflight_error:
+                if str(preflight_error) not in fiabilite5694.CONTROLES_STABLES:
+                    verifies.pop(row['mail_key'],None)   # 5.6.94 (F04) : contrôle incomplet : la carte sera relue au passage suivant
                 if legacy:repair_complete=False;continue
                 reason=''
             if reason in ('reponse_envoyee_depuis','reponse_envoyee_objet_identique'):
@@ -620,9 +640,11 @@ def reconcile_work_items(desk,box=None):
         desk.db.commit()
         if repair and repair_complete and len(previous)<501:
             desk.setting('portfolio:seen_review_repair_v361',True)
+        fiabilite5694.noter_rapprochement(desk,etat,plan is None,verifies,retires)
     finally:
         if own_box:box.close()
-    result={'checked':checked,'handled':handled,'archived':archived,'draft_ready':drafts,'backlog':backlog,'reopened':reopened,'at':desk.now()}
+    result={'checked':checked,'handled':handled,'archived':archived,'draft_ready':drafts,'backlog':backlog,'reopened':reopened,'at':desk.now(),
+            'mode':'complet' if plan is None else 'incremental'}   # 5.6.94 (F04)
     if handled:
         # The sent message, not the generated draft, is the validated style
         # example. Collection remains a separate bounded job.

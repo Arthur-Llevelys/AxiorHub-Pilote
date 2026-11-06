@@ -69,7 +69,8 @@ def api(env,desk,auth,prefix,name,args,method):
             from . import facturation5614
             return json_out(facturation5614.missing_for(desk,str(args.get('matter') or ''),str(args.get('what') or 'quote')))
         if route=='capabilities':
-            return json_out({'tts':desk.c.get('speech568',{}).get('provider','espeak'),'dictation':bool(desk.c.get('audio',{}).get('enabled')),
+            from .voix5694 import fournisseur as _voix94
+            return json_out({'tts':_voix94(desk.c),'dictation':bool(desk.c.get('audio',{}).get('enabled')),
                     'continuous_turns':True,'progressive_speech':True,'full_duplex_streaming':False,'talk':settings568.profile(desk,owner)['talk_enabled'],
                     'roles':[{'id':k,'name':v[0],'description':v[1]} for k,v in settings568.ROLES.items()]})
         raise Stop('route_inconnue')

@@ -67,7 +67,8 @@ FIELDS = (
  ('audio.enabled','Activer la dictée locale','bool',False,'Voix'),
  ('audio.bridge_base_url','Passerelle Whisper / Vocal (locale ou réseau du cabinet)','local_url','http://127.0.0.1:9011','Voix'),
  ('audio.bridge_token_file','Jeton de la passerelle vocale','secret','','Voix'),
- ('speech568.provider','Synthèse vocale : espeak, kokoro, chatterbox ou elevenlabs','voice_provider','espeak','Synthèse vocale'),
+ ('speech568.provider','Synthèse vocale : brindille (dans le navigateur, par défaut), kokoro, espeak, chatterbox ou elevenlabs','voice_provider','brindille','Synthèse vocale'),
+ ('speech568.fallback_provider','Voix de repli du serveur si la voix du navigateur ne démarre pas : espeak, kokoro ou chatterbox','voice_fallback','espeak','Synthèse vocale'),   # 5.6.94 (V06)
  ('speech568.url','API TTS Kokoro / Chatterbox (locale ou réseau du cabinet, base sans /v1)','local_url','http://127.0.0.1:8880','Synthèse vocale'),
  ('speech568.voice','Identifiant de la voix (ff_siwis pour Kokoro français)','text','ff_siwis','Synthèse vocale'),
  ('speech568.model','Modèle TTS (kokoro ou eleven_multilingual_v2 par exemple)','text','kokoro','Synthèse vocale'),
@@ -213,7 +214,12 @@ def _validate(kind,value,key):
         if str(resolved)==resolved.anchor or not resolved.is_dir():raise Stop('dossier_local_invalide')
         return str(candidate)
     if kind=='voice_provider':
-        if value not in ('espeak','kokoro','chatterbox','elevenlabs'):raise Stop('fournisseur_voix_invalide')
+        from .voix5694 import FOURNISSEURS   # 5.6.94 : brindille ajoutée
+        if value not in FOURNISSEURS:raise Stop('fournisseur_voix_invalide')
+        return value
+    if kind=='voice_fallback':
+        from .voix5694 import REPLIS   # 5.6.94 (V06) : repli toujours local, jamais ElevenLabs
+        if value not in REPLIS:raise Stop('voix_repli_invalide')
         return value
     if kind=='money':
         from .budget567 import money

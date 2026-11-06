@@ -165,22 +165,10 @@
       });
       if (legende) legende.classList.add('ui89-natif-bloc');
       bloc.appendChild(g);
-    },
-    liste: function (bloc, doc) {
-      var natif = bloc.querySelector('select');
-      if (!natif || natif.multiple) return;
-      var s = ident(doc.createElement('cds-select'));
-      s.setAttribute('label-text', libelle(bloc)); s.setAttribute('data-ui89-adjoint', ''); s.setAttribute('value', natif.value);
-      if (natif.disabled) s.setAttribute('disabled', ''); if (natif.required) s.setAttribute('required', '');
-      chaque(natif.options, function (o) {
-        var it = doc.createElement('cds-select-item');
-        it.setAttribute('value', o.value); it.setAttribute('label', o.textContent); it.textContent = o.textContent;
-        s.appendChild(it);
-      });
-      s.addEventListener('cds-select-selected', function (ev) { natif.value = ev.detail.value; signale(natif); });
-      natif.addEventListener('change', function () { s.value = natif.value; });
-      bloc.after(s); bloc.classList.add('ui89-natif-bloc'); cacher(natif); suivre(natif, s);
     }
+    /* 5.6.94 (P05) : plus de cds-select adjoint aux listes (« liste ») : le gabarit de ce composant (Carbon 2.66.0) pose un attribut style
+       dans son ombre, refusé par la CSP de la page (style-src 'self') : une violation par liste affichée. La liste native reste seule, lue
+       et envoyée comme avant ; la feuille de style lui donne l'apparence Carbon. */
   };
   function adjoindre(form) {
     if (form.getAttribute('data-ui89-adjoint-fait')) return;

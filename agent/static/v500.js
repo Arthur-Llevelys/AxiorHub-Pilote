@@ -110,7 +110,7 @@
     btn.addEventListener('click', function () {
       if (recorder && recorder.state === 'recording') { stop(); return; }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toast('Micro indisponible : saisissez vos notes au clavier.', true); return; }
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+      (window.axiorhubMic ? window.axiorhubMic.stream('dictee', { audio: true }) : navigator.mediaDevices.getUserMedia({ audio: true })).then(function (s) {
         stream = s; chunks = [];
         var mime = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].filter(function (x) { return MediaRecorder.isTypeSupported(x); })[0];
         if (!mime) throw new Error('Format audio non géré par ce navigateur.');

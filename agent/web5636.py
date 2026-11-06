@@ -82,6 +82,13 @@ def api(env, desk, auth, prefix, name, args, method):
             raise Stop('role_insuffisant')
         from .watch430 import retry_folder
         return json_out(retry_folder(desk, data.get('matter'), ignore=route == 'dossier/ignorer', restore=route == 'dossier/retablir'))
+    if route in ('dossier/retrouver', 'dossier/deplacer'):   # 5.6.94 (F05) : dossier introuvable dans Nextcloud (404)
+        if role not in ('administrateur', 'avocat'):
+            raise Stop('role_insuffisant')
+        from . import fiabilite5694
+        if route == 'dossier/retrouver':
+            return json_out(fiabilite5694.retrouver(desk, data.get('matter'), owner=owner))
+        return json_out(fiabilite5694.deplacer(desk, data.get('matter'), data.get('path'), owner=owner))
     if route in ('mission/annuler', 'mission/retirer'):
         from . import missions567
         return json_out(missions567.control(desk, {'id': data.get('id'), 'action': 'cancel' if route == 'mission/annuler' else 'hide'}, owner,

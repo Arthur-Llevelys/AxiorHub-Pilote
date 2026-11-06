@@ -231,6 +231,10 @@ validés_par_avocat dans les données. N'invente rien. Sépare instructions actu
 positions de négociation et projets. Signale les contradictions et limites. Pas de
 recherche juridique, pas de recommandation stratégique. Retourne le JSON du schéma.
 """
+# 5.6.94 (F03) : fiche d'un gros dossier produite rubrique par rubrique, chaque génération restant dans la limite de sortie du modèle.
+CASE_BRIEF_PART_PROMPT=CASE_BRIEF_PROMPT+"""Production PAR RUBRIQUE : ne remplis que les champs listés dans rubriques_demandees ;
+laisse tous les autres champs vides ([] ou ""). source_ids et limits concernent les seules rubriques demandées.
+"""
 FICHE5627_PROMPT="""Tu prépares la FICHE DE TRAVAIL d'un dossier d'avocat à partir des seuls éléments fournis :
 extraits des pièces (pieces, identifiants P1, P2…), faits validés par l'avocat (V1, V2…) et corrections de l'avocat.
 La fiche doit permettre à l'avocat de comprendre le dossier en deux minutes.
@@ -993,6 +997,8 @@ class Model:
             try:   # 5.6.9 : jetons et durée de la génération locale, par fonction (aucun texte conservé)
                 from .economie569 import record_local_usage
                 record_local_usage(self.cfg,result)
+                from .traces5694 import jetons   # 5.6.94 (T01) : nombres de jetons seulement, repris par le span de l'appel
+                jetons(int(result.get('prompt_eval_count') or 0),int(result.get('eval_count') or 0))
             except Exception:
                 pass
             try:   # 5.6.34 : valeurs effectivement transmises (profil, version, options), sans contenu
@@ -1178,7 +1184,7 @@ class Model:
         schema, prompt = {'triage': (TRIAGE, TRIAGE_PROMPT), 'compose': (COMPOSE, COMPOSE_PROMPT),
                           'verify': (VERIFY, VERIFY_PROMPT),
                           'desk_review': (DESK_REVIEW, DESK_REVIEW_PROMPT),
-                          'chat': (CHAT, CHAT_PROMPT),'case_brief':(CASE_BRIEF,CASE_BRIEF_PROMPT),
+                          'chat': (CHAT, CHAT_PROMPT),'case_brief':(CASE_BRIEF,CASE_BRIEF_PROMPT),'case_brief_part':(CASE_BRIEF,CASE_BRIEF_PART_PROMPT),
                           'legal_memory':(LEGAL_MEMORY,LEGAL_MEMORY_PROMPT),
                           'strategy_analysis':(STRATEGY_ANALYSIS,STRATEGY_PROMPT),
                           'evidence_matrix':(EVIDENCE_MATRIX,MATRIX_PROMPT),
@@ -1204,9 +1210,9 @@ class Model:
         if len(payload) > self.cfg.get('max_context_chars', 65000):
             raise Stop('contexte_trop_long')
         messages=[{'role':'system','content':prompt if stage=='chat' else
-                  (INTERNAL_SAFETY+prompt if stage in ('case_brief','dossier_fiche','legal_memory','strategy_analysis','evidence_matrix','act_project','document_project','document_control','hearing_preparation','word_revision_plan','mail_orchestration_classification','mail_case_differential','legal_opinion_simulation','opinion_control','meeting_preparation','transcript_report','preparation_control','second_model_review','attachment_review','deadline_review','memory_insight') else BASE+prompt)},
+                  (INTERNAL_SAFETY+prompt if stage in ('case_brief','case_brief_part','dossier_fiche','legal_memory','strategy_analysis','evidence_matrix','act_project','document_project','document_control','hearing_preparation','word_revision_plan','mail_orchestration_classification','mail_case_differential','legal_opinion_simulation','opinion_control','meeting_preparation','transcript_report','preparation_control','second_model_review','attachment_review','deadline_review','memory_insight') else BASE+prompt)},
                   {'role':'user','content':payload}]
-        maximum=7000 if stage in ('hearing_preparation','word_revision_plan','legal_opinion_simulation') else (6000 if stage in ('case_brief','dossier_fiche','strategy_analysis','evidence_matrix','act_project','document_project','mail_case_differential') else 3500)
+        maximum=7000 if stage in ('hearing_preparation','word_revision_plan','legal_opinion_simulation') else (6000 if stage in ('case_brief','case_brief_part','dossier_fiche','strategy_analysis','evidence_matrix','act_project','document_project','mail_case_differential') else 3500)
         from .schema5634 import SchemaError, describe
         for attempt in (1, 2):   # 5.6.34 (B12) : une reprise unique, bornée ; jamais de conversion d'une sortie fausse en succès
             content=self.complete(messages,None,maximum,schema)

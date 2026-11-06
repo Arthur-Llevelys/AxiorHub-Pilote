@@ -92,12 +92,23 @@ def refresh_brief(desk,args):
     memory_payload={'dossier':{'id':m['id'],'nom':m['client_name']},
         'sources':sources,'faits_valides':validated,'faits_refuses_par_avocat':refused,
         'couverture':{'extraits':len(sources),'fichiers_en_attente':len(stale)}}
-    result=model.ask('case_brief',memory_payload)
+    from . import fiabilite5694
+    manquantes=[]
+    try:result=model.ask('case_brief',memory_payload)
+    except Stop as ex:
+        if str(ex)!='generation_ia_incomplete':raise
+        # 5.6.94 (F03) : gros dossier : une génération par rubrique (même modèle, même politique, même budget) ; ce qui manque est nommé
+        result,manquantes=fiabilite5694.fiche_par_rubriques(model,memory_payload)
     validate(result,CASE_BRIEF);valid={s['id'] for s in sources}
     if any(x not in valid for x in result['source_ids']):raise Stop('source_fiche_invalide')
     for row in result['chronology']+result['deadlines']+result['amounts']:
         if any(x not in valid for x in row['source_ids']):raise Stop('source_fiche_invalide')
-    structured=model.ask('legal_memory',memory_payload);validate(structured,LEGAL_MEMORY)
+    try:structured=model.ask('legal_memory',memory_payload)
+    except Stop as ex:
+        if str(ex)!='generation_ia_incomplete':raise
+        structured=None;manquantes.append(fiabilite5694.MEMOIRE)   # 5.6.94 (F03) : fiche enregistrée partielle, mémoire non modifiée
+    structured=structured if structured is not None else {'records':[],'contradictions':[],'limits':[]}
+    validate(structured,LEGAL_MEMORY)
     for record in structured['records']:
         if not record['source_ids'] or any(x not in valid for x in record['source_ids']):
             raise Stop('source_memoire_invalide')
@@ -106,7 +117,9 @@ def refresh_brief(desk,args):
             raise Stop('source_memoire_invalide')
     version=(desk.db.execute('SELECT COALESCE(MAX(version),0) FROM case_briefs WHERE matter=?',(m['id'],)).fetchone()[0]+1)
     from .dossier5624 import source_revision
-    stored={**result,'revision_consommee':source_revision(desk,m['id']),'faits_valides_utilises':len(validated),'faits_refuses_transmis':len(refused)}   # 5.6.24 (F30/F31)
+    fiabilite5694.marquer_partielle(result,manquantes)
+    stored={**result,'revision_consommee':source_revision(desk,m['id']),'faits_valides_utilises':len(validated),'faits_refuses_transmis':len(refused),
+            'partielle':bool(manquantes),'rubriques_manquantes':manquantes}   # 5.6.24 (F30/F31) ; 5.6.94 (F03) : jamais une fiche partielle comme complète
     cur=desk.db.execute('INSERT INTO case_briefs VALUES(NULL,?,?,?,?,?)',(m['id'],version,json.dumps(stored),json.dumps(sources),desk.now()))
     categories={'party':result['parties'],'claim':result['claims'],'latest_instruction':result['latest_instructions'],
                 'negotiation':result['negotiation_positions'],'action_completed':result['actions_completed'],
@@ -125,10 +138,12 @@ def refresh_brief(desk,args):
             desk.db.execute('INSERT OR IGNORE INTO case_facts VALUES (?,?,?,?,?,?,?,?)',
                 (fid,m['id'],category,text,'suggested',json.dumps(item['source_ids']),desk.now(),desk.now()))
     from .legal_memory import ingest_extraction,sync_timeline
-    memory=ingest_extraction(desk,m['id'],structured,sources)
+    memory=ingest_extraction(desk,m['id'],structured,sources) if fiabilite5694.MEMOIRE not in manquantes else None
     timeline=sync_timeline(desk,m['id'])
     desk.db.commit();return {'fiche_version':version,'sources':len(sources),
-        'fichiers_en_attente':len(stale),'memoire':memory,'chronologie':timeline}
+        'fichiers_en_attente':len(stale),'memoire':memory,'chronologie':timeline,'partielle':bool(manquantes),'rubriques_manquantes':manquantes,
+        'message':('Fiche partielle (version %d) : rubriques non produites : %s.'%(version,', '.join(manquantes))) if manquantes else
+                  ('Fiche du dossier actualisée (version %d).'%version)}
 
 
 def fact_action(desk,kind,args):

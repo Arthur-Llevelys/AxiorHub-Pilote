@@ -222,6 +222,9 @@ def record_usage(cfg, result, estimated, status='done', messages=None, error='')
     usage=result.get('usage',{}) if isinstance(result,dict) else {}
     input_tokens=int(usage.get('prompt_tokens') or usage.get('input_tokens') or 0)
     output_tokens=int(usage.get('completion_tokens') or usage.get('output_tokens') or 0)
+    if status=='done':
+        from .traces5694 import jetons
+        jetons(input_tokens,output_tokens)   # 5.6.94 (T01) : jetons connus repris par le span de l'appel (nombres seulement)
     actual=(input_tokens*float(cfg.get('input_usd_per_million',0) or 0)+
             output_tokens*float(cfg.get('output_usd_per_million',0) or 0))/1_000_000
     cost=actual if actual else float(estimated or 0)

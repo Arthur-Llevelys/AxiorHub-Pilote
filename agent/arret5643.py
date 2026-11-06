@@ -605,4 +605,5 @@ def _note(job, reason, closed, still_alive):
 
 
 LABELS = {'suspended': 'Suspendu (pause)', 'cancel_requested': 'Arrêt demandé', 'cancelled': 'Annulé', 'pending': 'En attente',
-          'running': 'En cours', 'done': 'Terminé', 'error': 'Erreur'}
+          'running': 'En cours', 'done': 'Terminé', 'error': 'Erreur',
+          'ignored': 'Ignoré (relances suspendues pour ce dossier)'}   # 5.6.94 (F02)

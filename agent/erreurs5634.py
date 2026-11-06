@@ -56,11 +56,30 @@ def provider_error(body):
     return {k: v for k, v in out.items() if not v.startswith('sk-')}
 
 
-def http_error(code, method, url, body=None):
-    """Erreur HTTP structurée (appelée par common.HTTP) : statut, opération, hôte et ressource anonymisée."""
+def http_error(code, method, url, body=None, retry_after=None):
+    """Erreur HTTP structurée (appelée par common.HTTP) : statut, opération, hôte et ressource anonymisée.
+    5.6.94 (F01) : ``Retry-After`` (secondes ou date HTTP) conservé en secondes, pour espacer le nouvel essai d'une indisponibilité."""
     status = int(code)
     return Qualified('http_%d' % status, service=urlsplit(url).hostname or '', operation=method, remote_status=status,
-                     resource=anonymize(url), retryable=('http_%d' % status) in RETRYABLE, provider_error=provider_error(body) if status >= 400 else None)
+                     resource=anonymize(url), retryable=('http_%d' % status) in RETRYABLE, provider_error=provider_error(body) if status >= 400 else None,
+                     retry_after=retry_after_seconds(retry_after))
+
+
+def retry_after_seconds(value):
+    """5.6.94 (F01) : en-tête Retry-After en secondes (0 à 7 jours) ; None s'il est absent ou illisible."""
+    text = str(value or '').strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return min(int(text), 7 * 86400)
+    try:
+        from email.utils import parsedate_to_datetime
+        from datetime import datetime, timezone
+        when = parsedate_to_datetime(text)
+        when = when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+        return max(0, min(int((when - datetime.now(timezone.utc)).total_seconds()), 7 * 86400))
+    except (TypeError, ValueError, IndexError, OverflowError):
+        return None
 
 
 def local_missing(path):
@@ -603,7 +622,8 @@ def explain(code, detail=None):
 
 def public(detail):
     """Détail affichable (section technique repliée) : aucune donnée confidentielle n'y figure par construction."""
-    keep = ('service', 'operation', 'stage', 'remote_status', 'retryable', 'correlation_id', 'resource', 'cause', 'provider_error')
+    keep = ('service', 'operation', 'stage', 'remote_status', 'retryable', 'correlation_id', 'resource', 'cause', 'provider_error',
+            'retry_after')   # 5.6.94 (F01) : délai demandé par le serveur, en secondes
     return {k: detail[k] for k in keep if k in detail}
 
 

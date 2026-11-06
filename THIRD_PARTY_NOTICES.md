@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.93
+# Composants tiers et compatibilité — AxiorHub 5.6.94
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -84,3 +84,25 @@ Fichiers construits avec esbuild à partir des paquets npm officiels, hébergés
 - `plex-sans-400.woff2`, `plex-sans-600.woff2` : IBM Plex Sans 1.1.0 (`@ibm/plex-sans`), sous-ensemble latin, SIL Open Font License 1.1 (`LICENSES/OFL-1.1-IBM-Plex.txt`).
 
 Télémétrie : `@carbon/web-components` dépend de `@ibm/telemetry-js`, qui ne s'exécute qu'au script d'installation npm. La construction passe `--ignore-scripts` et pose `CARBON_TELEMETRY_DISABLED=1` et `IBM_TELEMETRY_DISABLED=true` : aucune mesure n'est émise, et ce paquet n'entre pas dans les fichiers servis.
+
+## Parcours navigateur (5.6.94, outil de développement)
+
+`scripts/parcours-navigateur.py` pilote un navigateur avec Playwright pour Python 1.63.0 (Microsoft, Apache-2.0) : Chromium dans la recette GitHub, Microsoft Edge déjà installé sur un poste Windows. Playwright et ses navigateurs s'installent à part, sur le poste de développement ou dans la recette ; ils ne sont ni copiés dans l'arbre, ni livrés dans un paquet (`.deb`, Windows, image), ni installés sur le serveur du cabinet, et n'appartiennent pas au SBOM d'exécution. Voir `docs/PARCOURS-NAVIGATEUR.md`.
+
+## Voix dans le navigateur (5.6.94)
+
+Fichiers copiés sans modification, servis par AxiorHub depuis `agent/static/` ; aucun CDN ni Hugging Face n'est contacté à l'usage. Empreintes sha256 : `agent/voix5694.py` (`FICHIERS`), vérifiées par `tests/test_v5694_voix.py`. Les fichiers `LICENSE` et `NOTICE` d'origine sont conservés à côté des fichiers (`agent/static/brindille/`, `agent/static/alkove/`).
+
+- **Brindille** (Eddy Bordi), modèle `edbrdi/brindille` de Hugging Face, révision `d393e3d5161937f2064bcfef33213749af4979f0` : `tts.js`, `tts.wasm`, `model/tts.alk`, `model/tts.params.bin`, `model/tts.json`, Apache-2.0 (`agent/static/brindille/LICENSE`, `NOTICE`). Synthèse vocale française produite dans le navigateur (Web Worker) ; une seule voix, aucun clonage.
+  - **Voix Estelle** de Pocket TTS (Kyutai, https://github.com/kyutai-labs/pocket-tts) : Creative Commons Attribution 4.0 International (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/). L'enregistrement d'Estelle (https://huggingface.co/kyutai/tts-voices) est publié par Kyutai sous CC0. Attribution affichée dans Paramètres › Voix.
+  - **Dictionnaire de prononciation** `model/fr.dict.bin`, dérivé du dictionnaire français du **Montreal Forced Aligner** (https://github.com/MontrealCorpusTools/mfa-models) : CC BY 4.0. Modifications par l'auteur de Brindille : prononciations converties vers les phonèmes du modèle, réduites à 19 662 mots.
+  - **Lex** (`model/lex.alk`, https://huggingface.co/alkove-ai/alkove-lex-1-preview, révision `9365b7c6aa1555a561548e5198d2becf7f7ffe00`) : Apache-2.0.
+  - Réseau et synthétiseur harmonique + bruit d'après **AuroraTTS-100K** (AuroraAI-Research, https://huggingface.co/AuroraAI-Research/AuroraTTS-100K) : Apache-2.0.
+  - Moteur d'inférence Alkove compilé dans `tts.wasm` : Apache-2.0 ; ses tables de texte dérivent de l'Unicode Character Database 16.0 sous **Unicode License v3** (texte complet dans `agent/static/brindille/NOTICE`).
+- **Alkove** 0.4.2 (paquet npm `alkove`, Eddy Bordi, https://github.com/alkove-ai/alkove) : `dist/index.js`, `api-63K47HT3.js`, `chunk-FC4ZSMUX.js`, `chunk-IMUNEOSF.js`, `chunk-MZOMHWYI.js`, `alkove-worker.js`, `alkove-worklet.js`, `alkove-engine.wasm`, Apache-2.0 (`agent/static/alkove/LICENSE`, `NOTICE`). Version 0.x figée : l'API employée est consignée dans `agent/voix5694.py` (`ALKOVE_API`). Traitement du micro dans le navigateur (dictée, conversation vocale) ; aucune empreinte vocale n'est apprise ni conservée.
+  - Modèle **Focus** `alkove-focus-1-preview.alk` (https://huggingface.co/alkove-ai/alkove-focus-1-preview, révision `8e91ef608366cf503fbd8aaa44bc2000dce899ed`) : Apache-2.0 ; dérivé de **GTCRN** (Rong Xiaobin, https://github.com/Xiaobin-Rong/gtcrn), licence MIT (texte dans `agent/static/alkove/NOTICE`).
+  - Modèle **Cue** `alkove-cue-1-preview.alk` (https://huggingface.co/alkove-ai/alkove-cue-1-preview, révision `0e1f30380bdfb3201b5d4fd7d9e4197f71f11a60`) : Apache-2.0.
+  - Les tables de texte d'alkove-core dérivent de l'Unicode Character Database 16.0 : **Unicode License v3** (texte dans `agent/static/alkove/NOTICE`).
+  - Les deux modèles ont été téléchargés une fois, aux révisions et empreintes figées par le manifeste du paquet, pour être copiés dans l'arbre ; Alkove vérifie de nouveau leur sha256 dans le navigateur.
+
+Compatibilité : Apache-2.0, MIT et Unicode License v3 sont compatibles avec l'AGPL-3.0-or-later pour une distribution conjointe ; CC BY 4.0 (voix, dictionnaire) impose l'attribution, l'indication des modifications et le lien vers la licence, assurés ici et sur la page Voix. La marque Alkove n'est pas utilisée pour désigner AxiorHub.

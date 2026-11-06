@@ -99,9 +99,14 @@ def diagnosis(desk, now=None):
                                                                         (' depuis %s' % _minutes(since)) if since else ''))
             else:
                 out['problems'].append('%d demande(s) en attente depuis plus de 30 minutes (détail dans « File de travail »).' % q[0])
+    from . import fiabilite5694   # 5.6.94 (F01) : panne passagère de Nextcloud : une seule ligne, pas une erreur par travail
+    panne = fiabilite5694.indisponibilite(desk)
     for s in report['surveillance']:
-        if s['suspended']:
+        if s['suspended'] and not (panne and fiabilite5694.passagere(s['reason'])):
             out['problems'].append('Surveillance « %s » suspendue après trois échecs (%s) : « Relancer la surveillance ».' % (s['label'], _reason(s['reason'] or 'action_interrompue')))
+    if panne:
+        out['problems'].append(fiabilite5694.ligne(desk, panne))
+        out['nextcloud_indisponible'] = {'depuis': panne['depuis'], 'code': panne['code'], 'travaux': 0}
     since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     from .web import JOB_LABELS
     labels = _labels(desk)
@@ -113,6 +118,14 @@ def diagnosis(desk, now=None):
         if code == queue521.INTERRUPTED and queue521.automatic(r['kind'], r['priority']):
             out['interrupted'] += 1            # travail périodique coupé par un redémarrage : il reprend seul
             continue
+        if panne:
+            try:
+                full = json.loads(r['result'] or '{}')
+            except ValueError:
+                full = {}
+            if fiabilite5694.replie(desk, panne, r['kind'], full, r['finished'] or r['created']):
+                out['nextcloud_indisponible']['travaux'] += 1   # 5.6.94 (F01) : compté dans la ligne « Nextcloud indisponible »
+                continue
         if len(out['errors']) >= 15:
             continue
         try:

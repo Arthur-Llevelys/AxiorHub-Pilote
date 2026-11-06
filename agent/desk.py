@@ -515,8 +515,8 @@ class Desk:
         try:
             return self.enqueue(kind, args, priority, chained=True)
         except Stop as error:      # 5.6.89 (chap. 20) : la suite d'un travail fini ne relance pas un travail identique retenu ; l'avocat peut toujours le relancer
-            if str(error) != 'relance_identique_refusee':
-                raise
+            if str(error) not in ('relance_identique_refusee','relances_suspendues_apres_trois_echecs','agent_en_pause_sur_ce_dossier'):
+                raise   # 5.6.94 (F02) : ni une suite vers un travail suspendu pour ce dossier, ni une suite pendant sa pause
             return None
 
     def enqueue(self, kind, args=None, priority=None, chained=False, transactional=False, origin=None):
@@ -1386,6 +1386,8 @@ class Desk:
             _args=json.loads(row['args'] or '{}');_args=_args if isinstance(_args,dict) else {}
         except (ValueError,TypeError):_args={}
         trace480.begin(row['id'],row['kind'],_args.get('matter') or _args.get('matter_id') or '')
+        from . import traces5694   # 5.6.94 (T01) : trace OpenTelemetry du travail (close par trace480.end sur tous les chemins)
+        traces5694.debut_travail(self,row,arret5643.matter_of(_args))
         # 5.6.43 (§ 16) : les appels au modèle de ce fil sont rattachés au travail (interruption, pause)
         _job_ctx=arret5643.job_context(self.c['state_dir'],row['id'],arret5643.matter_of(_args),arret5643.is_automatic_row(row,_args))
         _job_ctx.__enter__()
@@ -1394,8 +1396,9 @@ class Desk:
             from .live430 import progress
             from .missions567 import check_authority
             check_authority(self,_args)
-            from .pause5629 import check_running,with_consignes   # 5.6.29
+            from .pause5629 import check_running,check_suspended,with_consignes   # 5.6.29
             check_running(self,row,_args)
+            check_suspended(self,row,_args)   # 5.6.94 (F02) : relances suspendues pour ce dossier : « ignoré », pas une erreur de plus
             if not int(row['lock_waits'] or 0):progress(self,'Traitement démarré')   # 5.6.60 : pas un événement par attente du verrou
             self.audit('job_started',{'job_id':row['id'],'kind':row['kind'],
               'args_sha256':digest(row['args'])})
@@ -1454,6 +1457,7 @@ class Desk:
                       'recommendation':'unavailable','error':str(control_error)}}
             status='done'
         except Stop as e:
+            traces5694.refus(str(e))   # 5.6.94 (T01) : refus (pause, horaires, politique, budget, dossier réservé) noté comme événement
             if str(e)=='traitement_deja_en_cours':
                 # 5.6.60 : attente différée (10 s à 5 min), sans compter de tentative ; le motif est noté pour le diagnostic
                 from .blocage5660 import backoff_seconds, holder
@@ -1489,7 +1493,9 @@ class Desk:
                     self.active_job_id=None;trace480.end();secours564.end();_job_ctx.__exit__(None,None,None)
                     return False
                 e=Stop('operation_annulee')
-            result={'erreur':str(e)};status='error'
+            result={'erreur':str(e) or 'erreur_sans_code'};status='error'
+            if not str(e):   # 5.6.94 (T06) : un arrêt sans code n'efface plus sa cause (classe, dernière étape réseau)
+                result['detail']=traces5694.cause_exception(e)
             if getattr(e,'detail',None):   # 5.6.34 (B15) : service, étape, statut, corrélation, ressource anonymisée (aucun secret)
                 from .erreurs5634 import public as _public_detail
                 result['detail']=_public_detail(e.detail)
@@ -1504,8 +1510,13 @@ class Desk:
                         else 'Suspendu : horaires de l’IA illisibles. Reprise après correction du réglage.'};status='suspended';pause_reason='pause_horaire'
             elif str(e)=='operation_annulee':
                 result={'message':'Annulé à la demande de l’avocat.'};status='cancelled'
-        except Exception:
-            result={'erreur':'action_interrompue_consulter_le_journal'};status='error'
+            elif str(e)=='relances_suspendues_apres_trois_echecs':   # 5.6.94 (F02) : ni échec ni nouvel essai ; le coupe-circuit reste en place
+                from .fiabilite5694 import MESSAGE_IGNORE
+                result={'message':MESSAGE_IGNORE,'motif':str(e)};status='ignored'
+        except Exception as unexpected:
+            # 5.6.94 (T06) : cause non confidentielle consignée dans le travail (classe d'exception, étape IMAP ou Nextcloud, code errno, TLS
+            # ou IMAP) ; jamais le message, qui peut citer une réponse du serveur. Avant, rien ne permettait de savoir pourquoi (49 relèves).
+            result={'erreur':'action_interrompue_consulter_le_journal','detail':traces5694.cause_exception(unexpected)};status='error'
         _job_ctx.__exit__(None,None,None)
         reason_code=pause_reason or 'pause'
         partial=json.dumps({'message':'Arrêt confirmé ; résultats déjà produits conservés.', 'partial_result':result})
@@ -1544,6 +1555,7 @@ class Desk:
                                                  'qui ne le concerne pas (dossier en pause rencontré en chemin). Relancez-le après contrôle.'},ensure_ascii=False),row['id']))
                 actual=self.db.execute('SELECT status,result FROM jobs WHERE id=?',(row['id'],)).fetchone()
         status=actual['status'];result=json.loads(actual['result'] or '{}')
+        traces5694.issue(status,result)   # 5.6.94 (T01) : issue définitive du travail dans sa trace
         from .horaires_ia5689 import apres_travail
         apres_travail(self,row['id'],status)
         try:
@@ -1595,6 +1607,7 @@ class Desk:
         outcome=self.db.execute('SELECT status,business_message FROM production_deliverables_v420 WHERE job_id=? ORDER BY updated DESC LIMIT 1',(row['id'],)).fetchone()
         message=outcome['business_message'] if outcome else ('Traitement terminé ; résultat disponible.' if status=='done' else
           (result.get('message') or 'Suspendu : l’IA est en pause.') if status=='suspended' and pause_reason=='pause_horaire' else 'Traitement interrompu ; consultez le motif et relancez après contrôle.')
+        if status=='ignored':message=result.get('message') or message   # 5.6.94 (F02)
         emit(self,'produced' if outcome and outcome['status']=='verified' and row['kind'] not in ('run','live_mail430') else status,message,row['id'])
         self.active_job_id=None;trace480.end();secours564.end()
         from .charge5693 import fin_travail as _fin5693
