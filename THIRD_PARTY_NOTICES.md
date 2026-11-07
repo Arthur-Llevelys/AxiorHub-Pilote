@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.94
+# Composants tiers et compatibilité — AxiorHub 5.6.95
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -88,6 +88,10 @@ Télémétrie : `@carbon/web-components` dépend de `@ibm/telemetry-js`, qui ne 
 ## Parcours navigateur (5.6.94, outil de développement)
 
 `scripts/parcours-navigateur.py` pilote un navigateur avec Playwright pour Python 1.63.0 (Microsoft, Apache-2.0) : Chromium dans la recette GitHub, Microsoft Edge déjà installé sur un poste Windows. Playwright et ses navigateurs s'installent à part, sur le poste de développement ou dans la recette ; ils ne sont ni copiés dans l'arbre, ni livrés dans un paquet (`.deb`, Windows, image), ni installés sur le serveur du cabinet, et n'appartiennent pas au SBOM d'exécution. Voir `docs/PARCOURS-NAVIGATEUR.md`.
+
+## Évaluation des brouillons (5.6.95, outil de développement)
+
+`scripts/evaluation-redaction.py` juge les brouillons de courriels avec **DeepEval** 4.3.3 (Confident AI, Apache-2.0) et le modèle local **Qwen2.5-7B-Instruct** (`qwen2.5:7b` par Ollama, Alibaba Cloud, Apache-2.0). Les deux s'installent à part, sur le poste de développement seulement (environnement virtuel dédié, modèle dans Ollama) ; ils ne sont ni copiés dans l'arbre, ni livrés dans un paquet, ni installés sur le serveur du cabinet, et n'appartiennent pas au SBOM d'exécution. Télémétrie de DeepEval coupée avant tout import, aucun compte Confident AI. Voir `docs/EVALUATION-REDACTION.md`.
 
 ## Voix dans le navigateur (5.6.94)
 

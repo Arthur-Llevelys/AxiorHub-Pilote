@@ -323,10 +323,18 @@ class DocumentIndex:
                 key=(row[1],row[6]);rows[key]=row;scores[key]=0
         return rerank(rows,scores,tokens,limit,kinds,min_relative),semantic_error
 
-    def sources(self,dav,matter,terms,cfg):
+    classer5695=None   # 5.6.95 (R01) : posé par l'appelant (``recherche5695.classeur``) ; signatures de ``sources`` et ``fast_sources`` inchangées
+
+    def _classer(self,classer):
+        """5.6.95 (R01) : classement du service commun ``recherche5695.classeur`` (droits, pièces écartées), sinon l'actuel."""
+        classer=classer or self.classer5695
+        if classer is None:return self.ranked_chunks
+        return lambda matter,terms,**kw:classer(self,matter,terms,**kw)
+
+    def sources(self,dav,matter,terms,cfg,classer=None):
         inventory,stale=self.sync_page(dav,matter,cfg,max(25,cfg.get('index_updates_per_run',10)))
         embedding=self.ensure_embeddings(matter)
-        ranked,semantic_error=self.ranked_chunks(matter,terms,limit=max(2,cfg.get('max_documents_per_mail',5)*2))
+        ranked,semantic_error=self._classer(classer)(matter,terms,limit=max(2,cfg.get('max_documents_per_mail',5)*2))
         grouped={}
         for row,score in ranked:
             if row[2] in stale:continue
@@ -346,12 +354,12 @@ class DocumentIndex:
           'embedding_model':self.rag.get('embedding_model',''),'embedding_pending':embedding.get('pending',0),
           'semantic_error':semantic_error or embedding.get('error',''),'inventory_complete':page.get('complete',True)}
 
-    def fast_sources(self,matter,terms,cfg):
+    def fast_sources(self,matter,terms,cfg,classer=None):
         """5.6.80 : sources d'une question, sans synchronisation ni calcul d'empreintes : l'index est tenu à jour par les travaux de fond.
         Retourne None si le dossier n'a encore aucun passage indexé (l'appelant reprend alors ``sources``)."""
         mid=matter['id']
         if not self.db.execute('SELECT 1 FROM knowledge_chunks WHERE matter=? LIMIT 1',(mid,)).fetchone():return None
-        ranked,semantic_error=self.ranked_chunks(matter,terms,limit=max(2,cfg.get('max_documents_per_mail',5)*2),recent=bool(cfg.get('recent5683')))
+        ranked,semantic_error=self._classer(classer)(matter,terms,limit=max(2,cfg.get('max_documents_per_mail',5)*2),recent=bool(cfg.get('recent5683')))
         grouped={}
         for row,score in ranked:
             item=grouped.setdefault(row[1],{'id':'doc-'+row[1][:16],'kind':'document','source_kind':row[5],

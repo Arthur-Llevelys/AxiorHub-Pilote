@@ -182,6 +182,24 @@ def _recipients(msg):
     return unique
 
 
+def _text_parts(msg):
+    """5.6.95 : toutes les parties texte et HTML hors pièces jointes (une messagerie peut ne corriger que l'une des deux)."""
+    from html import unescape
+    out = []
+    for part in msg.walk():
+        if part.is_multipart() or part.get_content_disposition() == 'attachment' or part.get_content_type() not in ('text/plain', 'text/html'):
+            continue
+        try:
+            text = part.get_content()
+        except Exception:   # noqa: BLE001 — partie illisible : le corps principal reste contrôlé par body_text
+            payload = part.get_payload(decode=True) or b''
+            text = payload.decode('utf-8', 'replace') if isinstance(payload, bytes) else str(payload)
+        if part.get_content_type() == 'text/html':
+            text = unescape(re.sub(r'<[^>]*>', ' ', str(text)))
+        out.append(str(text))
+    return out
+
+
 def _check_sendable(desk, mail):
     if not desk.settings('send490:enabled', False):
         raise Stop('envoi_desactive')
@@ -198,9 +216,12 @@ def _check_sendable(desk, mail):
     subject = str(msg.get('Subject', ''))
     if VERIFY_MARK.search(subject) or VERIFY_MARK.search(body_text(msg)[:400]):
         raise Stop('brouillon_a_verifier')
-    from .sens5643 import MARKER as _to_complete   # 5.6.67 : un projet « à compléter » n'est jamais envoyé en l'état
-    if _to_complete.search(subject) or _to_complete.search(body_text(msg)):
-        raise Stop('brouillon_a_completer')
+    # 5.6.67 : un projet « à compléter » n'est jamais envoyé en l'état ; 5.6.95 (D04, D06) : ni un bloc de variantes non choisi, ni la mention
+    # « À RELIRE », ancien ou nouveau format, dans l'objet ou dans N'IMPORTE QUELLE partie texte ou HTML (retirer la mention de l'objet ne suffit pas).
+    from .sens5643 import blocage_envoi
+    blocked = blocage_envoi(subject, body_text(msg), *_text_parts(msg))
+    if blocked:
+        raise Stop(blocked)
     recipients = _recipients(msg)
     for part in msg.iter_attachments():
         if part.get_content_maintype() == 'message' or part.get_payload(decode=True) is None:

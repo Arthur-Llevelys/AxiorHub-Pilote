@@ -70,7 +70,8 @@ def html(desk, prefix, owner, day=None):
         head = '<a href="%s">%s</a>' % (e(prefix + '/audiences?onglet=suivi&id=' + h['id'], quote=True), e(h['quand'] + ' — ' + h['title']))
         extra = ' · '.join(x for x in (e(h['juridiction']), e(h['chambre']), matter(h['matter']), ('<strong>%s</strong>' % e(h['avocat_nom'])) if h['sans_avocat'] else '') if x)
         hearings.append(head + ((' <small>%s</small>' % extra) if extra else ''))
-    tasks = ['<a href="%s">%s</a>%s' % (e(prefix + '/mes-taches#tache-' + t['id'], quote=True), e(t['title'][:200]), ' <small class="t88-late">en retard</small>' if t['retard'] else '') for t in data['taches']]
+    tasks = ['<a href="%s" title="%s">%s</a>%s' % (e(prefix + '/mes-taches#tache-' + t['id'], quote=True), e(t['title'][:500], quote=True), e(t['title'][:200]),   # 5.6.95 (A03) : titre complet en infobulle
+                                              ' <small class="t88-late">en retard</small>' if t['retard'] else '') for t in data['taches']]
     deadlines = ['%s <small>%s</small>' % (e(d['label']), matter(d['matter'])) for d in data['echeances']]
     inner = _block('Mes audiences', hearings) + _block('Mes tâches', tasks) + _block('Échéances du jour', deadlines)
     return ('<section class="c530-card t88-matin" id="t88-matin" tabindex="-1" aria-labelledby="t88-matin-titre"><h2 id="t88-matin-titre">Ma liste du jour</h2>%s</section>') % (

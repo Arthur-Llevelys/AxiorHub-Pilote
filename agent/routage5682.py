@@ -10,6 +10,9 @@
 5.6.89 (chapitre 44) : filtre par droits, destination admise (``data_policy5689``), capacités, qualité observée, contexte et budget, puis classement par
 coût et délai. Le moins cher n'est éligible qu'au seuil de qualité. Sans candidat qualifié : résultat partiel ou attente expliquée, jamais un repli externe pour masquer une panne du local.
 
+5.6.95 (lot routage) : routage mesuré (``routage5695``) : mesures d'usage réelles, sans texte, appliquées seulement aux candidats restés après
+tout ce filtrage ; mode « conseil » par défaut (décision inchangée, choix mesuré enregistré à côté), « actif » sur décision de l'administrateur.
+
 On ne fait pas essayer tous les modèles du moins capable au plus capable : l'escalade est unique par étape, à une frontière stable, et ne
 suit qu'un contrôle précis (schéma invalide, sortie incomplète, réponse vide). Une pause, une annulation, une erreur d'authentification ou
 une limite n'autorisent aucune escalade et aucun changement de fournisseur.
@@ -43,10 +46,28 @@ KEEP_DAYS = 180
 LOCAL_LEVELS = {'fast': 'econome', 'complex': 'standard', 'control': 'standard'}
 
 
+# 5.6.95 (G03) : choix du routage mesuré enregistré à côté de la décision (mode, « fournisseur|modèle », raison courte faite de mesures)
+COLONNES_5695 = (('mesure_mode', "TEXT NOT NULL DEFAULT ''"), ('mesure_choix', "TEXT NOT NULL DEFAULT ''"), ('mesure_raison', "TEXT NOT NULL DEFAULT ''"))
+_migrees = set()
+
+
 def _connect(state_dir):
     db = sqlite3.connect(Path(state_dir) / 'desk.sqlite3', timeout=10)
     db.row_factory = sqlite3.Row
     db.executescript(SCHEMA)
+    if str(state_dir) not in _migrees:     # migration idempotente (PRAGMA table_info puis ALTER TABLE), une fois par processus
+        try:
+            presentes = {r[1] for r in db.execute('PRAGMA table_info(decisions_5682)')}
+            for nom, definition in COLONNES_5695:
+                if nom not in presentes:
+                    db.execute('ALTER TABLE decisions_5682 ADD COLUMN %s %s' % (nom, definition))
+            db.execute('CREATE INDEX IF NOT EXISTS decisions_5682_mission ON decisions_5682(mission, id)')
+            db.commit()
+            _migrees.add(str(state_dir))
+        except sqlite3.OperationalError:   # autre processus en pleine migration : refaite à la prochaine connexion
+            db.rollback()
+            if {r[1] for r in db.execute('PRAGMA table_info(decisions_5682)')} >= {n for n, _ in COLONNES_5695}:
+                _migrees.add(str(state_dir))
     return db
 
 
@@ -147,6 +168,8 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
     mesures = _mesures(config, purpose)
     mission = _mission()
     prof = tache5682.profile(purpose, stage, payload, messages, rule['preference'], matter, owner, needs_json=needs_json)
+    if isinstance(payload, dict) and 'correction_demandee' in payload:    # 5.6.95 (G01) : correction ciblée d'un brouillon après son contrôle : un code, aucun texte
+        prof['raisons'] = prof['raisons'] + ['correction_redaction']
     wanted = prof['niveau']
     excluded = []
     if escalate_from:
@@ -158,6 +181,9 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
         provider = registry[provider_id]
         kind = provider.get('type', 'ollama')
         if provider_id in skip:
+            continue
+        if kind != 'ollama' and rule['mode'] == 'local':   # 5.6.95 (G02) : « local uniquement » tenu ici aussi, même si une ancienne liste reste enregistrée
+            excluded.append('politique_locale_uniquement:' + provider_id)
             continue
         if kind != 'ollama' and reserved:            # dossier exclu des envois : le modèle local seul, s'il est permis
             excluded.append('politique_externe_dossier_exclu:' + provider_id)
@@ -223,7 +249,12 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
         estimate = conso5682.estimate(item[4], prof['jetons_estimes'], max_tokens)
         delay = float((item[5] or {}).get('delai') or 'inf')
         return (item[3], channel, float('inf') if estimate is None else estimate, delay, catalogue5682.NIVEAUX.index(item[2].get('niveau') or 'standard'))
-    provider_id, provider, row, gap, prices, _mesure = min(found, key=cost)
+    retenu = min(found, key=cost)
+    from . import routage5695   # 5.6.95 (G02, G03) : routage mesuré, APRÈS tout le filtrage par politique ; il ne choisit que dans ``found``
+    mesure5695 = routage5695.evaluer(config, found, prof['type_tache'], seuil, cost, retenu)
+    if mesure5695 and mesure5695['mode'] == 'actif':
+        retenu = mesure5695['choix']
+    provider_id, provider, row, gap, prices, _mesure = retenu
     if escalate_from and row['slug'] == escalate_from.get('modele') and provider_id == escalate_from.get('fournisseur'):
         raise Stop('escalade_sans_modele_superieur')
     automatic = _automatic()
@@ -238,7 +269,12 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
     uid = secrets.token_hex(12)
     reservation = conso5682.reserve(state_dir, mission, estimate, prices[3], limit, uid, provider_id, row['slug'], purpose)
     provisional = provider.get('type') != 'ollama' and not mesures.get((provider_id, row['slug']))
+    actif5695 = bool(mesure5695 and mesure5695['mode'] == 'actif' and mesure5695['suffisant'])
+    if actif5695:
+        provisional = False
     short = tache5682.short_reason({**prof, 'niveau': row.get('niveau') or wanted}, bool(escalate_from))
+    if actif5695 and not escalate_from:
+        short = mesure5695['raison']
     if not effort and prof['effort']:
         short += ' Effort non réglable sur ce modèle : le modèle a été choisi en conséquence.'
     decision = {'uid': uid, 'mission': mission, 'etape': stage or 'completion', 'proprietaire': owner, 'fonction': purpose,
@@ -248,6 +284,7 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
                 'mode': rule['mode'], 'politique_version': rule['version'], 'estimation': estimate, 'unite': prices[3], 'provisoire': provisional,
                 'escalade_de': (escalate_from or {}).get('uid', ''), 'automatique': automatic, 'prix': prices, 'reservation': reservation, 'sources': prof['sources'],
                 'sources_manquantes': prof['sources_manquantes'],
+                'routage_mesure': {k: mesure5695[k] for k in ('mode', 'fournisseur', 'modele', 'raison', 'suffisant', 'provisoire', 'identique')} if mesure5695 else None,
                 'tache': {'fonction': purpose, 'nature': prof['type_tache'], 'volume': prof['jetons_estimes'], 'risque': row.get('niveau') or wanted, 'resultat': 'json' if needs_json else 'texte'}}
     _record(state_dir, decision)
     return decision
@@ -255,12 +292,15 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
 
 def _record(state_dir, d):
     db = _connect(state_dir)
+    m = d.get('routage_mesure') or {}
     try:
         db.execute('INSERT INTO decisions_5682(uid,at,mission,etape,proprietaire,dossier_h,fonction,type_tache,niveau,fournisseur,modele,effort,raisons,'
-                   'raison_courte,mode,politique_version,estimation,unite,provisoire,escalade_de,automatique,etat) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                   'raison_courte,mode,politique_version,estimation,unite,provisoire,escalade_de,automatique,etat,mesure_mode,mesure_choix,mesure_raison) '
+                   'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                    (d['uid'], datetime.now(timezone.utc).isoformat(), d['mission'], d['etape'], d['proprietaire'], d['dossier_h'], d['fonction'],
                     d['type_tache'], d['niveau'], d['fournisseur'], d['modele'], d['effort'], json.dumps(d['raisons'], ensure_ascii=False), d['raison_courte'],
-                    d['mode'], d['politique_version'], d['estimation'], d['unite'], int(d['provisoire']), d['escalade_de'], int(d['automatique']), 'decidee'))
+                    d['mode'], d['politique_version'], d['estimation'], d['unite'], int(d['provisoire']), d['escalade_de'], int(d['automatique']), 'decidee',
+                    str(m.get('mode') or ''), ('%s|%s' % (m['fournisseur'], m['modele'])) if m.get('fournisseur') else '', str(m.get('raison') or '')[:300]))
         db.execute('DELETE FROM decisions_5682 WHERE at<?', ((datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).isoformat(),))
         db.commit()
     finally:

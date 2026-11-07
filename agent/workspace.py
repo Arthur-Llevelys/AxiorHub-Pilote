@@ -310,6 +310,8 @@ def chat(desk,args,dav,model,box=None,return_result=False):
             from .strategic import assistant_sources
             sources+=assistant_sources(desk,matter['id'],4)
             index=DocumentIndex(desk.c['state_dir'],desk.c.get('rag'),desk.c.get('ollama'))
+            from .recherche5695 import classeur   # 5.6.95 (R01) : service commun (droits, pièces écartées par l'avocat)
+            index.classer5695=classeur(desk)
             fast=index.fast_sources(matter,[question],{**desk.c['documents'],'max_documents_per_mail':3,'recent5683':acces5683.wants_recent(question)}) if rapide else None
             docs,coverage=fast if fast is not None else index.sources(dav,matter,[question],{**desk.c['documents'],'max_documents_per_mail':3})
             sources+=docs
@@ -323,6 +325,8 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         named=acces5683.named_matters(desk,question,hidden);terms=acces5683.focus_terms(question)
         added=0
         for current in named:
+            from .recherche5695 import classeur   # 5.6.95 (R01)
+            index.classer5695=classeur(desk)
             fast=index.fast_sources(current,[question],{**desk.c['documents'],'max_documents_per_mail':4,'recent5683':acces5683.wants_recent(question)})
             if fast:
                 sources+=[{**s,'matter':current['id']} for s in fast[0]];coverage=fast[1];added+=len(fast[0])

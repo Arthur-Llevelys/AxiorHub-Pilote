@@ -177,7 +177,13 @@ DEADLINE_ITEM = obj({'kind':{'type':'string','enum':['hearing','deadline','appoi
                      'title':S,'start':S,'end':S,'confidence':{'type':'string','enum':['high','medium','low']},
                      'source_ids':A,'reason':S})
 DEADLINE_REVIEW = obj({'proposals':arr(DEADLINE_ITEM,12),'limits':A})
-MANUAL_DRAFT = obj({'body':S,'source_ids':A,'limits':A,'requires_decision':B})
+from .redaction5695 import champs_sortie as _champs5695
+# 5.6.95 (D01) : variantes rédigées là où la position de l'avocat manque, au plus 2 faits « à compléter ». Lecture : les deux champs sont
+# facultatifs (anciens résultats, anciens faux modèles) et plus larges, pour que le contrôle métier signale l'écart au lieu d'échouer ;
+# fournisseur (sortie structurée native) : forme stricte, tous les champs requis (MANUAL_DRAFT_FOURNISSEUR, choisi par Model.ask).
+MANUAL_DRAFT = {**obj({'body':S,'source_ids':A,'limits':A,'requires_decision':B,**_champs5695(False)}),
+                'required':['body','source_ids','limits','requires_decision']}
+MANUAL_DRAFT_FOURNISSEUR = obj({'body':S,'source_ids':A,'limits':A,'requires_decision':B,**_champs5695(True)})
 MEMORY_INSIGHT = obj({'style_preferences':A,'useful_corrections':A,'do_not_generalize':A,'summary':S})
 CHAT_PROMPT = """Tu assistes l'avocat dans une conversation INTERNE. Elle peut porter
 sur tout le cabinet, un dossier ou un courriel. Réponds en français, directement à
@@ -569,7 +575,8 @@ Si « premier_contact » est présent, le courriel ne se rattache à aucun dossi
 à son lecteur, jamais un simple accusé : remercie, reformule précisément le projet ou la question, puis, à partir de ta connaissance générale du droit français et de la compétence
 transmise, indique les questions juridiques que la situation soulève et les régimes à examiner, présentés comme des points à analyser et jamais comme une conclusion. Réponds aux
 questions posées autant que possible à ce stade, en disant de quoi dépend la réponse. Indique les pièces ou informations à transmettre et la suite proposée. Présente la compétence, les modalités
-d'intervention et les honoraires uniquement d'après premier_contact.cabinet ; ce qui n'y figure pas s'écrit « [À COMPLÉTER : …] ». Ces points généraux n'ont pas besoin de source_id. Ne cite pas un
+d'intervention et les honoraires uniquement d'après premier_contact.cabinet ; ce qui n'y figure pas n'est ni inventé ni laissé en marqueur : une phrase complète propose
+de le préciser lors d'un premier échange. Ces points généraux n'ont pas besoin de source_id. Ne cite pas un
 numéro d'article ou une décision absents des sources : nomme le régime en général. Si le courriel n'est pas une demande de ce type, réponds simplement à ce qui est demandé.
 Si la requête contient « profil_de_ton » et « regles_du_cabinet », ce sont des consignes de forme
 approuvées par l'avocat (formules, registre, longueur) : applique-les, sans jamais en tirer un fait ni
@@ -580,13 +587,31 @@ les faits restent établis uniquement par les sources.
 Aucun envoi. Pas de signature. Ne choisis ni stratégie, montant, honoraire ou engagement.
 « intent » indique la tâche retenue par le service : reponse_fondee_dossier (réponse au fond à partir
 des sources), demande_precision (questions précises seulement), relance, accuse_reception_utile ou
-appointment. Pour reponse_fondee_dossier ou relance, rédige la réponse au fond sourcée ; une décision
-manquante (concession, montant, stratégie) ne bloque que le passage qu'elle concerne : rédige le reste
-(faits sourcés, plan, points traités), signale le passage manquant dans limits et mets
-requires_decision=true. Pour demande_precision, limite le texte à des questions non engageantes.
-Si rien d'utile ne peut être rédigé, laisse body vide, sauf si « mode_projet » vaut « a_completer » : body n'est alors jamais vide ;
-rédige le projet de réponse (faits sourcés, plan, réponse aux points posés) et écris « [À COMPLÉTER : …] » à chaque endroit où une
-décision, une position, un montant ou une information de l'avocat manque, avec requires_decision=true. Chaque fait doit
+appointment. Règle du cabinet pour tout projet : body est le courriel ENTIER, prêt à relire (appel,
+développement, réponse à chaque point posé, suite proposée, formule de politesse), jamais un plan ni une liste
+de points à compléter. Pour reponse_fondee_dossier ou relance, rédige la réponse au fond sourcée. Là où la
+position de l'avocat manque (accepter ou refuser, montant, stratégie, concession, délai à accorder), ne la
+choisis pas et ne mets pas de marqueur : ajoute à « variantes » un point {point, options} avec 2 ou 3 options
+rédigées {libelle, texte} (libelle : « si vous acceptez », « si vous refusez »…), chacune un paragraphe complet
+qui s'insère tel quel dans le courriel, différentes entre elles, toutes fondées sur les sources et sans
+engagement que les sources ne permettent pas ; dans body, écris seul sur sa ligne le repère [[CHOIX 1]]
+(puis [[CHOIX 2]]…) à l'endroit où le paragraphe choisi prendra place, et mets requires_decision=true.
+« [À COMPLÉTER : …] » est réservé à un FAIT absent des sources et indispensable (date, montant, référence,
+nom) : au plus 2 dans tout le courriel, chacun disant précisément ce qui manque, et repris dans
+« a_completer » ({quoi, pourquoi}). Une position, un choix ou une décision ne s'écrivent jamais en marqueur.
+Une décision = UN seul point avec ses 2 ou 3 options (jamais un point par option ni un point « si vous acceptez »).
+Chaque option respecte les décisions validées de l'avocat (instruction_avocat, consignes_permanentes_du_dossier,
+éléments « validé par l'avocat ») : aucune option ne propose ce qu'elles excluent. Aucun montant ni pourcentage
+absent des sources et de l'instruction, même dans une option. Une date, une heure, un montant ou une référence
+absents des sources s'écrivent « [À COMPLÉTER : …] » et ne s'inventent jamais (aucun créneau ni horaire inventé).
+Les variantes sont réservées aux positions que l'avocat doit arrêter (accepter ou refuser, montant, concession,
+stratégie, choix procédural), jamais à une simple formulation ni à la réponse attendue du destinataire.
+Aucun autre crochet à remplir ; pas de signature, de nom d'expéditeur ni de « [Votre nom] » : la messagerie signe.
+Les vérifications pour l'avocat vont dans limits, jamais dans body. Pour demande_precision, limite le texte
+à des questions non engageantes, sans variante. Rends toujours variantes et a_completer (listes vides au besoin).
+body n'est jamais vide : même avec peu de sources, rédige une réponse utile et complète.
+Lorsque « mode_projet » vaut « a_completer » : body n'est alors jamais vide et le projet sera déposé dans les brouillons pour relecture.
+Si « correction_demandee » est présent, reprends son projet et corrige seulement les écarts listés. Chaque fait doit
 citer une source fournie. N'affirme jamais qu'une pièce est conforme ou qu'une action
 a été accomplie. Respecte les destinataires et le rôle indiqués. Une source
 structured_memory n'est utilisable comme fait que si son extrait porte le statut
@@ -718,6 +743,11 @@ sourcée, qu'elle répond à la demande (answers_question) et qu'elle n'engage p
 d'une offre ou d'honoraires, choix de montant, promesse de transmission à l'adversaire
 ou engagement de négociation impose requires_lawyer=true. Une simple question
 non engageante peut passer ce contrôle ; les faits doivent toujours être sourcés.
+Les lignes « Option A : … », « Option B : … » (ou « Proposition à confirmer par l'avocat ») sont des alternatives
+laissées au choix de l'avocat : juge chacune, n'en exige pas la cohérence entre elles ; elles imposent
+requires_lawyer=true, mais une option qui accepte ou refuse n'est pas à elle seule un engagement pris. Une option qui
+révèle une donnée interne ou une stratégie au destinataire rend recipient_safe=false. Une option contraire à une
+décision validée de l'avocat est signalée dans reasons avec requires_lawyer=true.
 Vérifie aussi la période, la durée et les jours des créneaux par rapport à la demande.
 """
 
@@ -1215,7 +1245,7 @@ class Model:
         maximum=7000 if stage in ('hearing_preparation','word_revision_plan','legal_opinion_simulation') else (6000 if stage in ('case_brief','case_brief_part','dossier_fiche','strategy_analysis','evidence_matrix','act_project','document_project','mail_case_differential') else 3500)
         from .schema5634 import SchemaError, describe
         for attempt in (1, 2):   # 5.6.34 (B12) : une reprise unique, bornée ; jamais de conversion d'une sortie fausse en succès
-            content=self.complete(messages,None,maximum,schema)
+            content=self.complete(messages,None,maximum,MANUAL_DRAFT_FOURNISSEUR if stage=='manual_draft' else schema)   # 5.6.95 (D02) : forme stricte au fournisseur
             try:
                 value = json.loads(content)
                 validate(value, schema)

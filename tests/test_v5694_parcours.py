@@ -255,7 +255,7 @@ class P01Lancement(unittest.TestCase):
 
     def test_P01_parcours_annonces_tous_presents(self):
         m = banc_module()
-        self.assertEqual([p[0] for p in m.PARCOURS], ['P02a', 'P02b', 'P02c', 'P02d', 'P02e', 'P02f', 'P02g', 'P02h'])
+        self.assertEqual([p[0] for p in m.PARCOURS], ['P02a', 'P02b', 'P02c', 'P02d', 'P02e', 'P02f', 'P02g', 'P02h', 'P95a', 'P95b'])   # 5.6.95 : parcours du lot aujourdhui ajoutés
 
 
 class P03Recette(unittest.TestCase):

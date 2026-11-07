@@ -12,12 +12,13 @@ import re
 
 from .common import Stop
 
-BLOCS = (('routines', 'Comptes rendus des routines'), ('style', 'Style du cabinet'), ('file', 'À décider / À relire'), ('activite', 'Ce que fait l’agent'),
+BLOCS = (('actuellement', 'Actuellement'), ('routines', 'Comptes rendus des routines'), ('style', 'Style du cabinet'), ('file', 'À décider / À relire'), ('activite', 'Ce que fait l’agent'),
          ('journee', 'Ma journée'), ('veille', 'Veille juridique'), ('societes', 'Veille des sociétés'), ('memoire', 'À retenir'), ('reprise', 'Reprendre là où j’en étais'))
 IDS = tuple(k for k, _ in BLOCS)
-LARGES = ('file', 'veille', 'societes', 'memoire', 'reprise')     # toute la largeur quand les blocs sont réordonnés
+LARGES = ('actuellement', 'file', 'veille', 'societes', 'memoire', 'reprise')     # toute la largeur quand les blocs sont réordonnés
+TETE = ('actuellement',)   # 5.6.95 (A03) : bloc ajouté en tête ; absent d'un ordre enregistré avant lui, il reste premier (déplaçable et masquable ensuite)
 # Début de chaque bloc dans le gabarit de ``cockpit530.page`` ; sa fin est le repère <!--/b88:id-->.
-DEBUTS = {'routines': '<section class="c530-card" id="c530-routines"', 'style': '<section class="c530-card" id="c530-style"', 'file': '<div class="c5662-file" id="c5656-file">',
+DEBUTS = {'actuellement': '<section class="c530-card ax95" id="ax95-actuellement"', 'routines': '<section class="c530-card" id="c530-routines"', 'style': '<section class="c530-card" id="c530-style"', 'file': '<div class="c5662-file" id="c5656-file">',
           'activite': '<section class="c530-card" id="c530-feed"', 'journee': '<section class="c530-card" id="c530-day"', 'veille': '<section class="c530-card c5656-wide" id="c5632-veille"',
           'reprise': '<div class="c5656-wide c5662-reprise">'}
 # nom : (libellé, clair : accent, survol, fond doux ; sombre : accent, survol, fond doux). Texte sur l'accent : blanc en clair, ENCRE_SOMBRE en sombre.
@@ -39,10 +40,13 @@ def ensure_schema(desk):
     desk.db.execute(SCHEMA)
 
 
-def _ordre(valeurs):
-    """Ordre complet : identifiants connus dans l'ordre donné, puis les blocs absents à leur place d'origine (un bloc ajouté par une version future reste visible)."""
+def _ordre(valeurs, tete=False):
+    """Ordre complet : identifiants connus dans l'ordre donné, puis les blocs absents à leur place d'origine (un bloc ajouté par une version future reste visible).
+    ``tete`` (lecture d'un réglage enregistré) : un bloc de ``TETE`` absent de l'ordre enregistré, donc ajouté depuis, passe en premier."""
     known = [v for v in dict.fromkeys(str(x) for x in valeurs) if v in IDS]
-    return known + [k for k in IDS if k not in known]
+    missing = [k for k in IDS if k not in known]
+    first = [k for k in missing if k in TETE] if tete and known else []
+    return first + known + [k for k in missing if k not in first]
 
 
 def charger(desk, owner):
@@ -56,7 +60,7 @@ def charger(desk, owner):
     raw = raw if isinstance(raw, dict) else {}
     accent = raw.get('accent') if raw.get('accent') in ACCENTS else ''
     masques = [m for m in (raw.get('masques') if isinstance(raw.get('masques'), list) else []) if m in IDS]
-    ordre = _ordre(raw.get('ordre') if isinstance(raw.get('ordre'), list) else [])
+    ordre = _ordre(raw.get('ordre') if isinstance(raw.get('ordre'), list) else [], tete=True)
     return {'ordre': ordre, 'masques': masques, 'accent': accent, 'perso': ordre != list(IDS) or bool(masques)}
 
 
@@ -113,21 +117,30 @@ def appliquer(desk, html, owner, extras, role='administrateur'):
 
 
 def panneau(prefs, role='administrateur', desk=None):
-    """Réglages : case à cocher, Monter et Descendre au clavier ; glisser-déposer en plus à la souris (v5688-crm.js)."""
-    labels = dict(BLOCS)
-    rows = ''.join(('<li class="t88-row" data-bloc="%s" draggable="true"><label class="m5-check"><input type="checkbox" name="voir:%s"%s> %s</label><span class="t88-moves">'
-                    '<button type="button" class="ax-btn ghost" data-t88-move="-1" aria-label="Monter : %s">Monter</button>'
-                    '<button type="button" class="ax-btn ghost" data-t88-move="1" aria-label="Descendre : %s">Descendre</button></span></li>') % (
-        k, k, '' if k in prefs['masques'] else ' checked', e(labels[k]), e(labels[k], quote=True), e(labels[k], quote=True)) for k in prefs['ordre'])
-    colors = ''.join('<label class="t88-color"><input type="radio" name="accent" value="%s"%s><span class="t88-swatch" data-swatch="%s" aria-hidden="true"></span> %s</label>' % (
+    """Réglages : case à cocher, Monter et Descendre au clavier ; glisser-déposer en plus à la souris (v5688-crm.js).
+    5.6.95 (A04) : liste en Carbon ; la case et le nom du bloc sur la même ligne, Monter et Descendre groupés juste après le nom (pas en bout de
+    ligne), le nom du bloc dans le libellé accessible de chaque bouton ; le rang est un compteur CSS (il n'entre pas dans le texte lu)."""
+    from .ui_components5689 import icone
+    from .i18n5631 import t
+    labels = dict(BLOCS, actuellement=t('a95.titre'))
+    rows = ''.join(('<li class="t88-row t95-row" data-bloc="%s" draggable="true"><label class="t95-voir"><input type="checkbox" name="voir:%s"%s><span class="t95-nom">%s</span></label>'
+                    '<span class="t88-moves t95-moves" role="group" aria-label="%s">'
+                    '<button type="button" class="ax-btn ghost t95-move" data-t88-move="-1" aria-label="Monter : %s">%s<span>Monter</span></button>'
+                    '<button type="button" class="ax-btn ghost t95-move" data-t88-move="1" aria-label="Descendre : %s">%s<span>Descendre</span></button></span></li>') % (
+        k, k, '' if k in prefs['masques'] else ' checked', e(labels[k]), e(t('a95.perso.position', nom=labels[k]), quote=True), e(labels[k], quote=True), icone('retour', taille=16, classe='t95-haut'),
+        e(labels[k], quote=True), icone('retour', taille=16, classe='t95-bas')) for k in prefs['ordre'])
+    colors = ''.join('<label class="t88-color t95-couleur"><input type="radio" name="accent" value="%s"%s><span class="t88-swatch" data-swatch="%s" aria-hidden="true"></span><span>%s</span></label>' % (
         e(k, quote=True), ' checked' if k == prefs['accent'] else '', e(k or 'origine', quote=True), e(v[0])) for k, v in ACCENTS.items())
     memoire = ''
     if role == 'administrateur' and desk is not None:
         from .memoire5688 import reglage_html
         memoire = reglage_html(desk)
-    return ('<details class="t88-panel" id="t88-panel"><summary>Personnaliser cette page</summary>'
-            '<form class="m5-form" data-api="m5688/tableau/enregistrer" data-reload="1"><input type="hidden" name="ordre" id="t88-ordre" value="%s">'
-            '<p class="ax-muted">Cochez les blocs à afficher. Monter et Descendre changent leur ordre ; à la souris, vous pouvez aussi les glisser.</p><ol class="t88-list" id="t88-list">%s</ol>'
-            '<fieldset class="t88-colors"><legend>Couleur d’accent</legend>%s</fieldset><p id="t88-status" role="status" class="c530-sr"></p><button class="ax-btn" type="submit">Enregistrer</button></form>'
-            '<form class="m5-form m5-inline" data-api="m5688/tableau/reinitialiser" data-reload="1"><button class="ax-btn ghost" type="submit">Revenir aux réglages d’origine</button></form>%s</details>') % (
-        e(','.join(prefs['ordre']), quote=True), rows, colors, memoire)
+    return ('<details class="t88-panel t95-panel" id="t88-panel"><summary>Personnaliser cette page</summary>'
+            '<form class="m5-form t95-form" data-api="m5688/tableau/enregistrer" data-reload="1"><input type="hidden" name="ordre" id="t88-ordre" value="%s">'
+            '<fieldset class="t95-blocs"><legend>%s</legend>'
+            '<p class="ax-muted" id="t95-aide">Cochez les blocs à afficher. Monter et Descendre changent leur ordre ; à la souris, vous pouvez aussi les glisser.</p>'
+            '<ol class="t88-list t95-list" id="t88-list" aria-describedby="t95-aide">%s</ol></fieldset>'
+            '<fieldset class="t88-colors t95-couleurs"><legend>Couleur d’accent</legend>%s</fieldset><p id="t88-status" role="status" class="c530-sr"></p>'
+            '<div class="t95-boutons"><button class="ax-btn" type="submit">Enregistrer</button></div></form>'
+            '<form class="m5-form m5-inline t95-form" data-api="m5688/tableau/reinitialiser" data-reload="1"><button class="ax-btn ghost" type="submit">Revenir aux réglages d’origine</button></form>%s</details>') % (
+        e(','.join(prefs['ordre']), quote=True), e(t('a95.perso.blocs')), rows, colors, memoire)

@@ -68,7 +68,7 @@ class V04Nombres(unittest.TestCase):
         self.assertEqual(D('3 000 euros'), 'trois mille euros')
         self.assertEqual(D('2,5 M€'), "deux virgule cinq millions d'euros")
         self.assertEqual(D('15 k€'), 'quinze mille euros')
-        self.assertEqual(D('une provision de 1 500 € HT'), 'une provision de mille cinq cents euros ache té')
+        self.assertEqual(D('une provision de 1 500 € HT'), 'une provision de mille cinq cents euros hors taxes')   # 5.6.95 (L02)
 
     def test_V04_pourcentages_et_milliers(self):
         self.assertEqual(D('15 %'), 'quinze pour cent')
@@ -77,10 +77,10 @@ class V04Nombres(unittest.TestCase):
         self.assertEqual(D('les 3 000 salariés'), 'les trois mille salariés')
 
     def test_V04_dates_numeriques(self):
-        self.assertEqual(D('12/03/2026'), '12 mars 2026')                                            # exemple de la feuille de route
-        self.assertEqual(D('le 01/02/2026'), 'le premier février 2026')
-        self.assertEqual(D('12.03.26'), '12 mars 2026')
-        self.assertEqual(D('2026-03-12'), '12 mars 2026')
+        self.assertEqual(D('12/03/2026'), 'douze mars deux mille vingt-six')                                            # exemple de la feuille de route
+        self.assertEqual(D('le 01/02/2026'), 'le premier février deux mille vingt-six')
+        self.assertEqual(D('12.03.26'), 'douze mars deux mille vingt-six')
+        self.assertEqual(D('2026-03-12'), 'douze mars deux mille vingt-six')
         self.assertEqual(D('31/13/2026'), '31/13/2026')                                              # mois impossible : rien d'inventé
 
     def test_V04_ordinaux_dans_le_texte(self):
@@ -112,13 +112,13 @@ class V04Juridique(unittest.TestCase):
         self.assertEqual(D('une CSP élevée'), 'une cé esse pé élevée')                                # catégorie socioprofessionnelle : épelé
 
     def test_V04_juridictions(self):
-        self.assertEqual(D('Cass. civ. 1re, 12/03/2026'), 'Cour de cassation, première chambre civile, 12 mars 2026')
+        self.assertEqual(D('Cass. civ. 1re, 12/03/2026'), 'Cour de cassation, première chambre civile, douze mars deux mille vingt-six')
         self.assertEqual(D('Cass. 2e civ.'), 'Cour de cassation, deuxième chambre civile')
-        self.assertEqual(D('Civ. 3e, 5 mai 2021'), 'Cour de cassation, troisième chambre civile, 5 mai 2021')
+        self.assertEqual(D('Civ. 3e, 5 mai 2021'), 'Cour de cassation, troisième chambre civile, cinq mai deux mille vingt et un')
         self.assertEqual(D('Cass. com.'), 'Cour de cassation, chambre commerciale')
         self.assertEqual(D('Cass. soc.'), 'Cour de cassation, chambre sociale')
         self.assertEqual(D('Cass. crim.'), 'Cour de cassation, chambre criminelle')
-        self.assertEqual(D('Soc., 3 mars 2021'), 'Cour de cassation, chambre sociale, 3 mars 2021')
+        self.assertEqual(D('Soc., 3 mars 2021'), 'Cour de cassation, chambre sociale, trois mars deux mille vingt et un')
         self.assertEqual(D('Cass. ass. plén.'), 'Cour de cassation, assemblée plénière')
         self.assertEqual(D('CA Lyon'), "cour d'appel de Lyon")
         self.assertEqual(D('CA de Paris'), "cour d'appel de Paris")
@@ -134,8 +134,8 @@ class V04Juridique(unittest.TestCase):
         self.assertEqual(D('un CA de 2 M€'), "un CA de deux millions d'euros")                         # « CA » sans ville : chiffre d'affaires, intact
 
     def test_V04_ce_en_debut_de_phrase_et_en_capitales(self):
-        self.assertEqual(D('CE, 3 mars 2021, n° 456789.'), "Conseil d'État, 3 mars 2021, numéro 456789.")
-        self.assertEqual(D('CE, sect., 3 mars 2021'), "Conseil d'État, section, 3 mars 2021")
+        self.assertEqual(D('CE, 3 mars 2021, n° 456789.'), "Conseil d'État, trois mars deux mille vingt et un, numéro 456789.")
+        self.assertEqual(D('CE, sect., 3 mars 2021'), "Conseil d'État, section, trois mars deux mille vingt et un")
         self.assertEqual(D('Le CE a jugé'), "Le Conseil d'État a jugé")
         self.assertEqual(D('CE QUI EST JUGÉ'), 'CE QUI EST JUGÉ')                                     # démonstratif d'un titre en capitales
         self.assertEqual(D('CE JUGEMENT'), 'CE JUGEMENT')
@@ -180,13 +180,13 @@ class V04Juridique(unittest.TestCase):
                 self.assertIn(intact, D('Voir ' + intact + ' pour la suite.'))
         self.assertEqual(D('M. [PERSONNE_1] c/ [SOCIETE_2]'), 'Monsieur [PERSONNE_1] contre [SOCIETE_2]')
         self.assertEqual(D('Écrire à Me DURAND (durand@example.test) avant le 12/03/2026.'),
-                         'Écrire à Maître DURAND (durand@example.test) avant le 12 mars 2026.')
+                         'Écrire à Maître DURAND (durand@example.test) avant le douze mars deux mille vingt-six.')
 
     def test_V04_texte_complet_et_relecture_idempotente(self):
         texte = ('Par arrêt du 12/03/2026 (Cass. civ. 1re, n° 22-12.345), la Cour a cassé l’arrêt de la CA Lyon. '
                  'Me DURAND, pour la SARL ZORVAL, réclame 1 250,50 € au titre de l’art. 700 CPC, soit 15 % de plus.')
         lu = D(texte)
-        self.assertEqual(lu, 'Par arrêt du 12 mars 2026 (Cour de cassation, première chambre civile, numéro vingt-deux, douze, trois cent quarante-cinq), '
+        self.assertEqual(lu, 'Par arrêt du douze mars deux mille vingt-six (Cour de cassation, première chambre civile, numéro vingt-deux, douze, trois cent quarante-cinq), '
                              'la Cour a cassé l’arrêt de la cour d\'appel de Lyon. Maître DURAND, pour la esse a erre elle ZORVAL, réclame mille deux '
                              'cent cinquante euros cinquante au titre de l’article 700 du Code de procédure civile, soit quinze pour cent de plus.')
         # le serveur relit le texte déjà préparé (repli) : une seconde passe ne change rien
@@ -371,7 +371,7 @@ class V03Fournisseur(Bureau):
         espeak.assert_not_called(); http.assert_not_called(); http2.assert_not_called()
         self.assertTrue(out['browser']); self.assertEqual(out['provider'], 'brindille'); self.assertFalse(out['external'])
         self.assertIsNone(out['transmitted_text'])
-        self.assertEqual(out['paragraphs'], [['Maître DURAND plaide l’article 1240 du Code civil le 12 mars 2026.']])
+        self.assertEqual(out['paragraphs'], [['Maître DURAND plaide l’article 1240 du Code civil le douze mars deux mille vingt-six.']])
         self.assertEqual(out['fallback'], 'espeak')
         self.assertFalse((Path(self.desk.c['state_dir']) / 'voice568-cache').exists())               # aucun fichier audio produit
         audit = self.audits()

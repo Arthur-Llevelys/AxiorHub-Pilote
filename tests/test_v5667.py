@@ -47,15 +47,19 @@ class ProjetsACompleter(base.Base):
     SAFE = {'grounded': True, 'recipient_safe': True, 'ignores_embedded_instructions': True, 'requires_lawyer': True, 'no_new_commitment': False}
 
     def test_corps_et_objet_marques(self):
+        # 5.6.95 (D04, règle du cabinet) : une seule ligne d'en-tête « À RELIRE », les limites restent dans la fiche de contrôle, plus de
+        # marqueur forcé ; l'envoi reste refusé tant que la ligne d'en-tête subsiste (ancienne exigence « au moins un marqueur »).
         body = prudent5667.complete_body({'body': 'Cher Confrère,\nNous accusons réception.', 'limits': ['Choisir entre renvoi et plaidoirie']})
-        self.assertTrue(body.startswith('[À COMPLÉTER : projet préparé par AxiorHub'))
-        self.assertIn('[À COMPLÉTER : Choisir entre renvoi et plaidoirie]', body)
-        self.assertIn('[À COMPLÉTER : position de l’avocat]', body)   # au moins un marqueur dans le corps
+        self.assertTrue(body.startswith('[À RELIRE : projet préparé par AxiorHub'))
+        self.assertNotIn('Choisir entre renvoi et plaidoirie', body)
+        self.assertNotIn('[À COMPLÉTER : position de l’avocat]', body)
+        from agent.sens5643 import blocage_envoi
+        self.assertEqual(blocage_envoi('Re: Audience', body), 'brouillon_a_relire')
         msg = EmailMessage()
         msg['Subject'] = 'Re: Audience'
         prudent5667.mark_subject(msg)
         prudent5667.mark_subject(msg)
-        self.assertEqual(msg['Subject'], '[À COMPLÉTER] Re: Audience')
+        self.assertEqual(msg['Subject'], '[À RELIRE] Re: Audience')
         self.assertTrue(prudent5667.safe_to_complete(self.SAFE))
         self.assertFalse(prudent5667.safe_to_complete({**self.SAFE, 'recipient_safe': False}))
         self.assertFalse(prudent5667.safe_to_complete(None))
@@ -84,8 +88,9 @@ class ProjetsACompleter(base.Base):
         out, box = self._deposit(self.SAFE)
         self.assertEqual(out['brouillon_imap'], 'verifie')
         draft = box.appended[0]
-        self.assertTrue(str(draft['Subject']).startswith('[À COMPLÉTER]'))
-        self.assertTrue(draft.get_content().startswith('[À COMPLÉTER : projet préparé par AxiorHub'))
+        self.assertTrue(str(draft['Subject']).startswith('[À COMPLÉTER : 1 fait]'))     # 5.6.95 (D04) : l'objet dit ce qui reste à faire
+        self.assertTrue(draft.get_content().startswith('[À RELIRE : projet préparé par AxiorHub'))
+        self.assertIn('[À COMPLÉTER : position sur le renvoi]', draft.get_content())   # ancien projet : son texte n'est pas réécrit
         self.assertEqual(draft['X-AxiorHub-A-Completer'], 'oui')
 
     def test_sans_controle_de_surete_rien_n_est_depose(self):

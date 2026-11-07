@@ -1,0 +1,13 @@
+/* AxiorHub 5.6.95 (lot rédaction, D05) — choix à faire dans une réponse préparée : variantes et faits à compléter (page du courriel).
+   Couleurs : jetons Carbon (v5689-carbon-jetons.css) avec repli sur les variables historiques ; clair et sombre suivent les jetons.
+   L'état d'un choix n'est jamais porté par la seule couleur : intitulé, lettre de la variante et bouton explicite. */
+.rd95{margin:12px 0 16px;padding:12px 14px;border:1px solid var(--cds-border-subtle-01,var(--ws-border,#c6c6c6));background:var(--cds-layer-01,transparent);color:var(--cds-text-primary,inherit)}
+.rd95 h3{margin:0 0 6px;font-size:1.05rem}
+.rd95 h4{margin:12px 0 4px;font-size:.95rem}
+.rd95-choix{margin:10px 0;padding:8px 12px 10px;border:1px solid var(--cds-border-strong-01,var(--ws-border,#8d8d8d));min-inline-size:0}
+.rd95-choix legend{padding:0 6px;font-weight:600}
+.rd95-variante{margin:8px 0 0;padding:8px 10px;border-left:4px solid var(--cds-border-interactive,var(--ws-accent,#0f62fe));background:var(--cds-layer-02,transparent)}
+.rd95-libelle{margin:0 0 4px}
+.rd95-texte{margin:0 0 6px;white-space:pre-wrap;overflow-wrap:anywhere}
+.rd95-faits{margin:4px 0 0;padding-left:20px}
+.rd95 .ax-btn:focus-visible{outline:2px solid var(--cds-focus,#0f62fe);outline-offset:2px}

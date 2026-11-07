@@ -1,0 +1,2467 @@
+{
+ "version": 1,
+ "avertissement": "Données entièrement fictives (noms, SIREN d’essai, domaines example.test, ville Valbrune).",
+ "dossiers": [
+  {
+   "id": "DOS-001",
+   "nom": "Bail commercial DURAND c/ ZORVAL",
+   "client": "Hélène DURAND"
+  },
+  {
+   "id": "DOS-002",
+   "nom": "Licenciement MARTIN c/ ORLANDEC",
+   "client": "Paul MARTIN"
+  },
+  {
+   "id": "DOS-003",
+   "nom": "Vices cachés BERNARD c/ KERVILAC",
+   "client": "Sophie BERNARD"
+  },
+  {
+   "id": "DOS-004",
+   "nom": "Recouvrement ZORVAL Industrie c/ MARTIN Logistique",
+   "client": "ZORVAL Industrie SAS"
+  },
+  {
+   "id": "DOS-005",
+   "nom": "Succession KERVILAC",
+   "client": "Yann KERVILAC"
+  },
+  {
+   "id": "DOS-006",
+   "nom": "Prestation informatique ORLANDEC Conseil",
+   "client": "ORLANDEC Conseil SARL"
+  }
+ ],
+ "documents": [
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Courriels/2024-01-15 relance loyers impayés.txt",
+   "nature": "email_received",
+   "date": "2024-01-15",
+   "texte": "De : Hélène DURAND <h.durand@example.test>\nObjet : loyers impayés ZORVAL\nMaître, la société ZORVAL n'a pas réglé les loyers d'octobre, novembre et décembre 2023. La dette locative atteint 4 800 euros.\nLe gérant ne répond plus à mes appels. Que pouvons-nous faire pour obtenir le paiement ou récupérer le local du boulevard de Valbrune ?"
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Pièces/Contrat de bail commercial 2019.txt",
+   "nature": "document",
+   "date": "2019-03-01",
+   "texte": "BAIL COMMERCIAL entre Mme Hélène DURAND, bailleresse, et la SARL ZORVAL, preneuse.\nArticle 3 – Durée : le bail est consenti pour neuf années entières et consécutives à compter du 1er mars 2019.\nArticle 5 – Loyer : le loyer annuel est fixé à 19 200 euros hors taxes, payable mensuellement d'avance, soit 1 600 euros par mois.\nArticle 9 – Travaux : les grosses réparations de l'article 606 du code civil restent à la charge de la bailleresse.\nArticle 12 – Clause résolutoire : à défaut de paiement d'un seul terme de loyer à son échéance, et un mois après un commandement de payer\nresté infructueux, le bail sera résilié de plein droit si bon semble à la bailleresse."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Pièces/Commandement de payer visant la clause résolutoire.txt",
+   "nature": "document",
+   "date": "2024-02-05",
+   "texte": "COMMANDEMENT DE PAYER VISANT LA CLAUSE RÉSOLUTOIRE délivré le 5 février 2024 par commissaire de justice à la SARL ZORVAL,\nà la requête de Mme Hélène DURAND. Sommes réclamées : loyers d'octobre à décembre 2023, soit 4 800 euros, outre les frais de l'acte.\nÀ défaut de paiement dans le délai d'un mois, la bailleresse entend se prévaloir de la clause résolutoire stipulée à l'article 12 du bail."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Courriels/2023-05-10 proposition échéancier ZORVAL.txt",
+   "nature": "email_received",
+   "date": "2023-05-10",
+   "texte": "De : gerance@zorval.example.test\nObjet : retard de paiement\nMadame DURAND, à la suite de notre échange téléphonique, nous vous confirmons votre accord de principe pour un échéancier de paiement\nsur six mois du retard de loyers du printemps. Nous réglerons 400 euros par mois en plus du loyer courant."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Procédure/Conclusions adverses ZORVAL.txt",
+   "nature": "document",
+   "date": "2024-04-18",
+   "texte": "CONCLUSIONS POUR LA SARL ZORVAL devant le juge des référés du tribunal judiciaire de Valbrune.\nLa preneuse soutient que la bailleresse n'a jamais réalisé les travaux de mise hors d'eau promis, ce qui justifie la suspension partielle des loyers.\nÀ titre subsidiaire, elle sollicite des délais de paiement de vingt-quatre mois sur le fondement de l'article 1343-5 du code civil\net la suspension des effets de la clause résolutoire."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Pièces/Facture travaux de toiture 2022.txt",
+   "nature": "document",
+   "date": "2022-09-30",
+   "texte": "FACTURE n° T-2022-118 – Couverture Valbrune\nClient : Mme Hélène DURAND. Objet : réfection complète de la toiture du local commercial loué à la SARL ZORVAL.\nMontant : 12 300 euros TTC, réglé le 30 septembre 2022 par virement."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Notes/Compte rendu rendez-vous client 2024-03-10.txt",
+   "nature": "document",
+   "date": "2024-03-10",
+   "texte": "Compte rendu du rendez-vous du 10 mars 2024 avec Mme DURAND, accompagnée de M. Luc MARTIN, son expert-comptable.\nLa cliente souhaite avant tout récupérer les locaux pour les relouer. M. MARTIN indique que la perte de loyers fragilise la trésorerie de la cliente.\nPièces à réunir : décomptes de loyers, preuve des travaux de toiture de 2022."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Pièces/Attestation voisin KERVILAC.txt",
+   "nature": "document",
+   "date": "2024-03-02",
+   "texte": "ATTESTATION de M. KERVILAC, commerçant voisin : j'atteste que le local de la SARL ZORVAL est fermé depuis janvier 2024\net que le gérant a déménagé son stock. Je n'ai plus vu d'activité ni de paiement de loyers ou de charges."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Pièces/Lettre de licenciement.txt",
+   "nature": "document",
+   "date": "2024-04-03",
+   "texte": "Monsieur Paul MARTIN, nous vous notifions par la présente votre licenciement pour faute grave, en raison de vos absences injustifiées\ndu 11 au 22 mars 2024, sans aucun justificatif transmis à la direction. Votre contrat prend fin à la date d'envoi de cette lettre, sans préavis ni indemnité.\nORLANDEC SAS, la directrice des ressources humaines."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Pièces/Contrat de travail CDI 2017.txt",
+   "nature": "document",
+   "date": "2017-01-02",
+   "texte": "CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE entre ORLANDEC SAS et M. Paul MARTIN, engagé le 2 janvier 2017 en qualité de technicien de maintenance.\nRémunération : salaire mensuel brut de 2 450 euros pour 35 heures hebdomadaires. Période d'essai : deux mois. Convention collective de la métallurgie."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Pièces/Bulletins de salaire 2024.txt",
+   "nature": "document",
+   "date": "2024-03-31",
+   "texte": "Bulletin de paie de mars 2024 – M. Paul MARTIN – technicien.\nSalaire de base 2 450,00 euros brut ; prime d'ancienneté 147,00 euros ; absence maladie du 11 au 22 mars : indemnités journalières de sécurité sociale."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Courriels/2024-03-12 envoi arrêt maladie.txt",
+   "nature": "email_sent",
+   "date": "2024-03-12",
+   "texte": "De : Paul MARTIN <p.martin@example.test>\nÀ : rh@orlandec.example.test\nObjet : arrêt de travail\nBonjour, vous trouverez ci-joint mon avis d'arrêt de travail du 11 au 22 mars 2024, prescrit par mon médecin. Je l'ai également déposé ce matin à l'accueil du service RH."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Procédure/Requête conseil de prud’hommes.txt",
+   "nature": "document",
+   "date": "2024-05-06",
+   "texte": "REQUÊTE devant le conseil de prud'hommes de Valbrune, section industrie, RG 24/01234.\nM. Paul MARTIN conteste son licenciement pour faute grave et demande : indemnité de licenciement sans cause réelle et sérieuse 18 000 euros,\nindemnité compensatrice de préavis 4 900 euros, indemnité légale de licenciement 4 287 euros."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Procédure/Conclusions ORLANDEC.txt",
+   "nature": "document",
+   "date": "2024-09-10",
+   "texte": "CONCLUSIONS POUR ORLANDEC SAS. La société soutient n'avoir jamais reçu l'avis d'arrêt de travail et que le salarié ne s'est pas manifesté\npendant douze jours. Elle conclut au débouté de l'ensemble des demandes et sollicite 2 000 euros au titre de l'article 700 du code de procédure civile."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Pièces/Attestation collègue BERNARD.txt",
+   "nature": "document",
+   "date": "2024-06-01",
+   "texte": "ATTESTATION de M. Marc BERNARD, collègue de travail : le 12 mars 2024 au matin, j'ai vu Paul MARTIN remettre une enveloppe contenant son arrêt de travail\nà l'hôtesse d'accueil du service des ressources humaines. Je sais que mon attestation sera produite en justice."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Notes/Compte rendu audience de conciliation.txt",
+   "nature": "document",
+   "date": "2024-06-20",
+   "texte": "Compte rendu de l'audience du bureau de conciliation et d'orientation du 20 juin 2024 : aucune conciliation ; l'employeur refuse toute indemnité.\nL'affaire est renvoyée devant le bureau de jugement à l'audience du 14 novembre 2024 à 14 heures."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Pièces/Acte de vente maison Valbrune.txt",
+   "nature": "document",
+   "date": "2023-06-15",
+   "texte": "ACTE DE VENTE reçu le 15 juin 2023 : M. et Mme KERVILAC vendent à Mme Sophie BERNARD une maison d'habitation située à Valbrune, au prix de 285 000 euros.\nClause de non-garantie : l'acquéreur prend le bien dans son état, sans recours contre le vendeur pour les vices cachés, sauf si le vendeur les connaissait."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Pièces/Rapport d’expertise humidité.txt",
+   "nature": "document",
+   "date": "2023-08-22",
+   "texte": "RAPPORT D'EXPERTISE – humidité du sous-sol. L'expert constate des infiltrations anciennes, antérieures à la vente, masquées par une peinture récente.\nLe coût des travaux de drainage et de reprise des murs est évalué à 23 500 euros TTC."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Courriels/2023-09-20 refus KERVILAC.txt",
+   "nature": "email_received",
+   "date": "2023-09-20",
+   "texte": "De : kervilac.famille@example.test\nObjet : votre réclamation\nMadame BERNARD, nous refusons toute prise en charge : la maison a été vendue en l'état et nous ignorions tout problème d'humidité."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Courriers/Mise en demeure vendeurs.txt",
+   "nature": "document",
+   "date": "2023-09-04",
+   "texte": "MISE EN DEMEURE adressée le 4 septembre 2023 à M. et Mme KERVILAC : notre cliente, Mme BERNARD, vous met en demeure de lui verser la somme de 23 500 euros\ncorrespondant au coût des travaux rendus nécessaires par les infiltrations que vous connaissiez, dans un délai de quinze jours."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Pièces/Devis entreprise de drainage.txt",
+   "nature": "document",
+   "date": "2023-08-30",
+   "texte": "DEVIS n° D-4471 – Drainage périphérique, cuvelage et reprise des enduits du sous-sol. Montant total : 23 500 euros TTC. Durée des travaux : trois semaines."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Procédure/Assignation tribunal judiciaire.txt",
+   "nature": "document",
+   "date": "2023-11-12",
+   "texte": "ASSIGNATION devant le tribunal judiciaire de Valbrune. Mme Sophie BERNARD demande, sur le fondement des articles 1641 et suivants du code civil,\nla condamnation de M. et Mme KERVILAC à lui payer 23 500 euros au titre de la réduction du prix et 3 000 euros de dommages et intérêts pour trouble de jouissance."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Procédure/Projet assignation version 1.txt",
+   "nature": "document",
+   "date": "2023-10-30",
+   "texte": "PROJET – ASSIGNATION, première version : Mme BERNARD demande la condamnation des vendeurs KERVILAC à lui payer 32 000 euros au titre de la réduction du prix\net la résolution de la vente. (Version abandonnée.)"
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Courriels/2023-10-02 agent immobilier.txt",
+   "nature": "email_received",
+   "date": "2023-10-02",
+   "texte": "De : contact@orlandec-immobilier.example.test\nObjet : maison de Valbrune\nMadame, lors des visites, les vendeurs KERVILAC avaient fait repeindre le sous-sol quelques jours avant la mise en vente. Ils m'avaient signalé une ancienne fuite."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Factures/Facture F2024-031.txt",
+   "nature": "document",
+   "date": "2024-03-31",
+   "texte": "ZORVAL Industrie SAS – SIREN 000010017. FACTURE F2024-031 adressée à MARTIN Logistique SARL, SIREN 000010025.\nFourniture de 12 palettes de pièces usinées. Montant : 7 860 euros TTC. Échéance : 30 avril 2024."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Factures/Facture F2024-044.txt",
+   "nature": "document",
+   "date": "2024-04-30",
+   "texte": "ZORVAL Industrie SAS. FACTURE F2024-044 adressée à MARTIN Logistique SARL. Fourniture de 10 palettes de pièces usinées.\nMontant : 3 240 euros TTC. Échéance : 31 mai 2024."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Pièces/Conditions générales de vente.txt",
+   "nature": "document",
+   "date": "2023-01-01",
+   "texte": "CONDITIONS GÉNÉRALES DE VENTE de ZORVAL Industrie SAS. Article 7 : tout retard de paiement entraîne des pénalités égales à trois fois le taux d'intérêt légal\net une indemnité forfaitaire pour frais de recouvrement de 40 euros. Article 11 : compétence exclusive du tribunal des activités économiques de Valbrune."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Courriers/Relance amiable.txt",
+   "nature": "document",
+   "date": "2024-06-15",
+   "texte": "RELANCE AMIABLE du 15 juin 2024 à MARTIN Logistique SARL : les factures F2024-031 et F2024-044 restent impayées, soit 11 100 euros TTC au total.\nNous vous demandons de régulariser sous huit jours."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Courriels/2024-06-20 contestation MARTIN Logistique.txt",
+   "nature": "email_received",
+   "date": "2024-06-20",
+   "texte": "De : compta@martin-logistique.example.test\nObjet : factures ZORVAL\nNous contestons la facture F2024-044 : la livraison du 20 mai était incomplète, deux palettes manquaient. Nous réglerons la facture F2024-031 en juillet."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Pièces/Bon de livraison 2024-05-20.txt",
+   "nature": "document",
+   "date": "2024-05-20",
+   "texte": "BON DE LIVRAISON du 20 mai 2024 – destinataire MARTIN Logistique SARL – 10 palettes annoncées.\nRéserves manuscrites du réceptionnaire : « 2 palettes manquantes, 8 reçues ». Signature du chauffeur."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Notes/Note sur la procédure.txt",
+   "nature": "document",
+   "date": "2024-07-01",
+   "texte": "Note de travail : pour la facture F2024-031 non contestée, une requête en injonction de payer devant le tribunal des activités économiques de Valbrune est envisageable.\nPour la F2024-044, attendre la position de la cliente sur les palettes manquantes."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Courriels/2024-05-14 notaire DURAND.txt",
+   "nature": "email_received",
+   "date": "2024-05-14",
+   "texte": "De : etude.durand@example.test (Me Claire DURAND, notaire à Valbrune)\nObjet : succession de M. Jean KERVILAC\nMaître, je vous adresse le projet de déclaration de succession : l'actif brut s'élève à 412 000 euros, dont la maison de Valbrune et deux comptes bancaires."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Pièces/Testament olographe.txt",
+   "nature": "document",
+   "date": "2021-11-03",
+   "texte": "TESTAMENT OLOGRAPHE de M. Jean KERVILAC, daté du 3 novembre 2021 : je lègue à mon fils Yann la maison familiale de Valbrune,\nà charge pour lui de verser une soulte à sa sœur si la valeur du bien dépasse sa part."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Notes/Compte rendu réunion indivision.txt",
+   "nature": "document",
+   "date": "2024-07-02",
+   "texte": "Compte rendu de la réunion du 2 juillet 2024 entre les héritiers KERVILAC : désaccord persistant sur la vente de la maison.\nYann souhaite la conserver ; sa sœur demande la vente rapide. Aucune décision n'a été prise."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Pièces/Estimation de la maison.txt",
+   "nature": "document",
+   "date": "2024-06-10",
+   "texte": "AVIS DE VALEUR établi le 10 juin 2024 par une agence de Valbrune : la maison familiale est estimée entre 310 000 et 330 000 euros, valeur retenue 320 000 euros."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Courriels/2024-08-01 proposition de rachat.txt",
+   "nature": "email_received",
+   "date": "2024-08-01",
+   "texte": "De : soeur.kervilac@example.test\nObjet : proposition\nYann, je suis prête à te céder mes droits sur la maison pour 140 000 euros, à condition que le paiement intervienne avant la fin de l'année."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Procédure/Conclusions partage judiciaire.txt",
+   "nature": "document",
+   "date": "2024-09-15",
+   "texte": "CONCLUSIONS AUX FINS DE PARTAGE JUDICIAIRE. Nul ne peut être contraint à demeurer dans l'indivision (article 815 du code civil).\nLa sœur de M. Yann KERVILAC demande l'ouverture des opérations de partage et la licitation de la maison de Valbrune."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Factures/Facture frais d’obsèques.txt",
+   "nature": "document",
+   "date": "2024-02-12",
+   "texte": "FACTURE des pompes funèbres de Valbrune : obsèques de M. Jean KERVILAC, montant 4 200 euros TTC, réglés par M. Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Pièces/Contrat de prestation logicielle.txt",
+   "nature": "document",
+   "date": "2024-02-01",
+   "texte": "CONTRAT DE PRESTATION entre ORLANDEC Conseil SARL (SIREN 000010033), cliente, et Valbrune Numérique SAS (SIREN 000010041), prestataire.\nObjet : développement d'un logiciel de gestion des rendez-vous. Prix forfaitaire : 48 000 euros HT. Livraison : 30 septembre 2024.\nPénalités de retard : 1 % du prix par semaine de retard, plafonnées à 10 %."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Pièces/Procès-verbal de recette.txt",
+   "nature": "document",
+   "date": "2024-10-15",
+   "texte": "PROCÈS-VERBAL DE RECETTE du 15 octobre 2024 : la recette est refusée. Quatorze anomalies bloquantes ont été relevées, dont l'impossibilité d'annuler un rendez-vous."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Courriels/2024-09-25 annonce de retard.txt",
+   "nature": "email_received",
+   "date": "2024-09-25",
+   "texte": "De : projet@valbrune-numerique.example.test\nObjet : calendrier\nNous vous informons d'un retard de six semaines sur la livraison, en raison du départ de notre chef de projet."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Factures/Facture d’acompte.txt",
+   "nature": "document",
+   "date": "2024-02-15",
+   "texte": "FACTURE D'ACOMPTE n° VN-2024-007 : acompte de 30 % à la commande, soit 14 400 euros HT, réglé le 15 février 2024 par ORLANDEC Conseil."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Courriers/Mise en demeure prestataire.txt",
+   "nature": "document",
+   "date": "2024-10-20",
+   "texte": "MISE EN DEMEURE du 20 octobre 2024 à Valbrune Numérique SAS : livrer une version corrigée sous quinze jours, à défaut de quoi ORLANDEC Conseil\nappliquera les pénalités contractuelles et envisagera la résolution du contrat."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Notes/Compte rendu comité de pilotage.txt",
+   "nature": "document",
+   "date": "2024-07-08",
+   "texte": "Comité de pilotage du 8 juillet 2024 : le prestataire confirme la livraison au 30 septembre ; trois fonctionnalités optionnelles sont reportées en seconde phase."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Accusé 001.txt",
+   "nature": "document",
+   "date": "2022-08-20",
+   "texte": "Pour information : Accusé de réception du dépôt de garantie de la SARL ZORVAL, conservé par la bailleresse. Référence interne DOS-001-001. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel 002.txt",
+   "nature": "document",
+   "date": "2022-04-27",
+   "texte": "Courriel de Mme DURAND : changement de son adresse électronique. Document classé sans suite particulière. Référence interne DOS-001-002. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Avis 003.txt",
+   "nature": "document",
+   "date": "2023-03-17",
+   "texte": "Pièce reçue le 2023-03-17. Avis de passage du syndic pour le ravalement de la façade de l’immeuble de Valbrune. Référence interne DOS-001-003. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Note sur le stationnement des véhicules 004.txt",
+   "nature": "document",
+   "date": "2024-12-08",
+   "texte": "Pour information : Note sur le stationnement des véhicules de livraison devant le local. Référence interne DOS-001-004. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel 005.txt",
+   "nature": "email_received",
+   "date": "2022-11-20",
+   "texte": "Pour information : Courriel de transmission des statuts de la SARL ZORVAL au cabinet. Référence interne DOS-001-005. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Relevé des compteurs d’eau du local comm 006.txt",
+   "nature": "document",
+   "date": "2024-11-16",
+   "texte": "Pour information : Relevé des compteurs d’eau du local commercial. Référence interne DOS-001-006. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Convocation à l’assemblée générale 007.txt",
+   "nature": "document",
+   "date": "2022-05-04",
+   "texte": "Pour information : Convocation à l’assemblée générale de la copropriété. Référence interne DOS-001-007. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel du cabinet 008.txt",
+   "nature": "email_received",
+   "date": "2024-09-11",
+   "texte": "Pièce reçue le 2024-09-11. Courriel du cabinet : envoi de la convention d’honoraires à Mme DURAND. Référence interne DOS-001-008. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Attestation d’assurance 009.txt",
+   "nature": "email_received",
+   "date": "2024-10-14",
+   "texte": "Pièce reçue le 2024-10-14. Attestation d’assurance de la bailleresse pour un autre immeuble. Référence interne DOS-001-009. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Échange sur la vitrine et l’enseigne 010.txt",
+   "nature": "email_received",
+   "date": "2022-08-02",
+   "texte": "Échange sur la vitrine et l’enseigne de la boutique. Document classé sans suite particulière. Référence interne DOS-001-010. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Accusé 011.txt",
+   "nature": "email_received",
+   "date": "2023-09-09",
+   "texte": "Pièce reçue le 2023-09-09. Accusé de réception du dépôt de garantie de la SARL ZORVAL, conservé par la bailleresse. Référence interne DOS-001-011. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel 012.txt",
+   "nature": "email_received",
+   "date": "2023-11-28",
+   "texte": "Courriel de Mme DURAND : changement de son adresse électronique. Document classé sans suite particulière. Référence interne DOS-001-012. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Avis 013.txt",
+   "nature": "email_received",
+   "date": "2022-09-14",
+   "texte": "Avis de passage du syndic pour le ravalement de la façade de l’immeuble de Valbrune. Document classé sans suite particulière. Référence interne DOS-001-013. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Note sur le stationnement des véhicules 014.txt",
+   "nature": "document",
+   "date": "2023-01-25",
+   "texte": "Note sur le stationnement des véhicules de livraison devant le local. Document classé sans suite particulière. Référence interne DOS-001-014. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel 015.txt",
+   "nature": "document",
+   "date": "2023-01-19",
+   "texte": "Courriel de transmission des statuts de la SARL ZORVAL au cabinet. Document classé sans suite particulière. Référence interne DOS-001-015. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Relevé des compteurs d’eau du local comm 016.txt",
+   "nature": "email_received",
+   "date": "2022-05-07",
+   "texte": "Objet : Relevé des compteurs d’eau du local commercial. Rien à signaler pour la procédure. Référence interne DOS-001-016. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Convocation à l’assemblée générale 017.txt",
+   "nature": "document",
+   "date": "2024-08-20",
+   "texte": "Pour information : Convocation à l’assemblée générale de la copropriété. Référence interne DOS-001-017. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel du cabinet 018.txt",
+   "nature": "document",
+   "date": "2022-09-21",
+   "texte": "Objet : Courriel du cabinet : envoi de la convention d’honoraires à Mme DURAND. Rien à signaler pour la procédure. Référence interne DOS-001-018. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Attestation d’assurance 019.txt",
+   "nature": "email_received",
+   "date": "2024-11-25",
+   "texte": "Attestation d’assurance de la bailleresse pour un autre immeuble. Document classé sans suite particulière. Référence interne DOS-001-019. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Échange sur la vitrine et l’enseigne 020.txt",
+   "nature": "email_received",
+   "date": "2022-05-26",
+   "texte": "Échange sur la vitrine et l’enseigne de la boutique. Document classé sans suite particulière. Référence interne DOS-001-020. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Accusé 021.txt",
+   "nature": "document",
+   "date": "2023-12-16",
+   "texte": "Pour information : Accusé de réception du dépôt de garantie de la SARL ZORVAL, conservé par la bailleresse. Référence interne DOS-001-021. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel 022.txt",
+   "nature": "document",
+   "date": "2024-12-16",
+   "texte": "Courriel de Mme DURAND : changement de son adresse électronique. Document classé sans suite particulière. Référence interne DOS-001-022. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Avis 023.txt",
+   "nature": "email_received",
+   "date": "2022-09-24",
+   "texte": "Avis de passage du syndic pour le ravalement de la façade de l’immeuble de Valbrune. Document classé sans suite particulière. Référence interne DOS-001-023. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Note sur le stationnement des véhicules 024.txt",
+   "nature": "email_received",
+   "date": "2024-03-16",
+   "texte": "Pièce reçue le 2024-03-16. Note sur le stationnement des véhicules de livraison devant le local. Référence interne DOS-001-024. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Courriel 025.txt",
+   "nature": "document",
+   "date": "2023-05-26",
+   "texte": "Courriel de transmission des statuts de la SARL ZORVAL au cabinet. Document classé sans suite particulière. Référence interne DOS-001-025. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-001",
+   "chemin": "/Dossiers/DOS-001/Divers/Relevé des compteurs d’eau du local comm 026.txt",
+   "nature": "email_received",
+   "date": "2022-03-21",
+   "texte": "Relevé des compteurs d’eau du local commercial. Document classé sans suite particulière. Référence interne DOS-001-026. Dossier DOS-001, Hélène DURAND."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Note 001.txt",
+   "nature": "email_received",
+   "date": "2024-03-21",
+   "texte": "Objet : Note de service sur les horaires d’ouverture de l’atelier. Rien à signaler pour la procédure. Référence interne DOS-002-001. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel 002.txt",
+   "nature": "document",
+   "date": "2024-12-08",
+   "texte": "Pour information : Courriel de M. MARTIN : demande de rendez-vous au cabinet. Référence interne DOS-002-002. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Planning des congés payés 003.txt",
+   "nature": "document",
+   "date": "2023-04-07",
+   "texte": "Objet : Planning des congés payés de l’équipe de maintenance. Rien à signaler pour la procédure. Référence interne DOS-002-003. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Fiche 004.txt",
+   "nature": "email_received",
+   "date": "2023-12-01",
+   "texte": "Objet : Fiche de poste du technicien de maintenance (version 2015). Rien à signaler pour la procédure. Référence interne DOS-002-004. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel des RH 005.txt",
+   "nature": "document",
+   "date": "2022-06-12",
+   "texte": "Pièce reçue le 2022-06-12. Courriel des RH : rappel de la visite médicale périodique. Référence interne DOS-002-005. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Compte rendu 006.txt",
+   "nature": "email_received",
+   "date": "2022-02-14",
+   "texte": "Objet : Compte rendu de l’entretien annuel 2022 : objectifs atteints. Rien à signaler pour la procédure. Référence interne DOS-002-006. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Attestation 007.txt",
+   "nature": "email_received",
+   "date": "2023-02-09",
+   "texte": "Pièce reçue le 2023-02-09. Attestation de formation à la sécurité électrique. Référence interne DOS-002-007. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel du cabinet 008.txt",
+   "nature": "document",
+   "date": "2024-01-24",
+   "texte": "Courriel du cabinet : liste des pièces à fournir pour le dossier. Document classé sans suite particulière. Référence interne DOS-002-008. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Relevé des badges d’accès au parking du  009.txt",
+   "nature": "email_received",
+   "date": "2024-10-27",
+   "texte": "Relevé des badges d’accès au parking du personnel. Document classé sans suite particulière. Référence interne DOS-002-009. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Règlement intérieur 010.txt",
+   "nature": "document",
+   "date": "2024-02-16",
+   "texte": "Règlement intérieur de la société ORLANDEC. Document classé sans suite particulière. Référence interne DOS-002-010. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Note 011.txt",
+   "nature": "document",
+   "date": "2023-10-24",
+   "texte": "Pièce reçue le 2023-10-24. Note de service sur les horaires d’ouverture de l’atelier. Référence interne DOS-002-011. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel 012.txt",
+   "nature": "email_received",
+   "date": "2023-05-26",
+   "texte": "Pour information : Courriel de M. MARTIN : demande de rendez-vous au cabinet. Référence interne DOS-002-012. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Planning des congés payés 013.txt",
+   "nature": "email_received",
+   "date": "2023-12-03",
+   "texte": "Pièce reçue le 2023-12-03. Planning des congés payés de l’équipe de maintenance. Référence interne DOS-002-013. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Fiche 014.txt",
+   "nature": "document",
+   "date": "2022-12-15",
+   "texte": "Pour information : Fiche de poste du technicien de maintenance (version 2015). Référence interne DOS-002-014. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel des RH 015.txt",
+   "nature": "document",
+   "date": "2024-05-04",
+   "texte": "Courriel des RH : rappel de la visite médicale périodique. Document classé sans suite particulière. Référence interne DOS-002-015. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Compte rendu 016.txt",
+   "nature": "email_received",
+   "date": "2024-12-16",
+   "texte": "Pièce reçue le 2024-12-16. Compte rendu de l’entretien annuel 2022 : objectifs atteints. Référence interne DOS-002-016. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Attestation 017.txt",
+   "nature": "email_received",
+   "date": "2024-03-08",
+   "texte": "Pour information : Attestation de formation à la sécurité électrique. Référence interne DOS-002-017. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel du cabinet 018.txt",
+   "nature": "email_received",
+   "date": "2023-04-23",
+   "texte": "Pour information : Courriel du cabinet : liste des pièces à fournir pour le dossier. Référence interne DOS-002-018. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Relevé des badges d’accès au parking du  019.txt",
+   "nature": "document",
+   "date": "2024-11-12",
+   "texte": "Relevé des badges d’accès au parking du personnel. Document classé sans suite particulière. Référence interne DOS-002-019. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Règlement intérieur 020.txt",
+   "nature": "document",
+   "date": "2022-07-07",
+   "texte": "Pièce reçue le 2022-07-07. Règlement intérieur de la société ORLANDEC. Référence interne DOS-002-020. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Note 021.txt",
+   "nature": "document",
+   "date": "2022-09-25",
+   "texte": "Note de service sur les horaires d’ouverture de l’atelier. Document classé sans suite particulière. Référence interne DOS-002-021. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel 022.txt",
+   "nature": "email_received",
+   "date": "2023-06-13",
+   "texte": "Objet : Courriel de M. MARTIN : demande de rendez-vous au cabinet. Rien à signaler pour la procédure. Référence interne DOS-002-022. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Planning des congés payés 023.txt",
+   "nature": "email_received",
+   "date": "2023-01-23",
+   "texte": "Objet : Planning des congés payés de l’équipe de maintenance. Rien à signaler pour la procédure. Référence interne DOS-002-023. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Fiche 024.txt",
+   "nature": "document",
+   "date": "2024-03-11",
+   "texte": "Fiche de poste du technicien de maintenance (version 2015). Document classé sans suite particulière. Référence interne DOS-002-024. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Courriel des RH 025.txt",
+   "nature": "email_received",
+   "date": "2023-10-20",
+   "texte": "Courriel des RH : rappel de la visite médicale périodique. Document classé sans suite particulière. Référence interne DOS-002-025. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-002",
+   "chemin": "/Dossiers/DOS-002/Divers/Compte rendu 026.txt",
+   "nature": "document",
+   "date": "2023-01-20",
+   "texte": "Pour information : Compte rendu de l’entretien annuel 2022 : objectifs atteints. Référence interne DOS-002-026. Dossier DOS-002, Paul MARTIN."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Diagnostic 001.txt",
+   "nature": "email_received",
+   "date": "2022-04-19",
+   "texte": "Diagnostic de performance énergétique de la maison. Document classé sans suite particulière. Référence interne DOS-003-001. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel du notaire 002.txt",
+   "nature": "email_received",
+   "date": "2022-11-04",
+   "texte": "Pièce reçue le 2022-11-04. Courriel du notaire : envoi de la copie authentique. Référence interne DOS-003-002. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Facture du déménageur 003.txt",
+   "nature": "email_received",
+   "date": "2022-07-28",
+   "texte": "Objet : Facture du déménageur de Mme BERNARD. Rien à signaler pour la procédure. Référence interne DOS-003-003. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Plan cadastral 004.txt",
+   "nature": "email_received",
+   "date": "2023-04-13",
+   "texte": "Pour information : Plan cadastral de la parcelle de Valbrune. Référence interne DOS-003-004. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Taxe foncière 005.txt",
+   "nature": "document",
+   "date": "2024-08-21",
+   "texte": "Objet : Taxe foncière de l’année en cours. Rien à signaler pour la procédure. Référence interne DOS-003-005. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel 006.txt",
+   "nature": "document",
+   "date": "2024-05-17",
+   "texte": "Courriel de Mme BERNARD : photos du jardin. Document classé sans suite particulière. Référence interne DOS-003-006. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Attestation d’assurance habitation 007.txt",
+   "nature": "email_received",
+   "date": "2024-07-10",
+   "texte": "Objet : Attestation d’assurance habitation de l’acquéreur. Rien à signaler pour la procédure. Référence interne DOS-003-007. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courrier 008.txt",
+   "nature": "email_received",
+   "date": "2023-01-04",
+   "texte": "Objet : Courrier de la mairie sur le tri des déchets. Rien à signaler pour la procédure. Référence interne DOS-003-008. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Contrat d’entretien 009.txt",
+   "nature": "email_received",
+   "date": "2024-04-13",
+   "texte": "Pièce reçue le 2024-04-13. Contrat d’entretien de la chaudière. Référence interne DOS-003-009. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel du cabinet 010.txt",
+   "nature": "document",
+   "date": "2024-09-25",
+   "texte": "Objet : Courriel du cabinet : envoi de la convention d’honoraires. Rien à signaler pour la procédure. Référence interne DOS-003-010. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Diagnostic 011.txt",
+   "nature": "email_received",
+   "date": "2022-08-26",
+   "texte": "Pièce reçue le 2022-08-26. Diagnostic de performance énergétique de la maison. Référence interne DOS-003-011. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel du notaire 012.txt",
+   "nature": "document",
+   "date": "2023-05-04",
+   "texte": "Courriel du notaire : envoi de la copie authentique. Document classé sans suite particulière. Référence interne DOS-003-012. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Facture du déménageur 013.txt",
+   "nature": "document",
+   "date": "2023-10-01",
+   "texte": "Facture du déménageur de Mme BERNARD. Document classé sans suite particulière. Référence interne DOS-003-013. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Plan cadastral 014.txt",
+   "nature": "document",
+   "date": "2022-11-23",
+   "texte": "Objet : Plan cadastral de la parcelle de Valbrune. Rien à signaler pour la procédure. Référence interne DOS-003-014. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Taxe foncière 015.txt",
+   "nature": "document",
+   "date": "2024-05-17",
+   "texte": "Pièce reçue le 2024-05-17. Taxe foncière de l’année en cours. Référence interne DOS-003-015. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel 016.txt",
+   "nature": "document",
+   "date": "2024-03-19",
+   "texte": "Pour information : Courriel de Mme BERNARD : photos du jardin. Référence interne DOS-003-016. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Attestation d’assurance habitation 017.txt",
+   "nature": "document",
+   "date": "2023-05-20",
+   "texte": "Pour information : Attestation d’assurance habitation de l’acquéreur. Référence interne DOS-003-017. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courrier 018.txt",
+   "nature": "email_received",
+   "date": "2022-09-12",
+   "texte": "Pièce reçue le 2022-09-12. Courrier de la mairie sur le tri des déchets. Référence interne DOS-003-018. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Contrat d’entretien 019.txt",
+   "nature": "email_received",
+   "date": "2022-04-22",
+   "texte": "Pour information : Contrat d’entretien de la chaudière. Référence interne DOS-003-019. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel du cabinet 020.txt",
+   "nature": "document",
+   "date": "2024-02-23",
+   "texte": "Pièce reçue le 2024-02-23. Courriel du cabinet : envoi de la convention d’honoraires. Référence interne DOS-003-020. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Diagnostic 021.txt",
+   "nature": "document",
+   "date": "2024-04-16",
+   "texte": "Pour information : Diagnostic de performance énergétique de la maison. Référence interne DOS-003-021. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel du notaire 022.txt",
+   "nature": "email_received",
+   "date": "2022-05-22",
+   "texte": "Pour information : Courriel du notaire : envoi de la copie authentique. Référence interne DOS-003-022. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Facture du déménageur 023.txt",
+   "nature": "document",
+   "date": "2024-02-08",
+   "texte": "Pour information : Facture du déménageur de Mme BERNARD. Référence interne DOS-003-023. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Plan cadastral 024.txt",
+   "nature": "document",
+   "date": "2024-02-01",
+   "texte": "Pièce reçue le 2024-02-01. Plan cadastral de la parcelle de Valbrune. Référence interne DOS-003-024. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Taxe foncière 025.txt",
+   "nature": "document",
+   "date": "2022-01-08",
+   "texte": "Taxe foncière de l’année en cours. Document classé sans suite particulière. Référence interne DOS-003-025. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-003",
+   "chemin": "/Dossiers/DOS-003/Divers/Courriel 026.txt",
+   "nature": "document",
+   "date": "2023-03-06",
+   "texte": "Pour information : Courriel de Mme BERNARD : photos du jardin. Référence interne DOS-003-026. Dossier DOS-003, Sophie BERNARD."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Extrait K-bis 001.txt",
+   "nature": "document",
+   "date": "2022-05-10",
+   "texte": "Pour information : Extrait K-bis de ZORVAL Industrie SAS. Référence interne DOS-004-001. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel interne 002.txt",
+   "nature": "document",
+   "date": "2024-04-26",
+   "texte": "Pièce reçue le 2024-04-26. Courriel interne : nouveau barème de transport. Référence interne DOS-004-002. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Catalogue des pièces usinées 2024 003.txt",
+   "nature": "email_received",
+   "date": "2024-02-03",
+   "texte": "Objet : Catalogue des pièces usinées 2024. Rien à signaler pour la procédure. Référence interne DOS-004-003. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Bon 004.txt",
+   "nature": "email_received",
+   "date": "2023-03-02",
+   "texte": "Objet : Bon de commande de MARTIN Logistique pour janvier, livré sans réserve. Rien à signaler pour la procédure. Référence interne DOS-004-004. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel 005.txt",
+   "nature": "document",
+   "date": "2024-04-08",
+   "texte": "Objet : Courriel : changement de comptable chez ZORVAL Industrie. Rien à signaler pour la procédure. Référence interne DOS-004-005. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Relevé bancaire 006.txt",
+   "nature": "email_received",
+   "date": "2024-06-18",
+   "texte": "Objet : Relevé bancaire de ZORVAL Industrie (mois de mars). Rien à signaler pour la procédure. Référence interne DOS-004-006. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Facture F2024-012 payée à l’échéance par 007.txt",
+   "nature": "document",
+   "date": "2022-08-15",
+   "texte": "Objet : Facture F2024-012 payée à l’échéance par un autre client. Rien à signaler pour la procédure. Référence interne DOS-004-007. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Attestation d’assurance crédit 008.txt",
+   "nature": "email_received",
+   "date": "2024-11-07",
+   "texte": "Pièce reçue le 2024-11-07. Attestation d’assurance crédit de ZORVAL Industrie. Référence interne DOS-004-008. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel 009.txt",
+   "nature": "email_received",
+   "date": "2024-03-22",
+   "texte": "Courriel : inventaire annuel de l’entrepôt. Document classé sans suite particulière. Référence interne DOS-004-009. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Note 010.txt",
+   "nature": "email_received",
+   "date": "2022-05-15",
+   "texte": "Pour information : Note : coordonnées du transporteur. Référence interne DOS-004-010. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Extrait K-bis 011.txt",
+   "nature": "document",
+   "date": "2023-02-16",
+   "texte": "Pièce reçue le 2023-02-16. Extrait K-bis de ZORVAL Industrie SAS. Référence interne DOS-004-011. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel interne 012.txt",
+   "nature": "email_received",
+   "date": "2023-01-19",
+   "texte": "Objet : Courriel interne : nouveau barème de transport. Rien à signaler pour la procédure. Référence interne DOS-004-012. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Catalogue des pièces usinées 2024 013.txt",
+   "nature": "document",
+   "date": "2024-09-12",
+   "texte": "Pour information : Catalogue des pièces usinées 2024. Référence interne DOS-004-013. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Bon 014.txt",
+   "nature": "email_received",
+   "date": "2022-06-07",
+   "texte": "Pour information : Bon de commande de MARTIN Logistique pour janvier, livré sans réserve. Référence interne DOS-004-014. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel 015.txt",
+   "nature": "document",
+   "date": "2023-02-21",
+   "texte": "Courriel : changement de comptable chez ZORVAL Industrie. Document classé sans suite particulière. Référence interne DOS-004-015. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Relevé bancaire 016.txt",
+   "nature": "document",
+   "date": "2024-04-23",
+   "texte": "Pour information : Relevé bancaire de ZORVAL Industrie (mois de mars). Référence interne DOS-004-016. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Facture F2024-012 payée à l’échéance par 017.txt",
+   "nature": "email_received",
+   "date": "2022-02-01",
+   "texte": "Pièce reçue le 2022-02-01. Facture F2024-012 payée à l’échéance par un autre client. Référence interne DOS-004-017. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Attestation d’assurance crédit 018.txt",
+   "nature": "document",
+   "date": "2023-06-04",
+   "texte": "Attestation d’assurance crédit de ZORVAL Industrie. Document classé sans suite particulière. Référence interne DOS-004-018. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel 019.txt",
+   "nature": "document",
+   "date": "2022-12-13",
+   "texte": "Objet : Courriel : inventaire annuel de l’entrepôt. Rien à signaler pour la procédure. Référence interne DOS-004-019. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Note 020.txt",
+   "nature": "email_received",
+   "date": "2024-09-18",
+   "texte": "Note : coordonnées du transporteur. Document classé sans suite particulière. Référence interne DOS-004-020. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Extrait K-bis 021.txt",
+   "nature": "email_received",
+   "date": "2022-05-23",
+   "texte": "Pour information : Extrait K-bis de ZORVAL Industrie SAS. Référence interne DOS-004-021. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel interne 022.txt",
+   "nature": "email_received",
+   "date": "2023-10-16",
+   "texte": "Objet : Courriel interne : nouveau barème de transport. Rien à signaler pour la procédure. Référence interne DOS-004-022. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Catalogue des pièces usinées 2024 023.txt",
+   "nature": "document",
+   "date": "2023-05-19",
+   "texte": "Catalogue des pièces usinées 2024. Document classé sans suite particulière. Référence interne DOS-004-023. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Bon 024.txt",
+   "nature": "document",
+   "date": "2023-02-15",
+   "texte": "Bon de commande de MARTIN Logistique pour janvier, livré sans réserve. Document classé sans suite particulière. Référence interne DOS-004-024. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Courriel 025.txt",
+   "nature": "document",
+   "date": "2024-12-10",
+   "texte": "Objet : Courriel : changement de comptable chez ZORVAL Industrie. Rien à signaler pour la procédure. Référence interne DOS-004-025. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-004",
+   "chemin": "/Dossiers/DOS-004/Divers/Relevé bancaire 026.txt",
+   "nature": "email_received",
+   "date": "2024-12-07",
+   "texte": "Pièce reçue le 2024-12-07. Relevé bancaire de ZORVAL Industrie (mois de mars). Référence interne DOS-004-026. Dossier DOS-004, ZORVAL Industrie SAS."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Acte 001.txt",
+   "nature": "document",
+   "date": "2023-03-28",
+   "texte": "Pièce reçue le 2023-03-28. Acte de naissance de M. Yann KERVILAC. Référence interne DOS-005-001. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Relevé du compte courant du défunt au jo 002.txt",
+   "nature": "email_received",
+   "date": "2022-10-04",
+   "texte": "Relevé du compte courant du défunt au jour du décès. Document classé sans suite particulière. Référence interne DOS-005-002. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 003.txt",
+   "nature": "email_received",
+   "date": "2022-08-02",
+   "texte": "Pièce reçue le 2022-08-02. Courriel : clés de la maison confiées au voisin. Référence interne DOS-005-003. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Avis d’imposition du défunt 004.txt",
+   "nature": "email_received",
+   "date": "2023-06-14",
+   "texte": "Objet : Avis d’imposition du défunt. Rien à signaler pour la procédure. Référence interne DOS-005-004. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Contrat d’assurance 005.txt",
+   "nature": "document",
+   "date": "2024-11-03",
+   "texte": "Objet : Contrat d’assurance de la maison de Valbrune. Rien à signaler pour la procédure. Référence interne DOS-005-005. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 006.txt",
+   "nature": "document",
+   "date": "2024-07-16",
+   "texte": "Pièce reçue le 2024-07-16. Courriel de Yann : photos du grenier. Référence interne DOS-005-006. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Facture d’électricité 007.txt",
+   "nature": "document",
+   "date": "2022-03-26",
+   "texte": "Objet : Facture d’électricité de la maison. Rien à signaler pour la procédure. Référence interne DOS-005-007. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courrier 008.txt",
+   "nature": "email_received",
+   "date": "2024-03-27",
+   "texte": "Courrier de la banque : blocage des comptes. Document classé sans suite particulière. Référence interne DOS-005-008. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Inventaire des meubles 009.txt",
+   "nature": "document",
+   "date": "2024-04-17",
+   "texte": "Objet : Inventaire des meubles de la maison. Rien à signaler pour la procédure. Référence interne DOS-005-009. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 010.txt",
+   "nature": "email_received",
+   "date": "2023-07-28",
+   "texte": "Pièce reçue le 2023-07-28. Courriel : date du prochain rendez-vous chez le notaire. Référence interne DOS-005-010. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Acte 011.txt",
+   "nature": "email_received",
+   "date": "2023-06-17",
+   "texte": "Pour information : Acte de naissance de M. Yann KERVILAC. Référence interne DOS-005-011. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Relevé du compte courant du défunt au jo 012.txt",
+   "nature": "email_received",
+   "date": "2023-01-08",
+   "texte": "Pièce reçue le 2023-01-08. Relevé du compte courant du défunt au jour du décès. Référence interne DOS-005-012. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 013.txt",
+   "nature": "email_received",
+   "date": "2024-04-08",
+   "texte": "Objet : Courriel : clés de la maison confiées au voisin. Rien à signaler pour la procédure. Référence interne DOS-005-013. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Avis d’imposition du défunt 014.txt",
+   "nature": "email_received",
+   "date": "2023-08-25",
+   "texte": "Avis d’imposition du défunt. Document classé sans suite particulière. Référence interne DOS-005-014. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Contrat d’assurance 015.txt",
+   "nature": "email_received",
+   "date": "2023-02-10",
+   "texte": "Pour information : Contrat d’assurance de la maison de Valbrune. Référence interne DOS-005-015. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 016.txt",
+   "nature": "email_received",
+   "date": "2023-11-18",
+   "texte": "Objet : Courriel de Yann : photos du grenier. Rien à signaler pour la procédure. Référence interne DOS-005-016. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Facture d’électricité 017.txt",
+   "nature": "document",
+   "date": "2023-03-19",
+   "texte": "Facture d’électricité de la maison. Document classé sans suite particulière. Référence interne DOS-005-017. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courrier 018.txt",
+   "nature": "document",
+   "date": "2023-11-08",
+   "texte": "Pour information : Courrier de la banque : blocage des comptes. Référence interne DOS-005-018. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Inventaire des meubles 019.txt",
+   "nature": "email_received",
+   "date": "2022-02-18",
+   "texte": "Pour information : Inventaire des meubles de la maison. Référence interne DOS-005-019. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 020.txt",
+   "nature": "email_received",
+   "date": "2024-12-09",
+   "texte": "Pour information : Courriel : date du prochain rendez-vous chez le notaire. Référence interne DOS-005-020. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Acte 021.txt",
+   "nature": "document",
+   "date": "2023-08-17",
+   "texte": "Acte de naissance de M. Yann KERVILAC. Document classé sans suite particulière. Référence interne DOS-005-021. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Relevé du compte courant du défunt au jo 022.txt",
+   "nature": "document",
+   "date": "2024-09-06",
+   "texte": "Relevé du compte courant du défunt au jour du décès. Document classé sans suite particulière. Référence interne DOS-005-022. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 023.txt",
+   "nature": "email_received",
+   "date": "2024-04-10",
+   "texte": "Pièce reçue le 2024-04-10. Courriel : clés de la maison confiées au voisin. Référence interne DOS-005-023. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Avis d’imposition du défunt 024.txt",
+   "nature": "document",
+   "date": "2022-05-15",
+   "texte": "Pièce reçue le 2022-05-15. Avis d’imposition du défunt. Référence interne DOS-005-024. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Contrat d’assurance 025.txt",
+   "nature": "email_received",
+   "date": "2022-06-24",
+   "texte": "Objet : Contrat d’assurance de la maison de Valbrune. Rien à signaler pour la procédure. Référence interne DOS-005-025. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-005",
+   "chemin": "/Dossiers/DOS-005/Divers/Courriel 026.txt",
+   "nature": "email_received",
+   "date": "2024-01-25",
+   "texte": "Pièce reçue le 2024-01-25. Courriel de Yann : photos du grenier. Référence interne DOS-005-026. Dossier DOS-005, Yann KERVILAC."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Cahier des charges fonctionnel, version  001.txt",
+   "nature": "email_received",
+   "date": "2024-04-09",
+   "texte": "Pour information : Cahier des charges fonctionnel, version 2. Référence interne DOS-006-001. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 002.txt",
+   "nature": "email_received",
+   "date": "2023-03-14",
+   "texte": "Pour information : Courriel : invitation au comité de pilotage de juin. Référence interne DOS-006-002. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Maquettes des écrans 003.txt",
+   "nature": "document",
+   "date": "2022-04-19",
+   "texte": "Objet : Maquettes des écrans de prise de rendez-vous. Rien à signaler pour la procédure. Référence interne DOS-006-003. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Extrait K-bis 004.txt",
+   "nature": "email_received",
+   "date": "2023-03-11",
+   "texte": "Pièce reçue le 2023-03-11. Extrait K-bis de Valbrune Numérique SAS. Référence interne DOS-006-004. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 005.txt",
+   "nature": "email_received",
+   "date": "2022-04-01",
+   "texte": "Objet : Courriel : accès au serveur de test. Rien à signaler pour la procédure. Référence interne DOS-006-005. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Liste des utilisateurs pilotes chez ORLA 006.txt",
+   "nature": "email_received",
+   "date": "2022-04-12",
+   "texte": "Liste des utilisateurs pilotes chez ORLANDEC Conseil. Document classé sans suite particulière. Référence interne DOS-006-006. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Devis initial du prestataire, non signé 007.txt",
+   "nature": "email_received",
+   "date": "2024-11-18",
+   "texte": "Pièce reçue le 2024-11-18. Devis initial du prestataire, non signé. Référence interne DOS-006-007. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 008.txt",
+   "nature": "email_received",
+   "date": "2024-03-12",
+   "texte": "Objet : Courriel : demande de logo en haute définition. Rien à signaler pour la procédure. Référence interne DOS-006-008. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Compte rendu 009.txt",
+   "nature": "document",
+   "date": "2022-08-12",
+   "texte": "Compte rendu de l’atelier de conception. Document classé sans suite particulière. Référence interne DOS-006-009. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Charte graphique d’ORLANDEC Conseil 010.txt",
+   "nature": "document",
+   "date": "2024-01-19",
+   "texte": "Charte graphique d’ORLANDEC Conseil. Document classé sans suite particulière. Référence interne DOS-006-010. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Cahier des charges fonctionnel, version  011.txt",
+   "nature": "email_received",
+   "date": "2023-06-16",
+   "texte": "Pièce reçue le 2023-06-16. Cahier des charges fonctionnel, version 2. Référence interne DOS-006-011. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 012.txt",
+   "nature": "document",
+   "date": "2024-02-20",
+   "texte": "Objet : Courriel : invitation au comité de pilotage de juin. Rien à signaler pour la procédure. Référence interne DOS-006-012. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Maquettes des écrans 013.txt",
+   "nature": "email_received",
+   "date": "2022-06-02",
+   "texte": "Pièce reçue le 2022-06-02. Maquettes des écrans de prise de rendez-vous. Référence interne DOS-006-013. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Extrait K-bis 014.txt",
+   "nature": "email_received",
+   "date": "2024-10-14",
+   "texte": "Pièce reçue le 2024-10-14. Extrait K-bis de Valbrune Numérique SAS. Référence interne DOS-006-014. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 015.txt",
+   "nature": "email_received",
+   "date": "2022-02-13",
+   "texte": "Courriel : accès au serveur de test. Document classé sans suite particulière. Référence interne DOS-006-015. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Liste des utilisateurs pilotes chez ORLA 016.txt",
+   "nature": "email_received",
+   "date": "2023-10-24",
+   "texte": "Pour information : Liste des utilisateurs pilotes chez ORLANDEC Conseil. Référence interne DOS-006-016. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Devis initial du prestataire, non signé 017.txt",
+   "nature": "email_received",
+   "date": "2024-02-20",
+   "texte": "Pour information : Devis initial du prestataire, non signé. Référence interne DOS-006-017. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 018.txt",
+   "nature": "email_received",
+   "date": "2024-12-22",
+   "texte": "Pièce reçue le 2024-12-22. Courriel : demande de logo en haute définition. Référence interne DOS-006-018. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Compte rendu 019.txt",
+   "nature": "document",
+   "date": "2023-08-24",
+   "texte": "Objet : Compte rendu de l’atelier de conception. Rien à signaler pour la procédure. Référence interne DOS-006-019. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Charte graphique d’ORLANDEC Conseil 020.txt",
+   "nature": "document",
+   "date": "2022-12-09",
+   "texte": "Objet : Charte graphique d’ORLANDEC Conseil. Rien à signaler pour la procédure. Référence interne DOS-006-020. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Cahier des charges fonctionnel, version  021.txt",
+   "nature": "document",
+   "date": "2023-12-12",
+   "texte": "Objet : Cahier des charges fonctionnel, version 2. Rien à signaler pour la procédure. Référence interne DOS-006-021. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 022.txt",
+   "nature": "document",
+   "date": "2022-11-23",
+   "texte": "Pour information : Courriel : invitation au comité de pilotage de juin. Référence interne DOS-006-022. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Maquettes des écrans 023.txt",
+   "nature": "document",
+   "date": "2022-02-03",
+   "texte": "Objet : Maquettes des écrans de prise de rendez-vous. Rien à signaler pour la procédure. Référence interne DOS-006-023. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Extrait K-bis 024.txt",
+   "nature": "email_received",
+   "date": "2022-05-28",
+   "texte": "Pour information : Extrait K-bis de Valbrune Numérique SAS. Référence interne DOS-006-024. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Courriel 025.txt",
+   "nature": "email_received",
+   "date": "2023-01-15",
+   "texte": "Pièce reçue le 2023-01-15. Courriel : accès au serveur de test. Référence interne DOS-006-025. Dossier DOS-006, ORLANDEC Conseil SARL."
+  },
+  {
+   "dossier": "DOS-006",
+   "chemin": "/Dossiers/DOS-006/Divers/Liste des utilisateurs pilotes chez ORLA 026.txt",
+   "nature": "email_received",
+   "date": "2024-07-28",
+   "texte": "Pour information : Liste des utilisateurs pilotes chez ORLANDEC Conseil. Référence interne DOS-006-026. Dossier DOS-006, ORLANDEC Conseil SARL."
+  }
+ ],
+ "decisions": {
+  "pieces_ecartees": [
+   "/Dossiers/DOS-001/Pièces/Attestation voisin KERVILAC.txt",
+   "/Dossiers/DOS-003/Procédure/Projet assignation version 1.txt"
+  ],
+  "memoire": [
+   {
+    "dossier": "DOS-001",
+    "id": "mem-001-a",
+    "type": "instruction",
+    "statut": "validated",
+    "titre": "Position du cabinet sur l’échéancier de paiement",
+    "contenu": "Décision de l’avocat validée le 20 mars 2024 : refuser tout échéancier de paiement proposé par ZORVAL et poursuivre la constatation de la clause résolutoire."
+   },
+   {
+    "dossier": "DOS-002",
+    "id": "mem-002-a",
+    "type": "event",
+    "statut": "validated",
+    "titre": "Remise de l’arrêt de travail",
+    "contenu": "Fait validé par l’avocat : l’arrêt de travail a été remis au service des ressources humaines le 12 mars 2024 (courriel et attestation BERNARD)."
+   },
+   {
+    "dossier": "DOS-002",
+    "id": "mem-002-b",
+    "type": "claim",
+    "statut": "disputed",
+    "titre": "Absences reconnues",
+    "contenu": "Proposé par l’IA puis refusé par l’avocat : Paul MARTIN aurait reconnu ses absences injustifiées."
+   },
+   {
+    "dossier": "DOS-004",
+    "id": "mem-004-a",
+    "type": "amount",
+    "statut": "pinned",
+    "titre": "Montant réclamé pour la facture F2024-044",
+    "contenu": "Décision de l’avocat : pour la facture F2024-044, réclamer 2 592 euros TTC, après déduction des deux palettes manquantes."
+   },
+   {
+    "dossier": "DOS-005",
+    "id": "mem-005-a",
+    "type": "negotiation",
+    "statut": "archived",
+    "titre": "Accord de la sœur sur la vente",
+    "contenu": "Ancienne mention archivée : la sœur accepterait la conservation de la maison par Yann sans soulte."
+   }
+  ],
+  "assertions": [
+   {
+    "dossier": "DOS-003",
+    "id": "as-003-a",
+    "kind": "lawyer_decision",
+    "statut": "validated",
+    "selon": "avocat",
+    "texte": "Décision de l’avocat : ne pas demander la résolution de la vente ; demander seulement la réduction du prix de 23 500 euros et des dommages et intérêts."
+   },
+   {
+    "dossier": "DOS-006",
+    "id": "as-006-a",
+    "kind": "fact",
+    "statut": "rejected",
+    "selon": "Valbrune Numérique",
+    "texte": "Rejeté par l’avocat : la cliente aurait accepté le report de livraison de six semaines."
+   }
+  ],
+  "reserves": {
+   "DOS-006": [
+    "associe1"
+   ]
+  }
+ },
+ "questions": [
+  {
+   "id": "Q01",
+   "dossier": "DOS-001",
+   "question": "Quel est le montant mensuel du loyer prévu au bail ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Contrat de bail commercial 2019.txt"
+   ],
+   "passage": "1 600 euros par mois",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q02",
+   "dossier": "DOS-001",
+   "question": "Quand le commandement de payer a-t-il été délivré ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Commandement de payer visant la clause résolutoire.txt"
+   ],
+   "passage": "5 février 2024",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q03",
+   "dossier": "DOS-001",
+   "question": "Que prévoit la clause résolutoire du bail ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Contrat de bail commercial 2019.txt"
+   ],
+   "passage": "commandement de payer",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q04",
+   "dossier": "DOS-001",
+   "question": "Quels délais de paiement la preneuse demande-t-elle dans ses conclusions ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Procédure/Conclusions adverses ZORVAL.txt"
+   ],
+   "passage": "vingt-quatre mois",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q05",
+   "dossier": "DOS-001",
+   "question": "Le cabinet accepte-t-il un échéancier de paiement pour ZORVAL ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Courriels/2023-05-10 proposition échéancier ZORVAL.txt"
+   ],
+   "passage": "échéancier",
+   "piege": "decision",
+   "interdits": [],
+   "memoire_attendue": "mem-001-a"
+  },
+  {
+   "id": "Q06",
+   "dossier": "DOS-001",
+   "question": "Combien ont coûté les travaux de toiture payés par la bailleresse ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Facture travaux de toiture 2022.txt"
+   ],
+   "passage": "12 300 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q07",
+   "dossier": "DOS-001",
+   "question": "Qui est M. MARTIN dans ce dossier et qu’a-t-il dit sur la trésorerie ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Notes/Compte rendu rendez-vous client 2024-03-10.txt"
+   ],
+   "passage": "expert-comptable",
+   "piege": "homonyme",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q08",
+   "dossier": "DOS-001",
+   "question": "Le local de ZORVAL est-il fermé et le stock déménagé ?",
+   "attendus": [],
+   "passage": "",
+   "piege": "ecartee",
+   "interdits": [
+    "/Dossiers/DOS-001/Pièces/Attestation voisin KERVILAC.txt"
+   ],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q09",
+   "dossier": "DOS-001",
+   "question": "Quel est le montant de la dette locative réclamée ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Commandement de payer visant la clause résolutoire.txt",
+    "/Dossiers/DOS-001/Courriels/2024-01-15 relance loyers impayés.txt"
+   ],
+   "passage": "4 800 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q10",
+   "dossier": "DOS-001",
+   "question": "Quelle est la durée du bail commercial ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Contrat de bail commercial 2019.txt"
+   ],
+   "passage": "neuf années",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q11",
+   "dossier": "DOS-001",
+   "question": "Quel est le numéro de police d’assurance multirisque du local ?",
+   "attendus": [],
+   "passage": "",
+   "piege": "sans_reponse",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q12",
+   "dossier": "DOS-002",
+   "question": "Quel est le motif du licenciement de Paul MARTIN ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Pièces/Lettre de licenciement.txt"
+   ],
+   "passage": "absences injustifiées",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q13",
+   "dossier": "DOS-002",
+   "question": "Quel était le salaire mensuel brut prévu au contrat ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Pièces/Contrat de travail CDI 2017.txt"
+   ],
+   "passage": "2 450 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q14",
+   "dossier": "DOS-002",
+   "question": "Quand le salarié a-t-il transmis son arrêt de travail ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Courriels/2024-03-12 envoi arrêt maladie.txt"
+   ],
+   "passage": "11 au 22 mars",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": "mem-002-a"
+  },
+  {
+   "id": "Q15",
+   "dossier": "DOS-002",
+   "question": "Que dit l’attestation du collègue ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Pièces/Attestation collègue BERNARD.txt"
+   ],
+   "passage": "remettre une enveloppe",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q16",
+   "dossier": "DOS-002",
+   "question": "Quelle indemnité pour licenciement sans cause est demandée ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Procédure/Requête conseil de prud’hommes.txt"
+   ],
+   "passage": "18 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q17",
+   "dossier": "DOS-002",
+   "question": "Quelle est la date de l’audience devant le bureau de jugement ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Notes/Compte rendu audience de conciliation.txt"
+   ],
+   "passage": "14 novembre 2024",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q18",
+   "dossier": "DOS-002",
+   "question": "Que soutient l’employeur sur la réception de l’arrêt ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Procédure/Conclusions ORLANDEC.txt"
+   ],
+   "passage": "jamais reçu",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q19",
+   "dossier": "DOS-002",
+   "question": "Le salarié a-t-il reconnu ses absences injustifiées ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Pièces/Lettre de licenciement.txt"
+   ],
+   "passage": "absences injustifiées",
+   "piege": "fait_ecarte",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q20",
+   "dossier": "DOS-002",
+   "question": "Quelle somme l’employeur réclame-t-il au titre de l’article 700 ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Procédure/Conclusions ORLANDEC.txt"
+   ],
+   "passage": "2 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q21",
+   "dossier": "DOS-002",
+   "question": "Quelle convention collective s’applique au contrat ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Pièces/Contrat de travail CDI 2017.txt"
+   ],
+   "passage": "métallurgie",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q22",
+   "dossier": "DOS-002",
+   "question": "Quel est le numéro de sécurité sociale du salarié ?",
+   "attendus": [],
+   "passage": "",
+   "piege": "sans_reponse",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q23",
+   "dossier": "DOS-003",
+   "question": "Quel est le prix de vente de la maison ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Pièces/Acte de vente maison Valbrune.txt"
+   ],
+   "passage": "285 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q24",
+   "dossier": "DOS-003",
+   "question": "Qu’a constaté l’expert sur l’humidité ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Pièces/Rapport d’expertise humidité.txt"
+   ],
+   "passage": "infiltrations anciennes",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q25",
+   "dossier": "DOS-003",
+   "question": "Quel montant est demandé dans l’assignation ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Procédure/Assignation tribunal judiciaire.txt"
+   ],
+   "passage": "23 500 euros",
+   "piege": "ecartee",
+   "interdits": [
+    "/Dossiers/DOS-003/Procédure/Projet assignation version 1.txt"
+   ],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q26",
+   "dossier": "DOS-003",
+   "question": "Faut-il demander la résolution de la vente ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Procédure/Assignation tribunal judiciaire.txt"
+   ],
+   "passage": "réduction du prix",
+   "piege": "decision",
+   "interdits": [
+    "/Dossiers/DOS-003/Procédure/Projet assignation version 1.txt"
+   ],
+   "memoire_attendue": "as-003-a"
+  },
+  {
+   "id": "Q27",
+   "dossier": "DOS-003",
+   "question": "Que contient la clause de non-garantie des vices cachés ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Pièces/Acte de vente maison Valbrune.txt"
+   ],
+   "passage": "sans recours",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q28",
+   "dossier": "DOS-003",
+   "question": "Quand la mise en demeure a-t-elle été envoyée aux vendeurs ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Courriers/Mise en demeure vendeurs.txt"
+   ],
+   "passage": "4 septembre 2023",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q29",
+   "dossier": "DOS-003",
+   "question": "Les vendeurs savaient-ils qu’il y avait une fuite ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Courriels/2023-10-02 agent immobilier.txt"
+   ],
+   "passage": "ancienne fuite",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q30",
+   "dossier": "DOS-003",
+   "question": "Quelle est la réponse des vendeurs KERVILAC à la réclamation ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Courriels/2023-09-20 refus KERVILAC.txt"
+   ],
+   "passage": "refusons toute prise en charge",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q31",
+   "dossier": "DOS-003",
+   "question": "Combien de temps dureront les travaux de drainage ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Pièces/Devis entreprise de drainage.txt"
+   ],
+   "passage": "trois semaines",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q32",
+   "dossier": "DOS-003",
+   "question": "Quels dommages et intérêts sont demandés pour trouble de jouissance ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Procédure/Assignation tribunal judiciaire.txt"
+   ],
+   "passage": "3 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q33",
+   "dossier": "DOS-003",
+   "question": "Quelle est la surface habitable de la maison ?",
+   "attendus": [],
+   "passage": "",
+   "piege": "sans_reponse",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q34",
+   "dossier": "DOS-004",
+   "question": "Quel est le montant de la facture F2024-031 ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Factures/Facture F2024-031.txt"
+   ],
+   "passage": "7 860 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q35",
+   "dossier": "DOS-004",
+   "question": "Pourquoi MARTIN Logistique conteste-t-elle la facture F2024-044 ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Courriels/2024-06-20 contestation MARTIN Logistique.txt"
+   ],
+   "passage": "deux palettes manquaient",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q36",
+   "dossier": "DOS-004",
+   "question": "Combien réclamer pour la facture F2024-044 ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Factures/Facture F2024-044.txt"
+   ],
+   "passage": "3 240 euros",
+   "piege": "decision",
+   "interdits": [],
+   "memoire_attendue": "mem-004-a"
+  },
+  {
+   "id": "Q37",
+   "dossier": "DOS-004",
+   "question": "Quelles pénalités de retard prévoient les conditions générales ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Pièces/Conditions générales de vente.txt"
+   ],
+   "passage": "trois fois le taux",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q38",
+   "dossier": "DOS-004",
+   "question": "Quel tribunal est compétent selon les conditions générales ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Pièces/Conditions générales de vente.txt"
+   ],
+   "passage": "tribunal des activités économiques",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q39",
+   "dossier": "DOS-004",
+   "question": "Quelles réserves figurent sur le bon de livraison ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Pièces/Bon de livraison 2024-05-20.txt"
+   ],
+   "passage": "2 palettes manquantes",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q40",
+   "dossier": "DOS-004",
+   "question": "Quel est le total des factures impayées ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Courriers/Relance amiable.txt"
+   ],
+   "passage": "11 100 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q41",
+   "dossier": "DOS-004",
+   "question": "Une injonction de payer est-elle envisagée ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Notes/Note sur la procédure.txt"
+   ],
+   "passage": "injonction de payer",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q42",
+   "dossier": "DOS-004",
+   "question": "Quelle est l’échéance de la facture F2024-044 ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Factures/Facture F2024-044.txt"
+   ],
+   "passage": "31 mai 2024",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q43",
+   "dossier": "DOS-004",
+   "question": "Quel est le numéro SIREN du débiteur MARTIN Logistique ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Factures/Facture F2024-031.txt"
+   ],
+   "passage": "000010025",
+   "piege": "homonyme",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q44",
+   "dossier": "DOS-004",
+   "question": "Le gérant de MARTIN Logistique a-t-il été licencié pour faute grave ?",
+   "attendus": [],
+   "passage": "",
+   "piege": "sans_reponse",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q45",
+   "dossier": "DOS-005",
+   "question": "Quel est l’actif brut de la succession ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Courriels/2024-05-14 notaire DURAND.txt"
+   ],
+   "passage": "412 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q46",
+   "dossier": "DOS-005",
+   "question": "Qui est Me DURAND dans ce dossier ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Courriels/2024-05-14 notaire DURAND.txt"
+   ],
+   "passage": "notaire",
+   "piege": "homonyme",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q47",
+   "dossier": "DOS-005",
+   "question": "Que prévoit le testament pour la maison ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Pièces/Testament olographe.txt"
+   ],
+   "passage": "lègue à mon fils Yann",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q48",
+   "dossier": "DOS-005",
+   "question": "À combien la maison est-elle estimée ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Pièces/Estimation de la maison.txt"
+   ],
+   "passage": "320 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q49",
+   "dossier": "DOS-005",
+   "question": "Quelle offre de rachat la sœur a-t-elle faite ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Courriels/2024-08-01 proposition de rachat.txt"
+   ],
+   "passage": "140 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q50",
+   "dossier": "DOS-005",
+   "question": "Sur quel article se fonde la demande de partage judiciaire ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Procédure/Conclusions partage judiciaire.txt"
+   ],
+   "passage": "article 815",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q51",
+   "dossier": "DOS-005",
+   "question": "La sœur accepte-t-elle que Yann garde la maison sans soulte ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Courriels/2024-08-01 proposition de rachat.txt",
+    "/Dossiers/DOS-005/Notes/Compte rendu réunion indivision.txt"
+   ],
+   "passage": "",
+   "piege": "fait_ecarte",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q52",
+   "dossier": "DOS-005",
+   "question": "Combien ont coûté les obsèques ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Factures/Facture frais d’obsèques.txt"
+   ],
+   "passage": "4 200 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q53",
+   "dossier": "DOS-005",
+   "question": "Une décision a-t-elle été prise lors de la réunion des héritiers ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Notes/Compte rendu réunion indivision.txt"
+   ],
+   "passage": "Aucune décision",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q54",
+   "dossier": "DOS-005",
+   "question": "Quel est le montant des droits de succession à payer ?",
+   "attendus": [],
+   "passage": "",
+   "piege": "sans_reponse",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q55",
+   "dossier": "DOS-006",
+   "question": "Quel est le prix forfaitaire du contrat de prestation ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Pièces/Contrat de prestation logicielle.txt"
+   ],
+   "passage": "48 000 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q56",
+   "dossier": "DOS-006",
+   "question": "Quelles pénalités de retard prévoit le contrat ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Pièces/Contrat de prestation logicielle.txt"
+   ],
+   "passage": "1 % du prix",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q57",
+   "dossier": "DOS-006",
+   "question": "Pourquoi la recette a-t-elle été refusée ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Pièces/Procès-verbal de recette.txt"
+   ],
+   "passage": "Quatorze anomalies",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q58",
+   "dossier": "DOS-006",
+   "question": "Quel retard le prestataire a-t-il annoncé ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Courriels/2024-09-25 annonce de retard.txt"
+   ],
+   "passage": "six semaines",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q59",
+   "dossier": "DOS-006",
+   "question": "Quel acompte a été versé ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Factures/Facture d’acompte.txt"
+   ],
+   "passage": "14 400 euros",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q60",
+   "dossier": "DOS-006",
+   "question": "Que demande la mise en demeure au prestataire ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Courriers/Mise en demeure prestataire.txt"
+   ],
+   "passage": "version corrigée",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q61",
+   "dossier": "DOS-006",
+   "question": "La cliente a-t-elle accepté le report de livraison ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Courriels/2024-09-25 annonce de retard.txt"
+   ],
+   "passage": "six semaines",
+   "piege": "fait_ecarte",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q62",
+   "dossier": "DOS-006",
+   "question": "Quelles fonctionnalités ont été reportées en seconde phase ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Notes/Compte rendu comité de pilotage.txt"
+   ],
+   "passage": "seconde phase",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q63",
+   "dossier": "DOS-006",
+   "question": "Quelle est la date de livraison prévue au contrat ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Pièces/Contrat de prestation logicielle.txt"
+   ],
+   "passage": "30 septembre 2024",
+   "piege": "",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q64",
+   "dossier": "DOS-006",
+   "question": "Quel est le nom de l’hébergeur du logiciel ?",
+   "attendus": [],
+   "passage": "",
+   "piege": "sans_reponse",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q65",
+   "dossier": "DOS-001",
+   "question": "Combien la locataire doit-elle verser chaque mois ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Contrat de bail commercial 2019.txt"
+   ],
+   "passage": "1 600 euros par mois",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q66",
+   "dossier": "DOS-001",
+   "question": "Qui doit payer les grosses réparations du local ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Pièces/Contrat de bail commercial 2019.txt"
+   ],
+   "passage": "article 606",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q67",
+   "dossier": "DOS-001",
+   "question": "Que veut obtenir la cliente en priorité ?",
+   "attendus": [
+    "/Dossiers/DOS-001/Notes/Compte rendu rendez-vous client 2024-03-10.txt"
+   ],
+   "passage": "récupérer les locaux",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q68",
+   "dossier": "DOS-002",
+   "question": "Depuis quand le technicien travaille-t-il dans l’entreprise ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Pièces/Contrat de travail CDI 2017.txt"
+   ],
+   "passage": "2 janvier 2017",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q69",
+   "dossier": "DOS-002",
+   "question": "Un témoin a-t-il vu la remise du justificatif médical ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Pièces/Attestation collègue BERNARD.txt"
+   ],
+   "passage": "remettre une enveloppe",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q70",
+   "dossier": "DOS-002",
+   "question": "La tentative d’accord amiable devant les conseillers a-t-elle abouti ?",
+   "attendus": [
+    "/Dossiers/DOS-002/Notes/Compte rendu audience de conciliation.txt"
+   ],
+   "passage": "aucune conciliation",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q71",
+   "dossier": "DOS-003",
+   "question": "Combien coûte la remise en état du sous-sol humide ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Pièces/Rapport d’expertise humidité.txt",
+    "/Dossiers/DOS-003/Pièces/Devis entreprise de drainage.txt"
+   ],
+   "passage": "23 500 euros",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q72",
+   "dossier": "DOS-003",
+   "question": "Les anciens propriétaires ont-ils caché le problème avant de vendre ?",
+   "attendus": [
+    "/Dossiers/DOS-003/Courriels/2023-10-02 agent immobilier.txt",
+    "/Dossiers/DOS-003/Pièces/Rapport d’expertise humidité.txt"
+   ],
+   "passage": "repeindre",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q73",
+   "dossier": "DOS-004",
+   "question": "Que se passe-t-il si le client règle en retard ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Pièces/Conditions générales de vente.txt"
+   ],
+   "passage": "pénalités",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q74",
+   "dossier": "DOS-004",
+   "question": "Combien de marchandises ont réellement été reçues le 20 mai ?",
+   "attendus": [
+    "/Dossiers/DOS-004/Pièces/Bon de livraison 2024-05-20.txt"
+   ],
+   "passage": "8 reçues",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q75",
+   "dossier": "DOS-005",
+   "question": "Que doit verser Yann à sa sœur s’il garde le bien ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Pièces/Testament olographe.txt"
+   ],
+   "passage": "soulte",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q76",
+   "dossier": "DOS-005",
+   "question": "Qui a avancé l’argent des funérailles ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Factures/Facture frais d’obsèques.txt"
+   ],
+   "passage": "réglés par M. Yann KERVILAC",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q77",
+   "dossier": "DOS-005",
+   "question": "Peut-on obliger un héritier à rester propriétaire en commun ?",
+   "attendus": [
+    "/Dossiers/DOS-005/Procédure/Conclusions partage judiciaire.txt"
+   ],
+   "passage": "Nul ne peut être contraint",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q78",
+   "dossier": "DOS-006",
+   "question": "Pourquoi le développeur ne livre-t-il pas à temps ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Courriels/2024-09-25 annonce de retard.txt"
+   ],
+   "passage": "chef de projet",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q79",
+   "dossier": "DOS-006",
+   "question": "Quel défaut empêche d’utiliser le logiciel ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Pièces/Procès-verbal de recette.txt"
+   ],
+   "passage": "annuler un rendez-vous",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  },
+  {
+   "id": "Q80",
+   "dossier": "DOS-006",
+   "question": "Combien a déjà été payé au fournisseur ?",
+   "attendus": [
+    "/Dossiers/DOS-006/Factures/Facture d’acompte.txt"
+   ],
+   "passage": "14 400 euros",
+   "piege": "reformulation",
+   "interdits": [],
+   "memoire_attendue": ""
+  }
+ ]
+}

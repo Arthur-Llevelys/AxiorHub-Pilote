@@ -146,6 +146,11 @@ def _ia(desk, auth, prefix, env, cap):
     except Exception:   # noqa: BLE001
         pass
     body += _section(ia540.page(desk, prefix, cap, auth['csrf']))
+    try:   # 5.6.95 (G04) : routage mesuré (mesures réelles par étape, choix actuel et choix mesuré, mode conseil ou actif)
+        from .routage5695 import section_html as _routage5695
+        body += _section(_routage5695(desk, prefix, env))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite, jamais un faux tableau vide
+        body += _section('<section class="ax-card" id="routage5695"><h2>Routage mesuré</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
     try:   # 5.6.62 : ChatGPT avec l'abonnement de l'utilisateur (sans clé API)
         from .chatgpt5662 import html as _chatgpt
         from .web5662 import local_browser

@@ -1,0 +1,37 @@
+{
+  "version": "5.6.95",
+  "base": "5.6.94",
+  "date_utc": "2026-11-07T00:00:00+00:00",
+  "cahier_des_charges": "Feuille de route 5.6.95 décidée par le cabinet (R recherche, D rédaction, E évaluation, G routage, A Aujourd’hui, L lecture) ; constat du cabinet sur les « [À COMPLÉTER] » des brouillons.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 5423,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 144,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "new_tests": "tests/test_v5695_redaction, recherche, routage, aujourdhui, lecture, evaluation ; parcours navigateur P95a et P95b (Edge).",
+  "mutations": "Blocage d’envoi des variantes et marqueurs ; politique du routage avant classement (8 garde-fous) ; dossiers réservés de la recherche et de l’encadré ; CSRF ; télémétrie de DeepEval coupée avant import.",
+  "live_checks": "Brouillons mesurés avec un vrai modèle local (qwen2.5:7b, 28 cas fictifs) en 5.6.94 et à chaque version du lot rédaction ; reclassement mesuré sur 80 questions fictives puis retiré. Aucun fournisseur du cabinet (ChatGPT, Mistral, Claude) exercé.",
+  "exapp": {
+    "version": "0.1.54",
+    "moteur": "5.6.95"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Brouillons : variantes au lieu de « [À COMPLÉTER] » de position ; objet « [À RELIRE : n choix] » / « [À COMPLÉTER : n faits] » ; en-tête X-AxiorHub-Variantes ; envoi bloqué tant qu’un bloc reste.",
+    "Au-delà de 2 faits à compléter, le brouillon jugé sûr est déposé quand même, avec l’objet « [À COMPLÉTER : n faits] » ; seul le contrôle de sûreté refuse un dépôt.",
+    "Routage mesuré en mode conseil par défaut.",
+    "Encadré « Actuellement » premier par défaut sur Aujourd’hui."
+  ],
+  "adjusted_tests": [
+    "tests/test_v5667.py (2 tests) et tests/test_v5670.py (1 assertion) : nouvelle règle des brouillons.",
+    "tests/test_v5694_voix.py (13 attentes) : dates en toutes lettres, « hors taxes ».",
+    "tests/test_v5694_parcours.py : liste des parcours (P95a, P95b)."
+  ]
+}
