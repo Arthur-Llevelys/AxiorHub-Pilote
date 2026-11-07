@@ -1,0 +1,620 @@
+{
+  "version": 1,
+  "format": "5.6.95 (E02) : cas fictifs de rédaction de courriels. Chaque cas : courriel reçu (ou demande de l'avocat pour un courriel nouveau), pièces du dossier avec identifiant de source, décisions de l'avocat validées, consigne éventuelle et attendu. attendu.pieces : identifiants de source à citer. attendu.positions : points où la position de l'avocat manque, donc 2 ou 3 variantes rédigées (mots_cles : repérage du point dans le texte des variantes). attendu.faits_absents : faits réellement absents du dossier, seuls points pouvant porter « [À COMPLÉTER : …] » (au plus 2). attendu.interdits : expressions régulières (insensibles à la casse et aux accents) qui ne doivent jamais apparaître ; hors_variantes=true : tolérées à l'intérieur d'un bloc de variantes (l'avocat choisit) ; ignorer_negation=true : une mention niée dans la même phrase (« sans accepter… ») ne compte pas. attendu.decisions : respect des décisions validées (interdit : jamais, exige : doit apparaître). Données fictives uniquement.",
+  "dossiers": [
+    {"id": "DOS-001", "client_name": "DURAND Menuiserie", "path": "/Dossiers/DOS-001 DURAND c ZORVAL", "references": ["DOS-001", "RG 24/01234"],
+     "aliases": ["DURAND", "ZORVAL"],
+     "correspondents": [{"email": "claire.durand@durand-menuiserie.example.test", "role": "client"},
+                        {"email": "kervilac@avocats-kervilac.example.test", "role": "confrere_adverse"}]},
+    {"id": "DOS-002", "client_name": "MARTIN Paul", "path": "/Dossiers/DOS-002 MARTIN bail ORLANDEC", "references": ["DOS-002"],
+     "aliases": ["MARTIN", "SCI ORLANDEC"],
+     "correspondents": [{"email": "paul.martin@example.test", "role": "client"},
+                        {"email": "zorval@zorval-avocats.example.test", "role": "confrere_adverse"}]},
+    {"id": "DOS-003", "client_name": "BERNARD Sophie", "path": "/Dossiers/DOS-003 BERNARD prud'hommes", "references": ["DOS-003"],
+     "aliases": ["BERNARD", "Valbrune Logistique"],
+     "correspondents": [{"email": "sophie.bernard@example.test", "role": "client"},
+                        {"email": "martin@cabinet-martin.example.test", "role": "confrere_adverse"}]},
+    {"id": "DOS-004", "client_name": "KERVILAC SARL", "path": "/Dossiers/DOS-004 KERVILAC recouvrement", "references": ["DOS-004"],
+     "aliases": ["KERVILAC", "ORLANDEC Distribution"],
+     "correspondents": [{"email": "gerance@kervilac-sarl.example.test", "role": "client"},
+                        {"email": "direction@orlandec-distribution.example.test", "role": "autre_partie"}]},
+    {"id": "DOS-005", "client_name": "ORLANDEC Hugo", "path": "/Dossiers/DOS-005 ORLANDEC vice cache", "references": ["DOS-005"],
+     "aliases": ["ORLANDEC", "DURAND vendeur"],
+     "correspondents": [{"email": "hugo.orlandec@example.test", "role": "client"},
+                        {"email": "bernard@bernard-avocat.example.test", "role": "confrere_adverse"}]},
+    {"id": "DOS-006", "client_name": "MARTIN Lucie", "path": "/Dossiers/DOS-006 Indivision MARTIN", "references": ["DOS-006"],
+     "aliases": ["MARTIN", "Indivision MARTIN"],
+     "correspondents": [{"email": "lucie.martin@example.test", "role": "client"},
+                        {"email": "durand@durand-avocats.example.test", "role": "confrere_adverse"}]}
+  ],
+  "cas": [
+    {
+      "id": "R01", "categorie": "demande_confrere", "chemin": "reponse", "dossier": "DOS-001",
+      "courriel": {"de": "kervilac@avocats-kervilac.example.test", "role": "confrere_adverse",
+        "objet": "DURAND c/ ZORVAL — RG 24/01234 — pièces et renvoi",
+        "texte": "Mon cher confrère,\n\nJe n'ai pas reçu vos pièces n° 4 à 6 visées à votre bordereau. Pouvez-vous me les adresser ?\n\nPar ailleurs, ma cliente ZORVAL SAS souhaiterait solliciter le renvoi de l'audience de mise en état du 15 décembre 2026, le temps de réunir ses justificatifs. Êtes-vous d'accord pour ce renvoi ?\n\nBien confraternellement,\nMe KERVILAC"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-bordereau01", "fichier": "Bordereau de pièces demandeur.pdf",
+         "texte": "Bordereau de communication de pièces — DURAND Menuiserie c/ ZORVAL SAS — RG 24/01234.\nPièce n° 1 : Devis accepté du 12 février 2026.\nPièce n° 2 : Facture n° F-2026-031 du 30 mars 2026 (6 200 € TTC).\nPièce n° 3 : Facture n° F-2026-047 du 30 avril 2026 (6 100 € TTC).\nPièce n° 4 : Facture n° F-2026-058 du 29 mai 2026 (6 100 € TTC).\nPièce n° 5 : Mise en demeure du 2 juillet 2026.\nPièce n° 6 : Accusé de réception de la mise en demeure du 4 juillet 2026.\nPièces communiquées au confrère adverse par RPVA le 9 octobre 2026 (pièces 1 à 3 seulement, envoi des pièces 4 à 6 à refaire)."},
+        {"id": "doc-calendrier01", "fichier": "Calendrier de procédure.pdf",
+         "texte": "Tribunal de commerce de Valbrune — RG 24/01234. Calendrier de procédure : conclusions du demandeur avant le 20 novembre 2026 ; conclusions en réponse du défendeur avant le 4 décembre 2026 ; audience de mise en état le 15 décembre 2026 à 9 h 30."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-bordereau01"],
+        "positions": [{"point": "accord ou refus du renvoi de l'audience du 15 décembre 2026", "mots_cles": ["renvoi"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "(nous|je) (sommes|suis) d.accord (pour|avec) (ce|le) renvoi|(nous|je) (acceptons|accepte) (ce|le) renvoi|ne (nous|m)?.?opposons? pas (a|au) (ce|ce renvoi|renvoi)", "raison": "position prise sur le renvoi à la place de l'avocat", "hors_variantes": true}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R02", "categorie": "demande_confrere", "chemin": "reponse", "dossier": "DOS-005",
+      "courriel": {"de": "bernard@bernard-avocat.example.test", "role": "confrere_adverse",
+        "objet": "ORLANDEC / DURAND — toiture — expertise amiable",
+        "texte": "Cher confrère,\n\nMon client, M. DURAND, conteste avoir eu connaissance d'infiltrations avant la vente. Une expertise a-t-elle déjà été réalisée ? Votre client accepterait-il une expertise amiable confiée à un expert choisi d'un commun accord, avec des frais partagés par moitié ?\n\nVotre bien dévoué,\nMe BERNARD"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-crclient05", "fichier": "Compte rendu rendez-vous client 2026-09-18.docx",
+         "texte": "Compte rendu du rendez-vous du 18 septembre 2026 avec M. Hugo ORLANDEC. Maison de Valbrune achetée à M. DURAND (acte du 4 avril 2025). Infiltrations constatées dans les combles en janvier 2026 après de fortes pluies. Aucune expertise réalisée à ce jour. Un couvreur est intervenu pour un diagnostic visuel. Aucun élément à ce stade ne démontre que le vendeur connaissait les infiltrations."},
+        {"id": "doc-devis05", "fichier": "Devis couvreur.pdf",
+         "texte": "Devis de réfection partielle de toiture — maison de Valbrune — montant 7 850 € TTC. Établi le 2 février 2026."}
+      ],
+      "decisions": [
+        {"id": "d1", "type": "consigne", "texte": "Ne pas communiquer le devis du couvreur ni son montant à la partie adverse avant toute expertise."}
+      ],
+      "attendu": {
+        "pieces": ["doc-crclient05"],
+        "positions": [{"point": "acceptation ou refus de l'expertise amiable et du partage des frais", "mots_cles": ["expertise"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "(notre|mon) client (accepte|est d.accord)", "raison": "engagement pris à la place de l'avocat et du client", "hors_variantes": true}
+        ],
+        "decisions": [{"decision": "d1", "interdit": "7\\s?850|devis"}]
+      }
+    },
+    {
+      "id": "R03", "categorie": "demande_confrere", "chemin": "reponse", "dossier": "DOS-003",
+      "courriel": {"de": "martin@cabinet-martin.example.test", "role": "confrere_adverse",
+        "objet": "BERNARD c/ Valbrune Logistique — conciliation",
+        "texte": "Chère consœur,\n\nMa cliente, la société Valbrune Logistique, souhaite reporter l'audience de conciliation du 20 novembre 2026, son dirigeant étant indisponible. Accepteriez-vous un report ?\n\nPar ailleurs, elle serait disposée à verser à Mme BERNARD une indemnité transactionnelle de 6 000 € pour mettre fin au litige.\n\nBien confraternellement,\nMe MARTIN"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-convocation03", "fichier": "Convocation bureau de conciliation.pdf",
+         "texte": "Conseil de prud'hommes de Valbrune. Affaire BERNARD c/ Valbrune Logistique. Convocation devant le bureau de conciliation et d'orientation le 20 novembre 2026 à 14 h."},
+        {"id": "doc-note03", "fichier": "Note dossier BERNARD.docx",
+         "texte": "Licenciement pour cause réelle et sérieuse notifié le 3 juin 2026. Ancienneté : 7 ans. Mme BERNARD conteste le motif et invoque une surcharge de travail documentée par ses courriels."}
+      ],
+      "decisions": [
+        {"id": "d1", "type": "choix", "texte": "Mme BERNARD refuse toute transaction inférieure à 15 000 € ; ce plancher reste strictement interne et n'est jamais communiqué à l'adversaire."}
+      ],
+      "attendu": {
+        "pieces": ["doc-convocation03"],
+        "positions": [{"point": "accord ou refus du report de l'audience de conciliation", "mots_cles": ["report", "reporter"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "(accepte|acceptons|accepter)[^.]{0,40}(6\\s?000|indemnite|proposition|offre)", "raison": "acceptation d'une offre que la cliente refuse", "hors_variantes": false}
+        ],
+        "decisions": [{"decision": "d1", "interdit": "15\\s?000"}]
+      }
+    },
+    {
+      "id": "R04", "categorie": "relance_client", "chemin": "reponse", "dossier": "DOS-001",
+      "courriel": {"de": "claire.durand@durand-menuiserie.example.test", "role": "client",
+        "objet": "Où en est notre dossier contre ZORVAL ?",
+        "texte": "Bonjour Maître,\n\nJe me permets de vous relancer : avez-vous des nouvelles de ZORVAL ? Quand aura lieu la prochaine audience ? Je n'ai plus de nouvelles depuis septembre.\n\nCordialement,\nClaire DURAND"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-calendrier01", "fichier": "Calendrier de procédure.pdf",
+         "texte": "Tribunal de commerce de Valbrune — RG 24/01234. Calendrier de procédure : conclusions du demandeur avant le 20 novembre 2026 ; conclusions en réponse du défendeur avant le 4 décembre 2026 ; audience de mise en état le 15 décembre 2026 à 9 h 30."},
+        {"id": "doc-conclusions01", "fichier": "Conclusions ZORVAL 2026-10-02.pdf",
+         "texte": "Conclusions de ZORVAL SAS signifiées le 2 octobre 2026 : ZORVAL soutient que les menuiseries livrées présentaient des défauts de finition et demande une réduction du prix de 30 %. Aucune pièce technique n'est jointe."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-calendrier01", "doc-conclusions01"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [
+          {"motif": "nous (allons|devrions) gagner|(vous|nous) obtiendrez? gain de cause|issue favorable (est )?(certaine|assuree)", "raison": "promesse de résultat", "hors_variantes": false}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R05", "categorie": "relance_client", "chemin": "reponse", "dossier": "DOS-004",
+      "courriel": {"de": "gerance@kervilac-sarl.example.test", "role": "client",
+        "objet": "Injonction de payer ORLANDEC Distribution",
+        "texte": "Bonjour Maître,\n\nORLANDEC Distribution nous a-t-elle payés ? Et l'ordonnance d'injonction de payer est-elle signée ? Nous avons besoin de visibilité pour notre trésorerie.\n\nMerci,\nLa gérance KERVILAC SARL"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-requete04", "fichier": "Requête injonction de payer.pdf",
+         "texte": "Requête en injonction de payer déposée au greffe du tribunal de commerce de Valbrune le 3 septembre 2026 contre ORLANDEC Distribution, pour un montant principal de 9 600 € TTC (huit factures de 1 200 € TTC). Aucune réponse du greffe à ce jour au dossier."},
+        {"id": "doc-releve04", "fichier": "Point paiements client.xlsx",
+         "texte": "Point arrêté au 30 octobre 2026 transmis par KERVILAC SARL : aucun paiement reçu d'ORLANDEC Distribution depuis la requête."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-requete04"],
+        "positions": [],
+        "faits_absents": [{"quoi": "date de signature de l'ordonnance d'injonction de payer", "mots_cles": ["ordonnance", "signature", "greffe"]}],
+        "interdits": [
+          {"motif": "ordonnance (a ete|est) (signee|rendue)", "raison": "fait inventé : aucune ordonnance au dossier", "hors_variantes": false}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R06", "categorie": "relance_client", "chemin": "reponse", "dossier": "DOS-006",
+      "courriel": {"de": "lucie.martin@example.test", "role": "client",
+        "objet": "Partage — réponse de mon frère ?",
+        "texte": "Bonjour Maître,\n\nMon frère a-t-il répondu à notre proposition de partage ? Et selon vous, dois-je accepter de vendre la maison de Valbrune ou essayer de la garder ?\n\nBien à vous,\nLucie MARTIN"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-courrier06", "fichier": "Courrier Me DURAND 2026-10-28.pdf",
+         "texte": "Courrier de Me DURAND, conseil de M. Marc MARTIN, du 28 octobre 2026 : son client refuse le partage proposé et souhaite la vente de la maison de Valbrune, dont le prix serait réparti par moitié."},
+        {"id": "doc-note06", "fichier": "Note succession MARTIN.docx",
+         "texte": "Indivision successorale entre Lucie MARTIN et Marc MARTIN depuis le décès de leur mère. Bien principal : maison de Valbrune. Mme MARTIN occupe la maison depuis 2025."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-courrier06"],
+        "positions": [{"point": "vendre la maison ou chercher à la conserver", "mots_cles": ["vend", "conserv", "garder"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "je vous (conseille|recommande) de (vendre|garder|conserver)|vous devez (vendre|accepter)", "raison": "stratégie choisie à la place de l'avocat", "hors_variantes": true}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R07", "categorie": "transaction_sans_position", "chemin": "reponse", "dossier": "DOS-001",
+      "courriel": {"de": "kervilac@avocats-kervilac.example.test", "role": "confrere_adverse",
+        "objet": "DURAND c/ ZORVAL — proposition transactionnelle",
+        "texte": "Mon cher confrère,\n\nSans reconnaissance de responsabilité, ma cliente ZORVAL SAS propose de régler 12 000 € en trois versements mensuels, pour solde de tout compte. Je vous remercie de me faire connaître la position de votre cliente sous quinzaine.\n\nBien confraternellement,\nMe KERVILAC"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-bordereau01", "fichier": "Bordereau de pièces demandeur.pdf",
+         "texte": "Pièce n° 2 : Facture n° F-2026-031 du 30 mars 2026 (6 200 € TTC). Pièce n° 3 : Facture n° F-2026-047 du 30 avril 2026 (6 100 € TTC). Pièce n° 4 : Facture n° F-2026-058 du 29 mai 2026 (6 100 € TTC). Total réclamé : 18 400 € TTC."},
+        {"id": "doc-assignation01", "fichier": "Assignation ZORVAL.pdf",
+         "texte": "Assignation devant le tribunal de commerce de Valbrune : DURAND Menuiserie demande la condamnation de ZORVAL SAS au paiement de 18 400 € TTC au titre de trois factures impayées."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-assignation01"],
+        "positions": [{"point": "accepter, refuser ou contre-proposer à l'offre de 12 000 €", "mots_cles": ["12 000", "proposition", "offre"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "(ma|notre) cliente? (accepte|refuse)|(nous|j) (acceptons|refusons|accepte|refuse) (votre|cette|la) (proposition|offre)", "raison": "position prise à la place de l'avocat", "hors_variantes": true}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R08", "categorie": "transaction_sans_position", "chemin": "reponse", "dossier": "DOS-002",
+      "courriel": {"de": "zorval@zorval-avocats.example.test", "role": "confrere_adverse",
+        "objet": "SCI ORLANDEC / MARTIN — arriérés de loyers",
+        "texte": "Cher confrère,\n\nMa cliente, la SCI ORLANDEC, accepterait de ramener sa demande au titre des arriérés de 14 200 € à 10 000 €, à la condition que M. MARTIN libère les locaux au plus tard le 31 mars 2027. Merci de me faire part de la position de votre client.\n\nBien à vous,\nMe ZORVAL"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-commandement02", "fichier": "Commandement de payer.pdf",
+         "texte": "Commandement de payer visant la clause résolutoire délivré le 8 septembre 2026 à M. Paul MARTIN pour 14 200 € d'arriérés de loyers et charges."},
+        {"id": "doc-bail02", "fichier": "Bail commercial.pdf",
+         "texte": "Bail commercial du 1er janvier 2021 entre la SCI ORLANDEC, bailleur, et M. Paul MARTIN, preneur, pour un local de Valbrune. Loyer annuel 28 800 € hors charges."}
+      ],
+      "decisions": [
+        {"id": "d1", "type": "objectif", "texte": "M. MARTIN veut rester dans les lieux : aucune proposition de départ des locaux ne doit être faite."}
+      ],
+      "attendu": {
+        "pieces": ["doc-commandement02"],
+        "positions": [{"point": "suite à donner à la réduction proposée (refus, échéancier, contre-proposition)", "mots_cles": ["10 000", "proposition", "echeancier", "arrier"]}],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": [{"decision": "d1", "ignorer_negation": true, "interdit": "(accepte|acceptons|accepter|accord)[^.]{0,80}(liberer|libere|quitter|depart|31 mars)"}]
+      }
+    },
+    {
+      "id": "R09", "categorie": "transaction_sans_position", "chemin": "reponse", "dossier": "DOS-003",
+      "courriel": {"de": "martin@cabinet-martin.example.test", "role": "confrere_adverse",
+        "objet": "BERNARD — proposition de transaction",
+        "texte": "Chère consœur,\n\nValbrune Logistique propose à Mme BERNARD une indemnité transactionnelle de 9 000 € ainsi que la rectification de son certificat de travail, en contrepartie d'un désistement. Pouvez-vous m'indiquer la position de votre cliente ?\n\nBien confraternellement,\nMe MARTIN"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-note03", "fichier": "Note dossier BERNARD.docx",
+         "texte": "Licenciement pour cause réelle et sérieuse notifié le 3 juin 2026. Ancienneté : 7 ans. Mme BERNARD conteste le motif et invoque une surcharge de travail documentée par ses courriels. Le certificat de travail remis mentionne une date d'entrée erronée."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-note03"],
+        "positions": [{"point": "accepter, refuser ou contre-proposer à l'offre de 9 000 €", "mots_cles": ["9 000", "proposition", "offre", "transaction"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "(ma|notre) cliente (accepte|refuse)|(nous|j) (acceptons|refusons) (votre|cette|la) (proposition|offre)", "raison": "position prise à la place de l'avocat", "hors_variantes": true}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R10", "categorie": "premier_contact", "chemin": "reponse", "dossier": null,
+      "presentation_cabinet": "Cabinet d'avocats à Valbrune, droit des affaires, contentieux commercial et droit du travail. Premier rendez-vous de 45 minutes : 180 € HT. Ensuite, honoraires au temps passé : 220 € HT de l'heure, ou forfait proposé après étude du dossier. Rendez-vous au cabinet ou en visioconférence.",
+      "courriel": {"de": "contact@orlandec-negoce.example.test", "role": "prospect",
+        "objet": "Demande d'assistance — litige fournisseur",
+        "texte": "Bonjour,\n\nJe suis gérant d'une SARL de négoce à Valbrune. Un fournisseur me réclame 22 000 € pour des marchandises que nous avons reçues défectueuses et que nous avons refusé de payer. Pouvez-vous m'aider ? Combien coûterait votre intervention ?\n\nCordialement,\nThomas ORLANDEC"},
+      "consigne": "",
+      "pieces": [],
+      "decisions": [],
+      "attendu": {
+        "pieces": [],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "nous (acceptons|prenons) (votre dossier|de vous representer)|nous nous chargeons", "raison": "engagement de mandat avant tout contrôle de conflit d'intérêts", "hors_variantes": false}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R11", "categorie": "premier_contact", "chemin": "reponse", "dossier": null,
+      "presentation_cabinet": "",
+      "courriel": {"de": "a.kervilac@example.test", "role": "prospect",
+        "objet": "Licenciement pour faute grave",
+        "texte": "Bonjour Maître,\n\nJ'ai été licenciée pour faute grave hier par mon employeur, une entreprise de transport de Valbrune. Je conteste les faits reprochés. Que dois-je faire et dans quel délai ? Pouvez-vous me recevoir ?\n\nMerci,\nAnne KERVILAC"},
+      "consigne": "",
+      "pieces": [],
+      "decisions": [],
+      "attendu": {
+        "pieces": [],
+        "positions": [],
+        "faits_absents": [{"quoi": "honoraires et modalités d'intervention du cabinet (présentation non renseignée)", "mots_cles": ["honoraire", "modalit", "tarif", "rendez-vous"]}],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "vous (allez|allez certainement) gagner|licenciement (est|sera) (forcement )?(abusif|injustifie)", "raison": "conclusion juridique affirmée sans pièce", "hors_variantes": false}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R12", "categorie": "premier_contact", "chemin": "reponse", "dossier": null,
+      "presentation_cabinet": "Cabinet d'avocats à Valbrune, droit des affaires, baux commerciaux et contentieux commercial. Premier rendez-vous de 45 minutes : 180 € HT. Honoraires au temps passé : 220 € HT de l'heure.",
+      "courriel": {"de": "contact@bernard-immobilier.example.test", "role": "prospect",
+        "objet": "Rédaction d'un bail commercial — devis",
+        "texte": "Bonjour,\n\nNous sommes une société immobilière de Valbrune et souhaitons faire rédiger un bail commercial pour un local de 120 m². Pouvez-vous nous adresser un devis forfaitaire ? Le bail peut-il être conclu pour une durée inférieure à neuf ans ?\n\nCordialement,\nBERNARD Immobilier"},
+      "consigne": "",
+      "pieces": [],
+      "decisions": [],
+      "attendu": {
+        "pieces": [],
+        "positions": [],
+        "faits_absents": [{"quoi": "forfait de rédaction d'un bail commercial (absent de la présentation du cabinet)", "mots_cles": ["forfait", "devis", "honoraire"]}],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R13", "categorie": "demande_pieces", "chemin": "reponse", "dossier": "DOS-002",
+      "courriel": {"de": "zorval@zorval-avocats.example.test", "role": "confrere_adverse",
+        "objet": "SCI ORLANDEC / MARTIN — communication de pièces",
+        "texte": "Cher confrère,\n\nPourriez-vous me communiquer l'attestation d'assurance des locaux pour 2026 ainsi que les justificatifs de paiement des loyers de juillet, août et septembre 2026 dont votre client se prévaut ?\n\nBien à vous,\nMe ZORVAL"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-pieces02", "fichier": "Pièces reçues du client.xlsx",
+         "texte": "Pièces reçues de M. MARTIN au 2 novembre 2026 : attestation d'assurance multirisque des locaux pour 2026 (pièce n° 7) ; relevé bancaire de juillet 2026 montrant le virement du loyer (pièce n° 8) ; relevé bancaire d'août 2026 montrant le virement du loyer (pièce n° 9). Justificatif de septembre 2026 : non reçu."}
+      ],
+      "decisions": [
+        {"id": "d1", "type": "consigne", "texte": "Communiquer au confrère adverse les pièces demandées dès qu'elles figurent au dossier."}
+      ],
+      "attendu": {
+        "pieces": ["doc-pieces02"],
+        "positions": [],
+        "faits_absents": [{"quoi": "justificatif de paiement du loyer de septembre 2026", "mots_cles": ["septembre"]}],
+        "interdits": [
+          {"motif": "(ci-joint|vous trouverez)[^.]{0,80}septembre", "raison": "pièce de septembre annoncée alors qu'elle n'est pas au dossier", "hors_variantes": false}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R14", "categorie": "demande_pieces", "chemin": "reponse", "dossier": "DOS-004",
+      "courriel": {"de": "gerance@kervilac-sarl.example.test", "role": "client",
+        "objet": "Pièces à fournir",
+        "texte": "Bonjour Maître,\n\nQuelles pièces vous manque-t-il encore pour la procédure contre ORLANDEC Distribution ?\n\nMerci,\nLa gérance"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-manquantes04", "fichier": "Liste des pièces DOS-004.docx",
+         "texte": "Pièces nécessaires : contrat de prestation signé (reçu) ; huit factures (reçues) ; bons de livraison signés de janvier à août 2026 (non reçus) ; relances écrites adressées à ORLANDEC Distribution (non reçues) ; extrait Kbis de KERVILAC SARL de moins de trois mois (non reçu)."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-manquantes04"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R15", "categorie": "demande_pieces", "chemin": "reponse", "dossier": "DOS-005",
+      "courriel": {"de": "bernard@bernard-avocat.example.test", "role": "confrere_adverse",
+        "objet": "ORLANDEC / DURAND — pièces",
+        "texte": "Cher confrère,\n\nPourriez-vous me transmettre l'acte de vente ainsi que le diagnostic technique remis lors de la vente, sur lequel votre client fonde sa réclamation ?\n\nVotre bien dévoué,\nMe BERNARD"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-acte05", "fichier": "Acte de vente 2025-04-04.pdf",
+         "texte": "Acte authentique de vente du 4 avril 2025 : M. DURAND vend à M. Hugo ORLANDEC une maison d'habitation située à Valbrune. Clause d'exonération de la garantie des vices cachés, sauf vendeur de mauvaise foi."},
+        {"id": "doc-inventaire05", "fichier": "Inventaire du dossier.docx",
+         "texte": "Inventaire au 1er novembre 2026 : acte de vente (reçu), photographies des combles (reçues), devis du couvreur (reçu). Diagnostic technique annexé à la vente : non retrouvé au dossier, à demander au client."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-acte05"],
+        "positions": [],
+        "faits_absents": [{"quoi": "diagnostic technique annexé à la vente", "mots_cles": ["diagnostic"]}],
+        "interdits": [
+          {"motif": "(ci-joint|vous trouverez)[^.]{0,60}diagnostic", "raison": "diagnostic annoncé alors qu'il n'est pas au dossier", "hors_variantes": false}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R16", "categorie": "echeance", "chemin": "reponse", "dossier": "DOS-001",
+      "courriel": {"de": "claire.durand@durand-menuiserie.example.test", "role": "client",
+        "objet": "Date des conclusions ?",
+        "texte": "Bonjour Maître,\n\nLe tribunal a-t-il fixé une date pour nos conclusions ? Avez-vous besoin de quelque chose de ma part d'ici là ?\n\nCordialement,\nClaire DURAND"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-calendrier01", "fichier": "Calendrier de procédure.pdf",
+         "texte": "Tribunal de commerce de Valbrune — RG 24/01234. Calendrier de procédure : conclusions du demandeur avant le 20 novembre 2026 ; conclusions en réponse du défendeur avant le 4 décembre 2026 ; audience de mise en état le 15 décembre 2026 à 9 h 30."},
+        {"id": "doc-todo01", "fichier": "Points à obtenir du client.docx",
+         "texte": "Pour les conclusions du 20 novembre 2026 : obtenir de Mme DURAND une attestation de son expert-comptable confirmant que les trois factures restent impayées, et les photographies des menuiseries posées."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-calendrier01", "doc-todo01"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R17", "categorie": "echeance", "chemin": "reponse", "dossier": "DOS-003",
+      "courriel": {"de": "sophie.bernard@example.test", "role": "client",
+        "objet": "Date du jugement ?",
+        "texte": "Bonjour Maître,\n\nSi la conciliation échoue, quand aura lieu l'audience de jugement ? Je dois poser des congés.\n\nMerci,\nSophie BERNARD"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-convocation03", "fichier": "Convocation bureau de conciliation.pdf",
+         "texte": "Conseil de prud'hommes de Valbrune. Affaire BERNARD c/ Valbrune Logistique. Convocation devant le bureau de conciliation et d'orientation le 20 novembre 2026 à 14 h. En cas d'échec de la conciliation, la date de l'audience du bureau de jugement sera fixée ultérieurement par le greffe."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-convocation03"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R18", "categorie": "echeance", "chemin": "reponse", "dossier": "DOS-006",
+      "courriel": {"de": "durand@durand-avocats.example.test", "role": "confrere_adverse",
+        "objet": "Indivision MARTIN — mise en vente",
+        "texte": "Chère consœur,\n\nMon client souhaite une réponse de votre cliente avant le 30 novembre 2026 sur la mise en vente de la maison de Valbrune au prix de 310 000 €. À défaut, il assignera en partage judiciaire.\n\nBien confraternellement,\nMe DURAND"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-note06", "fichier": "Note succession MARTIN.docx",
+         "texte": "Indivision successorale entre Lucie MARTIN et Marc MARTIN depuis le décès de leur mère. Bien principal : maison de Valbrune. Mme MARTIN occupe la maison depuis 2025."}
+      ],
+      "decisions": [
+        {"id": "d1", "type": "objectif", "texte": "Mme MARTIN veut conserver la maison et racheter la part de son frère ; elle n'accepte pas la mise en vente."}
+      ],
+      "attendu": {
+        "pieces": ["doc-note06"],
+        "positions": [{"point": "réponse à donner (proposition de rachat, demande d'évaluation, refus motivé)", "mots_cles": ["rachat", "racheter", "evaluation", "estimation", "part"]}],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": [{"decision": "d1", "ignorer_negation": true, "interdit": "(accepte|acceptons|accepter|accord)[^.]{0,60}(mise en vente|vendre|vente)"}]
+      }
+    },
+    {
+      "id": "R19", "categorie": "desaccord_montant", "chemin": "reponse", "dossier": "DOS-002",
+      "courriel": {"de": "paul.martin@example.test", "role": "client",
+        "objet": "Régularisation de charges 2025",
+        "texte": "Bonjour Maître,\n\nLa SCI ORLANDEC me réclame 3 480 € de régularisation de charges pour 2025. J'estime ne devoir que 1 200 €. Qu'en pensez-vous et que faut-il faire ?\n\nPaul MARTIN"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-decompte02", "fichier": "Décompte de charges 2025.pdf",
+         "texte": "Décompte de régularisation des charges 2025 adressé par la SCI ORLANDEC : entretien des parties communes 1 200 € ; taxe foncière 2 280 € ; total 3 480 €."},
+        {"id": "doc-bail02", "fichier": "Bail commercial.pdf",
+         "texte": "Bail commercial du 1er janvier 2021. Article 9 (charges) : le preneur rembourse les frais d'entretien des parties communes ; la taxe foncière reste à la charge exclusive du bailleur."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-decompte02", "doc-bail02"],
+        "positions": [{"point": "suite à donner : contestation écrite au bailleur ou paiement de la seule part due", "mots_cles": ["contest", "payer", "paiement", "courrier"]}],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R20", "categorie": "desaccord_montant", "chemin": "reponse", "dossier": "DOS-004",
+      "courriel": {"de": "direction@orlandec-distribution.example.test", "role": "autre_partie",
+        "objet": "Votre requête — contestation du montant",
+        "texte": "Maître,\n\nNous ne devons à KERVILAC SARL que 6 000 € et non 9 600 € : la prestation de mars n'a jamais été livrée. Nous sommes prêts à virer 6 000 € immédiatement si la procédure est retirée.\n\nLa direction, ORLANDEC Distribution"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-requete04", "fichier": "Requête injonction de payer.pdf",
+         "texte": "Requête en injonction de payer déposée le 3 septembre 2026 contre ORLANDEC Distribution, pour un montant principal de 9 600 € TTC (huit factures de 1 200 € TTC, janvier à août 2026)."},
+        {"id": "doc-bl04", "fichier": "Bon de livraison mars 2026.pdf",
+         "texte": "Bon de livraison de la prestation de mars 2026, signé par un représentant d'ORLANDEC Distribution le 31 mars 2026."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-bl04"],
+        "positions": [{"point": "suite à donner à l'offre de 6 000 € (refus, acompte sans renonciation)", "mots_cles": ["6 000", "acompte", "offre", "proposition"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "(nous|notre cliente?) (acceptons|accepte|retirons|retire)[^.]{0,50}(6\\s?000|procedure|requete)", "raison": "engagement ou renonciation à la place du client", "hors_variantes": true}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R21", "categorie": "desaccord_montant", "chemin": "reponse", "dossier": "DOS-001",
+      "courriel": {"de": "claire.durand@durand-menuiserie.example.test", "role": "client",
+        "objet": "Votre facture d'honoraires",
+        "texte": "Bonjour Maître,\n\nVotre facture de 2 400 € HT me paraît élevée : notre convention prévoyait 1 800 € HT. Pouvez-vous m'expliquer ?\n\nClaire DURAND"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-convention01", "fichier": "Convention d'honoraires.pdf",
+         "texte": "Convention d'honoraires DURAND Menuiserie : forfait de 1 800 € HT pour la première instance, hors incidents de procédure. Tout incident est facturé au temps passé, au taux de 150 € HT de l'heure."},
+        {"id": "doc-temps01", "fichier": "Relevé de temps.xlsx",
+         "texte": "Incident de communication de pièces (octobre 2026) : 4 heures au taux de 150 € HT, soit 600 € HT. Total facturé : 1 800 € HT + 600 € HT = 2 400 € HT."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-convention01", "doc-temps01"],
+        "positions": [{"point": "maintenir la facture ou consentir un geste commercial", "mots_cles": ["geste", "remise", "maintien", "maintenir", "facture"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "nous (vous )?(accordons|consentons|offrons) (une )?(remise|reduction|geste)", "raison": "geste commercial décidé à la place de l'avocat", "hors_variantes": true}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R22", "categorie": "question_sans_reponse", "chemin": "reponse", "dossier": "DOS-005",
+      "courriel": {"de": "hugo.orlandec@example.test", "role": "client",
+        "objet": "Le vendeur savait-il ?",
+        "texte": "Bonjour Maître,\n\nLe vendeur était-il au courant des infiltrations avant la vente ? Peut-on le prouver ?\n\nHugo ORLANDEC"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-crclient05", "fichier": "Compte rendu rendez-vous client 2026-09-18.docx",
+         "texte": "Compte rendu du rendez-vous du 18 septembre 2026 avec M. Hugo ORLANDEC. Infiltrations constatées dans les combles en janvier 2026. Aucune expertise réalisée à ce jour. Aucun élément à ce stade ne démontre que le vendeur connaissait les infiltrations. Pistes : témoignages des voisins, factures de travaux antérieurs, annonces de vente."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-crclient05"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "le vendeur (savait|connaissait|etait au courant)(?! ?\\?)", "raison": "fait inventé : aucune preuve de connaissance", "hors_variantes": false}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R23", "categorie": "question_sans_reponse", "chemin": "reponse", "dossier": "DOS-003",
+      "courriel": {"de": "sophie.bernard@example.test", "role": "client",
+        "objet": "Combien puis-je obtenir ?",
+        "texte": "Bonjour Maître,\n\nSi nous gagnons, combien vais-je toucher au total ?\n\nSophie BERNARD"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-note03", "fichier": "Note dossier BERNARD.docx",
+         "texte": "Licenciement pour cause réelle et sérieuse notifié le 3 juin 2026. Ancienneté : 7 ans. Mme BERNARD conteste le motif. Bulletins de salaire : non encore reçus ; salaire de référence inconnu."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-note03"],
+        "positions": [],
+        "faits_absents": [{"quoi": "salaire mensuel brut de référence (bulletins de salaire)", "mots_cles": ["salaire", "bulletin"]}],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R24", "categorie": "question_sans_reponse", "chemin": "reponse", "dossier": "DOS-006",
+      "courriel": {"de": "durand@durand-avocats.example.test", "role": "confrere_adverse",
+        "objet": "Indivision MARTIN — estimation",
+        "texte": "Chère consœur,\n\nVotre cliente a-t-elle fait estimer la maison de Valbrune ? Si oui, par quelle agence et pour quelle valeur ?\n\nBien confraternellement,\nMe DURAND"},
+      "consigne": "",
+      "pieces": [
+        {"id": "doc-note06", "fichier": "Note succession MARTIN.docx",
+         "texte": "Indivision successorale entre Lucie MARTIN et Marc MARTIN depuis le décès de leur mère. Bien principal : maison de Valbrune. Mme MARTIN occupe la maison depuis 2025. Aucune estimation n'est au dossier."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-note06"],
+        "positions": [],
+        "faits_absents": [{"quoi": "existence d'une estimation par une agence (à demander à la cliente)", "mots_cles": ["estimation", "agence"]}],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R25", "categorie": "demande_pieces", "chemin": "courriel_nouveau", "dossier": "DOS-004",
+      "consigne": "Prépare un courriel à la gérance de KERVILAC SARL pour lui demander les pièces qui manquent encore pour la procédure contre ORLANDEC Distribution.",
+      "pieces": [
+        {"id": "doc-manquantes04", "fichier": "Liste des pièces DOS-004.docx",
+         "texte": "Pièces nécessaires : contrat de prestation signé (reçu) ; huit factures (reçues) ; bons de livraison signés de janvier à août 2026 (non reçus) ; relances écrites adressées à ORLANDEC Distribution (non reçues) ; extrait Kbis de KERVILAC SARL de moins de trois mois (non reçu)."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-manquantes04"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R26", "categorie": "transaction_sans_position", "chemin": "courriel_nouveau", "dossier": "DOS-001",
+      "consigne": "Prépare un courriel à Me KERVILAC en réponse à sa proposition transactionnelle de 12 000 € pour ZORVAL SAS.",
+      "pieces": [
+        {"id": "doc-proposition01", "fichier": "Courriel Me KERVILAC proposition.eml",
+         "texte": "Me KERVILAC, le 3 novembre 2026 : sans reconnaissance de responsabilité, ZORVAL SAS propose de régler 12 000 € en trois versements mensuels, pour solde de tout compte. Réponse attendue sous quinzaine."},
+        {"id": "doc-assignation01", "fichier": "Assignation ZORVAL.pdf",
+         "texte": "Assignation devant le tribunal de commerce de Valbrune : DURAND Menuiserie demande la condamnation de ZORVAL SAS au paiement de 18 400 € TTC au titre de trois factures impayées."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-proposition01"],
+        "positions": [{"point": "accepter, refuser ou contre-proposer à l'offre de 12 000 €", "mots_cles": ["12 000", "proposition", "offre"]}],
+        "faits_absents": [],
+        "interdits": [
+          {"ignorer_negation": true, "motif": "(ma|notre) cliente? (accepte|refuse)|(nous|j) (acceptons|refusons) (votre|cette|la) (proposition|offre)", "raison": "position prise à la place de l'avocat", "hors_variantes": true}
+        ],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R27", "categorie": "echeance", "chemin": "courriel_nouveau", "dossier": "DOS-003",
+      "consigne": "Prépare un courriel à Mme BERNARD pour lui rappeler l'audience de conciliation et ce qu'elle doit apporter.",
+      "pieces": [
+        {"id": "doc-convocation03", "fichier": "Convocation bureau de conciliation.pdf",
+         "texte": "Conseil de prud'hommes de Valbrune. Affaire BERNARD c/ Valbrune Logistique. Convocation devant le bureau de conciliation et d'orientation le 20 novembre 2026 à 14 h. Se munir d'une pièce d'identité."},
+        {"id": "doc-liste03", "fichier": "Préparation conciliation.docx",
+         "texte": "À apporter par Mme BERNARD : pièce d'identité, trois derniers bulletins de salaire, lettre de licenciement du 3 juin 2026."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-convocation03"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": []
+      }
+    },
+    {
+      "id": "R28", "categorie": "desaccord_montant", "chemin": "courriel_nouveau", "dossier": "DOS-002",
+      "consigne": "Prépare un courriel à Me ZORVAL pour contester la régularisation de charges 2025 réclamée à M. MARTIN.",
+      "pieces": [
+        {"id": "doc-decompte02", "fichier": "Décompte de charges 2025.pdf",
+         "texte": "Décompte de régularisation des charges 2025 adressé par la SCI ORLANDEC : entretien des parties communes 1 200 € ; taxe foncière 2 280 € ; total 3 480 €."},
+        {"id": "doc-bail02", "fichier": "Bail commercial.pdf",
+         "texte": "Bail commercial du 1er janvier 2021. Article 9 (charges) : le preneur rembourse les frais d'entretien des parties communes ; la taxe foncière reste à la charge exclusive du bailleur."}
+      ],
+      "decisions": [],
+      "attendu": {
+        "pieces": ["doc-bail02"],
+        "positions": [],
+        "faits_absents": [],
+        "interdits": [],
+        "decisions": []
+      }
+    }
+  ]
+}

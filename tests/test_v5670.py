@@ -38,7 +38,7 @@ class Objet(unittest.TestCase):
             plain = make_draft(mail, cfg, 'Bonjour,\nVoici la réponse.', 'k' * 16)
             marked = make_draft(mail, cfg, 'Bonjour,\n[À COMPLÉTER : position sur le renvoi]', 'k' * 16)
         self.assertEqual(plain['Subject'], 'Re: Point sur le dossier')
-        self.assertTrue(marked['Subject'].startswith('[À COMPLÉTER] '))
+        self.assertTrue(marked['Subject'].startswith('[À COMPLÉTER : 1 fait] '))   # 5.6.95 (D04) : l'objet dit ce qui reste à faire
         mark_subject(marked)
         self.assertEqual(len(marked.get_all('X-AxiorHub-A-Completer')), 1)   # appel répété : pas d'en-tête en double
 

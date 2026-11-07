@@ -883,10 +883,10 @@ def day_html(desk, prefix):
         if not mine or personal:
             icons = (_icon('edit', 'Modifier la tâche', {'data-tk-edit': t['id'], 'data-title': t['title'], 'data-due': str(t['due'] or '')[:10]})
                      + _icon('trash', 'Supprimer la tâche (annulée dans Nextcloud)', {'data-tk-del': t['id'], 'data-title': t['title']}))
-        tk_html += ('<li class="c530-task c530-has-icons"><input type="checkbox" id="c530-tk-%s" data-task="%s"%s><label for="c530-tk-%s"><span class="%s">%s</span>%s</label>'
+        tk_html += ('<li class="c530-task c530-has-icons"><input type="checkbox" id="c530-tk-%s" data-task="%s"%s><label for="c530-tk-%s"><span class="%s" title="%s">%s</span>%s</label>'
                     '<span class="c530-by %s">%s</span><span class="c530-icons">%s</span></li>') % (
             e(t['id'], quote=True), e(t['id'], quote=True), ' checked' if t['status'] == 'completed' else '', e(t['id'], quote=True),
-            'c530-done' if t['status'] == 'completed' else '', e(t['title']), ('<span class="c530-sub">%s</span>' % e(sub)) if sub else '',
+            'c530-done' if t['status'] == 'completed' else '', e(t['title'], quote=True), e(t['title']), ('<span class="c530-sub">%s</span>' % e(sub)) if sub else '',   # 5.6.95 (A03) : titre complet en infobulle
             'me' if mine else 'agent', 'Vous' if mine else 'Agent', icons)
     from . import deck530
     s = deck530.settings(desk)
@@ -1171,7 +1171,7 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     html = ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
             # 5.6.17 : le cadre « Routines du cabinet » (briefing, tri, bilan, documents) est en tête de page, avant le Pilote.
-            '<!--t88-haut--><div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section><!--/b88:routines-->'
+            '<!--t88-haut-->__ACTUELLEMENT5695__<div class="c530-split c530-split--top"><section class="c530-card" id="c530-routines" aria-labelledby="c530-t-routines">%s</section><!--/b88:routines-->'
             '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section><!--/b88:style--></div><!--/t88-haut-->'
             '%s%s'
             # 5.6.57 (A09) : « À relire » rejoint la file unique « À décider / À relire » (en bas de page)
@@ -1207,7 +1207,16 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
         except Exception as ex:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
             import logging
             logging.getLogger(__name__).exception('accueil 5.6.89 : %s', ex)
-    html = html.replace('__VEILLE5632__', veille).replace('__FILE5656__', queue or '').replace('__REPRISE5657__', reprise)
+    actuellement = ''
+    try:   # 5.6.95 (A01) : encadré « Actuellement » aussi sur l'ancienne page ; masqué par la personne : rien n'est calculé
+        from . import tableau5688
+        if 'actuellement' not in tableau5688.charger(desk, owner)['masques']:
+            from .actuellement5695 import bloc_html
+            from .i18n5631 import role as _role95
+            actuellement = bloc_html(desk, prefix, owner, _role95()) + '<!--/b88:actuellement-->'
+    except Exception:   # noqa: BLE001 — l'encadré ne doit jamais empêcher l'affichage d'Aujourd'hui
+        actuellement = ''
+    html = html.replace('__VEILLE5632__', veille).replace('__FILE5656__', queue or '').replace('__REPRISE5657__', reprise).replace('__ACTUELLEMENT5695__', actuellement)
     return _personnel5688(desk, prefix, html, owner) + panel_html(desk, prefix)
 
 

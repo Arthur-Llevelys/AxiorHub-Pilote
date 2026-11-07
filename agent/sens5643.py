@@ -20,6 +20,11 @@ from pathlib import Path
 from .common import Stop
 
 MARKER = re.compile(r'\[\s*(?:à|a)\s+compl[ée]ter\b[^\]]*\]', re.I)
+# 5.6.95 (D04) : mention « [À RELIRE …] » (en-tête du projet, objet) et blocs de variantes « ▸ Variante A … ▸ Fin des variantes » ;
+# recherchés sans ancrage de ligne, pour qu'une partie HTML convertie en texte soit contrôlée comme le texte brut.
+RELIRE = re.compile(r'\[\s*(?:à|a)\s+relire\b[^\]]*\]', re.I)
+VARIANTES = re.compile(r'▸\s*(?:variante\s+[a-z]\b|fin\s+des\s+variantes|choix\s+(?:à|a)\s+faire|proposition\s+(?:à|a)\s+confirmer|'
+                       r'fin\s+de\s+la\s+proposition)', re.I)   # v2 : « Proposition à confirmer » (une seule option) bloque aussi
 SALUTATIONS = re.compile(r'^\s*(?:madame|monsieur|ma(?:î|i)tre|cher|ch(?:è|e)re|bonjour)[^\n]*$|'
                          r'je vous prie[^\n]*$|bien (?:à vous|cordialement)[^\n]*$|cordialement[^\n]*$', re.I | re.M)
 
@@ -172,12 +177,26 @@ def check_recipients(to, cc, mail_cfg):
     return primary
 
 
+def blocage_envoi(subject, *texts):
+    """5.6.95 (D04, D06) : motif de refus d'envoi, ou chaîne vide. Marqueur « [À COMPLÉTER » (ancien ou nouveau), bloc de variantes non
+    choisi, mention « [À RELIRE » : dans l'objet OU dans n'importe quel texte du message. Retirer la mention de l'objet ne suffit donc jamais."""
+    every = [str(subject or '')] + [str(t or '') for t in texts]
+    if any(MARKER.search(t) for t in every):
+        return 'brouillon_a_completer'
+    if any(VARIANTES.search(t) for t in every):
+        return 'brouillon_variante_a_choisir'
+    if any(RELIRE.search(t) for t in every):
+        return 'brouillon_a_relire'
+    return ''
+
+
 def redaction_status(body):
-    """'complete', 'partial' (marqueurs ponctuels) ou 'needs_validation' (le fond lui-même est un marqueur)."""
+    """'complete', 'partial' (marqueurs ponctuels) ou 'needs_validation' (le fond lui-même est un marqueur).
+    5.6.95 : un bloc de variantes non choisi n'est pas « complet » : 'partial' (le reste du courriel est rédigé)."""
     text = str(body or '')
     markers = MARKER.findall(text)
     if not markers:
-        return 'complete'
+        return 'partial' if VARIANTES.search(text) else 'complete'
     rest = MARKER.sub('', text)
     rest = SALUTATIONS.sub('', rest)
     substantive = re.sub(r'\s+', ' ', rest).strip()

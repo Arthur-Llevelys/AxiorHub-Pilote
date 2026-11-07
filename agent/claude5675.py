@@ -750,9 +750,10 @@ def t_chercher(ctx, args):
     limit = max(1, min(int(args.get('limite') or 10), 20))
     index = _index(ctx)
     m = _matter(ctx, args.get('dossier'), required=False)
-    if m:
-        ranked, _ = index.ranked_chunks(m, [question], limit=limit * 2)
-        rows = [{'matter': r[0], 'source_id': r[1], 'path': r[2], 'modified': r[4], 'kind': r[5], 'excerpt': r[7]} for r, _score in ranked]
+    if m:   # 5.6.95 (R01) : service commun de recherche (droits relus, pièces écartées par l'avocat)
+        from .recherche5695 import passages
+        rows = [{'matter': p['dossier'], 'source_id': p['source_id'], 'path': p['document'], 'modified': p['date'], 'kind': p['nature'], 'excerpt': p['extrait']}
+                for p in passages(ctx.desk, m, question, limit * 2, ctx.owner, ctx.role, index=index, memoire=False)]
     else:
         rows, _ = index.global_sources([question], limit=limit * 2)
     out, withheld = [], 0

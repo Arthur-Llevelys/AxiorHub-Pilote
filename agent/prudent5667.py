@@ -1,17 +1,22 @@
 """5.6.67 (point 1) : projet de réponse « à compléter » — courriel juridique ou stratégique d'un dossier connu.
 
-Le projet prudent préparé par l'agent (faits et pièces du dossier, plan, marqueurs « [À COMPLÉTER : …] » là où l'avocat doit trancher)
-est déposé dans les Brouillons seulement si le contrôle indépendant confirme qu'il est fondé sur les sources, sans risque pour le
-destinataire et qu'il n'a suivi aucune instruction contenue dans les documents. Il porte « [À COMPLÉTER] » dans l'objet et en première
-ligne ; l'envoi depuis AxiorHub le refuse tant qu'un marqueur reste. Réglage : automation:mail_projects_to_complete_enabled.
+Le projet prudent préparé par l'agent (faits et pièces du dossier, réponse rédigée) est déposé dans les Brouillons seulement si le
+contrôle indépendant confirme qu'il est fondé sur les sources, sans risque pour le destinataire et qu'il n'a suivi aucune instruction
+contenue dans les documents. Réglage : automation:mail_projects_to_complete_enabled.
+
+5.6.95 (D04) : le corps déposé n'est plus une suite de lignes « [À COMPLÉTER : …] » (une par limite relevée, plus un marqueur forcé).
+Une seule ligne d'en-tête courte « [À RELIRE : …] » ; les limites vont dans la fiche de contrôle (page du courriel) ; les positions de
+l'avocat sont des variantes rédigées (``redaction5695``) ; les marqueurs ne désignent plus que des faits absents (au plus 2). L'objet dit
+ce qui reste à faire (« [À RELIRE : 1 choix] », « [À COMPLÉTER : 1 fait] ») ; l'envoi depuis AxiorHub reste refusé tant qu'un bloc de
+variantes, un marqueur ou la mention « À RELIRE » subsiste dans l'objet ou le corps (``sens5643.blocage_envoi``).
 """
-from .sens5643 import MARKER
+from .common import Stop
+from .redaction5695 import HEADER_FAITS, HEADER_VARIANTES, MENTION, compter, mention_objet
 
 SETTING = 'automation:mail_projects_to_complete_enabled'
 SAFETY = ('grounded', 'recipient_safe', 'ignores_embedded_instructions')
-PREFIX = '[À COMPLÉTER] '
-HEAD = ('[À COMPLÉTER : projet préparé par AxiorHub — la position de l’avocat reste à arrêter ; relire, compléter puis supprimer '
-        'ces lignes avant tout envoi]')
+PREFIX = '[À COMPLÉTER] '     # ancienne mention d'objet (avant 5.6.95) : toujours reconnue par MENTION et par le blocage d'envoi
+HEAD = '[À RELIRE : projet préparé par AxiorHub — gardez une variante par choix, complétez les faits signalés, puis supprimez cette ligne]'
 
 
 def enabled(desk):
@@ -25,20 +30,29 @@ def safe_to_complete(verdict):
 
 
 def complete_body(result):
-    """Corps déposé : avertissement, points à trancher (limites relevées par l'agent), puis le projet ; au moins un marqueur."""
-    lines = [HEAD]
-    for point in [str(x).strip() for x in (result.get('limits') or []) if str(x).strip()][:6]:
-        lines.append('[À COMPLÉTER : %s]' % point.replace('[', '(').replace(']', ')')[:300])
+    """Corps déposé : une ligne d'en-tête, puis le courriel entier (variantes en blocs lisibles). Jamais de corps vide."""
     body = str(result.get('body') or '').strip()
-    if not MARKER.search(body):
-        body += '\n\n[À COMPLÉTER : position de l’avocat]'
-    return '\n'.join(lines) + '\n\n' + body
+    if not body:
+        raise Stop('depot_bloque_decision_requise')
+    return HEAD + '\n\n' + body
 
 
-def mark_subject(message):
+def _body(message):
+    try:
+        part = message.get_body(preferencelist=('plain',))
+        return part.get_content() if part is not None else ''
+    except Exception:   # noqa: BLE001 — message sans corps lisible (en cours de construction)
+        return ''
+
+
+def mark_subject(message, body=None):
+    """Objet : mention de ce qui reste à faire ; en-têtes techniques (faits, variantes). Appel répété : aucun doublon."""
+    left = compter(_body(message) if body is None else body)
     subject = str(message.get('Subject', ''))
-    if not subject.startswith(PREFIX.strip()):
-        message.replace_header('Subject', PREFIX + subject)
-    if message.get('X-AxiorHub-A-Completer') is None:   # 5.6.70 : appel répété sans en-tête en double
-        message['X-AxiorHub-A-Completer'] = 'oui'
+    if not MENTION.match(subject):
+        message.replace_header('Subject', mention_objet(left['choix'], left['marqueurs']) + subject)
+    if message.get(HEADER_FAITS) is None:   # 5.6.70 : appel répété sans en-tête en double
+        message[HEADER_FAITS] = 'oui'
+    if left['choix'] and message.get(HEADER_VARIANTES) is None:
+        message[HEADER_VARIANTES] = str(left['choix'])
     return message

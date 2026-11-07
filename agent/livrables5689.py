@@ -706,7 +706,10 @@ def _sync_source(desk, src, force, fond=False):
                 store('unavailable', 'Source illisible pour l’instant : les documents déjà connus restent affichés.', ok=False)
             desk.db.commit()
         return
-    if row and row['signature'] == signature and row['state'] != 'unavailable' and not force:
+    # 5.6.95 (A05) : un état « partiel » sans ligne illisible (« Collecte reprise depuis le début », posé par la réparation 5.6.93 sur une source
+    # sans journal paginé) n'a rien à attendre : la source est relue une fois, ce qui rend son état réel au lieu d'un avertissement permanent.
+    reprise = bool(row) and row['state'] == 'partial' and not row['errors']
+    if row and row['signature'] == signature and row['state'] != 'unavailable' and not reprise and not force:
         return
     errors, count = 0, 0
     try:

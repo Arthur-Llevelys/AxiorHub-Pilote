@@ -3,6 +3,18 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.95 — Brouillons terminés, recherche commune, routage mesuré, Aujourd’hui en Carbon
+
+Rédaction encadrée des courriels, recherche dans le dossier unifiée, routage tenant compte des mesures réelles, et page Aujourd’hui plus efficace avec l’encadré « Actuellement ».
+
+- **Brouillons terminés** : le courriel est rédigé en entier. Là où la position de l’avocat manque (accepter ou refuser, montant, stratégie), le projet propose 2 ou 3 variantes rédigées ; « Garder cette variante » retire les autres. « [À COMPLÉTER] » est réservé aux faits absents du dossier. Un bloc qui ne garde qu’une option devient « Proposition à confirmer ». L’objet dit ce qui reste à faire (« [À RELIRE : 1 choix] », « [À COMPLÉTER : 1 fait] ») et l’envoi reste bloqué tant qu’un choix ou un fait reste ouvert. Les crochets de signature disparaissent ; les montants absents des sources sont refusés. Les points relevés vont dans la fiche de contrôle, plus dans le corps. Sorties structurées natives des fournisseurs, validation stricte, une seule correction ciblée.
+- **Recherche dans le dossier** : un service commun pour la préparation des brouillons, l’assistant et l’outil « chercher » du connecteur Claude ; droits relus, pièces retirées et faits refusés écartés, éléments validés par l’avocat en tête. Le reclassement par un modèle a été mesuré (aucun gain de rappel, licence du modèle incertaine) et n’est pas proposé.
+- **Routage mesuré** : réussite, sorties invalides, escalades, délais et coût par modèle et par type de travail sur 30 jours, sans aucun texte ; mode « conseil » par défaut (Paramètres › Modèles d’IA › Routage mesuré, export CSV), « actif » sur choix de l’administrateur. La politique du cabinet (local uniquement, ChatGPT uniquement, destination, dossier réservé, pause, horaires, budgets) s’applique toujours avant tout classement.
+- **Aujourd’hui** : encadré « Actuellement » en tête (agenda, tâches, courriels, réponses à décider, documents, avis, stratégie, agent), calculé sans IA, mis à jour chaque minute ; boutons Actualiser, Arrêter / Reprendre, Écouter. Page « Personnaliser » refaite ; blocs du bas repliables ; titres longs des tâches raccourcis.
+- **Avertissement « Source indisponible » permanent corrigé** : la Bibliothèque de modèles et les Formulaires restaient marqués « collecte reprise » depuis la 5.6.93 ; la base est réparée à la première lecture.
+- **Lecture à voix haute** : heures et dates en toutes lettres (« neuf heures trente », « trente octobre deux mille vingt-six »), RPVA épelé, Portalis, hors taxes et toutes taxes comprises, chambres civile, commerciale, sociale et criminelle, Conseil constitutionnel, numéros de pourvoi lus par groupes.
+- **Évaluation des brouillons avant publication** : 28 cas fictifs du cabinet, contrôles déterministes dans la recette, DeepEval avec un juge local sur le poste de développement (`docs/EVALUATION-REDACTION.md`).
+
 ## 5.6.94 — Fiabilité, voix française Brindille, dictée améliorée
 
 Fiabilité des travaux automatiques, traces locales sans texte des dossiers, parcours de navigateur vérifiés avant publication, et nouvelle voix produite dans le navigateur.

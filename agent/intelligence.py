@@ -309,8 +309,10 @@ def prepare_draft(desk,args):
             from .boite5625 import attachment_sources
             extra,attachment_notes=attachment_sources(desk,mail);sources+=extra
         if m['id']:
-            index=source_index(desk.c);docs,coverage=index.sources(DAV(desk.c['nextcloud']),m,[mail.subject,mail.text[:1000]],
-                                                    {**desk.c['documents'],'max_documents_per_mail':3});sources+=docs
+            from .recherche5695 import classeur   # 5.6.95 (R01) : service commun (droits, pièces écartées par l'avocat)
+            index=source_index(desk.c);index.classer5695=classeur(desk)
+            docs,coverage=index.sources(DAV(desk.c['nextcloud']),m,[mail.subject,mail.text[:1000]],
+                                        {**desk.c['documents'],'max_documents_per_mail':3});sources+=docs
         else:coverage={'sans_dossier':True,'not_exhaustive':True}
         if m['id'] and desk.c.get('legal_memory',{}).get('enabled',True):
             from .legal_memory import memory_sources
@@ -359,10 +361,21 @@ def prepare_draft(desk,args):
             intent='premier_contact';payload['premier_contact']=first_contact(desk)
         payload['intent']=intent                              # 5.6.56 (N13) : même intention pour la rédaction et pour le contrôle
         dropped=fit_manual_draft_context(payload,desk.c['ollama'].get('max_context_chars',65000))
-        result=Model(routed_config(desk.c,'mail_drafting')).ask('manual_draft',payload);validate(result,MANUAL_DRAFT)
+        writer=Model(routed_config(desk.c,'mail_drafting'))
+        result=writer.ask('manual_draft',payload);validate(result,MANUAL_DRAFT)
+        from . import redaction5695   # 5.6.95 (D02) : contrôle métier, une seule correction ciblée par Model.ask, écart restant signalé
+        from .faits5667 import reference_text as _reference5695, without_examples as _sans_exemples5695
+        result=redaction5695.verifier(writer,payload,result,MANUAL_DRAFT,ids_valides=[s['id'] for s in payload['sources']],
+                                      sources=payload['sources'],incoming=payload.get('incoming'),intent=intent,
+                                      reference=_reference5695({**payload,'sources':_sans_exemples5695(payload.get('sources'))}),   # v2 : montants des variantes
+                                      consignes=_reference5695({k:payload.get(k) for k in ('regles_du_cabinet','corrections_approuvees','apprentissage_metier',   # v3 : fiche
+                                          'preferences_assistant','consignes_permanentes_du_dossier','regle_sources_juridiques','profil_de_ton','premier_contact','dossier')}))
         valid={s['id'] for s in payload['sources']}
         if any(x not in valid for x in result['source_ids']):raise Stop('source_brouillon_invalide')
         if result['body'] and len(result['body'])>7000:raise Stop('brouillon_trop_long')
+        if result['body']:   # 5.6.95 (D04) : variantes rendues en blocs lisibles ; un choix ou un fait à compléter attend toujours l'avocat
+            result['body']=redaction5695.assembler(result['body'],result['variantes'])
+        if result['variantes'] or redaction5695.marqueurs(result):result['requires_decision']=True
         if attachment_notes:result['limits'].append('Pièce(s) jointe(s) non lue(s) : '+' ; '.join(attachment_notes)[:400])
         societe5688.poser_brouillon(result,controle)
         if legal:
@@ -383,8 +396,10 @@ def prepare_draft(desk,args):
         # savoir si le projet peut être déposé « à compléter » (sûreté), jamais à lever l'exigence de décision.
         if result['body'] and not (result['requires_decision'] and dropped):   # sources omises : ni dépôt ni projet « à compléter »
             decided_before=bool(result['requires_decision'])
-            control_payload={**payload,'intent':intent,'proposed_body':result['body'],
+            control_payload={**payload,'intent':intent,'proposed_body':redaction5695.corps_pour_controle(result['body']),
                              'referenced_sources':result['source_ids'],'selected_slots':slots[:3]}
+            if redaction5695.blocs(result['body']):   # v3 : corps complet, options « Option A / Option B » jugées chacune
+                control_payload['consigne_options']=redaction5695.CONSIGNE_OPTIONS
             from .context import payload_size
             if payload_size(control_payload)>desk.c['ollama'].get('max_context_chars',65000):
                 if not decided_before:
@@ -414,7 +429,9 @@ def prepare_draft(desk,args):
         desk.db.execute('INSERT OR REPLACE INTO manual_drafts VALUES (?,?,?)',(key,json.dumps(data),desk.now()));desk.db.commit()
         from .prudent5667 import safe_to_complete
         return {'projet_prepare':bool(result['body']),'depot_autorise':bool(result['body']) and not result['requires_decision'],
-                'a_completer_possible':bool(result['body']) and result['requires_decision'] and safe_to_complete(verdict)}
+                # v3 : plus de 2 faits absents n'empêchent plus le dépôt (objet « [À COMPLÉTER : n faits] », envoi bloqué) ; seule la sûreté décide
+                'a_completer_possible':bool(result['body']) and result['requires_decision'] and safe_to_complete(verdict),
+                'variantes':len(result.get('variantes') or []),'marqueurs':redaction5695.marqueurs_depot(result['body'])}
     finally:box.close()
 
 
@@ -429,7 +446,7 @@ def deposit_draft(desk,args):
     if to_complete:
         from .prudent5667 import complete_body,safe_to_complete
         if not safe_to_complete(data.get('verification')):raise Stop('controle_de_surete_non_satisfait')
-        result={**result,'body':complete_body(result)}
+        result={**result,'body':complete_body(result)}   # v3 : le nombre de faits à compléter ne refuse plus le dépôt ; l'envoi reste bloqué
     if data['matter'] or data.get('matter_path'):   # 5.6.25 : un projet sans dossier n'a pas de répertoire à revérifier
         m=matter(desk.c,data['matter'])
         if m['path']!=data['matter_path']:raise Stop('dossier_modifie_depuis_projet')
@@ -483,7 +500,9 @@ def deposit_draft(desk,args):
         reason_done='projet_a_completer_depose' if to_complete else 'projet_prudent_verifie'
         state.set(key,mid,thread,'drafted',reason_done,draft_mid)
         report.update(status='drafted',reason=reason_done,draft_body=result['body'],draft_message_id=draft_mid,
-                      draft_verified=verification,manual_confirmation_at=desk.now(),sources=data['sources'],a_completer=to_complete)
+                      draft_verified=verification,manual_confirmation_at=desk.now(),sources=data['sources'],a_completer=to_complete,
+                      fiche_controle={'limits':list(result.get('limits') or [])[:20],'variantes':result.get('variantes') or [],   # 5.6.95 (D04) : hors du corps
+                                      'a_completer':result.get('a_completer') or [],'controle':result.get('controle5695') or {}})
         state.report(key,report);desk.db.execute('DELETE FROM manual_drafts WHERE mail_key=?',(key,))
         desk.db.execute('CREATE TABLE IF NOT EXISTS reply_drafts5687(draft_key TEXT PRIMARY KEY, mail_key TEXT NOT NULL)')    # 5.6.87 : du brouillon au courriel, pour relancer
         desk.db.execute('INSERT OR REPLACE INTO reply_drafts5687 VALUES(?,?)',(draft_key(draft),key));desk.db.commit()

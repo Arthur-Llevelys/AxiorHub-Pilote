@@ -521,10 +521,12 @@ def make_draft(mail, cfg, body, key, cc=(), to=None):
     result['In-Reply-To'] = mail.mid
     chain = list(dict.fromkeys(mail.refs + [mail.mid]))
     result['References'] = ' '.join(chain[-40:])
-    from .sens5643 import MARKER   # 5.6.70 : un projet contenant « [À COMPLÉTER » est marqué dans l'objet, quel que soit le chemin de dépôt
-    if MARKER.search(body or ''):
+    # 5.6.70 : un projet contenant « [À COMPLÉTER » est marqué dans l'objet, quel que soit le chemin de dépôt ; 5.6.95 (D04) : aussi un bloc
+    # de variantes non choisi ou la ligne « [À RELIRE » ; l'objet dit ce qui reste à faire.
+    from .redaction5695 import reste_a_faire
+    if reste_a_faire(body or ''):
         from .prudent5667 import mark_subject
-        mark_subject(result)
+        mark_subject(result, body or '')
     result['X-AxiorHub-Draft-Key'] = key
     result.set_content(body.strip() + '\n\n' + cfg['signature'].strip() + '\n')
     return result

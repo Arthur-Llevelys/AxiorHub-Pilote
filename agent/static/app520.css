@@ -3415,3 +3415,103 @@ dialog.ui89-panneau::backdrop { background: rgba(22, 22, 22, .5); }
 .v94-voix .v94-licences { border-top: 1px solid var(--cds-border-subtle-01, #c6c6c6); font-size: .875rem; margin-top: 1.5rem; padding-top: .75rem; }
 .v94-voix .v94-credits { color: var(--cds-text-secondary, inherit); padding-left: 1.25rem; }
 .v94-voix a:focus-visible, .v94-voix button:focus-visible, .v94-voix input:focus-visible, .v94-voix textarea:focus-visible { outline: 2px solid var(--cds-focus, currentColor); outline-offset: 2px; }
+/* ==== v5695-redaction.css ==== */
+/* AxiorHub 5.6.95 (lot rédaction, D05) — choix à faire dans une réponse préparée : variantes et faits à compléter (page du courriel).
+   Couleurs : jetons Carbon (v5689-carbon-jetons.css) avec repli sur les variables historiques ; clair et sombre suivent les jetons.
+   L'état d'un choix n'est jamais porté par la seule couleur : intitulé, lettre de la variante et bouton explicite. */
+.rd95{margin:12px 0 16px;padding:12px 14px;border:1px solid var(--cds-border-subtle-01,var(--ws-border,#c6c6c6));background:var(--cds-layer-01,transparent);color:var(--cds-text-primary,inherit)}
+.rd95 h3{margin:0 0 6px;font-size:1.05rem}
+.rd95 h4{margin:12px 0 4px;font-size:.95rem}
+.rd95-choix{margin:10px 0;padding:8px 12px 10px;border:1px solid var(--cds-border-strong-01,var(--ws-border,#8d8d8d));min-inline-size:0}
+.rd95-choix legend{padding:0 6px;font-weight:600}
+.rd95-variante{margin:8px 0 0;padding:8px 10px;border-left:4px solid var(--cds-border-interactive,var(--ws-accent,#0f62fe));background:var(--cds-layer-02,transparent)}
+.rd95-libelle{margin:0 0 4px}
+.rd95-texte{margin:0 0 6px;white-space:pre-wrap;overflow-wrap:anywhere}
+.rd95-faits{margin:4px 0 0;padding-left:20px}
+.rd95 .ax-btn:focus-visible{outline:2px solid var(--cds-focus,#0f62fe);outline-offset:2px}
+/* ==== v5695-aujourdhui.css ==== */
+/* AxiorHub 5.6.95 (lot aujourdhui) — encadré « Actuellement » (A01, A02), lisibilité d'Aujourd'hui (A03), page « Personnaliser » (A04).
+   Couleurs : jetons Carbon (v5689-carbon-jetons.css) avec repli sur les variables historiques ; clair et sombre suivent les jetons.
+   Un état n'est jamais porté par la seule couleur : libellé écrit (« Source indisponible ») et icône ; le nombre reste lisible. */
+
+/* ------------------------------------------------------------------ A01 : encadré « Actuellement » */
+.ax95 { margin: 1rem 0 0; padding: 1rem 1.125rem .75rem; border-left: 4px solid var(--cds-border-interactive, var(--ws-accent, #0f62fe)); background: var(--cds-layer-01, var(--ws-surface, #fff)); color: var(--cds-text-primary, inherit); }
+.ax95-tete { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.ax95-tete h2 { font-size: 1.25rem; line-height: 1.4; margin: 0; }
+.ax95-heure { color: var(--cds-text-secondary, #525252); font-size: .875rem; margin: 0; flex: 1 1 14rem; }
+.ax95-actions { display: flex; flex-wrap: wrap; gap: .25rem; }
+.ax95-btn { align-items: center; display: inline-flex; gap: .375rem; min-height: 2rem; }
+.ax95-btn[hidden], .ax95 [data-ax95][hidden] { display: none !important; }
+.ax95-btn:focus-visible, .ax95-ligne:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.ax95-liste { display: grid; grid-template-columns: minmax(0, 1fr); list-style: none; margin: .75rem 0 0; padding: 0; }
+.ax95-liste > li { border-top: 1px solid var(--cds-border-subtle-01, var(--ws-border, #e0e0e0)); }
+.ax95-liste > li:first-child { border-top: 0; }
+.ax95-ligne { align-items: baseline; color: inherit; display: grid; gap: .125rem .75rem; grid-template-columns: 1.25rem minmax(8.5rem, 11rem) 2.75rem minmax(0, 1fr); padding: .5rem .25rem; text-decoration: none; }
+a.ax95-ligne:hover { background: var(--cds-layer-hover-01, var(--cds-background-hover, rgba(141, 141, 141, .12))); }
+a.ax95-ligne:hover .ax95-rubrique { text-decoration: underline; }
+.ax95-icone { align-self: center; color: var(--cds-icon-secondary, #525252); display: inline-flex; }
+.ax95-rubrique { font-weight: 600; }
+.ax95-nombre { font-size: 1.125rem; font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+li[data-zero] .ax95-nombre { color: var(--cds-text-secondary, #525252); font-weight: 400; }
+.ax95-texte { min-width: 0; overflow-wrap: anywhere; }
+.ax95-phrase { color: var(--cds-text-secondary, #525252); }
+.ax95-urgent { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ax95-etat { border: 1px solid currentColor; border-radius: 1rem; display: inline-block; font-size: .75rem; font-weight: 600; margin-left: .5rem; padding: 0 .5rem; }
+.ax95-etat[data-etat=panne], .ax95-etat[data-etat=retard] { color: var(--cds-text-error, #da1e28); }
+.ax95-etat[data-etat=partiel] { color: var(--cds-text-primary, #161616); background: var(--cds-notification-background-warning, #fcf4d6); }
+li[data-etat=panne] .ax95-nombre::after, li[data-etat=retard] .ax95-nombre::after { content: " ?"; }
+.ax95-statut { color: var(--cds-text-secondary, #525252); font-size: .875rem; margin: .25rem 0 0; min-height: 1.25rem; }
+.ax95-pied { color: var(--cds-text-secondary, #525252); font-size: .75rem; margin: .125rem 0 0; }
+.ax95-erreur { color: var(--cds-text-error, #da1e28); }
+@media (max-width: 40rem) {
+  .ax95-ligne { grid-template-columns: 1.25rem minmax(0, 1fr) 2.5rem; }
+  .ax95-texte { grid-column: 2 / -1; }
+  .ax95-urgent { white-space: normal; }
+}
+
+/* ------------------------------------------------------------------ A03 : titres longs tronqués proprement (titre complet en infobulle et lu en entier) */
+.c530-task label > span:first-child, .t88-matin-block li > a:first-child, .a89-titre { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.c530-head h2 .ui89-compte, .ui89-compte { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ A04 : Personnaliser Aujourd'hui */
+.t95-form { max-width: 46rem; }
+.t95-blocs, .t95-couleurs { border: 1px solid var(--cds-border-subtle-01, var(--ws-border, #e0e0e0)); border-radius: 0; margin: 0; min-inline-size: 0; padding: .5rem .875rem .75rem; }
+.t95-blocs legend, .t95-couleurs legend { font-weight: 600; padding: 0 .375rem; }
+.t95-list { counter-reset: t95; list-style: none; margin: .25rem 0 0; padding: 0; }
+.t95-list > .t95-row { align-items: center; border-top: 1px solid var(--cds-border-subtle-01, var(--ws-border, #e0e0e0)); counter-increment: t95; display: grid; gap: .5rem; grid-template-columns: 1.75rem minmax(0, 15rem) auto; justify-content: start; padding: .25rem 0; }
+.t95-list > .t95-row::before { color: var(--cds-text-secondary, #525252); content: counter(t95) "."; font-variant-numeric: tabular-nums; text-align: right; }
+.t95-list > .t95-row:first-child { border-top: 0; }
+.t95-voir, .m5-form label.t95-voir { align-items: center; cursor: pointer; display: inline-flex; flex-direction: row; font-weight: 400; gap: .5rem; margin: 0; min-height: 2rem; min-width: 0; }
+.t95-voir input[type=checkbox] { accent-color: var(--cds-interactive, var(--ws-accent, #0f62fe)); block-size: 1rem; flex: none; inline-size: 1rem; margin: 0; width: 1rem; }
+.t95-nom { overflow-wrap: anywhere; }
+.t95-moves { display: inline-flex; gap: .25rem; }
+.t95-move { align-items: center; display: inline-flex; gap: .25rem; min-height: 2rem; padding: 0 .5rem; }
+.t95-move .ui89-icone { flex: none; }
+.t95-haut { transform: rotate(90deg); }
+.t95-bas { transform: rotate(-90deg); }
+.t95-list > .t95-row:first-child .t95-move[data-t88-move="-1"], .t95-list > .t95-row:last-child .t95-move[data-t88-move="1"] { opacity: .45; }
+.t95-move:focus-visible, .t95-voir input:focus-visible, .t95-couleur input:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.t95-couleurs { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
+.t95-couleur, .m5-form label.t95-couleur { align-items: center; display: inline-flex; flex-direction: row; font-weight: 400; gap: .5rem; margin: 0; min-height: 2rem; }
+.t95-couleur input { flex: none; margin: 0; width: auto; }
+.t95-boutons { display: flex; gap: .5rem; }
+/* réglage de la mémoire, rendu dans le même panneau : même défaut corrigé (case au-dessus du libellé) */
+.t95-panel .t88-memoire label.m5-check { align-items: center; display: flex; flex-direction: row; flex-wrap: nowrap; font-weight: 400; gap: .5rem; text-align: left; }
+.t95-panel .t88-memoire label.m5-check input { flex: none; inline-size: 1rem; margin: 0; width: 1rem; }
+.t95-panel .t88-memoire > .ax-btn { justify-self: start; }
+@media (max-width: 40rem) { .t95-list > .t95-row { grid-template-columns: 1.5rem minmax(0, 1fr); } .t95-moves { grid-column: 2; } }
+
+/* ------------------------------------------------------------------ A03 : blocs du bas repliables (<details> natif, état mémorisé par personne) */
+.t95-pli { margin: 0; min-width: 0; }
+.t95-pli > summary.t95-pli-titre { align-items: center; border-bottom: 1px solid var(--cds-border-subtle-01, var(--ws-border, #e0e0e0)); color: var(--cds-text-secondary, #525252); cursor: pointer; display: flex; font-weight: 600; gap: .5rem; list-style: none; min-height: 2rem; padding: .25rem .5rem; }
+.t95-pli > summary.t95-pli-titre::-webkit-details-marker { display: none; }
+.t95-pli > summary.t95-pli-titre:hover { background: var(--cds-layer-hover-01, var(--cds-background-hover, rgba(141, 141, 141, .12))); }
+.t95-pli > summary.t95-pli-titre:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.t95-chevron { flex: none; transition: transform .15s ease; }
+.t95-pli[open] > summary .t95-chevron { transform: rotate(90deg); }
+.t95-pli-action { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); font-weight: 400; margin-left: auto; }
+.t95-pli[open] .t95-si-ferme, .t95-pli:not([open]) .t95-si-ouvert { display: none; }
+.t95-pli-statut { color: var(--cds-text-error, #da1e28); font-size: .875rem; margin: .25rem .5rem 0; }
+.t95-pli-statut:empty { display: none; }
+.t95-pli[open] > summary + .t95-pli-statut + * { margin-top: .5rem; }
+@media (prefers-reduced-motion: reduce) { .t95-chevron { transition: none; } }

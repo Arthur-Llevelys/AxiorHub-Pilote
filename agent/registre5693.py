@@ -369,13 +369,23 @@ def diagnostic_sources(desk):
     return out
 
 
+def sources_paginees():
+    from . import livrables_sources5689 as sources
+    return [src for src in sources.SOURCES if getattr(src.get('rows'), 'parcours', None)]
+
+
 def migrer_sources(desk):
     """Relance la collecte de chaque source lue par l'ancien parcours : depuis le début, de façon idempotente (rien n'est supprimé, ni version ni relecture).
     Une source « fresh » qui a pu être tronquée devient « Collecte partielle » jusqu'à la fin de la nouvelle lecture."""
     ensure_schema(desk)
     suspects = {d['source'] for d in diagnostic_sources(desk)}
+    # 5.6.95 (A05) : seules les sources lues par pages ont une collecte à reprendre ; une source sans journal (Bibliothèque de modèles, Formulaires)
+    # restait « Collecte reprise depuis le début » pour toujours, sa signature ne changeant jamais.
+    paginees = {src['id'] for src in sources_paginees()}
     count = 0
     for row in desk.db.execute('SELECT source, state FROM prepared_sources5689 WHERE parcours<>?', (VERSION,)).fetchall():
+        if row['source'] not in paginees:
+            continue
         message = 'Collecte reprise depuis le début : l’ancienne lecture s’arrêtait à un plafond.' if row['source'] in suspects else 'Collecte reprise depuis le début.'
         desk.db.execute("UPDATE prepared_sources5689 SET curseur='', rescan='', rescan_fin='', complet=0, lus=0, pages=0, errors=0, lot_signature='', parcours=?, state=?, message=? WHERE source=?",
                         (VERSION, 'partial' if row['state'] in ('fresh', 'partial') or row['source'] in suspects else row['state'], message, row['source']))

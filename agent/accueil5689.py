@@ -196,7 +196,17 @@ def page(desk, prefix, owner, morceaux):
     from .i18n5631 import role as role_courant
     prefs = tableau5688.charger(desk, owner)
     blocs = morceaux['blocs']
+    if 'actuellement' not in blocs and 'actuellement' not in prefs['masques']:     # 5.6.95 (A01) : encadré « Actuellement », calculé sans IA
+        from .actuellement5695 import bloc_html
+        blocs = dict(blocs, actuellement=bloc_html(desk, prefix, owner, role_courant()))
+    from .actuellement5695 import PLIABLES, pli_html, plis_fermes     # 5.6.95 (A03) : blocs du bas repliables, état mémorisé par personne
+    fermes = plis_fermes(desk, owner)
+    blocs = {k: (pli_html(k, v, k in fermes) if k in PLIABLES else v) for k, v in blocs.items()}
+    plis_js = ('<script defer src="%s"></script>' % e(prefix + '/static/v5695-aujourdhui.js', quote=True)) if any(blocs.get(k) for k in PLIABLES) else ''
     principal, cote, bas = _rangement(prefs, blocs)
+    tete = ''
+    if principal and principal[0] == 'actuellement':     # premier (par défaut) : en haut de la page, sur toute la largeur, avant Travail préparé
+        tete, principal = _item('actuellement', blocs['actuellement']), principal[1:]
     accent = (' data-accent="%s"' % e(prefs['accent'], quote=True)) if prefs['accent'] else ''
     style = ''
     if blocs.get('style') and 'style' not in prefs['masques']:
@@ -208,7 +218,7 @@ def page(desk, prefix, owner, morceaux):
     note = ('<p class="c530-note">%d bloc(s) masqué(s) sur cette page. Vous pouvez les rétablir dans « Personnaliser cette page ».</p>' % len(prefs['masques'])) if prefs['masques'] else ''
     return ('<div class="c530 a89" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div>'
             '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div></header>'
-            '<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s</div>') % (
+            '%s<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s%s</div>') % (
         e(prefix, quote=True), accent, e(morceaux['date']), pause, morceaux['entete'], commande_html(prefix),
-        travail_carte(desk, prefix), col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
-        ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'])
+        tete, travail_carte(desk, prefix), col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
+        ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'], plis_js)

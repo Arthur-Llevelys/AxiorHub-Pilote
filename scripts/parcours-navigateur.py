@@ -606,10 +606,159 @@ def p02h_charge_voix(banc, s):
     s.propre('lecture Brindille')
 
 
+def _semis5695():
+    """Semis fictifs de la mesure d'Aujourd'hui (``scripts/mesure-aujourdhui.py``) : mêmes tables, mêmes colonnes."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('mesure_aujourdhui5695', ROOT / 'scripts' / 'mesure-aujourdhui.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _nombre5695(p, rubrique):
+    texte = p.locator('#ax95-zone li[data-rubrique="%s"] .ax95-nombre' % rubrique).inner_text().strip()
+    return int(texte) if texte.isdigit() else None
+
+
+CACHE5695 = """(hidden) => { Object.defineProperty(document, 'hidden', {configurable: true, get: () => hidden});
+                         document.dispatchEvent(new Event('visibilitychange')); }"""
+
+
+def p95a_actuellement(banc, s):
+    """5.6.95 (A01, A02) : encadré « Actuellement » en tête d'Aujourd'hui ; réponse 304 quand rien ne change, 200 et nombre à jour sinon ;
+    Arrêter / Reprendre mémorisé ; mise à jour toutes les 60 s, suspendue onglet caché (horloge simulée) ; Écouter puis Arrêter la lecture."""
+    from datetime import datetime, timedelta, timezone
+    semis = _semis5695()
+    maintenant = datetime.now(timezone.utc)
+    banc.semer_livrable()
+    with banc.desk() as d:
+        semis.schemas(d)
+        semis.evenement(d, 'banc-ev1', 'Audience fictive de mise en état', maintenant + timedelta(hours=3), matter='DOS-001')
+        semis.tache(d, 'banc-t1', 'Relire les conclusions fictives du dossier DURAND contre MARTIN, version longue pour vérifier la troncature du titre',
+                    maintenant.date().isoformat(), 'DOS-001')
+        semis.courriel(d, 'banc-m1', 'Demande de pièces complémentaires', 'DOS-002')
+        d.db.commit()
+    p = s.page
+    p.clock.install()                          # horloge simulée : les 60 s du rafraîchissement sont avancées sans attendre
+    appels = []
+    p.on('request', lambda r: appels.append(r.url) if '/actuellement/etat' in r.url else None)
+    s.connecter()
+    boite = p.locator('#ax95-actuellement')
+    verifier(boite.count() == 1, 'encadré « Actuellement » absent d’Aujourd’hui')
+    haut, travail = boite.bounding_box(), p.locator('#a89-travail').bounding_box()
+    verifier(haut and travail and haut['y'] < travail['y'], 'l’encadré n’est pas en tête de la page (avant Travail préparé)')
+    verifier(p.locator('#ax95-zone li[data-rubrique]').count() == 8, 'l’encadré n’a pas ses 8 rubriques')
+    nombres = {r: _nombre5695(p, r) for r in ('agenda', 'taches', 'courriels', 'documents')}
+    verifier(nombres == {'agenda': 1, 'taches': 1, 'courriels': 1, 'documents': 1}, 'nombres inattendus : %s' % nombres)
+    if getattr(banc, 'sortie', None):
+        boite.screenshot(path=str(Path(banc.sortie) / 'P95a-actuellement.png'))
+        p.emulate_media(color_scheme='dark')
+        boite.screenshot(path=str(Path(banc.sortie) / 'P95a-actuellement-sombre.png'))
+        p.emulate_media(color_scheme='light')
+    s.propre('encadré affiché')
+    # Actualiser sans changement : 304, la zone n'est pas remplacée
+    with p.expect_response(lambda r: '/actuellement/etat' in r.url) as attendu:
+        p.click('[data-ax95="actualiser"]')
+    verifier(attendu.value.status == 304, 'sans changement, la mise à jour n’a pas répondu 304 (HTTP %d)' % attendu.value.status)
+    # Une donnée change : 200, nombre à jour sans recharger la page
+    with banc.desk() as d:
+        semis.courriel(d, 'banc-m2', 'Relance fictive du confrère', 'DOS-003')
+        d.db.commit()
+    with p.expect_response(lambda r: '/actuellement/etat' in r.url) as attendu:
+        p.click('[data-ax95="actualiser"]')
+    verifier(attendu.value.status == 200, 'après un nouveau courriel, la mise à jour a répondu %d' % attendu.value.status)
+    p.wait_for_timeout(200)
+    verifier(_nombre5695(p, 'courriels') == 2, 'le nombre de courriels n’a pas été mis à jour sans rechargement')
+    s.propre('Actualiser')
+    # Mise à jour automatique : une requête après 60 s ; aucune tant que l'onglet est caché ; une au retour
+    avant = len(appels)
+    p.clock.run_for(61000)
+    p.wait_for_timeout(400)
+    verifier(len(appels) == avant + 1, 'la mise à jour automatique n’a pas eu lieu après 60 s (%d requête(s))' % (len(appels) - avant))
+    p.evaluate(CACHE5695, True)
+    avant = len(appels)
+    p.clock.run_for(300000)
+    p.wait_for_timeout(400)
+    verifier(len(appels) == avant, 'des mises à jour ont eu lieu onglet caché (%d)' % (len(appels) - avant))
+    p.evaluate(CACHE5695, False)
+    p.wait_for_timeout(400)
+    verifier(len(appels) == avant + 1, 'au retour sur l’onglet, pas de mise à jour immédiate')
+    s.propre('mise à jour automatique')
+    # Arrêter / Reprendre : mémorisé pour la personne
+    with p.expect_response(lambda r: '/actuellement/auto' in r.url) as attendu:
+        p.click('[data-ax95="auto"]')
+    verifier(attendu.value.ok and attendu.value.json().get('auto') is False, 'l’arrêt de la mise à jour est refusé')
+    avant = len(appels)
+    p.clock.run_for(180000)
+    p.wait_for_timeout(400)
+    verifier(len(appels) == avant, 'mise à jour automatique malgré l’arrêt')
+    s.aller('/aujourdhui')
+    verifier(p.locator('#ax95-actuellement').get_attribute('data-auto') == '0', 'l’arrêt n’est pas mémorisé après rechargement')
+    verifier(p.locator('[data-ax95="auto"]').get_attribute('aria-pressed') == 'true', 'le bouton n’indique pas l’arrêt')
+    with p.expect_response(lambda r: '/actuellement/auto' in r.url) as attendu:
+        p.click('[data-ax95="auto"]')
+    verifier(attendu.value.json().get('auto') is True, 'la reprise est refusée')
+    s.propre('Arrêter / Reprendre')
+    # Écouter : le texte de l'encadré part à la préparation de la voix commune (abréviations développées) ; Arrêter la lecture
+    verifier(not p.locator('[data-ax95="taire"]').is_visible(), '« Arrêter la lecture » est affiché alors que rien n’est lu')
+    with p.expect_request(lambda r: '/voix/preparer' in r.url and r.method == 'POST') as demande:
+        p.click('[data-ax95="ecouter"]')
+    corps = json.loads(demande.value.post_data or '{}')
+    verifier(str(corps.get('text', '')).startswith('Actuellement, à '), 'Écouter n’envoie pas le texte de l’encadré : %r' % str(corps.get('text', ''))[:80])
+    verifier(p.locator('[data-ax95="taire"]').is_visible(), 'le bouton « Arrêter la lecture » n’apparaît pas pendant la lecture')
+    p.click('[data-ax95="taire"]')
+    verifier(p.locator('[data-ax95="ecouter"]').is_visible(), 'le bouton Écouter ne revient pas après l’arrêt de la lecture')
+    p.wait_for_timeout(500)
+    s.propre('Écouter et Arrêter la lecture')
+    with banc.desk() as d:
+        verifier(not d.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('pending','running')").fetchone()[0], 'un bouton de l’encadré a mis un travail en file')
+    verifier(banc.modele.nombre() == 0, 'le modèle a été appelé pendant le parcours de l’encadré (%d)' % banc.modele.nombre())
+
+
+def p95b_personnaliser(banc, s):
+    """5.6.95 (A04) : « Personnaliser cette page » : case et nom sur la même ligne, Monter et Descendre juste après le nom ; Monter au clavier
+    change l'ordre ; l'encadré « Actuellement » décoché puis enregistré n'est plus affiché. A03 : la veille juridique, ouverte par défaut,
+    est repliée puis dépliée ; chaque état est enregistré pour la personne et retrouvé après rechargement, son contenu n'est jamais retiré."""
+    p = s.page
+    s.connecter()
+    pli = 'details[data-pli="veille"]'
+    verifier(p.locator(pli).count() == 1 and p.locator(pli).get_attribute('open') is not None, 'la veille juridique n’est pas ouverte par défaut')
+    verifier(p.locator(pli + ' #c5632-veille').is_visible(), 'contenu de la veille invisible alors que le bloc est ouvert')
+    for ouvert in (False, True):
+        with p.expect_response(lambda r: '/actuellement/plis' in r.url) as attendu:
+            p.click(pli + ' > summary')
+        verifier(attendu.value.ok and attendu.value.json().get('ouvert') is ouvert, 'l’état du pli est refusé (%s)' % ('ouvert' if ouvert else 'replié'))
+        if not ouvert and getattr(banc, 'sortie', None):
+            p.locator(pli).screenshot(path=str(Path(banc.sortie) / 'P95b-veille-repliee.png'))
+        s.aller('/aujourdhui')
+        verifier((p.locator(pli).get_attribute('open') is not None) is ouvert, 'l’état %s du pli n’est pas retrouvé après rechargement' % ('ouvert' if ouvert else 'replié'))
+        verifier(p.locator(pli + ' #c5632-veille').count() == 1, 'replier a retiré le contenu de la veille')
+        verifier(p.locator(pli + ' #c5632-veille').is_visible() is ouvert, 'visibilité du contenu incohérente avec l’état du pli')
+    s.propre('plis d’Aujourd’hui')
+    p.click('#t88-panel > summary')
+    lignes = p.locator('#t88-list > li')
+    verifier(lignes.count() >= 10, 'liste des blocs incomplète')
+    for i in range(lignes.count()):
+        li = lignes.nth(i)
+        case, nom, monter = li.locator('input[type=checkbox]').bounding_box(), li.locator('.t95-nom').bounding_box(), li.locator('[data-t88-move="-1"]').bounding_box()
+        verifier(abs((case['y'] + case['height'] / 2) - (nom['y'] + nom['height'] / 2)) < 6, 'case et libellé décalés (ligne %d)' % (i + 1))
+        verifier(case['x'] < nom['x'] and monter['x'] - (nom['x'] + nom['width']) < 260, 'Monter est loin du libellé (ligne %d)' % (i + 1))
+    if getattr(banc, 'sortie', None):
+        p.locator('#t88-panel').screenshot(path=str(Path(banc.sortie) / 'P95b-personnaliser.png'))
+    p.locator('#t88-list > li[data-bloc="routines"] [data-t88-move="-1"]').focus()
+    p.keyboard.press('Enter')
+    verifier(p.locator('#t88-list > li').first.get_attribute('data-bloc') == 'routines', 'Monter au clavier ne change pas l’ordre')
+    p.locator('#t88-list > li[data-bloc="actuellement"] input[type=checkbox]').uncheck()
+    envoyer(p, 'tableau/enregistrer', lambda: p.click('#t88-panel form[data-api="m5688/tableau/enregistrer"] button[type=submit]'), 'l’enregistrement de la page')
+    verifier(p.locator('#ax95-actuellement').count() == 0, 'l’encadré masqué s’affiche encore')
+    s.propre('Personnaliser')
+
+
 PARCOURS = (('P02a', 'connexion puis déconnexion', p02a_connexion), ('P02b', 'pause de l’IA depuis Aujourd’hui', p02b_pause),
             ('P02c', 'annulation puis relance d’une demande', p02c_annulation), ('P02d', 'reprise après une erreur du fournisseur', p02d_reprise_erreur),
             ('P02e', 'facture en brouillon', p02e_facture), ('P02f', 'ouverture et téléchargement d’un document', p02f_livrable),
-            ('P02g', 'tour du menu', p02g_menu), ('P02h', 'Charge du serveur et Voix', p02h_charge_voix))
+            ('P02g', 'tour du menu', p02g_menu), ('P02h', 'Charge du serveur et Voix', p02h_charge_voix),
+            ('P95a', 'encadré « Actuellement » d’Aujourd’hui', p95a_actuellement), ('P95b', 'Personnaliser Aujourd’hui', p95b_personnaliser))
 
 
 # ------------------------------------------------------------------------------------------------ lancement
@@ -634,6 +783,7 @@ def lancer(navigateur, sortie, choisis=(), voir=False):
                     continue
                 base = tempfile.mkdtemp(prefix='axh-parcours-')
                 banc, context, session, debut = Banc(base), None, None, time.monotonic()
+                banc.sortie = sortie                   # 5.6.95 : captures d'un parcours réussi (encadré, réglages)
                 try:
                     banc.preparer()
                     banc.demarrer()

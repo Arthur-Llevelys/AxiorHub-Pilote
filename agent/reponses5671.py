@@ -28,8 +28,10 @@ WINDOW_DAYS = 3
 PER_PASS = 5
 INTERVAL_MINUTES = 10
 MAX_BODY = 20000
-INSTRUCTION = ('Réponse préparée sans dossier confirmé : répondre à partir du seul courriel et de ses pièces jointes, sans rien affirmer sur '
-               'un dossier ni prendre d’engagement ; indiquer « [À COMPLÉTER : …] » là où la position de l’avocat est nécessaire.')
+# 5.6.95 (D03) : réponse rédigée en entier ; une position de l'avocat se présente en 2 ou 3 variantes rédigées, un marqueur ne vise qu'un fait absent.
+INSTRUCTION = ('Réponse préparée sans dossier confirmé : répondre en entier à partir du seul courriel et de ses pièces jointes, sans rien affirmer '
+               'sur un dossier ni prendre d’engagement ; là où la position de l’avocat est nécessaire, proposer 2 ou 3 variantes rédigées ; '
+               '« [À COMPLÉTER : …] » seulement pour un fait absent, au plus 2.')
 
 
 def enabled(desk):
@@ -219,7 +221,8 @@ TYPES = {'ollama': 'Ollama (local)', 'mistral': 'Mistral', 'anthropic': 'Anthrop
 def first_contact(desk):
     """5.6.87 : ce que le modèle peut dire du cabinet à un nouveau contact : le texte de Paramètres, et rien d'autre."""
     text = str(desk.settings(PRESENTATION, '') or '').strip()
-    return {'cabinet': text or 'Présentation du cabinet non renseignée : compétence, modalités et honoraires à compléter par l’avocat.'}
+    return {'cabinet': text or ('Présentation du cabinet non renseignée : ne rien affirmer sur la compétence, les modalités ou les honoraires ; '
+                                'proposer de les préciser lors d’un premier échange.')}   # 5.6.95 : pas de marqueur pour une présentation absente
 
 
 def connections(desk):
@@ -333,13 +336,99 @@ def ecarter(desk, owner, key):
     return {'ok': True, 'message': 'Réponse préparée écartée. Le courriel reste dans la messagerie.'}
 
 
+def garder_variante(desk, owner, key, rang, lettre, version_vue):
+    """5.6.95 (D05) : l'avocat garde une variante d'un choix : les autres variantes et les lignes du bloc disparaissent du texte en attente.
+    Version périmée (texte modifié depuis l'affichage) : refus 409 ; même demande rejouée : sans second effet. Rien n'est déposé ni envoyé."""
+    from . import redaction5695 as rd
+    data = _load(desk, key)
+    result = dict(data.get('result') or {})
+    body = str(result.get('body') or '')
+    current = rd.version(body)
+    try:
+        rang = int(rang)
+    except (TypeError, ValueError):
+        raise Stop('choix_introuvable') from None
+    lettre = str(lettre or '').strip().upper()[:1]
+    history = list(data.get('choix5695') or [])
+    done = next((h for h in history if (h.get('avant'), h.get('choix'), h.get('variante')) == (str(version_vue), rang, lettre)), None)
+    if done and done.get('apres') == current:                 # clé d'idempotence : (version vue, choix, variante)
+        return {'ok': True, 'deja_fait': True, 'version': current, 'choix_restants': rd.compter(body)['choix'],
+                'message': 'Cette variante était déjà gardée.'}
+    if str(version_vue or '') != current:
+        raise Stop('version_perimee')
+    text = rd.garder(body, rang, lettre)
+    result['body'] = text
+    data['result'] = result
+    history.append({'avant': current, 'apres': rd.version(text), 'choix': rang, 'variante': lettre, 'par': str(owner)[:120], 'le': desk.now()})
+    data['choix5695'] = history[-40:]
+    _store(desk, key, data)
+    left = rd.compter(text)['choix']
+    desk.audit('redaction5695_variante_gardee', {'key': key[:16], 'choix': rang, 'variante': lettre, 'restants': left, 'par': str(owner)[:80]})
+    done = 'Proposition retirée.' if lettre == rd.RETIRER else 'Variante gardée.'
+    return {'ok': True, 'version': rd.version(text), 'choix_restants': left,
+            'message': ('%s Il reste %d choix à faire.' % (done, left)) if left else '%s Plus aucun choix à faire : relisez puis déposez.' % done}
+
+
+def variantes_html(key, value):
+    """5.6.95 (D05) : chaque choix restant, ses variantes et un bouton « Garder cette variante » (formulaires v5671.js, sans script en ligne)."""
+    from . import redaction5695 as rd
+    from .i18n5631 import th
+    body = str(value.get('body') or '')
+    found = rd.blocs(body)
+    faits = [f for f in rd.normaliser(value).get('a_completer') or [] if f.get('quoi')]
+    if not found and not faits:
+        return ''
+    version = rd.version(body)
+    out = '<section class="rd95" aria-labelledby="rd95-t"><h3 id="rd95-t">%s</h3>' % th('redaction5695.titre')
+    if found:
+        out += '<p class="ax-muted">%s</p>' % th('redaction5695.intro', n=len(found))
+    form = ('<form class="r5671-form r5671-inline" data-c5671="m5671/reponse/garder" data-reload>'
+            '<input type="hidden" name="key" value="%s"><input type="hidden" name="choix" value="%d"><input type="hidden" name="variante" value="%s">'
+            '<input type="hidden" name="version" value="%s"><button class="ax-btn%s" type="submit" aria-label="%s">%s</button></form>')
+    for n, block in enumerate(found, 1):
+        if block.get('proposition'):   # v2 : une seule option : l'avocat la garde ou la retire, rien n'est versé au corps sans lui
+            option = block['options'][0]
+            out += ('<fieldset class="rd95-choix"><legend>%s</legend><div class="rd95-variante"><p class="rd95-texte">%s</p>' % (
+                th('redaction5695.proposition', n=n, point=block['point'] or '—'), e(option['texte'])))
+            if block['complet']:
+                if option['texte'].strip():
+                    out += form % (e(key, quote=True), n, 'A', e(version, quote=True), '', th('redaction5695.garder_proposition_aria', n=n),
+                                   th('redaction5695.garder_proposition'))
+                out += form % (e(key, quote=True), n, rd.RETIRER, e(version, quote=True), ' ghost', th('redaction5695.retirer_aria', n=n),
+                               th('redaction5695.retirer_proposition'))
+            else:
+                out += '<p class="notice">%s</p>' % th('redaction5695.incomplet')
+            out += '</div></fieldset>'
+            continue
+        out += '<fieldset class="rd95-choix"><legend>%s</legend>' % th('redaction5695.choix', n=n, point=block['point'] or '—')
+        if not block['complet']:
+            out += '<p class="notice">%s</p>' % th('redaction5695.incomplet')
+        for option in block['options']:
+            out += ('<div class="rd95-variante"><p class="rd95-libelle"><strong>%s</strong></p><p class="rd95-texte">%s</p>' % (
+                th('redaction5695.variante', lettre=option['lettre'], libelle=option['libelle'] or '—'), e(option['texte'])))
+            if block['complet'] and option['texte'].strip():
+                out += ('<form class="r5671-form r5671-inline" data-c5671="m5671/reponse/garder" data-reload>'
+                        '<input type="hidden" name="key" value="%s"><input type="hidden" name="choix" value="%d"><input type="hidden" name="variante" value="%s">'
+                        '<input type="hidden" name="version" value="%s"><button class="ax-btn" type="submit" aria-label="%s">%s</button></form>') % (
+                    e(key, quote=True), n, e(option['lettre'], quote=True), e(version, quote=True),
+                    th('redaction5695.garder_aria', lettre=option['lettre'], n=n), th('redaction5695.garder'))
+            out += '</div>'
+        out += '</fieldset>'
+    if faits:
+        out += '<h4>%s</h4><ul class="rd95-faits">%s</ul>' % (th('redaction5695.faits'), ''.join(
+            '<li><strong>%s</strong>%s</li>' % (e(f['quoi']), (' — ' + e(f['pourquoi'])) if f.get('pourquoi') else '') for f in faits[:rd.MAX_MARQUEURS + 4]))
+    out += '<p class="ax-muted">%s</p></section>' % th('redaction5695.libre')
+    return out
+
+
 def editor_html(key, value, verification=None):
-    """Page du courriel : relire et modifier la réponse en attente, puis la déposer ; tel quel « à compléter » si le contrôle le permet."""
+    """Page du courriel : relire et modifier la réponse en attente, puis la déposer ; tel quel « à compléter » si le contrôle le permet.
+    5.6.95 : les choix à faire (variantes) s'affichent au-dessus du texte, avec « Garder cette variante »."""
     from .prudent5667 import safe_to_complete
     safe = safe_to_complete(verification)
     rows = max(8, min(30, str(value.get('body') or '').count('\n') + 4))
     out = ('<section class="r5671" aria-labelledby="r5671-t"><h2 id="r5671-t">Réponse préparée — votre décision</h2>'
-           '<p class="notice">%s</p>'
+           '<p class="notice">%s</p>' + variantes_html(key, value).replace('%', '%%') +
            '<form class="r5671-form" data-c5671="m5671/reponse/deposer" data-reload>'
            '<input type="hidden" name="key" value="%s"><label for="r5671-body">Texte de la réponse (modifiable)</label>'
            '<textarea id="r5671-body" name="corps" rows="%d">%s</textarea>'

@@ -7,7 +7,9 @@ Les moteurs lisent les nombres simples, mais ni les abréviations juridiques, ni
 - juridictions (« Cass. civ. 1re » → Cour de cassation, première chambre civile ; « CA Lyon » → cour d'appel de Lyon ; CE, TJ, JAF…) ;
 - titres devant un nom (« Me », « M. », « Mme »…), jamais seuls (« section M. » reste tel quel) ;
 - sigles épelés (RG, SARL, SCI…) ou lus comme un mot (URSSAF → Urssaf) ;
-- « n° », « § », montants en euros, pourcentages, dates numériques, ordinaux, références de pourvoi lues par groupe.
+- « n° », « § », montants en euros, pourcentages, dates numériques, ordinaux, références de pourvoi lues par groupe ;
+- 5.6.95 (L01, L02) : heures (« 9h30 » → neuf heures trente, midi, minuit, plages « de 9h à 10h30 »), jours et années en toutes lettres
+  (« 30 octobre 2026 » → trente octobre deux mille vingt-six), « ch. civ. », pluriels (« Les art. », « nos »), RPVA, CPCE, ILC, DGFiP, HT, TTC.
 
 Rien n'est développé dans une adresse électronique ou une URL, et les marqueurs de pseudonymisation (« [PERSONNE_1] ») restent intacts :
 ils sont mis à l'abri avant tout traitement, puis restitués à l'identique. Aucune donnée n'est conservée ; aucun appel extérieur.
@@ -147,7 +149,13 @@ def _references(texte):
     texte = re.sub(r'\b(SIRE[NT])(\s?:?\s?)((?:\d' + ESPACE + r'?){8,13}\d)\b',
                    lambda m: m.group(1) + m.group(2) + ' '.join(UNITES[int(c)] for c in re.sub(r'\D', '', m.group(3))), texte)
     # Pourvoi en cassation « 22-12.345 » : lu par groupe (vingt-deux, douze, trois cent quarante-cinq).
-    texte = re.sub(r'(?<![\d.,-])(\d{2})-(\d{2})\.(\d{3})(?![\d.,])', lambda m: ', '.join(nombre(int(g)) for g in m.groups()), texte)
+    # 5.6.95 (L02) : aussi devant une virgule (« n° 22-12.345, publié ») ; zéros de tête lus (« 23-10.001 » → vingt-trois, dix,
+    # zéro zéro un), comme on le dicte.
+    texte = re.sub(r'(?<![\d.,-])(\d{2})-(\d{2})\.(\d{3})(?!\d|[.,]\d)', lambda m: ', '.join(_chiffres(g) for g in m.groups()), texte)
+    # 5.6.95 (L03) : numéro composé « n° 2026-041 » (facture, décision QPC) lu par groupe, jamais comme une date ; « DOS-001 » de même.
+    groupes = lambda chaine: ' tiret '.join(_chiffres(g) for g in chaine.split('-'))
+    texte = re.sub(r'(\b[Nn](?:[°º]s?|uméros?)' + ESPACE + r'?)(\d+(?:-\d+)+)(?!\w|[.,]\d)', lambda m: m.group(1) + groupes(m.group(2)), texte)
+    texte = re.sub(r'\b([A-Z]{2,})-(\d+)(?!\w|[.,-]\d)', lambda m: m.group(1) + ' ' + _chiffres(m.group(2)), texte)
     # Numéro de rôle « 24/01234 » : deux groupes, sans les zéros de tête.
     return re.sub(r'(?<![\d/])(\d{2})/(\d{4,5})(?![\d/])', lambda m: nombre(int(m.group(1))) + ' barre ' + nombre(int(m.group(2))), texte)
 
@@ -162,7 +170,58 @@ def _dates(texte):
         annee = m.group(4)
         return jour_mois(m.group(1), m.group(3), int(annee) + (2000 if len(annee) == 2 else 0)) or m.group(0)
     texte = re.sub(r'(?<![\d/.])(\d{1,2})([/.])(\d{1,2})\2(\d{4}|\d{2})(?![\d/]|\.\d)', francaise, texte)
-    return re.sub(r'(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])', lambda m: jour_mois(m.group(3), m.group(2), m.group(1)) or m.group(0), texte)
+    texte = re.sub(r'(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])', lambda m: jour_mois(m.group(3), m.group(2), m.group(1)) or m.group(0), texte)
+    # 5.6.95 (L01) : jour et année en toutes lettres (« 30 octobre 2026 » → trente octobre deux mille vingt-six, « 1er » → premier),
+    # sinon la voix du navigateur lit les chiffres un par un.
+    mois = '(' + '|'.join(MOIS[1:]) + r')\b'
+    jour = r'(?<![\w,.])(1er|0?[1-9]|[12]\d|3[01])'
+    en_lettres = lambda j: 'premier' if j in ('1er', '1', '01') else nombre(j)
+    # « du 3 au 5 mai », « les 3 et 4 juin » : le premier jour aussi
+    texte = re.sub(jour + r'(' + ESPACE + r'(?:au|et|ou)' + ESPACE + r')(?=(?:1er|\d{1,2})' + ESPACE + mois + ')',
+                   lambda m: en_lettres(m.group(1)) + m.group(2), texte)
+    texte = re.sub(jour + '(' + ESPACE + ')' + mois, lambda m: en_lettres(m.group(1)) + m.group(2) + m.group(3), texte)
+    return re.sub(mois + '(' + ESPACE + r')(1\d{3}|2\d{3})(?!\d|[.,]\d)', lambda m: m.group(1) + m.group(2) + nombre(m.group(3)), texte)
+
+
+def _heure(heures, minutes='', midi=False):
+    """9 et « 30 » → neuf heures trente ; 1 → une heure ; 21 → vingt et une heures ; 12 → midi, 0 → minuit (``midi`` : heure du jour)."""
+    heures, minutes = int(heures), int(minutes or 0)
+    feminin = lambda n: re.sub(r'\bun$', 'une', nombre(n))       # « une heure », « vingt et une heures », « neuf heures une »
+    if heures == 0 or (heures == 24 and minutes == 0 and midi):
+        tete = 'minuit'
+    elif heures == 12 and midi:
+        tete = 'midi'
+    else:
+        tete = feminin(heures) + (' heure' if heures == 1 else ' heures')
+    return tete + (' ' + feminin(minutes) if minutes else '')
+
+
+HEURE_NUE = r'(\d{1,2})' + ESPACE + r'?[hH](?:' + ESPACE + r'?([0-5]\d))?(?![\w/])'
+HEURE = r'(?<![\w/.,:-])' + HEURE_NUE                    # pas collée à une référence (« DOS14h2 », « 2024.9h30 »)
+# Après ces mots, « 12h » est une heure du jour (midi) ; ailleurs (« 12h de retard ») une durée.
+AVANT_HEURE = ('à', 'a', 'vers', 'dès', 'avant', 'après', 'entre', 'et', 'jusqu’à', "jusqu'à", 'au', 'pour', 'ou')
+
+
+def _heures(texte):
+    """5.6.95 (L01) : « 9h30 », « 9 h 30 », « 11h00 » → neuf heures trente, onze heures ; « de 9h à 10h30 » et « 9h-10h30 » → de neuf heures
+    à dix heures trente. Les URL, adresses et marqueurs sont déjà à l'abri ; une heure collée à une lettre, une barre ou un point (« DOS14h2 »,
+    « 24h/24 », référence) reste intacte. « de 12h » seul est ambigu : midi seulement dans une plage (« de 12h à 14h »)."""
+    def valide(h, mn):
+        return int(h) <= 24 and (not mn or int(h) < 24)
+    def plage(m):
+        if not (valide(m.group(2), m.group(3)) and valide(m.group(4), m.group(5))):
+            return m.group(0)
+        return (m.group(1) or 'de ') + _heure(m.group(2), m.group(3), True) + ' à ' + _heure(m.group(4), m.group(5), True)
+    texte = re.sub(r'(\b[Dd]e' + ESPACE + r')?' + HEURE + ESPACE + r'?(?:-|–|à)' + ESPACE + r'?' + HEURE_NUE, plage, texte)
+    def seule(m):
+        h, mn = m.group(1), m.group(2)
+        if not mn and int(h) > 24:                                  # « 48h » : durée
+            return _heure(h)
+        if not valide(h, mn):
+            return m.group(0)
+        precedent = re.search(r'(\S+)' + ESPACE + r'*$', m.string[max(0, m.start() - 24):m.start()])
+        return _heure(h, mn, midi=bool(precedent) and precedent.group(1).lower() in AVANT_HEURE)
+    return re.sub(HEURE, seule, texte)
 
 
 ENTIER = r'(\d{1,3}(?:' + ESPACE + r'\d{3})+|\d{1,3}(?:\.\d{3})+(?=,\d|' + ESPACE + r'?(?:€|euros?\b|EUR\b))|\d+)'
@@ -207,7 +266,7 @@ def _ville_de(ville):
 def _juridictions(texte):
     chambre = '(1re|1ère|2e|2ème|3e|3ème)'
     civile = lambda m: 'Cour de cassation, ' + ORD_CHAMBRE[m.group(1)] + ' chambre civile'
-    texte = re.sub(r'\b(?:Cass\.\s?)?[Cc]iv\.\s?' + chambre + r'(?![\w])', civile, texte)
+    texte = re.sub(r'(?<!ch\.\s)(?<!ch\.)(?<!chambre\s)\b(?:Cass\.\s?)?[Cc]iv\.\s?' + chambre + r'(?![\w])', civile, texte)
     texte = re.sub(r'\bCass\.\s?' + chambre + r'\s?civ\.', civile, texte)
     texte = re.sub(r'\bCass\.\s?civ\.', 'Cour de cassation, chambre civile', texte)
     for court, long in (('com', 'chambre commerciale'), ('soc', 'chambre sociale'), ('crim', 'chambre criminelle')):
@@ -216,7 +275,7 @@ def _juridictions(texte):
     texte = re.sub(r'\b(?:Cass\.\s?)?[Aa]ss\.\s?plén\.', 'Cour de cassation, assemblée plénière', texte)
     texte = re.sub(r'\b(?:Cass\.\s?)?[Cc]h\.\s?mixte\b', 'Cour de cassation, chambre mixte', texte)
     texte = re.sub(r'\bCass\.', 'Cour de cassation', texte)
-    texte = re.sub(r'\bCons\.\s?const\.', 'Conseil constitutionnel', texte)
+    texte = re.sub(r'\b(?:Cons\.|Conseil)\s?const\.', 'Conseil constitutionnel', texte)      # 5.6.95 (L02) : « Conseil const. »
     texte = re.sub(r'\bCons\.\s?(?:d’|d\')?[ÉE]tat\b', "Conseil d'État", texte)
     for sigle, long in (('CEDH', "Cour européenne des droits de l'homme"), ('CJUE', "Cour de justice de l'Union européenne"),
                         ('CJCE', 'Cour de justice des Communautés européennes'), ('JAF', 'juge aux affaires familiales'),
@@ -256,10 +315,12 @@ CODES = (
     (r'C\.\s?mon\.\s?fin\b\.?|\bCMF\b', 'Code monétaire et financier'), (r'\bCGI\b', 'Code général des impôts'),
     (r'\bCJA\b', 'Code de justice administrative'), (r'\bCGCT\b', 'Code général des collectivités territoriales'),
     (r'\bCCH\b', "Code de la construction et de l'habitation"),
+    (r'C\.\s?pr\.\s?exéc\b\.?|C\.\s?proc\.\s?exéc\b\.?', "Code des procédures civiles d'exécution"),
 )
 # Sigles à plusieurs sens (CSP : catégorie socioprofessionnelle ; CSS ; CPI : Cour pénale internationale) : code seulement après un
 # article (« art. L. 1110-4 CSP ») ou après « du »/« au » ; sinon le sigle est épelé.
-CODES_CONTEXTE = (('CSP', 'Code de la santé publique'), ('CSS', 'Code de la sécurité sociale'), ('CPI', 'Code de la propriété intellectuelle'))
+CODES_CONTEXTE = (('CSP', 'Code de la santé publique'), ('CSS', 'Code de la sécurité sociale'), ('CPI', 'Code de la propriété intellectuelle'),
+                  ('CPCE', "Code des procédures civiles d'exécution"))      # 5.6.95 (L02)
 REF_ARTICLE = r'(?:\bart\.|\b[Aa]rticles?)\s?(?:[LRDA]\.?\s?)?\d[\d.-]*(?:er)?(?:\s?(?:al\.|alinéa)\s?\d+(?:er)?)?(?:\s?et\s?(?:s|ss|suiv)\.)?'
 
 
@@ -274,12 +335,28 @@ def _codes(texte):
     return texte
 
 
+NUM_ARTICLE = r'(?:[LRDA]\.?\s?)?\d[\d-]*(?:er)?(?!\w|[.,]\d)'
+
+
 def _articles(texte):
+    # 5.6.95 (L02) : pluriel quand plusieurs articles suivent (« Les art. 1103 et 1104 », « art. 1103, 1104 et 1105 »).
+    texte = re.sub(r'\b([Ll]es|[Dd]es|[Aa]ux|[Cc]es)\s+art\.\s?', lambda m: m.group(1) + ' articles ', texte)
+    texte = re.sub(r'\b([Aa])rt\.\s?(?=' + NUM_ARTICLE + r'(?:\s?(?:,|et|à|ou)\s?' + NUM_ARTICLE + ')+)', lambda m: m.group(1) + 'rticles ', texte)
     texte = re.sub(r'\b([Aa])rt\.\s?(?=[LRDA]\.?\s?\d|\d|premier|1er)', lambda m: m.group(1) + 'rticle ', texte)
     texte = re.sub(r'\b([Aa])rt\.', lambda m: m.group(1) + 'rticle', texte)
     # « article L. 1234-5 » : la lettre du livre, puis le numéro, le tiret lu
     texte = re.sub(r'(\b[Aa]rticles?\s)([LRDA])\.?\s?(\d[\d-]*)', lambda m: m.group(1) + m.group(2) + ' ' + m.group(3).replace('-', ' tiret '), texte)
     texte = re.sub(r'(\b[Aa]rticles?\s)(\d+(?:-\d+)+)', lambda m: m.group(1) + m.group(2).replace('-', ' tiret '), texte)
+    # 5.6.95 (L02) : les numéros suivants d'une liste (« articles L. 1234-5 et L. 1234-9 ») sont lus de même.
+    def suivant(m):
+        if not re.search(r'\b[Aa]rticles\s', m.string[max(0, m.start() - 80):m.start()]):
+            return m.group(0)
+        return m.group(1) + (m.group(2) + ' ' if m.group(2) else '') + m.group(3).replace('-', ' tiret ')
+    liste = re.compile(r'((?:[LRDA]\s)?\d+(?:\stiret\s\d+)*\s?(?:,|et|à|ou)\s?)(?:([LRDA])\.?\s?(?=\d)|(?=\d+-\d))(\d[\d-]*)')
+    for _ in range(8):
+        avant, texte = texte, liste.sub(suivant, texte)
+        if texte == avant:
+            break
     return re.sub(r'\bal\.\s?(?=\d|premier|1er)', 'alinéa ', texte)
 
 
@@ -302,8 +379,14 @@ def _titres(texte):
 
 
 def _divers(texte):
+    # 5.6.95 (L02) : « ch. civ. », « chambre civ. » → chambre civile (com., soc., crim.) ; « ch. réunies » → chambres réunies.
+    for court, long in (('civ', 'civile'), ('com', 'commerciale'), ('soc', 'sociale'), ('crim', 'criminelle')):
+        texte = re.sub(r'\b(?:ch\.|chambre)\s?' + court + r'\.', 'chambre ' + long, texte)
+    texte = re.sub(r'\bch\.\s?(?=réunies)', 'chambres ', texte)
     texte = re.sub(r'\bch\.', 'chambre', texte)
     texte = re.sub(r'\b[Nn][°º]s\s?', 'numéros ', texte)
+    texte = re.sub(r'\b([Nn])os\s?(?=\d)', lambda m: m.group(1) + 'uméros ', texte)     # « nos 12 à 18 » ; « nos clients » intact
+    texte = re.sub(r'\bK-?bis\b', 'K bis', texte)
     texte = re.sub(r'\b([Nn])[°º]\s?', lambda m: m.group(1) + 'uméro ', texte)
     texte = re.sub(r'§§\s?', 'paragraphes ', texte)
     texte = re.sub(r'§\s?', 'paragraphe ', texte)
@@ -332,10 +415,14 @@ def _ordinaux(texte):
 LETTRES = {'A': 'a', 'B': 'bé', 'C': 'cé', 'D': 'dé', 'E': 'eu', 'F': 'effe', 'G': 'gé', 'H': 'ache', 'I': 'i', 'J': 'ji', 'K': 'ka', 'L': 'elle',
            'M': 'emme', 'N': 'enne', 'O': 'o', 'P': 'pé', 'Q': 'ku', 'R': 'erre', 'S': 'esse', 'T': 'té', 'U': 'u', 'V': 'vé', 'W': 'double vé',
            'X': 'ixe', 'Y': 'i grec', 'Z': 'zède'}
-EPELES = ('RG', 'SARL', 'SAS', 'SASU', 'SCI', 'SNC', 'EURL', 'SCP', 'SCM', 'RCS', 'TVA', 'HT', 'TTC', 'PV', 'RGPD', 'CSE', 'CDI', 'CDD', 'PME', 'CGV',
-          'JCP', 'SA', 'AGO', 'AGE', 'RIB', 'CSP', 'CSS', 'CPI', 'TA', 'TI')
+EPELES = ('RG', 'SARL', 'SAS', 'SASU', 'SCI', 'SNC', 'EURL', 'SCP', 'SCM', 'RCS', 'TVA', 'PV', 'RGPD', 'CSE', 'CDI', 'CDD', 'PME', 'CGV',
+          'JCP', 'SA', 'AGO', 'AGE', 'RIB', 'CSP', 'CSS', 'CPI', 'TA', 'TI', 'RPVA', 'CPAM', 'CPCE')
 MOTS = {'URSSAF': 'Urssaf', 'INSEE': 'Insée', 'UNEDIC': 'Unédic', 'CNIL': 'Cnil', 'INPI': 'Inpi', 'BODACC': 'Bodacc', 'SIREN': 'Siren',
-        'SIRET': 'Siret', 'SMIC': 'Smic', 'SELARL': 'Sélarl', 'SELAS': 'Sélas', 'IBAN': 'Ibane', 'LRAR': 'lettre recommandée avec accusé de réception'}
+        'SIRET': 'Siret', 'SMIC': 'Smic', 'SELARL': 'Sélarl', 'SELAS': 'Sélas', 'IBAN': 'Ibane', 'LRAR': 'lettre recommandée avec accusé de réception',
+        # 5.6.95 (L02) : lus comme un mot ou développés, comme l'avocat les dit
+        'PORTALIS': 'Portalis', 'HT': 'hors taxes', 'TTC': 'toutes taxes comprises', 'ILC': 'indice des loyers commerciaux',
+        'ILAT': 'indice des loyers des activités tertiaires', 'DGFiP': 'Direction générale des finances publiques',
+        'DGFIP': 'Direction générale des finances publiques'}
 
 
 def epeler(sigle):
@@ -354,7 +441,7 @@ def developper(texte):
         return ''
     gardes = []
     texte = _abriter(texte, gardes)
-    for regle in (_references, _dates, _argent, _pourcentages, _milliers, _juridictions, _codes, _articles, _titres, _divers, _ordinaux, _sigles):
+    for regle in (_references, _dates, _heures, _argent, _pourcentages, _milliers, _juridictions, _codes, _articles, _titres, _divers, _ordinaux, _sigles):
         texte = regle(texte)
     texte = re.sub(r'[ \u00a0\u202f]{2,}', ' ', texte)
     return _restituer(texte, gardes)
