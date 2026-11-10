@@ -884,18 +884,20 @@ class Reprise(Base):
             return rt.create(self.desk, 'admin@example.test', 'administrateur', forme)
 
     def test_HO17_routine_differee_identifiable_sans_travail_par_passage(self):
-        depart = self.a(2026, 11, 9, 12)
+        j = date.today() + timedelta(days=1)                                     # 5.6.96 : date relative (la date fixe était passée)
+        k = j + timedelta(days=1)
+        depart = self.a(j.year, j.month, j.day, 12)
         rt.tick(self.desk, depart)                                               # premier passage : rien n'est rattrapé
         self.routine()
         self.activer()
         for minute in (1, 2, 3):
-            instant = self.a(2026, 11, 9, 20, minute)
+            instant = self.a(j.year, j.month, j.day, 20, minute)
             rt.tick(self.desk, instant)
         occurrence = self.desk.db.execute('SELECT state,error_code,attempts FROM routines5652_occ').fetchall()
         self.assertEqual(len(occurrence), 1)
         self.assertEqual((occurrence[0]['state'], occurrence[0]['error_code'], occurrence[0]['attempts']), ('reportee_pause', 'pause_horaire', 0))
         self.assertFalse(self.desk.db.execute("SELECT 1 FROM jobs WHERE kind='routine5652'").fetchone())
-        instant = self.a(2026, 11, 10, 7)
+        instant = self.a(k.year, k.month, k.day, 7)
         h.surveiller(self.desk)
         rt.tick(self.desk, instant)
         rt.tick(self.desk, instant + timedelta(minutes=1))

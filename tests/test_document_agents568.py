@@ -315,7 +315,8 @@ class Deadlines(Base):
     def test_scan_requires_control_before_calendar_write(self):
         out,_=self.events('Audience renvoyée au 12 novembre 2026.',True);self.assertFalse(out[0]['safe'])
     def test_appeal_long_uses_declaration_and_three_months(self):
-        self.profile();out,_=self.events("Déclaration d'appel déposée le 1 octobre 2026.");derived=[x for x in out if x['derived']];self.assertTrue(derived);self.assertEqual(derived[0]['date'],'2027-01-04');self.assertTrue(derived[0]['safe'])
+        # 5.6.96 (D02, attente adaptée) : la date dérivée reste une proposition (safe False, sans échéance persistante) jusqu'à la validation
+        self.profile();out,_=self.events("Déclaration d'appel déposée le 1 octobre 2026.");derived=[x for x in out if x['derived']];self.assertTrue(derived);self.assertEqual(derived[0]['date'],'2027-01-04');self.assertFalse(derived[0]['safe']);self.assertNotIn('deadline_id',derived[0])
     def test_bref_delai_requires_actual_receipt_and_current_two_month_rule(self):
         self.profile(circuit='bref',opponent_constituted='no')
         out,_=self.events('Avis de fixation à bref délai reçu le 1 octobre 2026.');derived=[x for x in out if x['derived']];self.assertEqual({x['date'] for x in derived},{'2026-12-01','2026-10-21'})

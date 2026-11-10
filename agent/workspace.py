@@ -231,18 +231,37 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     if not attachment_ids and args.get('attachment_id'):attachment_ids=[args['attachment_id']]
     from .improvements36 import MAX_ATTACHMENTS
     if len(attachment_ids)>MAX_ATTACHMENTS:raise Stop('trop_de_pieces_jointes')
+    # 5.6.96 (R01, R03) : périmètre avant tout. Une question publique est servie par l'outil du bon tour (politique, confirmation du texte exact,
+    # budget), jamais par le modèle ni avec le dossier ; le mode « Général » n'emporte aucun contexte du tour précédent.
+    from . import recherche_publique5696 as public
+    cadre=public.cadrer(question,{'attachments':attachment_ids})
+    general=cadre['general']
+    if general:question=cadre['texte']
+    if return_result and cadre['perimetre']=='public':
+        return public.reponse(desk,cadre,str(args.get('auteur') or getattr(desk,'mission_owner567','cabinet')),pieces=bool(attachment_ids))
     attachment_reports=[];unreadable=[]
     # 5.6.80 : question rapide : seuls les passages utiles partent au modèle ; l'analyse progressive (une génération par section) ne sert
     # plus qu'à une lecture complète demandée d'une pièce trop longue, jamais à la voix
     rapide=bool(args.get('rapide'));full_limit=limit;compact=True
     from . import rapide5680
     voice=rapide5680.is_voice(args.get('purpose'))
-    previous=history(desk,scope)
+    previous=[] if general else history(desk,scope)   # 5.6.96 (R01) : mode Général : aucun contexte du tour précédent
+    prev=previous[0]['question'] if previous else ''
+    owner=str(args.get('auteur') or 'cabinet')   # 5.6.96 (M04) : la personne qui demande (fuseau, compte autorisé), transmise à la lecture
+    # 5.6.96 (M02, M03) : une liste simple de courriels est rendue depuis le connecteur au premier tour, en-têtes seulement, sans modèle
+    if (return_result and not report and not attachment_ids and not (isinstance(args.get('page_context'),dict) and args['page_context'].get('selected_documents'))
+            and acces5683.liste_simple(question,prev)):
+        cabinet_sources,cabinet_access,_=acces5683.gather(desk,question,matter['id'] if matter else '',hidden,prev,voice,box,owner,just_headers=True)
+        if cabinet_access.get('courriels'):
+            result=acces5683.liste_answer(cabinet_sources,cabinet_access['courriels'],voice)
+            desk.db.execute('INSERT INTO conversations VALUES(NULL,?,?,?,?,?)',(scope,question,json.dumps(result),json.dumps(cabinet_sources),now()))
+            desk.db.commit()
+            return result
     from . import societe5688   # 5.6.88 : sociétés citées : situation lue sans modèle, attente bornée, avant tout le reste
     controle=args['societe5688'] if isinstance(args.get('societe5688'),dict) else societe5688.avant(desk,question,matter['id'] if matter else '','voix' if voice else 'assistant')
     from . import vueia5688   # 5.6.88 : catégories ouvertes au modèle pour cette personne, contrôlées avant chaque lecture
     open_mail,open_documents=not vueia5688.blocked(desk,'courriels'),not vueia5688.blocked(desk,'documents')
-    cabinet_sources,cabinet_access,cabinet_only=acces5683.gather(desk,question,matter['id'] if matter else '',hidden,previous[0]['question'] if previous else '',voice)
+    cabinet_sources,cabinet_access,cabinet_only=acces5683.gather(desk,question,matter['id'] if matter else '',hidden,prev,voice,box,owner)   # 5.6.96 (M04) : auteur transmis
     sources.extend(cabinet_sources)
     if not cabinet_access.get('courriels') and not cabinet_access.get('agenda'):cabinet_only=False
     if rapide:
@@ -354,7 +373,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
             sources+=agent_research(desk,getattr(desk,'mission_owner567','cabinet'),_role52(),question,matter['id'] if matter else '',model)
         except Exception:   # noqa: BLE001 — la réponse se fait sans outil externe
             pass
-    turns=list(reversed(history(desk,scope)[:4]))
+    turns=[] if general else list(reversed(history(desk,scope)[:4]))   # 5.6.96 (R01) : mode Général
     from .relevance370 import correction_guidance
     from .learning392 import learning_context
     payload={'question_avocat':question,'dossier':{'id':matter['id'],'nom':matter['client_name']} if matter else None,

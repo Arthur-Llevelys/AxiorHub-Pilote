@@ -9,7 +9,7 @@
 - Dates séparées (publication, décision, consultation) ; déduplication par URL canonique et contenu ; un commentaire n'est pas une décision.
 - Les textes collectés sont des données : aucune instruction qu'ils contiennent n'est exécutée.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 import hashlib
 from html import escape as e, unescape
@@ -30,8 +30,13 @@ FEEDS = (   # flux vérifiés le 11 octobre 2026 (réponse 200, format RSS, él�
 )
 OFFICIAL_HOSTS = ('cnil.fr', 'justice.gouv.fr', 'eur-lex.europa.eu', 'legifrance.gouv.fr', 'courdecassation.fr', 'conseil-etat.fr',
                   'conseil-constitutionnel.fr', 'curia.europa.eu', 'service-public.gouv.fr', 'economie.gouv.fr', 'travail-emploi.gouv.fr')
-MODES = ('daily', 'days', 'weekly', 'manual')
-STATES = ('pending', 'running', 'done', 'partial', 'failed', 'cancelled')
+MODES = ('daily', 'days', 'weekly', 'manual', 'interval')
+# 5.6.96 (I05) : routine « Veille juridique et économique » tous les N jours calendaires (mode « interval »), comptés en dates locales
+# depuis une ancre ; les thèmes portent un domaine (les thèmes historiques restent juridiques).
+ROUTINE = 'Veille juridique et économique'
+DOMAINES = ('juridique', 'economique')
+INTERVALLE_DEFAUT, INTERVALLE_MIN, INTERVALLE_MAX = 3, 1, 30
+STATES =('pending', 'running', 'done', 'partial', 'failed', 'cancelled')
 LEASE = timedelta(minutes=15)
 MAX_ATTEMPTS = 3
 TAVILY = 'https://api.tavily.com'
@@ -75,9 +80,14 @@ def default_profile(desk, owner):
         tz, hour = 'Europe/Paris', '07:30'
     raw = desk.settings('proactive568:profile:' + owner, None)
     explicit_off = isinstance(raw, dict) and raw.get('news_enabled') is False   # 5.6.56 : une veille désactivée n'est jamais réactivée
+    for t in themes:
+        t['domaine'] = 'juridique'
+    # 5.6.96 (I05) : « interval_days » et « anchor_date » pour le mode « interval » ; un profil jamais enregistré garde la fréquence
+    # historique (« daily ») : la routine de trois jours est PROPOSÉE à l'écran (``propose``), jamais imposée à une veille existante.
     return {'enabled': bool(themes) and not explicit_off, 'themes': themes, 'feeds': [f[0] for f in FEEDS], 'custom_feeds': custom[:20], 'connector': True,
             'tavily': False, 'mode': 'daily', 'days': [0, 1, 2, 3, 4], 'weekday': 0, 'hour': hour, 'tz': tz,
-            'max_results': 5, 'tavily_calls_per_run': 3, 'tavily_monthly_calls': 300, 'lookback_days': 14}
+            'max_results': 5, 'tavily_calls_per_run': 3, 'tavily_monthly_calls': 300, 'lookback_days': 14,
+            'interval_days': INTERVALLE_DEFAUT, 'anchor_date': ''}
 
 
 def profile(desk, owner='cabinet'):
@@ -85,10 +95,21 @@ def profile(desk, owner='cabinet'):
     base = default_profile(desk, owner)
     if isinstance(saved, dict):
         base.update({k: v for k, v in saved.items() if k in base})
+    base['themes'] = [{**t, 'domaine': t.get('domaine') if t.get('domaine') in DOMAINES else 'juridique'}   # 5.6.96 : thèmes historiques juridiques
+                      for t in base['themes'] if isinstance(t, dict)]
     return base
 
 
-def _theme(raw):
+def propose(desk, owner='cabinet'):
+    """5.6.96 (I05) : profil affiché dans Paramètres › Veille et dans le guide. Une veille jamais enregistrée se voit proposer la routine
+    « Veille juridique et économique » tous les trois jours ; une veille déjà réglée (même désactivée) est montrée telle quelle."""
+    p = profile(desk, owner)
+    if desk.settings('veille5632:profile:' + owner, None) is None:
+        p = {**p, 'mode': 'interval', 'interval_days': INTERVALLE_DEFAUT}
+    return p
+
+
+def _theme(raw, domaine='juridique'):
     """« Nom : mot-clé, mot-clé ; sauf : exclusion, exclusion »."""
     raw = str(raw or '').strip()
     if not raw:
@@ -98,14 +119,38 @@ def _theme(raw):
     excl = re.sub(r'^\s*(?:sauf|exclure|exclusions?)\s*:?', '', excl, flags=re.I)
     keywords = [k.strip()[:80] for k in (keys or name).split(',') if k.strip()]
     return {'name': name.strip()[:80], 'keywords': keywords[:20], 'exclusions': [x.strip()[:80] for x in excl.split(',') if x.strip()][:20],
-            'territory': 'FR', 'lang': 'fr'}
+            'territory': 'FR', 'lang': 'fr', 'domaine': domaine}
+
+
+def _themes_saisis(value, domaine):
+    rows = value if isinstance(value, list) else str(value or '').splitlines()
+    out = []
+    for row in rows:
+        t = dict(row) if isinstance(row, dict) else _theme(row, domaine)
+        if t and t.get('name'):
+            t['domaine'] = t.get('domaine') if isinstance(row, dict) and t.get('domaine') in DOMAINES else domaine
+            out.append(t)
+    return out
+
+
+def _cadence(p):
+    return (p['mode'], int(p.get('interval_days') or INTERVALLE_DEFAUT), p['hour'], p['tz'])
 
 
 def save_profile(desk, owner, data):
     p = profile(desk, owner)
-    if 'themes' in data:
-        rows = data['themes'] if isinstance(data['themes'], list) else str(data['themes']).splitlines()
-        themes = [t for t in (row if isinstance(row, dict) else _theme(row) for row in rows) if t and t.get('name')]
+    before = (_cadence(p), bool(p.get('enabled')))
+    if 'themes' in data or 'themes_eco' in data:
+        # 5.6.96 (I05) : domaines saisis séparément ; « themes » seul (appelants historiques) remplace les thèmes juridiques et garde les
+        # thèmes économiques, sauf s'il porte lui-même des thèmes économiques (liste complète).
+        legal = _themes_saisis(data['themes'], 'juridique') if 'themes' in data else [t for t in p['themes'] if t['domaine'] == 'juridique']
+        if 'themes_eco' in data:
+            eco = _themes_saisis(data['themes_eco'], 'economique')
+        elif any(t['domaine'] == 'economique' for t in legal):
+            eco = []
+        else:
+            eco = [t for t in p['themes'] if t['domaine'] == 'economique']
+        themes = legal + eco
         if len(themes) > 30:
             raise Stop('trop_de_themes_veille')
         p['themes'] = themes
@@ -138,6 +183,29 @@ def save_profile(desk, owner, data):
     for key, lo, hi in (('max_results', 1, 10), ('tavily_calls_per_run', 0, 20), ('tavily_monthly_calls', 0, 5000), ('lookback_days', 1, 60)):
         if key in data:
             p[key] = max(lo, min(hi, int(data[key])))
+    if 'interval_days' in data:   # 5.6.96 (I05) : intervalle validé côté serveur, jamais borné en silence
+        try:
+            n = int(str(data['interval_days']).strip())
+        except ValueError:
+            raise Stop('intervalle_veille_invalide') from None
+        if not INTERVALLE_MIN <= n <= INTERVALLE_MAX:
+            raise Stop('intervalle_veille_invalide')
+        p['interval_days'] = n
+    ancre = None
+    if str(data.get('anchor_date') or '').strip():
+        try:
+            ancre = date.fromisoformat(str(data['anchor_date']).strip())
+        except ValueError:
+            raise Stop('ancre_veille_invalide') from None
+        today = _now().astimezone(ZoneInfo(p['tz'])).date()
+        if ancre < today or ancre > today + timedelta(days=366):
+            raise Stop('ancre_veille_invalide')   # jamais dans le passé : aucun passage « rattrapé » avant l'activation
+    if p['mode'] == 'interval':
+        # Après une modification de cadence ou une (ré)activation, ancre FUTURE recalculée ; l'historique des passages est conservé.
+        if ancre is not None:
+            p['anchor_date'] = ancre.isoformat()
+        elif not p.get('anchor_date') or before != (_cadence(p), bool(p.get('enabled'))):
+            p['anchor_date'] = premiere_date(p).isoformat()
     desk.setting('veille5632:profile:' + owner, p)
     desk.audit('veille5632_profil', {'owner': owner, 'themes': len(p['themes']), 'mode': p['mode'], 'tavily': p['tavily']})
     return p
@@ -186,57 +254,187 @@ def _enqueue_run(desk, run, priority):
 
 
 # --------------------------------------------------------------------------------------------- planification
+def _ancre(p):
+    try:
+        return date.fromisoformat(str(p.get('anchor_date') or ''))
+    except ValueError:
+        return None
+
+
+def jour_intervalle(p, jour_local):
+    """5.6.96 (I05) : jour de passage du mode « interval » : compté en DATES LOCALES depuis l'ancre (jamais par ajout de 72 h UTC) ;
+    aucun jour avant l'ancre."""
+    ancre = _ancre(p)
+    if ancre is None:
+        return False
+    jours = (jour_local - ancre).days
+    return jours >= 0 and jours % max(INTERVALLE_MIN, min(INTERVALLE_MAX, int(p.get('interval_days') or INTERVALLE_DEFAUT))) == 0
+
+
+def _jour_eligible(p, jour):
+    """Calcul du jour partagé par ``next_due`` et ``current_slot`` (tous les modes)."""
+    mode = p['mode']
+    if mode == 'daily':
+        return True
+    if mode == 'days':
+        return jour.weekday() in (p.get('days') or [])
+    if mode == 'weekly':
+        return jour.weekday() == p.get('weekday', 0)
+    if mode == 'interval':
+        return jour_intervalle(p, jour)
+    return False
+
+
+def _instant(p, jour):
+    """Instant (UTC) du créneau d'un jour local. Une heure locale inexistante (passage à l'heure d'été) est décalée à la première minute
+    valide ; une heure répétée (retour à l'heure d'hiver) donne sa première occurrence : un seul créneau, au même identifiant."""
+    tz = ZoneInfo(p['tz'])
+    h, m = (int(x) for x in p['hour'].split(':'))
+    mur = datetime(jour.year, jour.month, jour.day, h, m)
+    for minutes in range(0, 24 * 60):
+        essai = mur + timedelta(minutes=minutes)
+        utc = essai.replace(tzinfo=tz, fold=0).astimezone(timezone.utc)
+        if utc.astimezone(tz).replace(tzinfo=None) == essai:
+            return utc
+    return mur.replace(tzinfo=tz).astimezone(timezone.utc)
+
+
+def premiere_date(p, now=None):
+    """Première date locale éligible APRÈS l'activation (ancre du mode « interval ») : aujourd'hui si l'heure n'est pas passée, sinon demain."""
+    now = now or _now()
+    jour = now.astimezone(ZoneInfo(p['tz'])).date()
+    while _instant(p, jour) <= now:
+        jour += timedelta(days=1)
+    return jour
+
+
 def next_due(p, now=None):
     """Prochaine exécution prévue (heure locale du fuseau choisi) ; None en mode « à la demande »."""
     if p['mode'] == 'manual' or not p.get('enabled'):
         return None
     tz = ZoneInfo(p['tz'])
-    local = (now or _now()).astimezone(tz)
-    h, m = (int(x) for x in p['hour'].split(':'))
-    for offset in range(0, 15):
-        day = (local + timedelta(days=offset)).replace(hour=h, minute=m, second=0, microsecond=0)
-        if day < local:
-            continue
-        wd = day.weekday()
-        if p['mode'] == 'daily' or (p['mode'] == 'days' and wd in p['days']) or (p['mode'] == 'weekly' and wd == p['weekday']):
-            return day
+    now = now or _now()
+    start = now.astimezone(tz).date()
+    ancre = _ancre(p) if p['mode'] == 'interval' else None
+    if ancre and ancre > start:
+        start = ancre
+    for offset in range(0, INTERVALLE_MAX + 8):
+        jour = start + timedelta(days=offset)
+        if _jour_eligible(p, jour):
+            moment = _instant(p, jour)
+            if moment >= now:
+                return moment.astimezone(tz)
     return None
+
+
+def _slot_id(p, jour):
+    return 'slot-' + jour.isoformat() + 'T' + p['hour'] + '-' + p['tz']
 
 
 def current_slot(p, now=None):
     """Créneau échu le plus récent (un seul rattrapage après un arrêt du poste, jamais une collecte par heure manquée)."""
     if p['mode'] == 'manual' or not p.get('enabled'):
         return None
-    tz = ZoneInfo(p['tz'])
-    local = (now or _now()).astimezone(tz)
-    h, m = (int(x) for x in p['hour'].split(':'))
-    for back in range(0, 8):
-        day = (local - timedelta(days=back)).replace(hour=h, minute=m, second=0, microsecond=0)
-        if day > local:
-            continue
-        wd = day.weekday()
-        if p['mode'] == 'daily' or (p['mode'] == 'days' and wd in p['days']) or (p['mode'] == 'weekly' and wd == p['weekday']):
-            return 'slot-' + day.strftime('%Y-%m-%dT%H:%M') + '-' + p['tz']
+    now = now or _now()
+    today = now.astimezone(ZoneInfo(p['tz'])).date()
+    ancre = _ancre(p) if p['mode'] == 'interval' else None
+    for back in range(0, INTERVALLE_MAX + 8):
+        jour = today - timedelta(days=back)
+        if p['mode'] == 'interval' and (ancre is None or jour < ancre):
+            return None   # jamais avant l'ancre
+        if _jour_eligible(p, jour) and _instant(p, jour) <= now:
+            return _slot_id(p, jour)
     return None
 
 
+def creneau_conforme(p, slot):
+    """5.6.96 (I05) : le travailleur revérifie, avant la collecte, que le passage planifié appartient encore à la configuration
+    (activation, thèmes, mode, jour, heure, fuseau). Un passage « Actualiser » (manual-…) n'est pas concerné."""
+    slot = str(slot or '')
+    if not slot.startswith('slot-'):
+        return True
+    if p['mode'] == 'manual' or not p.get('enabled') or not p['themes']:
+        return False
+    m = re.fullmatch(r'slot-(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})-(.+)', slot)
+    if not m:
+        return True   # identifiant d'une version antérieure : seule l'activation est revérifiée
+    try:
+        jour = date.fromisoformat(m.group(1))
+    except ValueError:
+        return False
+    return m.group(2) == p['hour'] and m.group(3) == p['tz'] and _jour_eligible(p, jour)
+
+
+def sources_utilisables(desk, p):
+    """Sources réellement interrogeables pour les thèmes choisis ; le connecteur juridique ne sert que les thèmes juridiques."""
+    out = []
+    if p['feeds']:
+        out.append('flux')
+    if p['custom_feeds']:
+        out.append('flux_personnels')
+    if p['connector'] and any(t['domaine'] == 'juridique' for t in p['themes']):
+        out.append('connecteur')
+    if p['tavily'] and tavily_key_path(desk):
+        out.append('tavily')
+    return out
+
+
+def attente(desk, p):
+    """Une routine attend une sélection (thème) et une source utilisable avant son premier passage ; '' si elle est prête."""
+    if not p['themes']:
+        return 'selection'
+    if not sources_utilisables(desk, p):
+        return 'source'
+    return ''
+
+
+def _reserver(desk, owner, slot, now, priority=29):
+    """5.6.96 (I05) : réservation du passage ET liaison de son travail dans UNE transaction (verrou d'écriture SQLite) : deux cycles
+    concurrents ne créent qu'un travail ; un passage terminé, annulé ou en cours n'est jamais relancé ; signal au travailleur après la
+    validation seulement. Un refus de mise en file est consigné sur le passage, repris au cycle suivant (5.6.56, N07)."""
+    args = {'owner': owner, 'slot': slot}
+    if desk.db.in_transaction:
+        desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        desk.db.execute("INSERT OR IGNORE INTO veille_runs5632(owner,slot,state,created) VALUES(?,?,'pending',?)", (owner, slot, now.isoformat()))
+        run = desk.db.execute('SELECT * FROM veille_runs5632 WHERE owner=? AND slot=?', (owner, slot)).fetchone()
+        if run['state'] != 'pending' or _job_active(desk, run):
+            desk.db.commit()
+            return None
+        job = desk.enqueue('veille5632_collect', args, priority=priority, transactional=True)
+        desk.db.execute("UPDATE veille_runs5632 SET job_id=?,error='' WHERE id=?", (str(job or ''), run['id']))
+        desk.db.commit()
+    except Stop as ex:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        desk.db.execute("INSERT OR IGNORE INTO veille_runs5632(owner,slot,state,created) VALUES(?,?,'pending',?)", (owner, slot, now.isoformat()))
+        desk.db.execute("UPDATE veille_runs5632 SET error=?,job_id='' WHERE owner=? AND slot=? AND state='pending'",
+                        (('mise_en_file_refusee:' + str(ex))[:200], owner, slot))
+        desk.db.commit()
+        raise
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    desk.notify_queued(job, args)
+    return job
+
+
 def schedule(desk, stamp=None):
-    """Appelé par le cycle de surveillance : au plus un travail par utilisateur et par créneau (contrainte d'unicité)."""
+    """Appelé par le cycle de surveillance : au plus un travail par utilisateur et par créneau (contrainte d'unicité, réservation
+    transactionnelle). 5.6.96 (I05) : seul planificateur de la veille, y compris la routine « tous les trois jours »."""
     schema(desk)
     now = datetime.fromtimestamp(stamp, timezone.utc) if stamp else _now()
     jobs = []
     for owner in owners(desk):
         p = profile(desk, owner)
         slot = current_slot(p, now)
-        if not slot or not p['themes']:
+        if not slot or attente(desk, p):
             continue
-        desk.db.execute("INSERT OR IGNORE INTO veille_runs5632(owner,slot,state,created) VALUES(?,?,'pending',?)", (owner, slot, now.isoformat()))
-        desk.db.commit()
-        run = desk.db.execute('SELECT * FROM veille_runs5632 WHERE owner=? AND slot=?', (owner, slot)).fetchone()
-        # 5.6.56 (audit 5.6.55, N07) : un passage « en attente » sans travail vivant (mise en file refusée, travail perdu) est
-        # réconcilié ; un passage terminé, annulé ou en cours n'est jamais relancé.
-        if run['state'] == 'pending' and not _job_active(desk, run):
-            jobs.append(_enqueue_run(desk, run, 29))   # 5.6.60 : programmée par l'avocat, devant les travaux de maintenance
+        job = _reserver(desk, owner, slot, now)   # 5.6.60 : priorité 29, programmée par l'avocat, devant les travaux de maintenance
+        if job is not None:
+            jobs.append(job)
     try:   # 5.6.61 : une fois, résultats Internet sans date déjà collectés masqués
         hide_undated_web(desk)
     except Exception:   # noqa: BLE001
@@ -399,50 +597,12 @@ def usage(desk):
 
 
 def tavily_search(desk, query, max_results=5, days=7, domains=(), http=None, p=None):
-    """Recherche Tavily : budget réservé AVANT l'appel ; réponse générée du moteur désactivée (seules les pages servent de preuve) ;
-    401/403/429/432 traduits ; une coupure après envoi est comptée comme consommation incertaine, sans relance en boucle."""
-    path = tavily_key_path(desk)
-    if not path:
-        raise Stop('cle_tavily_absente')
-    from .data_policy5689 import exiger
-    exiger(desk.c, 'recherche_web', 'tavily', finalite='veille', requete=str(query)[:400])   # 5.6.89 : avant le compteur et le transfert
-    p = p or {}
-    used = usage(desk)
-    if used['calls'] >= int(p.get('tavily_monthly_calls', 300)):
-        raise Stop('plafond_tavily_atteint')
-    used['calls'] += 1
-    desk.setting(_usage_key(), used)                       # réservation avant l'effet
-    # 5.6.61 : mode « actualités » (articles datés) au lieu d'une recherche générale qui renvoyait formations, livres et guides permanents
-    body = {'query': str(query)[:400], 'topic': 'news', 'search_depth': 'basic', 'max_results': max(1, min(10, int(max_results))),
-            'include_answer': False, 'include_raw_content': False, 'include_images': False, 'time_range': 'week' if days <= 7 else 'month'}
-    if domains:
-        body['include_domains'] = list(domains)[:20]
-    client = http or HTTP(TAVILY, timeout=30)
-    try:
-        raw = client.request('POST', TAVILY + '/search', json.dumps(body).encode(), {'Content-Type': 'application/json',
-                                                                                     'Authorization': 'Bearer ' + read_secret(path)}, 2_000_000)
-    except Stop as ex:
-        code = str(ex)
-        if code in ('delai_http_depasse', 'connexion_http_indisponible'):
-            used['uncertain'] += 1
-            desk.setting(_usage_key(), used)
-            raise Stop('tavily_reponse_incertaine') from None
-        raise Stop({'http_401': 'cle_tavily_refusee', 'http_403': 'cle_tavily_refusee', 'http_429': 'quota_tavily_atteint',
-                    'http_432': 'quota_tavily_atteint', 'http_433': 'quota_tavily_atteint'}.get(code, 'tavily_indisponible')) from None
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        raise Stop('tavily_reponse_illisible') from None
-    out = []
-    for r in data.get('results', []) if isinstance(data, dict) else []:
-        url = str(r.get('url') or '')
-        if not url.startswith('https://'):
-            continue
-        if domains and not any((urlsplit(url).hostname or '').endswith(d) for d in domains):
-            continue   # restriction de domaines appliquée aussi côté AxiorHub
-        out.append({'url': url, 'title': _clean(r.get('title'), 600), 'published': str(r.get('published_date') or ''),
-                    'summary': _clean(r.get('content'), 1500), 'score': r.get('score')})
-    return out
+    """Recherche Tavily de la veille (actualités datées). 5.6.96 (R02, R05) : le client HTTP est commun avec l'assistant
+    (``recherche_publique5696.tavily``, profil ``veille``) : politique des données avant le compteur, budget réservé de façon atomique
+    avant l'appel (plafond de la veille et plafond partagé avec l'assistant), hôtes normalisés (égalité ou suffixe précédé d'un point :
+    ``fausse-x.fr`` n'est plus admis pour ``x.fr``), 401/403/429/432 traduits, coupure après envoi comptée comme incertaine sans relance."""
+    from .recherche_publique5696 import tavily
+    return tavily(desk, query, profil='veille', max_results=max_results, days=days, domaines=domains, http=http, p=p or {})
 
 
 def connector_recent(desk, theme, days=14, call=None):
@@ -466,6 +626,21 @@ def connector_recent(desk, theme, days=14, call=None):
         out.append({'url': url, 'title': _clean(r.get('titre') or r.get('title'), 600), 'published': '', 'decided': str(r.get('date') or ''),
                     'summary': _clean(r.get('snippet') or r.get('resume') or '', 1200), 'official_id': rid, 'provider': checker.item.get('provider', '')})
     return out
+
+
+def requete_theme(theme):
+    """Requête Internet d'un thème : ses seuls mots-clés publics, suivis du domaine (juridique ou économique)."""
+    suffixe = ' actualité économique' if theme.get('domaine') == 'economique' else ' actualité juridique'
+    return ' '.join(theme['keywords'][:5]) + suffixe
+
+
+def requete_publique(desk, query):
+    """5.6.96 (I05) : aucun contenu de dossier dans une requête publique. Un mot-clé qui désigne un dossier, une partie ou un
+    correspondant connu du cabinet (``data_policy5689.donnee_de_dossier``) refuse la requête AVANT tout appel ou décompte."""
+    from .data_policy5689 import donnee_de_dossier
+    if donnee_de_dossier(desk.c, query):
+        raise Stop('donnee_de_dossier_dans_la_requete')
+    return query
 
 
 # --------------------------------------------------------------------------------------------- traitement
@@ -567,6 +742,13 @@ def collect(desk, args, fetch=None, call=None, http=None):
     """Travail de veille : collecte, déduplication, classement, publication ; état terminé / partiel / échoué selon les sources."""
     schema(desk)
     owner, slot = str(args.get('owner') or 'cabinet'), str(args.get('slot') or '')
+    p = profile(desk, owner)
+    if not creneau_conforme(p, slot) or (slot.startswith('slot-') and attente(desk, p)):
+        # 5.6.96 (I05) : veille désactivée ou cadence modifiée depuis la mise en file : le passage est annulé, jamais collecté
+        desk.db.execute("UPDATE veille_runs5632 SET state='cancelled', error='configuration_modifiee', finished=?, lease_until='' "
+                        "WHERE owner=? AND slot=? AND state='pending'", (_now().isoformat(), owner, slot))
+        desk.db.commit()
+        return {'skipped': True, 'reason': 'veille_desactivee_ou_modifiee'}
     run_id = claim(desk, owner, slot)
     if run_id is None:
         return {'skipped': True, 'reason': 'creneau_deja_traite_ou_en_cours'}
@@ -580,8 +762,9 @@ def collect(desk, args, fetch=None, call=None, http=None):
         for url in p['custom_feeds']:
             results.append(_one_feed(desk, owner, run_id, p, url, url, fetch, custom=True))
         if p['connector']:
-            for t in p['themes']:
+            for t in [x for x in p['themes'] if x['domaine'] == 'juridique']:   # 5.6.96 : le connecteur juridique ne sert pas l'économie
                 try:
+                    requete_publique(desk, ' '.join(t['keywords'][:4]))
                     rows = connector_recent(desk, t, p['lookback_days'], call)
                     if rows is None:   # 5.6.61 : connecteur non configuré : source absente, pas une panne de la collecte
                         results.append({'source': 'connecteur juridique', 'status': 'skipped', 'error': 'aucun_connecteur_actif'})
@@ -594,7 +777,7 @@ def collect(desk, args, fetch=None, call=None, http=None):
         if p['tavily'] and tavily_key_path(desk):
             for t in p['themes'][:max(0, p['tavily_calls_per_run'])]:
                 try:
-                    rows = tavily_search(desk, ' '.join(t['keywords'][:5]) + ' actualité juridique', p['max_results'], p['lookback_days'], http=http, p=p)
+                    rows = tavily_search(desk, requete_publique(desk, requete_theme(t)), p['max_results'], p['lookback_days'], http=http, p=p)
                     kept = []
                     for r in rows:                     # 5.6.61 : datés, récents, pas de page permanente
                         keep, _why = web_relevant(r, p['lookback_days'])
@@ -646,11 +829,19 @@ def state(desk, owner='cabinet'):
     schema(desk)
     p = profile(desk, owner)
     last = desk.db.execute('SELECT * FROM veille_runs5632 WHERE owner=? ORDER BY id DESC LIMIT 1', (owner,)).fetchone()
-    due = next_due(p)
+    waiting = attente(desk, p)
+    due = None if waiting else next_due(p)   # 5.6.96 : pas de « prochain passage » annoncé pour une routine qui attend
+    # 5.6.96 (I05) : dernier passage TERMINÉ, qualifié « complet », « partiel » ou « source indisponible » (un partiel n'est pas un vide)
+    fini = desk.db.execute("SELECT state,finished FROM veille_runs5632 WHERE owner=? AND state IN ('done','partial','failed') ORDER BY id DESC LIMIT 1",
+                           (owner,)).fetchone()
     return {'configured': bool(p['themes']) and p['enabled'], 'last_success': desk.settings('veille5632:last_success:' + owner, ''),
             'last_attempt': desk.settings('veille5632:last_attempt:' + owner, ''), 'next_run': due.isoformat() if due else '',
             'last_state': last['state'] if last else '', 'last_error': (last['error'] or '') if last else '', 'failed_sources': [s for s in json.loads(last['sources'] or '[]') if s.get('status') not in ('ok', 'skipped')] if last else [],
-            'unread': desk.db.execute("SELECT COUNT(*) FROM veille_items5632 WHERE owner=? AND status='new'", (owner,)).fetchone()[0]}
+            'unread': desk.db.execute("SELECT COUNT(*) FROM veille_items5632 WHERE owner=? AND status='new'", (owner,)).fetchone()[0],
+            'routine': ROUTINE, 'mode': p['mode'], 'interval_days': p.get('interval_days'), 'attente': waiting if p['enabled'] else '',
+            'last_status': {'done': 'complet', 'partial': 'partiel', 'failed': 'source_indisponible'}.get(fini['state'], '') if fini else '',
+            'last_finished': (fini['finished'] or '') if fini else '',
+            'domaines': {d: sum(1 for t in p['themes'] if t['domaine'] == d) for d in DOMAINES}}
 
 
 def items(desk, owner='cabinet', status=('new', 'saved', 'read'), limit=50):
@@ -682,7 +873,7 @@ def _date(value):
 
 def card_html(desk, prefix, owner='cabinet'):
     """Cadre « Veille juridique » des deux vues d'Aujourd'hui (VJ01) : 3 à 5 nouveautés, état, dernier contrôle, prochaine exécution."""
-    from .i18n5631 import th
+    from .i18n5631 import th, t as tr
     st = state(desk, owner)
     head = '<h2 id="c5632-t-veille">' + th('vj.title') + '</h2>'
     links = ('<div class="v5632-actions"><a class="ax-btn ghost" href="%s">%s</a><button type="button" class="ax-btn ghost" data-v5632="refresh">%s</button>'
@@ -692,6 +883,8 @@ def card_html(desk, prefix, owner='cabinet'):
         return head + '<p>' + th('vj.empty_config') + '</p><p><a class="ax-btn" href="%s">%s</a></p>' % (e(prefix + '/parametres?rubrique=veille', quote=True), th('vj.configure'))
     rows = items(desk, owner, ('new',), 5)
     body = ''
+    if st['attente']:   # 5.6.96 (I05) : routine en attente d'un thème ou d'une source utilisable
+        body += '<p class="v5632-partial">' + th('vj.waiting.' + st['attente']) + '</p>'
     if st['failed_sources'] and st['last_state'] in ('partial', 'failed'):
         body += '<p class="v5632-partial">' + th('vj.partial', sources=', '.join(s['source'] for s in st['failed_sources'][:4])) + '</p>'
     if rows:
@@ -716,4 +909,6 @@ def card_html(desk, prefix, owner='cabinet'):
         body += '<p>' + th('vj.not_run') + '</p>'
     body += '<p class="v5632-meta">' + th('vj.meta', last=_date(st['last_success']) or '—', attempt=_date(st['last_attempt']) or '—',
                                             next=(st['next_run'][:16].replace('T', ' ') if st['next_run'] else th('vj.on_demand'))) + '</p>'
+    if st['last_status']:   # 5.6.96 (I05) : « complet », « partiel » ou « source indisponible »
+        body += '<p class="v5632-meta">' + th('vj.last_run', when=st['last_finished'][:16].replace('T', ' '), status=tr('vj.status.' + st['last_status'])) + '</p>'
     return head + body + links

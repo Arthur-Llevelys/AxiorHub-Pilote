@@ -74,6 +74,38 @@ def save_secret(desk, provider_id, value):
     return write(secret_path(desk,provider_id),value)
 
 
+VERSIONED_SECRET = re.compile(r'(?P<pid>[a-z0-9][a-z0-9_-]{0,39})\.v[0-9a-f]{32}\.secret')
+
+
+def save_secret_version(desk, provider_id, value):
+    """5.6.96 (A03) : coffre versionné : un fichier distinct, privé et chiffré, par révision de la clé. La clé en service n'est jamais
+    réécrite en place ; le chemin historique de ``secret_path`` reste lisible pour les installations existantes."""
+    import uuid
+    value = str(value or '').strip()
+    if len(value) < 8 or len(value) > 4096 or '\n' in value or '\r' in value or '\x00' in value:
+        raise Stop('secret_fournisseur_invalide')
+    from .vault567 import write
+    return write(_vault_dir(desk) / ('%s.v%s.secret' % (_provider_id(provider_id), uuid.uuid4().hex)), value)
+
+
+def revision_of(setting):
+    """Révision d'un réglage de fournisseur (0 pour un réglage antérieur à la 5.6.96)."""
+    try:
+        return max(0, int((setting or {}).get('revision') or 0)) if isinstance(setting, dict) else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def internal_secret(desk, path):
+    """Fichier du coffre interne (géré par l'interface) ; un secret posé ailleurs par l'administrateur système n'est jamais remplacé."""
+    if not path:
+        return True
+    try:
+        return Path(path).resolve().parent == _vault_dir(desk).resolve()
+    except OSError:
+        return False
+
+
 def _https_url(value, provider_type):
     value = str(value or '').strip().rstrip('/')
     defaults = {
@@ -182,7 +214,11 @@ def save_provider(desk, provider_id, provider_type, url, model, api_key='',
         'input_usd_per_million': input_usd_per_million,
         'output_usd_per_million': output_usd_per_million,
         'state_dir': desk.c['state_dir'],
+        # 5.6.96 (A03) : révision du réglage, comparée à l'enregistrement d'une clé (409 si elle a changé depuis l'ouverture)
+        'revision': revision_of(previous) + 1,
     }
+    if not api_key and isinstance(previous, dict):   # 5.6.96 : clé inchangée : la clé précédente reste gardée au coffre (appels en cours)
+        value.update({k: previous[k] for k in ('secret_precedent', 'cle_le') if previous.get(k)})
     desk.setting('ai:provider:' + provider_id, value)
     desk.c.setdefault('ai_providers', {})[provider_id] = value
     desk.audit('fournisseur_ia_modifie', {

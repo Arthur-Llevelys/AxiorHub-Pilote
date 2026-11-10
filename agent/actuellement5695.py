@@ -218,7 +218,9 @@ def avis(c):
         if not _table(c.desk, table):
             continue
         try:
-            rows = c.desk.db.execute("SELECT matter,due FROM %s WHERE status IN ('a_confirmer','confirmee','manuel') AND due<>'' AND substr(due,1,10)<=?%s ORDER BY due LIMIT 50" % (table, clause),
+            # 5.6.96 (D02) : une détection non confirmée n'est pas une échéance (les prescriptions gardent leur suivi propre)
+            statuts = "('confirmee','manuel')" if kind == 'echeance' else "('a_confirmer','confirmee','manuel')"
+            rows = c.desk.db.execute("SELECT matter,due FROM %s WHERE status IN %s AND due<>'' AND substr(due,1,10)<=?%s ORDER BY due LIMIT 50" % (table, statuts, clause),
                                      [(jour + timedelta(days=jours)).isoformat()] + params).fetchall()
         except Exception:   # noqa: BLE001
             pannes.append(T('src.%ss' % kind))

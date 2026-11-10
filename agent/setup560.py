@@ -147,6 +147,9 @@ def _save_app(desk, cfg, form, ai, notes):
             from .ai_gateway import save_provider
             from . import ia540
             try:
+                from .cles5696 import TESTABLES, verifier_cle
+                if pid in TESTABLES and str(form.get('provider_key', '')).strip():
+                    verifier_cle(pid, form.get('provider_key', ''))      # 5.6.96 : une clé refusée ne remplace jamais la clé en service
                 save_provider(desk, pid, pid, '', model, form.get('provider_key', ''), True, True)
                 if ai == 'mixte':
                     ia540.apply_mixed(desk, pid, model, (cfg.get('ollama') or {}).get('model', ''), test=False)

@@ -423,29 +423,42 @@ def matter_display(matter):
     return ' — '.join(x for x in (str(matter.get('client_name', '') or ''), str(matter.get('id', '') or '')) if x) or 'Dossier'
 
 
+_REGISTRES_CONTROLES = set()   # 5.6.96 (U06) : empreintes des registres déjà contrôlés (contenu des fichiers et racines)
+
+
 def load_matters(c, unfiltered=False):
     """Registre des dossiers. 5.6.50 : pendant une requête, les dossiers réservés à d'autres membres sont retirés (``unfiltered`` :
     registre complet, pour les contrôles qui doivent tout connaître, comme l'anonymisation)."""
-    rows = json.loads(Path(c['matters_file']).read_text(encoding='utf-8'))
+    texte = Path(c['matters_file']).read_text(encoding='utf-8')
+    rows = json.loads(texte)
     if not isinstance(rows, list):
         raise Stop('registre_dossiers_invalide')
     # Browser-approved changes are separate from the administrator's original file.
     overlay = Path(c['state_dir']) / 'registry-web.json'
+    texte_web = ''
     if overlay.exists():
+        texte_web = overlay.read_text(encoding='utf-8')
         merged = {r['id']: r for r in rows}
-        for row in json.loads(overlay.read_text(encoding='utf-8')):
+        for row in json.loads(texte_web):
             merged[row['id']] = row
         rows = list(merged.values())
-    ids = set()
-    for r in rows:
-        if not isinstance(r.get('id'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', r['id']) or r['id'] in ids:
-            raise Stop('identifiant_dossier_invalide')
-        ids.add(r['id'])
-        if not any(under(r['path'], p) for p in c['nextcloud']['roots']):
-            raise Stop('dossier_hors_racines')
-        for person in r.get('correspondents', []):
-            if person.get('role') not in VALID_ROLES:
-                raise Stop('role_correspondant_invalide')
+    # 5.6.96 (U06) : le contrôle complet (identifiants, racines, rôles) ne dépend que du contenu des deux fichiers et des racines ; un contenu
+    # déjà contrôlé ne l'est pas de nouveau (Aujourd'hui lisait le registre une cinquantaine de fois par page). Les lignes sont toujours relues.
+    empreinte = hashlib.sha256('\0'.join((texte, texte_web, json.dumps(c['nextcloud']['roots']))).encode('utf-8')).digest()
+    if empreinte not in _REGISTRES_CONTROLES:
+        ids = set()
+        for r in rows:
+            if not isinstance(r.get('id'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', r['id']) or r['id'] in ids:
+                raise Stop('identifiant_dossier_invalide')
+            ids.add(r['id'])
+            if not any(under(r['path'], p) for p in c['nextcloud']['roots']):
+                raise Stop('dossier_hors_racines')
+            for person in r.get('correspondents', []):
+                if person.get('role') not in VALID_ROLES:
+                    raise Stop('role_correspondant_invalide')
+        if len(_REGISTRES_CONTROLES) > 64:
+            _REGISTRES_CONTROLES.clear()
+        _REGISTRES_CONTROLES.add(empreinte)
     if not unfiltered:
         from .membres5650 import viewer_hidden
         hidden = viewer_hidden()

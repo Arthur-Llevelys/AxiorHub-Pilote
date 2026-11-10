@@ -86,8 +86,12 @@ class Audit(t530.Base):
         self.assertIn('ORDER BY bm25(knowledge_fts) LIMIT 60', src);self.assertIn("meta['coverage']='partial'", src)
 
     def test_voice_interruption_resolves_pending_playback(self):
+        # 5.6.96 (V02, V03) : le volet vocal lit par la file commune ; l'arrêt y rend la main au segment en cours (« finir »).
+        # Comportement exercé par la simulation Node tests/lecture5696.cjs (test_v5696_voix, scénario d'arrêt).
         js = (ROOT / 'agent' / 'static' / 'v568.js').read_text(encoding='utf-8')
-        self.assertIn('playResolve=resolve', js);self.assertIn('const r=playResolve;playResolve=null;if(r)r();', js)
+        commun = (ROOT / 'agent' / 'static' / 'v5694-voix.js').read_text(encoding='utf-8')
+        self.assertIn("window.axiorhubVoix?.stop(motif==='voix'?'voix':'utilisateur')", js)
+        self.assertIn('source = node; finir = fin;', commun);self.assertIn('const f = finir; finir = null; if (f) f(null);', commun)
 
     def test_deferred_analyses_are_kept_and_resumed(self):
         from agent import economie569 as eco

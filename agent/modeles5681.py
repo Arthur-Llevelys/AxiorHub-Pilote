@@ -74,6 +74,8 @@ def parse(provider_type, data):
         caps = x.get('capabilities')
         if isinstance(caps, dict) and caps.get('completion_chat') is False:      # Mistral : indique ce que chaque modèle sait faire
             continue
+        if x.get('lifecycle') == 'retired':      # 5.6.96 : API Claude : un modèle retiré n'est plus appelable
+            continue
         row = _row(name, str(x.get('display_name') or x.get('name') or ''), x.get('pricing') if isinstance(x.get('pricing'), dict) else None)
         row['contexte'] = x.get('max_input_tokens') or x.get('max_context_length')   # 5.6.82 : fenêtre annoncée par le fournisseur, si elle l'est
         out.append(row)
@@ -130,7 +132,7 @@ def _resolve_mixte(rows):
     raise Stop('modele_ou_route_fournisseur_absent')
 
 
-def apply_mixte(desk, api_key='', consent=False, local_model='', fetch=None):
+def apply_mixte(desk, api_key='', consent=False, local_model='', fetch=None, revision=None):
     """Profil Mixte en un clic. Exige la clé Mistral et l'autorisation d'envoi cochée par l'avocat ; garde les plafonds déjà réglés."""
     if not consent:
         raise Stop('autorisation_donnees_externes_requise')
@@ -140,19 +142,35 @@ def apply_mixte(desk, api_key='', consent=False, local_model='', fetch=None):
     monthly = float(current.get('monthly_budget_usd') or 0) or DEFAULT_MONTHLY_USD
     per_request = float(current.get('per_request_budget_usd') or 0) or DEFAULT_REQUEST_USD
     price_in, price_out = TARIFS[MIXTE_MODEL]
-    save_provider(desk, 'mistral', 'mistral', current.get('url') or '', MIXTE_MODEL, str(api_key or '').strip(), True, True,
-                  bool(current.get('zdr_required')), monthly, per_request, price_in, price_out)
-    model = _resolve_mixte(list_models(desk, 'mistral', True, fetch)['modeles'])
-    if model != MIXTE_MODEL:
+    key = str(api_key or '').strip()
+    if key:
+        # 5.6.96 (A02) : même service que le formulaire du mode : la clé est testée, le modèle Mixte choisi dans SON catalogue, puis la
+        # connexion publiée en une transaction ; une clé refusée laisse la clé en service intacte (la 5.6.95 l'écrasait d'abord).
+        from . import mistral5696
+        transport = (lambda methode, chemin, cle, corps=None: fetch({**current, 'type': 'mistral'})) if fetch else None
+        model = mistral5696.enregistrer(desk, key, revision, 'profil_mixte', transport=transport, provider_id='mistral', choisir=_resolve_mixte)['modele']
+        current = provider_registry(desk.c).get('mistral') or current
         save_provider(desk, 'mistral', 'mistral', current.get('url') or '', model, '', True, True, bool(current.get('zdr_required')),
                       monthly, per_request, price_in, price_out)
-    out = ia540.apply_mixed(desk, 'mistral', model, local_model, test=fetch is None)
+    else:
+        save_provider(desk, 'mistral', 'mistral', current.get('url') or '', MIXTE_MODEL, '', True, True,
+                      bool(current.get('zdr_required')), monthly, per_request, price_in, price_out)
+        model = _resolve_mixte(list_models(desk, 'mistral', True, fetch)['modeles'])
+        if model != MIXTE_MODEL:
+            save_provider(desk, 'mistral', 'mistral', current.get('url') or '', model, '', True, True, bool(current.get('zdr_required')),
+                          monthly, per_request, price_in, price_out)
+    out = ia540.apply_mixed(desk, 'mistral', model, local_model, test=fetch is None and not key)   # clé neuve : déjà vérifiée deux fois
     return {**out, 'modele': model, 'plafond_mensuel_usd': monthly, 'plafond_requete_usd': per_request,
             'message': out['message'] + ' Plafonds : %s $ par mois, %s $ par requête.' % (_fr(monthly), _fr(per_request))}
 
 
 def _fr(amount):
     return ('%.2f' % amount).replace('.', ',')
+
+
+def _revision(desk):
+    from .ai_gateway import revision_of
+    return revision_of(desk.settings('ai:provider:mistral', {}))
 
 
 def form_html(desk):
@@ -162,7 +180,8 @@ def form_html(desk):
     mistral = provider_registry(desk.c).get('mistral') or {}
     local = (desk.c.get('ollama') or {}).get('model') or ''
     key = ('<p class="ax-muted">Clé Mistral déjà enregistrée.</p>' if mistral.get('secret_file') else
-           '<label class="m5-field">Clé API Mistral<input type="password" name="api_key" required maxlength="4096" autocomplete="new-password"></label>')
+           '<label class="m5-field">Clé API Mistral<input type="password" name="api_key" required maxlength="4096" autocomplete="new-password"></label>'
+           '<input type="hidden" name="revision_cle" value="%d">' % _revision(desk))      # 5.6.96 (A03) : révision lue à l'ouverture
     return ('<section class="m81-profil" id="m81-profil"><h3>Profil Mixte recommandé</h3>'
             '<p><strong>Ollama en local</strong> (%s) pour le tri des courriels, la lecture des pièces et le contrôle ; <strong>Mistral Large 4</strong> pour la '
             'rédaction, l’analyse juridique, l’assistant et la conversation vocale. Tout ce qui part est pseudonymisé.</p>'

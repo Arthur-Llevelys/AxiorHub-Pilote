@@ -33,7 +33,7 @@ class Today(t14.Base):
         self.assertNotIn('id="c530-pilot-slot"', body)
         self.assertIn('data-legacy-composer hidden', body)
         self.assertIn('id="ws-ai-launcher"', body); self.assertIn('id="ws-ai-dock"', body)
-        self.assertLess(body.index('id="c530-routines"'), body.index('id="c5656-file"'))   # 5.6.57 : « À relire » rejoint la file unique
+        self.assertLess(body.index('id="c5656-file"'), body.index('id="c530-routines"'))   # 5.6.96 (I01, ordre choisi par le cabinet) : « À décider / À relire » avant les routines
 
 
 class SpokenBriefing(t14.Base):

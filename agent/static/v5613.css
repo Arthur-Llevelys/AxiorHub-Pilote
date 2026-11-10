@@ -1,7 +1,5 @@
 /* AxiorHub 5.6.13 : panneau Pilote partagé (Aujourd'hui + panneau), mode élargi, micro actif, pièces jointes, états d'un document. */
 .ws-ai-dock--wide{width:min(62vw,960px)!important;max-width:none!important}
-.ws-ai-dock--wide .ws-ai-body{max-height:calc(100vh - 120px)}
-.ws-ai-dock--wide .ws-ai-tools{position:sticky;top:0;background:inherit;z-index:2;padding:.25rem 0}
 .ws-ai-dock--embedded{position:static!important;width:100%!important;max-width:none!important;height:auto!important;max-height:none!important;box-shadow:none!important;border:0!important;margin:0!important;transform:none!important}
 .ws-ai-dock--embedded .ws-ai-body{max-height:none;overflow:visible}
 .ws-ai-dock--embedded #ws-ai-close,.ws-ai-dock--embedded #ws-ai-wide{display:none}

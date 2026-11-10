@@ -51,7 +51,7 @@ ROLE_DEFAULTS = {'administrateur': {r: True for r in RIGHT_IDS},
 SEND_API = frozenset({'send/prepare', 'send/confirm', 'send/matter', 'm5628/envoyer', 'm5628/envoyer/confirmer'})
 DEPOSIT_API = frozenset({'m5628/brouillon', 'm5625/boite/repondre'})
 DEPOSIT_ACTIONS = frozenset({'deposit_draft', 'prepare_reply', 'prepare_draft'})
-VALIDATE_API = frozenset({'fact/validate', 'fact/reject', 'deadline/confirm', 'deadline/correct', 'deadline/close', 'm500/limitation/confirm',
+VALIDATE_API = frozenset({'fact/validate', 'fact/reject', 'deadline/confirm', 'deadline/correct', 'deadline/close', 'deadline/agenda', 'm500/limitation/confirm',
                           'm500/limitation/correct', 'm500/limitation/close', 'm500/conflicts/decide', 'm5634/decision/annuler',
                           'm568/profils/approve', 'm568/profils/revoke', 'm568/mission5614/control', 'm568/mission5614/decide',
                           'm568/decision/defer', 'm568/automatismes/pause',
@@ -325,6 +325,8 @@ def category(method, path, action=''):
     if api.startswith('m5671/reglage/') and method not in ('GET', 'HEAD'):
         return 'reglages'
     if api.startswith('m5670/courriels/'):   # 5.6.70 : « Traiter avec l'IA » = dépôt de brouillons (comme « Répondre avec l'IA »)
+        return 'deposer'
+    if api.startswith('m5689/courriels/preparer'):   # 5.6.96 : « Préparer une réponse » de la vue assistée = même droit que « Répondre avec l'IA »
         return 'deposer'
     if api.startswith('m5670/efacture/'):   # 5.6.70 : facturation électronique
         return 'facturation'

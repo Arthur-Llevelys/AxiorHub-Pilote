@@ -128,6 +128,8 @@ MIGRATIONS = (('d51_assertions', 'validity', "TEXT NOT NULL DEFAULT 'courante'")
 VALIDITY = {'courante': 'Courante', 'historique': 'Historique (source remplacée ou retirée)',
             'a_recontroler': 'Enregistrée, source remplacée : à recontrôler'}
 def ensure_schema(desk):
+    if getattr(desk, '_schema5696_modele', None) is desk.db:   # 5.6.96 (U06) : une fois par connexion (Aujourd'hui l'appelait pour chaque dossier)
+        return
     desk.db.executescript(SCHEMA)
     changed = False
     for table, column, decl in MIGRATIONS:   # 5.6.52 : colonnes ajoutées aux bases 5.6.51
@@ -137,6 +139,10 @@ def ensure_schema(desk):
             changed = True
     if changed:
         desk.db.commit()
+    try:
+        desk._schema5696_modele = desk.db
+    except AttributeError:   # bureau de test sans attributs libres : la préparation sera refaite, comme avant
+        pass
 
 
 def _matter(desk, mid):

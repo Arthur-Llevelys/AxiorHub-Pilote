@@ -544,10 +544,17 @@ class InboxFolders(t530.Base):
                 boite5625._dav(self.desk)
 
     def test_inbox_view_comes_first_and_drafts_are_really_hidden(self):
-        page = self.request('/courriels', query='vue=boite')['body']
-        self.assertLess(page.index('id="bx5625"'), page.index('id="ax-drafts"'))
-        self.assertIn('id="ax-drafts" data-validity="9" hidden>', page)   # 5.6.30 : sans style en ligne (bloqué par la CSP)
+        # 5.6.96 (I03) : la vue est choisie avant toute lecture : la boîte de réception ne construit plus le panneau caché des brouillons, donc
+        # ne lit plus le dossier Brouillons dans la messagerie ; « À relire » garde son panneau et sa validité IMAP.
+        from unittest.mock import patch as _patch
+        with _patch('agent.drafts440.list_drafts', side_effect=AssertionError('brouillons lus pour la boîte de réception')):
+            page = self.request('/courriels', query='vue=boite')['body']
+        self.assertIn('id="bx5625"', page)
+        self.assertNotIn('id="ax-drafts"', page)
         self.assertIn('id="bx5625-flist"', page)
+        relire = self.request('/courriels')['body']
+        self.assertIn('id="ax-drafts" data-validity="9">', relire)   # 5.6.30 : sans style en ligne (bloqué par la CSP)
+        self.assertNotIn('id="bx5625"', relire)
         css = (ROOT / 'agent' / 'static' / 'v5625.css').read_text(encoding='utf-8')
         self.assertIn('#ax-drafts[hidden]{display:none!important}', css)
         js = (ROOT / 'agent' / 'static' / 'v5625.js').read_text(encoding='utf-8')

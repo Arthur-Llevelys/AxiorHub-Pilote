@@ -47,7 +47,8 @@ class Login(login_fixture.Base):
         self.assertGreaterEqual(queue, 0)
         self.assertGreaterEqual(routines, 0)
         OBSERVATIONS['N02'] = {'position_file': queue, 'position_routines': routines}
-        self.assertGreater(queue, routines, 'La file doit suivre les routines dans le contenu principal.')
+        # 5.6.96 (I01, décision du cabinet) : « À décider / À relire » vient avant les routines, juste sous « Actuellement »
+        self.assertLess(queue, routines, 'La file doit précéder les routines dans le contenu principal (I01).')
 
 
 class Identities(fixture.Base):

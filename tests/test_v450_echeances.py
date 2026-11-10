@@ -50,6 +50,9 @@ class Base(unittest.TestCase):
         self.emitted = []
 
     def one(self, rule='appel_jugement_contentieux', start='2026-09-10', **kw):
+        # 5.6.96 (D02) : seule une échéance décidée (confirmée) est inscrite, rappelée et contrôlée ; une détection reste une proposition
+        kw.setdefault('status', 'confirmee')
+        kw.setdefault('origin', 'manuel')
         return ech.create_deadline(self.desk, 'DOS-001', rule, start, **kw)
 
 
@@ -92,28 +95,27 @@ class Detection(unittest.TestCase):
 
 class Lifecycle(Base):
     def test_analyze_creates_pending_deadline_and_calendar_once(self):
+        # 5.6.96 (D02, attente adaptée) : la détection devient une proposition à vérifier (Contentieux › Délais) ; aucune ligne de
+        # suivi, aucun événement d'agenda avant la décision d'une personne. Avant 5.6.96 : échéance « à confirmer » inscrite à l'agenda.
+        from agent import delais5689
         args = {'matter': 'DOS-001', 'path': PATH, 'etag': '"e1"'}
         result = ech.analyze(self.desk, args, dav=self.dav, extractor=lambda raw, name: TEXT, today=TODAY)
-        self.assertEqual(result['echeances_creees'], 1)
-        rows = ech.listing(self.desk)
-        self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual(row['status'], 'a_confirmer')
-        self.assertEqual(row['start_date'], '2026-03-12')
-        self.assertEqual(row['due'], '2026-04-13')          # 12 avril 2026 dimanche -> lundi 13
-        self.assertEqual(row['source_path'], PATH)
-        self.assertIn('signifié le 12 mars 2026', row['source_excerpt'])
-        self.assertTrue(any('art. 642' in s for s in row['calc']['steps']))
-        self.assertEqual(len(self.dav.store), 1)
-        self.assertIn('À CONFIRMER', list(self.dav.store.values())[0]['summary'])
+        self.assertEqual((result['propositions'], result['echeances_creees']), (1, 0))
+        self.assertEqual(ech.listing(self.desk), [])
+        self.assertEqual(self.dav.store, {})
+        cands = delais5689.liste(self.desk, 'DOS-001')
+        self.assertEqual([(c['evenement'], c['date_evenement'], c['source_path']) for c in cands], [('signification_jugement', '2026-03-12', PATH)])
+        self.assertIn('signifié le 12 mars 2026', cands[0]['citation'])
         again = ech.analyze(self.desk, args, dav=self.dav, extractor=lambda raw, name: TEXT, today=TODAY)
         self.assertEqual(again, result)
-        # nouvelle version de la même pièce : pas de doublon de ligne ni d'événement
+        # nouvelle version de la même pièce : pas de seconde proposition ni d'événement
         args2 = dict(args, etag='"e2"')
         r2 = ech.analyze(self.desk, args2, dav=self.dav, extractor=lambda raw, name: TEXT, today=TODAY)
-        self.assertEqual(r2['echeances_creees'], 0)
-        self.assertEqual(len(ech.listing(self.desk)), 1)
-        self.assertEqual(len(self.dav.store), 1)
+        self.assertEqual(r2['propositions'], 0)
+        self.assertEqual(len(delais5689.liste(self.desk, 'DOS-001')), 1)
+        self.assertEqual(self.dav.store, {})
+        # le calcul reste celui du moteur, à la validation : 12 avril 2026 dimanche -> lundi 13
+        self.assertEqual(ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-03-12', status='confirmee', origin='manuel')['due'], '2026-04-13')
 
     def test_no_event_no_deadline(self):
         args = {'matter': 'DOS-001', 'path': PATH, 'etag': '"z"'}
@@ -187,8 +189,12 @@ class Lifecycle(Base):
         ech.sync_calendar(self.desk, self.dav, row['id'])
         with self.assertRaises(Stop):
             ech.close(self.desk, self.dav, row['id'], 'annulee', '')
-        ech.close(self.desk, self.dav, row['id'], 'annulee', 'Appel finalement formé')
-        self.assertIn('ANNULÉE', list(self.dav.store.values())[0]['summary'])
+        out = ech.close(self.desk, self.dav, row['id'], 'annulee', 'Appel finalement formé')
+        # 5.6.96 (D04, attente adaptée) : l'annulation est une décision interne ; l'événement n'est plus renommé « ANNULÉE » :
+        # son retrait est proposé et n'a lieu que sur demande expresse. Avant 5.6.96 : second PUT, titre « ANNULÉE ».
+        self.assertEqual(out['calendar'], 'retrait_propose')
+        self.assertEqual(len(self.dav.store), 1)
+        self.assertNotIn('ANNULÉE', list(self.dav.store.values())[0]['summary'])
         self.assertEqual(ech.listing(self.desk), [])
         self.assertEqual(len(ech.listing(self.desk, include_closed=True)), 1)
 
@@ -231,7 +237,7 @@ class CrossCheckAndReminders(Base):
     def test_missing_date_and_contradiction(self):
         ech.create_deadline(self.desk, 'DOS-001', 'conclusions_intime', '2026-02-11')
         a = self.one(start='2026-09-10')
-        b = ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-09-20')
+        b = self.one(start='2026-09-20')      # 5.6.96 : deux échéances confirmées (une proposition n'entre pas dans la comparaison)
         kinds = self.kinds(ech.cross_check(self.desk, None, TODAY))
         self.assertIn('date_manquante', kinds)
         self.assertEqual(kinds.count('deux_dates'), 2)

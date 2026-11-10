@@ -22,7 +22,13 @@ def _now():
 
 
 def checks(desk):
-    """Liste de points : {'id', 'text', 'level' (info | attention), 'actions': [{'api', 'label', 'data', 'confirm'}]}."""
+    """Liste de points : {'id', 'text', 'level' (info | attention), 'actions': [{'api', 'label', 'data', 'confirm'}]}.
+    5.6.96 (U06) : calculés une fois par page (l'en-tête et le panneau d'Aujourd'hui les lisaient chacun : deux diagnostics, deux appels à Ollama)."""
+    from .affichage5696 import memo_requete
+    return list(memo_requete(('sante5636', str(desk.c.get('state_dir', ''))), lambda: _checks(desk)))
+
+
+def _checks(desk):
     from .web520 import diagnosis
     from .watch430 import unreadable
     d = diagnosis(desk)

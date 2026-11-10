@@ -163,6 +163,25 @@ def pending_add(desk, task, matter, title, payload):
     return cur.lastrowid, True
 
 
+def pending_close_for_deadline(desk, deadline_id, result='echeance_close'):
+    """5.6.96 (D05) : les propositions d'agenda en attente d'une échéance décidée autrement (annulée, écartée, accomplie) sont closes,
+    sans rien écrire à l'agenda."""
+    ensure_schema(desk)
+    closed = 0
+    for row in desk.db.execute("SELECT id,payload FROM autonomy_pending480 WHERE task='agenda_echeance' AND status='pending'").fetchall():
+        try:
+            payload = json.loads(row['payload'])
+        except ValueError:
+            continue
+        if str(payload.get('deadline_id') or '') != str(deadline_id):
+            continue
+        desk.db.execute("UPDATE autonomy_pending480 SET status='dismissed',decided=?,result=? WHERE id=?", (_now(desk), str(result)[:80], row['id']))
+        closed += 1
+    if closed:
+        desk.db.commit()
+    return closed
+
+
 def pending_list(desk, status='pending', limit=100):
     ensure_schema(desk)
     rows = desk.db.execute('SELECT id,created,task,matter,title,status,decided FROM autonomy_pending480 WHERE status=? ORDER BY id DESC LIMIT ?',
@@ -189,6 +208,17 @@ def pending_decide(desk, pending_id, action, dav=None):
     if row['task'] not in ('agenda_echeance', 'agenda_avis'):
         raise Stop('tache_autonomie_inconnue')
     payload = json.loads(row['payload'])
+    if row['task'] == 'agenda_echeance' and payload.get('deadline_id'):
+        # 5.6.96 (D02) : une proposition d'agenda ne s'exécute que pour une échéance du suivi encore décidée (confirmée ou corrigée),
+        # sous son propre identifiant et à la même date. Les prescriptions (``limitation500``) ont leur propre suivi : absentes d'ici.
+        from . import echeances450
+        deadline = echeances450._row(desk, str(payload['deadline_id']))
+        if deadline is not None and (deadline['status'] not in echeances450.INSCRITES or payload.get('uid') != deadline['id']
+                                     or not str(payload.get('start') or '').startswith(deadline['due'] + 'T')):
+            desk.db.execute("UPDATE autonomy_pending480 SET status='dismissed',decided=?,result='echeance_non_validee_ou_modifiee' WHERE id=?",
+                            (_now(desk), pending_id))
+            desk.db.commit()
+            raise Stop('echeance_non_validee_ou_modifiee')
     cal = desk.c.get('calendar', {})
     urls = cal.get('urls') or []
     if not urls:

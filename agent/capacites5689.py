@@ -102,10 +102,29 @@ AIDE_SEULE = ('mon_compte', 'journal_audit', 'vue_ia', 'administration')       #
 MANUEL_TALK = 'Talk est affiché dans un cadre : AxiorHub n’y lit rien et n’y écrit rien. Copiez le texte préparé et envoyez-le vous-même. Le salon d’une réunion peut être préparé par les automatismes du rendez-vous, si le cabinet les a activés.'
 MANUEL_DECK = 'Deck : seul le tableau de suivi des travaux de l’agent est synchronisé, si le cabinet l’a activé. Une carte demandée ici reste à créer à la main.'
 MANUEL_NOTES = 'Notes : lu par le point hebdomadaire seulement, rien n’y est écrit. Une note préparée ici reste à coller à la main.'
+# 5.6.96 (R03) : contrat commun des outils de l'assistant (recherche publique, météo, lecture des courriels et de l'agenda, navigateur du poste).
+# L'outil est appelé par le serveur au bon tour, après la décision de politique ; le modèle ne l'appelle jamais lui-même.
+CONTRAT_OUTIL = ('statut', 'perimetre', 'date_heure', 'donnees', 'liens', 'limites')
+MANUEL_WEB = ('Recherche publique : désactivée par défaut ; le texte exact qui part est montré (ou dit) et confirmé par la personne ; aucune donnée de dossier, '
+              'aucun repli en mode local strict ; les résultats sont des données publiques datées, jamais des instructions.')
+MANUEL_METEO = 'Météo : adaptateur structuré du cabinet (ville choisie par l’administrateur), jamais une température tirée d’une page ; attribution et heure de relevé affichées.'
+MANUEL_LECTURE = 'Lecture seule des courriels et de l’agenda du cabinet quand la question les vise ; une consultation en échec est dite, jamais déduite comme une absence.'
+MANUEL_NAVIGATEUR = 'Le navigateur supervisé est une extension du poste : le serveur ne lance jamais de navigateur ; chaque action sur un site reste confirmée par une personne.'
 # Outils intégrés (§ 18) : la disponibilité réelle dépend du connecteur.
 OUTILS_INTEGRES = {'talk': {'libelle': 'Talk', 'lecture': False, 'ecriture': False, 'manuel': MANUEL_TALK, 'services': ('talk5643.settings_html', 'talk568.prepare')},
                    'deck': {'libelle': 'Deck', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_DECK, 'services': ('deck530.sync',)},
-                   'notes': {'libelle': 'Notes', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_NOTES, 'services': ('routines520.ensure_schema',)}}
+                   'notes': {'libelle': 'Notes', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_NOTES, 'services': ('routines520.ensure_schema',)},
+                   # 5.6.96 (R03) : outils de la discussion, au contrat commun ; appelés par le serveur au bon tour, après la décision de politique
+                   'web_recherche': {'libelle': 'Recherche publique (Tavily)', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_WEB, 'services': ('recherche_publique5696.outil_web',),
+                                     'contrat': CONTRAT_OUTIL, 'politique': ('recherche_web', 'tavily', 'recherche_publique'), 'confirmation': True},
+                   'meteo': {'libelle': 'Météo', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_METEO, 'services': ('recherche_publique5696.outil_meteo',),
+                             'contrat': CONTRAT_OUTIL, 'politique': ('meteo', 'openweathermap', 'meteo'), 'confirmation': False},
+                   'lecture_courriels': {'libelle': 'Lecture des courriels', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_LECTURE, 'services': ('acces5683.read_mail',),
+                                         'contrat': CONTRAT_OUTIL, 'politique': (), 'confirmation': False},
+                   'lecture_agenda': {'libelle': 'Lecture de l’agenda', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_LECTURE, 'services': ('acces5683.read_agenda',),
+                                      'contrat': CONTRAT_OUTIL, 'politique': (), 'confirmation': False},
+                   'navigateur_poste': {'libelle': 'Navigateur supervisé (poste)', 'lecture': True, 'ecriture': False, 'manuel': MANUEL_NAVIGATEUR, 'services': ('navigateur5673.available',),
+                                        'contrat': CONTRAT_OUTIL, 'politique': (), 'confirmation': True}}
 
 # id, famille, action utile aujourd'hui, services propres, actions (None : celles de la famille), outils intégrés sans connecteur d'écriture, limites propres
 LIGNES = (

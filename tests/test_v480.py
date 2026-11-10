@@ -451,7 +451,8 @@ class Autonomy(Base):
         self.assertEqual(autonomy480.level(self.desk, 'agenda_echeance'), 'agir')
 
     def deadline(self):
-        row = ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-09-10')
+        # 5.6.96 (D02) : saisie d'une personne (origine « manuel ») ; une détection automatique ne se confirme que sur preuve de notification
+        row = ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-09-10', origin='manuel')
         ech.confirm(self.desk, FakeDAV(), row['id'])
         return row['id']
 
@@ -471,8 +472,11 @@ class Autonomy(Base):
         with self.assertRaises(Stop):
             autonomy480.pending_decide(self.desk, pending[0]['id'], 'execute', dav)
         autonomy480.set_level(self.desk, 'agenda_echeance', 'agir', 'yes')
-        ident2 = ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-09-11')['id']
-        self.assertIn(ech.sync_calendar(self.desk, dav, ident2), ('cree', 'mis_a_jour'))
+        ident2 = ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-09-11', origin='manuel')['id']
+        # 5.6.96 (D02, attente adaptée) : au niveau « agir », une proposition non confirmée n'est plus inscrite ; elle l'est une fois confirmée
+        self.assertEqual(ech.sync_calendar(self.desk, dav, ident2), 'non_validee')
+        self.assertEqual(dav.puts, 1)
+        self.assertIn(ech.confirm(self.desk, dav, ident2)['calendar'], ('cree', 'mis_a_jour'))
         self.assertEqual(dav.puts, 2)
 
     def test_dismissed_proposal_writes_nothing(self):
@@ -658,7 +662,7 @@ class Trace(Base):
     def test_events_explain_what_was_produced_and_why(self):
         trace480.event(self.desk, 'DOS-001', 'produit', 'Brouillon de réponse déposé', 'Réponse à un courriel ; règles 3', {'mail_key': 'k'})
         autonomy480.set_level(self.desk, 'agenda_echeance', 'propose')
-        ident = ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-09-10')['id']
+        ident = ech.create_deadline(self.desk, 'DOS-001', 'appel_jugement_contentieux', '2026-09-10', origin='manuel')['id']   # 5.6.96 : saisie d'une personne
         ech.confirm(self.desk, FakeDAV(), ident)
         ech.sync_calendar(self.desk, FakeDAV(), ident)
         kinds = {e['kind'] for e in trace480.matter_view(self.desk, 'DOS-001')['events']}

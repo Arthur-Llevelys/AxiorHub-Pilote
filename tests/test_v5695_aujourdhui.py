@@ -69,13 +69,16 @@ class Cabinet(unittest.TestCase):
 
     def resume(self, owner='cabinet', role='administrateur', hidden=frozenset()):
         self.d.db.commit()
-        return act.calculer(self.d, owner, role, hidden, '/p')
+        return act.calculer(self.d, owner, role, hidden, '/p', now=getattr(self, 'instant', None))
 
     def rubrique(self, resume, ident):
         return next(r for r in resume['rubriques'] if r['id'] == ident)
 
     def semer(self):
-        jour = datetime.now(timezone.utc)
+        # 5.6.96 : instant fixe à 10 h, heure du cabinet, le jour même ; le calcul reçoit le même instant (pas de bascule à minuit)
+        from agent.cockpit530 import tz
+        jour = datetime.now(tz(self.d)).replace(hour=10, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+        self.instant = jour
         self.evenement('ev1', 'Audience de mise en état', jour + timedelta(hours=2), matter='DOS-001')
         self.evenement('ev2', 'Rendez-vous client', jour + timedelta(days=1, hours=1), matter='DOS-002')
         self.evenement('ev3', 'Expertise réservée', jour + timedelta(hours=1), matter='DOS-006')

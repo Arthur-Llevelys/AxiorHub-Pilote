@@ -24,6 +24,7 @@ WORK_API = PREPARATION_API | DECISION_API | FACTURATION_API | frozenset({
     'autonomy/status',
     'citations/check',
     'deadline/act',
+    'deadline/agenda',   # 5.6.96 (D04) : retrait expressément demandé de l'événement d'une échéance annulée ou écartée
     'deadline/check',
     'deadline/close',
     'deadline/confirm',

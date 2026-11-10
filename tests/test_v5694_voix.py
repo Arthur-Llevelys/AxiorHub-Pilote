@@ -383,10 +383,12 @@ class V03Fournisseur(Bureau):
         assistant567.save_profile(self.desk, {'speech_enabled': False}, 'avocat@example.test')
         with self.assertRaisesRegex(Stop, 'lecture_vocale_desactivee'):
             voix5694.preparer(self.desk, 'Texte fictif.', 'avocat@example.test')
-        for texte in ('', ' ', 'x' * 7001):
-            with self.assertRaisesRegex(Stop, 'trop_long'):
+        for texte in ('', ' '):
+            with self.assertRaisesRegex(Stop, 'texte_lecture_vide'):   # 5.6.96 (V01) : texte vide refusé ; le refus « trop_long » à 7 000 est retiré
                 voix5694.preparer(self.desk, texte)
         self.assertEqual(self.audits(), [])
+        # 5.6.96 (V01) : au-delà de 7 000 caractères, le texte est lu en entier (plafond explicite annoncé : test_v5696_voix)
+        self.assertEqual(voix5694.preparer(self.desk, 'x' * 7001)['characters'], 7001)
 
     def test_V03_voix_du_serveur_choisie_rien_n_est_lu_dans_le_navigateur(self):
         self.desk.c['speech568'] = {'provider': 'kokoro', 'url': 'http://127.0.0.1:8880'}

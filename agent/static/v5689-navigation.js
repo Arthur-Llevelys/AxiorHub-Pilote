@@ -4,7 +4,7 @@
 (function (root) {
   'use strict';
   var doc = root.document;
-  var CLE = 'ui89-etat:', RESTAURER = 'ui89-restaurer';
+  var CLE = 'ui89-etat:', RESTAURER = 'ui89-restaurer', PRECEDENT = 'ui96-precedent';
   function meta(n) { var m = doc.querySelector('meta[name="' + n + '"]'); return m ? m.content : ''; }
   var prefix = meta('axiorhub-prefix') || '', csrf = meta('axiorhub-csrf');
   function lire(k) { try { return root.sessionStorage.getItem(k); } catch (e) { return null; } }
@@ -28,6 +28,21 @@
   }
   function memoriser(lien) {
     ecrire(CLE + ici(), JSON.stringify({ y: root.scrollY, focus: lien ? sansRetour(new URL(lien.href, root.location.href)) : '', valeurs: filtresLocaux() }));
+    /* 5.6.96 (U07) : liste quittée, de même origine et pour ce compte : le bouton Retour du détail pourra revenir par l'historique */
+    ecrire(PRECEDENT, JSON.stringify({ liste: ici(), compte: meta('axiorhub-compte'), detail: lien ? sansRetour(new URL(lien.href, root.location.href)) : '' }));
+  }
+  /* 5.6.96 (U07) : retour par l'historique seulement si l'entrée précédente connue est cette liste, ouverte par le même compte, sur la même
+     origine, et si le navigateur vient bien d'elle ; sinon le lien validé par le serveur est suivi comme avant. */
+  function retourParHistorique(cible) {
+    var prec;
+    try { prec = JSON.parse(lire(PRECEDENT) || 'null'); } catch (e) { prec = null; }
+    if (!prec || !prec.liste || prec.compte !== meta('axiorhub-compte') || cible.origin !== root.location.origin) return false;
+    if (sansRetour(cible) !== sansRetour(new URL(prec.liste, root.location.href)) || prec.detail !== sansRetour(new URL(root.location.href))) return false;
+    var venu;
+    try { venu = doc.referrer ? new URL(doc.referrer) : null; } catch (e) { venu = null; }
+    if (!venu || venu.origin !== root.location.origin || sansRetour(venu) !== sansRetour(cible) || root.history.length < 2) return false;
+    root.history.back();
+    return true;
   }
   function saisieNonEnregistree() {
     return Array.prototype.some.call(doc.querySelectorAll('#ws-main form textarea, #ws-main form input:not([type=hidden]):not([type=search]):not([type=checkbox]):not([type=radio])'), function (f) {
@@ -39,6 +54,7 @@
     if (retour) {
       if (saisieNonEnregistree() && !root.confirm('Une saisie de cette page n’est pas enregistrée et sera perdue. Revenir quand même ?')) { ev.preventDefault(); return; }
       ecrire(RESTAURER, new URL(retour.href, root.location.href).pathname + new URL(retour.href, root.location.href).search);
+      if (retourParHistorique(new URL(retour.href, root.location.href))) ev.preventDefault();
       return;
     }
     var lien = ev.target.closest && ev.target.closest('#ws-main a[href]');
@@ -74,6 +90,15 @@
     }
   }
   root.addEventListener('pageshow', restaurer);
+  /* 5.6.96 (U07) : page rendue par le cache du navigateur (retour arrière) : session et compte revalidés auprès du serveur ; session fermée
+     ou autre compte : la page est rechargée (le serveur redemande la connexion ou rend la page du bon compte). */
+  root.addEventListener('pageshow', function (ev) {
+    if (!ev.persisted || !meta('axiorhub-compte')) return;
+    root.fetch(prefix + '/api440/m5689/affichage/session', { credentials: 'same-origin', cache: 'no-store', redirect: 'manual' }).then(function (r) {
+      if (!r.ok) { root.location.reload(); return null; }
+      return r.json();
+    }).then(function (v) { if (v && v.compte !== meta('axiorhub-compte')) root.location.reload(); }).catch(function () { root.location.reload(); });
+  });
 
   /* Panneaux : <dialog> natif pour le piège du focus, Échap et le retour du focus ; fermeture aussi par le bouton et le fond. */
   doc.addEventListener('click', function (ev) {

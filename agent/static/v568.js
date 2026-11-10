@@ -134,61 +134,98 @@
   const transmission=el('details'),transmissionTitle=el('summary','Données de lecture vocale'),transmissionText=el('pre');transmission.append(transmissionTitle,transmissionText);
   const start=el('button','Démarrer le dialogue'),stop=el('button','Arrêter'),send=el('button','Envoyer le texte corrigé');[start,stop,send].forEach(b=>{b.type='button';});
   pane.append(header,context,mode,el('p','La discussion donne des réponses. Le mode mission autorise les préparations internes ; aucun envoi ni invitation automatique.'),status,answer,transcript,send,transmission,start,stop);if(dockVoice){pane.classList.add('voice568-embedded');dockVoice.append(pane);}else document.body.append(launch,pane);
-  let running=false,stream=null,rec=null,chunks=[],bytes=0,audioContext=null,analyser=null,vad=null,lastSound=0,turnStart=0,voiced=false,processing=false,speaking=null,audioURL='',scope='',parent='',generation=0;
+  let running=false,stream=null,rec=null,chunks=[],bytes=0,audioContext=null,analyser=null,vad=null,lastSound=0,turnStart=0,voiced=false,processing=false,scope='',parent='',generation=0;
   let controller=null,lastPayload=null,micSession=null,cueReady=false;   // 5.6.94 (V07) : capture Alkove (Focus, Cue)
   const token=()=>crypto.randomUUID();
   let dictationFailures=0;
   // 5.6.81 : ni affichés ni lus à voix haute : les balises de mise en forme de la réponse
   function plain(text){return String(text).replace(/\*\*|__|`/g,'').replace(/^\s{0,3}#{1,6}\s+/gm,'').replace(/^\s*[*-]\s+/gm,'• ');}
   function voiceNote(text){status.textContent=text;}
-  let speechGeneration=0,playResolve=null;
-  // 5.6.11 : une interruption (parole, Arrêter, fermeture) résout aussi l'attente de lecture en cours : la conversation revient à l'écoute.
-  function stopSpeech(){speechGeneration++;window.axiorhubVoix?.stop();speaking?.pause();speaking=null;if(audioURL)URL.revokeObjectURL(audioURL);audioURL='';const r=playResolve;playResolve=null;if(r)r();}
-  // 5.6.9 : lecture phrase par phrase. La première phrase est lue pendant que les suivantes se préparent ; une interruption
-  // (parole, Arrêter, fermeture) vide la file. Le texte complet reste visible.
-  function sentences(text){
-    const out=[];let buffer='';
-    for(const part of text.replace(/\s+/g,' ').split(/(?<=[.!?…;:])\s+/)){
-      if(buffer&&(buffer+' '+part).length>240){out.push(buffer.trim());buffer=part;}else buffer=(buffer+' '+part);
-    }
-    if(buffer.trim())out.push(buffer.trim());
-    return out.length?out:[text];
-  }
-  async function fetchSpeech(chunk,signal){
-    const r=await fetch(prefix+'/api440/m568/speech',{method:'POST',credentials:'same-origin',signal,headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({text:chunk,matter:scope})});
-    if(!r.ok){const v=await r.json();throw new Error(v.message||v.error);}
-    return r.blob();
-  }
-  function playBlob(blob,g,sg){
-    return new Promise(resolve=>{
-      if(g!==generation||sg!==speechGeneration||!running){resolve();return;}
-      playResolve=resolve;
-      audioURL=URL.createObjectURL(blob);speaking=new Audio(audioURL);
-      speaking.onended=()=>{if(sg===speechGeneration){URL.revokeObjectURL(audioURL);audioURL='';speaking=null;}playResolve=null;resolve();};
-      speaking.onerror=()=>{playResolve=null;resolve();};speaking.play().catch(()=>{playResolve=null;resolve();});
-    });
+  // 5.6.11 : une interruption (parole, Arrêter, fermeture) rend la main tout de suite : la conversation revient à l'écoute.
+  // 5.6.96 (V03) : motif 'voix' (parole détectée) ou 'utilisateur' ; la lecture commune (v5694-voix.js) annule aussi ses requêtes audio.
+  function stopSpeech(motif){window.axiorhubVoix?.stop(motif==='voix'?'voix':'utilisateur');}
+  // 5.6.96 (V02, V03) : « Interrompre la lecture » toujours visible pendant la lecture ; « Reprendre au segment n » après un échec
+  const interrompre=el('button','Interrompre la lecture','v96-interrompre'),reprise=el('button','','v96-reprise');
+  [interrompre,reprise].forEach(b=>{b.type='button';b.hidden=true;});
+  interrompre.addEventListener('click',()=>{stopSpeech('utilisateur');});
+  // 5.6.96 (V03, V05, V06) : options de la discussion, enregistrées dans le profil du compte (m567/profile) ; ouvrir les options ne démarre pas le micro
+  const options=el('details',undefined,'v96-options'),optVoix=el('select'),optInter=el('input'),optAvatar=el('select'),optEtat=el('p','','v96-options-etat');
+  optEtat.setAttribute('role','status');optInter.type='checkbox';
+  optVoix.append(new Option('Français posé (par défaut)','posee'),new Option('Brindille originale','originale'));
+  optAvatar.append(new Option('Aucun avatar','aucun'),new Option('Portrait A','portrait_a'),new Option('Portrait B','portrait_b'));
+  const champ=(texte,input)=>{const l=el('label',undefined,'v96-option');l.append(el('span',texte),input);return l;};
+  const diag=el('details',undefined,'v96-diagnostic'),diagTexte=el('pre');diag.append(el('summary','Diagnostic de lecture (sans texte ni son)'),diagTexte);
+  diag.addEventListener('toggle',()=>{if(!diag.open)return;   // V04 : tampon local du lecteur : moteur, segment, durée, erreur, interruption
+    const lignes=(window.axiorhubVoix?.diagnostic?.()||[]).slice(-8).map(l=>[l.heure,l.tour,l.statut||l.evenement,'demandé '+(l.moteur_demande||'?'),'joué '+(l.moteur_effectif||'?'),
+      'segment '+(l.segment||0)+'/'+(l.segments||0),(l.duree_ms||0)+' ms',l.erreur||'',l.interruption?'interruption : '+l.interruption:'',l.repli?'repli : '+l.repli:''].filter(Boolean).join(' · '));
+    diagTexte.textContent=lignes.join('\n')||'Aucune lecture depuis l’ouverture de la page.';});
+  options.append(el('summary','Options'),champ('Voix ',optVoix),champ('Interrompre en parlant ',optInter),champ('Avatar ',optAvatar),optEtat,diag);
+  const portraitZone=el('div',undefined,'v96-portrait-zone');portraitZone.hidden=true;
+  header.after(options,portraitZone);status.after(interrompre,reprise);   // placés après leur déclaration (le volet est déjà construit)
+  let prefsVoix={},portrait=null,avatarChoisi='aucun',chargementAvatar=null,animation=0,lecture=false,detecteurVoix=null;
+  const versionScript=(()=>{try{return new URL(document.currentScript?.src||'',location.href).searchParams.get('v')||'';}catch(e){return '';}})();
+  const reduit=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):null;
+  function appliquerOptions(p){if(!p)return;prefsVoix=p;optVoix.value=p.voix_brindille==='originale'?'originale':'posee';optInter.checked=p.interruption_vocale===true;
+    const a=['portrait_a','portrait_b'].includes(p.avatar)?p.avatar:'aucun';optAvatar.value=a;montrerAvatar(a);}
+  async function enregistrerOption(donnees){[optVoix,optInter,optAvatar].forEach(x=>{x.disabled=true;});
+    try{const r=await fetch(prefix+'/api440/m567/profile',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(donnees)});
+      const v=await r.json().catch(()=>({}));if(!r.ok)throw new Error(v.message||v.error||'HTTP '+r.status);appliquerOptions(v);optEtat.textContent='Option enregistrée pour votre compte.';}
+    catch(e){appliquerOptions(prefsVoix);optEtat.textContent='Option non enregistrée : '+e.message;}
+    finally{[optVoix,optInter,optAvatar].forEach(x=>{x.disabled=false;});}}
+  optVoix.addEventListener('change',()=>enregistrerOption({voix_brindille:optVoix.value}));
+  optInter.addEventListener('change',()=>enregistrerOption({interruption_vocale:optInter.checked}));
+  optAvatar.addEventListener('change',()=>enregistrerOption({avatar:optAvatar.value}));
+  // 5.6.96 (V06) : le module d'avatar n'est chargé que si un portrait est choisi ; « aucun » : aucune requête
+  function chargerAvatar(){if(window.axiorhubAvatar)return Promise.resolve(window.axiorhubAvatar);
+    return chargementAvatar||(chargementAvatar=new Promise((ok,ko)=>{const s=document.createElement('script');s.defer=true;
+      s.src=prefix+'/static/v5696-avatar.js'+(versionScript?'?v='+encodeURIComponent(versionScript):'');
+      s.onload=()=>window.axiorhubAvatar?ok(window.axiorhubAvatar):ko(new Error('avatar'));s.onerror=()=>{chargementAvatar=null;ko(new Error('avatar'));};document.head.append(s);}));}
+  async function montrerAvatar(cle){if(cle===avatarChoisi&&(portrait||cle==='aucun'))return;avatarChoisi=cle;animer(false);portrait=null;portraitZone.replaceChildren();portraitZone.hidden=true;
+    if(!['portrait_a','portrait_b'].includes(cle))return;
+    try{const A=await chargerAvatar();if(avatarChoisi!==cle)return;portrait=A.creer(cle);if(portrait){portraitZone.append(portrait.element);portraitZone.hidden=false;animer(lecture);}}
+    catch(e){optEtat.textContent='Avatar indisponible : la discussion continue sans portrait.';}}
+  // Bouche animée d'après le niveau sonore local de la lecture Brindille, seulement pendant la lecture, volet visible, onglet au premier plan,
+  // sans préférence « moins d'animations » ; voix du serveur : niveau nul, portrait fixe. Rien n'est enregistré ni envoyé.
+  function animer(actif){clearInterval(animation);animation=0;
+    const ok=Boolean(actif&&portrait&&!pane.hidden&&!document.hidden&&!(reduit&&reduit.matches));
+    window.axiorhubVoix?.monitoriser?.(ok);portrait?.bouche(0);
+    if(ok)animation=setInterval(()=>{portrait?.bouche(window.axiorhubVoix?.moteur?.()==='brindille'?window.axiorhubVoix.niveau():0);},80);}
+  document.addEventListener('visibilitychange',()=>animer(lecture));reduit?.addEventListener?.('change',()=>animer(lecture));
+  // V03 : la voix ne coupe la lecture que si la personne l'a choisi ET que la détection est sûre (Cue prêt ou annulation d'écho du micro) ;
+  // sinon mode alterné : micro suspendu pendant la lecture, bouton « Interrompre la lecture » visible.
+  function echoSur(){if(cueReady)return true;try{return stream?.getAudioTracks?.()[0]?.getSettings?.().echoCancellation===true;}catch(e){return false;}}
+  function interrompreEnParlant(){return prefsVoix.interruption_vocale===true&&echoSur();}
+  const detecteur=()=>detecteurVoix||(detecteurVoix=window.axiorhubVoix?.detecteurInterruption?.(interrompreEnParlant,0.09,4)||null);   // 4 trames de 100 ms
+  function lectureEnCours(oui){lecture=oui;interrompre.hidden=!oui;detecteur()?.reinitialiser();
+    if(stream){const ouvert=!oui||interrompreEnParlant();stream.getAudioTracks().forEach(t=>{t.enabled=ouvert;});}
+    animer(oui);}
+  // 5.6.96 (V02) : « À vous » seulement après une lecture terminée ; un échec nomme le segment, garde le texte et propose de reprendre là
+  async function lire(text,g,depuis){
+    reprise.hidden=true;lectureEnCours(true);
+    try{const r=await window.axiorhubVoix.speak(text,{matter:scope,note:voiceNote,depuis,tour:'voix-'+g});
+      if(g!==generation||!running)return;
+      if(r.statut==='termine')voiceNote(((r.fallback||r.secours_serveur)?status.textContent+' ':'')+'À vous. Le microphone reste actif.');
+      else if(r.statut==='interrompu_voix')voiceNote('Lecture interrompue par votre voix. À vous.');
+      else if(r.statut==='interrompu_utilisateur')voiceNote('Lecture interrompue. À vous.');
+    }catch(e){if(g!==generation||!running)return;voiceNote(e.message);
+      const n=e.resultat?.segment||0;
+      if(n){reprise.textContent='Reprendre au segment '+n;reprise.hidden=false;
+        reprise.onclick=async()=>{if(processing||!running)return;processing=true;if(rec){rec.skipTranscript=true;rec.stop();rec=null;}
+          try{await lire(text,generation,n);}finally{processing=false;if(running&&!rec)recordTurn();}};}}
+    finally{lectureEnCours(false);}
   }
   function stopSession(){window.axiorhubPilot?.setMic(false);liveState(false);running=false;generation++;processing=false;controller?.abort();controller=null;clearInterval(vad);vad=null;
     if(rec&&rec.state!=='inactive')rec.stop();rec=null;stream?.getTracks().forEach(t=>t.stop());stream=null;micSession?.close?.();micSession=null;cueReady=false;audioContext?.close().catch(()=>{});audioContext=null;stopSpeech();mode.disabled=false;start.disabled=false;voiceNote('Microphone et lecture arrêtés. Une mission déjà confiée garde son état dans Missions.');}
   async function read(text,g){
     if(!text||g!==generation||!running)return;stopSpeech();
+    // Aperçu de ce qu'une voix externe recevrait (plafond PLAFOND_EXTERNE de voix5694, annoncé par la lecture elle-même)
     const preview=await api('speech/preview',{text:text.slice(0,7000),matter:scope},controller?.signal);
     if(g!==generation||!running)return;
     transmissionTitle.textContent=preview.external?'Lecture ElevenLabs · estimation '+(preview.estimated_usd??'indisponible')+' USD'+(preview.pseudonymized?' · pseudonymes':''):'Lecture locale · '+preview.provider;
     transmissionText.textContent=preview.external?(preview.allowed?preview.transmitted_text:'Externe refusé : '+preview.reason+'. Le secours local configuré peut lire le texte.'):'Aucun texte transmis à un service vocal externe.';
-    // 5.6.94 (V03, V05) : lecture commune (Brindille dans le navigateur ou voix du serveur), interrompue par la parole ou « Arrêter »
-    if(window.axiorhubVoix){voiceNote('Lecture phrase par phrase. Parlez pour interrompre, ou appuyez sur Arrêter.');
-      try{await window.axiorhubVoix.speak(text.slice(0,7000),{matter:scope,note:voiceNote});}catch(e){voiceNote(e.message);}
-      if(g!==generation||!running)return;voiceNote('À vous. Le microphone reste actif.');return;}
-    const sg=speechGeneration,parts=sentences(text.slice(0,7000));let next=fetchSpeech(parts[0],controller?.signal);
-    voiceNote('Lecture phrase par phrase. Parlez pour interrompre, ou appuyez sur Arrêter.');
-    for(let i=0;i<parts.length;i++){
-      const blob=await next;if(g!==generation||sg!==speechGeneration||!running)return;
-      if(i+1<parts.length)next=fetchSpeech(parts[i+1],controller?.signal).catch(()=>null);
-      await playBlob(blob,g,sg);
-      if(g!==generation||sg!==speechGeneration||!running)return;
-    }
-    stopSpeech();voiceNote('À vous. Le microphone reste actif.');
+    // 5.6.94 (V03, V05) puis 5.6.96 (V01, V02) : lecture commune du texte entier (Brindille dans le navigateur ou voix du serveur)
+    if(!window.axiorhubVoix){voiceNote('Lecture indisponible : rechargez la page. La réponse écrite reste visible.');return;}
+    await lire(text,g,1);
   }
   async function submit(text,g){
     if(!text.trim()||g!==generation){if(g===generation){processing=false;if(running&&!rec)recordTurn();}return;}
@@ -257,19 +294,21 @@
       // 5.6.94 (V07) : « Arrêter quand je me tais » : fin de prise de parole détectée par Cue dès que les modèles tournent ; avant, ou sans Alkove, le volume
       micSession=cap;cueReady=false;
       if(cap.stopOnSilence&&cap.ready)cap.ready.then(()=>{if(micSession===cap)cueReady=true;}).catch(()=>{});
-      cap.on?.('speechstart',()=>{voiced=true;lastSound=Date.now();});
+      cap.on?.('speechstart',()=>{voiced=true;lastSound=Date.now();if(cueReady&&lecture&&interrompreEnParlant())stopSpeech('voix');});   // 5.6.96 (V03) : Cue, sur choix
       cap.on?.('turnend',()=>{if(micSession===cap&&cueReady&&rec?.state==='recording'&&!processing&&voiced)rec.stop();});
       stream=s;audioContext=new AudioContext();await audioContext.resume();analyser=audioContext.createAnalyser();analyser.fftSize=1024;audioContext.createMediaStreamSource(s).connect(analyser);
       running=true;liveState(true);mode.disabled=true;start.disabled=true;window.axiorhubPilot?.setMic(true);voiceNote('Microphone actif · parlez, puis laissez une courte pause.'+(cap.note?' '+cap.note:''));recordTurn();
       const data=new Float32Array(analyser.fftSize);
       vad=setInterval(()=>{
         if(!running||!analyser)return;analyser.getFloatTimeDomainData(data);const rms=Math.sqrt(data.reduce((sum,x)=>sum+x*x,0)/data.length),now=Date.now();
-        if(rms>0.035){lastSound=now;voiced=true;if((speaking||window.axiorhubVoix?.speaking())&&rms>0.09){stopSpeech();voiceNote('Lecture interrompue. À vous.');}}
+        if(window.axiorhubVoix?.speaking()){   // 5.6.96 (V03) : pendant la lecture, la voix n'interrompt que sur choix, après 4 trames stables (400 ms)
+          if(detecteur()?.trame(rms))stopSpeech('voix');return;}
+        detecteur()?.reinitialiser();if(rms>0.035){lastSound=now;voiced=true;}
         if(rec?.state==='recording'&&!processing&&((!cueReady&&voiced&&now-lastSound>800&&now-turnStart>400)||now-turnStart>45000||bytes>7500000))rec.stop();
       },100);
     }catch(e){if(g===generation){stopSession();voiceNote(e.message);}}
   }
-  function showVoice(visible){pane.hidden=!visible;if(dockVoice){dockVoice.hidden=!visible;if(visible)dockEl?.scrollTo?.({top:0});}launch.setAttribute('aria-expanded',String(visible));}
+  function showVoice(visible){pane.hidden=!visible;animer(visible&&lecture);if(dockVoice){dockVoice.hidden=!visible;if(visible)dockEl?.scrollTo?.({top:0});}launch.setAttribute('aria-expanded',String(visible));}
   // 5.6.13 : la fermeture générale du panneau (×, Échap, bouton « Arrêter » de l'indicateur Micro actif) arrête le micro et la lecture
   window.axiorhubVoice={stop:()=>{stopSession();showVoice(false);},running:()=>running};
   launch.addEventListener('click',()=>{
@@ -287,7 +326,7 @@
   document.querySelector('#ws-ai-launcher')?.classList.remove('is-waiting');liveBtn?.classList.remove('is-waiting');
   if(window.__axPending==='ws-ai-live'&&pane.hidden)launch.click();
   window.__axPending='';
-  (window.axiorhubProfile567||fetch(prefix+'/api440/m567/profile',{credentials:'same-origin'}).then(r=>r.ok?r.json():null)).then(p=>{if(p?.name)name.textContent=p.name+' · assistant IA vocal';}).catch(()=>{});
+  (window.axiorhubProfile567||fetch(prefix+'/api440/m567/profile',{credentials:'same-origin'}).then(r=>r.ok?r.json():null)).then(p=>{if(p?.name)name.textContent=p.name+' · assistant IA vocal';appliquerOptions(p);}).catch(()=>{});
   document.addEventListener('axiorhub:activity',()=>{clearTimeout(timer);timer=setTimeout(()=>{refresh();refreshPulse();},350);});
   (function tick(){setTimeout(()=>{if(!document.hidden){refresh();refreshPulse();}tick();},window.axiorhubLive?.connected?60000:10000);})();refresh();refreshPulse();
 })();

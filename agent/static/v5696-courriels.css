@@ -1,0 +1,46 @@
+/* AxiorHub 5.6.96 — Courriels, vue « À traiter avec le Pilote » (lot courriels, C02 / I03). Jetons Carbon : contraste clair et sombre hérité du thème.
+   L'état est toujours écrit en toutes lettres : la couleur ne fait que le souligner. */
+.cx96{display:grid;grid-template-columns:minmax(300px,420px) minmax(0,1fr);gap:14px;align-items:start}
+.cx96-liste,.cx96-detail{background:var(--cds-layer-01,var(--ws-card,#fff));border:1px solid var(--cds-border-subtle-01,#dfe3e9);border-radius:12px;padding:12px;min-width:0}
+.cx96-detail{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.cx96-tete h1{font-size:22px;margin:4px 0}
+.cx96-filtres{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:8px 0}
+.cx96-filtres label{display:grid;gap:2px;font-size:13px;color:var(--cds-text-secondary,#525252)}
+.cx96-filtres select{font:inherit;min-height:36px;max-width:220px}
+.cx96-lignes{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:70vh;overflow:auto}
+.cx96-ligne{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:8px 10px;border-radius:8px;border:1px solid transparent;color:inherit;text-decoration:none;min-height:44px}
+.cx96-ligne:hover{background:var(--cds-layer-hover-01,#eef2f8)}
+.cx96-ligne:focus-visible{outline:2px solid var(--cds-focus,#0f62fe);outline-offset:1px}
+.cx96-ligne.on{border-color:var(--cds-border-interactive,#0f62fe);background:var(--cds-layer-hover-01,#eef2f8)}
+.cx96-dossier{grid-column:1/-1;font-weight:700;color:var(--cds-text-primary,#161616);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx96-objet{grid-column:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx96-de,.cx96-meta{grid-column:1;font-size:13px;color:var(--cds-text-secondary,#525252);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx96-ligne .cx96-statut{grid-column:2;grid-row:2/4;align-self:center}
+.cx96-statut{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;border:1px solid var(--cds-border-subtle-01,#c6c6c6);white-space:nowrap}
+.cx96-statut[data-statut=reponse_prete]{border-color:var(--cds-support-success,#24a148)}
+.cx96-statut[data-statut=a_completer],.cx96-statut[data-statut=a_traiter]{border-color:var(--cds-support-warning,#b28600)}
+.cx96-dossier-grand{font-weight:700;font-size:15px;margin:0 0 2px}
+.cx96-detail h2{font-size:19px;margin:0 0 8px;overflow-wrap:anywhere}
+.cx96-infos{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 10px;margin:0 0 8px}
+.cx96-infos dt{color:var(--cds-text-secondary,#525252)}.cx96-infos dd{margin:0;overflow-wrap:anywhere}
+.cx96-precision,.cx96-note{font-size:13px;color:var(--cds-text-secondary,#525252)}
+.cx96-pourquoi,.cx96-menu,.cx96-historique,.cx96-geste{margin:8px 0}
+.cx96-pourquoi>summary,.cx96-menu>summary,.cx96-historique>summary,.cx96-geste>summary{cursor:pointer;min-height:32px;display:flex;align-items:center;font-weight:600}
+.cx96-menu{border-top:1px solid var(--cds-border-subtle-01,#dfe3e9);padding-top:6px}
+.cx96-geste{border:1px solid var(--cds-border-subtle-01,#dfe3e9);border-radius:8px;padding:4px 10px}
+.cx96-champ{display:grid;gap:2px;margin:6px 0}.cx96-champ input,.cx96-champ select,.cx96-champ textarea{font:inherit;min-height:36px;max-width:100%}
+.cx96-boutons{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.cx96-simple{display:inline-block;margin:4px 8px 4px 0}
+.cx96-projet{margin:10px 0}
+.cx96-texte{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:6px}
+.cx96-message{border:1px solid var(--cds-border-subtle-01,#dfe3e9);border-radius:8px;padding:8px 10px;margin:6px 0}
+.cx96-message[data-sens=envoye]{border-style:dashed}
+.cx96-message h3{font-size:14px;margin:0 0 4px}
+.cx96-retour{display:none}
+@media (max-width:900px){
+  .cx96{grid-template-columns:minmax(0,1fr)}
+  .cx96[data-fil-ouvert="1"] .cx96-liste{display:none}
+  .cx96[data-fil-ouvert="1"] .cx96-retour{display:inline-flex;min-height:40px;align-items:center;margin-bottom:6px}
+  .cx96-detail{position:static;max-height:none}
+  .cx96[data-fil-ouvert="0"] .cx96-vide{display:none}
+}

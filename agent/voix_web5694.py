@@ -7,6 +7,10 @@ est périmée), même écriture atomique du fichier de configuration. Le compte 
 
 La section est rendue entièrement côté serveur avec les composants communs (``ui_components5689``) ; ``v5694-voix-page.js`` n'ajoute que
 l'essai d'écoute. Les réglages personnels (vitesse, Alkove) sont enregistrés par la route existante du profil (``m567/profile``).
+
+5.6.96 (lot voix) : ``voix/preparer`` reçoit le texte entier (V01) et un profil d'essai facultatif, refusé hors de la liste fermée (V05) ;
+la section montre le profil Brindille (écouter, définir par défaut), « Interrompre en parlant » (V03), l'avatar 2D (V06) et le dernier
+passage du serveur à sa voix de secours, avec la cause (V04).
 """
 from html import escape as e
 
@@ -42,7 +46,9 @@ def _erreur(error):
               '404 Not Found' if code in ('route_inconnue', 'dossier_absent') else '400 Bad Request')
     message = {'configuration_modifiee_recharger': 'La configuration a été modifiée entre-temps : rechargez la page, rien n’a été enregistré.',
                'voix_repli_invalide': 'La voix de repli doit être une voix locale : eSpeak NG, Kokoro ou Chatterbox.',
-               'fournisseur_voix_invalide': 'Voix inconnue.'}.get(code) or REASONS.get(code) or explain(code, getattr(error, 'detail', None))
+               'fournisseur_voix_invalide': 'Voix inconnue.',
+               'profil_voix_invalide': 'Profil de voix inconnu : « Français posé » ou « Brindille originale » seulement.',
+               'texte_lecture_vide': 'Aucun texte à lire.'}.get(code) or REASONS.get(code) or explain(code, getattr(error, 'detail', None))
     return json_out({'error': code, 'message': message}, statut)
 
 
@@ -75,7 +81,9 @@ def _route(env, desk, auth, name, args, method):
             from .membres5650 import hidden_for
             if dossier in hidden_for(desk.c['state_dir'], owner, role):
                 raise Stop('dossier_absent')
-        return json_out(voix5694.preparer(desk, str(data.get('text') or '')[:7000], owner, dossier))
+        # 5.6.96 (V01) : texte entier (le plafond explicite est appliqué et annoncé par preparer) ; V05 : profil d'essai, liste fermée
+        profil = data.get('profil')
+        return json_out(voix5694.preparer(desk, str(data.get('text') or ''), owner, dossier, profil=None if profil is None else str(profil)))
     fournisseur, repli = str(data.get('fournisseur') or ''), str(data.get('repli') or voix5694.REPLI_DEFAUT)
     if fournisseur not in voix5694.FOURNISSEURS:
         raise Stop('fournisseur_voix_invalide')
@@ -131,6 +139,11 @@ def section_html(desk, prefix, owner, role, env):
         th('voix5694.actuelle', voix=nom(actuel)), etiquette(th('voix5694.tag_choisie'), 'succes') if actuel in NOMS else etiquette(th('voix5694.tag_inconnue'), 'erreur'))
     if actuel == 'brindille':
         corps += '<p class="ax-muted">%s</p>' % th('voix5694.repli', voix=nom(secours))
+    secours_utilise = voix5694.dernier_repli(desk, owner)   # 5.6.96 (V04) : passage du serveur à sa voix de secours, avec la cause
+    if secours_utilise:
+        from .i18n5631 import t
+        corps += etat_html('partiel', t('voix5694.secours_utilise', voix=nom(secours_utilise['provider']), cause=secours_utilise['message'],
+                                        demandee=nom(secours_utilise['requested']) or '?', date=secours_utilise['at'][:16].replace('T', ' ')))
     cartes = ''
     for cle in voix5694.FOURNISSEURS:
         marques = (etiquette(th('voix5694.tag_defaut'), 'info') if cle == voix5694.DEFAUT else '') + (etiquette(th('voix5694.tag_choisie'), 'succes') if cle == actuel else '')
@@ -165,6 +178,17 @@ def section_html(desk, prefix, owner, role, env):
               '<button type="button" class="ax-btn ghost" data-v94-arreter>%s</button></p>'
               '<p id="v94-essai-etat" class="m5-status" role="status" aria-live="polite" data-v94-etat></p></div>') % (
         th('voix5694.essai'), th('voix5694.essai_texte'), th('voix5694.essai_exemple'), th('voix5694.ecouter'), th('voix5694.arreter'))
+    # 5.6.96 (V05) : profil de la voix Brindille. Hors du formulaire des préférences : enregistrer la vitesse ne fige pas le profil par
+    # défaut ; « Écouter ce profil » essaie sans enregistrer, « Définir par défaut » enregistre le choix du compte (v5694-voix-page.js).
+    profils = [(cle, th('voix5694.profil_' + cle) + (' · ' + th('voix5694.tag_defaut') if cle == voix5694.PROFIL_DEFAUT else ''))
+               for cle in voix5694.PROFILS]
+    corps += ('<div class="v94-profil" role="group" aria-labelledby="v94-profil-titre"><h3 id="v94-profil-titre">%s</h3><p class="ax-muted">%s</p>%s'
+              '<p class="v94-boutons"><button type="button" class="ax-btn ghost" data-v94-ecouter-profil>%s</button> '
+              '<button type="button" class="ax-btn ghost" data-v94-defaut>%s</button></p>'
+              '<p class="m5-status" role="status" aria-live="polite" data-v94-profil-etat></p></div>') % (
+        th('voix5694.profil'), th('voix5694.profil_intro'),
+        liste('voix_brindille', th('voix5694.profil_libelle'), profils, voix5694.profil_voix(profil), aide=th('voix5694.profil_aide')),
+        th('voix5694.ecouter_profil'), th('voix5694.definir_defaut'))
     # réglages personnels : vitesse (déjà dans le profil) et Alkove ; route existante du profil
     reglages = ('<label class="m5-field ui89-champ"><span>%s <output id="v94-vitesse-valeur" for="v94-vitesse">%s</output></span>'
                 '<input type="range" id="v94-vitesse" name="speech_rate" min="0.7" max="1.5" step="0.1" value="%.1f" aria-describedby="v94-vitesse-aide">'
@@ -173,6 +197,14 @@ def section_html(desk, prefix, owner, role, env):
     reglages += '<h3>%s</h3><p class="ax-muted">%s</p>' % (th('voix5694.dictee'), th('voix5694.dictee_intro'))
     reglages += case('voice_isolation', th('voix5694.isoler'), bool(profil.get('voice_isolation', True)), aide=th('voix5694.isoler_aide'))
     reglages += case('stop_on_silence', th('voix5694.arret'), bool(profil.get('stop_on_silence', True)), aide=th('voix5694.arret_aide'))
+    # 5.6.96 (V03) : « Interrompre en parlant », désactivé par défaut (décision du cabinet : le micro n'interrompt pas la voix)
+    reglages += case('interruption_vocale', th('voix5694.interruption'), profil.get('interruption_vocale') is True, aide=th('voix5694.interruption_aide'))
+    # 5.6.96 (V06) : avatar 2D facultatif ; l'icône historique s'affiche comme « aucun » ; aperçu dessiné par v5696-avatar.js
+    avatar = str(profil.get('avatar') or 'icone')
+    reglages += '<h3>%s</h3><p class="ax-muted">%s</p>' % (th('voix5694.avatar'), th('voix5694.avatar_intro'))
+    reglages += liste('avatar', th('voix5694.avatar_libelle'), [(cle, th('voix5694.avatar_' + cle)) for cle in ('aucun',) + voix5694.PORTRAITS],
+                      avatar if avatar in voix5694.PORTRAITS else 'aucun', aide=th('voix5694.avatar_aide'))
+    reglages += '<div class="v96-apercu" data-v94-apercu-avatar></div>'
     reglages += '<p><button type="submit" class="ax-btn">%s</button></p>' % th('voix5694.enregistrer_prefs')
     corps += formulaire('m567/profile', reglages, classe='v94-reglages')
     try:

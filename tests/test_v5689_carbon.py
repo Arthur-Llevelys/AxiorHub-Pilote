@@ -387,7 +387,8 @@ class Accueil(Base):
             html = self.page()
         self.assertLess(html.index('id="a89-travail"'), html.index('id="c5614-routines"'))
         self.assertLess(html.index('Assignation KERVILAC'), html.index('Point du jour sur les dossiers'))
-        self.assertLess(html.index('id="c5614-routines"'), html.index('id="c5656-file"'))
+        # 5.6.96 (I01, décision du cabinet) : la file « À décider / À relire » monte dans le rang sous « Actuellement », avant Travail préparé et les routines
+        self.assertLess(html.index('id="c5656-file"'), html.index('id="a89-travail"'))
         panneau = html[html.index('<dialog class="ui89-panneau" id="a89-rapports"'):]
         self.assertIn('Point du jour sur les dossiers', panneau[:panneau.index('</dialog>')])     # compte rendu dans un panneau fermé
         self.assertNotRegex(html, r'<dialog[^>]* open')
@@ -403,14 +404,30 @@ class Accueil(Base):
         self.assertIn('data-tab-open="briefing"', html)
 
     def test_UX05_routines_et_file_dans_la_meme_colonne_journee_a_cote(self):
+        # 5.6.96 (I01) : ordre par défaut : file et journée dans le rang sous « Actuellement » (2 parts / 1 part), le reste inchangé
         html = self.page()
+        rang = html[html.index('class="f96-rang"'):html.index('class="a89-layout"')]
         principal = html[html.index('class="a89-principal"'):html.index('class="a89-cote"')]
         cote = html[html.index('class="a89-cote"'):]
-        for ident in ('id="a89-travail"', 'id="c5614-routines"', 'id="c5656-file"'):
+        for ident in ('id="a89-travail"', 'id="c5614-routines"'):
             self.assertIn(ident, principal)
-        for ident in ('id="t88-matin"', 'id="c530-day"', 'id="c530-feed"'):
+        for ident in ('id="c5656-file"', 'id="c530-day"'):
+            self.assertIn(ident, rang)
+            self.assertNotIn(ident, principal + cote)
+        for ident in ('id="t88-matin"', 'id="c530-feed"'):
             self.assertIn(ident, cote)
             self.assertNotIn(ident, principal)
+        # ordre choisi par la personne : disposition 5.6.89 conservée (file dans la colonne principale, journée à côté)
+        from agent import tableau5688
+        ordre = list(tableau5688.IDS)
+        ordre.remove('routines')
+        tableau5688.enregistrer(self.desk, 'cabinet', {'ordre': ordre + ['routines'], 'accent': ''})
+        self.desk.db.commit()
+        html = self.page()
+        self.assertNotIn('class="f96-rang"', html)
+        principal = html[html.index('class="a89-principal"'):html.index('class="a89-cote"')]
+        self.assertIn('id="c5656-file"', principal)
+        self.assertIn('id="c530-day"', html[html.index('class="a89-cote"'):])
 
     def test_UX05_commandes_de_routine_conservees_dans_le_menu_secondaire(self):
         from agent import web5652

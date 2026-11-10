@@ -33,14 +33,16 @@ KEY = 'politique5689'
 MODES = ('local_strict', 'cloud', 'hybride')
 LIBELLES_MODE = {'local_strict': 'Local strict : rien ne sort du périmètre déclaré', 'cloud': 'Cloud : prestataires admis par le cabinet',
                  'hybride': 'Hybride : local d’abord, prestataires admis pour certaines tâches', 'historique': 'Réglages d’origine conservés (aucun mode choisi)'}
-OUTILS = ('llm', 'ocr', 'embeddings', 'classement', 'recherche_web', 'outil_mcp', 'journaux', 'telemetrie', 'support', 'connecteur_claude', 'voix', 'mise_a_jour')
+OUTILS = ('llm', 'ocr', 'embeddings', 'classement', 'recherche_web', 'outil_mcp', 'journaux', 'telemetrie', 'support', 'connecteur_claude', 'voix', 'mise_a_jour',
+          'meteo')   # 5.6.96 (F03) : prévisions publiques (position et unités seulement) ; refusé en mode local strict
 LIBELLES_OUTIL = {'llm': 'Modèle d’IA', 'ocr': 'Lecture de scans', 'embeddings': 'Index sémantique', 'classement': 'Classement', 'recherche_web': 'Recherche web',
                   'outil_mcp': 'Outil connecté', 'journaux': 'Journaux', 'telemetrie': 'Télémétrie', 'support': 'Support', 'connecteur_claude': 'Connecteur Claude', 'voix': 'Voix',
-                  'mise_a_jour': 'Mise à jour'}
+                  'mise_a_jour': 'Mise à jour', 'meteo': 'Météo'}
 LECTEURS = frozenset(('llm', 'ocr', 'embeddings', 'classement', 'recherche_web', 'outil_mcp', 'connecteur_claude', 'voix'))
 RECHERCHE = frozenset(('recherche_web', 'outil_mcp'))
 APRES_CHOIX = RECHERCHE | {'connecteur_claude', 'voix'}
 TIERS = frozenset(('document_tiers', 'courrier', 'conclusions', 'depot'))
+SANS_REPLI_LOCAL = frozenset(('recherche_publique',))   # 5.6.96 (R04) : finalités refusées en mode local strict, même vers une source publique admise
 RANG = {'local_strict': 0, 'hybride': 1, 'cloud': 2, 'historique': 2}
 LOCAUX = frozenset(('ollama', 'local', 'serveur_cabinet'))
 EXPIRE_SECONDES = 120
@@ -229,7 +231,8 @@ def _fiche(state_dir, destination):
 
 INCONNU = 'Non renseigné : aucune garantie'
 SERVICES = (('sources_juridiques', 'Sources juridiques connectées'), ('registres_publics', 'Registres publics'), ('recherche_entreprises', 'Annuaire des entreprises'), ('tavily', 'Tavily'),
-            ('elevenlabs', 'ElevenLabs'), ('connecteur_claude', 'Connecteur Claude'))
+            ('elevenlabs', 'ElevenLabs'), ('connecteur_claude', 'Connecteur Claude'),
+            ('openweathermap', 'OpenWeather (météo)'))   # 5.6.96 (F03) : météo de l'accueil, décision du cabinet du 9 novembre 2026
 
 
 def lisible(ligne):
@@ -357,7 +360,9 @@ def evaluer(config, outil, destination, finalite='', dossiers=(), labels=(), reg
             porte_dossier = 'dossier' in labels or bool(set(labels) & {'documents', 'courriels', 'contacts', 'factures', 'temps', 'agenda', 'confidentiel'})
             if outil in ('telemetrie', 'support', 'journaux', 'mise_a_jour') and (porte_dossier or dossiers):
                 motifs.append('donnees_dossier_interdites')
-            if mode == 'local_strict' and (etat['explicite'] or outil not in APRES_CHOIX):   # « IA locale uniquement » d'origine : voies hors modèle inchangées tant que le cabinet n'a pas choisi
+            if mode == 'local_strict' and finalite in SANS_REPLI_LOCAL:   # 5.6.96 (R04) : recherche publique de l'assistant : refus explicite, aucun repli
+                motifs.append('mode_local_strict')
+            elif mode == 'local_strict' and (etat['explicite'] or outil not in APRES_CHOIX):   # « IA locale uniquement » d'origine : voies hors modèle inchangées tant que le cabinet n'a pas choisi
                 public = fiche is not None and bool(fiche['public']) and bool(fiche['admis'])
                 if outil in RECHERCHE and donnee_requete:
                     motifs.append('nom_de_partie_dans_la_requete')

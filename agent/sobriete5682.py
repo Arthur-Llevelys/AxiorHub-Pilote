@@ -59,6 +59,11 @@ def hold(config):
         found = chatgpt5682.deferred(config.get('state_dir'))
         if found:
             return str(found.get('motif') or 'chatgpt_limite_usage_atteinte')
+    if rule['mode'] == 'mistral':      # 5.6.96 (A03) : connexion Mistral en incident : pas de relevé pour un appel qui attendra
+        from .mistral5696 import incident_du_mode
+        held = incident_du_mode(config)
+        if held:
+            return held
     return CODE if counters(config.get('state_dir'))[0] >= rule['plafond_auto_jour'] else ''
 
 

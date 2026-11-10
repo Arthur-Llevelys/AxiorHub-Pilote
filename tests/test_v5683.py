@@ -693,7 +693,9 @@ class FakeBox:
 class Discussion(t36._CorporateBase):
     def setUp(self):
         super().setUp()
-        self.now = datetime.now(timezone.utc)
+        # 5.6.96 (M02) : les bornes sont vérifiées sur l'INTERNALDATE en heure locale ; midi local du jour, pour que « aujourd'hui » reste vrai à toute heure
+        from zoneinfo import ZoneInfo
+        self.now = datetime.combine(acces5683.today_of(self.desk)[0], datetime.min.time(), ZoneInfo('Europe/Paris')) + timedelta(hours=12)
         self.mails = [FakeMail('2', 'Relance DURAND', 'Client <client@example.test>', self.now, 'Merci de rappeler avant vendredi.'),
                       FakeMail('1', 'Pièce adverse', 'Confrère <confrere@example.test>', self.now - timedelta(hours=2), 'Bordereau joint.')]
 
@@ -737,9 +739,13 @@ class Discussion(t36._CorporateBase):
         self.ask('Résume mes mails d’hier')
         criteria = self.box.criteria[0]
         yesterday = today - timedelta(days=1)
-        self.assertIn(acces5683._imap_day(yesterday), criteria)
+        # 5.6.96 (M02) : SINCE/BEFORE ne connaissent que le jour du serveur : la fenêtre IMAP couvre « hier » avec un jour de marge de chaque
+        # côté, puis chaque en-tête est filtré sur son INTERNALDATE en heure locale (test_v5696_courriels, M02)
+        imap_day = lambda value: datetime.strptime(value, '%d-%b-%Y').date()
+        self.assertEqual(criteria[1], 'SINCE')
+        self.assertLessEqual(imap_day(criteria[2]), yesterday)
         self.assertIn('BEFORE', criteria)
-        self.assertIn(acces5683._imap_day(today), criteria)
+        self.assertGreaterEqual(imap_day(criteria[criteria.index('BEFORE') + 1]), today)
         from agent import mailbox
         self.assertIn('BODY.PEEK[]', Path(mailbox.__file__).read_text(encoding='utf-8'))
 

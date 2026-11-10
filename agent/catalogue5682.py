@@ -79,15 +79,21 @@ def _row(provider_type, item, account, workspace, read_at):
             'compte': account, 'espace': workspace, 'lu_le': read_at, 'source': 'liste_du_fournisseur', 'capacites': capacity}
 
 
-def _store(desk, provider_id, account, workspace, rows):
-    key = KEY + provider_id
-    old = desk.settings(key, {}) or {}
+def merge(old, account, workspace, rows):
+    """Valeur enregistrée du catalogue : modèles lus, puis modèles disparus marqués « retiré » (historique gardé). 5.6.96 : partagée
+    avec la publication transactionnelle d'une clé Mistral (``mistral5696``)."""
+    old = old if isinstance(old, dict) else {}
     same_account = old.get('compte', account) == account
     seen = {r['slug'] for r in rows}
     gone = [{**r, 'statut': 'retire', 'retire_le': r.get('retire_le') or _now()} for r in (old.get('modeles') or [])
             if same_account and r.get('slug') not in seen]
-    desk.setting(key, {'compte': account, 'espace': workspace, 'lu_le': _now(), 'modeles': rows + gone})
-    return rows + gone
+    return {'compte': account, 'espace': workspace, 'lu_le': _now(), 'modeles': rows + gone}
+
+
+def _store(desk, provider_id, account, workspace, rows):
+    value = merge(desk.settings(KEY + provider_id, {}) or {}, account, workspace, rows)
+    desk.setting(KEY + provider_id, value)
+    return value['modeles']
 
 
 def refresh(desk, provider_id, transport=None, fetch=None):

@@ -62,10 +62,16 @@ def receipt_date(context):
 def source_events(desk,pages,matter,path,source_hash,persist=True):
     """Retourne dates explicites et délais dérivés, avec éligibilité à l'inscription."""
     from .notices440 import extract_notice,describe
-    from .echeances450 import extract_start_events,create_deadline
+    from .echeances450 import extract_start_events,qualifier_acte,consigner_acte,motifs_de_verification,rg_du_dossier
     from . import deadlines450
     p=case_profile(desk,matter['id']);tz=ZoneInfo(settings568.profile(desk,getattr(desk,'document_owner568','cabinet'))['timezone'])
     today=datetime.now(tz).date();out=[];warnings=[];starts=[];content='\n'.join(x['text'] for x in pages)
+    # 5.6.96 (D01) : même qualification que la détection par règles et le modèle, sur le document entier, avant tout calcul.
+    # Un acte d'incident ou un calendrier ne fait courir aucun délai calculé : il est consigné avec sa source.
+    acte=qualifier_acte(content,path,version=source_hash)
+    if acte['sans_calcul']:
+        warnings.append(acte['mention']+' : acte consigné avec sa source.')
+        if persist:consigner_acte(desk,matter['id'],path,source_hash,acte)
     lowered=rules.normalized(content)
     if 'bref delai' in lowered and p['circuit']=='long':warnings.append('Le document mentionne le bref délai alors que le profil indique le circuit long : vérifier le circuit.')
     interrupted=bool(re.search(r'(?i)interromp|suspend|médiation|mediation|règlement amiable|reglement amiable|procédure participative|procedure participative|mise en état simplifiée|mise en etat simplifiee',content))
@@ -79,6 +85,7 @@ def source_events(desk,pages,matter,path,source_hash,persist=True):
             context=str(event['context']);f=rules.normalized(context)
             if any(s in f for s in ('annule','ancienne date','ancien calendrier','n aura pas lieu','ne se tiendra pas')):
                 warnings.append('Une date annulée ou ancienne a été conservée comme source, sans inscription.');continue
+            if event['date'].isoformat() in {d['date'] for d in acte['decisions_citees']}:continue   # 5.6.96 (D01) : date d'une décision citée, jamais un événement
             title=describe(event,found['act_by']);when=event['date'];clock=event['time']
             key=digest('procedure-date568|'+matter['id']+'|'+event['role']+'|'+when.isoformat()+'|'+clock+'|'+rules.normalized(found['act_by']))
             if key in seen:continue
@@ -93,7 +100,7 @@ def source_events(desk,pages,matter,path,source_hash,persist=True):
             if clock:item['duration_note']='Durée de rappel : une heure, heure de début extraite du document.'
             else:item['duration_note']='Heure non indiquée : rappel sur la journée, aucune heure d’audience inventée.'
             out.append(item)
-        for event in extract_start_events(text,today):starts.append({**event,'citation':citation,'extraction':page.get('extraction','')})
+        for event in extract_start_events(text,today,path,acte):starts.append({**event,'citation':citation,'extraction':page.get('extraction','')})
     # Les noms CONVOC et déclaration d'appel ne déterminent jamais le circuit.
     if rules.classify(content)=='appel' or any(x['event'] in ('declaration_appel','avis_fixation_bref_delai','avis_greffe_circuit','conclusions_appelant') for x in starts):
         ready=(p['confirmed'] and p['ordinary_civil'] and p['no_interruption_or_shortening'] and p['circuit']!='unknown' and
@@ -103,6 +110,18 @@ def source_events(desk,pages,matter,path,source_hash,persist=True):
             rid='';event=item['event'];start=item['date'];f=rules.normalized(item['context'])
             actual_receipt=receipt_date(item['context']);received=actual_receipt is not None
             if event in ('avis_fixation_bref_delai','avis_greffe_circuit','conclusions_appelant') and received:start=actual_receipt
+            # 5.6.96 (D02) : chaque événement devient une proposition (Contentieux › Délais) qui attend la décision d'une personne ;
+            # le calcul est refait à la validation avec la règle versionnée. Aucune échéance persistante n'est créée ici.
+            motifs=motifs_de_verification(acte,event,start.isoformat(),p['declaration_date'],'notification' if received else item.get('nature_date',''),rg_du_dossier(desk,matter['id']))
+            if persist:
+                try:
+                    from .delais5689 import depuis_detection
+                    depuis_detection(desk,matter['id'],event,start.isoformat(),path,source_hash,item['context'],motifs=motifs)
+                except Exception as error:   # noqa: BLE001 : signalé, jamais remplacé par une échéance inscrite
+                    desk.audit('delais5689_detection_impossible',{'matter':matter['id'],'cause':type(error).__name__})
+                    warnings.append('Un événement repéré n’a pas pu être proposé : vérifiez vous-même si la pièce fait courir un délai.')
+            if motifs:
+                warnings.extend(motifs);continue
             if event=='declaration_appel' and p['circuit']=='long' and p['side']=='appelant':rid='conclusions_appelant'
             elif event=='avis_fixation_bref_delai' and p['circuit']=='bref' and p['side']=='appelant' and received:rid='bref_delai_appelant'
             elif event=='avis_greffe_circuit' and p['circuit']=='long' and p['side']=='appelant' and p['opponent_constituted']=='no' and received:rid='signification_da_appelant'
@@ -112,23 +131,20 @@ def source_events(desk,pages,matter,path,source_hash,persist=True):
             try:calc=deadlines450.compute(rid,start,regime_date=regime)
             except deadlines450.DeadlineError as exc:
                 warnings.append('Calcul à compléter : '+str(exc));continue
-            row=(create_deadline(desk,matter['id'],rid,start.isoformat(),regime_date=regime,source_path=path,excerpt=item['context'],status='a_confirmer')
-              if persist else {'id':digest(matter['id']+'|'+rid+'|'+start.isoformat()),'due':calc['due']})
-            if not row.get('due'):warnings.append(row.get('error') or 'Calcul de délai incomplet.');continue
             due=calc['due'];key=digest('procedure-deadline568|'+matter['id']+'|'+rid+'|'+start.isoformat())
             if key not in seen:
                 seen.add(key);out.append({'key':key,'kind':'conclusions' if 'conclusions' in rid or 'delai_' in rid else 'signification',
                 'date':due,'title':'[Échéance calculée] '+calc['label']+' – '+matter_display(matter),'start':due,'end':(date.fromisoformat(due)+timedelta(days=1)).isoformat(),
                 'all_day':True,'citation':item['citation'],'quote':item['context'],'source_path':path,'source_sha256':source_hash,
                 'description':'Dossier '+matter['id']+' · '+item['citation']+'\n'+deadlines450.explain(calc),
-                'safe':ready and item['extraction']!='ocr' and date.fromisoformat(due)>=today,'derived':True,'calculation':calc,'deadline_id':row['id'],'act_by':''})
+                'safe':False,'derived':True,'calculation':calc,'a_valider':'Contentieux › Délais','act_by':''})
             if event=='avis_fixation_bref_delai' and p['opponent_constituted']=='no':
                 rid='signification_da_bref';calc=deadlines450.compute(rid,start,regime_date=regime);due=calc['due']
                 out.append({'key':digest('procedure-deadline568|'+matter['id']+'|'+rid+'|'+start.isoformat()),'kind':'signification',
                   'date':due,'title':'[Échéance calculée] '+calc['label']+' – '+matter_display(matter),'start':due,
                   'end':(date.fromisoformat(due)+timedelta(days=1)).isoformat(),'all_day':True,'citation':item['citation'],
                   'quote':item['context'],'source_path':path,'source_sha256':source_hash,'description':deadlines450.explain(calc),
-                  'safe':ready and item['extraction']!='ocr' and date.fromisoformat(due)>=today,'derived':True,'calculation':calc,'act_by':''})
+                  'safe':False,'derived':True,'calculation':calc,'a_valider':'Contentieux › Délais','act_by':''})
     if len(out)>30:raise Stop('trop_evenements_document_scinder_ou_controler')
     return out,list(dict.fromkeys(warnings))
 

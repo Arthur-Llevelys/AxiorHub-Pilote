@@ -72,12 +72,18 @@ def _norm(text):
 
 
 def ensure_schema(desk):
+    if getattr(desk, '_schema5696_relecture', None) is desk.db:   # 5.6.96 (U06) : une fois par connexion (Aujourd'hui l'appelait pour chaque dossier)
+        return
     desk.db.executescript(SCHEMA)
     cols = {r[1] for r in desk.db.execute('PRAGMA table_info(d51_proposals)')}
     for table, column, decl in MIGRATIONS:   # 5.6.52 : bases 5.6.51
         if column not in cols:
             desk.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table, column, decl))
             desk.db.commit()
+    try:
+        desk._schema5696_relecture = desk.db
+    except AttributeError:   # bureau de test sans attributs libres : la préparation sera refaite, comme avant
+        pass
 
 
 # ------------------------------------------------------------------------------------------------ lecture Word

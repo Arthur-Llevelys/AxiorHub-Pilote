@@ -88,6 +88,20 @@ TIMEZONES = ('Europe/Paris', 'Europe/Brussels', 'Europe/Luxembourg', 'Europe/Zur
              'America/Martinique', 'America/Guadeloupe', 'America/Cayenne', 'Indian/Reunion', 'Indian/Mayotte', 'Pacific/Noumea', 'Pacific/Tahiti', 'UTC')
 DOMAINS = ('penal', 'travail', 'affaires', 'baux', 'immobilier', 'famille', 'execution', 'fiscal')
 SESSION_DAYS = 30
+# 5.6.96 (I06) : trois entrées conservées. « Ajouter une fonction » ne reprend que les étapes des fonctions choisies (plus les
+# nouveautés « présentation » et « voix » si on les choisit) : ni profil, ni coordonnées, ni secret déjà enregistré à ressaisir.
+# Les identifiants d'étape sont inchangés (GUIDE_VERSION reste 1 : une session interrompue reprend à la même étape).
+MODES = ('nouveau', 'verifier', 'ajouter')
+NOUVEAUTES = {'presentation': 'profil', 'voix': 'voix'}   # choix supplémentaires d'« Ajouter une fonction » → étape qui les porte
+PLUS_TARD = ('meteo', 'veille', 'voix', 'gmail')          # « Configurer plus tard » (récapitulatif)
+# Cartes des autres lots appelées telles quelles par le guide (aucun second formulaire) : « module:fonction(desk, env, prefix, admin) ».
+# Absente du paquet, une carte est remplacée par un lien vers l'écran de réglage ; Gmail n'apparaît que si sa carte existe.
+CARTES = {'ia': ('mistral5696:carte_guide', 'politique5682:carte_guide'), 'meteo': ('meteo5696:carte_guide',),
+          'vue_assistee': ('courriels_web5696:carte_guide', 'vue_assistee5696:carte_guide', 'boite5625:carte_vue_assistee'), 'gmail': ('gmail5697:carte_guide',)}
+REGLAGES = {'documents': '/parametres?rubrique=stockage', 'messagerie': '/parametres?rubrique=connexions', 'agenda': '/parametres?rubrique=connexions',
+            'recherches': '/mcp', 'veille': '/parametres?rubrique=veille', 'facturation': '/parametres?rubrique=connexions',
+            'telephonie': '/accueil-administratif', 'voix': '/parametres?rubrique=voix', 'meteo': '/parametres?rubrique=connexions',
+            'presentation': '/aujourdhui', 'ia': '/parametres?rubrique=ia', 'vue_assistee': '/parametres?rubrique=connexions', 'gmail': '/parametres?rubrique=connexions'}
 
 
 def _now():
@@ -107,6 +121,14 @@ def _schema(desk):
       valid_until TEXT NOT NULL, FOREIGN KEY(session_id) REFERENCES guide_sessions5631(id));
     CREATE INDEX IF NOT EXISTS connection_receipts5631_session ON connection_receipts5631(session_id, connector, capability);
     ''')
+    cols = {r[1] for r in desk.db.execute('PRAGMA table_info(guide_sessions5631)')}
+    added = False
+    for name, ddl in (('mode', "TEXT NOT NULL DEFAULT 'nouveau'"), ('later', "TEXT NOT NULL DEFAULT '[]'")):   # 5.6.96 (I06) : migration idempotente
+        if name not in cols:
+            desk.db.execute('ALTER TABLE guide_sessions5631 ADD COLUMN %s %s' % (name, ddl))
+            added = True
+    if added:
+        desk.db.commit()
 
 
 def _get(cfg, key, default=None):
@@ -144,6 +166,8 @@ def _load(row):
     out = dict(row)
     for key in ('features', 'candidate', 'base', 'secret_refs', 'skipped'):
         out[key] = json.loads(out[key] or ('[]' if key in ('features', 'skipped') else '{}'))
+    out['later'] = json.loads(out.get('later') or '[]')
+    out['mode'] = out.get('mode') if out.get('mode') in MODES else 'nouveau'
     return out
 
 
@@ -155,9 +179,16 @@ def _config_revision(desk):
         return int(desk.c.get('config_revision567', 0))
 
 
-def steps_for(features):
+def steps_for(features, mode='nouveau'):
     chosen = set(features or ())
+    if mode == 'ajouter':   # 5.6.96 (I06) : seulement ce qui est ajouté, sans reprendre toute l'installation
+        extra = {step for item, step in NOUVEAUTES.items() if item in chosen}
+        return [sid for sid, needs in STEPS if sid in ('fonctions', 'fin') or sid in extra or (needs and chosen & set(needs))]
     return [sid for sid, needs in STEPS if not needs or chosen & set(needs)]
+
+
+def _choix_permis(mode):
+    return FEATURES + tuple(NOUVEAUTES) if mode == 'ajouter' else FEATURES
 
 
 def _expire(desk):
@@ -172,11 +203,11 @@ def _expire(desk):
 
 def public(desk, data):
     """Vue publique d'une session : valeurs candidates sans secret, état « renseigné » des secrets, progression et preuves."""
-    steps = steps_for(data['features'])
+    steps = steps_for(data['features'], data['mode'])
     step = data['step'] if data['step'] in steps else steps[0]
     return {'id': data['id'], 'revision': data['revision'], 'base_config_revision': data['base_config_revision'], 'locale': data['locale'],
             'features': data['features'], 'step': step, 'status': data['status'], 'steps': steps, 'position': steps.index(step) + 1,
-            'total': len(steps), 'skipped': data['skipped'], 'values': data['candidate'],
+            'total': len(steps), 'skipped': data['skipped'], 'values': data['candidate'], 'mode': data['mode'], 'later': data['later'],
             'secrets': {k: 'configured' for k in data['secret_refs']},
             'receipts': receipts(desk, data)}
 
@@ -188,7 +219,8 @@ def start(desk, owner, features=None, mode='nouveau', lang=None):
         row = desk.db.execute("SELECT * FROM guide_sessions5631 WHERE owner=? AND status='in_progress' ORDER BY updated DESC LIMIT 1", (owner,)).fetchone()
         if row:
             return public(desk, _load(row))
-    chosen = [f for f in (features or ()) if f in FEATURES]
+    mode = mode if mode in MODES else 'nouveau'   # « reprendre » sans session en cours : nouvelle installation
+    chosen = [f for f in (features or ()) if f in _choix_permis(mode)]
     if mode == 'verifier' and not chosen:
         from .fonctions5631 import capabilities
         caps = capabilities(desk.c)
@@ -198,11 +230,12 @@ def start(desk, owner, features=None, mode='nouveau', lang=None):
     now = _now().isoformat()
     for row in desk.db.execute("SELECT id FROM guide_sessions5631 WHERE owner=? AND status='in_progress'", (owner,)).fetchall():
         _cancel_row(desk, row['id'])
-    desk.db.execute('INSERT INTO guide_sessions5631 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    desk.db.execute('INSERT INTO guide_sessions5631(id,owner,revision,base_config_revision,guide_version,locale,features,step,status,candidate,base,'
+                    'secret_refs,skipped,created,updated,mode,later) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                     (sid, owner, 1, _config_revision(desk), GUIDE_VERSION, i18n.clean(lang) or i18n.current(), json.dumps(chosen), 'fonctions',
-                     'in_progress', '{}', '{}', '{}', '[]', now, now))
+                     'in_progress', '{}', '{}', '{}', '[]', now, now, mode, '[]'))
     desk.db.commit()
-    desk.audit('guide5631_session_creee', {'session': sid, 'features': chosen})
+    desk.audit('guide5631_session_creee', {'session': sid, 'features': chosen, 'mode': mode})
     return public(desk, _load(desk.db.execute('SELECT * FROM guide_sessions5631 WHERE id=?', (sid,)).fetchone()))
 
 
@@ -320,15 +353,25 @@ def _save_step(desk, owner, sid, revision, step, values, action='continue'):
         raise Stop('session_guide_terminee')
     if int(revision) != data['revision']:
         raise Stop('session_guide_modifiee')
-    steps = steps_for(data['features'])
+    steps = steps_for(data['features'], data['mode'])
     if step not in steps:
         raise Stop('etape_guide_inconnue')
     errors = {}
     values = values if isinstance(values, dict) else {}
+    if action == 'later':   # 5.6.96 (I06) : « Configurer plus tard » (météo, veille, Gmail, voix), rappelé au récapitulatif
+        option = str(values.get('option') or '')
+        if option not in PLUS_TARD:
+            raise Stop('option_plus_tard_inconnue')
+        if option not in data['later']:
+            data['later'].append(option)
+        if option == step:   # l'option est l'étape elle-même : on passe à la suivante
+            action = 'skip'
+        else:
+            action = 'save'
     if step == 'fonctions':
-        chosen = [f for f in (values.get('features') or []) if f in FEATURES]
+        chosen = [f for f in (values.get('features') or []) if f in _choix_permis(data['mode'])]
         data['features'] = chosen
-        steps = steps_for(chosen)
+        steps = steps_for(chosen, data['mode'])
     for name, target, kind, required, advanced in FIELDS.get(step, ()):
         if name not in values:
             continue
@@ -363,6 +406,8 @@ def _save_step(desk, owner, sid, revision, step, values, action='continue'):
         data['skipped'].append(step)
     if action == 'continue' and not errors and step in data['skipped']:
         data['skipped'].remove(step)
+    if action == 'continue' and not errors and step in data['later']:
+        data['later'].remove(step)
     index = steps.index(step) if step in steps else 0
     if errors:
         target_step = step
@@ -374,9 +419,10 @@ def _save_step(desk, owner, sid, revision, step, values, action='continue'):
         target_step = step
     data['revision'] += 1
     data['step'] = target_step
-    desk.db.execute('UPDATE guide_sessions5631 SET revision=?, features=?, step=?, candidate=?, base=?, secret_refs=?, skipped=?, updated=? WHERE id=?',
+    desk.db.execute('UPDATE guide_sessions5631 SET revision=?, features=?, step=?, candidate=?, base=?, secret_refs=?, skipped=?, later=?, updated=? WHERE id=?',
                     (data['revision'], json.dumps(data['features']), target_step, json.dumps(data['candidate'], ensure_ascii=False),
-                     json.dumps(data['base'], ensure_ascii=False), json.dumps(data['secret_refs']), json.dumps(data['skipped']), _now().isoformat(), sid))
+                     json.dumps(data['base'], ensure_ascii=False), json.dumps(data['secret_refs']), json.dumps(data['skipped']),
+                     json.dumps(data['later']), _now().isoformat(), sid))
     desk.db.commit()
     out = public(desk, data)
     out['errors'] = {k: {'code': v, 'message': message(v)} for k, v in errors.items()}
@@ -661,16 +707,50 @@ def summary(desk, data):
     """Récapitulatif de fin (GI32) : fonctions disponibles, connexions à compléter, données externes autorisées ; aucun secret."""
     recs = receipts(desk, data)
     caps = _capability_status(data, recs)
-    available, missing = [], {}
-    for feature in data['features']:
+    available, missing, etats = [], {}, {}
+    veille = _etat_veille(desk, data) if 'veille' in data['features'] else ''
+    for feature in [f for f in data['features'] if f in FEATURES]:
         need = [c for c in REQUIRES.get(feature, ()) if caps.get(c) != 'available']
+        if feature == 'veille' and veille not in ('', 'disponible'):
+            need = ['veille.reglage']   # 5.6.96 : une veille sans thème, sans source ou désactivée n'est pas « disponible »
         if need:
             missing[feature] = need
         else:
             available.append(feature)
+        etats[feature] = _etat_fonction(feature, data, [caps.get(c, 'untested') for c in REQUIRES.get(feature, ())], veille)
+    for item in [f for f in data['features'] if f in NOUVEAUTES]:
+        etats[item] = 'plus_tard' if item in data['later'] else ('ignoree' if NOUVEAUTES[item] in data['skipped'] else 'disponible')
     external = bool((desk.c.get('ai_gateway') or {}).get('providers'))
     return {'available': available, 'missing': missing, 'capabilities': caps, 'skipped': data['skipped'],
-            'external_ai_configured': external, 'secrets_included': False}
+            'external_ai_configured': external, 'secrets_included': False,
+            'etats': etats, 'plus_tard': [o for o in data['later'] if o != 'gmail' or _carte_disponible('gmail')]}
+
+
+def _etat_veille(desk, data):
+    """5.6.96 (I06) : état réel de la routine de veille du compte (le guide ne la crée pas une seconde fois)."""
+    from . import veille5632
+    p = veille5632.profile(desk, data['owner'])
+    if not p.get('enabled'):
+        return 'a_completer'
+    return 'en_attente' if veille5632.attente(desk, p) else 'disponible'
+
+
+def _etat_fonction(feature, data, statuses, veille=''):
+    """État précis d'une fonction au récapitulatif : connexion refusée, incomplète, non testée, à revérifier, ignorée, plus tard."""
+    if feature in data['later']:
+        return 'plus_tard'
+    steps = [sid for sid, needs in STEPS if feature in needs]
+    if steps and all(s in data['skipped'] for s in steps):
+        return 'ignoree'
+    if feature == 'veille':
+        return veille or 'a_completer'
+    if not statuses or all(s == 'available' for s in statuses):
+        return 'disponible'
+    if any(s in ('refused', 'unavailable') for s in statuses):
+        return 'refusee'
+    if any(s in ('stale', 'expired') for s in statuses):
+        return 'a_renouveler'
+    return 'incomplete' if any(s == 'available' for s in statuses) else 'non_testee'
 
 
 def apply(desk, owner, sid, revision, env, finish=True):
@@ -697,7 +777,11 @@ def apply(desk, owner, sid, revision, env, finish=True):
     mode = data['candidate'].get('pref.stockage')
     if mode in ('nextcloud', 'webdav') and 'nextcloud.local_path' not in data['candidate']:
         values['nextcloud.local_path'] = ''
-    if 'messagerie' not in data['features'] and data['features']:
+    if data['mode'] == 'ajouter':
+        # 5.6.96 (I06) : ajouter une fonction ne retire rien : la messagerie existante (boîte, brouillons, comptes) reste active
+        if 'messagerie' in data['features']:
+            values['mail.enabled'] = True
+    elif 'messagerie' not in data['features'] and data['features']:
         values['mail.enabled'] = False   # R00 : messagerie non choisie, non bloquante
     elif 'messagerie' in data['features']:
         values['mail.enabled'] = True
@@ -715,7 +799,7 @@ def apply(desk, owner, sid, revision, env, finish=True):
     _apply_profile(desk, owner, data)
     report = summary(desk, data)
     if finish:
-        _mark_installation(env, data['features'], report)
+        _mark_installation(env, [f for f in data['features'] if f in FEATURES], report, merge=data['mode'] == 'ajouter')
     shutil.rmtree(_vault_dir(desk, sid), ignore_errors=True)
     desk.db.execute("UPDATE guide_sessions5631 SET status=?, secret_refs='{}', revision=revision+1, updated=? WHERE id=?",
                     ('applied' if finish else 'in_progress', _now().isoformat(), sid))
@@ -743,8 +827,9 @@ def _apply_profile(desk, owner, data):
         desk.setting('cabinet560:specialite', ', '.join(cand['pref.domaines'])[:80])
 
 
-def _mark_installation(env, features, report):
-    """R00 étape 4 : finalisation complète ou partielle reconnue par le contrôle de premier démarrage (pas de redirection répétée)."""
+def _mark_installation(env, features, report, merge=False):
+    """R00 étape 4 : finalisation complète ou partielle reconnue par le contrôle de premier démarrage (pas de redirection répétée).
+    5.6.96 (I06) : ``merge`` (« Ajouter une fonction ») complète les fonctions installées au lieu de les remplacer."""
     from . import config567
     from .portable import fcntl
     path = config567._path(env)
@@ -752,8 +837,13 @@ def _mark_installation(env, features, report):
         fcntl.flock(lock, fcntl.LOCK_EX)
         cfg = json.loads(config567._read_text(path))
         inst = cfg.setdefault('installation', {})
-        inst.update({'done': True, 'at': _now().isoformat(), 'by': 'guide5631', 'features': list(features),
-                     'partial': sorted(report['missing']), 'guide_version': GUIDE_VERSION})
+        features, partial = list(features), sorted(report['missing'])
+        if merge:
+            before = [f for f in inst.get('features') or [] if f not in features]
+            features = before + features
+            partial = sorted({f for f in inst.get('partial') or [] if f not in report['missing'] and f in before} | set(report['missing']))
+        inst.update({'done': True, 'at': _now().isoformat(), 'by': 'guide5631', 'features': features,
+                     'partial': partial, 'guide_version': GUIDE_VERSION})
         stat = path.stat()
         tmp = path.with_suffix('.guide5631.tmp')
         tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
@@ -962,7 +1052,8 @@ def page(desk, auth, prefix, env, args, shell):
     if step == 'fonctions':
         body += '<fieldset class="g5631-field"><legend>%s</legend><div class="g5631-cards">%s</div></fieldset>' % (th('step.fonctions.question'), ''.join(
             '<label class="g5631-card"><input type="checkbox" name="features" value="%s"%s><strong>%s</strong><small>%s</small></label>' % (
-                f, ' checked' if f in data['features'] else '', th('feat.%s' % f), th('feat.%s.help' % f)) for f in FEATURES))
+                f, ' checked' if f in data['features'] else '', th(('feat.%s' if f in FEATURES else 'w5696.new.%s') % f),
+                th(('feat.%s.help' if f in FEATURES else 'w5696.new.%s.help') % f)) for f in _choix_permis(data['mode'])))
     elif step == 'fin':
         body += _summary_html(desk, data, prefix)
     elif step in FIELDS:
@@ -971,18 +1062,10 @@ def page(desk, auth, prefix, env, args, shell):
         body += ''.join(_field_html(desk, data, step, f, prof) for f in basic)
         if more:
             body += '<details class="g5631-more"><summary>%s</summary>%s</details>' % (th('guide.more'), ''.join(_field_html(desk, data, step, f, prof) for f in more))
-    elif step == 'sources':   # 5.6.32 : cartes réelles (compte, clé, vérification, activation) des sources juridiques
-        from .web5632 import sources_section
-        body += sources_section(desk) if role == 'administrateur' else _info_step_html(step, prefix)
-    elif step == 'voix':   # 5.6.34 (B17) : Kokoro selon le système d'installation et voix par langue
-        from .kokoro5634 import guide_html
-        from .diagnostic5634 import install_mode
-        body += guide_html(i18n.current(), install_mode(desk.c))
-    elif step == 'veille':
-        from .web5632 import veille_settings
-        body += veille_settings(desk, env, prefix, admin=role == 'administrateur')
-    else:
-        body += _info_step_html(step, prefix)
+    body += '</form>'
+    # 5.6.96 (I06) : cartes réutilisées (veille, sources, IA, météo, vue assistée) HORS du formulaire du guide : un formulaire imbriqué
+    # serait ignoré par le navigateur et son bouton enverrait le guide à la place de la carte.
+    body += _cartes_etape(desk, env, prefix, step, data, owner, role == 'administrateur')
     if step in CONNECTORS:
         recs = pub['receipts']
         body += '<section class="g5631-test" aria-live="polite"><h3>%s</h3><p>%s</p><div class="g5631-proof" data-connector="%s">%s</div>' % (
@@ -1001,10 +1084,104 @@ def page(desk, auth, prefix, env, args, shell):
         body += '<button type="button" data-action="continue">%s</button>' % th('guide.continue')
         if step not in ('fonctions', 'profil', 'langues'):
             body += '<button type="button" class="ghost" data-action="skip">%s</button>' % th('guide.skip')
-    body += '<button type="button" class="ghost" data-action="save">%s</button><button type="button" class="ghost danger" data-action="cancel">%s</button></div></form></section>' % (
+    body += '<button type="button" class="ghost" data-action="save">%s</button><button type="button" class="ghost danger" data-action="cancel">%s</button></div></section>' % (
         th('guide.save_later'), th('guide.cancel'))
     body += '</div>'
     return shell(i18n.t('guide.title'), body, prefix, auth['csrf'], '/guide-installation', head)
+
+
+def _fonction_carte(name):
+    import importlib
+    for ref in CARTES.get(name, ()):
+        module, _, fonction = ref.partition(':')
+        try:
+            return getattr(importlib.import_module('.' + module, __package__), fonction)
+        except (ModuleNotFoundError, AttributeError):
+            continue
+    return None
+
+
+def _carte_disponible(name):
+    return _fonction_carte(name) is not None
+
+
+def _carte(name, desk, env, prefix, admin, owner=''):
+    """5.6.96 (I06) : carte d'un autre lot appelée telle quelle ; sinon un lien vers son écran de réglage (jamais un formulaire en double)."""
+    th = i18n.th
+    fonction = _fonction_carte(name)
+    if fonction is not None:
+        if owner and getattr(fonction, 'avec_compte', False):   # 5.6.96 (intégration) : réglage propre au compte (vue assistée)
+            return fonction(desk, env, prefix, admin=admin, owner=owner)
+        return fonction(desk, env, prefix, admin=admin)
+    return '<p>%s</p><p><a class="g5631-open" href="%s">%s</a></p>' % (th('w5696.%s_fallback' % name), e(prefix + REGLAGES[name], quote=True),
+                                                                      th('w5696.open_settings'))
+
+
+def _plus_tard(option):
+    return '<button type="button" class="ghost" data-action="later" data-option="%s">%s</button>' % (e(option, quote=True), i18n.th('w5696.later'))
+
+
+def _cartes_etape(desk, env, prefix, step, data, owner, admin):
+    """Sous-sections des étapes (I06) : présentation, messagerie, IA, veille, voix ; sources et étapes informatives inchangées."""
+    th = i18n.th
+    if step == 'sources':   # 5.6.32 : cartes réelles (compte, clé, vérification, activation) des sources juridiques
+        from .web5632 import sources_section
+        return sources_section(desk) if admin else _info_step_html(step, prefix)
+    if step == 'veille':    # même carte et même validation (save_profile) que Paramètres › Veille
+        from .web5632 import veille_settings
+        return veille_settings(desk, env, prefix, admin=admin) + '<p class="g5631-later-row">%s</p>' % _plus_tard('veille')
+    if step == 'voix':      # 5.6.34 (B17) : Kokoro selon le système d'installation et voix par langue ; 5.6.96 : aperçu de l'assistant
+        from .kokoro5634 import guide_html
+        from .diagnostic5634 import install_mode
+        return guide_html(i18n.current(), install_mode(desk.c)) + _apercu_voix_html(prefix)
+    if step == 'profil':
+        return _presentation_html(desk, env, prefix, owner, admin)
+    if step == 'messagerie':
+        out = '<section class="g5631-sub g5696-messagerie"><p>%s</p><h3>%s</h3>%s' % (
+            th('w5696.mail_readonly'), th('w5696.vue_assistee_title'), _carte('vue_assistee', desk, env, prefix, admin, owner))
+        if _carte_disponible('gmail'):   # Gmail : seulement si son connecteur est livré (5.6.97)
+            out += '<h3>Gmail</h3>%s<p class="g5631-later-row">%s</p>' % (_carte('gmail', desk, env, prefix, admin), _plus_tard('gmail'))
+        return out + '</section>'
+    if step == 'ia':
+        return '<section class="g5631-sub g5696-ia"><h3>%s</h3>%s</section>' % (th('w5696.ia_title'), _carte('ia', desk, env, prefix, admin))
+    if step in FIELDS or step in ('fonctions', 'fin'):
+        return ''
+    return _info_step_html(step, prefix)
+
+
+def _salutation(desk, owner):
+    """Aperçu de la salutation d'Aujourd'hui : prénom et fuseau DU COMPTE (préférences par compte), jamais déduits de l'adresse."""
+    from zoneinfo import ZoneInfo
+    from .assistant567 import profile as preferences
+    from .settings568 import profile as reglages
+    fuseau = str(reglages(desk, owner).get('timezone') or 'Europe/Paris')
+    try:
+        zone = ZoneInfo(fuseau)
+    except Exception:   # noqa: BLE001 — fuseau illisible : celui du cabinet
+        zone = ZoneInfo('Europe/Paris')
+    prenom = str(preferences(desk, owner).get('prenom') or '').strip()[:40]
+    moment = _now().astimezone(zone)
+    return i18n.t('w5696.greeting', name=(' ' + prenom) if prenom else '', date=i18n.format_date(moment.date()), time=moment.strftime('%H:%M'))
+
+
+def _presentation_html(desk, env, prefix, owner, admin):
+    th = i18n.th
+    return ('<section class="g5631-sub g5696-presentation"><h3>%s</h3><p>%s</p><p class="g5696-salutation">%s</p>'
+            '<p>%s</p><p class="g5696-robot"><img src="%s" alt="" width="24" height="24"> %s</p>'
+            '<h3>%s</h3>%s<p class="g5631-later-row">%s</p></section>') % (
+        th('w5696.presentation_title'), th('w5696.greeting_preview'), e(_salutation(desk, owner)), th('w5696.today_intro'),
+        e(prefix + '/static/axiorhub-icon.png', quote=True), th('w5696.robot'), th('w5696.meteo_title'),
+        _carte('meteo', desk, env, prefix, admin), _plus_tard('meteo'))
+
+
+def _apercu_voix_html(prefix):
+    """Aperçu : ouvrir l'assistant pour voir champ, Envoyer et micro ; le micro n'est sollicité qu'au clic sur « Tester le micro »."""
+    th = i18n.th
+    return ('<section class="g5631-sub g5696-voix"><h3>%s</h3><p>%s</p><p><button type="button" class="ghost" data-g5696="ouvrir-assistant">%s</button> '
+            '<button type="button" class="ghost" data-g5696="micro">%s</button></p><p class="g5696-micro" role="status"></p>'
+            '<p>%s <a href="%s">%s</a></p><p class="g5631-later-row">%s</p></section>') % (
+        th('w5696.voice_preview_title'), th('w5696.voice_preview'), th('w5696.open_assistant'), th('w5696.test_mic'),
+        th('w5696.voice_settings'), e(prefix + REGLAGES['voix'], quote=True), th('w5696.open_settings'), _plus_tard('voix'))
 
 
 def _version():
@@ -1046,8 +1223,20 @@ def _info_step_html(step, prefix):
 def _summary_html(desk, data, prefix):
     th = i18n.th
     rep = summary(desk, data)
-    ok = ''.join('<li>%s</li>' % th('feat.%s' % f) for f in rep['available']) or '<li>%s</li>' % th('guide.none')
-    todo = ''.join('<li>%s — %s</li>' % (th('feat.%s' % f), ', '.join(e(c) for c in need)) for f, need in rep['missing'].items()) or '<li>%s</li>' % th('guide.none')
+    # 5.6.96 (I06) : chaque fonction avec son état précis (activée, connexion refusée, incomplète, non testée, ignorée, plus tard) et
+    # le lien vers son réglage ; les options « configurer plus tard » rappelées à part.
+    def nom(f):
+        return th('feat.%s' % f) if f in FEATURES else th('w5696.new.%s' % f)
+
+    def ligne(f, etat):
+        return '<li data-etat="%s"><strong>%s</strong> — %s · <a href="%s">%s</a></li>' % (
+            e(etat, quote=True), nom(f), th('w5696.state.' + etat), e(prefix + REGLAGES.get(f, '/parametres'), quote=True), th('w5696.open_settings'))
+    ok = ''.join(ligne(f, x) for f, x in rep['etats'].items() if x == 'disponible') or '<li>%s</li>' % th('guide.none')
+    todo = ''.join(ligne(f, x) for f, x in rep['etats'].items() if x != 'disponible') or '<li>%s</li>' % th('guide.none')
+    later = ''.join('<li>%s · <a href="%s">%s</a></li>' % (th('w5696.option.' + o), e(prefix + REGLAGES[o], quote=True), th('w5696.open_settings'))
+                    for o in rep['plus_tard'])
+    if later:
+        todo += '</ul><h3>%s</h3><ul>%s' % (th('w5696.later_title'), later)
     return ('<div class="g5631-summary"><h3>%s</h3><ul>%s</ul><h3>%s</h3><ul>%s</ul><p>%s</p><p>%s</p>'
             '<p class="g5631-next"><a href="%s">%s</a> · <a href="%s">%s</a></p></div>') % (
         th('guide.available'), ok, th('guide.to_complete'), todo,

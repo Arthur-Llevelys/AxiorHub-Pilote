@@ -224,15 +224,16 @@ def answer_question(desk, args):
         route = routed_config(desk.c,purpose)
         route['timeout_seconds'] = rapide5680.deadline(desk.c,purpose,route.get('timeout_seconds',240))
         quick = rapide5680.small_talk_answer(row['content']) if rapide5680.conversation_only(args,matter,key,row['content']) else None   # 5.6.81
-        from . import societe5688   # 5.6.88 : lu ici pour que la réponse de repli porte aussi le contrôle, sans modèle
-        controle = {} if quick else societe5688.avant(desk,row['content'],matter,'voix' if rapide5680.is_voice(purpose) else 'assistant')
+        from . import acces5683, societe5688   # 5.6.88 : lu ici pour que la réponse de repli porte aussi le contrôle, sans modèle
+        liste = not key and acces5683.liste_simple(row['content'])   # 5.6.96 (M02) : liste simple de courriels : ni contrôle de société, ni modèle
+        controle = {} if quick or liste else societe5688.avant(desk,row['content'],matter,'voix' if rapide5680.is_voice(purpose) else 'assistant')
         try:
             result = quick or chat(desk, {'matter': matter, 'key': key, 'question': row['content'], 'societe5688': controle,
                                  'attachment_id':args.get('attachment_id',''),
-                                 'attachment_ids':args.get('attachment_ids',[]),
+                                 'attachment_ids':args.get('attachment_ids',[]), 'auteur':str(args.get('auteur') or ''),   # 5.6.96 (M04)
                                  'page_context':_page_context(args.get('page_context'),matter),'rapide':True,'purpose':purpose},
                           DAV(desk.c['nextcloud']) if matter else None,
-                          Model(route), box, return_result=True)
+                          _ModeleDiffere(Model,route), box, return_result=True)
         except Stop as error:
             if str(error) not in rapide5680.BUSY_CODES:
                 raise
@@ -258,13 +259,25 @@ def answer_question(desk, args):
     desk.db.commit()
     try:   # 5.6.88 : propositions à retenir (motifs, sans modèle par défaut) ; ne retarde ni n'empêche jamais la réponse
         from . import memoire5688
-        memoire5688.apres_echange(desk,str(args.get('auteur') or ''),row['thread_id'],message_id,matter,row['content'],purpose)
+        if not result.get('connecteur'):   # 5.6.96 : une liste rendue par le connecteur ne contient aucune rédaction à retenir
+            memoire5688.apres_echange(desk,str(args.get('auteur') or ''),row['thread_id'],message_id,matter,row['content'],purpose)
     except Exception:pass
     return {'thread_id': row['thread_id'], 'status': 'done',
             'sources': len(result.get('sources', [])), 'proposed_actions': result.get('proposed_actions', []),
             **({'repli': True} if result.get('repli') else {}),
-            # le contrôle par un second modèle retarderait la voix ; une réponse de repli ne contient aucune rédaction à contrôler
-            **({'sans_controle': True} if result.get('repli') or result.get('conversation') or rapide5680.is_voice(purpose) else {})}
+            # le contrôle par un second modèle retarderait la voix ; une réponse de repli ou une liste du connecteur ne contient aucune rédaction à contrôler
+            **({'sans_controle': True} if result.get('repli') or result.get('conversation') or result.get('connecteur') or rapide5680.is_voice(purpose) else {})}
+
+
+class _ModeleDiffere:
+    """5.6.96 (M02) : le modèle n'est construit qu'au premier usage ; une liste simple de courriels, rendue par le connecteur, ne l'instancie jamais."""
+    def __init__(self, factory, route):
+        self._factory, self._route, self._instance = factory, route, None
+
+    def __getattr__(self, name):
+        if self._instance is None:
+            self._instance = self._factory(self._route)
+        return getattr(self._instance, name)
 
 
 def threads(desk, limit=30):

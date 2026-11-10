@@ -1,0 +1,42 @@
+{
+  "version": "5.6.96",
+  "base": "5.6.95",
+  "date_utc": "2026-11-10T00:00:00+00:00",
+  "cahier_des_charges": "Audit et cahier des charges du cabinet sur la 5.6.95, version révisée du 9 novembre 2026 (lots D, M, R, V, U, F ; I01-I07 ; C01-C04 sur IMAP ; A01-A03). A04-A08, J01-J09 et Gmail reportés en 5.6.97.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 5689,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 145,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "new_tests": "tests/test_v5696_echeances, courriels, discussion, voix, affichage, accueil, veilleguide, mistral ; tests Node accueil5696, lecture5696, navigation5696 ; parcours navigateur P96a, P96b, P96c, P96k, P96v, P96F1, P96F2.",
+  "mutations": "Aucune écriture d’agenda sans confirmation ; contrôle d’UID avant retrait ; clé refusée sans remplacement (Mistral, Claude, météo) ; donnée de dossier refusée avant recherche publique ; local strict ; verrou de version des suivis de courriels ; même compte au retour par l’historique.",
+  "live_checks": "Aucun service réel exercé (Tavily, OpenWeather, Mistral, Anthropic, IMAP) : faux transports. Incident : une version provisoire d’un test a envoyé un appel réel à Tavily avec une clé fictive (réponse 401, aucune donnée du cabinet) ; tous les tests bloquent désormais le réseau.",
+  "exapp": {
+    "version": "0.1.55",
+    "moteur": "5.6.96"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Échéances détectées : proposition seulement, aucune écriture avant confirmation.",
+    "Voix par défaut « Français posé » pour les comptes sans choix.",
+    "Ordre par défaut d’Aujourd’hui (I01) ; un ordre personnel est conservé.",
+    "Police Figtree par défaut."
+  ],
+  "adjusted_tests": [
+    "test_v450_echeances, test_v480, test_document_agents568 : plus d’écriture automatique (D02).",
+    "test_v5683 (marge d’un jour), test_v5625 (vue boîte sans brouillons, plus strict).",
+    "test_v5689_carbon UX05, test_v5688_crm, test_v5617, test_v5619 : ordre I01.",
+    "test_v5612 : titre « Assistant AxiorHub » (I04).",
+    "test_v5694_voix V03, test_v569, test_v5611b : lecture longue et file commune.",
+    "test_v5694_parcours P01 : liste des parcours ; test_v5689_horaires HO17 : dates relatives (échouait depuis le 9 novembre 2026).",
+    "test_v5696_veilleguide I06 : vraie carte Mistral reliée.",
+    "test_v5663 (proposition au lieu d’échéance créée, D02), test_contre5655 N02 (file avant les routines, I01), test_v5695_aujourdhui (instant fixe à 10 h, plus de bascule à minuit)."
+  ]
+}

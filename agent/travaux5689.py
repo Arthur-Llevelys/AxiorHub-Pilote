@@ -103,6 +103,9 @@ def _dependance(row, now):
     later = _since(row['not_before'], now) if 'not_before' in keys and row['not_before'] else None
     if blocked:
         from .chatgpt5682 import HELD_CODES
+        from .mistral5696 import CODES_BLOQUANTS
+        if blocked in CODES_BLOQUANTS:      # 5.6.96 : clé refusée, quota confirmé ou décision requise : rien ne reprend seul
+            return ('Connexion Mistral à vérifier', 'Paramètres › Modèles d’IA › Mistral : réexaminer ou remplacer la clé.')
         if blocked in HELD_CODES:
             return ('Limite d’usage ou indisponibilité du service d’IA', 'Rien à faire : le travail reprendra seul.')
         return ('Verrou tenu par : ' + blocked[:80], 'Attendre, ou arrêter le travail qui le tient.')

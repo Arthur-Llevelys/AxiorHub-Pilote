@@ -10,7 +10,19 @@
 - V07 : Alkove (Focus, Cue) est chargé par le navigateur depuis AxiorHub seulement (``ALKOVE_CONFIG``) ; réglages personnels
   « isoler ma voix » et « arrêter quand je me tais » dans le profil de l'assistant (``assistant567``).
 Aucun modèle d'IA n'est appelé : la pause de l'IA n'a pas à intervenir. Aucune tâche de fond n'est ajoutée au serveur.
+
+5.6.96 (lot voix) :
+- V01 : ``preparer`` ne tronque plus rien en silence : le texte entier est normalisé une fois puis découpé en segments de
+  ``PLAFOND_SEGMENT`` caractères au plus (phrases, puis mots ; Brindille accepte 2 000 caractères par appel). Au-delà du plafond explicite
+  de lecture totale, la coupe se fait à une fin de phrase et ``limite`` l'annonce ; le texte affiché reste entier.
+- V04 : ``dernier_repli`` remonte le passage du serveur à sa voix de secours (``voice568:last_fallback``), avec sa cause, jamais le texte.
+- V05 : profils de la voix Brindille (``PROFILS``, liste fermée) : ``posee`` (« Français posé », défaut décidé par le cabinet le
+  9 novembre 2026 pour les comptes qui n'ont jamais choisi) et ``originale`` (valeurs neutres). Le serveur transmet l'identifiant autorisé
+  et ses quatre valeurs ; le worker du navigateur les applique avant la synthèse. Aucun second modèle, aucun calcul serveur.
+- V06 : portraits de l'avatar 2D (``PORTRAITS``), dessinés dans ``v5696-avatar.js`` ; module déclaré seulement s'il est choisi.
 """
+import re
+
 from .common import Stop
 
 FOURNISSEURS = ('brindille', 'kokoro', 'espeak', 'chatterbox', 'elevenlabs')
@@ -18,6 +30,19 @@ SERVEUR = ('espeak', 'kokoro', 'chatterbox', 'elevenlabs')
 REPLIS = ('espeak', 'kokoro', 'chatterbox')            # voix de repli : toujours locale (jamais ElevenLabs, service externe)
 DEFAUT = 'brindille'
 REPLI_DEFAUT = 'espeak'
+
+# 5.6.96 (V01) : plafonds annoncés, jamais silencieux
+PLAFOND_SEGMENT = 240          # caractères par segment envoyé au moteur (``lecture5694.phrases``) ; Brindille accepte 2 000 par appel
+PLAFOND_LECTURE = 100_000      # plafond explicite d'une lecture totale (annoncé à l'écran)
+PLAFOND_EXTERNE = 7_000        # voix externe payante (ElevenLabs) : plafond plus bas, annoncé lui aussi
+# 5.6.96 (V05) : hauteur (demi-tons), étendue d'intonation (1 = celle du modèle), aigus (dB), souffle (dB) : ``Tts.voice`` de Brindille.
+# « posee » est un point de départ à écouter (cahier v3) : un réglage de la voix Estelle, pas une autre voix.
+PROFILS = {
+    'posee': {'pitch': -2, 'intonation': 0.9, 'treble': -2, 'breath': -1},
+    'originale': {'pitch': 0, 'intonation': 1, 'treble': 0, 'breath': 0},
+}
+PROFIL_DEFAUT = 'posee'        # décision du cabinet (9 novembre 2026) : installations neuves et comptes qui n'ont jamais choisi
+PORTRAITS = ('portrait_a', 'portrait_b')   # V06 : avatars 2D ; toute autre valeur d'``assistant567.avatar`` : aucun portrait
 
 BRINDILLE_REVISION = 'd393e3d5161937f2064bcfef33213749af4979f0'   # révision Hugging Face du modèle edbrdi/brindille
 ALKOVE_VERSION = '0.4.2'                                          # paquet npm alkove, version 0.x figée (API susceptible de changer)
@@ -51,7 +76,8 @@ FICHIERS = {
     'alkove/LICENSE': (TEXTE, 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30'),
     'alkove/NOTICE': (TEXTE, 'b36aaaf3d1d726d937cfa5d5938cd8947569f719c65fbc00e6702edc238b0620'),
 }
-SCRIPTS = {'v5694-voix.js': JS, 'v5694-brindille.js': JS, 'v5694-voix-page.js': JS, 'v5694-voix.css': 'text/css'}
+SCRIPTS = {'v5694-voix.js': JS, 'v5694-brindille.js': JS, 'v5694-voix-page.js': JS, 'v5694-voix.css': 'text/css',
+           'v5696-avatar.js': JS}   # 5.6.96 (V06) : portraits vectoriels ; déclaré dans une page seulement si un portrait est choisi
 BINAIRES = (WASM, BINAIRE, JSON)    # servis en octets, sans jeu de caractères ni traduction des écrans
 
 
@@ -87,44 +113,95 @@ def fournisseur_serveur(cfg):
     return repli(cfg) if choisi == 'brindille' else choisi
 
 
-def preparer(desk, texte, owner='cabinet', matter=''):
+def profil_voix(profil, demande=None):
+    """5.6.96 (V05) : identifiant de profil Brindille autorisé : celui demandé (essai d'écoute) s'il est dans la liste fermée, sinon celui
+    du compte (``assistant567.profile`` rend déjà le défaut du moment pour un compte qui n'a jamais choisi)."""
+    if demande is not None:
+        if demande not in PROFILS:
+            raise Stop('profil_voix_invalide')
+        return demande
+    valeur = str((profil or {}).get('voix_brindille') or PROFIL_DEFAUT)
+    return valeur if valeur in PROFILS else PROFIL_DEFAUT
+
+
+def couper_au_plafond(texte, plafond):
+    """5.6.96 (V01) : texte ramené sous ``plafond`` à une fin de phrase (sinon à un espace) ; rend (texte, limite) où ``limite`` décrit la
+    coupe pour l'annoncer, ou None si rien n'est coupé."""
+    if len(texte) <= plafond:
+        return texte, None
+    fin = max((m.end() for m in re.finditer(r'[.!?…]\s', texte[:plafond + 1])), default=0)
+    if fin < plafond // 2:
+        fin = texte.rfind(' ', 0, plafond)
+    if fin <= 0:
+        fin = plafond
+    return texte[:fin].rstrip(), {'plafond': plafond, 'caracteres': len(texte), 'lus': len(texte[:fin].rstrip())}
+
+
+def preparer(desk, texte, owner='cabinet', matter='', profil=None):
     """Texte découpé pour la lecture. Brindille : développé (V04), audité, lu dans le navigateur ; rien n'est synthétisé ni transmis.
-    Autres voix : découpage seul, la synthèse reste celle de ``voice568`` (qui développe le texte des voix locales et audite)."""
+    Autres voix : découpage seul, la synthèse reste celle de ``voice568`` (qui développe le texte des voix locales et audite).
+    5.6.96 (V01) : texte entier, segments de ``PLAFOND_SEGMENT`` au plus ; au-delà du plafond explicite, ``limite`` annonce la coupe.
+    5.6.96 (V05) : ``profil`` (essai d'écoute, liste fermée) ou profil du compte ; ses quatre valeurs partent au worker du navigateur."""
     from . import assistant567
     from .lecture5694 import developper, nettoyer, phrases
     from .voice568 import paragraph_pause_ms
-    profil = assistant567.profile(desk, owner)
-    if not profil['speech_enabled']:
+    compte = assistant567.profile(desk, owner)
+    if not compte['speech_enabled']:
         raise Stop('lecture_vocale_desactivee')
+    identifiant = profil_voix(compte, profil)
     texte = str(texte or '').strip()
-    if not 1 <= len(texte) <= 7000:
-        raise Stop('texte_lecture_trop_long_7000_maximum')
+    if not texte:
+        raise Stop('texte_lecture_vide')
     choisi = fournisseur(desk.c)
+    externe = choisi == 'elevenlabs'
+    texte, limite = couper_au_plafond(texte, PLAFOND_EXTERNE if externe else PLAFOND_LECTURE)
     try:
         from .i18n5631 import current
         langue = current()
     except Exception:   # noqa: BLE001 — hors requête : français
         langue = 'fr'
     navigateur = choisi == 'brindille'
-    if choisi == 'elevenlabs':          # chemin ElevenLabs inchangé : ni développement ni nettoyage côté serveur
-        morceaux = phrases(texte)
+    if externe:                         # chemin ElevenLabs inchangé : ni développement ni nettoyage côté serveur
+        morceaux = phrases(texte, PLAFOND_SEGMENT)
     else:
-        morceaux = phrases(developper(nettoyer(texte)))
+        morceaux = phrases(developper(nettoyer(texte)), PLAFOND_SEGMENT)
     if navigateur:
-        desk.audit('synthese_vocale', {'owner': owner, 'provider': 'brindille', 'characters': len(texte), 'external': False, 'browser': True})
-    return {'provider': choisi, 'browser': navigateur, 'fallback': repli(desk.c), 'paragraphs': morceaux, 'rate': profil['speech_rate'],
-            'pause_ms': paragraph_pause_ms(desk.c, langue), 'characters': len(texte), 'external': choisi == 'elevenlabs',
-            'transmitted_text': None, 'matter': str(matter or '')}
+        desk.audit('synthese_vocale', {'owner': owner, 'provider': 'brindille', 'characters': len(texte), 'external': False, 'browser': True,
+                                       'profil': identifiant})
+    return {'provider': choisi, 'browser': navigateur, 'fallback': repli(desk.c), 'paragraphs': morceaux, 'rate': compte['speech_rate'],
+            'pause_ms': paragraph_pause_ms(desk.c, langue), 'characters': limite['caracteres'] if limite else len(texte), 'external': externe,
+            'transmitted_text': None, 'matter': str(matter or ''), 'segments': sum(len(p) for p in morceaux), 'limite': limite,
+            'plafond_segment': PLAFOND_SEGMENT, 'profil': identifiant, 'voix': dict(PROFILS[identifiant])}
+
+
+def dernier_repli(desk, owner='cabinet'):
+    """5.6.96 (V04) : dernier passage à la voix de secours du serveur (``voice568.speech``), avec une cause lisible ; jamais le texte lu."""
+    valeur = desk.settings('voice568:last_fallback:' + owner, None)
+    if not isinstance(valeur, dict) or not valeur.get('at'):
+        return None
+    raison = str(valeur.get('reason') or '')
+    try:
+        from .erreurs5634 import explain
+        message = explain(raison.split(':')[0]) or raison
+    except Exception:   # noqa: BLE001 — la cause brute reste lisible
+        message = raison
+    return {'at': str(valeur['at']), 'reason': raison, 'message': message, 'provider': str(valeur.get('provider') or REPLI_DEFAUT),
+            'requested': str(valeur.get('requested') or '')}
 
 
 def etat(desk, owner='cabinet'):
     """Ce que la page Voix et les scripts ont besoin de savoir, sans secret."""
     from . import assistant567
     profil = assistant567.profile(desk, owner)
+    avatar = str(profil.get('avatar') or 'icone')
     return {'provider': fournisseur(desk.c), 'fallback': repli(desk.c), 'server_provider': fournisseur_serveur(desk.c),
             'rate': profil['speech_rate'], 'speech_enabled': profil['speech_enabled'],
             'voice_isolation': bool(profil.get('voice_isolation', True)), 'stop_on_silence': bool(profil.get('stop_on_silence', True)),
-            'brindille_revision': BRINDILLE_REVISION, 'alkove_version': ALKOVE_VERSION}
+            'brindille_revision': BRINDILLE_REVISION, 'alkove_version': ALKOVE_VERSION,
+            # 5.6.96 : V03 (interruption par choix), V05 (profil Brindille), V06 (avatar), V04 (repli du serveur), V01 (plafonds annoncés)
+            'interruption_vocale': profil.get('interruption_vocale') is True, 'profil': profil_voix(profil), 'profils': list(PROFILS),
+            'avatar': avatar if avatar in PORTRAITS else 'aucun', 'last_fallback': dernier_repli(desk, owner),
+            'plafond': PLAFOND_LECTURE, 'plafond_externe': PLAFOND_EXTERNE}
 
 
 def fichiers_presents():

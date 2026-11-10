@@ -720,6 +720,8 @@ class App:
     def _serve5656(self, env, start_response):
         _blocked=self._guard5670(env,start_response)
         if _blocked is not None:return _blocked
+        from . import affichage5696 as _a96
+        _a96.demarrer()   # 5.6.96 (U05) : Server-Timing agrégé (authentification, SQLite, construction), des nombres seulement
         headers=[('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),
                  # Native form POSTs use navigation mode. Under no-referrer,
                  # Fetch serializes their Origin as null, which we must reject.
@@ -873,6 +875,7 @@ class App:
                 from .i18n5631 import begin as _lang_begin   # 5.6.31 (R17) : langue propre à cette requête et à cet utilisateur
                 from . import shell501 as _shell501
                 _shell501.set_context(cfg,args,path);_lang_begin(env,cfg,*actor(env))
+                _a96.marquer_auth()
                 from .web440 import route as _route440
                 _r440=_route440(env,cfg,auth,prefix,path,args,env['REQUEST_METHOD'])
                 if _r440 is not None:
@@ -1112,6 +1115,9 @@ class App:
                         save_model(desk_action,form.get('model',''),form.get('role',''));job=0
                     elif action=='save_ai_provider':
                         from .ai_gateway import save_provider
+                        from .cles5696 import TESTABLES,verifier_cle
+                        if str(form.get('provider_type','')).strip().lower() in TESTABLES and str(form.get('api_key','')).strip():
+                            verifier_cle(str(form.get('provider_type','')).strip().lower(),form.get('api_key',''),form.get('url',''))   # 5.6.96 : clé refusée : rien n'est remplacé
                         save_provider(desk_action,form.get('provider_id',''),form.get('provider_type',''),
                           form.get('url',''),form.get('model',''),form.get('api_key',''),
                           form.get('enabled')=='yes',form.get('allow_external')=='yes',
@@ -1361,7 +1367,7 @@ class App:
                     # 5.6.9 : /favicon.ico est demandé d'office par les navigateurs ; 5.6.11 : vraies tailles d'icônes PWA (192, 512, maskable).
                     name='axiorhub-icon.png' if path=='/favicon.ico' else path.rsplit('/',1)[-1]
                     body=(Path(__file__).parent/'static'/name).read_bytes();kind='image/png'
-                elif path in ('/static/plex-sans-400.woff2','/static/plex-sans-600.woff2'):   # 5.6.89 : police de l'interface, servie par l'application
+                elif path in ('/static/plex-sans-400.woff2','/static/plex-sans-600.woff2','/static/figtree-latin.woff2'):   # 5.6.89 : police de l'interface, servie par l'application ; 5.6.96 (U03) : Figtree
                     body=(Path(__file__).parent/'static'/path.rsplit('/',1)[-1]).read_bytes();kind='font/woff2'
                 else:
                     body=self.page(cfg,auth,path,args)
@@ -1399,6 +1405,9 @@ class App:
         if '/static/' in env.get('PATH_INFO','') and status.startswith('200') and re.search(r'(?:^|&)v=',env.get('QUERY_STRING','')):
             # 5.6.80 : adresses versionnées : le navigateur garde scripts et styles au lieu de les recharger (38 fichiers) à chaque page
             headers=[(n,'private, max-age=31536000, immutable' if n=='Cache-Control' else v) for n,v in headers]
+        _st96=_a96.entete();_a96.terminer()
+        if _st96 and status.startswith('200') and str(kind).startswith('text/html'):
+            headers=headers+[('Server-Timing',_st96)]
         if env.get('axiorhub.nc_origin'):   # 5.6.37 : réponse à une session Nextcloud : cadre permis au seul site Nextcloud de la clé
             from .nextcloud5637 import frame_headers
             headers=frame_headers(headers,'' if env['axiorhub.nc_origin']=='self' else env['axiorhub.nc_origin'])

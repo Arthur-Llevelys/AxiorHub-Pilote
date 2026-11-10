@@ -183,20 +183,50 @@ def _context(desk, data, matter, owner='cabinet'):
             'due': str(data.get('due') or '')[:32], 'channel': 'voice' if data.get('channel') == 'voice' else 'text', **extra}
 
 
+def carte_fil(text, reponse, data, state='answered', exceptions=(), sources=(), perimetre='general'):
+    """5.6.96 (R01) : réponse immédiate dans le fil, sans mission enregistrée ni travail en file (acquiescement, météo, recherche publique à
+    confirmer). Même forme qu'une mission pour les cartes du texte et de la voix ; identifiant vide : rien à relire ni à reprendre."""
+    plan = {'objective': text, 'deliverable': 'Réponse dans le fil', 'intent': 'question', 'intent_reasons': ['Réponse immédiate, sans lecture de dossier ni mission.'],
+            'intent_explicit': False, 'steps': ['Répondre dans le fil'], 'restrictions': ['Aucune lecture de dossier', 'Aucun envoi'], 'document_kind': '', 'new_mail': False,
+            'autonomy': 'prepare', 'perimetre': perimetre}
+    row = {'id': '', 'kind': 'question', 'state': state, 'label': LABELS.get(state, state), 'conversation': True, 'instruction': text, 'matter': '', 'matter_label': '',
+           'exceptions': list(exceptions), 'plan': plan, 'result': {'text': reponse, 'sources': list(sources)} if state == 'answered' else {},
+           'context': {'page': '/', 'channel': 'voice' if data.get('channel') == 'voice' else 'text', 'selected_documents': [], 'attachments': []},
+           'job': None, 'title': text, 'subtitle': '', 'automatic': False, 'complex': False}
+    from .pilote5613 import result_lines
+    row['lignes'] = result_lines(row)
+    return row
+
+
 def create(desk, data, owner='cabinet'):
-    ensure_schema(desk)
     text = str(data.get('instruction') or '').strip()
+    # 5.6.96 (R01) : le périmètre est classé AVANT le dossier (acquiescement, question publique, lecture du cabinet, mode Général, demande
+    # sur un dossier). Le dossier n'est résolu que pour une demande sur un dossier ou sur demande explicite ; une intention de production
+    # choisie explicitement garde la protection actuelle (dossier_ambigu, changement_dossier).
+    from . import recherche_publique5696 as public
+    requested = 'analysis' if data.get('analysis_only') is True else str(data.get('intent') or 'auto')
+    cadre = public.cadrer(text, data) if requested in public.INTENTIONS_OUVERTES else public.cadre_dossier(text)
+    if cadre['perimetre'] == 'acquiescement':
+        return carte_fil(text, public.reponse_acquiescement(text), data, perimetre='acquiescement')
+    data = public.restreindre(data, cadre)
+    text = str(data.get('instruction') or '').strip()
+    ensure_schema(desk)
     if not 3 <= len(text) <= 12000:
         raise Stop('question_requise_12000_caracteres_maximum')
     token = str(data.get('request_key') or '')
     if not re.fullmatch(r'[A-Za-z0-9-]{16,80}', token):
         raise Stop('identifiant_requete_invalide')
+    if cadre['perimetre'] == 'public':   # 5.6.96 (R03, R04) : outil du bon tour ; rien ne part sans confirmation du texte exact
+        immediat = public.avant_mission(desk, cadre, owner)
+        if immediat:
+            state, texte, exceptions, sources = immediat
+            return carte_fil(text, texte, data, state, exceptions, sources, perimetre='public')
     matters = {str(m['id']): m for m in load_matters(desk.c)}
     chosen = str(data.get('matter') or '')
     if chosen and chosen not in matters:
         raise Stop('dossier_absent')
     from .docrequest520 import find_matter, guess_kind
-    named, candidates = find_matter(desk, text)
+    named, candidates = find_matter(desk, text) if cadre['resoudre_dossier'] else (None, [])
     exceptions = []
     if chosen and named and named['id'] != chosen:
         exceptions.append({'code': 'changement_dossier', 'message': 'La demande nomme un autre dossier. Choisissez explicitement le dossier de cette mission.',
@@ -211,7 +241,7 @@ def create(desk, data, owner='cabinet'):
     # 5.6.13 : l'intention (Question / Analyse / Document / Brouillon de courriel) est explicite ou classée par pilote5613,
     # jamais déduite d'un seul mot comme « contrat » ou « audience » ; une question ne crée plus de document.
     from .pilote5613 import resolve_intent, DELIVERABLES
-    intent = resolve_intent(text, 'analysis' if data.get('analysis_only') is True else (data.get('intent') or 'auto'), ctx['mail_key'])
+    intent = resolve_intent(text, 'question' if cadre['perimetre'] == 'public' and requested == 'auto' else requested, ctx['mail_key'])
     if intent['intent'] == 'mission':      # 5.6.14 : mission complexe (parcours par tâches)
         from . import taches5614
         from .parcours5614 import detect
@@ -242,8 +272,9 @@ def create(desk, data, owner='cabinet'):
     if desk.settings('missions567:pause', False):
         exceptions.append({'code': 'preparation_suspendue', 'message': 'La préparation de nouvelles missions est suspendue par l’administrateur.'})
     plan = {'objective': text, 'deliverable': DELIVERABLES[intent['intent']],
-            'intent': intent['intent'], 'intent_reasons': intent['reasons'], 'intent_explicit': intent['explicit'],
-            'steps': ['Identifier le dossier et les sources', 'Consulter les sources autorisées et l’agenda',
+            'intent': intent['intent'], 'intent_reasons': intent['reasons'], 'intent_explicit': intent['explicit'], 'perimetre': cadre['perimetre'],   # 5.6.96 (R01)
+            'steps': ['Identifier le dossier et les sources' if cadre['perimetre'] == 'dossier' else 'Identifier le périmètre et les sources',
+                      'Consulter les sources publiques autorisées' if cadre['perimetre'] == 'public' else 'Consulter les sources autorisées et l’agenda',
                       'Préparer le résultat', 'Contrôler et relire le dépôt' if kind != 'question' else 'Présenter la réponse et ses sources'],
             'restrictions': ['Aucun envoi de courriel', 'Aucun dépôt auprès d’un tiers', 'Aucune signature ni facture définitive'],
             'document_kind': 'note' if 'plaidoirie' in f or 'audience' in f else guess_kind(text),

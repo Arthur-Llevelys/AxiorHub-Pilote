@@ -12,8 +12,8 @@ from .sobriete5682 import counters
 HINTS = {'local': 'Tout reste sur vos machines. Si le modèle local ne répond pas, le travail attend ou signale l’incident. Rien ne part.',
          'chatgpt': 'Tous les appels à l’IA passent par votre abonnement : Luna pour les tâches simples, Terra pour la rédaction courante, Sol pour les '
                     'analyses complexes. Limite atteinte : le travail est reporté, sans recours à un autre fournisseur. Ollama n’est pas nécessaire.',
-         'mistral': 'Tous les appels passent par votre clé Mistral : Mistral Small pour les tâches simples, Mistral Large pour la rédaction et l’analyse. '
-                    'Facturé à l’usage, dans la limite de vos plafonds.',
+         'mistral': 'Tous les appels passent par votre clé Studio Mistral : Mistral Small pour les tâches simples, Mistral Large pour la rédaction et l’analyse. '
+                    'Utilise le quota de votre offre Mistral ; au-delà, selon vos réglages Mistral. Limite atteinte : le travail est reporté, sans recours à un autre fournisseur.',
          'anthropic': 'Tous les appels passent par votre clé Claude : Haiku pour les tâches simples, Sonnet pour la rédaction courante, Opus pour les analyses '
                       'complexes. Facturé à l’usage, dans la limite de vos plafonds.',
          'auto': 'AxiorHub choisit parmi les connexions que vous cochez, le local d’abord, puis l’abonnement, puis l’API. Le repli reste dans cette liste.',
@@ -128,7 +128,8 @@ def card(desk):
     registry = provider_registry(desk.c)
     chatgpt_ready = True if acc.get('etat') == 'connecte' and acc.get('plan') else 'À connecter d’abord (section ChatGPT, plus bas).'
     keyed = lambda kind: any(p.get('type') == kind and p.get('secret_file') for p in registry.values())
-    key_field = lambda kind, name: '' if keyed(kind) else '<label class="m5-field m82-key">Clé API %s<input type="password" name="cle_%s" maxlength="4096" autocomplete="new-password"></label>' % (name, kind)
+    key_field = lambda kind, name: '' if keyed(kind) else '<label class="m5-field m82-key">Clé API %s<input type="password" name="cle_%s" maxlength="4096" autocomplete="new-password"></label>%s' % (
+        name, kind, _revision_field(desk, kind))
     boxes = ''.join('<label class="r52-day"><input type="checkbox" name="fournisseur_%s"%s> %s</label>' % (
         e(pid, quote=True), ' checked' if pid in rule['fournisseurs'] else '', e(pid)) for pid, item in sorted(registry.items())
         if item.get('enabled', True) and (item.get('type') == 'ollama' or item.get('external_data_allowed')))
@@ -163,7 +164,23 @@ def card(desk):
         check('niveau_maximal', 'Autoriser le niveau maximal (Astra, Claude Fable) pour les travaux les plus exigeants', rule['niveau_maximal']),
         _fr(rule['plafond_mission_credits'], 0), _fr(rule['plafond_mission_usd'], 2), rule['plafond_auto_jour'], rule['plafond_auto_avance_jour'], *counters(desk.c['state_dir']),
         check('semantique_locale', 'Recherche par le sens avec un modèle local (option distincte)', rule['semantique_locale']),
-        _catalog(desk, rule), _usage(desk), _journal(desk))
+        _catalog(desk, rule), _usage(desk), _journal(desk)) + _mistral_card(desk)
+
+
+def _revision_field(desk, kind):
+    """5.6.96 (A03) : révision du réglage Mistral lue à l'ouverture ; l'enregistrement de la clé est refusé (409) si elle a changé."""
+    if kind != 'mistral':
+        return ''
+    from .ai_gateway import revision_of
+    from .mistral5696 import connexion
+    pid, _ = connexion(desk.c)
+    return '<input type="hidden" name="revision_mistral" value="%d">' % revision_of(desk.settings('ai:provider:' + pid, {}))
+
+
+def _mistral_card(desk):
+    """5.6.96 (A01) : carte « Mistral · clé Studio » (tester, enregistrer, états, quota), juste après le mode de l'IA."""
+    from .mistral5696 import carte
+    return carte(desk)
 
 
 def transfer_html(connected, local):

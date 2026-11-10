@@ -57,6 +57,14 @@ def _record(state_dir, kind, where, seconds, extra=''):
             pass
 
 
+def _mesure5696(secondes):
+    """5.6.96 (U05) : temps SQLite de la requête de page en cours (``affichage5696``) ; aucune donnée de la requête n'est gardée."""
+    global _mesure5696
+    from .affichage5696 import requete_sqlite
+    _mesure5696 = requete_sqlite   # import fait une fois : les appels suivants vont directement au compteur
+    requete_sqlite(secondes)
+
+
 class TimedConnection(sqlite3.Connection):
     """Connexion SQLite qui mesure la durée de chaque transaction d'écriture (début : première écriture ; fin : commit ou rollback)."""
     state_dir = ''
@@ -71,6 +79,13 @@ class TimedConnection(sqlite3.Connection):
     _explicit = False
 
     def execute(self, *args, **kwargs):
+        t0 = time.perf_counter()   # 5.6.96 (U05) : durée de la requête comptée dans Server-Timing (rien hors requête de page mesurée)
+        try:
+            return self._execute(*args, **kwargs)
+        finally:
+            _mesure5696(time.perf_counter() - t0)
+
+    def _execute(self, *args, **kwargs):
         was = self.in_transaction
         if args and isinstance(args[0], str) and args[0].lstrip()[:5].upper() == 'BEGIN':
             # 5.6.56 : avant la 5.6.56, executescript validait implicitement les écritures en attente ; plusieurs opérations ouvraient
@@ -90,8 +105,12 @@ class TimedConnection(sqlite3.Connection):
         return cur
 
     def executemany(self, *args, **kwargs):
+        t0 = time.perf_counter()
         was = self.in_transaction
-        cur = super().executemany(*args, **kwargs)
+        try:
+            cur = super().executemany(*args, **kwargs)
+        finally:
+            _mesure5696(time.perf_counter() - t0)
         self._start(was)
         return cur
 

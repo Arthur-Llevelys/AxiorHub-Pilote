@@ -189,7 +189,14 @@ def _global_items(desk, prefix, actor, role):
 
 
 def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_closed=False, actor='cabinet', role='administrateur'):
-    """Éléments actifs (à examiner, ou reportés arrivés à échéance) ; un élément décidé sur sa révision courante disparaît partout."""
+    """Éléments actifs (à examiner, ou reportés arrivés à échéance) ; un élément décidé sur sa révision courante disparaît partout.
+    5.6.96 (U06) : une page qui demande deux fois la même file (Aujourd'hui : file et rang « À décider ») ne la calcule qu'une fois."""
+    from .affichage5696 import memo_requete
+    cle = ('file5651', str(desk.c.get('state_dir', '')), prefix, matter, view, tuple(sorted(str(h) for h in (hidden or ()))), include_closed, actor, role)
+    return [dict(x) for x in memo_requete(cle, lambda: _items(desk, prefix, matter, view, hidden, include_closed, actor, role))]
+
+
+def _items(desk, prefix, matter, view, hidden, include_closed, actor, role):
     ensure_schema(desk)
     matters = [m for m in load_matters(desk.c) if str(m['id']) not in hidden and (matter is None or str(m['id']) == str(matter))]
     if matter is None:   # seuls les dossiers qui ont quelque chose à décider sont parcourus
