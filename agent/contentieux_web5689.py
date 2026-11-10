@@ -22,7 +22,7 @@ MESSAGES = {'role_insuffisant': 'Cette action est réservée à un avocat ou à 
             'date_non_certaine_a_completer': 'Ce délai n’a pas de date certaine : complétez les données ou le calcul à la main.', 'regle_a_valider': 'Validez d’abord la règle pour son périmètre.', 'regle_modifiee_recalculer': 'La règle a changé depuis ce calcul : corrigez le candidat pour le recalculer.',
             'manifeste_modifie': 'Un fichier a changé depuis ce manifeste : l’autorisation n’est pas accordée.', 'autorisation_absente_ou_perimee': 'L’autorisation manque ou ne couvre plus ce manifeste : vérifiez puis autorisez de nouveau.', 'controles_bloquants': 'Des contrôles restent bloquants : levez-les avant d’autoriser.',
             'acte_non_publie': 'Publiez d’abord le projet d’acte.', 'acte_non_pret': 'L’acte n’a pas encore été rédigé et contrôlé.', 'destinataire_requis': 'Indiquez au moins un destinataire.', 'canal_invalide': 'Choisissez un canal.', 'paquet_vide': 'Ce paquet ne contient aucun fichier.', 'motif_obligatoire': 'Indiquez un motif.',
-            'canal_non_integre': 'Aucun canal de dépôt n’est intégré à AxiorHub.', 'candidat_clos': 'Ce candidat a déjà été remplacé ou rejeté.'}
+            'canal_non_integre': 'Aucun canal de dépôt n’est intégré à AxiorHub.', 'candidat_clos': 'Ce candidat a déjà été remplacé, rejeté ou validé : rechargez la page.'}
 STATUS = {'role_insuffisant': '403 Forbidden', 'dossier_reserve': '403 Forbidden', 'version_en_conflit': '409 Conflict', 'version_requise': '409 Conflict', 'cle_idempotence_deja_utilisee': '409 Conflict', 'dossier_absent': '404 Not Found', 'route_inconnue': '404 Not Found'}
 
 
@@ -312,13 +312,39 @@ def _section_delais(desk, prefix, mid, peut):
             actions += '<details><summary>Corriger ou compléter</summary>%s</details>' % _form('delais/corriger', _cle() + _cache('id', x['id']) + _cache('version', x['revision']) + _champ('Date de l’événement', 'date_evenement', x['date_evenement'], 10) + _champs_conditions(x['rule_id'], x['inputs']), 'Recalculer')
         if peut and x['statut'] == 'propose':
             actions += _form('delais/decision', _cache('id', x['id']) + _cache('version', x['revision']) + _cache('action', 'valider'), 'Valider la date', '', 'm5-form m5-inline')
+        if peut and x['statut'] in ('propose', 'a_verifier'):
+            # 5.6.96 (D03) : écarter une fausse détection, motif obligatoire ; même route que la validation (action « rejeter »),
+            # droits, CSRF et version vérifiés par le serveur (409 si la page est périmée). Aucun agenda n'est touché.
+            actions += '<details><summary>Écarter la proposition</summary>%s</details>' % _form(
+                'delais/decision', _cle() + _cache('id', x['id']) + _cache('version', x['revision']) + _cache('action', 'rejeter') + _champ_motif(x['id']),
+                'Écarter la proposition', mid, 'm5-form', True)
         html += '<section class="ax-card"><h3>%s</h3><p>%s</p>%s%s%s%s</section>' % (e(delais.ressource()['evenements'].get(x['evenement'], x['evenement'] or 'Événement à préciser')), date_txt, ('<p>Citation : %s</p>' % e(x['citation'])) if x['citation'] else '',
                                                                                   ('<h4>Données à fournir</h4><ul>%s</ul>' % questions) if questions else '', ('<details><summary>Étapes du calcul</summary><ol>%s</ol></details>' % etapes) if etapes else '', actions)
     lignes = ''.join('<li><strong>%s</strong> (version %d) : %s<br><small>%s</small>%s</li>' % (e(r['libelle']), r['version'], e(r['perimetre']), e(', '.join(s['reference'] for s in r['sources'])), ' Validée.' if r['validee'] else (_form('delais/regle', _cache('rule_id', r['id']) + _cache('empreinte', delais.empreinte_regle(delais.regle(r['id']))), 'Valider cette règle pour ce périmètre', '', 'm5-form m5-inline m5-mini', True) if peut else ' À valider par un avocat.')) for r in regles['regles'])
     coherence = delais.coherence(desk, mid)
     suivi = ''.join('<li>%s : suivi %s, agenda en ligne : %s%s</li>' % (e(l['libelle']), e(l['date_suivi'] or 'sans date'), e(l['agenda_en_ligne']), ''.join('<br><small>%s</small>' % e(x) for x in l['ecarts'])) for l in coherence['lignes'])
     html += '<section class="ax-card"><h3>Règles disponibles</h3><p class="ax-muted">%s</p><ul>%s</ul></section><section class="ax-card"><h3>Suivi de procédure et agendas</h3><p class="ax-muted">%s</p><ul>%s</ul></section>' % (e(regles['perimetre_commun']), lignes, e(coherence['limite']), suivi or '<li class="ax-muted">Aucune échéance suivie.</li>')
-    return html
+    return html + _actes_consignes(desk, mid)
+
+
+def _champ_motif(ident):
+    """5.6.96 (D03) : motif obligatoire (3 caractères au moins), motifs suggérés proposés par une liste, consigne liée au champ."""
+    from .echeances450 import MOTIFS_ECART
+    cle = 'm5-motif-' + str(ident)
+    return ('<label class="m5-field">Motif (obligatoire)<input name="motif" required minlength="3" maxlength="500" list="%s-liste" '
+            'aria-describedby="%s-aide" autocomplete="off"></label><datalist id="%s-liste">%s</datalist>'
+            '<p class="ax-muted" id="%s-aide">Par exemple : arrêt cité, acte d’incident, notification non prouvée, doublon, ou votre propre motif.</p>') % (
+        e(cle, quote=True), e(cle, quote=True), e(cle, quote=True), ''.join('<option value="%s"></option>' % e(m, quote=True) for m in MOTIFS_ECART), e(cle, quote=True))
+
+
+def _actes_consignes(desk, mid):
+    """5.6.96 (D01) : actes qualifiés sans délai calculé (acte d'incident, calendrier), avec leur source et leur mention."""
+    from .echeances450 import actes_consignes
+    lignes = ''.join('<li><strong>%s</strong> : %s<br><small>Source : %s</small>%s</li>' % (
+        e(a['type_libelle']), e(a['mention']), e(a['path'].rsplit('/', 1)[-1]),
+        ''.join('<br><small>Date à vérifier : %s (« %s »)</small>' % (e(d['date']), e(d['extrait'])) for d in a['qualification'].get('dates_expresses', [])))
+        for a in actes_consignes(desk, mid, 10) if a['mention'])
+    return '<section class="ax-card"><h3>Actes qualifiés</h3><ul>%s</ul></section>' % lignes if lignes else ''
 
 
 def _section_audience(desk, prefix, mid, peut):

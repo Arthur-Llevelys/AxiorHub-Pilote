@@ -61,9 +61,12 @@ def _ligne(desk, carte, prefix, jours):
     if _ancien(carte.get('updated_at'), jours):
         etats.append(etiquette('Ancien', 'attention', 'Préparé il y a plus de %d jours' % jours))
     return ('<li class="a89-ligne" data-livrable="%s" data-famille="%s"><span class="a89-pastille" data-nature="%s">%s</span><div class="a89-corps"><a class="a89-titre" href="%s">%s</a>'
-            '<p class="a89-dossier">%s</p><p class="a89-meta"><span>%s</span><span>Version %d</span><span>%s</span></p></div><div class="a89-droite">%s<a class="ax-btn ghost" href="%s" aria-label="Ouvrir : %s">Ouvrir</a></div></li>') % (
+            '<p class="a89-dossier">%s</p><p class="a89-meta"><span>%s</span><span>Version %d</span><span>%s</span></p></div><div class="a89-droite">%s<a class="ax-btn ghost" href="%s" aria-label="Ouvrir : %s"%s>Ouvrir</a></div></li>') % (
         e(carte['document_id'], quote=True), _famille(carte.get('kind')), e(carte.get('kind') or '', quote=True), icone(ICONE_NATURE.get(carte.get('kind'), 'document')), e(href, quote=True), e(carte['title']),
-        e(carte.get('matter_label') or 'Sans dossier'), e(carte.get('nature') or ''), carte.get('version') or 1, e(_heure(desk, carte.get('updated_at'))), ''.join(etats), e(href, quote=True), e(carte['title'], quote=True))
+        e(carte.get('matter_label') or 'Sans dossier'), e(carte.get('nature') or ''), carte.get('version') or 1, e(_heure(desk, carte.get('updated_at'))), ''.join(etats), e(href, quote=True), e(carte['title'], quote=True),
+        # 5.6.96 (I02) : « Ouvrir » ouvre le même détail en fenêtre flottante (sans script : la page du document, comme avant)
+        ' data-f96-action="%s" data-f96-cle="%s" data-f96-titre="%s" data-f96-dossier="%s"' % ('reponse' if carte.get('kind') == 'courriel' else 'document', e(carte['document_id'], quote=True),
+                                                                                         e(carte['title'], quote=True), e(carte.get('matter_label') or '', quote=True)))
 
 
 def _lecture(desk, prefix):
@@ -207,7 +210,11 @@ def page(desk, prefix, owner, morceaux):
     tete = ''
     if principal and principal[0] == 'actuellement':     # premier (par défaut) : en haut de la page, sur toute la largeur, avant Travail préparé
         tete, principal = _item('actuellement', blocs['actuellement']), principal[1:]
+    rang = ''
+    if list(prefs['ordre']) == list(tableau5688.IDS):     # 5.6.96 (I01) : ordre par défaut (blocs masqués compris) ; un ordre choisi par la personne est conservé tel quel
+        rang, principal, cote = rang_html(desk, prefix, owner, role_courant(), blocs, principal, cote)
     accent = (' data-accent="%s"' % e(prefs['accent'], quote=True)) if prefs['accent'] else ''
+    accent += (' data-densite="%s"' % e(prefs['densite'], quote=True)) if prefs.get('densite', 'confort') != 'confort' else ''   # 5.6.96 (U02, lot affichage) : densité par compte
     style = ''
     if blocs.get('style') and 'style' not in prefs['masques']:
         style = '<details class="a89-plus"><summary>Style du cabinet</summary>%s</details>' % blocs['style']
@@ -216,9 +223,45 @@ def page(desk, prefix, owner, morceaux):
         col = style + morceaux['composeur'] + col
     pause = pause_html(desk)
     note = ('<p class="c530-note">%d bloc(s) masqué(s) sur cette page. Vous pouvez les rétablir dans « Personnaliser cette page ».</p>' % len(prefs['masques'])) if prefs['masques'] else ''
-    return ('<div class="c530 a89" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div>'
-            '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div></header>'
-            '%s<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s%s</div>') % (
-        e(prefix, quote=True), accent, e(morceaux['date']), pause, morceaux['entete'], commande_html(prefix),
-        tete, travail_carte(desk, prefix), col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
-        ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'], plis_js)
+    bandeau, carte, accueil_js = entete_accueil(desk, prefix, owner, role_courant(), morceaux['date'])     # 5.6.96 (F01-F04, I01) : salutation, heure, météo
+    return ('<div class="c530 a89" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete f96-tete"><div class="f96-identite"><h1>Aujourd’hui</h1>%s</div>'
+            '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div>%s</header>'
+            '%s%s<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s%s%s</div>') % (
+        e(prefix, quote=True), accent, bandeau, pause, morceaux['entete'], commande_html(prefix), carte,
+        tete, rang, travail_carte(desk, prefix), col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
+        ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'], plis_js, accueil_js)
+
+
+def rang_html(desk, prefix, owner, role, blocs, principal, cote):
+    """5.6.96 (I01) : rang sous « Actuellement » : à gauche « À décider / À relire » (trois premières actions, puis la file complète dépliable), à droite
+    « Ma journée » (bloc existant, précédé des échéances confirmées du jour), dans une grille ``minmax(0, 2fr) minmax(0, 1fr)``. Les blocs gardent leur
+    identifiant (masquage et personnalisation de ``tableau5688`` inchangés) ; un bloc masqué n'y figure pas. Un incident rend la disposition d'avant."""
+    try:
+        from . import accueil_web5696 as acc
+        gauche = droite = ''
+        if 'file' in principal:
+            gauche = _item('file', acc.decider_html(desk, prefix, owner, role, blocs['file']))
+        if 'journee' in cote:
+            droite = _item('journee', acc.journee_html(desk, prefix, owner, role, blocs['journee']))
+    except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours
+        import logging
+        logging.getLogger(__name__).exception('rang de l’accueil 5.6.96')
+        return '', principal, cote
+    if not (gauche or droite):
+        return '', principal, cote
+    principal = [k for k in principal if not (k == 'file' and gauche)]
+    cote = [k for k in cote if not (k == 'journee' and droite)]
+    return '<div class="f96-rang%s">%s%s</div>' % ('' if gauche and droite else ' f96-rang-seul', gauche, droite), principal, cote
+
+
+def entete_accueil(desk, prefix, owner, role, date_texte):
+    """5.6.96 (lot accueil) : bandeau « Bonjour {Prénom}, nous sommes le…, il est… » et options d'accueil (F01, F02), cellule météo à droite de
+    l'en-tête (F04) et script de l'heure, de la météo et des fenêtres flottantes (I02). Une erreur ne cache jamais la page : la date seule revient."""
+    try:
+        from . import accueil_web5696 as acc
+        bandeau = acc.bandeau_html(desk, owner) + acc.options_html(desk, owner)
+        return bandeau, acc.carte_html(desk, owner, role, prefix), '<script defer src="%s"></script>' % e(prefix + '/static/v5696-accueil.js', quote=True)
+    except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours
+        import logging
+        logging.getLogger(__name__).exception('bandeau de l’accueil 5.6.96')
+        return '<p class="c530-date">%s</p>' % e(date_texte), '', ''

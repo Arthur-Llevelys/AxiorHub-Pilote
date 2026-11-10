@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5695-aujourdhui.css': 'text/css', '/static/v5695-aujourdhui.js': 'text/javascript', '/static/v5695-redaction.css': 'text/css', '/static/v5694-traces.css': 'text/css','/static/v5689-ia.js': 'text/javascript', '/static/v5689-ia.css': 'text/css', '/static/v5689-dossier.js': 'text/javascript', '/static/v5689-dossier.css': 'text/css', '/static/v5689-formulaires.js': 'text/javascript', '/static/v5689-navigation.js': 'text/javascript', '/static/v5689-carbon.css': 'text/css', '/static/v5689-carbon-jetons.css': 'text/css', '/static/v5689-livrables.js': 'text/javascript', '/static/v5689-livrables.css': 'text/css', '/static/v5689-cabinet.css': 'text/css', '/static/v5689-horaires.js': 'text/javascript','/static/v5688-crm.js': 'text/javascript', '/static/carbon5682.js': 'text/javascript', '/static/pdfjs5682.js': 'text/javascript', '/static/pdf.worker5682.js': 'text/javascript',
+STATIC = {'/static/v5696-courriels.js': 'text/javascript', '/static/v5696-courriels.css': 'text/css', '/static/v5696-accueil.js': 'text/javascript', '/static/v5696-accueil.css': 'text/css', '/static/v5696-affichage.css': 'text/css', '/static/v5696-affichage.js': 'text/javascript', '/static/v5695-aujourdhui.css': 'text/css', '/static/v5695-aujourdhui.js': 'text/javascript', '/static/v5695-redaction.css': 'text/css', '/static/v5694-traces.css': 'text/css','/static/v5689-ia.js': 'text/javascript', '/static/v5689-ia.css': 'text/css', '/static/v5689-dossier.js': 'text/javascript', '/static/v5689-dossier.css': 'text/css', '/static/v5689-formulaires.js': 'text/javascript', '/static/v5689-navigation.js': 'text/javascript', '/static/v5689-carbon.css': 'text/css', '/static/v5689-carbon-jetons.css': 'text/css', '/static/v5689-livrables.js': 'text/javascript', '/static/v5689-livrables.css': 'text/css', '/static/v5689-cabinet.css': 'text/css', '/static/v5689-horaires.js': 'text/javascript','/static/v5688-crm.js': 'text/javascript', '/static/carbon5682.js': 'text/javascript', '/static/pdfjs5682.js': 'text/javascript', '/static/pdf.worker5682.js': 'text/javascript',
           '/static/v5688-reversibilite.js': 'text/javascript', '/static/v5688-reversibilite.css': 'text/css', '/static/v5682.js': 'text/javascript', '/static/v5682.css': 'text/css', '/static/v5683.css': 'text/css', '/static/v5684.css': 'text/css', '/static/v5684-office.js': 'text/javascript', '/static/v5681.js': 'text/javascript', '/static/v5680.js': 'text/javascript', '/static/v5679.js': 'text/javascript', '/static/v5674.js': 'text/javascript', '/static/v5673.js': 'text/javascript', '/static/v5671.js': 'text/javascript', '/static/v5670.js': 'text/javascript', '/static/v5660.js': 'text/javascript', '/static/v5653.js': 'text/javascript', '/static/v5653.css': 'text/css', '/static/v5652.js': 'text/javascript', '/static/v5652.css': 'text/css', '/static/v5651.js': 'text/javascript', '/static/v5651.css': 'text/css', '/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
@@ -385,7 +385,7 @@ def route(env, cfg, auth, prefix, path, args, method):
             if path == '/parametres/connexions':return page_out(web567.connections_page(desk,auth,prefix,env))
             return page_out(web567.preferences_page(desk,auth,prefix,env))
         if path == '/courriels':
-            return page_out(drafts_page(desk, auth, prefix, args))
+            return page_out(drafts_page(desk, auth, prefix, args, env))   # 5.6.96 : le compte choisit la vue « À traiter avec le Pilote »
         if path == '/documents':
             return page_out(documents_page(desk, auth, prefix, args))
         if path == '/documents/edit':
@@ -692,7 +692,7 @@ def api(env, desk, auth, prefix, name, args, method):
             from .erreurs5634 import explain
             from .web import REASONS
             return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
-                            '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+                            '403 Forbidden' if code == 'role_insuffisant' else ('409 Conflict' if code == 'reglage_modifie_entre_temps' else '400 Bad Request'))   # 5.6.96 : clé Mistral, révision périmée
     if name.startswith('m5681/'):   # 5.6.81 : liste des modèles d'un fournisseur, profil Mixte
         from . import web5681
         try:
@@ -703,7 +703,7 @@ def api(env, desk, auth, prefix, name, args, method):
             from .erreurs5634 import explain
             from .web import REASONS
             return json_out({'error': code, 'message': ERROR_MESSAGES.get(code) or REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
-                            '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
+                            '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else ('409 Conflict' if code == 'reglage_modifie_entre_temps' else '400 Bad Request'))
     if name.startswith('m5680/'):   # 5.6.80 : passages trouvés sans modèle, affichés pendant que l'IA répond
         from . import web5680
         try:
@@ -980,7 +980,13 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out(result)
         if name.startswith('deadline/') or name == 'settings/deadlines':
             from . import web450
-            result = web450.handle(desk, name, data)
+            from .web567 import actor
+            try:   # 5.6.96 (D03, D05) : l'auteur vient de la session, jamais du corps ; page périmée → 409
+                result = web450.handle(desk, name, {**data, '_owner': actor(env)[0]})
+            except Stop as ex:
+                if str(ex) != 'version_en_conflit':
+                    raise
+                return json_out({'error': str(ex), 'message': human(str(ex))}, '409 Conflict')
             desk.audit('echeance_450_api', {'route': name})
             return json_out(result)
         raise Stop('route_inconnue')
@@ -1007,7 +1013,60 @@ def _learn(desk, data, result):
 
 
 # ------------------------------------------------------------------- pages
-def drafts_page(desk, auth, prefix, args):
+def drafts_page(desk, auth, prefix, args, env=None):
+    """Courriels : « À relire » (défaut), « Boîte de réception » (``?vue=boite``) et, si l'option est active, « À traiter avec le Pilote »
+    (``?vue=assistante``, 5.6.96). 5.6.96 (I03) : la vue est choisie **avant** toute lecture ; seule « À relire » lit les brouillons dans la
+    messagerie (``drafts440.list_drafts``) : la boîte de réception ne consulte plus les brouillons pour un panneau caché, et un échec de cette
+    lecture ne ralentit ni ne bloque les autres vues. Onglets, adresses, bannières et éditeur restent ceux de leur vue d'origine."""
+    from .web567 import actor
+    owner, role = actor(env or {})
+    vue = str(args.get('vue') or '')
+    from . import courriels5696
+    assistee_active = courriels5696.active(desk, owner)
+    vue = vue if vue in ('boite', 'assistante') else ''
+    if vue == 'assistante' and not assistee_active:
+        vue = ''                       # option désactivée : l'usage courant, sans message d'erreur
+    tabs = _courriels_onglets(prefix, vue, assistee_active)
+    head = ''
+    if vue == 'boite':
+        body = tabs + _courriels_boite()
+    elif vue == 'assistante':
+        from . import courriels_web5696
+        body = courriels_web5696.page(desk, prefix, args, owner, role, tabs)
+        head = '<script defer src="' + e(prefix) + '/static/v5696-courriels.js"></script>'
+    else:
+        from .web520 import mail_pipeline_html
+        body = mail_pipeline_html(desk, prefix, compact=True) + tabs + _courriels_a_relire(desk, prefix)
+    return shell('Courriels', body, prefix, auth['csrf'], '/courriels', head=head)
+
+
+def _courriels_onglets(prefix, vue, assistee_active):
+    """Onglets de Courriels : mêmes adresses qu'avant ; le troisième n'existe que si l'option est active."""
+    onglets = [('', prefix + '/courriels', 'À relire'), ('boite', prefix + '/courriels?vue=boite', 'Boîte de réception')]
+    if assistee_active:
+        onglets.append(('assistante', prefix + '/courriels?vue=assistante', 'À traiter avec le Pilote'))
+    return '<nav class="bx5625-tabs" aria-label="Courriels">%s</nav>' % ''.join(
+        '<a href="%s"%s>%s</a>' % (e(url, quote=True), ' aria-current="page"' if cle == vue else '', e(texte)) for cle, url, texte in onglets)
+
+
+def _courriels_boite():
+    """Vue « Boîte de réception » (5.6.25) : remplie par ``v5625.js`` depuis ses routes ; aucune lecture IMAP au rendu de la page."""
+    return ('<section class="bx5625" id="bx5625" aria-label="Messagerie">'
+            '<nav class="bx5625-folders" aria-label="Dossiers de la messagerie"><h2>Dossiers</h2>'
+            '<div id="bx5625-flist"><p class="ax-muted">Lecture des dossiers…</p></div></nav>'
+            '<div class="bx5625-list"><div class="bx5625-head"><h1 id="bx5625-title">Boîte de réception</h1>'
+            '<p class="ax-muted">Du plus récent au plus ancien ; rien n’est marqué comme lu.</p>'
+            '<form class="bx5625-search" role="search"><input type="search" name="q" placeholder="Rechercher par objet ou expéditeur" aria-label="Rechercher dans ce dossier">'
+            '<button class="ax-btn ghost" type="submit">Rechercher</button></form></div>'
+            '<div class="bx5625-rows" id="bx5625-rows"><p class="ax-muted ax-pad">Lecture de la boîte…</p></div>'
+            '<div class="bx5625-pages" id="bx5625-pages"></div></div>'
+            '<div class="bx5625-panel" id="bx5625-panel" aria-live="polite"><div class="ax-empty"><h2>Choisissez un courriel</h2>'
+            '<p>Vous verrez son texte et ses pièces jointes, les réponses déjà préparées (à modifier, supprimer ou relancer) et pourrez demander '
+            'une réponse à l’agent, avec votre instruction. <strong>Rien n’est envoyé</strong>.</p></div></div></section>')
+
+
+def _courriels_a_relire(desk, prefix):
+    """Vue « À relire » : brouillons lus dans la messagerie (seul endroit où ``list_drafts`` est appelé), bannières, filtre, éditeur."""
     from . import drafts440
     from .workstation import external_links
     links = external_links(desk)
@@ -1031,22 +1090,7 @@ def drafts_page(desk, auth, prefix, args):
             e(item['subject'][:110]), '<em class="ax-badge" title="Brouillon préparé par l’agent">Agent</em>' if item['agent'] else '',
             e(item['to'][:90] or 'Sans destinataire'), e(str(item['date'])[:16].replace('T', ' ')))
     webmail = links.get('roundcube_drafts') or links.get('roundcube') or ''
-    inbox_view = str(args.get('vue') or '') == 'boite'   # 5.6.25 : onglets « À relire » / « Boîte de réception »
-    tabs = ('<nav class="bx5625-tabs" aria-label="Courriels"><a href="%s"%s>À relire</a><a href="%s"%s>Boîte de réception</a></nav>') % (
-        e(prefix + '/courriels', quote=True), '' if inbox_view else ' aria-current="page"', e(prefix + '/courriels?vue=boite', quote=True), ' aria-current="page"' if inbox_view else '')
-    inbox = ('<section class="bx5625" id="bx5625" aria-label="Messagerie"%s>'
-             '<nav class="bx5625-folders" aria-label="Dossiers de la messagerie"><h2>Dossiers</h2>'
-             '<div id="bx5625-flist"><p class="ax-muted">Lecture des dossiers…</p></div></nav>'
-             '<div class="bx5625-list"><div class="bx5625-head"><h1 id="bx5625-title">Boîte de réception</h1>'
-             '<p class="ax-muted">Du plus récent au plus ancien ; rien n’est marqué comme lu.</p>'
-             '<form class="bx5625-search" role="search"><input type="search" name="q" placeholder="Rechercher par objet ou expéditeur" aria-label="Rechercher dans ce dossier">'
-             '<button class="ax-btn ghost" type="submit">Rechercher</button></form></div>'
-             '<div class="bx5625-rows" id="bx5625-rows"><p class="ax-muted ax-pad">Lecture de la boîte…</p></div>'
-             '<div class="bx5625-pages" id="bx5625-pages"></div></div>'
-             '<div class="bx5625-panel" id="bx5625-panel" aria-live="polite"><div class="ax-empty"><h2>Choisissez un courriel</h2>'
-             '<p>Vous verrez son texte et ses pièces jointes, les réponses déjà préparées (à modifier, supprimer ou relancer) et pourrez demander '
-             'une réponse à l’agent, avec votre instruction. <strong>Rien n’est envoyé</strong>.</p></div></div></section>') % ('' if inbox_view else ' hidden')
-    body = ('<div class="ax-split" id="ax-drafts" data-validity="%s"' + (' hidden' if inbox_view else '') + '>'
+    return ('<div class="ax-split" id="ax-drafts" data-validity="%s">'
             '<div class="ax-list" role="region" aria-label="Brouillons">'
             '<div class="ax-list-head"><h1>Courriels à relire</h1>'
             '<p class="ax-muted">Les brouillons du dossier « %s » de votre messagerie. Cliquez sur l’un d’eux pour le corriger ici même.</p>'
@@ -1060,12 +1104,6 @@ def drafts_page(desk, auth, prefix, args):
         ('<a class="ax-btn ghost" target="_blank" rel="noopener" href="%s" title="Ouvrir la messagerie dans un nouvel onglet">Ouvrir la messagerie</a>' % e(webmail, quote=True)) if webmail else '',
         notice, ('<p class="ax-alert" role="alert">%s</p>' % e(error)) if error else '', rows,
         '' if rows or error else '<p class="ax-muted ax-pad">Aucun brouillon pour le moment. Dès qu’un courriel ou un avis de procédure arrive, l’agent en prépare un ici.</p>')
-    from .web520 import mail_pipeline_html
-    if inbox_view:   # 5.6.25 : la messagerie d'abord, sous les onglets ; le bilan des brouillons reste dans « À relire »
-        body = tabs + inbox + body
-    else:
-        body = mail_pipeline_html(desk, prefix, compact=True) + tabs + body + inbox
-    return shell('Courriels', body, prefix, auth['csrf'], '/courriels')
 
 
 def documents_page(desk, auth, prefix, args):

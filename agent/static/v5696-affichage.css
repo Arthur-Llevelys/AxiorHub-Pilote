@@ -1,0 +1,100 @@
+/* AxiorHub 5.6.96 (lot affichage) — volet de l'assistant en trois zones (U01, I04), densité d'Aujourd'hui (U02), typographie (U03).
+   Couleurs : jetons Carbon (v5689-carbon-jetons.css) avec repli sur les variables historiques ; clair et sombre suivent les jetons.
+   Aucun style injecté par script : le seul réglage dynamique est la hauteur utile du volet quand le clavier logiciel s'ouvre
+   (--ws-ai-vh et --ws-ai-haut, posées par v5696-affichage.js à partir de visualViewport). */
+
+/* ------------------------------------------------------------------ U03 : typographie commune */
+body[data-carbon] :is(button, input, select, textarea, cds-button) { font-family: inherit; }
+/* :where() : spécificité nulle, une règle propre à une page garde la main */
+:where(body[data-carbon] #ws-main) h1 { font-size: var(--ui-taille-titre-1, 1.5rem); line-height: 1.25; }
+:where(body[data-carbon] #ws-main) h2 { font-size: var(--ui-taille-titre-2, 1.125rem); line-height: 1.3; }
+:where(body[data-carbon] #ws-main) h3 { font-size: var(--ui-taille-titre-3, 1rem); line-height: 1.35; }
+:where(body[data-carbon]) :where(small, .ax-muted, .c530-note) { font-size: var(--ui-taille-petit, .875rem); }
+
+/* ------------------------------------------------------------------ I04 : lanceur au logo AxiorHub */
+#ws-ai-launcher .ws-ai-logo { display: block; height: 24px; width: 24px; pointer-events: none; }
+
+/* ------------------------------------------------------------------ U01 : volet flottant en trois zones ; le fil seul défile */
+#ws-ai-dock:not([hidden]):not(.ws-ai-dock--embedded) {
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr);
+  top: var(--ws-ai-haut, 0) !important; height: var(--ws-ai-vh, 100dvh) !important; max-height: var(--ws-ai-vh, 100dvh) !important;
+  min-height: 0; overflow: hidden; overscroll-behavior: contain;
+}
+#ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-body { height: auto; max-height: none; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: .75rem 1rem; }
+#ws-ai-dock .ws-ai-body:focus { outline: none; }
+#ws-ai-dock .ws-ai-body:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: -2px; }
+
+/* en-tête fixe : un seul titre, le contexte réellement repris, Changer le contexte, micro actif, agrandir, fermer */
+#ws-ai-dock .ws-ai-tete { align-items: flex-start; display: flex; gap: .5rem; padding: .625rem .75rem .625rem 1rem; }
+#ws-ai-dock .ws-ai-tete-texte { flex: 1 1 auto; min-width: 0; }
+#ws-ai-dock #ws-ai-titre { font-size: var(--ui-taille-titre-2, 1.125rem); font-weight: 600; line-height: 1.3; margin: 0; }
+#ws-ai-dock .ws-ai-portee { color: var(--cds-text-secondary, var(--ws-muted, #525252)); font-size: var(--ui-taille-petit, .875rem); line-height: 1.4; margin: .125rem 0 0; overflow-wrap: anywhere; }
+#ws-ai-dock header .ws-ai-changer { background: transparent; border: 0; color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); font-size: var(--ui-taille-petit, .875rem);
+  height: auto; min-height: 1.5rem; padding: 0 .25rem; text-decoration: underline; width: auto; }
+#ws-ai-dock header .ws-ai-changer:hover { color: var(--cds-link-primary-hover, #0043ce); }
+#ws-ai-dock header > #ws-ai-wide, #ws-ai-dock header > #ws-ai-close { flex: none; height: 2.5rem; width: 2.5rem; }
+
+/* corps défilant : contexte et exemples repliés, fil et résultats */
+#ws-ai-dock .ws-ai-contexte, #ws-ai-dock .ws-ai-exemples { margin: 0 0 .5rem; }
+#ws-ai-dock .ws-ai-contexte > summary, #ws-ai-dock .ws-ai-exemples > summary, #ws-ai-dock .ws-ai-options > summary { color: var(--cds-link-primary, var(--ws-accent, #0f62fe)); cursor: pointer; min-height: 1.75rem; }
+#ws-ai-dock #ws-ai-result { margin: .5rem 0; }
+
+/* composeur fixe : dossier sur une ligne, pièces jointes, Instruction qui grandit, dictée, Envoyer, options repliées */
+#ws-ai-dock .ws-ai-composeur { background: var(--cds-layer-01, var(--ws-surface, #fff)); border-top: 1px solid var(--cds-border-subtle-01, var(--ws-border, #e0e0e0));
+  display: flex; flex-direction: column; gap: .375rem; max-height: calc(var(--ws-ai-vh, 100dvh) - 7rem); min-width: 0; overflow: auto;
+  padding: .5rem 1rem max(.625rem, env(safe-area-inset-bottom)); }
+#ws-ai-dock .ws-ai-composeur > * { margin: 0; min-width: 0; }
+#ws-ai-dock .ws-ai-dossier { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem .5rem; }
+#ws-ai-dock .ws-ai-dossier label, #ws-ai-dock .ws-ai-etiquette { display: block; flex: none; font-weight: 600; margin: 0; min-width: 0; width: auto; }
+#ws-ai-dock .ws-ai-dossier input[type=search] { flex: 1 1 9rem; margin: 0; min-width: 0; width: auto; }
+#ws-ai-dock .ws-ai-dossier select { flex: 2 1 12rem; margin: 0; max-width: 100%; min-width: 0; width: auto; }
+#ws-ai-dock .m82-active:empty, #ws-ai-dock .ws-ai-plan:empty { display: none; }
+#ws-ai-dock #ws-ai-question { box-sizing: border-box; display: block; line-height: 1.45; margin: 0; max-height: min(12rem, 30dvh); max-width: 100%; min-height: 3.25rem;
+  overflow-y: auto; resize: none; width: 100%; }
+#ws-ai-dock .ws-ai-composeur .dictation-bar { gap: .375rem; }
+#ws-ai-dock .ws-ai-sendrow { align-items: center; display: flex; flex-wrap: wrap; gap: .375rem; }
+#ws-ai-dock .ws-ai-sendrow .ws-ai-file, #ws-ai-dock .ws-ai-sendrow .ws-ai-wave { margin: 0; padding: .375rem .625rem; }
+#ws-ai-dock .ws-ai-sendrow .ws-ai-general { background: transparent; border: 1px solid var(--cds-border-strong-01, #8d8d8d); color: var(--cds-text-primary, inherit); margin: 0; padding: .375rem .625rem; }
+#ws-ai-dock .ws-ai-sendrow .ws-ai-general[aria-pressed=true] { background: var(--ui-action-doux, #edf5ff); border-color: var(--cds-interactive, #0f62fe); font-weight: 600; }
+#ws-ai-dock .ws-ai-sendrow .ws-ai-general[aria-pressed=true]::before { content: "✓ "; }   /* l'état se lit aussi sans la couleur */
+#ws-ai-dock .ws-ai-confirmer { margin: .375rem 0 0; }
+#ws-ai-dock .ws-ai-sendrow #ws-ai-send { margin: 0 0 0 auto !important; min-height: 2.5rem; padding: .5rem 1rem; }
+#ws-ai-dock .ws-ai-hint, #ws-ai-dock #ws-ai-status { color: var(--cds-text-secondary, var(--ws-muted, #525252)); font-size: var(--ui-taille-petit, .875rem); line-height: 1.35; }
+#ws-ai-dock #ws-ai-status:empty { display: none; }
+#ws-ai-dock .ws-ai-options[open] > :not(summary) { max-height: 30dvh; overflow: auto; }
+#ws-ai-dock .ws-ai-options .ws-ai-intent label, #ws-ai-dock .ws-ai-options .ws-ai-context label { display: block; font-weight: 600; margin: .375rem 0; }
+#ws-ai-dock .ws-ai-options select, #ws-ai-dock .ws-ai-options input { display: block; margin-top: .25rem; max-width: 100%; }
+#ws-ai-dock .ws-ai-options .ws-ai-tools, #ws-ai-dock .ws-ai-options .mission567-audio { display: flex; flex-wrap: wrap; gap: .375rem; margin: .375rem 0; }
+#ws-ai-dock :is(button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* hauteur réduite (clavier logiciel ouvert, 200 %) : le champ, la dictée et Envoyer d'abord. Le choix du dossier reste à un clic
+   (« Changer le contexte » le rouvre, comme le focus clavier) ; l'état et l'étiquette restent lus par le lecteur d'écran. */
+@media (max-height: 40rem) {
+  #ws-ai-dock .ws-ai-hint { display: none; }
+  #ws-ai-dock .ws-ai-tete { padding-bottom: .375rem; padding-top: .375rem; }
+  #ws-ai-dock .ws-ai-portee { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #ws-ai-dock:not([data-a96-contexte]) .ws-ai-dossier:not(:focus-within), #ws-ai-dock .m82-active { display: none; }
+  #ws-ai-dock .ws-ai-etiquette, #ws-ai-dock #ws-ai-status { block-size: 1px; clip-path: inset(50%); inline-size: 1px; overflow: hidden; position: absolute; white-space: nowrap; }
+  #ws-ai-dock #ws-ai-question { min-height: 2.75rem; }
+  #ws-ai-dock .ws-ai-composeur { gap: .25rem; padding-top: .375rem; }
+}
+@media (max-width: 40rem) {
+  #ws-ai-dock .ws-ai-hint { display: none; }
+  #ws-ai-dock .ws-ai-sendrow .ws-ai-wave { font-size: 0; gap: 0; }        /* l'icône « vague » reste, le libellé est dans le title */
+  #ws-ai-dock .ws-ai-sendrow .ws-ai-wave .w79 { font-size: 1rem; }
+}
+
+/* ------------------------------------------------------------------ U02 : densité d'Aujourd'hui (« Compacte » / « Confort », par compte) */
+.c530[data-densite=compacte] { --a96-ecart: .5rem; }
+.c530[data-densite=compacte] .c530-card { margin-bottom: .5rem; padding: .625rem .75rem; }
+.c530[data-densite=compacte] .c530-card h2, .c530[data-densite=compacte] .ax95-tete h2 { font-size: 1rem; }
+.c530[data-densite=compacte] .ax95 { padding: .625rem .75rem .5rem; }
+.c530[data-densite=compacte] .ax95-ligne { padding: .25rem .125rem; }
+.c530[data-densite=compacte] .ax95-liste { margin-top: .375rem; }
+.c530[data-densite=compacte] .c530-top { margin-bottom: .5rem; }
+.c530[data-densite=compacte] :is(.a89-layout, .c530-cols) { gap: var(--a96-ecart); }
+.c530[data-densite=compacte] .t95-pli > summary.t95-pli-titre { min-height: 2rem; padding-bottom: .25rem; padding-top: .25rem; }
+
+/* ------------------------------------------------------------------ U06 : bloc replié chargé à l'ouverture */
+.a96-differe { color: var(--cds-text-secondary, #525252); font-size: var(--ui-taille-petit, .875rem); margin: .5rem; }
+.a96-differe[data-etat=panne] { color: var(--cds-text-error, #da1e28); }

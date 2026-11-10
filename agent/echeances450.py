@@ -10,6 +10,14 @@ Le modèle de langage ne fixe jamais une date. Ce module :
 
 5.6.89 (chapitre 38) : le candidat délai vit dans ``delais5689`` (événement, règle versionnée, données, étapes, validation) ; ``depuis_candidat`` porte au suivi une date validée.
 Le suivi de procédure et les agendas restent distincts : l'inscription dans un agenda est une action à part.
+
+5.6.96 (lot échéances, D01-D05) : l'acte est **qualifié avant tout calcul** (``qualifier_acte``, partagée par la détection par règles, les
+agents documentaires et la détection par modèle) ; la date cherchée reste dans la phrase de l'indice, l'action (« notifiées le ») est exigée
+et une date de décision citée (« arrêt du », « Cass. », « CA ») n'est jamais un événement. Une détection ne produit qu'une proposition
+(``delais5689``) : aucune ligne de suivi, aucun rappel ni aucune écriture d'agenda avant la décision d'une personne (``INSCRITES``).
+Écarter ou annuler est une décision interne : l'agenda n'est repris que sur demande expresse (``retirer_agenda``), après vérification de
+l'identifiant, du calendrier et de la version (ETag). Chaque proposition écartée laisse une empreinte (``deadline_ecartes5696``) ; chaque acte
+sans délai calculé est consigné avec sa source (``deadline_actes5696``).
 """
 from .common import matter_display
 from datetime import date, datetime, timedelta, timezone
@@ -22,9 +30,25 @@ from . import deadlines450 as engine
 from .common import Stop, digest, load_matters
 from .notices440 import DATE_NUM, DATE_TEXT, MONTHS, NOTICE_EXTENSIONS, fold_chars
 
-ACTIVE = ('a_confirmer', 'confirmee', 'manuel')
+# 5.6.96 (D02) : seules les échéances décidées par une personne sont inscrites à l'agenda, rappelées et contrôlées.
+INSCRITES = ('confirmee', 'manuel')
+ACTIVE = INSCRITES
 STATUS_LABELS = {'a_confirmer': 'À confirmer', 'confirmee': 'Confirmée', 'manuel': 'Corrigée à la main',
                  'a_completer': 'À compléter', 'terminee': 'Terminée', 'annulee': 'Annulée'}
+# 5.6.96 (D03) : motifs suggérés pour écarter ou annuler ; la personne peut toujours écrire le sien.
+MOTIFS_ECART = ('Arrêt ou jugement cité, pas un événement', 'Acte d’incident : aucun délai au fond', 'Notification non prouvée', 'Doublon')
+# 5.6.96 (D04) : états d'agenda d'une échéance close qui attendent une décision (jamais traités automatiquement, sauf relance d'un retrait décidé).
+AGENDA_A_DECIDER = ('retrait_propose', 'synchronisation_a_reprendre', 'a_reconcilier')
+MAX_ESSAIS_AGENDA = 3
+MENTION_SANS_FOND = 'Aucun délai au fond déclenché par cet acte'
+MENTION_CALENDRIER = 'Calendrier ou ordonnance de la mise en état : dates à vérifier et à reporter à la main, aucun délai calculé automatiquement'
+TYPES_ACTE = {'conclusions_incident': 'Conclusions d’incident (conseiller de la mise en état)', 'ordonnance_calendrier': 'Ordonnance ou calendrier de la mise en état',
+              'signification': 'Signification ou notification d’une décision', 'declaration_appel': 'Déclaration d’appel', 'avis_fixation': 'Avis de fixation ou du greffe',
+              'conclusions_fond': 'Conclusions au fond', 'decision': 'Jugement, arrêt ou ordonnance', 'autre': 'Acte non qualifié'}
+# Textes cités par le cahier des charges : ceux que ``deadlines450`` n'applique pas rendent toute détection « à vérifier », avec la référence.
+REFERENCES_CAHIER = (('906-2', 'CPC art. 906-2'), ('908', 'CPC art. 908'), ('909', 'CPC art. 909'), ('910', 'CPC art. 910'), ('912', 'CPC art. 912'),
+                     ('913-5', 'CPC art. 913-5'), ('524', 'CPC art. 524 (rédaction en vigueur au 1er octobre 2026)'))
+DECRET_2023 = 'décret du 29 décembre 2023, art. 16'
 OFFSETS = (30, 14, 7, 2, 0)
 OFFSET_LABELS = {30: 'J-30', 14: 'J-14', 7: 'J-7', 2: 'J-2', 0: 'jour J'}
 DEFAULT_RULE = {
@@ -50,6 +74,29 @@ CUES = (
 ACTION = re.compile(r"(?:signifie[es]?\s+(?:a\s+\w+\s+)?|notifie[es]?\s+|signification\s+(?:du\s+\w+\s+)?|notification\s+|"
                     r"en\s+date\s+du\s+|date\s+du\s+|\bdu\s+|\ble\s+|\bremise\s+le\s+|\bformee?\s+le\s+)")
 CANDIDATE_NAME = re.compile(r"signif|jugement|ordonnance|declaration d.appel|avis|conclusions|arret|huissier|commissaire de justice|notification")
+# 5.6.96 (D01) : indices de qualification, sur le texte replié (minuscules sans accents, positions conservées).
+# Acte d'incident : nom du fichier ou en-tête. « Appel incident » est un autre objet (CPC art. 910) : il ne compte pas.
+INCIDENT_NOM = re.compile(r"(?<!appel\s)(?<!appels\s)(?<!appel_)(?<!appel-)\bincidents?\b(?!\s+(?:ou|et)\s+(?:appel|provoque))")
+INCIDENT_TETE = re.compile(r"conclusions?[\s_.-]+(?:recapitulatives?[\s_.-]+)?(?:d[\s'’_.-]*)?incidents?\b"
+                           r"|(?:\ba|\bdevant)\s+(?:madame\s+|monsieur\s+)?(?:le\s+|la\s+)?conseill(?:er|ere)\s+de\s+la\s+mise\s+en\s+etat")
+INCIDENT_SAISINE = re.compile(r"specialement\s+adressees?\s+au\s+conseiller\s+de\s+la\s+mise\s+en\s+etat|saisie?\s+par\s+des\s+conclusions\s+specialement\s+adressees")
+CALENDRIER = re.compile(r"\bcalendrier\s+de\s+(?:la\s+)?(?:procedure|mise\s+en\s+etat)|\bavis\s+de\s+calendrier"
+                        r"|\bordonnance\s+(?:du\s+conseiller\s+de\s+la\s+mise\s+en\s+etat|de\s+(?:la\s+)?mise\s+en\s+etat|fixant\s+(?:le\s+)?calendrier)")
+# Date d'une décision citée : précédée de « arrêt du », « jugement rendu le », « Cass. … », « CA Valbrune, »… Jamais un événement de départ.
+DECISION_AVANT = re.compile(r"\b(?:arret|jugement|decision|ordonnance|sentence)\b[^.;:\n]{0,50}?\b(?:du|en\s+date\s+du|rendue?\s+le|prononcee?\s+le)\s+$"
+                            r"|\bcass\b[^;\n]{0,45}$|\bc\.?\s?a\.?\s+[a-z][^;:\n\d]{1,40},\s*$|\b(?:ce|cjue|cedh)\b[^;\n\d]{0,30},\s*$")
+CITATION_APRES = re.compile(r"^[\s,;:()]*(?:n[°o]|cass\b|pourvoi|rg\b|bull|jurisdata|inedit|publie|f-[pbdr]|d\.\s*\d|jcp|gaz\.?\s*pal|rtd|legifrance)")
+# Action de notification exigée entre l'indice et la date (« notifiées le », « reçues le », « par RPVA ») ; réserves qui l'annulent.
+ACTION_NOTIF = re.compile(r"\b(?:notifi|signifi)\w*|\brecue?s?\b|\breception\b|\brpva\b|e-?barreau")
+AVANT_INDICE = re.compile(r"\b(?:notifie|signifie|recu)\w*\s+(?:ses|leurs|les|des|ces|nos|vos)\s+$")
+RESERVE_LEAD = re.compile(r"\bn(?:e\s|['’])|\bpas\b|\bjamais\b|\bsera\b|\bseront\b|\bdevr\w+|\bdoi(?:t|vent)\b|\ba\s+notifier\b|\bavant\s+le\b|\bau\s+plus\s+tard\b|\bjusqu.au\b|\bdans\s+le\s+delai\b")
+PREUVE = re.compile(r"\b(?:notifi|signifi)\w*\s+(?:[^.;\n]{0,40}?\s)?(?:le|du|en\s+date\s+du)\s+\d|\b(?:notification|signification)\s+(?:du|en\s+date\s+du|faite\s+le|le)\s+\d"
+                    r"|accuse\s+de\s+reception|avis\s+de\s+reception|\brpva\b|e-?barreau|\brecue?s?\s+le\s+\d")
+ARTICLES = re.compile(r"\bart(?:icles?|s?\.)?\s*((?:\d{3}(?:-\d{1,2})?)(?:\s*(?:,|et|a)\s*\d{3}(?:-\d{1,2})?)*)")
+DECRET_2023_RE = re.compile(r"decret\s+(?:n[°o]\s*[\d-]+\s+)?du\s+29\s+decembre\s+2023")
+RG_REF = re.compile(r"\b(?:n[°o]\s*)?r\.?\s?g\.?\s*(?:n[°o]\s*)?:?\s*(\d{2}/\d{3,6})")
+DESTINATAIRE = re.compile(r"(?:\ba|\bdevant|adressees?\s+a)\s+(?:madame\s+|monsieur\s+)?(?:le\s+|la\s+|l.)?"
+                          r"(conseill(?:er|ere)\s+de\s+la\s+mise\s+en\s+etat|premier\s+president|cour\s+d.appel(?:\s+de\s+[a-z'’ -]{2,30})?|tribunal\s+[a-z'’ -]{3,40}|greffe)")
 
 
 # --------------------------------------------------------------- storage
@@ -73,7 +120,23 @@ def ensure_schema(desk):
     CREATE TABLE IF NOT EXISTS deadline_obs450(
       id TEXT PRIMARY KEY, matter TEXT NOT NULL, path TEXT NOT NULL, etag TEXT NOT NULL, status TEXT NOT NULL,
       result TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, updated TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS deadline_actes5696(
+      id TEXT PRIMARY KEY, matter TEXT NOT NULL, path TEXT NOT NULL, version TEXT NOT NULL DEFAULT '', page TEXT NOT NULL DEFAULT '',
+      type_acte TEXT NOT NULL, mention TEXT NOT NULL DEFAULT '', qualification TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS deadline_actes5696_m ON deadline_actes5696(matter, created);
+    CREATE TABLE IF NOT EXISTS deadline_ecartes5696(
+      empreinte TEXT PRIMARY KEY, matter TEXT NOT NULL, evenement TEXT NOT NULL, date_evenement TEXT NOT NULL DEFAULT '',
+      source_path TEXT NOT NULL DEFAULT '', extrait TEXT NOT NULL DEFAULT '', motif TEXT NOT NULL, auteur TEXT NOT NULL DEFAULT '',
+      origine TEXT NOT NULL DEFAULT '', created TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS deadline_ecartes5696_m ON deadline_ecartes5696(matter, created);
     ''')
+    # 5.6.96 : colonnes ajoutées sans rejouer aucun effet ni certifier une ligne ancienne (version pour le 409, essais de retrait,
+    # auteur, clé d'idempotence et résultat agenda au journal).
+    for table, column, kind in (('deadlines450', 'revision', 'INTEGER NOT NULL DEFAULT 1'), ('deadlines450', 'calendar_tries', 'INTEGER NOT NULL DEFAULT 0'),
+                                ('deadline_journal450', 'actor', "TEXT NOT NULL DEFAULT ''"), ('deadline_journal450', 'cle', "TEXT NOT NULL DEFAULT ''"),
+                                ('deadline_journal450', 'calendar', "TEXT NOT NULL DEFAULT ''")):
+        if column not in {r[1] for r in desk.db.execute('PRAGMA table_info(%s)' % table)}:
+            desk.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table, column, kind))
     desk.db.commit()
 
 
@@ -135,10 +198,123 @@ def _dates_after(folded, pos, span=110):
     return sorted(found)
 
 
-def extract_start_events(text, today=None):
-    """Événements de départ trouvés dans ``text``. Chaque date figure littéralement dans le texte."""
-    today = today or date.today()
+def decisions_citees(folded):
+    """5.6.96 (D01) : dates de décisions citées (« arrêt du … », « Cass. 2e civ., … », « CA Valbrune, … »), avec leur position.
+    La recherche en arrière s'arrête à la date précédente : une décision citée ne contamine pas la date suivante."""
+    out, fin_precedente = [], 0
+    for pos, when, end in _dates_after(folded, 0, span=len(folded) + 1):
+        avant = folded[max(fin_precedente, pos - 60):pos]
+        fin_precedente = max(fin_precedente, end)
+        if DECISION_AVANT.search(avant):
+            out.append({'position': pos, 'date': when.isoformat(), 'citation': bool(CITATION_APRES.search(folded[end:end + 40])),
+                        'extrait': re.sub(r'\s+', ' ', folded[max(0, pos - 40):end + 30]).strip()})
+    return out
+
+
+def _articles_du_moteur():
+    """Numéros d'articles que ``deadlines450`` applique (données versionnées) : « CPC art. 906-2 » donne « 906-2 »."""
+    connus = set()
+    for r in engine.rules():
+        for a in r.get('articles', []):
+            connus.update(re.findall(r'\d{3}(?:-\d{1,2})?', a))
+    return connus
+
+
+def qualifier_acte(text, path='', page='', version=''):
+    """5.6.96 (D01) : qualification de l'acte **avant tout calcul**, partagée par la détection par règles (``extract_start_events``), les
+    agents documentaires (``procedure568.source_events``) et la détection par modèle (``delais5689``). Ne statue sur aucun délai : dit ce
+    qu'est l'acte, à qui il s'adresse, sur quel RG, quelle preuve de notification il porte, quelles dates sont des décisions citées et
+    quelles règles spéciales citées le moteur ne sait pas calculer. ``sans_calcul`` : aucun délai n'est calculé automatiquement."""
+    text = str(text or '')
     folded = fold_chars(text)
+    nom = fold_chars(PurePosixPath(str(path or '')).name)
+    tete = fold_chars(text[:400])
+    entete = fold_chars(text[:1200])
+    incident = bool(INCIDENT_NOM.search(nom) or INCIDENT_NOM.search(tete) or INCIDENT_TETE.search(nom + '\n' + tete) or INCIDENT_SAISINE.search(entete))
+    calendrier = not incident and bool(CALENDRIER.search(nom + '\n' + tete))
+    zone = nom + '\n' + tete
+    if incident:
+        type_acte = 'conclusions_incident'
+    elif calendrier:
+        type_acte = 'ordonnance_calendrier'
+    elif re.search(r'\bsignifi|\bsignification\b|commissaire\s+de\s+justice|\bhuissier\b|\bnotification\s+d', zone):
+        type_acte = 'signification'
+    elif re.search(r"declaration\s+d.appel", zone):
+        type_acte = 'declaration_appel'
+    elif re.search(r"\bavis\s+(?:de\s+fixation|du\s+greffe|de\s+circuit|d.orientation)", zone):
+        type_acte = 'avis_fixation'
+    elif re.search(r'\bconclusions?\b', zone):
+        type_acte = 'conclusions_fond'
+    elif re.search(r'\b(?:jugement|arret|ordonnance)\b', zone):
+        type_acte = 'decision'
+    else:
+        type_acte = 'autre'
+    m = DESTINATAIRE.search(entete)
+    destinataire = m.group(1).strip() if m else ('conseiller de la mise en etat' if incident else '')
+    instance = ('appel' if re.search(r"cour\s+d.appel|declaration\s+d.appel|\bappelante?s?\b|\bintimee?s?\b|mise\s+en\s+etat", folded) else
+                'cassation' if re.search(r'cour\s+de\s+cassation|\bpourvoi\b', folded) else 'premiere_instance' if re.search(r'\btribunal\b', folded) else '')
+    preuve = PREUVE.search(folded)
+    mention_preuve = ''
+    if preuve:
+        debut = max(folded.rfind('. ', 0, preuve.start()) + 1, folded.rfind('\n', 0, preuve.start()) + 1, 0)
+        fins = [i for i in (folded.find('. ', preuve.end()), folded.find('\n', preuve.end())) if i != -1]
+        mention_preuve = re.sub(r'\s+', ' ', text[debut:min(fins) if fins else len(text)]).strip(' .')[:300]
+    cites = set()
+    for a in ARTICLES.finditer(folded):
+        cites.update(re.findall(r'\d{3}(?:-\d{1,2})?', a.group(1)))
+    connus = _articles_du_moteur()
+    non_calculees = [label for num, label in REFERENCES_CAHIER if num in cites and num not in connus]
+    if DECRET_2023_RE.search(folded):
+        non_calculees.append(DECRET_2023)
+    decisions = decisions_citees(folded)
+    expresses = []
+    if calendrier:
+        # cahier D01 : un calendrier propose ses dates expresses « à vérifier » (jamais inscrites), avec leur passage
+        citees = {d['position'] for d in decisions}
+        expresses = [{'date': when.isoformat(), 'extrait': re.sub(r'\s+', ' ', text[max(0, pos - 80):end + 10]).strip()}
+                     for pos, when, end in _dates_after(folded, 0, span=len(folded) + 1) if pos not in citees][:10]
+    return {'type_acte': type_acte, 'type_libelle': TYPES_ACTE[type_acte], 'incident': incident, 'calendrier': calendrier,
+            'sans_calcul': incident or calendrier, 'mention': MENTION_SANS_FOND if incident else (MENTION_CALENDRIER if calendrier else ''),
+            'destinataire': destinataire, 'rg': list(dict.fromkeys(RG_REF.findall(folded)))[:5], 'instance': instance,
+            'preuve_notification': bool(preuve), 'mention_notification': mention_preuve,
+            'decisions_citees': [{k: d[k] for k in ('date', 'citation', 'extrait')} for d in decisions][:20], 'dates_expresses': expresses,
+            'references_non_calculees': non_calculees, 'source': str(path or '')[:500], 'page': str(page or '')[:40], 'version': str(version or '')[:200]}
+
+
+def rg_du_dossier(desk, matter_id):
+    """Numéros RG des procédures actives connues du dossier (``modele5651``), normalisés ; vide si rien n'est connu."""
+    try:
+        rows = desk.db.execute("SELECT rg FROM d51_procedures WHERE matter=? AND statut='active' AND rg<>''", (matter_id,)).fetchall()
+    except Exception:   # noqa: BLE001 : table absente, rien de connu
+        return []
+    return sorted({re.sub(r'[^0-9/]', '', str(r[0])) for r in rows} - {''})
+
+
+def motifs_de_verification(qualification, evenement, date_evenement, declaration='', nature='', rg_dossier=()):
+    """5.6.96 (D01) : ce qui rend une détection « à vérifier » au lieu d'une date proposée. Liste vide : rien à signaler."""
+    motifs = []
+    rg_acte = {re.sub(r'[^0-9/]', '', r) for r in qualification.get('rg') or []}
+    if rg_acte and rg_dossier and not rg_acte & set(rg_dossier):
+        motifs.append('RG de l’acte (%s) différent de celui du dossier (%s) : à vérifier.' % (', '.join(sorted(rg_acte)), ', '.join(rg_dossier)))
+    if declaration and evenement != 'declaration_appel' and str(date_evenement) < str(declaration):
+        motifs.append('Date antérieure à la déclaration d’appel du %s connue du dossier : à vérifier.' % declaration)
+    if nature == 'redaction':
+        motifs.append('Date de rédaction de l’acte, réception non prouvée : à vérifier.')
+    motifs += ['Règle spéciale citée (%s) que le moteur ne calcule pas : à vérifier.' % ref for ref in qualification.get('references_non_calculees', [])]
+    return motifs
+
+
+def extract_start_events(text, today=None, source_path='', qualification=None):
+    """Événements de départ trouvés dans ``text``. Chaque date figure littéralement dans le texte.
+    5.6.96 (D01) : un acte d'incident ou un calendrier ne donne aucun événement ; la date est cherchée **dans la phrase** de l'indice ;
+    la date d'une décision citée n'en est jamais un ; des conclusions exigent l'action de notification (« notifiées le ») entre l'indice
+    et la date, sans négation ni futur. Chaque événement porte la nature de sa date (notification, acte, rédaction)."""
+    today = today or date.today()
+    q = qualification or qualifier_acte(text, source_path)
+    if q['sans_calcul']:
+        return []
+    folded = fold_chars(text)
+    citees = {d['position'] for d in decisions_citees(folded)}
     out, seen = [], set()
     for event, cue_re, need in CUES:
         for cue in re.finditer(cue_re, folded):
@@ -152,13 +328,23 @@ def extract_start_events(text, today=None):
                 continue
             if event == 'declaration_appel' and re.search(r'signifi', window):
                 continue
-            after = [d for d in _dates_after(folded, cue.end()) if d[1] <= today + timedelta(days=2) and d[1].year >= 2000]
+            # 5.6.96 (D01) : « conclusions de l'intimé » ou « conclusions d'incident » ne sont pas des conclusions de l'appelant au fond.
+            if event == 'conclusions_appelant' and re.match(r"\s*(?:de\s+l.|des\s+|d.)(?:intime|incident)", folded[cue.end():cue.end() + 24]):
+                continue
+            # 5.6.96 (D01) : la date reste dans la phrase de l'indice et n'est jamais celle d'une décision citée.
+            after = [d for d in _dates_after(folded, cue.end(), span=max(0, min(sentence_end - cue.end(), 140)))
+                     if d[1] <= today + timedelta(days=2) and d[1].year >= 2000 and cue.end() + d[0] not in citees]
             chosen = None
             for offset, when, end in after:
                 lead = folded[cue.end():cue.end() + offset]
                 # la date visée suit l'indice (« signifié le ... », « en date du ... ») : une autre date
                 # d'abord citée (« jugement du 5 mars, signifié le 12 mars ») ne passe que si l'action la précède.
                 if event in ('signification_jugement', 'signification_ordonnance_refere') and not re.search(r'signifi|notifi|signification|notification', folded[cue.start():cue.end() + offset + 1]):
+                    continue
+                # 5.6.96 (D01) : des conclusions ne font courir un délai qu'une fois notifiées : l'action est exigée entre l'indice et la
+                # date (ou juste avant l'indice : « a notifié ses conclusions le … »), sans négation, futur ni date limite.
+                if event == 'conclusions_appelant' and (not (ACTION_NOTIF.search(lead) or AVANT_INDICE.search(folded[max(0, cue.start() - 40):cue.start()]))
+                                                         or RESERVE_LEAD.search(lead)):
                     continue
                 chosen = (when, cue.end() + offset, cue.end() + end)
                 break
@@ -168,10 +354,18 @@ def extract_start_events(text, today=None):
             if key in seen:
                 continue
             seen.add(key)
+            phrase = folded[sentence_start:chosen[1]]
+            if event == 'declaration_appel':
+                nature = 'acte'
+            elif event in ('avis_fixation_bref_delai', 'avis_greffe_circuit'):
+                nature = 'notification' if ACTION_NOTIF.search(phrase) else 'redaction'
+            else:
+                nature = 'notification'
             context = re.sub(r'\s+', ' ', text[max(0, cue.start() - 60):chosen[2] + 40]).strip()
             out.append({'event': event, 'date': chosen[0], 'context': context[:300],
                         'rule_id': DEFAULT_RULE.get(event, ''),
-                        'alternatives': [r['id'] for r in engine.rules() if r['start_event'] == event]})
+                        'alternatives': [r['id'] for r in engine.rules() if r['start_event'] == event],
+                        'nature_date': nature, 'type_acte': q['type_acte']})
     return sorted(out, key=lambda e: (e['date'], e['event']))
 
 
@@ -181,10 +375,104 @@ def looks_like_candidate(path):
 
 
 # ------------------------------------------------------------- creation
-def _journal(desk, ident, action, reason='', before=None, after=None):
-    desk.db.execute('INSERT INTO deadline_journal450(deadline_id,at,action,reason,before,after) VALUES(?,?,?,?,?,?)',
+def _journal(desk, ident, action, reason='', before=None, after=None, actor='', cle='', calendar=''):
+    """5.6.96 (D05) : motif, auteur, horodatage, ancien et nouvel état, résultat agenda et clé d'idempotence."""
+    desk.db.execute('INSERT INTO deadline_journal450(deadline_id,at,action,reason,before,after,actor,cle,calendar) VALUES(?,?,?,?,?,?,?,?,?)',
                     (ident, desk.now(), action, reason, json.dumps(before or {}, ensure_ascii=False, default=str),
-                     json.dumps(after or {}, ensure_ascii=False, default=str)))
+                     json.dumps(after or {}, ensure_ascii=False, default=str), str(actor or '')[:160], str(cle or '')[:200], str(calendar or '')[:80]))
+
+
+def _deja_decide(desk, ident, cle):
+    """Même clé d'idempotence déjà journalisée pour cette échéance : la décision est prise, on ne la rejoue pas (double clic, renvoi)."""
+    cle = str(cle or '').strip()
+    return bool(cle) and desk.db.execute('SELECT 1 FROM deadline_journal450 WHERE deadline_id=? AND cle=?', (ident, cle)).fetchone() is not None
+
+
+def _version_attendue(row, version):
+    """409 si la page qui décide n'a pas vu la dernière version (second onglet). Les appels anciens, sans version, restent acceptés."""
+    if version in (None, ''):
+        return
+    try:
+        if int(version) != int(row['revision']):
+            raise Stop('version_en_conflit')
+    except (TypeError, ValueError):
+        raise Stop('version_en_conflit') from None
+
+
+# ------------------------------------------------- 5.6.96 : actes consignés, propositions écartées
+def _normaliser(extrait):
+    return re.sub(r'\s+', ' ', fold_chars(str(extrait or ''))).strip()[:300]
+
+
+def empreinte_ecart(matter, evenement, date_evenement, source_path, extrait):
+    """Empreinte stable d'une proposition : événement (type d'acte), date, source et extrait normalisé. Une autre source ou une autre date
+    est une preuve nouvelle, présentée séparément."""
+    return digest('ecart5696|%s|%s|%s|%s|%s' % (matter, evenement, str(date_evenement or '')[:10], source_path or '', _normaliser(extrait)))
+
+
+def deja_ecarte(desk, matter, evenement, date_evenement, source_path, extrait):
+    """Même empreinte, ou même événement à la même date dans la même source (extrait relu autrement) : pas une preuve nouvelle."""
+    ensure_schema(desk)
+    return desk.db.execute('SELECT 1 FROM deadline_ecartes5696 WHERE empreinte=? OR (matter=? AND evenement=? AND date_evenement=? AND source_path=?)',
+                           (empreinte_ecart(matter, evenement, date_evenement, source_path, extrait), matter, evenement, str(date_evenement or '')[:10],
+                            str(source_path or '')[:500])).fetchone() is not None
+
+
+def memoriser_ecart(desk, matter, evenement, date_evenement, source_path, extrait, motif, auteur='', origine='echeance'):
+    """5.6.96 (D05) : la décision d'écarter survit à la relecture du fichier ; le même faux positif n'est pas reproposé."""
+    ensure_schema(desk)
+    desk.db.execute('INSERT OR IGNORE INTO deadline_ecartes5696(empreinte,matter,evenement,date_evenement,source_path,extrait,motif,auteur,origine,created) '
+                    'VALUES(?,?,?,?,?,?,?,?,?,?)', (empreinte_ecart(matter, evenement, date_evenement, source_path, extrait), matter, evenement,
+                                                    str(date_evenement or '')[:10], str(source_path or '')[:500], _normaliser(extrait), str(motif or '')[:300],
+                                                    str(auteur or '')[:160], origine, desk.now()))
+    desk.db.commit()
+
+
+def ecarts(desk, matter='', limit=100):
+    ensure_schema(desk)
+    sql, args = 'SELECT * FROM deadline_ecartes5696', []
+    if matter:
+        sql, args = sql + ' WHERE matter=?', [matter]
+    return [dict(r) for r in desk.db.execute(sql + ' ORDER BY created DESC LIMIT ?', args + [int(limit)])]
+
+
+def consigner_acte(desk, matter, path, version, qualification, mention='', page=''):
+    """5.6.96 (D01) : l'acte qualifié est consigné avec sa source, sa version et sa page ; un acte d'incident porte la mention
+    « Aucun délai au fond déclenché par cet acte ». Une même version d'un même fichier n'est consignée qu'une fois."""
+    ensure_schema(desk)
+    ident = digest('acte5696|%s|%s|%s|%s' % (matter, path, version, page))
+    desk.db.execute('INSERT OR IGNORE INTO deadline_actes5696(id,matter,path,version,page,type_acte,mention,qualification,created) VALUES(?,?,?,?,?,?,?,?,?)',
+                    (ident, matter, str(path)[:500], str(version or '')[:200], str(page or '')[:40], qualification['type_acte'],
+                     str(mention or qualification.get('mention') or '')[:300], json.dumps(qualification, ensure_ascii=False), desk.now()))
+    desk.db.commit()
+    return ident
+
+
+def actes_consignes(desk, matter='', limit=50):
+    ensure_schema(desk)
+    sql, args = 'SELECT * FROM deadline_actes5696', []
+    if matter:
+        sql, args = sql + ' WHERE matter=?', [matter]
+    out = []
+    for r in desk.db.execute(sql + ' ORDER BY created DESC LIMIT ?', args + [int(limit)]):
+        row = dict(r)
+        try:
+            row['qualification'] = json.loads(row['qualification'] or '{}')
+        except ValueError:
+            row['qualification'] = {}
+        row['type_libelle'] = TYPES_ACTE.get(row['type_acte'], row['type_acte'])
+        out.append(row)
+    return out
+
+
+def declaration_connue(desk, matter_id):
+    """Date de la déclaration d'appel connue : profil de procédure du dossier (``procedure568``), sinon une déclaration au suivi."""
+    try:
+        from .procedure568 import case_profile
+        declared = str(case_profile(desk, matter_id).get('declaration_date') or '')
+    except Exception:   # noqa: BLE001 : profil illisible, on se rabat sur le suivi
+        declared = ''
+    return declared or regime_for(desk, matter_id)
 
 
 def regime_for(desk, matter_id):
@@ -286,6 +574,10 @@ def sync_calendar(desk, dav, ident):
     row = _row(desk, ident)
     if not row or not row['due']:
         return ''
+    if row['status'] not in INSCRITES:
+        # 5.6.96 (D02) : une proposition (à confirmer, à compléter) ou une échéance close ne produit ni PUT ni proposition d'écriture
+        # (``autonomy480.pending_add``), quel que soit le niveau d'autonomie de l'agenda.
+        return 'non_validee'
     urls, tz_name = _calendar_urls(desk)
     if not urls or not desk.settings('automation:deadline_calendar450', True):
         state = 'non_configure'
@@ -322,17 +614,40 @@ def sync_calendar(desk, dav, ident):
 # -------------------------------------------------------- user actions
 def _need_reason(reason):
     reason = re.sub(r'\s+', ' ', str(reason or '')).strip()
-    if len(reason) < 5:
+    if len(reason) < 3:        # 5.6.96 (D03) : même seuil que les candidats du contentieux
         raise Stop('motif_obligatoire')
     return reason[:300]
 
 
-def confirm(desk, dav, ident, rule_id='', distance=None, alsace=None, regime_date=None):
+def _preuve_detection(desk, row, regime_date=''):
+    """5.6.96 (D02) : une détection automatique ne se confirme que sur preuve : l'extrait requalifié n'est pas un acte d'incident ni un
+    calendrier, porte le même événement à la même date avec une notification (ou l'acte lui-même), et la date ne précède pas la
+    déclaration d'appel connue. Sinon : correction motivée (« Corriger la date ») ou écart. Une saisie humaine n'est pas concernée."""
+    if row['origin'] != 'auto' or row['status'] not in ('a_confirmer', 'a_completer'):
+        return
+    q = qualifier_acte(row['source_excerpt'], row['source_path'])
+    if q['incident']:
+        raise Stop('acte_incident_sans_delai_au_fond')
+    if q['sans_calcul']:
+        raise Stop('preuve_notification_a_verifier')
+    declared = regime_date or declaration_connue(desk, row['matter'])
+    if declared and row['start_event'] != 'declaration_appel' and row['start_date'] < declared:
+        raise Stop('depart_anterieur_declaration_a_verifier')
+    trouves = extract_start_events(row['source_excerpt'], date.fromisoformat(row['start_date']), row['source_path'], q)
+    if not any(e['event'] == row['start_event'] and e['date'].isoformat() == row['start_date'] and e['nature_date'] != 'redaction' for e in trouves):
+        raise Stop('preuve_notification_a_verifier')
+
+
+def confirm(desk, dav, ident, rule_id='', distance=None, alsace=None, regime_date=None, actor='', version=None, cle=''):
     row = _row(desk, ident)
     if not row:
         raise Stop('echeance_absente')
+    if _deja_decide(desk, ident, cle):
+        return public(row) | {'calendar': row['calendar_state'], 'deja_decide': True}
     if row['status'] in ('terminee', 'annulee'):
         raise Stop('echeance_close')
+    _version_attendue(row, version)
+    _preuve_detection(desk, row, regime_date or '')
     before = {'rule': row['rule_id'], 'due': row['due'], 'status': row['status']}
     rule_id = rule_id or row['rule_id']
     spec = engine.rule(rule_id)
@@ -348,21 +663,27 @@ def confirm(desk, dav, ident, rule_id='', distance=None, alsace=None, regime_dat
     else:
         due, calc, error = _compute_fields(rule_id, row['start_date'], distance, alsace, regime_date)
         status = 'a_completer' if error else 'confirmee'
-    desk.db.execute('UPDATE deadlines450 SET rule_id=?,distance=?,alsace=?,regime_date=?,due=?,calc=?,error=?,status=?,updated=? WHERE id=?',
+    desk.db.execute('UPDATE deadlines450 SET rule_id=?,distance=?,alsace=?,regime_date=?,due=?,calc=?,error=?,status=?,revision=revision+1,updated=? WHERE id=?',
                     (rule_id, distance, int(alsace), regime_date or '', due, calc, error, status, desk.now(), ident))
-    _journal(desk, ident, 'confirmation', '', before, {'rule': rule_id, 'due': due, 'status': status})
     desk.db.commit()
     state = sync_calendar(desk, dav, ident) if due else ''
+    _journal(desk, ident, 'confirmation', '', before, {'rule': rule_id, 'due': due, 'status': status}, actor, cle, state)
+    desk.db.commit()
     desk.audit('echeance_450_confirmee', {'id': ident[:12], 'due': due})
     return public(_row(desk, ident)) | {'calendar': state}
 
 
-def correct(desk, dav, ident, reason, new_due='', start_date='', rule_id='', distance=None, regime_date=None):
+def correct(desk, dav, ident, reason, new_due='', start_date='', rule_id='', distance=None, regime_date=None, actor='', version=None, cle=''):
     """Correction manuelle, toujours motivée et journalisée ; l'événement d'agenda est remplacé, jamais dupliqué."""
     reason = _need_reason(reason)
     row = _row(desk, ident)
     if not row:
         raise Stop('echeance_absente')
+    if _deja_decide(desk, ident, cle):
+        return public(row) | {'calendar': row['calendar_state'], 'deja_decide': True}
+    if row['status'] in ('terminee', 'annulee'):
+        raise Stop('echeance_close')       # 5.6.96 : une échéance écartée ou annulée ne revient pas par une correction
+    _version_attendue(row, version)
     before = {'rule': row['rule_id'], 'start': row['start_date'], 'due': row['due'], 'status': row['status']}
     if new_due:
         try:
@@ -372,7 +693,7 @@ def correct(desk, dav, ident, reason, new_due='', start_date='', rule_id='', dis
         calc = json.loads(row['calc'] or '{}')
         calc.setdefault('steps', []).append('Date corrigée à la main le %s : %s (motif : %s).' % (
             desk.now()[:10], engine.fr_date(forced), reason))
-        desk.db.execute("UPDATE deadlines450 SET due=?,calc=?,error='',status='manuel',updated=? WHERE id=?",
+        desk.db.execute("UPDATE deadlines450 SET due=?,calc=?,error='',status='manuel',revision=revision+1,updated=? WHERE id=?",
                         (forced.isoformat(), json.dumps(calc, ensure_ascii=False), desk.now(), ident))
         after = {'due': forced.isoformat(), 'status': 'manuel'}
     else:
@@ -387,28 +708,159 @@ def correct(desk, dav, ident, reason, new_due='', start_date='', rule_id='', dis
         dist = row['distance'] if distance is None else distance
         regime = row['regime_date'] if regime_date is None else regime_date
         due, calc, error = _compute_fields(rid, start, dist, bool(row['alsace']), regime)
-        desk.db.execute('UPDATE deadlines450 SET rule_id=?,start_date=?,distance=?,regime_date=?,due=?,calc=?,error=?,status=?,updated=? WHERE id=?',
-                        (rid, start, dist, regime or '', due, calc, error, 'a_completer' if error else 'confirmee', desk.now(), ident))
-        after = {'rule': rid, 'start': start, 'due': due}
-    _journal(desk, ident, 'correction', reason, before, after)
+        status = 'a_completer' if error else 'confirmee'
+        desk.db.execute('UPDATE deadlines450 SET rule_id=?,start_date=?,distance=?,regime_date=?,due=?,calc=?,error=?,status=?,revision=revision+1,updated=? WHERE id=?',
+                        (rid, start, dist, regime or '', due, calc, error, status, desk.now(), ident))
+        after = {'rule': rid, 'start': start, 'due': due, 'status': status}
     desk.db.commit()
     state = sync_calendar(desk, dav, ident)
+    _journal(desk, ident, 'correction', reason, before, after, actor, cle, state)
+    desk.db.commit()
     desk.audit('echeance_450_corrigee', {'id': ident[:12], 'reason': reason[:80]})
     return public(_row(desk, ident)) | {'calendar': state}
 
 
-def close(desk, dav, ident, outcome, reason=''):
+def close(desk, dav, ident, outcome, reason='', actor='', version=None, cle='', ecart=False):
+    """Décision interne : accomplie (``terminee``), devenue sans objet (``annulee``) ou fausse détection écartée (``annulee`` et ``ecart``).
+    5.6.96 (D04) : aucun appel à l'agenda, donc jamais un événement créé ni renommé. Si un événement AxiorHub est lié à une échéance
+    annulée ou écartée, son retrait est **proposé** (``retrait_propose``) et n'a lieu que sur demande expresse (``retirer_agenda``).
+    (D05) : journal complet, propositions d'agenda en attente closes, empreinte mémorisée pour un écart."""
     if outcome not in ('terminee', 'annulee'):
         raise Stop('statut_invalide')
+    ecart = bool(ecart) and outcome == 'annulee'
     reason = _need_reason(reason) if outcome == 'annulee' else str(reason or '')[:300]
     row = _row(desk, ident)
     if not row:
         raise Stop('echeance_absente')
-    desk.db.execute('UPDATE deadlines450 SET status=?,updated=? WHERE id=?', (outcome, desk.now(), ident))
-    _journal(desk, ident, outcome, reason, {'status': row['status']}, {'status': outcome})
+    if _deja_decide(desk, ident, cle):
+        return public(row) | {'calendar': row['calendar_state'], 'deja_decide': True}
+    if row['status'] in ('terminee', 'annulee'):
+        raise Stop('echeance_close')
+    _version_attendue(row, version)
+    if outcome == 'annulee' and row['calendar_uid']:
+        state = 'retrait_propose'
+    elif outcome == 'annulee':
+        state = 'non_inscrite'
+    else:
+        state = row['calendar_state']        # accomplie : l'événement passé reste tel quel dans l'agenda
+    action = 'ecartee' if ecart else outcome
+    note = ('Écartée : ' + reason)[:500] if ecart else row['note']
+    desk.db.execute('UPDATE deadlines450 SET status=?,calendar_state=?,note=?,revision=revision+1,updated=? WHERE id=?',
+                    (outcome, state, note, desk.now(), ident))
+    _journal(desk, ident, action, reason, {'status': row['status'], 'calendar_state': row['calendar_state']},
+             {'status': outcome, 'calendar_state': state}, actor, cle, state)
     desk.db.commit()
-    state = sync_calendar(desk, dav, ident) if row['due'] else ''
+    from . import autonomy480
+    fermees = autonomy480.pending_close_for_deadline(desk, ident, 'echeance_' + action)
+    if ecart:
+        memoriser_ecart(desk, row['matter'], row['start_event'], row['start_date'], row['source_path'], row['source_excerpt'], reason, actor, 'echeance')
+    desk.audit('echeance_450_close', {'id': ident[:12], 'outcome': outcome, 'ecart': ecart, 'calendar': state, 'propositions_closes': fermees})
     return public(_row(desk, ident)) | {'calendar': state}
+
+
+def _uid_propre(row):
+    """L'identifiant d'agenda mémorisé est celui que cette échéance a créé elle-même : jamais celui d'une autre entrée."""
+    return bool(row['calendar_uid']) and row['calendar_uid'] == 'axiorhub-%s@mail-agent.local' % row['id']
+
+
+def _retrait(desk, dav, row):
+    """Retrait de l'événement lié : UID propre, calendrier configuré, date, origine AxiorHub et version (ETag) relus juste avant.
+    Rend l'état d'agenda. Un écart à l'une de ces vérifications : rien n'est effacé (« à vérifier à la main »)."""
+    if not _uid_propre(row) or not row['due']:
+        return 'a_reconcilier'
+    urls, tz_name = _calendar_urls(desk)
+    if not urls:
+        return 'a_reconcilier'
+    tz = ZoneInfo(tz_name)
+    jour = date.fromisoformat(row['due'])
+    debut = datetime.combine(jour, datetime.min.time(), tz)
+    uid = row['calendar_uid']
+    trouves = [x for x in dav.events(urls, debut - timedelta(days=400), debut + timedelta(days=400), tz_name) if x.get('uid') == uid]
+    if not trouves:
+        return 'absent_agenda'
+    if len(trouves) > 1:
+        return 'a_reconcilier'
+    event = trouves[0]
+    calendrier = None
+    for url in urls:
+        lien = dav.calendar_url(url) if hasattr(dav, 'calendar_url') else url
+        if lien == event.get('source_url'):
+            calendrier = url
+            break
+    etag = str(event.get('etag') or '')
+    if (calendrier is None or not etag or str(event.get('start') or '')[:10] != row['due']
+            or not str(event.get('description') or '').startswith('Créée par AxiorHub')):
+        return 'a_reconcilier'
+    try:
+        dav.delete_event(calendrier, uid, etag=etag)
+    except Stop as ex:
+        if str(ex) in ('http_412', 'evenement_externe_lecture_seule'):
+            return 'a_reconcilier'      # l'événement a changé depuis la lecture, ou n'est pas le nôtre : la main reprend
+        raise
+    return 'retiree'
+
+
+def retirer_agenda(desk, dav, ident, actor='', version=None, cle='', verifie_main=False):
+    """5.6.96 (D04) : demande expresse de retirer l'événement d'agenda d'une échéance annulée ou écartée. Aucun UID : zéro PUT, zéro DELETE.
+    UID d'une autre entrée : rien. Coupure : état local juste, « synchronisation à reprendre », relance bornée (``MAX_ESSAIS_AGENDA``).
+    ``verifie_main`` : la personne a repris l'agenda elle-même (cas « à vérifier à la main ») ; rien n'est lu ni écrit dans l'agenda."""
+    row = _row(desk, ident)
+    if not row:
+        raise Stop('echeance_absente')
+    if _deja_decide(desk, ident, cle):
+        return public(row) | {'calendar': row['calendar_state'], 'deja_decide': True}
+    if row['status'] != 'annulee':
+        raise Stop('echeance_non_annulee')
+    _version_attendue(row, version)
+    tries = row['calendar_tries']
+    if verifie_main:
+        state = 'verifie_a_la_main'
+    elif not row['calendar_uid']:
+        state = 'non_inscrite'
+    else:
+        from . import pause5629
+        pause5629.checkpoint(desk)      # motif d'arrêt relu avant l'effet : une pause n'est pas une coupure et ne compte pas d'essai
+        try:
+            state = _retrait(desk, dav, row)
+            tries = 0
+        except (Stop, OSError, ValueError, KeyError):
+            state, tries = 'synchronisation_a_reprendre', tries + 1
+    uid = '' if state in ('retiree', 'absent_agenda') else row['calendar_uid']
+    desk.db.execute('UPDATE deadlines450 SET calendar_state=?,calendar_uid=?,calendar_tries=?,revision=revision+1,updated=? WHERE id=?',
+                    (state, uid, tries, desk.now(), ident))
+    _journal(desk, ident, 'retrait_agenda', '', {'calendar_state': row['calendar_state']}, {'calendar_state': state}, actor, cle, state)
+    desk.db.commit()
+    desk.audit('echeance_450_retrait_agenda', {'id': ident[:12], 'state': state})
+    return public(_row(desk, ident)) | {'calendar': state}
+
+
+def reprendre_retraits(desk, dav, limit=20):
+    """Relance bornée des retraits décidés par une personne et restés en attente faute d'agenda joignable : au plus ``MAX_ESSAIS_AGENDA``
+    essais, puis la main reprend (bouton « Réessayer »). Aucun autre effet n'est rejoué."""
+    ensure_schema(desk)
+    if dav is None:
+        return 0
+    from . import pause5629
+    repris = 0
+    for r in desk.db.execute("SELECT id FROM deadlines450 WHERE status='annulee' AND calendar_state='synchronisation_a_reprendre' AND calendar_tries<? LIMIT ?",
+                             (MAX_ESSAIS_AGENDA, int(limit))).fetchall():
+        try:
+            pause5629.checkpoint(desk)
+        except Stop:
+            break
+        retirer_agenda(desk, dav, r['id'], actor='relance automatique')
+        repris += 1
+    return repris
+
+
+def a_decider_agenda(desk):
+    """Échéances closes dont l'événement d'agenda attend une décision (retrait proposé, reprise, vérification à la main)."""
+    ensure_schema(desk)
+    rows = [public(dict(r)) for r in desk.db.execute('SELECT * FROM deadlines450 WHERE status=? AND calendar_state IN (%s) ORDER BY updated DESC LIMIT 100'
+                                                     % ','.join('?' * len(AGENDA_A_DECIDER)), ['annulee'] + list(AGENDA_A_DECIDER))]
+    for r in rows:
+        r['matter_label'] = matter_label(desk, r['matter'])
+    return rows
 
 
 def mark_act_prepared(desk, ident, prepared=True):
@@ -424,6 +876,10 @@ def mark_act_prepared(desk, ident, prepared=True):
 def create_manual(desk, dav, matter_id, rule_id, start, distance='none', alsace=False, regime_date='', source_path='', note=''):
     row = create_deadline(desk, matter_id, rule_id, start, distance, alsace, regime_date, source_path, '', 'manuel', 'confirmee', note)
     if row['status'] in ('a_confirmer',):
+        # 5.6.96 : la même échéance existait comme détection ; la saisie à la main est l'attestation d'une personne, consignée au journal
+        desk.db.execute("UPDATE deadlines450 SET origin='manuel',updated=? WHERE id=?", (desk.now(), row['id']))
+        _journal(desk, row['id'], 'saisie_manuelle', 'Même échéance saisie à la main', {'origin': row['origin']}, {'origin': 'manuel'})
+        desk.db.commit()
         row = confirm(desk, dav, row['id'])
     state = sync_calendar(desk, dav, row['id']) if row.get('due') else ''
     return public(_row(desk, row['id'])) | {'calendar': state, 'created_now': row.get('created_now', False)}
@@ -431,7 +887,7 @@ def create_manual(desk, dav, matter_id, rule_id, start, distance='none', alsace=
 
 def journal(desk, ident, limit=50):
     ensure_schema(desk)
-    return [dict(r) for r in desk.db.execute('SELECT at,action,reason,before,after FROM deadline_journal450 WHERE deadline_id=? '
+    return [dict(r) for r in desk.db.execute('SELECT at,action,reason,before,after,actor,calendar FROM deadline_journal450 WHERE deadline_id=? '
                                              'ORDER BY id DESC LIMIT ?', (ident, limit))]
 
 
@@ -528,34 +984,57 @@ def analyze(desk, args, dav=None, extractor=None, today=None):
         from .live430 import emit
         emit(desk, 'echeance', result['message'] + ' (dossier %s)' % matter_label(desk, mid), matter=mid, dedupe='deadline450-illisible|' + ident)
         return result
-    events = extract_start_events(text, today)
-    created, existing = [], []
+    # 5.6.96 (D01, D02) : qualification avant calcul ; une détection ne produit qu'une proposition (``delais5689``) : ni ligne de suivi,
+    # ni rappel, ni écriture d'agenda avant la décision d'une personne, qui refait le calcul avec la règle versionnée.
+    q = qualifier_acte(text, path, version=etag)
+    events = extract_start_events(text, today, path, q)
+    acte = {k: q[k] for k in ('type_acte', 'type_libelle', 'incident', 'calendrier', 'mention', 'destinataire', 'rg', 'instance',
+                              'preuve_notification', 'references_non_calculees')}
+    if q['sans_calcul']:
+        consigner_acte(desk, mid, path, etag, q)
+    elif events:
+        consigner_acte(desk, mid, path, etag, q, 'Événement(s) proposé(s), à vérifier : %s' % ', '.join(sorted({e['event'] for e in events})))
+    declared = declaration_connue(desk, mid) if events else ''
+    rg_dossier = rg_du_dossier(desk, mid) if events else []
+    proposes, connus, ecartes, echecs = 0, 0, 0, 0
+    from .delais5689 import depuis_detection
     for event in events:
-        try:     # 5.6.89 : même détection, côté candidat : l'événement seul ; un échec ici n'empêche pas l'analyse habituelle
-            from .delais5689 import depuis_detection
-            depuis_detection(desk, mid, event['event'], event['date'].isoformat(), path, etag, event['context'])
-        except Exception as error:   # noqa: BLE001
-            desk.audit('delais5689_detection_impossible', {'matter': mid, 'cause': type(error).__name__})
-        row = create_deadline(desk, mid, event['rule_id'], event['date'].isoformat(), source_path=path,
-                              excerpt=event['context']) if event['rule_id'] else None
-        if not row:
+        when = event['date'].isoformat()
+        if deja_ecarte(desk, mid, event['event'], when, path, event['context']):
+            ecartes += 1          # D05 : même passage, même date, même source déjà écartés par une personne
             continue
-        (created if row['created_now'] else existing).append(row['id'])
-        if row['created_now'] and row.get('due'):
-            sync_calendar(desk, client, row['id'])
-    result = {'status': 'prepared' if created else 'blocked', 'matter': mid, 'path': path,
-              'evenements': len(events), 'echeances_creees': len(created), 'deja_connues': len(existing),
-              'message': ('%d échéance(s) proposée(s) à confirmer depuis « %s »' % (len(created), name)) if created else
-              'Aucun événement de départ exploitable dans « %s » : aucune échéance créée.' % name}
+        motifs = motifs_de_verification(q, event['event'], when, declared, event['nature_date'], rg_dossier)
+        try:
+            fait = depuis_detection(desk, mid, event['event'], when, path, etag, event['context'], motifs=motifs)
+        except Exception as error:   # noqa: BLE001 : signalé à l'avocat, jamais remplacé par une échéance inscrite
+            desk.audit('delais5689_detection_impossible', {'matter': mid, 'cause': type(error).__name__})
+            echecs += 1
+            continue
+        if fait is None:
+            connus += 1
+        else:
+            proposes += 1
+    if q['sans_calcul']:
+        message = '« %s » qualifié %s : %s.' % (name, q['type_libelle'].lower(), q['mention'])
+    elif echecs:
+        message = '%d événement(s) repéré(s) dans « %s » n’ont pas pu être proposés : vérifiez vous-même si la pièce fait courir un délai.' % (echecs, name)
+    elif proposes:
+        message = '%d événement(s) à vérifier proposé(s) depuis « %s » (Contentieux › Délais) ; rien n’est inscrit ni rappelé avant votre décision.' % (proposes, name)
+    elif events:
+        message = 'Événement(s) de « %s » déjà proposé(s) ou déjà écarté(s) : rien de nouveau.' % name
+    else:
+        message = 'Aucun événement de départ exploitable dans « %s » : aucune échéance créée.' % name
+    result = {'status': 'prepared' if proposes else 'blocked', 'matter': mid, 'path': path, 'evenements': len(events), 'propositions': proposes,
+              'echeances_creees': 0, 'deja_connues': connus, 'deja_ecartees': ecartes, 'echecs': echecs, 'acte': acte, 'message': message}
     now = desk.now()
     desk.db.execute('INSERT OR REPLACE INTO deadline_obs450 VALUES(?,?,?,?,?,?,?,?)',
                     (ident, mid, path, etag, 'done', json.dumps(result, ensure_ascii=False), now, now))
     desk.db.commit()
-    if created:
+    if proposes or echecs:
         from .live430 import emit
         emit(desk, 'echeance', result['message'] + ' (dossier %s)' % matter_label(desk, mid), matter=mid,
              dedupe='deadline450-new|' + ident)
-    desk.audit('echeances_450_analysees', {'matter': mid, 'path': path, 'created': len(created)})
+    desk.audit('echeances_450_analysees', {'matter': mid, 'path': path, 'propositions': proposes, 'sans_calcul': q['sans_calcul']})
     return result
 
 
@@ -587,6 +1066,14 @@ def cross_check(desk, dav=None, today=None):
     for row in rows:
         if row['status'] == 'a_completer' or not row['due']:
             add('date_manquante', row, 'Échéance sans date calculable : %s' % (row['error'] or 'information manquante') )
+        if row['status'] not in INSCRITES and row['calendar_uid']:
+            # 5.6.96 (D06) : proposition inscrite par une version antérieure : à décider (confirmer, corriger ou écarter), puis reprendre l'agenda
+            add('agenda_a_reconcilier', row, 'Proposition non confirmée déjà inscrite à l’agenda par une version antérieure : décidez-en, puis reprenez l’agenda.')
+    # 5.6.96 (D04) : une échéance annulée ou écartée dont l'événement d'agenda attend votre décision reste visible
+    for row in a_decider_agenda(desk):
+        add('agenda_a_reconcilier', row, {'retrait_propose': 'Échéance annulée ou écartée : le retrait de son événement d’agenda vous est proposé.',
+                                          'synchronisation_a_reprendre': 'Synchronisation à reprendre : l’agenda n’a pas répondu lors du retrait.',
+                                          'a_reconcilier': 'L’événement d’agenda lié ne correspond plus à cette échéance : à vérifier à la main, rien n’a été effacé.'}[row['calendar_state']])
     groups = {}
     for row in rows:
         if row['due'] and row['status'] in ACTIVE:
@@ -600,7 +1087,7 @@ def cross_check(desk, dav=None, today=None):
     events_by_uid = {}
     calendar_ok = False
     if urls and dav is not None and rows:
-        dues = [date.fromisoformat(r['due']) for r in rows if r['due']]
+        dues = [date.fromisoformat(r['due']) for r in rows if r['due'] and r['status'] in INSCRITES]
         if dues:
             tz = ZoneInfo(tz_name)
             lo = datetime.combine(min(dues) - timedelta(days=400), datetime.min.time(), tz)
@@ -637,7 +1124,8 @@ def run_reminders(desk, today=None):
     from .live430 import emit
     today = today or date.today()
     sent = 0
-    for r in desk.db.execute("SELECT * FROM deadlines450 WHERE status IN ('a_confirmer','confirmee','manuel') AND due<>''").fetchall():
+    # 5.6.96 (D02) : aucun rappel pour une détection que personne n'a décidée
+    for r in desk.db.execute("SELECT * FROM deadlines450 WHERE status IN ('confirmee','manuel') AND due<>''").fetchall():
         row = dict(r)
         days = (date.fromisoformat(row['due']) - today).days
         label = matter_label(desk, row['matter'])
@@ -679,9 +1167,10 @@ def daily_check(desk, dav=None, today=None):
     if not enabled(desk):
         return {'abstention': 'Échéances désactivées.'}
     sent = run_reminders(desk, today)
+    repris = reprendre_retraits(desk, dav)        # 5.6.96 (D04) : seulement des retraits décidés par une personne, au plus trois essais
     report = cross_check(desk, dav, today)
-    desk.setting('deadlines450:last_check', {'at': desk.now(), 'anomalies': report['count'], 'reminders': sent})
-    return {'reminders': sent, 'anomalies': report['count'], 'remote_write': False}
+    desk.setting('deadlines450:last_check', {'at': desk.now(), 'anomalies': report['count'], 'reminders': sent, 'retraits_repris': repris})
+    return {'reminders': sent, 'anomalies': report['count'], 'remote_write': bool(repris), 'retraits_repris': repris}
 
 
 def today_block(desk, link, today=None, limit=5):
@@ -689,7 +1178,7 @@ def today_block(desk, link, today=None, limit=5):
     from html import escape as esc
     today = today or date.today()
     ensure_schema(desk)
-    rows = [r for r in listing(desk) if r['due']][:limit]
+    rows = [r for r in listing(desk) if r['due'] and r['status'] in INSCRITES][:limit]     # 5.6.96 (D02) : une proposition n'est pas une échéance
     report = cross_check(desk, None, today)
     if not rows and not report['anomalies']:
         return ''

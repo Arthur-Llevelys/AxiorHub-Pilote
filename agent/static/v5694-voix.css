@@ -13,3 +13,23 @@
 .v94-voix .v94-licences { border-top: 1px solid var(--cds-border-subtle-01, #c6c6c6); font-size: .875rem; margin-top: 1.5rem; padding-top: .75rem; }
 .v94-voix .v94-credits { color: var(--cds-text-secondary, inherit); padding-left: 1.25rem; }
 .v94-voix a:focus-visible, .v94-voix button:focus-visible, .v94-voix input:focus-visible, .v94-voix textarea:focus-visible { outline: 2px solid var(--cds-focus, currentColor); outline-offset: 2px; }
+
+/* 5.6.96 (lot voix) : profil Brindille (V05), boutons de lecture (V02, V03), options de la discussion vocale, avatar 2D (V06). Jetons Carbon. */
+.v94-voix .v94-profil { background: var(--cds-layer-01, transparent); border: 1px solid var(--cds-border-subtle-01, #c6c6c6); margin: 1rem 0; padding: 1rem; }
+.v94-voix select:focus-visible { outline: 2px solid var(--cds-focus, currentColor); outline-offset: 2px; }
+.voice568-panel .v96-interrompre, .voice568-panel .v96-reprise, .v94-voix .v96-reprise { margin: .25rem .5rem .25rem 0; }
+.voice568-panel .v96-interrompre[hidden], .v96-reprise[hidden], .v96-portrait-zone[hidden] { display: none; }
+.voice568-panel .v96-options { border: 1px solid var(--cds-border-subtle-01, #c6c6c6); color: var(--cds-text-primary, inherit); font-size: .875rem; margin: .4rem 0; padding: .35rem .55rem; }
+.voice568-panel .v96-options summary { cursor: pointer; font-weight: 600; }
+.voice568-panel .v96-option { align-items: center; display: flex; flex-wrap: wrap; gap: .35rem; justify-content: space-between; margin: .3rem 0; }
+.voice568-panel .v96-option select { max-width: 70%; min-width: 0; width: auto; }
+.voice568-panel .v96-option input[type=checkbox] { width: auto; }
+.voice568-panel .v96-diagnostic pre { font-size: .75rem; max-height: 10rem; overflow: auto; white-space: pre-wrap; }
+.voice568-panel :is(.v96-options, .v96-diagnostic) :is(summary, select, input, button):focus-visible, .voice568-panel button:focus-visible { outline: 2px solid var(--cds-focus, currentColor); outline-offset: 2px; }
+.v96-portrait-zone { margin: .35rem 0; text-align: center; }
+.v96-figure { margin: 0; }
+.v96-portrait { display: block; height: 5.5rem; margin: auto; width: 5.5rem; }
+.v96-portrait .v96-fond { fill: var(--cds-layer-02, var(--cds-layer-01, #e8edf3)); }
+.v96-figure figcaption { color: var(--cds-text-secondary, inherit); font-size: .78rem; margin-top: .15rem; }
+.v96-apercu { margin: .5rem 0; }
+.v96-apercu:empty { display: none; }

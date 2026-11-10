@@ -231,14 +231,18 @@ def connect(cfg):
         raise Stop('imap_port_invalide') from None
     security = str(cfg.get('security') or ('starttls' if port == 143 else 'ssl')).lower()
     context = ssl.create_default_context()
+    try:   # 5.6.96 (M03) : délai de connexion borné par l'appelant (lecture de la discussion), 45 s par défaut
+        timeout = max(1, min(int(cfg.get('connect_timeout_seconds') or 45), 300))
+    except (TypeError, ValueError):
+        timeout = 45
     try:
         if security == 'starttls':
-            conn = imaplib.IMAP4(host, port, timeout=45)
+            conn = imaplib.IMAP4(host, port, timeout=timeout)
             if 'STARTTLS' not in conn.capabilities:
                 raise Stop('imap_starttls_indisponible')
             conn.starttls(ssl_context=context)
             return conn
-        return imaplib.IMAP4_SSL(host, port, ssl_context=context, timeout=45)
+        return imaplib.IMAP4_SSL(host, port, ssl_context=context, timeout=timeout)
     except socket.gaierror:
         raise Stop('imap_serveur_introuvable') from None
     except ssl.SSLCertVerificationError:

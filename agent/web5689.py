@@ -27,6 +27,9 @@ DOMAINES = {
     'voix': 'voix_web5694',               # 5.6.94 : texte préparé pour la voix du navigateur, choix de la voix (administrateur)
     'actuellement': 'actuellement_web5695',   # 5.6.95 : encadré « Actuellement » d'Aujourd'hui (réponse conditionnelle), choix de mise à jour
     'routage': 'routage_web5695',         # 5.6.95 : routage mesuré (mesures, export CSV, mode conseil ou actif ; administrateur)
+    'accueil': 'accueil_web5696',         # 5.6.96 (lot accueil) : météo, options d'accueil, actions d'Aujourd'hui en fenêtre flottante
+    'courriels': 'courriels_web5696',     # 5.6.96 (lot courriels) : vue « À traiter avec le Pilote » (IMAP), fil à la demande, suivi et option
+    'affichage': 'affichage_web5696',     # 5.6.96 (lot affichage, U07) : session et compte revalidés après un retour par l'historique
 }
 
 

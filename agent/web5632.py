@@ -70,6 +70,12 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'admin/veille/tavily':
         from .veille5632 import save_tavily_key
         return json_out(save_tavily_key(desk, data.get('key')))
+    if route == 'admin/recherche_publique':   # 5.6.96 (R02) : interrupteur de l'assistant (désactivé par défaut, réversible)
+        from .recherche_publique5696 import autoriser
+        return json_out({'reglage': autoriser(desk, data.get('enabled') in (True, 'true', '1', 'on'), owner), 'message': i18n.t('rp.saved')})
+    if route == 'admin/recherche_publique/test':   # 5.6.96 (R02) : disponibilité vérifiée sans appel réseau ni consommation
+        from .recherche_publique5696 import disponibilite
+        return json_out(disponibilite(desk, owner))
     if route == 'admin/skills/generale':
         from .competences5632 import listing
         from .competences5643 import GENERAL_SETTING
@@ -226,16 +232,20 @@ def veille_page(desk, auth, prefix, env, shell):
 
 def veille_settings(desk, env, prefix, admin=True):
     from .web567 import actor
-    from .veille5632 import FEEDS, profile, usage, tavily_key_path
+    from .veille5632 import FEEDS, propose, usage, tavily_key_path, state, INTERVALLE_MIN, INTERVALLE_MAX
     owner = actor(env)[0]
     th = i18n.th
-    p = profile(desk, owner)
-    themes = '\n'.join('%s : %s%s' % (t['name'], ', '.join(t['keywords']), (' ; sauf : ' + ', '.join(t['exclusions'])) if t['exclusions'] else '') for t in p['themes'])
+    p = propose(desk, owner)   # 5.6.96 (I05) : une veille jamais réglée se voit proposer la routine de trois jours
+
+    def lignes(domaine):
+        return '\n'.join('%s : %s%s' % (t['name'], ', '.join(t['keywords']), (' ; sauf : ' + ', '.join(t['exclusions'])) if t['exclusions'] else '')
+                         for t in p['themes'] if t['domaine'] == domaine)
+    themes = lignes('juridique')
     feeds = ''.join('<label class="f5632-check"><input type="checkbox" name="feeds" value="%s"%s> %s</label>' % (f[0], ' checked' if f[0] in p['feeds'] else '', e(f[1]))
                     for f in FEEDS)
     days = ''.join('<label class="f5632-check"><input type="checkbox" name="days" value="%d"%s> %s</label>' % (
         i, ' checked' if i in p['days'] else '', e(i18n.t('date.days').split(',')[i])) for i in range(7))
-    modes = ''.join('<option value="%s"%s>%s</option>' % (m, ' selected' if m == p['mode'] else '', th('vj.mode.' + m)) for m in ('daily', 'days', 'weekly', 'manual'))
+    modes = ''.join('<option value="%s"%s>%s</option>' % (m, ' selected' if m == p['mode'] else '', th('vj.mode.' + m)) for m in ('interval', 'daily', 'days', 'weekly', 'manual'))
     body = ('<label class="f5632-check"><input type="checkbox" name="enabled"%s> %s</label>'
             '<label>%s<textarea name="themes" rows="5" placeholder="%s">%s</textarea></label><fieldset><legend>%s</legend>%s</fieldset>'
             '<label>%s<textarea name="custom_feeds" rows="3" placeholder="https://…">%s</textarea></label>'
@@ -246,14 +256,49 @@ def veille_settings(desk, env, prefix, admin=True):
         th('vj.custom_feeds'), e('\n'.join(p['custom_feeds'])), ' checked' if p['connector'] else '', th('vj.use_connector'),
         ' checked' if p['tavily'] else '', th('vj.use_tavily'), th('vj.frequency'), modes, th('vj.hour'), e(p['hour'], quote=True), th('vj.tz'), e(p['tz'], quote=True),
         th('vj.days'), days)
-    out = '<section class="v5632-settings"><h2>%s</h2><p>%s</p>%s' % (th('vj.settings_title'), th('vj.settings_intro'), _form('veille/profile', body, i18n.t('vj.save_settings'), reload=True))
+    # 5.6.96 (I05) : domaine économique saisi séparément, intervalle en jours calendaires ; état du dernier et du prochain passage
+    body += ('<label>%s<textarea name="themes_eco" rows="3" placeholder="%s">%s</textarea></label>'
+             '<label>%s<input type="number" name="interval_days" min="%d" max="%d" value="%d"></label>') % (
+        th('vj.themes_eco'), th('vj.themes_eco_hint'), e(lignes('economique')), th('vj.interval_days'), INTERVALLE_MIN, INTERVALLE_MAX,
+        int(p.get('interval_days') or 3))
+    st = state(desk, owner)
+    etat = '<p class="f5632-hint">%s</p>' % (th('vj.next_run', when=st['next_run'][:16].replace('T', ' ')) if st['next_run'] else th('vj.no_next_run'))
+    if st['last_status']:
+        etat += '<p class="f5632-hint">%s</p>' % th('vj.last_run', when=st['last_finished'][:16].replace('T', ' '), status=i18n.t('vj.status.' + st['last_status']))
+    if st['attente']:
+        etat += '<p class="f5632-hint">%s</p>' % th('vj.waiting.' + st['attente'])
+    out = '<section class="v5632-settings"><h2>%s</h2><p>%s</p><p><strong>%s</strong> — %s</p>%s%s' % (
+        th('vj.settings_title'), th('vj.settings_intro'), th('vj.routine'), th('vj.routine_proposed'), etat,
+        _form('veille/profile', body, i18n.t('vj.save_settings'), reload=True))
     if admin:
         used = usage(desk)
         out += ('<h3>Tavily</h3><p>%s</p><p><a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer">%s</a></p>' % (th('vj.tavily_intro'), th('vj.tavily_get')) +
                 '<p class="f5632-hint">%s</p>' % th('vj.tavily_usage', calls=used['calls'], uncertain=used['uncertain']) +
                 _form('admin/veille/tavily', '<label>%s<input type="password" name="key" autocomplete="off" placeholder="%s"></label>' % (
                     th('vj.tavily_key'), th('guide.secret_set') if tavily_key_path(desk) else 'tvly-…'), i18n.t('vj.tavily_save'), reload=True))
+        out += recherche_publique_section(desk)   # 5.6.96 (R02) : même clé, plafond partagé avec la veille
     return out + '</section>'
+
+
+def recherche_publique_section(desk):
+    """5.6.96 (R02) : recherche publique dans l'assistant (administrateur) : interrupteur désactivé par défaut, quota consommé, test de
+    disponibilité sans appel, journal des appels (date, origine, nombre de résultats, statut ; jamais le texte d'une requête)."""
+    from . import recherche_publique5696 as public
+    th = i18n.th
+    q = public.quota(desk)
+    statuts = ('ok', 'vide', 'erreur', 'incertain')
+    lignes = ''.join('<tr><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>' % (
+        e(str(x.get('at') or '')[:16].replace('T', ' ')), th('rp.profil.' + ('veille' if x.get('profil') == 'veille' else 'public')), int(x.get('resultats') or 0),
+        th('rp.statut.' + (x.get('statut') if x.get('statut') in statuts else 'erreur'))) for x in public.journal(desk, 30))
+    journal = ('<table class="vf-table"><caption>%s</caption><thead><tr><th scope="col">%s</th><th scope="col">%s</th><th scope="col">%s</th><th scope="col">%s</th></tr></thead>'
+               '<tbody>%s</tbody></table>' % (th('rp.journal'), th('rp.col_date'), th('rp.col_profil'), th('rp.col_results'), th('rp.col_status'), lignes)
+               if lignes else '<p class="f5632-hint">%s</p>' % th('rp.journal_empty'))
+    return ('<h3>%s</h3><p>%s</p>' % (th('rp.title'), th('rp.intro')) +
+            _form('admin/recherche_publique', '<label class="f5632-check"><input type="checkbox" name="enabled"%s> %s</label>' % (' checked' if q['enabled'] else '', th('rp.enable')),
+                  i18n.t('rp.save'), reload=True) +
+            '<p class="f5632-hint">%s</p>' % th('rp.quota', public=q['public'], plafond_public=q['plafond_public'], total=q['total'], plafond_partage=q['plafond_partage'],
+                                                 incertains=q['incertains']) +
+            _form('admin/recherche_publique/test', '', i18n.t('rp.test')) + journal)
 
 
 def _package_html(s):

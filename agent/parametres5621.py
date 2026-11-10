@@ -38,7 +38,7 @@ KEYWORDS = {'demarrage': 'assistant demarrage profil cabinet identite alias adre
             'ia': 'modele profil temperature contexte mistral openai openrouter anthropic economie quota hybride externe pseudonymisation claude connecteur mcp',
             'horaires': 'horaires pause programmee nuit plage fuseau derogation planning arret ia soir matin',
             'voix': 'dictee transcription synthese kokoro espeak whisper micro vitesse',
-            'recherche': 'legifrance judilibre justicelibre openlegi goodlegal librejustice tavily flux rss themes veille jurisprudence',
+            'recherche': 'legifrance judilibre justicelibre openlegi goodlegal librejustice tavily flux rss themes veille jurisprudence internet recherche publique assistant',
             'routines': 'briefing matin bilan heures jours exclusions roles automatismes initiatives agents',
             'documents': 'word onlyoffice collabora brouillon versions procedure role dossier modeles agendas',
             'cabinet': 'compte administrateur identifiant mot de passe utilisateurs confidentialite droits acces securite',
@@ -126,7 +126,8 @@ def _connexions(desk, auth, prefix, env, cap):
     from urllib.parse import parse_qs
     _args52 = {k: v[0] for k, v in parse_qs(env.get('QUERY_STRING', '')).items()}
     _retour52 = _ms_redirect(env, prefix).rsplit('/', 1)[0] + '/connexions-retour'
-    return (_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) +
+    from .accueil_web5696 import reglages_html as _meteo96   # 5.6.96 (F03) : météo d'Aujourd'hui (OpenWeather), administrateur seulement
+    return (_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
             _section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_microsoft(desk, prefix, env)) +
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
@@ -176,6 +177,9 @@ def _voix(desk, auth, prefix, env, cap):
     # 5.6.94 (V08) : section Carbon en tête (choix de la voix, essai d'écoute, vitesse, Alkove, guide Kokoro, licences) ; les autres
     # réglages restent en dessous. La voix et sa voix de repli, la vitesse ne se règlent qu'à un endroit : ôtés des formulaires repris.
     cap.head += '<script defer src="' + e(prefix, quote=True) + '/static/v5694-voix-page.js"></script>'
+    from .avatar5696 import illustre as _illustre5696, script as _avatar5696
+    if not _illustre5696(desk.c, actor(env)[0]):   # 5.6.96 (V06) : aperçu des portraits avant le choix (déjà déclaré si un portrait est choisi)
+        cap.head += _avatar5696(prefix, desk.c, actor(env)[0], toujours=True)
     body = _section(_voix5694(desk, prefix, *actor(env), env))
     connexions = _section(web567.connections_page(desk, auth, prefix, env, shell=cap, groups=VOICE_GROUPS, tests=('voice',),
                                                   heading='Moteurs de voix : dictée, transcription et synthèse'))
@@ -371,6 +375,8 @@ def _messagerie(desk, auth, prefix, env, cap):
     if _actor70(env)[1] == 'administrateur':   # 5.6.71 : réponses « sans dossier » automatiques
         from .web5671 import settings_html as _sans_dossier
         body += _section(_sans_dossier(desk))
+    from .courriels_web5696 import reglage_html as _vue5696   # 5.6.96 : vue « À traiter avec le Pilote » (désactivée par défaut)
+    body += _section(_vue5696(desk, *_actor70(env)))
     return body
 
 

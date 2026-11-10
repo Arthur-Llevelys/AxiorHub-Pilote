@@ -827,6 +827,9 @@ class Model:
 
     def _translate_error(self,error):
         Model._note_error(self,error)
+        if getattr(self,'provider_type','')=='mistral':   # 5.6.96 (A03) : 401/403, 429 (Retry-After), quota, réseau, 5xx : état de la connexion
+            from .mistral5696 import noter_erreur
+            noter_erreur(getattr(self,'cfg',None) or {},error)
         code=str(error)
         if code=='http_401':return Stop('authentification_fournisseur_refusee')
         if code=='http_402':      # 5.6.85 : crédit épuisé chez le fournisseur ; relais possible, comme pour un plafond
@@ -1154,6 +1157,9 @@ class Model:
             self.usage_cost_known=False
             raise self._translate_error(error) from None
         self.usage_cost_usd+=float(record_usage(self.cfg,result,estimated,'done',messages) or 0)
+        if self.provider_type=='mistral':   # 5.6.96 : réponse obtenue : l'incident éventuel de la connexion est levé
+            from .mistral5696 import noter_succes
+            noter_succes(self.cfg)
         try:
             choice=result['choices'][0];message=choice['message'];content=message['content']
             finish=choice.get('finish_reason')

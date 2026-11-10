@@ -105,10 +105,12 @@
     });
     if (first) first.focus();
   }
-  function step(action) {
+  function step(action, option) {
     say(msg('js.working', 'Enregistrement…'));
+    var vals = values();
+    if (option) vals.option = option;   /* 5.6.96 : « Configurer plus tard » (météo, veille, voix) */
     post(api + 'step', { id: root.getAttribute('data-session'), revision: parseInt(root.getAttribute('data-revision'), 10),
-      step: root.getAttribute('data-step'), values: values(), action: action }).then(function (data) {
+      step: root.getAttribute('data-step'), values: vals, action: action }).then(function (data) {
       if (data.errors && Object.keys(data.errors).length) {
         root.setAttribute('data-revision', data.revision); showErrors(data.errors); say(msg('js.fix_fields', 'Corrigez les champs signalés.'), true); return;
       }
@@ -133,8 +135,24 @@
         });
         return;
       }
+      if (action === 'later') { step('later', b.getAttribute('data-option')); return; }
       step(action);
     });
+  });
+  /* 5.6.96 (I06) : aperçu de l'assistant. « Ouvrir l'assistant » utilise le lanceur existant ; le micro n'est demandé qu'après un clic,
+     puis aussitôt libéré : rien n'est enregistré ni envoyé. */
+  var opener = root.querySelector('[data-g5696="ouvrir-assistant"]');
+  if (opener) opener.addEventListener('click', function () {
+    var launcher = document.getElementById('ws-ai-launcher');
+    if (launcher) launcher.click();
+  });
+  var mic = root.querySelector('[data-g5696="micro"]'), micOut = root.querySelector('.g5696-micro');
+  if (mic) mic.addEventListener('click', function () {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { if (micOut) micOut.textContent = msg('js.mic_refused', 'Micro refusé ou absent.'); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      if (micOut) micOut.textContent = msg('js.mic_ok', 'Micro disponible. Aucun son n’a été enregistré ni envoyé.');
+    }).catch(function () { if (micOut) micOut.textContent = msg('js.mic_refused', 'Micro refusé ou absent.'); });
   });
   root.querySelectorAll('.g5631-test-btn').forEach(function (b) {
     b.addEventListener('click', function () {

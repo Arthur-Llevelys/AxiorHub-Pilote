@@ -76,7 +76,8 @@
     zone.append(tete);
     if (p.etat) zone.append(el('p', 'État de cette fonction : ' + p.etat.etat_libelle + (p.etat.motif_libelle ? ' (' + p.etat.motif_libelle + ')' : ''), 'ia89-etat'));
     if (p.objets.length) zone.append(liste('Élément(s) sélectionné(s)', p.objets.map(o => o.titre + (o.version_courante ? ' · version ' + o.version_courante.slice(0, 12) : '')), 'ia89-objets'));
-    if (p.dossier.origine === 'objet' && matter.value !== p.dossier.id && [...matter.options].some(o => o.value === p.dossier.id)) poserDossier(p.dossier.id);
+    // 5.6.96 (U06) : la liste des dossiers n'est chargée qu'à l'ouverture du volet ; le dossier de l'objet, revalidé par le serveur, est ajouté s'il manque encore
+    if (p.dossier.origine === 'objet' && p.dossier.id && matter.value !== p.dossier.id) {if (![...matter.options].some(o => o.value === p.dossier.id)) matter.append(new Option(p.dossier.label || p.dossier.id, p.dossier.id)); poserDossier(p.dossier.id);}
     p.ambiguites.forEach(a => {
       const box = el('div', undefined, 'ia89-ambigu'); box.setAttribute('role', 'alert'); box.append(el('p', a.message));
       a.candidats.forEach(c => {const b = el('button', c.label, 'ia89-action'); b.type = 'button'; b.addEventListener('click', () => choisir(c.id)); box.append(b, ' ');});

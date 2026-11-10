@@ -295,7 +295,6 @@ def _setting(config, key):
 def _prepare_exclusive(desk, mode, data, owner):
     """Connexion prête pour un mode à fournisseur unique : rien n'est activé sans l'accord coché dans ce formulaire."""
     from . import catalogue5682
-    from .ai_gateway import save_provider
     consent = data.get('consentement') is True
     if not consent:
         raise Stop('autorisation_donnees_externes_requise')
@@ -312,17 +311,16 @@ def _prepare_exclusive(desk, mode, data, owner):
             raise Stop('catalogue_modeles_vide')
         chatgpt5662.save_provider(desk, owner, active[0], True, True)
         return
-    from .modeles5681 import DEFAULT_MONTHLY_USD, DEFAULT_REQUEST_USD
-    pid, current = provider_of(desk.c, mode)
-    pid = pid or mode
-    current = current or {}
-    save_provider(desk, pid, mode, current.get('url') or '', current.get('model') or catalogue5682.PLACEHOLDER[mode], str(data.get('api_key') or '').strip(),
-                  True, True, bool(current.get('zdr_required')), float(current.get('monthly_budget_usd') or DEFAULT_MONTHLY_USD),
-                  float(current.get('per_request_budget_usd') or DEFAULT_REQUEST_USD), float(current.get('input_usd_per_million') or 0),
-                  float(current.get('output_usd_per_million') or 0))
-    rows = [r for r in catalogue5682.refresh(desk, pid) if r['statut'] == 'actif']
-    if not rows:
-        raise Stop('catalogue_modeles_vide')
+    if mode == 'mistral':
+        # 5.6.96 (A02) : la clé saisie est testée, puis publiée en une transaction, AVANT l'activation : une clé refusée laisse la connexion
+        # en service intacte (la 5.6.95 l'enregistrait avant de relire le catalogue).
+        from . import mistral5696
+        mistral5696.preparer_mode(desk, data, owner)
+        return
+    # 5.6.96 : API Claude, même défaut et même méthode : clé testée par le catalogue de l'API Anthropic, coffre versionné, révision et
+    # publication en une transaction (``cles5696``), activation en dernier.
+    from . import cles5696
+    cles5696.preparer_mode(desk, mode, data, owner)
 
 
 def save(desk, data, owner, fetch=None):

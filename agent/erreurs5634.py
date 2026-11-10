@@ -317,6 +317,12 @@ MESSAGES = {
     'droit_invalide': 'Valeur de droit invalide (oui ou non attendu).',   # 5.6.51
     'curseur_invalide': 'Position dans la conversation invalide : rechargez la page.',   # 5.6.51
     'version_en_conflit': 'L’élément a été modifié entre-temps : rechargez la page pour voir sa version actuelle avant de décider.',   # 5.6.51
+    'preuve_notification_a_verifier': 'Notification non prouvée par la source : vérifiez-la, puis corrigez la date (avec le motif) ou écartez cette détection.',   # 5.6.96 (D02)
+    'acte_incident_sans_delai_au_fond': 'Acte d’incident : aucun délai au fond ne court à partir de cet acte. Écartez cette détection.',   # 5.6.96 (D01)
+    'depart_anterieur_declaration_a_verifier': 'La date de départ précède la déclaration d’appel connue du dossier : vérifiez-la, puis corrigez-la ou écartez la détection.',   # 5.6.96 (D01)
+    'echeance_close': 'Cette échéance est déjà close (accomplie, annulée ou écartée) : rechargez la page.',   # 5.6.96 (D03)
+    'echeance_non_annulee': 'Seule une échéance annulée ou écartée peut être retirée de l’agenda.',   # 5.6.96 (D04)
+    'echeance_non_validee_ou_modifiee': 'Cette proposition d’agenda ne correspond plus à une échéance confirmée : elle a été écartée, rien n’a été écrit dans l’agenda.',   # 5.6.96 (D02)
     'partie_absente': 'Partie introuvable dans ce dossier.',   # 5.6.51
     'fusion_personne_societe_refusee': 'Une personne et une société ne peuvent pas être réunies.',   # 5.6.51
     'nom_partie_requis': 'Indiquez le nom de la partie.',   # 5.6.51
@@ -369,6 +375,27 @@ MESSAGES = {
     'chatgpt_compte_non_eligible': 'Ce compte ou cet espace ChatGPT ne peut pas utiliser son abonnement dans AxiorHub (offre Plus ou Pro requise, '
                                    'selon les règles d’OpenAI).',
     'chatgpt_indisponible': 'ChatGPT est momentanément indisponible ; réessayez plus tard.',
+    # 5.6.96 (lot mistral, A02-A03) : clé Studio Mistral, limites et pannes ; la connexion en service n'est jamais remplacée par une clé refusée
+    'secret_fournisseur_invalide': 'Clé mal formée : collez la clé en entier, sans espace ni retour à la ligne. Rien n’a été envoyé ni enregistré.',
+    'fournisseur_limite_a_preciser': 'Le fournisseur limite le débit pour cette clé (429) : réessayez dans quelques minutes. La connexion en service n’a pas changé.',
+    'fournisseur_quota_atteint': 'Quota ou crédits épuisés chez le fournisseur, confirmé par sa réponse : la clé n’a pas été enregistrée.',
+    'catalogue_fournisseur_indisponible': 'Le fournisseur ne répond pas pour le moment : la clé n’a pas pu être vérifiée. La connexion en service n’a pas changé.',
+    'catalogue_fournisseur_invalide': 'La liste des modèles renvoyée par le fournisseur est illisible : la clé n’a pas été enregistrée.',
+    'mistral_limite_a_preciser': 'Mistral limite le débit pour cette clé (429) : réessayez dans quelques minutes. La connexion en service n’a pas changé.',
+    'mistral_quota_atteint': 'Quota de votre offre Mistral ou crédits épuisés, confirmé par Mistral : consultez Gérer l’usage Mistral (admin.mistral.ai).',
+    'mistral_catalogue_indisponible': 'Mistral ne répond pas pour le moment : la clé n’a pas pu être vérifiée. La connexion en service n’a pas changé.',
+    'mistral_catalogue_invalide': 'La liste des modèles renvoyée par Mistral est illisible : la clé n’a pas été enregistrée.',
+    'mistral_generation_refusee': 'Le test de génération n’a pas abouti : la clé n’a pas été enregistrée.',
+    'mistral_cle_a_verifier': 'Clé Mistral à vérifier (refusée par Mistral) : remplacez-la dans Paramètres › Modèles d’IA. Le travail attend sur sa ligne.',
+    'mistral_acces_refuse': 'Accès refusé par Mistral : la clé n’a pas les droits nécessaires. Le travail attend sur sa ligne.',
+    'mistral_limite_temporaire': 'Limite de débit Mistral atteinte : le travail reprend seul après le délai indiqué, sans autre fournisseur.',
+    'mistral_indisponible': 'Mistral indisponible : nouvel essai borné sur la même ligne, sans autre fournisseur.',
+    'mistral_decision_requise': 'Mistral n’a pas répondu après plusieurs essais : réexaminez la connexion dans Paramètres › Modèles d’IA pour reprendre.',
+    'modele_en_service_absent': 'Le modèle en service n’est plus proposé par cette clé : choisissez un modèle de la liste testée avant d’enregistrer.',
+    'modele_non_teste': 'Ce modèle ne figure pas parmi les modèles de conversation testés pour cette clé.',
+    'cle_geree_par_le_systeme': 'Cette clé est gérée par l’administrateur du serveur : elle ne se remplace pas depuis l’interface.',
+    'identifiant_fournisseur_occupe': 'Cet identifiant de connexion est déjà utilisé par un autre fournisseur.',
+    'coffre_relecture_differente': 'La clé relue dans le coffre ne correspond pas à la clé saisie : rien n’a été publié.',
     'chatgpt_option_non_prise_en_charge': 'Cette demande utilise une option que l’abonnement ChatGPT n’accepte pas.',
     'chatgpt_acces_refuse': 'OpenAI a refusé l’accès (droit ou région non pris en charge).',
     'chatgpt_generation_echouee': 'ChatGPT n’a pas pu terminer la réponse.',

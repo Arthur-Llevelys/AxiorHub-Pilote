@@ -3,6 +3,21 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.96 — Échéances fiables, courriels au premier tour, Aujourd’hui réorganisé, voix posée, clés vérifiées
+
+Corrections de l’audit du cabinet sur la 5.6.95 et chapitre « Interface, veille et installation » du cahier révisé.
+
+- **Échéances** : la date d’un arrêt cité dans des conclusions ne devient plus une échéance ni un événement d’agenda. Une date détectée reste une proposition : rien n’est écrit dans le suivi, les rappels ou l’agenda sans décision d’une personne. « Écarter » demande un motif et propose le retrait de l’événement, jamais automatiquement. Script de contrôle en lecture seule des échéances existantes : `scripts/audit-echeances-5696.py`.
+- **Courriels** : l’assistant lit la vraie boîte dès la première demande, avec les heures de réception exactes et un résultat complet, partiel ou indisponible. « Boîte de réception » ne lit plus les brouillons. Nouvelle vue facultative « À traiter avec le Pilote » (IMAP, désactivée par défaut) : suivi par fil, reporter, mettre en attente, terminer, écarter, sans jamais toucher au message.
+- **Assistant** : une question pratique (météo, trains) n’est plus rattachée à un dossier ; « merci » ne lance plus rien. Recherche publique Tavily désactivée par défaut, 50 appels par mois si activée, après confirmation, jamais en local strict ni avec une donnée de dossier. Bouton « Général ».
+- **Voix** : « Français posé » par défaut (un choix existant est conservé) ; réponses longues lues jusqu’au bout ; reprise au passage interrompu ; « Interrompre en parlant » en option ; avatar facultatif.
+- **Aujourd’hui** : salutation selon l’heure, prénom par compte, heure en direct ; « Actuellement » en deux colonnes ; décisions et Ma journée côte à côte ; action ouverte en fenêtre flottante. Météo OpenWeather (désactivée sans clé testée ; lien « Demander ma clé OpenWeather »). Page deux fois plus rapide sur un cabinet fictif de 300 dossiers.
+- **Volet du robot** : logo AxiorHub, en-tête de contexte, champ, micro et Envoyer toujours visibles, fenêtre modale accessible au clavier.
+- **Affichage** : police Figtree par défaut (IBM Plex et police du système en variantes), densité compacte ou confort par compte.
+- **Clés d’IA** : une clé Mistral ou Claude refusée ne remplace plus la clé en service (test, puis publication transactionnelle avec révision). Libellé du quota Mistral.
+- **Veille** : routine « Veille juridique et économique » tous les trois jours, un seul passage par créneau.
+- **Assistant d’installation** : reprise d’une session, « Ajouter une fonction » sans ressaisir les secrets ni désactiver la messagerie, cartes réelles de l’IA, de la météo et de la vue assistée.
+
 ## 5.6.95 — Brouillons terminés, recherche commune, routage mesuré, Aujourd’hui en Carbon
 
 Rédaction encadrée des courriels, recherche dans le dossier unifiée, routage tenant compte des mesures réelles, et page Aujourd’hui plus efficace avec l’encadré « Actuellement ».

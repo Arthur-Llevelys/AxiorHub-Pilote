@@ -134,11 +134,16 @@ def preview(desk, data, owner='cabinet'):
     if not isinstance(ctx, dict):
         ctx = {}
     mail_key = str(ctx.get('mail_key') or '')
-    out = resolve_intent(text, data.get('intent') or 'auto', mail_key)
+    # 5.6.96 (R01) : même classement du périmètre que missions567.create, avant le dossier
+    from . import recherche_publique5696 as public
+    requested = str(data.get('intent') or 'auto')
+    cadre = public.cadrer(text, data) if requested in public.INTENTIONS_OUVERTES else public.cadre_dossier(text)
+    out = resolve_intent(text, 'question' if cadre['perimetre'] == 'public' and requested == 'auto' else requested, mail_key)
+    out['perimetre'], out['outil_public'] = cadre['perimetre'], cadre['outil']
     from .docrequest520 import find_matter
     matters = {str(m['id']): m for m in load_matters(desk.c)}
-    chosen = str(data.get('matter') or '')
-    named, candidates = find_matter(desk, text)
+    chosen = '' if cadre['perimetre'] == 'public' or cadre['general'] else str(data.get('matter') or '')
+    named, candidates = find_matter(desk, cadre['texte']) if cadre['resoudre_dossier'] else (None, [])
     matter = chosen if chosen in matters else (named['id'] if named else '')
     out['matter'] = matter
     out['matter_label'] = matter_display(matters[matter]) if matter in matters else ''
@@ -159,7 +164,8 @@ def preview(desk, data, owner='cabinet'):
         except Stop as ex:
             out['facturation'] = {'missing': [str(ex)], 'ready': False}
     out['options'] = [{'intent': k, 'label': v} for k, v in DELIVERABLES.items()]
-    out['summary'] = out['label'] + (' · ' + out['matter_label'] if out['matter_label'] else ' · dossier à préciser' if out['needs_matter'] or out['ambiguous'] else ' · tout le cabinet')
+    out['summary'] = out['label'] + (' · ' + out['matter_label'] if out['matter_label'] else ' · dossier à préciser' if out['needs_matter'] or out['ambiguous']
+                                     else ' · question publique' if cadre['perimetre'] == 'public' else ' · tout le cabinet')
     return out
 
 

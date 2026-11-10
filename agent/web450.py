@@ -51,6 +51,8 @@ def handle(desk, name, data, method='POST', args=None):
             return {'journal': ech.journal(desk, str(args.get('id', '')))}
         raise Stop('route_inconnue')
     ident = str(data.get('id', ''))
+    # 5.6.96 (D03, D05) : auteur de la session (posé par web440), version vue par la page (409 si périmée), clé d'idempotence du formulaire
+    actor, version, cle = str(data.get('_owner') or '')[:160], data.get('version'), str(data.get('cle') or '')[:200]
     if name == 'deadline/preview':
         return preview(data)
     if name == 'deadline/create':
@@ -65,7 +67,7 @@ def handle(desk, name, data, method='POST', args=None):
             raise Stop('distance_invalide')
         return ech.confirm(desk, _dav(desk), ident, str(data.get('rule_id', '')), distance,
                            bool(data['alsace']) if 'alsace' in data else None,
-                           str(data['regime_date']) if 'regime_date' in data else None)
+                           str(data['regime_date']) if 'regime_date' in data else None, actor, version, cle)
     if name == 'deadline/correct':
         new_due = str(data.get('new_due') or '')
         if new_due:
@@ -80,9 +82,15 @@ def handle(desk, name, data, method='POST', args=None):
         if distance is not None and distance not in engine.DISTANCES:
             raise Stop('distance_invalide')
         return ech.correct(desk, _dav(desk), ident, str(data.get('reason', '')), new_due, start,
-                           str(data.get('rule_id', '')), distance, regime)
+                           str(data.get('rule_id', '')), distance, regime, actor, version, cle)
     if name == 'deadline/close':
-        return ech.close(desk, _dav(desk), ident, str(data.get('outcome', '')), str(data.get('reason', '')))
+        # 5.6.96 (D04) : décision interne, aucun client d'agenda ouvert ; ``ecart`` : fausse détection écartée (empreinte mémorisée)
+        return ech.close(desk, None, ident, str(data.get('outcome', '')), str(data.get('reason', '')), actor, version, cle, data.get('ecart') is True)
+    if name == 'deadline/agenda':
+        # 5.6.96 (D04) : retrait expressément demandé de l'événement d'une échéance annulée ou écartée, après vérifications
+        if data.get('verifie_main') is True:      # la personne a repris l'agenda elle-même : aucun client d'agenda ouvert
+            return ech.retirer_agenda(desk, None, ident, actor, version, cle, verifie_main=True)
+        return ech.retirer_agenda(desk, _dav(desk), ident, actor, version, cle)
     if name == 'deadline/act':
         return ech.mark_act_prepared(desk, ident, bool(data.get('prepared', True)))
     if name == 'deadline/check':
@@ -145,20 +153,16 @@ def _item(row, rules, prefix, today):
             '<label>Date de la déclaration d’appel <small>(régime des appels, si la règle l’exige)</small>'
             '<input type="date" class="ex-regime" value="%s"></label>'
             '<button type="button" class="ax-btn ex-confirm">%s</button></fieldset>'
-            '<fieldset><legend>Corriger (motif obligatoire, consigné au journal)</legend>'
-            '<label>Nouvelle date de départ <input type="date" class="ex-newstart"></label>'
-            '<label>ou échéance imposée <input type="date" class="ex-newdue"></label>'
-            '<label>Motif <input type="text" class="ex-reason" maxlength="300" placeholder="Ex. signification reçue le …"></label>'
-            '<button type="button" class="ax-btn ghost ex-correct">Corriger</button></fieldset>'
-            '<fieldset><legend>Suites</legend>'
+            '<fieldset><legend>Décider</legend>'
             '<label class="ax-check"><input type="checkbox" class="ex-act"%s> Acte ou brouillon préparé</label>'
-            '<div class="ax-actions"><button type="button" class="ax-btn ghost ex-done">Marquer comme accomplie</button>'
-            '<button type="button" class="ax-btn danger ex-cancel">Annuler l’échéance</button></div></fieldset></div>') % (
+            '%s</fieldset></div>') % (
             _rule_options(row['start_event'], row['rule_id'], rules), distance, ' checked' if row['alsace'] else '',
             e(row['regime_date'], quote=True), 'Confirmer cette échéance' if row['status'] == 'a_confirmer' else 'Recalculer',
-            ' checked' if row['act_prepared'] else '')
+            ' checked' if row['act_prepared'] else '', _decisions(row))
+    elif row['status'] == 'annulee' and row['calendar_state'] in ech.AGENDA_A_DECIDER:
+        actions = '<div class="ex-actions"><fieldset><legend>Agenda</legend>%s</fieldset></div>' % _decision(row, 'agenda')
     due_label = row.get('due_label') or 'Échéance à compléter'
-    return ('<article class="ex-item st-%s" id="e-%s" data-id="%s" data-status="%s"><details%s><summary>'
+    return ('<article class="ex-item st-%s" id="e-%s" data-id="%s" data-status="%s" data-version="%d"><details%s><summary>'
             '<strong class="ex-due">%s</strong> %s <span class="ex-rule-name">%s</span>'
             '<span class="ax-muted"> · %s</span> <span class="ex-badge st">%s</span></summary>'
             '<div class="ex-body"><dl>'
@@ -168,7 +172,8 @@ def _item(row, rules, prefix, today):
             '<h4>Calcul</h4><ol class="ex-steps">%s</ol>%s'
             '<p><button type="button" class="ax-btn ghost ex-journal">Voir le journal</button></p><ul class="ex-log" hidden></ul>%s'
             '</div></details></article>') % (
-        e(row['status']), e(row['id']), e(row['id']), e(row['status']), ' open' if row['status'] in ('a_confirmer', 'a_completer') else '',
+        e(row['status']), e(row['id']), e(row['id']), e(row['status']), int(row.get('revision') or 1),
+        ' open' if row['status'] in ('a_confirmer', 'a_completer') or row['calendar_state'] in ech.AGENDA_A_DECIDER else '',
         e(due_label), _days_badge(row, today), e(row['rule_label']), e(row['matter_label']), e(row['status_label']),
         e(row['start_event_label']), e(engine.fr_date(date.fromisoformat(row['start_date']))),
         e(row['rule_label']), e(articles), source, excerpt, e(CAL_LABELS.get(row['calendar_state'], row['calendar_state'] or 'pas encore inscrite')), error,
@@ -176,15 +181,86 @@ def _item(row, rules, prefix, today):
 
 
 CAL_LABELS = {'cree': 'inscrite à l’agenda', 'mis_a_jour': 'inscrite à l’agenda (mise à jour)',
-              'non_configure': 'agenda non configuré'}
+              'non_configure': 'agenda non configuré', 'a_valider': 'inscription à valider (page Autonomie)',
+              'non_validee': 'pas inscrite : à confirmer d’abord', 'non_inscrite': 'pas inscrite',
+              'retrait_propose': 'retrait de l’agenda proposé, en attente de votre décision', 'retiree': 'retirée de l’agenda',
+              'absent_agenda': 'déjà absente de l’agenda', 'synchronisation_a_reprendre': 'synchronisation à reprendre (agenda injoignable)',
+              'a_reconcilier': 'à vérifier à la main dans l’agenda (rien n’a été effacé)', 'a_resynchroniser': 'agenda à mettre à jour',
+              'verifie_a_la_main': 'agenda vérifié à la main'}
 ANOMALY_LABELS = {'date_manquante': 'Date manquante', 'agenda_absent': 'Absente de l’agenda', 'agenda_divergent': 'Agenda divergent',
-                  'deux_dates': 'Dates contradictoires', 'sans_acte': 'Aucun acte préparé', 'depassee': 'Échéance dépassée'}
+                  'deux_dates': 'Dates contradictoires', 'sans_acte': 'Aucun acte préparé', 'depassee': 'Échéance dépassée',
+                  'agenda_a_reconcilier': 'Agenda à reprendre'}
+# 5.6.96 (D03) : quatre décisions distinctes, chacune avec son formulaire placé à côté du bouton (motif obligatoire, sauf retrait d'agenda).
+DECISIONS = (('corriger', 'Corriger la date', 'Corriger la date de départ ou imposer l’échéance'),
+             ('ecarter', 'Écarter une fausse détection', 'Écarter cette détection : ce n’est pas un événement qui fait courir un délai'),
+             ('accomplir', 'Marquer accomplie', 'Marquer l’échéance comme accomplie'),
+             ('annuler', 'Annuler une échéance devenue sans objet', 'Annuler cette échéance devenue sans objet'))
+
+
+def _decision(row, kind):
+    """Bouton et formulaire voisin (masqué). Le formulaire rappelle dossier, date et action ; le motif porte sa consigne et son erreur."""
+    label, title = {k: (b, t) for k, b, t in DECISIONS}.get(kind, ('Retirer l’événement de l’agenda', 'Retirer de l’agenda l’événement de cette échéance'))
+    if kind == 'agenda' and row['calendar_state'] == 'synchronisation_a_reprendre':
+        label = 'Réessayer le retrait de l’agenda'
+    if kind == 'agenda' and row['calendar_state'] == 'a_reconcilier':
+        kind, label, title = 'verifie', 'J’ai vérifié l’agenda à la main', 'Noter que l’événement d’agenda a été vérifié à la main'
+    box = 'ex-box-%s-%s' % (kind, row['id'][:16])
+    err = box + '-err'
+    fields = ''
+    if kind == 'corriger':
+        fields = ('<label>Nouvelle date de départ <input type="date" class="ex-newstart"></label>'
+                  '<label>ou échéance imposée <input type="date" class="ex-newdue"></label>')
+    if kind == 'verifie':
+        fields += '<p>Rien ne sera lu ni écrit dans l’agenda : la décision est seulement notée au journal de l’échéance.</p>'
+    elif kind != 'agenda':
+        fields += ('<label>Motif (obligatoire)<input type="text" class="ex-reason" maxlength="300" required minlength="3" list="ex-motifs" '
+                   'aria-describedby="%s" autocomplete="off"></label>') % e(err, quote=True)
+    else:
+        fields += ('<p>L’événement n’est retiré que s’il a été créé par AxiorHub pour cette échéance, dans un agenda configuré, '
+                   'et s’il n’a pas changé depuis sa lecture. Sinon, rien n’est effacé.</p>')
+    due = row.get('due_label') or 'sans date'
+    return ('<div class="ex-decision"><button type="button" class="ax-btn %s ex-open" data-kind="%s" aria-expanded="false" aria-controls="%s">%s</button>'
+            '<div class="ex-box" id="%s" role="group" aria-label="%s" data-kind="%s" hidden>'
+            '<p class="ex-recap"><strong>%s</strong> · %s · %s</p>%s'
+            '<p class="ex-err ax-alert" id="%s" role="alert" hidden></p>'
+            '<div class="ax-actions"><button type="button" class="ax-btn ghost ex-back">Annuler</button>'
+            '<button type="button" class="ax-btn ex-send">Confirmer</button></div></div></div>') % (
+        'danger' if kind in ('ecarter', 'annuler') else 'ghost', e(kind, quote=True), e(box, quote=True), e(label),
+        e(box, quote=True), e(title, quote=True), e(kind, quote=True),
+        e(title), e(row['matter_label']), e(due), fields, e(err, quote=True))
+
+
+def _decisions(row):
+    return '<div class="ex-decisions">%s</div>' % ''.join(_decision(row, k) for k, _, _ in DECISIONS)
+
+
+def _propositions(desk, prefix):
+    """5.6.96 (D02) : les détections attendent une décision dans Contentieux › Délais ; rien n'est inscrit avant. Lecture seule."""
+    try:
+        from . import contentieux5689 as base, delais5689 as delais
+        from .membres5650 import viewer_hidden
+        base.schema(desk)
+        delais.schema(desk)
+        hidden = viewer_hidden() or frozenset()
+        rows = [r for r in desk.db.execute("SELECT matter,COUNT(*) AS n FROM deadline_candidates5689 WHERE statut IN ('propose','a_verifier') GROUP BY matter")
+                if r['matter'] not in hidden]
+    except Exception:   # noqa: BLE001 : la page reste utilisable ; l'état est dit, jamais un faux zéro
+        return '<section class="ax-card"><p class="ax-alert">Les propositions de délais n’ont pas pu être relues.</p></section>'
+    if not rows:
+        return ''
+    lines = ''.join('<li><a href="%s">%s</a> : %d proposition(s) à vérifier</li>' % (
+        e(prefix + '/contentieux?' + urlencode({'dossier': r['matter'], 'onglet': 'delais'}), quote=True), e(ech.matter_label(desk, r['matter'])), r['n'])
+        for r in rows)
+    return ('<section class="ax-card ex-propositions"><h2>Détections à vérifier</h2><p class="ax-muted">Repérées dans les pièces, elles ne sont ni inscrites '
+            'à l’agenda ni rappelées tant qu’une personne ne les a pas validées ou écartées.</p><ul>%s</ul></section>') % lines
 
 
 def page(desk, auth, prefix, args, shell):
     today = date.today()
     ech.ensure_schema(desk)
     rows = ech.listing(desk, include_closed=args.get('closed') == '1')
+    if args.get('closed') != '1':     # 5.6.96 (D04) : une échéance annulée dont l'agenda attend une décision reste visible
+        rows += ech.a_decider_agenda(desk)
     rules = engine.rules_for_ui()
     report = ech.cross_check(desk, None, today)
     anomalies = report['anomalies']
@@ -199,8 +275,8 @@ def page(desk, auth, prefix, args, shell):
     rule_opts = ''.join('<option value="%s" data-regime="%d">%s – %s</option>' % (
         e(r['id'], quote=True), int(r['regime']), e(r['start_event_label']), e(r['label'])) for r in rules)
     items = ''.join(_item(r, rules, prefix, today) for r in rows) or (
-        '<div class="ax-empty"><p>Aucune échéance en cours.</p><p class="ax-muted">Elles apparaissent ici dès que l’agent trouve une signification, '
-        'une notification ou une déclaration d’appel dans un dossier, ou quand vous en ajoutez une.</p></div>')
+        '<div class="ax-empty"><p>Aucune échéance en cours.</p><p class="ax-muted">Une signification, une notification ou une déclaration d’appel repérée '
+        'dans une pièce est d’abord proposée à vérifier (Contentieux › Délais du dossier) ; l’échéance apparaît ici une fois validée, ou quand vous en ajoutez une.</p></div>')
     enabled = bool(desk.settings('automation:deadlines450_enabled', True))
     cal = bool(desk.settings('automation:deadline_calendar450', True))
     body = (
@@ -209,11 +285,11 @@ def page(desk, auth, prefix, args, shell):
         'Vous voyez la règle, le calcul et la source, et vous pouvez corriger (le motif est consigné).</p>'
         '<p class="ax-note"><strong>Périmètre :</strong> procédure civile et commerciale de droit commun (appel, opposition, pourvoi, circuit de l’appel pour les appels formés à compter du 1er septembre 2024). '
         'Non couverts : prud’hommes, juridictions administratives, matière pénale, juge aux affaires familiales, procédures collectives, anciens appels. Pour ceux-là, calculez à la main.</p>'
-        + anomaly_html +
+        + anomaly_html + _propositions(desk, prefix) +
         '<section class="ax-card"><div class="ax-actions"><button type="button" class="ax-btn ghost" id="ex-check">Vérifier l’agenda maintenant</button>'
         '<a class="ax-btn ghost" href="%s">%s</a>'
         '<span class="ax-muted" id="ex-check-result">%s</span></div></section>'
-        '<section id="ex-list">%s</section>'
+        '<section id="ex-list">%s</section><datalist id="ex-motifs">%s</datalist>'
         '<section class="ax-card" id="ex-new"><h2>Ajouter ou simuler une échéance</h2>'
         '<div class="ex-form">'
         '<label>Dossier<select id="ex-matter">%s</select></label>'
@@ -232,6 +308,7 @@ def page(desk, auth, prefix, args, shell):
     ) % (e(prefix + '/echeances?' + ('' if args.get('closed') == '1' else 'closed=1')),
          'Masquer les échéances closes' if args.get('closed') == '1' else 'Afficher aussi les échéances closes',
          e('Dernier contrôle automatique : %s (%s anomalie(s)).' % (str(last.get('at', ''))[:16].replace('T', ' '), last.get('anomalies', 0)) if last else 'Aucun contrôle automatique encore effectué.'),
-         items, matter_opts, rule_opts, ' checked' if enabled else '', ' checked' if cal else '')
+         items, ''.join('<option value="%s"></option>' % e(m, quote=True) for m in ech.MOTIFS_ECART), matter_opts, rule_opts,
+         ' checked' if enabled else '', ' checked' if cal else '')
     head = ('<link rel="stylesheet" href="%s/static/v450.css"><script defer src="%s/static/v450.js"></script>' % (e(prefix), e(prefix)))
     return shell('Échéances', body, prefix, auth['csrf'], '/echeances', head)

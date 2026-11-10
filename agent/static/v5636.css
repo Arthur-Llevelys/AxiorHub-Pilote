@@ -14,7 +14,7 @@
 .ws-ai-dock:not(.ws-ai-dock--embedded){left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%);width:min(760px,calc(100vw - 32px))!important;height:min(88vh,920px);max-height:calc(100dvh - 24px)}
 .ws-ai-dock--wide:not(.ws-ai-dock--embedded){width:min(1100px,calc(100vw - 32px))!important}
 @media(max-width:720px){
-  #ws-ai-dock.ws-ai-dock:not(.ws-ai-dock--embedded){inset:8px!important;transform:none;width:auto!important;height:auto;max-height:none!important}
+  #ws-ai-dock.ws-ai-dock:not(.ws-ai-dock--embedded){inset:0!important;transform:none;width:auto!important;height:auto;max-height:100dvh!important}
   .s5636-dock-open #ws-ai-launcher{display:none!important}
   #ws-ai-launcher{display:inline-flex!important;align-items:center;justify-content:center;bottom:72px!important;top:auto!important;right:12px!important;z-index:85}
 }

@@ -157,6 +157,11 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
     if rule['mode'] == 'chatgpt':
         from . import chatgpt5682 as _plan
         _plan.check_deferred(state_dir)
+    if rule['mode'] == 'mistral':      # 5.6.96 (A03) : clé refusée, limite ou panne en cours : aucun appel, aucun repli, le travail attend sur sa ligne
+        from . import mistral5696
+        held = mistral5696.incident_du_mode(config)
+        if held:
+            raise Stop(held)
     matters = _matters(config, payload, messages)
     matter = sorted(matters)[0] if matters else ''
     from .hybrid400 import policy as hybrid_policy
@@ -198,6 +203,12 @@ def decide(config, purpose, stage='', payload=None, messages=None, max_tokens=35
         if kind == 'chatgpt' and rule['mode'] == 'auto' and chatgpt5682.deferred(state_dir):
             excluded.append('chatgpt_limite_usage_atteinte:' + provider_id)
             continue
+        if kind == 'mistral' and rule['mode'] == 'auto':     # 5.6.96 : connexion Mistral en incident : pas candidate tant qu'il dure
+            from . import mistral5696
+            en_cours = mistral5696.incident(state_dir, provider_id)
+            if en_cours:
+                excluded.append(en_cours['code'] + ':' + provider_id)
+                continue
         rows = _models_for(config, rule, provider_id, provider)
         forced = (rule['modeles'].get(provider_id) or {}).get(wanted)
         if forced not in [r['slug'] for r in rows]:    # modèle retiré, ou réglé pour un autre compte : le choix automatique reprend
@@ -357,6 +368,12 @@ def run(parent, messages, temperature, max_tokens, json_schema, stage, data):
             code = str(error)
             close(state_dir, decision, 'erreur', code)
             conso5682.settle(state_dir, decision['reservation'], 'liberee' if code in STOP_CODES or code == 'credit_fournisseur_epuise' else 'incertain')     # 402 : rien de consommé
+            if decision['mode'] == 'mistral' and code not in STOP_CODES:
+                # 5.6.96 (A03) : mode exclusif : limite, quota, clé refusée ou panne : la même ligne attend (Retry-After, délai borné), sans repli
+                from . import mistral5696
+                held = mistral5696.code_travail(state_dir, decision['fournisseur'], code)
+                if held:
+                    raise Stop(held) from None
             if code not in STOP_CODES and code in FALLBACK_ON and decision['mode'] == 'auto':
                 tried.append(decision['fournisseur'])
                 try:
@@ -389,7 +406,15 @@ def summary(decision):
     return {'modele': decision.get('nom_modele') or decision.get('modele'), 'fournisseur': decision.get('fournisseur'),
             'effort': tache5682.EFFORT_LABELS.get(decision.get('effort') or '', 'non réglable'), 'raison': decision.get('raison_courte'),
             'sources': decision.get('sources', 0), 'consommation': ('%s %s' % (('%.3f' % amount).replace('.', ','), unit)).strip() if amount is not None else 'Non fournie',
-            'provisoire': bool(decision.get('provisoire')), 'canal': {'credits': 'Utilise votre abonnement ChatGPT', 'usd': 'API facturée à l’usage', 'aucune': 'Modèle local'}.get(decision.get('unite'), '')}
+            'provisoire': bool(decision.get('provisoire')), 'canal': _canal(decision)}
+
+
+def _canal(decision):
+    """5.6.96 (A01) : une clé Studio Mistral utilise le quota de l'offre de l'organisation, pas une facturation séparée à l'usage."""
+    if decision.get('unite') == 'usd' and decision.get('type_fournisseur') == 'mistral':
+        from .mistral5696 import QUOTA_LIBELLE
+        return QUOTA_LIBELLE
+    return {'credits': 'Utilise votre abonnement ChatGPT', 'usd': 'API facturée à l’usage', 'aucune': 'Modèle local'}.get(decision.get('unite'), '')
 
 
 def for_job(state_dir, job_id):

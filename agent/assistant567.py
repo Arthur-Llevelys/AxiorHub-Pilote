@@ -12,13 +12,33 @@ from .common import Stop, load_matters, matter_display
 DEFAULTS = {'name': 'Pilote', 'tone': 'sobre', 'length': 'courte', 'initiative': 'preparer',
             'lexicon': [], 'speech_enabled': True, 'speech_rate': 1.0, 'discreet': False,   # 5.6.19 : noms lus sauf mode discret choisi
             'avatar': 'icone', 'numeric_success_rates': False,
-            'voice_isolation': True, 'stop_on_silence': True}   # 5.6.94 (V07) : Alkove dans le navigateur (isoler ma voix, fin de prise de parole)
+            'voice_isolation': True, 'stop_on_silence': True,   # 5.6.94 (V07) : Alkove dans le navigateur (isoler ma voix, fin de prise de parole)
+            'interruption_vocale': False,   # 5.6.96 (V03) : par défaut, le micro n'interrompt pas la lecture (décision du cabinet)
+            'prenom': '', 'meteo_masquee': False}   # 5.6.96 (F01, F04) : prénom affiché sur Aujourd'hui, carte météo masquée par la personne
+# 5.6.96 (F01, F04) : préférences propres au compte, jamais héritées du profil du cabinet (le prénom de l'un ne s'affiche pas chez l'autre)
+PERSONNELLES = ('prenom', 'meteo_masquee')
+# 5.6.96 (V06) : « icone » (icône du volet, valeur historique), « aucun » portrait, deux portraits vectoriels dessinés dans le code
+AVATARS = ('icone', 'aucun', 'portrait_a', 'portrait_b')
+# 5.6.96 (V05) : profil de la voix Brindille (liste fermée ``voix5694.PROFILS``). Il n'est pas dans DEFAULTS : un compte qui ne l'a jamais
+# choisi suit le défaut du moment (``voix5694.PROFIL_DEFAUT``, « Français posé ») ; seul un choix explicite est enregistré, puis conservé.
+PROFIL_VOIX = 'voix_brindille'
+
+
+def _profils_voix():
+    from .voix5694 import PROFILS
+    return tuple(PROFILS)
 
 
 def profile(desk, owner='cabinet'):
     base = {**DEFAULTS, **(desk.settings('assistant567:profile:cabinet', {}) or {})}
     if owner != 'cabinet':
-        base.update(desk.settings('assistant567:profile:' + owner, {}) or {})
+        propre = desk.settings('assistant567:profile:' + owner, {}) or {}
+        base.update(propre)
+        for name in PERSONNELLES:   # 5.6.96 : valeur du compte lui-même, sinon la valeur neutre
+            base[name] = propre.get(name, DEFAULTS[name])
+    if base.get(PROFIL_VOIX) not in _profils_voix():   # 5.6.96 (V05) : jamais choisi (ou valeur retirée) : défaut du moment
+        from .voix5694 import PROFIL_DEFAUT
+        base[PROFIL_VOIX] = PROFIL_DEFAUT
     return base
 
 
@@ -26,7 +46,7 @@ def save_profile(desk, data, owner='cabinet'):
     old = profile(desk, owner)
     value = dict(old)
     for name, choices in {'tone': ('sobre', 'direct', 'pedagogique'), 'length': ('courte', 'developpee'),
-                          'initiative': ('preparer', 'proposer'), 'avatar': ('icone', 'aucun')}.items():
+                          'initiative': ('preparer', 'proposer'), 'avatar': AVATARS, PROFIL_VOIX: _profils_voix()}.items():
         if name in data:
             if data[name] not in choices:
                 raise Stop('preference_assistant_invalide')
@@ -36,7 +56,16 @@ def save_profile(desk, data, owner='cabinet'):
         if not 1 <= len(name) <= 40 or re.search(r'[<>\x00-\x1f]', name):
             raise Stop('nom_assistant_invalide')
         value['name'] = name
-    for name in ('speech_enabled', 'discreet', 'voice_isolation', 'stop_on_silence'):
+    if 'prenom' in data:   # 5.6.96 (F01) : prénom affiché, saisi par la personne (jamais déduit de l'adresse de connexion) ; vide → « Bonjour »
+        prenom = ' '.join(str(data['prenom'] if data['prenom'] is not None else '').split())
+        if not isinstance(data['prenom'], (str, type(None))) or len(prenom) > 40 or re.search(r'[<>\x00-\x1f\x7f]', str(data['prenom'] or '')):
+            raise Stop('prenom_invalide')
+        value['prenom'] = prenom
+    if 'meteo_masquee' in data:   # 5.6.96 (F04) : carte météo masquée par la personne (rien n'est alors chargé)
+        if not isinstance(data['meteo_masquee'], bool):
+            raise Stop('preference_assistant_invalide')
+        value['meteo_masquee'] = data['meteo_masquee']
+    for name in ('speech_enabled', 'discreet', 'voice_isolation', 'stop_on_silence', 'interruption_vocale'):
         if name in data:
             if not isinstance(data[name], bool):
                 raise Stop('preference_assistant_invalide')
@@ -63,7 +92,10 @@ def save_profile(desk, data, owner='cabinet'):
         value['lexicon'] = terms
     # Une préférence ne peut modifier ni la confidentialité ni les permissions.
     value['numeric_success_rates'] = False
-    desk.setting('assistant567:profile:' + owner, value)
+    stocke = dict(value)
+    if PROFIL_VOIX not in data and PROFIL_VOIX not in (desk.settings('assistant567:profile:' + owner, {}) or {}):
+        stocke.pop(PROFIL_VOIX, None)   # 5.6.96 (V05) : enregistrer une autre préférence ne fige pas le profil de voix par défaut
+    desk.setting('assistant567:profile:' + owner, stocke)
     desk.audit('preferences_assistant567', {'owner_hash': hashlib.sha256(owner.encode()).hexdigest(), 'fields': sorted(data)})
     return value
 

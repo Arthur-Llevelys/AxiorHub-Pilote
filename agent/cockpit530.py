@@ -1162,12 +1162,19 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     months = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')
     now = datetime.now(z)
     when = '%s %d %s %d' % (days[now.weekday()].capitalize(), now.day, months[now.month - 1], now.year)
-    options = ''.join('<option value="%s">%s</option>' % (e(mid, quote=True), e(label)) for mid, label in sorted(_labels(desk).items(), key=lambda kv: fold(kv[1])))
     header = header_html(desk).replace('href="diagnostic"', 'href="%s"' % e(prefix + '/diagnostic', quote=True))
     matin = _matin5688(desk, prefix, owner)
     routines = routines_html(desk, prefix, owner)
     if not matin:                  # 5.6.89 (B12) : pas de lien vers une carte absente
         routines = routines.replace(LIEN_MATIN, '')
+    if _accueil5689(desk):        # 5.6.89 (§ 12) : mêmes morceaux, nouvelle disposition ; un incident rend l'ancienne page
+        try:                      # 5.6.96 (U06) : rendue d'abord, sans construire l'ancienne page ; seuls les blocs affichés sont calculés
+            return _page5689(desk, prefix, owner, when, header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix),
+                             routines_bar_html(desk, prefix, {'owner': owner}, compact=True), matin, routines, queue)
+        except Exception as ex:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
+            import logging
+            logging.getLogger(__name__).exception('accueil 5.6.89 : %s', ex)
+    options = ''.join('<option value="%s">%s</option>' % (e(mid, quote=True), e(label)) for mid, label in sorted(_labels(desk).items(), key=lambda kv: fold(kv[1])))
     html = ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
             # 5.6.17 : le cadre « Routines du cabinet » (briefing, tri, bilan, documents) est en tête de page, avant le Pilote.
@@ -1193,20 +1200,12 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
         reprise = _reprise57(desk, owner, prefix)
     except Exception:   # noqa: BLE001 — la carte de reprise ne doit jamais empêcher l'affichage d'Aujourd'hui
         reprise = ''
-    file_seule = queue            # l'accueil 5.6.89 dit ces états dans Travail préparé, une seule fois
     try:   # 5.6.89 (UX12, UX13) : liste incomplète ou anciens projets non relus, dits au-dessus de la file
         from .livrables_web5689 import aujourdhui_html
         queue = aujourdhui_html(desk, prefix) + (queue or '')
     except Exception:   # noqa: BLE001 — ce bandeau ne doit jamais empêcher l'affichage d'Aujourd'hui
         pass
     veille = veille_card(desk, prefix, owner)
-    if _accueil5689(desk):        # 5.6.89 (§ 12) : mêmes morceaux, nouvelle disposition ; un incident rend l'ancienne page
-        try:
-            return _page5689(desk, prefix, owner, when, header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix), routines_bar_html(desk, prefix, {'owner': owner}, compact=True),
-                             matin, routines, options, file_seule, reprise, veille)
-        except Exception as ex:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
-            import logging
-            logging.getLogger(__name__).exception('accueil 5.6.89 : %s', ex)
     actuellement = ''
     try:   # 5.6.95 (A01) : encadré « Actuellement » aussi sur l'ancienne page ; masqué par la personne : rien n'est calculé
         from . import tableau5688
@@ -1225,16 +1224,71 @@ def _accueil5689(desk):
     return lire(desk)['accueil']
 
 
-def _page5689(desk, prefix, owner, when, header, bandeaux, barre, matin, routines, options, queue, reprise, veille):
-    from . import accueil5689, crm5688, memoire5688
+# 5.6.96 (U06) : blocs du bas d'Aujourd'hui servis à l'ouverture de leur pli quand la personne les a repliés (``m530/part?name=``, mêmes droits).
+DIFFERES = ('veille', 'societes', 'memoire', 'reprise')
+
+
+def _differe5696(bloc):
+    """Contenu d'attente d'un bloc replié : chargé à l'ouverture par v5696-affichage.js. La veille garde sa section (même identifiant, même titre)."""
+    attente = '<p class="a96-differe" role="status">Contenu chargé à l’ouverture de ce bloc.</p>'
+    if bloc == 'veille':
+        return ('<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille" data-a96-part="veille">'
+                '<h2 class="c530-sr" id="c5632-t-veille">Veille juridique</h2>%s</section>') % attente
+    return '<div class="a96-part" data-a96-part="%s">%s</div>' % (e(bloc, quote=True), attente)
+
+
+def _page5689(desk, prefix, owner, when, header, bandeaux, barre, matin, routines, queue):
+    """5.6.96 (U06) : les réglages de la personne (``tableau5688``) sont lus avant de construire les blocs : un bloc masqué n'est pas calculé,
+    un bloc du bas replié n'est construit qu'à l'ouverture de son pli. Le composeur historique, masqué, ne porte plus la liste des dossiers."""
+    from . import accueil5689, crm5688, memoire5688, tableau5688
+    from .actuellement5695 import plis_fermes
     from .membres5650 import viewer_hidden
     hidden = viewer_hidden() or frozenset()
-    blocs = {'routines': accueil5689.routines_bloc(barre, routines, accueil5689.resume_briefing(desk)), 'style': '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section>' % style_html(desk, prefix),
-             'file': '<div class="c5662-file" id="c5656-file">%s</div>' % (queue or ''), 'activite': '<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>' % feed_html(desk, prefix),
-             'journee': '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section>' % day_html(desk, prefix),
-             'veille': '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">%s</section>' % veille,
-             'reprise': ('<div class="c5656-wide c5662-reprise">%s</div>' % reprise) if reprise else '', 'societes': crm5688.today_html(desk, prefix), 'memoire': memoire5688.panel_html(desk, owner, '', hidden)}
-    return accueil5689.page(desk, prefix, owner, {'date': when, 'entete': header, 'bandeaux': bandeaux, 'matin': matin, 'blocs': blocs, 'composeur': COMPOSEUR % (thread_html(desk, prefix), options), 'tiroir': TIROIR})
+    prefs = tableau5688.charger(desk, owner)
+    masques, fermes = set(prefs['masques']), plis_fermes(desk, owner)
+
+    def reprise():
+        r = _reprise5689(desk, owner, prefix)
+        return ('<div class="c5656-wide c5662-reprise">%s</div>' % r) if r else ''
+    constructeurs = (
+        ('routines', lambda: accueil5689.routines_bloc(barre, routines, accueil5689.resume_briefing(desk))),
+        ('style', lambda: '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section>' % style_html(desk, prefix)),
+        ('file', lambda: '<div class="c5662-file" id="c5656-file">%s</div>' % (queue or '')),
+        ('activite', lambda: '<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>' % feed_html(desk, prefix)),
+        ('journee', lambda: '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section>' % day_html(desk, prefix)),
+        ('veille', lambda: '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">%s</section>' % veille_card(desk, prefix, owner)),
+        ('reprise', reprise), ('societes', lambda: crm5688.today_html(desk, prefix)), ('memoire', lambda: memoire5688.panel_html(desk, owner, '', hidden)))
+    blocs = {}
+    for bloc, construire in constructeurs:
+        if bloc in masques:
+            continue
+        blocs[bloc] = _differe5696(bloc) if bloc in DIFFERES and bloc in fermes else construire()
+    return accueil5689.page(desk, prefix, owner, {'date': when, 'entete': header, 'bandeaux': bandeaux, 'matin': matin, 'blocs': blocs, 'composeur': COMPOSEUR % (thread_html(desk, prefix), ''), 'tiroir': TIROIR})
+
+
+def _reprise5689(desk, owner, prefix):
+    try:
+        from .reprise5657 import card_html as _reprise57
+        return _reprise57(desk, owner, prefix)
+    except Exception:   # noqa: BLE001 — la carte de reprise ne doit jamais empêcher l'affichage d'Aujourd'hui
+        return ''
+
+
+def _part5696(desk, prefix, bloc):
+    """Bloc du bas demandé à l'ouverture de son pli : mêmes fonctions, même compte et mêmes dossiers masqués que la page complète."""
+    from .affichage5696 import compte_courant
+    from .membres5650 import viewer_hidden
+    owner = compte_courant()
+    if bloc == 'veille':
+        return veille_card(desk, prefix, owner)
+    if bloc == 'reprise':
+        r = _reprise5689(desk, owner, prefix)
+        return ('<div class="c5656-wide c5662-reprise">%s</div>' % r) if r else ''
+    if bloc == 'societes':
+        from .crm5688 import today_html
+        return today_html(desk, prefix)
+    from .memoire5688 import panel_html
+    return panel_html(desk, owner, '', viewer_hidden() or frozenset())
 
 
 def _personnel5688(desk, prefix, html, owner):
@@ -1286,6 +1340,8 @@ def handle(desk, name, data, method='POST', args=None):
             prefix = str(args.get('prefix') or '')
             if part == 'header':
                 return {'html': header_html(desk)}
+            if part in DIFFERES:   # 5.6.96 (U06) : bloc replié d'Aujourd'hui, servi à l'ouverture
+                return {'html': _part5696(desk, prefix, part)}
             if part not in PARTS:
                 raise Stop('route_inconnue')
             return {'html': PARTS[part](desk, prefix)}

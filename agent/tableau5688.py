@@ -29,6 +29,10 @@ ACCENTS = {'': ('Bleu d’origine', None, None),
            'ardoise': ('Ardoise', ('#3f5569', '#2f4254', '#e9eef3'), ('#adc4da', '#cfdeec', '#2c3a48')),
            'cuivre': ('Cuivre', ('#8f4a12', '#723a0d', '#f9ecdf'), ('#f2b47c', '#f8d2ae', '#46301e'))}
 ENCRE_SOMBRE = '#0b1220'
+# 5.6.96 (lot affichage, U02, U03) : densité de la page Aujourd'hui et police de l'interface, choisies par la personne dans le même réglage.
+# La police vaut pour toutes les pages (``<html data-police>``, ``affichage5696``) ; Figtree par défaut (décision du cabinet).
+DENSITES = ('confort', 'compacte')
+POLICES = ('figtree', 'plex', 'systeme')
 SCHEMA = 'CREATE TABLE IF NOT EXISTS tableau5688(owner TEXT PRIMARY KEY, data TEXT NOT NULL, modifie TEXT NOT NULL)'
 
 
@@ -61,7 +65,9 @@ def charger(desk, owner):
     accent = raw.get('accent') if raw.get('accent') in ACCENTS else ''
     masques = [m for m in (raw.get('masques') if isinstance(raw.get('masques'), list) else []) if m in IDS]
     ordre = _ordre(raw.get('ordre') if isinstance(raw.get('ordre'), list) else [], tete=True)
-    return {'ordre': ordre, 'masques': masques, 'accent': accent, 'perso': ordre != list(IDS) or bool(masques)}
+    densite = raw.get('densite') if raw.get('densite') in DENSITES else DENSITES[0]
+    police = raw.get('police') if raw.get('police') in POLICES else POLICES[0]
+    return {'ordre': ordre, 'masques': masques, 'accent': accent, 'perso': ordre != list(IDS) or bool(masques), 'densite': densite, 'police': police}
 
 
 def enregistrer(desk, owner, data):
@@ -73,9 +79,19 @@ def enregistrer(desk, owner, data):
     masques = [k for k in IDS if data.get('voir:' + k) is False]
     if isinstance(data.get('masques'), list):
         masques = [k for k in IDS if k in data['masques']]
+    courant = charger(desk, owner)   # 5.6.96 : densité et police absentes de la demande (ancien formulaire) : valeurs de la personne conservées
+    densite = str(data.get('densite') or courant['densite'])
+    if densite not in DENSITES:
+        raise Stop('densite_inconnue')
+    police = str(data.get('police') or courant['police'])
+    if police not in POLICES:
+        raise Stop('police_inconnue')
     ensure_schema(desk)
-    desk.db.execute('INSERT OR REPLACE INTO tableau5688 VALUES(?,?,?)', (str(owner), json.dumps({'ordre': _ordre(ordre), 'masques': masques, 'accent': accent}), _now()))
+    desk.db.execute('INSERT OR REPLACE INTO tableau5688 VALUES(?,?,?)', (str(owner), json.dumps({'ordre': _ordre(ordre), 'masques': masques, 'accent': accent,
+                                                                                            'densite': densite, 'police': police}), _now()))
     desk.db.commit()
+    from .affichage5696 import oublier_police
+    oublier_police(desk.c.get('state_dir', ''), owner)   # la page suivante relit le choix
     return {'message': 'Votre page Aujourd’hui est enregistrée.'}
 
 
@@ -83,6 +99,8 @@ def reinitialiser(desk, owner):
     ensure_schema(desk)
     desk.db.execute('DELETE FROM tableau5688 WHERE owner=?', (str(owner),))
     desk.db.commit()
+    from .affichage5696 import oublier_police
+    oublier_police(desk.c.get('state_dir', ''), owner)
     return {'message': 'Réglages d’origine rétablis.'}
 
 
@@ -131,6 +149,14 @@ def panneau(prefs, role='administrateur', desk=None):
         e(labels[k], quote=True), icone('retour', taille=16, classe='t95-bas')) for k in prefs['ordre'])
     colors = ''.join('<label class="t88-color t95-couleur"><input type="radio" name="accent" value="%s"%s><span class="t88-swatch" data-swatch="%s" aria-hidden="true"></span><span>%s</span></label>' % (
         e(k, quote=True), ' checked' if k == prefs['accent'] else '', e(k or 'origine', quote=True), e(v[0])) for k, v in ACCENTS.items())
+    # 5.6.96 (U02, U03) : densité d'Aujourd'hui et police de l'interface, mémorisées pour la personne
+    densites = ''.join('<label class="t88-color t95-couleur"><input type="radio" name="densite" value="%s"%s><span>%s</span></label>' % (
+        k, ' checked' if k == prefs.get('densite', DENSITES[0]) else '', e(t('a96.densite.' + k))) for k in DENSITES)
+    polices = ''.join('<label class="t88-color t95-couleur"><input type="radio" name="police" value="%s"%s><span>%s</span></label>' % (
+        k, ' checked' if k == prefs.get('police', POLICES[0]) else '', e(t('a96.police.' + k))) for k in POLICES)
+    reglages96 = ('<fieldset class="t88-colors t95-couleurs"><legend>%s</legend>%s</fieldset>'
+                  '<fieldset class="t88-colors t95-couleurs"><legend>%s</legend>%s<p class="ax-muted">%s</p></fieldset>') % (
+        e(t('a96.densite')), densites, e(t('a96.police')), polices, e(t('a96.police.aide')))
     memoire = ''
     if role == 'administrateur' and desk is not None:
         from .memoire5688 import reglage_html
@@ -140,7 +166,7 @@ def panneau(prefs, role='administrateur', desk=None):
             '<fieldset class="t95-blocs"><legend>%s</legend>'
             '<p class="ax-muted" id="t95-aide">Cochez les blocs à afficher. Monter et Descendre changent leur ordre ; à la souris, vous pouvez aussi les glisser.</p>'
             '<ol class="t88-list t95-list" id="t88-list" aria-describedby="t95-aide">%s</ol></fieldset>'
-            '<fieldset class="t88-colors t95-couleurs"><legend>Couleur d’accent</legend>%s</fieldset><p id="t88-status" role="status" class="c530-sr"></p>'
+            '<fieldset class="t88-colors t95-couleurs"><legend>Couleur d’accent</legend>%s</fieldset>%s<p id="t88-status" role="status" class="c530-sr"></p>'
             '<div class="t95-boutons"><button class="ax-btn" type="submit">Enregistrer</button></div></form>'
             '<form class="m5-form m5-inline t95-form" data-api="m5688/tableau/reinitialiser" data-reload="1"><button class="ax-btn ghost" type="submit">Revenir aux réglages d’origine</button></form>%s</details>') % (
-        e(','.join(prefs['ordre']), quote=True), e(t('a95.perso.blocs')), rows, colors, memoire)
+        e(','.join(prefs['ordre']), quote=True), e(t('a95.perso.blocs')), rows, colors, reglages96, memoire)

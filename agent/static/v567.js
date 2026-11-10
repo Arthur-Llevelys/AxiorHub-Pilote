@@ -41,7 +41,7 @@
     launcher.title = 'Aller au Pilote'; launcher.setAttribute('aria-expanded', 'true');
   }
   function stopVoice() { try { window.axiorhubVoice?.stop(); } catch {} stopAudio(); if (recorder?.state !== 'inactive') recorder?.stop(); }
-  function open() {dock.hidden = false; launcher.setAttribute('aria-expanded', 'true'); question.focus(); refreshCurrent(); loadMatters();}
+  function open() {dock.hidden = false; launcher.setAttribute('aria-expanded', 'true'); question.focus({preventScroll: true}); refreshCurrent(); loadMatters();}   // 5.6.96 (U01) : sans saut de page
   function close() {stopVoice(); if (embedded) return; dock.hidden = true; launcher.setAttribute('aria-expanded', 'false'); launcher.focus();}
   launcher.addEventListener('click', () => {
     if (embedded) { dock.scrollIntoView({behavior: 'smooth', block: 'start'}); question.focus({preventScroll: true}); refreshCurrent(); return; }
@@ -68,12 +68,14 @@
   let mattersLoaded = false, mattersData = [];
   function rebuildMatters(filter) {
     const keep = matter.value, f = (filter || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const kept = keep ? [...matter.options].find(o => o.value === keep) : null;   // 5.6.96 (U06) : dossier de la page, gardé même hors de la liste chargée
     const rows = mattersData.filter(m => !f || m.search.includes(f));
     matter.replaceChildren(new Option('Tout le cabinet', ''));
     const recent = rows.filter(m => m.recent), others = rows.filter(m => !m.recent);
     const group = (label, items) => { if (!items.length) return; const g = document.createElement('optgroup'); g.label = label;
       items.forEach(m => g.append(new Option(m.label + (m.adversaries?.length ? ' · c/ ' + m.adversaries.join(', ') : ''), m.id))); matter.append(g); };
     group('Dossiers récents', recent); group('Autres dossiers', others);
+    if (kept && ![...matter.options].some(o => o.value === keep)) matter.append(new Option(kept.textContent, keep));
     if ([...matter.options].some(o => o.value === keep)) matter.value = keep; else if (f && rows.length === 1) matter.value = rows[0].id;
   }
   async function loadMatters() {
@@ -209,6 +211,11 @@
         choices.forEach((label, id) => {const o = el('option', label); o.value = id; s.append(o);});
         const b = el('button', 'Préciser et démarrer'); b.type = 'button'; b.dataset.missionControl = 'resolve'; c.append(s, b);
       }
+      // 5.6.96 (R03, lot affichage) : recherche publique proposée : un clic renvoie le texte exact ; rien ne part sans ce clic
+      (m.exceptions || []).filter(x => x.code === 'recherche_publique_a_confirmer' && x.requete).forEach(x => {
+        const b = el('button', 'Lancer la recherche publique « ' + x.requete + ' »', 'ws-ai-confirmer'); b.type = 'button';
+        b.dataset.rechercheConfirmer = x.requete; b.dataset.rechercheInstruction = m.instruction || ''; c.append(b);
+      });
     }
     if (m.state === 'error') c.append(el('p', lignes.echec || m.job?.error || (m.exceptions || []).map(x => x.message).join(' '), 'warn'));
     if (['creating', 'queued', 'running', 'error', 'paused','suggested'].includes(m.state)) {
@@ -259,7 +266,8 @@
     const text = question.value.trim(); if (!text) {note('Décrivez le résultat attendu.'); return;}
     const payload = retryPayload || {request_key: token(), instruction: text, matter: matter.value, attachments: [...attachments], intent: intentSelect?.value || 'auto',
       autonomy:dock.querySelector('#ws-ai-autonomy').value, due: dock.querySelector('#ws-ai-due').value, context: {page: cfg.path || '/', selected_documents: selectedDocuments(), mission_id: currentMission?.matter === matter.value ? currentMission.id : '',
-      mail_key: q.get('key') || '', ui: window.axiorhubIa5689?.contexte()}, channel: inputChannel};
+      mail_key: q.get('key') || '', ui: window.axiorhubIa5689?.contexte()}, channel: inputChannel,
+      portee: dock.querySelector('#ws-ai-general')?.getAttribute('aria-pressed') === 'true' ? 'general' : ''};   // 5.6.96 (R01) : mode Général
     sending = true; send.disabled = true; send.textContent = 'Demande enregistrée…'; note('Votre mission est en cours d’enregistrement.');
     try {
       // 5.6.80 : si l'IA tarde, les passages trouvés sans modèle s'affichent après 4 s
@@ -270,6 +278,15 @@
     finally {sending = false; send.disabled = uploadBusy;}
   });
   document.addEventListener('click', async event => {
+    const confirmer = event.target.closest('[data-recherche-confirmer]');   // 5.6.96 (R03) : confirmation explicite, un seul envoi
+    if (confirmer) {
+      if (confirmer.disabled) return; confirmer.disabled = true;
+      try { const m = await api('mission/create', {request_key: token(), instruction: confirmer.dataset.rechercheInstruction, confirmer_recherche: confirmer.dataset.rechercheConfirmer,
+        matter: '', attachments: [], intent: 'auto', autonomy: dock.querySelector('#ws-ai-autonomy').value, due: '', context: {page: cfg.path || '/'}, channel: 'text'});
+        show(m); refreshList(); }
+      catch (e) { confirmer.disabled = false; note(e.message); }
+      return;
+    }
     const rule = event.target.closest('[data-rule-decide]');
     if (rule) { rule.disabled = true; try { const v = await api('rule/decide', {id: rule.dataset.ruleDecide, action: rule.dataset.ruleAction}); note(v.message); rule.closest('p')?.remove(); } catch (e) { note(e.message); rule.disabled = false; } return; }
     const b = event.target.closest('[data-mission-control]'); if (!b) return;
@@ -335,7 +352,7 @@
   // 5.6.13 : état de conversation partagé entre le texte et la voix (dossier, pièces jointes, courriel, mission courante, fil)
   const mic = dock.querySelector('#ws-ai-mic');
   // 5.6.80 : un clic fait pendant le chargement (v5680.js) a déjà ouvert le panneau : on termine son ouverture
-  if (!dock.hidden && !embedded && window.__axPending) {launcher.setAttribute('aria-expanded', 'true'); question.focus(); refreshCurrent(); loadMatters();}
+  if (!dock.hidden && !embedded && window.__axPending) {launcher.setAttribute('aria-expanded', 'true'); question.focus({preventScroll: true}); refreshCurrent(); loadMatters();}
   window.axiorhubPilot = {
     matter: () => matter.value, attachments: () => [...attachments], mailKey: () => q.get('key') || '',
     selectedDocuments, current: () => currentMission, addTurn, show, note,
@@ -352,7 +369,7 @@
     catch (e) {output.textContent = e.message;}
   });
   window.axiorhubProfile567 = api('profile');   // 5.6.9 : une seule lecture du profil par page (v568.js la réutilise)
-  window.axiorhubProfile567.then(p => {profile = p; dock.querySelector('header strong').textContent = p.name + ' · Pilote'; dock.querySelector('#ws-ai-autonomy').value=p.initiative==='proposer' ? 'suggest' : 'prepare';}).catch(() => {});
+  window.axiorhubProfile567.then(p => {profile = p; const titre = dock.querySelector('#ws-ai-titre'); if (titre) titre.textContent = 'Assistant AxiorHub' + (p.name && p.name !== 'Pilote' ? ' · ' + p.name : ''); dock.querySelector('#ws-ai-autonomy').value=p.initiative==='proposer' ? 'suggest' : 'prepare';}).catch(() => {});
   const connections = document.querySelector('#connections567-form');
   let catalog = JSON.parse(document.querySelector('#config567-catalog')?.textContent || 'null');
   connections?.addEventListener('submit', async event => {

@@ -47,7 +47,8 @@ class EcheancesSansEchec(t450.Base):
         with patch('agent.documents.extract', side_effect=fake_extract):
             result = ech.analyze(self.desk, {'matter': 'DOS-001', 'path': t450.PATH, 'etag': '"e1"'}, dav=self.dav, today=t450.TODAY)
         self.assertGreaterEqual(seen['max'], 2_000_000)                    # analyse par règles : pas de limite faite pour un modèle d'IA
-        self.assertEqual(result['echeances_creees'], 1)
+        # 5.6.96 (D02) : la date trouvée en fin de document long est proposée, jamais inscrite sans décision humaine
+        self.assertEqual((result['propositions'], result['echeances_creees']), (1, 0))
 
     def test_scan_illisible_signale_sans_echec_ni_nouvel_essai(self):
         calls = []

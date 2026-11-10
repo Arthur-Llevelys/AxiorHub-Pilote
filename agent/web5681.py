@@ -20,4 +20,4 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'modeles':
         return json_out(modeles5681.list_models(desk, data.get('provider'), data.get('actualiser') is True))
     consent = data.get('consent') is True or str(data.get('consent') or '').lower() in ('on', 'true', '1', 'oui')
-    return json_out(modeles5681.apply_mixte(desk, data.get('api_key', ''), consent))
+    return json_out(modeles5681.apply_mixte(desk, data.get('api_key', ''), consent, revision=data.get('revision_cle')))   # 5.6.96 : 409 si périmée

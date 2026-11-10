@@ -250,7 +250,11 @@ class Reception(ReceptionBase):
 class Voice(unittest.TestCase):
     def test_progressive_sentence_reading_and_shorter_turns(self):
         js = (ROOT / 'agent' / 'static' / 'v568.js').read_text(encoding='utf-8')
-        self.assertIn('function sentences(text)', js);self.assertIn('fetchSpeech(parts[i+1]', js);self.assertIn('now-lastSound>800', js)
+        self.assertIn('now-lastSound>800', js)
+        # 5.6.96 (V01) : la lecture phrase par phrase du volet vocal passe par la file commune de v5694-voix.js (segments préparés par le
+        # serveur, un segment d'avance) ; exercée par la simulation Node tests/lecture5696.cjs (test_v5696_voix).
+        commun = (ROOT / 'agent' / 'static' / 'v5694-voix.js').read_text(encoding='utf-8')
+        self.assertIn('window.axiorhubVoix.speak(text', js);self.assertIn('function sequence(prep, plafond)', commun);self.assertIn('avance = {i: i + 1, p}', commun)
         self.assertIn("'progressive_speech':True", (ROOT / 'agent' / 'web568.py').read_text(encoding='utf-8'))
 
 

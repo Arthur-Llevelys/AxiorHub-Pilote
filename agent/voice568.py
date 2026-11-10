@@ -197,7 +197,8 @@ def speech(desk,text,owner='cabinet',matter=''):
     except Stop as exc:
         from .voix5694 import fournisseur_serveur
         if fournisseur_serveur(desk.c)=='espeak' or not desk.c.get('speech568',{}).get('fallback_local',True):raise
-        desk.setting('voice568:last_fallback:'+owner,{'at':desk.now(),'reason':str(exc),'provider':'espeak'})
+        # 5.6.96 (V04) : voix demandée gardée avec la cause ; remonté à l'écran par voix5694.dernier_repli (jamais le texte)
+        desk.setting('voice568:last_fallback:'+owner,{'at':desk.now(),'reason':str(exc),'provider':'espeak','requested':fournisseur_serveur(desk.c)})
         return assistant567.speech(desk,text,owner)
 
 

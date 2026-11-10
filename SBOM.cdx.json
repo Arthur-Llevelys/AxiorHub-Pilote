@@ -7,9 +7,9 @@
     "timestamp": "2026-10-06T00:00:00Z",
     "component": {
       "type": "application",
-      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.95",
+      "bom-ref": "pkg:generic/axiorhub-pilote@5.6.96",
       "name": "AxiorHub Pilote",
-      "version": "5.6.95",
+      "version": "5.6.96",
       "licenses": [
         {
           "license": {
@@ -566,6 +566,27 @@
         }
       ],
       "description": "Détection de fin de parole"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:github/erikdkennedy/figtree@2.0.3",
+      "name": "Figtree",
+      "version": "2.0.3",
+      "purl": "pkg:github/erikdkennedy/figtree@2.0.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "OFL-1.1"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4ba7d3d096695818fe0686be4f1e82c6b05134e18a22260336130335027462dd"
+        }
+      ],
+      "description": "Police par défaut : agent/static/figtree-latin.woff2 (sous-ensemble latin, Google Fonts v9) ; licence LICENSES/OFL-1.1-Figtree.txt"
     }
   ],
   "dependencies": [

@@ -754,11 +754,574 @@ def p95b_personnaliser(banc, s):
     s.propre('Personnaliser')
 
 
+def p96k_mistral(banc, s):
+    """5.6.96 (lot mistral, A01-A02) : carte « Mistral · clé Studio » dans Modèles d'IA. « Tester la connexion » vise sa propre route depuis le
+    formulaire d'enregistrement ; une clé mal formée est refusée sur le serveur AVANT tout appel réseau (aucun appel à Mistral dans ce
+    parcours), sans rechargement : la saisie reste en place. État « À connecter », quota « Non fourni », champ atteignable au clavier."""
+    p = s.page
+    s.connecter()
+    s.aller('/ia-externe')
+    carte = p.locator('#k96-mistral')
+    verifier(carte.count() == 1 and carte.is_visible(), 'carte Mistral absente de Modèles d’IA')
+    verifier('État : À connecter' in carte.inner_text() and 'Quota restant : Non fourni' in carte.inner_text(), 'état ou quota de la carte Mistral illisible')
+    champ = carte.locator('input[name="cle"]')
+    champ.focus()
+    verifier(p.evaluate('document.activeElement && document.activeElement.name') == 'cle', 'champ de la clé hors d’atteinte au clavier')
+    champ.fill('court')
+    with p.expect_response(lambda r: '/m5682/mistral/tester' in r.url) as attendu:
+        carte.locator('button[data-api="m5682/mistral/tester"]').click()
+    verifier(attendu.value.status == 400 and attendu.value.json().get('error') == 'secret_fournisseur_invalide', 'clé mal formée non refusée par le serveur')
+    p.wait_for_timeout(800)
+    verifier(champ.input_value() == 'court', 'la page a été rechargée : la saisie est perdue')
+    s.erreurs[:] = [x for x in s.erreurs if 'status of 400' not in x]      # refus attendu ci-dessus (le navigateur le note en console)
+    if getattr(banc, 'sortie', None):
+        carte.screenshot(path=str(Path(banc.sortie) / 'P96k-mistral.png'))
+    s.propre('carte Mistral')
+
+
+
+class _FauxOpenWeather96:
+    """5.6.96 (lot accueil) : faux OpenWeather du banc, dans le processus du serveur de test (``meteo5696.HTTP_FACTORY``) : aucun appel réseau, clé fictive."""
+
+    def __init__(self):
+        self.appels = []
+
+    def request(self, method, url, data=None, headers=None, limit=None):
+        from datetime import datetime, timezone
+        from urllib.parse import urlsplit
+        self.appels.append(url)
+        if urlsplit(url).path == '/geo/1.0/direct':
+            return json.dumps([{'name': 'Valbrune', 'lat': 45.1234, 'lon': 4.5678, 'country': 'FR', 'state': 'Région fictive'}]).encode()
+        t0 = int(datetime.now(timezone.utc).timestamp()) // 10800 * 10800
+        codes = (800, 500, 803, 601, 211, 211)
+        liste = [{'dt': t0 + i * 10800, 'main': {'temp_min': 4 + i // 8, 'temp_max': 9 + i // 8}, 'weather': [{'id': codes[i // 8]}]} for i in range(44)]
+        return json.dumps({'cod': '200', 'list': liste}).encode()
+
+
+def _accueil96(banc, meteo=True):
+    """Semis du lot accueil : prénom du compte, une échéance à vérifier, une échéance confirmée du jour, un document préparé, météo réglée (faux service)."""
+    from datetime import date, timedelta
+    from agent import assistant567, meteo5696
+    semis = _semis5695()
+    banc.semer_livrable()
+    faux = _FauxOpenWeather96()
+    meteo5696.HTTP_FACTORY = lambda base: faux
+    meteo5696.vider_cache()
+    with banc.desk() as d:
+        semis.schemas(d)
+        semis.echeance(d, 'banc-ech-verifier', 'DOS-001', (date.today() + timedelta(days=3)).isoformat(), 'a_confirmer')
+        semis.echeance(d, 'banc-ech-confirmee', 'DOS-002', date.today().isoformat(), 'confirmee')
+        d.db.commit()
+        assistant567.save_profile(d, {'prenom': 'Claire'}, 'cabinet')
+        if meteo:
+            meteo5696.tester_cle(d, 'cabinet', 'cle-de-banc-fictive-0001')
+            meteo5696.choisir_lieu(d, 'cabinet', {'ville': 'Valbrune', 'pays': 'FR', 'latitude': 45.123, 'longitude': 4.567})
+            meteo5696.activer(d, 'cabinet', True)
+    faux.appels.clear()
+    return faux
+
+
+def _sans_recouvrement(a, b):
+    return a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x'] or a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y']
+
+
+def p96f1_accueil(banc, s):
+    """5.6.96 (lot accueil, I01, F01, F02, F04) : en-tête « Bonjour Claire, nous sommes le…, il est… » ; carte météo chargée après l'affichage (faux
+    OpenWeather), à droite sans couvrir aucun bouton, sous la salutation en largeur réduite ; ordre Actuellement → rang (2 parts / 1 part) → Travail
+    préparé ; « Actuellement » en deux colonnes de quatre lignes à 1920 × 950 ; Ma journée : échéance confirmée seule ; carte masquée par la personne,
+    plus rien de chargé ; 125 %, mobile et mode sombre sans défilement horizontal."""
+    from agent import meteo5696
+    faux = _accueil96(banc)
+    try:
+        p = s.page
+        p.set_viewport_size({'width': 1920, 'height': 950})
+        s.connecter()
+        p.wait_for_selector('[data-f96-meteo][data-statut="ok"]', timeout=10000)
+        bandeau = p.locator('#f96-bandeau').inner_text()
+        verifier(re.match(r'^(Bonjour|Bon après-midi|Bonsoir) Claire, nous sommes le .+, il est \d{1,2} h \d{2}\.$', bandeau), 'bandeau inattendu : %r' % bandeau)
+        verifier(len([u for u in faux.appels if '/data/2.5/forecast' in u]) == 1, 'la météo n’a pas été demandée une seule fois : %s' % len(faux.appels))
+        carte = p.locator('#f96-meteo').bounding_box()
+        for bouton in ('#a92-pause', '.a89-mission'):
+            boite = p.locator(bouton).bounding_box()
+            verifier(boite and _sans_recouvrement(carte, boite), 'la carte météo recouvre %s' % bouton)
+        verifier(carte['x'] > 960 and carte['y'] < 300, 'la carte météo n’est pas à droite de l’en-tête : %s' % carte)
+        verifier('Données météo fournies par OpenWeather' in p.locator('#f96-meteo').inner_text(), 'attribution absente')
+        ys = [p.locator(sel).bounding_box()['y'] for sel in ('#ax95-actuellement', '.f96-rang', '#a89-travail')]
+        verifier(ys == sorted(ys), 'ordre des zones inattendu : %s' % ys)
+        gauche, droite = p.locator('#f96-decider').bounding_box(), p.locator('.f96-journee').bounding_box()
+        verifier(1.6 < gauche['width'] / droite['width'] < 2.4 and abs(gauche['y'] - droite['y']) < 40, 'rang non réparti en 2/1 : %s / %s' % (gauche, droite))
+        xs = p.eval_on_selector_all('#ax95-zone li[data-rubrique]', 'l => l.map(e => Math.round(e.getBoundingClientRect().x))')
+        verifier(len(xs) == 8 and len(set(xs[:4])) == 1 and len(set(xs[4:])) == 1 and xs[4] > xs[0], '« Actuellement » n’est pas en deux colonnes de quatre : %s' % xs)
+        verifier(p.locator('#f96-lignes-zone a[data-f96-action="echeance"]').count() == 1, 'l’échéance à vérifier n’est pas dans le rang')
+        journee = p.locator('.f96-echeances-jour').inner_text()
+        verifier('banc-ech-verifier' not in p.locator('.f96-echeances-jour').inner_html() and p.locator('.f96-echeances a').count() == 1, 'Ma journée : %r' % journee)
+        if getattr(banc, 'sortie', None):
+            p.screenshot(path=str(Path(banc.sortie) / 'P96F1-aujourdhui-1920.png'))
+            p.emulate_media(color_scheme='dark')
+            p.locator('.f96-tete').screenshot(path=str(Path(banc.sortie) / 'P96F1-entete-sombre.png'))
+            p.emulate_media(color_scheme='light')
+        s.propre('en-tête et rang à 1920 × 950')
+        largeur = 'document.scrollingElement.scrollWidth <= window.innerWidth + 1'
+        for vue, nom in (({'width': 1536, 'height': 760}, '125 %'), ({'width': 390, 'height': 844}, 'mobile')):
+            p.set_viewport_size(vue)
+            p.wait_for_timeout(200)
+            verifier(p.evaluate(largeur), 'défilement horizontal en %s' % nom)
+        b, c = p.locator('#f96-bandeau').bounding_box(), p.locator('#f96-meteo').bounding_box()
+        verifier(c['y'] > b['y'] and _sans_recouvrement(c, p.locator('#a92-pause').bounding_box()), 'mobile : la carte n’est pas sous la salutation ou couvre la pause')
+        p.set_viewport_size({'width': 1920, 'height': 950})
+        # Masquer la carte : rien n'est plus chargé, même après rechargement
+        p.click('#f96-meteo summary')
+        with p.expect_response(lambda r: '/accueil/options' in r.url) as attendu:
+            p.click('[data-f96-masquer]')
+        verifier(attendu.value.ok, 'masquer la carte est refusé')
+        verifier(p.locator('#f96-meteo').count() == 0, 'la carte reste affichée')
+        demandes = []
+        p.on('request', lambda r: demandes.append(r.url) if '/accueil/meteo' in r.url else None)
+        s.aller('/aujourdhui')
+        verifier(p.locator('[data-f96-meteo]').count() == 0 and not demandes, 'carte masquée encore chargée : %s' % demandes)
+        s.propre('carte masquée')
+        verifier(banc.modele.nombre() == 0, 'le modèle a été appelé sur Aujourd’hui (%d)' % banc.modele.nombre())
+    finally:
+        meteo5696.HTTP_FACTORY = None
+        meteo5696.vider_cache()
+
+
+def p96f2_fenetre(banc, s):
+    """5.6.96 (lot accueil, I02) : une action d'Aujourd'hui s'ouvre en fenêtre flottante (<dialog>) depuis le fragment serveur ; titre, Fermer et
+    Plein écran visibles sans défiler ; Échap ferme et rend le focus au bouton d'origine, sans recharger la page ; une saisie non enregistrée
+    déclenche le choix Rester / Fermer sans enregistrer ; sur mobile, plein écran d'emblée."""
+    from agent import meteo5696
+    _accueil96(banc, meteo=False)
+    try:
+        p = s.page
+        p.set_viewport_size({'width': 1920, 'height': 950})
+        s.connecter()
+        p.evaluate('window.__f96_page = 1')                   # marque : un rechargement de la page l'effacerait
+        bouton = p.locator('#f96-lignes-zone a[data-f96-action="echeance"]')
+        bouton.click()
+        fenetre = p.locator('dialog.f96-fenetre[open]')
+        fenetre.wait_for(timeout=5000)
+        p.wait_for_selector('dialog.f96-fenetre .f96-echeance', timeout=5000)
+        verifier('à vérifier' in fenetre.inner_text(), 'la fenêtre ne dit pas que la date est à vérifier')
+        for sel in ('.f96-fenetre-titre', '.f96-fenetre-fermer', '.f96-fenetre-taille'):
+            boite = fenetre.locator(sel).bounding_box()
+            verifier(boite and boite['y'] >= 0 and boite['y'] + boite['height'] <= 950, '%s hors de la vue' % sel)
+        fenetre.locator('.f96-fenetre-taille').click()
+        verifier(abs(fenetre.bounding_box()['width'] - 1920) < 2, 'Plein écran n’occupe pas toute la largeur')
+        if getattr(banc, 'sortie', None):
+            p.screenshot(path=str(Path(banc.sortie) / 'P96F2-fenetre-echeance.png'))
+        p.keyboard.press('Escape')
+        verifier(p.locator('dialog.f96-fenetre[open]').count() == 0, 'Échap ne ferme pas la fenêtre')
+        verifier(p.evaluate('document.activeElement && document.activeElement.getAttribute("data-f96-cle")') == 'banc-ech-verifier', 'le focus n’est pas rendu au bouton d’origine')
+        verifier(p.evaluate('window.__f96_page') == 1, 'la page Aujourd’hui a été rechargée')
+        s.propre('fenêtre d’une échéance')
+        # Document : même détail que la page complète ; saisie non enregistrée → choix explicite
+        p.locator('#a89-travail a[data-f96-action="document"]:visible').first.click()
+        p.wait_for_selector('dialog.f96-fenetre[open] .l89-detail', timeout=10000)
+        fenetre.locator('details.l89-ia > summary').click()
+        fenetre.locator('details.l89-ia textarea[name=instruction]').fill('Consigne fictive non envoyée')
+        p.keyboard.press('Escape')
+        verifier(fenetre.locator('.f96-quitter').is_visible(), 'aucune question avant de perdre la saisie')
+        fenetre.locator('.f96-q-rester').click()
+        verifier(p.locator('dialog.f96-fenetre[open]').count() == 1, '« Rester » a fermé la fenêtre')
+        fenetre.locator('.f96-fenetre-fermer').click()
+        fenetre.locator('.f96-q-abandon').click()
+        verifier(p.locator('dialog.f96-fenetre[open]').count() == 0, '« Fermer sans enregistrer » ne ferme pas')
+        with banc.desk() as d:
+            verifier(not d.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('pending','running')").fetchone()[0], 'la fenêtre a mis un travail en file')
+        s.propre('fenêtre d’un document')
+        p.set_viewport_size({'width': 390, 'height': 844})
+        p.locator('#f96-lignes-zone a[data-f96-action="echeance"]').click()
+        p.wait_for_selector('dialog.f96-fenetre.f96-plein[open]', timeout=5000)
+        p.keyboard.press('Escape')
+        s.propre('fenêtre sur mobile')
+        verifier(banc.modele.nombre() == 0, 'le modèle a été appelé (%d)' % banc.modele.nombre())
+    finally:
+        meteo5696.HTTP_FACTORY = None
+
+
+def _semer_courriels96(banc):
+    """5.6.96 (lot courriels) : deux courriels reçus, relevés par l'agent (état, rapport, fil), projetés comme le fait le collecteur ; option active."""
+    from datetime import datetime, timedelta, timezone
+    from email.message import EmailMessage
+    from agent import integration
+    from agent.common import digest
+    from agent.mailbox import Mail
+    from agent.state import State
+    compte = '%s@%s' % (banc.config['mail']['username'], banc.config['mail']['host'])
+    fils = []
+    with banc.desk() as d:
+        etat = State(d.c['state_dir'])
+        for n, (dossier, client, objet) in enumerate((('DOS-001', 'DURAND', 'Demande de rendez-vous'), ('DOS-002', 'MARTIN', 'Pièces complémentaires'))):
+            m = EmailMessage()
+            m['From'], m['To'], m['Subject'], m['Message-ID'] = '%s <%s@example.test>' % (client, client.lower()), 'cabinet@example.test', objet, '<banc96-%d@example.test>' % n
+            m.set_content('Bonjour Maître, message fictif.')
+            mail = Mail(str(200 + n), '7', 'INBOX', set(), datetime.now(timezone.utc) - timedelta(hours=n + 1), m)
+            cle = mail.key(compte)
+            etat.set(cle, digest(compte + mail.mid), digest(compte + mail.root), 'observed', '')
+            etat.report(cle, {'key': cle, 'subject': objet, 'sender': client.lower() + '@example.test', 'source_uid': mail.uid, 'source_mailbox': 'INBOX',
+                              'received_at': mail.timestamp.isoformat(), 'matter': dossier, 'account_key': digest(compte)})
+            fils.append(digest(compte + mail.root))
+        etat.db.close()
+        integration.sync_work_items(d)
+        d.setting('courriels5696:vue_assistee', True)
+    return fils
+
+
+def p96c_courriels(banc, s):
+    """5.6.96 (C02, I03, C07) : vue « À traiter avec le Pilote » à 1920 × 1080 puis en mobile : ouvrir, lire (messagerie absente : refus clair,
+    aucune connexion), reporter (focus dans le champ), écarter (motif exigé près du champ), revenir à la liste filtrée. Rien n'est envoyé."""
+    _semer_courriels96(banc)
+    p = s.page
+    p.set_viewport_size({'width': 1920, 'height': 1080})
+    s.connecter()
+    s.aller('/courriels?vue=assistante')
+    verifier(p.locator('.bx5625-tabs a').count() == 3, 'les trois onglets de Courriels ne sont pas affichés')
+    verifier(p.locator('.cx96-ligne').count() == 2, 'la liste n’a pas ses deux fils')
+    verifier('DURAND' in p.locator('.cx96-lignes').inner_text() or 'DOS-001' in p.locator('.cx96-lignes').inner_text(), 'le dossier n’est pas affiché')
+    s.propre('liste')
+    p.locator('.cx96-ligne').first.click()
+    p.wait_for_load_state('networkidle')
+    verifier(p.locator('.cx96-detail h2').count() == 1, 'le détail du fil ne s’ouvre pas')
+    p.locator('.cx96-pourquoi summary').click()
+    p.locator('[data-cx96-lire="fil"]').click()
+    zone = p.locator('[data-cx96-zone="fil"]')
+    zone.filter(has_text='Messagerie non configurée').wait_for(timeout=10000)            # refus clair, sans connexion tentée
+    verifier('Lecture' not in zone.inner_text(), 'la lecture du fil reste en attente')
+    if getattr(banc, 'sortie', None):
+        p.screenshot(path=str(Path(banc.sortie) / 'P96c-courriels-1920.png'))
+    s.propre('lecture du fil')
+    p.locator('.cx96-menu > summary').click()
+    p.locator('.cx96-geste > summary', has_text='Reporter').click()
+    p.wait_for_timeout(300)                    # l'événement « toggle » est asynchrone
+    verifier(p.evaluate('document.activeElement && document.activeElement.name') == 'jusqua', 'le focus n’est pas dans le champ du report')
+    from datetime import date, timedelta
+    p.locator('.cx96-geste[open] input[name=jusqua]').fill((date.today() + timedelta(days=2)).isoformat() + 'T09:30')
+    envoyer(p, '/courriels/decision', lambda: p.locator('.cx96-geste[open] button[type=submit]').click(), 'reporter')
+    verifier(p.locator('.cx96-ligne').count() == 1, 'le fil reporté est resté dans « À traiter »')
+    s.propre('report')
+    p.locator('.cx96-ligne').first.click()
+    p.wait_for_load_state('networkidle')
+    p.locator('.cx96-menu > summary').click()
+    p.locator('.cx96-geste > summary', has_text='Écarter').click()
+    p.wait_for_timeout(300)
+    motif = p.locator('.cx96-geste[open] input[name=motif]')
+    verifier(p.evaluate('document.activeElement && document.activeElement.name') == 'motif', 'le focus n’est pas dans le motif')
+    p.locator('.cx96-geste[open] button[type=submit]').click()
+    verifier(motif.get_attribute('aria-invalid') == 'true' or p.evaluate('!document.querySelector(".cx96-geste[open] input[name=motif]").checkValidity()'),
+             'le motif vide n’est pas signalé au champ')
+    motif.fill('Déjà traité par téléphone')
+    envoyer(p, '/courriels/decision', lambda: p.locator('.cx96-geste[open] button[type=submit]').click(), 'écarter')
+    verifier(p.locator('.cx96-ligne').count() == 0, 'le fil écarté est resté dans la liste')
+    s.aller('/courriels?vue=assistante&filtre=reportes')
+    verifier(p.locator('.cx96-ligne').count() == 1, 'le filtre « Reportés » ne retrouve pas le fil')
+    p.locator('.cx96-ligne').first.click()
+    p.wait_for_load_state('networkidle')
+    with p.expect_navigation():
+        p.locator('a.ui89-retour').click()
+    verifier('filtre=reportes' in p.url and 'fil=' not in p.url, 'le retour ne rend pas la liste filtrée : %s' % p.url)
+    s.propre('retour à la liste')
+    p.set_viewport_size({'width': 390, 'height': 844})
+    p.locator('.cx96-ligne').first.click()
+    p.wait_for_load_state('networkidle')
+    verifier(not p.locator('.cx96-liste').is_visible() and p.locator('.cx96-retour').is_visible(), 'petite largeur : le détail ne remplace pas la liste')
+    if getattr(banc, 'sortie', None):
+        p.screenshot(path=str(Path(banc.sortie) / 'P96c-courriels-mobile.png'))
+    p.locator('.cx96-retour').click()
+    p.wait_for_load_state('networkidle')
+    verifier(p.locator('.cx96-liste').is_visible(), 'petite largeur : « Retour à la liste » ne rend pas la liste')
+    s.propre('mobile')
+    with banc.desk() as d:
+        verifier(d.db.execute("SELECT COUNT(*) FROM jobs WHERE kind='prepare_reply'").fetchone()[0] == 0, 'un travail de préparation a été créé sans demande')
+        verifier(d.db.execute('SELECT COUNT(*) FROM courriels5696_evenements').fetchone()[0] == 2, 'décisions inattendues')
+
+
+DANS_LA_VUE96 = """(sel) => { const n = document.querySelector(sel); if (!n || !n.getClientRects().length) return false;
+    const r = n.getBoundingClientRect(), vv = window.visualViewport || {width: innerWidth, height: innerHeight, offsetTop: 0, offsetLeft: 0};
+    if (r.width < 1 || r.height < 1 || r.top < vv.offsetTop - 1 || r.left < -1 || r.bottom > vv.offsetTop + vv.height + 1 || r.right > vv.width + 1) return false;
+    const x = Math.min(r.left + r.width / 2, vv.width - 1), y = Math.min(r.top + r.height / 2, vv.offsetTop + vv.height - 1), e = document.elementFromPoint(x, y);
+    return !!e && (e === n || n.contains(e) || e.contains(n)); }"""
+SANS_DEFILEMENT_HORIZONTAL96 = 'document.scrollingElement.scrollWidth <= window.innerWidth + 1'
+
+
+def _volet_visible96(p, lieu):
+    """Champ, Envoyer, micro et Fermer visibles sans défiler, non recouverts ; le volet n'a pas fait défiler la page."""
+    for sel, nom in (('#ws-ai-question', 'le champ Instruction'), ('#ws-ai-send', 'Envoyer'), ('#ws-ai-dock .dictation-bar .micro-button', 'le micro'),
+                     ('#ws-ai-close', 'Fermer'), ('#ws-ai-titre', 'le titre')):
+        verifier(p.evaluate(DANS_LA_VUE96, sel), '%s : %s hors de la vue ou recouvert' % (lieu, nom))
+    verifier(p.evaluate(SANS_DEFILEMENT_HORIZONTAL96), '%s : défilement horizontal' % lieu)
+
+
+def p96a_volet(banc, s):
+    """5.6.96 (lot affichage, U01, U04, I04, I07) : volet de l'assistant à 1920 × 950 : dès le clic, champ, Envoyer, micro et Fermer visibles sans
+    défiler, aussi avec un historique long ; un seul titre ; page non déplacée ; fond inerte, Tab reste dans le volet ; Échap ferme et rend le
+    focus au lanceur ; Ctrl+Entrée envoie une seule fois ; brouillon gardé à la fermeture ; 125 %, 200 %, sombre et mobile (clavier logiciel
+    simulé par une hauteur réduite) : Fermer, Envoyer et micro utilisables, aucun défilement horizontal."""
+    p = s.page
+    p.set_viewport_size({'width': 1920, 'height': 950})
+    s.connecter()
+    s.aller('/dossiers')
+    p.evaluate('window.scrollTo(0, 120)')
+    avant = p.evaluate('window.scrollY')
+    p.click('#ws-ai-launcher')
+    p.wait_for_selector('#ws-ai-dock:not([hidden])')
+    p.wait_for_timeout(250)
+    _volet_visible96(p, '1920 × 950')
+    verifier(p.evaluate('document.activeElement && document.activeElement.id') == 'ws-ai-question', 'le focus n’est pas sur le champ Instruction à l’ouverture')
+    verifier(p.evaluate('window.scrollY') == avant, 'l’ouverture du volet a fait défiler la page (%s → %s)' % (avant, p.evaluate('window.scrollY')))
+    titre = p.locator('#ws-ai-titre').inner_text().strip()
+    verifier(titre == 'Assistant AxiorHub', 'titre du volet inattendu : %r' % titre)
+    verifier('Pilote · Pilote' not in p.locator('#ws-ai-dock').inner_text(), 'titre en double')
+    verifier(p.evaluate('document.getElementById("ws-main") ? !!document.getElementById("ws-main").closest("[inert]") : true'), 'le fond de la page n’est pas inerte')
+    verifier(p.locator('#ws-ai-portee-dossier').inner_text() == 'Aucun dossier', 'contexte affiché inattendu')
+    for _ in range(40):                                                        # Tab et Maj+Tab : le focus ne sort jamais du volet
+        p.keyboard.press('Tab')
+        verifier(p.evaluate('document.getElementById("ws-ai-dock").contains(document.activeElement)'), 'Tab a fait sortir le focus du volet')
+    for _ in range(5):
+        p.keyboard.press('Shift+Tab')
+        verifier(p.evaluate('document.getElementById("ws-ai-dock").contains(document.activeElement)'), 'Maj+Tab a fait sortir le focus du volet')
+    # historique long : le fil défile, le composeur reste
+    p.evaluate("""() => { for (let i = 0; i < 30; i++) window.axiorhubPilot.addTurn('Question fictive ' + i + ' sur le dossier DURAND contre MARTIN',
+        'Réponse fictive ' + i + ' : ' + 'texte de la réponse, '.repeat(40), 'text'); }""")
+    p.wait_for_timeout(100)
+    _volet_visible96(p, 'historique long')
+    verifier(p.evaluate('(() => { const b = document.querySelector("#ws-ai-dock .ws-ai-body"); return b.scrollHeight > b.clientHeight; })()'), 'le fil long ne défile pas dans sa zone')
+    if getattr(banc, 'sortie', None):
+        p.screenshot(path=str(Path(banc.sortie) / 'P96a-volet-1920x950.png'))
+    s.propre('volet ouvert à 1920 × 950')
+    # Ctrl+Entrée : un seul envoi, même touche maintenue (répétition)
+    creations = []
+    p.on('request', lambda r: creations.append(r.url) if '/m567/mission/create' in r.url and r.method == 'POST' else None)
+    p.fill('#ws-ai-question', 'Résume la situation fictive du dossier DURAND.')
+    p.focus('#ws-ai-question')
+    p.keyboard.down('Control')
+    p.keyboard.press('Enter')
+    p.evaluate("""() => { const q = document.getElementById('ws-ai-question');
+        for (let i = 0; i < 3; i++) q.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', ctrlKey: true, repeat: true, bubbles: true, cancelable: true})); }""")
+    p.keyboard.up('Control')
+    p.wait_for_timeout(1500)
+    verifier(len(creations) == 1, 'Ctrl+Entrée a envoyé %d demande(s) au lieu d’une' % len(creations))
+    # mode « Général » et recherche publique confirmée en un clic (contrat du lot discussion ; réponses du serveur simulées : aucune clé)
+    corps = []
+
+    def simuler(route):
+        corps.append(json.loads(route.request.post_data or '{}'))
+        premier = len(corps) == 1
+        carte = {'id': '', 'kind': 'question', 'state': 'decision' if premier else 'answered', 'label': 'À décider' if premier else 'Répondu', 'conversation': True,
+                 'instruction': corps[-1].get('instruction', ''), 'matter': '', 'matter_label': '', 'lignes': {}, 'context': {},
+                 'exceptions': [{'code': 'recherche_publique_a_confirmer', 'message': 'Texte exact qui partirait : « bail commercial jurisprudence ».',
+                                 'requete': 'bail commercial jurisprudence'}] if premier else [],
+                 'plan': {'deliverable': 'Réponse dans le fil', 'steps': ['Répondre dans le fil'], 'restrictions': ['Aucun envoi']},
+                 'result': {} if premier else {'text': 'Résultat fictif de la recherche publique.'}}
+        route.fulfill(status=200, content_type='application/json', body=json.dumps(carte))
+    p.route('**/api440/m567/mission/create', simuler)
+    p.click('#ws-ai-general')
+    verifier(p.get_attribute('#ws-ai-general', 'aria-pressed') == 'true', 'le bouton Général ne s’active pas')
+    verifier('ni dossier' in p.locator('#ws-ai-portee-dossier').inner_text(), 'l’en-tête ne dit pas le mode Général')
+    p.fill('#ws-ai-question', 'Quelle est la jurisprudence récente sur le bail commercial ?')
+    p.click('#ws-ai-send')
+    p.wait_for_selector('[data-recherche-confirmer]')
+    verifier(len(corps) == 1 and corps[0].get('portee') == 'general', 'le mode Général n’est pas transmis : %s' % corps[:1])
+    verifier(not corps[0].get('confirmer_recherche'), 'une confirmation est partie sans clic')
+    p.click('[data-recherche-confirmer]')
+    p.wait_for_timeout(600)
+    verifier(len(corps) == 2 and corps[1].get('confirmer_recherche') == 'bail commercial jurisprudence', 'la confirmation ne renvoie pas le texte exact : %s' % corps[1:])
+    p.unroute('**/api440/m567/mission/create')
+    p.click('#ws-ai-general')
+    # Échap : fermeture, focus rendu au lanceur, fond de nouveau actif, page à la même place
+    p.fill('#ws-ai-question', 'Brouillon fictif à garder')
+    p.keyboard.press('Escape')
+    p.wait_for_selector('#ws-ai-dock', state='hidden')
+    verifier(p.evaluate('document.activeElement && document.activeElement.id') == 'ws-ai-launcher', 'le focus n’est pas rendu au lanceur')
+    verifier(not p.evaluate('!!document.querySelector("[inert]")'), 'le fond reste inerte après la fermeture')
+    verifier(p.evaluate('window.scrollY') == avant, 'la page n’a pas retrouvé sa position')
+    p.click('#ws-ai-launcher')
+    p.wait_for_selector('#ws-ai-dock:not([hidden])')
+    verifier(p.input_value('#ws-ai-question') == 'Brouillon fictif à garder', 'le brouillon est perdu à la réouverture')
+    p.keyboard.press('Escape')
+    s.propre('Ctrl+Entrée, Échap et brouillon')
+    # agrandissement (fenêtre de 1920 × 950 à 125 % et 200 %) et mode sombre
+    for vue, nom in (({'width': 1536, 'height': 760}, '125 %'), ({'width': 960, 'height': 475}, '200 %')):
+        p.set_viewport_size(vue)
+        p.click('#ws-ai-launcher')
+        p.wait_for_selector('#ws-ai-dock:not([hidden])')
+        p.wait_for_timeout(200)
+        _volet_visible96(p, nom)
+        if getattr(banc, 'sortie', None):
+            p.screenshot(path=str(Path(banc.sortie) / ('P96a-volet-%s.png' % nom.replace(' %', ''))))
+        p.keyboard.press('Escape')
+    p.set_viewport_size({'width': 1920, 'height': 950})
+    p.emulate_media(color_scheme='dark')
+    p.click('#ws-ai-launcher')
+    p.wait_for_selector('#ws-ai-dock:not([hidden])')
+    _volet_visible96(p, 'mode sombre')
+    if getattr(banc, 'sortie', None):
+        p.screenshot(path=str(Path(banc.sortie) / 'P96a-volet-sombre.png'))
+    p.keyboard.press('Escape')
+    p.emulate_media(color_scheme='light')
+    s.propre('125 %, 200 % et sombre')
+    # mobile : appareil tactile ; le clavier logiciel ouvert réduit la hauteur visible, l'envoi reste au-dessus
+    mobile = s.context.browser.new_context(viewport={'width': 375, 'height': 812}, is_mobile=True, has_touch=True, device_scale_factor=2, locale='fr-FR')
+    try:
+        m = Session(banc, mobile)
+        m.connecter()
+        m.aller('/dossiers')
+        m.page.click('#ws-ai-launcher')
+        m.page.wait_for_selector('#ws-ai-dock:not([hidden])')
+        m.page.wait_for_timeout(200)
+        _volet_visible96(m.page, 'mobile')
+        m.page.focus('#ws-ai-question')
+        m.page.set_viewport_size({'width': 375, 'height': 430})                # clavier logiciel ouvert (hauteur visible réduite)
+        m.page.wait_for_timeout(300)
+        if getattr(banc, 'sortie', None):
+            m.page.screenshot(path=str(Path(banc.sortie) / 'P96a-volet-mobile-clavier.png'))
+        for sel, nom in (('#ws-ai-question', 'le champ'), ('#ws-ai-send', 'Envoyer'), ('#ws-ai-close', 'Fermer')):
+            verifier(m.page.evaluate(DANS_LA_VUE96, sel), 'mobile, clavier ouvert : %s masqué (%s)' % (nom, m.page.locator(sel).bounding_box()))
+        m.propre('mobile')
+    finally:
+        mobile.close()
+    verifier(banc.modele.nombre() == 0, 'le modèle a été appelé pendant le parcours du volet (%d)' % banc.modele.nombre())
+
+
+def p96b_aujourdhui_densite(banc, s):
+    """5.6.96 (lot affichage, U02, U04, U06) : Aujourd'hui rempli (jeu fictif) à 1920 × 950 : huit compteurs, au moins trois livrables et le premier
+    élément de Ma journée visibles sans défiler ; densité « Compacte » mémorisée ; 125 %, 200 %, sombre : aucun bouton coupé, aucun défilement
+    horizontal ; chaque bloc repliable se déplie au clavier ; un bloc replié n'est chargé qu'à son ouverture (mêmes droits)."""
+    from datetime import datetime, timedelta, timezone
+    semis = _semis5695()
+    maintenant = datetime.now(timezone.utc)
+    with banc.desk() as d:
+        semis.schemas(d)
+        for i, (ident, client, adverse) in enumerate(MATTERS):
+            semis.prepare(d, 'banc-pr-%d' % i, 'Projet fictif %s contre %s' % (client, adverse), 'contrat', ident, '', 1)
+        semis.prepare(d, 'banc-pr-c', 'Réponse fictive au confrère', 'courriel', 'DOS-002', '', 1)
+        semis.evenement(d, 'banc-ev96', 'Audience fictive de mise en état', maintenant + timedelta(hours=2), matter='DOS-001')
+        semis.tache(d, 'banc-t96', 'Relire les conclusions fictives', maintenant.date().isoformat(), 'DOS-003')
+        semis.courriel(d, 'banc-m96', 'Demande de pièces complémentaires', 'DOS-002')
+        semis.veille(d, 'banc-vj96', 'Décision fictive sur le bail commercial')
+        d.db.commit()
+    p = s.page
+    p.set_viewport_size({'width': 1920, 'height': 950})
+    s.connecter()
+    verifier(p.locator('#ax95-zone li[data-rubrique]').count() == 8, 'l’encadré n’a pas ses huit rubriques')
+    if getattr(banc, 'sortie', None):
+        p.screenshot(path=str(Path(banc.sortie) / 'P96b-aujourdhui-1920x950.png'))
+    hauteur = p.evaluate('window.innerHeight')
+    def visibles(sel):
+        return p.eval_on_selector_all(sel, 'l => l.filter(e => { const r = e.getBoundingClientRect(); return r.height > 0 && r.top >= 0 && r.bottom <= %d; }).length' % hauteur)
+    verifier(visibles('#ax95-zone li[data-rubrique]') == 8, 'les huit compteurs ne sont pas visibles sans défiler (%d)' % visibles('#ax95-zone li[data-rubrique]'))
+    # ordre I01 (décision du cabinet) : les livrables à relire sont d'abord dans le rang « À décider / À relire », puis dans Travail préparé
+    livrables = visibles('#f96-lignes-zone li.f96-ligne, #a89-travail li.a89-ligne')
+    verifier(livrables >= 3, 'moins de trois livrables visibles sans défiler (%d)' % livrables)
+    jour = p.locator('#c530-day li, .f96-journee li').first
+    verifier(jour.count() == 1, 'Ma journée est vide malgré le jeu fictif')
+    boite = jour.bounding_box()
+    verifier(boite and boite['y'] + boite['height'] <= hauteur, 'le premier élément de Ma journée n’est pas visible sans défiler (%s)' % boite)
+    s.propre('premier écran à 1920 × 950')
+    # densité « Compacte » : mémorisée pour la personne, la page est plus courte, rien n'est retiré
+    longueur = p.evaluate('document.scrollingElement.scrollHeight')
+    blocs = p.eval_on_selector_all('[id]', 'l => l.map(e => e.id).filter(i => /^(ax95|a89|c530|c5656|c5632|t88)-/.test(i)).sort()')
+    p.click('#t88-panel > summary')
+    p.check('#t88-panel input[name=densite][value=compacte]')
+    envoyer(p, 'tableau/enregistrer', lambda: p.click('#t88-panel form[data-api="m5688/tableau/enregistrer"] button[type=submit]'), 'l’enregistrement de la densité')
+    verifier(p.locator('#c530').get_attribute('data-densite') == 'compacte', 'la densité compacte n’est pas appliquée après rechargement')
+    apres = p.eval_on_selector_all('[id]', 'l => l.map(e => e.id).filter(i => /^(ax95|a89|c530|c5656|c5632|t88)-/.test(i)).sort()')
+    verifier(apres == blocs, 'la densité compacte a retiré des éléments : %s' % sorted(set(blocs) - set(apres)))
+    verifier(p.evaluate('document.scrollingElement.scrollHeight') <= longueur, 'la page compacte n’est pas plus courte (%d > %d)' % (p.evaluate('document.scrollingElement.scrollHeight'), longueur))
+    s.propre('densité compacte')
+    # 125 %, 200 %, sombre : aucun défilement horizontal, aucun bouton coupé
+    coupes = """() => [...document.querySelectorAll('#ws-main button, #ws-main .ax-btn, #ws-main summary')].filter(b => b.getClientRects().length && getComputedStyle(b).visibility !== 'hidden')
+        .filter(b => { let d = b.parentElement && b.parentElement.closest('details'); while (d) { if (!d.open && !(b.tagName === 'SUMMARY' && b.parentElement === d)) return false; d = d.parentElement && d.parentElement.closest('details'); } return true; })
+        .filter(b => b.scrollWidth > b.clientWidth + 2 || b.getBoundingClientRect().right > window.innerWidth + 1).map(b => (b.id || b.className || b.tagName) + ':' + (b.textContent || '').trim().slice(0, 30) + ' [' + b.scrollWidth + '/' + b.clientWidth + ', droite ' + Math.round(b.getBoundingClientRect().right) + ', ' + (b.closest('[id]') || {}).id + ']')"""
+    for vue, nom, sombre in (({'width': 1536, 'height': 760}, '125 %', False), ({'width': 960, 'height': 475}, '200 %', False), ({'width': 1920, 'height': 950}, 'sombre', True)):
+        p.set_viewport_size(vue)
+        p.emulate_media(color_scheme='dark' if sombre else 'light')
+        p.wait_for_timeout(200)
+        verifier(p.evaluate(SANS_DEFILEMENT_HORIZONTAL96), '%s : défilement horizontal' % nom)
+        if getattr(banc, 'sortie', None):
+            p.screenshot(path=str(Path(banc.sortie) / ('P96b-aujourdhui-%s.png' % nom.replace(' %', ''))), full_page=True)
+        coupe = p.evaluate(coupes)
+        verifier(not coupe, '%s : bouton(s) coupé(s) : %s' % (nom, coupe[:5]))
+    p.emulate_media(color_scheme='light')
+    p.set_viewport_size({'width': 1920, 'height': 950})
+    s.propre('125 %, 200 % et sombre')
+    # blocs repliables au clavier ; la veille repliée n'est chargée qu'à l'ouverture
+    plis = p.locator('details.t95-pli > summary')
+    verifier(plis.count() >= 1, 'aucun bloc repliable')
+    for i in range(plis.count()):
+        resume = plis.nth(i)
+        ouvert = resume.evaluate('s => s.parentElement.open')
+        resume.focus()
+        p.keyboard.press('Enter')
+        p.wait_for_timeout(150)
+        verifier(resume.evaluate('s => s.parentElement.open') is (not ouvert), 'le bloc %d ne se replie pas au clavier' % (i + 1))
+        p.keyboard.press('Enter')
+        p.wait_for_timeout(150)
+    pli = 'details[data-pli="veille"]'
+    if p.locator(pli).count():
+        if p.locator(pli).get_attribute('open') is not None:
+            with p.expect_response(lambda r: '/actuellement/plis' in r.url):
+                p.click(pli + ' > summary')
+        s.aller('/aujourdhui')
+        verifier(p.locator(pli + ' [data-a96-part="veille"]').count() == 1, 'la veille repliée a été construite avec la page')
+        with p.expect_response(lambda r: '/m530/part' in r.url and 'name=veille' in r.url) as attendu:
+            p.click(pli + ' > summary')
+        verifier(attendu.value.ok, 'chargement de la veille refusé (HTTP %d)' % attendu.value.status)
+        p.wait_for_function('() => document.querySelector(\'%s [data-a96-part="veille"]\').dataset.a96Etat === "charge"' % pli)
+        verifier(p.locator(pli + ' .a96-differe').count() == 0 and p.locator(pli + ' #c5632-veille').inner_text().strip() not in ('', 'Veille juridique'),
+                 'la veille chargée à l’ouverture n’a pas remplacé le contenu d’attente')
+    s.propre('blocs repliables')
+    verifier(banc.modele.nombre() == 0, 'le modèle a été appelé sur Aujourd’hui (%d)' % banc.modele.nombre())
+
+
+def p96v_voix(banc, s):
+    """5.6.96 (lot voix, V05, V06) : Paramètres › Voix : « Français posé » proposé par défaut, « Écouter ce profil » lu par Brindille avec
+    un son non vide ; aucun module d'avatar sur Aujourd'hui tant qu'aucun portrait n'est choisi, aperçu dessiné après le choix. Aucun micro."""
+    s.connecter()
+    p = s.page
+    s.aller('/aujourdhui')
+    verifier(p.locator('script[src*="v5696-avatar.js"]').count() == 0, 'module d’avatar déclaré sur Aujourd’hui sans portrait choisi')
+    s.propre('Aujourd’hui sans avatar')
+    if not (ROOT / 'agent' / 'static' / 'brindille' / 'tts.js').is_file():
+        print('    écoute du profil ignorée : agent/static/brindille/ absent')
+        return
+    page = s.context.new_page()
+    page.add_init_script(AUDIO_JS)
+    page.on('pageerror', s._erreur_js)
+    page.on('console', s._console)
+    page.goto(banc.url + '/parametres?rubrique=voix', wait_until='networkidle')
+    choix = page.locator('select[name="voix_brindille"]')
+    verifier(choix.count() == 1 and choix.input_value() == 'posee', 'le profil « Français posé » n’est pas proposé par défaut')
+    page.locator('[data-v94-ecouter-profil]').click()
+    fin = time.monotonic() + 180
+    while time.monotonic() < fin and not page.evaluate('() => !!document.querySelector("[data-v94-profil-etat][data-v94-voix], [data-v94-profil-etat][data-v94-erreur]")'):
+        page.wait_for_timeout(250)
+    etat = page.evaluate('(() => { const n = document.querySelector("[data-v94-profil-etat]"); return n ? Object.assign({}, n.dataset, {texte: n.textContent}) : {}; })()')
+    verifier(not etat.get('v94Erreur'), 'l’écoute du profil a échoué : %s' % etat.get('v94Erreur'))
+    verifier(etat.get('v94Voix') == 'brindille', 'l’écoute du profil n’a pas été faite par Brindille : %s' % etat)
+    verifier('terminée' in etat.get('texte', ''), 'la fin de lecture n’est pas annoncée : %s' % etat.get('texte'))
+    joues = page.evaluate('window.__bancAudio')
+    verifier(any(a.get('type') == 'buffer' and a.get('samples', 0) > 0 and a.get('peak', 0) > 0.001 for a in joues), 'aucun son produit : %s' % joues[:3])
+    diagnostic = page.evaluate('JSON.stringify(window.axiorhubVoix.diagnostic())')
+    verifier('"profil":"posee"' in diagnostic and 'DURAND' not in diagnostic, 'diagnostic de lecture inattendu : %s' % diagnostic[:300])
+    page.select_option('select[name="avatar"]', 'portrait_a')
+    verifier(page.locator('[data-v94-apercu-avatar] svg.v96-portrait').count() == 1, 'l’aperçu du portrait n’est pas dessiné')
+    if getattr(banc, 'sortie', None):
+        page.locator('#v94-voix').screenshot(path=str(Path(banc.sortie) / 'P96v-voix.png'))
+    page.close()
+    s.propre('profil de voix et avatar')
+
+
 PARCOURS = (('P02a', 'connexion puis déconnexion', p02a_connexion), ('P02b', 'pause de l’IA depuis Aujourd’hui', p02b_pause),
             ('P02c', 'annulation puis relance d’une demande', p02c_annulation), ('P02d', 'reprise après une erreur du fournisseur', p02d_reprise_erreur),
             ('P02e', 'facture en brouillon', p02e_facture), ('P02f', 'ouverture et téléchargement d’un document', p02f_livrable),
             ('P02g', 'tour du menu', p02g_menu), ('P02h', 'Charge du serveur et Voix', p02h_charge_voix),
-            ('P95a', 'encadré « Actuellement » d’Aujourd’hui', p95a_actuellement), ('P95b', 'Personnaliser Aujourd’hui', p95b_personnaliser))
+            ('P95a', 'encadré « Actuellement » d’Aujourd’hui', p95a_actuellement), ('P95b', 'Personnaliser Aujourd’hui', p95b_personnaliser),
+            ('P96k', 'carte Mistral : tester sans recharger', p96k_mistral),
+            ('P96F1', 'en-tête, météo et ordre d’Aujourd’hui', p96f1_accueil), ('P96F2', 'action en fenêtre flottante', p96f2_fenetre),
+            ('P96c', 'Courriels : vue « À traiter avec le Pilote »', p96c_courriels),
+            ('P96a', 'volet de l’assistant : composeur visible, focus, clavier', p96a_volet), ('P96b', 'Aujourd’hui : premier écran, densité, plis', p96b_aujourdhui_densite),
+            ('P96v', 'Voix : profil « Français posé » et avatar facultatif', p96v_voix))
 
 
 # ------------------------------------------------------------------------------------------------ lancement

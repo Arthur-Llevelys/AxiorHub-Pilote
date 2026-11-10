@@ -14,10 +14,12 @@ consommé leur unique tentative automatique.
 from datetime import datetime, timedelta, timezone
 from html import escape as e
 
+from .mistral5696 import HELD_CODES as MISTRAL_HELD_CODES
+
 LOCAL_DOWN = ('moteur_ollama_injoignable', 'modele_ollama_absent')
 TRANSIENT = frozenset(LOCAL_DOWN + ('fournisseur_ia_injoignable', 'generation_ia_delai_depasse', 'connexion_http_indisponible', 'delai_http_depasse',
                                     'ia_en_pause', 'ia_en_pause_horaire', 'horaires_ia_illisibles', 'preparation_suspendue', 'file_attente_pleine', 'chatgpt_limite_usage_atteinte', 'chatgpt_indisponible',
-                                    'plafond_automatique_atteint'))
+                                    'plafond_automatique_atteint')) | MISTRAL_HELD_CODES   # 5.6.96 : connexion Mistral en attente (limite, panne, clé)
 DELAY_MINUTES = 10
 PROBE_KEY = 'ia5672:test_reussi'
 

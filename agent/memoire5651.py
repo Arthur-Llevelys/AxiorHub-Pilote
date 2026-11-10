@@ -59,9 +59,15 @@ def _sha(*parts):
 
 
 def ensure_schema(desk):
+    if getattr(desk, '_schema5696_memoire', None) is desk.db:   # 5.6.96 (U06) : une fois par connexion (Aujourd'hui l'appelait pour chaque dossier)
+        return
     if desk.db.in_transaction and desk.db.execute("SELECT 1 FROM sqlite_master WHERE name='d51_draft_paragraphs'").fetchone():
         return      # 5.6.89 : ``executescript`` validerait la transaction de l'appelant (correction et audit écrits ensemble)
     desk.db.executescript(SCHEMA)
+    try:
+        desk._schema5696_memoire = desk.db
+    except AttributeError:   # bureau de test sans attributs libres : la préparation sera refaite, comme avant
+        pass
 
 
 # ------------------------------------------------------------------------------------------------ A02 décisions du cabinet

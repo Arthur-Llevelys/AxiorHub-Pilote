@@ -38,6 +38,16 @@ HERITAGE = {'--ws-paper': 'background', '--ws-surface': 'layer-01', '--ws-surfac
             # Alias calculés une fois pour toutes sur la racine par v430.css et v363.css : les jetons étant posés sur <body>, ils sont repris ici.
             '--ink': 'text-primary', '--accent': 'interactive', '--paper': 'background', '--background': 'background', '--panel': 'layer-01', '--surface': 'layer-01', '--surface-2': 'layer-02', '--text': 'text-primary',
             '--border': 'border-subtle-01', '--muted': 'text-secondary'}
+# 5.6.96 (lot affichage, U03) : typographie centralisée. Figtree par défaut (décision du cabinet du 9 novembre 2026, fichier local, aucun CDN),
+# IBM Plex Sans et la police du système en variantes (``<html data-police="plex|systeme">``, préférence par compte dans ``tableau5688``).
+# Chaque pile se termine par les polices du système : un fichier absent ou bloqué laisse un texte lisible. Tailles en rem (15 px de corps,
+# 14 px au plus petit, titres hiérarchisés), deux graisses seulement (400 et 600), interlignage 1,5.
+REPLI = '"Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif'
+POLICES = {'figtree': '"Figtree", ' + REPLI, 'plex': '"IBM Plex Sans", ' + REPLI, 'systeme': REPLI}
+POLICE_DEFAUT = 'figtree'
+TAILLES = {'corps': '.9375rem', 'petit': '.875rem', 'titre-1': '1.5rem', 'titre-2': '1.125rem', 'titre-3': '1rem', 'interligne': '1.5'}
+# (famille, graisses déclarées, fichier) : le fichier Figtree est variable (300 à 900) ; Plex a un fichier par graisse.
+FICHIERS_POLICE = (('Figtree', '300 900', 'figtree-latin.woff2'), ('IBM Plex Sans', '400', 'plex-sans-400.woff2'), ('IBM Plex Sans', '600', 'plex-sans-600.woff2'))
 
 
 def jetons(theme):
@@ -112,11 +122,28 @@ def feuille():
     employes = _employes() | set(CONTEXTE)
     clair = _declarations(jetons(CLAIR), employes)
     sombre = _declarations(jetons(SOMBRE), employes)
-    police = ''.join('@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:%d;font-display:swap;src:url(plex-sans-%d.woff2) format("woff2")}\n' % (g, g) for g in (400, 600))
-    return ('/* 5.6.89 : fichier généré par scripts/build-css.py depuis agent/ui_tokens5689.py. Ne pas modifier : modifier le module. */\n' + police +
-            'body[data-carbon]{color-scheme:light;--ui-marque:var(--cds-interactive);--ui-marque-survol:var(--cds-link-primary-hover);--ui-marque-doux:var(--ui-action-doux);--ui-sur-marque:var(--ui-sur-action);' + clair + '}\n'
+    faces, typo, piles = polices()   # 5.6.96 (U03) : la typographie entre dans le bloc des jetons ; les variantes suivent les thèmes
+    return ('/* 5.6.89 : fichier généré par scripts/build-css.py depuis agent/ui_tokens5689.py. Ne pas modifier : modifier le module. */\n' + faces +
+            'body[data-carbon]{color-scheme:light;' + typo + '--ui-marque:var(--cds-interactive);--ui-marque-survol:var(--cds-link-primary-hover);--ui-marque-doux:var(--ui-action-doux);--ui-sur-marque:var(--ui-sur-action);' + clair + '}\n'
             ':root[data-theme=dark] body[data-carbon]{color-scheme:dark;' + sombre + '}\n'
-            '@media (prefers-color-scheme:dark){:root:not([data-theme=light]) body[data-carbon]{color-scheme:dark;' + sombre + '}}\n' + '\n'.join(_accents()) + '\n')
+            '@media (prefers-color-scheme:dark){:root:not([data-theme=light]) body[data-carbon]{color-scheme:dark;' + sombre + '}}\n' + piles + '\n'.join(_accents()) + '\n')
+
+
+def version_fichier(nom):
+    """5.6.96 (U07) : empreinte de contenu d'un fichier statique (12 caractères de sha256) : l'adresse change avec le fichier, jamais sans lui."""
+    from hashlib import sha256
+    return sha256((STATIC / nom).read_bytes()).hexdigest()[:12]
+
+
+def polices():
+    """5.6.96 (U03, U07) : déclarations ``@font-face`` aux adresses versionnées par le contenu (cache privé immuable, comme les ``?v=``),
+    puis les déclarations de la pile par défaut (``--ui-police``) et des tailles (``--ui-taille-*``), posées dans le bloc ``body[data-carbon]``
+    des jetons, et les variantes (``<html data-police>``). Retour : (faces, déclarations, variantes)."""
+    faces = ''.join('@font-face{font-family:"%s";font-style:normal;font-weight:%s;font-display:swap;src:url(%s?v=%s) format("woff2")}\n' % (
+        famille, graisses, nom, version_fichier(nom)) for famille, graisses, nom in FICHIERS_POLICE)
+    tailles = ';'.join('--ui-%s:%s' % (k if k == 'interligne' else 'taille-' + k, v) for k, v in TAILLES.items())
+    piles = ''.join(':root[data-police=%s] body[data-carbon]{--ui-police:%s}\n' % (k, v) for k, v in POLICES.items() if k != POLICE_DEFAUT)
+    return faces, '--ui-police:%s;%s;' % (POLICES[POLICE_DEFAUT], tailles), piles
 
 
 def ecrire():

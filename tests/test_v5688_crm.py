@@ -661,7 +661,9 @@ class Tableau(Base):
         html = cockpit530.page(self.d, '', owner='cabinet', queue='<p>file</p>')
         self.assertIn('<div class="c530-cols c5657-cols">', html)
         self.assertLess(html.index('id="c530-routines"'), html.index('data-legacy-composer'))
-        self.assertLess(html.index('data-legacy-composer'), html.index('id="c5656-file"'))
+        # 5.6.96 (I01, décision du cabinet) : sans réglage, la file monte dans le rang sous « Actuellement », avant Travail préparé ; une seule fois
+        self.assertLess(html.index('id="c5656-file"'), html.index('id="a89-travail"'))
+        self.assertEqual(html.count('id="c5656-file"'), 1)
         self.assertNotIn('<!--', html.split('id="c5632-veille"')[0][-200:])
 
 

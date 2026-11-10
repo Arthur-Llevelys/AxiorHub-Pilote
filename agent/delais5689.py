@@ -178,8 +178,13 @@ def _inserer(desk, mid, cle, params, data, origine, owner, evenement, rule_id, i
     date_evenement = str(data.get('date_evenement') or '')[:10]
     resultat = calculer(rule_id, evenement, date_evenement, inputs)
     r = regle(rule_id)
+    verification = [str(m)[:300] for m in (data.get('motifs_verification') or []) if str(m).strip()][:10]
+    if verification:
+        # 5.6.96 (D01) : la qualification de l'acte impose « à vérifier », sans date (départ antérieur à la déclaration d'appel,
+        # réception non prouvée, règle spéciale citée que le moteur ne calcule pas)
+        resultat = {**resultat, 'etat': 'a_verifier', 'date': '', 'motifs': list(resultat.get('motifs', [])) + verification, 'verification': verification}
     statut = 'propose' if resultat['etat'] == 'calcule' else 'a_verifier'
-    reserves = resultat['reserves'] + resultat['motifs']
+    reserves = resultat['reserves'] + resultat['motifs'] + [str(m)[:300] for m in (data.get('reserves_detection') or [])][:10]
     ident, now = uuid.uuid4().hex, base.maintenant()
     desk.db.execute('INSERT INTO deadline_candidates5689(id,matter,cle,parametres,evenement,date_evenement,nature_procedure,juridiction,rule_id,rule_version,rule_empreinte,inputs,calcul,date_calculee,manquants,reserves,statut,origine,source_path,source_version,citation,auteur,remplace,decision_precedente,deadline_id,revision,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                     (ident, mid, cle, params, evenement, date_evenement, base._texte(data.get('nature_procedure'), 120), base._texte(data.get('juridiction'), 200), rule_id if r else '', r['version'] if r else 0, empreinte_regle(r) if r else '', json.dumps(inputs, ensure_ascii=False), json.dumps(resultat, ensure_ascii=False), resultat['date'],
@@ -217,7 +222,9 @@ def corriger(desk, ident, data, owner, role):
     nouveaux = {**anciens, **{str(k)[:40]: str(v)[:60] for k, v in data['inputs'].items()}} if isinstance(data.get('inputs'), dict) else anciens
     evenement = str(data.get('evenement') or row['evenement'])[:60]
     rule_id = str(data.get('rule_id') or (row['rule_id'] if evenement == row['evenement'] else _regle_pour(evenement)))
-    valeurs = {'date_evenement': data.get('date_evenement', row['date_evenement']), 'nature_procedure': data.get('nature_procedure', row['nature_procedure']), 'juridiction': data.get('juridiction', row['juridiction']), 'source_path': row['source_path'], 'source_version': row['source_version'], 'citation': row['citation']}
+    valeurs = {'date_evenement': data.get('date_evenement', row['date_evenement']), 'nature_procedure': data.get('nature_procedure', row['nature_procedure']), 'juridiction': data.get('juridiction', row['juridiction']), 'source_path': row['source_path'], 'source_version': row['source_version'], 'citation': row['citation'],
+               # 5.6.96 : ce que la qualification avait signalé reste lisible après correction, comme réserve
+               'reserves_detection': ['Signalé à la détection : ' + m for m in json.loads(row['calcul'] or '{}').get('verification', [])]}
     params = base.empreinte([row['id'], evenement, valeurs['date_evenement'], rule_id, nouveaux])
     old = base.deja_fait(desk, 'deadline_candidates5689', cle, params)
     if old:
@@ -244,9 +251,14 @@ def decider(desk, ident, data, owner, role, dav=None):
         motif = base._texte(data.get('motif'), 500)
         if len(motif) < 3:
             raise Stop('motif_obligatoire')
+        if row['statut'] not in ('propose', 'a_verifier'):
+            raise Stop('candidat_clos')        # 5.6.96 (D03) : une décision prise ne se rejoue pas
         with base.transaction(desk):
             desk.db.execute("UPDATE deadline_candidates5689 SET statut='rejete',motif=?,revision=revision+1,updated=? WHERE id=?", (motif, base.maintenant(), row['id']))
             base.journal(desk, row['matter'], 'delai', row['id'], 'rejet', owner, motif, {'statut': row['statut']}, {'statut': 'rejete'})
+        # 5.6.96 (D05) : empreinte mémorisée ; le même faux positif n'est pas reproposé au prochain balayage. Aucun agenda touché.
+        echeances450.memoriser_ecart(desk, row['matter'], row['evenement'], row['date_evenement'], row['source_path'], row['citation'], motif, owner, 'candidat')
+        desk.audit('delais5689_rejete', {'matter': row['matter'], 'evenement': row['evenement']})
         return vue(_ligne(desk, ident))
     if action != 'valider':
         raise Stop('action_inconnue')
@@ -327,14 +339,23 @@ def _agenda_du_logiciel(desk, mid):
         return {}
 
 
-def depuis_detection(desk, mid, evenement, date_evenement, path, version, citation, owner='regles'):
-    """Détection par motifs (``echeances450.analyze``) : même contrat que le modèle, l'événement seul."""
+def depuis_detection(desk, mid, evenement, date_evenement, path, version, citation, owner='regles', motifs=None):
+    """Détection par motifs (``echeances450.analyze``, ``procedure568.source_events``) : même contrat que le modèle, l'événement seul.
+    5.6.96 : un même événement à la même date dans la même source n'est proposé qu'une fois, toutes versions du fichier confondues ;
+    une proposition écartée par une personne n'est pas reproposée ; ``motifs`` impose « à vérifier »."""
+    from . import echeances450
     cle = 'detection:' + base.empreinte([mid, evenement, str(date_evenement), path, version])[:48]
     schema(desk)
     base.schema(desk)
     if desk.db.execute('SELECT 1 FROM deadline_candidates5689 WHERE cle=?', (cle,)).fetchone():
         return None
-    return proposer(desk, mid, {'cle': cle, 'evenement': evenement, 'date_evenement': str(date_evenement), 'source_path': path, 'source_version': version, 'citation': citation}, owner, '', origine='regles')
+    if desk.db.execute("SELECT 1 FROM deadline_candidates5689 WHERE matter=? AND evenement=? AND date_evenement=? AND source_path=? AND statut<>'remplace'",
+                       (mid, evenement, str(date_evenement)[:10], str(path)[:800])).fetchone():
+        return None
+    if echeances450.deja_ecarte(desk, mid, evenement, date_evenement, path, citation):
+        return None
+    return proposer(desk, mid, {'cle': cle, 'evenement': evenement, 'date_evenement': str(date_evenement), 'source_path': path, 'source_version': version, 'citation': citation,
+                                'motifs_verification': list(motifs or [])}, owner, '', origine='regles')
 
 
 # ------------------------------------------------------------------------------------------------ événement proposé par un modèle
@@ -385,10 +406,21 @@ def travail(desk, args, model=None, client=None):
     info = client.stat(path)
     raw = client.download(info)
     texte = extract(raw, PurePosixPath(path).name, dict(desk.c.get('documents', {})))[:40000]
+    version = str(info.get('etag') or hashlib.sha256(raw).hexdigest())
+    # 5.6.96 (D01) : même qualification que la détection par règles, avant tout appel au modèle. Un acte d'incident ou un calendrier
+    # est consigné avec sa source et ne va pas au modèle ; une date de décision citée n'est jamais retenue.
+    from . import echeances450
+    q = echeances450.qualifier_acte(texte, path, version=version)
+    acte = {k: q[k] for k in ('type_acte', 'type_libelle', 'incident', 'calendrier', 'mention', 'destinataire', 'rg', 'instance', 'preuve_notification', 'references_non_calculees')}
+    if q['sans_calcul']:
+        echeances450.consigner_acte(desk, mid, path, version, q)
+        desk.audit('delais5689_acte_sans_calcul', {'matter': mid, 'type': q['type_acte']})
+        return {'ok': True, 'etat': 'acte_sans_calcul', 'crees': 0, 'ecartes': 0, 'acte': acte, 'message': '%s consigné avec sa source : %s.' % (q['type_libelle'], q['mention'])}
+    citees = {d['date'] for d in q['decisions_citees']}
+    declaration = echeances450.declaration_connue(desk, mid)
     donnees = {'evenements_possibles': ressource()['evenements'], 'document': texte}
     sortie = base.etape_modele(desk, mid, [{'role': 'system', 'content': SYSTEME}, {'role': 'user', 'content': json.dumps(donnees, ensure_ascii=False)}], sortie_modele(), 1500, model)
     plat = re.sub(r'\s+', ' ', texte)
-    version = str(info.get('etag') or hashlib.sha256(raw).hexdigest())
     crees, ecartes = 0, 0
     for item in (sortie.get('evenements') or [])[:20]:
         passage = re.sub(r'\s+', ' ', str((item or {}).get('passage') or '')).strip() if isinstance(item, dict) else ''
@@ -398,10 +430,25 @@ def travail(desk, args, model=None, client=None):
             continue
         pause5629.checkpoint(desk)
         date_evenement = _date_citee(passage, item.get('date'))
+        if date_evenement and (date_evenement in citees or _date_de_decision(passage, date_evenement)):
+            ecartes += 1          # 5.6.96 (D01) : date d'une décision citée, jamais un événement
+            continue
         cle = 'ia:' + base.empreinte([mid, path, version, evenement, passage])[:48]
         if desk.db.execute('SELECT 1 FROM deadline_candidates5689 WHERE cle=?', (cle,)).fetchone():
             continue
-        proposer(desk, mid, {'cle': cle, 'evenement': evenement, 'date_evenement': date_evenement, 'source_path': path, 'source_version': version, 'citation': passage}, owner, role, origine='ia')
+        if echeances450.deja_ecarte(desk, mid, evenement, date_evenement, path, passage):
+            ecartes += 1          # 5.6.96 (D05) : déjà écarté par une personne
+            continue
+        motifs = echeances450.motifs_de_verification(q, evenement, date_evenement, declaration, '', echeances450.rg_du_dossier(desk, mid)) if date_evenement else []
+        proposer(desk, mid, {'cle': cle, 'evenement': evenement, 'date_evenement': date_evenement, 'source_path': path, 'source_version': version, 'citation': passage,
+                             'motifs_verification': motifs}, owner, role, origine='ia')
         crees += 1
     desk.audit('delais5689_evenements_ia', {'matter': mid, 'crees': crees, 'ecartes': ecartes})
-    return {'ok': True, 'etat': 'attente_decision', 'crees': crees, 'ecartes': ecartes, 'message': '%d événement(s) proposé(s), %d écarté(s) faute de passage exact.' % (crees, ecartes)}
+    return {'ok': True, 'etat': 'attente_decision', 'crees': crees, 'ecartes': ecartes, 'acte': acte,
+            'message': '%d événement(s) proposé(s), %d écarté(s) (passage introuvable, décision citée ou déjà écarté).' % (crees, ecartes)}
+
+
+def _date_de_decision(passage, date_iso):
+    """5.6.96 (D01) : la date proposée est, dans le passage cité, celle d'une décision (« arrêt du … », « Cass. … »)."""
+    from .echeances450 import decisions_citees
+    return any(d['date'] == date_iso for d in decisions_citees(fold(passage)))

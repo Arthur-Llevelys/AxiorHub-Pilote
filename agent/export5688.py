@@ -78,6 +78,7 @@ TABLES = (
     ('contentieux', 'actes', 'contentieux_actes5689', DESK, 'matter'), ('contentieux', 'sections_des_actes', 'contentieux_sections5689', DESK, ('acte_id', 'contentieux_actes5689', 'id', 'matter')), ('contentieux', 'dossiers_d_audience', 'contentieux_audiences5689', DESK, 'matter'),
     ('contentieux', 'paquets', 'contentieux_paquets5689', DESK, 'matter'), ('contentieux', 'autorisations_de_paquet', 'contentieux_autorisations5689', DESK, ('paquet_id', 'contentieux_paquets5689', 'id', 'matter')), ('contentieux', 'recus_de_depot', 'contentieux_recus5689', DESK, ('paquet_id', 'contentieux_paquets5689', 'id', 'matter')),
     ('contentieux', 'candidats_delais', 'deadline_candidates5689', DESK, 'matter'), ('contentieux', 'validations_de_regles', 'deadline_rule_validations5689', DESK, None),
+    ('contentieux', 'actes_qualifies', 'deadline_actes5696', DESK, 'matter'), ('contentieux', 'detections_ecartees', 'deadline_ecartes5696', DESK, 'matter'),   # 5.6.96 (D01, D05)
     ('contacts', 'contacts', 'contacts5636', DESK, None), ('contacts', 'liens_dossiers', 'contact_links5636', DESK, 'matter'), ('contacts', 'societes', 'companies5636', DESK, 'matter'),
     ('contacts', 'opportunites', 'opp5676', DESK, 'matter'), ('contacts', 'fiches_des_registres', 'fiche_registre5688', DESK, None),
     ('gouvernance', 'decisions_sur_les_donnees', 'policy_decisions5689', DESK, None), ('gouvernance', 'destinations_observees', 'flux5689', DESK, None), ('gouvernance', 'plafonds', 'budget_caps5689', DESK, None),
@@ -97,6 +98,7 @@ TABLES = (
     ('notes', 'journal_de_rangement', 'rangement5689', DESK, 'matter'), ('notes', 'notes_communes', 'note_commune5688', DESK, 'matter'), ('notes', 'versions_des_notes_communes', 'note_versions5688', DESK, 'matter'),
     ('messagerie_interne', 'fils', 'fils5650', DESK, 'matter'), ('messagerie_interne', 'messages', 'messages5650', DESK, ('thread', 'fils5650', 'id', 'matter')),
     ('messagerie_interne', 'participants', 'participants5650', DESK, ('thread', 'fils5650', 'id', 'matter')),
+    ('courriels', 'suivi_des_fils', 'courriels5696_suivis', DESK, 'matter'), ('courriels', 'decisions_de_suivi', 'courriels5696_evenements', DESK, ('suivi_id', 'courriels5696_suivis', 'id', 'matter')),   # 5.6.96 (C02)
     ('modeles', 'modeles_du_cabinet', 'cabinet_templates_v330', DESK, None), ('modeles', 'modeles_de_facturation', 'b53_templates', DESK, None), ('modeles', 'bibliotheque', 'bibliotheque5639', DESK, None),
     ('modeles', 'versions_de_modeles', 'template_versions5684', DESK, None),
     ('competences', 'competences', 'skills5632', DESK, None), ('competences', 'etat_des_competences', 'skill_state5632', DESK, None), ('competences', 'ressources', 'skill_resources5683', DESK, None),

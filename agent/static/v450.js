@@ -30,6 +30,60 @@
     });
   }
   function fail(err) { toast(err.message || 'Erreur', true); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function newKey() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    var a = new Uint8Array(16); window.crypto.getRandomValues(a);
+    return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  /* 5.6.96 (D03) : l'erreur est liée au champ (aria-describedby, aria-invalid) et le focus y revient */
+  function showError(box, field, message) {
+    var err = $('.ex-err', box);
+    err.textContent = message; err.hidden = false;
+    if (field) { field.setAttribute('aria-invalid', 'true'); field.focus(); }
+  }
+  function clearError(box) {
+    var err = $('.ex-err', box);
+    if (err) { err.textContent = ''; err.hidden = true; }
+    $all('[aria-invalid]', box).forEach(function (n) { n.removeAttribute('aria-invalid'); });
+  }
+  function sendDecision(item, id, box, btn, done) {
+    var kind = box.getAttribute('data-kind');
+    var reasonField = $('.ex-reason', box);
+    var reason = reasonField ? reasonField.value.trim() : '';
+    clearError(box);
+    if (kind !== 'agenda' && kind !== 'verifie' && reason.length < 3) { showError(box, reasonField, 'Indiquez le motif (trois caractères au moins) : rien n’a été modifié.'); return; }
+    var payload = { id: id, version: item.getAttribute('data-version'), cle: box.getAttribute('data-cle') || newKey() };
+    var route, message;
+    if (kind === 'corriger') {
+      var newDue = val(box, '.ex-newdue'), newStart = val(box, '.ex-newstart');
+      if (newDue) payload.new_due = newDue; else if (newStart) payload.start_date = newStart;
+      else { showError(box, $('.ex-newstart', box), 'Indiquez la nouvelle date de départ ou l’échéance imposée : rien n’a été modifié.'); return; }
+      payload.reason = reason; route = 'deadline/correct'; message = 'Correction enregistrée au journal.';
+    } else if (kind === 'ecarter') {
+      payload.outcome = 'annulee'; payload.ecart = true; payload.reason = reason; route = 'deadline/close';
+      message = 'Détection écartée : elle ne sera pas reproposée.';
+    } else if (kind === 'accomplir') {
+      payload.outcome = 'terminee'; payload.reason = reason; route = 'deadline/close'; message = 'Échéance marquée accomplie.';
+    } else if (kind === 'annuler') {
+      payload.outcome = 'annulee'; payload.reason = reason; route = 'deadline/close'; message = 'Échéance annulée.';
+    } else if (kind === 'verifie') {
+      payload.verifie_main = true; route = 'deadline/agenda'; message = 'Vérification de l’agenda notée au journal.';
+    } else {
+      route = 'deadline/agenda'; message = 'Agenda repris.';
+    }
+    btn.disabled = true;
+    api(route, payload).then(function (r) {
+      var cal = r.calendar === 'retrait_propose' ? ' Son événement d’agenda n’est pas touché : son retrait vous est proposé.' :
+                r.calendar === 'retiree' ? ' Événement retiré de l’agenda.' :
+                r.calendar === 'synchronisation_a_reprendre' ? ' Agenda injoignable : synchronisation à reprendre.' :
+                r.calendar === 'a_reconcilier' ? ' L’événement d’agenda ne correspond plus : rien n’a été effacé, vérifiez-le à la main.' : '';
+      done(message + cal)();
+    }).catch(function (e) {
+      btn.disabled = false;
+      showError(box, e.code === 'motif_obligatoire' ? reasonField : null, e.message || 'Erreur');
+    });
+  }
   function val(root, sel) { var n = $(sel, root); return n ? n.value : ''; }
 
   /* ---- actions sur une échéance existante */
@@ -43,31 +97,46 @@
       btn.disabled = true;
       api('deadline/confirm', {
         id: id, rule_id: val(item, '.ex-rule'), distance: val(item, '.ex-distance'),
-        alsace: $('.ex-alsace', item).checked, regime_date: val(item, '.ex-regime')
-      }).then(done('Échéance enregistrée et agenda mis à jour.')).catch(function (e) { btn.disabled = false; fail(e); });
-    } else if (btn.classList.contains('ex-correct')) {
-      var reason = val(item, '.ex-reason').trim();
-      if (reason.length < 5) { toast('Indiquez le motif de la correction.', true); return; }
-      var payload = { id: id, reason: reason };
-      if (val(item, '.ex-newdue')) payload.new_due = val(item, '.ex-newdue');
-      else if (val(item, '.ex-newstart')) payload.start_date = val(item, '.ex-newstart');
-      else { toast('Indiquez la nouvelle date de départ ou l’échéance imposée.', true); return; }
-      btn.disabled = true;
-      api('deadline/correct', payload).then(done('Correction enregistrée au journal.')).catch(function (e) { btn.disabled = false; fail(e); });
-    } else if (btn.classList.contains('ex-done')) {
-      api('deadline/close', { id: id, outcome: 'terminee', reason: val(item, '.ex-reason') }).then(done('Échéance marquée accomplie.')).catch(fail);
-    } else if (btn.classList.contains('ex-cancel')) {
-      var why = val(item, '.ex-reason').trim();
-      if (why.length < 5) { toast('Indiquez le motif d’annulation dans le champ « Motif ».', true); return; }
-      if (!confirm('Annuler cette échéance ? L’événement d’agenda sera marqué « ANNULÉE ».')) return;
-      api('deadline/close', { id: id, outcome: 'annulee', reason: why }).then(done('Échéance annulée.')).catch(fail);
+        alsace: $('.ex-alsace', item).checked, regime_date: val(item, '.ex-regime'),
+        version: item.getAttribute('data-version')
+      }).then(function (r) {
+        var inscrite = r.calendar === 'cree' || r.calendar === 'mis_a_jour';
+        done(r.status === 'a_completer' ? 'Échéance à compléter : consultez le calcul.' :
+             inscrite ? 'Échéance confirmée et inscrite à l’agenda.' :
+             r.calendar === 'a_valider' ? 'Échéance confirmée ; son inscription à l’agenda attend votre validation (page Autonomie).' :
+             'Échéance confirmée ; agenda : ' + (r.calendar || 'non inscrite') + '.')();
+      }).catch(function (e) { btn.disabled = false; fail(e); });
+    } else if (btn.classList.contains('ex-open')) {
+      /* 5.6.96 (D03) : le formulaire voisin s'ouvre, le focus va au champ Motif (ou à « Confirmer » pour l'agenda) */
+      var box = document.getElementById(btn.getAttribute('aria-controls'));
+      if (!box) return;
+      $all('.ex-box', item).forEach(function (other) {
+        if (other !== box && !other.hidden) {
+          other.hidden = true;
+          var opener = item.querySelector('[aria-controls="' + other.id + '"]');
+          if (opener) opener.setAttribute('aria-expanded', 'false');
+        }
+      });
+      box.hidden = false;
+      btn.setAttribute('aria-expanded', 'true');
+      if (!box.getAttribute('data-cle')) box.setAttribute('data-cle', newKey());
+      var first = $('.ex-reason', box) || $('.ex-send', box);
+      if (first) first.focus();
+    } else if (btn.classList.contains('ex-back')) {
+      var back = btn.closest('.ex-box');
+      back.hidden = true;
+      clearError(back);
+      var opener2 = item.querySelector('[aria-controls="' + back.id + '"]');
+      if (opener2) { opener2.setAttribute('aria-expanded', 'false'); opener2.focus(); }
+    } else if (btn.classList.contains('ex-send')) {
+      sendDecision(item, id, btn.closest('.ex-box'), btn, done);
     } else if (btn.classList.contains('ex-journal')) {
       var list = $('.ex-log', item);
       api('deadline/journal?id=' + encodeURIComponent(id)).then(function (d) {
         list.textContent = '';
         d.journal.forEach(function (j) {
           var li = document.createElement('li');
-          li.textContent = j.at.slice(0, 16).replace('T', ' ') + ' · ' + j.action + (j.reason ? ' · ' + j.reason : '');
+          li.textContent = j.at.slice(0, 16).replace('T', ' ') + ' · ' + j.action + (j.actor ? ' · ' + j.actor : '') + (j.reason ? ' · ' + j.reason : '') + (j.calendar ? ' · agenda : ' + j.calendar : '');
           list.appendChild(li);
         });
         list.hidden = false;

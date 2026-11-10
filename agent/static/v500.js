@@ -55,8 +55,9 @@
     var data = collect(form), btn = ev.submitter || $('button[type=submit]', form);
     var extra = btn && btn.getAttribute('data-extra');
     if (extra) { var kv = extra.split('='); data[kv[0]] = kv.slice(1).join('='); }
+    var api = (btn && btn.getAttribute('data-api')) || form.getAttribute('data-api');   // 5.6.96 : un bouton peut viser sa propre route (« Tester la connexion »)
     busy(btn, true);
-    (adapte ? adapte.fichiers(form, data) : Promise.resolve(data)).then(function (payload) { return call(form.getAttribute('data-api'), payload); }).then(function (res) {
+    (adapte ? adapte.fichiers(form, data) : Promise.resolve(data)).then(function (payload) { return call(api, payload); }).then(function (res) {
       var target = form.getAttribute('data-result');
       if (target && $(target) && typeof res.text === 'string') {
         $(target).value = res.text;

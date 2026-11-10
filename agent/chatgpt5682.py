@@ -15,12 +15,13 @@ from pathlib import Path
 import sqlite3
 
 from .common import Stop
+from .mistral5696 import HELD_CODES as MISTRAL_HELD_CODES
 
 ALLOWED_FIELDS = ('model', 'input', 'instructions', 'store', 'stream', 'text', 'reasoning')
 EFFORTS = ('low', 'medium', 'high')
 DEFER_KEY = 'chatgpt5682:report'
 DEFER_CODES = frozenset(('chatgpt_limite_usage_atteinte', 'chatgpt_indisponible'))
-HELD_CODES = DEFER_CODES | {'plafond_automatique_atteint'}       # travaux reportés sur leur ligne, jamais perdus
+HELD_CODES = DEFER_CODES | {'plafond_automatique_atteint'} | MISTRAL_HELD_CODES       # travaux reportés sur leur ligne, jamais perdus (5.6.96 : limites Mistral)
 DELAYS_MINUTES = (15, 30, 60, 120, 240)
 BUNDLE_PREFIX = 'AXH-SIWC1:'
 MIN_PASSPHRASE = 12
@@ -104,6 +105,9 @@ def next_check(state_dir, code=''):
     from .sobriete5682 import CODE, tomorrow
     if code == CODE:
         return tomorrow()
+    if code in MISTRAL_HELD_CODES:   # 5.6.96 (A03) : Retry-After ou délai croissant de la connexion Mistral, 24 h pour un incident bloquant
+        from .mistral5696 import next_check as mistral_next_check
+        return mistral_next_check(state_dir, code)
     found = deferred(state_dir)
     return found['jusqu_a'] if found else (datetime.now(timezone.utc) + timedelta(minutes=DELAYS_MINUTES[0])).isoformat()
 
