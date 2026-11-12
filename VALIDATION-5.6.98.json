@@ -1,0 +1,35 @@
+{
+  "version": "5.6.98",
+  "base": "5.6.97",
+  "date_utc": "2026-11-12T00:00:00+00:00",
+  "demande": "Retours du cabinet sur la 5.6.97 : Nouveau dossier en échec, onglets Parties / Juridiction / Fichiers, routines sous « Actuellement », cases des Paramètres.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 6081,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 147,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "new_tests": "tests/test_v5698_dossiers (cause reproduite : échoue sur 5.6.97, passe sur 5.6.98), tests/test_v5698_fiche ; parcours navigateur P98a, P98p, P98d ; P97d étendu aux trois onglets.",
+  "live_checks": "Aucun service réel : la lecture « Par répertoire » n’a connu qu’un faux stockage et le stockage local du banc, pas un vrai Nextcloud.",
+  "exapp": {
+    "version": "0.1.57",
+    "moteur": "5.6.98"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Aujourd’hui (ordre par défaut) : les routines passent dans la colonne de gauche du rang, avant la file et avant Travail préparé.",
+    "Fiche : onglet « Documents » renommé « Fichiers » (vue=documents reste valable).",
+    "Paramètres : une case à cocher précède désormais son libellé."
+  ],
+  "adjusted_tests": [
+    "test_v5689_carbon UX05 (deux tests) : routines avant Travail préparé ; le long briefing reste dans le panneau.",
+    "test_v5694_parcours P01 : P98a, P98p, P98d annoncés.",
+    "test_v5617 et test_v5619 : routines avant « À décider / À relire » (inverse de l’ordre 5.6.96, demandé par le cabinet). Les deux seuls échecs de la première passe complète (6 081 tests), corrigés puis relancés."
+  ]
+}

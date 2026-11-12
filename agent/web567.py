@@ -179,7 +179,8 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
         body+='<div class="mission567-fields">'
         for f in fields:
             key,typ=f['key'],f['type'];value=f['value']
-            body+='<label>'+e(f['label'])
+            # 5.6.98 : une case à cocher précède son libellé, sur la même ligne (elle était centrée sous le libellé)
+            body+=('<label class="cfg98-case"><input type="checkbox" data-config567="'+e(key)+'"'+(' checked' if value else '')+'> '+e(f['label'])) if typ=='bool' else '<label>'+e(f['label'])
             if typ=='paths':   # 5.6.36 : dossiers choisis en cliquant ; la saisie manuelle reste possible (repliée)
                 chips=''.join('<li><span>📁 '+e(v)+'</span><button type="button" class="ghost" data-nc5636-remove="'+e(v)+'" aria-label="Retirer '+e(v)+'">×</button></li>'
                               for v in (value or []))
@@ -190,7 +191,7 @@ def connections_page(desk,auth,prefix,env,shell=None,groups=None,exclude=(),test
             elif typ in ('lines','urls'):
                 body+='<textarea data-config567="'+e(key)+'" data-no-dictation rows="3">'+e('\n'.join(value or []))+'</textarea>'
             elif typ=='bool':
-                body+='<input type="checkbox" data-config567="'+e(key)+'"'+(' checked' if value else '')+'>'
+                pass   # 5.6.98 : case déjà écrite avant le libellé
             elif typ=='secret':
                 body+='<input type="password" data-config567="'+e(key)+'" autocomplete="new-password" placeholder="'+('Secret configuré ; laisser vide pour le conserver' if f['secret_configured'] else 'Nouveau secret')+'">'
             elif typ in ('imap_security','smtp_security'):   # 5.6.30 : choix explicite du chiffrement

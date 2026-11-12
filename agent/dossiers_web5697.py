@@ -14,6 +14,13 @@ insuffisant sur une route (sans désigner de dossier). Aucune route n'appelle un
 - ``POST m57/dossiers/<id>/rangement`` : reprendre le rangement du même dossier ;
 - ``POST m57/dossiers/conflits`` : vérification des conflits avant création ;
 - ``GET|POST m57/dossiers/migration`` : simulation puis migration des dossiers existants (administrateur).
+
+5.6.98 (fiche : onglets Parties, Juridiction, Fichiers ; ``fiche5698``) :
+- ``GET  m57/dossiers/<id>/parties`` · ``POST …/parties`` (ajout, 201) · ``POST …/parties/<p>`` (modification, ``version``) ·
+  ``POST …/parties/<p>/retirer`` (``version``) ; une partie adverse ajoutée relance la vérification des conflits (résultat dans la réponse) ;
+- ``GET  m57/dossiers/<id>/instances`` · ``POST …/instances`` (201) · ``POST …/instances/<i>`` (``version``, et ``version_dossier`` pour
+  l'instance principale) · ``POST …/instances/<i>/retirer`` ;
+- ``GET  m57/dossiers/<id>/fichiers?rep=&page=`` : arborescence en lecture seule, bornée, sous le répertoire du dossier.
 """
 from .common import Stop
 from . import dossiers5697 as D
@@ -22,22 +29,27 @@ STATUS = {'champs_invalides': '422 Unprocessable Entity', 'message_invalide': '4
           'cle_idempotence_absente': '422 Unprocessable Entity',
           'reference_deja_utilisee': '409 Conflict', 'emplacement_deja_utilise': '409 Conflict', 'version_perimee': '409 Conflict',
           'cle_idempotence_deja_utilisee': '409 Conflict', 'alias_en_conflit': '409 Conflict',
+          'partie_en_double': '409 Conflict', 'instance_principale': '409 Conflict',   # 5.6.98
           'introuvable': '404 Not Found', 'dossier_reserve': '404 Not Found', 'dossier_absent': '404 Not Found', 'route_inconnue': '404 Not Found',
           'role_insuffisant': '403 Forbidden', 'origine_ou_csrf_refuse': '403 Forbidden', 'acteur_requis': '403 Forbidden',
           'controle_acces_indisponible': '503 Service Unavailable', 'registre_dossiers_occupe': '503 Service Unavailable'}
 MESSAGES = {'champs_invalides': 'Certains champs sont à corriger.', 'reference_deja_utilisee': 'Cette référence est déjà utilisée.',
-            'emplacement_deja_utilise': 'Ce répertoire appartient déjà à un dossier.',
+            'emplacement_deja_utilise': 'Ce répertoire est déjà celui d’un autre dossier : modifiez l’intitulé, la référence ou le répertoire.',
             'version_perimee': 'Ce dossier a changé depuis votre affichage : rechargez la page ; rien n’a été écrasé.',
             'cle_idempotence_deja_utilisee': 'Cette demande a déjà servi pour une autre action : rechargez la page.',
             'cle_idempotence_absente': 'Requête incomplète : rechargez la page et recommencez.',
             'introuvable': 'Dossier introuvable.', 'role_insuffisant': 'Action réservée à un autre rôle du cabinet.',
             'message_invalide': 'Courriel incomplet : rechargez la boîte de réception.',
             'controle_acces_indisponible': 'Contrôle des accès indisponible : réessayez dans un instant.',
-            'registre_dossiers_occupe': 'Registre des dossiers occupé : réessayez dans un instant.'}
+            'registre_dossiers_occupe': 'Registre des dossiers occupé : réessayez dans un instant.',
+            'partie_en_double': 'Cette personne figure déjà dans le dossier avec ce rôle.',
+            'instance_principale': 'L’instance principale porte la juridiction et le RG du dossier : désignez-en d’abord une autre.'}
 ECRITURES = {'': ('administrateur', 'avocat', 'assistant'), 'conflits': ('administrateur', 'avocat', 'assistant'),
              'migration': ('administrateur',)}
 ECRITURES_DOSSIER = {'modifier': ('administrateur', 'avocat', 'assistant'), 'courriels': ('administrateur', 'avocat', 'assistant'),
-                     'rangement': ('administrateur', 'avocat', 'assistant')}
+                     'rangement': ('administrateur', 'avocat', 'assistant'),
+                     'parties': ('administrateur', 'avocat', 'assistant'), 'instances': ('administrateur', 'avocat', 'assistant')}   # 5.6.98
+SOUS_ELEMENTS = ('parties', 'instances')   # 5.6.98 : …/<id>/parties/<p>[/retirer], …/<id>/instances/<i>[/retirer]
 
 
 def _route(route):
@@ -59,6 +71,8 @@ def allowed(role, method, route):
     if method == 'POST' and len(parts) <= 1 and (parts[0] if parts else '') in ECRITURES:
         return role in ECRITURES[parts[0] if parts else '']
     if method == 'POST' and len(parts) == 2 and parts[1] in ECRITURES_DOSSIER:
+        return role in ECRITURES_DOSSIER[parts[1]]
+    if method == 'POST' and len(parts) in (3, 4) and parts[1] in SOUS_ELEMENTS and (len(parts) == 3 or parts[3] == 'retirer'):
         return role in ECRITURES_DOSSIER[parts[1]]
     if method == 'PATCH' and len(parts) == 1 and parts[0] not in ECRITURES:
         return role in ECRITURES_DOSSIER['modifier']
@@ -130,6 +144,19 @@ def _lecture(desk, acteur, parts, args):
         return _out({'courriels': D.messages_du_dossier(desk, acteur, parts[0])})
     if len(parts) == 2 and parts[1] == 'journal':
         return _out({'journal': D.journal(desk, acteur, parts[0])})
+    if len(parts) == 2 and parts[1] in ('parties', 'instances', 'fichiers'):   # 5.6.98
+        from . import fiche5698 as F
+        if parts[1] == 'parties':
+            data = F.parties(desk, acteur, parts[0])
+            return _out({'dossier': data['dossier'], 'parties': data['parties'], 'groupes': [{'cle': c, 'libelle': l, 'parties': [p['id'] for p in ps]}
+                                                                                         for c, l, ps in data['groupes']]})
+        if parts[1] == 'instances':
+            return _out(F.instances(desk, acteur, parts[0]))
+        dossier = D.lire(desk, acteur, parts[0])
+        if dossier['stockage']['etat'] != 'pret':
+            return _out({'etat': 'en_preparation', 'motif': dossier['stockage']['motif'] or dossier['stockage']['libelle'], 'dossiers': [], 'fichiers': []})
+        page = int(args.get('page')) if str(args.get('page') or '').isdigit() and int(args.get('page')) > 0 else 1
+        return _out(F.arborescence(desk, dossier['stockage']['chemin'], str(args.get('rep') or ''), page))
     raise Stop('route_inconnue')
 
 
@@ -177,10 +204,31 @@ def _ecriture(desk, acteur, parts, data, method, prefix):
         recu = D.rattacher_message(desk, acteur, ident, data.get('message'), data.get('cle'), data.get('version'), data.get('motif', ''),
                                    data.get('options') if isinstance(data.get('options'), dict) else None)
         return _out({**recu, 'url': prefix + recu['url']})
+    if method == 'POST' and len(parts) >= 2 and parts[1] in SOUS_ELEMENTS:   # 5.6.98 : parties et instances de la fiche
+        return _sous_element(desk, acteur, parts, data)
     if method == 'POST' and parts[1:] == ['rangement']:
         recu = D.reprendre_rangement(desk, acteur, ident, data.get('cle'))
         ranger_maintenant(desk, recu['dossier'])
         return _out({**recu, 'stockage': D.lire(desk, acteur, recu['dossier'])['stockage']})
+    raise Stop('route_inconnue')
+
+
+def _sous_element(desk, acteur, parts, data):
+    """5.6.98 : ajout (201, rejeu 200), modification et retrait (version attendue) d'une partie ou d'une instance."""
+    from . import fiche5698 as F
+    ident, genre = parts[0], parts[1]
+    champs = {k: data[k] for k in (F.CHAMPS_PARTIE if genre == 'parties' else F.CHAMPS_INSTANCE) if k in data}
+    if len(parts) == 2:
+        fn = F.ajouter_partie if genre == 'parties' else F.ajouter_instance
+        recu = fn(desk, acteur, ident, champs, data.get('cle'))
+        return _out(recu, '200 OK' if recu.get('rejoue') else '201 Created')
+    if len(parts) == 4 and parts[3] == 'retirer':
+        fn = F.retirer_partie if genre == 'parties' else F.retirer_instance
+        return _out(fn(desk, acteur, ident, parts[2], data.get('version'), data.get('cle')))
+    if len(parts) == 3:
+        if genre == 'parties':
+            return _out(F.modifier_partie(desk, acteur, ident, parts[2], data.get('version'), champs, data.get('cle')))
+        return _out(F.modifier_instance(desk, acteur, ident, parts[2], data.get('version'), champs, data.get('cle'), data.get('version_dossier')))
     raise Stop('route_inconnue')
 
 

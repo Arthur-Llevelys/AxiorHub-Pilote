@@ -1713,6 +1713,10 @@ from parcours_p97d import p97d_dossiers   # noqa: E402 — 5.6.97 (lot dossiers)
 PARCOURS = PARCOURS + (('P97d', 'Dossiers : écran de départ, import, Nouveau dossier, conflits, fiche, retour et petite largeur', p97d_dossiers),)
 from parcours_p97a import p97a_agenda   # noqa: E402 — 5.6.97 (lot agenda) : grille sur un écran, saisie (clic, glisser, clavier), 125 %, mobile
 PARCOURS = PARCOURS + (('P97a', 'Agenda : grille Jour/Semaine sans défilement à 1920 × 950, clic, glisser, clavier, double clic, 125 %, 200 %, mobile', p97a_agenda),)
+from parcours_p98 import p98_aujourdhui, p98_nouveau_dossier, p98_parametres   # noqa: E402 — 5.6.98 : Aujourd'hui, cases des Paramètres, Nouveau dossier
+PARCOURS = PARCOURS + (('P98a', 'Aujourd’hui : routines sous « Actuellement », au-dessus de la file, Ma journée à droite', p98_aujourdhui),
+                       ('P98p', 'Paramètres › Connexions : cases collées à leur libellé, champs Microsoft sans remplissage automatique', p98_parametres),
+                       ('P98d', 'Nouveau dossier : un ancien dossier posé sur la racine ne bloque plus la création', p98_nouveau_dossier))
 
 # ------------------------------------------------------------------------------------------------ lancement
 def lancer(navigateur, sortie, choisis=(), voir=False):

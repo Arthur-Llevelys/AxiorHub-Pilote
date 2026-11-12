@@ -24,10 +24,13 @@ from urllib.parse import urlencode
 from .common import Stop, matter_display
 
 # 5.6.97 (lot dossiers, § 12) : six sections de la fiche (Correspondances, Procédure · Pièces, Agenda et tâches, Gestion), puis le travail de l'IA
-TABS = (('synthese', 'Synthèse'), ('documents', 'Documents'), ('echanges', 'Correspondances'), ('faits', 'Procédure · Pièces'),
-        ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'), ('travail', 'Travail de l’IA'))
-ALIASES = {'': 'synthese', 'apercu': 'synthese', 'fiche': 'synthese', 'pieces': 'documents', 'procedure': 'faits', 'courriels': 'echanges',
-           'correspondances': 'echanges', 'travaux': 'travail', 'taches': 'agenda', 'honoraires': 'gestion'}
+# 5.6.98 : Parties, Juridiction et Fichiers juste après Synthèse, comme dans un logiciel de gestion de cabinet (« Documents » devient
+# « Fichiers » : ``vue=documents`` reste un alias, ``fiche_ui5698``)
+TABS = (('synthese', 'Synthèse'), ('parties', 'Parties'), ('juridiction', 'Juridiction'), ('fichiers', 'Fichiers'), ('echanges', 'Correspondances'),
+        ('faits', 'Procédure · Pièces'), ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'), ('travail', 'Travail de l’IA'))
+ALIASES = {'': 'synthese', 'apercu': 'synthese', 'fiche': 'synthese', 'pieces': 'fichiers', 'documents': 'fichiers', 'procedure': 'faits', 'courriels': 'echanges',
+           'correspondances': 'echanges', 'travaux': 'travail', 'taches': 'agenda', 'honoraires': 'gestion', 'intervenants': 'parties', 'instances': 'juridiction'}
+DETAIL_TAB = {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'fichiers', 'cloture': 'gestion'}
 DETAIL_VIEWS = ('informations', 'procedure-detail', 'pieces-detail', 'cloture')   # 5.6.97 : « Préparer la clôture » (lot gestion), depuis le menu « … »
 CATEGORIES = (('', 'Tous'), ('ecritures', 'Écritures'), ('decisions', 'Décisions'), ('actes', 'Actes et RPVA'), ('nos', 'Nos pièces'),
               ('adverses', 'Pièces adverses'), ('courriers', 'Courriers'), ('autres', 'Autres'), ('illisibles', 'Illisibles'))
@@ -138,7 +141,10 @@ def header_html(desk, prefix, m, view):
                  '<button type="button" class="ax-btn ghost d27-pausebtn" data-d27-pause="1" title="Plus aucun travail automatique de l’IA sur ce dossier">⏸ Mettre l’IA en pause</button>')
     paused = ('<p class="d27-paused" role="status">⏸ <strong>IA en pause sur ce dossier.</strong> Aucun travail automatique n’est lancé ; '
               'vos demandes restent possibles.</p>') if on_pause else ''
-    meta = ['Réf. ' + e(mid)]
+    # 5.6.98 : un dossier créé au registre a un identifiant interne (32 caractères) : on affiche sa référence (ex. 2026-0001), pas l'identifiant
+    refs = [str(r) for r in (m.get('references') or []) if str(r).strip()]
+    shown = refs[0] if refs and len(str(mid)) == 32 and all(c in '0123456789abcdef' for c in str(mid)) else mid
+    meta = ['Réf. ' + e(shown)]
     if m.get('client_name'):
         meta.append('client : ' + e(m['client_name']))
     if ref and (ref['juridiction'] or ref['rg']):
@@ -194,7 +200,7 @@ def essentials_html(desk, prefix, m):
             (' — ' + e(p['qualite'])) if p['qualite'] else '', (' · ' + e(p['conseil'])) if p['conseil'] else ''))
     parties = ('<ul class="d79-list">%s</ul>' % ''.join(rows)) if rows else '<p class="ax-muted">Parties non encore identifiées : « ↻ Actualiser » relit les en-têtes des actes.</p>'
     if len(reps) > 8:
-        parties += '<p><a href="%s">Toutes les parties (%d)</a></p>' % (e(prefix + _q(mid, 'faits') + '#d51-parties', quote=True), len(reps))
+        parties += '<p><a href="%s">Toutes les parties (%d)</a></p>' % (e(prefix + _q(mid, 'parties'), quote=True), len(reps))   # 5.6.98 : onglet Parties
     ref = modele5651.reference_procedure(desk, mid)
     procs = modele5651.procedures(desk, mid)
     if ref:
@@ -241,9 +247,9 @@ def latest_documents_html(desk, prefix, m):
             e(_date_fr(_when(d)) or '—'), ('<span class="d79-kind d79-kind-%s">%s</span> ' % (e(d['nature']), e(label))) if label else '',
             _doc_link(prefix, mid, d, overview), (' <span class="ax-muted">— %s</span>' % e(who)) if who else '')
     left = ('<ul class="d79-list d79-docs">%s</ul>' % ''.join(li(d) for d in writings)) if writings else \
-        '<p class="ax-muted">Aucune conclusion, assignation ni décision identifiée. Vérifiez le classement dans l’onglet Documents.</p>'
+        '<p class="ax-muted">Aucune conclusion, assignation ni décision identifiée. Vérifiez le classement dans l’onglet Fichiers.</p>'
     right = ('<ul class="d79-list d79-docs">%s</ul>' % ''.join(li(d, False) for d in recent)) if recent else '<p class="ax-muted">Aucun document.</p>'
-    more = '<a href="%s">Tous les documents (%d)</a>' % (e(prefix + _q(mid, 'documents'), quote=True), len(docs))
+    more = '<a href="%s">Tous les documents (%d)</a>' % (e(prefix + _q(mid, 'fichiers'), quote=True), len(docs))
     return _card('Derniers documents', '<div class="d79-grid2"><div><h3>Écritures et décisions</h3>%s</div><div><h3>Ajoutés récemment</h3>%s</div></div>' % (left, right),
                  'd79-derniers', more)
 
@@ -280,7 +286,7 @@ def todo_html(desk, prefix, m):
             e(prefix + _q(mid, 'informations'), quote=True), proposed))
     if unreadable:
         items.append('<li><a href="%s"><strong>%d</strong> fichier(s) illisible(s) (scans, fichiers protégés)</a> <span class="ax-muted">— facultatif</span></li>' % (
-            e(prefix + _q(mid, 'documents', cat='illisibles'), quote=True), len(unreadable)))
+            e(prefix + _q(mid, 'fichiers', cat='illisibles'), quote=True), len(unreadable)))
     body = ('<ul class="d79-list">%s</ul>' % ''.join(items)) if items else '<p class="ax-muted">Rien en attente.</p>'
     return _card('À traiter', body, 'd79-todo')
 
@@ -334,10 +340,10 @@ def documents_html(desk, auth, prefix, m, args):
     page = int(args.get('page')) if str(args.get('page') or '').isdigit() and int(args.get('page')) > 0 else 1
     total = len(rows)
     rows = rows[(page - 1) * PAGE: page * PAGE]
-    chips = ''.join('<a href="%s"%s>%s <span>%d</span></a>' % (e(prefix + _q(mid, 'documents', cat=k, q=query, tri=sort if sort != 'date' else ''), quote=True),
+    chips = ''.join('<a href="%s"%s>%s <span>%d</span></a>' % (e(prefix + _q(mid, 'fichiers', cat=k, q=query, tri=sort if sort != 'date' else ''), quote=True),
                                                              ' aria-current="true"' if k == cat else '', e(v), len(docs) if not k else counts.get(k, 0))
                     for k, v in CATEGORIES if not k or counts.get(k))
-    search = ('<form class="d79-search" method="get"><input type="hidden" name="id" value="%s"><input type="hidden" name="vue" value="documents">'
+    search = ('<form class="d79-search" method="get"><input type="hidden" name="id" value="%s"><input type="hidden" name="vue" value="fichiers">'
               '<input type="hidden" name="cat" value="%s"><label class="sr-only" for="d79-q">Rechercher un document</label>'
               '<input id="d79-q" name="q" value="%s" placeholder="Rechercher un document…" data-no-dictation><select name="tri" aria-label="Trier">'
               '<option value="date"%s>Plus récents d’abord</option><option value="nom"%s>Par titre</option></select><button class="ax-btn ghost">OK</button></form>') % (
@@ -365,16 +371,33 @@ def documents_html(desk, auth, prefix, m, args):
     if pages > 1:
         nav = []
         if page > 1:
-            nav.append('<a href="%s">← Précédents</a>' % e(prefix + _q(mid, 'documents', cat=cat, q=query, page=page - 1), quote=True))
+            nav.append('<a href="%s">← Précédents</a>' % e(prefix + _q(mid, 'fichiers', cat=cat, q=query, page=page - 1), quote=True))
         nav.append('<span>Page %d / %d (%d documents)</span>' % (page, pages, total))
         if page < pages:
-            nav.append('<a href="%s">Suivants →</a>' % e(prefix + _q(mid, 'documents', cat=cat, q=query, page=page + 1), quote=True))
+            nav.append('<a href="%s">Suivants →</a>' % e(prefix + _q(mid, 'fichiers', cat=cat, q=query, page=page + 1), quote=True))
         body += '<nav class="d51-pager">%s</nav>' % ' '.join(nav)
     if cat == 'illisibles':
         from .vue5651 import coverage_html
         body += _safe('Couverture', coverage_html, desk, prefix, mid)
     body += '<p class="ax-muted"><a href="%s">Vue détaillée des pièces, bordereaux et couverture de lecture</a> · <a href="%s">Contentieux : prétentions, preuves, actes, délais, paquets</a></p>' % (e(prefix + _q(mid, 'pieces-detail'), quote=True), e(prefix + '/contentieux?dossier=' + mid, quote=True))   # 5.6.89
     return _card('Documents du dossier', body, 'd79-documents')
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.98 : Parties, Juridiction, Fichiers
+def parties_html(desk, auth, prefix, m, args):
+    from .fiche_ui5698 import parties_html as parties5698
+    return _safe('Parties', parties5698, desk, _acteur5697(), prefix, m)
+
+
+def juridiction_html(desk, auth, prefix, m, args):
+    from .fiche_ui5698 import juridiction_html as juridiction5698
+    return _safe('Juridiction', juridiction5698, desk, _acteur5697(), prefix, m)
+
+
+def fichiers_html(desk, auth, prefix, m, args):
+    """« Par type » : le classement de ``documents_html``, inchangé ; « Par répertoire » : l'arborescence réelle (lecture seule, bornée)."""
+    from .fiche_ui5698 import fichiers_html as fichiers5698
+    return _safe('Fichiers', fichiers5698, desk, auth, _acteur5697(), prefix, m, args, lambda: documents_html(desk, auth, prefix, m, args))
 
 
 # ------------------------------------------------------------------------------------------------ Faits et procédure
@@ -410,7 +433,7 @@ def procedure_card(desk, prefix, m):
            '<label class="d51-check"><input type="checkbox" name="reference"> Procédure de référence</label>'
            '<button class="ax-btn ghost" type="submit">Ajouter</button><p role="status" class="m5-status"></p></form></details>') % e(mid, quote=True)
     body = ''.join(items) or ('<p class="ax-muted">Aucune procédure identifiée. AxiorHub lit la juridiction, le RG, les qualités et les avocats sur la '
-                              'première page des conclusions, assignations et jugements : vérifiez leur classement dans l’onglet Documents, puis « ↻ Actualiser ».</p>')
+                              'première page des conclusions, assignations et jugements : vérifiez leur classement dans l’onglet Fichiers, puis « ↻ Actualiser ».</p>')
     return _card('Procédure', body + add, 'd79-procedure', '<a href="%s">Détail des actes</a>' % e(prefix + _q(mid, 'procedure-detail'), quote=True))
 
 
@@ -639,7 +662,7 @@ def travail_html(desk, auth, prefix, m, args):
         body = ('<ul class="d79-list">%s</ul>' % items) if items else ''
         if unreadable:
             body += '<p class="ax-muted">%d fichier(s) illisible(s) ne sont pas lus (scans sans texte, fichiers protégés) : <a href="%s">voir la liste</a>. ' \
-                    'Une version lisible déposée dans le dossier sera lue automatiquement.</p>' % (unreadable, e(prefix + _q(mid, 'documents', cat='illisibles'), quote=True))
+                    'Une version lisible déposée dans le dossier sera lue automatiquement.</p>' % (unreadable, e(prefix + _q(mid, 'fichiers', cat='illisibles'), quote=True))
         return _card('Informations à fournir', body, 'd51-gaps')
     out += _safe('Informations à fournir', gaps)
     try:
@@ -675,7 +698,7 @@ def travail_html(desk, auth, prefix, m, args):
 def detail_html(desk, auth, prefix, m, args, view):
     from . import vue5651
     fn = {'informations': vue5651.faits_html, 'procedure-detail': vue5651.procedure_html, 'pieces-detail': vue5651.pieces_html}[view]
-    back = '<p><a href="%s">← Retour</a></p>' % e(prefix + _q(m['id'], {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'documents', 'cloture': 'gestion'}[view]), quote=True)
+    back = '<p><a href="%s">← Retour</a></p>' % e(prefix + _q(m['id'], DETAIL_TAB[view]), quote=True)
     return back + _safe('Détail', fn, desk, auth, prefix, m, args)
 
 
@@ -699,13 +722,14 @@ def page(desk, auth, prefix, args, shell):
             modele5651.rebuild(desk, m['id'])
         except Stop:
             pass
-    body = header_html(desk, prefix, m, view if view in dict(TABS) else {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'documents', 'cloture': 'gestion'}[view])
+    body = header_html(desk, prefix, m, view if view in dict(TABS) else DETAIL_TAB[view])
     if view in DETAIL_VIEWS:
         content = cloture_html(desk, auth, prefix, m, args) if view == 'cloture' else detail_html(desk, auth, prefix, m, args, view)
     else:
-        renderer = {'synthese': synthese_html, 'documents': documents_html, 'faits': faits_html, 'echanges': echanges_html, 'travail': travail_html,
-                    'agenda': agenda_html, 'gestion': gestion_html}[view]
+        renderer = {'synthese': synthese_html, 'parties': parties_html, 'juridiction': juridiction_html, 'fichiers': fichiers_html, 'faits': faits_html,
+                    'echanges': echanges_html, 'travail': travail_html, 'agenda': agenda_html, 'gestion': gestion_html}[view]
         content = renderer(desk, auth, prefix, m, args)
     body += '<div class="d79-layout"><div class="d79-main">%s</div>%s</div></div>' % (content, PREVIEW)
-    head = '<script defer src="%s/static/v5627.js"></script><script defer src="%s/static/v5679.js"></script>' % (e(prefix), e(prefix))
+    head = ('<script defer src="%s/static/v5627.js"></script><script defer src="%s/static/v5679.js"></script>'
+            '<script defer src="%s/static/v5698-fiche.js"></script>') % (e(prefix), e(prefix), e(prefix))   # 5.6.98 : sous-onglets au clavier, confirmation d'un retrait
     return shell(matter_display(m), body, prefix, auth['csrf'], '/dossiers', head)

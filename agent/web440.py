@@ -29,6 +29,7 @@ STATIC = {'/static/v5697-gestion.css': 'text/css', '/static/v5697-sources.css': 
           '/static/v530.css': 'text/css', '/static/v530.js': 'text/javascript', '/static/v540.js': 'text/javascript', '/static/v550.js': 'text/javascript', '/static/v550.css': 'text/css', '/static/v560.css': 'text/css', '/static/v561.css': 'text/css'}
 from .voix5694 import statiques as _statiques5694   # noqa: E402 — 5.6.94 (V01) : Brindille, Alkove et scripts de la voix, empreintes dans voix5694
 STATIC.update(_statiques5694())
+STATIC.update({'/static/v5698-fiche.js': 'text/javascript'})   # 5.6.98 : fiche du dossier (sous-onglets Fichiers, confirmation d'un retrait)
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
