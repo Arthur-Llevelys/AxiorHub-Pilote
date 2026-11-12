@@ -14,8 +14,8 @@ from . import dossiers5697 as D
 
 FILTRES_STATUT = (('actif', 'Actifs'), ('archive', 'Archivés'))
 FILTRES_NATURE = (('', 'Toutes natures'), ('conseil', 'Conseil'), ('contentieux', 'Contentieux'), ('a_qualifier', 'À qualifier'))
-ONGLETS = (('synthese', 'Synthèse'), ('documents', 'Documents'), ('correspondances', 'Correspondances'), ('procedure', 'Procédure · Pièces'),
-           ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'))
+ONGLETS = (('synthese', 'Synthèse'), ('parties', 'Parties'), ('juridiction', 'Juridiction'), ('fichiers', 'Fichiers'), ('correspondances', 'Correspondances'),
+           ('procedure', 'Procédure · Pièces'), ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'))   # 5.6.98 : documentation (dossier5679.TABS fait foi)
 
 
 def _date_fr(valeur):
@@ -233,7 +233,8 @@ def page_nouveau(desk, env, auth, prefix, args):
                    for k, v in sorted(membres.items(), key=lambda kv: kv[1].lower()))
     if compte not in membres:
         resp = '<option value="%s" selected>%s</option>' % (e(compte, quote=True), e(compte)) + resp
-    roles = ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in D.ROLES_PARTIES.items() if k != 'client')
+    from .fiche_ui5698 import options_roles   # 5.6.98 : mêmes groupes que l'onglet Parties (Clients, Parties adverses, Avocats, Autres intervenants)
+    roles = options_roles('adverse')
     rattacher = args.get('emplacement') == 'rattacher'
     bloc_msg = ''
     if msg:
@@ -243,11 +244,11 @@ def page_nouveau(desk, env, auth, prefix, args):
                     '<input type="hidden" name="message.sujet" value="%s"><input type="hidden" name="message.expediteur" value="%s">'
                     '<p class="ax-muted">Le message sera rattaché au dossier créé. Rien n’est déplacé dans la boîte de courriel.</p>'
                     '<div class="d97-partie" data-d97-partie><label>Correspondant<input name="nom" value="%s"></label><label>Courriel<input name="courriel" value="%s" type="email"></label>'
-                    '<label>Son rôle<select name="role"><option value="client">Client</option>%s</select></label></div>'
+                    '<label>Son rôle<select name="role">%s</select></label></div>'
                     '<p class="ax-muted">L’expéditeur n’est pas forcément le client : précisez son rôle.</p></fieldset>') % (
             e(msg['sujet']), e(msg['expediteur']), e(msg['boite'], quote=True), e(msg['uid'], quote=True), e(msg['uidvalidity'], quote=True),
             e(msg['message_id'], quote=True), e(msg['sujet'], quote=True), e(msg['expediteur'], quote=True), e(msg['expediteur_nom'] or msg['expediteur'], quote=True),
-            e(msg['expediteur'], quote=True), roles.replace('value="correspondant"', 'value="correspondant" selected'))
+            e(msg['expediteur'], quote=True), options_roles('correspondant'))
     html = ('<section id="d97n" class="d97 d97-nouveau-page" aria-labelledby="d97n-titre">'
             '<p class="d97-ariane"><a href="%(liste)s">Dossiers</a> › <span aria-current="page">Nouveau dossier</span></p>'
             '<h1 id="d97n-titre">Nouveau dossier</h1>'

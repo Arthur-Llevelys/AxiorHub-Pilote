@@ -35,7 +35,10 @@ CLIENT_ETATS = {'identifie': 'Identifié', 'a_identifier': 'À identifier'}
 CONFIDENTIALITES = {'cabinet': 'Tout le cabinet', 'reserve': 'Réservé aux membres désignés'}
 PROVENANCES = ('manuel', 'courriel', 'detecte', 'migre', 'ia', 'connecteur')
 ROLES_PARTIES = {'client': 'Client', 'adverse': 'Partie adverse', 'conseil_adverse': 'Conseil adverse', 'juridiction': 'Juridiction',
-                 'expert': 'Expert', 'correspondant': 'Correspondant', 'autre': 'Autre'}
+                 'expert': 'Expert', 'correspondant': 'Correspondant', 'autre': 'Autre',
+                 # 5.6.98 (onglet Parties, ``fiche5698.GROUPES``) : rôles d'un logiciel de gestion de cabinet ; les anciens restent valables
+                 'avocat_client': 'Avocat du client', 'avocat_postulant': 'Avocat postulant', 'commissaire_justice': 'Commissaire de justice',
+                 'mandataire_judiciaire': 'Mandataire ou administrateur judiciaire', 'notaire': 'Notaire', 'assureur': 'Assureur'}
 STOCKAGE = {'a_preparer': 'Rangement en préparation', 'en_cours': 'Rangement en cours', 'pret': 'Rangement prêt',
             'en_attente': 'Rangement en attente', 'a_verifier': 'Rangement à vérifier'}
 CHAMPS_MODIFIABLES = ('titre', 'reference', 'client', 'client_etat', 'nature', 'statut', 'responsable', 'juridiction', 'rg', 'resume')
@@ -410,16 +413,52 @@ def creer(desk, acteur, donnees, cle, message=None, origine_ia=False):
     return recu
 
 
+def _conteneurs(desk):
+    """5.6.98 : racines configurées, racine des dossiers et leurs parents. Un ancien dossier dont le chemin est l'un d'eux (dossier
+    « Cabinet » posé sur la racine, import d'un répertoire parent) ne possède pas pour autant tous les répertoires créés dessous."""
+    nc = desk.c.get('nextcloud') or {}
+    bases = []
+    for r in list(nc.get('roots') or []) + list(nc.get('matter_roots') or []):
+        try:
+            bases.append(clean_path(str(r)))
+        except Stop:
+            continue
+    try:
+        bases.append(racine(desk))
+    except Stop:
+        pass
+    return bases
+
+
+def _occupe(chemin, existant, bases):
+    try:
+        existant = clean_path(str(existant))
+    except Stop:
+        return False
+    if existant == chemin:
+        return True
+    if any(under(b, existant) for b in bases):   # la racine elle-même ou un parent : simple conteneur
+        return False
+    return under(chemin, existant) or under(existant, chemin)
+
+
 def _chemin_libre(desk, chemin):
+    """Refuse un répertoire déjà pris par un dossier : le même, un répertoire placé dans un dossier, ou un répertoire qui contient un dossier.
+    Les conteneurs (racines, racine des dossiers, leurs parents) ne comptent pas (5.6.98 : un ancien dossier posé sur la racine bloquait
+    toute création)."""
+    chemin = clean_path(chemin)
+    bases = _conteneurs(desk)
+    message = {'emplacement': 'Ce répertoire est déjà celui d’un autre dossier (ou se trouve à l’intérieur) : modifiez l’intitulé, '
+                              'la référence ou le répertoire choisi.'}
     for row in desk.db.execute('SELECT id,chemin FROM dossiers5697 WHERE chemin<>?', ('',)):
-        if under(chemin, row['chemin']) or under(row['chemin'], chemin):
-            raise Refus('emplacement_deja_utilise', {'emplacement': 'Ce répertoire appartient déjà à un dossier.'})
+        if _occupe(chemin, row['chemin'], bases):
+            raise Refus('emplacement_deja_utilise', message)
     connus = {r[0] for r in desk.db.execute('SELECT id FROM dossiers5697')}
     for m in _registre_json(desk):
         if m.get('id') in connus or not m.get('path'):
             continue
-        if under(chemin, m['path']) or under(m['path'], chemin):
-            raise Refus('emplacement_deja_utilise', {'emplacement': 'Ce répertoire appartient déjà à un dossier.'})
+        if _occupe(chemin, m['path'], bases):
+            raise Refus('emplacement_deja_utilise', message)
 
 
 def _ajouter_partie(desk, ident, p):

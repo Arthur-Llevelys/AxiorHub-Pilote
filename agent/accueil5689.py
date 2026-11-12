@@ -258,6 +258,11 @@ def rang_html(desk, prefix, owner, role, blocs, principal, cote):
         return '', principal, cote
     principal = [k for k in principal if not (k == 'file' and gauche)]
     cote = [k for k in cote if not (k == 'journee' and droite)]
+    if 'routines' in principal and blocs.get('routines'):   # 5.6.98 : « Routines du cabinet » juste sous « Actuellement », au-dessus de la file
+        gauche = _item('routines', blocs['routines']) + gauche
+        principal = [k for k in principal if k != 'routines']
+    if gauche and droite:   # 5.6.98 : routines puis file dans une même colonne, à côté de « Ma journée » : plus de vide sous la file
+        gauche = '<div class="f98-gauche">%s</div>' % gauche
     return '<div class="f96-rang%s">%s%s</div>' % ('' if gauche and droite else ' f96-rang-seul', gauche, droite), principal, cote
 
 

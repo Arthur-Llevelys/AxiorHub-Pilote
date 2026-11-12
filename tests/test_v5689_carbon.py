@@ -385,8 +385,13 @@ class Accueil(Base):
         corps = 'Point du jour sur les dossiers. ' * 400
         with patch.object(routines520, 'latest', lambda desk, kind: {'id': 'r1', 'created': self.desk.now(), 'text': corps, 'notes': []} if kind == 'briefing' else None):
             html = self.page()
-        self.assertLess(html.index('id="a89-travail"'), html.index('id="c5614-routines"'))
-        self.assertLess(html.index('Assignation KERVILAC'), html.index('Point du jour sur les dossiers'))
+        # 5.6.98 (demande du cabinet) : les routines montent sous « Actuellement », avant Travail préparé ; un long briefing ne prend
+        # toujours qu'un résumé court sur la page, le compte rendu complet reste dans le panneau ouvert à la demande
+        self.assertLess(html.index('id="c5614-routines"'), html.index('id="a89-travail"'))
+        debut = html.index('<dialog class="ui89-panneau" id="a89-rapports"')
+        hors_panneau = html[:debut] + html[html.index('</dialog>', debut):]
+        self.assertLessEqual(hors_panneau.count('Point du jour sur les dossiers'), 8)
+        self.assertIn('Assignation KERVILAC', html)
         # 5.6.96 (I01, décision du cabinet) : la file « À décider / À relire » monte dans le rang sous « Actuellement », avant Travail préparé et les routines
         self.assertLess(html.index('id="c5656-file"'), html.index('id="a89-travail"'))
         panneau = html[html.index('<dialog class="ui89-panneau" id="a89-rapports"'):]
@@ -405,13 +410,14 @@ class Accueil(Base):
 
     def test_UX05_routines_et_file_dans_la_meme_colonne_journee_a_cote(self):
         # 5.6.96 (I01) : ordre par défaut : file et journée dans le rang sous « Actuellement » (2 parts / 1 part), le reste inchangé
+        # 5.6.98 : les routines rejoignent la colonne de gauche du rang, au-dessus de la file (demande du cabinet)
         html = self.page()
         rang = html[html.index('class="f96-rang"'):html.index('class="a89-layout"')]
         principal = html[html.index('class="a89-principal"'):html.index('class="a89-cote"')]
         cote = html[html.index('class="a89-cote"'):]
-        for ident in ('id="a89-travail"', 'id="c5614-routines"'):
-            self.assertIn(ident, principal)
-        for ident in ('id="c5656-file"', 'id="c530-day"'):
+        self.assertIn('id="a89-travail"', principal)
+        self.assertLess(rang.index('id="c5614-routines"'), rang.index('id="c5656-file"'))
+        for ident in ('id="c5614-routines"', 'id="c5656-file"', 'id="c530-day"'):
             self.assertIn(ident, rang)
             self.assertNotIn(ident, principal + cote)
         for ident in ('id="t88-matin"', 'id="c530-feed"'):

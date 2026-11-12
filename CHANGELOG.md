@@ -3,6 +3,19 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.98 — Nouveau dossier réparé, fiche du dossier : Parties, Juridiction, Fichiers ; routines en haut d’Aujourd’hui
+
+Retours du cabinet sur la 5.6.97.
+
+- **Nouveau dossier** : la création était refusée (« Ce répertoire appartient déjà à un dossier ») dès qu’un ancien dossier était posé sur la racine des dossiers ou sur un répertoire parent. Les racines et leurs parents ne « possèdent » plus les répertoires créés dessous ; un même répertoire, ou un répertoire placé dans un autre dossier, reste refusé.
+- **Fiche du dossier** : trois onglets après Synthèse, comme dans un logiciel de gestion de cabinet.
+  - **Parties** : clients, parties adverses, avocats (du client, adverses, postulants), autres intervenants (expert, commissaire de justice, mandataire ou administrateur judiciaire, notaire, assureur) ; qualité, personne physique ou morale, coordonnées, SIREN, avocat qui représente, note ; ajout, modification, retrait sans IA ; une partie adverse ajoutée relance la vérification des conflits ; les parties lues dans les pièces sont proposées à part, jamais ajoutées seules.
+  - **Juridiction** : instances (première instance, référé, appel, cassation…) avec juridiction, chambre, RG, Portalis, nature, saisine, magistrat, greffe, état ; l’instance principale reste la juridiction et le RG du dossier ; prochaine audience et derniers actes repris de l’agenda et du registre procédural.
+  - **Fichiers** : « Par type » (classement habituel) et « Par répertoire » (arborescence réelle du répertoire du dossier, bornée, stockage hors ligne signalé).
+- L’en-tête de la fiche affiche la référence du dossier (ex. 2026-0001) au lieu de son identifiant interne.
+- **Aujourd’hui** : « Routines du cabinet » juste sous « Actuellement », au-dessus de « À décider / À relire », « Ma journée » à droite : plus de vide sous la file.
+- **Paramètres › Connexions** : les cases à cocher (météo, Talk, messagerie, SMTP, Invoice Ninja…) sont collées à leur libellé ; les champs de l’application Microsoft ne sont plus remplis par le navigateur avec l’identifiant et le mot de passe de connexion.
+
 ## 5.6.97 — Dossiers réservés protégés, gestion du cabinet de bout en bout, Gmail, agenda en grille
 
 Audit du cabinet sur la 5.6.96 (B01 à B10) et cahier « gestion du cabinet » (ouvrir une affaire, classer, produire, planifier, suivre, facturer, clôturer), plus Gmail, la liaison ChatGPT poste/serveur et les sources juridiques internationales.

@@ -115,9 +115,18 @@ def p97d_dossiers(banc, s):
 
     # ---------------------------------------------------------------- P97d3 : fiche, retour à la liste
     texte = p.locator('.d79-tabs').inner_text()
-    for section in ('Synthèse', 'Documents', 'Correspondances', 'Procédure · Pièces', 'Agenda et tâches', 'Gestion'):
+    # 5.6.98 : Parties, Juridiction et Fichiers (ex-« Documents ») juste après Synthèse
+    for section in ('Synthèse', 'Parties', 'Juridiction', 'Fichiers', 'Correspondances', 'Procédure · Pièces', 'Agenda et tâches', 'Gestion'):
         verifier(section in texte, 'section absente de la fiche : %s' % section)
     verifier('DOS-2026-777' in p.locator('.d97-fiche-tete').inner_text(), 'bandeau du registre absent de la fiche')
+    for onglet, attendu in (('Parties', '#d98-parties'), ('Juridiction', '#d98-juridiction'), ('Fichiers', '#d98-fichiers')):
+        p.locator('.d79-tabs a', has_text=onglet).click()
+        p.wait_for_load_state('networkidle')
+        verifier(p.locator(attendu).count() == 1 and p.locator('.d79-warn').count() == 0, 'onglet %s absent ou en erreur' % onglet)
+    p.locator('.d98-sousonglets a', has_text='Par répertoire').click()
+    p.wait_for_load_state('networkidle')
+    verifier('CORRESPONDANCES' in p.locator('#d98-fichiers-panneau').inner_text(), 'sous-répertoires du dossier absents de « Par répertoire »')
+    verifier(p.evaluate(SANS_DEFILEMENT), 'défilement horizontal dans l’onglet Fichiers')
     p.locator('.d79-tabs a', has_text='Agenda et tâches').click()
     p.wait_for_load_state('networkidle')
     verifier(p.locator('#d97-agenda-t').count() == 1, 'section Agenda et tâches vide')
