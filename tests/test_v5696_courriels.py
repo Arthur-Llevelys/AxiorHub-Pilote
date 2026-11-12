@@ -715,7 +715,7 @@ class VueAssistee(BaseVue):
         self.assertEqual(cx.lignes(self.desk, CLAIRE, hidden=frozenset({'DOS-001'})), [])
         membres5650.set_viewer({'DOS-001'})
         statut, out = self.appel('courriels/fil', args={'fil': fil})
-        self.assertEqual((statut, out['error']), ('403', 'dossier_reserve'))
+        self.assertEqual((statut, out['error']), ('404', 'introuvable'))           # 5.6.97 (B01) : réponse neutre, existence non divulguée
         self.assertEqual(self.serveur.commandes, [])
         self.assertNotIn('Demande DURAND', self.page(vue='assistante'))
 

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Échantillon écrit à la main pour les tests AxiorHub 5.6.97 (lot sources), aucun téléchargement.
+     Format : API Open Data du BOE, legislación consolidada, réponse /id/{id} (metadatos + texto), d'après
+     https://www.boe.es/datosabiertos/api/api.php et https://www.boe.es/datosabiertos/documentos/APIconsolidada.pdf (2 sept. 2025).
+     Collecte de la documentation : 2026-11-11. Textes abrégés ; la norme modificatrice BOE-A-1974-99999 et ses dates sont FICTIVES,
+     pour éprouver la distinction texte original / consolidation. Ne pas citer : vérifier sur https://www.boe.es/buscar/act.php?id=BOE-A-1889-4763. -->
+<response>
+  <status><code>200</code><text>ok</text></status>
+  <data>
+    <metadatos>
+      <fecha_actualizacion>20240901T120000Z</fecha_actualizacion>
+      <identificador>BOE-A-1889-4763</identificador>
+      <ambito codigo="1">Estatal</ambito>
+      <departamento codigo="7723">Ministerio de Gracia y Justicia</departamento>
+      <rango codigo="1340">Real Decreto</rango>
+      <fecha_disposicion>18890724</fecha_disposicion>
+      <titulo>Real Decreto de 24 de julio de 1889 por el que se publica el Código Civil.</titulo>
+      <diario>Gaceta de Madrid</diario>
+      <fecha_publicacion>18890725</fecha_publicacion>
+      <fecha_vigencia>18890727</fecha_vigencia>
+      <estatus_derogacion>N</estatus_derogacion>
+      <estado_consolidacion codigo="3">Finalizado</estado_consolidacion>
+      <url_eli>https://www.boe.es/eli/es/rd/1889/07/24/(1)</url_eli>
+      <url_html_consolidada>https://www.boe.es/buscar/act.php?id=BOE-A-1889-4763</url_html_consolidada>
+    </metadatos>
+    <texto>
+      <bloque id="pr" tipo="preambulo" titulo="Preámbulo">
+        <version id_norma="BOE-A-1889-4763" fecha_publicacion="18890725" fecha_vigencia="18890727">
+          <p class="parrafo">Preámbulo abreviado para el ensayo.</p>
+        </version>
+      </bloque>
+      <bloque id="a1" tipo="precepto" titulo="Artículo 1">
+        <version id_norma="BOE-A-1889-4763" fecha_publicacion="18890725" fecha_vigencia="18890727">
+          <p class="articulo">Artículo 1.</p>
+          <p class="parrafo">Las leyes obligarán en la Península, islas adyacentes, Canarias y territorios de África sujetos a la legislación peninsular (texto abreviado).</p>
+        </version>
+        <version id_norma="BOE-A-1974-99999" fecha_publicacion="19740709" fecha_vigencia="19740729">
+          <p class="articulo">Artículo 1.</p>
+          <p class="parrafo">1. Las fuentes del ordenamiento jurídico español son la ley, la costumbre y los principios generales del derecho.</p>
+          <p class="parrafo">2. Carecerán de validez las disposiciones que contradigan otra de rango superior.</p>
+          <blockquote><p class="nota_pie">Se modifica por el ejemplo ficticio <ins>Ref. BOE-A-1974-99999</ins></p></blockquote>
+        </version>
+      </bloque>
+    </texto>
+  </data>
+</response>

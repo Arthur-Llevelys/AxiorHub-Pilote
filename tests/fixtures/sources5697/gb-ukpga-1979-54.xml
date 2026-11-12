@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Échantillon écrit à la main pour les tests AxiorHub 5.6.97 (lot sources), aucun téléchargement.
+     Format : Crown Legislation Markup Language (legislation.gov.uk), d'après https://www.legislation.gov.uk/developer/formats/xml,
+     https://www.legislation.gov.uk/developer/uris et la structure d'une section publiée en data.xml.
+     Collecte de la documentation : 2026-11-11. Sale of Goods Act 1979, sections 2 et 3 abrégées ; l'effet non appliqué sur s. 3 est
+     FICTIF (pour éprouver « modifications non appliquées »). Contains public sector information licensed under the Open Government
+     Licence v3.0. Ne pas citer : vérifier sur https://www.legislation.gov.uk/ukpga/1979/54. -->
+<Legislation xmlns="http://www.legislation.gov.uk/namespaces/legislation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  DocumentURI="http://www.legislation.gov.uk/ukpga/1979/54" IdURI="http://www.legislation.gov.uk/id/ukpga/1979/54"
+  RestrictExtent="E+W+S+N.I." RestrictStartDate="1980-01-01" SchemaVersion="1.0">
+  <ukm:Metadata xmlns:ukm="http://www.legislation.gov.uk/namespaces/metadata" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dct="http://purl.org/dc/terms/">
+    <dc:identifier>http://www.legislation.gov.uk/ukpga/1979/54</dc:identifier>
+    <dc:title>Sale of Goods Act 1979</dc:title>
+    <dc:language>en</dc:language>
+    <dct:valid>2024-10-01</dct:valid>
+    <ukm:PrimaryMetadata>
+      <ukm:DocumentClassification><ukm:DocumentCategory Value="primary"/><ukm:DocumentMainType Value="UnitedKingdomPublicGeneralAct"/><ukm:DocumentStatus Value="revised"/></ukm:DocumentClassification>
+      <ukm:Year Value="1979"/><ukm:Number Value="54"/><ukm:EnactmentDate Date="1979-12-06"/>
+      <ukm:UnappliedEffects><ukm:UnappliedEffect Type="words substituted" AffectingURI="http://www.legislation.gov.uk/id/ukpga/2099/1" AffectedProvisions="s. 3(1)"/></ukm:UnappliedEffects>
+    </ukm:PrimaryMetadata>
+  </ukm:Metadata>
+  <Primary><Body>
+    <Part Number="2"><Title>Formation of the contract</Title>
+      <P1group RestrictExtent="E+W+S+N.I." RestrictStartDate="1980-01-01"><Title>Contract of sale.</Title>
+        <P1 id="section-2" DocumentURI="http://www.legislation.gov.uk/ukpga/1979/54/section/2" IdURI="http://www.legislation.gov.uk/id/ukpga/1979/54/section/2">
+          <Pnumber>2</Pnumber>
+          <P1para>
+            <P2 id="section-2-1"><Pnumber>1</Pnumber><P2para><Text>A contract of sale of goods is a contract by which the seller transfers or agrees to transfer the property in goods to the buyer for a money consideration, called the price.</Text></P2para></P2>
+            <P2 id="section-2-2"><Pnumber>2</Pnumber><P2para><Text>There may be a contract of sale between one part owner and another.</Text></P2para></P2>
+          </P1para>
+        </P1>
+      </P1group>
+      <P1group RestrictExtent="E+W+S+N.I." RestrictStartDate="1980-01-01"><Title>Capacity to buy and sell.</Title>
+        <P1 id="section-3" DocumentURI="http://www.legislation.gov.uk/ukpga/1979/54/section/3" IdURI="http://www.legislation.gov.uk/id/ukpga/1979/54/section/3">
+          <Pnumber>3</Pnumber>
+          <P1para>
+            <P2 id="section-3-1"><Pnumber>1</Pnumber><P2para><Text>Capacity to buy and sell is regulated by the general law concerning capacity to contract and to transfer and acquire property.</Text></P2para></P2>
+          </P1para>
+        </P1>
+      </P1group>
+    </Part>
+  </Body></Primary>
+</Legislation>

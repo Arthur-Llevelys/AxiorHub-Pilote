@@ -23,10 +23,12 @@ from urllib.parse import urlencode
 
 from .common import Stop, matter_display
 
-TABS = (('synthese', 'Synthèse'), ('documents', 'Documents'), ('faits', 'Faits et procédure'), ('echanges', 'Échanges'), ('travail', 'Travail'))
+# 5.6.97 (lot dossiers, § 12) : six sections de la fiche (Correspondances, Procédure · Pièces, Agenda et tâches, Gestion), puis le travail de l'IA
+TABS = (('synthese', 'Synthèse'), ('documents', 'Documents'), ('echanges', 'Correspondances'), ('faits', 'Procédure · Pièces'),
+        ('agenda', 'Agenda et tâches'), ('gestion', 'Gestion'), ('travail', 'Travail de l’IA'))
 ALIASES = {'': 'synthese', 'apercu': 'synthese', 'fiche': 'synthese', 'pieces': 'documents', 'procedure': 'faits', 'courriels': 'echanges',
-           'correspondances': 'echanges', 'travaux': 'travail'}
-DETAIL_VIEWS = ('informations', 'procedure-detail', 'pieces-detail')
+           'correspondances': 'echanges', 'travaux': 'travail', 'taches': 'agenda', 'honoraires': 'gestion'}
+DETAIL_VIEWS = ('informations', 'procedure-detail', 'pieces-detail', 'cloture')   # 5.6.97 : « Préparer la clôture » (lot gestion), depuis le menu « … »
 CATEGORIES = (('', 'Tous'), ('ecritures', 'Écritures'), ('decisions', 'Décisions'), ('actes', 'Actes et RPVA'), ('nos', 'Nos pièces'),
               ('adverses', 'Pièces adverses'), ('courriers', 'Courriers'), ('autres', 'Autres'), ('illisibles', 'Illisibles'))
 WRITINGS = ('conclusions', 'assignation', 'requete')
@@ -158,10 +160,20 @@ def header_html(desk, prefix, m, view):
             '<button class="ax-btn ghost" type="submit" title="Reconstruit parties, procédures, documents et informations à partir des lectures déjà faites (sans IA)">'
             '↻ Actualiser</button></form>%s'
             '<details class="d27-more d79-more"><summary class="ax-btn ghost">Plus ▾</summary><ul>%s</ul></details></div></header>%s'
-            '<nav class="d79-tabs" aria-label="Vues du dossier">%s</nav>') % (
+            '%s<nav class="d79-tabs" aria-label="Sections du dossier">%s</nav>') % (
         e(mid, quote=True), e(mid, quote=True), e(prefix + '/dossiers', quote=True), e(matter_display(m)), ' · '.join(meta),
         e(st['state']), e(st['label']), e(('actualisé le ' + _date_fr(when[:10])) if when else ''), running,
-        pause_btn + action_ia_html('dossiers', {'dossier': mid, 'titre': matter_display(m), 'page': True}), e(mid, quote=True), panel_html(mid, files, prefix), more, paused, tabs)
+        pause_btn + action_ia_html('dossiers', {'dossier': mid, 'titre': matter_display(m), 'page': True}), e(mid, quote=True), panel_html(mid, files, prefix), more, paused,
+        _fiche5697(desk, prefix, m), tabs)
+
+
+def _fiche5697(desk, prefix, m):
+    """5.6.97 (§ 12) : bandeau du registre (référence, client, nature, responsable, confidentialité, rangement) et actions de l'en-tête."""
+    from .dossiers_ui5697 import actions_fiche, entete_fiche
+    try:
+        return entete_fiche(desk, _acteur5697(), prefix, m['id']) + actions_fiche(prefix, m['id'], matter_display(m))
+    except Exception:   # noqa: BLE001 — le bandeau ne doit jamais empêcher l'ouverture du dossier
+        return ''
 
 
 PREVIEW = ('<section class="d79-preview" id="d79-preview" role="complementary" hidden aria-label="Aperçu du document"><div class="d79-preview-head"><strong data-d79-title>Aperçu</strong>'
@@ -436,7 +448,9 @@ def recital_html(desk, prefix, m):
 def faits_html(desk, auth, prefix, m, args):
     from .vue5651 import chronology_html, parties_html, decisions_html
     mid = m['id']
-    out = _safe('Procédure', procedure_card, desk, prefix, m)
+    from .gestion_ui5697 import procedure_html as procedure5697   # 5.6.97 (lot gestion) : registre procédural, paquets de dépôt, accusés
+    out = _safe('Registre procédural', procedure5697, desk, _acteur5697(), prefix, mid)
+    out += _safe('Procédure', procedure_card, desk, prefix, m)
     out += _safe('Rappel des faits', recital_html, desk, prefix, m)
     out += _safe('Chronologie', chronology_html, desk, auth, prefix, mid, str(args.get('chrono') or 'tout'), 'faits')
     out += '<div class="d79-grid2">%s%s</div>' % (_safe('Parties', parties_html, desk, prefix, mid), _safe('Décisions du cabinet', decisions_html, desk, prefix, mid))
@@ -468,10 +482,37 @@ def intervenants_html(desk, prefix, m):
     return _card('Intervenants', body, 'd79-intervenants')
 
 
+def _acteur5697():
+    from .membres5650 import current_author, viewer_role
+    return (current_author() or 'cabinet', viewer_role())
+
+
+def agenda_html(desk, auth, prefix, m, args):
+    from .dossiers_ui5697 import agenda_html as agenda5697
+    return _safe('Agenda et tâches', agenda5697, desk, prefix, m['id'])
+
+
+def gestion_html(desk, auth, prefix, m, args):
+    from .dossiers_ui5697 import gestion_html as gestion5697
+    from .gestion_ui5697 import gestion_html as indicateurs5697   # 5.6.97 (lot gestion) : quatre indicateurs, source, forfait (droit « voir les honoraires »)
+    return (_safe('Gestion', gestion5697, desk, _acteur5697(), prefix, m['id'], _safe('Intervenants', intervenants_html, desk, prefix, m))
+            + _safe('Honoraires et encaissement', indicateurs5697, desk, _acteur5697(), prefix, m['id'])
+            + '<p><a class="ax-btn ghost" href="%s">Préparer la clôture</a></p>' % e(prefix + _q(m['id'], 'cloture'), quote=True))
+
+
+def cloture_html(desk, auth, prefix, m, args):
+    from .gestion_ui5697 import cloture_html as cloture5697
+    return '<p><a href="%s">← Retour à Gestion</a></p>%s' % (e(prefix + _q(m['id'], 'gestion'), quote=True), _safe('Clôture', cloture5697, desk, _acteur5697(), prefix, m['id']))
+
+
 def echanges_html(desk, auth, prefix, m, args):
     from . import dossier5627
     from .vue5651 import courriels_html
-    out = _safe('Intervenants', intervenants_html, desk, prefix, m)
+    from .dossiers_ui5697 import correspondances_html as classes5697   # 5.6.97 (§ 11) : courriels classés à la main, en tête
+    from .gestion_ui5697 import correspondances_html as pieces5697   # 5.6.97 (lot gestion) : Pièces demandées, Remis au client
+    out = '<section class="d97-section"><h2>Courriels classés à la main</h2>%s</section>' % _safe('Classés à la main', classes5697, desk, _acteur5697(), prefix, m['id'])
+    out += _safe('Pièces demandées et remises', pieces5697, desk, _acteur5697(), prefix, m['id'])
+    out += _safe('Intervenants', intervenants_html, desk, prefix, m)
     out += _safe('Courriels', courriels_html, desk, auth, prefix, m, args)
     out += '<details class="d79-fold"><summary>Correspondances conservées dans le dossier</summary>%s</details>' % _safe(
         'Correspondances', dossier5627.correspondances_html, desk, prefix, m, str(args.get('archive') or ''))
@@ -634,7 +675,7 @@ def travail_html(desk, auth, prefix, m, args):
 def detail_html(desk, auth, prefix, m, args, view):
     from . import vue5651
     fn = {'informations': vue5651.faits_html, 'procedure-detail': vue5651.procedure_html, 'pieces-detail': vue5651.pieces_html}[view]
-    back = '<p><a href="%s">← Retour</a></p>' % e(prefix + _q(m['id'], {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'documents'}[view]), quote=True)
+    back = '<p><a href="%s">← Retour</a></p>' % e(prefix + _q(m['id'], {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'documents', 'cloture': 'gestion'}[view]), quote=True)
     return back + _safe('Détail', fn, desk, auth, prefix, m, args)
 
 
@@ -658,11 +699,12 @@ def page(desk, auth, prefix, args, shell):
             modele5651.rebuild(desk, m['id'])
         except Stop:
             pass
-    body = header_html(desk, prefix, m, view if view in dict(TABS) else {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'documents'}[view])
+    body = header_html(desk, prefix, m, view if view in dict(TABS) else {'informations': 'faits', 'procedure-detail': 'faits', 'pieces-detail': 'documents', 'cloture': 'gestion'}[view])
     if view in DETAIL_VIEWS:
-        content = detail_html(desk, auth, prefix, m, args, view)
+        content = cloture_html(desk, auth, prefix, m, args) if view == 'cloture' else detail_html(desk, auth, prefix, m, args, view)
     else:
-        renderer = {'synthese': synthese_html, 'documents': documents_html, 'faits': faits_html, 'echanges': echanges_html, 'travail': travail_html}[view]
+        renderer = {'synthese': synthese_html, 'documents': documents_html, 'faits': faits_html, 'echanges': echanges_html, 'travail': travail_html,
+                    'agenda': agenda_html, 'gestion': gestion_html}[view]
         content = renderer(desk, auth, prefix, m, args)
     body += '<div class="d79-layout"><div class="d79-main">%s</div>%s</div></div>' % (content, PREVIEW)
     head = '<script defer src="%s/static/v5627.js"></script><script defer src="%s/static/v5679.js"></script>' % (e(prefix), e(prefix))

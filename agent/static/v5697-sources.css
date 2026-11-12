@@ -1,0 +1,14 @@
+/* 5.6.97 (lot sources, J01-J06) : cartes communes des sources juridiques (Paramètres et guide d'installation), groupées par zone.
+   Couleurs reprises des jetons du lot 5.6.32 (clair et sombre) ; aucune information portée par la seule couleur : chaque état a son texte. */
+.s5697-zone{margin:18px 0}
+.s5697-zone>h3{font-size:15px;margin:0 0 8px;border-bottom:1px solid var(--x32-line);padding-bottom:4px}
+.s5697-badges{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.s5697-badge,.s5697-mode{display:inline-block;font-size:12px;font-weight:600;border:1px solid var(--x32-line);border-radius:999px;padding:1px 8px;background:var(--x32-soft)}
+.s5697-mode{border-style:dashed}
+.s5697-card[data-mode="a_verifier"]{border-style:dashed}
+.s5697-conditionnel{font-size:13px;font-weight:600;border-left:3px solid var(--x32-line);padding-left:8px}
+.s5697-test,.s5697-index,.s5697-decisions,.s5697-droits{font-size:13px;margin:6px 0}
+.s5697-caps{font-size:12px;color:var(--x32-mute);margin:4px 0 8px;padding-left:18px}
+.s5697-sync{margin-top:10px;font-size:13px}
+.s5697-sync summary{cursor:pointer;font-weight:600}
+.s5697-sync summary:focus-visible,.s5697-card a:focus-visible{outline:2px solid currentColor;outline-offset:2px}

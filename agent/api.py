@@ -538,7 +538,11 @@ def dispatch(desk, path, method, payload=None, query=None):
         return relevance_metrics(desk)
     if path=='/guide/catalog' and method=='GET':
         from .guide import catalogue
-        return catalogue()
+        from .rendezvous5697 import speakr_adresse   # 5.6.97 (§ 14.3) : adresse réglée, jamais un lien d'exemple
+        out=catalogue();out['audio']['speakr_url']=speakr_adresse(desk,'cabinet')
+        for j in out['journeys']:
+            if j['id']=='audio':j['external_href']=out['audio']['speakr_url']
+        return out
     if path=='/audio/status' and method=='GET':
         from .audio import bridge_status
         return bridge_status(desk.c)

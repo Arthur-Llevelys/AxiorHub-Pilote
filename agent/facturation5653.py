@@ -500,7 +500,7 @@ def _reserve(desk, doc_id, snap):
     desk.db.execute("DELETE FROM b53_allocations WHERE document=? AND state='reserve'", (doc_id,))
     for l in snap['lignes']:
         for s in l.get('sources') or []:
-            if s.get('type') not in ('temps', 'provision', 'solde'):
+            if s.get('type') not in ('temps', 'provision', 'solde', 'frais', 'jalon'):   # 5.6.97 (lot gestion) : frais et jalons validés
                 continue
             held = desk.db.execute('SELECT document,state FROM b53_allocations WHERE source_kind=? AND source_id=?', (s['type'], s['id'])).fetchone()
             if held and held['document'] != doc_id:

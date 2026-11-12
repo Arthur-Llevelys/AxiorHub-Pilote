@@ -1,3 +1,9 @@
 #!/bin/sh
 # AxiorHub Pilote — lanceur du mode poste (paquet axiorhub-pilote-poste).
+# 5.6.97 (A05) : sous-programme de liaison « axiorhub-pilote --liaison <adresse axiorhub://> » (gestionnaire du protocole déclaré par
+# axiorhub-pilote-liaison.desktop). L'adresse reste UN argument entre guillemets, jamais interprétée par le shell ; poste.py n'en
+# retient que l'identifiant opaque.
+if [ "$#" -eq 2 ] && [ "$1" = "--liaison" ]; then
+  exec /usr/bin/python3 /usr/lib/axiorhub-pilote/current/poste.py --liaison "$2"
+fi
 exec /usr/bin/python3 /usr/lib/axiorhub-pilote/current/poste.py "$@"

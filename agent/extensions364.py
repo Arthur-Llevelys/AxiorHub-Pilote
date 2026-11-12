@@ -273,11 +273,20 @@ def _parse_mcp(raw):
 _SESSIONS={}
 
 
+def session_key(item):
+    """5.6.97 (J07, lot sources) : session MCP isolée par cabinet, connexion et version du secret ; une clé tournée, un autre connecteur
+    vers la même adresse ou un autre cabinet servi par le même processus n'héritent jamais d'un identifiant de session ni d'un cache."""
+    return '|'.join(str(item.get(k,'')) for k in ('cabinet','id','endpoint','secret_file','secret_version'))
+
+
 def _mcp_call(item, method, params=None):
     """5.6.14 (C17) : appel JSON-RPC au travers d'une session MCP conservée par connecteur (initialize, notifications/initialized,
     identifiant Mcp-Session-Id renvoyé à chaque appel, flux d'événements acceptés)."""
+    if item.get('transport')=='integre':   # 5.6.97 (J08) : adaptateur AxiorHub intégré, choisi par identifiant compilé ; aucun réseau
+        from . import mcp_internationaux5697
+        return mcp_internationaux5697.appel(item,method,params)
     from . import mcp5614
-    key=str(item.get('endpoint',''))+'|'+str(item.get('secret_file',''))
+    key=session_key(item)
     session=_SESSIONS.get(key)
     if session is None or method=='initialize':
         session=mcp5614.Session(item);_SESSIONS[key]=session
@@ -406,12 +415,20 @@ def _tool_result_rows(result):
     return value if isinstance(value,list) else []
 
 
-def legal_connector_search(desk,anonymous_query,limit=8):
-    """Call only an explicitly enabled legal search tool with an anonymised query."""
+def legal_connector_search(desk,anonymous_query,limit=8,providers=None):
+    """Call only an explicitly enabled legal search tool with an anonymised query.
+    5.6.97 (B02, J07) : ``providers`` = ensemble autorisé (``None`` : sélection par défaut recalculée) ; un connecteur hors de l'ensemble, ou
+    tout connecteur externe en mode local strict, est écarté AVANT toute session, initialisation, résolution ou lecture distante."""
     if not 1<=len(str(anonymous_query))<=3000:raise Stop('requete_mcp_non_conforme')
+    from .selection_sources5697 import autorises,item_local,local_strict
+    allowed=autorises(desk,providers)
+    if not allowed:return []
+    strict=local_strict(desk)
     limit=max(1,min(int(limit),20));results=[]
     for item in (desk.c.get('lawve_extensions') or {}).values():
-        if (not isinstance(item,dict) or item.get('kind')!='connector' or not item.get('enabled') or
+        if not isinstance(item,dict) or _legal_provider(item) not in allowed:continue
+        if strict and not item_local(item,_legal_provider(item)):continue   # local strict : seul un adaptateur intégré (aucun réseau) reste
+        if (item.get('kind')!='connector' or not item.get('enabled') or
             not item.get('external_data_allowed') or item.get('last_test',{}).get('status')!='ok' or
             not {'legal_analysis','hearing'}.intersection(item.get('purposes',[]))):continue
         provider=_legal_provider(item)

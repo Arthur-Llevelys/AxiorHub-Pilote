@@ -17,17 +17,33 @@
   if ([...matter.options].some(o => o.value === selected)) matter.value = selected;
   let inputChannel = 'text';
   let currentMission = null, attachments = [], uploadBusy = false, sending = false, recorder = null, liveAudio = null;
-  let audioURL = '', hiddenExit = false, profile = {}, retryPayload = null, refreshTimer = null, refreshBusy = false, planTimer = null, shownStates = {};
+  let audioURL = '', hiddenExit = false, profile = {}, refreshTimer = null, refreshBusy = false, planTimer = null, shownStates = {};
+  // 5.6.97 (B08) : une tentative au reçu incertain est gardée telle quelle (instantané immuable, même clé) ; « revision » écarte toute réponse
+  // arrivée après une action plus récente ; « provisoire » : une carte d'envoi, de refus ou de reçu incertain que le suivi ne remplace pas.
+  let tentativeIncertaine = null, revision = 0, provisoire = false, nCarte = 0;
+  const extrait = (t, n = 80) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+  const cleIncertaine = 'axiorhub5697-incertaine:' + prefix;   // la tentative au reçu incertain survit au rechargement de l'onglet
+  const memoIncertaine = {get: () => {try {return JSON.parse(sessionStorage.getItem(cleIncertaine) || 'null');} catch {return null;}},
+                          set: v => {try {v ? sessionStorage.setItem(cleIncertaine, JSON.stringify(v)) : sessionStorage.removeItem(cleIncertaine);} catch {}}};
   const note = text => { status.textContent = text; if (pageStatus) pageStatus.textContent = text; };
   const storageKey = 'axiorhub567-last-mission:' + prefix;
   const storage = {get: () => {try {return sessionStorage.getItem(storageKey);} catch {return null;}},
                    set: value => {try {sessionStorage.setItem(storageKey, value);} catch {}}};
   const token = () => crypto.randomUUID ? crypto.randomUUID() : [...crypto.getRandomValues(new Uint8Array(20))].map(x => x.toString(16).padStart(2, '0')).join('');
   async function api(name, data) {
-    const response = await fetch(prefix + '/api440/m567/' + name, {method: data === undefined ? 'GET' : 'POST', credentials: 'same-origin',
-      headers: data === undefined ? {} : {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: data === undefined ? undefined : JSON.stringify(data)});
-    const value = await response.json();
-    if (!response.ok) throw new Error(value.message || value.error || 'Demande refusée.');
+    // 5.6.97 (B08) : un refus confirmé (4xx) se distingue d'un reçu incertain (réseau coupé, 5xx, réponse illisible)
+    const incertain = (message, status) => Object.assign(new Error(message), {incertain: true, status: status || 0});
+    let response, value;
+    try {
+      response = await fetch(prefix + '/api440/m567/' + name, {method: data === undefined ? 'GET' : 'POST', credentials: 'same-origin',
+        headers: data === undefined ? {} : {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: data === undefined ? undefined : JSON.stringify(data)});
+    } catch { throw incertain('Connexion au serveur interrompue.'); }
+    try { value = await response.json(); } catch { value = null; }
+    if (!response.ok) {
+      if (response.status >= 500 || !value) throw incertain((value && (value.message || value.error)) || 'Le serveur n’a pas confirmé (erreur ' + response.status + ').', response.status);
+      throw Object.assign(new Error(value.message || value.error || 'Demande refusée.'), {status: response.status});
+    }
+    if (!value) throw incertain('Réponse du serveur illisible.', response.status);
     return value;
   }
   // 5.6.13 : un seul composant Pilote. Sur « Aujourd'hui », le panneau est monté dans la page (même état, même fil, mêmes limites) ;
@@ -55,7 +71,7 @@
   wide?.addEventListener('click', () => {const on = dock.classList.toggle('ws-ai-dock--wide'); wide.setAttribute('aria-pressed', String(on)); try { localStorage.setItem(wideKey, on ? '1' : '0'); } catch {}});
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !dock.hidden && !embedded) close();
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && document.activeElement === question) {event.preventDefault(); send.click();}
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && document.activeElement === question) {event.preventDefault(); if (!event.repeat) send.click();}   // 5.6.97 (B08) : touche maintenue : un seul envoi
   });
   dock.querySelectorAll('[data-ai-example]').forEach(b => b.addEventListener('click', () => {question.value = b.dataset.aiExample; question.focus(); schedulePlan();}));
   // 5.6.14 (U04) : commandes de contexte (Préparer audience, Répondre, Comparer, Réviser, Assignation, Devis)
@@ -166,8 +182,11 @@
   }
 
   function card(m) {
-    const c = el('article', undefined, 'mission567-card'); c.dataset.missionId = m.id;
-    c.append(el('div', m.label, 'mission567-state'), el('h3', m.title || m.instruction));
+    const c = el('article', undefined, 'mission567-card'); c.dataset.missionId = m.id; c.dataset.etat = m.panneau?.code || '';
+    c.append(el('div', m.panneau?.libelle || m.label, 'mission567-state'), el('h3', m.title || m.instruction));   // 5.6.97 : état explicite, en mots
+    if (m.panneau?.geste) c.append(el('p', m.panneau.geste, 'mission5697-geste'));
+    const choix97 = new Map(); if (m.state === 'decision') (m.exceptions || []).forEach(x => (x.candidates || []).forEach(y => choix97.set(y.id, y.label)));
+    if (choix97.size) c.append(choixDossier(m, choix97));   // 5.6.97 : le choix attendu en tête de carte, visible sans défiler
     if (m.subtitle) c.append(el('p', m.subtitle, 'mission567-sub'));   // 5.6.61 : action de l'agent, sous l'objet
     c.append(el('p', m.matter_label || 'Cabinet'));
     // 5.6.89 (B11) : la ligne du plan dit ce qui est demandé ; seule une preuve annonce un dépôt
@@ -205,22 +224,17 @@
       const b = el('button', 'Valider ce projet (avocat)'); b.type = 'button'; b.dataset.missionControl = 'validate'; c.append(' ', b);
     }
     if (m.state === 'decision') {
-      const choices = new Map(); (m.exceptions || []).forEach(x => {(x.candidates || []).forEach(y => choices.set(y.id, y.label)); c.append(el('p', x.message));});
-      if (choices.size) {
-        const s = el('select', undefined, 'mission567-choice'); s.setAttribute('aria-label', 'Dossier de cette mission');
-        choices.forEach((label, id) => {const o = el('option', label); o.value = id; s.append(o);});
-        const b = el('button', 'Préciser et démarrer'); b.type = 'button'; b.dataset.missionControl = 'resolve'; c.append(s, b);
-      }
+      (m.exceptions || []).forEach(x => c.append(el('p', x.message)));   // 5.6.97 : le choix lui-même est en tête de carte (choixDossier)
       // 5.6.96 (R03, lot affichage) : recherche publique proposée : un clic renvoie le texte exact ; rien ne part sans ce clic
       (m.exceptions || []).filter(x => x.code === 'recherche_publique_a_confirmer' && x.requete).forEach(x => {
         const b = el('button', 'Lancer la recherche publique « ' + x.requete + ' »', 'ws-ai-confirmer'); b.type = 'button';
         b.dataset.rechercheConfirmer = x.requete; b.dataset.rechercheInstruction = m.instruction || ''; c.append(b);
       });
     }
-    if (m.state === 'error') c.append(el('p', lignes.echec || m.job?.error || (m.exceptions || []).map(x => x.message).join(' '), 'warn'));
-    if (['creating', 'queued', 'running', 'error', 'paused','suggested'].includes(m.state)) {
+    if (m.state === 'error' || m.state === 'interrupted') c.append(el('p', lignes.echec || m.job?.error || (m.exceptions || []).map(x => x.message).join(' '), 'warn'));
+    if (['creating', 'queued', 'running', 'error', 'paused','suggested','interrupted'].includes(m.state)) {
       const d = el('details'), active = ['creating', 'queued', 'running'].includes(m.state), b = el('button', active ? 'Suspendre' : (m.state==='suggested' ? 'Démarrer la préparation' : (m.state==='error' ? 'Relancer' : 'Reprendre')));
-      b.type = 'button'; b.dataset.missionControl = active ? 'pause' : 'resume'; if (m.state==='suggested' || m.state==='error') c.append(b); else {d.append(el('summary', 'Autres actions'), b); c.append(d);}
+      b.type = 'button'; b.dataset.missionControl = active ? 'pause' : 'resume'; if (['suggested', 'error', 'interrupted'].includes(m.state)) c.append(b); else {d.append(el('summary', 'Autres actions'), b); c.append(d);}
     }
     const d = el('details'), list = el('ol'); m.plan.steps.forEach(x => list.append(el('li', x)));
     d.append(el('summary', 'Plan, sources et limites'), list, el('p', m.plan.restrictions.join(' · ')));
@@ -238,45 +252,142 @@
     }
     (r.sources || []).filter(x => !(x && x.kind === 'situation_societe')).slice(0, 30).forEach(x => d.append(el('p', typeof x === 'string' ? x : JSON.stringify(x))));
     (r.notes || []).forEach(x => d.append(el('p', x, 'muted')));
-    if (r.proof) d.append(el('p', 'Relecture : ' + r.proof)); c.append(d); return c;
+    if (r.proof) d.append(el('p', 'Relecture : ' + r.proof)); c.append(d);
+    // 5.6.97 : la carte rafraîchie garde « Annuler la mission » (même bouton que la page Missions ; un projet déjà déposé reste dans le dossier)
+    if (m.id && !m.complex && !['cancelled', 'verified', 'prepared', 'abstained'].includes(m.state)) {
+      const x = el('button', 'Annuler la mission', 'ghost'); x.type = 'button'; x.dataset.mission5636 = 'annuler';
+      x.dataset.confirm = 'Annuler définitivement cette mission ? Un projet déjà déposé reste dans le dossier.'; c.append(x);
+    }
+    if (m.id) c.append(details(m)); return c;
   }
+  // 5.6.97 : choix du dossier dans la carte « Choix requis » : aucun dossier présélectionné, bouton actif après le choix, filtre au-delà de 8
+  function choixDossier(m, choices) {
+    const box = el('div', undefined, 'mission5697-choix'), id = 'm97-choix-' + (++nCarte);
+    box.append(el('p', 'Votre demande « ' + extrait(m.instruction) + ' » repartira telle quelle dans le dossier choisi.', 'muted'));
+    const label = el('label', 'Dossier de cette demande'); label.htmlFor = id;
+    const s = el('select', undefined, 'mission567-choice'); s.id = id; s.required = true;
+    const b = el('button', 'Lancer dans ce dossier'); b.type = 'button'; b.dataset.missionControl = 'resolve'; b.disabled = true;
+    const remplir = f => {
+      const garde = s.value; s.replaceChildren(new Option('Choisir le dossier…', ''));
+      choices.forEach((libelle, v) => { if (!f || libelle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(f)) s.append(new Option(libelle, v)); });
+      if ([...s.options].some(o => o.value === garde)) s.value = garde; b.disabled = !s.value;
+    };
+    remplir('');
+    s.addEventListener('change', () => { b.disabled = !s.value; });
+    box.append(label);
+    if (choices.size > 8) {
+      const f = el('input', undefined, 'mission5697-filtre'); f.type = 'search'; f.placeholder = 'Filtrer : client, adversaire, référence'; f.setAttribute('aria-label', 'Filtrer les dossiers');
+      f.addEventListener('input', () => remplir(f.value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))); box.append(f);
+    }
+    box.append(s, b); return box;
+  }
+  // 5.6.97 : identifiants de la demande, de la mission et du travail, horodatages et dernier état vérifié (aucun texte confidentiel en plus)
+  function details(m) {
+    const d = el('details', undefined, 'mission5697-details'), dl = el('dl');
+    const quand = v => { const x = new Date(v); return isNaN(x) ? '' : x.toLocaleString('fr-FR'); };
+    [['Demande', m.request_key], ['Mission', m.id], ['Travail', m.job?.id ? 'n° ' + m.job.id + ' · ' + m.job.status : 'aucun pour l’instant'],
+     ['Reçue le', quand(m.created)], ['Mise à jour', quand(m.updated)], ['Dernier état vérifié', (m.panneau?.libelle || m.label) + (m.verifie_a ? ' · ' + quand(m.verifie_a) : '')]]
+      .forEach(([k, v]) => { if (v) dl.append(el('dt', k), el('dd', String(v))); });
+    d.append(el('summary', 'Détails'), dl); return d;
+  }
+  // 5.6.97 (B08) : cartes posées par le navigateur avant tout reçu : envoi en cours, refus confirmé, reçu incertain
+  function carteProvisoire(code, libelle, instruction, texte, classe) {
+    const c = el('article', undefined, 'mission567-card'); c.dataset.etat = code;
+    c.append(el('div', libelle, 'mission567-state'), el('h3', extrait(instruction, 300)));
+    if (texte) c.append(el('p', texte, classe || 'mission5697-geste'));
+    return c;
+  }
+  function afficherProvisoire(c) { provisoire = true; current.replaceChildren(c); }
   // 5.6.13 : fil partagé texte–voix. Le rafraîchissement du résultat courant ne remplace jamais l'historique.
   function addTurn(instruction, text, channel) {
     if (!history) return;
     const turn = el('article', undefined, 'ws-ai-turn'); turn.append(el('p', (channel === 'voice' ? '🎙 ' : '✎ ') + instruction, 'ws-ai-turn-me'), el('pre', text));
     history.prepend(turn); while (history.children.length > 30) history.lastChild.remove();
   }
-  function show(m) {
-    currentMission = m; storage.set(m.id); current.replaceChildren(card(m)); note(m.label);
-    const final = ['answered', 'verified', 'prepared', 'abstained', 'error'].includes(m.state);
+  function show(m, focus) {
+    provisoire = false; currentMission = m; storage.set(m.id); current.replaceChildren(card(m)); note(m.panneau?.libelle || m.label);
+    const choix = focus && m.state === 'decision' && current.querySelector('.mission567-choice');   // 5.6.97 : le choix attendu reçoit le focus, dans la vue du volet
+    if (choix) { choix.closest('.mission5697-choix').scrollIntoView({block: 'nearest'}); choix.focus({preventScroll: true}); }
+    const final = ['answered', 'verified', 'prepared', 'abstained', 'error', 'interrupted'].includes(m.state);
     if (final && shownStates[m.id] !== m.state) { shownStates[m.id] = m.state; if (m.context?.channel !== 'voice') addTurn(m.instruction, (m.result?.text || m.result?.message || m.label), 'text'); }
     send.textContent = 'Envoyer l’instruction';   // 5.6.19 : libellé stable ; l'état de la mission est dans la carte et la note
   }
   async function refreshCurrent() {
-    const id = currentMission?.id || storage.get(); if (!id || document.hidden) return;
-    try {show(await api('mission?id=' + encodeURIComponent(id)));} catch { /* Un autre compte ne récupère pas cette mission. */ }
+    const id = currentMission?.id || storage.get(); if (!id || document.hidden || sending || provisoire) return;
+    const rev = revision;   // 5.6.97 (B08) : une réponse de suivi devenue ancienne ne remplace ni la carte courante ni le brouillon
+    try {const m = await api('mission?id=' + encodeURIComponent(id)); if (rev !== revision || sending || provisoire || (currentMission && currentMission.id !== id)) return;
+      // 5.6.97 : un choix de dossier en cours n'est pas effacé par le suivi tant que la demande attend ce choix
+      if (m.state === 'decision' && currentMission?.state === 'decision' && (current.contains(document.activeElement) || current.querySelector('.mission567-choice')?.value)) {currentMission = m; return;}
+      show(m);}
+    catch { /* Un autre compte ne récupère pas cette mission. */ }
   }
   async function refreshList() {
     const list = document.querySelector('#mission567-list'); if (!list || document.hidden || refreshBusy) return;
     refreshBusy = true;
     try {const data = await api('missions'); list.replaceChildren(...data.missions.map(card));} catch (e) {note(e.message);} finally {refreshBusy = false;}
   }
-  send.addEventListener('click', async () => {
-    if (sending || uploadBusy) return;
-    const text = question.value.trim(); if (!text) {note('Décrivez le résultat attendu.'); return;}
-    const payload = retryPayload || {request_key: token(), instruction: text, matter: matter.value, attachments: [...attachments], intent: intentSelect?.value || 'auto',
+  function lireComposeur() {
+    return {instruction: question.value.trim(), matter: matter.value, attachments: [...attachments], intent: intentSelect?.value || 'auto',
       autonomy:dock.querySelector('#ws-ai-autonomy').value, due: dock.querySelector('#ws-ai-due').value, context: {page: cfg.path || '/', selected_documents: selectedDocuments(), mission_id: currentMission?.matter === matter.value ? currentMission.id : '',
       mail_key: q.get('key') || '', ui: window.axiorhubIa5689?.contexte()}, channel: inputChannel,
       portee: dock.querySelector('#ws-ai-general')?.getAttribute('aria-pressed') === 'true' ? 'general' : ''};   // 5.6.96 (R01) : mode Général
-    sending = true; send.disabled = true; send.textContent = 'Demande enregistrée…'; note('Votre mission est en cours d’enregistrement.');
+  }
+  const empreinte = p => JSON.stringify([p.instruction, p.matter, p.attachments, p.intent, p.autonomy, p.due, p.channel, p.portee, p.context?.mail_key || '']);
+  const gele = p => Object.freeze({...p, attachments: Object.freeze([...p.attachments]), context: Object.freeze({...p.context})});
+  // 5.6.97 (B08) : « nouvelle » = le composeur, avec une NOUVELLE clé (sauf s'il est identique à la tentative incertaine : même clé, aucun doublon) ;
+  // « reprendre » = l'ancienne tentative, inchangée, même clé. Un refus confirmé libère la clé ; un reçu incertain propose les deux gestes.
+  async function envoyer(mode) {
+    if (sending || uploadBusy) return;
+    let payload;
+    if (mode === 'reprendre') { if (!tentativeIncertaine) return; payload = tentativeIncertaine.payload; }
+    else {
+      const champs = lireComposeur(); if (!champs.instruction) {note('Décrivez le résultat attendu.'); question.focus(); return;}
+      payload = tentativeIncertaine && empreinte(champs) === tentativeIncertaine.empreinte ? tentativeIncertaine.payload : gele({...champs, request_key: token()});
+    }
+    const ancienne = tentativeIncertaine && tentativeIncertaine.payload !== payload ? tentativeIncertaine : null;
+    const rev = ++revision; sending = true; send.disabled = true;
+    afficherProvisoire(carteProvisoire('envoi', 'Envoi en cours', payload.instruction, 'Transmission au serveur… Le texte reste dans le champ tant que le serveur n’a pas confirmé la réception.'));
+    note('Envoi en cours…');
     try {
       // 5.6.80 : si l'IA tarde, les passages trouvés sans modèle s'affichent après 4 s
       const asked = payload.instruction, scope5680 = payload.matter;
       setTimeout(() => {if (currentMission && ['creating','queued','running'].includes(currentMission.state)) window.axiorhubPassages?.(asked, scope5680, current);}, 4000);
-      const m = await api('mission/create', payload); retryPayload = null; attachments = []; file.value = ''; renderFiles(); if (plan) plan.hidden = true; show(m); refreshList();
-    } catch (e) {retryPayload = payload; send.textContent = 'Vérifier / reprendre cette demande'; note(e.message + ' Le même identifiant sera réutilisé pour éviter un doublon.');}
-    finally {sending = false; send.disabled = uploadBusy;}
-  });
+      const m = await api('mission/create', payload);
+      if (rev !== revision) return;
+      tentativeIncertaine = null; memoIncertaine.set(null);
+      if (question.value.trim() === payload.instruction) { question.value = ''; inputChannel = 'text'; }   // reçue : le texte passe dans la carte
+      attachments = []; file.value = ''; renderFiles(); if (plan) plan.hidden = true; show(m, true); refreshList();
+      if (ancienne) avertirAncienne(ancienne);
+    } catch (e) {
+      if (rev !== revision) return;
+      if (e.incertain) {
+        if (!tentativeIncertaine || tentativeIncertaine.payload !== payload) tentativeIncertaine = {payload, empreinte: empreinte(payload)};
+        memoIncertaine.set(payload); afficherIncertain(e);
+      } else {
+        if (tentativeIncertaine?.payload === payload) { tentativeIncertaine = null; memoIncertaine.set(null); }
+        afficherProvisoire(carteProvisoire('refusee', 'Refusée', payload.instruction, e.message + ' Rien n’a été enregistré : corrigez le texte puis envoyez à nouveau (nouvelle demande).', 'warn'));
+        note('Refusée : ' + e.message); question.focus({preventScroll: true});
+      }
+    } finally {sending = false; send.disabled = uploadBusy; send.textContent = 'Envoyer l’instruction';}
+  }
+  function afficherIncertain(e) {
+    const t = tentativeIncertaine, c = carteProvisoire('incertaine', 'Envoi à vérifier', t.payload.instruction,
+      e.message + ' La demande a peut-être été reçue. Vérifiez-la avant d’en envoyer une autre : la vérification ne crée jamais de doublon.', 'warn');
+    const reprendre = el('button', 'Vérifier / reprendre l’ancienne demande « ' + extrait(t.payload.instruction, 60) + ' »'); reprendre.type = 'button'; reprendre.dataset.aiReprendre = '1';
+    const modifiee = el('button', 'Envoyer la demande modifiée', 'ghost'); modifiee.type = 'button'; modifiee.dataset.aiModifiee = '1';
+    const maj = () => { if (!modifiee.isConnected) { question.removeEventListener('input', maj); return; } modifiee.hidden = empreinte(lireComposeur()) === t.empreinte; };
+    c.append(reprendre, ' ', modifiee); afficherProvisoire(c);
+    maj(); question.addEventListener('input', maj);
+    note('Envoi à vérifier : ' + e.message);
+  }
+  async function avertirAncienne(ancienne) {   // 5.6.97 (B08) : la demande modifiée part avec une nouvelle clé ; l'ancienne, si elle a été reçue, est signalée
+    try {
+      const data = await api('missions');
+      const recue = (data.missions || []).find(x => x.request_key === ancienne.payload.request_key);
+      if (recue) note('Attention : l’ancienne demande « ' + extrait(ancienne.payload.instruction, 60) + ' » avait aussi été reçue (' + (recue.panneau?.libelle || recue.label) + '). Annulez-la dans Missions si elle n’est plus utile.');
+    } catch { note('L’ancienne demande n’a pas pu être vérifiée : consultez Missions.'); }
+  }
+  send.addEventListener('click', () => envoyer('nouvelle'));
   document.addEventListener('click', async event => {
     const confirmer = event.target.closest('[data-recherche-confirmer]');   // 5.6.96 (R03) : confirmation explicite, un seul envoi
     if (confirmer) {
@@ -287,12 +398,16 @@
       catch (e) { confirmer.disabled = false; note(e.message); }
       return;
     }
+    if (event.target.closest('[data-ai-reprendre]')) { envoyer('reprendre'); return; }   // 5.6.97 (B08)
+    if (event.target.closest('[data-ai-modifiee]')) { envoyer('nouvelle'); return; }
     const rule = event.target.closest('[data-rule-decide]');
     if (rule) { rule.disabled = true; try { const v = await api('rule/decide', {id: rule.dataset.ruleDecide, action: rule.dataset.ruleAction}); note(v.message); rule.closest('p')?.remove(); } catch (e) { note(e.message); rule.disabled = false; } return; }
     const b = event.target.closest('[data-mission-control]'); if (!b) return;
-    const c = b.closest('[data-mission-id]'); b.disabled = true;
+    const c = b.closest('[data-mission-id]'), choix = c.querySelector('.mission567-choice');
+    if (b.dataset.missionControl === 'resolve' && !choix?.value) { note('Choisissez d’abord le dossier de cette demande.'); choix?.focus(); return; }
+    b.disabled = true; const rev = ++revision;   // 5.6.97 (B08) : un suivi lancé avant ce geste ne remplace pas son résultat
     try {const m = await api('mission/control', {id: c.dataset.missionId, action: b.dataset.missionControl,
-      matter: c.querySelector('.mission567-choice')?.value || ''}); if (currentMission?.id === m.id) show(m); await refreshList();}
+      matter: choix?.value || ''}); if (rev === revision && currentMission?.id === m.id) show(m); await refreshList();}
     catch (e) {note(e.message);} finally {b.disabled = false;}
   });
   function stopAudio() {window.axiorhubVoix?.stop(); if (liveAudio) {liveAudio.pause(); liveAudio.src = ''; liveAudio = null;} if (audioURL) {URL.revokeObjectURL(audioURL); audioURL = '';}}
@@ -315,7 +430,7 @@
   dock.querySelector('[data-audio-pause567]').addEventListener('click', () => {if (window.axiorhubVoix?.speaking()) {window.axiorhubVoix.togglePause(); return;} if (liveAudio) liveAudio.paused ? liveAudio.play().catch(e => note(e.message)) : liveAudio.pause();});
   dock.querySelector('[data-audio-stop567]').addEventListener('click', stopAudio);
   dock.querySelector('#ws-ai-clear')?.addEventListener('click', () => {   // 5.6.19 : effacer l'affichage, pas l'historique des missions
-    stopAudio(); current.replaceChildren(); history.replaceChildren(); currentMission = null; storage.set(''); shownStates = {};
+    stopAudio(); current.replaceChildren(); history.replaceChildren(); currentMission = null; storage.set(''); shownStates = {}; revision++; provisoire = false; tentativeIncertaine = null; memoIncertaine.set(null);
     note('Conversation effacée. Les missions restent consultables dans Outils › Missions.');
   });
   dock.querySelector('#ws-ai-dictate')?.addEventListener('click', async event => {
@@ -438,5 +553,12 @@
   (function tick() {setTimeout(() => {if (!document.hidden) {refreshCurrent(); refreshList();} tick();}, window.axiorhubLive?.connected ? 60000 : 10000);})();
   window.addEventListener('pagehide', () => {hiddenExit = true; stopAudio(); if (recorder?.state !== 'inactive') recorder?.stop();});
   if (embedded) loadMatters();
+  // 5.6.97 (B08) : après un rechargement, une demande au reçu incertain est de nouveau proposée à la vérification (même clé), texte remis
+  const incertaine = memoIncertaine.get();
+  if (incertaine && typeof incertaine.instruction === 'string' && incertaine.request_key && Array.isArray(incertaine.attachments) && incertaine.context) {
+    tentativeIncertaine = {payload: gele(incertaine), empreinte: empreinte(incertaine)};
+    if (!question.value.trim()) question.value = incertaine.instruction;
+    afficherIncertain(new Error('La réception de la dernière demande n’avait pas été confirmée avant le rechargement.'));
+  }
   refreshCurrent();
 })();

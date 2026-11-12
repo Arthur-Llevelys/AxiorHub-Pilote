@@ -24,7 +24,7 @@ def catalogue():
         {'id':'planning','icon':'📅','title':'Organiser mon travail','summary':'Lire l’agenda, proposer une répartition et créer seulement après confirmation.',
          'href':'/planning','prompt':'Lis mon agenda du [DÉBUT] au [FIN], puis répartis ces tâches avec une charge maximale de cinq heures par jour. Affiche audiences, blocages et éléments non planifiables. Ne crée encore rien : [TÂCHES].'},
         {'id':'audio','icon':'🎙️','title':'Transcrire une réunion','summary':'Déposer l’audio dans SpeakR, transcrire localement avec Vocal, puis préparer le compte rendu.',
-         'href':'/guide?section=audio','external_href':'https://speakr.example.com/',
+         'href':'/guide?section=audio','external_href':'',   # 5.6.97 (§ 14.3) : adresse réglée dans Paramètres › Connexions (aucun lien d'exemple)
          'prompt':'À partir de la transcription SpeakR [SOURCE], prépare pour le dossier [RÉFÉRENCE] un compte rendu sourcé, les décisions à confirmer, les tâches proposées, les échéances et les points juridiques à contrôler. N’exécute aucune action.'},
       ],
       'rules':[
@@ -34,7 +34,7 @@ def catalogue():
         'Recopier le code uniquement si le résultat affiché est conforme.',
       ],
       'audio':{
-        'speakr_url':'https://speakr.example.com/',
+        'speakr_url':'',   # 5.6.97 (§ 14.3) : rempli depuis le réglage Speakr (api /guide/catalog), vide s'il n'est pas réglé
         'vocal_url':'https://vocal.example.com/',
         'workflow':['Ouvrir SpeakR et déposer ou enregistrer l’audio.',
                     'Choisir la transcription locale large-v3-turbo.',

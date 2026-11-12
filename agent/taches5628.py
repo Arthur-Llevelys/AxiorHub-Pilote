@@ -45,10 +45,13 @@ def _due_label(day, today):
 
 def collect(desk):
     """Tâches ouvertes : registre local et tâches Nextcloud synchronisées (sans doublon)."""
-    rows = [dict(x, source='local') for x in desk.db.execute("SELECT id,matter,title,due,status FROM tasks WHERE status='open' ORDER BY due LIMIT 300")]
+    # 5.6.97 (B07) : lecture pour l'acteur de la requête (hors requête : travaux du cabinet), droits joints avant la limite, deux tables
+    from .acces5697 import Perimetre, acteur_requete, masques_requete
+    clause, caches = Perimetre(acteur_requete(), masques_requete(desk)).sql('matter')
+    rows = [dict(x, source='local') for x in desk.db.execute("SELECT id,matter,title,due,status FROM tasks WHERE status='open' AND " + clause + " ORDER BY due LIMIT 300", caches)]
     try:
         external = [dict(x, source='nextcloud') for x in desk.db.execute(
-            "SELECT id,matter,title,due,status,external_uid FROM work_tasks_v211 WHERE status IN ('todo','in_progress','blocked') ORDER BY due LIMIT 300")]
+            "SELECT id,matter,title,due,status,external_uid FROM work_tasks_v211 WHERE status IN ('todo','in_progress','blocked') AND " + clause + " ORDER BY due LIMIT 300", caches)]
     except Exception:   # pylint: disable=broad-except
         external = []
     ids = {x['id'] for x in external}

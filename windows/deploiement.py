@@ -21,6 +21,9 @@ import zipfile
 APP = 'AxiorHub Pilote'
 GUI_EXE = 'AxiorHub Pilote.exe'
 UNINSTALL_KEY = r'Software\Microsoft\Windows\CurrentVersion\Uninstall\AxiorHubPilote'
+# 5.6.97 (A05) : protocole axiorhub:// pour l'utilisateur courant ; la commande passe l'adresse comme UN argument à l'exécutable
+# (« --liaison "%1" »), jamais à un interpréteur de commandes ; le lanceur n'en retient que l'identifiant opaque.
+PROTOCOL_KEY = r'Software\Classes\axiorhub'
 NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 
 
@@ -77,6 +80,30 @@ def write_registry(root, version, exe, size_kb):
             winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
         for name, value in (('NoModify', 1), ('NoRepair', 1), ('EstimatedSize', int(size_kb))):
             winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
+
+
+def protocol_command(exe):
+    return '"%s" --liaison "%%1"' % exe
+
+
+def write_protocol(exe):
+    import winreg
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, PROTOCOL_KEY) as key:
+        winreg.SetValueEx(key, '', 0, winreg.REG_SZ, 'URL:AxiorHub Pilote')
+        winreg.SetValueEx(key, 'URL Protocol', 0, winreg.REG_SZ, '')
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, PROTOCOL_KEY + r'\DefaultIcon') as key:
+        winreg.SetValueEx(key, '', 0, winreg.REG_SZ, '"%s",0' % exe)
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, PROTOCOL_KEY + r'\shell\open\command') as key:
+        winreg.SetValueEx(key, '', 0, winreg.REG_SZ, protocol_command(exe))
+
+
+def delete_protocol():
+    import winreg
+    for sub in (r'\shell\open\command', r'\shell\open', r'\shell', r'\DefaultIcon', ''):   # du plus profond à la racine
+        try:
+            winreg.DeleteKey(winreg.HKEY_CURRENT_USER, PROTOCOL_KEY + sub)
+        except OSError:
+            pass
 
 
 def delete_registry():
@@ -155,6 +182,7 @@ def install(archive, version, root=None, desktop=True, startup=False, shortcuts=
             _remove(dirs['demarrage'] / SHORTCUTS['demarrage'])
     if registry:
         write_registry(root, version, exe, _size_kb(target))
+        write_protocol(exe)   # 5.6.97 (A05) : liaison ChatGPT demandée par le serveur du cabinet
     say('Installation terminée.')
     return exe
 
@@ -176,6 +204,7 @@ def uninstall(root=None, purge_data=False, shortcuts=True, registry=True, detach
             _remove(dirs[kind] / name)
     if registry:
         delete_registry()
+        delete_protocol()
     targets = [root] + ([data_root()] if purge_data else [])
     running_inside = getattr(sys, 'frozen', False) and root in Path(sys.executable).resolve().parents
     if detach and running_inside:

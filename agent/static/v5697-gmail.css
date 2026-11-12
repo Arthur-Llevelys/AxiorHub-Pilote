@@ -1,0 +1,15 @@
+/* AxiorHub 5.6.97 — lot gmail : carte Paramètres › Connexions › Gmail et bloc « projet Gmail » de la vue « À traiter avec le Pilote ».
+   Jetons Carbon : contraste clair et sombre hérité du thème ; l'état est écrit en toutes lettres, la couleur ne fait que le souligner. */
+.gm97-inline{display:inline-block;margin:4px 8px 4px 0}
+.gm97-infos,.gm97-releve{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;margin:8px 0}
+.gm97-infos dt,.gm97-releve dt{color:var(--cds-text-secondary,#525252);font-weight:600}
+.gm97-infos dd,.gm97-releve dd{margin:0;overflow-wrap:anywhere}
+.gm97-infos ul,.gm97-releve ul{margin:0;padding-left:18px}
+.gm97-texte{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font:inherit;background:var(--cds-layer-02,#f4f4f4);border:1px solid var(--cds-border-subtle-01,#dfe3e9);border-radius:6px;padding:8px;max-height:40vh;overflow:auto}
+.gm97-envoi{border:2px solid var(--cds-border-interactive,#0f62fe);border-radius:10px;padding:10px 12px;margin:10px 0}
+.gm97-envoi h3{margin:0 0 6px;font-size:16px}
+.gm97-edition>summary,.gm97-guide>summary{cursor:pointer;min-height:32px;display:flex;align-items:center;font-weight:600}
+.gm97-guide ol{padding-left:20px}.gm97-guide li{margin:4px 0;overflow-wrap:anywhere}
+.gm97-projet .ui89-champ{margin:6px 0}.gm97-projet textarea,.gm97-projet input[type=text]{width:100%;box-sizing:border-box}
+.gm97-envoyer .m5-check{display:flex;gap:10px;align-items:flex-start;font-weight:600}.gm97-envoyer .m5-check input{margin-top:3px;min-width:18px;min-height:18px}
+@media (max-width:640px){.gm97-infos,.gm97-releve{grid-template-columns:minmax(0,1fr)}}

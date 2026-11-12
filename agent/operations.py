@@ -206,6 +206,10 @@ def _automation_tick_5642(desk):
         from . import efacture5688
         efacture5688.schedule(desk,now_ts)
     except Exception:pass   # une plateforme injoignable n'arrête jamais la boucle des automatismes
+    try:   # 5.6.97 (lot gmail) : relève Gmail en lecture seule (sans IA), si le fournisseur est activé et une boîte connectée
+        from . import gmail5697
+        gmail5697.schedule(desk,now_ts)
+    except Exception:pass   # Google injoignable n'arrête jamais la boucle des automatismes
     try:   # 5.6.76 : prospects repérés dans les courriels (modèle local, propositions), toutes les 15 minutes
         from . import crm5676
         crm5676.schedule(desk,now_ts)
@@ -258,6 +262,10 @@ def _tick_sans_ia(desk,cfg,now_ts):
         from . import efacture5688
         efacture5688.schedule(desk,now_ts)
     except Exception:pass   # une plateforme injoignable n'arrête jamais la boucle des automatismes
+    try:   # 5.6.97 (lot gmail) : relève Gmail en lecture seule (sans IA), si le fournisseur est activé et une boîte connectée
+        from . import gmail5697
+        gmail5697.schedule(desk,now_ts)
+    except Exception:pass   # Google injoignable n'arrête jamais la boucle des automatismes
 
 
 def perform(desk,kind,args):

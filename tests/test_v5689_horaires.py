@@ -884,7 +884,10 @@ class Reprise(Base):
             return rt.create(self.desk, 'admin@example.test', 'administrateur', forme)
 
     def test_HO17_routine_differee_identifiable_sans_travail_par_passage(self):
-        j = date.today() + timedelta(days=1)                                     # 5.6.96 : date relative (la date fixe était passée)
+        # 5.6.97 : la routine est créée à l'heure réelle ; son premier passage (20 h) est aujourd'hui avant 20 h, demain après.
+        # Les passages simulés visent ce premier passage, sinon un passage antérieur manqué s'ajoute (échec la nuit en 5.6.96).
+        maintenant = datetime.now(PARIS)
+        j = maintenant.date() + timedelta(days=0 if maintenant.hour < 20 else 1)
         k = j + timedelta(days=1)
         depart = self.a(j.year, j.month, j.day, 12)
         rt.tick(self.desk, depart)                                               # premier passage : rien n'est rattrapé

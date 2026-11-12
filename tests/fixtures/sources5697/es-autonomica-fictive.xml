@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Échantillon FICTIF écrit à la main (tests AxiorHub 5.6.97, lot sources) : norme d'une communauté autonome, même format que
+     es-boe-a-1889-4763.xml. Elle ne doit jamais entrer dans le fonds ES-ETAT. Identifiant et texte inventés. -->
+<response>
+  <status><code>200</code><text>ok</text></status>
+  <data>
+    <metadatos>
+      <identificador>BOE-A-2099-77777</identificador>
+      <ambito codigo="2">Autonómico</ambito>
+      <titulo>Ley ficticia de ensayo de una comunidad autónoma.</titulo>
+      <fecha_publicacion>20990101</fecha_publicacion>
+    </metadatos>
+    <texto>
+      <bloque id="a1" tipo="precepto" titulo="Artículo 1">
+        <version id_norma="BOE-A-2099-77777" fecha_publicacion="20990101" fecha_vigencia="20990102">
+          <p class="parrafo">Texto ficticio.</p>
+        </version>
+      </bloque>
+    </texto>
+  </data>
+</response>

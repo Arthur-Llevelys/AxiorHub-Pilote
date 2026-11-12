@@ -257,6 +257,8 @@ REASONS['trop_de_pieces_jointes']='Vingt documents au plus par demande.'   # 5.6
 REASONS['piece_extraite_plus_de_2000000_caracteres']='Document trop long : plus de 2 millions de caractères extraits.'
 JOB_LABELS.update({'office_analysis5684':'Analyse d’une modification dans l’éditeur','cession5684_run':'Cession : analyses et brouillons internes'})   # 5.6.84
 JOB_LABELS['efacture5688']='Relevé des plateformes de facturation électronique'   # 5.6.88
+JOB_LABELS['gmail5697']='Relève Gmail (lecture seule)'   # 5.6.97 (lot gmail)
+JOB_LABELS['gmail5697_redaction']='Réponse Gmail préparée par le modèle local'   # 5.6.97 (lot gmail)
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',
@@ -777,6 +779,12 @@ class App:
                     _st,_obj=_integration(_desk34,env['REQUEST_METHOD'],_path,env,_raw)
                 finally:_desk34.db.close()
                 _public={'status':_st,'kind':'application/json; charset=utf-8','body':json.dumps(_obj,ensure_ascii=False)}
+            elif _path.startswith('/liaison-ia/'):   # 5.6.97 (A05, A06) : appels natifs d'AxiorHub Poste (POST exacts, HTTPS, sans session navigateur)
+                set_request_mode('write')
+                from .chatgpt5697 import route_native as _natif97
+                _desk97=Desk(load_config(self.config_path))
+                try:_public=_natif97(_desk97,env,_path,origin)
+                finally:_desk97.db.close()
             elif _path=='/nextcloud-session' and env['REQUEST_METHOD']=='GET':   # 5.6.37 : interface AxiorHub dans Nextcloud (jeton à usage unique)
                 set_request_mode('write')
                 from .nextcloud5637 import exchange as _nc_exchange
@@ -1552,6 +1560,8 @@ class App:
                 from .production420_ui import production_page
                 from .conflicts500 import banner_html
                 main+=banner_html(desk,prefix)
+                from .mission_web5697 import boutons_html as _boutons5697   # 5.6.97 (lot documents-mission, § 13) : mêmes boutons qu'Aujourd'hui et Dossiers
+                main+=_boutons5697(prefix)
                 try:   # 5.6.51 (A06) : projets et modifications à relire, mêmes éléments que Aujourd'hui et Dossier
                     from .file5651 import html as queue5651
                     from .membres5650 import viewer_hidden
@@ -1650,24 +1660,31 @@ class App:
             main+='<nav class="ws-tabs planning-tabs" aria-label="Rubriques de l’agenda">'+''.join(
                 '<a'+(' aria-current="page"' if vue==key else '')+' href="'+e(url('/planning',vue=key))+'">'+e(label)+'</a>'
                 for key,label in (('agenda','Agenda'),('taches','Tâches'),('organiser','Organiser la semaine')))+'<a href="'+e(url('/mes-taches'))+'">Mes tâches</a><a href="'+e(url('/audiences',onglet='suivi'))+'">Audiences</a></nav>'
-            agenda_view=''
+            agenda_view='';grille97=False
             if vue=='agenda':   # 5.6.43 (cahier v9, § 17) : deux sous-vues, une seule source rendue
                 from .agenda5643 import resolve_view,subnav_html
+                from .agenda36 import chosen_view
                 agenda_view=resolve_view(desk,args.get('agenda',''),str(auth.get('owner') or 'cabinet'))
-                main+=subnav_html(agenda_view,args,url)
+                grille97=chosen_view(desk,args) in ('day','week')   # 5.6.97 (§ 14) : la barre de la grille porte le choix de la source
+                if not grille97:main+=subnav_html(agenda_view,args,url)
             from .workplan import get_plan,list_tasks
-            workflow=c.get('nextcloud_workflow',{})
+            workflow=c.get('nextcloud_workflow',{});copie97=''
             if workflow.get('enabled') and agenda_view!='personnel':   # jamais annoncé dans l'Agenda personnel (aucune copie)
-                main+='<p class="success">✅ Copie vers Nextcloud active : '+e(workflow.get('username',''))+'. Copie à sens unique des tâches et programmes '
-                main+='(pas une synchronisation bidirectionnelle) ; les écritures sont limitées aux calendriers choisis. L’Agenda personnel n’est jamais copié.</p>'
+                copie97='<p class="success">✅ Copie vers Nextcloud active : '+e(workflow.get('username',''))+'. Copie à sens unique des tâches et programmes '
+                copie97+='(pas une synchronisation bidirectionnelle) ; les écritures sont limitées aux calendriers choisis. L’Agenda personnel n’est jamais copié.</p>'
+                if not grille97:main+=copie97
             if vue=='agenda':
                 from .agenda36 import page as agenda_page
                 if agenda_view=='personnel':
                     from .web5634 import agenda_panel
-                    main+=agenda_panel(desk,prefix)
-                    main+=agenda_page(desk,args,link,url,form,source='personal')
+                    if grille97:   # 5.6.97 (§ 14) : la grille tient l'écran ; liste, import, export et sauvegardes sous la grille, repliés
+                        main+=agenda_page(desk,args,link,url,form,source='personal')
+                        main+='<details class="ag97-gerer"><summary>Gérer l’Agenda personnel : liste, import, export, sauvegardes</summary>'+agenda_panel(desk,prefix)+'</details>'
+                    else:
+                        main+=agenda_panel(desk,prefix)
+                        main+=agenda_page(desk,args,link,url,form,source='personal')
                 else:
-                    main+=agenda_page(desk,args,link,url,form,source='online')
+                    main+=agenda_page(desk,args,link,url,form,source='online')+(copie97 if grille97 else '')
             elif vue=='taches':   # 5.6.28 : vue simple (liste groupée par échéance) et ajout d'une tâche à côté
                 from .taches5628 import page as tasks_page5628
                 try:last_sync=desk.db.execute('SELECT MAX(synced) FROM work_tasks_v211').fetchone()[0] or ''

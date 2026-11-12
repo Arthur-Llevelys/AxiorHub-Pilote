@@ -1,0 +1,22 @@
+/* AxiorHub 5.6.97 (lot chatgpt) — suivi de « Continuer avec ChatGPT », liaison poste → serveur, code court à comparer.
+   L'état est toujours écrit en mots (« Abonnement autorisé », « Connexion non aboutie ») : la couleur ne fait que le souligner.
+   Couleurs : jetons Carbon (v5689-carbon-jetons.css), avec repli ; clair et sombre suivent les jetons. */
+
+.c5697-etat { margin: .25rem 0 .5rem; }
+.c5697-suivi:empty { display: none; }
+.c5697-zone { display: grid; gap: .5rem; margin: .5rem 0; }
+.c5697-zone[hidden], [data-c5697-poste][hidden], .c5697-comparer[hidden], [data-c5697-annuler][hidden] { display: none; }
+
+/* code court : lisible de loin, chiffres à chasse fixe, jamais un mot de passe */
+.c5697-code { font-size: 1.125rem; margin: .25rem 0; color: var(--cds-text-primary, #161616); }
+.c5697-chiffres { font-family: var(--cds-code-01-font-family, ui-monospace, "SFMono-Regular", Consolas, monospace); font-size: 1.5rem; font-weight: 600;
+  letter-spacing: .12em; white-space: nowrap; }
+.c5697-comparer { border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 4px; display: grid; gap: .5rem; padding: .75rem; }
+.c5697-comparer label { align-items: center; display: flex; gap: .5rem; justify-content: flex-start; font-weight: 400; text-align: left; }
+.c5697-comparer label input[type="checkbox"] { flex: 0 0 auto; margin: 0; width: auto; }
+
+.c5697-poste { border-left: 4px solid var(--cds-border-interactive, #0f62fe); margin: .75rem 0; padding: .5rem 0 .5rem .75rem; }
+.c5697-autres > summary, .c5697-serveurs > summary { cursor: pointer; }
+
+.c5697-zone a:focus-visible, .c5697-comparer button:focus-visible, [data-c5697-associer]:focus-visible, [data-c5697-annuler]:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }

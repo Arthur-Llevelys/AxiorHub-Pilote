@@ -161,7 +161,38 @@ def _attachments(msg):
     return out
 
 
+def _classement5697(desk, mail):
+    """5.6.97 (lot dossiers, § 11) : dossier choisi à la main pour ce message (registre unique), s'il est visible du compte ; sinon None."""
+    try:
+        from . import dossiers5697
+        from .membres5650 import current_author, viewer_role
+        mid = dossiers5697.dossier_du_message(desk, _account(desk.c['mail']), mail.mailbox, mail.uidvalidity, mail.uid, mail.mid)
+        if not mid:
+            return None
+        row = desk.db.execute('SELECT version FROM message_dossier5697 WHERE dossier_id=? AND compte=? AND boite=? AND uid=? ORDER BY modifie_le DESC LIMIT 1',
+                              (mid, _account(desk.c['mail']), mail.mailbox, str(mail.uid))).fetchone()
+        d = dossiers5697.lire(desk, (current_author() or 'cabinet', viewer_role()), mid)
+        return {'dossier': d['id'], 'titre': d['titre'], 'reference': d['reference'], 'version': row['version'] if row else 1}
+    except Stop:
+        return None
+
+
+def _demande5697(key):
+    """5.6.97 : adresse (sans préfixe) de « Créer une demande depuis ce message », telle que la construit le lot documents-mission."""
+    try:
+        import html
+        import re as _re
+        from .mission_web5697 import lien_nouvelle_demande
+        trouve = _re.search(r'href="([^"]+)"', lien_nouvelle_demande('', 'courriel', key))
+        return html.unescape(trouve.group(1)) if trouve else ''
+    except Exception:   # noqa: BLE001 — module indisponible : pas de lien
+        return ''
+
+
 def _guess_matter(desk, mail, report):
+    manuel = _classement5697(desk, mail)   # 5.6.97 : le choix de l'avocat prévaut sur le rapport de l'agent et sur toute proposition
+    if manuel:
+        return manuel['dossier'], 'classé à la main'
     if report and report.get('matter'):
         return str(report['matter']), 'rapport de l’agent'
     try:
@@ -213,6 +244,8 @@ def message(desk, uid, box=None, folder=None):
         return {'uid': mail.uid, 'key': key, 'folder': folder, 'subject': mail.subject, 'from': str(mail.msg.get('From', ''))[:300], 'to': str(mail.msg.get('To', ''))[:500],
                 'cc': str(mail.msg.get('Cc', ''))[:500], 'date': mail.timestamp.isoformat(), 'text': text[:MAX_TEXT], 'truncated': len(text) > MAX_TEXT,
                 'attachments': _attachments(mail.msg), 'matter': matter, 'matter_reason': why,
+                'uidvalidity': mail.uidvalidity, 'message_id': mail.mid, 'compte': _account(cfg), 'classement': _classement5697(desk, mail),   # 5.6.97 (§ 11)
+                'demande_url': _demande5697(key),
                 'status': known[0] if known else '', 'status_label': STATUS_LABELS.get(known[0], known[0]) if known else 'Jamais traité par l’agent',
                 'reason': (report or {}).get('reason', ''), 'replies': replies(box, cfg, mail),
                 'own': mail.sender.lower() in {a.lower() for a in mbx.own_addresses(cfg)}}
@@ -262,7 +295,7 @@ def attachment_sources(desk, mail):
     return sources, notes
 
 
-def request_reply(desk, uid, matter, instruction='', with_attachments=True, owner='cabinet', box=None, folder=None, without_matter=False):
+def request_reply(desk, uid, matter, instruction='', with_attachments=True, owner='cabinet', box=None, folder=None, without_matter=False, role='', expected_key=''):
     """Réponse demandée par l'avocat pour un courriel choisi : rapport créé ou complété (dossier choisi), puis travail
     « prepare_reply » (sources du dossier, contrôle, dépôt vérifié dans Brouillons). Rien n'est envoyé."""
     cfg = desk.c['mail']
@@ -292,6 +325,8 @@ def request_reply(desk, uid, matter, instruction='', with_attachments=True, owne
         if not recipients:
             raise Stop('aucun_destinataire_exterieur')
     key = mail.key(account)
+    if expected_key and key != expected_key:          # 5.6.97 (B01) : l'UID ne désigne plus le message contrôlé (boîte réindexée)
+        raise Stop('message_deplace_ou_boite_reindexee')
     state = _state(desk)
     try:
         from .desk import report_for
@@ -309,7 +344,8 @@ def request_reply(desk, uid, matter, instruction='', with_attachments=True, owne
     if not known:
         state.set(key, digest(account + mail.mid), digest(account + mail.root), 'manual', 'reponse_demandee_par_avocat')
     job = desk.enqueue('prepare_reply', {'key': key, 'matter': matter, 'instruction': instruction, 'pieces_jointes': 'oui' if with_attachments else '',
-                                         'sans_dossier': 'oui' if not matter else '', 'origine': 'boite5625'}, priority=0)
+                                         'sans_dossier': 'oui' if not matter else '', 'origine': 'boite5625',
+                                         **({'demande_par': str(owner), 'demande_role': str(role)} if role else {})}, priority=0)
     desk.audit('boite5625_reponse_demandee', {'key': key[:16], 'matter': matter, 'job': job, 'instruction': bool(instruction), 'attachments': bool(with_attachments)})
     return {'job_id': job, 'key': key, 'message': 'Réponse demandée à l’agent (travail n° %d). Elle arrivera dans « À relire » (dossier Brouillons) ; rien n’est envoyé.' % job}
 

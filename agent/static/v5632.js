@@ -102,6 +102,8 @@
       if (route === 'dossiers/create' && res.skipped && res.skipped.length) {
         say(form, (res.message || '') + ' ' + msg('folders_skipped', 'Non créés :') + ' ' + res.skipped.map(function (s) { return s.name + ' (' + s.error + ')'; }).join(', '), true);
       }
+      /* 5.6.97 (J06) : connexion d'une source par compte — page officielle du fournisseur dans le même onglet (retour automatique). */
+      if (route === 'admin/sources/oauth/start' && typeof res.url === 'string' && res.url.indexOf('https://') === 0) { location.assign(res.url); return; }
       if (form.hasAttribute('data-reload')) setTimeout(function () { location.reload(); }, 600);
     }).catch(function (e) { say(form, e.message, true); }).then(function () {
       if (btn) { btn.disabled = false; btn.setAttribute('aria-busy', 'false'); }

@@ -221,6 +221,23 @@ def _sensitive_values(desk,matter):
     return sorted({str(x).strip() for x in values if len(str(x).strip())>=3},key=len,reverse=True)
 
 
+# 5.6.97 (J07, cahier v3 l. 625) : identifiants étrangers retirés avant tout envoi (forme seulement, aucune clé de contrôle vérifiée :
+# un faux positif retire un nombre de la question, jamais l'inverse). Ordre : du plus spécifique au plus général.
+ETRANGERS=(
+  ('tva_de',r'(?<![A-Za-z0-9])DE ?\d{9}(?![A-Za-z0-9])'),                                      # USt-IdNr
+  ('registre_de',r'(?<![A-Za-z0-9])HR[AB] ?\d{1,6}(?: ?[A-Z]{1,2})?(?![A-Za-z0-9])'),           # Handelsregister
+  ('id_fiscal_de',r'(?<![A-Za-z0-9])\d{2} ?\d{3} ?\d{3} ?\d{3}(?![A-Za-z0-9])'),               # Steuer-Identifikationsnummer (11 chiffres)
+  ('neq_qc',r'(?<![A-Za-z0-9])(?:11|22|33|88)\d{8}(?![A-Za-z0-9])'),                             # numéro d'entreprise du Québec
+  ('nas_ca',r'(?<![A-Za-z0-9])\d{3}[ -]?\d{3}[ -]?\d{3}(?![A-Za-z0-9])'),                       # numéro d'assurance sociale
+  ('nie_es',r'(?<![A-Za-z0-9])[XYZ][ -]?\d{7}[ -]?[A-Z](?![A-Za-z0-9])'),
+  ('nif_es',r'(?<![A-Za-z0-9])\d{8}[ -]?[A-Z](?![A-Za-z0-9])'),
+  ('cif_es',r'(?<![A-Za-z0-9])[ABCDEFGHJNPQRSUVW][ -]?\d{7}[ -]?[0-9A-J](?![A-Za-z0-9])'),
+  ('ni_gb',r'(?<![A-Za-z0-9])[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z] ?\d{2} ?\d{2} ?\d{2} ?[A-D](?![A-Za-z0-9])'),
+  ('societe_gb',r'(?<![A-Za-z0-9])(?:SC|NI|OC|SO|NC|LP|SL|FC|\d{2})\d{6}(?![A-Za-z0-9])'),        # Companies House (8 caractères)
+)
+RESTE_IDENTIFIANT=re.compile(r'(?<![A-Za-z0-9\-:./_])\d(?:[ .\-/]?\d){8,}(?![A-Za-z0-9\-:])')            # neuf chiffres ou plus encore lisibles
+
+
 def anonymize_query(desk,matter,question):
     question=re.sub(r'[\x00-\x1f]',' ',str(question or '')).strip()
     if not question or len(question)>3000:raise Stop('question_juridique_invalide')
@@ -235,11 +252,12 @@ def anonymize_query(desk,matter,question):
       ('iban',r'(?i)\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b'),
       ('telephone',r'(?<!\d)(?:\+33|0)[1-9](?:[ .-]?\d{2}){4}(?!\d)'),
       ('rg',r'(?i)\b(?:RG|Portalis)\s*[:n°o-]*\s*[A-Z0-9./-]{4,}\b'))
-    for kind,pattern in patterns:
+    for kind,pattern in patterns+ETRANGERS:   # 5.6.97 (J07) : identifiants et numéros étrangers, du plus long au plus court
         hits=re.findall(pattern,out)
         if hits:
             out=re.sub(pattern,'[DONNEE_'+kind.upper()+']',out)
             report.append({'type':kind,'value_hash':'regex','occurrences':len(hits)})
+    if RESTE_IDENTIFIANT.search(out):raise Stop('reformulation_requise')   # un long numéro subsiste (forme inconnue) : rien ne part
     folded=fold(out)
     residue=[digest(x) for x in _sensitive_values(desk,matter)
       if len(x)>=4 and fold(x) in folded]
@@ -251,10 +269,13 @@ def prepare_research_query(desk,args):
     """Prepare the only string that may be sent to an external legal MCP."""
     ensure_schema(desk);matter=_matter(desk,args.get('matter','')) if str(args.get('matter') or '').strip() else dict(GENERAL)   # 5.6.34 (U03)
     anonymous,redactions=anonymize_query(desk,matter,args.get('question',''))
-    requested=args.get('providers') or list(PROVIDERS)
+    requested=args.get('providers')   # 5.6.97 (B02) : non précisé = liste historique ; liste vide = aucune source (jamais « tous »)
+    requested=list(PROVIDERS) if requested is None or requested=='' else requested
     if isinstance(requested,str):requested=[x.strip().lower() for x in requested.split(',') if x.strip()]
-    if not isinstance(requested,list) or not requested or any(not _known(x) for x in requested):
+    if isinstance(requested,(list,tuple)) and not requested:raise Stop('aucune_source_choisie')
+    if not isinstance(requested,(list,tuple)) or any(not isinstance(x,str) or not _known(x) for x in requested):
         raise Stop('fournisseur_juridique_invalide')
+    requested=list(requested)
     qid=digest(matter['id']+'|'+anonymous+'|'+','.join(requested))
     stamp=desk.now();desk.db.execute('''INSERT OR REPLACE INTO legal_research_queries_v240
       VALUES(?,?,?,?,?,?,?,?,?,?)''',(qid,matter['id'],digest(str(args.get('question',''))),anonymous,
@@ -460,7 +481,15 @@ def research(desk,args,provider_runner=None,official_fetcher=None):
     limit=max(1,min(int(args.get('limit',8)),20))
     desk.db.execute('UPDATE legal_research_queries_v240 SET status=? WHERE id=?',('running',qid));desk.db.commit()
     leads=[];errors=[]
+    from .selection_sources5697 import local_strict,selectionner
+    choix=selectionner(desk,requested) if provider_runner is None else None   # 5.6.97 (B02) : sources choisies avant l'appel
+    strict=local_strict(desk)
     for name in requested:
+        if strict:                         # mode local strict : aucun appel externe, état dit
+            errors.append({'provider':name,'error':'mode_local_strict'});continue
+        if choix is not None and name not in choix.ids:
+            errors.append({'provider':name,'error':{'source_inactive':'connecteur_juridique_non_configure'}.get(choix.ecartes.get(name),choix.ecartes.get(name) or 'source_non_retenue')})
+            continue
         if provider_runner is None:
             settings=desk.c.get('legal_research',{}).get('providers',{}).get(name,{})
             if not settings.get('enabled') or not settings.get('url'):
@@ -493,18 +522,29 @@ def research(desk,args,provider_runner=None,official_fetcher=None):
       'warning':'Les résultats fournisseurs sont des pistes. Seules les décisions figurant dans verified_authorities sont citables.'}
 
 
-def research_enabled_mcp(desk,matter,question,limit=8,official_fetcher=None):
-    """Use enabled Lawve MCP connectors and independently verify official texts."""
+def research_enabled_mcp(desk,matter,question,limit=8,official_fetcher=None,providers=None):
+    """Use enabled Lawve MCP connectors and independently verify official texts.
+    5.6.97 (B02, J07) : ``providers`` = ensemble retenu par ``selection_sources5697`` ; ``None`` (audience, missions, veille, consultation) =
+    sélection par défaut recalculée ici, local strict compris. Un ensemble vide : aucun appel."""
+    from .selection_sources5697 import autorises,local_strict,toutes_locales
+    permis=autorises(desk,providers)   # sélection d'abord (J07)
+    locales=toutes_locales(permis)
+    if local_strict(desk) and (not permis or not locales):
+        raise Stop('mode_local_strict')   # une source externe retenue en local strict : refus dit avant toute requête, aucun repli
+    if not permis:
+        return {'matter':str(matter or ''),'anonymized_query':'','redaction_report':[],'connectors':[],'leads':[],'verified_authorities':[],
+          'status':'aucune_source','warning':'Aucune source juridique retenue : aucune requête n’est partie.'}
     target=_matter(desk,matter) if str(matter or '').strip() else dict(GENERAL)
     anonymous,redactions=anonymize_query(desk,target,question)
-    from .data_policy5689 import exiger
-    exiger(desk.c,'recherche_web','sources_juridiques',finalite='recherche_juridique',requete=anonymous)   # 5.6.89 : requête telle qu'elle partirait
+    if not locales:   # adaptateurs intégrés seuls (index local, aucun réseau) : pas de transfert, donc pas de contrôle de sortie
+        from .data_policy5689 import exiger
+        exiger(desk.c,'recherche_web','sources_juridiques',finalite='recherche_juridique',requete=anonymous)   # 5.6.89 : requête telle qu'elle partirait
     from .extensions364 import legal_connector_search
-    connector_results=legal_connector_search(desk,anonymous,limit)
+    connector_results=legal_connector_search(desk,anonymous,limit,providers=sorted(permis))
     verified=[];leads=[];reports=[]
     for result in connector_results:
         provider=result.get('provider','')
-        if result.get('status')!='ok' or not _known(provider):   # 5.6.34 (B06) : les connecteurs récents ne sont plus écartés
+        if result.get('status')!='ok' or not _known(provider) or provider not in permis:   # 5.6.34 (B06) : les connecteurs récents ne sont plus écartés
             reports.append({k:result.get(k,'') for k in ('connector','provider','status','error')});continue
         prepared=prepare_research_query(desk,{'matter':target['id'],'question':question,
                                              'providers':[provider]})

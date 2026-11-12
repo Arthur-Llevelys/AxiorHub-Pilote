@@ -1,0 +1,38 @@
+{
+  "version": "5.6.97",
+  "base": "5.6.96",
+  "date_utc": "2026-11-12T00:00:00+00:00",
+  "cahier_des_charges": "Audit et cahier des charges du cabinet sur la 5.6.96 (B01-B10, § 9-24) ; reports du cahier v3 (C05-C07 Gmail, A04-A08, J01-J09). Décision du cabinet : tout en 5.6.97, Gmail lecture et brouillons.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 6056,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 146,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "new_tests": "tests/test_v5697_proteger, fiabilite, dossiers, documents_mission, agenda, gmail, chatgpt, sources, gestion, gestion_recettes ; parcours navigateur P97f, P97g, P97m, P97c, P97s, P97d, P97a.",
+  "mutations": "Garde des dossiers réservés (courriels, agenda, compteurs) ; sélection des sources avant appel et local strict ; idempotence et transactions (dossiers, missions, rendez-vous, envois Gmail) ; heures au changement d’heure ; OAuth (state, PKCE, origine) ; envoi Gmail interdit à l’agent.",
+  "live_checks": "Aucun service réel exercé : Google (Gmail, Agenda), OpenAI, Nextcloud (Talk, partages, CalDAV), Invoice Ninja et les sources juridiques n’ont connu que des faux transports. Les deux recettes complètes du cahier (§ 22 conseil, § 23 contentieux) passent sur données fictives, IA en pause.",
+  "exapp": {
+    "version": "0.1.56",
+    "moteur": "5.6.97"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Dossier réservé : réponse neutre « introuvable » (404) au lieu de 403.",
+    "Recherche juridique : une liste de sources vide n’interroge plus aucune source.",
+    "Agenda : la création exige une clé d’idempotence ; grille Jour et Semaine par défaut, ancienne vue repliée.",
+    "Dossiers : nouvel écran en tête ; migration des dossiers existants à lancer par l’administrateur (simulation d’abord).",
+    "Intégrations nouvelles (Gmail, Google Agenda, Talk, Speakr, partages, Invoice Ninja, liaison ChatGPT, synchronisation des fonds) désactivées par défaut."
+  ],
+  "adjusted_tests": [
+    "test_v5696_courriels C03 (404 neutre), test_v5634 t06 (source active), test_v5620 (archive avec le .desktop de liaison).",
+    "test_v5643 (clé d’idempotence de création), test_v5679 et test_d5651 (sections de la fiche § 12).",
+    "test_v5694_parcours P01 (parcours P97) ; test_v5689_horaires HO17 (premier passage de la routine selon l’heure réelle, échouait la nuit)."
+  ]
+}

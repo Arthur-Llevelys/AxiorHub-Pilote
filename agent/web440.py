@@ -16,7 +16,7 @@ from urllib.parse import urlencode, urlsplit
 from .common import Stop, load_matters, clean_path, under
 from .desk import Desk
 
-STATIC = {'/static/v5696-courriels.js': 'text/javascript', '/static/v5696-courriels.css': 'text/css', '/static/v5696-accueil.js': 'text/javascript', '/static/v5696-accueil.css': 'text/css', '/static/v5696-affichage.css': 'text/css', '/static/v5696-affichage.js': 'text/javascript', '/static/v5695-aujourdhui.css': 'text/css', '/static/v5695-aujourdhui.js': 'text/javascript', '/static/v5695-redaction.css': 'text/css', '/static/v5694-traces.css': 'text/css','/static/v5689-ia.js': 'text/javascript', '/static/v5689-ia.css': 'text/css', '/static/v5689-dossier.js': 'text/javascript', '/static/v5689-dossier.css': 'text/css', '/static/v5689-formulaires.js': 'text/javascript', '/static/v5689-navigation.js': 'text/javascript', '/static/v5689-carbon.css': 'text/css', '/static/v5689-carbon-jetons.css': 'text/css', '/static/v5689-livrables.js': 'text/javascript', '/static/v5689-livrables.css': 'text/css', '/static/v5689-cabinet.css': 'text/css', '/static/v5689-horaires.js': 'text/javascript','/static/v5688-crm.js': 'text/javascript', '/static/carbon5682.js': 'text/javascript', '/static/pdfjs5682.js': 'text/javascript', '/static/pdf.worker5682.js': 'text/javascript',
+STATIC = {'/static/v5697-gestion.css': 'text/css', '/static/v5697-sources.css': 'text/css', '/static/v5697-mission.css': 'text/css', '/static/v5697-mission.js': 'text/javascript', '/static/v5697-dossiers.css': 'text/css', '/static/v5697-dossiers.js': 'text/javascript', '/static/v5697-agenda.css': 'text/css', '/static/v5697-agenda.js': 'text/javascript', '/static/v5697-chatgpt.css': 'text/css', '/static/v5697-fiabilite.css': 'text/css', '/static/v5697-gmail.css': 'text/css', '/static/v5696-courriels.js': 'text/javascript', '/static/v5696-courriels.css': 'text/css', '/static/v5696-accueil.js': 'text/javascript', '/static/v5696-accueil.css': 'text/css', '/static/v5696-affichage.css': 'text/css', '/static/v5696-affichage.js': 'text/javascript', '/static/v5695-aujourdhui.css': 'text/css', '/static/v5695-aujourdhui.js': 'text/javascript', '/static/v5695-redaction.css': 'text/css', '/static/v5694-traces.css': 'text/css','/static/v5689-ia.js': 'text/javascript', '/static/v5689-ia.css': 'text/css', '/static/v5689-dossier.js': 'text/javascript', '/static/v5689-dossier.css': 'text/css', '/static/v5689-formulaires.js': 'text/javascript', '/static/v5689-navigation.js': 'text/javascript', '/static/v5689-carbon.css': 'text/css', '/static/v5689-carbon-jetons.css': 'text/css', '/static/v5689-livrables.js': 'text/javascript', '/static/v5689-livrables.css': 'text/css', '/static/v5689-cabinet.css': 'text/css', '/static/v5689-horaires.js': 'text/javascript','/static/v5688-crm.js': 'text/javascript', '/static/carbon5682.js': 'text/javascript', '/static/pdfjs5682.js': 'text/javascript', '/static/pdf.worker5682.js': 'text/javascript',
           '/static/v5688-reversibilite.js': 'text/javascript', '/static/v5688-reversibilite.css': 'text/css', '/static/v5682.js': 'text/javascript', '/static/v5682.css': 'text/css', '/static/v5683.css': 'text/css', '/static/v5684.css': 'text/css', '/static/v5684-office.js': 'text/javascript', '/static/v5681.js': 'text/javascript', '/static/v5680.js': 'text/javascript', '/static/v5679.js': 'text/javascript', '/static/v5674.js': 'text/javascript', '/static/v5673.js': 'text/javascript', '/static/v5671.js': 'text/javascript', '/static/v5670.js': 'text/javascript', '/static/v5660.js': 'text/javascript', '/static/v5653.js': 'text/javascript', '/static/v5653.css': 'text/css', '/static/v5652.js': 'text/javascript', '/static/v5652.css': 'text/css', '/static/v5651.js': 'text/javascript', '/static/v5651.css': 'text/css', '/static/v5650.js': 'text/javascript', '/static/v5650.css': 'text/css', '/static/v5647.js': 'text/javascript', '/static/v5643.js': 'text/javascript', '/static/v5637.js': 'text/javascript', '/static/v5637.css': 'text/css', '/static/office5636.js': 'text/javascript', '/static/office5636.css': 'text/css', '/static/v5636.js': 'text/javascript', '/static/v5636.css': 'text/css', '/static/v5634t.js': 'text/javascript', '/static/v5634.js': 'text/javascript', '/static/v5634.css': 'text/css', '/static/v5632.js': 'text/javascript', '/static/v5632.css': 'text/css', '/static/v5631.js': 'text/javascript', '/static/v5631.css': 'text/css', '/static/v5628.js': 'text/javascript', '/static/v5628.css': 'text/css', '/static/v5627.js': 'text/javascript', '/static/v5627.css': 'text/css', '/static/v5625.js': 'text/javascript', '/static/v5625.css': 'text/css', '/static/v5614.js': 'text/javascript', '/static/v5614.css': 'text/css', '/static/v5613.css': 'text/css', '/static/v569.js': 'text/javascript', '/static/rules568.js': 'text/javascript', '/static/v568.js': 'text/javascript', '/static/v568.css': 'text/css', '/static/v567.js': 'text/javascript', '/static/v567.css': 'text/css', '/static/v440.css': 'text/css', '/static/v440.js': 'text/javascript',
           '/static/v440-office.js': 'text/javascript', '/static/v450.css': 'text/css', '/static/v450.js': 'text/javascript',
           '/static/v460.css': 'text/css', '/static/v460.js': 'text/javascript',
@@ -324,6 +324,16 @@ def route(env, cfg, auth, prefix, path, args, method):
         from .shell501 import set_context
         set_context(cfg)
         return contentieux_web5689.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path in ('/nouveau-document', '/document', '/demandes'):   # 5.6.97 (lot documents-mission, § 13 et § 16) : Nouveau document, versions, demandes
+        from . import mission_web5697
+        from .shell501 import set_context
+        set_context(cfg)
+        return mission_web5697.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path in ('/dossiers/nouveau', '/dossiers/import'):   # 5.6.97 (lot dossiers, § 10) : Nouveau dossier, import des dossiers existants
+        from . import dossiers_web5697
+        from .shell501 import set_context
+        set_context(cfg)
+        return dossiers_web5697.page_route(env, cfg, auth, prefix, path, args, shell)
     if method == 'GET' and path in ('/dossier/apercu', '/dossier/fichier'):   # 5.6.79 : aperçu des documents de la page Dossier
         from . import web5679
         return web5679.route(cfg, auth, prefix, path, args)
@@ -668,6 +678,9 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code in ('version_en_conflit', 'cle_idempotence_deja_utilisee', 'numerotation_concurrente', 'diligence_deja_reservee')
                              else ('404 Not Found' if code in ('document_financier_absent', 'estimation_absente', 'modele_absent', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m57/dossiers'):   # 5.6.97 (lot dossiers) : registre unique des affaires (201, 422, 409, 404 neutre, PATCH avec version)
+        from . import dossiers_web5697
+        return dossiers_web5697.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5689/'):   # 5.6.89 : routes par domaine
         from . import web5689
         return web5689.api(env, desk, auth, prefix, name, args, method)
@@ -786,7 +799,8 @@ def api(env, desk, auth, prefix, name, args, method):
         except Stop as error:
             code = str(error).split(':')[0]
             from .guide5631 import message
-            return json_out({'error': code, 'message': message(code)}, '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
+            return json_out({'error': code, 'message': message(code)}, '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
+                            ('409 Conflict' if code == 'revision_source_perimee' else '400 Bad Request'))   # 5.6.97 (J06) : fiche modifiée entre-temps
     if name.startswith('m5631/'):   # 5.6.31 : guide d'installation (sessions, étapes, preuves) et choix de la langue
         from . import guide5631
         try:

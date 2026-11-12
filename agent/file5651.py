@@ -241,6 +241,11 @@ def _items(desk, prefix, matter, view, hidden, include_closed, actor, role):
                         continue
             it.setdefault('state', 'a_examiner')
             out.append(it)
+    # 5.6.97 (lot proteger) : garde commune AVANT tri, borne et totaux : dossier de chaque élément (éléments du cabinet compris) et, pour un
+    # courriel, dossiers que le serveur rattache au message ; masques relus pour la personne de la requête
+    from .acces5697 import filtrer_elements, masques
+    caches = frozenset(str(h) for h in (hidden or ())) | masques(desk, (actor or 'cabinet', role or 'administrateur'))
+    out = filtrer_elements(desk, (actor or 'cabinet', role or 'administrateur'), out, caches)
     # 5.6.86 : les courriels du plus récent au plus ancien, quel que soit le dossier ; triés par nom, ceux « Sans dossier » passaient après les 12 premières cartes
     out.sort(key=lambda i: str(i.get('when') or ''), reverse=True)
     out.sort(key=lambda i: (i['priority'] != 'haute', RANK.get(i['class'], 5), '' if i['class'] == 'courriel' else i['matter_name'], i['class']))

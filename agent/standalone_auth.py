@@ -31,7 +31,7 @@ from urllib.parse import parse_qs
 
 ROLES = {'administrateur': 'Administrateur (associé)', 'avocat': 'Avocat', 'assistant': 'Assistant(e)'}
 ADMIN_PATHS = ('/parametres', '/ia-externe', '/routage-hybride', '/administration', '/mcp', '/atelier/reglages', '/extensions', '/regles', '/guide-installation')
-ADMIN_API = ('m5689/routage/', 'm5689/accueil/reglage/', 'm5689/voix/reglages','m5689/ui/drapeaux', 'm5689/capacites/pertinence', 'm5689/politique/enregistrer', 'm5689/politique/prestataire', 'm5689/politique/flux', 'm5689/budget/', 'm5688cloud/', 'rev5688/', 'm5682/', 'm5681/', 'm5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
+ADMIN_API = ('m5689/gestion/reglages/', 'm5689/gestion/restauration/', 'm5689/routage/', 'm5689/accueil/reglage/', 'm5689/voix/reglages','m5689/ui/drapeaux', 'm5689/capacites/pertinence', 'm5689/politique/enregistrer', 'm5689/politique/prestataire', 'm5689/politique/flux', 'm5689/budget/', 'm5688cloud/', 'rev5688/', 'm5682/', 'm5681/', 'm5634/modeles/profil', 'm5634/modeles/restaurer', 'm5634/modeles/adopter', 'settings/', 'send/settings', 'send/options', 'sources/settings', 'autonomy/set', 'autonomy/prudent', 'templates/save',
              'm568/test/', 'm567/config/', 'm567/reception/settings', 'm540/', 'm520/queue/', 'm530/nextcloud', 'm550/settings', 'm510/profile', 'm510/template/', 'm500/time/bareme', 'm5631/guide/', 'm5632/admin/')
 ADMIN_ACTIONS = {'save_ai_provider', 'test_ai_provider', 'save_ai_route', 'save_hybrid_policy400', 'automation_setting', 'save_update_policy420',
                  'save_live430', 'save_local_model', 'save_external_url', 'set_lawve_extension', 'test_lawve_extension', 'save_routines520',
@@ -75,6 +75,9 @@ def allowed(role, method, path, action=''):
         return False
     if method in ('GET', 'HEAD'):
         return True
+    if api.startswith('m57/dossiers'):   # 5.6.97 (lot dossiers) : écritures du registre des affaires, PATCH compris, déclarées par route
+        from .dossiers_web5697 import allowed as allowed5697d
+        return allowed5697d(role, method, api[len('m57/'):])
     if method != 'POST':
         return False
     if api == 'm5689/budget/mission':   # 5.6.89 : coût d'une mission, lecture ouverte à ceux qui voient la mission
@@ -613,6 +616,11 @@ class StandaloneAuth:
             return self._proxy(env, start, None, preserve_authorization=True)
         if path in ('/reception567/twilio','/reception567/whatsapp'):
             return self._proxy(env,start,None,preserve_authorization=True)
+        if path in ('/liaison-ia/v1/reclamer', '/liaison-ia/v1/etat', '/liaison-ia/v1/recevoir') and env.get('REQUEST_METHOD') == 'POST':
+            # 5.6.97 (A05) : appels natifs d'AxiorHub Poste (preuve dans l'en-tête Bearer) ; la session de l'administrateur qui a créé la
+            # liaison est relue ICI, dans la base des comptes, à chaque appel (déconnexion = liaison close).
+            env['axiorhub.sessions_actives'] = self._session_admin_active
+            return self._proxy(env, start, None, preserve_authorization=True)
         if path.startswith('/integration/v1/'):   # 5.6.36 : contrat signé avec l'application Nextcloud (aucune session navigateur)
             if path == '/integration/v1/pair' and env.get('REQUEST_METHOD') == 'POST':
                 return self._pair5636(env, start)
@@ -784,6 +792,15 @@ class StandaloneAuth:
         env['CONTENT_LENGTH'] = str(len(raw))
         return self._proxy(env, start, None, preserve_authorization=True)
 
+    def _session_admin_active(self, token_hash):
+        """5.6.97 (A05) : session d'administrateur toujours ouverte (non expirée, compte actif) ; double authentification respectée."""
+        row = self.db.execute("SELECT u.email, s.mfa FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>? AND u.active=1 "
+                              "AND u.role='administrateur'", (str(token_hash or ''), _now().isoformat())).fetchone()
+        if not row:
+            return False
+        from . import totp5688
+        return totp5688.verdict(self.db, row['email'], row['mfa']) != 'refus'
+
     def _forbidden(self, start, json_api=False):
         if json_api:
             raw = json.dumps({'error': 'role_insuffisant', 'message': 'Action réservée à un autre rôle du cabinet.'}).encode()
@@ -802,6 +819,7 @@ class StandaloneAuth:
             return self.app(env, start)
         env['HTTP_X_AXIORHUB_USER'] = user['email']
         env['HTTP_X_AXIORHUB_ROLE'] = user['role'] or 'avocat'
+        env['axiorhub.session_empreinte'] = user.get('session', '')   # 5.6.97 (A04, A05) : tentative et liaison liées à CETTE session
         captured = {}
 
         def capture(status, headers, exc_info=None):

@@ -29,12 +29,13 @@ from .common import Stop, load_matters, matter_display
 
 CLE_CABINET = 'courriels5696:vue_assistee'
 CLE_COMPTE = 'courriels5696:vue_assistee:'          # + compte de la personne : True, False ou absent (« comme le cabinet »)
-STATUTS = ('a_traiter', 'en_preparation', 'reponse_prete', 'a_completer', 'en_attente', 'reporte', 'termine', 'ecarte')
+STATUTS = ('a_traiter', 'en_preparation', 'reponse_prete', 'a_completer', 'en_attente', 'reporte', 'termine', 'ecarte', 'interrompu')
 LIBELLES = {'a_traiter': 'À traiter', 'en_preparation': 'En préparation', 'reponse_prete': 'Réponse prête', 'a_completer': 'À compléter',
-            'en_attente': 'En attente', 'reporte': 'Reporté', 'termine': 'Terminé', 'ecarte': 'Écarté'}
+            'en_attente': 'En attente', 'reporte': 'Reporté', 'termine': 'Terminé', 'ecarte': 'Écarté',
+            'interrompu': 'Interrompu · reprendre'}   # 5.6.97 (B04) : préparation demandée qui n'a jamais démarré
 # filtres de la liste : (clé, libellé, statuts) ; le premier est l'affichage par défaut
-FILTRES = (('actifs', 'À traiter et réponses prêtes', ('a_traiter', 'a_completer', 'en_preparation', 'reponse_prete')),
-           ('a_traiter', 'À traiter', ('a_traiter', 'a_completer', 'en_preparation')), ('reponses', 'Réponses prêtes', ('reponse_prete',)),
+FILTRES = (('actifs', 'À traiter et réponses prêtes', ('a_traiter', 'a_completer', 'en_preparation', 'interrompu', 'reponse_prete')),
+           ('a_traiter', 'À traiter', ('a_traiter', 'a_completer', 'en_preparation', 'interrompu')), ('reponses', 'Réponses prêtes', ('reponse_prete',)),
            ('attente', 'En attente', ('en_attente',)), ('reportes', 'Reportés', ('reporte',)), ('termines', 'Terminés et écartés', ('termine', 'ecarte')))
 # état du collecteur (``work_items.state``) -> état affiché, tant qu'aucune décision de cette vue ne s'applique
 DEPUIS_TACHE = {'needs_action': 'a_traiter', 'needs_confirmation': 'a_completer', 'drafting': 'en_preparation', 'processing': 'en_preparation',
@@ -65,6 +66,8 @@ CREATE INDEX IF NOT EXISTS courriels5696_evenements_suivi ON courriels5696_evene
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    from .courriels_commandes5697 import ensure_schema as commandes
+    commandes(desk)   # 5.6.97 (B04) : commandes de préparation
 
 
 def _maintenant():
@@ -156,7 +159,8 @@ def _prepares(desk, cles):
 
 def _suivis(desk):
     ensure_schema(desk)
-    return {(r['compte'], r['boite'], r['fil']): dict(r) for r in desk.db.execute('SELECT * FROM courriels5696_suivis')}
+    from .courriels_commandes5697 import annoter
+    return annoter(desk, {(r['compte'], r['boite'], r['fil']): dict(r) for r in desk.db.execute('SELECT * FROM courriels5696_suivis')})   # 5.6.97 (B04)
 
 
 def _jobs(desk, ids):
@@ -201,6 +205,9 @@ def statut_de(tache, suivi, projet, nouveau, job, maintenant):
     if s == 'en_preparation':
         if projet:
             return 'reponse_prete', ''
+        if suivi.get('commande_active') is False:   # 5.6.97 (B04) : commande ni aboutie ni en cours, ou ligne historique sans travail
+            from .courriels_commandes5697 import INTERROMPU
+            return 'interrompu', INTERROMPU
         if job and job not in EN_COURS:
             return 'a_completer', 'La préparation s’est terminée sans projet : voir le motif dans « Pourquoi ? »'
     return s, ''
@@ -217,16 +224,11 @@ def lignes(desk, owner='cabinet', hidden=frozenset(), filtre='actifs', dossier='
     depuis = (maintenant - timedelta(days=FENETRE_JOURS)).isoformat()
     suivis = _suivis(desk)
     suivies = [s['mail_key'] for s in suivis.values()]
-    try:
-        rows = [dict(r) for r in desk.db.execute(
-            'SELECT mail_key, state, source_status, source_reason, matter, subject, sender, received FROM work_items WHERE received>=? OR mail_key IN (SELECT mail_key FROM courriels5696_suivis) '
-            'ORDER BY received DESC LIMIT ?', (depuis, LIMITE))]
-    except sqlite3.Error:
-        rows = []
+    rows, associations = _visibles(desk, depuis, hidden)
     fils = _fils(desk, [r['mail_key'] for r in rows] + suivies)
     labels = {m['id']: matter_display(m) for m in load_matters(desk.c)}
     groupes = {}
-    for r in rows:
+    for r in rows:                # 5.6.97 (B01) : seuls les messages visibles de l'acteur sont regroupés ; le fil est représenté par l'un d'eux
         if r['state'] == 'ignored' and r['mail_key'] not in suivies:      # notification, liste, copie : écartés par l'agent, hors de la vue
             continue
         if str(r['sender'] or '').lower() in propres:
@@ -241,7 +243,15 @@ def lignes(desk, owner='cabinet', hidden=frozenset(), filtre='actifs', dossier='
     out = []
     for fil, r in groupes.items():
         suivi = suivis.get((compte, nom_boite, fil))
-        matter = (suivi or {}).get('matter') or r['matter'] or ''
+        # 5.6.97 (B01) : le dossier affiché est celui du message représenté, lu sur le serveur ; le suivi d'un fil ne le remplace pas et ne
+        # donne aucun droit (un fil classé dans un dossier masqué reste masqué). Rattachements contradictoires : « à vérifier ».
+        propres = {d for d in (associations.get(r['mail_key']) or ({r['matter']} if r['matter'] else set())) if not d.startswith('?')}
+        suivi_matter = (suivi or {}).get('matter') or ''
+        if suivi_matter in hidden:
+            continue
+        matter = r['matter'] if r['matter'] in propres else next(iter(propres)) if len(propres) == 1 else ''
+        matter = matter or ('' if propres else suivi_matter)
+        a_verifier = len(propres) > 1 or bool(suivi_matter and propres and suivi_matter not in propres)
         if matter in hidden or (dossier and matter != dossier) or (boite and boite != nom_boite):
             continue
         projet = projets.get(r['mail_key'])
@@ -251,11 +261,40 @@ def lignes(desk, owner='cabinet', hidden=frozenset(), filtre='actifs', dossier='
             continue
         out.append({'fil': fil, 'mail_key': r['mail_key'], 'compte': compte, 'adresse': _adresse(cfg), 'boite': nom_boite, 'de': r['sender'] or '',
                     'objet': r['subject'] or '(sans objet)', 'recu': r['received'] or '', 'matter': matter, 'dossier': labels.get(matter, ''),
-                    'statut': statut, 'libelle': LIBELLES[statut], 'precision': precision, 'version': (suivi or {}).get('version', 0),
+                    'statut': statut, 'libelle': LIBELLES[statut], 'precision': ' · '.join(x for x in ('Rattachement à vérifier' if a_verifier else '', precision) if x), 'version': (suivi or {}).get('version', 0),
                     'tache': r['state'], 'raison': r['source_reason'] or '', 'projet': (projet or {}).get('document_id', ''),
                     'suivi': {k: (suivi or {}).get(k, '') for k in ('statut', 'motif', 'attente_de', 'echeance', 'fuseau', 'auteur', 'maj')} if suivi else None})
+    try:   # 5.6.97 (lot gmail) : fils Gmail de la personne, lus dans la projection locale (aucun appel Google), si le fournisseur est activé
+        from .gmail5697 import lignes_vue
+        out += lignes_vue(desk, owner, hidden, statuts, dossier, boite, suivis, maintenant)
+    except sqlite3.Error:
+        pass
     out.sort(key=lambda x: _instant_de(x['recu']), reverse=True)
     return out
+
+
+def _visibles(desk, depuis, hidden):
+    """5.6.97 (B01) : messages de la projection que l'acteur peut voir, filtrés AVANT la borne ``LIMITE``, le regroupement par fil et toute
+    lecture du corps. Chaque message est contrôlé sur ses propres rattachements (``messages5697``) : un message relevant d'un dossier masqué
+    n'entre jamais dans la liste, même si son fil est suivi dans un dossier visible. Rend (lignes, {clé: dossiers})."""
+    from .messages5697 import dossiers_par_cle
+    sql = ('SELECT mail_key, state, source_status, source_reason, matter, subject, sender, received FROM work_items WHERE received>=? OR mail_key IN (SELECT mail_key FROM courriels5696_suivis) '
+           'ORDER BY received DESC, mail_key LIMIT ? OFFSET ?')
+    gardees, associations, decalage = [], {}, 0
+    while len(gardees) < LIMITE:
+        try:
+            lot = [dict(r) for r in desk.db.execute(sql, (depuis, LIMITE, decalage))]
+        except sqlite3.Error:
+            break
+        if not lot:
+            break
+        decalage += len(lot)
+        if hidden:
+            associations.update(dossiers_par_cle(desk, [r['mail_key'] for r in lot]))
+            from .acces5697 import visible
+            lot = [r for r in lot if visible((associations.get(r['mail_key']) or frozenset()) | {r['matter'] or ''}, hidden)]
+        gardees += lot
+    return gardees[:LIMITE], associations
 
 
 def ligne(desk, fil, owner='cabinet', hidden=frozenset(), cle=''):
@@ -265,10 +304,9 @@ def ligne(desk, fil, owner='cabinet', hidden=frozenset(), cle=''):
         fil = fils.get(str(cle)) or str(cle)
     if not FIL.match(str(fil or '')):
         raise Stop('fil_invalide')
-    for r in lignes(desk, owner, frozenset(), 'tous'):
+    # 5.6.97 (B01) : la ligne est cherchée parmi les messages visibles de l'acteur ; un fil sans message visible est « absent » (404 neutre)
+    for r in lignes(desk, owner, hidden, 'tous'):
         if r['fil'] == fil:
-            if r['matter'] in hidden:
-                raise Stop('dossier_reserve')
             return r
     raise Stop('fil_absent')
 
@@ -278,10 +316,11 @@ def evenements(desk, suivi_id):
     return [dict(r) for r in desk.db.execute('SELECT action, ancien, nouveau, motif, auteur, at, annule FROM courriels5696_evenements WHERE suivi_id=? ORDER BY at DESC, rowid DESC LIMIT 20', (suivi_id,))]
 
 
-def suivi_id(desk, fil):
+def suivi_id(desk, fil, compte='', boite=''):
     ensure_schema(desk)
     cfg = desk.c.get('mail') or {}
-    row = desk.db.execute('SELECT id FROM courriels5696_suivis WHERE cabinet_id=? AND compte=? AND boite=? AND fil=?', ('cabinet', _compte(cfg), str(cfg.get('inbox') or 'INBOX'), fil)).fetchone()
+    # 5.6.97 (lot gmail) : compte et boîte de la ligne (Gmail) ; à défaut, ceux de la messagerie IMAP du cabinet
+    row = desk.db.execute('SELECT id FROM courriels5696_suivis WHERE cabinet_id=? AND compte=? AND boite=? AND fil=?', ('cabinet', compte or _compte(cfg), boite or str(cfg.get('inbox') or 'INBOX'), fil)).fetchone()
     return row[0] if row else ''
 
 
@@ -301,6 +340,9 @@ class FournisseurIMAP:
         """Contrôle avant chaque appel : dossier réservé, messagerie configurée."""
         if matter and matter in self.hidden:
             raise Stop('dossier_reserve')
+        self._configuree()
+
+    def _configuree(self):
         if not self.cfg.get('host') or self.cfg.get('enabled') is False:     # messagerie absente ou coupée : aucune connexion tentée
             raise Stop('messagerie_non_configuree')
 
@@ -324,8 +366,19 @@ class FournisseurIMAP:
         return {'compte': _compte(self.cfg), 'dossier': str(report.get('source_mailbox') or self.cfg.get('inbox') or 'INBOX'), 'uid': str(report.get('source_uid') or ''),
                 'mail_key': str(mail_key), 'matter': str(report.get('matter') or '')}
 
+    def autorise(self, cle):
+        """5.6.97 (B01) : vrai si les dossiers que le SERVEUR rattache à ce message (``messages5697``) sont tous visibles. Le dossier joint à
+        la référence par l'appelant (ligne affichée, champ POST, suivi du fil) n'entre pas dans la décision."""
+        from .acces5697 import visible
+        from .messages5697 import dossiers_par_cle
+        if not self.hidden:
+            return True
+        return visible(dossiers_par_cle(self.desk, [cle]).get(cle, frozenset()), self.hidden)   # rattachement illisible : refusé
+
     def _message(self, ref, corps=True):
         self._acces(ref.get('matter'))
+        if not self.autorise(ref['mail_key']):
+            raise Stop('introuvable')    # avant toute connexion : ni objet, ni corps, ni existence
         mail = self._boite().fetch(ref['dossier'], ref['uid'], headers_only=not corps)
         if mail.key(_compte(self.cfg)) != ref['mail_key']:
             raise Stop('message_deplace_ou_boite_reindexee')
@@ -353,8 +406,8 @@ class FournisseurIMAP:
         from .mailbox import own_addresses
         propres = {a.lower() for a in own_addresses(self.cfg)}
         mail = self._message(ref)
-        try:
-            autres = self._boite().thread(mail)
+        try:              # 5.6.97 (B01) : chaque autre message du fil est contrôlé sur ses en-têtes AVANT la lecture de son corps
+            autres = self._boite().thread(mail, autoriser=lambda m: self.autorise(m.key(_compte(self.cfg))))
         except Stop as error:            # fil trop long ou historique trop volumineux : le dernier message seul, annoncé
             return {'messages': [self._vue(mail, propres)], 'limite': str(error)}
         messages = sorted(autres + [mail], key=lambda m: m.timestamp)[-FIL_MAX:]
@@ -367,10 +420,12 @@ class FournisseurIMAP:
         return attachment_text(self.desk, ref['uid'], index, box=self._boite(), folder=ref['dossier'])
 
 
-def demander_reponse(desk, ref, matter, instruction, owner):
-    """Capacité d'écriture distincte du contrat de lecture : demande de projet par le circuit de rédaction existant. Rien n'est envoyé ni déposé ici."""
+def demander_reponse(desk, ref, matter, instruction, owner, role=''):
+    """Capacité d'écriture distincte du contrat de lecture : demande de projet par le circuit de rédaction existant. Rien n'est envoyé ni déposé ici.
+    5.6.97 (B01) : le compte et le rôle de la demande accompagnent le travail ; le worker revérifie les droits avant de relire le message."""
     from . import boite5625
-    return boite5625.request_reply(desk, ref['uid'], matter, instruction, owner=owner, folder=ref['dossier'], without_matter=not matter)
+    return boite5625.request_reply(desk, ref['uid'], matter, instruction, owner=owner, folder=ref['dossier'], without_matter=not matter, role=role,
+                                   expected_key=ref['mail_key'])
 
 
 # ------------------------------------------------------------------------------------------------ décisions
@@ -388,7 +443,7 @@ def _instant(valeur, zone):
     return (quand if quand.tzinfo else quand.replace(tzinfo=ZoneInfo(zone))).isoformat(timespec='minutes')
 
 
-def decider(desk, owner, fil, action, version, idempotence, data=None, hidden=frozenset()):
+def decider(desk, owner, fil, action, version, idempotence, data=None, hidden=frozenset(), role=''):
     """Décision sur une ligne, sous verrou de version et clé d'idempotence. Retourne la ligne mise à jour et un message.
     Une même clé rejouée rend la première décision sans nouvel effet ; une version périmée lève ``version_perimee`` (409)."""
     data = data or {}
@@ -402,9 +457,18 @@ def decider(desk, owner, fil, action, version, idempotence, data=None, hidden=fr
         raise Stop('version_requise') from None
     ensure_schema(desk)
     deja = desk.db.execute('SELECT e.*, s.version AS v FROM courriels5696_evenements e JOIN courriels5696_suivis s ON s.id=e.suivi_id WHERE e.idempotence=?', (str(idempotence),)).fetchone()
+    if deja and action == 'preparer':   # 5.6.97 (B04) : même demande rejouée après une coupure : la commande restée sans suite est reprise, une fois
+        from . import courriels_commandes5697 as commandes
+        cmd = commandes.par_cle(desk, idempotence)
+        if commandes.reprenable(cmd) and not deja['annule']:
+            job = _reprendre(desk, owner, cmd, hidden, role)
+            nouvelle = desk.db.execute('SELECT version FROM courriels5696_suivis WHERE id=?', (cmd['suivi_id'],)).fetchone()[0]
+            return {'deja': True, 'statut': 'en_preparation', 'version': nouvelle, 'job_id': job, 'message': 'Préparation reprise : le projet arrivera dans « Réponse prête ». Rien n’est envoyé.'}
     if deja:                       # double clic ou nouvel essai réseau : la décision déjà prise, rien de plus
         return {'deja': True, 'statut': deja['nouveau'], 'version': deja['v'], 'job_id': deja['job_id'], 'message': 'Décision déjà enregistrée : rien de plus n’a été fait.'}
     courante = ligne(desk, fil, owner, hidden)
+    if action == 'preparer' and str(data.get('dossier') or '') in hidden:    # 5.6.97 (B01) : un champ POST ne donne aucun droit sur un dossier
+        raise Stop('dossier_a_choisir')
     if courante['version'] != version:      # page périmée : le conflit d'abord, avant tout contrôle d'état (revérifié sous verrou)
         raise Stop('version_perimee')
     zone = _fuseau(desk, owner)
@@ -420,14 +484,17 @@ def decider(desk, owner, fil, action, version, idempotence, data=None, hidden=fr
         if len(de) < 2:
             raise Stop('de_qui_requis')
         extra = {'attente_de': de, 'echeance': _instant(data.get('jusqua'), zone), 'fuseau': zone}
-    if action == 'preparer' and courante['statut'] not in ('a_traiter', 'a_completer'):
+    if action == 'preparer' and courante['statut'] not in ('a_traiter', 'a_completer', 'interrompu'):   # 5.6.97 (B04) : « Interrompu » se reprend
         raise Stop('preparation_deja_demandee' if courante['statut'] == 'en_preparation' else 'reponse_deja_prete' if courante['statut'] == 'reponse_prete' else 'etat_incompatible')
     if action == 'rouvrir' and courante['statut'] not in ('termine', 'ecarte', 'reporte', 'en_attente'):
         raise Stop('etat_incompatible')
     if action in ('reporter', 'attendre', 'terminer', 'ecarter') and courante['statut'] in ('termine', 'ecarte') and action != 'ecarter':
         raise Stop('etat_incompatible')
     cfg = desk.c.get('mail') or {}
-    compte, boite = _compte(cfg), str(cfg.get('inbox') or 'INBOX')
+    # 5.6.97 (lot gmail) : compte et boîte de la ligne elle-même (identiques à ceux de la messagerie pour une ligne IMAP)
+    compte, boite = courante.get('compte') or _compte(cfg), courante.get('boite') or str(cfg.get('inbox') or 'INBOX')
+    if action == 'preparer' and courante.get('fournisseur') == 'gmail':
+        raise Stop('action_inconnue')          # Gmail : projet local par gmail5697.preparer, jamais le circuit IMAP
     stamp = _maintenant().isoformat()
     desk.db.execute('BEGIN IMMEDIATE')
     try:
@@ -461,6 +528,10 @@ def decider(desk, owner, fil, action, version, idempotence, data=None, hidden=fr
         desk.db.execute('INSERT INTO courriels5696_evenements(id, suivi_id, idempotence, action, ancien, nouveau, motif, mail_key, tache_avant, tache_apres, auteur, at) '
                         'VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', (evenement, ident, str(idempotence), action, ancien, nouveau, motif, courante['mail_key'],
                                                              tache_avant if tache_apres else '', tache_apres, owner, stamp))
+        commande = ''
+        if action == 'preparer':   # 5.6.97 (B04) : décision et commande de préparation dans la même transaction, avec la clé de la décision
+            from .courriels_commandes5697 import inscrire
+            commande = inscrire(desk, ident, evenement, idempotence, fil, courante, data, owner, stamp)
         desk.db.commit()
     except BaseException:
         if desk.db.in_transaction:
@@ -470,7 +541,9 @@ def decider(desk, owner, fil, action, version, idempotence, data=None, hidden=fr
     if a_arreter:                  # annuler « Préparer » : le travail encore en file est arrêté par le circuit existant
         desk.cancel_job(a_arreter)
     if action == 'preparer':
-        job = _preparer(desk, owner, ident, evenement, courante, data, {'row': dict(row) if row else None, 'version': actuelle})
+        from .courriels_commandes5697 import executer
+        job = executer(desk, commande, lambda: _preparer(desk, owner, ident, evenement, courante, data, {'row': dict(row) if row else None, 'version': actuelle,
+                                                                                                         'depuis': stamp}, hidden, role))
     desk.audit('courriels5696_decision', {'action': action, 'fil': fil[:16], 'statut': nouveau, 'job': job})
     nouvelle = desk.db.execute('SELECT version FROM courriels5696_suivis WHERE id=?', (ident,)).fetchone()[0]
     return {'deja': False, 'statut': nouveau, 'version': nouvelle, 'job_id': job, 'message': MESSAGES.get(action, 'Décision enregistrée.'), 'noreload': False}
@@ -508,29 +581,37 @@ def _annulation(desk, row):
     return dernier['ancien'], dernier['tache_apres'], dernier['tache_avant'], arreter
 
 
-def _preparer(desk, owner, ident, evenement, courante, data, avant):
+def _preparer(desk, owner, ident, evenement, courante, data, avant, hidden=frozenset(), role=''):
     """Un seul travail par message et par génération : la réservation (événement + statut) est validée avant l'appel ; la file elle-même
     rejoint un travail identique encore en attente. Un échec (messagerie injoignable, dossier inconnu) rend exactement l'état d'avant,
     sans événement, pour qu'un nouvel essai avec la même page reste possible ; rien n'est écrasé si une autre décision a suivi entre-temps."""
-    fournisseur = FournisseurIMAP(desk)
+    fournisseur = FournisseurIMAP(desk, hidden)
     try:
         ref = fournisseur.reference(courante['mail_key'])
+        if not fournisseur.autorise(ref['mail_key']):       # 5.6.97 (B01) : le message lui-même, d'après le serveur
+            raise Stop('introuvable')
         matter = str(data.get('dossier') or courante['matter'] or '')
         if matter and matter not in {m['id'] for m in load_matters(desk.c)}:
             raise Stop('dossier_a_choisir')
         fournisseur._acces(matter)           # dossier réservé, messagerie configurée : contrôlés avant toute connexion
-        out = demander_reponse(desk, ref, matter, _texte(data.get('instruction'), 4000), owner)
+        out = demander_reponse(desk, ref, matter, _texte(data.get('instruction'), 4000), owner, role)
     except BaseException:
-        reservee = desk.db.execute('SELECT version FROM courriels5696_suivis WHERE id=?', (ident,)).fetchone()
-        if reservee and reservee[0] == avant['version'] + 1:
-            desk.db.execute('DELETE FROM courriels5696_evenements WHERE id=?', (evenement,))
-            if avant['row'] is None:
-                desk.db.execute('DELETE FROM courriels5696_suivis WHERE id=?', (ident,))
-            else:
-                desk.db.execute('UPDATE courriels5696_suivis SET statut=?, mail_key=?, auteur=?, maj=?, version=? WHERE id=?',
-                                (avant['row']['statut'], avant['row']['mail_key'], avant['row']['auteur'], avant['row']['maj'], avant['version'], ident))
-            desk.db.commit()
-        raise
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        from .courriels_commandes5697 import travail_produit
+        produit = travail_produit(desk, courante['mail_key'], avant.get('depuis'))   # 5.6.97 (B04) : l'effet a eu lieu : rattaché, jamais défait
+        if produit is None:
+            reservee = desk.db.execute('SELECT version FROM courriels5696_suivis WHERE id=?', (ident,)).fetchone()
+            if reservee and reservee[0] == avant['version'] + 1:
+                desk.db.execute('DELETE FROM courriels5696_evenements WHERE id=?', (evenement,))
+                if avant['row'] is None:
+                    desk.db.execute('DELETE FROM courriels5696_suivis WHERE id=?', (ident,))
+                else:
+                    desk.db.execute('UPDATE courriels5696_suivis SET statut=?, mail_key=?, auteur=?, maj=?, version=? WHERE id=?',
+                                    (avant['row']['statut'], avant['row']['mail_key'], avant['row']['auteur'], avant['row']['maj'], avant['version'], ident))
+                desk.db.commit()
+            raise
+        out = {'job_id': produit}
     finally:
         fournisseur.fermer()
     job = int(out['job_id'])
@@ -538,6 +619,16 @@ def _preparer(desk, owner, ident, evenement, courante, data, avant):
     desk.db.execute('UPDATE courriels5696_evenements SET job_id=? WHERE id=?', (job, evenement))
     desk.db.commit()
     return job
+
+
+def _reprendre(desk, owner, cmd, hidden=frozenset(), role=''):
+    """5.6.97 (B04) : reprise d'une commande restée sans suite, par la même demande rejouée. Mêmes contrôles que la première exécution (message
+    visible, dossier, messagerie) ; un échec ne défait pas la décision : la ligne reste « Interrompu », à reprendre."""
+    from .courriels_commandes5697 import executer
+    courante = ligne(desk, cmd['fil'], owner, hidden)
+    data = {'dossier': cmd['matter'], 'instruction': cmd['instruction']}
+    return executer(desk, cmd['id'], lambda: _preparer(desk, owner, cmd['suivi_id'], cmd['evenement'], courante, data,
+                                                       {'row': None, 'version': -2, 'depuis': cmd['depuis']}, hidden, role))
 
 
 def raison_lisible(code):

@@ -384,7 +384,9 @@ class Mailbox:
         merged.update(str(uid) for uid in recent)
         return sorted(merged, key=order, reverse=True)[:limit]
 
-    def thread(self, mail):
+    def thread(self, mail, autoriser=None):
+        """Autres messages du fil. 5.6.97 (B01) : ``autoriser(m)`` (facultatif) est appelé sur les seuls en-têtes de chaque message ; un
+        message refusé est écarté sans que son corps soit jamais lu."""
         if not mail.root: return []
         found = []
         for folder in [self.cfg['inbox'], self.cfg['sent']]:
@@ -394,6 +396,9 @@ class Mailbox:
             if len(uu) > self.cfg.get('max_thread_messages', 35):
                 raise Stop('fil_trop_long')
             for uid in uu:
+                if autoriser is not None:
+                    head = self.fetch(folder, uid, headers_only=True)
+                    if head.mid == mail.mid or not autoriser(head): continue
                 m = self.fetch(folder, uid)
                 if m.mid == mail.mid: continue
                 # No subject-only joins: they can blend separate legal matters.

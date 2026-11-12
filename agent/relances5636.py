@@ -263,6 +263,9 @@ def internal_state(desk, row, balance=None):
         return 'facture exclue des relances'
     if row['state'] in STOP_STATES:
         return 'facture rectifiée par avoir ou rejetée par la plateforme'
+    suspension = _suspension5697(desk)
+    if suspension:
+        return suspension
     if desk.db.execute("SELECT 1 FROM b53_documents WHERE kind='avoir' AND origin=? AND state<>'abandonne' LIMIT 1", (row['id'],)).fetchone():
         return 'avoir émis ou en préparation sur cette facture'
     try:
@@ -275,6 +278,16 @@ def internal_state(desk, row, balance=None):
     if balance <= 0 or row['payment_state'] == 'reglee':
         return 'facture réglée'
     return ''
+
+
+def _suspension5697(desk):
+    """5.6.97 (lot gestion, § 19) : relances suspendues si la source de référence, activée, ne permet pas de vérifier le solde
+    (synchronisation en échec, périmée ou en anomalie). Contrôle indisponible : suspendues aussi (jamais une relance sur un solde douteux)."""
+    try:
+        from . import honoraires5697
+        return honoraires5697.motif_suspension_relance(desk)
+    except Exception:   # noqa: BLE001
+        return 'contrôle du solde indisponible : relances suspendues'
 
 
 def _prepare_internal(desk, s, today, sign):
@@ -333,6 +346,8 @@ def prepare(desk, today=None, refresh=True, http=None):
     sign = (desk.c.get('mail') or {}).get('from_name') or 'Le cabinet'
     created = 0
     rows = desk.db.execute('SELECT * FROM invoice_ninja_cache_v310 WHERE balance > 0').fetchall()
+    if _suspension5697(desk):
+        rows = []                                             # 5.6.97 : solde de l'outil de référence non vérifiable : aucune relance préparée
     for inv in rows:
         if inv['id'] in excluded or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', inv['due_date'] or ''):
             continue

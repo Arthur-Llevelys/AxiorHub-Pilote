@@ -50,6 +50,9 @@ FIELDS = (
  ('google_calendar568.client_id','Client OAuth Google Calendar','text','','Google Calendar'),
  ('google_calendar568.client_secret_file','Secret OAuth Google Calendar','secret','','Google Calendar'),
  ('google_calendar568.redirect_uri','URI de retour OAuth HTTPS (/api440/m568/google/callback)','url','https://agent.example.com/api440/m568/google/callback','Google Calendar'),
+ ('google5697.client_id','Client OAuth Google « Application Web » (Gmail, agenda)','text','','Google (Gmail)'),   # 5.6.97 (lot gmail)
+ ('google5697.client_secret_file','Secret du client OAuth Google (fichier du coffre du serveur)','secret','','Google (Gmail)'),
+ ('google5697.redirect_uri','URI de retour OAuth HTTPS, déclarée à l’identique chez Google (…/api440/m5689/oauth/google/callback)','url','https://agent.example.com/api440/m5689/oauth/google/callback','Google (Gmail)'),
  ('ollama.url','Adresse Ollama (locale ou réseau du cabinet, ex. http://192.168.1.10:11434)','local_url','http://127.0.0.1:11434','Intelligence artificielle'),
  ('ollama.model','Modèle Ollama','text','qwen3:8b','Intelligence artificielle'),
  ('rag.qdrant_url','Index vectoriel Qdrant, facultatif (ex. http://127.0.0.1:6333) ; vide : recherche intégrée','optional_local_url','','Intelligence artificielle'),

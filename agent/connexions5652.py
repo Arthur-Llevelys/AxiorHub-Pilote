@@ -1515,6 +1515,9 @@ def legal_leads(desk, query, owner='cabinet', limit=4):
     """Pistes issues des connexions juridiques VÉRIFIÉES (Judilibre, Pappers Justice, Légifrance) pour la recherche faite avant chaque
     réponse ; requête déjà anonymisée par l'appelant. Une panne est rapportée, jamais transformée en « aucun texte applicable »."""
     leads, reports = [], []
+    from .selection_sources5697 import local_strict
+    if local_strict(desk):    # 5.6.97 (B02, J07) : mode local strict : aucune connexion juridique externe, aucun repli
+        return leads, [{'connector': 'connexions_juridiques', 'provider': 'connexions_juridiques', 'status': 'skipped', 'error': 'mode_local_strict', 'leads': 0}]
     for tool, params in (('jurisprudence.rechercher', {'query': query, 'limit': limit}), ('droit.rechercher_documentation', {'query': query, 'kind': 'decision'}),
                          ('droit.rechercher_texte', {'query': query, 'limit': limit})):
         if not _connections_for(desk, TOOLS[tool][0], owner):

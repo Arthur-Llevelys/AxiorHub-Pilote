@@ -743,8 +743,8 @@ class AgendaPersonnelJamaisCopie(fixtures.Base):
         return (datetime.now(timezone.utc) + timedelta(days=days)).replace(microsecond=0).isoformat()
 
     def test_aucun_appel_caldav_sur_tous_les_chemins(self):
-        ev = agenda5634.api(self.desk, 'agenda/creer', {'title': 'Rendez-vous fictif', 'start': self.start(), 'copy': True,
-                                                         'calendar_scope': 'legacy_bridge', 'calendar_url': '/remote/x'}, 'POST')
+        ev = agenda5634.api(self.desk, 'agenda/creer', {'title': 'Rendez-vous fictif', 'start': self.start(), 'copy': True,   # 5.6.97 (B06) : clé d'ouverture
+                                                         'calendar_scope': 'legacy_bridge', 'calendar_url': '/remote/x', 'cle': 'cle-essai-5643-0001'}, 'POST')
         row = self.desk.db.execute('SELECT calendar_scope,copy_policy,sync_state FROM agenda5634 WHERE id=?', (ev['id'],)).fetchone()
         self.assertEqual(tuple(row), ('personal_local', 'none', 'local'))       # paramètres falsifiés ignorés
         agenda5634.update(self.desk, {'id': ev['id'], 'title': 'Rendez-vous fictif déplacé'})

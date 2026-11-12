@@ -124,24 +124,41 @@ def browse(desk,args,dav):
     return {'chemin':path,'sous_dossiers':count,'action_suivante':'Vue Dossiers : rechercher le nom, puis Enregistrer comme dossier.'}
 
 
-def register(desk,args,dav):
+def _controle_enregistrement(desk,args):
+    """5.6.97 (B03) : référence, nom, chemin canonique et unicité vérifiés AVANT tout accès au stockage (aucun MKCOL pour « ### »).
+    Unicité contrôlée sur le registre complet (dossiers réservés compris) et sur le registre unique des affaires."""
     path=allowed(desk.c,args.get('path','').strip())
     ref=args.get('reference','').strip();name=args.get('client_name','').strip()
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',ref):raise Stop('reference_invalide')
     if not name or len(name)>200 or any(ord(x)<32 for x in name):raise Stop('nom_client_invalide')
     if path in {clean_path(x) for x in desk.c['nextcloud']['roots']}:
         raise Stop('choisir_un_dossier_et_non_la_racine_du_cabinet')
-    matters=load_matters(desk.c)
-    existing=next((m for m in matters if m['path']==path),None)
-    if existing:return {'dossier':existing['id'],'etat':'deja_enregistre'}
-    if any(m['id']==ref for m in matters):raise Stop('reference_deja_utilisee')
-    # A Depth:1 PROPFIND confirms the directory exists and is readable. No MKCOL.
-    dav.list_folder(path)
     references=[x.strip() for x in args.get('references','').split(',') if x.strip()]
     if len(references)>20 or any(len(x)>120 for x in references):raise Stop('references_trop_longues')
-    save_matter(desk.c,{'id':ref,'client_name':name,'path':path,'aliases':[name],
-        'references':list(dict.fromkeys([ref]+references)), 'correspondents':[],
-        'registered_at':now()})
+    matters=load_matters(desk.c,unfiltered=True)
+    existing=next((m for m in matters if m['path']==path),None)
+    from . import dossiers5697
+    dossiers5697.ensure_schema(desk)
+    if not existing and (any(m['id']==ref for m in matters) or dossiers5697.normaliser_reference(ref) in dossiers5697._refs_sqlite(desk)
+                         or desk.db.execute('SELECT 1 FROM dossiers5697 WHERE id=?',(ref,)).fetchone()):
+        raise Stop('reference_deja_utilisee')
+    return path,ref,name,references,existing
+
+
+def register(desk,args,dav):
+    path,ref,name,references,existing=_controle_enregistrement(desk,args)
+    if existing:return {'dossier':existing['id'],'etat':'deja_enregistre'}
+    # A Depth:1 PROPFIND confirms the directory exists and is readable. No MKCOL.
+    dav.list_folder(path)
+    from .dossiers5697 import verrou_registre,importer_un
+    with verrou_registre(desk.c['state_dir']):   # 5.6.97 (B03) : revérification et écriture sous le même verrou entre processus
+        path,ref,name,references,existing=_controle_enregistrement(desk,args)
+        if existing:return {'dossier':existing['id'],'etat':'deja_enregistre'}
+        matter={'id':ref,'client_name':name,'path':path,'aliases':[name],
+            'references':list(dict.fromkeys([ref]+references)), 'correspondents':[],
+            'registered_at':now()}
+        save_matter(desk.c,matter)
+    importer_un(desk,matter)   # 5.6.97 : registre unique des affaires (une seule source d'écriture)
     desk.audit('dossier_enregistre',{'id':ref,'path':path})
     desk.enqueue('index',{'matter':ref})
     return {'dossier':ref,'etat':'enregistre','indexation':'mise_en_attente'}
@@ -149,8 +166,8 @@ def register(desk,args,dav):
 
 def create_matter(desk,args,dav):
     if args.get('confirm')!='yes':raise Stop('confirmation_explicite_requise')
-    path=allowed(desk.c,args.get('path','').strip())
-    if path in {m['path'] for m in load_matters(desk.c)}:raise Stop('dossier_deja_enregistre')
+    path,_ref,_name,_refs,existing=_controle_enregistrement(desk,args)   # 5.6.97 (B03) : tout est vérifié avant le MKCOL
+    if existing:raise Stop('dossier_deja_enregistre')
     dav.create_folder(path)
     try:return {**register(desk,args,dav),'repertoire_nextcloud':'cree'}
     except Exception:

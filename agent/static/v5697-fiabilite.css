@@ -1,0 +1,33 @@
+/* AxiorHub 5.6.97 (lot fiabilite) — états explicites des demandes du panneau, choix du dossier sur place, détails de suivi.
+   L'état est toujours écrit en mots (« Choix requis », « Suspendue jusqu'à… », « Refusée ») : la couleur ne fait que le souligner.
+   Couleurs : jetons Carbon (v5689-carbon-jetons.css), avec repli ; clair et sombre suivent les jetons. */
+
+.mission567-card[data-etat="choix_requis"] .mission567-state,
+.mission567-card[data-etat="incertaine"] .mission567-state,
+.mission567-card[data-etat="suspendue"] .mission567-state { background: var(--ui-attention-doux, #fcf4d6); color: var(--ui-attention-texte, #684e00); }
+.mission567-card[data-etat="refusee"] .mission567-state,
+.mission567-card[data-etat="interrompue"] .mission567-state { background: var(--ui-erreur-doux, #fff1f1); color: var(--cds-text-error, #a2191f); }
+.mission567-card[data-etat="reponse_prete"] .mission567-state,
+.mission567-card[data-etat="projet_a_relire"] .mission567-state { background: var(--ui-succes-doux, #defbe6); color: var(--cds-text-primary, #161616); }
+
+/* le volet est un <aside> : la règle historique « aside p » (texte clair sur fond sombre) ne doit pas s'appliquer au geste */
+.mission567-card .mission5697-geste { color: var(--cds-text-primary, #161616); font-weight: 600; margin: .25rem 0 .5rem; }
+.mission567-card .mission5697-choix > p { color: var(--cds-text-secondary, #525252); }
+
+/* choix du dossier dans la carte : libellé, filtre, liste et bouton sur une ligne quand la place le permet */
+.mission5697-choix { align-items: center; border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: 4px; display: flex; flex-wrap: wrap;
+  gap: .5rem; margin: .5rem 0; padding: .5rem .75rem; }
+.mission5697-choix > p, .mission5697-choix > label { flex-basis: 100%; margin: 0; }
+.mission5697-choix select { flex: 1 1 14rem; max-width: 100%; min-width: 0; }
+.mission5697-choix .mission5697-filtre { flex: 1 1 12rem; min-width: 0; }
+.mission5697-choix button[disabled] { cursor: not-allowed; }
+
+/* détails : identifiants, horodatages, dernier état vérifié */
+.mission5697-details dl { display: grid; font-size: var(--ui-taille-petit, .875rem); gap: .125rem .75rem; grid-template-columns: max-content minmax(0, 1fr); margin: .25rem 0 0; }
+.mission5697-details dt { color: var(--cds-text-secondary, #525252); }
+.mission5697-details dd { margin: 0; overflow-wrap: anywhere; }
+
+/* reçu incertain : « Envoyer la demande modifiée » n'apparaît que si le composeur a changé (la règle globale des boutons ignore [hidden]) */
+.mission567-card [data-ai-modifiee][hidden] { display: none; }
+/* motif d'échec de la carte, lisible dans le volet (même raison que le geste) */
+aside .mission567-card p.warn { color: var(--cds-text-error, #a2191f); }
