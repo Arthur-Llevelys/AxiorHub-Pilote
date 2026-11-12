@@ -4,6 +4,7 @@ Chaque objet est résolu sur le serveur (propriétaire, portée, dossiers, versi
 """
 from html import escape as e
 import json
+import re
 
 from .common import Stop, load_matters, matter_display
 
@@ -151,6 +152,12 @@ def _form(desk, prefix, action, row=None, matters=()):
         ' disabled' if legacy else '', ' selected' if row.get('scope', 'personnel') == 'personnel' else '', ' selected' if row.get('scope') == 'cabinet' else '')
 
 
+def court(libelle):
+    """5.6.99 : « 13/11/2026 à 07:30 » → « 13/11 07:30 » pour le bandeau d'une ligne (tout autre libellé est rendu tel quel)."""
+    m = re.match(r'^(\d{2}/\d{2})/\d{4} à (\d{1,2}[:h]\d{2})$', str(libelle or '').strip())
+    return '%s %s' % m.groups() if m else str(libelle or '')
+
+
 def routines_block(desk, auth, prefix, role=None, compact=False):
     """Bloc « Routines du cabinet » d'Aujourd'hui : cartes, ajout, modification, activation, duplication, suppression, lancement."""
     from . import routines5652 as rt
@@ -162,7 +169,7 @@ def routines_block(desk, auth, prefix, role=None, compact=False):
         matters = load_matters(desk.c)
     except Stop:
         matters = []
-    cards = []
+    cards, strip = [], []
     for r in data['routines']:
         legacy = r['legacy_kind']
         nxt = r['next'][0]['label'] if r['next'] else ''
@@ -221,10 +228,27 @@ def routines_block(desk, auth, prefix, role=None, compact=False):
                          e(r['objective'] or rt.TASK_TYPES.get(r['task_type'], '')), ('Prochain passage : ' + e(nxt)) if nxt else 'Aucun passage prévu',
                          (' · Dernier : ' + e(last_txt)) if last_txt else '', (' · ' + e(r['scope'] == 'cabinet' and 'Cabinet' or 'Personnelle')), cap_txt,
                          run, view, toggle, edit, menu))
+        if compact:   # 5.6.99 : une ligne par routine dans le bandeau d'Aujourd'hui (nom, prochain passage, Lancer) ; le reste dans « Détail »
+            strip.append('<li class="r99-routine%s"><span class="r99-etat" title="%s" aria-label="%s">%s</span><span class="r99-nom">%s</span>'   # une routine active n'a pas de marque : seule la pause se signale (⏸)
+                         '<span class="r99-heure">%s</span>%s%s</li>' % (
+                             '' if r['enabled'] else ' r99-pause', e('Activée' if r['enabled'] else 'En pause', quote=True),
+                             e('Activée' if r['enabled'] else 'En pause', quote=True), '' if r['enabled'] else '⏸', e(r['title']), e(court(nxt)) if nxt else '—',
+                             ('<span class="r99-manque" title="%s" aria-label="%s">⚠</span>' % ((e('Manque : ' + ', '.join(rt.CAP_LABELS.get(c, c) for c in caps), quote=True),) * 2)) if caps else '',
+                             run.replace('>Lancer</button>', ' aria-label="%s" title="Lancer">▶</button>' % e('Lancer : ' + r['title'], quote=True), 1)))
     paused = bool(desk.settings('missions567:pause', False))
     add = ''
     if role in ('administrateur', 'avocat'):
         add = '<details class="r52-add" id="r52-add"><summary class="ax-btn">Ajouter une routine</summary>%s</details>' % _form(desk, prefix, 'routine/creer', None, matters)
+    if compact:
+        return ('<section class="c5614-routines r52 r99-bandeau" id="c5614-routines" aria-label="Routines du cabinet"><div class="r99-ligne">'
+                '<h2 class="r99-titre">Routines</h2><ul class="r99-liste">%s</ul></div>'
+                '<details class="r99-detail"><summary>Détail</summary><div class="r52-top"><h2 class="r52-title">Routines du cabinet</h2>'
+                '<div class="c5614-side">%s<button type="button" class="ax-btn %s" id="c5614-pause" data-paused="%s" aria-pressed="%s">%s</button>'
+                '<a class="ax-btn ghost" href="%s">Réglages</a></div></div><div class="c5614-bar r52-cards">%s</div><!--r99-detail--></details>'
+                '<p id="c5614-routines-status" role="status" class="c530-sr"></p></section>') % (
+            ''.join(strip) or '<li class="r99-vide">Aucune routine.</li>',
+            add, 'warn' if paused else 'ghost', '1' if paused else '0', 'true' if paused else 'false', 'IA en pause — reprendre' if paused else 'Pause de l’IA',
+            e(prefix + '/aujourdhui?vue=essentiel', quote=True), ''.join(cards) or '<p class="ax-muted">Aucune routine.</p>')
     return ('<section class="c5614-routines r52" id="c5614-routines" aria-label="Routines du cabinet"><div class="r52-top"><h2 class="r52-title">Routines du cabinet</h2>'
             '<div class="c5614-side">%s<button type="button" class="ax-btn %s" id="c5614-pause" data-paused="%s" aria-pressed="%s">%s</button>'
             '<a class="ax-btn ghost" href="%s">Réglages</a></div></div><div class="c5614-bar r52-cards">%s</div>'

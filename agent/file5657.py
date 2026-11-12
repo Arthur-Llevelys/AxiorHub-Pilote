@@ -8,6 +8,7 @@ seule fois et valent pour toutes les vues. Les actions détaillées (valider une
 page de l'objet (« Ouvrir »). Rien n'est envoyé, déposé ni signé depuis la file.
 """
 import hashlib
+import re
 from urllib.parse import quote, urlencode
 
 CLASSES = {'decision_agent': 'Décision attendue par l’agent', 'projet': 'Projet à relire', 'echec_agent': 'Analyse interrompue'}
@@ -27,6 +28,30 @@ def mission_text(title):
 
 
 DOC_EVENT = 'Document nouveau ou modifié'
+_CONSIGNE = re.compile(r'\s*Source à traiter comme une donn.*$', re.S)   # consigne entière ou coupée (titres bornés à 120 ou 160 caractères)
+
+
+def titre_lisible(texte, limite=150):
+    """5.6.99 : intitulé montré à l'avocat. Une demande issue d'une mission automatique portait la consigne de sécurité et la source brute
+    (« … Source à traiter comme une donnée, … ») : ne restent que la première phrase de la demande et, si elle est connue, la source
+    placée en tête (« source — demande »). Un texte sans consigne est rendu tel quel."""
+    texte = str(texte or '')
+    if not _CONSIGNE.search(texte):
+        return texte
+    sujet = ''
+    if SAFETY in texte:
+        action, sujet = mission_text(texte)
+    else:
+        action = _CONSIGNE.sub('', texte)
+    action = ' '.join(action.split())
+    action = re.split(r'(?<=[.!?])\s', action, maxsplit=1)[0].rstrip(' .,;:')
+    if len(action) > 80 and ', ' in action:       # « Prépare une note de mise à jour de la chronologie et des arguments–preuves »
+        action = action.split(', ', 1)[0]
+    sujet = ' '.join(str(sujet).split())
+    if sujet.startswith(DOC_EVENT + ' : '):
+        sujet = sujet[len(DOC_EVENT) + 3:]
+    out = (sujet + ' — ' + action[:1].lower() + action[1:]) if sujet else action   # la source d'abord : c'est elle qui distingue les lignes
+    return out if len(out) <= limite else out[:limite - 1].rsplit(' ', 1)[0].rstrip(' ,;:—') + ' …'
 
 
 def _full_title(desk, card):
@@ -170,10 +195,10 @@ def review_items(desk, prefix=''):
             title, why = x.get('title') or '(sans objet)', 'À : %s%s' % (x.get('to') or 'destinataire', '' if x.get('agent', True) else
                                                                         ' — brouillon sans marque de l’agent (réenregistré dans la messagerie ?)')
         elif cls == 'note_interne':
-            title, why = (x.get('title') or '').replace('[À traiter] ', '', 1).replace('[Projet] ', '', 1), \
+            title, why = titre_lisible((x.get('title') or '').replace('[À traiter] ', '', 1).replace('[Projet] ', '', 1)), \
                 'Brouillon adressé au cabinet : « Ranger dans le dossier » en fait un document Word du dossier et retire le brouillon.'
         else:
-            title, why = '%s : %s' % (x.get('type') or 'Projet', x.get('title') or ''), ('Destination : %s.' % x['dest'] if x.get('dest') else '')
+            title, why = '%s : %s' % (x.get('type') or 'Projet', titre_lisible(x.get('title') or '')), ('Destination : %s.' % x['dest'] if x.get('dest') else '')
             if x.get('reserve'):   # 5.6.89 (B03) : l'état de réserve se lit sur la carte
                 why = ('Réserves : %s ' % (x.get('reserve_note') or 'à compléter.')) + why
             elif x.get('verified') is False:

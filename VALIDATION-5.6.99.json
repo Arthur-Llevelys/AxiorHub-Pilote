@@ -1,0 +1,39 @@
+{
+  "version": "5.6.99",
+  "base": "5.6.98",
+  "date_utc": "2026-11-12T00:00:00+00:00",
+  "demande": "Retours du cabinet sur la 5.6.98 : routines en bandeau d’une ligne au-dessus d’« À décider » (règle U02 de 3 à 1), bouton « Ouvrir » sans effet, intitulés portant la consigne de sécurité, répertoire du scanner pris pour un dossier client.",
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 6099,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 148,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "new_tests": "tests/test_v5699, tests/test_v5699_depots ; parcours navigateur P99a (bandeau sur une ligne, premier élément visible à 1920 × 950, Détail, Ouvrir deux fois, intitulés, 390 px).",
+  "live_checks": "Aucun service réel : données fictives du banc.",
+  "exapp": {
+    "version": "0.1.58",
+    "moteur": "5.6.99"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "behaviour_changes": [
+    "Aujourd’hui (ordre par défaut) : routines en bandeau d’une ligne ; cartes complètes et début du briefing dans « Détail ».",
+    "Règle U02 (5.6.96) : un élément « À décider / À relire » visible sans défiler à 1920 × 950 (trois auparavant), choix du cabinet.",
+    "Intitulés des demandes issues de missions automatiques : source puis demande courte, sans la consigne de sécurité.",
+    "Répertoires de dépôt (scanner, à classer…) : travaux automatiques écartés une fois, demandes en échec annulées ; hors de la file, de la liste des dossiers, de l’import et des choix de dossier."
+  ],
+  "adjusted_tests": [
+    "parcours P96F1 : colonne de gauche du rang face à « Ma journée » (cause de l’échec de la recette 5.6.98).",
+    "parcours P96b : au moins un livrable visible (trois auparavant).",
+    "test_v5689_carbon UX05 : commandes comptées dans « Détail ».",
+    "test_v5694_parcours P01 : P99a annoncé.",
+    "test_v5689_horaires HO17 : seules les occurrences de la routine du test sont comptées (un vendredi, le « Bilan de la semaine » intégré ajoutait la sienne) ; seul échec de la passe complète (6 099 tests), corrigé puis relancé.",
+    "test_v5668 : rôle administrateur posé par le test (un module précédent laissait un autre rôle dans le fil ; échec identique sur la 5.6.98 dans le même enchaînement sous Linux)."
+  ]
+}

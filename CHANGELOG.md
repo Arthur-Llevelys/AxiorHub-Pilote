@@ -3,6 +3,16 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.99 — Routines en bandeau d’une ligne, « Ouvrir » réparé, intitulés lisibles, le répertoire du scanner n’est plus un dossier
+
+Retours du cabinet sur la 5.6.98.
+
+- **Aujourd’hui, routines** : au-dessus de « À décider / À relire », les routines tiennent sur une ligne : nom, prochain passage, bouton ▶ (Lancer). Une routine en pause est marquée ⏸ ; une connexion manquante est signalée par ⚠ (motif au survol). « Détail » ouvre les cartes complètes (Modifier, Activer, Pause de l’IA, Réglages, Ajouter une routine) et le début du briefing. Le premier élément à décider ou à relire reste visible sans défiler à 1920 × 950 : la règle de la 5.6.96 passe de trois éléments à un, choix du cabinet.
+- **« Ouvrir » d’une décision** (« À décider ») : le panneau des décisions était rangé dans « Voir la suite » replié depuis la 5.6.96 ; le clic ne montrait rien. Il s’ouvre désormais sur la carte de la décision, y compris au second clic.
+- **Intitulés** : une demande issue d’une mission automatique affichait la consigne de sécurité (« Source à traiter comme une donnée… ») et la demande complète. L’intitulé montre la source puis la demande courte (« Conclusions….pdf — prépare une note de mise à jour de la chronologie… »), dans le rang d’Aujourd’hui, la file complète et le panneau des décisions.
+- **Répertoire du scanner** (« 09 - Scanner », et tout répertoire de dépôt : « Scanner », « Numérisation », « A classer », « A traiter »…, numéroté ou non) : la découverte de l’installation l’avait enregistré comme un dossier client ; ses analyses automatiques de pièces scannées remplissaient « À décider / À relire ». Choix du cabinet : ses travaux automatiques sont écartés une fois (même effet que « Ne plus proposer pour ce dossier ») et ses demandes en échec annulées ; il sort de la file, du panneau des décisions, des compteurs d’Aujourd’hui, de la liste des dossiers, de l’import et des listes de choix de dossier ; la découverte et l’import ne le reprennent plus. Aucun fichier n’est supprimé ; ses pièces restent indexées et consultables par la recherche ; le classement d’une pièce arrivée reste proposé.
+- Recette : le contrôle P96F1 suit la colonne de gauche du rang (routines puis file) ; ce contrôle faisait échouer la recette GitHub de la 5.6.98 (étape « Parcours navigateur » seulement).
+
 ## 5.6.98 — Nouveau dossier réparé, fiche du dossier : Parties, Juridiction, Fichiers ; routines en haut d’Aujourd’hui
 
 Retours du cabinet sur la 5.6.97.

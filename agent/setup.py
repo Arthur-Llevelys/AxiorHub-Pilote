@@ -243,6 +243,8 @@ def discover(c):
     for root in c['nextcloud']['roots']:
         for item in dav.list_folder(root):
             if not item['directory'] or item['path'] in existing: continue
+            from .bruit5668 import depot_folder
+            if depot_folder({'path': item['path']}): continue   # 5.6.99 : « 09 - Scanner », « A classer »… ne sont pas des dossiers clients
             from .common import digest
             name = item['path'].rsplit('/',1)[-1]
             rows.append({'id':'DOS-'+digest(item['path'])[:10], 'client_name':name,'path':item['path'],

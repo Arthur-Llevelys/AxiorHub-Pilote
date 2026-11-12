@@ -459,9 +459,15 @@ STATUS = {'en_file': 'en file', 'en_cours': 'relevé en cours', 'prete': 'prête
           'termine': 'terminé', 'echec': 'échec'}
 
 
+def _sans_depots(labels):
+    """5.6.99 : choix de dossier sans répertoire de dépôt (« 09 - Scanner »)."""
+    from .bruit5668 import depot_label
+    return {k: v for k, v in labels.items() if not depot_label(v)}
+
+
 def _matter_select(labels, current='', name='matter'):
     return '<select name="%s" required><option value="">Choisir un dossier…</option>%s</select>' % (name, ''.join(
-        '<option value="%s"%s>%s</option>' % (e(k, quote=True), ' selected' if k == current else '', e(v)) for k, v in sorted(labels.items(), key=lambda kv: kv[1].casefold())))
+        '<option value="%s"%s>%s</option>' % (e(k, quote=True), ' selected' if k == current else '', e(v)) for k, v in sorted(_sans_depots(labels).items(), key=lambda kv: kv[1].casefold())))
 
 
 def _grids_html(desk, prefix, args, labels):

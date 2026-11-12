@@ -206,7 +206,7 @@ def actions(desk, prefix, owner, role, hidden=None):
     except Exception:   # noqa: BLE001 — la liste reste utilisable ; la panne est dite
         complet = False
     try:
-        from . import file5651
+        from . import file5651, file5657
         lignes, _cur, _cli, _old = file5651.today_split(file5651.items(desk, prefix, None, '', hidden, actor=owner, role=role))
     except Exception:   # noqa: BLE001
         lignes, complet = [], False
@@ -220,7 +220,7 @@ def actions(desk, prefix, owner, role, hidden=None):
         elif trouve:
             nature, cle, bouton = 'document', trouve.group(1), T('bouton.document')
         decider = it.get('class') in file5651.FILTERS['decider']
-        out.append({'nature': nature, 'cle': cle, 'dossier': it.get('matter_name') or '', 'objet': it.get('title') or '', 'href': it.get('href') or prefix + '/aujourdhui',
+        out.append({'nature': nature, 'cle': cle, 'dossier': it.get('matter_name') or '', 'objet': file5657.titre_lisible(it.get('title') or ''), 'href': it.get('href') or prefix + '/aujourdhui',
                     'etat': T('ligne.a_decider') if decider else T('ligne.a_relire'), 'bouton': bouton})
     return out, complet
 

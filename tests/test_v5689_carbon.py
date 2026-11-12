@@ -439,7 +439,8 @@ class Accueil(Base):
         from agent import web5652
         complet = web5652.routines_block(self.desk, {'owner': 'cabinet'}, '', 'administrateur')
         compact = web5652.routines_block(self.desk, {'owner': 'cabinet'}, '', 'administrateur', compact=True)
-        for commande in ('m5652/routine/activer', 'Modifier', 'Lancer', 'Voir'):
+        compact = compact[compact.index('<details class="r99-detail">'):]   # 5.6.99 : le bandeau d'une ligne ajoute un ▶ « Lancer : nom » par routine ; le détail garde tout
+        for commande in ('m5652/routine/activer', 'Modifier', '>Lancer</button>', 'Voir'):
             self.assertEqual(compact.count(commande), complet.count(commande), commande)
 
     def test_UX05_motif_long_replie(self):

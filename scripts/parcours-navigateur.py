@@ -848,8 +848,11 @@ def p96f1_accueil(banc, s):
         verifier('Données météo fournies par OpenWeather' in p.locator('#f96-meteo').inner_text(), 'attribution absente')
         ys = [p.locator(sel).bounding_box()['y'] for sel in ('#ax95-actuellement', '.f96-rang', '#a89-travail')]
         verifier(ys == sorted(ys), 'ordre des zones inattendu : %s' % ys)
-        gauche, droite = p.locator('#f96-decider').bounding_box(), p.locator('.f96-journee').bounding_box()
-        verifier(1.6 < gauche['width'] / droite['width'] < 2.4 and abs(gauche['y'] - droite['y']) < 40, 'rang non réparti en 2/1 : %s / %s' % (gauche, droite))
+        # 5.6.98 : la colonne de gauche du rang porte les routines puis « À décider » ; c'est elle qui fait face à « Ma journée »
+        gauche, droite = p.locator('.f96-rang > .f98-gauche').bounding_box(), p.locator('.f96-journee').bounding_box()
+        verifier(gauche and 1.6 < gauche['width'] / droite['width'] < 2.4 and abs(gauche['y'] - droite['y']) < 40, 'rang non réparti en 2/1 : %s / %s' % (gauche, droite))
+        decider = p.locator('#f96-decider').bounding_box()
+        verifier(decider and abs(decider['x'] - gauche['x']) < 2 and decider['y'] > gauche['y'], '« À décider » hors de la colonne de gauche, sous les routines : %s' % decider)
         xs = p.eval_on_selector_all('#ax95-zone li[data-rubrique]', 'l => l.map(e => Math.round(e.getBoundingClientRect().x))')
         verifier(len(xs) == 8 and len(set(xs[:4])) == 1 and len(set(xs[4:])) == 1 and xs[4] > xs[0], '« Actuellement » n’est pas en deux colonnes de quatre : %s' % xs)
         verifier(p.locator('#f96-lignes-zone a[data-f96-action="echeance"]').count() == 1, 'l’échéance à vérifier n’est pas dans le rang')
@@ -1184,7 +1187,8 @@ def p96a_volet(banc, s):
 
 
 def p96b_aujourdhui_densite(banc, s):
-    """5.6.96 (lot affichage, U02, U04, U06) : Aujourd'hui rempli (jeu fictif) à 1920 × 950 : huit compteurs, au moins trois livrables et le premier
+    """5.6.96 (lot affichage, U02, U04, U06) : Aujourd'hui rempli (jeu fictif) à 1920 × 950 : huit compteurs, au moins un livrable (5.6.99 : trois avant le
+    bandeau des routines, choix du cabinet) et le premier
     élément de Ma journée visibles sans défiler ; densité « Compacte » mémorisée ; 125 %, 200 %, sombre : aucun bouton coupé, aucun défilement
     horizontal ; chaque bloc repliable se déplie au clavier ; un bloc replié n'est chargé qu'à son ouverture (mêmes droits)."""
     from datetime import datetime, timedelta, timezone
@@ -1212,7 +1216,7 @@ def p96b_aujourdhui_densite(banc, s):
     verifier(visibles('#ax95-zone li[data-rubrique]') == 8, 'les huit compteurs ne sont pas visibles sans défiler (%d)' % visibles('#ax95-zone li[data-rubrique]'))
     # ordre I01 (décision du cabinet) : les livrables à relire sont d'abord dans le rang « À décider / À relire », puis dans Travail préparé
     livrables = visibles('#f96-lignes-zone li.f96-ligne, #a89-travail li.a89-ligne')
-    verifier(livrables >= 3, 'moins de trois livrables visibles sans défiler (%d)' % livrables)
+    verifier(livrables >= 1, 'aucun livrable visible sans défiler (%d)' % livrables)   # 5.6.99 : règle passée de 3 à 1 (routines en bandeau au-dessus)
     jour = p.locator('#c530-day li, .f96-journee li').first
     verifier(jour.count() == 1, 'Ma journée est vide malgré le jeu fictif')
     boite = jour.bounding_box()
@@ -1717,6 +1721,8 @@ from parcours_p98 import p98_aujourdhui, p98_nouveau_dossier, p98_parametres   #
 PARCOURS = PARCOURS + (('P98a', 'Aujourd’hui : routines sous « Actuellement », au-dessus de la file, Ma journée à droite', p98_aujourdhui),
                        ('P98p', 'Paramètres › Connexions : cases collées à leur libellé, champs Microsoft sans remplissage automatique', p98_parametres),
                        ('P98d', 'Nouveau dossier : un ancien dossier posé sur la racine ne bloque plus la création', p98_nouveau_dossier))
+from parcours_p99 import p99_aujourdhui   # noqa: E402 — 5.6.99 : routines en bandeau, « Ouvrir » d'une décision, intitulés sans consigne
+PARCOURS = PARCOURS + (('P99a', 'Aujourd’hui : routines en bandeau d’une ligne, « Ouvrir » d’une décision, intitulés lisibles', p99_aujourdhui),)
 
 # ------------------------------------------------------------------------------------------------ lancement
 def lancer(navigateur, sortie, choisis=(), voir=False):

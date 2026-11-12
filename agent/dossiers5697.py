@@ -532,9 +532,10 @@ def _virtuels(desk, perimetre):
     """Avant la migration : dossiers du registre JSON pas encore importés, en lecture seule (mêmes droits, jamais d'écriture)."""
     connus = {r[0] for r in desk.db.execute('SELECT id FROM dossiers5697')}
     out = []
+    from .bruit5668 import depot_folder
     for m in _registre_json(desk):
         mid = str(m.get('id') or '')
-        if not mid or mid in connus or mid not in perimetre:
+        if not mid or mid in connus or mid not in perimetre or depot_folder(m):   # 5.6.99 : un répertoire de dépôt n'est pas un dossier
             continue
         from .common import matter_display
         out.append({'id': mid, 'reference': mid, 'ref': mid, 'titre': matter_display(m), 'client': str(m.get('client_name') or ''),
@@ -572,7 +573,10 @@ def lister(desk, acteur, filtres=None, limite=200):
     rows = desk.db.execute('SELECT d.* FROM dossiers5697 d WHERE %s ORDER BY d.modifie_le DESC, d.id' % ' AND '.join(where), args).fetchall()
     q = _plier(f.get('q') or '')[:120]
     out = []
+    from .bruit5668 import depot_label
     for row in rows:
+        if depot_label(row['chemin']) or depot_label(row['titre']):   # 5.6.99 : répertoire de dépôt importé avant la 5.6.99 : hors de la liste
+            continue
         if q:
             noms = ' '.join(p[0] for p in desk.db.execute('SELECT nom FROM dossier_parties5697 WHERE dossier_id=?', (row['id'],)))
             if q not in _plier(' '.join((row['titre'], row['ref'], row['client'], row['rg'], noms))):
@@ -1114,8 +1118,11 @@ def migrer(desk, acteur, simulation=True):
     reserves = set(load(desk.c['state_dir'])['reserves'])
     matters = _registre_json(desk)
     cabinet = _cabinet(desk)
+    from .bruit5668 import depot_folder
+    depots = [str(m.get('id') or '') for m in matters if depot_folder(m)]
+    matters = [m for m in matters if not depot_folder(m)]   # 5.6.99 : un répertoire de dépôt (« 09 - Scanner ») n'est jamais importé comme dossier
     rapport = {'simulation': bool(simulation), 'a_importer': [], 'deja_importes': 0, 'conflits': [], 'alias': 0, 'alias_ignores': [],
-               'dossiers_lus': len(matters)}
+               'dossiers_lus': len(matters), 'depots_ignores': depots}
     if simulation:
         refs = _refs_sqlite(desk)
         for m in matters:

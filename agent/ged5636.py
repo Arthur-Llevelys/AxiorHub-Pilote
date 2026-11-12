@@ -237,10 +237,16 @@ def after_mail(desk, mail_key, matter):
 
 
 # ------------------------------------------------------------------------------------------------ page
+def _sans_depots(labels):
+    """5.6.99 : choix de dossier sans répertoire de dépôt (« 09 - Scanner »)."""
+    from .bruit5668 import depot_label
+    return {k: v for k, v in labels.items() if not depot_label(v)}
+
+
 def _matter_select(labels, current, name='dossier'):
     return '<select name="%s" aria-label="Dossier"><option value="">Choisir un dossier…</option>%s</select>' % (name, ''.join(
         '<option value="%s"%s>%s</option>' % (e(k, quote=True), ' selected' if k == current else '', e(v))
-        for k, v in sorted(labels.items(), key=lambda kv: kv[1].casefold())))
+        for k, v in sorted(_sans_depots(labels).items(), key=lambda kv: kv[1].casefold())))
 
 
 def _badge(statut):

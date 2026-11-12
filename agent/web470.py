@@ -97,10 +97,15 @@ def mentions_html(check):
 
 # ---------------------------------------------------------------- pages
 
+def _clients(rows):
+    from .bruit5668 import clients   # 5.6.99 : choix de dossier sans répertoire de dépôt
+    return clients(rows)
+
+
 def _matter_options(desk, selected=''):
     return ''.join('<option value="%s"%s>%s</option>' % (
         e(m['id'], quote=True), ' selected' if m['id'] == selected else '', e(matter_display(m)))
-        for m in load_matters(desk.c))
+        for m in _clients(load_matters(desk.c)))
 
 
 def document_text(desk, path):

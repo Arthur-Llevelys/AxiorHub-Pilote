@@ -105,10 +105,12 @@ class Plafond(base.Base):
             budget5668.release(self.desk, 'ollama')
 
     def test_page_parametres_ia(self):
+        from agent import i18n5631
         from agent.workstation32_ui import settings_page
+        i18n5631._ctx.role = 'administrateur'   # 5.6.99 : rôle de la requête posé ici ; un module de tests précédent laissait un autre rôle dans le fil
         page = settings_page(self.desk, {'tab': 'ia'}, lambda *a, **k: '<form></form>', lambda *a, **k: '<a></a>')
         self.assertIn('id="b5668-budget"', page)
-        self.assertIn('Libérer', page)   # rôle par défaut de la requête : administrateur
+        self.assertIn('Libérer', page)   # administrateur : la libération des réservations est proposée
 
     def test_consommation_affichee_sans_les_echecs(self):
         from agent.ai_gateway import usage_snapshot

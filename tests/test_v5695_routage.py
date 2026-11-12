@@ -533,9 +533,9 @@ class Evaluation(Fond):
     def test_G05_rapport_d_evaluation_source_du_banc_pour_les_brouillons(self):
         self.assertIsNone(routage5695.evaluation(self.state))
         self.rapport({'date': '2026-11-07T08:00:00+00:00', 'modele': 'modele-local', 'versions': {
-            '5.6.94': {'synthese': {'cas': 24, 'regle_respectee': 0.2}}, '5.6.98': {'synthese': {'cas': 24, 'regle_respectee': 0.875, 'duree_redaction_mediane_s': 41.5}}}})
+            '5.6.94': {'synthese': {'cas': 24, 'regle_respectee': 0.2}}, '5.6.99': {'synthese': {'cas': 24, 'regle_respectee': 0.875, 'duree_redaction_mediane_s': 41.5}}}})
         ev = routage5695.evaluation(self.state)
-        self.assertEqual((ev['fournisseur'], ev['modele'], ev['score'], ev['samples'], ev['delai'], ev['etiquette']), ('ollama', 'modele-local', 87.5, 24, 41500, '5.6.98'))
+        self.assertEqual((ev['fournisseur'], ev['modele'], ev['score'], ev['samples'], ev['delai'], ev['etiquette']), ('ollama', 'modele-local', 87.5, 24, 41500, '5.6.99'))
         local = ('ollama', {'type': 'ollama'}, {'slug': 'modele-local'}, 0, (0.0, None, 0.0, 'aucune'), None)
         api = ('mistral', {'type': 'mistral'}, {'slug': 'mistral-large-4'}, 0, (1.0, None, 3.0, 'usd'), None)
         cle = lambda i: (i[3], 0 if i[4][3] == 'aucune' else 2, 0.0, float('inf'), 1)
@@ -544,7 +544,7 @@ class Evaluation(Fond):
             r = routage5695.evaluer(self.desk.c, [local, api], 'redaction_mail', 60, cle, local)
             self.assertIs(r['choix'], local)                       # 87,5 au banc d'évaluation, moins de 15 points sous Mistral (97,5) : le local reste
             self.assertIn('score 88 au banc', r['raison'])
-            self.rapport({'modele': 'modele-local', 'versions': {'5.6.98': {'synthese': {'cas': 24, 'regle_respectee': 0.5}}}})
+            self.rapport({'modele': 'modele-local', 'versions': {'5.6.99': {'synthese': {'cas': 24, 'regle_respectee': 0.5}}}})
             self.assertIs(routage5695.evaluer(self.desk.c, [local, api], 'redaction_mail', 60, cle, local)['choix'], api)   # 50 : sous le seuil
             self.assertIs(routage5695.evaluer(self.desk.c, [local, api], 'classement', 60, cle, local)['choix'], local)    # autre étape : rapport sans effet
 

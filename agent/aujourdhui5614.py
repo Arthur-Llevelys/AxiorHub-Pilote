@@ -87,9 +87,11 @@ def items(desk, owner='cabinet', prefix=''):
     from . import decisions569, taches5614
     deferred = _deferred(desk)
     out = []
+    from .bruit5668 import AUTOMATIQUES, depots
+    ids_depots = depots(desk)
     for x in decisions569.items(desk, owner, prefix):
         key = x['kind'] + ':' + str(x['id'])
-        if key in deferred:
+        if key in deferred or (x['kind'] in AUTOMATIQUES and str(x.get('matter') or '') in ids_depots):   # 5.6.99 : répertoire de dépôt
             continue
         card = {'key': key, 'kind': x['kind'], 'id': x['id'], 'state': x['state'], 'title': x['title'], 'matter': x['matter'], 'matter_label': x['matter_label'],
                 'question': x['explanation'], 'candidates': x['candidates'], 'url': x['url'], 'urgent': x['kind'] in ('docreq', 'mission') and x['state'] in ('echec', 'error'),
