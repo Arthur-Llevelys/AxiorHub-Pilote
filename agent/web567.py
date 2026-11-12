@@ -83,9 +83,13 @@ def cards(rows, prefix):
     out = ''
     for row in rows:
         result, job = row.get('result') or {}, row.get('job') or {}
-        out += ('<article class="mission567-card" data-mission-id="' + e(row['id']) + '"><div class="mission567-state">' + e(row['label']) + '</div><h3>'
+        panneau = row.get('panneau') or {}   # 5.6.97 : état explicite et geste utile
+        out += ('<article class="mission567-card" data-mission-id="' + e(row['id']) + '" data-etat="' + e(panneau.get('code', '')) + '"><div class="mission567-state">'
+                + e(panneau.get('libelle') or row['label']) + '</div><h3>'
                 + e(row.get('title') or row['instruction']) + '</h3>' + ('<p class="mission567-sub">' + e(row['subtitle']) + '</p>' if row.get('subtitle') else ''))
         out += '<p>' + e(row['matter_label'] or 'Cabinet') + '</p><p class="muted">' + e(job.get('progress') or (row.get('plan') or {}).get('deliverable', '')) + '</p>'
+        if panneau.get('geste'):
+            out += '<p class="mission5697-geste">' + e(panneau['geste']) + '</p>'
         if result.get('text'):
             out += '<details><summary>Lire la réponse et ses sources</summary><pre>' + e(result['text']) + '</pre></details>'
         if result.get('open_url'):
@@ -94,18 +98,20 @@ def cards(rows, prefix):
             choices = {c['id']: c['label'] for x in row['exceptions'] for c in x.get('candidates', [])}
             out += '<p>' + e(' '.join(x['message'] for x in row['exceptions'])) + '</p>'
             if choices:
-                out += '<label>Dossier<select class="mission567-choice">' + ''.join('<option value="' + e(k) + '">' + e(v) + '</option>' for k, v in choices.items()) + '</select></label><button type="button" data-mission-control="resolve">Préciser et démarrer</button>'
-        if row['state'] == 'error':
+                # 5.6.97 : aucun dossier présélectionné : le choix est explicite, puis la même demande repart
+                out += ('<label>Dossier<select class="mission567-choice" required><option value="">Choisir le dossier…</option>' + ''.join('<option value="' + e(k) + '">' + e(v) + '</option>' for k, v in choices.items())
+                        + '</select></label><button type="button" data-mission-control="resolve">Lancer dans ce dossier</button>')
+        if row['state'] in ('error', 'interrupted'):
             out += '<p class="warn">' + e(job.get('error') or ' '.join(x.get('message', '') for x in row['exceptions'])) + '</p>'
-        if row['state'] in ('suggested','error'):
-            out += '<button type="button" data-mission-control="resume">'+('Démarrer la préparation' if row['state']=='suggested' else 'Relancer')+'</button>'
+        if row['state'] in ('suggested','error','interrupted'):
+            out += '<button type="button" data-mission-control="resume">'+('Démarrer la préparation' if row['state']=='suggested' else ('Reprendre' if row['state']=='interrupted' else 'Relancer'))+'</button>'
         if row['state'] in ('queued', 'running', 'creating', 'paused'):
             out += '<details><summary>Autres actions</summary><button type="button" data-mission-control="' + ('pause' if row['state'] in missions567.ACTIVE else 'resume') + '">' + ('Suspendre' if row['state'] in missions567.ACTIVE else ('Démarrer la préparation' if row['state']=='suggested' else 'Reprendre')) + '</button></details>'
         # 5.6.36 : boutons visibles pour annuler une mission ou la retirer de la liste
         if row['state'] not in ('cancelled',) and row['state'] not in ('verified', 'prepared', 'abstained'):
             out += ('<button type="button" class="ghost" data-mission5636="annuler" data-confirm="Annuler définitivement cette mission ? '
                     'Un projet déjà déposé reste dans le dossier.">Annuler la mission</button>')
-        if row['state'] not in missions567.ACTIVE:
+        if row['state'] not in missions567.ACTIVE and row['state'] != 'suspended':
             out += '<button type="button" class="ghost" data-mission5636="retirer">Retirer de la liste</button>'
         if row.get('synthese_donnees'):   # 5.6.89 : Données utilisées, Services destinataires, Limites
             from .data_policy5689 import synthese_rendu

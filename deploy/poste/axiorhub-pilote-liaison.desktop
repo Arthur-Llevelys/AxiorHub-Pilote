@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=AxiorHub Pilote — liaison IA
+Comment=Associe ce poste au serveur AxiorHub du cabinet pour la connexion ChatGPT
+Exec=axiorhub-pilote --liaison %u
+Icon=axiorhub-pilote
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/axiorhub;

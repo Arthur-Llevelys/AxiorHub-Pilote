@@ -26,6 +26,10 @@ def api(env, desk, auth, prefix, name, args, method):
         if route == 'sources':
             from .sources5632 import catalogue
             return json_out({'providers': catalogue(desk)})
+        if route == 'admin/sources/oauth/retour':   # 5.6.97 (J06) : retour du fournisseur (état à usage unique lié à la session)
+            if not admin:
+                raise Stop('role_insuffisant')
+            return oauth_retour5697(env, desk, prefix, args, owner)
         if route == 'veille/state':
             from .veille5632 import state, items
             return json_out({'state': state(desk, owner), 'items': items(desk, owner)})
@@ -60,13 +64,16 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'admin/sources/connect':
         from .sources5632 import connect
         return json_out({'connector': connect(desk, str(data.get('provider') or ''), str(data.get('token') or ''), str(data.get('auth') or ''),
-                                              data.get('allow_external') in (True, 'true', '1', 'on')), 'message': i18n.t('src.saved')})
-    if route == 'admin/sources/verify':
+                                              data.get('allow_external') in (True, 'true', '1', 'on'), data.get('revision')), 'message': i18n.t('src.saved')})
+    if route == 'admin/sources/verify':   # 5.6.97 (J06) : premier bouton initialize + tools/list ; second bouton : recherche fictive
         from .sources5632 import verify
-        return json_out(verify(desk, str(data.get('provider') or '')))
+        out = verify(desk, str(data.get('provider') or ''), str(data.get('profondeur') or 'connexion'))
+        return json_out({**out, 'message': out.get('message') or ''})
     if route == 'admin/sources/enable':
         from .sources5632 import enable
         return json_out({'connector': enable(desk, str(data.get('provider') or ''), data.get('on') in (True, 'true', '1', 'on'))})
+    if route.startswith('admin/sources/') and route[len('admin/sources/'):] in SOURCES_5697:   # 5.6.97 : OAuth MCP, synchronisation
+        return sources_api5697(env, desk, auth, prefix, route[len('admin/sources/'):], data, owner)
     if route == 'admin/veille/tavily':
         from .veille5632 import save_tavily_key
         return json_out(save_tavily_key(desk, data.get('key')))
@@ -172,32 +179,181 @@ def _form(route, body, submit, reload=False, extra=''):
             % (e(route, quote=True), ' data-reload="1"' if reload else '', body, e(submit), extra))
 
 
-def sources_section(desk):
-    """Sources juridiques (GI17–GI22) : une carte par fournisseur — compte, clé, vérification, activation."""
-    from .sources5632 import catalogue
+def _lien(url, label):
+    """Lien vers un site officiel : autre onglet, noopener noreferrer ; rien si l'adresse n'est pas en HTTPS."""
+    if not str(url or '').startswith('https://'):
+        return ''
+    return '<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>' % (e(url, quote=True), label)
+
+
+def _date_courte(value):
+    return e(str(value or '')[:16].replace('T', ' '))
+
+
+def carte_source(p, contexte='parametres', session=''):
+    """5.6.97 (J06) : carte commune aux Paramètres et au guide d'installation. L'action dépend du mode de la fiche : « Obtenir une
+    clé API », « Connecter le compte », « Aucune clé nécessaire », « Adaptateur AxiorHub » ; une fiche conditionnelle n'affiche que
+    « En savoir plus », sans aucun champ qui laisserait croire que la connexion est prête."""
     th = i18n.th
-    cards = ''
-    for p in catalogue(desk):
-        test = p['last_test'] or {}
+    mode = p['mode']
+    pid = e(p['id'], quote=True)
+    hidden = '<input type="hidden" name="provider" value="%s">' % pid
+    test = p['last_test'] or {}
+    status = (th('src97.mode.a_verifier') if mode == 'a_verifier' else th('src.state.enabled') if p['enabled']
+              else th('src.state.configured') if p['configured'] else th('src.state.none'))
+    badges = ''.join('<span class="s5697-badge">%s</span>' % th('src97.cap.' + c) for c in p['capabilities'])
+    out = ('<article class="s5632-card s5697-card" data-provider="%s" data-mode="%s"><h3>%s <small>%s</small></h3>'
+           '<p class="s5697-badges">%s<span class="s5697-mode">%s</span></p><p>%s</p><p class="f5632-hint">%s</p>') % (
+        pid, e(mode, quote=True), e(p['name']), status, badges, th('src97.mode.' + mode), e(p['coverage']), e(p['note']))
+    if p.get('note_5697'):
+        out += '<p class="f5632-hint">%s</p>' % e(p['note_5697'])
+    if mode == 'integre':
+        out += '<p class="f5632-hint">%s</p>' % th('src97.adapter_note')
+        index = p.get('index') or {}
+        out += '<p class="s5697-index">%s</p>' % (th('src97.index_present', date=_date_courte(index.get('date')), n=index.get('articles'),
+                                                                origine=index.get('origine')) if index.get('present') else th('src97.index_absent'))
+    if p.get('decisions'):
+        out += '<p class="s5697-decisions">%s %s</p>' % (th('src97.decisions.' + p['decisions'].get('etat', 'aucune')),
+                                                        _lien(p['decisions'].get('lien'), th('src97.decisions_link')))
+    principal = {'cle': (p['access_url'], th(p['acces_libelle']) if p.get('acces_libelle') else th('src97.get_key')),
+                 'a_verifier': (p['help'] or p['access_url'], th('src97.more'))}.get(mode)
+    if mode == 'a_verifier' and p.get('acces_libelle') and p['access_url']:   # ex. « Demander une clé CanLII » : lien visible, fiche conditionnelle
+        principal = (p['access_url'], th(p['acces_libelle']))
+    liens = [x for x in ((_lien(*principal) if principal else ''), _lien(p['help'], th('src.help')) if not principal or principal[0] != p['help'] else '',
+                         _lien(p['terms_url'], th('src97.terms'))) if x]
+    if liens:
+        out += '<p class="s5632-links">%s</p>' % ' · '.join(liens)
+    if p.get('liens_a_confirmer') or p['id'] in ('eulex', 'datagouv', 'contract_factory', 'patriboum'):
+        out += '<p class="f5632-hint">%s</p>' % th('src97.links_to_confirm')
+    if mode == 'a_verifier':
+        return out + '<p class="s5697-conditionnel" role="note">%s</p></article>' % th('src97.conditional')
+    if test:
+        out += '<p class="s5697-test">%s</p>' % th('src97.last_test', date=_date_courte(test.get('at')), status=th('src97.status.' + str(test.get('status') or 'error')))
+        caps = test.get('capacites') or {}
+        if caps:
+            out += '<ul class="s5697-caps">%s</ul>' % ''.join('<li>%s : %s</li>' % (th('src97.cap.' + c), th('src97.cap_state.' + v)) for c, v in caps.items())
         levels = test.get('levels') or {}
-        status = (th('src.state.enabled') if p['enabled'] else th('src.state.configured') if p['configured'] else th('src.state.none'))
-        auth = ('<label>%s<input type="password" name="token" autocomplete="off" placeholder="%s"></label>' % (
-            th('src.token'), th('guide.secret_set') if p['secret_configured'] else th('src.token_hint'))) if 'bearer' in p['auth'] else ''
-        if p['auth'] == ['none', 'bearer']:
-            auth = '<p class="f5632-hint">' + th('src.no_key_needed') + '</p>' + auth
-        cards += ('<article class="s5632-card" data-provider="%s"><h3>%s <small>%s</small></h3><p>%s</p><p class="f5632-hint">%s</p>'
-                  '<p class="s5632-links"><a href="%s" target="_blank" rel="noopener noreferrer">%s</a> · <a href="%s" target="_blank" rel="noopener noreferrer">%s</a></p>') % (
-            e(p['id'], quote=True), e(p['name']), status, e(p['coverage']), e(p['note']), e(p['account'], quote=True), th('src.account'),
-            e(p['help'], quote=True), th('src.help'))
         if levels:
-            cards += '<p class="s5632-levels">%s</p>' % ' · '.join('%s : %s' % (th('src.level.' + k), e(str(v))) for k, v in levels.items() if k in ('connection', 'search', 'text'))
-        cards += _form('admin/sources/connect', '<input type="hidden" name="provider" value="%s">%s<label class="f5632-check"><input type="checkbox" name="allow_external"%s> %s</label>' % (
-            e(p['id'], quote=True), auth, ' checked' if p['configured'] else '', th('src.allow_external')), i18n.t('src.save'), reload=True)
-        cards += '<div class="s5632-actions">%s%s</div></article>' % (
-            _form('admin/sources/verify', '<input type="hidden" name="provider" value="%s">' % e(p['id'], quote=True), i18n.t('src.verify'), reload=True),
-            _form('admin/sources/enable', '<input type="hidden" name="provider" value="%s"><input type="hidden" name="on" value="%s">' % (
-                e(p['id'], quote=True), '0' if p['enabled'] else '1'), i18n.t('src.disable' if p['enabled'] else 'src.enable'), reload=True))
-    return '<section class="s5632"><h2>%s</h2><p>%s</p><div class="s5632-grid">%s</div></section>' % (th('src.title'), th('src.intro'), cards)
+            out += '<p class="s5632-levels">%s</p>' % ' · '.join('%s : %s' % (th('src.level.' + k), e(str(v))) for k, v in levels.items() if k in ('connection', 'search', 'text'))
+    else:
+        out += '<p class="s5697-test">%s</p>' % th('src97.never_tested')
+    if p.get('candidate_pending'):
+        out += '<p class="f5632-hint" role="status">%s</p>' % th('src97.candidate')
+    revision = '<input type="hidden" name="revision" value="%d">' % int(p.get('revision') or 0)
+    checked = ' checked' if p.get('allow_external') else ''   # l'accord affiché est la valeur ENREGISTRÉE
+    accord = th('src97.use_local') if mode == 'integre' else th('src.allow_external')
+    if mode == 'oauth':
+        oauth = p.get('oauth') or {}
+        retour = 'guide:' + session if contexte == 'guide' and session else 'parametres'
+        if oauth.get('etat') == 'connecte':
+            out += '<p class="s5697-droits">%s</p>' % th('src97.oauth_rights', droits=', '.join(oauth.get('droits') or []) or th('src97.oauth_no_scope'))
+            out += _form('admin/sources/connect', hidden + revision + '<label class="f5632-check"><input type="checkbox" name="allow_external"%s> %s</label>' % (
+                checked, accord), i18n.t('src.save'), reload=True)
+            out += _form('admin/sources/oauth/revoke', hidden, i18n.t('src97.oauth_disconnect'), reload=True)
+        else:
+            if oauth.get('etat'):
+                out += '<p class="f5632-hint">%s</p>' % th('src97.oauth_state.' + oauth['etat'])
+            out += _form('admin/sources/oauth/start', hidden + '<input type="hidden" name="retour" value="%s">' % e(retour, quote=True),
+                         i18n.t('src97.mode.oauth'))
+    else:
+        champ = ''
+        if mode == 'cle':
+            champ = '<label>%s<input type="password" name="token" autocomplete="off" placeholder="%s"></label>' % (
+                th('src.token'), th('src97.key_kept') if p['secret_configured'] else th('src.token_hint'))
+        out += _form('admin/sources/connect', hidden + revision + champ + '<label class="f5632-check"><input type="checkbox" name="allow_external"%s> %s</label>' % (
+            checked, accord), i18n.t('src.save'), reload=True)
+    if p['configured'] and (mode != 'oauth' or (p.get('oauth') or {}).get('etat') == 'connecte'):
+        out += '<div class="s5632-actions">%s%s%s</div>' % (
+            _form('admin/sources/verify', hidden + '<input type="hidden" name="profondeur" value="connexion">', i18n.t('src97.test_connexion'), reload=True),
+            _form('admin/sources/verify', hidden + '<input type="hidden" name="profondeur" value="complet">', i18n.t('src97.test_complet'), reload=True),
+            _form('admin/sources/enable', hidden + '<input type="hidden" name="on" value="%s">' % ('0' if p['enabled'] else '1'),
+                  i18n.t('src.disable' if p['enabled'] else 'src.enable'), reload=True))
+    if mode == 'integre':
+        out += _synchronisation_html(p, hidden)
+    return out + '</article>'
+
+
+def _synchronisation_html(p, hidden):
+    """Synchronisation réseau : séparée, désactivée par défaut, affichée ; fermée tant que le fonds n'est pas qualifié."""
+    th = i18n.th
+    sync = p.get('synchronisation') or {}
+    out = '<details class="s5697-sync"><summary>%s</summary>' % th('src97.sync_title')
+    if not sync.get('qualifiee'):
+        return out + '<p>%s</p></details>' % th('src97.sync_closed', raison=sync.get('raison_fermee') or '')
+    out += '<p>%s</p>' % th('src97.sync_on' if sync.get('active') else 'src97.sync_off')
+    derniere = sync.get('derniere') or {}
+    if derniere:
+        out += '<p role="status">%s</p>' % th('src97.sync_last', resultat=th('src97.sync_result.' + str(derniere.get('resultat') or 'echec')),
+                                               date=_date_courte(derniere.get('fin')), erreur=(' — ' + derniere['erreur']) if derniere.get('erreur') else '')
+    out += _form('admin/sources/sync/reglage', hidden + '<input type="hidden" name="active" value="%s">' % ('0' if sync.get('active') else '1'),
+                 i18n.t('src97.sync_disable' if sync.get('active') else 'src97.sync_enable'), reload=True)
+    if sync.get('active'):
+        out += _form('admin/sources/sync/run', hidden + '<label>%s<input type="text" name="identifiants" autocomplete="off" maxlength="600"></label>' % th('src97.sync_ids'),
+                     i18n.t('src97.sync_run'), reload=True)
+    return out + '</details>'
+
+
+def sources_section(desk, contexte='parametres', session=''):
+    """Sources juridiques : cartes communes groupées par zone (France, Union européenne, Allemagne, Espagne, Angleterre et pays de
+    Galles, Canada fédéral, Québec, entreprises et données publiques). Même fonction pour les Paramètres et le guide (J06)."""
+    from .sources5632 import ZONES_GUIDE, catalogue
+    th = i18n.th
+    fiches = catalogue(desk)
+    groupes = ''
+    for zone, cle in ZONES_GUIDE:
+        cartes = ''.join(carte_source(p, contexte, session) for p in fiches if p['zone_guide'] == zone)
+        if cartes:
+            groupes += '<section class="s5697-zone" data-zone="%s"><h3>%s</h3><div class="s5632-grid">%s</div></section>' % (
+                e(zone, quote=True), th('src97.' + cle), cartes)
+    intro = th('src97.cabinet_choice') if contexte == 'guide' else th('src.intro')
+    return '<section class="s5632 s5697"><h2>%s</h2><p>%s</p>%s</section>' % (th('src.title'), intro, groupes)
+
+
+SOURCES_5697 = frozenset({'oauth/start', 'oauth/revoke', 'sync/reglage', 'sync/run'})
+
+
+def sources_api5697(env, desk, auth, prefix, action, data, owner):
+    """5.6.97 : routes d'administration des sources (rôle administrateur et CSRF contrôlés par l'appelant)."""
+    from .web440 import json_out
+    pid = str(data.get('provider') or '')
+    if action == 'oauth/start':
+        import re
+        from . import oauth_mcp5697
+        from .office440 import public_base
+        retour = str(data.get('retour') or 'parametres')
+        if not re.fullmatch(r'parametres|guide:[A-Za-z0-9_-]{1,80}', retour):
+            retour = 'parametres'
+        out = oauth_mcp5697.demarrer(desk, owner, oauth_mcp5697.marqueur_session(env), pid,
+                                     public_base(desk, auth).rstrip('/') + '/api440/m5632/admin/sources/oauth/retour', retour)
+        return json_out({**out, 'message': i18n.t('src97.oauth_redirect')})
+    if action == 'oauth/revoke':
+        from . import oauth_mcp5697
+        return json_out({**oauth_mcp5697.revoquer(desk, pid, owner), 'message': i18n.t('src97.oauth_revoked')})
+    from . import mcp_internationaux5697 as mi
+    if action == 'sync/reglage':
+        return json_out({'synchronisation': mi.regler_synchronisation(desk, pid, data.get('active') in (True, 'true', '1', 'on'), owner),
+                         'message': i18n.t('src.saved')})
+    if action == 'sync/run':
+        import re
+        idents = [x for x in re.split(r'[\s,;]+', str(data.get('identifiants') or '')) if x][:21]
+        out = mi.synchroniser(desk, pid, idents, owner=owner)
+        return json_out({**out, 'message': i18n.t('src97.sync_result.' + out['synchronisation']['resultat'])})
+    raise Stop('route_inconnue')
+
+
+def oauth_retour5697(env, desk, prefix, args, owner):
+    """Retour OAuth : enregistre le jeton puis renvoie au guide ou aux Paramètres avec un état lisible (jamais le code ni le jeton)."""
+    from urllib.parse import quote
+    from . import oauth_mcp5697
+    cible = '/parametres?rubrique=recherche'
+    try:
+        out = oauth_mcp5697.terminer(desk, owner, oauth_mcp5697.marqueur_session(env), args)
+        if out['retour'].startswith('guide:'):
+            cible = '/guide-installation?session=%s&etape=sources' % quote(out['retour'][len('guide:'):])
+        cible += '&oauth=ok&source=' + quote(out['provider'])
+    except Stop as ex:
+        cible += '&oauth=erreur&code=' + quote(str(ex).split(':')[0][:60])
+    return {'status': '303 See Other', 'kind': 'text/plain; charset=utf-8', 'body': b'', 'headers': [('Location', prefix + cible)]}
 
 
 def controle_section(prefix):

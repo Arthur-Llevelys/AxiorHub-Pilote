@@ -316,7 +316,9 @@ def listing(desk, avocat='', start='', end='', statut='', matter='', limit=400, 
         params.append(matter)
     hidden = viewer_hidden() or frozenset()
     known = members(desk) if known is None else known
-    rows = desk.db.execute(sql + ' ORDER BY COALESCE(a.starts,h.starts) LIMIT ?', (*params, int(limit))).fetchall()
+    from .acces5697 import Perimetre, acteur_requete, masques_requete   # 5.6.97 (B07) : droits joints avant la limite
+    clause, caches = Perimetre(acteur_requete(), masques_requete(desk) | hidden).sql('h.matter')
+    rows = desk.db.execute(sql + ' AND ' + clause + ' ORDER BY COALESCE(a.starts,h.starts) LIMIT ?', (*params, *caches, int(limit))).fetchall()
     return [view(desk, r, known) for r in rows if r['matter'] not in hidden]
 
 

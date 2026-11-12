@@ -213,6 +213,13 @@ def page(desk, prefix, owner, morceaux):
     rang = ''
     if list(prefs['ordre']) == list(tableau5688.IDS):     # 5.6.96 (I01) : ordre par défaut (blocs masqués compris) ; un ordre choisi par la personne est conservé tel quel
         rang, principal, cote = rang_html(desk, prefix, owner, role_courant(), blocs, principal, cote)
+    try:   # 5.6.97 (lot documents-mission, § 17) : « Dossiers sans prochaine action » et « Attentes à relancer », sous le rang, sans IA
+        from . import shell501
+        from .mission_web5697 import aujourdhui_html
+        rang += aujourdhui_html(desk, prefix, owner, role_courant(), str((getattr(shell501._ctx, 'args', None) or {}).get('mes') or '') == '1')
+    except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours
+        import logging
+        logging.getLogger(__name__).exception('suivi des dossiers 5.6.97')
     accent = (' data-accent="%s"' % e(prefs['accent'], quote=True)) if prefs['accent'] else ''
     accent += (' data-densite="%s"' % e(prefs['densite'], quote=True)) if prefs.get('densite', 'confort') != 'confort' else ''   # 5.6.96 (U02, lot affichage) : densité par compte
     style = ''

@@ -66,7 +66,9 @@ class Contexte:
     def __init__(self, desk, owner, role, hidden, prefix, now=None):
         from .cockpit530 import _labels, tz
         self.desk, self.owner, self.role, self.prefix = desk, str(owner or 'cabinet'), str(role or 'administrateur'), prefix or ''
-        self.hidden = frozenset(str(h) for h in (hidden or ()))
+        # 5.6.97 (lot proteger) : le garde commun relit le registre pour CETTE personne ; les dossiers masqués transmis ne font qu'ajouter
+        from .acces5697 import masques
+        self.hidden = frozenset(str(h) for h in (hidden or ())) | masques(desk, (self.owner, self.role))
         self.tz = tz(desk)
         self.now = (now or datetime.now(timezone.utc)).astimezone(self.tz)
         self.jour = self.now.date()
@@ -105,6 +107,10 @@ def agenda(c):
     if not _table(c.desk, 'calendar_cache'):
         return _r(0, T('agenda.inconnu'), href=c.prefix + '/planning?vue=agenda')
     clause, params = _dans(c.hidden, 'matter')
+    if c.hidden:   # 5.6.97 (lot proteger) : un rapprochement ambigu qui touche un dossier masqué ne compte pas (titre souvent nominatif)
+        from .acces5697 import Perimetre
+        candidats, extra = Perimetre(None, c.hidden).sql_json('matter_candidates')
+        clause, params = clause + ' AND ' + candidats, params + list(extra)
     rows = c.desk.db.execute('SELECT title,starts,ends,matter FROM calendar_cache WHERE starts<? AND ends>?%s ORDER BY starts LIMIT 60' % clause,
                              [c.utc(c.jour, 2), c.now.astimezone(timezone.utc).isoformat()] + params).fetchall()
     demain = c.utc(c.jour, 1)
@@ -140,13 +146,23 @@ def courriels(c):
     """Courriels qui attendent une action (à traiter, correspondant ou dossier à confirmer) ; « nouveaux » : arrivés depuis 24 h."""
     clause, params = _dans(c.hidden, 'matter')
     base = "FROM work_items WHERE state IN ('needs_action','needs_confirmation')" + clause
-    n = c.desk.db.execute('SELECT COUNT(*) ' + base, params).fetchone()[0]
     href = c.prefix + '/courriels?vue=boite'
-    if not n:
-        return _r(0, T('courriels.rien'), href=href)
     depuis = (c.now - timedelta(hours=24)).astimezone(timezone.utc).isoformat()
-    nouveaux = c.desk.db.execute('SELECT COUNT(*) ' + base + ' AND received>=?', params + [depuis]).fetchone()[0]
-    r = c.desk.db.execute('SELECT subject,matter,received ' + base + ' ORDER BY received DESC LIMIT 1', params).fetchone()
+    if c.hidden:   # 5.6.97 (lot proteger, B01) : chaque message contrôlé sur ses propres rattachements AVANT le total et le plus récent
+        from .acces5697 import visible
+        from .messages5697 import dossiers_par_cle
+        lignes = c.desk.db.execute('SELECT mail_key,subject,matter,received ' + base + ' ORDER BY received DESC', params).fetchall()
+        associations = dossiers_par_cle(c.desk, [x['mail_key'] for x in lignes])
+        lignes = [x for x in lignes if visible(associations.get(x['mail_key'], frozenset()), c.hidden)]
+        n, nouveaux, r = len(lignes), sum(1 for x in lignes if str(x['received'] or '') >= depuis), (lignes[0] if lignes else None)
+        if not n:
+            return _r(0, T('courriels.rien'), href=href)
+    else:
+        n = c.desk.db.execute('SELECT COUNT(*) ' + base, params).fetchone()[0]
+        if not n:
+            return _r(0, T('courriels.rien'), href=href)
+        nouveaux = c.desk.db.execute('SELECT COUNT(*) ' + base + ' AND received>=?', params + [depuis]).fetchone()[0]
+        r = c.desk.db.execute('SELECT subject,matter,received ' + base + ' ORDER BY received DESC LIMIT 1', params).fetchone()
     nom = ' — '.join(x for x in (_court(r['subject'] or T('sans_objet')), c.dossier(r['matter'])) if x)
     return _r(n, T('courriels.nouveaux', n=nouveaux), T('plus_recent', nom=nom), href)
 
@@ -340,6 +356,11 @@ def agent(c):
     from .travaux5689 import compteurs
     pause = bool(c.desk.settings('missions567:pause', False))
     n = compteurs(c.desk)
+    if c.hidden:   # 5.6.97 (lot proteger) : les travaux d'un dossier masqué ne changent aucun compteur de cette personne
+        clause, params = _dans(c.hidden, "COALESCE(json_extract(CASE WHEN json_valid(args) THEN args ELSE '{}' END,'$.matter'),'')")
+        par = dict(c.desk.db.execute("SELECT status,COUNT(*) FROM jobs WHERE status IN ('running','cancel_requested','pending','suspended')" + clause +
+                                     ' GROUP BY status', params).fetchall())
+        n = {**n, 'en_cours': par.get('running', 0) + par.get('cancel_requested', 0), 'attente_calcul': par.get('pending', 0), 'suspendu': par.get('suspended', 0)}
     href = '#c530-feed'
     morceaux = [T('agent.en_cours', n=n['en_cours']), T('agent.attente', n=n['attente_calcul'])]
     if n['suspendu']:
@@ -348,7 +369,7 @@ def agent(c):
     urgent = ''
     if n['en_cours']:
         from .cockpit530 import MAIL_KINDS, NOISE
-        for r in c.desk.db.execute("SELECT kind,args FROM jobs WHERE status IN ('running','cancel_requested') ORDER BY id LIMIT 20"):
+        for r in c.desk.db.execute("SELECT kind,args FROM jobs WHERE status IN ('running','cancel_requested') ORDER BY id LIMIT 200"):
             if r['kind'] in NOISE:
                 continue
             try:
@@ -356,9 +377,8 @@ def agent(c):
             except ValueError:
                 args = {}
             mid = str(args.get('matter') or '') if isinstance(args, dict) else ''
-            if mid in c.hidden:
-                urgent = T('agent.reserve')
-                break
+            if mid in c.hidden:   # 5.6.97 (lot proteger) : ni nommé ni signalé ; le travail visible suivant est nommé
+                continue
             from .web import JOB_LABELS
             libelle = T('agent.courriels') if r['kind'] in MAIL_KINDS else JOB_LABELS.get(r['kind'], T('agent.travail'))
             urgent = T('agent.en_cours_de', quoi=' — '.join(x for x in (libelle, c.dossier(mid)) if x))

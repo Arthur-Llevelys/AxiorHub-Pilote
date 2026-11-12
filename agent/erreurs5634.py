@@ -53,6 +53,8 @@ def provider_error(body):
     error = data.get('error') if isinstance(data, dict) else None
     source = error if isinstance(error, dict) else (data if isinstance(data, dict) else {})
     out = {k: str(source[k]) for k in ('type', 'code', 'param') if isinstance(source.get(k), (str, int)) and re.fullmatch(r'[A-Za-z0-9_.\[\]-]{1,60}', str(source[k]))}
+    if isinstance(error, str) and re.fullmatch(r'[a-z_]{3,40}', error):   # 5.6.97 (lot gmail) : code d'erreur OAuth (RFC 6749, « invalid_grant »)
+        out['oauth'] = error
     return {k: v for k, v in out.items() if not v.startswith('sk-')}
 
 

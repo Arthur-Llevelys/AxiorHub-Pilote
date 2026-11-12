@@ -202,11 +202,12 @@ def calendar_events(desk,start,end,matter='',refresh=True,dav=None,source=None):
     elif source=='personal':where+=" AND calendar_url='local:agenda'"
     if matter:where+=' AND matter=?';params.append(matter)
     rows=[];matter_paths={m['id']:m['path'] for m in matters}
-    from .membres5650 import viewer_hidden
-    hidden5650=viewer_hidden()   # 5.6.50 : événements d'un dossier réservé à d'autres membres
+    # 5.6.97 (B07) : dossier ET dossiers candidats contrôlés dans la requête pour l'acteur de la requête (rapprochement ambigu compris)
+    from .acces5697 import Perimetre,acteur_requete,masques_requete
+    _p5697=Perimetre(acteur_requete(),masques_requete(desk))
+    for _c,_x in (_p5697.sql('matter'),_p5697.sql_json('matter_candidates')):where+=' AND '+_c;params+=list(_x)
     for row in desk.db.execute('SELECT * FROM calendar_cache WHERE '+where+' ORDER BY starts',
                                (b_utc,a_utc,*params[2:])):
-        if row['matter'] and row['matter'] in hidden5650:continue
         item=dict(row);item['matter_candidates']=json.loads(item['matter_candidates']);item['busy']=bool(item['busy'])
         item['links']={'caldav_source':item['href'] or item['calendar_url'],
           'matter':'/agent-courriel/dossiers/'+item['matter'] if item['matter'] else '',
@@ -293,6 +294,8 @@ def list_tasks(desk,status='',matter='',limit=300):
         if not states:raise Stop('etat_tache_invalide')
         where.append('status IN ('+','.join('?' for _ in states)+')');params+=states
     if matter:where.append('matter=?');params.append(matter)
+    from .acces5697 import Perimetre,acteur_requete,masques_requete   # 5.6.97 (B07) : droits joints avant la limite
+    _c,_x=Perimetre(acteur_requete(),masques_requete(desk)).sql('matter');where.append(_c);params+=list(_x)
     sql='SELECT * FROM work_tasks_v211'+((' WHERE '+' AND '.join(where)) if where else '')+' ORDER BY CASE status WHEN "in_progress" THEN 0 WHEN "todo" THEN 1 WHEN "blocked" THEN 2 ELSE 3 END,due,created DESC LIMIT ?'
     params.append(limit);rows=[]
     for row in desk.db.execute(sql,params):

@@ -144,6 +144,23 @@ def export_session(desk, owner, passphrase):
             'message': 'Session chiffrée prête. Ce poste n’utilise plus cette connexion.'}
 
 
+SESSION_REQUISE = ('client_id', 'subject', 'id_token', 'access_token', 'refresh_token')
+
+
+def session_admise(session):
+    """5.6.97 (A06) : validation réutilisable d'une session transmise par un poste (liaison automatique) : champs de ``RECORD_FIELDS``
+    seulement, jetons présents, types et tailles bornés. Rend la session complétée ; ``Stop('session_invalide')`` sinon."""
+    if not isinstance(session, dict) or set(session) - set(RECORD_FIELDS) or any(not session.get(k) for k in SESSION_REQUISE):
+        raise Stop('session_invalide')
+    for k, v in session.items():
+        if k == 'scopes':
+            if not isinstance(v, list) or len(v) > 40 or any(not isinstance(x, str) or len(x) > 120 for x in v):
+                raise Stop('session_invalide')
+        elif not isinstance(v, str) or len(v) > 16000:
+            raise Stop('session_invalide')
+    return {k: session.get(k, [] if k == 'scopes' else '') for k in RECORD_FIELDS}
+
+
 def import_session(desk, owner, bundle, passphrase, transport=None):
     """Serveur : importe la session sans toucher à SON identifiant d'hôte. Une identité illisible ne remplace pas la connexion active."""
     from cryptography.exceptions import InvalidTag

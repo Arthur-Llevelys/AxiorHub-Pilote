@@ -1,0 +1,67 @@
+{
+ "history": [
+  {
+   "id": "4250",
+   "messages": [
+    {
+     "id": "18c0a1b2c3d4e600",
+     "threadId": "18c0a1b2c3d4e5f0"
+    }
+   ],
+   "messagesAdded": [
+    {
+     "message": {
+      "id": "18c0a1b2c3d4e600",
+      "threadId": "18c0a1b2c3d4e5f0",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "4251",
+   "messages": [
+    {
+     "id": "18c0a1b2c3d4e5f6",
+     "threadId": "18c0a1b2c3d4e5f0"
+    }
+   ],
+   "labelsRemoved": [
+    {
+     "message": {
+      "id": "18c0a1b2c3d4e5f6",
+      "threadId": "18c0a1b2c3d4e5f0",
+      "labelIds": [
+       "INBOX"
+      ]
+     },
+     "labelIds": [
+      "UNREAD"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "4252",
+   "messages": [
+    {
+     "id": "18c0a1b2c3d4e5aa",
+     "threadId": "18c0a1b2c3d4e5aa"
+    }
+   ],
+   "messagesDeleted": [
+    {
+     "message": {
+      "id": "18c0a1b2c3d4e5aa",
+      "threadId": "18c0a1b2c3d4e5aa",
+      "labelIds": []
+     }
+    }
+   ]
+  }
+ ],
+ "historyId": "4252"
+}

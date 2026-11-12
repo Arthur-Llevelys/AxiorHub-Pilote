@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Échantillon écrit à la main pour les tests AxiorHub 5.6.97 (lot sources), aucun téléchargement.
+     Format : XML de Justice Canada, version française (/fra/XML/{X}.xml), même structure que ca-i-21-en.xml.
+     Loi d'interprétation, L.R.C. (1985), ch. I-21, articles 10 et 12 ; identifiants lims et dates simplifiés.
+     Reproduction non officielle. Ne pas citer : vérifier sur https://laws-lois.justice.gc.ca/fra/lois/I-21/. -->
+<Statute xmlns:lims="http://justice.gc.ca/lims" xml:lang="fr" in-force="yes" lims:pit-date="2026-10-30" lims:lastAmendedDate="2018-01-01"
+  lims:current-date="2026-10-30" lims:inforce-start-date="1988-12-12" lims:fid="1" lims:id="1">
+  <Identification lims:fid="2" lims:id="2">
+    <LongTitle>Loi concernant l’interprétation des textes législatifs</LongTitle>
+    <ShortTitle status="official">Loi d’interprétation</ShortTitle>
+    <Chapter><ConsolidatedNumber official="no">I-21</ConsolidatedNumber></Chapter>
+  </Identification>
+  <Body>
+    <Heading level="1"><TitleText>Règles d’interprétation</TitleText></Heading>
+    <Section lims:inforce-start-date="1988-12-12" lims:fid="10" lims:id="10">
+      <MarginalNote>Principe de la permanence de la règle de droit</MarginalNote><Label>10</Label>
+      <Text>La règle de droit a vocation permanente ; exprimée dans un texte au présent intemporel, elle s’applique à la situation du moment de façon que le texte produise ses effets selon son esprit, son sens et son objet.</Text>
+    </Section>
+    <Section lims:inforce-start-date="1988-12-12" lims:fid="12" lims:id="12">
+      <MarginalNote>Principe et interprétation</MarginalNote><Label>12</Label>
+      <Text>Tout texte est censé apporter une solution de droit et s’interprète de la manière la plus équitable et la plus large qui soit compatible avec la réalisation de son objet.</Text>
+    </Section>
+  </Body>
+</Statute>

@@ -3,11 +3,15 @@ import ipaddress
 
 from .common import Stop
 
-WRITE = ('chatgpt/connecter', 'chatgpt/terminer', 'chatgpt/fournisseur', 'chatgpt/modeles', 'chatgpt/deconnecter', 'chatgpt/bienvenue')
+WRITE = ('chatgpt/connecter', 'chatgpt/terminer', 'chatgpt/fournisseur', 'chatgpt/modeles', 'chatgpt/deconnecter', 'chatgpt/bienvenue',
+         # 5.6.97 (A04, A05) : suivi de la tentative, liaison poste → serveur, serveurs confirmés et liaison côté poste
+         'chatgpt/annuler', 'chatgpt/liaison/creer', 'chatgpt/liaison/approuver', 'chatgpt/liaison/annuler',
+         'chatgpt/poste/serveur', 'chatgpt/poste/associer', 'chatgpt/poste/suivre')
+READ = ('chatgpt/statut', 'chatgpt/liaison/statut')   # 5.6.97 : lecture réservée à la session qui a créé la tentative ou la liaison
 
 
 def allowed(role, route):
-    return role == 'administrateur' and route.split('?', 1)[0] in WRITE
+    return role == 'administrateur' and route.split('?', 1)[0] in WRITE + READ
 
 
 def local_browser(env):
@@ -35,12 +39,22 @@ def api(env, desk, auth, prefix, name, args, method):
     route = name[len('m5662/'):].split('?', 1)[0]
     if not allowed(role, route):
         raise Stop('role_insuffisant')
+    from . import chatgpt5697
+    if route in READ:
+        if method != 'GET':
+            raise Stop('methode_refusee')
+        return chatgpt5697.api(env, desk, owner, route, args, method)
     if method != 'POST':
         raise Stop('methode_refusee')
     data = _post(env, auth, 6_000)
     from . import chatgpt5662 as cg
+    if route.startswith(('chatgpt/liaison/', 'chatgpt/poste/')) or route == 'chatgpt/annuler':
+        return chatgpt5697.api(env, desk, owner, route, data, method)
     if route == 'chatgpt/connecter':
         local = local_browser(env)
+        followed = chatgpt5697.connecter(env, desk, owner, local, manuel=bool(data.get('manuel')))
+        if followed is not None:
+            return followed
         port = cg.listen(desk.c) if local else cg.DEFAULT_PORT
         url = cg.start(desk, owner, port)
         return json_out({'ok': True, 'url': url, 'mode': 'poste' if local else 'serveur', 'message':

@@ -8,6 +8,7 @@ Ubuntu 24.04 (5.6.20) et Windows 11 (5.6.25), même interface et mêmes services
   poste.py --stop            arrête les services lancés par ce poste
   poste.py --status          état (port, processus) et emplacement des dossiers
   poste.py --print-password  identifiant et mot de passe locaux (pour un navigateur ordinaire)
+  poste.py --liaison URI     5.6.97 : lien axiorhub://chatgpt/liaison?id=… (liaison ChatGPT demandée par le serveur du cabinet)
 
 Dossiers :
 - Ubuntu (XDG) : données, configuration et secrets dans ~/.local/share/axiorhub-pilote ; journaux dans ~/.local/state/axiorhub-pilote.
@@ -497,8 +498,18 @@ def main(argv=None):
     parser.add_argument('--home', default=None)
     parser.add_argument('--interval', type=int, default=5, help='passage périodique de l’agent (minutes)')
     parser.add_argument('--keep-running', action='store_true', help='laisser les services tourner après la fermeture de la fenêtre')
+    parser.add_argument('--liaison', default='', help='lien axiorhub://chatgpt/liaison?id=… (identifiant opaque seulement)')
     args = parser.parse_args(argv)
     p = paths(args.home)
+    liaison_id = ''
+    if args.liaison:   # 5.6.97 (A05) : jamais une commande ni un domaine venus du lien ; seul l'identifiant opaque est retenu
+        from agent.chatgpt5697 import lire_lien
+        from agent.common import Stop
+        try:
+            liaison_id = lire_lien(args.liaison)
+        except Stop:
+            print('Lien de liaison refusé.', file=sys.stderr)
+            return 2
     if args.status:
         info = runtime(p)
         print(json.dumps({'actif': bool(info), 'runtime': info, 'interface': probe(info['port']) if info else None,
@@ -535,6 +546,8 @@ def main(argv=None):
             print('L’interface locale n’a pas démarré : consultez ' + str(p['logs'] / 'interface.log'), file=sys.stderr)
             return 1
     path = '/parametres?rubrique=connexions&premier=1' if first_run(p) else '/'   # 5.6.24 (F19) : premier lancement guidé
+    if liaison_id:   # 5.6.97 (A05) : carte ChatGPT du poste, volet « Liaison demandée par le serveur du cabinet »
+        path = '/parametres?' + urllib.parse.urlencode({'rubrique': 'ia', 'liaison': liaison_id}) + '#chatgpt5662'
     if args.no_window:
         print('Services AxiorHub actifs sur ' + origin_for(port) + PREFIX + path + ' (identifiants : --print-password)')
         if supervisor:

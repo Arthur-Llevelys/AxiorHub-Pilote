@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Échantillon écrit à la main pour les tests AxiorHub 5.6.97 (lot sources), aucun téléchargement.
+     Format : XML de Justice Canada (https://laws-lois.justice.gc.ca/eng/XML/, structure Statute / Identification / Body / Section,
+     attributs lims), d'après la documentation publique et le XML d'une loi consultée le 2026-11-11.
+     Interpretation Act, R.S.C. 1985, c. I-21, sections 10 et 12 ; identifiants lims et dates de l'échantillon simplifiés.
+     Reproduction non officielle. Ne pas citer : vérifier sur https://laws-lois.justice.gc.ca/eng/acts/I-21/. -->
+<Statute xmlns:lims="http://justice.gc.ca/lims" xml:lang="en" in-force="yes" lims:pit-date="2026-10-30" lims:lastAmendedDate="2018-01-01"
+  lims:current-date="2026-10-30" lims:inforce-start-date="1988-12-12" lims:fid="1" lims:id="1">
+  <Identification lims:fid="2" lims:id="2">
+    <LongTitle>An Act respecting the interpretation of statutes and regulations</LongTitle>
+    <ShortTitle status="official">Interpretation Act</ShortTitle>
+    <Chapter><ConsolidatedNumber official="no">I-21</ConsolidatedNumber></Chapter>
+  </Identification>
+  <Body>
+    <Heading level="1"><TitleText>Rules of Construction</TitleText></Heading>
+    <Section lims:inforce-start-date="1988-12-12" lims:fid="10" lims:id="10">
+      <MarginalNote>Law always speaking</MarginalNote><Label>10</Label>
+      <Text>The law shall be considered as always speaking, and where a matter or thing is expressed in the present tense, it shall be applied to the circumstances as they arise, so that effect may be given to the enactment according to its true spirit, intent and meaning.</Text>
+    </Section>
+    <Section lims:inforce-start-date="1988-12-12" lims:fid="12" lims:id="12">
+      <MarginalNote>Enactments deemed remedial</MarginalNote><Label>12</Label>
+      <Text>Every enactment is deemed remedial, and shall be given such fair, large and liberal construction and interpretation as best ensures the attainment of its objects.</Text>
+    </Section>
+  </Body>
+</Statute>

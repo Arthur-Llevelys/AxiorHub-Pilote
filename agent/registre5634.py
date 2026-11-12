@@ -26,7 +26,11 @@ def catalog():
     out = {}
     for pid, p in MCP.items():
         out[pid] = {'id': pid, 'name': p['name'], 'protocol': 'mcp', 'connector': item_id(pid), 'coverage': p.get('coverage', ''),
-                    'territories': list(p.get('territories', ())), 'auth': list(p.get('auth', ())), 'declared': sorted(k for k, v in (p.get('tools') or {}).items() if v)}
+                    'territories': list(p.get('territories', ())), 'auth': list(p.get('auth', ())), 'declared': sorted(k for k, v in (p.get('tools') or {}).items() if v),
+                    # 5.6.97 (J06, lot sources) : transport réel (« integre » = adaptateur AxiorHub sur index local, aucun réseau), capacités
+                    # annoncées, catégorie et qualification de la fiche, pour la sélection avant appel (J07, selection_sources5697).
+                    'transport': p.get('transport', 'streamable_http'), 'capabilities': list(p.get('capabilities', ())),
+                    'category': p.get('category', 'droit'), 'qualified': bool(p.get('qualified', True))}
     for pid, p in LEGACY_REST.items():
         if pid not in out:
             out[pid] = {'id': pid, 'name': p['name'], 'protocol': 'rest', 'connector': '', 'coverage': p['coverage'], 'territories': list(p['territories']),
@@ -80,15 +84,22 @@ def available(desk, operation='search'):
     return [r for r in status(desk) if r['active'] and operation in r['capabilities']]
 
 
-def search(desk, question, matter='', providers=None, limit=8):
+def search(desk, question, matter='', providers=None, limit=8, zones=None):
     """Service unique : sources REST configurées puis connecteurs MCP actifs ; résultats fusionnés, échecs partiels conservés par
-    fournisseur, pistes distinguées des autorités vérifiées sur la source officielle."""
+    fournisseur, pistes distinguées des autorités vérifiées sur la source officielle.
+    5.6.97 (B02, J07) : les sources sont choisies AVANT tout appel (``selection_sources5697``) : ``None`` = défaut approuvé, liste vide = aucun
+    appel, identifiant inconnu = erreur ; l'ensemble retenu est transmis à chaque transport."""
     from . import legal_research
-    wanted = [p for p in (providers or []) if known(p)] or [r['id'] for r in available(desk)]
+    from .selection_sources5697 import rapports_ecartes, selectionner
+    selection = selectionner(desk, providers, zones)
+    wanted = list(selection.ids)
     if not wanted:
-        raise Stop('aucune_source_juridique_active')
+        if selection.demande is None and not selection.ecartes:
+            raise Stop('aucune_source_juridique_active')
+        return {'leads': [], 'verified_authorities': [], 'reports': rapports_ecartes(selection), 'anonymized_query': '', 'matter': matter, 'status': 'aucune_source',
+                'warning': 'Aucune source n’a été interrogée : ' + ('aucune source choisie.' if not selection.ecartes else 'les sources choisies ne sont pas utilisables.')}
     rest = [p for p in wanted if catalog()[p]['protocol'] == 'rest']
-    out = {'leads': [], 'verified_authorities': [], 'reports': [], 'anonymized_query': '', 'matter': matter}
+    out = {'leads': [], 'verified_authorities': [], 'reports': rapports_ecartes(selection), 'anonymized_query': '', 'matter': matter}
     if rest:
         try:
             r = legal_research.research(desk, {'matter': matter, 'question': question, 'providers': rest, 'limit': limit})
@@ -101,14 +112,18 @@ def search(desk, question, matter='', providers=None, limit=8):
             out['reports'] += [{'provider': p, 'status': 'error', 'error': str(ex)} for p in rest]
     if any(catalog()[p]['protocol'] == 'mcp' for p in wanted):
         try:
-            r = legal_research.research_enabled_mcp(desk, matter, question, limit)
+            r = legal_research.research_enabled_mcp(desk, matter, question, limit, providers=[p for p in wanted if catalog()[p]['protocol'] != 'rest'])
             keep = [x for x in r['leads'] if x.get('provider') in wanted]
             out['leads'] += keep
-            out['verified_authorities'] += [x for x in r['verified_authorities']]
+            out['verified_authorities'] += [x for x in r['verified_authorities'] if x.get('provider', wanted[0]) in wanted]
             out['anonymized_query'] = out['anonymized_query'] or r['anonymized_query']
             out['reports'] += [x for x in r['connectors'] if x.get('provider') in wanted or not x.get('provider')]
         except Stop as ex:
             out['reports'].append({'provider': 'mcp', 'status': 'error', 'error': str(ex)})
-    out['status'] = 'completed' if out['reports'] and all(x.get('status') in ('ok', 'completed') for x in out['reports']) else ('partial' if out['leads'] else 'error')
+    from .citations5697 import normaliser   # 5.6.97 (J07 « Citation », lot sources) : forme normalisée ajoutée, rien n'est retiré
+    for ref in out['leads'] + out['verified_authorities']:
+        ref['citation'] = normaliser(ref, ref.get('provider'), zones)
+    appels = [x for x in out['reports'] if x.get('status') != 'skipped']
+    out['status'] = 'completed' if appels and all(x.get('status') in ('ok', 'completed') for x in appels) else ('partial' if out['leads'] else 'error')
     out['warning'] = 'Les résultats des fournisseurs sont des pistes ; seules les décisions revérifiées sur la source officielle sont citables.'
     return out

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Instantané local écrit à la main pour les tests AxiorHub 5.6.97 (lot sources), aucun téléchargement.
+     ATTENTION : ce n'est PAS le XML de l'Éditeur officiel du Québec. Le schéma du jeu « Lois et règlements codifiés du Québec »
+     (Données Québec, licence CC BY-NC-ND 4.0) n'est pas documenté publiquement ; ce fichier suit le format « axiorhub-legisquebec-1 »
+     décrit dans agent/fonds_caqc5697.py, qui reprend la présentation publique de LégisQuébec
+     (https://www.legisquebec.gouv.qc.ca/fr/document/lc/CCQ-1991 : « À jour au », ancre se:1457, notes de source), consultée le 2026-11-11.
+     Code civil du Québec, articles 1457 et 1458 abrégés ; dates de l'échantillon. Ne pas citer : vérifier sur LégisQuébec. -->
+<instantane format="axiorhub-legisquebec-1" langue="fr" a-jour-au="2026-10-15">
+  <loi identifiant="CCQ-1991" titre="Code civil du Québec">
+    <article numero="1457" en-vigueur-depuis="1994-01-01" source="1991, c. 64, a. 1457">Toute personne a le devoir de respecter les règles de conduite qui, suivant les circonstances, les usages ou la loi, s’imposent à elle, de manière à ne pas causer de préjudice à autrui (texte abrégé).</article>
+    <article numero="1458" en-vigueur-depuis="1994-01-01" source="1991, c. 64, a. 1458">Toute personne a le devoir d’honorer les engagements qu’elle a contractés (texte abrégé).</article>
+  </loi>
+</instantane>

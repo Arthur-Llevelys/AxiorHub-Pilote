@@ -92,6 +92,10 @@ TABLES = (
     ('temps', 'temps_valides', 'time500_entries', DESK, 'matter'), ('temps', 'temps_proposes', 'time500_items', DESK, 'matter'), ('temps', 'conditions', 'time500_terms', DESK, 'matter'),
     ('temps', 'contribution_parts', 'contrib5688_parts', DESK, None), ('temps', 'contribution_cles', 'contrib5688_cles', DESK, None),
     ('agenda', 'evenements', 'agenda5634', DESK, 'matter'), ('agenda', 'audiences', 'audiences5688', DESK, 'matter'),
+    # 5.6.97 (lot agenda) : détails de saisie, opérations idempotentes, salons Talk, écritures distantes et état des sources
+    ('agenda', 'details_des_evenements', 'agenda5697', DESK, ('event_id', 'agenda5634', 'id', 'matter')), ('agenda', 'operations', 'agenda_ops5697', DESK, 'dossier'),
+    ('agenda', 'salons_talk', 'agenda_salons5697', DESK, 'dossier'), ('agenda', 'ecritures_distantes', 'agenda_sorties5697', DESK, 'dossier'),
+    ('agenda', 'etat_des_sources', 'agenda_sources5697', DESK, None), ('taches', 'priorites_et_creneaux', 'taches5697', DESK, ('task_id', 'tasks', 'id', 'matter')),
     ('taches', 'taches', 'tasks', DESK, 'matter'), ('taches', 'taches_de_travail', 'work_tasks_v211', DESK, 'matter'),
     ('taches', 'suivi_des_taches', 'taches5688', DESK, ('task_id', 'tasks', 'id', 'matter')),
     ('notes', 'notes', 'notes', DESK, None), ('notes', 'memos', 'memos5636', DESK, 'matter'), ('notes', 'reponses_ia_tardives', 'reponses_tardives5689', DESK, 'matter'),
@@ -99,6 +103,34 @@ TABLES = (
     ('messagerie_interne', 'fils', 'fils5650', DESK, 'matter'), ('messagerie_interne', 'messages', 'messages5650', DESK, ('thread', 'fils5650', 'id', 'matter')),
     ('messagerie_interne', 'participants', 'participants5650', DESK, ('thread', 'fils5650', 'id', 'matter')),
     ('courriels', 'suivi_des_fils', 'courriels5696_suivis', DESK, 'matter'), ('courriels', 'decisions_de_suivi', 'courriels5696_evenements', DESK, ('suivi_id', 'courriels5696_suivis', 'id', 'matter')),   # 5.6.96 (C02)
+    ('courriels', 'commandes_de_preparation', 'courriels5697_commandes', DESK, ('suivi_id', 'courriels5696_suivis', 'id', 'matter')),   # 5.6.97 (B04)
+    ('courriels', 'projets_gmail', 'gmail5697_projets', DESK, 'matter'), ('courriels', 'journal_gmail', 'gmail5697_journal', DESK, ('projet_id', 'gmail5697_projets', 'id', 'matter')),   # 5.6.97 (lot gmail)
+    # 5.6.97 (lot gestion, § 18-21) : suivi des échéances, paquets gelés et accusés, frais, jalons, projection de la source externe, pièces demandées
+    # (registre 5.6.57 compris), remises au client, clôtures. Les octets gelés partent en base64 ; le lien et le jeton d'un partage (url_jeton) jamais.
+    ('contentieux', 'suivi_des_echeances', 'echeance_suivi5697', DESK, 'matter'), ('contentieux', 'depots_geles', 'depots5697', DESK, 'matter'),
+    ('contentieux', 'fichiers_des_depots', 'depot_fichiers5697', DESK, ('depot_id', 'depots5697', 'id', 'matter')), ('contentieux', 'accuses_de_depot', 'depot_accuses5697', DESK, 'matter'),
+    ('factures', 'frais', 'frais5697', DESK, 'matter'), ('factures', 'jalons', 'jalons5697', DESK, 'matter'), ('factures', 'projection_source_externe', 'fin_externes5697', DESK, 'matter'),
+    ('factures', 'synchronisations', 'fin_synchros5697', DESK, None), ('factures', 'demandes_externes', 'fin_demandes5697', DESK, 'matter'),
+    ('dossiers', 'registre_des_affaires', 'dossiers5697', DESK, 'id'), ('dossiers', 'parties_du_registre', 'dossier_parties5697', DESK, 'dossier_id'),   # 5.6.97 (lot dossiers)
+    ('dossiers', 'alias_des_dossiers', 'dossier_alias5697', DESK, 'dossier_id'), ('dossiers', 'rangements_des_dossiers', 'dossier_outbox5697', DESK, 'dossier_id'),
+    ('dossiers', 'journal_du_registre', 'dossier_journal5697', DESK, 'dossier_id'), ('courriels', 'classements_manuels', 'message_dossier5697', DESK, 'dossier_id'),
+    ('dossiers', 'commandes_du_registre', 'dossier_commandes5697', DESK, None), ('dossiers', 'migrations_du_registre', 'dossier_migrations5697', DESK, None),
+    ('dossiers', 'demandes_de_pieces', 'p57_requests', DESK, 'matter'), ('dossiers', 'elements_demandes', 'p57_request_items', DESK, ('request', 'p57_requests', 'id', 'matter')),
+    ('dossiers', 'suivi_des_demandes_de_pieces', 'pieces_suivi5697', DESK, 'matter'), ('dossiers', 'pieces_recues', 'pieces_receptions5697', DESK, 'matter'),
+    ('dossiers', 'remises_au_client', 'remises5697', DESK, 'matter'), ('dossiers', 'etat_de_cloture', 'dossiers_etat5697', DESK, 'matter'), ('dossiers', 'clotures', 'clotures5697', DESK, 'matter'),
+    ('dossiers', 'entrees_sur_dossier_archive', 'entrees_archivees5697', DESK, 'matter'), ('dossiers', 'journal_de_gestion', 'gestion_journal5697', DESK, 'matter'),
+    # 5.6.97 (lot documents-mission, § 13, § 16, § 17) : commandes et textes des versions de documents, demandes de mission et contrôles de conflits versionnés,
+    # réservations de conversion, espace de préparation (octets en base64), portefeuille (prochaine action, attentes) et historique des attributions.
+    ('documents', 'commandes_de_documents', 'documents5697_ops', DESK, 'dossier_id'),
+    ('documents', 'textes_des_versions', 'documents5697_textes', DESK, ('document_id', 'prepared_items5689', 'document_id', 'matter_id')),
+    ('dossiers', 'demandes_de_mission', 'demande_mission5697', DESK, 'dossier_id'),
+    ('dossiers', 'controles_de_conflits_des_demandes', 'decision_conflits5697', DESK, ('demande_id', 'demande_mission5697', 'id', 'dossier_id')),
+    ('dossiers', 'conversions_des_demandes', 'demande_conversion5697', DESK, 'dossier_id'),
+    ('dossiers', 'journal_des_demandes', 'demande_mission5697_journal', DESK, ('demande_id', 'demande_mission5697', 'id', 'dossier_id')),
+    ('dossiers', 'commandes_des_demandes', 'demande_mission5697_ops', DESK, ('demande_id', 'demande_mission5697', 'id', 'dossier_id')),
+    ('dossiers', 'preparation_des_demandes', 'preparation5697', DESK, ('demande_id', 'demande_mission5697', 'id', 'dossier_id')),
+    ('dossiers', 'prochaine_action', 'portefeuille5697', DESK, 'dossier_id'), ('dossiers', 'historique_du_portefeuille', 'portefeuille5697_historique', DESK, 'dossier_id'),
+    ('dossiers', 'commandes_du_portefeuille', 'portefeuille5697_ops', DESK, 'dossier_id'),
     ('modeles', 'modeles_du_cabinet', 'cabinet_templates_v330', DESK, None), ('modeles', 'modeles_de_facturation', 'b53_templates', DESK, None), ('modeles', 'bibliotheque', 'bibliotheque5639', DESK, None),
     ('modeles', 'versions_de_modeles', 'template_versions5684', DESK, None),
     ('competences', 'competences', 'skills5632', DESK, None), ('competences', 'etat_des_competences', 'skill_state5632', DESK, None), ('competences', 'ressources', 'skill_resources5683', DESK, None),

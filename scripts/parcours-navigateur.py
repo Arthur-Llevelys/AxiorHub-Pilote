@@ -1312,6 +1312,383 @@ def p96v_voix(banc, s):
     s.propre('profil de voix et avatar')
 
 
+# ------------------------------------------------------------------------------------------------ 5.6.97 (lot fiabilite) : panneau flottant
+PAGE97 = '/missions'   # page du lanceur flottant (même panneau que sur Dossiers ; la page Missions est celle de ce lot)
+
+
+def _carte97(p):
+    return p.locator('#ws-ai-current .mission567-card').first
+
+
+def _etat97(p, code, quoi, delai=10000):
+    """Attend la carte courante dans l'état ``code`` (attribut ``data-etat``) ; l'échec dit l'état réellement affiché."""
+    from playwright.sync_api import TimeoutError as Delai
+    try:
+        p.wait_for_selector('#ws-ai-current .mission567-card[data-etat="%s"]' % code, timeout=delai)
+    except Delai:
+        vu = p.evaluate('(() => { const c = document.querySelector("#ws-ai-current .mission567-card"); return c ? c.dataset.etat + " : " + c.innerText.slice(0, 200) : "aucune carte"; })()')
+        raise Echec('%s : état « %s » attendu, affiché : %s' % (quoi, code, vu)) from None
+    return _carte97(p)
+
+
+def _attendre97(p, expression, quoi, delai=8.0):
+    """Attente par lecture répétée (la CSP de la page interdit l'évaluation de chaînes qu'utilise ``wait_for_function``)."""
+    fin = time.monotonic() + delai
+    while not p.evaluate(expression):
+        if time.monotonic() > fin:
+            raise Echec('%s : non obtenu en %.0f s' % (quoi, delai))
+        p.wait_for_timeout(100)
+
+
+def _missions97(banc):
+    with banc.desk() as d:
+        try:
+            return [dict(r) for r in d.db.execute('SELECT id,request_key,instruction,state,job_id,matter FROM missions_v567 ORDER BY created, rowid')]
+        except Exception:   # noqa: BLE001 — table pas encore créée
+            return []
+
+
+def _envoyer97(p, texte):
+    p.fill('#ws-ai-question', texte)
+    p.click('#ws-ai-send')
+
+
+def p97f_panneau(banc, s):
+    """5.6.97 (lot fiabilite, B08-B10, scénario 1 de la recette) : panneau de l'assistant dans un vrai navigateur sur le vrai serveur du banc.
+    Production sans dossier : « Choix requis », choix sur place, la même demande repart sans nouvelle saisie, le champ est vidé à la réception ;
+    question : POST, identifiant et état réels, travail exécuté, bonne réponse ; 400 puis texte corrigé (nouvelle clé) ; réseau coupé avant et
+    après la validation, 503 (« Envoi à vérifier », reprise sans doublon, demande modifiée avec avertissement) ; double clic et Ctrl+Entrée ;
+    réponse tardive d'un ancien suivi ignorée ; fermeture et rechargement ; demande sans travail ; pause programmée qui passe minuit, annulation
+    protégée ; mission interrompue reprise ; refus affiché « Refusée »."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    p = s.page
+    # le faux modèle répond au format de la discussion de l'assistant (réponse, sources, limites)
+    banc.modele.reponse = lambda corps: json.dumps({'answer': 'Réponse fictive du banc.', 'source_ids': [], 'limits': [], 'proposed_actions': []})
+    p.set_viewport_size({'width': 1920, 'height': 950})
+    s.connecter()
+    s.aller(PAGE97)
+    corps = []
+    p.on('request', lambda r: corps.append(json.loads(r.post_data or '{}')) if '/m567/mission/create' in r.url and r.method == 'POST' else None)
+    # passages sans IA affichés après 4 s (5.6.80) : hors du sujet de ce parcours, et sans index plein texte sur le banc : liste vide
+    p.route('**/api440/m5680/passages', lambda route: route.fulfill(status=200, content_type='application/json', body='{"passages": []}'))
+    refus = []                 # réponses 4xx et 5xx reçues par la page : chaque refus attendu est vérifié, tout autre fait échouer
+    p.on('response', lambda r: refus.append('%d %s' % (r.status, r.url.split('/api440/')[-1][:80])) if r.status >= 400 else None)
+    p.click('#ws-ai-launcher')
+    p.wait_for_selector('#ws-ai-dock:not([hidden])')
+    _attendre97(p, 'document.querySelectorAll("#ws-ai-matter option").length > 3', 'liste des dossiers du panneau')
+
+    # 1. le point du cabinet : production sans dossier -> « Choix requis », choix sur place, même demande relancée
+    p.select_option('#ws-ai-matter', '')
+    texte = 'Prépare une note de plaidoirie pour l’audience fictive.'
+    _envoyer97(p, texte)
+    carte = _etat97(p, 'choix_requis', 'production sans dossier')
+    verifier(p.input_value('#ws-ai-question') == '', 'le texte reste dans le champ après la réception : l’avocat croit que rien n’est parti')
+    verifier('Choix requis' in carte.locator('.mission567-state').inner_text(), 'l’état « Choix requis » n’est pas écrit en mots')
+    verifier('Lancer dans ce dossier' in carte.inner_text() and texte[:30] in carte.inner_text(), 'la carte ne dit pas quoi choisir ni quelle demande repartira')
+    verifier(p.evaluate('!!document.activeElement && document.activeElement.classList.contains("mission567-choice")'), 'le choix du dossier n’a pas le focus')
+    for sel, nom in (('#ws-ai-current .mission567-choice', 'la liste des dossiers'), ('#ws-ai-current [data-mission-control="resolve"]', '« Lancer dans ce dossier »')):
+        verifier(p.evaluate(DANS_LA_VUE96, sel), '%s hors de la vue du volet (1920 × 950)' % nom)
+    bouton = carte.locator('[data-mission-control="resolve"]')
+    verifier(bouton.is_disabled(), '« Lancer dans ce dossier » actif sans dossier choisi')
+    m = _missions97(banc)
+    verifier(len(m) == 1 and m[0]['state'] == 'decision' and not m[0]['job_id'], 'mission attendue en attente du choix, sans travail : %s' % m)
+    if getattr(banc, 'sortie', None):
+        p.locator('#ws-ai-dock').screenshot(path=str(Path(banc.sortie) / 'P97f-choix-requis.png'))
+    carte.locator('.mission567-choice').select_option('DOS-001')
+    with p.expect_response(lambda r: '/m567/mission/control' in r.url) as rep:
+        bouton.click()
+    verifier(rep.value.ok, 'le choix du dossier est refusé (HTTP %d)' % rep.value.status)
+    _etat97(p, 'attente', 'demande relancée dans le dossier choisi')
+    m = _missions97(banc)
+    verifier(len(m) == 1 and m[0]['matter'] == 'DOS-001' and m[0]['job_id'] and m[0]['instruction'] == texte, 'la même demande n’est pas repartie dans DOS-001 : %s' % m)
+    verifier(len(corps) == 1 and len(banc.travaux('docrequest520')) == 1, 'nouvelle saisie ou travail en double (%d envoi(s))' % len(corps))
+    s.propre('choix requis')
+    # annulation (page Missions) : le travail en file est arrêté, la carte dit « Annulée »
+    s.aller('/missions')
+    p.once('dialog', lambda d: d.accept())
+    with p.expect_navigation():
+        p.click('#mission567-list [data-mission-id="%s"] [data-mission5636="annuler"]' % m[0]['id'])
+    verifier(_missions97(banc)[0]['state'] == 'cancelled' and banc.travaux('docrequest520')[0]['status'] == 'cancelled', 'annulation non enregistrée')
+    s.aller(PAGE97)
+    p.click('#ws-ai-launcher')
+    _etat97(p, 'annulee', 'mission annulée relue après rechargement')
+    s.propre('annulation')
+
+    # 2. question : POST, identifiant et état réels, worker exécuté, bonne réponse
+    p.select_option('#ws-ai-matter', 'DOS-001')
+    _envoyer97(p, 'Résume la situation fictive du dossier DURAND.')
+    carte = _etat97(p, 'attente', 'question enregistrée')
+    q1 = _missions97(banc)[-1]
+    verifier(carte.get_attribute('data-mission-id') == q1['id'] and q1['request_key'] == corps[-1]['request_key'], 'la carte ne montre pas la mission créée par ce POST')
+    verifier(p.input_value('#ws-ai-question') == '', 'champ non vidé après la réception')
+    carte.locator('details.mission5697-details > summary').click()
+    verifier(q1['id'] in carte.inner_text() and q1['request_key'] in carte.inner_text(), 'Détails : identifiants de la demande et de la mission absents')
+    verifier(banc.travailler() >= 1 and banc.modele.nombre() >= 1, 'le travail n’a pas été exécuté')
+    p.evaluate('document.dispatchEvent(new Event("axiorhub:activity"))')
+    carte = _etat97(p, 'reponse_prete', 'réponse du travail exécuté')
+    verifier('Réponse fictive du banc.' in carte.text_content(), 'la réponse affichée n’est pas celle du travail')
+    s.propre('question nominale')
+
+    # 3. refus 400 puis texte corrigé : nouvelle clé, bon texte
+    _envoyer97(p, 'xy')
+    carte = _etat97(p, 'refusee', 'texte trop court refusé')
+    verifier(p.input_value('#ws-ai-question') == 'xy', 'le texte refusé n’est pas gardé pour correction')
+    _envoyer97(p, 'Liste les pièces fictives du dossier DURAND.')
+    _etat97(p, 'attente', 'texte corrigé')
+    verifier(corps[-1]['instruction'] == 'Liste les pièces fictives du dossier DURAND.' and corps[-1]['request_key'] != corps[-2]['request_key'],
+             'le texte corrigé repart avec l’ancien texte ou l’ancienne clé : %s' % corps[-2:])
+    verifier(_missions97(banc)[-1]['instruction'] == 'Liste les pièces fictives du dossier DURAND.', 'la mission enregistrée n’a pas le texte corrigé')
+    s.erreurs.clear()          # la console du navigateur signale la réponse 400 elle-même : attendu ici
+    s.propre('400 puis texte corrigé')
+
+    # 4. réseau coupé AVANT la validation : « Envoi à vérifier », reprise avec la même clé, une seule mission
+    avant = len(_missions97(banc))
+    p.route('**/api440/m567/mission/create', lambda route: route.abort())
+    _envoyer97(p, 'Prépare la liste des échéances fictives du dossier DURAND.')
+    carte = _etat97(p, 'incertaine', 'réseau coupé avant la validation')
+    verifier(p.input_value('#ws-ai-question') == 'Prépare la liste des échéances fictives du dossier DURAND.', 'texte perdu après une coupure')
+    verifier(len(_missions97(banc)) == avant, 'une mission existe alors que la demande n’est pas arrivée')
+    cle = corps[-1]['request_key']
+    p.reload(wait_until='load')                         # rechargement : la tentative reste proposée, texte remis, même clé
+    p.click('#ws-ai-launcher')
+    carte = _etat97(p, 'incertaine', 'tentative incertaine après rechargement')
+    verifier(p.input_value('#ws-ai-question') == 'Prépare la liste des échéances fictives du dossier DURAND.', 'texte non remis après le rechargement')
+    p.unroute('**/api440/m567/mission/create')
+    carte.locator('[data-ai-reprendre]').click()
+    _etat97(p, 'attente', 'reprise de la demande coupée')
+    verifier(corps[-1]['request_key'] == cle and len(_missions97(banc)) == avant + 1, 'reprise avec une autre clé ou doublon')
+
+    # 5. réseau coupé APRÈS la validation (réponse perdue) puis 503 : reprise sans doublon ; demande modifiée avec avertissement
+    def perdue(route):
+        route.fetch()             # le serveur reçoit et valide la demande
+        route.abort()             # la réponse n'arrive jamais au navigateur
+    p.route('**/api440/m567/mission/create', perdue)
+    _envoyer97(p, 'Rédige un point d’étape fictif pour le client DURAND.')
+    _etat97(p, 'incertaine', 'réponse perdue après la validation')
+    p.unroute('**/api440/m567/mission/create')
+    recue = _missions97(banc)[-1]
+    verifier(recue['instruction'] == 'Rédige un point d’étape fictif pour le client DURAND.', 'la demande validée n’est pas en base')
+    _carte97(p).locator('[data-ai-reprendre]').click()
+    carte = _etat97(p, 'attente', 'vérification de la demande reçue')
+    verifier(carte.get_attribute('data-mission-id') == recue['id'] and len(_missions97(banc)) == avant + 2, 'la vérification a créé un doublon')
+    p.route('**/api440/m567/mission/create', lambda route: (route.fetch(), route.fulfill(status=503, content_type='application/json',
+                                                                                            body=json.dumps({'error': 'indisponible', 'message': 'Service momentanément indisponible.'})))[1])
+    _envoyer97(p, 'Rédige une relance fictive pour DURAND.')
+    carte = _etat97(p, 'incertaine', '503 après la validation')
+    verifier(carte.locator('[data-ai-modifiee]').is_hidden(), '« Envoyer la demande modifiée » proposé alors que rien n’a changé')
+    p.unroute('**/api440/m567/mission/create')
+    p.fill('#ws-ai-question', 'Rédige une relance fictive pour DURAND, ton cordial.')
+    verifier(carte.locator('[data-ai-modifiee]').is_visible(), '« Envoyer la demande modifiée » absent après la modification')
+    carte.locator('[data-ai-modifiee]').click()
+    _etat97(p, 'attente', 'demande modifiée')
+    _attendre97(p, 'document.getElementById("ws-ai-status").textContent.includes("avait aussi été reçue")', 'avertissement : l’ancienne demande avait été reçue')
+    dernieres = _missions97(banc)[-2:]
+    verifier([x['instruction'] for x in dernieres] == ['Rédige une relance fictive pour DURAND.', 'Rédige une relance fictive pour DURAND, ton cordial.']
+             and dernieres[0]['request_key'] != dernieres[1]['request_key'], 'demande modifiée : clés ou textes inattendus : %s' % dernieres)
+    s.erreurs.clear()          # erreurs réseau volontaires (coupures, 503) signalées par la console
+    s.propre('coupures et 503')
+
+    # 6. double clic et Ctrl+Entrée dans le même instant : une seule demande
+    n, n_refus = len(corps), len(refus)
+    p.fill('#ws-ai-question', 'Résume le dernier courrier fictif de DURAND.')
+    p.focus('#ws-ai-question')
+    p.evaluate("""() => { const b = document.getElementById('ws-ai-send'), q = document.getElementById('ws-ai-question');
+        b.click(); b.click(); q.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true})); }""")
+    _etat97(p, 'attente', 'double clic')
+    p.wait_for_timeout(500)
+    verifier(len(corps) == n + 1, 'double clic et Ctrl+Entrée : %d demande(s) au lieu d’une' % (len(corps) - n))
+
+    # 7. réponse tardive d'un ancien suivi : ignorée, ni la carte ni le brouillon ne sont remplacés
+    ancienne = _carte97(p).get_attribute('data-mission-id')
+    retenues, retenir = [], [True]
+    suivi = lambda url: '/api440/m567/mission?id=' in url   # noqa: E731
+    p.route(suivi, lambda route: retenues.append(route) if retenir[0] else route.continue_())
+    p.evaluate('document.dispatchEvent(new Event("axiorhub:activity"))')
+    p.wait_for_timeout(700)
+    verifier(retenues, 'le suivi n’a pas été demandé')
+    retenir[0] = False
+    _envoyer97(p, 'Prépare une note fictive sur le bail de DURAND.')
+    carte = _etat97(p, 'attente', 'nouvelle demande pendant un suivi lent')
+    nouvelle = carte.get_attribute('data-mission-id')
+    p.fill('#ws-ai-question', 'Brouillon en cours de saisie')
+    for route in retenues:
+        route.fulfill(status=200, content_type='application/json', body=json.dumps({'id': ancienne, 'state': 'answered', 'label': 'Réponse disponible',
+                      'panneau': {'code': 'reponse_prete', 'libelle': 'Réponse prête', 'geste': ''}, 'instruction': 'Ancienne demande', 'matter': '', 'matter_label': '',
+                      'exceptions': [], 'plan': {'deliverable': '', 'steps': [], 'restrictions': []}, 'result': {'text': 'Ancienne réponse tardive'}, 'context': {}, 'lignes': {}}))
+    p.wait_for_timeout(500)
+    p.unroute(suivi)
+    verifier(_carte97(p).get_attribute('data-mission-id') == nouvelle and 'Ancienne réponse tardive' not in p.locator('#ws-ai-current').inner_text(),
+             'une réponse tardive a remplacé la carte courante')
+    verifier(p.input_value('#ws-ai-question') == 'Brouillon en cours de saisie', 'une réponse tardive a remplacé le brouillon')
+    verifier(not refus[n_refus:], 'refus inattendus : %s' % refus[n_refus:])
+    s.propre('réponse tardive')
+
+    # 8. fermeture, réouverture, rechargement : le même travail est repris
+    p.keyboard.press('Escape')
+    p.click('#ws-ai-launcher')
+    verifier(_carte97(p).get_attribute('data-mission-id') == nouvelle, 'la réouverture ne reprend pas la même demande')
+    p.reload(wait_until='load')
+    p.click('#ws-ai-launcher')
+    p.wait_for_selector('#ws-ai-current .mission567-card[data-mission-id="%s"]' % nouvelle)
+    s.propre('fermeture et rechargement')
+
+    # 9. demande sans travail : réponse immédiate, aucune mission en file
+    travaux = len(banc.travaux())
+    _envoyer97(p, 'Merci beaucoup')
+    _etat97(p, 'reponse_prete', 'remerciement')
+    verifier(len(banc.travaux()) == travaux, 'un travail a été créé pour une simple formule de politesse')
+
+    # 10. pause programmée qui passe minuit : « Suspendue jusqu'à … 7 h », reprise automatique ; rien ne s'exécute ; annulation protégée
+    paris = ZoneInfo('Europe/Paris')
+    ici = datetime.now(paris)
+    debut = (ici - timedelta(hours=1)).strftime('%H:%M')
+    fin = '07:00' if not (6 <= ici.hour < 8) else (ici + timedelta(hours=3)).strftime('%H:%M')
+    politique = {'schema_version': 1, 'revision': 1, 'enabled': True, 'timezone': 'Europe/Paris', 'scope': 'cabinet',
+                 'windows': [{'id': 'banc-nuit', 'days': [1, 2, 3, 4, 5, 6, 7], 'kind': 'period', 'start': debut, 'end': fin}]}
+    with banc.desk() as d:
+        d.db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)', ('horaires_ia5689:policy', json.dumps(politique)))
+        d.db.commit()
+    appels = banc.modele.nombre()
+    _envoyer97(p, 'Résume les échanges fictifs avec DURAND.')
+    _etat97(p, 'attente', 'demande pendant la pause programmée')
+    banc.travailler()                                   # le travailleur la prend : retenue par le planning, sans appel au modèle
+    p.evaluate('document.dispatchEvent(new Event("axiorhub:activity"))')
+    carte = _etat97(p, 'suspendue', 'travail retenu par la pause programmée')
+    libelle = carte.locator('.mission567-state').inner_text()
+    attendu = '%d h' % int(fin[:2]) + ('' if fin.endswith(':00') else ' ' + fin[3:])
+    verifier(libelle.startswith('Suspendue jusqu’à') and libelle.strip().endswith(attendu), 'libellé de suspension inattendu : %r (fin %s)' % (libelle, attendu))
+    verifier('une seule fois' in carte.inner_text(), 'la reprise automatique n’est pas annoncée')
+    verifier(banc.modele.nombre() == appels, 'le modèle a été appelé pendant la pause programmée')
+    if getattr(banc, 'sortie', None):
+        p.locator('#ws-ai-dock').screenshot(path=str(Path(banc.sortie) / 'P97f-suspendue.png'))
+    suspendue = _missions97(banc)[-1]
+    with banc.desk() as d:
+        d.db.execute('DELETE FROM settings WHERE key=?', ('horaires_ia5689:policy',))
+        d.db.commit()
+        from agent import missions567
+        missions567.control(d, {'id': suspendue['id'], 'action': 'cancel'})
+        d.db.execute("UPDATE jobs SET status='suspended', stop_reason='pause' WHERE id=?", (suspendue['job_id'],))   # un travail suspendu ne rouvre pas une annulée
+        d.db.commit()
+    p.evaluate('document.dispatchEvent(new Event("axiorhub:activity"))')
+    _etat97(p, 'annulee', 'annulation protégée malgré un travail suspendu')
+    s.propre('pause programmée')
+
+    # 11. mission ancienne restée sans travail : « Interrompue · reprendre », reprise d'un clic jusqu'à la réponse ; refus en clair
+    import uuid as _uuid
+    from datetime import timezone as _tz
+    ident, ancien = _uuid.uuid4().hex, (datetime.now(_tz.utc) - timedelta(hours=3)).isoformat()
+    plan = {'objective': 'x', 'deliverable': 'Réponse dans le fil', 'steps': ['Répondre'], 'restrictions': ['Aucun envoi'], 'intent': 'question', 'autonomy': 'prepare', 'document_kind': ''}
+    ctx = {'page': '/', 'selected_documents': [], 'mail_key': '', 'attachments': [], 'channel': 'text', 'thread_id': ''}
+    with banc.desk() as d:
+        d.db.execute('INSERT INTO missions_v567 VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,?,?,?)',
+                     (ident, 'cabinet', 'banc-ancienne-' + _uuid.uuid4().hex, 'f' * 64, 'Résume le dossier fictif DURAND.', 'DOS-001', 'question', 'creating',
+                      json.dumps(ctx), json.dumps(plan), '[]', '', ancien, ancien))
+        d.db.commit()
+    s.aller(PAGE97)
+    p.evaluate('id => sessionStorage.setItem("axiorhub567-last-mission:" + %s, id)' % json.dumps(PREFIX), ident)
+    p.reload(wait_until='load')
+    p.click('#ws-ai-launcher')
+    carte = _etat97(p, 'interrompue', 'mission ancienne sans travail')
+    verifier('Interrompue' in carte.locator('.mission567-state').inner_text(), 'l’état « Interrompue » n’est pas écrit')
+    carte.locator('[data-mission-control="resume"]').click()
+    _etat97(p, 'attente', 'reprise de la mission interrompue')
+    banc.travailler()
+    p.evaluate('document.dispatchEvent(new Event("axiorhub:activity"))')
+    _etat97(p, 'reponse_prete', 'mission reprise jusqu’à la réponse')
+    with banc.desk() as d:
+        job = d.db.execute('SELECT job_id FROM missions_v567 WHERE id=?', (ident,)).fetchone()[0]
+        d.db.execute("UPDATE jobs SET status='error', result=? WHERE id=?", (json.dumps({'erreur': 'autorisation_mission_revoquee'}), job))
+        d.db.execute("UPDATE missions_v567 SET state='queued' WHERE id=?", (ident,))
+        d.db.commit()
+    p.evaluate('document.dispatchEvent(new Event("axiorhub:activity"))')
+    carte = _etat97(p, 'refusee', 'droits révoqués')
+    if getattr(banc, 'sortie', None):
+        p.locator('#ws-ai-dock').screenshot(path=str(Path(banc.sortie) / 'P97f-refusee.png'))
+    s.propre('interrompue, reprise et refus')
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.97 (lot gmail) : Gmail, de la connexion à l'envoi relu
+def _gmail97(banc):
+    """Faux Google dans le processus du banc (transport de ``google5697``), client OAuth fictif, boîte de l'administrateur autorisée côté
+    serveur (la page de consentement de Google n'est jamais ouverte), un courriel reçu relevé. Rend le faux Google."""
+    sys.path.insert(0, str(ROOT / 'tests'))
+    from test_v5697_gmail import CLIENT_ID, SECRET, FauxGoogle
+    from agent import google5697 as gg, gmail5697 as gm
+    from agent.common import private_json
+    from agent.vault567 import write
+    secret = Path(banc.config['state_dir']) / 'secrets-banc' / 'google.secret'
+    write(secret, SECRET)
+    banc.config['google5697'] = {'client_id': CLIENT_ID, 'client_secret_file': str(secret), 'redirect_uri': 'https://pilote.example.test' + PREFIX + '/api440/m5689/oauth/google/callback'}
+    private_json(banc.config_path, banc.config)
+    faux = FauxGoogle()
+    gg.TRANSPORT = faux
+    with banc.desk() as d:
+        gm.regler(d, 'administrateur', True)
+        d.setting('courriels5696:vue_assistee', True)
+        depart = gg.demarrer(d, 'cabinet', 'gmail', 'session-banc', ['gmail.lecture', 'gmail.brouillons'])
+        gg.terminer(d, 'cabinet', 'session-banc', faux.consentir(depart['url'], 'cabinet.gmail@example.test'))
+        faux.message('cabinet.gmail@example.test', 'Camille MARTIN <camille.martin@example.test>', 'Bordereau KERVILAC', 'Bonjour Maître, voici le bordereau.',
+                     cc='Greffe Valbrune <greffe@example.test>')
+        gm.synchroniser(d, gm.connexion_de(d, 'cabinet')['id'])
+    return faux
+
+
+def p97g_gmail(banc, s):
+    """5.6.97 (lot gmail, C03-C07) : Paramètres › Connexions › Gmail (état, autorisations, guide), puis dans « À traiter avec le Pilote » à
+    1920 × 1080 : ouvrir le fil Gmail, préparer un projet local, le déposer dans Gmail, relire exactement ce qui partira, envoyer une seule
+    fois ; enfin la vue mobile. Aucune requête hors du banc ; le faux Google compte les envois."""
+    from agent import google5697 as gg
+    faux = _gmail97(banc)
+    try:
+        p = s.page
+        p.set_viewport_size({'width': 1920, 'height': 1080})
+        s.connecter()
+        s.aller('/parametres?rubrique=connexions')
+        carte = p.locator('#gmail5697')
+        verifier(carte.count() == 1, 'la carte Gmail est absente de Paramètres › Connexions')
+        texte = carte.inner_text()
+        verifier('cabinet.gmail@example.test' in texte and 'Enregistrer des brouillons dans Gmail' in texte, 'la carte Gmail ne dit ni la boîte ni les autorisations')
+        verifier(p.locator('#gmail5697-guide').count() == 1, 'le guide de l’administrateur est absent')
+        if getattr(banc, 'sortie', None):
+            carte.screenshot(path=str(Path(banc.sortie) / 'P97g-parametres-gmail.png'))
+        s.propre('Paramètres › Gmail')
+        s.aller('/courriels?vue=assistante')
+        ligne = p.locator('.cx96-ligne', has_text='Bordereau KERVILAC')
+        verifier(ligne.count() == 1, 'le fil Gmail n’apparaît pas dans la vue')
+        ligne.click()
+        p.wait_for_load_state('networkidle')
+        s.propre('fil Gmail')
+        p.locator('.cx96-preparer textarea[name=texte]').fill('Bien reçu, merci.')
+        envoyer(p, '/courriels/preparer', lambda: p.locator('.cx96-preparer button[type=submit]').click(), 'préparer')
+        verifier(p.locator('.gm97-projet').count() == 1, 'le projet local n’est pas affiché')
+        verifier(not faux.ecritures_gmail(), 'préparer a écrit dans Gmail')
+        envoyer(p, '/gmail/deposer', lambda: p.locator('form[data-api="m5689/gmail/deposer"] button[type=submit]').click(), 'déposer')
+        releve = p.locator('.gm97-releve').inner_text()
+        for attendu in ('cabinet.gmail@example.test', 'camille.martin@example.test', 'Re: Bordereau KERVILAC', 'Bien reçu, merci.', 'Aucune pièce jointe'):
+            verifier(attendu in releve, 'relecture incomplète : %s absent' % attendu)
+        verifier('greffe@example.test' not in releve, 'réponse à tous activée par défaut')
+        verifier(not faux.boite('cabinet.gmail@example.test')['envoyes'], 'déposer a envoyé')
+        if getattr(banc, 'sortie', None):
+            p.screenshot(path=str(Path(banc.sortie) / 'P97g-relecture-1920.png'))
+        s.propre('relecture')
+        p.locator('.gm97-envoyer input[name=relu]').check()
+        envoyer(p, '/gmail/envoyer', lambda: p.locator('.gm97-envoyer button[type=submit]').click(), 'envoyer')
+        verifier(len(faux.boite('cabinet.gmail@example.test')['envoyes']) == 1, 'nombre d’envois inattendu')
+        s.aller('/courriels?vue=assistante&filtre=termines')
+        verifier(p.locator('.cx96-ligne', has_text='Bordereau KERVILAC').count() == 1, 'le fil envoyé n’est pas dans « Terminés »')
+        p.set_viewport_size({'width': 390, 'height': 844})
+        p.locator('.cx96-ligne', has_text='Bordereau KERVILAC').click()
+        p.wait_for_load_state('networkidle')
+        verifier(p.evaluate(SANS_DEFILEMENT_HORIZONTAL96), 'petite largeur : défilement horizontal')
+        if getattr(banc, 'sortie', None):
+            p.screenshot(path=str(Path(banc.sortie) / 'P97g-mobile.png'))
+        s.propre('mobile')
+        verifier(len([a for a in faux.appels if a[1].endswith('/drafts/send')]) == 1, 'drafts.send appelé plus d’une fois')
+    finally:
+        gg.TRANSPORT = None
+
+
 PARCOURS = (('P02a', 'connexion puis déconnexion', p02a_connexion), ('P02b', 'pause de l’IA depuis Aujourd’hui', p02b_pause),
             ('P02c', 'annulation puis relance d’une demande', p02c_annulation), ('P02d', 'reprise après une erreur du fournisseur', p02d_reprise_erreur),
             ('P02e', 'facture en brouillon', p02e_facture), ('P02f', 'ouverture et téléchargement d’un document', p02f_livrable),
@@ -1321,8 +1698,21 @@ PARCOURS = (('P02a', 'connexion puis déconnexion', p02a_connexion), ('P02b', 'p
             ('P96F1', 'en-tête, météo et ordre d’Aujourd’hui', p96f1_accueil), ('P96F2', 'action en fenêtre flottante', p96f2_fenetre),
             ('P96c', 'Courriels : vue « À traiter avec le Pilote »', p96c_courriels),
             ('P96a', 'volet de l’assistant : composeur visible, focus, clavier', p96a_volet), ('P96b', 'Aujourd’hui : premier écran, densité, plis', p96b_aujourdhui_densite),
-            ('P96v', 'Voix : profil « Français posé » et avatar facultatif', p96v_voix))
+            ('P96v', 'Voix : profil « Français posé » et avatar facultatif', p96v_voix),
+            ('P97f', 'panneau : états, choix requis, coupures, doublons, réponse tardive, pause et reprise', p97f_panneau),   # 5.6.97 (lot fiabilite)
+            ('P97g', 'Gmail : carte de connexion, projet local, dépôt, relecture exacte et envoi unique', p97g_gmail))   # 5.6.97 (lot gmail)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # 5.6.97 : parcours des lots dans scripts/, aussi quand le banc est importé
+from parcours_p97m import p97m_documents_mission   # noqa: E402 — 5.6.97 (lot documents-mission) : parcours dans un module à part
+PARCOURS = PARCOURS + (('P97m', 'Nouveau document, versions et conflit, demande de mission, suivi des dossiers', p97m_documents_mission),)
+from parcours_p97c import p97c_chatgpt   # noqa: E402 — 5.6.97 (lot chatgpt) : connexion ChatGPT suivie, liaison poste → serveur
+PARCOURS = PARCOURS + (('P97c', 'ChatGPT : connexion suivie sur le poste, liaison poste → serveur par code court', p97c_chatgpt),)
+from parcours_p97s import p97s_sources   # noqa: E402 — 5.6.97 (lot sources) : cartes communes, adaptateur intégré, guide
+PARCOURS = PARCOURS + (('P97s', 'Sources juridiques : cartes par zone, adaptateur intégré testé puis activé, mêmes liens dans le guide', p97s_sources),)
+from parcours_p97d import p97d_dossiers   # noqa: E402 — 5.6.97 (lot dossiers) : Dossiers, Nouveau dossier, import, fiche
+PARCOURS = PARCOURS + (('P97d', 'Dossiers : écran de départ, import, Nouveau dossier, conflits, fiche, retour et petite largeur', p97d_dossiers),)
+from parcours_p97a import p97a_agenda   # noqa: E402 — 5.6.97 (lot agenda) : grille sur un écran, saisie (clic, glisser, clavier), 125 %, mobile
+PARCOURS = PARCOURS + (('P97a', 'Agenda : grille Jour/Semaine sans défilement à 1920 × 950, clic, glisser, clavier, double clic, 125 %, 200 %, mobile', p97a_agenda),)
 
 # ------------------------------------------------------------------------------------------------ lancement
 def lancer(navigateur, sortie, choisis=(), voir=False):

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Échantillon écrit à la main pour les tests AxiorHub 5.6.97 (lot sources), aucun téléchargement.
+     Format : Gesetze im Internet, DTD gii-norm 1.01 (https://www.gesetze-im-internet.de/dtd/1.01/gii-norm.dtd),
+     instructions https://www.gesetze-im-internet.de/hinweise.html ; page de référence https://www.gesetze-im-internet.de/bgb/__433.html.
+     Collecte de la documentation : 2026-11-11. Texte abrégé à deux paragraphes ; la date builddate est celle de l'échantillon.
+     Ne pas citer : vérifier sur le site officiel. -->
+<dokumente builddate="20241015120000" doknr="BJNR001950896">
+  <norm builddate="20241015120000" doknr="BJNR001950896">
+    <metadaten>
+      <jurabk>BGB</jurabk>
+      <amtabk>BGB</amtabk>
+      <ausfertigung-datum manuell="ja">1896-08-18</ausfertigung-datum>
+      <fundstelle typ="amtlich"><periodikum>RGBl</periodikum><zitstelle>1896, 195</zitstelle></fundstelle>
+      <langue>Bürgerliches Gesetzbuch</langue>
+      <standangabe checked="ja"><standtyp>Stand</standtyp><standkommentar>Neugefasst durch Bek. v. 2.1.2002 (Angabe des Echantillons)</standkommentar></standangabe>
+    </metadaten>
+    <textdaten><text format="XML"><Content><P>Inhaltsübersicht (gekürzt)</P></Content></text></textdaten>
+  </norm>
+  <norm builddate="20241015120000" doknr="BJNR001950896BJNE023702377">
+    <metadaten>
+      <jurabk>BGB</jurabk>
+      <enbez>§ 241</enbez>
+      <titel format="parat">Pflichten aus dem Schuldverhältnis</titel>
+    </metadaten>
+    <textdaten><text format="XML"><Content>
+      <P>(1) Kraft des Schuldverhältnisses ist der Gläubiger berechtigt, von dem Schuldner eine Leistung zu fordern. Die Leistung kann auch in einem Unterlassen bestehen.</P>
+      <P>(2) Das Schuldverhältnis kann nach seinem Inhalt jeden Teil zur Rücksicht auf die Rechte, Rechtsgüter und Interessen des anderen Teils verpflichten.</P>
+    </Content></text></textdaten>
+  </norm>
+  <norm builddate="20241015120000" doknr="BJNR001950896BJNE042102377">
+    <metadaten>
+      <jurabk>BGB</jurabk>
+      <enbez>§ 433</enbez>
+      <titel format="parat">Vertragstypische Pflichten beim Kaufvertrag</titel>
+    </metadaten>
+    <textdaten><text format="XML"><Content>
+      <P>(1) Durch den Kaufvertrag wird der Verkäufer einer Sache verpflichtet, dem Käufer die Sache zu übergeben und das Eigentum an der Sache zu verschaffen. Der Verkäufer hat dem Käufer die Sache frei von Sach- und Rechtsmängeln zu verschaffen.</P>
+      <P>(2) Der Käufer ist verpflichtet, dem Verkäufer den vereinbarten Kaufpreis zu zahlen und die gekaufte Sache abzunehmen.</P>
+    </Content></text></textdaten>
+  </norm>
+</dokumente>

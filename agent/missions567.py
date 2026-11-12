@@ -4,11 +4,15 @@ Pas de second moteur IA. Les missions référencent les jobs, conversations et
 documents du cabinet. Elles n'autorisent jamais un envoi, une signature ou une
 suppression. Une commande répétée avec le même identifiant ne crée pas de travail.
 """
+import contextvars
 import hashlib
 import json
 import re
 import secrets
 import os
+import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 from urllib.parse import urlencode
@@ -31,12 +35,37 @@ LABELS = {'creating': 'Demande enregistrée', 'queued': 'En attente', 'running':
           'suggested':'Plan proposé, préparation non lancée',
           'cancel_requested': 'Arrêt demandé', 'paused': 'Suspendue', 'decision': 'Une précision est nécessaire',
           'prepared': 'Projet préparé', 'verified': 'Dépôt vérifié', 'answered': 'Réponse disponible',
-          'abstained': 'Aucune production nécessaire', 'error': 'Traitement interrompu', 'cancelled': 'Annulée'}
+          'abstained': 'Aucune production nécessaire', 'error': 'Traitement interrompu', 'cancelled': 'Annulée',
+          'suspended': 'Suspendue', 'interrupted': 'Interrompue · reprendre'}   # 5.6.97 (B09, B10)
+# 5.6.97 (B09) : ordre de lancement écrit dans la même transaction que la mission et son reçu, puis traité sous bail ; une clé par mission et
+# par phase (lancement, précision, reprise-n). Un ordre resté sans suite (service coupé après la validation) est repris par le superviseur ou
+# à la lecture de la mission ; un travail déjà créé pour la mission est rattaché, jamais recréé.
+ORDRES = '''CREATE TABLE IF NOT EXISTS missions_ordres5697(
+ id TEXT PRIMARY KEY, mission TEXT NOT NULL, phase TEXT NOT NULL, etat TEXT NOT NULL, bail REAL NOT NULL DEFAULT 0,
+ tentatives INTEGER NOT NULL DEFAULT 0, job_id INTEGER, erreur TEXT NOT NULL DEFAULT '', cree REAL NOT NULL, maj TEXT NOT NULL, UNIQUE(mission, phase));
+ CREATE INDEX IF NOT EXISTS missions_ordres5697_etat ON missions_ordres5697(etat, cree);
+'''
+BAIL_SECONDES = 90          # durée pendant laquelle un lancement en cours n'est pas repris par un autre
+RELANCE_SECONDES = 15       # un ordre jamais pris depuis ce délai est repris (le lancement suit normalement la validation dans la même requête)
+INTERRUPTION_SECONDES = 120  # mission ancienne restée « Demande enregistrée » sans ordre ni travail : « Interrompue · reprendre »
+TENTATIVES_MAX = 3
+_horloge = time.time
+# 5.6.97 : états du panneau, du clic jusqu'au résultat (« Envoi en cours » et « Refusée » avant tout reçu sont posés par le navigateur)
+PANNEAU = {'creating': ('recue', 'Reçue'), 'queued': ('attente', 'En attente de calcul'), 'running': ('en_cours', 'En cours'),
+           'cancel_requested': ('en_cours', 'Arrêt demandé'), 'answered': ('reponse_prete', 'Réponse prête'), 'prepared': ('projet_a_relire', 'Projet à relire'),
+           'verified': ('projet_a_relire', 'Projet à relire · dépôt vérifié'), 'decision': ('choix_requis', 'Choix requis'),
+           'suspended': ('suspendue', 'Suspendue'), 'paused': ('suspendue', 'Suspendue'), 'error': ('interrompue', 'Interrompue'),
+           'interrupted': ('interrompue', 'Interrompue'), 'cancelled': ('annulee', 'Annulée'), 'abstained': ('sans_production', 'Aucune production nécessaire'),
+           'suggested': ('plan_propose', 'Plan proposé')}
+REFUS = ('autorisation_mission_revoquee', 'autorisation_mission_absente', 'autorisation_mission_non_verifiable', 'depot_brouillon_role_insuffisant',
+         'role_insuffisant', 'dossier_reserve', 'dossier_decline_conflit', 'conflit_a_examiner', 'mission_annulee')
+DOSSIER_A_CHOISIR = ('dossier_requis', 'dossier_ambigu', 'changement_dossier')
 
 
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
     desk.db.execute('CREATE TABLE IF NOT EXISTS missions_hidden5636(id TEXT PRIMARY KEY, owner TEXT NOT NULL, at TEXT NOT NULL)')   # 5.6.36
+    desk.db.executescript(ORDRES)   # 5.6.97 (B09)
 
 
 def auth_root():
@@ -108,11 +137,199 @@ def _limit_ai(desk, owner):
 
 
 def _event(desk, ident, kind, detail):
-    desk.db.execute('INSERT INTO mission_events_v567(mission,at,kind,detail) VALUES (?,?,?,?)',
-                    (ident, desk.now(), kind, json.dumps(detail, ensure_ascii=False)))
+    _inscrire(desk, ident, kind, detail)
     desk.db.commit()
     from .live430 import emit
     emit(desk, 'mission', 'Mission : ' + LABELS.get(kind, kind), matter=str(detail.get('matter') or ''))
+
+
+def _inscrire(desk, ident, kind, detail):
+    """5.6.97 (B09) : événement écrit dans la transaction de l'appelant, sans validation ni notification (le reçu de la mission)."""
+    desk.db.execute('INSERT INTO mission_events_v567(mission,at,kind,detail) VALUES (?,?,?,?)',
+                    (ident, desk.now(), kind, json.dumps(detail, ensure_ascii=False)))
+
+
+def _annoncer(desk, kind, matter):
+    """Notification après validation ; une panne ne défait rien (la mission, son reçu et son ordre existent déjà)."""
+    try:
+        from .live430 import emit
+        emit(desk, 'mission', 'Mission : ' + LABELS.get(kind, kind), matter=str(matter or ''))
+    except Exception:   # noqa: BLE001
+        if desk.db.in_transaction:
+            desk.db.rollback()
+
+
+def _ordre(desk, mission, phase):
+    """Ordre de lancement inséré dans la transaction de l'appelant. ``phase`` : lancement, precision ou reprise (numérotée ici)."""
+    if phase != 'lancement':
+        phase += '-%d' % (desk.db.execute('SELECT COUNT(*) FROM missions_ordres5697 WHERE mission=?', (mission,)).fetchone()[0] + 1)
+    ident = uuid.uuid4().hex
+    desk.db.execute("INSERT INTO missions_ordres5697(id,mission,phase,etat,cree,maj) VALUES (?,?,?,'a_lancer',?,?)", (ident, mission, phase, _horloge(), desk.now()))
+    return ident
+
+
+def _clore_ordre(desk, ident, etat, job_id=None, erreur=''):
+    desk.db.execute('UPDATE missions_ordres5697 SET etat=?,job_id=?,erreur=?,bail=0,maj=? WHERE id=?', (etat, job_id, str(erreur)[:120], desk.now(), ident))
+    desk.db.commit()
+
+
+def _ref_du_travail(ident, kind, args):
+    """Référence de la mission d'après le travail produit pour elle (preuve de rattachement)."""
+    if kind == 'docrequest520':
+        return 'docreq:' + str(args.get('request') or '')
+    if kind == 'assistant_answer':
+        return 'ask:' + str(args.get('thread') or '')
+    if kind == 'maildraft5613':
+        return 'newmail:' + ident
+    if kind == 'mission_conseil5689':
+        return 'conseil:' + ident
+    if kind == 'assistance5689':
+        return 'assistance:' + ident
+    return 'mail:' + str(args.get('key') or '')
+
+
+def _rattacher(desk, row):
+    """Un travail déjà produit pour cette mission (coupure entre la mise en file et l'écriture de la mission) est rattaché : relu, jamais recréé."""
+    orphan = desk.db.execute("SELECT id,kind,args FROM jobs WHERE json_valid(args) AND json_extract(args,'$.mission_id')=? ORDER BY id LIMIT 1", (row['id'],)).fetchone()
+    if not orphan:
+        return False
+    ref = _ref_du_travail(row['id'], orphan['kind'], json.loads(orphan['args']))
+    desk.db.execute("UPDATE missions_v567 SET job_id=?,ref=?,state='queued' WHERE id=?", (orphan['id'], ref, row['id']))
+    desk.db.commit()
+    row.update(job_id=orphan['id'], ref=ref, state='queued')
+    return True
+
+
+def _role(desk, owner):
+    if owner == 'cabinet':
+        return 'administrateur'
+    try:
+        row = desk.db.execute('SELECT role FROM membres5650 WHERE owner=?', (owner,)).fetchone()
+    except sqlite3.Error:
+        row = None
+    return row['role'] if row else 'avocat'
+
+
+def _au_nom_du_proprietaire(desk, owner, fonction, *args):
+    """Reprise hors de la requête d'origine : dossiers masqués et limites de l'IA du propriétaire de la mission, dans un contexte copié (la
+    requête ou le superviseur qui reprend garde le sien)."""
+    def dedans():
+        from . import membres5650
+        membres5650.set_viewer(membres5650.hidden_for(desk.c.get('state_dir'), owner, _role(desk, owner)))
+        membres5650.set_viewer_role(_role(desk, owner))
+        _limit_ai(desk, owner)
+        return fonction(*args)
+    return contextvars.copy_context().run(dedans)
+
+
+def _executer_ordre(desk, ident, reprise=False):
+    """Traite un ordre sous bail : un seul lanceur à la fois ; mission relue avant l'effet ; travail existant rattaché ; un ordre devenu sans
+    objet (mission annulée, suspendue, déjà lancée) est clos sans effet. ``reprise`` : hors de la requête d'origine (contexte du propriétaire)."""
+    t = _horloge()
+    pris = desk.db.execute("UPDATE missions_ordres5697 SET etat='en_cours',bail=?,tentatives=tentatives+1,maj=? WHERE id=? AND "
+                           "(etat='a_lancer' OR (etat='en_cours' AND bail<?))", (t + BAIL_SECONDES, desk.now(), ident, t)).rowcount
+    desk.db.commit()
+    if not pris:
+        return
+    ordre = desk.db.execute('SELECT * FROM missions_ordres5697 WHERE id=?', (ident,)).fetchone()
+    row = desk.db.execute('SELECT * FROM missions_v567 WHERE id=?', (ordre['mission'],)).fetchone()
+    if not row or row['state'] != 'creating' or row['job_id']:
+        _clore_ordre(desk, ident, 'sans_objet', row['job_id'] if row else None)
+        return
+    row = dict(row)
+    if _rattacher(desk, row):
+        _clore_ordre(desk, ident, 'fait', row['job_id'])
+        return
+    if ordre['tentatives'] > TENTATIVES_MAX:   # lancement qui échoue à chaque reprise : l'avocat décide, rien n'est relancé en boucle
+        desk.db.execute("UPDATE missions_v567 SET state='interrupted',updated=? WHERE id=? AND state='creating' AND job_id IS NULL", (desk.now(), row['id']))
+        _clore_ordre(desk, ident, 'echec', None, 'tentatives_epuisees')
+        return
+    if reprise:
+        _au_nom_du_proprietaire(desk, row['owner'], _launch, desk, row)
+    else:
+        _launch(desk, row)
+    apres = desk.db.execute('SELECT state,job_id,exceptions FROM missions_v567 WHERE id=?', (row['id'],)).fetchone()
+    _clore_ordre(desk, ident, 'fait' if apres['job_id'] else 'echec', apres['job_id'], '' if apres['job_id'] else (json.loads(apres['exceptions'] or '[]') or [{}])[0].get('code', ''))
+
+
+def _reserver(desk, mission, sql, valeurs, phase):
+    """Passage à « Demande enregistrée » et ordre de lancement dans une seule transaction ; rien si un autre clic a déjà pris la mission."""
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        if not desk.db.execute(sql, valeurs).rowcount:
+            desk.db.commit()
+            return ''
+        ordre = _ordre(desk, mission, phase)
+        desk.db.commit()
+        return ordre
+    except BaseException:
+        desk.db.rollback()
+        raise
+
+
+def reprendre_ordres(desk, mission=None, limite=10, immediat=False):
+    """5.6.97 (B09) : ordres restés sans suite (jamais pris depuis ``RELANCE_SECONDES``, ou bail échu) : repris, au plus ``limite`` à la fois.
+    ``immediat`` : la même demande est rejouée par son auteur : un ordre jamais pris est traité sans attendre (la prise est atomique, un seul
+    lanceur gagne). Rend le nombre d'ordres traités. Aucune exception ne remonte : l'ordre reste en place pour un prochain passage."""
+    ensure_schema(desk)
+    t = _horloge()
+    sql = "SELECT id FROM missions_ordres5697 WHERE ((etat='a_lancer' AND cree<?) OR (etat='en_cours' AND bail<?))"
+    valeurs = [t + 1 if immediat else t - RELANCE_SECONDES, t]
+    if mission:
+        sql, valeurs = sql + ' AND mission=?', valeurs + [mission]
+    traites = 0
+    for (ident,) in desk.db.execute(sql + ' ORDER BY cree LIMIT ?', valeurs + [limite]).fetchall():
+        try:
+            _executer_ordre(desk, ident, reprise=True)
+            traites += 1
+        except Exception:   # noqa: BLE001 — bail conservé : repris au passage suivant, au plus TENTATIVES_MAX fois
+            if desk.db.in_transaction:
+                desk.db.rollback()
+    return traites
+
+
+def superviser_ordres(c, desk=None):
+    """Appelé par le superviseur du travailleur (toutes les 30 s) : aucune IA appelée, aucune transaction gardée ouverte. Sans ordre en
+    souffrance, rien n'est ouvert ni écrit (lecture seule de la base)."""
+    if desk is None:
+        chemin = Path(c['state_dir']) / 'desk.sqlite3'
+        if not chemin.is_file():
+            return None
+        base = sqlite3.connect(chemin.resolve().as_uri() + '?mode=ro', uri=True, timeout=2)
+        try:
+            attente = base.execute("SELECT COUNT(*) FROM missions_ordres5697 WHERE etat IN ('a_lancer','en_cours')").fetchone()[0]
+        except sqlite3.Error:
+            attente = 0
+        finally:
+            base.close()
+        if not attente:
+            return None
+        from .desk import Desk
+        desk = Desk(c)
+    reprendre_ordres(desk)
+    return desk
+
+
+def _interrompre_si_orpheline(desk, row):
+    """Mission d'avant la 5.6.97 restée « Demande enregistrée » sans travail ni ordre : elle n'a jamais démarré. Elle passe à « Interrompue ·
+    reprendre » (aucun effet rejoué, aucune donnée certifiée) ; l'avocat la relance d'un clic."""
+    if row['state'] != 'creating' or row['job_id']:
+        return
+    if desk.db.execute('SELECT 1 FROM missions_ordres5697 WHERE mission=? LIMIT 1', (row['id'],)).fetchone():
+        return
+    try:
+        cree = datetime.fromisoformat(str(row['created']).replace('Z', '+00:00'))
+        cree = cree if cree.tzinfo else cree.replace(tzinfo=timezone.utc)
+    except ValueError:
+        cree = datetime.min.replace(tzinfo=timezone.utc)
+    if (datetime.now(timezone.utc) - cree).total_seconds() < INTERRUPTION_SECONDES:
+        return
+    message = [{'code': 'mission_interrompue', 'message': 'La préparation n’a jamais démarré (service interrompu). Rien n’a été produit ni envoyé : reprenez-la.'}]
+    if desk.db.execute("UPDATE missions_v567 SET state='interrupted',exceptions=?,updated=? WHERE id=? AND state='creating' AND job_id IS NULL",
+                       (json.dumps(message, ensure_ascii=False), desk.now(), row['id'])).rowcount:
+        _inscrire(desk, row['id'], 'interrupted', {'matter': row['matter'], 'motif': 'sans_travail_ni_ordre'})
+    desk.db.commit()
+    row.update(state='interrupted', exceptions=json.dumps(message, ensure_ascii=False))
 
 
 def _row(desk, ident, owner, admin=False):
@@ -195,6 +412,7 @@ def carte_fil(text, reponse, data, state='answered', exceptions=(), sources=(), 
            'job': None, 'title': text, 'subtitle': '', 'automatic': False, 'complex': False}
     from .pilote5613 import result_lines
     row['lignes'] = result_lines(row)
+    row['panneau'] = etat_panneau(row)   # 5.6.97 : réponse immédiate (sans travail) : affichée selon son type
     return row
 
 
@@ -291,6 +509,8 @@ def create(desk, data, owner='cabinet'):
     canonical = json.dumps({'instruction': text, 'matter': chosen, 'kind': kind, 'context': ctx,'autonomy':autonomy}, ensure_ascii=False, sort_keys=True)
     fp = hashlib.sha256(canonical.encode()).hexdigest()
     ident, stamp = secrets.token_hex(16), desk.now()
+    etat = 'decision' if exceptions else ('suggested' if autonomy=='suggest' else 'creating')
+    ordre = ''
     desk.db.execute('BEGIN IMMEDIATE')
     try:
         old = desk.db.execute('SELECT id,fingerprint FROM missions_v567 WHERE owner=? AND request_key=?', (owner, token)).fetchone()
@@ -298,17 +518,22 @@ def create(desk, data, owner='cabinet'):
             if old['fingerprint'] != fp:
                 raise Stop('requete_reutilisee_avec_autres_donnees')
             desk.db.commit()
+            reprendre_ordres(desk, old['id'], immediat=True)   # 5.6.97 (B09) : même clé rejouée après une coupure : l'ordre resté sans suite est repris, une fois
             return get(desk, old['id'], owner)
         desk.db.execute('INSERT INTO missions_v567 VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,?,?,?)',
-                        (ident, owner, token, fp, text, chosen, kind, 'decision' if exceptions else ('suggested' if autonomy=='suggest' else 'creating'),
+                        (ident, owner, token, fp, text, chosen, kind, etat,
                          json.dumps(ctx, ensure_ascii=False), json.dumps(plan, ensure_ascii=False), json.dumps(exceptions, ensure_ascii=False), '', stamp, stamp))
+        # 5.6.97 (B09) : mission, reçu et ordre de lancement dans la même transaction ; le lancement suit la validation
+        _inscrire(desk, ident, 'decision' if exceptions else 'creating', {'matter': chosen, 'kind': kind})
+        if etat == 'creating':
+            ordre = _ordre(desk, ident, 'lancement')
         desk.db.commit()
     except BaseException:
         desk.db.rollback()
         raise
-    _event(desk, ident, 'decision' if exceptions else 'creating', {'matter': chosen, 'kind': kind})
-    if not exceptions and autonomy=='prepare':
-        _launch(desk, _row(desk, ident, owner))
+    _annoncer(desk, 'decision' if exceptions else 'creating', chosen)
+    if ordre:
+        _executer_ordre(desk, ordre)
     return get(desk, ident, owner)
 
 
@@ -350,22 +575,112 @@ def _launch(desk, row):
         desk.db.commit()
 
 
+def _reponse_de(desk, thread_id, job_id):
+    """Réponse liée à la question de cette mission : la réponse porte le travail de sa question (5.6.97) ; pour une réponse plus ancienne, la
+    première réponse du fil après le message demandeur. Jamais la dernière réponse d'un fil où d'autres questions ont été posées depuis."""
+    answer = desk.db.execute("SELECT content,sources FROM assistant_messages WHERE thread_id=? AND role='assistant' AND job_id=? ORDER BY id LIMIT 1",
+                             (thread_id, job_id)).fetchone()
+    if answer:
+        return answer
+    asked = desk.db.execute("SELECT id FROM assistant_messages WHERE thread_id=? AND role='user' AND job_id=? ORDER BY id LIMIT 1", (thread_id, job_id)).fetchone()
+    if not asked:
+        return None
+    return desk.db.execute("SELECT content,sources FROM assistant_messages WHERE thread_id=? AND role='assistant' AND id>? AND (job_id IS NULL OR job_id=?) ORDER BY id LIMIT 1",
+                           (thread_id, asked['id'], job_id)).fetchone()
+
+
+def _suspension(desk, job):
+    """5.6.97 (B10) : motif d'un travail suspendu et reprise attendue. Pause programmée : reprise automatique à la fin de la plage (heure locale
+    du planning, « demain 7 h » quand la plage passe minuit) ; pause manuelle ou du dossier : reprise manuelle, quand la pause est levée."""
+    motif = str(job['stop_reason'] or '')
+    if motif == 'pause_horaire':
+        from . import horaires_ia5689 as h
+        now = h._utc(None)
+        try:
+            horaire = h.lire_horaire(h.photo(desk), now)
+        except Stop:
+            horaire = {'incident': 'illisible', 'pause': False, 'fin': None}
+        if horaire.get('pause') and horaire.get('fin') and not horaire.get('incident'):
+            zone = h._zone(horaire['politique']['timezone'])
+            fin = horaire['fin'].astimezone(zone)
+            quand = h._jour(fin, now.astimezone(zone)) + ' ' + h._heure(fin)
+            return {'motif': 'pause_horaire', 'reprise': 'automatique', 'jusqua': horaire['fin'].isoformat(), 'libelle': 'Suspendue jusqu’à ' + quand,
+                    'geste': 'Pause programmée de l’IA : la demande reprendra seule ' + quand + ', une seule fois. Rien à refaire.'}
+        if horaire.get('pause'):
+            return {'motif': 'pause_horaire', 'reprise': 'manuelle', 'jusqua': '', 'libelle': 'Suspendue : pause programmée sans fin prévue',
+                    'geste': 'La demande reprendra quand la programmation de l’IA le permettra (Paramètres › Horaires de l’IA).'}
+        return {'motif': 'pause_horaire', 'reprise': 'automatique', 'jusqua': '', 'libelle': 'Suspendue · reprise imminente',
+                'geste': 'La plage de pause est terminée : la demande est remise en file sous peu, une seule fois.'}
+    if motif == 'pause_dossier':
+        return {'motif': 'pause_dossier', 'reprise': 'manuelle', 'jusqua': '', 'libelle': 'Suspendue : IA en pause sur ce dossier',
+                'geste': 'La demande reprendra quand la pause de ce dossier sera levée. Rien à refaire.'}
+    return {'motif': motif or 'pause', 'reprise': 'manuelle', 'jusqua': '', 'libelle': 'Suspendue : IA en pause',
+            'geste': 'La demande reprendra quand l’IA sera relancée (« Reprendre l’IA »). Rien à refaire.'}
+
+
+def etat_panneau(row):
+    """5.6.97 : état explicite d'une demande pour le panneau, avec le geste utile. Un HTTP 200 seul n'annonce jamais un document prêt : « Projet à
+    relire » suit l'état réel de la mission, « Réponse prête » une réponse enregistrée."""
+    state = str(row.get('state') or '')
+    code, libelle = PANNEAU.get(state, ('recue', row.get('label') or 'Reçue'))
+    exceptions = [x for x in row.get('exceptions') or [] if isinstance(x, dict)]
+    codes = {str(x.get('code') or '') for x in exceptions}
+    geste = ''
+    if state == 'creating':
+        geste = 'Demande reçue par le serveur : la préparation démarre.'
+    elif state == 'queued':
+        geste = 'Calcul en file d’attente : le résultat s’affichera ici.'
+    elif state == 'running':
+        geste = 'Préparation en cours. Vous pouvez fermer le panneau : le travail continue.'
+    elif state == 'decision':
+        if codes & set(DOSSIER_A_CHOISIR):
+            libelle, geste = 'Choix requis : le dossier', 'Choisissez le dossier ci-dessous puis « Lancer dans ce dossier » : la même demande repart, sans nouvelle saisie.'
+        elif 'recherche_publique_a_confirmer' in codes:
+            libelle, geste = 'Choix requis : confirmer la recherche', 'Rien n’est parti : confirmez la recherche publique proposée, ou reformulez.'
+        elif 'preparation_suspendue' in codes:
+            code, libelle, geste = 'suspendue', 'Suspendue', 'La préparation des nouvelles demandes est suspendue par l’administrateur.'
+        else:
+            geste = ' '.join(str(x.get('message') or '') for x in exceptions).strip() or 'Une précision est nécessaire pour démarrer.'
+    elif state == 'suspended':
+        s = row.get('suspension') or {}
+        libelle, geste = s.get('libelle') or libelle, s.get('geste') or ''
+    elif state == 'paused':
+        geste = 'Suspendue à votre demande : « Reprendre » relance le même travail.'
+    elif state in ('error', 'interrupted'):
+        erreur = str((row.get('job') or {}).get('code') or '')
+        if codes & set(REFUS) or any(c in erreur for c in REFUS):
+            code, libelle, geste = 'refusee', 'Refusée', 'Les droits ou le contrôle du dossier ne permettent pas cette demande. Rien n’a été produit.'
+        elif state == 'interrupted':
+            libelle, geste = 'Interrompue · reprendre', 'La préparation n’a pas abouti. Rien n’a été envoyé : « Reprendre » relance la même demande.'
+        else:
+            geste = 'Rien n’a été envoyé : consultez le motif puis « Relancer ».'
+    elif state == 'answered':
+        geste = 'Lisez la réponse et ses sources ci-dessous.'
+    elif state in ('prepared', 'verified'):
+        geste = 'Ouvrez le projet pour le relire. Rien n’est envoyé sans vous.'
+    elif state == 'suggested':
+        geste = 'Plan proposé : « Démarrer la préparation » pour lancer.'
+    return {'code': code, 'libelle': libelle, 'geste': geste}
+
+
 def get(desk, ident, owner='cabinet', admin=False, prefix=''):
     row = _row(desk, ident, owner, admin)
     if not row['job_id'] and row['state'] in ('creating','error'):
-        orphan=desk.db.execute("SELECT id,kind,args FROM jobs WHERE json_valid(args) AND json_extract(args,'$.mission_id')=? ORDER BY id LIMIT 1",(ident,)).fetchone()
-        if orphan:
-            a=json.loads(orphan['args']);ref='docreq:'+a['request'] if orphan['kind']=='docrequest520' else ('ask:'+a['thread'] if orphan['kind']=='assistant_answer' else ('newmail:'+ident if orphan['kind']=='maildraft5613' else 'mail:'+a.get('key','')))
-            desk.db.execute("UPDATE missions_v567 SET job_id=?,ref=?,state='queued' WHERE id=?",(orphan['id'],ref,ident));desk.db.commit()
-            row.update(job_id=orphan['id'],ref=ref,state='queued')
+        _rattacher(desk, row)
+    if not row['job_id'] and row['state'] == 'creating':   # 5.6.97 (B09) : ordre resté sans suite repris ; mission ancienne sans ordre : interrompue
+        if reprendre_ordres(desk, ident):
+            row = _row(desk, ident, owner, admin)
+        _interrompre_si_orpheline(desk, row)
     for key in ('context', 'plan', 'exceptions'):
         row[key] = json.loads(row[key])
     row['result'] = {}
     if row['job_id']:
-        job = desk.db.execute('SELECT id,status,progress,result FROM jobs WHERE id=?', (row['job_id'],)).fetchone()
+        job = desk.db.execute('SELECT id,status,progress,result,stop_reason,not_before,created,started,finished FROM jobs WHERE id=?', (row['job_id'],)).fetchone()
         if job:
             result = json.loads(job['result'] or '{}')
-            state = {'pending': 'queued', 'running': 'running', 'error': 'error', 'cancelled': 'paused', 'cancel_requested': 'cancel_requested'}.get(job['status'], row['state'])
+            # 5.6.97 (B10) : un travail suspendu (pause manuelle, du dossier, programmée) est projeté « Suspendue », avec motif et reprise
+            state = {'pending': 'queued', 'running': 'running', 'error': 'error', 'cancelled': 'paused', 'cancel_requested': 'cancel_requested',
+                     'suspended': 'suspended'}.get(job['status'], row['state'])
             if row['state'] == 'cancelled' or (row['state'] == 'cancel_requested' and job['status'] in ('cancelled', 'error', 'done')):
                 state = 'cancelled' if job['status'] != 'done' or row['state'] == 'cancelled' else state   # 5.6.34 : annulation durable
             if job['status'] == 'done' and row['state'] not in ('cancelled','cancel_requested'):
@@ -410,22 +725,26 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                     from .ui_ai5689 import resultat_mission as resultat_assistance
                     state, row['result'] = resultat_assistance(desk, ident, prefix)
                 elif row['kind'] == 'question' and row['ref'].startswith('ask:'):
-                    answer = desk.db.execute("SELECT content,sources FROM assistant_messages WHERE thread_id=? AND role='assistant' ORDER BY id DESC LIMIT 1", (row['ref'][4:],)).fetchone()
+                    answer = _reponse_de(desk, row['ref'][4:], job['id'])   # 5.6.97 (B09) : la réponse à SA question, pas la dernière du fil
                     if answer:
                         state = 'answered'
                         row['result'] = {'text': answer['content'], 'sources': json.loads(answer['sources'] or '[]')}
             if row['state'] == 'cancel_requested' and job['status'] in ('done','error','cancelled'):
                 state = 'cancelled'
             row['job'] = {'id': job['id'], 'status': job['status'], 'progress': job['progress'] or '',
-                          'error': result.get('erreur', '') if job['status'] == 'error' else ''}
+                          'error': result.get('erreur', '') if job['status'] == 'error' else '',
+                          'code': str(result.get('erreur', '')) if job['status'] == 'error' else ''}   # 5.6.97 : code brut (le motif affiché est traduit)
             from .routage5682 import for_job
             row['choix_ia'] = for_job(desk.c['state_dir'], job['id'])   # 5.6.82 : modèle réel, effort, raison courte, consommation
             from .data_policy5689 import synthese_mission
             row['synthese_donnees'] = synthese_mission(desk, job['id'])   # 5.6.89 : Données utilisées, Services destinataires, Limites
-            if state != row['state']:
+            if state == 'suspended':   # 5.6.97 (B10) : projection seulement ; la mission reste « en attente » en base et reprend avec son travail
+                row['suspension'] = _suspension(desk, job)
+            elif state != row['state']:
                 desk.db.execute('UPDATE missions_v567 SET state=?,updated=? WHERE id=?', (state, desk.now(), ident))
                 desk.db.commit()
             row['state'] = state
+            row['job'].update(cree=job['created'] or '', demarre=job['started'] or '', termine=job['finished'] or '')
     row['label'] = LABELS.get(row['state'], row['state'])
     row['matter_label'] = next((matter_display(m) for m in load_matters(desk.c) if m['id'] == row['matter']), '')
     # 5.6.61 : présentation — l'instruction d'une mission automatique contient la consigne de sécurité donnée au modèle ; l'avocat voit
@@ -446,6 +765,9 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
     row['lignes'] = result_lines(row)   # 5.6.89 (B11) : résultat demandé, résultat préparé, dépôt vérifié
     from .ui_ai5689 import pour_carte
     row['resultat5689'] = pour_carte(desk, row)   # 5.6.89 : même contrat de résultat pour toute mission
+    row['panneau'] = etat_panneau(row)   # 5.6.97 : état explicite et geste utile
+    row['verifie_a'] = desk.now()
+    row.pop('fingerprint', None)
     return row
 
 
@@ -490,11 +812,12 @@ def control(desk, data, owner='cabinet', admin=False):
         _context(desk, {'context': ctx, 'attachments': ctx['attachments']}, next(m for m in load_matters(desk.c) if m['id'] == matter))
         if desk.settings('missions567:pause', False):
             raise Stop('preparation_suspendue')
-        claimed=desk.db.execute("UPDATE missions_v567 SET matter=?,state='creating',exceptions='[]',updated=? WHERE id=? AND state='decision'", (matter, desk.now(), row['id']))
-        desk.db.commit()
-        if not claimed.rowcount:
+        # 5.6.97 (B09) : choix du dossier et ordre de lancement dans la même transaction ; la même demande repart, sans nouvelle saisie
+        ordre = _reserver(desk, row['id'], "UPDATE missions_v567 SET matter=?,state='creating',exceptions='[]',updated=? WHERE id=? AND state='decision'",
+                          (matter, desk.now(), row['id']), 'precision')
+        if not ordre:
             return get(desk, row['id'], owner, admin)
-        _launch(desk, _row(desk, row['id'], owner, admin))
+        _executer_ordre(desk, ordre)
     elif action == 'validate':
         # 5.6.13 : validation de l'avocat, distincte du dépôt vérifié et du contrôle juridique.
         if row['kind'] != 'document' or current['state'] not in ('verified', 'prepared') or not current['result'].get('path'):
@@ -503,7 +826,7 @@ def control(desk, data, owner='cabinet', admin=False):
         from .common import digest
         review(desk, {'item': 'doc:' + digest(current['result']['path'])[:24], 'decision': 'valide'})
     elif action == 'resume':
-        if current['state'] not in ('error', 'paused','suggested'):
+        if current['state'] not in ('error', 'paused','suggested','interrupted'):   # 5.6.97 (B09) : « Interrompue · reprendre »
             raise Stop('mission_non_reprenante')
         if desk.settings('missions567:pause', False):
             raise Stop('preparation_suspendue')
@@ -514,11 +837,11 @@ def control(desk, data, owner='cabinet', admin=False):
             desk.db.execute("UPDATE missions_v567 SET state='queued',exceptions='[]',updated=? WHERE id=?", (desk.now(), row['id']))
             desk.db.commit()
         else:
-            claimed=desk.db.execute("UPDATE missions_v567 SET state='creating',updated=? WHERE id=? AND state IN ('error','paused','suggested')",(desk.now(),row['id']))
-            desk.db.commit()
-            if not claimed.rowcount:
+            ordre=_reserver(desk,row['id'],"UPDATE missions_v567 SET state='creating',exceptions='[]',updated=? WHERE id=? AND state IN ('error','paused','suggested','interrupted')",
+                            (desk.now(),row['id']),'reprise')
+            if not ordre:
                 return get(desk,row['id'],owner,admin)
-            _launch(desk,_row(desk,row['id'],owner,admin))
+            _executer_ordre(desk,ordre)
     elif action == 'cancel':   # 5.6.36 : annulation définitive (un projet déjà déposé reste dans le dossier)
         if current['state'] in ('cancelled',):
             raise Stop('mission_deja_annulee')
@@ -530,7 +853,7 @@ def control(desk, data, owner='cabinet', admin=False):
         desk.db.execute("UPDATE missions_v567 SET state='cancelled',updated=? WHERE id=?", (desk.now(), row['id']))
         desk.db.commit()
     elif action == 'hide':   # 5.6.36 : retirée de la liste (rien n'est effacé : historique et projets conservés)
-        if current['state'] in ACTIVE:
+        if current['state'] in ACTIVE or current['state'] == 'suspended':   # 5.6.97 (B10) : un travail suspendu reprendra
             raise Stop('mission_active_a_annuler_dabord')
         desk.db.execute('INSERT OR REPLACE INTO missions_hidden5636 VALUES(?,?,?)', (row['id'], owner, desk.now()))
         desk.db.commit()

@@ -63,7 +63,7 @@ VALIDATE_ACTIONS = frozenset({'approve_cabinet_confirmation_batch', 'approve_cab
                               'validate_act', 'validate_fact', 'validate_matrix_row', 'validate_memory', 'validate_strategy',
                               'reject_document_project', 'reject_group', 'reject_hearing', 'reject_word_project', 'reject_work_plan',
                               'confirm_matter', 'review_cabinet_decision', 'resolve_conflict', 'trust_document410'})
-AGENDA_PREFIXES = ('m5625/agenda/', 'm5634/agenda/', 'm530/event/', 'm568/calendars/')
+AGENDA_PREFIXES = ('m5625/agenda/', 'm5634/agenda/', 'm530/event/', 'm568/calendars/', 'm5689/agenda/')   # 5.6.97 : grille et éditeur compact
 AGENDA_ACTIONS = frozenset({'create_agenda_event', 'edit_agenda_event', 'cancel_agenda_event', 'edit_personal_event', 'sync_caldav_tasks',
                             'confirm_event'})
 BILLING_PREFIXES = ('m500/invoice/', 'm500/time/', 'm568/ninja/')
@@ -318,6 +318,16 @@ def category(method, path, action=''):
         from .contentieux_web5689 import VALIDATIONS
         if api.split('?', 1)[0][len('m5689/'):] in VALIDATIONS:
             return 'valider'
+    if api.startswith(('m5689/demandes/', 'm5689/portefeuille/')) and method not in ('GET', 'HEAD'):   # 5.6.97 (lot documents-mission) : décider, ouvrir le dossier = valider
+        from .mission_web5697 import droit_requis as _droit5697m
+        cat5697m = _droit5697m(api[len('m5689/'):])
+        if cat5697m:
+            return cat5697m
+    if api.startswith('m5689/gestion/') and method not in ('GET', 'HEAD'):   # 5.6.97 (lot gestion) : droit déclaré par route
+        from .gestion_web5697 import droit_requis as _droit5697
+        cat5697 = _droit5697(api[len('m5689/'):])
+        if cat5697:
+            return cat5697
     if api.startswith('m5673/sites') and method not in ('GET', 'HEAD'):   # 5.6.73 : liste des sites du navigateur = réglage du cabinet
         return 'reglages'
     if api.startswith('m5671/reponse/'):   # 5.6.71 : déposer ou écarter une réponse préparée = dépôt de brouillons
@@ -328,6 +338,11 @@ def category(method, path, action=''):
         return 'deposer'
     if api.startswith('m5689/courriels/preparer'):   # 5.6.96 : « Préparer une réponse » de la vue assistée = même droit que « Répondre avec l'IA »
         return 'deposer'
+    if api.startswith('m5689/gmail/') and method not in ('GET', 'HEAD'):   # 5.6.97 (lot gmail) : déposer, envoyer (clic explicite), option du cabinet
+        from .gmail_web5697 import droit_requis as _droit5697
+        droit5697 = _droit5697(api[len('m5689/'):])
+        if droit5697:
+            return droit5697
     if api.startswith('m5670/efacture/'):   # 5.6.70 : facturation électronique
         return 'facturation'
     if api.startswith(('m5670/visio/reglage', 'm5670/visio/tester', 'm5670/securite/')) and method not in ('GET', 'HEAD'):
@@ -335,6 +350,8 @@ def category(method, path, action=''):
     if api.startswith('m5689/horaires') and method not in ('GET', 'HEAD'):   # 5.6.89 : horaires de l'IA et dérogation = réglage du cabinet
         return 'reglages'
     if api.startswith('m5689/charge') and method not in ('GET', 'HEAD'):   # 5.6.93 : fréquence de surveillance des documents = réglage du cabinet
+        return 'reglages'
+    if api.startswith(('m5689/agenda/reglages/talk', 'm5689/agenda/reglages/google')) and method not in ('GET', 'HEAD'):   # 5.6.97 : intégrations de l'agenda = réglage du cabinet
         return 'reglages'
     if api.startswith('m5668/budget/') and method not in ('GET', 'HEAD'):   # 5.6.68 : plafond de l'IA = réglage du cabinet
         return 'reglages'
@@ -391,7 +408,7 @@ LIVRABLE_EXPORT = re.compile(r'^m5689/livrables/[^/]+/(telecharger|exporter)$') 
 TEMPLATE_ACTIONS = frozenset({'approve_cabinet_template'})
 TEMPLATE_API = frozenset({'m5684/modele/etat'})
 INVOICE_SEND_API = frozenset({'m5653/document/transmettre'})
-FEES_API = ('m5653/', 'm500/time/', 'm500/invoice/', 'm500/report/', 'm568/ninja/', 'm5670/efacture/', 'm5636/relances')
+FEES_API = ('m5653/', 'm500/time/', 'm500/invoice/', 'm500/report/', 'm568/ninja/', 'm5670/efacture/', 'm5636/relances', 'm5689/gestion/honoraires')   # 5.6.97 : indicateurs d'honoraires
 FEES_PAGES = ('/facturation', '/honoraires', '/relances', '/pilotage-mensuel', '/contribution')
 FEES_V1 = ('/api/v1/invoice-ninja/', '/api/v1/cabinet/provisions', '/api/v1/autonomy/billing', '/api/v1/assistance/billing')
 WIDENING = ('supprimer', 'valider_modele', 'transmettre_facture')

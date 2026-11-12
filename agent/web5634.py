@@ -18,6 +18,7 @@ import json
 from pathlib import PurePosixPath
 import re
 from urllib.parse import urlencode
+import uuid
 
 from .common import Stop, fold, load_matters, matter_display
 
@@ -351,7 +352,10 @@ def research_job(desk, args):
     question = str(args.get('question') or '').strip()
     extra = ' '.join(x for x in (('Domaine : ' + args['domaine']) if args.get('domaine') else '', ('Territoire : ' + args['territoire']) if args.get('territoire') else '',
                                  ('Droit applicable à la date du ' + args['date']) if args.get('date') else '') if x)
-    return registre5634.search(desk, (question + ('\n' + extra if extra else ''))[:3000], str(args.get('matter') or ''), args.get('providers') or None)
+    # 5.6.97 (B02) : liste vide = aucune source (jamais « toutes ») ; territoire choisi = zones de la demande (« Autre » : sans filtre)
+    zone = str(args.get('territoire') or '').upper()
+    return registre5634.search(desk, (question + ('\n' + extra if extra else ''))[:3000], str(args.get('matter') or ''), args.get('providers'),
+                               zones=(zone,) if zone in ('FR', 'UE', 'CEDH') else None)
 
 
 # ------------------------------------------------------------------------------------------------ Alertes du cabinet
@@ -474,6 +478,7 @@ def agenda_panel(desk, prefix):
                                '<p role="status" class="m34-status"></p>') for ev in legacy) + '</ul></details>')
     return ('<section class="ax-card m34-agenda" data-m34-agenda><h2>Agenda personnel</h2><p class="m34-mode"><strong>%s</strong> — %s</p>'
             '<details%s><summary>Ajouter un rendez-vous, une audience ou une échéance</summary><form class="m34-form" data-m34-form="agenda/creer">'
+            '<input type="hidden" name="cle" value="' + uuid.uuid4().hex + '">'   # 5.6.97 (B06) : clé créée à l'ouverture, stable au rejeu
             '<div class="m34-row"><label>Type<select name="kind">%s</select></label><label>Intitulé<input name="title" required maxlength="200"></label></div>'
             '<div class="m34-row"><label>Début<input type="datetime-local" name="start" required></label><label>Durée (minutes)<input type="number" name="duration_minutes" '
             'min="5" max="1440" step="5" value="60"></label><label class="m34-check"><input type="checkbox" name="all_day" value="1"> Toute la journée</label></div>'
@@ -607,14 +612,22 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out(full_index(desk, str(args.get('matter') or ''), str(args.get('path') or '')))
         if route.startswith('agenda/'):
             from . import agenda5634
-            return json_out(agenda5634.api(desk, route, args, 'GET', owner, role, auth))
+            out = json_out(agenda5634.api(desk, route, args, 'GET', owner, role, auth))
+            if route == 'agenda/export':   # 5.6.97 (B07) : export personnel, jamais conservé par un cache partagé
+                from .agenda_lecture5697 import ENTETES_PRIVES
+                out['headers'] = list(ENTETES_PRIVES)
+            return out
         raise Stop('route_inconnue')
     if method != 'POST':
         raise Stop('methode_refusee')
     data = _post(env, auth, 9_000_000 if route == 'agenda/importer' else 260_000)
     if route.startswith('agenda/'):
         from . import agenda5634
-        return json_out(agenda5634.api(desk, route, data, 'POST', owner, role, auth))
+        out = json_out(agenda5634.api(desk, route, data, 'POST', owner, role, auth))
+        if route == 'agenda/export-global':
+            from .agenda_lecture5697 import ENTETES_PRIVES
+            out['headers'] = list(ENTETES_PRIVES)
+        return out
     if role not in ('administrateur', 'avocat') and route not in ('alerte',):
         raise Stop('role_insuffisant')
     if route == 'decision/annuler':
@@ -634,7 +647,12 @@ def api(env, desk, auth, prefix, name, args, method):
         question = str(data.get('question') or '').strip()
         if not 3 <= len(question) <= 3000:
             raise Stop('question_juridique_invalide')
-        providers = [p for p in (data.get('providers') or []) if isinstance(p, str)][:10]
+        providers = data.get('providers')   # 5.6.97 (B02) : absent = défaut approuvé ; liste vide = aucune source ; inconnu = refus immédiat
+        if providers is not None:
+            from .selection_sources5697 import selectionner
+            if not isinstance(providers, list) or len(providers) > 10:
+                raise Stop('fournisseur_juridique_invalide')
+            selectionner(desk, providers)
         job = desk.enqueue('recherche5634', {'question': question, 'matter': str(data.get('matter') or ''), 'providers': providers,
                                               'domaine': str(data.get('domaine') or '')[:120], 'territoire': str(data.get('territoire') or '')[:10],
                                               'date': str(data.get('date') or '')[:10]})

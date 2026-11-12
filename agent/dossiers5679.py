@@ -70,6 +70,17 @@ def recent_cards(desk, prefix, by_id, ai, limit=3):
 
 
 def page_html(c, desk, matters, args, prefix, form, link):
+    """5.6.97 (lot dossiers, § 9) : l'écran de départ du registre unique (recherche, + Nouveau dossier, filtres, tableau) passe en tête ;
+    la vue du portefeuille de la 5.6.79 reste disponible, repliée en dessous."""
+    from .membres5650 import current_author, viewer_role
+    from . import dossiers_ui5697
+    env = {'HTTP_X_AXIORHUB_USER': current_author() or 'cabinet', 'HTTP_X_AXIORHUB_ROLE': viewer_role()}
+    tete = dossiers_ui5697.ecran(desk, env, {}, prefix, args) + '<script defer src="%s/static/v5697-dossiers.js"></script>' % e(prefix, quote=True)
+    return tete + ('<details class="d97-ancien"%s><summary>Portefeuille détaillé : états, travail de l’IA, textes indexés, outils</summary>%s</details>' % (
+        ' open' if args.get('state') or args.get('tri') or args.get('mail_key') else '', _page_html5679(c, desk, matters, args, prefix, form, link)))
+
+
+def _page_html5679(c, desk, matters, args, prefix, form, link):
     from .portfolio import portfolio_rows, portfolio_summary
     from .pause5629 import paused
     from .suivi5679 import correspondents_summary, last_ai_work

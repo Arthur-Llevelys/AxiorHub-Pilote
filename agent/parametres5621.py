@@ -127,8 +127,10 @@ def _connexions(desk, auth, prefix, env, cap):
     _args52 = {k: v[0] for k, v in parse_qs(env.get('QUERY_STRING', '')).items()}
     _retour52 = _ms_redirect(env, prefix).rsplit('/', 1)[0] + '/connexions-retour'
     from .accueil_web5696 import reglages_html as _meteo96   # 5.6.96 (F03) : météo d'Aujourd'hui (OpenWeather), administrateur seulement
-    return (_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
-            _section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_microsoft(desk, prefix, env)) +
+    from .gmail_web5697 import section_html as _gmail97   # 5.6.97 (lot gmail) : Paramètres › Connexions › Gmail (désactivé par défaut) et guide de l'administrateur
+    from .rendezvous5697 import reglages_html as _agenda97   # 5.6.97 (lot agenda) : salons Talk, Google Agenda (désactivés par défaut), adresse Speakr
+    return (_section(_gmail97(desk, prefix, owner, role52, _args52)) + _section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
+            _section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_agenda97(desk, owner, role52, prefix)) + _section(_microsoft(desk, prefix, env)) +
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
 

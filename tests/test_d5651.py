@@ -508,7 +508,7 @@ class Page(t51.Web):
         idx.db.close()
         page = self.request('/dossier', query='id=DOS-001', cookie=self.admin)['body']
         # 5.6.79 : cinq onglets (Synthèse, Documents, Faits et procédure, Échanges, Travail) ; anciennes vues toujours servies
-        for label in ('Synthèse', 'Documents', 'Faits et procédure', 'Échanges', 'Travail', 'Prendre en charge une mission',
+        for label in ('Synthèse', 'Documents', 'Procédure · Pièces', 'Correspondances', 'Travail', 'Prendre en charge une mission',   # 5.6.97 (§ 12) : sections renommées
                       'Depuis votre dernière lecture', 'À décider / À relire'):
             self.assertIn(label, page)
         self.assertIn('Nos objectifs et consignes', self.request('/dossier', query='id=DOS-001&vue=faits', cookie=self.admin)['body'])

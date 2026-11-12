@@ -166,6 +166,8 @@ def build(output, archive, mtime=None, variant='serveur'):
                 raise RuntimeError('Lanceur sans interpréteur.')
             data_files += [('./usr/bin/axiorhub-pilote', launcher, 0o755),
                            ('./usr/share/applications/axiorhub-pilote.desktop', (poste / 'axiorhub-pilote.desktop').read_bytes(), 0o644),
+                           # 5.6.97 (A05) : gestionnaire du protocole axiorhub:// (x-scheme-handler), entrée cachée du menu
+                           ('./usr/share/applications/axiorhub-pilote-liaison.desktop', (poste / 'axiorhub-pilote-liaison.desktop').read_bytes(), 0o644),
                            ('./usr/share/icons/hicolor/512x512/apps/axiorhub-pilote.png', (tree / 'agent' / 'static' / 'axiorhub-icon-512.png').read_bytes(), 0o644),
                            ('./usr/lib/systemd/user/axiorhub-pilote.service', (poste / 'axiorhub-pilote.service').read_bytes(), 0o644)]
     changelog = (package + ' (' + version + ') stable; urgency=medium\n\n  * Voir CHANGELOG.md de la version.\n\n -- '
@@ -249,7 +251,8 @@ def check(path, payload=None):
             raise RuntimeError('Fichier absent de md5sums : ' + name)
     if poste:
         for required in (POSTE_ROOT + 'poste.py', POSTE_ROOT + 'MANIFEST.sha256', './usr/bin/axiorhub-pilote',
-                         './usr/share/applications/axiorhub-pilote.desktop', './usr/lib/systemd/user/axiorhub-pilote.service'):
+                         './usr/share/applications/axiorhub-pilote.desktop', './usr/share/applications/axiorhub-pilote-liaison.desktop',
+                         './usr/lib/systemd/user/axiorhub-pilote.service'):
             if required not in info['data']:
                 raise RuntimeError('Fichier du paquet poste absent : ' + required)
         if info['data']['./usr/bin/axiorhub-pilote']['mode'] != 0o755:

@@ -155,6 +155,7 @@
         el('p', {}, [el('em', { 'class': 'ax-badge', text: m.status_label })])]);
       panel.appendChild(head);
       if (window.axh5643) panel.appendChild(window.axh5643.block(m, ctx()));   // 5.6.43 (§ 12.1) : classement, sous les en-têtes
+      if (window.axh5697Classer) panel.appendChild(window.axh5697Classer(m, ctx()));   // 5.6.97 (§ 11) : Classer dans un dossier, à la main, sans déplacement IMAP
       var body = el('pre', { 'class': 'bx5625-text', text: m.text + (m.truncated ? '\n\n[… texte tronqué à l’affichage]' : '') });
       panel.appendChild(body);
       if (m.attachments.length) {
@@ -294,7 +295,7 @@
       if (!hidden.value) { toast('Cochez au moins un agenda.', true); return; }
       var data = { title: form.elements.title.value, date: form.elements.date.value, start: form.elements.start.value, end: form.elements.end.value,
                    all_day: form.elements.all_day.checked, location: form.elements.location.value, matter: form.elements.matter.value,
-                   description: form.elements.description.value, targets: hidden.value };
+                   description: form.elements.description.value, targets: hidden.value, cle: form.elements.cle ? form.elements.cle.value : '' };   // 5.6.97 (B06)
       if (inflight.agenda) return;
       inflight.agenda = true; busy(submit, true);
       api('m5625/agenda/creer', data).then(function (r) { toast(r.message); setTimeout(function () { location.reload(); }, 1200); })

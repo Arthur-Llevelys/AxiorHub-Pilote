@@ -19,6 +19,7 @@ LECTURE = ('courriels/liste', 'courriels/message', 'courriels/fil', 'courriels/p
 ECRITURE = ('courriels/decision', 'courriels/preparer', 'courriels/reglage')
 ROLES = ('administrateur', 'avocat')
 CONFLITS = ('version_perimee',)
+NEUTRES = ('dossier_reserve', 'fil_absent', 'introuvable')
 ERREURS = {'version_perimee': 'Ce suivi a changé entre-temps (autre onglet ou autre personne) : votre saisie n’a pas été enregistrée. Rechargez la page pour comparer, puis recommencez.',
            'motif_requis': 'Indiquez le motif (3 caractères au moins).', 'de_qui_requis': 'Indiquez de qui vous attendez une réponse.',
            'date_invalide': 'Date illisible.', 'date_passee': 'Choisissez une date à venir.', 'dossier_reserve': 'Ce dossier est réservé à d’autres membres du cabinet.',
@@ -28,8 +29,10 @@ ERREURS = {'version_perimee': 'Ce suivi a changé entre-temps (autre onglet ou a
            'dossier_a_choisir': 'Choisissez un dossier existant ou laissez le champ vide.', 'idempotence_requise': 'Page incomplète : rechargez-la.',
            'version_requise': 'Page incomplète : rechargez-la.', 'message_deplace_ou_boite_reindexee': 'Le message a été déplacé ou la boîte réindexée : il n’est plus à cette place.',
            'messagerie_non_configuree': 'Messagerie non configurée.', 'vue_desactivee': 'La vue « À traiter avec le Pilote » est désactivée.',
-           'role_insuffisant': 'Action réservée.', 'route_inconnue': 'Route inconnue.', 'valeur_invalide': 'Valeur invalide.'}
+           'role_insuffisant': 'Action réservée.', 'introuvable': 'Ce fil n’est pas (ou plus) dans votre liste.', 'route_inconnue': 'Route inconnue.', 'valeur_invalide': 'Valeur invalide.'}
 CHAMPS = {'motif_requis': 'motif', 'de_qui_requis': 'de_qui', 'date_invalide': 'jusqua', 'date_passee': 'jusqua', 'dossier_a_choisir': 'dossier'}
+from .gmail_web5697 import MESSAGES as _GMAIL5697   # 5.6.97 (lot gmail) : refus propres aux lignes Gmail, en clair
+ERREURS = {**_GMAIL5697, **ERREURS}
 
 
 def allowed(role, route):
@@ -38,8 +41,9 @@ def allowed(role, route):
 
 
 def _hidden(desk, owner, role):
-    from .membres5650 import hidden_for, viewer_hidden
-    return frozenset(viewer_hidden() or ()) | hidden_for(desk.c.get('state_dir'), owner, role)
+    """5.6.97 : dossiers masqués par le garde commun (``acces5697``), relus à chaque requête."""
+    from .acces5697 import masques
+    return masques(desk, (owner, role))
 
 
 def api(env, desk, auth, prefix, name, args, method):
@@ -48,8 +52,10 @@ def api(env, desk, auth, prefix, name, args, method):
         return _route(env, desk, auth, prefix, name, args, method)
     except Stop as error:
         code = str(error).split(':')[0]
-        statut = ('409 Conflict' if code in CONFLITS else '403 Forbidden' if code in ('role_insuffisant', 'origine_ou_csrf_refuse', 'dossier_reserve', 'vue_desactivee')
-                  else '404 Not Found' if code in ('route_inconnue', 'fil_absent') else '400 Bad Request')
+        if code in NEUTRES:              # 5.6.97 (B01) : réservé ou absent, même réponse : l'existence d'un message réservé n'est pas divulguée
+            return json_out({'error': 'introuvable', 'message': ERREURS['introuvable']}, '404 Not Found')
+        statut = ('409 Conflict' if code in CONFLITS else '403 Forbidden' if code in ('role_insuffisant', 'origine_ou_csrf_refuse', 'vue_desactivee')
+                  else '404 Not Found' if code in ('route_inconnue',) else '400 Bad Request')
         message = ERREURS.get(code) or human(code)
         return json_out({'error': code, 'message': message if message != code else 'Demande refusée.', **({'champ': CHAMPS[code]} if code in CHAMPS else {})}, statut)
 
@@ -70,10 +76,14 @@ def _route(env, desk, auth, prefix, name, args, method):
         if route == 'courriels/liste':
             return json_out({'lignes': [cx.json_ligne(r) for r in cx.lignes(desk, owner, hidden, str(args.get('filtre') or 'actifs'), str(args.get('dossier') or ''))]})
         r = cx.ligne(desk, str(args.get('fil') or ''), owner, hidden)
-        fournisseur = cx.FournisseurIMAP(desk, hidden)
+        if r.get('fournisseur') == 'gmail':   # 5.6.97 (lot gmail) : même contrat de lecture ; projection locale, pièce lue à la demande
+            from .gmail5697 import FournisseurGmail
+            fournisseur = FournisseurGmail(desk, owner, hidden)
+        else:
+            fournisseur = cx.FournisseurIMAP(desk, hidden)
         try:
+            # 5.6.97 (B01) : la référence garde le rattachement lu sur le serveur ; celui de la ligne affichée ne le remplace plus
             ref = fournisseur.reference(r['mail_key'])
-            ref['matter'] = r['matter'] or ref['matter']
             if route == 'courriels/message':
                 return json_out(fournisseur.lire_message(ref))
             if route == 'courriels/fil':
@@ -81,7 +91,7 @@ def _route(env, desk, auth, prefix, name, args, method):
             return json_out(fournisseur.lire_piece(ref, str(args.get('index') or '0')))
         except Stop as error:
             code = str(error).split(':')[0]
-            if code == 'dossier_reserve':
+            if code in NEUTRES:
                 raise
             # messagerie absente ou injoignable, message déplacé : un état réel de la source, dit en clair, jamais un fil vide présenté comme lu
             from .web440 import human
@@ -100,10 +110,18 @@ def _route(env, desk, auth, prefix, name, args, method):
         return json_out(cx.regler(desk, owner, role, donnees))
     if not cx.active(desk, owner):
         raise Stop('vue_desactivee')
+    if route == 'courriels/preparer':   # 5.6.97 (lot gmail) : sur une ligne Gmail, projet local par l'avocat, sans IA ; rien n'est déposé ni envoyé
+        r = cx.ligne(desk, str(data.get('fil') or ''), owner, hidden)
+        if r.get('fournisseur') == 'gmail':
+            from . import gmail5697
+            dossier = str(data.get('dossier') or '')
+            if dossier and (dossier in hidden or dossier not in {m['id'] for m in load_matters(desk.c)}):
+                raise Stop('dossier_a_choisir')
+            return json_out(gmail5697.preparer(desk, owner, r['mail_key'], dossier or r['matter'], str(data.get('texte') or ''), hidden))
     action = 'preparer' if route == 'courriels/preparer' else str(data.get('action') or '')
     if route == 'courriels/decision' and action == 'preparer':
         raise Stop('action_inconnue')          # « Préparer » a sa route : elle porte le droit « déposer »
-    return json_out(cx.decider(desk, owner, str(data.get('fil') or ''), action, data.get('version'), str(data.get('idempotence') or ''), data, hidden))
+    return json_out(cx.decider(desk, owner, str(data.get('fil') or ''), action, data.get('version'), str(data.get('idempotence') or ''), data, hidden, role))
 
 
 # ------------------------------------------------------------------------------------------------ page
@@ -159,19 +177,22 @@ def _detail(desk, prefix, r, zone, filtre, dossier):
     pourquoi = ('<details class="cx96-pourquoi"><summary>Pourquoi ?</summary><p>%s</p>'
                 '<button class="ax-btn ghost" type="button" data-cx96-lire="message" data-fil="%s">Afficher le message source</button>'
                 '<div class="cx96-texte" data-cx96-zone="message" aria-live="polite"></div></details>') % (e(cx.raison_lisible(r['raison'])), e(fil, quote=True))
-    if r['projet']:
+    if r.get('fournisseur') == 'gmail':   # 5.6.97 (lot gmail) : projet local, dépôt dans Gmail et envoi seulement après relecture exacte
+        from .gmail_web5697 import principal_html
+        principal = principal_html(desk, prefix, r, _cachees(fil, 'preparer', version))
+    elif r['projet']:
         principal = ('<p class="cx96-projet">Un projet de réponse existe (non envoyé). <a class="ax-btn" href="%s">Relire la réponse</a></p>'
                      % e(prefix + '/livrables/' + r['projet'] + '?' + urlencode({'retour': _url(prefix, fil=fil, filtre=filtre if filtre != 'actifs' else '', dossier=dossier)}), quote=True))
-    elif statut in ('a_traiter', 'a_completer'):
+    elif statut in ('a_traiter', 'a_completer', 'interrompu'):   # 5.6.97 (B04) : une préparation interrompue se reprend ici, sans renvoi silencieux
         dossiers = [('', 'Comme proposé (%s)' % (r['dossier'] or 'aucun dossier : réponse sans dossier'))] + [(m['id'], matter_display(m)) for m in load_matters(desk.c)][:400]
         choix = ''.join('<option value="%s">%s</option>' % (e(v, quote=True), e(t)) for v, t in dossiers)
         ident = 'cx96-instr-' + uuid.uuid4().hex[:8]
         principal = formulaire('m5689/courriels/preparer', _cachees(fil, 'preparer', version) +
                                '<div class="ui89-champ cx96-champ"><label for="%s-d">Dossier</label><select id="%s-d" name="dossier">%s</select></div>'
                                '<div class="ui89-champ cx96-champ"><label for="%s">Votre instruction (facultatif)</label><textarea id="%s" name="instruction" rows="2" maxlength="4000"></textarea></div>'
-                               '<div class="cx96-boutons"><button class="ax-btn" type="submit">Préparer une réponse</button></div>'
+                               '<div class="cx96-boutons"><button class="ax-btn" type="submit">%s</button></div>'
                                '<p class="ax-muted">Le projet est rédigé par le circuit habituel et rangé dans les brouillons à relire. Rien n’est envoyé.</p>'
-                               % (ident, ident, choix, ident, ident), recharge=True, classe='cx96-preparer')
+                               % (ident, ident, choix, ident, ident, 'Reprendre la préparation' if statut == 'interrompu' else 'Préparer une réponse'), recharge=True, classe='cx96-preparer')
     elif statut == 'en_preparation':
         principal = '<p class="cx96-projet" role="status">Préparation en cours : le projet apparaîtra ici dès qu’il sera prêt. Rien n’est envoyé.</p>'
     else:
@@ -195,7 +216,7 @@ def _detail(desk, prefix, r, zone, filtre, dossier):
     menu = ('<details class="cx96-menu"><summary>Suivi : reporter, terminer, écarter…</summary><p class="ax-muted">Ces gestes agissent sur le suivi dans AxiorHub ; '
             'le message reste à sa place dans la messagerie.</p>%s</details>') % gestes
     histoire = ''
-    sid = cx.suivi_id(desk, fil)
+    sid = cx.suivi_id(desk, fil, r.get('compte', ''), r.get('boite', ''))
     if sid:
         evts = cx.evenements(desk, sid)
         if evts:

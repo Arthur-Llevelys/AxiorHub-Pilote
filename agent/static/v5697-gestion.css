@@ -1,0 +1,32 @@
+/* AxiorHub 5.6.97 (lot gestion) — sections de la fiche : registre procédural et paquets de dépôt, honoraires, pièces demandées et remises, clôture.
+   Couleurs : jetons Carbon (v5689-carbon-jetons.css) avec repli ; clair et sombre suivent les jetons. Un état est toujours écrit en mots (jamais la seule couleur). */
+
+.g97-section { display: grid; gap: .5rem; min-width: 0; margin: .75rem 0; }
+.g97-section h2 { font-size: 1.15rem; margin: 0; }
+.g97-section h3 { font-size: 1rem; margin: .5rem 0 0; }
+.g97-table { border-collapse: collapse; width: 100%; }
+.g97-table caption { font-weight: 600; text-align: left; }
+.g97-table th, .g97-table td { border-bottom: 1px solid var(--cds-border-subtle-01, #e0e0e0); padding: .35rem .5rem; text-align: left; vertical-align: top; }
+.g97-liste { display: grid; gap: .5rem; list-style: none; margin: 0; padding: 0; }
+.g97-liste > li { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 8px; padding: .5rem .75rem; }
+.g97-form { align-items: end; display: flex; flex-wrap: wrap; gap: .4rem .6rem; margin: .25rem 0; min-width: 0; }
+.g97-form label { display: grid; gap: .15rem; font-size: .875rem; min-width: 0; }
+.g97-form input, .g97-form select, .g97-form textarea { max-width: 100%; min-width: 0; }
+.g97-form .m5-status { flex-basis: 100%; margin: 0; min-height: 1rem; }
+.g97-etat { border: 1px solid var(--cds-border-strong-01, #8d8d8d); border-radius: 1rem; display: inline-block; font-size: .8125rem; padding: 0 .5rem; }
+.g97-a-verifier, .g97-avertissement { background: var(--ui-attention-doux, #fcf4d6); border-color: var(--cds-support-warning, #b28600); color: var(--ui-attention-texte, #3d2f00); }
+.g97-bloquant { border-color: var(--cds-support-error, #da1e28); color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.g97-ok, .g97-leve { border-color: var(--cds-support-success, #24a148); }
+.g97-a-relancer { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.g97-cartes { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.g97-carte { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); border-radius: 8px; padding: .5rem .75rem; }
+.g97-carte h3 { font-size: .9375rem; margin: 0; }
+.g97-carte p { margin: .25rem 0; }
+.g97-montant { font-size: 1.25rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.g97-anomalies { border-left: 4px solid var(--cds-support-warning, #b28600); margin: 0; padding: .25rem .75rem .25rem 1.5rem; }
+.g97-section a:focus-visible, .g97-form button:focus-visible, .g97-form input:focus-visible, .g97-form select:focus-visible, .g97-form textarea:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+@media (max-width: 40rem) {
+  .g97-table thead { display: none; }
+  .g97-table tr, .g97-table td { display: block; }
+}

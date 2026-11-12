@@ -476,6 +476,30 @@ def pseudo_sources(config):
             'roots':list((config.get('nextcloud') or {}).get('roots') or [])}
 
 
+class _Local5697:
+    """5.6.97 (lot gmail, C06) : « modèle local seul » le temps d'un travail et sur ce fil d'exécution (contenu Gmail : modèle local autorisé,
+    sans routage externe, sans hybride ni secours distant). Les contrôles de la politique des données s'appliquent comme ailleurs."""
+    import threading as _threading
+    etat = _threading.local()
+
+    def __enter__(self):
+        self.avant = getattr(_Local5697.etat, 'actif', False)
+        _Local5697.etat.actif = True
+        return self
+
+    def __exit__(self, *exc):
+        _Local5697.etat.actif = self.avant
+        return False
+
+
+def modele_local_seul():
+    return _Local5697()
+
+
+def local_seul_actif():
+    return bool(getattr(_Local5697.etat, 'actif', False))
+
+
 def routed_config(config, purpose):
     """Resolve a function to one enabled provider and one explicit model.
 
@@ -489,7 +513,8 @@ def routed_config(config, purpose):
         role=PURPOSES[purpose][1]
     else:
         raise Stop('fonction_ia_invalide')
-    if 'ollama' in config:   # 5.6.82 : politique centrale ; mode à fournisseur unique ou automatique : aucun repli hérité d'anciens réglages
+    _local5697=local_seul_actif()   # 5.6.97 (lot gmail, C06) : modèle local seul ; ni politique de routage externe, ni hybride, ni secours
+    if 'ollama' in config and not _local5697:   # 5.6.82 : politique centrale ; mode à fournisseur unique ou automatique : aucun repli hérité d'anciens réglages
         from .politique5682 import routed as _politique5682
         _chosen=_politique5682(config,purpose,role)
         if _chosen is not None:return _chosen
@@ -499,6 +524,7 @@ def routed_config(config, purpose):
     hybrid=hybrid_policy(config) if 'ollama' in config else {'mode':'manual'}
     from .politique5682 import forced_provider
     forced=forced_provider()    # 5.6.87 : relance avec la connexion choisie par l'avocat
+    if _local5697:forced='ollama'
     if forced:hybrid={**hybrid,'mode':'manual'}
     # Hybrid means local by default. Existing explicit per-function routes are
     # retained as external candidates, not silently used for every request.
@@ -554,9 +580,11 @@ def routed_config(config, purpose):
     if 'ollama' in config and provider_type!='ollama' and not base.get('hybrid_external'):
         from .budget5668 import local_fallback   # 5.6.68 : plafond atteint → modèle local, au lieu d'une production « sans IA »
         base=local_fallback(base,config,providers,purpose,role)
-    if 'ollama' in config:
+    if 'ollama' in config and not _local5697:
         from .secours564 import attach
         base=attach(base,config,purpose)          # 5.6.4 : secours externe si le modèle local est trop lent
+    if _local5697 and (base.get('provider_type')!='ollama' or base.get('secours') or base.get('hybrid_external') or base.get('routeur5682')):
+        raise Stop('modele_local_requis')         # 5.6.97 (lot gmail) : jamais d'envoi distant d'un contenu Gmail par défaut
     return base
 ATTACHMENT_REVIEW_PROMPT="""Analyse les textes extraits des pièces jointes pour l'avocat.
 Évalue seulement leur lisibilité technique, jamais leur conformité juridique. Résume,

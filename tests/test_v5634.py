@@ -345,6 +345,10 @@ class LegalRegistry(Base):
     def test_t06_recent_connector_results_are_no_longer_dropped(self):
         from agent import legal_research
         found = [{'connector': 'c1', 'provider': 'justicelibre', 'status': 'ok', 'rows': [{'title': 'Décision fictive', 'identifier': 'X-1'}]}]
+        # 5.6.97 (B02) : la source doit être active pour être choisie avant l'appel (sans source active : aucun appel, aucun résultat)
+        self.desk.c['lawve_extensions'] = {'connector-axiorhub-justicelibre': {'id': 'connector-axiorhub-justicelibre', 'provider': 'justicelibre', 'kind': 'connector',
+                                                                               'enabled': True, 'external_data_allowed': True, 'purposes': ['legal_analysis'],
+                                                                               'last_test': {'status': 'ok'}}}
         with patch('agent.extensions364.legal_connector_search', return_value=found):
             out = legal_research.research_enabled_mcp(self.desk, MID, 'Question générale fictive sur un délai', 5)
         self.assertEqual([c['provider'] for c in out['connectors']], ['justicelibre'])

@@ -1,0 +1,188 @@
+/* AxiorHub 5.6.97 (lot agenda, § 14) — grille horaire Jour et Semaine de /planning, éditeur compact, réglages Talk et Speakr.
+   Couleurs : jetons Carbon avec repli ; clair et sombre suivent les jetons. Aucun style injecté : placement par classes (colonne ag97-cN,
+   couloirs ag97-l1/ag97-l2, ligne ag97-rN, étendue ag97-sN, décalage de l'heure courante ag97-oN) ; seule la hauteur utile de la grille
+   est posée par v5697-agenda.js (CSSOM). Couleurs doublées d'un libellé de type et d'un texte d'état. */
+
+.ag97 { --ag97-bord: var(--cds-border-subtle-01, #e0e0e0); --ag97-fond: var(--cds-layer-01, #fff); --ag97-texte: var(--cds-text-primary, #161616);
+  --ag97-doux: var(--cds-text-secondary, #525252); --ag97-accent: var(--cds-interactive, #0f62fe); --ag97-focus: var(--cds-focus, #0f62fe);
+  --ag97-sel: var(--cds-highlight, #d0e2ff); --ag97-maintenant: var(--cds-support-error, #da1e28);
+  display: flex; flex-direction: column; gap: .25rem; margin: 0; min-width: 0; }
+
+/* l'attribut hidden l'emporte sur les styles généraux des champs et des blocs */
+.ag97 [hidden], .ag97-editeur [hidden], .ag97-reglages [hidden] { display: none !important; }
+
+/* ------------------------------------------------------------------ barre compacte */
+.ag97-barre { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem .375rem; margin: 0; min-width: 0; }
+.ag97-barre .ax-btn { margin: 0; min-height: 2rem; padding: .25rem .625rem; }
+.ag97-barre .ag97-nav { font-weight: 600; min-width: 2rem; text-align: center; }
+.ag97-periode { flex: 1 1 14rem; font-size: 1.0625rem; line-height: 1.3; margin: 0 .25rem; min-width: 0; }
+.ag97-vues { display: inline-flex; flex-wrap: wrap; gap: 0; }
+.ag97-vue { border: 1px solid var(--ag97-bord); color: var(--ag97-texte); padding: .3125rem .625rem; text-decoration: none; }
+.ag97-vue + .ag97-vue { border-left: 0; }
+.ag97-vue[aria-current="page"] { background: var(--ag97-accent); border-color: var(--ag97-accent); color: var(--cds-text-on-color, #fff); font-weight: 600; }
+.ag97-vue[aria-current="page"]::before { content: "● "; }   /* l'état se lit aussi sans la couleur */
+.ag97-barre .planning-subtabs { display: inline-flex; flex-wrap: wrap; gap: 0; margin: 0; padding: 0; border: 0; }
+.ag97-barre .planning-subtabs a { border: 1px solid var(--ag97-bord); margin: 0; padding: .3125rem .625rem; text-decoration: none; }
+.ag97-barre .planning-subtabs a + a { border-left: 0; }
+.ag97-barre .planning-subtabs a[aria-current="page"] { font-weight: 600; box-shadow: inset 0 -3px 0 var(--ag97-accent); }
+.ag97-source { align-items: center; display: inline-flex; gap: .25rem; margin: 0; }
+.ag97-source select { margin: 0; max-width: 14rem; min-height: 2rem; padding: .125rem .375rem; width: auto; }
+.ag97-avis { background: var(--cds-notification-background-warning, #fcf4d6); border-left: 3px solid var(--cds-support-warning, #f1c21b); margin: 0; padding: .25rem .5rem; }
+
+/* ------------------------------------------------------------------ corps : grille + volets */
+.ag97-corps { display: grid; gap: .5rem; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.ag97-volets-ouverts .ag97-corps { grid-template-columns: minmax(0, 1fr) 16rem; }
+.ag97-volets { border-left: 1px solid var(--ag97-bord); font-size: .875rem; min-width: 0; overflow: auto; padding-left: .5rem; }
+.ag97-volets details { margin: 0 0 .375rem; }
+.ag97-volets summary { cursor: pointer; font-weight: 600; min-height: 1.75rem; }
+.ag97-volets ul { list-style: none; margin: .25rem 0; padding: 0; }
+.ag97-taches li { align-items: center; border-bottom: 1px solid var(--ag97-bord); display: flex; gap: .25rem; justify-content: space-between; padding: .25rem 0; }
+.ag97-taches .ax-btn { flex: none; margin: 0; min-height: 1.75rem; padding: .125rem .5rem; }
+.ag97-sources li { margin: 0 0 .25rem; }
+.ag97-filtres, .ag97-prefs { display: flex; flex-direction: column; gap: .25rem; }
+.ag97-prefs label { display: flex; flex-direction: column; margin: 0; }
+.ag97-mini table { border-collapse: collapse; width: 100%; }
+.ag97-mini th, .ag97-mini td { padding: 0; text-align: center; }
+.ag97-mini a { display: block; padding: .125rem 0; text-decoration: none; }
+.ag97-mini a[aria-current="date"] { background: var(--ag97-accent); color: var(--cds-text-on-color, #fff); font-weight: 700; }
+.ag97-mini .ag97-hors-mois { color: var(--ag97-doux); }
+.ag97-mini-tete { align-items: center; display: flex; justify-content: space-between; }
+
+/* ------------------------------------------------------------------ grille : la hauteur est celle de la zone utile */
+.ag97-grille { background: var(--ag97-fond); border: 1px solid var(--ag97-bord); box-sizing: border-box; color: var(--ag97-texte); display: grid;
+  font-size: .8125rem; height: calc(100dvh - 12rem); min-height: 0; min-width: 0; overflow: hidden; position: relative;
+  grid-template-rows: auto minmax(1.75rem, auto) repeat(var(--ag97-n, 22), minmax(0, 1fr)); }
+.ag97-j1 { grid-template-columns: 3.75rem repeat(2, minmax(0, 1fr)); }
+.ag97-j5 { grid-template-columns: 3.75rem repeat(10, minmax(0, 1fr)); }
+.ag97-j7 { grid-template-columns: 3.75rem repeat(14, minmax(0, 1fr)); }
+.ag97-coin, .ag97-jour { background: var(--cds-layer-accent-01, #e0e0e0); border-bottom: 1px solid var(--ag97-bord); padding: .1875rem .25rem; position: sticky; top: 0; z-index: 2; }
+.ag97-coin { color: var(--ag97-doux); font-size: .6875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag97-jour { border-left: 1px solid var(--ag97-bord); line-height: 1.2; min-width: 0; overflow: hidden; }
+.ag97-jour a { color: var(--ag97-texte); text-decoration: none; }
+.ag97-jour.ag97-aujourdhui { box-shadow: inset 0 -3px 0 var(--ag97-accent); }
+.ag97-jour.ag97-aujourdhui strong::after { content: " · aujourd’hui"; font-weight: 400; }
+.ag97-hors { color: var(--ag97-doux); display: block; font-size: .6875rem; }
+.ag97-toute { font-size: .6875rem; }
+.ag97-h { border-bottom: 1px solid transparent; color: var(--ag97-doux); font-size: .6875rem; line-height: 1; padding: 1px .25rem 0 0; text-align: right; }
+.ag97-r2.ag97-h { align-self: center; font-size: .625rem; line-height: 1.1; white-space: normal; }
+.ag97-case { background: transparent; border: 0; border-left: 1px solid var(--ag97-bord); border-top: 1px dotted var(--ag97-bord); border-radius: 0; color: inherit;
+  cursor: pointer; height: auto; margin: 0; min-height: 0; min-width: 0; padding: 0; width: auto; }
+.ag97-case.ag97-pleine { border-top-style: solid; }
+.ag97-case:hover { background: var(--cds-layer-hover-01, #e8e8e8); }
+.ag97-case:focus-visible { outline: 2px solid var(--ag97-focus); outline-offset: -2px; z-index: 3; }
+.ag97-case.ag97-choisi { background: var(--ag97-sel); }
+.ag97-case.ag97-choisi::after { content: "✓"; color: var(--ag97-accent); font-size: .625rem; }
+.ag97-jcase { border-bottom: 1px solid var(--ag97-bord); border-top: 0; }
+.ag97-jliste { align-items: center; display: flex; gap: 2px; min-width: 0; padding: 1px 2px; pointer-events: none; z-index: 1; }
+.ag97-jliste > * { pointer-events: auto; }
+
+/* événements : type écrit (étiquette), couleur en second */
+.ag97-ev { align-content: flex-start; align-items: baseline; justify-content: flex-start; background: var(--cds-tag-background-blue, #d0e2ff); border: 0; border-left: 3px solid var(--ag97-accent); border-radius: 2px;
+  box-sizing: border-box; color: var(--ag97-texte); cursor: pointer; display: flex; flex-wrap: wrap; font-size: .75rem; gap: 0 .25rem; height: auto;
+  line-height: 1.2; margin: 1px 2px; min-height: 0; min-width: 0; overflow: hidden; padding: 1px 3px; text-align: left; width: auto; z-index: 1; }
+.ag97-ev:focus-visible { outline: 2px solid var(--ag97-focus); outline-offset: 1px; z-index: 4; }
+.ag97-ev-tag { font-size: .625rem; font-weight: 700; text-transform: uppercase; }
+.ag97-ev-h { color: var(--ag97-doux); font-size: .6875rem; }
+.ag97-ev-t { flex: 1 1 100%; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ag97-ev-etat { flex: 1 1 100%; font-size: .6875rem; font-style: italic; }
+.ag97-jev { flex: 1 1 0; margin: 0; white-space: nowrap; }
+.ag97-jev .ag97-ev-t { flex: 1 1 auto; }
+.ag97-n-repas { background: var(--cds-tag-background-green, #a7f0ba); border-left-color: var(--cds-support-success, #24a148); }
+.ag97-n-audience { background: var(--cds-tag-background-purple, #e8daff); border-left-color: var(--cds-tag-color-purple, #8a3ffc); }
+.ag97-n-echeance { background: var(--cds-tag-background-red, #ffd7d9); border-left-color: var(--cds-support-error, #da1e28); }
+.ag97-n-tache { background: var(--cds-tag-background-warm-gray, #e5e0df); border-left-color: var(--cds-tag-color-warm-gray, #726e6e); border-left-style: dashed; }
+.ag97-attente { border-left-style: dotted; opacity: .85; }
+.ag97-nouveau-ev { outline: 3px solid var(--ag97-accent); }
+.ag97-serre .ag97-ev-h, .ag97-serre .ag97-hors { display: none; }
+.ag97-sans-rendez_vous .ag97-n-rendez_vous, .ag97-sans-repas .ag97-n-repas, .ag97-sans-audience .ag97-n-audience, .ag97-sans-echeance .ag97-n-echeance,
+.ag97-sans-tache .ag97-n-tache, .ag97-sans-autre .ag97-n-autre { display: none; }
+
+/* « + N » : chevauchements regroupés, ouvrables */
+.ag97-plus { align-self: start; justify-self: end; margin: 1px; position: relative; z-index: 3; }
+.ag97-plus > summary { background: var(--cds-background-inverse, #393939); border-radius: 2px; color: var(--cds-text-inverse, #fff); cursor: pointer; font-size: .6875rem;
+  font-weight: 700; list-style: none; padding: 0 .25rem; }
+.ag97-plus > summary::-webkit-details-marker { display: none; }
+.ag97-pop { background: var(--ag97-fond); border: 1px solid var(--ag97-bord); box-shadow: 0 2px 6px rgba(0, 0, 0, .3); display: flex; flex-direction: column;
+  max-height: 16rem; min-width: 12rem; overflow: auto; padding: .25rem; position: absolute; right: 0; top: 100%; z-index: 6; }
+.ag97-pev { margin: 0 0 2px; }
+
+/* repère de l'heure courante */
+.ag97-maintenant { align-self: start; border-top: 2px solid var(--ag97-maintenant); height: 0; pointer-events: none; position: relative; z-index: 2; }
+.ag97-maintenant::before { background: var(--ag97-maintenant); border-radius: 50%; content: ""; height: 8px; left: -4px; position: absolute; top: -5px; width: 8px; }
+.ag97-sr { clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+
+/* ------------------------------------------------------------------ éditeur compact */
+.ag97-editeur { border: 1px solid var(--ag97-bord); color: var(--ag97-texte); background: var(--ag97-fond); max-height: calc(100dvh - 2rem); max-width: min(44rem, calc(100vw - 1rem));
+  overflow: auto; padding: .75rem 1rem; width: 100%; box-sizing: border-box; }
+.ag97-editeur::backdrop { background: rgba(0, 0, 0, .35); }
+.ag97-form h2 { font-size: 1.0625rem; margin: 0 0 .5rem; }
+.ag97-form label { display: flex; flex-direction: column; margin: 0 0 .375rem; min-width: 0; }
+.ag97-form .ag97-coche, .ag97-objet label, .ag97-visio label, .ag97-choix label { align-items: center; flex-direction: row; gap: .375rem; }
+.ag97-form input[type=radio], .ag97-form input[type=checkbox], .ag97-reglages input[type=checkbox] { flex: none; height: 1rem; margin: 0; min-height: 0; width: 1rem; }
+.ag97-form .ag97-coche, .ag97-objet label, .ag97-visio label, .ag97-choix label { display: flex; justify-content: flex-start; text-align: left; width: auto; }
+.ag97-visio { display: flex; flex-direction: column; gap: .125rem; }
+.ag97-ligne { display: flex; flex-wrap: wrap; gap: 0 .75rem; }
+.ag97-ligne > label { flex: 1 1 12rem; }
+.ag97-objet, .ag97-visio, .ag97-tache { border: 1px solid var(--ag97-bord); margin: 0 0 .5rem; min-width: 0; padding: .25rem .5rem; }
+.ag97-objet { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.ag97-choix { background: var(--cds-notification-background-warning, #fcf4d6); border-left: 3px solid var(--cds-support-warning, #f1c21b); margin: 0 0 .5rem; padding: .25rem .5rem; }
+.ag97-detail { border-top: 1px solid var(--ag97-bord); margin: .5rem 0; padding-top: .5rem; }
+.ag97-detail p { margin: 0 0 .25rem; }
+.ag97-detail .ax-btn { margin: 0 .375rem .375rem 0; }
+.ag97-acces { display: flex; flex-wrap: wrap; gap: .375rem; margin: .25rem 0; }
+.ag97-acces input:not([type=checkbox]) { flex: 1 1 14rem; }
+.ag97-boutons { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; position: sticky; bottom: 0; background: var(--ag97-fond); padding-top: .25rem; }
+.ag97-statut:empty { display: none; }
+.ag97-statut { margin: .25rem 0; }
+.ag97-mauvais { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.ag97-mauvais::before { content: "⚠ "; }
+.ag97-aide { color: var(--ag97-doux); font-size: .8125rem; margin: .125rem 0 .375rem; }
+.ag97-gerer { margin: .75rem 0 0; }
+.ag97-gerer > summary { cursor: pointer; font-weight: 600; }
+.ag97-reglages .ag97-reglage { margin: 0 0 .75rem; }
+.ag97-reglages .ag97-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ag97-reglages .ag97-case { display: flex; gap: .375rem; }
+
+/* ------------------------------------------------------------------ zoom fort et mobile : vue compacte, jamais de défilement horizontal */
+@media (max-width: 1100px) {
+  .ag97-volets-ouverts .ag97-corps { grid-template-columns: minmax(0, 1fr); }
+  .ag97-volets { border-left: 0; border-top: 1px solid var(--ag97-bord); padding: .5rem 0 0; }
+  .ag97-periode { flex-basis: 100%; order: -1; }
+}
+@media (max-width: 700px) {
+  .ag97-grille { font-size: .6875rem; }
+  .ag97-j5, .ag97-j7 { grid-template-columns: 2.25rem repeat(var(--ag97-cols, 14), minmax(0, 1fr)); }
+  .ag97-j5 { --ag97-cols: 10; }
+  .ag97-h { font-size: .5625rem; }
+  .ag97-ev-tag, .ag97-ev-h { display: none; }
+  .ag97-jour .ag97-hors { display: none; }
+  .ag97-source select { max-width: 9rem; }
+  .ag97-coin { font-size: 0; }
+}
+@media (prefers-reduced-motion: no-preference) { .ag97-case { transition: background-color .08s; } }
+
+/* ------------------------------------------------------------------ placement (généré : colonnes, couloirs, lignes, étendues, heure courante) */
+.ag97-c1{grid-column-start:1} .ag97-c2{grid-column-start:2} .ag97-c3{grid-column-start:3} .ag97-c4{grid-column-start:4} .ag97-c5{grid-column-start:5} .ag97-c6{grid-column-start:6} .ag97-c7{grid-column-start:7} .ag97-c8{grid-column-start:8} .ag97-c9{grid-column-start:9} .ag97-c10{grid-column-start:10} .ag97-c11{grid-column-start:11} .ag97-c12{grid-column-start:12} .ag97-c13{grid-column-start:13} .ag97-c14{grid-column-start:14} .ag97-c15{grid-column-start:15} .ag97-c16{grid-column-start:16}
+.ag97-l1{grid-column-end:span 1} .ag97-l2{grid-column-end:span 2}
+.ag97-r1{grid-row-start:1} .ag97-r2{grid-row-start:2} .ag97-r3{grid-row-start:3} .ag97-r4{grid-row-start:4} .ag97-r5{grid-row-start:5} .ag97-r6{grid-row-start:6} .ag97-r7{grid-row-start:7} .ag97-r8{grid-row-start:8} .ag97-r9{grid-row-start:9} .ag97-r10{grid-row-start:10}
+.ag97-r11{grid-row-start:11} .ag97-r12{grid-row-start:12} .ag97-r13{grid-row-start:13} .ag97-r14{grid-row-start:14} .ag97-r15{grid-row-start:15} .ag97-r16{grid-row-start:16} .ag97-r17{grid-row-start:17} .ag97-r18{grid-row-start:18} .ag97-r19{grid-row-start:19} .ag97-r20{grid-row-start:20}
+.ag97-r21{grid-row-start:21} .ag97-r22{grid-row-start:22} .ag97-r23{grid-row-start:23} .ag97-r24{grid-row-start:24} .ag97-r25{grid-row-start:25} .ag97-r26{grid-row-start:26} .ag97-r27{grid-row-start:27} .ag97-r28{grid-row-start:28} .ag97-r29{grid-row-start:29} .ag97-r30{grid-row-start:30}
+.ag97-r31{grid-row-start:31} .ag97-r32{grid-row-start:32} .ag97-r33{grid-row-start:33} .ag97-r34{grid-row-start:34} .ag97-r35{grid-row-start:35} .ag97-r36{grid-row-start:36} .ag97-r37{grid-row-start:37} .ag97-r38{grid-row-start:38} .ag97-r39{grid-row-start:39} .ag97-r40{grid-row-start:40}
+.ag97-r41{grid-row-start:41} .ag97-r42{grid-row-start:42} .ag97-r43{grid-row-start:43} .ag97-r44{grid-row-start:44} .ag97-r45{grid-row-start:45} .ag97-r46{grid-row-start:46} .ag97-r47{grid-row-start:47} .ag97-r48{grid-row-start:48} .ag97-r49{grid-row-start:49} .ag97-r50{grid-row-start:50}
+.ag97-r51{grid-row-start:51} .ag97-r52{grid-row-start:52} .ag97-r53{grid-row-start:53} .ag97-r54{grid-row-start:54} .ag97-r55{grid-row-start:55} .ag97-r56{grid-row-start:56} .ag97-r57{grid-row-start:57} .ag97-r58{grid-row-start:58} .ag97-r59{grid-row-start:59} .ag97-r60{grid-row-start:60}
+.ag97-r61{grid-row-start:61} .ag97-r62{grid-row-start:62} .ag97-r63{grid-row-start:63} .ag97-r64{grid-row-start:64} .ag97-r65{grid-row-start:65} .ag97-r66{grid-row-start:66} .ag97-r67{grid-row-start:67} .ag97-r68{grid-row-start:68} .ag97-r69{grid-row-start:69} .ag97-r70{grid-row-start:70}
+.ag97-r71{grid-row-start:71} .ag97-r72{grid-row-start:72} .ag97-r73{grid-row-start:73} .ag97-r74{grid-row-start:74} .ag97-r75{grid-row-start:75} .ag97-r76{grid-row-start:76} .ag97-r77{grid-row-start:77} .ag97-r78{grid-row-start:78} .ag97-r79{grid-row-start:79} .ag97-r80{grid-row-start:80}
+.ag97-r81{grid-row-start:81} .ag97-r82{grid-row-start:82} .ag97-r83{grid-row-start:83} .ag97-r84{grid-row-start:84} .ag97-r85{grid-row-start:85} .ag97-r86{grid-row-start:86} .ag97-r87{grid-row-start:87} .ag97-r88{grid-row-start:88} .ag97-r89{grid-row-start:89} .ag97-r90{grid-row-start:90}
+.ag97-r91{grid-row-start:91} .ag97-r92{grid-row-start:92} .ag97-r93{grid-row-start:93} .ag97-r94{grid-row-start:94} .ag97-r95{grid-row-start:95} .ag97-r96{grid-row-start:96} .ag97-r97{grid-row-start:97} .ag97-r98{grid-row-start:98}
+.ag97-s1{grid-row-end:span 1} .ag97-s2{grid-row-end:span 2} .ag97-s3{grid-row-end:span 3} .ag97-s4{grid-row-end:span 4} .ag97-s5{grid-row-end:span 5} .ag97-s6{grid-row-end:span 6} .ag97-s7{grid-row-end:span 7} .ag97-s8{grid-row-end:span 8} .ag97-s9{grid-row-end:span 9} .ag97-s10{grid-row-end:span 10}
+.ag97-s11{grid-row-end:span 11} .ag97-s12{grid-row-end:span 12} .ag97-s13{grid-row-end:span 13} .ag97-s14{grid-row-end:span 14} .ag97-s15{grid-row-end:span 15} .ag97-s16{grid-row-end:span 16} .ag97-s17{grid-row-end:span 17} .ag97-s18{grid-row-end:span 18} .ag97-s19{grid-row-end:span 19} .ag97-s20{grid-row-end:span 20}
+.ag97-s21{grid-row-end:span 21} .ag97-s22{grid-row-end:span 22} .ag97-s23{grid-row-end:span 23} .ag97-s24{grid-row-end:span 24} .ag97-s25{grid-row-end:span 25} .ag97-s26{grid-row-end:span 26} .ag97-s27{grid-row-end:span 27} .ag97-s28{grid-row-end:span 28} .ag97-s29{grid-row-end:span 29} .ag97-s30{grid-row-end:span 30}
+.ag97-s31{grid-row-end:span 31} .ag97-s32{grid-row-end:span 32} .ag97-s33{grid-row-end:span 33} .ag97-s34{grid-row-end:span 34} .ag97-s35{grid-row-end:span 35} .ag97-s36{grid-row-end:span 36} .ag97-s37{grid-row-end:span 37} .ag97-s38{grid-row-end:span 38} .ag97-s39{grid-row-end:span 39} .ag97-s40{grid-row-end:span 40}
+.ag97-s41{grid-row-end:span 41} .ag97-s42{grid-row-end:span 42} .ag97-s43{grid-row-end:span 43} .ag97-s44{grid-row-end:span 44} .ag97-s45{grid-row-end:span 45} .ag97-s46{grid-row-end:span 46} .ag97-s47{grid-row-end:span 47} .ag97-s48{grid-row-end:span 48} .ag97-s49{grid-row-end:span 49} .ag97-s50{grid-row-end:span 50}
+.ag97-s51{grid-row-end:span 51} .ag97-s52{grid-row-end:span 52} .ag97-s53{grid-row-end:span 53} .ag97-s54{grid-row-end:span 54} .ag97-s55{grid-row-end:span 55} .ag97-s56{grid-row-end:span 56} .ag97-s57{grid-row-end:span 57} .ag97-s58{grid-row-end:span 58} .ag97-s59{grid-row-end:span 59} .ag97-s60{grid-row-end:span 60}
+.ag97-s61{grid-row-end:span 61} .ag97-s62{grid-row-end:span 62} .ag97-s63{grid-row-end:span 63} .ag97-s64{grid-row-end:span 64} .ag97-s65{grid-row-end:span 65} .ag97-s66{grid-row-end:span 66} .ag97-s67{grid-row-end:span 67} .ag97-s68{grid-row-end:span 68} .ag97-s69{grid-row-end:span 69} .ag97-s70{grid-row-end:span 70}
+.ag97-s71{grid-row-end:span 71} .ag97-s72{grid-row-end:span 72} .ag97-s73{grid-row-end:span 73} .ag97-s74{grid-row-end:span 74} .ag97-s75{grid-row-end:span 75} .ag97-s76{grid-row-end:span 76} .ag97-s77{grid-row-end:span 77} .ag97-s78{grid-row-end:span 78} .ag97-s79{grid-row-end:span 79} .ag97-s80{grid-row-end:span 80}
+.ag97-s81{grid-row-end:span 81} .ag97-s82{grid-row-end:span 82} .ag97-s83{grid-row-end:span 83} .ag97-s84{grid-row-end:span 84} .ag97-s85{grid-row-end:span 85} .ag97-s86{grid-row-end:span 86} .ag97-s87{grid-row-end:span 87} .ag97-s88{grid-row-end:span 88} .ag97-s89{grid-row-end:span 89} .ag97-s90{grid-row-end:span 90}
+.ag97-s91{grid-row-end:span 91} .ag97-s92{grid-row-end:span 92} .ag97-s93{grid-row-end:span 93} .ag97-s94{grid-row-end:span 94} .ag97-s95{grid-row-end:span 95} .ag97-s96{grid-row-end:span 96}
+.ag97-o0{top:0%} .ag97-o1{top:10%} .ag97-o2{top:20%} .ag97-o3{top:30%} .ag97-o4{top:40%} .ag97-o5{top:50%} .ag97-o6{top:60%} .ag97-o7{top:70%} .ag97-o8{top:80%} .ag97-o9{top:90%}
+.ag97-rows4{grid-template-rows:auto minmax(1.75rem,auto) repeat(4,minmax(0,1fr))} .ag97-rows5{grid-template-rows:auto minmax(1.75rem,auto) repeat(5,minmax(0,1fr))} .ag97-rows6{grid-template-rows:auto minmax(1.75rem,auto) repeat(6,minmax(0,1fr))} .ag97-rows7{grid-template-rows:auto minmax(1.75rem,auto) repeat(7,minmax(0,1fr))} .ag97-rows8{grid-template-rows:auto minmax(1.75rem,auto) repeat(8,minmax(0,1fr))} .ag97-rows9{grid-template-rows:auto minmax(1.75rem,auto) repeat(9,minmax(0,1fr))} .ag97-rows10{grid-template-rows:auto minmax(1.75rem,auto) repeat(10,minmax(0,1fr))} .ag97-rows11{grid-template-rows:auto minmax(1.75rem,auto) repeat(11,minmax(0,1fr))} .ag97-rows12{grid-template-rows:auto minmax(1.75rem,auto) repeat(12,minmax(0,1fr))} .ag97-rows13{grid-template-rows:auto minmax(1.75rem,auto) repeat(13,minmax(0,1fr))} .ag97-rows14{grid-template-rows:auto minmax(1.75rem,auto) repeat(14,minmax(0,1fr))} .ag97-rows15{grid-template-rows:auto minmax(1.75rem,auto) repeat(15,minmax(0,1fr))} .ag97-rows16{grid-template-rows:auto minmax(1.75rem,auto) repeat(16,minmax(0,1fr))} .ag97-rows17{grid-template-rows:auto minmax(1.75rem,auto) repeat(17,minmax(0,1fr))} .ag97-rows18{grid-template-rows:auto minmax(1.75rem,auto) repeat(18,minmax(0,1fr))} .ag97-rows19{grid-template-rows:auto minmax(1.75rem,auto) repeat(19,minmax(0,1fr))} .ag97-rows20{grid-template-rows:auto minmax(1.75rem,auto) repeat(20,minmax(0,1fr))} .ag97-rows21{grid-template-rows:auto minmax(1.75rem,auto) repeat(21,minmax(0,1fr))} .ag97-rows22{grid-template-rows:auto minmax(1.75rem,auto) repeat(22,minmax(0,1fr))} .ag97-rows23{grid-template-rows:auto minmax(1.75rem,auto) repeat(23,minmax(0,1fr))} .ag97-rows24{grid-template-rows:auto minmax(1.75rem,auto) repeat(24,minmax(0,1fr))} .ag97-rows25{grid-template-rows:auto minmax(1.75rem,auto) repeat(25,minmax(0,1fr))} .ag97-rows26{grid-template-rows:auto minmax(1.75rem,auto) repeat(26,minmax(0,1fr))} .ag97-rows27{grid-template-rows:auto minmax(1.75rem,auto) repeat(27,minmax(0,1fr))} .ag97-rows28{grid-template-rows:auto minmax(1.75rem,auto) repeat(28,minmax(0,1fr))} .ag97-rows29{grid-template-rows:auto minmax(1.75rem,auto) repeat(29,minmax(0,1fr))} .ag97-rows30{grid-template-rows:auto minmax(1.75rem,auto) repeat(30,minmax(0,1fr))} .ag97-rows31{grid-template-rows:auto minmax(1.75rem,auto) repeat(31,minmax(0,1fr))} .ag97-rows32{grid-template-rows:auto minmax(1.75rem,auto) repeat(32,minmax(0,1fr))} .ag97-rows33{grid-template-rows:auto minmax(1.75rem,auto) repeat(33,minmax(0,1fr))} .ag97-rows34{grid-template-rows:auto minmax(1.75rem,auto) repeat(34,minmax(0,1fr))} .ag97-rows35{grid-template-rows:auto minmax(1.75rem,auto) repeat(35,minmax(0,1fr))} .ag97-rows36{grid-template-rows:auto minmax(1.75rem,auto) repeat(36,minmax(0,1fr))} .ag97-rows37{grid-template-rows:auto minmax(1.75rem,auto) repeat(37,minmax(0,1fr))} .ag97-rows38{grid-template-rows:auto minmax(1.75rem,auto) repeat(38,minmax(0,1fr))} .ag97-rows39{grid-template-rows:auto minmax(1.75rem,auto) repeat(39,minmax(0,1fr))} .ag97-rows40{grid-template-rows:auto minmax(1.75rem,auto) repeat(40,minmax(0,1fr))} .ag97-rows41{grid-template-rows:auto minmax(1.75rem,auto) repeat(41,minmax(0,1fr))} .ag97-rows42{grid-template-rows:auto minmax(1.75rem,auto) repeat(42,minmax(0,1fr))} .ag97-rows43{grid-template-rows:auto minmax(1.75rem,auto) repeat(43,minmax(0,1fr))} .ag97-rows44{grid-template-rows:auto minmax(1.75rem,auto) repeat(44,minmax(0,1fr))} .ag97-rows45{grid-template-rows:auto minmax(1.75rem,auto) repeat(45,minmax(0,1fr))} .ag97-rows46{grid-template-rows:auto minmax(1.75rem,auto) repeat(46,minmax(0,1fr))} .ag97-rows47{grid-template-rows:auto minmax(1.75rem,auto) repeat(47,minmax(0,1fr))} .ag97-rows48{grid-template-rows:auto minmax(1.75rem,auto) repeat(48,minmax(0,1fr))} .ag97-rows49{grid-template-rows:auto minmax(1.75rem,auto) repeat(49,minmax(0,1fr))} .ag97-rows50{grid-template-rows:auto minmax(1.75rem,auto) repeat(50,minmax(0,1fr))} .ag97-rows51{grid-template-rows:auto minmax(1.75rem,auto) repeat(51,minmax(0,1fr))} .ag97-rows52{grid-template-rows:auto minmax(1.75rem,auto) repeat(52,minmax(0,1fr))} .ag97-rows53{grid-template-rows:auto minmax(1.75rem,auto) repeat(53,minmax(0,1fr))} .ag97-rows54{grid-template-rows:auto minmax(1.75rem,auto) repeat(54,minmax(0,1fr))} .ag97-rows55{grid-template-rows:auto minmax(1.75rem,auto) repeat(55,minmax(0,1fr))} .ag97-rows56{grid-template-rows:auto minmax(1.75rem,auto) repeat(56,minmax(0,1fr))} .ag97-rows57{grid-template-rows:auto minmax(1.75rem,auto) repeat(57,minmax(0,1fr))} .ag97-rows58{grid-template-rows:auto minmax(1.75rem,auto) repeat(58,minmax(0,1fr))} .ag97-rows59{grid-template-rows:auto minmax(1.75rem,auto) repeat(59,minmax(0,1fr))} .ag97-rows60{grid-template-rows:auto minmax(1.75rem,auto) repeat(60,minmax(0,1fr))} .ag97-rows61{grid-template-rows:auto minmax(1.75rem,auto) repeat(61,minmax(0,1fr))} .ag97-rows62{grid-template-rows:auto minmax(1.75rem,auto) repeat(62,minmax(0,1fr))} .ag97-rows63{grid-template-rows:auto minmax(1.75rem,auto) repeat(63,minmax(0,1fr))} .ag97-rows64{grid-template-rows:auto minmax(1.75rem,auto) repeat(64,minmax(0,1fr))} .ag97-rows65{grid-template-rows:auto minmax(1.75rem,auto) repeat(65,minmax(0,1fr))} .ag97-rows66{grid-template-rows:auto minmax(1.75rem,auto) repeat(66,minmax(0,1fr))} .ag97-rows67{grid-template-rows:auto minmax(1.75rem,auto) repeat(67,minmax(0,1fr))} .ag97-rows68{grid-template-rows:auto minmax(1.75rem,auto) repeat(68,minmax(0,1fr))} .ag97-rows69{grid-template-rows:auto minmax(1.75rem,auto) repeat(69,minmax(0,1fr))} .ag97-rows70{grid-template-rows:auto minmax(1.75rem,auto) repeat(70,minmax(0,1fr))} .ag97-rows71{grid-template-rows:auto minmax(1.75rem,auto) repeat(71,minmax(0,1fr))} .ag97-rows72{grid-template-rows:auto minmax(1.75rem,auto) repeat(72,minmax(0,1fr))} .ag97-rows73{grid-template-rows:auto minmax(1.75rem,auto) repeat(73,minmax(0,1fr))} .ag97-rows74{grid-template-rows:auto minmax(1.75rem,auto) repeat(74,minmax(0,1fr))} .ag97-rows75{grid-template-rows:auto minmax(1.75rem,auto) repeat(75,minmax(0,1fr))} .ag97-rows76{grid-template-rows:auto minmax(1.75rem,auto) repeat(76,minmax(0,1fr))} .ag97-rows77{grid-template-rows:auto minmax(1.75rem,auto) repeat(77,minmax(0,1fr))} .ag97-rows78{grid-template-rows:auto minmax(1.75rem,auto) repeat(78,minmax(0,1fr))} .ag97-rows79{grid-template-rows:auto minmax(1.75rem,auto) repeat(79,minmax(0,1fr))} .ag97-rows80{grid-template-rows:auto minmax(1.75rem,auto) repeat(80,minmax(0,1fr))} .ag97-rows81{grid-template-rows:auto minmax(1.75rem,auto) repeat(81,minmax(0,1fr))} .ag97-rows82{grid-template-rows:auto minmax(1.75rem,auto) repeat(82,minmax(0,1fr))} .ag97-rows83{grid-template-rows:auto minmax(1.75rem,auto) repeat(83,minmax(0,1fr))} .ag97-rows84{grid-template-rows:auto minmax(1.75rem,auto) repeat(84,minmax(0,1fr))} .ag97-rows85{grid-template-rows:auto minmax(1.75rem,auto) repeat(85,minmax(0,1fr))} .ag97-rows86{grid-template-rows:auto minmax(1.75rem,auto) repeat(86,minmax(0,1fr))} .ag97-rows87{grid-template-rows:auto minmax(1.75rem,auto) repeat(87,minmax(0,1fr))} .ag97-rows88{grid-template-rows:auto minmax(1.75rem,auto) repeat(88,minmax(0,1fr))} .ag97-rows89{grid-template-rows:auto minmax(1.75rem,auto) repeat(89,minmax(0,1fr))} .ag97-rows90{grid-template-rows:auto minmax(1.75rem,auto) repeat(90,minmax(0,1fr))} .ag97-rows91{grid-template-rows:auto minmax(1.75rem,auto) repeat(91,minmax(0,1fr))} .ag97-rows92{grid-template-rows:auto minmax(1.75rem,auto) repeat(92,minmax(0,1fr))} .ag97-rows93{grid-template-rows:auto minmax(1.75rem,auto) repeat(93,minmax(0,1fr))} .ag97-rows94{grid-template-rows:auto minmax(1.75rem,auto) repeat(94,minmax(0,1fr))} .ag97-rows95{grid-template-rows:auto minmax(1.75rem,auto) repeat(95,minmax(0,1fr))} .ag97-rows96{grid-template-rows:auto minmax(1.75rem,auto) repeat(96,minmax(0,1fr))}

@@ -291,9 +291,10 @@ def prepare_draft(desk,args):
     if style not in STYLES:raise Stop('style_invalide')
     instruction=args.get('instruction','').strip()
     if len(instruction)>12000:raise Stop('instruction_trop_longue_12000_maximum')
-    box=Mailbox(desk.c['mail'])
+    source=args.get('_source')   # 5.6.97 (lot gmail) : (rapport, message) fournis par le fournisseur Gmail, droits contrôlés ; aucune connexion IMAP
+    box=None if source else Mailbox(desk.c['mail'])
     try:
-        report,mail=fetch_source(desk,key,box)
+        report,mail=source if source else fetch_source(desk,key,box)
         # 5.6.25 : réponse sans dossier demandée par l'avocat ; 5.6.71 : réponse « sans dossier » automatique — le dossier seulement
         # supposé par l'agent (rattachement à confirmer) est ignoré, jamais utilisé comme source.
         if args.get('sans_dossier')=='oui' and (not report.get('matter') or args.get('ignorer_dossier_suppose')=='oui'):
@@ -432,7 +433,8 @@ def prepare_draft(desk,args):
                 # v3 : plus de 2 faits absents n'empêchent plus le dépôt (objet « [À COMPLÉTER : n faits] », envoi bloqué) ; seule la sûreté décide
                 'a_completer_possible':bool(result['body']) and result['requires_decision'] and safe_to_complete(verdict),
                 'variantes':len(result.get('variantes') or []),'marqueurs':redaction5695.marqueurs_depot(result['body'])}
-    finally:box.close()
+    finally:
+        if box is not None:box.close()
 
 
 def deposit_draft(desk,args):
@@ -525,6 +527,9 @@ def _relance(desk,args):
 def prepare_reply(desk,args):
     """One-click safe path: prepare, verify and append when no decision is needed."""
     if args.get('fournisseur'):return _relance(desk,args)
+    if args.get('demande_par'):   # 5.6.97 (B01) : droits et rattachement ACTUELS de la personne qui a demandé, relus avant de relire le message
+        from .acces5697 import exiger
+        exiger(desk,(args['demande_par'],args.get('demande_role','')),dossier_id=str(args.get('matter') or ''),ref=str(args.get('key') or ''))
     from .live430 import progress
     progress(desk,'Consultation des sources et préparation de la réponse',str(args.get('matter','')),str(args.get('key','')))
     from .prudent5667 import enabled as _projets_a_completer

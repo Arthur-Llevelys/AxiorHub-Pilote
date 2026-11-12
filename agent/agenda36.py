@@ -16,19 +16,44 @@ MOIS = ('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août
 def e(value):return escape(str(value if value is not None else ''),quote=True)
 
 
-def page(desk,args,link,url,form=None,source='online'):
-    """5.6.43 (§ 17.4) : ``source='online'`` (Agenda en ligne, calendriers CalDAV configurés) ou ``'personal'`` (Agenda personnel)."""
-    sub='personnel' if source=='personal' else 'en_ligne'
-    # 5.6.14 (U03) : semaine par défaut ; une vue choisie explicitement devient la préférence de l'utilisateur
+def settings_block(desk,form,source):
+    """Réglages repliés : rappels d'échéances (deux sous-vues) et, en ligne seulement, modification des agendas distants."""
+    from .agenda520 import enabled as personal_on
+    from .reminders520 import settings as reminder_settings
+    rs=reminder_settings(desk)
+    # 5.6.43 (§ 17.4) : les rappels d'échéances valent pour les deux sous-vues ; la modification d'agendas distants, seulement en ligne
+    return ('<details class="ws-task-editor"><summary>'+('Réglages : rappels' if source=='personal' else 'Réglages : modification de mes agendas en ligne et rappels')+'</summary>'+
+        ('' if source=='personal' else form('set_agenda_personal_edit','Enregistrer',None,'<label><input type="checkbox" name="enabled" value="yes"'+(' checked' if personal_on(desk) else '')+
+             '> Autoriser la modification de mes agendas et tâches en ligne (titre, horaire, échéance, état ; jamais de suppression)</label>'))+
+        form('save_reminders520','Enregistrer les rappels',None,
+             '<label><input type="checkbox" name="push" value="yes"'+(' checked' if rs['push'] else '')+'> Rappels d’échéances et de prescriptions par notification mobile (sans contenu)</label>'
+             '<label><input type="checkbox" name="email" value="yes"'+(' checked' if rs['email'] else '')+'> Récapitulatif déposé dans votre boîte de réception (aucun envoi)</label>')+
+        '</details>')
+
+
+def chosen_view(desk,args):
+    """5.6.14 (U03) : semaine par défaut ; une vue choisie explicitement devient la préférence. 5.6.97 : vue « Jour » ajoutée."""
     explicit=args.get('view','')
-    if explicit in ('list','week','month'):
-        view=explicit
+    if explicit in ('list','week','month','day'):
         try:
-            if desk.settings('agenda5614:view','week')!=view:desk.setting('agenda5614:view',view)
+            if desk.settings('agenda5614:view','week')!=explicit:desk.setting('agenda5614:view',explicit)
         except Exception:pass
-    else:
-        view=desk.settings('agenda5614:view','week')
-        if view not in ('list','week','month'):view='week'
+        return explicit
+    view=desk.settings('agenda5614:view','week')
+    return view if view in ('list','week','month','day') else 'week'
+
+
+def page(desk,args,link,url,form=None,source='online'):
+    """5.6.43 (§ 17.4) : ``source='online'`` (Agenda en ligne, calendriers CalDAV configurés) ou ``'personal'`` (Agenda personnel).
+    5.6.97 (§ 14) : Jour et Semaine sont la grille horaire interactive (``grille5697``) ; Mois et Liste restent ces vues."""
+    sub='personnel' if source=='personal' else 'en_ligne'
+    view=chosen_view(desk,args)
+    grille=''
+    if view in ('day','week'):   # la grille tient l'écran ; la vue détaillée de la semaine (liens vers les dossiers, modifications en ligne,
+        from .grille5697 import page as grid_page   # ajout dans plusieurs agendas, tâches à programmer, réglages) reste dessous, repliée
+        from .agenda5643 import subnav_html
+        grille=grid_page(desk,{**args,'view':view},url,url(''),source,subnav=subnav_html(sub,args,url))
+        view='week'
     try:day=date.fromisoformat(args.get('date','') or datetime.now(ZoneInfo('Europe/Paris')).date().isoformat())
     except ValueError:raise Stop('date_agenda_invalide') from None
     if view=='week':
@@ -48,7 +73,7 @@ def page(desk,args,link,url,form=None,source='online'):
     else:
         try:
             if not configured:raise Stop('aucun_calendrier_configure')
-            data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=True,source='online')
+            data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=not grille,source='online')   # 5.6.97 : la grille vient de relire
         except (Stop,OSError,TimeoutError,ValueError,KeyError):
             data=calendar_events(desk,begin.isoformat(),end.isoformat(),refresh=False,source='online')
             warning=('Lecture CalDAV indisponible : données en cache, potentiellement incomplètes.' if configured else '')
@@ -124,20 +149,10 @@ def page(desk,args,link,url,form=None,source='online'):
         from .agenda5625 import form_html
         out+=form_html('',day,matters)
     if form is not None:
-        from .agenda520 import enabled as personal_on
-        from .reminders520 import settings as reminder_settings
-        rs=reminder_settings(desk)
-        # 5.6.43 (§ 17.4) : les rappels d'échéances valent pour les deux sous-vues ; la modification d'agendas distants, seulement en ligne
-        out+=('<details class="ws-task-editor"><summary>'+('Réglages : rappels' if source=='personal' else 'Réglages : modification de mes agendas en ligne et rappels')+'</summary>'+
-            ('' if source=='personal' else form('set_agenda_personal_edit','Enregistrer',None,'<label><input type="checkbox" name="enabled" value="yes"'+(' checked' if personal_on(desk) else '')+
-                 '> Autoriser la modification de mes agendas et tâches en ligne (titre, horaire, échéance, état ; jamais de suppression)</label>'))+
-            form('save_reminders520','Enregistrer les rappels',None,
-                 '<label><input type="checkbox" name="push" value="yes"'+(' checked' if rs['push'] else '')+'> Rappels d’échéances et de prescriptions par notification mobile (sans contenu)</label>'
-                 '<label><input type="checkbox" name="email" value="yes"'+(' checked' if rs['email'] else '')+'> Récapitulatif déposé dans votre boîte de réception (aucun envoi)</label>')+
-            '</details>')
+        out+=settings_block(desk,form,source)
     out+='<nav class="ws-calendar-nav" aria-label="Vues de l’agenda">'+''.join(
         '<a '+('aria-current="page" ' if view==v else '')+'href="'+e(url('/planning',vue='agenda',agenda=sub,view=v,date=day.isoformat()))+'">'+label+'</a>'
-        for v,label in [('list','Liste'),('week','Semaine'),('month','Mois')])+'</nav>'
+        for v,label in [('day','Jour'),('week','Semaine'),('month','Mois'),('list','Liste')])+'</nav>'
     out+=('<div class="ws-calendar-nav">'+link('/planning','← Précédent',vue='agenda',agenda=sub,view=view,date=previous.isoformat())+'<strong>'+
           e(first.strftime('%d/%m/%Y'))+' – '+e((last-timedelta(days=1)).strftime('%d/%m/%Y'))+'</strong>'+
           link('/planning','Suivant →',vue='agenda',agenda=sub,view=view,date=following.isoformat())+'</div>')
@@ -155,8 +170,10 @@ def page(desk,args,link,url,form=None,source='online'):
         if view=='week':
             days=[first+timedelta(days=x) for x in range(7)]
             if writable:
-                tasks=[dict(r) for r in desk.db.execute("SELECT id,title FROM work_tasks_v211 WHERE status IN ('todo','in_progress') ORDER BY due LIMIT 30")]
-                tasks+=[dict(r) for r in desk.db.execute("SELECT id,title FROM tasks WHERE status='open' AND id NOT IN (SELECT id FROM work_tasks_v211) ORDER BY due LIMIT 20")]
+                # 5.6.97 (B07) : tâches lues pour l'acteur de la requête, droits du dossier joints avant la limite (deux tables)
+                from .acces5697 import acteur_requete
+                from .agenda_lecture5697 import taches as taches_visibles
+                tasks=taches_visibles(desk,acteur_requete(),limite=30,a_programmer=True)[:50]
                 if tasks:
                     out+=('<section class="ax-dnd" aria-label="Tâches à programmer"><p><strong>Glissez une tâche sur un jour</strong> pour la programmer (heure et durée à confirmer).</p><div class="ax-dnd-tasks">'+
                           ''.join('<span class="ax-dnd-task" draggable="true" tabindex="0" data-task="'+e(x['id'])+'">'+e(x['title'][:90])+'</span>' for x in tasks)+'</div>'+
@@ -174,4 +191,8 @@ def page(desk,args,link,url,form=None,source='online'):
             out+='</section>'
         if not days:out+='<p>Aucun événement connu pour cette période.</p>'
         out+='</div>'
-    return out+'</section>'
+    out+='</section>'
+    if grille:   # 5.6.97 (§ 14) : même contenu qu'avant, replié sous la grille ; rien n'est retiré
+        return (grille+'<details class="ag97-gerer ag97-detaillee"><summary>Vue détaillée de la semaine : dossiers reliés, modification en ligne, '
+                'ajout dans plusieurs agendas, tâches à programmer, réglages</summary>'+out+'</details>')
+    return out

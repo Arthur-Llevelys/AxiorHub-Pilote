@@ -6,8 +6,10 @@ CalDAV enregistrés (Paramètres › Agendas) et Google Agenda s'il est connect�
 titre et la description ne sont transmis que si l'agenda l'autorise (« détails transmis ») ; sinon un titre neutre est déposé.
 """
 from datetime import date, datetime, timedelta
+import hashlib
 import re
 import secrets
+import uuid
 
 from .common import Stop, load_matters
 
@@ -61,12 +63,17 @@ def build_event(desk, owner, data):
             h2 = datetime.strptime(str(data.get('end') or ''), '%H:%M').time() if data.get('end') else None
         except ValueError:
             raise Stop('heure_evenement_invalide') from None
-        begins = datetime.combine(day, h1, tz)
-        ends = datetime.combine(day, h2, tz) if h2 else begins + timedelta(minutes=60)
+        # 5.6.97 (B05) : heure sautée refusée, heure répétée à choisir ; comparaison et durée en UTC
+        from .agenda5697 import instant
+        begins = instant(datetime.combine(day, h1), tz, str(data.get('decalage_debut') or ''))
+        ends = instant(datetime.combine(day, h2), tz, str(data.get('decalage_fin') or '')) if h2 else begins + timedelta(minutes=60)
         if ends <= begins:
             raise Stop('fin_avant_debut')
-        start, end = begins.isoformat(), ends.isoformat()
-    return {'key': 'manuel-' + secrets.token_hex(12), 'title': title, 'description': description, 'start': start, 'end': end,
+        start, end = begins.astimezone(tz).isoformat(), ends.astimezone(tz).isoformat()
+    # 5.6.97 (B06) : identité stable au rejeu (clé créée à l'ouverture du formulaire) ; sans clé, identité nouvelle comme avant
+    cle = str(data.get('cle') or '')
+    key = ('manuel-' + hashlib.sha256(('%s|%s' % (owner, cle)).encode()).hexdigest()[:24]) if re.fullmatch(r'[A-Za-z0-9_-]{16,80}', cle) else 'manuel-' + secrets.token_hex(12)
+    return {'key': key, 'title': title, 'description': description, 'start': start, 'end': end,
             'all_day': all_day, 'kind': 'rendez-vous'}, matter, day
 
 
@@ -110,7 +117,7 @@ def form_html(prefix, day, matters):
     options = ''.join('<option value="%s">%s</option>' % (e(m['id'], quote=True), e(matter_display(m)))
                       for m in sorted(matters, key=lambda m: matter_display(m).lower()))
     return ('<details class="ws-task-editor ag5625" id="ag5625"><summary>＋ Ajouter un événement</summary>'
-            '<form class="ag5625-form" method="post" novalidate>'
+            '<form class="ag5625-form" method="post" novalidate><input type="hidden" name="cle" value="' + uuid.uuid4().hex + '">'   # 5.6.97 (B06)
             '<label>Intitulé<input name="title" required minlength="2" maxlength="250" placeholder="Rendez-vous client, audience, appel…"></label>'
             '<div class="ag5625-row"><label>Jour<input type="date" name="date" required value="%s"></label>'
             '<label>Début<input type="time" name="start" value="09:00"></label><label>Fin<input type="time" name="end" value="10:00"></label>'

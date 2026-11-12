@@ -249,11 +249,12 @@ def answer_question(desk, args):
             box.close()
     desk.db.execute('UPDATE assistant_messages SET status=?,updated=? WHERE id=?',
                     ('done', desk.now(), message_id))
+    # 5.6.97 (B09) : la réponse porte le travail de SA question : la mission retrouve sa réponse même si d'autres questions suivent dans le fil
     desk.db.execute('''INSERT INTO assistant_messages
         (thread_id,role,content,status,sources,job_id,created,updated)
-        VALUES (?,?,?,?,?,NULL,?,?)''',
+        VALUES (?,?,?,?,?,?,?,?)''',
         (row['thread_id'], 'assistant', result['answer'], 'done',
-         json.dumps(result.get('sources', []) + societe5688.sources_carte(controle), ensure_ascii=False), desk.now(), desk.now()))
+         json.dumps(result.get('sources', []) + societe5688.sources_carte(controle), ensure_ascii=False), row['job_id'], desk.now(), desk.now()))
     desk.db.execute('UPDATE assistant_threads SET updated=? WHERE id=?',
                     (desk.now(), row['thread_id']))
     desk.db.commit()

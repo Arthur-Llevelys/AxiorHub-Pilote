@@ -3,6 +3,22 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.97 — Dossiers réservés protégés, gestion du cabinet de bout en bout, Gmail, agenda en grille
+
+Audit du cabinet sur la 5.6.96 (B01 à B10) et cahier « gestion du cabinet » (ouvrir une affaire, classer, produire, planifier, suivre, facturer, clôturer), plus Gmail, la liaison ChatGPT poste/serveur et les sources juridiques internationales.
+
+- **Dossiers réservés (P0)** : un fil de courriels qui mêle un dossier réservé ne révèle plus rien (liste, détail, pièce, préparation, sans lecture du corps) ; tâches, grille et export ICS filtrés ; compteurs d’Aujourd’hui contrôlés ; réponse neutre « introuvable ».
+- **Sources juridiques (P0)** : seule la source choisie est interrogée ; liste vide ou local strict : aucun appel externe ; identifiants étrangers retirés des requêtes.
+- **Panneau de l’assistant** : états explicites (Reçue, En cours, Choix requis, Suspendue jusqu’à…, Interrompue, Envoi à vérifier) ; « Choix requis : le dossier » propose le choix en tête et relance la même demande ; texte corrigé envoyé avec une nouvelle clé ; aucune mission sans travail.
+- **Dossiers** : écran Dossiers, Nouveau dossier (référence réservée avant tout rangement, conflits vérifiés), registre unique et migration rejouable des dossiers existants, classement d’un courriel dans un dossier sans toucher la boîte, fiche (Synthèse, Documents, Correspondances, Procédure · Pièces, Agenda et tâches, Gestion).
+- **Documents et missions** : Nouveau document (vierge, modèle, import, IA en file), versions et conflits sans écrasement ; ouverture de mission avec contrôle de conflits versionné ; prochaine action et attentes par dossier, deux listes dans Aujourd’hui.
+- **Agenda** : grille Jour et Semaine sur un écran, création par clic ou glisser, tâche liée ; heures inexistantes refusées et heures doubles à choisir au changement d’heure ; un seul rendez-vous par double clic ; visio Nextcloud Talk (salon privé vérifié), lien Speakr, Google Agenda et CalDAV (désactivés par défaut).
+- **Gmail** : connexion par compte (consentement Google), lecture, préparation d’une réponse (modèle local), brouillon dans le fil ; « Envoyer maintenant » une seule fois, après relecture exacte ; jamais par l’agent.
+- **ChatGPT** : connexion suivie sur le poste et liaison poste → serveur par code court (désactivée par défaut).
+- **Sources** : catalogue complété (France, Union européenne, entreprises), cartes communes Paramètres et guide, droits allemand, espagnol, anglais, canadien fédéral et québécois (index locaux, synchronisation désactivée par défaut).
+- **Gestion** : registre procédural et paquet de dépôt gelé avec accusé rapproché ; honoraires (travail à facturer, facturé non réglé, impayés échus, encaissé) ; pièces demandées et remises par partage Nextcloud en lecture seule ; clôture contrôlée, réouverture tracée, restauration vérifiée.
+- Toutes les commandes de l’avocat fonctionnent sans IA et pendant la pause.
+
 ## 5.6.96 — Échéances fiables, courriels au premier tour, Aujourd’hui réorganisé, voix posée, clés vérifiées
 
 Corrections de l’audit du cabinet sur la 5.6.95 et chapitre « Interface, veille et installation » du cahier révisé.

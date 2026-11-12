@@ -150,11 +150,11 @@ class Pages(Base):
     def test_page_dossier_onglets_et_anciennes_vues(self):
         cookie = self.admin_cookie()
         page = self.request('/dossier', cookie=cookie, query='id=' + MID)['body']
-        for label in ('Synthèse', 'Documents', 'Faits et procédure', 'Échanges', 'Travail', 'L’essentiel', 'Derniers documents', 'id="d79-preview"',
+        for label in ('Synthèse', 'Documents', 'Procédure · Pièces', 'Correspondances', 'Agenda et tâches', 'Gestion', 'Travail', 'L’essentiel', 'Derniers documents', 'id="d79-preview"',
                       'data-d79-doc=', '/static/v5679.js', 'Cour d&#x27;appel d&#x27;Alberville-sur-Mer'):
             self.assertIn(label, page)
         self.assertNotIn('d79-warn', page)
-        for view in ('pieces', 'procedure', 'courriels', 'correspondances', 'travaux', 'informations', 'procedure-detail', 'pieces-detail', 'documents'):
+        for view in ('pieces', 'procedure', 'courriels', 'correspondances', 'travaux', 'informations', 'procedure-detail', 'pieces-detail', 'documents', 'agenda', 'gestion'):
             r = self.request('/dossier', cookie=cookie, query='id=%s&vue=%s' % (MID, view))
             self.assertTrue(r['status'].startswith('200'), view)
             self.assertNotIn('d79-warn', r['body'], view)

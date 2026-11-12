@@ -106,7 +106,8 @@ def fake_archive(root, version):
              'upgrade.py': (ROOT / 'upgrade.py').read_text(encoding='utf-8'), 'poste.py': (ROOT / 'poste.py').read_text(encoding='utf-8'),
              'docker/bootstrap.py': (ROOT / 'docker' / 'bootstrap.py').read_text(encoding='utf-8')}
     for name in ('axiorhub-mail', *core_units, 'debian/postinst', 'debian/prerm', 'debian/postrm', 'debian/copyright',
-                 'poste/axiorhub-pilote', 'poste/axiorhub-pilote.desktop', 'poste/axiorhub-pilote.service'):
+                 'poste/axiorhub-pilote', 'poste/axiorhub-pilote.desktop', 'poste/axiorhub-pilote.service',
+                 'poste/axiorhub-pilote-liaison.desktop'):   # 5.6.97 (lot chatgpt, A05) : protocole axiorhub://
         files['deploy/' + name] = (ROOT / 'deploy' / name).read_text(encoding='utf-8')
     for name, content in files.items():
         (tree / name).parent.mkdir(parents=True, exist_ok=True); (tree / name).write_text(content, encoding='utf-8')

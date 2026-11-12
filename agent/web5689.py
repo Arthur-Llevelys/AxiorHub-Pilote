@@ -29,7 +29,14 @@ DOMAINES = {
     'routage': 'routage_web5695',         # 5.6.95 : routage mesuré (mesures, export CSV, mode conseil ou actif ; administrateur)
     'accueil': 'accueil_web5696',         # 5.6.96 (lot accueil) : météo, options d'accueil, actions d'Aujourd'hui en fenêtre flottante
     'courriels': 'courriels_web5696',     # 5.6.96 (lot courriels) : vue « À traiter avec le Pilote » (IMAP), fil à la demande, suivi et option
+    'gmail': 'gmail_web5697',             # 5.6.97 (lot gmail) : connexion Gmail, relève, projet local, brouillon et envoi sur clic
+    'oauth': 'google_web5697',            # 5.6.97 (lot gmail) : retour OAuth Google commun (Gmail, agenda) : /oauth/google/callback
     'affichage': 'affichage_web5696',     # 5.6.96 (lot affichage, U07) : session et compte revalidés après un retour par l'historique
+    'gestion': 'gestion_web5697',         # 5.6.97 (lot gestion, § 18-21) : registre procédural, dépôts, honoraires, pièces et remises, clôture
+    'agenda': 'agenda_web5697',           # 5.6.97 (lot agenda) : grille, éditeur compact, salons Talk, Speakr, sources (local, CalDAV, Google)
+    'creation': 'mission_web5697',        # 5.6.97 (lot documents-mission, § 13) : Nouveau document, versions, comparaison, réimport
+    'demandes': 'mission_web5697',        # 5.6.97 (lot documents-mission, § 16) : demandes de mission, conflits versionnés, ouverture du dossier
+    'portefeuille': 'mission_web5697',    # 5.6.97 (lot documents-mission, § 17) : prochaine action, attentes, listes d'Aujourd'hui
 }
 
 

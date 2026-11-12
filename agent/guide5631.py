@@ -93,15 +93,17 @@ SESSION_DAYS = 30
 # Les identifiants d'étape sont inchangés (GUIDE_VERSION reste 1 : une session interrompue reprend à la même étape).
 MODES = ('nouveau', 'verifier', 'ajouter')
 NOUVEAUTES = {'presentation': 'profil', 'voix': 'voix'}   # choix supplémentaires d'« Ajouter une fonction » → étape qui les porte
-PLUS_TARD = ('meteo', 'veille', 'voix', 'gmail')          # « Configurer plus tard » (récapitulatif)
+PLUS_TARD = ('meteo', 'veille', 'voix', 'gmail', 'ia_connexion', 'sources')   # « Configurer plus tard » (récapitulatif) ; 5.6.97 (A07) : connexion IA ; 5.6.97 (J01) : sources
 # Cartes des autres lots appelées telles quelles par le guide (aucun second formulaire) : « module:fonction(desk, env, prefix, admin) ».
 # Absente du paquet, une carte est remplacée par un lien vers l'écran de réglage ; Gmail n'apparaît que si sa carte existe.
 CARTES = {'ia': ('mistral5696:carte_guide', 'politique5682:carte_guide'), 'meteo': ('meteo5696:carte_guide',),
-          'vue_assistee': ('courriels_web5696:carte_guide', 'vue_assistee5696:carte_guide', 'boite5625:carte_vue_assistee'), 'gmail': ('gmail5697:carte_guide',)}
+          'vue_assistee': ('courriels_web5696:carte_guide', 'vue_assistee5696:carte_guide', 'boite5625:carte_vue_assistee'), 'gmail': ('gmail5697:carte_guide',),
+          'chatgpt': ('chatgpt5697:carte_guide',)}   # 5.6.97 (A07) : ChatGPT · abonnement, même carte que Paramètres
 REGLAGES = {'documents': '/parametres?rubrique=stockage', 'messagerie': '/parametres?rubrique=connexions', 'agenda': '/parametres?rubrique=connexions',
             'recherches': '/mcp', 'veille': '/parametres?rubrique=veille', 'facturation': '/parametres?rubrique=connexions',
             'telephonie': '/accueil-administratif', 'voix': '/parametres?rubrique=voix', 'meteo': '/parametres?rubrique=connexions',
-            'presentation': '/aujourdhui', 'ia': '/parametres?rubrique=ia', 'vue_assistee': '/parametres?rubrique=connexions', 'gmail': '/parametres?rubrique=connexions'}
+            'presentation': '/aujourdhui', 'ia': '/parametres?rubrique=ia', 'vue_assistee': '/parametres?rubrique=connexions', 'gmail': '/parametres?rubrique=connexions',
+            'chatgpt': '/parametres?rubrique=ia', 'ia_connexion': '/parametres?rubrique=ia', 'sources': '/parametres?rubrique=recherche'}
 
 
 def _now():
@@ -1125,8 +1127,8 @@ def _cartes_etape(desk, env, prefix, step, data, owner, admin):
     """Sous-sections des étapes (I06) : présentation, messagerie, IA, veille, voix ; sources et étapes informatives inchangées."""
     th = i18n.th
     if step == 'sources':   # 5.6.32 : cartes réelles (compte, clé, vérification, activation) des sources juridiques
-        from .web5632 import sources_section
-        return sources_section(desk) if admin else _info_step_html(step, prefix)
+        from .web5632 import sources_section   # 5.6.97 (J06) : mêmes cartes que Paramètres, groupées par zone, et « Configurer plus tard »
+        return (sources_section(desk, 'guide', str(data.get('id') or '')) + '<p class="g5631-later-row">%s</p>' % _plus_tard('sources')) if admin             else _info_step_html(step, prefix)
     if step == 'veille':    # même carte et même validation (save_profile) que Paramètres › Veille
         from .web5632 import veille_settings
         return veille_settings(desk, env, prefix, admin=admin) + '<p class="g5631-later-row">%s</p>' % _plus_tard('veille')
@@ -1143,7 +1145,14 @@ def _cartes_etape(desk, env, prefix, step, data, owner, admin):
             out += '<h3>Gmail</h3>%s<p class="g5631-later-row">%s</p>' % (_carte('gmail', desk, env, prefix, admin), _plus_tard('gmail'))
         return out + '</section>'
     if step == 'ia':
-        return '<section class="g5631-sub g5696-ia"><h3>%s</h3>%s</section>' % (th('w5696.ia_title'), _carte('ia', desk, env, prefix, admin))
+        # 5.6.97 (A07) : sous-étape « Connecter l'IA » : Mistral Studio, ChatGPT ou plus tard. Mêmes cartes et mêmes routes que
+        # Paramètres ; un secret déjà présent n'est jamais redemandé ; se connecter n'active rien (mode choisi ensuite, à part).
+        chatgpt = ('<details class="g5697-choix"><summary>%s</summary>%s</details>' % (th('w5697.ia_chatgpt'), _carte('chatgpt', desk, env, prefix, admin))
+                   if _carte_disponible('chatgpt') else '')
+        return ('<section class="g5631-sub g5696-ia"><h3>%s</h3><p>%s</p><details class="g5697-choix" open><summary>%s</summary>%s</details>%s'
+                '<p class="g5631-later-row">%s</p></section>') % (
+            th('w5697.ia_connect_title'), th('w5697.ia_connect_lead'), th('w5697.ia_mistral'), _carte('ia', desk, env, prefix, admin), chatgpt,
+            _plus_tard('ia_connexion'))
     if step in FIELDS or step in ('fonctions', 'fin'):
         return ''
     return _info_step_html(step, prefix)
@@ -1197,8 +1206,7 @@ LINKS = {'voix': (('Kokoro-FastAPI (GitHub)', 'https://github.com/remsky/Kokoro-
          'stockage': (('Nextcloud — mots de passe d’application', 'https://docs.nextcloud.com/server/latest/user_manual/fr/session_management.html'),),
          'agenda': (('Nextcloud — CalDAV', 'https://docs.nextcloud.com/server/latest/user_manual/fr/groupware/sync_android.html'),
                     ('Google Calendar API', 'https://developers.google.com/calendar/api/guides/overview')),
-         'sources': (('GoodLegal', 'https://api.goodlegal.fr/dashboard'), ('OpenLegi', 'https://www.openlegi.fr/accounts/signup'),
-                     ('LibreJustice', 'https://librejustice.fr/mcp-guide'), ('Legal Data Hunter', 'https://legaldatahunter.com/account')),
+         'sources': (),   # 5.6.97 (J06) : liens lus dans les fiches du catalogue (sources5632.liens_guide), plus de liste codée en dur
          'veille': (('Tavily', 'https://app.tavily.com'),),
          'facturation': (('Invoice Ninja', 'https://invoiceninja.github.io/'),),
          'telephonie': (('Twilio — sécurité des webhooks', 'https://www.twilio.com/docs/usage/webhooks/webhooks-security'),)}
@@ -1209,7 +1217,11 @@ SCREENS = {'voix': '/parametres?rubrique=voix', 'agenda': '/parametres?rubrique=
 
 def _where_html(step, prefix):
     th = i18n.th
-    links = ''.join('<li><a href="%s" target="_blank" rel="noopener noreferrer">%s</a></li>' % (e(url, quote=True), e(label)) for label, url in LINKS.get(step, ()))
+    pairs = LINKS.get(step, ())
+    if step == 'sources':   # 5.6.97 (J06) : mêmes liens que les cartes (fiches du catalogue)
+        from .sources5632 import liens_guide
+        pairs = liens_guide()
+    links = ''.join('<li><a href="%s" target="_blank" rel="noopener noreferrer">%s</a></li>' % (e(url, quote=True), e(label)) for label, url in pairs)
     return '<p>%s</p>%s' % (th('step.%s.where' % step), '<ul>' + links + '</ul>' if links else '')
 
 

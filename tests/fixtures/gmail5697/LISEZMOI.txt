@@ -1,0 +1,2 @@
+Échantillons écrits à la main d'après la documentation publique de l'API Gmail (users.messages.get au format « full », users.history.list).
+Données fictives ; aucun appel réel, aucun identifiant réel.

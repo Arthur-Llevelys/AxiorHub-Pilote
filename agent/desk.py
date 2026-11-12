@@ -50,6 +50,8 @@ JOBS |= {'analyze_notice440','analyze_deadline450','extract_facts460','analyser_
 JOBS |= {'search_index490'}
 JOBS |= {'digest_pieces5632','veille5632_collect','briefing_oral5632','mailrules5632'}   # 5.6.32
 JOBS |= {'propagation5688'}   # 5.6.88 : audiences copiées vers Outlook et Google (création, mise à jour, annulation, contrôle)
+JOBS |= {'gmail5697'}   # 5.6.97 (lot gmail) : relève Gmail en lecture seule (import borné, puis historique incrémental)
+JOBS |= {'gmail5697_redaction'}   # 5.6.97 (lot gmail) : réponse à un courriel Gmail préparée par le modèle local ; projet local, jamais déposé
 JOBS |= {'efacture5688'}   # 5.6.88 : relevé des plateformes de facturation électronique (lecture seule)
 JOBS |= {'pj_courriel5636','initiative5636','relances5636','outils5636','corporate5636','microsoft5636'}   # 5.6.36 : pièces jointes rangées ; initiatives (analyse, exécution du plan validé)
 JOBS |= {'recherche5634'}   # 5.6.34 : recherche juridique par le registre unique des sources
@@ -220,15 +222,18 @@ def report_for(c, key):
 
 
 def save_matter(c, matter):
-    path = Path(c['state_dir'])/'registry-web.json'
-    previous = path.read_bytes() if path.exists() else b'[]'
-    rows = json.loads(previous)
-    rows = [r for r in rows if r['id'] != matter['id']] + [matter]
-    # Bounded local versions allow recovering accidental corrections.
-    backups = path.parent/'registry-backups'
-    backups.mkdir(mode=0o700, exist_ok=True)
-    private_json(backups/(digest(previous.decode())+'.json'), json.loads(previous))
-    private_json(path, rows)
+    # 5.6.97 (B03) : cycle lecture–modification–écriture sous verrou entre processus ; deux enregistrements simultanés ne perdent plus d'entrée
+    from .dossiers5697 import verrou_registre
+    with verrou_registre(c['state_dir']):
+        path = Path(c['state_dir'])/'registry-web.json'
+        previous = path.read_bytes() if path.exists() else b'[]'
+        rows = json.loads(previous)
+        rows = [r for r in rows if r['id'] != matter['id']] + [matter]
+        # Bounded local versions allow recovering accidental corrections.
+        backups = path.parent/'registry-backups'
+        backups.mkdir(mode=0o700, exist_ok=True)
+        private_json(backups/(digest(previous.decode())+'.json'), json.loads(previous))
+        private_json(path, rows)
 
 
 # 5.6.1 : ordre de prise des travaux avec vieillissement. Un travail automatique gagne 4 points de priorité par heure d'attente
@@ -1041,6 +1046,12 @@ class Desk:
         if kind=='outils5636':   # 5.6.36 : grille d'analyse, playbook appliqué à un contrat, mémo juridique
             from .outils5636 import job
             return job(self,args)
+        if kind=='gmail5697_redaction':   # 5.6.97 (lot gmail) : circuit de rédaction commun, modèle local seul, projet local à relire
+            from .gmail5697 import job_ia as _gmail5697_ia
+            return _gmail5697_ia(self,args)
+        if kind=='gmail5697':   # 5.6.97 (lot gmail) : relève Gmail hors de la requête de page ; rien n'est écrit dans Gmail
+            from .gmail5697 import job as _gmail5697
+            return _gmail5697(self,args)
         if kind=='propagation5688':   # 5.6.88 : copies d'audiences décidées par une personne ; une modification distante n'est jamais écrasée
             from .propagation5688 import job
             return job(self,args)
@@ -1754,6 +1765,14 @@ def _supervise(c,stop):
                 from .horaires_ia5689 import superviser
                 schedule_desk=superviser(c,schedule_desk)
             except Exception:   # noqa: BLE001 — l'état réel est de toute façon relu avant chaque appel au modèle
+                try:
+                    if schedule_desk is not None and schedule_desk.db.in_transaction:schedule_desk.db.rollback()
+                except sqlite3.Error:
+                    pass
+            try:   # 5.6.97 (B09) : ordres de lancement des missions restés sans suite (coupure après validation) ; aucun modèle appelé
+                from .missions567 import superviser_ordres
+                schedule_desk=superviser_ordres(c,schedule_desk)
+            except Exception:   # noqa: BLE001 — l'ordre reste en place, repris au cycle suivant ou à la lecture de la mission
                 try:
                     if schedule_desk is not None and schedule_desk.db.in_transaction:schedule_desk.db.rollback()
                 except sqlite3.Error:

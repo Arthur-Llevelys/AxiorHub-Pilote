@@ -112,8 +112,10 @@ def _when(desk, data):
         raise Stop('creneau_evenement_invalide') from None
     if not 5 <= minutes <= 1440:
         raise Stop('creneau_evenement_invalide')
-    if not begins.tzinfo:
-        begins = begins.replace(tzinfo=tz)
+    if not begins.tzinfo:   # 5.6.97 (B05) : heure sautée refusée, heure répétée à choisir (« decalage » : « +01:00 » ou « +02:00 »)
+        from .agenda5697 import instant
+        begins = instant(begins, tz, str(data.get('decalage') or ''))
+    begins = begins.astimezone(timezone.utc)   # 5.6.97 (B05) : la durée s'ajoute à l'instant UTC, jamais à l'heure murale
     return begins, begins + timedelta(minutes=minutes), False
 
 
@@ -223,10 +225,13 @@ def _message(state, base):
 
 
 # ------------------------------------------------------------------------------------------------ création, modification, annulation
-def create(desk, data, owner='cabinet', source='local', uid='', recurrence_id='', ident=None, copy=True):
-    schema(desk)
+def create(desk, data, owner='cabinet', source='local', uid='', recurrence_id='', ident=None, copy=True, when=None, commit=True):
+    """5.6.97 : ``when`` = (début, fin, journée) déjà validés (``agenda5697.plage``) ; ``commit=False`` : la ligne est écrite dans la transaction
+    de l'appelant (clé d'idempotence, tâche liée), qui fait le commit puis les suites (journal, audience) ; la ligne est rendue."""
+    if commit:
+        schema(desk)
     clean = _clean(desk, data)
-    begins, ends, all_day = _when(desk, data)
+    begins, ends, all_day = when or _when(desk, data)
     ident = ident or uuid.uuid4().hex
     uid = uid or 'axiorhub-local-%s@agenda.local' % ident
     stamp = desk.now()
@@ -243,6 +248,8 @@ def create(desk, data, owner='cabinet', source='local', uid='', recurrence_id=''
             raise Stop('evenement_deja_present') from None
         raise
     _mirror(desk, row)
+    if not commit:
+        return row
     desk.db.commit()   # F18 : enregistré localement AVANT toute copie réseau
     desk.audit('agenda5634_cree', {'id': ident, 'kind': row['kind'], 'matter': row['matter'], 'source': source})
     if row['kind'] == 'audience':   # 5.6.88 : l'audience a sa fiche, rattachée à cet événement
@@ -252,9 +259,12 @@ def create(desk, data, owner='cabinet', source='local', uid='', recurrence_id=''
     return {'id': ident, 'event': public(row), 'message': _message(state, 'Événement enregistré')}
 
 
-def update(desk, data, owner='cabinet'):
-    """Modification partielle (F05) : un champ absent garde sa valeur ; l'horaire n'est recalculé que s'il est transmis."""
-    schema(desk)
+def update(desk, data, owner='cabinet', when=None, commit=True):
+    """Modification partielle (F05) : un champ absent garde sa valeur ; l'horaire n'est recalculé que s'il est transmis.
+    5.6.97 (B06) : la version (``base``) est comparée DANS l'écriture (``WHERE updated=?``) : deux sessions sur le même événement donnent
+    un conflit explicite, jamais un écrasement. ``when`` : horaire déjà validé ; ``commit=False`` : écrit dans la transaction de l'appelant."""
+    if commit:
+        schema(desk)
     row = _row(desk, data.get('id'))
     if row['status'] != 'actif':
         raise Stop('evenement_annule')
@@ -271,7 +281,9 @@ def update(desk, data, owner='cabinet'):
         merged['description'] = data['description'] if 'description' in data else data['notes']
     clean = _clean(desk, merged)
     timing = any(k in data for k in ('start', 'duration_minutes', 'all_day', 'days'))
-    if timing:
+    if when:
+        starts, ends_iso, all_day = when[0].astimezone(timezone.utc).isoformat(), when[1].astimezone(timezone.utc).isoformat(), bool(when[2])
+    elif timing:
         all_day = data['all_day'] if 'all_day' in data else bool(row['all_day'])
         if all_day:
             start = data.get('start') or old_start.astimezone(tz).date().isoformat()
@@ -287,16 +299,24 @@ def update(desk, data, owner='cabinet'):
         starts, ends_iso, all_day = row['starts'], row['ends'], bool(row['all_day'])
     reminders = json.dumps(clean['reminders'])
     moved = starts != row['starts'] or reminders != row['reminders']
+    version = row['updated']
     row.update(clean)
     mirrored = mode(desk)['sync'] and row.get('calendar_scope') == 'legacy_bridge' and row.get('copy_policy') == 'mirror'
     row.update(starts=starts, ends=ends_iso, all_day=int(all_day), reminders=reminders, updated=desk.now(),
                sync_state='a_synchroniser' if mirrored else row['sync_state'])
-    desk.db.execute('UPDATE agenda5634 SET kind=?,title=?,description=?,location=?,starts=?,ends=?,all_day=?,matter=?,reminders=?,sync_state=?,updated=? WHERE id=?',
-                    (row['kind'], row['title'], row['description'], row['location'], row['starts'], row['ends'], row['all_day'], row['matter'],
-                     row['reminders'], row['sync_state'], row['updated'], row['id']))
+    cur = desk.db.execute('UPDATE agenda5634 SET kind=?,title=?,description=?,location=?,starts=?,ends=?,all_day=?,matter=?,reminders=?,sync_state=?,updated=? '
+                          'WHERE id=? AND updated=?', (row['kind'], row['title'], row['description'], row['location'], row['starts'], row['ends'], row['all_day'],
+                                                     row['matter'], row['reminders'], row['sync_state'], row['updated'], row['id'], version))
+    if cur.rowcount != 1:   # 5.6.97 (B06) : écrit par une autre session entre la lecture et l'écriture
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise Stop('evenement_modifie_entre_temps')
     if moved:   # nouvel horaire ou nouveaux rappels : rappels à nouveau dus
         desk.db.execute('DELETE FROM agenda_rappels5634 WHERE event=?', (row['id'],))
     _mirror(desk, row)
+    if not commit:
+        row['_copie_distante'] = mirrored
+        return row
     desk.db.commit()
     desk.audit('agenda5634_modifie', {'id': row['id']})
     from .audiences5688 import on_event   # 5.6.88 : la fiche d'audience et les copies Outlook ou Google suivent
@@ -349,11 +369,12 @@ def listing(desk, start=None, end=None, matter='', limit=500):
     schema(desk)
     a = (start or (_now() - timedelta(days=1))).astimezone(timezone.utc).isoformat()
     b = (end or (_now() + timedelta(days=60))).astimezone(timezone.utc).isoformat()
-    sql = "SELECT * FROM agenda5634 WHERE status='actif' AND starts<? AND ends>?" + (' AND matter=?' if matter else '') + ' ORDER BY starts LIMIT ?'
-    args = (b, a) + ((matter,) if matter else ()) + (int(limit),)
-    from .membres5650 import viewer_hidden
-    hidden = viewer_hidden()   # 5.6.50 : événements d'un dossier réservé à d'autres membres
-    return [public(dict(r)) for r in desk.db.execute(sql, args) if not (r['matter'] and r['matter'] in hidden)]
+    # 5.6.97 (B07) : les dossiers masqués de l'acteur de la requête sont exclus dans la requête, AVANT la limite
+    from .acces5697 import Perimetre, acteur_requete, masques_requete
+    clause, caches = Perimetre(acteur_requete(), masques_requete(desk)).sql('matter')
+    sql = "SELECT * FROM agenda5634 WHERE status='actif' AND starts<? AND ends>?" + (' AND matter=?' if matter else '') + ' AND ' + clause + ' ORDER BY starts LIMIT ?'
+    args = (b, a) + ((matter,) if matter else ()) + caches + (int(limit),)
+    return [public(dict(r)) for r in desk.db.execute(sql, args)]
 
 
 # ------------------------------------------------------------------------------------------------ iCalendar : export (F04)
@@ -380,9 +401,13 @@ def _export_uid(row):
     return '%s-%s' % (row['uid'], re.sub(r'[^0-9A-Za-z]', '', row['recurrence_id']))
 
 
-def export_ics(desk, include_cancelled=False):
+def export_ics(desk, include_cancelled=False, masques=None):
+    """5.6.97 (B07) : ``masques`` = dossiers exclus de l'export (``None`` : ceux de l'acteur de la requête en cours ; hors requête, aucun).
+    L'export d'un utilisateur passe par ``agenda_lecture5697.export_ics`` ; l'export complet est une commande d'administration journalisée."""
     schema(desk)
-    rows = desk.db.execute('SELECT * FROM agenda5634' + ('' if include_cancelled else " WHERE status='actif'") + ' ORDER BY starts').fetchall()
+    from .acces5697 import Perimetre, AGENT, masques_requete
+    clause, caches = Perimetre(AGENT, masques_requete(desk) if masques is None else masques).sql('matter')
+    rows = desk.db.execute('SELECT * FROM agenda5634 WHERE ' + clause + ('' if include_cancelled else " AND status='actif'") + ' ORDER BY starts', caches).fetchall()
     stamp = _now().strftime('%Y%m%dT%H%M%SZ')
     tz = _tz(desk)
     lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AxiorHub Pilote//Agenda local//FR', 'CALSCALE:GREGORIAN']
@@ -823,7 +848,10 @@ def tick(desk, stamp=None):
                                  "AND copy_policy='mirror' LIMIT 20").fetchall():
             retried += _copy(desk, dict(r)) == 'synchronise'   # F18 : chaque copie hors transaction
     saved = backup(desk)
-    return {'reminders': sent, 'resynchronised': retried, 'backup': saved}
+    from . import agenda5697, calendriers5697   # 5.6.97 (§ 15) : écritures distantes en attente (relues avant tout essai), rétention des opérations
+    sorties = calendriers5697.tick(desk)
+    agenda5697.purger(desk)
+    return {'reminders': sent, 'resynchronised': retried, 'backup': saved, 'sorties': sorties}
 
 
 # ------------------------------------------------------------------------------------------------ API
@@ -834,18 +862,22 @@ def api(desk, route, data, method, owner='cabinet', role='administrateur', auth=
     if method == 'GET':
         if route == 'agenda/liste':
             return {'mode': mode(desk), 'events': listing(desk, matter=str(data.get('matter') or ''))}
-        if route == 'agenda/export':
-            return {'ics': export_ics(desk)}
+        if route == 'agenda/export':   # 5.6.97 (B07) : les seuls événements visibles de la personne qui exporte
+            from .agenda_lecture5697 import export_ics as export_acteur
+            return {'ics': export_acteur(desk, (owner, role))}
         if route == 'agenda/sauvegardes':
             return {'backups': backups(desk)}
         if route == 'agenda/a-repartir':
             return {'events': legacy_inventory(desk)}
         raise Stop('route_inconnue')
+    if route == 'agenda/export-global':   # 5.6.97 (B07) : export technique complet, administrateur, motif et journal
+        from .agenda_lecture5697 import export_global
+        return {'ics': export_global(desk, (owner, role), data.get('motif'))}
     if route == 'agenda/repartir':
         return decide_legacy(desk, data.get('id'), data.get('decision'), owner)
-    if route == 'agenda/creer':
-        from .visio5670 import with_link   # 5.6.70 : lien Jitsi ajouté au rendez-vous si demandé
-        return create(desk, with_link(desk, data), owner)
+    if route == 'agenda/creer':   # 5.6.97 (B06) : clé d'idempotence créée à l'ouverture du formulaire (lien Jitsi 5.6.70 tiré une fois)
+        from .agenda5697 import creer_formulaire
+        return creer_formulaire(desk, owner, data)
     if route == 'agenda/modifier':
         return update(desk, data, owner)
     if route == 'agenda/annuler':

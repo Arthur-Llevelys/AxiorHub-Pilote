@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import threading
 import time
@@ -197,12 +198,42 @@ def _form(url, fields, transport=None):
 
 
 # ------------------------------------------------------------------------------------------------ coffre (jetons chiffrés)
+# 5.6.97 (A06) : une session transférée par la liaison poste → serveur est publiée dans un fichier VERSIONNÉ du même coffre ; la
+# référence active (réglage ``ACTIVE_KEY``) la désigne. Sans référence (ou fichier absent), l'ancien fichier ``compte.secret`` reste lu.
+ACTIVE_KEY = 'chatgpt5697:session_active'
+VERSIONED = re.compile(r'compte-[0-9a-f]{32}\.secret')
+
+
+def vault_dir(state_dir):
+    return Path(state_dir) / 'vault' / 'chatgpt5662'
+
+
+def _active_name(state_dir):
+    import sqlite3
+    path = Path(state_dir) / 'desk.sqlite3'
+    if not path.is_file():
+        return ''
+    try:
+        db = sqlite3.connect(str(path), timeout=5)
+        try:
+            row = db.execute('SELECT value FROM settings WHERE key=?', (ACTIVE_KEY,)).fetchone()
+        finally:
+            db.close()
+        name = str((json.loads(row[0]) if row else {}).get('fichier') or '')
+    except (sqlite3.Error, ValueError, TypeError, AttributeError):
+        return ''
+    return name if VERSIONED.fullmatch(name) else ''
+
+
 def _vault_path(state_dir):
-    return Path(state_dir) / 'vault' / 'chatgpt5662' / 'compte.secret'
+    name = _active_name(state_dir)
+    if name and (vault_dir(state_dir) / name).is_file():
+        return vault_dir(state_dir) / name
+    return vault_dir(state_dir) / 'compte.secret'
 
 
-def load_record(state_dir):
-    path = _vault_path(state_dir)
+def load_record(state_dir, path=None):
+    path = Path(path) if path else _vault_path(state_dir)
     if not path.is_file():
         return None
     from . import portable
@@ -215,9 +246,9 @@ def load_record(state_dir):
         raise Stop('secret_invalide') from None
 
 
-def save_record(state_dir, record):
+def save_record(state_dir, record, path=None):
     from .vault567 import write
-    return write(_vault_path(state_dir), json.dumps(record, ensure_ascii=False, separators=(',', ':')), limit=65536)
+    return write(Path(path) if path else _vault_path(state_dir), json.dumps(record, ensure_ascii=False, separators=(',', ':')), limit=65536)
 
 
 def clear_tokens(state_dir):
@@ -231,7 +262,7 @@ def clear_tokens(state_dir):
 class _Lock:
     """Renouvellement sérialisé : deux travaux ne font jamais tourner le même jeton de renouvellement en même temps."""
     def __init__(self, state_dir):
-        self.path = _vault_path(state_dir).parent / '.renouvellement.lock'
+        self.path = vault_dir(state_dir) / '.renouvellement.lock'
 
     def __enter__(self):
         from .portable import fcntl
@@ -262,16 +293,17 @@ def account(desk):
     return desk.settings(ACCOUNT_KEY, {}) or {}
 
 
-def start(desk, owner, port=DEFAULT_PORT):
-    """Nouvelle tentative : ``state``, ``nonce`` et vérificateur PKCE neufs ; adresse de la page officielle d'OpenAI."""
-    acc = account(desk)
-    client_id = acc.get('client_id') or ''
-    state, nonce, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32), secrets.token_urlsafe(64)
-    redirect = 'http://127.0.0.1:%d%s' % (int(port), CALLBACK_PATH)
+def authorize_url(desk, state, nonce, verifier, redirect, client_id='', host='', hints=True):
+    """5.6.97 (A04) : adresse de la page officielle d'OpenAI pour une tentative (``state``, ``nonce`` et PKCE S256 fournis par l'appelant).
+    ``host`` : identifiant d'hôte de l'installation qui gardera la session (le serveur, pour une liaison) ; ``hints`` : indications du
+    compte déjà connecté sur CETTE installation (jamais pour une liaison, dont le compte vit sur le serveur)."""
     params = {'response_type': 'code', 'client_id': client_id or DYNAMIC, 'redirect_uri': redirect, 'scope': SCOPES, 'resource': API,
               'state': state, 'nonce': nonce, 'code_challenge_method': 'S256',
-              'code_challenge': _b64url(hashlib.sha256(verifier.encode()).digest()), 'ext_agent_host_id': host_id(desk)}
-    if client_id:
+              'code_challenge': _b64url(hashlib.sha256(verifier.encode()).digest()), 'ext_agent_host_id': host or host_id(desk)}
+    if not client_id:
+        params['agent_name_hint'] = AGENT_NAME
+    elif hints:
+        acc = account(desk)
         record = None
         try:
             record = load_record(desk.c['state_dir'])
@@ -282,13 +314,23 @@ def start(desk, owner, port=DEFAULT_PORT):
         if acc.get('email'):
             params['login_hint'] = acc['email']
         if acc.get('etat') == 'connecte' and not acc.get('plan'):
-            params['prompt'] = 'consent'      # 5.6.82 : réactivation choisie par l'avocat ; jamais à chaque connexion ordinaire
-    else:
-        params['agent_name_hint'] = AGENT_NAME
+            params['prompt'] = 'consent'
+    return AUTHORIZE + '?' + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
+
+
+def start(desk, owner, port=DEFAULT_PORT):
+    """Nouvelle tentative : ``state``, ``nonce`` et vérificateur PKCE neufs ; adresse de la page officielle d'OpenAI.
+    Procédure manuelle (« Autres méthodes ») : une seule tentative, gardée dans les réglages. 5.6.97 : le suivi sur le poste et la liaison
+    poste → serveur ouvrent leurs propres tentatives (``chatgpt5697``)."""
+    acc = account(desk)
+    client_id = acc.get('client_id') or ''
+    state, nonce, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32), secrets.token_urlsafe(64)
+    redirect = 'http://127.0.0.1:%d%s' % (int(port), CALLBACK_PATH)
+    url = authorize_url(desk, state, nonce, verifier, redirect, client_id)   # 5.6.82 : « consent » seulement pour réactiver le forfait
     desk.setting(ATTEMPT_KEY, {'state': state, 'nonce': nonce, 'verifier': verifier, 'redirect_uri': redirect, 'client_id': client_id,
                                'owner': str(owner)[:120], 'expires': (_now() + timedelta(minutes=ATTEMPT_MINUTES)).isoformat()})
     desk.audit('chatgpt5662_connexion_demandee', {'par': str(owner)[:120], 'nouvelle_inscription': not client_id})
-    return AUTHORIZE + '?' + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
+    return url
 
 
 def _jwks_key(kid, transport=None):
@@ -330,22 +372,18 @@ def verify_id_token(token, client_id, nonce, transport=None, now=None):
     return payload
 
 
-def complete(desk, returned, transport=None):
-    """Retour de la page d'OpenAI (adresse complète ou paramètres) : contrôle, échange du code, vérification, enregistrement chiffré."""
+def parse_return(returned):
+    """Adresse de retour complète, chaîne de paramètres ou dictionnaire → paramètres (chaînes)."""
     if isinstance(returned, str):
         text = returned.strip()
         query = urllib.parse.urlsplit(text).query if '://' in text else text.lstrip('?')
-        params = dict(urllib.parse.parse_qsl(query))
-    else:
-        params = {k: str(v) for k, v in dict(returned).items()}
-    attempt = desk.settings(ATTEMPT_KEY, {}) or {}
-    if not attempt or not params.get('state') or not secrets.compare_digest(str(params.get('state')), str(attempt.get('state', ''))):
-        raise Stop('chatgpt_tentative_inconnue')
-    if attempt.get('expires', '') < _now().isoformat():
-        desk.setting(ATTEMPT_KEY, {})
-        raise Stop('chatgpt_tentative_expiree')
+        return dict(urllib.parse.parse_qsl(query))
+    return {k: str(v) for k, v in dict(returned).items()}
+
+
+def check_return(params, attempt):
+    """5.6.97 (A04) : contrôles du retour AVANT la consommation de la tentative ; rend l'identifiant de client à utiliser."""
     if params.get('error'):
-        desk.setting(ATTEMPT_KEY, {})
         raise Stop('chatgpt_autorisation_refusee' if params['error'] == 'access_denied' else 'chatgpt_autorisation_echouee')
     client_id = attempt.get('client_id') or ''
     if client_id:
@@ -357,37 +395,76 @@ def complete(desk, returned, transport=None):
             raise Stop('chatgpt_inscription_incomplete')
     if not params.get('code'):
         raise Stop('chatgpt_code_absent')
-    desk.setting(ATTEMPT_KEY, {})                      # un code ne s'échange qu'une fois
+    return client_id
+
+
+def exchange(desk, params, attempt, client_id, transport=None, scope_from_return=True):
+    """5.6.97 (A04) : échange du code et vérification du jeton d'identité. Rend une session CANDIDATE validée ; rien n'est enregistré.
+    ``scope_from_return=False`` : les droits viennent seulement de la réponse d'OpenAI à l'échange (suivi et liaison 5.6.97)."""
     try:
         tok = _form(TOKEN, {'grant_type': 'authorization_code', 'client_id': client_id, 'code': params['code'],
                             'code_verifier': attempt['verifier'], 'redirect_uri': attempt['redirect_uri'], 'resource': API}, transport)
     except HTTPFailure as ex:
         raise Stop('chatgpt_code_refuse' if ex.code == 'invalid_grant' else 'chatgpt_autorisation_echouee') from None
     claims = verify_id_token(tok.get('id_token', ''), client_id, attempt['nonce'], transport)
-    scopes = sorted(str(tok.get('scope') or params.get('scope') or '').replace('+', ' ').split())
-    previous = account(desk)
-    if previous.get('subject') and previous.get('client_id') == client_id and previous['subject'] != claims.get('sub'):
-        raise Stop('chatgpt_compte_different')
+    scopes = sorted(str(tok.get('scope') or (params.get('scope') if scope_from_return else '') or '').replace('+', ' ').split())
     record = {'email': str(claims.get('email') or ''), 'issuer': AUTH, 'subject': str(claims.get('sub') or ''), 'client_id': client_id,
-              'ext_agent_host_id': host_id(desk), 'id_token': tok.get('id_token', ''), 'access_token': tok.get('access_token', ''),
+              'ext_agent_host_id': attempt.get('host') or host_id(desk), 'id_token': tok.get('id_token', ''), 'access_token': tok.get('access_token', ''),
               'refresh_token': tok.get('refresh_token', ''), 'token_type': tok.get('token_type', 'Bearer'),
               'expires_at': (_now() + timedelta(seconds=int(tok.get('expires_in') or 3600))).isoformat(), 'scopes': scopes,
               'saved_at': _now().isoformat()}
-    save_record(desk.c['state_dir'], record)
-    plan = PLAN_SCOPE in scopes
-    desk.setting(ACCOUNT_KEY, {'email': record['email'], 'subject': record['subject'], 'client_id': client_id, 'scopes': scopes,
-                               'espace': _workspace(claims), 'plan': plan, 'connecte_le': record['saved_at'], 'par': attempt.get('owner', ''), 'etat': 'connecte',
-                               'bienvenue_vue': bool(previous.get('bienvenue_vue')) and previous.get('client_id') == client_id})
-    desk.audit('chatgpt5662_connecte', {'par': attempt.get('owner', ''), 'abonnement_utilisable': plan})
+    return {'record': record, 'claims': claims, 'scopes': scopes, 'plan': PLAN_SCOPE in scopes, 'client_id': client_id, 'espace': _workspace(claims)}
+
+
+def account_value(candidate, owner, previous):
+    """Fiche du compte connecté (sans jeton) pour une session candidate publiée."""
+    record = candidate['record']
+    return {'email': record['email'], 'subject': record['subject'], 'client_id': candidate['client_id'], 'scopes': candidate['scopes'],
+            'espace': candidate.get('espace', ''), 'plan': candidate['plan'], 'connecte_le': record['saved_at'], 'par': str(owner)[:120], 'etat': 'connecte',
+            'bienvenue_vue': bool(previous.get('bienvenue_vue')) and previous.get('client_id') == candidate['client_id']}
+
+
+def after_publish(desk, plan, transport=None):
+    """Après la publication : report levé ; catalogue relu pour ce compte (celui d'un autre compte ne survit pas)."""
     from . import chatgpt5682
     chatgpt5682.clear(desk.c['state_dir'])
     if plan:
         try:
             from .catalogue5682 import refresh
-            refresh(desk, PROVIDER_ID, transport)    # 5.6.82 : catalogue lié au compte ; celui d'un autre compte ne survit pas
+            refresh(desk, PROVIDER_ID, transport)    # 5.6.82 : catalogue lié au compte
         except Stop:
             pass
-    return {'ok': True, 'plan': plan, 'email': record['email']}
+
+
+def publish(desk, candidate, owner, transport=None):
+    """5.6.97 (A04) : publication d'une session candidate validée sur CETTE installation (coffre chiffré, fiche du compte)."""
+    previous = account(desk)
+    record = candidate['record']
+    if previous.get('subject') and previous.get('client_id') == candidate['client_id'] and previous['subject'] != record['subject']:
+        raise Stop('chatgpt_compte_different')
+    save_record(desk.c['state_dir'], record)
+    desk.setting(ACCOUNT_KEY, account_value(candidate, owner, previous))
+    desk.audit('chatgpt5662_connecte', {'par': str(owner)[:120], 'abonnement_utilisable': candidate['plan']})
+    after_publish(desk, candidate['plan'], transport)
+    return {'ok': True, 'plan': candidate['plan'], 'email': record['email']}
+
+
+def complete(desk, returned, transport=None):
+    """Retour de la page d'OpenAI (adresse complète ou paramètres) : contrôle, échange du code, vérification, enregistrement chiffré.
+    Procédure manuelle conservée (« Autres méthodes ») ; 5.6.97 : découpée en ``check_return``, ``exchange`` et ``publish``."""
+    params = parse_return(returned)
+    attempt = desk.settings(ATTEMPT_KEY, {}) or {}
+    if not attempt or not params.get('state') or not secrets.compare_digest(str(params.get('state')), str(attempt.get('state', ''))):
+        raise Stop('chatgpt_tentative_inconnue')
+    if attempt.get('expires', '') < _now().isoformat():
+        desk.setting(ATTEMPT_KEY, {})
+        raise Stop('chatgpt_tentative_expiree')
+    if params.get('error'):
+        desk.setting(ATTEMPT_KEY, {})
+    client_id = check_return(params, attempt)
+    desk.setting(ATTEMPT_KEY, {})                      # un code ne s'échange qu'une fois
+    candidate = exchange(desk, params, attempt, client_id, transport)
+    return publish(desk, candidate, attempt.get('owner', ''), transport)
 
 
 def _workspace(claims):
@@ -399,7 +476,10 @@ def _workspace(claims):
 def access_token(state_dir, transport=None, force=False):
     """Jeton d'accès valide (renouvelé s'il expire dans moins de 5 min) ; erreur claire s'il faut se reconnecter."""
     with _Lock(state_dir):
-        record = load_record(state_dir)
+        # 5.6.97 (A06) : fichier désigné une fois, sous le verrou de renouvellement : une session publiée entre-temps (liaison) ne reçoit
+        # jamais les jetons renouvelés de l'ancienne ; la publication prend le même verrou.
+        path = _vault_path(state_dir)
+        record = load_record(state_dir, path)
         if not record or not record.get('refresh_token'):
             raise Stop('chatgpt_non_connecte')
         try:
@@ -415,7 +495,7 @@ def access_token(state_dir, transport=None, force=False):
             if ex.code in REFRESH_DEAD or ex.status in (400, 401):
                 for k in ('access_token', 'refresh_token'):
                     record[k] = ''
-                save_record(state_dir, record)
+                save_record(state_dir, record, path)
                 raise Stop('chatgpt_reconnexion_requise') from None
             if ex.code == 'invalid_client':
                 raise Stop('chatgpt_client_invalide') from None
@@ -426,7 +506,7 @@ def access_token(state_dir, transport=None, force=False):
             record['refresh_token'] = tok['refresh_token']   # jeton tournant : toujours conserver le dernier
         if tok.get('scope'):
             record['scopes'] = sorted(str(tok['scope']).split())
-        save_record(state_dir, record)
+        save_record(state_dir, record, path)
         return record['access_token']
 
 
@@ -517,6 +597,13 @@ def build_request(model, messages, json_schema=None, strict=True, effort=None):
 
 
 STREAM_MAX_SECONDS = 1800   # plafond d'une réponse en flux (le délai de lecture porte sur le silence entre deux événements)
+
+
+def poster_responses(http_fn, token, body, timeout):
+    """5.6.97 (A06) : POST /responses en flux, pour le test borné d'une session CANDIDATE (texte technique fixe, jamais un
+    contenu du cabinet). Seul point d'appel de ce chemin hors ``respond`` : le transport reste inventorié ici."""
+    return http_fn('POST', API + '/responses', body, {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json',
+                                                  'Accept': 'text/event-stream'}, timeout=timeout, stream=True)
 
 
 def read_stream(lines, deadline=None):
@@ -619,10 +706,17 @@ def respond(state_dir, model, messages, json_schema=None, strict=True, transport
 
 
 # ------------------------------------------------------------------------------------------------ retour local (postes)
-def listen(config, port=DEFAULT_PORT, minutes=ATTEMPT_MINUTES):
+def listen(config, port=DEFAULT_PORT, minutes=ATTEMPT_MINUTES, traiter=None, arreter=None):
     """Poste : écoute UNE fois ``http://127.0.0.1:<port>/auth/callback`` (navigateur sur la même machine) puis s'arrête. Rend le port
-    réellement ouvert (``port`` s'il est libre, sinon un port libre : OpenAI admet un autre port tant que le chemin est identique)."""
+    réellement ouvert (``port`` s'il est libre, sinon un port libre : OpenAI admet un autre port tant que le chemin est identique).
+
+    5.6.97 (A04) : ``traiter(requête)`` (tentative suivie) rend ``{'fin', 'etat', 'statut'}`` ; un retour étranger (``fin`` faux) ne ferme
+    pas l'écoute de la tentative en cours. ``arreter()`` vrai (tentative annulée ou close) ferme l'écoute avant l'expiration. La page de
+    retour se limite alors à un état et à « Revenir à AxiorHub »."""
     from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Server(HTTPServer):
+        allow_reuse_address = os.name != 'nt'   # Windows : SO_REUSEADDR laisserait deux écoutes partager le port préféré
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -633,6 +727,24 @@ def listen(config, port=DEFAULT_PORT, minutes=ATTEMPT_MINUTES):
             if p.path != CALLBACK_PATH:
                 self.send_response(404)
                 self.end_headers()
+                return
+            if traiter is not None:
+                try:
+                    out = traiter(p.query)
+                except Exception:   # noqa: BLE001 — jamais de trace ni de paramètre OAuth dans la page
+                    out = {'fin': False, 'etat': 'Connexion non aboutie', 'statut': 500}
+                page = ('<!doctype html><meta charset="utf-8"><title>AxiorHub Pilote</title><body style="font-family:system-ui;margin:3rem;max-width:40rem">'
+                        '<h1>%s</h1><p>Revenir à AxiorHub</p></body>') % str(out.get('etat') or '').replace('&', '&amp;').replace('<', '&lt;')
+                data = page.encode('utf-8')
+                self.send_response(int(out.get('statut') or 200))
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Referrer-Policy', 'no-referrer')
+                self.end_headers()
+                self.wfile.write(data)
+                if out.get('fin'):
+                    self.server.done = True
                 return
             from .desk import Desk
             try:
@@ -661,7 +773,7 @@ def listen(config, port=DEFAULT_PORT, minutes=ATTEMPT_MINUTES):
     server = None
     for candidate in (int(port), 0):
         try:
-            server = HTTPServer(('127.0.0.1', candidate), Handler)
+            server = Server(('127.0.0.1', candidate), Handler)
             break
         except OSError:
             continue
@@ -675,6 +787,11 @@ def listen(config, port=DEFAULT_PORT, minutes=ATTEMPT_MINUTES):
         try:
             while not server.done and time.monotonic() < deadline:
                 server.handle_request()
+                if arreter is not None and not server.done:
+                    try:
+                        server.done = bool(arreter())
+                    except Exception:   # noqa: BLE001 — base momentanément indisponible : l'écoute continue jusqu'à l'expiration
+                        pass
         finally:
             server.server_close()
     threading.Thread(target=loop, name='chatgpt5662-retour', daemon=True).start()
@@ -730,21 +847,11 @@ def html(desk, prefix, role, local):
                                                                        ' checked' if prov.get('external_data_allowed') else '')
         body += ('<form class="m5-form d51-inline" data-api="m5662/chatgpt/modeles" data-reload><button class="ax-btn ghost" type="submit">'
                  'Actualiser la liste des modèles</button></form>')
-    attempt = desk.settings(ATTEMPT_KEY, {}) or {}
-    pending = attempt and attempt.get('expires', '') > _now().isoformat()
-    body += ('<form class="d51-inline c5662-connect" data-c5662-open><button class="ax-btn c5662-siwc" type="submit">'
-             'Continuer avec ChatGPT</button><p role="status" class="m5-status"></p></form>')
+    # 5.6.97 (A04, A05) : « Continuer avec ChatGPT » suivi en direct (poste) ou par liaison avec AxiorHub Poste (serveur, option de
+    # déploiement) ; les procédures d'origine (adresse de retour recopiée, paquet chiffré) restent sous « Autres méthodes ».
+    from .chatgpt5697 import section_connexion
+    body += section_connexion(desk, prefix, local, connected and bool(acc.get('plan')))
     if connected:
         body += ('<form class="m5-form d51-inline" data-api="m5662/chatgpt/deconnecter" data-reload><button class="ax-btn ghost" type="submit">'
                  'Déconnecter</button></form>')
-    if not local:
-        body += ('<details%s><summary>Après la connexion (AxiorHub installé sur un serveur)</summary><p>Après votre accord sur la page '
-                 'd’OpenAI, votre navigateur affiche une page introuvable dont l’adresse commence par <code>http://127.0.0.1:1455/auth/callback</code>. '
-                 'C’est normal : copiez cette adresse complète et collez-la ici. Elle ne contient qu’un code à usage unique, '
-                 'inutilisable sans le secret resté sur le serveur.</p><form class="m5-form" data-api="m5662/chatgpt/terminer" data-reload>'
-                 '<label class="m5-field">Adresse affichée après l’accord<input name="adresse" maxlength="4000" autocomplete="off" '
-                 'placeholder="http://127.0.0.1:1455/auth/callback?code=…"></label><button class="ax-btn" type="submit">Terminer la connexion</button>'
-                 '<p role="status" class="m5-status"></p></form></details>') % (' open' if pending else '')
-    from .ia5682 import transfer_html
-    body += transfer_html(connected and bool(acc.get('plan')), local)
     return '<section class="ax-card" id="chatgpt5662"><h2>ChatGPT (votre abonnement)</h2>%s</section>' % body
