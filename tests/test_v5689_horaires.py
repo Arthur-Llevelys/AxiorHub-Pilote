@@ -891,12 +891,13 @@ class Reprise(Base):
         k = j + timedelta(days=1)
         depart = self.a(j.year, j.month, j.day, 12)
         rt.tick(self.desk, depart)                                               # premier passage : rien n'est rattrapé
-        self.routine()
+        cree = self.routine()
         self.activer()
         for minute in (1, 2, 3):
             instant = self.a(j.year, j.month, j.day, 20, minute)
             rt.tick(self.desk, instant)
-        occurrence = self.desk.db.execute('SELECT state,error_code,attempts FROM routines5652_occ').fetchall()
+        # 5.6.99 : seulement les passages de la routine du test ; un vendredi, le « Bilan de la semaine » intégré (17 h 30) a aussi le sien
+        occurrence = self.desk.db.execute('SELECT state,error_code,attempts FROM routines5652_occ WHERE routine_id=?', (cree['id'],)).fetchall()
         self.assertEqual(len(occurrence), 1)
         self.assertEqual((occurrence[0]['state'], occurrence[0]['error_code'], occurrence[0]['attempts']), ('reportee_pause', 'pause_horaire', 0))
         self.assertFalse(self.desk.db.execute("SELECT 1 FROM jobs WHERE kind='routine5652'").fetchone())

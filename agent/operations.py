@@ -220,6 +220,10 @@ def _automation_tick_5642(desk):
         notes5688.scanner_taches(desk,now_ts)
         memoire5688.entretien(desk,now_ts)
     except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.99 : répertoires de dépôt (« 09 - Scanner ») : travaux automatiques écartés, demandes en échec annulées (choix du cabinet)
+        from . import bruit5668
+        bruit5668.ecarter_depots(desk)
+    except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):
         minutes=economie569.interval(desk,'refresh_cabinet_pilotage',max(5,int(pilot.get('refresh_interval_minutes',30))))

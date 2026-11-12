@@ -257,7 +257,7 @@ class P01Lancement(unittest.TestCase):
         m = banc_module()
         self.assertEqual([p[0] for p in m.PARCOURS], ['P02a', 'P02b', 'P02c', 'P02d', 'P02e', 'P02f', 'P02g', 'P02h', 'P95a', 'P95b',
                                                       'P96k', 'P96F1', 'P96F2', 'P96c', 'P96a', 'P96b', 'P96v',
-                                                      'P97f', 'P97g', 'P97m', 'P97c', 'P97s', 'P97d', 'P97a', 'P98a', 'P98p', 'P98d'])   # 5.6.98 : Aujourd'hui, Paramètres, Nouveau dossier ; 5.6.97 : lots   # 5.6.95 : lot aujourdhui ; 5.6.96 : parcours des lots (ordre d'ajout)
+                                                      'P97f', 'P97g', 'P97m', 'P97c', 'P97s', 'P97d', 'P97a', 'P98a', 'P98p', 'P98d', 'P99a'])   # 5.6.99 : bandeau des routines ; 5.6.98 : Aujourd'hui, Paramètres, Nouveau dossier ; 5.6.97 : lots   # 5.6.95 : lot aujourdhui ; 5.6.96 : parcours des lots (ordre d'ajout)
 
 
 class P03Recette(unittest.TestCase):

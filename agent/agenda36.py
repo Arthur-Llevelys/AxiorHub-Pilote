@@ -80,7 +80,9 @@ def page(desk,args,link,url,form=None,source='online'):
     events=data['events']
     by_day={}
     matters=[]
-    try:matters=load_matters(desk.c)
+    try:
+        from .bruit5668 import clients
+        matters=clients(load_matters(desk.c))   # 5.6.99 : choix de dossier sans répertoire de dépôt
     except Stop:matters=[]
     cfg=desk.c.get('nextcloud_workflow') or {}
     writable=bool(form and cfg.get('enabled') and cfg.get('planning_calendar_url'))

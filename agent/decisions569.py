@@ -85,12 +85,13 @@ def _extra_items(desk, owner, prefix, labels, limit):
         pass
     try:
         from .docrequest520 import ensure_schema as docreq_schema
+        from .file5657 import titre_lisible   # 5.6.99 : jamais la consigne de sécurité en titre
         docreq_schema(desk)
         for r in desk.db.execute("SELECT id,matter,request,status,result FROM docreq520 WHERE status IN ('dossier_a_choisir','echec') ORDER BY updated DESC LIMIT ?", (limit,)):
             if r['id'] in linked:
                 continue
             res = json.loads(r['result'] or '{}')
-            out.append({'kind': 'docreq', 'id': r['id'], 'state': r['status'], 'title': 'Document demandé : ' + r['request'][:160], 'matter': r['matter'],
+            out.append({'kind': 'docreq', 'id': r['id'], 'state': r['status'], 'title': 'Document demandé : ' + titre_lisible(r['request']), 'matter': r['matter'],
                         'matter_label': labels.get(r['matter'], 'Dossier à préciser'),
                         'explanation': 'Dossier à préciser pour rédiger ce document.' if r['status'] == 'dossier_a_choisir' else 'Dépôt ou rédaction en échec : ' + str(res.get('error', 'action_interrompue'))[:160],
                         'candidates': [c for c in res.get('candidates', []) if c.get('id') in labels][:8], 'url': prefix + '/decision?type=docreq&id=' + r['id']})
@@ -115,11 +116,12 @@ def _extra_items(desk, owner, prefix, labels, limit):
 
 
 def _matter_options(labels, candidates, current):
+    from .bruit5668 import depot_label
     suggested = ''.join('<option value="%s"%s>%s (suggéré)</option>' % (e(c['id'], quote=True), ' selected' if c['id'] == current else '', e(c['label']))
                         for c in candidates)
     known = {c['id'] for c in candidates}
     rest = ''.join('<option value="%s"%s>%s</option>' % (e(mid, quote=True), ' selected' if mid == current and mid not in known else '', e(label))
-                   for mid, label in sorted(labels.items(), key=lambda kv: kv[1].casefold()) if mid not in known)
+                   for mid, label in sorted(labels.items(), key=lambda kv: kv[1].casefold()) if mid not in known and not depot_label(label))   # 5.6.99
     return ('<option value="">Dossier…</option>' + (('<optgroup label="Suggérés">' + suggested + '</optgroup>') if suggested else '')
             + '<optgroup label="Tous les dossiers">' + rest + '</optgroup>')
 

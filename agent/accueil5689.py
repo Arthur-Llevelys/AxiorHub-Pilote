@@ -168,7 +168,10 @@ def resume_briefing(desk):
 
 
 def routines_bloc(barre, routines, resume=''):
-    """Bloc Routines : lignes compactes (état, dernier passage, Voir, Lancer) ; les comptes rendus complets s'ouvrent dans un panneau, à la demande (§ 11)."""
+    """Bloc Routines : lignes compactes (état, dernier passage, Voir, Lancer) ; les comptes rendus complets s'ouvrent dans un panneau, à la demande (§ 11).
+    5.6.99 : avec le bandeau d'une ligne, le début du briefing passe dans « Détail » (le bandeau ne grandit pas)."""
+    if resume and '<!--r99-detail-->' in barre:
+        barre, resume = barre.replace('<!--r99-detail-->', resume, 1), ''
     return ('%s%s<section class="c530-card a89-comptes" id="c530-routines" aria-labelledby="c530-t-routines-court"><h2 class="c530-sr" id="c530-t-routines-court">Comptes rendus</h2>'
             '<dialog class="ui89-panneau" id="a89-rapports" aria-labelledby="c530-t-routines"><button type="button" class="ax-btn ghost ui89-fermer" data-ui89-ferme>%s<span>Fermer</span></button>%s</dialog></section>') % (
         barre, resume, icone('fermer', taille=16), routines)

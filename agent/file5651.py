@@ -94,6 +94,12 @@ def _deadline_reason(desk, mid):
     return ('Échéance confirmée le %s' % row['due']) if row else ''
 
 
+def _titre(texte, limite=150):
+    """5.6.99 : intitulé sans la consigne de sécurité des missions automatiques (``file5657.titre_lisible``)."""
+    from .file5657 import titre_lisible
+    return titre_lisible(texte, limite)
+
+
 def _lien_document(desk, prefix, request, fallback):
     """5.6.89 (LIV01) : la visionneuse commune quand le document est au registre, la page du dossier sinon."""
     try:
@@ -156,7 +162,7 @@ def _items_for(desk, prefix, m):
         since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
         for r in desk.db.execute("SELECT id,request,path,updated FROM docreq520 WHERE matter=? AND status='cree' AND updated>=? ORDER BY updated DESC LIMIT 20",
                                  (mid, since)).fetchall():
-            items.append({'class': 'livrable', 'object': 'document:' + r['id'], 'revision': r['updated'], 'when': r['updated'], 'title': 'Document produit à relire : ' + r['request'][:120],
+            items.append({'class': 'livrable', 'object': 'document:' + r['id'], 'revision': r['updated'], 'when': r['updated'], 'title': 'Document produit à relire : ' + _titre(r['request'], 120),
                           'consequence': 'Marquer comme relu le retire de toutes les vues.', 'href': _lien_document(desk, prefix, r['id'], q('travaux')), 'choices': ('relu', 'reporter')})
     except Exception:   # noqa: BLE001
         pass
@@ -198,7 +204,9 @@ def items(desk, prefix='', matter=None, view='', hidden=frozenset(), include_clo
 
 def _items(desk, prefix, matter, view, hidden, include_closed, actor, role):
     ensure_schema(desk)
-    matters = [m for m in load_matters(desk.c) if str(m['id']) not in hidden and (matter is None or str(m['id']) == str(matter))]
+    from .bruit5668 import automatique_de_depot, clients, depots
+    matters = [m for m in clients(load_matters(desk.c)) if str(m['id']) not in hidden and (matter is None or str(m['id']) == str(matter))]   # 5.6.99 : sans répertoire de dépôt
+    ids_depots = depots(desk)
     if matter is None:   # seuls les dossiers qui ont quelque chose à décider sont parcourus
         active = set()
         since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
@@ -230,6 +238,8 @@ def _items(desk, prefix, matter, view, hidden, include_closed, actor, role):
     for found in batches:
         for it in found:
             if view and it['class'] not in FILTERS.get(view, ()):
+                continue
+            if automatique_de_depot(it, ids_depots):   # 5.6.99 : travail automatique d'un répertoire de dépôt (« 09 - Scanner ») : écarté
                 continue
             row = desk.db.execute('SELECT * FROM d51_queue WHERE key=?', (it['key'],)).fetchone()
             if row and row['revision'] == it['revision']:
@@ -384,7 +394,7 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
                 '<p class="q51-title">%s</p>%s%s<div class="q51-actions">%s</div></li>' % (
                     e(it['class']), e(CLASSES.get(it['class'], 'À examiner')),
                     ' <span class="q51-prio" title="%s">Prioritaire</span><span class="q51-pourquoi">%s</span>' % (e(it['priority_reason'], quote=True), e(it['priority_reason'])) if it['priority'] == 'haute' else '',
-                    where, e(it['title']),
+                    where, e(_titre(it['title'])),
                     '<p class="q51-sub">%s</p>' % e(it['action']) if it.get('action') else '',
                     '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
     if not matter and view in ('', 'relire'):

@@ -76,12 +76,22 @@
   function openDecision() {
     const m = /^#decision=(.+)$/.exec(location.hash || '');
     if (!m || !panel) return;
+    // 5.6.99 : depuis 5.6.96 le panneau est rangé dans « Voir la suite » (repli fermé) : sans l'ouvrir, « Ouvrir » ne montrait rien
+    for (let d = panel.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
     showPanel(true);
     const key = decodeURIComponent(m[1]);
     const card = [...panel.querySelectorAll('.c5614-card')].find(c => c.dataset.key === key);
     if (card) { card.scrollIntoView({block: 'center'}); card.focus(); }
   }
   window.addEventListener('hashchange', openDecision);
+  // 5.6.99 : un second clic sur le même « Ouvrir » (même ancre) ne déclenche pas « hashchange » : le panneau s'ouvre quand même
+  document.addEventListener('click', ev => {
+    const a = ev.target.closest && ev.target.closest('a[href*="#decision="]');
+    if (!a || !panel || ev.defaultPrevented || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey || a.pathname !== location.pathname) return;
+    ev.preventDefault();
+    if (location.hash !== a.hash) history.replaceState(null, '', a.hash);
+    openDecision();
+  });
   openDecision();
   close?.addEventListener('click', () => showPanel(false));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && panel && !panel.hidden) showPanel(false); });

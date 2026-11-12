@@ -134,7 +134,8 @@ def _live_incident_card(item,form,link):
 
 def _matter_options(desk, selected=''):
     out=['<option value="">Choisir un dossier…</option>']
-    for matter in load_matters(desk.c):
+    from .bruit5668 import clients
+    for matter in clients(load_matters(desk.c)):   # 5.6.99 : sans répertoire de dépôt
         mid=str(matter['id']);out.append('<option value="'+e(mid)+'"'+(' selected' if mid==selected else '')+'>'+e(matter_option(matter))+'</option>')
     return ''.join(out)
 

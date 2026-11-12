@@ -4380,3 +4380,31 @@ label.cfg98-case input { margin-top: .2rem; }
   .d98-grille { grid-template-columns: 1fr; }
   .d98-form-ligne { align-items: stretch; flex-direction: column; }
 }
+/* ==== v5699.css ==== */
+/* AxiorHub 5.6.99 — Aujourd'hui : routines en bandeau d'une ligne au-dessus de « À décider / À relire » ; le détail s'ouvre au clic */
+.r99-bandeau { position: relative; }
+.r99-bandeau .r99-ligne { align-items: center; display: flex; gap: .75rem; min-width: 0; padding-right: 4.25rem; }
+.r99-bandeau .r99-titre { flex: 0 0 auto; font-size: 1rem; line-height: 1.5; margin: 0; }
+.r99-liste { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: .25rem .9rem; list-style: none; margin: 0; min-width: 0; padding: 0; }   /* passe à la ligne s'il le faut : rien n'est coupé (zoom 200 %) */
+.r99-routine { align-items: center; display: flex; flex: 0 0 auto; font-size: .875rem; gap: .4rem; margin: 0; white-space: nowrap; }
+.r99-nom { font-weight: 600; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; }
+.r99-etat { color: #166534; font-size: .75rem; }
+.r99-etat:empty { display: none; }
+.r99-pause .r99-etat { color: #92400e; }
+.r99-heure { color: var(--ws-muted, #525252); font-variant-numeric: tabular-nums; }
+.r99-manque { color: #b91c1c; cursor: help; font-size: .85rem; }
+.r99-vide { color: var(--ws-muted, #525252); font-size: .875rem; }
+.r99-routine .m5-form.r52-inline { display: inline-flex; margin: 0; }
+.r99-routine .ax-btn { font-size: .75rem; line-height: 1; min-height: 0; padding: .3rem .45rem; }
+/* « Détail » : sur la ligne du bandeau (à droite) ; ouvert, les cartes complètes s'affichent dessous */
+.r99-bandeau .r99-detail { background: none; border: 0; box-shadow: none; margin: 0; padding: 0; }
+.r99-bandeau .r99-detail > summary { color: var(--cds-link-primary, #0f62fe); cursor: pointer; font-size: .875rem; position: absolute; right: 1rem; top: .9rem; }
+.r99-bandeau .r99-detail[open] { margin-top: .75rem; }
+.r99-bandeau .r99-detail[open] > .r52-top { margin-top: .25rem; }
+html[data-theme="dark"] .r99-etat, body.dark .r99-etat { color: #6ee7b7; }
+html[data-theme="dark"] .r99-pause .r99-etat, body.dark .r99-pause .r99-etat { color: #fcd34d; }
+html[data-theme="dark"] .r99-manque, body.dark .r99-manque { color: #fca5a5; }
+@media (max-width: 40rem) { .r99-bandeau .r99-ligne { flex-wrap: wrap; } .r99-liste { flex-basis: 100%; } }
+/* Le cadre « Comptes rendus » ne porte qu'un titre masqué et le panneau des rapports (fenêtre) : dans le rang, il ne prend aucune place */
+.f96-rang .a89-comptes, :root body[data-carbon] .a89 .f96-rang .a89-comptes.c530-card { background: none; border: 0; box-shadow: none; margin: 0; min-height: 0; padding: 0; }
+.a89 .f96-rang .f98-gauche { gap: .75rem; }

@@ -324,10 +324,11 @@ def _hidden(**kw):
 
 def _matter_options(desk, selected=''):
     from .membres5650 import viewer_hidden
+    from .bruit5668 import depot_folder
     hidden = viewer_hidden() or frozenset()
     opts = ''.join('<option value="%s"%s>%s%s</option>' % (e(str(m['id']), quote=True), ' selected' if str(m['id']) == str(selected) else '', e(matter_display(m)),
                                                          (' — ' + e(m.get('client_name') or '')) if m.get('client_name') else '')
-                   for m in load_matters(desk.c) if str(m['id']) not in hidden)
+                   for m in load_matters(desk.c) if str(m['id']) not in hidden and not depot_folder(m))   # 5.6.99 : sans répertoire de dépôt
     return '<option value="">Choisir un dossier…</option>' + opts
 
 

@@ -29,6 +29,70 @@ def depot_folder(matter):
     return any(_base(v) in DEPOT_NAMES for v in (m.get('path'), m.get('client_name'), m.get('name')) if v)
 
 
+def depot_label(label):
+    """5.6.99 : nom affiché (« 09 - Scanner ») d'un répertoire de dépôt, pour les listes construites à partir des seuls libellés."""
+    return _base(label) in DEPOT_NAMES
+
+
+def clients(rows):
+    """5.6.99 : dossiers clients seulement (répertoires de dépôt retirés), pour les listes et les choix de dossier."""
+    return [m for m in rows if not depot_folder(m)]
+
+
+def depots(desk):
+    """5.6.99 : identifiants des répertoires de dépôt présents au registre (registre complet, sans filtre de la personne)."""
+    from .common import load_matters
+    try:
+        rows = load_matters(desk.c, unfiltered=True)
+    except Stop:
+        return frozenset()
+    return frozenset(str(m['id']) for m in rows if depot_folder(m))
+
+
+AUTOMATIQUES = ('mission', 'docreq', 'plan')        # travaux automatiques d'un répertoire de dépôt : retirés de « À décider »
+GARDES = ('decision:document:', 'decision:mails:')  # classement d'une pièce arrivée, courriels à rattacher : conservés
+
+
+def automatique_de_depot(item, ids):
+    """5.6.99 : élément de la file produit automatiquement pour un répertoire de dépôt (analyse, note, demande en échec)."""
+    if str(item.get('matter') or '') not in ids:
+        return False
+    objet = str(item.get('object') or '')
+    return not objet.startswith(GARDES) and item.get('class') != 'courriel'
+
+
+def ecarter_depots(desk, actor='agent'):
+    """5.6.99 (choix du cabinet) : pour chaque répertoire de dépôt, une fois, même effet que « Ne plus proposer pour ce dossier »
+    (proactivité exclue, missions automatiques en attente écartées, préparations suspendues) ; à chaque passage, ses demandes de document
+    en échec ou sans dossier sont annulées. Aucun fichier n'est touché ; les notes déjà produites restent dans le stockage. Répétable."""
+    ids = depots(desk)
+    if not ids:
+        return {'depots': 0, 'exclus': 0, 'demandes_annulees': 0}
+    faits = set(desk.settings('depots5699:exclus', []) or [])
+    exclus = 0
+    for mid in sorted(ids - faits):
+        try:
+            exclude_matter(desk, mid, actor)
+        except Stop:
+            continue
+        faits.add(mid)
+        exclus += 1
+    if exclus:
+        desk.setting('depots5699:exclus', sorted(faits))
+    annulees = 0
+    try:
+        marques = ','.join('?' for _ in ids)
+        cur = desk.db.execute("UPDATE docreq520 SET status='annule', updated=? WHERE status IN ('dossier_a_choisir','echec') AND matter IN (%s)" % marques,
+                              [desk.now()] + sorted(ids))
+        annulees = cur.rowcount
+        desk.db.commit()
+    except Exception:   # noqa: BLE001 — table absente avant la première demande
+        pass
+    if exclus or annulees:
+        desk.audit('depots5699_ecartes', {'depots': sorted(ids), 'exclus': exclus, 'demandes_annulees': annulees})
+    return {'depots': len(ids), 'exclus': exclus, 'demandes_annulees': annulees}
+
+
 def exclude_matter(desk, matter, actor='cabinet'):
     """« Ne plus proposer pour ce dossier » : exclu de la proactivité de chaque profil ; missions automatiques en attente écartées."""
     from . import settings568
