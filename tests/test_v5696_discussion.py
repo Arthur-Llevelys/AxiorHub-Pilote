@@ -481,7 +481,8 @@ class Outils(Base):
         r = public.outil_trains(self.desk, OWNER, 'Y a-t-il une grève des trains demain ?', http=http)
         self.assertEqual((r['statut'], r['perimetre'], http.bodies), ('a_preciser', 'trains', []))
         self.assertIn('numéro du train', r['limites'][0])
-        demain = public.date_lettres(date.today() + timedelta(days=1))
+        from agent.acces5683 import today_of
+        demain = public.date_lettres(today_of(self.desk, OWNER)[0] + timedelta(days=1))   # 5.6.99 : demain dans le fuseau de la personne (recette en UTC)
         m = self.create('Le TGV 6666 circule-t-il demain ?', analysis_only=True)
         self.assertEqual((m['state'], m['exceptions'][0]['code'], m['exceptions'][0]['requete']), ('decision', 'recherche_publique_a_confirmer', 'train 6666 %s circulation perturbations' % demain))
         self.assertEqual(http.bodies, [])
