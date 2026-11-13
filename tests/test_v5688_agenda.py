@@ -975,7 +975,7 @@ class Morning(Base):
         self.hearing(start=self.today_at(14), avocat=COLLEAGUE)
         self.hearing(start=self.today_at(16), avocat='')
         self.hearing(start=later(5))
-        today = date.today()
+        today = datetime.now(ag._tz(self.desk)).date()   # 5.6.99 : jour du cabinet, pas celui de la machine (recette en UTC, échec entre 0 h et 1 h à Paris)
         ta.create(self.desk, {'title': 'Tâche du jour', 'due': today.isoformat(), 'responsable': LAWYER}, LAWYER)
         ta.create(self.desk, {'title': 'Tâche en retard', 'due': (today - timedelta(days=2)).isoformat(), 'responsable': LAWYER}, LAWYER)
         ta.create(self.desk, {'title': 'Tâche de Me MARTIN', 'due': today.isoformat(), 'responsable': COLLEAGUE}, LAWYER)
@@ -992,7 +992,7 @@ class Morning(Base):
     def test_echeances_du_jour(self):
         from agent import echeances450 as ech
         ech.ensure_schema(self.desk)
-        self.desk.db.execute("INSERT INTO deadlines450(id,matter,rule_id,start_event,start_date,due,status,origin,note,created,updated) VALUES('d1',?,'r','e','2026-01-01',?,'confirmee','main','Conclusions à déposer','x','x')", (MID, date.today().isoformat()))
+        self.desk.db.execute("INSERT INTO deadlines450(id,matter,rule_id,start_event,start_date,due,status,origin,note,created,updated) VALUES('d1',?,'r','e','2026-01-01',?,'confirmee','main','Conclusions à déposer','x','x')", (MID, datetime.now(ag._tz(self.desk)).date().isoformat()))   # 5.6.99 : jour du cabinet
         self.desk.db.commit()
         self.assertEqual([d['matter'] for d in matin5688.build(self.desk, LAWYER)['echeances']], [MID])
         self.assertIn('Conclusions à déposer', matin5688.html(self.desk, '/p', LAWYER))

@@ -9,7 +9,8 @@ n'est appelé : le faux fournisseur compte ses appels et le parcours exige zéro
   (un seul événement), équivalent clavier (flèches, Maj + flèche, Entrée).
 - P97a3 125 %, 200 %, mobile et sombre : navigation et « + Nouveau » visibles, aucun défilement horizontal, aucune erreur de console.
 """
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 
@@ -35,7 +36,8 @@ MESURE = """() => {
 
 def semer(banc):
     from agent import agenda5697
-    lundi = date.today() - timedelta(days=date.today().weekday())
+    jour = datetime.now(ZoneInfo('Europe/Paris')).date()   # 5.6.99 : semaine du cabinet, pas celle de la machine (recette en UTC)
+    lundi = jour - timedelta(days=jour.weekday())
     with banc.desk() as d:
         agenda5697.schema(d)
         n = 0

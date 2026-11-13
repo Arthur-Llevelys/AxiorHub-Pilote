@@ -606,6 +606,13 @@ def p02h_charge_voix(banc, s):
     s.propre('lecture Brindille')
 
 
+def _jour_du_cabinet():
+    """5.6.99 : date du jour à Paris (fuseau du banc), quelle que soit l'heure de la machine."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo('Europe/Paris')).date()
+
+
 def _semis5695():
     """Semis fictifs de la mesure d'Aujourd'hui (``scripts/mesure-aujourdhui.py``) : mêmes tables, mêmes colonnes."""
     import importlib.util
@@ -809,8 +816,9 @@ def _accueil96(banc, meteo=True):
     meteo5696.vider_cache()
     with banc.desk() as d:
         semis.schemas(d)
-        semis.echeance(d, 'banc-ech-verifier', 'DOS-001', (date.today() + timedelta(days=3)).isoformat(), 'a_confirmer')
-        semis.echeance(d, 'banc-ech-confirmee', 'DOS-002', date.today().isoformat(), 'confirmee')
+        jour = _jour_du_cabinet()   # 5.6.99 : la recette GitHub tourne en UTC ; entre 0 h et 1 h à Paris, date.today() donnait la veille
+        semis.echeance(d, 'banc-ech-verifier', 'DOS-001', (jour + timedelta(days=3)).isoformat(), 'a_confirmer')
+        semis.echeance(d, 'banc-ech-confirmee', 'DOS-002', jour.isoformat(), 'confirmee')
         d.db.commit()
         assistant567.save_profile(d, {'prenom': 'Claire'}, 'cabinet')
         if meteo:
