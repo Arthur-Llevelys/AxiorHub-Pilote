@@ -15,7 +15,7 @@ ECRITURES = frozenset(('contentieux/matrice/pretention', 'contentieux/matrice/el
                        'contentieux/audiences/preparer', 'contentieux/paquets/creer', 'contentieux/paquets/modifier', 'contentieux/paquets/verifier'))
 # Actions de validation : avocat ou administrateur. Un assistant prépare ; il ne valide ni n'autorise.
 VALIDATIONS = frozenset(('contentieux/matrice/decision', 'contentieux/pieces/retirer', 'contentieux/pieces/renumerotation/appliquer', 'contentieux/categories/decision', 'contentieux/actes/annuler', 'contentieux/delais/decision', 'contentieux/delais/regle', 'contentieux/paquets/autoriser'))
-ONGLETS = (('matrice', 'Matrice'), ('pieces', 'Pièces'), ('actes', 'Actes'), ('delais', 'Délais'), ('audience', 'Audience'), ('paquets', 'Paquets'), ('categories', 'Classement'))
+ONGLETS = (('matrice', 'Matrice'), ('pieces', 'Pièces'), ('actes', 'Actes'), ('delais', 'Délais'), ('audience', 'Audience'), ('paquets', 'Paquets'), ('categories', 'Classement'), ('ecritures', 'Nouvelles écritures'))   # 5.6.100 (lot G) : notes IA sourcées
 MESSAGES = {'role_insuffisant': 'Cette action est réservée à un avocat ou à un administrateur.', 'dossier_reserve': 'Ce dossier ne vous est pas accessible.', 'version_en_conflit': 'Cette page n’est plus à jour : rechargez-la avant de décider.', 'version_requise': 'Rechargez la page avant de décider.',
             'cle_idempotence_requise': 'Rechargez la page avant de renvoyer ce formulaire.', 'cle_idempotence_deja_utilisee': 'Ce formulaire a déjà servi : rechargez la page.', 'aucune_pretention_validee': 'Validez d’abord au moins une prétention du cabinet : un acte ne se construit pas sur des propositions.',
             'numero_deja_utilise': 'Ce numéro est déjà utilisé pour cette partie.', 'piece_recue_non_renumerotable': 'Une pièce reçue ne se renumérote pas : seules les pièces du cabinet le peuvent.', 'renumerotation_perimee': 'Une pièce a changé depuis la proposition : refaites-la.', 'empreinte_differente_du_registre': 'Le fichier ne correspond pas à l’empreinte annoncée.',
@@ -411,7 +411,11 @@ def page(desk, env, auth, prefix, args, shell):
         onglet = 'matrice'
     peut = role in base.VALIDEURS
     nav = ''.join('<a class="ax-btn%s" href="%s"%s>%s</a> ' % ('' if k == onglet else ' ghost', e(prefix + '/contentieux?' + urlencode({'dossier': mid, 'onglet': k}), quote=True), ' aria-current="page"' if k == onglet else '', e(v)) for k, v in ONGLETS)
-    corps = {'matrice': _section_matrice, 'pieces': _section_pieces, 'actes': _section_actes, 'delais': _section_delais, 'audience': _section_audience, 'paquets': _section_paquets, 'categories': _section_categories}[onglet](desk, prefix, mid, peut)
+    if onglet == 'ecritures':   # 5.6.100 (lot G) : analyses des nouvelles écritures, lecture seule ; décisions par m56100/ia
+        from .delta56100 import section_html
+        corps = section_html(desk, prefix, mid, (owner, role), peut)
+    else:
+        corps = {'matrice': _section_matrice, 'pieces': _section_pieces, 'actes': _section_actes, 'delais': _section_delais, 'audience': _section_audience, 'paquets': _section_paquets, 'categories': _section_categories}[onglet](desk, prefix, mid, peut)
     from .ui_navigation5689 import libelle_source, valider_retour     # 5.6.89 (§ 14) : retour commun, contexte validé, repli sur le dossier
     cible = valider_retour(args.get('return_to') or '', prefix) or prefix + '/dossier?' + urlencode({'id': mid})
     retour = '<p><a class="ax-btn ghost ui89-retour" href="%s" data-ui89-retour>%s</a></p>' % (e(cible, quote=True), e(libelle_source(cible, prefix)))

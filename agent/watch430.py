@@ -139,6 +139,11 @@ def _schedule_5642(desk,stamp=None):
     maintenance(desk,stamp)
     from .proactive568 import schedule as schedule568
     jobs.extend(schedule568(desk,stamp))
+    try:   # 5.6.100 (lot G) : événements de réception retenus par la pause, travaux annulés, pièces à relire ; toutes les 5 minutes, borné
+        from .delta56100 import schedule as schedule56100g
+        jobs.extend(schedule56100g(desk,stamp))
+    except Exception as ex:   # noqa: BLE001 — la reprise des analyses ne doit pas interrompre la surveillance
+        emit(desk,'blocked','Nouvelles écritures : reprise des analyses impossible ('+str(ex)[:120]+').',dedupe='delta56100-schedule')
     try:   # 5.6.32 : règles « Déplacer » de la messagerie, toutes les 5 minutes si une règle est active
         from .courrier5632 import schedule as schedule_rules
         jobs.extend(schedule_rules(desk,stamp))

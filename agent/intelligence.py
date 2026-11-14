@@ -428,6 +428,8 @@ def prepare_draft(desk,args):
         data={'result':result,'verification':verdict,'intent':intent,'matter':m['id'],'matter_path':m['path'],'key':key,
               'source_hash':digest(mail.text),'created_at':desk.now(),'style':style,'recipients':recipients,'sources':payload['sources']}
         desk.db.execute('INSERT OR REPLACE INTO manual_drafts VALUES (?,?,?)',(key,json.dumps(data),desk.now()));desk.db.commit()
+        from .relecture56100 import projeter_apres_ecriture   # 5.6.100 (lot B) : la file commune « À relire » suit le producteur
+        projeter_apres_ecriture(desk,key)
         from .prudent5667 import safe_to_complete
         return {'projet_prepare':bool(result['body']),'depot_autorise':bool(result['body']) and not result['requires_decision'],
                 # v3 : plus de 2 faits absents n'empêchent plus le dépôt (objet « [À COMPLÉTER : n faits] », envoi bloqué) ; seule la sûreté décide

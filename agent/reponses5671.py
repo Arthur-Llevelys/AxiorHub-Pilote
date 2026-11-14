@@ -128,6 +128,11 @@ def sweep(desk, now=None):
 
 def schedule(desk, now_ts):
     """Appelé par la boucle des automatismes : un passage toutes les 10 minutes au plus."""
+    try:   # 5.6.100 (lot B) : rattrapage borné de la file commune « À relire » à chaque passage (écritures hors de toute page)
+        from .relecture56100 import rattraper
+        rattraper(desk, 300)
+    except Exception:   # noqa: BLE001 — une projection en retard ne bloque jamais les automatismes
+        pass
     last = float(desk.settings('auto:reponses5671', 0) or 0)
     if now_ts - last < INTERVAL_MINUTES * 60:
         return None
@@ -141,22 +146,39 @@ def _hidden():
     return viewer_hidden() or frozenset()
 
 
+def _source_visible(desk, key, hidden):
+    # 5.6.100 (R04) : rattachements du message ET dossier du projet (garde commune ``acces_courriel56100`` ; panne : 503, jamais visible)
+    from .acces5697 import visible
+    from .acces_courriel56100 import dossiers
+    return not hidden or visible(dossiers(desk, [key]).get(key, ()), hidden)
+
+
 def pending(desk):
-    """Réponses préparées que le contrôle n'a pas autorisé à déposer : [(clé, données, mise à jour)]."""
-    hidden = _hidden()
-    out = []
-    # 5.6.86 : la limite porte sur les réponses en attente, pas sur tout l'historique des réponses préparées
-    for row in desk.db.execute("SELECT mail_key,data,updated FROM manual_drafts WHERE data LIKE '%\"requires_decision\": true%' ORDER BY updated DESC LIMIT 200"):
-        try:
+    """Réponses locales en attente, filtrées sur le rattachement actuel avant la limite."""
+    from .acces5697 import masques_requete, visible
+    from .messages5697 import dossiers_par_cle
+    hidden = masques_requete(desk)
+    out, after = [], None
+    sql = """SELECT mail_key,data,COALESCE(updated,'') AS at FROM manual_drafts
+             WHERE CASE WHEN json_valid(data) THEN json_extract(data,'$.result.requires_decision')=1 ELSE 0 END"""
+    while len(out) < 200:
+        pred = " AND (COALESCE(updated,''),mail_key)<(?,?)" if after is not None else ''
+        rows = desk.db.execute(sql+pred+' ORDER BY at DESC,mail_key DESC LIMIT 128', after or ()).fetchall()
+        if not rows:
+            break
+        assoc = dossiers_par_cle(desk, [r['mail_key'] for r in rows]) if hidden else {}
+        for row in rows:
             data = json.loads(row['data'])
-        except (TypeError, ValueError):
-            continue
-        value = data.get('result') or {}
-        if not value.get('body') or not value.get('requires_decision'):
-            continue
-        if str(data.get('matter') or '') in hidden:
-            continue
-        out.append((row['mail_key'], data, row['updated']))
+            if not isinstance(data, dict) or not isinstance(data.get('result'), dict):
+                continue
+            value = data['result']
+            key = row['mail_key']
+            if not value.get('body') or str(data.get('matter') or '') in hidden or not visible(assoc.get(key, ()), hidden):
+                continue
+            out.append((key, data, row['at']))
+            if len(out) == 200:
+                break
+        after = (rows[-1]['at'], rows[-1]['mail_key'])
     return out
 
 
@@ -190,12 +212,15 @@ def queue_items(desk, prefix='', actor='cabinet', role='administrateur'):
             report = {}
         subject = str(report.get('subject') or 'Courriel')[:160]
         mid = str(data.get('matter') or '')
+        from .relecture56100 import id_proposition, revision_proposition   # 5.6.100 (lot B) : identifiant stable du lecteur commun
         out.append({'class': 'courriel', 'object': 'reponse5671:' + key, 'revision': str(updated), 'when': str(updated), 'matter': mid,
+                    'relecture': id_proposition(key, data),
                     'matter_name': labels.get(mid) or ('Sans dossier' if not mid else mid),
                     'title': 'Réponse préparée, à décider : ' + subject,
                     'consequence': 'Non déposée dans Brouillons : ' + _why(data.get('result') or {}),
                     'href': prefix + '/mail?key=' + quote(key, safe=''),
-                    'choices': ('ouvrir', {'api': 'm5671/reponse/ecarter', 'label': 'Écarter', 'ghost': True, 'fields': {'key': key},
+                    'choices': ('ouvrir', {'api': 'm5671/reponse/ecarter', 'label': 'Écarter', 'ghost': True,
+                                           'fields': {'key': key, 'revision': revision_proposition(data)},
                                            'confirm': 'Écarter cette réponse préparée ? Le courriel reste dans la messagerie.'})})
     return out
 
@@ -242,12 +267,15 @@ def relancer(desk, owner, key, provider, instruction=''):
     from .state import State
     if not re.fullmatch(r'[a-f0-9]{64}', str(key or '')):
         raise Stop('courriel_introuvable')
+    from .acces5697 import masques_requete
+    if not _source_visible(desk, key, masques_requete(desk)):
+        raise Stop('introuvable')
     if str(provider) not in dict(connections(desk)):
         raise Stop('fournisseur_ia_inactif')
     report = report_for(desk.c, key)
     mid = str(report.get('matter') or '')
     if mid in _hidden():
-        raise Stop('dossier_reserve')
+        raise Stop('introuvable')   # 5.6.100 (R04) : même réponse qu'un courriel absent
     instruction = re.sub(r'[ \t]+', ' ', str(instruction or '')).strip()[:4000]
     State(desk.c['state_dir']).report(key, {**report, 'manual_request': {'by': str(owner), 'at': desk.now(), 'instruction': instruction[:500], 'attachments': True}})
     job = desk.enqueue('prepare_reply', {'key': key, 'matter': mid, 'instruction': instruction, 'pieces_jointes': 'oui', 'sans_dossier': 'oui' if not mid else '', 'fournisseur': str(provider), 'origine': 'relance5687'}, priority=0)
@@ -275,28 +303,55 @@ def retry_html(desk, key):
         e(key, quote=True), ''.join('<option value="%s">%s</option>' % (e(k, quote=True), e(v)) for k, v in rows))
 
 
-def _store(desk, key, data):
+def _store(desk, key, data, projeter=True):
     desk.db.execute('UPDATE manual_drafts SET data=?,updated=? WHERE mail_key=?', (json.dumps(data, ensure_ascii=False), desk.now(), key))
     desk.db.commit()
+    if projeter:   # 5.6.100 (lot B) : la file commune « À relire » suit le producteur
+        from .relecture56100 import projeter_apres_ecriture
+        projeter_apres_ecriture(desk, key)
+
+
+def _verifier_revision(data, revision):
+    """5.6.100 (R09) : anciennes actions (déposer, écarter, garder) soumises au même contrôle de révision que le lecteur commun : la
+    version affichée doit être la version actuelle du projet, sinon 409 sans aucun effet."""
+    if revision is None:
+        return
+    from .relecture56100 import revision_proposition
+    if str(revision) != revision_proposition(data):
+        raise Stop('version_perimee')
 
 
 def _load(desk, key):
     if not re.fullmatch(r'[a-f0-9]{64}', str(key or '')):
         raise Stop('courriel_introuvable')
+    from .acces5697 import masques_requete
+    hidden = masques_requete(desk)
+    if not _source_visible(desk, key, hidden):
+        raise Stop('introuvable')
     row = desk.db.execute('SELECT data FROM manual_drafts WHERE mail_key=?', (key,)).fetchone()
     if not row:
-        raise Stop('projet_prudent_absent')
+        raise Stop('introuvable' if hidden else 'projet_prudent_absent')   # 5.6.100 : compte cloisonné : absent = interdit (même 404)
     data = json.loads(row[0])
     if str(data.get('matter') or '') in _hidden():
-        raise Stop('dossier_reserve')
+        raise Stop('introuvable')   # 5.6.100 (R04) : même réponse qu'un projet absent
     return data
 
 
-def deposer(desk, owner, key, body=None, a_completer=False):
+def deposer(desk, owner, key, body=None, a_completer=False, revision=None, projeter=True):
     """Dépôt dans Brouillons d'une réponse en attente : texte relu (et éventuellement modifié) par l'avocat, ou tel quel « à compléter »
-    si le contrôle de sûreté l'autorise. Jamais envoyé."""
+    si le contrôle de sûreté l'autorise. Jamais envoyé. 5.6.100 : ``revision`` (version affichée) contrôlée avant tout effet."""
     from .intelligence import deposit_draft
     data = _load(desk, key)
+    _verifier_revision(data, revision)
+    try:
+        return _deposer(desk, owner, key, data, body, a_completer, deposit_draft)
+    finally:
+        if projeter:
+            from .relecture56100 import projeter_apres_ecriture
+            projeter_apres_ecriture(desk, key)
+
+
+def _deposer(desk, owner, key, data, body, a_completer, deposit_draft):
     if body is not None:
         text = str(body).replace('\r\n', '\n').strip()
         if not text:
@@ -309,7 +364,7 @@ def deposer(desk, owner, key, body=None, a_completer=False):
         data['result'] = result
         data['decided_by'] = str(owner)[:120]
         original = desk.db.execute('SELECT data,updated FROM manual_drafts WHERE mail_key=?', (key,)).fetchone()
-        _store(desk, key, data)
+        _store(desk, key, data, projeter=False)
         try:
             out = deposit_draft(desk, {'key': key, 'confirm': 'yes'})
         except Exception:
@@ -328,19 +383,26 @@ def deposer(desk, owner, key, body=None, a_completer=False):
     return {'ok': True, **out, 'message': 'Réponse déposée dans Brouillons et relue dans la messagerie ; rien n’est envoyé.'}
 
 
-def ecarter(desk, owner, key):
-    _load(desk, key)
-    desk.db.execute('DELETE FROM manual_drafts WHERE mail_key=?', (key,))
-    desk.db.commit()
+def ecarter(desk, owner, key, revision=None):
+    """Écarter une réponse préparée. 5.6.100 (R09) : transition conditionnelle dans une transaction (le projet écarté est celui de la
+    version affichée, jamais une version plus récente), tracée dans l'historique de la file commune ; le courriel reçu n'est pas touché."""
+    data = _load(desk, key)
+    _verifier_revision(data, revision)
+    from .relecture56100 import ecarter_cle
+    ecarter_cle(desk, owner, key, data)
     desk.audit('reponses5671_ecartee', {'key': key[:16], 'par': str(owner)[:80]})
     return {'ok': True, 'message': 'Réponse préparée écartée. Le courriel reste dans la messagerie.'}
 
 
-def garder_variante(desk, owner, key, rang, lettre, version_vue):
+def garder_variante(desk, owner, key, rang, lettre, version_vue, revision=None):
     """5.6.95 (D05) : l'avocat garde une variante d'un choix : les autres variantes et les lignes du bloc disparaissent du texte en attente.
-    Version périmée (texte modifié depuis l'affichage) : refus 409 ; même demande rejouée : sans second effet. Rien n'est déposé ni envoyé."""
+    Version périmée (texte modifié depuis l'affichage) : refus 409 ; même demande rejouée : sans second effet. Rien n'est déposé ni envoyé.
+    5.6.100 (R09) : la révision du projet, si le formulaire la porte, est contrôlée aussi (destinataires, dossier, décision)."""
     from . import redaction5695 as rd
     data = _load(desk, key)
+    corps_actuel = rd.version(str((data.get('result') or {}).get('body') or ''))
+    if revision is not None and not any(h.get('avant') == str(version_vue) and h.get('apres') == corps_actuel for h in (data.get('choix5695') or [])):
+        _verifier_revision(data, revision)   # une même demande rejouée (déjà appliquée) garde sa réponse idempotente
     result = dict(data.get('result') or {})
     body = str(result.get('body') or '')
     current = rd.version(body)
@@ -421,7 +483,7 @@ def variantes_html(key, value):
     return out
 
 
-def editor_html(key, value, verification=None):
+def editor_html(key, value, verification=None, revision=''):
     """Page du courriel : relire et modifier la réponse en attente, puis la déposer ; tel quel « à compléter » si le contrôle le permet.
     5.6.95 : les choix à faire (variantes) s'affichent au-dessus du texte, avec « Garder cette variante »."""
     from .prudent5667 import safe_to_complete
@@ -441,4 +503,7 @@ def editor_html(key, value, verification=None):
     out += ('<form class="r5671-form r5671-inline" data-c5671="m5671/reponse/ecarter" data-reload data-confirm="Écarter cette réponse préparée ?">'
             '<input type="hidden" name="key" value="%s"><button class="ax-btn ghost" type="submit">Écarter</button></form>'
             '<p class="ax-muted">Rien n’est envoyé : le brouillon déposé s’ouvre dans votre messagerie pour l’envoi.</p></section>') % e(key, quote=True)
+    if revision:   # 5.6.100 (R09) : chaque formulaire porte la version affichée ; le serveur refuse (409) une version remplacée
+        champ = '<input type="hidden" name="key" value="%s">' % e(key, quote=True)
+        out = out.replace(champ, champ + '<input type="hidden" name="revision" value="%s">' % e(revision, quote=True))
     return out

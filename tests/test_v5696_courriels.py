@@ -520,7 +520,8 @@ class BaseVue(Base):
 
 class VueAssistee(BaseVue):
     def test_C07_option_desactivee_par_defaut_et_vues_existantes_inchangees(self):
-        from agent import courriels5696 as cx
+        from agent import courriels5696 as cx, interface56100
+        interface56100.regler_cabinet(self.desk, False)   # 5.6.100 : ancienne présentation vérifiée ici ; le lecteur 5.6.100 a ses propres tests
         self.entrant('Demande DURAND')
         self.assertEqual(cx.option(self.desk, CLAIRE), (False, None, False))
         page = self.page(vue='assistante')                                   # adresse demandée, option éteinte : l'usage courant
@@ -535,6 +536,8 @@ class VueAssistee(BaseVue):
         self.assertNotIn('id="cx96"', page)
 
     def test_I03_vue_choisie_avant_toute_lecture_des_brouillons(self):
+        from agent import interface56100
+        interface56100.regler_cabinet(self.desk, False)   # 5.6.100 : ancienne présentation ; panne IMAP du nouveau lecteur testée dans test_v56100_relecture
         self.activer()
         self.entrant('Demande DURAND')
         with patch('agent.drafts440.list_drafts', side_effect=Stop('imap_delai_depasse')):

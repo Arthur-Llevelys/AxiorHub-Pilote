@@ -34,7 +34,8 @@ PREMIERES = 3                                         # I01 : actions visibles d
 A_VERIFIER = ('a_confirmer', 'a_completer')           # échéance tirée d'une pièce, pas encore validée
 CONFIRMEES = ('confirmee', 'manuel')
 STATUTS = {'role_insuffisant': '403 Forbidden', 'origine_ou_csrf_refuse': '403 Forbidden', 'dossier_reserve': '403 Forbidden', 'acces_refuse': '403 Forbidden',
-           'route_inconnue': '404 Not Found', 'introuvable': '404 Not Found', 'version_en_conflit': '409 Conflict'}
+           'route_inconnue': '404 Not Found', 'introuvable': '404 Not Found', 'version_en_conflit': '409 Conflict',
+           'controle_indisponible': '503 Service Unavailable'}   # 5.6.100 (R04) : contrôle des droits en panne : rien n'est montré
 
 
 def allowed(role, route):
@@ -198,6 +199,9 @@ def actions(desk, prefix, owner, role, hidden=None):
     Chaque action : nature (table fermée, ou '' : simple lien), clé opaque, dossier, objet, état, bouton et lien du détail (valide sans script).
     Rend aussi ``(complet, total)`` : une source illisible n'est jamais un zéro."""
     hidden = _masques(desk, owner, role) if hidden is None else hidden
+    from . import accueil56100      # 5.6.100 (lot E, P2) : raison et ordre (échéances confirmées, audiences, décisions, travaux, dates à vérifier)
+    if accueil56100.nouvelle(desk, owner):
+        return accueil56100.classer(desk, prefix, owner, role, hidden)
     out, complet = [], True
     try:
         for r in _echeances(desk, owner, hidden, A_VERIFIER, limite=PREMIERES):
@@ -205,11 +209,22 @@ def actions(desk, prefix, owner, role, hidden=None):
                         'etat': T('ligne.a_verifier'), 'bouton': T('bouton.echeance'), 'href': prefix + '/echeances#e-' + r['id']})
     except Exception:   # noqa: BLE001 — la liste reste utilisable ; la panne est dite
         complet = False
+    lignes, ok = actions_file(desk, prefix, owner, role, hidden)
+    for a in lignes:
+        for cle in [k for k in a if k.startswith('_')]:
+            del a[cle]
+    return out + lignes, complet and ok
+
+
+def actions_file(desk, prefix, owner, role, hidden):
+    """Lignes tirées de la file « À décider / À relire » du jour (même ordre que la file), avec quelques champs internes (préfixe ``_``) pour
+    le classement de la 5.6.100 ; jamais le texte libre d'une demande dans l'objet (``titre_lisible``)."""
+    out, complet = [], True
     try:
         from . import file5651, file5657
         lignes, _cur, _cli, _old = file5651.today_split(file5651.items(desk, prefix, None, '', hidden, actor=owner, role=role))
     except Exception:   # noqa: BLE001
-        lignes, complet = [], False
+        return [], False
     motif = re.compile(r'^%s/livrables/([A-Za-z0-9_-]{1,80})(?:[?#].*)?$' % re.escape(prefix))
     for it in lignes:
         nature, cle, bouton = '', '', T('bouton.ouvrir')
@@ -221,7 +236,8 @@ def actions(desk, prefix, owner, role, hidden=None):
             nature, cle, bouton = 'document', trouve.group(1), T('bouton.document')
         decider = it.get('class') in file5651.FILTERS['decider']
         out.append({'nature': nature, 'cle': cle, 'dossier': it.get('matter_name') or '', 'objet': file5657.titre_lisible(it.get('title') or ''), 'href': it.get('href') or prefix + '/aujourdhui',
-                    'etat': T('ligne.a_decider') if decider else T('ligne.a_relire'), 'bouton': bouton})
+                    'etat': T('ligne.a_decider') if decider else T('ligne.a_relire'), 'bouton': bouton,
+                    '_classe': it.get('class') or '', '_priorite': it.get('priority') or '', '_raison_prioritaire': it.get('priority_reason') or '', '_quand': it.get('when') or ''})
     return out, complet
 
 
@@ -229,15 +245,26 @@ def ligne_html(a):
     """Une ligne d'action : dossier, objet, état écrit, bouton. Le lien garde son adresse de détail (sans script : la page complète)."""
     data = (' data-f96-action="%s" data-f96-cle="%s" data-f96-titre="%s" data-f96-dossier="%s"' % (
         e(a['nature'], quote=True), e(a['cle'], quote=True), e(a['objet'], quote=True), e(a['dossier'], quote=True))) if a['nature'] in NATURES else ''
-    return ('<li class="f96-ligne" data-f96-ligne="%s"><p class="f96-ligne-dossier">%s</p><p class="f96-ligne-objet">%s</p>'
+    # 5.6.100 (lot E) : catégorie et raison calculées (``accueil56100.classer``) ; identifiant du lecteur commun quand le service le fournit
+    categorie = (' data-categorie="%s"' % e(a['categorie'], quote=True)) if a.get('categorie') else ''
+    raison = ('<p class="f96-ligne-raison">%s</p>' % e(a['raison'])) if a.get('raison') else ''
+    if a.get('lecteur') and data:
+        data += ' data-ax100-id="%s"' % e(a['lecteur'], quote=True)
+    return ('<li class="f96-ligne" data-f96-ligne="%s"%s><p class="f96-ligne-dossier">%s</p><p class="f96-ligne-objet">%s</p>%s'
             '<p class="f96-ligne-etat"><span class="f96-etat">%s</span></p><a class="ax-btn ghost f96-ligne-bouton" href="%s"%s aria-label="%s">%s</a></li>') % (
-        e('%s:%s' % (a['nature'] or 'lien', a['cle'] or hashlib.sha256(a['href'].encode()).hexdigest()[:16]), quote=True), e(a['dossier'] or T('ligne.sans_dossier')), e(a['objet']),
-        e(a['etat']), e(a['href'], quote=True), data, e('%s : %s' % (a['bouton'], a['objet']), quote=True), e(a['bouton']))
+        e('%s:%s' % (a['nature'] or 'lien', a['cle'] or hashlib.sha256(a['href'].encode()).hexdigest()[:16]), quote=True), categorie, e(a['dossier'] or T('ligne.sans_dossier')), e(a['objet']),
+        raison, e(a['etat']), e(a['href'], quote=True), data, e('%s : %s' % (a['bouton'], a['objet']), quote=True), e(a['bouton']))
 
 
 def lignes_html(desk, prefix, owner, role):
     liste, complet = actions(desk, prefix, owner, role)
-    if liste:
+    if liste and liste[0].get('categorie'):        # 5.6.100 (lot E) : trois premières lignes, puis les dates à vérifier restantes, dites à part
+        from .accueil56100 import a_verifier_html, identifiant_lecteur
+        premieres = liste[:PREMIERES]
+        for a in premieres:
+            a['lecteur'] = identifiant_lecteur(desk, a['nature'], a['cle'])
+        corps = '<ol class="f96-lignes">%s</ol>%s' % (''.join(ligne_html(a) for a in premieres), a_verifier_html(prefix, liste, premieres))
+    elif liste:
         corps = '<ol class="f96-lignes">%s</ol>' % ''.join(ligne_html(a) for a in liste[:PREMIERES])
     elif complet:
         corps = '<p class="f96-vide">%s</p>' % e(T('rang.rien'))
@@ -251,7 +278,14 @@ def decider_html(desk, prefix, owner, role, file_html):
     """Colonne gauche du rang : trois premières actions, puis la file complète (inchangée : mêmes cartes, mêmes boutons) dans « Voir la suite »."""
     lignes, total, _complet = lignes_html(desk, prefix, owner, role)
     suite = ''
-    if file_html:
+    from . import accueil56100
+    if accueil56100.nouvelle(desk, owner):
+        # 5.6.100 (lot E, § 21) : « Voir la suite » ouvre la vue paginée (mêmes objets, même ordre) ; la file historique reste repliée ici,
+        # une seule fois, pour ses cartes et son panneau des décisions (aucun défilement de plus tant qu'elle est fermée)
+        suite = accueil56100.suite_html(prefix, total, PREMIERES)
+        if file_html:
+            suite += '<details class="f96-suite" data-f96-suite><summary>%s</summary>%s</details>' % (e('Déplier les cartes de la file ici'), file_html)
+    elif file_html:
         libelle = T('rang.suite', n=total - PREMIERES) if total > PREMIERES else T('rang.file')
         suite = '<details class="f96-suite" data-f96-suite><summary>%s</summary>%s</details>' % (e(libelle), file_html)
     return ('<section class="c530-card f96-decider" id="f96-decider" aria-labelledby="f96-decider-titre" data-url="%s"><div class="c530-head"><h2 id="f96-decider-titre">%s</h2></div>'
@@ -273,6 +307,18 @@ def echeances_du_jour_html(desk, prefix, owner, role):
 
 
 def journee_html(desk, prefix, owner, role, journee):
+    from . import accueil56100
+    if accueil56100.nouvelle(desk, owner):
+        # 5.6.100 (lot E, § 21.3) : sous « Ma journée », l'agenda lu avec les droits de la personne (aujourd'hui et demain, fuseau du cabinet,
+        # état de synchronisation à part), puis les échéances confirmées du jour, puis les tâches et le Deck (bloc existant)
+        try:
+            from .cockpit530 import day_html
+            debut = accueil56100.agenda_html(desk, prefix, owner, role) + ('<section class="f96-echeances-jour" aria-labelledby="f96-ech-titre"><h3 id="f96-ech-titre">%s</h3>%s</section>' % (
+                e(T('journee.titre')), echeances_du_jour_html(desk, prefix, owner, role)))
+            return '<div class="f96-journee" data-f100-journee><section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section></div>' % day_html(desk, prefix, evenements_html=debut)
+        except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours : disposition précédente
+            import logging
+            logging.getLogger(__name__).exception('Ma journée 5.6.100')
     return ('<div class="f96-journee"><section class="f96-echeances-jour" aria-labelledby="f96-ech-titre"><h3 id="f96-ech-titre">%s</h3>%s</section>%s</div>') % (
         e(T('journee.titre')), echeances_du_jour_html(desk, prefix, owner, role), journee)
 
@@ -300,12 +346,14 @@ def _fragment_reponse(env, desk, auth, prefix, cle, owner, role):
     if not re.fullmatch(r'[a-f0-9]{64}', cle):
         return _fragment_document(env, desk, auth, prefix, cle, owner, role)   # réponse déposée : document du registre (nature courriel)
     from . import reponses5671
+    from .acces_courriel56100 import exiger as _exiger100
+    _exiger100(desk, (owner, role), cle)   # 5.6.100 (R04) : garde commune (projet, message, rattachements) avant tout titre ; absent = interdit = 404
     try:
         data = reponses5671._load(desk, cle)
     except Stop as ex:
-        raise Stop('dossier_reserve' if str(ex).startswith('dossier_reserve') else 'introuvable') from None
+        raise Stop('controle_indisponible' if str(ex) == 'controle_indisponible' else 'introuvable') from None
     if str(data.get('matter') or '') in _masques(desk, owner, role):
-        raise Stop('dossier_reserve')
+        raise Stop('introuvable')
     value = data.get('result') or {}
     try:
         from .desk import report_for
@@ -314,7 +362,8 @@ def _fragment_reponse(env, desk, auth, prefix, cle, owner, role):
         rapport = {}
     tete = '<p class="f96-fragment-meta">%s · %s</p>' % (e(str(rapport.get('sender') or '')), e(str(rapport.get('received_at') or '')[:16].replace('T', ' ')))
     if value.get('body') and value.get('requires_decision'):
-        corps = reponses5671.editor_html(cle, value, data.get('verification'))
+        from .relecture56100 import revision_proposition   # 5.6.100 (lot B, R09) : version affichée portée par chaque formulaire
+        corps = reponses5671.editor_html(cle, value, data.get('verification'), revision=revision_proposition(data))
     else:
         corps = '<section class="r5671"><h2>%s</h2><pre class="f96-texte">%s</pre></section>' % (e(T('fenetre.reponse_preparee')), e(str(value.get('body') or '')))
     return {'titre': str(rapport.get('subject') or T('fenetre.courriel'))[:160], 'corps': tete + corps, 'page': prefix + '/mail?' + urlencode({'key': cle})}

@@ -110,6 +110,8 @@ def _api(env, desk, auth, prefix, name, args, method):
         out = export.demander(desk, row, data.get('format'), data.get('destination'), data.get('cle'), owner, role=role, relance_de=str(data.get('relance_de') or ''))
         return _out(out)          # 5.6.93 (N10) : message tiré de l'état réel (en file, suspendu, annulé…), jamais « en cours » par défaut
     if action == 'modifier-ia':
+        if data.get('zone') and not data.get('selection'):     # 5.6.100 (lot E, § 23.3) : « zone » sélectionnée, même champ que le passage visé
+            data = dict(data, selection=data['zone'])
         out = patches.demander_ia(desk, row, data, owner, role)
         return _out(out)
     if action == 'copie-travail':
@@ -162,6 +164,9 @@ def _lecture(desk, prefix, parts, args, owner, role, hidden, droits):
     if len(parts) == 2:
         return _out({'view': apercu.vue(desk, row, owner, role), 'card': liv.carte(row, *liv._labels(desk), (), desk, prefix), 'verification': verification.vue(desk, row), 'versions': _versions(desk, row)})
     action = parts[2]
+    if action == 'comparer':      # 5.6.100 (lot E, § 23.2) : deux versions lues chacune pour elle-même ; une version illisible est signalée
+        from .produire56100 import comparer
+        return _out(comparer(desk, row, str(args.get('de') or ''), hidden, droits))
     if action == 'apercu':
         out = apercu.apercu(desk, row, prefix, version_demandee=version)
         return _out({k: v for k, v in out.items() if k != 'row'})
@@ -308,7 +313,7 @@ def _verification_html(check):
     return '<section class="ax-card" aria-labelledby="l89-t-ctrl"><h2 id="l89-t-ctrl">Contrôles de cette version</h2><p>%s</p>%s<p class="ax-muted">Ces contrôles ne valent pas validation juridique : seule votre relecture en décide.</p></section>' % (e(head), ''.join(out))
 
 
-def _propositions_html(desk, row, droits):
+def _propositions_html(desk, row, droits, prefix=''):
     rows = patches.liste(desk, row['document_id'], 12)
     if not rows:
         return ''
@@ -329,6 +334,14 @@ def _propositions_html(desk, row, droits):
         conflict = ''
         if p['conflict'] and p['conflict'].get('choix'):
             conflict = '<p class="l89-alerte">Le document a changé : la proposition n’a pas été appliquée. %s</p>' % e(' · '.join(p['conflict']['choix']))
+        if p['state'] in ('conflit', 'perimee') and p['origin'] == 'ia' and row['lifecycle'] == 'current' and p['base_version_id'] != row['version_id']:
+            # 5.6.100 (lot E, § 23.3) : document changé pendant la génération — comparer, puis relancer sur la nouvelle base (nouvelle opération, rien d'écrasé)
+            actions += '<a class="ax-btn ghost" href="%s#l100-comparer">Comparer avec la version de base</a>' % e(
+                '%s/livrables/%s?%s' % (prefix, row['document_id'], urlencode({'version': row['version_id'], 'comparer': p['base_version_id']})), quote=True)
+            if row['production_state'] in ('verified', 'published') and p.get('instruction') and '/modifier-ia' not in actions:
+                actions += _bouton_form('m5689/livrables/%s/modifier-ia' % row['document_id'], 'Relancer sur la version actuelle',
+                                        {'cle': uuid.uuid4().hex, 'relance_de': p['id'], 'instruction': p.get('instruction', ''), 'selection': p.get('selection', ''),
+                                         'version_id': row['version_id'], 'sha256': row['sha256']})
         if p.get('message') and p['state'] not in ('proposee', 'appliquee'):     # 5.6.93 : état réel du travail et motif lisible
             conflict += '<p class="ax-muted" role="status">%s</p>' % e(p['message'])
         out.append('<article class="l89-proposition"><h3>%s</h3><p class="ax-muted">%s%s</p>%s%s<div class="l89-actions">%s</div></article>' % (e(p.get('etat_affiche') or p['state_label']), 'Proposition de l’IA' if p['origin'] == 'ia' else 'Proposition', (' — ' + e(p['motif'][:200])) if p['motif'] else '', conflict, compare, actions))
@@ -394,10 +407,15 @@ def _detail_page(desk, env, auth, prefix, ident, args, shell):
     reserve = ('<p class="l89-alerte"><strong>Réserves.</strong> %s</p>' % e(row['reserve_note'] or 'Document à compléter.')) if row['reserve'] else ''
     replaced = ('<p class="l89-alerte">Cette version a été remplacée. <a href="%s">Voir la dernière version</a></p>' % e(prefix + '/livrables/' + row['document_id'], quote=True)) if row['lifecycle'] == 'replaced' else ''
     limits = ''.join('<li>%s</li>' % e(r) for r in view['unavailable_reasons'])
+    comparaison = ''
+    if args.get('comparer'):      # 5.6.100 (lot E, § 23.2) : « Comparer » depuis Produire, la carte ou une proposition en conflit
+        from .produire56100 import comparaison_html
+        comparaison = comparaison_html(desk, row, str(args.get('comparer') or ''), hidden, droits)
     body = ('<article class="l89-detail" id="l89-detail" data-document="%s"><p><a class="ax-btn ghost ui89-retour" href="%s" data-l89-retour="1" data-ui89-retour>%s</a></p><header><p class="l89-nature">%s</p><h1>%s</h1><p class="ax-muted">%s · version %d · %s · %s</p><p><span class="l89-etat">%s</span> <span class="l89-etat">%s</span></p>%s%s%s</header>'
             '<div class="l89-actions" role="group" aria-label="Actions sur ce document">%s</div>%s<section class="ax-card" aria-labelledby="l89-t-apercu"><h2 id="l89-t-apercu">Aperçu</h2>%s%s</section>%s%s%s<section class="ax-card"><h2>Versions</h2><ul>%s</ul></section></article><script defer src="%s/static/v5689-livrables.js"></script>') % (
         e(row['document_id'], quote=True), e(retour, quote=True), _bouton_retour(retour, prefix), e(card['nature']), e(row['title']), e(card['matter_label']), row['version_number'], e(_date(card['updated_at'])), e(card['production_label'] or card['state_label']), e(card['state_label']), e(card['review_label']), depot, reserve, replaced,
-        ''.join(bar), ('<ul class="l89-limites">%s</ul>' % limits) if limits else '', ('<p class="ax-muted">%s</p>' % e(note)) if note else '', viewer, review, _propositions_html(desk, row, droits), _verification_html(check), history, e(prefix, quote=True))
+        ''.join(bar), (('<ul class="l89-limites">%s</ul>' % limits) if limits else '') + comparaison, ('<p class="ax-muted">%s</p>' % e(note)) if note else '', viewer, review,
+        _propositions_html(desk, row, droits, prefix), _verification_html(check), history, e(prefix, quote=True))
     return shell(row['title'], body, prefix, auth['csrf'], '/production')
 
 

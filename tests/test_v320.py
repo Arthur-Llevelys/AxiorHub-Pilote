@@ -67,7 +67,7 @@ class Workstation320Tests(unittest.TestCase):
             self.assertIn('id="ws-theme-toggle"',page)
         page=app.page(self.f.c,auth,'/rechercher',{'q':'<script>'})
         self.assertNotIn('<script>',page)
-        self.assertIn('Portefeuille du cabinet',app.page(self.f.c,auth,'/dossiers',{}))
+        self.assertIn('Portefeuille du cabinet',app.page(self.f.c,auth,'/dossiers',{'volet':'portefeuille'}))   # 5.6.100 (R05) : volet chargé au dépli
         matter=app.page(self.f.c,auth,'/matter',{'id':'DOS-001'})
         self.assertIn('aria-label="Sections du dossier"',matter)
         self.assertIn('id="ws-matter-admin"',matter)

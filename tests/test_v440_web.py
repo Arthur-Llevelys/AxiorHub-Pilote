@@ -73,6 +73,8 @@ class WebWorkshopTests(unittest.TestCase):
     def test_pages_need_authentication_and_render(self):
         for path in ('/courriels', '/documents', '/atelier/reglages', '/api440/drafts'):
             self.assertTrue(self.call(path, auth=False)['status'].startswith(('401', '303')), path)
+        from agent import interface56100
+        interface56100.regler_cabinet(Desk(self.f.c), False)   # 5.6.100 : présentation historique (la nouvelle liste unique : test_v56100_relecture)
         r = self.call('/courriels')
         self.assertTrue(r['status'].startswith('200'))
         text = r['body'].decode()

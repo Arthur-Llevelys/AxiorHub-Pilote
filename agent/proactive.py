@@ -344,10 +344,11 @@ def change_signal(desk,kind,args):
     return {'signal':sid,'state':state,'snoozed_until':until}
 
 
-def build_daily_dashboard(desk,args=None):
+def build_daily_dashboard(desk,args=None,enregistrer=True):
+    """Tableau quotidien. 5.6.100 (R05) : ``enregistrer=False`` (affichage) calcule en mémoire, sans synchroniser ni enregistrer."""
     ensure_schema(desk)
     from .integration import dashboard as base_dashboard
-    base=base_dashboard(desk);now_dt=datetime.now(timezone.utc)
+    base=base_dashboard(desk,synchroniser=enregistrer);now_dt=datetime.now(timezone.utc)
     all_signals=signals(desk,'open',limit=200)
     daily_categories={'documents_changed','upcoming_deadline','upcoming_appointment',
       'open_task','unanswered_mail','evidence_gaps','memory_conflict'}
@@ -413,19 +414,26 @@ def build_daily_dashboard(desk,args=None):
       'limits':['Les signaux reposent sur les données déjà synchronisées et indexées.',
         'Ils ne prouvent ni un délai procédural ni l’accomplissement d’une diligence.',
         'Aucune action externe ni aucun envoi automatique.']}
-    desk.db.execute('INSERT OR REPLACE INTO daily_dashboards VALUES(?,?,?)',
-      (data['day'],json.dumps(data,ensure_ascii=False),desk.now()));desk.db.commit()
+    if enregistrer:
+        desk.db.execute('INSERT OR REPLACE INTO daily_dashboards VALUES(?,?,?)',
+          (data['day'],json.dumps(data,ensure_ascii=False),desk.now()));desk.db.commit()
     return data
 
 
 def latest_dashboard(desk):
-    ensure_schema(desk);row=desk.db.execute('SELECT data FROM daily_dashboards ORDER BY day DESC LIMIT 1').fetchone()
+    """Lecture (pages et API). 5.6.100 (R05) : aucune écriture ; le tableau enregistré par le travail de fond voit tout le cabinet, il
+    n'est donc servi qu'à un compte sans dossier masqué ; sinon, calcul en mémoire sur le seul périmètre de la personne."""
+    from .membres5650 import viewer_hidden
+    ensure_schema(desk)
+    if viewer_hidden():
+        return build_daily_dashboard(desk,enregistrer=False)
+    row=desk.db.execute('SELECT data FROM daily_dashboards ORDER BY day DESC LIMIT 1').fetchone()
     if row:
         value=json.loads(row[0])
         try:today=datetime.now(ZoneInfo(desk.c.get('proactive',{}).get('timezone','Europe/Paris'))).date().isoformat()
         except ZoneInfoNotFoundError:today=datetime.now(timezone.utc).date().isoformat()
         if value.get('day')==today and 'today' in value:return value
-    return build_daily_dashboard(desk)
+    return build_daily_dashboard(desk,enregistrer=False)
 
 
 def perform(desk,kind,args):

@@ -278,9 +278,10 @@ def _token_section(db, auth, owner):
 def compte_page(desk, auth, prefix, env, args):
     from . import jetons5688, membres5650, totp5688
     owner, role = _me(env)
+    from .reactivite56100 import section_compte as _interface100   # 5.6.100 (lot F) : présentation de l'interface choisie par la personne
     if not jetons5688.available(auth):
         return ('<h1>Mon compte</h1><section class="ax-card"><p>Cette installation n’a pas de comptes nominatifs : l’accès passe par ce poste ou par Nextcloud, qui '
-                'gère sa propre double authentification.</p></section>')
+                'gère sa propre double authentification.</p></section>') + _interface100(desk, owner)
     db = jetons5688.connect(desk.c['state_dir'])
     try:
         who = jetons5688.account(db, auth, owner) or {'name': owner, 'role': role}
@@ -295,7 +296,7 @@ def compte_page(desk, auth, prefix, env, args):
         delegated = cx.settings_html(desk.c['state_dir'], auth, delegated=True) if cx.enabled(auth) else (
             '<section class="ax-card"><h2>Comptes du cabinet</h2><p><a class="ax-btn" href="/comptes">Gérer les comptes</a></p></section>')
     return ('<h1>Mon compte</h1><p class="ax-muted">%s</p>%s%s<section class="ax-card"><h2>Ce que la double authentification couvre</h2><ul class="m88-acces">%s</ul>'
-            '</section>%s') % (e(who['name']), factor, tokens, rules, delegated)
+            '</section>%s%s') % (e(who['name']), factor, tokens, rules, _interface100(desk, owner), delegated)
 
 
 # ------------------------------------------------------------------------------------------------ administrateur : Paramètres › Cabinet

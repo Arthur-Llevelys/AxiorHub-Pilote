@@ -26,8 +26,30 @@
     });
     return valeurs;
   }
+  /* 5.6.100 (lot F, R08) : contexte de retour complet. Ancre stable de la ligne (``data-ax100-ancre`` : un identifiant, jamais un titre),
+     liens des lignes suivantes (si la ligne a disparu au retour, la suivante reçoit le focus), défilement des zones qui défilent seules.
+     Curseur, filtre et tri serveur sont déjà dans l'adresse de la liste (clé de ce contexte) ; rien de cela ne part dans une adresse. */
+  var ZONES = '#ws-main [data-ax100-zone], #ws-main .ax-rows, #ws-main .ax-list, #ws-main .ax-table-wrap';
+  function ancreDe(el) { var a = el && el.closest && el.closest('[data-ax100-ancre]'); var v = a ? a.getAttribute('data-ax100-ancre') : ''; return v && v.length <= 120 ? v : ''; }
+  function zonesDefilees() {
+    var z = {};
+    Array.prototype.slice.call(doc.querySelectorAll(ZONES), 0, 20).forEach(function (el, i) { if (el.scrollTop > 0) z[el.id || ('#' + i)] = el.scrollTop; });
+    return z;
+  }
+  function suivantes(lien) {
+    if (!lien) return [];
+    var liens = Array.prototype.filter.call(doc.querySelectorAll('#ws-main a[href]'), function (a) { return estDetail(new URL(a.href, root.location.href)); });
+    var i = liens.indexOf(lien), propre = sansRetour(new URL(lien.href, root.location.href)), vus = {}, sortie = [];
+    liens.slice(i + 1).concat(liens.slice(0, Math.max(0, i)).reverse()).some(function (a) {   // les suivantes, puis les précédentes
+      var h = sansRetour(new URL(a.href, root.location.href));
+      if (h !== propre && !vus[h]) { vus[h] = 1; sortie.push({ href: h, ancre: ancreDe(a) }); }
+      return sortie.length >= 6;
+    });
+    return sortie;
+  }
   function memoriser(lien) {
-    ecrire(CLE + ici(), JSON.stringify({ y: root.scrollY, focus: lien ? sansRetour(new URL(lien.href, root.location.href)) : '', valeurs: filtresLocaux() }));
+    ecrire(CLE + ici(), JSON.stringify({ y: root.scrollY, focus: lien ? sansRetour(new URL(lien.href, root.location.href)) : '', valeurs: filtresLocaux(),
+                                         ancre: ancreDe(lien), suivantes: suivantes(lien), zones: zonesDefilees() }));
     /* 5.6.96 (U07) : liste quittée, de même origine et pour ce compte : le bouton Retour du détail pourra revenir par l'historique */
     ecrire(PRECEDENT, JSON.stringify({ liste: ici(), compte: meta('axiorhub-compte'), detail: lien ? sansRetour(new URL(lien.href, root.location.href)) : '' }));
   }
@@ -83,21 +105,63 @@
       var v = (etat.valeurs || {})[f.id || f.name || i];
       if (v !== undefined && v !== f.value) { f.value = v; f.dispatchEvent(new root.Event('input', { bubbles: true })); f.dispatchEvent(new root.Event('change', { bubbles: true })); }
     });
-    root.scrollTo(0, etat.y || 0);
-    if (etat.focus) {
-      var cible = Array.prototype.filter.call(doc.querySelectorAll('#ws-main a[href]'), function (a) { return sansRetour(new URL(a.href, root.location.href)) === etat.focus; })[0];
-      if (cible) { var parent = cible.closest('[role=tabpanel][hidden]'); if (parent) montrerOnglet(parent.getAttribute('data-filtre-panneau')); cible.focus({ preventScroll: true }); }
+    /* 5.6.100 (lot F) : la ligne est cherchée tout de suite, puis, si la liste se charge après la page (rendu différé, volet déplié), à chaque
+       changement du contenu pendant 4 s ou à l'annonce « ax100:liste-prete » ; défilement et focus sont remis une fois la ligne trouvée. */
+    var fini = false, observateur = null, delai = null;
+    function essayer() {
+      if (fini) return true;
+      var trouve = retrouver(etat);
+      if (!trouve && etat.focus) return false;
+      fini = true;
+      if (observateur) observateur.disconnect();
+      if (delai) root.clearTimeout(delai);
+      doc.removeEventListener('ax100:liste-prete', essayer);
+      repositionner(etat);
+      if (trouve) {
+        var parent = trouve.el.closest('[role=tabpanel][hidden]'); if (parent) montrerOnglet(parent.getAttribute('data-filtre-panneau'));
+        trouve.el.focus({ preventScroll: true });
+        if (trouve.suivante) { trouve.el.setAttribute('data-ax100-retrouve', ''); root.setTimeout(function () { trouve.el.removeAttribute('data-ax100-retrouve'); }, 4000); }
+      }
+      return true;
     }
+    repositionner(etat);
+    if (essayer()) return;
+    doc.addEventListener('ax100:liste-prete', essayer);
+    var main = doc.getElementById('ws-main');
+    if (main && root.MutationObserver) { observateur = new root.MutationObserver(function () { essayer(); }); observateur.observe(main, { childList: true, subtree: true }); }
+    delai = root.setTimeout(function () { if (!fini) { fini = true; if (observateur) observateur.disconnect(); doc.removeEventListener('ax100:liste-prete', essayer); } }, 4000);
+  }
+  function repositionner(etat) {
+    root.scrollTo(0, etat.y || 0);
+    var zones = etat.zones || {};
+    Array.prototype.slice.call(doc.querySelectorAll(ZONES), 0, 20).forEach(function (el, i) { var y = zones[el.id || ('#' + i)]; if (y) el.scrollTop = y; });
+  }
+  /* Ligne ouverte (ancre stable, sinon même lien) ; disparue : la première des suivantes encore présente. */
+  function retrouver(etat) {
+    var liens = Array.prototype.slice.call(doc.querySelectorAll('#ws-main a[href]'));
+    function parAncre(v) { if (!v) return null; var l = Array.prototype.filter.call(doc.querySelectorAll('#ws-main [data-ax100-ancre]'), function (x) { return x.getAttribute('data-ax100-ancre') === v; })[0]; return l ? (l.matches && l.matches('a[href],button,[tabindex]') ? l : (l.querySelector('a[href],button') || l)) : null; }
+    function parLien(h) { return h ? liens.filter(function (a) { return sansRetour(new URL(a.href, root.location.href)) === h; })[0] || null : null; }
+    var el = parAncre(etat.ancre) || parLien(etat.focus);
+    if (el) return { el: el, suivante: false };
+    var reste = etat.suivantes || [];
+    for (var i = 0; i < reste.length; i++) { el = parAncre(reste[i].ancre) || parLien(reste[i].href); if (el) return { el: el, suivante: true }; }
+    return null;
   }
   root.addEventListener('pageshow', restaurer);
+  root.AX100 = root.AX100 || {};
+  root.AX100.navigation = { listePrete: function () { doc.dispatchEvent(new root.Event('ax100:liste-prete')); }, retrouver: retrouver };
   /* 5.6.96 (U07) : page rendue par le cache du navigateur (retour arrière) : session et compte revalidés auprès du serveur ; session fermée
-     ou autre compte : la page est rechargée (le serveur redemande la connexion ou rend la page du bon compte). */
+     ou autre compte : la page est rechargée (le serveur redemande la connexion ou rend la page du bon compte). 5.6.100 (lot F) : le contenu
+     privé est masqué pendant la vérification, et ne réapparaît que pour le même compte ; sinon l'écran reste vide jusqu'au rechargement. */
   root.addEventListener('pageshow', function (ev) {
     if (!ev.persisted || !meta('axiorhub-compte')) return;
+    var main = doc.getElementById('ws-main');
+    if (main) { main.hidden = true; main.setAttribute('aria-busy', 'true'); }
+    function montrer() { if (main) { main.hidden = false; main.removeAttribute('aria-busy'); } }
     root.fetch(prefix + '/api440/m5689/affichage/session', { credentials: 'same-origin', cache: 'no-store', redirect: 'manual' }).then(function (r) {
-      if (!r.ok) { root.location.reload(); return null; }
+      if (!r.ok) throw new Error('session');
       return r.json();
-    }).then(function (v) { if (v && v.compte !== meta('axiorhub-compte')) root.location.reload(); }).catch(function () { root.location.reload(); });
+    }).then(function (v) { if (v && v.compte === meta('axiorhub-compte')) montrer(); else root.location.reload(); }).catch(function () { root.location.reload(); });
   });
 
   /* Panneaux : <dialog> natif pour le piège du focus, Échap et le retour du focus ; fermeture aussi par le bouton et le fond. */

@@ -1,0 +1,44 @@
+/* AxiorHub 5.6.100 (lot E, P4, V100-05) — Produire : documents prêts au premier plan, cartes compactes, actions selon droits et capacités.
+   Jetons Carbon avec repli : clair et sombre suivent les jetons. L'état est écrit (jamais la couleur seule) ; boutons atteignables au clavier,
+   aucun défilement horizontal à 390 px (les actions passent à la ligne). */
+
+.p100 { margin: 1rem 0; }
+.p100-entete { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem 1rem; justify-content: space-between; }
+.p100-entete h2 { margin: 0; }
+.p100-onglets { display: flex; flex-wrap: wrap; gap: .25rem .5rem; margin: .5rem 0; }
+.p100-pause { border-left: 3px solid var(--cds-support-warning, #f1c21b); margin: .5rem 0; padding: .25rem .5rem; }
+.p100-cartes { display: grid; gap: .5rem; list-style: none; margin: .5rem 0 0; padding: 0; }
+.p100-carte { background: var(--cds-layer-01, var(--ws-surface, #fff)); border: 1px solid var(--cds-border-subtle-01, var(--ws-border, #e0e0e0)); min-width: 0; padding: .625rem .75rem; }
+.p100-tete { color: var(--cds-text-secondary, #525252); display: flex; flex-wrap: wrap; font-size: .8125rem; gap: .25rem .75rem; }
+.p100-type { font-weight: 600; }
+.p100-dossier { overflow-wrap: anywhere; }
+.p100-titre { font-size: 1rem; margin: .125rem 0; overflow-wrap: anywhere; }
+.p100-meta { align-items: center; display: flex; flex-wrap: wrap; font-size: .8125rem; gap: .25rem .75rem; margin: 0; }
+.p100-etat, .p100-export-etat { border: 1px solid currentColor; border-radius: 1rem; font-weight: 600; padding: 0 .5rem; }
+.p100-etat[data-etat="echec"] { color: var(--cds-text-error, #da1e28); }
+.p100-etat[data-etat="en_preparation"], .p100-export-etat[data-export="attente"] { border-style: dashed; }
+.p100-progression, .p100-limites, .p100-note { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: .25rem 0 0; }
+.p100-actions { align-items: flex-start; display: flex; flex-wrap: wrap; gap: .375rem; margin: .5rem 0 0; }
+.p100-actions > details { flex: 0 1 auto; max-width: 100%; }
+.p100-actions > details[open] { flex-basis: 100%; }
+.p100-actions > details > summary { list-style: none; }
+.p100-actions > details > summary::-webkit-details-marker { display: none; }
+.p100-form { display: grid; gap: .375rem; margin: .5rem 0 0; max-width: 40rem; }
+.p100-form label { display: grid; gap: .125rem; }
+.p100-form textarea, .p100-form input, .p100-form select { max-width: 100%; }
+.p100-actions a:focus-visible, .p100-actions summary:focus-visible, .p100-onglets a:focus-visible, .p100-titre a:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* Visionneuse : « Comparer les versions » — retraits et ajouts écrits, barrés ou soulignés, pas seulement colorés */
+.l100-diff { list-style: none; margin: .5rem 0 0; max-height: 32rem; overflow: auto; padding: 0; }
+.l100-diff li { border-left: 3px solid transparent; padding: .125rem .5rem; overflow-wrap: anywhere; }
+.l100-retrait { border-left-color: var(--cds-support-error, #da1e28) !important; }
+.l100-ajout { border-left-color: var(--cds-support-success, #24a148) !important; }
+.l100-egal { color: var(--cds-text-secondary, #525252); }
+.l100-marque { font-weight: 600; }
+.l100-diff del { text-decoration: line-through; }
+.l100-diff ins { text-decoration: underline; }
+@media (max-width: 40rem) {
+  .p100-actions > * { flex: 1 1 100%; }
+  .p100-actions .ax-btn { justify-content: center; width: 100%; }
+}

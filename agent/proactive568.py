@@ -8,6 +8,7 @@ from email.utils import parsedate_to_datetime
 import hashlib
 import json
 import re
+import sqlite3
 import time
 from zoneinfo import ZoneInfo
 
@@ -340,6 +341,11 @@ def document_events(desk,matter,items):
     ensure_schema(desk)
     own={r['target'] for r in desk.db.execute("SELECT target FROM production_deliverables_v420 WHERE target<>''").fetchall()}
     own.update(r['path'] for r in desk.db.execute("SELECT path FROM docreq520 WHERE path<>''").fetchall())
+    try:   # 5.6.100 (lot G) : pièce reçue dans un dossier contentieux → lecture vérifiée puis événement de réception (indépendant des profils 568)
+        from .delta56100 import signaler_inventaire
+        signaler_inventaire(desk,matter,items,own)
+    except (Stop,sqlite3.Error) as exc:
+        desk.audit('delta56100_signalement_impossible',{'matter':str(matter.get('id') or ''),'cause':str(exc)[:80]})
     for owner in settings568.owners(desk):
         p=settings568.profile(desk,owner)
         if not p['enabled'] or matter['id'] in p['excluded_matters']:continue

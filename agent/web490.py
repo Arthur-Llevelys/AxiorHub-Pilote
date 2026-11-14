@@ -219,12 +219,13 @@ def webmail_status(desk):
     return {'enabled': bool(st.get('enabled')), 'smtp': bool(st.get('smtp_configured'))}
 
 
-def webmail_send(desk, data, owner='cabinet'):
-    """« Envoyer » depuis la messagerie : enregistre dans Brouillons puis rend l'aperçu à confirmer (second clic obligatoire)."""
+def webmail_send(desk, data, owner='cabinet', acteur=None):
+    """« Envoyer » depuis la messagerie : enregistre dans Brouillons puis rend l'aperçu à confirmer (second clic obligatoire).
+    5.6.100 (R04) : ``acteur`` (session) : le courriel cité ou transféré est contrôlé avant son corps."""
     from .common import Stop
     from .web440 import human
     from .webmail5628 import save
-    draft = save(desk, {**data, 'intent': 'envoyer'}, owner)
+    draft = save(desk, {**data, 'intent': 'envoyer'}, owner, acteur=acteur)
     try:
         preview = send490.prepare(desk, draft['uid'], draft['uidvalidity'])
     except Stop as ex:
@@ -235,4 +236,15 @@ def webmail_send(desk, data, owner='cabinet'):
 
 def webmail_confirm(desk, token):
     return send490.confirm(desk, token)
+
+
+def brouillon_du_jeton(desk, token):
+    """5.6.100 (R04) : brouillon visé par un jeton de confirmation (UID, UIDVALIDITY), pour recontrôler les droits juste avant l'effet.
+    Jeton inconnu : vide (la confirmation le refuse elle-même)."""
+    import sqlite3
+    try:
+        row = desk.db.execute('SELECT uid, validity FROM send_pending490 WHERE token=?', (str(token or ''),)).fetchone()
+    except sqlite3.Error:
+        return {}
+    return {'uid': str(row[0]), 'uidvalidity': str(row[1])} if row else {}
 

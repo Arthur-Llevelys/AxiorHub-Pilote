@@ -21,11 +21,11 @@ def api(env, desk, auth, prefix, name, args, method):
         if route == 'boite/nouveau-dossier':
             return json_out(boite5625.matter_proposal(desk))
         if route == 'boite/liste':
-            return json_out(boite5625.listing(desk, args.get('page') or 1, args.get('q') or '', folder=folder))
+            return json_out(boite5625.listing(desk, args.get('page') or 1, args.get('q') or '', folder=folder, acteur=(owner, role)))
         if route == 'boite/courriel':
-            return json_out(boite5625.message(desk, args.get('uid'), folder=folder))
+            return json_out(boite5625.message(desk, args.get('uid'), folder=folder, acteur=(owner, role), validity=args.get('uidvalidity')))
         if route == 'boite/piece':
-            return json_out(boite5625.attachment_text(desk, args.get('uid'), args.get('index'), folder=folder))
+            return json_out(boite5625.attachment_text(desk, args.get('uid'), args.get('index'), folder=folder, acteur=(owner, role), validity=args.get('uidvalidity')))
         if route == 'agenda/cibles':
             return json_out({'targets': agenda5625.targets(desk, owner)})
         raise Stop('route_inconnue')
@@ -40,16 +40,21 @@ def api(env, desk, auth, prefix, name, args, method):
         raise Stop('role_insuffisant')
     if route == 'boite/repondre':
         uid, folder = data.get('uid'), data.get('dossier') or None
+        expected_key = ''
         if not uid and data.get('key'):   # relance depuis un brouillon : courriel d'origine retrouvé par son rapport
             from .desk import report_for
-            report = report_for(desk.c, str(data['key']))
+            from .acces_courriel56100 import exiger   # 5.6.100 (R04) : message, projet et rattachements du serveur
+            expected_key = str(data['key'])
+            exiger(desk, (owner, role), expected_key)
+            report = report_for(desk.c, expected_key)
             uid, folder = report.get('source_uid'), report.get('source_mailbox') or None
             data.setdefault('matter', report.get('matter', ''))
         return json_out(boite5625.request_reply(desk, uid, str(data.get('matter') or ''), str(data.get('instruction') or ''),
                                                 data.get('pieces_jointes', True) not in (False, 'non', '0'), owner, folder=folder,
-                                                without_matter=data.get('sans_dossier') in (True, 'oui', '1')))
+                                                without_matter=data.get('sans_dossier') in (True, 'oui', '1'),
+                                                role=role, expected_key=expected_key, validity=data.get('uidvalidity')))
     if route == 'boite/creer-dossier':
         return json_out(boite5625.create_matter(desk, data, owner))
     if route == 'boite/supprimer':
-        return json_out(boite5625.discard_reply(desk, data.get('uid'), str(data.get('uidvalidity') or '')))
+        return json_out(boite5625.discard_reply(desk, data.get('uid'), str(data.get('uidvalidity') or ''), acteur=(owner, role)))
     raise Stop('route_inconnue')

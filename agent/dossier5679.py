@@ -295,6 +295,11 @@ def synthese_html(desk, auth, prefix, m, args):
     from .vue5651 import news_html
     owner = str(auth.get('owner') or 'cabinet')
     out = _safe('L’essentiel', essentials_html, desk, prefix, m)
+
+    def volet():   # 5.6.100 (lot D, § 22) : Conseil (points à négocier, obligations) ou Contentieux (actes, pièces, échéances vérifiées)
+        from .dossiers56100 import volet_fiche_html
+        return volet_fiche_html(desk, _acteur5697(), prefix, m['id'], m.get('path', ''))
+    out += _safe('Conseil ou contentieux', volet)
     out += _safe('Derniers documents', latest_documents_html, desk, prefix, m)
     out += '<div class="d79-grid2">%s%s</div>' % (_safe('Travail de l’IA', ai_work_html, desk, prefix, m), _safe('À traiter', todo_html, desk, prefix, m))
 

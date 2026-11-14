@@ -1,0 +1,10 @@
+/* AxiorHub 5.6.100 (lot F) : réglage de la présentation de l'interface (Paramètres › Interface, Mon compte) ; retour contextuel. */
+.i100-choix-groupe{border:0;margin:0 0 12px;padding:0;min-width:0}
+.i100-choix-groupe legend{font-weight:600;margin-bottom:6px;padding:0}
+.m5-form label.i100-choix,.i100-choix{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 8px;min-height:32px;text-align:left;font-weight:400}
+.m5-form .i100-choix input[type=radio],.i100-choix input[type=radio]{display:inline-block;width:18px;height:18px;min-height:0;margin:0;flex:0 0 auto}
+.i100-choix small{flex-basis:100%;padding-left:26px}
+.i100-choix input[type=radio]:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+/* Retour : ligne retrouvée après une liste rechargée (repère discret, sans couleur imposée : la bordure suit le texte). */
+[data-ax100-retrouve]{outline:2px dashed currentColor;outline-offset:-2px}
+@media (max-width:480px){.i100-choix small{padding-left:0}}

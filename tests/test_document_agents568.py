@@ -307,13 +307,16 @@ class Deadlines(Base):
     def pages(self,text,ocr=False):return [{'page':1,'label':'p. 1','text':text,'extraction':'ocr' if ocr else 'native'}]
     def profile(self,**kw):procedure.save_case(self.desk,{'matter':'DEMO','role':'direct','lawyer_name':'Exemple','circuit':'long','side':'appelant','distance':'none','ordinary_civil':True,'no_interruption_or_shortening':True,'confirmed':True,'declaration_date':'2026-10-01',**kw})
     def events(self,text,ocr=False):return procedure.source_events(self.desk,self.pages(text,ocr),DEMO,self.path,'sha',persist=False)
+    # 5.6.100 : audience toujours à venir (une date fixe, le 12/11/2026, est devenue passée et n'était plus extraite) ; deux ans d'avance
+    # rendent le fuseau sans effet sur l'année
+    AN=datetime.now(timezone.utc).year+2
     def test_explicit_audience_preserves_page_time_and_no_year_is_guessed(self):
-        out,_=self.events('Audience renvoyée au 12 novembre 2026 à 14h30.');self.assertTrue(out);self.assertTrue(any('14:30' in x['start'] for x in out));self.assertEqual(out[0]['citation'],'p. 1')
+        out,_=self.events('Audience renvoyée au 12 novembre %d à 14h30.'%self.AN);self.assertTrue(out);self.assertTrue(any('14:30' in x['start'] for x in out));self.assertEqual(out[0]['citation'],'p. 1')
         short,_=self.events('Audience renvoyée au 12 novembre.');self.assertEqual(short,[])
     def test_no_time_becomes_all_day_not_invented_9am(self):
-        out,_=self.events('Audience renvoyée au 12 novembre 2026.');self.assertTrue(out[0]['all_day']);self.assertEqual(out[0]['start'],'2026-11-12')
+        out,_=self.events('Audience renvoyée au 12 novembre %d.'%self.AN);self.assertTrue(out[0]['all_day']);self.assertEqual(out[0]['start'],'%d-11-12'%self.AN)
     def test_scan_requires_control_before_calendar_write(self):
-        out,_=self.events('Audience renvoyée au 12 novembre 2026.',True);self.assertFalse(out[0]['safe'])
+        out,_=self.events('Audience renvoyée au 12 novembre %d.'%self.AN,True);self.assertFalse(out[0]['safe'])
     def test_appeal_long_uses_declaration_and_three_months(self):
         # 5.6.96 (D02, attente adaptée) : la date dérivée reste une proposition (safe False, sans échéance persistante) jusqu'à la validation
         self.profile();out,_=self.events("Déclaration d'appel déposée le 1 octobre 2026.");derived=[x for x in out if x['derived']];self.assertTrue(derived);self.assertEqual(derived[0]['date'],'2027-01-04');self.assertFalse(derived[0]['safe']);self.assertNotIn('deadline_id',derived[0])

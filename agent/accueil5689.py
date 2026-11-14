@@ -216,10 +216,15 @@ def page(desk, prefix, owner, morceaux):
     rang = ''
     if list(prefs['ordre']) == list(tableau5688.IDS):     # 5.6.96 (I01) : ordre par défaut (blocs masqués compris) ; un ordre choisi par la personne est conservé tel quel
         rang, principal, cote = rang_html(desk, prefix, owner, role_courant(), blocs, principal, cote)
+    from .accueil56100 import lecteur_script, nouvelle
+    nouvelle56100 = nouvelle(desk, owner)
+    suivi = ''
     try:   # 5.6.97 (lot documents-mission, § 17) : « Dossiers sans prochaine action » et « Attentes à relancer », sous le rang, sans IA
         from . import shell501
         from .mission_web5697 import aujourdhui_html
-        rang += aujourdhui_html(desk, prefix, owner, role_courant(), str((getattr(shell501._ctx, 'args', None) or {}).get('mes') or '') == '1')
+        suivi = aujourdhui_html(desk, prefix, owner, role_courant(), str((getattr(shell501._ctx, 'args', None) or {}).get('mes') or '') == '1')
+        if not nouvelle56100:     # 5.6.100 (lot E, § 21) : avec la nouvelle présentation, Travail préparé vient d'abord, le suivi ensuite
+            rang, suivi = rang + suivi, ''
     except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours
         import logging
         logging.getLogger(__name__).exception('suivi des dossiers 5.6.97')
@@ -234,11 +239,13 @@ def page(desk, prefix, owner, morceaux):
     pause = pause_html(desk)
     note = ('<p class="c530-note">%d bloc(s) masqué(s) sur cette page. Vous pouvez les rétablir dans « Personnaliser cette page ».</p>' % len(prefs['masques'])) if prefs['masques'] else ''
     bandeau, carte, accueil_js = entete_accueil(desk, prefix, owner, role_courant(), morceaux['date'])     # 5.6.96 (F01-F04, I01) : salutation, heure, météo
-    return ('<div class="c530 a89" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete f96-tete"><div class="f96-identite"><h1>Aujourd’hui</h1>%s</div>'
+    if nouvelle56100 and accueil_js:
+        accueil_js = lecteur_script(prefix) + accueil_js       # 5.6.100 (lot E) : lecteur commun (lot B) monté dans la fenêtre de travail
+    return ('<div class="c530 a89%s" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete f96-tete"><div class="f96-identite"><h1>Aujourd’hui</h1>%s</div>'
             '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div>%s</header>'
             '%s%s<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s%s%s</div>') % (
-        e(prefix, quote=True), accent, bandeau, pause, morceaux['entete'], commande_html(prefix), carte,
-        tete, rang, travail_carte(desk, prefix), col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
+        ' f100' if nouvelle56100 else '', e(prefix, quote=True), accent, bandeau, pause, morceaux['entete'], commande_html(prefix), carte,
+        tete, rang, travail_carte(desk, prefix) + suivi, col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
         ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'], plis_js, accueil_js)
 
 

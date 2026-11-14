@@ -39,7 +39,8 @@ def prochaines_dates(desk, ids):
     ids = list(ids)
     if not ids:
         return {}, {}
-    jour = date.today().isoformat()
+    from .dossiers56100 import jour_cabinet
+    jour = jour_cabinet(desk).isoformat()      # 5.6.100 : jour du cabinet (fuseau de l'agenda), jamais celui du serveur
     place = ','.join('?' * len(ids))
     confirmees, a_verifier = {}, {}
     for r in _lignes_sql(desk, "SELECT matter,due,rule_id,note,status FROM deadlines450 WHERE matter IN (%s) AND due>=? AND due<>'' "
@@ -119,24 +120,35 @@ def ecran(desk, env, auth, prefix, args):
     nature = args.get('nature') if args.get('nature') in dict(FILTRES_NATURE) else ''
     responsable = str(args.get('responsable') or '')[:120]
     verifier = str(args.get('verifier') or '') == '1'
-    tous = D.lister(desk, acteur, {'statut': statut}, 5000)          # périmètre de l'acteur : base des compteurs et de la liste des responsables
-    lignes = [d for d in D.lister(desk, acteur, {'q': q, 'mes': mes, 'statut': statut, 'nature': nature, 'responsable': responsable}, 5000)]
+    # 5.6.100 (lot D, § 22) : UNE liste par rendu, paginée en SQL après les droits (30 lignes, 50 au plus), recherche et tri stable ; les
+    # colonnes (responsables, prochaines actions, dates) sont calculées par lot pour la seule page affichée. Aucune écriture.
+    from . import dossiers56100
+    tri = args.get('tri') if args.get('tri') in dossiers56100.TRIS else 'activite'
+    numero = int(args.get('p')) if str(args.get('p') or '').isdigit() and 0 < int(args.get('p')) < 100000 else 1
+    taille = int(args.get('n')) if str(args.get('n') or '').isdigit() and 0 < int(args.get('n')) else dossiers56100.TAILLE_DEFAUT
+    resultat = dossiers56100.page(desk, acteur, {'q': q, 'mes': mes, 'statut': statut, 'nature': nature, 'responsable': responsable, 'verifier': verifier},
+                                  numero, taille, tri)
+    lignes = resultat['lignes']
     ids = [d['id'] for d in lignes]
     confirmees, proposees = prochaines_dates(desk, ids)
     activites = dernieres_activites(desk, ids)
     suivi = portefeuille(desk, acteur, ids)
-    if verifier:
-        lignes = [d for d in lignes if proposees.get(d['id'])]
     membres = _membres(desk, auth)
-    nb_verifier = sum(proposees.values())
-    base = {'q': q, 'mes': '1' if mes else '', 'statut': statut, 'nature': nature, 'responsable': responsable}
+    nb_verifier = resultat['nb_verifier']
+    base = {'q': q, 'mes': '1' if mes else '', 'statut': statut, 'nature': nature, 'responsable': responsable,
+            'tri': '' if tri == 'activite' else tri, 'n': '' if resultat['taille'] == dossiers56100.TAILLE_DEFAUT else str(resultat['taille'])}
+    try:
+        from .interface56100 import active as _interface56100
+        nouvelle = _interface56100(desk, acteur[0])
+    except Exception:   # noqa: BLE001
+        nouvelle = True
 
     def bascule(libelle, **changes):
         params = {**base, **changes}
         actif = all(base.get(k) == v for k, v in changes.items())
         return '<a class="d97-filtre" href="%s"%s>%s</a>' % (_lien(prefix, '/dossiers', **params), ' aria-current="true"' if actif else '', e(libelle))
 
-    responsables = sorted({d['responsable'] for d in tous if d.get('responsable')})
+    responsables = resultat['responsables']
     options_resp = '<option value="">Tous les responsables</option>' + ''.join(
         '<option value="%s"%s>%s</option>' % (e(r, quote=True), ' selected' if r == responsable else '', e(membres.get(r, r))) for r in responsables)
     out = ['<section id="d97" class="d97" aria-labelledby="d97-titre" data-d97-liste="1">',
@@ -146,6 +158,8 @@ def ecran(desk, env, auth, prefix, args):
            '<a class="ax-btn d97-nouveau" href="%s">+ Nouveau dossier</a></header>' % (
                ''.join('<input type="hidden" name="%s" value="%s">' % (k, e(v, quote=True)) for k, v in base.items() if v and k != 'q'),
                e(q, quote=True), _lien(prefix, '/dossiers/nouveau'))]
+    if nouvelle and not (q or verifier):   # 5.6.100 (R01) : sous l'en-tête, avant les filtres et le tableau
+        out.append(dossiers56100.cartes_recents_html(desk, acteur, prefix))
     out.append('<nav class="d97-filtres" aria-label="Filtres des dossiers"><div role="group" aria-label="Portée">%s%s</div>'
                '<div role="group" aria-label="État">%s</div><div role="group" aria-label="Nature">%s</div>'
                '<form method="get" class="d97-resp">%s<label for="d97-resp">Responsable</label><select id="d97-resp" name="responsable" data-d97-auto>%s</select>'
@@ -154,33 +168,39 @@ def ecran(desk, env, auth, prefix, args):
                    ''.join(bascule(t, statut=k) for k, t in FILTRES_STATUT), ''.join(bascule(t, nature=k) for k, t in FILTRES_NATURE),
                    ''.join('<input type="hidden" name="%s" value="%s">' % (k, e(v, quote=True)) for k, v in base.items() if v and k != 'responsable'),
                    options_resp))
-    out.append('<p class="d97-compteurs" role="status">%d dossier%s%s · <a href="%s"%s>%d date%s proposée%s à vérifier</a></p>' % (
-        len(lignes), '' if len(lignes) == 1 else 's', ' affiché' + ('' if len(lignes) == 1 else 's') if (q or mes or nature or responsable or verifier) else '',
+    total = resultat['total']
+    out.append('<p class="d97-compteurs" role="status">%d dossier%s%s%s · <a href="%s"%s>%d date%s proposée%s à vérifier</a></p>' % (
+        total, '' if total == 1 else 's', ' affiché' + ('' if total == 1 else 's') if (q or mes or nature or responsable or verifier) else '',
+        (' · page %d sur %d' % (resultat['page'], resultat['pages'])) if resultat['pages'] > 1 else '',
         _lien(prefix, '/dossiers', **{**base, 'verifier': '' if verifier else '1'}), ' aria-current="true"' if verifier else '',
         nb_verifier, '' if nb_verifier == 1 else 's', '' if nb_verifier == 1 else 's'))
     if not D.migration_faite(desk) and any(d.get('provenance') == 'non_importe' for d in lignes) and acteur[1] == 'administrateur':
         out.append('<div class="d97-avis" role="note"><p>Les dossiers existants sont affichés en lecture ; importez-les dans le registre unique '
                    'pour les modifier ici. <a href="%s">Préparer l’import (simulation d’abord)</a></p></div>' % _lien(prefix, '/dossiers/import'))
+    tris = ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == tri else '', e(v[1])) for k, v in dossiers56100.TRIS.items())
+    out.append('<form method="get" class="d97-resp d100-tri">%s<label for="d100-tri">Trier par</label><select id="d100-tri" name="tri" data-d97-auto>%s</select>'
+               '<button class="ax-btn ghost d97-sans-js">Trier</button></form>' % (
+                   ''.join('<input type="hidden" name="%s" value="%s">' % (k, e(v, quote=True)) for k, v in base.items() if v and k != 'tri'), tris))
     if not lignes:
         vide = 'Aucun dossier ne correspond à ces filtres.' if (q or mes or nature or responsable or verifier or statut != 'actif') else 'Aucun dossier pour le moment.'
         out.append('<div class="d97-vide"><p>%s</p><p><a class="ax-btn" href="%s">Créer un dossier</a> <a class="ax-btn ghost" href="%s">Rattacher un dossier existant</a></p></div>' % (
             e(vide), _lien(prefix, '/dossiers/nouveau'), _lien(prefix, '/dossiers/nouveau', emplacement='rattacher')))
     else:
         corps = []
+        from .gestion_ui5697 import alertes_archives_html   # 5.6.100 (R10) : la liste Archivés ne masque pas une échéance critique ouverte
+        alertes = alertes_archives_html(desk, prefix, [d['id'] for d in lignes if d.get('statut') == 'archive'])
         for d in lignes:
             date_c = confirmees.get(d['id'])
             prop = proposees.get(d['id'], 0)
             prochaine = ('%s — %s' % (_date_fr(date_c[0]), date_c[1])) if date_c else '—'
             if prop:
                 prochaine += ' <span class="d97-a-verifier">%d à vérifier</span>' % prop
+            prochaine += alertes.get(d['id'], '')
             menu = ['<a href="%s">Classer un courriel</a>' % _lien(prefix, '/courriels', dossier=d['id']),
                     '<a href="%s">Ajouter une tâche</a>' % _lien(prefix, '/mes-taches', matter=d['id'])]
             if d.get('version') and acteur[1] in ('administrateur', 'avocat'):
-                cible = 'actif' if d['statut'] == 'archive' else 'archive'
-                menu.append('<form class="d97-form" data-d97-api="m57/dossiers/%s/modifier" data-d97-apres="recharger">'
-                            '<input type="hidden" name="cle" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="statut" value="%s">'
-                            '<button type="submit" class="d97-lien">%s</button><span class="d97-statut" role="status"></span></form>' % (
-                                e(d['id'], quote=True), _cle(), d['version'], cible, 'Réactiver' if cible == 'actif' else 'Archiver'))
+                label = 'Rouvrir le dossier' if d['statut'] == 'archive' else 'Préparer la clôture'
+                menu.append('<a href="%s">%s</a>' % (_lien(prefix, '/dossier', id=d['id'], vue='cloture'), label))
             corps.append(
                 '<tr data-d97-ligne="%s"><th scope="row" data-label="Dossier"><a class="d97-ouvrir" href="%s">%s</a><span class="d97-client">%s</span>'
                 '<span class="d97-ref">%s</span><button type="button" class="d97-plus" data-d97-details aria-expanded="false">Détails</button></th><td data-label="Type">%s</td><td data-label="Responsable">%s</td>'
@@ -188,7 +208,8 @@ def ecran(desk, env, auth, prefix, args):
                 '<td data-label="Prochaine date confirmée" class="d97-prochaine">%s</td><td data-label="État">%s</td><td data-label="Dernière activité">%s</td>'
                 '<td class="d97-menu-cell"><details class="d97-menu"><summary aria-label="Autres actions pour %s">…</summary><div class="d97-menu-corps">%s</div></details></td></tr>' % (
                     e(d['id'], quote=True), _lien(prefix, '/dossier', id=d['id']), e(d['titre']),
-                    e(('Client : ' + d['client']) if d.get('client') else 'Client à identifier'), e(d['reference']),
+                    e(('Client : ' + d['client']) if d.get('client') else 'Client à identifier'),
+                    e(d['reference']) + (' <span class="d100-historique">Lecture seule · import proposé</span>' if d.get('provenance') == 'non_importe' else ''),
                     e(d['nature_libelle']), e(membres.get(d.get('responsable'), d.get('responsable') or '—')),
                     _action_html(suivi, d['id']), e(_date_fr((suivi or {}).get(d['id'], {}).get('date_utile')) or '—'), prochaine,
                     e(((suivi or {}).get(d['id']) or {}).get('etat_libelle') or ('indisponible' if suivi is None else '—')),
@@ -197,6 +218,7 @@ def ecran(desk, env, auth, prefix, args):
                    '<th scope="col">Dossier et client</th><th scope="col">Type</th><th scope="col">Responsable</th>'
                    '<th scope="col">Prochaine action</th><th scope="col">Date utile</th><th scope="col">Prochaine date confirmée</th><th scope="col">État</th><th scope="col">Dernière activité</th><th scope="col"><span class="sr-only">Actions</span></th>'
                    '</tr></thead><tbody>%s</tbody></table></div>' % ''.join(corps))
+        out.append(dossiers56100.pagination_html(prefix, {k: v for k, v in {**base, 'verifier': '1' if verifier else ''}.items() if v}, resultat))
     out.append('</section>')
     return ''.join(out)
 
@@ -333,11 +355,52 @@ def page_import(desk, env, auth, prefix, args):
             '<div class="d97-tableau"><table class="d97-table"><caption>Dossiers à importer</caption><thead><tr><th scope="col">Dossier</th><th scope="col">Référence</th>'
             '<th scope="col">Emplacement</th><th scope="col">Confidentialité</th></tr></thead><tbody>%s</tbody></table></div>'
             '<form class="d97-form" data-d97-api="m57/dossiers/migration" data-d97-apres="recharger"><input type="hidden" name="cle" value="%s">'
-            '<input type="hidden" name="simulation" value="non"><p>Les registres actuels sont d’abord sauvegardés ; l’import peut être relancé sans doublon.</p>'
-            '<button class="ax-btn" type="submit"%s>Importer maintenant</button><p class="d97-statut" role="status"></p></form></section>') % (
+            '<input type="hidden" name="simulation" value="non">%s<p>Les registres actuels sont d’abord sauvegardés ; l’import peut être relancé sans doublon.</p>'
+            '<button class="ax-btn" type="submit"%s>Importer maintenant</button><p class="d97-statut" role="status"></p></form>%s</section>') % (
         _lien(prefix, '/dossiers'), len(r['a_importer']), r['deja_importes'], len(r['conflits']),
         ('<h2>Conflits (non importés, aucune fusion)</h2><ul>%s</ul>' % conflits) if conflits else '', lignes or '<tr><td colspan="4">Aucun.</td></tr>',
-        _cle(), '' if r['a_importer'] else ' disabled')
+        _cle(), _types_import_html(r), '' if (r['a_importer'] or any(t['explicite'] or t['type'] != 'affaire' for t in r.get('types', ()))) else ' disabled',
+        _types_registre_html(desk))
+
+
+def _select_type(nom, courant, ident):
+    from .rangement56100 import TYPES
+    return '<label class="sr-only" for="d100-type-%s">Type</label><select id="d100-type-%s" name="%s">%s</select>' % (
+        e(ident, quote=True), e(ident, quote=True), e(nom, quote=True),
+        ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == courant else '', e(v)) for k, v in TYPES.items()))
+
+
+def _types_import_html(r):
+    """5.6.100 (§ 13) : type proposé pour chaque répertoire du registre historique ; le choix est modifiable avant l'import et enregistré
+    avec lui. Seuls les répertoires typés « Affaire » deviennent des dossiers ; les autres restent indexés et recherchables comme fichiers."""
+    lignes = [t for t in r.get('types', ()) if t['propose'] != 'affaire' or t['explicite'] or t['type'] != 'affaire']
+    if not lignes:
+        return '<p class="ax-muted">Aucun répertoire interne repéré : tous les répertoires seront importés comme affaires.</p>'
+    corps = ''.join('<tr><td>%s<span class="d97-ref">%s</span></td><td>%s</td><td>%s</td></tr>' % (
+        e(t['titre']), e(t['chemin']), e(t['motif'] or '—'), _select_type('types.' + t['id'], t['type'] if t['explicite'] else t['propose'], 'i-' + t['id']))
+        for t in lignes[:500])
+    return ('<div class="d97-tableau"><table class="d97-table d100-types"><caption>Répertoires internes : type à confirmer (Affaire, Cabinet ou Dépôt)</caption>'
+            '<thead><tr><th scope="col">Répertoire</th><th scope="col">Pourquoi ce type est proposé</th><th scope="col">Type</th></tr></thead><tbody>%s</tbody></table></div>'
+            '<p class="ax-muted">Un répertoire Cabinet ou Dépôt n’est pas importé comme dossier ; rien n’est supprimé ni déplacé, il reste recherchable '
+            'dans Fichiers. Le choix reste modifiable.</p>') % corps
+
+
+def _types_registre_html(desk):
+    """Répertoires déjà importés qu'une règle de nom désigne, ou déjà typés : choix modifiable (administrateur)."""
+    try:
+        from .rangement56100 import repertoires_internes
+        lignes = repertoires_internes(desk)
+    except Exception:   # noqa: BLE001
+        return ''
+    if not lignes:
+        return ''
+    corps = ''.join('<tr><td>%s<span class="d97-ref">%s</span></td><td>%s</td><td>%s</td></tr>' % (
+        e(t['titre']), e(t['reference']), e('Hors de la liste des dossiers' if t['exclu'] else 'Dans la liste des dossiers'),
+        _select_type('types.' + t['id'], t['type'] or ('affaire' if not t['exclu'] else t['propose']), 'r-' + t['id'])) for t in lignes[:500])
+    return ('<form class="d97-form" data-d97-api="m57/dossiers/types" data-d97-apres="recharger"><input type="hidden" name="cle" value="%s">'
+            '<h2>Dossiers déjà importés : type du répertoire</h2><div class="d97-tableau"><table class="d97-table d100-types"><caption class="sr-only">Type des répertoires importés</caption>'
+            '<thead><tr><th scope="col">Dossier</th><th scope="col">Aujourd’hui</th><th scope="col">Type</th></tr></thead><tbody>%s</tbody></table></div>'
+            '<button class="ax-btn ghost" type="submit">Enregistrer les types</button><p class="d97-statut" role="status"></p></form>') % (_cle(), corps)
 
 
 # ------------------------------------------------------------------------------------------------ § 12 : onglets de la fiche (registre)
@@ -347,7 +410,7 @@ def entete_fiche(desk, acteur, prefix, dossier_id):
     try:
         d = D.lire(desk, acteur, dossier_id)
     except Stop:
-        return ''
+        return _reprise56100(desk, acteur, prefix, dossier_id)   # dossier historique pas encore importé : la reprise reste lisible
     stock = d['stockage']
     rangement = ''
     if stock['etat'] != 'pret':
@@ -356,9 +419,27 @@ def entete_fiche(desk, acteur, prefix, dossier_id):
                      '<button class="ax-btn ghost" type="submit">Reprendre le rangement</button><span class="d97-statut" role="status"></span></form></div>') % (
             e(stock['libelle']), e(stock['motif'] or 'Le dossier est utilisable ; les documents seront rangés dès que le stockage répond.'), e(d['id'], quote=True), _cle())
     return ('<div class="d97-fiche-tete" data-d97-fiche="%s"><p class="d97-fiche-meta"><span>Réf. %s</span><span>%s</span><span>%s</span><span>Responsable : %s</span>'
-            '<span>%s</span></p>%s</div>') % (
+            '<span>%s</span></p>%s%s</div>') % (
         e(d['id'], quote=True), e(d['reference']), e(('Client : ' + d['client']) if d['client'] else 'Client à identifier'), e(d['nature_libelle']),
-        e(d['responsable'] or '—'), e(D.CONFIDENTIALITES.get(d['confidentialite'], '')), rangement)
+        e(d['responsable'] or '—'), e(D.CONFIDENTIALITES.get(d['confidentialite'], '')), rangement, _reprise56100(desk, acteur, prefix, d['id']))
+
+
+def _reprise56100(desk, acteur, prefix, dossier_id):
+    """5.6.100 (lot D, § 22) : Responsable, Prochaine action, Prochaine échéance confirmée, Dernier changement, derrière l'interrupteur de
+    la nouvelle interface. Dossier interdit ou absent : rien (même réponse) ; donnée illisible : le reste de la fiche s'affiche."""
+    try:
+        from .acces5697 import acteur_de
+        from .interface56100 import active
+        if not active(desk, acteur_de(acteur).compte):
+            return ''
+        from .dossiers56100 import reprise_html
+        return reprise_html(desk, acteur, prefix, dossier_id)
+    except Stop:
+        return ''
+    except Exception:   # noqa: BLE001 — la reprise ne doit jamais empêcher l'ouverture du dossier
+        import logging
+        logging.getLogger(__name__).exception('reprise56100')
+        return '<p class="d79-warn">Reprise du dossier : affichage momentanément indisponible.</p>'
 
 
 def correspondances_html(desk, acteur, prefix, dossier_id):
@@ -383,8 +464,8 @@ def actions_fiche(prefix, dossier_id, titre):
                ('Contact', '/contacts', {'matter': dossier_id}), ('Tâche', '/mes-taches', {'matter': dossier_id}),
                ('Rendez-vous', '/planning', {'matter': dossier_id, 'nouveau': '1'}), ('Diligence', '/honoraires', {'matter': dossier_id}))
     autres = (('Droits et confidentialité', '/parametres/droits', {'dossier': dossier_id}), ('Déplacer ou rattacher le répertoire', '/dossiers/nouveau', {'emplacement': 'rattacher'}),
-              ('Exporter', '/dossier', {'id': dossier_id, 'vue': 'documents'}), ('Préparer la clôture', '/dossier', {'id': dossier_id, 'vue': 'cloture'}),
-              ('Archiver', '/dossiers', {'q': titre[:60]}))
+              ('Exporter', '/dossier', {'id': dossier_id, 'vue': 'documents'}),
+              ('Clôture et réouverture', '/dossier', {'id': dossier_id, 'vue': 'cloture'}))
     try:
         from .mission_web5697 import boutons_html   # « + Nouveau document » / « Nouvelle demande » du lot documents-mission
         boutons = boutons_html(prefix, dossier_id)

@@ -185,6 +185,7 @@ def review_items(desk, prefix=''):
     from . import cockpit530
     out = []
     hidden = _hidden()
+    mids = None
     for x in cockpit530.review_items(desk, cached_only=True):
         mid = str(x.get('matter') or '')
         if mid in hidden or (x.get('request') and mid):        # demandes documentaires d'un dossier : déjà dans la file (« livrable »)
@@ -207,6 +208,12 @@ def review_items(desk, prefix=''):
                     'matter_name': x.get('matter_label') or 'Dossier non identifié', 'title': title, 'consequence': why,
                     'href': (prefix + '/livrables/' + x['document_id'] + '?' + urlencode({'retour': prefix + '/aujourdhui'})) if x.get('document_id') else prefix + '/aujourdhui#relire=' + quote(x['id'], safe=''), 'item': x['id'],
                     'choices': ('ouvrir', 'ranger', 'relu') if cls == 'note_interne' else ('ouvrir', 'relu', 'reporter')})
+        if cls == 'courriel' and x.get('uid'):   # 5.6.100 (lot B) : identifiant stable du lecteur commun (Message-ID du brouillon, sinon UID)
+            from .relecture56100 import id_imap
+            if mids is None:
+                mids = {str(d.get('uid')): str(d.get('message_id') or '') for d in
+                        ((desk.settings('cockpit530:drafts', None) or {}).get('items') or []) if isinstance(d, dict)}
+            out[-1]['relecture'] = id_imap(desk, mids.get(str(x['uid']), ''), x.get('validity', ''), x['uid'])
     return out
 
 

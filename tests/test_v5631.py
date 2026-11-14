@@ -187,6 +187,8 @@ class UsageGuide(Web):
                 continue
             path, _, query = route.partition('?')
             body = __import__('html').unescape(self.request(path, query=query)['body'])
+            if path == '/dossiers':   # 5.6.100 (R05) : le portefeuille détaillé se charge au dépli ; ses boutons restent sur l'écran Dossiers
+                body += __import__('html').unescape(self.request(path, query='volet=portefeuille')['body'])
             for label in buttons:
                 self.assertIn(label, body, (fid, label))
 

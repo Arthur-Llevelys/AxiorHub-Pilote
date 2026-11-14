@@ -88,11 +88,29 @@ def provisoire(version_id):
     return str(version_id).startswith(VERSION_PROVISOIRE)
 
 
+_SCHEMA_PRET = set()        # 5.6.100 (lot E) : bases déjà préparées par ce processus (même clé que ``Desk``) : un affichage n'exécute plus de DDL
+
+
+def _cle_schema(desk):
+    try:
+        from .desk import _schema_key
+        return _schema_key(desk.c)
+    except Exception:   # noqa: BLE001 — objet sans configuration (essais) : la préparation est simplement refaite
+        return None
+
+
 def ensure_schema(desk):
+    """Tables du registre. 5.6.100 (lot E) : préparées au démarrage (``Desk._prepare`` par ``produire56100.ensure_schema``) ; ensuite, une base déjà
+    préparée par ce processus n'est plus retouchée à chaque lecture (une base recréée change de clé et est préparée de nouveau)."""
+    cle = _cle_schema(desk)
+    if cle is not None and cle in _SCHEMA_PRET:
+        return
     desk.db.executescript(SCHEMA)
     desk.db.commit()
     from . import registre5693      # 5.6.93 : colonnes de collecte (N03), de contrôle (N05) et table des identités (N06), par migration idempotente
     registre5693.ensure_schema(desk)
+    if cle is not None:
+        _SCHEMA_PRET.add(cle)
 
 
 @contextmanager
@@ -733,6 +751,13 @@ def _sync_source(desk, src, force, fond=False):
 def synchroniser(desk, force=False, fond=False):
     """Lecture des journaux locaux des producteurs, sans réseau et sans écrire aucun fichier. Coût négligeable quand rien n'a changé (une signature par source).
     5.6.93 (N03) : à l'affichage, une page par source au plus ; ``fond`` (travail d'arrière-plan) ou ``force`` lisent jusqu'à 40 pages par source."""
+    if not (force or fond):   # 5.6.100 (intégration, § 24) : à l'affichage, une seule synchronisation par page (Aujourd'hui en demandait quatre)
+        from .affichage5696 import memo_requete
+        return memo_requete(('livrables5689:synchroniser', str(desk.c.get('state_dir', ''))), lambda: _synchroniser(desk, False, False))
+    return _synchroniser(desk, force, fond)
+
+
+def _synchroniser(desk, force, fond):
     from . import livrables_sources5689 as sources
     ensure_schema(desk)
     try:
@@ -797,6 +822,10 @@ def charger(desk, ident, hidden=frozenset(), version_id=None, droits=None):
         raise Stop('version_inconnue' if version_id else 'livrable_absent')
     if row['matter_id'] in hidden:
         raise Stop('dossier_reserve')
+    if hidden and (row['response_id'] or row['source_service'] == 'messagerie'):   # 5.6.100 (R04) : courriel rattaché ailleurs à un dossier
+        from .acces_courriel56100 import cles_masquees                                   # réservé, ou brouillon d'origine non vérifiable : absent
+        if (row['response_id'] and cles_masquees(desk, frozenset(hidden), [row['response_id']])) or                 (row['source_service'] == 'messagerie' and row['source_object_id'] not in brouillons_autorises(desk, hidden)):
+            raise Stop('livrable_absent')
     if row['required_right'] and droits is not None and not droits.get(row['required_right']):
         raise Stop('role_insuffisant')
     return dict(row)
@@ -855,12 +884,53 @@ def _rights_clause(droits):
     return (" AND required_right NOT IN (%s)" % ','.join('?' for _ in excluded), excluded) if excluded else ('', [])
 
 
-def _where(hidden, droits, matter=None, recherche='', etat=''):
+def reponses_masquees(desk, hidden):
+    """5.6.100 (R04) : courriels (``response_id``) des livrables « courriel » que la personne ne peut pas voir d'après les rattachements
+    ACTUELS du message et de son projet (le dossier copié dans la ligne du registre peut être vide ou ancien). Panne : ``controle_indisponible``."""
+    if not hidden:
+        return frozenset()
+    from .acces_courriel56100 import cles_masquees
+    try:
+        cles = [r[0] for r in desk.db.execute("SELECT DISTINCT response_id FROM prepared_items5689 WHERE response_id<>''")]
+    except sqlite3.Error:
+        raise Stop('controle_indisponible') from None
+    return cles_masquees(desk, frozenset(hidden), cles)
+
+
+def brouillons_autorises(desk, hidden):
+    """5.6.100 (R04) : brouillons de la messagerie (``mail:<UIDVALIDITY>:<UID>``) dont l'origine est vérifiée et visible pour la personne,
+    d'après la copie locale de la boîte Brouillons ; un brouillon absent de la copie (origine non vérifiable) n'est pas restitué."""
+    from .acces_courriel56100 import filtrer_brouillons_caches
+    cache = desk.settings('cockpit530:drafts', None) or {}
+    validity = str(cache.get('validity', ''))
+    return frozenset('mail:%s:%s' % (validity, d.get('uid')) for d in filtrer_brouillons_caches(desk, frozenset(hidden), desk.c.get('mail') or {}, validity, cache.get('items', [])))
+
+
+def _clause_courriels(desk, hidden):
+    """Clause ajoutée AVANT comptes et LIMIT pour une personne cloisonnée : courriels masqués et brouillons non vérifiables retirés."""
+    if not hidden:
+        return '', []
+    sql, params = '', []
+    masquees = sorted(reponses_masquees(desk, hidden))
+    if masquees:
+        sql += ' AND response_id NOT IN (%s)' % ','.join('?' for _ in masquees)
+        params += masquees
+    permis = sorted(brouillons_autorises(desk, hidden))
+    sql += " AND (source_service<>'messagerie'%s)" % ((' OR source_object_id IN (%s)' % ','.join('?' for _ in permis)) if permis else '')
+    params += permis
+    return sql, params
+
+
+def _where(hidden, droits, matter=None, recherche='', etat='', desk=None):
     sql = " WHERE lifecycle IN ('archived')" if etat == 'archive' else " WHERE lifecycle='current'"
     params = []
     if hidden:
         sql += ' AND matter_id NOT IN (%s)' % ','.join('?' for _ in hidden)
         params += sorted(hidden)
+    if desk is not None:   # 5.6.100 (R04) : courriels d'un dossier réservé (rattachements actuels) retirés avant comptes, extraits et LIMIT
+        clause, extra = _clause_courriels(desk, hidden)
+        sql += clause
+        params += extra
     clause, extra = _rights_clause(droits)
     sql += clause
     params += extra
@@ -873,8 +943,9 @@ def _where(hidden, droits, matter=None, recherche='', etat=''):
     return sql, params
 
 
-def projection(desk, hidden=frozenset(), droits=None, matter=None, nature_filtre='', etat='', revue='', recence=None, recherche='', curseur='', limite=30, sync=True, prefix=''):
-    """Endpoint agrégé : le contrôle d'accès entre dans la requête, avant comptes et extraits. Une source en panne donne ``complet: False``, jamais un zéro certain."""
+def projection(desk, hidden=frozenset(), droits=None, matter=None, nature_filtre='', etat='', revue='', recence=None, recherche='', curseur='', limite=30, sync=True, prefix='', familles=None):
+    """Endpoint agrégé : le contrôle d'accès entre dans la requête, avant comptes et extraits. Une source en panne donne ``complet: False``, jamais un zéro certain.
+    5.6.100 (lot E, § 23) : ``familles`` (natures retenues) filtre dans la requête, avant comptes, curseur et limite (Produire : documents et notes, sans les courriels)."""
     ensure_schema(desk)
     synced = synchroniser(desk) if sync else True
     limite = max(1, min(int(limite or 30), 100))
@@ -886,9 +957,13 @@ def projection(desk, hidden=frozenset(), droits=None, matter=None, nature_filtre
             raise Stop('filtre_invalide') from None
     if nature_filtre and nature_filtre not in NATURES:
         raise Stop('filtre_invalide')
-    base, params = _where(hidden, droits, matter, recherche, etat)
+    base, params = _where(hidden, droits, matter, recherche, etat, desk=desk)
     scope = list(params)
     clause = base
+    if familles is not None:
+        retenues = [k for k in familles if k in NATURES]
+        clause += (' AND kind IN (%s)' % ','.join('?' for _ in retenues)) if retenues else ' AND 0'
+        scope += retenues
     if since:
         clause += ' AND source_at>=?'
         scope.append(since)
@@ -939,7 +1014,7 @@ def projection(desk, hidden=frozenset(), droits=None, matter=None, nature_filtre
 def revision(desk, hidden=frozenset(), droits=None, matter=None):
     """Jeton léger : la page interroge lui seul, et ne recharge liste et compteurs que s'il change ; la saisie en cours n'est pas touchée (UX11)."""
     ensure_schema(desk)
-    base, params = _where(hidden, droits, matter)
+    base, params = _where(hidden, droits, matter, desk=desk)
     row = desk.db.execute('SELECT COUNT(*), COALESCE(MAX(updated),\'\') FROM prepared_items5689' + base, params).fetchone()
     return hashlib.sha256(('%s|%s' % (row[0], row[1])).encode()).hexdigest()[:16]
 
@@ -954,7 +1029,7 @@ def a_relire(desk, labels=None, matters=None, jours=RECENCE):
     since = (datetime.now(timezone.utc) - timedelta(days=jours)).isoformat()
     out = []
     hidden, droits = droits_requete()     # dossier réservé et honoraires : avant toute lecture, comme l'API
-    base, params = _where(hidden, droits)
+    base, params = _where(hidden, droits, desk=desk)
     for r in desk.db.execute("SELECT * FROM prepared_items5689" + base + " AND review_state='to_review' AND production_state IN ('published','verified') AND path<>'' AND source_at>=? AND kind<>'courriel' ORDER BY source_at DESC LIMIT 80", params + [since]):
         root = (matters or {}).get(r['matter_id'], {}).get('path', '')
         prov = json.loads(r['provenance'] or '{}')

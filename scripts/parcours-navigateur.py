@@ -863,7 +863,11 @@ def p96f1_accueil(banc, s):
         verifier(decider and abs(decider['x'] - gauche['x']) < 2 and decider['y'] > gauche['y'], '« À décider » hors de la colonne de gauche, sous les routines : %s' % decider)
         xs = p.eval_on_selector_all('#ax95-zone li[data-rubrique]', 'l => l.map(e => Math.round(e.getBoundingClientRect().x))')
         verifier(len(xs) == 8 and len(set(xs[:4])) == 1 and len(set(xs[4:])) == 1 and xs[4] > xs[0], '« Actuellement » n’est pas en deux colonnes de quatre : %s' % xs)
-        verifier(p.locator('#f96-lignes-zone a[data-f96-action="echeance"]').count() == 1, 'l’échéance à vérifier n’est pas dans le rang')
+        # 5.6.100 (lot E) : les échéances confirmées proches sont aussi dans le rang ; la date à vérifier y figure, ou, si elle n'entre pas dans
+        # les premières lignes, elle est dite à part avec son lien, jamais cachée
+        a_part = p.locator('#f96-lignes-zone .f100-a-verifier a')
+        verifier(p.locator('#f96-lignes-zone a[data-f96-action="echeance"][data-f96-cle="banc-ech-verifier"]').count() == 1
+                 or (a_part.count() == 1 and a_part.first.inner_text().startswith('1 date')), 'l’échéance à vérifier n’est pas dans le rang')
         journee = p.locator('.f96-echeances-jour').inner_text()
         verifier('banc-ech-verifier' not in p.locator('.f96-echeances-jour').inner_html() and p.locator('.f96-echeances a').count() == 1, 'Ma journée : %r' % journee)
         if getattr(banc, 'sortie', None):
@@ -908,7 +912,7 @@ def p96f2_fenetre(banc, s):
         p.set_viewport_size({'width': 1920, 'height': 950})
         s.connecter()
         p.evaluate('window.__f96_page = 1')                   # marque : un rechargement de la page l'effacerait
-        bouton = p.locator('#f96-lignes-zone a[data-f96-action="echeance"]')
+        bouton = p.locator('#f96-lignes-zone a[data-f96-action="echeance"][data-f96-cle="banc-ech-verifier"]')   # 5.6.100 : l'échéance confirmée est aussi dans le rang
         bouton.click()
         fenetre = p.locator('dialog.f96-fenetre[open]')
         fenetre.wait_for(timeout=5000)
@@ -942,7 +946,7 @@ def p96f2_fenetre(banc, s):
             verifier(not d.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('pending','running')").fetchone()[0], 'la fenêtre a mis un travail en file')
         s.propre('fenêtre d’un document')
         p.set_viewport_size({'width': 390, 'height': 844})
-        p.locator('#f96-lignes-zone a[data-f96-action="echeance"]').click()
+        p.locator('#f96-lignes-zone a[data-f96-action="echeance"][data-f96-cle="banc-ech-verifier"]').click()
         p.wait_for_selector('dialog.f96-fenetre.f96-plein[open]', timeout=5000)
         p.keyboard.press('Escape')
         s.propre('fenêtre sur mobile')
@@ -1731,6 +1735,10 @@ PARCOURS = PARCOURS + (('P98a', 'Aujourd’hui : routines sous « Actuellement �
                        ('P98d', 'Nouveau dossier : un ancien dossier posé sur la racine ne bloque plus la création', p98_nouveau_dossier))
 from parcours_p99 import p99_aujourdhui   # noqa: E402 — 5.6.99 : routines en bandeau, « Ouvrir » d'une décision, intitulés sans consigne
 PARCOURS = PARCOURS + (('P99a', 'Aujourd’hui : routines en bandeau d’une ligne, « Ouvrir » d’une décision, intitulés lisibles', p99_aujourdhui),)
+from parcours_p100 import p100_dossiers, p100_produire, p100_relecture   # noqa: E402 — 5.6.100 : relecture en série, Dossiers, Produire
+PARCOURS = PARCOURS + (('P100r', 'Courriels › À relire : lecteur à droite, dix décisions sans rechargement, 390 px', p100_relecture),
+                       ('P100d', 'Dossiers : trois dossiers récents et Nouveau dossier visibles d’emblée', p100_dossiers),
+                       ('P100p', 'Produire : documents prêts d’abord', p100_produire))
 
 # ------------------------------------------------------------------------------------------------ lancement
 def lancer(navigateur, sortie, choisis=(), voir=False):

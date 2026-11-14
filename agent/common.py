@@ -417,7 +417,10 @@ def matter_display(matter):
     À défaut de chemin, « client — identifiant » comme avant la 5.2.0.
     """
     matter = matter or {}
-    folder = PurePosixPath(str(matter.get('path', '')).rstrip('/')).name
+    chemin = str(matter.get('path', '') or '').rstrip('/')
+    folder = chemin.rsplit('/', 1)[-1]                       # 5.6.100 (§ 24) : sans PurePosixPath (appelée des milliers de fois par page)
+    if folder in ('.', '..') or '//' in chemin or '/./' in chemin:
+        folder = PurePosixPath(chemin).name                  # chemins non normalisés : calcul d'origine
     if folder:
         return folder
     return ' — '.join(x for x in (str(matter.get('client_name', '') or ''), str(matter.get('id', '') or '')) if x) or 'Dossier'
@@ -426,9 +429,58 @@ def matter_display(matter):
 _REGISTRES_CONTROLES = set()   # 5.6.96 (U06) : empreintes des registres déjà contrôlés (contenu des fichiers et racines)
 
 
+_REGISTRES_LUS = {}            # 5.6.100 (lot F, R08) : (registre, surcouche) -> (signature des fichiers, lignes contrôlées sérialisées)
+_REGISTRE_RECENT_NS = 2_000_000_000   # fichier modifié il y a moins de 2 s : relu (horodatage trop proche pour distinguer deux écritures)
+
+
+def _signature_fichier(chemin):
+    try:
+        st = os.stat(chemin)
+    except FileNotFoundError:
+        return None
+    return (st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino)
+
+
+def oublier_registre():
+    """5.6.100 (lot F) : les prochaines lectures du registre relisent les fichiers (après une écriture du registre par ce processus)."""
+    _REGISTRES_LUS.clear()
+
+
 def load_matters(c, unfiltered=False):
     """Registre des dossiers. 5.6.50 : pendant une requête, les dossiers réservés à d'autres membres sont retirés (``unfiltered`` :
-    registre complet, pour les contrôles qui doivent tout connaître, comme l'anonymisation)."""
+    registre complet, pour les contrôles qui doivent tout connaître, comme l'anonymisation).
+
+    5.6.100 (lot F, R08) : le registre et sa surcouche ne sont relus que si l'un d'eux a changé (taille, date de modification, date de
+    changement, numéro de fichier) ; sinon les lignes déjà contrôlées sont rendues sous forme de copies neuves (aucune ligne partagée entre
+    deux appelants). Un fichier modifié depuis moins de 2 s est toujours relu. Le filtrage des dossiers réservés reste fait à chaque appel."""
+    import marshal
+    import time as _time
+    cle = (str(c['matters_file']), str(Path(c['state_dir']) / 'registry-web.json'))
+    signature = (_signature_fichier(cle[0]), _signature_fichier(cle[1]), json.dumps(c['nextcloud']['roots']))
+    maintenant = _time.time_ns()
+    sure = signature[0] is not None and all(s is None or maintenant - s[1] > _REGISTRE_RECENT_NS for s in signature[:2])
+    garde = _REGISTRES_LUS.get(cle)
+    if sure and garde is not None and garde[0] == signature:
+        rows = marshal.loads(garde[1])
+    else:
+        rows = _lire_registre(c)
+        if sure:
+            try:
+                if len(_REGISTRES_LUS) > 16:
+                    _REGISTRES_LUS.clear()
+                _REGISTRES_LUS[cle] = (signature, marshal.dumps(rows))
+            except ValueError:   # valeur non sérialisable (jamais pour un JSON) : pas de mémoire, lecture à chaque appel
+                _REGISTRES_LUS.pop(cle, None)
+    if not unfiltered:
+        from .membres5650 import viewer_hidden
+        hidden = viewer_hidden()
+        if hidden:
+            rows = [r for r in rows if r['id'] not in hidden]
+    return rows
+
+
+def _lire_registre(c):
+    """Lecture et contrôle complets du registre (fichier de l'administrateur et surcouche du navigateur), sans filtrage par compte."""
     texte = Path(c['matters_file']).read_text(encoding='utf-8')
     rows = json.loads(texte)
     if not isinstance(rows, list):
@@ -459,11 +511,6 @@ def load_matters(c, unfiltered=False):
         if len(_REGISTRES_CONTROLES) > 64:
             _REGISTRES_CONTROLES.clear()
         _REGISTRES_CONTROLES.add(empreinte)
-    if not unfiltered:
-        from .membres5650 import viewer_hidden
-        hidden = viewer_hidden()
-        if hidden:
-            rows = [r for r in rows if r['id'] not in hidden]
     return rows
 
 

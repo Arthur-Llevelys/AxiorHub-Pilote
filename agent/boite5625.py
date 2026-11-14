@@ -104,8 +104,27 @@ STATUS_LABELS = {'drafted': 'Brouillon préparé', 'ignored': 'Ignoré par l’a
                  'error': 'Erreur', 'retry': 'À reprendre', 'appending': 'Dépôt en cours', 'append_uncertain': 'Dépôt à vérifier', 'manual': 'Réponse demandée'}
 
 
-def listing(desk, page=1, query='', box=None, folder=None):
-    """Page d'un dossier de la messagerie (boîte de réception par défaut), du plus récent au plus ancien."""
+def _lire_autorise(desk, box, cfg, folder, uid, acteur=None, validity=None, expected_key=''):
+    if acteur is None:                       # appels internes historiques, jamais utilisé par une route legacy protégée
+        return box.fetch(folder, uid)
+    # 5.6.100 (R04) : garde commune — sélection, UIDVALIDITY confirmée, rattachements du message ET de son projet, origine d'un brouillon
+    # (en-têtes seulement), puis FETCH du corps dans la même session ; absent, autre boîte, UID réutilisé ou interdit : même 404
+    from .acces_courriel56100 import lire_imap
+    return lire_imap(desk, acteur, box, cfg, folder, uid, validity, cle_attendue=expected_key)[0]
+
+
+RECHERCHE_LOCALE = 300   # recherche accentuée : messages examinés au plus (les plus récents), couverture partielle annoncée au-delà
+LOT_RECHERCHE = 50       # en-têtes lus par commande pendant une recherche accentuée
+
+
+def listing(desk, page=1, query='', box=None, folder=None, acteur=None):
+    """Page d'un dossier de la messagerie (boîte de réception par défaut), du plus récent au plus ancien.
+
+    5.6.100 (lot F, R07) : sur une vraie connexion, une seule sélection (EXAMINE), un UID SEARCH, puis un UID FETCH groupé des en-têtes
+    utiles de la page autorisée (``Mailbox.entetes``) ; aucun corps. Avant : une sélection et deux FETCH par message (26 EXAMINE, 1 SEARCH,
+    50 FETCH pour 25 lignes). Droits appliqués avant le total et la page ; clés et contrôle d'accès calculés avec l'UIDVALIDITY de cette
+    sélection. Recherche accentuée : filtrée ici sur les ``RECHERCHE_LOCALE`` messages autorisés les plus récents, lus par lots ;
+    ``couverture`` dit si des messages plus anciens n'ont pas été examinés. Les doubles d'essai historiques gardent l'ancien chemin."""
     cfg = desk.c['mail']
     try:
         page = max(1, int(page or 1))
@@ -116,38 +135,89 @@ def listing(desk, page=1, query='', box=None, folder=None):
     box = box or mbx.Mailbox(cfg)
     try:
         folder = _folder(box, cfg, folder)
-        if query and query.isascii():
-            uids = box.search(folder, 'UNDELETED', 'OR', 'SUBJECT', mbx.imap_quote(query), 'FROM', mbx.imap_quote(query))
+        accent = bool(query) and not query.isascii()
+        criteres = ('UNDELETED', 'OR', 'SUBJECT', mbx.imap_quote(query), 'FROM', mbx.imap_quote(query)) if query and not accent else ('UNDELETED',)
+        par_lot = mbx.lot_possible(box)
+        validity = None
+        if par_lot:
+            validity = str(box.select(folder))          # la seule sélection de la page
+            uids = box.search_selection(*criteres)
         else:
-            uids = box.search(folder, 'UNDELETED')
+            uids = box.search(folder, *criteres)
         uids = sorted(uids, key=int, reverse=True)
-        if query and not query.isascii():   # recherche accentuée : filtrage des 300 plus récents côté AxiorHub
-            uids = uids[:300]
+        if accent and not par_lot:   # recherche accentuée : filtrage des 300 plus récents côté AxiorHub
+            uids = uids[:RECHERCHE_LOCALE]
+        from . import acces5697 as acces, messages5697 as refs
+        caches = acces.masques(desk, acteur) if acteur is not None else ()
+        if caches:
+            if validity is None:
+                validity = str(box.select(folder))
+            account = _account(cfg)
+            permis = []
+            for start in range(0, len(uids), 400):
+                lot = [(u, refs.cle_canonique(account, folder, validity, u)) for u in uids[start:start+400]]
+                assoc = refs.dossiers_par_cle(desk, [cle for _, cle in lot])
+                permis.extend(u for u, cle in lot if acces.visible(assoc.get(cle, ()), caches))
+            uids = permis
+        partielle = False
+        if accent and par_lot:       # après les droits : les messages masqués ne comptent ni dans la couverture ni dans la page
+            partielle = len(uids) > RECHERCHE_LOCALE
+            uids = uids[:RECHERCHE_LOCALE]
         total = len(uids)
         state = _state(desk)
         account = _account(cfg)
         items = []
-        chosen = uids if (query and not query.isascii()) else uids[(page - 1) * PAGE:page * PAGE]
-        for uid in chosen:
-            try:
-                mail = box.fetch(folder, uid, headers_only=True)
-            except Stop:
-                continue
+
+        def ajouter(mail):
             subject = mail.subject or '(sans objet)'
             sender = str(mail.msg.get('From', ''))[:200]
-            if query and not query.isascii() and query.lower() not in (subject + ' ' + sender).lower():
-                continue
+            if accent and query.lower() not in (subject + ' ' + sender).lower():
+                return
             key = mail.key(account)
             known = state.get(key)
             items.append({'uid': mail.uid, 'key': key, 'subject': subject[:200], 'from': sender, 'to': str(mail.msg.get('To', ''))[:200],
                           'date': mail.timestamp.isoformat(),
                           'seen': '\\Seen' in mail.flags, 'attachments': mail.msg.get_content_type() == 'multipart/mixed',
                           'status': known[0] if known else '', 'status_label': STATUS_LABELS.get(known[0], known[0]) if known else ''})
-            if len(items) >= PAGE:
-                break
-        if query and not query.isascii():
+
+        chosen = uids if accent else uids[(page - 1) * PAGE:page * PAGE]
+        if par_lot:
+            pas = LOT_RECHERCHE if accent else PAGE
+            for start in range(0, len(chosen), pas):
+                lot = chosen[start:start + pas]
+                try:
+                    trouves = box.entetes(folder, lot, expected_validity=validity)
+                except Stop as ex:
+                    if str(ex) == 'uidvalidity_modifiee':
+                        raise Stop('introuvable') from None
+                    raise
+                for uid in lot:
+                    if str(uid) in trouves:      # message disparu entre SEARCH et FETCH : absent, comme avant
+                        ajouter(trouves[str(uid)])
+                    if len(items) >= PAGE:
+                        break
+                if len(items) >= PAGE:
+                    break
+        else:
+            for uid in chosen:
+                try:
+                    if validity is None:
+                        mail = box.fetch(folder, uid, headers_only=True)
+                    else:
+                        mail = box.fetch(folder, uid, headers_only=True, expected_validity=validity)
+                except Stop as ex:
+                    if str(ex) == 'uidvalidity_modifiee':
+                        raise Stop('introuvable') from None
+                    continue
+                ajouter(mail)
+                if len(items) >= PAGE:
+                    break
+        if accent:
             total = len(items)
-        return {'folder': folder, 'page': page, 'pages': max(1, (total + PAGE - 1) // PAGE), 'total': total, 'items': items, 'query': query}
+        out = {'folder': folder, 'page': page, 'pages': max(1, (total + PAGE - 1) // PAGE), 'total': total, 'items': items, 'query': query}
+        if accent:
+            out['couverture'] = {'partielle': partielle, 'examines': min(len(uids), RECHERCHE_LOCALE)}
+        return out
     finally:
         if own:
             box.close()
@@ -205,15 +275,19 @@ def _guess_matter(desk, mail, report):
     return '', ''
 
 
-def replies(box, cfg, mail):
-    """Brouillons qui répondent à ce courriel (en-tête In-Reply-To), du plus récent au plus ancien."""
+def replies(box, cfg, mail, desk=None, acteur=None):
+    """Brouillons qui répondent à ce courriel (en-tête In-Reply-To), du plus récent au plus ancien.
+
+    5.6.100 (R04) : avec un acteur, chaque brouillon est résolu séparément (sa propre clé, le courriel ouvert comme origine vérifiée, la
+    liaison de l'agent) : un brouillon rattaché par ailleurs à un dossier réservé n'est pas listé. Le Message-ID vient du serveur."""
     if not mail.mid:
         return []
-    out = []
+    out, refs = [], {}
     try:
         uids = box.search(cfg['drafts'], 'UNDELETED', 'HEADER', 'In-Reply-To', mbx.imap_quote(mail.mid))
     except Stop:
         return []
+    from . import acces_courriel56100 as ac
     for uid in sorted(uids, key=int, reverse=True)[:10]:
         try:
             d = box.fetch(cfg['drafts'], uid, headers_only=True)
@@ -221,17 +295,23 @@ def replies(box, cfg, mail):
             continue
         out.append({'uid': d.uid, 'uidvalidity': d.uidvalidity, 'subject': d.subject[:200], 'date': d.timestamp.isoformat(),
                     'agent': str(d.msg.get('Message-ID', '')).startswith('<axiorhub-')})
-    return out
+        if acteur is not None:
+            origine = ac._origine_agent(desk, mbx.draft_key(d.msg))
+            refs[d.uid] = ac._ref('imap', d.key(_account(cfg)), cles=[mail.key(_account(cfg))] + ([origine] if origine else []))
+    if acteur is None:
+        return out
+    gardes = {r.cle for r in ac.filtrer(desk, acteur, list(refs.values()))}
+    return [x for x in out if refs[x['uid']].cle in gardes]
 
 
-def message(desk, uid, box=None, folder=None):
+def message(desk, uid, box=None, folder=None, acteur=None, validity=None):
     cfg = desk.c['mail']
     uid = _uid(uid)
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
         folder = _folder(box, cfg, folder)
-        mail = box.fetch(folder, uid)
+        mail = _lire_autorise(desk, box, cfg, folder, uid, acteur, validity)
         key = mail.key(_account(cfg))
         try:
             from .desk import report_for
@@ -239,6 +319,10 @@ def message(desk, uid, box=None, folder=None):
         except Stop:
             report = None
         matter, why = _guess_matter(desk, mail, report)
+        if acteur is not None and matter:   # 5.6.100 (R04) : un dossier proposé réservé à d'autres n'est pas nommé
+            from .acces_courriel56100 import masques as _masques100
+            if matter in _masques100(desk, acteur):
+                matter, why = '', ''
         known = _state(desk).get(key)
         text = mail.text
         return {'uid': mail.uid, 'key': key, 'folder': folder, 'subject': mail.subject, 'from': str(mail.msg.get('From', ''))[:300], 'to': str(mail.msg.get('To', ''))[:500],
@@ -247,21 +331,21 @@ def message(desk, uid, box=None, folder=None):
                 'uidvalidity': mail.uidvalidity, 'message_id': mail.mid, 'compte': _account(cfg), 'classement': _classement5697(desk, mail),   # 5.6.97 (§ 11)
                 'demande_url': _demande5697(key),
                 'status': known[0] if known else '', 'status_label': STATUS_LABELS.get(known[0], known[0]) if known else 'Jamais traité par l’agent',
-                'reason': (report or {}).get('reason', ''), 'replies': replies(box, cfg, mail),
+                'reason': (report or {}).get('reason', ''), 'replies': replies(box, cfg, mail, desk, acteur),
                 'own': mail.sender.lower() in {a.lower() for a in mbx.own_addresses(cfg)}}
     finally:
         if own:
             box.close()
 
 
-def attachment_text(desk, uid, index, box=None, folder=None):
+def attachment_text(desk, uid, index, box=None, folder=None, acteur=None, validity=None):
     """Texte extrait d'une pièce jointe (lecture locale bornée)."""
     from .documents import extract
     cfg = desk.c['mail']
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
-        mail = box.fetch(_folder(box, cfg, folder), _uid(uid))
+        mail = _lire_autorise(desk, box, cfg, _folder(box, cfg, folder), _uid(uid), acteur, validity)
         parts = list(mail.msg.iter_attachments())
         try:
             part = parts[int(index)]
@@ -295,7 +379,7 @@ def attachment_sources(desk, mail):
     return sources, notes
 
 
-def request_reply(desk, uid, matter, instruction='', with_attachments=True, owner='cabinet', box=None, folder=None, without_matter=False, role='', expected_key=''):
+def request_reply(desk, uid, matter, instruction='', with_attachments=True, owner='cabinet', box=None, folder=None, without_matter=False, role='', expected_key='', validity=None):
     """Réponse demandée par l'avocat pour un courriel choisi : rapport créé ou complété (dossier choisi), puis travail
     « prepare_reply » (sources du dossier, contrôle, dépôt vérifié dans Brouillons). Rien n'est envoyé."""
     cfg = desk.c['mail']
@@ -308,10 +392,13 @@ def request_reply(desk, uid, matter, instruction='', with_attachments=True, owne
         matter = ''
     elif matter not in matters:
         raise Stop('dossier_a_choisir')
+    if role and matter:   # 5.6.100 (R04) : le dossier choisi à l'écran ne donne aucun droit : réservé à d'autres = introuvable
+        from .acces_courriel56100 import exiger_contexte
+        exiger_contexte(desk, (owner, role), '', matter)
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
-        mail = box.fetch(_folder(box, cfg, folder), uid)
+        mail = _lire_autorise(desk, box, cfg, _folder(box, cfg, folder), uid, (owner, role) if role else None, validity, expected_key)
     finally:
         if own:
             box.close()
@@ -403,9 +490,14 @@ def create_matter(desk, data, owner='cabinet'):
             'message': 'Dossier « %s » créé dans Nextcloud et enregistré ; son indexation a démarré.' % name}
 
 
-def discard_reply(desk, uid, validity):
-    """Supprime une réponse préparée : déplacement dans la corbeille de la messagerie (récupérable)."""
+def discard_reply(desk, uid, validity, acteur=None):
+    """Supprime une réponse préparée : déplacement dans la corbeille de la messagerie (récupérable).
+    5.6.100 (R04) : avec un acteur, CE brouillon est résolu et contrôlé (origine comprise) avant COPY/STORE ; interdit = absent (404)."""
     from .drafts440 import discard_draft
-    out = discard_draft(desk.c['mail'], uid, validity, 'yes')
+    garde = None
+    if acteur is not None:
+        from .acces_courriel56100 import garde_brouillon
+        garde = garde_brouillon(desk, acteur, desk.c['mail'])
+    out = discard_draft(desk.c['mail'], uid, validity, 'yes', garde=garde)
     desk.audit('boite5625_reponse_supprimee', {'uid': str(uid)})
     return {**out, 'message': 'Réponse supprimée' + (' (déplacée dans la corbeille de la messagerie).' if out.get('moved_to_trash') else '.')}

@@ -173,7 +173,7 @@ def _registre(c, courriel):
     if not _table(c.desk, 'prepared_items5689'):
         return None
     _, droits = droits_requete()
-    where, params = liv._where(c.hidden, droits)
+    where, params = liv._where(c.hidden, droits, desk=c.desk)   # 5.6.100 (R04) : courriels rattachés ailleurs à un dossier réservé retirés avant le compte
     where += " AND review_state='to_review' AND production_state IN ('published','verified','preparing')" if courriel else \
         " AND review_state='to_review' AND production_state IN ('published','verified') AND path<>''"
     where += " AND kind='courriel'" if courriel else " AND kind<>'courriel'"
@@ -507,7 +507,12 @@ def bloc_html(desk, prefix, owner='cabinet', role='administrateur', hidden=None)
         return ('<section class="c530-card ax95" id="ax95-actuellement" aria-labelledby="ax95-titre"><h2 id="ax95-titre">%s</h2>'
                 '<p class="ax95-erreur" role="alert">%s</p></section>') % (e(T('titre')), e(T('erreur', cause=type(ex).__name__)))
     auto = auto_actif(desk, owner)
-    return ('<section class="c530-card ax95" id="ax95-actuellement" aria-labelledby="ax95-titre" data-etag="%s" data-auto="%s" data-delai="%d">'
+    try:     # 5.6.100 (lot E, § 21.1) : bandeau compact, une ligne lisible par rubrique (nombre, étiquette, raison), deux colonnes si la place le permet
+        from .accueil56100 import nouvelle
+        compact = ' ax100-compact' if nouvelle(desk, owner) else ''
+    except Exception:   # noqa: BLE001
+        compact = ''
+    return ('<section class="c530-card ax95' + compact + '" id="ax95-actuellement" aria-labelledby="ax95-titre" data-etag="%s" data-auto="%s" data-delai="%d">'
             '<div class="ax95-tete"><h2 id="ax95-titre">%s</h2><p class="ax95-heure">%s <time id="ax95-heure">%s</time>'
             '<span class="ax95-mode" id="ax95-mode">%s</span></p>'
             '<div class="ax95-actions" role="group" aria-label="%s">'

@@ -255,9 +255,12 @@ REASONS['liste_modeles_non_disponible']='La liste des modèles n’est pas dispo
 REASONS['liste_modeles_fournisseur_invalide']='Le fournisseur a renvoyé une liste de modèles illisible.'
 REASONS['trop_de_pieces_jointes']='Vingt documents au plus par demande.'   # 5.6.80
 REASONS['piece_extraite_plus_de_2000000_caracteres']='Document trop long : plus de 2 millions de caractères extraits.'
+REASONS.setdefault('introuvable','Élément introuvable.')   # 5.6.100 (R04) : même texte pour un objet absent ou réservé à d’autres
+REASONS.setdefault('controle_indisponible','Contrôle des accès indisponible : réessayez dans un instant. Rien n’a été affiché ni modifié.')
 JOB_LABELS.update({'office_analysis5684':'Analyse d’une modification dans l’éditeur','cession5684_run':'Cession : analyses et brouillons internes'})   # 5.6.84
 JOB_LABELS['efacture5688']='Relevé des plateformes de facturation électronique'   # 5.6.88
 JOB_LABELS['gmail5697']='Relève Gmail (lecture seule)'   # 5.6.97 (lot gmail)
+JOB_LABELS['delta56100']='Analyse de nouvelles écritures (note et proposition à relire)'   # 5.6.100 (lot G)
 JOB_LABELS['gmail5697_redaction']='Réponse Gmail préparée par le modèle local'   # 5.6.97 (lot gmail)
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
@@ -859,8 +862,13 @@ class App:
                 # The iframe origin is configuration, never a compiled example
                 # domain. Keep the CSP narrow while allowing the selected local
                 # Open WebUI instance.
-                from .workstation import external_links
-                configured_openwebui=external_links(Desk(cfg)).get('openwebui','')
+                # 5.6.100 (lot F, R08) : mesuré à 19 requêtes SQLite et ~2 ms par requête (bureau ouvert, tous les raccourcis lus, connexion
+                # jamais fermée) ; seul le raccourci Open WebUI est lu (7 requêtes) et la connexion est fermée. L'ouverture du bureau reste :
+                # elle charge les réglages d'exécution dans la configuration de la requête.
+                from .workstation import _configured_url as _url_raccourci
+                _desk_cadre=Desk(cfg)
+                try:configured_openwebui=_url_raccourci(_desk_cadre,'openwebui')
+                finally:_desk_cadre.db.close()
                 openwebui_parts=urlsplit(configured_openwebui)
                 frame_origin=(openwebui_parts.scheme+'://'+openwebui_parts.netloc
                   if openwebui_parts.scheme=='https' and openwebui_parts.netloc else '')
@@ -1027,6 +1035,8 @@ class App:
                     if env.get('HTTP_ORIGIN')!=auth['origin']:raise Stop('origine_refusee')
                     if path!='/action':raise Stop('action_inconnue')
                     action=form.pop('action','');desk_action=Desk(cfg)
+                    from .acces_courriel56100 import garde_formulaire as _garde100
+                    _garde100(desk_action,form)   # 5.6.100 (R04) : courriel désigné par une ancienne action contrôlé avant tout effet (404 neutre)
                     live_token=form.pop('live_token','')
                     live_fields={**form,'action':action}
                     if live_token:
@@ -1359,6 +1369,7 @@ class App:
                 elif path=='/openwebui':
                     # A direct route avoids loading the entire dashboard and does
                     # not depend on an iframe policy on the remote application.
+                    from .workstation import external_links   # 5.6.100 : l'import d'avant le routage a été retiré (lot F)
                     target=external_links(Desk(cfg)).get('openwebui','')
                     if not target:raise Stop('openwebui_non_configure')
                     status='302 Found';headers.append(('Location',target))
@@ -1396,6 +1407,8 @@ class App:
                 from .erreurs_pages5639 import refused as _refused
                 status,body=_refused(env,str(ex),REASONS.get(str(ex),str(ex).replace('_',' ')),_precision,locals().get('_prefix'),_extra)
                 kind='text/html; charset=utf-8'
+            # 5.6.100 (R04) : objet absent ou interdit : même 404 neutre ; contrôle des droits en panne : 503, jamais un accès élargi
+            status={'introuvable':'404 Not Found','controle_indisponible':'503 Service Unavailable'}.get(str(ex),status)
         except Exception:
             status,kind,body=internal_error_response(env,kind,self.config_path,locals().get('_prefix'))
             if status.startswith('503'):headers=headers+[('Retry-After','3')]
@@ -1414,7 +1427,8 @@ class App:
             # 5.6.80 : adresses versionnées : le navigateur garde scripts et styles au lieu de les recharger (38 fichiers) à chaque page
             headers=[(n,'private, max-age=31536000, immutable' if n=='Cache-Control' else v) for n,v in headers]
         _st96=_a96.entete();_a96.terminer()
-        if _st96 and status.startswith('200') and str(kind).startswith('text/html'):
+        # 5.6.100 (lot F, R08) : Server-Timing sur chaque route mesurée, pages et API JSON (liste de réception, lecteur…), jamais sur un fichier
+        if _st96 and status.startswith('200') and (str(kind).startswith('text/html') or (str(kind).startswith('application/json') and '/static/' not in env.get('PATH_INFO',''))):
             headers=headers+[('Server-Timing',_st96)]
         if env.get('axiorhub.nc_origin'):   # 5.6.37 : réponse à une session Nextcloud : cadre permis au seul site Nextcloud de la clé
             from .nextcloud5637 import frame_headers
@@ -1526,6 +1540,20 @@ class App:
                 main+=('<p><a href="'+e(url('/aujourdhui'))+'">← Retour au poste de pilotage</a></p>'
                        '<section class="c530-card" id="c5632-veille" aria-labelledby="c5632-t-veille">'+veille_card(desk,prefix,str(auth.get('owner') or 'cabinet'))+'</section>'
                        +today_html(desk,prefix,form))
+            elif args.get('vue')=='file':
+                # 5.6.100 (lot E, § 21.2) : « Voir la suite » d'Aujourd'hui — même liste, même ordre, paginée côté serveur (droits avant comptes et pages).
+                # Interface 5.6.100 éteinte : la file historique, avec le filtre demandé. Les liens /aujourdhui?file=… restent ceux du poste de pilotage.
+                from .accueil56100 import nouvelle as _nouvelle100, vue_file_html as _vue_file100
+                from .i18n5631 import role as _role100
+                _owner100=str(auth.get('owner') or 'cabinet')
+                if _nouvelle100(desk,_owner100):
+                    main+=_vue_file100(desk,prefix,_owner100,_role100(),str(args.get('file') or 'tout'),args.get('page') or 1)
+                else:
+                    from .file5651 import FILTERS as _filtres51, html as _queue51
+                    from .membres5650 import viewer_hidden as _vh100
+                    _vue51=str(args.get('file') or '')
+                    main+=_queue51(desk,prefix,None,_vue51 if _vue51 in _filtres51 else '',_vh100() or frozenset(),30,actor=_owner100,role=_role100())
+                main+=('<div id="ax-toast" role="status" aria-live="polite"></div><script defer src="'+e(prefix)+'/static/v500.js"></script>')
             else:
                 # 5.3.0 : poste de pilotage (conversation avec l'agent, à relire, activité, journée Nextcloud).
                 from .cockpit530 import page as cockpit_page
@@ -1562,13 +1590,20 @@ class App:
                 main+=banner_html(desk,prefix)
                 from .mission_web5697 import boutons_html as _boutons5697   # 5.6.97 (lot documents-mission, § 13) : mêmes boutons qu'Aujourd'hui et Dossiers
                 main+=_boutons5697(prefix)
+                from .produire56100 import nouvelle as _nouvelle100p
+                _prets100=_nouvelle100p(desk,str(auth.get('owner') or 'cabinet'))
+                if _prets100:   # 5.6.100 (lot E, § 23) : documents prêts d'abord (type, dossier, titre, version, état réel, actions permises), avant la file
+                    from .produire56100 import section_html as _documents100
+                    from .i18n5631 import role as _role100p
+                    main+=_documents100(desk,prefix,str(auth.get('owner') or 'cabinet'),_role100p(),args)
                 try:   # 5.6.51 (A06) : projets et modifications à relire, mêmes éléments que Aujourd'hui et Dossier
                     from .file5651 import html as queue5651
                     from .membres5650 import viewer_hidden
                     from .i18n5631 import role as _role52
                     main+=queue5651(desk,prefix,None,'relire',viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
-                    from .livrables_web5689 import section_html as _livrables5689   # 5.6.89 : même projection qu'Aujourd'hui et Dossier
-                    main+=_livrables5689(desk,prefix,None,8,prefix+'/production')
+                    if not _prets100:   # 5.6.100 : avec la nouvelle présentation, la même projection est déjà en tête (pas de seconde liste)
+                        from .livrables_web5689 import section_html as _livrables5689   # 5.6.89 : même projection qu'Aujourd'hui et Dossier
+                        main+=_livrables5689(desk,prefix,None,8,prefix+'/production')
                 except Exception:   # noqa: BLE001
                     pass
                 main+=production_page(desk,args,form,link)
@@ -2003,7 +2038,7 @@ class App:
                            'backlog':('backlog',),'ignored':('ignored',),'closed':('handled','archived')}
             manual_keys={row[0] for row in desk.db.execute('SELECT mail_key FROM manual_drafts')}
             from .integration import sync_work_items
-            sync_work_items(desk)
+            sync_work_items(desk)   # projection des rapports : aucune suppression ; le cycle des courriels ne la fait pas lui-même
             for business,total in desk.db.execute('SELECT state,COUNT(*) FROM work_items GROUP BY state'):
                 for bucket,states in bucket_states.items():
                     if business in states:bucket_counts[bucket]+=total;break
@@ -2090,7 +2125,20 @@ class App:
                 if page*batch<bucket_counts[view]:main+=link('/','Suivants →',view=view,page=page+1)
                 main+='</nav>'
         elif path=='/mail':
-            key=args.get('key','');r=report_for(c,key);row=state.get(key)
+            from .messages5697 import CLE
+            from .acces_courriel56100 import exiger as _exiger100
+            key=args.get('key','')
+            if not CLE.fullmatch(key):
+                raise Stop('cle_invalide')
+            try:   # 5.6.100 (R04) : garde commune (message, projet et rattachements du serveur) avant tout titre ou texte ; absent = interdit
+                _exiger100(desk,None,key)
+            except Stop as _ex100:
+                raise Stop('page_absente' if str(_ex100)=='introuvable' else str(_ex100)) from None
+            try:
+                r=report_for(c,key)
+            except Stop:
+                raise Stop('page_absente') from None
+            row=state.get(key)
             main+='<h2>'+e(r.get('subject',''))+'</h2><p>'+e(r.get('sender',''))+' · '+e(date(r.get('received_at')))+' </p>'
             if row and row[0]=='drafted' and r.get('draft_verified'):
                 verified=r['draft_verified']
@@ -2121,7 +2169,8 @@ class App:
                 draft=json.loads(manual[0]);value=draft['result']
             if manual and value['body'] and value['requires_decision']:   # 5.6.71 : relire, modifier, déposer, ou écarter (avant : aucun bouton)
                 from .reponses5671 import editor_html as _editor5671
-                main+=_editor5671(key,value,draft.get('verification'))
+                from .relecture56100 import revision_proposition as _rev56100   # 5.6.100 (R09) : version affichée portée par chaque formulaire
+                main+=_editor5671(key,value,draft.get('verification'),revision=_rev56100(draft))
             elif manual:
                 main+='<section class="note"><h2>Réponse préparée</h2>'+block(value['body'] or 'Aucun texte fiable ne peut être proposé sans votre décision.')
                 if value['limits']:main+='<p class="notice">'+e(' · '.join(value['limits']))+'</p>'

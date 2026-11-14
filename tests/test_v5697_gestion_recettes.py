@@ -235,7 +235,9 @@ class Conseil(Recette):
         with patch.object(cloture5697.g, 'journal', coupure):
             with self.assertRaises(Stop):
                 cloture5697.cloturer(self.d, AVOCATE, mid, data)
-        self.assertEqual(dossiers5697.lire(self.d, AVOCATE, mid)['statut'], 'archive')       # le registre unique a été écrit avant la coupure
+        # 5.6.100 (R10) : registre, état local, décision et journal partagent une transaction : la coupure n'a rien validé
+        self.assertEqual(dossiers5697.lire(self.d, AVOCATE, mid)['statut'], 'actif')
+        self.assertEqual(self.d.db.execute("SELECT COUNT(*) FROM clotures5697 WHERE matter=?", (mid,)).fetchone()[0], 0)
         self.assertIs(cloture5697.g.journal, vrai)
         fin = cloture5697.cloturer(self.d, AVOCATE, mid, data)                                 # même clé : la clôture se termine
         self.assertEqual(fin['etat'], 'archive')

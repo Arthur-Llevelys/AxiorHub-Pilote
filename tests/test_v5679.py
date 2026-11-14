@@ -164,7 +164,7 @@ class Pages(Base):
 
     def test_liste_cartes_recentes_et_tri(self):
         cookie = self.admin_cookie()
-        page = self.request('/dossiers', cookie=cookie)['body']
+        page = self.request('/dossiers', cookie=cookie, query='volet=portefeuille')['body']   # 5.6.100 (R05) : volet chargé au dépli
         self.assertIn('Travaillés récemment par l’IA', page)
         self.assertIn('Lecture des pièces', page)
         self.assertIn('aria-sort="descending"', page)                        # tri par défaut : dernière activité

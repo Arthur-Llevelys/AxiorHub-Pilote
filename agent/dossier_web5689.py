@@ -5,6 +5,7 @@ Toute écriture exige CSRF et une clé d'idempotence ; une version périmée ré
 """
 import json
 import re
+import sqlite3
 
 from .common import Stop, clean_path, load_matters, under
 from . import accords5689, assertions5689 as A, consultation5689 as conseil, extraction5689, personnes5689, playbook5689
@@ -146,7 +147,17 @@ def _importer(desk, mid, data, owner, role):
     info = client.stat(path)
     raw = client.download({**info, 'path': path})
     row = A.importer_version(desk, mid, path, raw, etag=info.get('etag') or '', source_id=str(info.get('fileid') or ''), emetteur=str(data.get('emetteur') or ''), document_date=str(data.get('document_date') or ''), acteur=owner, categorie=str(data.get('categorie') or ''))
-    return {k: row[k] for k in ('version_id', 'source_id', 'sha256', 'categorie', 'etat')} | {'candidats': json.loads(row['categorie_candidats'])}
+    return {k: row[k] for k in ('version_id', 'source_id', 'sha256', 'categorie', 'etat')} | {'candidats': json.loads(row['categorie_candidats']), 'analyse': _reception56100(desk, mid, row['version_id'], owner, role)}
+
+
+def _reception56100(desk, mid, version_id, owner, role):
+    """5.6.100 (lot G) : pièce vérifiée classée dans un dossier contentieux → événement de réception (sans modèle). Jamais bloquant pour le classement."""
+    try:
+        from .delta56100 import reception
+        return {'evenement': reception(desk, mid, version_id, (owner, role), 'classement') or ''}
+    except (Stop, sqlite3.Error) as ex:
+        desk.audit('delta56100_reception_impossible', {'matter': str(mid), 'cause': str(ex)[:80]})
+        return {'evenement': '', 'etat': 'non_enregistre'}
 
 
 def _ecriture(desk, parts, data, owner, role, hidden, env):
@@ -168,7 +179,7 @@ def _ecriture(desk, parts, data, owner, role, hidden, env):
                 return _out(_importer(desk, mid, data, owner, role))
             if parts[4] == 'qualifier':
                 out = A.qualifier_piece(desk, mid, parts[3], data, owner, role)
-                return _out({k: out[k] for k in ('version_id', 'categorie', 'piece_partie', 'piece_numero', 'piece_titre', 'sha256')})
+                return _out({k: out[k] for k in ('version_id', 'categorie', 'piece_partie', 'piece_numero', 'piece_titre', 'sha256')} | {'analyse': _reception56100(desk, mid, out['version_id'], owner, role)})
             if parts[4] == 'retirer':
                 return _out({**A.retirer_source(desk, mid, parts[3], owner, role, data.get('motif') or ''), 'message': 'Source retirée : les éléments et décisions restent, leur obsolescence est affichée.'})
             run = extraction5689.lancer(desk, mid, parts[3], owner, role, data.get('cle'))

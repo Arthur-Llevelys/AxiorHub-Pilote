@@ -213,7 +213,7 @@ class Attente(base.Base):
         with patch('agent.membres5650.viewer_hidden', return_value=frozenset({MID})):
             self._draft(KEY2, matter=MID)
             self.assertEqual([c['object'] for c in rep.queue_items(self.desk, '/p')], ['reponse5671:' + KEY])
-            with self.assertRaisesRegex(Stop, 'dossier_reserve'):
+            with self.assertRaisesRegex(Stop, '^introuvable$'):   # 5.6.100 (R04) : même refus qu'un projet absent (404 neutre)
                 rep.ecarter(self.desk, OWNER, KEY2)
 
     def test_deposer_texte_relu_ou_a_completer_et_ecarter(self):

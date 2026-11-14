@@ -95,9 +95,31 @@ def _open(desk):
     return mbx.Mailbox(desk.c['mail'])
 
 
-def _select_rw(box, folder):
+def _select_rw(box, folder, expected=None):
+    """Sélection en écriture ; 5.6.100 (R04) : ``expected`` = UIDVALIDITY contrôlée par le garde (autre valeur : l'UID peut désigner un
+    autre message → 404 neutre, aucun effet)."""
     from .drafts440 import _select
-    return _select(box, folder, False)
+    validity = _select(box, folder, False)
+    if expected is not None and str(validity) != str(expected):
+        raise Stop('introuvable')
+    return validity
+
+
+def _garde(desk, acteur, box, cfg, folder, uid, validity=None):
+    """5.6.100 (R04) : courriel contrôlé dans la session qui va agir (droits, UIDVALIDITY affichée revalidée par la sélection en écriture)
+    avant STORE, MOVE ou COPY ; rend l'UIDVALIDITY contrôlée. Sans acteur : appels internes historiques (``None``)."""
+    if acteur is None:
+        return None
+    from .acces_courriel56100 import selectionner_ecriture
+    return selectionner_ecriture(desk, acteur, box, cfg, folder, uid, validity).uidvalidity
+
+
+def _source(desk, acteur, box, cfg, folder, uid, validity=None):
+    """Courriel d'origine d'une réponse ou d'un transfert, lu après le garde (corps seulement s'il est autorisé)."""
+    if acteur is None:
+        return box.fetch(folder, uid)
+    from .acces_courriel56100 import lire_imap
+    return lire_imap(desk, acteur, box, cfg, folder, uid, validity)[0]
 
 
 def _caps(box):
@@ -124,10 +146,10 @@ def _archive_folder(box, cfg):
     return name
 
 
-def _move(box, cfg, folder, uid, target):
+def _move(box, cfg, folder, uid, target, expected=None):
     if target == folder:
         raise Stop('courriel_deja_dans_ce_dossier')
-    _select_rw(box, folder)
+    _select_rw(box, folder, expected)
     quoted = mbx.imap_quote(mbx.modified_utf7(target))
     if 'MOVE' in _caps(box):
         status, _ = box.conn.uid('MOVE', uid, quoted)
@@ -147,16 +169,17 @@ def _move(box, cfg, folder, uid, target):
 LABELS = {'archive': 'archivé', 'junk': 'déplacé dans les indésirables', 'trash': 'déplacé dans la corbeille (récupérable)', 'move': 'déplacé'}
 
 
-def act(desk, action, uid, folder=None, target=None, owner='cabinet'):
+def act(desk, action, uid, folder=None, target=None, owner='cabinet', acteur=None, validity=None):
     """Archiver, déplacer, indésirable, supprimer (corbeille), lu/non lu, suivi : un clic de l'avocat sur un courriel."""
     cfg = desk.c['mail']
     uid = _uid(uid)
     box = _open(desk)
     try:
         folder = _folder(box, cfg, folder)
+        controlee = _garde(desk, acteur, box, cfg, folder, uid, validity)   # 5.6.100 (R04) : avant tout effet
         if action in ('lu', 'non_lu', 'suivi', 'non_suivi'):
             flag = '(\\Seen)' if action in ('lu', 'non_lu') else '(\\Flagged)'
-            _select_rw(box, folder)
+            _select_rw(box, folder, controlee)
             status, _ = box.conn.uid('STORE', uid, '+FLAGS.SILENT' if action in ('lu', 'suivi') else '-FLAGS.SILENT', flag)
             if status != 'OK':
                 raise Stop('marquage_imap_refuse')
@@ -181,7 +204,7 @@ def act(desk, action, uid, folder=None, target=None, owner='cabinet'):
             dest = _folder(box, cfg, target)
         else:
             raise Stop('action_inconnue')
-        _move(box, cfg, folder, uid, dest)
+        _move(box, cfg, folder, uid, dest, controlee)
         desk.audit('webmail5628_deplacement', {'action': action, 'owner': owner})
         return {'message': 'Courriel %s.' % LABELS[action], 'folder': dest}
     finally:
@@ -210,7 +233,7 @@ def _prefixed(subject, prefix):
     return subject if re.match(r'(?i)^\s*%s\s*:' % re.escape(prefix.rstrip(' :')), subject) else '%s %s' % (prefix, subject)
 
 
-def template(desk, mode, uid=None, folder=None):
+def template(desk, mode, uid=None, folder=None, acteur=None, validity=None):
     """Champs pré-remplis pour répondre, répondre à tous, transférer ou écrire un nouveau message."""
     cfg = desk.c['mail']
     own = {a.lower() for a in mbx.own_addresses(cfg)}
@@ -226,7 +249,7 @@ def template(desk, mode, uid=None, folder=None):
     box = _open(desk)
     try:
         folder = _folder(box, cfg, folder)
-        mail = box.fetch(folder, _uid(uid))
+        mail = _source(desk, acteur, box, cfg, folder, _uid(uid), validity)   # 5.6.100 (R04) : garde avant le corps cité
     finally:
         box.close()
     msg = mail.msg
@@ -259,7 +282,7 @@ def _recipients(value, label):
     return parse_recipients(str(value or ''), label) if str(value or '').strip() else ''
 
 
-def build(desk, data):
+def build(desk, data, acteur=None):
     """Message prêt à déposer dans Brouillons (texte et version mise en forme, pièces jointes)."""
     cfg = desk.c['mail']
     mode = str(data.get('mode') or 'nouveau')
@@ -284,7 +307,8 @@ def build(desk, data):
     if mode in ('repondre', 'repondre_tous', 'transferer') and data.get('source_uid'):
         box = _open(desk)
         try:
-            source = box.fetch(_folder(box, cfg, data.get('source_folder')), _uid(data.get('source_uid')))
+            source = _source(desk, acteur, box, cfg, _folder(box, cfg, data.get('source_folder')), _uid(data.get('source_uid')),
+                             data.get('source_uidvalidity') or None)   # 5.6.100 (R04) : courriel cité ou transféré contrôlé avant son corps
         finally:
             box.close()
         if mode != 'transferer' and source.mid:
@@ -330,11 +354,11 @@ def build(desk, data):
     return msg, stamp
 
 
-def save(desk, data, owner='cabinet'):
+def save(desk, data, owner='cabinet', acteur=None):
     """Dépose le message dans Brouillons et le relit ; remplace le brouillon précédent de la même rédaction."""
     from .drafts440 import _append_uid, _search_uids
     cfg = desk.c['mail']
-    msg, stamp = build(desk, data)
+    msg, stamp = build(desk, data, acteur)
     box = _open(desk)
     try:
         folder = cfg['drafts']
@@ -355,10 +379,11 @@ def save(desk, data, owner='cabinet'):
             raise Stop('brouillon_enregistre_non_conforme')
         previous = str(data.get('draft_uid') or '')
         if previous.isdigit() and previous != uid:   # brouillon précédent de cette même rédaction : retiré (il est remplacé)
-            try:
-                old = box.fetch(folder, previous)
+            try:   # 5.6.100 (R04) : brouillon désigné par le navigateur contrôlé avant tout ; seuls ses en-têtes sont lus
+                controlee = _garde(desk, acteur, box, cfg, folder, previous)
+                old = box.fetch(folder, previous, headers_only=True, **({'expected_validity': controlee} if controlee is not None else {}))
                 if str(old.msg.get('X-AxiorHub-Origine', '')).strip() == ORIGIN:
-                    _select_rw(box, folder)
+                    _select_rw(box, folder, controlee)
                     box.conn.uid('STORE', previous, '+FLAGS.SILENT', '(\\Deleted)')
                     if 'UIDPLUS' in _caps(box):
                         box.conn.uid('EXPUNGE', previous)
@@ -379,8 +404,9 @@ def api(env, desk, auth, prefix, name, args, method):
         raise Stop('role_insuffisant')
     route = name[len('m5628/'):].split('?', 1)[0]
     if method == 'GET':
-        if route == 'modele':
-            return json_out(template(desk, str(args.get('mode') or 'nouveau'), args.get('uid'), args.get('dossier') or None))
+        if route == 'modele':   # 5.6.100 (R04) : courriel cité contrôlé avant son corps (UIDVALIDITY affichée revalidée si fournie)
+            return json_out(template(desk, str(args.get('mode') or 'nouveau'), args.get('uid'), args.get('dossier') or None,
+                                     acteur=(owner, role), validity=args.get('uidvalidity') or None))
         if route == 'envoi':
             from . import web490
             return json_out(web490.webmail_status(desk))
@@ -388,13 +414,16 @@ def api(env, desk, auth, prefix, name, args, method):
     if method != 'POST':
         raise Stop('methode_refusee')
     data = check_post(env, auth)
-    if route == 'action':
-        return json_out(act(desk, str(data.get('action') or ''), data.get('uid'), data.get('dossier') or None, data.get('cible') or None, owner))
+    if route == 'action':   # 5.6.100 (R04) : garde dans la session qui agit, UIDVALIDITY affichée revalidée avant STORE/MOVE
+        return json_out(act(desk, str(data.get('action') or ''), data.get('uid'), data.get('dossier') or None, data.get('cible') or None, owner,
+                            acteur=(owner, role), validity=data.get('uidvalidity') or None))
     if route == 'brouillon':
-        return json_out(save(desk, data, owner))
+        return json_out(save(desk, data, owner, acteur=(owner, role)))
     if route in ('envoyer', 'envoyer/confirmer'):   # l'envoi reste dans la couche web d'envoi (aperçu puis confirmation)
         from . import web490
+        from .acces_courriel56100 import garde_envoi
         if route == 'envoyer':
-            return json_out(web490.webmail_send(desk, data, owner))
+            return json_out(web490.webmail_send(desk, data, owner, acteur=(owner, role)))
+        garde_envoi(desk, (owner, role), desk.c['mail'], web490.brouillon_du_jeton(desk, str(data.get('token') or '')))   # droits revus au moment de l'effet
         return json_out(web490.webmail_confirm(desk, str(data.get('token') or '')))
     raise Stop('route_inconnue')

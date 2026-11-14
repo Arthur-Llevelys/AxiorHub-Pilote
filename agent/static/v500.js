@@ -63,7 +63,11 @@
         $(target).value = res.text;
         (res.warnings || []).forEach(function (w) { toast(w, true); });
         toast(res.noreload && typeof res.message === 'string' ? res.message : 'Projet établi : relisez-le, corrigez-le puis enregistrez-le.');   // 5.6.40 : aperçu
-      } else { toast(res && typeof res.message === 'string' ? res.message : 'Enregistré.'); }
+      } else {
+        toast(res && typeof res.message === 'string' ? res.message : 'Enregistré.');
+        // 5.6.100 (lot E) : reçu du serveur, sans erreur — la fenêtre d'Aujourd'hui ne marque « enregistré » que sur ce reçu
+        try { form.dispatchEvent(new CustomEvent('ax:recu', { bubbles: true, detail: res })); } catch (e) { /* navigateur ancien : rien de marqué */ }
+      }
       var card = form.closest('.q51-item');
       if (card && window.ax82CardDone && !(res && res.goto) && window.ax82CardDone(card, res)) return;   // 5.6.82 : la carte se met à jour sur place
       if (form.hasAttribute('data-reload') && !(res && res.noreload)) {   // 5.6.40 : aperçu de la bibliothèque, saisies conservées
