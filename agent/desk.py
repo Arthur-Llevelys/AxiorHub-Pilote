@@ -135,6 +135,7 @@ JOBS |= {'assistance5689'}   # 5.6.89 : action du panneau IA, dans l'ordre commu
 USER_JOBS |= {'assistance5689'}
 JOBS |= {'matrice_ia5689','rediger_acte5689','candidat_delai5689'}   # 5.6.89 : contentieux : propositions pour la matrice, rédaction d'un acte par section, événement de délai
 USER_JOBS |= {'matrice_ia5689','rediger_acte5689','candidat_delai5689'}
+JOBS |= {'delta56100'}   # 5.6.100 (lot G) : nouvelles conclusions → note et proposition sourcées (automatique, avec modèle : hors SANS_MODELE)
 JOBS |= {'ranger_notes5666'}   # 5.6.66 : notes internes déposées en brouillon → documents Word des dossiers
 USER_JOBS |= {'ranger_notes5666'}
 JOBS |= {'maj_local5661'}   # 5.6.61 : mise à jour signée d'un poste (Windows, Ubuntu) depuis la page des versions
@@ -456,6 +457,8 @@ class Desk:
         ensure_supervision_schema(self)
         from .portfolio import ensure_schema as ensure_portfolio_schema
         ensure_portfolio_schema(self)
+        from .gestion5697 import schema as ensure_gestion5697_schema   # 5.6.100 (lot C) : clôtures et leurs suites prêtes avant toute lecture
+        ensure_gestion5697_schema(self)
         from .workplan import ensure_schema as ensure_workplan_schema
         ensure_workplan_schema(self)
         from .document_projects import ensure_schema as ensure_document_projects_schema
@@ -502,6 +505,20 @@ class Desk:
         ensure_production420_schema(self)
         from .horaires_ia5689 import ensure_schema as ensure_horaires5689_schema   # 5.6.89 : durée des suspensions programmées
         ensure_horaires5689_schema(self)
+        from .resultats56100 import ensure_schema as ensure_resultats56100_schema   # 5.6.100 (lot D) : résultats récents de l'IA par dossier
+        ensure_resultats56100_schema(self)
+        from .rangement56100 import ensure_schema as ensure_rangement56100_schema   # 5.6.100 (lot D, § 13) : type Affaire / Cabinet / Dépôt
+        ensure_rangement56100_schema(self)
+        from .delta56100 import ensure_schema as ensure_delta56100_schema   # 5.6.100 (lot G) : événements de réception et notes sourcées
+        ensure_delta56100_schema(self)
+        from .produire56100 import ensure_schema as ensure_produire56100_schema   # 5.6.100 (lot E) : registre des livrables, propositions, exports (jamais pendant un GET)
+        ensure_produire56100_schema(self)
+        from .relecture56100 import ensure_schema as ensure_relecture56100_schema, rattraper as rattraper_relecture56100   # 5.6.100 (lot B) : file commune « À relire »
+        ensure_relecture56100_schema(self)
+        try:   # reprise bornée et relançable des propositions existantes (sans LIKE sur le JSON) ; la suite passe par les automatismes
+            rattraper_relecture56100(self, 1000, noter=False)
+        except (sqlite3.Error, OSError, ValueError):
+            self.db.rollback()
 
     def now(self):return now()
 
@@ -977,6 +994,9 @@ class Desk:
         if kind in ('matrice_ia5689','rediger_acte5689','candidat_delai5689'):
             from .contentieux5689 import perform as _contentieux
             return _contentieux(self,kind,args)
+        if kind=='delta56100':   # 5.6.100 (lot G) : lecture vérifiée d'une pièce, puis analyse d'un événement de réception
+            from .delta56100 import perform as _delta56100
+            return _delta56100(self,kind,args)
         if kind=='ranger_notes5666':
             from .notes5666 import file_drafts
             return file_drafts(self,args)
@@ -1233,7 +1253,8 @@ class Desk:
             from .operations import perform
             return perform(self,kind,args)
         if kind=='index_all':
-            from .portfolio import portfolio_rows
+            from .portfolio import completer_projection, portfolio_rows
+            completer_projection(self)
             active={row['matter'] for row in portfolio_rows(self,['active'],limit=5000)}
             from .pause5629 import is_paused   # 5.6.68 : un dossier en pause est sauté (avant : tout le lot s'arrêtait)
             cases=sorted((m for m in load_matters(self.c) if m['id'] in active and not is_paused(self,m['id'])),

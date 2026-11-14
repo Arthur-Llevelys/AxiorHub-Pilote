@@ -88,10 +88,15 @@
       return wrap;
     }
 
+    var selection = 0;   // 5.6.100 (R09) : seule la dernière sélection peut repeindre l'éditeur (clic A puis B : B reste affiché)
     function openDraft(uid) {
+      var ticket = ++selection;
       editor.textContent = '';
       editor.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Ouverture du brouillon…' }));
-      api('draft?' + new URLSearchParams({ uid: uid, validity: validity }).toString()).then(render).catch(function (err) {
+      api('draft?' + new URLSearchParams({ uid: uid, validity: validity }).toString()).then(function (d) {
+        if (ticket === selection) render(d);
+      }).catch(function (err) {
+        if (ticket !== selection) return;
         editor.textContent = '';
         editor.appendChild(el('p', { 'class': 'ax-alert', text: err.message }));
       });

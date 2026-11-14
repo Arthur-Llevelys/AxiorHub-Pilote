@@ -58,12 +58,15 @@ def allowed(role, route):
 
 def _garde_projet(desk, owner, role, projet_id):
     """5.6.97 (B01) : un projet dont le message source ou le dossier est réservé à d'autres est « absent » pour cette personne (404 neutre)."""
-    from . import gmail5697 as gm
-    from .acces5697 import masques
-    p = gm.projet(desk, owner, projet_id)
-    dossiers = set(gm.dossiers_du_message(desk, p['connexion_id'], p['source_id'])) | ({p['matter']} if p['matter'] else set())
-    if dossiers & masques(desk, (owner, role)):
-        raise Stop('projet_absent')
+    # 5.6.100 (R04) : garde commune — projet de la personne, connexion Gmail autorisée de la personne, identifiant Gmail lu sur le serveur,
+    # rattachements du message et dossier du projet ; rattachement illisible refusé ; panne du contrôle : 503
+    from .acces_courriel56100 import exiger
+    try:
+        exiger(desk, (owner, role), {'genre': 'gmail', 'projet': str(projet_id or '')})
+    except Stop as ex:
+        if str(ex) == 'introuvable':
+            raise Stop('projet_absent') from None
+        raise
 
 
 def droit_requis(route):
@@ -83,7 +86,8 @@ def api(env, desk, auth, prefix, name, args, method):
     except Stop as error:
         code = str(error).split(':')[0]
         statut = ('409 Conflict' if code in CONFLITS else '403 Forbidden' if code in ('role_insuffisant', 'origine_ou_csrf_refuse', 'geste_reserve_a_la_personne')
-                  else '404 Not Found' if code in ('route_inconnue', 'projet_absent', 'fil_absent', 'dossier_reserve', 'introuvable') else '400 Bad Request')
+                  else '404 Not Found' if code in ('route_inconnue', 'projet_absent', 'fil_absent', 'dossier_reserve', 'introuvable')
+                  else '503 Service Unavailable' if code == 'controle_indisponible' else '400 Bad Request')   # 5.6.100 (R04)
         return json_out({'error': code, 'message': _message(code)}, statut)
 
 

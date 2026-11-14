@@ -84,7 +84,7 @@ class Relance(t86.Base):
     def test_dossier_reserve(self):
         with patch('agent.desk.report_for', lambda c, k: {'matter': 'reserve'}), patch.object(rep, '_hidden', lambda: {'reserve'}), self.assertRaises(Stop) as ctx:
             rep.relancer(self.desk, 'avocate', KEY, 'mistral')
-        self.assertEqual(str(ctx.exception), 'dossier_reserve')
+        self.assertEqual(str(ctx.exception), 'introuvable')   # 5.6.100 (R04) : même refus qu'un courriel absent (404 neutre)
 
     def test_choix_limite_au_travail(self):
         rule = {'mode': 'chatgpt', 'fournisseurs': [], 'consentement': False}

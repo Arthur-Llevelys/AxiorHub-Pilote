@@ -552,6 +552,8 @@ class InboxFolders(t530.Base):
         self.assertIn('id="bx5625"', page)
         self.assertNotIn('id="ax-drafts"', page)
         self.assertIn('id="bx5625-flist"', page)
+        from agent import interface56100
+        interface56100.regler_cabinet(self.desk, False)   # 5.6.100 : présentation historique (la nouvelle liste unique : test_v56100_relecture)
         relire = self.request('/courriels')['body']
         self.assertIn('id="ax-drafts" data-validity="9">', relire)   # 5.6.30 : sans style en ligne (bloqué par la CSP)
         self.assertNotIn('id="bx5625"', relire)

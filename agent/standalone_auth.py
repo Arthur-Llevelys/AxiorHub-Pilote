@@ -88,6 +88,15 @@ def allowed(role, method, path, action=''):
         return True
     if api in ('m5674/inviter', 'm5674/retirer'):   # 5.6.74 : ses propres téléphones, tous les rôles
         return True
+    if api.startswith('m56100/relecture'):   # 5.6.100 (lot B) : décisions de relecture (liste fermée ; droit « déposer » et objet contrôlés par le service)
+        from .relecture56100 import autoriser_route as allowed56100b
+        return allowed56100b(role, method, api)
+    if api.startswith('m56100/ia/'):   # 5.6.100 (lot G) : décision sur une note IA (valideurs ; le service relit droits, révision et clé)
+        from .delta56100 import allowed as allowed56100g
+        return allowed56100g(role, method, api[len('m56100/'):])
+    if api.startswith('m56100f/'):   # 5.6.100 (lot F) : présentation de l'interface (cabinet : administrateur ; son compte : tous)
+        from .reactivite56100 import allowed as allowed56100f
+        return allowed56100f(role, api[len('m56100f/'):])
     if api.startswith('m5688s/'):   # 5.6.88 : son propre compte (tous) ; journal, réglages et réinitialisations (administrateur)
         from .securite5688 import allowed as allowed5688s
         return allowed5688s(role, api[len('m5688s/'):])

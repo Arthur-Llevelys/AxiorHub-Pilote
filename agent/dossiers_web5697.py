@@ -26,14 +26,15 @@ from .common import Stop
 from . import dossiers5697 as D
 
 STATUS = {'champs_invalides': '422 Unprocessable Entity', 'message_invalide': '422 Unprocessable Entity',
-          'cle_idempotence_absente': '422 Unprocessable Entity',
+          'cle_idempotence_absente': '422 Unprocessable Entity', 'utiliser_cloture': '409 Conflict',
           'reference_deja_utilisee': '409 Conflict', 'emplacement_deja_utilise': '409 Conflict', 'version_perimee': '409 Conflict',
           'cle_idempotence_deja_utilisee': '409 Conflict', 'alias_en_conflit': '409 Conflict',
           'partie_en_double': '409 Conflict', 'instance_principale': '409 Conflict',   # 5.6.98
           'introuvable': '404 Not Found', 'dossier_reserve': '404 Not Found', 'dossier_absent': '404 Not Found', 'route_inconnue': '404 Not Found',
           'role_insuffisant': '403 Forbidden', 'origine_ou_csrf_refuse': '403 Forbidden', 'acteur_requis': '403 Forbidden',
           'controle_acces_indisponible': '503 Service Unavailable', 'registre_dossiers_occupe': '503 Service Unavailable'}
-MESSAGES = {'champs_invalides': 'Certains champs sont à corriger.', 'reference_deja_utilisee': 'Cette référence est déjà utilisée.',
+MESSAGES = {'utiliser_cloture': 'Ouvrez Gestion → Clôture du dossier pour archiver ou rouvrir.',
+            'champs_invalides': 'Certains champs sont à corriger.', 'reference_deja_utilisee': 'Cette référence est déjà utilisée.',
             'emplacement_deja_utilise': 'Ce répertoire est déjà celui d’un autre dossier : modifiez l’intitulé, la référence ou le répertoire.',
             'version_perimee': 'Ce dossier a changé depuis votre affichage : rechargez la page ; rien n’a été écrasé.',
             'cle_idempotence_deja_utilisee': 'Cette demande a déjà servi pour une autre action : rechargez la page.',
@@ -45,7 +46,7 @@ MESSAGES = {'champs_invalides': 'Certains champs sont à corriger.', 'reference_
             'partie_en_double': 'Cette personne figure déjà dans le dossier avec ce rôle.',
             'instance_principale': 'L’instance principale porte la juridiction et le RG du dossier : désignez-en d’abord une autre.'}
 ECRITURES = {'': ('administrateur', 'avocat', 'assistant'), 'conflits': ('administrateur', 'avocat', 'assistant'),
-             'migration': ('administrateur',)}
+             'migration': ('administrateur',), 'types': ('administrateur',)}   # 5.6.100 (§ 13) : type Affaire / Cabinet / Dépôt
 ECRITURES_DOSSIER = {'modifier': ('administrateur', 'avocat', 'assistant'), 'courriels': ('administrateur', 'avocat', 'assistant'),
                      'rangement': ('administrateur', 'avocat', 'assistant'),
                      'parties': ('administrateur', 'avocat', 'assistant'), 'instances': ('administrateur', 'avocat', 'assistant')}   # 5.6.98
@@ -194,7 +195,11 @@ def _ecriture(desk, acteur, parts, data, method, prefix):
     if method == 'POST' and parts == ['conflits']:
         return _out(D.verifier_conflits(desk, acteur, data))
     if method == 'POST' and parts == ['migration']:
-        return _out(D.migrer(desk, acteur, simulation=data.get('simulation', True) not in (False, 0, '0', 'non', 'false')))
+        return _out(D.migrer(desk, acteur, simulation=data.get('simulation', True) not in (False, 0, '0', 'non', 'false'),
+                             types=data.get('types') if isinstance(data.get('types'), dict) else None))
+    if method == 'POST' and parts == ['types']:   # 5.6.100 (§ 13) : choix explicite, réversible, sans déplacement ni suppression
+        from .rangement56100 import choisir
+        return _out(choisir(desk, acteur, data.get('types'), data.get('cle')))
     ident = parts[0]
     if (method == 'PATCH' and len(parts) == 1) or (method == 'POST' and parts[1:] == ['modifier']):
         champs = data.get('champs') if isinstance(data.get('champs'), dict) else {k: v for k, v in data.items() if k in D.CHAMPS_MODIFIABLES}

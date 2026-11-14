@@ -179,7 +179,8 @@ def _items_for(desk, prefix, m):
 def _global_items(desk, prefix, actor, role):
     """5.6.52 : éléments du cabinet sans dossier — comptes rendus de routines (R06) et opérations de connexion à valider (I…)."""
     found = []
-    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659', 'reponses5671', 'crm5676'):
+    for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659', 'reponses5671', 'crm5676',
+                   'delta56100'):   # 5.6.100 (V100-07) : notes « Nouvelles écritures » à relire
         try:
             mod = __import__('agent.' + module, fromlist=['queue_items'])
             found += mod.queue_items(desk, prefix, actor, role)

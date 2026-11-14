@@ -30,6 +30,10 @@ STATIC = {'/static/v5697-gestion.css': 'text/css', '/static/v5697-sources.css': 
 from .voix5694 import statiques as _statiques5694   # noqa: E402 — 5.6.94 (V01) : Brindille, Alkove et scripts de la voix, empreintes dans voix5694
 STATIC.update(_statiques5694())
 STATIC.update({'/static/v5698-fiche.js': 'text/javascript'})   # 5.6.98 : fiche du dossier (sous-onglets Fichiers, confirmation d'un retrait)
+STATIC.update({'/static/v56100-accueil.css': 'text/css', '/static/v56100-produire.css': 'text/css'})   # 5.6.100 (lot E) : Aujourd'hui (raison, suite, Ma journée) et Produire (documents prêts)
+STATIC.update({'/static/v56100-integrite.js': 'text/javascript'})   # 5.6.100 (lot C) : volet « Portefeuille détaillé » chargé au dépli
+STATIC.update({'/static/v56100-dossiers.css': 'text/css'})   # 5.6.100 (lot D) : récents de l'IA, pagination, reprise de la fiche
+STATIC.update({'/static/v56100-lecteur.js': 'text/javascript'})   # 5.6.100 (lot B) : liste « À relire » et lecteur commun (Courriels, Aujourd'hui)
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -521,6 +525,25 @@ def api(env, desk, auth, prefix, name, args, method):
             from .web import REASONS
             return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
+    if name == 'm56100/relecture' or name.startswith(('m56100/relecture/', 'm56100/relecture?')):   # 5.6.100 (lot B) : file commune « À relire », lecteur et décisions (404 neutre, 409, 503, no-store)
+        from . import relecture56100
+        return relecture56100.repondre(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56100/ia/'):   # 5.6.100 (lot G) : note et proposition sourcées après de nouvelles écritures (404 neutre, 409, no-store)
+        from . import delta56100
+        return delta56100.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56100f/'):   # 5.6.100 (lot F) : présentation de l'interface (cabinet : administrateur ; compte : chacun pour lui)
+        from . import reactivite56100
+        try:
+            return reactivite56100.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            from .erreurs5634 import explain
+            from .web import REASONS
+            message = {'version_en_conflit': 'Le réglage a été modifié entre-temps : rechargez la page pour voir le réglage actuel.',
+                       'choix_interface_invalide': 'Choix de présentation inconnu.'}.get(code) or REASONS.get(code) or explain(code, getattr(error, 'detail', None))
+            return json_out({'error': code, 'message': message},
+                            '403 Forbidden' if code == 'role_insuffisant' else ('409 Conflict' if code == 'version_en_conflit' else
+                                                                                ('404 Not Found' if code == 'route_inconnue' else '400 Bad Request')))
     if name.startswith('m5688s/'):   # 5.6.88 : double authentification, jetons d'API, journal d'audit, ce que l'IA peut voir
         from . import securite5688
         try:
@@ -579,7 +602,9 @@ def api(env, desk, auth, prefix, name, args, method):
             from .web import REASONS
             return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
-                            ('409 Conflict' if code == 'version_perimee' else '400 Bad Request'))   # 5.6.95 : choix d'une variante sur une page périmée
+                            ('404 Not Found' if code == 'introuvable' else
+                             ('503 Service Unavailable' if code == 'controle_indisponible' else   # 5.6.100 (R04)
+                              ('409 Conflict' if code == 'version_perimee' else '400 Bad Request'))))
     if name.startswith('m5670/'):   # 5.6.70 : facturation électronique, courriels traités par lot, fichiers Nextcloud, visio, sécurité
         from . import web5670
         try:
@@ -816,7 +841,9 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m5628/'):   # 5.6.28 : messagerie (répondre, transférer, archiver, déplacer, supprimer, envoyer)
         from .webmail5628 import api as api5628
         try:return api5628(env,desk,auth,prefix,name,args,method)
-        except Stop as error:return json_out({'error':str(error).split(':')[0],'message':human(str(error).split(':')[0])},'400 Bad Request')
+        except Stop as error:   # 5.6.100 (R04) : courriel absent ou interdit → 404 neutre ; contrôle en panne → 503
+            code = str(error).split(':')[0]
+            return json_out({'error':code,'message':'Courriel introuvable.' if code == 'introuvable' else human(code)},STATUTS_GARDE100.get(code,'400 Bad Request'))
     if name.startswith('m5627/'):   # 5.6.27 : page Dossier (fiche de travail, corrections, instructions à l'agent)
         from .dossier5627 import api as api5627
         try:return api5627(env,desk,auth,prefix,name,args,method)
@@ -824,7 +851,13 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m5625/'):   # 5.6.25 : boîte de réception (Courriels) et ajout d'événements (Agenda)
         from .web5625 import api as api5625
         try:return api5625(env,desk,auth,prefix,name,args,method)
-        except Stop as error:return json_out({'error':str(error).split(':')[0],'message':human(str(error).split(':')[0])+((' — '+str(error).split(':',1)[1].strip()) if ':' in str(error) else '')},'400 Bad Request')
+        except Stop as error:
+            code = str(error).split(':')[0]
+            if code == 'introuvable':
+                return json_out({'error': code, 'message': 'Courriel introuvable.'}, '404 Not Found')
+            if code == 'controle_indisponible':   # 5.6.100 (R04) : panne du contrôle : 503, rien n'est montré
+                return json_out({'error': code, 'message': human(code)}, '503 Service Unavailable')
+            return json_out({'error':code,'message':human(code)+((' — '+str(error).split(':',1)[1].strip()) if ':' in str(error) else '')},'400 Bad Request')
     if name.startswith('m568/'):
         from .web568 import api as api568, human as human568
         try:return api568(env,desk,auth,prefix,name,args,method)
@@ -838,11 +871,15 @@ def api(env, desk, auth, prefix, name, args, method):
     mail = desk.c['mail']
     try:
         if method == 'GET':
-            if name == 'drafts':
-                return json_out(drafts440.list_drafts(mail, int(args.get('limit', 40) or 40)))
+            if name == 'drafts':   # 5.6.100 (R04) : chaque brouillon résolu séparément (origine sur en-têtes) avant la réponse
+                from . import acces_courriel56100 as ac100
+                from .web567 import actor
+                return json_out(ac100.filtrer_brouillons(desk, actor(env), mail, drafts440.list_drafts(mail, int(args.get('limit', 40) or 40))))
             if name == 'draft':
                 from .reponses5671 import mail_of_draft      # 5.6.87 : lien « Relancer avec une autre IA »
-                draft5687 = drafts440.get_draft(mail, args.get('uid', ''), args.get('validity', ''))
+                from . import acces_courriel56100 as ac100
+                from .web567 import actor
+                draft5687 = drafts440.get_draft(mail, args.get('uid', ''), args.get('validity', ''), garde=ac100.garde_brouillon(desk, actor(env), mail))
                 return json_out({**draft5687, 'mail_key': mail_of_draft(desk, draft5687.get('agent_key'))})
             if name == 'office/config':
                 path = allowed_path(desk, args.get('path', ''))
@@ -897,17 +934,22 @@ def api(env, desk, auth, prefix, name, args, method):
         if method != 'POST':
             raise Stop('methode_refusee')
         data = check_post(env, auth)
+        if name in ('draft/save', 'draft/discard', 'draft/assist'):   # 5.6.100 (R04) : droits recontrôlés à chaque écriture, avant le corps
+            from . import acces_courriel56100 as ac100
+            from .web567 import actor
+            garde100 = ac100.garde_brouillon(desk, actor(env), mail)
         if name == 'draft/save':
-            result = drafts440.save_draft(mail, data)
+            result = drafts440.save_draft(mail, data, garde=garde100)
             _learn(desk, data, result)
             desk.audit('brouillon_440_modifie', {'uid': result['uid'], 'agent': bool(result.get('agent_key'))})
             return json_out(result)
         if name == 'draft/discard':
-            result = drafts440.discard_draft(mail, data.get('uid', ''), data.get('uidvalidity', ''), data.get('confirm', ''))
+            result = drafts440.discard_draft(mail, data.get('uid', ''), data.get('uidvalidity', ''), data.get('confirm', ''), garde=garde100)
             desk.audit('brouillon_440_ecarte', {'uid': str(data.get('uid', ''))[:20]})
             return json_out(result)
         if name == 'draft/assist':
             from .integration import submit_question
+            ac100.exiger_contexte(desk, actor(env), str(data.get('source_key', '')), str(data.get('matter', '')))   # le dossier ou le courriel de l'écran ne donne aucun droit
             instruction = str(data.get('instruction', '')).strip()
             body = str(data.get('body', ''))
             if not instruction or not body.strip():
@@ -978,6 +1020,9 @@ def api(env, desk, auth, prefix, name, args, method):
         if name.startswith(('voice/', 'send/', 'search/', 'mobile/')):
             from . import web490
             from .web567 import actor
+            if name in ('send/prepare', 'send/confirm'):   # 5.6.100 (R04) : brouillon et origine recontrôlés à l'aperçu et à l'effet
+                from .acces_courriel56100 import garde_envoi
+                garde_envoi(desk, actor(env), mail, web490.brouillon_du_jeton(desk, data.get('token')) if name == 'send/confirm' else data)
             result = web490.handle(desk, name, {**data, '_owner': actor(env)[0]})   # 5.6.88 : abonnement rattaché au compte
             desk.audit('confort_490_api', {'route': name})
             return json_out(result)
@@ -1006,7 +1051,13 @@ def api(env, desk, auth, prefix, name, args, method):
             return json_out(result)
         raise Stop('route_inconnue')
     except Stop as ex:
-        return json_out({'error': str(ex), 'message': human(str(ex))}, '400 Bad Request')
+        # 5.6.100 (R04) : absent ou interdit → même 404 neutre ; contrôle des droits en panne → 503
+        return json_out({'error': str(ex), 'message': human(str(ex))}, STATUTS_GARDE100.get(str(ex), '400 Bad Request'))
+
+
+STATUTS_GARDE100 = {'introuvable': '404 Not Found', 'controle_indisponible': '503 Service Unavailable',
+                    # 5.6.100 (lot B, R09) : brouillon IMAP modifié depuis son ouverture = même conflit de version que le lecteur commun
+                    'brouillon_modifie_depuis_ouverture': '409 Conflict', 'version_perimee': '409 Conflict'}
 
 
 def _learn(desk, data, result):
@@ -1051,7 +1102,13 @@ def drafts_page(desk, auth, prefix, args, env=None):
         head = '<script defer src="' + e(prefix) + '/static/v5696-courriels.js"></script>'
     else:
         from .web520 import mail_pipeline_html
-        body = mail_pipeline_html(desk, prefix, compact=True) + tabs + _courriels_a_relire(desk, prefix)
+        from . import interface56100
+        if interface56100.active(desk, owner):   # 5.6.100 (lot B) : liste unique « À relire » et lecteur commun ; l'ancienne vue reste derrière l'interrupteur
+            from . import relecture56100
+            body = mail_pipeline_html(desk, prefix, compact=True) + tabs + relecture56100.page_html(desk, prefix, (owner, role), args)
+            head = relecture56100.tete_html(prefix)
+        else:
+            body = mail_pipeline_html(desk, prefix, compact=True) + tabs + _courriels_a_relire(desk, prefix)
     return shell('Courriels', body, prefix, auth['csrf'], '/courriels', head=head)
 
 
@@ -1089,8 +1146,11 @@ def _courriels_a_relire(desk, prefix):
     listing = {'items': [], 'uidvalidity': '', 'folder': desk.c['mail']['drafts']}
     try:
         listing = drafts440.list_drafts(desk.c['mail'])
+        from .acces_courriel56100 import filtrer_brouillons   # 5.6.100 (R04) : chaque brouillon contrôlé sur son origine, interface active ou non
+        listing = filtrer_brouillons(desk, None, desk.c['mail'], listing)
     except Stop as ex:
         error = human(str(ex))
+        listing = {'items': [], 'uidvalidity': '', 'folder': desk.c['mail']['drafts']}   # contrôle en panne : rien n'est listé
     except Exception:
         error = 'La messagerie IMAP ne répond pas. Vérifiez la connexion dans Paramètres → Connexions.'
     from .conflicts500 import banner_html

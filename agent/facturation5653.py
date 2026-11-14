@@ -1492,7 +1492,8 @@ def suggestions(desk, matters=None, refresh=True):
     ensure_schema(desk)
     from .membres5650 import viewer_hidden
     from . import facturation5655 as scope55                   # 5.6.55 : périmètre des dossiers clients
-    scope55.note_seen(desk)
+    if refresh:                                                # 5.6.100 (intégration, R05) : lecture seule (Aujourd'hui) : aucune écriture
+        scope55.note_seen(desk)
     clients = {str(m['id']) for m in scope55.client_matters(desk)}
     hidden = viewer_hidden() or frozenset()
     all_matters = [m for m in load_matters(desk.c) if str(m['id']) not in hidden and str(m['id']) in clients

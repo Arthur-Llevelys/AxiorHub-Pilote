@@ -61,7 +61,9 @@
       rows.textContent = ''; pages.textContent = ''; rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Lecture du dossier…' }));
       api('m5625/boite/liste?' + qs({ page: state.page, q: state.q })).then(function (d) {
         rows.textContent = '';
-        if (!d.items.length) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: state.q ? 'Aucun courriel ne correspond.' : 'Ce dossier est vide.' }));
+        var partielle = d.couverture && d.couverture.partielle;   // 5.6.100 (lot F) : recherche accentuée bornée aux messages les plus récents
+        if (!d.items.length) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: state.q ? (partielle ? 'Aucun courriel ne correspond parmi les ' + d.couverture.examines + ' plus récents.' : 'Aucun courriel ne correspond.') : 'Ce dossier est vide.' }));
+        else if (partielle) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', role: 'status', text: 'Recherche limitée aux ' + d.couverture.examines + ' courriels les plus récents : les plus anciens n’ont pas été examinés. Une recherche sans accent couvre tout le dossier.' }));
         d.items.forEach(function (m) {
           var top = el('span', { 'class': 'ax-row-top' }, [el('strong', { text: m.subject })]);
           if (m.attachments) top.appendChild(el('em', { 'class': 'ax-badge', title: 'Pièces jointes probables', text: 'PJ' }));
@@ -154,10 +156,25 @@
         el('p', { 'class': 'ax-muted', text: 'À : ' + m.to + (m.cc ? ' · Cc : ' + m.cc : '') }),
         el('p', {}, [el('em', { 'class': 'ax-badge', text: m.status_label })])]);
       panel.appendChild(head);
-      if (window.axh5643) panel.appendChild(window.axh5643.block(m, ctx()));   // 5.6.43 (§ 12.1) : classement, sous les en-têtes
-      if (window.axh5697Classer) panel.appendChild(window.axh5697Classer(m, ctx()));   // 5.6.97 (§ 11) : Classer dans un dossier, à la main, sans déplacement IMAP
       var body = el('pre', { 'class': 'bx5625-text', text: m.text + (m.truncated ? '\n\n[… texte tronqué à l’affichage]' : '') });
-      panel.appendChild(body);
+      panel.appendChild(body);   // 5.6.100 (R03, § 08) : le texte du message d'abord
+      if (window.axh5643 || window.axh5697Classer) {
+        // 5.6.100 (§ 08) : « Classer dans un dossier » ouvert à la demande ; les deux formulaires (rattachement au registre et conservation
+        // .eml/PJ, choix des parties et automatisme ; classement manuel sans déplacement IMAP) gardent leurs actes et ne chargent leur
+        // catalogue qu'au clic.
+        var classer = el('button', { type: 'button', 'class': 'ax-btn ghost bx5625-classer-btn', 'aria-expanded': 'false', text: 'Classer dans un dossier' });
+        var zoneClasser = el('div', { 'class': 'bx5625-classer', hidden: 'hidden' });
+        classer.addEventListener('click', function () {
+          var ouvrir = zoneClasser.hidden;
+          if (ouvrir && !zoneClasser.childNodes.length && state.current === m) {
+            if (window.axh5697Classer) zoneClasser.appendChild(window.axh5697Classer(m, ctx()));   // 5.6.97 (§ 11) : à la main, sans déplacement IMAP
+            if (window.axh5643) zoneClasser.appendChild(window.axh5643.block(m, ctx()));          // 5.6.43 (§ 12.1) : conservation et règles
+          }
+          zoneClasser.hidden = !ouvrir;
+          classer.setAttribute('aria-expanded', String(ouvrir));
+        });
+        panel.appendChild(el('div', { 'class': 'bx5625-classer-zone' }, [classer, zoneClasser]));
+      }
       if (m.attachments.length) {
         var pj = el('div', { 'class': 'bx5625-pj' }, [el('h3', { text: 'Pièces jointes (' + m.attachments.length + ')' })]);
         m.attachments.forEach(function (a) {
@@ -230,10 +247,12 @@
         el('div', { 'class': 'ax-actions' }, [go, el('span', { 'class': 'ax-muted', text: 'La réponse est déposée dans Brouillons et contrôlée ; rien n’est envoyé.' })])]));
     };
     var open = function (uid) {
+      // 5.6.100 (R09) : seule la dernière sélection repeint le panneau (clic A puis B, changement de dossier : la réponse tardive est ignorée)
+      var ticket = state.ouverture = (state.ouverture || 0) + 1;
       clearInterval(state.poll);
       panel.textContent = ''; panel.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Ouverture du courriel…' }));
-      api('m5625/boite/courriel?' + qs({ uid: uid })).then(render)
-        .catch(function (e) { panel.textContent = ''; panel.appendChild(el('p', { 'class': 'ax-alert', role: 'alert', text: e.message })); });
+      api('m5625/boite/courriel?' + qs({ uid: uid })).then(function (m) { if (ticket === state.ouverture) render(m); })
+        .catch(function (e) { if (ticket !== state.ouverture) return; panel.textContent = ''; panel.appendChild(el('p', { 'class': 'ax-alert', role: 'alert', text: e.message })); });
     };
     // dossiers de la messagerie : Boîte de réception, Brouillons, Envoyés, Corbeille, sous-dossiers…
     var flist = $('#bx5625-flist'), title = $('#bx5625-title');
@@ -242,6 +261,7 @@
       Array.prototype.forEach.call(flist.querySelectorAll('.bx5625-folder'), function (b) { b.removeAttribute('aria-current'); });
       if (button) button.setAttribute('aria-current', 'true');
       state.folder = f.role === 'inbox' ? '' : f.name; state.role = f.role || ''; state.page = 1; state.q = ''; state.current = null;
+      state.ouverture = (state.ouverture || 0) + 1;   // 5.6.100 (R09) : un courriel encore en chargement ne s'affiche plus dans l'autre dossier
       clearInterval(state.poll);
       $('.bx5625-search', box).q.value = '';
       title.textContent = f.label;

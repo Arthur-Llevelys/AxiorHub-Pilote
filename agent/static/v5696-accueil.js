@@ -273,8 +273,11 @@
       quitter.hidden = true;
       if (form && form.requestSubmit) form.requestSubmit(); else if (form) form.dispatchEvent(new racine.Event('submit', { bubbles: true, cancelable: true }));
     });
-    /* Une action envoyée depuis la fenêtre : la ligne et les compteurs seront actualisés à la fermeture (pas de rechargement d'Aujourd'hui). */
-    d.addEventListener('submit', function (ev) { if (ev.target && ev.target.closest && ev.target.closest('.f96-fenetre-contenu')) { actionFaite = true; racine.setTimeout(marquerPropre, 1500); } }, true);
+    /* Une action envoyée depuis la fenêtre : la ligne et les compteurs seront actualisés à la fermeture (pas de rechargement d'Aujourd'hui).
+       5.6.100 (lot E) : plus de marquage « propre » par minuterie — seul le reçu de sauvegarde du serveur (événement ax:recu, émis par
+       v500.js et v5671.js après une réponse sans erreur) marque enregistrés les champs du formulaire concerné ; un refus laisse la saisie « à enregistrer ». */
+    d.addEventListener('submit', function (ev) { if (ev.target && ev.target.closest && ev.target.closest('.f96-fenetre-contenu')) actionFaite = true; }, true);
+    d.addEventListener('ax:recu', function (ev) { var f = ev.target && ev.target.closest && ev.target.closest('form'); if (f && f.closest('.f96-fenetre-contenu')) marquerPropre(f); });
     return d;
   }
   function pleinEcran(oui) {
@@ -287,15 +290,31 @@
   function premierModifie() {
     return Array.prototype.filter.call(champsSaisie(), function (f) { return !f.readOnly && !f.disabled && f.value !== f.defaultValue; })[0] || null;
   }
-  function marquerPropre() { Array.prototype.forEach.call(champsSaisie(), function (f) { f.defaultValue = f.value; }); }
+  function marquerPropre(form) {
+    Array.prototype.forEach.call(champsSaisie(), function (f) { if (!form || f.form === form) f.defaultValue = f.value; });
+  }
   function demanderFermeture() {
     if (premierModifie()) { var q = fenetre.querySelector('.f96-quitter'); q.hidden = false; q.querySelector('.f96-q-rester').focus(); return; }
+    if (lecteur && typeof lecteur.fermer === 'function') {
+      /* Lecteur commun (lot B) : il garde sa propre saisie (Enregistrer / Rester / Abandonner) ; « false » = la personne reste. */
+      var ctl = lecteur;
+      Promise.resolve().then(function () { return ctl.fermer(); }).then(function (ok) { if (ok === false) return; lecteur = null; fermerVraiment(); },
+        function () { /* fermeture refusée par le lecteur : la fenêtre reste ouverte, la saisie aussi */ });
+      return;
+    }
     fermerVraiment();
   }
   function fermerVraiment() {
     if (demande) { demande.abort(); demande = null; }        /* la lecture du détail en attente est annulée ; une tâche confiée continue */
     fenetre.querySelector('.f96-quitter').hidden = true;
     if (fenetre.open) fenetre.close();
+  }
+  /* 5.6.100 (lot E, § 21.4) : le lecteur commun du lot B (window.AX100.lecteur.monter) se monte dans la fenêtre pour une réponse préparée qui porte
+     l'identifiant stable de l'objet ; sans lui (script absent, identifiant absent), le détail historique est chargé comme avant, mêmes droits. */
+  var lecteur = null, lecteurMonte = false;
+  function lecteurCommun(lien) {
+    var ax = racine.AX100, id = lien.getAttribute('data-ax100-id');
+    return id && ax && ax.lecteur && typeof ax.lecteur.monter === 'function' ? id : '';
   }
   function ouvrir(lien) {
     if (!fenetre) {
@@ -304,7 +323,7 @@
     }
     if (demande) demande.abort();
     demande = new racine.AbortController();
-    actionFaite = false;
+    actionFaite = false; lecteurMonte = false;
     var ligne = lien.closest('[data-f96-ligne]');
     retour = { lien: lien, y: racine.scrollY, ligne: ligne ? ligne.getAttribute('data-f96-ligne') : '', zone: ligne ? ligne.parentNode : null };
     fenetre.querySelector('.f96-fenetre-titre').textContent = lien.getAttribute('data-f96-titre') || lien.textContent;
@@ -318,6 +337,17 @@
     pleinEcran(racine.matchMedia && racine.matchMedia('(max-width: 40rem)').matches);   /* mobile : plein écran d'emblée */
     fenetre.showModal();
     fenetre.querySelector('.f96-fenetre-fermer').focus();
+    var idCommun = lecteurCommun(lien);
+    if (idCommun) {
+      try {
+        lecteur = racine.AX100.lecteur.monter(contenu, { id: idCommun, retour: lien.getAttribute('href') || '' });
+        lecteurMonte = true;
+        etat.textContent = '';
+        fenetre.removeAttribute('aria-busy');
+        demande = null;
+        return;
+      } catch (e) { lecteur = null; /* montage impossible : le détail historique est chargé ci-dessous */ }
+    }
     var url = prefix + '/api440/m5689/accueil/action?nature=' + encodeURIComponent(lien.getAttribute('data-f96-action')) + '&cle=' + encodeURIComponent(lien.getAttribute('data-f96-cle'));
     var signal = demande.signal;
     racine.fetch(url, { credentials: 'same-origin', signal: signal }).then(lireJson).then(function (d) {
@@ -340,6 +370,8 @@
   function restaurer() {
     var r = retour; retour = null;
     if (demande) { demande.abort(); demande = null; }
+    if (lecteur) { var ctl = lecteur; lecteur = null; try { ctl.fermer(); } catch (e) { /* lecteur déjà démonté */ } }
+    if (lecteurMonte) { actionFaite = true; lecteurMonte = false; }    /* une décision a pu être prise dans le lecteur : la liste est relue (jamais devinée) */
     if (!r) return;
     racine.scrollTo(0, r.y);
     if (r.lien && r.lien.isConnected) r.lien.focus({ preventScroll: true });
@@ -351,6 +383,8 @@
     var annonce = section && section.querySelector('[data-f96-annonce]');
     var compteurs = doc.querySelector('[data-ax95="actualiser"]');
     if (compteurs) compteurs.click();
+    /* 5.6.100 (lot E) : vue paginée « Voir la suite » : la page (même filtre, même page) est relue après une décision ; aucun champ n'y est en saisie */
+    if (!section && doc.getElementById('f100-file')) { racine.location.reload(); return; }
     if (!section || !zone) return;
     var avant = Array.prototype.map.call(zone.querySelectorAll('[data-f96-ligne]'), function (li) { return li.getAttribute('data-f96-ligne'); });
     racine.fetch(section.getAttribute('data-url'), { credentials: 'same-origin' }).then(lireJson).then(function (d) {

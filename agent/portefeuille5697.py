@@ -263,11 +263,16 @@ def _depots_depuis(desk, dossier_id, depuis):
 def _calculer(desk, ligne, jour, seuil_jours, perimetre=None, cache=None):
     """Projection déterministe d'une ligne : action active ou non, suggestion, relance due, dépôts à qualifier, échéance prioritaire."""
     d = dict(ligne)
-    d['responsable_id'] = _responsable(desk, d)
+    pre = (cache or {}).get('lot56100')      # 5.6.100 (lot D) : responsables et actions lus par lot pour toute une page
+    if pre is not None:
+        d['responsable_id'] = pre['responsables'][d['dossier_id']] if d['dossier_id'] in pre['responsables'] else d['responsable_id']
+    else:
+        d['responsable_id'] = _responsable(desk, d)
     d['etat_libelle'] = ETATS.get(d['etat_operatoire'], d['etat_operatoire'])
     action, active, motif = None, False, ''
     if d['next_action_type'] and d['next_action_id']:
-        objet, ouvert = resoudre(desk, d['next_action_type'], d['next_action_id'])
+        cle_action = (d['next_action_type'], d['next_action_id'])
+        objet, ouvert = pre['actions'][cle_action] if pre is not None and cle_action in pre['actions'] else resoudre(desk, d['next_action_type'], d['next_action_id'])
         if objet is None:
             motif = 'introuvable'
         elif str(objet.get('matter') or '') != d['dossier_id']:
@@ -512,14 +517,16 @@ def listes(desk, acteur, mes_dossiers=False, now=None, limite=8):
     a = acces5697.acteur_de(acteur)
     perimetre = acces5697.dossiers_autorises(desk, a)
     actifs = {k: v for k, v in dossiers_actifs(desk).items() if k in perimetre}         # droits d'abord
-    lignes = {r['dossier_id']: dict(r) for r in desk.db.execute('SELECT * FROM portefeuille5697')}
+    # 5.6.100 (intégration, § 24) : tout est lu par lot pour les dossiers actifs autorisés (avant : une ligne et un responsable par dossier,
+    # soit environ 3 600 requêtes pour 900 dossiers à chaque ouverture d'Aujourd'hui)
+    cache = _prechargement(desk, list(actifs))
+    lignes, responsables = cache['lot56100']['lignes'], cache['lot56100']['responsables']
     if mes_dossiers:
-        actifs = {k: v for k, v in actifs.items() if _responsable(desk, lignes.get(k) or _ligne(desk, k)) == a.compte}
+        actifs = {k: v for k, v in actifs.items() if responsables.get(k, (lignes.get(k) or _ligne_vide(k))['responsable_id']) == a.compte}
     jour, s = aujourd_hui(desk, now), seuil(desk)
-    cache = _cache(desk)
     sans, attentes = [], []
     for ident, dossier in actifs.items():
-        d = _calculer(desk, lignes.get(ident) or _ligne(desk, ident), jour, s, perimetre, cache)
+        d = _calculer(desk, lignes.get(ident) or _ligne_vide(ident), jour, s, perimetre, cache)
         d['libelle'] = dossier['libelle']
         if d['etat_operatoire'] in ACTIFS and not d['action']:
             d['motif'] = ('L’action désignée est terminée : choisir la suivante.' if d['action_retiree'] == 'terminee' else
@@ -542,20 +549,76 @@ def listes(desk, acteur, mes_dossiers=False, now=None, limite=8):
 
 
 def lignes_portefeuille(desk, acteur, ids, now=None):
-    """Colonnes de la liste Dossiers (§ 17) pour les dossiers ``ids`` visibles : responsable, prochaine action, date utile, état, dernière activité."""
-    schema(desk)
+    """Colonnes de la liste Dossiers (§ 17) pour les dossiers ``ids`` visibles : responsable, prochaine action, date utile, état, dernière activité.
+    5.6.100 (lot D, § 22) : lecture par lot pour la page affichée (un nombre de requêtes qui ne dépend ni du nombre de lignes ni du total
+    des dossiers), sans création de table pendant l'affichage ; même calcul que ``etat``."""
     a = acces5697.acteur_de(acteur)
     perimetre = acces5697.dossiers_autorises(desk, a)
+    ids = [i for i in dict.fromkeys(str(x) for x in ids) if i in perimetre]
+    if not ids:
+        return {}
     jour, s = aujourd_hui(desk, now), seuil(desk)
-    cache = _cache(desk)
+    cache = _prechargement(desk, ids)
     out = {}
     for ident in ids:
-        if ident not in perimetre:
-            continue
-        d = _calculer(desk, _ligne(desk, ident), jour, s, perimetre, cache)
-        d['derniere_activite'] = derniere_activite(desk, ident)
+        d = _calculer(desk, cache['lot56100']['lignes'].get(ident) or _ligne_vide(ident), jour, s, perimetre, cache)
+        d['derniere_activite'] = cache['lot56100']['activites'].get(ident, '')
         out[ident] = d
     return out
+
+
+def _ligne_vide(dossier_id):
+    return {'dossier_id': dossier_id, 'responsable_id': '', 'etat_operatoire': 'a_traiter', 'next_action_type': '', 'next_action_id': '', 'attente_de': '',
+            'motif_attente': '', 'attente_depuis': '', 'revoir_le': '', 'version': 0, 'derniere_cle': '', 'modifie_par': '', 'modifie_le': ''}
+
+
+def _lot(desk, sql, ids, extra=()):
+    """Requête ``… IN (ids)`` ; table absente (module jamais utilisé) : aucune ligne, jamais une erreur de page."""
+    try:
+        return desk.db.execute(sql % ','.join('?' * len(ids)), (*ids, *extra)).fetchall()
+    except Exception:   # noqa: BLE001
+        return []
+
+
+def _prechargement(desk, ids):
+    """5.6.100 (lot D) : tout ce que ``_calculer`` lit, chargé une fois pour les dossiers ``ids`` (page affichée)."""
+    lignes = {r['dossier_id']: dict(r) for r in _lot(desk, 'SELECT * FROM portefeuille5697 WHERE dossier_id IN (%s)', ids)}
+    responsables = {r['id']: r['responsable'] for r in _lot(desk, 'SELECT id,responsable FROM dossiers5697 WHERE id IN (%s)', ids)}
+    taches, echeances, actions = {}, {}, {}
+    for r in _lot(desk, "SELECT t.id,t.matter,t.title,t.due,t.status FROM tasks t LEFT JOIN taches5688 x ON x.task_id=t.id WHERE t.status='open' "
+                        "AND COALESCE(x.etat,'a_faire') NOT IN ('terminee','annulee') AND t.matter IN (%s) ORDER BY t.due", ids):
+        taches.setdefault(str(r['matter'] or ''), []).append(dict(r, source='local'))
+    vus = {t['id'] for liste in taches.values() for t in liste}
+    for r in _lot(desk, "SELECT id,matter,title,due,status FROM work_tasks_v211 WHERE status IN ('todo','in_progress','blocked') AND matter IN (%s) ORDER BY due", ids):
+        if r['id'] not in vus:
+            taches.setdefault(str(r['matter'] or ''), []).append(dict(r, source='nextcloud'))
+    for r in _lot(desk, "SELECT id,matter,rule_id,start_event,due,status,note FROM deadlines450 WHERE status IN ('confirmee','manuel') AND due<>'' "
+                        "AND matter IN (%s) ORDER BY due, id", ids):
+        echeances.setdefault(r['matter'], []).append(dict(r))
+    refs = {}
+    for ligne in lignes.values():
+        if ligne.get('next_action_type') and ligne.get('next_action_id'):
+            refs.setdefault(ligne['next_action_type'], set()).add(ligne['next_action_id'])
+    if refs.get('tache'):
+        cles = sorted(refs['tache'])
+        for r in _lot(desk, 'SELECT t.id,t.matter,t.title,t.due,t.status,x.etat,x.responsable FROM tasks t LEFT JOIN taches5688 x ON x.task_id=t.id WHERE t.id IN (%s)', cles):
+            actions[('tache', r['id'])] = ({'id': r['id'], 'matter': r['matter'] or '', 'title': r['title'] or '', 'due': r['due'] or '', 'responsable': r['responsable'] or ''},
+                                          r['status'] == 'open' and (r['etat'] or 'a_faire') not in ('terminee', 'annulee'))
+        # les autres (tâches Nextcloud, tables absentes) sont résolues une à une par ``resoudre``, comme avant
+    if refs.get('echeance'):
+        for r in _lot(desk, 'SELECT id,matter,rule_id,start_event,due,status,note FROM deadlines450 WHERE id IN (%s)', sorted(refs['echeance'])):
+            e = dict(r)
+            actions[('echeance', r['id'])] = ({'id': e['id'], 'matter': e['matter'], 'title': _libelle_echeance(e), 'due': e['due']},
+                                              e['status'] in ECHEANCES_CONFIRMEES and bool(e['due']))
+    activites = {}
+    for sql in ('SELECT matter, MAX(created) FROM d51_changes WHERE technical=0 AND matter IN (%s) GROUP BY matter',
+                'SELECT matter_id, MAX(updated) FROM prepared_items5689 WHERE matter_id IN (%s) GROUP BY matter_id',
+                'SELECT dossier_id, MAX(modifie_le) FROM portefeuille5697 WHERE dossier_id IN (%s) GROUP BY dossier_id'):
+        for r in _lot(desk, sql, ids):
+            if r[1] and str(r[1]) > activites.get(r[0], ''):
+                activites[r[0]] = str(r[1])
+    return {'taches': taches, 'echeances': echeances,
+            'lot56100': {'lignes': lignes, 'responsables': responsables, 'actions': actions, 'activites': activites}}
 
 
 def derniere_activite(desk, dossier_id):

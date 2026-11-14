@@ -158,12 +158,26 @@ def _find_source(box, mail_cfg, in_reply_to):
     return None
 
 
-def get_draft(mail_cfg, uid, validity=''):
+def _guarded_fetch(box, folder, uid, validity, garde):
+    """5.6.100 (R04) : ``garde`` (``acces_courriel56100.garde_brouillon``) contrôle le brouillon et son origine sur leurs seuls en-têtes,
+    puis le corps est lu dans la même session avec l'UIDVALIDITY confirmée. Sans garde : chemin historique (appels internes)."""
+    if garde is None:
+        return box.fetch(folder, uid)
+    confirmed = garde(box, folder, uid, validity)
+    try:
+        return box.fetch(folder, uid, expected_validity=confirmed)
+    except Stop as ex:
+        if getattr(garde, 'cloisonne', True) and str(ex) in ('uidvalidity_modifiee', 'message_imap_disparu'):
+            raise Stop('introuvable') from None
+        raise
+
+
+def get_draft(mail_cfg, uid, validity='', garde=None):
     uid = _uid(uid)
     box = Mailbox(mail_cfg)
     try:
         folder = mail_cfg['drafts']
-        mail = box.fetch(folder, uid)
+        mail = _guarded_fetch(box, folder, uid, validity, garde)
         if validity and mail.uidvalidity != str(validity):
             raise Stop('uidvalidity_modifiee')
         msg = mail.msg
@@ -186,6 +200,11 @@ def get_draft(mail_cfg, uid, validity=''):
                 pass
         source = None
         original = _find_source(box, mail_cfg, ''.join(MID.findall(str(msg.get('In-Reply-To', '')))[:1]))
+        if original is not None and garde is not None:   # 5.6.100 : l'original montré est recontrôlé (déjà couvert par l'origine du brouillon)
+            try:
+                garde(box, original.mailbox, original.uid, original.uidvalidity)
+            except Stop:
+                original = None
         if original is not None:
             account = mail_cfg['username'] + '@' + mail_cfg['host']
             source = {'uid': original.uid, 'mailbox': original.mailbox, 'sender': original.sender,
@@ -255,7 +274,7 @@ def _append_uid(response):
     return ''
 
 
-def save_draft(mail_cfg, data):
+def save_draft(mail_cfg, data, garde=None):
     """Persist the lawyer's edit. Returns the new UID after a successful read-back."""
     uid = _uid(data.get('uid'))
     fields = validate_fields(data)
@@ -265,7 +284,7 @@ def save_draft(mail_cfg, data):
     box = Mailbox(mail_cfg)
     try:
         folder = mail_cfg['drafts']
-        current = box.fetch(folder, uid)
+        current = _guarded_fetch(box, folder, uid, expected_validity, garde)
         if current.uidvalidity != expected_validity:
             raise Stop('uidvalidity_modifiee')
         if revision(current.msg) != expected_revision:
@@ -329,18 +348,23 @@ def find_trash(box):
     return ''
 
 
-def discard_draft(mail_cfg, uid, validity, confirm):
+def discard_draft(mail_cfg, uid, validity, confirm, garde=None):
     uid = _uid(uid)
     if confirm != 'yes':
         raise Stop('confirmation_requise')
     box = Mailbox(mail_cfg)
     try:
         folder = mail_cfg['drafts']
-        current = box.fetch(folder, uid)
+        if garde is not None:   # 5.6.100 (R04) : droits et origine sur en-têtes ; aucune lecture du corps ici
+            garde(box, folder, uid, validity)
+            current = box.fetch(folder, uid, headers_only=True, expected_validity=str(validity))
+        else:
+            current = box.fetch(folder, uid)
         if current.uidvalidity != str(validity) or '\\Draft' not in current.flags:
             raise Stop('uidvalidity_modifiee')
         trash = find_trash(box)
-        _select(box, folder, False)
+        if _select(box, folder, False) != current.uidvalidity:   # 5.6.100 : la sélection en écriture désigne la même boîte qu'au contrôle
+            raise Stop('uidvalidity_modifiee')
         copied = False
         if trash:
             status, _ = box.conn.uid('COPY', uid, imap_quote(trash))

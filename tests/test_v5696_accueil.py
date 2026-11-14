@@ -606,11 +606,12 @@ class Fenetre(Base):
         self.assertEqual(out['status'], '200 OK', out['body'])
         from agent import reponses5671
         html = json.loads(out['body'])['html']
-        self.assertIn(reponses5671.editor_html(cle, valeur, None), html)
+        from agent.relecture56100 import revision_proposition   # 5.6.100 (lot B, R09) : le formulaire porte la version affichée
+        self.assertIn(reponses5671.editor_html(cle, valeur, None, revision=revision_proposition({'matter': 'DOS-002', 'result': valeur})), html)
         self.assertIn('data-c5671="m5671/reponse/deposer"', html)
         self.assertEqual(json.loads(out['body'])['page'], '/p/mail?key=' + cle)
         with patch('agent.membres5650.hidden_for', return_value=frozenset({'DOS-002'})):
-            self.assertEqual(self.appel('accueil/action', args={'nature': 'reponse', 'cle': cle})['status'], '403 Forbidden')
+            self.assertEqual(self.appel('accueil/action', args={'nature': 'reponse', 'cle': cle})['status'], '404 Not Found')   # 5.6.100 (R04) : même 404 qu'absent
 
     def test_I02_echeance_a_verifier_jamais_presentee_comme_confirmee(self):
         MESURE.echeance(self.d, 'ech-v', 'DOS-001', datetime.now().date().isoformat(), 'a_confirmer')

@@ -224,6 +224,10 @@ def _automation_tick_5642(desk):
         from . import bruit5668
         bruit5668.ecarter_depots(desk)
     except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.100 (lot D) : résultats lisibles de l'IA projetés par dossier (livrables prêts, fiches, rappels), toutes les 10 minutes
+        from . import resultats56100
+        resultats56100.entretien(desk,now_ts)
+    except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):
         minutes=economie569.interval(desk,'refresh_cabinet_pilotage',max(5,int(pilot.get('refresh_interval_minutes',30))))

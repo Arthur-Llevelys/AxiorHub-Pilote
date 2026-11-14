@@ -153,26 +153,87 @@ def correspondances_html(desk, acteur, prefix, mid):
         ('<ul class="g97-liste">%s</ul>' % ''.join(remis)) if remis else '<p class="ax-muted">Rien n’a encore été remis au client.</p>')
 
 
+def _points_cloture_html(prefix, controles, seulement_ouverts=False):
+    """5.6.100 (R10) : chaque point (échéances, tâches, honoraires, factures, pièces, remises) et chaque élément mènent à l'écran où ils
+    se règlent."""
+    noms = {'bloquant': 'Bloquant', 'avertissement': 'À vérifier', 'ok': 'Réglé', 'leve': 'Levé par décision'}
+    lignes = []
+    for c in controles:
+        if seulement_ouverts and c['etat'] not in ('bloquant', 'avertissement'):
+            continue
+        elements = ''.join('<li>%s</li>' % (('<a href="%s">%s</a>' % (e(prefix + x['lien'], quote=True), e(x['libelle']))) if x.get('lien') else e(x['libelle']))
+                           for x in c['elements'][:20])
+        if len(c['elements']) > 20:
+            elements += '<li class="ax-muted">… et %d autre(s)</li>' % (len(c['elements']) - 20)
+        ouvrir = (' <a href="%s">Ouvrir</a>' % e(prefix + c['lien'], quote=True)) if c.get('lien') and c['etat'] != 'ok' else ''
+        lignes.append('<li><strong>%s</strong> — <span class="g97-etat g97-%s">%s</span> <span class="ax-muted">%s</span>%s<ul>%s</ul></li>' % (
+            e(c['libelle']), e(c['etat']), e(noms.get(c['etat'], c['etat'])), e(c['action']), ouvrir, elements))
+    return ''.join(lignes)
+
+
+def _champs_decisions():
+    from . import cloture5697
+    return (''.join(_champ('decisions.%s' % k, 'Décision motivée : %s' % cloture5697.LIBELLES[k]) for k in cloture5697.LEVABLES)
+            + _champ('suivi_financier.responsable', 'Suivi financier : responsable') + _champ('suivi_financier.prochaine_date', 'prochaine date', 'date'))
+
+
+def alertes_archives_html(desk, prefix, ids):
+    """5.6.100 (R10) : pour la liste « Archivés », ``{dossier: html}`` signalant une échéance critique encore ouverte et l'absence de
+    décision de clôture, avec le lien vers la fiche de clôture. Lecture seule ; source illisible : rien n'est affirmé, l'avertissement le dit."""
+    from . import cloture5697
+    try:
+        alertes = cloture5697.alertes_archives(desk, ids)
+    except Exception:   # noqa: BLE001 — jamais un faux « rien à signaler »
+        return {i: ' <span class="d97-a-verifier">contrôle de clôture indisponible</span>' for i in ids}
+    out = {}
+    for mid, a in alertes.items():
+        textes = []
+        if a['echeances_critiques']:
+            textes.append('%d échéance%s critique%s ouverte%s' % ((a['echeances_critiques'],) + (('', '', '') if a['echeances_critiques'] == 1 else ('s', 's', 's'))))
+        if a['sans_decision']:
+            textes.append('archivé sans décision de clôture')
+        if textes:
+            out[mid] = ' <a class="d97-a-verifier" href="%s">%s</a>' % (e('%s/dossier?%s' % (prefix, urlencode({'id': mid, 'vue': 'cloture'})), quote=True),
+                                                                       e(' · '.join(textes)))
+    return out
+
+
 def cloture_html(desk, acteur, prefix, mid):
-    """« Préparer la clôture » : points recalculés, liens, décisions motivées pour les points levables ; archivé : réouverture motivée."""
+    """« Préparer la clôture » : points recalculés, liens, décisions motivées pour les points levables ; archivé : réouverture motivée.
+    5.6.100 (R10) : seul chemin d'archivage et de réouverture (menu Dossiers et fiche) ; un dossier archivé SANS décision de clôture
+    (version antérieure, import) est signalé, avec ses points encore ouverts : régulariser (décision motivée) ou rouvrir, jamais
+    automatiquement ; une échéance critique encore ouverte reste visible."""
     from . import cloture5697
     try:
         etat = cloture5697.etat(desk, acteur, mid)
         if etat['etat'] == 'archive':
-            return ('<section class="g97-section" aria-labelledby="g97-clo-t"><h2 id="g97-clo-t">Dossier archivé</h2><p>%s</p>%s</section>') % (
-                e('Clôturé le %s.' % (etat['historique'][0]['at'][:10] if etat['historique'] else '')),
-                _form('cloture/rouvrir', _cache('dossier', mid) + _cache('version', etat['version']) + _champ('motif', 'Motif de la réouverture', requis=True),
-                      'Rouvrir le dossier', 'Rouvrir ce dossier ? Aucun partage, envoi ni rendez-vous ne sera recréé.'))
-        prep = cloture5697.preparer(desk, acteur, mid)
+            decision = cloture5697._decision_de_cloture(desk, mid)   # noqa: SLF001
+            ouverts = cloture5697.controles(desk, acteur, mid)
+        else:
+            prep = cloture5697.preparer(desk, acteur, mid)
     except Stop:
         return _neutre()
-    noms = {'bloquant': 'Bloquant', 'avertissement': 'À vérifier', 'ok': 'Réglé', 'leve': 'Levé par décision'}
-    points = ''.join('<li><strong>%s</strong> — <span class="g97-etat g97-%s">%s</span> <span class="ax-muted">%s</span><ul>%s</ul></li>' % (
-        e(c['libelle']), e(c['etat']), e(noms.get(c['etat'], c['etat'])), e(c['action']), ''.join('<li>%s</li>' % e(x['libelle']) for x in c['elements'][:20]))
-        for c in prep['controles'])
-    decisions = ''.join(_champ('decisions.%s' % k, 'Décision motivée : %s' % cloture5697.LIBELLES[k]) for k in cloture5697.LEVABLES)
+    rouvrir = _form('cloture/rouvrir', _cache('dossier', mid) + _cache('version', etat['version']) + _champ('motif', 'Motif de la réouverture', requis=True),
+                    'Rouvrir le dossier', 'Rouvrir ce dossier ? Aucun partage, envoi ni rendez-vous ne sera recréé.', fantome=True)
+    if etat['etat'] == 'archive':
+        derniere = next((h for h in etat['historique'] if h['decision'] in ('cloture', 'regularisation')), None)
+        critique = any(c['id'] == 'echeances' and c['etat'] == 'bloquant' for c in ouverts)
+        points = _points_cloture_html(prefix, ouverts, seulement_ouverts=True)
+        if decision and derniere:
+            intro = '<p>%s</p>' % e('Clôturé le %s.' % derniere['at'][:10])
+            regulariser = ''
+        else:
+            intro = ('<p role="note"><strong>Archivé sans décision de clôture.</strong> Ce dossier a été archivé par une version antérieure ou par un import, '
+                     'sans les contrôles de clôture. Rien n’a été rouvert ni annulé automatiquement : enregistrez la décision motivée de clôture '
+                     '(les mêmes contrôles s’appliquent), ou rouvrez le dossier.</p>')
+            regulariser = _form('cloture/regulariser', _cache('dossier', mid) + _cache('version', etat['version']) + _champ('motif', 'Motif', requis=True)
+                                + _champs_decisions(), 'Enregistrer la décision de clôture', 'Enregistrer la décision de clôture de ce dossier archivé ?')
+        alerte = ('<p role="alert"><strong>Une échéance critique est encore ouverte sur ce dossier archivé.</strong> '
+                  'Renseignez son accomplissement prouvé ou un autre état justifié.</p>') if critique else ''
+        return ('<section class="g97-section" aria-labelledby="g97-clo-t"><h2 id="g97-clo-t">Dossier archivé</h2>%s%s%s%s%s</section>') % (
+            intro, alerte, ('<h3>Points encore ouverts</h3><ul class="g97-liste">%s</ul>' % points) if points else '', regulariser, rouvrir)
     return ('<section class="g97-section" aria-labelledby="g97-clo-t"><h2 id="g97-clo-t">Préparer la clôture</h2><p class="ax-muted">Le dossier reste actif '
             'pendant le contrôle ; les points sont recalculés au moment de clôturer.</p><ul class="g97-liste">%s</ul>%s</section>') % (
-        points, _form('cloture/cloturer', _cache('dossier', mid) + _cache('version', prep['version']) + _champ('motif', 'Motif', requis=True) + decisions
-                      + _champ('suivi_financier.responsable', 'Suivi financier : responsable') + _champ('suivi_financier.prochaine_date', 'prochaine date', 'date'),
-                      'Clôturer et archiver', 'Clôturer et archiver ce dossier ?'))
+        _points_cloture_html(prefix, prep['controles']),
+        _form('cloture/cloturer', _cache('dossier', mid) + _cache('version', prep['version']) + _champ('motif', 'Motif', requis=True) + _champs_decisions(),
+              'Clôturer et archiver', 'Clôturer et archiver ce dossier ?'))

@@ -156,64 +156,74 @@ def matter_status(desk, matter, index=None):
       'open_tasks':open_tasks,'reasons':reasons}
 
 
-def _prune_orphans(desk, matters):
-    valid={m['id'] for m in matters};removed=0
-    for row in desk.db.execute('SELECT matter FROM matter_portfolio').fetchall():
-        if row['matter'] in valid:continue
-        mid=row['matter'];removed+=1
-        for table in ('matter_portfolio','portfolio_mail_links','association_groups',
-                      'portfolio_document_activity','portfolio_calendar_links'):
-            desk.db.execute('DELETE FROM '+table+' WHERE matter=?',(mid,))
-    if removed:desk.db.commit()
-    return removed
+def completer_projection(desk):
+    """Écriture réservée au worker. Une affaire masquée ou absente n'est jamais supprimée."""
+    known = {r[0] for r in desk.db.execute('SELECT matter FROM matter_portfolio')}
+    manque = [m for m in load_matters(desk.c) if m['id'] not in known]
+    if manque:
+        index = DocumentIndex(desk.c['state_dir'])
+        try:
+            for m in manque:
+                matter_status(desk, m, index)
+        finally:
+            index.db.close()
 
 
 def classify_all(desk):
     ensure_schema(desk);counts={x:0 for x in PORTFOLIO_STATES}
-    matters=load_matters(desk.c);_prune_orphans(desk,matters)
+    matters=load_matters(desk.c)
     index=DocumentIndex(desk.c['state_dir'])
-    for matter in matters:
-        item=matter_status(desk,matter,index);counts[item['state']]+=1
+    try:
+        for matter in matters:
+            item=matter_status(desk,matter,index);counts[item['state']]+=1
+    finally:
+        index.db.close()
     desk.setting('portfolio:last_classification',{'at':desk.now(),'counts':counts})
     return counts
 
 
-def portfolio_rows(desk, states=None, limit=1000, refresh_missing=True):
-    ensure_schema(desk);matters={m['id']:m for m in load_matters(desk.c)}
-    if refresh_missing:
-        known={r[0] for r in desk.db.execute('SELECT matter FROM matter_portfolio')}
-        for mid in set(matters)-known:matter_status(desk,matters[mid])
-    params=[];where=''
+def _visibles(desk):
+    return {str(m['id']): m for m in load_matters(desk.c)}
+
+
+def portfolio_rows(desk, states=None, limit=1000, refresh_missing=False):
+    """Lecture seule. refresh_missing est conservé pour compatibilité, sans effet."""
+    matters = _visibles(desk)
+    params = [json.dumps(list(matters))]
+    where = ' WHERE matter IN (SELECT value FROM json_each(?))'
     if states:
-        valid=[x for x in states if x in PORTFOLIO_STATES]
-        if not valid:return []
-        where=' WHERE state IN ('+','.join('?' for _ in valid)+')';params+=valid
-    params.append(max(1,min(int(limit),5000)))
-    rows=[]
-    for row in desk.db.execute('SELECT * FROM matter_portfolio'+where+
-      " ORDER BY CASE state WHEN 'active' THEN 0 WHEN 'to_confirm' THEN 1 WHEN 'dormant' THEN 2 ELSE 3 END,last_external_activity DESC,matter LIMIT ?",params):
-        if row['matter'] not in matters:continue
-        item=dict(row);item['reasons']=json.loads(item['reasons']);item['name']=matters[row['matter']].get('client_name','')
-        item['path']=matters[row['matter']]['path'];rows.append(item)
+        valid = [x for x in states if x in PORTFOLIO_STATES]
+        if not valid:
+            return []
+        where += ' AND state IN (' + ','.join('?' for _ in valid) + ')'
+        params += valid
+    params.append(max(1, min(int(limit), 5000)))
+    rows = []
+    for row in desk.db.execute('SELECT * FROM matter_portfolio' + where +
+        " ORDER BY CASE state WHEN 'active' THEN 0 WHEN 'to_confirm' THEN 1 WHEN 'dormant' THEN 2 ELSE 3 END,last_external_activity DESC,matter LIMIT ?", params):
+        item = dict(row)
+        item['reasons'] = json.loads(item['reasons'])
+        item['name'] = matters[row['matter']].get('client_name', '')
+        item['path'] = matters[row['matter']]['path']
+        rows.append(item)
     return rows
 
 
 def portfolio_summary(desk):
-    ensure_schema(desk)
-    matters=load_matters(desk.c)
-    _prune_orphans(desk,matters)
-    known={row[0] for row in desk.db.execute('SELECT matter FROM matter_portfolio')}
-    if len(known)<len(matters):
-        index=DocumentIndex(desk.c['state_dir'])
-        for matter in matters:
-            if matter['id'] not in known:matter_status(desk,matter,index)
-    counts={x:0 for x in PORTFOLIO_STATES}
-    for state,count in desk.db.execute('SELECT state,COUNT(*) FROM matter_portfolio GROUP BY state'):
-        counts[state]=count
-    pending=desk.db.execute("SELECT COUNT(*) FROM association_groups WHERE status IN ('pending','conflict')").fetchone()[0]
-    automatic=desk.db.execute("SELECT COUNT(DISTINCT mail_key) FROM portfolio_mail_links WHERE status='automatic'").fetchone()[0]
-    return {'counts':counts,'automatic_mail_links':automatic,'grouped_confirmations':pending,
-            'generated_at':desk.now()}
+    ids = json.dumps(list(_visibles(desk)))
+    def lire(sql):
+        return desk.db.execute(sql + ' AND matter IN (SELECT value FROM json_each(?))', (ids,))
+    counts = {x: 0 for x in PORTFOLIO_STATES}
+    for state, count in desk.db.execute(
+            'SELECT state,COUNT(*) FROM matter_portfolio WHERE matter IN (SELECT value FROM json_each(?)) GROUP BY state',
+            (ids,)):
+        if state in counts:
+            counts[state] = count
+    pending = lire("SELECT COUNT(*) FROM association_groups WHERE status IN ('pending','conflict')").fetchone()[0]
+    automatic = lire("SELECT COUNT(DISTINCT mail_key) FROM portfolio_mail_links WHERE status='automatic'").fetchone()[0]
+    return {'counts': counts, 'automatic_mail_links': automatic, 'grouped_confirmations': pending,
+            'classification_pending': max(0, len(json.loads(ids)) - sum(counts.values())),
+            'generated_at': desk.now()}
 
 
 def set_matter_state(desk,args):

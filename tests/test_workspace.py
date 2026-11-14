@@ -190,7 +190,7 @@ class WorkspaceWebTests(unittest.TestCase):
         self.assertIn('ne dépose aucun brouillon',r['body'])
 
     def test_folder_view_exposes_registration_without_terminal(self):
-        r=self.request('/dossiers')
+        r=self.request('/dossiers',query='volet=portefeuille')   # 5.6.100 (R05) : le volet détaillé se charge au dépli
         self.assertTrue(r['status'].startswith('200'))
         self.assertIn('Vérifier et enregistrer le dossier',r['body'])
         self.assertIn('Créer une nouvelle affaire',r['body'])

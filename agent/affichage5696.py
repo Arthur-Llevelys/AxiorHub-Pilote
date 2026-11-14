@@ -26,6 +26,7 @@ def demarrer():
     """Nouvelle requête : compteurs à zéro (un fil d'exécution n'hérite jamais des valeurs de la requête précédente)."""
     _chrono.valeurs = {}
     _chrono.requetes = 0
+    _chrono.imap = 0
     _chrono.debut = time.perf_counter()
     _chrono.memo = {}
 
@@ -60,6 +61,21 @@ def requete_sqlite(secondes):
         _chrono.requetes += 1
 
 
+def requete_imap(secondes, commandes=1):
+    """5.6.100 (lot F, R08) : appelé par ``mailbox`` pour chaque commande IMAP (et la connexion, sans commande) ; sans mesure ouverte, rien."""
+    if getattr(_chrono, 'valeurs', None) is not None:
+        _chrono.valeurs['imap'] = _chrono.valeurs.get('imap', 0.0) + max(0.0, secondes)
+        _chrono.imap = getattr(_chrono, 'imap', 0) + int(commandes)
+
+
+def releve():
+    """5.6.100 (lot F) : nombres de la requête en cours (requêtes SQLite, commandes IMAP), pour les essais et ``scripts/mesure56100.py``."""
+    if getattr(_chrono, 'valeurs', None) is None:
+        return {}
+    return {'requetes_sqlite': _chrono.requetes, 'commandes_imap': getattr(_chrono, 'imap', 0),
+            'imap_ms': round(_chrono.valeurs.get('imap', 0.0) * 1000, 1), 'sqlite_ms': round(_chrono.valeurs.get('sqlite', 0.0) * 1000, 1)}
+
+
 def marquer_auth():
     """Fin de l'authentification et de la préparation de la requête : le temps écoulé depuis ``demarrer`` est compté une fois."""
     if actif() and 'auth' not in _chrono.valeurs:
@@ -77,6 +93,8 @@ def entete():
     blocs = fin - _chrono.apres_auth
     parts = ['auth;dur=%.1f' % (valeurs.get('auth', 0.0) * 1000), 'sqlite;dur=%.1f;desc="%d"' % (valeurs.get('sqlite', 0.0) * 1000, _chrono.requetes),
              'blocs;dur=%.1f' % (blocs * 1000), 'total;dur=%.1f' % ((fin - _chrono.debut) * 1000)]
+    if 'imap' in valeurs:   # 5.6.100 (lot F, R08) : temps IMAP et nombre de commandes, seulement si la route a parlé à la messagerie
+        parts.insert(2, 'imap;dur=%.1f;desc="%d"' % (valeurs['imap'] * 1000, getattr(_chrono, 'imap', 0)))
     return ', '.join(parts)
 
 

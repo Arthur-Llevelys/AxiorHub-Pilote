@@ -497,9 +497,19 @@ def _travail_ia(desk, args, model=None, client=None):
     if row['version_id'] != patch['base_version_id']:
         _marquer(desk, patch['id'], state='perimee', error='version_perimee')
         raise Stop('version_perimee')
-    _, raw = apercu.octets(desk, row, client, version_demandee=row['version_id'])
+    try:
+        _, raw = apercu.octets(desk, row, client, version_demandee=row['version_id'])
+    except Stop as ex:
+        if str(ex) != 'version_plus_disponible':
+            raise
+        try:          # 5.6.100 (lot E) : fichier modifié avant la lecture : conflit, rien n'est transmis au modèle ; l'édition humaine devient une version
+            courant = apercu.octets(desk, row, client)[0]
+        except Stop:
+            courant = row
+        _conflit(desk, patch, courant, None, [], 'edition_concurrente')
+        return {'ok': True, 'proposition': patch['id'], 'state': 'conflit', 'message': 'Le document a changé avant la proposition : comparez, puis relancez sur la nouvelle version.'}
     pause5629.checkpoint(desk)
-    catalog = [p for p in inspect_docx(raw)['paragraphs'] if p['text'].strip()]
+    catalog =[p for p in inspect_docx(raw)['paragraphs'] if p['text'].strip()]
     selection = re.sub(r'\s+', ' ', patch['selection']).strip()
     targets = [p for p in catalog if selection in re.sub(r'\s+', ' ', p['text'])] if selection else catalog
     if not targets:
@@ -529,5 +539,22 @@ def _travail_ia(desk, args, model=None, client=None):
     valider(raw, ops, [])
     pause5629.checkpoint(desk)                      # réponse arrivée après un arrêt : ignorée, rien n'est présenté
     op5693.proteger(desk, 'proposition', patch, row)
+    # 5.6.100 (lot E, § 23.3) : le document a-t-il changé pendant la génération ? Version du registre et octets relus : si oui, la proposition devient un
+    # conflit (texte gardé pour la comparaison), la nouvelle version n'est jamais écrasée ; relancer sur la nouvelle base est une nouvelle opération.
+    try:
+        if liv.charger(desk, patch['document_id'])['version_id'] != patch['base_version_id']:
+            raise Stop('version_plus_disponible')
+        apercu.octets(desk, row, client, version_demandee=row['version_id'])
+    except Stop as ex:
+        if str(ex) != 'version_plus_disponible':
+            raise
+        _marquer(desk, patch['id'], operations=json.dumps(ops, ensure_ascii=False), sources=json.dumps(sources[:30], ensure_ascii=False), motif=patch['instruction'][:1000])
+        try:          # l'édition humaine devient une version constatée (rien n'est écrit dans le fichier) : comparer et relancer portent sur elle
+            courant = liv.charger(desk, patch['document_id'])
+            courant = apercu.octets(desk, courant, client)[0] if courant['lifecycle'] == 'current' else courant
+        except Stop:
+            courant = None
+        _conflit(desk, patch, courant, None, ops, 'edition_concurrente')
+        return {'ok': True, 'proposition': patch['id'], 'state': 'conflit', 'message': 'Le document a changé pendant la génération : la proposition est gardée pour comparaison, rien n’a été écrasé.'}
     _marquer(desk, patch['id'], operations=json.dumps(ops, ensure_ascii=False), sources=json.dumps(sources[:30], ensure_ascii=False), motif=patch['instruction'][:1000], state='proposee')
     return {'ok': True, 'proposition': patch['id'], 'state': 'proposee', 'message': '%d modification(s) proposée(s), à décider.' % len(ops)}

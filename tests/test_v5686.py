@@ -96,6 +96,8 @@ class PageCourriels(Base):
     def test_page_reelle(self):
         self.draft(KEY, '')
         from agent.web440 import drafts_page
+        from agent import interface56100
+        interface56100.regler_cabinet(self.desk, False)   # 5.6.100 : présentation historique (la nouvelle liste unique est testée par test_v56100_relecture)
         out = drafts_page(self.desk, {'csrf': 'x'}, '/p', {})
         self.assertIn('Réponses à décider', out if isinstance(out, str) else json.dumps(out, ensure_ascii=False, default=str))
 

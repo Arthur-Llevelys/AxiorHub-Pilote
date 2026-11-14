@@ -1,0 +1,101 @@
+/* AxiorHub 5.6.100 (lot B · R03) — Courriels « À relire » : une liste unique à gauche, le lecteur à droite, une barre d'actions fixe.
+   Un seul défilement par zone : la liste et le corps du lecteur ; ni l'en-tête ni les boutons de décision ne défilent. La grille prend la
+   hauteur restante du poste (--ax100-haut, mesurée par v56100-lecteur.js) ; jetons Carbon (clair et sombre), focus visible, texte 15-16 px. */
+[data-ax100-page] { --ax100-haut: 12rem; }
+.ax100-relecture {
+  display: grid; gap: .75rem; min-inline-size: 0; min-block-size: 0;
+  block-size: calc(100dvh - var(--ax100-haut) - 1rem); min-block-size: 26rem;
+  grid-template: "tete tete" auto "liste lecteur" minmax(0, 1fr) / clamp(16rem, 30%, 26rem) minmax(0, 1fr);
+}
+.ax100-tete { grid-area: tete; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; min-inline-size: 0; }
+.ax100-tete h1 { margin: 0; font-size: 1.25rem; }
+.ax100-total { display: inline-block; min-inline-size: 1.6em; padding: 0 .4em; border-radius: 1em; text-align: center; font-size: .9em;
+  background: var(--cds-layer-selected, var(--ax-surface-2, #e5e7eb)); color: var(--cds-text-primary, inherit); }
+.ax100-filtres { display: flex; flex-wrap: wrap; gap: .25rem; }
+.ax100-filtres a { padding: .35rem .75rem; border-radius: .25rem; color: var(--cds-text-primary, inherit); text-decoration: none;
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #d0d4da)); }
+.ax100-filtres a[aria-current=page] { background: var(--cds-layer-selected, var(--ax-soft, #e8f0fe)); font-weight: 600;
+  border-color: var(--cds-border-interactive, var(--ax-accent, #0f62fe)); }
+.ax100-recherche { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: 0; }
+.ax100-recherche label { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax100-recherche input { min-inline-size: 0; inline-size: min(18rem, 60vw); font: inherit; }
+.ax100-diagnostic { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax100-diagnostic summary { cursor: pointer; }
+
+.ax100-liste { grid-area: liste; min-block-size: 0; min-inline-size: 0; overflow: auto; scrollbar-gutter: stable;
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #d0d4da)); border-radius: .25rem; background: var(--cds-layer, var(--ax-card, #fff)); }
+.ax100-liste ol { list-style: none; margin: 0; padding: 0; }
+.ax100-liste li + li { border-block-start: 1px solid var(--cds-border-subtle, var(--ax-line, #e5e7eb)); }
+.ax100-liste a { display: grid; gap: .2rem; padding: .6rem .75rem; color: var(--cds-text-primary, inherit); text-decoration: none;
+  border-inline-start: .25rem solid transparent; }
+.ax100-liste a:hover { background: var(--cds-layer-hover, var(--ax-surface-2, #f2f4f8)); }
+.ax100-liste a[aria-current=true] { background: var(--cds-layer-selected, var(--ax-soft, #e8f0fe));
+  border-inline-start-color: var(--cds-border-interactive, var(--ax-accent, #0f62fe)); }
+.ax100-l1 { display: flex; gap: .5rem; align-items: baseline; min-inline-size: 0; }
+.ax100-l1 strong { flex: 1 1 auto; min-inline-size: 0; font-weight: 600; overflow-wrap: anywhere; line-height: 1.35; }
+.ax100-l2 { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); overflow-wrap: anywhere; }
+.ax100-badge { flex: none; font-style: normal; font-size: .75rem; padding: 0 .4rem; border-radius: 1rem;
+  background: var(--cds-tag-background-blue, #d0e2ff); color: var(--cds-tag-color-blue, #002d9c); }
+.ax100-badge.ax100-imap, .ax100-badge.ax100-gmail { background: var(--cds-tag-background-teal, #9ef0f0); color: var(--cds-tag-color-teal, #004144); }
+.ax100-vide { margin: 0; padding: 1rem .75rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax100-liste [data-ax100-suite] { margin: .5rem .75rem 1rem; }
+
+.ax100-lecteur { grid-area: lecteur; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-inline-size: 0; min-block-size: 0;
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #d0d4da)); border-radius: .25rem; background: var(--cds-layer, var(--ax-card, #fff)); }
+.ax100-entete, .ax100-actions { padding: .6rem .9rem; background: var(--cds-layer, var(--ax-card, #fff)); }
+.ax100-entete { border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #e5e7eb)); }
+.ax100-entete h2 { margin: 0 0 .2rem; font-size: 1.125rem; overflow-wrap: anywhere; }
+.ax100-meta { margin: 0 0 .4rem; font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); overflow-wrap: anywhere; }
+.ax100-onglets { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; }
+.ax100-onglets [aria-pressed=true] { font-weight: 600; box-shadow: inset 0 -3px 0 var(--cds-border-interactive, var(--ax-accent, #0f62fe)); }
+.ax100-plein { margin-inline-start: auto; }
+.ax100-corps { min-block-size: 0; overflow: auto; padding: .75rem .9rem; overflow-wrap: anywhere; }
+.ax100-corps[data-vue-texte=projet] { display: grid; overflow: hidden; }
+.ax100-projet:not([hidden]) { min-block-size: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .25rem; }
+.ax100-projet label { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax100-corps textarea { box-sizing: border-box; inline-size: 100%; min-block-size: 0; block-size: 100%; resize: none;
+  font: inherit; font-size: 1rem; line-height: 1.55; padding: .6rem; color: var(--cds-text-primary, inherit);
+  background: var(--cds-field, var(--ax-surface, #fff)); border: 1px solid var(--cds-border-strong, var(--ax-line, #8d8d8d)); }
+.ax100-corps textarea[readonly] { background: var(--cds-layer-02, var(--ax-surface-2, #f4f4f4)); }
+.ax100-texte-recu { white-space: pre-wrap; font: inherit; font-size: 1rem; line-height: 1.55; margin: 0; }
+.ax100-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  border-block-start: 1px solid var(--cds-border-subtle, var(--ax-line, #e5e7eb)); }
+.ax100-statut { margin: 0; flex: 1 0 100%; min-block-size: 1.3em; font-size: .9375rem; }
+.ax100-report { position: relative; display: inline-flex; }
+.ax100-report-choix:not([hidden]) { position: absolute; inset-block-end: calc(100% + .25rem); inset-inline-start: 0; z-index: 3; display: grid; gap: .25rem;
+  padding: .4rem; min-inline-size: 13rem; background: var(--cds-layer-02, var(--ax-card, #fff));
+  border: 1px solid var(--cds-border-strong, var(--ax-line, #8d8d8d)); border-radius: .25rem; box-shadow: 0 2px 8px var(--cds-shadow, rgba(0, 0, 0, .2)); }
+.ax100-deposer { margin-inline-start: auto; }
+.ax100-retour { display: none; }
+.ax100-dialogue { max-inline-size: min(32rem, 92vw); border: 1px solid var(--cds-border-strong, #8d8d8d); background: var(--cds-layer, #fff);
+  color: var(--cds-text-primary, inherit); }
+.ax100-dialogue::backdrop { background: var(--cds-overlay, rgba(0, 0, 0, .5)); }
+.ax100-dialogue-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+[data-ax100-page] :focus-visible, .ax100-lecteur :focus-visible, .ax100-dialogue :focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.ax100-lecteur[aria-busy=true] .ax100-corps { opacity: .6; }
+
+/* Largeur réduite (390 px, zoom 200 %) : un seul panneau à la fois, « Retour à la liste », barre d'actions repliée sur plusieurs lignes. */
+@media (max-width: 64rem) {
+  .ax100-retour { display: inline-flex; margin-block-end: .25rem; }
+  .ax100-relecture { grid-template: "tete" auto "liste" minmax(0, 1fr) / minmax(0, 1fr); }
+  .ax100-relecture[data-vue=detail] { grid-template: "tete" auto "lecteur" minmax(0, 1fr) / minmax(0, 1fr); }
+  .ax100-relecture:not([data-vue=detail]) .ax100-lecteur, .ax100-relecture[data-vue=detail] .ax100-liste { display: none; }
+  .ax100-relecture[data-vue=detail] .ax100-diagnostic, .ax100-relecture[data-vue=detail] .ax100-recherche { display: none; }
+  .ax100-actions .ax-btn { flex: 1 1 auto; min-block-size: 2.75rem; }
+  .ax100-deposer { margin-inline-start: 0; }
+}
+/* Hauteur réduite (zoom, clavier virtuel) : tout le formulaire reste atteignable par un seul défilement, aucune commande recouverte. */
+@media (max-height: 32rem) {
+  .ax100-relecture { block-size: auto; }
+  .ax100-lecteur { display: block; }
+  .ax100-corps, .ax100-corps[data-vue-texte=projet] { overflow: visible; display: block; }
+  .ax100-corps textarea { min-block-size: 10rem; block-size: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .ax100-lecteur * { transition: none !important; } }
+
+/* § 08 · Boîte de réception : le texte du message vient d'abord et défile avec le panneau (pas de second défilement imbriqué) ;
+   « Classer dans un dossier » s'ouvre à la demande sous le texte. */
+.bx5625-panel > .bx5625-text { max-block-size: none; overflow: visible; font-size: 1rem; line-height: 1.5; }
+.bx5625-classer-zone { margin: .75rem 0; }
+.bx5625-classer:not([hidden]) { display: grid; gap: .75rem; margin-block-start: .5rem; }

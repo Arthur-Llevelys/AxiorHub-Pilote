@@ -1,0 +1,53 @@
+/* AxiorHub 5.6.100 (lot E, P2, V100-04) — Aujourd'hui : ce qui appelle une action d'abord (cahier, §§ 13 et 21).
+   Jetons Carbon (v5689-carbon-jetons.css) avec repli sur les variables historiques : clair et sombre suivent les jetons.
+   Un état n'est jamais porté par la seule couleur : catégorie et état sont écrits ; la date à vérifier a un libellé et un trait propres. */
+
+/* ------------------------------------------------------------------ « Actuellement » : bandeau compact, deux colonnes si la place le permet */
+.ax95.ax100-compact { padding: .625rem 1rem .5rem; }
+.ax95.ax100-compact .ax95-tete h2 { font-size: 1.0625rem; }
+.ax95.ax100-compact .ax95-liste { gap: 0 1.5rem; margin-top: .375rem; }
+.ax95.ax100-compact .ax95-ligne { grid-template-columns: 1.25rem minmax(7rem, 9.5rem) 2.25rem minmax(0, 1fr); padding: .25rem .25rem; }
+.ax95.ax100-compact .ax95-texte { display: flex; gap: .5rem; min-width: 0; }
+.ax95.ax100-compact .ax95-phrase { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ax95.ax100-compact .ax95-urgent { flex: 1 1 0; min-width: 0; }
+.ax95.ax100-compact .ax95-pied { display: none; }
+@media (min-width: 72rem) {
+  .ax95.ax100-compact .ax95-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ax95.ax100-compact .ax95-liste > li:nth-child(2) { border-top: 0; }
+}
+@media (max-width: 40rem) {
+  .ax95.ax100-compact .ax95-ligne { grid-template-columns: 1.25rem minmax(0, 1fr) 2.25rem; }
+  .ax95.ax100-compact .ax95-texte { display: block; grid-column: 2 / -1; }
+  .ax95.ax100-compact .ax95-phrase { white-space: normal; }
+}
+
+/* ------------------------------------------------------------------ « À décider / À relire » : raison, catégorie, suite */
+.f100 .f96-ligne, .f100-vue-file .f96-ligne { grid-template-areas: "dossier etat bouton" "objet etat bouton" "raison etat bouton"; }
+.f96-ligne-raison { color: var(--cds-text-secondary, #525252); font-size: .8125rem; grid-area: raison; overflow-wrap: anywhere; }
+.f96-ligne[data-categorie="a_verifier"] .f96-etat { border-style: dashed; }
+.f96-ligne[data-categorie="echeance"] .f96-etat { background: var(--cds-layer-accent-01, var(--ws-surface-2, #e0e0e0)); }
+.f100-suite { margin: .5rem 0 0; }
+.f100-a-verifier { border-left: 3px dashed var(--cds-border-strong-01, #8d8d8d); color: var(--cds-text-primary, inherit); font-size: .875rem; margin: .5rem 0 0; padding: .125rem 0 .125rem .5rem; }
+.f100-suite a:focus-visible, .f100-a-verifier a:focus-visible, .f100-pages a:focus-visible, .f100-file .q51-filters a:focus-visible, .f100-ev a:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+@media (max-width: 40rem) {
+  .f100 .f96-ligne, .f100-vue-file .f96-ligne { grid-template-areas: "dossier etat" "objet objet" "raison raison" "bouton bouton"; }
+}
+
+/* ------------------------------------------------------------------ vue « file » paginée (/aujourdhui?vue=file) */
+.f100-file .c530-head { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem 1rem; justify-content: space-between; }
+.f100-explication, .f100-historique { color: var(--cds-text-secondary, #525252); font-size: .875rem; margin: .25rem 0 .5rem; }
+.f100-file .q51-filters { display: flex; flex-wrap: wrap; gap: .25rem .5rem; }
+.f100-lignes { list-style: none; }
+.f100-pages { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: .75rem 0 0; }
+.f100-page { color: var(--cds-text-secondary, #525252); }
+
+/* ------------------------------------------------------------------ Ma journée : premières entrées datées, synchronisation à part */
+.f100-agenda .f100-ev { align-items: baseline; display: grid; gap: .125rem .75rem; grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr); }
+.f100-agenda .f100-ev time { color: var(--cds-text-secondary, #525252); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.f100-agenda .f100-ev div { min-width: 0; overflow-wrap: anywhere; }
+.f100-synchro { margin: .25rem 0 .5rem; }
+[data-f100-journee] .f96-echeances-jour { margin: .5rem 0; }
+@media (max-width: 40rem) {
+  .f100-agenda .f100-ev { grid-template-columns: minmax(0, 1fr); }
+}

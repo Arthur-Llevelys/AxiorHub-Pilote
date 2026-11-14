@@ -391,7 +391,12 @@ def review_items(desk, cached_only=False):
     done = {r[0] for r in desk.db.execute('SELECT item FROM cockpit530_reviewed')}
     out = []
     cache = _drafts(desk, refresh=not cached_only)
-    for d in cache.get('items', []):
+    try:   # 5.6.100 (R04) : chaque brouillon contrôlé sur son origine pour la personne de la requête, avant titres et compteurs
+        from .acces_courriel56100 import filtrer_brouillons_caches
+        brouillons = filtrer_brouillons_caches(desk, None, desk.c.get('mail') or {}, cache.get('validity', ''), cache.get('items', []))
+    except Stop:   # contrôle en panne : la source est masquée, jamais montrée sans contrôle
+        brouillons = []
+    for d in brouillons:
         try:   # 5.6.89 (B01) : une ligne mal formée n'emporte pas les suivantes
             item = 'mail:%s:%s' % (cache.get('validity', ''), d['uid'])
             if item in done:
@@ -817,14 +822,16 @@ def retry(desk, data):
 
 
 # ======================================================================================== ma journée
-def day_html(desk, prefix):
+def day_html(desk, prefix, evenements_html=None):
+    """Ma journée. 5.6.100 (lot E, § 21.3) : ``evenements_html`` (agenda lu avec les droits de la personne par ``accueil56100.agenda_html``)
+    remplace la liste des événements lue ici ; les tâches, le Deck et les réglages restent ceux de ce bloc."""
     labels = _labels(desk)
     z = tz(desk)
     today = datetime.now(z).date()
     start = datetime.combine(today, dtime.min, z).astimezone(timezone.utc).isoformat()
     end = datetime.combine(today + timedelta(days=1), dtime.min, z).astimezone(timezone.utc).isoformat()
     try:
-        events = [dict(r) for r in desk.db.execute('SELECT id,uid,title,starts,ends,matter FROM calendar_cache WHERE starts<? AND ends>? ORDER BY starts LIMIT 12', (end, start))]
+        events = [] if evenements_html is not None else [dict(r) for r in desk.db.execute('SELECT id,uid,title,starts,ends,matter FROM calendar_cache WHERE starts<? AND ends>? ORDER BY starts LIMIT 12', (end, start))]
     except Exception:
         events = []
     from .workplan import EVENT_UID
@@ -908,7 +915,7 @@ def day_html(desk, prefix):
     return ('<div class="c530-head"><h2 id="c530-t-day">Ma journée</h2><span class="c530-icons">' + add_ev + '</span><a href="%s">Agenda</a></div>%s'
             '<div class="c530-head sub"><h3>Tâches Nextcloud</h3><span class="c530-icons">' + add_tk + '</span><a href="%s">Toutes les tâches</a></div>%s'
             '<div class="c530-head sub"><h3>Deck · %s</h3>%s</div><div class="c530-deck">%s</div><p class="c530-note">%s</p>%s') % (
-        e(prefix + '/planning?vue=agenda'), ('<ul class="c530-list">%s</ul>' % ev_html) if ev_html else '<p class="c530-empty">Rien à l’agenda aujourd’hui.</p>',
+        e(prefix + '/planning?vue=agenda'), evenements_html if evenements_html is not None else ('<ul class="c530-list">%s</ul>' % ev_html) if ev_html else '<p class="c530-empty">Rien à l’agenda aujourd’hui.</p>',
         e(prefix + '/planning?vue=taches'), ('<ul class="c530-list">%s</ul>' % tk_html) if tk_html else '<p class="c530-empty">Aucune tâche ouverte.</p>',
         e(s['board']), ('<a target="_blank" rel="noopener noreferrer" href="%s">Ouvrir dans Deck</a>' % e(board, quote=True)) if board.startswith('https://') else '',
         deck_cols, status, settings_form)

@@ -14,21 +14,27 @@ ECRITURES = frozenset(('gestion/echeances/suivi', 'gestion/echeances/acquitter',
 # Décisions : avocat ou administrateur (un assistant prépare, il ne valide ni ne remet).
 VALIDATIONS = frozenset(('gestion/echeances/saisir', 'gestion/echeances/decider', 'gestion/depots/declarer', 'gestion/honoraires/frais/valider', 'gestion/honoraires/jalon/facturable',
                          'gestion/pieces/qualifier', 'gestion/remises/remettre', 'gestion/remises/transmission', 'gestion/remises/acces', 'gestion/remises/revoquer',
-                         'gestion/remises/verifier', 'gestion/remises/depot-client', 'gestion/cloture/cloturer', 'gestion/cloture/rouvrir'))
+                         'gestion/remises/verifier', 'gestion/remises/depot-client', 'gestion/cloture/cloturer', 'gestion/cloture/rouvrir',
+                         'gestion/cloture/regulariser'))   # 5.6.100 (R10) : décision motivée sur un dossier archivé sans clôture
 ADMINISTRATION = frozenset(('gestion/reglages/remises', 'gestion/reglages/source', 'gestion/restauration/paquet', 'gestion/restauration/verifier'))
 # Droit de famille déclaré par route pour ``membres5650.category`` (écritures) ; « voir_honoraires » est un droit fin des lectures d'honoraires.
 CATEGORIES = {'gestion/echeances/saisir': 'valider', 'gestion/echeances/decider': 'valider', 'gestion/echeances/suivi': 'agenda', 'gestion/depots/declarer': 'valider',
               'gestion/honoraires/frais': 'facturation', 'gestion/honoraires/frais/valider': 'facturation', 'gestion/honoraires/jalon': 'facturation',
               'gestion/honoraires/jalon/facturable': 'facturation', 'gestion/honoraires/brouillon': 'facturation', 'gestion/honoraires/synchroniser': 'facturation',
               'gestion/pieces/qualifier': 'valider', 'gestion/remises/remettre': 'envoyer', 'gestion/remises/depot-client': 'envoyer', 'gestion/remises/revoquer': 'envoyer',
-              'gestion/cloture/cloturer': 'valider', 'gestion/cloture/rouvrir': 'valider', 'gestion/reglages/remises': 'reglages', 'gestion/reglages/source': 'reglages'}
+              'gestion/cloture/cloturer': 'valider', 'gestion/cloture/rouvrir': 'valider', 'gestion/cloture/regulariser': 'valider', 'gestion/reglages/remises': 'reglages', 'gestion/reglages/source': 'reglages'}
 STATUS = {'introuvable': '404 Not Found', 'route_inconnue': '404 Not Found', 'role_insuffisant': '403 Forbidden', 'acteur_requis': '403 Forbidden',
           'origine_ou_csrf_refuse': '403 Forbidden', 'version_en_conflit': '409 Conflict', 'version_requise': '409 Conflict', 'cle_idempotence_deja_utilisee': '409 Conflict',
-          'cloture_bloquee': '409 Conflict', 'controle_acces_indisponible': '503 Service Unavailable'}
+          'cloture_bloquee': '409 Conflict', 'controle_acces_indisponible': '503 Service Unavailable',
+          'dossier_deja_archive': '409 Conflict', 'dossier_non_archive': '409 Conflict', 'cloture_deja_enregistree': '409 Conflict',   # 5.6.100
+          'transaction_interrompue': '503 Service Unavailable'}
 MESSAGES = {'introuvable': 'Élément introuvable.', 'role_insuffisant': 'Action réservée à un autre rôle ou à un autre droit du cabinet.',
             'version_en_conflit': 'Cette page n’est plus à jour : rechargez-la ; rien n’a été écrasé.', 'version_requise': 'Rechargez la page avant de décider.',
             'cle_idempotence_requise': 'Rechargez la page avant de renvoyer ce formulaire.', 'cle_idempotence_deja_utilisee': 'Ce formulaire a déjà servi pour une autre demande : rechargez la page.',
-            'cloture_bloquee': 'Des points bloquent encore la clôture : traitez-les ou motivez la décision.', 'source_requise': 'Indiquez la source de la date (pièce, page, courriel).',
+            'cloture_bloquee': 'Des points bloquent encore la clôture : traitez-les ou motivez la décision.',
+            'dossier_deja_archive': 'Ce dossier est déjà archivé.', 'dossier_non_archive': 'Ce dossier n’est pas archivé.',
+            'cloture_deja_enregistree': 'La décision de clôture de ce dossier est déjà enregistrée.',
+            'transaction_interrompue': 'L’enregistrement a été interrompu : rien n’a été validé, réessayez.', 'source_requise': 'Indiquez la source de la date (pièce, page, courriel).',
             'preuve_accomplissement_requise': 'Indiquez la preuve de l’accomplissement : l’acquittement d’un rappel ne suffit pas.',
             'rappel_sur_echeance_confirmee_seulement': 'Un rappel ne porte que sur une échéance confirmée.', 'rappel_destinataire_et_date_requis': 'Un rappel exige un destinataire et une date.',
             'depot_non_declare': 'Déclarez d’abord le dépôt (canal, identifiant d’envoi, date).', 'reference_envoi_date_requis': 'Indiquez la référence, l’identifiant d’envoi et la date lus sur l’accusé.',
@@ -166,6 +172,8 @@ def _api(env, desk, auth, prefix, name, args, method):
         return json_out(cloture5697.cloturer(desk, acteur, mid, data))
     if route == 'gestion/cloture/rouvrir':
         return json_out(cloture5697.rouvrir(desk, acteur, mid, data))
+    if route == 'gestion/cloture/regulariser':   # 5.6.100 (R10)
+        return json_out(cloture5697.regulariser(desk, acteur, mid, data))
     if route == 'gestion/reglages/remises':
         return json_out(remises5697.enregistrer_reglages(desk, acteur, data))
     if route == 'gestion/reglages/source':

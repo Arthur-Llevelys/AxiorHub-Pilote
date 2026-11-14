@@ -413,7 +413,8 @@ def _demarrage(desk, auth, prefix, env, cap):   # 5.6.89 : assistant de démarra
 def _interface(desk, auth, prefix, env, cap):   # 5.6.89 : drapeaux de la nouvelle interface, anciennes vues rangées
     from .ui_drapeaux5689 import anciennes_vues_html, reglages_html
     from .web567 import actor
-    return reglages_html(desk, actor(env)[1] == 'administrateur') + anciennes_vues_html(prefix)
+    from .reactivite56100 import section_cabinet   # 5.6.100 (lot F) : nouvelle interface pour le cabinet (administrateur), le reste dans Mon compte
+    return section_cabinet(desk, prefix, actor(env)[1]) + reglages_html(desk, actor(env)[1] == 'administrateur') + anciennes_vues_html(prefix)
 
 
 BUILDERS = {'apercu': _apercu, 'interface': _interface, 'demarrage': _demarrage, 'connexions': _connexions, 'stockage': _stockage, 'ia': _ia, 'horaires': _horaires, 'voix': _voix, 'routines': _routines, 'documents': _documents,

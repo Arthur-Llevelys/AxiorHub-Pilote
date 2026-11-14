@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 from .common import Stop, matter_display
 
 STATES = (('active', 'Actifs'), ('dormant', 'En sommeil'), ('to_confirm', 'À confirmer'), ('archived', 'Archivés'), ('all', 'Tous'))
-STATE_LABELS = {'active': 'Actif', 'dormant': 'En sommeil', 'archived': 'Archivé', 'to_confirm': 'À confirmer'}
+STATE_LABELS = {'active': 'Actif', 'dormant': 'En sommeil', 'archived': 'Archivé', 'to_confirm': 'À confirmer', 'a_calculer': 'À calculer'}
 COLUMNS = (('nom', 'Dossier'), ('numero', 'Numéro'), ('etat', 'État'), ('activite', 'Dernière activité'), ('ia', 'Travail de l’IA'),
            ('correspondants', 'Correspondants'), ('principal', 'Correspondant principal'), ('textes', 'Textes indexés'))
 NUMERIC = ('correspondants', 'textes')
@@ -74,10 +74,21 @@ def page_html(c, desk, matters, args, prefix, form, link):
     la vue du portefeuille de la 5.6.79 reste disponible, repliée en dessous."""
     from .membres5650 import current_author, viewer_role
     from . import dossiers_ui5697
+    if args.get('volet') == 'portefeuille':
+        # 5.6.100 (R05) : route de lecture du volet, chargée au dépli (``v56100-integrite.js``) ou ouverte telle quelle sans script.
+        return ('<p><a href="%s">← Retour aux dossiers</a></p><section class="d97-ancien" aria-label="Portefeuille détaillé" data-c100-volet-contenu>%s</section>' % (
+            e(prefix + '/dossiers', quote=True), _page_html5679(c, desk, matters, args, prefix, form, link)))
     env = {'HTTP_X_AXIORHUB_USER': current_author() or 'cabinet', 'HTTP_X_AXIORHUB_ROLE': viewer_role()}
     tete = dossiers_ui5697.ecran(desk, env, {}, prefix, args) + '<script defer src="%s/static/v5697-dossiers.js"></script>' % e(prefix, quote=True)
-    return tete + ('<details class="d97-ancien"%s><summary>Portefeuille détaillé : états, travail de l’IA, textes indexés, outils</summary>%s</details>' % (
-        ' open' if args.get('state') or args.get('tri') or args.get('mail_key') else '', _page_html5679(c, desk, matters, args, prefix, form, link)))
+    titre = '<summary>Portefeuille détaillé : états, travail de l’IA, textes indexés, outils</summary>'
+    if args.get('state') or args.get('tri') or args.get('mail_key'):   # demandé explicitement (filtre, tri, courriel à rattacher) : rendu ouvert
+        return tete + '<details class="d97-ancien" open>%s%s</details>' % (titre, _page_html5679(c, desk, matters, args, prefix, form, link))
+    # 5.6.100 (R05) : replié, le volet n'est ni calculé ni lu (aucune requête du portefeuille) ; il se charge à l'ouverture.
+    adresse = prefix + '/dossiers?' + urlencode({'volet': 'portefeuille'})
+    return tete + ('<details class="d97-ancien" data-c100-volet="%s">%s<div data-c100-volet-hote><p class="ax-muted" data-c100-volet-etat role="status">'
+                   'Le portefeuille détaillé se charge à l’ouverture. <a href="%s">Ouvrir le portefeuille détaillé</a></p></div></details>'
+                   '<script defer src="%s/static/v56100-integrite.js"></script>') % (
+        e(adresse, quote=True), titre, e(adresse, quote=True), e(prefix, quote=True))
 
 
 def _page_html5679(c, desk, matters, args, prefix, form, link):
@@ -99,12 +110,18 @@ def _page_html5679(c, desk, matters, args, prefix, form, link):
     if not query:
         out += recent_cards(desk, prefix, by_id, ai)
     counts = dict(pc)
+    if summary.get('classification_pending'):   # 5.6.100 (R05) : calculé par le travail de fond, jamais pendant l'affichage
+        out += '<p class="ax-muted" role="status">%d dossier%s à calculer : l’état sera calculé par le travail de fond.</p>' % (
+            summary['classification_pending'], '' if summary['classification_pending'] == 1 else 's')
     out += '<nav class="d79-chips" aria-label="États">%s</nav>' % ''.join(
         '<a href="%s"%s>%s <span>%d</span></a>' % (e(prefix + '/dossiers?' + urlencode({'state': k, **({'q': query} if query else {})}), quote=True),
                                                   ' aria-current="true"' if k == state else '', e(v), sum(counts.values()) if k == 'all' else counts.get(k, 0))
         for k, v in STATES)
     from .common import fold
     listed = portfolio_rows(desk, None if state == 'all' else [state], limit=5000, refresh_missing=False)
+    if state == 'all':   # 5.6.100 (R05) : un dossier pas encore classé est listé « À calculer », sans calcul ni écriture ici
+        connus = {i['matter'] for i in listed}
+        listed += [{'matter': m['id'], 'state': 'a_calculer', 'last_external_activity': ''} for m in matters if m['id'] not in connus]
     indexed = _indexed_counts(c)
     corr = correspondents_summary(desk, [by_id[i['matter']] for i in listed if i['matter'] in by_id])
     hidden = paused(desk)

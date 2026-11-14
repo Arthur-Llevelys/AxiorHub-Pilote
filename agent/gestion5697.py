@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS clotures5697(id TEXT PRIMARY KEY, parametres TEXT NOT
 CREATE INDEX IF NOT EXISTS clotures5697_m ON clotures5697(matter, at);
 CREATE TABLE IF NOT EXISTS entrees_archivees5697(id TEXT PRIMARY KEY, matter TEXT NOT NULL, nature TEXT NOT NULL, ref TEXT NOT NULL, responsable TEXT NOT NULL DEFAULT '', at TEXT NOT NULL,
   UNIQUE(matter, nature, ref));
+CREATE TABLE IF NOT EXISTS cloture_suites56100(cloture_id TEXT NOT NULL, etape TEXT NOT NULL, matter TEXT NOT NULL, etat TEXT NOT NULL, essais INTEGER NOT NULL DEFAULT 0,
+  erreur TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, updated TEXT NOT NULL, PRIMARY KEY(cloture_id, etape));
+CREATE INDEX IF NOT EXISTS cloture_suites56100_m ON cloture_suites56100(matter, etat);
 '''
 VALIDEURS = ('administrateur', 'avocat')
 CLE = re.compile(r'^[A-Za-z0-9_.:-]{8,80}$')     # même forme que le registre unique des dossiers

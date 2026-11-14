@@ -49,11 +49,21 @@ def b64u(raw):
 # ------------------------------------------------------------------------------------------ résumé neutre
 def counts(desk, today=None):
     today = today or date.today()
-    drafts = desk.db.execute("SELECT COUNT(*) FROM work_items WHERE state='draft_ready'").fetchone()[0]
+    # 5.6.100 (R04) : rien hors du périmètre de la personne de la requête — brouillons passés par la garde commune des courriels
+    # (rattachements du message ET dossier du projet), échéances sans les dossiers réservés à d'autres comptes
+    from .membres5650 import viewer_hidden
+    caches = sorted(str(x) for x in (viewer_hidden() or ()))
+    rows = [{'mail_key': r[0], 'matter': r[1] or ''} for r in desk.db.execute("SELECT mail_key, matter FROM work_items WHERE state='draft_ready'")]
+    if caches and rows:
+        from .acces_courriel56100 import filtrer
+        rows = filtrer(desk, None, rows)
+    drafts = len(rows)
     limit = (today + timedelta(days=DEADLINE_DAYS)).isoformat()
     try:
-        deadlines = desk.db.execute(
-            "SELECT COUNT(*) FROM deadlines450 WHERE status NOT IN ('terminee','annulee') AND due<>'' AND due<=?", (limit,)).fetchone()[0]
+        sql = "SELECT COUNT(*) FROM deadlines450 WHERE status NOT IN ('terminee','annulee') AND due<>'' AND due<=?"
+        if caches:
+            sql += ' AND matter NOT IN (%s)' % ','.join('?' * len(caches))
+        deadlines = desk.db.execute(sql, [limit] + caches).fetchone()[0]
     except Exception:
         deadlines = 0
     from .appareils5674 import pending_count   # 5.6.74 : éléments « À décider / À relire » (nombre seulement)

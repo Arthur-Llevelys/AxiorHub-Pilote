@@ -281,9 +281,11 @@ class _ModeleDiffere:
         return getattr(self._instance, name)
 
 
-def threads(desk, limit=30):
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
-    desk.db.execute('DELETE FROM assistant_threads WHERE updated<?', (cutoff,)); desk.db.commit()
+def threads(desk, limit=30, purger=True):
+    """Dernières conversations. 5.6.100 (R05) : ``purger=False`` pour les écrans de consultation (tableau de bord) : aucune écriture."""
+    if purger:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+        desk.db.execute('DELETE FROM assistant_threads WHERE updated<?', (cutoff,)); desk.db.commit()
     rows = desk.db.execute('SELECT * FROM assistant_threads ORDER BY updated DESC LIMIT ?',
                            (max(1, min(int(limit), 100)),)).fetchall()
     return [dict(x) for x in rows]
@@ -323,12 +325,15 @@ def cabinet_search(c, query, limit=12):
             'warning': 'Résultats limités aux contenus déjà indexés ; chaque extrait reste à vérifier dans sa source.'}
 
 
-def dashboard(desk):
+def dashboard(desk, synchroniser=False):
+    """Tableau de bord. 5.6.100 (R05) : lecture seule par défaut (pages, API) ; seul le travail de fond (tableau quotidien) synchronise
+    la boîte métier (``synchroniser=True``) avant de compter."""
     from .legal_memory import ensure_schema
     ensure_schema(desk)
     from .strategic import ensure_schema as ensure_strategic_schema
     ensure_strategic_schema(desk)
-    sync_work_items(desk)
+    if synchroniser:
+        sync_work_items(desk)
     counts = {row[0]: row[1] for row in desk.db.execute(
         'SELECT state,COUNT(*) FROM work_items GROUP BY state')}
     index = DocumentIndex(desk.c['state_dir'])
@@ -363,7 +368,7 @@ def dashboard(desk):
                        'summary': summary})
     active_jobs = [dict(x) for x in desk.db.execute(
         "SELECT id,kind,status,priority,created FROM jobs WHERE status IN ('pending','running','cancel_requested') ORDER BY priority,id LIMIT 20")]
-    last_threads = threads(desk, 8)
+    last_threads = threads(desk, 8, purger=synchroniser)
     def scoped_count(table,condition):
         if not active_ids:return 0
         marks=','.join('?' for _ in active_ids)

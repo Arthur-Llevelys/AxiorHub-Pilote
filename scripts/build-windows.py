@@ -71,6 +71,8 @@ def icon(build):
 
 
 APP_SPEC = '''# -*- mode: python -*-
+import sys
+sys.setrecursionlimit(max(sys.getrecursionlimit(), 5000))   # 5.6.100 : chaîne d'imports plus profonde (remède documenté par PyInstaller)
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files, collect_dynamic_libs
 hidden = collect_submodules('agent') + collect_submodules('windows') + {hidden!r}
 for name in {third!r}:

@@ -4,7 +4,8 @@ Identité d'un message : (compte, boîte, UIDVALIDITY, UID), dont la clé ``mail
 sont lus dans les registres du serveur, message par message :
 
 - ``work_items.matter`` (collecteur), ``portfolio_mail_links`` (rattachements proposés, automatiques ou confirmés ; un rattachement rejeté ne
-  compte pas), ``mail_archive_links`` (correspondance conservée dans un dossier, non retirée), le rapport de l'agent (``reports/<clé>.json``) ;
+  compte pas), ``mail_archive_links`` (correspondance conservée dans un dossier, non retirée), le rapport de l'agent (``reports/<clé>.json``),
+  le dossier du projet de réponse préparé pour ce message (``manual_drafts``, 5.6.100) ;
 - le registre des affaires du lot dossiers, s'il expose ``dossiers5697.rattachements_messages(desk, cles)``.
 
 Un rattachement affiché, un champ POST, le suivi d'un fil ou le dernier dossier du fil ne confèrent **aucun** droit : ils ne sont jamais lus
@@ -103,6 +104,24 @@ def _archives(desk, cles):
     return out
 
 
+def _projets(desk, cles):
+    """5.6.100 (R04) : dossier enregistré dans le projet de réponse préparé pour chaque message (``manual_drafts``). Un projet hérite des
+    restrictions de son message et le message de celles de son projet ; une valeur « sans dossier » n'efface aucun autre rattachement.
+    Données du projet illisibles : ``ILLISIBLE`` (jamais « aucun dossier »)."""
+    out = {}
+    for i in range(0, len(cles), LOT):
+        part = cles[i:i + LOT]
+        try:
+            rows = desk.db.execute("SELECT mail_key, CASE WHEN json_valid(data) THEN COALESCE(json_extract(data,'$.matter'),'') ELSE ? END "
+                                   "FROM manual_drafts WHERE mail_key IN (%s)" % ','.join('?' * len(part)), [ILLISIBLE] + part).fetchall()
+        except sqlite3.Error:                    # table pas encore créée sur cette installation : aucun projet
+            return out
+        for cle, matter in rows:
+            if matter not in (None, ''):
+                out.setdefault(str(cle), set()).add(str(matter))
+    return out
+
+
 def _rapport(desk, cle):
     """Dossier noté par l'agent dans son rapport ; rapport absent : rien. Rapport présent mais illisible : ``ILLISIBLE`` (jamais « aucun dossier »)."""
     path = Path(str(desk.c['state_dir'])) / 'reports' / (cle + '.json')
@@ -125,6 +144,8 @@ def dossiers_par_cle(desk, cles, rapports=True):
     for cle, matter in _lignes(desk, "SELECT mail_key, matter FROM portfolio_mail_links WHERE mail_key IN (%s) AND matter<>'' AND status<>'rejected'", cles):
         out[cle].add(str(matter))
     for cle, matters in _archives(desk, cles).items():
+        out[cle] |= matters
+    for cle, matters in _projets(desk, cles).items():   # 5.6.100 (R04) : dossier du projet de réponse de ce message
         out[cle] |= matters
     try:
         from . import dossiers5697                       # registre unique des affaires (lot dossiers), s'il expose ses rattachements

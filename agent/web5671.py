@@ -34,14 +34,17 @@ def api(env, desk, auth, prefix, name, args, method):
     data = _post(env, auth, 60_000)
     from . import reponses5671 as rep
     key = str(data.get('key') or '')
+    # 5.6.100 (R09) : déposer et écarter exigent la version affichée (formulaire sans version ou version remplacée : 409, aucun effet)
+    revision = str(data.get('revision') or '')
     if route == 'reponse/deposer':
         corps = data.get('corps')
         return json_out(rep.deposer(desk, owner, key, body=None if corps is None else str(corps),
-                                    a_completer=str(data.get('a_completer') or '') == 'oui'))
+                                    a_completer=str(data.get('a_completer') or '') == 'oui', revision=revision))
     if route == 'reponse/ecarter':
-        return json_out(rep.ecarter(desk, owner, key))
+        return json_out(rep.ecarter(desk, owner, key, revision=revision))
     if route == 'reponse/garder':
-        return json_out(rep.garder_variante(desk, owner, key, data.get('choix'), str(data.get('variante') or ''), str(data.get('version') or '')))
+        return json_out(rep.garder_variante(desk, owner, key, data.get('choix'), str(data.get('variante') or ''), str(data.get('version') or ''),
+                                            revision=None if data.get('revision') is None else revision))
     if route == 'reponse/relancer':
         return json_out(rep.relancer(desk, owner, key, str(data.get('fournisseur') or ''), str(data.get('instruction') or '')))
     if route == 'reglage/notes':

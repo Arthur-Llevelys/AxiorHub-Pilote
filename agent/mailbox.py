@@ -10,6 +10,7 @@ import imaplib
 import re
 import socket
 import ssl
+import time
 
 from .common import Stop, digest, fold, read_secret
 
@@ -259,10 +260,78 @@ def connect(cfg):
         raise Stop('connexion_imap_echouee') from None
 
 
+def _noter_imap(secondes, commandes=1):
+    """5.6.100 (lot F, R08) : temps et nombre de commandes IMAP de la requête de page en cours (``Server-Timing``), des nombres seulement."""
+    try:
+        from .affichage5696 import requete_imap
+        requete_imap(secondes, commandes)
+    except Exception:   # noqa: BLE001 — la mesure ne gêne jamais la messagerie
+        pass
+
+
+# Commandes qui partent vers le serveur : comptées et chronométrées ; ``response``, ``capabilities``… sont des lectures locales.
+_COMMANDES_SERVEUR = frozenset(('login', 'select', 'uid', 'search', 'fetch', 'append', 'list', 'lsub', 'status', 'store', 'copy', 'expunge', 'noop',
+                                'create', 'delete', 'rename', 'subscribe', 'logout', 'capability', 'namespace', 'getquota', 'idle', 'move', 'starttls'))
+
+
+class _ConnexionMesuree:
+    """5.6.100 (lot F, R08) : connexion ``imaplib`` dont chaque commande vers le serveur est chronométrée pour ``Server-Timing``. Tout le reste
+    (attributs, réponses en attente, socket) passe tel quel : aucune commande ajoutée, aucun contenu noté."""
+    __slots__ = ('_conn',)
+
+    def __init__(self, conn):
+        object.__setattr__(self, '_conn', conn)
+
+    def __getattr__(self, nom):
+        valeur = getattr(self._conn, nom)
+        if nom not in _COMMANDES_SERVEUR or not callable(valeur):
+            return valeur
+
+        def mesuree(*args, **kwargs):
+            debut = time.perf_counter()
+            try:
+                return valeur(*args, **kwargs)
+            finally:
+                _noter_imap(time.perf_counter() - debut)
+        return mesuree
+
+    def __setattr__(self, nom, valeur):
+        setattr(self._conn, nom, valeur)
+
+
+# 5.6.100 (lot F, R07) : en-têtes lus pour une liste (aucun corps) et taille d'un lot UID FETCH.
+CHAMPS_LISTE = ('FROM', 'TO', 'CC', 'SUBJECT', 'DATE', 'MESSAGE-ID', 'CONTENT-TYPE')
+LOT_ENTETES = 100
+
+
+def _reponses_fetch(data):
+    """Réponse brute d'un UID FETCH groupé -> [(méta, littéral ou None)]. Un message arrive en tuple (préfixe, littéral) suivi d'un
+    complément (``)`` ou `` FLAGS (...))`` selon le serveur) ; une réponse sans littéral (drapeaux non sollicités) reste seule."""
+    sortie, courant = [], None
+    for element in data or ():
+        if isinstance(element, tuple) and len(element) >= 2:
+            if courant is not None:
+                sortie.append(courant)
+            courant = [bytes(element[0] or b''), element[1] if isinstance(element[1], bytes) else None]
+        elif isinstance(element, bytes):
+            if courant is not None and not re.match(rb'\d+ \(', element):
+                courant[0] += b' ' + element
+            else:
+                if courant is not None:
+                    sortie.append(courant)
+                    courant = None
+                sortie.append([element, None])
+    if courant is not None:
+        sortie.append(courant)
+    return [(m, l) for m, l in sortie]
+
+
 class Mailbox:
     def __init__(self, cfg):
         self.cfg = cfg
-        self.conn = connect(cfg)
+        debut = time.perf_counter()
+        self.conn = _ConnexionMesuree(connect(cfg))
+        _noter_imap(time.perf_counter() - debut, 0)   # 5.6.100 (lot F) : connexion et TLS comptés en temps, pas en commandes
         from .traces5694 import etape
         etape('imap', 'login')
         try:
@@ -289,6 +358,55 @@ class Mailbox:
         self.selected, self.validity = folder, vv[0].decode()
         return self.validity
 
+    def search_selection(self, *criteria):
+        """5.6.100 (lot F, R07) : UID SEARCH dans la boîte déjà sélectionnée par ``select`` (aucune nouvelle sélection)."""
+        if not self.selected:
+            raise Stop('dossier_imap_non_selectionne')
+        from .charge5693 import compter
+        compter('imap')
+        from .traces5694 import etape
+        etape('imap', 'search')
+        status, result = self.conn.uid('SEARCH', None, *criteria)
+        if status != 'OK': raise Stop('recherche_imap_echouee')
+        return result[0].decode().split() if result and result[0] else []
+
+    def entetes(self, folder, uids, expected_validity=None):
+        """5.6.100 (lot F, R07) : en-têtes utiles (``CHAMPS_LISTE``), drapeaux et date de réception d'une page de messages en UID FETCH
+        groupés (``LOT_ENTETES`` par commande), sans aucun corps ni marquage « lu » (``BODY.PEEK``). La boîte n'est sélectionnée que si elle
+        ne l'est pas déjà ; l'UIDVALIDITY attendue est comparée à celle de la sélection courante (``uidvalidity_modifiee`` sinon).
+        Rend {uid: Mail} ; un message disparu ou sans date de réception lisible est simplement absent, comme avant."""
+        validity = self.validity if (self.selected == folder and self.validity) else self.select(folder)
+        if expected_validity is not None and str(expected_validity) != str(validity):
+            raise Stop('uidvalidity_modifiee')
+        uids = [str(u) for u in uids if re.fullmatch(r'\d{1,12}', str(u))]
+        trouves = {}
+        from .charge5693 import compter
+        from .traces5694 import etape
+        demande = '(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (%s)])' % ' '.join(CHAMPS_LISTE)
+        for debut in range(0, len(uids), LOT_ENTETES):
+            lot = uids[debut:debut + LOT_ENTETES]
+            compter('imap')
+            etape('imap', 'fetch')
+            status, data = self.conn.uid('FETCH', ','.join(lot), demande)
+            if status != 'OK':
+                raise Stop('lecture_imap_echouee')
+            octets = 0
+            for meta, litteral in _reponses_fetch(data):
+                uid = re.search(rb'UID (\d+)', meta)
+                date = re.search(rb'INTERNALDATE "([^"]+)"', meta)
+                if not uid or litteral is None or not date:
+                    continue
+                try:
+                    stamp = datetime.strptime(date[1].decode(), '%d-%b-%Y %H:%M:%S %z')
+                except ValueError:
+                    continue
+                octets += len(litteral)
+                flags = {x.decode() for x in imaplib.ParseFlags(meta)}
+                message = BytesParser(policy=policy.default).parsebytes(litteral)
+                trouves[uid[1].decode()] = Mail(uid[1].decode(), validity, folder, flags, stamp, message)
+            compter('imap_octets', octets)
+        return trouves
+
     def search(self, folder, *criteria):
         self.select(folder)
         from .charge5693 import compter
@@ -299,8 +417,10 @@ class Mailbox:
         if status != 'OK': raise Stop('recherche_imap_echouee')
         return result[0].decode().split() if result and result[0] else []
 
-    def fetch(self, folder, uid, headers_only=False):
+    def fetch(self, folder, uid, headers_only=False, *, expected_validity=None):
         validity = self.select(folder)
+        if expected_validity is not None and str(expected_validity) != validity:
+            raise Stop('uidvalidity_modifiee')
         from .charge5693 import compter
         compter('imap', 2)
         from .traces5694 import etape
@@ -512,6 +632,16 @@ class Mailbox:
             raise Stop('rappel_destinataire_refuse')
         status, _ = self.conn.append('INBOX', '', imaplib.Time2Internaldate(datetime.now(timezone.utc)), message.as_bytes(policy=policy.SMTP))
         if status != 'OK': raise Stop('append_imap_incertain')
+
+
+_MAILBOX_REELLE = Mailbox
+
+
+def lot_possible(box):
+    """5.6.100 (lot F) : la boîte sait-elle lister par lot (vraie ``Mailbox``, ``select``/``search``/``fetch`` non redéfinis) ? Les doubles
+    d'essai historiques (fausses boîtes, sous-classes) gardent la lecture message par message."""
+    cls = type(box)
+    return isinstance(box, _MAILBOX_REELLE) and all(getattr(cls, n, None) is getattr(_MAILBOX_REELLE, n) for n in ('select', 'search', 'fetch'))
 
 
 def make_draft(mail, cfg, body, key, cc=(), to=None):

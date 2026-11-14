@@ -532,10 +532,12 @@ def _virtuels(desk, perimetre):
     """Avant la migration : dossiers du registre JSON pas encore importés, en lecture seule (mêmes droits, jamais d'écriture)."""
     connus = {r[0] for r in desk.db.execute('SELECT id FROM dossiers5697')}
     out = []
-    from .bruit5668 import depot_folder
+    from .rangement56100 import exclu_historique, types
+    choix = types(desk)
     for m in _registre_json(desk):
         mid = str(m.get('id') or '')
-        if not mid or mid in connus or mid not in perimetre or depot_folder(m):   # 5.6.99 : un répertoire de dépôt n'est pas un dossier
+        # 5.6.99 : un répertoire de dépôt n'est pas un dossier ; 5.6.100 (§ 13) : le type choisi (Affaire / Cabinet / Dépôt) prime sur le nom
+        if not mid or mid in connus or mid not in perimetre or exclu_historique(m, choix.get(mid)):
             continue
         from .common import matter_display
         out.append({'id': mid, 'reference': mid, 'ref': mid, 'titre': matter_display(m), 'client': str(m.get('client_name') or ''),
@@ -573,9 +575,12 @@ def lister(desk, acteur, filtres=None, limite=200):
     rows = desk.db.execute('SELECT d.* FROM dossiers5697 d WHERE %s ORDER BY d.modifie_le DESC, d.id' % ' AND '.join(where), args).fetchall()
     q = _plier(f.get('q') or '')[:120]
     out = []
-    from .bruit5668 import depot_label
+    from .rangement56100 import exclu_registre, types
+    choix = types(desk)
     for row in rows:
-        if depot_label(row['chemin']) or depot_label(row['titre']):   # 5.6.99 : répertoire de dépôt importé avant la 5.6.99 : hors de la liste
+        # 5.6.99 : répertoire de dépôt importé avant la 5.6.99 : hors de la liste ; 5.6.100 (§ 13) : type choisi d'abord, et une vraie affaire
+        # (client, RG, création à la main) ne disparaît jamais sur une simple ressemblance de nom
+        if exclu_registre(dict(row), choix.get(row['id'])):
             continue
         if q:
             noms = ' '.join(p[0] for p in desk.db.execute('SELECT nom FROM dossier_parties5697 WHERE dossier_id=?', (row['id'],)))
@@ -604,6 +609,11 @@ def journal(desk, acteur, ident, limite=50):
 def modifier(desk, acteur, ident, version, changements, cle):
     """Modification avec version attendue (périmée : 409 ``version_perimee``) et clé d'idempotence. Une référence changée garde
     l'ancienne comme alias (anciens liens valables)."""
+    return _modifier(desk, acteur, ident, version, changements, cle)
+
+
+def _modifier(desk, acteur, ident, version, changements, cle, *, transition_cloture=False):
+    """Le service de clôture est le seul appelant autorisé à passer transition_cloture=True."""
     ensure_schema(desk)
     a = _acteur(acteur)
     _peut_ecrire(a)
@@ -611,6 +621,8 @@ def modifier(desk, acteur, ident, version, changements, cle):
     if not courant or not _visible(desk, a, courant):
         raise Stop('introuvable')
     ch = {k: changements[k] for k in CHAMPS_MODIFIABLES if isinstance(changements, dict) and k in changements}
+    if 'statut' in ch and not transition_cloture:
+        raise Stop('utiliser_cloture')
     if not ch:
         raise Refus('champs_invalides', {'': 'Aucune modification.'})
     try:
@@ -621,47 +633,77 @@ def modifier(desk, acteur, ident, version, changements, cle):
         raise Stop('role_insuffisant')
     cabinet = _cabinet(desk)
     with _transaction(desk):
-        empreinte, deja = _commande(desk, cabinet, a, 'modifier:' + courant, cle, {'version': version, **ch})
-        if deja:
-            return deja
-        row = desk.db.execute('SELECT * FROM dossiers5697 WHERE id=?', (courant,)).fetchone()
-        if row['version'] != version:
-            raise Stop('version_perimee')
-        base = {'titre': row['titre'], 'client': row['client'], 'client_etat': row['client_etat'], 'nature': row['nature'],
-                'responsable': row['responsable'], 'juridiction': row['juridiction'], 'rg': row['rg'], 'reference': row['ref'],
-                'confidentialite': row['confidentialite']}
-        v = valider(desk, {**base, **ch, 'emplacement': {'mode': 'creer'}}, a)
-        maj = {}
-        for k in ('titre', 'client', 'client_etat', 'nature', 'responsable', 'juridiction', 'rg'):
-            if k in ch and v[k] != row[k]:
-                maj[k] = v[k]
-        if 'statut' in ch:
-            if ch['statut'] not in STATUTS:
-                raise Refus('champs_invalides', {'statut': 'Statut inconnu.'})
-            if ch['statut'] != row['statut']:
-                maj['statut'] = ch['statut']
-        if 'resume' in ch:
-            try:
-                resume = _texte(str(ch['resume']).replace('\n', ' '), 4000)
-            except ValueError:
-                raise Refus('champs_invalides', {'resume': 'Résumé trop long.'}) from None
-            if resume != row['resume']:
-                maj['resume'] = resume
-        if 'reference' in ch and v['reference'] and v['reference'] != row['ref']:
-            if v['reference'] in _refs_existantes(desk, cabinet):
-                raise Refus('reference_deja_utilisee', {'reference': 'Cette référence est déjà utilisée.'})
-            _alias(desk, 'ref', row['ref'], courant)
-            _alias(desk, 'ref', v['reference'], courant)
-            maj['ref'] = maj['ref_norm'] = v['reference']
-        quand = _maintenant()
-        if maj:
-            sets = ', '.join('%s=?' % k for k in maj)
-            desk.db.execute('UPDATE dossiers5697 SET %s, version=version+1, modifie_le=?, modifie_par=? WHERE id=? AND version=?' % sets,
-                            list(maj.values()) + [quand, a.compte, courant, version])
-            _journal(desk, courant, a.compte, 'modification', {'champs': sorted(k for k in maj if k != 'ref_norm'), 'version': version + 1})
-        recu = _recu(desk, courant, 'modifier', cle, quand)
-        _enregistrer_commande(desk, cabinet, a, 'modifier:' + courant, cle, empreinte, recu)
-    projeter(desk, courant)
+        recu = _appliquer_modification(desk, a, cabinet, courant, version, ch, cle)
+    if not recu.get('rejoue'):
+        projeter(desk, courant)
+    return recu
+
+
+def transition_cloture(desk, acteur, ident, version, statut, cle):
+    """5.6.100 (R10) : changement de statut du registre unique réservé au service de clôture (``cloture5697``), exécuté DANS la
+    transaction que ce service a ouverte : contrôles relus, statut, état local, décision et journal sont validés ensemble ou pas du
+    tout. Aucune route publique n'y mène (la modification publique refuse ``statut`` : ``utiliser_cloture``) ; la projection JSON
+    (``projeter``) est refaite par le service après la validation. Renvoie (identifiant courant, reçu)."""
+    if not desk.db.in_transaction:
+        raise Stop('transaction_requise')
+    a = _acteur(acteur)
+    _peut_ecrire(a)
+    courant = resoudre(desk, ident)
+    if not courant or not _visible(desk, a, courant):
+        raise Stop('introuvable')
+    if statut not in STATUTS:
+        raise Refus('champs_invalides', {'statut': 'Statut inconnu.'})
+    if statut == 'archive' and a.role not in ('administrateur', 'avocat'):
+        raise Stop('role_insuffisant')
+    try:
+        version = int(version)
+    except (TypeError, ValueError):
+        raise Refus('champs_invalides', {'version': 'Version attendue manquante.'}) from None
+    return courant, _appliquer_modification(desk, a, _cabinet(desk), courant, version, {'statut': statut}, cle)
+
+
+def _appliquer_modification(desk, a, cabinet, courant, version, ch, cle):
+    """Corps de la modification, dans une transaction ouverte par l'appelant (aucune validation ici)."""
+    empreinte, deja = _commande(desk, cabinet, a, 'modifier:' + courant, cle, {'version': version, **ch})
+    if deja:
+        return deja
+    row = desk.db.execute('SELECT * FROM dossiers5697 WHERE id=?', (courant,)).fetchone()
+    if row['version'] != version:
+        raise Stop('version_perimee')
+    base = {'titre': row['titre'], 'client': row['client'], 'client_etat': row['client_etat'], 'nature': row['nature'],
+            'responsable': row['responsable'], 'juridiction': row['juridiction'], 'rg': row['rg'], 'reference': row['ref'],
+            'confidentialite': row['confidentialite']}
+    v = valider(desk, {**base, **ch, 'emplacement': {'mode': 'creer'}}, a)
+    maj = {}
+    for k in ('titre', 'client', 'client_etat', 'nature', 'responsable', 'juridiction', 'rg'):
+        if k in ch and v[k] != row[k]:
+            maj[k] = v[k]
+    if 'statut' in ch:
+        if ch['statut'] not in STATUTS:
+            raise Refus('champs_invalides', {'statut': 'Statut inconnu.'})
+        if ch['statut'] != row['statut']:
+            maj['statut'] = ch['statut']
+    if 'resume' in ch:
+        try:
+            resume = _texte(str(ch['resume']).replace('\n', ' '), 4000)
+        except ValueError:
+            raise Refus('champs_invalides', {'resume': 'Résumé trop long.'}) from None
+        if resume != row['resume']:
+            maj['resume'] = resume
+    if 'reference' in ch and v['reference'] and v['reference'] != row['ref']:
+        if v['reference'] in _refs_existantes(desk, cabinet):
+            raise Refus('reference_deja_utilisee', {'reference': 'Cette référence est déjà utilisée.'})
+        _alias(desk, 'ref', row['ref'], courant)
+        _alias(desk, 'ref', v['reference'], courant)
+        maj['ref'] = maj['ref_norm'] = v['reference']
+    quand = _maintenant()
+    if maj:
+        sets = ', '.join('%s=?' % k for k in maj)
+        desk.db.execute('UPDATE dossiers5697 SET %s, version=version+1, modifie_le=?, modifie_par=? WHERE id=? AND version=?' % sets,
+                        list(maj.values()) + [quand, a.compte, courant, version])
+        _journal(desk, courant, a.compte, 'modification', {'champs': sorted(k for k in maj if k != 'ref_norm'), 'version': version + 1})
+    recu = _recu(desk, courant, 'modifier', cle, quand)
+    _enregistrer_commande(desk, cabinet, a, 'modifier:' + courant, cle, empreinte, recu)
     return recu
 
 
@@ -1105,10 +1147,12 @@ def _importer(desk, m, reserves, refs_prises, rapport, ecrire, cabinet, auteur):
     _journal(desk, mid, auteur, 'migration', {'provenance': provenance, 'note': note})
 
 
-def migrer(desk, acteur, simulation=True):
+def migrer(desk, acteur, simulation=True, types=None):
     """Importe les dossiers existants (JSON du cabinet, enregistrés depuis le navigateur, détectés) dans le registre unique.
     Simulation d'abord ; en réel : sauvegarde des fichiers JSON, import en une transaction, compte rendu conservé. Rejouable : un
-    dossier déjà importé est compté, jamais dupliqué ; un conflit est signalé, jamais fusionné. Aucun effet externe."""
+    dossier déjà importé est compté, jamais dupliqué ; un conflit est signalé, jamais fusionné. Aucun effet externe.
+    5.6.100 (§ 13) : ``types`` = {id: 'affaire' | 'cabinet' | 'depot'} choisis sur l'écran d'import ; sinon le choix déjà enregistré, sinon
+    la règle 5.6.99 (seul un répertoire de dépôt reconnu par son nom n'est pas importé ; « Cabinet » n'est jamais qu'une proposition)."""
     ensure_schema(desk)
     a = _acteur(acteur)
     from .acces5697 import AGENT
@@ -1118,11 +1162,24 @@ def migrer(desk, acteur, simulation=True):
     reserves = set(load(desk.c['state_dir'])['reserves'])
     matters = _registre_json(desk)
     cabinet = _cabinet(desk)
-    from .bruit5668 import depot_folder
-    depots = [str(m.get('id') or '') for m in matters if depot_folder(m)]
-    matters = [m for m in matters if not depot_folder(m)]   # 5.6.99 : un répertoire de dépôt (« 09 - Scanner ») n'est jamais importé comme dossier
+    from . import rangement56100 as R
+    from .common import matter_display
+    choisis = R.choix_valides(types)
+    enregistres = R.types(desk)
+    proposes, effectifs = {}, {}
+    for m in matters:
+        mid = str(m.get('id') or '')
+        proposes[mid] = R.proposer_historique(m)
+        effectifs[mid] = choisis.get(mid) or enregistres.get(mid) or ('depot' if proposes[mid][0] == 'depot' else 'affaire')
+    depots = [mid for mid, t in effectifs.items() if t == 'depot']
+    internes = [mid for mid, t in effectifs.items() if t == 'cabinet']
+    rapport_types = [{'id': str(m.get('id') or ''), 'titre': matter_display(m), 'chemin': str(m.get('path') or ''),
+                      'propose': proposes[str(m.get('id') or '')][0], 'motif': proposes[str(m.get('id') or '')][1],
+                      'type': effectifs[str(m.get('id') or '')], 'explicite': str(m.get('id') or '') in choisis or str(m.get('id') or '') in enregistres}
+                     for m in matters]
+    matters = [m for m in matters if effectifs[str(m.get('id') or '')] == 'affaire']   # un répertoire Dépôt ou Cabinet n'est jamais importé comme dossier
     rapport = {'simulation': bool(simulation), 'a_importer': [], 'deja_importes': 0, 'conflits': [], 'alias': 0, 'alias_ignores': [],
-               'dossiers_lus': len(matters), 'depots_ignores': depots}
+               'dossiers_lus': len(matters), 'depots_ignores': depots, 'cabinet_ignores': internes, 'types': rapport_types}
     if simulation:
         refs = _refs_sqlite(desk)
         for m in matters:
@@ -1130,6 +1187,8 @@ def migrer(desk, acteur, simulation=True):
         return rapport
     rapport['sauvegarde'] = _sauvegarder_json(desk)
     with _transaction(desk):
+        if choisis:
+            R.enregistrer_dans_transaction(desk, a, choisis)
         refs = _refs_sqlite(desk)
         for m in matters:
             _importer(desk, m, reserves, refs, rapport, True, cabinet, a.compte)

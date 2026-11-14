@@ -1,0 +1,59 @@
+{
+  "version": "5.6.100",
+  "base": "5.6.99",
+  "date_utc": "2026-11-14T00:00:00+00:00",
+  "demande": "Audit de la 5.6.99 et cahier des charges 5.6.100 du cabinet, avec dossier technique (correctifs 01 à 03, exemples, SQL, tests).",
+  "decisions_du_cabinet": [
+    "Nouvelle interface active par défaut, réversible (cabinet et compte).",
+    "Bandeau des routines 5.6.99 conservé au-dessus d’« À décider » (contre § 21) ; recette « trois décisions visibles » ramenée à une."
+  ],
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (depuis l’archive extraite, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 6304,
+    "failures": 1,
+    "errors": 2,
+    "skipped": 149,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "proces_verbal_V100": {
+    "V100-01 droits": "Couvert par tests unitaires et WSGI (test_v56100_droits, test_correctifs_56100, test_v56100_integration) : comptes A/B, dossier réservé, URL ancienne et nouvelle, autre boîte, UID réutilisé, UIDVALIDITY changée, droits retirés entre liste et action, zéro FETCH de corps (faux IMAP). Gmail : faux service seulement ; jeton de service du connecteur Claude non exercé.",
+    "V100-02 intégrité": "Couvert (test_v56100_integrite, test_v56100_integration) : aucune écriture métier pendant les lectures (compteur de requêtes), clôture refusée par menu, PATCH et POST, une seule clôture après résolution, coupures et reprise.",
+    "V100-03 dix courriels": "Parcours P100r (Chromium) : dix décisions sans aucun rechargement de document, élément suivant ouvert seul, fin de file, édition conservée ; clic → lecteur prêt 81 ms. Chronométrage humain comparé 5.6.99 / 5.6.100 non joué (exige une personne). Gmail non configuré au banc.",
+    "V100-04 affichage": "Parcours P100r, P99a, P98a, P96b (Chromium) : barre de décision visible à 1920 × 1080 sans défilement ; 390 px sans défilement horizontal avec Retour à la liste ; 125 % et 200 % sans bouton coupé (P96b).",
+    "V100-05 livrables": "Tests test_v56100_produire (correction IA, comparaison, conflit sans écrasement, export, IA en pause) ; parcours P100p (documents prêts d’abord). Vrai EuroOffice et vrai Nextcloud non exercés.",
+    "V100-06 dossiers": "Parcours P100d : trois cartes distinctes (deux résultats du même dossier dédoublonnés) et Nouveau dossier visibles avant défilement ; tests test_v56100_dossiers (dossier réservé, dépôt, alias, échec, 879 dossiers : 21 requêtes).",
+    "V100-07 IA": "Tests test_v56100_ia (35) et test_v56100_integration : note sourcée, pièce manquante, contradiction, proposition non appliquée, file commune, pause, annulation, dossier clos, ancre inventée, injection. Modèle factice seulement ; boucle réelle du worker non exercée.",
+    "V100-08 réactivité": "scripts/mesure56100.py (900 dossiers, 2 000 en-têtes, 10 essais) : Dossiers p50 46 ms / p95 59 ms ; Aujourd’hui p50 201 ms / p95 229 ms (375 requêtes ; environ 3 200 avant) ; À relire 39 ms ; liste IMAP 35 ms (5 commandes) ; IMAP lent (+15 ms par commande, +600 ms à la connexion) 697 ms. Première ouverture après démarrage environ 2 s. Navigateur réel, proxy, panne Nextcloud et worker saturé non mesurés."
+  },
+  "linux": "Conteneur python:3.12 (Debian, heure universelle comme la recette GitHub) : test_v56100*, test_correctifs_56100, test_v569*, test_v5689* et 19 modules historiques — 2 814 tests, aucun échec.",
+  "navigateur": "scripts/parcours-navigateur.py --navigateur chromium, tous les parcours (P01 à P100p) : tous réussis, après reprise à partir de P96F1, P96F2 et P96a corrigés (voir adjusted_tests et fixed_during_validation).",
+  "fixed_during_validation": [
+    "Démarrage : le rattrapage de la file « À relire » écrivait l’heure de synchronisation à chaque démarrage d’une base inchangée (garde 5.6.44) ; il ne l’écrit plus que s’il a projeté quelque chose.",
+    "Dossiers à 200 % (960 px) : une étiquette pour lecteurs d’écran du tableau échappait à sa zone de défilement et faisait défiler la page en largeur (parcours P96a) ; la zone du tableau contient désormais ses éléments positionnés."
+  ],
+  "adjusted_tests": [
+    "test_v320, test_v5631, tests/test_workspace : le portefeuille détaillé de Dossiers se charge au dépli (/dossiers?volet=portefeuille, R05).",
+    "test_v5696_courriels C07 et I03 : vérifient l’ancienne présentation, interface 5.6.100 coupée (le lecteur 5.6.100 a ses propres tests).",
+    "test_v5697_gestion_recettes R22_N, test_v5679 : clôture par le seul service de clôture (R10).",
+    "test_v5694_parcours : P100r, P100d, P100p annoncés.",
+    "parcours P96F1 et P96F2 : les échéances confirmées proches sont aussi dans le rang ; la date à vérifier est visée par son identifiant (ou dite à part, jamais cachée).",
+    "test_document_agents568 (trois tests) : l’audience d’essai est datée deux ans après l’année courante ; la date fixe du 12/11/2026 était devenue passée et n’était plus extraite. Seuls échecs de la passe complète (6 304 tests), corrigés puis relancés (63 tests, aucun échec) ; la 5.6.99 échouerait de même depuis le 13/11/2026."
+  ],
+  "live_checks": "Aucun service réel : IMAP, Gmail, Nextcloud, EuroOffice et modèles simulés.",
+  "exapp": {
+    "version": "0.1.59",
+    "moteur": "5.6.100"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "Gmail pas encore dans la liste unique « À relire » (projets Gmail gardés et contrôlés dans leur vue).",
+    "Documents et décisions restent dans la file commune existante (file5651), pas dans la projection du lecteur des courriels.",
+    "Reprise d’une saisie non décidée : seulement par « Enregistrer ».",
+    "Page Aujourd’hui encore lourde (285 ko de HTML avec le banc de mesure).",
+    "Plusieurs tests anciens contiennent des dates fixes de fin 2026 ; ils passent aujourd’hui, mais n’ont pas été rejoués avec une horloge avancée."
+  ]
+}

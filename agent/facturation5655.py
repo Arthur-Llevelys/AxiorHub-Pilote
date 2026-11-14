@@ -111,10 +111,14 @@ def note_seen(desk):
     """Mémorise la première apparition de chaque dossier. Au premier passage, tous les dossiers présents forment la référence (aucun
     n'est « nouveau ») ; les propositions « sans convention » déjà affichées pour eux sont retirées."""
     ensure_schema(desk)
-    first_run = desk.db.execute('SELECT COUNT(*) FROM b55_matter_seen').fetchone()[0] == 0
+    vus = {r[0] for r in desk.db.execute('SELECT matter FROM b55_matter_seen')}
+    first_run = not vus
+    nouveaux = [str(m['id']) for m in load_matters(desk.c, unfiltered=True) if str(m['id']) not in vus]
+    if not nouveaux:
+        return                       # 5.6.100 (intégration, R05) : rien de nouveau, aucune écriture (avant : une insertion par dossier à chaque appel)
     now = _now()
-    for m in load_matters(desk.c, unfiltered=True):
-        desk.db.execute('INSERT OR IGNORE INTO b55_matter_seen(matter,first_seen,baseline) VALUES(?,?,?)', (str(m['id']), now, 1 if first_run else 0))
+    desk.db.executemany('INSERT OR IGNORE INTO b55_matter_seen(matter,first_seen,baseline) VALUES(?,?,?)',
+                        [(mid, now, 1 if first_run else 0) for mid in nouveaux])
     if first_run:
         desk.db.execute("UPDATE b53_suggestions SET state='retiree',updated=? WHERE kind='sans_convention' AND state IN ('proposee','reportee')", (now,))
     desk.db.commit()
