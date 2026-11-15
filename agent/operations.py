@@ -1,6 +1,7 @@
 """Bounded health checks and dashboard data."""
 from datetime import datetime,timezone
 import json
+import time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .common import Stop,load_matters
@@ -91,8 +92,31 @@ def automation_tick(desk):
         horaires_ia5689.surveiller(desk)
     except Exception:   # l'état réel est de toute façon relu avant chaque appel au modèle
         if desk.db.in_transaction:desk.db.rollback()
+    _registre_livrables(desk)
     with automatic(desk):
         return _automation_tick_5642(desk)
+
+
+_REGISTRE_VU = {}
+REGISTRE_SECONDES = 60
+
+
+def _registre_livrables(desk, now_ts=None):
+    """5.6.101 (R05) : le registre des livrables suit les journaux locaux des producteurs depuis l'arrière-plan, plus depuis l'affichage (la
+    file commune et « À relire » le lisaient en le réécrivant pendant chaque GET). Lecture locale sans réseau ni IA, une page par source
+    au plus, une signature par source quand rien n'a changé ; une fois par minute au plus (horloge en mémoire : rien n'est écrit pour la
+    cadence). Le passage complet (stockage, 40 pages par source) reste ``livrables_travaux5689``, toutes les 10 minutes."""
+    now_ts=time.time() if now_ts is None else now_ts
+    cle=str(desk.c.get('state_dir',''))
+    if now_ts-_REGISTRE_VU.get(cle,0)<REGISTRE_SECONDES:
+        return False
+    _REGISTRE_VU[cle]=now_ts
+    try:
+        from . import livrables5689
+        return livrables5689.synchroniser(desk)
+    except Exception:   # une source illisible n'arrête jamais la boucle des automatismes ; l'affichage lit le dernier état, signalé comme ancien
+        if desk.db.in_transaction:desk.db.rollback()
+        return False
 
 
 def _automation_tick_5642(desk):
@@ -227,6 +251,10 @@ def _automation_tick_5642(desk):
     try:   # 5.6.100 (lot D) : résultats lisibles de l'IA projetés par dossier (livrables prêts, fiches, rappels), toutes les 10 minutes
         from . import resultats56100
         resultats56100.entretien(desk,now_ts)
+    except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
+    try:   # 5.6.102 (lot K) : réponses aux devis (accord du client, modèle local) et plans de préparation à faire avancer, toutes les 10 minutes
+        from . import accord56102
+        accord56102.schedule(desk,now_ts)
     except Exception:pass   # une source illisible n'arrête jamais la boucle des automatismes
     pilot=desk.c.get('cabinet_pilotage',{})
     if desk.settings('automation:cabinet_pilotage_enabled',pilot.get('enabled',True)):

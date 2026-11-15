@@ -496,8 +496,7 @@ def _migrate5668(desk):
 
 
 def alerts(desk, state=None, limit=200, matter=None):
-    ensure_schema(desk.db)
-    _migrate5668(desk)
+    ensure_schema(desk.db)     # 5.6.101 (R05) : la reprise unique ``_migrate5668`` est faite au démarrage (``reprises56101``), plus pendant une lecture
     sql, params = 'SELECT * FROM ia_alerts5659 WHERE 1=1', []
     if state:
         sql += ' AND state=?'

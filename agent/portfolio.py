@@ -269,6 +269,8 @@ def confirm_matter(desk,args):
     desk.db.commit();desk.audit('dossier_courriel_confirme',{'matter':mid,'mail_key':key,
       'role':'non_confirme'})
     matter_status(desk,matter)
+    from . import pj56102   # 5.6.102 (lot P) : pièces jointes du fil de ce courriel, en attente du dossier, mises en file
+    pj56102.apres_dossier(desk,mid,(args['demande_par'],args.get('demande_role','')) if args.get('demande_par') else 'cabinet',mail_key=key)
     job=desk.enqueue('retry',{'key':key})
     return {'association':'dossier_confirme','dossier':mid,'role':'a_confirmer',
             'courriel_relance':True,'job_id':job}

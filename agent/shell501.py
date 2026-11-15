@@ -44,7 +44,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css', 'v5682.css', 'v5683.css', 'v5684.css', 'v5686.css', 'v5688-securite.css', 'v5688-reversibilite.css', 'v5688-agenda.css', 'v5688-facturation.css', 'v5688-crm.css', 'v5688-cloud.css', 'v5688-societe.css', 'v5689-cabinet.css', 'v5689-livrables.css', 'v5689-dossier.css', 'v5689-carbon-jetons.css', 'v5689-carbon.css', 'v5689-ia.css', 'v5694-traces.css', 'v5694-voix.css', 'v5695-redaction.css', 'v5695-aujourdhui.css', 'v5696-accueil.css', 'v5696-affichage.css', 'v5696-courriels.css', 'v5697-fiabilite.css', 'v5697-dossiers.css', 'v5697-chatgpt.css', 'v5697-agenda.css', 'v5697-gmail.css', 'v5697-mission.css', 'v5697-sources.css', 'v5697-gestion.css', 'v5698.css', 'v5699.css', 'v56100-reactivite.css', 'v56100-dossiers.css', 'v56100-accueil.css', 'v56100-produire.css', 'v56100-lecteur.css', 'v56101-familles.css', 'v56101-securite.css', 'v56101-aujourdhui.css', 'v56101-volet.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css', 'v5682.css', 'v5683.css', 'v5684.css', 'v5686.css', 'v5688-securite.css', 'v5688-reversibilite.css', 'v5688-agenda.css', 'v5688-facturation.css', 'v5688-crm.css', 'v5688-cloud.css', 'v5688-societe.css', 'v5689-cabinet.css', 'v5689-livrables.css', 'v5689-dossier.css', 'v5689-carbon-jetons.css', 'v5689-carbon.css', 'v5689-ia.css', 'v5694-traces.css', 'v5694-voix.css', 'v5695-redaction.css', 'v5695-aujourdhui.css', 'v5696-accueil.css', 'v5696-affichage.css', 'v5696-courriels.css', 'v5697-fiabilite.css', 'v5697-dossiers.css', 'v5697-chatgpt.css', 'v5697-agenda.css', 'v5697-gmail.css', 'v5697-mission.css', 'v5697-sources.css', 'v5697-gestion.css', 'v5698.css', 'v5699.css', 'v56100-reactivite.css', 'v56100-dossiers.css', 'v56100-accueil.css', 'v56100-produire.css', 'v56100-lecteur.css', 'v56101-familles.css', 'v56101-securite.css', 'v56101-aujourdhui.css', 'v56101-volet.css', 'v56102-pilote.css', 'v56102-navigation.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -130,11 +130,28 @@ def nav_html(prefix, active_path):
         entries.insert(at50, ('/messagerie', '❝', _t50('fn.messagerie.label')))
     except Exception:   # noqa: BLE001
         pass
+    if relire_separe():   # 5.6.102 (lot N) : « À relire », accès principal distinct juste après « Aujourd'hui » (nouvelle interface)
+        from .i18n5631 import t as _t102
+        entries.insert(next((i + 1 for i, x in enumerate(entries) if x[0] == '/aujourdhui'), 0), ('/a-relire', '☑', _t102('fn.a_relire.label')))
     from .i18n5631 import t as _t82
     settings = ('<a class="m82-settings" href="' + e(prefix + '/parametres') + '"' + (' aria-current="page"' if active == '/parametres' else '') + '><span aria-hidden="true">⚙</span> ' +
                 e(_t82('fn.parametres.label')) + '</a>')     # 5.6.82 : hors des six entrées de travail, toujours à portée
     return ('<nav aria-label="' + th('nav.primary') + '" class="ws-primary">' + _links(prefix, entries, active) + '</nav>' +
             panel_html(prefix, active_path, context(), role(), current()) + settings)
+
+
+def relire_separe(cfg=None, owner=None):
+    """5.6.102 (lot N) : « À relire » est-il un accès principal distinct (``/a-relire``) ? Oui avec la nouvelle interface (interrupteur
+    ``interface56100``, préférence du compte d'abord) ; non en présentation historique, où Courriels garde son onglet « À relire » comme
+    avant. Lecture seule de la base d'état (jamais d'écriture pendant un GET) ; une erreur de lecture suit le défaut (nouvelle interface)."""
+    try:
+        from .interface56100 import active
+        if owner is None:
+            from .i18n5631 import _ctx as _lang_ctx
+            owner = getattr(_lang_ctx, 'owner', '')
+        return bool(active(_Desk53(cfg if cfg is not None else (context() or {})), owner or 'cabinet'))
+    except Exception:   # noqa: BLE001 — la présentation par défaut (active) s'applique
+        return True
 
 
 class _Desk53:
@@ -178,7 +195,8 @@ def topbar_html(prefix, title, path='', retour=True):
             (retour_html(prefix, path, getattr(_ctx, 'args', {})) if retour else '') +
             '<span class="ws-ariane">' + th('top.workspace') + ' / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
             'id="ws-theme-toggle" aria-label="' + th('top.dark') + '" title="' + th('top.dark') + '">' + (theme_svg or '<span aria-hidden="true">☾</span>') + '</button>'
-            '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '" data-m82-quick title="Ctrl+K" aria-keyshortcuts="Control+K">' + (cherche_svg or '⌕ ') + th('top.search') + '</a>' +
+            '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '" data-m82-quick title="Ctrl+K" aria-keyshortcuts="Control+K">' + (cherche_svg or '⌕ ') + th('top.search') + ' <kbd class="m102-kbd" data-m102-kbd aria-hidden="true">Ctrl+K</kbd></a>' +   # 5.6.102 : raccourci affiché en petit
+            
             help_link + menu_html(prefix) + '</div></header>')
 
 

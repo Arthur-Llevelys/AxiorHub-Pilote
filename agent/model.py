@@ -644,6 +644,10 @@ citer une source fournie. N'affirme jamais qu'une pièce est conforme ou qu'une 
 a été accomplie. Respecte les destinataires et le rôle indiqués. Une source
 structured_memory n'est utilisable comme fait que si son extrait porte le statut
 « validé par l'avocat » ou « épinglé et validé par l'avocat ».
+Les sources email_attachment sont les pièces jointes du courriel reçu (nom du fichier dans path) : tiens-en compte, cite dans source_ids
+chaque pièce utilisée et désigne-la par son nom. « pieces_jointes_non_lues » liste les pièces que le service n'a pas pu lire : nomme-les
+dans limits, et dans body si leur contenu est nécessaire (demander une version lisible). N'affirme jamais avoir lu, examiné ou reçu le
+contenu d'une pièce absente des sources ; une source « partial » n'a été lue qu'en partie.
 """
 MEMORY_INSIGHT_PROMPT="""Compare un brouillon et la réponse réellement envoyée.
 Relève uniquement des préférences de style et corrections réutilisables : longueur,

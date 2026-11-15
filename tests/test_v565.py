@@ -131,7 +131,7 @@ class Drawer(t530.Base):
         self.assertIn('je vous confirme la date', html)
         self.assertIn('_mbox=INBOX&amp;_uid=7&amp;_action=show', html)
         self.assertIn('_uid=12&amp;_action=edit', html)
-        self.assertIn('/p/courriels?uid=12', html)
+        self.assertIn('/p/a-relire?uid=12', html)   # 5.6.102 (lot N) : page « À relire » distincte (même paramètre uid)
         js = (ROOT / 'agent' / 'static' / 'v440.js').read_text(encoding='utf-8')
         self.assertIn("new URLSearchParams(location.search).get('uid')", js)
 

@@ -110,7 +110,10 @@ def _pypdf_texts(raw):
     try:
         from pypdf import PdfReader
     except ImportError:
-        raise Stop('extracteur_pdf_absent_installer_poppler') from None
+        try:   # 5.6.102 : copie embarquée (5.6.78) quand pypdf n'est pas installé (poste sans Poppler, conteneur)
+            from ._vendor.pypdf import PdfReader
+        except ImportError:
+            raise Stop('extracteur_pdf_absent_installer_poppler') from None
     try:
         reader = PdfReader(io.BytesIO(raw))
         if reader.is_encrypted:

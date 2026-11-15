@@ -708,7 +708,8 @@ def _sync_source(desk, src, force, fond=False):
         signature = json.dumps(src['signature'](desk), default=str)
     except sqlite3.OperationalError as ex:
         if 'no such table' in str(ex):     # le producteur n'a encore jamais servi : vide, pas en panne
-            store('fresh', '', 'absente')
+            if not (row and row['state'] == 'fresh' and row['signature'] == 'absente' and not force):   # 5.6.101 (R05) : déjà noté, rien à réécrire
+                store('fresh', '', 'absente')
             return
         store('unavailable', 'Source illisible pour l’instant : les documents déjà connus restent affichés.', ok=False)
         return
@@ -760,6 +761,17 @@ def synchroniser(desk, force=False, fond=False):
         from .affichage5696 import memo_requete
         return memo_requete(('livrables5689:synchroniser', str(desk.c.get('state_dir', ''))), lambda: _synchroniser(desk, False, False))
     return _synchroniser(desk, force, fond)
+
+
+def apres_production(desk):
+    """5.6.102 : un travail qui vient de produire inscrit tout de suite son résultat au registre (écriture du travailleur, pas de l'affichage).
+    Sans cela, depuis R05, un document prêt n'apparaissait dans « À relire » qu'au passage suivant de l'arrière-plan (une minute au plus)."""
+    try:
+        return synchroniser(desk)
+    except Exception:      # le registre ne fait jamais échouer le travail qui vient de réussir ; l'arrière-plan reprendra
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        return False
 
 
 def _synchroniser(desk, force, fond):
@@ -1027,8 +1039,7 @@ def revision(desk, hidden=frozenset(), droits=None, matter=None):
 def a_relire(desk, labels=None, matters=None, jours=RECENCE):
     """Documents de la liste « À relire » d'Aujourd'hui : même projection que Produire et Dossier, sous la forme historique de ``cockpit530``."""
     from .cockpit530 import TYPE_LABELS
-    ensure_schema(desk)
-    synchroniser(desk)
+    ensure_schema(desk)     # 5.6.101 (R05) : plus de ``synchroniser`` ici (lu par la file commune pendant l'affichage) : le registre est tenu par l'arrière-plan
     if labels is None:
         labels, matters = _labels(desk)
     since = (datetime.now(timezone.utc) - timedelta(days=jours)).isoformat()

@@ -161,7 +161,7 @@ class Engine:
                     report.get('matter') and report.get('recipient_role')):
                 try:
                     from .desk import Desk
-                    Desk(cfg).enqueue('prepare_reply',{'key':key,'automatic':'yes'})
+                    Desk(cfg).enqueue('prepare_reply',{'key':key,'automatic':'yes','pieces_jointes':'oui'})   # 5.6.102 (lot P) : pièces jointes lues
                 except (Stop,OSError):
                     pass
             return key
@@ -472,8 +472,11 @@ class Engine:
                 return finish('review', 'controle_qualite_non_satisfait')
             # 5.6.67 (point 4) : chaque date, montant, RG et nom propre doit figurer dans ce que le modèle a reçu ; sinon « [À VÉRIFIER : …] »
             from .faits5667 import check as _check_facts, reference_text, without_examples
+            from .signature56102 import pour_config as _signature   # 5.6.102 (lot S) : signature qui partira (messagerie, sinon Paramètres)
+            signature_effective = _signature(cfg)
             body, fact_issues = _check_facts(body, reference_text({**payload, 'sources': without_examples(payload.get('sources'))}, incoming,
-                                                                  selected_slots, cfg['mail'].get('signature', ''), cfg['mail'].get('from_name', '')),
+                                                                  selected_slots, cfg['mail'].get('signature', ''), signature_effective['texte'],
+                                                                  cfg['mail'].get('from_name', '')),
                                              extra_dates=[str(s.get('start', ''))[:10] for s in selected_slots], names=True)
             if fact_issues:
                 report['faits_a_verifier'] = fact_issues
@@ -517,7 +520,8 @@ class Engine:
                 report['citations'] = {'headline': citation_report['headline'], 'counts': citation_report['counts'],
                                        'needs_check': citation_report['needs_check']}
             from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
-            draft = mark_message(add_agent_bcc(cfg['state_dir'], make_draft(mail, cfg['mail'], body, key, cc=reply_cc)),
+            draft = mark_message(add_agent_bcc(cfg['state_dir'], make_draft(mail, cfg['mail'], body, key, cc=reply_cc,
+                                                                               signature=signature_effective)),
                                  citations_marked or bool(report.get('faits_a_verifier')))
             report['draft_message_id'] = draft_mid
             report['draft_expected_headers']={header:str(draft[header]) for header in

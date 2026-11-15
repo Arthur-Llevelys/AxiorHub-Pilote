@@ -96,7 +96,7 @@ def candidates(desk, today=None, now=None):
                     r['matter'], 'Ouvrir le courriel', '/mail?' + urlencode({'key': r['mail_key']}), 'En attente depuis %d j' % age, key='m' + r['mail_key'])
             else:
                 add('brouillon', 350 + min(age, 10) * 5, subject, 'Brouillon préparé par l’agent, à relire avant envoi depuis votre messagerie.',
-                    r['matter'], 'Relire le brouillon', '/courriels', 'À valider', key='b' + r['mail_key'])
+                    r['matter'], 'Relire le brouillon', '/a-relire', 'À valider', key='b' + r['mail_key'])
     except Exception:
         pass
     # 5. Faits à valider

@@ -64,13 +64,13 @@
 "version": "5.6.36"
 },
 "courriels": {
-"objective": "Den Posteingang lesen, vorbereitete Entwürfe prüfen und antworten, weiterleiten oder ablegen.",
+"objective": "Den Posteingang lesen und antworten, weiterleiten oder ablegen; vom Agenten vorbereitete Entwürfe werden unter „Zu prüfen“ geprüft.",
 "when": "Wenn eine Nachricht eintrifft oder ein Entwurf des Agenten auf Ihre Prüfung wartet.",
 "prerequisites": "E-Mail eingerichtet (Empfang per IMAP; Versand per SMTP ist optional).",
 "steps": [
 "Öffnen Sie „E-Mails“; der Reiter Posteingang listet die Nachrichten.",
 "Klicken Sie auf eine Nachricht und wählen Sie Antworten, Allen antworten oder Weiterleiten.",
-"Prüfen und korrigieren Sie einen vorbereiteten Entwurf vor jedem Versand.",
+"Vom Agenten vorbereitete Antworten und Entwürfe werden unter „Zu prüfen“ (Hauptmenü) geprüft und nie ohne Sie gesendet.",
 "Mit „Suchen“ finden Sie eine Korrespondenz, mit „Aktualisieren“ laden Sie die Liste neu."
 ],
 "result": "Ein Entwurf in Ihrem Entwurfsordner; nichts wird ohne Ihre Bestätigung gesendet.",
@@ -89,6 +89,39 @@
 "buttons": [
 "Actualiser",
 "Rechercher"
+],
+"version": "5.6.36"
+},
+"a_relire": {
+"objective": "An einem Ort alles prüfen, was der Agent vorbereitet hat: Antwortentwürfe, Entwürfe aus dem Postfach und aus Gmail, KI-Dokumente und -Notizen, und über jedes entscheiden.",
+"when": "Täglich, und sobald Heute oder eine Benachrichtigung zu prüfende Elemente meldet.",
+"prerequisites": "Keine für lokale Vorschläge; eingerichtetes Postfach für IMAP-Entwürfe, verbundenes Gmail für Gmail-Entwürfe.",
+"steps": [
+"Öffnen Sie „Zu prüfen“ im Hauptmenü, direkt nach Heute.",
+"Wählen Sie einen Filter (Alle, E-Mails, Gmail, Dokumente, KI-Notizen) oder nutzen Sie „Suchen“.",
+"Klicken Sie auf ein Element: Der Leser zeigt den Entwurf, die empfangene Nachricht, die Anhänge und die Quellen.",
+"Korrigieren Sie den Text und klicken Sie auf „Speichern“, oder entscheiden Sie: „Behalten“, „Verwerfen“ oder „Zurückstellen“.",
+"Ein behaltener Antwortentwurf wird mit „In Entwürfe ablegen (ohne Versand)“ in Ihre Entwürfe gelegt: Nichts wird gesendet."
+],
+"result": "Jedes geprüfte Element verlässt die Liste; ein abgelegter Entwurf erscheint im Entwurfsordner Ihres Postfachs, ohne Versand.",
+"verify": "Der Zähler „Zu prüfen“ sinkt und der abgelegte Entwurf ist in Ihrem gewohnten E-Mail-Programm sichtbar.",
+"errors": [
+[
+"Ein Element ist aus der Liste verschwunden",
+"Es wurde inzwischen geprüft oder ist für Ihr Konto nicht freigegeben; laden Sie die Seite neu."
+],
+[
+"„Entwürfe aus dem Postfach: getrennte Abfrage“",
+"Das Postfach antwortet langsam: Lokale Vorschläge bleiben lesbar, IMAP-Entwürfe erscheinen danach."
+]
+],
+"example": "Fiktiver Antwortentwurf an Herrn DURAND in der Akte DOS-001, korrigiert und in die Entwürfe gelegt.",
+"buttons": [
+"Enregistrer",
+"Retenir",
+"Écarter",
+"Reporter",
+"Déposer dans Brouillons (sans envoi)"
 ],
 "version": "5.6.36"
 },

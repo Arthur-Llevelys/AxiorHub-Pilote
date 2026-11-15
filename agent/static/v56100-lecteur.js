@@ -459,7 +459,8 @@
         sujet.textContent = d.sujet || '(sans objet)';
         var a = ((d.destinataires || {}).a || []).join(', '), cc = ((d.destinataires || {}).cc || []).join(', ');
         meta.textContent = [d.type_libelle, (d.dossier || {}).libelle, a ? 'À : ' + a : '', cc ? 'Cc : ' + cc : '', d.etat_libelle]
-          .filter(Boolean).join(' · ') + (d.motif ? ' — ' + d.motif : '');
+          .filter(Boolean).join(' · ') + (d.motif ? ' — ' + d.motif : '') +
+          (d.pieces_jointes_rangement ? ' · ' + d.pieces_jointes_rangement : '');   /* 5.6.102 (lot P) : rangement des pièces jointes du courriel */
         zone.value = extra && typeof extra.texte === 'string' ? extra.texte : (d.corps || '');
         zone.readOnly = actions.indexOf('enregistrer') < 0;
         var lien = (d.liens || {}).pleine_page || (d.liens || {}).messagerie || '';
@@ -513,12 +514,20 @@
           var ul = el('ul', { 'class': 'ax100-pieces' });
           pieces.forEach(function (p) { ul.appendChild(el('li', { text: p.nom + ' · ' + (p.type || 'type inconnu') + ' · ' + Math.max(1, Math.round((p.taille || 0) / 1024)) + ' Ko' })); });
           secondaire.appendChild(ul);
+          if (d.rangement) secondaire.appendChild(el('p', { 'class': 'ax-muted', text: d.rangement }));   /* 5.6.102 (lot P) */
         } else if (section === 'sources') {
           var ls = d.sources || [];
           secondaire.appendChild(el('h3', { text: ls.length ? 'Sources utilisées' : 'Aucune source enregistrée' }));
           var ul2 = el('ul', { 'class': 'ax100-sources' });
           ls.forEach(function (s) { ul2.appendChild(el('li', { text: (s.titre || s.id) + (s.type ? ' (' + s.type + ')' : '') })); });
           secondaire.appendChild(ul2);
+          if ((d.pieces_lues || []).length || (d.pieces_non_lues || []).length) {   /* 5.6.102 (lot P) : fiche de contrôle des pièces jointes */
+            secondaire.appendChild(el('h3', { text: 'Pièces jointes du courriel' }));
+            var ulp = el('ul', { 'class': 'ax100-sources' });
+            (d.pieces_lues || []).forEach(function (p) { ulp.appendChild(el('li', { text: p.nom + (p.partielle ? ' : lue en partie' : ' : lue') })); });
+            (d.pieces_non_lues || []).forEach(function (p) { ulp.appendChild(el('li', { 'class': 'ax100-limite', text: p.nom + ' : non lue' + (p.motif ? ' (' + p.motif + ')' : '') })); });
+            secondaire.appendChild(ulp);
+          }
           if ((d.limites || []).length) {
             secondaire.appendChild(el('h3', { text: 'Limites signalées' }));
             var ul3 = el('ul', { 'class': 'ax100-limites' });

@@ -83,7 +83,15 @@ Désactiver : `sudo systemctl disable --now axiorhub-veille-securite-rapide.time
 bouton « Désactiver la veille » de la page (une demande appliquée par `axiorhub-veille-securite-demande.path`). Une désactivation est
 conservée lors des mises à jour (`sudo python3 /usr/lib/axiorhub-pilote/veille-securite.py --activer` pour revenir en arrière).
 Programmes connus ou chemins autorisés propres au cabinet : `/etc/axiorhub-mail-agent/veille-securite.json`, par exemple
-`{"connus": ["mon-calcul"], "autorises": ["/srv/outil/*"]}`.
+`{"connus": ["mon-calcul"], "autorises": ["/srv/outil/*"]}`. Un motif `/tmp/...` est déconseillé : n'importe quel compte de la
+machine peut y déposer un programme.
+
+Collabora intégré à Nextcloud (5.6.102) : l'application « Collabora Online – Built-in CODE Server » (`richdocumentscode`, ou
+`richdocumentscode_arm64`) est reconnue sans réglage quand elle est lancée depuis `apps/richdocumentscode/collabora/` d'un Nextcloud (ou `custom_apps/`, `apps-extra/`) :
+ses programmes décompressés dans `/tmp/appimage_extracted_…` (mode sans FUSE) ne sont pas signalés comme lancés depuis un dossier
+temporaire (contrôle S03) s'ils descendent de ce lanceur, ni pour une forte charge du processeur (S01, rendu de documents) ; le
+nom seul ne suffit jamais, et le contrôle de minage (S04) leur reste appliqué. La page indique « Collabora intégré à Nextcloud reconnu (N processus) ». Pour vérifier que ces fichiers sont bien ceux
+publiés par Nextcloud, depuis le dossier de Nextcloud : `sudo -u www-data php occ integrity:check-app richdocumentscode` (lecture seule).
 
 ## 5. Données et sauvegarde
 

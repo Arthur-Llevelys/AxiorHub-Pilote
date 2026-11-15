@@ -1,0 +1,9 @@
+/* AxiorHub 5.6.102 (lot N) : libellés longs du menu principal (« Messagerie instantanée », « À relire » et leurs traductions).
+   Un libellé passe à la ligne au lieu de déborder de sa case (menu déplié à 390 px : deux colonnes) ; le nom complet reste dans
+   aria-label et title. Aucune largeur fixe : les autres largeurs gardent une ligne tant que le libellé tient. */
+#ws-sidebar .ws-primary a{min-width:0;max-width:100%}
+#ws-sidebar .ws-primary .ws-nav-label{white-space:normal;overflow-wrap:anywhere;min-width:0}
+
+/* 5.6.102 : raccourci Ctrl+K affiché en petit dans « Rechercher dans le cabinet » (barre du haut et Aujourd’hui) */
+.m102-kbd { border: 1px solid var(--cds-border-subtle-01, #c6c6c6); border-radius: 3px; color: var(--cds-text-secondary, #525252); font: inherit; font-size: .6875rem; line-height: 1; margin-left: .35rem; padding: .125rem .3rem; vertical-align: middle; white-space: nowrap; }
+@media (max-width: 47.99rem) { .m102-kbd { display: none; } }

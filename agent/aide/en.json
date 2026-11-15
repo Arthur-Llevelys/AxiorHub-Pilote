@@ -64,13 +64,13 @@
 "version": "5.6.36"
 },
 "courriels": {
-"objective": "Read the inbox, review prepared drafts and reply, forward or file.",
+"objective": "Read the inbox and reply, forward or file; drafts prepared by the agent are reviewed in “To review”.",
 "when": "When a message arrives or an agent draft awaits your review.",
 "prerequisites": "Email set up (IMAP receiving; SMTP sending is optional).",
 "steps": [
 "Open Emails; the Inbox tab lists the messages.",
 "Click a message to display it, then choose Reply, Reply all or Forward.",
-"For a prepared draft, review and correct it before any sending.",
+"Replies and drafts prepared by the agent are reviewed in “To review” (main menu), never sent without you.",
 "Use “Search” to find an exchange and “Refresh” to reload the list."
 ],
 "result": "A draft placed in your Drafts folder; nothing is sent without your confirmation.",
@@ -89,6 +89,39 @@
 "buttons": [
 "Actualiser",
 "Rechercher"
+],
+"version": "5.6.36"
+},
+"a_relire": {
+"objective": "Review in one place everything the agent has prepared: draft replies, mailbox and Gmail drafts, AI documents and notes, then decide on each one.",
+"when": "Every day, and as soon as Today or a notification reports items to review.",
+"prerequisites": "None for local proposals; email set up for IMAP drafts, Gmail connected for Gmail drafts.",
+"steps": [
+"Open “To review” in the main menu, just after Today.",
+"Choose a filter (All, Emails, Gmail, Documents, AI notes) or use “Search”.",
+"Click an item: the reader shows the draft, the received message, the attachments and the sources.",
+"Correct the text then click “Save”, or decide: “Keep”, “Discard” or “Postpone”.",
+"For a kept draft reply, “Place in Drafts (not sent)” puts it in your drafts: nothing is sent."
+],
+"result": "Each reviewed item leaves the list; a placed draft appears in the Drafts folder of your mailbox, without being sent.",
+"verify": "The “To review” counter goes down and the placed draft is visible in your usual email client.",
+"errors": [
+[
+"An item disappeared from the list",
+"It was reviewed in the meantime or is not allowed for your account; refresh the page."
+],
+[
+"“Mailbox drafts: separate reading”",
+"The mailbox answers slowly: local proposals remain readable, IMAP drafts appear afterwards."
+]
+],
+"example": "Fictitious draft reply to Mr DURAND on case DOS-001, corrected then placed in the drafts.",
+"buttons": [
+"Enregistrer",
+"Retenir",
+"Écarter",
+"Reporter",
+"Déposer dans Brouillons (sans envoi)"
 ],
 "version": "5.6.36"
 },

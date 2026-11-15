@@ -941,7 +941,8 @@ def t_brouillon(ctx, args):
     msg['X-AxiorHub-Origine'] = 'claude5675'
     from .verify470 import gate_for_config, mark_message
     checked, marked, _report = gate_for_config(ctx.desk.c, body, m['id'] if m else '', 'mail', key)
-    msg.set_content(checked.strip() + '\n\n' + str(cfg.get('signature') or '').strip() + '\n')
+    from .signature56102 import effective as _signature, poser   # 5.6.102 (lot S) : signature de la messagerie, sinon de Paramètres
+    poser(msg, checked, _signature(ctx.desk, ctx.owner))
     mark_message(msg, marked)
     from .courrier5632 import add_agent_bcc
     msg = add_agent_bcc(ctx.desk.c['state_dir'], msg)

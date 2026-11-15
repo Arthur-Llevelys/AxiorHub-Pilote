@@ -15,6 +15,11 @@ from pathlib import Path
 
 SANS_DEFILEMENT = 'document.documentElement.scrollWidth <= window.innerWidth + 1'
 NAVIGATIONS = "performance.getEntriesByType('navigation').length + (window.__p100 || 0)"
+# 5.6.102 (lot N) : entrées de la barre principale, dans l'ordre, et débordement éventuel (entrée hors de l'écran, barre qui défile)
+MENU_390 = """() => { const nav = document.querySelector('nav.ws-primary'); const liens = Array.from(nav.querySelectorAll('a'));
+  return {ordre: liens.map(a => '/' + new URL(a.href).pathname.split('/').pop()),
+          deborde: Array.from(nav.querySelectorAll('a, .ws-nav-label')).filter(x => { const r = x.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.left < -1); }).length,
+          nav_defile: nav.scrollWidth > nav.clientWidth + 1, lignes: new Set(liens.map(a => Math.round(a.getBoundingClientRect().top))).size}; }"""
 
 
 def _nav():
@@ -58,7 +63,7 @@ def p100_relecture(banc, s):
     semer_propositions(banc, 10)
     p.set_viewport_size({'width': 1920, 'height': 1080})
     s.connecter()
-    s.aller('/courriels')
+    s.aller('/a-relire')   # 5.6.102 (lot N) : « À relire » est un accès principal distinct
     verifier(p.locator('[data-ax100-relecture]').count() == 1, 'la vue « À relire » 5.6.100 n’est pas montée')
     lignes = p.locator('[data-ax100-lignes] li[data-review-id]')
     verifier(lignes.count() == 10, 'dix propositions attendues dans la liste : %d' % lignes.count())
@@ -103,8 +108,24 @@ def p100_relecture(banc, s):
     # 390 px : un seul panneau, Retour à la liste, aucun défilement horizontal
     semer_propositions(banc, 3)
     p.set_viewport_size({'width': 390, 'height': 844})
-    s.aller('/courriels')
+    s.aller('/a-relire')
     verifier(p.evaluate(SANS_DEFILEMENT), 'défilement horizontal à 390 px (liste)')
+    # 5.6.102 (lot N) : menu replié à 390 px, « À relire » juste après « Aujourd'hui » ; aucune entrée ne déborde de l'écran
+    menu = p.evaluate(MENU_390)
+    print('    P100r menu à 390 px : %r' % menu)
+    verifier(menu['ordre'][:3] == ['/aujourdhui', '/a-relire', '/courriels'], 'ordre du menu inattendu : %r' % menu['ordre'])
+    verifier(len(menu['ordre']) <= 8 and not menu['deborde'] and menu['nav_defile'] is False, 'menu replié qui déborde à 390 px : %r' % menu)
+    # menu déplié à 390 px, entrée active « À relire » puis « Messagerie instantanée » (libellés les plus longs) : rien ne déborde
+    p.locator('#ws-sidebar-toggle').click()
+    for chemin in ('/a-relire', '/messagerie'):
+        s.aller(chemin)
+        deplie = p.evaluate(MENU_390)
+        print('    P100r menu déplié à 390 px sur %s : %r' % (chemin, deplie))
+        verifier(not p.evaluate("document.documentElement.classList.contains('ws-collapsed')"), 'menu resté replié')
+        verifier(not deplie['deborde'] and deplie['nav_defile'] is False and p.evaluate(SANS_DEFILEMENT),
+                 'menu déplié qui déborde à 390 px sur %s : %r' % (chemin, deplie))
+    p.locator('#ws-sidebar-toggle').click()            # préférence remise : menu replié pour la suite
+    s.aller('/a-relire')
     p.locator('[data-ax100-lignes] li[data-review-id] a').first.click()
     p.wait_for_function("() => { const t = document.querySelector('[data-ax100-texte]'); return t && t.value; }", timeout=10000)
     retour = p.locator('[data-ax100-retour]')

@@ -364,6 +364,10 @@ def win(desk, owner, role, oid, data):
     _journal(desk, row['id'], owner, 'gagne', created['label'])
     desk.db.commit()
     message = created['message']
+    if row.get('mail_key'):   # 5.6.102 (lot P) : pièces jointes du fil du courriel d'origine, en attente du dossier, mises en file
+        from . import pj56102
+        if pj56102.apres_dossier(desk, mid, (owner, role), mail_key=row['mail_key']).get('mandats') and 'Pièces jointes' not in message:
+            message += ' Pièces jointes du courriel en attente : rangement prévu dans le dossier.'
     convention = None
     if row['amount_cents'] and str(data.get('convention', '1')) == '1':
         try:

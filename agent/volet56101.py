@@ -81,9 +81,22 @@ def detail_relecture(desk, owner, role, ident, prefix):
     """Détail du lecteur commun (mêmes gardes que Courriels › À relire) ; refus traduits pour la fenêtre (404 neutre, 503)."""
     from . import relecture56100 as rl
     try:
-        return rl.detail(desk, (owner, role), ident, prefix)
+        d = rl.detail(desk, (owner, role), ident, prefix)
     except rl.Refus as ex:
         raise Stop('controle_indisponible' if ex.status == 503 else 'introuvable') from None
+    return _signature_envoi(desk, owner, d)
+
+
+def _signature_envoi(desk, owner, d):
+    """5.6.102 (lot S) : signature qui partira avec une proposition ou un projet Gmail (le brouillon déjà déposé la contient déjà) ; lecture des
+    seuls réglages (``signature56102.effective`` : aucun appel réseau, aucune écriture)."""
+    if isinstance(d, dict) and d.get('type') in ('proposition', 'gmail'):
+        try:
+            from .signature56102 import effective
+            d['signature_envoi'] = effective(desk, owner, d.get('compte_envoi') if d.get('type') == 'gmail' else None)
+        except Exception:   # noqa: BLE001 — réglages illisibles : le courriel reste lisible, sans mention
+            d['signature_envoi'] = None
+    return d
 
 
 def barre_relecture(desk, d, prefix, cle_courriel=''):
@@ -337,11 +350,22 @@ def courriel_cadre(desk, prefix, ident, quoi, format_, owner, role):
         titre = T('recu')
     else:
         texte = str(d.get('corps') or '')
-        try:
-            from .courrier5632 import wrap
-            html = wrap(desk, paragraphes(texte))
-        except Exception:   # noqa: BLE001 — réglage de police illisible : paragraphes seuls
-            html = paragraphes(texte)
+        html = ''
+        sig = d.get('signature_envoi')
+        if sig and texte.strip():   # 5.6.102 (lot S) : composé par la fonction du dépôt (signature une seule fois, HTML si mise en forme)
+            from .signature56102 import composer
+            compose = composer(texte, sig)
+            texte = compose['texte'].rstrip('\n')
+            m = re.match(r'(?s)^<!doctype html><html><body>(.*)</body></html>$', compose['html'])
+            html = m.group(1) if m else ''
+        elif d.get('type') == 'imap' and d.get('html_envoi'):
+            html = str(d['html_envoi'])   # brouillon déposé : sa version HTML (nettoyée à la lecture), telle qu'elle partira
+        if not html:
+            try:
+                from .courrier5632 import wrap
+                html = wrap(desk, paragraphes(texte))
+            except Exception:   # noqa: BLE001 — réglage de police illisible : paragraphes seuls
+                html = paragraphes(texte)
         titre = T('envoi')
     if format_ == 'texte':
         return cadre_html('<pre>%s</pre>' % e(texte, quote=False), titre)
@@ -368,6 +392,12 @@ def contenu_relecture(d, prefix=''):
             e(T('format'), quote=True), e(T('texte_brut')))
         texte = ('%s<iframe class="v101-cadre-courriel" sandbox="" referrerpolicy="no-referrer" title="%s" src="%s" data-v101-cadre="envoi"></iframe>' % (
             bascule, e(T('envoi'), quote=True), e(envoi, quote=True)))
+        from .signature56102 import mention   # 5.6.102 (lot S) : d'où vient la signature ajoutée (mention discrète, hors du courriel)
+        signature = mention(d.get('signature_envoi'))
+        if signature:
+            note = d['signature_envoi'].get('note') or ''
+            texte += '<p class="v101-note" data-s56102-signature="%s">%s</p>' % (e(d['signature_envoi']['source'], quote=True),
+                                                                                e(signature + ((' (' + note + ')') if note else '')))
         if d.get('type') != 'imap':
             recu = base + urlencode({'id': d['id'], 'quoi': 'recu', 'format': 'html'})
             texte += ('<details class="v101-recu" data-v101-recu><summary>%s</summary><iframe class="v101-cadre-courriel" sandbox="" referrerpolicy="no-referrer" '
@@ -376,10 +406,29 @@ def contenu_relecture(d, prefix=''):
         texte = ('<div class="v101-texte" data-v101-texte tabindex="0" aria-label="%s">%s</div>' % (e(d.get('libelle_texte') or T('texte'), quote=True), e(corps))
                  if corps else '<p class="v101-vide">%s</p>' % e(T('texte_vide')))
     pieces = ''
-    if d.get('pieces'):
+    if d.get('pieces_jointes'):
+        pieces = pieces_html(d['pieces_jointes'])
+    elif d.get('pieces'):
         pieces = '<p class="v101-note">%s</p>' % e(T('pieces', n=int(d['pieces'])))
     motif = ('<p class="v101-note">%s</p>' % e(str(d['motif']))) if d.get('motif') and d.get('type') not in ('document',) else ''
     return '<article class="v101-contenu" data-v101-contenu data-type="%s">%s%s%s%s</article>' % (e(str(d.get('type') or ''), quote=True), entetes, texte, pieces, motif)
+
+
+def pieces_html(pieces):
+    """5.6.102 (lot K) : pièces jointes d'un projet de courriel (nom échappé ; lien vers l'éditeur pour un projet Word du dossier, chemin
+    d'AxiorHub seulement)."""
+    lignes = []
+    for p in list(pieces or ())[:20]:
+        nom, href = str((p or {}).get('nom') or ''), str((p or {}).get('href') or '')
+        if not nom:
+            continue
+        if href.startswith('/') and not href.startswith('//'):
+            lignes.append('<li><a href="%s">%s</a></li>' % (e(href, quote=True), e(nom)))
+        else:
+            lignes.append('<li>%s</li>' % e(nom))
+    if not lignes:
+        return ''
+    return '<section class="v101-pieces"><p class="v101-note">%s</p><ul>%s</ul></section>' % (e(T('pieces', n=len(lignes))), ''.join(lignes))
 
 
 def meta_relecture(d):
@@ -405,7 +454,7 @@ def _fragment_relecture(desk, prefix, nature, cle, owner, role):
     if not CLE_RELECTURE[nature].fullmatch(cle):
         raise Stop('introuvable')
     d = detail_relecture(desk, owner, role, cle, prefix)
-    page = (d.get('liens') or {}).get('pleine_page') or (prefix + '/courriels?' + urlencode({'item': cle}))
+    page = (d.get('liens') or {}).get('pleine_page') or (prefix + '/a-relire?' + urlencode({'item': cle}))   # 5.6.102 (lot N) : page « À relire »
     sources = _sources_note(desk, owner, role, d) if nature == 'note_ia' else ''
     ouvrir = d.get('ouvrir') or {}
     if ouvrir.get('href'):
@@ -548,6 +597,12 @@ def _fragment_file(desk, prefix, cle, owner, role):
         proposition.append('<p class="v101-note">%s</p>' % e(str(it['consequence'])))
     if it.get('priority') == 'haute' and it.get('priority_reason'):
         proposition.append('<p class="v101-note">%s</p>' % e(T('prioritaire', raison=str(it['priority_reason']))))
+    if it.get('corps'):        # 5.6.102 (lot K) : projet de courriel resté « À relire » : destinataire, texte (échappé) et pièces jointes
+        if it.get('destinataire'):
+            proposition.append('<dl class="v101-entetes"><div><dt>%s</dt><dd>%s</dd></div></dl>' % (e(T('a')), e(str(it['destinataire']))))
+        proposition.append('<div class="v101-texte" data-v101-texte tabindex="0" aria-label="%s">%s</div>' % (e(T('texte'), quote=True), paragraphes(it['corps'])))
+    if it.get('pieces_jointes'):
+        proposition.append(pieces_html(it['pieces_jointes']))
     apercu = '<article class="v101-contenu" data-v101-contenu data-type="file">%s</article>' % ''.join(proposition)
     actions = '<ul class="q51-list v101-carte">%s</ul>' % file5651.carte_html(it, prefix)
     return {'titre': titre[:200], 'corps': actions, 'page': it.get('href') or prefix + '/aujourdhui?vue=file', 'apercu': apercu, 'meta': classe,

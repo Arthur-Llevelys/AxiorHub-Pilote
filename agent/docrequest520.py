@@ -835,7 +835,7 @@ def resolve(desk, rid, matter=''):
 def perform(desk, kind, args):
     if kind == 'docrequest520':
         try:
-            return run(desk, args)
+            out = run(desk, args)
         except Stop as ex:
             row = desk.db.execute('SELECT status,result FROM docreq520 WHERE id=?', (str(args.get('request', '')),)).fetchone()
             if row and (row['status'] in ('annulation_demandee',) or str(ex) == 'operation_annulee'):
@@ -844,4 +844,7 @@ def perform(desk, kind, args):
                 previous = json.loads(row['result'] or '{}')
                 _set(desk, str(args.get('request', '')), 'echec', result={**previous, 'error': str(ex)})
             raise
+        from .livrables5689 import apres_production
+        apres_production(desk)       # 5.6.102 : le document prêt est tout de suite dans « À relire »
+        return out
     raise Stop('action_inconnue')

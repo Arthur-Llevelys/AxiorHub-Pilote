@@ -392,9 +392,7 @@ class Lignes(Volet):
         self.audience('aud-1', MID)
         self.echeance('ech-v', 'a_confirmer')
         self.office()
-        # Mise en route : le tout premier calcul de la file commune (``file5651.items``, aussi fait par le rang d'Aujourd'hui) déclenche des
-        # reprises uniques d'autres modules (savoir5665, bouclier5668, connexions5653…), sans rapport avec le volet ; elles sont faites ici d'abord.
-        file5651.items(self.desk, '/p', None, '', frozenset(), actor=TITULAIRE[0], role=TITULAIRE[1])
+        # Plus de mise en route ici : les reprises uniques d'autres modules sont faites au démarrage (``reprises56101``), pas au premier calcul de la file.
         ecrites = []
         self.desk.db.set_trace_callback(lambda q: ecrites.append(q) if q.split(None, 1)[0].upper() in ('INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'CREATE', 'ALTER', 'DROP') else None)
         self.addCleanup(self.desk.db.set_trace_callback, None)
@@ -404,11 +402,87 @@ class Lignes(Volet):
         for quoi in ('envoi', 'recu'):
             self.assertEqual(self.brut('m5689/accueil/courriel', {'id': p_id, 'quoi': quoi})['status'], '200 OK')
         self.desk.db.set_trace_callback(None)
-        # R05 : rien n'est écrit pendant une lecture du volet. Seule exception constatée, antérieure au volet et hors de son code : le filigrane
-        # de source que ``livrables5689.synchroniser`` (appelé par le producteur ``reponses5671.queue_items`` de la file commune) réécrit à
-        # chaque calcul de la file, aussi depuis le rang d'Aujourd'hui ; signalé dans le compte rendu du lot V.
-        # (« CREATE … IF NOT EXISTS » des schémas déjà créés ne change rien et n'est pas compté.)
-        self.assertEqual([q[:200] for q in ecrites if 'prepared_sources5689' not in q and not re.match(r'\s*CREATE\s+(UNIQUE\s+)?(TABLE|INDEX|TRIGGER)\s+IF NOT EXISTS', q, re.I)], [])
+        # R05 : rien n'est écrit pendant une lecture du volet, sans exception (le registre des livrables n'est plus synchronisé par la file commune,
+        # voir test_V_18). « CREATE … IF NOT EXISTS » des schémas déjà créés ne change rien et n'est pas compté ; les colonnes ajoutées de
+        # ``taches5614`` (schéma, pas donnée) restent créées à la première lecture : collision ``validations5614``, voir ``reprises56101``.
+        self.assertEqual([q[:200] for q in ecrites if not re.match(r'\s*CREATE\s+(UNIQUE\s+)?(TABLE|INDEX|TRIGGER)\s+IF NOT EXISTS', q, re.I)
+                          and not re.match(r'\s*ALTER TABLE (missions5614|tasks5614) ADD COLUMN', q, re.I)], [])
+
+    def test_V_18_file_commune_n_ecrit_rien(self):
+        """R05 : la file commune (``file5651.items`` : rang d'Aujourd'hui, « Voir la suite », nature ``file`` du volet) n'écrit rien, dès le
+        premier calcul après le démarrage. Les reprises uniques d'autres modules sont faites par la préparation du démarrage
+        (``reprises56101``) ; le registre des livrables est tenu par l'arrière-plan (``livrables_travaux5689``), plus par l'affichage."""
+        from agent import desk as desk_module
+        from agent.desk import Desk
+        self.proposition(7, matter=MID)
+        self.note()
+        self.gmail_projet(matter=MID)
+        self.document()
+        cle_file = self.element_cabinet()
+        self.audience('aud-1', MID)
+        self.echeance('ech-v', 'a_confirmer')
+        # Redémarrage (comme un nouveau processus) : les données ci-dessus ont été créées après le premier, ses rattrapages s'y appliquent.
+        desk_module._SCHEMA_READY.clear()
+        Desk(self.desk.c).db.close()
+        # Démarrage suivant, sans changement : la préparation, reprises comprises, ne valide aucune écriture.
+        version = self.desk.db.execute('PRAGMA data_version').fetchone()[0]
+        desk_module._SCHEMA_READY.clear()
+        Desk(self.desk.c).db.close()
+        self.assertEqual(self.desk.db.execute('PRAGMA data_version').fetchone()[0], version, 'le deuxième démarrage a écrit dans la base')
+        ecrit = re.compile(r'\s*(INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|CREATE(?!\s+(UNIQUE\s+)?(TABLE|INDEX|TRIGGER|VIEW)\s+IF\s+NOT\s+EXISTS))\b', re.I)
+        for appel in (1, 2):
+            ecrites = []
+            self.desk.db.set_trace_callback(lambda q: ecrites.append(q[:200]) if ecrit.match(q) else None)
+            try:
+                items = file5651.items(self.desk, '/p', None, '', frozenset(), actor=TITULAIRE[0], role=TITULAIRE[1])
+            finally:
+                self.desk.db.set_trace_callback(None)
+            # Aucune donnée écrite (INSERT/UPDATE/DELETE) à aucun appel. Seule exception de schéma, au premier appel sur une base neuve : les colonnes
+            # ajoutées de ``taches5614`` (``validations5614`` en collision de nom avec ``pilote5613`` : pas préparée au démarrage, voir ``reprises56101``).
+            taches = re.compile(r'\s*ALTER TABLE (missions5614|tasks5614) ADD COLUMN', re.I)
+            with self.subTest(appel=appel):
+                self.assertEqual([q for q in ecrites if not (appel == 1 and taches.match(q))], [])
+                self.assertIn(cle_file, {it.get('key') for it in items})          # la file a bien été calculée
+
+    def test_V_19_reponse_deposee_lue_dans_le_registre_tenu_en_arriere_plan(self):
+        """R05 / UX14 : la carte « réponse à décider » disparaît quand l'arrière-plan a synchronisé le registre (brouillon déposé), sans que
+        l'affichage n'écrive ; avant ce passage, elle reste (deux cartes plutôt qu'une réponse perdue)."""
+        from agent import livrables5689 as liv, livrables_travaux5689 as travaux, reponses5671
+        key = '%064x' % 0xdef0042
+        self.desk.db.execute('CREATE TABLE IF NOT EXISTS reply_drafts5687(draft_key TEXT PRIMARY KEY, mail_key TEXT NOT NULL)')
+        self.desk.db.execute('INSERT INTO reply_drafts5687 VALUES(?,?)', ('brouillon-v19', key))
+        self.desk.db.execute('INSERT INTO manual_drafts VALUES(?,?,?)', (key, json.dumps({'matter': MID, 'result': {'body': 'Réponse fictive à Monsieur DURAND.', 'requires_decision': True, 'limits': []}}),
+                                                                         dr.maintenant_cabinet().isoformat()))
+        self.desk.db.commit()
+        self.assertEqual([c['object'] for c in reponses5671.queue_items(self.desk, '/p')], ['reponse5671:' + key])
+        self.desk.setting('cockpit530:drafts', {'at': 9e18, 'ok': True, 'validity': '5', 'items': [
+            {'uid': '7', 'subject': 'Re: Calendrier', 'to': 'confrere@example.test', 'date': dr.maintenant_cabinet().isoformat(), 'agent': True, 'agent_key': 'brouillon-v19',
+             'message_id': 'axiorhub-v19@example.test', 'in_reply_to': 'orig@example.test'}]})
+        ecrites = []
+        self.desk.db.set_trace_callback(lambda q: ecrites.append(q[:200]) if q.split(None, 1)[0].upper() in ('INSERT', 'UPDATE', 'DELETE', 'REPLACE') else None)
+        try:
+            avant = reponses5671.queue_items(self.desk, '/p')
+        finally:
+            self.desk.db.set_trace_callback(None)
+        self.assertEqual(([c['object'] for c in avant], ecrites), (['reponse5671:' + key], []))   # registre pas encore synchronisé : rien d'écrit
+        travaux.synchroniser(self.desk)                                                             # passage d'arrière-plan (faux stockage)
+        self.assertIn(key, liv.reponse_deposee(self.desk))
+        self.assertEqual(reponses5671.queue_items(self.desk, '/p'), [])
+
+    def test_V_20_boucle_des_automatismes_tient_le_registre(self):
+        """R05 : c'est l'arrière-plan (``operations._registre_livrables``, appelé par ``automation_tick``) qui lit les journaux des producteurs,
+        une fois par minute au plus ; l'affichage d'Aujourd'hui lit le registre ainsi tenu."""
+        from agent import livrables5689 as liv, operations
+        _d, row = self.document()
+        self.desk.db.execute('DELETE FROM prepared_sources5689')
+        self.desk.db.commit()
+        t = dr.maintenant_cabinet().timestamp()
+        self.addCleanup(operations._REGISTRE_VU.pop, str(self.desk.c['state_dir']), None)
+        self.assertTrue(operations._registre_livrables(self.desk, t))
+        self.assertTrue(self.desk.db.execute('SELECT COUNT(*) FROM prepared_sources5689').fetchone()[0])
+        self.assertFalse(operations._registre_livrables(self.desk, t + 30))                         # moins d'une minute : rien
+        self.assertTrue(operations._registre_livrables(self.desk, t + operations.REGISTRE_SECONDES))
+        self.assertIn(row['document_id'], {r['document_id'] for r in self.desk.db.execute('SELECT document_id FROM prepared_items5689')})
 
     def test_V_16_scripts_styles_et_catalogue(self):
         from agent import i18n5631, shell501, web440

@@ -83,7 +83,7 @@ def append_audit(desk,at,action,data,commit=False):
     raw=json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':'))
     payload_hash=hashlib.sha256(raw.encode()).hexdigest()
     row=desk.db.execute('SELECT event_hash FROM audit_chain_v290 ORDER BY seq DESC LIMIT 1').fetchone()
-    previous=row[0] if row else ''
+    previous=row[0] if row else _anchor(desk)[1]   # 5.6.102 (lot J) : journal vidé : la ligne suivante se chaîne à l'ancrage
     event_hash=hashlib.sha256((previous+'\n'+at+'\n'+action+'\n'+payload_hash).encode()).hexdigest()
     desk.db.execute('INSERT INTO audit_chain_v290(at,action,payload,payload_hash,previous_hash,event_hash) VALUES(?,?,?,?,?,?)',
       (at,action,raw,payload_hash,previous,event_hash))
@@ -92,8 +92,24 @@ def append_audit(desk,at,action,data,commit=False):
 
 
 def audit_status(desk,limit=100):
-    ensure_schema(desk);previous='';valid=True;bad_seq=None;rows=[]
-    all_rows=desk.db.execute('SELECT * FROM audit_chain_v290 ORDER BY seq').fetchall()
+    ensure_schema(desk)
+    return chain_check(desk,limit)
+
+
+def _anchor(desk):
+    """5.6.102 (lot J) : (numéro, empreinte) du dernier événement purgé, ou (0, '') si rien n'a été purgé."""
+    from .journal56102 import ancre
+    found=ancre(desk)
+    return (int(found['seq']),str(found['event_hash']),found) if found else (0,'',None)
+
+
+def chain_check(desk,limit=100):
+    """Vérification de la chaîne sans toucher au schéma (utilisable dans une transaction ouverte). 5.6.102 (lot J) : après une purge, la
+    vérification repart de l'ancrage ; une entrée encore présente à ou avant l'ancrage rompt la chaîne."""
+    start,previous,anchor=_anchor(desk);valid=True;bad_seq=None;rows=[]
+    stray=desk.db.execute('SELECT MIN(seq) FROM audit_chain_v290 WHERE seq<=?',(start,)).fetchone()[0] if start else None
+    all_rows=desk.db.execute('SELECT * FROM audit_chain_v290 WHERE seq>? ORDER BY seq',(start,)).fetchall()
+    if stray is not None:valid=False;bad_seq=stray;all_rows=[]
     for row in all_rows:
         actual_payload_hash=hashlib.sha256(str(row['payload']).encode()).hexdigest()
         expected=hashlib.sha256((previous+'\n'+row['at']+'\n'+row['action']+'\n'+row['payload_hash']).encode()).hexdigest()
@@ -102,7 +118,7 @@ def audit_status(desk,limit=100):
         previous=row['event_hash']
     for row in all_rows[-max(1,min(int(limit),500)):]:rows.append(dict(row))
     return {'valid':valid,'broken_at':bad_seq,'count':len(all_rows),'head':previous if valid else '',
-      'events':list(reversed(rows))}
+      'events':list(reversed(rows)),'since':start+1,'anchor':anchor}
 
 
 def _matter(desk,mid):
@@ -457,6 +473,11 @@ def audit_verify(desk,full_days=7):
     point=desk.settings('audit_chain:checkpoint5632',{}) or {}
     full=not point or point.get('full_at','')<(datetime.now(timezone.utc)-timedelta(days=full_days)).isoformat()
     seq=0 if full else int(point.get('seq',0));previous='' if full else str(point.get('hash',''))
+    start,anchor_hash,_=_anchor(desk)   # 5.6.102 (lot J) : entrées purgées : la relecture repart de l'ancrage, jamais d'avant
+    if full or seq<start:
+        seq,previous=start,anchor_hash
+        stray=desk.db.execute('SELECT MIN(seq) FROM audit_chain_v290 WHERE seq<=?',(start,)).fetchone()[0] if start else None
+        if stray is not None:return {'valid':False,'broken_at':stray,'checked':0,'full':full}
     count=0
     for row in desk.db.execute('SELECT * FROM audit_chain_v290 WHERE seq>? ORDER BY seq',(seq,)):
         actual=hashlib.sha256(str(row['payload']).encode()).hexdigest()

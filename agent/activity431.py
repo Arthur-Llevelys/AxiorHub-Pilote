@@ -82,13 +82,21 @@ def maintenance(desk, stamp=None):
             securite56101.ingerer(desk, now=stamp)
     except Exception:   # noqa: BLE001 — la veille ne doit pas interrompre la maintenance
         pass
+    try:   # 5.6.102 (lot J) : purge automatique du journal d'audit (si activée, une fois par jour) et compactage de nuit demandé par une purge
+        from . import journal56102
+        journal56102.maintenance(desk, stamp)
+    except Exception:   # noqa: BLE001 — le nettoyage du journal ne doit pas interrompre la maintenance
+        try:
+            desk.db.rollback()
+        except Exception:   # noqa: BLE001
+            pass
     try:
         from . import mobile490, search490
         mobile490.dispatch(desk, now=stamp)
         search490.schedule(desk, now=stamp)
     except Exception:
         pass
-    for step in ('conflicts500.scan_background','time500.check_alerts','limitation500.daily_check','meeting500.prepare_ahead','report500.snapshot_previous','reminders520.run','routines520.tick','deck530.tick','style550.tick','bibliotheque5639.purge','correspondances5643.auto_tick'):
+    for step in ('conflicts500.scan_background','time500.check_alerts','limitation500.daily_check','meeting500.prepare_ahead','report500.snapshot_previous','reminders520.run','routines520.tick','deck530.tick','style550.tick','bibliotheque5639.purge','pj56102.tick','correspondances5643.auto_tick'):   # 5.6.102 (lot P) : pièces jointes confiées puis rangées
         # Fonctions métier 5.0 : calculs locaux, chacun isolé pour qu'une panne n'empêche pas les autres.
         try:
             key='metier500:last:'+step

@@ -18,6 +18,18 @@ import re
 from .common import Stop
 from .mailbox import (Mailbox, MID, addresses, body_text, draft_key, imap_quote,
                       modified_utf7, subject_key)
+from .signature56102 import poser, reconstructible
+
+
+def _html_nettoye(part):
+    """5.6.102 (lot S) : version HTML du brouillon, nettoyée (liste fermée de balises, aucune image ni script) pour l'aperçu isolé du volet."""
+    if part is None:
+        return ''
+    try:
+        from .webmail5628 import clean_html
+        return clean_html(str(part.get_content())[:400000])
+    except (LookupError, UnicodeError, TypeError):
+        return ''
 
 MAX_BODY = 120_000
 MAX_RECIPIENTS = 25
@@ -216,7 +228,9 @@ def get_draft(mail_cfg, uid, validity='', garde=None):
                 'bcc': str(msg.get('Bcc', '')), 'subject': str(msg.get('Subject', '')),
                 'body': text, 'revision': revision(msg), 'attachments': attachments,
                 'editable': movable,
-                'lossy': html is not None,
+                # 5.6.102 (lot S) : un brouillon composé par AxiorHub (signature mise en forme) garde sa version HTML à l'enregistrement
+                'lossy': html is not None and reconstructible(msg) is None,
+                'html': _html_nettoye(html),
                 'edited_at': str(msg.get('X-AxiorHub-Edited', '')),
                 'flags': sorted(mail.flags), 'source': source}
     finally:
@@ -238,7 +252,11 @@ def build_edited(old, fields, stamp):
     new['Subject'] = fields['subject']
     new['Date'] = format_datetime(datetime.now(timezone.utc))
     new['X-AxiorHub-Edited'] = stamp
-    new.set_content(fields['body'].rstrip() + '\n')
+    sig = reconstructible(old)   # 5.6.102 (lot S) : version HTML et signature mise en forme reconstruites depuis le texte modifié
+    if sig is not None:
+        poser(new, fields['body'], sig, ajouter=False)   # signature retirée du texte par l'avocat : retirée du HTML aussi, jamais rajoutée
+    else:
+        new.set_content(fields['body'].rstrip() + '\n')
     for part in old.iter_attachments():
         data = part.get_payload(decode=True)
         if data is None or part.get_content_maintype() == 'message':

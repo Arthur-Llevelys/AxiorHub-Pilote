@@ -54,8 +54,7 @@ def _now():
 
 
 def ensure_schema(desk):
-    desk.db.executescript(SCHEMA)
-    _recheck_5665(desk)
+    desk.db.executescript(SCHEMA)     # 5.6.101 (R05) : la reprise unique ``_recheck_5665`` est faite au démarrage (``reprises56101``), plus pendant une lecture
 
 
 # 5.6.65 (audit 5.6.64, R07) : champs de prose réutilisés ailleurs (transmis au modèle avec la compétence) ; tous anonymisés.

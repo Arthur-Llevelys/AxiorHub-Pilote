@@ -644,7 +644,10 @@ def lot_possible(box):
     return isinstance(box, _MAILBOX_REELLE) and all(getattr(cls, n, None) is getattr(_MAILBOX_REELLE, n) for n in ('select', 'search', 'fetch'))
 
 
-def make_draft(mail, cfg, body, key, cc=(), to=None):
+def make_draft(mail, cfg, body, key, cc=(), to=None, signature=None, attachments=None):
+    """Brouillon de réponse. 5.6.102 (lot S) : ``signature`` = ``signature56102.effective(...)`` (signature de la messagerie, sinon de
+    Paramètres) ; sans elle, ``cfg['signature']`` comme avant. Une signature mise en forme ajoute une partie HTML (``multipart/alternative``) ;
+    ``attachments`` facultatif (``[(nom, octets, type)]``) : sans pièce, le message est inchangé."""
     if '\r' in cfg['from_name'] or '\n' in cfg['from_name']: raise Stop('identite_invalide')
     result = EmailMessage(policy=policy.SMTP)
     result['From'] = formataddr((cfg['from_name'], cfg['from_address']))
@@ -667,5 +670,6 @@ def make_draft(mail, cfg, body, key, cc=(), to=None):
         from .prudent5667 import mark_subject
         mark_subject(result, body or '')
     result['X-AxiorHub-Draft-Key'] = key
-    result.set_content(body.strip() + '\n\n' + cfg['signature'].strip() + '\n')
+    from .signature56102 import de_configuration, poser
+    poser(result, body, signature if signature is not None else de_configuration(cfg), attachments)   # une seule fois, jamais en double
     return result

@@ -131,6 +131,9 @@ LIGNES = (
     ('aujourdhui', 'dossier', 'Faire le point de la journée à partir des travaux préparés, décisions et échéances autorisés.', ('accueil5689.page',), ('expliquer', 'synthetiser', 'expliquer_incident'), ('deck',), ()),
     ('dossiers', 'dossier', 'Synthétiser un dossier, retrouver une preuve, repérer ce qui manque et proposer la suite.', ('portfolio.ensure_schema',), None, (), ()),
     ('courriels', 'courriels', 'Synthétiser un courriel, extraire les suites, proposer un rattachement, préparer une réponse à relire.', ('boite5625.listing',), None, (), ()),
+    # 5.6.102 (lot N) : page « À relire » sortie de Courriels ; expliquer et résumer ce qui attend une relecture, jamais décider à la place de l'avocat
+    ('a_relire', 'courriels', 'Résumer ce qui attend votre relecture et expliquer un projet préparé.', ('relecture56100.page_html',), ('expliquer', 'synthetiser'), (),
+     ('Aucune décision de relecture ni aucun dépôt par l’IA.',)),
     ('planning', 'agenda', 'Préparer la semaine et proposer les suites depuis les événements sourcés.', ('agenda5634.create',), ('expliquer', 'synthetiser', 'preparer_audience', 'prochaine_etape'), ('deck',), ()),
     ('taches', 'agenda', 'Prioriser les tâches et signaler les blocages.', ('taches5688.create',), ('expliquer', 'synthetiser', 'prochaine_etape'), ('deck',), ()),
     ('mes_taches', 'agenda', 'Résumer ses tâches et ce qui attend une décision.', ('taches5688.create',), ('expliquer', 'synthetiser', 'prochaine_etape'), ('deck',), ()),

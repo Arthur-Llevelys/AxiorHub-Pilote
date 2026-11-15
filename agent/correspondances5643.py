@@ -333,6 +333,12 @@ def prepare(desk, owner, data, box=None, mode='assisted', origin='user'):
                 chosen.append({**p, 'display_name': safe_name(item.get('display_name') or p['name'] or '', 80)})
         else:
             chosen = [dict(p) for p in parts if p.get('attachment') and not p.get('signature_like') and p.get('state') == 'extraite']
+        if origin == 'automatic' and chosen:   # 5.6.102 (lot P) : une pièce déjà rangée dans ce dossier (toute voie) n'est jamais redéposée
+            from .pj56102 import deja_range
+            kept = [p for p in chosen if not deja_range(desk, m['id'], p.get('sha256'))]
+            if len(kept) < len(chosen):
+                notices.append('%d pièce(s) déjà rangée(s) dans ce dossier : non redéposée(s).' % (len(chosen) - len(kept)))
+            chosen = kept
         if not chosen:
             if 'archive_email' not in actions:
                 raise Stop('aucune_piece_jointe_a_enregistrer')
@@ -1039,6 +1045,10 @@ def _run_mandates(desk, box, limit):
         except Stop as ex:
             if str(ex) in ('automatismes_en_pause', 'ia_en_pause', 'agent_en_pause_sur_ce_dossier', 'controle_pause_indisponible', 'ia_en_pause_horaire', 'horaires_ia_illisibles'):
                 continue   # reste en attente
+            if str(ex) == 'aucune_piece_jointe_a_enregistrer':   # 5.6.102 (lot P) : toutes déjà rangées dans ce dossier : mandat accompli
+                desk.db.execute("UPDATE mail_filing_mandates SET state='done', error_code='deja_rangees', updated_at=? WHERE id=?", (_now(), m['id']))
+                desk.db.commit()
+                continue
             desk.db.execute("UPDATE mail_filing_mandates SET state='error', error_code=?, updated_at=? WHERE id=?", (str(ex)[:80], _now(), m['id']))
             desk.db.commit()
             continue

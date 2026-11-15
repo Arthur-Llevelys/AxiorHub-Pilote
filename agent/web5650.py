@@ -47,6 +47,8 @@ def messagerie_page(desk, auth, prefix, env, args):
         tid = mx.matter_thread(desk, str(args['dossier']), me, hidden, follow=False)
     elif args.get('fil'):
         tid = mx._check(desk, args['fil'], me, hidden)['id']
+    from .pilote_messagerie56102 import page_html as _pilote102   # 5.6.102 (lot M) : outils de Pilote, indicateur, volet (lecture seule)
+    p102 = _pilote102(desk, prefix, tid, me, hidden)
     others = sorted((m for o, m in members.items() if o != me), key=lambda m: (m['name'] or '').lower())
     options = ''.join('<option value="%s">%s</option>' % (e(m['owner'], quote=True), e('%s (%s)' % (m['name'] or m['owner'], m['role']))) for m in others)
     checks = ''.join('<label class="m50-check"><input type="checkbox" name="%s"> %s</label>' % (e('compte:' + m['owner'], quote=True), e(m['name'] or m['owner']))
@@ -61,15 +63,16 @@ def messagerie_page(desk, auth, prefix, env, args):
     main = ('<section class="m50-main" id="m50-main" aria-live="polite"><p class="m50-empty">Choisissez une conversation, ou ouvrez le fil d’un dossier '
             'depuis sa page.</p></section>') if not tid else (
         '<section class="m50-main" id="m50-main"><header class="m50-head"><h2 id="m50-title">…</h2><p class="m50-people" id="m50-people"></p>'
-        '<div class="m50-tools" id="m50-tools"></div></header><ol class="m50-messages" id="m50-messages" aria-live="polite"></ol>'
-        '<form class="m50-compose" id="m50-compose"><label for="m50-text" class="m50-sr">Votre message</label>'
+        '<div class="m50-tools" id="m50-tools"></div>' + p102['outils'] + '</header><ol class="m50-messages" id="m50-messages" aria-live="polite"></ol>'
+        + p102['attente'] + '<form class="m50-compose" id="m50-compose"><label for="m50-text" class="m50-sr">Votre message</label>'
         '<textarea id="m50-text" rows="3" maxlength="8000" required data-mention data-matter="' + e(str(args.get('dossier') or ''), quote=True) + '" placeholder="Écrire un message… (@identifiant pour mentionner)"></textarea>'
         '<button class="ax-btn" type="submit">Envoyer</button><p role="status" class="m50-status" id="m50-status"></p></form></section>')
-    body = ('<div class="m50"><h1>Messagerie du cabinet</h1><p class="ax-muted">Conversations entre membres du cabinet, sur le serveur du cabinet. '
-            'L’agent peut y déposer des avis ; il ne lit pas les conversations.</p>'
+    body = ('<div class="m50"><h1>Messagerie instantanée</h1><p class="ax-muted">Conversations entre membres du cabinet, sur le serveur du cabinet. '
+            'L’agent peut y déposer des avis. Pilote (IA) ne lit une discussion que si on l’interpelle (« @pilote » ou « Résumé de la discussion ») '
+            'et n’envoie jamais rien.</p>'
             '<div class="m50-chat" id="m50-chat" data-fil="%s" data-me="%s"><aside class="m50-side">%s<h2 class="m50-sr">Conversations</h2>'
             '<ul class="m50-list" id="m50-list"></ul></aside>%s</div></div>') % (e(str(tid), quote=True), e(me, quote=True), side, main)
-    return body
+    return body + p102['scripts']
 
 
 def droits_page(desk, auth, prefix, env, args):
@@ -132,6 +135,9 @@ def api(env, desk, auth, prefix, name, args, method):
     route = name[len('m5650/'):].split('?', 1)[0]
     members = _members(desk, auth)
     me, role, my_name = _me(env, desk, auth, members)
+    from .pilote_messagerie56102 import reservee as _reservee102
+    if _reservee102(me):   # 5.6.102 (lot M) : l'identité de Pilote ne lit ni n'écrit par l'API
+        raise Stop('role_insuffisant')
     hidden = _hidden()
     if method == 'GET':
         if route == 'nonlus':
@@ -170,7 +176,10 @@ def api(env, desk, auth, prefix, name, args, method):
         return json_out({'message': 'Fil suivi.' if data.get('suivre') else 'Fil non suivi.'})
     if route == 'ecrire':
         out = mx.post(desk, me, my_name, role, data.get('id'), data.get('texte'), members, hidden, data.get('lien') or '', data.get('lien_libelle') or '')
-        return json_out({**out, 'message': 'Message envoyé.'})
+        from .membres5650 import ai_denied
+        from .pilote_messagerie56102 import apres_message as _pilote102   # 5.6.102 (lot M) : « @pilote » → travail en file, aucun appel au modèle ici
+        pilote = _pilote102(desk, me, role, data.get('id'), out['id'], data.get('texte'), hidden, ai_denied())
+        return json_out({**out, 'message': 'Message envoyé.', **({'pilote': pilote} if pilote else {})})
     if route == 'retirer':
         try:
             mid = int(data.get('message'))

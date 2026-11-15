@@ -722,8 +722,9 @@ class C04Projet(Base):
         self.connecter()
         p, v = self.projet_pret()
         r = v['releve']
+        # 5.6.102 (lot S) : la signature part avec le projet (Gmail non lisible dans ce faux Google : repli sur celle de Paramètres)
         self.assertEqual((r['compte'], r['a'], r['cc'], r['objet'], r['texte'], r['pieces']),
-                         (GMAIL_CLAIRE, ['camille.martin@example.test'], [], 'Re: Bordereau KERVILAC', 'Bien reçu, merci.', []))
+                         (GMAIL_CLAIRE, ['camille.martin@example.test'], [], 'Re: Bordereau KERVILAC', 'Bien reçu, merci.\n\nMaître Exemple', []))
         from agent import gmail_web5697
         html = gmail_web5697.releve_html(r)
         for attendu in (GMAIL_CLAIRE, 'camille.martin@example.test', 'Re: Bordereau KERVILAC', 'Bien reçu, merci.', 'Aucune pièce jointe'):

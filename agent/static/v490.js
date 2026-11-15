@@ -82,7 +82,7 @@
       var s = r.source || {}, m = encodeURIComponent(r.matter || '');
       if (r.kind === 'fichier' && r.matter) return prefix + '/documents?matter=' + m + '&dir=' + encodeURIComponent(dirOf(s.path || ''));
       if (r.kind === 'agenda') return prefix + (s.type === 'echeance' ? '/echeances' : '/planning');
-      if (r.kind === 'courriel' && s.type === 'imap') return s.draft ? prefix + '/courriels' : (r.matter ? prefix + '/fiche?matter=' + m : '');
+      if (r.kind === 'courriel' && s.type === 'imap') return s.draft ? prefix + '/a-relire' : (r.matter ? prefix + '/fiche?matter=' + m : '');
       if (r.matter) return prefix + '/fiche?matter=' + m;
       return '';
     };

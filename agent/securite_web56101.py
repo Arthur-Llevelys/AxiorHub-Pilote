@@ -36,6 +36,18 @@ AIDE = {'S01': 'Processeur occupé plus de 30 minutes par un programme inconnu.'
         'S10': 'Dossier web appartenant au compte web ; script d’un administrateur dans un dossier modifiable par lui.',
         'S11': 'Ports Docker ouverts sur toutes les interfaces (Docker contourne ufw) ; terminaux web et automatisation.',
         'S12': 'Échecs de connexion sur 24 h ; Fail2ban absent ou arrêté.', 'S13': 'Droits des fichiers de configuration, de secrets et de rapports d’AxiorHub.'}
+# 5.6.102 (lot C) : compléments d'aide, en morceaux (texte, code) échappés à l'affichage
+AIDE_PLUS = {'S03': (
+    ('Le Collabora intégré à Nextcloud (application « Collabora Online – Built-in CODE Server ») est reconnu quand il est lancé depuis ',
+     'apps/richdocumentscode'),
+    (' (ou ', 'custom_apps/…'), (', ', 'apps-extra/…'),
+    (') : ses programmes décompressés dans ', '/tmp/appimage_extracted_…'),
+    (' ne sont pas signalés s’ils ont été lancés par ce programme (le nom seul ne suffit pas), ni pour une forte charge '
+     'du processeur (S01 : le rendu de documents peut l’occuper) ; le contrôle de minage (S04) leur reste appliqué. Pour vous assurer que ces fichiers sont bien ceux publiés par Nextcloud, lancez depuis le dossier de Nextcloud (lecture '
+     'seule, rien n’est modifié) : ', 'sudo -u www-data php occ integrity:check-app richdocumentscode'),
+    ('. Chemins propres au cabinet : clé « autorises » de ', '/etc/axiorhub-mail-agent/veille-securite.json'),
+    (' (motifs avec *). Un motif ', '/tmp/…'),
+    (' est déconseillé : n’importe quel compte de la machine peut y déposer un programme.', ''))}
 COULEURS = {'vert': ('Aucun constat ouvert', 's101-vert'), 'orange': ('Constats importants à examiner', 's101-orange'),
             'rouge': ('Constat critique : agir sans attendre', 's101-rouge'), 'gris': ('Aucun rapport de la veille', 's101-gris')}
 
@@ -140,6 +152,7 @@ def page_html(desk, prefix, args=None):
     ouverts = s.constats(desk)
     out.append('<h2 id="s101-ouverts">Constats ouverts</h2>')
     out += [_constat_html(desk, prefix, x) for x in ouverts] or ['<p class="empty">Aucun constat ouvert.</p>']
+    out.append(_reconnus_html(desk))
     connus = s.constats(desk, connus=True)
     if connus:
         out.append('<details class="s101-connus"><summary>Constats marqués comme connus (%d)</summary>%s</details>' % (
@@ -150,10 +163,30 @@ def page_html(desk, prefix, args=None):
     out.append(_veille_html(prefix, st))
     out.append('<section class="s101-aide" aria-labelledby="s101-aide-titre"><h2 id="s101-aide-titre">Aide : les contrôles</h2><dl>%s</dl>'
                '<p class="s101-mini">Bilan et durcissement guidés du serveur : <code>%s</code> (sans option : bilan seul, rien n’est modifié).</p></section>' % (
-                   ''.join('<dt id="aide-%s">%s</dt><dd>%s</dd>' % (k, k, e(v)) for k, v in AIDE.items()),
+                   ''.join('<dt id="aide-%s">%s</dt><dd>%s%s</dd>' % (k, k, e(v), _aide_plus(k)) for k, v in AIDE.items()),
                    'sudo bash /opt/axiorhub-mail-agent/current/deploy/securite/durcir-serveur.sh'))
     out.append('</section>')
     return ''.join(out)
+
+
+def _aide_plus(ident):
+    morceaux = AIDE_PLUS.get(ident)
+    if not morceaux:
+        return ''
+    return '<br><span class="s101-mini">%s</span>' % ''.join(e(t) + ('<code>%s</code>' % e(c) if c else '') for t, c in morceaux)
+
+
+def _reconnus_html(desk):
+    """5.6.102 (lot C) : éléments reconnus comme normaux au dernier passage (information, jamais une alerte ni un constat)."""
+    lignes = s.reconnus(desk)
+    if not lignes:
+        return ''
+    items = ''.join('<li>%s, au passage du %s. <a href="#aide-S03">Pourquoi ?</a></li>' % (e(x['texte']), e(s.heure_locale(desk, x['fin'])))
+                    for x in lignes)
+    return ('<section class="s101-reconnus" aria-labelledby="s101-reconnus-titre"><h2 id="s101-reconnus-titre">Éléments reconnus (information)</h2>'
+            '<p class="s101-mini">Programmes normaux du serveur qui ressembleraient sinon à un signe d’intrusion : ils ne sont pas signalés '
+            'comme lancés depuis un dossier temporaire ou web, ni pour une forte charge du processeur ; le contrôle de minage leur reste appliqué.</p>'
+            '<ul>%s</ul></section>') % items
 
 
 def _fiche_html(desk, prefix, args):

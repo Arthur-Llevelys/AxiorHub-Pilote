@@ -258,6 +258,7 @@ MESSAGES = {
     'mots_de_passe_differents': 'Les deux saisies du nouveau mot de passe sont différentes.',   # 5.6.42
     'mot_de_passe_inchange': 'Le nouveau mot de passe est identique à l’actuel.',   # 5.6.42
     'identifiant_invalide': 'Identifiant invalide : 3 à 64 caractères (lettres, chiffres, point, tiret, @).',   # 5.6.42
+    'identifiant_reserve': 'Identifiant réservé (« pilote » : l’IA de la messagerie instantanée) : choisissez-en un autre.',   # 5.6.102 (lot M)
     'comptes_du_cabinet_dans_la_page_comptes': 'Les comptes du cabinet se gèrent dans la page Comptes.',   # 5.6.42
     'compte_interface_absent': 'Compte de l’interface introuvable : relancez l’installation de l’interface.',   # 5.6.42
     'mot_de_passe_trop_court_12': 'Le mot de passe doit compter 12 caractères au moins.',   # 5.6.48

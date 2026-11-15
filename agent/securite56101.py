@@ -40,6 +40,9 @@ ANTI_REBOND = 3600            # S-U3 : une alerte au plus par heure et par const
 MAX_RAPPORT = 5 * 1024 * 1024
 MAX_VU, MAX_TEXTE, MAX_COMMANDES = 40, 400, 12
 MOTIF_MAX = 500
+# 5.6.102 (lot C) : éléments que le collecteur reconnaît comme normaux (ligne d'information, jamais une alerte)
+RECONNUS = {'collabora': 'Collabora intégré à Nextcloud reconnu'}
+CLE_RECONNUS = 'securite56101:reconnus'
 MESURES = (('processus', 'Programme suspect arrêté (copie conservée pour l’enquête)'),
            ('tache', 'Tâche planifiée suspecte supprimée (copie conservée)'),
            ('mots_de_passe', 'Mots de passe et clés des applications changés'),
@@ -208,6 +211,34 @@ def _appliquer(desk, nom, rapport, maintenant):
                      niveaux.count('important'), niveaux.count('surveiller'), json.dumps(erreurs), _iso(maintenant)))
 
 
+def _reconnus_propres(rapport):
+    """5.6.102 (lot C) : éléments reconnus comme normaux par le collecteur (liste fermée d'identifiants, nombre de processus borné).
+    Le texte affiché est celui d'AxiorHub, jamais celui du rapport."""
+    out = []
+    for x in rapport.get('reconnus') if isinstance(rapport.get('reconnus'), list) else []:
+        if not isinstance(x, dict) or x.get('id') not in RECONNUS:
+            continue
+        n = x.get('processus')
+        if isinstance(n, int) and not isinstance(n, bool) and 0 < n <= 100_000 and x['id'] not in {y['id'] for y in out}:
+            out.append({'id': x['id'], 'processus': n})
+    return out
+
+
+def reconnus(desk):
+    """Lignes d'information du dernier rapport analysé (lecture seule) : [{'id', 'processus', 'texte', 'fin'}]."""
+    try:
+        data = desk.settings(CLE_RECONNUS, None)
+    except Exception:   # noqa: BLE001 — une ligne d'information absente vaut mieux qu'une page en erreur
+        return []
+    if not isinstance(data, dict) or not isinstance(data.get('elements'), list):
+        return []
+    out = []
+    for x in _reconnus_propres({'reconnus': data['elements']}):
+        out.append({'id': x['id'], 'processus': x['processus'], 'fin': str(data.get('fin') or '')[:40],
+                    'texte': '%s (%d processus)' % (RECONNUS[x['id']], x['processus'])})
+    return out
+
+
 def ingerer(desk, now=None, dossier=None, limite=60):
     """Analyse les rapports nouveaux (maintenance périodique seulement). Rapide quand rien n'a changé : seules les dates des deux
     derniers rapports sont relues. Renvoie le nombre de rapports analysés."""
@@ -226,6 +257,7 @@ def ingerer(desk, now=None, dossier=None, limite=60):
     limite_age = maintenant - timedelta(days=HISTORIQUE_JOURS)
     noms = sorted(p.name for p in d.glob('rapport-*.json') if p.name not in connus)
     traites = 0
+    reconnus = None
     for nom in noms[-int(limite):]:
         rapport = _lire_rapport(d / nom)
         if rapport is None:
@@ -233,11 +265,14 @@ def ingerer(desk, now=None, dossier=None, limite=60):
         if (_instant(rapport['fin']) or maintenant) < limite_age:
             continue
         _appliquer(desk, nom, rapport, maintenant)
+        reconnus = {'fin': _iso(_instant(rapport['fin']) or maintenant), 'elements': _reconnus_propres(rapport)}
         traites += 1
     borne = _iso(limite_age)
     desk.db.execute('DELETE FROM secu56101_rapports WHERE fin<?', (borne,))
     desk.db.execute("DELETE FROM secu56101_constats WHERE etat='resolu' AND resolu<?", (borne,))
     desk.db.commit()
+    if reconnus is not None:
+        desk.setting(CLE_RECONNUS, reconnus)      # 5.6.102 : éléments reconnus du dernier rapport (ligne d'information de la page)
     desk.setting('securite56101:marque', marque)
     return {'nouveaux': traites, 'etat': 'ok'}
 

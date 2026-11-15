@@ -39,6 +39,8 @@ STATIC.update({'/static/v56101-familles.css': 'text/css', '/static/v56101-famill
 STATIC.update({'/static/v56101-aujourdhui.js': 'text/javascript', '/static/v56101-aujourdhui.css': 'text/css'})   # 5.6.101 (lot P) : blocs différés d'Aujourd'hui (dépli, après affichage, retour sans rechargement)
 STATIC.update({'/static/v56101-securite.css': 'text/css', '/static/v56101-securite.js': 'text/javascript'})   # 5.6.101 (lot S) : page « Sécurité du serveur », bandeau d'Aujourd'hui
 STATIC.update({'/static/v56101-volet.js': 'text/javascript', '/static/v56101-volet.css': 'text/css'})   # 5.6.101 (lot V) : volet de relecture à droite d'Aujourd'hui
+STATIC.update({'/static/v56102-pilote.js': 'text/javascript', '/static/v56102-pilote.css': 'text/css'})   # 5.6.102 (lot M) : Pilote dans la messagerie instantanée
+STATIC.update({'/static/v56102-navigation.css': 'text/css'})   # 5.6.102 (lot N) : libellés longs du menu principal (retour à la ligne)
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -372,7 +374,7 @@ def route(env, cfg, auth, prefix, path, args, method):
             return {'status': '200 OK', 'kind': STATIC[path], 'body': (Path(__file__).parent / 'static' / name).read_bytes()}
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
-    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation', '/competences', '/decision', '/audiences', '/reviser', '/recherche-juridique', '/surveillance') or path in _pages500() or path.startswith('/api440/') or path in _pages5636()):
+    if not (path in ('/parametres', '/parametres/agents', '/parametres/agendas', '/agents-documents', '/engagements', '/veille', '/parametres/proactivite', '/accueil-administratif', '/missions', '/audience', '/missions-complexes', '/profils', '/parametres/assistant', '/parametres/connexions', '/mise-en-service', '/courriels', '/a-relire', '/documents', '/documents/edit', '/atelier/reglages', '/echeances', '/fiche', '/dossier', '/chronologie', '/verification', '/sources', '/modeles', '/progres', '/autonomie', '/tracabilite', '/recherche', '/confort', '/sw.js', '/hors-ligne', '/pieces', '/diagnostic', '/ia-externe', '/mon-style', '/a-propos', '/guide-installation', '/guide-utilisation', '/competences', '/decision', '/audiences', '/reviser', '/recherche-juridique', '/surveillance') or path in _pages500() or path.startswith('/api440/') or path in _pages5636()):
         return None
     from . import shell501
     shell501.set_context(cfg)
@@ -420,7 +422,12 @@ def route(env, cfg, auth, prefix, path, args, method):
             if path == '/parametres/connexions':return page_out(web567.connections_page(desk,auth,prefix,env))
             return page_out(web567.preferences_page(desk,auth,prefix,env))
         if path == '/courriels':
+            cible = vers_a_relire(desk, env, prefix, args)   # 5.6.102 (lot N) : anciennes adresses d'un élément à relire → /a-relire
+            if cible:
+                return {'status': '302 Found', 'kind': 'text/plain; charset=utf-8', 'body': '', 'headers': [('Location', cible)]}
             return page_out(drafts_page(desk, auth, prefix, args, env))   # 5.6.96 : le compte choisit la vue « À traiter avec le Pilote »
+        if path == '/a-relire':
+            return page_out(relire_page(desk, auth, prefix, args, env))   # 5.6.102 (lot N) : liste unique de relecture, accès principal
         if path == '/documents':
             return page_out(documents_page(desk, auth, prefix, args))
         if path == '/documents/edit':
@@ -538,6 +545,12 @@ def api(env, desk, auth, prefix, name, args, method):
                             '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else
                             ('409 Conflict' if code == 'version_en_conflit' else
                              ('404 Not Found' if code in ('routine_absente', 'connexion_absente', 'operation_absente', 'element_absent') else '400 Bad Request')))
+    if name.startswith('m56102/accord/'):   # 5.6.102 (lot K) : accord du client → documents → projet de courriel (404 neutre, 409, no-store ; jamais d'envoi)
+        from . import accord56102
+        return accord56102.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56102/pilote/'):   # 5.6.102 (lot M) : Pilote dans la messagerie (présence, Résumer, Annuler, projet du volet, réglage ; 404 neutre, 409, no-store)
+        from . import pilote_messagerie56102
+        return pilote_messagerie56102.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5676/'):   # 5.6.76 : opportunités et prospects
         from . import crm5676
         try:
@@ -1115,41 +1128,89 @@ def _learn(desk, data, result):
 
 # ------------------------------------------------------------------- pages
 def drafts_page(desk, auth, prefix, args, env=None):
-    """Courriels : « À relire » (défaut), « Boîte de réception » (``?vue=boite``) et, si l'option est active, « À traiter avec le Pilote »
-    (``?vue=assistante``, 5.6.96). 5.6.96 (I03) : la vue est choisie **avant** toute lecture ; seule « À relire » lit les brouillons dans la
+    """Courriels : « Boîte de réception » (défaut, ``?vue=boite`` conservé) et, si l'option est active, « À traiter avec le Pilote »
+    (``?vue=assistante``, 5.6.96). 5.6.102 (lot N) : avec la nouvelle interface, « À relire » est un accès principal distinct
+    (``/a-relire``, ``relire_page``) ; en présentation historique (interrupteur ``interface56100``), Courriels garde son onglet « À relire »
+    par défaut, comme avant. 5.6.96 (I03) : la vue est choisie **avant** toute lecture ; seule « À relire » lit les brouillons dans la
     messagerie (``drafts440.list_drafts``) : la boîte de réception ne consulte plus les brouillons pour un panneau caché, et un échec de cette
     lecture ne ralentit ni ne bloque les autres vues. Onglets, adresses, bannières et éditeur restent ceux de leur vue d'origine."""
     from .web567 import actor
     owner, role = actor(env or {})
     vue = str(args.get('vue') or '')
-    from . import courriels5696
+    from . import courriels5696, interface56100
     assistee_active = courriels5696.active(desk, owner)
+    separe = interface56100.active(desk, owner)
     vue = vue if vue in ('boite', 'assistante') else ''
     if vue == 'assistante' and not assistee_active:
         vue = ''                       # option désactivée : l'usage courant, sans message d'erreur
-    tabs = _courriels_onglets(prefix, vue, assistee_active)
+    if separe and not vue:
+        vue = 'boite'                  # 5.6.102 : la boîte de réception est la page Courriels
+    tabs = _courriels_onglets(prefix, vue, assistee_active, separe)
     head = ''
-    if vue == 'boite':
+    if vue == 'boite' and (desk.c.get('mail') or {}).get('enabled', True) is False:
+        # 5.6.102 (lot N) : messagerie non choisie dans le guide : état réel affiché, aucune lecture IMAP tentée par le script de la boîte
+        body = tabs + ('<section class="ax-empty" id="bx5625-desactivee"><h1>Boîte de réception</h1><p>La messagerie n’est pas activée pour AxiorHub : '
+                       'aucun courriel n’est lu.</p><p><a class="ax-btn ghost" href="%s">Configurer la messagerie</a> '
+                       '<a class="ax-btn ghost" href="%s">Ouvrir « À relire »</a></p></section>') % (
+            e(prefix + '/guide-installation?etape=messagerie', quote=True), e(prefix + '/a-relire', quote=True))
+    elif vue == 'boite':
         body = tabs + _courriels_boite()
     elif vue == 'assistante':
         from . import courriels_web5696
         body = courriels_web5696.page(desk, prefix, args, owner, role, tabs)
         head = '<script defer src="' + e(prefix) + '/static/v5696-courriels.js"></script>'
-    else:
+    else:                              # présentation historique : « À relire » reste la vue par défaut de Courriels
         from .web520 import mail_pipeline_html
-        from . import interface56100
-        if interface56100.active(desk, owner):   # 5.6.100 (lot B) : liste unique « À relire » et lecteur commun ; l'ancienne vue reste derrière l'interrupteur
-            from . import relecture56100
-            body = mail_pipeline_html(desk, prefix, compact=True) + tabs + relecture56100.page_html(desk, prefix, (owner, role), args)
-            head = relecture56100.tete_html(prefix)
-        else:
-            body = mail_pipeline_html(desk, prefix, compact=True) + tabs + _courriels_a_relire(desk, prefix)
+        body = mail_pipeline_html(desk, prefix, compact=True) + tabs + _courriels_a_relire(desk, prefix)
     return shell('Courriels', body, prefix, auth['csrf'], '/courriels', head=head)
 
 
-def _courriels_onglets(prefix, vue, assistee_active):
-    """Onglets de Courriels : mêmes adresses qu'avant ; le troisième n'existe que si l'option est active."""
-    onglets = [('', prefix + '/courriels', 'À relire'), ('boite', prefix + '/courriels?vue=boite', 'Boîte de réception')]
+def relire_page(desk, auth, prefix, args, env=None):
+    """5.6.102 (lot N) : page « À relire » (``/a-relire``), sortie de Courriels. Nouvelle interface : liste unique et lecteur commun de la
+    5.6.100 (``relecture56100.page_html``, mêmes droits : un élément interdit ou absent ne s'affiche pas, la route de détail répond le même
+    404 neutre). Présentation historique : l'ancienne vue « À relire » de Courriels, avec ses onglets (aucune entrée de menu distincte)."""
+    from .web567 import actor
+    owner, role = actor(env or {})
+    from .web520 import mail_pipeline_html
+    from . import interface56100
+    if interface56100.active(desk, owner):
+        from . import relecture56100
+        body = mail_pipeline_html(desk, prefix, compact=True) + relecture56100.page_html(desk, prefix, (owner, role), args)
+        return shell('À relire', body, prefix, auth['csrf'], '/a-relire', head=relecture56100.tete_html(prefix))
+    from . import courriels5696
+    tabs = _courriels_onglets(prefix, '', courriels5696.active(desk, owner), False)
+    return shell('Courriels', mail_pipeline_html(desk, prefix, compact=True) + tabs + _courriels_a_relire(desk, prefix), prefix, auth['csrf'], '/courriels')
+
+
+# 5.6.102 (lot N) : paramètres d'un élément à relire repris par la redirection des anciennes adresses de Courriels (rien d'autre n'est recopié).
+RELIRE_PARAMS = ('item', 'source', 'q', 'uid', 'validity', 'return_to')
+
+
+def vers_a_relire(desk, env, prefix, args):
+    """Adresse ``/a-relire`` d'une ancienne adresse de Courriels qui visait « À relire » (marque-pages, notifications, liens d'Aujourd'hui,
+    du volet et des fiches) : ``?vue=relire``, ou ``?item=``, ``?source=``, ``?uid=`` hors des vues Boîte et Pilote. '' sinon, ou en
+    présentation historique (Courriels y garde « À relire »). La cible ne redirige jamais vers Courriels : aucune boucle possible."""
+    vue = str(args.get('vue') or '')
+    if vue != 'relire' and (vue in ('boite', 'assistante') or not any(args.get(k) for k in ('item', 'source', 'uid'))):
+        return ''
+    from .web567 import actor
+    from . import interface56100
+    if not interface56100.active(desk, actor(env or {})[0]):
+        return ''
+    garde = [(k, str(args[k])[:600]) for k in RELIRE_PARAMS if args.get(k)]
+    return prefix + '/a-relire' + ('?' + urlencode(garde) if garde else '')
+
+
+def _courriels_onglets(prefix, vue, assistee_active, separe=False):
+    """Onglets de Courriels : mêmes adresses qu'avant ; le troisième n'existe que si l'option est active. 5.6.102 (lot N) : avec « À relire »
+    en accès distinct (``separe``), la boîte de réception est le premier onglet (``/courriels``) et la barre n'apparaît qu'avec l'option
+    « À traiter avec le Pilote » ; le passage de Courriels à « À relire » se fait par la barre de la famille Courriels."""
+    if separe:
+        if not assistee_active:
+            return ''
+        onglets = [('boite', prefix + '/courriels', 'Boîte de réception')]
+    else:
+        onglets = [('', prefix + '/courriels', 'À relire'), ('boite', prefix + '/courriels?vue=boite', 'Boîte de réception')]
     if assistee_active:
         onglets.append(('assistante', prefix + '/courriels?vue=assistante', 'À traiter avec le Pilote'))
     return '<nav class="bx5625-tabs" aria-label="Courriels">%s</nav>' % ''.join(

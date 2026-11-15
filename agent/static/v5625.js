@@ -94,7 +94,7 @@
       var wrap = el('div', { 'class': 'bx5625-replies' }, [el('h3', { text: 'Réponses préparées (' + m.replies.length + ')' })]);
       if (!m.replies.length) wrap.appendChild(el('p', { 'class': 'ax-muted', text: 'Aucune réponse dans Brouillons pour ce courriel.' }));
       m.replies.forEach(function (r) {
-        var edit = el('a', { 'class': 'ax-btn ghost', href: prefix + '/courriels?uid=' + encodeURIComponent(r.uid), text: 'Modifier' });
+        var edit = el('a', { 'class': 'ax-btn ghost', href: prefix + '/a-relire?uid=' + encodeURIComponent(r.uid), text: 'Modifier' });
         var drop = el('button', { type: 'button', 'class': 'ax-btn danger', text: 'Supprimer' });
         var again = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Relancer avec mon instruction' });
         drop.addEventListener('click', function () {
@@ -219,7 +219,8 @@
           if (inflight.creer) return;
           inflight.creer = true; busy(make, true);
           api('m5625/boite/creer-dossier', { client_name: client.value, title: title.value, reference: ref.value, parent: parent.value,
-                                              correspondent: link.checked ? String((String(m.from).match(/<([^>]+)>/) || [0, m.from])[1]).trim() : '' })
+                                              correspondent: link.checked ? String((String(m.from).match(/<([^>]+)>/) || [0, m.from])[1]).trim() : '',
+                                              uid: String(m.uid || ''), folder: m.folder || state.folder || '', uidvalidity: String(m.uidvalidity || '') })   /* 5.6.102 (lot P) : pièces jointes en attente du dossier */
             .then(function (r) {
               toast(r.message); state.matters = null;
               var o = el('option', { value: r.id, text: r.label }); select.appendChild(o); select.value = r.id; creator.hidden = true;

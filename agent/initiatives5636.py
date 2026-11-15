@@ -449,6 +449,8 @@ def _draft(desk, to, subject, body, owner):
     from html import escape
     from .webmail5628 import save
     html = ''.join('<p>%s</p>' % escape(p).replace('\n', '<br>') for p in body.split('\n\n'))
+    from .signature56102 import effective, html_webmail   # 5.6.102 (lot S) : signature de la messagerie, sinon de Paramètres (une seule fois)
+    html = html_webmail(html, effective(desk, owner))
     return save(desk, {'mode': 'nouveau', 'to': to or '', 'subject': subject, 'html': html}, owner)
 
 

@@ -163,6 +163,7 @@ class Base(unittest.TestCase):
         return self.desk.db.execute("SELECT document_id FROM prepared_items5689 WHERE path=? ORDER BY version_number DESC LIMIT 1", (path,)).fetchone()[0]
 
     def items(self):
+        liv.synchroniser(self.desk)      # 5.6.101 (R05) : passage d'arrière-plan (``operations._registre_livrables``) ; « À relire » ne synchronise plus à l'affichage
         return cockpit530.review_items(self.desk, True)
 
     def api(self, name, args=None, body=None, who=AVOCAT):
@@ -402,6 +403,7 @@ class B03(t84.Base):
         path = '/Dossiers/DEMO/PROJETS/Conclusions_projet.docx'
         self.docs.files[path] = texte_docx('Conclusions fictives.')
         production420.record_job(self.desk, {'id': 98765, 'kind': 'prepare_document_project'}, {'matter': MID}, 'done', {'projet_prepare': True, 'created_files': [{'path': path, 'sha256': 'd' * 64, 'bytes': 10}]})
+        liv.synchroniser(self.desk)      # 5.6.101 (R05) : passage d'arrière-plan, plus à l'affichage
         self.assertIn(path, [x.get('path') for x in cockpit530.review_items(self.desk, True)])
 
     def test_UX01_formulaire_cession_et_bibliotheque_au_registre(self):
@@ -596,6 +598,7 @@ class Producteurs(Base):
         self.assertEqual([c['object'] for c in cards], ['reponse5671:' + key])      # pas encore déposée : la décision est ici
         self.desk.setting('cockpit530:drafts', {'at': 9e18, 'ok': True, 'validity': '5', 'items': [
             {'uid': '7', 'subject': 'Re: Calendrier', 'to': 'confrere@example.test', 'date': datetime.now(timezone.utc).isoformat(), 'agent': True, 'agent_key': 'brouillon-1', 'message_id': 'axiorhub-1@example.test', 'in_reply_to': 'orig@example.test'}]})
+        liv.synchroniser(self.desk, fond=True)                                       # 5.6.101 (R05) : le registre est tenu par l'arrière-plan, plus par la file
         self.assertEqual(reponses5671.queue_items(self.desk, '/p'), [])              # déposée : plus de seconde décision
         data = liv.projection(self.desk, nature_filtre='courriel')
         self.assertEqual(len(data['items']), 1)
@@ -973,6 +976,7 @@ class Routeur(Base):
         self.assertEqual(liv.lien_demande(self.desk, '/p', 'r1'), '/p/livrables/' + row['document_id'])
 
     def test_UX12_filtre_documents_visible_a_zero_et_etats_distincts(self):
+        liv.synchroniser(self.desk)          # 5.6.101 (R05) : sources lues par l'arrière-plan avant l'affichage, plus pendant
         with patch('agent.aujourdhui5614.items', return_value=[]):
             html = file5651.html(self.desk, '/p')
             self.assertIn('Documents <span class="q51-n">0</span>', html)

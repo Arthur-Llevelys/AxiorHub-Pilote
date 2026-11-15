@@ -46,7 +46,13 @@ def _route(env, desk, auth, prefix, name, args, method):
         if route == 'palette':
             return json_out(palette5688.search(desk, args.get('q', ''), owner, role))
         if route == 'mentions':
-            return json_out({'personnes': notes5688.candidats(desk, directory(desk, auth), owner, str(args.get('matter') or ''), args.get('q', ''), hidden)})
+            personnes = notes5688.candidats(desk, directory(desk, auth), owner, str(args.get('matter') or ''), args.get('q', ''), hidden)
+            if args.get('fil'):   # 5.6.102 (lot M) : Pilote proposé dans une discussion où il est présent (lecture seule)
+                from .pilote_messagerie56102 import candidat_mention
+                pilote = candidat_mention(desk, args.get('fil'), owner, hidden, args.get('q', ''))
+                if pilote:
+                    personnes = [pilote] + personnes
+            return json_out({'personnes': personnes})
         if route == 'note/version':
             try:
                 numero = int(args.get('version'))

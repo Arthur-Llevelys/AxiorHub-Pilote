@@ -553,7 +553,7 @@ def _launch(desk, row):
             ref = 'newmail:' + row['id']
         elif row['kind'] == 'mail':
             job = desk.enqueue('prepare_reply', {'key': ctx['mail_key'], 'matter': row['matter'],
-                               'instruction': row['instruction'], 'mission_id': row['id']}, priority=0)
+                               'instruction': row['instruction'], 'mission_id': row['id'], 'pieces_jointes': 'oui'}, priority=0)   # 5.6.102 (lot P)
             ref = 'mail:' + ctx['mail_key']
         elif row['kind'] == 'document':
             from .docrequest520 import submit
@@ -689,7 +689,7 @@ def get(desk, ident, owner='cabinet', admin=False, prefix=''):
                     state = 'verified' if result.get('brouillon_imap') == 'verifie' else 'prepared'
                     row['result'] = {'message': result.get('message', ''), 'proof': 'Brouillon relu dans ' + str(result.get('folder', '')) if result.get('brouillon_imap') == 'verifie' else '',
                                      'subject': result.get('subject', ''), 'to_complete': result.get('to_complete', []), 'manifest': result.get('manifest', {}),
-                                     'location': 'Brouillons IMAP (%s) · destinataire à renseigner' % result.get('folder', ''), 'open_url': prefix + '/courriels'}
+                                     'location': 'Brouillons IMAP (%s) · destinataire à renseigner' % result.get('folder', ''), 'open_url': prefix + '/a-relire'}
                 elif row['kind'] == 'mail':
                     state = 'verified' if result.get('brouillon_imap') == 'verifie' else ('prepared' if result.get('projet_prepare') else 'abstained')
                     row['result'] = {'message': result.get('message', ''), 'proof': result.get('brouillon_imap', ''),

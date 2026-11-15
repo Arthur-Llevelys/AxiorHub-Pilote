@@ -64,13 +64,13 @@
 "version": "5.6.36"
 },
 "courriels": {
-"objective": "Lire la boîte de réception, relire les brouillons préparés et répondre, transférer ou classer.",
+"objective": "Lire la boîte de réception et répondre, transférer ou classer ; les projets et brouillons préparés par l’agent se relisent dans « À relire ».",
 "when": "Quand un message arrive ou qu’un brouillon de l’agent attend votre relecture.",
 "prerequisites": "La messagerie configurée (réception IMAP ; l’envoi SMTP est facultatif).",
 "steps": [
 "Ouvrez Courriels ; l’onglet Boîte de réception liste les messages.",
 "Cliquez sur un message pour l’afficher, puis choisissez Répondre, Répondre à tous ou Transférer.",
-"Pour un brouillon préparé, relisez-le et corrigez-le avant tout envoi.",
+"Les projets et brouillons préparés par l’agent se relisent dans « À relire » (menu principal), jamais envoyés sans vous.",
 "Utilisez « Rechercher » pour retrouver un échange et « Actualiser » pour recharger la liste."
 ],
 "result": "Un brouillon déposé dans votre dossier Brouillons ; rien ne part sans votre confirmation.",
@@ -89,6 +89,39 @@
 "buttons": [
 "Actualiser",
 "Rechercher"
+],
+"version": "5.6.36"
+},
+"a_relire": {
+"objective": "Relire au même endroit tout ce que l’agent a préparé : projets de réponse, brouillons de la messagerie et de Gmail, documents et notes de l’IA, puis décider de chacun.",
+"when": "Chaque jour, et dès qu’Aujourd’hui ou une notification signale des éléments à relire.",
+"prerequisites": "Aucun pour les propositions locales ; la messagerie configurée pour les brouillons IMAP, Gmail relié pour les brouillons Gmail.",
+"steps": [
+"Ouvrez « À relire » dans le menu principal, juste après Aujourd’hui.",
+"Choisissez un filtre (Tout, Courriels, Gmail, Documents, Notes de l’IA) ou utilisez « Rechercher ».",
+"Cliquez sur un élément : le lecteur affiche le projet, le message reçu, les pièces et les sources.",
+"Corrigez le texte puis cliquez sur « Enregistrer », ou décidez : « Retenir », « Écarter » ou « Reporter ».",
+"Pour un projet de réponse retenu, « Déposer dans Brouillons (sans envoi) » le place dans vos brouillons : rien n’est envoyé."
+],
+"result": "Chaque élément relu sort de la liste ; un projet déposé apparaît dans le dossier Brouillons de votre messagerie, sans envoi.",
+"verify": "Le compteur « À relire » diminue et le brouillon déposé est visible dans votre messagerie habituelle.",
+"errors": [
+[
+"Un élément a disparu de la liste",
+"Il a été relu entre-temps ou n’est pas autorisé pour votre compte ; actualisez la page."
+],
+[
+"« Brouillons de la messagerie : lecture séparée »",
+"La messagerie répond lentement : les propositions locales restent lisibles, les brouillons IMAP s’affichent ensuite."
+]
+],
+"example": "Projet de réponse fictif à M. DURAND sur le dossier DOS-001, corrigé puis déposé dans les brouillons.",
+"buttons": [
+"Enregistrer",
+"Retenir",
+"Écarter",
+"Reporter",
+"Déposer dans Brouillons (sans envoi)"
 ],
 "version": "5.6.36"
 },

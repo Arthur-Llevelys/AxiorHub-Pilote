@@ -293,7 +293,8 @@ def _deposit_imap(desk, mid, role, email, subject, body, box=None):
     msg['Date'] = format_datetime(datetime.now(timezone.utc))
     msg['Message-ID'] = '<axiorhub-dp-' + ident + '@mail-agent.local>'
     msg['X-AxiorHub-Draft-Key'] = 'dp5632:' + ident
-    msg.set_content(body.strip() + '\n\n' + str(cfg.get('signature', '')).strip() + '\n')
+    from .signature56102 import effective, poser   # 5.6.102 (lot S) : signature de la messagerie, sinon de Paramètres (une seule fois)
+    poser(msg, body, effective(desk, None))
     if box is None:
         from .mailbox import Mailbox
         box = Mailbox(cfg)

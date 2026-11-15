@@ -7,6 +7,8 @@
   suivis comptent dans la pastille « non lus » du menu.
 - **Avis de l'agent** : l'agent dépose un avis dans le fil du dossier (document produit, réponse préparée, fiche mise à jour) ; il ne
   lit jamais les conversations (aucune donnée de la messagerie n'est donnée au modèle).
+- 5.6.102 (lot M) : **Pilote**, participant IA (``pilote_messagerie56102``) : présent d'office dans les fils de dossier et les groupes
+  (retirable), sur ajout dans une discussion à deux ; il ne lit une discussion que lorsqu'une personne l'interpelle (« @pilote », « Résumer »).
 - Liens internes seulement (chemin d'AxiorHub) ; un message retiré par son auteur reste signalé comme retiré.
 """
 from datetime import datetime, timezone
@@ -33,6 +35,7 @@ CREATE INDEX IF NOT EXISTS messages5650_thread ON messages5650(thread, id);
 MAX_TEXT = 8000
 MAX_GROUP = 50
 AGENT = 'agent'
+PILOTE = 'pilote'   # 5.6.102 (lot M) : participant IA, identité réservée (``pilote_messagerie56102``)
 LINK = re.compile(r'/[A-Za-z0-9/_.\-]*(\?[A-Za-z0-9_.\-=&%]*)?(#[A-Za-z0-9_-]*)?')
 KINDS = {'direct': 'Conversation', 'groupe': 'Groupe', 'dossier': 'Dossier'}
 
@@ -78,6 +81,15 @@ def _check(desk, tid, me, hidden):
     return row
 
 
+def _pilote(desk, tid, kind):
+    """5.6.102 (lot M) : présence d'office de Pilote à la création d'un fil de dossier ou d'un groupe (dans la transaction en cours)."""
+    try:
+        from .pilote_messagerie56102 import a_la_creation
+        a_la_creation(desk, tid, kind)
+    except Exception:   # noqa: BLE001 — la création du fil ne dépend pas de Pilote ; la migration du démarrage rattrape
+        pass
+
+
 def _join(desk, tid, owner, follows=1):
     desk.db.execute('INSERT INTO participants5650(thread,owner,since,last_read,follows) VALUES(?,?,?,0,?) ON CONFLICT(thread,owner) DO UPDATE SET '
                     "follows=MAX(participants5650.follows,excluded.follows),left_at=''", (tid, owner, _now(), follows))
@@ -114,6 +126,7 @@ def create_group(desk, me, title, owners, members):
     cur = desk.db.execute("INSERT INTO fils5650(kind,title,created_by,created,updated) VALUES('groupe',?,?,?,?)", (title, me, _now(), _now()))
     for owner in [me] + chosen:
         _join(desk, cur.lastrowid, owner)
+    _pilote(desk, cur.lastrowid, 'groupe')
     desk.db.commit()
     desk.audit('messagerie5650_groupe', {'thread': cur.lastrowid, 'membres': len(chosen) + 1})
     return cur.lastrowid
@@ -124,14 +137,16 @@ def change_group(desk, me, tid, add=(), remove=(), members=None, hidden=frozense
     if row['kind'] != 'groupe':
         raise Stop('conversation_non_groupe')
     for owner in add or ():
-        if str(owner) in (members or {}):
+        if str(owner) in (members or {}) and str(owner).lower() != PILOTE:
             _join(desk, row['id'], str(owner))
     for owner in remove or ():
         owner = str(owner)
+        if owner.lower() == PILOTE:   # 5.6.102 (lot M) : Pilote se retire par sa propre action, avec une ligne visible
+            continue
         if owner != me and row['created_by'] != me:
             raise Stop('retrait_reserve_au_createur')
         desk.db.execute('UPDATE participants5650 SET left_at=? WHERE thread=? AND owner=?', (_now(), row['id'], owner))
-    count = desk.db.execute("SELECT COUNT(*) FROM participants5650 WHERE thread=? AND left_at=''", (row['id'],)).fetchone()[0]
+    count = desk.db.execute("SELECT COUNT(*) FROM participants5650 WHERE thread=? AND left_at='' AND owner<>?", (row['id'], PILOTE)).fetchone()[0]
     if count > MAX_GROUP:
         desk.db.rollback()
         raise Stop('groupe_trop_grand')
@@ -152,6 +167,7 @@ def matter_thread(desk, matter, me='', hidden=frozenset(), follow=True):
         cur = desk.db.execute("INSERT INTO fils5650(kind,title,matter,created_by,created,updated) VALUES('dossier','',?,?,?,?)",
                               (matter, me or AGENT, _now(), _now()))
         tid = cur.lastrowid
+        _pilote(desk, tid, 'dossier')
     if me and follow:
         _join(desk, tid, me)
     desk.db.commit()
@@ -310,7 +326,7 @@ def threads(desk, me, members, hidden=frozenset()):
         last = desk.db.execute('SELECT author_name,text,deleted,at FROM messages5650 WHERE thread=? ORDER BY id DESC LIMIT 1', (r['id'],)).fetchone()
         count = None
         if r['kind'] == 'groupe':
-            count = desk.db.execute("SELECT COUNT(*) FROM participants5650 WHERE thread=? AND left_at=''", (r['id'],)).fetchone()[0]
+            count = desk.db.execute("SELECT COUNT(*) FROM participants5650 WHERE thread=? AND left_at='' AND owner<>?", (r['id'], PILOTE)).fetchone()[0]
         out.append({'id': r['id'], 'genre': r['kind'], 'titre': _title(desk, r, me, members, names), 'non_lus': unread, 'dossier': r['matter'],
                     'membres': count, 'dernier': ('%s : %s' % (last['author_name'], 'message retiré' if last['deleted'] else last['text'][:120])) if last else '',
                     'quand': last['at'] if last else r['created']})
@@ -335,7 +351,7 @@ def thread_info(desk, me, tid, members, hidden=frozenset()):
     row = _check(desk, tid, me, hidden)
     names = {m['id']: matter_display(m) for m in load_matters(desk.c)}
     people = [r['owner'] for r in desk.db.execute("SELECT owner FROM participants5650 WHERE thread=? AND left_at='' ORDER BY owner<>?, since, rowid",
-                                                    (row['id'], row['created_by']))]
+                                                    (row['id'], row['created_by'])) if r['owner'] != PILOTE]   # 5.6.102 : Pilote n'est pas un membre à droits
     part = _participant(desk, row['id'], me)
     return {'id': row['id'], 'genre': row['kind'], 'titre': _title(desk, row, me, members, names), 'dossier': row['matter'],
             'createur': row['created_by'], 'suivi': bool(part and part['follows'] and not part['left_at']),

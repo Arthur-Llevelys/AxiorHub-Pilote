@@ -127,6 +127,9 @@ JOBS |= {'veille5688','memoire5688'}   # 5.6.88 : veille des sociétés (BODACC,
 JOBS |= {'registre5688'}   # 5.6.88 : statuts, actes et comptes publics (INPI) copiés dans le dossier, hors de la réponse
 USER_JOBS |= {'registre5688'}
 JOBS |= {'opportunites5676'}   # 5.6.76 : prospects repérés dans les courriels par le modèle local (propositions)
+JOBS |= {'accord56102'}   # 5.6.102 (lot K) : accord du client détecté (modèle local), plan documents → projet de courriel (jamais d'envoi)
+JOBS |= {'pilote_messagerie56102'}   # 5.6.102 (lot M) : réponse de Pilote dans la messagerie instantanée (« @pilote », « Résumer »)
+USER_JOBS |= {'pilote_messagerie56102'}
 JOBS |= {'synchro_livrables5689','controle_livrable5689','export_livrable5689','modifier_livrable5689'}   # 5.6.89 : registre des livrables, contrôles, export suivi, proposition assistée
 USER_JOBS |= {'export_livrable5689','modifier_livrable5689','controle_livrable5689'}
 JOBS |= {'extraction_dossier5689','mission_conseil5689','obligations5689'}   # 5.6.89 : lecture d'une source du dossier, consultation et revue de contrat, obligations d'un accord signé
@@ -519,12 +522,23 @@ class Desk:
         ensure_usage56101_schema(self)
         from .securite56101 import ensure_schema as ensure_securite56101_schema   # 5.6.101 (lot S) : constats, accusés et historique de la veille de sécurité du serveur
         ensure_securite56101_schema(self)
+        from .journal56102 import ensure_schema as ensure_journal56102_schema   # 5.6.102 (lot J) : ancrage des purges du journal d'audit, clés d'idempotence
+        ensure_journal56102_schema(self)
+        from .accord56102 import ensure_schema as ensure_accord56102_schema   # 5.6.102 (lot K) : suivi des devis, plans après l'accord du client
+        ensure_accord56102_schema(self)
+        from .pj56102 import ensure_schema as ensure_pj56102_schema   # 5.6.102 (lot P) : mandats de rangement des pièces jointes liés au fil
+        ensure_pj56102_schema(self)
+        from .pilote_messagerie56102 import ensure_schema as ensure_pilote56102_schema, migrer as migrer_pilote56102   # 5.6.102 (lot M) : Pilote dans la messagerie
+        ensure_pilote56102_schema(self)
+        migrer_pilote56102(self)   # présence d'office dans les fils de dossier et les groupes existants (idempotent ; un retrait est respecté)
         from .relecture56100 import ensure_schema as ensure_relecture56100_schema, rattraper as rattraper_relecture56100   # 5.6.100 (lot B) : file commune « À relire »
         ensure_relecture56100_schema(self)
         try:   # reprise bornée et relançable des propositions existantes (sans LIKE sur le JSON) ; la suite passe par les automatismes
             rattraper_relecture56100(self, 1000, noter=False)
         except (sqlite3.Error, OSError, ValueError):
             self.db.rollback()
+        from .reprises56101 import au_demarrage as reprises56101   # 5.6.101 (R05) : reprises uniques d'autres modules, ici et plus jamais pendant une lecture
+        reprises56101(self)
 
     def now(self):return now()
 
@@ -919,6 +933,9 @@ class Desk:
                 from .integration import set_work_state
                 set_work_state(self,args['mail_key'],'processing','association_confirmee')
             except Stop:pass
+        from . import pj56102   # 5.6.102 (lot P) : pièces jointes en attente (fil du courriel, expéditeur devenu correspondant validé) mises en file
+        pj56102.apres_dossier(self,matter['id'],(args['demande_par'],args.get('demande_role','')) if args.get('demande_par') else 'cabinet',
+                              mail_key=str(args.get('mail_key') or ''),correspondant=email)
         return {'association':'enregistree','dossier':matter['id'],'action_suivante':'Relancer les non lus de ce dossier'}
 
     def retry(self, keys, box):
@@ -1026,6 +1043,12 @@ class Desk:
         if kind=='opportunites5676':
             from .crm5676 import detect
             return detect(self)
+        if kind=='accord56102':   # 5.6.102 (lot K) : détection de l'accord du client, avancement d'un plan
+            from .accord56102 import job as accord56102_job
+            return accord56102_job(self,args)
+        if kind=='pilote_messagerie56102':   # 5.6.102 (lot M) : Pilote répond dans la discussion (droits de la personne qui l'a interpellé)
+            from .pilote_messagerie56102 import job as pilote56102_job
+            return pilote56102_job(self,args)
         if kind=='crm_collecte5657':   # 5.6.57 (§ 8.3) : contacts alimentés par la boîte mail, passage borné et reprenable
             from .crm5657 import collect
             return collect(self)
@@ -1618,6 +1641,9 @@ class Desk:
         self.db.commit()
         self.audit('job_finished',{'job_id':row['id'],'kind':row['kind'],'status':status,
           'result_sha256':digest(json.dumps(result,sort_keys=True,ensure_ascii=False))})
+        if status=='done':   # 5.6.102 : tout producteur (projets, révisions Word, courriers, missions…) inscrit son résultat au registre dès la fin du travail
+            from .livrables5689 import apres_production
+            apres_production(self)
         try:
             from .production391 import after_job
             after_job(self,row,json.loads(row['args']),status,result)

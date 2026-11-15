@@ -134,7 +134,7 @@ def _reply_job(desk,key,classification,differential,cfg):
     if attempts>=maximum:return None
     return desk.enqueue('prepare_reply',{'key':key,
       'instruction':'Préparer automatiquement un brouillon prudent à partir de la réponse proposée '
-        'par l’orchestrateur. Ne prendre aucun engagement nouveau.','automatic':'yes'},priority=20)
+        'par l’orchestrateur. Ne prendre aucun engagement nouveau.','automatic':'yes','pieces_jointes':'oui'},priority=20)   # 5.6.102 (lot P)
 
 
 def _queue_adapted_project(desk,mid,key,diff):

@@ -205,6 +205,9 @@ def api(env, desk, auth, prefix, name, args, method):
     if method != 'POST':
         raise Stop('methode_refusee')
     data = check_post(env, auth)
+    if route.startswith('journal/'):   # 5.6.102 (lot J) : purge, vidage, réglage (administrateur, CSRF déjà contrôlés ; 409, no-store)
+        from . import journal56102
+        return journal56102.api(desk, route, data, me)
     if route.startswith('admin/'):
         return _api_admin(desk, auth, route, data, me)
     if route.startswith('2fa/'):
@@ -392,12 +395,15 @@ def chain_state(desk):
     ensure_schema(desk)
     key = str(desk.c['state_dir'])
     last = desk.db.execute('SELECT COALESCE(MAX(seq),0) FROM audit_chain_v290').fetchone()[0]
+    from .journal56102 import ancre   # 5.6.102 (lot J) : une purge change le point de départ de la vérification
+    last = (last, (ancre(desk) or {}).get('id', 0))
     with _chain_lock:
         hit = _chain.get(key)
         if hit and hit[0] == last and hit[1] > time.time():
             return hit[2]
     out = audit_status(desk, 1)
-    state = {'valid': out['valid'], 'broken_at': out['broken_at'], 'count': out['count'], 'head': out['head']}
+    state = {'valid': out['valid'], 'broken_at': out['broken_at'], 'count': out['count'], 'head': out['head'],
+             'since': out.get('since', 1), 'ancre': out.get('anchor')}
     with _chain_lock:
         _chain[key] = (last, time.time() + 60, state)
     return state
@@ -444,7 +450,9 @@ def journal_page(desk, auth, prefix, env, args):
         found, error = journal(desk, {}), '<p class="notice" role="alert">Filtre invalide : vérifiez les dates.</p>'
         args = {}
     state = chain_state(desk)
-    verdict = ('<p class="m88-ok" role="status"><strong>Chaîne intacte</strong> : %d événement(s), aucune ligne modifiée ni retirée.</p>' % state['count'] if state['valid'] else
+    from . import journal56102   # 5.6.102 (lot J) : après une purge, le verdict dit depuis quelle entrée la chaîne est vérifiée
+    verdict = ('<p class="m88-ok" role="status"><strong>Chaîne intacte</strong> : %d événement(s), aucune ligne modifiée ni retirée.%s</p>' % (
+        state['count'], journal56102.verdict_ancre(state)) if state['valid'] else
                '<p class="m88-bad" role="alert"><strong>Chaîne rompue à l’événement n° %s</strong> : une ligne a été modifiée ou retirée. Conservez une copie de la base et '
                'cherchez la cause.</p>' % e(str(state['broken_at'])))
     actions = [r[0] for r in desk.db.execute('SELECT DISTINCT action FROM audit_chain_v290 ORDER BY action LIMIT 500')]
@@ -462,10 +470,11 @@ def journal_page(desk, auth, prefix, env, args):
             '<label>Au<input type="date" name="au" value="%s"></label>%s%s<label>Recherche<input type="search" name="q" value="%s" maxlength="200"></label>'
             '<button class="ax-btn" type="submit">Filtrer</button> <a class="ax-btn ghost" href="%s/api440/m5688s/journal/csv?%s">Exporter (CSV)</a></form></section>'
             '<section class="ax-card"><h2>%d événement(s)</h2><div class="ax-table-wrap"><table class="m88-journal"><thead><tr><th>N°</th><th>Date</th><th>Action</th><th>Auteur</th>'
-            '<th>Contenu</th></tr></thead><tbody>%s</tbody></table></div><nav class="m88-pages" aria-label="Pages du journal">%s<span>Page %d sur %d</span></nav></section>') % (
+            '<th>Contenu</th></tr></thead><tbody>%s</tbody></table></div><nav class="m88-pages" aria-label="Pages du journal">%s<span>Page %d sur %d</span></nav></section>%s') % (
         verdict, error, e(kept.get('du', ''), quote=True), e(kept.get('au', ''), quote=True), _select('action', 'Action', actions, kept.get('action')),
         _select('auteur', 'Auteur', authors, kept.get('auteur')), e(kept.get('q', ''), quote=True), e(prefix, quote=True), e(urlencode(kept), quote=True), found['total'],
-        rows or '<tr><td colspan="5">Aucun événement pour ces filtres.</td></tr>', ''.join(nav), found['page'], found['pages'])
+        rows or '<tr><td colspan="5">Aucun événement pour ces filtres.</td></tr>', ''.join(nav), found['page'], found['pages'],
+        journal56102.encadre_html(desk, prefix, kept, EXPORT_LIMIT))   # 5.6.102 (lot J) : place occupée, purge et vidage (lecture seule ici)
 
 
 def vue_ia_page(desk, auth, prefix, env, args):

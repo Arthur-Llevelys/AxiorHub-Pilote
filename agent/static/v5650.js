@@ -21,7 +21,7 @@
     if (isNaN(d.getTime())) return iso || '';
     return d.toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
-  var ROLES = { administrateur: 'Administrateur', avocat: 'Avocat', assistant: 'Assistant(e)', agent: 'Agent' };
+  var ROLES = { administrateur: 'Administrateur', avocat: 'Avocat', assistant: 'Assistant(e)', agent: 'Agent', ia: 'IA' };   /* 5.6.102 : Pilote */
 
   /* Pastille du menu (toutes les pages) */
   var navLink = document.querySelector('nav a[href$="/messagerie"]');
@@ -116,8 +116,9 @@
   }
 
   function item(m) {
-    var li = el('li', 'm50-msg' + (m.moi ? ' m50-mine' : '') + (m.genre === 'avis' ? ' m50-notice' : ''));
+    var li = el('li', 'm50-msg' + (m.moi ? ' m50-mine' : '') + (m.genre === 'avis' || m.genre === 'systeme' ? ' m50-notice' : '') + (m.genre === 'ia' ? ' m50-ia' : ''));
     li.setAttribute('data-id', String(m.id));
+    li.setAttribute('data-genre', m.genre || 'message');   /* 5.6.102 (lot M) : réponses de Pilote (« ia ») et lignes de présence (« systeme ») */
     var head = el('p', 'm50-meta'); head.appendChild(el('strong', null, m.nom));
     head.appendChild(document.createTextNode(' · ' + (ROLES[m.role] || m.role) + ' · ' + when(m.quand)));
     li.appendChild(head);
@@ -181,6 +182,7 @@
   function reload() { busyLoad = false; return load(true); }
   load(true).then(function () { badge(); renderList(); });
   setInterval(function () { if (!document.hidden) load(false); }, 8000);
+  window.AX5650 = { recharger: function () { return load(false); } };   /* 5.6.102 (lot M) : la réponse de Pilote s'affiche dès qu'elle est prête */
 
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
@@ -188,6 +190,8 @@
     var button = form.querySelector('button'); button.disabled = true; status.textContent = 'Envoi…';
     post('m5650/ecrire', { id: fil, texte: value }).then(function (res) {
       text.value = ''; status.textContent = res.mentions && res.mentions.length ? 'Envoyé ; ' + res.mentions.length + ' membre(s) mentionné(s) prévenu(s).' : 'Envoyé.';
+      if (res.pilote && res.pilote.message) status.textContent += ' ' + res.pilote.message;   /* 5.6.102 (lot M) : « @pilote » */
+      try { document.dispatchEvent(new CustomEvent('m50:envoye', { detail: res })); } catch (e) { /* ancien navigateur */ }
       return load(false);
     }).catch(function (e) { status.textContent = e.message; }).then(function () { button.disabled = false; text.focus(); });
   });

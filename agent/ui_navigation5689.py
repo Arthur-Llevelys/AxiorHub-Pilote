@@ -16,7 +16,7 @@ TAILLE_MAX = 600
 EXCLUS = re.compile(r'^/(?:api|api440|static|live|deconnexion|connexion|logout|login|office|integration|pwa|healthz|readyz|action|dictation|assistant/attachment|templates/upload|hearing/upload|extensions/upload|nextcloud-session|poste-session)(?:/|$)')
 PARAMS_INTERDITS = re.compile(r'^(?:token|jeton|csrf|csrf_token|secret|password|mot_de_passe|passe|auth|authorization|session|sid|code|otp|signature|access_token|refresh_token|api_key|cle_api)$', re.I)
 OBLIQUES = '\\／＼⧵∕⁄﹨'
-ICONES_MENU = {'/aujourdhui': 'accueil', '/courriels': 'courriel', '/messagerie': 'discussion', '/dossiers': 'dossier', '/planning': 'agenda', '/talk': 'video', '/production': 'document_taches', '/parametres': 'reglages'}
+ICONES_MENU = {'/aujourdhui': 'accueil', '/a-relire': 'voir', '/courriels': 'courriel', '/messagerie': 'discussion', '/dossiers': 'dossier', '/planning': 'agenda', '/talk': 'video', '/production': 'document_taches', '/parametres': 'reglages'}
 # Détail -> (liste de repli, libellé). Un paramètre requis distingue le détail de la liste quand les deux partagent la même adresse.
 DETAILS = (('/mail', '', '/courriels', 'Retour aux courriels'), ('/dossier', '', '/dossiers', 'Retour aux dossiers'), ('/matter', '', '/dossiers', 'Retour aux dossiers'), ('/fiche', '', '/dossiers', 'Retour aux dossiers'),
            ('/chronologie', '', '/dossiers', 'Retour aux dossiers'), ('/livrables/', '', '/livrables', 'Retour aux documents'), ('/documents/edit', '', '/documents', 'Retour aux documents'),
@@ -24,7 +24,7 @@ DETAILS = (('/mail', '', '/courriels', 'Retour aux courriels'), ('/dossier', '',
            ('/corporate', 'operation', '/corporate', 'Retour au secrétariat juridique'), ('/audiences', 'id', '/audiences', 'Retour aux audiences'), ('/projets', 'id', '/projets', 'Retour aux projets'),
            ('/recherche', 'document', '/recherche', 'Retour à la recherche'), ('/contentieux', '', '/dossiers', 'Retour aux dossiers'), ('/operation', 'id', '/facturation', 'Retour à la facturation'),
            ('/courriels', 'fil', '/courriels?vue=assistante', 'Retour à la liste'))   # 5.6.96 (I03) : fil ouvert dans la vue « À traiter avec le Pilote »
-SOURCES = {'/aujourdhui': 'Retour à Aujourd’hui', '/courriels': 'Retour aux courriels', '/dossiers': 'Retour aux dossiers', '/dossier': 'Retour au dossier', '/matter': 'Retour au dossier', '/livrables': 'Retour aux documents',
+SOURCES = {'/aujourdhui': 'Retour à Aujourd’hui', '/a-relire': 'Retour à « À relire »', '/courriels': 'Retour aux courriels', '/dossiers': 'Retour aux dossiers', '/dossier': 'Retour au dossier', '/matter': 'Retour au dossier', '/livrables': 'Retour aux documents',
            '/production': 'Retour à Produire', '/projets': 'Retour aux projets', '/studio': 'Retour à Produire', '/documents': 'Retour aux documents', '/facturation': 'Retour à la facturation', '/planning': 'Retour à l’agenda',
            '/missions': 'Retour aux missions', '/recherche': 'Retour à la recherche', '/echeances': 'Retour aux échéances', '/parametres': 'Retour aux paramètres', '/cessions': 'Retour aux cessions', '/corporate': 'Retour au secrétariat juridique', '/contentieux': 'Retour au contentieux'}
 PROPRE_BOUTON = ('/livrables/', '/contentieux')    # ces pages gardent leur bouton dans le corps (même attribut, même validation)

@@ -41,7 +41,7 @@ import sys
 import tempfile
 import time
 
-VERSION = '5.6.101'
+VERSION = '5.6.102'
 FORMAT = 1
 RAPPORTS = '/var/lib/axiorhub-mail-agent/securite'
 DEMANDES = '/var/lib/axiorhub-mail-agent/securite-demande'
@@ -71,6 +71,14 @@ TEMPORAIRES = ('/tmp/', '/dev/shm/', '/var/tmp/')
 WEB = ('/var/www/', '/srv/www/', '/srv/http/')
 COMPTES_WEB = ('www-data', 'apache', 'nginx', 'http')
 COQUILLES_SANS = ('nologin', 'false', 'sync', 'halt', 'shutdown')
+# 5.6.102 (lot C) : Collabora intégré à Nextcloud (application « Collabora Online – Built-in CODE Server »). Sans FUSE, l'AppImage est
+# lancée avec --appimage-extract-and-run : elle se décompresse dans /tmp/appimage_extracted_<empreinte>/ et y lance coolwsd, coolforkit…
+# Jamais reconnu par le seul nom : l'AppImage doit être à sa place dans un Nextcloud (fichier régulier, non effacé, hors dossier
+# temporaire), et un programme décompressé n'est reconnu que si ses parents remontent jusqu'à elle (voir ``_collabora``).
+COLLABORA_APPIMAGE = re.compile(r'(/(?:[^/]+/)+)(?:apps|custom_apps|apps-extra)/richdocumentscode(?:_arm64)?/collabora/Collabora_Online\.AppImage')
+COLLABORA_EXTRAIT = re.compile(r'/tmp/appimage_extracted_([0-9a-f]{32})/(?:[^/]+/)*[^/]+')
+COLLABORA_FUSE = re.compile(r'(?:/tmp|/dev/shm|/var/tmp)/\.mount_[^/]+/.+')     # ancien mode FUSE (exception de la 5.6.101, ancrée)
+PROFONDEUR_PARENTS = 64
 GROUPES_SENSIBLES = ('dovecot', 'mail', 'vmail', 'postfix', 'shadow', 'adm', 'docker', 'sudo', 'wheel', 'admin', 'lxd', 'disk', GROUPE)
 TERMINAUX = ('open-terminal', 'openterminal', 'ttyd', 'wetty', 'gotty', 'shellinabox', 'webssh', 'code-server', 'butterfly', 'sshwifty')
 AUTOMATISATION = ('n8n', 'node-red', 'nodered', 'huginn', 'activepieces')
@@ -388,6 +396,7 @@ class Veille:
             reste = brut[brut.rfind(')') + 2:].split()
             try:
                 ticks, debut = int(reste[11]) + int(reste[12]), int(reste[19])
+                ppid = int(reste[1])        # 5.6.102 : parent, pour reconnaître la famille du Collabora intégré
             except (IndexError, ValueError):
                 continue
             exe = self.lien(base + '/exe')
@@ -413,7 +422,7 @@ class Veille:
             noms = {comm.lower(), os.path.basename(chemin).lower()}
             if cmd:
                 noms.add(os.path.basename(cmd.split()[0]).lower())
-            out.append({'pid': int(nom), 'comm': comm, 'exe': chemin, 'supprime': supprime, 'cmd': cmd, 'uid': uid, 'compte': self.nom_uid(uid),
+            out.append({'pid': int(nom), 'ppid': ppid, 'comm': comm, 'exe': chemin, 'supprime': supprime, 'cmd': cmd, 'uid': uid, 'compte': self.nom_uid(uid),
                         'ticks': ticks, 'debut': debut, 'noms': noms, 'sockets': sockets,
                         'conteneur': bool(re.search(r'docker|containerd|kubepods|libpod|lxc|machine\.slice', cgroup))})
         self._processus = out
@@ -454,13 +463,16 @@ class Veille:
         par_inode = {c['inode']: c for c in connexions}
         web = list(WEB) + [r.rstrip('/') + '/' for r in self.racines_apache()]
         autorises = self._config().get('autorises', [])
+        racines, extraits, fuse = self._collabora()
         flags = {}
         for pr in self.processus():
             f = set()
             exe = pr['exe']
-            if pr['supprime'] and not exe.startswith(SYSTEME) and not exe.startswith('/memfd:') and 'memfd:' not in exe:
+            # un programme décompressé du Collabora reconnu peut être effacé par le nettoyage de /tmp pendant qu'il tourne : pas de S02
+            if pr['supprime'] and not exe.startswith(SYSTEME) and not exe.startswith('/memfd:') and 'memfd:' not in exe and \
+                    pr['pid'] not in extraits:
                 f.add('S02')
-            collabora = '/.mount_' in exe and 'collabora' in (exe + pr['cmd']).lower()
+            collabora = pr['pid'] in racines or pr['pid'] in extraits or pr['pid'] in fuse
             if (exe.startswith(TEMPORAIRES) or exe.startswith(tuple(web))) and not pr['conteneur'] and not collabora and \
                     not any(re.fullmatch(motif.replace('*', '.*'), exe) for motif in autorises if isinstance(motif, str)):
                 f.add('S03')
@@ -472,6 +484,75 @@ class Veille:
                 flags[pr['pid']] = f
         self._flags = flags
         return flags
+
+    # 5.6.102 (lot C) : Collabora intégré à Nextcloud ------------------------------------------------------------------------------
+    def _collabora(self):
+        """(AppImages reconnues, programmes décompressés reconnus, processus de l'ancien mode FUSE) : trois ensembles de numéros.
+
+        - AppImage : chemin ``<racine Nextcloud>/{apps,custom_apps,apps-extra}/richdocumentscode(_arm64)/collabora/Collabora_Online.AppImage``, hors dossier
+          temporaire, fichier régulier non effacé, ``version.php`` de Nextcloud présent dans la racine ;
+        - programme de ``/tmp/appimage_extracted_<empreinte>/`` : reconnu seulement si la chaîne de ses parents atteint une AppImage
+          reconnue sans passer par un processus d'un autre dossier (``_parents_collabora``) ; le nom du programme ne compte pas ;
+        - FUSE (exception de la 5.6.101, gardée telle quelle mais ancrée) : ``/tmp/.mount_<x>/…`` avec « collabora » dans le chemin ou la
+          commande. En mode FUSE, l'AppImage devient elle-même coolwsd (le serveur FUSE est son enfant) : la remontée des parents ne
+          s'applique pas."""
+        if hasattr(self, '_collab'):
+            return self._collab
+        par_pid = {pr['pid']: pr for pr in self.processus()}
+        racines = {pid for pid, pr in par_pid.items() if self._appimage_collabora(pr)}
+        extraits, fuse = set(), set()
+        for pid, pr in par_pid.items():
+            if pid in racines:
+                continue
+            m = COLLABORA_EXTRAIT.fullmatch(pr['exe'])
+            if m and not self._chemin_douteux(pr['exe']) and self._parents_collabora(pr, par_pid, racines, m.group(1)):
+                extraits.add(pid)
+            elif COLLABORA_FUSE.fullmatch(pr['exe']) and not self._chemin_douteux(pr['exe']) and \
+                    'collabora' in (pr['exe'] + ' ' + pr['cmd']).lower():
+                fuse.add(pid)
+        self._collab = (racines, extraits, fuse)
+        return self._collab
+
+    @staticmethod
+    def _chemin_douteux(chemin):
+        return bool(re.search(r'/\.\.?(?:/|$)|//', chemin))
+
+    def _appimage_collabora(self, pr):
+        exe = pr['exe']
+        m = COLLABORA_APPIMAGE.fullmatch(exe)
+        if not m or pr['supprime'] or exe.startswith(TEMPORAIRES) or self._chemin_douteux(exe):
+            return False
+        return self.est_fichier(exe) and self.est_fichier(m.group(1) + 'version.php')
+
+    def _parents_collabora(self, pr, par_pid, racines, empreinte):
+        """Remonte les parents (ppid) : vrai dès qu'une AppImage reconnue est atteinte, en ne traversant que des programmes du même
+        dossier ``appimage_extracted_<empreinte>`` ; faux sur un parent absent, étranger (shell, autre dossier) ou une boucle."""
+        vus = {pr['pid']}
+        courant = par_pid.get(pr.get('ppid'))
+        while courant is not None and courant['pid'] not in vus and len(vus) <= PROFONDEUR_PARENTS:
+            if courant['pid'] in racines:
+                return True
+            m = COLLABORA_EXTRAIT.fullmatch(courant['exe'])
+            if not m or m.group(1) != empreinte:
+                return False
+            vus.add(courant['pid'])
+            courant = par_pid.get(courant.get('ppid'))
+        return False
+
+    def reconnus(self):
+        """Éléments reconnus comme normaux pendant ce passage (ligne d'information du rapport, sans chemin)."""
+        if self.controles.get('S03') not in ('ok', 'constat') and self.controles.get('S02') not in ('ok', 'constat'):
+            return []
+        try:
+            racines, extraits, fuse = self._collabora()
+        except Exception:   # noqa: BLE001 — une ligne d'information ne fait jamais échouer le passage
+            return []
+        n = len(racines) + len(extraits) + len(fuse)
+        if not n:
+            return []
+        return [{'id': 'collabora', 'processus': n,
+                 'titre': 'Collabora intégré à Nextcloud reconnu (%d processus) : non signalé comme programme d’un dossier temporaire '
+                          'ou web ni pour sa charge du processeur ; le contrôle de minage (S04) lui reste appliqué' % n}]
 
     def _vu_processus(self, pr):
         vu = ['Processus %d (compte %s) : %s%s' % (pr['pid'], pr['compte'], pr['exe'], ' — fichier effacé du disque' if pr['supprime'] else ''),
@@ -518,6 +599,7 @@ class Veille:
         dernier = float((self.precedent.get('etat') or {}).get('passage') or 0)
         connus = CONNUS_CPU | {str(x).lower() for x in self._config().get('connus', []) if isinstance(x, str)}
         self._s01 = []
+        collabora = set().union(*self._collabora())   # 5.6.102 : le rendu de documents du Collabora reconnu peut occuper le processeur
         for pr in self.processus():
             age = uptime - pr['debut'] / self.clk
             moyenne = (pr['ticks'] / self.clk / age) if age > 0 else 0
@@ -532,6 +614,7 @@ class Veille:
             if moyenne >= 0.2 or haut_depuis:
                 self.etat['cpu'][str(pr['pid'])] = {'debut': pr['debut'], 'ticks': pr['ticks'], 'haut': haut_depuis}
             connu = bool(pr['noms'] & connus) or '/opt/axiorhub-mail-agent/' in pr['cmd'] or 'axiorhub' in pr['cmd'].lower()
+            connu = connu or pr['pid'] in collabora     # 5.6.102 : Collabora reconnu (règle de ``_collabora``), jamais par le nom
             if haut_depuis and self.t - haut_depuis >= 1800 and not (connu and not pr['noms'] & MINEURS):
                 self._s01.append((pr, moyenne, self.t - haut_depuis))
 
@@ -1179,6 +1262,7 @@ def passer(racine='/', passage='rapide', maintenant=None, ports=None, sonde=True
     rapport = {'format': FORMAT, 'outil': 'veille-securite', 'version': VERSION, 'passage': passage, 'debut': _iso(t),
                'fin': _iso(t + (time.monotonic() - debut)), 'duree_ms': int((time.monotonic() - debut) * 1000), 'hote': v.hote(),
                'controles': v.controles, 'erreurs': v.erreurs, 'constats': v.constats, 'applications': v.applications,
+               'reconnus': v.reconnus(),
                'table_versions': TABLE_VERSIONS_DATE, 'etat': v.etat}
     texte = json.dumps(rapport, ensure_ascii=False, indent=1, sort_keys=True)
     gid = None

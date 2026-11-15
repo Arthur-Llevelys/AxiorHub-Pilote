@@ -312,7 +312,7 @@ def _lien_objet(desk, a, caches, droits, ligne, canon):
             if row['matter'] and _resolutions(desk, [row['matter']]).get(row['matter']) != canon:
                 return ''
             from urllib.parse import urlencode
-            return '/courriels?' + urlencode({'item': row['id']})
+            return '/a-relire?' + urlencode({'item': row['id']})   # 5.6.102 (lot N) : page « À relire »
     verif = VERIFICATEURS.get(genre)
     if verif:
         try:

@@ -148,7 +148,7 @@ JOB_LABELS = {'migration5688': 'Copie des documents vers un autre stockage', 'pr
               'sync':'Découverte des dossiers et correspondants','approve':'Confirmation d’association',
               'reject':'Rejet d’une proposition','associate':'Enregistrement d’un correspondant',
               'remove_contact':'Retrait d’une association','retry':'Reprise d’un courriel',
-              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier','crm_collecte5657':'Contacts tirés de la boîte mail','registre5688':'Statuts et actes du registre','opportunites5676':'Prospects repérés dans les courriels','veille5688':'Veille des sociétés (BODACC)','memoire5688':'Repérage de ce qui mérite d’être retenu',
+              'retry_matter':'Reprise des courriels du dossier','index':'Indexation du dossier','actualiser5655':'Actualisation des données du dossier','crm_collecte5657':'Contacts tirés de la boîte mail','registre5688':'Statuts et actes du registre','opportunites5676':'Prospects repérés dans les courriels','accord56102':'Suivi de l’accord du client','veille5688':'Veille des sociétés (BODACC)','memoire5688':'Repérage de ce qui mérite d’être retenu',
               'review':'Préparation des points à décider','forget':'Oubli d’un exemple',
               'run':'Analyse des nouveaux courriels','learn':'Apprentissage des réponses envoyées',
               'discover':'Parcours des dossiers','browse':'Recherche dans Nextcloud',
@@ -263,6 +263,7 @@ JOB_LABELS['gmail5697']='Relève Gmail (lecture seule)'   # 5.6.97 (lot gmail)
 JOB_LABELS['delta56100']='Analyse de nouvelles écritures (note et proposition à relire)'   # 5.6.100 (lot G)
 JOB_LABELS['gmail5697_redaction']='Réponse Gmail préparée par le modèle local'   # 5.6.97 (lot gmail)
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
+JOB_LABELS['pilote_messagerie56102']='Pilote : réponse dans la messagerie instantanée'   # 5.6.102 (lot M)
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',
   'create_cabinet_letter':'Création confirmée du courrier Word'})
@@ -525,6 +526,9 @@ class App:
             code='controle_acces_indisponible'
         if not code:
             return None
+        if code=='identite_reservee':   # 5.6.102 (lot M) : identité du participant IA « pilote » : aucune session
+            return {'status':'403 Forbidden','kind':'application/json; charset=utf-8',
+                    'body':json.dumps({'error':code,'message':'Identité réservée à l’IA de la messagerie : aucune connexion possible.'},ensure_ascii=False)}
         if path.startswith(('/api','/live/')) or env.get('REQUEST_METHOD') not in ('GET','HEAD'):
             return {'status':'403 Forbidden','kind':'application/json; charset=utf-8',
                     'body':json.dumps({'error':code,'message':'Ce dossier est réservé à d’autres membres du cabinet.' if code=='dossier_reserve'
@@ -2166,6 +2170,9 @@ class App:
             main+=form('mark_handled','Ignorer',{'key':key,'back':'inbox'})
             chooser_matter='<label>Dossier<select required name="matter">'+opts+'</select></label><p>Cette action confirme seulement le dossier ; le rôle reste indépendant.</p>'
             main+='<details class="chooser"><summary>📁 Choisir le dossier</summary>'+form('confirm_matter','Confirmer le dossier et retraiter',{'mail_key':key},chooser_matter)+'<p>'+link('/dossiers','Dossier absent de la liste ? Chercher ou créer dans Nextcloud',state='all',mail_key=key)+'</p></details></div>'
+            from .pj56102 import ligne as _pj56102   # 5.6.102 (lot P) : état réel du rangement des pièces jointes (lecture seule)
+            _pj_ligne=_pj56102(desk,key,None,{'folder':str(r.get('source_mailbox') or ''),'uid':str(r.get('source_uid') or '')})
+            if _pj_ligne:main+='<p class="ax-muted" role="status">'+e(_pj_ligne)+'</p>'
             main+='<p class="s5636-pj">'   # 5.6.36 : pièces jointes rangées dans « PJ courriels » du dossier ; plan d'actions proposé
             if selected:main+='<button type="button" class="secondary" data-s5636-pj="'+e(key)+'" data-matter="'+e(selected)+'">📎 Ranger les pièces jointes dans le dossier</button> '
             main+='<button type="button" class="secondary" data-s5636-plan="'+e(key)+'">🧭 Proposer un plan d’actions</button> <span class="s5636-pj-out" role="status"></span></p>'

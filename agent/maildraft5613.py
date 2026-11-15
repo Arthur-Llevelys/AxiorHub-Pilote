@@ -131,7 +131,7 @@ def compose(desk, instruction, matter, ctx, controle=None):
             'controle': draft.get('controle5695') or {}, 'choix': left['choix'], 'marqueurs': left['marqueurs']}
 
 
-def build_message(cfg, ident, subject, body, to_complete):
+def build_message(cfg, ident, subject, body, to_complete, signature=None):
     if '\r' in cfg.get('from_name', '') or '\n' in cfg.get('from_name', ''):
         raise Stop('identite_invalide')
     msg = EmailMessage(policy=policy.SMTP)
@@ -147,7 +147,8 @@ def build_message(cfg, ident, subject, body, to_complete):
     if left['choix']:
         msg[HEADER_VARIANTES] = str(left['choix'])
     # 5.6.14 (U06) : aucune note technique dans le corps destiné au correspondant ; les points à compléter vont dans la fiche de contrôle.
-    msg.set_content(body.strip() + '\n\n' + str(cfg.get('signature', '')).strip() + '\n')
+    from .signature56102 import de_configuration, poser   # 5.6.102 (lot S) : signature effective, une seule fois (texte, HTML si mise en forme)
+    poser(msg, body, signature if signature is not None else de_configuration(cfg))
     return msg
 
 
@@ -292,7 +293,8 @@ def perform(desk, args, box=None):
         draft = compose(desk, instruction, matter, ctx, controle)
         # v3 : plus de 2 faits absents n'empêchent plus le dépôt : l'objet dit « [À COMPLÉTER : n faits] », la fiche donne le détail,
         # l'envoi depuis AxiorHub reste bloqué tant qu'un marqueur subsiste.
-        msg = build_message(cfg, ident, draft['subject'], draft['body'], draft['to_complete'])
+        from .signature56102 import effective as _signature   # 5.6.102 (lot S) : signature de la messagerie, sinon de Paramètres
+        msg = build_message(cfg, ident, draft['subject'], draft['body'], draft['to_complete'], signature=_signature(desk, args.get('owner')))
         import base64
         result = {'subject': draft['subject'], 'to_complete': draft['to_complete'], 'sources': draft['sources'], 'notes': notes,
                   'manifest': ctx.get('manifeste', {}), 'message_id': str(msg['Message-ID']), 'folder': folder, 'matter': matter['id'] if matter else '',

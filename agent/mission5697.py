@@ -759,6 +759,9 @@ def _apres_conversion(desk, a, d, dossier_id):
         dossiers5697.traiter_rangements(desk, dossier=dossier_id, limite=1)
     except Exception:   # noqa: BLE001 — stockage injoignable : « Rangement en attente », repris par le travailleur des rangements
         pass
+    if d.get('origine') == 'courriel' and d.get('source_ref'):   # 5.6.102 (lot P) : pièces jointes du fil en attente du dossier, mises en file
+        from . import pj56102
+        pj56102.apres_dossier(desk, dossier_id, (a.compte, a.role), mail_key=str(d['source_ref']))
     ranger_preparations(desk, a, d['id'])
 
 

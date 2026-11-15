@@ -12,13 +12,15 @@ from html import escape as e
 from . import i18n5631 as i18n
 
 GROUPS = ('dossier', 'rechercher', 'communiquer', 'temps', 'modeles', 'regler')
-PRIMARY = ('aujourdhui', 'courriels', 'dossiers', 'planning', 'production')
+PRIMARY = ('aujourdhui', 'a_relire', 'courriels', 'dossiers', 'planning', 'production')   # 5.6.102 (lot N) : « À relire » sorti de Courriels
 
 # identifiant, groupe, route, anciens noms / alias de recherche, prérequis (capacités)
 FUNCTIONS = (
     ('aujourdhui', 'communiquer', '/aujourdhui', ('Accueil', 'Poste de pilotage', 'Briefing'), ()),
     ('dossiers', 'dossier', '/dossiers', ('Portefeuille', 'Affaires'), ('storage',)),
     ('courriels', 'communiquer', '/courriels', ('Messagerie', 'Boîte de réception', 'Brouillons'), ('mail',)),
+    ('a_relire', 'communiquer', '/a-relire', ('Relecture', 'À valider', 'Propositions', 'Brouillons à relire', 'Projets à relire', 'Courriels à relire',
+                                             'Documents à relire'), ()),   # 5.6.102 (lot N) : liste unique de relecture, accès principal distinct
     ('planning', 'communiquer', '/planning', ('Agenda', 'Calendrier'), ()),
     ('taches', 'communiquer', '/planning?vue=taches', ('Tâches', 'À faire'), ()),
     ('mes_taches', 'communiquer', '/mes-taches', ('Mes tâches', 'Mes rappels', 'Tâches confiées', 'Responsable d’une tâche'), ()),   # 5.6.88
@@ -128,7 +130,7 @@ FAMILLE = {
     'veille': 'veille', 'surveillance': 'veille',
     'navigateur': 'navigateur',
     'aujourdhui': 'aujourdhui',
-    'courriels': 'courriels',
+    'courriels': 'courriels', 'a_relire': 'courriels',   # 5.6.102 (lot N) : onglets « Courriels » et « À relire » (33 familles conservées)
     'planning': 'agenda_taches', 'taches': 'agenda_taches', 'mes_taches': 'agenda_taches', 'rendez_vous': 'agenda_taches', 'engagements': 'agenda_taches',
     'talk': 'talk',
     'contacts': 'contacts', 'contacts_crm': 'contacts', 'associations': 'contacts',
@@ -153,6 +155,10 @@ FAMILLE = {
 # 5.6.101 : pages dont le service refuse lui-même les autres rôles (404 neutre) alors que la règle de route les laisserait passer.
 # Elles restent absentes du panneau, des onglets, du guide et de la palette pour ces rôles (F04).
 ROLES = {'securite_serveur': ('administrateur',)}
+# 5.6.102 (lot N) : accès principaux du menu servis hors du registre (aucune famille, aucun onglet) mais trouvables par Ctrl+K, sous leur
+# nom et leurs anciens noms : la messagerie interne (5.6.50), renommée « Messagerie instantanée ». Le registre figé n'est pas touché.
+HORS_REGISTRE = (('messagerie', '/messagerie', ('Messagerie', 'Messagerie du cabinet', 'Messages internes', 'Discussion interne', 'Chat',
+                                                'Instant messaging', 'Instant talk')),)
 # Étape du guide d'installation qui configure chaque capacité (NV04 : « Configurer » ouvre directement l'étape pertinente).
 GUIDE_STEP = {'storage': 'stockage', 'ai': 'ia', 'mail': 'messagerie', 'calendar': 'agenda', 'telephony': 'telephonie', 'invoice': 'facturation'}
 

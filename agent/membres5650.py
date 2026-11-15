@@ -706,6 +706,9 @@ def gate(env, state_dir, path, args, matter_paths=None):
     Renvoie None (requête autorisée) ou le code d'erreur ; registre illisible : Stop (refus, sauf administrateur)."""
     from .web567 import actor
     owner, role = actor(env)
+    if str(owner).strip().lower() == 'pilote':   # 5.6.102 (lot M) : identité réservée au participant IA, jamais une session ni un membre vu
+        set_viewer(frozenset())
+        return 'identite_reservee'
     hidden = hidden_for(state_dir, owner, role)
     set_viewer(hidden)
     set_viewer_role(role)
@@ -795,6 +798,8 @@ def directory(desk, auth=None):
                 db.close()
     except Exception:   # noqa: BLE001
         pass
+    for owner in [o for o in out if str(o).strip().lower() == 'pilote']:   # 5.6.102 (lot M) : jamais un membre à droits
+        out.pop(owner, None)
     return out
 
 

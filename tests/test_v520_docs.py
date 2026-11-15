@@ -129,7 +129,7 @@ class MailPipeline(t510.Base):
         top = mp['reasons'][0]
         self.assertEqual((top['reason'], top['count']), ('tri_ia_none', 2))
         self.assertTrue(any(r['action'][1] == '/associations' for r in mp['reasons']))
-        body = self.request('/courriels')['body']
+        body = self.request('/a-relire')['body']   # 5.6.102 (lot N) : le bilan des brouillons accompagne « À relire », sortie de Courriels
         self.assertIn('Pourquoi peu de brouillons ?', body)
         self.assertIn('5 courriel(s) examiné(s)', body)
         self.assertIn('Courriels et brouillons (7 jours)', self.request('/diagnostic')['body'])

@@ -13,7 +13,7 @@ Aucune page n'est supprimée et aucune route n'est redirigée à l'aveugle : les
 """
 from html import escape as e
 
-PRIMARY = ('aujourdhui', 'courriels', 'dossiers', 'planning', 'production')   # 5.6.84 : Honoraires et facturation dans Toutes les fonctions
+PRIMARY = ('aujourdhui', 'a_relire', 'courriels', 'dossiers', 'planning', 'production')   # 5.6.84 : Honoraires et facturation dans Toutes les fonctions ; 5.6.102 : À relire
 CONDITIONAL_PRIMARY = ('talk', 'parametres')   # § 22 : septième accès principal, seulement pour l'utilisateur qui l'active
 
 # Onglets de Produire (destination unique pour lancer, suivre et relire un travail).

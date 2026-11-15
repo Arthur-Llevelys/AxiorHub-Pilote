@@ -433,6 +433,8 @@ def synchroniser(desk, conn_id):
     s = _synchro(desk, row['id'])
     if row['etat'] != 'active':
         _maj_synchro(desk, row['id'], etat='arrete', erreur='google_reconnexion_requise' if row['etat'] == 'a_reconnecter' else 'gmail_non_connecte')
+        from .signature56102 import oublier_gmail   # 5.6.102 (lot S) : signature d'une connexion arrêtée plus reprise
+        oublier_gmail(desk, row['id'])
         return {'etat': 'arrete'}
     t = gg.HORLOGE()
     if s['prochain_essai'] > t:
@@ -452,6 +454,8 @@ def synchroniser(desk, conn_id):
                 raise
             out = _import(desk, row, resynchro=True)             # curseur trop ancien : resynchronisation bornée, fenêtre signalée
         _retention(desk, row['id'])
+        from .signature56102 import rafraichir_gmail   # 5.6.102 (lot S) : signature sendAs mise en cache ici (jamais pendant un GET), sans bloquer
+        rafraichir_gmail(desk, row, forcer=s['generation'] != row['generation'])
         return {'etat': 'a_jour', **out}
     except Stop as error:
         code = str(error).split(':')[0]
@@ -510,6 +514,8 @@ def deconnecter(desk, owner):
     desk.db.execute('DELETE FROM gmail5697_messages WHERE connexion_id=?', (row['id'],))
     desk.db.execute("UPDATE gmail5697_synchro SET history_id='', etat='arrete', erreur='gmail_deconnecte', bail=0, maj=? WHERE connexion_id=?", (_iso(), row['id']))
     desk.db.commit()
+    from .signature56102 import oublier_gmail   # 5.6.102 (lot S) : la signature Gmail en cache est oubliée avec la connexion
+    oublier_gmail(desk, row['id'])
     return out
 
 
@@ -720,7 +726,9 @@ def abandonner(desk, owner, projet_id, version):
 
 
 # ------------------------------------------------------------------------------------------------ MIME et empreinte de relecture
-def _mime(p, adresse, nom=''):
+def _mime(p, adresse, nom='', signature=None):
+    """5.6.102 (lot S) : ``signature`` = ``signature56102.effective(desk, owner, 'gmail:<connexion>')`` ; ajoutée une seule fois (texte, et HTML
+    si elle est mise en forme). Sans signature : message texte inchangé."""
     msg = EmailMessage(policy=policy.SMTP)
     msg['From'] = '%s <%s>' % (re.sub(r'[<>"\r\n]', '', nom), adresse) if nom else adresse
     msg['To'] = p['a']
@@ -733,8 +741,21 @@ def _mime(p, adresse, nom=''):
         msg['In-Reply-To'] = p['in_reply_to']
     if p['refs']:
         msg['References'] = p['refs']
-    msg.set_content(p['texte'] or '', charset='utf-8')
+    if signature and str(signature.get('texte') or '').strip():
+        from .signature56102 import poser
+        poser(msg, p['texte'] or '', signature)
+    else:
+        msg.set_content(p['texte'] or '', charset='utf-8')
     return msg.as_bytes()
+
+
+def _signature(desk, owner, conn_id):
+    """Signature du compte Gmail d'envoi (cache de la synchronisation), sinon webmail, Paramètres, cabinet : lecture seule."""
+    from .signature56102 import effective
+    try:
+        return effective(desk, owner, 'gmail:' + str(conn_id))
+    except Exception:   # noqa: BLE001 — réglages illisibles : projet sans signature plutôt qu'une page en erreur
+        return None
 
 
 def releve(raw):
@@ -776,8 +797,10 @@ def vue_projet(desk, owner, projet_id):
     """Projet et relecture exacte de ce qui partirait (relue dans le MIME composé, jamais recomposée à part)."""
     p = projet(desk, owner, projet_id)
     row = gg.lire(desk, p['connexion_id'])
-    r = releve(_mime(p, row['adresse']))
-    return {'id': p['id'], 'etat': p['etat'], 'libelle': ETATS.get(p['etat'], p['etat']), 'version': p['version'], 'a': p['a'], 'cc': p['cc'], 'objet': p['objet'],
+    sig = _signature(desk, owner, p['connexion_id'])   # 5.6.102 (lot S) : la relecture montre la signature qui partira
+    r = releve(_mime(p, row['adresse'], signature=sig))
+    from .signature56102 import mention
+    return {'signature': mention(sig), 'id': p['id'], 'etat': p['etat'], 'libelle': ETATS.get(p['etat'], p['etat']), 'version': p['version'], 'a': p['a'], 'cc': p['cc'], 'objet': p['objet'],
             'texte': p['texte'], 'matter': p['matter'], 'releve': r, 'empreinte': empreinte(r), 'empreinte_depot': p['empreinte_depot'], 'erreur': p['erreur'],
             'compte': row['adresse'], 'draft': bool(p['draft_id']), 'envoye_id': p['envoye_id'], 'ia_etat': p['ia_etat'], 'ia_libelle': IA_ETATS.get(p['ia_etat'], ''),
             'ia_limites': json.loads(p['ia_limites'] or '[]'), 'texte_ia': p['texte_ia'], 'perime': bool(p['perime']), 'corrige': bool(p['corrige'])}
@@ -833,7 +856,7 @@ def deposer(desk, owner, role, projet_id, version, idempotence):
             raise Stop('brouillon_modifie_a_distance')
         if distant is None:
             p['draft_id'] = ''
-    raw = _mime(p, row['adresse'])
+    raw = _mime(p, row['adresse'], signature=_signature(desk, owner, row['id']))   # 5.6.102 (lot S)
     attendu = empreinte(releve(raw))
     desk.db.execute('BEGIN IMMEDIATE')
     try:
@@ -1071,8 +1094,42 @@ def demander_ia(desk, owner, role, mail_key, matter='', instruction='', hidden=f
     return {'projet': p_id, 'job': job, 'deja': False, 'message': 'Préparation demandée au modèle local : le projet arrivera ici, à relire. Rien n’est déposé ni envoyé.'}
 
 
-def _mail_local(m):
-    """Message de la copie locale Gmail, sous la forme attendue par le circuit de rédaction (en-têtes RFC, texte borné ; aucun HTML)."""
+def _pieces_redaction(desk, conn, m, appeler=None):
+    """5.6.102 (lot P) : pièces jointes d'un message Gmail lues pour la rédaction, DANS le travail seulement (jamais pendant un GET) :
+    ``messages.attachments.get`` en lecture seule, au plus ``ATTACHMENT_MAX`` + 3 pièces téléchargées (les suivantes, au-delà de la limite de
+    lecture, ne sont jamais téléchargées). Renvoie ``(pièces [(nom, octets, type)], non lues [{nom, motif, code}])``."""
+    from .boite5625 import ATTACHMENT_MAX
+    appeler = appeler or gg.appeler
+    try:
+        pieces = json.loads(m['pieces_json'] or '[]')
+    except ValueError:
+        pieces = []
+    lues, non_lues = [], []
+    for n, p in enumerate(pieces):
+        nom = str(p.get('name') or 'pièce %d' % (n + 1))
+        if n >= ATTACHMENT_MAX + 3:
+            non_lues.append({'nom': nom, 'motif': 'au-delà de la limite de %d pièces lues' % ATTACHMENT_MAX, 'code': 'limite_pieces'})
+            continue
+        if int(p.get('size') or 0) > PIECE_MAX or not p.get('attachment_id'):
+            non_lues.append({'nom': nom, 'motif': 'pièce trop volumineuse ou inaccessible', 'code': 'piece_trop_volumineuse'})
+            continue
+        try:
+            out = appeler(desk, conn, 'GET', '%s/messages/%s/attachments/%s' % (API, quote(str(m['gmail_id']), safe=''), quote(str(p['attachment_id']), safe='')),
+                          capacite='gmail.lecture')
+            brut = _b64(out.get('data'))
+        except (Stop, gg.ErreurGoogle, ValueError, TypeError) as error:
+            non_lues.append({'nom': nom, 'motif': 'lecture chez Google impossible', 'code': str(error)[:60] or 'lecture_impossible'})
+            continue
+        if not brut or len(brut) > PIECE_MAX:
+            non_lues.append({'nom': nom, 'motif': 'pièce vide ou trop volumineuse', 'code': 'piece_trop_volumineuse'})
+            continue
+        lues.append((nom, brut, str(p.get('type') or 'application/octet-stream')))
+    return lues, non_lues
+
+
+def _mail_local(m, pieces=()):
+    """Message de la copie locale Gmail, sous la forme attendue par le circuit de rédaction (en-têtes RFC, texte borné ; aucun HTML).
+    5.6.102 (lot P) : ``pieces`` (lues dans le travail) jointes au message pour la lecture commune (``boite5625.attachment_report``)."""
     from .mailbox import Mail
     msg = EmailMessage()
     for nom, valeur in (('From', m['de']), ('To', m['a']), ('Cc', m['cc']), ('Subject', m['objet']), ('Message-ID', m['message_id']), ('References', m['refs'])):
@@ -1082,6 +1139,9 @@ def _mail_local(m):
             except (ValueError, TypeError):
                 continue
     msg.set_content(m['texte'] or '')
+    for nom, brut, mime in pieces:
+        principal, _, secondaire = (mime if '/' in mime else 'application/octet-stream').partition('/')
+        msg.add_attachment(brut, maintype=principal or 'application', subtype=secondaire or 'octet-stream', filename=nom)
     try:
         quand = datetime.fromisoformat(m['recu'])
     except ValueError:
@@ -1114,10 +1174,13 @@ def job_ia(desk, args):
               'manual_request': {'by': args['demande_par'], 'at': _iso(), 'instruction': str(args.get('instruction') or '')[:500]}}
     cle = cle_gmail(conn, gid)
     from .prudent5667 import enabled as _a_completer
+    pieces, non_lues = _pieces_redaction(desk, conn, m)   # 5.6.102 (lot P) : pièces jointes lues dans le travail, lecture seule chez Google
+    checkpoint(desk)
     try:
         with modele_local_seul():                       # C06 : contenu Gmail analysé par le modèle local autorisé, sans repli distant
             prepared = intelligence.prepare_draft(desk, {'key': cle, 'style': 'prudent', 'instruction': str(args.get('instruction') or ''),
-                                                         'mode_projet': 'a_completer' if _a_completer(desk) else '', '_source': (report, _mail_local(m))})
+                                                         'mode_projet': 'a_completer' if _a_completer(desk) else '', 'pieces_jointes': 'oui',
+                                                         '_pieces_non_lues': non_lues, '_source': (report, _mail_local(m, pieces))})
         ligne = desk.db.execute('SELECT data FROM manual_drafts WHERE mail_key=?', (cle,)).fetchone()
         data = json.loads(ligne[0]) if ligne else {'result': {'body': '', 'limits': []}}
     finally:

@@ -3,6 +3,21 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.102 — Pilote dans la messagerie instantanée, accord du client jusqu’au projet de contrat, pièces jointes rangées, signature de la messagerie, « À relire » en accès principal, journal d’audit purgeable, fausses alertes Collabora
+
+Demandes du cabinet après l’installation de la 5.6.101 en production, toutes dans cette version.
+
+- **Pilote dans la messagerie instantanée (lot M)** : la page « Messagerie » devient « Messagerie instantanée » (« Instant messaging »). Pilote est présent par défaut dans les discussions de dossier et les groupes (retirable), dans un échange à deux seulement si un participant l’ajoute. Il ne parle que si on s’adresse à lui (@pilote) ou sur « Résumer ». Réponses, résumés et recherches tout de suite ; tâches, rappels, événements d’agenda et liste de tâches de chacun créés directement avec « Annuler » ; lettres, documents et courriels préparés dans « À relire », ouverts et modifiables dans le volet de droite. Rien n’est jamais envoyé. « Résumé de la discussion » : résumé tenu à jour dans le volet de droite toutes les 5 minutes s’il y a de nouveaux messages, arrêté après 15 minutes sans message, jamais publié dans la discussion.
+- **Accord du client (lot K)** : suivi des devis et propositions ; l’accord du client est détecté dans sa réponse ; un plan est préparé : dossier, pièces utiles, contrat et annexes rédigés à partir des documents du dossier, copie en mode suivi des modifications, projet de courriel au client avec ces pièces jointes demandant ses observations. Le projet attend dans « À relire » ; rien n’est envoyé.
+- **Pièces jointes rangées (lot P)** : une seule voie de rangement des pièces jointes des courriels, dans le dossier du client quand il est connu, sinon en attente du fil ; tous les circuits de courriel lisent les pièces, Gmail compris.
+- **Signature (lot S)** : les réponses préparées portent la signature de la messagerie (Gmail, webmail), à défaut celle des Paramètres ; elle est visible dans le volet de relecture.
+- **Navigation (lot N)** : « À relire » devient une entrée principale ; « Courriels » est la boîte de réception ; les anciennes adresses redirigent. Bouton « Rechercher dans le cabinet » dans l’en-tête d’Aujourd’hui (même fenêtre que Ctrl+K) et raccourci « Ctrl+K » affiché en petit (⌘K sur Mac).
+- **Journal d’audit (lot J)** : purge des entrées plus anciennes qu’une durée (12 mois par défaut, purge automatique facultative) et vidage complet avec double confirmation ; export proposé avant ; l’opération elle-même est journalisée ; la chaîne d’intégrité est vérifiée depuis le point d’ancrage ; compactage de la base la nuit.
+- **Veille de sécurité (lot C)** : Collabora intégré (richdocumentscode) reconnu par son emplacement sous apps, custom_apps ou apps-extra et par ses processus parents, plus seulement par le nom ; les fausses alertes S03 disparaissent ; aucune alerte processeur pour ce Collabora reconnu.
+- **Écritures pendant les lectures (R05)** : les reprises uniques d’autres modules sont faites au démarrage (agent/reprises56101.py) ; la file commune d’Aujourd’hui et « À relire » n’écrivent plus rien pendant un affichage ; le registre des livrables est tenu par l’arrière-plan, et la fin d’un travail réussi y inscrit aussitôt ce qu’il a produit : un document prêt est tout de suite dans « À relire ».
+- **Installateur Windows** : nouvel essai du remplacement d’un fichier verrouillé pendant la mise à jour (erreur d’accès passagère).
+- Extraction des PDF : repli sur pypdf embarqué si le paquet n’est pas installé.
+
 ## 5.6.101 — Veille de sécurité du serveur, fonctions en 33 familles, Aujourd’hui allégée, « À relire » unique, volet de relecture à droite, tests à horloge avancée, mesure du temps facultative
 
 Cahier des charges 5.6.101 rédigé après la 5.6.100 et l’incident de sécurité de novembre 2026. Les décisions D1 à D7 suivent les recommandations du cahier : veille active par défaut, alertes par notification et bandeau, aucune vérification en ligne, regroupement de l’annexe A tel quel, Gmail dans « À relire », mesure du temps sur demande seulement, ancienne présentation retirée en 5.6.102 seulement.

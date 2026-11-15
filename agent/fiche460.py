@@ -217,7 +217,7 @@ def build_fiche(desk, mid, today=None):
                             'href': '/echeances#e-' + d['id']})
     for r in desk.db.execute("SELECT mail_key,state,subject,received FROM work_items WHERE matter=? AND state IN ('draft_ready','needs_action') ORDER BY updated DESC LIMIT 10", (mid,)):
         if r['state'] == 'draft_ready':
-            pending.append({'kind': 'brouillon', 'label': 'Brouillon à relire : ' + (r['subject'] or 'sans objet'), 'href': '/courriels'})
+            pending.append({'kind': 'brouillon', 'label': 'Brouillon à relire : ' + (r['subject'] or 'sans objet'), 'href': '/a-relire'})   # 5.6.102 (lot N)
         else:
             pending.append({'kind': 'courriel', 'label': 'Courriel à traiter : ' + (r['subject'] or 'sans objet'), 'href': '/mail?' + urlencode({'key': r['mail_key']})})
     to_validate = sum(1 for r in records if r['status'] == 'suggested')
@@ -238,7 +238,7 @@ def build_fiche(desk, mid, today=None):
     except Exception:
         docs = []
     fiche['documents'] = docs
-    fiche['drafts'] = [{'subject': r['subject'] or 'sans objet', 'href': '/courriels'} for r in desk.db.execute(
+    fiche['drafts'] = [{'subject': r['subject'] or 'sans objet', 'href': '/a-relire'} for r in desk.db.execute(
         "SELECT subject FROM work_items WHERE matter=? AND state='draft_ready' ORDER BY updated DESC LIMIT 5", (mid,))]
     fiche['facts_to_validate'] = to_validate
     fiche['facts'] = [_fact(desk, mid, r) | {'type': r['record_type']} for r in records if r['status'] in ('suggested', 'validated', 'pinned')]   # 5.6.24 (F32) : plus de coupe à 60

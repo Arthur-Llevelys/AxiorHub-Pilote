@@ -303,6 +303,8 @@ class Corrections(base.Base):
                              ('d1', 'x', 'x', 'x', 'DEMO', 'contrat', 'Contrat', 'verified', 'x', '[]', '', '[]', '', json.dumps({'files': files}), '', '',
                               now, now))
         self.desk.db.commit()
+        from agent import livrables5689
+        livrables5689.synchroniser(self.desk)    # 5.6.102 (R05) : le registre est tenu par l'arrière-plan, plus par l'affichage
         items = [x for x in cockpit530.review_items(self.desk, cached_only=True) if 'Contrat_projet' in x['title']]
         self.assertEqual(len(items), 1)
         self.assertTrue(items[0]['path'].endswith('.docx'))                # Word en priorité

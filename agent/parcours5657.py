@@ -368,7 +368,8 @@ def _deposit(desk, ident, subject, body, to, box=None):
     msg['Subject'] = subject
     msg['Date'] = format_datetime(datetime.now(timezone.utc))
     msg['Message-ID'] = '<axiorhub-5657-' + ident + '@mail-agent.local>'
-    msg.set_content(body.strip() + '\n\n' + str(cfg.get('signature', '')).strip() + '\n')
+    from .signature56102 import effective, poser   # 5.6.102 (lot S) : signature de la messagerie, sinon de Paramètres (une seule fois)
+    poser(msg, body, effective(desk, None))
     folder = cfg.get('drafts', 'Drafts')
     mailbox = box or maildraft5613._mailbox(desk)                # pylint: disable=protected-access
     try:

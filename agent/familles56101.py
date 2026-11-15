@@ -100,6 +100,10 @@ def onglets(path, role):
     if not fam:
         return []
     items = [fid for fid in membres(fam) if visible(fid, role)]
+    if 'a_relire' in items:   # 5.6.102 (lot N) : en présentation historique, « À relire » reste l'onglet propre de Courriels (pas de barre en double)
+        from .shell501 import relire_separe
+        if not relire_separe():
+            items.remove('a_relire')
     if len(items) < 2 or len({_route(f).split('?', 1)[0] for f in items}) < 2:
         return []
     return [(fid, _route(fid), libelle_onglet(fid), fid == courant) for fid in items]

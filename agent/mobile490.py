@@ -250,7 +250,7 @@ def manifest(prefix, theme='#17324d'):
             'icons': [{'src': prefix + '/static/axiorhub-icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
                       {'src': prefix + '/static/axiorhub-icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
                       {'src': prefix + '/static/axiorhub-icon-maskable.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}],
-            'shortcuts': [{'name': 'Courriels à relire', 'url': prefix + '/courriels'},
+            'shortcuts': [{'name': 'À relire', 'url': prefix + '/a-relire'},   # 5.6.102 (lot N)
                           {'name': 'Échéances', 'url': prefix + '/echeances'},
                           {'name': 'Recherche', 'url': prefix + '/recherche'}]}
 

@@ -41,6 +41,7 @@
     field.dispatchEvent(new Event('input', { bubbles: true })); closeBox(); field.focus();
   }
   function matterOf(input) { var host = input.closest('[data-matter]'); return input.getAttribute('data-matter') || (host ? host.getAttribute('data-matter') : ''); }
+  function filOf(input) { var host = input.closest('[data-fil]'); return host ? (host.getAttribute('data-fil') || '') : ''; }   /* 5.6.102 (lot M) : Pilote proposé dans sa discussion */
   document.addEventListener('input', function (ev) {
     var input = ev.target;
     if (!input.matches || !input.matches('[data-mention]')) return;
@@ -48,7 +49,7 @@
     if (!tok) { if (field === input) closeBox(); return; }
     field = input; input.setAttribute('role', 'combobox'); input.setAttribute('aria-controls', 'n88-mentions'); input.setAttribute('aria-autocomplete', 'list');
     var mine = ++seq;
-    get('m5688/mentions?q=' + encodeURIComponent(tok.text) + '&matter=' + encodeURIComponent(matterOf(input))).then(function (d) {
+    get('m5688/mentions?q=' + encodeURIComponent(tok.text) + '&matter=' + encodeURIComponent(matterOf(input)) + (filOf(input) ? '&fil=' + encodeURIComponent(filOf(input)) : '')).then(function (d) {
       if (mine !== seq || field !== input) return;
       items = d.personnes || []; active = items.length ? 0 : -1; ensureBox(); paint(); box.hidden = !items.length; input.setAttribute('aria-expanded', String(!!items.length));
       if (items.length) { var r = input.getBoundingClientRect(); box.style.left = (window.scrollX + r.left) + 'px'; box.style.top = (window.scrollY + r.bottom + 2) + 'px'; }

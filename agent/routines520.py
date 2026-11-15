@@ -596,7 +596,8 @@ def _propose_reply(desk, mail, item):
         return {'uid': item['uid'], 'status': 'deja_present'}
     if desk.db.execute('SELECT 1 FROM manual_drafts WHERE mail_key=?', (key,)).fetchone():   # 5.6.82 : projet déjà prêt : pas de second calcul
         return {'uid': item['uid'], 'status': 'deja_present'}
-    job = desk.enqueue('prepare_reply', {'key': key, 'matter': matter, 'instruction': '', 'origine': 'tri_matinal', 'automatic': 'yes'},
+    job = desk.enqueue('prepare_reply', {'key': key, 'matter': matter, 'instruction': '', 'origine': 'tri_matinal', 'automatic': 'yes',
+                                         'pieces_jointes': 'oui'},   # 5.6.102 (lot P) : pièces jointes lues
                        origin='automatic')
     desk.audit('routines_520_reponse_demandee', {'uid': item['uid'], 'job': job})
     return {'uid': item['uid'], 'status': 'demande', 'job_id': job, 'matter': matter}

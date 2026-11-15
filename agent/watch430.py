@@ -205,6 +205,11 @@ def _schedule_5642(desk,stamp=None):
         jobs.extend(schedule5688(desk,stamp))
     except Exception as ex:   # noqa: BLE001
         emit(desk,'blocked','Agenda : rappels ou copies impossibles ('+str(ex)[:120]+').',dedupe='agenda5688-tick')
+    try:   # 5.6.102 (lot M) : résumés suivis de la messagerie instantanée (mise à jour en file s'il y a du nouveau, veille après 15 min)
+        from .pilote_messagerie56102 import tick as pilote_tick56102
+        jobs.extend(pilote_tick56102(desk,stamp))
+    except Exception as ex:   # noqa: BLE001
+        emit(desk,'blocked','Messagerie instantanée : résumé suivi impossible ('+str(ex)[:120]+').',dedupe='pilote56102-tick')
     heartbeat(desk,'surveillance','active','Contrôle périodique et réveil IMAP',stamp+max(0,300-(stamp-float(desk.settings('live430:last:live_mail430',0)))))
     return jobs
 

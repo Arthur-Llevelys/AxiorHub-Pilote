@@ -64,13 +64,13 @@
 "version": "5.6.36"
 },
 "courriels": {
-"objective": "Leer la bandeja de entrada, revisar los borradores preparados y responder, reenviar o archivar.",
+"objective": "Leer la bandeja de entrada y responder, reenviar o archivar; los borradores preparados por el agente se revisan en «Por revisar».",
 "when": "Cuando llega un mensaje o un borrador del agente espera su revisión.",
 "prerequisites": "Correo configurado (recepción IMAP; el envío SMTP es opcional).",
 "steps": [
 "Abra Correos; la pestaña Bandeja de entrada muestra los mensajes.",
 "Pulse un mensaje para mostrarlo y elija Responder, Responder a todos o Reenviar.",
-"Revise y corrija el borrador preparado antes de cualquier envío.",
+"Las respuestas y borradores preparados por el agente se revisan en «Por revisar» (menú principal), nunca se envían sin usted.",
 "Use «Buscar» para encontrar un intercambio y «Actualizar» para recargar la lista."
 ],
 "result": "Un borrador depositado en su carpeta Borradores; nada se envía sin su confirmación.",
@@ -89,6 +89,39 @@
 "buttons": [
 "Actualiser",
 "Rechercher"
+],
+"version": "5.6.36"
+},
+"a_relire": {
+"objective": "Revisar en un solo lugar todo lo que el agente ha preparado: proyectos de respuesta, borradores del correo y de Gmail, documentos y notas de la IA, y decidir sobre cada uno.",
+"when": "Cada día, y en cuanto Hoy o una notificación indique elementos por revisar.",
+"prerequisites": "Ninguno para las propuestas locales; correo configurado para los borradores IMAP, Gmail conectado para los borradores de Gmail.",
+"steps": [
+"Abra «Por revisar» en el menú principal, justo después de Hoy.",
+"Elija un filtro (Todo, Correos, Gmail, Documentos, Notas de la IA) o use «Buscar».",
+"Haga clic en un elemento: el lector muestra el proyecto, el mensaje recibido, los adjuntos y las fuentes.",
+"Corrija el texto y haga clic en «Guardar», o decida: «Retener», «Descartar» o «Aplazar».",
+"Para un proyecto de respuesta retenido, «Depositar en Borradores (sin envío)» lo coloca en sus borradores: no se envía nada."
+],
+"result": "Cada elemento revisado sale de la lista; un proyecto depositado aparece en la carpeta Borradores de su correo, sin envío.",
+"verify": "El contador «Por revisar» baja y el borrador depositado es visible en su programa de correo habitual.",
+"errors": [
+[
+"Un elemento ha desaparecido de la lista",
+"Se revisó entretanto o no está autorizado para su cuenta; actualice la página."
+],
+[
+"«Borradores del correo: lectura separada»",
+"El correo responde con lentitud: las propuestas locales siguen legibles, los borradores IMAP aparecen después."
+]
+],
+"example": "Proyecto de respuesta ficticio al Sr. DURAND en el expediente DOS-001, corregido y depositado en los borradores.",
+"buttons": [
+"Enregistrer",
+"Retenir",
+"Écarter",
+"Reporter",
+"Déposer dans Brouillons (sans envoi)"
 ],
 "version": "5.6.36"
 },

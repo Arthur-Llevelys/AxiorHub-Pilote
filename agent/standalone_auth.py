@@ -88,6 +88,12 @@ def allowed(role, method, path, action=''):
         return True
     if api in ('m5674/inviter', 'm5674/retirer'):   # 5.6.74 : ses propres téléphones, tous les rôles
         return True
+    if api.startswith('m56102/accord/'):   # 5.6.102 (lot K) : valider, écarter, déposer un projet, réglage (avocat et administrateur ; objet, droits et version relus par le service)
+        from .accord56102 import allowed as allowed56102k
+        return allowed56102k(role, method, api)
+    if api.startswith('m56102/pilote/'):   # 5.6.102 (lot M) : Pilote dans la messagerie (tous les rôles ; réglage : administrateur ; fil et droits relus par le service)
+        from .pilote_messagerie56102 import allowed as allowed56102m
+        return allowed56102m(role, method, api)
     if api.startswith('m56100/relecture'):   # 5.6.100 (lot B) : décisions de relecture (liste fermée ; droit « déposer » et objet contrôlés par le service)
         from .relecture56100 import autoriser_route as allowed56100b
         return allowed56100b(role, method, api)

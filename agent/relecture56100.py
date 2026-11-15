@@ -578,7 +578,7 @@ def _sortie_ligne(desk, prefix, ligne, libelles, owner):
             'date_affichee': _date_locale(desk, ligne.get('updated') or 0, owner),
             'dossier': libelles.get(mid, mid) if mid else 'Sans dossier', 'a': ligne.get('a') or '',
             'agent': bool(ligne.get('agent', ligne['kind'] == 'proposition')),
-            'href': prefix + '/courriels?' + urlencode({'item': ligne['id']})}
+            'href': prefix + '/a-relire?' + urlencode({'item': ligne['id']})}
 
 
 def _etat_local(desk):
@@ -815,7 +815,8 @@ def _detail_proposition(desk, a, ligne, prefix):
             'destinataires': {'a': destinataires[:1], 'cc': destinataires[1:]}, 'expediteur': str(rapport.get('sender') or ''),
             'recu_le': str(rapport.get('received_at') or ''), 'motif': motif, 'actions': _actions(desk, a, 'proposition', etat),
             'sections': list(SECTIONS), 'editable': etat == 'a_relire', 'remplace_par': remplacant,
-            'liens': {'pleine_page': prefix + '/mail?key=' + quote(cle, safe='')}}
+            'liens': {'pleine_page': prefix + '/mail?key=' + quote(cle, safe='')},
+            'pieces_jointes_rangement': _rangement_pj(desk, a, cle, rapport)}   # 5.6.102 (lot P) : ligne courte, jamais un chiffre non prouvé
 
 
 def _detail_imap(desk, a, ident, prefix):
@@ -849,6 +850,13 @@ def _detail_imap(desk, a, ident, prefix):
     if trouve.get('mail_key'):
         from urllib.parse import quote
         links['pleine_page'] = prefix + '/mail?key=' + quote(trouve['mail_key'], safe='')
+    try:   # 5.6.102 (lot K) : noms des pièces jointes ; lien vers l'éditeur pour les projets Word joints par un plan « accord du client »
+        from .accord56102 import liens_pieces
+        ouvrir = liens_pieces(desk, trouve.get('message_id') or '', prefix)
+    except Exception:   # noqa: BLE001 — lecture seule : sans lien, les noms restent affichés
+        ouvrir = {}
+    pieces_jointes = [{'nom': str(x.get('filename') or 'pièce')[:200], 'href': ouvrir.get(str(x.get('filename') or ''), '')}
+                      for x in (d.get('attachments') or [])[:20]]
     return {'id': ident, 'type': 'imap', 'type_libelle': TYPES['imap'], 'revision': revision, 'etat': etat,
             'etat_libelle': LIBELLES_ETAT.get(etat, etat), 'sujet': d.get('subject') or '(sans objet)', 'corps': d.get('body') or '',
             'dossier': {'id': trouve['matter'], 'libelle': libelles.get(trouve['matter'], trouve['matter']) if trouve['matter'] else 'Sans dossier'},
@@ -857,7 +865,8 @@ def _detail_imap(desk, a, ident, prefix):
             'expediteur': d.get('from') or '', 'motif': '', 'actions': _actions(desk, a, 'imap', etat) if d.get('editable', True) else
             [x for x in _actions(desk, a, 'imap', etat) if x != 'enregistrer'],
             'sections': list(SECTIONS), 'editable': bool(d.get('editable', True)) and etat == 'a_relire',
-            'mise_en_forme_perdue': bool(d.get('lossy')), 'pieces': len(d.get('attachments') or []), 'liens': links}
+            'mise_en_forme_perdue': bool(d.get('lossy')), 'pieces': len(d.get('attachments') or []), 'pieces_jointes': pieces_jointes, 'liens': links,
+            'html_envoi': str(d.get('html') or '')}   # 5.6.102 (lot S) : version HTML déposée (nettoyée), montrée telle quelle dans le volet
 
 
 def _kind_de(ident):
@@ -909,10 +918,10 @@ def section(desk, acteur, ident, revision, sous):
             raise Refus(409, 'version_perimee')
         if sous == 'sources':
             result = data.get('result') if isinstance(data.get('result'), dict) else {}
-            sources = [{'id': str(s.get('id') or '')[:80], 'titre': str(s.get('title') or s.get('titre') or s.get('name') or s.get('id') or '')[:200],
+            sources = [{'id': str(s.get('id') or '')[:80], 'titre': _titre_source(s)[:200],   # 5.6.102 (lot P) : nom du fichier, pas « piece-jointe-1 »
                         'type': str(s.get('type') or s.get('kind') or '')[:40]} for s in (data.get('sources') or []) if isinstance(s, dict)][:60]
             return {'id': ident, 'revision': revision, 'section': 'sources', 'sources': sources,
-                    'limites': [str(x)[:400] for x in (result.get('limits') or [])][:20]}
+                    'limites': [str(x)[:400] for x in (result.get('limits') or [])][:20], **_pieces_lues(data, result)}
         return _section_courriel(desk, ligne['mail_key'], ident, revision, sous)
     if kind == 'imap':
         trouve = _trouver_imap(desk, a, ident)
@@ -936,6 +945,37 @@ def section(desk, acteur, ident, revision, sous):
         return {'id': ident, 'revision': revision, 'section': sous, 'indisponible': True,
                 'raison': 'Aucun courriel d’origine prouvé pour ce brouillon.' if sous == 'message' else 'Aucune source enregistrée pour ce brouillon.'}
     raise Refus(404, 'introuvable')
+
+
+def _titre_source(s):
+    """5.6.102 (lot P) : titre lisible d'une source (titre, nom, nom du fichier), sinon son identifiant."""
+    for k in ('title', 'titre', 'name', 'filename'):
+        if str(s.get(k) or '').strip():
+            return str(s[k]).strip()
+    chemin = str(s.get('path') or '').strip().rstrip('/')
+    return chemin.rsplit('/', 1)[-1] if chemin else str(s.get('id') or '')
+
+
+def _pieces_lues(data, result):
+    """5.6.102 (lot P) : fiche de contrôle « pièces lues / non lues (motif) » ; projet antérieur : pièces présentes dans les sources."""
+    pj = result.get('pieces_jointes') if isinstance(result.get('pieces_jointes'), dict) else None
+    if pj is None:
+        lues = [{'nom': _titre_source(s)[:200], 'partielle': bool(s.get('partial'))} for s in (data.get('sources') or [])
+                if isinstance(s, dict) and s.get('kind') == 'email_attachment']
+        return {'pieces_lues': lues[:20], 'pieces_non_lues': []} if lues else {}
+    return {'pieces_lues': [{'nom': str(x.get('nom') or '')[:200], 'partielle': bool(x.get('partielle'))} for x in (pj.get('lues') or []) if isinstance(x, dict)][:20],
+            'pieces_non_lues': [{'nom': str(x.get('nom') or '')[:200], 'motif': str(x.get('motif') or '')[:200]} for x in (pj.get('non_lues') or [])
+                                if isinstance(x, dict)][:20]}
+
+
+def _rangement_pj(desk, a, cle, rapport):
+    """5.6.102 (lot P) : « Pièces jointes rangées dans … › PJ courriels (n) » ou « en attente du dossier » ; rien si la source est illisible."""
+    try:
+        from .pj56102 import ligne
+        source = {'folder': str(rapport.get('source_mailbox') or ''), 'uid': str(rapport.get('source_uid') or '')} if rapport else None
+        return ligne(desk, cle, a, source)
+    except Exception:   # noqa: BLE001 — affichage seulement : jamais d'erreur ni de faux chiffre
+        return ''
 
 
 def _section_courriel(desk, cle, ident, revision, sous):
@@ -962,7 +1002,7 @@ def _section_courriel(desk, cle, ident, revision, sous):
         for part in mail.msg.iter_attachments():
             pieces.append({'nom': str(part.get_filename() or 'pièce')[:200], 'type': part.get_content_type(),
                            'taille': len(part.get_payload(decode=True) or b'')})
-        return {**tete, 'pieces': pieces[:50]}
+        return {**tete, 'pieces': pieces[:50], 'rangement': _rangement_pj(desk, None, cle, rapport)}
     texte = str(mail.text or '')
     return {**tete, 'texte': texte[:40000], 'tronque': len(texte) > 40000}
 
@@ -1073,6 +1113,12 @@ def _decider_proposition(desk, a, ident, action, revision, cle, corps, jusqu_a, 
         raise
     if recu.get('etat') in ('retenu', 'ecarte', 'enregistre'):
         desk.audit('relecture56100_' + action, {'id': ident, 'revision': revision, 'par': a.compte[:80]})
+    if recu.get('etat') == 'retenu':
+        try:   # 5.6.102 (lot K) : réponse de premier contact retenue : la réponse du client à la proposition sera suivie
+            from .accord56102 import apres_retenue
+            apres_retenue(desk, ligne['mail_key'])
+        except Exception:   # noqa: BLE001 — le suivi des devis ne fait jamais échouer la décision
+            pass
     return recu
 
 
@@ -1464,7 +1510,7 @@ def lecteur_html(prefix, suffixe_ids=''):
             '<button type="button" class="ax-btn ghost" data-section="pieces" aria-pressed="false">Pièces</button>'
             '<button type="button" class="ax-btn ghost" data-section="sources" aria-pressed="false">Sources</button>'
             '<button type="button" class="ax-btn ghost" data-section="propositions" aria-pressed="false" hidden>Propositions de l’IA</button>'
-            '<a class="ax-btn ghost ax100-plein" data-ax100-plein hidden href="%(p)s/courriels">Ouvrir en pleine page</a></div></header>'
+            '<a class="ax-btn ghost ax100-plein" data-ax100-plein hidden href="%(p)s/a-relire">Ouvrir en pleine page</a></div></header>'
             '<div class="ax100-corps" data-ax100-corps data-vue-texte="projet">'
             '<div class="ax100-projet" data-ax100-projet><label for="ax100-texte%(s)s">Texte du projet</label>'
             '<textarea id="ax100-texte%(s)s" data-ax100-texte rows="12" spellcheck="true" readonly></textarea></div>'
@@ -1491,7 +1537,7 @@ def lecteur_html(prefix, suffixe_ids=''):
             '<button type="button" class="ax-btn ghost" data-report="lundi">Lundi 9 h</button></span></span>'
             '<button type="button" class="ax-btn ghost" data-action="rejeter" data-ax101-optionnel aria-expanded="false" disabled hidden>Rejeter avec motif</button>'
             '<button type="button" class="ax-btn ghost" data-action="corriger" data-ax101-optionnel aria-expanded="false" disabled hidden>Demander une correction à l’IA</button>'
-            '<a class="ax-btn ghost" data-ax101-ouvrir hidden href="%(p)s/courriels">Ouvrir</a>'
+            '<a class="ax-btn ghost" data-ax101-ouvrir hidden href="%(p)s/a-relire">Ouvrir</a>'
             '<button type="button" class="ax-btn ghost ax100-deposer" data-action="deposer" disabled hidden>Déposer dans Brouillons (sans envoi)</button>'
             '</footer></article>') % {'s': s, 'p': e(prefix, quote=True)}
 
@@ -1541,7 +1587,7 @@ def _etat_local_texte(local):
 
 def page_html(desk, prefix, acteur, args):
     """Vue « À relire » de la nouvelle interface : liste unique à gauche (première page locale rendue par le serveur, liens de repli
-    ``/courriels?item=…``), lecteur à droite. Les brouillons IMAP sont lus par un appel séparé du script, jamais pendant ce rendu."""
+    ``/a-relire?item=…``, 5.6.102), lecteur à droite. Les brouillons IMAP sont lus par un appel séparé du script, jamais pendant ce rendu."""
     a = _acteur(acteur)
     from . import relecture56101 as r101      # 5.6.101 (lot R, R05) : filtre mémorisé de la personne (lecture seule)
     source = str(args.get('source') or r101.filtre_memorise(desk, a.compte) or 'tous')
@@ -1560,7 +1606,7 @@ def page_html(desk, prefix, acteur, args):
     lignes = ''.join(_ligne_html(x, item) for x in data['lignes'])
     def _filtres(choix):
         return ''.join('<a href="%s" data-ax100-filtre="%s"%s>%s</a>' % (
-            e(prefix + '/courriels?' + urlencode({'source': cle, **({'q': q} if q else {})}), quote=True), cle,
+            e(prefix + '/a-relire?' + urlencode({'source': cle, **({'q': q} if q else {})}), quote=True), cle,
             ' aria-current="page"' if cle == source else '', e(texte)) for cle, texte in choix)
     filtres = (_filtres(r101.LIBELLES_FILTRES) + '</nav><nav class="ax100-filtres ax101-sous-filtres" aria-label="Courriels par source">'
                + _filtres(r101.SOUS_FILTRES))
@@ -1575,13 +1621,13 @@ def page_html(desk, prefix, acteur, args):
             lecteur = lecteur.replace('tabindex="-1">Choisissez un élément</h2>', 'tabindex="-1">%s</h2>' % e(d['sujet']), 1)
             lecteur = lecteur.replace('readonly></textarea>', 'readonly>%s</textarea>' % e(d['corps']), 1)
             if d.get('liens', {}).get('pleine_page'):
-                lecteur = lecteur.replace(' data-ax100-plein hidden href="%s/courriels"' % e(prefix, quote=True),
+                lecteur = lecteur.replace(' data-ax100-plein hidden href="%s/a-relire"' % e(prefix, quote=True),
                                           ' data-ax100-plein href="%s"' % e(d['liens']['pleine_page'], quote=True), 1)
     return ('<section class="ax100-relecture" data-ax100-page data-ax100-relecture data-source="%s" data-q="%s" data-curseur="%s" '
             'data-item="%s" aria-label="Éléments à relire">'
             '<header class="ax100-tete"><h1>À relire <span class="ax100-total" data-ax100-total aria-live="polite">%s</span></h1>'
             '<nav class="ax100-filtres" aria-label="Filtres de relecture">%s</nav>'
-            '<form method="get" role="search" class="ax100-recherche" data-ax100-recherche action="%s/courriels">'
+            '<form method="get" role="search" class="ax100-recherche" data-ax100-recherche action="%s/a-relire">'
             '<input type="hidden" name="source" value="%s"><label for="ax100-q">Rechercher</label>'
             '<input id="ax100-q" name="q" type="search" value="%s" maxlength="120"><button type="submit" class="ax-btn ghost">Rechercher</button></form>'
             '<details class="ax100-diagnostic"><summary>État des sources</summary><p data-ax100-sources>%s</p>'

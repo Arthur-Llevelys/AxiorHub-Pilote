@@ -494,9 +494,9 @@ class Routes(Base):
         ident = self.ident(k)
         env = {'HTTP_X_AXIORHUB_USER': 'cabinet', 'HTTP_X_AXIORHUB_ROLE': 'administrateur', 'REQUEST_METHOD': 'GET'}
         with patch('agent.drafts440.list_drafts', side_effect=AssertionError('aucune lecture IMAP au rendu de la page')):
-            html = web440.drafts_page(self.desk, {'csrf': JETON}, '/p', {'item': ident}, env)
+            html = web440.relire_page(self.desk, {'csrf': JETON}, '/p', {'item': ident}, env)   # 5.6.102 (lot N) : page « À relire » distincte
         self.assertIn('data-ax100-relecture', html)
-        self.assertIn('/p/courriels?item=' + ident, html)                            # repli sans script, adresse restaurable
+        self.assertIn('/p/a-relire?item=' + ident, html)                             # repli sans script, adresse restaurable
         self.assertIn('/static/v56100-lecteur.js', html)
         self.assertIn('Calendrier &lt;script&gt;', html)
         self.assertNotIn('<script>', re.sub(r'<script[^>]*src="[^"]+"[^>]*></script>', '', html.split('<body>', 1)[-1]).replace('<script type="application/json"', ''))

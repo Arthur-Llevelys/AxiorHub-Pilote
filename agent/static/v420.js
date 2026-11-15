@@ -4,7 +4,7 @@
   const prefix=document.querySelector('meta[name="axiorhub-prefix"]')?.content||'';
   const commands=[
     ['Aujourd’hui','Audiences, brouillons, échéances, décisions','/aujourdhui'],
-    ['Courriels à relire','Relire et corriger les brouillons','/courriels'],
+    ['À relire','Relire et corriger les brouillons','/a-relire'],
     ['Dossiers','Ouvrir les dossiers','/dossiers'],
     ['Agenda et tâches','Agenda, tâches, organiser la semaine','/planning'],
     ['Échéances','Délais de procédure, prescription (famille Échéances)','/echeances'],
@@ -38,6 +38,7 @@
     else if(event.key==='ArrowUp'&&links.length){event.preventDefault();(i>0?links[i-1]:input).focus();}
     else if(event.key==='Tab'){const stops=[input,...links],at=stops.indexOf(document.activeElement);event.preventDefault();stops[(at+(event.shiftKey?stops.length-1:1))%stops.length].focus();}
     else if(event.key==='Enter'&&event.target===input){const first=results.querySelector('a');if(first){event.preventDefault();location.href=first.href;}}});
+  if(/Mac|iPhone|iPad/.test(navigator.platform||''))document.querySelectorAll('[data-m102-kbd]').forEach(k=>{k.textContent='⌘K';});   // 5.6.102
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&!event.altKey&&event.key.toLowerCase()==='k'){event.preventDefault();palette.hidden?open():close();}else if(event.key==='Escape'&&!palette.hidden)close();});
   document.addEventListener('click',event=>{const a=event.target.closest&&event.target.closest('[data-m82-quick]');if(a&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey){event.preventDefault();open();}});
   palette.addEventListener('click',event=>{if(event.target===palette)close();});

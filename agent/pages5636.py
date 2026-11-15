@@ -18,7 +18,7 @@ PAGES = {
     '/connexions-retour': 'Connexions',   # 5.6.52 : retour d'autorisation OAuth (Microsoft Graph, Google Workspace, DocuSign)
     '/complement-word/volet': 'AxiorHub',
     '/toutes-les-fonctions': 'Toutes les fonctions',
-    '/messagerie': 'Messagerie du cabinet',   # 5.6.50
+    '/messagerie': 'Messagerie instantanée',   # 5.6.50 ; 5.6.102 (lot N) : ancien titre « Messagerie du cabinet »
     '/savoir-faire': 'Savoir-faire du cabinet',   # 5.6.59 (A07)
     '/securite-ia': 'Sécurité de l’IA',   # 5.6.59 : instructions cachées dans les sources
     '/navigateur': 'Navigateur supervisé',   # 5.6.73 : poste Windows ou Ubuntu

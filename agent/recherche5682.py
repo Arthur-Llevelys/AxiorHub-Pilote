@@ -48,6 +48,15 @@ def search(desk, query, owner='cabinet', role='administrateur', lang=None):
         best = max([score(query, f['label'])] + [score(query, a) for a in f['aliases']] + ([score(query, libelle(f['famille'], lang))] if f['famille'] else []))
         if best >= MIN_SCORE:
             found.append({'type': 'Fonction', 'titre': titre_fonction(f['id'], lang), 'detail': f['desc'], 'url': f['route'], 'score': best})
+    from .fonctions5631 import HORS_REGISTRE, visible
+    from .i18n5631 import t
+    for fid, route, aliases in HORS_REGISTRE:   # 5.6.102 (lot N) : « Messagerie instantanée », accès principal hors registre (ancien nom compris)
+        if not visible(role, route, fid):
+            continue
+        label = t('fn.%s.label' % fid, lang)
+        best = max([score(query, label)] + [score(query, a) for a in aliases])
+        if best >= MIN_SCORE:
+            found.append({'type': 'Fonction', 'titre': label, 'detail': t('fn.%s.desc' % fid, lang), 'url': route, 'score': best})
     found.sort(key=lambda r: (-r['score'], r['titre'].lower()))
     top = found[0]['score'] if found else 0
     return {'resultats': [r for r in found if r['score'] >= top - 0.15][:LIMIT]}   # rapprochements lointains écartés dès qu'un bon résultat existe

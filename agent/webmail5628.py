@@ -390,7 +390,8 @@ def save(desk, data, owner='cabinet', acteur=None):
             except (Stop, imaplib.IMAP4.error, OSError):
                 pass
         desk.audit('webmail5628_brouillon', {'mode': str(data.get('mode') or 'nouveau'), 'owner': owner})
-        return {'uid': uid, 'uidvalidity': saved.uidvalidity, 'message': 'Enregistré dans Brouillons.'}
+        return {'uid': uid, 'uidvalidity': saved.uidvalidity, 'message_id': saved.mid,   # 5.6.102 (lot K) : Message-ID relu, pour retrouver le brouillon
+                'message': 'Enregistré dans Brouillons.'}
     finally:
         box.close()
 

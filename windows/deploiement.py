@@ -134,6 +134,48 @@ def stop_running():
     return True
 
 
+# 5.6.102 : juste après l'extraction, l'antivirus (Windows Defender) ou l'indexation peut garder quelques secondes un verrou sur
+# les exécutables tout juste écrits ; le renommage échoue alors en WinError 5 (accès refusé) ou 32 (fichier utilisé). On réessaie
+# avec une attente croissante (environ 10 s au total) avant d'abandonner proprement, la version installée restant en place.
+RENAME_DELAYS = (0.25, 0.5, 1.0, 1.5, 2.0, 2.25, 2.5)
+_LOCK_WINERRORS = (5, 32)
+
+
+class InstallationBloquee(OSError):
+    """Le dossier de la nouvelle version n'a pas pu être mis en place : fichiers verrouillés par un autre programme."""
+
+
+def _transient_lock(exc):
+    return isinstance(exc, PermissionError) or getattr(exc, 'winerror', None) in _LOCK_WINERRORS
+
+
+def _with_retries(action, delays=None):
+    """Exécute ``action`` ; sur un verrou passager (accès refusé, fichier utilisé), réessaie après chaque délai de ``delays``."""
+    delays = RENAME_DELAYS if delays is None else delays
+    for delay in tuple(delays) + (None,):
+        try:
+            return action()
+        except OSError as exc:
+            if delay is None or not _transient_lock(exc):
+                raise
+            time.sleep(delay)
+
+
+def _put_in_place(inner, target):
+    """Remplace ``target`` par ``inner`` (renommage), en réessayant tant qu'un verrou passager l'empêche."""
+    try:
+        if target.exists():
+            _with_retries(lambda: target.exists() and shutil.rmtree(target))
+        _with_retries(lambda: os.replace(inner, target))
+    except OSError as exc:
+        if not _transient_lock(exc):
+            raise
+        raise InstallationBloquee(
+            'impossible de mettre en place le dossier %s : des fichiers sont encore utilisés par un autre programme '
+            '(souvent l’antivirus qui analyse les fichiers tout juste copiés). La version déjà installée n’a pas été modifiée. '
+            'Patientez quelques secondes puis relancez l’installation. [%s]' % (target.name, exc)) from exc
+
+
 def _size_kb(folder):
     return sum(f.stat().st_size for f in Path(folder).rglob('*') if f.is_file()) // 1024
 
@@ -158,9 +200,7 @@ def install(archive, version, root=None, desktop=True, startup=False, shortcuts=
         inner = staging / APP if (staging / APP / GUI_EXE).is_file() else staging
         if not (inner / GUI_EXE).is_file():
             raise ValueError('archive_incomplete')
-        if target.exists():
-            shutil.rmtree(target, ignore_errors=True)
-        os.replace(inner, target)
+        _put_in_place(inner, target)   # 5.6.102 : réessais sur verrou passager (antivirus)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
     for old in root.glob('app-*'):

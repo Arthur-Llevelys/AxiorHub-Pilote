@@ -23,6 +23,9 @@ from .common import Stop
 
 SETTING = 'reponses5671:sans_dossier'
 REASONS = ('correspondant_ou_dossier_a_confirmer', 'expediteur_inconnu_sans_dossier')
+# 5.6.102 (lot P) : demande d'intervention d'un prospect (« préparez un contrat de travail ») : classée « intervention de l'avocat » avant le
+# test « expéditeur inconnu » (engine.py) ; reprise ici SEULEMENT sans dossier et d'un expéditeur inconnu de tout dossier (premier contact).
+PREMIER_CONTACT = ('intervention_avocat_ordali',)
 ASSOCIATION = 'Association de dossier à confirmer.'
 WINDOW_DAYS = 3
 PER_PASS = 5
@@ -62,9 +65,19 @@ def _attempted(desk, key):
     if not rows:
         return False
     from .ia5672 import TRANSIENT
+    if all(r[0] == 'error' and str(r[1] or '').split(':')[0] == 'dossier_absent' for r in rows):
+        return False   # 5.6.102 (lot P) : essai d'un autre chemin sans dossier (orchestrateur) : aucun projet n'a été rédigé
     if all(r[0] == 'error' and str(r[1] or '').split(':')[0] in TRANSIENT for r in rows) and len(rows) < MAX_ATTEMPTS:
         return False
     return True
+
+
+def _connu(desk, sender):
+    try:
+        from .engine import known_correspondent
+        return known_correspondent(desk.c, sender)
+    except Exception:   # noqa: BLE001 — registre illisible : traité comme connu (jamais une réponse « sans dossier » par défaut)
+        return True
 
 
 def candidates(desk, limit=PER_PASS, now=None):
@@ -73,9 +86,12 @@ def candidates(desk, limit=PER_PASS, now=None):
     keys = []
     from .state import State
     st = State(desk.c['state_dir'])
-    for row in st.db.execute('SELECT key FROM messages WHERE status=? AND reason IN (%s) AND updated>=? ORDER BY updated DESC LIMIT 200'
-                             % ','.join('?' * len(REASONS)), ('review',) + REASONS + (since,)):
+    premier = set()
+    for row in st.db.execute('SELECT key,reason FROM messages WHERE status=? AND reason IN (%s) AND updated>=? ORDER BY updated DESC LIMIT 200'
+                             % ','.join('?' * len(REASONS + PREMIER_CONTACT)), ('review',) + REASONS + PREMIER_CONTACT + (since,)):
         keys.append(str(row[0]))
+        if row[1] in PREMIER_CONTACT:
+            premier.add(str(row[0]))
     try:
         from .orchestrator import ensure_schema
         ensure_schema(desk)
@@ -101,6 +117,8 @@ def candidates(desk, limit=PER_PASS, now=None):
             continue
         if report.get('manual_request') or str(report.get('sender') or '').strip().lower() in own:
             continue
+        if key in premier and (report.get('matter') or _connu(desk, report.get('sender'))):
+            continue   # client connu ou dossier identifié : la réponse passe par le chemin du dossier (engine.py), jamais « sans dossier »
         out.append(key)
         if len(out) >= limit:
             break
@@ -198,8 +216,9 @@ def queue_items(desk, prefix='', actor='cabinet', role='administrateur'):
     except Exception:   # noqa: BLE001
         pass
     try:   # 5.6.89 (UX14) : brouillon déjà déposé pour cette réponse : sa carte de relecture porte la décision, celle-ci ferait double emploi
-        from .livrables5689 import reponse_deposee, synchroniser
-        synchroniser(desk)
+        # 5.6.101 (R05) : lecture du registre tel que l'arrière-plan l'a synchronisé (``operations._registre_livrables``, une fois par minute au plus) ;
+        # la file commune est calculée pendant les affichages et n'écrit plus rien (avant, ``synchroniser`` réécrivait le registre à chaque calcul).
+        from .livrables5689 import reponse_deposee
         deposited = reponse_deposee(desk)
     except Exception:   # noqa: BLE001 — registre indisponible : on préfère deux cartes à une réponse perdue
         deposited = set()

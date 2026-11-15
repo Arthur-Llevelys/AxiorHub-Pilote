@@ -8,7 +8,7 @@ from .common import Stop, load_matters
 
 SHORTCUTS = (
     ('/', 'Aller à la recherche', 'Hors d’un champ de saisie'),
-    ('g puis a', 'Aujourd’hui', ''), ('g puis c', 'Courriels à relire', ''), ('g puis d', 'Documents', ''),
+    ('g puis a', 'Aujourd’hui', ''), ('g puis c', 'Courriels', ''), ('g puis d', 'Documents', ''),
     ('g puis e', 'Échéances', ''), ('g puis r', 'Recherche', ''), ('g puis p', 'Progrès', ''),
     ('Ctrl + Entrée', 'Enregistrer le brouillon ouvert', 'Dans l’éditeur de brouillon'),
     ('Alt + D', 'Démarrer / arrêter la dictée', 'Dans l’éditeur de brouillon'),

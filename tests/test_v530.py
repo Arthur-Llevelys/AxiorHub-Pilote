@@ -196,6 +196,7 @@ class Review(Base):
                               '/Dossiers/DEMO/PROJETS', json.dumps({'files': [{'path': '/Dossiers/DEMO/Conclusions récapitulatives.docx'}]}), 'ok', '', 0, 0,
                               self.desk.now(), self.desk.now()))
         self.desk.db.commit()
+        __import__('agent.livrables5689', fromlist=['apres_production']).apres_production(self.desk)   # 5.6.102 : ce que fait la fin du travail producteur
         item = next(x for x in ck.review_items(self.desk) if x['path'].endswith('Conclusions récapitulatives.docx'))
         ck.revise(self.desk, {'item': item['id'], 'instruction': 'Ajouter un paragraphe sur la recevabilité'})
         self.run_jobs('docrequest520')

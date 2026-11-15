@@ -154,6 +154,12 @@ def _ia(desk, auth, prefix, env, cap):
         body += _section(_routage5695(desk, prefix, env))
     except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite, jamais un faux tableau vide
         body += _section('<section class="ax-card" id="routage5695"><h2>Routage mesuré</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    try:   # 5.6.102 (lot M) : « Pilote dans la messagerie instantanée » (réglage du cabinet, activé par défaut)
+        from .pilote_messagerie56102 import reglage_html as _pilote102
+        from .web567 import actor as _actor102
+        body += _section(_pilote102(desk, prefix, _actor102(env)[1]))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable
+        pass
     try:   # 5.6.62 : ChatGPT avec l'abonnement de l'utilisateur (sans clé API)
         from .chatgpt5662 import html as _chatgpt
         from .web5662 import local_browser

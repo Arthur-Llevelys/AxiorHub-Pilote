@@ -494,6 +494,7 @@ class Pieces(t34.Base):
 
     def test_automatic_filing_is_off_by_default(self):
         from agent import ged5636
+        self.desk.setting('pj56102:auto', False)   # 5.6.102 (lot P) : voie 5.6.36 seulement quand la voie unique est désactivée
         ged5636.after_mail(self.desk, 'c' * 64, MID)
         self.assertIsNone(self.desk.db.execute("SELECT 1 FROM jobs WHERE kind='pj_courriel5636'").fetchone())
         ged5636.set_auto(self.desk, True)

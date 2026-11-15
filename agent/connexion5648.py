@@ -325,6 +325,8 @@ def add_user(db, actor, data, delegated=False):
     ident = str(data.get('ident') or '').strip()
     if not IDENT.fullmatch(ident):
         raise Stop('identifiant_invalide')
+    if ident.lower() == 'pilote':   # 5.6.102 (lot M) : identité réservée au participant IA de la messagerie instantanée
+        raise Stop('identifiant_reserve')
     role = str(data.get('role') or 'avocat')
     if role not in ROLES:
         raise Stop('role_invalide')

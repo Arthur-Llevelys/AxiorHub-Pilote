@@ -528,7 +528,7 @@ def item_html(desk, prefix, item):
                 e(str(src.get('text', ''))[:1500] + ('…' if len(str(src.get('text', ''))) > 1500 else '')),
                 _mail_link(desk, src.get('mailbox', ''), src.get('uid', ''), 'show', 'Ouvrir le courriel d’origine dans la messagerie'))
         revise = bool(src.get('key'))
-        actions = ('<a class="ax-btn ghost" href="%s">Ouvrir dans Courriels à relire</a>' % e(prefix + '/courriels?' + urlencode({'uid': d.get('uid', uid)})) +
+        actions = ('<a class="ax-btn ghost" href="%s">Ouvrir dans « À relire »</a>' % e(prefix + '/a-relire?' + urlencode({'uid': d.get('uid', uid)})) +
                    _mail_link(desk, desk.c['mail'].get('drafts', 'Drafts'), d.get('uid', uid), 'edit', 'Brouillon dans la messagerie') +
                    '<button type="button" class="ax-btn" data-act="relu">Marquer comme relu</button>')
         hidden = '<input type="hidden" name="key" value="%s">' % e(d['source']['key'], quote=True) if revise else ''
@@ -637,7 +637,7 @@ def revise(desk, data):
         key = str(data.get('key') or '')
         if not re.fullmatch(r'[0-9a-f]{64}', key):
             raise Stop('courriel_source_introuvable')
-        job = desk.enqueue('prepare_reply', {'key': key, 'instruction': instruction})
+        job = desk.enqueue('prepare_reply', {'key': key, 'instruction': instruction, 'pieces_jointes': 'oui'})   # 5.6.102 (lot P) : pièces jointes lues
         return {'message': 'Nouveau brouillon demandé (travail n° %d). L’ancien reste dans Brouillons.' % job}
     from . import docrequest520 as dr
     if x.get('request'):

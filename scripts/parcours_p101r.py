@@ -55,7 +55,7 @@ def p101r_relecture(banc, s):
     note_id, rid = semer_note(banc)
     p.set_viewport_size({'width': 1920, 'height': 1080})
     s.connecter()
-    s.aller('/courriels?source=tous')
+    s.aller('/a-relire?source=tous')
     p.evaluate(ECOUTE)
     types = p.evaluate("() => Array.from(document.querySelectorAll('[data-ax100-lignes] .ax100-badge')).map(b => b.className)")
     verifier(any('ax100-document' in t for t in types) and any('ax100-note_ia' in t for t in types) and any('ax100-proposition' in t for t in types),
@@ -92,7 +92,7 @@ def p101r_relecture(banc, s):
     verifier(fichier.read_bytes() == humain, 'le fichier modifié à la main a été écrasé')
     s.capture(sortie / 'P101r-conflit-1920.png')
     # note de l'IA : validée sans rechargement ; événements du contrat reçus, sans identifiant ni texte
-    s.aller('/courriels?source=note_ia')
+    s.aller('/a-relire?source=note_ia')
     p.evaluate(ECOUTE)
     p.locator('[data-ax100-lignes] li[data-review-id="%s"] a' % note_id).click()
     p.wait_for_function("() => { const b = document.querySelector('[data-ax100-actions] [data-action=\"valider\"]'); return b && !b.disabled && !b.hidden; }",
@@ -109,7 +109,7 @@ def p101r_relecture(banc, s):
     s.propre('À relire 5.6.101')
     # 390 px : un seul panneau, « Retour à la liste », aucun défilement horizontal
     p.set_viewport_size({'width': 390, 'height': 844})
-    s.aller('/courriels?source=tous')
+    s.aller('/a-relire?source=tous')
     verifier(p.evaluate(SANS_DEFILEMENT), 'défilement horizontal à 390 px (liste)')
     premiere = p.locator('[data-ax100-lignes] li[data-review-id] a').first
     if premiere.count():

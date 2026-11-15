@@ -206,7 +206,7 @@ class ServerAccounts(t48.Base):
         lawyer = self.add(admin, 'avocate@example.test', 'avocat')
         page = self.request('/messagerie', cookie=lawyer)
         self.assertEqual(page['status'], '200 OK', page['body'][:300])
-        self.assertIn('Messagerie du cabinet', page['body'])
+        self.assertIn('Messagerie instantanée', page['body'])   # 5.6.102 (lot N) : ancien titre « Messagerie du cabinet »
         self.assertIn('v5650.js', page['body'])
         self.assertIn('href="%s/messagerie"' % PREFIX, page['body'])                         # entrée du menu
         opened = json.loads(self.api('m5650/direct', {'avec': 'cabinet'}, lawyer)['body'])

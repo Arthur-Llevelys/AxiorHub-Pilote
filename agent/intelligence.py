@@ -305,10 +305,12 @@ def prepare_draft(desk,args):
         own_sent=bool(report.get('manual_request')) and mail.sender.lower() in {a.lower() for a in own_addresses(desk.c['mail'])}
         if recipients[0]!=mail.sender and not own_sent:raise Stop('destinataire_invalide')   # 5.6.28 : message du cabinet, réponse à ses destinataires
         sources=[{'id':'incoming','kind':'email_received','content_ref':'incoming'}]
-        attachment_notes=[]
+        attachment_notes=[];pj_lues=[];pj_non_lues=[]
         if args.get('pieces_jointes')=='oui':   # 5.6.25 : réponse demandée depuis la boîte — texte des pièces jointes du courriel
-            from .boite5625 import attachment_sources
-            extra,attachment_notes=attachment_sources(desk,mail);sources+=extra
+            from .boite5625 import attachment_report   # 5.6.102 (lot P) : bilan exact par pièce (lue, lue en partie, non lue et motif)
+            extra,pj_lues,pj_non_lues=attachment_report(desk,mail);sources+=extra
+            pj_non_lues+=[dict(x) for x in (args.get('_pieces_non_lues') or []) if isinstance(x,dict) and x.get('nom')]   # 5.6.102 : Gmail, non téléchargées
+            attachment_notes=['%s : %s'%(x['nom'],x['code']) for x in pj_non_lues]
         if m['id']:
             from .recherche5695 import classeur   # 5.6.95 (R01) : service commun (droits, pièces écartées par l'avocat)
             index=source_index(desk.c);index.classer5695=classeur(desk)
@@ -362,6 +364,11 @@ def prepare_draft(desk,args):
             intent='premier_contact';payload['premier_contact']=first_contact(desk)
         payload['intent']=intent                              # 5.6.56 (N13) : même intention pour la rédaction et pour le contrôle
         dropped=fit_manual_draft_context(payload,desk.c['ollama'].get('max_context_chars',65000))
+        if pj_lues or pj_non_lues:   # 5.6.102 (lot P) : pièce omise pour la place du modèle = non lue ; la liste exacte est transmise au modèle
+            gardees={s['id'] for s in payload['sources']}
+            pj_non_lues+=[{'nom':x['nom'],'motif':'omise pour respecter la taille du contexte du modèle','code':'omise_contexte'} for x in pj_lues if x['source_id'] not in gardees]
+            pj_lues=[x for x in pj_lues if x['source_id'] in gardees]
+            if pj_non_lues:payload['pieces_jointes_non_lues']=[{'nom':x['nom'],'motif':x['motif']} for x in pj_non_lues]
         writer=Model(routed_config(desk.c,'mail_drafting'))
         result=writer.ask('manual_draft',payload);validate(result,MANUAL_DRAFT)
         from . import redaction5695   # 5.6.95 (D02) : contrôle métier, une seule correction ciblée par Model.ask, écart restant signalé
@@ -377,7 +384,17 @@ def prepare_draft(desk,args):
         if result['body']:   # 5.6.95 (D04) : variantes rendues en blocs lisibles ; un choix ou un fait à compléter attend toujours l'avocat
             result['body']=redaction5695.assembler(result['body'],result['variantes'])
         if result['variantes'] or redaction5695.marqueurs(result):result['requires_decision']=True
-        if attachment_notes:result['limits'].append('Pièce(s) jointe(s) non lue(s) : '+' ; '.join(attachment_notes)[:400])
+        if pj_non_lues:result['limits'].append('Pièce(s) jointe(s) non lue(s) : '+' ; '.join('%s (%s)'%(x['nom'],x['motif']) for x in pj_non_lues)[:400])
+        elif attachment_notes:result['limits'].append('Pièce(s) jointe(s) non lue(s) : '+' ; '.join(attachment_notes)[:400])
+        if pj_lues or pj_non_lues:   # 5.6.102 (lot P) : fiche de contrôle « pièces lues / non lues (motif) » ; au-delà de la limite, revue de l'avocat
+            result['pieces_jointes']={'lues':[{'nom':x['nom'],'partielle':bool(x['partielle'])} for x in pj_lues],
+                                      'non_lues':[{'nom':x['nom'],'motif':x['motif']} for x in pj_non_lues]}
+            if any(x.get('code') in ('limite_pieces','omise_contexte') for x in pj_non_lues):
+                result['requires_decision']=True
+                result['limits'].append('Toutes les pièces jointes n’ont pas pu être lues : relire les pièces avant tout dépôt.')
+            if any(x['partielle'] for x in pj_lues):
+                from .boite5625 import ATTACHMENT_TEXT
+                result['limits'].append('Pièce(s) jointe(s) lue(s) en partie (%d premiers caractères) : %s'%(ATTACHMENT_TEXT,', '.join(x['nom'] for x in pj_lues if x['partielle']))[:400])
         societe5688.poser_brouillon(result,controle)
         if legal:
             if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
@@ -416,8 +433,10 @@ def prepare_draft(desk,args):
                     result['requires_decision']=True;result['limits'].append('La question posée ne reçoit pas de réponse dans ce projet : à compléter.')
         if result.get('body'):   # 5.6.67 (point 4) : contrôle des dates, montants, RG et noms contre ce que le modèle a reçu
             from .faits5667 import check as _check_facts, reference_text, summary as _facts_summary, without_examples
+            from .signature56102 import effective as _signature   # 5.6.102 (lot S) : noms de la signature qui partira (messagerie, sinon Paramètres)
             result['body'],fact_issues=_check_facts(result['body'],reference_text({**payload,'sources':without_examples(payload.get('sources'))},
-                                                                                  desk.c['mail'].get('signature',''),desk.c['mail'].get('from_name','')),
+                                                                                  desk.c['mail'].get('signature',''),_signature(desk,args.get('owner'))['texte'],
+                                                                                  desk.c['mail'].get('from_name','')),
                                                     extra_dates=[str(s.get('start',''))[:10] for s in slots],names=True)
             if fact_issues:
                 result['faits_a_verifier']=fact_issues;result['limits'].append(_facts_summary(fact_issues))
@@ -475,7 +494,9 @@ def deposit_draft(desk,args):
         from .verify470 import gate_for_config,mark_message
         checked_body,citations_marked,_citation_report=gate_for_config(desk.c,result['body'],data['matter'],'mail',key)
         from .courrier5632 import add_agent_bcc   # 5.6.32 : règle « Cci » de la messagerie
-        draft=mark_message(add_agent_bcc(desk.c['state_dir'],make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc,to=to)),
+        from .signature56102 import effective as _signature   # 5.6.102 (lot S) : signature de la messagerie, sinon de Paramètres
+        draft=mark_message(add_agent_bcc(desk.c['state_dir'],make_draft(mail,desk.c['mail'],checked_body,manual_key,cc=cc,to=to,
+                                                                    signature=_signature(desk,args.get('owner')))),
                            citations_marked or bool(result.get('faits_a_verifier')))
         if to_complete:
             from .prudent5667 import mark_subject
@@ -512,6 +533,10 @@ def deposit_draft(desk,args):
         desk.db.execute('INSERT OR REPLACE INTO reply_drafts5687 VALUES(?,?)',(draft_key(draft),key));desk.db.commit()
         from .integration import set_work_state
         set_work_state(desk,key,'draft_ready','brouillon_imap_verifie')
+        try:   # 5.6.102 (lot K) : réponse de premier contact (devis, modalités) déposée : la réponse du client sera suivie (accord, questions, refus)
+            from .accord56102 import apres_depot
+            apres_depot(desk,key,data,draft_mid,mail,thread)
+        except Exception:pass   # le suivi des devis ne fait jamais échouer un dépôt déjà relu
         return {'brouillon_imap':'verifie','dossier':desk.c['mail']['drafts'],
                 'uid':verification.get('uid',''),'envoi':False}
     finally:box.close()
@@ -554,7 +579,7 @@ def prepare_reply(desk,args):
             if args.get('matter'):
                 from .messagerie5650 import notice
                 notice(desk,str(args['matter']),'Projet de réponse « à compléter » déposé dans les brouillons : votre position est à arrêter avant envoi.',
-                       '/courriels','Courriels')
+                       '/a-relire','À relire')   # 5.6.102 (lot N)
             return {**prepared,**deposited,'a_completer':True,
                     'message':'Projet de réponse « à compléter » déposé dans les brouillons (jamais envoyé) : position de l’avocat à arrêter.'}
         return {**prepared,'message':'Une réponse prudente est préparée, mais elle attend votre décision avant dépôt.'}
@@ -566,7 +591,7 @@ def prepare_reply(desk,args):
     if args.get('matter'):   # 5.6.50 : avis de l'agent dans le fil du dossier
         from .messagerie5650 import notice
         notice(desk,str(args['matter']),'Réponse à un courriel préparée et déposée dans les brouillons de la messagerie, à relire avant envoi.',
-               '/courriels','Courriels')
+               '/a-relire','À relire')   # 5.6.102 (lot N)
     return {**prepared,**deposited,'message':'1 brouillon retrouvé et vérifié dans la messagerie.'}
 
 

@@ -367,7 +367,8 @@ def _choose_recipient(desk, matter, profile):
 
 def compose(desk, matter, extraction, events, name, labels, audience, greeting, profile):
     main = events[0]
-    signature = desk.c['mail'].get('signature', '').strip()
+    from .signature56102 import effective   # 5.6.102 (lot S) : signature de la messagerie, sinon de Paramètres (texte)
+    signature = effective(desk, None)['texte']
     rg = (' (RG ' + extraction['rg'] + ')') if extraction['rg'] else ''
     juris = ('\nJuridiction : ' + extraction['jurisdiction']) if extraction['jurisdiction'] else ''
     lines = []

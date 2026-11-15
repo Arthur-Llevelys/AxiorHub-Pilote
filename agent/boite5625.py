@@ -360,23 +360,37 @@ def attachment_text(desk, uid, index, box=None, folder=None, acteur=None, validi
             box.close()
 
 
-def attachment_sources(desk, mail):
-    """Sources « pièce jointe » pour la réponse demandée : texte extrait de chaque pièce lisible (borné), erreurs nommées."""
+ATTACHMENT_MAX = 5   # pièces lues au plus pour une réponse ; au-delà, signalées non lues et le projet attend l'avocat (5.6.102)
+
+
+def attachment_report(desk, mail):
+    """5.6.102 (lot P) : sources « pièce jointe » (texte extrait borné, nom du fichier conservé) et bilan exact par pièce : lues (en
+    entier ou en partie) et non lues avec leur motif — une pièce non lue n'est jamais présentée comme lue."""
     from .documents import extract
-    sources, notes = [], []
+    sources, lues, non_lues = [], [], []
     for n, part in enumerate(mail.msg.iter_attachments()):
+        if part.get_content_disposition() == 'inline' and part.get('Content-ID'):
+            continue   # image intégrée au corps (logo, signature) : pas une pièce jointe
         name = str(part.get_filename() or 'pièce %d' % (n + 1))
+        if len(sources) >= ATTACHMENT_MAX:
+            non_lues.append({'nom': name, 'motif': 'au-delà de la limite de %d pièces lues' % ATTACHMENT_MAX, 'code': 'limite_pieces'})
+            continue
         raw = part.get_payload(decode=True) or b''
         try:
             text = extract(raw, name, {**desk.c.get('documents', {}), 'max_document_chars': 200000})
         except Stop as ex:
-            notes.append('%s : %s' % (name, str(ex)))
+            non_lues.append({'nom': name, 'motif': str(ex).replace('_', ' '), 'code': str(ex)})
             continue
-        sources.append({'id': 'piece-jointe-%d' % (n + 1), 'kind': 'email_attachment', 'path': name, 'excerpt': text[:ATTACHMENT_TEXT],
-                        'partial': len(text) > ATTACHMENT_TEXT, 'modified': mail.timestamp.isoformat()})
-        if len(sources) >= 5:
-            break
-    return sources, notes
+        sources.append({'id': 'piece-jointe-%d' % (n + 1), 'kind': 'email_attachment', 'path': name, 'filename': name, 'title': name,
+                        'excerpt': text[:ATTACHMENT_TEXT], 'partial': len(text) > ATTACHMENT_TEXT, 'modified': mail.timestamp.isoformat()})
+        lues.append({'nom': name, 'source_id': sources[-1]['id'], 'partielle': len(text) > ATTACHMENT_TEXT})
+    return sources, lues, non_lues
+
+
+def attachment_sources(desk, mail):
+    """Sources « pièce jointe » pour la réponse demandée : texte extrait de chaque pièce lisible (borné), erreurs nommées."""
+    sources, _lues, non_lues = attachment_report(desk, mail)
+    return sources, ['%s : %s' % (x['nom'], x['code']) for x in non_lues]
 
 
 def request_reply(desk, uid, matter, instruction='', with_attachments=True, owner='cabinet', box=None, folder=None, without_matter=False, role='', expected_key='', validity=None):
@@ -486,8 +500,13 @@ def create_matter(desk, data, owner='cabinet'):
             matter['correspondents'] = [p for p in matter.get('correspondents', []) if p['email'].lower() != email] + [{'email': email, 'role': role}]
             save_matter(desk.c, matter)
     desk.audit('boite5625_dossier_cree', {'id': out['dossier'], 'owner': owner})
-    return {'id': out['dossier'], 'label': name, 'path': path,
-            'message': 'Dossier « %s » créé dans Nextcloud et enregistré ; son indexation a démarré.' % name}
+    from . import pj56102   # 5.6.102 (lot P) : pièces jointes en attente du dossier (fil du courriel, expéditeur rattaché) mises en file
+    source = {'folder': str(data.get('folder') or 'INBOX'), 'uid': str(data.get('uid') or ''), 'uidvalidity': str(data.get('uidvalidity') or '')}
+    pj = pj56102.apres_dossier(desk, out['dossier'], owner, mail_key=str(data.get('mail_key') or ''), source=source if source['uid'].isdigit() else None,
+                               correspondant=email if email and email not in own else '')
+    suite = ' Pièces jointes du courriel en attente : rangement prévu dans le dossier.' if pj.get('mandats') else ''
+    return {'id': out['dossier'], 'label': name, 'path': path, 'pieces_jointes': pj,
+            'message': 'Dossier « %s » créé dans Nextcloud et enregistré ; son indexation a démarré.%s' % (name, suite)}
 
 
 def discard_reply(desk, uid, validity, acteur=None):

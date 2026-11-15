@@ -575,7 +575,16 @@ def courrier_section(desk, prefix):
               '<button type="button" data-m5632-cmd="underline" aria-label="Souligné"><u>S</u></button><button type="button" data-m5632-cmd="createLink" aria-label="Lien">🔗</button></div>'
               '<div class="m5632-sig" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Signature" data-m5632-html="signature_html" data-m5632-style="%s">%s</div>') % (
         e(c32.font_css(desk), quote=True), p['signature_html'])   # déjà nettoyée à l'enregistrement (liste fermée de balises)
-    prefs_form = _form('courrier/prefs', ('<fieldset><legend>Signature</legend>%s<p class="f5632-hint">Ajoutée à :</p>%s</fieldset>'
+    sig_ligne = ''
+    try:   # 5.6.102 (lot S) : source de la signature ajoutée aux réponses préparées (lecture des réglages seulement, aucun appel réseau)
+        from .signature56102 import etat as _sig_etat
+        se = _sig_etat(desk, None)
+        sig_ligne = ('<p class="f5632-hint" data-s56102-source="%s">Signature ajoutée aux réponses préparées par l’agent : <strong>%s</strong>%s. '
+                     'Ordre : signature de la messagerie Gmail, puis celle du <a href="%s">webmail</a> ci-dessous, puis celle de Paramètres, puis l’identité du cabinet.</p>') % (
+            e(se['source'], quote=True), e(se['libelle']), (' — ' + e(se['note'])) if se['note'] else '', e(prefix + se['lien_webmail'], quote=True))
+    except Exception:   # noqa: BLE001 — l'information ne bloque jamais la page
+        sig_ligne = ''
+    prefs_form = sig_ligne + _form('courrier/prefs', ('<fieldset id="signature-webmail"><legend>Signature</legend>%s<p class="f5632-hint">Ajoutée à :</p>%s</fieldset>'
                                           '<div class="f5632-row"><label>Police d’écriture<select name="font" data-m5632-font>%s</select></label>'
                                           '<label>Taille<select name="size">%s</select></label></div>') % (editor, signs, fonts, sizes),
                        'Enregistrer la signature et la police', reload=True)

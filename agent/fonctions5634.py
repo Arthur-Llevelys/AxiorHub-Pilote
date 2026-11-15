@@ -8,6 +8,7 @@ MIGRATION = {
     'aujourdhui': 'Aujourd’hui → conversation, briefing, résumé pleine largeur, décisions ouvrables et annulables, activité et veille',
     'dossiers': 'Dossiers → portefeuille et ouverture de fiche',
     'courriels': 'Courriels → boîte, pièces jointes et brouillons',
+    'a_relire': 'À relire (5.6.102) → accès principal après Aujourd’hui (famille Courriels) : liste unique de relecture ; anciennes adresses de Courriels (élément, filtre, brouillon IMAP, vue « relire ») redirigées',
     'planning': 'Agenda et tâches → Agenda en ligne (calendriers configurés) / Agenda personnel (local, jamais copié), Tâches, Organiser la semaine',
     'facturation': 'Facturation et honoraires (5.6.53) → page unique : à préparer, documents, règlements, chiffrage (Honorium), réglages et modèles ; épinglable au menu principal',
     'mobile': 'À valider (5.6.74) → Communiquer : file « À décider / À relire » pour le téléphone associé par QR code (version serveur)',

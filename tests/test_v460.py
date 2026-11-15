@@ -178,7 +178,7 @@ class CockpitCards(Base):
         hrefs = {c['kind']: c['href'] for c in data['cards'] + data['folded']}
         self.assertTrue(hrefs['delai'].startswith('/echeances#e-'))
         self.assertTrue(hrefs['attente'].startswith('/mail?key='))
-        self.assertEqual(hrefs['brouillon'], '/courriels')
+        self.assertEqual(hrefs['brouillon'], '/a-relire')   # 5.6.102 (lot N) : page « À relire » distincte
         self.assertTrue(hrefs['audience'].startswith('/fiche?matter='))
 
     def test_far_deadlines_and_past_events_are_not_cards(self):

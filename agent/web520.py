@@ -383,8 +383,8 @@ def today_html(desk, prefix, form=None, today=None):
     except Exception:
         drafts, total = [], 0
     items = ''.join('<li>%s%s</li>' % (e(x['subject'] or 'Sans objet'), (' — ' + e(labels.get(x['matter'], x['matter']))) if x['matter'] else '') for x in drafts)
-    out += '<section><h2>Brouillons à relire (%d) <small><a href="%s">Courriels à relire</a></small></h2>%s</section>' % (
-        total, e(prefix + '/courriels'), ('<ul>%s</ul>' % items) if items else '<p class="t520-empty">Aucun brouillon en attente de relecture.</p>')
+    out += '<section><h2>Brouillons à relire (%d) <small><a href="%s">À relire</a></small></h2>%s</section>' % (
+        total, e(prefix + '/a-relire'), ('<ul>%s</ul>' % items) if items else '<p class="t520-empty">Aucun brouillon en attente de relecture.</p>')
     # échéances et prescriptions
     rows = []
     horizon = (today + timedelta(days=14)).isoformat()

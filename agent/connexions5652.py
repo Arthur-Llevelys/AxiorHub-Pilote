@@ -227,8 +227,7 @@ def _ensure_schema(desk):
                 desk.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table, name, decl))
     if desk.db.in_transaction:
         desk.db.commit()
-    if not desk.settings('connexions5653:reparation', None):
-        repair_5653(desk)
+    # 5.6.101 (R05) : la réparation unique ``repair_5653`` est faite au démarrage (``reprises56101``), plus pendant une lecture
 
 
 def _vault(desk, conn_id, name):

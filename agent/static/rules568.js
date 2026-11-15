@@ -82,7 +82,7 @@
         r.effects.forEach(x=>{d.append(el('h4',(x.step.replaceAll('_',' '))+' · '+(labels[x.state]||x.state)),el('pre',JSON.stringify(x.proof,null,2)));});
         if(r.result.summary)d.append(el('h4','Synthèse de l’analyse'),el('p',r.result.summary));card.append(d);
         const actions=el('div',undefined,'actions');
-        if(r.result.draft_verified?.uid){const a=el('a','Ouvrir le brouillon vérifié');a.href=prefix+'/courriels?'+new URLSearchParams({uid:r.result.draft_verified.uid,validity:r.result.draft_verified.uidvalidity});actions.append(a);}
+        if(r.result.draft_verified?.uid){const a=el('a','Ouvrir le brouillon vérifié');a.href=prefix+'/a-relire?'+new URLSearchParams({uid:r.result.draft_verified.uid,validity:r.result.draft_verified.uidvalidity});actions.append(a);}
         if(r.effects.some(x=>x.step==='file_procedure'&&x.state==='verified')&&r.result.destination){const a=el('a','Ouvrir le document classé');a.href=prefix+'/documents/edit?'+new URLSearchParams({path:r.result.destination,mode:'view',matter:r.matter});actions.append(a);}
         if(['error','decision','paused','waiting'].includes(r.state)){
           actions.append(button('Relancer sans dupliquer',async()=>{await api('document/control',{id:r.id,action:'retry'});runSignature='';note('Reprise demandée ; les dépôts existants seront relus.');await renderRuns();}));

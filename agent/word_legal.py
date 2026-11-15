@@ -232,10 +232,6 @@ def _render_document(raw,plan,tracked=False):
 
 def render_docx(raw,plan,tracked=False):
     document,names=_render_document(raw,plan,tracked);source=BytesIO(raw);out=BytesIO()
-    missing_settings=tracked and 'word/settings.xml' not in names
-    content_ns='http://schemas.openxmlformats.org/package/2006/content-types'
-    rel_ns='http://schemas.openxmlformats.org/package/2006/relationships'
-    settings_type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings'
     with zipfile.ZipFile(source) as zin,zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as zout:
         for info in zin.infolist():
             name=info.filename
@@ -244,6 +240,29 @@ def render_docx(raw,plan,tracked=False):
             data=zin.read(name)
             if name.endswith('.rels'):
                 data=re.sub(br'<(?:[A-Za-z0-9_]+:)?Relationship\b(?=[^>]*\bTargetMode=["\']External["\'])[^>]*/>',b'',data,flags=re.I)
+            zout.writestr(info,data)
+        zout.writestr('word/document.xml',document)
+    # 5.6.102 (lot K) : le suivi des modifications est posé par ``activer_suivi`` (même résultat qu'avant : réglage ajouté, partie créée si absente)
+    return activer_suivi(out.getvalue()) if tracked else out.getvalue()
+
+
+def activer_suivi(raw):
+    """5.6.102 (lot K) : copie d'un document Word avec le suivi des modifications activé (``w:trackRevisions`` dans ``word/settings.xml`` ;
+    la partie est créée, déclarée dans ``[Content_Types].xml`` et reliée au document si elle manque). Le corps du document et les autres
+    parties sont recopiés tels quels : seul le réglage change."""
+    content_ns='http://schemas.openxmlformats.org/package/2006/content-types'
+    rel_ns='http://schemas.openxmlformats.org/package/2006/relationships'
+    settings_type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings'
+    out=BytesIO()
+    try:zin=zipfile.ZipFile(BytesIO(raw))
+    except (zipfile.BadZipFile,TypeError,ValueError):raise Stop('document_word_illisible') from None
+    with zin,zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as zout:
+        names=set(zin.namelist())
+        if 'word/document.xml' not in names:raise Stop('document_word_illisible')
+        missing_settings='word/settings.xml' not in names
+        for info in zin.infolist():
+            name=info.filename
+            data=zin.read(name)
             if missing_settings and name=='[Content_Types].xml':
                 try:
                     types=ET.fromstring(data)
@@ -260,14 +279,13 @@ def render_docx(raw,plan,tracked=False):
                       'Id':'rIdAxiorHub'+str(number),'Type':settings_type,'Target':'settings.xml'})
                     data=ET.tostring(rels,encoding='utf-8',xml_declaration=True)
                 except ET.ParseError:raise Stop('relations_word_invalides') from None
-            if tracked and name=='word/settings.xml':
+            if name=='word/settings.xml':
                 try:
                     settings=ET.fromstring(data)
                     if settings.find('{'+W+'}trackRevisions') is None:settings.insert(0,ET.Element('{'+W+'}trackRevisions'))
                     data=ET.tostring(settings,encoding='utf-8',xml_declaration=True)
                 except ET.ParseError:raise Stop('parametres_word_invalides') from None
             zout.writestr(info,data)
-        zout.writestr('word/document.xml',document)
         if missing_settings:
             zout.writestr('word/settings.xml',('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
               '<w:settings xmlns:w="'+W+'"><w:trackRevisions/></w:settings>').encode())

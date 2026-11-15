@@ -220,8 +220,11 @@ def revision_document(row):
 
 
 def admissible(row):
-    """Livrable relu ici : ni courriel (proposition), ni note de l'IA (source dédiée), ni document de facturation (R06 : décision de gestion)."""
-    return (row['kind'] != 'courriel' and row['source_service'] not in SERVICES_EXCLUS and not row['required_right']
+    """Livrable relu ici : ni courriel (proposition), ni note de l'IA (source dédiée), ni document de facturation (R06 : décision de gestion).
+    5.6.102 (lot M) : un projet de courriel rédigé comme document (``docrequest520``, demandé par une personne ou par Pilote dans la
+    messagerie) n'est pas une proposition de réponse : il est relu ici, comme les autres documents (aucun doublon, rien n'est envoyé)."""
+    courriel_document = row['kind'] == 'courriel' and row['source_service'] == 'docrequest520' and not row['response_id']
+    return ((row['kind'] != 'courriel' or courriel_document) and row['source_service'] not in SERVICES_EXCLUS and not row['required_right']
             and not row['response_id'])
 
 
@@ -523,6 +526,7 @@ def _detail_gmail(desk, a, ligne, prefix):
     fil = gm.fil_de(p['connexion_id'], p['thread_id'])
     return {'id': ligne['id'], 'type': 'gmail', 'type_libelle': rl.TYPES['gmail'], 'revision': revision_gmail(p), 'etat': etat,
             'etat_libelle': rl.LIBELLES_ETAT.get(etat, etat), 'sujet': p['objet'] or '(sans objet)', 'corps': str(p['texte'] or ''),
+            'compte_envoi': 'gmail:' + str(p['connexion_id']),   # 5.6.102 (lot S) : compte d'envoi, pour la signature qui partira
             'dossier': {'id': p['matter'], 'libelle': _libelle_dossier(libelles, p['matter'])},
             'destinataires': {'a': [x.strip() for x in str(p['a'] or '').split(',') if x.strip()], 'cc': [x.strip() for x in str(p['cc'] or '').split(',') if x.strip()]},
             'expediteur': compte, 'motif': ' · '.join(x for x in motifs if x)[:600], 'actions': actions, 'sections': list(SECTIONS['gmail']),
@@ -565,7 +569,7 @@ def _detail_document(desk, a, ligne, prefix):
             actions.append('corriger')
         actions.append('reporter')
     doc, numero = row['document_id'], int(row['version_number'])
-    liens = {'pleine_page': prefix + '/livrables/' + doc + '?' + urlencode({'version': row['version_id'], 'return_to': prefix + '/courriels?item=' + ligne['id']})}
+    liens = {'pleine_page': prefix + '/livrables/' + doc + '?' + urlencode({'version': row['version_id'], 'return_to': prefix + '/a-relire?item=' + ligne['id']})}   # 5.6.102 (lot N)
     ouvrir = None
     if vue and vue['actions']['editor']:
         from .fiche460 import doc_href

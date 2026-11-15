@@ -991,7 +991,9 @@ def p96c_courriels(banc, s):
     p.set_viewport_size({'width': 1920, 'height': 1080})
     s.connecter()
     s.aller('/courriels?vue=assistante')
-    verifier(p.locator('.bx5625-tabs a').count() == 3, 'les trois onglets de Courriels ne sont pas affichés')
+    # 5.6.102 (lot N) : « À relire » est un accès principal distinct ; la barre de Courriels garde Boîte de réception et « À traiter avec le Pilote »
+    verifier(p.locator('.bx5625-tabs a').count() == 2, 'les deux onglets de Courriels ne sont pas affichés')
+    verifier(p.locator('.bx5625-tabs a[aria-current=page]').inner_text().strip() == 'À traiter avec le Pilote', 'l’onglet « À traiter avec le Pilote » n’est pas le courant')
     verifier(p.locator('.cx96-ligne').count() == 2, 'la liste n’a pas ses deux fils')
     verifier('DURAND' in p.locator('.cx96-lignes').inner_text() or 'DOS-001' in p.locator('.cx96-lignes').inner_text(), 'le dossier n’est pas affiché')
     s.propre('liste')
@@ -1736,7 +1738,7 @@ PARCOURS = PARCOURS + (('P98a', 'Aujourd’hui : routines sous « Actuellement �
 from parcours_p99 import p99_aujourdhui   # noqa: E402 — 5.6.99 : routines en bandeau, « Ouvrir » d'une décision, intitulés sans consigne
 PARCOURS = PARCOURS + (('P99a', 'Aujourd’hui : routines en bandeau d’une ligne, « Ouvrir » d’une décision, intitulés lisibles', p99_aujourdhui),)
 from parcours_p100 import p100_dossiers, p100_produire, p100_relecture   # noqa: E402 — 5.6.100 : relecture en série, Dossiers, Produire
-PARCOURS = PARCOURS + (('P100r', 'Courriels › À relire : lecteur à droite, dix décisions sans rechargement, 390 px', p100_relecture),
+PARCOURS = PARCOURS + (('P100r', 'À relire : lecteur à droite, dix décisions sans rechargement, 390 px (menu replié compris)', p100_relecture),
                        ('P100d', 'Dossiers : trois dossiers récents et Nouveau dossier visibles d’emblée', p100_dossiers),
                        ('P100p', 'Produire : documents prêts d’abord', p100_produire))
 from parcours_p101s import p101s_securite   # noqa: E402 — 5.6.101 (lot S) : veille de sécurité du serveur
@@ -1747,6 +1749,8 @@ PARCOURS = PARCOURS + (('P101s', 'Sécurité du serveur : état, constat critiqu
                        ('P101r', 'À relire unique : courriels, Gmail, documents et notes de l’IA, filtres, 390 px', p101r_relecture))
 from parcours_p101v import p101v_volet   # noqa: E402 — 5.6.101 (lot V) : volet de relecture à droite d'Aujourd'hui
 PARCOURS = PARCOURS + (('P101v', 'Aujourd’hui : volet de relecture à droite, quatre actions, cadre de l’éditeur, courriel HTML, 390 px', p101v_volet),)
+from parcours_p102m import p102m_pilote   # noqa: E402 — 5.6.102 (lot M) : Pilote dans la messagerie instantanée
+PARCOURS = PARCOURS + (('P102m', 'Messagerie instantanée : @pilote, réponse de Pilote, projet de courriel ouvert à droite, 390 px', p102m_pilote),)
 
 # ------------------------------------------------------------------------------------------------ lancement
 def lancer(navigateur, sortie, choisis=(), voir=False):

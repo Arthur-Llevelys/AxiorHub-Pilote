@@ -198,6 +198,10 @@ def file_attachments(desk, mail_key, matter='', owner='cabinet', dav=None, mailb
         if desk.db.execute('SELECT 1 FROM attachments_filed5636 WHERE mail_key=? AND sha256=?', (mail_key, sha)).fetchone():
             skipped.append(name)
             continue
+        from .pj56102 import deja_range   # 5.6.102 (lot P) : déjà rangée dans ce dossier (« NOS PIECES/PJ courriels » ou autre courriel)
+        if deja_range(desk, matter, sha):
+            skipped.append(name)
+            continue
         pause5629.checkpoint(desk)      # 5.6.89 (B07) : les pièces déjà rangées restent, aucune autre n'est écrite après un arrêt
         client.ensure_folder(folder, base)
         name = nommage.apply(desk, 'piece_jointe', name, naming)
@@ -228,7 +232,11 @@ def set_auto(desk, value, owner='cabinet'):
 
 
 def after_mail(desk, mail_key, matter):
-    """Appelé quand un courriel est rattaché à un dossier : rangement automatique (travail de fond) si l'avocat l'a activé."""
+    """Appelé quand un courriel est rattaché à un dossier : rangement automatique (travail de fond) si l'avocat l'a activé.
+    5.6.102 (lot P) : neutralisé quand la voie unique ``pj56102`` est active (« NOS PIECES/PJ courriels », sans second exemplaire)."""
+    from .pj56102 import actif as voie56102
+    if voie56102(desk):
+        return
     if desk.settings(AUTO, False) and matter and mail_key:
         try:
             desk.enqueue('pj_courriel5636', {'key': mail_key, 'matter': matter}, priority=60)
@@ -295,11 +303,14 @@ def page_html(desk, prefix, args):
     html += '<h3>Échéances détectées</h3><ul>%s</ul></section>' % (''.join(
         '<li>%s — %s <small>(%s)</small></li>' % (e(x.get('due') or 'date à confirmer'), e(x.get('label') or x.get('rule_label') or x.get('rule_id', '')),
                                                    e(x.get('status', ''))) for x in dl[:30]) or '<li class="ax-muted">Aucune échéance détectée.</li>')
-    auto = bool(desk.settings(AUTO, False))
-    html += ('<section class="ax-card"><h2>Pièces jointes des courriels</h2><p class="ax-muted">Les pièces jointes d’un courriel rattaché à un dossier '
-             'peuvent être rangées dans « PJ courriels » du dossier (bouton « Ranger les pièces jointes » d’un courriel, ou initiative). Sans doublon, '
-             'sans écraser un fichier.</p><form class="m5-form m5-inline" data-api="m5636/pieces/pj-auto" data-reload="1"><label class="e5636-switch">'
-             '<input type="checkbox" name="enabled"%s> Ranger automatiquement les pièces jointes des courriels rattachés à un dossier</label>'
+    from .pj56102 import actif as voie56102   # 5.6.102 (lot P) : une seule voie, activée par défaut
+    auto = voie56102(desk)
+    html += ('<section class="ax-card"><h2>Pièces jointes des courriels</h2><p class="ax-muted">Les pièces jointes d’un courriel reçu sont rangées '
+             'dans « NOS PIECES › PJ courriels » du dossier du client quand le dossier est connu (correspondant validé, dossier choisi pour le '
+             'courriel ou son fil) ; sinon elles attendent la création ou le choix du dossier, puis sont rangées. Sans doublon, sans écraser un '
+             'fichier, chaque fichier relu après dépôt ; rien n’est envoyé.</p><form class="m5-form m5-inline" data-api="m5636/pieces/pj-auto" '
+             'data-reload="1"><input type="hidden" name="voie" value="pj56102"><label class="e5636-switch">'
+             '<input type="checkbox" name="enabled"%s> Ranger automatiquement les pièces jointes des courriels reçus dans le dossier du client</label>'
              '<button class="ax-btn ghost" type="submit">Enregistrer</button></form></section>') % (' checked' if auto else '')
     return html
 
@@ -321,5 +332,8 @@ def api_post(desk, route, data, owner):
         return file_attachments(desk, str(data.get('key') or ''), str(data.get('matter') or ''), owner, uid=str(data.get('uid') or ''),
                                 mail_folder=str(data.get('folder') or ''))
     if route == 'pieces/pj-auto':
+        if data.get('voie') == 'pj56102':   # 5.6.102 (lot P) : interrupteur de la voie unique (le réglage 5.6.36 reste lisible, neutralisé)
+            from .pj56102 import regler
+            return regler(desk, bool(data.get('enabled')), owner)
         return set_auto(desk, bool(data.get('enabled')), owner)
     return None

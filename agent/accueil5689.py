@@ -139,7 +139,10 @@ def _attente(nom, prefix):
 
 def commande_html(prefix):
     """Une seule commande IA en tête : elle ouvre le Pilote, qui reprend le contexte de la page. La présence de l'IA est dite par un label écrit, pas par la seule couleur."""
-    return ('<button type="button" class="ax-btn a89-mission" data-a89-pilote>%s<span>Confier une mission</span></button>' % icone('ia'))
+    # 5.6.102 : « Rechercher dans le cabinet » ouvre la fenêtre flottante de recherche (même comportement que Ctrl+K, script v420.js)
+    recherche = ('<a class="ax-btn ghost a89-recherche" href="%s" data-m82-quick aria-keyshortcuts="Control+K">'
+                 '<span>Rechercher dans le cabinet</span> <kbd class="m102-kbd" data-m102-kbd>Ctrl+K</kbd></a>') % e(prefix + '/rechercher', quote=True)
+    return recherche + ('<button type="button" class="ax-btn a89-mission" data-a89-pilote>%s<span>Confier une mission</span></button>' % icone('ia'))
 
 
 def incidents_html(desk, prefix):

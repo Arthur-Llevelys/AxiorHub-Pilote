@@ -1,0 +1,60 @@
+{
+  "version": "5.6.102",
+  "base": "5.6.101",
+  "date_utc": "2026-11-15T00:00:00+00:00",
+  "demande": "Retours du cabinet après la 5.6.101 en production, tout dans une version : fausses alertes Collabora, signature, renommages, agent plus intelligent (pièces jointes, accord du client, contrat en suivi des modifications), purge du journal d’audit, Pilote dans la messagerie instantanée avec résumé continu, bouton de recherche sur Aujourd’hui.",
+  "decisions_du_cabinet": [
+    "Tout dans la 5.6.102 ; journal d’audit : purge par durée et vidage complet ; signature : celle de la messagerie ; Pilote : dossiers et groupes, parle quand on s’adresse à lui, actions protégées (Annuler, À relire, aucun envoi) ; résumé de la discussion en 5.6.102, tableau blanc en 5.6.103."
+  ],
+  "regression": {
+    "command": "Commit final : scripts/tests-paralleles.py -j 12 (outil de la 5.6.103, un processus par module, mêmes modules et même chargeur que discover ; 23 min 27 s). Avant le dernier correctif : python -m unittest discover -s tests -t tests en série (3 h 40), mêmes totaux. Copies figées, PYTHONUTF8=1.",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 6621,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 151,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "proces_verbal_V102": {
+    "C Collabora": "test_v56102_collabora (18) : Collabora intégré sous apps, custom_apps et apps-extra et ses enfants /tmp/appimage_extracted_* reconnus par emplacement et parents ; même nom ailleurs : toujours signalé.",
+    "J journal": "test_v56102_journal (11) : purge par durée et vidage avec double confirmation, opération journalisée, chaîne vérifiée depuis l’ancrage.",
+    "P pièces jointes": "test_v56102_pj (21) : rangement dans le dossier connu ou en attente du fil, Gmail compris.",
+    "K accord": "test_v56102_accord (26) : accord détecté, plan jusqu’au projet de courriel avec pièces jointes, rien d’envoyé.",
+    "S signature": "test_v56102_signature (22) : signature de la messagerie, repli Paramètres, HTML seulement pour une signature mise en forme.",
+    "N navigation": "test_v56102_navigation (21) : À relire en entrée principale, redirections des anciennes adresses, libellés en quatre langues, menu à 390 px.",
+    "M Pilote": "test_v56102_messagerie_ia (41) et parcours P102m (Chromium) : présence, @pilote, catalogue d’actions fermé, Annuler, À relire, résumé continu arrêté après 15 minutes.",
+    "R05 lectures": "test_v56101_volet V_18 et V_19, test_v56102_deploiement : la file commune n’écrit rien dès le premier calcul ; deuxième démarrage sans écriture."
+  },
+  "linux": "Conteneur Debian python:3.12 : sous-ensemble Linux de 1 105 tests (2 échecs de tests adaptés ensuite) ; horloges simulées 16:40 et 00:30 (J01 corrigé) ; sur le commit final, modules touchés rejoués : 238 tests OK.",
+  "navigateur": "Banc Chromium/Edge complet sur le commit final : 36 parcours réussis (P02a à P02d d'abord, puis trois groupes simultanés ; P96v rejoué seul après un délai de chargement de 30 s dépassé sous la charge de trois navigateurs).",
+  "fixed_during_validation": [
+    "test_v410 : sept entrées principales (« À relire » ajoutée par le lot N).",
+    "Banc navigateur P96c : deux onglets dans Courriels en mode séparé (Boîte de réception, « À traiter avec le Pilote »).",
+    "test_v56102_journal (J01) : numérotation de la chaîne lue en base, car le premier démarrage écrit désormais une entrée (reprises uniques).",
+    "test_v5662 : synchronisation explicite du registre des livrables, tenu par l’arrière-plan depuis l’intégration des reprises.",
+    "Défaut trouvé par la suite complète (test_v530, test_v5611b, test_v5613, test_v565) : depuis l’intégration des reprises, un document prêt n’apparaissait dans « À relire » qu’au passage suivant de l’arrière-plan (une minute au plus). Corrigé dans le logiciel : la fin d’un travail réussi et la demande de document inscrivent leur résultat au registre (livrables5689.apres_production). test_v530 (insertion directe en base) appelle cette inscription."
+  ],
+  "adjusted_tests": [
+    "test_v5636 : rangement automatique des pièces jointes coupé dans ce test (pj56102:auto).",
+    "test_v5697_gmail (C04) : signature ajoutée aux réponses préparées.",
+    "test_v5643, test_v5650, test_v501, test_v5631, test_v520_docs, test_v56100_relecture, test_v56101_familles, test_v5689_ia, test_v460, test_v561, test_v565 : « À relire » en entrée principale, « Messagerie instantanée ».",
+    "test_v5694_parcours : P102m annoncé.",
+    "test_v56101_volet, test_v5668, test_v5689_livrables : plus d’écriture pendant une lecture (reprises au démarrage).",
+    "test_v410, test_v5662, test_v56102_journal, test_v530 : voir fixed_during_validation."
+  ],
+  "live_checks": "Aucun service réel : vrai serveur, IMAP, Gmail (lecture de sendAs), Nextcloud, ONLYOFFICE / Euro-Office et modèles simulés.",
+  "exapp": {
+    "version": "0.1.61",
+    "moteur": "5.6.102"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "Gmail : projets avec pièces jointes pas encore déposés dans Gmail ; ils restent dans « À relire ».",
+    "Signature Gmail lue par sendAs avec le droit gmail.readonly : jamais essayée sur un vrai compte.",
+    "Veille de sécurité : nouvelle reconnaissance de Collabora jamais exécutée sur le vrai serveur ; lancer occ integrity:check-app richdocumentscode une fois.",
+    "Pilote dans la messagerie : modèles réels non exercés (modèle simulé) ; textes nouveaux en français seulement pour les réponses de Pilote."
+  ]
+}

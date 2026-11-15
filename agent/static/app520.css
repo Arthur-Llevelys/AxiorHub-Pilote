@@ -4876,3 +4876,55 @@ html:has(.v101-cadre-corps), .v101-cadre-corps { height: 100%; margin: 0; }
    masqués tant que le volet est ancré, de retour à sa fermeture (Instruction couvre le besoin ; la pause de l'IA reste dans l'en-tête) */
 body.v101-volet-ouvert #ws-ai-launcher, body.v101-volet-ouvert #ws-ai-live, body.v101-volet-ouvert #ws-live-bar { display: none !important; }
 li[data-v101-traitee] { display: none !important; }     /* ligne décidée dans le volet : retirée de la liste affichée */
+/* ==== v56102-pilote.css ==== */
+/* AxiorHub 5.6.102 (lot M) — Pilote dans la messagerie instantanée : réponses de l'IA distinctes mais discrètes, outils de l'en-tête,
+   indicateur d'attente, actions sous les réponses. Le volet réutilise les classes de la 5.6.101 (f96-fenetre, v101-*). Couleurs : jetons du thème. */
+.m50-ia { align-self: stretch; max-width: none; background: var(--cds-layer-02, var(--ws-surface-alt, #f4f4f4));
+  border-left: 3px solid var(--cds-border-interactive, #0f62fe); border-radius: 0 12px 12px 0; }
+.m50-ia .m50-meta strong { color: var(--cds-text-primary, #161616); }
+.m50-msg[data-genre="systeme"] { font-size: .875rem; }
+.p102-outils { align-items: center; display: inline-flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; margin-left: 8px; vertical-align: middle; }
+.p102-btn { background: transparent; border: 1px solid var(--cds-border-subtle-01, var(--ws-border, #c6c6c6)); border-radius: 8px;
+  color: var(--cds-text-primary, #161616); cursor: pointer; font: inherit; font-size: .875rem; min-height: 32px; padding: 2px 10px; }
+.p102-btn:hover { background: var(--cds-layer-hover-01, rgba(141, 141, 141, .16)); }
+.p102-btn:focus-visible, .p102-lien:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.p102-btn[hidden] { display: none; }
+.p102-btn:disabled { cursor: default; opacity: .6; }
+.p102-menu, .p102-menu[open] { background: none; border: 0; box-shadow: none; margin: 0; padding: 0; position: relative; }
+.p102-menu > summary { display: inline-flex; align-items: center; list-style: none; }
+.p102-menu > summary::-webkit-details-marker { display: none; }
+.p102-menu-corps { background: var(--cds-layer-01, var(--ws-surface, #fff)); border: 1px solid var(--cds-border-subtle-01, var(--ws-border, #c6c6c6));
+  border-radius: 10px; box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .18); display: flex; flex-direction: column; gap: 6px; padding: 8px 10px;
+  position: absolute; left: 0; top: calc(100% + 4px); width: min(18rem, calc(100vw - 4rem)); z-index: 20; }
+.p102-aide { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: 0; }
+.p102-attente { color: var(--cds-text-secondary, #525252); font-size: .875rem; font-style: italic; margin: 0; padding: 4px 16px; }
+.p102-attente[hidden] { display: none; }
+.p102-actions { border-top: 1px solid var(--cds-border-subtle-01, var(--ws-border, #e0e0e0)); font-size: .875rem; list-style: none; margin: 6px 0 0; padding: 6px 0 0; }
+.p102-action { align-items: baseline; display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.p102-action-titre { font-weight: 600; overflow-wrap: anywhere; }
+.p102-action-etat { color: var(--cds-text-secondary, #525252); }
+.p102-annule .p102-action-titre { text-decoration: line-through; }
+.p102-lien { background: none; border: 0; color: var(--cds-link-primary, #0f62fe); cursor: pointer; font: inherit; min-height: 32px; padding: 0 4px; text-decoration: underline; }
+[data-theme="dark"] .m50-ia { background: var(--cds-layer-02, #262626); border-left-color: var(--cds-border-interactive, #4589ff); }
+[data-theme="dark"] .p102-lien { color: var(--cds-link-primary, #78a9ff); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .m50-ia { background: var(--cds-layer-02, #262626); border-left-color: var(--cds-border-interactive, #4589ff); }
+  :root:not([data-theme="light"]) .p102-lien { color: var(--cds-link-primary, #78a9ff); }
+}
+@media (max-width: 30rem) { .p102-outils { margin-left: 0; } }
+.p102-resume { display: flex; flex-direction: column; gap: .5rem; }
+.p102-resume-etat { color: var(--cds-text-secondary, #525252); font-size: .875rem; margin: 0; }
+.p102-resume-texte { margin: 0; }
+.p102-resume-actions { margin: .25rem 0 0; }
+.p102-menu:not([open]) > .p102-menu-corps { display: none; }
+@media (max-width: 40rem) { .p102-menu-corps { position: static; width: auto; margin-top: 6px; } }
+/* ==== v56102-navigation.css ==== */
+/* AxiorHub 5.6.102 (lot N) : libellés longs du menu principal (« Messagerie instantanée », « À relire » et leurs traductions).
+   Un libellé passe à la ligne au lieu de déborder de sa case (menu déplié à 390 px : deux colonnes) ; le nom complet reste dans
+   aria-label et title. Aucune largeur fixe : les autres largeurs gardent une ligne tant que le libellé tient. */
+#ws-sidebar .ws-primary a{min-width:0;max-width:100%}
+#ws-sidebar .ws-primary .ws-nav-label{white-space:normal;overflow-wrap:anywhere;min-width:0}
+
+/* 5.6.102 : raccourci Ctrl+K affiché en petit dans « Rechercher dans le cabinet » (barre du haut et Aujourd’hui) */
+.m102-kbd { border: 1px solid var(--cds-border-subtle-01, #c6c6c6); border-radius: 3px; color: var(--cds-text-secondary, #525252); font: inherit; font-size: .6875rem; line-height: 1; margin-left: .35rem; padding: .125rem .3rem; vertical-align: middle; white-space: nowrap; }
+@media (max-width: 47.99rem) { .m102-kbd { display: none; } }

@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.101
+# Composants tiers et compatibilité — AxiorHub 5.6.102
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.

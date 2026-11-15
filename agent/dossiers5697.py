@@ -812,6 +812,9 @@ def rattacher_message(desk, acteur, ident, message, cle, version=None, motif='',
             signaler_entree(desk, courant, 'courriel', lien['message_ref'])
         except Stop:
             pass
+        from . import pj56102   # 5.6.102 (lot P) : pièces jointes du fil de ce courriel, en attente du dossier, mises en file
+        pj56102.apres_dossier(desk, courant, (a.compte, a.role), mail_key=lien.get('mail_key') or '',
+                              source={'folder': lien.get('boite') or '', 'uid': str(lien.get('uid') or ''), 'uidvalidity': str(lien.get('uidvalidity') or '')})
     return recu
 
 
