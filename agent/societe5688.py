@@ -567,6 +567,15 @@ def _lire(config, travaux):
         autre.db.close()
 
 
+def _jour_cabinet(desk):
+    """5.6.101 : jour du cabinet (fuseau de son profil), et non jour UTC ; repli UTC si le profil est illisible."""
+    try:
+        from .acces5683 import today_of
+        return today_of(desk)[0]
+    except Exception:   # noqa: BLE001
+        return datetime.now(timezone.utc).date()
+
+
 def _executer(desk, demandes, secondes):
     """Lit au plus ``secondes`` secondes. Une société non lue à temps ressort « non vérifiée » ; le fil finit seul et laisse son résultat en cache."""
     travaux = [{'demande': d, 'incidents': set(), 'fini': False, 'statut': ''} for d in demandes if d['type'] != 'incertain']
@@ -575,7 +584,7 @@ def _executer(desk, demandes, secondes):
     if travaux:
         fil.start()
         fil.join(secondes)
-    aujourdhui = datetime.now(timezone.utc).date()
+    aujourdhui = _jour_cabinet(desk)
     seuil = reglages(desk)['seuil_mois']
     out = []
     for d in demandes:
@@ -676,7 +685,7 @@ def avant(desk, question, matter_id='', canal='assistant', humain=None):
         log.exception('contrôle société')
         if not demandes:
             return vide
-        aujourdhui = datetime.now(timezone.utc).date()
+        aujourdhui = _jour_cabinet(desk)
         fiches = [composer({'demande': d, 'statut': 'incertaine' if d['type'] == 'incertain' else '', 'candidats': d.get('candidats'), 'incidents': {'interne'}}, DEFAUTS['seuil_mois'], aujourdhui) for d in demandes]
         return {**vide, 'societes': fiches}
 

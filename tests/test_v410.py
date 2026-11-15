@@ -105,11 +105,11 @@ class LegalBenchmark410Tests(unittest.TestCase):
 
     def test_api_exposes_41_learning_and_benchmark(self):
         spec=openapi('https://agent.example.test')
-        self.assertEqual(spec['info']['version'],'5.6.100')
+        self.assertEqual(spec['info']['version'],'5.6.101')
         for path in ('/learning/business-rules','/evaluations/legal',
                      '/evaluations/legal/cases','/evaluations/legal/run'):
             self.assertIn(path,spec['paths'])
-        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.100')
+        self.assertEqual(dispatch(self.d,'/capabilities','GET')['version'],'5.6.101')
 
 
 class Browser410Tests(unittest.TestCase):
@@ -126,13 +126,14 @@ class Browser410Tests(unittest.TestCase):
         for label in ('Aujourd’hui','Dossiers','Courriels','Agenda et tâches','Produire'):   # 5.6.84 : Honoraires et facturation dans Toutes les fonctions
             self.assertIn(label,nav)
         self.assertNotIn('facturation',nav.lower())
-        self.assertEqual(sub.count('Honoraires et facturation'),1)
+        visible=sub.split('data-group="index"',1)[0]   # 5.6.101 (lot F) : hors résultats de recherche masqués (« Fonction (famille) »)
+        self.assertEqual(visible.count('Honoraires et facturation'),1)
         self.assertIn('Paramètres',body.split('</nav>',1)[1])   # Paramètres reste à portée, hors des entrées de travail
         for label in ('Documents','Échéances','Recherche dans le cabinet','Gestion du cabinet','Mon style'):
             self.assertIn(label,sub)
         self.assertIn('apprentissage et modèles',sub)   # ancien nom conservé pour la recherche
         self.assertIn('Apprentissage métier',body);self.assertIn('Banc juridique',body)
-        self.assertIn('Version 5.6.100',body)
+        self.assertIn('Version 5.6.101',body)
 
     def test_produce_hub_contains_the_six_expected_outputs(self):
         body=self.request('/production')['body']

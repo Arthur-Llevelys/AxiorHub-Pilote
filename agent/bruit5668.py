@@ -8,6 +8,7 @@ qu'on choisisse son dossier. Désormais :
 - les missions automatiques en attente d'une décision sont regroupées par dossier en une seule carte, avec « Écarter » (toutes) et
   « Ne plus proposer pour ce dossier » (le dossier est exclu de la proactivité, ses missions automatiques en attente sont écartées).
 """
+from functools import lru_cache
 import re
 
 from .common import Stop, fold
@@ -18,6 +19,16 @@ DEPOT_NAMES = frozenset(('scanner', 'scanners', 'scan', 'scans', 'numerisation',
 
 
 def _base(text):
+    """5.6.101 (lot P, P02) : fonction pure, gardée en mémoire pour les textes (Aujourd'hui la demandait des milliers de fois par page)."""
+    return _base_texte(text) if isinstance(text, str) else _base_calcul(text)
+
+
+@lru_cache(maxsize=16384)
+def _base_texte(text):
+    return _base_calcul(text)
+
+
+def _base_calcul(text):
     name = str(text or '').rstrip('/').rsplit('/', 1)[-1]
     name = re.sub(r'^\s*\d{1,3}\s*[-–_.)]\s*', '', name)          # « 09 - Scanner » → « Scanner »
     return re.sub(r'[\s_]+', ' ', fold(name)).strip()

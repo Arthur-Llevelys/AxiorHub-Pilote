@@ -32,18 +32,19 @@ CLASSES = {'identite': 'Identité des parties', 'classement': 'Classement des do
            'prospect': 'Prospect à suivre',                   # 5.6.76 : opportunités proposées, relances échues
            'decision': 'Proposition à décider',                # 5.6.58 : propositions de facturation (sans cette classe, la file disparaissait)
            'echec_agent': 'Analyse interrompue',               # 5.6.61 : missions interrompues, regroupées et repliées en fin de file
-           'courriel': 'Courriel à relire', 'note_interne': 'Note interne'}   # 5.6.66 : rubriques séparées
+           'courriel': 'Courriel à relire', 'note_interne': 'Note interne',   # 5.6.66 : rubriques séparées
+           'securite_serveur': 'Sécurité du serveur', 'fiche_incident': 'Fiche d’incident à relire'}   # 5.6.101 (lot S) : veille de sécurité
 FILTERS = {'decider': ('identite', 'classement', 'informations', 'contradiction', 'lacune', 'strategie', 'engagement', 'decision_agent', 'decision', 'securite', 'savoir',
-                      'prospect'),
-           'relire': ('relecture', 'livrable', 'projet', 'courriel', 'note_interne'),
+                      'prospect', 'securite_serveur'),
+           'relire': ('relecture', 'livrable', 'projet', 'courriel', 'note_interne', 'fiche_incident'),
            'echecs': ('echec_agent',),
-           'courriels': ('courriel',), 'documents': ('relecture', 'livrable', 'projet'), 'notes': ('note_interne',)}
+           'courriels': ('courriel',), 'documents': ('relecture', 'livrable', 'projet', 'fiche_incident'), 'notes': ('note_interne',)}
 # 5.6.66 (retour du cabinet du 20 octobre 2026 : « ça mélange un peu tout ») : sur Aujourd'hui, une rubrique par nature, les courriels
 # à relire et envoyer en premier ; les notes internes à part, avec « Ranger dans le dossier ».
 TODAY_GROUPS = (('courriels', 'Courriels à relire et envoyer', 12), ('decider', 'À décider', 10), ('documents', 'Documents à examiner', 8),
                 ('notes', 'Notes internes', 6))
 NOT_BATCHABLE = ('strategie', 'livrable', 'lacune', 'engagement', 'decision_agent', 'securite', 'savoir', 'echec_agent', 'courriel', 'note_interne',
-                 'prospect')
+                 'prospect', 'securite_serveur', 'fiche_incident')
 # 5.6.64 : sur Aujourd'hui, seules les décisions et relectures du jour ; la tenue des fiches de dossiers (identités, classements,
 # informations proposées, lacunes, relectures de modifications) et les points d'avancement client se traitent depuis chaque dossier
 # (résumé cliquable en bas de la file). Les projets à relire de plus de 14 jours n'y figurent plus (toujours visibles dans le dossier).
@@ -180,7 +181,7 @@ def _global_items(desk, prefix, actor, role):
     """5.6.52 : éléments du cabinet sans dossier — comptes rendus de routines (R06) et opérations de connexion à valider (I…)."""
     found = []
     for module in ('routines5652', 'connexions5652', 'facturation5653', 'file5657', 'parcours5657', 'bouclier5659', 'savoir5659', 'reponses5671', 'crm5676',
-                   'delta56100'):   # 5.6.100 (V100-07) : notes « Nouvelles écritures » à relire
+                   'delta56100', 'securite56101'):   # 5.6.100 (V100-07) : notes « Nouvelles écritures » à relire ; 5.6.101 (lot S) : sécurité du serveur
         try:
             mod = __import__('agent.' + module, fromlist=['queue_items'])
             found += mod.queue_items(desk, prefix, actor, role)
@@ -323,6 +324,58 @@ def history(desk, matter, limit=50):
     return [dict(r) for r in desk.db.execute('SELECT * FROM d51_queue_log WHERE matter=? ORDER BY id DESC LIMIT ?', (matter, int(limit)))]
 
 
+def carte_html(it, prefix, matter=None):
+    """Carte courte d'un élément (dossier, action attendue, motif, choix). 5.6.101 (lot V) : fonction de module, réutilisée telle quelle par le
+    volet de relecture d'Aujourd'hui (``volet56101``) ; rendu inchangé pour la file."""
+    from html import escape as e
+    from urllib.parse import quote as _q
+    buttons = []
+    for c in it['choices']:
+        if isinstance(c, dict):   # 5.6.71 : action propre à une source (formulaire envoyé par v5671.js)
+            buttons.append('<form class="q51-inline" data-c5671="%s" data-reload%s>%s<button class="ax-btn%s" type="submit">%s</button></form>' % (
+                e(c['api'], quote=True), (' data-confirm="%s"' % e(c['confirm'], quote=True)) if c.get('confirm') else '',
+                ''.join('<input type="hidden" name="%s" value="%s">' % (e(k, quote=True), e(str(v), quote=True)) for k, v in (c.get('fields') or {}).items()),
+                ' ghost' if c.get('ghost') else '', e(c['label'])))
+        elif c == 'ouvrir':
+            buttons.append('<a class="ax-btn ghost" href="%s">%s</a>' % (e(it['href'], quote=True), 'Détail' if it['class'] == 'echec_agent' else 'Ouvrir'))
+        elif c in ('relancer', 'ecarter'):
+            buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/missions" data-reload><input type="hidden" name="ids" value="%s">'
+                           '<input type="hidden" name="action" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>' % (
+                               e(','.join(it['missions']), quote=True), 'resume' if c == 'relancer' else 'cancel', '' if c == 'relancer' else ' ghost',
+                               'Relancer' if c == 'relancer' else 'Écarter'))
+        elif c == 'exclure':   # 5.6.68 : plus de mission automatique pour ce dossier (dossier de dépôt, scanner…)
+            buttons.append('<form class="m5-form q51-inline" data-api="m5668/proactivite/exclure" data-reload data-confirm="Ne plus proposer de '
+                           'mission automatique pour ce dossier ? Les missions en attente seront écartées ; réversible dans Paramètres › Proactivité.">'
+                           '<input type="hidden" name="matter" value="%s"><button class="ax-btn ghost" type="submit">Ne plus proposer pour ce dossier'
+                           '</button></form>' % e(it['matter'], quote=True))
+        elif c == 'ranger':   # 5.6.66 : note interne déposée comme brouillon → document Word du dossier
+            buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/ranger-notes" data-reload><input type="hidden" name="items" value="%s">'
+                           '<button class="ax-btn" type="submit">Ranger dans le dossier</button></form>' % e(it.get('item', ''), quote=True))
+        elif c in ('fusionner', 'separer'):
+            buttons.append('<form class="m5-form q51-inline" data-api="m5651/partie/%s" data-reload><input type="hidden" name="matter" value="%s">'
+                           '<input type="hidden" name="a" value="%s"><input type="hidden" name="b" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>'
+                           % ('fusion' if c == 'fusionner' else 'separer', e(it['matter'], quote=True), e(it['a'], quote=True), e(it['b'], quote=True),
+                              '' if c == 'fusionner' else ' ghost', 'Même personne' if c == 'fusionner' else 'Personnes distinctes'))
+        elif c in ('approuver', 'relu', 'reporter'):
+            state = {'approuver': 'approuve', 'relu': 'approuve', 'reporter': 'reporte'}[c]
+            label = {'approuver': 'Pris en compte', 'relu': 'Relu', 'reporter': 'Reporter'}[c]
+            buttons.append('<form class="m5-form q51-inline" data-api="%s" data-reload><input type="hidden" name="matter" value="%s">'
+                           '<input type="hidden" name="key" value="%s"><input type="hidden" name="revision" value="%s"><input type="hidden" name="state" value="%s">'
+                           '<button class="ax-btn%s" type="submit">%s</button></form>' % ('m5651/file/decider' if it['matter'] else 'm5652/file/decider', e(it['matter'], quote=True), e(it['key'], quote=True),
+                                                                                         e(str(it['revision']), quote=True), state,
+                                                                                         ' ghost' if state == 'reporte' else '', label))
+    where = e(it['matter_name'])
+    if it['matter'] and not matter:
+        where = '<a href="%s">%s</a>' % (e(prefix + '/dossier?id=' + _q(str(it['matter']), safe=''), quote=True), where)
+    return ('<li class="q51-item q51-%s"><div class="q51-head"><cds-tag class="q51-class" size="md" type="cool-gray">%s</cds-tag>%s<span class="q51-matter">%s</span></div>'
+            '<p class="q51-title">%s</p>%s%s<div class="q51-actions">%s</div></li>' % (
+                e(it['class']), e(CLASSES.get(it['class'], 'À examiner')),
+                ' <span class="q51-prio" title="%s">Prioritaire</span><span class="q51-pourquoi">%s</span>' % (e(it['priority_reason'], quote=True), e(it['priority_reason'])) if it['priority'] == 'haute' else '',
+                where, e(_titre(it['title'])),
+                '<p class="q51-sub">%s</p>' % e(it['action']) if it.get('action') else '',
+                '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
+
+
 def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title=True, actor='cabinet', role='administrateur'):
     """Cartes courtes (dossier, action attendue, motif, choix) ; filtres avec compteurs ; analyses automatiques interrompues repliées.
 
@@ -352,52 +405,8 @@ def html(desk, prefix, matter=None, view='', hidden=frozenset(), limit=30, title
         e(base + ('file=' + k if k else ''), quote=True), ' aria-current="true"' if k == view else '', e(labels[k]), counts[k])
         for k in keys if k in counts and (k in ('', view, 'documents') or counts[k]))   # 5.6.89 : le filtre Documents reste visible à zéro
 
-    def card(it):
-        buttons = []
-        for c in it['choices']:
-            if isinstance(c, dict):   # 5.6.71 : action propre à une source (formulaire envoyé par v5671.js)
-                buttons.append('<form class="q51-inline" data-c5671="%s" data-reload%s>%s<button class="ax-btn%s" type="submit">%s</button></form>' % (
-                    e(c['api'], quote=True), (' data-confirm="%s"' % e(c['confirm'], quote=True)) if c.get('confirm') else '',
-                    ''.join('<input type="hidden" name="%s" value="%s">' % (e(k, quote=True), e(str(v), quote=True)) for k, v in (c.get('fields') or {}).items()),
-                    ' ghost' if c.get('ghost') else '', e(c['label'])))
-            elif c == 'ouvrir':
-                buttons.append('<a class="ax-btn ghost" href="%s">%s</a>' % (e(it['href'], quote=True), 'Détail' if it['class'] == 'echec_agent' else 'Ouvrir'))
-            elif c in ('relancer', 'ecarter'):
-                buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/missions" data-reload><input type="hidden" name="ids" value="%s">'
-                               '<input type="hidden" name="action" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>' % (
-                                   e(','.join(it['missions']), quote=True), 'resume' if c == 'relancer' else 'cancel', '' if c == 'relancer' else ' ghost',
-                                   'Relancer' if c == 'relancer' else 'Écarter'))
-            elif c == 'exclure':   # 5.6.68 : plus de mission automatique pour ce dossier (dossier de dépôt, scanner…)
-                buttons.append('<form class="m5-form q51-inline" data-api="m5668/proactivite/exclure" data-reload data-confirm="Ne plus proposer de '
-                               'mission automatique pour ce dossier ? Les missions en attente seront écartées ; réversible dans Paramètres › Proactivité.">'
-                               '<input type="hidden" name="matter" value="%s"><button class="ax-btn ghost" type="submit">Ne plus proposer pour ce dossier'
-                               '</button></form>' % e(it['matter'], quote=True))
-            elif c == 'ranger':   # 5.6.66 : note interne déposée comme brouillon → document Word du dossier
-                buttons.append('<form class="m5-form q51-inline" data-api="m5661/file/ranger-notes" data-reload><input type="hidden" name="items" value="%s">'
-                               '<button class="ax-btn" type="submit">Ranger dans le dossier</button></form>' % e(it.get('item', ''), quote=True))
-            elif c in ('fusionner', 'separer'):
-                buttons.append('<form class="m5-form q51-inline" data-api="m5651/partie/%s" data-reload><input type="hidden" name="matter" value="%s">'
-                               '<input type="hidden" name="a" value="%s"><input type="hidden" name="b" value="%s"><button class="ax-btn%s" type="submit">%s</button></form>'
-                               % ('fusion' if c == 'fusionner' else 'separer', e(it['matter'], quote=True), e(it['a'], quote=True), e(it['b'], quote=True),
-                                  '' if c == 'fusionner' else ' ghost', 'Même personne' if c == 'fusionner' else 'Personnes distinctes'))
-            elif c in ('approuver', 'relu', 'reporter'):
-                state = {'approuver': 'approuve', 'relu': 'approuve', 'reporter': 'reporte'}[c]
-                label = {'approuver': 'Pris en compte', 'relu': 'Relu', 'reporter': 'Reporter'}[c]
-                buttons.append('<form class="m5-form q51-inline" data-api="%s" data-reload><input type="hidden" name="matter" value="%s">'
-                               '<input type="hidden" name="key" value="%s"><input type="hidden" name="revision" value="%s"><input type="hidden" name="state" value="%s">'
-                               '<button class="ax-btn%s" type="submit">%s</button></form>' % ('m5651/file/decider' if it['matter'] else 'm5652/file/decider', e(it['matter'], quote=True), e(it['key'], quote=True),
-                                                                                             e(str(it['revision']), quote=True), state,
-                                                                                             ' ghost' if state == 'reporte' else '', label))
-        where = e(it['matter_name'])
-        if it['matter'] and not matter:
-            where = '<a href="%s">%s</a>' % (e(prefix + '/dossier?id=' + _q(str(it['matter']), safe=''), quote=True), where)
-        return ('<li class="q51-item q51-%s"><div class="q51-head"><cds-tag class="q51-class" size="md" type="cool-gray">%s</cds-tag>%s<span class="q51-matter">%s</span></div>'
-                '<p class="q51-title">%s</p>%s%s<div class="q51-actions">%s</div></li>' % (
-                    e(it['class']), e(CLASSES.get(it['class'], 'À examiner')),
-                    ' <span class="q51-prio" title="%s">Prioritaire</span><span class="q51-pourquoi">%s</span>' % (e(it['priority_reason'], quote=True), e(it['priority_reason'])) if it['priority'] == 'haute' else '',
-                    where, e(_titre(it['title'])),
-                    '<p class="q51-sub">%s</p>' % e(it['action']) if it.get('action') else '',
-                    '<p class="q51-why">%s</p>' % e(it['consequence']) if it['consequence'] else '', ''.join(buttons)))
+    card = lambda it: carte_html(it, prefix, matter)      # 5.6.101 (lot V) : même carte que le volet
+
     if not matter and view in ('', 'relire'):
         return _today_html(desk, prefix, every, rows, card, tabs, summary, title, limit)
     main = [it for it in rows if it['class'] != 'echec_agent' or it['priority'] == 'haute' or view == 'echecs']

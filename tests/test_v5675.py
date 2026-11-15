@@ -415,7 +415,7 @@ class Reglages(Base):
         self.assertEqual(navigation5643.visibility('navigateur'), 'panel')
         self.assertEqual(navigation5643.canonical('mobile'), 'aujourdhui')
         html = fonctions5631.panel_html('/agent-courriel', '/aujourdhui', self.f.c)
-        self.assertRegex(html, r'<li data-search="[^"]*"><a href="/agent-courriel/navigateur"')   # visible sans recherche
+        self.assertRegex(html, r'<li data-search="[^"]*" data-f101-famille="navigateur"><a href="/agent-courriel/navigateur"')   # visible sans recherche (5.6.101 : famille d'une seule fonction)
         orphans = [fid for fid, *_ in fonctions5631.FUNCTIONS if navigation5643.visibility(fid) == 'sub' and fid not in navigation5643.PARENT]
         self.assertEqual(orphans, [])                                                  # aucune fonction trouvable seulement par la recherche
 

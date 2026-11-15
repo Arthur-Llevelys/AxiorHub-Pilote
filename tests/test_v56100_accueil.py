@@ -272,7 +272,8 @@ class Page(Base):
         cle = 'c' * 64
         self.assertEqual(a100.identifiant_lecteur(self.d, 'reponse', cle), '')
         self.d.db.execute("CREATE TABLE IF NOT EXISTS file56100_items(cabinet TEXT, id TEXT, kind TEXT, matter TEXT, mail_key TEXT, ref_source TEXT, revision TEXT, titre TEXT, search_norm TEXT, updated INTEGER, etat TEXT)")
-        self.d.db.execute("INSERT INTO file56100_items VALUES('cabinet','p-0123456789abcdef','proposition','DOS-001',?,'x','r1','t','t',5,'a_relire')", (cle,))
+        self.d.db.execute("INSERT INTO file56100_items(cabinet,id,kind,matter,mail_key,ref_source,revision,titre,search_norm,updated,etat) "
+                          "VALUES('cabinet','p-0123456789abcdef','proposition','DOS-001',?,'x','r1','t','t',5,'a_relire')", (cle,))
         self.d.db.commit()
         self.assertEqual(a100.identifiant_lecteur(self.d, 'reponse', cle), 'p-0123456789abcdef')
         self.assertEqual(a100.identifiant_lecteur(self.d, 'document', 'doc-1'), '')

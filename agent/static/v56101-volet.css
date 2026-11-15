@@ -1,0 +1,90 @@
+/* AxiorHub 5.6.101 (lot V) — volet de relecture d'Aujourd'hui : ancré à droite (fenêtre large) ou fenêtre flottante ; contenu proposé d'abord,
+   barre de quatre actions collée en bas (seul le contenu défile) ; commandes secondaires en petites icônes dans l'en-tête. Couleurs : jetons du thème. */
+
+/* ------------------------------------------------------------------ volet ancré à droite (non modal) */
+.f96-fenetre.v101-ancre { border-width: 0 0 0 1px; bottom: 0; box-shadow: -.25rem 0 1.25rem rgba(0, 0, 0, .18); height: 100dvh; inset: 0 0 0 auto; left: auto;
+  margin: 0; max-height: 100dvh; max-width: 100vw; position: fixed; right: 0; top: 0; width: clamp(28rem, 42vw, 52rem); z-index: 60; }
+.f96-fenetre.v101-ancre.f96-plein { width: 100vw; }
+body.v101-volet-ouvert #ws-main { padding-right: calc(clamp(28rem, 42vw, 52rem) + .5rem); }
+.f96-ligne.v101-ouverte, li.v101-ouverte { box-shadow: inset 3px 0 0 var(--cds-interactive, var(--cds-focus, #0f62fe)); }
+a[data-f96-action][aria-current="true"] { text-decoration: underline; text-underline-offset: .2em; }
+
+/* ------------------------------------------------------------------ en-tête : titre et dossier, une ligne de méta, petites icônes */
+.f96-fenetre .f96-fenetre-barre { align-items: center; flex-wrap: nowrap; gap: .5rem; padding: .5rem .75rem; }
+.f96-fenetre .f96-fenetre-tete { flex: 1 1 auto; min-width: 0; }
+.f96-fenetre .f96-fenetre-titre { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f96-fenetre .f96-fenetre-dossier { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f96-fenetre .f96-fenetre-commandes { align-items: center; flex-wrap: nowrap; gap: .125rem; }
+.f96-icone-btn { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 0; color: var(--cds-icon-primary, var(--cds-text-primary, #161616));
+  cursor: pointer; display: inline-flex; font-size: 1.05rem; height: 2rem; justify-content: center; line-height: 1; min-width: 2rem; padding: 0 .25rem; text-decoration: none; }
+.f96-icone-btn:hover { background: var(--cds-layer-hover-01, rgba(141, 141, 141, .16)); }
+.f96-icone-btn:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: -2px; }
+.f96-icone-btn:disabled { color: var(--cds-icon-disabled, #8d8d8d); cursor: default; }
+.f96-icone-btn[hidden] { display: none; }
+
+/* ------------------------------------------------------------------ contenu proposé (défile seul) */
+.v101-contenu { display: flex; flex-direction: column; gap: .5rem; }
+.v101-entetes { display: grid; gap: .125rem .75rem; grid-template-columns: max-content minmax(0, 1fr); margin: 0; }
+.v101-entetes > div { display: contents; }
+.v101-entetes dt { color: var(--cds-text-secondary, #525252); font-size: .875rem; }
+.v101-entetes dd { margin: 0; overflow-wrap: anywhere; }
+.v101-texte { line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+.v101-texte:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.v101-proposition { font-size: 1rem; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.v101-note, .v101-vide { color: var(--cds-text-secondary, #525252); font-size: .875rem; margin: 0; }
+.v101-format { align-items: center; align-self: flex-end; display: inline-flex; font-size: .8125rem; gap: .25rem; }
+.v101-lien { background: none; border: 0; color: var(--cds-link-primary, #0f62fe); cursor: pointer; font: inherit; padding: .125rem .25rem; text-decoration: underline; }
+.v101-lien[aria-pressed="true"] { color: var(--cds-text-primary, #161616); font-weight: 600; text-decoration: none; }
+.v101-lien:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 1px; }
+.v101-cadre-courriel { background: #fff; border: 1px solid var(--cds-border-subtle-01, #e0e0e0); display: block; height: max(14rem, calc(100dvh - 21rem)); width: 100%; }
+.v101-recu > summary { cursor: pointer; padding: .25rem 0; }
+.v101-recu .v101-cadre-courriel { height: max(12rem, calc(100dvh - 24rem)); }
+.v101-office { display: flex; flex-direction: column; gap: .25rem; }
+.v101-cadre-office { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); display: block; height: max(18rem, calc(100dvh - 15rem)); width: 100%; }
+.v101-office-etat { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: 0; }
+.v101-office-etat:empty { display: none; }
+.v101-avis { border-left: 3px solid var(--cds-support-warning, #f1c21b); margin: 0 0 .5rem; padding: .25rem .5rem; }
+.v101-details > summary { color: var(--cds-text-secondary, #525252); cursor: pointer; margin-top: .75rem; }
+.v101-sources h3 { font-size: .875rem; margin: .75rem 0 .25rem; }
+.v101-sources ul { margin: 0; padding-left: 1.1rem; }
+.v101-carte { list-style: none; margin: .5rem 0 0; padding: 0; }
+.v101-edition textarea { box-sizing: border-box; font: inherit; line-height: 1.5; min-height: 16rem; width: 100%; }
+
+/* ------------------------------------------------------------------ barre de décision collée en bas */
+.v101-pied { background: var(--cds-layer-01, var(--ws-surface, #fff)); border-top: 1px solid var(--cds-border-subtle-01, #e0e0e0); display: flex; flex: none;
+  flex-direction: column; gap: .375rem; padding: .5rem .75rem; }
+.v101-pied[hidden] { display: none; }
+.v101-boutons { display: grid; gap: .5rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.v101-boutons[hidden] { display: none; }
+.v101-action { justify-content: center; min-width: 0; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.v101-action[aria-disabled="true"] { cursor: not-allowed; opacity: .55; }
+.v101-statut { font-size: .8125rem; margin: 0; min-height: 0; }
+.v101-statut:empty { display: none; }
+.v101-statut[data-erreur="1"] { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.v101-panneau[hidden] { display: none; }
+.v101-form { display: flex; flex-direction: column; gap: .375rem; }
+.v101-champ { display: flex; flex-direction: column; font-size: .875rem; gap: .125rem; }
+.v101-champ textarea, .v101-champ input, .v101-champ select { box-sizing: border-box; font: inherit; width: 100%; }
+.v101-form-boutons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.v101-question { margin: 0; }
+
+@media (max-width: 30rem) {
+  .v101-boutons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v101-cadre-courriel { height: max(12rem, calc(100dvh - 24rem)); }
+}
+@media (prefers-reduced-motion: reduce) { .f96-fenetre.v101-ancre { transition: none; } }
+@media print { .v101-pied { display: none !important; } }
+
+/* ------------------------------------------------------------------ page du cadre de l'éditeur (/documents/edit?volet=…) */
+html:has(.v101-cadre-corps), .v101-cadre-corps { height: 100%; margin: 0; }
+.v101-cadre-corps { background: #fff; display: flex; flex-direction: column; font: 14px/1.4 system-ui, sans-serif; }
+.v101-cadre-etat { color: #525252; font-size: 12px; margin: 0; padding: 2px 6px; }
+.v101-cadre-office { flex: 1 1 auto; min-height: 0; }
+.v101-cadre-office > #ax-office, .v101-cadre-office iframe { border: 0; height: 100%; width: 100%; }
+.v101-cadre-aide { padding: 8px; }
+
+/* ------------------------------------------------------------------ éléments flottants de la page : jamais sur le volet ancré */
+/* bouton rond de l'assistant (top 52 %) et barre « en direct » (ouverte ou repliée en pastille) tombaient sur les liens de la liste :
+   masqués tant que le volet est ancré, de retour à sa fermeture (Instruction couvre le besoin ; la pause de l'IA reste dans l'en-tête) */
+body.v101-volet-ouvert #ws-ai-launcher, body.v101-volet-ouvert #ws-ai-live, body.v101-volet-ouvert #ws-live-bar { display: none !important; }
+li[data-v101-traitee] { display: none !important; }     /* ligne décidée dans le volet : retirée de la liste affichée */

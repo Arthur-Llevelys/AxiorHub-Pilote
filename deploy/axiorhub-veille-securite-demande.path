@@ -1,0 +1,9 @@
+[Unit]
+Description=AxiorHub Pilote — demande d’activation ou de désactivation de la veille de sécurité (déposée depuis l’interface)
+
+[Path]
+PathExists=/var/lib/axiorhub-mail-agent/securite-demande/demande.json
+Unit=axiorhub-veille-securite-demande.service
+
+[Install]
+WantedBy=multi-user.target

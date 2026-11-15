@@ -14,6 +14,7 @@ from unittest.mock import patch
 import zipfile
 
 import test_agent
+from dates_relatives import jour
 from test_v5689_livrables import Stockage
 from agent import assertions5689, contentieux5689 as base, contentieux_actes5689 as actes, contentieux_paquets5689 as paquets, contentieux_pieces5689 as pieces, contentieux_web5689 as web
 from agent import deadlines450, delais5689 as delais, echeances450, export5688, legal_research, membres5650, memoire5651, modele5651, pieces520, procedure5632, web5689
@@ -937,7 +938,7 @@ class Delais(Base):
             self.assertIn('non relu', coherence['limite'])
             self.assertEqual(coherence['lignes'][0]['date_suivi'], '2026-04-13')
             self.assertEqual(coherence['lignes'][0]['agenda_en_ligne'], 'non inscrit')
-            y = self.proposer(date_evenement='2027-05-04')
+            y = self.proposer(date_evenement=jour(170).isoformat())   # 5.6.101 (T02) : échéance toujours à venir (une échéance passée n'est pas réclamée à l'agenda)
             delais.decider(self.desk, y['id'], {'action': 'valider', 'version': y['revision'], 'agenda': True}, *AVOCAT, dav)
             self.assertEqual(len(dav.ecritures), 1)                                     # inscription demandée expressément
             lue = delais.coherence(self.desk, MID, dav)

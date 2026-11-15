@@ -320,7 +320,8 @@ class Synchrone(Base):
             r = self.request('/aujourdhui')
         self.assertTrue(r['status'].startswith('200'))
         self.assertEqual(feed.call_count, 1)                                         # avant : l'ancienne page, puis la nouvelle (2)
-        self.assertEqual(style.call_count, 1)
+        self.assertEqual(style.call_count, 0)                                        # 5.6.101 (lot P) : « Style du cabinet » servi au dépli
+        self.assertIn('data-p101-fragment="style"', r['body'])
         self.assertEqual(diag.call_count, 1)                                         # avant : en-tête et panneau de santé (2 sondes d'Ollama)
 
     def test_U06_composeur_historique_sans_options_de_dossiers(self):

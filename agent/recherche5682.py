@@ -43,10 +43,11 @@ def search(desk, query, owner='cabinet', role='administrateur', lang=None):
         best = max(score(query, n) for n in names)
         if best >= MIN_SCORE:
             found.append({'type': 'Dossier', 'titre': label, 'detail': str(m.get('client_name') or ''), 'url': '/dossier?id=%s' % _quote(m['id']), 'score': best + 0.03})
-    for f in entries(desk.c, role, lang):
-        best = max([score(query, f['label'])] + [score(query, a) for a in f['aliases']])
+    from .familles56101 import libelle, titre_fonction
+    for f in entries(desk.c, role, lang):   # 5.6.101 (F01) : « Fonction (famille) » ; le nom de la famille trouve aussi ses fonctions
+        best = max([score(query, f['label'])] + [score(query, a) for a in f['aliases']] + ([score(query, libelle(f['famille'], lang))] if f['famille'] else []))
         if best >= MIN_SCORE:
-            found.append({'type': 'Fonction', 'titre': f['label'], 'detail': f['desc'], 'url': f['route'], 'score': best})
+            found.append({'type': 'Fonction', 'titre': titre_fonction(f['id'], lang), 'detail': f['desc'], 'url': f['route'], 'score': best})
     found.sort(key=lambda r: (-r['score'], r['titre'].lower()))
     top = found[0]['score'] if found else 0
     return {'resultats': [r for r in found if r['score'] >= top - 0.15][:LIMIT]}   # rapprochements lointains écartés dès qu'un bon résultat existe

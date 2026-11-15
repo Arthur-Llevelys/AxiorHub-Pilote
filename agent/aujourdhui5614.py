@@ -25,11 +25,12 @@ def _local(desk, stamp):
         return str(stamp)[:16].replace('T', ' ')
 
 
-def routines_bar_html(desk, prefix, auth=None, compact=False):
-    """5.6.52 (R01) : bloc de gestion des routines (mêmes définitions que les réglages) ; repli sur la barre 5.6.14 en cas d'incident."""
+def routines_bar_html(desk, prefix, auth=None, compact=False, formulaires_differes=False):
+    """5.6.52 (R01) : bloc de gestion des routines (mêmes définitions que les réglages) ; repli sur la barre 5.6.14 en cas d'incident.
+    5.6.101 (lot P) : ``formulaires_differes`` — formulaires « Modifier » et « Ajouter » chargés à l'ouverture de leur pli."""
     try:
         from .web5652 import routines_block
-        return routines_block(desk, auth or {'owner': 'cabinet'}, prefix, compact=compact)
+        return routines_block(desk, auth or {'owner': 'cabinet'}, prefix, compact=compact, formulaires_differes=formulaires_differes)
     except Exception:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
         return _routines_bar_5651(desk, prefix)
 
@@ -83,7 +84,16 @@ def defer(desk, ident, days=1):
 
 
 def items(desk, owner='cabinet', prefix=''):
-    """Toutes les décisions attendues, normalisées : kind, id, title, matter_label, question, recommendation, sources, consequence, urgent, actions."""
+    """Toutes les décisions attendues, normalisées : kind, id, title, matter_label, question, recommendation, sources, consequence, urgent, actions.
+    5.6.101 (lot P, P02) : pendant l'affichage d'une page (GET), calculées une fois (file « À décider » et panneau des décisions) ; chaque
+    appelant reçoit sa propre copie. Une action (POST) ou le travailleur recalculent toujours."""
+    import copy
+    from .affichage5696 import memo_requete
+    cle = ('aujourdhui5614.items', str(desk.c.get('state_dir', '')), str(owner), str(prefix))
+    return copy.deepcopy(memo_requete(cle, lambda: _items(desk, owner, prefix)))
+
+
+def _items(desk, owner='cabinet', prefix=''):
     from . import decisions569, taches5614
     deferred = _deferred(desk)
     out = []

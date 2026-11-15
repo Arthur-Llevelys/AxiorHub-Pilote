@@ -8,6 +8,10 @@ python3 -B installer.py "$@"
 if [[ $# -eq 0 && -f /opt/axiorhub-mail-agent/current/miseajour.py ]]; then
   python3 -B /opt/axiorhub-mail-agent/current/miseajour.py --installer-auto || true
 fi
+# 5.6.101 : veille de sécurité du serveur (collecteur en lecture seule, minuteurs systemd), active par défaut, désactivable
+if [[ $# -eq 0 && -f /opt/axiorhub-mail-agent/current/deploy/securite/veille-securite.py ]]; then
+  python3 -B /opt/axiorhub-mail-agent/current/deploy/securite/veille-securite.py --installer-auto || true
+fi
 # 5.2.0 : recette automatique de la version installée, en arrière-plan (résultat dans « Pourquoi rien n’est produit ? »).
 if [[ $# -eq 0 && -f /opt/axiorhub-mail-agent/current/recette.py ]]; then
   python3 -B /opt/axiorhub-mail-agent/current/recette.py --background || true

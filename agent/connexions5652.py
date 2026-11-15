@@ -213,6 +213,12 @@ def _sha(*parts):
 
 
 def ensure_schema(desk):
+    """5.6.101 (lot P) : une fois par affichage (GET) et par connexion ; toujours refaite hors affichage."""
+    from .affichage5696 import une_fois
+    return une_fois(desk.db, 'connexions5652.schema', lambda: _ensure_schema(desk))
+
+
+def _ensure_schema(desk):
     desk.db.executescript(SCHEMA + SCHEMA_5653)
     for table, cols in COLUMNS_5653.items():               # 5.6.53 : colonnes ajoutées (génération, identité approuvée, bail, archivage)
         have = {r[1] for r in desk.db.execute('PRAGMA table_info(%s)' % table)}

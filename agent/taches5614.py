@@ -67,6 +67,12 @@ OK_OUTCOMES = ('accepte', 'reserves')
 
 
 def ensure_schema(desk):
+    """5.6.101 (lot P) : une fois par affichage (GET) et par connexion ; toujours refaite hors affichage."""
+    from .affichage5696 import une_fois
+    return une_fois(desk.db, 'taches5614.schema', lambda: _ensure_schema(desk))
+
+
+def _ensure_schema(desk):
     desk.db.executescript(SCHEMA)
     for table, column, ddl in MIGRATIONS:
         if column not in {r[1] for r in desk.db.execute('PRAGMA table_info(%s)' % table)}:

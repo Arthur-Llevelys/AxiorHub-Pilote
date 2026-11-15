@@ -1,0 +1,11 @@
+[Unit]
+Description=AxiorHub Pilote — veille de sécurité du serveur (toutes les 10 minutes)
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=false
+AccuracySec=1min
+Unit=axiorhub-veille-securite-rapide.service
+
+[Install]
+WantedBy=timers.target

@@ -65,6 +65,26 @@ puis `sudo certbot --apache -d agent.votre-cabinet.fr --redirect`.
 2. Mode **brouillons** : `sudo axiorhub-mail mode drafts`. Les brouillons apparaissent dans la messagerie.
 3. Activez les automatismes un par un dans *Paramètres → Automatismes*.
 
+## 4 bis. Veille de sécurité du serveur (5.6.101)
+
+Installée et activée par défaut par le paquet Debian et par `install.sh` (rien sur un poste Windows ou Ubuntu) :
+
+- collecteur `/usr/lib/axiorhub-pilote/veille-securite.py` (copie de `deploy/securite/veille-securite.py`, bibliothèque standard de
+  Python, lisible : son en-tête dit exactement ce qu'il lit et écrit). Il tourne sous root **en lecture seule** : il n'arrête, ne
+  supprime ni ne modifie rien ; il écrit seulement son rapport dans `/var/lib/axiorhub-mail-agent/securite/` (root:axiorhub-mail, 640,
+  30 jours d'historique) et n'ouvre de connexion que vers 127.0.0.1 (sonde des sites Apache) ;
+- minuteurs `axiorhub-veille-securite-rapide.timer` (toutes les 10 minutes : processus, réseau, tâches planifiées, fichiers de
+  démarrage) et `axiorhub-veille-securite-complete.timer` (chaque nuit à 4 h 40 : tous les contrôles S01 à S13), avec les protections
+  systemd `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome=read-only`, `PrivateTmp`, `IPAddressDeny=any` / `IPAddressAllow=localhost` ;
+- résultats dans *Toutes les fonctions › Sécurité › Sécurité du serveur* (administrateurs), bandeau rouge d'Aujourd'hui et notification
+  neutre du téléphone associé pour un constat critique. Les commandes de correction sont à copier : AxiorHub n'en exécute aucune.
+
+Désactiver : `sudo systemctl disable --now axiorhub-veille-securite-rapide.timer axiorhub-veille-securite-complete.timer`, ou le
+bouton « Désactiver la veille » de la page (une demande appliquée par `axiorhub-veille-securite-demande.path`). Une désactivation est
+conservée lors des mises à jour (`sudo python3 /usr/lib/axiorhub-pilote/veille-securite.py --activer` pour revenir en arrière).
+Programmes connus ou chemins autorisés propres au cabinet : `/etc/axiorhub-mail-agent/veille-securite.json`, par exemple
+`{"connus": ["mon-calcul"], "autorises": ["/srv/outil/*"]}`.
+
 ## 5. Données et sauvegarde
 
 Sauvegardez `/etc/axiorhub-mail-agent/` et `/var/lib/axiorhub-mail-agent/` (chiffrés, hors du serveur). Ils contiennent

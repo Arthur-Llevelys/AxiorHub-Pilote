@@ -48,9 +48,10 @@ REVISION = re.compile(r'^[A-Za-z0-9._:-]{1,128}$')
 CLE_IDEMPOTENCE = re.compile(r'^[A-Za-z0-9_-]{16,80}$')
 CLE_COURRIEL = re.compile(r'^[0-9a-f]{64}$')
 SECTIONS = ('message', 'pieces', 'sources')
-ECRITURES = ('decision', 'enregistrer', 'deposer')
+ECRITURES = ('decision', 'enregistrer', 'deposer', 'corriger', 'proposition')   # 5.6.101 (lot R) : correction IA et décision d'une proposition (documents)
 DECISIONS = ('retenir', 'ecarter', 'reporter')
-SOURCES = ('tous', 'proposition', 'brouillon')
+SOURCES = ('tous', 'proposition', 'brouillon', 'courriel', 'gmail', 'document', 'note_ia')   # 5.6.101 (lot R, R05) : filtres par source et par type
+SECTIONS_101 = SECTIONS + ('propositions',)
 ROLES = ('administrateur', 'avocat', 'assistant')
 ETATS = ('a_relire', 'retenu', 'ecarte', 'remplace', 'depose')
 LIMITE, LIMITE_MAX = 30, 50
@@ -63,7 +64,7 @@ MAX_POST = 200_000
 REPORT_MAX = 366 * 86400
 _SECRET = secrets.token_bytes(32)   # signature des curseurs : propre au processus (un curseur d'avant un redémarrage est refusé, 422)
 
-TYPES = {'proposition': 'Proposition', 'imap': 'Brouillon', 'gmail': 'Brouillon Gmail'}
+TYPES = {'proposition': 'Proposition', 'imap': 'Brouillon', 'gmail': 'Brouillon Gmail', 'document': 'Document', 'note_ia': 'Note de l’IA'}
 LIBELLES_ETAT = {'a_relire': 'À relire', 'retenu': 'Retenu', 'ecarte': 'Écarté', 'remplace': 'Remplacé par une version plus récente',
                  'depose': 'Déposé dans Brouillons', 'a_verifier': 'Dépôt à vérifier dans la messagerie', 'en_cours': 'Dépôt en cours'}
 MESSAGES = {'enregistre': 'Texte enregistré ; la réponse reste à relire.',
@@ -78,14 +79,16 @@ INCERTAINS = frozenset({'append_imap_incertain', 'verification_imap_indisponible
 PERIMES = frozenset({'version_perimee', 'brouillon_modifie_depuis_ouverture', 'uidvalidity_modifiee', 'courriel_modifie_depuis_projet',
                      'dossier_modifie_depuis_projet'})
 
-SCHEMA = '''
-CREATE TABLE IF NOT EXISTS file56100_items(
+TABLE_ITEMS = '''(
   cabinet TEXT NOT NULL, id TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('proposition','imap','gmail','document','decision')),
+  kind TEXT NOT NULL CHECK (kind IN ('proposition','imap','gmail','document','decision','note_ia')),
   matter TEXT NOT NULL DEFAULT '', mail_key TEXT NOT NULL DEFAULT '', ref_source TEXT NOT NULL, revision TEXT NOT NULL,
   titre TEXT NOT NULL, search_norm TEXT NOT NULL, updated INTEGER NOT NULL,
   etat TEXT NOT NULL DEFAULT 'a_relire' CHECK (etat IN ('a_relire','retenu','ecarte','remplace','depose')),
-  PRIMARY KEY(cabinet,id));
+  proprietaire TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY(cabinet,id))'''   # 5.6.101 (lot R) : genre « note_ia » et propriétaire (projets Gmail : propres à leur auteur)
+SCHEMA = '''
+CREATE TABLE IF NOT EXISTS file56100_items''' + TABLE_ITEMS + ''';
 CREATE INDEX IF NOT EXISTS file56100_page ON file56100_items(cabinet,etat,updated DESC,id DESC);
 CREATE INDEX IF NOT EXISTS file56100_courriel ON file56100_items(cabinet,mail_key);
 CREATE TABLE IF NOT EXISTS file56100_reports(
@@ -157,7 +160,32 @@ def _maintenant():
 def ensure_schema(desk):
     """Tables additives, créées au démarrage (``Desk._prepare``), jamais pendant une lecture."""
     desk.db.executescript(SCHEMA)
+    _migrer_56101(desk)
     desk.db.commit()
+
+
+def _migrer_56101(desk):
+    """5.6.101 (lot R) : une base 5.6.100 garde ses lignes ; la table est reconstruite une fois (contrainte de genre élargie à « note_ia »,
+    colonne ``proprietaire``), dans une transaction, au démarrage seulement. Idempotent."""
+    row = desk.db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='file56100_items'").fetchone()
+    if row and "'note_ia'" in str(row[0]):
+        return
+    db = desk.db
+    db.commit()
+    db.execute('BEGIN IMMEDIATE')
+    try:
+        db.execute('DROP TABLE IF EXISTS file56101_items_migration')
+        db.execute('CREATE TABLE file56101_items_migration' + TABLE_ITEMS)
+        db.execute('INSERT INTO file56101_items_migration(cabinet,id,kind,matter,mail_key,ref_source,revision,titre,search_norm,updated,etat) '
+                   'SELECT cabinet,id,kind,matter,mail_key,ref_source,revision,titre,search_norm,updated,etat FROM file56100_items')
+        db.execute('DROP TABLE file56100_items')
+        db.execute('ALTER TABLE file56101_items_migration RENAME TO file56100_items')
+        db.execute('CREATE INDEX IF NOT EXISTS file56100_page ON file56100_items(cabinet,etat,updated DESC,id DESC)')
+        db.execute('CREATE INDEX IF NOT EXISTS file56100_courriel ON file56100_items(cabinet,mail_key)')
+        db.commit()
+    except BaseException:
+        db.rollback()
+        raise
 
 
 # ------------------------------------------------------------------------------------------------------------- curseur
@@ -300,10 +328,12 @@ def autoriser_route(role, method, name):
     if not path.startswith(PREFIXE + '/'):
         return False
     parts = path[len(PREFIXE) + 1:].split('/')
+    if parts == ['filtres']:                    # 5.6.101 (lot R, R05) : filtre mémorisé par personne (écriture par POST seulement)
+        return method == 'POST'
     if not IDENT.fullmatch(parts[0]) or len(parts) > 2:
         return False
     if method in ('GET', 'HEAD'):
-        return len(parts) == 1 or parts[1] in SECTIONS
+        return len(parts) == 1 or parts[1] in SECTIONS_101
     if method == 'POST':
         return len(parts) == 2 and parts[1] in ECRITURES
     return False
@@ -451,7 +481,8 @@ def rattraper(desk, limite=500, noter=True):
         desk.setting('relecture56100:migre', True)
     if noter or rows or disparus:   # démarrage (noter=False) d'une base inchangée : aucune écriture (garde 5.6.44)
         desk.setting('relecture56100:synchronise', datetime.now(timezone.utc).isoformat())
-    return {'projetes': len(rows), 'disparus': len(disparus), 'termine': termine}
+    from .relecture56101 import rattraper_sources   # 5.6.101 (lot R) : brouillons Gmail, documents, notes de l'IA (chaque source isolée)
+    return {'projetes': len(rows), 'disparus': len(disparus), 'termine': termine, 'sources': rattraper_sources(desk, limite)}
 
 
 def anomalies(desk):
@@ -575,15 +606,21 @@ def liste(desk, acteur, args, prefix='', maintenant=None):
         lignes, etat = brouillons(desk, a, q, maintenant)
         return {'lignes': [_sortie_ligne(desk, prefix, x, libelles, a.compte) for x in lignes], 'curseur': None, 'total': len(lignes),
                 'total_exact': bool(etat.get('complet')), 'source': source, 'q': q, 'sources': {'imap': etat}}
+    from . import relecture56101 as r101   # 5.6.101 (lot R) : Gmail (appel séparé), documents et notes de l'IA (liste locale)
+    if source == 'gmail':
+        lignes, etat = r101.liste_gmail(desk, a, q, maintenant)
+        return {'lignes': [_sortie_ligne(desk, prefix, x, libelles, a.compte) for x in lignes], 'curseur': None, 'total': len(lignes),
+                'total_exact': bool(etat.get('complet')), 'source': source, 'q': q, 'sources': {'gmail': etat}}
     portee = [CABINET, a.compte, source, q]
     apres = decoder_curseur(args['curseur'], portee) if args.get('curseur') else None
-    kinds = ('proposition',)
+    kinds = r101.KINDS_LOCAUX[source]
     page, suite = _page_locale(desk, a, kinds, q, limite, apres, maintenant)
     total = _total(desk, a, kinds, q, maintenant) if apres is None else None
     return {'lignes': [_sortie_ligne(desk, prefix, x, libelles, a.compte) for x in page],
             'curseur': curseur(suite, portee) if suite else None, 'total': total, 'total_exact': total is not None,
             'source': source, 'q': q,
-            'sources': {'local': _etat_local(desk), 'imap': {'etat': 'a_charger' if source == 'tous' else 'hors_filtre'}}}
+            'sources': {'local': _etat_local(desk), 'imap': {'etat': 'a_charger' if source in ('tous', 'courriel') else 'hors_filtre'},
+                        'gmail': {'etat': 'a_charger' if source == 'tous' else 'hors_filtre'}}}
 
 
 # ------------------------------------------------------------------------------------------------------------- brouillons IMAP
@@ -828,7 +865,8 @@ def _kind_de(ident):
         return 'proposition'
     if ident.startswith('i-'):
         return 'imap'
-    return ''
+    from .relecture56101 import kind_de   # 5.6.101 (lot R) : g- (Gmail), d- (document), n- (note de l'IA)
+    return kind_de(ident)
 
 
 def detail(desk, acteur, ident, prefix=''):
@@ -837,6 +875,9 @@ def detail(desk, acteur, ident, prefix=''):
     if not IDENT.fullmatch(str(ident or '')):
         raise Refus(404, 'introuvable')
     kind = _kind_de(ident)
+    if kind in ('gmail', 'document', 'note_ia'):
+        from . import relecture56101
+        return relecture56101.detail(desk, a, ident, prefix)
     if kind == 'proposition':
         ligne = _ligne_projetee(desk, ident)
         if ligne is None or ligne['kind'] != 'proposition':
@@ -850,6 +891,9 @@ def detail(desk, acteur, ident, prefix=''):
 def section(desk, acteur, ident, revision, sous):
     """Sous-routes Message reçu, Pièces, Sources : version affichée exigée, accès revalidé, pièces sans leur texte."""
     a = _acteur(acteur)
+    if IDENT.fullmatch(str(ident or '')) and _kind_de(ident) in ('gmail', 'document', 'note_ia'):
+        from . import relecture56101
+        return relecture56101.section(desk, a, ident, revision, sous)
     if sous not in SECTIONS or not IDENT.fullmatch(str(ident or '')):
         raise Refus(404, 'introuvable')
     if not REVISION.fullmatch(str(revision or '')):
@@ -983,6 +1027,11 @@ def commande(desk, acteur, ident, sous, data, maintenant=None):
     maintenant = int(_maintenant() if maintenant is None else maintenant)
     if sous not in ECRITURES or not IDENT.fullmatch(str(ident or '')) or not isinstance(data, dict):
         raise Refus(404, 'introuvable')
+    if _kind_de(ident) in ('gmail', 'document', 'note_ia'):    # 5.6.101 (lot R) : mêmes garanties, commandes propres à chaque source
+        from . import relecture56101
+        return relecture56101.commande(desk, a, ident, sous, data, maintenant)
+    if sous not in ('decision', 'enregistrer', 'deposer'):
+        raise Refus(422, 'commande_invalide')
     action, revision, cle, corps, jusqu_a = _valider(sous, data, maintenant)
     kind = _kind_de(ident)
     if kind not in ('proposition', 'imap'):
@@ -1362,6 +1411,9 @@ def repondre(env, desk, auth, prefix, name, args, method):
         if int(env.get('CONTENT_LENGTH') or 0) > MAX_POST:
             raise Refus(422, 'requete_trop_longue')
         data = check_post(env, auth)
+        if reste == 'filtres':                 # 5.6.101 (lot R, R05) : filtre mémorisé pour la personne
+            from .relecture56101 import memoriser_filtre
+            return _sortie(memoriser_filtre(desk, a, data))
         return _sortie(commande(desk, a, ident, sous, data))
     except Refus as ex:
         code = ex.code.split(':')[0]
@@ -1389,6 +1441,10 @@ TEXTES = {'introuvable': 'Élément introuvable.', 'version_perimee': 'Ce projet
 
 
 def _message(code):
+    if code not in TEXTES:
+        from .relecture56101 import TEXTES as TEXTES_101   # 5.6.101 (lot R) : refus propres aux nouvelles sources
+        if code in TEXTES_101:
+            return TEXTES_101[code]
     return TEXTES.get(code) or _humain(code)
 
 
@@ -1400,13 +1456,14 @@ def lecteur_html(prefix, suffixe_ids=''):
     return ('<article class="ax100-lecteur" data-ax100-lecteur aria-labelledby="ax100-sujet%(s)s">'
             '<header class="ax100-entete">'
             '<button type="button" class="ax-btn ghost ax100-retour" data-ax100-retour>Retour à la liste</button>'
-            '<h2 id="ax100-sujet%(s)s" data-ax100-sujet tabindex="-1">Choisissez un courriel</h2>'
+            '<h2 id="ax100-sujet%(s)s" data-ax100-sujet tabindex="-1">Choisissez un élément</h2>'
             '<p class="ax100-meta" data-ax100-meta>Projet de réponse, message reçu, pièces et sources : un clic suffit. Rien n’est envoyé.</p>'
             '<div class="ax100-onglets" role="group" aria-label="Affichage">'
             '<button type="button" class="ax-btn ghost" data-section="projet" aria-pressed="true">Projet de réponse</button>'
             '<button type="button" class="ax-btn ghost" data-section="message" aria-pressed="false">Message reçu</button>'
             '<button type="button" class="ax-btn ghost" data-section="pieces" aria-pressed="false">Pièces</button>'
             '<button type="button" class="ax-btn ghost" data-section="sources" aria-pressed="false">Sources</button>'
+            '<button type="button" class="ax-btn ghost" data-section="propositions" aria-pressed="false" hidden>Propositions de l’IA</button>'
             '<a class="ax-btn ghost ax100-plein" data-ax100-plein hidden href="%(p)s/courriels">Ouvrir en pleine page</a></div></header>'
             '<div class="ax100-corps" data-ax100-corps data-vue-texte="projet">'
             '<div class="ax100-projet" data-ax100-projet><label for="ax100-texte%(s)s">Texte du projet</label>'
@@ -1414,6 +1471,16 @@ def lecteur_html(prefix, suffixe_ids=''):
             '<div class="ax100-secondaire" data-ax100-secondaire tabindex="0" hidden></div></div>'
             '<footer class="ax100-actions" data-ax100-actions>'
             '<p role="status" aria-live="polite" class="ax100-statut" data-ax100-statut></p>'
+            # 5.6.101 (lot R) : motif d'un rejet (note de l'IA) et correction demandée à l'IA (document), ouverts à la demande
+            '<div class="ax101-panneau" data-ax101-motif hidden><label for="ax101-motif%(s)s" data-ax101-label-motif>Motif du rejet (obligatoire)</label>'
+            '<textarea id="ax101-motif%(s)s" data-ax101-motif-texte rows="2" maxlength="500"></textarea>'
+            '<button type="button" class="ax-btn" data-ax101-confirmer-rejet>Rejeter la note</button></div>'
+            '<div class="ax101-panneau" data-ax101-correction hidden><label for="ax101-instruction%(s)s" data-ax101-label-instruction>Correction souhaitée</label>'
+            '<textarea id="ax101-instruction%(s)s" data-ax101-instruction rows="3" maxlength="2000"></textarea>'
+            '<label for="ax101-zone%(s)s" data-ax101-label-zone>Passage visé (facultatif)</label><input id="ax101-zone%(s)s" data-ax101-zone maxlength="4000">'
+            '<p class="ax101-note">Le texte avant/après sera montré pour décision ; rien n’est modifié sans vous.</p>'
+            '<button type="button" class="ax-btn" data-ax101-demander-correction>Demander la proposition</button></div>'
+            '<button type="button" class="ax-btn" data-action="valider" data-ax101-optionnel disabled hidden>Valider</button>'
             '<button type="button" class="ax-btn ghost" data-action="enregistrer" disabled>Enregistrer</button>'
             '<button type="button" class="ax-btn" data-action="retenir" disabled>Retenir</button>'
             '<button type="button" class="ax-btn ghost" data-action="ecarter" disabled>Écarter</button>'
@@ -1422,6 +1489,9 @@ def lecteur_html(prefix, suffixe_ids=''):
             '<button type="button" class="ax-btn ghost" data-report="apres_midi">Cet après-midi (14 h)</button>'
             '<button type="button" class="ax-btn ghost" data-report="demain">Demain 9 h</button>'
             '<button type="button" class="ax-btn ghost" data-report="lundi">Lundi 9 h</button></span></span>'
+            '<button type="button" class="ax-btn ghost" data-action="rejeter" data-ax101-optionnel aria-expanded="false" disabled hidden>Rejeter avec motif</button>'
+            '<button type="button" class="ax-btn ghost" data-action="corriger" data-ax101-optionnel aria-expanded="false" disabled hidden>Demander une correction à l’IA</button>'
+            '<a class="ax-btn ghost" data-ax101-ouvrir hidden href="%(p)s/courriels">Ouvrir</a>'
             '<button type="button" class="ax-btn ghost ax100-deposer" data-action="deposer" disabled hidden>Déposer dans Brouillons (sans envoi)</button>'
             '</footer></article>') % {'s': s, 'p': e(prefix, quote=True)}
 
@@ -1473,52 +1543,58 @@ def page_html(desk, prefix, acteur, args):
     """Vue « À relire » de la nouvelle interface : liste unique à gauche (première page locale rendue par le serveur, liens de repli
     ``/courriels?item=…``), lecteur à droite. Les brouillons IMAP sont lus par un appel séparé du script, jamais pendant ce rendu."""
     a = _acteur(acteur)
-    source = str(args.get('source') or 'tous')
+    from . import relecture56101 as r101      # 5.6.101 (lot R, R05) : filtre mémorisé de la personne (lecture seule)
+    source = str(args.get('source') or r101.filtre_memorise(desk, a.compte) or 'tous')
     source = source if source in SOURCES else 'tous'
     q = str(args.get('q') or '')[:120]
     item = str(args.get('item') or '')
     item = item if IDENT.fullmatch(item) else ''
     erreur = ''
     try:
-        if source == 'brouillon':
+        if source in ('brouillon', 'gmail'):    # appels séparés du script, jamais pendant ce rendu
             data = {'lignes': [], 'curseur': None, 'total': None, 'sources': {'local': _etat_local(desk)}}
         else:
             data = liste(desk, a, {'source': source, 'q': q}, prefix)
     except Refus as ex:
         data, erreur = {'lignes': [], 'curseur': None, 'total': None, 'sources': {}}, _message(ex.code.split(':')[0])
     lignes = ''.join(_ligne_html(x, item) for x in data['lignes'])
-    filtres = ''.join('<a href="%s" data-ax100-filtre="%s"%s>%s</a>' % (
-        e(prefix + '/courriels?' + urlencode({'source': cle, **({'q': q} if q else {})}), quote=True), cle,
-        ' aria-current="page"' if cle == source else '', texte) for cle, texte in (('tous', 'Tout'), ('proposition', 'Propositions'), ('brouillon', 'Brouillons')))
+    def _filtres(choix):
+        return ''.join('<a href="%s" data-ax100-filtre="%s"%s>%s</a>' % (
+            e(prefix + '/courriels?' + urlencode({'source': cle, **({'q': q} if q else {})}), quote=True), cle,
+            ' aria-current="page"' if cle == source else '', e(texte)) for cle, texte in choix)
+    filtres = (_filtres(r101.LIBELLES_FILTRES) + '</nav><nav class="ax100-filtres ax101-sous-filtres" aria-label="Courriels par source">'
+               + _filtres(r101.SOUS_FILTRES))
     total = data.get('total')
     lecteur = lecteur_html(prefix, '')
-    if item and _kind_de(item) == 'proposition':
+    if item and _kind_de(item) in ('proposition', 'gmail', 'document', 'note_ia'):
         try:
             d = detail(desk, a, item, prefix)
         except Refus:
             d = None
         if d is not None:   # repli sans script : le projet est lisible et le détail historique reste à un clic
-            lecteur = lecteur.replace('tabindex="-1">Choisissez un courriel</h2>', 'tabindex="-1">%s</h2>' % e(d['sujet']), 1)
+            lecteur = lecteur.replace('tabindex="-1">Choisissez un élément</h2>', 'tabindex="-1">%s</h2>' % e(d['sujet']), 1)
             lecteur = lecteur.replace('readonly></textarea>', 'readonly>%s</textarea>' % e(d['corps']), 1)
             if d.get('liens', {}).get('pleine_page'):
                 lecteur = lecteur.replace(' data-ax100-plein hidden href="%s/courriels"' % e(prefix, quote=True),
                                           ' data-ax100-plein href="%s"' % e(d['liens']['pleine_page'], quote=True), 1)
     return ('<section class="ax100-relecture" data-ax100-page data-ax100-relecture data-source="%s" data-q="%s" data-curseur="%s" '
-            'data-item="%s" aria-label="Courriels à relire">'
+            'data-item="%s" aria-label="Éléments à relire">'
             '<header class="ax100-tete"><h1>À relire <span class="ax100-total" data-ax100-total aria-live="polite">%s</span></h1>'
             '<nav class="ax100-filtres" aria-label="Filtres de relecture">%s</nav>'
             '<form method="get" role="search" class="ax100-recherche" data-ax100-recherche action="%s/courriels">'
-            '<input type="hidden" name="source" value="%s"><label for="ax100-q">Rechercher un projet</label>'
+            '<input type="hidden" name="source" value="%s"><label for="ax100-q">Rechercher</label>'
             '<input id="ax100-q" name="q" type="search" value="%s" maxlength="120"><button type="submit" class="ax-btn ghost">Rechercher</button></form>'
             '<details class="ax100-diagnostic"><summary>État des sources</summary><p data-ax100-sources>%s</p>'
-            '<p data-ax100-imap>Brouillons de la messagerie : lecture séparée, après l’affichage des propositions.</p>%s</details>%s</header>'
-            '<nav class="ax100-liste" aria-label="Projets à relire" data-ax100-zone-liste><ol data-ax100-lignes>%s</ol>'
+            '<p data-ax100-imap>Brouillons de la messagerie : lecture séparée, après l’affichage des propositions.</p>'
+            '<p data-ax101-gmail>Brouillons Gmail : lecture séparée, après l’affichage de la liste.</p>%s</details>'
+            '<p class="ax101-alerte" data-ax101-alerte role="status" hidden></p>%s</header>'
+            '<nav class="ax100-liste" aria-label="Éléments à relire" data-ax100-zone-liste><ol data-ax100-lignes>%s</ol>'
             '<p class="ax100-vide" data-ax100-vide tabindex="-1"%s>Tout est relu dans ce filtre.</p>'
             '<button type="button" class="ax-btn ghost" data-ax100-suite%s>Afficher la suite</button></nav>%s</section>') % (
         e(source, quote=True), e(q, quote=True), e(data.get('curseur') or '', quote=True), e(item, quote=True),
         ('%d' % total) if isinstance(total, int) else '…', filtres, e(prefix, quote=True), e(source, quote=True), e(q, quote=True),
         e(_etat_local_texte((data.get('sources') or {}).get('local') or {})), _diagnostic(desk, prefix),
         ('<p class="ax-alert" role="alert">%s</p>' % e(erreur)) if erreur else '', lignes,
-        ' hidden' if lignes or source != 'proposition' else '', '' if data.get('curseur') else ' hidden', lecteur)
+        ' hidden' if lignes or source not in ('proposition', 'document', 'note_ia') else '', '' if data.get('curseur') else ' hidden', lecteur)
 
 

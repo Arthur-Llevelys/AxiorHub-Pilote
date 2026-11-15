@@ -110,8 +110,49 @@ FUNCTIONS = (
     ('administration', 'regler', '/administration', ('Administration', 'Raccourcis'), ()),
     ('tableau_de_bord', 'regler', '/accueil', ('Tableau de bord', 'Pilotage du cabinet', 'Dashboard'), ()),
     ('a_propos', 'regler', '/a-propos', ('À propos', 'Licence'), ()),
+    ('securite_serveur', 'regler', '/securite-serveur', ('Sécurité du serveur', 'Sécurité', 'Intrusion', 'Mineur', 'Serveur', 'Alerte', 'Veille de sécurité'), ()),   # 5.6.101 (lot S : page ; lot F : inscription)
 )
 INDEX = {row[0]: row for row in FUNCTIONS}
+# 5.6.101 (lot F, F01) : famille de chaque fonction (annexe A du cahier, décision D4 : regroupement tel quel), dans l'ordre des onglets de
+# la famille. Les familles, leur ordre et leurs sections sont dans ``familles56101`` ; le groupe ci-dessus reste inchangé (registre figé).
+FAMILLE = {
+    'dossiers': 'dossiers',
+    'production': 'produire', 'projets': 'produire', 'livrables': 'produire', 'agents_documents': 'produire', 'studio': 'produire', 'preparation': 'produire',
+    'documents': 'rediger', 'missions_complexes': 'rediger', 'playbooks': 'rediger', 'formulaires': 'rediger',
+    'echeances': 'echeances', 'prescriptions': 'echeances',
+    'audience': 'audiences', 'audiences_suivi': 'audiences', 'audiences_word': 'audiences',
+    'pieces': 'pieces_contentieux', 'contentieux': 'pieces_contentieux', 'pieces_donnees': 'pieces_contentieux',
+    'corporate': 'societes_fonds', 'cessions': 'societes_fonds',
+    'strategie': 'strategie_analyses', 'outils_ia': 'strategie_analyses', 'profils': 'strategie_analyses',
+    'recherche': 'rechercher', 'recherche_juridique': 'rechercher', 'verification': 'rechercher', 'sources': 'rechercher',
+    'veille': 'veille', 'surveillance': 'veille',
+    'navigateur': 'navigateur',
+    'aujourdhui': 'aujourdhui',
+    'courriels': 'courriels',
+    'planning': 'agenda_taches', 'taches': 'agenda_taches', 'mes_taches': 'agenda_taches', 'rendez_vous': 'agenda_taches', 'engagements': 'agenda_taches',
+    'talk': 'talk',
+    'contacts': 'contacts', 'contacts_crm': 'contacts', 'associations': 'contacts',
+    'assistant': 'assistant_missions', 'missions': 'assistant_missions', 'initiatives': 'assistant_missions', 'orchestrateur': 'assistant_missions',
+    'accueil_administratif': 'accueil_telephonique',
+    'mobile': 'telephone',
+    'cabinet': 'gestion_cabinet', 'pilotage_mensuel': 'gestion_cabinet', 'tableau_de_bord': 'gestion_cabinet', 'contribution': 'gestion_cabinet', 'conflits': 'gestion_cabinet',
+    'facturation': 'facturation', 'honoraires': 'facturation', 'relances': 'facturation',
+    'assistance_metier': 'calculs',
+    'modeles_word': 'modeles', 'modeles_actes': 'modeles', 'complement_word': 'modeles',
+    'savoir_faire': 'savoir_faire', 'mon_style': 'savoir_faire', 'progres': 'savoir_faire', 'apprentissage': 'savoir_faire', 'memoire': 'savoir_faire', 'competences': 'savoir_faire',
+    'agents': 'regles_agent', 'regles': 'regles_agent', 'autonomie': 'regles_agent',
+    'parametres': 'parametres', 'mcp': 'parametres', 'routage': 'parametres', 'ecosysteme': 'parametres', 'administration': 'parametres',
+    'mon_compte': 'mon_compte',
+    'vue_ia': 'ia_confiance', 'gouvernance_ia': 'ia_confiance', 'tracabilite': 'ia_confiance', 'securite_ia': 'ia_confiance',
+    'securite_serveur': 'securite', 'journal_audit': 'securite',
+    'diagnostic': 'etat_depannage', 'etat_systeme': 'etat_depannage', 'qualite': 'etat_depannage', 'mise_en_service': 'etat_depannage', 'guide_installation': 'etat_depannage',
+    'evaluations': 'evaluations', 'banc_essai': 'evaluations',
+    'guide_utilisation': 'aide',
+    'a_propos': 'a_propos',
+}
+# 5.6.101 : pages dont le service refuse lui-même les autres rôles (404 neutre) alors que la règle de route les laisserait passer.
+# Elles restent absentes du panneau, des onglets, du guide et de la palette pour ces rôles (F04).
+ROLES = {'securite_serveur': ('administrateur',)}
 # Étape du guide d'installation qui configure chaque capacité (NV04 : « Configurer » ouvre directement l'étape pertinente).
 GUIDE_STEP = {'storage': 'stockage', 'ai': 'ia', 'mail': 'messagerie', 'calendar': 'agenda', 'telephony': 'telephonie', 'invoice': 'facturation'}
 
@@ -136,9 +177,12 @@ def capabilities(cfg):
     return out
 
 
-def visible(role, route):
+def visible(role, route, fid=''):
     if not role or role == 'administrateur':
         return True
+    fid = fid or next((row[0] for row in FUNCTIONS if row[2] == route), '')
+    if fid in ROLES and role not in ROLES[fid]:
+        return False
     from .standalone_auth import allowed
     return allowed(role, 'GET', route.split('?', 1)[0])
 
@@ -147,10 +191,10 @@ def entries(cfg=None, role='administrateur', lang=None):
     caps = capabilities(cfg)
     out = []
     for fid, group, route, aliases, needs in FUNCTIONS:
-        if not visible(role, route):
+        if not visible(role, route, fid):
             continue
         missing = [c for c in needs if c not in caps]
-        out.append({'id': fid, 'group': group, 'route': route, 'aliases': aliases, 'missing': missing,
+        out.append({'id': fid, 'group': group, 'route': route, 'aliases': aliases, 'missing': missing, 'famille': FAMILLE.get(fid, ''),
                     'label': i18n.t('fn.%s.label' % fid, lang), 'desc': i18n.t('fn.%s.desc' % fid, lang),
                     'help': fid, 'configure': ('/guide-installation?etape=' + GUIDE_STEP[missing[0]]) if missing else ''})
     return out
@@ -177,40 +221,30 @@ def for_path(path, args=None):
 
 
 def panel_html(prefix, path, cfg=None, role='administrateur', lang=None):
-    """Panneau « Toutes les fonctions » : groupes d'usage, recherche par nom ou besoin (alias compris), état de disponibilité."""
+    """Panneau « Toutes les fonctions » : 5.6.101 (lot F, F01, V101-07) les 33 familles de l'annexe A, par section, au lieu des fonctions
+    une à une ; recherche par nom ou besoin (alias compris) sur toutes les fonctions, affichées « Fonction (famille) »."""
     lang = lang or i18n.current()
-    from .navigation5643 import PARENT_LABELS, canonical, visibility   # 5.6.43 (cahier v9, § 20)
+    from .navigation5643 import canonical, visibility   # 5.6.43 (cahier v9, § 20) : l'ancien tableau de bord mène toujours à l'accueil unique
+    from . import familles56101 as fam
     rows = entries(cfg, role, lang)
-    current = for_path(path)
-    if current and visibility(current) != 'panel':
-        current = canonical(current)   # une sous-section marque l'entrée de sa destination (ex. Conflits → Gestion du cabinet)
-    groups = []
-    for g in GROUPS:
-        items = [r for r in rows if r['group'] == g and visibility(r['id']) == 'panel']   # ni accès principaux, ni doublons
-        if not items:
-            continue
-        links = ''.join(
-            '<li data-search="' + e(' '.join((r['label'], r['desc']) + tuple(r['aliases'])).lower(), quote=True) + '">'
-            '<a href="' + e(prefix + r['route'], quote=True) + '"' + (' aria-current="page"' if r['id'] == current else '') + '>'
-            '<strong>' + e(r['label']) + '</strong><small>' + e(r['desc']) + '</small></a>' +
-            ('<a class="f5631-configure" href="' + e(prefix + r['configure'], quote=True) + '">' + i18n.th('menu.configure', lang) + '</a>' if r['missing'] else '') +
-            '</li>' for r in items)
-        groups.append('<section class="f5631-group" data-group="' + g + '"><h3>' + i18n.th('grp.%s.label' % g, lang) + '</h3><p>' +
-                      i18n.th('grp.%s.desc' % g, lang) + '</p><ul>' + links + '</ul></section>')
-    # 5.6.43 : toutes les autres fonctions restent trouvables par leur nom ou leurs anciens noms ; le résultat ouvre leur page, rangée dans
-    # sa destination canonique (affichée). Masquées tant que la recherche est vide.
+    current = fam.fonction_de(fam.chemin_de_page(path)) or for_path(path)
+    groups = fam.panneau(rows, current, prefix, lang)
+    # Toutes les fonctions restent trouvables par leur nom ou leurs anciens noms ; le résultat ouvre leur page (qui porte la barre de sa
+    # famille). Masquées tant que la recherche est vide.
     index = []
     for r in rows:
         kind = visibility(r['id'])
-        if kind == 'panel':
-            continue
         target = r if kind != 'hidden' else next((x for x in rows if x['id'] == canonical(r['id'])), None)
         if not target:
             continue
-        where = PARENT_LABELS.get(canonical(r['id']), '') if kind in ('sub', 'tab', 'hidden') else ''
-        index.append('<li hidden data-search-only data-search="' + e(' '.join((r['label'], r['desc']) + tuple(r['aliases'])).lower(), quote=True) + '">'
-                     '<a href="' + e(prefix + target['route'], quote=True) + '"><strong>' + e(target['label'] if kind == 'hidden' else r['label']) +
-                     '</strong><small>' + e(('Dans « %s »' % where) if where else r['desc']) + '</small></a></li>')
+        nom = fam.libelle(r['famille'], lang) if r['famille'] else ''
+        # 5.6.101 (intégration, P02) : nom et description sont déjà affichés dans l'entrée (la recherche lit aussi le texte affiché) ;
+        # data-search ne garde que les anciens noms et la famille
+        index.append('<li hidden data-search-only data-search="' + e(' '.join(tuple(r['aliases']) + ((nom,) if nom else ())).lower(), quote=True) + '">'
+                     '<a href="' + e(prefix + target['route'], quote=True) + '"><strong>' + e(target['label'] if kind == 'hidden' else fam.titre_fonction(r['id'], lang)) +
+                     '</strong><small>' + e(r['desc']) + '</small></a>' +
+                     ('<a class="f5631-configure" href="' + e(prefix + r['configure'], quote=True) + '">' + i18n.th('menu.configure', lang) + '</a>' if r['missing'] else '') +
+                     '</li>')
     if index:
         groups.append('<section class="f5631-group" data-group="index" hidden><h3>' + i18n.th('menu.search', lang) + '</h3><ul>' + ''.join(index) +
                       '</ul></section>')
@@ -233,6 +267,8 @@ def audit():
         seen.add(fid)
         if group not in GROUPS:
             problems.append((fid, 'groupe'))
+        if not FAMILLE.get(fid):   # 5.6.101 (F01) : chaque fonction a sa famille
+            problems.append((fid, 'famille'))
         if not i18n.catalog('fr').get('fn.%s.label' % fid) or not i18n.catalog('fr').get('fn.%s.desc' % fid):
             problems.append((fid, 'libelle'))
         if fid not in aide5631.articles('fr'):

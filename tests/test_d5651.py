@@ -553,7 +553,10 @@ class Page(t51.Web):
         self.assertIn('À décider / À relire', today)
         # 5.6.64 : la tenue des fiches n'encombre plus Aujourd'hui ; résumée en bas de la file, traitée depuis le dossier
         self.assertNotIn('information(s) proposée(s) à examiner', today)
-        self.assertIn('point(s) de fiches de dossiers', today)
+        self.assertIn('data-p101-fragment="file"', today)                      # 5.6.101 (lot P) : cartes de la file servies au dépli
+        file = json.loads(self.request('/api440/m56101/aujourdhui/fragment', query='nom=file', cookie=self.admin)['body'])['html']
+        self.assertNotIn('information(s) proposée(s) à examiner', file)
+        self.assertIn('point(s) de fiches de dossiers', file)
         dossier = self.request('/dossier', query='id=DOS-001', cookie=self.admin)['body']
         self.assertIn('information(s) proposée(s) à examiner', dossier)
 

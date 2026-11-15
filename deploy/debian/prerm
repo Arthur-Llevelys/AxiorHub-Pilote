@@ -12,7 +12,9 @@ import sys
 DRY = os.environ.get('AXIORHUB_DEB_DRY_RUN') == '1'
 UNITS = ('axiorhub-mail-agent.timer', 'axiorhub-mail-agent-cleanup.timer', 'axiorhub-mail-ui.service',
          'axiorhub-mail-desk-worker.service', 'axiorhub-mail-watch.service', 'axiorhub-mail-desk-worker@2.service',
-         'axiorhub-mail-agent.service')
+         'axiorhub-mail-agent.service',
+         # 5.6.101 (lot S) : veille de sécurité du serveur (minuteurs et service de demande)
+         'axiorhub-veille-securite-rapide.timer', 'axiorhub-veille-securite-complete.timer', 'axiorhub-veille-securite-demande.path')
 
 
 def main(argv):

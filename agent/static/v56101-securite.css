@@ -1,0 +1,57 @@
+/* AxiorHub 5.6.101 (lot S) — page « Sécurité du serveur » et bandeau d'Aujourd'hui.
+   Jetons Carbon (v5689-carbon-jetons.css) avec repli : clair et sombre suivent les jetons. Le niveau n'est jamais porté par la seule
+   couleur (libellé « Critique », « Important », « À surveiller » écrit) ; blocs de commandes défilants dans leur cadre, jamais la page. */
+.s101 { max-width: 72rem; min-width: 0; }
+.s101 h2 { margin-top: 1.75rem; }
+.s101-etat { border: 1px solid var(--cds-border-subtle, #c6c6c6); border-left-width: .5rem; padding: .75rem 1rem; margin: .75rem 0 1rem;
+  background: var(--cds-layer-01, #f4f4f4); color: var(--cds-text-primary, #161616); }
+.s101-vert { border-left-color: var(--cds-support-success, #24a148); }
+.s101-orange { border-left-color: var(--cds-support-warning, #b28600); }
+.s101-rouge { border-left-color: var(--cds-support-error, #da1e28); }
+.s101-gris { border-left-color: var(--cds-border-strong, #8d8d8d); }
+.s101-pastille { margin: 0 0 .25rem; font-size: 1.0625rem; }
+.s101-mini { font-size: .875rem; color: var(--cds-text-secondary, #525252); margin: .25rem 0; }
+.s101-note { color: var(--cds-text-secondary, #525252); }
+.s101-alerte { font-weight: 600; color: var(--cds-text-error, #a2191f); margin: .5rem 0 0; overflow-wrap: anywhere; }
+.s101-constat { border: 1px solid var(--cds-border-subtle, #c6c6c6); border-left-width: .375rem; padding: .75rem 1rem; margin: 0 0 1rem;
+  background: var(--cds-layer-01, #fff); min-width: 0; overflow-wrap: anywhere; }
+.s101-constat.s101-n-critique { border-left-color: var(--cds-support-error, #da1e28); }
+.s101-constat.s101-n-important { border-left-color: var(--cds-support-warning, #b28600); }
+.s101-constat.s101-n-surveiller { border-left-color: var(--cds-support-info, #0043ce); }
+.s101-constat h3 { margin: .25rem 0; font-size: 1.0625rem; }
+.s101-constat h4 { margin: .75rem 0 .25rem; font-size: .9375rem; }
+.s101-niveau { display: inline-block; padding: .0625rem .5rem; border-radius: 1rem; font-size: .8125rem; font-weight: 600;
+  border: 1px solid currentColor; }
+.s101-niveau.s101-n-critique { color: var(--cds-text-error, #a2191f); }
+.s101-niveau.s101-n-important { color: var(--cds-support-caution-major, #8e6a00); }
+.s101-niveau.s101-n-surveiller { color: var(--cds-link-primary, #0043ce); }
+.s101-id { font-size: .8125rem; color: var(--cds-text-secondary, #525252); }
+.s101-vu { margin: 0; padding-left: 1.25rem; }
+.s101-commandes { margin: .75rem 0; min-width: 0; }
+.s101-commandes-tete { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.s101-commandes pre { margin: .25rem 0; padding: .75rem; max-width: 100%; overflow-x: auto; white-space: pre; font-size: .8125rem;
+  background: var(--cds-layer-02, #e8e8e8); color: var(--cds-text-primary, #161616); border: 1px solid var(--cds-border-subtle, #c6c6c6); }
+.s101-commandes pre:focus-visible, .s101 textarea:focus-visible, .s101 button:focus-visible, .s101-bandeau a:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.s101-connu { display: grid; gap: .375rem; margin-top: .75rem; max-width: 40rem; }
+.s101-connu textarea, .s101-fiche textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.s101-statut { margin: .25rem 0 0; min-height: 1.25rem; }
+.s101-masque { opacity: .55; }
+.s101-fiche fieldset { border: 0; padding: 0; margin: 0 0 .75rem; }
+.s101-fiche ul { list-style: none; padding: 0; margin: .25rem 0; }
+.s101-table { max-width: 100%; overflow-x: auto; }
+.s101-table table { border-collapse: collapse; min-width: 32rem; }
+.s101-table th, .s101-table td { padding: .25rem .75rem; border-bottom: 1px solid var(--cds-border-subtle, #c6c6c6); text-align: left; }
+.s101-aide dt { font-weight: 600; margin-top: .5rem; }
+.s101-aide dd { margin: 0 0 0 1rem; }
+.s101 code { overflow-wrap: anywhere; }
+/* Bandeau d'Aujourd'hui (administrateurs) */
+.s101-bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0 0 1rem; padding: .75rem 1rem;
+  border: 1px solid var(--cds-support-error, #da1e28); border-left-width: .5rem; background: var(--cds-notification-background-error, #fff1f1);
+  color: var(--cds-text-primary, #161616); overflow-wrap: anywhere; }
+.s101-bandeau strong { color: var(--cds-text-error, #a2191f); }
+.s101-bandeau span { flex: 1 1 18rem; min-width: 0; }
+@media (max-width: 40rem) {
+  .s101-constat { padding: .625rem .75rem; }
+  .s101-bandeau .ax-btn { width: 100%; text-align: center; }
+}

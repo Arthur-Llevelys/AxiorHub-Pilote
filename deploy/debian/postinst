@@ -30,7 +30,9 @@ LAUNCHER = ROOT / 'usr/local/bin/axiorhub-mail'
 SYSTEMD = ROOT / 'etc/systemd/system'
 UNITS = ('axiorhub-mail-ui.service', 'axiorhub-mail-desk-worker.service', 'axiorhub-mail-watch.service',
          'axiorhub-mail-desk-worker@2.service', 'axiorhub-mail-agent.service')
-TIMERS = ('axiorhub-mail-agent.timer', 'axiorhub-mail-agent-cleanup.timer')
+TIMERS = ('axiorhub-mail-agent.timer', 'axiorhub-mail-agent-cleanup.timer',
+          # 5.6.101 (lot S) : veille de sécurité du serveur, arrêtée puis relancée autour de la bascule si elle tournait
+          'axiorhub-veille-securite-rapide.timer', 'axiorhub-veille-securite-complete.timer')
 JOURNAL = []
 
 
@@ -50,6 +52,21 @@ def is_active(unit):
     if DRY:
         return False
     return subprocess.run(['systemctl', 'is-active', '--quiet', unit]).returncode == 0
+
+
+def veille_securite():
+    """5.6.101 (lot S, décision D1) : collecteur en lecture seule et minuteurs de la veille de sécurité, installés et activés par défaut
+    sur le serveur (une désactivation par l'administrateur est respectée). Jamais bloquant pour l'installation d'AxiorHub."""
+    collecteur = BASE / 'current' / 'deploy' / 'securite' / 'veille-securite.py'
+    if not collecteur.is_file():
+        note('veille de sécurité absente de cette version')
+        return
+    commande = [sys.executable if DRY else 'python3', '-B', str(collecteur), '--installer-auto']
+    if DRY:
+        commande += ['--racine', str(ROOT), '--a-blanc']
+    fait = subprocess.run(commande, check=False, capture_output=True, text=True)
+    for ligne in (fait.stdout or '').splitlines():
+        note(ligne.replace('veille-securite : ', 'veille de sécurité : '))
 
 
 def extract():
@@ -97,6 +114,7 @@ def main(argv):
             note('installation neuve ' + VERSION)
             release = installer.provision_files(source, BASE, CONFIG_DIR, STATE, LAUNCHER, SYSTEMD, uid, gid, root_uid, root_gid)
             systemctl('daemon-reload')
+            veille_securite()
             note('Étape suivante : sudo axiorhub-mail configure, puis sudo python3 ' + str(release / 'install-interface.py')
                  + ', enfin sudo systemctl enable --now axiorhub-mail-agent.timer axiorhub-mail-agent-cleanup.timer')
         elif state == 'upgrade':
@@ -119,6 +137,7 @@ def main(argv):
             helper = BASE / 'current' / 'miseajour.py'
             if not DRY and helper.is_file():
                 subprocess.run(['python3', '-B', str(helper), '--installer-auto'], check=False)
+            veille_securite()
             note('Puis : sudo python3 ' + str(BASE / 'current' / 'install-interface.py')
                  + ' (lien de configuration, unités, environnement de l’interface), et sudo python3 '
                  + str(BASE / 'current' / 'manage.py') + ' readiness')

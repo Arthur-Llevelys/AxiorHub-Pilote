@@ -1171,16 +1171,19 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
     when = '%s %d %s %d' % (days[now.weekday()].capitalize(), now.day, months[now.month - 1], now.year)
     header = header_html(desk).replace('href="diagnostic"', 'href="%s"' % e(prefix + '/diagnostic', quote=True))
     matin = _matin5688(desk, prefix, owner)
-    routines = routines_html(desk, prefix, owner)
-    if not matin:                  # 5.6.89 (B12) : pas de lien vers une carte absente
-        routines = routines.replace(LIEN_MATIN, '')
     if _accueil5689(desk):        # 5.6.89 (§ 12) : mêmes morceaux, nouvelle disposition ; un incident rend l'ancienne page
         try:                      # 5.6.96 (U06) : rendue d'abord, sans construire l'ancienne page ; seuls les blocs affichés sont calculés
+            # 5.6.101 (lot P, P01) : formulaires des routines et comptes rendus du briefing chargés à l'ouverture (mêmes fonctions, mêmes droits)
+            from .aujourdhui56101 import attente
             return _page5689(desk, prefix, owner, when, header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix),
-                             routines_bar_html(desk, prefix, {'owner': owner}, compact=True), matin, routines, queue)
+                             routines_bar_html(desk, prefix, {'owner': owner}, compact=True, formulaires_differes=True), matin,
+                             '<h2 class="c530-sr" id="c530-t-routines">Comptes rendus des routines</h2>' + attente('briefing', prefix), queue)
         except Exception as ex:   # noqa: BLE001 — la page Aujourd'hui s'affiche toujours
             import logging
             logging.getLogger(__name__).exception('accueil 5.6.89 : %s', ex)
+    routines = routines_html(desk, prefix, owner)
+    if not matin:                  # 5.6.89 (B12) : pas de lien vers une carte absente
+        routines = routines.replace(LIEN_MATIN, '')
     options = ''.join('<option value="%s">%s</option>' % (e(mid, quote=True), e(label)) for mid, label in sorted(_labels(desk).items(), key=lambda kv: fold(kv[1])))
     html = ('<div class="c530" id="c530" data-prefix="%s">'
             '<header class="c530-top"><div><p class="c530-date">%s</p><h1>Aujourd’hui</h1></div><div class="c530-statusbar" id="c530-header">%s</div></header>%s'
@@ -1197,7 +1200,7 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
             '<div class="c5656-wide c5662-reprise">__REPRISE5657__</div><!--/b88:reprise--><!--/t88-bas-->'
             '<!--t88-panneau--><p class="c530-note"><a href="%s">Vue « essentiel du jour » (5.2)</a> · <a href="%s">Ancien cockpit</a></p>'
             '%s</div>') % (
-        e(prefix, quote=True), e(when), header, _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix) + routines_bar_html(desk, prefix, {'owner': owner}) + matin, routines, style_html(desk, prefix),
+        e(prefix, quote=True), e(when), header, _securite56101(desk, prefix, owner) + _banner5672(desk, prefix) + _banner5668(desk, prefix, owner=owner) + _banner5688(desk, prefix) + routines_bar_html(desk, prefix, {'owner': owner}) + matin, routines, style_html(desk, prefix),
         COMPOSEUR % (thread_html(desk, prefix), options), '',
         feed_html(desk, prefix), day_html(desk, prefix),
         e(prefix + '/aujourdhui?vue=essentiel'), e(prefix + '/aujourdhui?vue=cockpit'), TIROIR)
@@ -1224,6 +1227,13 @@ def page(desk, prefix, csrf='', owner='cabinet', queue=''):
         actuellement = ''
     html = html.replace('__VEILLE5632__', veille).replace('__FILE5656__', queue or '').replace('__REPRISE5657__', reprise).replace('__ACTUELLEMENT5695__', actuellement)
     return _personnel5688(desk, prefix, html, owner) + panel_html(desk, prefix)
+
+
+def _securite56101(desk, prefix, owner):
+    """5.6.101 (lot P) : bandeau de sécurité du serveur (lot S) aussi sur l'ancienne disposition, sous l'en-tête."""
+    from .aujourdhui56101 import bandeau_securite
+    from .i18n5631 import role
+    return bandeau_securite(desk, prefix, owner, role())
 
 
 def _accueil5689(desk):
@@ -1253,16 +1263,21 @@ def _page5689(desk, prefix, owner, when, header, bandeaux, barre, matin, routine
     hidden = viewer_hidden() or frozenset()
     prefs = tableau5688.charger(desk, owner)
     masques, fermes = set(prefs['masques']), plis_fermes(desk, owner)
+    # 5.6.101 (lot P, P02) : avec la nouvelle présentation et l'ordre par défaut, « Ma journée » est construite par le rang (agenda lu avec les
+    # droits de la personne) : la version de la colonne n'est plus calculée pour rien (repère vide, invisible, si le rang échouait)
+    from .accueil56100 import nouvelle
+    rang_journee = nouvelle(desk, owner) and list(prefs['ordre']) == list(tableau5688.IDS)
 
     def reprise():
         r = _reprise5689(desk, owner, prefix)
         return ('<div class="c5656-wide c5662-reprise">%s</div>' % r) if r else ''
     constructeurs = (
         ('routines', lambda: accueil5689.routines_bloc(barre, routines, accueil5689.resume_briefing(desk))),
-        ('style', lambda: '<section class="c530-card" id="c530-style" aria-labelledby="c530-t-style">%s</section>' % style_html(desk, prefix)),
+        # 5.6.101 (lot P, P01) : « Style du cabinet » est replié (``accueil5689.page``) : son contenu est chargé à l'ouverture du pli
+        ('style', lambda: '<section class="c530-card" id="c530-style" aria-label="Style du cabinet">%s</section>' % _attente56101('style', prefix)),
         ('file', lambda: '<div class="c5662-file" id="c5656-file">%s</div>' % (queue or '')),
         ('activite', lambda: '<section class="c530-card" id="c530-feed" aria-labelledby="c530-t-agent">%s</section>' % feed_html(desk, prefix)),
-        ('journee', lambda: '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section>' % day_html(desk, prefix)),
+        ('journee', lambda: '<!--p101:journee-->' if rang_journee else '<section class="c530-card" id="c530-day" aria-labelledby="c530-t-day">%s</section>' % day_html(desk, prefix)),
         ('veille', lambda: '<section class="c530-card c5656-wide" id="c5632-veille" aria-labelledby="c5632-t-veille">%s</section>' % veille_card(desk, prefix, owner)),
         ('reprise', reprise), ('societes', lambda: crm5688.today_html(desk, prefix)), ('memoire', lambda: memoire5688.panel_html(desk, owner, '', hidden)))
     blocs = {}
@@ -1271,6 +1286,11 @@ def _page5689(desk, prefix, owner, when, header, bandeaux, barre, matin, routine
             continue
         blocs[bloc] = _differe5696(bloc) if bloc in DIFFERES and bloc in fermes else construire()
     return accueil5689.page(desk, prefix, owner, {'date': when, 'entete': header, 'bandeaux': bandeaux, 'matin': matin, 'blocs': blocs, 'composeur': COMPOSEUR % (thread_html(desk, prefix), ''), 'tiroir': TIROIR})
+
+
+def _attente56101(nom, prefix):
+    from .aujourdhui56101 import attente
+    return attente(nom, prefix)
 
 
 def _reprise5689(desk, owner, prefix):

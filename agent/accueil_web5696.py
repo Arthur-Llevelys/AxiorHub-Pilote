@@ -26,10 +26,11 @@ from . import meteo5696
 from .common import Stop
 
 ROLES = ('administrateur', 'avocat', 'assistant')
-LECTURE = ('accueil/meteo', 'accueil/action', 'accueil/rang')
+LECTURE = ('accueil/meteo', 'accueil/action', 'accueil/rang', 'accueil/office', 'accueil/courriel')   # 5.6.101 (lot V) : cadre de l'éditeur, courriel isolé
 ECRITURE = ('accueil/options',)
 REGLAGE = ('accueil/reglage/tester', 'accueil/reglage/lieux', 'accueil/reglage/lieu', 'accueil/reglage/activer', 'accueil/reglage/effacer')   # administrateur
 NATURES = ('reponse', 'echeance', 'document')        # I02 : table fermée des détails ouvrables en fenêtre flottante
+NATURES = NATURES + ('gmail', 'note_ia', 'audience', 'file')   # 5.6.101 (lot V) : volet de relecture (``volet56101.NATURES``)
 PREMIERES = 3                                         # I01 : actions visibles dans le rang, le reste dans « Voir la suite »
 A_VERIFIER = ('a_confirmer', 'a_completer')           # échéance tirée d'une pièce, pas encore validée
 CONFIRMEES = ('confirmee', 'manuel')
@@ -82,7 +83,7 @@ def salutation(desk, owner, maintenant=None):
 def _messages():
     """Gabarits du bandeau et libellés de la carte pour le script (donnée JSON, jamais exécutée)."""
     from .i18n5631 import catalog, current, t
-    cles = [k for k in catalog('fr') if k.startswith(('f96.formule.', 'f96.meteo.', 'f96.carte.', 'f96.fenetre.', 'f96.reglage.', 'f96.rang.', 'f96.erreur.', 'f96.options.')) or k in ('f96.salut', 'f96.phrase', 'f96.heure')]
+    cles = [k for k in catalog('fr') if k.startswith(('f96.formule.', 'f96.meteo.', 'f96.carte.', 'f96.fenetre.', 'f96.reglage.', 'f96.rang.', 'f96.erreur.', 'f96.options.', 'f96.volet.')) or k in ('f96.salut', 'f96.phrase', 'f96.heure')]
     donnees = {k[4:]: t(k, lang=current()) for k in cles}
     return json.dumps(donnees, ensure_ascii=False).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
 
@@ -234,6 +235,11 @@ def actions_file(desk, prefix, owner, role, hidden):
             nature, cle, bouton = 'reponse', objet.split(':', 1)[1], T('bouton.reponse')
         elif trouve:
             nature, cle, bouton = 'document', trouve.group(1), T('bouton.document')
+        elif objet.startswith('delta56100:'):            # 5.6.101 (lot V) : note de l'IA, ouverte dans le volet par son identifiant « À relire »
+            from .relecture56101 import id_note
+            nature, cle = 'note_ia', id_note(objet.split(':', 1)[1])
+        elif re.fullmatch(r'[0-9a-f]{20}', str(it.get('key') or '')):   # 5.6.101 (lot V) : tout autre élément de la file, par sa clé
+            nature, cle = 'file', str(it['key'])
         decider = it.get('class') in file5651.FILTERS['decider']
         out.append({'nature': nature, 'cle': cle, 'dossier': it.get('matter_name') or '', 'objet': file5657.titre_lisible(it.get('title') or ''), 'href': it.get('href') or prefix + '/aujourdhui',
                     'etat': T('ligne.a_decider') if decider else T('ligne.a_relire'), 'bouton': bouton,
@@ -337,7 +343,8 @@ def _fragment_document(env, desk, auth, prefix, cle, owner, role):
         titre, corps = lw._detail_page(desk, env, auth, prefix, cle, {'return_to': prefix + '/aujourdhui'}, _capture)
     except Stop as ex:
         code = str(ex).split(':')[0]
-        raise Stop('dossier_reserve' if code in ('dossier_reserve', 'acces_refuse', 'droit_insuffisant') or lw.STATUS.get(code, '').startswith('403') else 'introuvable') from None
+        # 5.6.101 (lot V) : réservé ou interdit = absent, même 404 neutre (R04) ; contrôle en panne : 503
+        raise Stop('controle_indisponible' if code == 'controle_indisponible' else 'introuvable') from None
     return {'titre': titre, 'corps': corps, 'page': prefix + '/livrables/' + cle}
 
 
@@ -406,8 +413,15 @@ FRAGMENTS = {'reponse': _fragment_reponse, 'echeance': _fragment_echeance, 'docu
 def fragment(env, desk, auth, prefix, nature, cle, owner, role):
     if nature not in NATURES:
         raise Stop('introuvable')
-    out = FRAGMENTS[nature](env, desk, auth, prefix, str(cle or '')[:120], owner, role)
-    return {'nature': nature, 'titre': out['titre'], 'html': out['corps'], 'page': out['page']}
+    from . import volet56101       # 5.6.101 (lot V) : natures du volet et compléments (contenu produit, barre de décision, cadre de l'éditeur)
+    cle = str(cle or '')[:160]
+    if nature in volet56101.NATURES:
+        out = volet56101.fragment(env, desk, auth, prefix, nature, cle, owner, role)
+    else:
+        out = FRAGMENTS[nature](env, desk, auth, prefix, cle[:120], owner, role)
+    res = {'nature': nature, 'titre': out['titre'], 'html': out['corps'], 'page': out['page']}
+    res.update(volet56101.complements(env, desk, auth, prefix, nature, cle, owner, role, out))
+    return res
 
 
 # ------------------------------------------------------------------------------------------------ routes
@@ -442,6 +456,14 @@ def _route(env, desk, auth, prefix, name, args, method):
     if method == 'GET':
         if route == 'accueil/action':
             return json_out(fragment(env, desk, auth, prefix, str(args.get('nature') or ''), str(args.get('cle') or ''), owner, role))
+        if route == 'accueil/office':          # 5.6.101 (lot V) : configuration de l'éditeur du cadre, après le contrôle du document
+            from .volet56101 import config_office
+            sortie = json_out(config_office(env, desk, auth, prefix, str(args.get('cle') or ''), str(args.get('mode') or 'view'), owner, role))
+            sortie['headers'] = [('Cache-Control', 'private, no-store')]       # jetons signés de l'éditeur : jamais en cache
+            return sortie
+        if route == 'accueil/courriel':        # 5.6.101 (lot V) : courriel à envoyer ou reçu, document isolé (cadre sans script)
+            from .volet56101 import courriel_cadre
+            return courriel_cadre(desk, prefix, str(args.get('id') or ''), str(args.get('quoi') or ''), str(args.get('format') or 'html'), owner, role)
         if route == 'accueil/rang':
             lignes, total, complet = lignes_html(desk, prefix, owner, role)
             return json_out({'html': lignes, 'total': total, 'complet': complet})

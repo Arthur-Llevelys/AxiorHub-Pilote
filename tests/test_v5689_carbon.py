@@ -353,7 +353,8 @@ class Drapeaux(Base):
         self.assertEqual(self.desk.db.execute('SELECT COUNT(*) FROM prepared_items5689').fetchone()[0], avant)
         self.assertEqual(self.desk.settings('decisions5614:deferred'), {'m:1': '2999-01-01'})
         dr.enregistrer(self.desk, {'theme': True, 'accueil': True})     # retour : tout est là
-        self.assertIn('Conclusions pour ZORVAL', self.page())
+        self.assertIn('data-p101-fragment="travail"', self.page())          # 5.6.101 (lot P) : cartes servies après l'affichage
+        self.assertIn('Conclusions pour ZORVAL', json.loads(self.page('/api440/m56101/aujourdhui/fragment', 'nom=travail'))['html'])
 
     def test_OP04_accueil_et_theme_sont_independants(self):
         dr.enregistrer(self.desk, {'theme': False, 'accueil': True})
@@ -391,11 +392,14 @@ class Accueil(Base):
         debut = html.index('<dialog class="ui89-panneau" id="a89-rapports"')
         hors_panneau = html[:debut] + html[html.index('</dialog>', debut):]
         self.assertLessEqual(hors_panneau.count('Point du jour sur les dossiers'), 8)
-        self.assertIn('Assignation KERVILAC', html)
+        self.assertIn('data-p101-fragment="travail"', html)                  # 5.6.101 (lot P) : cartes de Travail préparé servies après l'affichage
+        self.assertIn('Assignation KERVILAC', json.loads(self.page('/api440/m56101/aujourdhui/fragment', 'nom=travail'))['html'])
         # 5.6.96 (I01, décision du cabinet) : la file « À décider / À relire » monte dans le rang sous « Actuellement », avant Travail préparé et les routines
         self.assertLess(html.index('id="c5656-file"'), html.index('id="a89-travail"'))
         panneau = html[html.index('<dialog class="ui89-panneau" id="a89-rapports"'):]
-        self.assertIn('Point du jour sur les dossiers', panneau[:panneau.index('</dialog>')])     # compte rendu dans un panneau fermé
+        self.assertIn('data-p101-fragment="briefing"', panneau[:panneau.index('</dialog>')])     # compte rendu dans un panneau fermé (5.6.101 : servi à son ouverture)
+        with patch.object(routines520, 'latest', lambda desk, kind: {'id': 'r1', 'created': self.desk.now(), 'text': corps, 'notes': []} if kind == 'briefing' else None):
+            self.assertIn('Point du jour sur les dossiers', json.loads(self.page('/api440/m56101/aujourdhui/fragment', 'nom=briefing'))['html'])
         self.assertNotRegex(html, r'<dialog[^>]* open')
 
     def test_UX05_resume_court_du_briefing_sans_inventer(self):
@@ -514,10 +518,12 @@ class Accueil(Base):
 
     def test_B12_lien_du_briefing_vise_l_unique_carte_du_matin(self):
         html = self.page()
-        self.assertIn('href="#t88-matin"', html)
         self.assertEqual(html.count('id="t88-matin"'), 1)
         panneau = html[html.index('<dialog class="ui89-panneau" id="a89-rapports"'):]
         self.assertNotIn('id="t88-matin"', panneau[:panneau.index('</dialog>')])     # la carte n'est pas recopiée dans le panneau
+        briefing = json.loads(self.page('/api440/m56101/aujourdhui/fragment', 'nom=briefing'))['html']     # 5.6.101 (lot P) : servi à l'ouverture du panneau
+        self.assertIn('href="#t88-matin"', briefing)
+        self.assertNotIn('id="t88-matin"', briefing)
 
     def test_UX05_incidents_techniques_separes_du_travail(self):
         from agent import reversibilite5688

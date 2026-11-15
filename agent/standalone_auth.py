@@ -94,6 +94,15 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56100/ia/'):   # 5.6.100 (lot G) : décision sur une note IA (valideurs ; le service relit droits, révision et clé)
         from .delta56100 import allowed as allowed56100g
         return allowed56100g(role, method, api[len('m56100/'):])
+    if api.startswith('m56101/securite/'):   # 5.6.101 (lot S) : veille de sécurité du serveur (administrateur seulement, liste fermée)
+        from .securite_web56101 import allowed as allowed56101s
+        return allowed56101s(role, method, api)
+    if api.startswith('m56101/chrono/'):   # 5.6.101 (lot M) : mesure du temps (réglage, mesure, suppression), chaque compte pour lui seul
+        from .chrono56101 import allowed as allowed56101m
+        return allowed56101m(role, api[len('m56101/chrono/'):])
+    if api == 'm56101/usage' or api.startswith('m56101/usage/'):   # 5.6.101 (lot F, F05) : ouverture d'une fonction (tous) ; réglage et effacement du compteur (administrateur)
+        from .usage56101 import autoriser_route as allowed56101f
+        return allowed56101f(role, method, api)
     if api.startswith('m56100f/'):   # 5.6.100 (lot F) : présentation de l'interface (cabinet : administrateur ; son compte : tous)
         from .reactivite56100 import allowed as allowed56100f
         return allowed56100f(role, api[len('m56100f/'):])

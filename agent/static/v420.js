@@ -1,4 +1,4 @@
-/* AxiorHub 4.2 (5.6.88 : palette unique Ctrl/Cmd+K, résultats groupés calculés sur le serveur) : palette de commandes et conservation des brouillons de formulaires. */
+/* AxiorHub 4.2 (5.6.88 : palette unique Ctrl/Cmd+K, résultats groupés calculés sur le serveur ; 5.6.101 : « Fonction (famille) ») : palette de commandes et conservation des brouillons de formulaires. */
 (() => {
   'use strict';
   const prefix=document.querySelector('meta[name="axiorhub-prefix"]')?.content||'';
@@ -7,12 +7,12 @@
     ['Courriels à relire','Relire et corriger les brouillons','/courriels'],
     ['Dossiers','Ouvrir les dossiers','/dossiers'],
     ['Agenda et tâches','Agenda, tâches, organiser la semaine','/planning'],
-    ['Échéances','Délais de procédure','/echeances'],
+    ['Échéances','Délais de procédure, prescription (famille Échéances)','/echeances'],
     ['Produire','Demander un acte, une note, un courrier','/production'],
-    ['Pièces et bordereaux','Bordereau, pièces numérotées et tamponnées','/pieces'],
-    ['Cabinet','Temps, rendez-vous, conflits, prescription','/cabinet'],
-    ['Pourquoi rien n’est produit ?','Services, erreurs, dossiers bloqués','/diagnostic'],
-    ['État du système','Diagnostiquer et relancer','/etat-systeme'],
+    ['Pièces et bordereaux (Pièces et contentieux)','Bordereau, pièces numérotées et tamponnées','/pieces'],
+    ['Gestion du cabinet','Pilotage, contribution, conflits (famille Gestion du cabinet)','/cabinet'],
+    ['Pourquoi rien n’est produit ? (État et dépannage)','Services, erreurs, dossiers bloqués','/diagnostic'],
+    ['État du système (État et dépannage)','Diagnostiquer et relancer','/etat-systeme'],
     ['Paramètres','Configurer AxiorHub','/parametres']
   ];
   const palette=document.createElement('div');palette.id='ws-command-palette';palette.hidden=true;

@@ -53,7 +53,8 @@ def fuseau(desk):
 
 
 def _table(desk, nom):
-    return bool(desk.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (nom,)).fetchone())
+    from .affichage5696 import table_presente     # 5.6.101 (lot P) : liste des tables lue une fois par affichage
+    return table_presente(desk.db, nom)
 
 
 def _jour(jour, aujourdhui):
@@ -136,7 +137,7 @@ def _audiences(desk, prefix, hidden, labels, debut_utc, fin_utc, z, aujourdhui):
         quand = _jour(debut.date(), aujourdhui) + ('' if r['all_day'] else ' à ' + _heure(debut))
         nom = TYPES.get(r['type_audience'], 'Audience')
         objet = ' — '.join(x for x in (r['title'] or nom, r['juridiction']) if x)
-        out.append({'nature': '', 'cle': r['id'], 'dossier': labels.get(r['matter'], r['matter'] or ''), 'objet': objet, 'etat': 'Vérifiée',
+        out.append({'nature': 'audience', 'cle': r['id'], 'dossier': labels.get(r['matter'], r['matter'] or ''), 'objet': objet, 'etat': 'Vérifiée',   # 5.6.101 (lot V) : volet
                     'bouton': 'Voir l’audience', 'href': prefix + '/audiences', 'categorie': 'evenement', 'raison': '%s %s' % (nom, quand),
                     'tri': (debut.astimezone(timezone.utc).isoformat(), r['id'])})
     return out
@@ -294,7 +295,7 @@ def vue_file_html(desk, prefix, owner, role, filtre='tout', page=1):
             '<p class="f100-historique"><a href="%s">Cartes détaillées de la file (filtres historiques)</a></p></section>'
             '<script type="application/json" data-f96-messages>%s</script><script defer src="%s"></script>%s</div>') % (
         attrs, e(prefix + '/aujourdhui', quote=True), onglets, panne, corps, pager, e(prefix + '/aujourdhui?file=decider', quote=True), acc._messages(),
-        e(prefix + '/static/v5696-accueil.js', quote=True), lecteur_script(prefix))
+        e(prefix + '/static/v5696-accueil.js', quote=True), lecteur_script(prefix) + _volet_js(prefix))
 
 
 # ------------------------------------------------------------------------------------------------ Ma journée
@@ -350,6 +351,12 @@ def synchro_html(desk, z, aujourdhui):
 
 
 # ------------------------------------------------------------------------------------------------ lecteur commun (lot B)
+def _volet_js(prefix):
+    """5.6.101 (lot V) : volet de relecture (barre de décision, cadre de l'éditeur) ; la vue « Voir la suite » ouvre le même volet."""
+    from .volet56101 import script_html
+    return script_html(prefix)
+
+
 def lecteur_script(prefix):
     """Script du lecteur commun (lot B), chargé seulement s'il est livré : sans lui, la fenêtre garde son contenu historique."""
     from pathlib import Path

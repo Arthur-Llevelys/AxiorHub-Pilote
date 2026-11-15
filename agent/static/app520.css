@@ -4674,3 +4674,205 @@ html[data-theme="dark"] .r99-manque, body.dark .r99-manque { color: #fca5a5; }
 .bx5625-panel > .bx5625-text { max-block-size: none; overflow: visible; font-size: 1rem; line-height: 1.5; }
 .bx5625-classer-zone { margin: .75rem 0; }
 .bx5625-classer:not([hidden]) { display: grid; gap: .75rem; margin-block-start: .5rem; }
+
+/* 5.6.101 (lot R) : « À relire » unique — Gmail, documents, notes de l'IA ; panneaux de motif et de correction ; avant/après écrits. */
+.ax100-badge.ax100-document { background: var(--cds-tag-background-purple, #e8daff); color: var(--cds-tag-color-purple, #491d8b); }
+.ax100-badge.ax100-note_ia { background: var(--cds-tag-background-green, #a7f0ba); color: var(--cds-tag-color-green, #044317); }
+.ax101-sous-filtres a { font-size: .875rem; padding: .2rem .6rem; }
+.ax101-alerte { flex: 1 0 100%; margin: 0; padding: .4rem .6rem; border-inline-start: .25rem solid var(--cds-support-warning, #f1c21b);
+  background: var(--cds-notification-background-warning, #fcf4d6); color: var(--cds-text-primary, #161616); font-size: .9375rem; }
+.ax101-panneau:not([hidden]) { flex: 1 0 100%; display: grid; gap: .35rem; padding: .5rem; min-inline-size: 0;
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #d0d4da)); border-radius: .25rem; background: var(--cds-layer-02, var(--ax-surface-2, #f4f4f4)); }
+.ax101-panneau label { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax101-panneau textarea, .ax101-panneau input { box-sizing: border-box; inline-size: 100%; min-inline-size: 0; font: inherit; padding: .4rem;
+  color: var(--cds-text-primary, inherit); background: var(--cds-field, var(--ax-surface, #fff)); border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.ax101-panneau .ax-btn { justify-self: start; }
+.ax101-note { margin: 0; font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax101-propositions { margin: 0; padding-inline-start: 1.25rem; display: grid; gap: .75rem; }
+.ax101-proposition h3 { margin: 0 0 .25rem; font-size: 1rem; }
+.ax101-avant-apres { margin: .25rem 0; padding: .4rem .6rem; border-inline-start: .2rem solid var(--cds-border-strong, #8d8d8d); overflow-wrap: anywhere; }
+.ax101-avant-apres p { margin: .15rem 0; }
+.ax101-avant-apres del { text-decoration: line-through; color: var(--cds-text-error, #a2191f); }
+.ax101-avant-apres ins { text-decoration: underline; color: var(--cds-text-primary, inherit); background: var(--cds-highlight, #e5f6ff); }
+.ax101-proposition-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-start: .35rem; }
+@media (max-width: 64rem) { .ax101-proposition-actions .ax-btn { flex: 1 1 auto; min-block-size: 2.75rem; } }
+/* 390 px : un en-tête chargé (filtres par type et par source, panne signalée) défile seul et laisse la liste accessible. */
+@media (max-width: 64rem) {
+  .ax100-tete { max-block-size: 40dvh; overflow-y: auto; }
+  .ax101-alerte { font-size: .875rem; }
+}
+/* ==== v56101-familles.css ==== */
+/* AxiorHub 5.6.101 (lot F) : barres d'onglets des familles, panneau « Toutes les fonctions » par familles, guide par familles,
+   écran « Fonctions peu utilisées ». Aucune largeur fixe : rien ne défile horizontalement à 390 px ni à 200 %. */
+.f101-onglets{display:flex;flex-wrap:wrap;gap:8px;max-width:100%;margin:12px 0 14px}
+.f101-onglets a{max-width:100%;overflow-wrap:anywhere;text-decoration:none}
+.f101-onglets a:focus-visible{outline:3px solid #7b55cf;outline-offset:2px}
+.f5631-panel li[data-f101-famille] a small{overflow-wrap:anywhere}
+.h5631-section{margin:18px 0 8px}
+.h5631-section>h3{margin:0 0 6px;font-size:1.05rem}
+.h5631-section .h5631-group h4{margin:10px 0 4px;font-size:.98rem}
+.h5631-famille{margin:6px 0 14px;padding:8px 12px;border-left:4px solid var(--g31-accent,#1f4e9c);background:var(--g31-soft,rgba(31,78,156,.06))}
+.h5631-famille ul{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 14px}
+.h5631-famille a[aria-current=page]{font-weight:700}
+.f101-usage{max-width:1000px}
+.f101-usage .f101-actions{display:flex;flex-wrap:wrap;gap:8px}
+.f101-usage .f101-note,.f101-usage .f101-alerte{padding:8px 12px;border-left:4px solid var(--g31-warn,#8a5a00);background:var(--g31-soft,rgba(138,90,0,.08))}
+.f101-table{position:relative;max-width:100%;overflow-x:auto}
+.f101-table table{width:100%;border-collapse:collapse}
+.f101-table th,.f101-table td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--ws-border,#d6dde3);overflow-wrap:anywhere}
+@media(max-width:600px){.f101-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .f101-table tr{display:block;padding:6px 0;border-bottom:1px solid var(--ws-border,#d6dde3)}.f101-table th,.f101-table td{display:block;border:0;padding:2px 8px}}
+/* ==== v56101-securite.css ==== */
+/* AxiorHub 5.6.101 (lot S) — page « Sécurité du serveur » et bandeau d'Aujourd'hui.
+   Jetons Carbon (v5689-carbon-jetons.css) avec repli : clair et sombre suivent les jetons. Le niveau n'est jamais porté par la seule
+   couleur (libellé « Critique », « Important », « À surveiller » écrit) ; blocs de commandes défilants dans leur cadre, jamais la page. */
+.s101 { max-width: 72rem; min-width: 0; }
+.s101 h2 { margin-top: 1.75rem; }
+.s101-etat { border: 1px solid var(--cds-border-subtle, #c6c6c6); border-left-width: .5rem; padding: .75rem 1rem; margin: .75rem 0 1rem;
+  background: var(--cds-layer-01, #f4f4f4); color: var(--cds-text-primary, #161616); }
+.s101-vert { border-left-color: var(--cds-support-success, #24a148); }
+.s101-orange { border-left-color: var(--cds-support-warning, #b28600); }
+.s101-rouge { border-left-color: var(--cds-support-error, #da1e28); }
+.s101-gris { border-left-color: var(--cds-border-strong, #8d8d8d); }
+.s101-pastille { margin: 0 0 .25rem; font-size: 1.0625rem; }
+.s101-mini { font-size: .875rem; color: var(--cds-text-secondary, #525252); margin: .25rem 0; }
+.s101-note { color: var(--cds-text-secondary, #525252); }
+.s101-alerte { font-weight: 600; color: var(--cds-text-error, #a2191f); margin: .5rem 0 0; overflow-wrap: anywhere; }
+.s101-constat { border: 1px solid var(--cds-border-subtle, #c6c6c6); border-left-width: .375rem; padding: .75rem 1rem; margin: 0 0 1rem;
+  background: var(--cds-layer-01, #fff); min-width: 0; overflow-wrap: anywhere; }
+.s101-constat.s101-n-critique { border-left-color: var(--cds-support-error, #da1e28); }
+.s101-constat.s101-n-important { border-left-color: var(--cds-support-warning, #b28600); }
+.s101-constat.s101-n-surveiller { border-left-color: var(--cds-support-info, #0043ce); }
+.s101-constat h3 { margin: .25rem 0; font-size: 1.0625rem; }
+.s101-constat h4 { margin: .75rem 0 .25rem; font-size: .9375rem; }
+.s101-niveau { display: inline-block; padding: .0625rem .5rem; border-radius: 1rem; font-size: .8125rem; font-weight: 600;
+  border: 1px solid currentColor; }
+.s101-niveau.s101-n-critique { color: var(--cds-text-error, #a2191f); }
+.s101-niveau.s101-n-important { color: var(--cds-support-caution-major, #8e6a00); }
+.s101-niveau.s101-n-surveiller { color: var(--cds-link-primary, #0043ce); }
+.s101-id { font-size: .8125rem; color: var(--cds-text-secondary, #525252); }
+.s101-vu { margin: 0; padding-left: 1.25rem; }
+.s101-commandes { margin: .75rem 0; min-width: 0; }
+.s101-commandes-tete { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.s101-commandes pre { margin: .25rem 0; padding: .75rem; max-width: 100%; overflow-x: auto; white-space: pre; font-size: .8125rem;
+  background: var(--cds-layer-02, #e8e8e8); color: var(--cds-text-primary, #161616); border: 1px solid var(--cds-border-subtle, #c6c6c6); }
+.s101-commandes pre:focus-visible, .s101 textarea:focus-visible, .s101 button:focus-visible, .s101-bandeau a:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.s101-connu { display: grid; gap: .375rem; margin-top: .75rem; max-width: 40rem; }
+.s101-connu textarea, .s101-fiche textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.s101-statut { margin: .25rem 0 0; min-height: 1.25rem; }
+.s101-masque { opacity: .55; }
+.s101-fiche fieldset { border: 0; padding: 0; margin: 0 0 .75rem; }
+.s101-fiche ul { list-style: none; padding: 0; margin: .25rem 0; }
+.s101-table { max-width: 100%; overflow-x: auto; }
+.s101-table table { border-collapse: collapse; min-width: 32rem; }
+.s101-table th, .s101-table td { padding: .25rem .75rem; border-bottom: 1px solid var(--cds-border-subtle, #c6c6c6); text-align: left; }
+.s101-aide dt { font-weight: 600; margin-top: .5rem; }
+.s101-aide dd { margin: 0 0 0 1rem; }
+.s101 code { overflow-wrap: anywhere; }
+/* Bandeau d'Aujourd'hui (administrateurs) */
+.s101-bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0 0 1rem; padding: .75rem 1rem;
+  border: 1px solid var(--cds-support-error, #da1e28); border-left-width: .5rem; background: var(--cds-notification-background-error, #fff1f1);
+  color: var(--cds-text-primary, #161616); overflow-wrap: anywhere; }
+.s101-bandeau strong { color: var(--cds-text-error, #a2191f); }
+.s101-bandeau span { flex: 1 1 18rem; min-width: 0; }
+@media (max-width: 40rem) {
+  .s101-constat { padding: .625rem .75rem; }
+  .s101-bandeau .ax-btn { width: 100%; text-align: center; }
+}
+/* ==== v56101-aujourdhui.css ==== */
+/* AxiorHub 5.6.101 (lot P) : attente d'un bloc différé d'Aujourd'hui (même allure que les blocs repliés de la 5.6.96). */
+.p101-attente { color: var(--cds-text-secondary, #525252); font-size: var(--ui-taille-petit, .875rem); margin: .5rem; overflow-wrap: anywhere; }
+.p101-attente a { color: var(--cds-link-primary, #0f62fe); }
+[data-p101-etat=panne] > .p101-attente { color: var(--cds-text-error, #da1e28); }
+/* ==== v56101-volet.css ==== */
+/* AxiorHub 5.6.101 (lot V) — volet de relecture d'Aujourd'hui : ancré à droite (fenêtre large) ou fenêtre flottante ; contenu proposé d'abord,
+   barre de quatre actions collée en bas (seul le contenu défile) ; commandes secondaires en petites icônes dans l'en-tête. Couleurs : jetons du thème. */
+
+/* ------------------------------------------------------------------ volet ancré à droite (non modal) */
+.f96-fenetre.v101-ancre { border-width: 0 0 0 1px; bottom: 0; box-shadow: -.25rem 0 1.25rem rgba(0, 0, 0, .18); height: 100dvh; inset: 0 0 0 auto; left: auto;
+  margin: 0; max-height: 100dvh; max-width: 100vw; position: fixed; right: 0; top: 0; width: clamp(28rem, 42vw, 52rem); z-index: 60; }
+.f96-fenetre.v101-ancre.f96-plein { width: 100vw; }
+body.v101-volet-ouvert #ws-main { padding-right: calc(clamp(28rem, 42vw, 52rem) + .5rem); }
+.f96-ligne.v101-ouverte, li.v101-ouverte { box-shadow: inset 3px 0 0 var(--cds-interactive, var(--cds-focus, #0f62fe)); }
+a[data-f96-action][aria-current="true"] { text-decoration: underline; text-underline-offset: .2em; }
+
+/* ------------------------------------------------------------------ en-tête : titre et dossier, une ligne de méta, petites icônes */
+.f96-fenetre .f96-fenetre-barre { align-items: center; flex-wrap: nowrap; gap: .5rem; padding: .5rem .75rem; }
+.f96-fenetre .f96-fenetre-tete { flex: 1 1 auto; min-width: 0; }
+.f96-fenetre .f96-fenetre-titre { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f96-fenetre .f96-fenetre-dossier { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f96-fenetre .f96-fenetre-commandes { align-items: center; flex-wrap: nowrap; gap: .125rem; }
+.f96-icone-btn { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 0; color: var(--cds-icon-primary, var(--cds-text-primary, #161616));
+  cursor: pointer; display: inline-flex; font-size: 1.05rem; height: 2rem; justify-content: center; line-height: 1; min-width: 2rem; padding: 0 .25rem; text-decoration: none; }
+.f96-icone-btn:hover { background: var(--cds-layer-hover-01, rgba(141, 141, 141, .16)); }
+.f96-icone-btn:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: -2px; }
+.f96-icone-btn:disabled { color: var(--cds-icon-disabled, #8d8d8d); cursor: default; }
+.f96-icone-btn[hidden] { display: none; }
+
+/* ------------------------------------------------------------------ contenu proposé (défile seul) */
+.v101-contenu { display: flex; flex-direction: column; gap: .5rem; }
+.v101-entetes { display: grid; gap: .125rem .75rem; grid-template-columns: max-content minmax(0, 1fr); margin: 0; }
+.v101-entetes > div { display: contents; }
+.v101-entetes dt { color: var(--cds-text-secondary, #525252); font-size: .875rem; }
+.v101-entetes dd { margin: 0; overflow-wrap: anywhere; }
+.v101-texte { line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+.v101-texte:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.v101-proposition { font-size: 1rem; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.v101-note, .v101-vide { color: var(--cds-text-secondary, #525252); font-size: .875rem; margin: 0; }
+.v101-format { align-items: center; align-self: flex-end; display: inline-flex; font-size: .8125rem; gap: .25rem; }
+.v101-lien { background: none; border: 0; color: var(--cds-link-primary, #0f62fe); cursor: pointer; font: inherit; padding: .125rem .25rem; text-decoration: underline; }
+.v101-lien[aria-pressed="true"] { color: var(--cds-text-primary, #161616); font-weight: 600; text-decoration: none; }
+.v101-lien:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 1px; }
+.v101-cadre-courriel { background: #fff; border: 1px solid var(--cds-border-subtle-01, #e0e0e0); display: block; height: max(14rem, calc(100dvh - 21rem)); width: 100%; }
+.v101-recu > summary { cursor: pointer; padding: .25rem 0; }
+.v101-recu .v101-cadre-courriel { height: max(12rem, calc(100dvh - 24rem)); }
+.v101-office { display: flex; flex-direction: column; gap: .25rem; }
+.v101-cadre-office { border: 1px solid var(--cds-border-subtle-01, #e0e0e0); display: block; height: max(18rem, calc(100dvh - 15rem)); width: 100%; }
+.v101-office-etat { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: 0; }
+.v101-office-etat:empty { display: none; }
+.v101-avis { border-left: 3px solid var(--cds-support-warning, #f1c21b); margin: 0 0 .5rem; padding: .25rem .5rem; }
+.v101-details > summary { color: var(--cds-text-secondary, #525252); cursor: pointer; margin-top: .75rem; }
+.v101-sources h3 { font-size: .875rem; margin: .75rem 0 .25rem; }
+.v101-sources ul { margin: 0; padding-left: 1.1rem; }
+.v101-carte { list-style: none; margin: .5rem 0 0; padding: 0; }
+.v101-edition textarea { box-sizing: border-box; font: inherit; line-height: 1.5; min-height: 16rem; width: 100%; }
+
+/* ------------------------------------------------------------------ barre de décision collée en bas */
+.v101-pied { background: var(--cds-layer-01, var(--ws-surface, #fff)); border-top: 1px solid var(--cds-border-subtle-01, #e0e0e0); display: flex; flex: none;
+  flex-direction: column; gap: .375rem; padding: .5rem .75rem; }
+.v101-pied[hidden] { display: none; }
+.v101-boutons { display: grid; gap: .5rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.v101-boutons[hidden] { display: none; }
+.v101-action { justify-content: center; min-width: 0; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.v101-action[aria-disabled="true"] { cursor: not-allowed; opacity: .55; }
+.v101-statut { font-size: .8125rem; margin: 0; min-height: 0; }
+.v101-statut:empty { display: none; }
+.v101-statut[data-erreur="1"] { color: var(--cds-text-error, #da1e28); font-weight: 600; }
+.v101-panneau[hidden] { display: none; }
+.v101-form { display: flex; flex-direction: column; gap: .375rem; }
+.v101-champ { display: flex; flex-direction: column; font-size: .875rem; gap: .125rem; }
+.v101-champ textarea, .v101-champ input, .v101-champ select { box-sizing: border-box; font: inherit; width: 100%; }
+.v101-form-boutons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.v101-question { margin: 0; }
+
+@media (max-width: 30rem) {
+  .v101-boutons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v101-cadre-courriel { height: max(12rem, calc(100dvh - 24rem)); }
+}
+@media (prefers-reduced-motion: reduce) { .f96-fenetre.v101-ancre { transition: none; } }
+@media print { .v101-pied { display: none !important; } }
+
+/* ------------------------------------------------------------------ page du cadre de l'éditeur (/documents/edit?volet=…) */
+html:has(.v101-cadre-corps), .v101-cadre-corps { height: 100%; margin: 0; }
+.v101-cadre-corps { background: #fff; display: flex; flex-direction: column; font: 14px/1.4 system-ui, sans-serif; }
+.v101-cadre-etat { color: #525252; font-size: 12px; margin: 0; padding: 2px 6px; }
+.v101-cadre-office { flex: 1 1 auto; min-height: 0; }
+.v101-cadre-office > #ax-office, .v101-cadre-office iframe { border: 0; height: 100%; width: 100%; }
+.v101-cadre-aide { padding: 8px; }
+
+/* ------------------------------------------------------------------ éléments flottants de la page : jamais sur le volet ancré */
+/* bouton rond de l'assistant (top 52 %) et barre « en direct » (ouverte ou repliée en pastille) tombaient sur les liens de la liste :
+   masqués tant que le volet est ancré, de retour à sa fermeture (Instruction couvre le besoin ; la pause de l'IA reste dans l'en-tête) */
+body.v101-volet-ouvert #ws-ai-launcher, body.v101-volet-ouvert #ws-ai-live, body.v101-volet-ouvert #ws-live-bar { display: none !important; }
+li[data-v101-traitee] { display: none !important; }     /* ligne décidée dans le volet : retirée de la liste affichée */

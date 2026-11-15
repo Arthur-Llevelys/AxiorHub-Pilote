@@ -48,6 +48,51 @@ def actif():
     return getattr(_chrono, 'valeurs', None) is not None
 
 
+def reglage_brut(db, cle):
+    """5.6.101 (lot P, P02) : valeur JSON brute d'un réglage (``Desk.settings``), ou ``None``. Pendant l'affichage d'une page (GET mesuré),
+    une clé lue sur une connexion n'est relue que si cette connexion a écrit depuis (``total_changes``) : chaque appelant décode sa propre
+    copie, rien de modifiable n'est partagé. Une action (POST), le travailleur ou un test hors requête lisent toujours la base."""
+    memo = getattr(_chrono, 'memo', None)
+    from .common import _TRACKED
+    if memo is None or getattr(_chrono, 'valeurs', None) is None or getattr(_TRACKED, 'mode', '') != 'read':
+        row = db.execute('SELECT value FROM settings WHERE key=?', (cle,)).fetchone()
+        return row[0] if row else None
+    vu = memo.get(('reglage', id(db), cle))
+    if vu is not None and vu[0] is db and vu[1] == db.total_changes:
+        return vu[2]
+    row = db.execute('SELECT value FROM settings WHERE key=?', (cle,)).fetchone()
+    memo[('reglage', id(db), cle)] = (db, db.total_changes, row[0] if row else None)   # la connexion est gardée : son identifiant ne resservira pas
+    return row[0] if row else None
+
+
+def une_fois(db, nom, calcul):
+    """5.6.101 (lot P, P02) : préparation de schéma (tables, colonnes, index) demandée plusieurs fois par le même affichage (GET) : faite une
+    fois par connexion et par page. Une action (POST), le travailleur ou un test hors requête la refont toujours."""
+    memo = getattr(_chrono, 'memo', None)
+    from .common import _TRACKED
+    if memo is None or getattr(_chrono, 'valeurs', None) is None or getattr(_TRACKED, 'mode', '') != 'read':
+        return calcul()
+    vu = memo.get(('une_fois', nom, id(db)))
+    if vu is not None and vu[0] is db:
+        return vu[1]
+    resultat = calcul()
+    memo[('une_fois', nom, id(db))] = (db, resultat)
+    return resultat
+
+
+def table_presente(db, nom):
+    """5.6.101 (lot P, P02) : la table existe-t-elle ? Pendant l'affichage d'une page (GET), la liste des tables est lue une fois par connexion.
+    Une table créée plus tard dans la même lecture est vide : la dire absente ne change rien à ce qui est affiché."""
+    memo = getattr(_chrono, 'memo', None)
+    from .common import _TRACKED
+    if memo is None or getattr(_chrono, 'valeurs', None) is None or getattr(_TRACKED, 'mode', '') != 'read':
+        return bool(db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (nom,)).fetchone())
+    vu = memo.get(('tables', id(db)))
+    if vu is None or vu[0] is not db:
+        vu = memo[('tables', id(db))] = (db, frozenset(r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")))
+    return nom in vu[1]
+
+
 def ajouter(nom, secondes):
     valeurs = getattr(_chrono, 'valeurs', None)
     if valeurs is not None and nom in NOMS:

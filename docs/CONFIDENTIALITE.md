@@ -52,6 +52,26 @@ Pour un courriel reçu, seules les phrases qui posent la question de droit parte
 document rédigé n'est transmis. Chaque recherche est journalisée (journal d'audit `juridique5649_recherche`). Les conditions
 d'utilisation de chaque fournisseur restent à vérifier par le cabinet.
 
+## Veille de sécurité du serveur (5.6.101)
+
+Traitement à inscrire au registre (finalité : sécurité du système d'information). Données : noms de comptes du serveur, lignes de
+commande tronquées à 200 caractères (mots de passe masqués), chemins (dossiers de données Nextcloud et messagerie remplacés par
+`[données]/…`), noms de réglages sensibles (jamais leurs valeurs), adresses IP des tentatives de connexion échouées. Aucun contenu de
+fichier n'est stocké ; rien n'est envoyé à l'extérieur (aucune vérification en ligne des versions) ; conservation 30 jours sur le serveur.
+
+## Compteur d'usage des fonctions (5.6.101)
+
+Finalité : savoir quelles fonctions servent, pour simplifier le logiciel. Données : nombre d'ouvertures par fonction et par jour, pour
+tout le cabinet ; aucun compte, aucune adresse, aucun contenu, aucun identifiant de dossier. Conservation 90 jours ; désactivable par un
+administrateur (Paramètres › Administration › Fonctions peu utilisées). Rien n'est envoyé à l'extérieur.
+
+## Mesure du temps de traitement (5.6.101)
+
+Facultative, désactivée par défaut, activée par chaque personne pour elle seule (Mon compte). Données : type d'élément, commande finale,
+durée et date ; jamais l'objet, le dossier, le contenu ni l'identifiant de l'élément ; durées de plus de 30 minutes écartées. Visible de
+la seule personne concernée (ni des autres membres, ni des administrateurs), exportable en CSV et supprimable entièrement par elle.
+Rien n'est envoyé à l'extérieur.
+
 ## Recommandations d'exploitation
 
 - Serveur dédié au cabinet, mises à jour de sécurité automatiques (`unattended-upgrades`).

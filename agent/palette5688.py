@@ -149,10 +149,12 @@ def search(desk, query, owner='cabinet', role='administrateur', lang=None):
         out['factures'] = _factures(desk, query, hidden, labels)
     out['documents'], out['courriels'], partial = _plein_texte(desk, query, hidden, labels, deadline)
     found = []
-    for f in entries(desk.c, role, lang):
-        best = max([recherche5682.score(query, f['label'])] + [recherche5682.score(query, a) for a in f['aliases']])
+    from .familles56101 import libelle, titre_fonction
+    for f in entries(desk.c, role, lang):   # 5.6.101 (F01) : « Fonction (famille) » ; le nom de la famille trouve aussi ses fonctions
+        noms = [f['label']] + list(f['aliases']) + ([libelle(f['famille'], lang)] if f['famille'] else [])
+        best = max(recherche5682.score(query, n) for n in noms)
         if best >= recherche5682.MIN_SCORE:
-            found.append((best, {'titre': f['label'], 'detail': f['desc'], 'url': f['route']}))
+            found.append((best, {'titre': titre_fonction(f['id'], lang), 'detail': f['desc'], 'url': f['route']}))
     out['fonctions'] = _top(found)
     return {'groupes': [{'id': k, 'titre': t, 'resultats': out[k]} for k, t in GROUPES if out.get(k)], 'partiel': bool(partial)}
 

@@ -513,6 +513,12 @@ class Desk:
         ensure_delta56100_schema(self)
         from .produire56100 import ensure_schema as ensure_produire56100_schema   # 5.6.100 (lot E) : registre des livrables, propositions, exports (jamais pendant un GET)
         ensure_produire56100_schema(self)
+        from .chrono56101 import ensure_schema as ensure_chrono56101_schema   # 5.6.101 (lot M) : mesure facultative du temps de traitement (par personne)
+        ensure_chrono56101_schema(self)
+        from .usage56101 import ensure_schema as ensure_usage56101_schema   # 5.6.101 (lot F, F05) : compteur d'usage des fonctions (agrégé par jour, sans compte)
+        ensure_usage56101_schema(self)
+        from .securite56101 import ensure_schema as ensure_securite56101_schema   # 5.6.101 (lot S) : constats, accusés et historique de la veille de sécurité du serveur
+        ensure_securite56101_schema(self)
         from .relecture56100 import ensure_schema as ensure_relecture56100_schema, rattraper as rattraper_relecture56100   # 5.6.100 (lot B) : file commune « À relire »
         ensure_relecture56100_schema(self)
         try:   # reprise bornée et relançable des propositions existantes (sans LIKE sur le JSON) ; la suite passe par les automatismes
@@ -719,8 +725,10 @@ class Desk:
         self.db.commit()
 
     def settings(self, key, default=None):
-        row = self.db.execute('SELECT value FROM settings WHERE key=?',(key,)).fetchone()
-        return json.loads(row[0]) if row else default
+        # 5.6.101 (lot P, P02) : pendant l'affichage d'une page (GET), une clé n'est lue qu'une fois ; toute écriture de la connexion la fait relire
+        from .affichage5696 import reglage_brut
+        brut = reglage_brut(self.db, key)
+        return json.loads(brut) if brut is not None else default
 
     def setting(self, key, value):
         self.db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)',(key,json.dumps(value)))

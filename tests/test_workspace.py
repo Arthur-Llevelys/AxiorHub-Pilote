@@ -1,10 +1,12 @@
 import copy
+from datetime import timedelta,timezone
 import json
 import unittest
 from unittest.mock import patch
 
 import test_agent as fixtures
 import test_desk
+from dates_relatives import maintenant_cabinet
 from agent.common import Stop,private_json,load_matters
 from agent.desk import Desk
 from agent.portfolio import set_matter_state
@@ -197,7 +199,7 @@ class WorkspaceWebTests(unittest.TestCase):
 
     def test_chat_redirect_returns_to_same_scope_and_escapes_output(self):
         d=Desk(self.f.c);scope,_,_=chat_scope(self.f.c,{'matter':'DOS-001'})
-        d.db.execute("INSERT INTO conversations VALUES(NULL,?,?,?,?,?)",(scope,'<script>x</script>',json.dumps({'answer':'<img src=x onerror=alert(1)>','source_ids':[],'limits':[]}), '[]','2026-09-09T00:00:00+00:00'));d.db.commit()
+        d.db.execute("INSERT INTO conversations VALUES(NULL,?,?,?,?,?)",(scope,'<script>x</script>',json.dumps({'answer':'<img src=x onerror=alert(1)>','source_ids':[],'limits':[]}), '[]',(maintenant_cabinet()-timedelta(days=1)).astimezone(timezone.utc).isoformat()));d.db.commit()   # 5.6.101 (T02) : hier, jamais purgé (90 jours)
         r=self.request('/assistant',query='matter=DOS-001')
         self.assertNotIn('<script>',r['body']);self.assertIn('&lt;script&gt;',r['body'])
         self.assertNotIn('<img src=x onerror=alert(1)>',r['body'])
@@ -213,6 +215,9 @@ class WorkspaceWebTests(unittest.TestCase):
         from wsgiref.simple_server import make_server,WSGIRequestHandler
         class Quiet(WSGIRequestHandler):
             def log_message(self,*args):pass
+        # 5.6.101 : préparer la base avant le serveur (création des tables de tous les modules, une fois au démarrage : environ 7 s dans un
+        # conteneur Linux chargé, plus que le délai de 5 s de la requête ci-dessous). Le test porte sur l'envoi du formulaire.
+        Desk(self.f.c).db.execute('SELECT 1').fetchone()
         server=make_server('127.0.0.1',0,self.app,handler_class=Quiet)
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
         try:

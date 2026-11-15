@@ -1739,6 +1739,14 @@ from parcours_p100 import p100_dossiers, p100_produire, p100_relecture   # noqa:
 PARCOURS = PARCOURS + (('P100r', 'Courriels › À relire : lecteur à droite, dix décisions sans rechargement, 390 px', p100_relecture),
                        ('P100d', 'Dossiers : trois dossiers récents et Nouveau dossier visibles d’emblée', p100_dossiers),
                        ('P100p', 'Produire : documents prêts d’abord', p100_produire))
+from parcours_p101s import p101s_securite   # noqa: E402 — 5.6.101 (lot S) : veille de sécurité du serveur
+from parcours_p101f import p101f_familles   # noqa: E402 — 5.6.101 (lot F) : fonctions en familles à onglets
+from parcours_p101r import p101r_relecture   # noqa: E402 — 5.6.101 (lot R) : « À relire » unique
+PARCOURS = PARCOURS + (('P101s', 'Sécurité du serveur : état, constat critique, commande à copier, Marquer comme connu, bandeau', p101s_securite),
+                       ('P101f', 'Toutes les fonctions : familles à onglets, clavier, anciennes adresses', p101f_familles),
+                       ('P101r', 'À relire unique : courriels, Gmail, documents et notes de l’IA, filtres, 390 px', p101r_relecture))
+from parcours_p101v import p101v_volet   # noqa: E402 — 5.6.101 (lot V) : volet de relecture à droite d'Aujourd'hui
+PARCOURS = PARCOURS + (('P101v', 'Aujourd’hui : volet de relecture à droite, quatre actions, cadre de l’éditeur, courriel HTML, 390 px', p101v_volet),)
 
 # ------------------------------------------------------------------------------------------------ lancement
 def lancer(navigateur, sortie, choisis=(), voir=False):

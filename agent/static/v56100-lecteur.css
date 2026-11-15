@@ -99,3 +99,30 @@
 .bx5625-panel > .bx5625-text { max-block-size: none; overflow: visible; font-size: 1rem; line-height: 1.5; }
 .bx5625-classer-zone { margin: .75rem 0; }
 .bx5625-classer:not([hidden]) { display: grid; gap: .75rem; margin-block-start: .5rem; }
+
+/* 5.6.101 (lot R) : « À relire » unique — Gmail, documents, notes de l'IA ; panneaux de motif et de correction ; avant/après écrits. */
+.ax100-badge.ax100-document { background: var(--cds-tag-background-purple, #e8daff); color: var(--cds-tag-color-purple, #491d8b); }
+.ax100-badge.ax100-note_ia { background: var(--cds-tag-background-green, #a7f0ba); color: var(--cds-tag-color-green, #044317); }
+.ax101-sous-filtres a { font-size: .875rem; padding: .2rem .6rem; }
+.ax101-alerte { flex: 1 0 100%; margin: 0; padding: .4rem .6rem; border-inline-start: .25rem solid var(--cds-support-warning, #f1c21b);
+  background: var(--cds-notification-background-warning, #fcf4d6); color: var(--cds-text-primary, #161616); font-size: .9375rem; }
+.ax101-panneau:not([hidden]) { flex: 1 0 100%; display: grid; gap: .35rem; padding: .5rem; min-inline-size: 0;
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #d0d4da)); border-radius: .25rem; background: var(--cds-layer-02, var(--ax-surface-2, #f4f4f4)); }
+.ax101-panneau label { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax101-panneau textarea, .ax101-panneau input { box-sizing: border-box; inline-size: 100%; min-inline-size: 0; font: inherit; padding: .4rem;
+  color: var(--cds-text-primary, inherit); background: var(--cds-field, var(--ax-surface, #fff)); border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.ax101-panneau .ax-btn { justify-self: start; }
+.ax101-note { margin: 0; font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.ax101-propositions { margin: 0; padding-inline-start: 1.25rem; display: grid; gap: .75rem; }
+.ax101-proposition h3 { margin: 0 0 .25rem; font-size: 1rem; }
+.ax101-avant-apres { margin: .25rem 0; padding: .4rem .6rem; border-inline-start: .2rem solid var(--cds-border-strong, #8d8d8d); overflow-wrap: anywhere; }
+.ax101-avant-apres p { margin: .15rem 0; }
+.ax101-avant-apres del { text-decoration: line-through; color: var(--cds-text-error, #a2191f); }
+.ax101-avant-apres ins { text-decoration: underline; color: var(--cds-text-primary, inherit); background: var(--cds-highlight, #e5f6ff); }
+.ax101-proposition-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-start: .35rem; }
+@media (max-width: 64rem) { .ax101-proposition-actions .ax-btn { flex: 1 1 auto; min-block-size: 2.75rem; } }
+/* 390 px : un en-tête chargé (filtres par type et par source, panne signalée) défile seul et laisse la liste accessible. */
+@media (max-width: 64rem) {
+  .ax100-tete { max-block-size: 40dvh; overflow-y: auto; }
+  .ax101-alerte { font-size: .875rem; }
+}

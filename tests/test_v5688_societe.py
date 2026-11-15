@@ -19,6 +19,7 @@ from agent.bouclier5659 import inspect, protect_payload
 from agent.common import Stop, private_json
 from agent.desk import Desk
 import test_agent as fixtures
+from dates_relatives import annee
 
 SIREN, AUTRE, TROIS = '000010017', '000010025', '000010033'
 SIRET = '00001001700010'
@@ -324,7 +325,8 @@ class Procedure(Base):
             self.assertEqual(f['alertes'][0]['niveau'], 'verifier')
 
     def test_conciliation_et_retablissement_signales_a_part(self):
-        self.http.annonces = [rec('C1', 'conciliation', 'Procédures de conciliation'), rec('P1', 'retablissement_professionnel', 'Procédures de rétablissement professionnel'), depot('2025-12-31')]
+        self.http.annonces = [rec('C1', 'conciliation', 'Procédures de conciliation'), rec('P1', 'retablissement_professionnel', 'Procédures de rétablissement professionnel'),
+                              depot('%d-12-31' % annee(-1))]   # 5.6.101 (T02) : exercice clos il y a moins de 12 mois, quel que soit le jour
         f = self.fiche()
         self.assertEqual(self.codes(f), ['conciliation', 'retablissement'])
         self.assertEqual({a['niveau'] for a in f['alertes']}, {'attention'})
@@ -392,7 +394,7 @@ class Comptes(Base):
         self.assertTrue(self.fiche_comptes([depot('2024-12-31')], seuil=18)[1])
         self.assertIn('plus de 12 mois', self.fiche_comptes([depot('2025-06-30')], seuil=12)[1][0]['texte'])
         self.d.setting(so.REGLAGE, {**so.DEFAUTS, 'seuil_mois': 40, 'inpi_dossier': False})
-        self.http.annonces = [depot('2024-12-31')]
+        self.http.annonces = [depot('%d-12-31' % annee(-2))]   # 5.6.101 (T02) : clos il y a 12 à 24 mois, sous le seuil de 40, quel que soit le jour
         self.assertFalse([a for a in self.fiche()['alertes'] if a['code'] == 'comptes'])
 
     def test_formes_non_tenues_au_depot(self):

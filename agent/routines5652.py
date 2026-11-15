@@ -86,6 +86,12 @@ def _sha(*parts):
 
 
 def ensure_schema(desk):
+    """5.6.101 (lot P) : une fois par affichage (GET) et par connexion ; toujours refaite hors affichage."""
+    from .affichage5696 import une_fois
+    return une_fois(desk.db, 'routines5652.schema', lambda: _ensure_schema(desk))
+
+
+def _ensure_schema(desk):
     desk.db.executescript(SCHEMA)
     have = {r[1] for r in desk.db.execute('PRAGMA table_info(routines5652)')}
     if 'created_by' not in have:                             # 5.6.53 (F06) : auteur distinct du propriétaire de portée

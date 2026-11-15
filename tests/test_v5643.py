@@ -683,10 +683,11 @@ class NavigationSansDoublons(unittest.TestCase):
 
     def test_NAV_OBS_01_et_02_aucun_acces_principal_ni_ancien_tableau_de_bord(self):
         html = self.panel()
-        visible = re.findall(r'<li data-search="[^"]*"><a href="/agent-courriel([^"]+)"', html)
-        for route in ('/aujourdhui', '/courriels', '/dossiers', '/parametres', '/planning', '/production', '/accueil'):
-            self.assertNotIn(route, visible)
-        self.assertTrue(6 <= len(visible) <= 12, visible)     # 5.6.84 : Honoraires et facturation, Cessions
+        # 5.6.101 (lot F, V101-07) : le panneau montre les 33 familles de l'annexe A (au plus 35) au lieu des entrées une à une ; les six
+        # accès de travail restent dans le menu principal ; l'ancien tableau de bord n'est jamais une entrée visible.
+        visible = re.findall(r'<li data-search="[^"]*"(?: data-f101-famille="[^"]+")?><a href="/agent-courriel([^"]+)"', html)
+        self.assertNotIn('/accueil', visible)
+        self.assertTrue(6 <= len(visible) <= 35, visible)
         self.assertEqual(len(visible), len(set(visible)))
 
     def test_toute_fonction_reste_trouvable_et_mene_a_sa_destination(self):
@@ -704,8 +705,10 @@ class NavigationSansDoublons(unittest.TestCase):
     def test_onglets_de_produire_et_etat_actif(self):
         r = self.web.request('/playbooks')
         self.assertTrue(r['status'].startswith('200'))
-        self.assertIn('<nav class="ws-tabs production-tabs" aria-label="Rubriques de Produire">', r['body'])
+        # 5.6.101 (lot F, annexe A) : Parcours guidés rejoint la famille « Rédiger » ; la barre de famille remplace les onglets de Produire
+        self.assertIn('<nav class="ws-tabs production-tabs f101-onglets" data-f101-famille="rediger" aria-label="Onglets de la famille « Rédiger »">', r['body'])
         self.assertIn('href="/agent-courriel/playbooks" aria-current="page">Parcours guidés</a>', r['body'])
+        self.assertIn('<nav class="ws-tabs production-tabs f101-onglets" data-f101-famille="produire" aria-label="Onglets de la famille « Produire »">', self.web.request('/projets')['body'])
         self.assertEqual(re.findall(r'<a [^>]*aria-label="([^"]+)"[^>]*aria-current="page"', r['body']), ['Produire'])
         self.assertEqual(shell501.active_primary('/echeances'), '/dossiers')
 

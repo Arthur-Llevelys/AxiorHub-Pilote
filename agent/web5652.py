@@ -158,17 +158,35 @@ def court(libelle):
     return '%s %s' % m.groups() if m else str(libelle or '')
 
 
-def routines_block(desk, auth, prefix, role=None, compact=False):
-    """Bloc « Routines du cabinet » d'Aujourd'hui : cartes, ajout, modification, activation, duplication, suppression, lancement."""
+def formulaire_routine(desk, prefix, row=None):
+    """5.6.101 (lot P) : formulaire « Modifier » (``row``) ou « Ajouter une routine », servi seul au dépli (``aujourdhui56101``)."""
+    try:
+        matters = load_matters(desk.c)
+    except Stop:
+        matters = []
+    return _form(desk, prefix, 'routine/modifier' if row else 'routine/creer', row, matters)
+
+
+def _formulaire_differe(prefix, ident=''):
+    from .aujourdhui56101 import attente
+    return attente('routine', prefix, {'id': ident} if ident else None)
+
+
+def routines_block(desk, auth, prefix, role=None, compact=False, formulaires_differes=False):
+    """Bloc « Routines du cabinet » d'Aujourd'hui : cartes, ajout, modification, activation, duplication, suppression, lancement.
+    5.6.101 (lot P, P01) : ``formulaires_differes`` — les formulaires « Modifier » et « Ajouter » (liste complète des dossiers) ne sont pas
+    construits : chacun est chargé à l'ouverture de son pli, avec les mêmes droits ; les cartes et les autres commandes restent dans la page."""
     from . import routines5652 as rt
     from .i18n5631 import role as current_role
     role = role or current_role()
     owner = str(auth.get('owner') or 'cabinet')
     data = rt.listing(desk, owner, role)
-    try:
-        matters = load_matters(desk.c)
-    except Stop:
-        matters = []
+    matters = []
+    if not formulaires_differes:
+        try:
+            matters = load_matters(desk.c)
+        except Stop:
+            matters = []
     cards, strip = [], []
     for r in data['routines']:
         legacy = r['legacy_kind']
@@ -198,7 +216,8 @@ def routines_block(desk, auth, prefix, role=None, compact=False):
             view = ('<details class="r52-report"><summary>Compte rendu</summary>%s</details>' % routines520.render_markdown(report['text'])) if report else ''
         edit = toggle = menu = ''
         if r['editable']:
-            edit = '<details class="r52-edit"><summary class="ax-btn ghost">Modifier</summary>%s</details>' % _form(desk, prefix, 'routine/modifier', r, matters)
+            edit = '<details class="r52-edit"><summary class="ax-btn ghost">Modifier</summary>%s</details>' % (
+                _formulaire_differe(prefix, r['id']) if formulaires_differes else _form(desk, prefix, 'routine/modifier', r, matters))
             toggle = ('<form class="m5-form r52-inline" data-api="m5652/routine/activer" data-reload><input type="hidden" name="id" value="%s">'
                       '<input type="hidden" name="version" value="%d"><input type="hidden" name="enabled" value="%s">'
                       '<button class="ax-btn ghost" type="submit" role="switch" aria-checked="%s">%s</button></form>') % (
@@ -238,7 +257,8 @@ def routines_block(desk, auth, prefix, role=None, compact=False):
     paused = bool(desk.settings('missions567:pause', False))
     add = ''
     if role in ('administrateur', 'avocat'):
-        add = '<details class="r52-add" id="r52-add"><summary class="ax-btn">Ajouter une routine</summary>%s</details>' % _form(desk, prefix, 'routine/creer', None, matters)
+        add = '<details class="r52-add" id="r52-add"><summary class="ax-btn">Ajouter une routine</summary>%s</details>' % (
+            _formulaire_differe(prefix) if formulaires_differes else _form(desk, prefix, 'routine/creer', None, matters))
     if compact:
         return ('<section class="c5614-routines r52 r99-bandeau" id="c5614-routines" aria-label="Routines du cabinet"><div class="r99-ligne">'
                 '<h2 class="r99-titre">Routines</h2><ul class="r99-liste">%s</ul></div>'

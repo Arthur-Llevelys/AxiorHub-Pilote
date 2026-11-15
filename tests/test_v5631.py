@@ -189,6 +189,10 @@ class UsageGuide(Web):
             body = __import__('html').unescape(self.request(path, query=query)['body'])
             if path == '/dossiers':   # 5.6.100 (R05) : le portefeuille détaillé se charge au dépli ; ses boutons restent sur l'écran Dossiers
                 body += __import__('html').unescape(self.request(path, query='volet=portefeuille')['body'])
+            if path == '/aujourdhui' and not query:   # 5.6.101 (lot P) : blocs repliés servis au dépli, mêmes boutons
+                from agent.aujourdhui56101 import FRAGMENTS
+                for nom in FRAGMENTS:
+                    body += __import__('html').unescape(json.loads(self.request('/api440/m56101/aujourdhui/fragment', query='nom=' + nom)['body']).get('html', ''))
             for label in buttons:
                 self.assertIn(label, body, (fid, label))
 

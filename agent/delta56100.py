@@ -791,6 +791,7 @@ def _publier(desk, row, v, base, baseline, ancres, propre, alertes, questions_se
         raise
     if publie:
         _diffuser(desk, rid)
+        _projeter_relecture(desk, rid)
     return {'ok': True, 'etat': propre['etat'], 'resultat': rid, 'points': len(propre['points']), 'propositions': len(propre['propositions']),
             'message': 'Note et proposition déposées dans la file de relecture : rien n’a été appliqué au dossier.'}
 
@@ -970,7 +971,7 @@ def decider(desk, acteur, rid, data):
     a = _acteur(acteur)
     owner, role = a.compte, a.role
     action = str(data.get('action') or '')
-    if action not in ('retenir', 'ecarter', 'modifier'):
+    if action not in ('retenir', 'ecarter', 'modifier', 'valider'):   # 5.6.101 (lot R, R03) : « Valider la note » sans appliquer de proposition
         raise Stop('action_invalide')
     if action != 'modifier' and (role not in VALIDEURS or not effective_rights(desk.c['state_dir'], owner, role).get('valider')):
         raise Stop('role_insuffisant')
@@ -985,7 +986,7 @@ def decider(desk, acteur, rid, data):
             raise Stop('cle_idempotence_deja_utilisee')
         return json.loads(deja['recu'])
     base.version_attendue(r, data.get('revision'))
-    if r['remplace_par'] and action == 'retenir':
+    if r['remplace_par'] and action in ('retenir', 'valider'):
         raise Stop('analyse_remplacee')
     if r['etat'] in ('retenu', 'ecarte') and action != 'modifier':
         raise Stop('version_en_conflit')
@@ -1020,8 +1021,8 @@ def decider(desk, acteur, rid, data):
                                                                 'affirme_par': r['partie']}, owner, role, origine='ia')
                 crees.append(lien['id'])
             etat, sql = 'retenu', 'UPDATE delta56100_resultats SET etat=?, decisions=?, revision=revision+1, updated=? WHERE id=?'
-        elif action == 'ecarter':
-            etat, sql = 'ecarte', 'UPDATE delta56100_resultats SET etat=?, decisions=?, revision=revision+1, updated=? WHERE id=?'
+        elif action in ('ecarter', 'valider'):     # valider : note lue et approuvée, aucune proposition entrée dans la matrice
+            etat, sql = 'ecarte' if action == 'ecarter' else 'retenu', 'UPDATE delta56100_resultats SET etat=?, decisions=?, revision=revision+1, updated=? WHERE id=?'
         else:
             etat, sql = r['etat'], 'UPDATE delta56100_resultats SET etat=?, decisions=?, note_modifiee=?, revision=revision+1, updated=? WHERE id=?'
         decisions = json.loads(r['decisions']) + [{'action': action, 'par': owner, 'le': now, 'propositions': choix if action == 'retenir' else [], 'elements': crees,
@@ -1031,14 +1032,24 @@ def decider(desk, acteur, rid, data):
         base.journal(desk, r['dossier'], 'analyse_ia', rid, 'decision_' + action, owner, str(data.get('motif') or ''), {'etat': r['etat']}, {'etat': etat, 'elements': crees})
         recu = {'id': rid, 'etat': etat, 'revision': int(r['revision']) + 1, 'elements_crees': crees,
                 'message': {'retenir': '%d proposition(s) ajoutée(s) à la matrice comme « proposées », à valider.' % len(crees), 'ecarter': 'Analyse écartée.',
-                            'modifier': 'Note modifiée.'}[action]}
+                            'modifier': 'Note modifiée.', 'valider': 'Note validée ; aucune proposition n’a été appliquée au dossier.'}[action]}
         desk.db.execute('INSERT INTO delta56100_commandes(cle,acteur,empreinte,recu,created) VALUES(?,?,?,?,?)', (cle, owner, parametres, canon(recu), now))
         desk.db.commit()
     except BaseException:
         if desk.db.in_transaction:
             desk.db.rollback()
         raise
+    _projeter_relecture(desk, rid)
     return recu
+
+
+def _projeter_relecture(desk, rid):
+    """5.6.101 (lot R) : la note suit dans la liste « À relire » unique ; ne casse jamais l'écriture qui vient de réussir."""
+    try:
+        from .relecture56101 import projeter_apres_ecriture
+    except ImportError:
+        return
+    projeter_apres_ecriture(desk, 'note_ia', rid)
 
 
 def _formulaire(data, n):

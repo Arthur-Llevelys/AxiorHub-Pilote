@@ -1,0 +1,31 @@
+[Unit]
+Description=AxiorHub Pilote — veille de sécurité du serveur (passage complet de la nuit : secrets, sites, versions, dossiers web, conteneurs, connexions, AxiorHub)
+Documentation=file:/usr/lib/axiorhub-pilote/veille-securite.py
+ConditionPathIsDirectory=/var/lib/axiorhub-mail-agent/securite
+
+[Service]
+# Lecture seule : le collecteur n'écrit que son rapport (dossier ci-dessous) et n'ouvre de connexion que vers 127.0.0.1.
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 -I -B /usr/lib/axiorhub-pilote/veille-securite.py --complet
+TimeoutStartSec=600
+UMask=0027
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/axiorhub-mail-agent/securite
+PrivateTmp=yes
+PrivateDevices=yes
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_SYS_PTRACE CAP_CHOWN CAP_FOWNER

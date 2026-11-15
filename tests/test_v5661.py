@@ -480,7 +480,9 @@ class AujourdhuiPrepares(unittest.TestCase):
     def test_la_file_signale_son_erreur_au_lieu_de_disparaitre(self):
         with patch('agent.file5651.html', side_effect=RuntimeError('essai')):
             body = self.request('/aujourdhui')['body']
-        self.assertIn('La file n’a pas pu être affichée (RuntimeError)', body)
+            self.assertIn('data-p101-fragment="file"', body)                # 5.6.101 (lot P) : cartes de la file servies au dépli
+            body = self.request('/api440/m56101/aujourdhui/fragment', query='nom=file')['body']
+        self.assertIn('La file n’a pas pu être affichée (RuntimeError)', json.loads(body)['html'])
 
 
 class ProjetDocumentaire(unittest.TestCase):

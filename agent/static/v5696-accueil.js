@@ -238,9 +238,21 @@
     }
   });
 
-  /* ------------------------------------------------------------------ fenêtre flottante (I02) */
-  var fenetre = null, demande = null, retour = null, actionFaite = false;
+  /* ------------------------------------------------------------------ fenêtre flottante (I02) et volet ancré à droite (5.6.101, lot V)
+     5.6.101 (lot V) : sur une fenêtre large (au moins 1200 px) et sauf choix « Détacher », le même <dialog> s'ouvre NON MODAL (show()) et ancré
+     à droite : la liste reste visible, défilable et cliquable ; cliquer une autre ligne remplace le contenu ; la ligne ouverte porte
+     aria-current. Sous 1200 px ou après « Détacher » : fenêtre flottante modale (showModal()), comme avant. Préférence gardée par navigateur. */
+  var LARGE = 1200;
+  var fenetre = null, demande = null, retour = null, actionFaite = false, enAttente = null, bascule = false, ouvert = null, formulaireEnvoye = false, minuterieSuivant = null;
   function bouton(classe, texte) { var b = el('button', 'ax-btn ghost ' + classe, texte); b.type = 'button'; return b; }
+  function icone(classe, glyphe, libelle) {          /* commande discrète de l'en-tête : glyphe visible, libellé accessible */
+    var b = el('button', 'f96-icone-btn ' + classe, glyphe); b.type = 'button';
+    b.setAttribute('aria-label', libelle); b.title = libelle;
+    return b;
+  }
+  function preference() { try { return racine.localStorage.getItem('ax101:volet') || ''; } catch (e) { return ''; } }
+  function retenirPreference(v) { try { racine.localStorage.setItem('ax101:volet', v); } catch (e) { /* navigation privée : choix non gardé */ } }
+  function ancrable() { return (racine.innerWidth || 0) >= LARGE && preference() !== 'flottant'; }
   function construire() {
     var d = el('dialog', 'f96-fenetre');
     d.setAttribute('aria-labelledby', 'f96-fenetre-titre');
@@ -248,10 +260,14 @@
     var titre = el('h2', 'f96-fenetre-titre'); titre.id = 'f96-fenetre-titre';
     tete.appendChild(titre); tete.appendChild(el('p', 'f96-fenetre-dossier'));
     var cmd = el('div', 'f96-fenetre-commandes');
-    var page = el('a', 'ax-btn ghost f96-fenetre-page', m('fenetre.page_complete'));
-    var taille = bouton('f96-fenetre-taille', m('fenetre.plein_ecran')); taille.setAttribute('aria-pressed', 'false');
-    var fermer = bouton('f96-fenetre-fermer', m('fenetre.fermer'));
-    cmd.appendChild(page); cmd.appendChild(taille); cmd.appendChild(fermer);
+    var precedent = icone('v101-precedent', '‹', m('volet.precedent') || 'Précédent');
+    var suivant = icone('v101-suivant', '›', m('volet.suivant') || 'Suivant');
+    var reporter = icone('v101-reporter', '⏱', m('volet.reporter') || 'Reporter'); reporter.hidden = true;
+    var ancrage = icone('v101-ancrage', '⧉', m('volet.detacher') || 'Détacher');
+    var page = el('a', 'f96-icone-btn f96-fenetre-page', '↗'); page.setAttribute('aria-label', m('fenetre.page_complete')); page.title = m('fenetre.page_complete');
+    var taille = icone('f96-fenetre-taille', '⤢', m('fenetre.plein_ecran')); taille.setAttribute('aria-pressed', 'false');
+    var fermer = icone('f96-fenetre-fermer', '✕', m('fenetre.fermer'));
+    [precedent, suivant, reporter, ancrage, page, taille, fermer].forEach(function (x) { cmd.appendChild(x); });
     barre.appendChild(tete); barre.appendChild(cmd);
     var corps = el('div', 'f96-fenetre-corps'); corps.tabIndex = -1;
     var etat = el('p', 'f96-fenetre-etat'); etat.setAttribute('role', 'status');
@@ -265,18 +281,29 @@
     (doc.getElementById('ws-main') || doc.body).appendChild(d);
     taille.addEventListener('click', function () { pleinEcran(!d.classList.contains('f96-plein')); });
     fermer.addEventListener('click', function () { demanderFermeture(); });
+    precedent.addEventListener('click', function () { voisinOuvrir(-1); });
+    suivant.addEventListener('click', function () { voisinOuvrir(1); });
+    ancrage.addEventListener('click', function () {
+      retenirPreference(d.classList.contains('v101-ancre') ? 'flottant' : 'ancre');
+      if (retour && retour.lien) ouvrir(retour.lien, true);
+    });
     d.addEventListener('cancel', function (ev) { ev.preventDefault(); demanderFermeture(); });   /* Échap : même contrôle que Fermer */
-    abandon.addEventListener('click', function () { fermerVraiment(); });
-    rester.addEventListener('click', function () { quitter.hidden = true; var c = premierModifie(); if (c) c.focus(); });
+    abandon.addEventListener('click', function () {
+      if (enAttente) { var l = enAttente; enAttente = null; quitter.hidden = true; marquerPropre(null); ouvrir(l, true); return; }
+      fermerVraiment();
+    });
+    rester.addEventListener('click', function () { enAttente = null; quitter.hidden = true; var c = premierModifie(); if (c) c.focus(); });
     sauver.addEventListener('click', function () {
       var champ = premierModifie(), form = champ && champ.form;
-      quitter.hidden = true;
+      quitter.hidden = true; enAttente = null;
       if (form && form.requestSubmit) form.requestSubmit(); else if (form) form.dispatchEvent(new racine.Event('submit', { bubbles: true, cancelable: true }));
     });
     /* Une action envoyée depuis la fenêtre : la ligne et les compteurs seront actualisés à la fermeture (pas de rechargement d'Aujourd'hui).
        5.6.100 (lot E) : plus de marquage « propre » par minuterie — seul le reçu de sauvegarde du serveur (événement ax:recu, émis par
        v500.js et v5671.js après une réponse sans erreur) marque enregistrés les champs du formulaire concerné ; un refus laisse la saisie « à enregistrer ». */
-    d.addEventListener('submit', function (ev) { if (ev.target && ev.target.closest && ev.target.closest('.f96-fenetre-contenu')) actionFaite = true; }, true);
+    d.addEventListener('submit', function (ev) {
+      if (ev.target && ev.target.closest && ev.target.closest('.f96-fenetre-contenu')) { actionFaite = true; if (!ev.target.closest('.v101-edition')) formulaireEnvoye = true; }
+    }, true);
     d.addEventListener('ax:recu', function (ev) { var f = ev.target && ev.target.closest && ev.target.closest('form'); if (f && f.closest('.f96-fenetre-contenu')) marquerPropre(f); });
     return d;
   }
@@ -284,9 +311,14 @@
     fenetre.classList.toggle('f96-plein', !!oui);
     var b = fenetre.querySelector('.f96-fenetre-taille');
     b.setAttribute('aria-pressed', oui ? 'true' : 'false');
-    b.textContent = oui ? m('fenetre.taille_normale') : m('fenetre.plein_ecran');
+    var libelle = oui ? m('fenetre.taille_normale') : m('fenetre.plein_ecran');
+    b.setAttribute('aria-label', libelle); b.title = libelle;
+    b.textContent = oui ? '⤡' : '⤢';
   }
-  function champsSaisie() { return fenetre ? fenetre.querySelectorAll('.f96-fenetre-contenu form textarea, .f96-fenetre-contenu form input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=search])') : []; }
+  function champsSaisie() {
+    return fenetre ? fenetre.querySelectorAll('.f96-fenetre-contenu form textarea, .f96-fenetre-contenu form input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=search]), '
+      + '.v101-pied form textarea, .v101-pied form input:not([type=hidden])') : [];
+  }
   function premierModifie() {
     return Array.prototype.filter.call(champsSaisie(), function (f) { return !f.readOnly && !f.disabled && f.value !== f.defaultValue; })[0] || null;
   }
@@ -310,33 +342,92 @@
     if (fenetre.open) fenetre.close();
   }
   /* 5.6.100 (lot E, § 21.4) : le lecteur commun du lot B (window.AX100.lecteur.monter) se monte dans la fenêtre pour une réponse préparée qui porte
-     l'identifiant stable de l'objet ; sans lui (script absent, identifiant absent), le détail historique est chargé comme avant, mêmes droits. */
+     l'identifiant stable de l'objet ; sans lui (script absent, identifiant absent), le détail historique est chargé comme avant, mêmes droits.
+     5.6.101 (lot V) : quand le volet (window.AX101volet) est chargé, il a la priorité : même barre de quatre actions pour toutes les natures. */
   var lecteur = null, lecteurMonte = false;
   function lecteurCommun(lien) {
     var ax = racine.AX100, id = lien.getAttribute('data-ax100-id');
+    if (racine.AX101volet) return '';
     return id && ax && ax.lecteur && typeof ax.lecteur.monter === 'function' ? id : '';
   }
-  function ouvrir(lien) {
+  /* Lignes ouvrables visibles, dans l'ordre de la page (hors volet), sans doublon. */
+  function lignesVisibles() {
+    var vues = {}, out = [];
+    Array.prototype.forEach.call(doc.querySelectorAll('a[data-f96-action][data-f96-cle]'), function (a) {
+      if (fenetre && fenetre.contains(a)) return;
+      if (!a.getClientRects().length) return;
+      var k = a.getAttribute('data-f96-action') + ':' + a.getAttribute('data-f96-cle');
+      if (vues[k]) return;
+      vues[k] = 1; out.push(a);
+    });
+    return out;
+  }
+  function cleDe(a) { return a ? a.getAttribute('data-f96-action') + ':' + a.getAttribute('data-f96-cle') : ''; }
+  function voisinLien(sens) {
+    var liste = lignesVisibles(), i = liste.map(cleDe).indexOf(ouvert || '');
+    if (i >= 0) return liste[i + (sens > 0 ? 1 : -1)] || null;
+    return sens > 0 ? (liste[0] || null) : null;
+  }
+  function majVoisins() {
+    if (!fenetre) return;
+    var p = fenetre.querySelector('.v101-precedent'), s = fenetre.querySelector('.v101-suivant');
+    p.disabled = !voisinLien(-1); s.disabled = !voisinLien(1);
+    var a = fenetre.querySelector('.v101-ancrage'), anc = fenetre.classList.contains('v101-ancre');
+    var lib = anc ? (m('volet.detacher') || 'Détacher') : (m('volet.ancrer') || 'Ancrer à droite');
+    a.setAttribute('aria-label', lib); a.title = lib; a.textContent = anc ? '⧉' : '⇥';
+    a.hidden = (racine.innerWidth || 0) < LARGE;
+  }
+  function voisinOuvrir(sens) { var l = voisinLien(sens); if (l) ouvrir(l); }
+  function marquerOuverte(lien) {
+    Array.prototype.forEach.call(doc.querySelectorAll('a[data-f96-action][aria-current="true"]'), function (a) { a.removeAttribute('aria-current'); var li = a.closest('li'); if (li) li.classList.remove('v101-ouverte'); });
+    ouvert = lien ? cleDe(lien) : null;
+    if (!lien) return;
+    lien.setAttribute('aria-current', 'true');
+    var li = lien.closest('li'); if (li) li.classList.add('v101-ouverte');
+  }
+  function placer(ancre) {
+    /* Bascule ancré ↔ flottant : fermer puis rouvrir le même <dialog> sans passer par la restauration (le contenu est rechargé ensuite). */
+    var doitAncrer = !!ancre;
+    if (fenetre.open && fenetre.classList.contains('v101-ancre') !== doitAncrer) { bascule = true; fenetre.close(); }
+    fenetre.classList.toggle('v101-ancre', doitAncrer);
+    doc.body.classList.toggle('v101-volet-ouvert', doitAncrer);
+    if (!fenetre.open) { if (doitAncrer) fenetre.show(); else fenetre.showModal(); }
+  }
+  function ouvrir(lien, force) {
+    if (minuterieSuivant) { racine.clearTimeout(minuterieSuivant); minuterieSuivant = null; }   /* la personne a choisi une autre ligne : pas d'ouverture automatique */
     if (!fenetre) {
       fenetre = construire();
-      fenetre.addEventListener('close', function () { restaurer(); });
+      /* l'événement « close » arrive après coup : une bascule ancré ↔ flottant (fermer puis rouvrir aussitôt) ne restaure rien */
+      fenetre.addEventListener('close', function () { if (bascule || fenetre.open) { bascule = false; return; } restaurer(); });
+    }
+    if (fenetre.open && !force && premierModifie()) {        /* autre ligne cliquée avec une saisie non enregistrée : la personne choisit */
+      enAttente = lien;
+      var q = fenetre.querySelector('.f96-quitter'); q.hidden = false; q.querySelector('.f96-q-rester').focus();
+      return;
     }
     if (demande) demande.abort();
     demande = new racine.AbortController();
-    actionFaite = false; lecteurMonte = false;
+    if (!fenetre.open) actionFaite = false;
+    lecteurMonte = false;
     var ligne = lien.closest('[data-f96-ligne]');
-    retour = { lien: lien, y: racine.scrollY, ligne: ligne ? ligne.getAttribute('data-f96-ligne') : '', zone: ligne ? ligne.parentNode : null };
+    var y = fenetre.open && retour ? retour.y : racine.scrollY;
+    retour = { lien: lien, y: y, ligne: ligne ? ligne.getAttribute('data-f96-ligne') : '', zone: ligne ? ligne.parentNode : null };
     fenetre.querySelector('.f96-fenetre-titre').textContent = lien.getAttribute('data-f96-titre') || lien.textContent;
     var dossier = lien.getAttribute('data-f96-dossier');
     fenetre.querySelector('.f96-fenetre-dossier').textContent = dossier ? m('fenetre.dossier', { dossier: dossier }) : '';
     var page = fenetre.querySelector('.f96-fenetre-page'); page.href = lien.href;
     var contenu = fenetre.querySelector('.f96-fenetre-contenu'), etat = fenetre.querySelector('.f96-fenetre-etat');
+    if (racine.AX101volet) racine.AX101volet.demonter();
     while (contenu.firstChild) contenu.removeChild(contenu.firstChild);
     etat.textContent = m('fenetre.chargement'); etat.removeAttribute('data-erreur');
     fenetre.setAttribute('aria-busy', 'true');
-    pleinEcran(racine.matchMedia && racine.matchMedia('(max-width: 40rem)').matches);   /* mobile : plein écran d'emblée */
-    fenetre.showModal();
-    fenetre.querySelector('.f96-fenetre-fermer').focus();
+    fenetre.querySelector('.f96-quitter').hidden = true;
+    var etaitOuverte = fenetre.open;
+    placer(ancrable());
+    if (!etaitOuverte) pleinEcran(racine.matchMedia && racine.matchMedia('(max-width: 40rem)').matches);   /* mobile : plein écran d'emblée */
+    marquerOuverte(lien);
+    majVoisins();
+    if (!etaitOuverte || !fenetre.classList.contains('v101-ancre')) fenetre.querySelector('.f96-fenetre-fermer').focus();
     var idCommun = lecteurCommun(lien);
     if (idCommun) {
       try {
@@ -353,13 +444,20 @@
     racine.fetch(url, { credentials: 'same-origin', signal: signal }).then(lireJson).then(function (d) {
       if (signal.aborted) return;
       fenetre.querySelector('.f96-fenetre-titre').textContent = d.titre || '';
+      if (d.meta || d.dossier) {
+        fenetre.querySelector('.f96-fenetre-dossier').textContent = [dossier || d.dossier || '', d.meta || ''].filter(Boolean).join(' · ');
+      }
       if (d.page && !lien.getAttribute('href')) page.href = d.page;     /* le lien d'origine garde son retour contextuel (return_to) */
-      contenu.innerHTML = d.html;      /* HTML construit et échappé par le serveur (mêmes générateurs que la page complète) */
+      if (racine.AX101volet) {
+        racine.AX101volet.monter({ fenetre: fenetre, contenu: contenu, donnees: d, ctx: { m: function (k, v) { return m(k, v); }, apres: apresDecision, recharger: function (msg) { recharger(msg); } } });
+      } else {
+        contenu.innerHTML = d.html;      /* HTML construit et échappé par le serveur (mêmes générateurs que la page complète) */
+      }
       /* Pas de rechargement d'Aujourd'hui après une action dans la fenêtre : la ligne et les compteurs sont actualisés à la fermeture. */
       Array.prototype.forEach.call(contenu.querySelectorAll('form[data-reload]'), function (f) { f.removeAttribute('data-reload'); });
       etat.textContent = '';
       fenetre.removeAttribute('aria-busy');
-      fenetre.querySelector('.f96-fenetre-corps').focus({ preventScroll: true });
+      if (!fenetre.classList.contains('v101-ancre')) fenetre.querySelector('.f96-fenetre-corps').focus({ preventScroll: true });
     }).catch(function (e) {
       if (e && e.name === 'AbortError') return;
       fenetre.removeAttribute('aria-busy');
@@ -367,13 +465,53 @@
       etat.textContent = m('fenetre.erreur', { message: e.message });
     });
   }
+  /* Même élément relu (après Enregistrer, une reprise demandée ou la fin d'une édition) : sa nouvelle révision s'affiche, rien n'est validé. */
+  function recharger(message) {
+    if (!retour || !retour.lien) return;
+    actionFaite = true;
+    var l = retour.lien;
+    ouvrir(l, true);
+    if (message) { var obs = function () { if (racine.AX101volet && racine.AX101volet.courant()) racine.AX101volet.annoncer(message); else racine.setTimeout(obs, 150); }; racine.setTimeout(obs, 150); }
+  }
+  /* Après une décision prise dans le volet : la ligne disparaît (ou la liste est relue), puis l'élément suivant s'ouvre ; plus rien : fermeture annoncée. */
+  function apresDecision(nom, message) {
+    actionFaite = true;
+    var lien = retour && retour.lien, suivant = voisinLien(1), precedentL = voisinLien(-1);
+    var cleSuivante = cleDe(suivant || precedentL);
+    var li = lien && lien.closest('li');
+    var section = doc.getElementById('f96-decider'), zone = doc.getElementById('f96-lignes-zone');
+    var compteurs = doc.querySelector('[data-ax95="actualiser"]');
+    if (compteurs) compteurs.click();
+    var continuer = function () {
+      var cible = null;
+      if (cleSuivante) cible = lignesVisibles().filter(function (a) { return cleDe(a) === cleSuivante; })[0] || null;
+      if (!cible) cible = lignesVisibles()[0] || null;
+      if (cible) { minuterieSuivant = racine.setTimeout(function () { minuterieSuivant = null; ouvrir(cible, true); if (message) racine.setTimeout(function () { if (racine.AX101volet) racine.AX101volet.annoncer(message); }, 400); }, 300); }
+      else { fermerVraiment(); annoncer(section && section.querySelector('[data-f96-annonce]'), m('volet.dernier')); }
+    };
+    if (li && zone && zone.contains(li) && section) {
+      racine.fetch(section.getAttribute('data-url'), { credentials: 'same-origin' }).then(lireJson).then(function (d) {
+        if (typeof d.html === 'string') zone.innerHTML = d.html;      /* HTML construit et échappé par le serveur (accueil_web5696.lignes_html) */
+        continuer();
+      }).catch(continuer);
+      return;
+    }
+    if (li) { li.setAttribute('data-v101-traitee', '1'); li.hidden = true; }
+    continuer();
+  }
   function restaurer() {
     var r = retour; retour = null;
+    enAttente = null;
     if (demande) { demande.abort(); demande = null; }
+    if (racine.AX101volet) racine.AX101volet.demonter();
     if (lecteur) { var ctl = lecteur; lecteur = null; try { ctl.fermer(); } catch (e) { /* lecteur déjà démonté */ } }
     if (lecteurMonte) { actionFaite = true; lecteurMonte = false; }    /* une décision a pu être prise dans le lecteur : la liste est relue (jamais devinée) */
+    var ancre = fenetre.classList.contains('v101-ancre');
+    fenetre.classList.remove('v101-ancre');
+    doc.body.classList.remove('v101-volet-ouvert');
+    marquerOuverte(null);
     if (!r) return;
-    racine.scrollTo(0, r.y);
+    if (!ancre) racine.scrollTo(0, r.y);
     if (r.lien && r.lien.isConnected) r.lien.focus({ preventScroll: true });
     if (actionFaite) actualiser(r);
   }
@@ -384,7 +522,8 @@
     var compteurs = doc.querySelector('[data-ax95="actualiser"]');
     if (compteurs) compteurs.click();
     /* 5.6.100 (lot E) : vue paginée « Voir la suite » : la page (même filtre, même page) est relue après une décision ; aucun champ n'y est en saisie */
-    if (!section && doc.getElementById('f100-file')) { racine.location.reload(); return; }
+    /* 5.6.101 (lot V) : les décisions prises par la barre du volet ont déjà retiré leur ligne ; seul un formulaire de la page complète oblige à relire */
+    if (!section && doc.getElementById('f100-file')) { if (formulaireEnvoye || !racine.AX101volet) racine.location.reload(); formulaireEnvoye = false; return; }
     if (!section || !zone) return;
     var avant = Array.prototype.map.call(zone.querySelectorAll('[data-f96-ligne]'), function (li) { return li.getAttribute('data-f96-ligne'); });
     racine.fetch(section.getAttribute('data-url'), { credentials: 'same-origin' }).then(lireJson).then(function (d) {
@@ -404,11 +543,26 @@
       }
     }).catch(function () { /* la page reste utilisable ; la liste sera relue au prochain affichage */ });
   }
+  var NATURES_OUVRABLES = ['reponse', 'echeance', 'document', 'gmail', 'note_ia', 'audience', 'file'];
   doc.addEventListener('click', function (ev) {
     var lien = ev.target.closest && ev.target.closest('a[data-f96-action][data-f96-cle]');
     if (!lien || ev.defaultPrevented || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey || !racine.HTMLDialogElement) return;
-    if (['reponse', 'echeance', 'document'].indexOf(lien.getAttribute('data-f96-action')) < 0) return;
+    if (NATURES_OUVRABLES.indexOf(lien.getAttribute('data-f96-action')) < 0) return;
+    if (fenetre && fenetre.contains(lien)) return;
     ev.preventDefault();
     ouvrir(lien);
+  });
+  /* Volet ancré (non modal) : Échap le ferme aussi et rend le focus à la ligne ; une fenêtre devenue étroite repasse en fenêtre flottante. */
+  doc.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' || ev.defaultPrevented || !fenetre || !fenetre.open || !fenetre.classList.contains('v101-ancre')) return;
+    ev.preventDefault();
+    var q = fenetre.querySelector('.f96-quitter');
+    if (!q.hidden) { q.querySelector('.f96-q-rester').click(); return; }
+    demanderFermeture();
+  });
+  racine.addEventListener('resize', function () {
+    if (!fenetre || !fenetre.open) return;
+    if (fenetre.classList.contains('v101-ancre') !== ancrable()) placer(ancrable());
+    majVoisins();
   });
 })(typeof window !== 'undefined' ? window : globalThis);

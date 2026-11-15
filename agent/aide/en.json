@@ -2107,6 +2107,33 @@
 ],
 "version": "5.6.36"
 },
+"securite_serveur": {
+"objective": "See whether the firm’s server shows signs of intrusion or software to update, with an explanation and the command for the person in charge of the server to run.",
+"when": "After an alert on the phone or in Today, or during a regular check.",
+"prerequisites": "Be an administrator; Linux server installed with the “server” package. On a Windows workstation, the page says the watch is not available.",
+"steps": [
+"Open Server security (“Security” family).",
+"Read the findings, from the most to the least serious.",
+"Open a finding to read its explanation and the proposed command.",
+"Pass the command on to the person in charge of the server: AxiorHub runs nothing itself.",
+"Once the point is dealt with, mark the finding as known and give the reason."
+],
+"result": "The list of open findings and the history of the latest checks.",
+"verify": "The date of the last check is recent and no critical finding remains open.",
+"errors": [
+[
+"“Not available on this workstation”",
+"The watch only concerns the Linux server: nothing to do on a Windows workstation."
+],
+[
+"Last check is old",
+"Ask the person in charge of the server to check that the security watch is active."
+]
+],
+"example": "An unknown program uses the processor under the web server account: the finding explains how to identify and stop it.",
+"buttons": [],
+"version": "5.6.36"
+},
 "journal_audit": {
 "objective": "Find who did what and check that the log has not been altered.",
 "when": "For a review, a liability question or an incident.",

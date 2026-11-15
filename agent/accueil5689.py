@@ -118,7 +118,9 @@ def travail_html(desk, prefix):
     return alerte + filtres('Nature du travail préparé', entrees, actif, 'a89-liste') + ''.join(panneaux) + note
 
 
-def travail_carte(desk, prefix):
+def travail_carte(desk, prefix, differe=False):
+    """``differe`` (5.6.101, lot P, P01) : les cartes sont chargées juste après l'affichage (fragment « travail », mêmes droits) ; le titre, le lien
+    vers tous les documents et le jeton d'actualisation restent dans la page."""
     try:
         from .livrables5689 import droits_requete, revision
         hidden, droits = droits_requete()
@@ -127,7 +129,12 @@ def travail_carte(desk, prefix):
         jeton = ''
     return ('<section class="c530-card a89-travail" id="a89-travail" aria-labelledby="a89-t-travail" data-revision="%s"><div class="c530-head"><h2 id="a89-t-travail">%sTravail préparé</h2>'
             '<a class="ax-btn ghost" href="%s">Tous les documents</a></div><div id="a89-travail-zone">%s</div><p class="a89-pied">Rien n’est envoyé sans votre validation.</p></section>') % (
-        e(jeton, quote=True), icone('document'), e(prefix + '/livrables', quote=True), travail_html(desk, prefix))
+        e(jeton, quote=True), icone('document'), e(prefix + '/livrables', quote=True), _attente('travail', prefix) if differe else travail_html(desk, prefix))
+
+
+def _attente(nom, prefix):
+    from .aujourdhui56101 import attente
+    return attente(nom, prefix)
 
 
 def commande_html(prefix):
@@ -239,14 +246,17 @@ def page(desk, prefix, owner, morceaux):
     pause = pause_html(desk)
     note = ('<p class="c530-note">%d bloc(s) masqué(s) sur cette page. Vous pouvez les rétablir dans « Personnaliser cette page ».</p>' % len(prefs['masques'])) if prefs['masques'] else ''
     bandeau, carte, accueil_js = entete_accueil(desk, prefix, owner, role_courant(), morceaux['date'])     # 5.6.96 (F01-F04, I01) : salutation, heure, météo
+    from . import aujourdhui56101     # 5.6.101 (lot P) : bandeau de sécurité du serveur sous l'en-tête (lot S) ; blocs différés et leur script
+    securite = aujourdhui56101.bandeau_securite(desk, prefix, owner, role_courant())
     if nouvelle56100 and accueil_js:
         accueil_js = lecteur_script(prefix) + accueil_js       # 5.6.100 (lot E) : lecteur commun (lot B) monté dans la fenêtre de travail
     return ('<div class="c530 a89%s" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete f96-tete"><div class="f96-identite"><h1>Aujourd’hui</h1>%s</div>'
-            '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div>%s</header>'
+            '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div>%s</header>%s'
             '%s%s<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s%s%s</div>') % (
-        ' f100' if nouvelle56100 else '', e(prefix, quote=True), accent, bandeau, pause, morceaux['entete'], commande_html(prefix), carte,
-        tete, rang, travail_carte(desk, prefix) + suivi, col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
-        ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'], plis_js, accueil_js)
+        ' f100' if nouvelle56100 else '', e(prefix, quote=True), accent, bandeau, pause, morceaux['entete'], commande_html(prefix), carte, securite,
+        tete, rang, travail_carte(desk, prefix, differe=True) + suivi, col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
+        ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'], plis_js,
+        accueil_js + aujourdhui56101.script_html(prefix))
 
 
 def rang_html(desk, prefix, owner, role, blocs, principal, cote):
@@ -282,7 +292,8 @@ def entete_accueil(desk, prefix, owner, role, date_texte):
     try:
         from . import accueil_web5696 as acc
         bandeau = acc.bandeau_html(desk, owner) + acc.options_html(desk, owner)
-        return bandeau, acc.carte_html(desk, owner, role, prefix), '<script defer src="%s"></script>' % e(prefix + '/static/v5696-accueil.js', quote=True)
+        from .volet56101 import script_html as volet_js       # 5.6.101 (lot V) : volet de relecture à droite (barre de décision, cadre de l'éditeur)
+        return bandeau, acc.carte_html(desk, owner, role, prefix), volet_js(prefix) + '<script defer src="%s"></script>' % e(prefix + '/static/v5696-accueil.js', quote=True)
     except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours
         import logging
         logging.getLogger(__name__).exception('bandeau de l’accueil 5.6.96')

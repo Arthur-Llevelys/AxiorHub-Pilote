@@ -22,7 +22,8 @@
       var q = fold(input.value.trim()), shown = 0;
       panel.querySelectorAll('li[data-search]').forEach(function (li) {
         var only = li.hasAttribute('data-search-only');   // 5.6.43 : sous-sections visibles seulement dans les résultats de recherche
-        var ok = q ? fold(li.getAttribute('data-search')).indexOf(q) !== -1 : !only;
+        // 5.6.101 : le texte affiché (nom, description) compte aussi ; data-search ne porte plus que ce qui n'est pas affiché
+        var ok = q ? fold(li.getAttribute('data-search') + ' ' + li.textContent).indexOf(q) !== -1 : !only;
         li.hidden = !ok; if (ok) shown++;
       });
       panel.querySelectorAll('.f5631-group').forEach(function (g) { g.hidden = !g.querySelector('li[data-search]:not([hidden])'); });
@@ -54,6 +55,7 @@
         var ok = !q || fold(li.getAttribute('data-search')).indexOf(q) !== -1; li.hidden = !ok; if (ok) shown++;
       });
       document.querySelectorAll('.h5631-group').forEach(function (g) { g.hidden = !g.querySelector('li[data-search]:not([hidden])'); });
+      document.querySelectorAll('.h5631-section').forEach(function (s) { s.hidden = !s.querySelector('.h5631-group:not([hidden])'); });   // 5.6.101 : sections de familles
       var he = document.getElementById('h5631-empty'); if (he) he.hidden = shown > 0;
     };
     hq.addEventListener('input', hfilter); if (hq.value) hfilter();

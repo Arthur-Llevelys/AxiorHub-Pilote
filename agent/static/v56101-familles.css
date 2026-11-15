@@ -1,0 +1,20 @@
+/* AxiorHub 5.6.101 (lot F) : barres d'onglets des familles, panneau « Toutes les fonctions » par familles, guide par familles,
+   écran « Fonctions peu utilisées ». Aucune largeur fixe : rien ne défile horizontalement à 390 px ni à 200 %. */
+.f101-onglets{display:flex;flex-wrap:wrap;gap:8px;max-width:100%;margin:12px 0 14px}
+.f101-onglets a{max-width:100%;overflow-wrap:anywhere;text-decoration:none}
+.f101-onglets a:focus-visible{outline:3px solid #7b55cf;outline-offset:2px}
+.f5631-panel li[data-f101-famille] a small{overflow-wrap:anywhere}
+.h5631-section{margin:18px 0 8px}
+.h5631-section>h3{margin:0 0 6px;font-size:1.05rem}
+.h5631-section .h5631-group h4{margin:10px 0 4px;font-size:.98rem}
+.h5631-famille{margin:6px 0 14px;padding:8px 12px;border-left:4px solid var(--g31-accent,#1f4e9c);background:var(--g31-soft,rgba(31,78,156,.06))}
+.h5631-famille ul{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 14px}
+.h5631-famille a[aria-current=page]{font-weight:700}
+.f101-usage{max-width:1000px}
+.f101-usage .f101-actions{display:flex;flex-wrap:wrap;gap:8px}
+.f101-usage .f101-note,.f101-usage .f101-alerte{padding:8px 12px;border-left:4px solid var(--g31-warn,#8a5a00);background:var(--g31-soft,rgba(138,90,0,.08))}
+.f101-table{position:relative;max-width:100%;overflow-x:auto}
+.f101-table table{width:100%;border-collapse:collapse}
+.f101-table th,.f101-table td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--ws-border,#d6dde3);overflow-wrap:anywhere}
+@media(max-width:600px){.f101-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .f101-table tr{display:block;padding:6px 0;border-bottom:1px solid var(--ws-border,#d6dde3)}.f101-table th,.f101-table td{display:block;border:0;padding:2px 8px}}

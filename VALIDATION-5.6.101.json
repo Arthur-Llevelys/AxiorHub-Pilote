@@ -1,0 +1,95 @@
+{
+  "version": "5.6.101",
+  "base": "5.6.100",
+  "date_utc": "2026-11-15T00:00:00+00:00",
+  "demande": "Cahier des charges 5.6.101 (rédigé après la 5.6.100 et l’incident de sécurité de novembre 2026), six lots : 0, S, F, P, R, M.",
+  "decisions_du_cabinet": [
+    "D1-D7 appliquées selon les recommandations du cahier (consigne : « sur la base de ton cahier des charges ») : veille active par défaut ; alertes par notification et bandeau ; aucune vérification de version en ligne ; annexe A telle quelle ; Gmail dans « À relire » ; mesure du temps sur demande ; ancienne présentation retirée en 5.6.102 seulement."
+  ],
+  "regression": {
+    "command": "python -m unittest discover -s tests -t tests (copie figée du commit testé, PYTHONUTF8=1)",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 6453,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 150,
+    "note": "Total compté par la suite elle-même ; tests propres à Linux ou à root ignorés sous Windows, exécutés par la recette GitHub et dans un conteneur Debian."
+  },
+  "proces_verbal_V101": {
+    "V101-01 horloges": "scripts/tests-horloge.py en conteneur Debian : 32 modules × 1 817 tests × 5 horloges, aucun échec ; sixième horloge (00 h 30 Paris, jour suivant) ajoutée au travail GitHub et rejouée en conteneur : 1 817 tests, une erreur de délai dans test_workspace (voir adjusted_tests), corrigée et rejouée sans erreur. Travail GitHub réel non encore observé.",
+    "V101-02 incident": "test_v56101_securite : fausse racine reproduisant l’incident → S02, S03, S04 et S05 Critiques en un passage.",
+    "V101-03 racine saine": "test_v56101_securite : aucune alerte Critique ni Importante.",
+    "V101-04 jeux S07-S10": "test_v56101_securite : chaque jeu produit son constat (secret lisible par un groupe, racine web modifiable et /.env servi, webmails anciens, script de l’administrateur dans un dossier de www-data).",
+    "V101-05 innocuité": "test_v56101_securite : écritures limitées au dossier du rapport (liste des écritures), aucune connexion hors 127.0.0.1, aucune valeur de secret dans le rapport.",
+    "V101-06 écran": "test_v56101_securite et parcours P101s (Chromium) : administrateur voit les constats ; collaborateur 404 sur la page et sans bandeau ; motif exigé et journal d’audit.",
+    "V101-07 familles": "test_v56101_familles et parcours P101f : 33 entrées au panneau ; les 90 adresses du registre répondent 200 ; Ctrl+K retrouve chaque fonction par un ancien nom.",
+    "V101-08 Aujourd’hui": "scripts/mesure56101.py (900 dossiers, 200 propositions, 30 essais) : HTML 117 267 octets (< 120 ko) ; p50 145 ms, p95 166 ms ; fragments p95 35 à 77 ms. Requêtes en base : 271 (objectif 150 non tenu, voir limites ; 375 en 5.6.100).",
+    "V101-09 dix éléments": "Parcours P101r (Chromium) : dix éléments des quatre types traités sans rechargement de la page.",
+    "V101-10 panne et droits": "test_v56101_relecture : faux Gmail en panne → éléments masqués et panne dite ; droit retiré entre liste et action → 404 sans fuite.",
+    "V101-12 volet de relecture": "test_v56101_volet (23 tests) et tests/volet56101.cjs : sept natures, droits de la page d’origine (404 neutre, 503 en panne), lecture sans écriture hors exception relevée, courriel HTML nettoyé et texte brut, cadre de l’éditeur avec contrôle des droits, actions par les routes existantes avec révision et idempotence.",
+    "V101-13 volet dans le navigateur": "Parcours P101v (Chromium, faux api.js) : volet ancré à 1920 px, liste cliquable, Suivant, Word en lecture puis édition, PDF, repli sur l’aperçu, quatre actions ; barre visible sans défiler et rien par-dessus le volet ni sur les liens de la liste à 1920 × 1080, 1366 × 768, 1280 × 720, 125 % et 200 % ; fenêtre flottante à 390 px.",
+    "V101-11 mesure du temps": "test_v56101_chrono et tests/chrono56101.cjs : activation, dix décisions, résumé correct, suppression complète vérifiée en base. sendBeacon réel non observé."
+  },
+  "mesures": {
+    "aujourdhui": {
+      "octets": 117267,
+      "p50_ms": 145.3,
+      "p95_ms": 166.3,
+      "requetes": 271
+    },
+    "aujourdhui_ancienne_presentation": {
+      "octets": 116863,
+      "p50_ms": 147.7,
+      "p95_ms": 167.6,
+      "requetes": 265
+    },
+    "fragments_p95_ms": {
+      "travail": 34.9,
+      "file": 77.0,
+      "style": 37.2,
+      "briefing": 44.5,
+      "routine": 34.0
+    },
+    "panneau_toutes_les_fonctions_octets": {
+      "avant": 55305,
+      "apres": 38003
+    }
+  },
+  "linux": "Conteneur Debian python:3.12 sur la copie figée : test_v56101* 148, test_v56100* 201, test_v569* 1 089, modules historiques 468, test_v440_* et test_workspace 59 ; aucun échec. Sixième horloge (00 h 30 Paris, jour suivant) : 1 817 tests, une erreur de délai dans test_workspace corrigée puis rejouée sans erreur.",
+  "navigateur": "Chromium : 35 parcours réussis sur la copie figée du commit testé (dont P101s, P101f, P101r, P101v ; P101v vérifie qu’aucun élément ne couvre le volet ni les liens de la liste).",
+  "fixed_during_validation": [
+    "Jour du cabinet : agent/societe5688.py (deux endroits) et echeances450.cross_check prenaient le jour de la machine ou UTC ; ils prennent le jour du cabinet.",
+    "Panneau « Toutes les fonctions » allégé (55 ko → 38 ko, présent dans chaque page) : descriptions et anciens noms seulement dans l’index de recherche.",
+    "Navigation : la fonction « Sécurité du serveur » est visible des administrateurs dans le panneau sans recherche.",
+    "Volet de relecture : le bouton rond de l’assistant et la barre « en direct » couvraient des liens de la liste ou le coin du volet ancré ; masqués tant que le volet est ancré."
+  ],
+  "adjusted_tests": [
+    "test_v550, test_v5675 : le panneau est rangé par familles (Mon style est un onglet de « Savoir-faire du cabinet » ; Navigateur supervisé porte son attribut de famille).",
+    "test_v5643, test_v410, test_v5689_ia : barres d’onglets de familles au lieu des seuls onglets de Produire.",
+    "test_v5696_accueil, test_v5696_affichage, test_d5651, test_v530, test_v5631, test_v5661, test_v5689_carbon, test_v5689_stabilite : blocs d’Aujourd’hui chargés au dépli.",
+    "test_v56100_accueil : insertion avec colonnes nommées (colonne proprietaire ajoutée).",
+    "test_v5688_societe, test_v5689_contentieux, test_workspace : dates relatives au jour du cabinet au lieu de dates fixes.",
+    "test_v5694_parcours : P101s, P101f, P101r, P101v annoncés.",
+    "parcours P101f : attente de l’adresse visée après le clic (course de navigation du test, pas de l’application).",
+    "test_workspace (envoi HTTP réel du formulaire) : la base est préparée avant le serveur ; la première requête créait toutes les tables (environ 7 s dans un conteneur Linux chargé) sous un délai de 5 s. Échec reproduit aussi sur la copie d’avant le lot V."
+  ],
+  "live_checks": "Aucun service réel : vrai serveur en root, systemd réel, IMAP, Gmail, Nextcloud, EuroOffice et modèles simulés.",
+  "exapp": {
+    "version": "0.1.60",
+    "moteur": "5.6.101"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "Aujourd’hui : 271 requêtes en base pour 900 dossiers (objectif 150 non tenu) ; taille et temps tenus.",
+    "Écritures pendant une lecture déjà présentes avant cette version, relevées et non corrigées : synchronisation des documents préparés (livrables5689), diagnostic de santé (reliability_checks_v393), premier appel du résumé téléphone (mobile490.summary).",
+    "Textes nouveaux des lots S, R et M en français seulement (comme le lecteur 5.6.100).",
+    "Veille de sécurité : jamais exécutée sur le vrai serveur ni sous un vrai systemd ; sonde HTTPS par nom de site non exercée ; résumé téléphone envoyé à tous les appareils appairés.",
+    "Vérification de version en ligne non faite (D3, voulu).",
+    "Mesure du temps : sendBeacon réel non observé dans un navigateur.",
+    "Volet de relecture : vrai serveur ONLYOFFICE / Euro-Office jamais joint (faux api.js du banc) ; IMAP et Gmail réels non exercés ; signature du cabinet non affichée sous le courriel (les réponses préparées partent sans elle) ; /livrables et /echeances ouvrent encore la page complète ; échéance d’un dossier réservé : 403 (exigé par un test existant), document réservé : 404.",
+    "Écriture pendant une lecture du volet, antérieure : le calcul de la file commune réécrit prepared_sources5689 (livrables5689.synchroniser)."
+  ]
+}

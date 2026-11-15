@@ -41,6 +41,12 @@ def _now():
 
 
 def ensure_schema(desk):
+    """5.6.101 (lot P) : une fois par affichage (GET) et par connexion ; toujours refaite hors affichage."""
+    from .affichage5696 import une_fois
+    return une_fois(desk.db, 'tableau5688.schema', lambda: _ensure_schema(desk))
+
+
+def _ensure_schema(desk):
     desk.db.execute(SCHEMA)
 
 
@@ -54,7 +60,14 @@ def _ordre(valeurs, tete=False):
 
 
 def charger(desk, owner):
-    """Réglages de la personne : tolérant à un contenu ancien ou abîmé (retour aux réglages d'origine, jamais d'erreur sur Aujourd'hui)."""
+    """Réglages de la personne : tolérant à un contenu ancien ou abîmé (retour aux réglages d'origine, jamais d'erreur sur Aujourd'hui).
+    5.6.101 (lot P, P02) : lus une fois par affichage (GET) ; chaque appelant reçoit sa copie. Hors affichage, toujours relus."""
+    import copy
+    from .affichage5696 import memo_requete
+    return copy.deepcopy(memo_requete(('tableau5688.charger', str(desk.c.get('state_dir', '')), str(owner)), lambda: _charger(desk, owner)))
+
+
+def _charger(desk, owner):
     ensure_schema(desk)
     row = desk.db.execute('SELECT data FROM tableau5688 WHERE owner=?', (str(owner),)).fetchone()
     try:
@@ -135,6 +148,11 @@ def appliquer(desk, html, owner, extras, role='administrateur'):
 
 
 def panneau(prefs, role='administrateur', desk=None):
+    """Pli « Personnaliser cette page » complet (contenu compris)."""
+    return '<details class="t88-panel t95-panel" id="t88-panel"><summary>Personnaliser cette page</summary>%s</details>' % panneau_contenu(prefs, role, desk)
+
+
+def panneau_contenu(prefs, role='administrateur', desk=None):
     """Réglages : case à cocher, Monter et Descendre au clavier ; glisser-déposer en plus à la souris (v5688-crm.js).
     5.6.95 (A04) : liste en Carbon ; la case et le nom du bloc sur la même ligne, Monter et Descendre groupés juste après le nom (pas en bout de
     ligne), le nom du bloc dans le libellé accessible de chaque bouton ; le rang est un compteur CSS (il n'entre pas dans le texte lu)."""
@@ -161,12 +179,11 @@ def panneau(prefs, role='administrateur', desk=None):
     if role == 'administrateur' and desk is not None:
         from .memoire5688 import reglage_html
         memoire = reglage_html(desk)
-    return ('<details class="t88-panel t95-panel" id="t88-panel"><summary>Personnaliser cette page</summary>'
-            '<form class="m5-form t95-form" data-api="m5688/tableau/enregistrer" data-reload="1"><input type="hidden" name="ordre" id="t88-ordre" value="%s">'
+    return ('<form class="m5-form t95-form" data-api="m5688/tableau/enregistrer" data-reload="1"><input type="hidden" name="ordre" id="t88-ordre" value="%s">'
             '<fieldset class="t95-blocs"><legend>%s</legend>'
             '<p class="ax-muted" id="t95-aide">Cochez les blocs à afficher. Monter et Descendre changent leur ordre ; à la souris, vous pouvez aussi les glisser.</p>'
             '<ol class="t88-list t95-list" id="t88-list" aria-describedby="t95-aide">%s</ol></fieldset>'
             '<fieldset class="t88-colors t95-couleurs"><legend>Couleur d’accent</legend>%s</fieldset>%s<p id="t88-status" role="status" class="c530-sr"></p>'
             '<div class="t95-boutons"><button class="ax-btn" type="submit">Enregistrer</button></div></form>'
-            '<form class="m5-form m5-inline t95-form" data-api="m5688/tableau/reinitialiser" data-reload="1"><button class="ax-btn ghost" type="submit">Revenir aux réglages d’origine</button></form>%s</details>') % (
+            '<form class="m5-form m5-inline t95-form" data-api="m5688/tableau/reinitialiser" data-reload="1"><button class="ax-btn ghost" type="submit">Revenir aux réglages d’origine</button></form>%s') % (
         e(','.join(prefs['ordre']), quote=True), e(t('a95.perso.blocs')), rows, colors, reglages96, memoire)

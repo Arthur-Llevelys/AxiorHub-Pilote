@@ -101,6 +101,12 @@ DESTINATAIRE = re.compile(r"(?:\ba|\bdevant|adressees?\s+a)\s+(?:madame\s+|monsi
 
 # --------------------------------------------------------------- storage
 def ensure_schema(desk):
+    """5.6.101 (lot P) : une fois par affichage (GET) et par connexion ; toujours refaite hors affichage."""
+    from .affichage5696 import une_fois
+    return une_fois(desk.db, 'echeances450.schema', lambda: _ensure_schema(desk))
+
+
+def _ensure_schema(desk):
     desk.db.executescript('''
     CREATE TABLE IF NOT EXISTS deadlines450(
       id TEXT PRIMARY KEY, matter TEXT NOT NULL, rule_id TEXT NOT NULL, start_event TEXT NOT NULL,
@@ -1055,7 +1061,12 @@ def has_prepared_act(desk, row):
 def cross_check(desk, dav=None, today=None):
     """Anomalies : date manquante, agenda absent ou divergent, deux dates contradictoires, échéance sans acte préparé."""
     ensure_schema(desk)
-    today = today or date.today()
+    if today is None:   # 5.6.101 : jour du cabinet, et non celui de la machine
+        try:
+            from .acces5683 import today_of
+            today = today_of(desk)[0]
+        except Exception:   # noqa: BLE001
+            today = datetime.now(timezone.utc).date()
     rows = [public(dict(r)) for r in desk.db.execute("SELECT * FROM deadlines450 WHERE status NOT IN ('terminee','annulee')")]
     anomalies = []
 

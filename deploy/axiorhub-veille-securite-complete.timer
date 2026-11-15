@@ -1,0 +1,11 @@
+[Unit]
+Description=AxiorHub Pilote — veille de sécurité du serveur (chaque nuit à 4 h 40)
+
+[Timer]
+OnCalendar=*-*-* 04:40:00
+Persistent=true
+AccuracySec=1min
+Unit=axiorhub-veille-securite-complete.service
+
+[Install]
+WantedBy=timers.target

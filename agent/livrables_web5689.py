@@ -263,7 +263,7 @@ def _retour_sur(value, prefix):
 
 
 def _liste_page(desk, env, auth, prefix, args, shell):
-    from .navigation5643 import production_tabs_html
+    # 5.6.101 (lot F) : la barre de la famille Produire est posée par shell501.render (l'ancien appel aux onglets de Produire est retiré)
     owner, role, hidden, droits = _contexte(desk, env)
     data = _projection(desk, args, hidden, droits, prefix)
     here = prefix + '/livrables' + (('?' + urlencode({k: v for k, v in args.items() if k in ('nature', 'etat', 'revue', 'recence', 'q', 'dossier', 'curseur') and v})) if any(args.get(k) for k in ('nature', 'etat', 'revue', 'recence', 'q', 'dossier', 'curseur')) else '')
@@ -287,7 +287,7 @@ def _liste_page(desk, env, auth, prefix, args, shell):
     body = ('%s<h1>Documents préparés</h1><p class="ax-muted">Tous les producteurs, sur un seul registre. Dernière lecture : %s.</p>%s%s'
             '<form class="l89-filtres" method="get" action="%s"><label>Recherche<input name="q" value="%s" maxlength="80"></label><label>Date<select name="recence">%s</select></label><label>Relecture<select name="revue">%s</select></label><label>État<select name="etat">%s</select></label>%s<button class="ax-btn ghost" type="submit">Filtrer</button></form>'
             '<nav class="l89-natures" aria-label="Filtrer par nature">%s</nav><div id="l89-liste" data-revision="%s" data-scope="%s">%s</div>%s%s<script defer src="%s/static/v5689-livrables.js"></script>') % (
-        production_tabs_html(prefix, '/livrables'), e(_date(data['synced_at'] or '') or 'à venir'), sources_html(data['sources'], True), note, e(prefix + '/livrables', quote=True), e(str(args.get('q') or ''), quote=True), options, reviews, states,
+        '', e(_date(data['synced_at'] or '') or 'à venir'), sources_html(data['sources'], True), note, e(prefix + '/livrables', quote=True), e(str(args.get('q') or ''), quote=True), options, reviews, states,
         ('<input type="hidden" name="nature" value="%s">' % e(str(args['nature']), quote=True)) if args.get('nature') else '', chips, e(data['revision'], quote=True), e(str(args.get('dossier') or ''), quote=True), items, pager, sources_html(data['sources']), e(prefix, quote=True))
     return shell('Documents préparés', body, prefix, auth['csrf'], '/production')
 

@@ -623,6 +623,11 @@ def _inscrire_relecture(desk, row, decision, owner, scope, note='', origin='dire
     desk.db.commit()
     from . import verification5689
     verification5689.relecture_humaine(desk, _item(desk, row['id']))
+    try:   # 5.6.101 (lot R) : la liste « À relire » unique suit la décision (Produire, Aujourd'hui, visionneuse) ; jamais bloquant
+        from .relecture56101 import projeter_apres_ecriture
+        projeter_apres_ecriture(desk, 'document', row['document_id'])
+    except ImportError:
+        pass
     return _item(desk, row['id'])
 
 

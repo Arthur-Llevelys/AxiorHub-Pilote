@@ -1,0 +1,13 @@
+[Unit]
+Description=AxiorHub Pilote — applique la demande de l’interface sur les minuteurs de la veille de sécurité (liste fermée : activer, désactiver)
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 -I -B /usr/lib/axiorhub-pilote/veille-securite.py --appliquer-demande
+TimeoutStartSec=60
+UMask=0027
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+IPAddressDeny=any

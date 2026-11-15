@@ -2107,6 +2107,33 @@
 ],
 "version": "5.6.36"
 },
+"securite_serveur": {
+"objective": "Ver si el servidor del despacho presenta signos de intrusión o programas que actualizar, con una explicación y el comando que debe ejecutar la persona encargada del servidor.",
+"when": "Tras una alerta en el teléfono o en Hoy, o durante un control periódico.",
+"prerequisites": "Ser administrador; servidor Linux instalado con el paquete «servidor». En un puesto Windows, la página indica que la vigilancia no está disponible.",
+"steps": [
+"Abra Seguridad del servidor (familia «Seguridad»).",
+"Lea las constataciones, de la más grave a la menos grave.",
+"Abra una constatación para leer su explicación y el comando propuesto.",
+"Transmita el comando a la persona encargada del servidor: AxiorHub no ejecuta nada por sí mismo.",
+"Una vez resuelto, marque la constatación como conocida indicando el motivo."
+],
+"result": "La lista de constataciones abiertas y el historial de los últimos controles.",
+"verify": "La fecha del último control es reciente y no queda abierta ninguna constatación crítica.",
+"errors": [
+[
+"«No disponible en este puesto»",
+"La vigilancia solo afecta al servidor Linux: no hay nada que hacer en un puesto Windows."
+],
+[
+"Último control antiguo",
+"Pida a la persona encargada del servidor que compruebe que la vigilancia de seguridad está activa."
+]
+],
+"example": "Un programa desconocido ocupa el procesador con la cuenta del servidor web: la constatación explica cómo identificarlo y detenerlo.",
+"buttons": [],
+"version": "5.6.36"
+},
 "journal_audit": {
 "objective": "Saber quién hizo qué y comprobar que el registro no se ha alterado.",
 "when": "Para un control, una cuestión de responsabilidad o un incidente.",

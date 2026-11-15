@@ -2107,6 +2107,33 @@
 ],
 "version": "5.6.36"
 },
+"securite_serveur": {
+"objective": "Sehen, ob der Server der Kanzlei Anzeichen eines Eindringens oder zu aktualisierende Software aufweist, mit einer Erklärung und dem Befehl, den die für den Server zuständige Person ausführen soll.",
+"when": "Nach einer Warnung auf dem Telefon oder in „Heute“ oder bei einer regelmäßigen Kontrolle.",
+"prerequisites": "Administrator sein; Linux-Server mit dem Paket „Server“ installiert. Auf einem Windows-Arbeitsplatz zeigt die Seite an, dass die Überwachung nicht verfügbar ist.",
+"steps": [
+"Öffnen Sie Serversicherheit (Gruppe „Sicherheit“).",
+"Lesen Sie die Befunde, vom schwersten zum leichtesten.",
+"Öffnen Sie einen Befund, um seine Erklärung und den vorgeschlagenen Befehl zu lesen.",
+"Geben Sie den Befehl an die für den Server zuständige Person weiter: AxiorHub führt selbst nichts aus.",
+"Ist der Punkt erledigt, markieren Sie den Befund als bekannt und geben Sie den Grund an."
+],
+"result": "Die Liste der offenen Befunde und der Verlauf der letzten Kontrollen.",
+"verify": "Das Datum der letzten Kontrolle ist aktuell und kein kritischer Befund ist mehr offen.",
+"errors": [
+[
+"„Auf diesem Arbeitsplatz nicht verfügbar“",
+"Die Überwachung betrifft nur den Linux-Server: Auf einem Windows-Arbeitsplatz ist nichts zu tun."
+],
+[
+"Letzte Kontrolle liegt zurück",
+"Bitten Sie die für den Server zuständige Person zu prüfen, ob die Sicherheitsüberwachung aktiv ist."
+]
+],
+"example": "Ein unbekanntes Programm belastet den Prozessor unter dem Konto des Webservers: Der Befund erklärt, wie man es erkennt und beendet.",
+"buttons": [],
+"version": "5.6.36"
+},
 "journal_audit": {
 "objective": "Ermitteln, wer was getan hat, und prüfen, dass das Protokoll unverändert ist.",
 "when": "Für eine Prüfung, eine Haftungsfrage oder einen Vorfall.",

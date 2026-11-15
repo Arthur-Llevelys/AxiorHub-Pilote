@@ -1145,5 +1145,10 @@ def job_ia(desk, args):
     desk.db.commit()
     if not cur.rowcount:
         return {'etat': 'remplace'}
+    try:   # 5.6.101 (lot R, R01) : projet préparé par l'IA, à relire dans la liste « À relire » unique ; jamais bloquant
+        from .relecture56101 import projeter_apres_ecriture
+        projeter_apres_ecriture(desk, 'gmail', p_id)
+    except ImportError:
+        pass
     desk.audit('gmail5697_ia_terminee', {'projet': p_id[:12], 'etat': etat})
     return {'etat': etat, 'projet_prepare': bool(prepared.get('projet_prepare')), 'depot_automatique': False}

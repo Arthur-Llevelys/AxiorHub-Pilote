@@ -7,6 +7,12 @@
   var help = document.getElementById('ax-office-help');
 
   function say(text) { state.textContent = text; }
+  /* 5.6.101 (lot V) : dans le cadre du volet d'Aujourd'hui, l'état de l'éditeur est signalé à la page d'AxiorHub qui l'affiche (même origine
+     seulement) : « pret » une fois l'éditeur affiché, « echec » sinon ; la page passe alors à l'aperçu simplifié. */
+  function signaler(etat) {
+    if (!boot.volet || window.parent === window) return;
+    try { window.parent.postMessage({ ax101office: etat, mode: boot.mode }, window.location.origin); } catch (e) { /* page parente fermée */ }
+  }
   function get(name, params) {
     return fetch(prefix + '/api440/' + name + (params ? '?' + new URLSearchParams(params) : ''), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); });
@@ -34,6 +40,7 @@
     }).catch(function () { say('Diagnostic impossible.'); });
   }
   document.getElementById('ax-diag').addEventListener('click', diagnose);
+  if (boot.volet) diagnose = function () { signaler('echec'); };   // 5.6.101 (lot V) : pas de diagnostic dans le cadre ; la page parente se replie
 
   var timer = setTimeout(function () {
     say('L’éditeur tarde à répondre.');
@@ -43,8 +50,8 @@
     ]);
   }, 25000);
 
-  get('office/config', { path: boot.path, mode: boot.mode }).then(function (d) {
-    if (d.error) { clearTimeout(timer); say(''); showHelp('Ouverture impossible', [d.message || d.error]); return; }
+  (boot.config_api ? get(boot.config_api) : get('office/config', { path: boot.path, mode: boot.mode })).then(function (d) {   // 5.6.101 (lot V) : configuration contrôlée du volet
+    if (d.error) { clearTimeout(timer); say(''); showHelp('Ouverture impossible', [d.message || d.error]); signaler('echec'); return; }
     var script = document.createElement('script');
     script.src = d.server_url + '/web-apps/apps/api/documents/api.js';
     script.onerror = function () {
@@ -54,7 +61,7 @@
       var cfg = d.config;
       if (d.document_id) { window.axOfficeOpened = d.document_id; window.dispatchEvent(new CustomEvent('ax-office-opened', {detail: {document_id: d.document_id}})); }   // 5.6.84 : panneau de suivi
       cfg.events = {
-        onAppReady: function () { clearTimeout(timer); say(d.editable ? 'Prêt — vos modifications sont enregistrées automatiquement dans Nextcloud.' : 'Lecture seule.'); },
+        onAppReady: function () { clearTimeout(timer); say(d.editable ? 'Prêt — vos modifications sont enregistrées automatiquement dans Nextcloud.' : 'Lecture seule.'); signaler('pret'); },
         onDocumentStateChange: function (ev) { say(ev.data ? 'Modification en cours…' : 'Enregistré dans Nextcloud.'); },
         onError: function (ev) { clearTimeout(timer); say('Erreur de l’éditeur : ' + ((ev && ev.data && (ev.data.errorDescription || ev.data.errorCode)) || 'inconnue')); diagnose(); }
       };
@@ -62,5 +69,5 @@
       catch (err) { say('Initialisation impossible.'); diagnose(); }
     };
     document.head.appendChild(script);
-  }).catch(function () { clearTimeout(timer); say('Ouverture impossible.'); });
+  }).catch(function () { clearTimeout(timer); say('Ouverture impossible.'); signaler('echec'); });
 })();

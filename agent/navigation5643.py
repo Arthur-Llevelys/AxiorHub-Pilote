@@ -35,7 +35,8 @@ PRODUCTION_VIEWS = {'resultats': '/production', 'rediger': '/studio', 'documents
 # Menu complémentaire : besoins distincts des six accès principaux (cible 6 à 10 entrées visibles).
 # 5.6.75 : le navigateur supervisé (5.6.73) n'avait ni place dans ce menu ni page parente : seule la recherche le trouvait.
 PANEL = ('facturation', 'contribution', 'cessions', 'recherche', 'navigateur', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant',
-         'guide_utilisation')
+         'guide_utilisation',
+         'securite_serveur')   # 5.6.101 (lot S) : famille « Sécurité », visible des administrateurs sans recherche
 
 # Destination canonique des sous-sections (trouvées par la recherche ; leur page reste servie).
 PARENT = {

@@ -76,6 +76,12 @@ def maintenance(desk, stamp=None):
         trace480.purge(desk)
     except Exception:
         pass
+    try:   # 5.6.101 (lot S) : rapports de la veille de sécurité analysés ici, jamais pendant l'affichage (R05), avant le signal du téléphone
+        from . import securite56101
+        if securite56101.disponible():
+            securite56101.ingerer(desk, now=stamp)
+    except Exception:   # noqa: BLE001 — la veille ne doit pas interrompre la maintenance
+        pass
     try:
         from . import mobile490, search490
         mobile490.dispatch(desk, now=stamp)

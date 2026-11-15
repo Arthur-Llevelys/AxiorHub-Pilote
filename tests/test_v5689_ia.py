@@ -292,7 +292,7 @@ class Fiches(Base):
         ids = {x[0] for x in reference.REGISTRE}
         self.assertEqual(len(ids), 85)
         self.assertEqual(set(cap.FICHES), set(registre.INDEX))
-        self.assertEqual(set(cap.FICHES) - ids, {'contentieux', 'livrables', 'gouvernance_ia', 'banc_essai'})
+        self.assertEqual(set(cap.FICHES) - ids, {'contentieux', 'livrables', 'gouvernance_ia', 'banc_essai', 'securite_serveur'})   # 5.6.101 : page du lot S inscrite par le lot F
         if not ANNEXE.is_file():
             return
         annexe = {x['id']: x for x in self.annexe()}

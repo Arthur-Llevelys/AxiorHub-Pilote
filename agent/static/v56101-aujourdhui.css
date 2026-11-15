@@ -1,0 +1,4 @@
+/* AxiorHub 5.6.101 (lot P) : attente d'un bloc différé d'Aujourd'hui (même allure que les blocs repliés de la 5.6.96). */
+.p101-attente { color: var(--cds-text-secondary, #525252); font-size: var(--ui-taille-petit, .875rem); margin: .5rem; overflow-wrap: anywhere; }
+.p101-attente a { color: var(--cds-link-primary, #0f62fe); }
+[data-p101-etat=panne] > .p101-attente { color: var(--cds-text-error, #da1e28); }

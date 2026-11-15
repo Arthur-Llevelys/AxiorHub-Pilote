@@ -50,7 +50,8 @@ def _court(texte, n=TITRE_MAX):
 
 
 def _table(desk, nom):
-    return bool(desk.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (nom,)).fetchone())
+    from .affichage5696 import table_presente     # 5.6.101 (lot P) : liste des tables lue une fois par affichage
+    return table_presente(desk.db, nom)
 
 
 def _dans(hidden, colonne):

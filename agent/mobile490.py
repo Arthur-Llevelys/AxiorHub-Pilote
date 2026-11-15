@@ -67,11 +67,18 @@ def counts(desk, today=None):
     except Exception:
         deadlines = 0
     from .appareils5674 import pending_count   # 5.6.74 : éléments « À décider / À relire » (nombre seulement)
-    return {'drafts': int(drafts), 'deadlines': int(deadlines), 'decisions': pending_count(desk)}
+    try:   # 5.6.101 (lot S, S-U3) : constats critiques ouverts de la veille de sécurité du serveur (nombre seulement, 0 sur le poste)
+        from .securite56101 import nombre_alerte
+        securite = int(nombre_alerte(desk))
+    except Exception:   # noqa: BLE001
+        securite = 0
+    return {'drafts': int(drafts), 'deadlines': int(deadlines), 'decisions': pending_count(desk), 'securite': securite}
 
 
 def neutral_text(c):
     parts = []
+    if c.get('securite'):   # 5.6.101 (lot S) : texte fixe, sans aucun détail du constat
+        parts.append('Alerte de sécurité du serveur')
     if c['drafts']:
         parts.append('%d brouillon%s à valider' % (c['drafts'], 's' if c['drafts'] > 1 else ''))
     if c['deadlines']:
@@ -214,7 +221,7 @@ def dispatch(desk, today=None, force=False, now=None):
     last = desk.settings('mobile490:last_counts', {'drafts': 0, 'deadlines': 0})
     desk.setting('mobile490:last_counts', c)
     if not force and c['drafts'] <= last.get('drafts', 0) and c['deadlines'] <= last.get('deadlines', 0) and \
-            c.get('decisions', 0) <= last.get('decisions', 0):
+            c.get('decisions', 0) <= last.get('decisions', 0) and c.get('securite', 0) <= last.get('securite', 0):
         return {'sent': 0, 'reason': 'rien_de_nouveau'}
     subject = 'mailto:' + (desk.c['mail'].get('from_address') or 'contact@invalid.example')
     sent, dead = 0, []

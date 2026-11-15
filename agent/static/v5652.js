@@ -74,5 +74,6 @@
       .catch(function (e) { if (out) { out.textContent = e.message; } })
       .then(function () { btn.disabled = false; });
   });
+  window.ax5652Init = init;   // 5.6.101 (lot P) : formulaires des routines chargés à l'ouverture de leur pli (v56101-aujourdhui.js)
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function () { init(document); }); } else { init(document); }
 }());

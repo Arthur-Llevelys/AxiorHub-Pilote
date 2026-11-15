@@ -82,7 +82,18 @@ def _message(code):
 def api(env, desk, auth, prefix, name, args, method):
     from .web440 import json_out
     try:
-        return _route(env, desk, auth, prefix, name, args, method)
+        out = _route(env, desk, auth, prefix, name, args, method)
+        if method == 'POST':   # 5.6.101 (lot R, R01) : projets de la personne remis à jour dans « À relire » (jamais bloquant)
+            try:
+                from .relecture56101 import projeter_gmail_compte
+                from .web567 import actor
+                projeter_gmail_compte(desk, actor(env)[0])
+            except Exception:   # noqa: BLE001 — le rattrapage des automatismes reprendra
+                try:
+                    desk.db.rollback()
+                except Exception:   # noqa: BLE001
+                    pass
+        return out
     except Stop as error:
         code = str(error).split(':')[0]
         statut = ('409 Conflict' if code in CONFLITS else '403 Forbidden' if code in ('role_insuffisant', 'origine_ou_csrf_refuse', 'geste_reserve_a_la_personne')

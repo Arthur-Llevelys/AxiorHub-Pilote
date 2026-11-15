@@ -92,8 +92,12 @@ class Page(Base):
         body = self.request('/aujourdhui')['body']
         for text in ('id="c530"', 'Instruction à l’agent', 'aria-label="Joindre un document"', 'aria-label="Dicter"', 'Envoyer',
                      'À relire', 'Ce que fait l’agent', 'Ma journée', 'Tâches Nextcloud', 'Deck · Production de l’agent', 'Routines du cabinet',
-                     'Briefing du matin', 'Style du cabinet', '/static/v530.js', '/static/v500.js', '<option value="20240101001">DEMO</option>'):
+                     'Briefing du matin', 'Style du cabinet', '/static/v530.js', '/static/v500.js'):
             self.assertIn(text, body)
+        # 5.6.101 (lot P) : la liste des dossiers est celle du formulaire « Ajouter une routine », servi à l'ouverture de son pli
+        self.assertIn('data-p101-fragment="routine"', body)
+        formulaire = json.loads(self.request('/api440/m56101/aujourdhui/fragment', query='nom=routine')['body'])['html']
+        self.assertIn('<option value="20240101001">DEMO</option>', formulaire)
         self.assertIn('Audiences et rendez-vous', self.request('/aujourdhui', query='vue=essentiel')['body'])     # écran 5.2 conservé
         self.assertEqual(body.count('<h1'), 1)                                                     # un seul titre
         nav = self.request('/aujourdhui')['body']

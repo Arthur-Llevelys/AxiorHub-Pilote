@@ -2107,6 +2107,33 @@
 ],
 "version": "5.6.36"
 },
+"securite_serveur": {
+"objective": "Voir si le serveur du cabinet présente des signes d’intrusion ou des logiciels à mettre à jour, avec une explication et la commande à faire exécuter par la personne chargée du serveur.",
+"when": "Après une alerte sur le téléphone ou dans Aujourd’hui, ou lors d’un contrôle régulier.",
+"prerequisites": "Être administrateur ; serveur Linux installé avec le paquet « serveur ». Sur un poste Windows, la page indique que la veille n’est pas disponible.",
+"steps": [
+"Ouvrez Sécurité du serveur (famille « Sécurité »).",
+"Lisez les constats, du plus grave au moins grave.",
+"Ouvrez un constat pour lire son explication et la commande proposée.",
+"Transmettez la commande à la personne chargée du serveur : AxiorHub n’exécute rien lui-même.",
+"Une fois le point traité, marquez le constat comme connu en indiquant le motif."
+],
+"result": "La liste des constats ouverts et l’historique des derniers contrôles.",
+"verify": "La date du dernier contrôle est récente et aucun constat critique ne reste ouvert.",
+"errors": [
+[
+"« Non disponible sur ce poste »",
+"La veille ne concerne que le serveur Linux : rien à faire sur un poste Windows."
+],
+[
+"Dernier contrôle ancien",
+"Demandez à la personne chargée du serveur de vérifier que la veille de sécurité est active."
+]
+],
+"example": "Un programme inconnu occupe le processeur sous le compte du serveur web : le constat explique comment l’identifier et l’arrêter.",
+"buttons": [],
+"version": "5.6.36"
+},
 "journal_audit": {
 "objective": "Retrouver qui a fait quoi et vérifier que le journal n’a pas été modifié.",
 "when": "Pour un contrôle, une question de responsabilité ou un incident.",

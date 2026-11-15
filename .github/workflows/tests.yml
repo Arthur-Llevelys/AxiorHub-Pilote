@@ -150,3 +150,39 @@ jobs:
           name: parcours-navigateur
           path: ${{ runner.temp }}/parcours/
           if-no-files-found: warn
+
+  horloge:
+    # 5.6.101 (lot 0, T03) : tests de dates rejoués avec une horloge simulée en Python (scripts/tests-horloge.py, aucun
+    # téléchargement) : jour courant, +365 et +730 jours, 23 h 30 heure de Paris, vendredi soir. Non bloquant en 5.6.101,
+    # bloquant à partir de la 5.6.102. Le runner est en heure universelle : les écarts entre Paris et UTC apparaissent ici.
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        horloge:
+          - { nom: 'jour courant', options: '' }
+          - { nom: '+365 jours', options: '--decalage-jours 365' }
+          - { nom: '+730 jours', options: '--decalage-jours 730' }
+          - { nom: '23 h 30 Paris', options: '--heure-paris 23:30' }
+          - { nom: 'vendredi soir', options: '--vendredi-soir' }
+          # 5.6.101 (intégration) : la vraie bascule Paris/UTC (entre minuit et 1 h à Paris, l'UTC est encore la veille)
+          - { nom: '00 h 30 Paris', options: '--decalage-jours 1 --heure-paris 00:30' }
+    name: horloge (${{ matrix.horloge.nom }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Outils PDF et OCR
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-fra
+      - name: Dépendances Python (identiques à l'image Docker)
+        run: python3 -m pip install --quiet waitress==3.0.2 cryptography==44.0.0
+      - name: Tests de dates sous horloge simulée
+        run: |
+          set -o pipefail
+          umask 022
+          python3 scripts/tests-horloge.py ${{ matrix.horloge.options }} 2>&1 | tee /tmp/tests-horloge.log
+      - name: Motifs des échecs (annotations lisibles sans connexion)
+        if: failure()
+        run: python3 scripts/ci-annotate.py /tmp/tests-horloge.log

@@ -629,6 +629,10 @@ class Fenetre(Base):
         MESURE.prepare(self.d, 'liv4', 'Réponse au confrère', 'courriel', 'DOS-002', depot='depose')
         self.d.db.commit()
         html = self.page()
+        # 5.6.101 (lot P, P01) : les cartes de Travail préparé sont servies par le fragment « travail » (mêmes fonctions), chargé après l'affichage
+        self.assertIn('data-p101-fragment="travail"', html)
+        from agent.accueil5689 import travail_html
+        html = travail_html(self.d, '/p')
         self.assertRegex(html, r'href="/p/livrables/doc-liv3\?return_to=[^"]*"[^>]*data-f96-action="document" data-f96-cle="doc-liv3"')
         js = (STATIC / 'v5696-accueil.js').read_text(encoding='utf-8')
         for attendu in ('showModal', 'AbortController', "addEventListener('cancel'", 'demande.abort()', 'ev.button !== 0', 'focus({ preventScroll: true })', 'HTMLDialogElement'):

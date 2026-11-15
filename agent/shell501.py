@@ -44,7 +44,7 @@ AX_JS = ('v440.js', 'v470.js', 'v480.js', 'v500.js')
 LEGACY_CSS = ('style.css', 'v15.css', 'v151.css', 'v160.css', 'v170.css', 'v180.css', 'v190.css', 'v210.css', 'v211.css', 'v230.css',
               'v364.css', 'v380.css', 'v390.css', 'v391.css', 'v392.css', 'v393.css', 'v400.css', 'v410.css', 'v420.css')
 # 5.2.0 : une seule feuille par page, concaténation dans l'ordre exact de chargement (voir scripts/build-css.py).
-BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css', 'v5682.css', 'v5683.css', 'v5684.css', 'v5686.css', 'v5688-securite.css', 'v5688-reversibilite.css', 'v5688-agenda.css', 'v5688-facturation.css', 'v5688-crm.css', 'v5688-cloud.css', 'v5688-societe.css', 'v5689-cabinet.css', 'v5689-livrables.css', 'v5689-dossier.css', 'v5689-carbon-jetons.css', 'v5689-carbon.css', 'v5689-ia.css', 'v5694-traces.css', 'v5694-voix.css', 'v5695-redaction.css', 'v5695-aujourdhui.css', 'v5696-accueil.css', 'v5696-affichage.css', 'v5696-courriels.css', 'v5697-fiabilite.css', 'v5697-dossiers.css', 'v5697-chatgpt.css', 'v5697-agenda.css', 'v5697-gmail.css', 'v5697-mission.css', 'v5697-sources.css', 'v5697-gestion.css', 'v5698.css', 'v5699.css', 'v56100-reactivite.css', 'v56100-dossiers.css', 'v56100-accueil.css', 'v56100-produire.css', 'v56100-lecteur.css')
+BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css', 'v560.css', 'v561.css', 'v567.css', 'v568.css', 'v5613.css', 'v5614.css', 'v5625.css', 'v5627.css', 'v5628.css', 'v5631.css', 'v5632.css', 'v5634.css', 'v5636.css', 'v5637.css', 'v5650.css', 'v5651.css', 'v5652.css', 'v5653.css', 'v5670.css', 'v5671.css', 'v5673.css', 'v5674.css', 'v5675.css', 'v5676.css', 'v5679.css', 'v5680.css', 'v5681.css', 'v5682.css', 'v5683.css', 'v5684.css', 'v5686.css', 'v5688-securite.css', 'v5688-reversibilite.css', 'v5688-agenda.css', 'v5688-facturation.css', 'v5688-crm.css', 'v5688-cloud.css', 'v5688-societe.css', 'v5689-cabinet.css', 'v5689-livrables.css', 'v5689-dossier.css', 'v5689-carbon-jetons.css', 'v5689-carbon.css', 'v5689-ia.css', 'v5694-traces.css', 'v5694-voix.css', 'v5695-redaction.css', 'v5695-aujourdhui.css', 'v5696-accueil.css', 'v5696-affichage.css', 'v5696-courriels.css', 'v5697-fiabilite.css', 'v5697-dossiers.css', 'v5697-chatgpt.css', 'v5697-agenda.css', 'v5697-gmail.css', 'v5697-mission.css', 'v5697-sources.css', 'v5697-gestion.css', 'v5698.css', 'v5699.css', 'v56100-reactivite.css', 'v56100-dossiers.css', 'v56100-accueil.css', 'v56100-produire.css', 'v56100-lecteur.css', 'v56101-familles.css', 'v56101-securite.css', 'v56101-aujourdhui.css', 'v56101-volet.css')
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -208,8 +208,23 @@ def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='
     except Exception:
         matters = []
     audio = bool((cfg.get('audio') or {}).get('enabled'))
-    from .navigation5643 import production_tabs_html   # 5.6.43 (§ 20) : onglets de Produire sur chacune de ses pages
-    body = production_tabs_html(prefix, path) + body
+    # 5.6.101 (lot F, F02) : barre d'onglets de la famille de la page (les onglets de Produire deviennent ceux de la famille Produire) et
+    # marqueur du compteur d'usage (F05 : signalé en POST par v56101-familles.js, jamais écrit pendant ce GET)
+    from .familles56101 import chemin_de_page, onglets_html
+    from .i18n5631 import role as _role101
+    body = onglets_html(prefix, chemin_de_page(path), _role101()) + body
+    try:
+        from .usage56101 import balise_html as _usage101
+        _balise101 = _usage101(prefix, path, cfg)
+    except Exception:   # noqa: BLE001 — le compteur facultatif ne bloque jamais une page
+        _balise101 = ''
+    if _balise101 or 'f101-onglets' in body or 'data-f101-reglage' in body:
+        scripts = (scripts or '') + _balise101 + '<script defer src="' + e(prefix) + '/static/v56101-familles.js"></script>'
+    try:   # 5.6.101 (lot M) : écoute du lecteur pour la mesure du temps, servie seulement à la personne qui l'a activée (lecture seule)
+        from .chrono56101 import script_html as _chrono101
+        scripts = (scripts or '') + _chrono101(cfg, prefix)
+    except Exception:   # noqa: BLE001 — la mesure facultative ne bloque jamais une page
+        pass
     html = (head_html(title, prefix, css, head) + toast + sidebar_html(prefix, path) + '<main id="ws-main">' + topbar_html(prefix, title, path, 'data-ui89-retour' not in body) + body + '</main>' + scripts +
             _messages_json() + '<script defer src="' + e(prefix) + '/static/v5631.js"></script><script defer src="' + e(prefix) + '/static/v5632.js"></script><script defer src="' + e(prefix) + '/static/v5634.js"></script><script defer src="' + e(prefix) + '/static/v5636.js"></script><script defer src="' + e(prefix) + '/static/v5670.js"></script><script defer src="' + e(prefix) + '/static/v5671.js"></script><script defer src="' + e(prefix) + '/static/v5673.js"></script><script defer src="' + e(prefix) + '/static/v5674.js"></script></body></html>')
     from .ui_helpers import enhance

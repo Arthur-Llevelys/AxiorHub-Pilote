@@ -3,7 +3,11 @@
    changer le panneau (numéro de sélection + AbortController) ; une saisie non enregistrée n'est jamais perdue (Enregistrer / Rester /
    Abandonner) ; une décision n'est appliquée à l'écran qu'au reçu du serveur ; un 409 garde le texte. Aucun HTML reçu n'est injecté :
    textContent et textarea.value seulement. Le même lecteur se monte dans la fenêtre d'Aujourd'hui :
-   window.AX100.lecteur.monter(hote, {id, retour}) → {fermer()}. */
+   window.AX100.lecteur.monter(hote, {id, retour}) → {fermer()}.
+   5.6.101 (lot R · R01-R05) : la même liste reçoit les brouillons Gmail, les documents produits et les notes de l'IA ; onglets, libellés et
+   commandes viennent du serveur (Valider, Rejeter avec motif, Demander une correction à l'IA, décider d'une proposition, Ouvrir) ; filtres
+   par source et par type, mémorisés par personne (POST). Contrat lecteur → mesure : `ax101:ouvert` {type} quand un élément prêt est affiché,
+   `ax101:decide` {type, commande} après une décision acceptée par le serveur ; jamais d'identifiant, d'objet ni de texte. */
 (function (racine) {
   'use strict';
   var AX100 = racine.AX100 = racine.AX100 || {};
@@ -25,22 +29,39 @@
     en_cours: 'Un dépôt de ce projet est déjà en cours.',
     role_insuffisant: 'Votre compte ne permet pas cette action.',
     fin: 'Tout est relu dans ce filtre.',
-    liste_impossible: 'La liste n’a pas pu être chargée. Réessayez.'
+    liste_impossible: 'La liste n’a pas pu être chargée. Réessayez.',
+    correction_demandee: 'Correction demandée à l’IA : la proposition (avant/après) apparaîtra sous « Propositions de l’IA ». Rien n’est modifié sans votre décision.',
+    appliquee: 'Proposition appliquée : la nouvelle version du document est à relire.',
+    refusee: 'Proposition refusée. Le document n’a pas changé.',
+    editeur: 'Le document est ouvert dans l’éditeur : la proposition attend sa fermeture.',
+    conflit_edition_concurrente: 'Le document a changé pendant ce temps : la proposition n’a pas été appliquée et rien n’a été écrasé.',
+    motif_requis: 'Indiquez le motif du rejet (3 caractères au moins).',
+    instruction_invalide: 'Décrivez la correction souhaitée (3 caractères au moins).'
   };
+  /* Contrat lecteur → mesure (feuille 5.6.101) : type de l'élément seulement, jamais d'identifiant, d'objet ni de texte. */
+  var TYPE_CONTRAT = { proposition: 'courriel', imap: 'courriel', gmail: 'gmail', document: 'document', note_ia: 'note_ia' };
+  var DECISIONS = ['retenir', 'ecarter', 'reporter', 'valider', 'rejeter'];
+  function emettreDefaut(nom, detail) {
+    try {
+      if (typeof document !== 'undefined' && typeof racine.CustomEvent === 'function') document.dispatchEvent(new racine.CustomEvent(nom, { detail: detail }));
+    } catch (e) { /* écouteur en erreur : la relecture continue */ }
+  }
 
   /* ---------------------------------------------------------------------------------------------- contrôleur (sans DOM) */
   function creerLecteur(o) {
     var api = o.api, ui = o.ui, confirmerBrouillon = o.confirmerBrouillon, nouvelleCle = o.nouvelleCle;
+    var emettre = o.emettre || emettreDefaut;
+    var typeDe = function (d) { return TYPE_CONTRAT[d && d.type] || ''; };
     var seq = 0, requete = null, projet = null, texte = '', enCours = false, decision = null;
     var onglet = 'projet', reqOnglet = null, seqOnglet = 0, chargement = false;
     var sale = function () { return Boolean(projet && texte !== projet.corps); };
-    var annonce = function (code) { ui.annoncer(code); };
+    var annonce = function (code, texte) { ui.annoncer(code, texte); };
     var abandonner = function (r) { if (r) { try { r.abort(); } catch (e) { /* déjà terminée */ } } };
     var invalider = function () { ++seq; ++seqOnglet; abandonner(requete); abandonner(reqOnglet); };
     var oublier = function () { projet = null; texte = ''; decision = null; };
 
     async function ouvrir(id, options) {
-      var forcer = Boolean(options && options.forcer);
+      var forcer = Boolean(options && options.forcer), silencieux = Boolean(options && options.silencieux);
       if (enCours) return false;
       if (sale() && !forcer && !(await confirmerBrouillon('changer'))) return false;
       if (enCours) return false;
@@ -54,6 +75,7 @@
         if (ticket !== seq || !data || data.id !== id) return false;          // réponse d'une sélection abandonnée : ignorée
         projet = data; texte = data.corps || ''; decision = null; onglet = 'projet';
         ui.rendre(data);
+        if (!silencieux && typeDe(data)) emettre('ax101:ouvert', { type: typeDe(data) });   // élément prêt, texte affiché
         return true;
       } catch (err) {
         if (ticket !== seq || (err && err.name === 'AbortError')) return false;
@@ -76,7 +98,7 @@
     }
 
     async function voirSection(section) {
-      if (!projet || chargement || ['projet', 'message', 'pieces', 'sources'].indexOf(section) < 0) return;
+      if (!projet || chargement || ['projet', 'message', 'pieces', 'sources', 'propositions'].indexOf(section) < 0) return;
       onglet = section;
       abandonner(reqOnglet);
       var n = ++seqOnglet;
@@ -110,7 +132,9 @@
         } else if (err && err.status === 403) {
           annonce('role_insuffisant');
         } else {
-          annonce(err && err.status === 409 ? 'version_perimee' : 'decision_non_confirmee');   // texte et sélection restent ; même clé au nouvel essai
+          if (err && err.status === 409 && err.code === 'conflit_edition_concurrente') annonce('conflit_edition_concurrente', err.message);
+          else if (err && err.status === 422 && err.code && TEXTES[err.code]) annonce(err.code, err.message);
+          else annonce(err && err.status === 409 ? 'version_perimee' : 'decision_non_confirmee');   // texte et sélection restent ; même clé au nouvel essai
         }
         return { erreur: err };
       } finally {
@@ -119,23 +143,26 @@
       }
     }
 
-    async function apresRecu(id, recu) {
+    async function apresRecu(id, recu, type, commande) {
       if (!recu || recu.etat === 'en_cours' || recu.etat === 'a_verifier') {
-        annonce(recu ? recu.etat : 'decision_non_confirmee');                  // aucune disparition avant la preuve d'un effet externe
+        annonce(recu ? recu.etat : 'decision_non_confirmee', recu && recu.message);   // aucune disparition avant la preuve d'un effet externe
         return false;
       }
+      if (type) emettre('ax101:decide', { type: type, commande: commande });   // décision acceptée par le serveur
       oublier();
       ui.retirerContenu();
       var suivant = await ui.appliquerRecu(id, recu);                          // première ligne encore visible dans la même liste filtrée
-      annonce(recu.etat);
+      annonce(recu.etat, recu.message);
       if (suivant) await ouvrir(suivant, { forcer: true });
       else ui.aucunSuivant();
       return true;
     }
 
     async function decider(action, jusqu_a, options) {
-      if (enCours || chargement || !projet || ['retenir', 'ecarter', 'reporter'].indexOf(action) < 0) return false;
-      var id = projet.id;
+      if (enCours || chargement || !projet || DECISIONS.indexOf(action) < 0) return false;
+      var motif = String((options && options.motif) || '').trim();
+      if (action === 'rejeter' && motif.length < 3) { annonce('motif_requis'); return false; }
+      var id = projet.id, type = typeDe(projet);
       if (action !== 'retenir' && sale() && !(options && options.abandonConfirme)) {
         if (!(await confirmerBrouillon(action))) return false;
       }
@@ -143,18 +170,47 @@
       var req = { action: action, revision: projet.revision };                 // version relue APRÈS un éventuel enregistrement
       if (action === 'retenir') req.corps = texte;
       if (action === 'reporter') req.jusqu_a = jusqu_a;
+      if (action === 'rejeter') req.motif = motif;
       var sortie = await executer(id, 'decision', req);
       if (sortie.erreur) return false;
-      return apresRecu(id, sortie.recu);
+      return apresRecu(id, sortie.recu, type, action);
+    }
+
+    async function corriger(instruction, zone) {
+      if (enCours || chargement || !projet || (projet.actions || []).indexOf('corriger') < 0) return false;
+      instruction = String(instruction || '').trim();
+      if (instruction.length < 3) { annonce('instruction_invalide'); return false; }
+      var id = projet.id;
+      var sortie = await executer(id, 'corriger', { revision: projet.revision, instruction: instruction, zone: String(zone || '') });
+      if (sortie.erreur || !sortie.recu) return false;
+      annonce('correction_demandee', sortie.recu.message);                     // l'élément reste ouvert : rien n'est modifié
+      if (projet && projet.id === id) voirSection('propositions');
+      return true;
+    }
+
+    async function deciderProposition(proposition, choix) {
+      if (enCours || chargement || !projet || ['accepter', 'refuser'].indexOf(choix) < 0) return false;
+      var id = projet.id;
+      var sortie = await executer(id, 'proposition', { revision: projet.revision, proposition: String(proposition), decision: choix });
+      if (sortie.erreur || !sortie.recu) return false;
+      var recu = sortie.recu;
+      if (recu.etat === 'appliquee') {                                         // nouvelle version : rouverte, toujours à relire
+        await ouvrir(id, { forcer: true, silencieux: true });
+        annonce('appliquee', recu.message);
+      } else {
+        annonce(recu.etat, recu.message);
+        if (projet && projet.id === id) voirSection('propositions');
+      }
+      return true;
     }
 
     async function deposer() {
       if (enCours || chargement || !projet || (projet.actions || []).indexOf('deposer') < 0) return false;
-      var id = projet.id;
+      var id = projet.id, type = typeDe(projet);
       var req = { revision: projet.revision, corps: texte };                   // texte et destinataires relus, gelés par le serveur
       var sortie = await executer(id, 'deposer', req);
       if (sortie.erreur) return false;
-      return apresRecu(id, sortie.recu);
+      return apresRecu(id, sortie.recu, type, 'deposer');
     }
 
     async function enregistrer() {
@@ -175,7 +231,7 @@
       texte = saisieDepuis === corps ? recu.corps : saisieDepuis;
       decision = null;
       ui.rendre(projet, { texte: texte });
-      annonce('enregistre');
+      annonce('enregistre', recu.message);
       return true;
     }
 
@@ -189,7 +245,7 @@
     }
 
     return { ouvrir: ouvrir, saisir: saisir, voirSection: voirSection, decider: decider, deposer: deposer, enregistrer: enregistrer,
-             fermer: fermer, sale: sale, projet: function () { return projet; }, occupe: function () { return enCours || chargement; } };
+             corriger: corriger, deciderProposition: deciderProposition, fermer: fermer, sale: sale, projet: function () { return projet; }, occupe: function () { return enCours || chargement; } };
   }
 
   function creerApi(o) {
@@ -219,6 +275,10 @@
       },
       commande: function (id, route, cmd) {
         return demande(idPath(id) + '/' + route, { method: 'POST', body: JSON.stringify(cmd),
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': o.csrf || '' } });
+      },
+      filtre: function (source) {                                               // préférence de la personne (POST, jamais au GET)
+        return demande('/filtres', { method: 'POST', body: JSON.stringify({ source: source }),
           headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': o.csrf || '' } });
       }
     };
@@ -265,11 +325,21 @@
     '<button type="button" class="ax-btn ghost" data-section="message" aria-pressed="false">Message reçu</button>',
     '<button type="button" class="ax-btn ghost" data-section="pieces" aria-pressed="false">Pièces</button>',
     '<button type="button" class="ax-btn ghost" data-section="sources" aria-pressed="false">Sources</button>',
+    '<button type="button" class="ax-btn ghost" data-section="propositions" aria-pressed="false" hidden>Propositions de l’IA</button>',
     '<a class="ax-btn ghost ax100-plein" data-ax100-plein hidden href="#">Ouvrir en pleine page</a></div></header>',
     '<div class="ax100-corps" data-ax100-corps data-vue-texte="projet"><div class="ax100-projet" data-ax100-projet>',
     '<label data-ax100-label-texte>Texte du projet</label><textarea data-ax100-texte rows="12" spellcheck="true" readonly></textarea></div>',
     '<div class="ax100-secondaire" data-ax100-secondaire tabindex="0" hidden></div></div>',
     '<footer class="ax100-actions" data-ax100-actions><p role="status" aria-live="polite" class="ax100-statut" data-ax100-statut></p>',
+    '<div class="ax101-panneau" data-ax101-motif hidden><label data-ax101-label-motif>Motif du rejet (obligatoire)</label>',
+    '<textarea data-ax101-motif-texte rows="2" maxlength="500"></textarea>',
+    '<button type="button" class="ax-btn" data-ax101-confirmer-rejet>Rejeter la note</button></div>',
+    '<div class="ax101-panneau" data-ax101-correction hidden><label data-ax101-label-instruction>Correction souhaitée</label>',
+    '<textarea data-ax101-instruction rows="3" maxlength="2000"></textarea>',
+    '<label data-ax101-label-zone>Passage visé (facultatif)</label><input data-ax101-zone maxlength="4000">',
+    '<p class="ax101-note">Le texte avant/après sera montré pour décision ; rien n’est modifié sans vous.</p>',
+    '<button type="button" class="ax-btn" data-ax101-demander-correction>Demander la proposition</button></div>',
+    '<button type="button" class="ax-btn" data-action="valider" data-ax101-optionnel disabled hidden>Valider</button>',
     '<button type="button" class="ax-btn ghost" data-action="enregistrer" disabled>Enregistrer</button>',
     '<button type="button" class="ax-btn" data-action="retenir" disabled>Retenir</button>',
     '<button type="button" class="ax-btn ghost" data-action="ecarter" disabled>Écarter</button>',
@@ -278,6 +348,9 @@
     '<button type="button" class="ax-btn ghost" data-report="apres_midi">Cet après-midi (14 h)</button>',
     '<button type="button" class="ax-btn ghost" data-report="demain">Demain 9 h</button>',
     '<button type="button" class="ax-btn ghost" data-report="lundi">Lundi 9 h</button></span></span>',
+    '<button type="button" class="ax-btn ghost" data-action="rejeter" data-ax101-optionnel aria-expanded="false" disabled hidden>Rejeter avec motif</button>',
+    '<button type="button" class="ax-btn ghost" data-action="corriger" data-ax101-optionnel aria-expanded="false" disabled hidden>Demander une correction à l’IA</button>',
+    '<a class="ax-btn ghost" data-ax101-ouvrir hidden href="#">Ouvrir</a>',
     '<button type="button" class="ax-btn ghost ax100-deposer" data-action="deposer" disabled hidden>Déposer dans Brouillons (sans envoi)</button>',
     '</footer>'
   ].join('');
@@ -294,6 +367,10 @@
     article.setAttribute('aria-labelledby', sujet.id);
     var zone = article.querySelector('[data-ax100-texte]'); zone.id = n + '-texte';
     article.querySelector('[data-ax100-label-texte]').setAttribute('for', zone.id);
+    [['motif-texte', 'label-motif'], ['instruction', 'label-instruction'], ['zone', 'label-zone']].forEach(function (c) {
+      var champ = article.querySelector('[data-ax101-' + c[0] + ']'); champ.id = n + '-' + c[0];
+      article.querySelector('[data-ax101-' + c[1] + ']').setAttribute('for', champ.id);
+    });
     hote.appendChild(article);
     return article;
   }
@@ -335,17 +412,25 @@
     var statut = q('[data-ax100-statut]'), plein = q('[data-ax100-plein]'), report = q('[data-ax100-report]');
     var boutons = Array.prototype.slice.call(article.querySelectorAll('[data-action]'));
     var onglets = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
-    var actions = [];
+    var labelTexte = article.querySelector('label[for="' + zone.id + '"]') || article.querySelector('[data-ax100-label-texte]');
+    var ouvrirLien = q('[data-ax101-ouvrir]'), panneaux = Array.prototype.slice.call(article.querySelectorAll('.ax101-panneau'));
+    var labelDefaut = labelTexte ? labelTexte.textContent : '';
+    boutons.concat(onglets).forEach(function (b) { b.setAttribute('data-ax101-defaut', b.textContent); });
+    var actions = [], restreint = false;
     var appliquer = function (bloque) {
       boutons.forEach(function (b) {
         var permis = actions.indexOf(b.getAttribute('data-action')) >= 0;
-        if (b.getAttribute('data-action') === 'deposer') b.hidden = !permis;
+        if (b.getAttribute('data-action') === 'deposer' || b.hasAttribute('data-ax101-optionnel') || restreint) b.hidden = !permis;
         b.disabled = bloque || !permis;
       });
       onglets.forEach(function (b) { b.disabled = bloque; });
     };
+    var fermerPanneaux = function () {
+      panneaux.forEach(function (x) { x.hidden = true; });
+      boutons.forEach(function (b) { if (b.hasAttribute('aria-expanded') && b.getAttribute('data-action') !== 'reporter') b.setAttribute('aria-expanded', 'false'); });
+    };
     var ui = {
-      annoncer: function (code) { statut.textContent = TEXTES[code] || code || ''; },
+      annoncer: function (code, texte) { statut.textContent = texte || TEXTES[code] || code || ''; },
       attendre: function () {
         article.setAttribute('aria-busy', 'true');
         statut.textContent = 'Ouverture…';
@@ -354,6 +439,21 @@
       finAttente: function () { article.removeAttribute('aria-busy'); },
       rendre: function (d, extra) {
         actions = (d.actions || []).slice();
+        restreint = d.type === 'document' || d.type === 'note_ia';             // commandes inutiles masquées, pas seulement grisées
+        article.setAttribute('data-type', d.type || '');
+        boutons.forEach(function (b) { b.textContent = (d.libelles || {})[b.getAttribute('data-action')] || b.getAttribute('data-ax101-defaut'); });
+        onglets.forEach(function (b) {
+          var s = b.getAttribute('data-section'), trouve = null;
+          (d.onglets || []).forEach(function (o) { if (o[0] === s) trouve = o; });
+          b.hidden = d.onglets ? !trouve : s === 'propositions';
+          b.textContent = trouve ? trouve[1] : b.getAttribute('data-ax101-defaut');
+        });
+        if (labelTexte) labelTexte.textContent = d.libelle_texte || labelDefaut;
+        fermerPanneaux();
+        if (ouvrirLien) {
+          ouvrirLien.hidden = !(d.ouvrir && d.ouvrir.href);
+          if (d.ouvrir && d.ouvrir.href) { ouvrirLien.setAttribute('href', d.ouvrir.href); ouvrirLien.textContent = d.ouvrir.libelle || 'Ouvrir'; }
+        }
         article.setAttribute('data-etat', d.etat || '');
         article.setAttribute('data-id', d.id || '');
         sujet.textContent = d.sujet || '(sans objet)';
@@ -373,7 +473,11 @@
       },
       retirerContenu: function () {
         actions = [];
-        sujet.textContent = 'Choisissez un courriel';
+        restreint = false;
+        fermerPanneaux();
+        if (ouvrirLien) ouvrirLien.hidden = true;
+        if (labelTexte) labelTexte.textContent = labelDefaut;
+        sujet.textContent = 'Choisissez un élément';
         meta.textContent = '';
         zone.value = '';
         zone.readOnly = true;
@@ -421,8 +525,42 @@
             d.limites.forEach(function (x) { ul3.appendChild(el('li', { text: x })); });
             secondaire.appendChild(ul3);
           }
+        } else if (section === 'propositions') {                               // avant / après, écrits (jamais la couleur seule)
+          var props = d.propositions || [];
+          if (!props.length) secondaire.appendChild(el('p', { text: 'Aucune proposition pour ce document. « Demander une correction à l’IA » en prépare une, à comparer avant toute décision.' }));
+          var ol = el('ol', { 'class': 'ax101-propositions' });
+          props.forEach(function (p) {
+            var li = el('li', { 'class': 'ax101-proposition' }, [el('h3', { text: p.titre || 'Proposition' })]);
+            if (p.instruction) li.appendChild(el('p', { 'class': 'ax-muted', text: 'Consigne : ' + p.instruction }));
+            (p.comparaison || []).forEach(function (c) {
+              li.appendChild(el('div', { 'class': 'ax101-avant-apres' }, [
+                el('p', {}, [el('strong', { text: 'Avant : ' }), el('del', { text: c.avant || '(rien)' })]),
+                el('p', {}, [el('strong', { text: 'Après : ' }), el('ins', { text: c.apres || '(passage retiré)' })]),
+                c.motif ? el('p', { 'class': 'ax-muted', text: 'Motif : ' + c.motif }) : null]));
+            });
+            if (p.note) li.appendChild(el('p', { 'class': 'ax100-limite', text: p.note }));
+            if ((p.actions || []).length) {
+              li.appendChild(el('div', { 'class': 'ax101-proposition-actions', role: 'group', 'aria-label': 'Décision sur cette proposition' },
+                p.actions.map(function (a) {
+                  return el('button', { type: 'button', 'class': a === 'accepter' ? 'ax-btn' : 'ax-btn ghost', 'data-ax101-proposition': p.id,
+                                        'data-ax101-decision': a, text: a === 'accepter' ? 'Appliquer cette proposition' : 'Refuser la proposition' });
+                })));
+            }
+            ol.appendChild(li);
+          });
+          secondaire.appendChild(ol);
+          if (d.note) secondaire.appendChild(el('p', { 'class': 'ax-muted', text: d.note }));
         }
       },
+      basculerPanneau: function (nom, bouton) {
+        var cible = q('[data-ax101-' + nom + ']'), ouvert = cible && cible.hidden;
+        fermerPanneaux();
+        if (!cible) return;
+        cible.hidden = !ouvert;
+        if (bouton) bouton.setAttribute('aria-expanded', String(Boolean(ouvert)));
+        if (ouvert) { var champ = cible.querySelector('textarea'); if (champ) champ.focus(); }
+      },
+      fermerPanneaux: fermerPanneaux,
       appliquerRecu: function (id, recu) { return options.appliquerRecu ? options.appliquerRecu(id, recu) : null; },
       aucunSuivant: function () { statut.textContent = TEXTES.fin; if (options.aucunSuivant) options.aucunSuivant(); },
       fermerEtRestaurer: function () { ui.retirerContenu(); if (options.fermer) options.fermer(); }
@@ -431,7 +569,7 @@
     return ui;
   }
 
-  function relier(article, lecteur) {
+  function relier(article, lecteur, ui101) {
     var zone = article.querySelector('[data-ax100-texte]');
     var report = article.querySelector('[data-ax100-report]');
     var boutonReport = article.querySelector('[data-action="reporter"]');
@@ -443,6 +581,20 @@
       if (!cible || !article.contains(cible)) return;
       var section = cible.getAttribute('data-section');
       if (section) { lecteur.voirSection(section); return; }
+      var proposition = cible.getAttribute('data-ax101-proposition');
+      if (proposition) { lecteur.deciderProposition(proposition, cible.getAttribute('data-ax101-decision')); return; }
+      if (cible.hasAttribute('data-ax101-confirmer-rejet')) {
+        var motif = article.querySelector('[data-ax101-motif-texte]');
+        lecteur.decider('rejeter', null, { motif: motif.value }).then(function (ok) { if (ok) motif.value = ''; });
+        return;
+      }
+      if (cible.hasAttribute('data-ax101-demander-correction')) {
+        var instr = article.querySelector('[data-ax101-instruction]'), zonePassage = article.querySelector('[data-ax101-zone]');
+        lecteur.corriger(instr.value, zonePassage.value).then(function (ok) {
+          if (ok) { instr.value = ''; zonePassage.value = ''; if (ui101) ui101.fermerPanneaux(); }
+        });
+        return;
+      }
       var choix = cible.getAttribute('data-report');
       if (choix) {
         report.hidden = true; boutonReport.setAttribute('aria-expanded', 'false');
@@ -456,10 +608,12 @@
         if (!report.hidden) { var premier = report.querySelector('button'); if (premier) premier.focus(); }
       } else if (action === 'enregistrer') lecteur.enregistrer();
       else if (action === 'deposer') lecteur.deposer();
-      else if (action === 'retenir' || action === 'ecarter') lecteur.decider(action);
+      else if (action === 'retenir' || action === 'ecarter' || action === 'valider') lecteur.decider(action);
+      else if ((action === 'rejeter' || action === 'corriger') && ui101) ui101.basculerPanneau(action === 'rejeter' ? 'motif' : 'correction', cible);
     });
     article.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape' && !report.hidden) { report.hidden = true; boutonReport.setAttribute('aria-expanded', 'false'); boutonReport.focus(); ev.stopPropagation(); }
+      if (ev.key === 'Escape' && ui101 && article.querySelector('.ax101-panneau:not([hidden])')) { ui101.fermerPanneaux(); ev.stopPropagation(); }
       if ((ev.ctrlKey || ev.metaKey) && (ev.key === 's' || ev.key === 'S')) { ev.preventDefault(); lecteur.enregistrer(); }
     });
   }
@@ -480,7 +634,7 @@
     });
     lecteur = creerLecteur({ api: api, ui: ui, confirmerBrouillon: options.confirmerBrouillon || dialogueSaisie(hote, function () { return lecteur; }),
                              nouvelleCle: options.nouvelleCle || nouvelleCle });
-    relier(article, lecteur);
+    relier(article, lecteur, ui);
     if (options.id) lecteur.ouvrir(String(options.id));
     return { fermer: function () { return lecteur.fermer(); }, ouvrir: function (id) { return lecteur.ouvrir(id); }, sale: lecteur.sale, lecteur: lecteur };
   }
@@ -492,16 +646,29 @@
     var liste = section.querySelector('[data-ax100-lignes]'), zoneListe = section.querySelector('[data-ax100-zone-liste]');
     var vide = section.querySelector('[data-ax100-vide]'), suite = section.querySelector('[data-ax100-suite]');
     var totalEl = section.querySelector('[data-ax100-total]'), imapEl = section.querySelector('[data-ax100-imap]');
+    var gmailEl = section.querySelector('[data-ax101-gmail]'), alerteEl = section.querySelector('[data-ax101-alerte]');
+    var LOCALES = { tous: 1, courriel: 1, proposition: 1, document: 1, note_ia: 1 };
+    var inclutImap = function (s) { return s === 'tous' || s === 'courriel' || s === 'brouillon'; };
+    var inclutGmail = function (s) { return s === 'tous' || s === 'gmail'; };
+    var alertes = {};
+    var majAlerte = function (cle, texte) {
+      if (!alerteEl) return;
+      if (texte) alertes[cle] = texte; else delete alertes[cle];
+      var t = Object.keys(alertes).map(function (k) { return alertes[k]; }).join(' ');
+      alerteEl.textContent = t; alerteEl.hidden = !t;
+    };
     var recherche = section.querySelector('[data-ax100-recherche]');
     var etat = { source: section.getAttribute('data-source') || 'tous', q: section.getAttribute('data-q') || '',
                  curseur: section.getAttribute('data-curseur') || '', totalLocal: parseInt(totalEl.textContent, 10), nbImap: 0, imapLu: false,
+                 nbGmail: 0, gmailLu: false,
                  seqListe: 0, reqListe: null, courant: '', declencheur: null };
     if (isNaN(etat.totalLocal)) etat.totalLocal = null;
     var lecteur = null;
 
     var afficherTotal = function () {
-      var t = etat.totalLocal === null ? null : etat.totalLocal + (etat.imapLu ? etat.nbImap : 0);
-      totalEl.textContent = t === null ? '…' : String(t) + (etat.source !== 'proposition' && !etat.imapLu ? ' +' : '');
+      var t = etat.totalLocal === null ? null : etat.totalLocal + (etat.imapLu ? etat.nbImap : 0) + (etat.gmailLu ? etat.nbGmail : 0);
+      var attente = (inclutImap(etat.source) && !etat.imapLu) || (inclutGmail(etat.source) && !etat.gmailLu);
+      totalEl.textContent = t === null ? '…' : String(t) + (attente ? ' +' : '');
     };
     var lignes = function () { return Array.prototype.slice.call(liste.querySelectorAll('li[data-review-id]')); };
     var marquer = function (id) {
@@ -535,16 +702,18 @@
       });
       liste.insertBefore(noeud, avant);
     };
-    var majVide = function () { vide.hidden = lignes().length > 0 || (!etat.imapLu && etat.source !== 'proposition'); };
+    var majVide = function () {
+      vide.hidden = lignes().length > 0 || (inclutImap(etat.source) && !etat.imapLu) || (inclutGmail(etat.source) && !etat.gmailLu);
+    };
 
     function chargerListe(continuer) {
       if (etat.reqListe) { try { etat.reqListe.abort(); } catch (e) { /* déjà terminée */ } }
       var n = ++etat.seqListe;
       etat.reqListe = new AbortController();
-      var params = { source: etat.source === 'brouillon' ? 'proposition' : etat.source };
+      var params = { source: etat.source };
       if (etat.q) params.q = etat.q;
       if (continuer && etat.curseur) params.curseur = etat.curseur;
-      if (etat.source === 'brouillon') { liste.textContent = ''; etat.totalLocal = 0; etat.curseur = ''; suite.hidden = true; return Promise.resolve(); }
+      if (!LOCALES[etat.source]) { liste.textContent = ''; etat.totalLocal = 0; etat.curseur = ''; suite.hidden = true; return Promise.resolve(); }
       suite.disabled = true;
       return api.liste(params, etat.reqListe.signal).then(function (d) {
         if (n !== etat.seqListe) return;
@@ -561,7 +730,7 @@
     }
 
     function chargerBrouillons() {
-      if (etat.source === 'proposition') return Promise.resolve();
+      if (!inclutImap(etat.source)) return Promise.resolve();
       var n = etat.seqListe;
       imapEl.textContent = 'Brouillons de la messagerie : lecture en cours…';
       var params = { source: 'brouillon' };
@@ -575,12 +744,40 @@
         imapEl.textContent = s.etat === 'indisponible' ? 'Brouillons de la messagerie : ' + (s.raison || 'indisponibles.') :
           'Brouillons de la messagerie lus' + (s.complet === false ? ' (40 plus récents seulement)' : '') + '.';
         if (s.etat === 'indisponible') { totalEl.title = 'Brouillons de la messagerie indisponibles : total partiel.'; }
+        majAlerte('imap', s.etat === 'indisponible' ? 'Brouillons de la messagerie indisponibles : ' + (s.raison || 'total partiel.') : '');
         afficherTotal(); majVide(); if (etat.courant) marquer(etat.courant);
       }).catch(function (err) {
         if (n !== etat.seqListe) return;
         etat.imapLu = false;
         imapEl.textContent = 'Brouillons de la messagerie : lecture impossible (' + ((err && err.message) || 'erreur') + '). Les propositions restent disponibles.';
+        majAlerte('imap', 'Brouillons de la messagerie : lecture impossible ; le reste de la liste est disponible.');
         majVide();
+      });
+    }
+
+    function chargerGmail() {                                                  // 5.6.101 (R01) : appel séparé, une panne Gmail ne bloque rien
+      if (!inclutGmail(etat.source)) return Promise.resolve();
+      var n = etat.seqListe;
+      if (gmailEl) gmailEl.textContent = 'Brouillons Gmail : lecture en cours…';
+      var params = { source: 'gmail' };
+      if (etat.q) params.q = etat.q;
+      return api.liste(params).then(function (d) {
+        if (n !== etat.seqListe) return;
+        var s = (d.sources || {}).gmail || {};
+        etat.gmailLu = true;
+        etat.nbGmail = d.lignes.length;
+        d.lignes.forEach(inserer);
+        var texte = s.etat === 'indisponible' ? 'Brouillons Gmail masqués : ' + (s.raison || 'Gmail indisponible.') :
+          (s.etat === 'a_jour' ? 'Brouillons Gmail lus.' : 'Gmail non relié pour votre compte : aucun brouillon Gmail.');
+        if (gmailEl) gmailEl.textContent = texte;
+        majAlerte('gmail', s.etat === 'indisponible' ? texte : '');
+        afficherTotal(); majVide(); if (etat.courant) marquer(etat.courant);
+      }).catch(function () {
+        if (n !== etat.seqListe) return;
+        etat.gmailLu = true; etat.nbGmail = 0;
+        if (gmailEl) gmailEl.textContent = 'Brouillons Gmail : lecture impossible.';
+        majAlerte('gmail', 'Brouillons Gmail masqués : lecture impossible pour le moment ; le reste de la liste est disponible.');
+        afficherTotal(); majVide();
       });
     }
 
@@ -599,7 +796,8 @@
         if (li) {
           var type = li.getAttribute('data-type');
           li.remove();
-          if (type === 'imap' || type === 'gmail') etat.nbImap = Math.max(0, etat.nbImap - 1);
+          if (type === 'imap') etat.nbImap = Math.max(0, etat.nbImap - 1);
+          else if (type === 'gmail') etat.nbGmail = Math.max(0, etat.nbGmail - 1);
           else if (etat.totalLocal !== null) etat.totalLocal = Math.max(0, etat.totalLocal - 1);
         }
         afficherTotal();
@@ -631,7 +829,7 @@
       reessayer: function (s) { lecteur.voirSection(s); }
     });
     lecteur = creerLecteur({ api: api, ui: ui, confirmerBrouillon: dialogueSaisie(section, function () { return lecteur; }), nouvelleCle: nouvelleCle });
-    relier(article, lecteur);
+    relier(article, lecteur, ui);
 
     function ouvrirLigne(id, declencheur) {
       var precedent = etat.courant;
@@ -665,7 +863,9 @@
     async function changerFiltre(source, q) {
       if (lecteur.sale() && !(await dialogueSaisie(section, function () { return lecteur; })('changer'))) return;
       if (lecteur.projet()) await lecteur.fermer();
-      etat.source = source; etat.q = q; etat.curseur = ''; etat.imapLu = false; etat.nbImap = 0; etat.courant = '';
+      if (source !== etat.source) { try { api.filtre(source).catch(function () { /* préférence non mémorisée : le filtre s'applique quand même */ }); } catch (e) { /* idem */ } }
+      etat.source = source; etat.q = q; etat.curseur = ''; etat.imapLu = false; etat.nbImap = 0; etat.gmailLu = false; etat.nbGmail = 0; etat.courant = '';
+      majAlerte('imap', ''); majAlerte('gmail', '');
       section.setAttribute('data-source', source);
       Array.prototype.forEach.call(section.querySelectorAll('[data-ax100-filtre]'), function (f) {
         if (f.getAttribute('data-ax100-filtre') === source) f.setAttribute('aria-current', 'page'); else f.removeAttribute('aria-current');
@@ -676,6 +876,7 @@
       liste.textContent = '';
       await chargerListe(false);
       await chargerBrouillons();
+      await chargerGmail();
     }
     section.addEventListener('click', function (ev) {
       var f = ev.target.closest ? ev.target.closest('[data-ax100-filtre]') : null;
@@ -701,13 +902,14 @@
 
     etat.courant = section.getAttribute('data-item') || '';
     afficherTotal();
-    var depart = etat.source === 'brouillon' ? chargerListe(false) : Promise.resolve();
-    depart.then(chargerBrouillons);
+    var depart = !LOCALES[etat.source] ? chargerListe(false) : Promise.resolve();
+    depart.then(chargerBrouillons).then(chargerGmail);
     if (etat.courant) ouvrirLigne(etat.courant, null);
     return { lecteur: lecteur, recharger: function () { return changerFiltre(etat.source, etat.q); } };
   }
 
-  AX100.lecteur = { creerLecteur: creerLecteur, creerApi: creerApi, monter: monter, monterPage: monterPage, echeanceReport: echeanceReport, TEXTES: TEXTES };
+  AX100.lecteur = { creerLecteur: creerLecteur, creerApi: creerApi, monter: monter, monterPage: monterPage, echeanceReport: echeanceReport, TEXTES: TEXTES,
+                    TYPE_CONTRAT: TYPE_CONTRAT };
 
   if (typeof document !== 'undefined') {
     var demarrer = function () {

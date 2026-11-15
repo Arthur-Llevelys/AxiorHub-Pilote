@@ -143,9 +143,11 @@ class CarteDuMatin(Base):
 
     def test_B12_le_briefing_renvoie_a_la_carte_par_une_ancre_valide(self):
         html = self._page()
-        self.assertIn('href="#t88-matin"', html)
         self.assertEqual(html.count('id="t88-matin"'), 1)                                  # la cible existe, une seule fois ; elle vit en colonne secondaire
-        panneau = html[html.index('data-panel="briefing"'):html.index('data-panel="tri"')]
+        from agent import aujourdhui56101     # 5.6.101 (lot P) : comptes rendus servis à l'ouverture du panneau, mêmes fonctions
+        briefing = aujourdhui56101.fragment(self.d, '/agent-courriel', 'cabinet', 'administrateur', 'briefing')
+        self.assertIn('href="#t88-matin"', briefing)
+        panneau = briefing[briefing.index('data-panel="briefing"'):briefing.index('data-panel="tri"')]
         self.assertNotIn('id="t88-matin"', panneau)
 
 

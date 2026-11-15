@@ -95,20 +95,32 @@ def page(desk, auth, prefix, env, args, shell):
                         for f in fids if f in rows)
         body += '<article class="h5631-path"><h3>%s</h3><p>%s</p><ol>%s</ol></article>' % (th('path.%s.title' % pid), th('path.%s.desc' % pid), steps)
     body += '</div></section><section id="h5631-discover"><h2>%s</h2>' % th('help.discover')
-    for g in reg.GROUPS:
-        items = [r for r in rows.values() if r['group'] == g]
-        if not items:
+    # 5.6.101 (lot F, F06) : le guide suit les familles du panneau (sections et familles de l'annexe A), fonctions dans l'ordre des onglets
+    from . import familles56101 as fam
+    for section in fam.SECTIONS:
+        blocs = [(f, [rows[x] for x in fam.membres(f) if x in rows]) for f, sec in fam.FAMILLES if sec == section]
+        blocs = [(f, items) for f, items in blocs if items]
+        if not blocs:
             continue
-        body += '<section class="h5631-group"><h3>%s</h3><p>%s</p><ul>' % (th('grp.%s.label' % g), th('grp.%s.desc' % g))
-        for r in items:
-            art, _ = article(r['id'], lang)
-            state = ('<span class="h5631-state todo">%s</span>' % th('help.state_configure')) if r['missing'] else ('<span class="h5631-state ok">%s</span>' % th('help.state_ready'))
-            body += '<li data-search="%s"><a href="%s"><strong>%s</strong></a> %s<br><small>%s</small></li>' % (
-                e(_search_blob(r['id'], art or {}, r), quote=True), e(prefix + '/guide-utilisation?fonction=' + r['id'], quote=True), e(r['label']), state,
-                e((art or {}).get('objective', r['desc'])))
-        body += '</ul></section>'
+        body += '<section class="h5631-section"><h3>%s</h3>' % e(fam.libelle_section(section, lang))
+        for f, items in blocs:
+            body += _famille_html(prefix, f, items, lang)
+        body += '</section>'
     body += '</section></div>'
     return shell(i18n.t('help.title'), body, prefix, auth['csrf'], '/guide-utilisation')
+
+
+def _famille_html(prefix, famille, items, lang):
+    from . import familles56101 as fam
+    th = i18n.th
+    body = '<section class="h5631-group" data-f101-famille="%s"><h4>%s</h4><ul>' % (e(famille, quote=True), e(fam.libelle(famille, lang)))
+    for r in items:
+        art, _ = article(r['id'], lang)
+        state = ('<span class="h5631-state todo">%s</span>' % th('help.state_configure')) if r['missing'] else ('<span class="h5631-state ok">%s</span>' % th('help.state_ready'))
+        body += '<li data-search="%s"><a href="%s"><strong>%s</strong></a> %s<br><small>%s</small></li>' % (
+            e(_search_blob(r['id'], art or {}, r) + ' ' + fam.libelle(famille, lang).lower(), quote=True), e(prefix + '/guide-utilisation?fonction=' + r['id'], quote=True),
+            e(r['label']), state, e((art or {}).get('objective', r['desc'])))
+    return body + '</ul></section>'
 
 
 def _article_html(prefix, entry, lang):
@@ -124,6 +136,7 @@ def _article_html(prefix, entry, lang):
     if entry['missing']:
         actions += ' <a class="h5631-configure" href="%s">%s</a>' % (e(prefix + entry['configure'], quote=True), th('help.configure'))
     out += '<p class="h5631-actions">%s</p>' % actions
+    out += _famille_fiche(prefix, entry, lang)
     out += '<h2>%s</h2><p>%s</p>' % (th('help.when'), e(art.get('when', '')))
     out += '<h2>%s</h2><p>%s</p>' % (th('help.prerequisites'), e(art.get('prerequisites', '')))
     if entry['missing']:
@@ -136,3 +149,18 @@ def _article_html(prefix, entry, lang):
     out += '<h2>%s</h2><p class="h5631-example">%s</p>' % (th('help.example'), e(art.get('example', '')))
     out += '<p class="h5631-version">%s</p></article>' % th('help.version', version=art.get('version', VERSION))
     return out
+
+
+def _famille_fiche(prefix, entry, lang):
+    """5.6.101 (lot F, F06) : aide contextuelle par famille : la famille de la fonction et les fiches de ses autres onglets permis."""
+    from . import familles56101 as fam
+    famille = entry.get('famille') or fam.famille_de(entry['id'])
+    if not famille:
+        return ''
+    permis = {r['id'] for r in reg.entries(None, i18n.role(), lang)}
+    autres = [f for f in fam.membres(famille) if f != entry['id'] and f in permis]
+    out = '<aside class="h5631-famille"><strong>%s</strong>' % i18n.th('f101.guide.famille', lang, famille=fam.libelle(famille, lang))
+    if autres:
+        out += '<p>%s</p><ul>%s</ul>' % (i18n.th('f101.guide.autres', lang), ''.join(
+            '<li><a href="%s">%s</a></li>' % (e(prefix + '/guide-utilisation?fonction=' + f, quote=True), i18n.th('fn.%s.label' % f, lang)) for f in autres))
+    return out + '</aside>'

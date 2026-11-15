@@ -34,6 +34,11 @@ STATIC.update({'/static/v56100-accueil.css': 'text/css', '/static/v56100-produir
 STATIC.update({'/static/v56100-integrite.js': 'text/javascript'})   # 5.6.100 (lot C) : volet « Portefeuille détaillé » chargé au dépli
 STATIC.update({'/static/v56100-dossiers.css': 'text/css'})   # 5.6.100 (lot D) : récents de l'IA, pagination, reprise de la fiche
 STATIC.update({'/static/v56100-lecteur.js': 'text/javascript'})   # 5.6.100 (lot B) : liste « À relire » et lecteur commun (Courriels, Aujourd'hui)
+STATIC.update({'/static/v56101-chrono.js': 'text/javascript'})   # 5.6.101 (lot M) : mesure facultative du temps (servi seulement à qui l'a activée)
+STATIC.update({'/static/v56101-familles.css': 'text/css', '/static/v56101-familles.js': 'text/javascript'})   # 5.6.101 (lot F) : barres de famille, compteur d'usage, « Fonctions peu utilisées »
+STATIC.update({'/static/v56101-aujourdhui.js': 'text/javascript', '/static/v56101-aujourdhui.css': 'text/css'})   # 5.6.101 (lot P) : blocs différés d'Aujourd'hui (dépli, après affichage, retour sans rechargement)
+STATIC.update({'/static/v56101-securite.css': 'text/css', '/static/v56101-securite.js': 'text/javascript'})   # 5.6.101 (lot S) : page « Sécurité du serveur », bandeau d'Aujourd'hui
+STATIC.update({'/static/v56101-volet.js': 'text/javascript', '/static/v56101-volet.css': 'text/css'})   # 5.6.101 (lot V) : volet de relecture à droite d'Aujourd'hui
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -324,6 +329,21 @@ def route(env, cfg, auth, prefix, path, args, method):
         from .shell501 import set_context
         set_context(cfg)
         return livrables_web5689.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path == '/administration/fonctions-peu-utilisees':   # 5.6.101 (lot F, F05) : lecture seule ; autre rôle : même réponse qu'une page absente
+        from . import usage56101
+        from .shell501 import set_context
+        set_context(cfg)
+        desk101 = Desk(cfg)
+        try:
+            html101 = usage56101.page(desk101, auth, prefix, env, shell)
+        finally:
+            desk101.db.close()
+        return {**page_out(html101), 'headers': [('Cache-Control', 'private, no-store')]} if html101 else None
+    if method == 'GET' and path == '/securite-serveur':   # 5.6.101 (lot S) : veille de sécurité du serveur ; autre rôle : même réponse qu'une page absente
+        from . import securite_web56101
+        from .shell501 import set_context
+        set_context(cfg)
+        return securite_web56101.page_route(env, cfg, auth, prefix, path, args, shell)
     if method == 'GET' and path == '/contentieux':   # 5.6.89 : matrice, pièces, actes, délais, audience, paquets d'un dossier
         from . import contentieux_web5689
         from .shell501 import set_context
@@ -404,6 +424,9 @@ def route(env, cfg, auth, prefix, path, args, method):
         if path == '/documents':
             return page_out(documents_page(desk, auth, prefix, args))
         if path == '/documents/edit':
+            if args.get('volet'):     # 5.6.101 (lot V) : éditeur seul, dans le cadre du volet d'Aujourd'hui (droits du document, frame-ancestors 'self')
+                from .volet56101 import cadre_page
+                return cadre_page(desk, auth, prefix, env, args)
             return editor_page(desk, auth, prefix, args)
         if path == '/guide-installation':   # 5.6.31 (R01) : guide d'installation pas à pas, réservé à l'administrateur
             from . import guide5631
@@ -531,6 +554,18 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56100/ia/'):   # 5.6.100 (lot G) : note et proposition sourcées après de nouvelles écritures (404 neutre, 409, no-store)
         from . import delta56100
         return delta56100.api(env, desk, auth, prefix, name, args, method)
+    if name == 'm56101/securite' or name.startswith('m56101/securite/'):   # 5.6.101 (lot S) : veille de sécurité (administrateur ; 404 neutre, 409, no-store)
+        from . import securite_web56101
+        return securite_web56101.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56101/aujourdhui/'):   # 5.6.101 (lot P) : fragments d'Aujourd'hui en lecture seule (GET ; 404 neutre, 403 de rôle, no-store)
+        from . import aujourdhui56101
+        return aujourdhui56101.repondre(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56101/chrono/'):   # 5.6.101 (lot M) : mesure du temps, chaque compte pour lui seul (409, no-store ; jeton CSRF dans le corps de la balise)
+        from . import chrono56101
+        return chrono56101.repondre(env, desk, auth, prefix, name, args, method)
+    if name == 'm56101/usage' or name.startswith('m56101/usage/'):   # 5.6.101 (lot F, F05) : compteur d'usage (POST seulement, 409, no-store ; jeton CSRF dans le corps de la balise)
+        from . import usage56101
+        return usage56101.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m56100f/'):   # 5.6.100 (lot F) : présentation de l'interface (cabinet : administrateur ; compte : chacun pour lui)
         from . import reactivite56100
         try:

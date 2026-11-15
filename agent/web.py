@@ -1470,8 +1470,8 @@ class App:
         cabinet_shortcuts=external_links(desk)
         main=shell501.topbar_html(prefix,title,path)+('' if path=='/aujourdhui' and not args.get('vue') else  # 5.3.0 : le poste de pilotage a son propre en-tête
              '<div class="page-title"><div><p class="eyebrow">Cabinet · poste de travail</p><h1>'+e(title)+'</h1></div>'+link(path,'Actualiser',**args)+'</div>')
-        from .navigation5643 import production_tabs_html   # 5.6.43 (§ 20) : onglets de Produire
-        main+=production_tabs_html(prefix,path)
+        from .familles56101 import entete_html as _famille101   # 5.6.101 (lot F, F02) : barre de la famille de la page (les onglets de Produire deviennent ceux de Produire) et compteur d'usage
+        main+=_famille101(prefix,path,c)
         if str(args.get('job', '')).strip() in ('', '0'):   # 5.6.24 (F35) : une action immédiate n'a pas de travail ; un ancien lien job=0 reste lisible
             args.pop('job', None)
         if args.get('job'):
@@ -1554,20 +1554,25 @@ class App:
                     _vue51=str(args.get('file') or '')
                     main+=_queue51(desk,prefix,None,_vue51 if _vue51 in _filtres51 else '',_vh100() or frozenset(),30,actor=_owner100,role=_role100())
                 main+=('<div id="ax-toast" role="status" aria-live="polite"></div><script defer src="'+e(prefix)+'/static/v500.js"></script>')
+            elif args.get('vue')=='routines':
+                # 5.6.101 (lot P, P03) : page complète des blocs repliés des routines d'Aujourd'hui (formulaires, comptes rendus), lisible sans script
+                from .aujourdhui5614 import routines_bar_html as _routines101
+                from .cockpit530 import LIEN_MATIN as _matin101, routines_html as _comptes101
+                _owner101=str(auth.get('owner') or 'cabinet')
+                main+=('<p><a href="'+e(url('/aujourdhui'))+'">← Retour à Aujourd’hui</a></p>'+_routines101(desk,prefix,{'owner':_owner101})
+                       +'<section class="c530-card" id="c530-routines">'+_comptes101(desk,prefix,_owner101).replace(_matin101,'')+'</section>'
+                       '<script defer src="'+e(prefix)+'/static/v5652.js"></script><script defer src="'+e(prefix)+'/static/v5614.js"></script>'
+                       '<script defer src="'+e(prefix)+'/static/v530.js"></script>')
+                main+=('<div id="ax-toast" role="status" aria-live="polite"></div><script defer src="'+e(prefix)+'/static/v500.js"></script>')
             else:
                 # 5.3.0 : poste de pilotage (conversation avec l'agent, à relire, activité, journée Nextcloud).
                 from .cockpit530 import page as cockpit_page
-                queue56=''
-                try:   # 5.6.51 (A06) : file unique « À décider / À relire », mêmes éléments que Dossier et Produire
-                    from .file5651 import html as queue5651
-                    from .membres5650 import viewer_hidden
-                    from .i18n5631 import role as _role52
-                    queue56=queue5651(desk,prefix,None,str(args.get('file') or ''),viewer_hidden() or frozenset(),8,actor=str(auth.get('owner') or 'cabinet'),role=_role52())
-                except Exception as _qerr:   # noqa: BLE001 — la file ne doit jamais empêcher l'affichage du poste de pilotage
-                    import logging as _lg56   # 5.6.61 : consignée et signalée (elle disparaissait sans explication)
-                    _lg56.getLogger(__name__).exception('file À décider / À relire : %s',_qerr)
-                    queue56=('<section class="c530-card"><h2>À décider / À relire</h2><p class="d51-warn" role="alert">La file n’a pas pu être '
-                             'affichée (%s). Les éléments sont conservés ; voir le journal de l’interface.</p></section>')%e(type(_qerr).__name__)
+                # 5.6.51 (A06) : file unique « À décider / À relire », mêmes éléments que Dossier et Produire.
+                # 5.6.101 (lot P, P01) : ses cartes sont un fragment (mêmes fonctions, mêmes droits), chargé à l'ouverture de « Voir la suite »,
+                # ou juste après l'affichage quand la file est un bloc visible (disposition personnelle, ancienne page) ; une panne y est dite.
+                from .aujourdhui56101 import attente as _attente101
+                _filtre101=str(args.get('file') or '')[:20]
+                queue56=_attente101('file',prefix,{'file':_filtre101} if _filtre101 else None)
                 # 5.6.56 (audit 5.6.55, N02) : la file est rendue EN BAS du poste de pilotage, dans son conteneur (même largeur que les routines)
                 try:   # 5.6.57 (A09) : cartes d'action des décisions de l'agent, ouvertes depuis la file (pas de seconde liste)
                     from .aujourdhui5614 import decisions_html as _dec57
@@ -1983,6 +1988,8 @@ class App:
             main+='<div class="stats">'+''.join('<article><strong>'+str(x[k])+'</strong><span>'+e(label)+'</span></article>' for k,label in cards)+'</div>'
             main+='<p>Cette page concentre les exceptions. L’analyse des non-lus et l’apprentissage des réponses envoyées restent exécutés par la minuterie toutes les cinq minutes.</p>'
             main+='<div class="actions">'+form('run','Analyser maintenant')+form('health','Tester les connexions')+'</div>'
+            from .i18n5631 import th as _th101   # 5.6.101 (lot F, F05) : Paramètres › Administration › « Fonctions peu utilisées »
+            main+='<p class="f101-lien"><a href="'+e(prefix+'/administration/fonctions-peu-utilisees')+'">'+_th101('f101.usage.lien')+'</a></p>'
             main+='<p class="empty compact">Les synthèses techniques quotidiennes sont désactivées : elles ne créent plus de faux brouillons dans votre messagerie.</p>'
             main+='<h2>Automatismes</h2>'
             auto=c.get('automation',{})
@@ -2469,6 +2476,11 @@ class App:
             toast='<div class="task-toast"><span class="pulse"></span><div><strong>'+e(verb+' : '+JOB_LABELS.get(active['kind'],active['kind']))+'</strong><small>'+str(waiting)+' opération'+('s' if waiting!=1 else '')+' en attente · '+link(path,'Actualiser',**args)+'</small></div></div>'
         from .ui_helpers import enhance
         selected_matter=str(args.get('id') or args.get('matter') or '')
+        try:   # 5.6.101 (lot M) : écoute du lecteur pour la mesure du temps (Aujourd'hui), servie seulement à qui l'a activée (lecture seule)
+            from .chrono56101 import script_html as _chrono101
+            main+=_chrono101(c,prefix)
+        except Exception:   # noqa: BLE001 — la mesure facultative ne bloque jamais une page
+            pass
         return enhance('<!doctype html><html lang="'+_lang_now()+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' · AxiorHub Pilote</title><link rel="stylesheet" href="'+e(url('/static/app520.css'))+'?v='+e(_ax_version())+'"></head><body>'+toast+shell501.sidebar_html(prefix,path)+'<main id="ws-main">'+main+'</main><script defer src="'+e(url('/static/v5631.js'))+'"></script><script defer src="'+e(url('/static/v5634.js'))+'"></script><script defer src="'+e(url('/static/v5632.js'))+'"></script><script defer src="'+e(url('/static/v5636.js'))+'"></script><script defer src="'+e(url('/static/v5670.js'))+'"></script><script defer src="'+e(url('/static/v5671.js'))+'"></script></body></html>',prefix,auth['csrf'],bool(c.get('audio',{}).get('enabled')),matters,path,selected_matter)
 
 
