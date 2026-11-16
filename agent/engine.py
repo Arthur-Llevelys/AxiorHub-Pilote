@@ -167,6 +167,7 @@ class Engine:
             return key
         try:
             if self.state.duplicate(key, mid, thread): return finish('ignored', 'doublon_ou_enregistrement_en_cours')
+            from .fraude56106 import au_releve as _releve106; alerte106 = _releve106(cfg, mail, key, report)   # 5.6.106 (lot F) : verdict anti-fraude gardé (liste, routines, second avis)
             reason = exclusion(mail, cfg['mail'], allow_seen=allow_seen)
             from .relevance370 import evaluate_mail_config
             graphical_rule=evaluate_mail_config(cfg,mail)
@@ -188,6 +189,7 @@ class Engine:
             if procedural and reason in ('notification_rpva','message_automatique','adresse_automatique','liste_diffusion','envoi_en_masse'):
                 return finish('review','notification_procedurale_a_verifier')
             if reason: return finish('ignored', reason)
+            if alerte106 in ('suspect', 'danger'): return finish('review', 'courriel_potentiellement_frauduleux')   # 5.6.106 (lot F) : aucun traitement automatique par l'IA ; l'avocat décide
             reason=message_issue(mail,cfg['mail'])
             if reason:return finish('review',reason)
             reason=(box.preflight(mail,draft_mid,allow_seen=allow_seen)

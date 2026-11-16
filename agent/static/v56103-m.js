@@ -38,10 +38,24 @@
     retour.appendChild(attente);
   }
 
+  /* 5.6.106 (audit M2) : un seul suivi à la fois. Une nouvelle liaison ou une déconnexion arrête la minuterie en cours, et la réponse
+     tardive d'un code remplacé est ignorée (le serveur, lui, ne l'active de toute façon plus). */
+  var minuterie = null, fluxCourant = null;
+
+  function arreter() {
+    if (minuterie) { clearTimeout(minuterie); minuterie = null; }
+    fluxCourant = null;
+  }
+
   function suivre(flux, intervalle) {
     var delai = Math.max(5, parseInt(intervalle, 10) || 5) * 1000;
-    setTimeout(function () {
+    if (minuterie) { clearTimeout(minuterie); }
+    fluxCourant = flux;
+    minuterie = setTimeout(function () {
+      minuterie = null;
+      if (flux !== fluxCourant) { return; }
       post('appareil/sonder', { flux: flux }).then(function (out) {
+        if (flux !== fluxCourant) { return; }
         if (out.etat === 'en_attente') {
           var a = section.querySelector('.m103-attente');
           if (a) { a.textContent = out.message || 'En attente…'; }
@@ -50,9 +64,10 @@
           dire(out.message || 'Compte Microsoft relié.');
           setTimeout(function () { window.location.reload(); }, 1200);
         } else {
+          fluxCourant = null;
           dire(out.message || 'Connexion non aboutie.');
         }
-      }, function (err) { dire(err.message); });
+      }, function (err) { if (flux === fluxCourant) { dire(err.message); } });
     }, delai);
   }
 
@@ -62,8 +77,10 @@
       ev.preventDefault();
       var caps = Array.prototype.map.call(form.querySelectorAll('input[name="capacites"]:checked'), function (i) { return i.value; });
       if (!caps.length) { dire('Cochez au moins une autorisation.'); return; }
+      arreter();                                       // 5.6.106 (M2) : la liaison précédente n'est plus suivie
       dire('Préparation de la connexion…');
-      post('connexion', { capacites: caps }).then(function (out) {
+      // 5.6.106 (M3) : SharePoint n'est demandé que sur choix explicite (case de l'option cochée par la personne)
+      post('connexion', { capacites: caps, sharepoint_explicite: caps.indexOf('sharepoint') >= 0 }).then(function (out) {
         if (out.mode === 'pkce' && out.url) {
           dire('La page Microsoft s’ouvre dans un nouvel onglet. Revenez ici une fois la connexion terminée, puis rechargez la page.');
           window.open(out.url, '_blank', 'noopener');
@@ -78,6 +95,7 @@
   var deco = section.querySelector('[data-m103="deconnecter"]');
   if (deco) {
     deco.addEventListener('click', function () {
+      arreter();
       post('deconnecter', {}).then(function (out) { dire(out.message || 'Déconnecté.'); setTimeout(function () { window.location.reload(); }, 2500); },
         function (err) { dire(err.message); });
     });

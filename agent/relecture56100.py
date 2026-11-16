@@ -394,6 +394,7 @@ def _ligne_proposition(desk, cle, data, maj, libelles):
         return None                     # prêt à déposer sans décision : hors de la file de relecture
     rapport = _rapport(desk, cle)
     sujet = str(rapport.get('subject') or 'Courriel')[:200]
+    if result.get('courriel_suspect56106'): sujet = ('À vérifier : courriel suspect — ' + sujet)[:200]   # 5.6.106 (lot F) : projet d'un courriel « Suspect » ou « Danger »
     mid = str(data.get('matter') or '')
     dest = ', '.join(str(x) for x in (data.get('recipients') or []) if x)
     recherche = normaliser(' '.join((sujet, libelles.get(mid, mid), dest, str(rapport.get('sender') or ''))))[:1500]

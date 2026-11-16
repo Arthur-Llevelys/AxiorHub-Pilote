@@ -532,7 +532,12 @@ class Palette(Base):
     def test_un_seul_ecouteur_et_un_seul_champ(self):
         names = [p for p in STATIC.glob('*.js') if not re.search(r'pdf|carbon|htmx|core', p.name)]
         listeners = [p.name for p in names if re.search(r"\.key(\.toLowerCase\(\))?\s*===?\s*'[kK]'", p.read_text(encoding='utf-8', errors='replace'))]
-        self.assertEqual(listeners, ['v420.js'])
+        # 5.6.106 (lot R) : dans l'éditeur de courriel seulement, Ctrl+K insère un lien (comme Outlook) et n'atteint pas la palette.
+        self.assertEqual(listeners, ['v420.js', 'v56106-redaction.js'])
+        red = (STATIC / 'v56106-redaction.js').read_text(encoding='utf-8')
+        ligne = next(l for l in red.splitlines() if re.search(r"toLowerCase\(\) === 'k'", l))
+        self.assertIn('ev.stopPropagation()', ligne)
+        self.assertNotIn('document.addEventListener', ligne)
         src = (STATIC / 'v420.js').read_text(encoding='utf-8')
         self.assertIn('m5688/palette', src)
         self.assertNotIn('m82-quick-q', (STATIC / 'v5682.js').read_text(encoding='utf-8'))

@@ -385,6 +385,12 @@ def category(method, path, action=''):
         return None
     if api in SEND_API:
         return 'envoyer'
+    if api.startswith('m56106/envoi/'):   # 5.6.106 (lot E) : effets sur la file d'envoi = droit « envoyer » ; délai d'annulation = réglage personnel
+        from .envoi56106 import droit_requis as _droit56106e
+        return _droit56106e(api, method)
+    if api.startswith('m56106/lecteur/'):   # 5.6.106 (lot V) : courriel → tâche ou événement = droit « agenda » ; affichage, résumé, note : aucun droit réglable
+        from .lecteur56106 import droit_requis as _droit56106v
+        return _droit56106v(api)
     if api in DEPOSIT_API or action in DEPOSIT_ACTIONS:
         return 'deposer'
     if api in VALIDATE_API or action in VALIDATE_ACTIONS:

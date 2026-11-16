@@ -48,6 +48,14 @@ BUNDLE = LEGACY_CSS + AX_CSS + ENHANCE_CSS + ('v520.css', 'v530.css', 'v550.css'
 BUNDLE += ('v56103-fichiers.css',)   # 5.6.103 (lot F) : page « Fichiers »
 BUNDLE += ('v56103-tableau.css',)   # 5.6.103 (lot T) : volet « Tableau blanc » de la messagerie
 BUNDLE += ('v56103-comptes.css',)   # 5.6.103 (intégration) : étapes de comptes Google et Microsoft
+BUNDLE += ('v56106-densite.css',)   # 5.6.106 (lot D) : densité de toutes les pages (variables --ax-*, body[data-densite]) et identité du cabinet ; avant les feuilles propres aux pages
+BUNDLE += ('v56106-redaction.css',)   # 5.6.106 (lot R) : rédaction compacte d'un courriel
+BUNDLE += ('v56106-envoi.css',)   # 5.6.106 (lot E) : options d'envoi, bandeau « Annuler », envois programmés
+BUNDLE += ('v56106-liste.css',)   # 5.6.106 (lot L) : Courriels dense (liste, actions groupées, dossiers, onglets à 390 px)
+BUNDLE += ('v56106-lecteur.css',)   # 5.6.106 (lot V) : lecteur (cadre isolé, bandeaux, pièces, fil), volet du résumé, formulaires tâche et agenda
+BUNDLE += ('v56106-vision.css',)   # 5.6.106 (lot I) : joindre une image ou une page (assistant), aperçu masqué, réglages des images
+BUNDLE += ('v56106-routine.css',)   # 5.6.106 (lot O) : assistant « Créer une routine à partir du message », routines sur message d'Aujourd'hui
+BUNDLE += ('v56106-fraude.css',)   # 5.6.106 (lot F) : pastille et bandeau « courriel potentiellement frauduleux »
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -214,9 +222,16 @@ def head_html(title, prefix, css=(), head=''):
 
 def sidebar_html(prefix, active_path):
     from .i18n5631 import th
-    return ('<aside id="ws-sidebar"><div class="brand"><div class="ws-brand-lockup"><img src="' + e(prefix) + '/static/axiorhub-icon.png" width="38" height="38" alt="">'
-            '<span class="ws-brand-name">AxiorHub</span></div><span class="ws-brand-subtitle">' + th('side.subtitle') + '</span></div>' + nav_html(prefix, active_path) +
-            '<p class="ws-about">' + th('side.version', version=_version()) + ' · ' + e(ATTRIBUTION) + '<br><a href="' + e(prefix) + '/a-propos">' + th('side.about') + '</a></p></aside>')
+    # 5.6.106 (lot D) : en tête, « [logo] Nom du cabinet » (pastille aux initiales sans logo), la marque AxiorHub dessous en petit ;
+    # sans nom ni logo, ou sous la présentation précédente, la marque d'origine reste seule. Script de densité chargé sur toutes les pages.
+    from .identite56106 import bloc_html as _identite106
+    identite = _identite106(prefix)
+    marque = ('<div class="brand id106-brand">' + identite + '</div>') if identite else (
+        '<div class="brand"><div class="ws-brand-lockup"><img src="' + e(prefix) + '/static/axiorhub-icon.png" width="38" height="38" alt="">'
+        '<span class="ws-brand-name">AxiorHub</span></div><span class="ws-brand-subtitle">' + th('side.subtitle') + '</span></div>')
+    return ('<aside id="ws-sidebar">' + marque + nav_html(prefix, active_path) +
+            '<p class="ws-about">' + th('side.version', version=_version()) + ' · ' + e(ATTRIBUTION) + '<br><a href="' + e(prefix) + '/a-propos">' + th('side.about') + '</a></p>'
+            '<script defer src="' + e(prefix) + '/static/v56106-densite.js"></script></aside>')
 
 
 def render(title, body, prefix, csrf, path, cfg=None, css=(), scripts='', head='', selected_matter='', toast='', page_title=True):

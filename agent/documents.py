@@ -102,7 +102,8 @@ def _tool(name):
     """5.6.25 : chemin fixe sous Linux (jamais pris dans le PATH), dossiers d'installation habituels sous Windows."""
     if not portable.WINDOWS:
         return '/usr/bin/' + name
-    return portable.which(name) or name
+    from .outils_ocr56106 import chemin   # 5.6.106 (lot W) : outils embarqués dans l'application Windows d'abord
+    return chemin(name) or name
 
 
 def _pypdf_texts(raw):
@@ -127,7 +128,8 @@ def _pypdf_texts(raw):
 
 def _poppler_missing():
     # Git pour Windows fournit un pdftotext isolé : Poppler n'est retenu que complet (pdfinfo et pdftotext)
-    return portable.WINDOWS and not (portable.which('pdfinfo') and portable.which('pdftotext'))
+    from .outils_ocr56106 import chemin   # 5.6.106 (lot W) : Poppler embarqué dans l'application Windows
+    return portable.WINDOWS and not (chemin('pdfinfo') and chemin('pdftotext'))
 
 
 def limits():
@@ -175,7 +177,8 @@ def _docx_masked(root):
 
 
 def ocr(path):
-    tsv = command([_tool('tesseract'),str(path),'stdout','-l','fra+eng','tsv'])
+    from .outils_ocr56106 import langues   # 5.6.106 (lot W) : langues choisies par le cabinet (fra+eng par défaut), installées seulement
+    tsv = command([_tool('tesseract'),str(path),'stdout','-l',langues(),'tsv'])
     words = [r for r in csv.DictReader(io.StringIO(tsv),delimiter='\t')
              if r.get('text','').strip() and float(r.get('conf','-1')) >= 0]
     if not words: raise Stop('ocr_sans_texte_reconnu')

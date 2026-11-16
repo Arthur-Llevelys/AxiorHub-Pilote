@@ -5109,3 +5109,755 @@ body.v101-volet-ouvert #ws-main:has(.t103-fenetre.v101-ancre[open]) { padding-ri
 /* 5.6.103 (intégration) : boutons « Passer » / « Reprendre » des étapes de comptes Google et Microsoft, sur une ligne, sans cadre de formulaire. */
 form.m5-form.as103-inline{display:inline-flex!important;align-items:center;background:none!important;border:0!important;padding:0!important;margin:6px 8px 6px 0!important;max-width:none;min-height:0!important;box-shadow:none!important}
 form.m5-form.as103-inline .ax-btn{width:auto}
+/* ==== v56106-densite.css ==== */
+/* AxiorHub 5.6.106 (lot D) — densité d'affichage de toute l'application et identité du cabinet dans la barre latérale.
+
+   ================================================================== CONTRAT POUR LES AUTRES LOTS (L, R, E, V) ==================
+   Attribut : <body data-densite="compacte|confortable">, posé par le serveur (identite56106.marquer_densite, appelé par
+   ui_helpers.enhance) d'après le réglage de la personne (Mon compte › Densité d'affichage). Défaut : « compacte ».
+   - Sans attribut (page hors gabarit, ancienne présentation) : les règles compactes ne s'appliquent pas ; seul
+     body[data-densite=compacte] les déclenche. La présentation précédente (interrupteur interface56100 éteint) reçoit toujours
+     « confortable » : rien ne change pour elle.
+   - Pour une règle propre à une page : préfixer par  body[data-densite=compacte]  (ou :not([data-densite=compacte]) pour le
+     mode confortable) et lire les variables ci-dessous plutôt que des valeurs en dur.
+
+   Variables (définies sur body ; « confortable » = valeurs historiques de la 5.6.105) :
+     --ax-texte            taille du texte courant              14px  | 15px
+     --ax-texte-petit      texte secondaire (jamais < 13px)     13px  | 14px
+     --ax-interligne       hauteur de ligne du texte            1.4   | 1.5
+     --ax-titre-page       titre de page (h1)                   22px  | 37.6px
+     --ax-titre-section    titre de bloc (h2)                   16px  | 18px
+     --ax-controle         hauteur d'un bouton ou d'un champ    32px  | 40px
+     --ax-controle-petit   petit bouton, puce de filtre         28px  | 32px
+     --ax-onglet           hauteur d'un onglet                  36px  | 44px
+     --ax-entete           barre du haut                        48px  | 73px
+     --ax-barre-laterale   largeur de la barre latérale         208px | 260px
+     --ax-menu-element     hauteur d'une entrée du menu         36px  | 42px
+     --ax-goutiere         marge latérale du contenu            16px  | 48px
+     --ax-espace-1..4      espacements                          4/8/12/16px | 4/8/16/24px
+     --ax-carte-pad        marge intérieure d'une carte         12px  | 16px
+     --ax-rayon            rayon des petits éléments arrondis   4px   | 4px
+     --ax-cible-tactile    cible minimale en mobile (≤ 850px)   40px  (les deux modes)
+   En mobile (≤ 850 px) et sur écran tactile (pointer: coarse), --ax-controle et --ax-menu-element valent au moins 40px :
+   la compacité vaut pour l'écran de bureau.
+
+   Identité du cabinet (toutes les pages, nouvelle interface) : .id106 en tête de #ws-sidebar (logo carré ou pastille aux initiales,
+   nom du cabinet sur une ou deux lignes), la marque AxiorHub dessous en petit. Aucune règle ici ne vise la page Courriels
+   (.bx5625*, .bx5628*, .bx56106* appartiennent aux lots L et R).
+   ============================================================================================================================= */
+
+/* ------------------------------------------------------------------ variables */
+body { --ax-cible-tactile: 40px; --ax-rayon: 4px; --ax-reserve-lanceur: 64px; }
+body, body[data-densite=confortable] {
+  --ax-texte: 15px; --ax-texte-petit: 14px; --ax-interligne: 1.5; --ax-titre-page: 2.35rem; --ax-titre-section: 18px;
+  --ax-controle: 40px; --ax-controle-petit: 32px; --ax-onglet: 44px; --ax-entete: 73px; --ax-barre-laterale: 260px; --ax-menu-element: 42px;
+  --ax-goutiere: 48px; --ax-espace-1: 4px; --ax-espace-2: 8px; --ax-espace-3: 16px; --ax-espace-4: 24px; --ax-carte-pad: 16px;
+}
+body[data-densite=compacte] {
+  --ax-texte: 14px; --ax-texte-petit: 13px; --ax-interligne: 1.4; --ax-titre-page: 22px; --ax-titre-section: 16px;
+  --ax-controle: 32px; --ax-controle-petit: 28px; --ax-onglet: 36px; --ax-entete: 48px; --ax-barre-laterale: 208px; --ax-menu-element: 36px;
+  --ax-goutiere: 16px; --ax-espace-1: 4px; --ax-espace-2: 8px; --ax-espace-3: 12px; --ax-espace-4: 16px; --ax-carte-pad: 12px;
+}
+/* jetons Carbon (ui_tokens5689) : texte courant 14px, petit 13px, titres réduits */
+:root body[data-carbon][data-densite=compacte] { --ui-taille-corps: .875rem; --ui-taille-petit: .8125rem; --ui-taille-titre-1: 1.375rem; --ui-taille-titre-2: 1rem; --ui-taille-titre-3: .9375rem; --ui-interligne: 1.4; }
+@media (max-width: 53.125rem), (pointer: coarse) {
+  body[data-densite=compacte] { --ax-controle: var(--ax-cible-tactile); --ax-controle-petit: var(--ax-cible-tactile); --ax-menu-element: 44px; --ax-onglet: 44px; }
+}
+
+/* ------------------------------------------------------------------ identité du cabinet en tête de la barre latérale (les deux densités) */
+#ws-sidebar .brand.id106-brand { padding: 0; }
+.id106 { align-items: center; display: flex; gap: .625rem; min-width: 0; padding: 0 .25rem; }
+.id106-marque { border-radius: 6px; display: block; flex: none; height: 44px; object-fit: cover; object-position: center; width: 44px; }
+.id106-initiales, #ws-sidebar .brand span.id106-initiales { align-items: center; background: #0043ce; color: #ffffff; display: inline-flex; font-size: 1.0625rem; font-weight: 700; justify-content: center; letter-spacing: .02em; }
+.id106-texte { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
+#ws-sidebar .id106-nom { -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #ffffff; display: -webkit-box; font-size: .9375rem; font-weight: 600; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere; }
+#ws-sidebar .id106-axiorhub { align-items: center; color: #c6c6c6; display: inline-flex; font-size: .75rem; gap: .25rem; line-height: 1.3; white-space: nowrap; }
+#ws-sidebar .id106-axiorhub img { height: 14px; width: 14px; }
+.ws-collapsed #ws-sidebar .id106 { justify-content: center; padding: 0; }
+.ws-collapsed #ws-sidebar .id106-texte { display: none; }
+@media (max-width: 53.125rem) { #ws-sidebar .id106 { padding: .25rem 0; } }
+
+/* ------------------------------------------------------------------ enveloppe compacte (bureau : plus de 850 px) */
+@media (min-width: 53.1875rem) {
+  body[data-densite=compacte] { font-size: var(--ax-texte); line-height: var(--ax-interligne); }
+  :root:not(.ws-collapsed):not(.ax-integre) body[data-densite=compacte] #ws-sidebar { padding: .625rem .625rem .75rem; width: var(--ax-barre-laterale); }
+  :root:not(.ws-collapsed):not(.ax-integre) body[data-densite=compacte] #ws-main { margin-left: var(--ax-barre-laterale); }
+  :root.ws-collapsed body[data-densite=compacte] #ws-sidebar { padding-top: .75rem; }
+  body[data-densite=compacte] #ws-main { max-width: none; padding-bottom: var(--ax-espace-4); padding-left: var(--ax-goutiere); padding-top: 0; }
+  /* à droite : la goutière plus la place du lanceur flottant de l'assistant (54 px à 20 px du bord), qui ne couvre ainsi aucune action ;
+     volet de relecture ancré (5.6.101) : sa réserve à droite est gardée */
+  body[data-densite=compacte]:not(.v101-volet-ouvert) #ws-main { padding-right: calc(var(--ax-goutiere) + var(--ax-reserve-lanceur)); }
+  body[data-densite=compacte] #ws-sidebar .brand { padding-left: .25rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-brand-lockup img { height: 28px; width: 28px; }
+  body[data-densite=compacte] #ws-sidebar .ws-brand-name { font-size: 1.125rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-brand-subtitle { font-size: .75rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-primary { gap: 2px; margin-top: .625rem; }
+  :root body[data-densite=compacte] #ws-sidebar .ws-primary a { font-size: .875rem; gap: .625rem; line-height: 1.25; min-height: var(--ax-menu-element); padding: .375rem .625rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-primary .ws-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body[data-densite=compacte] #ws-sidebar .ws-nav-icon { flex: none; }
+  :root body[data-densite=compacte] #ws-sidebar .f5631-all > summary { padding: .375rem .625rem !important; }
+  :root body[data-densite=compacte] #ws-sidebar .m82-settings { min-height: var(--ax-menu-element); padding: .375rem .625rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-about { font-size: .75rem; line-height: 1.35; }
+
+  /* barre du haut : une bande de 48 px sur toute la largeur du contenu */
+  :root body[data-densite=compacte] .ws-topbar { box-sizing: border-box; gap: var(--ax-espace-2); margin: 0 calc(-1 * var(--ax-goutiere)) var(--ax-espace-2); min-height: var(--ax-entete);
+    padding: var(--ax-espace-1) var(--ax-goutiere); }
+  :root body[data-densite=compacte]:not(.v101-volet-ouvert) .ws-topbar { margin-right: calc(-1 * (var(--ax-goutiere) + var(--ax-reserve-lanceur))); }
+  :root body[data-densite=compacte] .ws-topbar-leading, :root body[data-densite=compacte] .ws-topbar-actions { gap: var(--ax-espace-1); }
+  :root body[data-densite=compacte] .ws-topbar .ws-icon-button { height: var(--ax-controle); min-height: var(--ax-controle); min-width: var(--ax-controle); padding: 0; width: var(--ax-controle); }
+  :root body[data-densite=compacte] .ws-topbar-actions a { min-height: var(--ax-controle); }
+  :root body[data-densite=compacte] .ws-topbar .l5631-lang { margin: 0; }
+  :root body[data-densite=compacte] .ws-topbar-actions > a, :root body[data-densite=compacte] .ws-topbar .ui89-retour { font-size: .8125rem; min-height: var(--ax-controle); padding: 0 .5rem; }
+  :root body[data-densite=compacte] .ws-topbar-actions select, :root body[data-densite=compacte] .ws-topbar .l5631-lang select { font-size: .8125rem; height: var(--ax-controle); min-height: var(--ax-controle); padding-bottom: 0; padding-top: 0; }
+  :root body[data-densite=compacte] .ws-topbar #ws-ai-live { height: var(--ax-controle); min-height: var(--ax-controle); width: var(--ax-controle); }
+  :root body[data-densite=compacte] .ws-ariane { font-size: .8125rem; }
+
+  /* titre de page : l'ancienne surligne « Cabinet · poste de travail » est redite par le fil d'Ariane ; titre et onglets sur une bande */
+  :root body[data-densite=compacte] .page-title { align-items: center; column-gap: var(--ax-espace-4); flex-wrap: wrap; margin: 0 0 var(--ax-espace-2); padding-top: 0; row-gap: 0; }
+  :root body[data-densite=compacte] .page-title .eyebrow { block-size: 1px; clip-path: inset(50%); inline-size: 1px; overflow: hidden; position: absolute; white-space: nowrap; }
+  :root body[data-densite=compacte] #ws-main .page-title h1, :root body[data-densite=compacte] #ws-main h1 { font-size: var(--ax-titre-page); letter-spacing: -.01em; line-height: 1.2; margin: 0 0 var(--ax-espace-2); }
+  :root body[data-densite=compacte] #ws-main .page-title h1 { margin: 0; }
+  :root body[data-densite=compacte] #ws-main .page-title > a { font-size: var(--ax-texte-petit); }
+  :root body[data-densite=compacte] .page-title.ax106-bande > div:first-child { flex: none; }
+  :root body[data-densite=compacte] .page-title.ax106-bande > .ws-tabs { border-bottom: 0; flex: 1 1 24rem; margin: 0; min-width: 0; }
+  :root body[data-densite=compacte] .page-title.ax106-bande > a { margin-left: auto; }
+  :root body[data-densite=compacte] #ws-main h2 { font-size: var(--ax-titre-section); line-height: 1.3; }
+
+  /* onglets de page et de famille */
+  :root body[data-densite=compacte] .ws-tabs { margin: var(--ax-espace-1) 0 var(--ax-espace-2); }
+  :root body[data-densite=compacte] .ws-tabs + .ws-tabs { margin-top: 0; }
+  :root body[data-densite=compacte] .ws-tabs a, :root body[data-densite=compacte] #ws-main .ui89-onglets [role=tab] { font-size: .875rem; min-height: var(--ax-onglet); padding: .375rem .75rem; }
+  :root body[data-densite=compacte] .ws-tabs a { align-items: center; display: inline-flex; }
+
+  /* boutons : 32 px (28 px pour les petits), groupes alignés sur une ligne et de même hauteur */
+  :root body[data-densite=compacte] #ws-main .ax-btn, :root body[data-densite=compacte] #ws-main button:not([class]),
+  :root body[data-densite=compacte] dialog .ax-btn { font-size: .875rem; gap: .375rem; line-height: 1.2; min-height: var(--ax-controle); padding: .25rem .75rem; }
+  :root body[data-densite=compacte] #ws-main .ax-btn:is(.small, .petit, .ax-btn-small, .ax-btn-sm) { font-size: .8125rem; min-height: var(--ax-controle-petit); padding: .125rem .5rem; }
+  :root body[data-densite=compacte] #ws-main :is(.actions, .ax-actions, .ax-buttons, .m97-boutons, .p5621-actions, .c5614-actions) { align-items: center; display: flex; flex-wrap: wrap; gap: var(--ax-espace-2); }
+  :root body[data-densite=compacte] #ws-main :is(.actions, .ax-actions, .ax-buttons, .m97-boutons) > :is(.ax-btn, button, a.ax-btn) { margin: 0; }
+  :root body[data-densite=compacte] #ws-main .m97-boutons { margin: var(--ax-espace-2) 0; }
+
+  /* champs : 32 px */
+  :root body[data-densite=compacte] #ws-main input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]):not([type=range]), :root body[data-densite=compacte] #ws-main select {
+    font-size: .875rem; min-height: var(--ax-controle); padding-bottom: .25rem; padding-top: .25rem; }
+  :root body[data-densite=compacte] #ws-main textarea { font-size: .875rem; padding: .375rem .625rem; }
+
+  /* formulaires : un libellé, sa liste et son bouton sur une seule ligne (« Trier par ») ; barres de filtres sur une ligne avec repli */
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)),
+  :root body[data-densite=compacte] #ws-main form.m5-inline:has(> label + :is(select, input:not([type=hidden]))):not(:has(> label ~ label)) { align-items: center; display: flex; flex-wrap: nowrap; gap: var(--ax-espace-1) var(--ax-espace-2); max-width: 100%; }
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)) > label { flex: none; margin: 0; white-space: nowrap; width: auto; }
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)) > :is(select, input) { flex: 0 1 16rem; margin: 0; min-width: 8rem; width: auto; }
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)) > :is(button, .ax-btn) { flex: none; margin: 0; }
+  :root body[data-densite=compacte] #ws-main :is(.q51-filters, .d97-filtres, .ax100-filtres, .ui89-filtres, .tk28-chips) { align-items: center; display: flex; flex-wrap: wrap; gap: var(--ax-espace-1) var(--ax-espace-2); }
+  :root body[data-densite=compacte] #ws-main :is(.q51-filters, .d97-filtres, .tk28-chips) a { font-size: .8125rem; min-height: var(--ax-controle-petit); padding: .125rem .625rem; }
+
+  /* cartes : moins aérées */
+  :root body[data-densite=compacte] #ws-main :is(.ax-card, .card, .c530-card) { margin-bottom: var(--ax-espace-3); padding: var(--ax-carte-pad); }
+  :root body[data-densite=compacte] #ws-main .ax-card > h2:first-child, :root body[data-densite=compacte] #ws-main .c530-card > h2:first-child { margin-top: 0; }
+  /* formulaires d'une action dans un groupe de boutons : ni cadre ni marge, même ligne et même hauteur que les liens voisins */
+  :root body[data-densite=compacte] #ws-main :is(.q51-actions, .actions, .ax-actions, .c5614-actions, .l89-actions, .m97-boutons) form { background: none; border: 0; display: inline-flex; margin: 0; padding: 0; }
+  :root body[data-densite=compacte] #ws-main :is(.q51-actions, .c5614-actions, .l89-actions) { align-items: center; gap: var(--ax-espace-1) var(--ax-espace-2); }
+
+  /* conteneurs centrés de 1500 px (Aujourd'hui, pages intégrées) : toute la largeur disponible */
+  :root body[data-densite=compacte] #ws-main :is(.c530, .ax-main, .ax-in-workspace) { margin-left: 0; margin-right: 0; max-width: none; }
+  :root body[data-densite=compacte] #ws-main .ax-main.ax-in-workspace { font-size: var(--ax-texte); padding: 0 0 var(--ax-espace-3); }
+
+  /* marges héritées des premières versions (nav : 38 px, details : 10 + 14 px) ; :where() garde la main aux règles propres d'une page */
+  :where(body[data-densite=compacte] #ws-main) nav { margin-bottom: var(--ax-espace-2); margin-top: var(--ax-espace-2); }
+  :where(body[data-densite=compacte] #ws-main) details { margin-top: var(--ax-espace-2); padding-top: var(--ax-espace-1); }
+  :where(body[data-densite=compacte] #ws-main) :is(td, th) { padding: .375rem .5rem; }
+  :where(body[data-densite=compacte] #ws-main) :is(h2, h3) { margin-bottom: var(--ax-espace-2); margin-top: var(--ax-espace-3); }
+  :where(body[data-densite=compacte] #ws-main) p { margin-bottom: var(--ax-espace-2); margin-top: var(--ax-espace-2); }
+
+  /* Aujourd'hui : la densité compacte de la 5.6.96 (U02) s'applique d'office, blocs moins espacés */
+  :root body[data-densite=compacte] .c530 { --a96-ecart: .5rem; }
+  :root body[data-densite=compacte] .c530 .c530-card { margin-bottom: .5rem; padding: .625rem .75rem; }
+  :root body[data-densite=compacte] .c530 .ax95 { margin-top: .25rem; padding: .625rem .75rem .5rem; }
+  :root body[data-densite=compacte] .c530 .ax95-ligne { padding: .25rem .125rem; }
+  :root body[data-densite=compacte] .c530 .ax95-liste { margin-top: .375rem; }
+  :root body[data-densite=compacte] .c530 .c530-top { margin-bottom: .5rem; }
+  :root body[data-densite=compacte] .c530 :is(.a89-layout, .c530-cols, .f96-rang) { gap: var(--a96-ecart); margin-top: var(--a96-ecart); }
+  :root body[data-densite=compacte] .c530 .t88-item { padding-bottom: .25rem; padding-top: .25rem; }
+  :root body[data-densite=compacte] .c530 .t95-pli > summary.t95-pli-titre { min-height: 2rem; padding-bottom: .25rem; padding-top: .25rem; }
+}
+
+/* ------------------------------------------------------------------ mobile (≤ 850 px) : cibles tactiles de 40 px au moins */
+@media (max-width: 53.125rem) {
+  body[data-densite=compacte] #ws-main :is(.ax-btn, button, select, input:not([type=checkbox]):not([type=radio]):not([type=hidden])) { min-height: var(--ax-cible-tactile); }
+  body[data-densite=compacte] #ws-sidebar .ws-primary a { min-height: var(--ax-cible-tactile); }
+}
+
+/* ------------------------------------------------------------------ titre et onglets en bande : repli en petite largeur */
+.page-title.ax106-bande { flex-wrap: wrap; }
+.page-title.ax106-bande > .ws-tabs { flex: 1 1 100%; min-width: 0; }
+
+/* ------------------------------------------------------------------ Paramètres › logo du cabinet */
+.d106-logo-ligne { align-items: center; display: flex; flex-wrap: wrap; gap: .75rem; margin: .5rem 0; }
+.d106-logo-ligne .id106-marque { height: 48px; width: 48px; }
+.d106-logo-etat { margin: 0; }
+.d106-logo-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
+.d106-fichier { cursor: pointer; position: relative; }
+.d106-fichier:focus-within { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.d106-champ { block-size: 1px; clip-path: inset(50%); inline-size: 1px; opacity: 0; overflow: hidden; position: absolute; }
+[data-d106-statut][data-etat=erreur] { color: var(--cds-text-error, #da1e28); }
+/* ==== v56106-redaction.css ==== */
+/* AxiorHub 5.6.106 (lot R) — rédaction d'un courriel compacte : en-têtes sur une ligne (≈ 32 px), barre d'outils en une ligne (icônes,
+   infobulles, menu « Plus »), éditeur sur toute la hauteur restante (seule zone de défilement), boutons toujours visibles en bas,
+   pièces jointes en pastilles, adresses proposées, dépôt de fichiers. Texte à 14 px au moins ; clair et sombre. Préfixes .bx5628 / .bx56106. */
+.bx5625-panel:has(> .bx56106r-r),#bx5625 .bx5625-panel:has(> form.bx56106r-r){overflow:hidden;padding:6px 10px}
+.bx5628-compose.bx56106r-r{position:relative;display:flex;flex-direction:column;gap:2px;height:var(--bx56106r-h, calc(100vh - 160px));min-height:300px;box-sizing:border-box}
+.bx56106r-r .bx5628-compose-head{flex:none;display:flex;align-items:baseline;gap:10px;min-height:22px;flex-wrap:nowrap;margin:0}
+.bx56106r-r .bx5628-compose-head h2{margin:0;font-size:15px;line-height:22px;font-weight:600;white-space:nowrap}
+.bx56106r-r .bx5628-compose-head .ax-muted{font-size:14px;color:#4a5566;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bx56106r-r .bx5628-field{flex:none;position:relative;grid-template-columns:44px minmax(0,1fr) auto;gap:6px;min-height:30px;padding:0;align-items:center}
+.bx56106r-r .bx5628-field>span:first-child{font-size:14px;color:#4a5566}
+.bx56106r-r .bx5628-field input{font-size:14px;height:28px;padding:3px 6px;box-sizing:border-box}
+.bx56106r-r .bx5628-field .bx5628-link{font-size:14px;white-space:nowrap;padding:2px 6px;border-radius:6px}
+.bx56106r-r .bx5628-toggles:empty{display:none}
+.bx56106r-r .bx5628-field .bx56106r-statut{grid-column:1/-1;font-size:14px;color:#3d4757;margin:0 0 2px 50px}
+.bx56106r-r .bx5628-field .bx56106r-statut:empty{display:none}
+.bx56106r-r .bx5628-field .bx56106r-statut.is-bad{color:#b42318}
+/* barre d'outils */
+.bx56106r-barre{flex:none;position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:2px 4px;margin-top:3px;border:1px solid #dfe3e9;border-bottom:0;border-radius:8px 8px 0 0;background:#f6f7f9}
+.bx56106r-ib{display:inline-flex;align-items:center;justify-content:center;font:inherit;font-size:14px;line-height:1;min-width:28px;min-height:30px;padding:0 5px;border:1px solid transparent;border-radius:6px;background:transparent;color:#1f2a3a;cursor:pointer;flex:none}
+.bx56106r-ib:hover{background:#e6eefb;border-color:#c9d5ea}
+.bx56106r-ib:focus-visible,.bx56106r-pj-x:focus-visible,.bx56106r-r .bx5628-link:focus-visible{outline:2px solid #1f4e9c;outline-offset:1px}
+.bx56106r-ib[aria-expanded=true]{background:#dbe6f8;border-color:#9fb3d1}
+.bx56106r-ib svg{width:16px;height:16px}
+.bx56106r-ib.is-b{font-weight:700}.bx56106r-ib.is-i{font-style:italic;font-family:Georgia,serif}.bx56106r-ib.is-u{text-decoration:underline}
+.bx56106r-ib.bx56106r-txt{font-weight:600;padding:0 6px}
+.bx56106r-mic.is-rec{background:#b42318;border-color:#b42318;color:#fff}
+.bx56106r-mic.is-busy{opacity:.7;cursor:progress}
+.bx56106r-sep{flex:none;width:1px;height:20px;background:#d5dbe3;margin:0 2px}
+.bx56106r-barre>.bx56106r-statut:empty{display:none}
+.bx56106r-barre>.bx56106r-statut{flex:1 1 0;min-width:0;margin-left:6px;font-size:14px;color:#3d4757;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bx56106r-barre>.bx56106r-statut.is-bad{color:#b42318}
+.bx56106r-mic-champ{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid transparent;border-radius:6px;background:none;color:#1f2a3a;cursor:pointer}
+.bx56106r-mic-champ:hover{background:#e6eefb}
+/* menus « Modèles » et « Plus » */
+.bx56106r-menu{position:absolute;top:100%;right:0;z-index:30;width:min(360px,92vw);max-height:min(70vh,520px);overflow:auto;background:#fff;color:#1f2a3a;border:1px solid #c9d5ea;border-radius:8px;box-shadow:0 10px 28px rgba(15,23,42,.18);padding:4px 6px}
+.bx56106r-menu[hidden]{display:none}
+.bx56106r-mg{display:flex;flex-wrap:wrap;gap:2px;padding:4px 0;border-bottom:1px solid #eef1f5}
+.bx56106r-mg:last-child{border-bottom:0}
+.bx56106r-mt{flex-basis:100%;font-size:14px;font-weight:600;color:#4a5566;padding:2px 4px}
+.bx56106r-mi{font:inherit;font-size:14px;min-height:30px;padding:3px 8px;border:1px solid transparent;border-radius:6px;background:none;color:inherit;cursor:pointer;text-align:left}
+.bx56106r-mi:hover,.bx56106r-mi:focus{background:#e6eefb;outline:2px solid #1f4e9c;outline-offset:-2px}
+.bx56106r-mi[disabled]{color:#6b7480;cursor:not-allowed;background:none;outline:0}
+.bx56106r-mi[aria-checked=true]::before{content:'✓ '}
+.bx56106r-sw{min-width:34px;font-weight:700;border-color:#d5dbe3;text-align:center}
+.bx56106r-modeles{display:grid;gap:1px;padding:2px 0 4px;border-bottom:1px solid #eef1f5}
+.bx56106r-modeles p{margin:4px;font-size:14px}
+.bx56106r-ml{display:flex;align-items:center;gap:2px}.bx56106r-mtitre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* éditeur : seule zone de défilement */
+.bx56106r-r .bx5628-editor{flex:1 1 auto;min-height:120px;max-height:none;margin-top:0;padding:8px 10px;border-radius:0 0 8px 8px;overflow:auto;line-height:1.5}
+.bx56106r-r .bx5628-editor p{margin:0}
+.bx56106r-r .bx5628-editor h2{font-size:1.3em;margin:.3em 0}.bx56106r-r .bx5628-editor h3{font-size:1.12em;margin:.3em 0}
+.bx56106r-r .bx5628-editor hr{border:0;border-top:1px solid #c9d5ea;margin:.5em 0}
+/* pièces jointes */
+.bx56106r-pj{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;max-height:72px;overflow:auto;padding:3px 0;font-size:14px}
+.bx56106r-pj[hidden]{display:none}
+.bx56106r-pj-liste{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px}
+.bx56106r-pj-item{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:1px 2px 1px 8px;border:1px solid #c9d5ea;border-radius:14px;background:#f4f7fd}
+.bx56106r-pj-nom{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bx56106r-pj-taille{color:#4a5566}
+.bx56106r-pj-x{width:26px;height:26px;border:0;border-radius:50%;background:none;color:#b42318;cursor:pointer;font-size:14px}
+.bx56106r-pj-x:hover{background:#fdecea}
+.bx56106r-pj-total{color:#3d4757}.bx56106r-pj-total.is-bad{color:#b42318;font-weight:600}
+.bx56106r-pj-input{display:none}
+.bx56106r-r .bx5628-options-envoi{flex:none}
+.bx56106r-r .bx5628-options-envoi:empty{display:none}
+/* boutons toujours visibles en bas de la colonne */
+.bx56106r-r>.bx5628-actions{flex:none;position:sticky;bottom:0;z-index:5;flex-wrap:nowrap;gap:6px;padding:6px 0 2px;border-top:1px solid #dfe3e9;background:var(--ws-card,#fff)}
+.bx56106r-r>.bx5628-actions .ax-btn{white-space:nowrap}
+.bx56106r-auto{margin-left:auto;min-width:0;font-size:14px;color:#3d4757;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bx56106r-auto.is-bad{color:#b42318}
+.bx56106r-r>.bx5628-confirm{flex:none;max-height:40vh;overflow:auto}
+/* adresses proposées */
+.bx56106r-adr{position:absolute;left:50px;right:0;top:100%;z-index:25;list-style:none;margin:1px 0 0;padding:4px;max-height:240px;overflow:auto;background:#fff;color:#1f2a3a;border:1px solid #c9d5ea;border-radius:8px;box-shadow:0 10px 28px rgba(15,23,42,.16)}
+.bx56106r-adr[hidden]{display:none}
+.bx56106r-opt{display:flex;justify-content:space-between;gap:10px;padding:5px 8px;border-radius:6px;cursor:pointer}
+.bx56106r-r .bx5628-field .bx56106r-opt span{font-size:14px;color:inherit}
+.bx56106r-r .bx5628-field .bx56106r-opt .bx56106r-mail{color:#4a5566}
+.bx56106r-opt[aria-selected=true]{background:#1f4e9c;color:#fff}
+.bx56106r-r .bx5628-field .bx56106r-opt[aria-selected=true] .bx56106r-mail{color:#fff}
+/* dépôt de fichiers */
+.bx56106r-r.is-drop::after{content:attr(data-drop-label);position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;border:2px dashed #1f4e9c;border-radius:10px;background:rgba(31,78,156,.10);color:#1f4e9c;font-size:16px;font-weight:600;pointer-events:none}
+/* densité confortable (réglage du lot D) */
+body[data-densite="confortable"] .bx56106r-r .bx5628-field{min-height:38px}
+body[data-densite="confortable"] .bx56106r-r .bx5628-field input{height:36px}
+body[data-densite="confortable"] .bx56106r-ib{min-width:34px;min-height:34px}
+/* sombre */
+:root[data-theme=dark] .bx56106r-barre{background:#1a2029;border-color:#2b3441}
+:root[data-theme=dark] .bx56106r-ib,:root[data-theme=dark] .bx56106r-mic-champ{color:#e6ebf2}
+:root[data-theme=dark] .bx56106r-ib:hover,:root[data-theme=dark] .bx56106r-mic-champ:hover{background:#243042;border-color:#3a4a63}
+:root[data-theme=dark] .bx56106r-ib[aria-expanded=true]{background:#2a3a55;border-color:#4a6390}
+:root[data-theme=dark] .bx56106r-sep{background:#3a4a63}
+:root[data-theme=dark] .bx56106r-menu,:root[data-theme=dark] .bx56106r-adr{background:#1a2029;color:#e6ebf2;border-color:#3a4a63}
+:root[data-theme=dark] .bx56106r-mg,:root[data-theme=dark] .bx56106r-modeles{border-color:#2b3441}
+:root[data-theme=dark] .bx56106r-mt,:root[data-theme=dark] .bx56106r-r .bx5628-field>span:first-child,:root[data-theme=dark] .bx56106r-r .bx5628-compose-head .ax-muted,
+:root[data-theme=dark] .bx56106r-pj-taille,:root[data-theme=dark] .bx56106r-r .bx5628-field .bx56106r-opt .bx56106r-mail{color:#b4bfcc}
+:root[data-theme=dark] .bx56106r-barre>.bx56106r-statut,:root[data-theme=dark] .bx56106r-auto,:root[data-theme=dark] .bx56106r-pj-total,
+:root[data-theme=dark] .bx56106r-r .bx5628-field .bx56106r-statut{color:#c4cdd9}
+:root[data-theme=dark] .bx56106r-barre>.bx56106r-statut.is-bad,:root[data-theme=dark] .bx56106r-auto.is-bad,:root[data-theme=dark] .bx56106r-pj-total.is-bad,
+:root[data-theme=dark] .bx56106r-r .bx5628-field .bx56106r-statut.is-bad,:root[data-theme=dark] .bx56106r-pj-x{color:#ff9b8f}
+:root[data-theme=dark] .bx56106r-mi:hover,:root[data-theme=dark] .bx56106r-mi:focus{background:#243042;outline-color:#8fb0ff}
+:root[data-theme=dark] .bx56106r-mi[disabled]{color:#8a94a3}
+:root[data-theme=dark] .bx56106r-pj-item{background:#202833;border-color:#3a4a63}
+:root[data-theme=dark] .bx56106r-pj-x:hover{background:#3a2326}
+:root[data-theme=dark] .bx56106r-r>.bx5628-actions{background:#1a2029;border-color:#2b3441}
+:root[data-theme=dark] .bx56106r-opt[aria-selected=true]{background:#4a6390;color:#fff}
+:root[data-theme=dark] .bx56106r-r .bx5628-editor hr{border-top-color:#3a4a63}
+:root[data-theme=dark] .bx56106r-ib:focus-visible,:root[data-theme=dark] .bx56106r-pj-x:focus-visible,:root[data-theme=dark] .bx56106r-r .bx5628-link:focus-visible{outline-color:#8fb0ff}
+:root[data-theme=dark] .bx56106r-r.is-drop::after{background:rgba(143,176,255,.12);border-color:#8fb0ff;color:#c9d8ff}
+@media (max-width:900px){.bx5628-compose.bx56106r-r{height:auto;min-height:0}.bx56106r-r .bx5628-editor{min-height:220px;max-height:55vh}}
+/* en-têtes : marges et hauteurs communes des formulaires neutralisées ici seulement */
+.bx56106r-r .bx5628-field{margin:0}
+.bx56106r-r .bx5628-field input,#bx5625-panel .bx56106r-r .bx5628-field input{min-height:0;height:28px;padding:3px 8px}
+/* images du corps : largeur bornée, image choisie, outils (trois largeurs fixes, origine, retrait) */
+.bx56106r-r .bx5628-editor img{max-width:100%;height:auto;vertical-align:bottom}
+.bx56106r-r .bx5628-editor img.is-choisie{outline:2px solid #1f4e9c;outline-offset:2px}
+.bx56106r-imgbar{position:absolute;z-index:26;display:flex;gap:2px;padding:3px;background:#fff;border:1px solid #c9d5ea;border-radius:8px;box-shadow:0 6px 18px rgba(15,23,42,.16)}
+.bx56106r-imgbar[hidden]{display:none}
+:root[data-theme=dark] .bx56106r-imgbar{background:#1a2029;border-color:#3a4a63}
+:root[data-theme=dark] .bx56106r-r .bx5628-editor img.is-choisie{outline-color:#8fb0ff}
+/* densité compacte (lot D) sur grand écran : les champs d'en-tête prennent la hauteur d'un petit contrôle (28 px), le formulaire n'a pas
+   de marge propre ; sélecteur à identifiants pour passer devant la règle générale des champs de #ws-main */
+@media (min-width:53.1876rem){
+  :root body #ws-main #bx5625-panel form.bx56106r-r{margin:0}
+  :root body #ws-main #bx5625-panel form.bx56106r-r .bx5628-field input[name]{height:var(--ax-controle-petit,28px);min-height:var(--ax-controle-petit,28px);padding-top:2px;padding-bottom:2px}
+  :root body[data-densite=confortable] #ws-main #bx5625-panel form.bx56106r-r .bx5628-field input[name]{height:36px;min-height:36px}
+}
+/* barre étroite (colonne de moins de 620 px, par exemple 1366 × 768) : libellés « Modèles » et « Plus » masqués (infobulles et noms
+   accessibles gardés), annuler et rétablir passent dans « Plus » (Ctrl+Z et Ctrl+Y restent) : la barre tient sur une ligne */
+.bx5628-compose.bx56106r-r{container-type:inline-size;container-name:bx56106r}
+@container bx56106r (max-width:620px){
+  .bx56106r-lib,.bx56106r-large{display:none}
+  .bx56106r-ib{min-width:27px;padding:0 4px}
+}
+/* « Options d'envoi » repliée sur une ligne */
+.bx56106r-r .bx56106r-options{flex:none;border:1px solid #dfe3e9;border-radius:8px;padding:0 8px;font-size:14px}
+.bx56106r-r .bx56106r-options>summary{cursor:pointer;min-height:28px;display:flex;align-items:center;gap:2px;font-weight:600;color:#1f2a3a}
+.bx56106r-r .bx56106r-options>summary:focus-visible{outline:2px solid #1f4e9c;outline-offset:2px}
+.bx56106r-opt-etat{font-weight:400;color:#3d4757;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.bx56106r-r .bx56106r-options[open]{max-height:40vh;overflow:auto;padding-bottom:6px}
+.bx56106r-r .bx56106r-options legend{display:none}
+:root[data-theme=dark] .bx56106r-r .bx56106r-options{border-color:#2b3441}
+:root[data-theme=dark] .bx56106r-r .bx56106r-options>summary{color:#e6ebf2}
+:root[data-theme=dark] .bx56106r-opt-etat{color:#c4cdd9}
+/* ==== v56106-envoi.css ==== */
+/* AxiorHub 5.6.106 (lot E) — options d'envoi : zone de la rédaction, bandeau « Annuler », liste « Envois programmés ». */
+.e106-options { margin: .6rem 0; padding: .5rem .8rem .6rem; border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; background: var(--ax-card, #fff); color: inherit; }
+.e106-options legend { font-weight: 600; padding: 0 .3rem; }
+.e106-ligne { display: flex; align-items: center; gap: .3rem; margin: .2rem 0; }
+.e106-ligne input[type="checkbox"] { width: 1.05rem; height: 1.05rem; margin: 0; }
+.e106-programme { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .6rem; margin: .2rem 0 .3rem 1.5rem; }
+.e106-programme[hidden], .e106-liste[hidden], .e106-bandeau[hidden] { display: none; }
+.e106-aide { font-size: .88em; }
+.e106-delai-ligne { flex-wrap: wrap; margin-top: .4rem; font-size: .92em; }
+.e106-options input:focus-visible, .e106-options select:focus-visible, .e106-bandeau button:focus-visible, .e106-liste button:focus-visible,
+.e106-liste input:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.e106-bandeau { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 1200; display: flex; align-items: center; gap: .6rem;
+  max-width: min(92vw, 40rem); padding: .6rem .9rem; border-radius: 8px; background: #161616; color: #f4f4f4; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
+.e106-bandeau .ax-btn { background: #f4f4f4; color: #161616; border-color: #f4f4f4; }
+.e106-bandeau .ax-btn.ghost { background: transparent; color: #f4f4f4; border-color: #8d8d8d; }
+.e106-bandeau.warn { background: #fcf4d6; color: #3d2f00; border: 1px solid #b28600; }
+.e106-bandeau.bad { background: #fff1f1; color: #750e13; border: 1px solid #da1e28; }
+.e106-bandeau.warn .ax-btn.ghost, .e106-bandeau.bad .ax-btn.ghost { color: inherit; border-color: currentColor; }
+.e106-ouvrir.e106-alerte { border-color: var(--ax-warn, #b28600); }
+.e106-liste { margin: .6rem 0; padding: .6rem .9rem; border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; background: var(--ax-card, #fff); color: inherit; }
+.e106-liste h2 { font-size: 1.05rem; margin: 0 0 .4rem; }
+.e106-liste-items { list-style: none; margin: 0; padding: 0; }
+.e106-item { padding: .5rem 0; border-bottom: 1px solid var(--ax-line, #e0e0e0); }
+.e106-item:last-child { border-bottom: 0; }
+.e106-titre { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; }
+.e106-badge { font-size: .8em; padding: 0 .4rem; border-radius: 999px; border: 1px solid var(--ax-line, #8d8d8d); }
+.e106-quand-texte { margin: .15rem 0; }
+.e106-motif { margin: .2rem 0; font-weight: 600; }
+.e106-a_verifier .e106-motif, .e106-echec .e106-motif { color: #a2191f; }
+.e106-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .3rem; }
+.e106-modifier { display: flex; flex-direction: column; gap: .3rem; margin: .4rem 0 0; padding: .5rem; border-left: 3px solid var(--ax-accent, #0f62fe); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .e106-bandeau { background: #f4f4f4; color: #161616; }
+  :root:not([data-theme="light"]) .e106-bandeau .ax-btn { background: #161616; color: #f4f4f4; border-color: #161616; }
+  :root:not([data-theme="light"]) .e106-bandeau .ax-btn.ghost { background: transparent; color: #161616; border-color: #525252; }
+  :root:not([data-theme="light"]) .e106-bandeau.warn { background: #3d2f00; color: #fcf4d6; }
+  :root:not([data-theme="light"]) .e106-bandeau.bad { background: #520408; color: #ffd7d9; }
+  :root:not([data-theme="light"]) .e106-a_verifier .e106-motif, :root:not([data-theme="light"]) .e106-echec .e106-motif { color: #ff8389; }
+}
+:root[data-theme="dark"] .e106-bandeau { background: #f4f4f4; color: #161616; }
+:root[data-theme="dark"] .e106-bandeau .ax-btn { background: #161616; color: #f4f4f4; border-color: #161616; }
+:root[data-theme="dark"] .e106-bandeau .ax-btn.ghost { background: transparent; color: #161616; border-color: #525252; }
+:root[data-theme="dark"] .e106-bandeau.warn { background: #3d2f00; color: #fcf4d6; }
+:root[data-theme="dark"] .e106-bandeau.bad { background: #520408; color: #ffd7d9; }
+:root[data-theme="dark"] .e106-a_verifier .e106-motif, :root[data-theme="dark"] .e106-echec .e106-motif { color: #ff8389; }
+@media (max-width: 600px) { .e106-bandeau { left: .5rem; right: .5rem; transform: none; max-width: none; flex-wrap: wrap; } }
+/* ==== v56106-liste.css ==== */
+/* AxiorHub 5.6.106 (lot L) — page « Courriels » dense (nouvelle interface : #bx5625.bx56106). Compacte par défaut ; variante confortable sous
+   body[data-densite="confortable"] (réglage commun du lot D). La page entière ne défile pas : la liste et le lecteur défilent chacun dans
+   leur zone (--bx56106-haut, posée par v56106-liste.js). Texte de liste à 14 px au moins, contraste AA en clair et en sombre. */
+#bx5625.bx56106{--bx56106-ligne:14px;--bx56106-dossiers:172px;display:grid;grid-template-columns:var(--bx56106-dossiers) minmax(300px,440px) minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr) auto;gap:6px 8px;align-items:stretch;height:var(--bx56106-haut,calc(100vh - 150px));min-height:320px;margin:0;
+  padding:0;border:0;background:none;box-shadow:none;max-width:none}
+/* le conteneur de la page Courriels seulement : pas de marge ni de largeur bornée autour des trois colonnes */
+.ax-main:has(> #bx5625.bx56106){padding:4px 0 0;margin:0;max-width:none}
+#bx5625.bx56106.bx56106-replie{--bx56106-dossiers:46px}
+#bx5625.bx56106 details.bx56106-filtres,#bx5625.bx56106 details.bx56106-plus,#bx5625.bx56106 details.bx56106-client{border:0;padding:0;margin:0;background:none;
+  box-shadow:none;width:auto;min-width:0;display:inline-block}
+#bx5625.bx56106 details>summary.ax-btn,#bx5625.bx56106 details>summary.bx56106-act{display:inline-flex;align-items:center;white-space:nowrap;width:auto;margin:0}
+#bx5625.bx56106 .bx56106-tri{width:auto;max-width:11em;min-width:0;flex:none}
+#bx5625.bx56106 .bx5625-search button{padding:3px 8px;min-height:30px}
+#bx5625.bx56106 .bx56106-onglets{display:none}
+/* colonne des dossiers : étroite, repliable, défile seule */
+#bx5625.bx56106 .bx5625-folders{grid-column:1;grid-row:1/4;position:static;padding:4px;border-radius:8px;overflow:auto;min-width:0}
+#bx5625.bx56106 .bx5625-folders h2,#bx5625.bx56106 nav.bx5625-folders>h2{display:flex;align-items:center;gap:4px;margin:0 2px 4px;font-size:12px;line-height:24px;letter-spacing:.04em}
+#bx5625.bx56106 .bx56106-dossiers-outils{margin-left:auto;display:flex;gap:2px}
+#bx5625.bx56106 .bx56106-dossiers-outils button,#bx5625.bx56106 .bx56106-gerer{font:inherit;font-size:14px;line-height:1;min-width:26px;min-height:26px;padding:2px 4px;border:1px solid transparent;
+  border-radius:6px;background:none;color:var(--ax-ink,#1b2430);cursor:pointer}
+#bx5625.bx56106 .bx56106-dossiers-outils button:hover,#bx5625.bx56106 .bx56106-gerer:hover{background:var(--ax-soft,#eef3fb)}
+#bx5625.bx56106 #bx5625-flist{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px;max-height:none;overflow:visible}
+#bx5625.bx56106 #bx5625-flist>.bx5625-folder[data-protege],#bx5625.bx56106 #bx5625-flist>.bx5625-folder:not([data-dossier]),#bx5625.bx56106 #bx5625-flist>p{grid-column:1/-1}
+#bx5625.bx56106 #bx5625-flist>.bx56106-gerer-menu{grid-column:1/-1}
+#bx5625.bx56106 .bx5625-folder{min-height:30px;padding:4px 6px;gap:6px;font-size:14px;border-radius:6px}
+#bx5625.bx56106 .bx56106-niveau-1{padding-left:18px}#bx5625.bx56106 .bx56106-niveau-2{padding-left:30px}
+#bx5625.bx56106 .bx56106-niveau-3,#bx5625.bx56106 .bx56106-niveau-4{padding-left:42px}
+#bx5625.bx56106 .bx5625-folder.bx56106-survol{outline:2px dashed var(--ax-accent,#1f4e9c);outline-offset:-2px;background:var(--ax-soft,#eef3fb)}
+#bx5625.bx56106.bx56106-glisse .bx5625-folder[data-dossier]:not([aria-current]){box-shadow:inset 0 0 0 1px var(--ax-line,#dfe3e9)}
+#bx5625.bx56106.bx56106-replie .bx5625-folder span:last-child,#bx5625.bx56106.bx56106-replie .bx56106-gerer,#bx5625.bx56106.bx56106-replie .bx5625-folders h2>:not(.bx56106-dossiers-outils),
+#bx5625.bx56106.bx56106-replie .bx56106-nouveau{display:none}
+#bx5625.bx56106.bx56106-replie .bx5625-folder{justify-content:center;padding:4px 0}
+#bx5625.bx56106.bx56106-replie .bx5625-folders h2{justify-content:center}
+/* en-tête : une ligne d'outils au-dessus de la liste et du lecteur */
+#bx5625.bx56106 .bx5625-list{display:contents}
+#bx5625.bx56106 .bx5625-head{grid-column:2/4;grid-row:1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;padding:0;position:relative;min-width:0}
+#bx5625.bx56106 .bx5625-head h1,#bx5625.bx56106 .bx5625-head>h1#bx5625-title{order:1;font-size:16px;line-height:30px;font-weight:700;margin:0 4px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14em}
+#bx5625.bx56106 .bx5625-head>p.ax-muted{display:none}
+#bx5625.bx56106 .bx5625-head>.ax-btn,#bx5625.bx56106 .bx5625-head>button,#bx5625.bx56106 .bx5625-head>a{margin:0}
+#bx5625.bx56106 .bx5628-new{order:2}
+#bx5625.bx56106 .bx5625-search{order:3;flex:1 1 150px;min-width:130px;max-width:340px;margin:0;gap:4px}
+@media (max-width:1600px){#bx5625.bx56106 .bx5625-head>h1#bx5625-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;margin:0;padding:0}}
+/* petite largeur de bureau : « Trier, filtrer » et « Plus » en icône (libellé gardé en infobulle et pour les lecteurs d'écran) ; pagination sans retour à la ligne */
+@media (max-width:1500px){#bx5625.bx56106 .bx56106-outils summary .bx56106-lib{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}}
+#bx5625.bx56106 .bx5625-pages .ax-btn{white-space:nowrap;flex:none}
+#bx5625.bx56106 .bx5625-search input{padding:4px 8px;min-height:30px;font-size:14px}
+#bx5625.bx56106 .bx56106-outils{order:4;display:flex;gap:4px;align-items:center}
+#bx5625.bx56106 .c5670-all{order:5}#bx5625.bx56106 .c5670-traiter{order:6}
+#bx5625.bx56106 .bx56106-actions{order:7}
+#bx5625.bx56106 .bx5632-settings{display:none}
+#bx5625.bx56106 .cx5643-general{display:none}
+#bx5625.bx56106.bx56106-regles .cx5643-general,#bx5625.bx56106 .bx5625-head.bx56106-regles .cx5643-general{display:block;position:absolute;top:100%;right:0;z-index:30;
+  width:min(520px,100%);background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:8px 10px;
+  box-shadow:0 10px 30px rgba(15,23,42,.18)}
+#bx5625.bx56106 .bx5625-head .ax-btn,#bx5625.bx56106 .bx5625-head summary.ax-btn,#bx5625.bx56106 .bx56106-tri{min-height:30px;padding:3px 10px;font-size:14px;line-height:1.3}
+#bx5625.bx56106 .bx56106-tri{border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);font:inherit;font-size:14px}
+#bx5625.bx56106 .bx5625-head.bx56106-selection .bx5625-search,#bx5625.bx56106 .bx5625-head.bx56106-selection .bx56106-tri,
+#bx5625.bx56106 .bx5625-head.bx56106-selection .bx56106-filtres,#bx5625.bx56106 .bx5625-head.bx56106-selection .bx5628-new{display:none}
+#bx5625.bx56106 details.bx56106-filtres,#bx5625.bx56106 details.bx56106-plus,#bx5625.bx56106 details.bx56106-client{position:relative}
+#bx5625.bx56106 details>summary{list-style:none;cursor:pointer;white-space:nowrap}
+#bx5625.bx56106 details>summary::-webkit-details-marker{display:none}
+#bx5625.bx56106 .bx56106-actif{border-color:var(--ax-accent,#1f4e9c);color:var(--ax-accent,#1f4e9c);font-weight:600}
+#bx5625.bx56106 .bx56106-filtres-corps,#bx5625.bx56106 .bx56106-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:30;background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);
+  border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(15,23,42,.18);display:grid;gap:6px;min-width:220px}
+#bx5625.bx56106 .bx56106-plus .bx56106-menu{left:auto;right:0}
+#bx5625.bx56106 .bx56106-filtres-corps{width:min(340px,92vw)}
+#bx5625.bx56106 .bx56106-filtres-corps fieldset{border:0;margin:0;padding:0;display:grid;gap:4px}
+#bx5625.bx56106 .bx56106-filtres-corps legend{font-weight:600;font-size:14px;padding:0;margin-bottom:2px}
+#bx5625.bx56106 .bx56106-chk{display:flex;align-items:center;gap:6px;font-size:14px}
+#bx5625.bx56106 .bx56106-champ{display:grid;gap:2px;font-size:14px}
+#bx5625.bx56106 .bx56106-champ input{font:inherit;font-size:14px;padding:4px 6px;border:1px solid var(--ax-line,#dfe3e9);border-radius:6px;background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430)}
+#bx5625.bx56106 .bx56106-periode{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#bx5625.bx56106 .bx56106-pied{display:flex;gap:6px}
+#bx5625.bx56106 .bx56106-item{display:block;width:100%;text-align:left;font:inherit;font-size:14px;padding:6px 8px;border:0;border-radius:6px;background:none;color:inherit;
+  text-decoration:none;cursor:pointer;white-space:nowrap}
+#bx5625.bx56106 .bx56106-item:hover,#bx5625.bx56106 .bx56106-item:focus-visible{background:var(--ax-soft,#eef3fb)}
+/* barre d'actions groupées : une ligne, icône + libellé court + infobulle */
+#bx5625.bx56106 .bx56106-actions{display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;min-width:0;flex:1 1 300px}
+#bx5625.bx56106 select.bx56106-deplacer{width:auto;max-width:12em;flex:none;min-height:30px}
+#bx5625.bx56106 .bx5625-head.bx56106-selection>h1#bx5625-title{display:none}
+#bx5625.bx56106 .bx56106-actions[hidden]{display:none}
+#bx5625.bx56106 .bx56106-compte{font-weight:600;font-size:14px;margin:0 4px;white-space:nowrap}
+#bx5625.bx56106 .bx56106-act,#bx5625.bx56106 .bx56106-deplacer{font:inherit;font-size:14px;min-height:30px;padding:3px 8px;border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;
+  background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+#bx5625.bx56106 .bx56106-act:hover{background:var(--ax-soft,#eef3fb)}
+#bx5625.bx56106 .bx56106-act[data-action=trash]{color:var(--ax-bad,#b3261e)}
+#bx5625.bx56106 .bx56106-act[hidden]{display:none}
+#bx5625.bx56106 .bx56106-client-corps{left:auto;right:0;min-width:280px}
+#bx5625.bx56106 .bx56106-client-corps select{font:inherit;font-size:14px;padding:4px;border:1px solid var(--ax-line,#dfe3e9);border-radius:6px;max-width:100%}
+#bx5625.bx56106 .bx56106-actions-v:empty{display:none}
+#bx5625.bx56106 .bx56106-actions-v{display:inline-flex;gap:4px}
+/* liste : deux lignes par courriel, compacte */
+#bx5625.bx56106 .bx5625-rows{grid-column:2;grid-row:2;max-height:none;min-height:0;overflow:auto;align-content:start;grid-auto-rows:max-content;grid-template-columns:26px minmax(0,1fr);
+  background:var(--ax-card,#fff);border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:0}
+#bx5625.bx56106 .c5670-pick{width:26px;max-width:26px}
+#bx5625.bx56106 .c5670-pick input{width:16px;height:16px}
+#bx5625.bx56106 .ax-row.bx56106-ligne{display:block;padding:4px 8px 4px 2px;font-size:var(--bx56106-ligne);line-height:1.3;color:var(--ax-ink,#1b2430)}
+#bx5625.bx56106 .ax-row.bx56106-ligne:focus-visible{outline:2px solid var(--ax-accent,#1f4e9c);outline-offset:-2px}
+#bx5625.bx56106 .bx56106-l1{display:flex;align-items:baseline;gap:6px;min-width:0}
+#bx5625.bx56106 .bx56106-de{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ax-ink,#1b2430)}
+#bx5625.bx56106 .bx5625-unseen .bx56106-de{font-weight:600}
+#bx5625.bx56106 .bx56106-date{flex:none;color:var(--ax-mute,#64707f);font-variant-numeric:tabular-nums;white-space:nowrap}
+#bx5625.bx56106 .bx56106-etat{flex:none;max-width:8.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ax-mute,#64707f);font-size:var(--bx56106-ligne)}
+#bx5625.bx56106 .bx56106-pj,#bx5625.bx56106 .bx56106-suivi{flex:none;font-size:var(--bx56106-ligne);line-height:1}
+#bx5625.bx56106 .bx56106-l1,#bx5625.bx56106 .bx56106-l2{height:1.3em;line-height:1.3em;overflow:hidden}
+#bx5625.bx56106 .bx56106-suivi{color:var(--ax-bad,#b3261e)}
+#bx5625.bx56106 .bx56106-l2{display:block;min-width:0}
+#bx5625.bx56106 .bx56106-objet{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400}
+#bx5625.bx56106 .bx5625-unseen .bx56106-objet{font-weight:700}
+#bx5625.bx56106 .bx5625-unseen{box-shadow:inset 3px 0 0 var(--ax-accent,#1f4e9c)}
+#bx5625.bx56106 .ax-row.on{background:var(--ax-soft,#eef3fb)}
+#bx5625.bx56106 .bx5625-rows>.ax-pad{padding:6px 8px;font-size:14px}
+#bx5625.bx56106 .bx5625-pages{grid-column:2;grid-row:3;margin:0;gap:6px;font-size:14px;flex-wrap:nowrap;min-width:0}
+#bx5625.bx56106 .bx5625-pages>span.ax-muted{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+#bx5625.bx56106 .bx5628-bar select.bx5628-move{width:auto;max-width:12em;flex:none}
+#bx5625.bx56106 .bx5625-pages .ax-btn{min-height:28px;padding:2px 8px}
+/* lecteur : toute la hauteur disponible, défilement dans sa zone */
+#bx5625.bx56106 .bx5625-panel{grid-column:3;grid-row:2/4;position:static;max-height:none;min-height:0;overflow:auto;padding:8px 12px;border-radius:8px}
+#bx5625.bx56106 .bx5628-bar [data-l106-regroupe][hidden]{display:none}
+/* menu « Marquer » (lecteur et actions groupées) */
+#bx5625.bx56106 .bx56106-marquer{position:relative;display:inline-block}
+#bx5625.bx56106 .bx56106-marquer-menu{min-width:250px;gap:0;padding:4px}
+#bx5625.bx56106 .bx56106-marquer-menu[hidden]{display:none}
+#bx5625.bx56106 .bx5628-bar .bx56106-marquer-menu{left:auto;right:0}
+#bx5625.bx56106 .bx56106-item[aria-disabled=true]{color:var(--ax-mute,#64707f);opacity:.75;cursor:not-allowed;background:none}
+#bx5625.bx56106 .bx56106-item:focus-visible{outline:2px solid var(--ax-accent,#1f4e9c);outline-offset:-2px}
+#bx5625.bx56106 .bx56106-kbd{float:right;margin-left:12px;font:inherit;font-size:12px;color:var(--ax-mute,#64707f)}
+/* épingles : en tête de liste, épingle au survol */
+#bx5625.bx56106 .bx56106-epingler{flex:none;line-height:1;cursor:pointer;opacity:0;font-size:var(--bx56106-ligne)}
+#bx5625.bx56106 .ax-row:hover .bx56106-epingler,#bx5625.bx56106 .ax-row:focus-visible .bx56106-epingler,#bx5625.bx56106 .bx56106-epinglee .bx56106-epingler{opacity:1}
+#bx5625.bx56106 .bx56106-epinglee{background:var(--ax-soft,#eef3fb)}
+#bx5625.bx56106 .bx56106-derniere-epingle{border-bottom:2px solid var(--ax-line,#dfe3e9)}
+/* « Rechercher dans », « Actualiser », heure de la mise à jour */
+#bx5625.bx56106 details.bx56106-dans{position:relative;display:inline-block;border:0;padding:0;margin:0;background:none}
+#bx5625.bx56106 .bx56106-dans-corps{border:1px solid var(--ax-line,#dfe3e9);margin:0;right:0;left:auto;width:260px}
+#bx5625.bx56106 .bx56106-dans-corps legend{font-weight:600;font-size:14px;padding:0 2px}
+#bx5625.bx56106 .bx56106-note{font-size:13px;margin:4px 0 0;white-space:normal}
+#bx5625.bx56106 .bx56106-actualiser{min-width:32px;padding:3px 8px}
+#bx5625.bx56106 .bx56106-heure{font-size:14px;white-space:nowrap}
+/* aide des raccourcis */
+.bx56106-aide{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.bx56106-aide[hidden]{display:none}
+.bx56106-aide-boite{background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);border-radius:12px;padding:14px 18px;width:min(460px,100%);max-height:90vh;overflow:auto}
+.bx56106-aide-boite h2{font-size:18px;margin:0 0 6px}
+.bx56106-aide-boite table{border-collapse:collapse;width:100%;margin:6px 0 10px;font-size:14px}
+.bx56106-aide-boite th,.bx56106-aide-boite td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--ax-line,#dfe3e9)}
+.bx56106-aide-boite kbd{font:inherit;font-size:13px;border:1px solid var(--ax-line,#dfe3e9);border-radius:4px;padding:0 5px;background:var(--ax-soft,#eef3fb)}
+/* densité confortable (réglage commun du lot D) */
+body[data-densite="confortable"] #bx5625.bx56106{--bx56106-ligne:15px;--bx56106-dossiers:200px}
+body[data-densite="confortable"] #bx5625.bx56106 .ax-row.bx56106-ligne{padding:8px 10px 8px 4px;line-height:1.45}
+body[data-densite="confortable"] #bx5625.bx56106 .bx5625-folder{min-height:36px}
+/* largeur moyenne : dossiers en bandeau, liste et lecteur côte à côte */
+@media (max-width:1100px){
+  #bx5625.bx56106{grid-template-columns:minmax(260px,380px) minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}
+  #bx5625.bx56106 .bx5625-folders{grid-column:1/-1;grid-row:1;overflow:visible}
+  #bx5625.bx56106 .bx5625-folders h2{display:none}
+  #bx5625.bx56106 #bx5625-flist{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:2px}
+  #bx5625.bx56106 .bx5625-folder{width:auto;flex:none}
+  #bx5625.bx56106 .bx5625-head{grid-column:1/-1;grid-row:2}
+  #bx5625.bx56106 .bx5625-rows{grid-column:1;grid-row:3}
+  #bx5625.bx56106 .bx5625-pages{grid-column:1;grid-row:4}
+  #bx5625.bx56106 .bx5625-panel{grid-column:2;grid-row:3/5}
+}
+/* petite largeur (390 px) et zoom 200 % étroit : onglets Liste / Lecteur, la page défile normalement */
+@media (max-width:700px){
+  #bx5625.bx56106{display:block;height:auto;min-height:0}
+  #bx5625.bx56106 .bx56106-onglets{display:flex;gap:4px;margin:0 0 6px}
+  #bx5625.bx56106 .bx56106-onglets button{flex:1;font:inherit;font-size:15px;min-height:40px;border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430)}
+  #bx5625.bx56106 .bx56106-onglets button[aria-selected=true]{background:var(--ax-accent,#1f4e9c);color:var(--ax-accent-ink,#fff);border-color:var(--ax-accent,#1f4e9c)}
+  #bx5625.bx56106 .bx5625-folders{margin:0 0 6px}
+  #bx5625.bx56106 .bx5625-head{margin:0 0 6px}
+  #bx5625.bx56106 .bx5625-search{max-width:none;flex-basis:100%}
+  #bx5625.bx56106 .bx5625-rows{max-height:none}
+  #bx5625.bx56106[data-vue=liste] .bx5625-panel,#bx5625.bx56106[data-vue=lecteur] .bx5625-rows,#bx5625.bx56106[data-vue=lecteur] .bx5625-pages,
+  #bx5625.bx56106[data-vue=lecteur] .bx5625-head{display:none}
+  #bx5625.bx56106 .bx56106-filtres-corps,#bx5625.bx56106 .bx56106-menu{position:fixed;left:8px;right:8px;top:auto;width:auto}
+}
+:root[data-theme=dark] #bx5625.bx56106 .bx56106-filtres-corps,:root[data-theme=dark] #bx5625.bx56106 .bx56106-menu,:root[data-theme=dark] .bx56106-aide-boite,
+:root[data-theme=dark] #bx5625.bx56106 .cx5643-general{box-shadow:0 10px 30px rgba(0,0,0,.5)}
+@media (prefers-reduced-motion:reduce){#bx5625.bx56106 *{scroll-behavior:auto}}
+/* ==== v56106-lecteur.css ==== */
+/* AxiorHub 5.6.106 (lot V) — lecteur des courriels (en-tête, barre du lecteur, cadre isolé du contenu mis en forme, bandeaux, pièces, en-têtes,
+   conversation), volet « Résumé par l'IA » à la place du lecteur, formulaires « Créer une tâche » et « Ajouter à l'agenda ».
+   Jetons --ax-* avec repli ; contraste AA en clair et en sombre ; focus visible ; à 390 px les boutons passent à la ligne. */
+.lx56106{display:grid;gap:8px;min-width:0}
+.lx56106 h2{font-size:18px;margin:2px 0;overflow-wrap:anywhere}
+.lx56106-meta{margin:0;color:var(--ax-muted,#4b5563);font-size:14px;overflow-wrap:anywhere}
+.lx56106-barre{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.lx56106-barre .ax-btn,.lx56106-formulaire .ax-btn,.lx56106-resume .ax-btn{min-height:32px;padding:4px 10px;font-size:14px}
+.lx56106-bascule{display:inline-flex;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;overflow:hidden}
+.lx56106-bascule button{font:inherit;font-size:14px;border:0;background:none;color:var(--ax-ink,#1b2430);padding:4px 10px;min-height:32px;cursor:pointer}
+.lx56106-bascule button[aria-pressed=true]{background:var(--ax-accent,#1f4e9c);color:#fff;font-weight:600}
+.lx56106 button:focus-visible,.lx56106 a:focus-visible,.lx56106 summary:focus-visible,.lx56106-resume button:focus-visible,.lx56106-resume a:focus-visible,
+.lx56106-formulaire :focus-visible,.lx56106-cadre:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.lx56106-bandeau{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0;padding:6px 10px;border-radius:8px;font-size:14px;
+  background:#fff4ce;color:#3d2e00;border:1px solid #8a6d00}
+.lx56106-bandeau.lx56106-alerte{background:#fde7e9;color:#5c0011;border-color:#a2191f}
+.lx56106-bandeau.lx56106-info{background:var(--ax-soft,#eef3fb);color:var(--ax-ink,#1b2430);border-color:var(--ax-line,#c3cad5)}
+.lx56106-texte{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;background:var(--ax-soft2,#f6f7f9);color:var(--ax-ink,#1b2430);border-radius:8px;
+  padding:10px;margin:0;max-height:60vh;overflow:auto}
+.lx56106-cadre{display:block;width:100%;min-height:360px;height:60vh;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;background:#fff;resize:vertical}
+.lx56106-pieces{display:grid;gap:4px}
+.lx56106-pieces h3,.lx56106-fil h3,.lx56106-resume h3{font-size:15px;margin:6px 0 2px}
+.lx56106-piece{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:4px 8px}
+.lx56106-piece>span{overflow-wrap:anywhere;min-width:0}
+.lx56106-apercu{width:100%;min-height:420px;height:60vh;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;background:#fff}
+.lx56106-apercu-image{max-width:100%;height:auto;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;background:#fff}
+.lx56106-entetes pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;max-height:40vh;overflow:auto;background:var(--ax-soft2,#f6f7f9);
+  color:var(--ax-ink,#1b2430);padding:8px;border-radius:8px;margin:4px 0}
+.lx56106-entetes summary,.lx56106-fil summary{cursor:pointer;font-weight:600;min-height:28px}
+.lx56106-fil details{border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:4px 8px;margin:4px 0}
+.lx56106-fil details[open]{background:var(--ax-soft2,#fafbfc)}
+.lx56106-courant{border-color:var(--ax-accent,#1f4e9c)!important}
+.lx56106-formulaire{display:grid;gap:8px;border:1px solid var(--ax-line,#9fb3d1);border-radius:10px;padding:10px;background:var(--ax-soft,#f7f9fd)}
+.lx56106-formulaire h3{margin:0;font-size:15px}
+.lx56106-formulaire label{display:grid;gap:2px;font-size:14px}
+.lx56106-formulaire input,.lx56106-formulaire select{font:inherit;min-height:32px;padding:4px 8px;border:1px solid var(--ax-line,#8d96a3);border-radius:6px;
+  background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);min-width:0}
+.lx56106-ligne{display:flex;flex-wrap:wrap;gap:8px}.lx56106-ligne>label{flex:1 1 140px}
+.lx56106-note{font-size:13px;color:var(--ax-muted,#4b5563);margin:0}
+.lx56106-statut{margin:0;font-size:14px}
+.lx56106-statut.lx56106-erreur{color:#a2191f;font-weight:600}
+.lx56106-resume{display:grid;gap:10px;min-width:0}
+.lx56106-resume-tete{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between}
+.lx56106-resume-tete h2{margin:0;font-size:18px}
+.lx56106-synthese{margin:0;white-space:pre-wrap;line-height:1.5}
+.lx56106-points{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lx56106-point{border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:6px 10px;display:grid;gap:4px}
+.lx56106-point p{margin:0;overflow-wrap:anywhere}
+.lx56106-badge{display:inline-block;font-size:12px;font-weight:600;padding:1px 6px;border-radius:10px;border:1px solid #8a6d00;background:#fff4ce;color:#3d2e00;margin-left:4px}
+.lx56106-actions{display:flex;flex-wrap:wrap;gap:4px}
+.lx56106-menu{position:relative;display:inline-block;border:0;padding:0;margin:0;background:none;box-shadow:none}
+.lx56106-menu>summary{list-style:none;cursor:pointer;min-height:32px;padding:4px 10px;font-size:14px}
+.lx56106-menu>summary::-webkit-details-marker{display:none}
+.lx56106-menu-corps{position:absolute;z-index:30;top:calc(100% + 2px);left:0;min-width:240px;display:grid;padding:4px;border:1px solid var(--ax-line,#c3cad5);
+  border-radius:8px;background:var(--ax-card,#fff);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.lx56106-menu-corps button{font:inherit;font-size:14px;text-align:left;border:0;background:none;color:var(--ax-ink,#1b2430);padding:6px 10px;border-radius:6px;cursor:pointer;min-height:32px}
+.lx56106-menu-corps button:hover,.lx56106-menu-corps button:focus-visible{background:var(--ax-soft,#eef3fb)}
+.lx56106-menu-corps button[hidden]{display:none}
+:root[data-theme=dark] .lx56106-menu-corps{background:#161b22;border-color:#6b7685}
+:root[data-theme=dark] .lx56106-menu-corps button{color:#e8edf3}
+.lx56106-v{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
+.lx56106-v .ax-btn{min-height:30px;padding:2px 8px;font-size:14px}
+:root[data-theme=dark] .lx56106-bandeau{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .lx56106-bandeau.lx56106-alerte{background:#520408;color:#ffd7d9;border-color:#fa4d56}
+:root[data-theme=dark] .lx56106-badge{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .lx56106-statut.lx56106-erreur{color:#ff8389}
+:root[data-theme=dark] .lx56106-texte,:root[data-theme=dark] .lx56106-entetes pre{background:#1f2630;color:#e8edf3}
+:root[data-theme=dark] .lx56106-formulaire input,:root[data-theme=dark] .lx56106-formulaire select{background:#161b22;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .lx56106-bascule button{color:#e8edf3}
+@media (max-width:48rem){.lx56106-cadre,.lx56106-apercu{height:55vh;min-height:300px}.lx56106-barre .ax-btn{flex:1 1 auto}}
+@media print{.lx56106-barre,.lx56106-v{display:none}}
+/* ==== v56106-vision.css ==== */
+/* 5.6.106 (lot I) : « Joindre une image ou une page » (volet de l'assistant), aperçu masqué, réglages et lecture des scans illisibles. */
+.v106i-joindre { min-height: 32px; padding: 4px 10px; border: 1px solid var(--ax-border, #8a8f98); border-radius: 6px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); cursor: pointer; }
+.v106i-joindre:focus-visible, .v106i-mini:focus-visible, .v106i-dialog select:focus-visible, .v106i-dialog input:focus-visible { outline: 3px solid var(--ax-focus, #0b5cad); outline-offset: 2px; }
+.v106i-choix { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.v106i-puce { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--ax-border, #8a8f98); border-radius: 6px; }
+.v106i-mini { min-height: 28px; padding: 2px 8px; border: 1px solid var(--ax-border, #8a8f98); border-radius: 4px; background: transparent; color: inherit; cursor: pointer; }
+.v106i-avis, .v106i-etat { margin: 2px 0; font-size: .9em; }
+.v106i-etat:empty, .v106i-avis:empty { display: none; }
+.v106i-dialog { max-width: min(760px, 96vw); width: 100%; border: 1px solid var(--ax-border, #8a8f98); border-radius: 8px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.v106i-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.v106i-dialog label { display: block; margin: 6px 0; }
+.v106i-dialog select { max-width: 100%; }
+.v106i-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.v106i-aide { font-size: .9em; }
+.v106i-vignette { display: block; max-width: 220px; max-height: 220px; border: 1px solid var(--ax-border, #8a8f98); margin: 6px 0; background: #fff; }
+.v106i-apercu { width: 100%; }
+.v106i-image { display: block; max-width: 100%; max-height: 60vh; border: 1px solid var(--ax-border, #8a8f98); background: #fff; }
+.v106i-table { border-collapse: collapse; width: 100%; font-size: .92em; display: block; max-width: 100%; overflow-x: auto; }
+.v106i-table th, .v106i-table td { border-bottom: 1px solid var(--ax-border, #c5c9d0); padding: 4px 6px; text-align: left; vertical-align: top; }
+.v106i-transcription { white-space: pre-wrap; max-height: 320px; overflow: auto; }
+.v106i-illisibles h3 { margin-top: 12px; }
+@media (prefers-color-scheme: dark) {
+  .v106i-joindre, .v106i-dialog { background: var(--ax-surface, #1d2127); color: var(--ax-text, #e8eaed); border-color: var(--ax-border, #5f6670); }
+}
+:root[data-theme="dark"] .v106i-joindre, :root[data-theme="dark"] .v106i-dialog { background: var(--ax-surface, #1d2127); color: var(--ax-text, #e8eaed); }
+/* ==== v56106-routine.css ==== */
+/* AxiorHub 5.6.106 (lot O) — assistant « Créer une routine à partir du message » (lecteur des courriels) et routines « sur message »
+   d'Aujourd'hui (carte, historique, propositions). Jetons --ax-* avec repli ; contraste AA en clair et en sombre ; focus visible ;
+   à 390 px tout passe à la ligne. */
+.o106-assistant{display:grid;gap:8px;margin:8px 0;min-width:0}
+.o106-formulaire{display:grid;gap:8px;border:1px solid var(--ax-line,#9fb3d1);border-radius:10px;padding:10px;background:var(--ax-soft,#f7f9fd);
+  color:var(--ax-ink,#1b2430);min-width:0}
+.o106-formulaire h3{margin:0;font-size:15px}
+.o106-champ{display:grid;gap:2px;font-size:14px;min-width:0}
+.o106-champ label{font-weight:600}
+.o106-formulaire input:not([type=checkbox]):not([type=radio]),.o106-formulaire select,.o106-form input:not([type=checkbox]):not([type=radio]),
+.o106-form select,.o106-prop input{font:inherit;min-height:32px;padding:4px 8px;border:1px solid var(--ax-line,#8d96a3);border-radius:6px;
+  background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);min-width:0;max-width:100%}
+.o106-groupe{border:1px solid var(--ax-line,#c3cad5);border-radius:8px;padding:6px 10px;margin:0;display:grid;gap:4px;min-width:0}
+.o106-groupe legend{font-weight:600;font-size:14px;padding:0 4px}
+.o106-case{display:flex;gap:6px;align-items:flex-start;font-size:14px;line-height:1.4}
+.o106-case input{margin-top:3px;flex:none}
+.o106-ligne{display:flex;flex-wrap:wrap;gap:8px}.o106-ligne>.o106-champ{flex:1 1 160px}
+.o106-aide{margin:0;font-size:13px;color:var(--ax-muted,#4b5563)}
+.o106-statut{margin:0;font-size:14px}
+.o106-statut.o106-erreur{color:#a2191f;font-weight:600}
+.o106-actions{display:flex;flex-wrap:wrap;gap:6px}
+.o106-apercu{margin:0;padding-left:18px;font-size:13px;display:grid;gap:2px;overflow-wrap:anywhere}
+.o106-formulaire :focus-visible,.o106-card :focus-visible,.o106-btn:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.o106-tag{display:inline-block;font-size:12px;font-weight:600;padding:1px 6px;border-radius:10px;border:1px solid var(--ax-accent,#1f4e9c);
+  color:var(--ax-accent,#1f4e9c);background:var(--ax-card,#fff);margin-left:6px}
+.o106-card .r52-meta{overflow-wrap:anywhere}
+.o106-histo{margin-top:4px}
+.o106-histo>summary{cursor:pointer;font-weight:600;min-height:28px}
+.o106-passages,.o106-els{margin:4px 0;padding-left:18px;display:grid;gap:4px;font-size:14px;overflow-wrap:anywhere}
+.o106-quand{font-variant-numeric:tabular-nums;color:var(--ax-muted,#4b5563)}
+.o106-el{border-left:3px solid var(--ax-line,#c3cad5);padding-left:6px}
+.o106-el.o106-a_decider{border-left-color:#8a6d00}
+.o106-el.o106-cree{border-left-color:var(--ax-accent,#1f4e9c)}
+.o106-prop{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;margin:4px 0}
+.o106-prop .m5-field{display:grid;gap:2px;font-size:13px}
+.o106-form{display:grid;gap:6px}
+.o106-texte{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:14px;background:var(--ax-soft2,#f6f7f9);color:var(--ax-ink,#1b2430);
+  border-radius:8px;padding:8px;margin:4px 0;max-height:50vh;overflow:auto}
+:root[data-theme=dark] .o106-formulaire{background:#161b22;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .o106-formulaire input:not([type=checkbox]):not([type=radio]),:root[data-theme=dark] .o106-formulaire select,
+:root[data-theme=dark] .o106-form input:not([type=checkbox]):not([type=radio]),:root[data-theme=dark] .o106-form select,
+:root[data-theme=dark] .o106-prop input{background:#0d1117;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .o106-aide,:root[data-theme=dark] .o106-quand{color:#b8c2cf}
+:root[data-theme=dark] .o106-statut.o106-erreur{color:#ff8389}
+:root[data-theme=dark] .o106-tag{background:#0d1117;color:#a6c8ff;border-color:#a6c8ff}
+:root[data-theme=dark] .o106-texte{background:#1f2630;color:#e8edf3}
+:root[data-theme=dark] .o106-el.o106-a_decider{border-left-color:#d2a106}
+@media (max-width:48rem){.o106-prop{flex-direction:column;align-items:stretch}.o106-actions .ax-btn{flex:1 1 auto}}
+/* ==== v56106-fraude.css ==== */
+/* AxiorHub 5.6.106 (lot F) — alerte « courriel potentiellement frauduleux » : pastille de la liste (icône, couleur ET texte) et bandeau du
+   lecteur (motifs, conseils, liens désactivés, actions). Contraste AA en clair et en sombre ; focus visible ; à 390 px les boutons passent à la ligne. */
+.fr106-pastille{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;font-size:12px;font-weight:700;line-height:1.2;padding:1px 6px;
+  border-radius:999px;border:1px solid;margin-right:4px;white-space:nowrap}
+.fr106-pastille.fr106-attention{background:#fff4ce;color:#3d2e00;border-color:#8a6d00}
+.fr106-pastille.fr106-suspect{background:#ffe2cc;color:#5a1f00;border-color:#b54400}
+.fr106-pastille.fr106-danger{background:#a2191f;color:#fff;border-color:#750e13}
+.fr106-ligne-danger{box-shadow:inset 4px 0 0 #a2191f}
+.fr106-ligne-suspect{box-shadow:inset 4px 0 0 #b54400}
+.fr106-bandeau{display:grid;gap:6px;margin:0 0 6px;padding:8px 12px;border-radius:8px;border:2px solid;font-size:14px;line-height:1.4}
+.fr106-bandeau.fr106-attention{background:#fff4ce;color:#3d2e00;border-color:#8a6d00}
+.fr106-bandeau.fr106-suspect{background:#fff0e6;color:#4a1a00;border-color:#b54400}
+.fr106-bandeau.fr106-danger{background:#fde7e9;color:#5c0011;border-color:#a2191f}
+.fr106-titre{margin:0;font-size:15px;font-weight:700}
+.fr106-motifs,.fr106-conseils,.fr106-liens{margin:0;padding-left:20px;display:grid;gap:2px;overflow-wrap:anywhere}
+.fr106-sous-titre{margin:2px 0 0;font-weight:700}
+.fr106-pieces,.fr106-avis,.fr106-statut{margin:0}
+.fr106-liens-bloc summary{cursor:pointer;font-weight:600;min-height:28px}
+.fr106-liens li{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fr106-adresse{display:block;width:100%;font-size:13px;overflow-wrap:anywhere;background:rgba(0,0,0,.06);padding:2px 6px;border-radius:4px}
+.fr106-actions{display:flex;flex-wrap:wrap;gap:6px}
+.fr106-actions .ax-btn,.fr106-liens .ax-btn{min-height:32px;padding:4px 10px;font-size:14px}
+.fr106-bandeau button:focus-visible,.fr106-bandeau summary:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.fr106-piece-risque{flex:1 0 100%;font-size:13px;font-weight:700;color:#5c0011}
+.fr106-indisponible{margin:0 0 6px;font-size:13px;color:var(--ax-muted,#4b5563)}
+@media (max-width:420px){.fr106-actions .ax-btn{flex:1 1 100%}}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .fr106-pastille.fr106-attention,:root:not([data-theme=light]) .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+  :root:not([data-theme=light]) .fr106-pastille.fr106-suspect,:root:not([data-theme=light]) .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
+  :root:not([data-theme=light]) .fr106-pastille.fr106-danger{background:#fa4d56;color:#1a0003;border-color:#ffb3b8}
+  :root:not([data-theme=light]) .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
+  :root:not([data-theme=light]) .fr106-piece-risque{color:#ff8389}
+  :root:not([data-theme=light]) .fr106-adresse{background:rgba(255,255,255,.1)}
+}
+:root[data-theme=dark] .fr106-pastille.fr106-attention,:root[data-theme=dark] .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .fr106-pastille.fr106-suspect,:root[data-theme=dark] .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
+:root[data-theme=dark] .fr106-pastille.fr106-danger{background:#fa4d56;color:#1a0003;border-color:#ffb3b8}
+:root[data-theme=dark] .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
+:root[data-theme=dark] .fr106-piece-risque{color:#ff8389}
+:root[data-theme=dark] .fr106-adresse{background:rgba(255,255,255,.1)}

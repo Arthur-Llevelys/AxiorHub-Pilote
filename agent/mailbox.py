@@ -301,6 +301,7 @@ class _ConnexionMesuree:
 
 # 5.6.100 (lot F, R07) : en-têtes lus pour une liste (aucun corps) et taille d'un lot UID FETCH.
 CHAMPS_LISTE = ('FROM', 'TO', 'CC', 'SUBJECT', 'DATE', 'MESSAGE-ID', 'CONTENT-TYPE')
+CHAMPS_LISTE += ('REPLY-TO', 'RETURN-PATH', 'AUTHENTICATION-RESULTS', 'LIST-ID', 'LIST-UNSUBSCRIBE')   # 5.6.106 (lot F) : pastille anti-fraude de la liste (en-têtes seuls)
 LOT_ENTETES = 100
 
 

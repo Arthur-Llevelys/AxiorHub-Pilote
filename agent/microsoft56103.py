@@ -38,7 +38,12 @@ Application intégrée
   Microsoft remplace le jeton de renouvellement à chaque usage : le nouveau est toujours rangé. ``invalid_grant`` ou
   ``interaction_required`` au renouvellement : état « À reconnecter », plus aucun appel.
 - **Déconnexion** : Microsoft Graph ne révoque pas un jeton délégué isolé ; les jetons locaux sont effacés, la génération change (aucune
-  reprise possible) et l'interface indique où retirer le consentement.
+  reprise possible) et l'interface indique où retirer le consentement. 5.6.106 (audit M1) : l'identité active est effacée avec la génération ;
+  un autre compte peut ensuite être relié ; tout travail commencé avant (appel Graph, dépôt, nouvel essai après 401) revérifie sa génération.
+- **Tentatives** (5.6.106, audit M2) : chaque départ (PKCE ou code d'appareil) devient la tentative courante de la connexion avant tout appel
+  et annule les précédentes ; un retour n'active la connexion que si sa tentative est encore la courante (contrôle sous transaction de la
+  génération, de la tentative, de l'état et de l'échéance) ; un tour de sondage est réservé par mise à jour conditionnelle.
+- **Capacités demandées** (5.6.106, audit M3) : seules celles de la fonction choisie ; SharePoint est une option explicite, jamais précochée.
 - **Transport** : ``TRANSPORT`` (tests : faux Microsoft) ; sinon ``common.HTTP`` vers les seules origines ``ORIGINES``.
 """
 from datetime import datetime, timezone
@@ -72,7 +77,8 @@ BASE = ('offline_access', 'User.Read')
 CAPACITES = {'courrier': ('Mail.ReadWrite',), 'agenda': ('Calendars.ReadWrite',), 'fichiers': ('Files.ReadWrite',),
              'sharepoint': ('Files.ReadWrite.All', 'Sites.Read.All')}
 LIBELLES = {'courrier': 'Outlook : lire le courrier et déposer des brouillons (jamais d’envoi)', 'agenda': 'Outlook : agenda',
-            'fichiers': 'OneDrive : vos fichiers', 'sharepoint': 'SharePoint : bibliothèques du cabinet (consentement d’un administrateur)'}
+            'fichiers': 'OneDrive : vos fichiers', 'sharepoint': 'SharePoint (option) : bibliothèques de documents de votre organisation que votre compte peut déjà ouvrir '
+                                                                      '(lecture des sites, écriture des fichiers ; souvent après le consentement d’un administrateur Microsoft 365)'}
 # garde-fou : portées jamais demandées ni acceptées (envoi, boîtes partagées, annuaire, écriture sur tous les sites, protocoles hérités)
 INTERDITES = frozenset(p.lower() for p in (
     'Mail.Send', 'Mail.Send.Shared', 'Mail.Send.All', 'Mail.ReadWrite.Shared', 'Mail.Read.Shared', 'SMTP.Send', 'EWS.AccessAsUser.All',
@@ -111,6 +117,10 @@ MESSAGES = {
     'microsoft56103_port_local_indisponible': 'Impossible d’ouvrir l’écoute locale du poste pour le retour de Microsoft.',
     'microsoft56103_flux_public_refuse': 'Microsoft refuse le code d’appareil pour cette application (flux publics non autorisés, ou politique '
                                          'du locataire) : connectez-vous depuis le poste ou utilisez votre propre application.',
+    # 5.6.106 (audit M2, M3)
+    'microsoft56103_tentative_remplacee': 'Une nouvelle connexion a été lancée depuis : ce retour de Microsoft est ignoré.',
+    'microsoft56103_appareil_annule': 'Ce code a été remplacé par une nouvelle connexion, ou annulé : rien n’a été relié avec lui.',
+    'microsoft56103_sharepoint_non_choisi': 'SharePoint n’est demandé que si vous cochez cette option.',
 }
 
 TRANSPORT = None          # tests : appelable (méthode, url, en-têtes, corps) -> (statut, en-têtes, octets)
@@ -136,6 +146,11 @@ CREATE TABLE IF NOT EXISTS microsoft56103_appareils(id TEXT PRIMARY KEY, connexi
 def ensure_schema(desk):
     """Création idempotente, appelée au démarrage (``Desk``) ; jamais pendant un GET."""
     desk.db.executescript(SCHEMA)
+    # 5.6.106 (audit M2) : identifiant de la tentative de connexion courante (distinct de la génération), sur la connexion et sur l'état PKCE
+    for table in ('microsoft56103_connexions', 'microsoft56103_etats'):
+        if 'tentative' not in {r[1] for r in desk.db.execute('PRAGMA table_info(%s)' % table)}:
+            desk.db.execute("ALTER TABLE %s ADD COLUMN tentative TEXT NOT NULL DEFAULT ''" % table)
+    desk.db.commit()
 
 
 def _table_presente(desk):
@@ -353,6 +368,40 @@ def _preparer_connexion(desk, owner, cid):
     return row
 
 
+def _nouvelle_tentative(desk, row, ident):
+    """5.6.106 (audit M2) : ``ident`` devient la tentative courante de la connexion, AVANT tout appel à Microsoft ; les tentatives précédentes
+    (codes d'appareil en attente, états PKCE non utilisés) sont annulées dans la même transaction. Une réponse tardive d'une tentative annulée
+    ne peut plus rien activer : ``_finaliser`` compare la tentative sous transaction. Rend la connexion relue."""
+    if desk.db.in_transaction:
+        desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:
+        cur = desk.db.execute('UPDATE microsoft56103_connexions SET tentative=?, maj=? WHERE id=? AND generation=?', (ident, _iso(), row['id'], row['generation']))
+        if not cur.rowcount:
+            raise Stop('microsoft56103_connexion_modifiee')
+        anciens = [r['id'] for r in desk.db.execute("SELECT id FROM microsoft56103_appareils WHERE connexion_id=? AND etat='en_attente'", (row['id'],))]
+        desk.db.execute("UPDATE microsoft56103_appareils SET etat='annule', maj=? WHERE connexion_id=? AND etat='en_attente'", (_iso(), row['id']))
+        desk.db.execute('UPDATE microsoft56103_etats SET utilise=1 WHERE connexion_id=? AND utilise=0', (row['id'],))
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        raise
+    _effacer(desk, row['id'], tuple('appareil-' + f for f in anciens))
+    return lire(desk, row['id'])
+
+
+def _tentative_courante(desk, row, tentative, flux_id=''):
+    """Vrai si ``tentative`` est encore la tentative courante de la connexion (et, pour un code d'appareil, si ce code est encore en attente).
+    Appelé dans la transaction de ``_finaliser`` : une tentative remplacée, annulée ou déjà aboutie n'active jamais rien."""
+    if not tentative or row['tentative'] != tentative:
+        return False
+    if flux_id:
+        f = desk.db.execute('SELECT etat FROM microsoft56103_appareils WHERE id=? AND connexion_id=?', (flux_id, row['id'])).fetchone()
+        return bool(f) and f['etat'] == 'en_attente'
+    return True
+
+
 # ------------------------------------------------------------------------------------------------ poste : PKCE et retour de bouclage
 def demarrer_pkce(desk, owner, capacites_voulues, port):
     """Adresse de connexion Microsoft (navigateur du poste). ``port`` : écoute locale ouverte par ``ecouter_retour``."""
@@ -364,14 +413,16 @@ def demarrer_pkce(desk, owner, capacites_voulues, port):
     if not isinstance(port, int) or not 1024 <= port <= 65535:
         raise Stop('microsoft56103_port_local_indisponible')
     row = _preparer_connexion(desk, owner, cid)
+    tentative = 'pk-' + uuid.uuid4().hex
+    row = _nouvelle_tentative(desk, row, tentative)  # 5.6.106 (M2) : les tentatives précédentes sont annulées
     verificateur, defi = pkce_pair()
     etat = secrets.token_urlsafe(32)
     redirect = 'http://localhost:%d%s' % (port, CHEMIN_RETOUR)
     t = HORLOGE()
     desk.db.execute('DELETE FROM microsoft56103_etats WHERE expire<?', (t - DUREE_ETAT,))
-    desk.db.execute('INSERT INTO microsoft56103_etats(etat_hash, connexion_id, owner, capacites, verificateur, redirect, client, generation, expire, cree) '
-                    'VALUES(?,?,?,?,?,?,?,?,?,?)', (_hache(etat), row['id'], str(owner), ' '.join(sorted(set(capacites_voulues))), verificateur, redirect, cid,
-                                                  row['generation'], t + DUREE_ETAT, _iso()))
+    desk.db.execute('INSERT INTO microsoft56103_etats(etat_hash, connexion_id, owner, capacites, verificateur, redirect, client, generation, expire, cree, tentative) '
+                    'VALUES(?,?,?,?,?,?,?,?,?,?,?)', (_hache(etat), row['id'], str(owner), ' '.join(sorted(set(capacites_voulues))), verificateur, redirect, cid,
+                                                    row['generation'], t + DUREE_ETAT, _iso(), tentative))
     desk.db.commit()
     requete = {'client_id': cid, 'response_type': 'code', 'redirect_uri': redirect, 'response_mode': 'query', 'scope': scope, 'state': etat,
                'code_challenge': defi, 'code_challenge_method': 'S256', 'prompt': 'select_account'}
@@ -419,7 +470,9 @@ def terminer_pkce(desk, args):
         raise Stop('microsoft56103_connexion_modifiee')     # identifiant client changé pendant la connexion
     jeton = _formulaire(_point('token'), {'client_id': cid, 'grant_type': 'authorization_code', 'code': code, 'redirect_uri': demande['redirect'],
                                           'code_verifier': demande['verificateur'], 'scope': portees(demande['capacites'].split())})
-    return _finaliser(desk, demande['connexion_id'], demande['generation'], jeton, 'pkce', cid)
+    # 5.6.106 (M2) : tentative, génération et expiration recomparées sous transaction après l'échange (une nouvelle liaison a pu commencer)
+    return _finaliser(desk, demande['connexion_id'], demande['generation'], jeton, 'pkce', cid, tentative=demande.get('tentative') or '',
+                      expire=demande['expire'])
 
 
 def ecouter_retour(config, port=0, minutes=10, traiter=None):
@@ -508,6 +561,8 @@ def demarrer_appareil(desk, owner, capacites_voulues):
     capacites_voulues = _avec_existantes(desk, owner, capacites_voulues)
     scope = portees(capacites_voulues)
     row = _preparer_connexion(desk, owner, cid)
+    ident = 'ap-' + uuid.uuid4().hex
+    row = _nouvelle_tentative(desk, row, ident)      # 5.6.106 (M2) : tentative réservée AVANT l'appel ; les précédentes sont annulées
     try:
         out = _formulaire(_point('devicecode'), {'client_id': cid, 'scope': scope})
     except ErreurMicrosoft as error:
@@ -520,84 +575,128 @@ def demarrer_appareil(desk, owner, capacites_voulues):
         raise Stop('microsoft56103_reponse_invalide')
     intervalle = min(INTERVALLE_MAX, max(INTERVALLE_MIN, int(out.get('interval') or INTERVALLE_MIN)))
     t = HORLOGE()
-    ident = 'ap-' + uuid.uuid4().hex
     _ecrire(_vault(desk, row['id'], 'appareil-' + ident), code_appareil)
-    desk.db.execute('UPDATE microsoft56103_appareils SET etat=?, maj=? WHERE connexion_id=? AND etat=?', ('annule', _iso(), row['id'], 'en_attente'))
-    desk.db.execute('INSERT INTO microsoft56103_appareils(id, connexion_id, owner, capacites, client, generation, code_utilisateur, adresse, intervalle, prochain, '
-                    'expire, cree, maj) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (ident, row['id'], str(owner), ' '.join(sorted(set(capacites_voulues))), cid, row['generation'], code_utilisateur, adresse[:200],
-                     intervalle, t + intervalle, t + max(60, min(1800, int(out.get('expires_in') or 900))), _iso(), _iso()))
-    desk.db.commit()
+    desk.db.execute('BEGIN IMMEDIATE')
+    try:   # le code n'est enregistré que si cette tentative est encore la courante (une autre liaison a pu commencer pendant l'appel)
+        courante = desk.db.execute('SELECT * FROM microsoft56103_connexions WHERE id=?', (row['id'],)).fetchone()
+        if courante is None or courante['generation'] != row['generation'] or courante['tentative'] != ident:
+            raise Stop('microsoft56103_tentative_remplacee')
+        desk.db.execute('INSERT INTO microsoft56103_appareils(id, connexion_id, owner, capacites, client, generation, code_utilisateur, adresse, intervalle, prochain, '
+                        'expire, cree, maj) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (ident, row['id'], str(owner), ' '.join(sorted(set(capacites_voulues))), cid, row['generation'], code_utilisateur, adresse[:200],
+                         intervalle, t + intervalle, t + max(60, min(1800, int(out.get('expires_in') or 900))), _iso(), _iso()))
+        desk.db.commit()
+    except BaseException:
+        if desk.db.in_transaction:
+            desk.db.rollback()
+        _effacer(desk, row['id'], ('appareil-' + ident,))
+        raise
     desk.audit('microsoft56103_depart', {'mode': 'appareil', 'capacites': sorted(set(capacites_voulues))})
     return {'mode': 'appareil', 'flux': ident, 'code': code_utilisateur, 'adresse': adresse, 'intervalle': intervalle,
             'expire_secondes': int(max(60, min(1800, int(out.get('expires_in') or 900))))}
 
 
 def _fin_appareil(desk, flux, etat, erreur=''):
-    desk.db.execute('UPDATE microsoft56103_appareils SET etat=?, erreur=?, maj=? WHERE id=?', (etat, erreur, _iso(), flux['id']))
+    """Fin d'un code d'appareil : mise à jour CONDITIONNELLE (5.6.106, M2) — une réponse tardive n'écrase jamais « annulé » ni un autre état
+    final. Rend vrai si cet appel a terminé le code."""
+    cur = desk.db.execute("UPDATE microsoft56103_appareils SET etat=?, erreur=?, maj=? WHERE id=? AND etat='en_attente'", (etat, erreur, _iso(), flux['id']))
     desk.db.commit()
     _effacer(desk, flux['connexion_id'], ('appareil-' + flux['id'],))
+    return bool(cur.rowcount)
+
+
+MESSAGES_FIN = {'accepte': 'Compte Microsoft relié.', 'refuse': MESSAGES['microsoft56103_appareil_refuse'], 'expire': MESSAGES['microsoft56103_appareil_expire'],
+                'annule': MESSAGES['microsoft56103_appareil_annule']}
+
+
+def _etat_rendu(desk, flux_id):
+    """État actuel d'un code (relu), tel qu'il est : jamais un faux « relié »."""
+    row = desk.db.execute('SELECT etat, intervalle, prochain FROM microsoft56103_appareils WHERE id=?', (flux_id,)).fetchone()
+    if row is None:
+        raise Stop('microsoft56103_appareil_inconnu')
+    if row['etat'] == 'en_attente':
+        return {'etat': 'en_attente', 'message': MESSAGES['microsoft56103_appareil_attente'], 'intervalle': row['intervalle'],
+                'attendre': round(max(0, row['prochain'] - HORLOGE()), 1)}
+    return {'etat': row['etat'], 'message': MESSAGES_FIN.get(row['etat'], MESSAGES['microsoft56103_appareil_inconnu']), 'intervalle': row['intervalle']}
 
 
 def sonder_appareil(desk, owner, flux_id):
-    """Un tour d'attente du code d'appareil (appelé par la page, au plus une fois par intervalle). Rend ``{'etat', 'message', ...}``."""
+    """Un tour d'attente du code d'appareil (appelé par la page, au plus une fois par intervalle). Rend ``{'etat', 'message', ...}``.
+
+    5.6.106 (audit M2) : le tour est RÉSERVÉ par une mise à jour conditionnelle (code en attente et même instant de prochain sondage) avant
+    l'appel à Microsoft, fait hors transaction : deux onglets sur le même code ne sondent qu'une fois par intervalle. Toute mise à jour après
+    l'appel est conditionnelle (« annulé » n'est jamais écrasé) et la connexion n'est activée que si ce code est encore la tentative courante
+    (``_finaliser``, sous transaction)."""
     row = desk.db.execute('SELECT * FROM microsoft56103_appareils WHERE id=?', (str(flux_id or ''),)).fetchone()
     if not row or row['owner'] != str(owner):
         raise Stop('microsoft56103_appareil_inconnu')            # le flux d'une autre personne n'existe pas pour celle-ci
     flux = dict(row)
     if flux['etat'] != 'en_attente':                     # flux déjà terminé : état rendu tel quel, aucun appel
-        message = {'accepte': 'Compte Microsoft relié.', 'refuse': MESSAGES['microsoft56103_appareil_refuse'],
-                   'expire': MESSAGES['microsoft56103_appareil_expire']}.get(flux['etat'], MESSAGES['microsoft56103_appareil_inconnu'])
-        return {'etat': flux['etat'], 'message': message, 'intervalle': flux['intervalle']}
+        return _etat_rendu(desk, flux['id'])
     t = HORLOGE()
     if t >= flux['expire']:
         _fin_appareil(desk, flux, 'expire')
-        return {'etat': 'expire', 'message': MESSAGES['microsoft56103_appareil_expire']}
+        return _etat_rendu(desk, flux['id'])
     if t < flux['prochain']:
         return {'etat': 'en_attente', 'message': MESSAGES['microsoft56103_appareil_attente'], 'intervalle': flux['intervalle'],
                 'attendre': round(flux['prochain'] - t, 1)}                          # trop tôt : aucun appel à Microsoft
     code_appareil = _lire(_vault(desk, flux['connexion_id'], 'appareil-' + flux['id']))
     if not code_appareil:
         _fin_appareil(desk, flux, 'erreur', 'code_absent')
-        return {'etat': 'erreur', 'message': MESSAGES['microsoft56103_appareil_inconnu']}
-    desk.db.execute('UPDATE microsoft56103_appareils SET prochain=?, maj=? WHERE id=?', (t + flux['intervalle'], _iso(), flux['id']))
+        return _etat_rendu(desk, flux['id'])
+    cur = desk.db.execute("UPDATE microsoft56103_appareils SET prochain=?, maj=? WHERE id=? AND etat='en_attente' AND prochain=?",
+                          (t + flux['intervalle'], _iso(), flux['id'], flux['prochain']))
     desk.db.commit()
+    if not cur.rowcount:                                 # un autre onglet a pris ce tour, ou le code a été annulé : aucun appel
+        return _etat_rendu(desk, flux['id'])
     try:
         jeton = _formulaire(_point('token'), {'grant_type': 'urn:ietf:params:oauth:grant-type:device_code', 'client_id': flux['client'],
                                               'device_code': code_appareil})
     except ErreurMicrosoft as error:
         if error.oauth == 'authorization_pending':
-            return {'etat': 'en_attente', 'message': MESSAGES['microsoft56103_appareil_attente'], 'intervalle': flux['intervalle']}
+            return _etat_rendu(desk, flux['id'])
         if error.oauth == 'slow_down':
             nouvel = min(INTERVALLE_MAX, flux['intervalle'] + 5)
-            desk.db.execute('UPDATE microsoft56103_appareils SET intervalle=?, prochain=?, maj=? WHERE id=?', (nouvel, t + nouvel, _iso(), flux['id']))
+            desk.db.execute("UPDATE microsoft56103_appareils SET intervalle=?, prochain=?, maj=? WHERE id=? AND etat='en_attente'",
+                            (nouvel, t + nouvel, _iso(), flux['id']))
             desk.db.commit()
-            return {'etat': 'en_attente', 'message': MESSAGES['microsoft56103_appareil_attente'], 'intervalle': nouvel}
+            return _etat_rendu(desk, flux['id'])
         if error.oauth == 'authorization_declined':
-            _fin_appareil(desk, flux, 'refuse')
-            desk.audit('microsoft56103_refus', {'mode': 'appareil'})
-            return {'etat': 'refuse', 'message': MESSAGES['microsoft56103_appareil_refuse']}
+            if _fin_appareil(desk, flux, 'refuse'):
+                desk.audit('microsoft56103_refus', {'mode': 'appareil'})
+            return _etat_rendu(desk, flux['id'])
         if error.oauth == 'expired_token':
             _fin_appareil(desk, flux, 'expire')
-            return {'etat': 'expire', 'message': MESSAGES['microsoft56103_appareil_expire']}
+            return _etat_rendu(desk, flux['id'])
         if error.oauth == 'bad_verification_code':
             _fin_appareil(desk, flux, 'erreur', 'bad_verification_code')
-            return {'etat': 'erreur', 'message': MESSAGES['microsoft56103_appareil_inconnu']}
+            return _etat_rendu(desk, flux['id'])
         if error.statut >= 500 or error.statut == 429:
-            return {'etat': 'en_attente', 'message': 'Microsoft est momentanément indisponible ; nouvel essai bientôt.', 'intervalle': flux['intervalle']}
+            return {**_etat_rendu(desk, flux['id']), 'message': 'Microsoft est momentanément indisponible ; nouvel essai bientôt.'}
         _fin_appareil(desk, flux, 'erreur', error.oauth or str(error))
-        return {'etat': 'erreur', 'message': MESSAGES.get(str(error), 'Connexion Microsoft impossible.')}
+        out = _etat_rendu(desk, flux['id'])
+        return {**out, 'message': MESSAGES.get(str(error), 'Connexion Microsoft impossible.')} if out['etat'] == 'erreur' else out
     try:
-        out = _finaliser(desk, flux['connexion_id'], flux['generation'], jeton, 'appareil', flux['client'])
+        out = _finaliser(desk, flux['connexion_id'], flux['generation'], jeton, 'appareil', flux['client'], tentative=flux['id'], flux_id=flux['id'])
     except Stop as error:
-        _fin_appareil(desk, flux, 'erreur', str(error).split(':')[0])
+        code = str(error).split(':')[0]
+        if code in ('microsoft56103_tentative_remplacee', 'microsoft56103_connexion_modifiee'):
+            _fin_appareil(desk, flux, 'annule')          # remplacé ou déconnecté pendant l'échange : rien n'est relié
+            return _etat_rendu(desk, flux['id'])
+        if code == 'microsoft56103_appareil_expire':
+            _fin_appareil(desk, flux, 'expire')
+            return _etat_rendu(desk, flux['id'])
+        _fin_appareil(desk, flux, 'erreur', code)
         raise
-    _fin_appareil(desk, flux, 'accepte')
+    _effacer(desk, flux['connexion_id'], ('appareil-' + flux['id'],))
     return {'etat': 'accepte', 'message': 'Compte Microsoft relié : %s.' % out['connexion']['compte'], 'connexion': out['connexion']}
 
 
 # ------------------------------------------------------------------------------------------------ fin commune : identité, portées, jetons
-def _finaliser(desk, conn_id, generation, jeton, mode, cid):
+def _finaliser(desk, conn_id, generation, jeton, mode, cid, tentative='', flux_id='', expire=None):
+    """Enregistre la connexion. 5.6.106 (audit M1, M2) : dans UNE transaction, la génération, la tentative courante (et, pour un code
+    d'appareil, son état et son échéance ; pour un retour PKCE, l'échéance de l'état), puis l'identité : un autre compte que celui déjà relié
+    est refusé (seule une déconnexion explicite efface l'identité active)."""
     acces = str(jeton.get('access_token') or '')
     if not acces or str(jeton.get('token_type') or 'Bearer').lower() != 'bearer':
         raise Stop('microsoft56103_autorisation_refusee')
@@ -613,20 +712,35 @@ def _finaliser(desk, conn_id, generation, jeton, mode, cid):
     compte_id = str(me.get('id') or '').strip()
     if not compte_id or not re.fullmatch(r'[^@\s]+@[^@\s]+', compte):
         raise Stop('microsoft56103_identite_illisible')
-    row = lire(desk, conn_id)
-    if row['compte_id'] and row['compte_id'] != compte_id:
-        raise Stop('microsoft56103_compte_different')
     renouvellement = str(jeton.get('refresh_token') or '')
-    if not renouvellement and not _vault(desk, conn_id, 'refresh').is_file():
-        raise Stop('microsoft56103_jeton_renouvellement_absent')
     portees_txt = ' '.join(sorted(p for p in accordees if p))
+    if desk.db.in_transaction:
+        desk.db.commit()
     desk.db.execute('BEGIN IMMEDIATE')
     try:
-        cur = desk.db.execute("UPDATE microsoft56103_connexions SET compte=?, compte_id=?, etat='active', portees=?, mode=?, client=?, jeton_version=jeton_version+1, "
-                              "expire=?, bail=0, erreur='', version=version+1, maj=? WHERE id=? AND generation=?",
-                              (compte, compte_id, portees_txt, mode, cid, HORLOGE() + max(60, int(jeton.get('expires_in') or 3600)) - MARGE, _iso(), conn_id, generation))
-        if not cur.rowcount:
+        row = desk.db.execute('SELECT * FROM microsoft56103_connexions WHERE id=?', (str(conn_id),)).fetchone()
+        if row is None or row['generation'] != generation:
             raise Stop('microsoft56103_connexion_modifiee')        # déconnexion pendant la connexion : rien n'est réactivé
+        if not _tentative_courante(desk, row, tentative, flux_id):
+            raise Stop('microsoft56103_tentative_remplacee')       # une nouvelle liaison a commencé, ou ce code a été annulé
+        if flux_id:
+            f = desk.db.execute('SELECT expire FROM microsoft56103_appareils WHERE id=?', (flux_id,)).fetchone()
+            if f is None or f['expire'] <= HORLOGE():
+                raise Stop('microsoft56103_appareil_expire')
+        if expire is not None and expire < HORLOGE():
+            raise Stop('microsoft56103_etat_expire')
+        if row['compte_id'] and row['compte_id'] != compte_id:
+            raise Stop('microsoft56103_compte_different')         # ajout de droits : jamais un changement de compte
+        if not renouvellement and not _vault(desk, conn_id, 'refresh').is_file():
+            raise Stop('microsoft56103_jeton_renouvellement_absent')
+        cur = desk.db.execute("UPDATE microsoft56103_connexions SET compte=?, compte_id=?, etat='active', portees=?, mode=?, client=?, jeton_version=jeton_version+1, "
+                              "expire=?, bail=0, erreur='', tentative='', version=version+1, maj=? WHERE id=? AND generation=? AND tentative=?",
+                              (compte, compte_id, portees_txt, mode, cid, HORLOGE() + max(60, int(jeton.get('expires_in') or 3600)) - MARGE, _iso(), conn_id,
+                               generation, row['tentative']))
+        if not cur.rowcount:
+            raise Stop('microsoft56103_connexion_modifiee')
+        if flux_id:
+            desk.db.execute("UPDATE microsoft56103_appareils SET etat='accepte', erreur='', maj=? WHERE id=?", (_iso(), flux_id))
         _ecrire(_vault(desk, conn_id, 'access'), acces)
         if renouvellement:
             _ecrire(_vault(desk, conn_id, 'refresh'), renouvellement)
@@ -654,8 +768,16 @@ def _marquer_a_reconnecter(desk, row, cause):
     desk.audit('microsoft56103_a_reconnecter', {'cause': cause[:40]})
 
 
-def jeton(desk, conn_id, forcer=False):
+def _exiger_generation(row, generation):
+    """5.6.106 (audit M1) : un travail commencé avant une déconnexion (appel Graph, dépôt, nouvel essai après 401) garde la génération qu'il a
+    lue ; si elle a changé (déconnexion, éventuellement suivie d'une liaison à un autre compte), il s'arrête avant tout effet."""
+    if generation is not None and row['generation'] != int(generation):
+        raise Stop('microsoft56103_connexion_modifiee')
+
+
+def jeton(desk, conn_id, forcer=False, generation=None):
     row = lire(desk, conn_id)
+    _exiger_generation(row, generation)
     if row['etat'] == 'a_reconnecter':
         raise Stop('microsoft56103_reconnexion_requise')
     if row['etat'] != 'active':
@@ -738,21 +860,29 @@ def requete_brute(methode, url, acces, donnees=None, entetes=None):
     return _transport(methode, url, head, donnees)
 
 
-def requete(desk, conn_id, methode, url, donnees=None, entetes=None, capacite=''):
-    """Appel Graph brut pour une connexion active : rend ``(statut, en-têtes, octets)`` ; un 401 déclenche un seul renouvellement."""
+def requete(desk, conn_id, methode, url, donnees=None, entetes=None, capacite='', generation=None):
+    """Appel Graph brut pour une connexion active : rend ``(statut, en-têtes, octets)`` ; un 401 déclenche un seul renouvellement.
+    5.6.106 (audit M1) : ``generation`` (sinon celle lue à l'entrée) est revérifiée juste avant chaque envoi, nouvel essai après 401 compris ;
+    l'identifiant de connexion restant le même après une déconnexion, un ancien travail n'utilise jamais la nouvelle liaison."""
     row = lire(desk, conn_id)
+    generation = row['generation'] if generation is None else int(generation)
+    _exiger_generation(row, generation)
     if capacite and capacite not in capacites(row):
         raise Stop('microsoft56103_capacite_non_accordee')
     verifier_adresse(methode, url)
-    statut, rep, brut = requete_brute(methode, url, jeton(desk, conn_id), donnees, entetes)
+    acces = jeton(desk, conn_id, generation=generation)
+    _exiger_generation(lire(desk, conn_id), generation)
+    statut, rep, brut = requete_brute(methode, url, acces, donnees, entetes)
     if statut == 401:
-        statut, rep, brut = requete_brute(methode, url, jeton(desk, conn_id, forcer=True), donnees, entetes)
+        acces = jeton(desk, conn_id, forcer=True, generation=generation)
+        _exiger_generation(lire(desk, conn_id), generation)
+        statut, rep, brut = requete_brute(methode, url, acces, donnees, entetes)
     return statut, rep, brut
 
 
-def appeler(desk, conn_id, methode, url, corps=None, capacite='', entetes=None):
+def appeler(desk, conn_id, methode, url, corps=None, capacite='', entetes=None, generation=None):
     statut, rep, brut = requete(desk, conn_id, methode, url, None if corps is None else json.dumps(corps).encode('utf-8'),
-                                {**({'Content-Type': 'application/json'} if corps is not None else {}), **(entetes or {})}, capacite)
+                                {**({'Content-Type': 'application/json'} if corps is not None else {}), **(entetes or {})}, capacite, generation)
     if statut >= 400:
         raise ErreurMicrosoft('microsoft56103_http_%d' % statut, statut, _attente(rep))
     return _json(brut) if brut else {}
@@ -772,14 +902,16 @@ def connexion_active(desk, owner, capacite=''):
 # ------------------------------------------------------------------------------------------------ déconnexion
 def deconnecter(desk, owner):
     """Arrête tout usage (nouvelle génération), efface les jetons locaux et les codes d'appareil en attente. Microsoft Graph ne sait pas
-    révoquer un jeton délégué isolé : l'interface indique où retirer le consentement."""
+    révoquer un jeton délégué isolé : l'interface indique où retirer le consentement.
+    5.6.106 (audit M1) : l'identité active (compte, identifiant Microsoft) est effacée dans la même transaction que le changement de génération :
+    après « Déconnecter », un autre compte peut être relié (sans préremplissage de l'ancien) ; l'ancien compte reste au journal d'audit."""
     row = connexion(desk, owner)
     if not row:
         raise Stop('microsoft56103_non_connecte')
     desk.db.execute('BEGIN IMMEDIATE')
     try:
         desk.db.execute("UPDATE microsoft56103_connexions SET etat='deconnectee', portees='', expire=0, bail=0, generation=generation+1, erreur='', "
-                        "version=version+1, maj=? WHERE id=?", (_iso(), row['id']))
+                        "compte='', compte_id='', tentative='', version=version+1, maj=? WHERE id=?", (_iso(), row['id']))
         desk.db.execute('DELETE FROM microsoft56103_etats WHERE connexion_id=?', (row['id'],))
         flux = [r['id'] for r in desk.db.execute("SELECT id FROM microsoft56103_appareils WHERE connexion_id=? AND etat='en_attente'", (row['id'],))]
         desk.db.execute("UPDATE microsoft56103_appareils SET etat='annule', maj=? WHERE connexion_id=? AND etat='en_attente'", (_iso(), row['id']))
@@ -789,7 +921,7 @@ def deconnecter(desk, owner):
             desk.db.rollback()
         raise
     _effacer(desk, row['id'], ('access', 'refresh') + tuple('appareil-' + f for f in flux))
-    desk.audit('microsoft56103_deconnecte', {})
+    desk.audit('microsoft56103_deconnecte', {'compte': row['compte']})
     return {'connexion': vue(lire(desk, row['id'])), 'revocation': 'locale_seulement',
             'message': 'Compte Microsoft déconnecté : les jetons ont été effacés de cette installation. Pour retirer aussi l’autorisation chez '
                        'Microsoft : compte professionnel, https://myapps.microsoft.com (ou votre administrateur) ; compte personnel, '
@@ -813,7 +945,8 @@ def etapes_assistant(desk, owner, env=None):
                'detail': ('Relié : %s.' % row['compte']) if etat_compte == 'fait' else (MESSAGES['microsoft56103_reconnexion_requise'] if etat_compte == 'a_refaire'
                                                                                        else 'Connexion par la page de Microsoft (%s).' % (
                                                                                            'navigateur de ce poste' if mode == 'pkce' else 'code à saisir sur microsoft.com/devicelogin')),
-               'action': None if etat_compte == 'fait' else {'route': 'm56103/microsoft/connexion', 'methode': 'POST', 'capacites': ['courrier', 'agenda', 'fichiers'], 'mode': mode}}]
+               # 5.6.106 (audit M3) : relier le compte demande Outlook seulement ; l'agenda et OneDrive ont leur propre étape (une capacité chacune)
+               'action': None if etat_compte == 'fait' else {'route': 'm56103/microsoft/connexion', 'methode': 'POST', 'capacites': ['courrier'], 'mode': mode}}]
     for cap, titre in (('courrier', 'Outlook : courrier et brouillons'), ('agenda', 'Outlook : agenda'), ('fichiers', 'OneDrive : fichiers')):
         fait = cap in accordees
         sortie.append({'id': 'microsoft.' + cap, 'titre': titre, 'etat': 'fait' if fait else ('a_refaire' if etat_compte == 'a_refaire' else 'a_faire'),

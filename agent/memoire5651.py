@@ -346,5 +346,7 @@ def sync_gaps(desk, mid):
             continue
         open_gap(desk, mid, 'Lecture de « %s »' % r['name'], 'Document illisible (%s) : son contenu n’est pas pris en compte.' % (r['error_category'] or 'erreur'),
                  r['path'], [], 'facultatif', 'fichier_illisible')
+        from .vision56106 import illisible_constate   # 5.6.106 (lot I) : lecture automatique par le modèle LOCAL capable de voir (réglage, désactivé par défaut)
+        illisible_constate(desk, mid, r['path'], r['name'])
         n += 1
     return n

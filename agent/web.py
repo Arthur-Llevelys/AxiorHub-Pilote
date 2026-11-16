@@ -265,6 +265,10 @@ JOB_LABELS['gmail5697_redaction']='Réponse Gmail préparée par le modèle loca
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS['pilote_messagerie56102']='Pilote : réponse dans la messagerie instantanée'   # 5.6.102 (lot M)
 JOB_LABELS['tableau56103_dessin']='Pilote : schéma pour le tableau blanc de la messagerie'   # 5.6.103 (lot T)
+JOB_LABELS['lecteur56106_resume']='Résumé par l’IA des courriels choisis'   # 5.6.106 (lot V)
+JOB_LABELS['fraude56106_avis']='Second avis de l’IA locale sur un courriel suspect'   # 5.6.106 (lot F)
+JOB_LABELS['routine_message56106']='Routine déclenchée par l’arrivée d’un courriel'   # 5.6.106 (lot O)
+JOB_LABELS['vision56106_lecture']='Lecture d’une page scannée par un modèle capable de voir'   # 5.6.106 (lot I)
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',
   'create_cabinet_letter':'Création confirmée du courrier Word'})

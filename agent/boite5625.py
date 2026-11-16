@@ -117,34 +117,55 @@ RECHERCHE_LOCALE = 300   # recherche accentuée : messages examinés au plus (le
 LOT_RECHERCHE = 50       # en-têtes lus par commande pendant une recherche accentuée
 
 
-def listing(desk, page=1, query='', box=None, folder=None, acteur=None):
+def listing(desk, page=1, query='', box=None, folder=None, acteur=None, options=None):
     """Page d'un dossier de la messagerie (boîte de réception par défaut), du plus récent au plus ancien.
 
     5.6.100 (lot F, R07) : sur une vraie connexion, une seule sélection (EXAMINE), un UID SEARCH, puis un UID FETCH groupé des en-têtes
     utiles de la page autorisée (``Mailbox.entetes``) ; aucun corps. Avant : une sélection et deux FETCH par message (26 EXAMINE, 1 SEARCH,
     50 FETCH pour 25 lignes). Droits appliqués avant le total et la page ; clés et contrôle d'accès calculés avec l'UIDVALIDITY de cette
     sélection. Recherche accentuée : filtrée ici sur les ``RECHERCHE_LOCALE`` messages autorisés les plus récents, lus par lots ;
-    ``couverture`` dit si des messages plus anciens n'ont pas été examinés. Les doubles d'essai historiques gardent l'ancien chemin."""
+    ``couverture`` dit si des messages plus anciens n'ont pas été examinés. Les doubles d'essai historiques gardent l'ancien chemin.
+
+    5.6.106 (lot L) : ``options`` (``boite56106.options_liste``) — filtres non lus, suivis, avec pièces, recherche dans le corps (``BODY``),
+    le destinataire (``TO``) et une période (``SINCE``/``BEFORE``), toujours côté serveur ; tri par date (récent ou ancien), expéditeur ou
+    objet (``UID SORT`` si le serveur le sait, sinon sur les ``RECHERCHE_LOCALE`` messages les plus récents, couverture partielle
+    annoncée). Un destinataire accentué est filtré ici, comme l'objet et l'expéditeur accentués. La réponse porte l'UIDVALIDITY de la
+    sélection (contrôlée par les actions groupées) et le drapeau de suivi de chaque courriel."""
     cfg = desk.c['mail']
     try:
         page = max(1, int(page or 1))
     except ValueError:
         page = 1
     query = re.sub(r'\s+', ' ', str(query or '')).strip()[:120]
+    from . import boite56106 as l106   # 5.6.106 (lot L) : tri, filtres et recherche étendue
+    opts = options or {}
+    tri = opts.get('tri') or 'date_desc'
+    dest_local = opts['destinataire'] if opts.get('destinataire') and not opts['destinataire'].isascii() else ''
+    # 5.6.106 (lot L) : « Rechercher dans » — objet, corps, expéditeur, destinataires (OR côté serveur) ; objet et expéditeur par défaut
+    dans = tuple(opts.get('dans') or ('objet', 'expediteur'))
+    corps_seul = bool(query) and not query.isascii() and dans == ('corps',)
+    if corps_seul:                # corps accentué seul : littéral UTF-8 côté serveur (``boite56106.chercher``)
+        opts = dict(opts, corps=query)
+    corps_non_cherche = bool(query) and not query.isascii() and 'corps' in dans and not corps_seul
     own = box is None
     box = box or mbx.Mailbox(cfg)
     try:
         folder = _folder(box, cfg, folder)
-        accent = bool(query) and not query.isascii()
-        criteres = ('UNDELETED', 'OR', 'SUBJECT', mbx.imap_quote(query), 'FROM', mbx.imap_quote(query)) if query and not accent else ('UNDELETED',)
+        accent = (bool(query) and not query.isascii() and not corps_seul) or bool(dest_local)
+        criteres = (('UNDELETED',) + l106.ou_champs(query, dans)) if query and query.isascii() else ('UNDELETED',)
         par_lot = mbx.lot_possible(box)
         validity = None
+        tri_serveur = None
+        if tri in ('expediteur', 'objet') and par_lot and l106.peut_trier(box):
+            tri_serveur = '(FROM)' if tri == 'expediteur' else '(SUBJECT)'
         if par_lot:
             validity = str(box.select(folder))          # la seule sélection de la page
-            uids = box.search_selection(*criteres)
+            uids = l106.chercher(box, criteres, opts, tri_serveur) if (opts or tri_serveur) else box.search_selection(*criteres)
         else:
-            uids = box.search(folder, *criteres)
-        uids = sorted(uids, key=int, reverse=True)
+            uids = box.search(folder, *(tuple(criteres) + tuple(l106.criteres(opts)[0])))
+        tri_local = tri in ('expediteur', 'objet') and not tri_serveur
+        if not tri_serveur:   # ordre du serveur (RFC 5256) gardé tel quel ; sinon du plus récent au plus ancien (ou l'inverse)
+            uids = sorted(uids, key=int, reverse=tri != 'date_asc' or accent or tri_local)
         if accent and not par_lot:   # recherche accentuée : filtrage des 300 plus récents côté AxiorHub
             uids = uids[:RECHERCHE_LOCALE]
         from . import acces5697 as acces, messages5697 as refs
@@ -160,28 +181,63 @@ def listing(desk, page=1, query='', box=None, folder=None, acteur=None):
                 permis.extend(u for u, cle in lot if acces.visible(assoc.get(cle, ()), caches))
             uids = permis
         partielle = False
-        if accent and par_lot:       # après les droits : les messages masqués ne comptent ni dans la couverture ni dans la page
+        if (accent or tri_local) and par_lot:   # après les droits : les messages masqués ne comptent ni dans la couverture ni dans la page
             partielle = len(uids) > RECHERCHE_LOCALE
             uids = uids[:RECHERCHE_LOCALE]
-        total = len(uids)
+        epingles = []   # 5.6.106 (lot L) : épingles de la personne présentes ici (droits et filtres compris), en tête de la page 1
+        if options is not None and acteur is not None and par_lot and validity is not None:
+            epingles = l106.epingles_du_dossier(desk, box, acteur[0], folder, validity, uids)
+            if epingles:
+                uids = [u for u in uids if u not in set(epingles)]
+        total = regulier = len(uids)
         state = _state(desk)
         account = _account(cfg)
-        items = []
+        items, tete = [], []
 
-        def ajouter(mail):
+        def champs(mail, subject, sender):   # texte des champs choisis pour une recherche accentuée filtrée ici
+            if not opts.get('dans'):
+                return subject + ' ' + sender
+            return ' '.join({'objet': subject, 'expediteur': sender, 'corps': '',
+                             'destinataires': str(mail.msg.get('To', '')) + ' ' + str(mail.msg.get('Cc', ''))}[c] for c in dans)
+
+        def ajouter(mail, cible=None):
             subject = mail.subject or '(sans objet)'
             sender = str(mail.msg.get('From', ''))[:200]
-            if accent and query.lower() not in (subject + ' ' + sender).lower():
+            if accent and query and query.lower() not in champs(mail, subject, sender).lower():
+                return
+            if dest_local and dest_local.lower() not in (str(mail.msg.get('To', '')) + ' ' + str(mail.msg.get('Cc', ''))).lower():
                 return
             key = mail.key(account)
             known = state.get(key)
-            items.append({'uid': mail.uid, 'key': key, 'subject': subject[:200], 'from': sender, 'to': str(mail.msg.get('To', ''))[:200],
+            (items if cible is None else cible).append({'uid': mail.uid, 'key': key, 'subject': subject[:200], 'from': sender, 'to': str(mail.msg.get('To', ''))[:200],
                           'date': mail.timestamp.isoformat(),
-                          'seen': '\\Seen' in mail.flags, 'attachments': mail.msg.get_content_type() == 'multipart/mixed',
+                          'seen': '\\Seen' in mail.flags, 'flagged': '\\Flagged' in mail.flags,   # 5.6.106 (lot L) : drapeau de suivi
+                          'attachments': mail.msg.get_content_type() == 'multipart/mixed',
                           'status': known[0] if known else '', 'status_label': STATUS_LABELS.get(known[0], known[0]) if known else ''})
+            from .fraude56106 import pastille as _pastille106   # 5.6.106 (lot F) : pastille « courriel potentiellement frauduleux » (en-têtes ou verdict du relevé ; rien sans alerte)
+            (items if cible is None else cible)[-1]['fraude'] = _pastille106(desk, mail, key)
 
-        chosen = uids if accent else uids[(page - 1) * PAGE:page * PAGE]
-        if par_lot:
+        chosen = uids if (accent or tri_local) else uids[(page - 1) * PAGE:page * PAGE]
+        if tri_local and par_lot:   # 5.6.106 : en-têtes des plus récents lus par lots, tri ici, puis la page demandée
+            for start in range(0, len(chosen), mbx.LOT_ENTETES):
+                lot = chosen[start:start + mbx.LOT_ENTETES]
+                try:
+                    trouves = box.entetes(folder, lot, expected_validity=validity)
+                except Stop as ex:
+                    if str(ex) == 'uidvalidity_modifiee':
+                        raise Stop('introuvable') from None
+                    raise
+                for uid in lot:
+                    if str(uid) in trouves:
+                        ajouter(trouves[str(uid)])
+            from email.utils import parseaddr
+            if tri == 'expediteur':
+                items.sort(key=lambda x: ((parseaddr(x['from'])[0] or parseaddr(x['from'])[1]).casefold(), x['date']))
+            else:
+                items.sort(key=lambda x: (re.sub(r'^(?:(?:re|tr|fwd?)\s*:\s*)+', '', x['subject'], flags=re.I).casefold(), x['date']))
+            total = regulier = len(items)
+            items = items[(page - 1) * PAGE:page * PAGE]
+        elif par_lot:
             pas = LOT_RECHERCHE if accent else PAGE
             for start in range(0, len(chosen), pas):
                 lot = chosen[start:start + pas]
@@ -213,10 +269,26 @@ def listing(desk, page=1, query='', box=None, folder=None, acteur=None):
                 if len(items) >= PAGE:
                     break
         if accent:
-            total = len(items)
-        out = {'folder': folder, 'page': page, 'pages': max(1, (total + PAGE - 1) // PAGE), 'total': total, 'items': items, 'query': query}
-        if accent:
+            total = regulier = len(items)
+            if tri == 'date_asc':
+                items.reverse()
+        if epingles and page == 1:   # 5.6.106 : épinglés en tête, au-dessus du tri (un lot d'en-têtes)
+            trouves = box.entetes(folder, epingles, expected_validity=validity)
+            for uid in epingles:
+                if uid in trouves:
+                    ajouter(trouves[uid], tete)
+            for x in tete:
+                x['epingle'] = True
+        total = regulier + len(epingles) if not accent else regulier + len(tete)
+        out = {'folder': folder, 'page': page, 'pages': max(1, (regulier + PAGE - 1) // PAGE), 'total': total, 'items': tete + items, 'query': query}
+        if validity is not None and options is not None:   # 5.6.106 (lot L) : UIDVALIDITY de la liste affichée, contrôlée par les actions groupées
+            out['uidvalidity'] = validity
+        if options is not None:
+            out.update({'tri': tri, 'epingles': len(tete), 'dans': list(dans)})
+        if accent or tri_local:
             out['couverture'] = {'partielle': partielle, 'examines': min(len(uids), RECHERCHE_LOCALE)}
+        if corps_non_cherche:   # corps accentué avec d'autres champs : non cherché, dit à l'écran (jamais un faux « aucun résultat »)
+            out.setdefault('couverture', {'partielle': partielle, 'examines': min(len(uids), RECHERCHE_LOCALE)})['corps_non_cherche'] = True
         return out
     finally:
         if own:
@@ -325,7 +397,8 @@ def message(desk, uid, box=None, folder=None, acteur=None, validity=None):
                 matter, why = '', ''
         known = _state(desk).get(key)
         text = mail.text
-        return {'uid': mail.uid, 'key': key, 'folder': folder, 'subject': mail.subject, 'from': str(mail.msg.get('From', ''))[:300], 'to': str(mail.msg.get('To', ''))[:500],
+        from .fraude56106 import pour_lecteur as _fraude106   # 5.6.106 (lot F) : alerte anti-fraude du lecteur (motifs, conseils, liens désactivés) ; rien sans alerte
+        return {'fraude': _fraude106(desk, mail, key), 'uid': mail.uid, 'key': key, 'folder': folder, 'subject': mail.subject, 'from': str(mail.msg.get('From', ''))[:300], 'to': str(mail.msg.get('To', ''))[:500],
                 'cc': str(mail.msg.get('Cc', ''))[:500], 'date': mail.timestamp.isoformat(), 'text': text[:MAX_TEXT], 'truncated': len(text) > MAX_TEXT,
                 'attachments': _attachments(mail.msg), 'matter': matter, 'matter_reason': why,
                 'uidvalidity': mail.uidvalidity, 'message_id': mail.mid, 'compte': _account(cfg), 'classement': _classement5697(desk, mail),   # 5.6.97 (§ 11)

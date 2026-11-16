@@ -1,0 +1,46 @@
+/* AxiorHub 5.6.106 (lot E) — options d'envoi : zone de la rédaction, bandeau « Annuler », liste « Envois programmés ». */
+.e106-options { margin: .6rem 0; padding: .5rem .8rem .6rem; border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; background: var(--ax-card, #fff); color: inherit; }
+.e106-options legend { font-weight: 600; padding: 0 .3rem; }
+.e106-ligne { display: flex; align-items: center; gap: .3rem; margin: .2rem 0; }
+.e106-ligne input[type="checkbox"] { width: 1.05rem; height: 1.05rem; margin: 0; }
+.e106-programme { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .6rem; margin: .2rem 0 .3rem 1.5rem; }
+.e106-programme[hidden], .e106-liste[hidden], .e106-bandeau[hidden] { display: none; }
+.e106-aide { font-size: .88em; }
+.e106-delai-ligne { flex-wrap: wrap; margin-top: .4rem; font-size: .92em; }
+.e106-options input:focus-visible, .e106-options select:focus-visible, .e106-bandeau button:focus-visible, .e106-liste button:focus-visible,
+.e106-liste input:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.e106-bandeau { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 1200; display: flex; align-items: center; gap: .6rem;
+  max-width: min(92vw, 40rem); padding: .6rem .9rem; border-radius: 8px; background: #161616; color: #f4f4f4; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
+.e106-bandeau .ax-btn { background: #f4f4f4; color: #161616; border-color: #f4f4f4; }
+.e106-bandeau .ax-btn.ghost { background: transparent; color: #f4f4f4; border-color: #8d8d8d; }
+.e106-bandeau.warn { background: #fcf4d6; color: #3d2f00; border: 1px solid #b28600; }
+.e106-bandeau.bad { background: #fff1f1; color: #750e13; border: 1px solid #da1e28; }
+.e106-bandeau.warn .ax-btn.ghost, .e106-bandeau.bad .ax-btn.ghost { color: inherit; border-color: currentColor; }
+.e106-ouvrir.e106-alerte { border-color: var(--ax-warn, #b28600); }
+.e106-liste { margin: .6rem 0; padding: .6rem .9rem; border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; background: var(--ax-card, #fff); color: inherit; }
+.e106-liste h2 { font-size: 1.05rem; margin: 0 0 .4rem; }
+.e106-liste-items { list-style: none; margin: 0; padding: 0; }
+.e106-item { padding: .5rem 0; border-bottom: 1px solid var(--ax-line, #e0e0e0); }
+.e106-item:last-child { border-bottom: 0; }
+.e106-titre { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; }
+.e106-badge { font-size: .8em; padding: 0 .4rem; border-radius: 999px; border: 1px solid var(--ax-line, #8d8d8d); }
+.e106-quand-texte { margin: .15rem 0; }
+.e106-motif { margin: .2rem 0; font-weight: 600; }
+.e106-a_verifier .e106-motif, .e106-echec .e106-motif { color: #a2191f; }
+.e106-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .3rem; }
+.e106-modifier { display: flex; flex-direction: column; gap: .3rem; margin: .4rem 0 0; padding: .5rem; border-left: 3px solid var(--ax-accent, #0f62fe); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .e106-bandeau { background: #f4f4f4; color: #161616; }
+  :root:not([data-theme="light"]) .e106-bandeau .ax-btn { background: #161616; color: #f4f4f4; border-color: #161616; }
+  :root:not([data-theme="light"]) .e106-bandeau .ax-btn.ghost { background: transparent; color: #161616; border-color: #525252; }
+  :root:not([data-theme="light"]) .e106-bandeau.warn { background: #3d2f00; color: #fcf4d6; }
+  :root:not([data-theme="light"]) .e106-bandeau.bad { background: #520408; color: #ffd7d9; }
+  :root:not([data-theme="light"]) .e106-a_verifier .e106-motif, :root:not([data-theme="light"]) .e106-echec .e106-motif { color: #ff8389; }
+}
+:root[data-theme="dark"] .e106-bandeau { background: #f4f4f4; color: #161616; }
+:root[data-theme="dark"] .e106-bandeau .ax-btn { background: #161616; color: #f4f4f4; border-color: #161616; }
+:root[data-theme="dark"] .e106-bandeau .ax-btn.ghost { background: transparent; color: #161616; border-color: #525252; }
+:root[data-theme="dark"] .e106-bandeau.warn { background: #3d2f00; color: #fcf4d6; }
+:root[data-theme="dark"] .e106-bandeau.bad { background: #520408; color: #ffd7d9; }
+:root[data-theme="dark"] .e106-a_verifier .e106-motif, :root[data-theme="dark"] .e106-echec .e106-motif { color: #ff8389; }
+@media (max-width: 600px) { .e106-bandeau { left: .5rem; right: .5rem; transform: none; max-width: none; flex-wrap: wrap; } }

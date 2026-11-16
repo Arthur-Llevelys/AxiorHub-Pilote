@@ -186,9 +186,12 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5696-affichage.js"></script>'   # 5.6.96 (U01) : volet modal (focus, fond inerte, champ qui grandit, brouillon), avant v567.js
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v567.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v568.js"></script>'
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56106-vision.js"></script>'   # 5.6.106 (lot I) : « Joindre une image ou une page » dans l'assistant (après v567.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5614.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5625.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5628.js"></script>'   # 5.6.28 : messagerie (répondre, transférer, classer)
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56106-redaction.js"></script>'   # 5.6.106 (lot R) : rédaction (dictée, mise en forme, adresses, pièces, modèles)
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56106-envoi.js"></script>'   # 5.6.106 (lot E) : options d'envoi, « Annuler » pendant quelques secondes, envois programmés
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5643.js"></script>'   # 5.6.43 : classement dans le dossier client
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5697-dossiers.js"></script>'   # 5.6.97 (lot dossiers) : Classer dans un dossier, écran Dossiers
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5647.js"></script>'   # 5.6.47 : recherche dans les listes de dossiers
@@ -221,6 +224,8 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     from .ui_drapeaux5689 import marquer as _marquer5689
     html=_marquer5689(html,_drapeaux5689())   # 5.6.89 : le thème entier tient à cet attribut
     html=_police5696(html)   # 5.6.96 (U03) : police choisie par la personne (Figtree par défaut, sans attribut)
+    from .identite56106 import marquer_densite as _densite56106
+    html=_densite56106(html)   # 5.6.106 (lot D) : <body data-densite> d'après le réglage de la personne (compacte par défaut)
     from .live430 import enhance_forms,chrome
     html=enhance_forms(html,prefix)
     html=html.replace('</body>',chrome(prefix)+assistant_dock(prefix,csrf,matters or [],path,audio_enabled,selected_matter)+'</body>',1)

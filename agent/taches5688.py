@@ -243,6 +243,7 @@ def _row_html(prefix, t, known, labels, today):
     chips.append('<span class="t88-chip">%s</span>' % e(str((known.get(t['responsable']) or {}).get('name') or t['responsable']) if t['responsable'] else SANS_RESPONSABLE))
     if t['origine']:
         chips.append('<span class="t88-chip">%s</span>' % e(ORIGINES.get(t['origine'], '')))
+        if t['origine'] == 'courriel' and re.fullmatch(r'[0-9a-f]{64}', str(t['origine_ref'] or '')): chips[-1] = '<a class="t88-chip" href="%s">Courriel d’origine</a>' % e(prefix + '/courriels?vue=boite&courriel=' + t['origine_ref'], quote=True)   # 5.6.106 (lot V) : lien vers le courriel (droits relus à l'ouverture)
     statuses = ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == t['statut'] else '', e(v)) for k, v in STATUTS.items() if not t['externe'] or k in ETATS)
     due_field = '' if t['externe'] else '<label>Échéance<input type="date" name="due" value="%s"></label>' % e(str(t['due'] or '')[:10], quote=True)
     days = reminder_days(t)

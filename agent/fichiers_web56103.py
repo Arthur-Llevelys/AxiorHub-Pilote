@@ -30,7 +30,7 @@ STATUTS = {'introuvable': '404 Not Found', 'version_perimee': '409 Conflict', 'd
            'controle_acces_indisponible': '503 Service Unavailable', 'stockage_injoignable': '503 Service Unavailable',
            'requete_trop_longue': '413 Payload Too Large'}
 MESSAGES = {
-    'introuvable': 'Élément introuvable.',
+    'introuvable': 'Élément introuvable, ou action non permise à cet endroit.',   # 5.6.106 (F1) : même texte pour un absent et un refus d'arborescence
     'version_perimee': 'Ce fichier a changé depuis l’affichage : rechargez le dossier avant de recommencer. Rien n’a été remplacé.',
     'deja_existant': 'Un élément porte déjà ce nom à cet endroit : rien n’a été remplacé. Choisissez un autre nom.',
     'cle_reutilisee': 'Cette demande a déjà servi pour une autre action : rechargez la page.',

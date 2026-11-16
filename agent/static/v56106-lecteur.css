@@ -1,0 +1,71 @@
+/* AxiorHub 5.6.106 (lot V) — lecteur des courriels (en-tête, barre du lecteur, cadre isolé du contenu mis en forme, bandeaux, pièces, en-têtes,
+   conversation), volet « Résumé par l'IA » à la place du lecteur, formulaires « Créer une tâche » et « Ajouter à l'agenda ».
+   Jetons --ax-* avec repli ; contraste AA en clair et en sombre ; focus visible ; à 390 px les boutons passent à la ligne. */
+.lx56106{display:grid;gap:8px;min-width:0}
+.lx56106 h2{font-size:18px;margin:2px 0;overflow-wrap:anywhere}
+.lx56106-meta{margin:0;color:var(--ax-muted,#4b5563);font-size:14px;overflow-wrap:anywhere}
+.lx56106-barre{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.lx56106-barre .ax-btn,.lx56106-formulaire .ax-btn,.lx56106-resume .ax-btn{min-height:32px;padding:4px 10px;font-size:14px}
+.lx56106-bascule{display:inline-flex;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;overflow:hidden}
+.lx56106-bascule button{font:inherit;font-size:14px;border:0;background:none;color:var(--ax-ink,#1b2430);padding:4px 10px;min-height:32px;cursor:pointer}
+.lx56106-bascule button[aria-pressed=true]{background:var(--ax-accent,#1f4e9c);color:#fff;font-weight:600}
+.lx56106 button:focus-visible,.lx56106 a:focus-visible,.lx56106 summary:focus-visible,.lx56106-resume button:focus-visible,.lx56106-resume a:focus-visible,
+.lx56106-formulaire :focus-visible,.lx56106-cadre:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.lx56106-bandeau{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0;padding:6px 10px;border-radius:8px;font-size:14px;
+  background:#fff4ce;color:#3d2e00;border:1px solid #8a6d00}
+.lx56106-bandeau.lx56106-alerte{background:#fde7e9;color:#5c0011;border-color:#a2191f}
+.lx56106-bandeau.lx56106-info{background:var(--ax-soft,#eef3fb);color:var(--ax-ink,#1b2430);border-color:var(--ax-line,#c3cad5)}
+.lx56106-texte{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;background:var(--ax-soft2,#f6f7f9);color:var(--ax-ink,#1b2430);border-radius:8px;
+  padding:10px;margin:0;max-height:60vh;overflow:auto}
+.lx56106-cadre{display:block;width:100%;min-height:360px;height:60vh;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;background:#fff;resize:vertical}
+.lx56106-pieces{display:grid;gap:4px}
+.lx56106-pieces h3,.lx56106-fil h3,.lx56106-resume h3{font-size:15px;margin:6px 0 2px}
+.lx56106-piece{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:4px 8px}
+.lx56106-piece>span{overflow-wrap:anywhere;min-width:0}
+.lx56106-apercu{width:100%;min-height:420px;height:60vh;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;background:#fff}
+.lx56106-apercu-image{max-width:100%;height:auto;border:1px solid var(--ax-line,#c3cad5);border-radius:8px;background:#fff}
+.lx56106-entetes pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;max-height:40vh;overflow:auto;background:var(--ax-soft2,#f6f7f9);
+  color:var(--ax-ink,#1b2430);padding:8px;border-radius:8px;margin:4px 0}
+.lx56106-entetes summary,.lx56106-fil summary{cursor:pointer;font-weight:600;min-height:28px}
+.lx56106-fil details{border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:4px 8px;margin:4px 0}
+.lx56106-fil details[open]{background:var(--ax-soft2,#fafbfc)}
+.lx56106-courant{border-color:var(--ax-accent,#1f4e9c)!important}
+.lx56106-formulaire{display:grid;gap:8px;border:1px solid var(--ax-line,#9fb3d1);border-radius:10px;padding:10px;background:var(--ax-soft,#f7f9fd)}
+.lx56106-formulaire h3{margin:0;font-size:15px}
+.lx56106-formulaire label{display:grid;gap:2px;font-size:14px}
+.lx56106-formulaire input,.lx56106-formulaire select{font:inherit;min-height:32px;padding:4px 8px;border:1px solid var(--ax-line,#8d96a3);border-radius:6px;
+  background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);min-width:0}
+.lx56106-ligne{display:flex;flex-wrap:wrap;gap:8px}.lx56106-ligne>label{flex:1 1 140px}
+.lx56106-note{font-size:13px;color:var(--ax-muted,#4b5563);margin:0}
+.lx56106-statut{margin:0;font-size:14px}
+.lx56106-statut.lx56106-erreur{color:#a2191f;font-weight:600}
+.lx56106-resume{display:grid;gap:10px;min-width:0}
+.lx56106-resume-tete{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between}
+.lx56106-resume-tete h2{margin:0;font-size:18px}
+.lx56106-synthese{margin:0;white-space:pre-wrap;line-height:1.5}
+.lx56106-points{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lx56106-point{border:1px solid var(--ax-line,#dfe3e9);border-radius:8px;padding:6px 10px;display:grid;gap:4px}
+.lx56106-point p{margin:0;overflow-wrap:anywhere}
+.lx56106-badge{display:inline-block;font-size:12px;font-weight:600;padding:1px 6px;border-radius:10px;border:1px solid #8a6d00;background:#fff4ce;color:#3d2e00;margin-left:4px}
+.lx56106-actions{display:flex;flex-wrap:wrap;gap:4px}
+.lx56106-menu{position:relative;display:inline-block;border:0;padding:0;margin:0;background:none;box-shadow:none}
+.lx56106-menu>summary{list-style:none;cursor:pointer;min-height:32px;padding:4px 10px;font-size:14px}
+.lx56106-menu>summary::-webkit-details-marker{display:none}
+.lx56106-menu-corps{position:absolute;z-index:30;top:calc(100% + 2px);left:0;min-width:240px;display:grid;padding:4px;border:1px solid var(--ax-line,#c3cad5);
+  border-radius:8px;background:var(--ax-card,#fff);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.lx56106-menu-corps button{font:inherit;font-size:14px;text-align:left;border:0;background:none;color:var(--ax-ink,#1b2430);padding:6px 10px;border-radius:6px;cursor:pointer;min-height:32px}
+.lx56106-menu-corps button:hover,.lx56106-menu-corps button:focus-visible{background:var(--ax-soft,#eef3fb)}
+.lx56106-menu-corps button[hidden]{display:none}
+:root[data-theme=dark] .lx56106-menu-corps{background:#161b22;border-color:#6b7685}
+:root[data-theme=dark] .lx56106-menu-corps button{color:#e8edf3}
+.lx56106-v{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
+.lx56106-v .ax-btn{min-height:30px;padding:2px 8px;font-size:14px}
+:root[data-theme=dark] .lx56106-bandeau{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .lx56106-bandeau.lx56106-alerte{background:#520408;color:#ffd7d9;border-color:#fa4d56}
+:root[data-theme=dark] .lx56106-badge{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .lx56106-statut.lx56106-erreur{color:#ff8389}
+:root[data-theme=dark] .lx56106-texte,:root[data-theme=dark] .lx56106-entetes pre{background:#1f2630;color:#e8edf3}
+:root[data-theme=dark] .lx56106-formulaire input,:root[data-theme=dark] .lx56106-formulaire select{background:#161b22;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .lx56106-bascule button{color:#e8edf3}
+@media (max-width:48rem){.lx56106-cadre,.lx56106-apercu{height:55vh;min-height:300px}.lx56106-barre .ax-btn{flex:1 1 auto}}
+@media print{.lx56106-barre,.lx56106-v{display:none}}

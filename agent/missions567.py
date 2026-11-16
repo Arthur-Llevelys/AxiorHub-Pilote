@@ -394,6 +394,9 @@ def _context(desk, data, matter, owner='cabinet'):
             if path not in paths and len(paths) < 20:
                 paths.append(path)
         extra = {'fonction': vu['fonction_libelle'], 'objets': vu['objets']}
+    if raw.get('images56106'):   # 5.6.106 (lot I) : images ou pages jointes, dans le dossier de la mission seulement
+        from .vision56106 import valider_choix as _choix56106
+        extra['images56106'] = _choix56106(raw['images56106'], matter)
     return {'page': page, 'selected_documents': paths, 'mail_key': key,
             'attachments': list(dict.fromkeys(str(a) for a in attachments)),
             'parent_mission':parent_id, 'active_mission':active, 'recent_results':recent, 'thread_id':thread_id,
@@ -563,7 +566,7 @@ def _launch(desk, row):
         else:
             from .integration import submit_question
             out = submit_question(desk, row['instruction'], row['matter'], ctx['mail_key'], attachment_ids=ctx['attachments'],
-                                  thread_id=ctx.get('thread_id',''), page_context={k:ctx.get(k) for k in ('page','selected_documents','active_mission','recent_results','fonction','objets')}, mission_id=row['id'],
+                                  thread_id=ctx.get('thread_id',''), page_context={k:ctx.get(k) for k in ('page','selected_documents','active_mission','recent_results','fonction','objets','images56106')}, mission_id=row['id'],   # 5.6.106 (lot I) : images jointes
                                   purpose='voice_conversation' if ctx.get('channel')=='voice' else 'assistant', auteur=row['owner'])
             job, ref = out['job_id'], 'ask:' + out['thread_id']
         desk.db.execute("UPDATE missions_v567 SET state='queued',job_id=?,ref=?,updated=? WHERE id=?", (job, ref, desk.now(), row['id']))

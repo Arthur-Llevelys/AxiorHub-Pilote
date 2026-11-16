@@ -135,6 +135,9 @@ def _page_context(value, selected_matter=''):
     if isinstance(results,list):context['recent_results']=[str(x).strip()[:800] for x in results if str(x).strip()][:5]
     objets=value.get('objets',[])   # 5.6.89 : objets déjà revalidés par ui_ai5689.pour_mission
     if isinstance(objets,list) and objets:context['objets']=[{k:str(o.get(k) or '')[:200] for k in ('titre','version','nature')} for o in objets if isinstance(o,dict)][:20]
+    if value.get('images56106'):   # 5.6.106 (lot I) : copie bornée ; dossier et chemins revérifiés par vision56106.conversation
+        from .vision56106 import nettoyer_choix
+        context['images56106']=nettoyer_choix(value['images56106'])
     # The browser context may describe the current matter, but it can never
     # switch the server-side scope chosen and validated by chat_scope.
     context['matter']=str(selected_matter or '')[:80]

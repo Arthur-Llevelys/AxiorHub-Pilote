@@ -329,7 +329,7 @@
   function lireComposeur() {
     return {instruction: question.value.trim(), matter: matter.value, attachments: [...attachments], intent: intentSelect?.value || 'auto',
       autonomy:dock.querySelector('#ws-ai-autonomy').value, due: dock.querySelector('#ws-ai-due').value, context: {page: cfg.path || '/', selected_documents: selectedDocuments(), mission_id: currentMission?.matter === matter.value ? currentMission.id : '',
-      mail_key: q.get('key') || '', ui: window.axiorhubIa5689?.contexte()}, channel: inputChannel,
+      mail_key: q.get('key') || '', ui: window.axiorhubIa5689?.contexte(), images56106: window.axh56106vision ? window.axh56106vision.pourEnvoi() : []}, channel: inputChannel,   // 5.6.106 (lot I) : images ou pages jointes
       portee: dock.querySelector('#ws-ai-general')?.getAttribute('aria-pressed') === 'true' ? 'general' : ''};   // 5.6.96 (R01) : mode Général
   }
   const empreinte = p => JSON.stringify([p.instruction, p.matter, p.attachments, p.intent, p.autonomy, p.due, p.channel, p.portee, p.context?.mail_key || '']);

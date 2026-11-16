@@ -21,7 +21,9 @@ def api(env, desk, auth, prefix, name, args, method):
         if route == 'boite/nouveau-dossier':
             return json_out(boite5625.matter_proposal(desk))
         if route == 'boite/liste':
-            return json_out(boite5625.listing(desk, args.get('page') or 1, args.get('q') or '', folder=folder, acteur=(owner, role)))
+            from .boite56106 import options_liste   # 5.6.106 (lot L) : tri, filtres, corps, destinataire, période (côté serveur IMAP)
+            return json_out(boite5625.listing(desk, args.get('page') or 1, args.get('q') or '', folder=folder, acteur=(owner, role),
+                                              options=options_liste(args)))
         if route == 'boite/courriel':
             return json_out(boite5625.message(desk, args.get('uid'), folder=folder, acteur=(owner, role), validity=args.get('uidvalidity')))
         if route == 'boite/piece':

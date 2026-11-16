@@ -64,6 +64,8 @@ def ensure_schema(desk):
     desk.db.commit()
     from .gmail_simple56103 import ensure_schema as gmail_schema
     gmail_schema(desk)
+    from .avocatfr56106 import ensure_schema as avocatfr_schema   # 5.6.106 (lot P) : essais de l'adresse @avocat.fr, créés au même moment
+    avocatfr_schema(desk)
 
 
 # ------------------------------------------------------------------------------------------------ reçus d'idempotence (partagés avec gmail_simple56103)

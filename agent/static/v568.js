@@ -129,7 +129,8 @@
   const header=el('header'),name=el('strong','Pilote · assistant IA vocal'),close=el('button','×');close.type='button';close.setAttribute('aria-label','Arrêter et replier la conversation');header.append(name,close);
   const mode=el('select');mode.setAttribute('aria-label','Mode vocal');mode.append(new Option('Discuter et obtenir une réponse','conversation'),new Option('Préparer les missions internes demandées','mission'));
   const context=el('p',undefined,'muted'),status=el('p','Microphone arrêté.','voice568-status');status.setAttribute('role','status');
-  const transcript=el('textarea');transcript.rows=3;transcript.setAttribute('aria-label','Dernière transcription, modifiable');
+  const transcript=el('textarea');transcript.dataset.dictationReady='1';transcript.rows=3;transcript.setAttribute('aria-label','Dernière transcription, modifiable');
+  // 5.6.106 (lot I) : la transcription du dialogue vocal n'a pas de barre de dictée (v310.js équipe désormais les champs ajoutés après le chargement)
   const answer=el('div',undefined,'voice568-answer');answer.setAttribute('aria-live','polite');
   const transmission=el('details'),transmissionTitle=el('summary','Données de lecture vocale'),transmissionText=el('pre');transmission.append(transmissionTitle,transmissionText);
   const start=el('button','Démarrer le dialogue'),stop=el('button','Arrêter'),send=el('button','Envoyer le texte corrigé');[start,stop,send].forEach(b=>{b.type='button';});

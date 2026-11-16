@@ -45,6 +45,7 @@ TIERS = frozenset(('document_tiers', 'courrier', 'conclusions', 'depot'))
 SANS_REPLI_LOCAL = frozenset(('recherche_publique',))   # 5.6.96 (R04) : finalités refusées en mode local strict, même vers une source publique admise
 RANG = {'local_strict': 0, 'hybride': 1, 'cloud': 2, 'historique': 2}
 LOCAUX = frozenset(('ollama', 'local', 'serveur_cabinet'))
+REGION_CABINET = 'Serveur du cabinet (auto-hébergé)'   # 5.6.106 (lot S) : lieu de traitement d'un service hébergé par le cabinet (SearXNG)
 EXPIRE_SECONDES = 120
 GARDER_JOURS = 180
 DEFAUT_QUALITE = 60
@@ -374,7 +375,7 @@ def evaluer(config, outil, destination, finalite='', dossiers=(), labels=(), reg
             if etat['regions_admises'] and mode != 'local_strict':
                 if not region:
                     motifs.append('region_inconnue')
-                elif region not in etat['regions_admises']:
+                elif region not in etat['regions_admises'] and not (region == REGION_CABINET and fiche is not None and fiche['nature'] == 'auto_heberge'):   # 5.6.106 (lot S)
                     motifs.append('region_non_admise')
             if set(dossiers) & _exclus(config):
                 motifs.append('dossier_exclu')

@@ -51,20 +51,58 @@
   if (box && !box.hidden) {
     var rows = $('#bx5625-rows'), panel = $('#bx5625-panel'), pages = $('#bx5625-pages');
     var state = { page: 1, q: '', matters: null, current: null, poll: null, folder: '', role: 'inbox' };
+    // 5.6.106 (lot L) : présentation dense (nouvelle interface) ; tri, filtres et recherche étendue (côté serveur IMAP) ; lignes connues
+    var dense = box.classList.contains('bx56106');
+    state.opts = {}; state.lignes = {}; state.uidvalidity = '';
     var qs = function (o) { if (state.folder) o.dossier = state.folder; return new URLSearchParams(o).toString(); };
+    var qsListe = function (o) {
+      Object.keys(state.opts).forEach(function (k) { if (state.opts[k]) o[k] = state.opts[k]; });
+      return qs(o);
+    };
     var outgoing = function () { return ['sent', 'drafts', 'outbox'].indexOf(state.role) >= 0; };
+    var expediteur = function (from) {   // « Nom <adresse> » → « Nom » ; sinon l'adresse
+      var s = String(from || ''), nom = s.replace(/<[^>]*>/, '').replace(/"/g, '').trim();
+      return nom || s.replace(/[<>]/g, '').trim() || '—';
+    };
+    var ligneDense = function (m) {   // 5.6.106 : deux lignes — expéditeur, date, état ; puis objet (gras si non lu)
+      var qui = outgoing() ? 'À : ' + expediteur(m.to) : expediteur(m.from);
+      var haut = el('span', { 'class': 'bx56106-l1' }, [el('span', { 'class': 'bx56106-de', title: outgoing() ? (m.to || '') : (m.from || ''), text: qui })]);
+      if (m.attachments) haut.appendChild(el('span', { 'class': 'bx56106-pj', title: 'Pièces jointes probables', 'aria-label': 'Pièces jointes', text: '📎' }));
+      if (m.flagged) haut.appendChild(el('span', { 'class': 'bx56106-suivi', title: 'Suivi', 'aria-label': 'Suivi', text: '⚑' }));
+      var w = when(m.date), cette = String(new Date().getFullYear());   // « 04/11 20:00 » ; l'année seulement si elle diffère
+      haut.appendChild(el('span', { 'class': 'bx56106-date', title: w, text: w.slice(8, 10) + '/' + w.slice(5, 7) + (w.slice(0, 4) !== cette ? '/' + w.slice(2, 4) : '') + ' ' + w.slice(11, 16) }));
+      if (m.status_label) haut.appendChild(el('span', { 'class': 'bx56106-etat bx5625-st-' + m.status, title: m.status_label, text: m.status_label }));
+      return el('button', { type: 'button', 'class': 'ax-row bx56106-ligne' + (m.seen ? '' : ' bx5625-unseen') + (m.flagged ? ' bx56106-suivie' : ''),
+                            'data-uid': m.uid, draggable: 'true', 'aria-label': (m.seen ? '' : 'Non lu. ') + qui + ' — ' + m.subject + ' — ' + when(m.date) },
+        [haut, el('span', { 'class': 'bx56106-l2' }, [el('span', { 'class': 'bx56106-objet', title: m.subject, text: m.subject })])]);
+    };
     var loadMatters = function () {
       if (state.matters) return Promise.resolve(state.matters);
       return api('m567/matters').then(function (d) { state.matters = d.matters || []; return state.matters; }).catch(function () { state.matters = []; return []; });
     };
     var list = function () {
       rows.textContent = ''; pages.textContent = ''; rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Lecture du dossier…' }));
-      api('m5625/boite/liste?' + qs({ page: state.page, q: state.q })).then(function (d) {
+      var demande = state.demande = (state.demande || 0) + 1;   // 5.6.106 : seule la dernière liste demandée s'affiche
+      api('m5625/boite/liste?' + qsListe({ page: state.page, q: state.q })).then(function (d) {
+        if (demande !== state.demande) return;
         rows.textContent = '';
+        state.uidvalidity = d.uidvalidity || ''; state.lignes = {};
+        if (d.couverture && d.couverture.partielle && !state.q && dense) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', role: 'status', text: 'Tri limité aux ' + d.couverture.examines + ' courriels les plus récents (couverture partielle) : le serveur ne sait pas trier lui-même.' }));
         var partielle = d.couverture && d.couverture.partielle;   // 5.6.100 (lot F) : recherche accentuée bornée aux messages les plus récents
         if (!d.items.length) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: state.q ? (partielle ? 'Aucun courriel ne correspond parmi les ' + d.couverture.examines + ' plus récents.' : 'Aucun courriel ne correspond.') : 'Ce dossier est vide.' }));
         else if (partielle) rows.appendChild(el('p', { 'class': 'ax-muted ax-pad', role: 'status', text: 'Recherche limitée aux ' + d.couverture.examines + ' courriels les plus récents : les plus anciens n’ont pas été examinés. Une recherche sans accent couvre tout le dossier.' }));
         d.items.forEach(function (m) {
+          state.lignes[m.uid] = m;
+          if (dense) {
+            var ligne = ligneDense(m);
+            ligne.addEventListener('click', function () {
+              Array.prototype.forEach.call(rows.querySelectorAll('.ax-row'), function (r) { r.classList.remove('on'); });
+              ligne.classList.add('on'); open(m.uid);
+            });
+            rows.appendChild(ligne);
+            if (window.axh56106fraude) window.axh56106fraude.decorer([m]);   // 5.6.106 (lot F) : pastille « courriel potentiellement frauduleux »
+            return;
+          }
           var top = el('span', { 'class': 'ax-row-top' }, [el('strong', { text: m.subject })]);
           if (m.attachments) top.appendChild(el('em', { 'class': 'ax-badge', title: 'Pièces jointes probables', text: 'PJ' }));
           if (m.status_label) top.appendChild(el('em', { 'class': 'ax-badge bx5625-st-' + m.status, text: m.status_label }));
@@ -75,6 +113,7 @@
             row.classList.add('on'); open(m.uid);
           });
           rows.appendChild(row);
+          if (window.axh56106fraude) window.axh56106fraude.decorer([m]);   // 5.6.106 (lot F) : pastille (présentation historique)
         });
         pages.textContent = '';
         if (d.pages > 1) {
@@ -83,8 +122,10 @@
           prev.addEventListener('click', function () { state.page -= 1; list(); });
           next.addEventListener('click', function () { state.page += 1; list(); });
           pages.appendChild(prev); pages.appendChild(el('span', { 'class': 'ax-muted', text: 'Page ' + d.page + ' / ' + d.pages + ' · ' + d.total + ' courriel(s)' })); pages.appendChild(next);
-        }
-      }).catch(function (e) { rows.textContent = ''; rows.appendChild(el('p', { 'class': 'ax-alert', role: 'alert', text: e.message })); });
+          if (dense) { prev.textContent = '← Récents'; next.textContent = 'Anciens →'; prev.title = 'Courriels plus récents'; next.title = 'Courriels plus anciens'; }
+        } else if (dense) pages.appendChild(el('span', { 'class': 'ax-muted', text: d.total + ' courriel(s)' }));
+        box.dispatchEvent(new CustomEvent('axh5625:liste', { detail: d }));   // 5.6.106 (lot L) : liste affichée (sélection, glisser, raccourcis)
+      }).catch(function (e) { if (demande !== state.demande) return; rows.textContent = ''; rows.appendChild(el('p', { 'class': 'ax-alert', role: 'alert', text: e.message })); });
     };
     $('.bx5625-search', box).addEventListener('submit', function (ev) {
       ev.preventDefault(); state.q = ev.target.q.value.trim(); state.page = 1; list();
@@ -146,8 +187,13 @@
       return { panel: panel, folder: state.folder, role: state.role, folders: state.folders || [], reload: function () { list(); loadFolders(); }, open: open, clear: empty };
     };
     window.axh5625Ctx = ctx;
+    // 5.6.106 (lot L) : état de la liste pour v56106-liste.js (sélection, actions groupées, tri et filtres, raccourcis, glisser-déposer)
+    window.axh5625Liste = { etat: state, dense: dense, courant: function () { return state.current; }, ouvrir: function (uid) { open(uid); },
+                            recharger: function () { list(); }, dossiers: function () { return loadFolders(); }, ctx: function () { return ctx(); },
+                            filtrer: function (opts) { state.opts = opts || {}; state.page = 1; list(); } };
     var render = function (m) {
       state.current = m;
+      if (window.axh56106lecteur) window.axh56106lecteur.afficher(panel, m);   // 5.6.106 (lot V) : contenu, pièces, en-têtes posés juste après ce rendu (barre, réponses et « Répondre avec l’IA » gardés)
       panel.textContent = '';
       if (window.axh5628) panel.appendChild(window.axh5628.toolbar(m, ctx()));
       if (m.key) panel.appendChild(el('p', {}, [el('a', { 'class': 'ax-btn ghost', href: prefix + '/mes-taches?' + new URLSearchParams({ courriel: m.key, matter: m.matter || '' }).toString(), text: 'Créer une tâche' })]));   // 5.6.88
@@ -271,17 +317,29 @@
         el('p', { text: 'Texte, pièces jointes, réponses déjà préparées ; pour un courriel reçu, vous pouvez demander une réponse à l’agent. Rien n’est envoyé.' })]));
       list();
     };
-    var loadFolders = function () { return api('m5625/boite/dossiers').then(function (d) {
-      state.folders = d.folders;
+    // 5.6.106 (lot L) : présentation dense — dossiers complétés (nom court, profondeur, protégés), cibles du glisser-déposer
+    var loadFolders = function () { return api(dense ? 'm56106/boite/dossiers' : 'm5625/boite/dossiers').then(function (d) {
+      state.folders = d.folders; state.dossiers56106 = d;
       flist.textContent = '';
       d.folders.forEach(function (f) {
         var b = el('button', { type: 'button', 'class': 'bx5625-folder', title: f.name },
-          [el('span', { 'aria-hidden': 'true', text: ICONS[f.role] || '📁' }), el('span', { text: f.label })]);
+          [el('span', { 'aria-hidden': 'true', text: ICONS[f.role] || '📁' }), el('span', { text: dense && f.court ? f.court : f.label })]);
+        if (dense) {
+          b.setAttribute('data-dossier', f.name); b.setAttribute('data-role', f.role || '');
+          if (f.profondeur) b.classList.add('bx56106-niveau-' + Math.min(4, f.profondeur));
+          if (f.protege) b.setAttribute('data-protege', '1');
+        }
         if ((f.role === 'inbox' && !state.folder) || (state.folder && f.name === state.folder)) b.setAttribute('aria-current', 'true');
         b.addEventListener('click', function () { choose(f, b); });
         flist.appendChild(b);
       });
+      box.dispatchEvent(new CustomEvent('axh5625:dossiers', { detail: d }));
     }).catch(function (e) { flist.textContent = ''; flist.appendChild(el('p', { 'class': 'ax-muted', text: 'Dossiers indisponibles : ' + e.message })); }); };
+    window.axh5625Liste.choisir = function (nom) {   // 5.6.106 : ouvrir un dossier par son nom IMAP (après création ou renommage)
+      var f = (state.folders || []).filter(function (x) { return x.name === nom; })[0];
+      var b = f && flist.querySelector('.bx5625-folder[data-dossier="' + String(nom).replace(/["\\]/g, '\\$&') + '"]');
+      if (f) choose(f, b);
+    };
     loadFolders();
     list();
   }

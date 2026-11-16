@@ -51,9 +51,9 @@ def now():
 TESSERACT = '/usr/bin/tesseract'
 PDFTOPPM = '/usr/bin/pdftoppm'
 if __import__('os').name == 'nt':   # 5.6.25 : Windows — dossiers d'installation habituels (Tesseract-OCR, Poppler)
-    from .portable import which as _which
-    TESSERACT = _which('tesseract') or TESSERACT
-    PDFTOPPM = _which('pdftoppm') or PDFTOPPM
+    from .outils_ocr56106 import chemin as _chemin   # 5.6.106 (lot W) : outils embarqués dans l'application d'abord
+    TESSERACT = _chemin('tesseract') or TESSERACT
+    PDFTOPPM = _chemin('pdftoppm') or PDFTOPPM
 _langs = {}
 
 
@@ -70,16 +70,19 @@ def _run(args, timeout=120):
 
 def ocr_available():
     """('fra+eng' | 'eng' | '') selon les langues Tesseract installées."""
-    if 'value' in _langs:
-        return _langs['value']
-    value = ''
-    if Path(TESSERACT).is_file() and Path(PDFTOPPM).is_file():
-        try:
-            langs = set(_run([TESSERACT, '--list-langs'], 20).decode('utf-8', 'replace').split())
-            value = 'fra+eng' if 'fra' in langs else ('eng' if 'eng' in langs else '')
-        except Stop:
-            value = ''
-    _langs['value'] = value
+    if 'langs' not in _langs:   # 5.6.106 (lot W) : langues installées gardées ; le choix du cabinet est relu à chaque appel
+        langs = set()
+        if Path(TESSERACT).is_file() and Path(PDFTOPPM).is_file():
+            try:
+                langs = set(_run([TESSERACT, '--list-langs'], 20).decode('utf-8', 'replace').split())
+            except Stop:
+                langs = set()
+        _langs['langs'] = langs
+    langs = _langs['langs']
+    value = 'fra+eng' if 'fra' in langs else ('eng' if 'eng' in langs else '')
+    if value:
+        from .outils_ocr56106 import langues as _langues   # 5.6.106 (lot W) : langues choisies par le cabinet, installées seulement
+        value = '+'.join(l for l in _langues().split('+') if l in langs) or value
     return value
 
 

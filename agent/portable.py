@@ -124,6 +124,11 @@ def which(name):
     """Chemin d'un programme externe : ``PATH`` d'abord, puis dossiers d'installation habituels (Windows ou Linux) ; ``None`` sinon.
     5.6.30 : sous Windows, LibreOffice est lancé par ``soffice.com`` (variante console qui attend la fin de la conversion) ;
     ``soffice.exe`` rend la main avant d'avoir écrit le fichier."""
+    if WINDOWS and name in ('tesseract', 'pdftoppm', 'pdftotext', 'pdfinfo'):   # 5.6.106 (lot W) : Tesseract et Poppler embarqués d'abord
+        from .outils_ocr56106 import embarque
+        found = embarque(name)
+        if found:
+            return found
     found = _which(name)
     if found and WINDOWS and name in ('libreoffice', 'soffice') and found.lower().endswith('soffice.exe'):
         console = found[:-len('soffice.exe')] + 'soffice.com'
@@ -154,6 +159,11 @@ def tool_env(**extra):
         keep = ('SystemRoot', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'PATH', 'PATHEXT', 'COMSPEC', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA',
                 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramData', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE')
         env = {k: os.environ[k] for k in keep if k in os.environ}
+        try:   # 5.6.106 (lot W) : données de Tesseract embarquées ou du cabinet (langues ajoutées)
+            from .outils_ocr56106 import env_tesseract
+            env.update(env_tesseract())
+        except Exception:   # noqa: BLE001 — sans ces données, Tesseract installé à part garde son propre dossier
+            pass
     else:
         env = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8'}
     env.update({k: str(v) for k, v in extra.items()})

@@ -15,6 +15,9 @@ Sûreté :
 - Droits : un dossier réservé à d'autres membres (``acces5697.masques``, registre ``membres5650``) ou un chemin hors des racines donne le même
   ``Stop('introuvable')`` (404 neutre) qu'un fichier absent ; un registre illisible donne ``controle_acces_indisponible`` (503), jamais un accès
   élargi. Le contrôle a lieu avant toute lecture, liste, empreinte, note ou écriture.
+- Arborescences (5.6.106, audit F1) : une copie, un déplacement, un renommage, une corbeille ou une archive ZIP ne fait jamais sortir une pièce
+  d'un dossier réservé, et une racine réservée ou l'un de ses ancêtres ne se copie, ne se déplace, ne se renomme ni ne part à la corbeille
+  d'ici ; pour tout le cabinet, administrateur compris, juste avant l'effet et sous le verrou des réservations (voir ``_exiger_arborescence``).
 - Écritures : création exclusive (If-None-Match: *), remplacement conditionnel (If-Match sur l'ETag) ; un conflit ne remplace jamais une version
   plus récente : la restauration écrit alors une COPIE DE CONFLIT signalée. Chaque effet passe par ``pause5629.checkpoint`` et le journal d'audit.
 - Aucun modèle d'IA ne lit le contenu d'un fichier depuis cette page : aucun appel à un modèle dans ce module.
@@ -769,6 +772,78 @@ def ouvrir(desk, auth, acteur, ident, chemin, sources_=None):
     return s, s.autoriser(chemin, acteur)
 
 
+# ------------------------------------------------------------------------------------------------------------------- arborescences réservées
+# 5.6.106 (audit 5.6.105, F1) : ``autoriser`` contrôle le chemin demandé (est-il DANS un dossier masqué ?), pas la relation inverse. Or une
+# copie, un déplacement, un renommage ou une mise à la corbeille d'un dossier parent est récursif côté Nextcloud (RFC 4918 § 9.8 et 9.9) : il
+# emportait le contenu d'un dossier réservé, et le registre des réservations, résolu par le chemin enregistré du dossier, ne suit pas un
+# déplacement. Contrôle serveur JUSTE AVANT l'effet, pour tout le cabinet (administrateur compris : il voit tout, mais ne fait pas sortir une
+# pièce de son périmètre) :
+# - refus d'une opération sur une racine réservée ou sur l'un de ses ancêtres (un déplacement « officiel » d'un dossier protégé demandera une
+#   commande dédiée qui garde la protection au nouvel emplacement ; le déplacement générique reste fermé pour ce cas) ;
+# - aucune sortie d'une pièce de son périmètre par copie ou déplacement (vers un autre dossier ou une autre source) ;
+# - les opérations internes au périmètre restent permises à qui y a droit (``autoriser`` a déjà vérifié l'accès à la source et à la cible).
+# Refus neutre : ``Stop('introuvable')``, même 404 qu'un élément absent, aucun nom de dossier réservé. Registre des réservations ou des dossiers
+# illisible : ``controle_acces_indisponible`` (503), aucune mutation.
+# Concurrence : le contrôle et l'effet se font sous le verrou du registre des réservations (``membres5650._Locked``, entre processus), celui que
+# prend toute modification d'une réservation ; une réservation ajoutée, retirée ou déplacée par une autre requête se place donc avant ou après
+# l'opération, jamais entre son contrôle et son effet.
+def _racines_reservees(source):
+    """Chemins des dossiers réservés (à quelqu'un) dans cette source, relus à chaque appel. Seul Nextcloud porte les dossiers du cabinet ; un
+    dossier réservé absent du registre des dossiers, ou sans chemin, n'a pas d'emplacement à protéger (même règle que ``_caches``)."""
+    if not isinstance(source, SourceNextcloud):
+        return ()
+    from . import membres5650
+    from . import common
+    try:
+        reserves = membres5650.load(source.desk.c['state_dir'])['reserves']
+        if not reserves:
+            return ()
+        return tuple(sorted({clean_path(m['path']) for m in common.load_matters(source.desk.c, unfiltered=True)
+                             if str(m.get('id')) in reserves and m.get('path')}))
+    except (Stop, OSError, ValueError, TypeError, KeyError, AttributeError):
+        raise Stop('controle_acces_indisponible') from None
+
+
+def _exiger_arborescence(chemin, reserves, *, cible=None, autre_source=False):
+    """Refus neutre si l'opération sur ``chemin`` (vers ``cible`` pour une copie ou un déplacement) toucherait une racine réservée par un de ses
+    ancêtres, ou ferait sortir une pièce de son périmètre."""
+    for reserve in reserves:
+        if under(reserve, chemin):                       # racine réservée elle-même, ou l'un de ses ancêtres : opération récursive refusée
+            raise Stop('introuvable')
+        if cible is not None and under(chemin, reserve) and (autre_source or not under(cible, reserve)):
+            raise Stop('introuvable')                    # sortie du périmètre (autre dossier, autre source)
+
+
+class _GardeReserves:
+    """``with _GardeReserves(source) as reserves`` : verrou du registre des réservations pris (Nextcloud seulement), réservations relues ;
+    le contrôle et l'effet se font dans le bloc. Verrou indisponible (registre occupé plus de 5 s) : 503, rien n'est fait."""
+
+    def __init__(self, source):
+        self.source, self.verrou = source, None
+
+    def __enter__(self):
+        if not isinstance(self.source, SourceNextcloud):
+            return ()
+        from . import membres5650
+        verrou = membres5650._Locked(self.source.desk.c['state_dir'])
+        try:
+            verrou.__enter__()
+        except (Stop, OSError):
+            raise Stop('controle_acces_indisponible') from None
+        self.verrou = verrou
+        try:
+            return _racines_reservees(self.source)
+        except BaseException:
+            self.__exit__(None, None, None)
+            raise
+
+    def __exit__(self, *exc):
+        if self.verrou is not None:
+            verrou, self.verrou = self.verrou, None
+            verrou.__exit__(*exc)
+        return False
+
+
 # ------------------------------------------------------------------------------------------------------------------- idempotence
 def executer(desk, acteur, cle, nature, parametres, fn):
     """Une commande = un effet : même clé et mêmes paramètres → même reçu ; autre usage de la clé → ``cle_reutilisee`` (409). La commande est
@@ -1058,19 +1133,21 @@ def transferer(desk, auth, acteur, mode, src_ident, chemin, etag, dst_ident, dos
 
     def faire():
         _effet(desk)
-        if s.ident == d.ident:
-            if mode == 'copier':
-                s.copier(chemin, cible)
+        with _GardeReserves(s) as reserves:              # 5.6.106 (F1) : contrôle de l'arborescence juste avant l'effet, sous le verrou des réservations
+            _exiger_arborescence(chemin, reserves, cible=cible, autre_source=s.ident != d.ident)
+            if s.ident == d.ident:
+                if mode == 'copier':
+                    s.copier(chemin, cible)
+                else:
+                    s.deplacer(chemin, cible, etag)
+                    _suivre_notes(desk, s.ident, chemin, cible)
             else:
-                s.deplacer(chemin, cible, etag)
-                _suivre_notes(desk, s.ident, chemin, cible)
-        else:
-            if mode == 'deplacer':
-                raise Stop('deplacement_entre_sources')
-            p = s.proprietes(chemin)
-            if p['dossier']:
-                raise Stop('copie_dossier_entre_sources')
-            d.ecrire(cible, s.lire(chemin, LECTURE_MAX))
+                if mode == 'deplacer':
+                    raise Stop('deplacement_entre_sources')
+                p = s.proprietes(chemin)
+                if p['dossier']:
+                    raise Stop('copie_dossier_entre_sources')
+                d.ecrire(cible, s.lire(chemin, LECTURE_MAX))
         _journal(desk, acteur, mode, {'source': s.ident, 'chemin': chemin, 'vers_source': d.ident, 'vers': cible})
         return {'ok': True, 'chemin': cible, 'message': ('Copié dans « %s ».' if mode == 'copier' else 'Déplacé dans « %s ».') % _nom(dossier)}
     return executer(desk, acteur, cle, mode, {'s': s.ident, 'c': chemin, 'e': etag, 'd': d.ident, 'v': cible}, faire)
@@ -1087,7 +1164,9 @@ def corbeille(desk, auth, acteur, ident, chemin, etag, cle, sources_=None):
 
     def faire():
         _effet(desk)
-        s.corbeille(chemin, etag)
+        with _GardeReserves(s) as reserves:              # 5.6.106 (F1) : la corbeille d'un parent emportait le dossier réservé
+            _exiger_arborescence(chemin, reserves)
+            s.corbeille(chemin, etag)
         desk.db.execute('DELETE FROM fichiers56103_verrous WHERE source=? AND chemin=?', (s.ident, chemin))
         desk.db.commit()
         _journal(desk, acteur, 'corbeille', {'source': s.ident, 'chemin': chemin})
@@ -1190,11 +1269,20 @@ def renommer_lot(desk, auth, acteur, ident, dossier, elements, regle, cle, sourc
 
     def faire():
         faits, echec = [], None
+        # 5.6.106 (F1) : tout le lot est contrôlé AVANT le premier renommage (un parent de dossier réservé dans le lot : rien n'est renommé) ;
+        # chaque renommage est ensuite recontrôlé sous le verrou des réservations, juste avant son effet.
+        reserves = _racines_reservees(s)
+        cibles = []
         for l in a_faire:
+            cible = s.autoriser(_joindre(dossier, l['apres']), acteur)
+            _exiger_arborescence(l['chemin'], reserves, cible=cible)
+            cibles.append(cible)
+        for l, cible in zip(a_faire, cibles):
             try:
                 _effet(desk)
-                cible = s.autoriser(_joindre(dossier, l['apres']), acteur)
-                s.deplacer(l['chemin'], cible, _etag(l['etag']))
+                with _GardeReserves(s) as reserves:
+                    _exiger_arborescence(l['chemin'], reserves, cible=cible)
+                    s.deplacer(l['chemin'], cible, _etag(l['etag']))
                 _suivre_notes(desk, s.ident, l['chemin'], cible)
                 faits.append({'avant': l['avant'], 'apres': l['apres']})
             except Stop as ex:
@@ -1409,13 +1497,23 @@ def creer_zip(desk, auth, acteur, ident, dossier, chemins, nom, cle, sources_=No
     cible = s.autoriser(_joindre(dossier, nom), acteur)
     caches = s._caches(acteur) if isinstance(s, SourceNextcloud) else []
 
+    def _hors_archive(reserves):
+        # 5.6.106 (F1) : une archive est une copie ; un dossier réservé n'y entre que si l'archive reste dans son périmètre (administrateur compris)
+        return {r for r in reserves if not under(cible, r) and any(under(r, c) or under(c, r) for c in choisis)}
+
     def faire():
-        tampon, total, n = io.BytesIO(), 0, 0
+        exclus = _hors_archive(_racines_reservees(s))
+        if all(any(under(c, r) for r in exclus) for c in choisis):
+            raise Stop('introuvable')                    # rien d'autre que du réservé : aucune archive vide, refus neutre
+        tampon, total, n, laisses = io.BytesIO(), 0, 0, set()
         with zipfile.ZipFile(tampon, 'w', zipfile.ZIP_DEFLATED) as zf:
             attente = [(c, 0) for c in choisis]
             while attente:
                 c, prof = attente.pop(0)
                 if any(under(c, h) for h in caches):
+                    continue
+                if any(under(c, r) for r in exclus):
+                    laisses.update(r for r in exclus if under(c, r))
                     continue
                 p = s.proprietes(c)
                 rel = c[len(dossier):].strip('/')
@@ -1432,9 +1530,17 @@ def creer_zip(desk, auth, acteur, ident, dossier, chemins, nom, cle, sources_=No
                 total += len(data)
                 zf.writestr(rel, data)
         _effet(desk)
-        s.ecrire(cible, tampon.getvalue())
+        with _GardeReserves(s) as reserves:
+            if _hors_archive(reserves) != exclus:        # réservation changée pendant la lecture : rien n'est écrit, à refaire
+                raise Stop('version_perimee')
+            s.ecrire(cible, tampon.getvalue())
         _journal(desk, acteur, 'zip_cree', {'source': s.ident, 'chemin': cible, 'fichiers': n, 'octets': total})
-        return {'ok': True, 'chemin': cible, 'fichiers': n, 'message': 'Archive « %s » créée (%d fichier%s).' % (nom, n, 's' if n > 1 else '')}
+        message = 'Archive « %s » créée (%d fichier%s).' % (nom, n, 's' if n > 1 else '')
+        vus = [r for r in laisses if not any(under(r, h) for h in caches)]   # dit seulement à qui voit ces dossiers (jamais leur nom)
+        if vus:
+            message += (' %d dossier réservé laissé hors de l’archive : placée hors de ce dossier, elle en ferait sortir les pièces.' % len(vus) if len(vus) == 1
+                        else ' %d dossiers réservés laissés hors de l’archive : placée hors de ces dossiers, elle en ferait sortir les pièces.' % len(vus))
+        return {'ok': True, 'chemin': cible, 'fichiers': n, 'message': message}
     return executer(desk, acteur, cle, 'zip', {'s': s.ident, 'd': dossier, 'c': choisis, 'n': nom}, faire)
 
 

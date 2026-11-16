@@ -1008,6 +1008,8 @@ class Model:
     def _leaf(self,messages,temperature,max_tokens,json_schema):
         from .data_policy5689 import garde_modele   # 5.6.89 : politique des données, juste avant tout envoi, pour tous les fournisseurs (local compris)
         garde_modele(self.cfg,messages,getattr(self,'_trace',('',None))[0])
+        from .vision56106 import choisir as _choisir56106   # 5.6.106 (lot I) : images de CET appel : locale, masquée (externe) ou aucune
+        _choisir56106(self)
         from .bouclier5659 import protect_messages   # 5.6.59 : sources nettoyées, alerte transmise au modèle, constats journalisés
         messages=protect_messages(self.cfg,messages,getattr(self,'_trace',('',None))[0])
         from .competences5632 import current_instructions   # 5.6.32 (R16) : seules les compétences retenues pour la tâche
@@ -1041,6 +1043,7 @@ class Model:
             # 5.6.80 : le modèle reste chargé 30 min (5 par défaut) : plus de rechargement de plusieurs dizaines de secondes à la première question
             req['keep_alive']=self.cfg.get('keep_alive','30m')
             if json_schema is not None:req['format']=json_schema
+            from .vision56106 import monter as _monter56106;_monter56106(self,req)   # 5.6.106 (lot I) : « images » en base64 (modèle local)
             caps=getattr(self,'capabilities',None)
             if self.cfg.get('disable_thinking',True) and (caps is None or 'thinking' in caps):req['think']=False   # option non envoyée si non prise en charge
             self.last_options=dict(options)
@@ -1116,7 +1119,8 @@ class Model:
         if legacy:req['temperature']=max(0.0,min(float(temperature or 0),1.0))
         elif self.cfg.get('effort5682'):req['output_config']={'effort':self.cfg['effort5682']}
         if system.strip():req['system']=system
-        estimated=estimate_and_check_budget(self.cfg,messages,req['max_tokens'])   # 5.6.89 : borne de sortie réellement demandée (double pour la réflexion)
+        from .vision56106 import monter as _monter56106,supplement as _supplement56106;_monter56106(self,req)   # 5.6.106 (lot I) : blocs « image » (déjà masqués)
+        estimated=estimate_and_check_budget(self.cfg,messages+_supplement56106(self),req['max_tokens'])   # 5.6.89 : borne de sortie réellement demandée (double pour la réflexion) ; 5.6.106 : jetons des images
         from .arret5643 import interruptible
         from .budget_ledger5689 import preparer_emission
         preparer_emission(self.cfg)
@@ -1179,7 +1183,8 @@ class Model:
                 req['response_format']={'type':'json_schema','json_schema':{
                     'name':'axiorhub_result','strict':True,'schema':strict_form(json_schema)}}
             else:req['response_format']={'type':'json_object'}
-        estimated=estimate_and_check_budget(self.cfg,messages,max_tokens)
+        from .vision56106 import monter as _monter56106,supplement as _supplement56106;_monter56106(self,req)   # 5.6.106 (lot I) : « image_url » (déjà masquées)
+        estimated=estimate_and_check_budget(self.cfg,messages+_supplement56106(self),max_tokens)   # 5.6.106 : jetons des images comptés au budget
         from .arret5643 import interruptible
         from .budget_ledger5689 import preparer_emission
         preparer_emission(self.cfg)

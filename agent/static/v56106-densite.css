@@ -1,0 +1,190 @@
+/* AxiorHub 5.6.106 (lot D) — densité d'affichage de toute l'application et identité du cabinet dans la barre latérale.
+
+   ================================================================== CONTRAT POUR LES AUTRES LOTS (L, R, E, V) ==================
+   Attribut : <body data-densite="compacte|confortable">, posé par le serveur (identite56106.marquer_densite, appelé par
+   ui_helpers.enhance) d'après le réglage de la personne (Mon compte › Densité d'affichage). Défaut : « compacte ».
+   - Sans attribut (page hors gabarit, ancienne présentation) : les règles compactes ne s'appliquent pas ; seul
+     body[data-densite=compacte] les déclenche. La présentation précédente (interrupteur interface56100 éteint) reçoit toujours
+     « confortable » : rien ne change pour elle.
+   - Pour une règle propre à une page : préfixer par  body[data-densite=compacte]  (ou :not([data-densite=compacte]) pour le
+     mode confortable) et lire les variables ci-dessous plutôt que des valeurs en dur.
+
+   Variables (définies sur body ; « confortable » = valeurs historiques de la 5.6.105) :
+     --ax-texte            taille du texte courant              14px  | 15px
+     --ax-texte-petit      texte secondaire (jamais < 13px)     13px  | 14px
+     --ax-interligne       hauteur de ligne du texte            1.4   | 1.5
+     --ax-titre-page       titre de page (h1)                   22px  | 37.6px
+     --ax-titre-section    titre de bloc (h2)                   16px  | 18px
+     --ax-controle         hauteur d'un bouton ou d'un champ    32px  | 40px
+     --ax-controle-petit   petit bouton, puce de filtre         28px  | 32px
+     --ax-onglet           hauteur d'un onglet                  36px  | 44px
+     --ax-entete           barre du haut                        48px  | 73px
+     --ax-barre-laterale   largeur de la barre latérale         208px | 260px
+     --ax-menu-element     hauteur d'une entrée du menu         36px  | 42px
+     --ax-goutiere         marge latérale du contenu            16px  | 48px
+     --ax-espace-1..4      espacements                          4/8/12/16px | 4/8/16/24px
+     --ax-carte-pad        marge intérieure d'une carte         12px  | 16px
+     --ax-rayon            rayon des petits éléments arrondis   4px   | 4px
+     --ax-cible-tactile    cible minimale en mobile (≤ 850px)   40px  (les deux modes)
+   En mobile (≤ 850 px) et sur écran tactile (pointer: coarse), --ax-controle et --ax-menu-element valent au moins 40px :
+   la compacité vaut pour l'écran de bureau.
+
+   Identité du cabinet (toutes les pages, nouvelle interface) : .id106 en tête de #ws-sidebar (logo carré ou pastille aux initiales,
+   nom du cabinet sur une ou deux lignes), la marque AxiorHub dessous en petit. Aucune règle ici ne vise la page Courriels
+   (.bx5625*, .bx5628*, .bx56106* appartiennent aux lots L et R).
+   ============================================================================================================================= */
+
+/* ------------------------------------------------------------------ variables */
+body { --ax-cible-tactile: 40px; --ax-rayon: 4px; --ax-reserve-lanceur: 64px; }
+body, body[data-densite=confortable] {
+  --ax-texte: 15px; --ax-texte-petit: 14px; --ax-interligne: 1.5; --ax-titre-page: 2.35rem; --ax-titre-section: 18px;
+  --ax-controle: 40px; --ax-controle-petit: 32px; --ax-onglet: 44px; --ax-entete: 73px; --ax-barre-laterale: 260px; --ax-menu-element: 42px;
+  --ax-goutiere: 48px; --ax-espace-1: 4px; --ax-espace-2: 8px; --ax-espace-3: 16px; --ax-espace-4: 24px; --ax-carte-pad: 16px;
+}
+body[data-densite=compacte] {
+  --ax-texte: 14px; --ax-texte-petit: 13px; --ax-interligne: 1.4; --ax-titre-page: 22px; --ax-titre-section: 16px;
+  --ax-controle: 32px; --ax-controle-petit: 28px; --ax-onglet: 36px; --ax-entete: 48px; --ax-barre-laterale: 208px; --ax-menu-element: 36px;
+  --ax-goutiere: 16px; --ax-espace-1: 4px; --ax-espace-2: 8px; --ax-espace-3: 12px; --ax-espace-4: 16px; --ax-carte-pad: 12px;
+}
+/* jetons Carbon (ui_tokens5689) : texte courant 14px, petit 13px, titres réduits */
+:root body[data-carbon][data-densite=compacte] { --ui-taille-corps: .875rem; --ui-taille-petit: .8125rem; --ui-taille-titre-1: 1.375rem; --ui-taille-titre-2: 1rem; --ui-taille-titre-3: .9375rem; --ui-interligne: 1.4; }
+@media (max-width: 53.125rem), (pointer: coarse) {
+  body[data-densite=compacte] { --ax-controle: var(--ax-cible-tactile); --ax-controle-petit: var(--ax-cible-tactile); --ax-menu-element: 44px; --ax-onglet: 44px; }
+}
+
+/* ------------------------------------------------------------------ identité du cabinet en tête de la barre latérale (les deux densités) */
+#ws-sidebar .brand.id106-brand { padding: 0; }
+.id106 { align-items: center; display: flex; gap: .625rem; min-width: 0; padding: 0 .25rem; }
+.id106-marque { border-radius: 6px; display: block; flex: none; height: 44px; object-fit: cover; object-position: center; width: 44px; }
+.id106-initiales, #ws-sidebar .brand span.id106-initiales { align-items: center; background: #0043ce; color: #ffffff; display: inline-flex; font-size: 1.0625rem; font-weight: 700; justify-content: center; letter-spacing: .02em; }
+.id106-texte { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
+#ws-sidebar .id106-nom { -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #ffffff; display: -webkit-box; font-size: .9375rem; font-weight: 600; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere; }
+#ws-sidebar .id106-axiorhub { align-items: center; color: #c6c6c6; display: inline-flex; font-size: .75rem; gap: .25rem; line-height: 1.3; white-space: nowrap; }
+#ws-sidebar .id106-axiorhub img { height: 14px; width: 14px; }
+.ws-collapsed #ws-sidebar .id106 { justify-content: center; padding: 0; }
+.ws-collapsed #ws-sidebar .id106-texte { display: none; }
+@media (max-width: 53.125rem) { #ws-sidebar .id106 { padding: .25rem 0; } }
+
+/* ------------------------------------------------------------------ enveloppe compacte (bureau : plus de 850 px) */
+@media (min-width: 53.1875rem) {
+  body[data-densite=compacte] { font-size: var(--ax-texte); line-height: var(--ax-interligne); }
+  :root:not(.ws-collapsed):not(.ax-integre) body[data-densite=compacte] #ws-sidebar { padding: .625rem .625rem .75rem; width: var(--ax-barre-laterale); }
+  :root:not(.ws-collapsed):not(.ax-integre) body[data-densite=compacte] #ws-main { margin-left: var(--ax-barre-laterale); }
+  :root.ws-collapsed body[data-densite=compacte] #ws-sidebar { padding-top: .75rem; }
+  body[data-densite=compacte] #ws-main { max-width: none; padding-bottom: var(--ax-espace-4); padding-left: var(--ax-goutiere); padding-top: 0; }
+  /* à droite : la goutière plus la place du lanceur flottant de l'assistant (54 px à 20 px du bord), qui ne couvre ainsi aucune action ;
+     volet de relecture ancré (5.6.101) : sa réserve à droite est gardée */
+  body[data-densite=compacte]:not(.v101-volet-ouvert) #ws-main { padding-right: calc(var(--ax-goutiere) + var(--ax-reserve-lanceur)); }
+  body[data-densite=compacte] #ws-sidebar .brand { padding-left: .25rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-brand-lockup img { height: 28px; width: 28px; }
+  body[data-densite=compacte] #ws-sidebar .ws-brand-name { font-size: 1.125rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-brand-subtitle { font-size: .75rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-primary { gap: 2px; margin-top: .625rem; }
+  :root body[data-densite=compacte] #ws-sidebar .ws-primary a { font-size: .875rem; gap: .625rem; line-height: 1.25; min-height: var(--ax-menu-element); padding: .375rem .625rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-primary .ws-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body[data-densite=compacte] #ws-sidebar .ws-nav-icon { flex: none; }
+  :root body[data-densite=compacte] #ws-sidebar .f5631-all > summary { padding: .375rem .625rem !important; }
+  :root body[data-densite=compacte] #ws-sidebar .m82-settings { min-height: var(--ax-menu-element); padding: .375rem .625rem; }
+  body[data-densite=compacte] #ws-sidebar .ws-about { font-size: .75rem; line-height: 1.35; }
+
+  /* barre du haut : une bande de 48 px sur toute la largeur du contenu */
+  :root body[data-densite=compacte] .ws-topbar { box-sizing: border-box; gap: var(--ax-espace-2); margin: 0 calc(-1 * var(--ax-goutiere)) var(--ax-espace-2); min-height: var(--ax-entete);
+    padding: var(--ax-espace-1) var(--ax-goutiere); }
+  :root body[data-densite=compacte]:not(.v101-volet-ouvert) .ws-topbar { margin-right: calc(-1 * (var(--ax-goutiere) + var(--ax-reserve-lanceur))); }
+  :root body[data-densite=compacte] .ws-topbar-leading, :root body[data-densite=compacte] .ws-topbar-actions { gap: var(--ax-espace-1); }
+  :root body[data-densite=compacte] .ws-topbar .ws-icon-button { height: var(--ax-controle); min-height: var(--ax-controle); min-width: var(--ax-controle); padding: 0; width: var(--ax-controle); }
+  :root body[data-densite=compacte] .ws-topbar-actions a { min-height: var(--ax-controle); }
+  :root body[data-densite=compacte] .ws-topbar .l5631-lang { margin: 0; }
+  :root body[data-densite=compacte] .ws-topbar-actions > a, :root body[data-densite=compacte] .ws-topbar .ui89-retour { font-size: .8125rem; min-height: var(--ax-controle); padding: 0 .5rem; }
+  :root body[data-densite=compacte] .ws-topbar-actions select, :root body[data-densite=compacte] .ws-topbar .l5631-lang select { font-size: .8125rem; height: var(--ax-controle); min-height: var(--ax-controle); padding-bottom: 0; padding-top: 0; }
+  :root body[data-densite=compacte] .ws-topbar #ws-ai-live { height: var(--ax-controle); min-height: var(--ax-controle); width: var(--ax-controle); }
+  :root body[data-densite=compacte] .ws-ariane { font-size: .8125rem; }
+
+  /* titre de page : l'ancienne surligne « Cabinet · poste de travail » est redite par le fil d'Ariane ; titre et onglets sur une bande */
+  :root body[data-densite=compacte] .page-title { align-items: center; column-gap: var(--ax-espace-4); flex-wrap: wrap; margin: 0 0 var(--ax-espace-2); padding-top: 0; row-gap: 0; }
+  :root body[data-densite=compacte] .page-title .eyebrow { block-size: 1px; clip-path: inset(50%); inline-size: 1px; overflow: hidden; position: absolute; white-space: nowrap; }
+  :root body[data-densite=compacte] #ws-main .page-title h1, :root body[data-densite=compacte] #ws-main h1 { font-size: var(--ax-titre-page); letter-spacing: -.01em; line-height: 1.2; margin: 0 0 var(--ax-espace-2); }
+  :root body[data-densite=compacte] #ws-main .page-title h1 { margin: 0; }
+  :root body[data-densite=compacte] #ws-main .page-title > a { font-size: var(--ax-texte-petit); }
+  :root body[data-densite=compacte] .page-title.ax106-bande > div:first-child { flex: none; }
+  :root body[data-densite=compacte] .page-title.ax106-bande > .ws-tabs { border-bottom: 0; flex: 1 1 24rem; margin: 0; min-width: 0; }
+  :root body[data-densite=compacte] .page-title.ax106-bande > a { margin-left: auto; }
+  :root body[data-densite=compacte] #ws-main h2 { font-size: var(--ax-titre-section); line-height: 1.3; }
+
+  /* onglets de page et de famille */
+  :root body[data-densite=compacte] .ws-tabs { margin: var(--ax-espace-1) 0 var(--ax-espace-2); }
+  :root body[data-densite=compacte] .ws-tabs + .ws-tabs { margin-top: 0; }
+  :root body[data-densite=compacte] .ws-tabs a, :root body[data-densite=compacte] #ws-main .ui89-onglets [role=tab] { font-size: .875rem; min-height: var(--ax-onglet); padding: .375rem .75rem; }
+  :root body[data-densite=compacte] .ws-tabs a { align-items: center; display: inline-flex; }
+
+  /* boutons : 32 px (28 px pour les petits), groupes alignés sur une ligne et de même hauteur */
+  :root body[data-densite=compacte] #ws-main .ax-btn, :root body[data-densite=compacte] #ws-main button:not([class]),
+  :root body[data-densite=compacte] dialog .ax-btn { font-size: .875rem; gap: .375rem; line-height: 1.2; min-height: var(--ax-controle); padding: .25rem .75rem; }
+  :root body[data-densite=compacte] #ws-main .ax-btn:is(.small, .petit, .ax-btn-small, .ax-btn-sm) { font-size: .8125rem; min-height: var(--ax-controle-petit); padding: .125rem .5rem; }
+  :root body[data-densite=compacte] #ws-main :is(.actions, .ax-actions, .ax-buttons, .m97-boutons, .p5621-actions, .c5614-actions) { align-items: center; display: flex; flex-wrap: wrap; gap: var(--ax-espace-2); }
+  :root body[data-densite=compacte] #ws-main :is(.actions, .ax-actions, .ax-buttons, .m97-boutons) > :is(.ax-btn, button, a.ax-btn) { margin: 0; }
+  :root body[data-densite=compacte] #ws-main .m97-boutons { margin: var(--ax-espace-2) 0; }
+
+  /* champs : 32 px */
+  :root body[data-densite=compacte] #ws-main input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]):not([type=range]), :root body[data-densite=compacte] #ws-main select {
+    font-size: .875rem; min-height: var(--ax-controle); padding-bottom: .25rem; padding-top: .25rem; }
+  :root body[data-densite=compacte] #ws-main textarea { font-size: .875rem; padding: .375rem .625rem; }
+
+  /* formulaires : un libellé, sa liste et son bouton sur une seule ligne (« Trier par ») ; barres de filtres sur une ligne avec repli */
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)),
+  :root body[data-densite=compacte] #ws-main form.m5-inline:has(> label + :is(select, input:not([type=hidden]))):not(:has(> label ~ label)) { align-items: center; display: flex; flex-wrap: nowrap; gap: var(--ax-espace-1) var(--ax-espace-2); max-width: 100%; }
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)) > label { flex: none; margin: 0; white-space: nowrap; width: auto; }
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)) > :is(select, input) { flex: 0 1 16rem; margin: 0; min-width: 8rem; width: auto; }
+  :root body[data-densite=compacte] #ws-main form:not(.m5-form):has(> label + :is(select, input:not([type=hidden]))):not(:has(textarea, fieldset, > label ~ label)) > :is(button, .ax-btn) { flex: none; margin: 0; }
+  :root body[data-densite=compacte] #ws-main :is(.q51-filters, .d97-filtres, .ax100-filtres, .ui89-filtres, .tk28-chips) { align-items: center; display: flex; flex-wrap: wrap; gap: var(--ax-espace-1) var(--ax-espace-2); }
+  :root body[data-densite=compacte] #ws-main :is(.q51-filters, .d97-filtres, .tk28-chips) a { font-size: .8125rem; min-height: var(--ax-controle-petit); padding: .125rem .625rem; }
+
+  /* cartes : moins aérées */
+  :root body[data-densite=compacte] #ws-main :is(.ax-card, .card, .c530-card) { margin-bottom: var(--ax-espace-3); padding: var(--ax-carte-pad); }
+  :root body[data-densite=compacte] #ws-main .ax-card > h2:first-child, :root body[data-densite=compacte] #ws-main .c530-card > h2:first-child { margin-top: 0; }
+  /* formulaires d'une action dans un groupe de boutons : ni cadre ni marge, même ligne et même hauteur que les liens voisins */
+  :root body[data-densite=compacte] #ws-main :is(.q51-actions, .actions, .ax-actions, .c5614-actions, .l89-actions, .m97-boutons) form { background: none; border: 0; display: inline-flex; margin: 0; padding: 0; }
+  :root body[data-densite=compacte] #ws-main :is(.q51-actions, .c5614-actions, .l89-actions) { align-items: center; gap: var(--ax-espace-1) var(--ax-espace-2); }
+
+  /* conteneurs centrés de 1500 px (Aujourd'hui, pages intégrées) : toute la largeur disponible */
+  :root body[data-densite=compacte] #ws-main :is(.c530, .ax-main, .ax-in-workspace) { margin-left: 0; margin-right: 0; max-width: none; }
+  :root body[data-densite=compacte] #ws-main .ax-main.ax-in-workspace { font-size: var(--ax-texte); padding: 0 0 var(--ax-espace-3); }
+
+  /* marges héritées des premières versions (nav : 38 px, details : 10 + 14 px) ; :where() garde la main aux règles propres d'une page */
+  :where(body[data-densite=compacte] #ws-main) nav { margin-bottom: var(--ax-espace-2); margin-top: var(--ax-espace-2); }
+  :where(body[data-densite=compacte] #ws-main) details { margin-top: var(--ax-espace-2); padding-top: var(--ax-espace-1); }
+  :where(body[data-densite=compacte] #ws-main) :is(td, th) { padding: .375rem .5rem; }
+  :where(body[data-densite=compacte] #ws-main) :is(h2, h3) { margin-bottom: var(--ax-espace-2); margin-top: var(--ax-espace-3); }
+  :where(body[data-densite=compacte] #ws-main) p { margin-bottom: var(--ax-espace-2); margin-top: var(--ax-espace-2); }
+
+  /* Aujourd'hui : la densité compacte de la 5.6.96 (U02) s'applique d'office, blocs moins espacés */
+  :root body[data-densite=compacte] .c530 { --a96-ecart: .5rem; }
+  :root body[data-densite=compacte] .c530 .c530-card { margin-bottom: .5rem; padding: .625rem .75rem; }
+  :root body[data-densite=compacte] .c530 .ax95 { margin-top: .25rem; padding: .625rem .75rem .5rem; }
+  :root body[data-densite=compacte] .c530 .ax95-ligne { padding: .25rem .125rem; }
+  :root body[data-densite=compacte] .c530 .ax95-liste { margin-top: .375rem; }
+  :root body[data-densite=compacte] .c530 .c530-top { margin-bottom: .5rem; }
+  :root body[data-densite=compacte] .c530 :is(.a89-layout, .c530-cols, .f96-rang) { gap: var(--a96-ecart); margin-top: var(--a96-ecart); }
+  :root body[data-densite=compacte] .c530 .t88-item { padding-bottom: .25rem; padding-top: .25rem; }
+  :root body[data-densite=compacte] .c530 .t95-pli > summary.t95-pli-titre { min-height: 2rem; padding-bottom: .25rem; padding-top: .25rem; }
+}
+
+/* ------------------------------------------------------------------ mobile (≤ 850 px) : cibles tactiles de 40 px au moins */
+@media (max-width: 53.125rem) {
+  body[data-densite=compacte] #ws-main :is(.ax-btn, button, select, input:not([type=checkbox]):not([type=radio]):not([type=hidden])) { min-height: var(--ax-cible-tactile); }
+  body[data-densite=compacte] #ws-sidebar .ws-primary a { min-height: var(--ax-cible-tactile); }
+}
+
+/* ------------------------------------------------------------------ titre et onglets en bande : repli en petite largeur */
+.page-title.ax106-bande { flex-wrap: wrap; }
+.page-title.ax106-bande > .ws-tabs { flex: 1 1 100%; min-width: 0; }
+
+/* ------------------------------------------------------------------ Paramètres › logo du cabinet */
+.d106-logo-ligne { align-items: center; display: flex; flex-wrap: wrap; gap: .75rem; margin: .5rem 0; }
+.d106-logo-ligne .id106-marque { height: 48px; width: 48px; }
+.d106-logo-etat { margin: 0; }
+.d106-logo-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
+.d106-fichier { cursor: pointer; position: relative; }
+.d106-fichier:focus-within { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.d106-champ { block-size: 1px; clip-path: inset(50%); inline-size: 1px; opacity: 0; overflow: hidden; position: absolute; }
+[data-d106-statut][data-etat=erreur] { color: var(--cds-text-error, #da1e28); }

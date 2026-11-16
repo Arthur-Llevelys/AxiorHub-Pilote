@@ -132,6 +132,12 @@ JOBS |= {'pilote_messagerie56102'}   # 5.6.102 (lot M) : réponse de Pilote dans
 USER_JOBS |= {'pilote_messagerie56102'}
 JOBS |= {'tableau56103_dessin'}   # 5.6.103 (lot T) : « @pilote dessine » → proposition de schéma (Mermaid) pour le tableau blanc de la discussion
 USER_JOBS |= {'tableau56103_dessin'}
+JOBS |= {'lecteur56106_resume'}   # 5.6.106 (lot V) : résumé par l'IA des courriels cochés (droits de la personne relus, jamais posté ni envoyé)
+USER_JOBS |= {'lecteur56106_resume'}
+JOBS |= {'routine_message56106'}   # 5.6.106 (lot O) : routines « sur message » — courriels arrivés confrontés aux routines (travail automatique)
+JOBS |= {'vision56106_lecture'}   # 5.6.106 (lot I) : lecture d'une page par un modèle capable de voir (masquée avant tout envoi externe ; automatique : local seulement)
+USER_JOBS |= {'vision56106_lecture'}
+JOBS |= {'fraude56106_avis'}   # 5.6.106 (lot F) : second avis d'un modèle LOCAL sur un courriel signalé (option désactivée par défaut ; travail automatique)
 JOBS |= {'synchro_livrables5689','controle_livrable5689','export_livrable5689','modifier_livrable5689'}   # 5.6.89 : registre des livrables, contrôles, export suivi, proposition assistée
 USER_JOBS |= {'export_livrable5689','modifier_livrable5689','controle_livrable5689'}
 JOBS |= {'extraction_dossier5689','mission_conseil5689','obligations5689'}   # 5.6.89 : lecture d'une source du dossier, consultation et revue de contrat, obligations d'un accord signé
@@ -545,6 +551,23 @@ class Desk:
         ensure_fichiers56103_schema(self)
         from .tableau56103 import ensure_schema as ensure_tableau56103_schema   # 5.6.103 (lot T) : tableau blanc de la messagerie (scènes, versions, images, propositions de Pilote)
         ensure_tableau56103_schema(self)
+        from .redaction56106 import ensure_schema as ensure_redaction56106_schema   # 5.6.106 (lot R) : modèles de réponse du cabinet (texte), reçus d'idempotence
+        ensure_redaction56106_schema(self)
+        from .lecteur56106 import ensure_schema as ensure_lecteur56106_schema   # 5.6.106 (lot V) : préférence d'affichage, résumés par l'IA, reçus, liens courriel → tâche ou événement
+        ensure_lecteur56106_schema(self)
+        from .envoi56106 import ensure_schema as ensure_envoi56106_schema   # 5.6.106 (lot E) : file d'envoi (annulation, envoi programmé), reçus d'idempotence
+        ensure_envoi56106_schema(self)
+        from .boite56106 import ensure_schema as ensure_boite56106_schema   # 5.6.106 (lot L) : reçus d'idempotence des actions groupées, sous-dossiers des dossiers clients
+        ensure_boite56106_schema(self)
+        from .identite56106 import ensure_schema as ensure_identite56106_schema   # 5.6.106 (lot D) : logo du cabinet (octets), reçus d'idempotence
+        ensure_identite56106_schema(self)
+        from .routine_message56106 import ensure_schema as ensure_routine56106_schema; ensure_routine56106_schema(self)   # 5.6.106 (lot O) : routines sur message, arrivées, passages, propositions, reçus
+        from .outils_ocr56106 import configurer as configurer_ocr56106, ensure_schema as ensure_ocr56106_schema   # 5.6.106 (lot W) : langues de lecture des scans, reçus
+        configurer_ocr56106(self.c['state_dir']); ensure_ocr56106_schema(self)
+        from .vision56106 import ensure_schema as ensure_vision56106_schema   # 5.6.106 (lot I) : journal des images transmises (jamais l'image), lectures de pages, reçus
+        ensure_vision56106_schema(self)
+        from .fraude56106 import ensure_schema as ensure_fraude56106_schema   # 5.6.106 (lot F) : verdicts anti-fraude du relevé, exceptions, retours, IBAN confirmés, second avis
+        ensure_fraude56106_schema(self)
         from .relecture56100 import ensure_schema as ensure_relecture56100_schema, rattraper as rattraper_relecture56100   # 5.6.100 (lot B) : file commune « À relire »
         ensure_relecture56100_schema(self)
         try:   # reprise bornée et relançable des propositions existantes (sans LIKE sur le JSON) ; la suite passe par les automatismes
@@ -1060,6 +1083,16 @@ class Desk:
         if kind=='accord56102':   # 5.6.102 (lot K) : détection de l'accord du client, avancement d'un plan
             from .accord56102 import job as accord56102_job
             return accord56102_job(self,args)
+        if kind=='fraude56106_avis':   # 5.6.106 (lot F) : second avis d'un modèle local sur un courriel signalé (jamais externe)
+            from .fraude56106 import job as fraude56106_job
+            return fraude56106_job(self,args)
+        if kind=='routine_message56106':from .routine_message56106 import job as routine56106_job;return routine56106_job(self,args)   # 5.6.106 (lot O) : routines sur message
+        if kind=='vision56106_lecture':   # 5.6.106 (lot I) : lecture d'une page par un modèle capable de voir
+            from .vision56106 import job as vision56106_job
+            return vision56106_job(self,args)
+        if kind=='lecteur56106_resume':   # 5.6.106 (lot V) : résumé des courriels cochés (volet de droite de Courriels)
+            from .lecteur56106 import job as lecteur56106_job
+            return lecteur56106_job(self,args)
         if kind=='tableau56103_dessin':   # 5.6.103 (lot T) : Pilote dessine un schéma pour le tableau blanc (droits de la personne qui l'a demandé)
             from .tableau56103 import job as tableau56103_job
             return tableau56103_job(self,args)
@@ -1489,6 +1522,7 @@ class Desk:
                 def record_mail(key,report):
                     from .activity431 import mail_outcome
                     mail_outcome(self,key,report)
+                    from .routine_message56106 import a_l_arrivee as _arrivee56106o;_arrivee56106o(self,key,report)   # 5.6.106 (lot O) : routines sur message (arrivée notée, jamais bloquant)
                     if report.get('status')!='drafted' or not report.get('draft_verified'):return
                     from .production420 import record_job
                     did=record_job(self,{'id':row['id'],'kind':'prepare_reply'},
@@ -1891,6 +1925,8 @@ def worker(c,worker_id='1'):
             from .rapide5680 import LANE_ID,start_fast_lane
             _patient(desk,lambda:recover(desk,LANE_ID),'reprise des questions interrompues',startup_wait())
             start_fast_lane(c,stop)
+            from .envoi56106 import start_send_lane   # 5.6.106 (lot E) : départs de la file d'envoi (annulation, envoi programmé), jamais par le navigateur
+            start_send_lane(c,stop)
         pause=3.0
         last_watch=0.0
         while True:

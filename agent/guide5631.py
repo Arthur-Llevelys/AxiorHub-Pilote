@@ -106,6 +106,8 @@ REGLAGES = {'documents': '/parametres?rubrique=stockage', 'messagerie': '/parame
             'presentation': '/aujourdhui', 'ia': '/parametres?rubrique=ia', 'vue_assistee': '/parametres?rubrique=connexions', 'gmail': '/parametres?rubrique=connexions',
             'chatgpt': '/parametres?rubrique=ia', 'ia_connexion': '/parametres?rubrique=ia', 'sources': '/parametres?rubrique=recherche'}
 REGLAGES['comptes'] = '/parametres?rubrique=connexions#mise56103'   # 5.6.103 (lot G)
+CARTES['avocatfr'] = ('avocatfr56106:carte_guide',)   # 5.6.106 (lot P) : adresse @avocat.fr (CNB), en tête de l'étape « Messagerie »
+REGLAGES['avocatfr'] = '/parametres?rubrique=connexions#avocatfr56106'   # 5.6.106 (lot P)
 
 
 def _now():
@@ -1141,8 +1143,9 @@ def _cartes_etape(desk, env, prefix, step, data, owner, admin):
     if step == 'profil':
         return _presentation_html(desk, env, prefix, owner, admin)
     if step == 'messagerie':
-        out = '<section class="g5631-sub g5696-messagerie"><p>%s</p><h3>%s</h3>%s' % (
-            th('w5696.mail_readonly'), th('w5696.vue_assistee_title'), _carte('vue_assistee', desk, env, prefix, admin, owner))
+        _af106 = _carte('avocatfr', desk, env, prefix, admin, owner) if _carte_disponible('avocatfr') else ''   # 5.6.106 (lot P) : adresse @avocat.fr en tête
+        out = '<section class="g5631-sub g5696-messagerie"><p>%s</p>%s<h3>%s</h3>%s' % (
+            th('w5696.mail_readonly'), _af106, th('w5696.vue_assistee_title'), _carte('vue_assistee', desk, env, prefix, admin, owner))
         if _carte_disponible('gmail'):   # Gmail : seulement si son connecteur est livré (5.6.97)
             out += '<h3>Gmail</h3>%s<p class="g5631-later-row">%s</p>' % (_carte('gmail', desk, env, prefix, admin), _plus_tard('gmail'))
         if _carte_disponible('comptes'):   # 5.6.103 (lot G) : Compte Google (mot de passe d'application, application interne) et Compte Microsoft

@@ -137,7 +137,10 @@ def send_html(snd, matters, log):
     table = ('<table class="vf-table"><thead><tr><th>Dossier</th><th>Autorisation</th></tr></thead><tbody>%s</tbody></table>' % matters) if matters else ''
     journal = ('<h3>Envois récents (30 jours)</h3><table class="vf-table"><thead><tr><th>Date (UTC)</th><th>Dossier</th><th>Destinataires</th><th>Issue</th></tr></thead><tbody>%s</tbody></table>' % log) if log else ''
     return head + table + journal + ('<p class="vf-note">Garde-fous : activation générale + par dossier, double confirmation avec destinataires et objet, contrôle que le brouillon n’a pas changé depuis l’aperçu, '
-                                     'refus des brouillons « À VÉRIFIER », jamais deux fois le même contenu, plafond de %d envois par heure, copie dans les éléments envoyés. Le journal ne contient ni texte ni objet.</p>' % snd['max_per_hour'])
+                                     'refus des brouillons « À VÉRIFIER », jamais deux fois le même contenu, plafond de %d envois par heure, copie dans les éléments envoyés. Le journal ne contient ni texte ni objet.</p>' % snd['max_per_hour']
+                                     # 5.6.106 (lot E) : file d'envoi de la messagerie
+                                     + '<p class="vf-note">Dans Courriels, un message confirmé attend dans la file d’envoi (10 s par défaut, « Annuler » possible, '
+                                       'ou jusqu’à l’heure programmée) ; il reste dans Brouillons jusqu’à son départ, fait par le travailleur du serveur.</p>')
 
 
 def mobile_html(mob):
@@ -235,7 +238,11 @@ def webmail_send(desk, data, owner='cabinet', acteur=None):
 
 
 def webmail_confirm(desk, token):
-    return send490.confirm(desk, token)
+    """5.6.106 (lot E) : la confirmation de la messagerie met le message dans la file d'envoi (délai d'annulation du compte, sans option) ;
+    le départ réel est fait par le travailleur. Le bloc d'envoi de la messagerie passe par ``m56106/envoi/confirmer`` (options)."""
+    from .envoi56106 import mettre_en_file
+    from .membres5650 import current_author, viewer_role
+    return mettre_en_file(desk, current_author() or 'cabinet', viewer_role(), token)
 
 
 def brouillon_du_jeton(desk, token):
@@ -247,4 +254,24 @@ def brouillon_du_jeton(desk, token):
     except sqlite3.Error:
         return {}
     return {'uid': str(row[0]), 'uidvalidity': str(row[1])} if row else {}
+
+
+# ------------------------------------------------------------- 5.6.106 (lot E) : file d'envoi (seule la couche web touche au module d'envoi)
+def file_jeton(desk, token):
+    """Empreinte annoncée par un jeton d'aperçu encore valable (lecture seule)."""
+    return send490.pending_fingerprint(desk, token)
+
+
+def file_confirmer(desk, token, now=None):
+    """Second clic de la personne : jeton consommé, brouillon contrôlé ; rien n'est envoyé (``envoi56106.mettre_en_file``)."""
+    return send490.confirm_to_queue(desk, token, now)
+
+
+def file_depart(desk, uid, validity, fp, matter, message_id, extra_headers=None, before_effect=None, on_log=None, on_sent=None):
+    """Départ d'un message de la file, par le fil d'envoi du travailleur : seulement un message qu'une personne a confirmé et que ce fil
+    vient de réserver (ligne « en cours » de ``envoi_file56106``, même brouillon, même empreinte, même Message-ID). Rien d'autre ne part."""
+    if not message_id or not desk.db.execute("SELECT 1 FROM envoi_file56106 WHERE uid=? AND validity=? AND fingerprint=? AND message_id=? "
+                                             "AND etat='en_cours'", (str(uid), str(validity), str(fp), str(message_id))).fetchone():
+        raise Stop('envoi_non_confirme')
+    return send490.deliver_queued(desk, uid, validity, fp, matter, message_id, extra_headers, before_effect, on_log, on_sent)
 

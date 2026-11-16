@@ -1762,6 +1762,18 @@ PARCOURS = PARCOURS + (('P103f', 'Fichiers : deux volets, onglet, filtre, 390 px
                        ('P103g', 'Comptes Google et Microsoft : étapes facultatives, passer puis reprendre, mot de passe d’application', p103g_comptes))
 from parcours_p103t import p103t_tableau   # noqa: E402 — 5.6.103 (lot T) : tableau blanc (Excalidraw) dans la messagerie
 PARCOURS = PARCOURS + (('P103t', 'Tableau blanc : volet de la discussion, dessin enregistré, Pilote dessine (Mermaid), aucune requête externe', p103t_tableau),)
+from parcours_p106l import p106l_courriels   # noqa: E402 — 5.6.106 (lot L) : liste dense, dossiers IMAP, actions groupées
+from parcours_p106r import p106r_redaction   # noqa: E402 — 5.6.106 (lot R) : rédaction compacte, dictée, images, modèles
+from parcours_p106v import p106v_lecteur   # noqa: E402 — 5.6.106 (lot V) : lecteur HTML isolé, impression, résumé, tâche, agenda
+from parcours_p106d import p106d_densite   # noqa: E402 — 5.6.106 (lot D) : densité de toutes les pages, logo du cabinet
+from parcours_p106p import p106p_avocatfr   # noqa: E402 — 5.6.106 (lot P) : réglage @avocat.fr
+from parcours_p106i import p106i_images   # noqa: E402 — 5.6.106 (lot I) : image ou page jointe à l'assistant
+PARCOURS = PARCOURS + (('P106l', 'Courriels : 14 lignes visibles, actions groupées, Marquer, épingle, dossiers IMAP, recherche étendue', p106l_courriels),
+                       ('P106r', 'Rédaction : compacte, dictée, mise en forme, cases, images collées, brouillon repris, modèles', p106r_redaction),
+                       ('P106v', 'Lecteur : HTML isolé, images bloquées, impression, Enregistrer sous, résumé, tâche et agenda', p106v_lecteur),
+                       ('P106d', 'Densité compacte de toutes les pages, logo et nom du cabinet en haut de la barre latérale', p106d_densite),
+                       ('P106p', 'Messagerie @avocat.fr : réglage prêt à l’emploi, mot de passe applicatif, aide', p106p_avocatfr),
+                       ('P106i', 'Assistant : joindre une image ou une page, aperçu masqué avant envoi', p106i_images))
 
 # ------------------------------------------------------------------------------------------------ lancement
 def _tranche(ident):

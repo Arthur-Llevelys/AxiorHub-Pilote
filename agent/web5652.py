@@ -254,6 +254,7 @@ def routines_block(desk, auth, prefix, role=None, compact=False, formulaires_dif
                              e('Activée' if r['enabled'] else 'En pause', quote=True), '' if r['enabled'] else '⏸', e(r['title']), e(court(nxt)) if nxt else '—',
                              ('<span class="r99-manque" title="%s" aria-label="%s">⚠</span>' % ((e('Manque : ' + ', '.join(rt.CAP_LABELS.get(c, c) for c in caps), quote=True),) * 2)) if caps else '',
                              run.replace('>Lancer</button>', ' aria-label="%s" title="Lancer">▶</button>' % e('Lancer : ' + r['title'], quote=True), 1)))
+    from .routine_message56106 import monter_cartes as _o106; _o106(desk, prefix, owner, role, compact, cards, strip)   # 5.6.106 (lot O) : routines « sur message » (pause, modifier, supprimer, historique)
     paused = bool(desk.settings('missions567:pause', False))
     add = ''
     if role in ('administrateur', 'avocat'):

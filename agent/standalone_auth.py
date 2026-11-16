@@ -94,6 +94,36 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56102/pilote/'):   # 5.6.102 (lot M) : Pilote dans la messagerie (tous les rôles ; réglage : administrateur ; fil et droits relus par le service)
         from .pilote_messagerie56102 import allowed as allowed56102m
         return allowed56102m(role, method, api)
+    if api.startswith('m56106/redaction/'):   # 5.6.106 (lot R) : modèles de réponse (avocat, administrateur ; auteur et version relus par le service)
+        from .redaction56106 import allowed as allowed56106r
+        return allowed56106r(role, method, api)
+    if api.startswith('m56106/envoi/'):   # 5.6.106 (lot E) : file d'envoi (avocat, administrateur ; propriétaire, version et droit « envoyer » relus par le service)
+        from .envoi56106 import allowed as allowed56106e
+        return allowed56106e(role, method, api)
+    if api.startswith(('m56106/identite/', 'm56106/densite')):   # 5.6.106 (lot D) : logo du cabinet (administrateur) ; densité d'affichage (chacun pour son compte)
+        from .identite56106 import allowed as allowed56106d
+        return allowed56106d(role, method, api)
+    if api.startswith('m56106/boite/'):   # 5.6.106 (lot L) : actions groupées et dossiers IMAP (avocat, administrateur ; droits et UIDVALIDITY relus par le service)
+        from .boite56106 import allowed as allowed56106l
+        return allowed56106l(role, method, api)
+    if api.startswith('m56106/ocr/'):   # 5.6.106 (lot W) : langues de lecture des scans (administrateur seulement)
+        from .outils_ocr56106 import allowed as allowed56106w
+        return allowed56106w(role, method, api)
+    if api.startswith('m56106/vision/'):   # 5.6.106 (lot I) : aperçu et lecture d'une page (tous les rôles ; dossier et droits relus par le service) ; réglages : administrateur
+        from .vision56106 import allowed as allowed56106i
+        return allowed56106i(role, method, api)
+    if api.startswith('m56106/lecteur/'):   # 5.6.106 (lot V) : préférence d'affichage, résumé par l'IA, note, tâche, événement (avocat, administrateur ; droits relus par le service)
+        from .lecteur56106 import allowed as allowed56106v
+        return allowed56106v(role, method, api)
+    if api.startswith('m56106/fraude/'):   # 5.6.106 (lot F) : alerte anti-fraude (avocat, administrateur ; droits et UIDVALIDITY relus par le service) ; réglages : administrateur
+        from .fraude56106 import allowed as allowed56106f
+        return allowed56106f(role, method, api)
+    if api.startswith('m56106/routine/'):   # 5.6.106 (lot O) : routines sur message (avocat, administrateur ; auteur, droits et version relus par le service)
+        from .routine_message56106 import allowed as allowed56106o
+        return allowed56106o(role, method, api)
+    if api.startswith('m56106/avocatfr/'):   # 5.6.106 (lot P) : adresse @avocat.fr (tester, enregistrer ; administrateur seulement)
+        from .avocatfr56106 import allowed as allowed56106p
+        return allowed56106p(role, method, api)
     if api.startswith('m56103/assistant/'):   # 5.6.103 (lot G) : passer / reprendre ses propres étapes facultatives (tous les rôles)
         from .assistant56103 import allowed as allowed56103a
         return allowed56103a(role, method, api)

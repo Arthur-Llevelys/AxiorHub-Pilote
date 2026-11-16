@@ -1,0 +1,40 @@
+/* AxiorHub 5.6.106 (lot F) — alerte « courriel potentiellement frauduleux » : pastille de la liste (icône, couleur ET texte) et bandeau du
+   lecteur (motifs, conseils, liens désactivés, actions). Contraste AA en clair et en sombre ; focus visible ; à 390 px les boutons passent à la ligne. */
+.fr106-pastille{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;font-size:12px;font-weight:700;line-height:1.2;padding:1px 6px;
+  border-radius:999px;border:1px solid;margin-right:4px;white-space:nowrap}
+.fr106-pastille.fr106-attention{background:#fff4ce;color:#3d2e00;border-color:#8a6d00}
+.fr106-pastille.fr106-suspect{background:#ffe2cc;color:#5a1f00;border-color:#b54400}
+.fr106-pastille.fr106-danger{background:#a2191f;color:#fff;border-color:#750e13}
+.fr106-ligne-danger{box-shadow:inset 4px 0 0 #a2191f}
+.fr106-ligne-suspect{box-shadow:inset 4px 0 0 #b54400}
+.fr106-bandeau{display:grid;gap:6px;margin:0 0 6px;padding:8px 12px;border-radius:8px;border:2px solid;font-size:14px;line-height:1.4}
+.fr106-bandeau.fr106-attention{background:#fff4ce;color:#3d2e00;border-color:#8a6d00}
+.fr106-bandeau.fr106-suspect{background:#fff0e6;color:#4a1a00;border-color:#b54400}
+.fr106-bandeau.fr106-danger{background:#fde7e9;color:#5c0011;border-color:#a2191f}
+.fr106-titre{margin:0;font-size:15px;font-weight:700}
+.fr106-motifs,.fr106-conseils,.fr106-liens{margin:0;padding-left:20px;display:grid;gap:2px;overflow-wrap:anywhere}
+.fr106-sous-titre{margin:2px 0 0;font-weight:700}
+.fr106-pieces,.fr106-avis,.fr106-statut{margin:0}
+.fr106-liens-bloc summary{cursor:pointer;font-weight:600;min-height:28px}
+.fr106-liens li{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fr106-adresse{display:block;width:100%;font-size:13px;overflow-wrap:anywhere;background:rgba(0,0,0,.06);padding:2px 6px;border-radius:4px}
+.fr106-actions{display:flex;flex-wrap:wrap;gap:6px}
+.fr106-actions .ax-btn,.fr106-liens .ax-btn{min-height:32px;padding:4px 10px;font-size:14px}
+.fr106-bandeau button:focus-visible,.fr106-bandeau summary:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.fr106-piece-risque{flex:1 0 100%;font-size:13px;font-weight:700;color:#5c0011}
+.fr106-indisponible{margin:0 0 6px;font-size:13px;color:var(--ax-muted,#4b5563)}
+@media (max-width:420px){.fr106-actions .ax-btn{flex:1 1 100%}}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .fr106-pastille.fr106-attention,:root:not([data-theme=light]) .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+  :root:not([data-theme=light]) .fr106-pastille.fr106-suspect,:root:not([data-theme=light]) .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
+  :root:not([data-theme=light]) .fr106-pastille.fr106-danger{background:#fa4d56;color:#1a0003;border-color:#ffb3b8}
+  :root:not([data-theme=light]) .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
+  :root:not([data-theme=light]) .fr106-piece-risque{color:#ff8389}
+  :root:not([data-theme=light]) .fr106-adresse{background:rgba(255,255,255,.1)}
+}
+:root[data-theme=dark] .fr106-pastille.fr106-attention,:root[data-theme=dark] .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
+:root[data-theme=dark] .fr106-pastille.fr106-suspect,:root[data-theme=dark] .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
+:root[data-theme=dark] .fr106-pastille.fr106-danger{background:#fa4d56;color:#1a0003;border-color:#ffb3b8}
+:root[data-theme=dark] .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
+:root[data-theme=dark] .fr106-piece-risque{color:#ff8389}
+:root[data-theme=dark] .fr106-adresse{background:rgba(255,255,255,.1)}

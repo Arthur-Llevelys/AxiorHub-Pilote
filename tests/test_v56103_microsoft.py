@@ -141,9 +141,15 @@ class FauxMicrosoft:
                 if self.refuser_piece:
                     return self._json({'error': {'code': 'ErrorQuotaExceeded'}}, 413)
                 a = json.loads(corps)
-                taille = len(base64.b64decode(a['contentBytes']))
-                m['attachments'].append({'id': 'pj%d' % len(m['attachments']), 'name': a['name'], 'size': taille + 120})
-                return self._json({'id': 'pj'}, 201)
+                donnees = base64.b64decode(a['contentBytes'])
+                aid = 'pj%d' % len(m['attachments'])                               # 5.6.106 : comme Graph, la réponse donne l'identifiant de la pièce
+                m['attachments'].append({'id': aid, 'name': a['name'], 'size': len(donnees) + 120, 'data': donnees})
+                return self._json({'id': aid, 'name': a['name']}, 201)
+            if len(reste) == 4 and reste[1] == 'attachments' and reste[3] == '$value' and methode == 'GET':   # 5.6.106 : contenu d'une pièce
+                piece = next((a for a in m['attachments'] if a['id'] == reste[2]), None)
+                if piece is None:
+                    return self._json({'error': {'code': 'ErrorItemNotFound'}}, 404)
+                return 200, {}, piece['data']
             if reste[1:] == ['attachments', 'createUploadSession'] and methode == 'POST':
                 item = json.loads(corps)['AttachmentItem']
                 m.setdefault('sessions', {})
@@ -167,8 +173,9 @@ class FauxMicrosoft:
         s = m['sessions'][sid]
         s['recu'] += corps
         if len(s['recu']) >= s['size']:
-            m['attachments'].append({'id': 'pj%d' % len(m['attachments']), 'name': s['name'], 'size': len(s['recu']) + 200})
-            return 201, {'Location': 'https://outlook.office.com/x'}, b''
+            aid = 'pj%d' % len(m['attachments'])                                       # 5.6.106 : Location désigne la pièce créée, comme Outlook
+            m['attachments'].append({'id': aid, 'name': s['name'], 'size': len(s['recu']) + 200, 'data': s['recu']})
+            return 201, {'Location': "https://outlook.office.com/api/v2.0/Users('u')/Messages('%s')/Attachments('%s')" % (mid, aid)}, b''
         return 200, {}, json.dumps({'nextExpectedRanges': [str(len(s['recu']))]}).encode()
 
     # ----- OneDrive

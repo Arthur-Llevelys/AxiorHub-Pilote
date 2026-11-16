@@ -1,0 +1,48 @@
+/* AxiorHub 5.6.106 (lot O) — assistant « Créer une routine à partir du message » (lecteur des courriels) et routines « sur message »
+   d'Aujourd'hui (carte, historique, propositions). Jetons --ax-* avec repli ; contraste AA en clair et en sombre ; focus visible ;
+   à 390 px tout passe à la ligne. */
+.o106-assistant{display:grid;gap:8px;margin:8px 0;min-width:0}
+.o106-formulaire{display:grid;gap:8px;border:1px solid var(--ax-line,#9fb3d1);border-radius:10px;padding:10px;background:var(--ax-soft,#f7f9fd);
+  color:var(--ax-ink,#1b2430);min-width:0}
+.o106-formulaire h3{margin:0;font-size:15px}
+.o106-champ{display:grid;gap:2px;font-size:14px;min-width:0}
+.o106-champ label{font-weight:600}
+.o106-formulaire input:not([type=checkbox]):not([type=radio]),.o106-formulaire select,.o106-form input:not([type=checkbox]):not([type=radio]),
+.o106-form select,.o106-prop input{font:inherit;min-height:32px;padding:4px 8px;border:1px solid var(--ax-line,#8d96a3);border-radius:6px;
+  background:var(--ax-card,#fff);color:var(--ax-ink,#1b2430);min-width:0;max-width:100%}
+.o106-groupe{border:1px solid var(--ax-line,#c3cad5);border-radius:8px;padding:6px 10px;margin:0;display:grid;gap:4px;min-width:0}
+.o106-groupe legend{font-weight:600;font-size:14px;padding:0 4px}
+.o106-case{display:flex;gap:6px;align-items:flex-start;font-size:14px;line-height:1.4}
+.o106-case input{margin-top:3px;flex:none}
+.o106-ligne{display:flex;flex-wrap:wrap;gap:8px}.o106-ligne>.o106-champ{flex:1 1 160px}
+.o106-aide{margin:0;font-size:13px;color:var(--ax-muted,#4b5563)}
+.o106-statut{margin:0;font-size:14px}
+.o106-statut.o106-erreur{color:#a2191f;font-weight:600}
+.o106-actions{display:flex;flex-wrap:wrap;gap:6px}
+.o106-apercu{margin:0;padding-left:18px;font-size:13px;display:grid;gap:2px;overflow-wrap:anywhere}
+.o106-formulaire :focus-visible,.o106-card :focus-visible,.o106-btn:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.o106-tag{display:inline-block;font-size:12px;font-weight:600;padding:1px 6px;border-radius:10px;border:1px solid var(--ax-accent,#1f4e9c);
+  color:var(--ax-accent,#1f4e9c);background:var(--ax-card,#fff);margin-left:6px}
+.o106-card .r52-meta{overflow-wrap:anywhere}
+.o106-histo{margin-top:4px}
+.o106-histo>summary{cursor:pointer;font-weight:600;min-height:28px}
+.o106-passages,.o106-els{margin:4px 0;padding-left:18px;display:grid;gap:4px;font-size:14px;overflow-wrap:anywhere}
+.o106-quand{font-variant-numeric:tabular-nums;color:var(--ax-muted,#4b5563)}
+.o106-el{border-left:3px solid var(--ax-line,#c3cad5);padding-left:6px}
+.o106-el.o106-a_decider{border-left-color:#8a6d00}
+.o106-el.o106-cree{border-left-color:var(--ax-accent,#1f4e9c)}
+.o106-prop{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;margin:4px 0}
+.o106-prop .m5-field{display:grid;gap:2px;font-size:13px}
+.o106-form{display:grid;gap:6px}
+.o106-texte{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:14px;background:var(--ax-soft2,#f6f7f9);color:var(--ax-ink,#1b2430);
+  border-radius:8px;padding:8px;margin:4px 0;max-height:50vh;overflow:auto}
+:root[data-theme=dark] .o106-formulaire{background:#161b22;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .o106-formulaire input:not([type=checkbox]):not([type=radio]),:root[data-theme=dark] .o106-formulaire select,
+:root[data-theme=dark] .o106-form input:not([type=checkbox]):not([type=radio]),:root[data-theme=dark] .o106-form select,
+:root[data-theme=dark] .o106-prop input{background:#0d1117;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .o106-aide,:root[data-theme=dark] .o106-quand{color:#b8c2cf}
+:root[data-theme=dark] .o106-statut.o106-erreur{color:#ff8389}
+:root[data-theme=dark] .o106-tag{background:#0d1117;color:#a6c8ff;border-color:#a6c8ff}
+:root[data-theme=dark] .o106-texte{background:#1f2630;color:#e8edf3}
+:root[data-theme=dark] .o106-el.o106-a_decider{border-left-color:#d2a106}
+@media (max-width:48rem){.o106-prop{flex-direction:column;align-items:stretch}.o106-actions .ax-btn{flex:1 1 auto}}

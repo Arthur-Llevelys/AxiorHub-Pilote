@@ -79,8 +79,10 @@
     var head = $('#bx5625 .bx5625-head'), rows = $('#bx5625-rows');
     if (!head || !rows || head.querySelector('.c5670-traiter')) return;
     if (!head.querySelector('.bx5628-new') && waits < 20) { waits += 1; setTimeout(inboxBatch, 150); return; }   // à côté de « Nouveau message »
-    var btn = el('button', { type: 'button', 'class': 'ax-btn c5670-traiter', text: '✨ Traiter avec l’IA', disabled: 'disabled',
-                             title: 'Préparer une réponse pour chaque courriel coché (dossier connu, sinon réponse sans dossier) ; rien n’est envoyé' });
+    // 5.6.106 (lot L) : page Courriels dense : libellé court dans la barre (le libellé complet reste en infobulle)
+    var libelle = document.querySelector('#bx5625.bx56106') ? '✨ Traiter (IA)' : '✨ Traiter avec l’IA';
+    var btn = el('button', { type: 'button', 'class': 'ax-btn c5670-traiter', text: libelle, disabled: 'disabled',
+                             title: 'Traiter avec l’IA : préparer une réponse pour chaque courriel coché (dossier connu, sinon réponse sans dossier) ; rien n’est envoyé' });
     var all = el('button', { type: 'button', 'class': 'ax-btn ghost c5670-all', text: 'Tout cocher' });
     var newBtn = head.querySelector('.bx5628-new');
     head.insertBefore(all, newBtn ? newBtn.nextSibling : head.firstChild);
@@ -88,7 +90,7 @@
     function picked() { return $$('.c5670-pick input:checked', rows); }
     function refresh() {
       var n = picked().length;
-      btn.disabled = !n; btn.textContent = n ? '✨ Traiter avec l’IA (' + n + ')' : '✨ Traiter avec l’IA';
+      btn.disabled = !n; btn.textContent = n ? libelle + ' (' + n + ')' : libelle;
     }
     function decorate() {
       $$('.ax-row[data-uid]', rows).forEach(function (row) {

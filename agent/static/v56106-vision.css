@@ -1,0 +1,25 @@
+/* 5.6.106 (lot I) : « Joindre une image ou une page » (volet de l'assistant), aperçu masqué, réglages et lecture des scans illisibles. */
+.v106i-joindre { min-height: 32px; padding: 4px 10px; border: 1px solid var(--ax-border, #8a8f98); border-radius: 6px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); cursor: pointer; }
+.v106i-joindre:focus-visible, .v106i-mini:focus-visible, .v106i-dialog select:focus-visible, .v106i-dialog input:focus-visible { outline: 3px solid var(--ax-focus, #0b5cad); outline-offset: 2px; }
+.v106i-choix { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.v106i-puce { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--ax-border, #8a8f98); border-radius: 6px; }
+.v106i-mini { min-height: 28px; padding: 2px 8px; border: 1px solid var(--ax-border, #8a8f98); border-radius: 4px; background: transparent; color: inherit; cursor: pointer; }
+.v106i-avis, .v106i-etat { margin: 2px 0; font-size: .9em; }
+.v106i-etat:empty, .v106i-avis:empty { display: none; }
+.v106i-dialog { max-width: min(760px, 96vw); width: 100%; border: 1px solid var(--ax-border, #8a8f98); border-radius: 8px; background: var(--ax-surface, #fff); color: var(--ax-text, #1b1f24); }
+.v106i-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.v106i-dialog label { display: block; margin: 6px 0; }
+.v106i-dialog select { max-width: 100%; }
+.v106i-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.v106i-aide { font-size: .9em; }
+.v106i-vignette { display: block; max-width: 220px; max-height: 220px; border: 1px solid var(--ax-border, #8a8f98); margin: 6px 0; background: #fff; }
+.v106i-apercu { width: 100%; }
+.v106i-image { display: block; max-width: 100%; max-height: 60vh; border: 1px solid var(--ax-border, #8a8f98); background: #fff; }
+.v106i-table { border-collapse: collapse; width: 100%; font-size: .92em; display: block; max-width: 100%; overflow-x: auto; }
+.v106i-table th, .v106i-table td { border-bottom: 1px solid var(--ax-border, #c5c9d0); padding: 4px 6px; text-align: left; vertical-align: top; }
+.v106i-transcription { white-space: pre-wrap; max-height: 320px; overflow: auto; }
+.v106i-illisibles h3 { margin-top: 12px; }
+@media (prefers-color-scheme: dark) {
+  .v106i-joindre, .v106i-dialog { background: var(--ax-surface, #1d2127); color: var(--ax-text, #e8eaed); border-color: var(--ax-border, #5f6670); }
+}
+:root[data-theme="dark"] .v106i-joindre, :root[data-theme="dark"] .v106i-dialog { background: var(--ax-surface, #1d2127); color: var(--ax-text, #e8eaed); }

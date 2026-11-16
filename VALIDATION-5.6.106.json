@@ -1,0 +1,45 @@
+{
+  "version": "5.6.106",
+  "base": "5.6.105",
+  "date_utc": "2026-11-16T00:00:00+00:00",
+  "demande": "Demandes du cabinet du 16/11/2026 : webmail façon Outlook ou Thunderbird, densité de toutes les pages, logo du cabinet, SearXNG, images pour les modèles capables de voir, OCR Windows, @avocat.fr, routines sur message, alerte de fraude, audit 5.6.105.",
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 10 sur une copie figée du commit testé, PYTHONUTF8=1",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 7232,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 161
+  },
+  "lots": [
+    "R rédaction",
+    "E envoi",
+    "L liste et dossiers",
+    "V lecteur",
+    "D densité et identité",
+    "S SearXNG",
+    "I images pour l’IA",
+    "A audit 5.6.105",
+    "P @avocat.fr",
+    "O routines sur message",
+    "F alerte de fraude",
+    "W OCR Windows"
+  ],
+  "linux": "Debian python:3.12 avec tesseract 5.5 et poppler : 18 modules nouveaux et touchés, 658 tests OK après correction du secret 0600 de test_v56106_liste ; suite Linux entière laissée à GitHub",
+  "navigateur": "Chromium : 48 parcours en 4 groupes, 42 réussis ; 6 corrigés (P106l, P106r, P106v, P106i, P96a, P103g) puis 12 parcours repassés réussis",
+  "exapp": {
+    "version": "0.1.65",
+    "moteur": "5.6.106"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "Aucune vraie messagerie, aucun vrai Microsoft 365, Nextcloud, SearXNG ni modèle : services simulés.",
+    "Dictée avec un vrai micro, presse-papiers réel, Firefox : non essayés.",
+    "Taux de l’alerte de fraude mesurés sur un corpus fictif écrit avec les règles.",
+    "Masquage d’images : essais réels sur pages fictives seulement ; qualité sur de vrais scans à juger.",
+    "Les brouillons Outlook (écarts, rapprochement) n’ont pas encore d’écran."
+  ]
+}

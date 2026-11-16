@@ -46,6 +46,14 @@ STATIC.update({'/static/v56103-liaison.js': 'text/javascript', '/static/v56103-l
 STATIC.update({'/static/v56103-fichiers.js': 'text/javascript', '/static/v56103-fichiers.css': 'text/css'})   # 5.6.103 (lot F) : page « Fichiers » (deux volets, onglets, versions)
 from .tableau56103 import statiques as _statiques56103t   # noqa: E402 — 5.6.103 (lot T) : volet « Tableau blanc », Excalidraw assemblé et ses polices (liste générée)
 STATIC.update(_statiques56103t())
+STATIC.update({'/static/v56106-redaction.js': 'text/javascript', '/static/v56106-redaction.css': 'text/css'})   # 5.6.106 (lot R) : rédaction d'un courriel
+STATIC.update({'/static/v56106-envoi.js': 'text/javascript', '/static/v56106-envoi.css': 'text/css'})   # 5.6.106 (lot E) : options d'envoi, bandeau « Annuler », envois programmés
+STATIC.update({'/static/v56106-liste.js': 'text/javascript', '/static/v56106-liste.css': 'text/css'})   # 5.6.106 (lot L) : liste, actions groupées, dossiers, raccourcis, densité
+STATIC.update({'/static/v56106-densite.js': 'text/javascript', '/static/v56106-densite.css': 'text/css'})   # 5.6.106 (lot D) : densité de toutes les pages, titre et onglets en bande, logo du cabinet
+STATIC.update({'/static/v56106-vision.js': 'text/javascript', '/static/v56106-vision.css': 'text/css'})   # 5.6.106 (lot I) : joindre une image ou une page à l'assistant (aperçu masqué)
+STATIC.update({'/static/v56106-routine.js': 'text/javascript', '/static/v56106-routine.css': 'text/css'})   # 5.6.106 (lot O) : « Créer une routine à partir du message », routines sur message d'Aujourd'hui
+STATIC.update({'/static/v56106-lecteur.js': 'text/javascript', '/static/v56106-lecteur.css': 'text/css'})   # 5.6.106 (lot V) : lecteur, HTML isolé, résumé par l'IA, courriel → tâche ou agenda
+STATIC.update({'/static/v56106-fraude.js': 'text/javascript', '/static/v56106-fraude.css': 'text/css'})   # 5.6.106 (lot F) : pastille et bandeau « courriel potentiellement frauduleux »
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -433,7 +441,9 @@ def route(env, cfg, auth, prefix, path, args, method):
             cible = vers_a_relire(desk, env, prefix, args)   # 5.6.102 (lot N) : anciennes adresses d'un élément à relire → /a-relire
             if cible:
                 return {'status': '302 Found', 'kind': 'text/plain; charset=utf-8', 'body': '', 'headers': [('Location', cible)]}
-            return page_out(drafts_page(desk, auth, prefix, args, env))   # 5.6.96 : le compte choisit la vue « À traiter avec le Pilote »
+            # 5.6.96 : le compte choisit la vue « À traiter avec le Pilote » ; 5.6.106 (lot R) : images collées dans la rédaction (data:, blob:),
+            # jamais une source externe (img-src reste sans adresse distante)
+            return dict(page_out(drafts_page(desk, auth, prefix, args, env)), csp_img='data: blob:')
         if path == '/a-relire':
             return page_out(relire_page(desk, auth, prefix, args, env))   # 5.6.102 (lot N) : liste unique de relecture, accès principal
         if path == '/documents':
@@ -912,6 +922,36 @@ def api(env, desk, auth, prefix, name, args, method):
         except Stop as error:
             code = str(error).split(':')[0]
             return json_out({'error': code, 'message': guide5631.message(code)}, '403 Forbidden' if code in ('role_insuffisant', 'dossier_reserve') else '400 Bad Request')
+    if name.startswith('m56106/redaction/'):   # 5.6.106 (lot R) : modèles de réponse du cabinet (404 neutre, 409, no-store, clé d'idempotence)
+        from . import redaction56106
+        return redaction56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/envoi/'):   # 5.6.106 (lot E) : file d'envoi (confirmer, annuler, envoyer maintenant, modifier ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import envoi56106
+        return envoi56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith(('m56106/identite/', 'm56106/densite')):   # 5.6.106 (lot D) : logo du cabinet (administrateur), densité d'affichage par personne (404 neutre, 409, no-store, clé d'idempotence)
+        from . import identite56106
+        return identite56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/boite/'):   # 5.6.106 (lot L) : actions groupées, dossiers IMAP, sous-dossier du dossier client (404 neutre, 409, 503, no-store, clé d'idempotence)
+        from . import boite56106
+        return boite56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/ocr/'):   # 5.6.106 (lot W) : langues de lecture des scans (ajouter, retirer, choisir ; administrateur, 409, no-store, clé d'idempotence)
+        from . import outils_ocr56106
+        return outils_ocr56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/vision/'):   # 5.6.106 (lot I) : fichiers, pages, vignette, aperçu masqué, lecture d'une page, réglages (404 neutre, 409, no-store, clé d'idempotence)
+        from . import vision56106
+        return vision56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/lecteur/'):   # 5.6.106 (lot V) : lecteur (HTML isolé, impression, .eml, pièces, fil), résumé par l'IA, courriel → tâche ou agenda (404 neutre, 409, 503, no-store, clé d'idempotence)
+        from . import lecteur56106
+        return lecteur56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/routine/'):   # 5.6.106 (lot O) : routines sur message (assistant, aperçu, propositions ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import routine_message56106
+        return routine_message56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/avocatfr/'):   # 5.6.106 (lot P) : adresse @avocat.fr (tester sans envoi, enregistrer ; administrateur, 409, no-store, clé d'idempotence)
+        from . import avocatfr56106
+        return avocatfr56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56106/fraude/'):   # 5.6.106 (lot F) : alerte anti-fraude — indésirable, « Je connais cet expéditeur », « Ce n'est pas une fraude », réglages (404 neutre, 409, no-store, clé d'idempotence)
+        from . import fraude56106
+        return fraude56106.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5628/'):   # 5.6.28 : messagerie (répondre, transférer, archiver, déplacer, supprimer, envoyer)
         from .webmail5628 import api as api5628
         try:return api5628(env,desk,auth,prefix,name,args,method)
@@ -1181,6 +1221,14 @@ def drafts_page(desk, auth, prefix, args, env=None):
             e(prefix + '/guide-installation?etape=messagerie', quote=True), e(prefix + '/a-relire', quote=True))
     elif vue == 'boite':
         body = tabs + _courriels_boite()
+        if separe:   # 5.6.106 (lot L) : liste dense, actions groupées, dossiers, raccourcis (présentation historique inchangée)
+            from .boite56106 import monter as _monter56106
+            body, head = _monter56106(body, head, prefix, desk, owner)
+        if separe:   # 5.6.106 (lot V) : lecteur mis en forme isolé, impression, .eml, fil ; résumé par l'IA ; courriel → tâche ou agenda
+            from .lecteur56106 import tete_html as _tete56106v; head += _tete56106v(prefix)
+        if separe:   # 5.6.106 (lot O) : bouton « Créer une routine à partir du message » (barre du lecteur) et son assistant
+            from .routine_message56106 import tete_html as _tete56106o; head += _tete56106o(prefix)
+        from .fraude56106 import tete_html as _tete56106f; head += _tete56106f(prefix)   # 5.6.106 (lot F) : alerte « courriel potentiellement frauduleux » (les deux présentations)
     elif vue == 'assistante':
         from . import courriels_web5696
         body = courriels_web5696.page(desk, prefix, args, owner, role, tabs)

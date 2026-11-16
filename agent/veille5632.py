@@ -376,6 +376,10 @@ def sources_utilisables(desk, p):
         out.append('connecteur')
     if p['tavily'] and tavily_key_path(desk):
         out.append('tavily')
+    if p['tavily']:   # 5.6.106 (lot S) : SearXNG du cabinet, activé pour la veille par l'administrateur (lecture seule)
+        from .searxng56106 import actif
+        if actif(desk, 'veille'):
+            out.append('searxng')
     return out
 
 
@@ -774,20 +778,35 @@ def collect(desk, args, fetch=None, call=None, http=None):
                     results.append({'source': 'connecteur · ' + t['name'], 'status': 'ok', 'items': len(rows), 'added': n})
                 except Stop as ex:
                     results.append({'source': 'connecteur · ' + t['name'], 'status': 'error', 'error': str(ex)})
-        if p['tavily'] and tavily_key_path(desk):
+        # 5.6.106 (lot S) : « Recherche Internet » interroge aussi SearXNG (instance du cabinet) quand l'administrateur l'a activé pour la
+        # veille ; résultats fusionnés, source de chaque élément conservée ; l'un en panne ou au plafond, l'autre suffit.
+        from . import searxng56106 as sx
+        combine = p['tavily'] and sx.actif(desk, 'veille')
+        if p['tavily'] and (tavily_key_path(desk) or combine):
             for t in p['themes'][:max(0, p['tavily_calls_per_run'])]:
+                etiquette = ('Recherche Internet · ' if combine else 'Tavily · ') + t['name']
                 try:
-                    rows = tavily_search(desk, requete_publique(desk, requete_theme(t)), p['max_results'], p['lookback_days'], http=http, p=p)
+                    requete = requete_publique(desk, requete_theme(t))
+                    notes = []
+                    if combine:
+                        out = sx.rechercher(desk, requete, profil='veille', max_results=p['max_results'], days=p['lookback_days'], http=http, p=p, acteur=owner)
+                        if not out['ok']:
+                            raise Stop(out['motif'])
+                        rows, notes = out['resultats'], out['limites']
+                    else:
+                        rows = tavily_search(desk, requete, p['max_results'], p['lookback_days'], http=http, p=p)
                     kept = []
                     for r in rows:                     # 5.6.61 : datés, récents, pas de page permanente
                         keep, _why = web_relevant(r, p['lookback_days'])
                         if keep:
                             kept.append({**r, 'published': _web_date(r.get('published'))})
-                    n = sum(_publish(desk, owner, run_id, t['name'], 'Recherche Internet : ' + ', '.join(t['keywords'][:3]), r, 'tavily', 'Tavily') for r in kept)
-                    results.append({'source': 'Tavily · ' + t['name'], 'status': 'ok', 'items': len(rows), 'kept': len(kept), 'added': n})
+                    n = sum(_publish(desk, owner, run_id, t['name'], 'Recherche Internet : ' + ', '.join(t['keywords'][:3]), r, 'tavily',
+                                     {'les deux': 'Tavily + SearXNG'}.get(r.get('source'), r.get('source') or 'Tavily')) for r in kept)
+                    results.append({'source': etiquette, 'status': 'ok', 'items': len(rows), 'kept': len(kept), 'added': n, **({'limites': notes} if notes else {})})
                 except Stop as ex:
-                    results.append({'source': 'Tavily · ' + t['name'], 'status': 'error', 'error': str(ex)})
-                    if str(ex) in ('plafond_tavily_atteint', 'quota_tavily_atteint', 'cle_tavily_refusee'):
+                    results.append({'source': etiquette, 'status': 'error', 'error': str(ex)})
+                    if str(ex) in ('plafond_tavily_atteint', 'quota_tavily_atteint', 'cle_tavily_refusee', 'recherche_web_indisponible', 'plafond_searxng_atteint',
+                                   'mode_local_strict', 'prestataire_non_admis'):
                         break
         added = sum(r.get('added', 0) for r in results)
         ok = [r for r in results if r['status'] == 'ok']

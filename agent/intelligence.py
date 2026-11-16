@@ -343,6 +343,7 @@ def prepare_draft(desk,args):
                  'available_slots':slots,'coverage':coverage}
         from .assistant567 import drafting_preferences
         payload['preferences_assistant']=drafting_preferences(desk, getattr(desk, 'mission_owner567', 'cabinet'))
+        from .fraude56106 import avertir as _avertir106; alerte106=_avertir106(desk,mail,key,payload)   # 5.6.106 (lot F) : courriel « Suspect » ou « Danger » : avertissement transmis au modèle
         if legal and legal.get('sources'):payload['regle_sources_juridiques']=juridique5649.RULE
         payload.update(societe5688.pour_modele(controle,'tiers'))
         if m['id']:   # 5.6.29 : consignes permanentes de l'avocat pour ce dossier
@@ -444,6 +445,7 @@ def prepare_draft(desk,args):
         result['statut_redaction']=redaction_status(result.get('body',''))
         if args.get('fournisseur') and result.get('body'):      # 5.6.87 : relance avec une autre IA : relue avant tout dépôt
             result['requires_decision']=True;result['limits'].append('Réponse relancée avec une autre IA : à relire avant dépôt.')
+        from .fraude56106 import marquer as _marquer106; _marquer106(result,alerte106)   # 5.6.106 (lot F) : « À vérifier : courriel suspect » dans À relire, jamais déposé d'office
         data={'result':result,'verification':verdict,'intent':intent,'matter':m['id'],'matter_path':m['path'],'key':key,
               'source_hash':digest(mail.text),'created_at':desk.now(),'style':style,'recipients':recipients,'sources':payload['sources']}
         desk.db.execute('INSERT OR REPLACE INTO manual_drafts VALUES (?,?,?)',(key,json.dumps(data),desk.now()));desk.db.commit()
@@ -452,7 +454,7 @@ def prepare_draft(desk,args):
         from .prudent5667 import safe_to_complete
         return {'projet_prepare':bool(result['body']),'depot_autorise':bool(result['body']) and not result['requires_decision'],
                 # v3 : plus de 2 faits absents n'empêchent plus le dépôt (objet « [À COMPLÉTER : n faits] », envoi bloqué) ; seule la sûreté décide
-                'a_completer_possible':bool(result['body']) and result['requires_decision'] and safe_to_complete(verdict),
+                'a_completer_possible':bool(result['body']) and result['requires_decision'] and safe_to_complete(verdict) and not result.get('courriel_suspect56106'),   # 5.6.106 (lot F)
                 'variantes':len(result.get('variantes') or []),'marqueurs':redaction5695.marqueurs_depot(result['body'])}
     finally:
         if box is not None:box.close()

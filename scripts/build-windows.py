@@ -10,12 +10,18 @@ Résultat dans SORTIE_DIR :
 - AxiorHub-Pilote-Setup-<version>.exe : installateur en un seul fichier (contient le dossier de l'application compressé) ;
 - AxiorHub-Pilote-<version>-windows.zip : le même dossier, pour un déploiement sans installateur ;
 - leurs sommes SHA-256 (fichiers .sha256).
+5.6.106 (lot W) : si ``AXIORHUB_WIN_OCR`` désigne la copie réduite de Tesseract et Poppler (``scripts/preparer-ocr-windows.py``),
+elle est vérifiée (manifeste : taille et SHA-256 de chaque fichier, aucun fichier en plus) puis copiée dans le dossier ``ocr`` à côté des
+exécutables, avec ``THIRD_PARTY_NOTICES-OCR.txt`` (licences, source de Poppler jointe à la publication), **seulement si elle est
+complète** (licence de chaque composant trouvée, sources de Poppler, JBIG-KIT et libiconv référencées). Sinon : construction sans OCR intégré, avec un
+avertissement qui liste les manques.
 Le dossier de l'application contient deux exécutables : « AxiorHub Pilote.exe » (fenêtre, sans console) et
 « axiorhub-service.exe » (services, console masquée), tous deux en mode UTF-8.
 """
 import ast
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -103,6 +109,81 @@ def sha256(path):
     return h.hexdigest()
 
 
+OCR_ENV = 'AXIORHUB_WIN_OCR'
+AVERTISSEMENT_OCR = ('AVERTISSEMENT : %s non défini : application construite SANS Tesseract ni Poppler intégrés. Les scans ne seront '
+                     'lus que si ces outils sont installés à part sur le poste.' % OCR_ENV)
+AVERTISSEMENT_INCOMPLET = ('AVERTISSEMENT : copie OCR incomplète : application construite SANS Tesseract ni Poppler intégrés '
+                           '(OCR inclus seulement si toutes les licences sont trouvées et les sources de Poppler, JBIG-KIT et libiconv '
+                           'référencées). Manques :')
+# Sources jointes à la publication, exigées par la construction (licences GPL et LGPL) : composant → début du nom de l'archive
+SOURCES_REQUISES = {'Poppler': 'poppler-', 'JBIG-KIT': 'jbigkit-', 'libiconv': 'libiconv-'}
+
+
+def manques_ocr(manifeste, vus):
+    """5.6.106 (lot W) : ce qui empêche d'inclure l'OCR : licence non trouvée (ou fichier de licence hors de la copie vérifiée),
+    source de Poppler, JBIG-KIT ou libiconv non référencée (nom et SHA-256). Liste vide : copie complète."""
+    manques = []
+    licences = manifeste.get('licences')
+    if not isinstance(licences, dict) or not licences:
+        manques.append('licences des composants absentes du manifeste')
+        licences = {}
+    for nom, v in sorted(licences.items()):
+        v = v if isinstance(v, dict) else {}
+        fichiers = v.get('fichiers') if isinstance(v.get('fichiers'), list) else []
+        if v.get('statut') != 'trouvée' or not fichiers or any(f not in vus for f in fichiers):
+            manques.append('licence manquante : %s' % nom)
+    for x in manifeste.get('licences_manquantes') or []:
+        if 'licence manquante : ' + str(x).split(' (')[0] not in manques:
+            manques.append('licence manquante : %s' % x)
+    sources = manifeste.get('sources') if isinstance(manifeste.get('sources'), dict) else {}
+    for nom, debut in SOURCES_REQUISES.items():
+        s = sources.get(nom)
+        if not isinstance(s, dict) or not str(s.get('nom') or '').startswith(debut) or len(str(s.get('sha256') or '')) != 64 \
+                or not str(s.get('url') or '').startswith('https://'):
+            manques.append('source de %s non référencée dans le manifeste (nom, SHA-256, adresse)' % nom)
+    return manques
+
+
+def inclure_ocr(app_dir, source=None):
+    """5.6.106 (lot W) : copie vérifiée de la copie réduite (Tesseract, Poppler, licences) dans ``app_dir/ocr``. ``None`` si non demandée."""
+    source = source if source is not None else os.environ.get(OCR_ENV, '').strip()
+    if not source:
+        print(AVERTISSEMENT_OCR, file=sys.stderr)
+        return None
+    src = Path(source).resolve()
+    try:
+        manifeste = json.loads((src / 'MANIFEST-ocr.json').read_text(encoding='utf-8'))
+        fichiers = manifeste['fichiers']
+    except (OSError, ValueError, KeyError, TypeError):
+        raise SystemExit('OCR : manifeste illisible dans ' + str(src)) from None
+    vus = set()
+    for rel, attendu in sorted(fichiers.items()):
+        chemin = Path(rel)
+        if chemin.is_absolute() or '..' in chemin.parts or ':' in rel:
+            raise SystemExit('OCR : chemin refusé dans le manifeste : ' + rel)
+        f = src / chemin
+        if not f.is_file() or f.stat().st_size != attendu.get('octets') or sha256(f) != attendu.get('sha256'):
+            raise SystemExit('OCR : fichier absent ou modifié : ' + rel)
+        vus.add(chemin.as_posix())
+    en_plus = [p.relative_to(src).as_posix() for p in src.rglob('*') if p.is_file() and p.name != 'MANIFEST-ocr.json'
+               and p.relative_to(src).as_posix() not in vus]
+    if en_plus:
+        raise SystemExit('OCR : fichiers hors manifeste : ' + ', '.join(sorted(en_plus)[:5]))
+    for exe in ('tesseract/tesseract.exe', 'poppler/pdftoppm.exe', 'poppler/pdftotext.exe', 'poppler/pdfinfo.exe', 'THIRD_PARTY_NOTICES-OCR.txt'):
+        if exe not in vus:
+            raise SystemExit('OCR : élément indispensable absent : ' + exe)
+    manques = manques_ocr(manifeste, vus)   # choix de l'avocat : OCR inclus seulement si complet (licences et source de Poppler)
+    if manques:
+        print(AVERTISSEMENT_INCOMPLET + '\n' + '\n'.join('  - ' + m for m in manques), file=sys.stderr)
+        return None
+    cible = Path(app_dir) / 'ocr'
+    if cible.exists():
+        shutil.rmtree(cible)
+    shutil.copytree(src, cible)
+    shutil.copyfile(src / 'THIRD_PARTY_NOTICES-OCR.txt', Path(app_dir) / 'THIRD_PARTY_NOTICES-OCR.txt')
+    return {'fichiers': len(vus), 'octets': sum(v['octets'] for v in fichiers.values())}
+
+
 def pyinstaller(spec, work, dist):
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--log-level', 'WARN', '--workpath', str(work),
                     '--distpath', str(dist), str(spec)], check=True, cwd=str(ROOT))
@@ -130,6 +211,7 @@ def main(argv=None):
         for exe in ('AxiorHub Pilote.exe', 'axiorhub-service.exe'):
             if not (app_dir / exe).is_file():
                 raise SystemExit('exécutable absent : ' + exe)
+        ocr = inclure_ocr(app_dir)   # 5.6.106 (lot W) : Tesseract et Poppler à côté des exécutables (dossier ocr)
         archive = out / ('AxiorHub-Pilote-%s-windows.zip' % ver)
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
             for f in sorted(app_dir.rglob('*')):
@@ -151,6 +233,7 @@ def main(argv=None):
         digest = sha256(f)
         (f.parent / (f.name + '.sha256')).write_text('%s *%s\n' % (digest, f.name), encoding='utf-8')
         report[f.name] = {'octets': f.stat().st_size, 'sha256': digest}
+    report['ocr'] = ocr or 'non inclus'
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 

@@ -418,8 +418,12 @@ def chat(desk,args,dav,model,box=None,return_result=False):
         fit_chat_context(payload,limit)
     if not sources:
         payload['limites']+=' Aucune source lisible disponible : demander des précisions, ne pas inventer de faits.'
+    from .vision56106 import annoter as _annoter56106,charge_utile as _charge56106,conversation as _conversation56106   # 5.6.106 (lot I)
+    _vision56106=_conversation56106(desk,args,matter,dav)   # images ou pages jointes : locales, masquées avant tout envoi externe, ou texte seul
+    if _vision56106.pieces:payload['images_jointes']=_charge56106(_vision56106)
     try:
-        result=model.ask('chat',payload)
+        with _vision56106:
+            result=model.ask('chat',payload)
     except Stop as error:   # 5.6.83 : modèle occupé : la liste relevée reste utile, annoncée comme non analysée
         if str(error) in rapide5680.BUSY_CODES and return_result and any(s.get('kind') in ('liste_courriels','agenda') for s in sources):
             return societe5688.poser_reponse(acces5683.fallback_answer([s for s in sources if s.get('kind') in ('liste_courriels','agenda')],cabinet_access),controle)
@@ -432,6 +436,7 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     if any(x not in {s['id'] for s in sources} for x in result['source_ids']):
         raise Stop('source_conversation_invalide')
     societe5688.poser_reponse(result,controle)   # 5.6.88 : posé par le logiciel, quoi que le modèle ait écrit
+    result=_annoter56106(_vision56106,result,return_result)   # 5.6.106 (lot I) : « Image masquée avant envoi : N zones noircies » ou motif du texte seul
     if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))
     result['limits'].extend(acces5683.limits_of(cabinet_access))
     if not open_documents:result['limits'].append('Documents non consultés : '+vueia5688.REFUSED+'.')

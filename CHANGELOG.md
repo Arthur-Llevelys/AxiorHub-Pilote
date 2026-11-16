@@ -3,6 +3,45 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.106 — webmail façon Outlook, pages plus compactes, logo du cabinet, SearXNG, images pour l'IA, alerte de fraude, @avocat.fr
+
+Demandes du cabinet du 16/11/2026.
+
+- **Rédaction des courriels** : dictée vocale au curseur (nouveau, réponse, réponse à tous, transfert, objet) ; mise en forme (barré, titres,
+  alignement, retrait, ligne horizontale, couleurs et surlignage d'une palette fixe, tailles, cases ☐ / ☑ cliquables, date du jour) ;
+  images collées ou déposées envoyées en pièces intégrées (`cid:`), jamais chargées à distance, SVG refusé, HTML collé assaini hors de la
+  page ; adresses proposées depuis les contacts ; pièces jointes par glisser-déposer et retirables ; brouillon enregistré toutes les 30 s
+  et rouvrable ; modèles de réponse du cabinet ; rédaction compacte, boutons d'envoi toujours visibles.
+- **Envoi** : annulation pendant 10 s (réglable), envoi programmé, accusé de lecture (RFC 8098), importance haute ; file d'envoi tenue par
+  le travailleur, jamais de double envoi (vérification dans Envoyés après un arrêt), plafond horaire et pause respectés.
+- **Liste et dossiers** : 16 courriels visibles à 1920 × 950 (4 avant) et 12 à 1366 × 768 (2 avant), sans défilement de la page ; actions
+  sur les courriels cochés (supprimer, archiver, déplacer, dossier client, menu « Marquer » : lu, non lu, tout le dossier lu, suivi,
+  épingle, indésirable) en une commande IMAP par dossier, UIDVALIDITY contrôlée ; dossiers IMAP créés, renommés, supprimés ;
+  sous-dossier « Dossiers clients/<dossier> » ; glisser-déposer ; tri, filtres, « Rechercher dans » (objet, corps, expéditeur,
+  destinataires) ; Actualiser ; épingles par personne ; raccourcis clavier proches d'Outlook.
+- **Lecteur** : courriel mis en forme dans un cadre isolé (sandbox sans script, CSP stricte, assainissement fermé), images extérieures
+  bloquées jusqu'au clic et chargées par le serveur ; en-têtes, pièces (téléchargement, aperçu), conversation ; Imprimer (un message, les
+  cochés, un fil) ; Enregistrer sous (.eml, ZIP, pièces, Nextcloud, dossier client) ; résumé par l'IA des courriels cochés dans un volet à
+  droite ; courriel → tâche et courriel → agenda après validation.
+- **Alerte « courriel potentiellement frauduleux »** : analyse locale (authentification SPF/DKIM/DMARC du serveur du cabinet, nom usurpé,
+  domaine sosie ou punycode, réponse détournée, liens trompeurs, pièces à risque, changement de RIB, faux président) ; niveaux Attention,
+  Suspect, Danger ; liens désactivés et pièces à risque non prévisualisées ; aucune routine ni IA sur un courriel suspect.
+- **Routines à partir d'un message** : déclencheur tiré du courriel ouvert (ex. message RPVA) ; événement, tâche, classement, note, résumé
+  ou projet de réponse ; « proposer à valider » par défaut ; date incertaine toujours à valider ; pas de doublon ; une seule fois par message.
+- **Toutes les pages plus compactes** (réglage par personne compacte / confortable) ; **logo et nom du cabinet** en haut de la barre
+  latérale (PNG, JPEG, WebP, SVG refusé).
+- **Recherche sur le web** : SearXNG auto-hébergé combiné à Tavily (fusion, dédoublonnage, source affichée), lecture des pages avec
+  contrôle anti-SSRF.
+- **Images et pages de PDF pour les modèles capables de voir** : modèle local sans changement ; fournisseur externe seulement après
+  masquage des identifiants repérés par l'OCR, sinon rien n'est envoyé ; jamais pour un dossier réservé.
+- **Application Windows** : Tesseract 5.4 (français, anglais) et Poppler 26.09 inclus quand licences et sources sont complètes ;
+  espagnol et allemand ajoutables depuis Paramètres (SHA-256 vérifié).
+- **Messagerie @avocat.fr** : réglage prêt à l'emploi (imaps.avocat.fr 993 et smtps.avocat.fr 465 en SSL/TLS, mot de passe applicatif),
+  test sans envoi.
+- **Audit 5.6.105** : F1 (Fichiers : une opération sur le parent d'un dossier réservé est refusée), M1 à M5 (Microsoft : changement de
+  compte après déconnexion, tentative annulée, SharePoint non précoché, dépôt Outlook repris sans doublon, « Déposé » seulement si le
+  brouillon distant correspond).
+
 ## 5.6.105 — application Microsoft intégrée disponible
 
 - **Connexion Microsoft sans rien inscrire** : l'application publique « AxiorHub Pilote » est inscrite chez Microsoft ; son identifiant

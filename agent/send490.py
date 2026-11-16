@@ -264,23 +264,34 @@ def prepare(desk, uid, validity):
 
 
 # ------------------------------------------------------------------------------------------- envoi
-def _outgoing(msg, from_cfg):
+def _outgoing(msg, from_cfg, message_id=None, extra_headers=None):
+    """``message_id`` et ``extra_headers`` (5.6.106, lot E) : identifiant fixé avant le départ et en-têtes d'options (importance, accusé de
+    lecture) ; un en-tête d'option déjà présent dans le brouillon est remplacé, jamais doublé."""
     out = EmailMessage(policy=policy.SMTP)
+    extra = [(str(k), str(v)) for k, v in (extra_headers or ())]
+    replaced = {k.lower() for k, _ in extra}
     for name, value in msg.items():
         lower = name.lower()
         if lower in ('bcc', 'message-id', 'date', 'content-type', 'content-transfer-encoding', 'mime-version',
-                     'content-disposition') or lower.startswith('x-axiorhub'):
+                     'content-disposition') or lower.startswith('x-axiorhub') or lower in replaced:
             continue
         out[name] = str(value)
+    for name, value in extra:
+        if re.search(r'[\r\n]', name + value):
+            raise Stop('en_tete_invalide')
+        out[name] = value
     domain = from_cfg.get('from_address', 'localhost').rsplit('@', 1)[-1] or 'localhost'
-    out['Message-ID'] = make_msgid(domain=domain)
+    out['Message-ID'] = message_id or make_msgid(domain=domain)
     out['Date'] = format_datetime(datetime.now(timezone.utc))
     out.set_content(body_text(msg).replace('\r\n', '\n').rstrip() + '\n')
     html = msg.get_body(preferencelist=('html',))   # 5.6.28 : la version mise en forme d'un message de la messagerie accompagne le texte
     if html is not None and str(msg.get('X-AxiorHub-Origine', '')).strip() == 'webmail5628':
         try:
-            from .webmail5628 import clean_html
-            out.add_alternative('<!doctype html><html><body>%s</body></html>' % clean_html(html.get_content()), subtype='html')
+            from . import webmail5628
+            if hasattr(webmail5628, 'joindre_html'):   # 5.6.106 (lot R) : version HTML nettoyée et images intégrées (Content-ID), jamais distantes
+                webmail5628.joindre_html(out, msg)
+            else:
+                out.add_alternative('<!doctype html><html><body>%s</body></html>' % webmail5628.clean_html(html.get_content()), subtype='html')
         except (LookupError, UnicodeError):
             pass
     for part in msg.iter_attachments():
@@ -335,8 +346,14 @@ def _copy_to_sent(desk, message, draft_msg):
 
 def confirm(desk, token, now=None):
     """Second clic : relit le brouillon, compare l'empreinte, envoie, copie dans Envoyés."""
-    ensure_schema(desk)
     now = time.time() if now is None else now
+    mail, matter, recipients, fp = _claim(desk, token, now)
+    return _deliver(desk, mail, matter, recipients, fp)
+
+
+def _claim(desk, token, now):
+    """5.6.106 (lot E) : consomme le jeton de l'aperçu (usage unique) et relit le brouillon ; il doit être identique à l'aperçu."""
+    ensure_schema(desk)
     row = desk.db.execute('SELECT * FROM send_pending490 WHERE token=?', (str(token or ''),)).fetchone()
     if not row or row['used']:
         raise Stop('apercu_envoi_absent')
@@ -353,6 +370,10 @@ def confirm(desk, token, now=None):
     fp = fingerprint(mail.msg)
     if fp != row['fingerprint'] or matter != row['matter']:
         raise Stop('brouillon_modifie_depuis_apercu')
+    return mail, matter, recipients, fp
+
+
+def _duplicate_check(desk, fp):
     window = (datetime.now(timezone.utc) - timedelta(hours=DUPLICATE_WINDOW_HOURS)).isoformat()
     if desk.db.execute("SELECT 1 FROM send_log490 WHERE fingerprint=? AND at>=? AND status IN ('envoye','envoye_copie_manquante')",
                        (fp, window)).fetchone():
@@ -360,20 +381,34 @@ def confirm(desk, token, now=None):
     uncertain = (datetime.now(timezone.utc) - timedelta(hours=UNCERTAIN_WINDOW_HOURS)).isoformat()
     if desk.db.execute("SELECT 1 FROM send_log490 WHERE fingerprint=? AND at>=? AND status='en_cours'", (fp, uncertain)).fetchone():
         raise Stop('envoi_incertain_verifiez_les_envoyes')
+
+
+def _deliver(desk, mail, matter, recipients, fp, message_id=None, extra_headers=None, before_effect=None, on_log=None, on_sent=None):
+    """Départ réel : doublons, plafond horaire (compté au départ), journal écrit AVANT l'envoi, SMTP, copie dans Envoyés, brouillon retiré.
+    5.6.106 (lot E) : appelé aussi par le travailleur pour la file d'envoi (``envoi56106``) : ``message_id`` fixé à l'avance (pour retrouver
+    le message dans Envoyés après une interruption), en-têtes d'options, contrôle de la pause juste avant l'effet (``before_effect``),
+    étape notée dans la même transaction que le journal (``on_log``) puis juste après le SMTP (``on_sent``)."""
+    _duplicate_check(desk, fp)
     if _hourly_count(desk) >= MAX_PER_HOUR:
         raise Stop('plafond_horaire_envois')
+    if before_effect is not None:
+        before_effect()
+    smtp_cfg = smtp_config(desk)
+    message = _outgoing(mail.msg, desk.c['mail'], message_id=message_id, extra_headers=extra_headers)   # construit avant le journal : une erreur ici n'envoie rien
     cur = desk.db.execute('INSERT INTO send_log490(at,matter,fingerprint,recipients,status) VALUES(?,?,?,?,?)',
                           (now_iso(), matter, fp, len(recipients), 'en_cours'))
     log_id = cur.lastrowid
+    if on_log is not None:
+        on_log(log_id)   # même transaction que la ligne du journal : une interruption ne sépare jamais les deux
     desk.db.commit()
-    smtp_cfg = smtp_config(desk)
-    message = _outgoing(mail.msg, desk.c['mail'])
     try:
         _smtp_send(smtp_cfg, message, desk.c['mail']['from_address'], recipients)
     except Stop as ex:
         desk.db.execute("UPDATE send_log490 SET status='echec', detail=? WHERE id=?", (str(ex), log_id))
         desk.db.commit()
         raise
+    if on_sent is not None:
+        on_sent()
     copy_saved = False
     try:
         copy_saved = _copy_to_sent(desk, message, mail.msg)
@@ -393,6 +428,43 @@ def confirm(desk, token, now=None):
     return {'sent': True, 'copy_saved': copy_saved, 'draft_removed': removed, 'recipient_count': len(recipients),
             'message': ('Message envoyé ; copie enregistrée dans les éléments envoyés.' if copy_saved else
                         'Message ENVOYÉ, mais la copie n’a pas pu être enregistrée dans les éléments envoyés : ajoutez-la à la main.')}
+
+
+# ------------------------------------------------------------------- 5.6.106 (lot E) : file d'envoi
+def pending_fingerprint(desk, token):
+    """Empreinte annoncée par un jeton d'aperçu encore valable (lecture seule ; vide si le jeton est inconnu ou déjà utilisé)."""
+    ensure_schema(desk)
+    row = desk.db.execute('SELECT fingerprint FROM send_pending490 WHERE token=? AND used=0', (str(token or ''),)).fetchone()
+    return str(row[0]) if row else ''
+
+
+def confirm_to_queue(desk, token, now=None):
+    """Second clic, circuit de la file (5.6.106, lot E) : mêmes contrôles que ``confirm`` (jeton à usage unique, délai minimal, brouillon
+    identique à l'aperçu, déjà envoyé, envoi incertain) mais RIEN n'est envoyé : rend de quoi mettre le message dans la file. Le départ
+    réel est fait plus tard par le travailleur (``deliver_queued``)."""
+    now = time.time() if now is None else now
+    mail, matter, recipients, fp = _claim(desk, token, now)
+    _duplicate_check(desk, fp)
+    return {'uid': str(mail.uid), 'validity': str(mail.uidvalidity), 'fingerprint': fp, 'matter': matter,
+            'summary': _summary(mail.msg, recipients, matter), 'sender': sender_address(desk, mail.msg)}
+
+
+def sender_address(desk, msg):
+    """Adresse de l'expéditeur (en-tête From du brouillon, sinon l'adresse d'envoi configurée), contrôlée."""
+    found = parseaddr(str(msg.get('From', '')))[1] or str(desk.c['mail'].get('from_address') or '')
+    return found if re.fullmatch(r'[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+', found or '') else ''
+
+
+def deliver_queued(desk, uid, validity, fp, matter, message_id, extra_headers=None, before_effect=None, on_log=None, on_sent=None):
+    """Départ d'un message de la file (travailleur seulement) : le brouillon est relu et doit être EXACTEMENT celui confirmé (empreinte) ;
+    l'envoi doit toujours être activé et permis ; puis le départ ordinaire (doublons, plafond horaire, journal, SMTP, Envoyés)."""
+    ensure_schema(desk)
+    mail = _load(desk, uid, validity)
+    current, recipients = _check_sendable(desk, mail)
+    if fingerprint(mail.msg) != fp or current != matter:
+        raise Stop('brouillon_modifie_depuis_confirmation')
+    return _deliver(desk, mail, matter, recipients, fp, message_id=message_id, extra_headers=extra_headers,
+                    before_effect=before_effect, on_log=on_log, on_sent=on_sent)
 
 
 # ---------------------------------------------------------------------------- alternative sans envoi

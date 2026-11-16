@@ -140,7 +140,14 @@ def _connexions(desk, auth, prefix, env, cap):
         _g103 += _section(_ms103(desk, prefix, owner, env))
     except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
         _g103 += _section('<section class="ax-card" id="microsoft56103"><h2>Compte Microsoft</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
-    return (_g103 + _section(_gmail97(desk, prefix, owner, role52, _args52)) +_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
+    try:   # 5.6.106 (lot P) : adresse @avocat.fr (CNB), en tête des choix de messagerie : adresse proposée, mot de passe applicatif, test sans envoi
+        from .avocatfr56106 import section_html as _avocat106
+        _af106 = _section(_avocat106(desk, prefix, owner, role52, env))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        _af106 = _section('<section class="ax-card" id="avocatfr56106"><h2>Adresse @avocat.fr (CNB)</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    _i106 = _g103.find('<details class="p5621-section', 1)   # juste après la carte « Mise en service » (première section, seule ouverte), avant Gmail et Microsoft
+    _g103 = _g103[:_i106] + _af106 + _g103[_i106:] if _i106 > 0 else _g103 + _af106
+    return (_g103 +_section(_gmail97(desk, prefix, owner, role52, _args52)) +_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
             _section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_agenda97(desk, owner, role52, prefix)) + _section(_microsoft(desk, prefix, env)) +
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
@@ -165,6 +172,18 @@ def _ia(desk, auth, prefix, env, cap):
         body += _section(_routage5695(desk, prefix, env))
     except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite, jamais un faux tableau vide
         body += _section('<section class="ax-card" id="routage5695"><h2>Routage mesuré</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    try:   # 5.6.106 (lot I) : images pour les modèles capables de voir (vision par modèle, masquage avant envoi externe, journal sans image)
+        from .vision56106 import reglages_html as _vision106
+        from .web567 import actor as _actor106i
+        body += _section(_vision106(desk, prefix, _actor106i(env)[1]))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        body += _section('<section class="ax-card" id="vision56106"><h2>Images pour les modèles capables de voir</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    try:   # 5.6.106 (lot W) : lecture des scans (outils intégrés, langues installées, espagnol et allemand en option)
+        from .outils_ocr56106 import section_html as _ocr106
+        from .web567 import actor as _actor106w
+        body += _section(_ocr106(desk, prefix, _actor106w(env)[1]))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        body += _section('<section class="ax-card" id="ocr56106"><h2>Lecture des scans (OCR)</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
     try:   # 5.6.102 (lot M) : « Pilote dans la messagerie instantanée » (réglage du cabinet, activé par défaut)
         from .pilote_messagerie56102 import reglage_html as _pilote102
         from .web567 import actor as _actor102
@@ -429,7 +448,9 @@ def _horaires(desk, auth, prefix, env, cap):   # 5.6.89 : IA et automatisations 
 
 def _demarrage(desk, auth, prefix, env, cap):   # 5.6.89 : assistant de démarrage du cabinet
     from .cabinet_web5689 import settings_html
-    return _section(settings_html(desk, auth, prefix, env))
+    from .identite56106 import section_html as _logo106   # 5.6.106 (lot D) : logo carré du cabinet (administrateur), affiché en tête de la barre latérale
+    from .web567 import actor as _actor106
+    return _section(_logo106(desk, prefix, _actor106(env)[1])) + _section(settings_html(desk, auth, prefix, env))
 
 
 def _interface(desk, auth, prefix, env, cap):   # 5.6.89 : drapeaux de la nouvelle interface, anciennes vues rangées

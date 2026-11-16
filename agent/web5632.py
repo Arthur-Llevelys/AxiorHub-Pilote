@@ -83,6 +83,8 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'admin/recherche_publique/test':   # 5.6.96 (R02) : disponibilité vérifiée sans appel réseau ni consommation
         from .recherche_publique5696 import disponibilite
         return json_out(disponibilite(desk, owner))
+    if route in ('admin/searxng', 'admin/searxng/test'):   # 5.6.106 (lot S) : SearXNG du cabinet (administrateur ; 409 si version périmée ; no-store)
+        return _searxng_api(desk, route, data, owner)
     if route == 'admin/skills/generale':
         from .competences5632 import listing
         from .competences5643 import GENERAL_SETTING
@@ -171,6 +173,21 @@ def api(env, desk, auth, prefix, name, args, method):
         job = desk.enqueue('digest_pieces5632', {'matter': str(data.get('matter') or '')}, priority=40)
         return json_out({'job': job, 'message': i18n.t('syn.queued')})
     raise Stop('route_inconnue')
+
+
+def _searxng_api(desk, route, data, owner):
+    """5.6.106 (lot S) : enregistrement versionné des réglages SearXNG ; « Tester » fait une vraie requête neutre (plafond horaire compté)."""
+    from .web440 import json_out
+    from . import searxng56106 as sx
+    entetes = [('Cache-Control', 'private, no-store')]
+    try:
+        out = sx.enregistrer(desk, data, owner) if route == 'admin/searxng' else sx.tester(desk, owner)
+    except Stop as ex:
+        code = str(ex).split(':')[0]
+        return {**json_out({'error': code, 'message': sx.message(code)}, '409 Conflict' if code == 'version_en_conflit' else '400 Bad Request'), 'headers': entetes}
+    if route == 'admin/searxng/test' and not out['ok']:   # échec lisible, affiché comme une erreur par le formulaire
+        return {**json_out({**out, 'error': out['motif']}, '502 Bad Gateway'), 'headers': entetes}
+    return {**json_out(out), 'headers': entetes}
 
 
 # --------------------------------------------------------------------------------------------- fragments d'écran
@@ -417,6 +434,9 @@ def veille_settings(desk, env, prefix, admin=True):
              '<label>%s<input type="number" name="interval_days" min="%d" max="%d" value="%d"></label>') % (
         th('vj.themes_eco'), th('vj.themes_eco_hint'), e(lignes('economique')), th('vj.interval_days'), INTERVALLE_MIN, INTERVALLE_MAX,
         int(p.get('interval_days') or 3))
+    from .searxng56106 import actif as searxng_actif   # 5.6.106 (lot S) : la case « Recherche Internet » interroge aussi SearXNG
+    if searxng_actif(desk, 'veille'):
+        body += '<p class="f5632-hint">Recherche Internet : interroge aussi SearXNG, l’instance du cabinet (résultats fusionnés avec ceux de Tavily, source de chaque élément conservée).</p>'
     st = state(desk, owner)
     etat = '<p class="f5632-hint">%s</p>' % (th('vj.next_run', when=st['next_run'][:16].replace('T', ' ')) if st['next_run'] else th('vj.no_next_run'))
     if st['last_status']:
@@ -433,6 +453,8 @@ def veille_settings(desk, env, prefix, admin=True):
                 _form('admin/veille/tavily', '<label>%s<input type="password" name="key" autocomplete="off" placeholder="%s"></label>' % (
                     th('vj.tavily_key'), th('guide.secret_set') if tavily_key_path(desk) else 'tvly-…'), i18n.t('vj.tavily_save'), reload=True))
         out += recherche_publique_section(desk)   # 5.6.96 (R02) : même clé, plafond partagé avec la veille
+        from .searxng56106 import section_html    # 5.6.106 (lot S) : SearXNG auto-hébergé, combiné à Tavily
+        out += section_html(desk)
     return out + '</section>'
 
 
@@ -443,8 +465,12 @@ def recherche_publique_section(desk):
     th = i18n.th
     q = public.quota(desk)
     statuts = ('ok', 'vide', 'erreur', 'incertain')
+    def origine(x):   # 5.6.106 (lot S) : le service interrogé est visible (SearXNG journalisé comme Tavily)
+        if x.get('profil') == 'test':
+            return 'Test · SearXNG'
+        return th('rp.profil.' + ('veille' if x.get('profil') == 'veille' else 'public')) + (' · SearXNG' if x.get('fournisseur') == 'searxng' else '')
     lignes = ''.join('<tr><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>' % (
-        e(str(x.get('at') or '')[:16].replace('T', ' ')), th('rp.profil.' + ('veille' if x.get('profil') == 'veille' else 'public')), int(x.get('resultats') or 0),
+        e(str(x.get('at') or '')[:16].replace('T', ' ')), origine(x), int(x.get('resultats') or 0),
         th('rp.statut.' + (x.get('statut') if x.get('statut') in statuts else 'erreur'))) for x in public.journal(desk, 30))
     journal = ('<table class="vf-table"><caption>%s</caption><thead><tr><th scope="col">%s</th><th scope="col">%s</th><th scope="col">%s</th><th scope="col">%s</th></tr></thead>'
                '<tbody>%s</tbody></table>' % (th('rp.journal'), th('rp.col_date'), th('rp.col_profil'), th('rp.col_results'), th('rp.col_status'), lignes)

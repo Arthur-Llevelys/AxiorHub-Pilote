@@ -384,6 +384,8 @@ def documents_html(desk, auth, prefix, m, args):
     if cat == 'illisibles':
         from .vue5651 import coverage_html
         body += _safe('Couverture', coverage_html, desk, prefix, mid)
+        from .vision56106 import illisibles_html as _vision56106   # 5.6.106 (lot I) : proposer une lecture par un modèle capable de voir (jamais automatique vers l'externe)
+        body += _safe('Lecture par un modèle capable de voir', _vision56106, desk, prefix, mid)
     body += '<p class="ax-muted"><a href="%s">Vue détaillée des pièces, bordereaux et couverture de lecture</a> · <a href="%s">Contentieux : prétentions, preuves, actes, délais, paquets</a></p>' % (e(prefix + _q(mid, 'pieces-detail'), quote=True), e(prefix + '/contentieux?dossier=' + mid, quote=True))   # 5.6.89
     return _card('Documents du dossier', body, 'd79-documents')
 
@@ -542,6 +544,7 @@ def echanges_html(desk, auth, prefix, m, args):
     out += _safe('Pièces demandées et remises', pieces5697, desk, _acteur5697(), prefix, m['id'])
     out += _safe('Intervenants', intervenants_html, desk, prefix, m)
     out += _safe('Courriels', courriels_html, desk, auth, prefix, m, args)
+    out += _safe('Messagerie', __import__('importlib').import_module('.boite56106', __package__).bloc_dossier, desk, prefix, m)   # 5.6.106 (lot L) : sous-dossier de messagerie du dossier
     out += '<details class="d79-fold"><summary>Correspondances conservées dans le dossier</summary>%s</details>' % _safe(
         'Correspondances', dossier5627.correspondances_html, desk, prefix, m, str(args.get('archive') or ''))
     try:

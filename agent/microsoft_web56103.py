@@ -17,16 +17,20 @@ from . import microsoft56103 as ms
 PREFIXE = 'm56103/microsoft/'
 ROLES = ('administrateur', 'avocat', 'assistant')
 ROUTES_GET = ('etat',)
-ROUTES_POST = ('connexion', 'appareil/sonder', 'deconnecter', 'brouillon/retenir', 'brouillon/deposer', 'brouillon/verifier', 'brouillon/abandonner')
+ROUTES_POST = ('connexion', 'appareil/sonder', 'deconnecter', 'brouillon/retenir', 'brouillon/deposer', 'brouillon/verifier', 'brouillon/abandonner',
+               'brouillon/rapprocher')     # 5.6.106 (audit M4) : nouvel essai autorisé par la personne après une recherche sans résultat
 NEUTRES = ('brouillon_absent', 'microsoft56103_appareil_inconnu', 'message_absent')
 STATUTS = {'introuvable': '404 Not Found', 'version_perimee': '409 Conflict', 'etat_incompatible': '409 Conflict', 'depot_a_verifier': '409 Conflict',
            'compte_modifie': '409 Conflict', 'cle_idempotence_deja_utilisee': '409 Conflict', 'role_insuffisant': '403 Forbidden',
-           'geste_reserve_a_la_personne': '403 Forbidden'}
+           'geste_reserve_a_la_personne': '403 Forbidden', 'depot_en_cours': '409 Conflict', 'brouillon_distant_different': '409 Conflict'}
 CLE = re.compile(r'^[A-Za-z0-9-]{8,64}$')
 MESSAGES = {'introuvable': 'Élément introuvable.', 'version_perimee': 'Le projet a changé entre-temps : rechargez la page.',
             'depot_a_verifier': 'Dépôt à vérifier d’abord (bouton « Vérifier dans Outlook »).', 'etat_incompatible': 'Action impossible dans cet état.',
             'compte_modifie': 'Le compte Microsoft a changé depuis : vérifiez le projet.', 'idempotence_requise': 'Clé de demande manquante : rechargez la page.',
-            'geste_reserve_a_la_personne': 'Ce geste est réservé à une personne.', 'adresse_invalide': 'Adresse de destinataire invalide.'}
+            'geste_reserve_a_la_personne': 'Ce geste est réservé à une personne.', 'adresse_invalide': 'Adresse de destinataire invalide.',
+            # 5.6.106 (audit M4, M5)
+            'depot_en_cours': 'Dépôt en cours : réessayez dans un instant (s’il a été interrompu, il sera vérifié dans Outlook, sans doublon).',
+            'brouillon_distant_different': 'Le brouillon dans Outlook diffère du projet approuvé : vérifiez-le dans Outlook ; AxiorHub ne le modifie pas.'}
 
 
 def allowed(role, method, api):
@@ -93,6 +97,8 @@ def _api(env, desk, auth, prefix, name, args, method):
     if route == 'connexion':
         caps = [str(c) for c in (data.get('capacites') or []) if isinstance(c, str)][:4]
         ms.portees(caps)                                   # garde-fou avant toute écoute ou tout appel
+        if 'sharepoint' in caps and data.get('sharepoint_explicite') is not True:
+            raise Stop('microsoft56103_sharepoint_non_choisi')   # 5.6.106 (audit M3) : SharePoint seulement sur choix explicite
         if ms.mode_pour(env) == 'pkce':
             ms._exiger_client(desk)
             port = ms.ecouter_retour(desk.c)
@@ -117,12 +123,25 @@ def _api(env, desk, auth, prefix, name, args, method):
         return _out(ol.deposer(desk, owner, data.get('id'), int(data.get('version') or 0), data.get('cle')))
     if route == 'brouillon/verifier':
         return _out(ol.verifier(desk, owner, data.get('id')))
+    if route == 'brouillon/rapprocher':
+        return _out(ol.rapprocher(desk, owner, data.get('id'), int(data.get('version') or 0)))
     return _out(ol.abandonner(desk, owner, data.get('id'), int(data.get('version') or 0)))
 
 
 # ------------------------------------------------------------------------------------------------ Paramètres › Connexions
-def section_html(desk, prefix, owner, env=None):
-    """Section « Compte Microsoft (application intégrée) » : état réel, connexion, code d'appareil, déconnexion. Aucun appel réseau au rendu."""
+FONCTIONS = ('courrier', 'agenda', 'fichiers')     # fonctions proposées (bouton Outlook, Agenda, OneDrive) ; SharePoint : option à part
+
+
+def fonction_choisie(env):
+    """5.6.106 (audit M3) : fonction choisie dans le parcours (``?microsoft=courrier|agenda|fichiers``), '' sinon ; jamais SharePoint."""
+    from urllib.parse import parse_qs
+    valeur = (parse_qs(str((env or {}).get('QUERY_STRING') or '')).get('microsoft') or [''])[0]
+    return valeur if valeur in FONCTIONS else ''
+
+
+def section_html(desk, prefix, owner, env=None, fonction=None):
+    """Section « Compte Microsoft (application intégrée) » : état réel, connexion, code d'appareil, déconnexion. Aucun appel réseau au rendu.
+    ``fonction`` (ou ``?microsoft=`` dans l'adresse) : capacité cochée d'office ; aucune sinon."""
     out = etat(desk, owner, env)
     if not out['disponible']:
         corps = ('<p class="ax-muted" role="status">%s</p><p class="ax-muted">L’agenda Outlook reste disponible avec l’application propre du cabinet '
@@ -131,14 +150,25 @@ def section_html(desk, prefix, owner, env=None):
         c = out['connexion']
         if c['etat'] == 'active':
             caps = ', '.join(ms.LIBELLES[x] for x in c['capacites']) or 'aucune autorisation utile'
-            corps = '<p class="s5636-ok">Relié : <strong>%s</strong></p><p class="ax-muted">Autorisations : %s.</p>' % (e(c['compte']), e(caps))
+            corps = '<p class="s5636-ok">Relié : <strong>%s</strong></p><p class="ax-muted">Autorisations accordées par Microsoft : %s.</p>' % (e(c['compte']), e(caps))
         elif c['etat'] == 'a_reconnecter':
             corps = '<p class="ax-alert" role="status">%s</p>' % e(ms.MESSAGES['microsoft56103_reconnexion_requise'])
         else:
             corps = '<p class="ax-muted">Non relié.</p>'
-        manquantes = [x for x in ('courrier', 'agenda', 'fichiers') if x not in c['capacites']]
+        # 5.6.106 (audit M3) : seules les capacités de la fonction choisie sont cochées (bouton ou lien « ?microsoft=agenda », etc.) ; rien
+        # n'est coché sans fonction choisie ; SharePoint est une option à part, jamais précochée. Les capacités accordées viennent de la réponse
+        # réelle de Microsoft (portées du jeton) et sont redemandées d'office lors d'un ajout (``_avec_existantes``).
+        choisie = fonction if fonction is not None else fonction_choisie(env)
+        manquantes = [x for x in FONCTIONS if x not in c['capacites']]
         cases = ''.join('<label class="e5636-switch"><input type="checkbox" name="capacites" value="%s"%s> %s</label>'
-                        % (x, ' checked' if x in manquantes or c['etat'] != 'active' else '', e(ms.LIBELLES[x])) for x in ('courrier', 'agenda', 'fichiers', 'sharepoint'))
+                        % (x, ' checked' if x == choisie else '', e(ms.LIBELLES[x])) for x in manquantes)
+        if cases:
+            cases = '<fieldset><legend>Autorisations demandées</legend>%s</fieldset>' % cases
+        if 'sharepoint' not in c['capacites']:
+            cases += ('<fieldset class="m103-option"><legend>Option</legend><label class="e5636-switch"><input type="checkbox" name="capacites" '
+                      'value="sharepoint"> %s</label></fieldset>') % e(ms.LIBELLES['sharepoint'])
+        cases += ('<p class="ax-muted">Décocher une case ne retire pas une autorisation déjà accordée : pour la retirer, passez par votre compte '
+                  'Microsoft (ou votre administrateur).</p>') if c['etat'] == 'active' else ''
         mode = ('Une page Microsoft s’ouvre dans ce navigateur ; le retour arrive sur ce poste.' if out['mode'] == 'pkce' else
                 'Un code s’affiche : saisissez-le sur microsoft.com/devicelogin depuis n’importe quel appareil.')
         flux = ''
@@ -146,7 +176,7 @@ def section_html(desk, prefix, owner, env=None):
             flux = ('<p class="m103-code" data-m103-flux="%s" data-m103-intervalle="%d">Code à saisir : <strong>%s</strong> sur <a href="%s" target="_blank" '
                     'rel="noopener noreferrer">%s</a></p>') % (e(out['flux']['flux'], quote=True), int(out['flux']['intervalle']), e(out['flux']['code']),
                                                                e(out['flux']['adresse'], quote=True), e(out['flux']['adresse']))
-        corps += ('<form class="m103-connexion" data-m103="connexion"><fieldset><legend>Autorisations demandées</legend>%s</fieldset>'
+        corps += ('<form class="m103-connexion" data-m103="connexion">%s'
                   '<p class="ax-muted">%s AxiorHub ne demande jamais l’envoi de courriel : les brouillons restent dans Outlook jusqu’à votre envoi.</p>'
                   '<p class="ax-muted">Dans beaucoup de cabinets, un administrateur Microsoft 365 doit d’abord consentir pour l’organisation '
                   '(courrier et agenda inclus, selon les réglages actuels de Microsoft).</p>'
