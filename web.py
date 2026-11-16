@@ -6,7 +6,7 @@ from agent.common import load_config
 if __name__=='__main__':
     os.umask(0o077)
     p=argparse.ArgumentParser()
-    p.add_argument('mode',choices=['serve','worker','watch'])
+    p.add_argument('mode',choices=['serve','worker','watch','liaison'])   # 5.6.103 (lot L) : liaison entre postes (poste.py, liaison activée)
     p.add_argument('--worker-id',default='1')
     p.add_argument('--config',default='/etc/axiorhub-mail-agent/config.json')
     p.add_argument('--auth',default='/etc/axiorhub-mail-agent/ui-auth.json')
@@ -18,6 +18,9 @@ if __name__=='__main__':
     elif args.mode=='worker':
         from agent.desk import worker
         worker(load_config(args.config),args.worker_id)
+    elif args.mode=='liaison':   # 5.6.103 (lot L) : lancé par poste.py seulement quand la liaison est activée ; s'arrête quand elle ne l'est plus
+        from agent.liaison56103 import service
+        service(load_config(args.config))
     else:
         from agent.watch430 import watcher
         watcher(load_config(args.config))

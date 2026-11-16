@@ -1,0 +1,35 @@
+/* AxiorHub 5.6.103 (lot L) — liaison entre postes : bandeau de la messagerie, rubrique de Paramètres. */
+.l103-fil { margin: .5rem 0; padding: .6rem .8rem; border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; background: var(--ax-panel, #f4f4f4); color: inherit; }
+.l103-postes { list-style: none; margin: 0 0 .3rem; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; }
+.l103-presence { font-size: .92em; }
+.l103-presence::before { content: ''; display: inline-block; width: .6em; height: .6em; border-radius: 50%; margin: 0 .3em 0 .2em; vertical-align: middle; background: #6f6f6f; }
+.l103-en_ligne::before { background: #198038; }
+.l103-absent::before { background: #b28600; }
+.l103-hors_ligne::before { background: #6f6f6f; }
+.l103-attente { margin: .2rem 0; font-weight: 600; }
+.l103-refus { color: #a2191f; }
+.l103-outils { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.l103-joindre { position: relative; cursor: pointer; }
+.l103-joindre:focus-within { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.l103-fichier { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.l103-status { margin: .3rem 0 0; min-height: 1.2em; }
+.l103 h3 { margin-top: 1.2rem; }
+.l103-dl { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; }
+.l103-dl dt { font-weight: 600; }
+.l103-dl dd { margin: 0; }
+.l103-ligne { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; }
+.l103-liste { list-style: none; padding: 0; }
+.l103-liste li { padding: .4rem 0; border-bottom: 1px solid var(--ax-line, #e0e0e0); }
+.l103-code { font-size: 1.15em; padding: .5rem .8rem; border-left: 4px solid var(--ax-focus, #0f62fe); background: var(--ax-panel, #f4f4f4); }
+.l103-code strong { letter-spacing: .12em; font-size: 1.2em; }
+.l103-empreinte { font-size: .8em; }
+.l103-actions { display: inline-flex; gap: .4rem; flex-wrap: wrap; }
+.l103-etat { font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .l103-en_ligne::before { background: #42be65; }
+  .l103-absent::before { background: #f1c21b; }
+  .l103-refus { color: #ff8389; }
+}
+:root[data-theme="dark"] .l103-en_ligne::before { background: #42be65; }
+:root[data-theme="dark"] .l103-absent::before { background: #f1c21b; }
+:root[data-theme="dark"] .l103-refus { color: #ff8389; }

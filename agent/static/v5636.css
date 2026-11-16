@@ -138,7 +138,7 @@
   .g5636-piece dl{grid-template-columns:1fr}
 }
 .e5636-switch{justify-content:flex-start!important;text-align:left;grid-column:auto}
-.e5636-switch input[type=checkbox]{width:auto!important;flex:0 0 auto;margin:3px 0 0}
+.e5636-switch input[type=checkbox],.e5636-switch input[type=radio]{width:auto!important;flex:0 0 auto;margin:3px 0 0}   /* 5.6.103 : choix de l’application Microsoft (boutons radio) */
 .c5636-fields .e5636-switch{align-self:end;padding-bottom:8px}
 .c5636-main,.crm-layout>*,.c5636-layout>*{min-width:0}
 @media(max-width:820px){.crm-layout,.c5636-layout{grid-template-columns:minmax(0,1fr)}}

@@ -753,6 +753,8 @@
  "f101.fonction_famille": "{fonction} ({famille})",
  "fn.securite_serveur.label": "Seguridad del servidor",
  "fn.securite_serveur.desc": "Vigilancia de seguridad de la máquina: intrusiones, programas sospechosos, versiones que actualizar",
+ "fn.fichiers.label": "Archivos",
+ "fn.fichiers.desc": "Explorador de dos paneles para los archivos de Nextcloud (y de este puesto): renombrado por lotes, versiones, ZIP, notas",
  "f101.guide.famille": "Familia «{famille}»",
  "f101.guide.autres": "Las demás pestañas de esta familia:",
  "f101.usage.titre": "Funciones poco utilizadas",

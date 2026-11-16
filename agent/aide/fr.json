@@ -2140,6 +2140,42 @@
 ],
 "version": "5.6.36"
 },
+"fichiers": {
+"objective": "Parcourir les fichiers du cabinet dans Nextcloud (et, sur un poste, les dossiers choisis de l’ordinateur) dans deux volets côte à côte, avec onglets et favoris ; renommer par lot, numéroter des pièces, archiver, consulter et restaurer des versions.",
+"when": "Pour ranger un dossier, numéroter des pièces avant un bordereau, retrouver un fichier dans les sous-dossiers ou revenir à une version antérieure.",
+"prerequisites": "Nextcloud configuré ; sur un poste, les dossiers de l’ordinateur sont ajoutés dans « Dossiers de ce poste et versions locales ».",
+"steps": [
+"Ouvrez Fichiers (famille « Pièces et contentieux ») ; chaque volet a sa source, ses onglets et son fil d’Ariane.",
+"Tapez dans « Filtrer ce dossier » pour réduire la liste, ou utilisez « Chercher » pour les sous-dossiers (recherche bornée, « Continuer la recherche » pour la suite).",
+"Cochez des éléments puis « Renommer par lot » : choisissez la règle (numéroter les pièces, remplacer, ajouter), cliquez « Voir l’aperçu », corrigez les conflits signalés, puis renommez.",
+"Glissez un élément vers l’autre volet, ou utilisez « Copier vers l’autre volet » / « Déplacer vers l’autre volet » (déplacement confirmé).",
+"Sélectionnez un fichier puis « Versions » pour restaurer une version : une version plus récente n’est jamais écrasée (copie de conflit signalée)."
+],
+"result": "Les fichiers rangés et renommés dans Nextcloud ; les notes et couleurs restent dans AxiorHub, visibles par le cabinet.",
+"verify": "Rechargez le dossier : les nouveaux noms, l’archive ou la copie de conflit apparaissent ; le journal d’audit garde chaque action.",
+"errors": [
+[
+"« Un élément porte déjà ce nom »",
+"Rien n’a été remplacé : choisissez un autre nom ou renommez d’abord l’élément existant."
+],
+[
+"« Le stockage ne répond pas »",
+"Nextcloud est injoignable : le dossier n’est pas vide, réessayez plus tard."
+],
+[
+"« Archive refusée »",
+"L’archive contient un chemin sortant, un lien ou trop de données décompressées : rien n’a été extrait."
+]
+],
+"example": "Dans le dossier fictif DOS-001, numéroter dix pièces « Pièce n° 01 – … » dans l’ordre choisi, puis créer une archive ZIP pour le confrère.",
+"buttons": [
+"Chercher",
+"Renommer par lot",
+"Voir l’aperçu",
+"Versions"
+],
+"version": "5.6.36"
+},
 "securite_serveur": {
 "objective": "Voir si le serveur du cabinet présente des signes d’intrusion ou des logiciels à mettre à jour, avec une explication et la commande à faire exécuter par la personne chargée du serveur.",
 "when": "Après une alerte sur le téléphone ou dans Aujourd’hui, ou lors d’un contrôle régulier.",

@@ -253,7 +253,7 @@ def section_html(desk, prefix, owner, role, args=None):
         corps += _simple('m5689/gmail/deconnecter', 'Déconnecter Gmail')
     if role == 'administrateur':
         corps += guide_html(desk)
-    return '<section class="ax-card" id="gmail5697" aria-labelledby="gmail5697-t"><h2 id="gmail5697-t">Gmail</h2>%s</section>' % corps
+    return '<section class="ax-card" id="gmail5697" aria-labelledby="gmail5697-t"><h2 id="gmail5697-t">Gmail par l’API Google (application OAuth)</h2>%s</section>' % corps
 
 
 # ------------------------------------------------------------------------------------------------ bloc « projet Gmail » de la vue assistée

@@ -3,6 +3,36 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.103 — liaison directe entre postes, page « Fichiers », tableau blanc, compte Microsoft intégré, Gmail simple, tests en parallèle
+
+- **Liaison entre postes (lot L)** : les versions « poste de travail » se relient directement sur le réseau local du cabinet, sans serveur ;
+  désactivée par défaut. Découverte automatique et adresse saisie (plages privées seulement) ; appairage par code à usage unique
+  (8 chiffres, 10 minutes, 5 essais ; SPAKE2, RFC 9382) ; sessions signées (Ed25519) et chiffrées (X25519 éphémère, ChaCha20-Poly1305),
+  anti-rejeu. Messages, groupes et mentions dans la Messagerie instantanée ; Pilote tourne sur le poste qui l'interpelle ; pièces jointes
+  de 25 Mo au plus vérifiées par empreinte ; présence ; message gardé chez l'expéditeur quand le destinataire est éteint. Réglages
+  partagés (fournisseurs d'IA, connecteurs MCP, connexions API) publiés par un poste administrateur, secrets chiffrés pour chaque poste,
+  appliqués ou refusés un par un par le destinataire ; identifiants personnels jamais partagés. Note : docs/LIAISON-POSTES-5.6.103.md.
+- **Page « Fichiers » (lot F)** : deux volets, onglets, favoris, glisser d'un volet à l'autre ; filtre et recherche bornée dans les
+  sous-dossiers ; renommage par lot avec aperçu, contrôle des conflits et numérotation des pièces ; notes et couleurs ; propriétés et
+  SHA-256 ; ZIP (archives malveillantes refusées) ; versions Nextcloud avec restauration conditionnelle (If-Match) et copie de conflit ;
+  sur le poste, dossiers surveillés avec une version à chaque changement, plafond d'espace et durée de conservation.
+- **Tableau blanc (lot T)** : un tableau par discussion de la Messagerie instantanée, dans le volet de droite, sur Excalidraw 0.18.1
+  (MIT) assemblé localement (scripts/build-excalidraw.py, aucun CDN, polices servies par AxiorHub) ; temps réel par AxiorHub (fusion
+  par élément) ; « @pilote dessine » : schéma Mermaid validé, proposé puis ajouté ou annulé ; export PNG et SVG sur le poste.
+- **Compte Microsoft (lot M)** : application publique intégrée (identifiant seulement, aucun secret) : PKCE sur le poste, code
+  d'appareil sur le serveur ; courrier Outlook (lecture, brouillons avec pièces jointes, jamais d'envoi), agenda, OneDrive et SharePoint
+  dans « Fichiers ». L'application propre du cabinet reste possible. L'application intégrée attend son inscription par l'éditeur :
+  docs/MICROSOFT-APPLICATION-PUBLIQUE-5.6.103.md.
+- **Gmail simple et mise en service (lot G)** : Gmail par IMAP avec mot de passe d'application (dossiers reconnus par leur attribut,
+  refus de Google expliqués), assistant pour une application OAuth « Interne » Google Workspace ; étapes facultatives « Compte Google »
+  et « Compte Microsoft » dans l'assistant de mise en service, passables et reprises depuis Paramètres › Connexions.
+- **Tests en parallèle (lot 0)** : scripts/tests-paralleles.py (un processus par module ou classe ; suite complète en une vingtaine de
+  minutes au lieu de plus de trois heures) ; scripts/parcours-navigateur.py -j N (navigateurs simultanés, tour du menu en tranches).
+- **À relire (retour du cabinet sur la 5.6.102)** : à 100 %, le texte du projet n'est plus réduit à une ligne ; les remarques du lecteur
+  tiennent sur deux lignes (« Plus de détails »), le lecteur garde au moins 40rem et la zone de texte au moins 10rem.
+- Paramètres › Connexions : choix de l'application Microsoft lisible, deux sections Gmail distinctes, « Tester la connexion » Gmail
+  refusé sans erreur HTTP.
+
 ## 5.6.102 — Pilote dans la messagerie instantanée, accord du client jusqu’au projet de contrat, pièces jointes rangées, signature de la messagerie, « À relire » en accès principal, journal d’audit purgeable, fausses alertes Collabora
 
 Demandes du cabinet après l’installation de la 5.6.101 en production, toutes dans cette version.

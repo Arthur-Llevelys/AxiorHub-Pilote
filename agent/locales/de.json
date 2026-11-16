@@ -753,6 +753,8 @@
  "f101.fonction_famille": "{fonction} ({famille})",
  "fn.securite_serveur.label": "Serversicherheit",
  "fn.securite_serveur.desc": "Sicherheitsüberwachung des Rechners: Eindringversuche, verdächtige Programme, zu aktualisierende Versionen",
+ "fn.fichiers.label": "Dateien",
+ "fn.fichiers.desc": "Zweispaltiger Explorer für Nextcloud-Dateien (und diesen Arbeitsplatz): Stapelumbenennung, Versionen, ZIP, Notizen",
  "f101.guide.famille": "Gruppe „{famille}“",
  "f101.guide.autres": "Die anderen Reiter dieser Gruppe:",
  "f101.usage.titre": "Selten genutzte Funktionen",

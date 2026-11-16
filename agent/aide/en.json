@@ -2140,6 +2140,42 @@
 ],
 "version": "5.6.36"
 },
+"fichiers": {
+"objective": "Browse the firm’s Nextcloud files (and, on a workstation, chosen folders of the computer) in two side-by-side panes with tabs and favourites; batch rename, number exhibits, archive, view and restore versions.",
+"when": "To tidy a matter, number exhibits before a list of exhibits, find a file in subfolders or go back to an earlier version.",
+"prerequisites": "Nextcloud configured; on a workstation, computer folders are added under “Dossiers de ce poste et versions locales”.",
+"steps": [
+"Open Files (family “Pièces et contentieux”); each pane has its source, tabs and breadcrumb.",
+"Type in “Filtrer ce dossier” to narrow the list, or use “Chercher” for subfolders (bounded search, “Continuer la recherche” for more).",
+"Tick items then “Renommer par lot”: choose the rule (number exhibits, replace, add), click “Voir l’aperçu”, fix the reported conflicts, then rename.",
+"Drag an item to the other pane, or use “Copier vers l’autre volet” / “Déplacer vers l’autre volet” (moves are confirmed).",
+"Select a file then “Versions” to restore a version: a newer version is never overwritten (a conflict copy is reported)."
+],
+"result": "Files tidied and renamed in Nextcloud; notes and colours stay in AxiorHub, visible to the firm.",
+"verify": "Reload the folder: the new names, the archive or the conflict copy appear; the audit log keeps each action.",
+"errors": [
+[
+"“Un élément porte déjà ce nom”",
+"Nothing was replaced: choose another name or rename the existing item first."
+],
+[
+"“Le stockage ne répond pas”",
+"Nextcloud is unreachable: the folder is not empty, try again later."
+],
+[
+"“Archive refusée”",
+"The archive contains an escaping path, a link or too much uncompressed data: nothing was extracted."
+]
+],
+"example": "In the fictitious matter DOS-001, number ten exhibits “Pièce n° 01 – …” in the chosen order, then create a ZIP archive for opposing counsel.",
+"buttons": [
+"Chercher",
+"Renommer par lot",
+"Voir l’aperçu",
+"Versions"
+],
+"version": "5.6.36"
+},
 "securite_serveur": {
 "objective": "See whether the firm’s server shows signs of intrusion or software to update, with an explanation and the command for the person in charge of the server to run.",
 "when": "After an alert on the phone or in Today, or during a regular check.",

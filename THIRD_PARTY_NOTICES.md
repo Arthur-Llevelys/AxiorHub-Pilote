@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.102
+# Composants tiers et compatibilité — AxiorHub 5.6.103
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -85,6 +85,17 @@ Fichiers construits avec esbuild à partir des paquets npm officiels, hébergés
 - `figtree-latin.woff2` (5.6.96, police par défaut de l'interface) : Figtree (The Figtree Project Authors, `github.com/erikdkennedy/figtree`, dernière version publiée 2.0.3), fichier variable (graisses 300 à 900) du sous-ensemble latin tel que Google Fonts le distribue (révision `v9`, téléchargé le 2026-11-09), copié tel quel dans l'arbre et servi par l'application (aucun CDN), SIL Open Font License 1.1 (`LICENSES/OFL-1.1-Figtree.txt`). sha256 `4ba7d3d096695818fe0686be4f1e82c6b05134e18a22260336130335027462dd`.
 
 Télémétrie : `@carbon/web-components` dépend de `@ibm/telemetry-js`, qui ne s'exécute qu'au script d'installation npm. La construction passe `--ignore-scripts` et pose `CARBON_TELEMETRY_DISABLED=1` et `IBM_TELEMETRY_DISABLED=true` : aucune mesure n'est émise, et ce paquet n'entre pas dans les fichiers servis.
+
+## Tableau blanc Excalidraw (5.6.103)
+
+`excalidraw56103.js`, `excalidraw56103.css` et le dossier `excalidraw56103/` (morceaux chargés à la demande et polices) sont reconstruits par `python scripts/build-excalidraw.py` depuis `scripts/excalidraw56103/package-lock.json` (`npm ci --ignore-scripts`, esbuild 0.25.12). Node et npm servent à construire, jamais à l'exécution ; aucun CDN n'est employé : les adresses de secours des polices, les widgets de réseaux sociaux et les services d'excalidraw.com (partage, bibliothèques publiques, collaboration, IA) sont retirés à la construction, chaque remplacement étant compté. Empreintes, versions et licences de chaque paquet : `scripts/excalidraw56103/manifeste.json`. Textes de licence et avis de droits d'auteur : `LICENSES/Excalidraw-5.6.103-licences.txt`.
+
+- `@excalidraw/excalidraw` 0.18.1 et `@excalidraw/mermaid-to-excalidraw` 2.2.2 (Excalidraw) : MIT.
+- `react` et `react-dom` 18.3.1 (Meta) : MIT ; `mermaid` 11.17.2 : MIT ; composants Radix UI : MIT ; d3 7.9.2 et ses modules : ISC (d3-ease, d3-sankey : BSD-3-Clause).
+- Autres : `browser-fs-access` et `crc-32` (Apache-2.0), `dompurify` 3.4.18 ((MPL-2.0 OR Apache-2.0), Apache-2.0 retenue), `fractional-indexing` (CC0-1.0), `pako` ((MIT AND Zlib)), `tslib` (0BSD) ; le reste sous MIT ou ISC (liste complète dans le manifeste).
+- Polices servies : Assistant, Cascadia Code, Excalifont, Lilita One, Nunito, Virgil (SIL Open Font License 1.1) ; Comic Shanns (MIT). Polices omises : Liberation Sans (licence renvoyant à un accord extérieur non vérifiable) et Xiaolai (13 Mo).
+
+Aucune licence GPL, AGPL ou inconnue parmi les paquets assemblés.
 
 ## Parcours navigateur (5.6.94, outil de développement)
 

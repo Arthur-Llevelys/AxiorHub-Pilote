@@ -113,6 +113,8 @@ FUNCTIONS = (
     ('tableau_de_bord', 'regler', '/accueil', ('Tableau de bord', 'Pilotage du cabinet', 'Dashboard'), ()),
     ('a_propos', 'regler', '/a-propos', ('À propos', 'Licence'), ()),
     ('securite_serveur', 'regler', '/securite-serveur', ('Sécurité du serveur', 'Sécurité', 'Intrusion', 'Mineur', 'Serveur', 'Alerte', 'Veille de sécurité'), ()),   # 5.6.101 (lot S : page ; lot F : inscription)
+    ('fichiers', 'dossier', '/fichiers', ('Explorateur de fichiers', 'Gestionnaire de fichiers', 'Fichiers Nextcloud', 'Disque local', 'Renommer par lot',
+                                          'Numéroter les pièces', 'Versions d’un fichier', 'Archive ZIP', 'Empreinte SHA-256', 'Deux volets'), ('storage',)),   # 5.6.103 (lot F)
 )
 INDEX = {row[0]: row for row in FUNCTIONS}
 # 5.6.101 (lot F, F01) : famille de chaque fonction (annexe A du cahier, décision D4 : regroupement tel quel), dans l'ordre des onglets de
@@ -124,6 +126,7 @@ FAMILLE = {
     'echeances': 'echeances', 'prescriptions': 'echeances',
     'audience': 'audiences', 'audiences_suivi': 'audiences', 'audiences_word': 'audiences',
     'pieces': 'pieces_contentieux', 'contentieux': 'pieces_contentieux', 'pieces_donnees': 'pieces_contentieux',
+    'fichiers': 'pieces_contentieux',   # 5.6.103 (lot F) : page « Fichiers », dernier onglet de la famille (à côté des données des pièces)
     'corporate': 'societes_fonds', 'cessions': 'societes_fonds',
     'strategie': 'strategie_analyses', 'outils_ia': 'strategie_analyses', 'profils': 'strategie_analyses',
     'recherche': 'rechercher', 'recherche_juridique': 'rechercher', 'verification': 'rechercher', 'sources': 'rechercher',

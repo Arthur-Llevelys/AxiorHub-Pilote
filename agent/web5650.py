@@ -37,7 +37,8 @@ def _hidden():
 def messagerie_page(desk, auth, prefix, env, args):
     from . import messagerie5650 as mx
     mx.ensure_schema(desk)
-    members = _members(desk, auth)
+    from .liaison56103 import augmenter as _relies103   # 5.6.103 (lot L) : postes reliés par la liaison (poste de travail, liaison activée)
+    members = _relies103(desk, _members(desk, auth))
     me, role, _ = _me(env, desk, auth, members)
     hidden = _hidden()
     tid = ''
@@ -49,6 +50,10 @@ def messagerie_page(desk, auth, prefix, env, args):
         tid = mx._check(desk, args['fil'], me, hidden)['id']
     from .pilote_messagerie56102 import page_html as _pilote102   # 5.6.102 (lot M) : outils de Pilote, indicateur, volet (lecture seule)
     p102 = _pilote102(desk, prefix, tid, me, hidden)
+    from .liaison_web56103 import page_html as _liaison103   # 5.6.103 (lot L) : bandeau des postes reliés, pièce jointe (lecture seule)
+    p103 = _liaison103(desk, auth, prefix, tid) if tid else ''
+    from .tableau56103 import page_html as _tableau103   # 5.6.103 (lot T) : bouton « Tableau blanc » et scripts du volet (lecture seule)
+    t103 = _tableau103(desk, prefix, tid, me, hidden)
     others = sorted((m for o, m in members.items() if o != me), key=lambda m: (m['name'] or '').lower())
     options = ''.join('<option value="%s">%s</option>' % (e(m['owner'], quote=True), e('%s (%s)' % (m['name'] or m['owner'], m['role']))) for m in others)
     checks = ''.join('<label class="m50-check"><input type="checkbox" name="%s"> %s</label>' % (e('compte:' + m['owner'], quote=True), e(m['name'] or m['owner']))
@@ -63,7 +68,7 @@ def messagerie_page(desk, auth, prefix, env, args):
     main = ('<section class="m50-main" id="m50-main" aria-live="polite"><p class="m50-empty">Choisissez une conversation, ou ouvrez le fil d’un dossier '
             'depuis sa page.</p></section>') if not tid else (
         '<section class="m50-main" id="m50-main"><header class="m50-head"><h2 id="m50-title">…</h2><p class="m50-people" id="m50-people"></p>'
-        '<div class="m50-tools" id="m50-tools"></div>' + p102['outils'] + '</header><ol class="m50-messages" id="m50-messages" aria-live="polite"></ol>'
+        '<div class="m50-tools" id="m50-tools"></div>' + p102['outils'] + t103['outil'] + '</header>' + p103 + '<ol class="m50-messages" id="m50-messages" aria-live="polite"></ol>'
         + p102['attente'] + '<form class="m50-compose" id="m50-compose"><label for="m50-text" class="m50-sr">Votre message</label>'
         '<textarea id="m50-text" rows="3" maxlength="8000" required data-mention data-matter="' + e(str(args.get('dossier') or ''), quote=True) + '" placeholder="Écrire un message… (@identifiant pour mentionner)"></textarea>'
         '<button class="ax-btn" type="submit">Envoyer</button><p role="status" class="m50-status" id="m50-status"></p></form></section>')
@@ -72,7 +77,7 @@ def messagerie_page(desk, auth, prefix, env, args):
             'et n’envoie jamais rien.</p>'
             '<div class="m50-chat" id="m50-chat" data-fil="%s" data-me="%s"><aside class="m50-side">%s<h2 class="m50-sr">Conversations</h2>'
             '<ul class="m50-list" id="m50-list"></ul></aside>%s</div></div>') % (e(str(tid), quote=True), e(me, quote=True), side, main)
-    return body + p102['scripts']
+    return body + p102['scripts'] + t103['scripts']
 
 
 def droits_page(desk, auth, prefix, env, args):
@@ -134,6 +139,9 @@ def api(env, desk, auth, prefix, name, args, method):
     mx.ensure_schema(desk)
     route = name[len('m5650/'):].split('?', 1)[0]
     members = _members(desk, auth)
+    if route not in ADMIN_ROUTES:   # 5.6.103 (lot L) : postes reliés dans la messagerie seulement (jamais dans les droits ni les dossiers réservés)
+        from .liaison56103 import augmenter as _relies103
+        members = _relies103(desk, members)
     me, role, my_name = _me(env, desk, auth, members)
     from .pilote_messagerie56102 import reservee as _reservee102
     if _reservee102(me):   # 5.6.102 (lot M) : l'identité de Pilote ne lit ni n'écrit par l'API
@@ -178,7 +186,10 @@ def api(env, desk, auth, prefix, name, args, method):
         out = mx.post(desk, me, my_name, role, data.get('id'), data.get('texte'), members, hidden, data.get('lien') or '', data.get('lien_libelle') or '')
         from .membres5650 import ai_denied
         from .pilote_messagerie56102 import apres_message as _pilote102   # 5.6.102 (lot M) : « @pilote » → travail en file, aucun appel au modèle ici
-        pilote = _pilote102(desk, me, role, data.get('id'), out['id'], data.get('texte'), hidden, ai_denied())
+        from .tableau56103 import apres_message as _dessin103   # 5.6.103 (lot T) : « @pilote dessine … » → proposition pour le tableau blanc (travail en file)
+        pilote = _dessin103(desk, me, role, data.get('id'), out['id'], data.get('texte'), hidden, ai_denied())
+        if pilote is None:
+            pilote = _pilote102(desk, me, role, data.get('id'), out['id'], data.get('texte'), hidden, ai_denied())
         return json_out({**out, 'message': 'Message envoyé.', **({'pilote': pilote} if pilote else {})})
     if route == 'retirer':
         try:

@@ -25,11 +25,12 @@ class FakeDAV:
         return CAL
 
     def events(self, urls, a, b, tz):
-        base = datetime.now(timezone.utc).replace(hour=8, minute=0, second=0, microsecond=0)
+        from zoneinfo import ZoneInfo   # 5.6.103 : jour du cabinet ; entre minuit et 1 h à Paris, le jour UTC est encore la veille
+        base = datetime.now(ZoneInfo('Europe/Paris')).replace(hour=9, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
         out = [{'uid': 'ext-1', 'recurrence_id': '', 'summary': 'Audience MARTINEAU', 'description': 'DOS-001', 'location': '',
                 # 5.6.31 : « demain » sortait de la semaine affichée (lundi → dimanche) quand la recette tournait un dimanche.
-                'start': (base + timedelta(days=0 if base.weekday() == 6 else 1)).isoformat(),
-                'end': (base + timedelta(days=0 if base.weekday() == 6 else 1, hours=2)).isoformat(), 'busy': True,
+                'start': (base + timedelta(days=0 if base.astimezone(ZoneInfo('Europe/Paris')).weekday() == 6 else 1)).isoformat(),
+                'end': (base + timedelta(days=0 if base.astimezone(ZoneInfo('Europe/Paris')).weekday() == 6 else 1, hours=2)).isoformat(), 'busy': True,
                 'source_url': CAL, 'href': '/e1.ics', 'etag': '"1"'}]
         for uid, (title, start, end) in self.store.items():
             out.append({'uid': uid, 'recurrence_id': '', 'summary': title, 'description': '', 'location': '', 'start': start.isoformat(),

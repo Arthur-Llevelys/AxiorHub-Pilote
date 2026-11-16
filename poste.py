@@ -257,10 +257,40 @@ class Supervisor:
         self._write_runtime()
         return self
 
+    def _liaison103(self):
+        """5.6.103 (lot L) : processus « liaison » (``web.py liaison``) lancé seulement quand la liaison entre postes est activée dans
+        Paramètres, arrêté dès qu'elle ne l'est plus : sans activation, aucun port n'est ouvert au réseau. Relances bornées comme les autres."""
+        try:
+            from agent.liaison56103 import active_dans
+            voulu = active_dans(self.p['config'])
+        except Exception:   # pylint: disable=broad-except — module absent ou base illisible : la liaison reste fermée
+            voulu = False
+        with self.registry_lock:
+            if self.stop_event.is_set():
+                return
+            proc = self.procs.get('liaison')
+            vivant = proc is not None and proc.poll() is None
+            if voulu and not vivant and 'liaison' not in self.faults:
+                now = time.time()
+                history = [t for t in self.restarts.get('liaison', []) if now - t < RESTART_LIMIT[1]]
+                if proc is not None:
+                    if len(history) >= RESTART_LIMIT[0]:
+                        self.faults['liaison'] = 'arrets_repetes_code_%s' % proc.returncode
+                        self._log('Liaison entre postes arrêtée %d fois en 10 minutes : relance suspendue (voir liaison.log).' % len(history))
+                        return
+                    history.append(now)
+                    self.restarts['liaison'] = history
+                self._spawn('liaison', [str(self.root / 'web.py'), 'liaison', '--config', str(self.p['config'])])
+            elif not voulu:
+                self.faults.pop('liaison', None)
+                if vivant:
+                    self._terminate(proc)
+
     def _watch(self):
         """5.6.24 (F24) : surveillance bornée — un service arrêté est relancé avec une temporisation progressive ; au-delà de
         RESTART_LIMIT, la boucle de plantage devient un défaut visible (runtime.json, journal) au lieu d'une relance infinie."""
         while not self.stop_event.wait(2):
+            self._liaison103()
             for name in self.SERVICES:
                 proc = self.procs.get(name)
                 if proc is None or proc.poll() is None or name in self.faults:

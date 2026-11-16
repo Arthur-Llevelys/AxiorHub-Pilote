@@ -45,7 +45,9 @@ CHEVAUCHEMENT = """() => { const v = document.querySelector('dialog.f96-fenetre[
     const d = document.elementFromPoint(x, y); if (!d || !v.contains(d)) return 'volet couvert en ' + Math.round(x) + ',' + Math.round(y) + ' par ' + nom(d); }
   for (const a of document.querySelectorAll('#f100-file a[data-f96-action]')) { const r = a.getBoundingClientRect();
     if (r.width < 1 || r.bottom < 0 || r.top > innerHeight) continue;
-    for (const fx of [0.1, 0.5, 0.9]) { const d = document.elementFromPoint(r.left + r.width * fx, r.top + r.height / 2);
+    for (const fx of [0.1, 0.5, 0.9]) { const px = r.left + r.width * fx, py = r.top + r.height / 2;
+      if (px < 0 || py < 0 || px >= innerWidth || py >= innerHeight) continue;   // 5.6.103 : point hors de la fenêtre (lien à moitié visible)
+      const d = document.elementFromPoint(px, py);
       if (!d || !a.contains(d)) return 'lien de la liste couvert (' + a.textContent.trim() + ') par ' + nom(d); } }
   return 'ok'; }"""
 

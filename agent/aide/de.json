@@ -2140,6 +2140,42 @@
 ],
 "version": "5.6.36"
 },
+"fichiers": {
+"objective": "Die Nextcloud-Dateien der Kanzlei (und auf einem Arbeitsplatz ausgewählte Ordner des Rechners) in zwei Spalten mit Registerkarten und Favoriten durchsuchen; stapelweise umbenennen, Anlagen nummerieren, archivieren, Versionen ansehen und wiederherstellen.",
+"when": "Um eine Akte zu ordnen, Anlagen vor einem Anlagenverzeichnis zu nummerieren, eine Datei in Unterordnern zu finden oder zu einer früheren Version zurückzukehren.",
+"prerequisites": "Nextcloud eingerichtet; auf einem Arbeitsplatz werden Ordner des Rechners unter „Dossiers de ce poste et versions locales“ hinzugefügt.",
+"steps": [
+"Öffnen Sie Dateien (Familie „Pièces et contentieux“); jede Spalte hat ihre Quelle, Registerkarten und Pfadleiste.",
+"Tippen Sie in „Filtrer ce dossier“, um die Liste einzugrenzen, oder nutzen Sie „Chercher“ für Unterordner (begrenzte Suche, „Continuer la recherche“ für mehr).",
+"Elemente ankreuzen, dann „Renommer par lot“: Regel wählen (Anlagen nummerieren, ersetzen, ergänzen), „Voir l’aperçu“ klicken, gemeldete Konflikte beheben, dann umbenennen.",
+"Ziehen Sie ein Element in die andere Spalte oder nutzen Sie „Copier vers l’autre volet“ / „Déplacer vers l’autre volet“ (Verschieben wird bestätigt).",
+"Datei wählen, dann „Versions“, um eine Version wiederherzustellen: eine neuere Version wird nie überschrieben (Konfliktkopie wird gemeldet)."
+],
+"result": "Dateien in Nextcloud geordnet und umbenannt; Notizen und Farben bleiben in AxiorHub, für die Kanzlei sichtbar.",
+"verify": "Ordner neu laden: neue Namen, Archiv oder Konfliktkopie erscheinen; das Prüfprotokoll bewahrt jede Aktion.",
+"errors": [
+[
+"„Un élément porte déjà ce nom“",
+"Nichts wurde ersetzt: anderen Namen wählen oder das vorhandene Element zuerst umbenennen."
+],
+[
+"„Le stockage ne répond pas“",
+"Nextcloud ist nicht erreichbar: der Ordner ist nicht leer, später erneut versuchen."
+],
+[
+"„Archive refusée“",
+"Das Archiv enthält einen ausbrechenden Pfad, einen Link oder zu viele entpackte Daten: nichts wurde entpackt."
+]
+],
+"example": "In der fiktiven Akte DOS-001 zehn Anlagen „Pièce n° 01 – …“ in der gewählten Reihenfolge nummerieren, dann ein ZIP-Archiv für den Kollegen erstellen.",
+"buttons": [
+"Chercher",
+"Renommer par lot",
+"Voir l’aperçu",
+"Versions"
+],
+"version": "5.6.36"
+},
 "securite_serveur": {
 "objective": "Sehen, ob der Server der Kanzlei Anzeichen eines Eindringens oder zu aktualisierende Software aufweist, mit einer Erklärung und dem Befehl, den die für den Server zuständige Person ausführen soll.",
 "when": "Nach einer Warnung auf dem Telefon oder in „Heute“ oder bei einer regelmäßigen Kontrolle.",

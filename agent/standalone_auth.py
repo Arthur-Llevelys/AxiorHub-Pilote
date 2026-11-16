@@ -94,6 +94,24 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56102/pilote/'):   # 5.6.102 (lot M) : Pilote dans la messagerie (tous les rôles ; réglage : administrateur ; fil et droits relus par le service)
         from .pilote_messagerie56102 import allowed as allowed56102m
         return allowed56102m(role, method, api)
+    if api.startswith('m56103/assistant/'):   # 5.6.103 (lot G) : passer / reprendre ses propres étapes facultatives (tous les rôles)
+        from .assistant56103 import allowed as allowed56103a
+        return allowed56103a(role, method, api)
+    if api.startswith('m56103/tableau/'):   # 5.6.103 (lot T) : tableau blanc de la messagerie (tous les rôles ; discussion et droits relus par le service)
+        from .tableau56103 import allowed as allowed56103t
+        return allowed56103t(role, method, api)
+    if api.startswith('m56103/fichiers/'):   # 5.6.103 (lot F) : page « Fichiers » (tous les rôles ; réglages du poste : administrateur et avocat ; droits et chemins relus par le service)
+        from .fichiers_web56103 import allowed as allowed56103f
+        return allowed56103f(role, method, api)
+    if api.startswith('m56103/liaison/'):   # 5.6.103 (lot L) : liaison entre postes (présence et pièce jointe : tous ; le reste : administrateur)
+        from .liaison_web56103 import allowed as allowed56103l
+        return allowed56103l(role, method, api)
+    if api.startswith('m56103/gmail/'):   # 5.6.103 (lot G) : Gmail simple, réglage du cabinet (administrateur seulement : refusé ici aux autres)
+        from .gmail_simple56103 import allowed as allowed56103g
+        return allowed56103g(role, method, api)
+    if api.startswith('m56103/microsoft/'):   # 5.6.103 (lot M) : son propre compte Microsoft et ses brouillons Outlook (tous les rôles ; objet et version relus par le service)
+        from .microsoft_web56103 import allowed as allowed56103m
+        return allowed56103m(role, method, api)
     if api.startswith('m56100/relecture'):   # 5.6.100 (lot B) : décisions de relecture (liste fermée ; droit « déposer » et objet contrôlés par le service)
         from .relecture56100 import autoriser_route as allowed56100b
         return allowed56100b(role, method, api)

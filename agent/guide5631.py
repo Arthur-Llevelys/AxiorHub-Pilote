@@ -99,11 +99,13 @@ PLUS_TARD = ('meteo', 'veille', 'voix', 'gmail', 'ia_connexion', 'sources')   # 
 CARTES = {'ia': ('mistral5696:carte_guide', 'politique5682:carte_guide'), 'meteo': ('meteo5696:carte_guide',),
           'vue_assistee': ('courriels_web5696:carte_guide', 'vue_assistee5696:carte_guide', 'boite5625:carte_vue_assistee'), 'gmail': ('gmail5697:carte_guide',),
           'chatgpt': ('chatgpt5697:carte_guide',)}   # 5.6.97 (A07) : ChatGPT · abonnement, même carte que Paramètres
+CARTES['comptes'] = ('assistant56103:carte_guide',)   # 5.6.103 (lot G) : étapes facultatives « Compte Google » et « Compte Microsoft » (Messagerie et fin)
 REGLAGES = {'documents': '/parametres?rubrique=stockage', 'messagerie': '/parametres?rubrique=connexions', 'agenda': '/parametres?rubrique=connexions',
             'recherches': '/mcp', 'veille': '/parametres?rubrique=veille', 'facturation': '/parametres?rubrique=connexions',
             'telephonie': '/accueil-administratif', 'voix': '/parametres?rubrique=voix', 'meteo': '/parametres?rubrique=connexions',
             'presentation': '/aujourdhui', 'ia': '/parametres?rubrique=ia', 'vue_assistee': '/parametres?rubrique=connexions', 'gmail': '/parametres?rubrique=connexions',
             'chatgpt': '/parametres?rubrique=ia', 'ia_connexion': '/parametres?rubrique=ia', 'sources': '/parametres?rubrique=recherche'}
+REGLAGES['comptes'] = '/parametres?rubrique=connexions#mise56103'   # 5.6.103 (lot G)
 
 
 def _now():
@@ -1143,7 +1145,11 @@ def _cartes_etape(desk, env, prefix, step, data, owner, admin):
             th('w5696.mail_readonly'), th('w5696.vue_assistee_title'), _carte('vue_assistee', desk, env, prefix, admin, owner))
         if _carte_disponible('gmail'):   # Gmail : seulement si son connecteur est livré (5.6.97)
             out += '<h3>Gmail</h3>%s<p class="g5631-later-row">%s</p>' % (_carte('gmail', desk, env, prefix, admin), _plus_tard('gmail'))
+        if _carte_disponible('comptes'):   # 5.6.103 (lot G) : Compte Google (mot de passe d'application, application interne) et Compte Microsoft
+            out += _carte('comptes', desk, env, prefix, admin, owner)
         return out + '</section>'
+    if step == 'fin' and _carte_disponible('comptes'):   # 5.6.103 (lot G) : étapes facultatives proposées à tous, passables, reprises dans Paramètres
+        return _carte('comptes', desk, env, prefix, admin, owner)
     if step == 'ia':
         # 5.6.97 (A07) : sous-étape « Connecter l'IA » : Mistral Studio, ChatGPT ou plus tard. Mêmes cartes et mêmes routes que
         # Paramètres ; un secret déjà présent n'est jamais redemandé ; se connecter n'active rien (mode choisi ensuite, à part).

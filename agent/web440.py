@@ -41,6 +41,11 @@ STATIC.update({'/static/v56101-securite.css': 'text/css', '/static/v56101-securi
 STATIC.update({'/static/v56101-volet.js': 'text/javascript', '/static/v56101-volet.css': 'text/css'})   # 5.6.101 (lot V) : volet de relecture à droite d'Aujourd'hui
 STATIC.update({'/static/v56102-pilote.js': 'text/javascript', '/static/v56102-pilote.css': 'text/css'})   # 5.6.102 (lot M) : Pilote dans la messagerie instantanée
 STATIC.update({'/static/v56102-navigation.css': 'text/css'})   # 5.6.102 (lot N) : libellés longs du menu principal (retour à la ligne)
+STATIC.update({'/static/v56103-m.js': 'text/javascript'})   # 5.6.103 (lot M) : section « Compte Microsoft » (PKCE sur le poste, code d'appareil sur le serveur)
+STATIC.update({'/static/v56103-liaison.js': 'text/javascript', '/static/v56103-liaison.css': 'text/css'})   # 5.6.103 (lot L) : liaison entre postes (messagerie, Paramètres)
+STATIC.update({'/static/v56103-fichiers.js': 'text/javascript', '/static/v56103-fichiers.css': 'text/css'})   # 5.6.103 (lot F) : page « Fichiers » (deux volets, onglets, versions)
+from .tableau56103 import statiques as _statiques56103t   # noqa: E402 — 5.6.103 (lot T) : volet « Tableau blanc », Excalidraw assemblé et ses polices (liste générée)
+STATIC.update(_statiques56103t())
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -346,6 +351,9 @@ def route(env, cfg, auth, prefix, path, args, method):
         from .shell501 import set_context
         set_context(cfg)
         return securite_web56101.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path == '/fichiers':   # 5.6.103 (lot F) : explorateur Nextcloud et disque local du poste (lecture seule à l'affichage)
+        from . import fichiers_web56103
+        return fichiers_web56103.page_route(env, cfg, auth, prefix, path, args, shell)
     if method == 'GET' and path == '/contentieux':   # 5.6.89 : matrice, pièces, actes, délais, audience, paquets d'un dossier
         from . import contentieux_web5689
         from .shell501 import set_context
@@ -370,7 +378,7 @@ def route(env, cfg, auth, prefix, path, args, method):
     if path in STATIC and method == 'GET':
         name = path[len('/static/'):]   # 5.6.94 : sous-dossiers (brindille/model, alkove/models) ; seules les adresses de STATIC sont servies
         from .voix5694 import BINAIRES
-        if STATIC[path] in BINAIRES:   # 5.6.94 (V01) : WebAssembly et modèles servis en octets, sans jeu de caractères
+        if STATIC[path] in BINAIRES or STATIC[path] == 'font/woff2':   # 5.6.94 (V01) : WebAssembly et modèles servis en octets, sans jeu de caractères ; 5.6.103 (lot T) : polices du tableau blanc
             return {'status': '200 OK', 'kind': STATIC[path], 'body': (Path(__file__).parent / 'static' / name).read_bytes()}
         return {'status': '200 OK', 'kind': STATIC[path] + '; charset=utf-8',
                 'body': (Path(__file__).parent / 'static' / name).read_text(encoding='utf-8')}
@@ -551,6 +559,24 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56102/pilote/'):   # 5.6.102 (lot M) : Pilote dans la messagerie (présence, Résumer, Annuler, projet du volet, réglage ; 404 neutre, 409, no-store)
         from . import pilote_messagerie56102
         return pilote_messagerie56102.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56103/tableau/'):   # 5.6.103 (lot T) : tableau blanc de la messagerie (scène, versions, images, propositions de Pilote ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import tableau56103
+        return tableau56103.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56103/fichiers/'):   # 5.6.103 (lot F) : page « Fichiers » (404 neutre, 409, no-store, clé d'idempotence ; aucune lecture par l'IA)
+        from . import fichiers_web56103
+        return fichiers_web56103.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56103/liaison/'):   # 5.6.103 (lot L) : liaison entre postes (poste seulement ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import liaison_web56103
+        return liaison_web56103.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56103/assistant/'):   # 5.6.103 (lot G) : étapes facultatives Google / Microsoft (état réel, passer, reprendre ; 409, no-store)
+        from . import assistant56103
+        return assistant56103.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56103/gmail/'):   # 5.6.103 (lot G) : Gmail simple (tester, enregistrer, application interne ; administrateur, 409, no-store)
+        from . import gmail_simple56103
+        return gmail_simple56103.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56103/microsoft/'):   # 5.6.103 (lot M) : compte Microsoft (application intégrée), brouillons Outlook (404 neutre, 409, no-store ; jamais d'envoi)
+        from . import microsoft_web56103
+        return microsoft_web56103.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5676/'):   # 5.6.76 : opportunités et prospects
         from . import crm5676
         try:

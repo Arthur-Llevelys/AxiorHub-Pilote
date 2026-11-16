@@ -129,7 +129,18 @@ def _connexions(desk, auth, prefix, env, cap):
     from .accueil_web5696 import reglages_html as _meteo96   # 5.6.96 (F03) : météo d'Aujourd'hui (OpenWeather), administrateur seulement
     from .gmail_web5697 import section_html as _gmail97   # 5.6.97 (lot gmail) : Paramètres › Connexions › Gmail (désactivé par défaut) et guide de l'administrateur
     from .rendezvous5697 import reglages_html as _agenda97   # 5.6.97 (lot agenda) : salons Talk, Google Agenda (désactivés par défaut), adresse Speakr
-    return (_section(_gmail97(desk, prefix, owner, role52, _args52)) + _section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
+    try:   # 5.6.103 (lot G) : étapes facultatives de la mise en service (reprendre plus tard) et Gmail simple (mot de passe d'application, application interne)
+        from .assistant56103 import section_html as _mise103
+        from .gmail_simple56103 import section_html as _gmail103
+        _g103 = _section(_mise103(desk, prefix, owner, role52, env)) + _section(_gmail103(desk, prefix, owner, role52, env))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        _g103 = _section('<section class="ax-card" id="mise56103"><h2>Comptes Google et Microsoft</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    try:   # 5.6.103 (lot M) : compte Microsoft par l'application intégrée (courrier, agenda, OneDrive) ; aucun appel à Microsoft au rendu
+        from .microsoft_web56103 import section_html as _ms103
+        _g103 += _section(_ms103(desk, prefix, owner, env))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        _g103 += _section('<section class="ax-card" id="microsoft56103"><h2>Compte Microsoft</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    return (_g103 + _section(_gmail97(desk, prefix, owner, role52, _args52)) +_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
             _section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_agenda97(desk, owner, role52, prefix)) + _section(_microsoft(desk, prefix, env)) +
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
@@ -269,6 +280,11 @@ def _poste(desk, auth, prefix, env, cap):
         if key == 'mobile':   # 5.6.74 : téléphones associés par QR code
             from .appareils5674 import settings_html as _ap74
             body += _section(_ap74(desk.c['state_dir'], auth, env.get('axiorhub.user')))
+    try:   # 5.6.103 (lot L) : liaison entre postes du cabinet (poste de travail seulement ; désactivée par défaut)
+        from .liaison_web56103 import section_html as _liaison103
+        body += _section(_liaison103(desk, auth, prefix, env))
+    except Exception:   # noqa: BLE001 — la page s'affiche toujours
+        pass
     from .web567 import actor as _actor88
     if _actor88(env)[1] == 'administrateur':   # 5.6.88 : sauvegarde automatique, export intégral, vérification d'un export
         try:

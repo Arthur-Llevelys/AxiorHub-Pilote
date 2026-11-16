@@ -42,11 +42,38 @@ def config(desk):
     cfg.setdefault('tenant', 'common')
     cfg.setdefault('push', True)
     cfg.setdefault('pull', True)
+    # 5.6.103 (lot M) : application intégrée (microsoft56103) ou application propre du cabinet (historique, conservée telle quelle)
+    if 'application' not in cfg:
+        from . import microsoft56103 as m103
+        cfg['application'] = 'integree' if not cfg.get('client_id') and m103.disponible(desk) else 'propre'
+    if cfg['application'] == 'integree':
+        row = _integree(desk, cfg)
+        cfg['account'] = row['compte'] if row else ''
     return cfg
+
+
+def _integree(desk, cfg=None):
+    """5.6.103 (lot M) : connexion de l'application intégrée retenue pour l'agenda (personne qui l'a choisie), active avec la capacité agenda."""
+    from . import microsoft56103 as m103
+    cfg = cfg if cfg is not None else dict(desk.settings(CONFIG, {}) or {})
+    owner = cfg.get('integree_owner')
+    if not m103.disponible(desk) or (not owner and cfg.get('agenda_detache')):   # agenda détaché : jamais rattaché d'office
+        return None
+    try:
+        if not owner:   # personne désignée : à défaut, le seul compte relié avec l'agenda (lecture seule ; plusieurs : choix explicite requis)
+            lignes = [dict(r) for r in desk.db.execute("SELECT * FROM microsoft56103_connexions WHERE etat='active'")] if m103._table_presente(desk) else []
+            lignes = [r for r in lignes if 'agenda' in m103.capacites(r)]
+            return lignes[0] if len(lignes) == 1 else None
+        row = m103.connexion(desk, owner)
+    except Exception:   # noqa: BLE001 — base illisible : non relié, jamais un faux « relié »
+        return None
+    return row if row and 'agenda' in m103.capacites(row) else None
 
 
 def connected(desk):
     cfg = config(desk)
+    if cfg.get('application') == 'integree':   # 5.6.103 (lot M)
+        return bool(cfg.get('account'))
     return bool(cfg.get('client_id') and cfg.get('account') and _vault(desk, 'refresh.secret').is_file())
 
 
@@ -60,6 +87,9 @@ def save_config(desk, data, owner='cabinet'):
     if not re.fullmatch(r'[A-Za-z0-9.-]{3,100}', tenant):
         raise Stop('microsoft_annuaire_invalide')
     cfg.update(client_id=client_id.lower(), tenant=tenant, push=bool(data.get('push')), pull=bool(data.get('pull')))
+    cfg['application'] = 'propre'   # 5.6.103 (lot M) : enregistrer l'application propre du cabinet, c'est la retenir pour l'agenda
+    if not _vault(desk, 'refresh.secret').is_file():
+        cfg.pop('account', None)
     if str(data.get('client_secret') or '').strip():
         cfg['secret_file'] = write(_vault(desk, 'client.secret'), str(data['client_secret']).strip())
     desk.setting(CONFIG, cfg)
@@ -141,6 +171,13 @@ def finish(desk, args, http=None, graph=None):
 
 
 def disconnect(desk, owner='cabinet'):
+    if config(desk).get('application') == 'integree':   # 5.6.103 (lot M) : l'agenda cesse d'utiliser le compte ; le compte Microsoft reste relié
+        cfg = dict(desk.settings(CONFIG, {}) or {})
+        cfg.pop('integree_owner', None)
+        cfg['agenda_detache'] = True
+        desk.setting(CONFIG, cfg)
+        desk.audit('microsoft5636_deconnecte', {'owner': owner, 'application': 'integree'})
+        return {'message': 'Agenda Outlook détaché : le compte Microsoft reste relié pour le courrier et les fichiers (Paramètres › Connexions › Microsoft).'}
     for name in ('access.secret', 'refresh.secret'):
         p = _vault(desk, name)
         if p.is_file():
@@ -155,6 +192,12 @@ def disconnect(desk, owner='cabinet'):
 
 def _access(desk, http=None):
     cfg = config(desk)
+    if cfg.get('application') == 'integree':   # 5.6.103 (lot M) : jeton de l'application intégrée (renouvelé par microsoft56103)
+        from . import microsoft56103 as m103
+        row = _integree(desk, cfg)
+        if not row:
+            raise Stop('microsoft365_non_configure')
+        return m103.jeton(desk, row['id'])
     if not connected(desk):
         raise Stop('microsoft365_non_configure')
     if cfg.get('expires', '') > datetime.now(timezone.utc).isoformat() and _vault(desk, 'access.secret').is_file():
@@ -362,11 +405,36 @@ def job(desk, args):
     return sync(desk)
 
 
+def _choix_application_html(desk, cfg):
+    """5.6.103 (lot M) : choix de l'application utilisée par l'agenda Outlook (intégrée ou propre du cabinet)."""
+    from . import microsoft56103 as m103
+    dispo = m103.disponible(desk)
+    integree = cfg.get('application') == 'integree'
+    radio = lambda val, label, coche, actif: ('<label class="e5636-switch"><input type="radio" name="application" value="%s"%s%s> %s</label>'
+                                              % (val, ' checked' if coche else '', '' if actif else ' disabled', e(label)))
+    aide = ('' if dispo else '<p class="ax-muted" role="status">%s</p>' % e(m103.MESSAGE_INDISPONIBLE))
+    lien = ('<p class="ax-muted">Compte : section « Compte Microsoft » ci-dessus (autorisation « agenda »).</p>' if integree and dispo else '')
+    return ('<form class="m5-form" data-api="m5636/microsoft/application" data-reload="1"><fieldset><legend>Application Microsoft utilisée par l’agenda</legend>%s%s%s%s'
+            '<button class="ax-btn ghost" type="submit">Enregistrer le choix</button></fieldset></form>') % (
+        radio('integree', 'Application intégrée d’AxiorHub (recommandée : rien à inscrire chez Microsoft)', integree and dispo, dispo),
+        radio('propre', 'Application propre du cabinet (inscrite par vous dans Entra)', not integree or not dispo, True), aide, lien)
+
+
 def settings_html(desk, prefix, env=None):
     cfg = config(desk)
     uri = redirect_uri(env or {}, prefix) if env else prefix + '/microsoft-retour'
     state = ('<p class="s5636-ok">Relié : <strong>%s</strong>%s</p>' % (e(cfg['account']), (' · dernière lecture : ' + e(cfg['last_pull'][:16].replace('T', ' '))) if cfg.get('last_pull') else '')
              if connected(desk) else '<p class="ax-muted">Non relié.</p>')
+    state += _choix_application_html(desk, cfg)   # 5.6.103 (lot M)
+    from . import microsoft56103 as m103
+    if cfg.get('application') == 'integree' and m103.disponible(desk):   # 5.6.103 (lot M) : connexion par la section « Compte Microsoft »
+        return ('<section class="ax-card" id="microsoft5636"><h3>Agenda Microsoft 365 (Outlook)</h3>%s<form class="m5-form" data-api="m5636/microsoft/reglages-agenda" '
+                'data-reload="1"><label class="e5636-switch"><input type="checkbox" name="push"%s> Copier les audiences, échéances et rendez-vous créés par AxiorHub dans '
+                'Outlook</label><label class="e5636-switch"><input type="checkbox" name="pull"%s> Afficher les rendez-vous Outlook dans l’agenda AxiorHub</label>'
+                '<button class="ax-btn ghost" type="submit">Enregistrer</button></form><div class="ax-actions">%s</div></section>') % (
+            state, ' checked' if cfg.get('push') else '', ' checked' if cfg.get('pull') else '',
+            ('<button type="button" class="ax-btn ghost" data-ms5636="synchroniser">Actualiser maintenant</button>'
+             '<button type="button" class="ax-btn ghost" data-ms5636="deconnexion">Détacher l’agenda</button>') if connected(desk) else '')
     return ('<section class="ax-card" id="microsoft5636"><h3>Agenda Microsoft 365 (Outlook)</h3>%s'
             '<details%s><summary>Réglages de l’application Microsoft</summary><ol class="ax-muted"><li>Dans le portail Microsoft Entra, « Inscriptions d’applications » '
             '› « Nouvelle inscription » ; type « Web » ; adresse de redirection : <code>%s</code>.</li><li>Autorisations déléguées Microsoft Graph : '
@@ -395,7 +463,35 @@ def return_page(desk, prefix, args):
             e(explain(str(exc))), e(prefix + '/parametres?rubrique=connexions#microsoft5636', quote=True))
 
 
+def choisir_application(desk, data, owner='cabinet'):
+    """5.6.103 (lot M) : Paramètres › Connexions — agenda Outlook par l'application intégrée ou par l'application propre du cabinet."""
+    from . import microsoft56103 as m103
+    choix = str(data.get('application') or '')
+    if choix not in ('integree', 'propre'):
+        raise Stop('microsoft_application_invalide')
+    if choix == 'integree' and not m103.disponible(desk):
+        raise Stop('microsoft56103_indisponible')
+    cfg = dict(desk.settings(CONFIG, {}) or {})
+    cfg['application'] = choix
+    if choix == 'integree':
+        cfg['integree_owner'] = str(owner)
+        cfg.pop('agenda_detache', None)
+    elif not _vault(desk, 'refresh.secret').is_file():
+        cfg.pop('account', None)                     # compte de l'application intégrée : jamais montré comme celui de l'application propre
+    desk.setting(CONFIG, cfg)
+    desk.audit('microsoft5636_application', {'owner': owner, 'application': choix})
+    return {'message': ('Agenda Outlook : application intégrée retenue. Reliez votre compte Microsoft avec l’autorisation « agenda ».' if choix == 'integree'
+                        else 'Agenda Outlook : application propre du cabinet retenue.')}
+
+
 def api_post(desk, route, data, owner, env=None, prefix=''):
+    if route == 'microsoft/application':   # 5.6.103 (lot M)
+        return choisir_application(desk, data, owner)
+    if route == 'microsoft/reglages-agenda':   # 5.6.103 (lot M) : copie et lecture de l'agenda, application intégrée (sans identifiant ni secret)
+        cfg = dict(desk.settings(CONFIG, {}) or {})
+        cfg.update(push=bool(data.get('push')), pull=bool(data.get('pull')))
+        desk.setting(CONFIG, cfg)
+        return {'message': 'Réglages de l’agenda Outlook enregistrés.'}
     if route == 'microsoft/reglages':
         return save_config(desk, data, owner)
     if route == 'microsoft/connexion':

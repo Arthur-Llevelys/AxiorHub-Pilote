@@ -1,0 +1,62 @@
+{
+  "version": "5.6.103",
+  "base": "5.6.102",
+  "date_utc": "2026-11-15T00:00:00+00:00",
+  "demande": "Périmètre décidé avec l’avocat le 15/11/2026 : liaison directe entre postes sans serveur, page « Fichiers », tableau blanc Excalidraw avec Pilote qui dessine, application Microsoft publique intégrée, Gmail simple sans secret embarqué, étapes de comptes dans l’assistant de mise en service ; tests en parallèle pour raccourcir les versions.",
+  "decisions_du_cabinet": [
+    "Liaison : désactivée par défaut, réglages partagés publiés par un administrateur et acceptés un par un, identifiants personnels jamais partagés ; dossiers, agenda et tâches hors liaison.",
+    "Microsoft : application publique intégrée, identifiant vide jusqu’à l’inscription par l’éditeur ; jamais Mail.Send.",
+    "Gmail : aucun secret OAuth embarqué ; IMAP avec mot de passe d’application par défaut ; application interne Workspace guidée.",
+    "Excalidraw : téléchargement npm autorisé (--ignore-scripts), assemblé localement, aucun CDN."
+  ],
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 12 sur une copie figée du commit testé (un processus par module ou classe, même chargeur que discover), PYTHONUTF8=1",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local, LibreOffice installé, Node.js présent, Microsoft Edge présent",
+    "total": 6801,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 152
+  },
+  "proces_verbal_V103": {
+    "0 outillage": "test_v56103_outillage (7) : module entier ignoré compté comme discover, module introuvable = erreur, tâches longues d’abord, durées jamais publiées, tranches du tour du menu, groupes équilibrés.",
+    "L liaison": "test_v56103_liaison (26), Windows et Linux : appairage, codes faux ou expirés, messages, groupes, Pilote sur le bon poste, pièces jointes, présence, file d’attente, réglages partagés, adresses non privées, rejeu, liaison désactivée.",
+    "F fichiers": "test_v56103_fichiers (43) et parcours P103f : deux volets, renommage par lot, ZIP malveillant refusé, If-Match et copie de conflit, dossiers surveillés, dossier réservé invisible.",
+    "M microsoft": "test_v56103_microsoft (38) : PKCE, code d’appareil, jetons au coffre, brouillons avec pièces jointes, jamais d’envoi, identifiant vide.",
+    "G gmail et assistant": "test_v56103_gmail (16), test_v56103_assistant (12) et parcours P103g : préréglage IMAP, Brouillons par attribut, refus de Google expliqués, étapes passées puis reprises.",
+    "T tableau": "test_v56103_tableau (37) et parcours P103t : fusion concurrente, 409, droits, tailles, Mermaid validé, aucun CDN, empreintes ; dessin enregistré, schéma de Pilote, 390 px."
+  },
+  "fixed_during_validation": [
+    "Paramètres › Connexions : boutons radio du choix d’application Microsoft étirés (règle de largeur limitée aux cases à cocher).",
+    "Deux sections intitulées « Gmail » : l’ancienne devient « Gmail par l’API Google (application OAuth) ».",
+    "Boutons « Passer cette étape » dans de grands cadres vides : formulaire en ligne (v56103-comptes.css).",
+    "« Tester la connexion » Gmail : un refus de Google est un résultat d’essai (200 avec error), plus une erreur HTTP 400 dans la console.",
+    "OneDrive branché dans la page « Fichiers » (fichiers56103.sources).",
+    "Suite complète : la page « Fichiers » n’était trouvable que par la recherche ; elle figure dans « Toutes les fonctions » (navigation5643.PANEL).",
+    "Parcours P101v : un lien à moitié visible n’est plus contrôlé hors de la fenêtre (échec intermittent de la recette GitHub 5.6.102, run 206).",
+    "Parcours P97g : la carte Gmail, désormais repliée sous la mise en service des comptes, est dépliée avant lecture.",
+    "Suite finale (lancée à minuit, 2 échecs) : test_v501 calculait « demain » sur le jour UTC (entre minuit et 1 h à Paris, c’est encore la veille) : corrigé sur le jour du cabinet et vérifié aux horloges 00 h 30 et 23 h 30 ; test_v5695 A01 (texte stable d’une minute à l’autre) a croisé un changement de minute, il passe rejoué seul.",
+    "À relire : « Plus de détails » et la limite à deux lignes rendus prioritaires sur les styles Carbon."
+  ],
+  "adjusted_tests": [
+    "test_v56101_familles (92 fonctions), test_v5689_ia (fiche « fichiers »), test_v5694_parcours (P103f, P103g, P103t annoncés), test_v56103_gmail (statut 200 du refus d’essai), test_v56102_navigation N02 (heure du dernier passage neutralisée dans la comparaison), test_v501 (jour du cabinet)."
+  ],
+  "linux": "Conteneur Debian python:3.12, outil parallèle : premier passage interrompu à 186 modules sur 258 (limite de 90 min, machine partagée), échecs : outils PDF et OCR absents du conteneur (test_agent, test_v5677 : environnement, installés par la recette GitHub) et test_v56102_navigation N02 (corrigé) ; second passage complet en cours au moment de la construction ; suite Linux complète par la recette GitHub.",
+  "navigateur": "Banc complet Edge sur 4 navigateurs simultanés : 41 parcours réussis sur 42 (tour du menu en 4 tranches, 13 min au lieu de 45) ; P97g corrigé puis réussi ; P100r, P101r, P101v, P96c rejoués après la correction d'À relire : réussis ; P103f, P103g, P103t réussis.",
+  "live_checks": "Aucun service réel : vrai réseau entre deux postes, pare-feu Windows, Microsoft, Google, Nextcloud, modèles simulés.",
+  "exapp": {
+    "version": "0.1.62",
+    "moteur": "5.6.103"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "Liaison entre postes : jamais essayée entre deux vraies machines ni à travers le pare-feu Windows ; l’installateur n’ouvre pas le port (commandes dans la note).",
+    "Rôle « administrateur » d’un poste qui publie un réglage : annoncé par lui, sans preuve cryptographique ; la validation manuelle du destinataire sert de garde-fou.",
+    "Microsoft : application intégrée non inscrite (identifiant vide) ; avec les réglages par défaut d’un locataire, Mail.ReadWrite et Calendars.ReadWrite demandent l’accord d’un administrateur Microsoft 365.",
+    "Gmail : depuis mai 2025, Workspace refuse par défaut les mots de passe d’application ; l’application interne est alors la voie.",
+    "Tableau blanc : pas de tableau partagé entre postes reliés ; une aide d’Excalidraw reste en anglais (traduction incomplète) ; rapports CSP de Mermaid (styles du rendu caché) filtrés par le parcours.",
+    "Fichiers : vrai Nextcloud (auteur des versions, LOCK) et vrai Word non éprouvés."
+  ]
+}

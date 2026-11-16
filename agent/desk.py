@@ -130,6 +130,8 @@ JOBS |= {'opportunites5676'}   # 5.6.76 : prospects repérés dans les courriels
 JOBS |= {'accord56102'}   # 5.6.102 (lot K) : accord du client détecté (modèle local), plan documents → projet de courriel (jamais d'envoi)
 JOBS |= {'pilote_messagerie56102'}   # 5.6.102 (lot M) : réponse de Pilote dans la messagerie instantanée (« @pilote », « Résumer »)
 USER_JOBS |= {'pilote_messagerie56102'}
+JOBS |= {'tableau56103_dessin'}   # 5.6.103 (lot T) : « @pilote dessine » → proposition de schéma (Mermaid) pour le tableau blanc de la discussion
+USER_JOBS |= {'tableau56103_dessin'}
 JOBS |= {'synchro_livrables5689','controle_livrable5689','export_livrable5689','modifier_livrable5689'}   # 5.6.89 : registre des livrables, contrôles, export suivi, proposition assistée
 USER_JOBS |= {'export_livrable5689','modifier_livrable5689','controle_livrable5689'}
 JOBS |= {'extraction_dossier5689','mission_conseil5689','obligations5689'}   # 5.6.89 : lecture d'une source du dossier, consultation et revue de contrat, obligations d'un accord signé
@@ -531,6 +533,18 @@ class Desk:
         from .pilote_messagerie56102 import ensure_schema as ensure_pilote56102_schema, migrer as migrer_pilote56102   # 5.6.102 (lot M) : Pilote dans la messagerie
         ensure_pilote56102_schema(self)
         migrer_pilote56102(self)   # présence d'office dans les fils de dossier et les groupes existants (idempotent ; un retrait est respecté)
+        from .microsoft56103 import ensure_schema as ensure_microsoft56103_schema   # 5.6.103 (lot M) : application Microsoft intégrée (connexions, états PKCE, codes d'appareil)
+        ensure_microsoft56103_schema(self)
+        from .outlook56103 import ensure_schema as ensure_outlook56103_schema   # 5.6.103 (lot M) : projets de brouillons Outlook (jamais d'envoi)
+        ensure_outlook56103_schema(self)
+        from .assistant56103 import ensure_schema as ensure_assistant56103_schema   # 5.6.103 (lot G) : étapes facultatives Google / Microsoft, essais Gmail simple
+        ensure_assistant56103_schema(self)
+        from .liaison56103 import ensure_schema as ensure_liaison56103_schema   # 5.6.103 (lot L) : liaison entre postes (postes appairés, file d'envoi, réglages reçus)
+        ensure_liaison56103_schema(self)
+        from .fichiers56103 import ensure_schema as ensure_fichiers56103_schema   # 5.6.103 (lot F) : page « Fichiers » (commandes, notes et couleurs, verrous, versions du poste)
+        ensure_fichiers56103_schema(self)
+        from .tableau56103 import ensure_schema as ensure_tableau56103_schema   # 5.6.103 (lot T) : tableau blanc de la messagerie (scènes, versions, images, propositions de Pilote)
+        ensure_tableau56103_schema(self)
         from .relecture56100 import ensure_schema as ensure_relecture56100_schema, rattraper as rattraper_relecture56100   # 5.6.100 (lot B) : file commune « À relire »
         ensure_relecture56100_schema(self)
         try:   # reprise bornée et relançable des propositions existantes (sans LIKE sur le JSON) ; la suite passe par les automatismes
@@ -1046,6 +1060,9 @@ class Desk:
         if kind=='accord56102':   # 5.6.102 (lot K) : détection de l'accord du client, avancement d'un plan
             from .accord56102 import job as accord56102_job
             return accord56102_job(self,args)
+        if kind=='tableau56103_dessin':   # 5.6.103 (lot T) : Pilote dessine un schéma pour le tableau blanc (droits de la personne qui l'a demandé)
+            from .tableau56103 import job as tableau56103_job
+            return tableau56103_job(self,args)
         if kind=='pilote_messagerie56102':   # 5.6.102 (lot M) : Pilote répond dans la discussion (droits de la personne qui l'a interpellé)
             from .pilote_messagerie56102 import job as pilote56102_job
             return pilote56102_job(self,args)

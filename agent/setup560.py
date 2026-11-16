@@ -310,6 +310,15 @@ def page(auth, user, notes=(), result=''):
         v(ol.get('url')), v(ol.get('model')), providers, ' checked' if cfg.get('mode') != 'drafts' else '', ' checked' if cfg.get('mode') == 'drafts' else '')
     body = body.replace('__LOCAL_PATH__', v(nc.get('local_path', '')))
     body += '<p>Pour une IA externe, renseignez ses tarifs, ses plafonds et les fonctions autorisées avant le test : <a href="/ia-externe">Fournisseurs et budgets</a> · <a href="/routage-hybride">Politique de routage</a>. Ces écrans sont accessibles à l’administrateur avant la fin de l’installation.</p>'
+    try:   # 5.6.103 (lot G) : étapes facultatives « Compte Google » et « Compte Microsoft » (état réel, passer, reprendre plus tard)
+        from .assistant56103 import installation_html
+        desk = _desk(auth)
+        try:
+            body += installation_html(desk, str(user.get('email') or 'cabinet'), auth._csrf(user))
+        finally:
+            desk.db.close()
+    except Exception:   # noqa: BLE001 — la page d'installation reste utilisable sans ce bloc
+        pass
     return auth._page('Installation d’AxiorHub Pilote', body, wide=True)
 
 
@@ -323,6 +332,16 @@ def handle(auth, env, start, user):
         from .guide5631 import later
         later({'axiorhub.config_path': str(auth.app.config_path)})
         return auth._respond(start, '303 See Other', '', [('Location', '/aujourdhui')])
+    if str(form.get('op', '')).startswith(('passer_', 'reprendre_')):   # 5.6.103 (lot G) : étape facultative passée ou reprise, rien d'autre enregistré
+        from .assistant56103 import installation_action
+        desk = _desk(auth)
+        try:
+            result = '<p class="ok">%s</p>' % escape(installation_action(desk, str(user.get('email') or 'cabinet'), form['op']))
+        except Exception:   # noqa: BLE001
+            result = '<p class="warn">Étape inconnue : rien n’a été modifié.</p>'
+        finally:
+            desk.db.close()
+        return auth._respond(start, '200 OK', page(auth, user, (), result))
     notes = save(auth, form)
     op = form.get('op', 'save')
     result = '<p class="ok">Enregistré.</p>'

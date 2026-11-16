@@ -1,0 +1,3 @@
+/* 5.6.103 (intégration) : boutons « Passer » / « Reprendre » des étapes de comptes Google et Microsoft, sur une ligne, sans cadre de formulaire. */
+form.m5-form.as103-inline{display:inline-flex!important;align-items:center;background:none!important;border:0!important;padding:0!important;margin:6px 8px 6px 0!important;max-width:none;min-height:0!important;box-shadow:none!important}
+form.m5-form.as103-inline .ax-btn{width:auto}

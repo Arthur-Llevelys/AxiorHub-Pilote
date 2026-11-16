@@ -36,7 +36,8 @@ PRODUCTION_VIEWS = {'resultats': '/production', 'rediger': '/studio', 'documents
 # 5.6.75 : le navigateur supervisé (5.6.73) n'avait ni place dans ce menu ni page parente : seule la recherche le trouvait.
 PANEL = ('facturation', 'contribution', 'cessions', 'recherche', 'navigateur', 'cabinet', 'contacts_crm', 'mon_style', 'corporate', 'assistance_metier', 'assistant',
          'guide_utilisation',
-         'securite_serveur')   # 5.6.101 (lot S) : famille « Sécurité », visible des administrateurs sans recherche
+         'securite_serveur',   # 5.6.101 (lot S) : famille « Sécurité », visible des administrateurs sans recherche
+         'fichiers')   # 5.6.103 (lot F) : page « Fichiers », visible dans « Toutes les fonctions » sans passer par la recherche
 
 # Destination canonique des sous-sections (trouvées par la recherche ; leur page reste servie).
 PARENT = {

@@ -753,6 +753,8 @@
  "f101.fonction_famille": "{fonction} ({famille})",
  "fn.securite_serveur.label": "Sécurité du serveur",
  "fn.securite_serveur.desc": "Veille de sécurité de la machine : intrusions, programmes suspects, versions à mettre à jour",
+ "fn.fichiers.label": "Fichiers",
+ "fn.fichiers.desc": "Explorateur à deux volets des fichiers Nextcloud (et du poste) : renommage par lot, versions, ZIP, notes",
  "f101.guide.famille": "Famille « {famille} »",
  "f101.guide.autres": "Les autres onglets de cette famille :",
  "f101.usage.titre": "Fonctions peu utilisées",

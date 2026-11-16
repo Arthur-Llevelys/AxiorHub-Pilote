@@ -527,6 +527,8 @@ def p02g_menu(banc, s):
     s.propre('Aujourd’hui')
     pages = _liens_du_menu(s)
     verifier(len(pages) >= 10, 'menu trop court : %d page(s)' % len(pages))
+    rang, tranches = getattr(banc, 'tranche', (1, 1))      # 5.6.103 (lot 0) : « P02g@2/4 » ne parcourt qu'un quart des pages, en même temps que les autres
+    pages = pages[rang - 1::tranches]
     fautes = []
     for chemin in pages:
         reponse = s.aller(chemin)
@@ -1665,6 +1667,9 @@ def p97g_gmail(banc, s):
         s.aller('/parametres?rubrique=connexions')
         carte = p.locator('#gmail5697')
         verifier(carte.count() == 1, 'la carte Gmail est absente de Paramètres › Connexions')
+        repli = p.locator('details:has(#gmail5697) > summary')
+        if repli.count() and not carte.is_visible():
+            repli.first.click()                    # 5.6.103 : section repliée (la mise en service des comptes est la première ouverte)
         texte = carte.inner_text()
         verifier('cabinet.gmail@example.test' in texte and 'Enregistrer des brouillons dans Gmail' in texte, 'la carte Gmail ne dit ni la boîte ni les autorisations')
         verifier(p.locator('#gmail5697-guide').count() == 1, 'le guide de l’administrateur est absent')
@@ -1751,9 +1756,107 @@ from parcours_p101v import p101v_volet   # noqa: E402 — 5.6.101 (lot V) : vole
 PARCOURS = PARCOURS + (('P101v', 'Aujourd’hui : volet de relecture à droite, quatre actions, cadre de l’éditeur, courriel HTML, 390 px', p101v_volet),)
 from parcours_p102m import p102m_pilote   # noqa: E402 — 5.6.102 (lot M) : Pilote dans la messagerie instantanée
 PARCOURS = PARCOURS + (('P102m', 'Messagerie instantanée : @pilote, réponse de Pilote, projet de courriel ouvert à droite, 390 px', p102m_pilote),)
+from parcours_p103f import p103f_fichiers   # noqa: E402 — 5.6.103 (lot F) : page « Fichiers »
+from parcours_p103g import p103g_comptes   # noqa: E402 — 5.6.103 (lot G) : comptes Google et Microsoft dans l'assistant
+PARCOURS = PARCOURS + (('P103f', 'Fichiers : deux volets, onglet, filtre, 390 px en onglets, 200 %, aucune écriture à l’affichage', p103f_fichiers),
+                       ('P103g', 'Comptes Google et Microsoft : étapes facultatives, passer puis reprendre, mot de passe d’application', p103g_comptes))
+from parcours_p103t import p103t_tableau   # noqa: E402 — 5.6.103 (lot T) : tableau blanc (Excalidraw) dans la messagerie
+PARCOURS = PARCOURS + (('P103t', 'Tableau blanc : volet de la discussion, dessin enregistré, Pilote dessine (Mermaid), aucune requête externe', p103t_tableau),)
 
 # ------------------------------------------------------------------------------------------------ lancement
-def lancer(navigateur, sortie, choisis=(), voir=False):
+def _tranche(ident):
+    """« P02g@2/4 » → ('P02g', (2, 4)) ; un identifiant simple → (ident, (1, 1))."""
+    if '@' not in ident:
+        return ident, (1, 1)
+    base, _, frac = ident.partition('@')
+    rang, _, total = frac.partition('/')
+    rang, total = int(rang), int(total)
+    if not 1 <= rang <= total:
+        raise ValueError('tranche invalide : %s' % ident)
+    return base, (rang, total)
+
+
+DECOUPABLES = {'P02g': 4}      # parcours découpés en tranches quand plusieurs navigateurs tournent (le tour du menu : 93 pages, 45 min seul)
+DUREES_PARCOURS = ROOT / '.durees-parcours.json'
+
+
+def _durees():
+    try:
+        return json.loads(DUREES_PARCOURS.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+
+
+def repartir(idents, processus, durees=None):
+    """Groupes équilibrés par durée mesurée (la plus longue d'abord, vers le groupe le moins chargé) ; tranches pour les parcours découpables."""
+    durees = _durees() if durees is None else durees
+    taches = []
+    for ident in idents:
+        n = DECOUPABLES.get(ident, 1) if processus > 1 else 1
+        taches.extend([ident] if n == 1 else ['%s@%d/%d' % (ident, i, n) for i in range(1, n + 1)])
+
+    def estimation(t):
+        base, (_, n) = _tranche(t)
+        return durees.get(t) or durees.get(base, 180.0) / n
+    groupes = [[] for _ in range(max(1, processus))]
+    charges = [0.0] * len(groupes)
+    for t in sorted(taches, key=estimation, reverse=True):
+        i = charges.index(min(charges))
+        groupes[i].append(t)
+        charges[i] += estimation(t)
+    return [g for g in groupes if g]
+
+
+def lancer_parallele(navigateur, sortie, choisis, processus, voir=False):
+    """Un processus (et un navigateur) par groupe ; chaque groupe va jusqu'au bout même après un échec ; résultats réunis à la fin."""
+    import subprocess
+    idents = list(choisis) or [i for i, _, _ in PARCOURS]
+    groupes = repartir(idents, processus)
+    sortie = Path(sortie)
+    sortie.mkdir(parents=True, exist_ok=True)
+    print('%d parcours en %d groupes simultanés.' % (len(idents), len(groupes)), flush=True)
+    procs = []
+    for n, groupe in enumerate(groupes, 1):
+        dossier = sortie / ('groupe%d' % n)
+        journal = open(sortie / ('groupe%d.log' % n), 'w', encoding='utf-8')
+        cmd = [sys.executable, str(Path(__file__).resolve()), '--navigateur', navigateur, '--sortie', str(dossier),
+               '--parcours', ','.join(groupe), '--continuer'] + (['--voir'] if voir else [])
+        procs.append((n, groupe, dossier, journal, subprocess.Popen(cmd, stdout=journal, stderr=subprocess.STDOUT, cwd=str(ROOT))))
+        time.sleep(5)                           # démarrages décalés : les bancs ne préparent pas leur base au même instant
+    resultats = []
+    for n, groupe, dossier, journal, proc in procs:
+        proc.wait()
+        journal.close()
+        try:
+            lus = json.loads((dossier / 'resultats.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            lus = []
+        vus = {x['parcours'] for x in lus}
+        lus += [{'parcours': t, 'resultat': 'non lancé', 'secondes': 0} for t in groupe if t not in vus]
+        resultats += lus
+    durees = _durees()
+    for x in resultats:
+        if x['resultat'] == 'réussi':
+            durees[x['parcours']] = x['secondes']
+            base, (_, n) = _tranche(x['parcours'])
+            if n > 1:
+                parts = [durees.get('%s@%d/%d' % (base, i, n)) for i in range(1, n + 1)]
+                if all(parts):
+                    durees[base] = round(sum(parts), 1)
+    try:
+        DUREES_PARCOURS.write_text(json.dumps(durees, indent=1, sort_keys=True), encoding='utf-8')
+    except OSError:
+        pass
+    (sortie / 'resultats.json').write_text(json.dumps(resultats, ensure_ascii=False, indent=1), encoding='utf-8')
+    for x in sorted(resultats, key=lambda x: x['parcours']):
+        print('%-12s %-10s %7.1f s' % (x['parcours'], x['resultat'], x['secondes']))
+    echecs = [x['parcours'] for x in resultats if x['resultat'] != 'réussi']
+    print('%d parcours réussis sur %d%s' % (len(resultats) - len(echecs), len(resultats),
+                                          (' ; en défaut : ' + ', '.join(echecs) + ' (journaux groupeN.log)') if echecs else ''))
+    return 1 if echecs or not resultats else 0
+
+
+def lancer(navigateur, sortie, choisis=(), voir=False, continuer=False):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -1769,12 +1872,20 @@ def lancer(navigateur, sortie, choisis=(), voir=False):
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=not voir, **({'channel': 'msedge'} if navigateur == 'msedge' else {}))
         try:
-            for ident, libelle, fonction in PARCOURS:
-                if choisis and ident not in choisis:
-                    continue
+            demandes = [_tranche(c) for c in choisis]
+            connus = {i for i, _, _ in PARCOURS}
+            for ident, _ in demandes:
+                if ident not in connus:
+                    raise SystemExit('parcours inconnu : %s' % ident)
+            plan = [(i, l, f, (1, 1)) for i, l, f in PARCOURS] if not choisis else \
+                [(i, l, f, t) for i, l, f in PARCOURS for d, t in demandes if d == i]
+            for ident, libelle, fonction, tranche in plan:
+                if tranche != (1, 1):
+                    ident = '%s@%d/%d' % (ident, tranche[0], tranche[1])
                 base = tempfile.mkdtemp(prefix='axh-parcours-')
                 banc, context, session, debut = Banc(base), None, None, time.monotonic()
                 banc.sortie = sortie                   # 5.6.95 : captures d'un parcours réussi (encadré, réglages)
+                banc.tranche = tranche                 # 5.6.103 (lot 0) : part des pages d'un parcours découpé
                 try:
                     banc.preparer()
                     banc.demarrer()
@@ -1796,7 +1907,8 @@ def lancer(navigateur, sortie, choisis=(), voir=False):
                             pass
                         (sortie / ('%s-console.log' % ident)).write_text('\n'.join(session.console + ['--- requêtes externes bloquées'] + session.externes)
                                                                          + '\n--- erreur\n' + str(ex) + '\n', encoding='utf-8')
-                    break
+                    if not continuer:
+                        break
                 finally:
                     if context is not None:
                         context.close()
@@ -1815,9 +1927,14 @@ def main(argv=None):
     parser.add_argument('--sortie', default=str(Path(tempfile.gettempdir()) / 'axiorhub-parcours'))
     parser.add_argument('--parcours', default='', help='identifiants séparés par des virgules (P02a,P02c…) ; vide : tous')
     parser.add_argument('--voir', action='store_true', help='navigateur visible')
+    parser.add_argument('-j', '--processus', type=int, default=1,
+                        help='navigateurs simultanés (5.6.103) ; le tour du menu est alors découpé en tranches')
+    parser.add_argument('--continuer', action='store_true', help='poursuivre après un parcours en échec (toujours vrai avec -j)')
     args = parser.parse_args(argv)
     choisis = tuple(x.strip() for x in args.parcours.split(',') if x.strip())
-    return lancer(args.navigateur, args.sortie, choisis, args.voir)
+    if args.processus > 1:
+        return lancer_parallele(args.navigateur, args.sortie, choisis, args.processus, args.voir)
+    return lancer(args.navigateur, args.sortie, choisis, args.voir, args.continuer)
 
 
 if __name__ == '__main__':

@@ -87,6 +87,7 @@ MIGRATION = {
     'tableau_de_bord': 'Gestion du cabinet → Tableau de bord détaillé',
     'a_propos': 'Paramètres → À propos, version, licence et source',
     'securite_serveur': 'Sécurité du serveur (5.6.101) → Toutes les fonctions › Sécurité, administrateur : veille de sécurité du serveur Linux',
+    'fichiers': 'Fichiers (5.6.103) → Toutes les fonctions › Pièces et contentieux : explorateur Nextcloud à deux volets, disque local du poste (nouvelle fonction, aucun ancien lien)',   # 5.6.103 (lot F)
     # 5.6.36 : fonctions nouvelles (aucun ancien lien à rediriger)
     'contacts_crm': 'Toutes les fonctions → Contacts & CRM ; bloc « Intervenants » dans le Dossier',
     'initiatives': 'Toutes les fonctions → Initiatives ; « Proposer un plan d’actions » depuis un courriel',

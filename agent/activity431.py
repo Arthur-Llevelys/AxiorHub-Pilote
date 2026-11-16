@@ -90,6 +90,14 @@ def maintenance(desk, stamp=None):
             desk.db.rollback()
         except Exception:   # noqa: BLE001
             pass
+    try:   # 5.6.103 (lot F) : surveillance des dossiers du poste (une version à chaque changement ; plafond et durée), à l'intervalle réglé
+        from . import fichiers56103
+        fichiers56103.maintenance(desk, stamp)
+    except Exception:   # noqa: BLE001 — la surveillance locale ne doit pas interrompre la maintenance
+        try:
+            desk.db.rollback()
+        except Exception:   # noqa: BLE001
+            pass
     try:
         from . import mobile490, search490
         mobile490.dispatch(desk, now=stamp)

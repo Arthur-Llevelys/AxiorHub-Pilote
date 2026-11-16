@@ -1,0 +1,15 @@
+{
+  "name": "axiorhub-excalidraw-56103",
+  "version": "5.6.103",
+  "private": true,
+  "description": "Construction locale du tableau blanc (Excalidraw) d'AxiorHub. Node et npm servent à construire, jamais à l'exécution.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
+    "@excalidraw/mermaid-to-excalidraw": "2.2.2",
+    "esbuild": "0.25.12",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

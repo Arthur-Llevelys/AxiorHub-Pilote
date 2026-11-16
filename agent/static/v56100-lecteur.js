@@ -9,6 +9,37 @@
    par source et par type, mémorisés par personne (POST). Contrat lecteur → mesure : `ax101:ouvert` {type} quand un élément prêt est affiché,
    `ax101:decide` {type, commande} après une décision acceptée par le serveur ; jamais d'identifiant, d'objet ni de texte. */
 (function (racine) {
+  /* 5.6.103 : les remarques du lecteur (dossier, destinataires, motifs) ne prennent plus la hauteur du projet : deux lignes, puis « Plus de détails ». */
+  function ajusterMeta(meta) {
+    if (!meta || !meta.parentNode) return;
+    var b = meta.nextElementSibling;
+    if (!b || !b.hasAttribute('data-ax100-plus')) {
+      b = document.createElement('button');
+      b.type = 'button'; b.className = 'ax-btn ghost ax100-plus'; b.setAttribute('data-ax100-plus', '');
+      b.addEventListener('click', function () {
+        var ouvert = meta.classList.toggle('ax100-meta-ouverte');
+        b.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+        b.textContent = ouvert ? 'Moins de détails' : 'Plus de détails';
+      });
+      meta.parentNode.insertBefore(b, meta.nextSibling);
+    }
+    meta.classList.remove('ax100-meta-ouverte');
+    b.setAttribute('aria-expanded', 'false');
+    b.textContent = 'Plus de détails';
+    b.hidden = true;
+    if (!meta.textContent) return;
+    var mesurer = function () {   /* hauteur du texte entier (copie hors écran, sans limite de lignes) comparée à deux lignes */
+      var lh = parseFloat(getComputedStyle(meta).lineHeight) || 20, copie = meta.cloneNode(true);
+      copie.classList.add('ax100-meta-ouverte');
+      copie.style.cssText = 'position:absolute;visibility:hidden;max-block-size:none;inline-size:' + meta.clientWidth + 'px';
+      meta.parentNode.appendChild(copie);
+      var trop = meta.clientWidth > 0 && copie.scrollHeight > lh * 2.5;
+      copie.remove();
+      b.hidden = !trop;
+    };
+    if (window.requestAnimationFrame) requestAnimationFrame(mesurer); else mesurer();
+  }
+
   'use strict';
   var AX100 = racine.AX100 = racine.AX100 || {};
   if (AX100.lecteur) return;
@@ -461,6 +492,7 @@
         meta.textContent = [d.type_libelle, (d.dossier || {}).libelle, a ? 'À : ' + a : '', cc ? 'Cc : ' + cc : '', d.etat_libelle]
           .filter(Boolean).join(' · ') + (d.motif ? ' — ' + d.motif : '') +
           (d.pieces_jointes_rangement ? ' · ' + d.pieces_jointes_rangement : '');   /* 5.6.102 (lot P) : rangement des pièces jointes du courriel */
+        ajusterMeta(meta);   /* 5.6.103 : remarques sur deux lignes, « Plus de détails » si elles débordent */
         zone.value = extra && typeof extra.texte === 'string' ? extra.texte : (d.corps || '');
         zone.readOnly = actions.indexOf('enregistrer') < 0;
         var lien = (d.liens || {}).pleine_page || (d.liens || {}).messagerie || '';
@@ -480,6 +512,7 @@
         if (labelTexte) labelTexte.textContent = labelDefaut;
         sujet.textContent = 'Choisissez un élément';
         meta.textContent = '';
+        ajusterMeta(meta);
         zone.value = '';
         zone.readOnly = true;
         secondaire.textContent = '';

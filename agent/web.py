@@ -264,6 +264,7 @@ JOB_LABELS['delta56100']='Analyse de nouvelles écritures (note et proposition �
 JOB_LABELS['gmail5697_redaction']='Réponse Gmail préparée par le modèle local'   # 5.6.97 (lot gmail)
 JOB_LABELS['courrier5679']='Rédaction d’un courrier sur le modèle Word du cabinet'   # 5.6.79
 JOB_LABELS['pilote_messagerie56102']='Pilote : réponse dans la messagerie instantanée'   # 5.6.102 (lot M)
+JOB_LABELS['tableau56103_dessin']='Pilote : schéma pour le tableau blanc de la messagerie'   # 5.6.103 (lot T)
 JOB_LABELS.update({'prepare_cabinet_letter':'Prévisualisation du courrier Word',
   'prepare_cabinet_revision':'Prévisualisation de la nouvelle version Word',
   'create_cabinet_letter':'Création confirmée du courrier Word'})
@@ -906,6 +907,8 @@ class App:
                     headers.extend(_r440.get('headers',[]))
                     if _r440.get('csp'):
                         headers=[(n,_r440['csp'] if n=='Content-Security-Policy' else v) for n,v in headers]
+                    if _r440.get('csp_img')=='data: blob:':   # 5.6.103 (lot T) : page Messagerie seulement (images incrustées et curseurs du tableau blanc) ; jamais une source externe
+                        headers=[(n,v.replace("img-src 'self'","img-src 'self' data: blob:",1) if n=='Content-Security-Policy' else v) for n,v in headers]
                     if _r440.get('frame_office'):   # 5.6.36 : volet du complément Word (Word sur le web l'affiche dans un cadre Office)
                         headers=[(n,v) for n,v in headers if n!='X-Frame-Options']
                     if _r440.get('frame_self'):   # 5.6.79 : aperçu PDF de la page Dossier, dans un cadre d'AxiorHub seulement

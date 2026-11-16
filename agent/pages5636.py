@@ -134,7 +134,10 @@ def page(desk, auth, prefix, env, args, path, shell):
     else:
         from . import office5636
         body = office5636.page_html(desk, prefix, args, env)
-    return shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path)
+    html = shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path)
+    if path == '/messagerie' and 'data-t103-config' in body:   # 5.6.103 (lot T) : tableau blanc ouvert dans cette page (img-src data: blob:, rien d'externe)
+        return {'status': '200 OK', 'kind': 'text/html; charset=utf-8', 'body': html, 'csp_img': 'data: blob:'}
+    return html
 
 
 def _all_title():

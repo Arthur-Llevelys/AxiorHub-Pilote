@@ -2140,6 +2140,42 @@
 ],
 "version": "5.6.36"
 },
+"fichiers": {
+"objective": "Recorrer los archivos del despacho en Nextcloud (y, en un puesto, las carpetas elegidas del ordenador) en dos paneles con pestañas y favoritos; renombrar por lotes, numerar documentos, archivar, ver y restaurar versiones.",
+"when": "Para ordenar un expediente, numerar documentos antes de un índice, encontrar un archivo en subcarpetas o volver a una versión anterior.",
+"prerequisites": "Nextcloud configurado; en un puesto, las carpetas del ordenador se añaden en «Dossiers de ce poste et versions locales».",
+"steps": [
+"Abra Archivos (familia «Pièces et contentieux»); cada panel tiene su origen, sus pestañas y su ruta.",
+"Escriba en «Filtrer ce dossier» para reducir la lista, o use «Chercher» para las subcarpetas (búsqueda limitada, «Continuer la recherche» para seguir).",
+"Marque elementos y luego «Renommer par lot»: elija la regla (numerar documentos, reemplazar, añadir), pulse «Voir l’aperçu», corrija los conflictos indicados y renombre.",
+"Arrastre un elemento al otro panel, o use «Copier vers l’autre volet» / «Déplacer vers l’autre volet» (el traslado se confirma).",
+"Seleccione un archivo y luego «Versions» para restaurar una versión: nunca se sobrescribe una versión más reciente (copia de conflicto indicada)."
+],
+"result": "Archivos ordenados y renombrados en Nextcloud; las notas y colores quedan en AxiorHub, visibles para el despacho.",
+"verify": "Recargue la carpeta: aparecen los nuevos nombres, el archivo ZIP o la copia de conflicto; el registro de auditoría guarda cada acción.",
+"errors": [
+[
+"«Un élément porte déjà ce nom»",
+"No se ha reemplazado nada: elija otro nombre o renombre primero el elemento existente."
+],
+[
+"«Le stockage ne répond pas»",
+"Nextcloud no responde: la carpeta no está vacía, inténtelo más tarde."
+],
+[
+"«Archive refusée»",
+"El archivo contiene una ruta que sale, un enlace o demasiados datos descomprimidos: no se ha extraído nada."
+]
+],
+"example": "En el expediente ficticio DOS-001, numerar diez documentos «Pièce n° 01 – …» en el orden elegido y crear un archivo ZIP para el colega.",
+"buttons": [
+"Chercher",
+"Renommer par lot",
+"Voir l’aperçu",
+"Versions"
+],
+"version": "5.6.36"
+},
 "securite_serveur": {
 "objective": "Ver si el servidor del despacho presenta signos de intrusión o programas que actualizar, con una explicación y el comando que debe ejecutar la persona encargada del servidor.",
 "when": "Tras una alerta en el teléfono o en Hoy, o durante un control periódico.",

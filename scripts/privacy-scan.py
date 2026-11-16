@@ -21,6 +21,9 @@ EXCLUDED_DIRS = {'.git', '__pycache__', '.pytest_cache', 'dist', 'build', '_vend
 # Données d'exploitation (jamais publiées) : seulement les dossiers « data » de la racine et du VPS ; agent/data et tests/data sont contrôlés.
 EXCLUDED_ROOTS = ('data/', 'deploy/vps/data/')
 EXCLUDED_FILES = {'scripts/privacy-scan.py', '.privacy-denylist', 'MANIFEST.sha256', 'SBOM.cdx.json', 'agent/static/carbon5682.js', 'agent/static/pdfjs5682.js', 'agent/static/pdf.worker5682.js'}  # bibliothèques tierces minifiées
+EXCLUDED_FILES |= {'agent/static/excalidraw56103.js', 'agent/static/excalidraw56103.css'}   # 5.6.103 (lot T) : tableau blanc (Excalidraw) minifié
+EXCLUDED_FILES |= {'LICENSES/Excalidraw-5.6.103-licences.txt'}   # 5.6.103 : textes de licence tiers (avis de droits d'auteur des auteurs, à garder intacts)
+EXCLUDED_ROOTS += ('agent/static/excalidraw56103/',)   # 5.6.103 (lot T) : morceaux et polices d'Excalidraw (empreintes : scripts/build-excalidraw.py --verifier)
 BINARY = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.tgz', '.woff', '.woff2', '.ttf', '.sqlite3'}
 OFFICE = {'.docx', '.xlsx', '.pptx', '.odt', '.ods'}
 # L'auteur est nommé volontairement (attribution, licence AGPL §7 b) dans ces fichiers seulement.

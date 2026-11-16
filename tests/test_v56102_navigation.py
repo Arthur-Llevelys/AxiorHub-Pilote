@@ -117,7 +117,8 @@ class PageARelire(Base):
         interdit_page = self.route('/a-relire', {'item': ident}, *AVOCAT_B)['body']
         absent_page = self.route('/a-relire', {'item': absent}, *AVOCAT_B)['body']
         self.assertNotIn('Confidentiel', interdit_page)
-        self.assertEqual(interdit_page.replace(ident, 'X'), absent_page.replace(absent, 'X'))   # aucune différence observable
+        sans_heure = lambda page: __import__('re').sub(r' \(dernier passage : [^)]*\)', '', page)   # 5.6.103 : heure d'un travail de fond entre les deux requêtes
+        self.assertEqual(sans_heure(interdit_page.replace(ident, 'X')), sans_heure(absent_page.replace(absent, 'X')))   # aucune différence observable
         a = self.appel('m56100/relecture/' + ident, compte=AVOCAT_B[0], role=AVOCAT_B[1])
         b = self.appel('m56100/relecture/' + absent, compte=AVOCAT_B[0], role=AVOCAT_B[1])
         self.assertEqual((a[0]['status'], a[1]), (b[0]['status'], b[1]))       # même 404 neutre qu'avant
