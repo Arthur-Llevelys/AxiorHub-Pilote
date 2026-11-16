@@ -3248,6 +3248,7 @@ cds-inline-notification:not(:defined)::after { content: attr(subtitle); }
 :root body[data-carbon] #ws-main label, :root body[data-carbon] #ws-main form > *, :root body[data-carbon] #ws-main fieldset { min-width: 0; }
 :root body[data-carbon] #ws-main .ax-btn { white-space: normal; }
 :root body[data-carbon] #ws-main code, :root body[data-carbon] #ws-main .c5689-badge { overflow-wrap: anywhere; white-space: normal; }
+:root body[data-carbon] #ws-main pre code { overflow-wrap: normal; white-space: inherit; }   /* 5.6.104 : un bloc de commandes garde une commande par ligne (la règle précédente vise le code en ligne) */
 @media (max-width: 75rem) {
   :root body[data-carbon] #ws-main table { display: block; max-width: 100%; overflow-x: auto; }
   :root body[data-carbon] #ws-main .m5-form { max-width: 100%; }

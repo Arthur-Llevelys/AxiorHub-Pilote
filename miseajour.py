@@ -44,6 +44,9 @@ RESULT = REQUEST_DIR / 'resultat.json'
 SIGNERS = Path('/etc/axiorhub-mail-agent/maj-signataires')
 WORK = Path('/var/cache/axiorhub-mail-agent-maj')
 BASE = Path('/opt/axiorhub-mail-agent')
+LANCEUR = Path('/usr/local/lib/axiorhub-mail-agent/miseajour.py')   # 5.6.104 : copie lancée par root, hors du dossier du code
+CORRECTION_DROITS = ('sudo chown -R root:root /opt/axiorhub-mail-agent && sudo chown -h root:root /opt/axiorhub-mail-agent/current '
+                     '&& sudo chmod -R u=rwX,go=rX /opt/axiorhub-mail-agent')
 SYSTEMD = Path('/etc/systemd/system')
 UNITS = ('axiorhub-mail-agent-maj.path', 'axiorhub-mail-agent-maj.service')
 CHECK_UNITS = ('axiorhub-mail-ui.service', 'axiorhub-mail-desk-worker.service')
@@ -135,6 +138,70 @@ def services_ok(wait=25):
     return all(subprocess.run(['systemctl', 'is-active', '--quiet', u]).returncode == 0 for u in CHECK_UNITS)
 
 
+def droits_du_code(base=None, lanceur=None, lstat=os.lstat, lister=os.walk, limite=20):
+    """Éléments du code installé modifiables par un autre compte que root (au plus ``limite``) ; liste vide si tout est sain.
+    Contrôlés : le dossier de base, ``releases``, la version en service et tout son contenu, la copie du script lancée par root.
+    Les droits d'un lien symbolique ne comptent pas (sans effet sous Linux) : sa cible est contrôlée à part."""
+    import stat as st_
+    problemes = []
+
+    def voir(chemin):
+        try:
+            s = lstat(str(chemin))
+        except OSError:
+            return
+        if st_.S_ISLNK(s.st_mode):
+            return
+        defauts = []
+        if getattr(s, 'st_uid', 0) != 0:
+            defauts.append('propriétaire autre que root (uid %s)' % s.st_uid)
+        if s.st_mode & 0o022:
+            defauts.append('modifiable par le groupe ou les autres (droits %s)' % oct(st_.S_IMODE(s.st_mode))[2:])
+        if defauts and len(problemes) < limite:
+            problemes.append('%s : %s' % (chemin, ', '.join(defauts)))
+
+    base, lanceur = Path(base or BASE), Path(lanceur or LANCEUR)
+    for chemin in (base, base / 'releases', lanceur.parent, lanceur):
+        voir(chemin)
+    try:
+        version = (base / 'current').resolve()
+    except OSError:
+        version = None
+    try:
+        dans_releases = bool(version) and version.relative_to((base / 'releases').resolve()) is not None
+    except (OSError, ValueError):
+        dans_releases = False                 # « current » ne mène pas dans releases : rien d'autre à parcourir
+    if dans_releases:
+        voir(version)
+        for dossier, dossiers, fichiers in lister(str(version)):
+            for n in dossiers + fichiers:
+                voir(Path(dossier) / n)
+                if len(problemes) >= limite:
+                    return problemes
+    return problemes
+
+
+def installer_lanceur(release, lanceur=None):
+    """Copie du script de la version installée vers ``lanceur`` (root, 0755), par fichier temporaire puis renommage."""
+    lanceur = Path(lanceur or LANCEUR)
+    lanceur.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    os.chmod(lanceur.parent, 0o755)
+    fd, tmp = tempfile.mkstemp(prefix='.miseajour-', dir=str(lanceur.parent))
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write((Path(release) / 'miseajour.py').read_bytes())
+        os.chmod(tmp, 0o755)
+        if hasattr(os, 'chown'):
+            try:
+                os.chown(tmp, 0, 0)
+            except (OSError, PermissionError):
+                pass
+        os.replace(tmp, lanceur)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 def execute():
     """Traite la demande déposée par l'interface. Ne renvoie jamais d'exception non rapportée."""
     if not REQUEST.is_file() or REQUEST.is_symlink():
@@ -164,6 +231,11 @@ def execute():
         report['etapes'].append('%s %s' % (now()[11:19], text))
         write_result({**report, 'etat': 'en_cours'})
     try:
+        problemes = droits_du_code()   # 5.6.104 : rien n'est lancé en root si le code peut avoir été réécrit par un autre compte
+        if problemes:
+            report['etapes'] = problemes[:10] + ['Correction : ' + CORRECTION_DROITS]
+            raise RuntimeError('Mise à jour refusée : le code installé d’AxiorHub est modifiable par un autre compte que root '
+                               '(voir les étapes). Remettez les droits avec la commande indiquée, puis relancez la mise à jour.')
         if not VERSION_RX.match(wanted):
             raise RuntimeError('version_demandee_invalide')
         step('Vérification de la dernière version publiée')
@@ -246,6 +318,7 @@ def activate(key, release, auto=False):
             os.chmod(SIGNERS, 0o644)
         elif not SIGNERS.is_file() and not auto:
             raise SystemExit('Aucune clé de signature : relancer avec --cle "ssh-ed25519 AAAA…".')
+    installer_lanceur(release)   # 5.6.104 : l'unité lance cette copie (root), jamais le script du dossier du code
     for unit in UNITS:
         shutil.copyfile(release / 'deploy' / unit, SYSTEMD / unit)
         os.chmod(SYSTEMD / unit, 0o644)

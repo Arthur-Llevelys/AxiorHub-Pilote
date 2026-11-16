@@ -6,6 +6,6 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=root
-ExecStart=/usr/bin/python3 -B /opt/axiorhub-mail-agent/current/miseajour.py --executer
+ExecStart=/usr/bin/python3 -B /usr/local/lib/axiorhub-mail-agent/miseajour.py --executer
 TimeoutStartSec=50min
 UMask=0077

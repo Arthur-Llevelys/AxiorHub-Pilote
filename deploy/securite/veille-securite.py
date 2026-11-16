@@ -70,6 +70,7 @@ SYSTEME = ('/usr/', '/lib/', '/lib64/', '/lib32/', '/bin/', '/sbin/', '/snap/')
 TEMPORAIRES = ('/tmp/', '/dev/shm/', '/var/tmp/')
 WEB = ('/var/www/', '/srv/www/', '/srv/http/')
 COMPTES_WEB = ('www-data', 'apache', 'nginx', 'http')
+AXIORHUB_CODE = '/opt/axiorhub-mail-agent'   # 5.6.104 : code d'AxiorHub, root:root, lecture seule pour les autres (installer.py)
 COQUILLES_SANS = ('nologin', 'false', 'sync', 'halt', 'shutdown')
 # 5.6.102 (lot C) : Collabora intégré à Nextcloud (application « Collabora Online – Built-in CODE Server »). Sans FUSE, l'AppImage est
 # lancée avec --appimage-extract-and-run : elle se décompresse dans /tmp/appimage_extracted_<empreinte>/ et y lance coolwsd, coolforkit…
@@ -202,6 +203,8 @@ class Veille:
                 return int(str(m.get('mode', '0644')), 8), int(m.get('uid', 0)), int(m.get('gid', 0))
             return None
         mode, uid, gid = st.st_mode, getattr(st, 'st_uid', 0), getattr(st, 'st_gid', 0)
+        if m and m.get('lien'):   # 5.6.104 : lien déclaré dans une fausse racine (Windows crée mal les vrais liens)
+            return stat.S_IFLNK | 0o777, int(m.get('uid', 0)), int(m.get('gid', 0))
         if m:
             kind = stat.S_IFMT(mode)
             mode = kind | int(str(m.get('mode', oct(stat.S_IMODE(mode)))), 8)
@@ -343,8 +346,38 @@ class Veille:
         texte = self.masque(texte)
         return texte if len(texte) <= limite else texte[:limite - 1] + '…'
 
+    def meta_reelle(self, chemin):
+        """(mode, uid, gid, cible) du fichier réellement atteint : les liens sont suivis (huit au plus) ; ``cible`` vaut None sans lien."""
+        courant, cible = str(chemin), None
+        for _ in range(8):
+            m = self.meta(courant)
+            if not m or not stat.S_ISLNK(m[0]):
+                return (m + (cible,)) if m else None
+            suivant = self.cible_lien(courant)
+            if not suivant:
+                return None
+            courant = cible = suivant
+        return None
+
+    def cible_lien(self, chemin):
+        """Cible absolue d'un lien symbolique (None sinon) ; une cible relative est rattachée au dossier du lien."""
+        m = self._meta.get(str(chemin).rstrip('/') or '/') if self.fausse else None
+        if m and m.get('lien'):
+            cible = str(m['lien'])
+        else:
+            try:
+                cible = os.readlink(self.p(chemin))
+            except OSError:
+                return None
+        if not cible.startswith('/'):
+            cible = os.path.normpath(os.path.join(os.path.dirname(str(chemin)), cible)).replace(os.sep, '/')
+        return cible
+
     def ecrivable_web(self, chemin):
-        """Le compte web peut-il écrire ce fichier ou dossier ? (propriétaire, groupes, autres ; dossiers à bit collant exclus)."""
+        """Le compte web peut-il écrire ce fichier ou dossier ? (propriétaire, groupes, autres ; dossiers à bit collant exclus).
+
+        5.6.104 : les droits d'un lien symbolique (toujours rwxrwxrwx) sont sans effet sous Linux : un lien n'est jamais « modifiable »
+        par eux ; le remplacer dépend de son dossier, et sa cible est contrôlée par ``_ancetres_ecrivables``."""
         web = self.compte_web()
         if not web:
             return False
@@ -352,6 +385,8 @@ class Veille:
         if not m:
             return False
         mode, uid, gid = m
+        if stat.S_ISLNK(mode):
+            return False
         principal, supp = self.groupes_de(web['nom'])
         if uid == web['uid'] and mode & stat.S_IWUSR:
             return True
@@ -793,10 +828,10 @@ class Veille:
                     if not self._est_secret(dossier, nom):
                         continue
                     chemin = dossier.rstrip('/') + '/' + nom
-                    m = self.meta(chemin)
+                    m = self.meta_reelle(chemin)   # 5.6.104 : un lien a toujours rwxrwxrwx ; seuls les droits de sa cible comptent
                     if not m:
                         continue
-                    mode, uid, gid = m
+                    mode, uid, gid, _cible = m
                     if uid == web['uid']:
                         continue                  # fichier de l'application web elle-même : lisible par construction
                     raison = ''
@@ -807,11 +842,18 @@ class Veille:
                     if not raison:
                         continue
                     noms = self.noms_reglages(chemin)
+                    if dossier.startswith('/etc/postfix') and not noms:
+                        continue                  # 5.6.104 : .cf de Postfix sans mot de passe (types de tables, etc.) : rien de secret
+                    if mode & stat.S_IROTH:       # 5.6.104 : retirer la lecture par tous ; le propriétaire et le groupe actuels gardent leur accès
+                        commandes = ['sudo chmod o-r %s' % chemin]
+                    else:
+                        commandes = ['sudo chmod g-r %s' % chemin,
+                                     '# ou retirez %s du groupe %s si un autre service de ce groupe doit lire le fichier' % (web['nom'], self.nom_gid(gid))]
+                    commandes.append('# puis changez les mots de passe et clés concernés : ils ont pu être lus')
                     self.ajouter('S07', chemin, 'important', 'Fichier de secrets lisible par le serveur web : %s' % self.masque(chemin), EXPLICATIONS['S07'],
                                  ['%s : %s ; propriétaire %s, groupe %s' % (chemin, raison, self.nom_uid(uid), self.nom_gid(gid)),
                                   'Réglages concernés : %s' % (', '.join(noms) if noms else 'non identifiés')],
-                                 ['sudo chmod 640 %s' % chemin, 'sudo chown root:%s %s   # groupe du seul service qui doit le lire' % (self.nom_gid(gid) if gid not in supp else 'root', chemin),
-                                  '# puis changez les mots de passe et clés concernés : ils ont pu être lus'],
+                                 commandes,
                                  [chemin, oct(stat.S_IMODE(mode)), gid, noms])
 
     # ---------------------------------------------------------------------------------------------------------- Apache (S08)
@@ -938,7 +980,7 @@ class Veille:
             return {'app': 'roundcube', 'chemin': d, 'version': m.group(1) if m else ''}
         for app in ('snappymail', 'rainloop'):
             if self.est_dossier(d + '/' + app + '/v'):
-                versions = [v for v in self.lister(d + '/' + app + '/v') if re.fullmatch(r'\d+(\.\d+)+', v)]
+                versions = [v for v in self.lister(d + '/' + app + '/v') if re.fullmatch(r'\d+(\.\d+)+', v) and any(_version(v))]   # 5.6.104 : « 0.0.0 » = copie de développement
                 return {'app': app, 'chemin': d, 'version': max(versions, key=_version) if versions else ''}
         if 'version.php' in fichiers and ('occ' in fichiers or 'core' in sous) and 'OC_VersionString' in texte('version.php'):
             m = re.search(r"OC_VersionString\s*=\s*['\"]([^'\"]+)", texte('version.php'))
@@ -982,12 +1024,22 @@ class Veille:
             self.applications.append(entree)
 
     # ---------------------------------------------------------------------------------------------------------- dossiers web (S10)
-    def _ancetres_ecrivables(self, chemin):
+    def _ancetres_ecrivables(self, chemin, profondeur=0):
+        """Premier élément du chemin (fichier, dossiers parents) modifiable par le compte web ; un lien rencontré fait contrôler aussi
+        sa cible et les dossiers de la cible (5.6.104), sur huit liens au plus."""
         parties = chemin.rstrip('/').split('/')
         for i in range(len(parties), 1, -1):
             courant = '/'.join(parties[:i]) or '/'
-            if self.existe(courant) and self.ecrivable_web(courant):
+            if not self.existe(courant):
+                continue
+            if self.ecrivable_web(courant):
                 return courant
+            m = self.meta(courant)
+            if m and stat.S_ISLNK(m[0]) and profondeur < 8:
+                cible = self.cible_lien(courant)
+                trouve = self._ancetres_ecrivables(cible, profondeur + 1) if cible else None
+                if trouve:
+                    return trouve
         return None
 
     def taches_privilegiees(self):
@@ -1037,11 +1089,16 @@ class Veille:
                 if not dossier:
                     continue
                 deja.add(chemin)
+                if chemin.startswith(AXIORHUB_CODE + '/'):   # 5.6.104 : code d'AxiorHub : remettre les droits de l'installateur, ne pas déplacer
+                    commandes = ['sudo chown -R root:root %s' % AXIORHUB_CODE, 'sudo chown -h root:root %s/current' % AXIORHUB_CODE,
+                                 'sudo chmod -R u=rwX,go=rX %s' % AXIORHUB_CODE]
+                else:
+                    commandes = ['sudo install -o root -g root -m 755 %s /usr/local/sbin/%s' % (chemin, os.path.basename(chemin)),
+                                 '# puis remplacez %s par /usr/local/sbin/%s dans %s' % (chemin, os.path.basename(chemin), source),
+                                 'sudo chown root:root %s' % dossier]
                 self.ajouter('S10', 'script|' + chemin, 'critique', 'Script de %s modifiable par le serveur web : %s' % (compte, chemin), EXPLICATIONS['S10s'],
                              ['%s lancé par %s (%s)' % (chemin, compte, source), '%s est modifiable par %s' % (dossier, web['nom'])],
-                             ['sudo install -o root -g root -m 755 %s /usr/local/sbin/%s' % (chemin, os.path.basename(chemin)),
-                              '# puis remplacez %s par /usr/local/sbin/%s dans %s' % (chemin, os.path.basename(chemin), source),
-                              'sudo chown root:root %s' % dossier], [chemin, compte, dossier])
+                             commandes, [chemin, compte, dossier])
 
     # ---------------------------------------------------------------------------------------------------------- conteneurs (S11)
     def ports_conteneurs(self):
@@ -1162,10 +1219,10 @@ class Veille:
         attendus += [(RAPPORTS + '/' + n, 'rapport') for n in self.lister(RAPPORTS) if n.endswith('.json')][:5]
         service = self.comptes.get(GROUPE)
         for chemin, nature in attendus:
-            m = self.meta(chemin)
+            m = self.meta_reelle(chemin)   # 5.6.104 : config.json peut être un lien vers l'état du service ; seuls les droits de la cible comptent
             if not m:
                 continue
-            mode, uid, gid = m
+            mode, uid, gid, _cible = m
             droits = stat.S_IMODE(mode)
             defauts = []
             if droits & 0o007:

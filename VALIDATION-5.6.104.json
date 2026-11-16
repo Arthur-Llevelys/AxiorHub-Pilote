@@ -1,0 +1,35 @@
+{
+  "version": "5.6.104",
+  "base": "5.6.103",
+  "date_utc": "2026-11-16T00:00:00+00:00",
+  "demande": "Rapport « Sécurité du serveur » du cabinet (16/11/2026) : alerte critique S10 sur le script de mise à jour, S13 sur la configuration, S07 sur un fichier de Postfix ; commandes collées sur une ligne.",
+  "constat_sur_le_serveur": "Vérifié par l’avocat en lecture seule : tout le chemin du script de mise à jour et la cible de config.json sont protégés (root ou compte du service, aucune écriture pour les autres) ; S10 et S13 étaient de fausses alertes.",
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 10 sur une copie figée du commit testé, PYTHONUTF8=1",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 6821,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 153
+  },
+  "proces_verbal_V104": {
+    "veille": "test_v56104_veille (10) : lien sain sans alerte, lien vers un dossier de www-data critique avec commande juste, mutation (droits du lien pris en compte → fausse alerte), config.json en lien sans S13, config ouverte toujours S13, .cf sans mot de passe ignoré, .cf avec mot de passe signalé avec chmod o-r sans chown, .env en lien protégé ignoré, « 0.0.0 » non obsolète, blocs de commandes sur plusieurs lignes.",
+    "mise_a_jour": "test_v56104_maj (9) : code sain accepté, script ou version modifiable refusés, copie lancée par root contrôlée, unité sur la copie, copie posée avant les unités, refus sans aucun téléchargement, mutation sans contrôle.",
+    "navigateur": "P101s (Sécurité du serveur) : commandes une par ligne à l’écran, « Copier »."
+  },
+  "linux": "Conteneur Debian python:3.12, outil parallèle : modules modifiés et voisins (veille, mise à jour, sécurité, Collabora, dépôt public) : 123 tests OK ; suite Linux complète par la recette GitHub.",
+  "navigateur": "P101s (Sécurité du serveur) réussi : une commande par ligne, bouton Copier.",
+  "live_checks": "Aucun service réel ; le correctif a été vérifié contre les constats réels du cabinet (lecture seule de son côté).",
+  "exapp": {
+    "version": "0.1.63",
+    "moteur": "5.6.104"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "La copie du script de mise à jour n’est posée qu’à l’installation de la 5.6.104 par la mise à jour habituelle ; jamais exécutée sous un vrai systemd dans cette recette.",
+    "Les commandes S07 proposées ne changent plus le propriétaire ni le groupe : si un fichier doit être réservé à un service, son groupe reste à choisir par l’administrateur."
+  ]
+}

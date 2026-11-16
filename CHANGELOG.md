@@ -3,6 +3,23 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.104 — veille de sécurité sans fausses alertes sur les liens, commandes sur plusieurs lignes, mise à jour automatique durcie
+
+Retours du cabinet sur le rapport « Sécurité du serveur » du 16/11/2026.
+
+- **Liens symboliques (S10, S13, S07)** : les droits d'un lien (toujours rwxrwxrwx sous Linux, sans effet) étaient pris pour ceux du
+  fichier ; d'où « script de root modifiable par le serveur web » pour le script de mise à jour et « config.json en 777 », alors que
+  les fichiers réels étaient protégés. Les liens sont suivis jusqu'à leur cible ; un lien vers un dossier modifiable reste signalé.
+- **Postfix (S07)** : un fichier .cf de Postfix n'est signalé que s'il contient un mot de passe ; la commande proposée retire seulement
+  la lecture par tous (le propriétaire et le groupe gardent leur accès) au lieu de forcer root:root, qui pouvait bloquer un service.
+- **SnappyMail « 0.0.0 » (S09)** : copie de développement, version inconnue, plus « obsolète ».
+- **Commandes à copier** : depuis l'interface Carbon (5.6.89), le code d'un bloc perdait ses retours à la ligne à l'écran ; plusieurs
+  commandes se lisaient (et se copiaient à la main) sur une ligne. Chaque commande est de nouveau sur sa ligne, sur toutes les pages.
+- **Mise à jour automatique** : le service root lance une copie du script rangée dans /usr/local/lib/axiorhub-mail-agent (root, 0755),
+  posée à l'activation et à chaque installation, et refuse de démarrer si le code installé est modifiable par un autre compte que root
+  (motif lisible et commande de correction dans le résultat). Pour le code d'AxiorHub, S10 propose de remettre les droits de
+  l'installateur au lieu de déplacer le script.
+
 ## 5.6.103 — liaison directe entre postes, page « Fichiers », tableau blanc, compte Microsoft intégré, Gmail simple, tests en parallèle
 
 - **Liaison entre postes (lot L)** : les versions « poste de travail » se relient directement sur le réseau local du cabinet, sans serveur ;
