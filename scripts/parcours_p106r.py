@@ -92,6 +92,7 @@ def preparer(banc):
     serveur.ajouter('INBOX', _brut_cc(), set())
     secret = Path(banc.base) / 'donnees' / 'imap.secret'
     secret.write_text('mot-de-passe-fictif-du-banc', encoding='utf-8')
+    secret.chmod(0o600)                                   # Linux : read_secret refuse un secret lisible par d'autres
     banc.config['mail'].update({'enabled': True, 'username': 'cabinet', 'host': 'mail.example.test', 'password_file': str(secret), 'trash': 'Trash',
                                 'drafts': 'Drafts', 'sent': 'Sent', 'from_address': 'cabinet@example.test', 'from_name': 'Cabinet VALBRUNE'})
     private_json(banc.config_path, banc.config)
