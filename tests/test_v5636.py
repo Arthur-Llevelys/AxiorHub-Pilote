@@ -1022,7 +1022,13 @@ class Microsoft365(t34.Base):
             ms.save_config(self.desk, {'client_id': 'pas-un-identifiant'})
         with self.assertRaises(Stop):
             ms.start(self.desk, {}, '/p')                                                      # non configuré
-        self.assertIn('Se connecter à Microsoft 365', self.request('/parametres', query='rubrique=connexions')['body'])
+        from unittest.mock import patch
+        from agent import microsoft56103 as m103
+        with patch.object(m103, 'CLIENT_ID_INTEGRE', ''):                                   # sans application intégrée (avant 5.6.105)
+            self.assertIn('Se connecter à Microsoft 365', self.request('/parametres', query='rubrique=connexions')['body'])
+        page = self.request('/parametres', query='rubrique=connexions')['body']              # 5.6.105 : application intégrée par défaut
+        self.assertIn('section « Compte Microsoft » ci-dessus', page)
+        self.assertNotIn('Se connecter à Microsoft 365', page)
         self.assertIsNone(ms.push_event(self.desk, {'id': 'x', 'title': 't', 'starts': '2026-11-01T10:00:00+00:00', 'ends': '2026-11-01T11:00:00+00:00'}))
 
 

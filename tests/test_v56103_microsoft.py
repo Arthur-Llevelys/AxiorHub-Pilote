@@ -501,7 +501,9 @@ class Garde(Base):
     def test_M33_identifiant_vide_message_clair_et_aucun_appel(self):
         self.f.c.pop('microsoft56103', None)
         self.desk.c.pop('microsoft56103', None)
-        self.assertEqual(ms.CLIENT_ID_INTEGRE, '')                                  # l'éditeur ne l'a pas encore inscrite
+        vide = patch.object(ms, 'CLIENT_ID_INTEGRE', '')                            # application intégrée absente (avant la 5.6.105)
+        vide.start()
+        self.addCleanup(vide.stop)
         self.assertFalse(ms.disponible(self.desk))
         for fn in (lambda: ms.demarrer_pkce(self.desk, CLAIRE, ['courrier'], 50123), lambda: ms.demarrer_appareil(self.desk, CLAIRE, ['courrier'])):
             with self.assertRaisesRegex(Stop, 'microsoft56103_indisponible'):
@@ -520,7 +522,9 @@ class Garde(Base):
 
     def test_M34_identifiant_invalide_ignore(self):
         self.desk.c['microsoft56103'] = {'client_id': 'pas-un-guid'}
-        self.assertFalse(ms.disponible(self.desk))
+        with patch.object(ms, 'CLIENT_ID_INTEGRE', ''):
+            self.assertFalse(ms.disponible(self.desk))
+        self.assertEqual(ms.client_id(self.desk), ms.CLIENT_ID_INTEGRE)            # valeur invalide : l'application intégrée la remplace
 
 
 # ------------------------------------------------------------------------------------------------ brouillons Outlook

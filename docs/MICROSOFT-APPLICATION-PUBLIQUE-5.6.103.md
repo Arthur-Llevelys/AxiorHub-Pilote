@@ -5,7 +5,15 @@ toutes les installations d'AxiorHub utiliseront pour Outlook (courrier et agenda
 rien à inscrire dans Entra : ils cliqueront « Se connecter à Microsoft » dans Paramètres › Connexions.
 
 L'application est un **client public** : elle n'a **aucun secret**. Son identifiant (client) n'est pas confidentiel et figure dans le
-dépôt public (`agent/microsoft56103.py`, constante `CLIENT_ID_INTEGRE`). Tant que cette constante est vide, AxiorHub affiche
+dépôt public (`agent/microsoft56103.py`, constante `CLIENT_ID_INTEGRE`).
+
+**État (5.6.105)** : application inscrite par l'éditeur, identifiant livré dans `CLIENT_ID_INTEGRE`. Vérifié sans connexion à un
+compte : Microsoft délivre un code d'appareil pour cet identifiant sur `common`, `organizations` et `consumers` (comptes
+professionnels et personnels). Non vérifié : une connexion complète, le consentement dans un locataire réel, la vérification de
+l'éditeur. Une application propre renseignée dans la configuration du serveur (`microsoft56103.client_id`) passe avant
+l'application intégrée.
+
+Avant la 5.6.105, tant que cette constante était vide, AxiorHub affichait
 « Application intégrée pas encore disponible : utilisez votre propre application » et n'appelle jamais Microsoft ; l'agenda Outlook
 reste réglable avec l'application propre du cabinet (5.6.36), inchangée.
 
@@ -94,8 +102,8 @@ l'approbation. Variante : activer dans le locataire du cabinet le circuit de dem
 
 - **Livraison** : `agent/microsoft56103.py`, `CLIENT_ID_INTEGRE = '<ID d'application (client)>'` (minuscules, format GUID). Aucun autre
   réglage n'est nécessaire ; l'identifiant n'est pas un secret.
-- **Essai avant livraison** (facultatif) : section `microsoft56103` de la configuration du serveur, clé `client_id`. Une valeur qui n'est
-  pas un GUID est ignorée.
+- **Application propre ou essai** (facultatif) : section `microsoft56103` de la configuration du serveur, clé `client_id` ; elle passe
+  avant l'application intégrée (5.6.105). Une valeur qui n'est pas un GUID est ignorée.
 
 ## 6. Vérifications après inscription (à faire à la main, non faites dans ce lot)
 

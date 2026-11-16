@@ -19,9 +19,9 @@ Application intégrée
 - ``CLIENT_ID_INTEGRE`` : identifiant (client) de l'application inscrite par l'éditeur d'AxiorHub dans son locataire Entra,
   « comptes dans un annuaire organisationnel quelconque et comptes Microsoft personnels », plateforme « Applications mobiles et de
   bureau » (client public), redirection de bouclage ``http://localhost/axiorhub/microsoft-retour`` (le port est ignoré par Microsoft pour
-  localhost), flux publics autorisés (code d'appareil). Vide tant que l'éditeur ne l'a pas inscrite : l'interface le dit et rien n'est
-  appelé. Un serveur peut, pour essai, renseigner sa propre application publique dans la configuration (``microsoft56103.client_id``) ;
-  ce n'est jamais un secret. Voir ``docs/MICROSOFT-APPLICATION-PUBLIQUE-5.6.103.md``.
+  localhost), flux publics autorisés (code d'appareil). Renseigné depuis la 5.6.105 ; vide, l'interface dirait « pas encore
+  disponible » et rien ne serait appelé. Un serveur peut renseigner sa propre application publique dans la configuration
+  (``microsoft56103.client_id``) : elle passe alors avant l'application intégrée ; ce n'est jamais un secret. Voir ``docs/MICROSOFT-APPLICATION-PUBLIQUE-5.6.103.md``.
 - Autorité ``common`` (comptes professionnels de n'importe quel locataire et comptes personnels).
 - **Poste** : code d'autorisation avec PKCE (S256), ``state`` aléatoire gardé haché, à usage unique, valable 10 minutes, lié à la personne,
   à la génération de la connexion et à l'identifiant client ; retour sur une écoute ponctuelle ``http://localhost:<port>/axiorhub/microsoft-retour``
@@ -55,7 +55,7 @@ import uuid
 
 from .common import Stop
 
-CLIENT_ID_INTEGRE = ''     # renseigné par l'éditeur d'AxiorHub après inscription dans Entra (identifiant public, aucun secret)
+CLIENT_ID_INTEGRE = '0abc87ae-0917-4cd3-afa0-24129143d776'     # application « AxiorHub Pilote » inscrite par l'éditeur dans Entra (5.6.105 ; identifiant public, aucun secret)
 AUTORITE = 'common'
 LOGIN = 'https://login.microsoftonline.com'
 GRAPH = 'https://graph.microsoft.com'
@@ -158,8 +158,9 @@ GUID = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 
 
 def client_id(desk):
-    """Identifiant client de l'application publique : constante intégrée, sinon essai du serveur (``microsoft56103.client_id``) ; '' sinon."""
-    for valeur in (CLIENT_ID_INTEGRE, str(((getattr(desk, 'c', None) or {}).get('microsoft56103') or {}).get('client_id') or '')):
+    """Identifiant client de l'application publique : application propre du serveur (``microsoft56103.client_id``) si elle est
+    renseignée, sinon application intégrée ; '' si aucune des deux n'est un GUID."""
+    for valeur in (str(((getattr(desk, 'c', None) or {}).get('microsoft56103') or {}).get('client_id') or ''), CLIENT_ID_INTEGRE):
         valeur = str(valeur or '').strip()
         if valeur and GUID.match(valeur):
             return valeur.lower()

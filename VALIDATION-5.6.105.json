@@ -1,0 +1,30 @@
+{
+  "version": "5.6.105",
+  "base": "5.6.104",
+  "date_utc": "2026-11-16T00:00:00+00:00",
+  "demande": "L’éditeur a inscrit l’application publique Microsoft et fourni son identifiant (client).",
+  "constat_microsoft": "Lecture seule, sans connexion à un compte : Microsoft délivre un code d’appareil pour cet identifiant sur common, organizations et consumers ; la page de connexion s’affiche pour le code d’autorisation avec PKCE.",
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 10 sur une copie figée du commit testé, PYTHONUTF8=1",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 6828,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 155
+  },
+  "proces_verbal_V105": "test_v56105_microsoft (6) : identifiant livré et bien formé, assistant et paramètres proposent la connexion sans appel, PKCE et code d’appareil avec l’application intégrée (faux Microsoft), agenda Outlook sur l’application intégrée par défaut, application propre du serveur prioritaire.",
+  "linux": "Linux : laissé à la recette GitHub (changement limité au module Microsoft)",
+  "navigateur": "Chromium 42 parcours en 4 groupes : 41 réussis, P98p repris seul après adaptation et réussi (avec P103g)",
+  "exapp": {
+    "version": "0.1.64",
+    "moteur": "5.6.105"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "Aucune connexion complète à un vrai compte Microsoft dans cette recette (jetons, courrier, agenda, OneDrive non exercés).",
+    "Consentement dans un locataire Microsoft 365 réel et vérification de l’éditeur non faits."
+  ]
+}

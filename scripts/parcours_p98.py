@@ -69,6 +69,15 @@ def p98_parametres(banc, s):
     for m in mesures:
         verifier(m['case_x'] < 8 and m['case_l'] <= 24, 'case détachée de son libellé : %r' % m)
     client = p.locator('#microsoft5636 input[name=client_id]')
+    if client.count() == 0:                                  # 5.6.105 : application intégrée par défaut → choisir l'application propre
+        choix = p.locator('#microsoft5636 form[data-api="m5636/microsoft/application"]')
+        choix.locator('input[name=application][value=propre]').check()
+        with p.expect_navigation():
+            choix.locator('button[type=submit]').click()
+        for pli in p.locator('details:has(#microsoft5636) > summary, #microsoft5636 details > summary').all():
+            if not pli.evaluate('n => n.parentElement.open'):
+                pli.click()
+        verifier(client.count() == 1, 'application propre choisie : champ « identifiant » absent')
     secret = p.locator('#microsoft5636 input[name=client_secret]')
     verifier(client.get_attribute('autocomplete') == 'off', 'identifiant Microsoft proposé au remplissage automatique')
     verifier(secret.get_attribute('autocomplete') == 'new-password', 'secret Microsoft proposé au remplissage automatique')

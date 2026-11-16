@@ -3,6 +3,15 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.105 — application Microsoft intégrée disponible
+
+- **Connexion Microsoft sans rien inscrire** : l'application publique « AxiorHub Pilote » est inscrite chez Microsoft ; son identifiant
+  (public, sans secret) est livré. Paramètres › Connexions › Compte Microsoft propose « Se connecter à Microsoft » : navigateur du poste
+  (PKCE) ou code à saisir sur la page de Microsoft (serveur). Outlook (courrier et brouillons, jamais d'envoi), agenda et OneDrive.
+  Dans beaucoup de cabinets sous Microsoft 365, un administrateur doit consentir une fois pour le courrier et l'agenda.
+- **Application propre** : une application renseignée dans la configuration du serveur (`microsoft56103.client_id`) passe avant
+  l'application intégrée ; l'agenda Outlook réglé sur l'application propre du cabinet (5.6.36) est inchangé.
+
 ## 5.6.104 — veille de sécurité sans fausses alertes sur les liens, commandes sur plusieurs lignes, mise à jour automatique durcie
 
 Retours du cabinet sur le rapport « Sécurité du serveur » du 16/11/2026.
