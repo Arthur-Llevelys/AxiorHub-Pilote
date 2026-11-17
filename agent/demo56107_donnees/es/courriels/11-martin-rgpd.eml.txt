@@ -1,0 +1,16 @@
+X-Demo-Id: martin-rgpd
+X-Demo-Heures: 30
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Registro de actividades de tratamiento.pdf|EXP-005
+From: Tomás MARTIN <dpd@martin-logistica.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: MARTIN Logística — registro de actividades de tratamiento
+Message-ID: <martin-rgpd@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+Como acordamos, le envío nuestro registro de actividades de tratamiento. La geolocalización de los vehículos nos plantea dudas.
+
+Tomás MARTIN
+MARTIN Logística S.L.

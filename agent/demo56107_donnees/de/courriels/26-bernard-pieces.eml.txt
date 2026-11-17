@@ -1,0 +1,15 @@
+X-Demo-Id: bernard-pieces
+X-Demo-Heures: 140
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@privat.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Alice BERNARD — Zeugen aus dem Kollegenkreis
+Message-ID: <bernard-pieces@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+zwei ehemalige Kollegen sind bereit, als Zeugen auszusagen, und schreiben mir vorab eine kurze Stellungnahme. Ich leite sie Ihnen nach Erhalt weiter.
+
+Mit freundlichen Grüßen
+Alice BERNARD

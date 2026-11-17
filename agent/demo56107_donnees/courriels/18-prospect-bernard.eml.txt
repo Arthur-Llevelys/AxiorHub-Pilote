@@ -1,0 +1,15 @@
+X-Demo-Id: prospect-bernard
+X-Demo-Heures: 66
+X-Demo-Boite: INBOX
+From: Lucie BERNARD <contact@bernard-conseil.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Demande de rendez-vous — litige avec un fournisseur
+Message-ID: <prospect-bernard@demo.example.test>
+
+Bonjour Maître,
+
+Votre cabinet m'a été recommandé par la Société DURAND Bâtiment. Notre société, BERNARD Conseil, est en litige avec un fournisseur qui ne livre plus. Pourriez-vous me recevoir cette semaine ?
+
+Lucie BERNARD
+BERNARD Conseil
+01 00 00 00 05

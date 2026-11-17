@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-refere
+X-Demo-Heures: 60
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Marcos KERVILAC <gerencia@kervilac-inmuebles.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: KERVILAC c. ORLANDEC — vista de desahucio
+Message-ID: <kervilac-refere@demo.example.test>
+
+Sra. Durand:
+
+Asistiré a la vista del desahucio contra ORLANDEC Restauración (Desahucio 1290/2024). ¿Tengo que llevar la relación de rentas impagadas?
+
+Marcos KERVILAC

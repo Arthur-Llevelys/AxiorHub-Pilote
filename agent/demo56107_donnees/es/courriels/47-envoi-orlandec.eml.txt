@@ -1,0 +1,17 @@
+X-Demo-Id: envoi-orlandec
+X-Demo-Heures: 125
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: orlandec-audit
+From: Claire Durand <claire.durand@durand-abogados.example.test>
+To: Elena ORLANDEC <presidencia@orlandec.example.test>
+Subject: RE: ORLANDEC S.A. — preguntas del comprador
+Message-ID: <envoi-orlandec@demo.example.test>
+
+Estimada Sra. ORLANDEC:
+
+Los dos contratos afectados pueden someterse a una condición suspensiva: la conformidad de los clientes con el cambio de control.
+
+Claire Durand
+Abogada
+Despacho Durand Abogados

@@ -1,0 +1,14 @@
+X-Demo-Id: bernard-pieces
+X-Demo-Heures: 140
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Alice BERNARD — statements from colleagues
+Message-ID: <bernard-pieces@demo.example.test>
+
+Dear Claire,
+
+Two former colleagues have agreed to give witness statements. I will pass them on as soon as I receive them.
+
+Alice BERNARD

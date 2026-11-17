@@ -1,0 +1,14 @@
+X-Demo-Id: ordre-cotisation
+X-Demo-Heures: 260
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Ilustre Colegio de Abogados de Valbrune <secretaria@colegio-abogados-valbrune.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Cuota colegial
+Message-ID: <ordre-cotisation@demo.example.test>
+
+Estimada colegiada:
+
+El recibo de la cuota colegial del año está disponible en su área privada (mensaje ficticio de demostración).
+
+La secretaría del Colegio

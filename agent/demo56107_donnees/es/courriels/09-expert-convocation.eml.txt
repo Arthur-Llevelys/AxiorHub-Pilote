@@ -1,0 +1,15 @@
+X-Demo-Id: expert-convocation
+X-Demo-Heures: 20
+X-Demo-Boite: INBOX
+From: Sr. ORLANDEC, perito judicial <perito.orlandec@peritaciones.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ZORVAL c. KERVILAC — Prueba anticipada 1355/2024 — citación a la visita pericial
+Message-ID: <expert-convocation@demo.example.test>
+
+Estimada letrada:
+
+Por la presente le cito a la primera visita pericial, que tendrá lugar en la nave de ZORVAL Distribución dentro de dos días, a las 9:00.
+
+Le agradeceré que me remita con antelación el contrato de arrendamiento y las actas de constatación de las filtraciones.
+
+El perito judicial

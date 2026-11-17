@@ -1,0 +1,18 @@
+X-Demo-Id: lettre-info
+X-Demo-Heures: 54
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Boletín Mercantil <boletin@ediciones-juridicas.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Boletín Mercantil — n.º 312: arrendamientos de local y cláusula resolutoria
+Message-ID: <lettre-info@demo.example.test>
+
+Boletín Mercantil (boletín ficticio de demostración)
+
+En este número:
+- Arrendamientos de local de negocio: la cláusula resolutoria y la enervación del desahucio;
+- Sociedades: las manifestaciones y garantías en la práctica;
+- Proceso civil: cómo preparar la audiencia previa.
+
+Recibe este boletín porque está suscrita.

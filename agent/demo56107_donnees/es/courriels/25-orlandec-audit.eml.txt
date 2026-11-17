@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-audit
+X-Demo-Heures: 130
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Elena ORLANDEC <presidencia@orlandec.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ORLANDEC S.A. — preguntas del comprador
+Message-ID: <orlandec-audit@demo.example.test>
+
+Sra. Durand:
+
+El comprador pregunta por dos contratos con clientes que pueden resolverse en caso de cambio de control. ¿Cómo los tratamos en el contrato de compraventa?
+
+Elena ORLANDEC

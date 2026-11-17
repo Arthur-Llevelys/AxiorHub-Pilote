@@ -1,0 +1,63 @@
+# AxiorHub Pilote — démo en ligne (5.6.107) : répartiteur et instances des visiteurs.
+# Installé par deploy/demo/installer-demo.sh ; les plafonds globaux (mémoire, processus, processeur) sont posés par le fichier
+# /etc/systemd/system/axiorhub-demo.service.d/plafonds.conf, calculé d'après /etc/axiorhub-demo/demo.json.
+[Unit]
+Description=AxiorHub Pilote — démo en ligne (une instance isolée par visiteur)
+After=local-fs.target
+
+[Service]
+Type=simple
+User=axiorhub-demo
+Group=axiorhub-demo
+WorkingDirectory=/opt/axiorhub-demo/current
+ExecStart=/usr/bin/python3 -E -s -m agent.demo_hote56107 servir --reglages /etc/axiorhub-demo/demo.json
+Environment=PYTHONDONTWRITEBYTECODE=1 PYTHONUTF8=1 LANG=C.UTF-8
+UMask=0077
+Restart=on-failure
+RestartSec=5
+# Arrêt : le répartiteur arrête ses instances, puis systemd tue tout ce qui resterait du groupe.
+KillMode=control-group
+TimeoutStopSec=30
+
+# --- Isolement réseau : aucun accès sortant, ni pour le répartiteur ni pour les instances (héritage). Le mandataire HTTPS du cabinet
+# --- joint le répartiteur par le socket Unix /run/axiorhub-demo/demo.sock (un socket de fichier traverse l'espace réseau privé).
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+
+# --- Une instance par sous-groupe : mémoire, processeur et nombre de processus bornés par instance (cgroup v2 délégué).
+Delegate=cpu memory pids
+
+# --- Durcissement : compte sans privilège, aucune capacité, système de fichiers en lecture seule sauf l'état et le socket.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateIPC=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap
+# (@resources reste permis : l'instance pose ses propres limites par setrlimit et baisse sa priorité.)
+# ProtectControlGroups= est volontairement absent : il rendrait /sys/fs/cgroup illisible en écriture et empêcherait la délégation.
+StateDirectory=axiorhub-demo
+StateDirectoryMode=0700
+RuntimeDirectory=axiorhub-demo
+RuntimeDirectoryMode=0750
+ReadWritePaths=/var/lib/axiorhub-demo /run/axiorhub-demo
+
+[Install]
+WantedBy=multi-user.target

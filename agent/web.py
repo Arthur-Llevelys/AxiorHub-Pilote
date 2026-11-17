@@ -243,6 +243,7 @@ CONFIRM_REASONS = {
 }
 REASONS['transcription_locale_en_echec']='La transcription locale a échoué : le moteur Vocal du serveur est arrêté ou en erreur.'   # 5.6.81
 REASONS['pont_vocal_injoignable']='Le service de transcription locale ne répond pas : le pont vocal du serveur est arrêté.'
+from .demo56107 import MESSAGES as _M56107;REASONS['demonstration_hors_ligne']=_M56107['demonstration_hors_ligne']   # 5.6.107 (lot M) : mode Démo, aucune connexion extérieure
 REASONS['capacite_revoquee']='Cette capacité a été révoquée : rien n’a été fait. Elle se rétablit dans Paramètres, rubrique Démarrage du cabinet.'   # 5.6.89
 REASONS['ecriture_refusee_par_le_compte']='Le compte relié a refusé l’écriture lors de sa qualification : rien n’a été fait. Accordez-lui ce droit, puis relancez la qualification.'
 REASONS['transcription_trop_longue']='La transcription a pris trop de temps : le moteur Vocal du serveur est surchargé.'

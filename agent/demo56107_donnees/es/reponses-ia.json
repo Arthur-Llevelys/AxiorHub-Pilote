@@ -1,0 +1,133 @@
+{
+  "_commentaire": "5.6.107 (lote M): respuestas preparadas de la IA de demostración (ningún modelo), versión para España. Cada texto va precedido de la marca «Respuesta de demostración». Datos ficticios.",
+  "marque": "Respuesta de demostración",
+  "assistant": [
+    {
+      "mots": [
+        "vista",
+        "vistas",
+        "audiencia",
+        "agenda",
+        "semana",
+        "cita",
+        "citas",
+        "reunión",
+        "reunion",
+        "calendario",
+        "señalamiento"
+      ],
+      "texte": "Esta semana el despacho tiene: hoy una llamada con Javier DURAND (9:30) y la vista de desahucio KERVILAC c. ORLANDEC (14:00, Juzgado de Primera Instancia de Valbrune); mañana la firma de la compraventa de acciones ORLANDEC (10:00) y la reunión RGPD de MARTIN Logística; dentro de dos días la visita pericial en la nave de ZORVAL; el viernes la junta general de DURAND Holding. La audiencia previa de DURAND c. MARTIN es la semana que viene."
+    },
+    {
+      "mots": [
+        "durand",
+        "martin",
+        "exp-001",
+        "1234/2024",
+        "obra",
+        "recepcion",
+        "recepción",
+        "contestación",
+        "contestacion"
+      ],
+      "texte": "Expediente DURAND c. MARTIN (Procedimiento ordinario 1234/2024, Juzgado de Primera Instancia de Valbrune): DURAND Construcciones S.L. reclama 48.600 € (IVA incluido) como saldo de las obras. MARTIN Inmobiliaria niega la recepción y solicita una prueba pericial. El acta de recepción firmada por ambas partes (documento 02) contradice esa postura. Próximo paso: preparar la audiencia previa (alegaciones complementarias y proposición de prueba); el cliente ya ha remitido las actas de obra."
+    },
+    {
+      "mots": [
+        "iban",
+        "fraude",
+        "fraudulento",
+        "transferencia",
+        "cuenta bancaria",
+        "estafa",
+        "urgente"
+      ],
+      "texte": "El correo «Cambio de cuenta bancaria – urgente» presenta los indicios de un fraude por cambio de datos bancarios: remitente desconocido que dice ser ZORVAL Distribución, dominio distinto del de la clienta, petición de discreción, urgencia y un IBAN que no figura en el expediente. No haga ninguna transferencia; compruébelo por teléfono con Sofía ZORVAL, en el número que ya conoce el despacho."
+    },
+    {
+      "mots": [
+        "kervilac",
+        "arrendamiento",
+        "alquiler",
+        "renta",
+        "renovación",
+        "renovacion",
+        "local",
+        "prórroga",
+        "prorroga"
+      ],
+      "texte": "Para KERVILAC Inmuebles, el arrendamiento del local de la calle Mayor vence dentro de seis meses. Al ser un local de negocio, la renta del nuevo contrato se pacta libremente, pero hay que respetar el preaviso previsto en el contrato y justificar la propuesta con datos del mercado (por ejemplo, la llegada del tranvía). Conviene reunir esa información antes de enviar la comunicación de no prórroga con oferta de nuevo contrato."
+    },
+    {
+      "mots": [
+        "orlandec",
+        "compraventa",
+        "acciones",
+        "garantía",
+        "garantias",
+        "garantías",
+        "manifestaciones"
+      ],
+      "texte": "Compraventa de acciones de ORLANDEC S.A.: la abogada del comprador pide elevar el límite máximo de responsabilidad por manifestaciones y garantías al 30 % del precio. La firma está prevista mañana a las 10:00. Puntos abiertos: límite y franquicia de las garantías, y dos contratos con clientes que pueden resolverse en caso de cambio de control."
+    },
+    {
+      "mots": [
+        "zorval",
+        "recobro",
+        "monitorio",
+        "orlandec comercial",
+        "factura",
+        "impago"
+      ],
+      "texte": "Recobro de ZORVAL Distribución frente a ORLANDEC Comercial (Monitorio 1302/2024): el requerimiento de pago (12.450 €) ya se ha practicado. El deudor dispone de veinte días hábiles para pagar o formular oposición; si no hace ninguna de las dos cosas, el juzgado pondrá fin al monitorio y podrá solicitarse la ejecución."
+    },
+    {
+      "mots": [
+        "resume",
+        "resumen",
+        "resumir",
+        "síntesis",
+        "sintesis",
+        "hoy"
+      ],
+      "texte": "Hoy: dos mensajes de Javier DURAND sobre la contestación a la demanda (documentos solicitados, acta de recepción adjunta), una notificación LexNET de señalamiento en DURAND c. MARTIN, un correo fraudulento de cambio de cuenta bancaria que no debe atenderse, y recordatorios de ZORVAL Distribución y de KERVILAC Inmuebles. Tres borradores de respuesta esperan su revisión."
+    }
+  ],
+  "assistant_generique": "En el modo demostración no hay ningún modelo de IA conectado: esta respuesta está preparada de antemano. En una instalación real, el asistente responde a partir de los correos, la agenda y los documentos del expediente, citando sus fuentes, con el modelo elegido por el despacho (local o en línea). Pruebe, por ejemplo: «¿Qué vistas hay esta semana?», «Resume el expediente DURAND c. MARTIN» o «¿Es sospechoso este correo de cambio de cuenta bancaria?».",
+  "projet_reponse": [
+    {
+      "mots": [
+        "documentos",
+        "contestación",
+        "contestacion",
+        "audiencia previa",
+        "prueba"
+      ],
+      "texte": "Buenos días:\n\nLe agradezco su mensaje.\n\nPara responder adecuadamente, necesitaría los siguientes documentos: el acta de recepción firmada, las actas de obra y las comunicaciones escritas sobre las reservas. ¿Podría remitírmelos antes del final de la semana?\n\nUn cordial saludo,\n\nClaire Durand\nAbogada\nDespacho Durand Abogados"
+    },
+    {
+      "mots": [
+        "cita",
+        "reunión",
+        "reunion",
+        "recibir",
+        "disponible",
+        "disponibilidad"
+      ],
+      "texte": "Buenos días:\n\nLe agradezco su mensaje. Puedo recibirle en el despacho el jueves a las 11:00, o por videoconferencia si lo prefiere. Le ruego que me confirme qué horario le conviene.\n\nUn cordial saludo,\n\nClaire Durand\nAbogada\nDespacho Durand Abogados"
+    },
+    {
+      "mots": [
+        "recobro",
+        "factura",
+        "impag",
+        "monitorio"
+      ],
+      "texte": "Buenos días:\n\nEl requerimiento de pago del juicio monitorio ya se ha practicado al deudor. Desde entonces corre el plazo de veinte días hábiles para pagar o formular oposición; si no hace ninguna de las dos cosas, solicitaremos la ejecución.\n\nLe informaré en cuanto venza el plazo.\n\nUn cordial saludo,\n\nClaire Durand\nAbogada\nDespacho Durand Abogados"
+    }
+  ],
+  "projet_generique": "Buenos días:\n\nLe agradezco su mensaje, que he recibido correctamente. Lo estudio y le respondo a la mayor brevedad.\n\nUn cordial saludo,\n\nClaire Durand\nAbogada\nDespacho Durand Abogados",
+  "resume_generique": "Los correos seleccionados se refieren a expedientes en curso del despacho: peticiones de clientes, comunicaciones con compañeros y notificaciones de juzgados. Las peticiones y los plazos detectados se enumeran a continuación.",
+  "analyse_piece": "El documento es legible. Contiene los elementos esperados para este tipo de documento (partes, objeto, fechas). Debe comprobar el abogado: la concordancia de las fechas con la cronología del expediente y las firmas.",
+  "texte_generique": "Este texto está preparado de antemano para la demostración; no se ha llamado a ningún modelo de IA."
+}

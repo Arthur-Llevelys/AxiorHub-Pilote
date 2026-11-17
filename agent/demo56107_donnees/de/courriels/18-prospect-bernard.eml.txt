@@ -1,0 +1,15 @@
+X-Demo-Id: prospect-bernard
+X-Demo-Heures: 66
+X-Demo-Boite: INBOX
+From: Lena BERNARD <kontakt@bernard-beratung.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Terminanfrage — Streit mit einem Lieferanten
+Message-ID: <prospect-bernard@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+Ihre Kanzlei wurde mir von der DURAND Bau GmbH empfohlen. Unser Unternehmen, die BERNARD Beratung GmbH, hat einen Streit mit einem Lieferanten, der nicht mehr liefert. Könnten Sie mich noch diese Woche empfangen?
+
+Mit freundlichen Grüßen
+Lena BERNARD
+BERNARD Beratung GmbH

@@ -1,0 +1,13 @@
+X-Demo-Id: webinaire
+X-Demo-Heures: 150
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Fortbildung RAK Valbrune <fortbildung@rak-valbrune.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Fortbildung: Das schriftliche Vorverfahren vor dem Landgericht
+Message-ID: <webinaire@demo.example.test>
+
+Fiktive Fortbildung zur Demonstration: Das schriftliche Vorverfahren vor dem Landgericht, zwei Zeitstunden, anrechenbar auf die Fortbildungspflicht.
+
+Anmeldung über die Geschäftsstelle der Rechtsanwaltskammer.

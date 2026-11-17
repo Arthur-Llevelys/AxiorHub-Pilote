@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-rdv
+X-Demo-Heures: 13
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Helen ORLANDEC <md@orlandec.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ORLANDEC Ltd — signing meeting
+Message-ID: <orlandec-rdv@demo.example.test>
+
+Dear Claire,
+
+I confirm that I will be at your office tomorrow at 10 am for the signing of the ORLANDEC Ltd share purchase agreement.
+
+Helen ORLANDEC

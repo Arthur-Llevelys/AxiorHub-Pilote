@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-martin
+X-Demo-Heures: 115
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: martin-sous-traitant
+From: Claire DURAND <claire.durand@durandmartin.example.test>
+To: Thomas MARTIN <dpo@martin-logistics.example.test>
+Subject: RE: MARTIN Logistics — contract with the hosting provider
+Message-ID: <envoi-martin@demo.example.test>
+
+Dear Mr MARTIN,
+
+I am reviewing the hosting provider's agreement and will send you my comments before our meeting.
+
+Claire DURAND
+Durand & Martin Solicitors

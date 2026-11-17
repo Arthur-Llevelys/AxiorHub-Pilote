@@ -1,0 +1,17 @@
+X-Demo-Id: bernard-confrere
+X-Demo-Heures: 50
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 04 - Defence.pdf|MAT-001
+From: Paul BERNARD <p.bernard@bernard-law.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND v MARTIN — Claim No. VB24C01234 — service of defence
+Message-ID: <bernard-confrere@demo.example.test>
+
+Dear Claire,
+
+Please find attached the defence of our client, MARTIN Property Ltd, together with the documents referred to in it.
+
+Kind regards,
+Paul BERNARD
+BERNARD Law LLP

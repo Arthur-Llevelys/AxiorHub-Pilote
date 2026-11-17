@@ -1,0 +1,16 @@
+X-Demo-Id: zorval-relance
+X-Demo-Heures: 7
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sofía ZORVAL <administracion@zorval.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ZORVAL Distribución — ¿cómo va el recobro de ORLANDEC?
+Message-ID: <zorval-relance@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+¿Podría indicarme cómo va el recobro de las facturas que ORLANDEC Comercial no nos ha pagado (Monitorio 1302/2024)? Nuestra tesorería va justa este trimestre.
+
+Gracias,
+Sofía ZORVAL
+ZORVAL Distribución S.L.

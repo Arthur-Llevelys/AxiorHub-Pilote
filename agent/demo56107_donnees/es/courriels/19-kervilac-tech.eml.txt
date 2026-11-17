@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-tech
+X-Demo-Heures: 72
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Iván KERVILAC <fundadores@kervilac-tech.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Pacto de socios para nuestra start-up
+Message-ID: <kervilac-tech@demo.example.test>
+
+Buenos días:
+
+Somos tres socios y queremos redactar un pacto de socios antes de una ronda de financiación. ¿Cuáles son sus honorarios para este tipo de encargo?
+
+Iván KERVILAC
+KERVILAC Tech

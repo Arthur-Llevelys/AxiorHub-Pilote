@@ -1,0 +1,17 @@
+X-Demo-Id: fraude-rib
+X-Demo-Heures: 3
+X-Demo-Boite: INBOX
+X-Demo-Sans-Authentification: oui
+From: Sophie ZORVAL <accounts.zorval@zorval-payments.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Change of bank details – urgent
+Message-ID: <fraude-rib@demo.example.test>
+
+Dear Ms DURAND,
+
+Following a change of bank, our bank details have changed. Please stop using the old account, which has now been closed.
+
+In strict confidence, please transfer the sums recovered on our behalf to the new account, IBAN: GB56 ZZZZ 0000 0000 0000 00, today.
+
+Kind regards,
+Accounts Department

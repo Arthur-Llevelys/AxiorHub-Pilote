@@ -68,4 +68,36 @@
 :root[data-theme=dark] .lx56106-formulaire input,:root[data-theme=dark] .lx56106-formulaire select{background:#161b22;color:#e8edf3;border-color:#6b7685}
 :root[data-theme=dark] .lx56106-bascule button{color:#e8edf3}
 @media (max-width:48rem){.lx56106-cadre,.lx56106-apercu{height:55vh;min-height:300px}.lx56106-barre .ax-btn{flex:1 1 auto}}
+/* 5.6.107 (lot F2) : avertissements sur une ligne de puces (alerte « Attention » repliée, texte masqué, images bloquées) : 32 px au plus ; une
+   puce ouverte, l'alerte « Suspect » ou « Danger » et l'erreur d'affichage prennent toute la largeur. Contraste AA en clair et en sombre. */
+.lx56106-bandeaux{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;min-width:0}
+.lx56106-bandeaux>*{flex:0 1 auto;min-width:0;max-width:100%}
+.lx56106-bandeaux>:not(.lx107-puce):not(.fr107-ligne),.lx56106-bandeaux>.fr107-pleine{flex-basis:100%}
+.lx56106-bandeaux>:has(details[open]){flex-basis:100%}
+.lx107-puce{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 6px;min-height:24px;box-sizing:border-box;padding:1px 4px 1px 10px;border-radius:999px;
+  font-size:13px;line-height:1.35;background:#f2f4f8;color:#1b2430;border:1px solid #8d96a3}
+.lx107-puce.lx56106-alerte{background:#fff1f1;color:#5c0011;border-color:#a2191f}
+.lx107-puce.lx56106-info{background:#eef3fb;color:#1b2430;border-color:#9fb3d1}
+.lx107-puce[hidden]{display:none}
+.lx107-puce:has(>details[open]){border-radius:8px;padding:4px 10px}
+.lx107-pli{margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;box-shadow:none;min-width:0}   /* sans le cadre générique des <details> */
+.lx107-pli>summary{cursor:pointer;list-style:none;min-height:22px;display:inline-flex;align-items:center;white-space:nowrap;font-weight:600;font-size:inherit;padding:0;margin:0}
+.lx107-pli>summary::-webkit-details-marker{display:none}
+.lx107-pli>summary:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.lx107-fleche{margin-left:4px}
+.lx107-detail{margin:2px 0 4px;font-size:14px;line-height:1.4;overflow-wrap:anywhere;white-space:normal}
+/* action d'une puce (« Afficher ») : lien-bouton ; la cible garde la hauteur tactile de la densité, ses marges négatives la gardent dans la ligne */
+.lx107-action{font:inherit;font-size:13px;font-weight:600;line-height:1.3;background:none;border:0;border-radius:4px;color:#0b4fb3;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0 6px;margin:calc((24px - var(--ax-cible-tactile, 24px)) / 2) 0;box-shadow:none}
+.lx107-action:hover{background:rgba(11,79,179,.08)}
+.lx107-action:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:1px}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .lx107-puce{background:#1f2630;color:#e8edf3;border-color:#6b7685}
+  :root:not([data-theme=light]) .lx107-puce.lx56106-alerte{background:#3b0a0e;color:#ffd7d9;border-color:#fa4d56}
+  :root:not([data-theme=light]) .lx107-puce.lx56106-info{background:#1c2a3f;color:#e8edf3;border-color:#6b7685}
+  :root:not([data-theme=light]) .lx107-action{color:#a6c8ff}
+}
+:root[data-theme=dark] .lx107-puce{background:#1f2630;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .lx107-puce.lx56106-alerte{background:#3b0a0e;color:#ffd7d9;border-color:#fa4d56}
+:root[data-theme=dark] .lx107-puce.lx56106-info{background:#1c2a3f;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .lx107-action{color:#a6c8ff}
 @media print{.lx56106-barre,.lx56106-v{display:none}}

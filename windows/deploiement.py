@@ -53,6 +53,7 @@ def shortcut_dirs():
 
 
 SHORTCUTS = {'menu': APP + '.lnk', 'bureau': APP + '.lnk', 'demarrage': APP + ' (services).lnk'}
+SHORTCUT_DEMO = APP + ' — Démo.lnk'   # 5.6.107 (lot M) : second raccourci du menu Démarrer, « AxiorHub Pilote — Démo » (poste.py --demo)
 
 
 def make_shortcut(link, target, arguments='', workdir='', description=''):
@@ -212,6 +213,7 @@ def install(archive, version, root=None, desktop=True, startup=False, shortcuts=
         say('Raccourcis…')
         dirs = shortcut_dirs()
         make_shortcut(dirs['menu'] / SHORTCUTS['menu'], exe, '', target, 'AxiorHub Pilote — agent de cabinet, sur ce poste')
+        make_shortcut(dirs['menu'] / SHORTCUT_DEMO, exe, '--demo', target, 'AxiorHub Pilote — Démo : cabinet fictif, données séparées, aucun envoi')
         if desktop:
             make_shortcut(dirs['bureau'] / SHORTCUTS['bureau'], exe, '', target, 'AxiorHub Pilote')
         else:
@@ -242,6 +244,7 @@ def uninstall(root=None, purge_data=False, shortcuts=True, registry=True, detach
         dirs = shortcut_dirs()
         for kind, name in SHORTCUTS.items():
             _remove(dirs[kind] / name)
+        _remove(dirs['menu'] / SHORTCUT_DEMO)   # 5.6.107 (lot M)
     if registry:
         delete_registry()
         delete_protocol()

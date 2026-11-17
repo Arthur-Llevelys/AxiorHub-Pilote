@@ -1,0 +1,14 @@
+X-Demo-Id: holding-merci
+X-Demo-Heures: 110
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: DURAND Holdings Company Secretary <cosec@durand-holdings.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND Holdings — date of the meeting
+Message-ID: <holding-merci@demo.example.test>
+
+Dear Claire,
+
+The chairman proposes to hold the DURAND Holdings annual general meeting on Friday at 3 pm at the registered office.
+
+Company Secretary

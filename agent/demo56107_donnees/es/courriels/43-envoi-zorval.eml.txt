@@ -1,0 +1,17 @@
+X-Demo-Id: envoi-zorval
+X-Demo-Heures: 46
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: zorval-facture
+From: Claire Durand <claire.durand@durand-abogados.example.test>
+To: Sofía ZORVAL <administracion@zorval.example.test>
+Subject: RE: ZORVAL Distribución — nueva factura impagada
+Message-ID: <envoi-zorval@demo.example.test>
+
+Estimada Sra. ZORVAL:
+
+Si la factura 2024-160 sigue impagada, podrá reclamarse mediante un nuevo juicio monitorio.
+
+Claire Durand
+Abogada
+Despacho Durand Abogados

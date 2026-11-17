@@ -1,0 +1,14 @@
+X-Demo-Id: durand-facture
+X-Demo-Heures: 100
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Javier DURAND <direccion@durand-construcciones.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: DURAND Construcciones — factura de provisión de fondos
+Message-ID: <durand-facture@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+Hemos recibido su factura de provisión de fondos para el asunto DURAND c. MARTIN. Haremos la transferencia esta semana.
+
+Javier DURAND

@@ -1,0 +1,17 @@
+X-Demo-Id: bernard-confrere
+X-Demo-Heures: 50
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 04 - Klageerwiderung.pdf|AKT-001
+From: Rechtsanwalt Paul BERNARD <p.bernard@bernard-rechtsanwaelte.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND ./. MARTIN — Az. 2 O 1234/24 — Klageerwiderung
+Message-ID: <bernard-confrere@demo.example.test>
+
+Sehr geehrte Frau Kollegin,
+
+anbei übersende ich Ihnen vorab die Klageerwiderung für die MARTIN Immobilien GmbH nebst Anlagenverzeichnis.
+
+Mit freundlichen kollegialen Grüßen
+Paul BERNARD
+Rechtsanwalt

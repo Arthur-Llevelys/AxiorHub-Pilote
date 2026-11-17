@@ -1,0 +1,28 @@
+# Texte de la voix off — vidéo de démonstration d'AxiorHub Pilote (environ 90 secondes), version 5.6.107.
+# Validé par l'avocat le 17/11/2026 ; plan 4 remplacé le 17/11/2026 (« vous décidez » : le bouton s'appelle « Retenir »). Ton sobre et professionnel ; une phrase par plan ; aucune promesse juridique.
+# Format lu par scripts/video56107/texte.py : « [numéro] Titre du plan | durée visée en secondes », puis la phrase du plan.
+# La durée visée doit être celle de scenario.json ; la durée réelle de chaque plan suit la voix enregistrée (jamais plus courte que visée).
+
+[1] Aujourd'hui | 5 s
+Chaque matin, AxiorHub Pilote rassemble sur une seule page tout ce qui attend le cabinet dans la journée.
+
+[2] Un courriel d'un client arrive | 15 s
+Un client écrit au sujet de son affaire : AxiorHub reconnaît l'expéditeur et la référence de la procédure, propose aussitôt le dossier correspondant et l'affiche par une pastille, dans la liste comme dans le message ouvert.
+
+[3] Le dossier | 12 s
+Ouvert depuis le menu Dossiers, le dossier rassemble les parties, les pièces et la chronologie de l'affaire, au même endroit, juste à côté des derniers échanges avec le client.
+
+[4] Projet de réponse préparé par l'IA | 15 s
+Pour ce courriel, l'IA a déjà préparé un projet de réponse, rangé dans À relire : vous le relisez, vous corrigez un mot si nécessaire, puis vous décidez : rien ne part sans vous.
+
+[5] Résumé de trois courriels cochés | 10 s
+Cochez trois courriels et demandez un résumé : l'essentiel de chaque message et les suites à donner s'affichent à côté de la liste, sans quitter votre boîte de réception.
+
+[6] Alerte sur un courriel frauduleux | 8 s
+Lorsqu'un message annonce un changement de coordonnées bancaires, AxiorHub le signale comme suspect et vous invite à vérifier auprès de votre interlocuteur avant tout virement.
+
+[7] Message RPVA, audience proposée dans l'agenda | 10 s
+Un avis reçu par le RPVA fixe une date d'audience : AxiorHub la repère et vous propose de l'inscrire dans l'agenda du cabinet, en laissant la décision entre vos mains.
+
+[8] Fin | 8 s
+AxiorHub Pilote, c'est votre cabinet et vos données, sur votre propre serveur, à découvrir dès maintenant sur le site axiorhub.com.

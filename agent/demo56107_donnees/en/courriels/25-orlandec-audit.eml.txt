@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-audit
+X-Demo-Heures: 130
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Helen ORLANDEC <md@orlandec.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ORLANDEC Ltd — buyer's questions
+Message-ID: <orlandec-audit@demo.example.test>
+
+Dear Claire,
+
+The buyer is asking about two customer contracts that can be terminated on a change of control. How should we deal with them in the share purchase agreement?
+
+Helen ORLANDEC

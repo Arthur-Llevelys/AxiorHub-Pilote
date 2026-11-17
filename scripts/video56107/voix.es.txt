@@ -1,0 +1,27 @@
+# Texto de la voz en off — vídeo de demostración de AxiorHub Pilote (unos 90 segundos), versión 5.6.107, español.
+# Traducción fiel del texto francés validado por el abogado el 17/11/2026; se someterá al abogado. Una frase por plano.
+# Formato leído por scripts/video56107/texte.py: « [número] Título del plano | duración prevista en segundos », y luego la frase del plano.
+
+[1] Hoy | 5 s
+Cada mañana, AxiorHub Pilote reúne en una sola página todo lo que el despacho tiene pendiente durante el día.
+
+[2] Llega el correo de un cliente | 15 s
+Un cliente escribe sobre su asunto: AxiorHub reconoce al remitente y la referencia del procedimiento, propone enseguida el expediente correspondiente y lo muestra con una etiqueta, tanto en la lista como en el mensaje abierto.
+
+[3] El expediente | 12 s
+Abierto desde el menú Expedientes, el expediente reúne las partes, los documentos y la cronología del asunto en un mismo lugar, justo al lado de los últimos intercambios con el cliente.
+
+[4] Borrador de respuesta preparado por la IA | 15 s
+Para este correo, la IA ya ha preparado un borrador de respuesta, guardado en la bandeja de revisión: usted lo relee, corrige una palabra si hace falta y después decide: nada sale sin usted.
+
+[5] Resumen de tres correos marcados | 10 s
+Marque tres correos y pida un resumen: lo esencial de cada mensaje y los pasos siguientes aparecen junto a la lista, sin salir de su bandeja de entrada.
+
+[6] Alerta sobre un correo fraudulento | 8 s
+Cuando un mensaje anuncia un cambio de datos bancarios, AxiorHub lo señala como sospechoso y le invita a comprobarlo con su interlocutor antes de cualquier transferencia.
+
+[7] Notificación judicial, vista propuesta en la agenda | 10 s
+Una notificación recibida por el sistema electrónico de comunicaciones judiciales fija una fecha de vista: AxiorHub la detecta y le propone añadirla a la agenda del despacho, dejando la decisión en sus manos.
+
+[8] Fin | 8 s
+AxiorHub Pilote es su despacho y sus datos, en su propio servidor: descúbralo ya en axiorhub.com.

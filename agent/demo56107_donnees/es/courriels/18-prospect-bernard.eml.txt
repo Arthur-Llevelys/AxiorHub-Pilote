@@ -1,0 +1,15 @@
+X-Demo-Id: prospect-bernard
+X-Demo-Heures: 66
+X-Demo-Boite: INBOX
+From: Lucía BERNARD <contacto@bernard-consultoria.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Solicitud de cita — litigio con un proveedor
+Message-ID: <prospect-bernard@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+DURAND Construcciones me ha recomendado su despacho. Nuestra empresa, BERNARD Consultoría, tiene un litigio con un proveedor que ha dejado de suministrarnos. ¿Podría recibirme esta semana?
+
+Lucía BERNARD
+BERNARD Consultoría
+000 000 005

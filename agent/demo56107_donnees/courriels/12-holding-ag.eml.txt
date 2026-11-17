@@ -1,0 +1,15 @@
+X-Demo-Id: holding-ag
+X-Demo-Heures: 34
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Ordre du jour AG.pdf|DOS-008
+From: Secrétariat DURAND Holding <secretariat@durand-holding.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: DURAND Holding — documents pour l’assemblée générale
+Message-ID: <holding-ag@demo.example.test>
+
+Maître,
+
+Veuillez trouver l'ordre du jour de l'assemblée générale annuelle de DURAND Holding. Pouvez-vous préparer les projets de résolutions ?
+
+Le secrétariat

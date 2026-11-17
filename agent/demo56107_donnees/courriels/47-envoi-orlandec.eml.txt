@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-orlandec
+X-Demo-Heures: 125
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: orlandec-audit
+From: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+To: Hélène ORLANDEC <president@orlandec.example.test>
+Subject: RE: ORLANDEC SAS — questions de l’acquéreur
+Message-ID: <envoi-orlandec@demo.example.test>
+
+Madame,
+
+Les deux contrats concernés peuvent faire l'objet d'une condition suspensive d'accord des clients.
+
+Me Claire DURAND
+Cabinet DURAND Avocats

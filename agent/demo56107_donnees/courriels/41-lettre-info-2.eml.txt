@@ -1,0 +1,14 @@
+X-Demo-Id: lettre-info-2
+X-Demo-Heures: 340
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: La Lettre des affaires <lettre@editions-juridiques.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: La Lettre des affaires — n° 311 : recouvrement et injonction de payer
+Message-ID: <lettre-info-2@demo.example.test>
+
+La Lettre des affaires (lettre fictive de démonstration)
+
+- Injonction de payer : la signification et ses délais ;
+- Saisie-attribution : rappels pratiques.

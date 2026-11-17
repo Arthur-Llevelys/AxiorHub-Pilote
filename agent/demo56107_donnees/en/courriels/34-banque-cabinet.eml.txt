@@ -1,0 +1,11 @@
+X-Demo-Id: banque-cabinet
+X-Demo-Heures: 220
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Valbrune Mutual Bank <customer.service@valbrune-mutual-bank.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Monthly statement for your business account
+Message-ID: <banque-cabinet@demo.example.test>
+
+Your monthly statement is available in your online banking area (fictional demonstration message).

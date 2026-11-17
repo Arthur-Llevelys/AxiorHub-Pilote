@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-quittances
+X-Demo-Heures: 160
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Mark KERVILAC <management@kervilac-properties.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: KERVILAC Properties — rent receipts and statements
+Message-ID: <kervilac-quittances@demo.example.test>
+
+Dear Claire,
+
+Here is the statement of rent arrears owed by ORLANDEC Restaurants, for the possession hearing (KERVILAC v ORLANDEC).
+
+Mark KERVILAC

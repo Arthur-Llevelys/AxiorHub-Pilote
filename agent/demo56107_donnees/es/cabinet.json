@@ -1,0 +1,789 @@
+{
+  "_commentaire": "5.6.107 (lote M): despacho ficticio del modo Demostración, versión para España. Datos inventados (apellidos de la lista ficticia, dominios example.test, juzgados ficticios de Valbrune, NIF de prueba). Fechas relativas: «jour» = desfase en días desde el inicio de la demostración (llevado a un día hábil), «X-Demo-Heures» = hace N horas. «echeances» queda vacío: las reglas de plazos del programa corresponden al procedimiento francés.",
+  "cabinet": {
+    "domaines_officiels": ["juzgado-valbrune.example.test", "social-valbrune.example.test", "colegio-abogados-valbrune.example.test"],
+    "nom": "Despacho Durand Abogados",
+    "avocate": "Claire Durand, abogada",
+    "adresse_courriel": "claire.durand@durand-abogados.example.test",
+    "adresse_accueil": "recepcion@durand-abogados.example.test",
+    "adresse": "Plaza del Tribunal 12, 00000 Valbrune",
+    "telephone": "000 000 005",
+    "barreau": "Ilustre Colegio de Abogados de Valbrune",
+    "toque": "Colegiada n.º 000",
+    "activites": [
+      "Litigación mercantil",
+      "Arrendamientos de local de negocio",
+      "Derecho de sociedades",
+      "Recobro de impagados"
+    ],
+    "signature": "Claire Durand\nAbogada\nDespacho Durand Abogados\nPlaza del Tribunal 12, 00000 Valbrune\n000 000 005"
+  },
+  "dossiers": [
+    {
+      "id": "EXP-001",
+      "titre": "DURAND c. MARTIN",
+      "client": "DURAND Construcciones S.L.",
+      "nature": "contentieux",
+      "aliases": [
+        "DURAND c. MARTIN",
+        "DURAND Construcciones"
+      ],
+      "references": [
+        "Procedimiento 1234/2024"
+      ],
+      "juridiction": "Juzgado de Primera Instancia de Valbrune",
+      "chambre": "Juzgado n.º 3",
+      "rg": "1234/2024",
+      "resume": "Impago de obras de reforma (48.600 €, IVA incluido): MARTIN Inmobiliaria S.A. niega la recepción de la obra. Demanda de juicio ordinario admitida a trámite, contestación recibida y audiencia previa pendiente.",
+      "correspondants": [
+        {
+          "email": "direccion@durand-construcciones.example.test",
+          "role": "client",
+          "name": "Javier DURAND (DURAND Construcciones S.L.)"
+        },
+        {
+          "email": "p.bernard@bernard-abogados.example.test",
+          "role": "confrere_adverse",
+          "name": "Pablo BERNARD, abogado"
+        },
+        {
+          "email": "notificaciones@juzgado-valbrune.example.test",
+          "role": "juridiction",
+          "name": "Juzgado de Primera Instancia de Valbrune"
+        }
+      ],
+      "adverses": [
+        "MARTIN Inmobiliaria S.A."
+      ],
+      "chronologie": [
+        [
+          -120,
+          "Fin de la obra de reforma del edificio de la calle de los Curtidores."
+        ],
+        [
+          -95,
+          "Factura final de 48.600 € (IVA incluido) emitida."
+        ],
+        [
+          -60,
+          "Requerimiento de pago por burofax a MARTIN Inmobiliaria, sin respuesta."
+        ],
+        [
+          -30,
+          "Demanda de juicio ordinario presentada ante el Juzgado de Primera Instancia de Valbrune."
+        ],
+        [
+          -7,
+          "Contestación a la demanda de MARTIN Inmobiliaria recibida (niega la recepción de la obra)."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Contrato de obra.pdf",
+          "Contrato de obra de reforma",
+          [
+            "Entre DURAND Construcciones S.L. y MARTIN Inmobiliaria S.A.",
+            "Objeto: reforma del edificio de la calle de los Curtidores, en Valbrune.",
+            "Precio cerrado: 162.000 € más IVA, pagadero mediante certificaciones mensuales.",
+            "Recepción de la obra: acta contradictoria, con relación de las reservas que existan."
+          ]
+        ],
+        [
+          "02 - Acta de recepcion.pdf",
+          "Acta de recepción de la obra",
+          [
+            "Recepción con dos reservas menores (pintura del portal, ajuste de una puerta).",
+            "Firmada por ambas partes."
+          ]
+        ],
+        [
+          "03 - Burofax de requerimiento.pdf",
+          "Burofax de requerimiento de pago",
+          [
+            "Les requerimos para que abonen la cantidad de 48.600 € (IVA incluido) en el plazo de ocho días.",
+            "En caso contrario, nuestro cliente interpondrá demanda ante los Juzgados de Valbrune."
+          ]
+        ],
+        [
+          "04 - Contestacion a la demanda.pdf",
+          "Contestación a la demanda de MARTIN Inmobiliaria",
+          [
+            "MARTIN Inmobiliaria sostiene que la obra nunca llegó a recibirse.",
+            "Solicita una prueba pericial y la desestimación de la reclamación de cantidad."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-002",
+      "titre": "ZORVAL Distribución — recobro",
+      "client": "ZORVAL Distribución S.L.",
+      "nature": "contentieux",
+      "aliases": [
+        "ZORVAL Distribución"
+      ],
+      "references": [
+        "Monitorio 1302/2024"
+      ],
+      "juridiction": "Juzgado de Primera Instancia de Valbrune",
+      "chambre": "Juzgado n.º 1",
+      "rg": "1302/2024",
+      "resume": "Recobro de cuatro facturas impagadas (12.450 €) frente a ORLANDEC Comercial S.L.; juicio monitorio admitido y requerimiento de pago practicado.",
+      "correspondants": [
+        {
+          "email": "administracion@zorval.example.test",
+          "role": "client",
+          "name": "Sofía ZORVAL (ZORVAL Distribución S.L.)"
+        },
+        {
+          "email": "despacho@procuradora-kervilac.example.test",
+          "role": "commissaire_justice",
+          "name": "Inés KERVILAC, procuradora de los tribunales"
+        }
+      ],
+      "adverses": [
+        "ORLANDEC Comercial S.L."
+      ],
+      "chronologie": [
+        [
+          -75,
+          "Cuatro facturas impagadas por un total de 12.450 €."
+        ],
+        [
+          -40,
+          "Petición inicial de juicio monitorio presentada."
+        ],
+        [
+          -18,
+          "Decreto de admisión: se acuerda requerir de pago al deudor."
+        ],
+        [
+          -9,
+          "Requerimiento de pago practicado por la procuradora."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Facturas impagadas.pdf",
+          "Relación de facturas impagadas",
+          [
+            "Factura 2024-118: 3.200 €",
+            "Factura 2024-131: 2.950 €",
+            "Factura 2024-140: 3.100 €",
+            "Factura 2024-152: 3.200 €",
+            "Total: 12.450 €"
+          ]
+        ],
+        [
+          "02 - Requerimiento de pago monitorio.pdf",
+          "Requerimiento de pago (juicio monitorio)",
+          [
+            "Se requiere a ORLANDEC Comercial S.L. para que pague 12.450 € de principal.",
+            "Plazo de veinte días hábiles desde el requerimiento para pagar o formular oposición."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-003",
+      "titre": "KERVILAC Inmuebles — arrendamiento de local",
+      "client": "KERVILAC Inmuebles S.L.",
+      "nature": "conseil",
+      "aliases": [
+        "KERVILAC Inmuebles"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Vencimiento del arrendamiento del local de negocio de la calle Mayor: propuesta de una renta más alta en el nuevo contrato y plazo de preaviso al arrendatario.",
+      "correspondants": [
+        {
+          "email": "gerencia@kervilac-inmuebles.example.test",
+          "role": "client",
+          "name": "Marcos KERVILAC (KERVILAC Inmuebles S.L.)"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -50,
+          "El arrendamiento del local vence dentro de seis meses."
+        ],
+        [
+          -20,
+          "Comunicación de no prórroga con oferta de nuevo contrato por preparar."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Contrato de arrendamiento.pdf",
+          "Contrato de arrendamiento del local de la calle Mayor",
+          [
+            "Arrendamiento para uso distinto del de vivienda, de nueve años de duración, actividad de librería.",
+            "Renta anual: 18.000 € más IVA, actualizada cada año conforme al IPC.",
+            "Cláusula resolutoria por impago y cláusula de actualización de la renta."
+          ]
+        ],
+        [
+          "02 - Nota sobre la renta de mercado.pdf",
+          "Nota interna sobre la renta de mercado",
+          [
+            "Hipótesis: revalorización notable de la zona comercial (nueva línea de tranvía).",
+            "Documentos por reunir: estudios de afluencia de público, obras de urbanización, rentas de locales comparables."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-004",
+      "titre": "ORLANDEC S.A. — compraventa de acciones",
+      "client": "ORLANDEC S.A.",
+      "nature": "conseil",
+      "aliases": [
+        "ORLANDEC S.A."
+      ],
+      "references": [
+        "NIF A00010017"
+      ],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Venta del 60 % de las acciones de ORLANDEC S.A. (NIF A00010017): contrato de compraventa, manifestaciones y garantías, calendario de firma.",
+      "correspondants": [
+        {
+          "email": "presidencia@orlandec.example.test",
+          "role": "client",
+          "name": "Elena ORLANDEC (ORLANDEC S.A.)"
+        },
+        {
+          "email": "asesoria@despacho-martin.example.test",
+          "role": "confrere_adverse",
+          "name": "Luisa MARTIN, abogada"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -45,
+          "Carta de intenciones firmada con el comprador."
+        ],
+        [
+          -21,
+          "Due diligence legal terminada."
+        ],
+        [
+          -3,
+          "Borrador del contrato de compraventa de acciones enviado a la abogada del comprador."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Carta de intenciones.pdf",
+          "Carta de intenciones",
+          [
+            "Adquisición prevista del 60 % del capital de ORLANDEC S.A.",
+            "Precio indicativo sujeto al resultado de la due diligence.",
+            "Exclusividad de tres meses."
+          ]
+        ],
+        [
+          "02 - Borrador de compraventa de acciones.pdf",
+          "Borrador del contrato de compraventa de acciones",
+          [
+            "Cláusula 1 — Objeto: compraventa de 600 acciones.",
+            "Cláusula 6 — Manifestaciones y garantías: límite máximo de responsabilidad y franquicia por negociar.",
+            "Cláusula 9 — Condiciones suspensivas."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-005",
+      "titre": "MARTIN Logística — cumplimiento del RGPD",
+      "client": "MARTIN Logística S.L.",
+      "nature": "conseil",
+      "aliases": [
+        "MARTIN Logística"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Adecuación del registro de actividades de tratamiento y del contrato de encargado del tratamiento con un proveedor informático.",
+      "correspondants": [
+        {
+          "email": "dpd@martin-logistica.example.test",
+          "role": "client",
+          "name": "Tomás MARTIN (MARTIN Logística S.L.)"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -30,
+          "Reunión de inicio."
+        ],
+        [
+          -12,
+          "Registro de actividades de tratamiento remitido por el cliente."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Registro de actividades de tratamiento.pdf",
+          "Registro de actividades de tratamiento (extracto)",
+          [
+            "Tratamiento 1: gestión de entregas.",
+            "Tratamiento 2: geolocalización de los vehículos.",
+            "Tratamiento 3: nóminas y recursos humanos."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-006",
+      "titre": "KERVILAC c. ORLANDEC — desahucio",
+      "client": "KERVILAC Inmuebles S.L.",
+      "nature": "contentieux",
+      "aliases": [
+        "KERVILAC c. ORLANDEC"
+      ],
+      "references": [
+        "Desahucio 1290/2024"
+      ],
+      "juridiction": "Juzgado de Primera Instancia de Valbrune",
+      "chambre": "Juzgado n.º 2",
+      "rg": "1290/2024",
+      "resume": "Juicio de desahucio por falta de pago y reclamación de rentas: rentas impagadas del local de la avenida del Mercado.",
+      "correspondants": [
+        {
+          "email": "gerencia@kervilac-inmuebles.example.test",
+          "role": "client",
+          "name": "Marcos KERVILAC (KERVILAC Inmuebles S.L.)"
+        }
+      ],
+      "adverses": [
+        "ORLANDEC Restauración S.L."
+      ],
+      "chronologie": [
+        [
+          -70,
+          "Requerimiento fehaciente de pago de las rentas (burofax)."
+        ],
+        [
+          -35,
+          "Demanda de desahucio por falta de pago."
+        ],
+        [
+          -14,
+          "Suspensión de la vista a instancia de la parte demandada."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Requerimiento de pago de rentas.pdf",
+          "Requerimiento fehaciente de pago de rentas",
+          [
+            "Rentas impagadas: 9.600 €.",
+            "Plazo de treinta días para el pago."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-007",
+      "titre": "BERNARD — recurso de suplicación",
+      "client": "Alicia BERNARD",
+      "nature": "contentieux",
+      "aliases": [
+        "Alicia BERNARD"
+      ],
+      "references": [
+        "Recurso de suplicación 1411/2024"
+      ],
+      "juridiction": "Tribunal Superior de Justicia (Sala de lo Social), Valbrune",
+      "chambre": "Sala de lo Social",
+      "rg": "1411/2024",
+      "resume": "Recurso de suplicación contra una sentencia del Juzgado de lo Social (despido); escrito de formalización del recurso por presentar.",
+      "correspondants": [
+        {
+          "email": "alicia.bernard@example.test",
+          "role": "client",
+          "name": "Alicia BERNARD"
+        }
+      ],
+      "adverses": [
+        "ZORVAL Servicios S.A."
+      ],
+      "chronologie": [
+        [
+          -80,
+          "Sentencia del Juzgado de lo Social de Valbrune."
+        ],
+        [
+          -55,
+          "Anuncio del recurso de suplicación."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Sentencia Juzgado de lo Social.pdf",
+          "Sentencia del Juzgado de lo Social",
+          [
+            "El Juzgado desestima la demanda por despido de la trabajadora y la indemnización solicitada.",
+            "Sin imposición de costas."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-008",
+      "titre": "DURAND Holding — aprobación de cuentas",
+      "client": "DURAND Holding S.L.",
+      "nature": "conseil",
+      "aliases": [
+        "DURAND Holding"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Junta general ordinaria: aprobación de las cuentas anuales, aplicación del resultado y reelección del auditor de cuentas.",
+      "correspondants": [
+        {
+          "email": "secretaria@durand-holding.example.test",
+          "role": "client",
+          "name": "Secretaría de DURAND Holding"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -10,
+          "Cuentas anuales formuladas por el órgano de administración."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Orden del dia junta general.pdf",
+          "Orden del día de la junta general",
+          [
+            "1. Aprobación de las cuentas anuales del ejercicio.",
+            "2. Aplicación del resultado.",
+            "3. Reelección del auditor de cuentas."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-009",
+      "titre": "ORLANDEC — contrato de distribución",
+      "client": "ORLANDEC S.A.",
+      "nature": "conseil",
+      "aliases": [
+        "contrato de distribución ORLANDEC"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Revisión de un contrato de distribución exclusiva propuesto por un proveedor.",
+      "correspondants": [
+        {
+          "email": "juridico@orlandec.example.test",
+          "role": "client",
+          "name": "Asesoría jurídica de ORLANDEC S.A."
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -6,
+          "Borrador de contrato recibido del proveedor."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Borrador de contrato de distribucion.pdf",
+          "Borrador de contrato de distribución exclusiva",
+          [
+            "Duración: cinco años, con prórroga tácita.",
+            "Objetivos mínimos anuales de compra.",
+            "Pacto de no competencia postcontractual de dos años."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "EXP-010",
+      "titre": "ZORVAL c. KERVILAC — prueba pericial",
+      "client": "ZORVAL Distribución S.L.",
+      "nature": "contentieux",
+      "aliases": [
+        "ZORVAL c. KERVILAC"
+      ],
+      "references": [
+        "Prueba anticipada 1355/2024"
+      ],
+      "juridiction": "Juzgado de Primera Instancia de Valbrune",
+      "chambre": "Juzgado n.º 4",
+      "rg": "1355/2024",
+      "resume": "Filtraciones en la nave arrendada: prueba pericial anticipada acordada por el juzgado, primera visita del perito por preparar.",
+      "correspondants": [
+        {
+          "email": "administracion@zorval.example.test",
+          "role": "client",
+          "name": "Sofía ZORVAL (ZORVAL Distribución S.L.)"
+        },
+        {
+          "email": "perito.orlandec@peritaciones.example.test",
+          "role": "expert",
+          "name": "Sr. ORLANDEC, perito judicial"
+        }
+      ],
+      "adverses": [
+        "KERVILAC Naves S.L."
+      ],
+      "chronologie": [
+        [
+          -90,
+          "Primeras filtraciones constatadas."
+        ],
+        [
+          -40,
+          "Auto que acuerda la prueba anticipada y designa perito judicial."
+        ],
+        [
+          -5,
+          "Citación a la primera visita pericial."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Auto designando perito.pdf",
+          "Auto que designa perito judicial",
+          [
+            "El perito describirá los daños, determinará sus causas y valorará las obras de reparación.",
+            "Provisión de fondos: 3.000 €."
+          ]
+        ]
+      ]
+    }
+  ],
+  "agenda": [
+    {
+      "jour": 0,
+      "heure": "09:30",
+      "minutes": 30,
+      "nature": "rendez_vous",
+      "titre": "Llamada con Javier DURAND",
+      "dossier": "EXP-001",
+      "lieu": "Teléfono"
+    },
+    {
+      "jour": 0,
+      "heure": "14:00",
+      "minutes": 90,
+      "nature": "audience",
+      "titre": "Vista de desahucio — KERVILAC c. ORLANDEC",
+      "dossier": "EXP-006",
+      "lieu": "Juzgado de Primera Instancia de Valbrune, sala 2"
+    },
+    {
+      "jour": 1,
+      "heure": "10:00",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "Firma de la compraventa de acciones ORLANDEC",
+      "dossier": "EXP-004",
+      "lieu": "Despacho"
+    },
+    {
+      "jour": 1,
+      "heure": "16:30",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "Reunión RGPD con MARTIN Logística",
+      "dossier": "EXP-005",
+      "lieu": "Videoconferencia"
+    },
+    {
+      "jour": 2,
+      "heure": "09:00",
+      "minutes": 120,
+      "nature": "rendez_vous",
+      "titre": "Visita pericial — nave de ZORVAL",
+      "dossier": "EXP-010",
+      "lieu": "Nave de ZORVAL, Valbrune"
+    },
+    {
+      "jour": 3,
+      "heure": "11:00",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "Primera reunión — posible cliente BERNARD Consultoría",
+      "dossier": "",
+      "lieu": "Despacho"
+    },
+    {
+      "jour": 4,
+      "heure": "15:00",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "Junta general de DURAND Holding",
+      "dossier": "EXP-008",
+      "lieu": "Domicilio social de DURAND Holding"
+    },
+    {
+      "jour": 9,
+      "heure": "09:30",
+      "minutes": 60,
+      "nature": "audience",
+      "titre": "Audiencia previa — DURAND c. MARTIN",
+      "dossier": "EXP-001",
+      "lieu": "Juzgado de Primera Instancia de Valbrune, Juzgado n.º 3"
+    }
+  ],
+  "taches": [
+    {
+      "titre": "Preparar la audiencia previa (alegaciones y proposición de prueba) — DURAND c. MARTIN",
+      "dossier": "EXP-001",
+      "jour": 6
+    },
+    {
+      "titre": "Comprobar el requerimiento de pago del monitorio",
+      "dossier": "EXP-002",
+      "jour": 1
+    },
+    {
+      "titre": "Preparar la comunicación de no prórroga con oferta de nuevo contrato",
+      "dossier": "EXP-003",
+      "jour": 8
+    },
+    {
+      "titre": "Revisar las manifestaciones y garantías",
+      "dossier": "EXP-004",
+      "jour": 0
+    },
+    {
+      "titre": "Redactar el escrito de formalización del recurso de suplicación",
+      "dossier": "EXP-007",
+      "jour": 12
+    },
+    {
+      "titre": "Preparar las observaciones para la visita pericial",
+      "dossier": "EXP-010",
+      "jour": 1
+    }
+  ],
+  "echeances": [],
+  "opportunites": [
+    {
+      "title": "Litigio mercantil — BERNARD Consultoría",
+      "name": "Lucía BERNARD",
+      "company": "BERNARD Consultoría",
+      "email": "contacto@bernard-consultoria.example.test",
+      "domain": "Litigación mercantil",
+      "amount": "6000",
+      "source": "recommandation_client",
+      "next_action": "Primera reunión en el despacho",
+      "jour": 3
+    },
+    {
+      "title": "Auditoría de los arrendamientos de locales — red ZORVAL",
+      "name": "Sofía ZORVAL",
+      "company": "ZORVAL Distribución",
+      "email": "administracion@zorval.example.test",
+      "domain": "Arrendamientos de local de negocio",
+      "amount": "9500",
+      "source": "client_existant",
+      "next_action": "Enviar una propuesta de honorarios",
+      "jour": 5
+    },
+    {
+      "title": "Pacto de socios — start-up KERVILAC Tech",
+      "name": "Iván KERVILAC",
+      "company": "KERVILAC Tech",
+      "email": "fundadores@kervilac-tech.example.test",
+      "domain": "Derecho de sociedades",
+      "amount": "4200",
+      "source": "site",
+      "next_action": "Llamar para concretar la necesidad",
+      "jour": 1
+    }
+  ],
+  "a_relire": [
+    {
+      "courriel": "durand-pieces",
+      "dossier": "EXP-001",
+      "destinataires": [
+        "direccion@durand-construcciones.example.test"
+      ],
+      "corps": "Estimado Sr. DURAND:\n\nLe agradezco su mensaje.\n\nPara preparar la audiencia previa frente a la contestación de MARTIN Inmobiliaria, necesitaría los siguientes documentos: el acta de recepción firmada, las actas de obra de los tres últimos meses y las comunicaciones escritas relativas a las reservas.\n\n¿Podría remitírmelos antes del final de la semana? La audiencia previa está señalada dentro de diez días.\n\nUn cordial saludo,\n\nClaire Durand\nAbogada\nDespacho Durand Abogados"
+    },
+    {
+      "courriel": "zorval-relance",
+      "dossier": "EXP-002",
+      "destinataires": [
+        "administracion@zorval.example.test"
+      ],
+      "corps": "Estimada Sra. ZORVAL:\n\nEl requerimiento de pago del juicio monitorio ya se ha practicado a ORLANDEC Comercial. Desde ese día corre el plazo de veinte días hábiles para pagar o formular oposición.\n\nSi no paga ni se opone, el juzgado dictará decreto poniendo fin al monitorio y podremos solicitar la ejecución.\n\nLe informaré en cuanto venza el plazo.\n\nUn cordial saludo,\n\nClaire Durand\nAbogada"
+    },
+    {
+      "courriel": "kervilac-loyer",
+      "dossier": "EXP-003",
+      "destinataires": [
+        "gerencia@kervilac-inmuebles.example.test"
+      ],
+      "corps": "Estimado Sr. KERVILAC:\n\nAl tratarse de un arrendamiento de local de negocio, la renta del nuevo contrato puede pactarse libremente, pero conviene respetar el preaviso previsto en el contrato y justificar la propuesta con datos del mercado.\n\nLe propongo reunir la información de que disponga (obras de urbanización, nueva línea de tranvía, afluencia de público, rentas de locales cercanos) antes de nuestra reunión.\n\nUn cordial saludo,\n\nClaire Durand\nAbogada"
+    }
+  ],
+  "notes_ia": [
+    {
+      "dossier": "EXP-001",
+      "titre": "Contestación a la demanda de MARTIN Inmobiliaria",
+      "partie": "demandada",
+      "note": "Nota interna — nuevo escrito recibido (por revisar; no se ha aplicado nada al expediente)\n\nQué cambia: MARTIN Inmobiliaria niega ahora la recepción de la obra y solicita una prueba pericial.\nPor comprobar: el acta de recepción (documento 02) está firmada por ambas partes, lo que contradice esa postura."
+    },
+    {
+      "dossier": "EXP-010",
+      "titre": "Citación a la visita pericial",
+      "partie": "perito",
+      "note": "Nota interna — citación del perito recibida (por revisar)\n\nVisita prevista dentro de dos días en la nave. Documentos que llevar: contrato de arrendamiento, actas de constatación de las filtraciones, facturas de reparación."
+    }
+  ],
+  "textes": {
+    "racine_dossiers": "/Expedientes",
+    "dossier_pieces": "DOCUMENTOS",
+    "dossier_correspondances": "CORRESPONDENCIA",
+    "modeles": "Plantillas del despacho",
+    "modele_fichier": "Hoja de encargo.pdf",
+    "modele_titre": "Modelo de hoja de encargo",
+    "modele_lignes": [
+      "Despacho Durand Abogados — modelo ficticio.",
+      "Objeto del encargo, honorarios, condiciones de pago."
+    ],
+    "pdf_mention": "Documento ficticio — demostración de AxiorHub",
+    "pdf_dossier": "Expediente: %s — %s",
+    "boites": {
+      "brouillons": "Borradores",
+      "envoyes": "Enviados (demo)",
+      "corbeille": "Papelera",
+      "indesirables": "Correo no deseado",
+      "archives": "Archivo"
+    },
+    "mention_envoi": "Demostración: no se ha enviado nada.",
+    "evenement": "Evento ficticio (demostración).",
+    "opportunite": "Oportunidad ficticia (demostración).",
+    "echeance": "Plazo ficticio (demostración).",
+    "limite_projet": "Borrador de demostración: revisar antes de cualquier envío.",
+    "limite_assistant": "Respuesta preparada para la demostración: no se ha llamado a ningún modelo.",
+    "courriel_recu": "Correo recibido",
+    "demande_a_traiter": "Solicitud pendiente: %s",
+    "demande_voir": "Solicitud pendiente (ver el correo).",
+    "format_date": "%d/%m/%Y",
+    "stade": "en tramitación",
+    "nature_procedure": "fondo"
+  }
+}

@@ -1,0 +1,16 @@
+X-Demo-Id: bernard-confrere-2
+X-Demo-Heures: 200
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Pablo BERNARD <p.bernard@bernard-abogados.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: DURAND c. MARTIN — propuesta de reunión
+Message-ID: <bernard-confrere-2@demo.example.test>
+
+Estimada compañera:
+
+Mi cliente estaría dispuesto a explorar una solución amistosa. ¿Tendrías disponibilidad para una conversación telefónica la semana que viene?
+
+Un cordial saludo,
+Pablo BERNARD
+Abogado

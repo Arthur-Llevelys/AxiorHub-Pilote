@@ -57,6 +57,14 @@
   function quand(iso) { return String(iso || '').slice(0, 16).replace('T', ' '); }
   function taille(n) { n = Number(n) || 0; return n > 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko'; }
   function cacher(n) { if (n) { n.hidden = true; n.setAttribute('data-lx56106', 'remplace'); } }
+  // 5.6.107 (lot F2) : puce de la ligne d'avertissements (texte masqué, images bloquées) : résumé court sur la ligne, détail dépliable au clic
+  // ou au clavier (<details>) ; « action » (bouton) reste visible à côté du résumé. Rouge seulement pour une consigne cachée adressée à l'IA.
+  function puce(resume, detail, alerte, action) {
+    var pli = el('details', { 'class': 'lx107-pli' }, [
+      el('summary', {}, [document.createTextNode(resume + ' '), el('span', { 'class': 'lx107-fleche', 'aria-hidden': 'true', text: '▾' })]),
+      el('p', { 'class': 'lx107-detail', text: detail })]);
+    return el('span', { 'class': 'lx56106-bandeau lx107-puce' + (alerte ? ' lx56106-alerte' : ''), role: 'status' }, [pli, action || null]);
+  }
 
   // ------------------------------------------------------------------ listes des formulaires (membres, dossiers, agendas), lues une fois
   var listes = null;
@@ -308,7 +316,8 @@
     var tache = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Créer une tâche' });
     var agenda = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Ajouter à l’agenda' });
     var barre = el('div', { 'class': 'lx56106-barre', role: 'toolbar', 'aria-label': 'Outils du lecteur' }, [bascule, imprimer, enregistrer, conversation, tache, agenda]);
-    var bandeaux = el('div', { 'class': 'lx56106-bandeaux', 'aria-live': 'polite' });
+    // 5.6.107 (lot F2) : avertissements regroupés sur une ligne de puces (alerte anti-fraude repliée, texte masqué, images bloquées)
+    var bandeaux = el('div', { 'class': 'lx56106-bandeaux', role: 'group', 'aria-label': 'Avertissements du courriel', 'aria-live': 'polite' });
     var corps = el('div', { 'class': 'lx56106-corps' });
     var pieces = el('div', { 'class': 'lx56106-pieces' });
     var entetes = el('details', { 'class': 'lx56106-entetes', hidden: 'hidden' }, [el('summary', { text: 'En-têtes complets' })]);
@@ -335,21 +344,22 @@
       bHtml.setAttribute('aria-pressed', String(mode === 'html')); bTexte.setAttribute('aria-pressed', String(mode !== 'html'));
       bandeauImages();
     }
-    var zoneImages = el('p', { 'class': 'lx56106-bandeau', role: 'status', hidden: 'hidden' });
+    var zoneImages = el('span', { hidden: 'hidden' });
     function bandeauImages() {
-      zoneImages.textContent = '';
-      if (!info || !info.images_externes || mode !== 'html') { zoneImages.hidden = true; return; }
-      zoneImages.hidden = false;
-      if (images) {
-        zoneImages.className = 'lx56106-bandeau lx56106-info';
-        zoneImages.appendChild(el('span', { text: 'Images extérieures affichées pour ce courriel seulement (téléchargées par le serveur, sans cookie ni adresse de provenance).' }));
-        return;
+      var n = info ? Number(info.images_externes) || 0 : 0, nouvelle = null;
+      if (n && mode === 'html' && images) {
+        nouvelle = puce('🖼 Images affichées', 'Images extérieures affichées pour ce courriel seulement (téléchargées par le serveur, sans cookie ni adresse de provenance).');
+        nouvelle.classList.add('lx56106-info');
+      } else if (n && mode === 'html') {
+        var afficher = el('button', { type: 'button', 'class': 'lx107-action', text: 'Afficher', title: 'Afficher les images extérieures de ce courriel' });
+        afficher.addEventListener('click', function () { images = true; montrer('html'); });
+        nouvelle = puce('🖼 ' + n + ' image' + (n > 1 ? 's' : '') + ' bloquée' + (n > 1 ? 's' : ''),
+                        'Images bloquées (' + n + ') : des images extérieures peuvent signaler à l’expéditeur que vous avez lu ce courriel.', false, afficher);
+      } else {
+        nouvelle = el('span', { hidden: 'hidden' });
       }
-      zoneImages.className = 'lx56106-bandeau';
-      var afficher = el('button', { type: 'button', 'class': 'ax-btn ghost', text: 'Afficher' });
-      afficher.addEventListener('click', function () { images = true; montrer('html'); });
-      zoneImages.appendChild(el('span', { text: 'Images bloquées (' + info.images_externes + ') : des images extérieures peuvent signaler à l’expéditeur que vous avez lu ce courriel.' }));
-      zoneImages.appendChild(afficher);
+      if (zoneImages.parentNode) zoneImages.parentNode.replaceChild(nouvelle, zoneImages);
+      zoneImages = nouvelle;
     }
     bandeaux.appendChild(zoneImages);
     corps.appendChild(texteBrut());
@@ -446,8 +456,8 @@
       if (!bloc.isConnected) return;                          // un autre courriel a été ouvert entre-temps
       info = d;
       ref.uidvalidity = d.uidvalidity || ref.uidvalidity;
-      if (d.texte_masque) bandeaux.insertBefore(el('p', { 'class': 'lx56106-bandeau lx56106-alerte', role: 'status',
-        text: 'Texte masqué par la mise en forme, retiré de l’affichage : ' + d.texte_masque + '.' }), bandeaux.firstChild);
+      if (d.texte_masque) bandeaux.insertBefore(puce('👁 Texte masqué retiré' + (d.texte_masque_ia ? ' — consignes pour l’IA' : ''),   // 5.6.107 (lot F2) : puce
+        'Texte masqué par la mise en forme, retiré de l’affichage : ' + d.texte_masque + '.', !!d.texte_masque_ia), zoneImages);
       if (d.confidentiel) tete.querySelector('h2').appendChild(el('span', { 'class': 'lx56106-badge', text: 'confidentiel — usage interne' }));
       if (d.dossier_reconnu) tete.appendChild(el('p', { 'class': 'lx56106-meta', text: 'Dossier : ' + d.dossier_reconnu.label + ' (' + d.dossier_reconnu.motif + ')' }));
       if (d.html) { bascule.hidden = false; montrer(d.affichage === 'html' ? 'html' : 'texte'); }

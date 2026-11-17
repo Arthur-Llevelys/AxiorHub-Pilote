@@ -1,0 +1,16 @@
+X-Demo-Id: distribution-contrat
+X-Demo-Heures: 40
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Entwurf Vertriebsvertrag.pdf|AKT-009
+From: Rechtsabteilung ORLANDEC <recht@orlandec.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Prüfung des Vertriebsvertrags ORLANDEC
+Message-ID: <distribution-contrat@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+unser Lieferant hat uns einen Alleinvertriebsvertrag vorgelegt. Könnten Sie ihn prüfen, insbesondere das nachvertragliche Wettbewerbsverbot?
+
+Mit freundlichen Grüßen
+Rechtsabteilung der ORLANDEC AG

@@ -1,0 +1,19 @@
+X-Demo-Id: envoi-martin
+X-Demo-Heures: 115
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: martin-sous-traitant
+From: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+To: Thomas MARTIN <datenschutz@martin-logistik.example.test>
+Subject: AW: MARTIN Logistik — Vertrag mit dem Hosting-Anbieter
+Message-ID: <envoi-martin@demo.example.test>
+
+Sehr geehrter Herr MARTIN,
+
+ich prüfe den Auftragsverarbeitungsvertrag des Hosting-Anbieters und sende Ihnen meine Anmerkungen vor unserer Besprechung.
+
+Mit freundlichen Grüßen
+
+Claire Durand
+Rechtsanwältin
+Kanzlei Durand

@@ -1,0 +1,14 @@
+X-Demo-Id: durand-amiable
+X-Demo-Heures: 300
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jean DURAND <direction@durand-batiment.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: DURAND c. MARTIN — accord amiable ?
+Message-ID: <durand-amiable@demo.example.test>
+
+Maître,
+
+Si MARTIN Immobilier propose de payer 40 000 € tout de suite, faut-il accepter ? J'aimerais en parler avec vous.
+
+Jean DURAND

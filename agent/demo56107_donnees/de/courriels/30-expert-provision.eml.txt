@@ -1,0 +1,15 @@
+X-Demo-Id: expert-provision
+X-Demo-Heures: 180
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sachverständiger ORLANDEC <sv.orlandec@gutachten.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Az. 5 OH 1355/24 — Auslagenvorschuss eingegangen
+Message-ID: <expert-provision@demo.example.test>
+
+Sehr geehrte Frau Rechtsanwältin Durand,
+
+ich bestätige, dass der Auslagenvorschuss bei der Gerichtskasse eingegangen ist. Die Begutachtung kann beginnen.
+
+Mit freundlichen Grüßen
+Der Sachverständige

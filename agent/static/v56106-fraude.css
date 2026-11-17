@@ -24,6 +24,22 @@
 .fr106-piece-risque{flex:1 0 100%;font-size:13px;font-weight:700;color:#5c0011}
 .fr106-indisponible{margin:0 0 6px;font-size:13px;color:var(--ax-muted,#4b5563)}
 @media (max-width:420px){.fr106-actions .ax-btn{flex:1 1 100%}}
+/* 5.6.107 (lot F2) : « Attention » et « Suspect » repliés sur une ligne fine (puce du lecteur), couleur discrète ; le pli ouvert prend toute la
+   largeur. « Danger » garde le bandeau déplié ci-dessus. Contraste AA en clair et en sombre (texte 13 px sur fond pâle ou foncé). */
+.fr106-bandeau.fr107-ligne{display:flex;flex-direction:column;gap:0;width:fit-content;max-width:100%;box-sizing:border-box;margin:0;padding:1px 10px;
+  min-height:24px;justify-content:center;border-width:1px;border-radius:999px;font-size:13px;line-height:1.35}
+.fr107-ligne.fr106-attention{background:#fffbeb;color:#3d2e00;border-color:#a8870f}
+.fr107-ligne.fr106-suspect{background:#fff3eb;color:#4a1a00;border-color:#b54400}
+.fr106-bandeau.fr107-pleine{width:100%;border-radius:8px}
+.fr106-bandeau.fr107-ligne:has(>details[open]){width:100%;border-radius:8px;padding:4px 10px}
+.fr107-pli{margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;box-shadow:none;min-width:0}   /* sans le cadre générique des <details> */
+.fr107-pli>summary{cursor:pointer;list-style:none;min-height:22px;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;min-width:0;font-weight:400;font-size:inherit;padding:0;margin:0}
+.fr107-pli>summary::-webkit-details-marker{display:none}
+.fr107-pli>summary>*{flex:0 0 auto}
+.fr107-niveau{font-weight:700}
+.fr107-pli>summary>.fr107-motif{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.fr107-voir{text-decoration:underline;text-underline-offset:2px}
+.fr107-detail{display:grid;gap:6px;padding:6px 2px 4px;font-size:14px;line-height:1.4;white-space:normal}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme=light]) .fr106-pastille.fr106-attention,:root:not([data-theme=light]) .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
   :root:not([data-theme=light]) .fr106-pastille.fr106-suspect,:root:not([data-theme=light]) .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
@@ -31,6 +47,8 @@
   :root:not([data-theme=light]) .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
   :root:not([data-theme=light]) .fr106-piece-risque{color:#ff8389}
   :root:not([data-theme=light]) .fr106-adresse{background:rgba(255,255,255,.1)}
+  :root:not([data-theme=light]) .fr107-ligne.fr106-attention{background:#2b2300;color:#ffefb8;border-color:#a8870f}
+  :root:not([data-theme=light]) .fr107-ligne.fr106-suspect{background:#3a1500;color:#ffe2cc;border-color:#ff832b}
 }
 :root[data-theme=dark] .fr106-pastille.fr106-attention,:root[data-theme=dark] .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
 :root[data-theme=dark] .fr106-pastille.fr106-suspect,:root[data-theme=dark] .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
@@ -38,3 +56,5 @@
 :root[data-theme=dark] .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
 :root[data-theme=dark] .fr106-piece-risque{color:#ff8389}
 :root[data-theme=dark] .fr106-adresse{background:rgba(255,255,255,.1)}
+:root[data-theme=dark] .fr107-ligne.fr106-attention{background:#2b2300;color:#ffefb8;border-color:#a8870f}
+:root[data-theme=dark] .fr107-ligne.fr106-suspect{background:#3a1500;color:#ffe2cc;border-color:#ff832b}

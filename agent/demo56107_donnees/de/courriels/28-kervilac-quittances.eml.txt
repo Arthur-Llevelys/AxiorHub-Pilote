@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-quittances
+X-Demo-Heures: 160
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Markus KERVILAC <verwaltung@kervilac-grundbesitz.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: KERVILAC Grundbesitz — Mietkonto und Zahlungsrückstände
+Message-ID: <kervilac-quittances@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+anbei die Aufstellung der Mietrückstände der ORLANDEC Gastronomie GmbH für das Verfügungsverfahren (KERVILAC ./. ORLANDEC).
+
+Mit freundlichen Grüßen
+Markus KERVILAC

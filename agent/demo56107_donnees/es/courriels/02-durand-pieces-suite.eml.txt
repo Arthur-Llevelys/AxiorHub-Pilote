@@ -1,0 +1,15 @@
+X-Demo-Id: durand-pieces-suite
+X-Demo-Heures: 1
+X-Demo-Boite: INBOX
+X-Demo-Piece: 02 - Acta de recepcion.pdf|EXP-001
+X-Demo-Repond: durand-pieces
+From: Javier DURAND <direccion@durand-construcciones.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: RE: DURAND c. MARTIN — contestación a la demanda recibida
+Message-ID: <durand-pieces-suite@demo.example.test>
+
+Sra. Durand:
+
+Le adjunto ya el acta de recepción firmada. Las actas de obra se las envío mañana.
+
+Javier DURAND

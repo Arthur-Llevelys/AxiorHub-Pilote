@@ -1,0 +1,17 @@
+X-Demo-Id: durand-pieces
+X-Demo-Heures: 2
+X-Demo-Boite: INBOX
+From: Jean DURAND <direction@durand-batiment.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: DURAND c. MARTIN — conclusions adverses reçues
+Message-ID: <durand-pieces@demo.example.test>
+
+Bonjour Maître,
+
+J'ai bien reçu la copie des conclusions de MARTIN Immobilier que vous m'avez transmise. Ils prétendent que la réception n'a jamais eu lieu, alors que nous avons signé un procès-verbal avec eux.
+
+De quelles pièces avez-vous besoin pour répondre ? Je peux vous envoyer les comptes rendus de chantier.
+
+Cordialement,
+Jean DURAND
+Société DURAND Bâtiment

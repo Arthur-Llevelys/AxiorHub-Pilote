@@ -24,7 +24,7 @@
     templates = [];
     Object.keys(raw).forEach(function (k) {
       var v = raw[k];
-      if (typeof v !== 'string' || !v || (k.charAt(0) === '_' && k.indexOf('_prefix:') !== 0)) return;
+      if (typeof v !== 'string' || !v || (k.charAt(0) === '_' && k.indexOf('_prefix:') !== 0 && k !== '_dates')) return;
       table[k] = v;
       if (k.indexOf('%s') >= 0) {
         var parts = k.split(/(%s|#)/), src = '^', kinds = [];
@@ -60,14 +60,28 @@
     return null;
   }
 
+  // 5.6.107 (lot T) : date écrite au format français (« 26/11/2026 09:30 », « 17/11 10:02 ») remise au format de la langue quand le
+  // dictionnaire le demande (« _dates » : « point » en allemand) ; même règle que ecrans5632.date_locale
+  function dateLocale(n) {
+    var m = table._dates === 'point' ? /^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?(?: (\d{1,2}):(\d{2}))?$/.exec(n) : null;
+    if (!m) return null;
+    var out = m[1] + '.' + m[2] + '.' + (m[3] || '');
+    if (m[4] !== undefined) out += ' ' + m[4] + ':' + m[5] + (m[3] ? ' Uhr' : '');
+    return out;
+  }
+
   function phrase(text) {
     var n = norm(text);
-    if (!n || !/[A-Za-zÀ-ÿ]/.test(n)) return null;
+    if (n && !/[A-Za-zÀ-ÿ]/.test(n)) {
+      var d = dateLocale(n);
+      return d === null ? null : text.match(/^\s*/)[0] + d + text.match(/\s*$/)[0];
+    }
+    if (!n) return null;
     var out = exact(n);
     if (out === null) out = template(n);
     if (out === null && n.indexOf(' · ') > 0) {
       var changed = false;
-      out = n.split(' · ').map(function (seg) { var got = exact(seg) || template(seg); if (got !== null) changed = true; return got !== null ? got : seg; }).join(' · ');
+      out = n.split(' · ').map(function (seg) { var got = exact(seg) || template(seg) || dateLocale(seg); if (got !== null) changed = true; return got !== null ? got : seg; }).join(' · ');
       if (!changed) out = null;
     }
     if (out === null) {   // puce ou séparateur en tête (« · tout le cabinet · sources : … », « → Rédaction »)
@@ -96,9 +110,19 @@
     return false;
   }
 
+  // dates JJ/MM[/AAAA] au milieu d'un texte, même règle que ecrans5632.dates_texte (un n° RG « 24/01234 » n'est pas une date)
+  function datesTexte(t) {
+    if (!table || table._dates !== 'point' || t.indexOf('/') < 0) return null;
+    var out = t.replace(/(^|[^\d\/.])(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?(?![\d\/])/g, function (all, a, j, m, y) {
+      return (+j >= 1 && +j <= 31 && +m >= 1 && +m <= 12) ? a + j + '.' + m + '.' + (y || '') : all;
+    });
+    return out !== t ? out : null;
+  }
+  function traduit(t) { var got = phrase(t); return datesTexte(got !== null ? got : t) || got; }
+
   function textNode(node) {
     if (!node.parentNode || frozen(node.parentNode)) return;
-    var got = phrase(node.data);
+    var got = traduit(node.data);
     if (got !== null && got !== node.data) node.data = got;
   }
 
@@ -107,7 +131,7 @@
     if (el.nodeName === 'TEXTAREA' ? frozen(el.parentNode) : frozen(el)) return;
     ATTRS.forEach(function (a) {
       var v = el.getAttribute(a);
-      if (v) { var got = phrase(v); if (got !== null && got !== v) el.setAttribute(a, got); }
+      if (v) { var got = traduit(v); if (got !== null && got !== v) el.setAttribute(a, got); }
     });
     if (el.nodeName === 'INPUT' && /^(submit|button|reset)$/i.test(el.type) && el.value) {
       var got = phrase(el.value);

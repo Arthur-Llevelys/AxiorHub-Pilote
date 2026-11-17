@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-expertise
+X-Demo-Heures: 280
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <accounts@zorval.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ZORVAL v KERVILAC — who will attend the expert inspection?
+Message-ID: <zorval-expertise@demo.example.test>
+
+Dear Claire,
+
+Our logistics manager will be able to attend the site inspection. Is there anything else we should arrange?
+
+Sophie ZORVAL

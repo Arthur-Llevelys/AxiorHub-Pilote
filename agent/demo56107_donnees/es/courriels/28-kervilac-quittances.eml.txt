@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-quittances
+X-Demo-Heures: 160
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Marcos KERVILAC <gerencia@kervilac-inmuebles.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: KERVILAC Inmuebles — recibos y relación de rentas
+Message-ID: <kervilac-quittances@demo.example.test>
+
+Sra. Durand:
+
+Le envío la relación de rentas impagadas de ORLANDEC Restauración para el desahucio (KERVILAC c. ORLANDEC).
+
+Marcos KERVILAC

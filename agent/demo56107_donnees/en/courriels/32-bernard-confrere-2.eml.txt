@@ -1,0 +1,18 @@
+X-Demo-Id: bernard-confrere-2
+X-Demo-Heures: 200
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Paul BERNARD <p.bernard@bernard-law.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND v MARTIN — without prejudice — proposal to talk
+Message-ID: <bernard-confrere-2@demo.example.test>
+
+Dear Claire,
+
+Without prejudice
+
+My client would be willing to consider settling this matter. Would you be available for a telephone call next week?
+
+Kind regards,
+Paul BERNARD
+BERNARD Law LLP

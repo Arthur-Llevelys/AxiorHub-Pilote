@@ -309,6 +309,9 @@ class Desk:
         # Avant, chaque page ouvrait Desk en écrivant (INSERT des parcours par défaut, index) sous un verrou de fichier partagé par
         # l'interface, le worker et la veille : un traitement qui tenait l'écriture SQLite bloquait toutes les pages 10 s, puis
         # « Interface indisponible » (database is locked). Les ouvertures suivantes ne font plus que lire.
+        if isinstance(c, dict) and c.get('demo56107'):   # 5.6.107 (lot M) : configuration de démo : processus armé (aucun transport sortant)
+            from .demo56107 import au_bureau
+            au_bureau(c)
         key = _schema_key(c)
         if key is not None and key in _SCHEMA_READY:
             self._open(c)

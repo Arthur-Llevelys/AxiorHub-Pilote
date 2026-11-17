@@ -1,0 +1,16 @@
+X-Demo-Id: commissaire-signification
+X-Demo-Heures: 44
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Gerichtsvollzieher KERVILAC <buero@gv-kervilac.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Az. 12 C 1302/24 — Zustellung des Vollstreckungsbescheids
+Message-ID: <commissaire-signification@demo.example.test>
+
+Sehr geehrte Frau Rechtsanwältin Durand,
+
+ich teile Ihnen mit, dass der Vollstreckungsbescheid der ORLANDEC Handel GmbH durch Übergabe an die Geschäftsführung zugestellt wurde. Die Zustellungsurkunde folgt per Post.
+
+Mit freundlichen Grüßen
+KERVILAC
+Gerichtsvollzieher

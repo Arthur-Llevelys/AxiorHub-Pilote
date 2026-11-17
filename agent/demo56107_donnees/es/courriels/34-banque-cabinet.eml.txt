@@ -1,0 +1,11 @@
+X-Demo-Id: banque-cabinet
+X-Demo-Heures: 220
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Banco de Valbrune <atencion.cliente@banco-valbrune.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Extracto mensual de la cuenta profesional
+Message-ID: <banque-cabinet@demo.example.test>
+
+Su extracto mensual está disponible en su área de cliente (mensaje ficticio de demostración).

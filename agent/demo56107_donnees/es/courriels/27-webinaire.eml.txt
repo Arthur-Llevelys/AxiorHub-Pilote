@@ -1,0 +1,13 @@
+X-Demo-Id: webinaire
+X-Demo-Heures: 150
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Formación continua <formacion@colegio-abogados-valbrune.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Formación: la audiencia previa en el juicio ordinario
+Message-ID: <webinaire@demo.example.test>
+
+Formación ficticia de demostración: la audiencia previa en el juicio ordinario, dos horas computables como formación continua.
+
+Inscripciones en la secretaría del Colegio.

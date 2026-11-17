@@ -1,0 +1,15 @@
+X-Demo-Id: expert-convocation
+X-Demo-Heures: 20
+X-Demo-Boite: INBOX
+From: M. ORLANDEC, expert judiciaire <expert.orlandec@expertise.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ZORVAL c. KERVILAC — RG 24/01355 — convocation à la réunion d’expertise
+Message-ID: <expert-convocation@demo.example.test>
+
+Maître,
+
+J'ai l'honneur de vous convoquer à la première réunion d'expertise, sur les lieux, à l'entrepôt de ZORVAL Distribution, dans deux jours à 9 h.
+
+Je vous remercie de m'adresser au préalable le bail et les constats des infiltrations.
+
+L'expert

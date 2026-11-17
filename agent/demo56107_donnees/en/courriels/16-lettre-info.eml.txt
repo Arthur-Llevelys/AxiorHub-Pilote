@@ -1,0 +1,18 @@
+X-Demo-Id: lettre-info
+X-Demo-Heures: 54
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: The Business Law Letter <letter@legal-publishing.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: The Business Law Letter — No. 312: commercial leases and forfeiture
+Message-ID: <lettre-info@demo.example.test>
+
+The Business Law Letter (fictional demonstration newsletter)
+
+In this issue:
+- Commercial leases: forfeiture for rent arrears and relief from forfeiture;
+- Companies: warranties and indemnities in practice;
+- Civil procedure: preparing for the case management conference.
+
+You are receiving this newsletter because you subscribed to it.

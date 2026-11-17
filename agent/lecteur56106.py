@@ -537,6 +537,28 @@ def _annee(jour, mois, annee, aujourdhui):
 
 
 def reperer_date(texte, aujourdhui):
+    """Date (et heure) repérée (voir ``_reperer_date_fr``), complétée pour un message anglais, allemand ou espagnol.
+
+    5.6.107 (lot X) : le repérage français est appliqué d'abord et reste exactement le même. S'il ne trouve aucune date, ou une date sans
+    heure, le repérage des messages de juridiction (``routine_message56106.extraire_evenement`` : dates chiffrées et en toutes lettres,
+    « 9:30 Uhr », « 9.30 am », « a las 9:30 ») est consulté — une seule logique, pas une copie — et n'est retenu que s'il est sûr (une
+    date, une heure) ET qu'une règle étrangère a servi (``etranger``) : un texte français n'est jamais concerné. En cas de doute (heure
+    absente, plusieurs dates), rien n'est ajouté : le champ reste vide comme avant."""
+    trouve = _reperer_date_fr(texte, aujourdhui)
+    if trouve['etat'] == 'ambigue' or (trouve['etat'] == 'sure' and trouve['heure']):
+        return trouve
+    from .routine_message56106 import extraire_evenement
+    x = extraire_evenement('', str(texte or '')[:20000], aujourdhui)
+    if not (x.get('etranger') and x['certitude'] == 'sure' and x['date'] and x['heure']):
+        return trouve
+    if trouve['etat'] == 'aucune':
+        return {'date': x['date'], 'heure': x['heure'], 'expression': x.get('expression', '')[:120], 'etat': 'sure'}
+    if trouve['date'] == x['date']:                  # même date : l'heure étrangère complète (« 26/11/2026 at 9.30 am »)
+        return dict(trouve, heure=x['heure'], expression=(x.get('expression') or trouve['expression'])[:120])
+    return trouve
+
+
+def _reperer_date_fr(texte, aujourdhui):
     """Date (et heure) d'échéance ou de rendez-vous repérée dans un texte français, avec le jour du cabinet pour référence.
 
     Rend {'date': 'AAAA-MM-JJ' ou '', 'heure': 'HH:MM' ou '', 'expression': texte trouvé, 'etat': 'sure' | 'ambigue' | 'aucune'}.
@@ -752,10 +774,12 @@ def informations(desk, acteur, args, box=None):
             break
         entetes.append([str(nom)[:200], texte[:4000]])
     dossier = _dossier_reconnu(desk, acteur, mail)
-    return {'uid': mail.uid, 'dossier': folder, 'uidvalidity': ref.uidvalidity, 'cle': ref.cle, 'reception': folder == desk.c['mail'].get('inbox'),
+    masque = texte_masque(html) if html else ''
+    return {'texte_masque_ia': 'instructions adressées à une IA' in masque,   # 5.6.107 (lot F2) : puce « texte masqué » rouge dans ce cas seulement
+            'uid': mail.uid, 'dossier': folder, 'uidvalidity': ref.uidvalidity, 'cle': ref.cle, 'reception': folder == desk.c['mail'].get('inbox'),
             'html': bool(html), 'preference': preference, 'affichage': 'html' if html and preference == 'html' else 'texte',
             'images_externes': stats['externes'], 'images_integrees': stats['integrees'], 'liens': stats.get('liens', 0),
-            'texte_masque': texte_masque(html) if html else '', 'entetes': entetes, 'entetes_complets': len(entetes) == len(mail.msg.items()),
+            'texte_masque': masque, 'entetes': entetes, 'entetes_complets': len(entetes) == len(mail.msg.items()),
             'pieces': _pieces(mail.msg), 'dossier_reconnu': dossier, 'fil': bool(mail.mid),
             'confidentiel': is_confidential(subject=mail.subject, text=mail.text[:4000]),
             'proposition': proposition(desk, acteur[0], mail, dossier)}

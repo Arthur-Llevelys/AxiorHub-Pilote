@@ -1,0 +1,17 @@
+X-Demo-Id: fraude-rib
+X-Demo-Heures: 3
+X-Demo-Boite: INBOX
+X-Demo-Sans-Authentification: oui
+From: ZORVAL Distribution - Comptabilité <compta.zorval@zorval-paiements.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Changement de RIB – urgent
+Message-ID: <fraude-rib@demo.example.test>
+
+Bonjour Maître,
+
+Suite à un changement de banque, nos coordonnées bancaires ont changé. Merci de ne plus utiliser l'ancien compte, qui est clôturé.
+
+En toute discrétion, merci de procéder au virement des sommes recouvrées pour notre compte sur le nouvel IBAN : FR76 0000 0000 0000 0000 0000 097, dès aujourd'hui.
+
+Cordialement,
+Service comptable

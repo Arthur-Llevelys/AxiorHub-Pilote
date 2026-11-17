@@ -1,0 +1,27 @@
+# Voice-over — AxiorHub Pilote demonstration video (about 90 seconds), version 5.6.107, English.
+# Faithful translation of the French text validated by the lawyer on 17/11/2026; to be submitted to the lawyer. One sentence per shot.
+# Format read by scripts/video56107/texte.py: « [number] Shot title | target duration in seconds », then the sentence of the shot.
+
+[1] Today | 5 s
+Every morning, AxiorHub Pilote brings together on a single page everything the firm has to deal with during the day.
+
+[2] A client email arrives | 15 s
+A client writes about their case: AxiorHub recognises the sender and the case reference, immediately suggests the matching matter and shows it with a badge, both in the list and in the open message.
+
+[3] The matter | 12 s
+Opened from the Matters menu, the matter brings together the parties, the documents and the chronology of the case in one place, right next to the latest exchanges with the client.
+
+[4] Draft reply prepared by the AI | 15 s
+For this email, the AI has already prepared a draft reply and placed it in the review queue: you read it through, correct a word if needed, then you decide: nothing goes out without you.
+
+[5] Summary of three ticked emails | 10 s
+Tick three emails and ask for a summary: the gist of each message and the next steps appear beside the list, without leaving your inbox.
+
+[6] Fraudulent email alert | 8 s
+When a message announces a change of bank details, AxiorHub flags it as suspicious and invites you to check with the person concerned before making any transfer.
+
+[7] Court message, hearing offered for the calendar | 10 s
+A notice received through the court’s electronic messaging system sets a hearing date: AxiorHub spots it and offers to add it to the firm’s calendar, leaving the decision in your hands.
+
+[8] End | 8 s
+AxiorHub Pilote means your firm and your data, on your own server: discover it now at axiorhub.com.

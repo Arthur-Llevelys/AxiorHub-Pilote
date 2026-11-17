@@ -1,0 +1,17 @@
+X-Demo-Id: orlandec-protocole
+X-Demo-Heures: 11
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 02 - Borrador de compraventa de acciones.pdf|EXP-004
+From: Luisa MARTIN <asesoria@despacho-martin.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ORLANDEC S.A. — borrador de compraventa de acciones, nuestros comentarios
+Message-ID: <orlandec-protocole@demo.example.test>
+
+Estimada compañera:
+
+Te adjunto nuestros comentarios al borrador del contrato de compraventa de las acciones de ORLANDEC S.A. Nuestro cliente desea elevar el límite máximo de responsabilidad por manifestaciones y garantías al 30 % del precio.
+
+Un cordial saludo,
+Luisa MARTIN
+Abogada

@@ -1,0 +1,18 @@
+X-Demo-Id: rpva-fixation
+X-Demo-Heures: 5
+X-Demo-Boite: INBOX
+From: Valbrune County Court <civil@valbrune-county-court.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: [CE-File] Notice of hearing — Claim No. VB24C01234 — DURAND v MARTIN
+Message-ID: <rpva-fixation@demo.example.test>
+
+Fictional CE-File message (demonstration).
+
+Valbrune County Court — Multi-track list
+Claim: DURAND Building Ltd v MARTIN Property Ltd
+Claim No. VB24C01234
+
+The claim is listed for a case management conference on {AUDIENCE} at 9.30 am.
+The parties must file an agreed case summary and proposed directions before that date.
+
+Civil Section

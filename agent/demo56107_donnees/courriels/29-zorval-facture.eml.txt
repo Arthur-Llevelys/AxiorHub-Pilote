@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-facture
+X-Demo-Heures: 170
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <compta@zorval.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ZORVAL Distribution — nouvelle facture impayée
+Message-ID: <zorval-facture@demo.example.test>
+
+Maître,
+
+ORLANDEC Négoce n'a pas non plus réglé la facture 2024-160. Pouvons-nous l'ajouter à la procédure ?
+
+Sophie ZORVAL

@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-merci
+X-Demo-Heures: 230
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Service juridique ORLANDEC <juridique@orlandec.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ORLANDEC — merci pour la note
+Message-ID: <orlandec-merci@demo.example.test>
+
+Maître,
+
+Merci pour votre note sur l'exclusivité territoriale. Nous la transmettons à la direction.
+
+Le service juridique

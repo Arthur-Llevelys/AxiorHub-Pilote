@@ -1,0 +1,14 @@
+X-Demo-Id: durand-chantier
+X-Demo-Heures: 190
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jean DURAND <direction@durand-batiment.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: DURAND c. MARTIN — comptes rendus de chantier
+Message-ID: <durand-chantier@demo.example.test>
+
+Maître,
+
+Je vous transmets les comptes rendus de chantier des trois derniers mois, comme demandé.
+
+Jean DURAND

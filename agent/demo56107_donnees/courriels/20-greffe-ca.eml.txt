@@ -1,0 +1,17 @@
+X-Demo-Id: greffe-ca
+X-Demo-Heures: 80
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Greffe de la cour d’appel <greffe.social@ca-valbrune.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: [RPVA] Avis — RG 24/01411 — BERNARD c. ZORVAL Services
+Message-ID: <greffe-ca@demo.example.test>
+
+Message RPVA fictif (démonstration).
+
+Cour d'appel de Valbrune — Chambre sociale
+N° RG 24/01411
+
+Avis de fixation du calendrier : les conclusions de l'appelante sont attendues dans le délai réglementaire.
+
+Le greffe

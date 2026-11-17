@@ -1,0 +1,15 @@
+X-Demo-Id: durand-chantier
+X-Demo-Heures: 190
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jan DURAND <geschaeftsfuehrung@durand-bau.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND ./. MARTIN — Bautagesberichte
+Message-ID: <durand-chantier@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+wie gewünscht übersende ich Ihnen die Bautagesberichte der letzten drei Monate.
+
+Mit freundlichen Grüßen
+Jan DURAND

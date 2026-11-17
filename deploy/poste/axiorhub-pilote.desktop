@@ -8,3 +8,9 @@ Terminal=false
 Categories=Office;
 Keywords=avocat;cabinet;courriel;dossier;
 StartupNotify=true
+Actions=demo;
+
+# 5.6.107 (lot M) : mode Démo (cabinet fictif, données séparées, aucun envoi) — commande « axiorhub-pilote --demo »
+[Desktop Action demo]
+Name=Essayer la démo
+Exec=axiorhub-pilote --demo

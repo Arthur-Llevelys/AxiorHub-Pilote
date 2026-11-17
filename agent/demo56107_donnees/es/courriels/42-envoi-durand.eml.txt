@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-durand
+X-Demo-Heures: 26
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+From: Claire Durand <claire.durand@durand-abogados.example.test>
+To: Javier DURAND <direccion@durand-construcciones.example.test>
+Subject: DURAND c. MARTIN — contestación a la demanda
+Message-ID: <envoi-durand@demo.example.test>
+
+Estimado Sr. DURAND:
+
+Le remito la contestación a la demanda de MARTIN Inmobiliaria que recibimos ayer. La estoy analizando y le diré algo en breve.
+
+Claire Durand
+Abogada
+Despacho Durand Abogados

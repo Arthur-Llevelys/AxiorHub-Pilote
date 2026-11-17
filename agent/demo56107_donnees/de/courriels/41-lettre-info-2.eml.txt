@@ -1,0 +1,14 @@
+X-Demo-Id: lettre-info-2
+X-Demo-Heures: 340
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Wirtschaftsrecht aktuell <redaktion@fachverlag-recht.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Wirtschaftsrecht aktuell — Nr. 311: Forderungseinzug und Mahnverfahren
+Message-ID: <lettre-info-2@demo.example.test>
+
+Wirtschaftsrecht aktuell (fiktiver Newsletter zur Demonstration)
+
+- Mahnverfahren: Zustellung und Fristen;
+- Forderungspfändung: praktische Hinweise.

@@ -1,0 +1,15 @@
+X-Demo-Id: bernard-appel
+X-Demo-Heures: 26
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Alice BERNARD — mon appel, prochaines étapes ?
+Message-ID: <bernard-appel@demo.example.test>
+
+Bonjour Maître,
+
+Je voulais savoir quand vous déposerez les conclusions dans mon dossier d'appel (RG 24/01411) et si je dois vous transmettre d'autres documents.
+
+Merci beaucoup,
+Alice BERNARD

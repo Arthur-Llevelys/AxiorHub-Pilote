@@ -1,0 +1,58 @@
+/* AxiorHub 5.6.107 (lot M) — mode Démo : bandeau discret et permanent, bulles de la visite guidée, carte « Essayer la démo ».
+   Contraste AA en clair et en sombre ; focus visible ; à 390 px les boutons passent à la ligne ; aucun style en ligne. */
+/* Bandeau dans le menu latéral, dans le flux (5.6.107, retour des lots H et V) : à aucune taille il ne recouvre une action de la page. */
+.demo107{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin:12px 0;padding:8px 10px;border-radius:6px;font-size:13px;line-height:1.35;
+  box-sizing:border-box;background:#e8f1ff;color:#0b2a5b;border:1px solid #4a7fd4}
+@media print{.demo107{display:none}}
+.demo107 strong{font-weight:700}
+.demo107-marque{display:none}
+.demo107-detail{color:#23395d;font-size:12px}
+.demo107-actions{display:flex;flex-direction:column;gap:6px}
+.demo107-bouton{min-height:30px;padding:3px 10px;border-radius:4px;border:1px solid #0b2a5b;background:#fff;color:#0b2a5b;font:inherit;cursor:pointer}
+.demo107-bouton:hover{background:#d6e4ff}
+#ws-sidebar .demo107 a.demo107-bouton{display:flex;align-items:center;justify-content:center;text-decoration:none;color:#0b2a5b}
+.demo107-bouton[disabled]{opacity:.6;cursor:progress}
+.demo107-principal{background:#0f62fe;border-color:#0043ce;color:#fff}
+.demo107-principal:hover{background:#0353e9}
+.demo107-bouton:focus-visible,.demo107-plus input:focus-visible,.demo107-bulle:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.demo107-statut{flex:1 0 100%;min-height:0;font-size:13px}
+.demo107-statut:empty{display:none}
+.demo107-statut[data-etat=erreur]{color:#a2191f;font-weight:700}
+.demo107-essai{margin:0 0 12px;padding:12px 16px;border-radius:8px;border:2px solid #4a7fd4;background:#f4f8ff;color:#0b2a5b;display:grid;gap:8px;max-width:760px}
+.demo107-essai h2{margin:0;font-size:17px}
+.demo107-essai p{margin:0}
+.demo107-essai .demo107-bouton{justify-self:start}
+.demo107-bulle{position:fixed;z-index:9000;width:min(380px,calc(100vw - 24px));padding:12px 14px;border-radius:8px;background:#fff;color:#161616;
+  border:2px solid #0f62fe;box-shadow:0 8px 28px rgba(0,0,0,.28);display:grid;gap:8px}
+.demo107-bulle.demo107-centre{top:84px;left:50%;transform:translateX(-50%)}
+.demo107-bulle h2{margin:0;font-size:16px}
+.demo107-bulle p{margin:0;font-size:14px;line-height:1.45}
+.demo107-bulle .demo107-pas{font-size:12px;color:#4b5563}
+.demo107-bulle-actions{display:flex;flex-wrap:wrap;gap:6px}
+.demo107-plus{font-size:13px;display:flex;align-items:center;gap:4px}
+.demo107-cible{outline:3px solid #0f62fe !important;outline-offset:3px;border-radius:4px}
+.demo107-fin{max-width:640px;margin:48px auto;padding:24px;border-radius:8px;border:1px solid #4a7fd4;background:#f4f8ff;color:#0b2a5b}
+.demo107-fin h1{margin:0 0 8px;font-size:22px}
+@media (max-width:420px){.demo107-bulle-actions .demo107-bouton{flex:1 1 100%}}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .demo107,:root:not([data-theme=light]) .demo107-essai,:root:not([data-theme=light]) .demo107-fin{background:#0b1d3a;color:#d6e4ff;border-color:#78a9ff}
+  :root:not([data-theme=light]) .demo107-detail{color:#c6d7f5}
+  :root:not([data-theme=light]) .demo107-marque{color:#ff832b}
+  :root:not([data-theme=light]) .demo107-bouton{background:#161616;color:#d6e4ff;border-color:#78a9ff}
+  :root:not([data-theme=light]) #ws-sidebar .demo107 a.demo107-bouton{color:#d6e4ff}
+  :root:not([data-theme=light]) .demo107-bouton:hover{background:#262626}
+  :root:not([data-theme=light]) .demo107-principal{background:#4589ff;color:#0b1d3a;border-color:#a6c8ff}
+  :root:not([data-theme=light]) .demo107-bulle{background:#262626;color:#f4f4f4;border-color:#78a9ff}
+  :root:not([data-theme=light]) .demo107-bulle .demo107-pas{color:#c6c6c6}
+  :root:not([data-theme=light]) .demo107-statut[data-etat=erreur]{color:#ff8389}
+}
+:root[data-theme=dark] .demo107,:root[data-theme=dark] .demo107-essai,:root[data-theme=dark] .demo107-fin{background:#0b1d3a;color:#d6e4ff;border-color:#78a9ff}
+:root[data-theme=dark] .demo107-detail{color:#c6d7f5}
+:root[data-theme=dark] .demo107-marque{color:#ff832b}
+:root[data-theme=dark] .demo107-bouton{background:#161616;color:#d6e4ff;border-color:#78a9ff}
+:root[data-theme=dark] #ws-sidebar .demo107 a.demo107-bouton{color:#d6e4ff}
+:root[data-theme=dark] .demo107-bouton:hover{background:#262626}
+:root[data-theme=dark] .demo107-principal{background:#4589ff;color:#0b1d3a;border-color:#a6c8ff}
+:root[data-theme=dark] .demo107-bulle{background:#262626;color:#f4f4f4;border-color:#78a9ff}
+:root[data-theme=dark] .demo107-bulle .demo107-pas{color:#c6c6c6}
+:root[data-theme=dark] .demo107-statut[data-etat=erreur]{color:#ff8389}

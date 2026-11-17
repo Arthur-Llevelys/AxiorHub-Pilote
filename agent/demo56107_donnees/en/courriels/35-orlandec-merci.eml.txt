@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-merci
+X-Demo-Heures: 230
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: ORLANDEC Legal Department <legal@orlandec.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ORLANDEC — thank you for the note
+Message-ID: <orlandec-merci@demo.example.test>
+
+Dear Claire,
+
+Thank you for your note on territorial exclusivity. We are passing it on to the management team.
+
+Legal Department

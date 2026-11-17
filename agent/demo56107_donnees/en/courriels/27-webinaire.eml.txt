@@ -1,0 +1,13 @@
+X-Demo-Id: webinaire
+X-Demo-Heures: 150
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Continuing Competence <training@valbrune-law-society.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Training: preparing for the case management conference in the County Court
+Message-ID: <webinaire@demo.example.test>
+
+Fictional demonstration training session: preparing for the case management conference in the County Court, two hours to record towards your continuing competence.
+
+Book through the Valbrune Law Society office.

@@ -3,6 +3,29 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.107 — mode Démo (dans l'application et en ligne, quatre langues), interface traduite, alerte de fraude discrète, vidéo de démonstration
+
+Demandes du cabinet des 16 et 17/11/2026.
+
+- **Mode Démo prérempli**, sans compte ni modèle : cabinet fictif complet (dossiers, 47 courriels dont un frauduleux et un avis de
+  juridiction, agenda, tâches, À relire), IA de démonstration aux réponses marquées, aucun effet externe (garde réseau global, envoi
+  simulé dans « Envoyés (démo) »), bandeau, visite guidée, « Recommencer ». En français, anglais, allemand et espagnol, avec un cabinet
+  et des références adaptés à chaque pays. Raccourci Windows « AxiorHub Pilote — Démo », `axiorhub-pilote --demo [--langue]` sous Ubuntu.
+- **Démo en ligne** (`deploy/demo/`, à installer par le cabinet) : une instance isolée par visiteur, sans réseau sortant, plafonds de
+  mémoire, de processeur, de durée et de nombre, nettoyage automatique ; service systemd durci ou compose Docker ; LISEZMOI.
+- **Interface en anglais, allemand et espagnol** pour toutes les nouveautés des 5.6.106 et 5.6.107 et pour À relire, Aujourd'hui,
+  l'agenda et la page du dossier ; heures et dates au format local ; français inchangé.
+- **Alerte de fraude** : niveau Attention replié en une ligne de puces (avec texte masqué et images bloquées), Danger toujours déplié ;
+  plus de fausses alertes pour un serveur qui n'ajoute pas les résultats SPF/DKIM/DMARC (recommandation unique dans Paramètres) ni pour
+  le texte d'aperçu caché des lettres d'information ; extraits cités avec leurs accents ; règles de contenu en anglais, allemand et
+  espagnol.
+- **Messages de juridiction étrangers** (CE-File, beA, LexNET) reconnus par la routine sur message et par le bouton « → Agenda », avec
+  date et heure.
+- **À relire** : les onglets sans objet d'une note de l'IA ne s'affichent plus (ils renvoyaient une erreur).
+- **Stockage du navigateur bloqué** : plus d'erreur JavaScript (dictée).
+- **Vidéo de démonstration de 90 s** en quatre langues, enregistrée automatiquement depuis le mode Démo (`scripts/video-demo.py`),
+  liée en tête des README.
+
 ## 5.6.106 — webmail façon Outlook, pages plus compactes, logo du cabinet, SearXNG, images pour l'IA, alerte de fraude, @avocat.fr
 
 Demandes du cabinet du 16/11/2026.

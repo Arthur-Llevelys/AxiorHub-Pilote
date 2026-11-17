@@ -22,6 +22,9 @@ un nouvel événement est enregistré dans l'agenda, dans le dossier corresponda
   proposition reste à valider. Pas de doublon : un événement du même dossier, du même jour et de même nature est signalé (même heure) ou
   fait l'objet d'une mise à jour à valider (autre heure), jamais recréé. Copie vers Outlook ou Google : seulement après validation humaine,
   ou si la personne l'a autorisée pour cette routine (sinon l'événement direct porte la source ``routine56106`` et n'est pas copié).
+  5.6.107 (lot X) : messages de juridiction anglais, allemands et espagnols (CE-File, beA, LexNET ; « hearing listed for », « Termin zur
+  mündlichen Verhandlung », « señalamiento »…), dates en toutes lettres de ces langues (« 14 January 2027 at 10:00 », « am 14. Januar 2027
+  um 10:00 Uhr », « el 14 de enero de 2027 a las 10:00 ») ; règles ajoutées après les françaises, qui restent exactement inchangées.
 - **Exécution** : à l'arrivée des courriels (relevé du travailleur, ``a_l_arrivee`` appelé par ``Desk`` pour chaque courriel examiné) une
   arrivée est notée puis le travail automatique ``routine_message56106`` la traite ; une seule fois par courriel et par routine (clé :
   Message-ID + routine + version) ; pause générale et pause du dossier respectées (passage « reporté : pause », repris au relevé suivant) ;
@@ -245,6 +248,88 @@ JURIDICTION = re.compile(
 CHAMBRE = re.compile(r"(?i:\b(\d{1,2}\s*(?:e|ème|eme|ère|ere|re|er)?\s+chambre(?:\s+(?:civile|commerciale|sociale|correctionnelle))?"
                      r"|chambre\s*(?:n[°o]\s*)?\d{1,2}[a-z]?|chambre\s*:\s*[^\n,;.]{2,40}|p[ôo]le\s+[^\n,;.]{2,30}))")
 
+# 5.6.107 (lot X) : messages de juridiction en anglais, allemand et espagnol (plateformes CE-File, beA, LexNET ; démo dans ces langues).
+# Règles AJOUTÉES aux règles françaises, jamais à leur place : le français garde exactement ses expressions et ses résultats. Une date
+# étrangère qui chevauche une date déjà repérée par les règles françaises est ignorée ; l'heure, la nature, la juridiction et la chambre
+# étrangères ne sont cherchées que si les règles françaises n'ont rien trouvé. Le texte est plié (minuscules, sans accents).
+MOIS_ETR = {
+    'en': {'january': 1, 'jan': 1, 'february': 2, 'feb': 2, 'march': 3, 'mar': 3, 'april': 4, 'apr': 4, 'may': 5, 'june': 6, 'jun': 6,
+           'july': 7, 'jul': 7, 'august': 8, 'aug': 8, 'september': 9, 'sept': 9, 'sep': 9, 'october': 10, 'oct': 10, 'november': 11,
+           'nov': 11, 'december': 12, 'dec': 12},
+    'de': {'januar': 1, 'janner': 1, 'februar': 2, 'feber': 2, 'marz': 3, 'april': 4, 'mai': 5, 'juni': 6, 'juli': 7, 'august': 8,
+           'september': 9, 'oktober': 10, 'november': 11, 'dezember': 12},
+    'es': {'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8, 'septiembre': 9, 'setiembre': 9,
+           'octubre': 10, 'noviembre': 11, 'diciembre': 12},
+}
+JOURS_ETR = {   # lundi d'abord (``date.weekday``) ; plusieurs écritures possibles par jour
+    'en': (('monday', 'mon'), ('tuesday', 'tue', 'tues'), ('wednesday', 'wed'), ('thursday', 'thu', 'thur', 'thurs'), ('friday', 'fri'),
+           ('saturday', 'sat'), ('sunday', 'sun')),
+    'de': (('montag',), ('dienstag',), ('mittwoch',), ('donnerstag',), ('freitag',), ('samstag', 'sonnabend'), ('sonntag',)),
+    'es': (('lunes',), ('martes',), ('miercoles',), ('jueves',), ('viernes',), ('sabado',), ('domingo',)),
+}
+
+
+def _alt(mots):
+    return '|'.join(sorted(mots, key=len, reverse=True))     # le plus long d'abord (« september » avant « sep »)
+
+
+def _tous_jours(langue):
+    return _alt(j for jour in JOURS_ETR[langue] for j in jour)
+
+
+# (langue, motif) ; groupes nommés : js (jour de la semaine), j (jour), m (mois), a (année)
+DATES_ETR = (
+    ('en', re.compile(r'\b(?:(?P<js>%s)\.?,?\s+)?(?:the\s+)?(?P<j>\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+(?P<m>%s)\.?,?\s+(?P<a>\d{4})\b'
+                      % (_tous_jours('en'), _alt(MOIS_ETR['en'])))),
+    ('en', re.compile(r'\b(?:(?P<js>%s)\.?,?\s+)?(?P<m>%s)\.?\s+(?P<j>\d{1,2})(?:st|nd|rd|th)?,?\s+(?P<a>\d{4})\b'
+                      % (_tous_jours('en'), _alt(MOIS_ETR['en'])))),
+    ('de', re.compile(r'\b(?:(?P<js>%s),?\s+(?:(?:den|dem)\s+)?)?(?P<j>\d{1,2})\.?\s+(?P<m>%s)\s+(?P<a>\d{4})\b'
+                      % (_tous_jours('de'), _alt(MOIS_ETR['de'])))),
+    ('es', re.compile(r'\b(?:(?P<js>%s),?\s+)?(?:dia\s+)?(?P<j>\d{1,2})\s+de\s+(?P<m>%s)\s+(?:de|del)\s+(?P<a>\d{4})\b'
+                      % (_tous_jours('es'), _alt(MOIS_ETR['es'])))),
+)
+# heure qui suit la date ; (motif, langue) : « at 10:00 », « 9.30 am », « um 10:00 Uhr », « 10 Uhr », « a las 9:30 horas »
+HEURES_ETR = (
+    (re.compile(r'^[\s,]*(?:(?:at|from)\s+)?(\d{1,2})(?:[.:](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)(?![a-z])'), 'en'),
+    (re.compile(r'^[\s,]*(?:at|from)\s+(\d{1,2})[.:](\d{2})(?!\d)'), 'en'),
+    (re.compile(r'^[\s,]*(?:(?:um|ab)\s+)?(\d{1,2})(?:[.:](\d{2}))?\s*uhr\b'), 'de'),
+    (re.compile(r'^[\s,]*(?:um|ab)\s+(\d{1,2})[.:](\d{2})(?!\d)'), 'de'),
+    (re.compile(r'^[\s,]*(?:a|desde)\s+las?\s+(\d{1,2})(?:[.:](\d{2}))?(?!\d)'), 'es'),
+)
+HEURE_CHAMP_ETR = re.compile(r'\b(?:time|uhrzeit|hora)\s*:\s*(\d{1,2})(?:[.:](\d{2}))?\s*(a\.?m\.?|p\.?m\.?|uhr|h(?:oras?)?)?(?![\da-z])')
+NATURE_MOTS_ETR = (
+    ('renvoi', re.compile(r'\badjourn|\bre-?list|\bpostpone|\bvertagt|\bverlegt\b|terminsverlegung|\bneuer termin|\baplaza|\bse suspende\b'
+                          r'|nuevo senalamiento')),
+    ('delibere', re.compile(r'\bhand(?:ed|ing)? down\b|reserved judg|judgment will be (?:given|delivered)|verkundungstermin'
+                            r'|verkundung (?:einer|der) entscheidung|visto para sentencia|lectura de (?:la )?sentencia')),
+    ('mise_en_etat', re.compile(r'case management (?:conference|hearing)|directions hearing|pre-trial review|\bcmc\b|audiencia previa')),
+    ('plaidoiries', re.compile(r'\btrial\b|final hearing|haupttermin|hauptverhandlung|juicio oral|\bjuicio\b|vista oral')),
+    ('audience', re.compile(r'\bhearing\b|\blisted\b|\btermin\b|terminsladung|verhandlung|anhorung|\bla vista\b|\bvista (?:de|del|para|publica)\b|'
+                            r'audiencia|senalamiento|comparecencia')),
+)
+CIBLE_ETR = re.compile(r"\blisted\b|\bhearing\b|\btrial\b|case management|pre-trial|\bcmc\b|hand(?:ed)? down|adjourn|re-?list|\btermin\b|termins|verhandlung|verkundung|anhorung|"
+                       r"\bladung\b|bestimmt|senal|\bla vista\b|\bvista\s*:|audiencia|\bjuicio\b|comparecencia|se cita|\bfecha\s*:")
+RENVOI_CIBLE_ETR = re.compile(r"adjourn|re-?list|postpone|new date|vertagt|verlegt|neuer termin|aplaza|se suspende|suspendid|nuevo senalamiento|"
+                              r"nueva fecha")
+ANCIEN_ETR = re.compile(r"\b(?:sent|issued|dated|received|served|notified|filed|zugestellt|versandt|gesendet|versendet|eingegangen|datiert|\bvom\b|enviad[oa]|"
+                        r"notificad[oa]|recibid[oa]|presentad[oa]|de fecha|fechad[oa])\b")
+PLATEFORMES = (('CE-File', re.compile(r'\bce-?file\b')), ('beA', re.compile(r'\bbea\b')), ('LexNET', re.compile(r'\blexnet\b')))
+JURIDICTION_MOTS_ETR = re.compile(
+    r"\bce-?file\b|\bbea\b|\blexnet\b|county court|high court|crown court|magistrates'? court|court of appeal|employment (?:appeal )?tribunal|"
+    r"the court has (?:listed|fixed|ordered)|hearing (?:is |has been )?listed|notice of hearing|listed for (?:a |an |the )?(?:hearing|trial|case management)|"
+    r"gericht\b|gerichtshof|geschaftsstelle|termin zur mundlichen verhandlung|verkundungstermin|terminsladung|"
+    r"\bjuzgado|audiencia (?:previa|provincial|nacional)|senalamiento|se cita a las partes|letrado de la administracion de justicia|"
+    r"\bvista (?:oral|publica|del juicio)\b")
+JURIDICTION_ETR = (
+    re.compile(r"\b((?:[A-Z][a-z]+[ \t]+){0,2}?(?:County Court|Crown Court|Magistrates'? Court|High Court(?: of Justice)?|Court of Appeal|"
+               r"Employment Appeal Tribunal|Employment Tribunal|Family Court)(?:[ \t]+(?:at|in)[ \t]+[A-Z][\w-]+)?)"),
+    re.compile(r"\b([A-ZÄÖÜ][a-zäöüß]*gericht(?:shof)?[ \t]+[A-ZÄÖÜ][\w-]+)"),
+    re.compile(r"\b((?:Juzgado|Audiencia Provincial|Audiencia Nacional|Tribunal Superior de Justicia|Tribunal Supremo)[^\n]{0,60}?\bde\s+"
+               r"[A-ZÁÉÍÓÚÑ][\w-]+)(?=\s*(?:$|[—,;.(\n-]))", re.M),
+)
+CHAMBRE_ETR = re.compile(r"\b(\d{1,2}\.\s*(?:Zivil|Straf|Handels|Berufungs)?[Kk]ammer(?:\s+f[üu]r\s+Handelssachen)?|Secci[óo]n\s+\d{1,2}\.?ª?"
+                         r"|Sala\s+de\s+lo\s+[A-ZÁÉÍÓÚ]?[a-záéíóú]+)")
+
 
 def _date_valide(j, m, a):
     try:
@@ -262,12 +347,53 @@ def _heure(h, m):
     return '%02d:%02d' % (h, m) if 0 <= h <= 23 and 0 <= m <= 59 else ''
 
 
+def _heure_etr(h, m, suffixe=''):
+    """Heure d'une écriture étrangère : « 9.30 am », « 2 pm » (12 pm = midi, 12 am = minuit), « 10 Uhr », « 9:30 horas »."""
+    s = str(suffixe or '').replace('.', '')
+    try:
+        h = int(h)
+    except (TypeError, ValueError):
+        return ''
+    if s in ('am', 'pm'):
+        if not 1 <= h <= 12:
+            return ''
+        h = (h % 12) + (12 if s == 'pm' else 0)
+    return _heure(h, m)
+
+
+def _heure_lue(segment):
+    """(heure ou None, fin de l'écriture lue, écriture étrangère présente) juste après une date : règles françaises d'abord (inchangées),
+    puis anglaises, allemandes et espagnoles. Le dernier élément dit si une écriture étrangère (« Uhr », « am », « a las ») suit la date,
+    même quand la règle française a déjà lu l'heure (« 9:30 Uhr »)."""
+    etrangere = next((m for m in (motif.match(segment) for motif, _langue in HEURES_ETR) if m), None)
+    apres = HEURE_APRES.match(segment)
+    if apres:
+        return _heure(apres.group(1), apres.group(2)), (etrangere or apres).end(), bool(etrangere)
+    if etrangere:
+        return _heure_etr(etrangere.group(1), etrangere.group(2), etrangere.group(3) if etrangere.re.groups >= 3 else ''), etrangere.end(), True
+    return None, 0, False
+
+
+def heure_apres(segment):
+    """Heure écrite juste après une date (voir ``_heure_lue``)."""
+    return _heure_lue(segment)[0]
+
+
 def nature_de(texte):
     t = _plier(texte)
     for nature, motif in NATURE_MOTS:
         if motif.search(t):
             return nature
+    for nature, motif in NATURE_MOTS_ETR:     # 5.6.107 (lot X) : seulement si les mots français n'ont rien donné
+        if motif.search(t):
+            return nature
     return ''
+
+
+def plateforme_de(texte):
+    """Plateforme nommée dans le message (« CE-File », « beA », « LexNET ») ; sinon « RPVA » (libellé historique, inchangé)."""
+    t = _plier(texte)
+    return next((nom for nom, motif in PLATEFORMES if motif.search(t)), 'RPVA')
 
 
 def famille(nature):
@@ -287,12 +413,16 @@ def rg_du_texte(texte):
 def juridiction_du_texte(texte):
     m = JURIDICTION.search(str(texte or ''))
     if not m:
+        for motif in JURIDICTION_ETR:          # 5.6.107 (lot X) : juridictions anglaises, allemandes, espagnoles, si rien en français
+            x = motif.search(str(texte or ''))
+            if x:
+                return re.sub(r'^(?:The|the)\s+', '', re.sub(r'\s+', ' ', x.group(1))).strip()[:120]
         return ''
     return re.sub(r'\s+', ' ', '%s %s' % (m.group(1), m.group(2)) if len(m.group(1)) <= 4 else m.group(0)).strip()[:120]
 
 
 def chambre_du_texte(texte):
-    m = CHAMBRE.search(str(texte or ''))
+    m = CHAMBRE.search(str(texte or '')) or CHAMBRE_ETR.search(str(texte or ''))
     return re.sub(r'\s+', ' ', m.group(1)).strip()[:80] if m else ''
 
 
@@ -306,6 +436,10 @@ def extraire_evenement(objet, texte, aujourdhui):
     brut = (str(objet or '') + '\n' + str(texte or '')[:30000])
     t = _plier_meme_longueur(brut)
     nature = nature_de(brut)
+    plie = _plier(brut)
+    # 5.6.107 (lot X) : indice d'un message étranger (une règle anglaise, allemande ou espagnole a servi, ou un mot de juridiction étranger) ;
+    # sert au lecteur de courriels (« → Agenda ») pour compléter son repérage français sans jamais le changer pour un texte français
+    etranger = bool(JURIDICTION_MOTS_ETR.search(plie) or any(m.search(plie) for _n, m in NATURE_MOTS_ETR))
     trouves = []
     for m in DATE_NUM.finditer(t):
         d = _date_valide(m.group(1), m.group(2), m.group(3))
@@ -315,19 +449,40 @@ def extraire_evenement(objet, texte, aujourdhui):
         d = _date_valide(m.group(3), m.group(2), m.group(1))
         if d:
             trouves.append((m.start(), m.end(), d))
+    lettres = []
     for m in DATE_LETTRES.finditer(t):
+        lettres.append((m.start(), m.end()))
         d = _date_valide(m.group(2), MOIS[m.group(3)], m.group(4))
         if d and m.group(1) and JOURS[d.weekday()] != m.group(1):
             d = None                                # jour de semaine contraire à la date : écartée
         if d:
             trouves.append((m.start(), m.end(), d))
+    # 5.6.107 (lot X) : dates en toutes lettres anglaises, allemandes et espagnoles ; une écriture qui chevauche une date déjà lue (même
+    # écartée) par les règles françaises est ignorée : le français garde exactement ses candidats.
+    pris = lettres + [(debut, fin) for debut, fin, _d in trouves]
+    for langue, motif in DATES_ETR:
+        for m in motif.finditer(t):
+            if any(m.start() < f and d < m.end() for d, f in pris):
+                continue
+            pris.append((m.start(), m.end()))
+            d = _date_valide(m.group('j'), MOIS_ETR[langue][m.group('m')], m.group('a'))
+            if d and m.group('js') and m.group('js') not in JOURS_ETR[langue][d.weekday()]:
+                d = None                            # jour de semaine contraire à la date : écartée
+            if d:
+                trouves.append((m.start(), m.end(), d))
+                etranger = True
     trouves.sort()
     candidats, fin_precedente = [], 0
     for debut, fin, d in trouves:
         fenetre = t[max(fin_precedente, debut - 60):debut]
-        apres = HEURE_APRES.match(t[fin:fin + 30])
-        candidats.append({'date': d, 'heure': _heure(apres.group(1), apres.group(2)) if apres else '', 'cible': bool(CIBLE.search(fenetre)),
-                          'renvoi': bool(RENVOI_CIBLE.search(fenetre)), 'ancien': bool(ANCIEN.search(fenetre))})
+        h, fin_heure, heure_etrangere = _heure_lue(t[fin:fin + 30])
+        fenetre_etrangere = bool(CIBLE_ETR.search(fenetre) or RENVOI_CIBLE_ETR.search(fenetre) or ANCIEN_ETR.search(fenetre))
+        etranger = etranger or heure_etrangere or fenetre_etrangere
+        candidats.append({'date': d, 'heure': h or '',
+                          'cible': bool(CIBLE.search(fenetre) or CIBLE_ETR.search(fenetre)),
+                          'renvoi': bool(RENVOI_CIBLE.search(fenetre) or RENVOI_CIBLE_ETR.search(fenetre)),
+                          'ancien': bool(ANCIEN.search(fenetre) or ANCIEN_ETR.search(fenetre)),
+                          'expression': re.sub(r'\s+', ' ', brut[debut:fin + fin_heure]).strip(' ,')})
         fin_precedente = fin
     futurs = [c for c in candidats if c['date'] >= aujourdhui]
     if nature == 'renvoi':
@@ -350,6 +505,9 @@ def extraire_evenement(objet, texte, aujourdhui):
         heures = sorted({c['heure'] for c in retenus if c['date'] == choisie and c['heure']})
         if not heures:
             champ = sorted({_heure(h, m) for h, m in HEURE_CHAMP.findall(t)} - {''})
+            if not champ:     # 5.6.107 (lot X) : « Time: », « Uhrzeit: », « Hora: », seulement sans champ français
+                champ = sorted({_heure_etr(h, m, s) for h, m, s in HEURE_CHAMP_ETR.findall(t)} - {''})
+                etranger = etranger or bool(champ)
             heures = champ if len(champ) == 1 else heures
         if len(heures) == 1:
             heure = heures[0]
@@ -361,13 +519,15 @@ def extraire_evenement(objet, texte, aujourdhui):
     return {'nature': nature, 'date': choisie.isoformat() if choisie else '', 'heure': heure,
             'certitude': 'sure' if (choisie and heure and not motifs) else 'incertaine', 'motifs': motifs,
             'candidats': [d.isoformat() for d in dates[:4]], 'juridiction': juridiction_du_texte(brut), 'chambre': chambre_du_texte(brut),
-            'rg': rgs[0] if rgs else '', 'rgs': rgs[:4], 'source': 'regles'}
+            'rg': rgs[0] if rgs else '', 'rgs': rgs[:4], 'source': 'regles', 'etranger': etranger,
+            'expression': next((c['expression'] for c in retenus if c['date'] == choisie), '')[:120] if choisie else ''}
 
 
 def message_de_juridiction(mail):
     """Message RPVA (e-Barreau) ou de juridiction : sert seulement à proposer l'action « événement » dans l'assistant."""
     t = _plier(str(mail.sender) + ' ' + mail.subject + ' ' + mail.text[:3000])
-    return bool(re.search(r'\brpva\b|e-?barreau|greffe|tribunal|juridiction|cour d.appel|audience|mise en etat|delibere', t))
+    return bool(re.search(r'\brpva\b|e-?barreau|greffe|tribunal|juridiction|cour d.appel|audience|mise en etat|delibere', t)
+                or JURIDICTION_MOTS_ETR.search(t))   # 5.6.107 (lot X) : CE-File, beA, LexNET et formules anglaises, allemandes, espagnoles
 
 
 def peut_creer_directement(routine, ext, sur):
@@ -1763,7 +1923,7 @@ def proposer(desk, acteur, args, box=None):
     juridiction = message_de_juridiction(mail)
     sender = str(mail.sender or '').lower()
     objet = _objet_propose(mail.subject)
-    titre = ('RPVA — ' if juridiction else '') + (objet or _sans_prefixe(mail.subject)[:60] or 'Routine sur message')
+    titre = ((plateforme_de(mail.subject + ' ' + mail.text[:3000]) + ' — ') if juridiction else '') + (objet or _sans_prefixe(mail.subject)[:60] or 'Routine sur message')
     return {'titre': titre[:120], 'criteres': {'expediteur': sender, 'domaine': ('@' + _domaine(sender)) if sender else '', 'objet': objet, 'corps': '',
                                                'piece_jointe': _a_piece(mail.msg), 'compte': compte, 'boite': folder},
             'actions': ['evenement'] if juridiction else ['tache'], 'juridiction': juridiction,

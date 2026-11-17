@@ -1,0 +1,16 @@
+X-Demo-Id: durand-pieces-suite
+X-Demo-Heures: 1
+X-Demo-Boite: INBOX
+X-Demo-Piece: 02 - Abnahmeprotokoll.pdf|AKT-001
+X-Demo-Repond: durand-pieces
+From: Jan DURAND <geschaeftsfuehrung@durand-bau.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: AW: DURAND ./. MARTIN — Klageerwiderung erhalten
+Message-ID: <durand-pieces-suite@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+anbei vorab das unterzeichnete Abnahmeprotokoll. Die Bautagesberichte folgen morgen.
+
+Mit freundlichen Grüßen
+Jan DURAND

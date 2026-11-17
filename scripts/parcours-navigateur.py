@@ -1774,6 +1774,12 @@ PARCOURS = PARCOURS + (('P106l', 'Courriels : 14 lignes visibles, actions group�
                        ('P106d', 'Densité compacte de toutes les pages, logo et nom du cabinet en haut de la barre latérale', p106d_densite),
                        ('P106p', 'Messagerie @avocat.fr : réglage prêt à l’emploi, mot de passe applicatif, aide', p106p_avocatfr),
                        ('P106i', 'Assistant : joindre une image ou une page, aperçu masqué avant envoi', p106i_images))
+from parcours_p107m import p107m_demo   # noqa: E402 — 5.6.107 (lot M) : mode Démo
+from parcours_p107t import p107t_langues   # noqa: E402 — 5.6.107 (lot T) : interface en anglais, allemand, espagnol
+from parcours_p107f import p107f_fraude   # noqa: E402 — 5.6.107 (lot F2) : alerte de fraude discrète
+PARCOURS = PARCOURS + (('P107m', 'Mode Démo : courriel, dossier, À relire, résumé, fraude, recommencer, aucune action masquée', p107m_demo),
+                       ('P107t', 'Interface en EN, DE, ES : aucun texte français, densité tenue, formats locaux', p107t_langues),
+                       ('P107f', 'Alerte de fraude repliée en une ligne de puces, stockage du navigateur bloqué', p107f_fraude))
 
 # ------------------------------------------------------------------------------------------------ lancement
 def _tranche(ident):

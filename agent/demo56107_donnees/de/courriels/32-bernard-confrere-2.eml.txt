@@ -1,0 +1,16 @@
+X-Demo-Id: bernard-confrere-2
+X-Demo-Heures: 200
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Rechtsanwalt Paul BERNARD <p.bernard@bernard-rechtsanwaelte.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND ./. MARTIN — Vorschlag eines Gesprächs
+Message-ID: <bernard-confrere-2@demo.example.test>
+
+Sehr geehrte Frau Kollegin,
+
+meine Mandantin wäre bereit, eine gütliche Einigung in Betracht zu ziehen. Hätten Sie nächste Woche Zeit für ein Telefonat?
+
+Mit freundlichen kollegialen Grüßen
+Paul BERNARD
+Rechtsanwalt

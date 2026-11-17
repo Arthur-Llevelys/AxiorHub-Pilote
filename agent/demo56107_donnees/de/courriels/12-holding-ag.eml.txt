@@ -1,0 +1,16 @@
+X-Demo-Id: holding-ag
+X-Demo-Heures: 34
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Tagesordnung Gesellschafterversammlung.pdf|AKT-008
+From: Sekretariat DURAND Holding <sekretariat@durand-holding.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND Holding — Unterlagen für die Gesellschafterversammlung
+Message-ID: <holding-ag@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+anbei die Tagesordnung der ordentlichen Gesellschafterversammlung der DURAND Holding GmbH. Könnten Sie die Beschlussentwürfe vorbereiten?
+
+Mit freundlichen Grüßen
+Das Sekretariat

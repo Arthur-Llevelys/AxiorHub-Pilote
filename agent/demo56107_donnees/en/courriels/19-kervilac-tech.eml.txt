@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-tech
+X-Demo-Heures: 72
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Ian KERVILAC <founders@kervilac-tech.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Shareholders' agreement for our start-up
+Message-ID: <kervilac-tech@demo.example.test>
+
+Hello,
+
+There are three of us as shareholders and we would like a shareholders' agreement in place before a funding round. What are your fees for this kind of work?
+
+Ian KERVILAC
+KERVILAC Tech

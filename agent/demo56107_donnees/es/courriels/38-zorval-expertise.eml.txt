@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-expertise
+X-Demo-Heures: 280
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sofía ZORVAL <administracion@zorval.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ZORVAL c. KERVILAC — ¿quién asistirá a la visita pericial?
+Message-ID: <zorval-expertise@demo.example.test>
+
+Sra. Durand:
+
+Nuestro responsable de logística podrá asistir a la visita del perito. ¿Hay que preparar algo más?
+
+Sofía ZORVAL

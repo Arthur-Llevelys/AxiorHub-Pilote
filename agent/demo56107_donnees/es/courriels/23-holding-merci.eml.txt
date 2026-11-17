@@ -1,0 +1,14 @@
+X-Demo-Id: holding-merci
+X-Demo-Heures: 110
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Secretaría DURAND Holding <secretaria@durand-holding.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: DURAND Holding — fecha de la junta
+Message-ID: <holding-merci@demo.example.test>
+
+Sra. Durand:
+
+El presidente propone celebrar la junta general de DURAND Holding el viernes a las 15:00, en el domicilio social.
+
+La secretaría

@@ -1,0 +1,18 @@
+X-Demo-Id: envoi-durand
+X-Demo-Heures: 26
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+From: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+To: Jan DURAND <geschaeftsfuehrung@durand-bau.example.test>
+Subject: DURAND ./. MARTIN — Klageerwiderung
+Message-ID: <envoi-durand@demo.example.test>
+
+Sehr geehrter Herr DURAND,
+
+anbei übersende ich Ihnen die gestern eingegangene Klageerwiderung der MARTIN Immobilien GmbH. Ich prüfe sie und melde mich bei Ihnen.
+
+Mit freundlichen Grüßen
+
+Claire Durand
+Rechtsanwältin
+Kanzlei Durand

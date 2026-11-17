@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-zorval
+X-Demo-Heures: 46
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: zorval-facture
+From: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+To: Sophie ZORVAL <compta@zorval.example.test>
+Subject: RE: ZORVAL Distribution — nouvelle facture impayée
+Message-ID: <envoi-zorval@demo.example.test>
+
+Bonjour Madame ZORVAL,
+
+La facture 2024-160 pourra faire l'objet d'une nouvelle requête si elle reste impayée.
+
+Me Claire DURAND
+Cabinet DURAND Avocats

@@ -1,0 +1,14 @@
+X-Demo-Id: martin-sous-traitant
+X-Demo-Heures: 120
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Thomas MARTIN <dpo@martin-logistics.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: MARTIN Logistics — contract with the hosting provider
+Message-ID: <martin-sous-traitant@demo.example.test>
+
+Dear Claire,
+
+Our hosting provider has sent us its data processing agreement. Could you check that it contains the terms required by Article 28 of the UK GDPR?
+
+Thomas MARTIN

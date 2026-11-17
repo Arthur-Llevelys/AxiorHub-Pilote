@@ -1,0 +1,15 @@
+X-Demo-Id: holding-merci
+X-Demo-Heures: 110
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sekretariat DURAND Holding <sekretariat@durand-holding.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND Holding — Termin der Gesellschafterversammlung
+Message-ID: <holding-merci@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+der Geschäftsführer schlägt vor, die Gesellschafterversammlung der DURAND Holding GmbH am Freitag um 15:00 Uhr am Sitz der Gesellschaft abzuhalten.
+
+Mit freundlichen Grüßen
+Das Sekretariat

@@ -1,0 +1,15 @@
+X-Demo-Id: bernard-appel
+X-Demo-Heures: 26
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alicia BERNARD <alicia.bernard@example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Alicia BERNARD — mi recurso, ¿próximos pasos?
+Message-ID: <bernard-appel@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+Quería saber cuándo presentará el escrito de formalización de mi recurso de suplicación (1411/2024) y si tengo que enviarle algún otro documento.
+
+Muchas gracias,
+Alicia BERNARD

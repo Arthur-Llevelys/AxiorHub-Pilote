@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-refere
+X-Demo-Heures: 60
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Marc KERVILAC <gerance@sci-kervilac.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: KERVILAC c. ORLANDEC — audience de référé
+Message-ID: <kervilac-refere@demo.example.test>
+
+Maître,
+
+Je serai présent à l'audience de référé contre ORLANDEC Restauration (RG 24/01290). Faut-il apporter les relevés de loyers ?
+
+Marc KERVILAC

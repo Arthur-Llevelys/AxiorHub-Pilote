@@ -1,0 +1,15 @@
+X-Demo-Id: orlandec-rdv
+X-Demo-Heures: 13
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Helene ORLANDEC <vorstand@orlandec.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: ORLANDEC AG — Unterzeichnungstermin
+Message-ID: <orlandec-rdv@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+ich bestätige meine Teilnahme am Unterzeichnungstermin für den Aktienkaufvertrag ORLANDEC AG morgen um 10:00 Uhr in Ihrer Kanzlei.
+
+Mit freundlichen Grüßen
+Helene ORLANDEC

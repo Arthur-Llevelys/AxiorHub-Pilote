@@ -1,0 +1,17 @@
+X-Demo-Id: fraude-rib
+X-Demo-Heures: 3
+X-Demo-Boite: INBOX
+X-Demo-Sans-Authentification: oui
+From: Sophie ZORVAL <buchhaltung.zorval@zorval-zahlungen.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Änderung der Bankverbindung – dringend / urgent
+Message-ID: <fraude-rib@demo.example.test>
+
+Sehr geehrte Frau Rechtsanwältin,
+
+aufgrund eines Bankwechsels hat sich unsere Bankverbindung geändert. Bitte verwenden Sie das bisherige Konto nicht mehr, es wurde aufgelöst.
+
+Wir bitten um absolute Vertraulichkeit und darum, die für uns eingezogenen Beträge noch heute auf die neue IBAN zu überweisen: DE36 0000 0000 0000 0000 00.
+
+Mit freundlichen Grüßen
+Buchhaltung

@@ -1,0 +1,14 @@
+X-Demo-Id: lettre-info-2
+X-Demo-Heures: 340
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: The Business Law Letter <letter@legal-publishing.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: The Business Law Letter — No. 311: debt recovery and default judgment
+Message-ID: <lettre-info-2@demo.example.test>
+
+The Business Law Letter (fictional demonstration newsletter)
+
+- Default judgment: service and time limits;
+- Enforcement: writs of control and third party debt orders in practice.

@@ -1,0 +1,70 @@
+{
+ "note": "5.6.107 (lot V) : réglages par langue de la vidéo de démonstration (voix, légendes, carton de fin, textes des boutons filmés, cibles dans les données de démo). Le scénario (scenario.json) est commun ; une entrée « plans » remplace ici la légende, l’adresse et les cibles d’un plan. Cibles relevées le 17/11/2026 dans les données du lot M (agent/demo56107_donnees/<langue>) et libellés dans les traductions du lot T (agent/locales/ecrans_<langue>.json) ; titres de la synthèse du dossier et bouton « Retenir » (Keep, Übernehmen, Conservar) alignés sur les traductions finales du lot T. Un élément introuvable est noté dans le minutage, jamais inventé.",
+ "fr": {
+  "nom": "français",
+  "locale": "fr-FR",
+  "suffixe": "",
+  "mots": [210, 240],
+  "voix": {"moteur": "kokoro", "voix": "ff_siwis", "lang_code": "f", "tete_texte": "… ", "vitesse": 1.1, "repli": ["windows", "espeak-ng"], "espeak": "fr-fr", "windows": {"voix_preferees": ["Hortense", "Julie", "Paul"], "culture": "fr-FR"}},
+  "prononciation": {"axiorhub.com": "Axior Hub point com", "AxiorHub": "Axior Hub", "RPVA": "R P V A", "IA": "I A"},
+  "libelles": {"resumer": ["Résumer avec l’IA"], "agenda": ["Ajouter à l’agenda"]},
+  "plans": {}
+ },
+ "en": {
+  "nom": "English",
+  "locale": "en-GB",
+  "suffixe": ".en",
+  "mots": [180, 240],
+  "voix": {"moteur": "kokoro", "voix": "af_heart", "lang_code": "a", "tete_texte": "… ", "vitesse": 1.05, "repli": [], "espeak": "en-gb", "windows": {"voix_preferees": ["Zira", "David"], "culture": "en-US", "note": "essai seulement (--moteur windows) : la voix choisie par l’avocat est af_heart"}},
+  "prononciation": {"axiorhub.com": "Axior Hub dot com", "AxiorHub": "Axior Hub"},
+  "libelles": {"resumer": ["Summarise with AI"], "agenda": ["Add to calendar"]},
+  "fin": {"marque": "AxiorHub Pilote", "devise": "Your firm, your data, on your server", "adresse": "axiorhub.com"},
+  "plans": {
+   "aujourdhui": {"legende": "Today: the firm’s day at a glance"},
+   "courriel": {"legende": "A client email, linked to its matter", "cibles": {"courriel": [["defence received"]]}},
+   "dossier": {"legende": "The matter: parties, documents, chronology", "cibles": {"onglets": [], "survol": [["Parties and lawyers", "Parties"], ["Evidence"], ["Upcoming dates", "Chronology"]]}, "page": "/dossier?id=MAT-001"},
+   "reponse": {"legende": "AI draft reply: reviewed, corrected, kept", "cibles": {"projet": [["defence received", "Suggestion"], ["DURAND", "Suggestion"]], "mot": [["three", "six"]]}},
+   "resume": {"legende": "Three emails ticked, one summary", "cibles": {"courriels": [[["defence received"]], [["ORLANDEC recovery"]], [["High Street lease"]]]}},
+   "fraude": {"legende": "Alert: suspicious change of bank details", "cibles": {"courriel": [["Change of bank details"], ["bank details"]]}},
+   "rpva": {"legende": "Court notice: hearing offered for the calendar", "cibles": {"courriel": [["CE-File"], ["Notice of hearing"]]}}
+  }
+ },
+ "de": {
+  "nom": "Deutsch",
+  "locale": "de-DE",
+  "suffixe": ".de",
+  "mots": [170, 230],
+  "voix": {"moteur": "piper", "voix": "de_DE-thorsten-high", "vitesse": 0.95, "repli": ["espeak-ng"], "espeak": "de"},
+  "prononciation": {"axiorhub.com": "Axior Hub Punkt com", "AxiorHub": "Axior Hub", "KI": "K I"},
+  "libelles": {"resumer": ["Mit KI zusammenfassen"], "agenda": ["Zum Kalender hinzufügen"]},
+  "fin": {"marque": "AxiorHub Pilote", "devise": "Ihre Kanzlei, Ihre Daten, auf Ihrem Server", "adresse": "axiorhub.com"},
+  "plans": {
+   "aujourdhui": {"legende": "Heute: der Kanzleitag auf einen Blick"},
+   "courriel": {"legende": "Eine Mandanten-E-Mail, ihrer Akte zugeordnet", "cibles": {"courriel": [["Klageerwiderung erhalten"]]}},
+   "dossier": {"legende": "Die Akte: Parteien, Unterlagen, Chronologie", "cibles": {"onglets": [], "survol": [["Parteien und Anwälte", "Parteien"], ["Beweismittel"], ["Nächste Termine", "Chronologie"]]}, "page": "/dossier?id=AKT-001"},
+   "reponse": {"legende": "KI-Antwortentwurf: geprüft, korrigiert, übernommen", "cibles": {"projet": [["Klageerwiderung", "Vorschlag"], ["DURAND", "Vorschlag"]], "mot": [["drei", "sechs"]]}},
+   "resume": {"legende": "Drei markierte E-Mails, eine Zusammenfassung", "cibles": {"courriels": [[["Klageerwiderung erhalten"]], [["Stand der Forderung"]], [["Verlängerung des Mietvertrags"]]]}},
+   "fraude": {"legende": "Warnung: verdächtige neue Bankverbindung", "cibles": {"courriel": [["Änderung der Bankverbindung"], ["Bankverbindung"]]}},
+   "rpva": {"legende": "Gerichtsnachricht: Termin für den Kalender", "cibles": {"courriel": [["beA"], ["Terminsladung"]]}}
+  }
+ },
+ "es": {
+  "nom": "español",
+  "locale": "es-ES",
+  "suffixe": ".es",
+  "mots": [200, 260],
+  "voix": {"moteur": "kokoro", "voix": "ef_dora", "lang_code": "e", "tete_texte": "… ", "vitesse": 1.1, "repli": ["espeak-ng"], "espeak": "es"},
+  "prononciation": {"axiorhub.com": "Axior Hub punto com", "AxiorHub": "Axior Hub", "IA": "I A"},
+  "libelles": {"resumer": ["Resumir con la IA", "Resumir con IA"], "agenda": ["Añadir a la agenda"]},
+  "fin": {"marque": "AxiorHub Pilote", "devise": "Su despacho, sus datos, en su servidor", "adresse": "axiorhub.com"},
+  "plans": {
+   "aujourdhui": {"legende": "Hoy: la jornada del despacho de un vistazo"},
+   "courriel": {"legende": "Un correo de cliente, vinculado a su expediente", "cibles": {"courriel": [["contestación a la demanda"]]}},
+   "dossier": {"legende": "El expediente: partes, documentos, cronología", "cibles": {"onglets": [], "survol": [["Partes y abogados", "Partes"], ["Pruebas documentales"], ["Próximas fechas", "Cronología"]]}, "page": "/dossier?id=EXP-001"},
+   "reponse": {"legende": "Borrador de la IA: revisado, corregido, conservado", "cibles": {"projet": [["contestación", "Propuesta"], ["DURAND", "Propuesta"]], "mot": [["tres", "seis"]]}},
+   "resume": {"legende": "Tres correos marcados, un solo resumen", "cibles": {"courriels": [[["contestación a la demanda"]], [["recobro de ORLANDEC"]], [["renovación del arrendamiento"]]]}},
+   "fraude": {"legende": "Alerta: cambio sospechoso de datos bancarios", "cibles": {"courriel": [["Cambio de cuenta bancaria"], ["cuenta bancaria"]]}},
+   "rpva": {"legende": "Notificación judicial: vista propuesta en la agenda", "cibles": {"courriel": [["LexNET"], ["señalamiento"]]}}
+  }
+ }
+}

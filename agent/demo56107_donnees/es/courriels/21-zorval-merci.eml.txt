@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-merci
+X-Demo-Heures: 90
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sofía ZORVAL <administracion@zorval.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ZORVAL c. KERVILAC — fotos de las filtraciones
+Message-ID: <zorval-merci@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+Le envío las fotos tomadas en la nave después de las últimas lluvias, para la prueba pericial (1355/2024).
+
+Sofía ZORVAL

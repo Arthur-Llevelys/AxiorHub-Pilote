@@ -1,0 +1,18 @@
+X-Demo-Id: greffe-ca
+X-Demo-Heures: 80
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Valbrune Employment Appeal Tribunal <listing@valbrune-eat.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: [CE-File] Notice — Appeal No. VB24C01411 — BERNARD v ZORVAL Services
+Message-ID: <greffe-ca@demo.example.test>
+
+Fictional CE-File message (demonstration).
+
+Valbrune Employment Appeal Tribunal
+Appeal: Alice BERNARD v ZORVAL Services Ltd
+Appeal No. VB24C01411
+
+Notice of directions: the appellant's skeleton argument must be filed within the time limit set by the Tribunal.
+
+Listing Office

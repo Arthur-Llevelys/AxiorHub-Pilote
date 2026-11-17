@@ -1,0 +1,18 @@
+X-Demo-Id: rpva-fixation
+X-Demo-Heures: 5
+X-Demo-Boite: INBOX
+From: Landgericht Valbrune <poststelle@lg-valbrune.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: [beA] Terminsladung — Az. 2 O 1234/24 — DURAND ./. MARTIN
+Message-ID: <rpva-fixation@demo.example.test>
+
+Fiktive beA-Nachricht (Demonstration).
+
+Landgericht Valbrune — 2. Zivilkammer
+In dem Rechtsstreit DURAND Bau GmbH ./. MARTIN Immobilien GmbH
+Az. 2 O 1234/24
+
+Termin zur mündlichen Verhandlung wird bestimmt auf den {AUDIENCE}, 9:30 Uhr, Sitzungssaal 214.
+Die Parteien erhalten Gelegenheit, bis zum Termin ergänzend vorzutragen.
+
+Die Geschäftsstelle

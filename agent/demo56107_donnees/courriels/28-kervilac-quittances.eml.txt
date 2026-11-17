@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-quittances
+X-Demo-Heures: 160
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Marc KERVILAC <gerance@sci-kervilac.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: SCI KERVILAC — quittances et relevés de loyers
+Message-ID: <kervilac-quittances@demo.example.test>
+
+Maître,
+
+Voici le relevé des loyers impayés d'ORLANDEC Restauration pour le référé (KERVILAC c. ORLANDEC).
+
+Marc KERVILAC

@@ -1,0 +1,14 @@
+X-Demo-Id: expert-provision
+X-Demo-Heures: 180
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sr. ORLANDEC, perito judicial <perito.orlandec@peritaciones.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Prueba anticipada 1355/2024 — provisión de fondos recibida
+Message-ID: <expert-provision@demo.example.test>
+
+Estimada letrada:
+
+Le confirmo que la provisión de fondos se ha ingresado en la cuenta de consignaciones del juzgado. Las operaciones periciales pueden comenzar.
+
+El perito judicial

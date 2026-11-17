@@ -1,0 +1,14 @@
+X-Demo-Id: durand-chantier
+X-Demo-Heures: 190
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Javier DURAND <direccion@durand-construcciones.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: DURAND c. MARTIN — actas de obra
+Message-ID: <durand-chantier@demo.example.test>
+
+Sra. Durand:
+
+Le remito las actas de obra de los tres últimos meses, como me pidió.
+
+Javier DURAND

@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-loyer
+X-Demo-Heures: 9
+X-Demo-Boite: INBOX
+From: Mark KERVILAC <management@kervilac-properties.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: KERVILAC Properties — renewal of the High Street lease
+Message-ID: <kervilac-loyer@demo.example.test>
+
+Dear Claire,
+
+The lease of our bookshop tenant expires in six months. Can we propose a higher rent? The area has changed a great deal since the tram line opened.
+
+Best wishes,
+Mark KERVILAC
+KERVILAC Properties Ltd

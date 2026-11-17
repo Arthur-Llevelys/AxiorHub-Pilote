@@ -1,0 +1,14 @@
+X-Demo-Id: assurance
+X-Demo-Heures: 210
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Valbrune Indemnity Insurers <policies@valbrune-indemnity.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Your professional indemnity insurance certificate
+Message-ID: <assurance@demo.example.test>
+
+Dear Ms DURAND,
+
+Please find your professional indemnity insurance certificate for the current year (fictional demonstration document).
+
+Customer Services

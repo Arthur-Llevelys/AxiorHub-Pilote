@@ -1,0 +1,18 @@
+X-Demo-Id: envoi-bernard
+X-Demo-Heures: 318
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+From: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+To: Alice BERNARD <alice.bernard@privat.example.test>
+Subject: Alice BERNARD — Ihre Berufung
+Message-ID: <envoi-bernard@demo.example.test>
+
+Sehr geehrte Frau BERNARD,
+
+anbei erhalten Sie eine Übersicht über die Schritte des Berufungsverfahrens und den voraussichtlichen Zeitplan.
+
+Mit freundlichen Grüßen
+
+Claire Durand
+Rechtsanwältin
+Kanzlei Durand

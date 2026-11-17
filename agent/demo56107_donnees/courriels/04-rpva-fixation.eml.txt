@@ -1,0 +1,18 @@
+X-Demo-Id: rpva-fixation
+X-Demo-Heures: 5
+X-Demo-Boite: INBOX
+From: Greffe du TJ Valbrune <greffe.civil@tj-valbrune.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: [RPVA] Avis de fixation — RG 24/01234 — DURAND c. MARTIN
+Message-ID: <rpva-fixation@demo.example.test>
+
+Message RPVA fictif (démonstration).
+
+Tribunal judiciaire de Valbrune — 3e chambre civile
+Affaire : Société DURAND Bâtiment c. MARTIN Immobilier SAS
+N° RG 24/01234
+
+L'affaire est renvoyée à l'audience de mise en état du {AUDIENCE} à 9 h 30.
+Les parties sont invitées à conclure avant cette date.
+
+Le greffe

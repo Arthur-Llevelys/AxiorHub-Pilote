@@ -1,0 +1,14 @@
+X-Demo-Id: assurance
+X-Demo-Heures: 210
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Seguros de la Abogacía <poliza@seguros-abogacia.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Su certificado del seguro de responsabilidad civil profesional
+Message-ID: <assurance@demo.example.test>
+
+Estimada Sra. Durand:
+
+Le remitimos su certificado de seguro para el año en curso (documento ficticio de demostración).
+
+Atención al cliente

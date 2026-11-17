@@ -1,0 +1,15 @@
+{
+ "titre": "AxiorHub Pilote — démonstration en 90 secondes",
+ "version_scenario": 1,
+ "note": "5.6.107 (lot V). Ordre décidé avec l'avocat le 16/11/2026 : d'abord le courriel et son dossier, puis le reste. Les textes « cibles » servent à retrouver les éléments à filmer dans les données fictives (mode Démo du lot M ou banc des parcours) ; ils se règlent ici sans toucher au code. Une cible est une liste de mots, ou une liste de variantes essayées dans l’ordre (mode Démo, puis banc).",
+ "plans": [
+  {"id": 1, "nom": "aujourdhui", "titre": "Aujourd'hui", "duree_visee": 5, "legende": "Aujourd'hui : la journée du cabinet en un coup d'œil", "page": "/aujourdhui"},
+  {"id": 2, "nom": "courriel", "titre": "Un courriel d'un client arrive", "duree_visee": 15, "legende": "Un courriel client, rattaché à son dossier", "page": "/courriels?vue=boite", "cibles": {"courriel": [["conclusions adverses"], ["Pièces complémentaires"]]}},
+  {"id": 3, "nom": "dossier", "titre": "Le dossier", "duree_visee": 12, "legende": "Le dossier : parties, pièces, chronologie", "page": "/dossier?id=DOS-001", "cibles": {"onglets": [], "survol": [["Parties et avocats", "Parties"], ["Pièces probantes", "Pièces"], ["Chronologie", "Prochaines dates"]]}},
+  {"id": 4, "nom": "reponse", "titre": "Projet de réponse préparé par l'IA", "duree_visee": 15, "legende": "Projet de réponse de l'IA : relu, corrigé, retenu", "page": "/a-relire", "cibles": {"projet": [["conclusions adverses", "Proposition"], ["Pièces complémentaires"]], "mot": [["trois", "six"], ["mardi", "jeudi"]]}},
+  {"id": 5, "nom": "resume", "titre": "Résumé de trois courriels cochés", "duree_visee": 10, "legende": "Trois courriels cochés, un seul résumé", "page": "/courriels?vue=boite", "cibles": {"courriels": [[["conclusions adverses"], ["Pièces complémentaires"]], [["recouvrement ORLANDEC"], ["Calendrier de la procédure"]], [["renouvellement du bail"], ["Communication de pièces"]]]}},
+  {"id": 6, "nom": "fraude", "titre": "Alerte sur un courriel frauduleux", "duree_visee": 8, "legende": "Alerte : changement de RIB suspect", "page": "/courriels?vue=boite", "cibles": {"courriel": [["Changement de RIB"], ["coordonnées bancaires"]]}},
+  {"id": 7, "nom": "rpva", "titre": "Message RPVA, audience proposée dans l'agenda", "duree_visee": 10, "legende": "Avis RPVA : l'audience proposée dans l'agenda", "page": "/courriels?vue=boite", "cibles": {"courriel": [["RPVA", "Avis de fixation"]]}},
+  {"id": 8, "nom": "fin", "titre": "Fin", "duree_visee": 8, "legende": "", "page": "", "fin": {"marque": "AxiorHub Pilote", "devise": "Votre cabinet, vos données, sur votre serveur", "adresse": "axiorhub.com"}}
+ ]
+}

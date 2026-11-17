@@ -1,0 +1,16 @@
+X-Demo-Id: zorval-relance
+X-Demo-Heures: 7
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <buchhaltung@zorval.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: ZORVAL Distribution — Stand der Forderung gegen ORLANDEC?
+Message-ID: <zorval-relance@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+können Sie mir sagen, wie der Stand beim Einzug der offenen Rechnungen gegen die ORLANDEC Handel GmbH ist (Az. 12 C 1302/24)? Unsere Liquidität ist in diesem Quartal angespannt.
+
+Vielen Dank
+Sophie ZORVAL
+ZORVAL Distribution GmbH

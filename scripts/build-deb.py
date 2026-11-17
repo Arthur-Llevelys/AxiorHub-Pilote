@@ -8,6 +8,8 @@
   cumulative), les versions précédentes restent sous /opt/axiorhub-mail-agent/releases et le retour arrière reste possible ;
 - variante « poste » (5.6.20, paquet « axiorhub-pilote-poste », Architecture amd64) : arbre complet déployé sous
   /usr/lib/axiorhub-pilote/current, lanceur /usr/bin/axiorhub-pilote, entrée de menu, icône et unité systemd utilisateur ;
+  5.6.107 (lot M) : « axiorhub-pilote --demo » ouvre le mode Démo (le lanceur transmet ses arguments à poste.py) ; l'entrée de menu porte
+  l'action « Essayer la démo » (contrôlée à la vérification du paquet) ;
   aucun script de maintenance, les données vivent dans le dossier personnel (poste.py) ;
 - apt apporte les dépendances système ; l'archive est extraite dans un dossier temporaire et contrôlée par ``upgrade.verify`` ;
 - le paquet produit est relu (format ar, control, md5sums, droits) et, si dpkg-deb est présent, contrôlé par lui.
@@ -257,6 +259,9 @@ def check(path, payload=None):
                 raise RuntimeError('Fichier du paquet poste absent : ' + required)
         if info['data']['./usr/bin/axiorhub-pilote']['mode'] != 0o755:
             raise RuntimeError('Lanceur non exécutable.')
+        entree = info['data']['./usr/share/applications/axiorhub-pilote.desktop'].get('data')   # 5.6.107 (lot M)
+        if entree is not None and b'Exec=axiorhub-pilote --demo' not in entree:
+            raise RuntimeError('Entrée de menu sans l’action « Essayer la démo » (5.6.107).')
         if any('./' + s in info['control'] for s in SCRIPTS):
             raise RuntimeError('Le paquet poste ne doit pas avoir de script de maintenance.')
     else:

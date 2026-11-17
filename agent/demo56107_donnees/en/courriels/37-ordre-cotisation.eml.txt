@@ -1,0 +1,14 @@
+X-Demo-Id: ordre-cotisation
+X-Demo-Heures: 260
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Valbrune Law Society <office@valbrune-law-society.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Annual membership subscription
+Message-ID: <ordre-cotisation@demo.example.test>
+
+Dear Ms DURAND,
+
+This year's membership subscription notice is available in your member area (fictional demonstration message).
+
+Valbrune Law Society office

@@ -1,0 +1,14 @@
+X-Demo-Id: bernard-pieces
+X-Demo-Heures: 140
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Alice BERNARD — attestations de collègues
+Message-ID: <bernard-pieces@demo.example.test>
+
+Maître,
+
+Deux anciens collègues acceptent de rédiger une attestation. Je vous les transmets dès réception.
+
+Alice BERNARD

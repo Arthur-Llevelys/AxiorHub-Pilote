@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-refere
+X-Demo-Heures: 60
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Mark KERVILAC <management@kervilac-properties.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: KERVILAC v ORLANDEC — possession hearing
+Message-ID: <kervilac-refere@demo.example.test>
+
+Dear Claire,
+
+I will attend the possession hearing against ORLANDEC Restaurants (Claim No. VB24C01290). Should I bring the rent statements?
+
+Mark KERVILAC

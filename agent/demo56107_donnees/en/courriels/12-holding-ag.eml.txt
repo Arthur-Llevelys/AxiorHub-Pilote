@@ -1,0 +1,16 @@
+X-Demo-Id: holding-ag
+X-Demo-Heures: 34
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - AGM notice and agenda.pdf|MAT-008
+From: DURAND Holdings Company Secretary <cosec@durand-holdings.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND Holdings — papers for the annual general meeting
+Message-ID: <holding-ag@demo.example.test>
+
+Dear Claire,
+
+Please find attached the notice and agenda of the DURAND Holdings annual general meeting. Could you prepare the draft resolutions?
+
+Company Secretary
+DURAND Holdings Ltd

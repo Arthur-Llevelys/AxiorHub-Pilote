@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-martin
+X-Demo-Heures: 115
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: martin-sous-traitant
+From: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+To: Thomas MARTIN <dpo@martin-logistique.example.test>
+Subject: RE: MARTIN Logistique — contrat avec l’hébergeur
+Message-ID: <envoi-martin@demo.example.test>
+
+Bonjour,
+
+Je relis le contrat de l'hébergeur et vous adresse mes commentaires avant notre réunion.
+
+Me Claire DURAND
+Cabinet DURAND Avocats

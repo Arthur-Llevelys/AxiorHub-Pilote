@@ -1,0 +1,17 @@
+X-Demo-Id: bernard-confrere
+X-Demo-Heures: 50
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 04 - Contestacion a la demanda.pdf|EXP-001
+From: Pablo BERNARD <p.bernard@bernard-abogados.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: DURAND c. MARTIN — Procedimiento 1234/2024 — traslado de escritos
+Message-ID: <bernard-confrere@demo.example.test>
+
+Estimada compañera:
+
+Te adjunto, a efectos de traslado, la contestación a la demanda de MARTIN Inmobiliaria junto con los documentos que la acompañan.
+
+Un cordial saludo,
+Pablo BERNARD
+Abogado

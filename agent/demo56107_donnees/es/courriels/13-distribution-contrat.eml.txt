@@ -1,0 +1,15 @@
+X-Demo-Id: distribution-contrat
+X-Demo-Heures: 40
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Borrador de contrato de distribucion.pdf|EXP-009
+From: Asesoría jurídica ORLANDEC <juridico@orlandec.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Revisión del contrato de distribución ORLANDEC
+Message-ID: <distribution-contrat@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+Nuestro proveedor nos propone un contrato de distribución exclusiva. ¿Podría revisarlo, en particular el pacto de no competencia?
+
+La asesoría jurídica de ORLANDEC S.A.

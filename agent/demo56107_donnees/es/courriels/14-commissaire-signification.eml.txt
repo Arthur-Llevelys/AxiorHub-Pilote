@@ -1,0 +1,15 @@
+X-Demo-Id: commissaire-signification
+X-Demo-Heures: 44
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Inés KERVILAC, procuradora <despacho@procuradora-kervilac.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Monitorio 1302/2024 — requerimiento de pago practicado
+Message-ID: <commissaire-signification@demo.example.test>
+
+Estimada letrada:
+
+Le informo de que el requerimiento de pago del juicio monitorio se ha practicado a ORLANDEC Comercial S.L. en su domicilio social. La diligencia se le remitirá por LexNET.
+
+Inés KERVILAC
+Procuradora de los tribunales

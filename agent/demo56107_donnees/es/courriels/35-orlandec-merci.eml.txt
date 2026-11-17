@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-merci
+X-Demo-Heures: 230
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Asesoría jurídica ORLANDEC <juridico@orlandec.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ORLANDEC — gracias por la nota
+Message-ID: <orlandec-merci@demo.example.test>
+
+Sra. Durand:
+
+Gracias por su nota sobre la exclusividad territorial. La trasladamos a la dirección.
+
+La asesoría jurídica

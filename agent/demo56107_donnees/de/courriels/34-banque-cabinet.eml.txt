@@ -1,0 +1,11 @@
+X-Demo-Id: banque-cabinet
+X-Demo-Heures: 220
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Bank am Gerichtsplatz <kundenservice@bank-gerichtsplatz.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Monatlicher Kontoauszug Ihres Geschäftskontos
+Message-ID: <banque-cabinet@demo.example.test>
+
+Ihr monatlicher Kontoauszug steht in Ihrem Online-Banking bereit (fiktive Nachricht zur Demonstration).

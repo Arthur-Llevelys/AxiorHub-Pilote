@@ -1,0 +1,27 @@
+# Sprechertext — Demovideo von AxiorHub Pilote (etwa 90 Sekunden), Version 5.6.107, Deutsch.
+# Getreue Übersetzung des am 17.11.2026 vom Anwalt freigegebenen französischen Textes; wird dem Anwalt vorgelegt. Ein Satz pro Einstellung.
+# Format für scripts/video56107/texte.py: « [Nummer] Titel der Einstellung | Solldauer in Sekunden », danach der Satz der Einstellung.
+
+[1] Heute | 5 s
+Jeden Morgen fasst AxiorHub Pilote auf einer einzigen Seite alles zusammen, was in der Kanzlei an diesem Tag ansteht.
+
+[2] Die E-Mail eines Mandanten trifft ein | 15 s
+Ein Mandant schreibt zu seiner Angelegenheit: AxiorHub erkennt den Absender und das Aktenzeichen, schlägt sofort die passende Akte vor und zeigt sie mit einer Markierung an, in der Liste wie in der geöffneten Nachricht.
+
+[3] Die Akte | 12 s
+Über das Menü Akten geöffnet, bündelt die Akte die Parteien, die Unterlagen und die Chronologie des Falls an einem Ort, direkt neben dem letzten Austausch mit dem Mandanten.
+
+[4] Von der KI vorbereiteter Antwortentwurf | 15 s
+Für diese E-Mail hat die KI bereits einen Antwortentwurf vorbereitet und zur Prüfung abgelegt: Sie lesen ihn durch, korrigieren bei Bedarf ein Wort und entscheiden dann selbst, denn ohne Sie verlässt nichts die Kanzlei.
+
+[5] Zusammenfassung von drei markierten E-Mails | 10 s
+Markieren Sie drei E-Mails und fordern Sie eine Zusammenfassung an: Das Wesentliche jeder Nachricht und die nächsten Schritte erscheinen neben der Liste, ohne dass Sie den Posteingang verlassen.
+
+[6] Warnung vor einer betrügerischen E-Mail | 8 s
+Kündigt eine Nachricht eine neue Bankverbindung an, markiert AxiorHub sie als verdächtig und rät Ihnen, vor jeder Überweisung bei Ihrem Ansprechpartner nachzufragen.
+
+[7] Nachricht des Gerichts, Termin für den Kalender vorgeschlagen | 10 s
+Eine Nachricht des Gerichts über das elektronische Postfach setzt einen Verhandlungstermin fest: AxiorHub erkennt ihn und schlägt vor, ihn in den Kanzleikalender einzutragen, wobei die Entscheidung bei Ihnen bleibt.
+
+[8] Ende | 8 s
+AxiorHub Pilote heißt Ihre Kanzlei und Ihre Daten auf Ihrem eigenen Server: jetzt entdecken auf axiorhub.com.

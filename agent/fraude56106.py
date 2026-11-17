@@ -20,6 +20,8 @@ force (faible, moyen, fort) et un motif lisible :
 - **Fraude au virement** : changement de coordonnées bancaires, IBAN différent de celui confirmé pour ce contact, urgence et secret,
   demande de virement (surtout vers un IBAN étranger).
 - **Texte caché et instructions adressées à une IA** : signal existant de ``bouclier5659``.
+- 5.6.107 (lot X) : les signaux de contenu (changement de coordonnées bancaires, pression ou secret, demande de virement, page de connexion
+  imitée) reconnaissent aussi l'anglais, l'allemand et l'espagnol (``R_*_ETR``), mêmes poids, cherchés seulement après le français.
 
 **Niveaux** (``NIVEAUX``) : aucun, « Attention » (score ≥ 3), « Suspect » (≥ 6), « Danger » (≥ 10). Des signaux faibles seuls, quel qu'en
 soit le nombre, ne donnent jamais d'alerte (il faut au moins un signal moyen ou fort) ; sans alerte, rien n'est affiché (jamais « vérifié sûr »). Les signaux de contenu (urgence, demande de virement, IBAN étranger)
@@ -40,6 +42,18 @@ politique des données, pause, budget) ; il peut renforcer l'alerte, jamais l'an
 
 Aucune écriture pendant une lecture (R05) : la liste et le lecteur calculent sans rien enregistrer ; seul le relevé (travailleur) garde le
 verdict. Schéma créé au démarrage (``Desk``).
+
+5.6.107 (lot F2) — moins de fausses alertes (demande de l'avocat du 17/11/2026 : lettre d'information légitime classée « Attention ») :
+
+- **Serveur qui n'authentifie rien** : le relevé note, pour chaque courriel reçu d'un tiers, si l'en-tête ``Authentication-Results`` de
+  confiance était présent (colonne ``avec_auth`` des verdicts). Si aucun des ``FENETRE_AUTH`` derniers courriels relevés du compte n'en
+  porte (au moins ``MIN_AUTH`` constats), l'indice « aucun résultat d'authentification » ne compte plus pour chaque courriel : il devient une
+  recommandation unique dans Paramètres › Messagerie (``recommandation_html``). Un seul courriel authentifié dans la fenêtre suffit à le
+  rétablir. Calcul à la lecture sur les constats du relevé : aucune écriture pendant une lecture.
+- **Envoi en nombre** (``List-Unsubscribe`` ou ``List-Id``) avec du texte masqué : le texte d'aperçu caché des lettres d'information est
+  courant ; l'indice devient faible (il ne déclenche plus d'alerte seul, il compte encore avec un autre indice). Il garde son poids quand le
+  texte masqué contient des instructions pour une IA (bouclier), et dans tout courriel qui n'est pas un envoi en nombre.
+- ``VERSION`` 2 : un verdict gardé par une version précédente n'est plus repris par la liste (il est recalculé au prochain relevé).
 """
 from email.utils import getaddresses, parseaddr
 from html import escape as e
@@ -58,7 +72,7 @@ from .common import Stop, fold
 
 PREFIXE = 'm56106/fraude/'
 JOB = 'fraude56106_avis'
-VERSION = 1
+VERSION = 2   # 5.6.107 (lot F2) : règles « serveur sans authentification » et « texte masqué d'un envoi en nombre »
 ROLES_COURRIEL = ('administrateur', 'avocat')
 ROUTES_GET = ('reglages',)
 ROUTES_POST = ('exception', 'retour', 'indesirable', 'reglages')
@@ -76,6 +90,9 @@ MAX_HTML = 400000
 MAX_LIENS = 300
 MAX_PIECES = 50
 MAX_CONNUS = 3000
+# 5.6.107 (lot F2) : constat « votre serveur n'ajoute jamais d'Authentication-Results » (derniers courriels relevés du compte)
+FENETRE_AUTH = 30
+MIN_AUTH = 20
 
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS fraude56106_verdicts(cle TEXT PRIMARY KEY, compte TEXT NOT NULL, empreinte TEXT NOT NULL, expediteur TEXT NOT NULL,
@@ -134,6 +151,53 @@ R_CONNEXION = re.compile(r"(?:connectez-vous|lien de connexion|page de connexion
                          r"confirme[rz]?\s+votre\s+(?:compte|identite|mot de passe)|mot de passe\s+(?:a\s+)?(?:expire|va expirer)|"
                          r"reactive[rz]?\s+votre\s+compte|boite\s+(?:aux lettres|de reception|mail)\s+(?:est\s+)?pleine|"
                          r"compte\s+(?:sera\s+)?(?:suspendu|bloque|desactive)|sign in|verify your account|password expir)")
+# 5.6.107 (lot X) : mêmes signaux en anglais, allemand et espagnol (démo dans ces langues, correspondants étrangers), avec les MÊMES poids.
+# Expressions AJOUTÉES aux françaises (cherchées seulement si les françaises ne trouvent rien) : le français reste exactement inchangé. Le
+# simple mot « confidential », « vertraulich » ou « confidencial » n'est jamais un signal (mentions de confidentialité en pied de courriel).
+R_RIB_ETR = re.compile(
+    r"\b(?:new\s+(?:bank(?:ing)?\s+details|bank\s+account|account\s+(?:details|number)|iban|sort\s+code|bank)|"
+    r"updated\s+(?:bank(?:ing)?\s+details|bank\s+account|account(?:\s+details)?|payment\s+details|iban)|"
+    r"change\s+(?:of|in|to)\s+(?:our\s+|my\s+)?(?:bank(?:ing)?\s+details|bank\s+account|account\s+details|bank|iban)|"
+    r"(?:bank(?:ing)?|account|payment)\s+details\s+(?:have|has)\s+(?:now\s+)?changed|bank\s+account\s+(?:has|have)\s+(?:now\s+)?changed|"
+    r"(?:old|previous|former)\s+(?:bank\s+)?account(?:,?\s+which)?\s+(?:is|has\s+(?:now\s+)?been|was)\s+(?:now\s+)?(?:closed|blocked|suspended|frozen)|"
+    r"neue[nrs]?\s+(?:bankverbindung|kontoverbindung|iban|konto|bank)|kontoanderung|bankwechsel|geanderte[nrs]?\s+(?:bankverbindung|kontoverbindung)|"
+    r"anderung\s+(?:der|unserer|meiner)\s+(?:bankverbindung|kontoverbindung|iban)|"
+    r"(?:bankverbindung|kontoverbindung)\s+(?:hat\s+sich\s+)?geandert|"
+    r"(?:alte|bisherige)s?\s+konto(?:,?\s+(?:es|das))?\s+(?:ist|wurde)\s+(?:aufgelost|geschlossen|gesperrt|gekundigt)|"
+    r"nuev[oa]s?\s+(?:datos\s+bancarios|cuenta(?:\s+bancaria)?|iban|numero\s+de\s+cuenta|banco)|"
+    r"cambio\s+de\s+(?:cuenta(?:\s+bancaria)?|banco|datos\s+bancarios|iban|numero\s+de\s+cuenta)|"
+    r"datos\s+bancarios\s+(?:han\s+cambiado|actualizados)|actualizacion\s+de\s+(?:nuestros\s+|mis\s+)?datos\s+bancarios|"
+    r"cuenta\s+anterior,?\s+(?:que\s+(?:ya\s+)?)?(?:esta|ha\s+sido|fue)\s+(?:cancelada|cerrada|bloqueada))")
+R_URGENCE_ETR = re.compile(r"\b(?:urgently|as\s+soon\s+as\s+possible|immediately|right\s+away|without\s+delay|today\s+without\s+fail|"
+                           r"by\s+(?:the\s+)?end\s+of\s+(?:the\s+)?day|by\s+close\s+of\s+business|time[\s-]sensitive|"
+                           r"dringend|eilt|eilig|sofort|umgehend|unverzuglich|noch\s+heute|heute\s+noch|so\s+schnell\s+wie\s+moglich|ohne\s+verzogerung|"
+                           r"urgentemente|inmediatamente|de\s+inmediato|hoy\s+mismo|cuanto\s+antes|lo\s+antes\s+posible|sin\s+demora|"
+                           r"a\s+la\s+mayor\s+brevedad)\b")
+R_SECRET_ETR = re.compile(r"(?:keep\s+(?:this|it|the\s+matter)\s+(?:strictly\s+)?(?:confidential|private|between\s+us)|in\s+(?:the\s+)?strict(?:est)?\s+confidence|"
+                          r"(?:treat|handle)\s+(?:this|it)\s+(?:as\s+)?(?:strictly\s+)?confidential(?:ly)?|absolute\s+(?:discretion|confidentiality)|"
+                          r"(?:do\s+not|don.t)\s+(?:tell|discuss\s+(?:this|it)\s+with|mention\s+(?:this|it)\s+to|share\s+(?:this|it)\s+with)\s+anyone|"
+                          r"(?:do\s+not|don.t)\s+(?:copy|cc)\s+anyone|confidential\s+(?:transaction|operation|acquisition)|"
+                          r"bitte\s+(?:streng\s+)?vertraulich|absolute[rn]?\s+(?:vertraulichkeit|diskretion)|vertraulich\s+(?:zu\s+)?behandeln|"
+                          r"behandeln\s+sie\s+(?:dies|das|diese\s+\w+)\s+(?:streng\s+)?vertraulich|"
+                          r"mit\s+niemandem\s+(?:daruber\s+)?(?:sprechen|reden)|(?:sprechen|reden)\s+sie\s+mit\s+niemandem|niemanden\s+in\s+(?:kopie|cc)|"
+                          r"vertrauliche[nrs]?\s+(?:transaktion|geschaft|vorgang)|"
+                          r"(?:trate(?:lo)?|mantenga(?:lo)?)\s+(?:esto\s+|este\s+asunto\s+)?(?:de\s+forma\s+|con\s+|como\s+)?(?:estrictamente\s+)?confidencial(?:idad)?|"
+                          r"(?:con\s+)?(?:total|absoluta|maxima)\s+(?:discrecion|confidencialidad)|"
+                          r"no\s+(?:lo\s+|se\s+lo\s+)?(?:comente|diga|cuente)\s+(?:con\s+|a\s+)?nadie|no\s+ponga\s+a\s+nadie\s+en\s+copia|"
+                          r"operacion\s+confidencial|mantenga(?:lo)?\s+(?:esto\s+)?en\s+(?:secreto|reserva))")
+R_VIREMENT_ETR = re.compile(r"\b(?:(?:urgent|immediate)\s+(?:wire|bank\s+transfer|transfer|payment)|wire\s+transfer|"
+                            r"(?:make|process|arrange|send|execute|initiate|effect)\s+(?:\w+\s+){0,2}?(?:a\s+|the\s+|this\s+)?(?:wire|payment|transfer|bank\s+transfer)|"
+                            r"please\s+(?:transfer|wire|remit|pay)|transfer\s+(?:the\s+)?(?:funds|sums?|amount|money|balance)|"
+                            r"dringende\s+(?:uberweisung|zahlung)|uberweisung\s+(?:vornehmen|tatigen|ausfuhren|veranlassen)|"
+                            r"(?:veranlassen|tatigen|ausfuhren|vornehmen)\s+sie\s+(?:\w+\s+){0,2}?(?:die|eine|den)\s+(?:\w+\s+)?(?:uberweisung|zahlung)|"
+                            r"(?:bitte|zu)\s+uberweisen|uberweisen\s+sie|betrag\s+(?:zu\s+)?uberweisen|zahlung\s+(?:veranlassen|vornehmen|anweisen)|"
+                            r"transferencia\s+(?:urgente|inmediata)|(?:realice|realizar|haga|hacer|efectue|efectuar|ordene|ordenar|proceda\s+a|proceder\s+a)\s+"
+                            r"(?:\w+\s+){0,3}?(?:una\s+|la\s+|el\s+)?(?:transferencia|pago)|transfi(?:era|eran|eren)|transferir\s+(?:las|los|el|la)\s+"
+                            r"(?:cantidades|importes?|fondos|sumas?)|le\s+rogamos\s+(?:que\s+)?(?:abone|pague|ingrese))")
+R_CONNEXION_ETR = re.compile(r"(?:log\s+in\s+to\s+(?:verify|confirm|keep)|confirm\s+your\s+(?:account|identity|password)|your\s+mailbox\s+is\s+full|"
+                             r"melden\s+sie\s+sich\s+an|bestatigen\s+sie\s+ihr\s+(?:konto|passwort|kennwort)|ihr\s+postfach\s+ist\s+voll|konto\s+(?:wird|wurde)\s+gesperrt|"
+                             r"inicie\s+sesion|verifique\s+su\s+(?:cuenta|identidad)|confirme\s+su\s+(?:cuenta|contrasena)|su\s+buzon\s+esta\s+lleno|"
+                             r"cuenta\s+(?:sera|ha\s+sido)\s+(?:suspendida|bloqueada))")
 R_MOT_DE_PASSE = re.compile(r"(?:mot de passe|password|mdp|code d.acces|code d.ouverture)\s*(?:de l.archive|du fichier|du zip|est|:|=)?\s*[:=]?\s*\S{3,}")
 R_IBAN = re.compile(r'\b([A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30})\b')
 R_DOMAINE_TEXTE = re.compile(r'(?:https?://)?((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24})(?![a-z0-9-])')
@@ -171,8 +235,14 @@ def _h(valeur):
 
 
 def ensure_schema(desk):
-    """Création idempotente au démarrage (``Desk``) ; aucune donnée écrite."""
+    """Création idempotente au démarrage (``Desk``) ; aucune donnée écrite. 5.6.107 (lot F2) : colonne ``avec_auth`` des verdicts (en-tête
+    d'authentification de confiance présent au relevé : 1, absent : 0, sans objet ou inconnu : NULL)."""
     desk.db.executescript(SCHEMA)
+    colonnes = {r[1] for r in desk.db.execute('PRAGMA table_info(fraude56106_verdicts)').fetchall()}
+    if 'avec_auth' not in colonnes:
+        desk.db.execute('ALTER TABLE fraude56106_verdicts ADD COLUMN avec_auth INTEGER')
+    # derniers constats d'un compte (``serveur_sans_auth``) lus sans parcourir toute la table
+    desk.db.execute('CREATE INDEX IF NOT EXISTS fraude56106_verdicts_compte_date ON fraude56106_verdicts(compte, analyse_le)')
 
 
 def _compte(cfg_mail):
@@ -615,10 +685,42 @@ def _construire(desk, compte):
         ibans.setdefault(str(r['adresse']), set()).add(str(r['empreinte']))
     officiels = frozenset(juridictions)
     references = frozenset(set(REFERENCES) | officiels | domaines_propres | domaines_contacts)
+    sans_auth = serveur_sans_auth(desk, compte)
     return {'compte': compte, 'reglages': regl, 'gratuits': gratuits, 'propres': frozenset(propres), 'domaines_propres': frozenset(domaines_propres),
             'officiels': officiels, 'noms': noms, 'connues': frozenset(connues), 'domaines_connus': references,
             'domaines_sosie': frozenset(references | gratuits), 'vus': vus, 'historique': bool(vus) or len(connues) > len(propres),
-            'exceptions': frozenset(exceptions), 'annules': frozenset(annules), 'faux': faux, 'ibans': ibans, '_sosies': {}}
+            'exceptions': frozenset(exceptions), 'annules': frozenset(annules), 'faux': faux, 'ibans': ibans, '_sosies': {},
+            'serveur_sans_auth': sans_auth}
+
+
+def serveur_sans_auth(desk, compte):
+    """5.6.107 (lot F2) : vrai si aucun des ``FENETRE_AUTH`` derniers courriels relevés du compte (venus d'un tiers) ne portait d'en-tête
+    ``Authentication-Results`` de confiance, avec au moins ``MIN_AUTH`` constats. Lecture seule ; base illisible ou constats trop peu nombreux :
+    faux (l'indice reste compté : jamais moins de prudence par défaut)."""
+    lignes = _lignes(desk, 'SELECT avec_auth FROM fraude56106_verdicts WHERE compte=? AND avec_auth IS NOT NULL ORDER BY analyse_le DESC LIMIT ?',
+                     (str(compte), FENETRE_AUTH))
+    return len(lignes) >= MIN_AUTH and not any(int(r['avec_auth'] or 0) for r in lignes)
+
+
+RECOMMANDATION_AUTH = 'Votre serveur n’ajoute pas les résultats SPF, DKIM et DMARC : demandez-le à votre hébergeur, ou réglez authserv_id.'
+TEXTES_PARAMETRES = {   # 5.6.107 (lot F2) : textes visibles de la recommandation (Paramètres › Messagerie)
+    'titre': 'Contrôle anti-fraude des courriels',
+    'recommandation': RECOMMANDATION_AUTH,
+    'detail': ('Constaté sur les %d derniers courriels reçus : aucun ne portait d’en-tête Authentication-Results. L’indice « aucun résultat '
+               'd’authentification » n’est donc plus compté pour chaque courriel ; il le sera de nouveau dès qu’un courriel authentifié arrivera.'),
+}
+
+
+def recommandation_html(desk):
+    """Paramètres › Messagerie : recommandation unique quand le serveur du cabinet n'authentifie aucun courriel ; '' sinon. Lecture seule."""
+    try:
+        if not serveur_sans_auth(desk, _compte(desk.c.get('mail') or {})):
+            return ''
+    except Exception:   # noqa: BLE001 — Paramètres reste affiché
+        return ''
+    return ('<section class="fr107-reco" role="note" aria-labelledby="fr107-reco-titre"><h3 id="fr107-reco-titre">%s</h3><p><strong>%s</strong></p>'
+            '<p class="ax-muted">%s</p></section>' % (e(TEXTES_PARAMETRES['titre']), e(TEXTES_PARAMETRES['recommandation']),
+                                                    e(TEXTES_PARAMETRES['detail'] % FENETRE_AUTH)))
 
 
 # --------------------------------------------------------------------------------------------- analyse
@@ -644,6 +746,7 @@ def analyser(msg, ctx, cle='', partiel=False, texte=None):
     gratuits = ctx['gratuits']
     # ---- authentification : seul l'en-tête du serveur du cabinet compte
     ar = entete_de_confiance(msg, ctx['reglages']['authserv_id'])
+    auth_presente = ar is not None          # 5.6.107 (lot F2) : constat gardé au relevé (le serveur du cabinet ajoute-t-il l'en-tête ?)
     res = resultats_auth(ar) if ar else {}
     dmarc_ok = res.get('dmarc') == 'pass'
     echec_auth = False
@@ -720,18 +823,22 @@ def analyser(msg, ctx, cle='', partiel=False, texte=None):
         except Exception:   # noqa: BLE001
             texte = ''
     texte = str(texte or '')[:MAX_TEXTE] if not partiel else ''
-    plie = fold(objet + '\n' + texte)
+    source = objet + '\n' + texte
+    plie = fold(source)                      # recherche sur la forme normalisée (sans accents, minuscules)
+    cite = citation(source, plie)            # 5.6.107 (lot F2) : le motif cite l'extrait tel qu'il est écrit dans le courriel
     liens, pieces = [], []
-    m = R_RIB.search(plie)
+    # 5.6.107 (lot X) : expressions anglaises, allemandes et espagnoles cherchées seulement si les françaises ne trouvent rien (mêmes poids)
+    m = R_RIB.search(plie) or R_RIB_ETR.search(plie)
     if m:
-        _sig(sig, 'changement_rib', 3, 'fort', 'Le courriel annonce un changement de coordonnées bancaires (« %s »).' % m.group(0)[:80])
-    urgence, secret = R_URGENCE.search(plie), R_SECRET.search(plie)
+        _sig(sig, 'changement_rib', 3, 'fort', 'Le courriel annonce un changement de coordonnées bancaires (« %s »).' % cite(m, 80))
+    urgence = R_URGENCE.search(plie) or R_URGENCE_ETR.search(plie)
+    secret = R_SECRET.search(plie) or R_SECRET_ETR.search(plie)
     if urgence or secret:
         poids = 3 if (urgence and secret) else (2 if secret else 1)
-        _sig(sig, 'pression', poids, FORCES_INV[poids], 'Le courriel presse ou demande le secret (« %s »).' % (secret or urgence).group(0)[:60])
-    virement = R_VIREMENT.search(plie)
+        _sig(sig, 'pression', poids, FORCES_INV[poids], 'Le courriel presse ou demande le secret (« %s »).' % cite(secret or urgence, 60))
+    virement = R_VIREMENT.search(plie) or R_VIREMENT_ETR.search(plie)
     if virement:
-        _sig(sig, 'demande_virement', 2, 'moyen', 'Le courriel demande un virement ou un paiement (« %s »).' % virement.group(0)[:60])
+        _sig(sig, 'demande_virement', 2, 'moyen', 'Le courriel demande un virement ou un paiement (« %s »).' % cite(virement, 60))
     if not partiel:
         ibans = ibans_du_texte(objet + '\n' + texte)
         connus_iban = ctx['ibans'].get(adr, set())
@@ -742,7 +849,7 @@ def analyser(msg, ctx, cle='', partiel=False, texte=None):
         if etrangers and (virement or m):
             _sig(sig, 'iban_etranger', 2, 'moyen', 'Le virement demandé irait vers un compte à l’étranger (%s, %s).' % (etrangers[0][:2], masque_iban(etrangers[0])))
         # ---- liens
-        connexion = R_CONNEXION.search(plie)
+        connexion = R_CONNEXION.search(plie) or R_CONNEXION_ETR.search(plie)
         trompeur = ip = raccourci = script = 0
         hors, motif_trompeur = [], ''
         html = html_de(msg)
@@ -783,7 +890,7 @@ def analyser(msg, ctx, cle='', partiel=False, texte=None):
             _sig(sig, 'lien_raccourci', 1, 'faible', 'Le courriel utilise un raccourcisseur d’adresses qui masque la vraie destination.')
         if connexion and hors:
             _sig(sig, 'connexion_imitee', 3, 'fort', 'Le courriel demande de se connecter ou de vérifier un compte (« %s ») par un lien vers %s, qui n’est pas un site connu.' % (
-                connexion.group(0)[:50], hors[0]))
+                cite(connexion, 50), hors[0]))
         # ---- pièces jointes
         for nom_piece, octets in _pieces(msg):
             r = risque_piece(nom_piece, octets, plie)
@@ -799,14 +906,56 @@ def analyser(msg, ctx, cle='', partiel=False, texte=None):
         masque = texte_masque_de(html)
         try:
             from .bouclier5659 import inspect
-            constats = inspect(texte, 'courriel')['findings'] + (inspect(masque, 'texte masqué')['findings'] if masque else [])
+            constats_masque = inspect(masque, 'texte masqué')['findings'] if masque else []
+            constats = inspect(texte, 'courriel')['findings'] + constats_masque
         except Exception:   # noqa: BLE001
-            constats = []
+            constats, constats_masque = [], []
         if any(f['rule'] != 'texte_masque' and f['level'] == 'eleve' for f in constats):
             _sig(sig, 'injection_ia', 3, 'fort', 'Le courriel contient un texte adressé à une IA (tentative de manipulation de l’assistant).')
         if len(masque) >= 20 or any(f['rule'] == 'texte_masque' for f in constats):
-            _sig(sig, 'texte_cache', 2, 'moyen', 'Le courriel contient du texte masqué par la mise en forme (invisible à la lecture).')
-    return _verdict(sig, ctx, adr, msg, cle, partiel, connue=connue, echec_auth=echec_auth, liens=liens, pieces=pieces)
+            # 5.6.107 (lot F2) : instructions pour une IA dans le texte masqué (constat du bouclier sur ce texte, ou marque « texte masqué »
+            # sévère ajoutée au texte lu) : le texte masqué garde toujours son poids
+            instructions = (any(f['rule'] != 'texte_masque' and f['level'] in ('moyen', 'eleve') for f in constats_masque)
+                            or any(f['rule'] == 'texte_masque' and f['level'] == 'eleve' for f in constats))
+            poids = poids_texte_cache(bulk, instructions)
+            _sig(sig, 'texte_cache', poids, FORCES_INV[poids], 'Le courriel contient du texte masqué par la mise en forme (invisible à la lecture).')
+    return _verdict(sig, ctx, adr, msg, cle, partiel, connue=connue, echec_auth=echec_auth, liens=liens, pieces=pieces, auth_presente=auth_presente)
+
+
+def citation(source, plie):
+    """5.6.107 (lot F2) : fonction ``cite(correspondance, borne)`` qui rend l'extrait D'ORIGINE (accents, casse, ponctuation) d'une
+    correspondance trouvée dans ``plie = fold(source)``. Chaque caractère d'origine est replié seul et sa position retenue ; si ce repliement
+    caractère par caractère ne redonne pas exactement ``plie`` (cas rare, ex. sigma final grec), l'extrait est retrouvé par une correspondance
+    sans accents dans le texte d'origine ; à défaut, la forme normalisée est citée comme avant. Détection et score inchangés."""
+    positions, morceaux = [], []
+    for i, c in enumerate(source):
+        f = fold(c)
+        morceaux.append(f)
+        positions.extend([i] * len(f))
+    alignee = ''.join(morceaux) == plie
+
+    def cite(m, borne):
+        if m is None:
+            return ''
+        if alignee and m.end() > m.start():
+            return re.sub(r'\s+', ' ', source[positions[m.start()]:positions[m.end() - 1] + 1]).strip()[:borne]
+        cherche = re.sub(r'\s+', ' ', m.group(0)).strip()
+        mots = [re.escape(x) for x in cherche.split(' ') if x]
+        if mots:
+            motif = r'\s+'.join(mots)
+            jetons = list(re.finditer(r'\S+', source))                    # fenêtres de mots successives (début possible au milieu d'un mot)
+            for i in range(len(jetons) - len(mots) + 1):
+                bout = source[jetons[i].start():jetons[i + len(mots) - 1].end()]
+                if re.search(motif, fold(bout)):
+                    return re.sub(r'\s+', ' ', bout)[:borne]
+        return m.group(0)[:borne]
+    return cite
+
+
+def poids_texte_cache(envoi_en_nombre, instructions):
+    """5.6.107 (lot F2) : poids de l'indice « texte masqué ». Envoi en nombre sans instruction pour une IA : 1 (faible : jamais d'alerte seul ;
+    texte d'aperçu caché des lettres d'information) ; sinon 2 (moyen), comme en 5.6.106."""
+    return 1 if envoi_en_nombre and not instructions else 2
 
 
 FORCES_INV = {1: 'faible', 2: 'moyen', 3: 'fort'}
@@ -819,12 +968,14 @@ def niveau_de(score):
     return ''
 
 
-def _verdict(sig, ctx, adr, msg, cle, partiel, connue=False, echec_auth=False, liens=(), pieces=()):
+def _verdict(sig, ctx, adr, msg, cle, partiel, connue=False, echec_auth=False, liens=(), pieces=(), auth_presente=None):
     retenus, ecartes = [], []
     faux = ctx['faux'].get(adr, {}) if adr else {}
     exception = adr in ctx['exceptions'] if adr else False
     for s in sig:
-        if connue and not echec_auth and s['id'] in CONTEXTUELS:
+        if s['id'] == 'auth_absente' and ctx.get('serveur_sans_auth'):   # 5.6.107 (lot F2) : recommandation unique dans Paramètres
+            ecartes.append((s, 'votre serveur n’ajoute aucun résultat d’authentification (recommandation dans Paramètres)'))
+        elif connue and not echec_auth and s['id'] in CONTEXTUELS:
             ecartes.append((s, 'expediteur connu et authentifié'))
         elif exception and s['id'] in EFFACES_PAR_EXCEPTION:
             ecartes.append((s, 'expéditeur déclaré connu'))
@@ -862,7 +1013,7 @@ def _verdict(sig, ctx, adr, msg, cle, partiel, connue=False, echec_auth=False, l
     return {'niveau': niveau, 'libelle': LIBELLES.get(niveau, ''), 'score': score, 'signaux': retenus, 'ecartes': [dict(s, raison=r) for s, r in ecartes],
             'conseils': conseils, 'partiel': bool(partiel), 'expediteur': adr, 'empreinte': empreinte, 'annule': annule,
             'liens': list(liens)[:50] if niveau in ('suspect', 'danger') else [x for x in liens if x.get('motif')][:20],
-            'pieces': list(pieces)[:20], 'version': VERSION}
+            'pieces': list(pieces)[:20], 'version': VERSION, 'auth_presente': auth_presente}
 
 
 def public(v):
@@ -947,10 +1098,12 @@ def au_releve(cfg, mail, cle, report):
         desk = _Base(cfg)
         partiel = not bool(mail.msg.get_payload())          # relevé des seuls en-têtes (courriel écarté d'office) : analyse partielle
         v = verdict_complet(desk, mail, cle, partiel=partiel)
-        desk.db.execute('INSERT INTO fraude56106_verdicts VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(cle) DO UPDATE SET niveau=excluded.niveau,'
-                        'score=excluded.score,signaux=excluded.signaux,partiel=excluded.partiel,version=excluded.version,analyse_le=excluded.analyse_le',
+        avec_auth = None if v.get('auth_presente') is None else int(bool(v['auth_presente']))   # 5.6.107 (lot F2) : constat du serveur
+        desk.db.execute('INSERT INTO fraude56106_verdicts(cle,compte,empreinte,expediteur,niveau,score,signaux,partiel,version,analyse_le,avec_auth) '
+                        'VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(cle) DO UPDATE SET niveau=excluded.niveau,score=excluded.score,'
+                        'signaux=excluded.signaux,partiel=excluded.partiel,version=excluded.version,analyse_le=excluded.analyse_le,avec_auth=excluded.avec_auth',
                         (str(cle), _compte(cfg['mail']), v['empreinte'], v['expediteur'], v['niveau'],
-                         v['score'], json.dumps(v['signaux'], ensure_ascii=False), int(partiel), VERSION, _now()))
+                         v['score'], json.dumps(v['signaux'], ensure_ascii=False), int(partiel), VERSION, _now(), avec_auth))
         desk.db.commit()
         if v['niveau']:
             report['fraude56106'] = {'niveau': v['niveau'], 'libelle': v['libelle'], 'motifs': [s['motif'] for s in v['signaux']][:8]}

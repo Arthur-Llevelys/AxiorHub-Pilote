@@ -1,0 +1,18 @@
+X-Demo-Id: lettre-info
+X-Demo-Heures: 54
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: La Lettre des affaires <lettre@editions-juridiques.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: La Lettre des affaires — n° 312 : baux commerciaux et clause résolutoire
+Message-ID: <lettre-info@demo.example.test>
+
+La Lettre des affaires (lettre fictive de démonstration)
+
+Au sommaire :
+- Baux commerciaux : rappel sur la clause résolutoire et les délais de grâce ;
+- Sociétés : la garantie d'actif et de passif en pratique ;
+- Procédure civile : calendrier de la mise en état.
+
+Vous recevez cette lettre car vous y êtes abonnée.

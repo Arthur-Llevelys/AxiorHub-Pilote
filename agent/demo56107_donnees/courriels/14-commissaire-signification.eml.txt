@@ -1,0 +1,14 @@
+X-Demo-Id: commissaire-signification
+X-Demo-Heures: 44
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Étude KERVILAC <etude@commissaire-kervilac.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: RG 24/01302 — signification de l’ordonnance d’injonction de payer
+Message-ID: <commissaire-signification@demo.example.test>
+
+Maître,
+
+Nous vous informons que l'ordonnance d'injonction de payer a été signifiée à ORLANDEC Négoce SARL, à personne morale. Le procès-verbal suit par courrier.
+
+L'étude

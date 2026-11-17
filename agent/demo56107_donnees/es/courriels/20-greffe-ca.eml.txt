@@ -1,0 +1,17 @@
+X-Demo-Id: greffe-ca
+X-Demo-Heures: 80
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Juzgado de lo Social de Valbrune <notificaciones@social-valbrune.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: [LexNET] Notificación — Recurso de suplicación 1411/2024 — BERNARD c. ZORVAL Servicios
+Message-ID: <greffe-ca@demo.example.test>
+
+Mensaje LexNET ficticio (demostración).
+
+Juzgado de lo Social de Valbrune
+Recurso de suplicación 1411/2024 — Sala de lo Social del Tribunal Superior de Justicia
+
+Diligencia de ordenación: se tiene por anunciado el recurso de suplicación. Se pone a disposición del letrado de la parte recurrente el expediente para que formalice el recurso en el plazo legal.
+
+El Letrado de la Administración de Justicia

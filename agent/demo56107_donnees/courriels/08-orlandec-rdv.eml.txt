@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-rdv
+X-Demo-Heures: 13
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Hélène ORLANDEC <president@orlandec.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ORLANDEC SAS — rendez-vous de signature
+Message-ID: <orlandec-rdv@demo.example.test>
+
+Bonjour Maître,
+
+Je confirme ma présence demain à 10 h au cabinet pour la signature du protocole ORLANDEC SAS.
+
+Hélène ORLANDEC

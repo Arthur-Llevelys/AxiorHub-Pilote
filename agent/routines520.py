@@ -262,6 +262,9 @@ def _excluded(mail, patterns):
     return any(fold(p) in hay for p in patterns if p)
 
 
+# 5.6.107 (lot X) : mots de procédure anglais, allemands et espagnols (aucun mot français : le tri des courriels français reste inchangé)
+PROCEDURE_ETR = re.compile(r'\bhearings?\b|\badjourn|\bskeleton argument\b|\btermin\b|terminsladung|\bfrist\b|verhandlung|schriftsatz|\bplazo\b|'
+                           r'\bla vista\b|senalamiento|escrito de')
 LRE = r'lettre recommandee electronique|\blre\b|ar24|e-recommande|recommande electronique|lettre recommandee en ligne'
 
 
@@ -273,13 +276,14 @@ def _signals(mail, text):
         m = re.search(r"(?:expire|expiration|jusqu.au|avant le|disponible jusqu.au)\D{0,25}(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{1,2} \w+ \d{4})", hay)
         if m:
             sig.append('lre_date:' + m.group(1))
-    if re.search(r'greffe|justice\.fr|@justice|rpva|e-barreau|tribunal', hay):
+    from .routine_message56106 import JURIDICTION_MOTS_ETR    # 5.6.107 (lot X) : CE-File, beA, LexNET, formules anglaises, allemandes, espagnoles
+    if re.search(r'greffe|justice\.fr|@justice|rpva|e-barreau|tribunal', hay) or JURIDICTION_MOTS_ETR.search(hay):
         sig.append('greffe')
     if re.search(r'mise en demeure', hay):
         sig.append('mise_en_demeure')
     if re.search(r'\burgent\b|aujourd.hui|ce jour|dans la journee|avant ce soir', hay):
         sig.append('urgent')
-    if re.search(r'audience|delai|renvoi|calendrier de procedure|clôture|cloture|conclusions', hay):
+    if re.search(r'audience|delai|renvoi|calendrier de procedure|clôture|cloture|conclusions', hay) or PROCEDURE_ETR.search(hay):
         sig.append('procedure')
     if re.search(r'no-?reply|ne-pas-repondre|nepasrepondre|donotreply', fold(mail.sender or '')):
         sig.append('sans_reponse')

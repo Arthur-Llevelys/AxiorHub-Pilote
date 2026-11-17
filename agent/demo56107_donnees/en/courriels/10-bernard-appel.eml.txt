@@ -1,0 +1,15 @@
+X-Demo-Id: bernard-appel
+X-Demo-Heures: 26
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Alice BERNARD — my appeal, next steps?
+Message-ID: <bernard-appel@demo.example.test>
+
+Dear Claire,
+
+I wanted to know when you will file the skeleton argument in my appeal (Appeal No. VB24C01411) and whether I need to send you any other documents.
+
+Many thanks,
+Alice BERNARD

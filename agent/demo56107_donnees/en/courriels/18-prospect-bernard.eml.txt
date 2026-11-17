@@ -1,0 +1,14 @@
+X-Demo-Id: prospect-bernard
+X-Demo-Heures: 66
+X-Demo-Boite: INBOX
+From: Lucy BERNARD <contact@bernard-consulting.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Request for a meeting — dispute with a supplier
+Message-ID: <prospect-bernard@demo.example.test>
+
+Dear Ms DURAND,
+
+Your firm was recommended to me by DURAND Building Ltd. Our company, BERNARD Consulting, is in dispute with a supplier that has stopped delivering. Could you see me this week?
+
+Lucy BERNARD
+BERNARD Consulting

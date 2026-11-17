@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-audit
+X-Demo-Heures: 130
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Hélène ORLANDEC <president@orlandec.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ORLANDEC SAS — questions de l’acquéreur
+Message-ID: <orlandec-audit@demo.example.test>
+
+Maître,
+
+L'acquéreur pose des questions sur deux contrats clients résiliables en cas de changement de contrôle. Comment les traiter dans le protocole ?
+
+Hélène ORLANDEC

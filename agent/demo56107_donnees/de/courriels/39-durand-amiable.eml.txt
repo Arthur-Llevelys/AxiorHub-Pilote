@@ -1,0 +1,15 @@
+X-Demo-Id: durand-amiable
+X-Demo-Heures: 300
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jan DURAND <geschaeftsfuehrung@durand-bau.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND ./. MARTIN — gütliche Einigung?
+Message-ID: <durand-amiable@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+wenn die MARTIN Immobilien GmbH anbietet, sofort 40.000 € zu zahlen, sollten wir dann annehmen? Ich würde das gerne mit Ihnen besprechen.
+
+Mit freundlichen Grüßen
+Jan DURAND

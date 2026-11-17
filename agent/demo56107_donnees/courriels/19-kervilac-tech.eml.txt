@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-tech
+X-Demo-Heures: 72
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Yann KERVILAC <fondateurs@kervilac-tech.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Pacte d’associés pour notre start-up
+Message-ID: <kervilac-tech@demo.example.test>
+
+Bonjour,
+
+Nous sommes trois associés et souhaitons rédiger un pacte d'associés avant une levée de fonds. Quels sont vos honoraires pour ce type de mission ?
+
+Yann KERVILAC
+KERVILAC Tech

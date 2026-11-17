@@ -1,0 +1,15 @@
+X-Demo-Id: expert-provision
+X-Demo-Heures: 180
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Mr ORLANDEC, single joint expert <expert.orlandec@expertise.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Claim No. VB24C01355 — payment on account received
+Message-ID: <expert-provision@demo.example.test>
+
+Dear Ms DURAND,
+
+I confirm that the parties' payment on account of my fees has been received. The expert inspection can now go ahead.
+
+Mr ORLANDEC
+Single joint expert

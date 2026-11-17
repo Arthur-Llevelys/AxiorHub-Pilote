@@ -4,7 +4,11 @@
    « Danger », liens désactivés (le serveur retire leur cible dans l'affichage mis en forme ; l'adresse réelle n'est montrée ici qu'après un
    avertissement) et pièces à risque signalées, jamais prévisualisées. Sans alerte, rien n'est affiché (jamais « sûr »).
    Aucun point de montage dans les fichiers des autres lots : la liste est suivie par l'événement « axh5625:liste », le lecteur par un
-   observateur du panneau. Tout est construit avec textContent ; aucun HTML venant du courriel n'entre dans la page. */
+   observateur du panneau. Tout est construit avec textContent ; aucun HTML venant du courriel n'entre dans la page.
+   5.6.107 (lot F2) : alerte plus discrète. « Attention » : une ligne fine repliée (« ⚠ Attention — N indices · Voir le détail ▾ ») dans la
+   ligne de puces du lecteur ; « Suspect » : une ligne avec le premier motif, le reste replié ; « Danger » : déplié, jamais repliable. Motifs,
+   conseils, liens et actions sont dans le pli (<details>, clavier). Pli ouvert ou fermé mémorisé dans le navigateur par personne (repère court
+   du compte, jamais l'identifiant) et par niveau ; stockage absent ou refusé : replié, sans erreur. */
 (function () {
   'use strict';
   if (window.__axiorhub56106f) return;
@@ -13,6 +17,7 @@
   var prefix = meta('axiorhub-prefix'), csrf = meta('axiorhub-csrf');
   var R = 'm56106/fraude/';
   var ICONES = { attention: '⚠', suspect: '⚠', danger: '⛔' };
+  var REPLIABLE = { attention: true, suspect: true };   // 5.6.107 (lot F2) : « Danger » n'y est pas, il reste toujours déplié
 
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
@@ -42,6 +47,18 @@
     return 'fr-' + Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
   }
   function busy(b, on) { if (b) { b.disabled = on; b.setAttribute('aria-busy', on ? 'true' : 'false'); } }
+  // 5.6.107 (lot F2) : pli mémorisé par personne et par niveau ; stockage absent, refusé ou plein : replié et rien n'est retenu
+  function compte() { return meta('axiorhub-compte') || 'cabinet'; }
+  function lirePli(niveau) {
+    try {
+      return window.localStorage.getItem('axh-fr107-pli:' + compte() + ':' + niveau) === 'ouvert';
+    } catch (e) { return false; }
+  }
+  function ecrirePli(niveau, ouvert) {
+    try {
+      window.localStorage.setItem('axh-fr107-pli:' + compte() + ':' + niveau, ouvert ? 'ouvert' : 'ferme');
+    } catch (e) { /* stockage indisponible : le pli n'est pas retenu */ }
+  }
 
   // ------------------------------------------------------------------ pastille de la liste
   function pastille(f) {
@@ -87,11 +104,43 @@
   function construire(m) {
     var f = m.fraude;
     if (f.indisponible) return el('p', { 'class': 'fr106-indisponible', role: 'status', text: f.message || 'Contrôle anti-fraude indisponible pour ce courriel.' });
-    var grave = f.niveau === 'suspect' || f.niveau === 'danger';
+    if (!REPLIABLE[f.niveau]) return construireDeplie(m, f);
+    return construireReplie(m, f);
+  }
+  // « Danger » (et tout niveau inconnu) : bandeau déplié comme en 5.6.106, l'alerte doit sauter aux yeux
+  function construireDeplie(m, f) {
     var titre = el('h3', { 'class': 'fr106-titre', id: 'fr106-titre-' + String(m.uid).replace(/[^0-9]/g, '') }, [
       el('span', { 'aria-hidden': 'true', text: (ICONES[f.niveau] || '⚠') + ' ' }),
       document.createTextNode('Courriel potentiellement frauduleux — ' + f.libelle)]);
-    var sec = el('section', { 'class': 'fr106-bandeau fr106-' + f.niveau, role: grave ? 'alert' : 'status', 'aria-labelledby': titre.id }, [titre]);
+    var sec = el('section', { 'class': 'fr106-bandeau fr106-' + f.niveau, role: 'alert', 'aria-labelledby': titre.id }, [titre]);
+    remplir(sec, m, f);
+    return sec;
+  }
+  // 5.6.107 (lot F2) : « Attention » et « Suspect » : une ligne (résumé du <details>), le détail dans le pli
+  function construireReplie(m, f) {
+    var n = (f.signaux && f.signaux.length) || (f.motifs || []).length;
+    var suspect = f.niveau === 'suspect';
+    var id = 'fr107-resume-' + String(m.uid).replace(/[^0-9]/g, '');
+    var voir = el('span', { 'class': 'fr107-voir', text: 'Voir le détail' });
+    var fleche = el('span', { 'class': 'fr107-fleche', 'aria-hidden': 'true', text: '▾' });
+    var resume = el('summary', { id: id, title: 'Courriel potentiellement frauduleux — ' + f.libelle + ((f.motifs || []).length ? ' : ' + f.motifs.join(' ') : '') }, [
+      el('span', { 'aria-hidden': 'true', text: (ICONES[f.niveau] || '⚠') + ' ' }),
+      el('span', { 'class': 'fr107-niveau', text: f.libelle + ' — ' + n + ' indice' + (n > 1 ? 's' : '') }),
+      suspect && f.motifs && f.motifs.length ? el('span', { 'class': 'fr107-motif', text: ' : ' + f.motifs[0] }) : null,
+      document.createTextNode(' · '), voir, document.createTextNode(' '), fleche]);
+    var detail = el('div', { 'class': 'fr107-detail' }, [el('p', { 'class': 'fr106-sous-titre', text: 'Courriel potentiellement frauduleux — ' + f.libelle })]);
+    remplir(detail, m, f);
+    var pli = el('details', { 'class': 'fr107-pli' }, [resume, detail]);
+    pli.open = lirePli(f.niveau);
+    var majResume = function () { voir.textContent = pli.open ? 'Masquer le détail' : 'Voir le détail'; fleche.textContent = pli.open ? '▴' : '▾'; };
+    majResume();
+    pli.addEventListener('toggle', function () { majResume(); ecrirePli(f.niveau, pli.open); });
+    return el('div', { 'class': 'fr106-bandeau fr106-' + f.niveau + ' fr107-ligne' + (suspect ? ' fr107-pleine' : ''), role: suspect ? 'alert' : 'status',
+                        'aria-label': 'Alerte de sécurité : courriel potentiellement frauduleux — ' + f.libelle }, [pli]);
+  }
+  // contenu commun : motifs, conseils, pièces, liens désactivés, second avis, actions
+  function remplir(sec, m, f) {
+    var grave = f.niveau === 'suspect' || f.niveau === 'danger';
     var motifs = el('ul', { 'class': 'fr106-motifs' });
     (f.motifs || []).forEach(function (x) { motifs.appendChild(el('li', { text: x })); });
     sec.appendChild(motifs);
@@ -131,7 +180,6 @@
       'Confirmer que ce courriel n’est pas une fraude ? Il ne sera plus signalé. Un IBAN qu’il contient sera retenu comme celui de cet expéditeur.'));
     sec.appendChild(actions);
     sec.appendChild(statut);
-    return sec;
   }
   function marquerPieces(panel, f) {
     if (!f || !f.pieces_risque || !f.pieces_risque.length) return;

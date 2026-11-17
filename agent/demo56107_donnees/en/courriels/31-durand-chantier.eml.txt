@@ -1,0 +1,14 @@
+X-Demo-Id: durand-chantier
+X-Demo-Heures: 190
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: James DURAND <direction@durand-building.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND v MARTIN — site meeting minutes
+Message-ID: <durand-chantier@demo.example.test>
+
+Dear Claire,
+
+As requested, please find the site meeting minutes for the last three months.
+
+James DURAND

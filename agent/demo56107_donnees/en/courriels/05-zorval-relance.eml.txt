@@ -1,0 +1,16 @@
+X-Demo-Id: zorval-relance
+X-Demo-Heures: 7
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <accounts@zorval.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ZORVAL Distribution — where are we with the ORLANDEC recovery?
+Message-ID: <zorval-relance@demo.example.test>
+
+Dear Claire,
+
+Could you let me know where things stand with the recovery of the invoices left unpaid by ORLANDEC Trading (Claim No. VB24C01302)? Our cash flow is tight this quarter.
+
+Thank you,
+Sophie ZORVAL
+ZORVAL Distribution

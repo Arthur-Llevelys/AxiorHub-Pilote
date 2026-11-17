@@ -1,0 +1,15 @@
+X-Demo-Id: holding-ag
+X-Demo-Heures: 34
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Orden del dia junta general.pdf|EXP-008
+From: Secretaría DURAND Holding <secretaria@durand-holding.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: DURAND Holding — documentos para la junta general
+Message-ID: <holding-ag@demo.example.test>
+
+Sra. Durand:
+
+Le remitimos el orden del día de la junta general ordinaria de DURAND Holding. ¿Podría preparar las propuestas de acuerdos?
+
+La secretaría

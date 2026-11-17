@@ -408,6 +408,8 @@ def _messagerie(desk, auth, prefix, env, cap):
     from .sens5643 import identities_html                      # 5.6.56 (audit 5.6.55, § 3.1)
     args = {k: v[0] for k, v in parse_qs(env.get('QUERY_STRING', ''), max_num_fields=10).items()}
     body = _section(identities_html(desk.c.get('mail', {}), args) + settings_html(desk, prefix) + courrier_section(desk, prefix))
+    from .fraude56106 import recommandation_html as _reco107   # 5.6.107 (lot F2) : serveur sans SPF/DKIM/DMARC : recommandation unique (lecture seule)
+    body = _reco107(desk) + body
     # 5.6.60 : l'envoi et l'accueil téléphonique rejoignent les courriels (venus de l'ancienne rubrique « Cabinet et accueil »)
     from . import web567, web490
     body += _section(web490.confort_sections(desk, auth, prefix, {}).get('envoi', ''))

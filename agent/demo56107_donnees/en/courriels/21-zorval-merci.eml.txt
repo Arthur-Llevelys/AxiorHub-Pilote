@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-merci
+X-Demo-Heures: 90
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <accounts@zorval.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ZORVAL v KERVILAC — photos of the water ingress
+Message-ID: <zorval-merci@demo.example.test>
+
+Dear Claire,
+
+Please find the photographs taken in the warehouse after the latest rain, for the expert (Claim No. VB24C01355).
+
+Sophie ZORVAL

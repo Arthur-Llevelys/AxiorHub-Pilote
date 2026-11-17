@@ -1,0 +1,15 @@
+X-Demo-Id: zorval-facture
+X-Demo-Heures: 170
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <buchhaltung@zorval.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: ZORVAL Distribution — weitere offene Rechnung
+Message-ID: <zorval-facture@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+die ORLANDEC Handel GmbH hat auch die Rechnung 2024-160 nicht bezahlt. Können wir sie in das Verfahren aufnehmen?
+
+Mit freundlichen Grüßen
+Sophie ZORVAL

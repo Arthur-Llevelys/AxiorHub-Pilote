@@ -37,7 +37,7 @@ def dictionary(lang):
                 raw = json.loads((ROOT / ('ecrans_%s.json' % lang)).read_text(encoding='utf-8'))
             except (OSError, ValueError):
                 raw = {}
-            _CACHE[lang] = {k: v for k, v in raw.items() if (not k.startswith('_') or k.startswith('_prefix:')) and isinstance(v, str) and v}
+            _CACHE[lang] = {k: v for k, v in raw.items() if (not k.startswith('_') or k.startswith('_prefix:') or k == '_dates') and isinstance(v, str) and v}
         return _CACHE[lang]
 
 
@@ -99,7 +99,7 @@ def _single(norm, table):
     numbers = DIGITS.findall(norm)
     out = table.get(DIGITS.sub('#', norm))
     if out is None:
-        return _template(norm, table)
+        return _template(norm, table) or date_locale(norm, table)   # 5.6.107 : segment qui n'est qu'une date
     it = iter(numbers)
     return re.sub('#', lambda m: next(it, '#'), out) if numbers else out
 
@@ -113,10 +113,47 @@ def signature(lang):
         return ''
 
 
+# 5.6.107 (lot T) : dates écrites par le code au format français (« 26/11/2026 09:30 », « 17/11 10:02 ») remises au format de la langue quand
+# le dictionnaire le demande (« _dates »: « point » en allemand : « 26.11.2026 09:30 Uhr », « 17.11. 10:02 ») ; sinon laissées telles quelles.
+DATE_FR = re.compile(r'^(\d{1,2})/(\d{1,2})(?:/(\d{4}))?(?: (\d{1,2}):(\d{2}))?$')
+
+
+def date_locale(norm, table):
+    m = DATE_FR.match(norm) if table.get('_dates') == 'point' else None
+    if not m:
+        return None
+    jour, mois, an, h, mn = m.groups()
+    out = '%s.%s.%s' % (jour, mois, an or '')
+    if h is not None:
+        out += ' %s:%s' % (h, mn) + (' Uhr' if an else '')
+    return out
+
+
+DATE_DANS_TEXTE = re.compile(r'(^|[^\d/.])(\d{1,2})/(\d{1,2})(?:/(\d{4}))?(?![\d/])')
+
+
+def dates_texte(text, table):
+    """Dates JJ/MM[/AAAA] au milieu d'un texte (« Montag, 16/11/2026 », « (30/11/2026) ») au format de la langue si le dictionnaire le
+    demande ; None si rien n'a changé. Un n° RG (« 24/01234 ») n'est pas une date."""
+    if table.get('_dates') != 'point' or '/' not in text:
+        return None
+
+    def sub(m):
+        j, mo = int(m.group(2)), int(m.group(3))
+        if not (1 <= j <= 31 and 1 <= mo <= 12):
+            return m.group(0)
+        return '%s%s.%s.%s' % (m.group(1), m.group(2), m.group(3), m.group(4) or '')
+    out = DATE_DANS_TEXTE.sub(sub, text)
+    return out if out != text else None
+
+
 def phrase(text, table):
     """Traduction d'une phrase (espaces conservés autour) ; None si elle n'est pas au dictionnaire."""
     stripped = text.strip()
-    if not stripped or not re.search(r'[A-Za-zÀ-ÿ]', stripped):
+    if stripped and not re.search(r'[A-Za-zÀ-ÿ]', stripped):
+        got = date_locale(re.sub(r'\s+', ' ', stripped), table)
+        return None if got is None else text[:len(text) - len(text.lstrip())] + got + text[len(text.rstrip()):]
+    if not stripped:
         return None
     norm = re.sub(r'\s+', ' ', stripped)
     numbers = DIGITS.findall(norm)
@@ -172,12 +209,16 @@ def translate_html(html, lang):
     if not table:
         return html
 
+    def traduit(brut):   # 5.6.107 (lot T) : phrase traduite, puis dates restées au format français remises au format de la langue
+        got = phrase(brut, table)
+        return dates_texte(got if got is not None else brut, table) or got
+
     def text_sub(m):
-        got = phrase(_unescape(m.group(2)), table)
+        got = traduit(_unescape(m.group(2)))
         return m.group(1) + _escape(got) if got is not None else m.group(0)
 
     def attr_sub(m):
-        got = phrase(_unescape(m.group(2)), table)
+        got = traduit(_unescape(m.group(2)))
         return '%s="%s"' % (m.group(1), _escape(got, True)) if got is not None else m.group(0)
 
     def value_sub(m):

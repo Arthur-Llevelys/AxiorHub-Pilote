@@ -1,0 +1,16 @@
+X-Demo-Id: orlandec-protocole
+X-Demo-Heures: 11
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 02 - Projet de protocole.pdf|DOS-004
+From: Me Louise MARTIN <conseil@cabinet-martin.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ORLANDEC SAS — projet de protocole de cession, nos commentaires
+Message-ID: <orlandec-protocole@demo.example.test>
+
+Chère Consœur,
+
+Vous trouverez ci-joint nos commentaires sur le projet de protocole de cession des actions d'ORLANDEC SAS. Notre client souhaite porter le plafond de la garantie d'actif et de passif à 30 % du prix.
+
+Bien confraternellement,
+Me Louise MARTIN

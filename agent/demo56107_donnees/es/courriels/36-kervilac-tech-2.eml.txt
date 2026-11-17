@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-tech-2
+X-Demo-Heures: 240
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Iván KERVILAC <fundadores@kervilac-tech.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: RE: Pacto de socios para nuestra start-up
+Message-ID: <kervilac-tech-2@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+Gracias por su rápida respuesta. Podemos hablar por teléfono a final de semana.
+
+Iván KERVILAC

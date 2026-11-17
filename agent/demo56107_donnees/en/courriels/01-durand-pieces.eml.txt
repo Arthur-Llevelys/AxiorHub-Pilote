@@ -1,0 +1,17 @@
+X-Demo-Id: durand-pieces
+X-Demo-Heures: 2
+X-Demo-Boite: INBOX
+From: James DURAND <direction@durand-building.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND v MARTIN — defence received
+Message-ID: <durand-pieces@demo.example.test>
+
+Dear Claire,
+
+Thank you for sending me a copy of MARTIN Property's defence. They claim that practical completion never took place, even though we signed a completion certificate with them.
+
+Which documents do you need to reply? I can send you the site meeting minutes.
+
+Kind regards,
+James DURAND
+DURAND Building Ltd

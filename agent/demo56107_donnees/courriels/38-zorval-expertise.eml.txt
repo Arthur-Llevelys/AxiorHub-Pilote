@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-expertise
+X-Demo-Heures: 280
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <compta@zorval.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ZORVAL c. KERVILAC — qui viendra à l’expertise ?
+Message-ID: <zorval-expertise@demo.example.test>
+
+Maître,
+
+Notre responsable logistique pourra être présent à la réunion d'expertise. Faut-il prévoir autre chose ?
+
+Sophie ZORVAL

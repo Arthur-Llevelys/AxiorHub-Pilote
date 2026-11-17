@@ -1,0 +1,14 @@
+X-Demo-Id: assurance
+X-Demo-Heures: 210
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Anwaltsversicherung Valbrune <vertrag@anwaltsversicherung.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Ihre Versicherungsbestätigung zur Berufshaftpflichtversicherung
+Message-ID: <assurance@demo.example.test>
+
+Sehr geehrte Frau Rechtsanwältin Durand,
+
+anbei erhalten Sie Ihre Versicherungsbestätigung für das laufende Jahr (fiktives Dokument zur Demonstration).
+
+Ihr Kundenservice

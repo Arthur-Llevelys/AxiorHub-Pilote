@@ -1,0 +1,15 @@
+X-Demo-Id: distribution-contrat
+X-Demo-Heures: 40
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Projet de contrat de distribution.pdf|DOS-009
+From: Service juridique ORLANDEC <juridique@orlandec.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Relecture du contrat de distribution ORLANDEC
+Message-ID: <distribution-contrat@demo.example.test>
+
+Bonjour Maître,
+
+Notre fournisseur nous propose un contrat de distribution exclusive. Pouvez-vous le relire, en particulier la clause de non-concurrence ?
+
+Le service juridique d'ORLANDEC SAS

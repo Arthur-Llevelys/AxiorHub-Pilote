@@ -1,0 +1,14 @@
+X-Demo-Id: ordre-cotisation
+X-Demo-Heures: 260
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Rechtsanwaltskammer Valbrune <sekretariat@rak-valbrune.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Beitragsrechnung der Rechtsanwaltskammer
+Message-ID: <ordre-cotisation@demo.example.test>
+
+Sehr geehrte Frau Rechtsanwältin Durand,
+
+die Beitragsrechnung für das laufende Jahr steht in Ihrem Mitgliederbereich bereit (fiktive Nachricht zur Demonstration).
+
+Die Geschäftsstelle der Rechtsanwaltskammer

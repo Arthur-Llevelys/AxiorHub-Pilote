@@ -21,6 +21,11 @@
     (children || []).forEach(function (c) { if (c) node.appendChild(c); });
     return node;
   }
+  // 5.6.107 (lot T) : bouton repéré par son infobulle française OU traduite (v5634t.js traduit les title dès leur insertion)
+  function parTitre(racine, titre) {
+    var traduit = window.ax5634Translate ? window.ax5634Translate(titre) : titre;
+    return $$('[title]', racine).filter(function (b) { return b.title === titre || b.title === traduit; })[0] || null;
+  }
   function toast(message, bad) {
     var box = $('#ax-toast');
     if (!box) { box = el('div', { id: 'ax-toast', role: 'status', 'aria-live': 'polite' }); document.body.appendChild(box); }
@@ -546,7 +551,7 @@
       if (!bar || bar.dataset.l106 || !c) return;
       bar.dataset.l106 = '1';
       ['Marquer comme non lu', 'Marquer pour suivi', 'Message indésirable'].forEach(function (t) {   // regroupés dans « Marquer » (barre compacte)
-        var b = $('[title="' + t + '"]', bar); if (b) { b.hidden = true; b.setAttribute('data-l106-regroupe', '1'); }
+        var b = parTitre(bar, t); if (b) { b.hidden = true; b.setAttribute('data-l106-regroupe', '1'); }
       });
       var mq = menuMarquer(courantSeul, 'bx5628-btn');
       bar.appendChild(mq.racine);

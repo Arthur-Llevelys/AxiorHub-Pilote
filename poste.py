@@ -9,6 +9,9 @@ Ubuntu 24.04 (5.6.20) et Windows 11 (5.6.25), même interface et mêmes services
   poste.py --status          état (port, processus) et emplacement des dossiers
   poste.py --print-password  identifiant et mot de passe locaux (pour un navigateur ordinaire)
   poste.py --liaison URI     5.6.97 : lien axiorhub://chatgpt/liaison?id=… (liaison ChatGPT demandée par le serveur du cabinet)
+  poste.py --demo [--langue en|de|es|fr]   5.6.107 (lot M) : mode Démo (données et interface dans la langue choisie, français par défaut)
+  poste.py --demo            5.6.107 (lot M) : mode Démo — cabinet fictif prérempli, dossier de données et port propres (8779),
+                             session ouverte d'office, aucun effet externe (agent/demo56107.py) ; jamais par-dessus l'installation réelle
 
 Dossiers :
 - Ubuntu (XDG) : données, configuration et secrets dans ~/.local/share/axiorhub-pilote ; journaux dans ~/.local/state/axiorhub-pilote.
@@ -208,8 +211,11 @@ class Supervisor:
 
     SERVICES = ('interface', 'worker', 'veille')
 
-    def __init__(self, p, port=DEFAULT_PORT, python=None, interval_minutes=5, root=ROOT):
+    def __init__(self, p, port=DEFAULT_PORT, python=None, interval_minutes=5, root=ROOT, demo=False):
         self.p, self.port, self.python, self.root = p, int(port), python or service_python(), Path(root)
+        # 5.6.107 (lot M) : démo — interface et travailleur seulement (ni veille IMAP, ni passage périodique, ni liaison), environnement de la démo
+        self.demo = bool(demo)
+        self.services = ('interface', 'worker') if self.demo else self.SERVICES
         self.interval = max(1, int(interval_minutes)) * 60
         self.procs, self.logs, self.stop_event = {}, {}, threading.Event()
         self.timer = self.monitor = None
@@ -222,6 +228,9 @@ class Supervisor:
             log = open(self.p['logs'] / (name + '.log'), 'ab')
             self.logs[name] = log
         env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'}
+        if self.demo:   # 5.6.107 (lot M) : dossier de données et comptes de la démo, jamais ceux du poste réel
+            from agent.demo56107 import environnement
+            env.update(environnement(self.p['data']))
         if os.name == 'posix':
             extra = {'start_new_session': True}   # groupe de processus : les descendants s'arrêtent avec lui
         else:
@@ -232,7 +241,7 @@ class Supervisor:
 
     def _write_runtime(self):
         _write_private(self.p['runtime'], json.dumps({'pid': os.getpid(), 'port': self.port, 'started': getattr(self, 'started', ''),
-                                                      'processes': {k: self.procs[k].pid for k in self.SERVICES if k in self.procs},
+                                                      'processes': {k: self.procs[k].pid for k in self.services if k in self.procs},
                                                       'restarts': {k: len(v) for k, v in self.restarts.items()}, 'defauts': self.faults}) + '\n')
 
     def start(self):
@@ -247,10 +256,12 @@ class Supervisor:
         cfg = ['--config', str(self.p['config'])]
         self._spawn('interface', [str(self.root / 'web.py'), 'serve', *cfg, '--auth', str(self.p['auth']), '--port', str(self.port)])
         self._spawn('worker', [str(self.root / 'web.py'), 'worker', *cfg])
-        self._spawn('veille', [str(self.root / 'web.py'), 'watch', *cfg])
+        if not self.demo:   # 5.6.107 (lot M) : en démo, aucune veille IMAP ni passage périodique
+            self._spawn('veille', [str(self.root / 'web.py'), 'watch', *cfg])
         self.started = time.strftime('%Y-%m-%dT%H:%M:%S')
-        self.timer = threading.Thread(target=self._periodic, name='axiorhub-poste-periodique', daemon=True)
-        self.timer.start()
+        if not self.demo:
+            self.timer = threading.Thread(target=self._periodic, name='axiorhub-poste-periodique', daemon=True)
+            self.timer.start()
         self.monitor = threading.Thread(target=self._watch, name='axiorhub-poste-surveillance', daemon=True)
         self.monitor.start()
         self.p['runtime'].parent.mkdir(parents=True, exist_ok=True)
@@ -290,8 +301,9 @@ class Supervisor:
         """5.6.24 (F24) : surveillance bornée — un service arrêté est relancé avec une temporisation progressive ; au-delà de
         RESTART_LIMIT, la boucle de plantage devient un défaut visible (runtime.json, journal) au lieu d'une relance infinie."""
         while not self.stop_event.wait(2):
-            self._liaison103()
-            for name in self.SERVICES:
+            if not self.demo:   # 5.6.107 (lot M) : jamais de liaison entre postes en démo
+                self._liaison103()
+            for name in self.services:
                 proc = self.procs.get(name)
                 if proc is None or proc.poll() is None or name in self.faults:
                     continue
@@ -518,6 +530,49 @@ def stop_instance(p):
     return info
 
 
+DEMO_PORT = 8779   # 5.6.107 (lot M) : port de la démo, distinct de celui du poste réel
+
+
+def paths_demo(home=None):
+    """5.6.107 (lot M) : dossiers de la démo — à côté des données réelles (Windows : « AxiorHub Pilote/demo » dans LOCALAPPDATA ; Ubuntu :
+    ~/.local/share/axiorhub-pilote-demo), jamais dedans ; journaux, verrou et profil de fenêtre dans le dossier de la démo."""
+    from agent.demo56107 import dossier_poste
+    data = dossier_poste(home)
+    logs = data / 'journaux'
+    return {'home': Path(home or os.environ.get('AXIORHUB_POSTE_HOME') or Path.home()).expanduser().absolute(), 'data': data, 'logs': logs,
+            'config': data / 'config.json', 'auth': data / 'ui-auth.json', 'password': data / 'mot-de-passe-local', 'runtime': logs / 'runtime.json',
+            'state': data / 'state', 'demo': True}
+
+
+def preparer_demo(p, port, langue=None):
+    """5.6.107 (lot M) : crée la démo au premier lancement, la remet à neuf si elle date d'un autre jour ; refuse un dossier occupé
+    par autre chose qu'une démo (installation réelle) et vérifie l'isolement de sa configuration avant tout lancement. Langue : celle
+    demandée (``--langue``) ; sans demande, celle de la démo existante ; une autre langue que celle de la démo existante la refait."""
+    from agent import demo56107
+    if not p['config'].exists():
+        demo56107.creer(p['data'], origine=origin_for(port), langue=langue or 'fr')
+    elif langue and demo56107.langue_de(p['data']) != langue:
+        demo56107.reinitialiser(p['data'], langue=langue)
+    else:
+        demo56107.preparer_lancement(p['data'])
+    demo56107.verifier_isolement(json.loads(p['config'].read_text(encoding='utf-8')))
+    try:
+        (p['data'] / 'quitter.demande').unlink()
+    except OSError:
+        pass
+
+
+def _surveiller_quitter(p, supervisor, stopping):
+    """5.6.107 (lot M) : « Quitter » dans le bandeau : les services de la démo s'arrêtent ; la fenêtre affiche le message de fin."""
+    from agent.demo56107 import quitter_demande
+    while not stopping.wait(2):
+        if quitter_demande(p['data']):
+            time.sleep(1)
+            stopping.set()
+            supervisor.stop()
+            return
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='AxiorHub Pilote — mode poste')
     parser.add_argument('--no-window', action='store_true', help='services seulement (sans fenêtre)')
@@ -529,8 +584,17 @@ def main(argv=None):
     parser.add_argument('--interval', type=int, default=5, help='passage périodique de l’agent (minutes)')
     parser.add_argument('--keep-running', action='store_true', help='laisser les services tourner après la fermeture de la fenêtre')
     parser.add_argument('--liaison', default='', help='lien axiorhub://chatgpt/liaison?id=… (identifiant opaque seulement)')
+    parser.add_argument('--demo', action='store_true', help='mode Démo : cabinet fictif prérempli, sans compte ni modèle, aucun effet externe')
+    parser.add_argument('--langue', choices=('fr', 'en', 'de', 'es'), default=None, help='mode Démo : langue des données et de l’interface')
     args = parser.parse_args(argv)
     p = paths(args.home)
+    if args.demo:   # 5.6.107 (lot M) : dossier, port, verrou et fenêtre propres à la démo ; l'installation réelle n'est ni lue ni modifiée
+        if args.liaison:
+            print('La liaison n’existe pas en mode Démo.', file=sys.stderr)
+            return 2
+        p = paths_demo(args.home)
+        if args.port == DEFAULT_PORT:
+            args.port = DEMO_PORT
     liaison_id = ''
     if args.liaison:   # 5.6.97 (A05) : jamais une commande ni un domaine venus du lien ; seul l'identifiant opaque est retenu
         from agent.chatgpt5697 import lire_lien
@@ -549,6 +613,12 @@ def main(argv=None):
         info = stop_instance(p)
         print(('Arrêt demandé (pid %s).' % info['pid']) if info else 'Aucun service AxiorHub lancé par ce poste.')
         return 0
+    if args.demo and not (args.status or args.stop):
+        try:
+            preparer_demo(p, args.port, args.langue)
+        except Exception as error:   # pylint: disable=broad-except — refus d'isolement ou dossier occupé : rien n'est lancé
+            print('Démo impossible : ' + str(error), file=sys.stderr)
+            return 1
     auth = bootstrap(p, args.port)
     user, password = credentials(p)
     if args.print_password:
@@ -562,7 +632,7 @@ def main(argv=None):
     else:
         port = args.port
         try:
-            supervisor = Supervisor(p, port, interval_minutes=args.interval).start()
+            supervisor = Supervisor(p, port, interval_minutes=args.interval, demo=args.demo).start()
         except RuntimeError as error:
             print('Une instance AxiorHub est déjà active pour ce profil (' + str(error) + ').', file=sys.stderr)
             return 1
@@ -576,6 +646,10 @@ def main(argv=None):
             print('L’interface locale n’a pas démarré : consultez ' + str(p['logs'] / 'interface.log'), file=sys.stderr)
             return 1
     path = '/parametres?rubrique=connexions&premier=1' if first_run(p) else '/'   # 5.6.24 (F19) : premier lancement guidé
+    if args.demo:   # 5.6.107 (lot M) : la découverte commence par le courriel ; « Quitter » arrête les services de la démo
+        path = '/courriels'
+        if supervisor:
+            threading.Thread(target=_surveiller_quitter, args=(p, supervisor, stopping), daemon=True, name='axiorhub-demo-quitter').start()
     if liaison_id:   # 5.6.97 (A05) : carte ChatGPT du poste, volet « Liaison demandée par le serveur du cabinet »
         path = '/parametres?' + urllib.parse.urlencode({'rubrique': 'ia', 'liaison': liaison_id}) + '#chatgpt5662'
     if args.no_window:

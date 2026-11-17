@@ -1,0 +1,38 @@
+{
+  "version": "5.6.107",
+  "base": "5.6.106",
+  "date_utc": "2026-11-17T00:00:00+00:00",
+  "demande": "Mode Démo dans l’application et en ligne, vidéo de démonstration en quatre langues, interface traduite, alerte de fraude plus discrète (cabinet, 16-17/11/2026).",
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 8 sur une copie figée du commit testé, PYTHONUTF8=1",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 7453,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 165
+  },
+  "lots": [
+    "M mode Démo",
+    "H démo hébergée",
+    "V vidéo",
+    "T traductions",
+    "X règles multilingues",
+    "F2 alerte discrète"
+  ],
+  "linux": "Debian python:3.12 avec tesseract et poppler : 13 modules nouveaux et touchés, 557 tests OK ; suite Linux entière laissée à GitHub",
+  "navigateur": "Chromium : 51 parcours en 4 groupes, 49 réussis ; P107m et P107t adaptés au banc général puis repassés avec P107f, P106l et P106v : 5 sur 5",
+  "exapp": {
+    "version": "0.1.66",
+    "moteur": "5.6.107"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "Démo hébergée : service systemd, Apache, certificat et DNS réels non essayés ; isolement réseau vérifié en conteneur.",
+    "Traductions non relues par un juriste de chaque langue.",
+    "Voix de synthèse (Kokoro, Piper) non relues par un locuteur natif.",
+    "Aucune vraie messagerie ni modèle réel."
+  ]
+}

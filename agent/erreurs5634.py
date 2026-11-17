@@ -611,6 +611,9 @@ def explain(code, detail=None):
     st, svc = d.get('stage', ''), d.get('service', '')
     where = (' — étape : %s' % STAGES.get(st, st)) if st else ''
     ref = (' (réf. %s)' % d['correlation_id']) if d.get('correlation_id') else ''
+    if code == 'demonstration_hors_ligne':   # 5.6.107 (lot M) : mode Démo, aucune connexion extérieure
+        from .demo56107 import MESSAGES as _messages107
+        return _messages107[code]
     if code == 'modele_ollama_absent':
         return 'Le modèle choisi n’est pas installé sur le moteur Ollama : installez-le ou choisissez un modèle présent (Paramètres › IA). Les dossiers ne sont pas en cause.' + ref
     if code in ('moteur_ollama_injoignable', 'fournisseur_ia_injoignable'):

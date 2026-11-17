@@ -1,0 +1,15 @@
+X-Demo-Id: durand-pieces-suite
+X-Demo-Heures: 1
+X-Demo-Boite: INBOX
+X-Demo-Piece: 02 - Practical completion certificate.pdf|MAT-001
+X-Demo-Repond: durand-pieces
+From: James DURAND <direction@durand-building.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: RE: DURAND v MARTIN — defence received
+Message-ID: <durand-pieces-suite@demo.example.test>
+
+Dear Claire,
+
+Please find attached the signed practical completion certificate. The site meeting minutes will follow tomorrow.
+
+James DURAND

@@ -1,0 +1,14 @@
+X-Demo-Id: ordre-cotisation
+X-Demo-Heures: 260
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Ordre des avocats de Valbrune <secretariat@ordre-valbrune.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Appel de cotisation ordinale
+Message-ID: <ordre-cotisation@demo.example.test>
+
+Madame,
+
+L'appel de cotisation de l'année est disponible sur votre espace (message fictif de démonstration).
+
+Le secrétariat de l'Ordre

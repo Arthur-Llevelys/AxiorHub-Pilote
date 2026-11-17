@@ -1,0 +1,16 @@
+X-Demo-Id: martin-rgpd
+X-Demo-Heures: 30
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Registre des traitements.pdf|DOS-005
+From: Thomas MARTIN <dpo@martin-logistique.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: MARTIN Logistique — registre des traitements
+Message-ID: <martin-rgpd@demo.example.test>
+
+Bonjour Maître,
+
+Comme convenu, voici notre registre des traitements. La géolocalisation des véhicules nous pose question.
+
+Thomas MARTIN
+MARTIN Logistique

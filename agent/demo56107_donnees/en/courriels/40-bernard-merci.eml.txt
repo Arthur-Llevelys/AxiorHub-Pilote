@@ -1,0 +1,14 @@
+X-Demo-Id: bernard-merci
+X-Demo-Heures: 320
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Alice BERNARD — thank you
+Message-ID: <bernard-merci@demo.example.test>
+
+Dear Claire,
+
+Thank you for explaining the appeal procedure. I remain available whenever you need me.
+
+Alice BERNARD

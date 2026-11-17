@@ -1,0 +1,15 @@
+X-Demo-Id: orlandec-merci
+X-Demo-Heures: 230
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Rechtsabteilung ORLANDEC <recht@orlandec.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: ORLANDEC — Dank für den Vermerk
+Message-ID: <orlandec-merci@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+vielen Dank für Ihren Vermerk zur Gebietsexklusivität. Wir leiten ihn an den Vorstand weiter.
+
+Mit freundlichen Grüßen
+Die Rechtsabteilung

@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-zorval
+X-Demo-Heures: 46
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: zorval-facture
+From: Claire DURAND <claire.durand@durandmartin.example.test>
+To: Sophie ZORVAL <accounts@zorval.example.test>
+Subject: RE: ZORVAL Distribution — another unpaid invoice
+Message-ID: <envoi-zorval@demo.example.test>
+
+Dear Ms ZORVAL,
+
+Invoice 2024-160 is not covered by the judgment; if it remains unpaid, we can issue a fresh claim for it.
+
+Claire DURAND
+Durand & Martin Solicitors

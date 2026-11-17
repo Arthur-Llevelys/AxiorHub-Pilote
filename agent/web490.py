@@ -257,6 +257,14 @@ def brouillon_du_jeton(desk, token):
 
 
 # ------------------------------------------------------------- 5.6.106 (lot E) : file d'envoi (seule la couche web touche au module d'envoi)
+def fabrique_smtp_demo(fabrique):
+    """5.6.107 (lot M) : mode Démo — client SMTP de démonstration posé (ou retiré avec ``None``) par la couche web d'envoi, seule à toucher au
+    module d'envoi ; rend la fabrique précédente. Aucun envoi n'est déclenché ici."""
+    precedente = send490.smtp_factory
+    send490.smtp_factory = fabrique
+    return precedente
+
+
 def file_jeton(desk, token):
     """Empreinte annoncée par un jeton d'aperçu encore valable (lecture seule)."""
     return send490.pending_fingerprint(desk, token)

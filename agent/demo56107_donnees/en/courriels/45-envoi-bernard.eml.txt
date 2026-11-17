@@ -1,0 +1,15 @@
+X-Demo-Id: envoi-bernard
+X-Demo-Heures: 318
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+From: Claire DURAND <claire.durand@durandmartin.example.test>
+To: Alice BERNARD <alice.bernard@example.test>
+Subject: Alice BERNARD — your appeal
+Message-ID: <envoi-bernard@demo.example.test>
+
+Dear Ms BERNARD,
+
+Please find below the stages of the appeal procedure and the likely timetable.
+
+Claire DURAND
+Durand & Martin Solicitors

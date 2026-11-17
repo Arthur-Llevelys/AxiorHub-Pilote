@@ -1,0 +1,15 @@
+X-Demo-Id: martin-sous-traitant
+X-Demo-Heures: 120
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Thomas MARTIN <datenschutz@martin-logistik.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: MARTIN Logistik — Vertrag mit dem Hosting-Anbieter
+Message-ID: <martin-sous-traitant@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+unser Hosting-Anbieter hat uns seinen Auftragsverarbeitungsvertrag geschickt. Könnten Sie prüfen, ob er die Regelungen nach Art. 28 DSGVO enthält?
+
+Mit freundlichen Grüßen
+Thomas MARTIN

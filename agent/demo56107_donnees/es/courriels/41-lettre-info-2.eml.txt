@@ -1,0 +1,14 @@
+X-Demo-Id: lettre-info-2
+X-Demo-Heures: 340
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Boletín Mercantil <boletin@ediciones-juridicas.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Boletín Mercantil — n.º 311: recobro y juicio monitorio
+Message-ID: <lettre-info-2@demo.example.test>
+
+Boletín Mercantil (boletín ficticio de demostración)
+
+- Juicio monitorio: el requerimiento de pago y sus plazos;
+- Embargo de cuentas bancarias: recordatorios prácticos.

@@ -1,0 +1,15 @@
+X-Demo-Id: durand-facture
+X-Demo-Heures: 100
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jan DURAND <geschaeftsfuehrung@durand-bau.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND Bau — Vorschussrechnung
+Message-ID: <durand-facture@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+Ihre Vorschussrechnung für die Akte DURAND ./. MARTIN haben wir erhalten. Die Überweisung erfolgt diese Woche.
+
+Mit freundlichen Grüßen
+Jan DURAND

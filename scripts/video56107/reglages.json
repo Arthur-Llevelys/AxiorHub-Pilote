@@ -1,0 +1,18 @@
+{
+ "note": "5.6.107 (lot V) : réglages de la vidéo de démonstration. Chemins relatifs résolus depuis la racine du dépôt ; « sortie » peut être remplacée par --sortie.",
+ "sortie": "../video-5.6.107",
+ "nom": "axiorhub-demo-90s",
+ "image": {"largeur": 1920, "hauteur": 1080, "images_par_seconde": 30, "navigateur": "chromium",
+           "deplacement_souris_s": 0.8, "pas_par_seconde": 50},
+ "voix": {"avance_s": 0.15, "marge_s": 0.4, "tete_s": 0.25, "queue_s": 0.15, "fondu_s": 0.01, "mots_par_seconde_estimes": 2.6,
+          "windows": {"voix_preferees": ["Hortense", "Julie", "Paul"], "culture": "fr-FR", "debit": 1, "volume": 100,
+                      "frequence_hz": 22050},
+          "linux": {"programme": "espeak-ng", "voix": "fr-fr", "mots_par_minute": 150, "frequence_hz": 22050},
+          "kokoro": {"modele": "../kokoro-modele"},
+          "piper": {"programme": "../piper/outil/piper/piper.exe", "voix": "../piper/voix"},
+          "note": "voix, vitesse et prononciation par langue : langues.json ; KOKORO_MODELE, PIPER et PIPER_VOIX remplacent les chemins"},
+ "sous_titres": {"caracteres_par_ligne": 42, "lignes": 2, "duree_min_s": 1.2},
+ "montage": {"mp4": {"crf": 20, "preset": "slow", "audio_ko": 128},
+             "webm": {"crf": 33, "audio_ko": 96},
+             "affiche_decalage_s": 0.0}
+}

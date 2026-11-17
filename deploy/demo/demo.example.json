@@ -1,0 +1,22 @@
+{
+  "_commentaire": "Démo en ligne d'AxiorHub Pilote : copiez ce fichier en /etc/axiorhub-demo/demo.json et remplacez l'origine par votre sous-domaine. Les valeurs omises gardent leur défaut ; une clé inconnue ou une valeur hors bornes empêche le démarrage.",
+  "origine": "https://demo.example.test",
+  "ecoute": "unix:/run/axiorhub-demo/demo.sock",
+  "dossier_instances": "/var/lib/axiorhub-demo/instances",
+  "dossier_journal": "/var/lib/axiorhub-demo/journal",
+  "inactivite_minutes": 120,
+  "duree_max_minutes": 360,
+  "instances_max": 20,
+  "creations_par_ip_heure": 5,
+  "memoire_mo": 512,
+  "memoire_totale_mo": 6144,
+  "cpu_pourcent": 50,
+  "cpu_total_pourcent": 200,
+  "cpu_secondes": 1800,
+  "processus_max": 64,
+  "taille_max_mo": 200,
+  "corps_max_mo": 10,
+  "delai_demarrage_secondes": 90,
+  "journal_jours": 7,
+  "chemins_refuses": []
+}

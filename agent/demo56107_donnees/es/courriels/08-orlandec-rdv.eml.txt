@@ -1,0 +1,14 @@
+X-Demo-Id: orlandec-rdv
+X-Demo-Heures: 13
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Elena ORLANDEC <presidencia@orlandec.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: ORLANDEC S.A. — reunión de firma
+Message-ID: <orlandec-rdv@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+Le confirmo mi asistencia mañana a las 10:00 en su despacho para la firma del contrato de compraventa de acciones de ORLANDEC S.A.
+
+Elena ORLANDEC

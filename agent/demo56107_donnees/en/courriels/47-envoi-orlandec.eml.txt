@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-orlandec
+X-Demo-Heures: 125
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: orlandec-audit
+From: Claire DURAND <claire.durand@durandmartin.example.test>
+To: Helen ORLANDEC <md@orlandec.example.test>
+Subject: RE: ORLANDEC Ltd — buyer's questions
+Message-ID: <envoi-orlandec@demo.example.test>
+
+Dear Ms ORLANDEC,
+
+The two contracts concerned can be dealt with by making completion conditional on the customers' consent.
+
+Claire DURAND
+Durand & Martin Solicitors

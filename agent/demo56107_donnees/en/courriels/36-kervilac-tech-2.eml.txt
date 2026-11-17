@@ -1,0 +1,14 @@
+X-Demo-Id: kervilac-tech-2
+X-Demo-Heures: 240
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Ian KERVILAC <founders@kervilac-tech.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: RE: Shareholders' agreement for our start-up
+Message-ID: <kervilac-tech-2@demo.example.test>
+
+Dear Ms DURAND,
+
+Thank you for your quick reply. We are available for a call at the end of the week.
+
+Ian KERVILAC

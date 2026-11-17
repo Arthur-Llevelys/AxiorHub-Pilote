@@ -1,0 +1,17 @@
+X-Demo-Id: greffe-ca
+X-Demo-Heures: 80
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Landesarbeitsgericht Valbrune <poststelle@landesarbeitsgericht-valbrune.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: [beA] Mitteilung — Az. 4 Sa 1411/24 — BERNARD ./. ZORVAL Services
+Message-ID: <greffe-ca@demo.example.test>
+
+Fiktive beA-Nachricht (Demonstration).
+
+Landesarbeitsgericht Valbrune — 4. Kammer
+Az. 4 Sa 1411/24
+
+Der Eingang der Berufung wird bestätigt. Die Berufungsbegründung ist innerhalb der gesetzlichen Frist einzureichen.
+
+Die Geschäftsstelle

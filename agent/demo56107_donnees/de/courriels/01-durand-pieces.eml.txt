@@ -1,0 +1,17 @@
+X-Demo-Id: durand-pieces
+X-Demo-Heures: 2
+X-Demo-Boite: INBOX
+From: Jan DURAND <geschaeftsfuehrung@durand-bau.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: DURAND ./. MARTIN — Klageerwiderung erhalten
+Message-ID: <durand-pieces@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+vielen Dank für die Übersendung der Klageerwiderung der MARTIN Immobilien GmbH. Dort wird behauptet, eine Abnahme habe nie stattgefunden, obwohl wir mit der Gegenseite ein Abnahmeprotokoll unterzeichnet haben.
+
+Welche Unterlagen benötigen Sie für die Erwiderung? Ich kann Ihnen die Bautagesberichte schicken.
+
+Mit freundlichen Grüßen
+Jan DURAND
+DURAND Bau GmbH

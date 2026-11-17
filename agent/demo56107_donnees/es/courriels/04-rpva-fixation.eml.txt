@@ -1,0 +1,18 @@
+X-Demo-Id: rpva-fixation
+X-Demo-Heures: 5
+X-Demo-Boite: INBOX
+From: Juzgado de Primera Instancia de Valbrune <notificaciones@juzgado-valbrune.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: [LexNET] Notificación de señalamiento — Procedimiento 1234/2024 — DURAND c. MARTIN
+Message-ID: <rpva-fixation@demo.example.test>
+
+Mensaje LexNET ficticio (demostración).
+
+Juzgado de Primera Instancia n.º 3 de Valbrune
+Procedimiento ordinario 1234/2024
+Partes: DURAND Construcciones S.L. contra MARTIN Inmobiliaria S.A.
+
+Diligencia de ordenación: se señala la audiencia previa para el día {AUDIENCE} a las 9:30 horas.
+Se cita a las partes, que deberán comparecer asistidas de abogado y representadas por procurador.
+
+El Letrado de la Administración de Justicia

@@ -1,0 +1,18 @@
+X-Demo-Id: lettre-info
+X-Demo-Heures: 54
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Wirtschaftsrecht aktuell <redaktion@fachverlag-recht.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Wirtschaftsrecht aktuell — Nr. 312: Gewerbemiete und fristlose Kündigung
+Message-ID: <lettre-info@demo.example.test>
+
+Wirtschaftsrecht aktuell (fiktiver Newsletter zur Demonstration)
+
+In dieser Ausgabe:
+- Gewerbemiete: fristlose Kündigung wegen Zahlungsverzugs und Räumung;
+- Gesellschaftsrecht: Garantien im Unternehmenskaufvertrag in der Praxis;
+- Zivilprozess: Vorbereitung des frühen ersten Termins.
+
+Sie erhalten diesen Newsletter, weil Sie ihn abonniert haben.

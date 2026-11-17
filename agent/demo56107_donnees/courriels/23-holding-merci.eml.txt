@@ -1,0 +1,14 @@
+X-Demo-Id: holding-merci
+X-Demo-Heures: 110
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Secrétariat DURAND Holding <secretariat@durand-holding.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: DURAND Holding — date de l’assemblée
+Message-ID: <holding-merci@demo.example.test>
+
+Maître,
+
+Le président propose de tenir l'assemblée générale de DURAND Holding vendredi à 15 h, au siège.
+
+Le secrétariat

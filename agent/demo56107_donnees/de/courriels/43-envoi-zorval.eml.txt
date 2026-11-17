@@ -1,0 +1,19 @@
+X-Demo-Id: envoi-zorval
+X-Demo-Heures: 46
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: zorval-facture
+From: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+To: Sophie ZORVAL <buchhaltung@zorval.example.test>
+Subject: AW: ZORVAL Distribution — weitere offene Rechnung
+Message-ID: <envoi-zorval@demo.example.test>
+
+Sehr geehrte Frau ZORVAL,
+
+für die Rechnung 2024-160 kann, falls sie unbezahlt bleibt, ein weiterer Mahnbescheid beantragt werden.
+
+Mit freundlichen Grüßen
+
+Claire Durand
+Rechtsanwältin
+Kanzlei Durand

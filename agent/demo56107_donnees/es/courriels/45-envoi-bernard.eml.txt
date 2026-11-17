@@ -1,0 +1,16 @@
+X-Demo-Id: envoi-bernard
+X-Demo-Heures: 318
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+From: Claire Durand <claire.durand@durand-abogados.example.test>
+To: Alicia BERNARD <alicia.bernard@example.test>
+Subject: Alicia BERNARD — su recurso
+Message-ID: <envoi-bernard@demo.example.test>
+
+Estimada Sra. BERNARD:
+
+Le resumo las fases del recurso de suplicación y el calendario previsible.
+
+Claire Durand
+Abogada
+Despacho Durand Abogados

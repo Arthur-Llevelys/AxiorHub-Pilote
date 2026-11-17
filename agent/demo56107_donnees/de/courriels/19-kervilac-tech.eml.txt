@@ -1,0 +1,16 @@
+X-Demo-Id: kervilac-tech
+X-Demo-Heures: 72
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jonas KERVILAC <gruender@kervilac-tech.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Gesellschaftervereinbarung für unser Start-up
+Message-ID: <kervilac-tech@demo.example.test>
+
+Guten Tag,
+
+wir sind drei Gründer und möchten vor einer Finanzierungsrunde eine Gesellschaftervereinbarung abschließen. Wie hoch ist Ihr Honorar für ein solches Mandat?
+
+Mit freundlichen Grüßen
+Jonas KERVILAC
+KERVILAC Tech

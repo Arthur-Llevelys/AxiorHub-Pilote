@@ -1,0 +1,14 @@
+X-Demo-Id: bernard-merci
+X-Demo-Heures: 320
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alicia BERNARD <alicia.bernard@example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Alicia BERNARD — gracias
+Message-ID: <bernard-merci@demo.example.test>
+
+Sra. Durand:
+
+Gracias por sus explicaciones sobre el recurso de suplicación. Quedo a su disposición.
+
+Alicia BERNARD

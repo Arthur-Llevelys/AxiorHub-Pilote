@@ -54,6 +54,7 @@ STATIC.update({'/static/v56106-vision.js': 'text/javascript', '/static/v56106-vi
 STATIC.update({'/static/v56106-routine.js': 'text/javascript', '/static/v56106-routine.css': 'text/css'})   # 5.6.106 (lot O) : « Créer une routine à partir du message », routines sur message d'Aujourd'hui
 STATIC.update({'/static/v56106-lecteur.js': 'text/javascript', '/static/v56106-lecteur.css': 'text/css'})   # 5.6.106 (lot V) : lecteur, HTML isolé, résumé par l'IA, courriel → tâche ou agenda
 STATIC.update({'/static/v56106-fraude.js': 'text/javascript', '/static/v56106-fraude.css': 'text/css'})   # 5.6.106 (lot F) : pastille et bandeau « courriel potentiellement frauduleux »
+STATIC.update({'/static/v56107-demo.js': 'text/javascript', '/static/v56107-demo.css': 'text/css'})   # 5.6.107 (lot M) : bandeau du mode Démo, visite guidée, « Essayer la démo »
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -949,6 +950,9 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56106/avocatfr/'):   # 5.6.106 (lot P) : adresse @avocat.fr (tester sans envoi, enregistrer ; administrateur, 409, no-store, clé d'idempotence)
         from . import avocatfr56106
         return avocatfr56106.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56107/demo/'):   # 5.6.107 (lot M) : mode Démo — état, recommencer, quitter, lancer la démo depuis le poste (404 neutre hors démo, no-store, clé d'idempotence)
+        from . import demo56107
+        return demo56107.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m56106/fraude/'):   # 5.6.106 (lot F) : alerte anti-fraude — indésirable, « Je connais cet expéditeur », « Ce n'est pas une fraude », réglages (404 neutre, 409, no-store, clé d'idempotence)
         from . import fraude56106
         return fraude56106.api(env, desk, auth, prefix, name, args, method)

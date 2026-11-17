@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-loyer
+X-Demo-Heures: 9
+X-Demo-Boite: INBOX
+From: Marc KERVILAC <gerance@sci-kervilac.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: SCI KERVILAC — renouvellement du bail de la Grand-Rue
+Message-ID: <kervilac-loyer@demo.example.test>
+
+Bonjour Maître,
+
+Le bail de notre locataire libraire arrive à échéance dans six mois. Pouvons-nous proposer un loyer plus élevé ? Le quartier a beaucoup changé depuis l'arrivée du tramway.
+
+Bien à vous,
+Marc KERVILAC
+SCI KERVILAC

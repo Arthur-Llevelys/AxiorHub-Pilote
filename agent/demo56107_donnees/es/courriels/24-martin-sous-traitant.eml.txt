@@ -1,0 +1,14 @@
+X-Demo-Id: martin-sous-traitant
+X-Demo-Heures: 120
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Tomás MARTIN <dpd@martin-logistica.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: MARTIN Logística — contrato con el proveedor de alojamiento
+Message-ID: <martin-sous-traitant@demo.example.test>
+
+Sra. Durand:
+
+Nuestro proveedor de alojamiento nos envía su contrato de encargado del tratamiento. ¿Podría comprobar que incluye las cláusulas del artículo 28 del RGPD?
+
+Tomás MARTIN

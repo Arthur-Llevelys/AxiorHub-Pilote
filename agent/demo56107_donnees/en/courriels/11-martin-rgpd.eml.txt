@@ -1,0 +1,16 @@
+X-Demo-Id: martin-rgpd
+X-Demo-Heures: 30
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Record of processing activities.pdf|MAT-005
+From: Thomas MARTIN <dpo@martin-logistics.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: MARTIN Logistics — record of processing activities
+Message-ID: <martin-rgpd@demo.example.test>
+
+Dear Claire,
+
+As agreed, here is our record of processing activities. Vehicle tracking is the point we are unsure about.
+
+Thomas MARTIN
+MARTIN Logistics

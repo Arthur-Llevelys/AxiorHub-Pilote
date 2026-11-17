@@ -1,0 +1,14 @@
+X-Demo-Id: durand-amiable
+X-Demo-Heures: 300
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Javier DURAND <direccion@durand-construcciones.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: DURAND c. MARTIN — ¿acuerdo amistoso?
+Message-ID: <durand-amiable@demo.example.test>
+
+Sra. Durand:
+
+Si MARTIN Inmobiliaria ofrece pagar 40.000 € de inmediato, ¿deberíamos aceptar? Me gustaría comentarlo con usted.
+
+Javier DURAND

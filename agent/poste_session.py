@@ -53,6 +53,8 @@ def exchange(auth_path, env, prefix):
     """Réponse à ``GET /poste-session`` : cookie de session et redirection, ou refus (403)."""
     deny = {'status': '403 Forbidden', 'kind': 'text/html; charset=utf-8',
             'body': '<p>Lien de connexion locale expiré ou déjà utilisé : relancez AxiorHub Pilote depuis le menu Démarrer.</p>'}
+    if os.environ.get('AXIORHUB_DEMO_HOTE') == '1':   # 5.6.107 (lot M) : démo hébergée (lot H) — ni poste, ni menu Démarrer
+        deny['body'] = '<p>Lien de la démonstration expiré ou déjà utilisé : recommencez la démo depuis la page d’accueil.</p>'
     query = parse_qs(env.get('QUERY_STRING', ''))
     token = (query.get('jeton') or [''])[0]
     suite = (query.get('suite') or ['/'])[0]

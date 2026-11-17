@@ -115,6 +115,9 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56106/lecteur/'):   # 5.6.106 (lot V) : préférence d'affichage, résumé par l'IA, note, tâche, événement (avocat, administrateur ; droits relus par le service)
         from .lecteur56106 import allowed as allowed56106v
         return allowed56106v(role, method, api)
+    if api.startswith('m56107/demo/'):   # 5.6.107 (lot M) : mode Démo (état : tous ; recommencer, quitter, lancer : administrateur)
+        from .demo56107 import allowed as allowed56107m
+        return allowed56107m(role, method, api)
     if api.startswith('m56106/fraude/'):   # 5.6.106 (lot F) : alerte anti-fraude (avocat, administrateur ; droits et UIDVALIDITY relus par le service) ; réglages : administrateur
         from .fraude56106 import allowed as allowed56106f
         return allowed56106f(role, method, api)

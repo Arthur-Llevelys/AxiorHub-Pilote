@@ -1,0 +1,15 @@
+X-Demo-Id: zorval-expertise
+X-Demo-Heures: 280
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <buchhaltung@zorval.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: ZORVAL ./. KERVILAC — wer kommt zum Ortstermin?
+Message-ID: <zorval-expertise@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+unser Logistikleiter kann am Ortstermin des Sachverständigen teilnehmen. Müssen wir noch etwas vorbereiten?
+
+Mit freundlichen Grüßen
+Sophie ZORVAL

@@ -1,0 +1,16 @@
+X-Demo-Id: distribution-contrat
+X-Demo-Heures: 40
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Draft distribution agreement.pdf|MAT-009
+From: ORLANDEC Legal Department <legal@orlandec.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Review of the ORLANDEC distribution agreement
+Message-ID: <distribution-contrat@demo.example.test>
+
+Dear Claire,
+
+Our supplier has proposed an exclusive distribution agreement. Could you review it, in particular the non-compete covenant?
+
+Legal Department
+ORLANDEC Ltd

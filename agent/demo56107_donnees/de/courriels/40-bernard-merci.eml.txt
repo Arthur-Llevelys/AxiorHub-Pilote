@@ -1,0 +1,15 @@
+X-Demo-Id: bernard-merci
+X-Demo-Heures: 320
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@privat.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Alice BERNARD — vielen Dank
+Message-ID: <bernard-merci@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+vielen Dank für Ihre Erläuterungen zum Berufungsverfahren. Ich stehe Ihnen weiterhin zur Verfügung.
+
+Mit freundlichen Grüßen
+Alice BERNARD

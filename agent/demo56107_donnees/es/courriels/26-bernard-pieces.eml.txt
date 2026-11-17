@@ -1,0 +1,14 @@
+X-Demo-Id: bernard-pieces
+X-Demo-Heures: 140
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alicia BERNARD <alicia.bernard@example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Alicia BERNARD — testimonios de compañeros
+Message-ID: <bernard-pieces@demo.example.test>
+
+Sra. Durand:
+
+Dos antiguos compañeros aceptan firmar un escrito con su testimonio. Se los enviaré en cuanto los reciba.
+
+Alicia BERNARD

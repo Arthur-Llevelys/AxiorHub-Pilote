@@ -1,0 +1,39 @@
+# AxiorHub Pilote — démo en ligne, variante Docker (5.6.107, lot H). Depuis la racine de l'archive :
+#   install -d -o 10001 -g www-data -m 0750 deploy/demo/socket
+#   cp deploy/demo/demo.example.json deploy/demo/demo.json      (puis remplacer l'origine)
+#   docker compose -f deploy/demo/compose.yml up -d --build
+# Un seul conteneur : le répartiteur et les instances des visiteurs (un processus chacun). Aucun réseau ; Apache (ou nginx) de l'hôte
+# joint le répartiteur par deploy/demo/socket/demo.sock. Les instances vivent dans un tmpfs borné : arrêter le conteneur efface tout.
+services:
+  demo:
+    build:
+      context: ../..
+      dockerfile: deploy/demo/Dockerfile
+    image: axiorhub-demo:local
+    container_name: axiorhub-demo
+    restart: unless-stopped
+    network_mode: none                     # aucun accès réseau sortant, ni entrant autre que le socket Unix
+    read_only: true                        # système de fichiers en lecture seule, sauf les tmpfs et le socket ci-dessous
+    user: "10001:10001"
+    group_add: ["33"]                      # groupe www-data de l'hôte (Debian, Ubuntu) : seul le mandataire joint le socket
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      AXIORHUB_DEMO_SOCKET_GID: "33"
+    tmpfs:
+      - /var/lib/axiorhub-demo:size=4g,mode=0700,uid=10001,gid=10001   # instances + journal : taille bornée, effacés à l'arrêt
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - ./socket:/run/axiorhub-demo
+      - ./demo.json:/etc/axiorhub-demo/demo.json:ro
+    mem_limit: 6g                          # = memoire_totale_mo ; par instance : memoire_mo (limite du processus)
+    memswap_limit: 6g
+    cpus: 2.0                              # = cpu_total_pourcent / 100
+    pids_limit: 2048
+    ulimits:
+      core: 0
+      nofile: {soft: 4096, hard: 8192}
+    logging:
+      driver: json-file
+      options: {max-size: "1m", max-file: "3"}

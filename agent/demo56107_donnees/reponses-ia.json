@@ -1,0 +1,30 @@
+{
+  "_commentaire": "5.6.107 (lot M) : réponses préparées de l'IA de démonstration (aucun modèle). Chaque texte est précédé de la marque « Réponse de démonstration ». Données fictives.",
+  "marque": "Réponse de démonstration",
+  "assistant": [
+    {"mots": ["audience", "agenda", "semaine", "rendez-vous", "rendez vous", "planning"],
+     "texte": "Cette semaine, le cabinet a : aujourd’hui un point téléphonique avec Jean DURAND (9 h 30) et l’audience de référé KERVILAC c. ORLANDEC (14 h, TJ Valbrune) ; demain la signature du protocole ORLANDEC (10 h) et la réunion RGPD de MARTIN Logistique ; dans deux jours la réunion d’expertise à l’entrepôt ZORVAL ; vendredi l’assemblée générale de DURAND Holding. L’audience de mise en état DURAND c. MARTIN suit la semaine prochaine."},
+    {"mots": ["durand", "martin", "dos-001", "24/01234", "chantier", "reception", "réception"],
+     "texte": "Dossier DURAND c. MARTIN (RG 24/01234, TJ Valbrune) : la Société DURAND Bâtiment réclame 48 600 € TTC de solde de travaux. MARTIN Immobilier conteste la réception et demande une expertise. Le procès-verbal de réception signé des deux parties (pièce 02) contredit cette position. Prochaine étape : conclusions en réponse avant l’audience de mise en état ; le client a transmis les comptes rendus de chantier."},
+    {"mots": ["rib", "fraude", "frauduleux", "virement", "iban", "arnaque"],
+     "texte": "Le courriel « Changement de RIB – urgent » présente les signes d’une fraude au changement de coordonnées bancaires : expéditeur inconnu qui se présente comme ZORVAL Distribution, domaine différent de celui du client, demande de discrétion, urgence et IBAN étranger. Ne faites aucun virement ; vérifiez par téléphone auprès de Sophie ZORVAL, au numéro déjà connu du cabinet."},
+    {"mots": ["kervilac", "bail", "loyer", "renouvellement", "deplafonnement", "déplafonnement"],
+     "texte": "Pour la SCI KERVILAC, le bail de la Grand-Rue arrive à échéance dans six mois. Un loyer déplafonné suppose de démontrer une modification notable des facteurs locaux de commercialité (par exemple l’arrivée du tramway). Il faut réunir ces éléments avant d’adresser le congé avec offre de renouvellement."},
+    {"mots": ["orlandec", "cession", "protocole", "garantie", "gap"],
+     "texte": "Cession ORLANDEC SAS : le conseil de l’acquéreur demande de porter le plafond de la garantie d’actif et de passif à 30 % du prix. La signature est prévue demain à 10 h. Points ouverts : plafond et franchise de la garantie, deux contrats clients résiliables en cas de changement de contrôle."},
+    {"mots": ["zorval", "recouvrement", "injonction", "orlandec negoce", "facture"],
+     "texte": "Recouvrement ZORVAL Distribution contre ORLANDEC Négoce (RG 24/01302) : l’ordonnance d’injonction de payer (12 450 €) a été signifiée. Le débiteur dispose d’un mois pour former opposition ; à défaut, la formule exécutoire pourra être demandée et le commissaire de justice engagera l’exécution."},
+    {"mots": ["résume", "resume", "résumé", "synthese", "synthèse", "aujourd"],
+     "texte": "Aujourd’hui : deux messages de Jean DURAND sur les conclusions adverses (pièces demandées, procès-verbal joint), un avis RPVA de fixation dans DURAND c. MARTIN, un courriel frauduleux de changement de RIB à ne pas traiter, et des relances de ZORVAL Distribution et de la SCI KERVILAC. Trois projets de réponse attendent dans À relire."}
+  ],
+  "assistant_generique": "En mode démonstration, aucun modèle d’IA n’est branché : cette réponse est préparée à l’avance. Dans une installation réelle, l’assistant répond à partir des courriels, de l’agenda et des pièces du dossier, en citant ses sources, avec le modèle choisi par le cabinet (local ou en ligne). Essayez par exemple : « Quelles audiences cette semaine ? », « Résume le dossier DURAND c. MARTIN » ou « Ce courriel de changement de RIB est-il suspect ? ».",
+  "projet_reponse": [
+    {"mots": ["pieces", "pièces", "conclusions"], "texte": "Bonjour,\n\nJe vous remercie pour votre message.\n\nPour répondre utilement, j’aurais besoin des pièces suivantes : le procès-verbal de réception signé, les comptes rendus de chantier et les échanges écrits sur les réserves. Pouvez-vous me les transmettre d’ici la fin de la semaine ?\n\nBien cordialement,\n\nMe Claire DURAND\nCabinet DURAND Avocats"},
+    {"mots": ["rendez-vous", "rendez vous", "recevoir", "disponible"], "texte": "Bonjour,\n\nJe vous remercie pour votre message. Je peux vous recevoir au cabinet jeudi à 11 h, ou en visioconférence si vous le préférez. Merci de me confirmer le créneau qui vous convient.\n\nBien cordialement,\n\nMe Claire DURAND\nCabinet DURAND Avocats"},
+    {"mots": ["recouvrement", "facture", "impay"], "texte": "Bonjour,\n\nL’ordonnance d’injonction de payer a été signifiée au débiteur. Le délai d’opposition d’un mois court depuis la signification ; sans opposition, nous engagerons l’exécution.\n\nJe reviens vers vous dès l’expiration du délai.\n\nBien cordialement,\n\nMe Claire DURAND\nCabinet DURAND Avocats"}
+  ],
+  "projet_generique": "Bonjour,\n\nJe vous remercie pour votre message, que j’ai bien reçu. J’en prends connaissance et reviens vers vous très prochainement.\n\nBien cordialement,\n\nMe Claire DURAND\nCabinet DURAND Avocats",
+  "resume_generique": "Les courriels cochés portent sur des dossiers en cours du cabinet : demandes de clients, échanges avec des confrères et avis de juridiction. Les demandes et échéances repérées sont listées ci-dessous.",
+  "analyse_piece": "La pièce est lisible. Elle contient les éléments attendus pour ce type de document (parties, objet, dates). À vérifier par l’avocat : concordance des dates avec la chronologie du dossier et signatures.",
+  "texte_generique": "Ce texte est préparé à l’avance pour la démonstration ; aucun modèle d’IA n’a été appelé."
+}

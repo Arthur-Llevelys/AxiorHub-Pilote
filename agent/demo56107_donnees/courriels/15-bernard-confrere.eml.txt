@@ -1,0 +1,16 @@
+X-Demo-Id: bernard-confrere
+X-Demo-Heures: 50
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 04 - Conclusions adverses.pdf|DOS-001
+From: Me Paul BERNARD <p.bernard@bernard-avocats.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: DURAND c. MARTIN — RG 24/01234 — communication de pièces
+Message-ID: <bernard-confrere@demo.example.test>
+
+Chère Consœur,
+
+Je vous prie de trouver ci-joint mes conclusions en défense pour MARTIN Immobilier, ainsi que le bordereau de pièces.
+
+Bien confraternellement,
+Me Paul BERNARD

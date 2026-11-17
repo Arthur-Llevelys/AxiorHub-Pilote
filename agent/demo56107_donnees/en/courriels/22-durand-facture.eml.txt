@@ -1,0 +1,14 @@
+X-Demo-Id: durand-facture
+X-Demo-Heures: 100
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: James DURAND <direction@durand-building.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND Building — invoice for money on account
+Message-ID: <durand-facture@demo.example.test>
+
+Dear Claire,
+
+We have received your invoice for money on account in the DURAND v MARTIN matter. The transfer will be made this week.
+
+James DURAND

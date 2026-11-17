@@ -1,0 +1,17 @@
+X-Demo-Id: orlandec-protocole
+X-Demo-Heures: 11
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 02 - Draft share purchase agreement.pdf|MAT-004
+From: Louise MARTIN <louise.martin@martin-corporate.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ORLANDEC Ltd — draft share purchase agreement, our comments
+Message-ID: <orlandec-protocole@demo.example.test>
+
+Dear Claire,
+
+Please find attached our comments on the draft share purchase agreement for the shares in ORLANDEC Ltd. Our client wishes to raise the cap on warranty claims to 30% of the price.
+
+Kind regards,
+Louise MARTIN
+MARTIN Corporate LLP

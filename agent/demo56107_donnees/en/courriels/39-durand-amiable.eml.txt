@@ -1,0 +1,14 @@
+X-Demo-Id: durand-amiable
+X-Demo-Heures: 300
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: James DURAND <direction@durand-building.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: DURAND v MARTIN — settlement?
+Message-ID: <durand-amiable@demo.example.test>
+
+Dear Claire,
+
+If MARTIN Property offers to pay £40,000 straight away, should we accept? I would like to discuss it with you.
+
+James DURAND

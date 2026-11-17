@@ -1,0 +1,16 @@
+X-Demo-Id: expert-convocation
+X-Demo-Heures: 20
+X-Demo-Boite: INBOX
+From: Sachverständiger ORLANDEC <sv.orlandec@gutachten.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: ZORVAL ./. KERVILAC — Az. 5 OH 1355/24 — Ladung zum Ortstermin
+Message-ID: <expert-convocation@demo.example.test>
+
+Sehr geehrte Frau Rechtsanwältin Durand,
+
+in dem selbständigen Beweisverfahren lade ich Sie zum ersten Ortstermin in der Lagerhalle der ZORVAL Distribution GmbH in zwei Tagen um 9:00 Uhr.
+
+Ich bitte Sie, mir vorab den Mietvertrag und die Feststellungen zu den Wassereintritten zu übersenden.
+
+Mit freundlichen Grüßen
+Der Sachverständige

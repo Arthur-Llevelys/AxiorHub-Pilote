@@ -23,6 +23,12 @@
     (children || []).forEach(function (c) { if (c) node.appendChild(c); });
     return node;
   }
+  // 5.6.107 (lot T) : texte traduit par le dictionnaire des écrans (v5634t.js) ; en français, le texte est rendu tel quel
+  function tr(texte) { return window.ax5634Translate ? window.ax5634Translate(texte) : texte; }
+  function parTitre(racine, titre) {   // bouton repéré par son infobulle française OU traduite
+    var traduit = tr(titre);
+    return $$('[title]', racine).filter(function (b) { return b.title === titre || b.title === traduit; })[0] || null;
+  }
   function toast(message, bad) {
     if (window.axh5670 && window.axh5670.toast) { window.axh5670.toast(message, bad); return; }
     var box = $('#ax-toast');
@@ -494,7 +500,7 @@
     bar.appendChild(pm.element);
     bar.appendChild(statut);
     editor.addEventListener('keydown', function (ev) {   // Ctrl+K : lien ; le reste (Ctrl+B, I, U, Z, Y) est natif
-      if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && ev.key && ev.key.toLowerCase() === 'k') { ev.preventDefault(); ev.stopPropagation(); memoriser(editor); bar.querySelector('[title="Insérer un lien"]').click(); }
+      if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && ev.key && ev.key.toLowerCase() === 'k') { ev.preventDefault(); ev.stopPropagation(); memoriser(editor); var lien = parTitre(bar, 'Insérer un lien'); if (lien) lien.click(); }
     });
     return bar;
   }
@@ -769,7 +775,7 @@
       }
       pj.ajouter(liste);
     }, true);
-    form.setAttribute('data-drop-label', 'Déposez les fichiers pour les joindre (une image déposée dans le texte y est insérée)');
+    form.setAttribute('data-drop-label', tr('Déposez les fichiers pour les joindre (une image déposée dans le texte y est insérée)'));   // attribut hors de la traduction automatique
   }
 
   // =================================================================== images collées ou déposées dans le corps (pièces intégrées à l'envoi)

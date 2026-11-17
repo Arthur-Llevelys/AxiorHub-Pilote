@@ -1,0 +1,15 @@
+X-Demo-Id: envoi-durand
+X-Demo-Heures: 26
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+From: Claire DURAND <claire.durand@durandmartin.example.test>
+To: James DURAND <direction@durand-building.example.test>
+Subject: DURAND v MARTIN — defence
+Message-ID: <envoi-durand@demo.example.test>
+
+Dear Mr DURAND,
+
+I enclose MARTIN Property's defence, received yesterday. I am reviewing it and will come back to you.
+
+Claire DURAND
+Durand & Martin Solicitors

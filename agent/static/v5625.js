@@ -288,7 +288,7 @@
       var go = el('button', { type: 'button', 'class': 'ax-btn', text: '✨ Répondre avec l’IA' });
       go.addEventListener('click', function () { ask(go); });
       panel.appendChild(el('div', { 'class': 'bx5625-ask', id: 'bx5625-ask' }, [el('h3', { text: 'Répondre avec l’IA' }), ownNote,
-        el('label', {}, [el('span', { text: 'Dossier' + (m.matter_reason ? ' (' + m.matter_reason + ')' : '') }), select]), creator,
+        el('label', { 'data-demo-dossier': m.matter || '' }, [el('span', { text: 'Dossier' + (m.matter_reason ? ' (' + m.matter_reason + ')' : '') }), select]), creator,   /* 5.6.107 (lot M) : repère stable (vidéo) */
         el('label', {}, [el('span', { text: 'Instruction à l’agent (facultative)' }), instr]),
         el('label', { 'class': 'm5-check' }, [pjBox, el('span', { text: ' Utiliser le texte des pièces jointes' })]),
         el('div', { 'class': 'ax-actions' }, [go, el('span', { 'class': 'ax-muted', text: 'La réponse est déposée dans Brouillons et contrôlée ; rien n’est envoyé.' })])]));

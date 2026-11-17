@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-tech-2
+X-Demo-Heures: 240
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jonas KERVILAC <gruender@kervilac-tech.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: AW: Gesellschaftervereinbarung für unser Start-up
+Message-ID: <kervilac-tech-2@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+vielen Dank für Ihre schnelle Antwort. Wir sind Ende der Woche für ein Telefonat erreichbar.
+
+Mit freundlichen Grüßen
+Jonas KERVILAC

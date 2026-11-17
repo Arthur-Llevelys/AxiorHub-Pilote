@@ -1,0 +1,789 @@
+{
+  "_commentaire": "5.6.107 (lot M): fictional firm for Demo mode, English (England) version. Invented data (names from the fictional list, example.test domains, \"Valbrune County Court\", test company number). Relative dates: \"jour\" = offset in days from the start of the demo (moved to a working day), \"heures\" = N hours ago.",
+  "cabinet": {
+    "domaines_officiels": ["valbrune-county-court.example.test", "valbrune-eat.example.test", "valbrune-law-society.example.test"],
+    "nom": "Durand & Martin Solicitors",
+    "avocate": "Claire DURAND, Solicitor",
+    "adresse_courriel": "claire.durand@durandmartin.example.test",
+    "adresse_accueil": "reception@durandmartin.example.test",
+    "adresse": "12 Court Square, Valbrune VB1 0AA",
+    "telephone": "01632 960005",
+    "barreau": "Valbrune Law Society",
+    "toque": "SRA 000000",
+    "activites": [
+      "Commercial litigation",
+      "Commercial property",
+      "Company law",
+      "Debt recovery"
+    ],
+    "signature": "Claire DURAND\nDurand & Martin Solicitors\n12 Court Square, Valbrune VB1 0AA\n01632 960005"
+  },
+  "dossiers": [
+    {
+      "id": "MAT-001",
+      "titre": "DURAND v MARTIN",
+      "client": "DURAND Building Ltd",
+      "nature": "contentieux",
+      "aliases": [
+        "DURAND v MARTIN",
+        "DURAND Building"
+      ],
+      "references": [
+        "Claim No. VB24C01234"
+      ],
+      "juridiction": "Valbrune County Court",
+      "chambre": "Multi-track list",
+      "rg": "VB24C01234",
+      "resume": "Unpaid balance for refurbishment works (£48,600 including VAT): MARTIN Property Ltd disputes practical completion. Claim issued and served; case management under way.",
+      "correspondants": [
+        {
+          "email": "direction@durand-building.example.test",
+          "role": "client",
+          "name": "James DURAND (DURAND Building Ltd)"
+        },
+        {
+          "email": "p.bernard@bernard-law.example.test",
+          "role": "confrere_adverse",
+          "name": "Paul BERNARD (BERNARD Law LLP)"
+        },
+        {
+          "email": "civil@valbrune-county-court.example.test",
+          "role": "juridiction",
+          "name": "Valbrune County Court (Civil Section)"
+        }
+      ],
+      "adverses": [
+        "MARTIN Property Ltd"
+      ],
+      "chronologie": [
+        [
+          -120,
+          "Refurbishment works on the Tanners Street building completed."
+        ],
+        [
+          -95,
+          "Final account invoice for £48,600 including VAT issued."
+        ],
+        [
+          -60,
+          "Letter before claim sent to MARTIN Property Ltd; no reply."
+        ],
+        [
+          -30,
+          "Claim issued in the Valbrune County Court."
+        ],
+        [
+          -7,
+          "Defence of MARTIN Property Ltd received (practical completion disputed)."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Building contract.pdf",
+          "Building contract for refurbishment works",
+          [
+            "Between DURAND Building Ltd and MARTIN Property Ltd.",
+            "Works: refurbishment of the building in Tanners Street, Valbrune.",
+            "Fixed price: £162,000 excluding VAT, payable on monthly interim valuations.",
+            "Practical completion: certificate signed by both parties, listing any snagging items."
+          ]
+        ],
+        [
+          "02 - Practical completion certificate.pdf",
+          "Practical completion certificate",
+          [
+            "Practical completion certified with two minor snagging items (hall paintwork, adjustment of one door).",
+            "Signed by both parties."
+          ]
+        ],
+        [
+          "03 - Letter before claim.pdf",
+          "Letter before claim",
+          [
+            "We hereby demand payment of £48,600 including VAT within 14 days.",
+            "Failing payment, our client will issue proceedings in the Valbrune County Court without further notice."
+          ]
+        ],
+        [
+          "04 - Defence.pdf",
+          "Defence of MARTIN Property Ltd",
+          [
+            "MARTIN Property Ltd contends that practical completion was never achieved.",
+            "It seeks permission for expert evidence and the dismissal of the claim for payment."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-002",
+      "titre": "ZORVAL Distribution — debt recovery",
+      "client": "ZORVAL Distribution",
+      "nature": "contentieux",
+      "aliases": [
+        "ZORVAL Distribution"
+      ],
+      "references": [
+        "Claim No. VB24C01302"
+      ],
+      "juridiction": "Valbrune County Court",
+      "chambre": "Enforcement",
+      "rg": "VB24C01302",
+      "resume": "Recovery of four unpaid invoices (£12,450) from ORLANDEC Trading Ltd; default judgment entered and notice of enforcement served by the High Court Enforcement Officer.",
+      "correspondants": [
+        {
+          "email": "accounts@zorval.example.test",
+          "role": "client",
+          "name": "Sophie ZORVAL (ZORVAL Distribution)"
+        },
+        {
+          "email": "enforcement@kervilac-enforcement.example.test",
+          "role": "commissaire_justice",
+          "name": "KERVILAC Enforcement, enforcement agent (High Court Enforcement Officer)"
+        }
+      ],
+      "adverses": [
+        "ORLANDEC Trading Ltd"
+      ],
+      "chronologie": [
+        [
+          -75,
+          "Four invoices unpaid, totalling £12,450."
+        ],
+        [
+          -40,
+          "Claim issued."
+        ],
+        [
+          -18,
+          "Default judgment entered."
+        ],
+        [
+          -9,
+          "Notice of enforcement served by the enforcement agent."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Unpaid invoices.pdf",
+          "Statement of unpaid invoices",
+          [
+            "Invoice 2024-118: £3,200",
+            "Invoice 2024-131: £2,950",
+            "Invoice 2024-140: £3,100",
+            "Invoice 2024-152: £3,200",
+            "Total: £12,450"
+          ]
+        ],
+        [
+          "02 - Default judgment.pdf",
+          "Default judgment",
+          [
+            "Judgment for the claimant against ORLANDEC Trading Ltd for £12,450 plus interest and fixed costs.",
+            "The defendant must pay within 14 days of service of this judgment."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-003",
+      "titre": "KERVILAC Properties — commercial lease",
+      "client": "KERVILAC Properties Ltd",
+      "nature": "conseil",
+      "aliases": [
+        "KERVILAC Properties"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Renewal of the commercial lease of the High Street unit: proposal of an open market rent, tenant's response period.",
+      "correspondants": [
+        {
+          "email": "management@kervilac-properties.example.test",
+          "role": "client",
+          "name": "Mark KERVILAC (KERVILAC Properties Ltd)"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -50,
+          "Lease expires in six months."
+        ],
+        [
+          -20,
+          "Section 25 notice proposing a new lease to be prepared."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Commercial lease.pdf",
+          "Commercial lease of the High Street unit",
+          [
+            "Ten-year lease, permitted use: bookshop.",
+            "Annual rent: £18,000 exclusive of VAT, upward-only rent review in year five.",
+            "Forfeiture clause and tenant's repairing covenants."
+          ]
+        ],
+        [
+          "02 - Note on renewal rent.pdf",
+          "Internal note on the renewal rent",
+          [
+            "Basis: open market rent on renewal under the Landlord and Tenant Act 1954.",
+            "Evidence to gather: footfall studies, the new tram line, road improvements, comparable lettings."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-004",
+      "titre": "ORLANDEC Ltd — share sale",
+      "client": "ORLANDEC Ltd",
+      "nature": "conseil",
+      "aliases": [
+        "ORLANDEC Ltd"
+      ],
+      "references": [
+        "Company No. VB000017"
+      ],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Sale of 60% of the shares in ORLANDEC Ltd (Company No. VB000017): share purchase agreement, warranties and indemnities, signing timetable.",
+      "correspondants": [
+        {
+          "email": "md@orlandec.example.test",
+          "role": "client",
+          "name": "Helen ORLANDEC (ORLANDEC Ltd)"
+        },
+        {
+          "email": "louise.martin@martin-corporate.example.test",
+          "role": "confrere_adverse",
+          "name": "Louise MARTIN (MARTIN Corporate LLP)"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -45,
+          "Heads of terms signed with the buyer."
+        ],
+        [
+          -21,
+          "Legal due diligence completed."
+        ],
+        [
+          -3,
+          "Draft share purchase agreement sent to the buyer's solicitors."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Heads of terms.pdf",
+          "Heads of terms",
+          [
+            "Proposed acquisition of 60% of the share capital of ORLANDEC Ltd.",
+            "Indicative price subject to due diligence.",
+            "Three-month exclusivity period."
+          ]
+        ],
+        [
+          "02 - Draft share purchase agreement.pdf",
+          "Draft share purchase agreement",
+          [
+            "Clause 1 — Sale and purchase of 600 shares.",
+            "Clause 6 — Warranties and indemnities: cap and de minimis threshold to be negotiated.",
+            "Clause 9 — Conditions precedent."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-005",
+      "titre": "MARTIN Logistics — GDPR compliance",
+      "client": "MARTIN Logistics",
+      "nature": "conseil",
+      "aliases": [
+        "MARTIN Logistics"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Bringing the record of processing activities and the contract with an IT processor into line with the UK GDPR.",
+      "correspondants": [
+        {
+          "email": "dpo@martin-logistics.example.test",
+          "role": "client",
+          "name": "Thomas MARTIN (MARTIN Logistics)"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -30,
+          "Kick-off meeting."
+        ],
+        [
+          -12,
+          "Record of processing activities sent by the client."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Record of processing activities.pdf",
+          "Record of processing activities (extract)",
+          [
+            "Processing activity 1: delivery management.",
+            "Processing activity 2: vehicle tracking.",
+            "Processing activity 3: payroll and human resources."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-006",
+      "titre": "KERVILAC v ORLANDEC — lease forfeiture",
+      "client": "KERVILAC Properties Ltd",
+      "nature": "contentieux",
+      "aliases": [
+        "KERVILAC v ORLANDEC"
+      ],
+      "references": [
+        "Claim No. VB24C01290"
+      ],
+      "juridiction": "Valbrune County Court",
+      "chambre": "Possession list",
+      "rg": "VB24C01290",
+      "resume": "Claim for forfeiture and possession: rent arrears on the Market Hall Avenue unit.",
+      "correspondants": [
+        {
+          "email": "management@kervilac-properties.example.test",
+          "role": "client",
+          "name": "Mark KERVILAC (KERVILAC Properties Ltd)"
+        }
+      ],
+      "adverses": [
+        "ORLANDEC Restaurants Ltd"
+      ],
+      "chronologie": [
+        [
+          -70,
+          "Formal demand for rent arrears served under the forfeiture clause."
+        ],
+        [
+          -35,
+          "Possession claim issued."
+        ],
+        [
+          -14,
+          "Hearing adjourned at the defendant's request."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Rent demand.pdf",
+          "Formal demand for rent arrears under the forfeiture clause",
+          [
+            "Rent arrears: £9,600.",
+            "Payment required within 14 days."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-007",
+      "titre": "BERNARD — employment appeal",
+      "client": "Alice BERNARD",
+      "nature": "contentieux",
+      "aliases": [
+        "Alice BERNARD"
+      ],
+      "references": [
+        "Appeal No. VB24C01411"
+      ],
+      "juridiction": "Valbrune Employment Appeal Tribunal",
+      "chambre": "Appeals list",
+      "rg": "VB24C01411",
+      "resume": "Appeal against an Employment Tribunal judgment (unfair dismissal); the appellant's skeleton argument is to be filed.",
+      "correspondants": [
+        {
+          "email": "alice.bernard@example.test",
+          "role": "client",
+          "name": "Alice BERNARD"
+        }
+      ],
+      "adverses": [
+        "ZORVAL Services Ltd"
+      ],
+      "chronologie": [
+        [
+          -80,
+          "Employment Tribunal judgment."
+        ],
+        [
+          -55,
+          "Notice of appeal filed."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Employment Tribunal judgment.pdf",
+          "Employment Tribunal judgment",
+          [
+            "The Tribunal dismisses the claimant's claim for unfair dismissal.",
+            "No order as to costs."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-008",
+      "titre": "DURAND Holdings — approval of accounts",
+      "client": "DURAND Holdings Ltd",
+      "nature": "conseil",
+      "aliases": [
+        "DURAND Holdings"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Annual general meeting: approval of the accounts, declaration of a final dividend, re-appointment of the auditors.",
+      "correspondants": [
+        {
+          "email": "cosec@durand-holdings.example.test",
+          "role": "client",
+          "name": "Company Secretary, DURAND Holdings Ltd"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -10,
+          "Annual accounts approved by the board."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - AGM notice and agenda.pdf",
+          "Notice and agenda of the annual general meeting",
+          [
+            "1. To receive the annual accounts for the financial year.",
+            "2. To declare a final dividend.",
+            "3. To re-appoint the auditors."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-009",
+      "titre": "ORLANDEC — distribution agreement",
+      "client": "ORLANDEC Ltd",
+      "nature": "conseil",
+      "aliases": [
+        "ORLANDEC distribution agreement"
+      ],
+      "references": [],
+      "juridiction": "",
+      "chambre": "",
+      "rg": "",
+      "resume": "Review of an exclusive distribution agreement proposed by a supplier.",
+      "correspondants": [
+        {
+          "email": "legal@orlandec.example.test",
+          "role": "client",
+          "name": "Legal Department, ORLANDEC Ltd"
+        }
+      ],
+      "adverses": [],
+      "chronologie": [
+        [
+          -6,
+          "Draft agreement received from the supplier."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Draft distribution agreement.pdf",
+          "Draft exclusive distribution agreement",
+          [
+            "Term: five years, renewing automatically.",
+            "Minimum annual purchase targets.",
+            "Two-year post-termination non-compete covenant."
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "MAT-010",
+      "titre": "ZORVAL v KERVILAC — expert evidence",
+      "client": "ZORVAL Distribution",
+      "nature": "contentieux",
+      "aliases": [
+        "ZORVAL v KERVILAC"
+      ],
+      "references": [
+        "Claim No. VB24C01355"
+      ],
+      "juridiction": "Valbrune County Court",
+      "chambre": "Multi-track list",
+      "rg": "VB24C01355",
+      "resume": "Water ingress into the leased warehouse: single joint expert appointed by court order, site inspection to prepare.",
+      "correspondants": [
+        {
+          "email": "accounts@zorval.example.test",
+          "role": "client",
+          "name": "Sophie ZORVAL (ZORVAL Distribution)"
+        },
+        {
+          "email": "expert.orlandec@expertise.example.test",
+          "role": "expert",
+          "name": "Mr ORLANDEC, single joint expert"
+        }
+      ],
+      "adverses": [
+        "KERVILAC Warehouses Ltd"
+      ],
+      "chronologie": [
+        [
+          -90,
+          "First water ingress observed."
+        ],
+        [
+          -40,
+          "Order appointing a single joint expert."
+        ],
+        [
+          -5,
+          "Notice of the first site inspection received."
+        ]
+      ],
+      "pieces": [
+        [
+          "01 - Order appointing expert.pdf",
+          "Order appointing a single joint expert",
+          [
+            "The expert shall describe the defects, identify their causes and estimate the cost of remedial works.",
+            "Expert's fees on account: £3,000, payable by the parties in equal shares."
+          ]
+        ]
+      ]
+    }
+  ],
+  "agenda": [
+    {
+      "jour": 0,
+      "heure": "09:30",
+      "minutes": 30,
+      "nature": "rendez_vous",
+      "titre": "Phone call with James DURAND",
+      "dossier": "MAT-001",
+      "lieu": "Telephone"
+    },
+    {
+      "jour": 0,
+      "heure": "14:00",
+      "minutes": 90,
+      "nature": "audience",
+      "titre": "Possession hearing — KERVILAC v ORLANDEC",
+      "dossier": "MAT-006",
+      "lieu": "Valbrune County Court, Court 2"
+    },
+    {
+      "jour": 1,
+      "heure": "10:00",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "Signing meeting — ORLANDEC share purchase agreement",
+      "dossier": "MAT-004",
+      "lieu": "Office"
+    },
+    {
+      "jour": 1,
+      "heure": "16:30",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "GDPR meeting with MARTIN Logistics",
+      "dossier": "MAT-005",
+      "lieu": "Video call"
+    },
+    {
+      "jour": 2,
+      "heure": "09:00",
+      "minutes": 120,
+      "nature": "rendez_vous",
+      "titre": "Expert site inspection — ZORVAL warehouse",
+      "dossier": "MAT-010",
+      "lieu": "ZORVAL warehouse, Valbrune"
+    },
+    {
+      "jour": 3,
+      "heure": "11:00",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "First meeting — prospective client BERNARD Consulting",
+      "dossier": "",
+      "lieu": "Office"
+    },
+    {
+      "jour": 4,
+      "heure": "15:00",
+      "minutes": 60,
+      "nature": "rendez_vous",
+      "titre": "DURAND Holdings annual general meeting",
+      "dossier": "MAT-008",
+      "lieu": "DURAND Holdings registered office"
+    },
+    {
+      "jour": 9,
+      "heure": "09:30",
+      "minutes": 60,
+      "nature": "audience",
+      "titre": "Case management conference — DURAND v MARTIN",
+      "dossier": "MAT-001",
+      "lieu": "Valbrune County Court, Court 3"
+    }
+  ],
+  "taches": [
+    {
+      "titre": "Reply to the defence — DURAND v MARTIN",
+      "dossier": "MAT-001",
+      "jour": 6
+    },
+    {
+      "titre": "Check service of the notice of enforcement",
+      "dossier": "MAT-002",
+      "jour": 1
+    },
+    {
+      "titre": "Prepare the section 25 notice proposing a new lease",
+      "dossier": "MAT-003",
+      "jour": 8
+    },
+    {
+      "titre": "Review the warranties and indemnities",
+      "dossier": "MAT-004",
+      "jour": 0
+    },
+    {
+      "titre": "Draft the appellant's skeleton argument",
+      "dossier": "MAT-007",
+      "jour": 12
+    },
+    {
+      "titre": "Prepare written observations for the expert site inspection",
+      "dossier": "MAT-010",
+      "jour": 1
+    }
+  ],
+  "echeances": [],
+  "opportunites": [
+    {
+      "title": "Commercial dispute — BERNARD Consulting",
+      "name": "Lucy BERNARD",
+      "company": "BERNARD Consulting",
+      "email": "contact@bernard-consulting.example.test",
+      "domain": "Commercial litigation",
+      "amount": "6000",
+      "source": "recommandation_client",
+      "next_action": "First meeting at the office",
+      "jour": 3
+    },
+    {
+      "title": "Commercial lease audit — ZORVAL network",
+      "name": "Sophie ZORVAL",
+      "company": "ZORVAL Distribution",
+      "email": "accounts@zorval.example.test",
+      "domain": "Commercial property",
+      "amount": "9500",
+      "source": "client_existant",
+      "next_action": "Send a fee proposal",
+      "jour": 5
+    },
+    {
+      "title": "Shareholders' agreement — KERVILAC Tech start-up",
+      "name": "Ian KERVILAC",
+      "company": "KERVILAC Tech",
+      "email": "founders@kervilac-tech.example.test",
+      "domain": "Company law",
+      "amount": "4200",
+      "source": "site",
+      "next_action": "Call back to scope the instruction",
+      "jour": 1
+    }
+  ],
+  "a_relire": [
+    {
+      "courriel": "durand-pieces",
+      "dossier": "MAT-001",
+      "destinataires": [
+        "direction@durand-building.example.test"
+      ],
+      "corps": "Dear Mr DURAND,\n\nThank you for your email.\n\nTo reply to MARTIN Property's defence, I will need the following documents: the signed practical completion certificate, the site meeting minutes for the last three months and the written exchanges about the snagging items.\n\nCould you send them to me by the end of the week? The case management conference is listed in ten days.\n\nKind regards,\n\nClaire DURAND\nDurand & Martin Solicitors"
+    },
+    {
+      "courriel": "zorval-relance",
+      "dossier": "MAT-002",
+      "destinataires": [
+        "accounts@zorval.example.test"
+      ],
+      "corps": "Dear Ms ZORVAL,\n\nThe default judgment has been served on ORLANDEC Trading and the High Court Enforcement Officer has served a notice of enforcement. The debtor has seven clear days to pay.\n\nFailing payment, the enforcement agent may take control of the debtor's goods and sell them to satisfy the judgment.\n\nI will update you as soon as that period expires.\n\nKind regards,\n\nClaire DURAND"
+    },
+    {
+      "courriel": "kervilac-loyer",
+      "dossier": "MAT-003",
+      "destinataires": [
+        "management@kervilac-properties.example.test"
+      ],
+      "corps": "Dear Mr KERVILAC,\n\nOn a renewal under the Landlord and Tenant Act 1954, the new rent is assessed at open market value. To support a higher figure, we will need evidence of how the area has changed.\n\nI suggest gathering what you already have (road improvements, the new tram line, footfall figures, recent lettings nearby) before our meeting.\n\nKind regards,\n\nClaire DURAND"
+    }
+  ],
+  "notes_ia": [
+    {
+      "dossier": "MAT-001",
+      "titre": "Defence of MARTIN Property Ltd",
+      "partie": "defendant",
+      "note": "Internal note — new statement of case received (to review; nothing has been applied to the matter)\n\nWhat changes: MARTIN Property Ltd now disputes practical completion and seeks expert evidence.\nTo check: the practical completion certificate (document 02) is signed by both parties; it contradicts this position."
+    },
+    {
+      "dossier": "MAT-010",
+      "titre": "Notice of the expert site inspection",
+      "partie": "expert",
+      "note": "Internal note — expert's notice received (to review)\n\nSite inspection scheduled in two days' time at the warehouse. Documents to bring: lease, records of the water ingress, repair invoices."
+    }
+  ],
+  "textes": {
+    "racine_dossiers": "/Matters",
+    "dossier_pieces": "DOCUMENTS",
+    "dossier_correspondances": "CORRESPONDENCE",
+    "modeles": "Firm templates",
+    "modele_fichier": "Client care letter.pdf",
+    "modele_titre": "Client care letter template",
+    "modele_lignes": [
+      "Durand & Martin Solicitors — fictional template.",
+      "Scope of the work, fees, payment terms."
+    ],
+    "pdf_mention": "Fictional document — AxiorHub demonstration",
+    "pdf_dossier": "Matter: %s — %s",
+    "boites": {
+      "brouillons": "Drafts",
+      "envoyes": "Sent (demo)",
+      "corbeille": "Deleted Items",
+      "indesirables": "Junk",
+      "archives": "Archive"
+    },
+    "mention_envoi": "Demonstration: nothing has been sent.",
+    "evenement": "Fictional event (demonstration).",
+    "opportunite": "Fictional opportunity (demonstration).",
+    "echeance": "Fictional deadline (demonstration).",
+    "limite_projet": "Demonstration draft: review before sending anything.",
+    "limite_assistant": "Answer prepared for the demonstration: no model was called.",
+    "courriel_recu": "Email received",
+    "demande_a_traiter": "Request to handle: %s",
+    "demande_voir": "Request to handle (see the email).",
+    "format_date": "%d/%m/%Y",
+    "stade": "case management",
+    "nature_procedure": "substantive claim"
+  }
+}

@@ -1,0 +1,11 @@
+X-Demo-Id: banque-cabinet
+X-Demo-Heures: 220
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Banque du Palais <service.client@banque-palais.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Relevé mensuel du compte professionnel
+Message-ID: <banque-cabinet@demo.example.test>
+
+Votre relevé mensuel est disponible dans votre espace client (message fictif de démonstration).

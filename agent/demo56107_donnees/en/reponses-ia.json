@@ -1,0 +1,126 @@
+{
+  "_commentaire": "5.6.107 (lot M): prepared answers of the demonstration AI (no model), English (England) version. Each text is preceded by the brand \"Demonstration response\". Fictional data.",
+  "marque": "Demonstration response",
+  "assistant": [
+    {
+      "mots": [
+        "hearing",
+        "hearings",
+        "diary",
+        "calendar",
+        "week",
+        "appointment",
+        "appointments",
+        "schedule"
+      ],
+      "texte": "This week the firm has: today a phone call with James DURAND (9.30 am) and the possession hearing in KERVILAC v ORLANDEC (2 pm, Valbrune County Court); tomorrow the signing of the ORLANDEC share purchase agreement (10 am) and the GDPR meeting with MARTIN Logistics; in two days' time the expert site inspection at the ZORVAL warehouse; on Friday the DURAND Holdings annual general meeting. The case management conference in DURAND v MARTIN follows next week."
+    },
+    {
+      "mots": [
+        "durand",
+        "martin",
+        "mat-001",
+        "vb24c01234",
+        "building works",
+        "practical completion",
+        "completion",
+        "defence"
+      ],
+      "texte": "Matter DURAND v MARTIN (Claim No. VB24C01234, Valbrune County Court): DURAND Building Ltd claims £48,600 including VAT as the balance due for refurbishment works. MARTIN Property Ltd disputes practical completion and seeks expert evidence. The practical completion certificate signed by both parties (document 02) contradicts that position. Next step: a reply to the defence before the case management conference; the client has sent the site meeting minutes."
+    },
+    {
+      "mots": [
+        "bank details",
+        "fraud",
+        "fraudulent",
+        "transfer",
+        "iban",
+        "scam",
+        "suspicious"
+      ],
+      "texte": "The email “Change of bank details – urgent” shows the signs of a bank-detail change fraud: an unknown sender posing as ZORVAL Distribution, a domain different from the client's, a request for discretion, urgency and an account the firm has never used. Make no transfer; check by telephone with Sophie ZORVAL, on the number the firm already holds."
+    },
+    {
+      "mots": [
+        "kervilac",
+        "lease",
+        "rent",
+        "renewal",
+        "section 25",
+        "1954",
+        "landlord"
+      ],
+      "texte": "For KERVILAC Properties Ltd, the lease of the High Street unit expires in six months. Under the Landlord and Tenant Act 1954, the rent on renewal is assessed at open market value; to justify a higher figure, gather evidence of how the area has changed (for example the arrival of the tram line, footfall, comparable lettings) before serving a section 25 notice proposing a new lease."
+    },
+    {
+      "mots": [
+        "orlandec",
+        "share sale",
+        "share purchase",
+        "spa",
+        "warranties",
+        "warranty",
+        "indemnity",
+        "indemnities"
+      ],
+      "texte": "ORLANDEC Ltd share sale: the buyer's solicitors want the cap on warranty claims raised to 30% of the price. Signing is scheduled for tomorrow at 10 am. Open points: the warranty cap and de minimis threshold, and two customer contracts terminable on a change of control."
+    },
+    {
+      "mots": [
+        "zorval",
+        "recovery",
+        "debt",
+        "default judgment",
+        "enforcement",
+        "orlandec trading",
+        "invoice"
+      ],
+      "texte": "ZORVAL Distribution v ORLANDEC Trading (Claim No. VB24C01302): default judgment for £12,450 has been entered and the High Court Enforcement Officer has served a notice of enforcement. The debtor has seven clear days to pay; failing payment, the enforcement agent may take control of goods."
+    },
+    {
+      "mots": [
+        "summarise",
+        "summarize",
+        "summary",
+        "overview",
+        "today",
+        "brief me"
+      ],
+      "texte": "Today: two messages from James DURAND about the defence (documents requested, completion certificate attached), a CE-File notice of hearing in DURAND v MARTIN, a fraudulent change-of-bank-details email not to be acted on, and chasers from ZORVAL Distribution and KERVILAC Properties. Three draft replies are waiting for review."
+    }
+  ],
+  "assistant_generique": "In demonstration mode no AI model is connected: this answer was prepared in advance. In a real installation, the assistant answers from the matter's emails, diary and documents, citing its sources, with the model chosen by the firm (local or online). Try for example: “Which hearings are there this week?”, “Summarise the DURAND v MARTIN matter” or “Is this change-of-bank-details email suspicious?”.",
+  "projet_reponse": [
+    {
+      "mots": [
+        "documents",
+        "defence",
+        "evidence"
+      ],
+      "texte": "Hello,\n\nThank you for your email.\n\nTo reply effectively, I will need the following documents: the signed practical completion certificate, the site meeting minutes and the written exchanges about the snagging items. Could you send them to me by the end of the week?\n\nKind regards,\n\nClaire DURAND\nDurand & Martin Solicitors"
+    },
+    {
+      "mots": [
+        "meeting",
+        "appointment",
+        "see me",
+        "available",
+        "availability"
+      ],
+      "texte": "Hello,\n\nThank you for your email. I can see you at the office on Thursday at 11 am, or by video call if you prefer. Please confirm which slot suits you.\n\nKind regards,\n\nClaire DURAND\nDurand & Martin Solicitors"
+    },
+    {
+      "mots": [
+        "recovery",
+        "invoice",
+        "unpaid",
+        "debt"
+      ],
+      "texte": "Hello,\n\nThe default judgment has been served on the debtor and a notice of enforcement has been issued. The debtor has seven clear days to pay; failing payment, the enforcement agent will proceed.\n\nI will update you as soon as that period expires.\n\nKind regards,\n\nClaire DURAND\nDurand & Martin Solicitors"
+    }
+  ],
+  "projet_generique": "Hello,\n\nThank you for your email, which I have received. I am looking into it and will come back to you very shortly.\n\nKind regards,\n\nClaire DURAND\nDurand & Martin Solicitors",
+  "resume_generique": "The selected emails concern the firm's current matters: client requests, correspondence with other solicitors and court notices. The requests and deadlines identified are listed below.",
+  "analyse_piece": "The document is legible. It contains the items expected for this type of document (parties, subject matter, dates). For the solicitor to check: consistency of the dates with the matter chronology, and signatures.",
+  "texte_generique": "This text was prepared in advance for the demonstration; no AI model was called."
+}

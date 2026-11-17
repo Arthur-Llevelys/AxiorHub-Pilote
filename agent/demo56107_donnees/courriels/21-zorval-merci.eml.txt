@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-merci
+X-Demo-Heures: 90
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <compta@zorval.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: ZORVAL c. KERVILAC — photos des infiltrations
+Message-ID: <zorval-merci@demo.example.test>
+
+Bonjour Maître,
+
+Je vous adresse les photos prises dans l'entrepôt après les dernières pluies, pour l'expertise (RG 24/01355).
+
+Sophie ZORVAL

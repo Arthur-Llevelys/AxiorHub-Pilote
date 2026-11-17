@@ -1,0 +1,17 @@
+X-Demo-Id: orlandec-protocole
+X-Demo-Heures: 11
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 02 - Entwurf Aktienkaufvertrag.pdf|AKT-004
+From: Rechtsanwältin Luise MARTIN <kanzlei@martin-rechtsanwaelte.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: ORLANDEC AG — Entwurf des Aktienkaufvertrags, unsere Anmerkungen
+Message-ID: <orlandec-protocole@demo.example.test>
+
+Sehr geehrte Frau Kollegin,
+
+anbei erhalten Sie unsere Anmerkungen zum Entwurf des Kaufvertrags über die Aktien der ORLANDEC AG. Unsere Mandantin möchte die Haftungshöchstgrenze für die Garantien auf 30 % des Kaufpreises anheben.
+
+Mit freundlichen kollegialen Grüßen
+Luise MARTIN
+Rechtsanwältin

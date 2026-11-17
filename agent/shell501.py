@@ -56,6 +56,7 @@ BUNDLE += ('v56106-lecteur.css',)   # 5.6.106 (lot V) : lecteur (cadre isolé, b
 BUNDLE += ('v56106-vision.css',)   # 5.6.106 (lot I) : joindre une image ou une page (assistant), aperçu masqué, réglages des images
 BUNDLE += ('v56106-routine.css',)   # 5.6.106 (lot O) : assistant « Créer une routine à partir du message », routines sur message d'Aujourd'hui
 BUNDLE += ('v56106-fraude.css',)   # 5.6.106 (lot F) : pastille et bandeau « courriel potentiellement frauduleux »
+BUNDLE += ('v56107-demo.css',)   # 5.6.107 (lot M) : bandeau du mode Démo, bulles de la visite guidée, « Essayer la démo »
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -229,7 +230,12 @@ def sidebar_html(prefix, active_path):
     marque = ('<div class="brand id106-brand">' + identite + '</div>') if identite else (
         '<div class="brand"><div class="ws-brand-lockup"><img src="' + e(prefix) + '/static/axiorhub-icon.png" width="38" height="38" alt="">'
         '<span class="ws-brand-name">AxiorHub</span></div><span class="ws-brand-subtitle">' + th('side.subtitle') + '</span></div>')
-    return ('<aside id="ws-sidebar">' + marque + nav_html(prefix, active_path) +
+    try:   # 5.6.107 (lot M) : bandeau permanent du mode Démo (démo seulement), dans le menu latéral : il ne recouvre jamais une action ; « Essayer la démo » à l'accueil d'une installation neuve
+        from .demo56107 import bandeau_html as _bandeau107, carte_essai_html as _essai107
+        _demo107 = _bandeau107(prefix, context()) + _essai107(prefix, context(), getattr(_ctx, 'chemin', '') or active_path, getattr(_ctx, 'args', {}))
+    except Exception:   # noqa: BLE001 — un défaut du bandeau ne bloque jamais une page
+        _demo107 = ''
+    return ('<aside id="ws-sidebar">' + marque + nav_html(prefix, active_path) + _demo107 +
             '<p class="ws-about">' + th('side.version', version=_version()) + ' · ' + e(ATTRIBUTION) + '<br><a href="' + e(prefix) + '/a-propos">' + th('side.about') + '</a></p>'
             '<script defer src="' + e(prefix) + '/static/v56106-densite.js"></script></aside>')
 

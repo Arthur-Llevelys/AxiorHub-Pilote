@@ -1,0 +1,15 @@
+X-Demo-Id: kervilac-loyer
+X-Demo-Heures: 9
+X-Demo-Boite: INBOX
+From: Marcos KERVILAC <gerencia@kervilac-inmuebles.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: KERVILAC Inmuebles — renovación del arrendamiento de la calle Mayor
+Message-ID: <kervilac-loyer@demo.example.test>
+
+Buenos días, Sra. Durand:
+
+El contrato de nuestro inquilino, la librería, vence dentro de seis meses. ¿Podemos proponerle una renta más alta? El barrio ha cambiado mucho desde que llegó el tranvía.
+
+Un saludo,
+Marcos KERVILAC
+KERVILAC Inmuebles S.L.

@@ -4626,6 +4626,7 @@ html[data-theme="dark"] .r99-manque, body.dark .r99-manque { color: #fca5a5; }
 .ax100-meta.ax100-meta-ouverte { display: block !important; -webkit-line-clamp: unset; line-clamp: none; max-block-size: 12rem; overflow: auto; }
 .ax100-plus { margin: -.2rem 0 .3rem; padding: 0 .25rem; min-block-size: 0; font-size: .8125rem; }
 .ax100-plus[hidden] { display: none !important; }   /* le style des boutons ne doit pas l’emporter sur hidden */
+.ax100-lecteur [data-section][hidden] { display: none !important; }   /* 5.6.107 (lot M) : onglet absent pour ce type (note de l’IA : ni « Message reçu » ni « Pièces » ; « Propositions de l’IA » : documents seulement) — le style des boutons l’affichait, et son clic échouait (404) */
 .ax100-onglets { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; }
 .ax100-onglets [aria-pressed=true] { font-weight: 600; box-shadow: inset 0 -3px 0 var(--cds-border-interactive, var(--ax-accent, #0f62fe)); }
 .ax100-plein { margin-inline-start: auto; }
@@ -5744,6 +5745,38 @@ body[data-densite="confortable"] #bx5625.bx56106 .bx5625-folder{min-height:36px}
 :root[data-theme=dark] .lx56106-formulaire input,:root[data-theme=dark] .lx56106-formulaire select{background:#161b22;color:#e8edf3;border-color:#6b7685}
 :root[data-theme=dark] .lx56106-bascule button{color:#e8edf3}
 @media (max-width:48rem){.lx56106-cadre,.lx56106-apercu{height:55vh;min-height:300px}.lx56106-barre .ax-btn{flex:1 1 auto}}
+/* 5.6.107 (lot F2) : avertissements sur une ligne de puces (alerte « Attention » repliée, texte masqué, images bloquées) : 32 px au plus ; une
+   puce ouverte, l'alerte « Suspect » ou « Danger » et l'erreur d'affichage prennent toute la largeur. Contraste AA en clair et en sombre. */
+.lx56106-bandeaux{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;min-width:0}
+.lx56106-bandeaux>*{flex:0 1 auto;min-width:0;max-width:100%}
+.lx56106-bandeaux>:not(.lx107-puce):not(.fr107-ligne),.lx56106-bandeaux>.fr107-pleine{flex-basis:100%}
+.lx56106-bandeaux>:has(details[open]){flex-basis:100%}
+.lx107-puce{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 6px;min-height:24px;box-sizing:border-box;padding:1px 4px 1px 10px;border-radius:999px;
+  font-size:13px;line-height:1.35;background:#f2f4f8;color:#1b2430;border:1px solid #8d96a3}
+.lx107-puce.lx56106-alerte{background:#fff1f1;color:#5c0011;border-color:#a2191f}
+.lx107-puce.lx56106-info{background:#eef3fb;color:#1b2430;border-color:#9fb3d1}
+.lx107-puce[hidden]{display:none}
+.lx107-puce:has(>details[open]){border-radius:8px;padding:4px 10px}
+.lx107-pli{margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;box-shadow:none;min-width:0}   /* sans le cadre générique des <details> */
+.lx107-pli>summary{cursor:pointer;list-style:none;min-height:22px;display:inline-flex;align-items:center;white-space:nowrap;font-weight:600;font-size:inherit;padding:0;margin:0}
+.lx107-pli>summary::-webkit-details-marker{display:none}
+.lx107-pli>summary:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.lx107-fleche{margin-left:4px}
+.lx107-detail{margin:2px 0 4px;font-size:14px;line-height:1.4;overflow-wrap:anywhere;white-space:normal}
+/* action d'une puce (« Afficher ») : lien-bouton ; la cible garde la hauteur tactile de la densité, ses marges négatives la gardent dans la ligne */
+.lx107-action{font:inherit;font-size:13px;font-weight:600;line-height:1.3;background:none;border:0;border-radius:4px;color:#0b4fb3;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0 6px;margin:calc((24px - var(--ax-cible-tactile, 24px)) / 2) 0;box-shadow:none}
+.lx107-action:hover{background:rgba(11,79,179,.08)}
+.lx107-action:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:1px}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .lx107-puce{background:#1f2630;color:#e8edf3;border-color:#6b7685}
+  :root:not([data-theme=light]) .lx107-puce.lx56106-alerte{background:#3b0a0e;color:#ffd7d9;border-color:#fa4d56}
+  :root:not([data-theme=light]) .lx107-puce.lx56106-info{background:#1c2a3f;color:#e8edf3;border-color:#6b7685}
+  :root:not([data-theme=light]) .lx107-action{color:#a6c8ff}
+}
+:root[data-theme=dark] .lx107-puce{background:#1f2630;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .lx107-puce.lx56106-alerte{background:#3b0a0e;color:#ffd7d9;border-color:#fa4d56}
+:root[data-theme=dark] .lx107-puce.lx56106-info{background:#1c2a3f;color:#e8edf3;border-color:#6b7685}
+:root[data-theme=dark] .lx107-action{color:#a6c8ff}
 @media print{.lx56106-barre,.lx56106-v{display:none}}
 /* ==== v56106-vision.css ==== */
 /* 5.6.106 (lot I) : « Joindre une image ou une page » (volet de l'assistant), aperçu masqué, réglages et lecture des scans illisibles. */
@@ -5847,6 +5880,22 @@ body[data-densite="confortable"] #bx5625.bx56106 .bx5625-folder{min-height:36px}
 .fr106-piece-risque{flex:1 0 100%;font-size:13px;font-weight:700;color:#5c0011}
 .fr106-indisponible{margin:0 0 6px;font-size:13px;color:var(--ax-muted,#4b5563)}
 @media (max-width:420px){.fr106-actions .ax-btn{flex:1 1 100%}}
+/* 5.6.107 (lot F2) : « Attention » et « Suspect » repliés sur une ligne fine (puce du lecteur), couleur discrète ; le pli ouvert prend toute la
+   largeur. « Danger » garde le bandeau déplié ci-dessus. Contraste AA en clair et en sombre (texte 13 px sur fond pâle ou foncé). */
+.fr106-bandeau.fr107-ligne{display:flex;flex-direction:column;gap:0;width:fit-content;max-width:100%;box-sizing:border-box;margin:0;padding:1px 10px;
+  min-height:24px;justify-content:center;border-width:1px;border-radius:999px;font-size:13px;line-height:1.35}
+.fr107-ligne.fr106-attention{background:#fffbeb;color:#3d2e00;border-color:#a8870f}
+.fr107-ligne.fr106-suspect{background:#fff3eb;color:#4a1a00;border-color:#b54400}
+.fr106-bandeau.fr107-pleine{width:100%;border-radius:8px}
+.fr106-bandeau.fr107-ligne:has(>details[open]){width:100%;border-radius:8px;padding:4px 10px}
+.fr107-pli{margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;box-shadow:none;min-width:0}   /* sans le cadre générique des <details> */
+.fr107-pli>summary{cursor:pointer;list-style:none;min-height:22px;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;min-width:0;font-weight:400;font-size:inherit;padding:0;margin:0}
+.fr107-pli>summary::-webkit-details-marker{display:none}
+.fr107-pli>summary>*{flex:0 0 auto}
+.fr107-niveau{font-weight:700}
+.fr107-pli>summary>.fr107-motif{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.fr107-voir{text-decoration:underline;text-underline-offset:2px}
+.fr107-detail{display:grid;gap:6px;padding:6px 2px 4px;font-size:14px;line-height:1.4;white-space:normal}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme=light]) .fr106-pastille.fr106-attention,:root:not([data-theme=light]) .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
   :root:not([data-theme=light]) .fr106-pastille.fr106-suspect,:root:not([data-theme=light]) .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
@@ -5854,6 +5903,8 @@ body[data-densite="confortable"] #bx5625.bx56106 .bx5625-folder{min-height:36px}
   :root:not([data-theme=light]) .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
   :root:not([data-theme=light]) .fr106-piece-risque{color:#ff8389}
   :root:not([data-theme=light]) .fr106-adresse{background:rgba(255,255,255,.1)}
+  :root:not([data-theme=light]) .fr107-ligne.fr106-attention{background:#2b2300;color:#ffefb8;border-color:#a8870f}
+  :root:not([data-theme=light]) .fr107-ligne.fr106-suspect{background:#3a1500;color:#ffe2cc;border-color:#ff832b}
 }
 :root[data-theme=dark] .fr106-pastille.fr106-attention,:root[data-theme=dark] .fr106-bandeau.fr106-attention{background:#3d2e00;color:#fff4ce;border-color:#d2a106}
 :root[data-theme=dark] .fr106-pastille.fr106-suspect,:root[data-theme=dark] .fr106-bandeau.fr106-suspect{background:#4a1a00;color:#ffe2cc;border-color:#ff832b}
@@ -5861,3 +5912,64 @@ body[data-densite="confortable"] #bx5625.bx56106 .bx5625-folder{min-height:36px}
 :root[data-theme=dark] .fr106-bandeau.fr106-danger{background:#520408;color:#ffd7d9;border-color:#fa4d56}
 :root[data-theme=dark] .fr106-piece-risque{color:#ff8389}
 :root[data-theme=dark] .fr106-adresse{background:rgba(255,255,255,.1)}
+:root[data-theme=dark] .fr107-ligne.fr106-attention{background:#2b2300;color:#ffefb8;border-color:#a8870f}
+:root[data-theme=dark] .fr107-ligne.fr106-suspect{background:#3a1500;color:#ffe2cc;border-color:#ff832b}
+/* ==== v56107-demo.css ==== */
+/* AxiorHub 5.6.107 (lot M) — mode Démo : bandeau discret et permanent, bulles de la visite guidée, carte « Essayer la démo ».
+   Contraste AA en clair et en sombre ; focus visible ; à 390 px les boutons passent à la ligne ; aucun style en ligne. */
+/* Bandeau dans le menu latéral, dans le flux (5.6.107, retour des lots H et V) : à aucune taille il ne recouvre une action de la page. */
+.demo107{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin:12px 0;padding:8px 10px;border-radius:6px;font-size:13px;line-height:1.35;
+  box-sizing:border-box;background:#e8f1ff;color:#0b2a5b;border:1px solid #4a7fd4}
+@media print{.demo107{display:none}}
+.demo107 strong{font-weight:700}
+.demo107-marque{display:none}
+.demo107-detail{color:#23395d;font-size:12px}
+.demo107-actions{display:flex;flex-direction:column;gap:6px}
+.demo107-bouton{min-height:30px;padding:3px 10px;border-radius:4px;border:1px solid #0b2a5b;background:#fff;color:#0b2a5b;font:inherit;cursor:pointer}
+.demo107-bouton:hover{background:#d6e4ff}
+#ws-sidebar .demo107 a.demo107-bouton{display:flex;align-items:center;justify-content:center;text-decoration:none;color:#0b2a5b}
+.demo107-bouton[disabled]{opacity:.6;cursor:progress}
+.demo107-principal{background:#0f62fe;border-color:#0043ce;color:#fff}
+.demo107-principal:hover{background:#0353e9}
+.demo107-bouton:focus-visible,.demo107-plus input:focus-visible,.demo107-bulle:focus-visible{outline:3px solid var(--ax-focus,#0f62fe);outline-offset:2px}
+.demo107-statut{flex:1 0 100%;min-height:0;font-size:13px}
+.demo107-statut:empty{display:none}
+.demo107-statut[data-etat=erreur]{color:#a2191f;font-weight:700}
+.demo107-essai{margin:0 0 12px;padding:12px 16px;border-radius:8px;border:2px solid #4a7fd4;background:#f4f8ff;color:#0b2a5b;display:grid;gap:8px;max-width:760px}
+.demo107-essai h2{margin:0;font-size:17px}
+.demo107-essai p{margin:0}
+.demo107-essai .demo107-bouton{justify-self:start}
+.demo107-bulle{position:fixed;z-index:9000;width:min(380px,calc(100vw - 24px));padding:12px 14px;border-radius:8px;background:#fff;color:#161616;
+  border:2px solid #0f62fe;box-shadow:0 8px 28px rgba(0,0,0,.28);display:grid;gap:8px}
+.demo107-bulle.demo107-centre{top:84px;left:50%;transform:translateX(-50%)}
+.demo107-bulle h2{margin:0;font-size:16px}
+.demo107-bulle p{margin:0;font-size:14px;line-height:1.45}
+.demo107-bulle .demo107-pas{font-size:12px;color:#4b5563}
+.demo107-bulle-actions{display:flex;flex-wrap:wrap;gap:6px}
+.demo107-plus{font-size:13px;display:flex;align-items:center;gap:4px}
+.demo107-cible{outline:3px solid #0f62fe !important;outline-offset:3px;border-radius:4px}
+.demo107-fin{max-width:640px;margin:48px auto;padding:24px;border-radius:8px;border:1px solid #4a7fd4;background:#f4f8ff;color:#0b2a5b}
+.demo107-fin h1{margin:0 0 8px;font-size:22px}
+@media (max-width:420px){.demo107-bulle-actions .demo107-bouton{flex:1 1 100%}}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme=light]) .demo107,:root:not([data-theme=light]) .demo107-essai,:root:not([data-theme=light]) .demo107-fin{background:#0b1d3a;color:#d6e4ff;border-color:#78a9ff}
+  :root:not([data-theme=light]) .demo107-detail{color:#c6d7f5}
+  :root:not([data-theme=light]) .demo107-marque{color:#ff832b}
+  :root:not([data-theme=light]) .demo107-bouton{background:#161616;color:#d6e4ff;border-color:#78a9ff}
+  :root:not([data-theme=light]) #ws-sidebar .demo107 a.demo107-bouton{color:#d6e4ff}
+  :root:not([data-theme=light]) .demo107-bouton:hover{background:#262626}
+  :root:not([data-theme=light]) .demo107-principal{background:#4589ff;color:#0b1d3a;border-color:#a6c8ff}
+  :root:not([data-theme=light]) .demo107-bulle{background:#262626;color:#f4f4f4;border-color:#78a9ff}
+  :root:not([data-theme=light]) .demo107-bulle .demo107-pas{color:#c6c6c6}
+  :root:not([data-theme=light]) .demo107-statut[data-etat=erreur]{color:#ff8389}
+}
+:root[data-theme=dark] .demo107,:root[data-theme=dark] .demo107-essai,:root[data-theme=dark] .demo107-fin{background:#0b1d3a;color:#d6e4ff;border-color:#78a9ff}
+:root[data-theme=dark] .demo107-detail{color:#c6d7f5}
+:root[data-theme=dark] .demo107-marque{color:#ff832b}
+:root[data-theme=dark] .demo107-bouton{background:#161616;color:#d6e4ff;border-color:#78a9ff}
+:root[data-theme=dark] #ws-sidebar .demo107 a.demo107-bouton{color:#d6e4ff}
+:root[data-theme=dark] .demo107-bouton:hover{background:#262626}
+:root[data-theme=dark] .demo107-principal{background:#4589ff;color:#0b1d3a;border-color:#a6c8ff}
+:root[data-theme=dark] .demo107-bulle{background:#262626;color:#f4f4f4;border-color:#78a9ff}
+:root[data-theme=dark] .demo107-bulle .demo107-pas{color:#c6c6c6}
+:root[data-theme=dark] .demo107-statut[data-etat=erreur]{color:#ff8389}

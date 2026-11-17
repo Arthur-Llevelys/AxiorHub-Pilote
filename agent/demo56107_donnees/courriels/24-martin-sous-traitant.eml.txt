@@ -1,0 +1,14 @@
+X-Demo-Id: martin-sous-traitant
+X-Demo-Heures: 120
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Thomas MARTIN <dpo@martin-logistique.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: MARTIN Logistique — contrat avec l’hébergeur
+Message-ID: <martin-sous-traitant@demo.example.test>
+
+Maître,
+
+Notre hébergeur nous envoie son contrat de sous-traitance. Pouvez-vous vérifier qu'il contient les clauses de l'article 28 ?
+
+Thomas MARTIN

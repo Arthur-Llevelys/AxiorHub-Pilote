@@ -1,0 +1,14 @@
+X-Demo-Id: expert-provision
+X-Demo-Heures: 180
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: M. ORLANDEC, expert judiciaire <expert.orlandec@expertise.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: RG 24/01355 — consignation reçue
+Message-ID: <expert-provision@demo.example.test>
+
+Maître,
+
+Je vous confirme que la consignation a été versée au greffe. Les opérations d'expertise peuvent commencer.
+
+L'expert

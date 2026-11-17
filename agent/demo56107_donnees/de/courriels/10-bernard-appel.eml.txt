@@ -1,0 +1,15 @@
+X-Demo-Id: bernard-appel
+X-Demo-Heures: 26
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@privat.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: Alice BERNARD — meine Berufung, wie geht es weiter?
+Message-ID: <bernard-appel@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+ich wollte fragen, wann Sie die Berufungsbegründung in meinem Verfahren (Az. 4 Sa 1411/24) einreichen und ob ich Ihnen noch weitere Unterlagen schicken soll.
+
+Vielen Dank
+Alice BERNARD

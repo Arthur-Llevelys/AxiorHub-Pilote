@@ -1,0 +1,14 @@
+X-Demo-Id: durand-facture
+X-Demo-Heures: 100
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Jean DURAND <direction@durand-batiment.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: DURAND Bâtiment — facture de provision
+Message-ID: <durand-facture@demo.example.test>
+
+Bonjour Maître,
+
+Nous avons bien reçu votre facture de provision pour le dossier DURAND c. MARTIN. Le virement sera fait cette semaine.
+
+Jean DURAND

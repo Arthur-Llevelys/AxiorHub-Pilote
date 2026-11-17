@@ -1,0 +1,13 @@
+X-Demo-Id: webinaire
+X-Demo-Heures: 150
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Liste: oui
+From: Formation continue <formation@ordre-valbrune.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Formation : la mise en état devant le tribunal judiciaire
+Message-ID: <webinaire@demo.example.test>
+
+Formation fictive de démonstration : la mise en état devant le tribunal judiciaire, deux heures validées au titre de la formation continue.
+
+Inscription auprès du secrétariat de l'Ordre.

@@ -1,0 +1,15 @@
+X-Demo-Id: commissaire-signification
+X-Demo-Heures: 44
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: KERVILAC Enforcement <enforcement@kervilac-enforcement.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: Claim No. VB24C01302 — notice of enforcement served
+Message-ID: <commissaire-signification@demo.example.test>
+
+Dear Ms DURAND,
+
+We write to confirm that a notice of enforcement has been served on ORLANDEC Trading Ltd at its registered office. Our attendance report follows by post.
+
+KERVILAC Enforcement
+High Court Enforcement Officers

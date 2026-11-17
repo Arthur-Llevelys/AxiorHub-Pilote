@@ -1,0 +1,19 @@
+X-Demo-Id: envoi-orlandec
+X-Demo-Heures: 125
+X-Demo-Boite: Sent
+X-Demo-Drapeaux: \Seen
+X-Demo-Repond: orlandec-audit
+From: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+To: Helene ORLANDEC <vorstand@orlandec.example.test>
+Subject: AW: ORLANDEC AG — Fragen der Käuferin
+Message-ID: <envoi-orlandec@demo.example.test>
+
+Sehr geehrte Frau ORLANDEC,
+
+für die beiden betroffenen Verträge kann eine aufschiebende Bedingung vorgesehen werden: die Zustimmung der jeweiligen Kunden zum Kontrollwechsel.
+
+Mit freundlichen Grüßen
+
+Claire Durand
+Rechtsanwältin
+Kanzlei Durand

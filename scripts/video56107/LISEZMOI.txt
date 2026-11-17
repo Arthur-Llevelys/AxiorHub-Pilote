@@ -1,0 +1,58 @@
+AxiorHub Pilote — vidéo de démonstration (environ {DUREE} secondes)
+=====================================================================
+
+Fichiers
+--------
+- {NOM}.mp4   : vidéo principale (H.264 + AAC, yuv420p, lecture progressive « faststart ») — lisible partout.
+- {NOM}.webm  : même vidéo en VP9 + Opus, plus légère pour les navigateurs récents.
+- {NOM}.vtt   : sous-titres pour le web (WebVTT, français).
+- {NOM}.srt   : mêmes sous-titres (SRT), pour les lecteurs et plateformes qui le demandent.
+- affiche.png : image affichée avant la lecture (première image de la vidéo).
+- minutage.json, brut/, voix/ : fichiers de travail (durées réelles des plans, image brute, voix par plan). À ne pas publier.
+- Versions anglaise, allemande et espagnole (quand elles ont été produites) : mêmes fichiers suffixés par la langue, par exemple
+  {NOM}.en.mp4, {NOM}.en.webm, {NOM}.en.vtt, affiche.en.png (de, es de même). Dans WordPress, chaque page de langue reçoit sa vidéo ;
+  pour une seule vidéo, on peut aussi ajouter plusieurs pistes de sous-titres (srclang « en », « de », « es »), mais la voix reste celle
+  de la vidéo choisie.
+
+Les données montrées sont entièrement fictives (cabinet, dossiers, courriels, juridiction, numéros). La voix est une voix de synthèse
+locale. Le texte de la voix off doit avoir été validé par l'avocat avant la publication.
+
+Insérer la vidéo dans WordPress (page « AxiorHub Pilote » d'axiorhub.com)
+-------------------------------------------------------------------------
+1. Médias > Ajouter : téléverser {NOM}.mp4, {NOM}.webm, {NOM}.vtt et affiche.png.
+   Si WordPress refuse le .vtt, ajouter le type « vtt => text/vtt » par une extension de types de fichiers, ou héberger les fichiers
+   sur le serveur du cabinet (voir plus bas).
+2. Dans la page, à l'endroit du bouton « Voir la démo — 90 secondes », ajouter un bloc « Vidéo » et choisir {NOM}.mp4.
+3. Réglages du bloc Vidéo (colonne de droite) :
+   - « Lecture automatique » activée : WordPress coche alors « Muet », obligatoire pour la lecture automatique dans les navigateurs ;
+     le visiteur réactive le son par la commande du lecteur.
+   - « Lecture en boucle » au choix ; « Lecture en ligne » (playsinline) activée pour les téléphones ; « Commandes de lecture » activées.
+   - « Préchargement » : « Métadonnées ».
+   - « Image de présentation » (poster) : affiche.png.
+   - « Pistes de texte » : « Ajouter une piste », choisir {NOM}.vtt, type « Sous-titres », langue « fr », libellé « Français »,
+     et la marquer par défaut si le site le permet (lecture sans son : les sous-titres portent le texte de la voix).
+4. Pour que le bouton « Voir la démo — 90 secondes » mène à la vidéo : donner au bloc Vidéo l'ancre HTML « demo »
+   (Avancé > Ancre HTML), puis faire pointer le bouton vers « #demo ».
+
+Variante sans bloc Vidéo (bloc « HTML personnalisé »), fichiers servis par le site ou par le serveur du cabinet :
+
+  <video controls autoplay muted playsinline preload="metadata" poster="/chemin/affiche.png" width="1920" height="1080"
+         style="width:100%;height:auto">
+    <source src="/chemin/{NOM}.webm" type="video/webm">
+    <source src="/chemin/{NOM}.mp4" type="video/mp4">
+    <track kind="subtitles" src="/chemin/{NOM}.vtt" srclang="fr" label="Français" default>
+  </video>
+
+Héberger la vidéo sur le serveur du cabinet
+--------------------------------------------
+Copier les fichiers dans un dossier servi en lecture seule (par exemple /var/www/axiorhub-demo/), puis :
+- servir .mp4 en « video/mp4 », .webm en « video/webm », .vtt en « text/vtt; charset=utf-8 » ;
+- accepter les requêtes partielles (Range), activées par défaut dans Apache et Nginx, pour que la lecture démarre sans tout télécharger ;
+- si la page WordPress est sur un autre domaine que les fichiers, autoriser ce domaine pour le .vtt (en-tête
+  « Access-Control-Allow-Origin: https://axiorhub.com ») et ajouter crossorigin="anonymous" à la balise <video> ;
+- aucun compteur ni service de suivi tiers n'est nécessaire.
+
+Refaire la vidéo à une nouvelle version
+---------------------------------------
+Sur le poste de développement : python scripts/video-demo.py tout
+(ffmpeg requis pour le montage : variable FFMPEG avec son chemin complet ; voir scripts/video56107/).

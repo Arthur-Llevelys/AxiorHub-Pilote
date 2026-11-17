@@ -1,0 +1,14 @@
+X-Demo-Id: assurance
+X-Demo-Heures: 210
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Assurances du Barreau <contrat@assurance-barreau.example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Votre attestation d’assurance responsabilité civile professionnelle
+Message-ID: <assurance@demo.example.test>
+
+Madame,
+
+Veuillez trouver votre attestation d'assurance pour l'année en cours (document fictif de démonstration).
+
+Le service clients

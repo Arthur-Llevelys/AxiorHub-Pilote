@@ -1,0 +1,14 @@
+X-Demo-Id: zorval-facture
+X-Demo-Heures: 170
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Sophie ZORVAL <accounts@zorval.example.test>
+To: Claire DURAND <claire.durand@durandmartin.example.test>
+Subject: ZORVAL Distribution — another unpaid invoice
+Message-ID: <zorval-facture@demo.example.test>
+
+Dear Claire,
+
+ORLANDEC Trading has not paid invoice 2024-160 either. Can we add it to the proceedings?
+
+Sophie ZORVAL

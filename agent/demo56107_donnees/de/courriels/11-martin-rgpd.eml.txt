@@ -1,0 +1,17 @@
+X-Demo-Id: martin-rgpd
+X-Demo-Heures: 30
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+X-Demo-Piece: 01 - Verarbeitungsverzeichnis.pdf|AKT-005
+From: Thomas MARTIN <datenschutz@martin-logistik.example.test>
+To: Rechtsanwältin Claire Durand <claire.durand@kanzlei-durand.example.test>
+Subject: MARTIN Logistik — Verzeichnis von Verarbeitungstätigkeiten
+Message-ID: <martin-rgpd@demo.example.test>
+
+Sehr geehrte Frau Durand,
+
+wie besprochen erhalten Sie anbei unser Verzeichnis von Verarbeitungstätigkeiten. Die Ortung der Fahrzeuge wirft bei uns Fragen auf.
+
+Mit freundlichen Grüßen
+Thomas MARTIN
+MARTIN Logistik GmbH

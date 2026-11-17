@@ -1,0 +1,14 @@
+X-Demo-Id: bernard-merci
+X-Demo-Heures: 320
+X-Demo-Boite: INBOX
+X-Demo-Drapeaux: \Seen
+From: Alice BERNARD <alice.bernard@example.test>
+To: Me Claire DURAND <claire.durand@cabinet-durand.example.test>
+Subject: Alice BERNARD — merci
+Message-ID: <bernard-merci@demo.example.test>
+
+Maître,
+
+Merci pour vos explications sur la procédure d'appel. Je reste disponible.
+
+Alice BERNARD

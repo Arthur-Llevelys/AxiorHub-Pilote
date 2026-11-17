@@ -1,0 +1,17 @@
+X-Demo-Id: fraude-rib
+X-Demo-Heures: 3
+X-Demo-Boite: INBOX
+X-Demo-Sans-Authentification: oui
+From: Sofía ZORVAL <contabilidad.zorval@zorval-pagos.example.test>
+To: Claire Durand <claire.durand@durand-abogados.example.test>
+Subject: Cambio de cuenta bancaria – urgente
+Message-ID: <fraude-rib@demo.example.test>
+
+Estimada Sra. Durand:
+
+Debido a un cambio de banco, nuestros datos bancarios han cambiado. Le rogamos que no utilice la cuenta anterior, que ya está cancelada.
+
+Con total discreción, le rogamos que transfiera hoy mismo las cantidades recobradas por cuenta nuestra al nuevo IBAN: ES82 0000 0000 0000 0000 0000.
+
+Atentamente,
+Departamento de contabilidad
