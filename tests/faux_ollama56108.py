@@ -24,6 +24,7 @@ class FauxOllama:
         self.etapes_pull, self.pause_pull = etapes_pull, pause_pull
         self.erreur_pull_a = None            # numéro de ligne après laquelle le flux rend {"error": ...}
         self.coupure_pull_a = None           # numéro de ligne après laquelle la connexion est fermée sans « success »
+        self.silence_pull_a = None           # (ligne, événement) : flux muet à cette ligne jusqu'à l'événement, puis connexion fermée
         self.journal, self.pulls_interrompus = [], 0
         self.apres_pull = {}                 # nom → modèle « installé » à la fin d'un téléchargement (sinon un modèle de 4 Md)
         self.verrou = threading.Lock()
@@ -100,6 +101,9 @@ class FauxOllama:
                             self.wfile.flush()
                             return
                         if faux.coupure_pull_a is not None and n == faux.coupure_pull_a:
+                            return
+                        if faux.silence_pull_a is not None and n == faux.silence_pull_a[0]:
+                            faux.silence_pull_a[1].wait(30)
                             return
                         self.wfile.write(json.dumps(ligne).encode() + b'\n')
                         self.wfile.flush()

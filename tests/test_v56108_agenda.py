@@ -31,6 +31,10 @@ def setUpModule():
     D100.setUpModule()
 
 
+def tearDownModule():   # retire le garde-fou réseau posé ci-dessus (sinon il reste actif pour les modules suivants du même processus)
+    D100.T.tearDownModule()
+
+
 def jour_cabinet():
     return datetime.now(PARIS).date()
 

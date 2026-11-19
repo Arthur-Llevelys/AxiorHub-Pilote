@@ -341,6 +341,25 @@ class Telechargement(Base):
         self.assertNotIn('qwen3:4b', self.ollama.modeles)
         self.assertTrue(attendre(lambda: self.ollama.pulls_interrompus >= 1))          # la connexion a été fermée : Ollama arrête
 
+    def test_L5_05b_annulation_vue_comme_fin_de_flux_sous_linux(self):
+        """Sous Linux, la coupure de l'annulation rend une fin de flux (b'') et non une erreur : l'état doit être « annulé », jamais
+        « flux interrompu » (recette Linux 5.6.108, parcours P108l). Ollama muet pendant l'annulation, puis connexion fermée ; la coupure
+        du client est neutralisée pour obtenir la fin de flux propre de Linux sur tout système."""
+        import threading
+        reprise = threading.Event()
+        self.ollama.silence_pull_a = (3, reprise)
+        with patch('agent.ia_locale56108.demarrer', lambda cible, *a: threading.Thread(target=cible, args=a, daemon=True).start()),                 patch('socket.socket.shutdown', lambda *a, **k: None):
+            out = L.demander_telechargement(self.desk, self.demande(), ADMIN[0])
+            ident = out['operation']['id']
+            self.assertTrue(attendre(lambda: len(self.ollama.pulls()) == 1))
+            time.sleep(0.6)                                                   # le faux Ollama est muet à la ligne 3
+            self.assertEqual(L.operation(self.desk, ident)['etat'], 'en_cours')
+            L.annuler(self.desk, {'cle': 'cle-annulation-0002', 'id': ident}, ADMIN[0])
+            reprise.set()
+            self.assertTrue(attendre(lambda: L.operation(self.desk, ident)['etat'] != 'en_cours'))
+        op = L.operation(self.desk, ident)
+        self.assertEqual((op['etat'], op['erreur']), ('annule', ''))
+
     def test_L5_06_erreur_puis_reprise(self):
         self.ollama.erreur_pull_a = 3
         out = L.demander_telechargement(self.desk, self.demande(), ADMIN[0])

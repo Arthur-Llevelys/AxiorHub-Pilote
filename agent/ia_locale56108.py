@@ -29,6 +29,7 @@ Aucune écriture pendant un GET ; tables créées au démarrage (``ensure_schema
 """
 from datetime import datetime, timezone
 import html
+import http.client
 import ipaddress
 import json
 import os
@@ -884,7 +885,11 @@ def telecharger(cfg, op_id, url, modele):
                     break
                 ligne = r.readline(1_000_001)
                 if not ligne:
-                    erreur = erreur or 'flux_interrompu'
+                    # fin du flux : sous Linux, la coupure de l'annulation (shutdown) rend une fin de flux, pas une erreur
+                    if _annule(db, op_id):
+                        etat_final = 'annule'
+                    else:
+                        erreur = erreur or 'flux_interrompu'
                     break
                 try:
                     obj = json.loads(ligne)
@@ -908,11 +913,11 @@ def telecharger(cfg, op_id, url, modele):
                     dernier = time.monotonic()
     except Stop as ex:
         erreur = str(ex).split(':')[0]
-    except (OSError, ValueError) as ex:
+    except (OSError, ValueError, http.client.HTTPException) as ex:   # HTTPException : flux découpé coupé net (IncompleteRead)
         if _annule(db, op_id):
             etat_final = 'annule'
         else:
-            erreur = 'flux_interrompu' if isinstance(ex, (OSError, socket.timeout)) else 'reponse_invalide'
+            erreur = 'flux_interrompu' if isinstance(ex, (OSError, socket.timeout, http.client.HTTPException)) else 'reponse_invalide'
     finally:
         _FLUX.pop(op_id, None)
         _EVENEMENTS.pop(op_id, None)
