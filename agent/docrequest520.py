@@ -386,7 +386,7 @@ def draft(desk, request, kind, ctx, previous_text='', matter_id='', legal=None, 
         pass
     try:   # 5.6.39 : trame de la bibliothèque de modèles (choisie par l'avocat, ou clairement désignée par la demande)
         from .bibliotheque5639 import trame_for_request
-        trame = trame_for_request(desk, request)
+        trame = trame_for_request(desk, request, matter=matter_id)   # 5.6.108 (lot B) : droit du dossier, jamais un droit présumé
         if trame:
             payload['trame_bibliotheque'] = trame
     except Exception:   # noqa: BLE001 — la rédaction ne dépend pas de la bibliothèque…

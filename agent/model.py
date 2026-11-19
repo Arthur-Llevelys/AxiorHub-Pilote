@@ -818,6 +818,7 @@ class Model:
                 shown = {}
             from .profil5634 import model_context_limit
             self.context_limit = model_context_limit(shown)
+            self.parameter_size = str((shown.get('details') or {}).get('parameter_size') or '') if isinstance(shown.get('details'), dict) else ''   # 5.6.108 (lot R) : petit modèle
             self.capabilities = [str(x) for x in (shown.get('capabilities') or [])] if isinstance(shown.get('capabilities'), list) else None
             if shown.get('remote_host') or shown.get('remote_model'):
                 raise Stop('modele_distant_refuse')
@@ -1015,7 +1016,9 @@ class Model:
         from .competences5632 import current_instructions   # 5.6.32 (R16) : seules les compétences retenues pour la tâche
         from .competences5643 import assemble   # 5.6.43 (§ 7.3) : un seul assemblage, sans doublon, dans un budget unique
         from .competences5683 import budget_chars   # 5.6.83 (SK03) : place réelle du modèle, messages et réponse réservés
-        skill_text=assemble(str(self.cfg.get('skill_instructions') or ''),current_instructions(),budget_chars(self.cfg,messages,max_tokens))
+        from .references56108 import envoi as _envoi56108   # 5.6.108 (lot R) : petit modèle : aucun nom d'outil ni de connecteur dans la méthode
+        with _envoi56108(self):
+            skill_text=assemble(str(self.cfg.get('skill_instructions') or ''),current_instructions(),budget_chars(self.cfg,messages,max_tokens))
         if skill_text:   # 5.6.89 : une compétence importée passe le même nettoyage que les sources : pas de faux jeton de conversation dans un message du système
             from .bouclier5659 import clean as _clean5689
             skill_text=_clean5689(skill_text)[0]

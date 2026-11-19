@@ -330,3 +330,23 @@ def panel_html(desk, prefix):
             '<table class="vf-table"><thead><tr><th>Connecteur</th><th>Fournisseur</th><th>Utilisé avant les réponses</th></tr></thead><tbody>%s</tbody></table>'
             '<p class="vf-note">Un connecteur s’active, se teste et reçoit l’usage « analyse juridique » dans <a href="%s">Connecteurs MCP</a>.</p></section>') % (
         info, rows or '<tr><td colspan="3">Aucun connecteur juridique déclaré.</td></tr>', e(prefix + '/mcp', quote=True))
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.108 (lot R) : recherche d'une référence précise
+def chercher_reference(desk, matter_id, besoin, purpose='redaction', researcher=None):
+    """Recherche avant rédaction étendue aux analyses et rédactions des petits modèles (``references56108``) : un article, une décision ou une
+    notion, repérés dans les pièces ou exprimés comme besoin, sont cherchés par le chemin commun ``research`` (requête minimale anonymisée,
+    politique des données, cache, journal). Rend ``[{reference, titre, texte, lien, statut}]`` ; une recherche impossible lève ``Stop`` (comptée
+    par l'appelant), aucun connecteur utilisable rend une liste vide."""
+    from .references56108 import requete
+    result = research(desk, matter_id, requete(besoin), purpose, researcher)
+    if result.get('statut') == 'echec':
+        raise Stop('recherche_impossible:' + str(result.get('erreur') or 'erreur'))
+    out = []
+    for s in result.get('sources') or []:
+        titre = str(s.get('titre') or '').strip()
+        tete = titre or str(s.get('reference') or '')
+        reference = ', '.join([tete] + [x for x in (str(s.get('juridiction') or ''), str(s.get('date') or '')) if x and x not in tete])
+        out.append({'reference': reference[:200], 'titre': titre or reference, 'texte': str(s.get('extrait') or ''), 'lien': str(s.get('url') or ''),
+                    'statut': str(s.get('statut') or 'piste_a_verifier')})
+    return out

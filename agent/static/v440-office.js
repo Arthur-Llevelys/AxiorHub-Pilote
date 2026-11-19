@@ -61,8 +61,8 @@
       var cfg = d.config;
       if (d.document_id) { window.axOfficeOpened = d.document_id; window.dispatchEvent(new CustomEvent('ax-office-opened', {detail: {document_id: d.document_id}})); }   // 5.6.84 : panneau de suivi
       cfg.events = {
-        onAppReady: function () { clearTimeout(timer); say(d.editable ? 'Prêt — vos modifications sont enregistrées automatiquement dans Nextcloud.' : 'Lecture seule.'); signaler('pret'); },
-        onDocumentStateChange: function (ev) { say(ev.data ? 'Modification en cours…' : 'Enregistré dans Nextcloud.'); },
+        onAppReady: function () { clearTimeout(timer); say(d.editable ? 'Prêt — vos modifications sont enregistrées automatiquement.' : 'Lecture seule.'); signaler('pret'); },
+        onDocumentStateChange: function (ev) { say(ev.data ? 'Modification en cours…' : 'Enregistré.'); },
         onError: function (ev) { clearTimeout(timer); say('Erreur de l’éditeur : ' + ((ev && ev.data && (ev.data.errorDescription || ev.data.errorCode)) || 'inconnue')); diagnose(); }
       };
       try { window.axEditor = new window.DocsAPI.DocEditor('ax-office', cfg); }

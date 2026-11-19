@@ -70,7 +70,11 @@
       etag = v.etag || '';
       box.dataset.etag = etag;
       box.dataset.dernier = '200';
-      if (typeof v.html === 'string') zone.innerHTML = v.html;      // HTML échappé par le serveur (actuellement5695.lignes_html)
+      if (typeof v.html === 'string') {                              // HTML échappé par le serveur (actuellement5695.lignes_html)
+        // 5.6.108 (lot A) : une source muette (panne, retard, liste partielle à zéro) ne remplace pas la dernière valeur connue
+        if (window.AX108accueil) window.AX108accueil.fusionnerActuellement(zone, v.html, heure ? heure.textContent : '', auto);
+        else zone.innerHTML = v.html;
+      }
       if (heure && v.heure) heure.textContent = v.heure;
       texte = v.texte || texte;
       dire(manuel ? msg('maj_ok', 'Encadré mis à jour.') : '', manuel);

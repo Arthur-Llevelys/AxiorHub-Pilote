@@ -1,0 +1,75 @@
+/* AxiorHub 5.6.108 (lot G) — Agenda local, Produire et Dossiers (nouvelle interface : classes posées derrière interface56100).
+   Jetons Carbon avec repli : clair et sombre suivent les jetons. Un état est écrit en mots (jamais la couleur seule) ; focus visible ;
+   texte jamais sous 13 px (les noms de dossiers gardent leur taille) ; aucun défilement horizontal à 375 px. */
+
+/* ------------------------------------------------------------------ Agenda : commandes visibles pendant le défilement de l'amplitude horaire
+   Quand la grille dépasse la zone utile (amplitude 0 h – 24 h, pas de 15 min, petit écran), la page défile : la barre (Aujourd'hui,
+   période, vues, + Nouveau, Volets) reste en haut, la ligne des jours juste dessous (hauteur de la barre mesurée par v56108-agenda.js).
+   « overflow: clip » remplace « hidden » : la grille ne devient pas un conteneur de défilement, la ligne des jours peut donc coller. */
+.ag108 .ag97-barre { background: var(--cds-background, #f4f4f4); padding: .25rem 0; position: sticky; top: 0; z-index: 7; }
+.ag108 .ag97-grille { overflow: clip; }
+.ag108 .ag97-coin, .ag108 .ag97-jour { top: var(--ag108-barre, 0px); z-index: 5; }
+.ag108 .ag97-pop { z-index: 8; }
+
+/* dates extraites à vérifier : à part de la grille confirmée, une ligne */
+.ag108-verifier { align-items: baseline; background: var(--cds-notification-background-warning, #fcf4d6); border-left: 3px solid var(--cds-support-warning, #f1c21b);
+  color: var(--cds-text-primary, #161616); display: flex; flex-wrap: wrap; font-size: .8125rem; gap: .125rem .5rem; margin: 0; padding: .125rem .5rem; }
+.ag108-verifier a { color: var(--cds-link-primary, #0f62fe); }
+.ag108-marque { border: 1px dashed currentColor; border-radius: 1rem; font-size: .8125rem; font-weight: 600; padding: 0 .375rem; white-space: nowrap; }
+.ag108-liste-verifier li { border-bottom: 1px solid var(--ag97-bord, #e0e0e0); display: flex; flex-wrap: wrap; gap: 0 .375rem; padding: .25rem 0; }
+.ag108-verifier a:focus-visible, .ag108-liste-verifier a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* éditeur : durée, rappel, fuseau, responsable, récurrence */
+.ag108-ligne > label { flex: 1 1 10rem; }
+.ag108-lisible { display: flex; flex-wrap: wrap; font-size: .8125rem; gap: .125rem 1.25rem; margin: 0 0 .375rem; }
+.ag108-lisible > div { display: flex; gap: .375rem; min-width: 0; }
+.ag108-lisible dt { color: var(--ag97-doux, #525252); font-weight: 600; }
+.ag108-lisible dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 700px) {
+  .ag108 .ag97-barre { padding: .125rem 0; }
+  .ag108 .ag97-barre .ag97-source select { max-width: 8rem; }
+}
+
+/* ------------------------------------------------------------------ Produire : livrables prêts en lignes denses (bureau, densité compacte)
+   Une ligne par version : type et dossier · titre · version, date et état · actions. Un formulaire ouvert (correction, export) prend toute
+   la largeur sous la ligne. Les limites communes à toutes les lignes sont dites une seule fois au-dessus de la liste. */
+.p108-limites { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: .25rem 0; }
+@media (min-width: 68.75rem) {
+  body[data-densite=compacte] #ws-main .p100-cartes { border-top: 1px solid var(--cds-border-subtle-01, #e0e0e0); gap: 0; }
+  body[data-densite=compacte] #ws-main .p100-carte { align-items: center; border-width: 0 0 1px; column-gap: 1rem; display: grid; padding: .3125rem .5rem;
+    grid-template-columns: minmax(11rem, 1fr) minmax(12rem, 1.5fr) minmax(11rem, auto) minmax(15rem, auto); }
+  body[data-densite=compacte] #ws-main .p100-tete { flex-direction: column; gap: 0; grid-column: 1; grid-row: 1; min-width: 0; }
+  body[data-densite=compacte] #ws-main .p100-titre { grid-column: 2; grid-row: 1; margin: 0; min-width: 0; }
+  body[data-densite=compacte] #ws-main .p100-meta { grid-column: 3; grid-row: 1; }
+  body[data-densite=compacte] #ws-main .p100-actions { grid-column: 4; grid-row: 1; justify-content: flex-end; margin: 0; }
+  body[data-densite=compacte] #ws-main .p100-progression, body[data-densite=compacte] #ws-main .p100-limites { grid-column: 1 / -1; }
+  body[data-densite=compacte] #ws-main .p100-carte:has(.p100-actions > details[open]) .p100-actions { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; }
+}
+body[data-densite=compacte] #ws-main .p100-actions .ax-btn { font-size: .8125rem; min-height: var(--ax-controle-petit, 28px); padding: .125rem .5rem; }
+body[data-densite=compacte] #ws-main .p100-actions > details { background: none; border: 0; margin: 0; padding: 0; }
+body[data-densite=compacte] #ws-main .p100-actions > details > summary.ax-btn { display: inline-flex; }
+body[data-densite=compacte] #ws-main .p100-tete, body[data-densite=compacte] #ws-main .p100-meta { font-size: .8125rem; }
+body[data-densite=compacte] #ws-main .p100-titre { font-size: .9375rem; line-height: 1.3; }
+
+/* ------------------------------------------------------------------ Dossiers : tableau plus dense, même lisibilité (densité compacte)
+   Intitulé sur une ligne, client et référence sur la suivante ; aucune capitale forcée dans le corps du tableau. */
+body[data-densite=compacte] #ws-main .d97-table th, body[data-densite=compacte] #ws-main .d97-table td { padding: .25rem .5rem; }
+body[data-densite=compacte] #ws-main .d97-table tbody th, body[data-densite=compacte] #ws-main .d97-table tbody th * { letter-spacing: normal; text-transform: none; }
+body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client, body[data-densite=compacte] #ws-main .d97-table tbody th .d97-ref { display: inline; font-size: .8125rem; }
+body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client::after { content: " · "; }
+body[data-densite=compacte] #ws-main .d97-table tbody th .d97-ouvrir { font-size: .875rem; }   /* le nom du dossier garde 14 px */
+body[data-densite=compacte] #ws-main .d97-table .d100-historique { font-size: .75rem; padding: 0 .375rem; }
+body[data-densite=compacte] #ws-main .d97-table thead th { font-size: .8125rem; padding-bottom: .25rem; padding-top: .25rem; }
+body[data-densite=compacte] #ws-main .d100-cartes { gap: .5rem; }
+body[data-densite=compacte] #ws-main .d100-carte { gap: .125rem; padding: .375rem .625rem; }
+body[data-densite=compacte] #ws-main .d100-carte h3 { font-size: .9375rem; margin: 0; }
+@media (max-width: 40rem) {
+  body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client, body[data-densite=compacte] #ws-main .d97-table tbody th .d97-ref { display: block; }
+  body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client::after { content: none; }
+}
+
+/* fiche : résultats enregistrés par l'IA (lien vers chaque résultat), distincts de l'activité (lectures) */
+.d108-resultats { margin: 0 0 .5rem; }
+.d108-resultats h3, .d108-activite h3 { font-size: .875rem; margin: .25rem 0; }
+.d108-resultats a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }

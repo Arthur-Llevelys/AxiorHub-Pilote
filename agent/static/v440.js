@@ -267,12 +267,17 @@
       api('settings/office', {
         server_url: $('#of-server').value, secret: $('#of-secret').value,
         callback_base: $('#of-callback').value, engine: $('#of-engine').value
-      }).then(function () { $('#of-secret').value = ''; toast('Réglages enregistrés. Lancez le test de connexion.'); })
+      }).then(function () {
+        // 5.6.108 (lot O) : le champ est vidé (jamais réaffiché) ; l'indication dit qu'un secret est désormais enregistré
+        if ($('#of-secret').value) $('#of-secret').placeholder = 'secret enregistré (laissez vide pour le conserver)';
+        $('#of-secret').value = ''; toast('Réglages enregistrés. Lancez le test de connexion.');
+      })
         .catch(function (e) { toast(e.message, true); });
     });
     $('#of-diag').addEventListener('click', function () {
       var t = $('#of-result'); t.textContent = 'Test en cours…';
-      api('office/diagnostic').then(function (d) { diagList(t, d.checks); }).catch(function (e) { t.textContent = e.message; });
+      // 5.6.108 (lot O) : test complet (POST, administrateur) — jusqu'à la preuve que le serveur de documents joint AxiorHub
+      api('settings/office/test', {}).then(function (d) { diagList(t, d.checks); }).catch(function (e) { t.textContent = e.message; });
     });
     $('#of-clear').addEventListener('click', function () {
       if (!confirm('Retirer le secret JWT enregistré ?')) return;

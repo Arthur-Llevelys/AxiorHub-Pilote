@@ -44,6 +44,10 @@ Schéma cryptographique (bibliothèque ``cryptography`` seulement ; aucune primi
 la seule vraie limite sans serveur, affichée telle quelle. **Pilote** : c'est le poste de la personne qui l'interpelle qui fait tourner
 l'IA (``messagerie5650`` → ``pilote_messagerie56102.apres_message`` sur ce poste) ; un message reçu par la liaison n'appelle jamais
 Pilote, et la réponse de Pilote repart vers les autres postes comme un message.
+
+5.6.108 (lot S) : le même transport porte la synchronisation des dossiers, tâches, agenda, documents et missions (``sync56108``), dans la
+même session authentifiée. Le processus écoute si la liaison est activée OU si la synchronisation le requiert (``transport_actif``) ; les
+messages et réglages partagés restent soumis à l'activation de la liaison.
 """
 from datetime import datetime, timedelta, timezone
 import base64
@@ -169,8 +173,21 @@ def est_active(desk):
         return False
 
 
+def transport_actif(desk):
+    """5.6.108 (lot S) : le transport (écoute, session, appairage) sert aussi la synchronisation des postes ; il est ouvert si la liaison des
+    messages est activée OU si la synchronisation le requiert (espace créé ou rejoint ET poste appairé, ou code / fenêtre « Rejoindre »)."""
+    if est_active(desk):
+        return True
+    try:
+        from .sync56108 import ecoute_requise
+        return ecoute_requise(desk)
+    except Exception:   # noqa: BLE001 — module ou base illisible : fermé
+        return False
+
+
 def active_dans(config_path):
-    """Pour ``poste.py`` (superviseur) : la liaison est-elle activée ? Lecture seule de la base, sans ouvrir ``Desk`` ; toute erreur = non."""
+    """Pour ``poste.py`` (superviseur) : la liaison est-elle activée ? Lecture seule de la base, sans ouvrir ``Desk`` ; toute erreur = non.
+    5.6.108 (lot S) : vrai aussi quand la synchronisation des postes requiert l'écoute (``sync56108.ecoute_requise_db``)."""
     import sqlite3
     try:
         cfg = json.loads(Path(config_path).read_text(encoding='utf-8'))
@@ -180,9 +197,12 @@ def active_dans(config_path):
         db = sqlite3.connect(base.resolve().as_uri() + '?mode=ro', uri=True, timeout=2)
         try:
             row = db.execute('SELECT value FROM settings WHERE key=?', (REGLAGE_ACTIF,)).fetchone()
+            if bool(row) and json.loads(row[0]) is True:
+                return True
+            from .sync56108 import ecoute_requise_db
+            return ecoute_requise_db(db, cfg['state_dir'])
         finally:
             db.close()
-        return bool(row) and json.loads(row[0]) is True
     except Exception:   # noqa: BLE001
         return False
 
@@ -642,7 +662,7 @@ def _enregistrer_poste(desk, carte, adresse, port, source):
 
 def appairer(desk, adresse, port, code, boucle=False, delai=DELAI_SOCKET):
     """Poste A (où le code est saisi) : appelle le poste B, SPAKE2 avec le code, échange signé des identités, enregistrement de B."""
-    if not est_active(desk):
+    if not transport_actif(desk):
         raise Stop('liaison_desactivee')
     adresse = verifier_adresse(adresse, boucle)
     port = verifier_port(port or PORT_TCP)
@@ -1403,6 +1423,11 @@ def _noter_contact(desk, poste_id, adresse=None, port=None, presence=None, nom=N
 
 def _traiter(desk, poste_id, obj, donnees, moi):
     t = obj.get('t')
+    if str(t or '').startswith('sync.v1.'):   # 5.6.108 (lot S) : synchronisation des données métier (un poste ancien répond « trame inconnue »)
+        from .sync56108 import traiter
+        return traiter(desk, poste_id, obj, donnees, moi)
+    if t in ('message', 'reglage', 'etat_reglage') and not est_active(desk):   # 5.6.108 : transport ouvert pour la synchronisation seulement
+        raise Stop('liaison_desactivee')
     if t == 'presence':
         _noter_contact(desk, poste_id, presence=obj.get('etat'), nom=obj.get('nom'))
         return {'t': 'ok'}
@@ -1517,7 +1542,7 @@ class Liaison:
                 _envoyer_brut(conn, _json({'t': 'refus', 'motif': 'version_incompatible'}))
                 return
             desk = self.ouvrir()
-            if not est_active(desk):
+            if not transport_actif(desk):
                 return
             if h1.get('mode') == 'appairage':
                 _serveur_appairage(conn, self.ident, desk, h1, adresse, nom_du_poste(desk), self.port)
@@ -1535,7 +1560,8 @@ class Liaison:
                     reponse = _traiter(desk, poste_id, obj, donnees, self.ident.id)
                 except Stop as ex:
                     reponse = {'t': 'refus', 'motif': str(ex).split(':')[0][:60]}
-                canal.envoyer({**reponse, 'gid': obj.get('gid', '')})
+                sortants = reponse.pop('_donnees', b'')   # 5.6.108 (lot S) : bloc de fichier demandé (octets après l'en-tête chiffré)
+                canal.envoyer({**reponse, 'gid': obj.get('gid', '')}, sortants)
         except (Stop, OSError, ValueError):
             return
         finally:
@@ -1587,15 +1613,30 @@ class Liaison:
         desk = self.ouvrir()
         bilan = {}
         try:
-            if not est_active(desk):
+            if not transport_actif(desk):
                 return bilan
             self.nom = nom_du_poste(desk)
-            exporter(desk, self.ident)
+            if est_active(desk):
+                exporter(desk, self.ident)
+            from . import sync56108 as S56108   # 5.6.108 (lot S) : commandes locales journalisées, objets en attente repris
+            sync = S56108.synchro_active(desk)
+            if sync:
+                try:
+                    S56108.journaliser(desk)
+                    from .sync56108_objets import reprendre
+                    reprendre(desk)
+                    from .sync56108_fichiers import relever   # S5 : fichiers des dossiers partagés (signal ou relevé périodique borné)
+                    relever(desk)
+                except Exception:   # noqa: BLE001 — repris au passage suivant
+                    if desk.db.in_transaction:
+                        desk.db.rollback()
             maintenant = time.time()
             for p in postes(desk):
                 if not p['adresse'] or (p['prochain_essai'] and p['prochain_essai'] > maintenant and not forcer):
                     continue
                 attente = desk.db.execute("SELECT COUNT(*) FROM liaison56103_sortie WHERE poste=? AND etat='en_attente'", (p['id'],)).fetchone()[0]
+                if sync:
+                    attente += S56108.en_attente(desk, p['id'], self.ident.id)
                 if not attente and not forcer and presence_de(p) != 'hors_ligne' and _age(p['contact_le']) < BATTEMENT:
                     continue
                 from .pause5629 import checkpoint
@@ -1648,6 +1689,9 @@ class Liaison:
                                     (str(r.get('motif') or 'refuse')[:60], item['id']))
                     refuses += 1
                 desk.db.commit()
+            from . import sync56108 as S56108   # 5.6.108 (lot S) : opérations métier dans la même session authentifiée
+            if S56108.synchro_active(desk):
+                S56108.echanger(desk, canal, p['id'], self.ident.id)
             canal.envoyer({'t': 'fin'})
             r, _ = canal.recevoir()
             if r.get('t') == 'presence':
@@ -1737,7 +1781,7 @@ def service(c, intervalle=2.0, annonce=30.0):
         while True:
             desk = ouvrir()
             try:
-                if not est_active(desk):
+                if not transport_actif(desk):   # 5.6.108 (lot S) : liaison des messages, ou synchronisation qui requiert l'écoute
                     _noter_service(desk, 'arrete')
                     return 0
                 if liaison is None:

@@ -1,0 +1,69 @@
+/* 5.6.108 (lot T) : Assistance métier en cinq parcours. Une colonne sous 48rem (téléphone, zoom 125 % sur petit écran) ; cinq entrées
+   visibles sans défiler à 1920 × 1080 ; commandes atteignables clavier virtuel ouvert ; contraste clair et sombre (jetons de la page). */
+.as108 { display: grid; gap: .75rem; max-inline-size: 90rem; }
+.as108-tete h2 { margin: .1rem 0 .2rem; font-size: 1.5rem; }
+.as108-tete .eyebrow { margin: 0; letter-spacing: .04em; font-size: .75rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.as108-aide { margin: .25rem 0; font-size: .9375rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.as108-dossier { display: grid; grid-template-columns: auto minmax(12rem, 28rem) auto minmax(10rem, 18rem) auto; align-items: center; gap: .4rem .6rem; }
+.as108-dossier label { font-size: .875rem; }
+.as108-dossier select, .as108-dossier input { min-block-size: 2.5rem; max-inline-size: 100%; box-sizing: border-box; }
+.as108-cartes ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; }
+.as108-carte { display: flex; flex-direction: column; gap: .3rem; block-size: 100%; box-sizing: border-box; padding: .75rem .9rem; text-decoration: none;
+  color: var(--cds-text-primary, inherit); background: var(--cds-layer, var(--ax-card, #fff));
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem; }
+.as108-carte strong { font-size: 1rem; color: var(--cds-link-primary, var(--ax-accent, #0f62fe)); }
+.as108-carte span { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.as108-carte:hover { border-color: var(--cds-border-strong, #8d8d8d); }
+.as108-carte[aria-current=page] { border: 2px solid var(--cds-focus, #0f62fe); }
+.as108-parcours, .as108-resultat, .as108-recents { padding: .75rem .9rem; background: var(--cds-layer, var(--ax-card, #fff));
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem; }
+.as108-parcours h2, .as108-resultat h2, .as108-recents h2 { margin: 0 0 .4rem; font-size: 1.15rem; }
+.as108-form { display: grid; gap: .35rem; max-inline-size: 46rem; }
+.as108-form label, .as108-form legend { font-size: .9375rem; margin-block-start: .25rem; }
+.as108-form input:not([type=hidden]), .as108-form select, .as108-form textarea { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem;
+  font: inherit; font-size: 1rem; }
+.as108-form button { justify-self: start; min-block-size: 2.75rem; margin-block-start: .4rem; }
+.as108-ligne { display: flex; flex-wrap: wrap; gap: .6rem; border: 0; padding: 0; margin: 0; }
+.as108-ligne label { display: grid; gap: .2rem; flex: 1 1 8rem; }
+.as108-choix { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; margin: 0 0 .5rem; }
+.as108-liste { margin: .25rem 0; padding-inline-start: 1.1rem; }
+.as108-liste li { margin: .2rem 0; }
+.as108-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .2rem .8rem; margin: .3rem 0; }
+.as108-dl dt { font-weight: 600; }
+.as108-dl dd { margin: 0; overflow-wrap: anywhere; }
+.as108-principal { font-size: 1.1rem; font-weight: 600; }
+.as108-notes { white-space: normal; overflow-wrap: anywhere; }
+.as108-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.as108-etat { padding: .5rem .75rem; border-inline-start: 4px solid var(--cds-support-info, #0043ce); background: var(--cds-layer-02, var(--ax-surface-2, #f4f4f4)); }
+.as108-etat-error { border-inline-start-color: var(--cds-support-error, #da1e28); }
+.as108-etat-done { border-inline-start-color: var(--cds-support-success, #24a148); }
+.as108-diagnostic pre { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 30rem; overflow: auto; font-size: .8125rem; }
+.as108 :focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* Largeur moyenne : cartes sur trois colonnes ; téléphone et zoom : une colonne, rien ne sort de l'écran. */
+@media (max-width: 72rem) {
+  .as108-cartes ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .as108-dossier { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 48rem) {
+  .as108-cartes ul { grid-template-columns: minmax(0, 1fr); }
+  .as108-carte span { display: none; }
+  .as108-form button, .as108-actions .ax-btn { inline-size: 100%; justify-self: stretch; }
+  .as108-dl { grid-template-columns: minmax(0, 1fr); }
+}
+/* Clavier virtuel ou zoom (faible hauteur) : le bouton du formulaire reste collé au bas de la zone visible pendant la saisie. */
+@media (max-height: 32rem), (max-width: 48rem) {
+  .as108-form button[type=submit], .as108-form > button { position: sticky; inset-block-end: .25rem; z-index: 2; }
+}
+/* Accès mobile : la barre Retenir / Écarter du lecteur commun reste visible au-dessus du clavier virtuel. */
+@media (max-width: 64rem) {
+  .ap74-mobile .ax100-actions { position: sticky; inset-block-end: 0; z-index: 2; }
+}
+/* Clavier ouvert (faible hauteur) : barre compacte, décisions d'abord, commandes inactives retirées, pour laisser voir le texte saisi. */
+@media (max-width: 64rem) and (max-height: 32rem) {
+  .ap74-mobile .ax100-actions { gap: .3rem; padding-block: .3rem; }
+  .ap74-mobile .ax100-actions .ax-btn:disabled { display: none; }
+  .ap74-mobile .ax100-actions [data-action=retenir] { order: -2; }
+  .ap74-mobile .ax100-actions [data-action=ecarter] { order: -1; }
+  .ap74-mobile .ax100-actions .ax-btn { min-block-size: 2.5rem; flex: 1 1 30%; }
+}

@@ -5492,6 +5492,54 @@ body[data-densite="confortable"] .bx56106r-ib{min-width:34px;min-height:34px}
 :root[data-theme="dark"] .e106-bandeau.bad { background: #520408; color: #ffd7d9; }
 :root[data-theme="dark"] .e106-a_verifier .e106-motif, :root[data-theme="dark"] .e106-echec .e106-motif { color: #ff8389; }
 @media (max-width: 600px) { .e106-bandeau { left: .5rem; right: .5rem; transform: none; max-width: none; flex-wrap: wrap; } }
+/* 5.6.108 (lot C) : envoi retenu (compte revu au départ) et rapprochement d'un départ « à vérifier » */
+.e106-retenu .e106-motif { color: #8a3800; }
+.e108-rapprochement { margin: .5rem 0; padding: .6rem .8rem; border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; background: var(--ax-card, #fff); color: inherit; }
+.e108-rapprochement h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.e108-rapprochement h3:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }
+.e108-destinataires { border-collapse: collapse; width: 100%; margin: .3rem 0; font-size: .9rem; }
+.e108-destinataires caption { text-align: left; font-weight: 600; padding: .2rem 0; }
+.e108-destinataires th, .e108-destinataires td { border-bottom: 1px solid var(--ax-line, #c6c6c6); padding: .25rem .4rem; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.e108-refuse td:nth-child(2) { color: #a2191f; font-weight: 600; }
+.e108-accepte td:nth-child(2) { color: #0e6027; font-weight: 600; }
+.e108-inconnu td:nth-child(2) { color: #8a3800; font-weight: 600; }
+.e108-trace { display: grid; grid-template-columns: max-content 1fr; gap: .15rem .8rem; margin: .4rem 0; }
+.e108-trace dt { font-weight: 600; }
+.e108-trace dd { margin: 0; overflow-wrap: anywhere; }
+.e108-doublon { flex-basis: 100%; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .e106-retenu .e106-motif, :root:not([data-theme="light"]) .e108-inconnu td:nth-child(2) { color: #ffb784; }
+  :root:not([data-theme="light"]) .e108-refuse td:nth-child(2) { color: #ff8389; }
+  :root:not([data-theme="light"]) .e108-accepte td:nth-child(2) { color: #6fdc8c; }
+}
+:root[data-theme="dark"] .e106-retenu .e106-motif, :root[data-theme="dark"] .e108-inconnu td:nth-child(2) { color: #ffb784; }
+:root[data-theme="dark"] .e108-refuse td:nth-child(2) { color: #ff8389; }
+:root[data-theme="dark"] .e108-accepte td:nth-child(2) { color: #6fdc8c; }
+@media (max-width: 600px) { .e108-trace { grid-template-columns: 1fr; } .e108-destinataires th:nth-child(4), .e108-destinataires td:nth-child(4) { display: none; } }
+/* 5.6.108 (lot P) : « Mettre l'IA en pause » et « Suspendre les envois programmés », deux commandes distinctes (en-tête d'Aujourd'hui et
+   « Envois programmés ») ; messages retenus par la suspension avec leur heure prévue, décision après la reprise. */
+.p108-pauses { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.p108-retenus { font-weight: 600; color: #8a3800; text-decoration: underline; }
+.p108-retenus[hidden] { display: none; }
+.p108-retenus:focus-visible, .p108-envois:focus-visible, .p108-commandes button:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.p108-commandes { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: 0 0 .6rem; padding-bottom: .5rem; border-bottom: 1px solid var(--ax-line, #e0e0e0); }
+.p108-etat { flex-basis: 100%; margin: .2rem 0 0; display: flex; flex-direction: column; gap: .1rem; font-size: .92em; }
+.p108-retenus-liste { margin: 0 0 .6rem; padding: .5rem .7rem; border: 1px solid #b28600; border-left-width: 4px; border-radius: 6px; }
+.p108-retenus-liste h3 { margin: 0 0 .3rem; font-size: 1rem; }
+.e106-suspendu .e106-motif { color: #8a3800; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .p108-retenus, :root:not([data-theme="light"]) .e106-suspendu .e106-motif { color: #ffb784; }
+  :root:not([data-theme="light"]) .p108-retenus-liste { border-color: #f1c21b; }
+}
+:root[data-theme="dark"] .p108-retenus, :root[data-theme="dark"] .e106-suspendu .e106-motif { color: #ffb784; }
+:root[data-theme="dark"] .p108-retenus-liste { border-color: #f1c21b; }
+@media (max-width: 600px) { .p108-pauses { width: 100%; } .p108-pauses .ax-btn { flex: 1 1 auto; } }
+/* 5.6.108 (lot P) : dans la boîte dense (grille 5.6.106), « Envois programmés » se plaçait dans la colonne étroite des dossiers ; ouvert, il
+   couvre la liste et le lecteur, avec son propre défilement (fermé : rien ne change). */
+#bx5625.bx56106 .e106-liste:not([hidden]) { grid-column: 2 / 4; grid-row: 2 / 4; position: relative; z-index: 3; margin: 0; min-height: 0; overflow: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
+@media (max-width: 1100px) { #bx5625.bx56106 .e106-liste:not([hidden]) { grid-column: 1 / -1; grid-row: 3 / 5; } }
+@media (max-width: 700px) { #bx5625.bx56106 .e106-liste:not([hidden]) { box-shadow: none; } }
 /* ==== v56106-liste.css ==== */
 /* AxiorHub 5.6.106 (lot L) — page « Courriels » dense (nouvelle interface : #bx5625.bx56106). Compacte par défaut ; variante confortable sous
    body[data-densite="confortable"] (réglage commun du lot D). La page entière ne défile pas : la liste et le lecteur défilent chacun dans
@@ -5973,3 +6021,544 @@ body[data-densite="confortable"] #bx5625.bx56106 .bx5625-folder{min-height:36px}
 :root[data-theme=dark] .demo107-bulle{background:#262626;color:#f4f4f4;border-color:#78a9ff}
 :root[data-theme=dark] .demo107-bulle .demo107-pas{color:#c6c6c6}
 :root[data-theme=dark] .demo107-statut[data-etat=erreur]{color:#ff8389}
+/* ==== v56108-assistance.css ==== */
+/* 5.6.108 (lot T) : Assistance métier en cinq parcours. Une colonne sous 48rem (téléphone, zoom 125 % sur petit écran) ; cinq entrées
+   visibles sans défiler à 1920 × 1080 ; commandes atteignables clavier virtuel ouvert ; contraste clair et sombre (jetons de la page). */
+.as108 { display: grid; gap: .75rem; max-inline-size: 90rem; }
+.as108-tete h2 { margin: .1rem 0 .2rem; font-size: 1.5rem; }
+.as108-tete .eyebrow { margin: 0; letter-spacing: .04em; font-size: .75rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.as108-aide { margin: .25rem 0; font-size: .9375rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.as108-dossier { display: grid; grid-template-columns: auto minmax(12rem, 28rem) auto minmax(10rem, 18rem) auto; align-items: center; gap: .4rem .6rem; }
+.as108-dossier label { font-size: .875rem; }
+.as108-dossier select, .as108-dossier input { min-block-size: 2.5rem; max-inline-size: 100%; box-sizing: border-box; }
+.as108-cartes ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; }
+.as108-carte { display: flex; flex-direction: column; gap: .3rem; block-size: 100%; box-sizing: border-box; padding: .75rem .9rem; text-decoration: none;
+  color: var(--cds-text-primary, inherit); background: var(--cds-layer, var(--ax-card, #fff));
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem; }
+.as108-carte strong { font-size: 1rem; color: var(--cds-link-primary, var(--ax-accent, #0f62fe)); }
+.as108-carte span { font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.as108-carte:hover { border-color: var(--cds-border-strong, #8d8d8d); }
+.as108-carte[aria-current=page] { border: 2px solid var(--cds-focus, #0f62fe); }
+.as108-parcours, .as108-resultat, .as108-recents { padding: .75rem .9rem; background: var(--cds-layer, var(--ax-card, #fff));
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem; }
+.as108-parcours h2, .as108-resultat h2, .as108-recents h2 { margin: 0 0 .4rem; font-size: 1.15rem; }
+.as108-form { display: grid; gap: .35rem; max-inline-size: 46rem; }
+.as108-form label, .as108-form legend { font-size: .9375rem; margin-block-start: .25rem; }
+.as108-form input:not([type=hidden]), .as108-form select, .as108-form textarea { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem;
+  font: inherit; font-size: 1rem; }
+.as108-form button { justify-self: start; min-block-size: 2.75rem; margin-block-start: .4rem; }
+.as108-ligne { display: flex; flex-wrap: wrap; gap: .6rem; border: 0; padding: 0; margin: 0; }
+.as108-ligne label { display: grid; gap: .2rem; flex: 1 1 8rem; }
+.as108-choix { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; margin: 0 0 .5rem; }
+.as108-liste { margin: .25rem 0; padding-inline-start: 1.1rem; }
+.as108-liste li { margin: .2rem 0; }
+.as108-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .2rem .8rem; margin: .3rem 0; }
+.as108-dl dt { font-weight: 600; }
+.as108-dl dd { margin: 0; overflow-wrap: anywhere; }
+.as108-principal { font-size: 1.1rem; font-weight: 600; }
+.as108-notes { white-space: normal; overflow-wrap: anywhere; }
+.as108-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.as108-etat { padding: .5rem .75rem; border-inline-start: 4px solid var(--cds-support-info, #0043ce); background: var(--cds-layer-02, var(--ax-surface-2, #f4f4f4)); }
+.as108-etat-error { border-inline-start-color: var(--cds-support-error, #da1e28); }
+.as108-etat-done { border-inline-start-color: var(--cds-support-success, #24a148); }
+.as108-diagnostic pre { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 30rem; overflow: auto; font-size: .8125rem; }
+.as108 :focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* Largeur moyenne : cartes sur trois colonnes ; téléphone et zoom : une colonne, rien ne sort de l'écran. */
+@media (max-width: 72rem) {
+  .as108-cartes ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .as108-dossier { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 48rem) {
+  .as108-cartes ul { grid-template-columns: minmax(0, 1fr); }
+  .as108-carte span { display: none; }
+  .as108-form button, .as108-actions .ax-btn { inline-size: 100%; justify-self: stretch; }
+  .as108-dl { grid-template-columns: minmax(0, 1fr); }
+}
+/* Clavier virtuel ou zoom (faible hauteur) : le bouton du formulaire reste collé au bas de la zone visible pendant la saisie. */
+@media (max-height: 32rem), (max-width: 48rem) {
+  .as108-form button[type=submit], .as108-form > button { position: sticky; inset-block-end: .25rem; z-index: 2; }
+}
+/* Accès mobile : la barre Retenir / Écarter du lecteur commun reste visible au-dessus du clavier virtuel. */
+@media (max-width: 64rem) {
+  .ap74-mobile .ax100-actions { position: sticky; inset-block-end: 0; z-index: 2; }
+}
+/* Clavier ouvert (faible hauteur) : barre compacte, décisions d'abord, commandes inactives retirées, pour laisser voir le texte saisi. */
+@media (max-width: 64rem) and (max-height: 32rem) {
+  .ap74-mobile .ax100-actions { gap: .3rem; padding-block: .3rem; }
+  .ap74-mobile .ax100-actions .ax-btn:disabled { display: none; }
+  .ap74-mobile .ax100-actions [data-action=retenir] { order: -2; }
+  .ap74-mobile .ax100-actions [data-action=ecarter] { order: -1; }
+  .ap74-mobile .ax100-actions .ax-btn { min-block-size: 2.5rem; flex: 1 1 30%; }
+}
+/* ==== v56108-accueil.css ==== */
+/* AxiorHub 5.6.108 (lot A) — Aujourd'hui et volet de l'assistant.
+   - Aujourd'hui (nouvelle présentation, classe .f100 posée par accueil5689 derrière interface56100) : nom du dossier lisible dans chaque ligne,
+     « À décider / À relire » et « Ma journée » côte à côte dès 80rem (une colonne en dessous : 125 %, tablette, mobile), heure de Ma journée
+     qui ne recouvre plus le titre, dernière valeur connue d'« Actuellement » distinguée d'une valeur fraîche.
+   - Volet de l'assistant (variante flottante) : grille trois zones de reference/layout-local.css raccordée aux sélecteurs du produit ;
+     la ligne d'envoi reste collée au bas du composeur (clavier logiciel ouvert, options dépliées) ; reçu de la demande sur la carte.
+   Couleurs : jetons Carbon avec repli ; clair et sombre suivent les jetons ; la couleur ne porte jamais seule l'information. */
+
+/* ------------------------------------------------------------------ Aujourd'hui : lignes « À décider / À relire » */
+.f100 .f96-ligne-dossier, .f100-vue-file .f96-ligne-dossier {
+  color: var(--cds-text-primary, #161616); font-size: var(--ui-taille-texte, .9375rem); font-weight: 600; letter-spacing: 0; }
+.f100 .f96-ligne-objet, .f100-vue-file .f96-ligne-objet { font-weight: 400; }
+.f100 .f96-ligne-raison, .f100-vue-file .f96-ligne-raison { color: var(--cds-text-secondary, #525252); font-size: .875rem; }
+
+/* « À décider / À relire » | « Ma journée » : deux colonnes 2/3 – 1/3 sur grand écran seulement */
+@media (max-width: 79.99rem) {
+  .f100 .f96-rang { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Ma journée : l'heure prend sa largeur (la règle historique .c530-ev time fixait 46 px : « Aujourd'hui · 18 h 40 » débordait sur le titre) */
+.f100-agenda .f100-ev time { width: auto; }
+
+/* « Actuellement » : valeur gardée pendant qu'une source ne répond pas (v56108-accueil.js) — dite par un texte, pas seulement par la couleur */
+.ax95 li[data-ax108-garde] .ax95-nombre { color: var(--cds-text-secondary, #525252); }
+.ax108-garde { color: var(--cds-text-secondary, #525252); display: inline-block; font-size: .8125rem; margin-left: .5rem; }
+.ax108-reprise { margin-left: .25rem; }
+.f96-panne a, .ax108-reprise a { color: var(--cds-link-primary, #0f62fe); }
+
+/* ------------------------------------------------------------------ volet de l'assistant (variante flottante) */
+/* trois zones : en-tête, historique défilant, saisie ; la saisie garde Envoyer visible même quand elle défile */
+#ws-ai-dock:not([hidden]):not(.ws-ai-dock--embedded) .ws-ai-composeur { overscroll-behavior: contain; }
+#ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-sendrow {
+  background: var(--cds-layer-01, var(--ws-surface, #fff)); bottom: 0; padding: .25rem 0; position: sticky; z-index: 1; }
+@media (max-width: 52rem) {
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-sendrow button { min-height: 44px; }
+}
+/* hauteur très réduite (clavier logiciel ouvert sur un téléphone) : les options repliées et l'aide passent après la ligne d'envoi */
+@media (max-height: 32rem) {
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-options:not([open]) { display: none; }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-composeur { max-height: calc(var(--ws-ai-vh, 100dvh) - 4.5rem); }
+}
+
+/* reçu d'une demande : numéro identifiable et étape écrite (reçue, en attente, en cours, résultat, échec) */
+.ax108-recu { align-items: baseline; display: flex; flex-wrap: wrap; font-size: .875rem; gap: .25rem .75rem; margin: .25rem 0 .5rem; }
+.ax108-recu { color: var(--cds-text-primary, #161616); }
+.ax108-recu .ax108-recu-numero { color: var(--cds-text-primary, #161616); font-variant-numeric: tabular-nums; font-weight: 600; opacity: 1; }
+.ax108-etapes { display: flex; flex-wrap: wrap; gap: .125rem .375rem; list-style: none; margin: 0; padding: 0; }
+.ax108-etapes li { border: 1px solid var(--cds-border-subtle-01, #c6c6c6); border-radius: 1rem; color: var(--cds-text-secondary, #525252); padding: 0 .5rem; }
+.ax108-etapes li[aria-current="step"] { border-color: currentColor; color: var(--cds-text-primary, #161616); font-weight: 600; }
+.ax108-etapes li[aria-current="step"]::before { content: "● "; }
+.ax108-recu[data-etape="echec"] .ax108-etapes li[aria-current="step"] { color: var(--cds-text-error, #da1e28); }
+.ax108-recu-lien { color: var(--cds-link-primary, #0f62fe); }
+.ax108-recu-absent { color: var(--cds-text-secondary, #525252); }
+.mission567-card.ax108-cible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ À relire à hauteur réduite (1366 × 768 à 125 %, petit portable) */
+/* l'en-tête du lecteur et la barre de décision se resserrent : le texte du projet garde la place de le lire, Retenir / Écarter / Reporter restent visibles */
+@media (max-height: 48rem) {
+  .ax100-relecture[data-vue=detail] .ax100-diagnostic { display: none; }
+  .ax100-entete, .ax100-actions { padding-block: .375rem; }
+  .ax100-entete h2 { font-size: 1rem; }
+  .ax100-meta:not(.ax100-meta-ouverte) { -webkit-line-clamp: 1; line-clamp: 1; margin-block-end: .25rem; }
+  .ax100-actions { gap: .375rem; }
+  .ax100-statut:empty { display: none; }
+  .ax100-projet:not([hidden]) { grid-template-rows: auto minmax(8rem, 1fr); }
+}
+/* ==== v56108-agenda.css ==== */
+/* AxiorHub 5.6.108 (lot G) — Agenda local, Produire et Dossiers (nouvelle interface : classes posées derrière interface56100).
+   Jetons Carbon avec repli : clair et sombre suivent les jetons. Un état est écrit en mots (jamais la couleur seule) ; focus visible ;
+   texte jamais sous 13 px (les noms de dossiers gardent leur taille) ; aucun défilement horizontal à 375 px. */
+
+/* ------------------------------------------------------------------ Agenda : commandes visibles pendant le défilement de l'amplitude horaire
+   Quand la grille dépasse la zone utile (amplitude 0 h – 24 h, pas de 15 min, petit écran), la page défile : la barre (Aujourd'hui,
+   période, vues, + Nouveau, Volets) reste en haut, la ligne des jours juste dessous (hauteur de la barre mesurée par v56108-agenda.js).
+   « overflow: clip » remplace « hidden » : la grille ne devient pas un conteneur de défilement, la ligne des jours peut donc coller. */
+.ag108 .ag97-barre { background: var(--cds-background, #f4f4f4); padding: .25rem 0; position: sticky; top: 0; z-index: 7; }
+.ag108 .ag97-grille { overflow: clip; }
+.ag108 .ag97-coin, .ag108 .ag97-jour { top: var(--ag108-barre, 0px); z-index: 5; }
+.ag108 .ag97-pop { z-index: 8; }
+
+/* dates extraites à vérifier : à part de la grille confirmée, une ligne */
+.ag108-verifier { align-items: baseline; background: var(--cds-notification-background-warning, #fcf4d6); border-left: 3px solid var(--cds-support-warning, #f1c21b);
+  color: var(--cds-text-primary, #161616); display: flex; flex-wrap: wrap; font-size: .8125rem; gap: .125rem .5rem; margin: 0; padding: .125rem .5rem; }
+.ag108-verifier a { color: var(--cds-link-primary, #0f62fe); }
+.ag108-marque { border: 1px dashed currentColor; border-radius: 1rem; font-size: .8125rem; font-weight: 600; padding: 0 .375rem; white-space: nowrap; }
+.ag108-liste-verifier li { border-bottom: 1px solid var(--ag97-bord, #e0e0e0); display: flex; flex-wrap: wrap; gap: 0 .375rem; padding: .25rem 0; }
+.ag108-verifier a:focus-visible, .ag108-liste-verifier a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* éditeur : durée, rappel, fuseau, responsable, récurrence */
+.ag108-ligne > label { flex: 1 1 10rem; }
+.ag108-lisible { display: flex; flex-wrap: wrap; font-size: .8125rem; gap: .125rem 1.25rem; margin: 0 0 .375rem; }
+.ag108-lisible > div { display: flex; gap: .375rem; min-width: 0; }
+.ag108-lisible dt { color: var(--ag97-doux, #525252); font-weight: 600; }
+.ag108-lisible dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 700px) {
+  .ag108 .ag97-barre { padding: .125rem 0; }
+  .ag108 .ag97-barre .ag97-source select { max-width: 8rem; }
+}
+
+/* ------------------------------------------------------------------ Produire : livrables prêts en lignes denses (bureau, densité compacte)
+   Une ligne par version : type et dossier · titre · version, date et état · actions. Un formulaire ouvert (correction, export) prend toute
+   la largeur sous la ligne. Les limites communes à toutes les lignes sont dites une seule fois au-dessus de la liste. */
+.p108-limites { color: var(--cds-text-secondary, #525252); font-size: .8125rem; margin: .25rem 0; }
+@media (min-width: 68.75rem) {
+  body[data-densite=compacte] #ws-main .p100-cartes { border-top: 1px solid var(--cds-border-subtle-01, #e0e0e0); gap: 0; }
+  body[data-densite=compacte] #ws-main .p100-carte { align-items: center; border-width: 0 0 1px; column-gap: 1rem; display: grid; padding: .3125rem .5rem;
+    grid-template-columns: minmax(11rem, 1fr) minmax(12rem, 1.5fr) minmax(11rem, auto) minmax(15rem, auto); }
+  body[data-densite=compacte] #ws-main .p100-tete { flex-direction: column; gap: 0; grid-column: 1; grid-row: 1; min-width: 0; }
+  body[data-densite=compacte] #ws-main .p100-titre { grid-column: 2; grid-row: 1; margin: 0; min-width: 0; }
+  body[data-densite=compacte] #ws-main .p100-meta { grid-column: 3; grid-row: 1; }
+  body[data-densite=compacte] #ws-main .p100-actions { grid-column: 4; grid-row: 1; justify-content: flex-end; margin: 0; }
+  body[data-densite=compacte] #ws-main .p100-progression, body[data-densite=compacte] #ws-main .p100-limites { grid-column: 1 / -1; }
+  body[data-densite=compacte] #ws-main .p100-carte:has(.p100-actions > details[open]) .p100-actions { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; }
+}
+body[data-densite=compacte] #ws-main .p100-actions .ax-btn { font-size: .8125rem; min-height: var(--ax-controle-petit, 28px); padding: .125rem .5rem; }
+body[data-densite=compacte] #ws-main .p100-actions > details { background: none; border: 0; margin: 0; padding: 0; }
+body[data-densite=compacte] #ws-main .p100-actions > details > summary.ax-btn { display: inline-flex; }
+body[data-densite=compacte] #ws-main .p100-tete, body[data-densite=compacte] #ws-main .p100-meta { font-size: .8125rem; }
+body[data-densite=compacte] #ws-main .p100-titre { font-size: .9375rem; line-height: 1.3; }
+
+/* ------------------------------------------------------------------ Dossiers : tableau plus dense, même lisibilité (densité compacte)
+   Intitulé sur une ligne, client et référence sur la suivante ; aucune capitale forcée dans le corps du tableau. */
+body[data-densite=compacte] #ws-main .d97-table th, body[data-densite=compacte] #ws-main .d97-table td { padding: .25rem .5rem; }
+body[data-densite=compacte] #ws-main .d97-table tbody th, body[data-densite=compacte] #ws-main .d97-table tbody th * { letter-spacing: normal; text-transform: none; }
+body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client, body[data-densite=compacte] #ws-main .d97-table tbody th .d97-ref { display: inline; font-size: .8125rem; }
+body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client::after { content: " · "; }
+body[data-densite=compacte] #ws-main .d97-table tbody th .d97-ouvrir { font-size: .875rem; }   /* le nom du dossier garde 14 px */
+body[data-densite=compacte] #ws-main .d97-table .d100-historique { font-size: .75rem; padding: 0 .375rem; }
+body[data-densite=compacte] #ws-main .d97-table thead th { font-size: .8125rem; padding-bottom: .25rem; padding-top: .25rem; }
+body[data-densite=compacte] #ws-main .d100-cartes { gap: .5rem; }
+body[data-densite=compacte] #ws-main .d100-carte { gap: .125rem; padding: .375rem .625rem; }
+body[data-densite=compacte] #ws-main .d100-carte h3 { font-size: .9375rem; margin: 0; }
+@media (max-width: 40rem) {
+  body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client, body[data-densite=compacte] #ws-main .d97-table tbody th .d97-ref { display: block; }
+  body[data-densite=compacte] #ws-main .d97-table tbody th .d97-client::after { content: none; }
+}
+
+/* fiche : résultats enregistrés par l'IA (lien vers chaque résultat), distincts de l'activité (lectures) */
+.d108-resultats { margin: 0 0 .5rem; }
+.d108-resultats h3, .d108-activite h3 { font-size: .875rem; margin: .25rem 0; }
+.d108-resultats a:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+/* ==== v56108-questionnaire.css ==== */
+/* 5.6.108 (lot Q) : questionnaire de l'acte. Formulaire et aperçu côte à côte au-delà de 64rem, l'un sous l'autre en dessous ; groupes
+   repliables ; contraste clair et sombre par les jetons de la page ; focus visible ; cibles d'au moins 2.5rem. */
+.q108 { display: grid; gap: .75rem; max-inline-size: 110rem; }
+.q108-tete h2 { margin: 0 0 .25rem; font-size: 1.4rem; }
+.q108-tete p { margin: .2rem 0; }
+.q108-resume strong { font-size: 1.1rem; }
+.q108-grille { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: .9rem; align-items: start; }
+@media (max-width: 64rem) { .q108-grille { grid-template-columns: minmax(0, 1fr); } }
+.q108-form, .q108-apercu { padding: .75rem .9rem; background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit);
+  border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem; }
+.q108-apercu { position: sticky; inset-block-start: .5rem; max-block-size: calc(100vh - 1rem); overflow: auto; }
+.q108-apercu h3 { margin: 0 0 .4rem; font-size: 1.1rem; }
+.q108-groupe { border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); padding: .35rem 0; }
+.q108-groupe > summary { cursor: pointer; font-weight: 600; min-block-size: 2.5rem; display: flex; align-items: center; gap: .5rem; }
+.q108-compte { font-weight: 400; font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.q108-champ { display: grid; gap: .3rem; padding: .55rem 0; border-block-start: 1px dashed var(--cds-border-subtle, var(--ax-line, #e0e0e0)); }
+.q108-champ > label { font-weight: 600; }
+.q108-champ input:not([type=radio]), .q108-champ select, .q108-champ textarea { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.q108-montant { display: flex; gap: .4rem; align-items: center; }
+.q108-montant span { color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.q108-oui-non { display: flex; gap: 1rem; }
+.q108-oui-non label { display: inline-flex; gap: .3rem; align-items: center; min-block-size: 2.5rem; }
+.q108-actions-champ { display: flex; flex-wrap: wrap; gap: .4rem; }
+.q108-actions-champ .ax-btn, .q108-boutons .ax-btn, .q108-sources .ax-btn, .q108-suggestion .ax-btn { min-block-size: 2.5rem; }
+.q108-statut[aria-pressed=true] { outline: 2px solid var(--cds-focus, #0f62fe); background: var(--cds-layer-selected, #e0e0e0); }
+.q108-aide { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-size: .875rem; }
+.q108-badge { display: inline-block; padding: .05rem .45rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.q108-bloquant { border-color: var(--cds-support-warning, #8e6a00); }
+.q108-absent { border-style: dashed; }
+.q108-sources { padding: .4rem .6rem; background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); border-radius: .25rem; }
+.q108-sources p { margin: 0 0 .25rem; font-weight: 600; }
+.q108-sources ul { margin: 0; padding-inline-start: 1.1rem; }
+.q108-sources li { margin: .25rem 0; }
+.q108-extrait { display: block; font-size: .875rem; color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.q108-suggestion { margin: 0; font-size: .9rem; }
+.q108-boutons { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-start: .75rem; }
+.q108-section { border-block-start: 1px solid var(--cds-border-subtle, var(--ax-line, #e0e0e0)); padding: .4rem 0; }
+.q108-section h4 { margin: .2rem 0; font-size: 1rem; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.q108-section pre, .q108-comparer pre { white-space: pre-wrap; font: inherit; margin: .2rem 0; }
+.q108-section[data-etat=a_completer] pre { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-style: italic; }
+.q108-section[data-etat=corrigee_a_comparer] h4 .q108-badge { border-color: var(--cds-support-warning, #8e6a00); }
+.q108-section textarea { box-sizing: border-box; inline-size: 100%; font: inherit; }
+.q108-entete, .q108-alerte { padding: .4rem .6rem; border-inline-start: 4px solid var(--cds-support-warning, #8e6a00); background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4));
+  color: var(--cds-text-primary, #161616); opacity: 1; }
+.q108-pret { padding: .4rem .6rem; border-inline-start: 4px solid var(--cds-support-success, #24a148); color: var(--cds-text-primary, #161616); }
+.q108 a:focus-visible, .q108 button:focus-visible, .q108 input:focus-visible, .q108 select:focus-visible, .q108 textarea:focus-visible,
+.q108 summary:focus-visible, .q108-carte :focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.q108-carte form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; }
+.q108-carte label { display: grid; gap: .2rem; }
+.q108-carte select { min-block-size: 2.5rem; }
+.q108-liste { margin: .25rem 0; padding-inline-start: 1.1rem; }
+.ia89-questionnaire { margin: .4rem 0; }
+/* 5.6.108 (lot Q) : « Dicter la réponse » (v56108-dictee.js) à côté de chaque question ; pastille rouge et pulsation pendant la dictée */
+.ax108-dictee { display: inline-flex; align-items: center; justify-content: center; inline-size: 2.5rem; block-size: 2.5rem; flex: 0 0 auto;
+  border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: .375rem; background: var(--cds-layer, #fff); color: var(--cds-text-primary, #161616); cursor: pointer; }
+.ax108-dictee svg { inline-size: 1.25rem; block-size: 1.25rem; }
+.ax108-dictee:hover { background: var(--cds-layer-hover, #e8e8e8); }
+.ax108-dictee:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.ax108-dictee.is-rec { background: #b42318; border-color: #b42318; color: #fff; animation: ax108-pulse 1.2s ease-in-out infinite; }
+.ax108-dictee.is-busy { opacity: .7; cursor: progress; }
+.ax108-dictee[aria-disabled=true] { opacity: .55; cursor: not-allowed; }
+.ax108-dictee-statut { font-size: .875rem; color: var(--cds-text-secondary, #525252); }
+.ax108-dictee-statut.is-bad { color: var(--cds-text-error, #a2191f); }
+@keyframes ax108-pulse { 50% { box-shadow: 0 0 0 .3rem rgba(180, 35, 24, .25); } }
+@media (prefers-reduced-motion: reduce) { .ax108-dictee.is-rec { animation: none; } }
+.q108-champ .ax108-dictee { justify-self: start; }
+.ia89-question label { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+/* ==== v56108-sync.css ==== */
+/* AxiorHub 5.6.108 (lot S) — synchronisation des postes : indicateur, parcours, conflits (clair et sombre, focus visible). */
+.s108 h3 { margin-top: 1.2rem; }
+.s108-nouveau { font-size: .7em; font-weight: 600; vertical-align: middle; padding: .1em .5em; border-radius: 1em; border: 1px solid currentColor; color: #0043ce; }
+.s108-ligne { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; margin: .3rem 0; }
+.s108-liste { list-style: none; padding: 0; }
+.s108-liste li { padding: .5rem 0; border-bottom: 1px solid var(--ax-line, #e0e0e0); }
+.s108-etat { font-weight: 600; }
+.s108-code { font-size: 1.15em; padding: .5rem .8rem; border-left: 4px solid var(--ax-focus, #0f62fe); background: var(--ax-panel, #f4f4f4); }
+.s108-code strong { letter-spacing: .12em; font-size: 1.2em; }
+.s108-personnes { border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; padding: .3rem .6rem; }
+.s108-table td, .s108-table th { vertical-align: top; }
+.s108-aide summary { cursor: pointer; font-weight: 600; }
+.s108-aide summary:focus-visible, .s108-pastille:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.s108-pastille { display: inline-block; padding: .25rem .7rem; border-radius: 1rem; font-weight: 600; border: 1px solid var(--ax-line, #c6c6c6);
+  background: var(--ax-panel, #f4f4f4); color: #161616; text-decoration: none; }
+.s108-pastille::before { content: ''; display: inline-block; width: .6em; height: .6em; border-radius: 50%; margin-right: .4em; vertical-align: middle; background: #6f6f6f; }
+.s108-a_jour::before { background: #198038; }
+.s108-en_cours::before, .s108-premier::before { background: #0043ce; }
+.s108-absent::before, .s108-partiel::before { background: #8e6a00; }
+.s108-conflit::before, .s108-refusee::before { background: #a2191f; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .s108-pastille { background: #262626; color: #f4f4f4; border-color: #525252; }
+  :root:not([data-theme="light"]) .s108-nouveau { color: #78a9ff; }
+  :root:not([data-theme="light"]) .s108-a_jour::before { background: #42be65; }
+  :root:not([data-theme="light"]) .s108-en_cours::before, :root:not([data-theme="light"]) .s108-premier::before { background: #78a9ff; }
+  :root:not([data-theme="light"]) .s108-absent::before, :root:not([data-theme="light"]) .s108-partiel::before { background: #f1c21b; }
+  :root:not([data-theme="light"]) .s108-conflit::before, :root:not([data-theme="light"]) .s108-refusee::before { background: #ff8389; }
+}
+:root[data-theme="dark"] .s108-pastille { background: #262626; color: #f4f4f4; border-color: #525252; }
+:root[data-theme="dark"] .s108-nouveau { color: #78a9ff; }
+:root[data-theme="dark"] .s108-a_jour::before { background: #42be65; }
+:root[data-theme="dark"] .s108-conflit::before, :root[data-theme="dark"] .s108-refusee::before { background: #ff8389; }
+/* ==== v56108-conseil.css ==== */
+/* 5.6.108 (lot K) : conseil de modèles. Préréglages et leur disponibilité, annonce avant le lancement, trace dépliable (réponses
+   individuelles et critiques). Contraste clair et sombre par les jetons de la page ; focus visible ; cibles d'au moins 2.5rem ; pas de
+   défilement horizontal de la page (le tableau défile dans son propre cadre). */
+.k108 { display: grid; gap: .6rem; }
+.k108-table { inline-size: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
+.k108-table caption { text-align: start; font-weight: 600; padding-block: .3rem; }
+.k108-table th, .k108-table td { text-align: start; vertical-align: top; padding: .4rem .5rem;
+  border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); }
+.k108-manque { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-style: italic; }
+.k108-etat { display: inline-block; padding: .05rem .45rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.k108-disponible { border-color: var(--cds-support-success, #24a148); }
+.k108-partiel { border-color: var(--cds-support-warning, #8e6a00); border-style: dashed; }
+.k108-indisponible, .k108-exclu { border-style: dotted; }
+.k108-form { display: grid; gap: .4rem; max-inline-size: 48rem; }
+.k108-form select, .k108-form textarea { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.k108-form .ax-btn { min-block-size: 2.5rem; justify-self: start; }
+.k108-perso > summary, .k108-detail > summary { cursor: pointer; min-block-size: 2.5rem; display: flex; align-items: center; font-weight: 600; }
+.k108-perso > summary:focus-visible, .k108-detail > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.k108-texte { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 28rem; overflow: auto; padding: .5rem .6rem; margin: .3rem 0;
+  background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); color: var(--cds-text-primary, inherit); border-radius: .25rem; font: inherit; }
+/* Volet de l'assistant et demande de consultation : option discrète, annonce avant tout envoi, reçu de la mission. */
+.k108-volet, .k108-consultation { min-block-size: 2.5rem; margin-inline-start: .4rem; }
+.k108-volet:focus-visible, .k108-consultation:focus-visible, .k108-annonce button:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.k108-annonce { margin: .5rem 0; padding: .6rem .7rem; border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); overflow-wrap: anywhere; }
+.k108-annonce-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 0; }
+.k108-annonce-actions .ax-btn { min-block-size: 2.5rem; }
+.k108-volet-recu:empty { display: none; }
+.k108-volet[hidden], .k108-consultation[hidden] { display: none !important; }   /* la règle globale des boutons ne doit pas rendre « hidden » inopérant */
+/* ==== v56108-editeur.css ==== */
+/* AxiorHub 5.6.108 (lot W) — éditeur intégré (WordCraft, version d'essai) et « Ouvrir dans Word / LibreOffice ». */
+.w108 { max-width: 1400px; }
+.w108 [hidden], .w108-chargement[hidden] { display: none !important; }   /* les blocs en flex restent masqués par l'attribut hidden */
+.w108-doc { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .25rem 0 .75rem; }
+.w108-nom { font-weight: 600; overflow-wrap: anywhere; }
+.w108-badge { font-size: .8rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--ax-border, #8d8d8d); background: var(--ax-surface-2, #f2f4f8); color: var(--ax-text, #161616); }
+.w108-note, .w108-aide { color: var(--ax-text-2, #393939); max-width: 72rem; }
+.w108-garde, .w108-controle { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .75rem 1rem; margin: .75rem 0; background: var(--ax-surface, #fff); }
+.w108-constats { margin: .25rem 0 .5rem 1.25rem; padding: 0; }
+.w108-constats li { margin: .15rem 0; }
+.w108-c-risque { color: var(--ax-danger, #a2191f); }
+.w108-c-prudence { color: var(--ax-warning-text, #6f4b00); }
+.w108-avertissement { border-left: 4px solid var(--ax-danger, #a2191f); padding: .5rem .75rem; margin: .5rem 0; background: var(--ax-danger-bg, #fff1f1); color: var(--ax-text, #161616); }
+.w108-prudence { border-left: 4px solid var(--ax-warning, #b28600); padding: .5rem .75rem; margin: .5rem 0; background: var(--ax-warning-bg, #fcf4d6); color: var(--ax-text, #161616); }
+.w108-avertissement h2 { font-size: 1rem; margin: 0 0 .25rem; }
+.w108-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.w108-confirmer { display: flex; gap: .4rem; align-items: flex-start; margin-top: .5rem; }
+.w108-etat { min-height: 1.4em; }
+.w108-erreur, .w108-alerte { color: var(--ax-danger, #a2191f); font-weight: 600; }
+.w108-ok { color: var(--ax-success-text, #0e6027); }
+.w108-zone { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; overflow: hidden; }
+.w108-iframe { display: block; width: 100%; height: 78vh; min-height: 480px; border: 0; background: #e6e6e6; }
+.w108-resume { font-weight: 600; }
+.w108-attention { color: var(--ax-danger, #a2191f); }
+.w108-pertes { margin: .25rem 0 .5rem 1.25rem; }
+.w108-details li { margin: .3rem 0; overflow-wrap: anywhere; }
+.w108-avant, .w108-apres { display: block; }
+.w108 button:focus-visible, .w108 a:focus-visible, .w108 input:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.w108-controle h2:focus { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+/* cadre de l'éditeur (page à part, sans gabarit) */
+.w108-cadre-corps { margin: 0; width: 100%; height: 100vh; overflow: hidden; background: #e6e6e6; }
+.w108-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.w108-chargement { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; color: #393939; font: 14px system-ui, sans-serif; pointer-events: none; }
+@media (prefers-color-scheme: dark) {
+  .w108-avertissement { background: var(--ax-danger-bg, #2d0709); color: var(--ax-text, #f4f4f4); }
+  .w108-prudence { background: var(--ax-warning-bg, #302400); color: var(--ax-text, #f4f4f4); }
+  .w108-c-risque, .w108-erreur, .w108-alerte, .w108-attention { color: var(--ax-danger, #ff8389); }
+  .w108-c-prudence { color: var(--ax-warning-text, #f1c21b); }
+  .w108-ok { color: var(--ax-success-text, #42be65); }
+}
+@media (max-width: 600px) { .w108-iframe { height: 70vh; min-height: 360px; } }
+/* ==== v56108-fichiers.css ==== */
+/* AxiorHub 5.6.108 (lot F) — onglet Fichiers du dossier (ajouter, glisser-déposer), « Remplir ce formulaire », boîte à outils PDF. */
+.f108 [hidden], .f108-envois[hidden] { display: none !important; }
+.f108-depot { position: relative; }
+.f108-barre { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .6rem .8rem; margin: 0 0 .75rem; background: var(--ax-surface, #fff); }
+.f108-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0; }
+.f108-actions .m97-boutons { display: contents; }
+.f108-ajouter { cursor: pointer; }
+.f108-aide { margin: .4rem 0 0; font-size: .875rem; }
+.f108-statut { min-height: 1.3em; margin: .4rem 0 0; }
+.f108-erreur { color: var(--ax-danger, #a2191f); font-weight: 600; }
+.f108-ok { color: var(--ax-success-text, #0e6027); }
+.f108-envois { margin: .3rem 0 0 1.2rem; padding: 0; font-size: .875rem; overflow-wrap: anywhere; }
+.f108-voile { display: none; position: absolute; inset: 0; z-index: 5; align-items: center; justify-content: center; text-align: center; padding: 1rem;
+  border: 3px dashed var(--ax-focus, #0f62fe); border-radius: 8px; background: rgba(15, 98, 254, .10); color: var(--ax-text, #161616); font-weight: 600; font-size: 1.1rem; pointer-events: none; }
+.f108-survol .f108-voile { display: flex; }
+.f108-pdf-actions { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; font-size: .875rem; margin-top: .15rem; }
+.f108-choix input { width: 1.1rem; height: 1.1rem; }
+/* pages Remplir et Outils PDF */
+.f108-page { max-width: 1500px; }
+.f108-fichier { overflow-wrap: anywhere; margin: .2rem 0 .5rem; }
+.f108-grille { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.15fr); gap: 1rem; align-items: start; }
+.f108-apercu { position: sticky; top: .5rem; border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .4rem; background: var(--ax-surface-2, #f2f4f8);
+  max-height: calc(100vh - 1rem); overflow: auto; }
+.f108-apercu-corps { min-height: 60vh; }
+.f108-apercu-corps .d79-frame { width: 100%; height: 80vh; border: 0; }
+.f108-form { display: block; }
+.f108-page-titre { font-size: 1rem; margin: 1rem 0 .4rem; border-bottom: 1px solid var(--ax-border, #c6c6c6); }
+.f108-champ { display: flex; flex-direction: column; gap: .2rem; padding: .45rem 0; border-bottom: 1px dotted var(--ax-border, #c6c6c6); }
+.f108-champ input:not([type=checkbox]):not([type=radio]), .f108-champ select, .f108-champ textarea { max-width: 100%; }
+.f108-ls { opacity: .85; }
+.f108-radio { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+.f108-radio legend { font-weight: 600; padding: 0; margin-bottom: .2rem; }
+.f108-case { display: flex; gap: .4rem; align-items: center; }
+.f108-note { font-size: .85rem; color: var(--ax-text-2, #393939); }
+.f108-prop { font-size: .875rem; display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; padding: .2rem .4rem; border-left: 3px solid var(--ax-focus, #0f62fe);
+  background: var(--ax-surface-2, #f2f4f8); color: var(--ax-text, #161616); }
+.f108-technique { font-size: .75rem; overflow-wrap: anywhere; }
+.f108-options { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; margin: 1rem 0 .5rem; padding: .5rem .8rem; }
+.f108-limites { border-left: 4px solid var(--ax-warning, #b28600); background: var(--ax-warning-bg, #fcf4d6); color: var(--ax-text, #161616); padding: .5rem .8rem .5rem 1.8rem; margin: .5rem 0; }
+.f108-refus { border-left: 4px solid var(--ax-danger, #a2191f); background: var(--ax-danger-bg, #fff1f1); color: var(--ax-text, #161616); padding: .6rem .9rem; margin: .5rem 0; max-width: 60rem; }
+.f108-boite { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .6rem .8rem; background: var(--ax-surface, #fff); }
+.f108-onglets { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 1px solid var(--ax-border, #c6c6c6); margin-bottom: .6rem; }
+.f108 .f108-onglets button[role=tab] { border: 0; border-bottom: 3px solid transparent; background: none; box-shadow: none; padding: .45rem .7rem; min-height: 0;
+  cursor: pointer; color: var(--ax-text, #161616); font: inherit; border-radius: 0; }
+.f108 .f108-onglets button[role=tab]:hover { background: var(--ax-surface-2, #f2f4f8); }
+.f108 .f108-onglets button[role=tab][aria-selected=true] { border-bottom-color: var(--ax-focus, #0f62fe); font-weight: 600; }
+.f108-panneau label { display: block; margin: .4rem 0; }
+.f108-panneau label.f108-case { display: flex; }
+.f108-panneau textarea, .f108-panneau input:not([type=checkbox]):not([type=radio]):not([type=file]), .f108-panneau select { display: block; max-width: 100%; margin-top: .15rem; }
+.f108-outils { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .2rem .9rem; }
+.f108-outils legend { font-weight: 600; padding: 0; }
+.f108-outils label { display: inline-flex; gap: .3rem; align-items: center; margin: 0; }
+.f108-traces { margin: .4rem 0; padding-left: 1.2rem; font-size: .875rem; }
+.f108-traces li { margin: .15rem 0; }
+.f108-pages { padding-left: 1.4rem; max-height: 50vh; overflow: auto; }
+.f108-pages li { display: flex; flex-wrap: wrap; gap: .3rem .8rem; align-items: center; padding: .15rem 0; }
+.f108-pages label { display: inline-flex !important; gap: .3rem; align-items: center; margin: 0 !important; }
+.f108-pages .f108-num { width: 4.5rem; display: inline-block !important; }
+.f108-fusion li { margin: .2rem 0; overflow-wrap: anywhere; }
+.f108-nav { display: flex; gap: .5rem; align-items: center; justify-content: center; margin-bottom: .4rem; flex-wrap: wrap; }
+.f108-feuille { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
+.f108-feuille canvas { display: block; }
+.f108-calque { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+.f108-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.f108-trait { fill: none; stroke: #1a3fd9; stroke-width: 2; }
+.f108-forme { position: absolute; box-sizing: border-box; pointer-events: none; font-size: 11px; line-height: 1.2; overflow: hidden; color: #161616; }
+.f108-forme-texte { border: 1px solid #6f6f6f; background: rgba(255, 255, 217, .9); padding: 2px; }
+.f108-forme-surligner { background: rgba(255, 235, 51, .45); }
+.f108-forme-image { border: 2px dashed #1a3fd9; background: rgba(26, 63, 217, .08); }
+.f108-forme-tampon { border: 2px solid #d91a1a; color: #d91a1a; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.f108-forme-zone { background: #000; opacity: .85; }
+.f108 button:focus-visible, .f108 a:focus-visible, .f108 input:focus-visible, .f108 select:focus-visible, .f108 textarea:focus-visible,
+.f108-barre label.f108-ajouter:focus-within, .f108-onglets [role=tab]:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+#f108-fichiers:focus-visible + * { outline: none; }
+.f108-barre label.f108-ajouter:has(+ input:focus-visible) { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .f108-grille { grid-template-columns: 1fr; }
+  .f108-apercu { position: static; max-height: none; }
+}
+@media (prefers-color-scheme: dark) {
+  .f108-limites { background: var(--ax-warning-bg, #302400); color: var(--ax-text, #f4f4f4); }
+  .f108-refus { background: var(--ax-danger-bg, #2d0709); color: var(--ax-text, #f4f4f4); }
+  .f108-erreur { color: var(--ax-danger, #ff8389); }
+  .f108-ok { color: var(--ax-success-text, #42be65); }
+  .f108-voile { color: var(--ax-text, #f4f4f4); background: rgba(69, 137, 255, .18); }
+  .f108-prop { color: var(--ax-text, #f4f4f4); }
+}
+/* ==== v56108-signaturepdf.css ==== */
+/* 5.6.108 (lot Z) : SignaturePDF, signature par lien. Réglage (Paramètres › Connexions), bouton de l'onglet Fichiers, page d'un PDF
+   (demandes, lien à copier, parcours manuel, dépôt du PDF signé). Contraste clair et sombre par les jetons de la page ; focus visible ;
+   cibles d'au moins 2.5rem ; aucun défilement horizontal (le lien se coupe dans son champ). */
+.z108 { display: grid; gap: .6rem; }
+.z108-form, .z108-depot { display: grid; gap: .4rem; max-inline-size: 48rem; }
+.z108-form input:not([type=checkbox]), .z108-form select, .z108-depot input[type=file] { box-sizing: border-box; inline-size: 100%;
+  min-block-size: 2.5rem; font: inherit; }
+.z108-form .ax-btn, .z108-depot .ax-btn, .z108-bouton { min-block-size: 2.5rem; justify-self: start; }
+.z108-etat { margin: .2rem 0; font-weight: 600; }
+.z108-etat.z108-ok { color: var(--cds-support-success, #198038); }
+.z108-etat.z108-ko { color: var(--cds-text-error, #da1e28); }
+.z108-etat.z108-non { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-weight: 400; }
+.z108-etapes { margin: .2rem 0 .4rem; padding-inline-start: 1.2rem; }
+.z108-etapes li.z108-ko { color: var(--cds-text-error, #da1e28); }
+.z108-etapes li.z108-info { color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.z108-demande { padding: .6rem .7rem; border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); display: grid; gap: .4rem; overflow-wrap: anywhere; }
+.z108-lien-ligne { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: 0; }
+.z108-lien-ligne label { flex-basis: 100%; }
+.z108-lien { flex: 1 1 16rem; min-inline-size: 0; min-block-size: 2.5rem; font: inherit; box-sizing: border-box; }
+.z108-etapes-manuelles { margin: 0; padding-inline-start: 1.4rem; display: grid; gap: .35rem; }
+.z108 .m5-status.z108-erreur { color: var(--cds-text-error, #da1e28); }
+.z108 a:focus-visible, .z108 button:focus-visible, .z108 input:focus-visible, .z108 select:focus-visible, .z108-bouton:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+/* ==== v56108-ia-locale.css ==== */
+/* 5.6.108 (lot L) : assistant « Configurer l'IA locale » (Paramètres › IA et guide de démarrage). Six étapes numérotées ; contraste clair et
+   sombre par les jetons de la page ; focus visible ; cibles d'au moins 2.5rem ; aucun défilement horizontal de la page (les tableaux défilent
+   dans leur propre cadre). */
+.l108 { display: grid; grid-template-columns: minmax(0, 1fr); gap: .7rem; container-type: inline-size; }
+.l108-etape { display: grid; grid-template-columns: minmax(0, 1fr); gap: .45rem; padding-block: .5rem; border-block-start: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); min-inline-size: 0; }
+.l108-titre { margin: 0; font-size: 1rem; }
+.l108-ligne { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.l108-ligne input { flex: 1 1 14rem; min-inline-size: 0; min-block-size: 2.5rem; box-sizing: border-box; font: inherit; }
+.l108 input[type=number] { flex: 0 1 8rem; }
+.l108 .ax-btn, .l108 button { min-block-size: 2.5rem; }
+.l108 button:focus-visible, .l108 input:focus-visible, .l108 select:focus-visible, .l108 a:focus-visible, .l108 summary:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.l108-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .2rem .8rem; margin: 0; }
+.l108-dl dt { font-weight: 600; }
+.l108-dl dd { margin: 0; overflow-wrap: anywhere; }
+.l108-pastille { display: inline-block; padding: .05rem .5rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.l108-ok { border-color: var(--cds-support-success, #24a148); }
+.l108-alerte { border-color: var(--cds-support-warning, #8e6a00); border-style: dashed; }
+.l108-ko { border-color: var(--cds-support-error, #da1e28); }
+.l108-cadre { display: block; overflow-x: auto; max-inline-size: 100%; }
+.l108-table { inline-size: 100%; border-collapse: collapse; }
+.l108-table th, .l108-table td { text-align: start; vertical-align: top; padding: .35rem .5rem; border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); }
+.l108-commande { display: block; white-space: pre-wrap; overflow-wrap: anywhere; padding: .4rem .6rem; border-radius: .25rem;
+  background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); color: var(--cds-text-primary, inherit); font-family: var(--ax-mono, ui-monospace, monospace); }
+.l108-carte { grid-template-columns: minmax(0, 1fr); padding: .6rem .7rem; border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); display: grid; gap: .35rem; overflow-wrap: anywhere; }
+.l108-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.l108-progression { inline-size: 100%; block-size: 1rem; }
+.l108-form { display: grid; gap: .4rem; max-inline-size: 48rem; }
+.l108-form select { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.l108-form label.l108-case { display: flex; gap: .5rem; align-items: flex-start; }
+.l108-form label.l108-case input { min-block-size: 1.25rem; min-inline-size: 1.25rem; margin-block-start: .15rem; }
+.l108-avertissement { padding: .45rem .6rem; border-inline-start: 3px solid var(--cds-support-warning, #8e6a00); background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); }
+.l108-statut:empty, .l108-carte:empty { display: none; }
+.l108 [hidden] { display: none !important; }
+/* Section étroite (téléphone, colonne de Paramètres) : libellé au-dessus de sa valeur, boutons en pleine largeur. */
+@container (max-width: 34rem) {
+  .l108-dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .l108-dl dd { margin-block-end: .35rem; }
+  .l108-ligne > .ax-btn, .l108-ligne > button { flex: 1 1 100%; }
+}

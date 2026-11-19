@@ -503,8 +503,9 @@ class CompetencesParPhase(fixtures.Base):
         self.assertIn('conclusions en défense', text)                 # la consigne, pas l'identifiant
         self.assertEqual((deliverable, phase), ('conclusions', 'redaction_document'))
         selection, injected = self.selection_for('docrequest520', {'request': out['request'], 'matter': MID})
-        self.assertEqual(selection[0]['id'], 'builtin.methode_document')
-        self.assertEqual(selection[0]['mode'], 'phase')
+        # 5.6.108 (diff 03 et décision n° 4 du cabinet) : la compétence générale prime ; la méthode de la phase la complète
+        self.assertEqual([s['id'] for s in selection], ['builtin.assistant_juridique', 'builtin.methode_document'])
+        self.assertEqual(selection[1]['mode'], 'phase')
         self.assertIn('Rédiger un document avec sources', injected)
         self.assertNotIn('Rédiger un courriel utile', injected)       # une seule méthode de phase
         used = self.desk.db.execute("SELECT skill,mode FROM skill_usage5632 WHERE skill='builtin.methode_document'").fetchone()
@@ -524,9 +525,9 @@ class CompetencesParPhase(fixtures.Base):
         self.assertIn('Vérifier les montants', text)
         self.assertEqual(phase, 'controle')
         selection, injected = self.selection_for('task5614', {'mission': 'm1', 'task': 't1', 'matter': MID})
-        self.assertEqual(selection[0]['id'], 'builtin.methode_controler')
+        self.assertEqual([s['id'] for s in selection], ['builtin.assistant_juridique', 'builtin.methode_controler'])   # 5.6.108 : générale, puis méthode de phase
         selection, injected = self.selection_for('prepare_reply', {'key': 'k', 'matter': MID})
-        self.assertEqual(selection[0]['id'], 'builtin.methode_courriel')   # courriel automatique : méthode transmise aussi
+        self.assertEqual([s['id'] for s in selection], ['builtin.assistant_juridique', 'builtin.methode_courriel'])   # courriel automatique : méthode transmise aussi
 
     def test_choix_manuel_prime_et_assemblage_unique(self):
         self.enable('builtin.methode_courriel', 'builtin.methode_document')

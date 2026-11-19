@@ -12,12 +12,18 @@ Confidentialité :
 
 Les documents restent dans Nextcloud : l'export en donne l'inventaire et les empreintes connues (``documents/inventaire``) ; les inclure est une option, bornée.
 Volume borné : un plafond dépassé arrête l'export (jamais d'export silencieusement partiel), sauf le plafond des documents, où le reste est listé « non inclus ».
+
+5.6.108 (lot C, B07) : périmètre déclaré. Liste fermée maintenue (jamais de copie aveugle des tables) : ``TABLES`` plus les tables que chaque module
+métier déclare lui-même (``EXPORT`` et ``EXPORT_EXCLUES`` des modules de ``MODULES_DECLARANTS``) ; chaque autre table de la base doit être exclue avec
+son motif (``EXCLUES``, motifs par famille, exclusions de ``reversibilite5689``). Le manifeste compare, domaine par domaine, les lignes attendues,
+exportées et exclues (dossiers réservés) ; une table de données ni exportée ni exclue est « non couverte » et l'export ne se dit jamais complet.
 """
 import base64
 from contextlib import contextmanager
 import csv
 from datetime import datetime, timedelta, timezone
 import hashlib
+import importlib
 import io
 import json
 import os
@@ -133,6 +139,8 @@ TABLES = (
     ('dossiers', 'commandes_du_portefeuille', 'portefeuille5697_ops', DESK, 'dossier_id'),
     ('modeles', 'modeles_du_cabinet', 'cabinet_templates_v330', DESK, None), ('modeles', 'modeles_de_facturation', 'b53_templates', DESK, None), ('modeles', 'bibliotheque', 'bibliotheque5639', DESK, None),
     ('modeles', 'versions_de_modeles', 'template_versions5684', DESK, None),
+    ('modeles', 'versions_actives', 'modeles56108_actifs', DESK, None),   # 5.6.108 (lot B) : version active désignée par droit, langue et type d'acte
+    ('modeles', 'modeles_de_reponse', 'modeles_reponse56106', DESK, None),
     ('competences', 'competences', 'skills5632', DESK, None), ('competences', 'etat_des_competences', 'skill_state5632', DESK, None), ('competences', 'ressources', 'skill_resources5683', DESK, None),
     ('competences', 'savoir_faire', 's59_resources', DESK, None), ('competences', 'versions_savoir_faire', 's59_versions', DESK, 'origin_matter'),
     ('cabinet', 'profil', 'cabinet_profile5689', DESK, None), ('cabinet', 'versions_du_profil', 'cabinet_profile_versions5689', DESK, None), ('cabinet', 'adresses_propres', 'identity_aliases5689', DESK, None),
@@ -144,12 +152,136 @@ TABLES = (
     ('qualification', 'controles', 'banc_controles5689', DESK, None), ('qualification', 'avis_de_relecteur', 'banc_avis5689', DESK, None), ('qualification', 'erreurs_critiques', 'banc_erreurs5689', DESK, None),
     ('qualification', 'couts', 'banc_couts5689', DESK, None), ('qualification', 'receptions', 'banc_receptions5689', DESK, None), ('qualification', 'etats_des_fonctions', 'fonction_releves5689', DESK, None),
     ('cabinet', 'ressources_de_test', 'capability_tests5689', DESK, None), ('cabinet', 'revocations', 'capability_revocations5689', DESK, None), ('cabinet', 'demonstrations_fictives', 'demo_missions5689', DESK, None),
+    # 5.6.108 (lot C, B07) : routines sur message (5.6.106), leurs versions et leurs propositions ; file commune « À relire » et décisions de relecture
+    ('routines', 'routines_sur_message', 'routines56106', DESK, 'matter'),
+    ('routines', 'versions_des_routines_sur_message', 'routines56106_versions', DESK, ('routine_id', 'routines56106', 'id', 'matter')),
+    ('routines', 'propositions_des_routines', 'routines56106_elements', DESK, 'matter'),
+    ('relecture', 'elements_a_relire', 'file56100_items', DESK, 'matter'),
+    ('relecture', 'decisions_de_relecture', 'file56100_historique', DESK, ('item', 'file56100_items', 'id', 'matter')),
 )
+
+# 5.6.108 (lot C, B07) : modules qui déclarent eux-mêmes leurs tables (``EXPORT`` : mêmes quintuplets que ``TABLES`` ; ``EXPORT_EXCLUES`` : (table, motif)).
+MODULES_DECLARANTS = ('assistance35', 'export56108')   # 5.6.108 (lot X) : registre des tables métier restantes, rangées par module propriétaire
+_SECRETS = 'Comptes, connexions, secrets ou jetons : jamais dans un export (sauvegarde chiffrée seulement).'
+_TECHNIQUE = 'Suivi technique du logiciel (file de travaux, réglages, journaux, verrous, reçus d’idempotence), sans contenu propre au cabinet.'
+_CACHE = 'Cache ou projection recalculés depuis une source exportée ou externe.'
+EXCLUES = {
+    'jobs': _TECHNIQUE, 'settings': 'Réglages du logiciel (peuvent contenir des secrets) : sauvegarde chiffrée seulement.', 'schema_migrations': _TECHNIQUE,
+    'audit': 'Journal d’audit : il se consulte et s’exporte depuis l’écran d’audit.', 'audit_chain_v290': 'Chaîne d’intégrité du journal d’audit.',
+    'audit_purges56102': 'Journal des purges du journal d’audit.', 'envoi_file56106': 'File d’envoi des courriels (états transitoires ; les messages sont dans la messagerie).',
+    'routines56106_arrivees': 'File technique des courriels arrivés à confronter aux routines.', 'routines56106_passages': 'Journal technique des passages des routines '
+    '(objets de courriels sans rattachement garanti à un dossier) ; les propositions sont exportées.',
+    'file56100_commandes': _TECHNIQUE, 'file56100_intentions': _TECHNIQUE, 'file56100_reports': 'Reports d’affichage personnels de la file « À relire ».',
+    'file56100_anomalies': _TECHNIQUE, 'fichiers56103_verrous': _TECHNIQUE, 'fichiers56103_ops': _TECHNIQUE, 'fichiers56103_local_etat': _CACHE,
+    'fichiers56103_local_versions': _CACHE, 'calendar_cache': _CACHE, 'invoice_ninja_cache_v310': _CACHE, 'workstation_refresh_v310': _TECHNIQUE,
+    'google_oauth568': _SECRETS, 'secu56101_cles': _SECRETS, 'journal56102_cles': _SECRETS,
+    'chrono56101_comptes': 'Chronomètre personnel : jamais repris dans un export du cabinet (5.6.101).', 'chrono56101_durees': 'Chronomètre personnel : jamais repris '
+    'dans un export du cabinet (5.6.101).', 'usage56101': _TECHNIQUE, 's59_usage': _TECHNIQUE, 'voice_usage_v568': _TECHNIQUE, 'ia_alerts5659': _TECHNIQUE,
+    'supervision_requests': _TECHNIQUE, 'ai_reservations_v567': _TECHNIQUE, 'office_leases5684': _TECHNIQUE,
+}
+FAMILLES_EXCLUES = ((re.compile(r'recus(\d|_|$)'), 'Reçus d’idempotence (réponses déjà rendues), sans contenu propre.'),
+                    (re.compile(r'^live_'), 'Flux d’activité en temps réel (technique).'),
+                    (re.compile(r'^(connexion|microsoft56103_|liaison56103_)|oauth'), _SECRETS),
+                    (re.compile(r'^(delta56100_|reliability_)'), _TECHNIQUE),
+                    (re.compile(r'cache'), _CACHE))
+
+
+def tables_exportees():
+    """``TABLES`` complété par les déclarations des modules (une table déclarée deux fois n'est exportée qu'une fois)."""
+    out, vues = list(TABLES), {t[2] for t in TABLES}
+    for nom in MODULES_DECLARANTS:
+        try:
+            module = importlib.import_module('.' + nom, __package__)
+        except ImportError:
+            continue
+        for t in getattr(module, 'EXPORT', ()) or ():
+            if len(t) == 5 and t[3] == DESK and t[2] not in vues and (t[4] is None or isinstance(t[4], str) or (isinstance(t[4], tuple) and len(t[4]) == 4)):
+                out.append(tuple(t))
+                vues.add(t[2])
+    return tuple(out)
+
+
+def resolveurs():
+    """5.6.108 (lot X) : {table: règle} de résolution du dossier déclarées par les modules (``RESOLVEURS``, voir ``export56108``)."""
+    out = {}
+    for nom in MODULES_DECLARANTS:
+        try:
+            module = importlib.import_module('.' + nom, __package__)
+        except ImportError:
+            continue
+        for table, spec in (getattr(module, 'RESOLVEURS', None) or {}).items():
+            if isinstance(spec, tuple) and spec:
+                out.setdefault(str(table), spec)
+    return out
+
+
+def tables_exclues():
+    """{table: motif} des exclusions déclarées (ce module, ``reversibilite5689``, modules déclarants)."""
+    out = dict(EXCLUES)
+    try:
+        from .reversibilite5689 import EXCLUSIONS
+        out.update(EXCLUSIONS)
+    except ImportError:
+        pass
+    for nom in MODULES_DECLARANTS:
+        try:
+            module = importlib.import_module('.' + nom, __package__)
+        except ImportError:
+            continue
+        for table, motif in getattr(module, 'EXPORT_EXCLUES', ()) or ():
+            out[str(table)] = str(motif)
+    return out
+
+
+def motif_exclusion(table, exclues=None):
+    exclues = tables_exclues() if exclues is None else exclues
+    if table in exclues:
+        return exclues[table]
+    for regle, motif in FAMILLES_EXCLUES:
+        if regle.search(table):
+            return motif
+    return ''
+
+
+def perimetre(db, exportees, comptes):
+    """Périmètre de l'export : par domaine, lignes attendues (table source), exportées et exclues (dossiers réservés) ; tables exclues avec
+    leur motif ; tables non couvertes. ``comptes`` : {table: (exportees, attendues)}. Rend un dictionnaire écrit dans le manifeste."""
+    noms = {t[2] for t in exportees}
+    domaines = {}
+    for domaine, nom, table, _base, _filtre in exportees:
+        exporte, attendu = comptes.get(table, (0, 0))
+        d = domaines.setdefault(domaine, {'tables': 0, 'attendu': 0, 'exporte': 0, 'exclu': 0, 'fichiers': [],
+                                          'motif_exclusion': 'dossiers réservés exclus, et lignes dont le dossier n’est pas déterminable'})
+        d['tables'] += 1
+        if table in comptes:   # 5.6.108 (lot X) : seul un fichier réellement écrit est annoncé (table d'une fonction jamais utilisée : aucun fichier)
+            d['fichiers'].append('%s/%s.json' % (domaine, nom))
+        d['attendu'] += attendu
+        d['exporte'] += exporte
+        d['exclu'] += max(0, attendu - exporte)
+    exclues, non_couvertes = {}, []
+    declarees = tables_exclues()
+    for (table,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"):
+        if table in noms:
+            continue
+        motif = motif_exclusion(table, declarees)
+        if motif:
+            exclues[motif] = exclues.get(motif, 0) + 1   # par motif : le nom des tables techniques n'a rien à faire dans l'archive
+        else:
+            non_couvertes.append(table)
+    return {'complet': not non_couvertes, 'domaines': domaines, 'tables_exclues': [{'motif': m, 'tables': n} for m, n in sorted(exclues.items())],
+            'non_couvertes': non_couvertes}
 LIBELLES = {'qualification': 'banc d’essai : protocoles, cas, configurations, résultats, avis de relecteur, coûts et réceptions ; états des fonctions', 'contentieux': 'prétentions et preuves, pièces par partie, actes par section, dossiers d’audience, paquets et autorisations, candidats délais', 'dossiers': 'registre, fiches, faits, synthèses, parties, événements, échéances, documents du registre, mémoire proposée', 'contacts': 'contacts, liens aux dossiers, sociétés, opportunités, sociétés suivies et annonces',
             'factures': 'factures et devis, versions, paiements, clients, accusés de paiement', 'temps': 'temps validés et proposés, conditions d’honoraires, contribution', 'agenda': 'événements de l’agenda du logiciel, audiences',
             'taches': 'tâches, responsables et rappels', 'notes': 'notes, mémos et notes communes de dossier', 'messagerie_interne': 'fils, messages et participants de la messagerie interne', 'modeles': 'modèles et bibliothèque',
+            'routines': 'routines sur message, leurs versions et leurs propositions', 'relecture': 'file « À relire » et décisions de relecture',
             'competences': 'compétences et savoir-faire du cabinet', 'cabinet': 'profil du cabinet, adresses propres, preuves de capacité sans aucun secret, démonstrations fictives',
-            'documents': 'inventaire des documents (et documents, si l’option a été choisie)'}
+            'documents': 'inventaire des documents (et documents, si l’option a été choisie)',
+            # 5.6.108 (lot X) : domaines du registre complété et du profil de départ
+            'conversations': 'discussions de l’assistant et questions posées au dossier', 'courriels': 'associations aux dossiers, brouillons conservés, archives et règles de classement',
+            'decisions': 'décisions à prendre, propositions et initiatives', 'missions': 'missions, plans, tâches de mission, productions et livrables',
+            'recherche_juridique': 'recherches, autorités, consultations, contrôles de citations et veille retenue', 'societes': 'décisions, titres, dirigeants et opérations des sociétés suivies',
+            'correspondances': 'originaux EML des courriels archivés et leur inventaire', 'rapports': 'exclusions et éléments non inclus',
+            'dictionnaire': 'description de chaque fichier et de chaque colonne'}
 
 
 # ------------------------------------------------------------------------------------------------ nettoyage
@@ -310,22 +442,36 @@ def _note_reservee(data, reserves):
     return any(str(x.get('matter') or x.get('matter_id') or '') in reserves for x in (data, result))
 
 
-def _exporter_table(paquet, db, net, reserves, domaine, nom, table, filtre):
+def _exporter_table(paquet, db, net, reserves, domaine, nom, table, filtre, comptes=None, ctx=None, regles=None):
     colonnes_brutes = _colonnes(db, table)
     if not colonnes_brutes:
         return 0                            # table d'une fonction jamais utilisée sur cette installation
+    if comptes is not None:   # 5.6.108 (B07) : lignes de la table source, pour le bilan par domaine du manifeste
+        comptes[table] = (0, db.execute('SELECT COUNT(*) FROM "%s"' % table.replace('"', '""')).fetchone()[0])
     colonnes = [c for c in colonnes_brutes if not _secrete(c)]
     exclus_ids = _contacts_reserves(db, reserves) if table == 'contacts5636' else frozenset()
     via = filtre if isinstance(filtre, tuple) else None
     if table == 'notes':        # notes rattachées à un courriel : leur dossier se lit dans les associations du courriel
         via = ('key', 'proposals', 'key', 'matter')
-    if via:
+    # 5.6.108 (lot X) : règle de résolution déclarée (courriel classé, chemin, portée, parent résolu…) ; à défaut, une colonne de filtre absente
+    # de la table rend le dossier non déterminable : la ligne ne sort pas en clair dès qu'un dossier réservé est exclu (jamais un accès élargi).
+    from . import export56108 as registre
+    regle = (regles if regles is not None else resolveurs()).get(table)
+    resoudre = registre.resolveur(ctx or registre.Contexte(None, db), regle, regles) if regle and table != 'notes' else None
+    indeterminable = bool(reserves) and resoudre is None and (
+        (isinstance(filtre, str) and filtre not in colonnes_brutes) or (via is not None and (via[0] not in colonnes_brutes or not _colonnes(db, via[1]))))
+    if via and not resoudre:
         exclus_ids = _exclus_via(db, via[1], via[2], via[3], reserves)
 
     def lignes():
+        if indeterminable:
+            return
         for rangee in db.execute('SELECT * FROM "%s"' % table.replace('"', '""')):
             brut = dict(zip(colonnes_brutes, rangee))
-            if isinstance(filtre, str) and str(brut.get(filtre) or '') in reserves:
+            if resoudre is not None:
+                if not registre.garder(resoudre(brut), reserves):
+                    continue
+            elif isinstance(filtre, str) and str(brut.get(filtre) or '') in reserves:
                 continue
             if via and brut.get(via[0]) in exclus_ids:
                 continue
@@ -335,7 +481,10 @@ def _exporter_table(paquet, db, net, reserves, domaine, nom, table, filtre):
             if table == 'notes' and _note_reservee(ligne.get('data'), reserves):
                 continue
             yield ligne
-    return _ecrire_table(paquet, domaine, nom, colonnes, lignes, net)
+    ecrites = _ecrire_table(paquet, domaine, nom, colonnes, lignes, net)
+    if comptes is not None:
+        comptes[table] = (ecrites, comptes[table][1])
+    return ecrites
 
 
 def _dossiers(desk, paquet, net, reserves):
@@ -377,6 +526,8 @@ def _inventaire(desk, reserves, marque):
 def _documents(desk, paquet, rows, progres):
     """Option : copie des documents depuis Nextcloud, un par un. Une pièce illisible ou trop lourde est signalée, jamais perdue en silence."""
     from . import office440
+    if not rows:
+        return                               # 5.6.108 (lot X) : aucun document connu, aucune connexion au stockage
     dav = office440.dav_client(desk)
     dav.cfg = {**dav.cfg, 'max_file_bytes': MAX_DOCUMENT}
     volume, pris = 0, set()
@@ -402,6 +553,22 @@ def _documents(desk, paquet, rows, progres):
         row.update(statut='inclus', sha256_fichier=hashlib.sha256(data).hexdigest(), dans_export=nom)
 
 
+def _lisezmoi_perimetre(meta):
+    """5.6.108 (B07) : périmètre lisible : état complet ou incomplet, bilan par domaine, tables exclues et leur motif, tables non couvertes."""
+    bilan = meta.get('perimetre') or {}
+    if not bilan:
+        return []
+    lignes = ['Périmètre : ' + ('COMPLET : chaque table de données est exportée ou exclue avec son motif.' if bilan.get('complet') else
+                                'INCOMPLET : %d table(s) de données ne sont pas encore couvertes par l’export (liste ci-dessous).' % len(bilan.get('non_couvertes') or []))]
+    for domaine, d in sorted((bilan.get('domaines') or {}).items()):
+        lignes.append('- %s : %d ligne(s) attendue(s), %d exportée(s), %d exclue(s)%s.' % (domaine, d['attendu'], d['exporte'], d['exclu'],
+                                                                                      (' (' + d['motif_exclusion'] + ')') if d['exclu'] else ''))
+    if bilan.get('non_couvertes'):
+        lignes.append('Tables non couvertes : ' + ', '.join(bilan['non_couvertes']) + '.')
+    lignes.append('Tables exclues volontairement : %d (motifs dans MANIFEST.json, rubrique perimetre).' % sum(int(x.get('tables') or 0) for x in bilan.get('tables_exclues') or []))
+    return lignes
+
+
 def _lisezmoi(meta, fichiers):
     domaines = {}
     for f in fichiers:
@@ -419,10 +586,144 @@ def _lisezmoi(meta, fichiers):
                                              if meta['dossiers_reserves']['traitement'] == 'inclus'
                                              else 'exclus, avec tout ce qui s’y rattache (%d dossier(s)).' % meta['dossiers_reserves']['nombre']),
                'Documents : ' + ('copiés dans documents/, dans la limite indiquée par documents/inventaire (colonne statut).' if meta['documents_inclus']
-                                 else 'ils restent dans Nextcloud ; documents/inventaire en donne la liste et les empreintes connues.'), '',
-               'Absents par construction : mots de passe et leurs hachés, jetons, clés d’accès, coffre des secrets, journaux techniques, index de recherche.',
+                                 else 'ils restent dans Nextcloud ; documents/inventaire en donne la liste et les empreintes connues.'),
+               ] + ([   # 5.6.108 (lot X) : profil « départ vers un autre logiciel »
+               'Profil : départ vers un autre logiciel. Ouvrez index.html (sommaire hors ligne). Agenda : agenda/evenements.ics ; tâches : taches/taches.ics ;',
+               '  contacts : contacts/contacts.vcf ; courriels archivés : correspondances/<dossier>/*.eml ; dictionnaire des données : dictionnaire/ ;',
+               '  exclusions et éléments non inclus : rapports/exclusions.json. Ce n’est pas une sauvegarde de restauration (voir la sauvegarde chiffrée).',
+               ] if meta.get('profil') == 'depart' else []) + ['',
+               'Absents par construction : mots de passe et leurs hachés, jetons, clés d’accès, coffre des secrets, journaux techniques, index de recherche.', ''] + _lisezmoi_perimetre(meta) + [
+               '',
                'Ce fichier n’est pas chiffré et contient des données couvertes par le secret professionnel : conservez-le en lieu sûr et supprimez-le après usage.', '']
     return '\n'.join(lignes).encode('utf-8')
+
+
+# ------------------------------------------------------------------------------------------------ 5.6.108 (lot X) : profil « départ vers un autre logiciel »
+def _depart_lire(db, net, reserves):
+    """Lecture sur l'instantané de l'export : événements, tâches, contacts, originaux EML archivés. Mêmes filtres que les tableaux."""
+    from . import export56108 as registre
+
+    def lignes(table, filtre='matter'):
+        colonnes = _colonnes(db, table)
+        if not colonnes:
+            return []
+        out = []
+        for rangee in db.execute('SELECT * FROM "%s"' % table):
+            brut = dict(zip(colonnes, rangee))
+            if filtre and str(brut.get(filtre) or '') in reserves:
+                continue
+            out.append({c: net.valeur(brut[c]) for c in colonnes if not _secrete(c)})
+        return out
+    taches = [{**r, 'source': 'tache'} for r in lignes('tasks')] + [{**r, 'source': 'travail'} for r in lignes('work_tasks_v211')]
+    seuls_reserves = _contacts_reserves(db, reserves) if reserves else frozenset()
+    contacts = [r for r in lignes('contacts5636', None) if r.get('id') not in seuls_reserves]
+    return {'evenements': lignes('agenda5634'), 'taches': taches, 'contacts': contacts, 'eml': registre.eml_a_exporter(db, reserves)}
+
+
+def _depart_ecrire(desk, paquet, donnees, rows, reserves, verifier, progres):
+    """Agenda (VEVENT), tâches (VTODO), contacts (vCard) et originaux EML. Un original absent ou modifié est signalé, jamais certifié."""
+    from . import export56108 as registre, sauvegarde5688
+    tz = sauvegarde5688._tz(desk)
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    with paquet.fichier('agenda/evenements.ics', domaine='agenda', lignes=len(donnees['evenements'])) as sortie:
+        sortie.write(registre.evenements_ics(donnees['evenements'], tz, stamp))
+    with paquet.fichier('taches/taches.ics', domaine='taches', lignes=len(donnees['taches'])) as sortie:
+        sortie.write(registre.taches_ics(donnees['taches'], tz, stamp))
+    with paquet.fichier('contacts/contacts.vcf', domaine='contacts', lignes=len(donnees['contacts'])) as sortie:
+        sortie.write(registre.vcards(donnees['contacts']))
+    eml, pris = donnees['eml'], set()
+    if eml:
+        from . import office440
+        dav = None
+        for numero, item in enumerate(eml):
+            if verifier:
+                verifier()
+            if numero % 25 == 0:
+                progres('Courriels archivés (%d sur %d)' % (numero, len(eml)), 86)
+            try:
+                dav = dav or office440.dav_client(desk)
+                dav.cfg = {**dav.cfg, 'max_file_bytes': MAX_DOCUMENT}
+                data = dav.download({'path': item['chemin'], 'size': 0})
+            except Stop as error:
+                item.update(statut='non_disponible:' + str(error).split(':')[0], sha256_fichier='', dans_export='')
+                continue
+            sha = hashlib.sha256(data).hexdigest()
+            if item['sha256_attendu'] and sha != item['sha256_attendu']:
+                item.update(statut='non_inclus:empreinte_differente', sha256_fichier=sha, dans_export='')
+                continue
+            nom = 'correspondances/%s/%s.eml' % (_sain(item['dossier']), _sain(item['archive'] or uuid.uuid4().hex))
+            if nom in pris:
+                nom = nom[:-4] + '.' + uuid.uuid4().hex[:8] + '.eml'
+            pris.add(nom)
+            with paquet.fichier(nom, domaine='correspondances') as sortie:
+                sortie.write(data)
+            item.update(statut='inclus', sha256_fichier=sha, dans_export=nom)
+    colonnes = ['dossier', 'archive', 'titre', 'chemin', 'taille', 'sha256_attendu', 'statut', 'sha256_fichier', 'dans_export']
+    _ecrire_table(paquet, 'correspondances', 'inventaire_eml', colonnes, lambda: iter(eml))
+    return {'courriels_non_inclus': [{k: e[k] for k in ('dossier', 'archive', 'statut')} for e in eml if e.get('statut') != 'inclus'],
+            'documents_non_inclus': [{'dossier': r['dossier'], 'chemin': r['chemin'], 'statut': r['statut']} for r in rows if r.get('statut') != 'inclus'],
+            'courriels_inclus': sum(1 for e in eml if e.get('statut') == 'inclus'), 'documents_inclus': sum(1 for r in rows if r.get('statut') == 'inclus')}
+
+
+_FIXES = {'LISEZMOI.txt': 'Présentation de l’export, en texte.', 'MANIFEST.json': 'Manifeste : taille et empreinte SHA-256 de chaque fichier, périmètre par domaine.',
+          'index.html': 'Sommaire ouvrable hors ligne, sans script ni ressource externe.', 'agenda/evenements.ics': 'Agenda au format iCalendar (RFC 5545) : un VEVENT par occurrence.',
+          'taches/taches.ics': 'Tâches au format iCalendar (RFC 5545) : un VTODO par tâche.', 'contacts/contacts.vcf': 'Contacts au format vCard 4.0 (RFC 6350).',
+          'rapports/exclusions.json': 'Exclusions par motif, lignes exclues par domaine, documents et courriels non inclus.',
+          'dictionnaire/dictionnaire.json': 'Ce dictionnaire, en JSON.', 'dictionnaire/dictionnaire.csv': 'Ce dictionnaire, en CSV (une ligne par colonne).',
+          'dictionnaire/dictionnaire.html': 'Ce dictionnaire, lisible dans un navigateur.'}
+
+
+def _depart_fin(paquet, meta, structure, exportees, rapports):
+    """Rapports d'exclusion, dictionnaire des données (chaque fichier, chaque colonne) et sommaire HTML."""
+    from . import export56108 as registre
+    bilan = meta.get('perimetre') or {}
+    rapport = {'tables_exclues_par_motif': bilan.get('tables_exclues') or [], 'non_couvertes': bilan.get('non_couvertes') or [],
+               'lignes_exclues_par_domaine': {d: {'exclu': v['exclu'], 'motif': v['motif_exclusion']} for d, v in (bilan.get('domaines') or {}).items() if v['exclu']},
+               **(rapports or {})}
+    with paquet.fichier('rapports/exclusions.json', domaine='rapports') as sortie:
+        sortie.write(json.dumps(rapport, ensure_ascii=False, indent=1).encode('utf-8'))
+    sources = {}
+    for domaine, nom, table, _b, _f in exportees:
+        for ext in ('json', 'csv'):
+            sources['%s/%s.%s' % (domaine, nom, ext)] = table
+    connues = {'documents/inventaire': ['dossier', 'chemin', 'etag', 'modifie', 'erreur_lecture', 'nature', 'date_document', 'empreinte_texte_sha256', 'statut',
+                                        'sha256_fichier', 'dans_export'],
+               'correspondances/inventaire_eml': ['dossier', 'archive', 'titre', 'chemin', 'taille', 'sha256_attendu', 'statut', 'sha256_fichier', 'dans_export']}
+    entrees = []
+    for f in paquet.fichiers + [{'chemin': c} for c in ('LISEZMOI.txt', 'MANIFEST.json', 'index.html', 'dictionnaire/dictionnaire.json',
+                                                         'dictionnaire/dictionnaire.csv', 'dictionnaire/dictionnaire.html')]:
+        chemin = f['chemin']
+        base, _sep, ext = chemin.rpartition('.')
+        table = sources.get(chemin)
+        if table:
+            colonnes = [{'nom': c, 'type': t or 'texte', 'description': registre.decrire_colonne(c)} for c, t in structure.get(table, []) if not _secrete(c)]
+            description = 'Table « %s » du logiciel, %s (%s).' % (table, 'valeurs exactes' if ext == 'json' else 'version tableur, formules neutralisées',
+                                                                LIBELLES.get(f.get('domaine', ''), f.get('domaine', '')))
+        elif base in connues:
+            colonnes = [{'nom': c, 'type': 'texte', 'description': registre.decrire_colonne(c)} for c in connues[base]]
+            description = 'Inventaire : un fichier par ligne, avec son statut (inclus, non inclus et pourquoi) et son empreinte.'
+        elif base == 'dossiers/registre':
+            colonnes, description = [], 'Registre des dossiers (un objet par dossier).'
+        else:
+            colonnes = []
+            description = _FIXES.get(chemin) or ('Original d’un courriel archivé (RFC 5322).' if chemin.startswith('correspondances/') else
+                                                 'Original d’un document du cabinet.' if chemin.startswith('documents/') else 'Fichier de l’export.')
+        entrees.append({'fichier': chemin, 'description': description, 'colonnes': colonnes})
+    with paquet.fichier('dictionnaire/dictionnaire.json', domaine='dictionnaire') as sortie:
+        sortie.write(json.dumps(entrees, ensure_ascii=False, indent=1).encode('utf-8'))
+    with paquet.fichier('dictionnaire/dictionnaire.csv', domaine='dictionnaire') as sortie:
+        texte = io.TextIOWrapper(sortie, encoding='utf-8-sig', newline='', write_through=True)
+        ecrivain = csv.writer(texte, delimiter=';')
+        ecrivain.writerow(['fichier', 'description_du_fichier', 'colonne', 'type', 'description_de_la_colonne'])
+        for x in entrees:
+            for c in x['colonnes'] or [{'nom': '', 'type': '', 'description': ''}]:
+                ecrivain.writerow([cellule(x['fichier']), cellule(x['description']), cellule(c['nom']), cellule(c['type']), cellule(c['description'])])
+        texte.flush()
+        texte.detach()
+    with paquet.fichier('dictionnaire/dictionnaire.html', domaine='dictionnaire') as sortie:
+        sortie.write(registre.dictionnaire_html(entrees))
+    with paquet.fichier('index.html') as sortie:
+        sortie.write(registre.sommaire_html(meta, paquet.fichiers, LIBELLES))
 
 
 def construire(desk, chemin, options, verifier=None, progres=None):
@@ -436,28 +737,39 @@ def construire(desk, chemin, options, verifier=None, progres=None):
     net = Nettoyage()
     paquet = Paquet(chemin, verifier)
     try:
+        depart = options.get('profil') == 'depart'   # 5.6.108 (lot X) : « Préparer un départ vers un autre logiciel »
+        from . import export56108 as registre
         db = sqlite3.connect(Path(desk.c['state_dir'], DESK).resolve().as_uri() + '?mode=ro', uri=True, timeout=30)
         try:
             db.execute('BEGIN')
             progres('Registre des dossiers', 2)
             _dossiers(desk, paquet, net, reserves)
-            for numero, (domaine, nom, table, _base, filtre) in enumerate(TABLES, 1):
+            exportees, comptes, regles = tables_exportees(), {}, resolveurs()
+            ctx = registre.Contexte(desk.c, db)
+            for numero, (domaine, nom, table, _base, filtre) in enumerate(exportees, 1):
                 if verifier:
                     verifier()
-                progres('%s : %s' % (domaine, nom), 2 + int(70 * numero / len(TABLES)))
-                _exporter_table(paquet, db, net, reserves, domaine, nom, table, filtre)
+                progres('%s : %s' % (domaine, nom), 2 + int(70 * numero / len(exportees)))
+                _exporter_table(paquet, db, net, reserves, domaine, nom, table, filtre, comptes, ctx, regles)
+            bilan = perimetre(db, exportees, comptes)   # 5.6.108 (B07) : attendu / exporté / exclu par domaine, tables non couvertes
+            structure = {t: [(r[1], r[2] or '') for r in db.execute('PRAGMA table_info("%s")' % t.replace('"', '""'))] for t in comptes} if depart else {}
+            depart_donnees = _depart_lire(db, net, reserves) if depart else None
             db.rollback()
         finally:
             db.close()
-        inclure = bool(options.get('documents'))
+        inclure = bool(options.get('documents')) or depart
         rows = _inventaire(desk, reserves, 'dans_nextcloud')
         if inclure:
             _documents(desk, paquet, rows, lambda texte: progres(texte, 80))
         colonnes = ['dossier', 'chemin', 'etag', 'modifie', 'erreur_lecture', 'nature', 'date_document', 'empreinte_texte_sha256', 'statut', 'sha256_fichier', 'dans_export']
         _ecrire_table(paquet, 'documents', 'inventaire', colonnes, lambda: iter(rows))
+        rapports = _depart_ecrire(desk, paquet, depart_donnees, rows, reserves, verifier, progres) if depart else None
         progres('Manifeste', 92)
         meta = {'format': FORMAT, 'cree': desk.now(), 'version': __version__, 'documents_inclus': inclure,
-                'dossiers_reserves': {'traitement': 'inclus' if inclure_reserves else 'exclus', 'nombre': len(reserves_toutes)}, 'secrets_retires': net.retires}
+                'dossiers_reserves': {'traitement': 'inclus' if inclure_reserves else 'exclus', 'nombre': len(reserves_toutes)}, 'secrets_retires': net.retires,
+                'perimetre': bilan, 'profil': 'depart' if depart else 'integral'}
+        if depart:
+            _depart_fin(paquet, meta, structure, exportees, rapports)
         with paquet.fichier('LISEZMOI.txt') as sortie:
             sortie.write(_lisezmoi(meta, paquet.fichiers))
         with paquet.zip.open(_info('MANIFEST.json'), 'w', force_zip64=True) as sortie:
@@ -521,8 +833,22 @@ def verifier_manifeste(chemin):
                     verifies += 1
     except (zipfile.BadZipFile, OSError, ValueError):
         raise Stop('archive_zip_illisible') from None
+    bilan = manifeste.get('perimetre') if isinstance(manifeste.get('perimetre'), dict) else {}
+    lignes = {str(f.get('chemin')): f['lignes'] for f in manifeste.get('fichiers') or [] if isinstance(f, dict) and isinstance(f.get('lignes'), int)}
+    for domaine, d in (bilan.get('domaines') or {}).items():   # 5.6.108 (B07) : le bilan par domaine doit correspondre aux fichiers présents
+        try:
+            ecart = int(d.get('exporte') or 0) != sum(lignes.get(str(n), 0) for n in d.get('fichiers') or [])
+        except (AttributeError, TypeError, ValueError):
+            ecart = True
+        if ecart:
+            signaler(domaine, 'bilan du domaine différent des fichiers présents')
+        for nom in (d.get('fichiers') or []) if isinstance(d, dict) else []:   # 5.6.108 (lot X) : chaque fichier déclaré par le bilan est présent et haché
+            if str(nom) not in attendus or str(nom) not in noms:
+                signaler(nom, 'fichier déclaré par le bilan absent')
     return {'ok': not anomalies, 'fichiers': len(attendus), 'verifies': verifies, 'anomalies': anomalies, 'cree': manifeste.get('cree', ''), 'version': manifeste.get('version', ''),
-            'dossiers_reserves': manifeste.get('dossiers_reserves', {}), 'documents_inclus': bool(manifeste.get('documents_inclus'))}
+            'dossiers_reserves': manifeste.get('dossiers_reserves', {}), 'documents_inclus': bool(manifeste.get('documents_inclus')),
+            'complet': bool(bilan.get('complet')) and not anomalies, 'non_couvertes': list(bilan.get('non_couvertes') or [])[:500],
+            'perimetre_declare': bool(bilan)}
 
 
 # ------------------------------------------------------------------------------------------------ demandes, travail, rétention
@@ -549,7 +875,10 @@ def demander(desk, data, owner):
         raise Stop('option_export_invalide')
     if reserves == 'inclure' and data.get('confirmation_reserves') not in (True, 'on', '1', 'true'):
         raise Stop('confirmation_dossiers_reserves_requise')
-    options = {'documents': data.get('documents') in (True, 'on', '1', 'true'), 'dossiers_reserves': reserves}
+    profil = str(data.get('profil') or 'integral')   # 5.6.108 (lot X) : « depart » inclut les originaux, ICS, vCard, EML et le dictionnaire
+    if profil not in ('integral', 'depart'):
+        raise Stop('option_export_invalide')
+    options = {'documents': data.get('documents') in (True, 'on', '1', 'true') or profil == 'depart', 'dossiers_reserves': reserves, 'profil': profil}
     ident = uuid.uuid4().hex
     desk.db.execute("INSERT INTO exports5688(id,par,demande,statut,options) VALUES (?,?,?,'en_attente',?)", (ident, str(owner)[:120], desk.now(), json.dumps(options)))
     desk.db.commit()
@@ -604,7 +933,10 @@ def executer(desk, ident):
             desk.db.commit()
             raise Stop('erreur_disque') from error
     expire = (datetime.now(timezone.utc) + timedelta(hours=EXPIRATION_HEURES)).isoformat()
-    desk.db.execute("UPDATE exports5688 SET statut='pret',fin=?,etape='Prêt',progression=100,taille=?,sha256=?,expire=? WHERE id=?", (desk.now(), taille, sha.hexdigest(), expire, row['id']))
+    bilan = meta.get('perimetre') or {}   # 5.6.108 (B07) : complet ou non, gardé avec la demande (montré dans Réversibilité)
+    options = {**json.loads(row['options'] or '{}'), 'perimetre': {'complet': bool(bilan.get('complet')), 'non_couvertes': len(bilan.get('non_couvertes') or [])}}
+    desk.db.execute("UPDATE exports5688 SET statut='pret',fin=?,etape='Prêt',progression=100,taille=?,sha256=?,expire=?,options=? WHERE id=?",
+                    (desk.now(), taille, sha.hexdigest(), expire, json.dumps(options), row['id']))
     desk.db.commit()
     desk.audit('export5688_termine', {'id': row['id'], 'taille': taille, 'sha256': sha.hexdigest(), 'fichiers': nombre, 'secrets_retires': meta['secrets_retires']})
     purge(desk)

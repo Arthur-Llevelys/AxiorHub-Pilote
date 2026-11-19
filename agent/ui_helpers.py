@@ -185,12 +185,15 @@ def enhance(html,prefix,csrf,audio_enabled,matters=None,path='',selected_matter=
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v370.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5696-affichage.js"></script>'   # 5.6.96 (U01) : volet modal (focus, fond inerte, champ qui grandit, brouillon), avant v567.js
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v567.js"></script>'
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56108-accueil.js"></script>'   # 5.6.108 (lot A) : reçu des demandes, « Actuellement » sans faux zéro
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56108-conseil.js"></script>'   # 5.6.108 (lot K) : « Demander l'avis du conseil » (volet, consultation), annonce puis confirmation
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v568.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56106-vision.js"></script>'   # 5.6.106 (lot I) : « Joindre une image ou une page » dans l'assistant (après v567.js)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5614.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5625.js"></script>'
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5628.js"></script>'   # 5.6.28 : messagerie (répondre, transférer, classer)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56106-redaction.js"></script>'   # 5.6.106 (lot R) : rédaction (dictée, mise en forme, adresses, pièces, modèles)
+    head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56108-dictee.js"></script>'   # 5.6.108 (lot Q) : « Dicter la réponse » sur chaque question posée à l'avocat (après la dictée commune)
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v56106-envoi.js"></script>'   # 5.6.106 (lot E) : options d'envoi, « Annuler » pendant quelques secondes, envois programmés
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5643.js"></script>'   # 5.6.43 : classement dans le dossier client
     head+='<script defer src="'+escape(prefix,quote=True)+'/static/v5697-dossiers.js"></script>'   # 5.6.97 (lot dossiers) : Classer dans un dossier, écran Dossiers

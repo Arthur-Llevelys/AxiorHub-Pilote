@@ -358,8 +358,8 @@ class Library(unittest.TestCase):
         for ident in ('pacte_associes', 'pacte_actionnaires', 'lettre_intention', 'protocole_conditions', 'compromis_fonds', 'cession_titres',
                       'cession_fonds', 'contrat_prestation', 'accord_confidentialite', 'cgv_b2b', 'compte_courant'):
             self.assertIn(ident, ids)
-        for droit in ('DE', 'ES', 'EN'):
-            cats = {t['categorie'] for t in b.BUILTIN.values() if t['droit'] == droit}
+        for droit in ('DE', 'ES', 'UK-EAW'):   # 5.6.108 (lot B) : « EN » migré vers « UK-EAW » ; les trames de conseil 5.6.108 s'ajoutent
+            cats = {t['categorie'] for t in b.BUILTIN.values() if t['droit'] == droit and not t.get('nouveau56108')}
             self.assertEqual(cats, {'statuts', 'pacte', 'operation', 'contrat'}, droit)
         for ident, t in b.BUILTIN.items():
             t = self.tpl(ident)

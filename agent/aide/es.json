@@ -8,7 +8,7 @@
 "Abra Hoy en el menú.",
 "En «Rutinas del despacho», pulse «Resumen de la mañana» o «Clasificación del correo» y luego «Generar ahora».",
 "Escuche el resumen con «Escuchar el resumen» si la voz está activada.",
-"Use «Pausa de los automatismos» para suspender los tratamientos automáticos."
+"Use «Pausa de los automatismos» para suspender los tratamientos automáticos. Los envíos programados que usted validó siguen saliendo: para retenerlos, use «Suspender los envíos programados»."
 ],
 "result": "Un resumen fechado y la lista del trabajo preparado, para revisar antes de cualquier acción.",
 "verify": "El panel de la rutina indica la hora de la última generación.",
@@ -933,28 +933,34 @@
 "version": "5.6.36"
 },
 "assistance_metier": {
-"objective": "Hacer cálculos controlables y preparar la revisión de facturación.",
-"when": "Para un cálculo de intereses, una indexación o una revisión de facturación.",
-"prerequisites": "Ninguno.",
+"objective": "Preparar una audiencia, examinar argumentos, preparar una llamada, hacer un cálculo controlable o revisar la facturación de un expediente.",
+"when": "Antes de una audiencia o una llamada, para un cálculo de intereses, una indexación o una suma de días, o antes de una revisión de facturación.",
+"prerequisites": "Un expediente accesible para su cuenta; para el entrenamiento, una audiencia ya preparada; para la facturación, los impagos sincronizados.",
 "steps": [
-"Abra Asistencia profesional.",
-"Elija el cálculo, por ejemplo «Calcular intereses simples» o «Calcular una indexación».",
-"Indique los importes y las fechas.",
-"Para la facturación, use «Preparar la revisión de facturación»."
+"Abra Asistencia profesional y elija el expediente en la lista (cliente, parte o referencia).",
+"Elija uno de los cinco recorridos: «Preparar una audiencia», «Examinar los argumentos», «Preparar una llamada», «Realizar un cálculo» o «Revisar la facturación».",
+"Rellene solo los campos solicitados; para un cálculo, elija primero intereses, indexación o suma de días e indique la fuente oficial.",
+"Envíe: la solicitud recibe un número y un estado; después se muestra el resultado con sus reservas y sus fuentes."
 ],
-"result": "Un cálculo detallado y trazable.",
-"verify": "El detalle del cálculo se muestra línea por línea.",
+"result": "Un proyecto interno para revisar: resultado principal, reservas y fuentes; después, modificar los datos, reanudar el recorrido o exportar.",
+"verify": "La solicitud pasa de «recibida» a «resultado listo» y el proyecto aparece en los proyectos recientes.",
 "errors": [
 [
-"Importe inesperado",
-"Compruebe las fechas y el tipo introducidos."
+"«Expediente no encontrado entre sus expedientes»",
+"El expediente no es accesible para su cuenta o la búsqueda no lo encuentra: elíjalo en la lista."
+],
+[
+"Importe o fecha inesperados",
+"Compruebe las fechas, el tipo o los índices; una suma de días nunca es un plazo procesal."
 ]
 ],
-"example": "Intereses ficticios sobre 10 000 € del 1 de enero al 30 de junio de 2026.",
+"example": "Suma ficticia de 30 días a partir del 1 de enero de 2026 para el expediente DOS-001: fecha aritmética, sin plazo creado.",
 "buttons": [
-"Calculer les intérêts simples",
-"Calculer une indexation",
-"Préparer la revue de facturation"
+"Préparer une audience",
+"Examiner les arguments",
+"Préparer un appel",
+"Effectuer un calcul",
+"Revoir la facturation"
 ],
 "version": "5.6.36"
 },
@@ -2086,13 +2092,13 @@
 "version": "5.6.36"
 },
 "mobile": {
-"objective": "Validar o revisar desde el teléfono lo que espera su decisión, tras vincularlo por código QR.",
+"objective": "Revisar y decidir desde su smartphone lo que espera su decisión, con el mismo lector que en el ordenador, tras vincularlo por código QR.",
 "when": "De viaje, en el tribunal o fuera del despacho, cuando una respuesta preparada o una operación espera su aprobación.",
 "prerequisites": "La versión servidor de AxiorHub (accesible por HTTPS) y una cuenta; un teléfono con cámara.",
 "steps": [
-"En el ordenador: Paramètres › Poste et maintenance › Téléphones associés › «Associer un téléphone».",
+"En el ordenador: Paramètres › Confort et maintenance › Téléphones associés › «Associer un téléphone» (la página «Acceso móvil» lleva allí con «Configurar los teléfonos vinculados»).",
 "Escanee el código QR con la cámara del teléfono y toque «Associer» en la página que se abre.",
-"El teléfono llega a «À valider»: revise, autorice, deposite una respuesta «à compléter» o descártela.",
+"El teléfono llega a «Acceso móvil»: abra un elemento y después consérvelo, descártelo, aplácelo o guárdelo, como en el ordenador; nada se envía sin su acción.",
 "Para tenerla a mano, añada la página a la pantalla de inicio; active las notificaciones si lo desea."
 ],
 "result": "El teléfono queda conectado a su cuenta 90 días, hasta que lo retire o cambie su contraseña.",
@@ -2108,7 +2114,10 @@
 ]
 ],
 "example": "Autorizar desde el teléfono el depósito de una respuesta «à compléter» al cliente ficticio del expediente DOS-001.",
-"buttons": [],
+"buttons": [
+"Configurer les téléphones associés",
+"Ouvrir ma file de relecture"
+],
 "version": "5.6.36"
 },
 "mon_compte": {

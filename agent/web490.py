@@ -275,11 +275,14 @@ def file_confirmer(desk, token, now=None):
     return send490.confirm_to_queue(desk, token, now)
 
 
-def file_depart(desk, uid, validity, fp, matter, message_id, extra_headers=None, before_effect=None, on_log=None, on_sent=None):
+def file_depart(desk, uid, validity, fp, matter, message_id, extra_headers=None, before_effect=None, on_log=None, on_sent=None,
+                seuls=None, relance_de=None):
     """Départ d'un message de la file, par le fil d'envoi du travailleur : seulement un message qu'une personne a confirmé et que ce fil
-    vient de réserver (ligne « en cours » de ``envoi_file56106``, même brouillon, même empreinte, même Message-ID). Rien d'autre ne part."""
+    vient de réserver (ligne « en cours » de ``envoi_file56106``, même brouillon, même empreinte, même Message-ID). Rien d'autre ne part.
+    5.6.108 (lot C, B03) : ``seuls`` / ``relance_de`` : renvoi décidé par l'avocat aux seuls destinataires refusés d'une tentative partielle."""
     if not message_id or not desk.db.execute("SELECT 1 FROM envoi_file56106 WHERE uid=? AND validity=? AND fingerprint=? AND message_id=? "
                                              "AND etat='en_cours'", (str(uid), str(validity), str(fp), str(message_id))).fetchone():
         raise Stop('envoi_non_confirme')
-    return send490.deliver_queued(desk, uid, validity, fp, matter, message_id, extra_headers, before_effect, on_log, on_sent)
+    return send490.deliver_queued(desk, uid, validity, fp, matter, message_id, extra_headers, before_effect, on_log, on_sent,
+                                  seuls=seuls, relance_de=relance_de)
 

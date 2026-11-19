@@ -1,0 +1,41 @@
+/* 5.6.108 (lot L) : assistant « Configurer l'IA locale » (Paramètres › IA et guide de démarrage). Six étapes numérotées ; contraste clair et
+   sombre par les jetons de la page ; focus visible ; cibles d'au moins 2.5rem ; aucun défilement horizontal de la page (les tableaux défilent
+   dans leur propre cadre). */
+.l108 { display: grid; grid-template-columns: minmax(0, 1fr); gap: .7rem; container-type: inline-size; }
+.l108-etape { display: grid; grid-template-columns: minmax(0, 1fr); gap: .45rem; padding-block: .5rem; border-block-start: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); min-inline-size: 0; }
+.l108-titre { margin: 0; font-size: 1rem; }
+.l108-ligne { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.l108-ligne input { flex: 1 1 14rem; min-inline-size: 0; min-block-size: 2.5rem; box-sizing: border-box; font: inherit; }
+.l108 input[type=number] { flex: 0 1 8rem; }
+.l108 .ax-btn, .l108 button { min-block-size: 2.5rem; }
+.l108 button:focus-visible, .l108 input:focus-visible, .l108 select:focus-visible, .l108 a:focus-visible, .l108 summary:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.l108-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .2rem .8rem; margin: 0; }
+.l108-dl dt { font-weight: 600; }
+.l108-dl dd { margin: 0; overflow-wrap: anywhere; }
+.l108-pastille { display: inline-block; padding: .05rem .5rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.l108-ok { border-color: var(--cds-support-success, #24a148); }
+.l108-alerte { border-color: var(--cds-support-warning, #8e6a00); border-style: dashed; }
+.l108-ko { border-color: var(--cds-support-error, #da1e28); }
+.l108-cadre { display: block; overflow-x: auto; max-inline-size: 100%; }
+.l108-table { inline-size: 100%; border-collapse: collapse; }
+.l108-table th, .l108-table td { text-align: start; vertical-align: top; padding: .35rem .5rem; border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); }
+.l108-commande { display: block; white-space: pre-wrap; overflow-wrap: anywhere; padding: .4rem .6rem; border-radius: .25rem;
+  background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); color: var(--cds-text-primary, inherit); font-family: var(--ax-mono, ui-monospace, monospace); }
+.l108-carte { grid-template-columns: minmax(0, 1fr); padding: .6rem .7rem; border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); display: grid; gap: .35rem; overflow-wrap: anywhere; }
+.l108-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.l108-progression { inline-size: 100%; block-size: 1rem; }
+.l108-form { display: grid; gap: .4rem; max-inline-size: 48rem; }
+.l108-form select { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.l108-form label.l108-case { display: flex; gap: .5rem; align-items: flex-start; }
+.l108-form label.l108-case input { min-block-size: 1.25rem; min-inline-size: 1.25rem; margin-block-start: .15rem; }
+.l108-avertissement { padding: .45rem .6rem; border-inline-start: 3px solid var(--cds-support-warning, #8e6a00); background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); }
+.l108-statut:empty, .l108-carte:empty { display: none; }
+.l108 [hidden] { display: none !important; }
+/* Section étroite (téléphone, colonne de Paramètres) : libellé au-dessus de sa valeur, boutons en pleine largeur. */
+@container (max-width: 34rem) {
+  .l108-dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .l108-dl dd { margin-block-end: .35rem; }
+  .l108-ligne > .ax-btn, .l108-ligne > button { flex: 1 1 100%; }
+}

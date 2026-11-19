@@ -8,7 +8,7 @@
 "Open Today in the menu.",
 "In “Firm routines”, click “Morning briefing” or “Email triage”, then “Generate now”.",
 "Listen to the summary with “Listen to the briefing” if voice is enabled.",
-"Use “Pause automations” to suspend automatic processing."
+"Use “Pause automations” to suspend automatic processing. Scheduled sends you approved still go out: to hold them, use “Suspend scheduled sends”."
 ],
 "result": "A dated briefing and the list of prepared work, to review before any action.",
 "verify": "The routine panel shows the time of the last generation.",
@@ -933,28 +933,34 @@
 "version": "5.6.36"
 },
 "assistance_metier": {
-"objective": "Perform checkable calculations and prepare the billing review.",
-"when": "For an interest calculation, an indexation or a billing review.",
-"prerequisites": "None.",
+"objective": "Prepare a hearing, examine arguments, prepare a call, run a checkable calculation or review a matter’s billing.",
+"when": "Before a hearing or a call, for an interest calculation, an indexation or an addition of days, or before a billing review.",
+"prerequisites": "A matter your account can access; for practice, a hearing already prepared; for billing, unpaid invoices synchronised.",
 "steps": [
-"Open Practice assistance.",
-"Choose the calculation, for example “Calculate simple interest” or “Calculate an indexation”.",
-"Enter the amounts and dates.",
-"For invoicing, use “Prepare the billing review”."
+"Open Practice assistance and choose the matter in the list (client, party or reference).",
+"Choose one of the five paths: “Prepare a hearing”, “Examine the arguments”, “Prepare a call”, “Run a calculation” or “Review billing”.",
+"Fill in only the fields requested; for a calculation, first choose interest, indexation or addition of days, then give the official source.",
+"Submit: the request gets a number and a status; the result is then shown with its reservations and sources."
 ],
-"result": "A detailed and traceable calculation.",
-"verify": "The calculation details are shown line by line.",
+"result": "An internal draft to review: main result, reservations and sources, then edit the data, resume the path or export.",
+"verify": "The request moves from “received” to “result ready” and the draft appears under recent projects.",
 "errors": [
 [
-"Unexpected amount",
-"Check the dates and rate entered."
+"“Matter not found among your matters”",
+"The matter is not accessible to your account or the search does not find it: choose it in the list."
+],
+[
+"Unexpected amount or date",
+"Check the dates, rate or indices entered; an addition of days is never a procedural deadline."
 ]
 ],
-"example": "Fictitious interest on €10,000 from 1 January to 30 June 2026.",
+"example": "Fictitious addition of 30 days from 1 January 2026 for matter DOS-001: arithmetic date, no deadline created.",
 "buttons": [
-"Calculer les intérêts simples",
-"Calculer une indexation",
-"Préparer la revue de facturation"
+"Préparer une audience",
+"Examiner les arguments",
+"Préparer un appel",
+"Effectuer un calcul",
+"Revoir la facturation"
 ],
 "version": "5.6.36"
 },
@@ -2086,13 +2092,13 @@
 "version": "5.6.36"
 },
 "mobile": {
-"objective": "Approve or review from your phone what awaits your decision, after linking it by QR code.",
+"objective": "Review and decide from your smartphone what awaits your decision, with the same reader as on the computer, after linking it by QR code.",
 "when": "When travelling, in court or away from the office, when a prepared reply or an operation awaits your approval.",
 "prerequisites": "The server version of AxiorHub (reachable over HTTPS) and an account; a phone with a camera.",
 "steps": [
-"On the computer: Paramètres › Poste et maintenance › Téléphones associés › “Associer un téléphone”.",
+"On the computer: Paramètres › Confort et maintenance › Téléphones associés › “Associer un téléphone” (the “Mobile access” page leads there through “Set up paired phones”).",
 "Scan the QR code with the phone’s camera and tap “Associer” on the page that opens.",
-"The phone lands on “À valider”: review, authorise, file a reply “à compléter” or set it aside.",
+"The phone lands on “Mobile access”: open an item, then keep, set aside, postpone or save it, as on the computer; nothing is sent without your action.",
 "To keep it at hand, add the page to the home screen; turn on notifications if you wish."
 ],
 "result": "The phone stays signed in to your account for 90 days, until you remove it or change your password.",
@@ -2108,7 +2114,10 @@
 ]
 ],
 "example": "Authorise from the phone the filing of a reply “à compléter” to the fictitious client of matter DOS-001.",
-"buttons": [],
+"buttons": [
+"Configurer les téléphones associés",
+"Ouvrir ma file de relecture"
+],
 "version": "5.6.36"
 },
 "mon_compte": {

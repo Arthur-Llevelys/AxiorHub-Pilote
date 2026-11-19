@@ -184,6 +184,7 @@
   function card(m) {
     const c = el('article', undefined, 'mission567-card'); c.dataset.missionId = m.id; c.dataset.etat = m.panneau?.code || '';
     c.append(el('div', m.panneau?.libelle || m.label, 'mission567-state'), el('h3', m.title || m.instruction));   // 5.6.97 : état explicite, en mots
+    window.AX108accueil?.recu(m, c);   // 5.6.108 (lot A) : reçu identifiable (numéro de la mission enregistrée) et étape écrite
     if (m.panneau?.geste) c.append(el('p', m.panneau.geste, 'mission5697-geste'));
     const choix97 = new Map(); if (m.state === 'decision') (m.exceptions || []).forEach(x => (x.candidates || []).forEach(y => choix97.set(y.id, y.label)));
     if (choix97.size) c.append(choixDossier(m, choix97));   // 5.6.97 : le choix attendu en tête de carte, visible sans défiler
@@ -202,6 +203,12 @@
       const x = m.choix_ia, d = el('details', undefined, 'm82-choix');
       d.append(el('summary', 'Choix de l’IA'), el('p', x.modele + ' · effort ' + x.effort + (x.provisoire ? ' · choix provisoire, non encore mesuré au banc' : '')), el('p', x.raison),
                el('p', (x.canal ? x.canal + ' · ' : '') + 'consommation : ' + x.consommation));
+      c.append(d);
+    }
+    const methode = (m.resultat5689 || {}).methode_transmise || [];
+    if (methode.length) {   // 5.6.108 (lot I) : méthode réellement transmise au modèle, lue dans la trace écrite juste avant l'appel
+      const d = el('details', undefined, 'm82-choix'); d.append(el('summary', 'Méthode transmise'));
+      methode.forEach(x => d.append(el('p', String(x).replace(/^Méthode transmise : /, ''))));
       c.append(d);
     }
     window.axiorhubIa5689?.carte(m, c);   // 5.6.89 : label IA : sources, limites, fournisseur, question regroupée
@@ -295,6 +302,7 @@
     const c = el('article', undefined, 'mission567-card'); c.dataset.etat = code;
     c.append(el('div', libelle, 'mission567-state'), el('h3', extrait(instruction, 300)));
     if (texte) c.append(el('p', texte, classe || 'mission5697-geste'));
+    window.AX108accueil?.recuProvisoire(code, c);   // 5.6.108 (lot A) : avant la réponse du serveur, l'absence de reçu est écrite
     return c;
   }
   function afficherProvisoire(c) { provisoire = true; current.replaceChildren(c); }
@@ -356,6 +364,7 @@
       if (rev !== revision) return;
       tentativeIncertaine = null; memoIncertaine.set(null);
       if (question.value.trim() === payload.instruction) { question.value = ''; inputChannel = 'text'; }   // reçue : le texte passe dans la carte
+      dock.dispatchEvent(new CustomEvent('ax108:recu', {detail: {id: m.id || ''}}));   // 5.6.108 (lot A) : le brouillon gardé n'est effacé qu'au reçu
       attachments = []; file.value = ''; renderFiles(); if (plan) plan.hidden = true; show(m, true); refreshList();
       if (ancienne) avertirAncienne(ancienne);
     } catch (e) {

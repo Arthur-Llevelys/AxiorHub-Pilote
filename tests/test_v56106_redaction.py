@@ -108,14 +108,14 @@ class Redaction(Base):
         self.assertEqual(pieces['note.txt']['empreinte'], w.empreinte(note))
         # deuxième enregistrement : pièces reprises du brouillon par empreinte ; le fichier local renvoyé (chemin de l'envoi) n'est pas doublé
         second = w.save(self.desk, {'mode': 'transferer', 'source_uid': '2', 'to': 'martin@example.test', 'subject': 'TR : Pièces', 'html': '<p>Voir</p>',
-                                    'draft_uid': premier['uid'], 'draft_keep': [pieces['note.txt']['empreinte'], pieces['bordereau.pdf']['empreinte']],
+                                    'draft_uidvalidity': premier['uidvalidity'], 'draft_uid': premier['uid'], 'draft_keep': [pieces['note.txt']['empreinte'], pieces['bordereau.pdf']['empreinte']],
                                     'keep': ['0'], 'files': [{'name': 'note.txt', 'type': 'text/plain', 'data': b64(note), 'cle': 'p1abc'}]})
         msg = lire(second['uid'])
         self.assertEqual(sorted(p.get_filename() for p in msg.iter_attachments()), ['bordereau.pdf', 'note.txt'])
         self.assertNotIn(int(premier['uid']), WebBox.store['Drafts'])
         # une pièce retirée (« ✕ ») n'est plus dans draft_keep : elle disparaît du brouillon suivant
         troisieme = w.save(self.desk, {'mode': 'nouveau', 'to': 'martin@example.test', 'subject': 'TR : Pièces', 'html': '<p>Voir</p>',
-                                       'draft_uid': second['uid'], 'draft_keep': [pieces['bordereau.pdf']['empreinte']]})
+                                       'draft_uidvalidity': second['uidvalidity'], 'draft_uid': second['uid'], 'draft_keep': [pieces['bordereau.pdf']['empreinte']]})
         self.assertEqual([p.get_filename() for p in lire(troisieme['uid']).iter_attachments()], ['bordereau.pdf'])
 
     def test_R4_empreintes_invalides_refusees_et_limites_inchangees(self):
@@ -170,14 +170,14 @@ class Redaction(Base):
         self.assertNotIn('script', t['html'])
         self.assertEqual([(p['name'], p['empreinte']) for p in t['pieces_brouillon']], [('convention.pdf', w.empreinte(b'%PDF-1.4 convention'))])
         out = w.save(self.desk, {'mode': 'reprise', 'to': t['to'], 'cc': t['cc'], 'bcc': t['bcc'], 'subject': t['subject'], 'html': t['html'] + '<p>Ajout</p>',
-                                 'draft_uid': t['draft_uid'], 'reprise_uid': t['reprise_uid'], 'draft_keep': [t['pieces_brouillon'][0]['empreinte']]})
+                                 'draft_uidvalidity': t['draft_uidvalidity'], 'draft_uid': t['draft_uid'], 'reprise_uid': t['reprise_uid'], 'draft_keep': [t['pieces_brouillon'][0]['empreinte']]})
         self.assertNotIn(40, WebBox.store['Drafts'])                     # le brouillon rouvert est remplacé, même d'une autre origine
         msg = lire(out['uid'])
         self.assertEqual((msg['In-Reply-To'], msg['References']), ('<a1@x>', '<a0@x> <a1@x>'))   # fil de la conversation gardé
         self.assertEqual([p.get_filename() for p in msg.iter_attachments()], ['convention.pdf'])
         self.assertIn('Ajout', msg.get_body(preferencelist=('html',)).get_content())
         # enregistrement suivant (enregistrement automatique) : le nouveau brouillon remplace le précédent, fil toujours gardé
-        encore = w.save(self.desk, {'mode': 'reprise', 'to': t['to'], 'subject': t['subject'], 'html': '<p>v3</p>', 'draft_uid': out['uid'],
+        encore = w.save(self.desk, {'mode': 'reprise', 'to': t['to'], 'subject': t['subject'], 'html': '<p>v3</p>', 'draft_uidvalidity': out['uidvalidity'], 'draft_uid': out['uid'],
                                     'reprise_uid': t['reprise_uid'], 'draft_keep': [p['empreinte'] for p in out['pieces']]})
         self.assertNotIn(int(out['uid']), WebBox.store['Drafts'])
         self.assertEqual(lire(encore['uid'])['In-Reply-To'], '<a1@x>')
@@ -185,9 +185,9 @@ class Redaction(Base):
     def test_R5_mutation_brouillon_etranger_non_designe_jamais_supprime(self):
         from agent import webmail5628 as w
         uid = self._brouillon_etranger()
-        w.save(self.desk, {'mode': 'nouveau', 'to': 'a@example.test', 'subject': 'x', 'html': '<p>x</p>', 'draft_uid': uid})
+        w.save(self.desk, {'mode': 'nouveau', 'to': 'a@example.test', 'subject': 'x', 'html': '<p>x</p>', 'draft_uidvalidity': '7', 'draft_uid': uid})
         self.assertIn(40, WebBox.store['Drafts'])                        # sans « Modifier » (reprise_uid), un brouillon de l'agent reste
-        w.save(self.desk, {'mode': 'nouveau', 'to': 'a@example.test', 'subject': 'x', 'html': '<p>x</p>', 'draft_uid': uid, 'reprise_uid': '41'})
+        w.save(self.desk, {'mode': 'nouveau', 'to': 'a@example.test', 'subject': 'x', 'html': '<p>x</p>', 'draft_uidvalidity': '7', 'draft_uid': uid, 'reprise_uid': '41'})
         self.assertIn(40, WebBox.store['Drafts'])                        # reprise d'un autre brouillon : rien n'est retiré
 
     def test_R5_brouillon_absent_refuse(self):
@@ -229,7 +229,7 @@ class Redaction(Base):
         t = w.template(self.desk, 'brouillon', out['uid'])
         self.assertIn('src="data:image/png;base64,%s"' % b64(self.PNG), t['html'])
         self.assertNotIn('cid:', t['html'])
-        encore = w.save(self.desk, {'mode': 'reprise', 'to': t['to'], 'subject': t['subject'], 'html': t['html'], 'draft_uid': t['draft_uid'],
+        encore = w.save(self.desk, {'mode': 'reprise', 'to': t['to'], 'subject': t['subject'], 'html': t['html'], 'draft_uidvalidity': t['draft_uidvalidity'], 'draft_uid': t['draft_uid'],
                                     'reprise_uid': t['reprise_uid'], 'draft_keep': [x['empreinte'] for x in t['pieces_brouillon']]})
         corps2 = lire(encore['uid']).get_body(preferencelist=('html',)).get_content()
         self.assertEqual(len(re.findall(r'src="cid:', corps2)), 3)

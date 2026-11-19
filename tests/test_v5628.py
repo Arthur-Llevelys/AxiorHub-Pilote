@@ -174,7 +174,7 @@ class Webmail(t530.Base):
         self.assertIn('<b>ci-joint</b>', html)
         self.assertNotIn('script', html)
         reply = w.save(self.desk, {'mode': 'repondre', 'source_uid': '1', 'to': 'durand@example.test', 'subject': 'Re : AG', 'html': '<p>Bien reçu.</p>',
-                                   'draft_uid': out['uid']})
+                                   'draft_uidvalidity': out['uidvalidity'], 'draft_uid': out['uid']})
         rmsg = BytesParser(policy=policy.default).parsebytes(WebBox.store['Drafts'][int(reply['uid'])][1])
         self.assertEqual(rmsg['In-Reply-To'], '<a1@x>')
         self.assertNotIn(int(out['uid']), WebBox.store['Drafts'])                                 # brouillon précédent de la rédaction remplacé

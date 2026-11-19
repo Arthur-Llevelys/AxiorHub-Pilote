@@ -259,16 +259,22 @@ def page(desk, args, url, prefix, source='personal', subnav=''):
               'aria-describedby="ag97-aide">%s</div><p class="ag97-sr" id="ag97-aide">Flèches pour se déplacer entre les créneaux, Entrée pour créer, Maj + flèches '
               'pour étendre la plage, Échap pour fermer l’éditeur.</p>') % (len(jours), nb, ''.join(cellules))
 
+    # ---------------------------------------------------------------- 5.6.108 (lot G) : dates extraites à vérifier, à part de la grille confirmée
+    from . import agenda56108
+    nouvelle108 = agenda56108.nouvelle(desk, owner)
+    verifier108, volet108 = agenda56108.a_verifier_html(desk, acteur, prefix, aujourd_hui) if nouvelle108 else ('', '')
     # ---------------------------------------------------------------- volets (repliés)
-    volets = _volets(desk, acteur, prefs, jour, vue, sub, url, sources, source)
+    volets = _volets(desk, acteur, prefs, jour, vue, sub, url, sources, source, volet108)
     avis = ('<p class="ag97-avis" role="status">%s</p>' % e(avertissement)) if avertissement else ''
-    editeur = editeur_html(desk, acteur, source, tz)
+    editeur = editeur_html(desk, acteur, source, tz, nouvelle108)
     donnees = {'zone': tz.key, 'pas': pas, 'source': source, 'heure_debut': h0, 'heure_fin': h1, 'api': prefix + '/api440/m5689/agenda',
                'aujourdhui': aujourd_hui.isoformat(), 'vue': vue}
-    return ('<section class="ag97%s" data-ag97 aria-label="Agenda">%s%s<div class="ag97-corps">%s%s</div>%s'
-            '<script type="application/json" id="ag97-donnees">%s</script><script defer src="%s/static/v5697-agenda.js"></script></section>') % (
-        ' ag97-volets-ouverts' if prefs['volets'] else '', barre, avis, grille, volets, editeur,
-        json.dumps(donnees).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'), e(prefix))
+    classes = (' ag97-volets-ouverts' if prefs['volets'] else '') + (' ag108' if nouvelle108 else '')
+    return ('<section class="ag97%s" data-ag97 aria-label="Agenda">%s%s%s<div class="ag97-corps">%s%s</div>%s'
+            '<script type="application/json" id="ag97-donnees">%s</script>%s<script defer src="%s/static/v5697-agenda.js"></script></section>') % (
+        classes, barre, avis, verifier108, grille, volets, editeur,
+        json.dumps(donnees).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'),
+        ('<script defer src="%s/static/v56108-agenda.js"></script>' % e(prefix)) if nouvelle108 else '', e(prefix))
 
 
 def _mini(jour, sub, vue, url):
@@ -286,7 +292,7 @@ def _mini(jour, sub, vue, url):
         e(url('/planning', vue='agenda', agenda=sub, view=vue, date=suivant.isoformat())), ''.join('<th scope="col" abbr="%s">%s</th>' % (j, j[0]) for j in JOURS), lignes)
 
 
-def _volets(desk, acteur, prefs, jour, vue, sub, url, sources, source):
+def _volets(desk, acteur, prefs, jour, vue, sub, url, sources, source, en_tete=''):
     from . import agenda5697
     taches = agenda5697.taches_non_programmees(desk, acteur)
     liste = ''.join('<li><span>%s%s</span><button type="button" class="ax-btn ghost" data-ag97-programmer="%s" data-titre="%s">Programmer</button></li>' % (
@@ -301,7 +307,7 @@ def _volets(desk, acteur, prefs, jour, vue, sub, url, sources, source):
         '<li><strong>Agenda personnel</strong> · local, non synchronisé (aucune copie vers Nextcloud ou Google).</li>'
     options = ''.join('<option value="%d"%s>%s</option>' % (h, ' selected' if h == prefs['heure_debut'] else '', _heure(h * 60)) for h in range(0, 23))
     options_fin = ''.join('<option value="%d"%s>%s</option>' % (h, ' selected' if h == prefs['heure_fin'] else '', _heure(h * 60)) for h in range(2, 25))
-    return ('<div class="ag97-volets" id="ag97-volets" role="region" aria-label="Outils de l’agenda" hidden>'
+    return ('<div class="ag97-volets" id="ag97-volets" role="region" aria-label="Outils de l’agenda" hidden>' + en_tete.replace('%', '%%') +
             '<details open><summary>Mini calendrier</summary>%s</details>'
             '<details><summary>Filtres</summary><div class="ag97-filtres">%s</div></details>'
             '<details%s><summary>Tâches non programmées (%d)</summary><ul class="ag97-taches">%s</ul></details>'
@@ -317,8 +323,10 @@ def _volets(desk, acteur, prefs, jour, vue, sub, url, sources, source):
         ' selected' if prefs['pas'] == 30 else '', ' selected' if prefs['pas'] == 15 else '', e(prefs['zone']))
 
 
-def editeur_html(desk, acteur, source, tz):
-    """Éditeur compact (dialogue de la même page). Les listes viennent du serveur, droits appliqués ; aucun secret."""
+def editeur_html(desk, acteur, source, tz, nouvelle=False):
+    """Éditeur compact (dialogue de la même page). Les listes viennent du serveur, droits appliqués ; aucun secret.
+    5.6.108 (lot G, ``nouvelle``) : durée, rappel, fuseau, responsable et récurrence lisibles (``agenda56108``) ; le salon Talk n'est
+    proposé que s'il est configuré (sinon rien n'est montré : « Sans visio » et « Coller un lien » suffisent au rendez-vous)."""
     from . import calendriers5697, rendezvous5697
     from .acces5697 import dossiers_autorises
     from .membres5650 import directory
@@ -338,6 +346,13 @@ def editeur_html(desk, acteur, source, tz):
     responsables = '<option value="">Sans responsable</option>' + ''.join('<option value="%s">%s</option>' % (e(k), e(v.get('name') or k)) for k, v in sorted(membres.items()))
     talk_ok, talk_motif = rendezvous5697.talk_disponible(desk)
     speakr = rendezvous5697.speakr_adresse(desk, acteur.compte)
+    # Talk : proposé configuré ; non configuré, l'ancienne présentation le montre grisé avec son motif, la nouvelle ne le propose pas
+    talk = '' if nouvelle and not talk_ok else '<label><input type="radio" name="visio" value="talk"%s> Créer un salon privé Nextcloud Talk</label>' % (
+        '' if talk_ok else ' disabled data-ag97-toujours-inactif')
+    complements = ''
+    if nouvelle:
+        from .agenda56108 import editeur_complements_html
+        complements = editeur_complements_html(desk, acteur, tz.key)
     return ('<dialog class="ag97-editeur" id="ag97-editeur" aria-labelledby="ag97-editeur-titre"><form method="dialog" class="ag97-form" data-ag97-form novalidate>'
             '<h2 id="ag97-editeur-titre">Nouvel événement</h2><input type="hidden" name="cle" value="%s"><input type="hidden" name="id"><input type="hidden" name="version">'
             '<fieldset class="ag97-objet"><legend class="ag97-sr">Que créer ?</legend>'
@@ -349,12 +364,11 @@ def editeur_html(desk, acteur, source, tz):
             '<label>Calendrier<select name="calendrier">%s</select></label></div>'
             '<div class="ag97-ligne" data-ag97-pour="evenement"><label>Début<input type="datetime-local" name="debut" step="300"></label>'
             '<label>Fin<input type="datetime-local" name="fin" step="300"></label><label class="ag97-coche"><input type="checkbox" name="journee_entiere"> Journée entière</label></div>'
-            '<div class="ag97-choix" data-ag97-choix hidden></div>'
+            '<div class="ag97-choix" data-ag97-choix hidden></div>%s'
             '<div class="ag97-ligne"><label>Lieu<input name="lieu" maxlength="200"></label><label>Dossier (facultatif)<select name="dossier"><option value="">Sans dossier</option>%s</select></label></div>'
             '<fieldset class="ag97-visio" data-ag97-visio><legend>Visio</legend>'
             '<label><input type="radio" name="visio" value="sans" checked> Sans visio</label>'
-            '<label><input type="radio" name="visio" value="talk"%s> Créer un salon privé Nextcloud Talk</label>'
-            '<label><input type="radio" name="visio" value="lien"> Coller un lien HTTPS existant</label>'
+            '%s<label><input type="radio" name="visio" value="lien"> Coller un lien HTTPS existant</label>'
             '<input name="lien" type="url" placeholder="https://…" maxlength="500" aria-label="Lien de visio fourni" hidden>%s%s</fieldset>'
             '<fieldset class="ag97-tache" data-ag97-pour="tache"><legend>Tâche</legend><div class="ag97-ligne">'
             '<label>Responsable<select name="responsable">%s</select></label><label>Priorité<select name="priorite"><option value="normale">Normale</option>'
@@ -366,7 +380,7 @@ def editeur_html(desk, acteur, source, tz):
             '<p class="ag97-statut" role="status" data-ag97-statut></p>'
             '<div class="ag97-boutons"><button type="submit" class="ax-btn" value="enregistrer" data-ag97-enregistrer>Enregistrer</button>'
             '<button type="button" class="ax-btn ghost" data-ag97-annuler>Annuler</button></div></form></dialog>') % (
-        uuid.uuid4().hex, calendriers, options_dossiers, '' if talk_ok else ' disabled data-ag97-toujours-inactif',
-        '' if talk_ok else '<small class="ag97-aide">Talk indisponible : %s Le rendez-vous peut être enregistré sans visio ou avec un lien existant.</small>' % e(talk_motif),
+        uuid.uuid4().hex, calendriers, complements, options_dossiers, talk,
+        '' if talk_ok or nouvelle else '<small class="ag97-aide">Talk indisponible : %s Le rendez-vous peut être enregistré sans visio ou avec un lien existant.</small>' % e(talk_motif),
         ('<label class="ag97-coche"><input type="checkbox" name="speakr"> Prévoir une transcription avec Speakr</label>') if speakr else '',
         responsables)

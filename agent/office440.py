@@ -57,12 +57,32 @@ def _key_path(desk):
     return _state_dir(desk) / 'office440.key'
 
 
+LOOPBACK_NAMES = ('127.0.0.1', 'localhost', '::1')
+GUIDE_PATH = 'docs/INSTALLATION-EDITEUR-DOCUMENTS.md'   # 5.6.108 (lot O) : guide pas à pas (serveur, poste Windows 11, poste Ubuntu 24.04)
+
+
+def guide_url():
+    """5.6.108 (lot O) : adresse du guide dans le dépôt public (ou celui indiqué par AXIORHUB_SOURCE_URL)."""
+    from .about560 import REPOSITORY
+    source = os.environ.get('AXIORHUB_SOURCE_URL', '').strip().rstrip('/') or REPOSITORY
+    if not source.startswith('https://'):
+        source = REPOSITORY
+    return source + '/blob/HEAD/' + GUIDE_PATH
+
+
 def valid_server_url(value):
+    """HTTPS ; 5.6.108 (lot O) : HTTP admis seulement sur l'adresse de bouclage (serveur de documents dans Docker sur le poste,
+    publié sur 127.0.0.1), jamais vers une autre machine."""
     value = str(value or '').strip()
     if not value:
         return ''
     p = urlsplit(value)
-    if p.scheme != 'https' or not p.netloc or p.username or p.password or p.query or p.fragment:
+    try:
+        p.port
+    except ValueError:
+        raise Stop('url_editeur_invalide') from None
+    local_http = p.scheme == 'http' and (p.hostname or '') in LOOPBACK_NAMES
+    if (p.scheme != 'https' and not local_http) or not p.netloc or p.username or p.password or p.query or p.fragment:
         raise Stop('url_editeur_invalide')
     return p.scheme + '://' + p.netloc + p.path.rstrip('/').removesuffix('/welcome')
 
@@ -290,7 +310,16 @@ def open_document(desk, auth, path, user_name='Cabinet', mode='edit', client=Non
 
 
 # ------------------------------------------------------ routes used by the server
+PROBE_BYTES = ('Essai de connexion AxiorHub : fichier fixe, sans aucune donnée de dossier.\n').encode('utf-8')
+PROBE_TTL = 120
+
+
 def serve_file(desk, token, client=None):
+    try:   # 5.6.108 (lot O) : jeton d'essai de « Tester la connexion » : fichier fixe, aucune session, aucune lecture du stockage
+        verify(desk, token, 'probe')
+        return PROBE_BYTES, 'essai-axiorhub.txt'
+    except Stop:
+        pass
     ensure_schema(desk)
     body = verify(desk, token, 'file')
     row = desk.db.execute('SELECT * FROM office_sessions440 WHERE doc_key=?', (body['k'],)).fetchone()
@@ -311,7 +340,8 @@ def _fetch_edited(desk, url, client=None):
     cfg = settings(desk)
     server = urlsplit(cfg['server_url'])
     target = urlsplit(url)
-    if target.scheme != 'https' or target.netloc != server.netloc:
+    # 5.6.108 (lot O) : même schéma que le serveur enregistré (HTTP seulement pour un serveur de bouclage), même hôte et port
+    if target.scheme != server.scheme or target.scheme not in ('https', 'http') or target.netloc != server.netloc:
         raise Stop('url_editeur_hors_serveur')
     http = client or HTTP(server.scheme + '://' + server.netloc)
     return http.request('GET', url, limit=MAX_EDITED_BYTES)
@@ -459,7 +489,9 @@ def _probe(url, method='GET', body=None, headers=None, timeout=12):
         return 0, {}, str(getattr(error, 'reason', error)).encode()[:300]
 
 
-def diagnostic(desk, auth, probe=_probe):
+def diagnostic(desk, auth, probe=_probe, reach=False):
+    """Contrôles en lecture (GET) ; ``reach`` (5.6.108, lot O, bouton « Tester la connexion », POST) ajoute la preuve que le serveur
+    de documents joint AxiorHub."""
     cfg = settings(desk)
     checks = []
 
@@ -467,10 +499,13 @@ def diagnostic(desk, auth, probe=_probe):
         checks.append({'name': name, 'ok': bool(ok), 'detail': detail, 'fix': fix})
 
     if not cfg['enabled']:
-        add('Serveur de documents', False, 'Aucune adresse enregistrée.',
-            'Renseignez l’adresse HTTPS du serveur (par exemple https://office.example.fr).')
+        add('Serveur de documents', False, 'Aucune adresse enregistrée. Sans serveur de documents, les .docx restent consultables en aperçu (lecture seule).',
+            'Renseignez l’adresse du serveur (par exemple https://documents.example.test, ou http://127.0.0.1:8080 sur un poste). Guide : ' + guide_url())
         return checks
     server = cfg['server_url']
+    if urlsplit(server).scheme == 'http' and str(auth.get('origin', '')).startswith('https://'):
+        add('Adresse du serveur de documents', False, 'Adresse en HTTP alors que cette interface est en HTTPS : le navigateur refusera l’éditeur.',
+            'Publiez le serveur de documents en HTTPS (sous-domaine dédié, voir le guide).')
     status, headers, body = probe(server + '/healthcheck')
     add('Serveur joignable (healthcheck)', status == 200 and body.strip().lower() == b'true',
         'HTTP %s' % status if status else 'Connexion impossible : %s' % body.decode('utf-8', 'replace'),
@@ -485,8 +520,11 @@ def diagnostic(desk, auth, probe=_probe):
             formats = len(ET.fromstring(body).findall('.//action'))
         except ET.ParseError:
             formats = 0
-    add('Découverte des formats (discovery)', status == 200 and formats > 0,
-        '%d action(s) déclarée(s)' % formats if status == 200 else 'HTTP %s' % status,
+    # 5.6.108 (lot O) : EuroOffice publie sans WOPI par défaut (WOPI_ENABLED=false) : /hosting/discovery répond 404, sans effet pour
+    # AxiorHub qui intègre l'éditeur par api.js ; mesuré avec l'image EuroOffice. Seule une autre réponse reste un échec.
+    add('Découverte des formats (discovery)', (status == 200 and formats > 0) or status == 404,
+        ('%d action(s) déclarée(s)' % formats) if status == 200 else
+        ('WOPI désactivé sur ce serveur (HTTP 404) : sans effet, AxiorHub utilise api.js.' if status == 404 else 'HTTP %s' % status),
         'Le serveur répond mais ne déclare aucun éditeur : contrôlez son installation.')
     origin = auth['origin']
     frame_headers = {}
@@ -530,7 +568,46 @@ def diagnostic(desk, auth, probe=_probe):
         add('Secret JWT et API de commande', status == 200, 'Réponse inattendue (HTTP %s).' % status,
             'Si le serveur n’utilise pas de JWT, retirez le secret ici ; sinon enregistrez le même secret.')
     base = public_base(desk, auth)
-    add('Adresse de retour pour le serveur de documents', True,
-        'Le serveur doit pouvoir atteindre : ' + base + '/office/file/… et ' + base + '/office/callback/…',
-        'Si le serveur est sur le même hôte, testez : curl -I ' + base + '/office/file/test (réponse 403 attendue, pas 000/502).')
+    if not reach:
+        add('Adresse de retour pour le serveur de documents', True,
+            'Le serveur doit pouvoir atteindre : ' + base + '/office/file/… et ' + base + '/office/callback/…',
+            'Si le serveur est sur le même hôte, testez : curl -I ' + base + '/office/file/test (réponse 403 attendue, pas 000/502).')
+        return checks
+    reach_check(desk, base, secret, server, probe, add)
     return checks
+
+
+def reach_check(desk, base, secret, server, probe, add):
+    """5.6.108 (lot O) : le serveur de documents télécharge un fichier d'essai fixe depuis l'adresse de retour d'AxiorHub (service de
+    conversion, jeton d'essai de deux minutes) : preuve que le fichier et le rappel, servis à la même adresse, lui sont joignables.
+    Aucune donnée de dossier n'est envoyée ; rien n'est écrit dans le stockage."""
+    name = 'Le serveur de documents joint AxiorHub'
+    token = sign(desk, {'t': 'probe', 'k': secrets.token_hex(6)}, ttl=PROBE_TTL)
+    request = {'async': False, 'filetype': 'txt', 'outputtype': 'docx', 'key': 'axiorhub-essai-' + secrets.token_hex(8),
+               'title': 'essai-axiorhub.txt', 'url': base + '/office/file/' + token}
+    payload, headers = dict(request), {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    if secret:
+        payload['token'] = jwt_encode(request, secret)
+        headers['Authorization'] = 'Bearer ' + jwt_encode({'payload': request}, secret)
+    status, _, body = probe(server + '/ConvertService.ashx', 'POST', json.dumps(payload).encode(), headers, 45)
+    try:
+        answer = json.loads(body.decode('utf-8')) if status == 200 else {}
+    except (ValueError, UnicodeError):
+        answer = {}
+    where = base + '/office/file/…'
+    hint = ('Vérifiez l’« adresse de cette interface vue par le serveur de documents ». Sur un poste avec Docker : '
+            'http://host.docker.internal:8769/agent-courriel (Ubuntu : conteneur lancé avec --add-host host.docker.internal:host-gateway '
+            'et relais local du guide). Sur un serveur : l’adresse HTTPS publique d’AxiorHub. Si le serveur de documents refuse une adresse '
+            'privée, relancez son conteneur avec ALLOW_PRIVATE_IP_ADDRESS=true. Guide : ' + guide_url())
+    if answer.get('endConvert') is True and not answer.get('error'):
+        add(name, True, 'Le serveur de documents a téléchargé le fichier d’essai depuis ' + where + ' ; le rappel utilise la même adresse.')
+    elif answer.get('error') == -4:
+        add(name, False, 'Le serveur de documents n’a pas pu télécharger le fichier d’essai depuis ' + where + '.', hint)
+    elif answer.get('error') == -8:
+        add(name, False, 'Le serveur de documents refuse le jeton de la demande : le secret enregistré ici diffère du sien.',
+            'Copiez le même secret que JWT_SECRET du conteneur, enregistrez, puis relancez le test.')
+    elif answer.get('error') is not None:
+        add(name, False, 'Le service de conversion a répondu par l’erreur %s (conversion du fichier d’essai).' % answer.get('error'),
+            'Consultez le journal du serveur de documents (docker logs <conteneur>) ; ' + hint)
+    else:
+        add(name, False, ('HTTP %s' % status) if status else 'Connexion impossible : ' + body.decode('utf-8', 'replace')[:200], hint)

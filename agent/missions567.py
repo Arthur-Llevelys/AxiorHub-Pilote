@@ -89,6 +89,8 @@ def check_authority(desk, args):
     if not ident:
         desk.mission_owner567 = 'cabinet'
         return
+    from .sync56108_missions import garde_cle   # 5.6.108 (lot S5) : mission attribuée à un autre poste : aucun appel ni effet ici (relu avant chaque effet)
+    garde_cle(desk, 'mission567:' + ident)
     if desk.settings('missions567:pause', False):
         raise Stop('preparation_suspendue')
     row = desk.db.execute('SELECT m.owner,m.kind,m.state,j.status AS job_status FROM missions_v567 m LEFT JOIN jobs j ON j.id=m.job_id WHERE m.id=?', (ident,)).fetchone()

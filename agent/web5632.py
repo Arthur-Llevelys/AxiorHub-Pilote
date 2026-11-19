@@ -97,6 +97,29 @@ def api(env, desk, auth, prefix, name, args, method):
     if route == 'admin/skills/auto':
         desk.setting('competences5632:auto', data.get('on') in (True, 'true', '1', 'on'))
         return json_out({'auto': data.get('on') in (True, 'true', '1', 'on')})
+    if route == 'admin/skills/grille':   # 5.6.108 (lot I) : grille avant rédaction des petits modèles, activée par défaut, désactivable
+        from .grille56108 import SETTING as GRILLE
+        on = data.get('on') in (True, 'true', '1', 'on')
+        desk.setting(GRILLE, on)
+        desk.audit('grille56108_reglage', {'active': on, 'owner': owner})
+        return json_out({'grille': on})
+    if route == 'admin/skills/petits':   # 5.6.108 (lot R) : « petit modèle » forcé oui/non, ou automatique (défaut)
+        from .references56108 import REGLAGES, SETTING as PETITS
+        valeur = str(data.get('valeur') or '')
+        if valeur not in REGLAGES:
+            raise Stop('reglage_invalide')
+        desk.setting(PETITS, valeur)
+        desk.audit('references56108_reglage', {'valeur': valeur, 'owner': owner})
+        return json_out({'petit_modele': valeur})
+    if route == 'admin/skills/barriere':   # 5.6.108 (lot R) : « Barrière des références » : petits modèles, tous les modèles locaux (défaut), ou tous
+        from .references56108 import BARRIERES, SETTING_BARRIERE, reglage_barriere
+        valeur = str(data.get('valeur') or '')
+        if valeur not in BARRIERES:
+            raise Stop('reglage_invalide')
+        if desk.settings(SETTING_BARRIERE, None) != valeur:   # idempotent : le même choix renvoyé n'écrit ni ne journalise rien de plus
+            desk.setting(SETTING_BARRIERE, valeur)
+            desk.audit('references56108_barriere', {'valeur': valeur, 'owner': owner})
+        return json_out({'barriere': reglage_barriere(desk)})
     if route == 'controle/run':
         from .controle5632 import control, report_html
         result = control(desk, str(data.get('text') or ''), owner, str(data.get('matter') or ''), str(data.get('label') or ''), str(data.get('date_utile') or ''))
@@ -509,10 +532,30 @@ def _general_form(desk, rows):
 
 def skills_page(desk, auth, prefix, env, shell):
     from .web567 import actor
-    from .competences5632 import listing, auto_mode
+    from .competences5632 import listing, auto_mode, carte56108
+    from .grille56108 import SETTING as GRILLE
     owner, role = actor(env)
     th = i18n.th
     rows = listing(desk, owner)
+    grille_on = desk.settings(GRILLE, True) is not False
+    grille = ('<p class="f5632-hint">Grille avant rédaction (modèles à petit contexte) : %s. Le modèle établit d’abord faits, preuves, manques et choix à partir des '
+              'seules sources fournies ; les manques deviennent des questions regroupées.</p>%s') % (
+        'activée' if grille_on else 'désactivée', _form('admin/skills/grille', '<input type="hidden" name="on" value="%s">' % ('0' if grille_on else '1'),
+                                                        'Désactiver la grille' if grille_on else 'Activer la grille', reload=True))
+    from .references56108 import reglage   # 5.6.108 (lot R) : « petit modèle » automatique, ou forcé oui/non
+    petits = reglage(desk)
+    options = ''.join('<option value="%s"%s>%s</option>' % (v, ' selected' if v == petits else '', l) for v, l in (
+        ('auto', 'automatique (fenêtre de 16 384 jetons ou moins, ou 14 B de paramètres ou moins)'), ('oui', 'toujours (modèles locaux)'), ('non', 'jamais')))
+    grille += ('<p class="f5632-hint">Petits modèles locaux : le programme numérote les sources, fait la recherche, contrôle les références après '
+               'rédaction (une reprise, puis « [référence non vérifiée] ») ; aucun nom d’outil ne leur est transmis.</p>%s') % _form(
+        'admin/skills/petits', '<label>Traiter comme petit modèle<select name="valeur">%s</select></label>' % options, 'Enregistrer', reload=True)
+    from .references56108 import BARRIERES, reglage_barriere   # 5.6.108 (lot R) : barrière des références, distincte du réglage « petit modèle »
+    barriere = reglage_barriere(desk)
+    choix = ''.join('<option value="%s"%s>%s</option>' % (v, ' selected' if v == barriere else '', e(l)) for v, l in BARRIERES.items())
+    grille += ('<p class="f5632-hint">Barrière des références : après la rédaction, toute référence absente des sources fournies donne une seule '
+               'reprise par le modèle, puis la mention « [référence non vérifiée] ». Pour un fournisseur d’API, la reprise est pseudonymisée et '
+               'comptée dans le budget.</p>%s') % _form('admin/skills/barriere', '<label>Barrière des références<select name="valeur">%s</select></label>' % choix,
+                                                     'Enregistrer', reload=True)
     cards = ''
     for s in rows:
         req = ''
@@ -520,7 +563,7 @@ def skills_page(desk, auth, prefix, env, shell):
             req = '<p class="k5632-missing">%s</p>' % th('sk.missing', what=', '.join(s['missing']))
         elif s['verified_missing']:
             req = '<p class="k5632-partial">%s</p>' % th('sk.partial', what=', '.join(s['verified_missing']))
-        req += _package_html(s)
+        req += _package_html(s) + carte56108(s)   # 5.6.108 : version courte (à relire par l'avocat) et chargement réservé
         cards += ('<article class="k5632-card" data-enabled="%s"><h3>%s <small>v%s · %s</small></h3><p>%s</p><p class="f5632-hint">%s%s%s</p>%s'
                   '<div class="k5632-actions">%s%s<a class="k5632-export" href="%s">%s</a></div></article>') % (
             '1' if s['enabled'] else '0', e(s['name']), e(s['version']), th('sk.origin.' + s['origin']), e(s['description']),
@@ -538,7 +581,7 @@ def skills_page(desk, auth, prefix, env, shell):
             '<section><h2>%s</h2><p>%s</p>%s</section></div>') % (
         th('sk.title'), th('sk.intro'),
         (_form('admin/skills/auto', '<input type="hidden" name="on" value="%s">' % ('0' if auto_mode(desk) else '1'), i18n.t('sk.auto_off' if auto_mode(desk) else 'sk.auto_on'), reload=True)
-         + _general_form(desk, rows) if role == 'administrateur' else ''),
+         + _general_form(desk, rows) + grille if role == 'administrateur' else ''),
         cards, capacities, th('sk.create'), th('sk.create_intro'), _form('skills/create', create, i18n.t('sk.create_btn'), reload=True),
         th('sk.import'), th('sk.import_intro'), _form('skills/import', '<input type="file" data-m5632-file accept=".md,.zip" required>', i18n.t('sk.import_btn'), reload=True))
     return shell(i18n.t('sk.title'), body, prefix, auth['csrf'], '/competences')

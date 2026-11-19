@@ -463,7 +463,7 @@
  "fn.agents_documents.label": "Ergebnisse der Agenten",
  "fn.apprentissage.desc": "Fachregeln, verlässliche Referenzen und Korrekturen",
  "fn.apprentissage.label": "Fachliches Lernen",
- "fn.assistance_metier.desc": "Prüfbare Berechnungen, vorbereitete Anrufe, Abrechnungsprüfung",
+ "fn.assistance_metier.desc": "Verhandlung, Argumente, Telefonat, Berechnung und Abrechnung: fünf geführte Abläufe",
  "fn.assistance_metier.label": "Fachliche Unterstützung",
  "fn.assistant.desc": "Gespräch mit dem Assistenten und Verlauf",
  "fn.assistant.label": "Assistent",
@@ -1424,8 +1424,8 @@
  "vj.queued": "Erfassung in der Warteschlange: Sie beginnt, sobald der Agent verfügbar ist.",
  "vj.running": "Erfassung läuft…",
  "vj.queue_refused": "Einreihung abgelehnt (Warteschlange voll): neuer Versuch im nächsten Zyklus, oder klicken Sie auf „Actualiser“.",
- "fn.mobile.label": "Freizugeben (Telefon)",
- "fn.mobile.desc": "Was auf Ihre Entscheidung wartet, groß für das per QR-Code verbundene Telefon",
+ "fn.mobile.label": "Mobiler Zugriff (Smartphone)",
+ "fn.mobile.desc": "Auf dem Smartphone prüfen und entscheiden; Kopplung und Einstellungen hier öffnen",
  "fn.navigateur.label": "Überwachter Browser",
  "fn.navigateur.desc": "Der Agent nutzt Portale und Register in einem sichtbaren Fenster; Zahlungen, Versand und Einreichungen geben Sie frei",
  "fn.savoir_faire.label": "Know-how der Kanzlei",
@@ -1538,5 +1538,12 @@
  "js.5694.fallback": "Die Browserstimme konnte nicht starten ({raison}). Vorlesen mit der Ersatzstimme des Servers ({voix}).",
  "js.5694.error": "Vorlesen nicht möglich: {raison}",
  "js.5694.alkove_off": "(Stimmisolierung nicht verfügbar: Diktat ohne Verarbeitung)",
- "js.5694.alkove_on": "Stimme durch Alkove isoliert."
+ "js.5694.alkove_on": "Stimme durch Alkove isoliert.",
+ "js.56108q.dicter": "Antwort diktieren",
+ "js.56108q.indisponible": "Mikrofon auf diesem Rechner oder in diesem Browser nicht verfügbar.",
+ "js.56108q.desactivee": "Diktat in den Einstellungen deaktiviert (lokale Sprache): bitten Sie den Administrator, es zu aktivieren.",
+ "js.56108q.refuse": "Mikrofon verweigert: erlauben Sie das Mikrofon für diese Seite im Browser und laden Sie die Seite neu.",
+ "js.56108q.insere": "Text an der Cursorposition eingefügt: vor dem Speichern prüfen.",
+ "js.56108q.a_corriger": "Erkannt: „{texte}“ — kein gültiger Wert für dieses Feld: bitte von Hand korrigieren.",
+ "js.56108q.trop_long": "Text zu lang für dieses Feld: nichts wurde gekürzt, bitte die Eingabe kürzen."
 }

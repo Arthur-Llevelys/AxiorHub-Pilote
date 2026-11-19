@@ -1,0 +1,32 @@
+/* AxiorHub 5.6.108 (lot S) — synchronisation des postes : indicateur, parcours, conflits (clair et sombre, focus visible). */
+.s108 h3 { margin-top: 1.2rem; }
+.s108-nouveau { font-size: .7em; font-weight: 600; vertical-align: middle; padding: .1em .5em; border-radius: 1em; border: 1px solid currentColor; color: #0043ce; }
+.s108-ligne { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; margin: .3rem 0; }
+.s108-liste { list-style: none; padding: 0; }
+.s108-liste li { padding: .5rem 0; border-bottom: 1px solid var(--ax-line, #e0e0e0); }
+.s108-etat { font-weight: 600; }
+.s108-code { font-size: 1.15em; padding: .5rem .8rem; border-left: 4px solid var(--ax-focus, #0f62fe); background: var(--ax-panel, #f4f4f4); }
+.s108-code strong { letter-spacing: .12em; font-size: 1.2em; }
+.s108-personnes { border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; padding: .3rem .6rem; }
+.s108-table td, .s108-table th { vertical-align: top; }
+.s108-aide summary { cursor: pointer; font-weight: 600; }
+.s108-aide summary:focus-visible, .s108-pastille:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.s108-pastille { display: inline-block; padding: .25rem .7rem; border-radius: 1rem; font-weight: 600; border: 1px solid var(--ax-line, #c6c6c6);
+  background: var(--ax-panel, #f4f4f4); color: #161616; text-decoration: none; }
+.s108-pastille::before { content: ''; display: inline-block; width: .6em; height: .6em; border-radius: 50%; margin-right: .4em; vertical-align: middle; background: #6f6f6f; }
+.s108-a_jour::before { background: #198038; }
+.s108-en_cours::before, .s108-premier::before { background: #0043ce; }
+.s108-absent::before, .s108-partiel::before { background: #8e6a00; }
+.s108-conflit::before, .s108-refusee::before { background: #a2191f; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .s108-pastille { background: #262626; color: #f4f4f4; border-color: #525252; }
+  :root:not([data-theme="light"]) .s108-nouveau { color: #78a9ff; }
+  :root:not([data-theme="light"]) .s108-a_jour::before { background: #42be65; }
+  :root:not([data-theme="light"]) .s108-en_cours::before, :root:not([data-theme="light"]) .s108-premier::before { background: #78a9ff; }
+  :root:not([data-theme="light"]) .s108-absent::before, :root:not([data-theme="light"]) .s108-partiel::before { background: #f1c21b; }
+  :root:not([data-theme="light"]) .s108-conflit::before, :root:not([data-theme="light"]) .s108-refusee::before { background: #ff8389; }
+}
+:root[data-theme="dark"] .s108-pastille { background: #262626; color: #f4f4f4; border-color: #525252; }
+:root[data-theme="dark"] .s108-nouveau { color: #78a9ff; }
+:root[data-theme="dark"] .s108-a_jour::before { background: #42be65; }
+:root[data-theme="dark"] .s108-conflit::before, :root[data-theme="dark"] .s108-refusee::before { background: #ff8389; }

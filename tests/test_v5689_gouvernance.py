@@ -709,8 +709,8 @@ class Scenario07(Base):
         db.commit()
         db.close()
         self.assertEqual(bl.engage_fournisseur_usd(self.state, 'ext'), Decimal('0.55'))    # comptées avant la bascule
-        self.assertEqual(bl.preparer(self.desk.c, 'travailleur-1', '5.6.107'), 2)
-        self.assertEqual(bl.preparer(self.desk.c, 'travailleur-2', '5.6.107'), 0)           # idempotent
+        self.assertEqual(bl.preparer(self.desk.c, 'travailleur-1', '5.6.108'), 2)
+        self.assertEqual(bl.preparer(self.desk.c, 'travailleur-2', '5.6.108'), 0)           # idempotent
         self.assertEqual(bl.engage_fournisseur_usd(self.state, 'ext'), Decimal('0.55'))
         r = self.ligne('migration-ancien-1')
         self.assertEqual((r['state'], r['ceiling_micro'], r['origin'], r['pricing_version']), ('uncertain', 400000, 'migration', 'avant_5689'))
@@ -827,7 +827,7 @@ class Scenario07(Base):
 
 class Bascule(Base):
     def test_ancien_travailleur_bloque_par_la_base(self):
-        bl.preparer(self.desk.c, 'travailleur-1', '5.6.107')
+        bl.preparer(self.desk.c, 'travailleur-1', '5.6.108')
         db = bl.connect(self.state)
         try:
             for sql, valeurs in (('INSERT INTO ai_reservations_v567 VALUES (?,?,?,?,?)', ('x', '2026-11-02', 'ext', 0.1, 'reserved')),
@@ -838,13 +838,13 @@ class Bascule(Base):
             db.close()
 
     def test_nouveau_code_passe_la_barriere(self):
-        bl.preparer(self.desk.c, 'travailleur-1', '5.6.107')
+        bl.preparer(self.desk.c, 'travailleur-1', '5.6.108')
         self.assertGreater(ai_gateway.estimate_and_check_budget(provider(self.state), MESSAGES, 900), 0)
         conso5682.reserve(self.state, 'm', 0.1, 'usd', 5, 'd1')
 
     def test_ancien_code_de_reservation_refuse_avant_tout_envoi(self):
         """Reproduit ce que faisait budget567.reserve en 5.6.88 : INSERT direct. L'erreur survient avant l'appel réseau."""
-        bl.preparer(self.desk.c, 'travailleur-1', '5.6.107')
+        bl.preparer(self.desk.c, 'travailleur-1', '5.6.108')
         db = sqlite3.connect(Path(self.state) / 'desk.sqlite3', timeout=5)
         db.execute('BEGIN IMMEDIATE')
         with self.assertRaises(sqlite3.Error):
@@ -853,12 +853,12 @@ class Bascule(Base):
         db.close()
 
     def test_etat_de_la_bascule_et_retour_arriere_conserve_tout(self):
-        bl.preparer(self.desk.c, 'travailleur-1', '5.6.107')
+        bl.preparer(self.desk.c, 'travailleur-1', '5.6.108')
         cfg = provider(self.state)
         ai_gateway.estimate_and_check_budget(cfg, MESSAGES, 900)
         etat = bl.bascule(self.desk)
         self.assertTrue(etat['barriere_active'])
-        self.assertEqual(etat['travailleurs'][0]['version'], '5.6.107')
+        self.assertEqual(etat['travailleurs'][0]['version'], '5.6.108')
         bl.retour_arriere(self.desk, LAWYER)
         self.assertFalse(bl.bascule(self.desk)['barriere_active'])
         db = bl.connect(self.state)
@@ -918,6 +918,10 @@ class Chemins(unittest.TestCase):
                   '/api/generate': {'guide5631.py'}, '/api/embed': {'rag.py'}}
     # 5.6.107 (lot M) : moteur local SIMULÉ du mode Démo (réponses préparées, aucun réseau, derrière ``common.HTTP.json``)
     TRANSPORTS['/api/chat'] = TRANSPORTS['/api/chat'] | {'demo56107.py'}
+    # 5.6.108 (lot L) : essai court de « Configurer l'IA locale » (question fictive, Ollama local seulement) : before_model_call puis
+    # data_policy.exiger(..., local=True) avant l'appel, comme l'essai de génération du guide (guide5631).
+    TRANSPORTS['/api/generate'] = TRANSPORTS['/api/generate'] | {'ia_locale56108.py'}
+    TRANSPORTS['/api/embed'] = TRANSPORTS['/api/embed'] | {'ia_locale56108.py'}   # même essai pour le modèle d'embeddings (exiger 'embeddings')
     TRANSPORTS['/api/embed'] = TRANSPORTS['/api/embed'] | {'demo56107.py'}
 
     def sources(self):

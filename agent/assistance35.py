@@ -1,11 +1,42 @@
-"""Supervised practice tools. Percentages describe evidence, never a court's odds."""
+"""Supervised practice tools. Percentages describe evidence, never a court's odds.
+
+5.6.108 (lot T, M02) : droits courants sur chaque chemin. La liste et l'aperçu filtrent les dossiers réservés avant tri et limite ;
+une demande est contrôlée à l'enfilage dans le périmètre de la personne (objet désigné résolu sur le serveur, champs admis seulement,
+auteur noté par le serveur, jamais lu du navigateur) et reçoit un reçu idempotent (``assistance_recus56108``). Le travail différé
+reprend ce périmètre au démarrage (compte actif, rôle actuel et dossiers réservés relus par ``comptes56108.verifier_auteur``, lot C,
+B05 ; droit réglable de l'action relu avec ce rôle) puis le recontrôle juste avant chaque écriture : une révocation entre-temps n'écrit rien. Un travail sans
+auteur vérifiable n'est pas exécuté comme administrateur dès qu'un dossier est réservé : il est retenu. Aucune de ces fonctions
+n'appelle de modèle : elles restent utilisables pendant la pause de l'IA (``arret5643.DETERMINISTIC``).
+"""
+from contextvars import ContextVar
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib.parse import urlsplit
 import json
 import re
+import secrets
 
 from .common import Stop, digest, fold
+
+# 5.6.108 (lot T) : actions du module et champs admis par action (tout autre champ du formulaire est écarté à l'enfilage).
+CHAMPS = {
+    'coach_hearing35': ('hearing_project_id', 'speech', 'duration_seconds', 'target_minutes'),
+    'prepare_call35': ('matter', 'purpose', 'contact_email'),
+    'record_call35': ('call_project_id', 'notes'),
+    'calculate35': ('matter', 'calculation_type', 'source_url', 'source_reference', 'principal', 'annual_rate', 'start_date', 'end_date',
+                    'rent', 'base_index', 'new_index', 'days'),
+    'billing_review35': ('matter',),
+    'classify_comparable35': ('matter', 'authority_id', 'outcome', 'similarity_reason', 'procedural_context'),
+}
+ACTIONS = tuple(CHAMPS)
+AUTEUR = '_auteur56108'
+RECU = re.compile(r'[A-Za-z0-9_-]{16,64}')
+_auteur_travail = ContextVar('axiorhub_auteur_assistance56108', default=None)
+# Tables du module pour l'export intégral (point de montage du registre de ``export5688``, lot C) : (domaine, fichier, table, base, filtre).
+# Le filtre « matter » retire les projets des dossiers réservés ; les reçus de demande restent hors export (identifiants de travaux).
+EXPORT = (('dossiers', 'projets_assistance_metier', 'assistance_projects_v350', 'desk.sqlite3', 'matter'),
+          ('dossiers', 'decisions_comparables', 'comparable_decisions_v350', 'desk.sqlite3', 'matter'))
+EXPORT_EXCLUES = (('assistance_recus56108', 'reçus techniques des demandes (identifiants de travaux et comptes)'),)
 
 
 def ensure_schema(desk):
@@ -20,6 +51,10 @@ def ensure_schema(desk):
       matter TEXT NOT NULL, authority_id TEXT NOT NULL, outcome TEXT NOT NULL,
       similarity_reason TEXT NOT NULL, procedural_context TEXT NOT NULL,
       checked_at TEXT NOT NULL, PRIMARY KEY(matter,authority_id));
+    CREATE TABLE IF NOT EXISTS assistance_recus56108(
+      recu TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, matter TEXT NOT NULL,
+      empreinte TEXT NOT NULL, job_id INTEGER NOT NULL, created TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS assistance_recus56108_job ON assistance_recus56108(job_id);
     ''');desk.db.commit()
 
 
@@ -28,7 +63,120 @@ def _matter(desk,reference):
     return resolve(desk,reference)
 
 
+# ------------------------------------------------------------------------------------------------ 5.6.108 : enfilage et travaux différés
+def _membres():
+    from . import membres5650
+    return membres5650
+
+
+def _audience(desk,pid):
+    """Dossier d'un projet d'audience admissible au coaching ; absent, non prêt ou d'un dossier masqué : même refus."""
+    from .hearing import ensure_schema as hearings
+    hearings(desk)
+    row=desk.db.execute('SELECT matter,status FROM hearing_projects_v250 WHERE id=?',(str(pid or ''),)).fetchone()
+    if not row or row['status'] not in ('pending','done'):raise Stop('audience_non_prete_pour_coaching')
+    try:
+        return _matter(desk,row['matter'])['id']
+    except Stop as ex:
+        if str(ex)=='dossier_absent':raise Stop('audience_non_prete_pour_coaching') from None
+        raise
+
+
+def admettre(desk,kind,args):
+    """Contrôle à l'enfilage, dans le périmètre de la requête : objet désigné résolu sur le serveur, champs admis seulement, auteur noté
+    par le serveur (un champ ``_auteur56108`` envoyé par le navigateur est écarté). Renvoie (arguments du travail, dossier)."""
+    if kind not in CHAMPS:raise Stop('action_inconnue')
+    args=args if isinstance(args,dict) else {}
+    clean={k:args[k] for k in CHAMPS[kind] if k in args and not isinstance(args[k],(dict,list))}
+    if kind=='coach_hearing35':
+        if not clean.get('duration_seconds') and (args.get('duree_minutes') or args.get('duree_secondes')):
+            try:clean['duration_seconds']=int(args.get('duree_minutes') or 0)*60+int(args.get('duree_secondes') or 0)
+            except (TypeError,ValueError):raise Stop('duree_coaching_invalide') from None
+        mid=_audience(desk,clean.get('hearing_project_id',''))
+        clean['matter']=mid   # dossier lu sur le serveur (pause et conflits du dossier) ; coach() relit le projet d'audience
+    elif kind=='record_call35':
+        mid=preview(desk,str(clean.get('call_project_id','')))['matter']
+    else:
+        mid=_matter(desk,clean.get('matter',''))['id'];clean['matter']=mid
+    m=_membres();owner=m.current_author()
+    if owner:   # auteur noté par le serveur (comptes56108.noter_auteur, lot C : profil d'annuaire et instant du geste)
+        from .comptes56108 import noter_auteur
+        clean[AUTEUR]=noter_auteur(desk,owner,m.viewer_role())
+    return clean,mid
+
+
+def soumettre(desk,kind,args,recu='',priority=None):
+    """Demande de la personne : contrôle (``admettre``), mise en file et reçu. Même reçu et mêmes paramètres : même travail ;
+    même reçu pour d'autres paramètres ou un autre compte : refus (``cle_reutilisee``)."""
+    clean,mid=admettre(desk,kind,args)
+    owner=_membres().current_author() or 'cabinet'
+    recu=str(recu or (args or {}).get('recu') or '')
+    if recu and not RECU.fullmatch(recu):raise Stop('recu_invalide')
+    empreinte=digest(kind+'|'+json.dumps({k:v for k,v in clean.items() if k!=AUTEUR},sort_keys=True,ensure_ascii=False))
+    def lu():
+        return desk.db.execute('SELECT owner,kind,empreinte,job_id FROM assistance_recus56108 WHERE recu=?',(recu,)).fetchone()
+    if recu:
+        row=lu()
+        if row:
+            if row['owner']!=owner or row['kind']!=kind or row['empreinte']!=empreinte:raise Stop('cle_reutilisee')
+            return {'job_id':row['job_id'],'recu':recu,'matter':mid,'deja_recu':True}
+    else:
+        recu=secrets.token_urlsafe(18)
+    job=desk.enqueue(kind,clean,priority=priority)
+    desk.db.execute('INSERT OR IGNORE INTO assistance_recus56108 VALUES(?,?,?,?,?,?,?)',(recu,owner,kind,mid,empreinte,int(job),desk.now()))
+    desk.db.commit()
+    row=lu()
+    if row['empreinte']!=empreinte:raise Stop('cle_reutilisee')
+    return {'job_id':row['job_id'],'recu':recu,'matter':mid,'deja_recu':row['job_id']!=job}
+
+
+def demande(desk,job_id):
+    """État d'une demande, pour son auteur (ou un administrateur) et si son dossier reste visible ; sinon None (même réponse qu'une
+    demande inconnue). Lecture seule."""
+    try:job_id=int(job_id)
+    except (TypeError,ValueError):return None
+    m=_membres();owner=m.current_author() or 'cabinet'
+    row=desk.db.execute('''SELECT r.owner,r.kind,r.matter,r.recu,j.status,j.result,j.stop_reason FROM assistance_recus56108 r
+      JOIN jobs j ON j.id=r.job_id WHERE r.job_id=? ORDER BY r.created LIMIT 1''',(job_id,)).fetchone()
+    if not row or (row['owner']!=owner and m.viewer_role()!='administrateur'):return None
+    try:_matter(desk,row['matter'])
+    except Stop:return None
+    try:result=json.loads(row['result'] or '{}')
+    except ValueError:result={}
+    result=result if isinstance(result,dict) else {}
+    return {'job_id':job_id,'kind':row['kind'],'matter':row['matter'],'status':row['status'],'recu':row['recu'],
+            'project_id':str(result.get('project_id') or ''),'error':str(result.get('erreur') or result.get('error') or ''),'message':str(result.get('message') or '')}
+
+
+def _reservations(desk):
+    """Au moins un dossier réservé ? Registre illisible : Stop (jamais « aucune restriction »)."""
+    return bool(_membres().load(desk.c['state_dir'])['reserves'])
+
+
+def _verifier_auteur(desk,auteur,kind):
+    """Compte de l'auteur relu MAINTENANT (``comptes56108.verifier_auteur``, lot C, B05) : compte actif et rôle actuel dans l'annuaire du
+    mode d'installation, dossiers réservés relus ; puis droit réglable de l'action avec ce rôle actuel (ex. « facturation » pour la revue
+    de facturation). Refus : Stop avec le motif du lot C, aucun effet. Rend {owner, role, masques}."""
+    from .comptes56108 import verifier_auteur
+    compte=verifier_auteur(desk,{AUTEUR:auteur},roles=('administrateur','avocat','assistant'))
+    if not _membres().allowed(desk.c['state_dir'],compte['owner'],compte['role'],'POST','/action',kind):raise Stop('droit_retire')
+    return compte
+
+
+def _avant_effet(desk,mid):
+    """Juste avant une écriture : état réel du travail (pause, annulation), puis compte et dossiers réservés relus pour l'auteur du
+    travail ; le dossier doit rester visible, sinon rien n'est écrit (aucune écriture sous un périmètre ancien)."""
+    from . import pause5629
+    pause5629.checkpoint(desk)
+    contexte=_auteur_travail.get()
+    if contexte is not None:
+        compte=_verifier_auteur(desk,*contexte)
+        _membres().set_viewer(compte['masques'])
+    _matter(desk,mid)
+
+
 def _save(desk,kind,mid,key,data):
+    _avant_effet(desk,mid)   # 5.6.108 (lot T, M02) : y compris le retour d'un projet identique (lecture de son contenu)
     ensure_schema(desk);fp=digest(kind+'|'+mid+'|'+json.dumps(key,sort_keys=True,ensure_ascii=False))
     previous=desk.db.execute('SELECT id,data FROM assistance_projects_v350 WHERE kind=? AND matter=? AND fingerprint=?',
         (kind,mid,fp)).fetchone()
@@ -44,8 +192,13 @@ def _save(desk,kind,mid,key,data):
 def preview(desk,pid):
     ensure_schema(desk)
     if not re.fullmatch(r'[a-f0-9]{32}',str(pid)):raise Stop('projet_assistance_invalide')
-    row=desk.db.execute('SELECT data FROM assistance_projects_v350 WHERE id=?',(pid,)).fetchone()
+    row=desk.db.execute('SELECT matter,data FROM assistance_projects_v350 WHERE id=?',(pid,)).fetchone()
     if not row:raise Stop('projet_assistance_absent')
+    try:
+        _matter(desk,row['matter'])
+    except Stop as ex:
+        if str(ex)=='dossier_absent':raise Stop('projet_assistance_absent') from None
+        raise
     return json.loads(row['data'])
 
 
@@ -53,7 +206,12 @@ def recent(desk,kind='',matter='',limit=30):
     ensure_schema(desk);allowed={'coaching','appel','compte_rendu_appel','calcul','facturation'}
     if kind and kind not in allowed:raise Stop('type_assistance_invalide')
     if matter: matter=_matter(desk,matter)['id']
-    where=[];values=[]
+    # Filtrer AVANT LIMIT, aussi sans dossier choisi. Une seule valeur liee
+    # contient les identifiants visibles ; pas de limite SQL a 999 parametres.
+    from .common import load_matters
+    visible=[m['id'] for m in load_matters(desk.c)]
+    where=['matter IN (SELECT value FROM json_each(?))']
+    values=[json.dumps(visible)]
     if kind:where.append('kind=?');values.append(kind)
     if matter:where.append('matter=?');values.append(matter)
     values.append(max(1,min(int(limit),100)))
@@ -74,6 +232,7 @@ def coach(desk,args):
     hearings(desk);pid=str(args.get('hearing_project_id',''))
     row=desk.db.execute('SELECT matter,status,data FROM hearing_projects_v250 WHERE id=?',(pid,)).fetchone()
     if not row or row['status'] not in ('pending','done'):raise Stop('audience_non_prete_pour_coaching')
+    _matter(desk,row['matter'])
     speech=str(args.get('speech','')).strip()
     if not speech or len(speech)>20000:raise Stop('plaidoirie_transcrite_invalide')
     try:seconds=int(args.get('duration_seconds',0));target=int(args.get('target_minutes',5))
@@ -219,6 +378,7 @@ def classify_comparable(desk,args):
     reason=str(args.get('similarity_reason','')).strip();context=str(args.get('procedural_context','')).strip()
     if not 20<=len(reason)<=1500 or not context or len(context)>300:
         raise Stop('motif_comparabilite_invalide')
+    _avant_effet(desk,mid)   # 5.6.108 (lot T, M02)
     desk.db.execute('INSERT OR REPLACE INTO comparable_decisions_v350 VALUES(?,?,?,?,?,?)',
         (mid,aid,outcome,reason,context,desk.now()));desk.db.commit()
     desk.audit('comparable_decision_labeled',{'matter':mid,'authority':aid,'outcome':outcome})
@@ -275,6 +435,19 @@ def billing_review(desk,args):
 
 
 def perform(desk,kind,args):
-    return {'coach_hearing35':coach,'prepare_call35':prepare_call,
+    """Travail différé. 5.6.108 (lot T, M02) : exécuté dans le périmètre de son auteur (noté par le serveur à l'enfilage, compte relu
+    au démarrage) ; sans auteur vérifiable, retenu dès qu'un dossier est réservé (jamais exécuté comme administrateur)."""
+    fn={'coach_hearing35':coach,'prepare_call35':prepare_call,
       'record_call35':record_call,'calculate35':calculate,
-      'billing_review35':billing_review,'classify_comparable35':classify_comparable}[kind](desk,args)
+      'billing_review35':billing_review,'classify_comparable35':classify_comparable}[kind]
+    args=args if isinstance(args,dict) else {}
+    auteur=args.get(AUTEUR);m=_membres()
+    precedent=m.viewer_hidden();jeton=_auteur_travail.set(None)
+    try:
+        if isinstance(auteur,dict) and auteur.get('owner'):
+            m.set_viewer(_verifier_auteur(desk,auteur,kind)['masques']);_auteur_travail.set((auteur,kind))
+        elif auteur is not None or _reservations(desk):
+            raise Stop('auteur_non_verifiable')
+        return fn(desk,{k:v for k,v in args.items() if k!=AUTEUR})
+    finally:
+        _auteur_travail.reset(jeton);m.set_viewer(precedent)

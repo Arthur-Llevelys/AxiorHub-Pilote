@@ -13,6 +13,9 @@ Ordre, avant toute donnée :
 5. travailleur de la démo (``demo56107.commandes(...)['travailleur']``, jamais la veille IMAP), puis interface (``agent.web.App`` sur
    ``ui-auth.json``, comme ``web.py serve``) servie sur ``<dossier>/instance.sock`` (droits 0600) : aucun port réseau n'est ouvert.
 
+5.6.108 : ``--langue`` (fr, en, de, es ; liste fermée, « fr » par défaut) — langue choisie par le visiteur à l'accueil de la démo,
+passée à ``demo56107.creer(..., langue=…)`` (données du pays et langue de l'interface).
+
 La session du visiteur (compte fictif de la démo) s'ouvre par le jeton de lancement à usage unique que le répartiteur demande à
 ``demo56107.jeton_de_session`` ; « Quitter » dans le bandeau écrit la demande que le répartiteur lit (``demo56107.quitter_demande``).
 """
@@ -22,6 +25,8 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+
+LANGUES = ('fr', 'en', 'de', 'es')   # comme demo56107.LANGUES et le répartiteur (liste fermée)
 
 RACINE = Path(__file__).resolve().parents[2]
 if str(RACINE) not in sys.path:
@@ -55,21 +60,39 @@ class _PriseUnixSeulement(socket.socket):
 
 
 def couper_reseau():
-    """Garde dans le processus : prises IP et résolution de noms refusées (une connexion Unix reste possible)."""
+    """Garde dans le processus : prises IP et résolution de noms refusées (une connexion Unix reste possible).
+
+    Seule exception : une adresse IP écrite en chiffres (« 0.0.0.0 », « ::1 ») est « résolue » sans réseau ni DNS (AI_NUMERICHOST).
+    waitress vérifie ainsi son adresse d'écoute par défaut même quand il n'écoute que sur un socket Unix (paquet Ubuntu 24.04) ;
+    aucune prise IP ne peut être créée pour autant."""
+    import ipaddress
+    origine = socket.getaddrinfo
+
     def _refus(*_a, **_k):
         raise OSError(101, 'démonstration : aucun accès réseau')
+
+    def _numerique_seulement(hote, port=None, family=0, type=0, proto=0, flags=0):
+        try:
+            ipaddress.ip_address(str(hote).strip('[]').split('%')[0])
+        except ValueError:
+            raise OSError(101, 'démonstration : aucun accès réseau') from None
+        return origine(hote, port, family, type, proto, flags | socket.AI_NUMERICHOST)
+
     socket.socket = _PriseUnixSeulement
     socket.create_connection = _refus
-    socket.getaddrinfo = _refus
+    socket.getaddrinfo = _numerique_seulement
     socket.gethostbyname = _refus
 
 
-def creer(dossier, origine, prefixe):
+def creer(dossier, origine, prefixe, langue='fr'):
     """Cabinet fictif (API du lot M) ; rend le chemin de la configuration, contrôlée. Toute anomalie : sortie 3, rien n'est servi."""
     from agent import demo56107
     from agent.common import load_config
+    if langue not in LANGUES:
+        raise SystemExit(3)
     dossier = Path(dossier).resolve()
-    config = Path(demo56107.creer(dossier / 'donnees', origine=origine, prefixe=prefixe)).resolve()
+    autres = {} if langue == 'fr' else {'langue': langue}   # français : appel de la 5.6.107 inchangé
+    config = Path(demo56107.creer(dossier / 'donnees', origine=origine, prefixe=prefixe, **autres)).resolve()
     if dossier not in config.parents:
         raise SystemExit(3)                   # une configuration hors du dossier de l'instance n'est jamais servie
     if not demo56107.actif(load_config(str(config))):
@@ -117,6 +140,7 @@ def main(argv=None):
     p.add_argument('--fils', type=int, default=8)
     p.add_argument('--corps-max-mo', type=int, default=10)
     p.add_argument('--cgroup', default='')
+    p.add_argument('--langue', default='fr', choices=LANGUES)
     p.add_argument('--sans-travailleur', action='store_true')
     a = p.parse_args(argv)
     os.umask(0o077)
@@ -124,7 +148,7 @@ def main(argv=None):
     limiter(a.memoire_mo, a.cpu_secondes, a.taille_max_mo, bool(a.cgroup))
     couper_reseau()
     os.environ.update({'AXIORHUB_DEMO': '1', 'AXIORHUB_PUBLIC_URL': a.origine})
-    config = creer(a.dossier, a.origine, a.prefixe)
+    config = creer(a.dossier, a.origine, a.prefixe, a.langue)
     app = application(config)
     if not a.sans_travailleur:
         travailleur(config)

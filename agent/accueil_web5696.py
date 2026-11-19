@@ -276,7 +276,8 @@ def lignes_html(desk, prefix, owner, role):
         corps = '<p class="f96-vide">%s</p>' % e(T('rang.rien'))
     else:
         corps = ''
-    panne = '' if complet else '<p class="f96-panne" role="status">%s</p>' % e(T('rang.panne'))
+    # 5.6.108 (lot A) : la panne est dite dans sa zone, avec sa reprise (relire la page : aucune écriture, mêmes droits)
+    panne = '' if complet else '<p class="f96-panne" role="status">%s <a href="%s">%s</a></p>' % (e(T('rang.panne')), e(prefix + '/aujourdhui', quote=True), e('Réessayer'))
     return corps + panne, len(liste), complet
 
 
@@ -304,7 +305,7 @@ def echeances_du_jour_html(desk, prefix, owner, role):
     try:
         rows = _echeances(desk, owner, _masques(desk, owner, role), CONFIRMEES, jour=_aujourdhui(desk, owner))
     except Exception:   # noqa: BLE001
-        return '<p class="f96-panne" role="status">%s</p>' % e(T('journee.panne'))
+        return '<p class="f96-panne" role="status">%s <a href="%s">%s</a></p>' % (e(T('journee.panne')), e(prefix + '/echeances', quote=True), e('Ouvrir les échéances'))
     if not rows:
         return '<p class="f96-journee-vide">%s</p>' % e(T('journee.aucune'))
     return '<ul class="f96-echeances" aria-label="%s">%s</ul>' % (e(T('journee.titre'), quote=True), ''.join(

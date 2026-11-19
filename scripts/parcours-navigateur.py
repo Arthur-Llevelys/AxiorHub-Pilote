@@ -1780,6 +1780,29 @@ from parcours_p107f import p107f_fraude   # noqa: E402 — 5.6.107 (lot F2) : al
 PARCOURS = PARCOURS + (('P107m', 'Mode Démo : courriel, dossier, À relire, résumé, fraude, recommencer, aucune action masquée', p107m_demo),
                        ('P107t', 'Interface en EN, DE, ES : aucun texte français, densité tenue, formats locaux', p107t_langues),
                        ('P107f', 'Alerte de fraude repliée en une ligne de puces, stockage du navigateur bloqué', p107f_fraude))
+from parcours_p108c import p108c_sans_perte   # noqa: E402 — 5.6.108 (lot C) : B01, aucune perte de texte pendant l'enregistrement
+from parcours_p108t import p108t_mobile, p108t_assistance   # noqa: E402 — 5.6.108 (lot T) : Accès mobile, Assistance métier
+PARCOURS = PARCOURS + (('P108c', 'Courriels : zéro perte de texte (enregistrement lent, fermeture, panne, pièce, changement de message)', p108c_sans_perte),
+                       ('P108t-mobile', 'Accès mobile : explication, association réelle, lecteur commun au téléphone', p108t_mobile),
+                       ('P108t-assistance', 'Assistance métier : cinq entrées, calcul au téléphone, saisie conservée', p108t_assistance))
+from parcours_p108p import p108p_pause_et_envois   # noqa: E402 — 5.6.108 (lot P) : pause de l'IA distincte des envois programmés
+import parcours_p108a   # noqa: E402 — 5.6.108 (lot A) : Aujourd'hui, À relire, assistant
+import parcours_p108g   # noqa: E402 — 5.6.108 (lot G) : agenda, Produire, Dossiers
+import parcours_p108q   # noqa: E402 — 5.6.108 (lot Q) : questionnaire de l'acte
+import parcours_p108s   # noqa: E402 — 5.6.108 (lot S) : synchronisation de deux postes sans serveur
+PARCOURS = PARCOURS + ((('P108p', 'Pause de l’IA distincte de la suspension des envois programmés (en-tête, Envois programmés, reprise)',
+                         p108p_pause_et_envois),)
+                       + tuple(parcours_p108a.PARCOURS) + tuple(parcours_p108g.PARCOURS_G) + tuple(parcours_p108q.PARCOURS)
+                       + tuple(parcours_p108s.PARCOURS))
+import parcours_p108k   # noqa: E402 — 5.6.108 (lot K) : conseil de modèles
+import parcours_p108w   # noqa: E402 — 5.6.108 (lot W) : éditeur intégré WordCraft
+import parcours_p108f   # noqa: E402 — 5.6.108 (lot F) : onglet Fichiers, PDF à champs, boîte à outils PDF
+PARCOURS = PARCOURS + ((('P108k', 'Conseil de modèles (préréglage détecté, personnalisation, Examiner les arguments, volet, annonce, '
+                                  'reçu, désaccords, trace ; 1920 et 375 px)', parcours_p108k.p108k_conseil),)
+                       + tuple(parcours_p108w.PARCOURS_W) + tuple(parcours_p108f.PARCOURS_F))
+import parcours_p108l   # noqa: E402 — 5.6.108 (lot L) : assistant « Configurer l'IA locale »
+PARCOURS = PARCOURS + (('P108l', 'Configurer l’IA locale (détection, machine, modèles, suggestions, téléchargement confirmé, réglages, essai)',
+                        parcours_p108l.p108l_ia_locale),)
 
 # ------------------------------------------------------------------------------------------------ lancement
 def _tranche(ident):

@@ -463,7 +463,7 @@
  "fn.agents_documents.label": "Résultats des agents",
  "fn.apprentissage.desc": "Règles métier, références fiables et corrections",
  "fn.apprentissage.label": "Apprentissage métier",
- "fn.assistance_metier.desc": "Calculs contrôlables, appels préparés, revue de facturation",
+ "fn.assistance_metier.desc": "Audience, arguments, appel, calcul et facturation : cinq parcours guidés",
  "fn.assistance_metier.label": "Assistance métier",
  "fn.assistant.desc": "Conversation avec l’assistant et historique",
  "fn.assistant.label": "Assistant",
@@ -1424,8 +1424,8 @@
  "vj.queued": "Collecte en file : elle démarre dès que l’agent est disponible.",
  "vj.running": "Collecte en cours…",
  "vj.queue_refused": "Mise en file refusée (file pleine) : nouvelle tentative au prochain cycle, ou cliquez sur « Actualiser ».",
- "fn.mobile.label": "À valider (téléphone)",
- "fn.mobile.desc": "Ce qui attend votre décision, en grand pour le téléphone associé par QR code",
+ "fn.mobile.label": "Accès mobile (smartphone)",
+ "fn.mobile.desc": "Relire et décider depuis un smartphone ; association et réglages accessibles ici",
  "fn.navigateur.label": "Navigateur supervisé",
  "fn.navigateur.desc": "L’agent consulte les portails et registres dans une fenêtre visible ; vous validez paiements, envois et dépôts",
  "fn.savoir_faire.label": "Savoir-faire du cabinet",
@@ -1538,5 +1538,12 @@
  "js.5694.fallback": "La voix du navigateur n’a pas pu démarrer ({raison}). Lecture par la voix de repli du serveur ({voix}).",
  "js.5694.error": "Lecture impossible : {raison}",
  "js.5694.alkove_off": "(isolation de la voix indisponible : dictée sans traitement)",
- "js.5694.alkove_on": "Voix isolée par Alkove."
+ "js.5694.alkove_on": "Voix isolée par Alkove.",
+ "js.56108q.dicter": "Dicter la réponse",
+ "js.56108q.indisponible": "Micro indisponible sur ce poste ou dans ce navigateur.",
+ "js.56108q.desactivee": "Dictée désactivée dans Paramètres (Vocal local) : demandez à l’administrateur de l’activer.",
+ "js.56108q.refuse": "Micro refusé : autorisez le micro pour ce site dans le navigateur, puis rechargez la page.",
+ "js.56108q.insere": "Texte inséré au curseur : relisez-le avant d’enregistrer.",
+ "js.56108q.a_corriger": "Reconnu : « {texte} » — valeur non valide pour ce champ : corrigez-la à la main.",
+ "js.56108q.trop_long": "Texte trop long pour ce champ : rien n’a été coupé, raccourcissez la saisie."
 }

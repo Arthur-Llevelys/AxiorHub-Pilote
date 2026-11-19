@@ -1,0 +1,87 @@
+/* AxiorHub 5.6.108 (lot F) — onglet Fichiers du dossier (ajouter, glisser-déposer), « Remplir ce formulaire », boîte à outils PDF. */
+.f108 [hidden], .f108-envois[hidden] { display: none !important; }
+.f108-depot { position: relative; }
+.f108-barre { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .6rem .8rem; margin: 0 0 .75rem; background: var(--ax-surface, #fff); }
+.f108-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0; }
+.f108-actions .m97-boutons { display: contents; }
+.f108-ajouter { cursor: pointer; }
+.f108-aide { margin: .4rem 0 0; font-size: .875rem; }
+.f108-statut { min-height: 1.3em; margin: .4rem 0 0; }
+.f108-erreur { color: var(--ax-danger, #a2191f); font-weight: 600; }
+.f108-ok { color: var(--ax-success-text, #0e6027); }
+.f108-envois { margin: .3rem 0 0 1.2rem; padding: 0; font-size: .875rem; overflow-wrap: anywhere; }
+.f108-voile { display: none; position: absolute; inset: 0; z-index: 5; align-items: center; justify-content: center; text-align: center; padding: 1rem;
+  border: 3px dashed var(--ax-focus, #0f62fe); border-radius: 8px; background: rgba(15, 98, 254, .10); color: var(--ax-text, #161616); font-weight: 600; font-size: 1.1rem; pointer-events: none; }
+.f108-survol .f108-voile { display: flex; }
+.f108-pdf-actions { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; font-size: .875rem; margin-top: .15rem; }
+.f108-choix input { width: 1.1rem; height: 1.1rem; }
+/* pages Remplir et Outils PDF */
+.f108-page { max-width: 1500px; }
+.f108-fichier { overflow-wrap: anywhere; margin: .2rem 0 .5rem; }
+.f108-grille { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.15fr); gap: 1rem; align-items: start; }
+.f108-apercu { position: sticky; top: .5rem; border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .4rem; background: var(--ax-surface-2, #f2f4f8);
+  max-height: calc(100vh - 1rem); overflow: auto; }
+.f108-apercu-corps { min-height: 60vh; }
+.f108-apercu-corps .d79-frame { width: 100%; height: 80vh; border: 0; }
+.f108-form { display: block; }
+.f108-page-titre { font-size: 1rem; margin: 1rem 0 .4rem; border-bottom: 1px solid var(--ax-border, #c6c6c6); }
+.f108-champ { display: flex; flex-direction: column; gap: .2rem; padding: .45rem 0; border-bottom: 1px dotted var(--ax-border, #c6c6c6); }
+.f108-champ input:not([type=checkbox]):not([type=radio]), .f108-champ select, .f108-champ textarea { max-width: 100%; }
+.f108-ls { opacity: .85; }
+.f108-radio { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+.f108-radio legend { font-weight: 600; padding: 0; margin-bottom: .2rem; }
+.f108-case { display: flex; gap: .4rem; align-items: center; }
+.f108-note { font-size: .85rem; color: var(--ax-text-2, #393939); }
+.f108-prop { font-size: .875rem; display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; padding: .2rem .4rem; border-left: 3px solid var(--ax-focus, #0f62fe);
+  background: var(--ax-surface-2, #f2f4f8); color: var(--ax-text, #161616); }
+.f108-technique { font-size: .75rem; overflow-wrap: anywhere; }
+.f108-options { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; margin: 1rem 0 .5rem; padding: .5rem .8rem; }
+.f108-limites { border-left: 4px solid var(--ax-warning, #b28600); background: var(--ax-warning-bg, #fcf4d6); color: var(--ax-text, #161616); padding: .5rem .8rem .5rem 1.8rem; margin: .5rem 0; }
+.f108-refus { border-left: 4px solid var(--ax-danger, #a2191f); background: var(--ax-danger-bg, #fff1f1); color: var(--ax-text, #161616); padding: .6rem .9rem; margin: .5rem 0; max-width: 60rem; }
+.f108-boite { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .6rem .8rem; background: var(--ax-surface, #fff); }
+.f108-onglets { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 1px solid var(--ax-border, #c6c6c6); margin-bottom: .6rem; }
+.f108 .f108-onglets button[role=tab] { border: 0; border-bottom: 3px solid transparent; background: none; box-shadow: none; padding: .45rem .7rem; min-height: 0;
+  cursor: pointer; color: var(--ax-text, #161616); font: inherit; border-radius: 0; }
+.f108 .f108-onglets button[role=tab]:hover { background: var(--ax-surface-2, #f2f4f8); }
+.f108 .f108-onglets button[role=tab][aria-selected=true] { border-bottom-color: var(--ax-focus, #0f62fe); font-weight: 600; }
+.f108-panneau label { display: block; margin: .4rem 0; }
+.f108-panneau label.f108-case { display: flex; }
+.f108-panneau textarea, .f108-panneau input:not([type=checkbox]):not([type=radio]):not([type=file]), .f108-panneau select { display: block; max-width: 100%; margin-top: .15rem; }
+.f108-outils { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .2rem .9rem; }
+.f108-outils legend { font-weight: 600; padding: 0; }
+.f108-outils label { display: inline-flex; gap: .3rem; align-items: center; margin: 0; }
+.f108-traces { margin: .4rem 0; padding-left: 1.2rem; font-size: .875rem; }
+.f108-traces li { margin: .15rem 0; }
+.f108-pages { padding-left: 1.4rem; max-height: 50vh; overflow: auto; }
+.f108-pages li { display: flex; flex-wrap: wrap; gap: .3rem .8rem; align-items: center; padding: .15rem 0; }
+.f108-pages label { display: inline-flex !important; gap: .3rem; align-items: center; margin: 0 !important; }
+.f108-pages .f108-num { width: 4.5rem; display: inline-block !important; }
+.f108-fusion li { margin: .2rem 0; overflow-wrap: anywhere; }
+.f108-nav { display: flex; gap: .5rem; align-items: center; justify-content: center; margin-bottom: .4rem; flex-wrap: wrap; }
+.f108-feuille { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
+.f108-feuille canvas { display: block; }
+.f108-calque { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+.f108-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.f108-trait { fill: none; stroke: #1a3fd9; stroke-width: 2; }
+.f108-forme { position: absolute; box-sizing: border-box; pointer-events: none; font-size: 11px; line-height: 1.2; overflow: hidden; color: #161616; }
+.f108-forme-texte { border: 1px solid #6f6f6f; background: rgba(255, 255, 217, .9); padding: 2px; }
+.f108-forme-surligner { background: rgba(255, 235, 51, .45); }
+.f108-forme-image { border: 2px dashed #1a3fd9; background: rgba(26, 63, 217, .08); }
+.f108-forme-tampon { border: 2px solid #d91a1a; color: #d91a1a; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.f108-forme-zone { background: #000; opacity: .85; }
+.f108 button:focus-visible, .f108 a:focus-visible, .f108 input:focus-visible, .f108 select:focus-visible, .f108 textarea:focus-visible,
+.f108-barre label.f108-ajouter:focus-within, .f108-onglets [role=tab]:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+#f108-fichiers:focus-visible + * { outline: none; }
+.f108-barre label.f108-ajouter:has(+ input:focus-visible) { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .f108-grille { grid-template-columns: 1fr; }
+  .f108-apercu { position: static; max-height: none; }
+}
+@media (prefers-color-scheme: dark) {
+  .f108-limites { background: var(--ax-warning-bg, #302400); color: var(--ax-text, #f4f4f4); }
+  .f108-refus { background: var(--ax-danger-bg, #2d0709); color: var(--ax-text, #f4f4f4); }
+  .f108-erreur { color: var(--ax-danger, #ff8389); }
+  .f108-ok { color: var(--ax-success-text, #42be65); }
+  .f108-voile { color: var(--ax-text, #f4f4f4); background: rgba(69, 137, 255, .18); }
+  .f108-prop { color: var(--ax-text, #f4f4f4); }
+}

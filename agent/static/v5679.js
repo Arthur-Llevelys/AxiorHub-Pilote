@@ -13,6 +13,7 @@
   var title = pane.querySelector('[data-d79-title]'), body = pane.querySelector('[data-d79-body]'), note = pane.querySelector('[data-d79-note]');
   var openLink = pane.querySelector('[data-d79-open]'), dl = pane.querySelector('[data-d79-dl]'), close = pane.querySelector('[data-d79-close]');
   var current = '', lastTrigger = null, seq = 0;
+  var editLinks = [pane.querySelector('[data-d79-wordcraft]'), pane.querySelector('[data-d79-traitement]')];   // 5.6.108 (lot W)
 
   function pathOf(a) {
     if (a.hasAttribute('data-d79-doc')) return a.getAttribute('data-d79-doc');
@@ -35,6 +36,7 @@
     body.replaceChildren();
     note.hidden = true; note.textContent = '';
     openLink.hidden = true; openLink.removeAttribute('href');
+    editLinks.forEach(function (a) { if (a) { a.hidden = true; a.removeAttribute('href'); } });
   }
   function load(path, trigger) {
     var mine = ++seq;
@@ -54,6 +56,11 @@
       title.textContent = v.title || title.textContent;
       dl.href = v.download_url || '#';
       if (v.open_url) { openLink.href = v.open_url; openLink.hidden = false; }
+      [v.wordcraft_url, v.traitement_url].forEach(function (u, i) {   // 5.6.108 (lot W) : adresses calculées par le serveur, même origine seulement
+        var a = editLinks[i];
+        if (a && typeof u === 'string' && u.indexOf(prefix + '/editeur/') === 0) { a.href = u; a.hidden = false; }
+      });
+      if (editLinks[1] && typeof v.traitement_libelle === 'string') { editLinks[1].textContent = v.traitement_libelle; }   // PDF : « Ouvrir avec l’application du poste »
       if (v.note) { note.textContent = v.note; note.hidden = false; }
       if (v.kind === 'pdf') {
         if (window.ax82Pdf && window.ax82Pdf(body, v, pageOf(trigger))) return;   // 5.6.82 : lecteur intégré, ouvert à la page citée

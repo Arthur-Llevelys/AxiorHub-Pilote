@@ -763,6 +763,12 @@ def agent_research(desk, owner, role, question, matter='', model=None, max_calls
             model = Model(routed_config(desk.c, 'assistant'))
         except Stop:
             return []
+    from .references56108 import besoins_vers_outils, petit_modele
+    if petit_modele(model, desk=desk):   # 5.6.108 (lot R) : petit modèle : besoins de recherche, aucun nom d'outil ; le programme choisit et exécute
+        try:
+            return besoins_vers_outils(desk, owner, role, question, matter, model, tools)
+        except Exception:   # noqa: BLE001 — sans besoin exploitable, la réponse se fait sans outil
+            return []
     prompt = ('Choisis au plus %d appels d’outils utiles pour répondre à la question, parmi : %s. Paramètres : query (texte court sans nom de '
               'personne), code et number (article), pourvoi ou rg (décision), siren (entreprise). Si aucun outil n’est utile, liste vide.'
               % (max_calls, ', '.join(t['outil'] for t in tools)))

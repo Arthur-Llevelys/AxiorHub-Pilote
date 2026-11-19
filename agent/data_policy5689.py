@@ -35,9 +35,10 @@ LIBELLES_MODE = {'local_strict': 'Local strict : rien ne sort du périmètre dé
                  'hybride': 'Hybride : local d’abord, prestataires admis pour certaines tâches', 'historique': 'Réglages d’origine conservés (aucun mode choisi)'}
 OUTILS = ('llm', 'ocr', 'embeddings', 'classement', 'recherche_web', 'outil_mcp', 'journaux', 'telemetrie', 'support', 'connecteur_claude', 'voix', 'mise_a_jour',
           'meteo')   # 5.6.96 (F03) : prévisions publiques (position et unités seulement) ; refusé en mode local strict
+OUTILS += ('signature_lien',)   # 5.6.108 (lot Z) : dépôt d'un PDF sur le service SignaturePDF du cabinet (dossier réservé, correspondance confidentielle)
 LIBELLES_OUTIL = {'llm': 'Modèle d’IA', 'ocr': 'Lecture de scans', 'embeddings': 'Index sémantique', 'classement': 'Classement', 'recherche_web': 'Recherche web',
                   'outil_mcp': 'Outil connecté', 'journaux': 'Journaux', 'telemetrie': 'Télémétrie', 'support': 'Support', 'connecteur_claude': 'Connecteur Claude', 'voix': 'Voix',
-                  'mise_a_jour': 'Mise à jour', 'meteo': 'Météo'}
+                  'mise_a_jour': 'Mise à jour', 'meteo': 'Météo', 'signature_lien': 'Signature par lien'}
 LECTEURS = frozenset(('llm', 'ocr', 'embeddings', 'classement', 'recherche_web', 'outil_mcp', 'connecteur_claude', 'voix'))
 RECHERCHE = frozenset(('recherche_web', 'outil_mcp'))
 APRES_CHOIX = RECHERCHE | {'connecteur_claude', 'voix'}

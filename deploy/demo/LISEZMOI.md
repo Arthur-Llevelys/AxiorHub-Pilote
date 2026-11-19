@@ -9,6 +9,10 @@ visiteur a saisi. Le visiteur arrive directement dans le cabinet fictif, connect
 passe). Chaque instance est effacée après 2 h sans activité ou 6 h au total, ou dès que le visiteur clique sur « Quitter » dans le
 bandeau de la démo ou sur « Terminer et tout effacer » (page `/_demo/session`).
 
+Le visiteur choisit à l'accueil la **langue de la démonstration** : français, anglais, allemand ou espagnol (la langue de son
+navigateur est proposée par défaut). Les pages de l'accueil sont traduites, et son cabinet fictif est créé dans cette langue
+(données du pays et interface) ; l'adresse `/?langue=en` (ou `de`, `es`, `fr`) ouvre directement l'accueil dans une langue.
+
 La démo **ne fait rien à l'extérieur** : ni courriel, ni Nextcloud, ni modèle d'IA réel. Le service n'a **aucun accès réseau** :
 seul votre serveur web (Apache ou nginx) lui parle, par un fichier de socket local.
 
@@ -58,11 +62,48 @@ s'il en a une). Attendez que `dig +short demo.example.test` renvoie bien l'adres
 ```sh
 sudo cp deploy/demo/apache-demo.example.conf /etc/apache2/sites-available/axiorhub-demo.conf
 sudo sed -i 's/demo\.example\.test/VOTRE-SOUS-DOMAINE/g' /etc/apache2/sites-available/axiorhub-demo.conf
-sudo a2enmod ssl proxy proxy_http headers
+sudo a2enmod ssl proxy proxy_http headers alias
 ```
 
-L'exemple publie **seulement** la démo sur ce sous-domaine (aucune page `server-status` ni d'administration) et tient un journal
-d'accès **sans adresse IP ni chemin** (date, code de réponse, taille). Pour nginx, partez de `deploy/demo/nginx-demo.example.conf`.
+L'exemple publie **seulement** la démo sur ce sous-domaine (aucune page `server-status` ni d'administration) et contient :
+
+- **un journal minimal** : l'accès **sans adresse IP ni chemin** (date, code de réponse, taille) ; les erreurs sans adresse du
+  visiteur ;
+- **`Referrer-Policy: same-origin`** : le répartiteur l'envoie lui-même depuis la 5.6.108 ; la ligne `Header always set
+  Referrer-Policy "same-origin"` l'impose aussi si une règle globale du serveur posait `no-referrer` (Chrome envoie alors
+  `Origin: null` et le bouton « Commencer la démo » répondait « Demande refusée ») ;
+- **une page de secours** (`deploy/demo/secours/indisponible.html`, en quatre langues) affichée par Apache quand le service de la
+  démo est arrêté ou en cours de mise à jour ; les pages du répartiteur, comme « Démo complète », restent affichées telles quelles ;
+- **un bloc `<Location /agent-courriel>`** (voir ci-dessous).
+
+### Serveur qui héberge aussi AxiorHub en production
+
+L'interface de chaque instance de démonstration est servie sous `/agent-courriel`, comme AxiorHub. Si le même serveur héberge
+**aussi** votre AxiorHub de production, son installation a placé des règles Apache **globales** pour `/agent-courriel` (un fichier
+de `/etc/apache2/conf-enabled/` : `ProxyPass` vers AxiorHub, authentification). Ces règles s'appliquent à **tous** les hôtes
+virtuels, y compris celui de la démo, et passent avant son `ProxyPass /` : la demande du visiteur arrive alors à l'AxiorHub de
+production, qui répond « Forbidden », « hote refuse » (400) ou ouvre une fenêtre de mot de passe.
+
+Le bloc suivant, **déjà présent dans l'exemple**, règle ce cas : un `ProxyPass` placé dans un bloc `<Location>` de l'hôte virtuel
+passe avant ceux du serveur, et `AuthType None` / `Require all granted` remplacent l'authentification héritée (la démo n'a ni mot de
+passe ni compte réel). Sans AxiorHub de production sur le serveur, il est sans effet. Ne le retirez pas, et laissez-le **après** la ligne
+`ProxyPass /` : il en partage la connexion vers le socket et ses réglages (`timeout`, `flushpackets`).
+
+```apache
+<Location /agent-courriel>
+    ProxyPass unix:/run/axiorhub-demo/demo.sock|http://demo.example.test/agent-courriel
+    ProxyPassReverse http://demo.example.test/agent-courriel
+    AuthType None
+    Require all granted
+</Location>
+```
+
+Le test fumée le vérifie : `/agent-courriel/…` sans session doit recevoir le renvoi (303) **du répartiteur** vers l'accueil ; un
+autre code signale ce cas. Votre AxiorHub de production n'est pas touché : ses règles continuent de s'appliquer sur son propre
+domaine.
+
+Pour nginx, partez de `deploy/demo/nginx-demo.example.conf` (les blocs `server` de nginx n'héritent pas des `location` d'un autre
+site : le cas ci-dessus ne s'y présente pas).
 
 ## Certificat
 
@@ -84,9 +125,23 @@ Depuis le serveur ou votre poste :
 python3 /opt/axiorhub-demo/current/deploy/demo/test-fumee.py https://VOTRE-SOUS-DOMAINE
 ```
 
-Il vérifie l'accueil et la mention vie privée, les en-têtes de sécurité, le refus des pages d'administration, le cookie de session
-(`HttpOnly`, `Secure`, `SameSite=Lax`), la réponse d'une instance, puis termine cette instance et vérifie qu'elle est effacée. Il ne
-crée qu'**une** instance ; avec `--sans-instance`, il n'en crée aucune. « Tout est bon. » et le code de sortie 0 : la démo est en place.
+Il vérifie l'accueil dans les quatre langues et la mention vie privée, les en-têtes de sécurité (dont `Referrer-Policy:
+same-origin`), le refus des pages d'administration (404 du répartiteur ; pour `/server-status`, le 403 d'Apache est le résultat
+voulu), le renvoi vers l'accueil (303) d'une adresse sans session — `/code/…` comme `/agent-courriel/…` —, le refus d'un démarrage
+sans origine ou depuis un autre site, le démarrage tel que l'envoie un navigateur (`Origin: null` avec `Sec-Fetch-Site:
+same-origin`), le cookie de session (`HttpOnly`, `Secure`, `SameSite=Lax`), l'ouverture de la session de l'instance, puis termine
+cette instance et vérifie qu'elle est effacée ; aucune réponse ne doit demander de mot de passe (`WWW-Authenticate`). Il ne crée
+qu'**une** instance ; avec `--sans-instance`, il n'en crée aucune. « Tout est bon. » et le code de sortie 0 : la démo est en place.
+
+## En cas de problème
+
+| Ce que voit le visiteur | Cause | Remède |
+|---|---|---|
+| « Demande refusée » au bouton « Commencer la démo » | une règle du serveur pose `Referrer-Policy: no-referrer` et le navigateur n'indique pas d'où vient le formulaire | ligne `Header always set Referrer-Policy "same-origin"` de l'exemple ; depuis la 5.6.108, le répartiteur admet aussi ce cas quand le navigateur certifie la même origine (`Sec-Fetch-Site`) |
+| « Démarrage impossible » | l'instance ne démarre pas | `journalctl -u axiorhub-demo -n 50` ; corrigé en 5.6.108 pour waitress 2.x (paquet Ubuntu 24.04) |
+| « Forbidden », « hote refuse » ou fenêtre de mot de passe sous `/agent-courriel` | une installation d'AxiorHub en production sur le même serveur répond à la place de la démo | bloc `<Location /agent-courriel>` (section « Serveur qui héberge aussi AxiorHub en production ») |
+| « Votre session de démonstration a été perdue » | le navigateur n'est plus relié à son cabinet fictif (cookie effacé ou bloqué, lien d'ouverture expiré) | « Reprendre ma démonstration » ou « Recommencer » ; si cela se répète pour tous les visiteurs, lancer le test fumée |
+| Page « Démonstration momentanément indisponible » | le service de la démo est arrêté ou redémarre | `systemctl status axiorhub-demo` |
 
 ## Réglages
 
@@ -175,11 +230,15 @@ Concrètement :
 
 ## Comment c'est construit (pour le prestataire)
 
-- `agent/demo_hote56107.py` : le **répartiteur** (page d'accueil, cookie, plafonds, nettoyage, transmission vers l'instance, en-têtes
-  de sécurité, refus des chemins d'administration). Il écoute sur `/run/axiorhub-demo/demo.sock`.
+- `agent/demo_hote56107.py` : le **répartiteur** (page d'accueil et choix de la langue, cookie, plafonds, nettoyage, transmission
+  vers l'instance, ouverture de sa session, en-têtes de sécurité, refus des chemins d'administration). Il écoute sur
+  `/run/axiorhub-demo/demo.sock`. La session de l'instance n'est tenue pour ouverte qu'au vu de la réponse de l'instance à l'échange
+  du jeton de lancement ; une réponse 401 de l'instance n'est jamais transmise au navigateur (page « session perdue » à la place).
 - `deploy/demo/instance.py` : une **instance** (un processus par visiteur) : entre dans son sous-groupe cgroup, pose ses limites,
-  refuse toute prise réseau, crée le cabinet fictif par le mode Démo d'AxiorHub, refuse de servir si le mode Démo n'est pas actif,
-  puis écoute sur le socket de son dossier.
+  refuse toute prise réseau (seule une adresse IP écrite en chiffres se « résout », sans réseau ni DNS : waitress 2.x vérifie ainsi
+  son adresse d'écoute par défaut), crée le cabinet fictif dans la langue choisie (`--langue`) par le mode Démo d'AxiorHub, refuse
+  de servir si le mode Démo n'est pas actif, puis écoute sur le socket de son dossier.
+- `deploy/demo/secours/indisponible.html` : page de secours servie par Apache ou nginx quand le service ne répond pas.
 - `deploy/demo/axiorhub-demo.service` : service systemd sans réseau (`PrivateNetwork=yes`, `RestrictAddressFamilies=AF_UNIX`,
   `IPAddressDeny=any`), sans privilège (`NoNewPrivileges`, aucune capacité), système en lecture seule sauf l'état et le socket,
   sous-groupes délégués pour borner chaque instance.

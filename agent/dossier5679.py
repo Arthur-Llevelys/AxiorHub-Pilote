@@ -183,7 +183,11 @@ def _fiche5697(desk, prefix, m):
 
 
 PREVIEW = ('<section class="d79-preview" id="d79-preview" role="complementary" hidden aria-label="Aperçu du document"><div class="d79-preview-head"><strong data-d79-title>Aperçu</strong>'
-           '<span class="d79-preview-actions"><a class="ax-btn ghost" data-d79-open hidden>Modifier</a><a class="ax-btn ghost" data-d79-dl>Télécharger</a>'
+           '<span class="d79-preview-actions"><a class="ax-btn ghost" data-d79-open hidden>Modifier</a>'
+           '<a class="ax-btn ghost" data-d79-wordcraft hidden>Modifier dans l’éditeur intégré (WordCraft, version d’essai)</a>'   # 5.6.108 (lot W)
+           '<a class="ax-btn ghost" data-d79-traitement hidden>Ouvrir dans Word / LibreOffice</a>'
+           '<a class="ax-btn ghost" data-f108-apercu-remplir hidden>Remplir ce formulaire</a><a class="ax-btn ghost" data-f108-apercu-outils hidden>Outils PDF</a>'   # 5.6.108 (lot F) : PDF seulement (v56108-fichiers.js)
+           '<a class="ax-btn ghost" data-d79-dl>Télécharger</a>'
            '<button type="button" class="ax-btn ghost" data-d79-close aria-label="Fermer l’aperçu et revenir à la liste"><span class="m82-back">Retour à la liste</span><span class="m82-x" aria-hidden="true">×</span></button></span></div>'
            '<p class="ax-muted" data-d79-note hidden></p><div class="d79-preview-body" data-d79-body tabindex="0"></div></section>')
 
@@ -257,10 +261,36 @@ def latest_documents_html(desk, prefix, m):
 def ai_work_html(desk, prefix, m):
     from .suivi5679 import matter_ai_activity
     items = matter_ai_activity(desk, m['id'], 6)
-    body = ('<ul class="d79-list">%s</ul>' % ''.join('<li><span class="d79-date">%s</span> <strong>%s</strong>%s</li>' % (
+    liste = ('<ul class="d79-list">%s</ul>' % ''.join('<li><span class="d79-date">%s</span> <strong>%s</strong>%s</li>' % (
         e(_date_fr(it['date'][:10])), e(it['libelle']), (' <span class="ax-muted">— %s</span>' % e(it['detail'])) if it['detail'] else '') for it in items)) \
-        if items else '<p class="ax-muted">L’IA n’a pas encore travaillé sur ce dossier.</p>'
+        if items else ''
+    resultats = _resultats108(desk, prefix, m)
+    if resultats is None:      # présentation précédente (interrupteur éteint) : inchangée
+        body = liste or '<p class="ax-muted">L’IA n’a pas encore travaillé sur ce dossier.</p>'
+    else:                      # 5.6.108 (lot G) : d'abord les résultats réellement enregistrés, chacun avec son lien ; l'activité (lectures) ensuite
+        body = resultats + ('<div class="d108-activite"><h3>Autre activité</h3>%s</div>' % liste if liste else '')
     return _card('Travail récent de l’IA', body, 'd79-ia', '<a href="%s">Travail</a>' % e(prefix + _q(m['id'], 'travail'), quote=True))
+
+
+def _resultats108(desk, prefix, m):
+    """Résultats enregistrés par l'IA pour ce dossier (``resultats56100.du_dossier`` : droits du dossier et de l'objet, échecs écartés).
+    None : ancienne présentation ; registre illisible : l'état est dit, jamais « aucun »."""
+    try:
+        from .interface56100 import active
+        acteur = _acteur5697()
+        if not active(desk, acteur[0]):
+            return None
+        from .resultats56100 import du_dossier
+        rows = du_dossier(desk, acteur, m['id'], 5)
+    except Stop:
+        return '<p class="ax-muted">Résultats de l’IA indisponibles pour le moment.</p>'
+    except Exception:   # noqa: BLE001 — le bloc ne doit jamais empêcher l'ouverture du dossier
+        logging.getLogger(__name__).exception('resultats108')
+        return '<p class="ax-muted">Résultats de l’IA indisponibles pour le moment.</p>'
+    if not rows:
+        return '<p class="ax-muted">Aucun résultat enregistré par l’IA sur ce dossier.</p>'
+    return '<div class="d108-resultats"><h3>Résultats enregistrés</h3><ul class="d79-list">%s</ul></div>' % ''.join(
+        '<li><span class="d79-date">%s</span> <a href="%s">%s</a></li>' % (e(r['date_locale']), e(prefix + r['lien'], quote=True), e(r['libelle'])) for r in rows)
 
 
 def todo_html(desk, prefix, m):
@@ -353,6 +383,7 @@ def documents_html(desk, auth, prefix, m, args):
               '<input id="d79-q" name="q" value="%s" placeholder="Rechercher un document…" data-no-dictation><select name="tri" aria-label="Trier">'
               '<option value="date"%s>Plus récents d’abord</option><option value="nom"%s>Par titre</option></select><button class="ax-btn ghost">OK</button></form>') % (
         e(mid, quote=True), e(cat, quote=True), e(query, quote=True), ' selected' if sort == 'date' else '', ' selected' if sort == 'nom' else '')
+    outils108 = _interface108(desk)
 
     def row(d):
         reading = '' if d['reading'] in ('lisible', 'partielle') else '<span class="d79-read d79-read-%s">%s</span>' % (
@@ -368,8 +399,18 @@ def documents_html(desk, auth, prefix, m, args):
                     'maxlength="60" placeholder="cabinet, ou nom de l’adversaire"></label><label>N°<input name="piece_number" value="%s" maxlength="20" size="5"></label>'
                     '<button class="ax-btn ghost" type="submit">Enregistrer</button><p role="status" class="m5-status"></p></form></details>') % (
             e(mid, quote=True), e(d['path'], quote=True), d['version'], opts, e(d['piece_party'], quote=True), e(d['piece_number'], quote=True))
-        return '<li class="d79-docrow"><span class="d79-date">%s</span><div>%s%s<div class="ax-muted">%s</div></div>%s</li>' % (
-            e(_date_fr(_when(d)) or '—'), _doc_link(prefix, mid, d, overview), reading, e(extra), classify)
+        pdf108 = ''
+        if outils108:   # 5.6.108 (lot F) : remplir un PDF à champs, boîte à outils, sélection pour fusionner ; boutons des autres lots (montage)
+            autres = _boutons_fichier108(desk, auth, prefix, d['path'], d['name'])
+            if str(d['path']).lower().endswith('.pdf'):
+                from . import outils_pdf56108, pdf_formulaire56108
+                pdf108 = ('<label class="f108-choix"><input type="checkbox" data-f108-choix value="%s"> <span class="sr-only">Choisir ce PDF : %s</span></label>'
+                          '<a class="ax-btn ghost" href="%s">Remplir ce formulaire</a><a class="ax-btn ghost" href="%s">Outils PDF</a>') % (
+                    e(d['path'], quote=True), e(d['name']), e(pdf_formulaire56108.lien(prefix, mid, d['path']), quote=True),
+                    e(outils_pdf56108.lien(prefix, mid, [d['path']]), quote=True))
+            pdf108 = ('<div class="f108-pdf-actions">%s%s</div>' % (pdf108, autres)) if (pdf108 or autres) else ''
+        return '<li class="d79-docrow"><span class="d79-date">%s</span><div>%s%s<div class="ax-muted">%s</div>%s</div>%s</li>' % (
+            e(_date_fr(_when(d)) or '—'), _doc_link(prefix, mid, d, overview), reading, e(extra), pdf108, classify)
     body = '<nav class="d79-chips" aria-label="Catégories">%s</nav>%s<ul class="d79-doclist">%s</ul>' % (
         chips, search, ''.join(row(d) for d in rows) or '<li class="ax-muted">Aucun document.</li>')
     pages = (total + PAGE - 1) // PAGE
@@ -402,9 +443,47 @@ def juridiction_html(desk, auth, prefix, m, args):
 
 
 def fichiers_html(desk, auth, prefix, m, args):
-    """« Par type » : le classement de ``documents_html``, inchangé ; « Par répertoire » : l'arborescence réelle (lecture seule, bornée)."""
+    """« Par type » : le classement de ``documents_html``, inchangé ; « Par répertoire » : l'arborescence réelle (lecture seule, bornée).
+    5.6.108 (lot F), nouvelle interface : barre « Nouveau document » / « Ajouter un fichier » et dépôt par glisser-déposer sur la liste ;
+    ancienne présentation inchangée derrière l'interrupteur ``interface56100``."""
     from .fiche_ui5698 import fichiers_html as fichiers5698
-    return _safe('Fichiers', fichiers5698, desk, auth, _acteur5697(), prefix, m, args, lambda: documents_html(desk, auth, prefix, m, args))
+    contenu = _safe('Fichiers', fichiers5698, desk, auth, _acteur5697(), prefix, m, args, lambda: documents_html(desk, auth, prefix, m, args))
+    if not _interface108(desk):
+        return contenu
+    from .pdf_formulaire56108 import barre_fichiers_html
+    barre = _safe('Ajouter un fichier', barre_fichiers_html, prefix, m['id'])
+    return ('<div class="f108-depot" data-f108-depot data-f108-d="%s">%s%s<div class="f108-voile" aria-hidden="true">Déposez les fichiers ici pour les ajouter au '
+            'dossier</div></div>') % (e(m['id'], quote=True), barre, contenu)
+
+
+def _interface108(desk):
+    """5.6.108 (lot F) : nouvelle interface active pour le compte affiché (``interface56100``)."""
+    try:
+        from .interface56100 import active
+        return active(desk, _acteur5697()[0])
+    except Exception:   # noqa: BLE001 — réglage illisible : présentation par défaut (active)
+        return True
+
+
+# 5.6.108 (lot F) : point de montage des boutons propres à un fichier de la liste « Par type » (nouvelle interface). Chaque entrée
+# (module, fonction) rend un fragment HTML déjà échappé, chaîne vide si rien à proposer, avec la signature
+# ``fonction(desk, auth, prefix, 'nextcloud', chemin, role, titre)`` ; les pages ouvertes revérifient droits, dossier réservé et format.
+# Lot W : « Modifier dans l'éditeur intégré » (.docx), « Ouvrir dans Word / LibreOffice » ou « avec l'application du poste » (poste).
+# Lot Z : « Faire signer par lien » (PDF ; dossier retrouvé par le chemin, chaîne vide si le service n'est pas configuré).
+MONTAGES_FICHIER108 = (('wordcraft56108', 'boutons_html'), ('signaturepdf56108', 'boutons_fichier_html'))
+
+
+def _boutons_fichier108(desk, auth, prefix, chemin, titre):
+    import importlib
+    from .i18n5631 import role as _role
+    out = ''
+    for module, fonction in MONTAGES_FICHIER108:
+        try:
+            fn = getattr(importlib.import_module('.' + module, __package__), fonction, None)
+            out += (fn(desk, auth, prefix, 'nextcloud', chemin, _role(), titre) or '') if callable(fn) else ''
+        except Exception:   # noqa: BLE001 — la ligne reste utilisable sans ces boutons
+            log.info('dossier5679 : montage %s.%s', module, fonction, exc_info=True)
+    return out
 
 
 # ------------------------------------------------------------------------------------------------ Faits et procédure
@@ -740,4 +819,5 @@ def page(desk, auth, prefix, args, shell):
     body += '<div class="d79-layout"><div class="d79-main">%s</div>%s</div></div>' % (content, PREVIEW)
     head = ('<script defer src="%s/static/v5627.js"></script><script defer src="%s/static/v5679.js"></script>'
             '<script defer src="%s/static/v5698-fiche.js"></script>') % (e(prefix), e(prefix), e(prefix))   # 5.6.98 : sous-onglets au clavier, confirmation d'un retrait
+    head += '<script defer src="%s/static/v56108-fichiers.js"></script>' % e(prefix)   # 5.6.108 (lot F) : Ajouter un fichier, glisser-déposer, boutons PDF de l'aperçu
     return shell(matter_display(m), body, prefix, auth['csrf'], '/dossiers', head)

@@ -8,11 +8,19 @@
   aux courriels, fiche de travail).
 - **Coupe-circuit** : un travail automatique qui a échoué trois fois de suite pour le même dossier n'est plus relancé
   automatiquement ; il reste relançable à la main, et « Réautoriser » efface le compteur.
+
+5.6.108 (lot P) : **suspension des envois programmés**, distincte de la pause de l'IA. La pause de l'IA (``missions567:pause``) arrête les
+appels au modèle et les automatismes ; elle ne retient plus les envois que l'avocat a déjà validés et programmés. La suspension
+(``SUSPENSION_ENVOIS``) retient les départs programmés de la file d'envoi (``envoi56106``) ; l'envoi immédiat explicite de l'avocat reste
+possible avec confirmation. ``checkpoint(desk)`` garde son API et sa sémantique ; ``checkpoint_envois(desk)`` est le contrôle des départs.
+Migration (une fois, au démarrage) : une installation dont la pause de l'IA était posée par l'avocat au moment de la mise à jour garde le
+même effet (envois programmés suspendus) jusqu'à un changement explicite ; une pause posée par la mise à jour elle-même n'est pas reprise.
 """
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sqlite3
+import time
 
 from .common import Stop
 
@@ -21,6 +29,10 @@ RESET_KEY = 'pause5629:reset'
 FAILURES = 3
 CONSIGNES_MAX = 4000
 AUTOMATIC_PRIORITY = 30
+SUSPENSION_ENVOIS = 'envois56108:suspension'      # 5.6.108 (lot P) : {'actif', 'depuis', 'par', 'origine'} ; absent = envois actifs
+MIGRATION_ENVOIS = 'envois56108:migration'        # repère de la migration du réglage (une seule fois) et son compte rendu
+PAUSE_IA = 'missions567:pause'
+PAUSE_MISE_A_JOUR = 'maj5681:pause'               # repère posé par ``maj5661.pause_before_update`` : pause de la mise à jour, pas de l'avocat
 
 
 def paused(desk):
@@ -168,6 +180,69 @@ def checkpoint(desk):
         raise Stop(code)
     full = desk.db.execute('SELECT * FROM jobs WHERE id=?', (jid,)).fetchone()
     check_running(desk, full, json.loads(row['args'] or '{}'))
+
+
+# ------------------------------------------------------------------- 5.6.108 (lot P) : suspension des envois programmés
+def suspension_envois(desk):
+    """État de la suspension des envois programmés, relu dans la base (aucun cache) : dict si elle est active, ``None`` sinon.
+    Valeur illisible ou de forme inconnue : ``Stop('controle_suspension_indisponible')`` ; l'appelant retient le départ (jamais d'envoi
+    parce que le contrôle a échoué)."""
+    try:
+        value = desk.settings(SUSPENSION_ENVOIS, None)
+    except (ValueError, TypeError, sqlite3.Error):
+        raise Stop('controle_suspension_indisponible') from None
+    if value is None or value is False:
+        return None
+    if value is True:
+        return {'actif': True}
+    if isinstance(value, dict) and isinstance(value.get('actif'), bool):
+        return value if value['actif'] else None
+    raise Stop('controle_suspension_indisponible')
+
+
+def checkpoint_envois(desk):
+    """Contrôle d'un départ programmé, juste avant l'effet (et avant la réservation) : suspension des envois programmés.
+    Distinct de ``checkpoint`` : la pause de l'IA n'y entre pas."""
+    if suspension_envois(desk):
+        raise Stop('envois_suspendus')
+
+
+def ecrire_suspension_envois(desk, actif, owner='cabinet', origine='manuel', now=None):
+    """Écrit le réglage dans la transaction en cours (l'appelant valide avec ses propres changements). Rend la valeur écrite."""
+    now = time.time() if now is None else now
+    value = {'actif': bool(actif), 'depuis' if actif else 'leve': now, 'par': str(owner or 'cabinet')[:120], 'origine': origine}
+    desk.db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)', (SUSPENSION_ENVOIS, json.dumps(value)))
+    return value
+
+
+def migrer_suspension_envois(desk, now=None):
+    """Une seule fois, au démarrage (``envoi56106.ensure_schema``) : avant la 5.6.108, la pause de l'IA retenait aussi les départs.
+    Pause posée par l'avocat au moment de la mise à jour : les envois programmés restent suspendus (même effet) jusqu'à un changement
+    explicite. Pause posée par la mise à jour elle-même (repère ``maj5681:pause``) : pas de suspension. Rend ``None`` si la migration est
+    déjà faite, sinon le compte rendu (écrit dans la transaction en cours ; l'appelant valide et journalise)."""
+    if desk.settings(MIGRATION_ENVOIS, None):
+        return None
+    try:
+        pause_ia = bool(desk.settings(PAUSE_IA, False))
+        repere = desk.settings(PAUSE_MISE_A_JOUR, {})
+    except (ValueError, TypeError):   # réglage illisible : par prudence, mêmes effets qu'une pause de l'avocat (rien ne part sans geste)
+        pause_ia, repere = True, {}
+    par_mise_a_jour = isinstance(repere, dict) and bool(repere.get('version'))
+    deja = desk.db.execute('SELECT 1 FROM settings WHERE key=?', (SUSPENSION_ENVOIS,)).fetchone() is not None
+    suspendre = pause_ia and not par_mise_a_jour and not deja
+    if suspendre:
+        ecrire_suspension_envois(desk, True, 'migration-5.6.108', 'migration', now)
+    rapport = {'le': time.time() if now is None else now, 'pause_ia': pause_ia, 'pause_posee_par_la_mise_a_jour': par_mise_a_jour,
+               'envois_suspendus': bool(suspendre or (deja and suspension_actif_brut(desk)))}
+    desk.db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)', (MIGRATION_ENVOIS, json.dumps(rapport)))
+    return rapport
+
+
+def suspension_actif_brut(desk):
+    try:
+        return suspension_envois(desk) is not None
+    except Stop:
+        return True
 
 
 def set_pause(desk, mid, on, owner='cabinet'):

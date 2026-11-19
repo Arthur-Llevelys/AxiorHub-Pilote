@@ -245,6 +245,7 @@ REASONS['transcription_locale_en_echec']='La transcription locale a échoué : l
 REASONS['pont_vocal_injoignable']='Le service de transcription locale ne répond pas : le pont vocal du serveur est arrêté.'
 from .demo56107 import MESSAGES as _M56107;REASONS['demonstration_hors_ligne']=_M56107['demonstration_hors_ligne']   # 5.6.107 (lot M) : mode Démo, aucune connexion extérieure
 REASONS['capacite_revoquee']='Cette capacité a été révoquée : rien n’a été fait. Elle se rétablit dans Paramètres, rubrique Démarrage du cabinet.'   # 5.6.89
+REASONS['uidvalidity_requise']='Le brouillon doit être rouvert depuis sa boîte avant remplacement. Votre texte reste dans la fenêtre.'
 REASONS['ecriture_refusee_par_le_compte']='Le compte relié a refusé l’écriture lors de sa qualification : rien n’a été fait. Accordez-lui ce droit, puis relancez la qualification.'
 REASONS['transcription_trop_longue']='La transcription a pris trop de temps : le moteur Vocal du serveur est surchargé.'
 REASONS['transcription_en_cours']='Une transcription est déjà en cours. Réessayez dans quelques secondes.'
@@ -1225,6 +1226,10 @@ class App:
                         desk_action.db.execute("UPDATE jobs SET status='cancelled',finished=?,result=? WHERE kind='automation_setting' AND status='pending' AND args LIKE ?",
                           (desk_action.now(),json.dumps({'message':'Remplacé par un réglage appliqué immédiatement.'}),'%"key": '+json.dumps(form.get('key',''))+'%'))
                         desk_action.db.commit();job=0
+                    elif action in ('coach_hearing35','prepare_call35','record_call35','calculate35','billing_review35','classify_comparable35'):
+                        # 5.6.108 (lot T, M02) : objet résolu sur le serveur dans le périmètre de la personne, auteur noté, reçu idempotent
+                        from .assistance35 import soumettre as _soumettre108
+                        _recu108=_soumettre108(desk_action,action,form);job=_recu108['job_id'];form['matter']=_recu108['matter']
                     else:job=desk_action.enqueue(action,form,priority=0 if action=='review_cabinet_decision' else None)
                     target='/'+('?job='+str(job) if job else '')   # 5.6.24 (F35)
                     if action in ('assistant_ask','delegate_local_task'):
@@ -1337,7 +1342,8 @@ class App:
                         target='/preparation-proactive?'+urlencode({'job':job})
                     elif action in ('coach_hearing35','prepare_call35','record_call35','calculate35',
                                     'billing_review35','classify_comparable35'):
-                        target='/assistance-metier?'+urlencode({**({'job':job} if job else {}),'matter':form.get('matter','')})
+                        target='/assistance-metier?'+urlencode({**({'job':job} if job else {}),'matter':form.get('matter',''),
+                          **{k:str(form.get(k) or '')[:20] for k in ('outil','type') if form.get(k)}})   # 5.6.108 (lot T) : retour au parcours
                     elif action in ('autonomy_mail_sweep','review_autonomy_proposal'):
                         target='/projets?'+urlencode({'job':job})
                     elif action in ('orchestrator_mail_sweep','orchestrate_mail','prepare_legal_opinion'):
@@ -1913,7 +1919,7 @@ class App:
             main+=preparation_page(desk,e,link,form)
         elif path=='/assistance-metier':
             from .assistance35_ui import page as assistance_page
-            main+=assistance_page(desk,e,link,form,args)
+            main+=assistance_page(desk,e,link,form,args,url=url)   # 5.6.108 (lot T) : cinq parcours (nouvelle interface)
         elif path=='/audiences-word':
             from .hearing import preview_hearing
             from .word_legal import preview_word_project
@@ -2525,11 +2531,25 @@ def same_host(host,origin):
 LOOPBACK={'localhost','127.0.0.1','[::1]'}
 
 
+OFFICE_TOKEN_ROUTE=re.compile(r'/office/(?:file|callback)/[A-Za-z0-9_\-.]{20,2000}')   # 5.6.108 (lot O) : même motif que web440.public
+
+
+def office_token_route(path,prefix='/agent-courriel'):
+    """5.6.108 (lot O) : vrai seulement pour les deux routes à jeton appelées par le serveur de documents (fichier et rappel)."""
+    path=str(path or '');prefix=str(prefix or '').rstrip('/')
+    if prefix and path.startswith(prefix+'/'):path=path[len(prefix):]
+    return bool(OFFICE_TOKEN_ROUTE.fullmatch(path))
+
+
 def docker_alias(env,auth,origin):
     """5.6.41 (mode découverte) : Nextcloud dans Docker Desktop sur le même poste joint AxiorHub par « host.docker.internal » ; admis
-    seulement pour la route d'intégration (appels signés), sur un poste, depuis l'adresse de bouclage et sur le port configuré."""
+    seulement pour la route d'intégration (appels signés), sur un poste, depuis l'adresse de bouclage et sur le port configuré.
+    5.6.108 (lot O) : de même pour le serveur de documents (EuroOffice, OnlyOffice) dans Docker Desktop ou derrière le relais local
+    d'Ubuntu, et seulement pour /office/file/<jeton> et /office/callback/<jeton> (jeton HMAC court, puis JWT) ; tout autre chemin
+    reste refusé sous ce nom (protection contre le DNS rebinding). Mesuré avec Docker Desktop : adresse source 127.0.0.1."""
     if not (auth or {}).get('poste') or str(env.get('REMOTE_ADDR') or '') not in ('127.0.0.1','::1','::ffff:127.0.0.1'):return False
-    if '/integration/v1/' not in str(env.get('PATH_INFO') or ''):return False
+    path=str(env.get('PATH_INFO') or '')
+    if '/integration/v1/' not in path and not office_token_route(path,(auth or {}).get('prefix') or '/agent-courriel'):return False
     parts=urlsplit('//'+str(env.get('HTTP_HOST') or '').strip().lower())
     try:port=parts.port
     except ValueError:return False

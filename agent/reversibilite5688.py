@@ -186,8 +186,17 @@ def _export_ligne(prefix, r):
         return '<li>%s</li>' % e(etat)
     lien = e(prefix + '/api440/rev5688/export/telecharger?id=' + r['id'], quote=True)
     cible = '<input type="hidden" name="id" value="%s">' % e(r['id'], quote=True)
-    return ('<li><strong>Prêt : %s.</strong> Empreinte SHA-256 : <code>%s</code>. Conservé jusqu’au premier téléchargement complet, 24 heures au plus. '
-            '<a class="ax-btn" href="%s" download>Télécharger</a>%s%s</li>' % (e(_taille(r['taille'])), e(r['sha256']), lien, _formulaire('rev5688/export/verifier', cible, 'Vérifier', ghost=True),
+    try:   # 5.6.108 (lot C, B07) : périmètre de l'export (complet seulement si chaque table de données est exportée ou exclue avec son motif)
+        bilan = json.loads(r['options'] or '{}').get('perimetre')
+        depart = json.loads(r['options'] or '{}').get('profil') == 'depart'   # 5.6.108 (lot X)
+    except (ValueError, AttributeError, KeyError, IndexError):
+        bilan, depart = None, False
+    portee = '' if not isinstance(bilan, dict) else (' Périmètre complet.' if bilan.get('complet') else
+                                                     ' Export INCOMPLET : %d table(s) de données non couvertes (liste dans LISEZMOI.txt).' % int(bilan.get('non_couvertes') or 0))
+    if depart:
+        portee = ' Archive de départ vers un autre logiciel (ouvrir index.html).' + portee
+    return ('<li><strong>Prêt : %s.</strong>%s Empreinte SHA-256 : <code>%s</code>. Conservé jusqu’au premier téléchargement complet, 24 heures au plus. '
+            '<a class="ax-btn" href="%s" download>Télécharger</a>%s%s</li>' % (e(_taille(r['taille'])), e(portee), e(r['sha256']), lien, _formulaire('rev5688/export/verifier', cible, 'Vérifier', ghost=True),
                                                                                _formulaire('rev5688/export/supprimer', cible, 'Supprimer', ghost=True)))
 
 
@@ -206,6 +215,45 @@ def export_html(desk, prefix):
             _formulaire('rev5688/export', champs, 'Préparer l’export') + ('<ul class="rev88-liste" data-rev88-exports>%s</ul>' % rows if rows else '') + '</section>')
 
 
+def depart_html(desk, prefix):
+    """5.6.108 (lot X) : « Mes données › Préparer un départ vers un autre logiciel ». Annonce, avant le lancement, le volume, les catégories, les
+    droits et les exclusions (lecture seule) ; l'export se fait localement, sans modèle, y compris pendant la pause de l'IA."""
+    from .export56108 import estimer
+    from .export5688 import LIBELLES
+    try:
+        est = estimer(desk)
+    except Exception:   # noqa: BLE001 — une estimation illisible ne doit pas passer pour un dossier vide
+        est = None
+    if est is None:
+        annonce = '<p class="c5636-warn" role="alert">Estimation indisponible pour l’instant : le volume sera donné pendant la préparation.</p>'
+    else:
+        lignes = ''.join('<tr><th scope="row">%s</th><td>%s</td><td>%d</td><td>%d</td></tr>' % (e(d), e(LIBELLES.get(d, '')), v['tables'], v['lignes'])
+                         for d, v in sorted(est['domaines'].items()))
+        motifs = ''.join('<li>%s (%d table(s))</li>' % (e(m), n) for m, n in sorted(est['motifs'].items()))
+        incomplet = ('<p class="c5636-warn" role="alert">%d table(s) de données ne sont pas encore couvertes : l’export se dira INCOMPLET.</p>' % est['non_couvertes']
+                     if est['non_couvertes'] else '')
+        annonce = ('<h3>Ce qui partira</h3><ul class="rev88-liste"><li>Documents connus (originaux DOCX, PDF, XLSX… copiés depuis le stockage) : %d</li>'
+                   '<li>Courriels archivés en EML originaux : %d (%s)</li><li>Agenda en ICS (VEVENT), tâches en ICS (VTODO), contacts en vCard, '
+                   'tableaux JSON et CSV, dictionnaire des données, sommaire HTML hors ligne</li><li>Dossiers réservés : %d, exclus par défaut avec tout ce '
+                   'qui s’y rattache ; une ligne dont le dossier ne peut pas être établi est alors écartée et comptée « exclue »</li></ul>%s'
+                   '<div class="rev88-defile"><table class="rev88-table"><caption>Lignes par catégorie</caption><thead><tr><th scope="col">Catégorie</th>'
+                   '<th scope="col">Contenu</th><th scope="col">Tables</th><th scope="col">Lignes</th></tr></thead><tbody>%s</tbody></table></div>'
+                   '<details><summary>Exclusions volontaires et leurs motifs</summary><ul class="rev88-liste">%s</ul></details>') % (
+            est['documents'], est['courriels_eml'], e(_taille(est['octets_eml'])), est['dossiers_reserves'], incomplet, lignes, motifs)
+    champs = ('<input type="hidden" name="profil" value="depart">'
+              '<fieldset class="rev88-choix"><legend>Dossiers réservés</legend>'
+              '<label><input type="radio" name="dossiers_reserves" value="exclure" checked> Les exclure, avec tout ce qui s’y rattache</label>'
+              '<label><input type="radio" name="dossiers_reserves" value="inclure"> Les inclure</label></fieldset>' +
+              _cocher('confirmation_reserves', 'Si je les inclus : je confirme vouloir sortir ces dossiers réservés du logiciel'))
+    return ('<section class="ax-card rev88" id="depart56108"><h2>Préparer un départ vers un autre logiciel</h2><p class="ax-muted">Une archive ZIP '
+            'ouvrable sans AxiorHub, pour reprendre les dossiers dans un autre logiciel : originaux des documents et des courriels archivés, agenda, '
+            'tâches et contacts dans des formats standard, toutes les données en JSON et CSV, un dictionnaire qui décrit chaque fichier et chaque '
+            'colonne. Ce n’est pas une sauvegarde de restauration (voir « Sauvegarde automatique ») ni l’export d’un seul dossier (fiche du dossier, '
+            'onglet Gestion). Préparation locale, sans IA : elle fonctionne aussi pendant la pause de l’IA. Mots de passe, jetons, sessions et coffre '
+            'n’en font jamais partie. Le fichier n’est pas chiffré.</p>' + annonce +
+            _formulaire('rev5688/export', champs, 'Préparer l’archive de départ') + '</section>')
+
+
 def verification_html():
     return ('<section class="ax-card rev88" id="verification5688"><h2>Vérifier un export</h2><p class="ax-muted">Compare un fichier ZIP à son manifeste : chaque fichier présent, à la bonne taille, avec la bonne empreinte. '
             'Le fichier est envoyé au serveur, contrôlé, puis supprimé.</p><div class="rev88-form" data-rev88-depot><label class="rev88-champ"><span>Fichier ZIP de l’export</span>'
@@ -215,7 +263,8 @@ def verification_html():
 
 def sections(desk, prefix):
     """Réservé à l'administrateur : l'appelant (``parametres5621``) ne l'appelle que pour ce rôle ; les routes le revérifient."""
-    return (sauvegarde_html(desk), export_html(desk, prefix) + '<script defer src="%s"></script>' % e(prefix + '/static/v5688-reversibilite.js', quote=True), verification_html())
+    return (sauvegarde_html(desk), export_html(desk, prefix) + '<script defer src="%s"></script>' % e(prefix + '/static/v5688-reversibilite.js', quote=True),
+            depart_html(desk, prefix), verification_html())   # 5.6.108 (lot X) : profil de départ, à côté de l'export intégral
 
 
 def apercu(desk):

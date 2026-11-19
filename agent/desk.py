@@ -550,6 +550,8 @@ class Desk:
         ensure_assistant56103_schema(self)
         from .liaison56103 import ensure_schema as ensure_liaison56103_schema   # 5.6.103 (lot L) : liaison entre postes (postes appairés, file d'envoi, réglages reçus)
         ensure_liaison56103_schema(self)
+        from .sync56108 import ensure_schema as ensure_sync56108_schema   # 5.6.108 (lot S) : synchronisation des postes (journal signé, espaces, objets) ; aucun espace créé ici
+        ensure_sync56108_schema(self)
         from .fichiers56103 import ensure_schema as ensure_fichiers56103_schema   # 5.6.103 (lot F) : page « Fichiers » (commandes, notes et couleurs, verrous, versions du poste)
         ensure_fichiers56103_schema(self)
         from .tableau56103 import ensure_schema as ensure_tableau56103_schema   # 5.6.103 (lot T) : tableau blanc de la messagerie (scènes, versions, images, propositions de Pilote)
@@ -571,6 +573,16 @@ class Desk:
         ensure_vision56106_schema(self)
         from .fraude56106 import ensure_schema as ensure_fraude56106_schema   # 5.6.106 (lot F) : verdicts anti-fraude du relevé, exceptions, retours, IBAN confirmés, second avis
         ensure_fraude56106_schema(self)
+        from .droits56108 import ensure_schema as ensure_droits56108_schema   # 5.6.108 (lot B) : qualification par droit applicable, versions actives, ancien code EN → UK-EAW
+        ensure_droits56108_schema(self)
+        from .questionnaires56108 import ensure_schema as ensure_questionnaires56108_schema   # 5.6.108 (lot Q) : questionnaires des actes (réponses, journal, questions, reçus)
+        ensure_questionnaires56108_schema(self)
+        from .wordcraft56108 import ensure_schema as ensure_editeur56108_schema   # 5.6.108 (lot W) : séances d'édition (WordCraft, Word du poste) et reçus d'idempotence
+        ensure_editeur56108_schema(self)
+        from .pdf_formulaire56108 import ensure_schema as ensure_fichiers56108_schema   # 5.6.108 (lot F) : reçus d'idempotence de l'onglet Fichiers (remplir, outils PDF)
+        ensure_fichiers56108_schema(self)
+        from .ia_locale56108 import ensure_schema as ensure_ia_locale56108_schema   # 5.6.108 (lot L) : « Configurer l'IA locale » (téléchargements, essais, configurations appliquées)
+        ensure_ia_locale56108_schema(self)
         from .relecture56100 import ensure_schema as ensure_relecture56100_schema, rattraper as rattraper_relecture56100   # 5.6.100 (lot B) : file commune « À relire »
         ensure_relecture56100_schema(self)
         try:   # reprise bornée et relançable des propositions existantes (sans LIKE sur le JSON) ; la suite passe par les automatismes
@@ -1512,6 +1524,8 @@ class Desk:
             from .live430 import progress
             from .missions567 import check_authority
             check_authority(self,_args)
+            from .sync56108_missions import garde_travail as _garde56108   # 5.6.108 (lot S5) : routine, surveillance ou mission partagée : seul le poste exécuteur désigné travaille
+            _garde56108(self,row['kind'],_args)
             from .pause5629 import check_running,check_suspended,with_consignes   # 5.6.29
             check_running(self,row,_args)
             check_suspended(self,row,_args)   # 5.6.94 (F02) : relances suspendues pour ce dossier : « ignoré », pas une erreur de plus
@@ -1630,6 +1644,9 @@ class Desk:
             elif str(e)=='relances_suspendues_apres_trois_echecs':   # 5.6.94 (F02) : ni échec ni nouvel essai ; le coupe-circuit reste en place
                 from .fiabilite5694 import MESSAGE_IGNORE
                 result={'message':MESSAGE_IGNORE,'motif':str(e)};status='ignored'
+            elif str(e)=='execution_sur_un_autre_poste':   # 5.6.108 (lot S5) : attribuée à un autre poste : ni échec ni nouvel essai, l'état dit lequel
+                from .sync56108_missions import message_attente as _attente56108
+                result={'message':_attente56108(self),'motif':str(e)};status='ignored'
         except Exception as unexpected:
             # 5.6.94 (T06) : cause non confidentielle consignée dans le travail (classe d'exception, étape IMAP ou Nextcloud, code errno, TLS
             # ou IMAP) ; jamais le message, qui peut citer une réponse du serveur. Avant, rien ne permettait de savoir pourquoi (49 relèves).

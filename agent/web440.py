@@ -43,6 +43,7 @@ STATIC.update({'/static/v56102-pilote.js': 'text/javascript', '/static/v56102-pi
 STATIC.update({'/static/v56102-navigation.css': 'text/css'})   # 5.6.102 (lot N) : libellés longs du menu principal (retour à la ligne)
 STATIC.update({'/static/v56103-m.js': 'text/javascript'})   # 5.6.103 (lot M) : section « Compte Microsoft » (PKCE sur le poste, code d'appareil sur le serveur)
 STATIC.update({'/static/v56103-liaison.js': 'text/javascript', '/static/v56103-liaison.css': 'text/css'})   # 5.6.103 (lot L) : liaison entre postes (messagerie, Paramètres)
+STATIC.update({'/static/v56108-sync.js': 'text/javascript', '/static/v56108-sync.css': 'text/css'})   # 5.6.108 (lot S) : synchronisation des postes (indicateur)
 STATIC.update({'/static/v56103-fichiers.js': 'text/javascript', '/static/v56103-fichiers.css': 'text/css'})   # 5.6.103 (lot F) : page « Fichiers » (deux volets, onglets, versions)
 from .tableau56103 import statiques as _statiques56103t   # noqa: E402 — 5.6.103 (lot T) : volet « Tableau blanc », Excalidraw assemblé et ses polices (liste générée)
 STATIC.update(_statiques56103t())
@@ -55,6 +56,17 @@ STATIC.update({'/static/v56106-routine.js': 'text/javascript', '/static/v56106-r
 STATIC.update({'/static/v56106-lecteur.js': 'text/javascript', '/static/v56106-lecteur.css': 'text/css'})   # 5.6.106 (lot V) : lecteur, HTML isolé, résumé par l'IA, courriel → tâche ou agenda
 STATIC.update({'/static/v56106-fraude.js': 'text/javascript', '/static/v56106-fraude.css': 'text/css'})   # 5.6.106 (lot F) : pastille et bandeau « courriel potentiellement frauduleux »
 STATIC.update({'/static/v56107-demo.js': 'text/javascript', '/static/v56107-demo.css': 'text/css'})   # 5.6.107 (lot M) : bandeau du mode Démo, visite guidée, « Essayer la démo »
+STATIC.update({'/static/v56108-assistance.js': 'text/javascript', '/static/v56108-assistance.css': 'text/css'})
+STATIC.update({'/static/v56108-accueil.js': 'text/javascript', '/static/v56108-accueil.css': 'text/css'})   # 5.6.108 (lot A) : Aujourd'hui, À relire, volet et reçu de l'assistant   # 5.6.108 (lot T) : Assistance métier en cinq parcours (saisie conservée, état de la demande)
+STATIC.update({'/static/v56108-agenda.js': 'text/javascript', '/static/v56108-agenda.css': 'text/css'})   # 5.6.108 (lot G) : agenda, Produire, Dossiers
+STATIC.update({'/static/v56108-questionnaire.js': 'text/javascript', '/static/v56108-questionnaire.css': 'text/css'})
+STATIC.update({'/static/v56108-dictee.js': 'text/javascript'})   # 5.6.108 (lot Q) : « Dicter la réponse » sur chaque question (dictée commune de v56106-redaction.js)
+STATIC.update({'/static/v56108-signaturepdf.css': 'text/css', '/static/v56108-signaturepdf.js': 'text/javascript'})   # 5.6.108 (lot Z) : signature par lien (SignaturePDF)
+STATIC.update({'/static/v56108-conseil.css': 'text/css', '/static/v56108-conseil.js': 'text/javascript'})   # 5.6.108 (lot K) : conseil de modèles (réglages, annonce, trace dépliable)   # 5.6.108 (lot Q) : questionnaire de l'acte, aperçu à côté
+from .wordcraft56108 import statiques as _statiques56108w   # noqa: E402 — 5.6.108 (lot W) : WordCraft 0.18.1 (fichiers de l'archive, empreintes dans wordcraft56108) et script du lot
+STATIC.update(_statiques56108w())
+STATIC.update({'/static/v56108-fichiers.js': 'text/javascript', '/static/v56108-fichiers.css': 'text/css'})   # 5.6.108 (lot F) : onglet Fichiers du dossier, remplir un PDF, outils PDF
+STATIC.update({'/static/v56108-ia-locale.js': 'text/javascript', '/static/v56108-ia-locale.css': 'text/css'})   # 5.6.108 (lot L) : assistant « Configurer l'IA locale »
 MAX_JSON = 260_000
 NAV = (('/aujourdhui', 'Aujourd’hui', 'Ce qui demande votre attention'),
        ('/courriels', 'Courriels', 'Relire et corriger les brouillons'),
@@ -360,6 +372,16 @@ def route(env, cfg, auth, prefix, path, args, method):
         from .shell501 import set_context
         set_context(cfg)
         return securite_web56101.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path == '/signature-par-lien':   # 5.6.108 (lot Z) : « Faire signer par lien » sur un PDF d'un dossier (lecture seule ; 404 neutre)
+        from . import signaturepdf56108
+        from .shell501 import set_context
+        set_context(cfg)
+        return signaturepdf56108.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path in ('/editeur/wordcraft', '/editeur/wordcraft/cadre', '/editeur/traitement'):   # 5.6.108 (lot W) : éditeur intégré WordCraft, cadre, Word / LibreOffice du poste
+        from . import wordcraft56108
+        from .shell501 import set_context
+        set_context(cfg)
+        return wordcraft56108.page_route(env, cfg, auth, prefix, path, args, shell)
     if method == 'GET' and path == '/fichiers':   # 5.6.103 (lot F) : explorateur Nextcloud et disque local du poste (lecture seule à l'affichage)
         from . import fichiers_web56103
         return fichiers_web56103.page_route(env, cfg, auth, prefix, path, args, shell)
@@ -378,6 +400,14 @@ def route(env, cfg, auth, prefix, path, args, method):
         from .shell501 import set_context
         set_context(cfg)
         return dossiers_web5697.page_route(env, cfg, auth, prefix, path, args, shell)
+    if method == 'GET' and path in ('/dossier/remplir-pdf', '/dossier/outils-pdf'):   # 5.6.108 (lot F) : remplir un PDF à champs, boîte à outils PDF (lecture seule ; 404 neutre)
+        from .shell501 import set_context
+        set_context(cfg)
+        if path == '/dossier/remplir-pdf':
+            from . import pdf_formulaire56108
+            return pdf_formulaire56108.page_route(env, cfg, auth, prefix, path, args, shell)
+        from . import outils_pdf56108
+        return outils_pdf56108.page_route(env, cfg, auth, prefix, path, args, shell)
     if method == 'GET' and path in ('/dossier/apercu', '/dossier/fichier'):   # 5.6.79 : aperçu des documents de la page Dossier
         from . import web5679
         return web5679.route(cfg, auth, prefix, path, args)
@@ -573,9 +603,18 @@ def api(env, desk, auth, prefix, name, args, method):
     if name.startswith('m56103/tableau/'):   # 5.6.103 (lot T) : tableau blanc de la messagerie (scène, versions, images, propositions de Pilote ; 404 neutre, 409, no-store, clé d'idempotence)
         from . import tableau56103
         return tableau56103.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56108/fichiers-dossier/'):   # 5.6.108 (lot F) : ajouter un fichier, remplir un PDF, outils PDF (404 neutre, 409, no-store, clé d'idempotence ; originaux jamais réécrits)
+        from . import pdf_formulaire56108
+        return pdf_formulaire56108.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56108/editeur/'):   # 5.6.108 (lot W) : séances d'édition (404 neutre, 409, 503, no-store, clé d'idempotence ; jamais d'écrasement)
+        from . import wordcraft56108
+        return wordcraft56108.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m56103/fichiers/'):   # 5.6.103 (lot F) : page « Fichiers » (404 neutre, 409, no-store, clé d'idempotence ; aucune lecture par l'IA)
         from . import fichiers_web56103
         return fichiers_web56103.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56108/sync/'):   # 5.6.108 (lot S) : synchronisation des postes (poste seulement ; 404 neutre, 403, 409, no-store, clé d'idempotence)
+        from . import sync56108_web
+        return sync56108_web.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m56103/liaison/'):   # 5.6.103 (lot L) : liaison entre postes (poste seulement ; 404 neutre, 409, no-store, clé d'idempotence)
         from . import liaison_web56103
         return liaison_web56103.api(env, desk, auth, prefix, name, args, method)
@@ -649,6 +688,26 @@ def api(env, desk, auth, prefix, name, args, method):
             from .web import REASONS
             return json_out({'error': code, 'message': REASONS.get(code) or explain(code, getattr(error, 'detail', None))},
                             '403 Forbidden' if code == 'role_insuffisant' else '400 Bad Request')
+    if name.startswith('m56108/assistance/'):   # 5.6.108 (lot T) : export texte d'un projet d'Assistance métier (GET ; 404 neutre, 503, no-store ; droit « exporter »)
+        from . import assistance56108
+        try:
+            return assistance56108.api(env, desk, auth, prefix, name, args, method)
+        except Stop as error:
+            code = str(error).split(':')[0]
+            return {**json_out({'error': code, 'message': 'Contrôle des accès indisponible : rien n’a été exporté.' if code == 'controle_acces_indisponible' else 'Élément introuvable.'},
+                               '503 Service Unavailable' if code == 'controle_acces_indisponible' else '404 Not Found'), 'headers': [('Cache-Control', 'private, no-store')]}
+    if name.startswith('m56108/questionnaire/'):   # 5.6.108 (lot Q) : questionnaire de l'acte (404 neutre, 409, 503, no-store, clé d'idempotence)
+        from . import questionnaires56108
+        return questionnaires56108.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56108/signaturepdf/'):   # 5.6.108 (lot Z) : SignaturePDF (réglages, test : administrateur ; dépôt, récupération, clôture : avocat ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import signaturepdf56108
+        return signaturepdf56108.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56108/conseil/'):   # 5.6.108 (lot K) : conseil de modèles (annonce, trace, réglages : administrateur ; lancer : avocat ; 404 neutre, 409, no-store, clé d'idempotence)
+        from . import conseil56108
+        return conseil56108.api(env, desk, auth, prefix, name, args, method)
+    if name.startswith('m56108/ia-locale/'):   # 5.6.108 (lot L) : « Configurer l'IA locale » (administrateur ; détection en GET sans écriture ; 403, 404 neutre, 409, no-store, clé d'idempotence)
+        from . import ia_locale56108
+        return ia_locale56108.api(env, desk, auth, prefix, name, args, method)
     if name.startswith('m5674/'):   # 5.6.74 : téléphones associés par QR code (version serveur)
         from . import appareils5674
         try:
@@ -1084,6 +1143,8 @@ def api(env, desk, auth, prefix, name, args, method):
                 question='Réécris le projet joint selon cette consigne, sans changer les faits ni les dates : '+instruction
             submitted = submit_question(desk,question,str(data.get('matter','')),str(data.get('source_key','')),attachment_ids=attachments)
             return json_out({'job_id': submitted['job_id'], 'thread': submitted['thread_id']})
+        if name == 'settings/office/test':   # 5.6.108 (lot O) : « Tester la connexion » étape par étape (administrateur, CSRF ; aucune donnée de dossier)
+            return json_out({'checks': office440.diagnostic(desk, auth, reach=True)})
         if name == 'settings/office':
             result = office440.save_settings(desk, data.get('server_url', ''), data.get('secret', ''),
                                              data.get('callback_base', ''), data.get('engine', 'onlyoffice'))
@@ -1485,21 +1546,37 @@ def settings_page(desk, auth, prefix, args, render=None):
                    'au plus une fois toutes les %d secondes par document et seulement si la modification peut avoir un effet.</p><form class="m5-form" data-api="m5684/office/reglage" data-reload="1">'
                    '<label class="e5636-switch"><input type="checkbox" name="observation" value="1"%s> Activer l’observation et l’analyse</label><label class="e5636-switch"><input type="checkbox" name="auto_apply" value="1"%s> Autoriser l’écriture automatique en mode Rédiger en autonomie</label>'
                    '<button class="ax-btn ghost" type="submit">Enregistrer</button></form></section>') % (flags5684['min_seconds'], ' checked' if flags5684['observation'] else '', ' checked' if flags5684['auto_apply'] else '')
-    office = (observation + '<section class="ax-card" id="ax-office-settings"><h2>1 · Modifier les documents dans l’interface</h2>'
+    # 5.6.108 (lot O) : sans serveur de documents, aperçu en lecture seule ; guide pas à pas ; valeurs d'un poste (Docker sur ce même ordinateur)
+    poste = bool((auth or {}).get('poste'))
+    port108 = urlsplit(str((auth or {}).get('origin') or 'http://127.0.0.1:8769')).port or 8769
+    poste_callback = 'http://host.docker.internal:%d%s' % (port108, (auth or {}).get('prefix', '/agent-courriel'))
+    without = ('<div class="ax-note" id="of-sans-serveur"><p><strong>Sans serveur de documents : aperçu en lecture seule.</strong> Les documents Word s’affichent '
+               'en aperçu dans AxiorHub et s’ouvrent dans Word sur votre ordinateur. Le serveur de documents (EuroOffice ou OnlyOffice) sert à les '
+               '<em>modifier ici</em>, à plusieurs, avec l’enregistrement contrôlé.</p><p><a href="%s" target="_blank" rel="noopener noreferrer">'
+               'Guide pas à pas : installer EuroOffice ou OnlyOffice avec son secret JWT (serveur, poste Windows 11, poste Ubuntu 24.04)</a></p></div>') % e(office440.guide_url(), quote=True)
+    if poste:
+        without += ('<p class="ax-muted" id="of-poste">Sur ce poste, avec le serveur de documents dans Docker : adresse du serveur '
+                    '<code>http://127.0.0.1:8080</code>, adresse de cette interface vue par le serveur de documents <code>%s</code>.</p>') % e(poste_callback)
+    office = (observation + '<section class="ax-card" id="ax-office-settings"><h2>1 · Modifier les documents dans l’interface</h2>' + without +
               '<p class="ax-muted">Les deux serveurs (ONLYOFFICE, Euro-Office) s’intègrent par le même principe : cette page affiche leur éditeur ; '
-              'le serveur relit le fichier ici via une adresse signée et renvoie vos modifications à l’agent, qui les écrit dans Nextcloud.</p>'
+              'le serveur relit le fichier ici via une adresse signée et renvoie vos modifications à l’agent, qui les écrit dans le stockage des documents.</p>'
               '<label>Moteur<select id="of-engine">%s</select></label>'
-              '<label>Adresse du serveur de documents<input id="of-server" placeholder="https://office.example.fr" value="%s"></label>'
-              '<label>Secret JWT <small>(le même que dans local.json du serveur de documents : services.CoAuthoring.token.*.secret)</small>'
+              '<label>Adresse du serveur de documents<input id="of-server" placeholder="%s" value="%s"></label>'
+              '<label>Secret JWT <small>(le même que JWT_SECRET du conteneur du serveur de documents ; jamais affiché ici une fois enregistré)</small>'
               '<input id="of-secret" type="password" autocomplete="off" placeholder="%s"></label>'
-              '<label>Adresse de cette interface vue par le serveur de documents <small>(laissez vide si c’est la même que dans votre navigateur ; sinon l’adresse interne, par exemple https://agent.example.fr/agent-courriel)</small>'
+              '<label>Adresse de cette interface vue par le serveur de documents <small>(%s)</small>'
               '<input id="of-callback" value="%s" placeholder="%s"></label>'
               '<div class="ax-actions"><button type="button" class="ax-btn" id="of-save">Enregistrer</button>'
               '<button type="button" class="ax-btn ghost" id="of-diag">Tester la connexion</button>'
               '<button type="button" class="ax-btn ghost" id="of-clear">Retirer le secret</button></div>'
+              '<p class="ax-muted">Le test vérifie, étape par étape : le serveur répond, api.js est joignable, le secret est accepté, et le serveur de documents '
+              'joint AxiorHub (fichier d’essai fixe, aucune donnée de dossier).</p>'
               '<div id="of-result" class="ax-diag" aria-live="polite"></div></section>') % (
-        engines, e(cfg['server_url'], quote=True), 'secret enregistré (laissez vide pour le conserver)' if cfg['jwt'] else 'aucun secret enregistré',
-        e(cfg['callback_base'], quote=True), e(base, quote=True))
+        engines, 'http://127.0.0.1:8080' if poste else 'https://documents.example.test', e(cfg['server_url'], quote=True),
+        'secret enregistré (laissez vide pour le conserver)' if cfg['jwt'] else 'aucun secret enregistré',
+        ('sur ce poste, avec Docker : ' + e(poste_callback)) if poste else
+        'laissez vide si c’est la même que dans votre navigateur ; sinon l’adresse interne, par exemple https://agent.example.test/agent-courriel',
+        e(cfg['callback_base'], quote=True), e(poste_callback if poste else base, quote=True))
     enabled = bool(desk.settings('automation:notices440_enabled', True))
     calendar = bool(desk.settings('automation:notice_calendar440', True))
     rows = ''
@@ -1521,5 +1598,6 @@ def settings_page(desk, auth, prefix, args, render=None):
                '<h3>Votre rôle par dossier</h3><p class="ax-muted">Postulant : le brouillon est adressé au confrère plaidant (ou dominus litis). Défendeur : l’agent prépare aussi un projet d’acte de constitution à l’arrivée d’une convocation. Sans rôle, le brouillon est une note interne.</p>'
                '<div class="ax-table"><table><thead><tr><th>Dossier</th><th>Votre rôle</th><th>Confrère</th><th>Son courriel</th><th></th></tr></thead><tbody>%s</tbody></table></div></section>') % (
         ' checked' if enabled else '', ' checked' if calendar else '', rows)
-    body = '<h1>Réglages de l’atelier</h1>' + office + notices
+    from . import wordcraft56108   # 5.6.108 (lot W) : éditeur intégré WordCraft proposé ou non (réglage administrateur)
+    body = '<h1>Réglages de l’atelier</h1>' + office + wordcraft56108.section_reglages(desk) + notices
     return (render or shell)('Réglages de l’atelier', body, prefix, auth['csrf'], '/parametres')

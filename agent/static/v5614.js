@@ -24,7 +24,8 @@
     try {
       const v = await post('m568', 'automatismes/pause', {paused: b.dataset.paused !== '1'});
       document.querySelectorAll('#a92-pause, #c5614-pause').forEach(x => {
-        x.dataset.paused = v.paused ? '1' : '0'; x.textContent = v.paused ? 'IA en pause — reprendre' : 'Pause de l’IA';
+        x.dataset.paused = v.paused ? '1' : '0';   // 5.6.108 (lot P) : en-tête « Mettre l’IA en pause », distinct de la suspension des envois
+        x.textContent = v.paused ? 'IA en pause — reprendre' : (x.id === 'a92-pause' ? 'Mettre l’IA en pause' : 'Pause de l’IA');
         x.classList.toggle('warn', v.paused); x.classList.toggle('ghost', !v.paused); x.setAttribute('aria-pressed', String(v.paused));
       });
       note(v.message || '');

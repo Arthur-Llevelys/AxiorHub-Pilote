@@ -37,6 +37,7 @@
   var grille = $('[data-ag97-grille]', racine), dialogue = $('#ag97-editeur'), form = $('[data-ag97-form]');
   var statut = form ? $('[data-ag97-statut]', form) : null;
   var pas = Number(donnees.pas) || 30, ouvreur = null, envoiEnCours = false;
+  var detailOuvert = null;   // 5.6.108 (lot G) : détail de l'événement ouvert (rappels, série, responsable) pour v56108-agenda.js
 
   function cle() {
     if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID().replace(/-/g, '');
@@ -215,7 +216,7 @@
     majSections();
   }
   function reinitialiser(titre) {
-    form.reset(); form.removeAttribute('data-tache-existante'); form.removeAttribute('data-mode');
+    form.reset(); form.removeAttribute('data-tache-existante'); form.removeAttribute('data-mode'); detailOuvert = null;
     form.elements.cle.value = cle(); form.elements.id.value = ''; form.elements.version.value = '';
     $('#ag97-editeur-titre').textContent = titre || 'Nouvel événement';
     var choix = $('[data-ag97-choix]', form); choix.hidden = true; choix.textContent = '';
@@ -232,6 +233,7 @@
     ouvreur = depuis || document.activeElement;
     if (dialogue.showModal) { if (!dialogue.open) dialogue.showModal(); } else dialogue.setAttribute('open', '');
     majSections();
+    if (window.AX108agenda) window.AX108agenda.ouvert(form, detailOuvert);   // 5.6.108 : durée, rappel, fuseau, responsable, récurrence lisibles
     window.setTimeout(function () { form.elements.titre.focus(); }, 0);
   }
   function fermer() { if (dialogue.open) { if (dialogue.close) dialogue.close(); else dialogue.removeAttribute('open'); } }
@@ -273,6 +275,9 @@
     if (choixF) c.decalage_fin = choixF.value;
     if (o !== 'evenement') c.tache = { titre: c.titre, responsable: f.responsable.value, priorite: f.priorite.value, echeance: f.echeance.value, reserver: f.reserver.checked };
     if (form.getAttribute('data-tache-existante')) c.tache_existante = form.getAttribute('data-tache-existante');
+    if (window.AX108agenda && (o !== 'tache' || f.reserver.checked)) {   // 5.6.108 (lot G) : rappel choisi explicitement, s'il y a un créneau
+      var rp = window.AX108agenda.rappels(form); if (rp) c.rappels = rp;
+    }
     return c;
   }
   function horaire(err) {   // B05 : heure sautée (proposition) ou heure répétée (deux décalages à choisir)
@@ -308,7 +313,8 @@
     if (modif) {
       route = '/evenements/modifier';
       c = { cle: c.cle, id: form.elements.id.value, version: form.elements.version.value, titre: c.titre, lieu: c.lieu, notes: c.notes, dossier: c.dossier,
-            debut: c.debut, fin: c.fin, journee_entiere: c.journee_entiere, jour_fin: c.jour_fin, zone: c.zone, decalage_debut: c.decalage_debut, decalage_fin: c.decalage_fin };
+            debut: c.debut, fin: c.fin, journee_entiere: c.journee_entiere, jour_fin: c.jour_fin, zone: c.zone, decalage_debut: c.decalage_debut, decalage_fin: c.decalage_fin,
+            rappels: c.rappels };
     }
     var bouton = $('[data-ag97-enregistrer]', form);
     envoiEnCours = true; bouton.disabled = true; dire('Enregistrement…');
@@ -380,6 +386,7 @@
     var id = b.getAttribute('data-ag97-ev');
     appel('/evenement?id=' + encodeURIComponent(id)).then(function (d) {
       reinitialiser(d.modifiable ? 'Modifier l’événement' : 'Événement');
+      detailOuvert = d;
       var f = form.elements;
       $('fieldset.ag97-objet', form).hidden = true;
       f.titre.value = d.title || (d.recu ? '' : '');

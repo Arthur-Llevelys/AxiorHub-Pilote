@@ -463,7 +463,7 @@
  "fn.agents_documents.label": "Agent results",
  "fn.apprentissage.desc": "Practice rules, reliable references and corrections",
  "fn.apprentissage.label": "Practice learning",
- "fn.assistance_metier.desc": "Checkable calculations, prepared calls, billing review",
+ "fn.assistance_metier.desc": "Hearing, arguments, call, calculation and billing: five guided paths",
  "fn.assistance_metier.label": "Practice assistance",
  "fn.assistant.desc": "Conversation with the assistant and history",
  "fn.assistant.label": "Assistant",
@@ -1424,8 +1424,8 @@
  "vj.queued": "Collection queued: it starts as soon as the agent is available.",
  "vj.running": "Collection in progress…",
  "vj.queue_refused": "Queueing refused (queue full): new attempt at the next cycle, or click “Actualiser”.",
- "fn.mobile.label": "To approve (phone)",
- "fn.mobile.desc": "What awaits your decision, large for the phone linked by QR code",
+ "fn.mobile.label": "Mobile access (smartphone)",
+ "fn.mobile.desc": "Review and decide from a smartphone; pairing and settings available here",
  "fn.navigateur.label": "Supervised browser",
  "fn.navigateur.desc": "The agent browses portals and registries in a visible window; you approve payments, sending and filings",
  "fn.savoir_faire.label": "Firm know-how",
@@ -1538,5 +1538,12 @@
  "js.5694.fallback": "The browser voice could not start ({raison}). Reading with the server fallback voice ({voix}).",
  "js.5694.error": "Reading impossible: {raison}",
  "js.5694.alkove_off": "(voice isolation unavailable: dictation without processing)",
- "js.5694.alkove_on": "Voice isolated by Alkove."
+ "js.5694.alkove_on": "Voice isolated by Alkove.",
+ "js.56108q.dicter": "Dictate the answer",
+ "js.56108q.indisponible": "Microphone unavailable on this computer or in this browser.",
+ "js.56108q.desactivee": "Dictation is turned off in Settings (local voice): ask the administrator to turn it on.",
+ "js.56108q.refuse": "Microphone refused: allow the microphone for this site in the browser, then reload the page.",
+ "js.56108q.insere": "Text inserted at the cursor: check it before saving.",
+ "js.56108q.a_corriger": "Recognised: “{texte}” — not a valid value for this field: correct it by hand.",
+ "js.56108q.trop_long": "Text too long for this field: nothing was cut, shorten the entry."
 }

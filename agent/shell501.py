@@ -57,6 +57,16 @@ BUNDLE += ('v56106-vision.css',)   # 5.6.106 (lot I) : joindre une image ou une 
 BUNDLE += ('v56106-routine.css',)   # 5.6.106 (lot O) : assistant « Créer une routine à partir du message », routines sur message d'Aujourd'hui
 BUNDLE += ('v56106-fraude.css',)   # 5.6.106 (lot F) : pastille et bandeau « courriel potentiellement frauduleux »
 BUNDLE += ('v56107-demo.css',)   # 5.6.107 (lot M) : bandeau du mode Démo, bulles de la visite guidée, « Essayer la démo »
+BUNDLE += ('v56108-assistance.css',)
+BUNDLE += ('v56108-accueil.css',)   # 5.6.108 (lot A) : Aujourd'hui (dossier lisible, rang, Ma journée), volet de l'assistant (Envoyer collé en bas), reçu   # 5.6.108 (lot T) : Assistance métier en cinq parcours ; Accès mobile (commandes atteignables clavier ouvert)
+BUNDLE += ('v56108-agenda.css',)   # 5.6.108 (lot G) : agenda (barre visible au défilement, éditeur lisible, dates à vérifier), Produire et Dossiers denses
+BUNDLE += ('v56108-questionnaire.css',)   # 5.6.108 (lot Q) : questionnaire de l'acte, formulaire et aperçu côte à côte
+BUNDLE += ('v56108-sync.css',)   # 5.6.108 (lot S) : synchronisation des postes (indicateur, conflits, parcours)
+BUNDLE += ('v56108-conseil.css',)   # 5.6.108 (lot K) : conseil de modèles (réglages, annonce, trace dépliable)
+BUNDLE += ('v56108-editeur.css',)   # 5.6.108 (lot W) : éditeur intégré WordCraft et « Ouvrir dans Word / LibreOffice »
+BUNDLE += ('v56108-fichiers.css',)   # 5.6.108 (lot F) : onglet Fichiers du dossier, remplir un PDF, outils PDF
+BUNDLE += ('v56108-signaturepdf.css',)   # 5.6.108 (lot Z) : SignaturePDF, signature par lien (réglage, bouton, page d'un PDF)
+BUNDLE += ('v56108-ia-locale.css',)   # 5.6.108 (lot L) : assistant « Configurer l'IA locale » (Paramètres › IA, guide de démarrage)
 BUNDLE_FILE = 'app520.css'
 
 _ctx = threading.local()
@@ -208,8 +218,16 @@ def topbar_html(prefix, title, path='', retour=True):
             '<span class="ws-ariane">' + th('top.workspace') + ' / ' + e(title) + '</span></div><div class="ws-topbar-actions"><button type="button" class="ws-icon-button" '
             'id="ws-theme-toggle" aria-label="' + th('top.dark') + '" title="' + th('top.dark') + '">' + (theme_svg or '<span aria-hidden="true">☾</span>') + '</button>'
             '<a href="' + e(prefix + '/missions') + '">' + th('top.missions') + '</a><a href="' + e(prefix + '/rechercher') + '" data-m82-quick title="Ctrl+K" aria-keyshortcuts="Control+K">' + (cherche_svg or '⌕ ') + th('top.search') + ' <kbd class="m102-kbd" data-m102-kbd aria-hidden="true">Ctrl+K</kbd></a>' +   # 5.6.102 : raccourci affiché en petit
-            
+            _sync108(prefix) +   # 5.6.108 (lot S5) : indicateur de synchronisation des postes (seulement quand un espace partagé existe)
             help_link + menu_html(prefix) + '</div></header>')
+
+
+def _sync108(prefix):
+    try:
+        from .sync56108_web import indicateur_entete
+        return indicateur_entete(context(), prefix)
+    except Exception:   # noqa: BLE001 — l'en-tête s'affiche toujours
+        return ''
 
 
 def head_html(title, prefix, css=(), head=''):

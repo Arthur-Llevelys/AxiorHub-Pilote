@@ -33,6 +33,16 @@ Isolement réseau : il ne dépend pas de ce module. Le service systemd (``deploy
 (``deploy/demo/compose.yml``) avec ``network_mode: none``. Le répartiteur et ses instances n'ont donc aucun accès réseau ; seul le
 mandataire HTTPS du cabinet joint le répartiteur, par son socket Unix. L'instance pose en plus une garde dans son propre processus
 (défense en profondeur, pas une barrière).
+
+5.6.108 (lot D), d'après la première installation sur un vrai serveur :
+- ``Referrer-Policy: same-origin`` sur toutes les réponses (``no-referrer`` faisait envoyer ``Origin: null`` par Chrome au POST de
+  « Commencer la démo ») ; ``Origin: null`` n'est admis qu'avec ``Sec-Fetch-Site: same-origin`` (en-tête posé par le navigateur, jamais
+  par un script) et le jeton du formulaire ; tout autre cas reste refusé ;
+- session de l'instance : marquée ouverte seulement après un échange réussi du jeton de lancement, constaté sur la réponse de
+  l'instance ; une réponse 401 de l'instance n'est jamais transmise (ni ``WWW-Authenticate: Basic``, donc aucune fenêtre de mot de
+  passe) : page « Votre session de démonstration a été perdue », avec « Recommencer » et « Reprendre ma démonstration » ;
+- langue de la démonstration choisie à l'accueil (français, anglais, allemand, espagnol ; liste fermée), proposée d'après la langue du
+  navigateur ; pages du répartiteur traduites ; la langue est passée à l'instance (``instance.py --langue`` → ``demo56107.creer``).
 """
 from collections import deque
 from datetime import datetime, timezone
@@ -118,12 +128,276 @@ STYLE = ('body{font:16px/1.5 system-ui,sans-serif;margin:0;background:#f6f7f9;co
          '.carte{background:#fff;border:1px solid #c6c6c6;border-radius:6px;padding:1.25rem;margin:0 0 1rem}'
          'button{font:inherit;background:#0f62fe;color:#fff;border:0;border-radius:4px;padding:.7rem 1.2rem;cursor:pointer}'
          'button.second{background:#fff;color:#0f62fe;border:1px solid #0f62fe}'
-         'button:focus-visible,a:focus-visible{outline:3px solid #ffb000;outline-offset:2px}a{color:#0043ce}'
+         'button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #ffb000;outline-offset:2px}a{color:#0043ce}'
          '.mention{font-size:.9rem;color:#393939}form{display:inline-block;margin:0 .5rem .5rem 0}'
+         '.langues{margin:0 0 1rem;font-size:.95rem}.langues a{margin-right:.75rem}.langues a[aria-current]{font-weight:600;color:inherit}'
+         'label{display:block;margin:0 0 .25rem}select{font:inherit;padding:.45rem;margin:0 0 .75rem;border:1px solid #6f6f6f;'
+         'border-radius:4px;background:#fff;color:#161616}'
          '@media (prefers-color-scheme:dark){body{background:#161616;color:#f4f4f4}.carte{background:#262626;border-color:#525252}'
-         '.mention{color:#c6c6c6}a{color:#78a9ff}button.second{background:#262626;color:#78a9ff;border-color:#78a9ff}}')
+         '.mention{color:#c6c6c6}a{color:#78a9ff}button.second{background:#262626;color:#78a9ff;border-color:#78a9ff}'
+         'select{background:#161616;color:#f4f4f4;border-color:#8d8d8d}}')
 CSP = ("default-src 'none'; style-src 'sha256-%s'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
        % base64.b64encode(hashlib.sha256(STYLE.encode()).digest()).decode())
+
+# 5.6.108 : langues de la démonstration (liste fermée, celle de ``demo56107.LANGUES``) et pages du répartiteur traduites. Le français
+# est celui de la 5.6.107, à l'octet près. ``{accueil}`` : lien vers l'accueil dans la même langue.
+LANGUES = ('fr', 'en', 'de', 'es')
+NOMS_LANGUES = {'fr': 'Français', 'en': 'English', 'de': 'Deutsch', 'es': 'Español'}
+TRADUCTIONS = {
+    'fr': {
+        'titre_accueil': 'AxiorHub Pilote — démonstration',
+        'intro': '<p>Découvrez AxiorHub Pilote dans un cabinet fictif, le « Cabinet DURAND Avocats » : dossiers, courriels, '
+                 'échéances et brouillons préparés par une IA de démonstration.</p>',
+        'commencer': 'Commencer la démo', 'langue': 'Langue de la démonstration', 'langues': 'Langue de la page',
+        'vie_privee': '<strong>Vie privée.</strong> Données fictives uniquement ; aucun compte à créer. Ce que vous saisissez '
+                      'reste dans votre instance, isolée de celles des autres visiteurs et sans accès à Internet, et est effacé à la fin de la '
+                      'session (au plus tard après %s d’inactivité ou %s au total). Un cookie technique vous relie à votre instance, rien '
+                      'd’autre. Votre adresse IP sert seulement, en mémoire et sans être enregistrée, à limiter le nombre de démarrages ; le '
+                      'journal technique ne contient ni adresse ni saisie et est effacé après %d jours. N’y saisissez aucune donnée réelle.',
+        'titre_fin': 'Démonstration terminée',
+        'fin': '<p>Cette démonstration est terminée ou a expiré : tout ce qui y avait été saisi a été effacé.</p>'
+               '<p><a href="{accueil}">Commencer une nouvelle démonstration</a></p>',
+        'fin_visiteur': '<p>Votre démonstration est terminée : tout ce que vous y aviez saisi a été effacé.</p>'
+                        '<p><a href="{accueil}">Revenir à l’accueil</a></p>',
+        'titre_preparation': 'Préparation de votre démonstration',
+        'preparation': '<p>Votre cabinet fictif se prépare ; cette page se recharge toute seule.</p>',
+        'titre_impossible': 'Démarrage impossible',
+        'impossible_instance': '<p>Votre démonstration n’a pas pu démarrer. <a href="{accueil}">Réessayer</a></p>',
+        'impossible': '<p>La démonstration n’a pas pu démarrer. <a href="{accueil}">Réessayer</a></p>',
+        'titre_complet': 'Démo complète',
+        'complet': '<p><strong>Démo complète, réessayez dans quelques minutes.</strong></p><p><a href="{accueil}">Revenir à l’accueil</a></p>',
+        'titre_trop': 'Trop de démarrages',
+        'trop': '<p>Trop de démonstrations ont été démarrées depuis votre connexion. Réessayez dans %d %s.</p>',
+        'minute': ('minute', 'minutes'),
+        'titre_session': 'Votre démonstration',
+        'session': '<p>Votre démonstration est ouverte. Elle sera effacée dans %s au plus tard (ou après %s sans activité).</p>',
+        'revenir': 'Revenir à la démonstration', 'recommencer_zero': 'Recommencer à zéro', 'terminer': 'Terminer et tout effacer',
+        'titre_occupee': 'Instance occupée',
+        'occupee_ouvrir': '<p>Votre démonstration ne répond pas encore ; <a href="{accueil}">réessayez</a>.</p>',
+        'occupee': '<p>Votre démonstration ne répond pas ; réessayez.</p>',
+        'titre_introuvable': 'Page introuvable',
+        'introuvable': '<p>Page introuvable. <a href="{accueil}">Accueil de la démonstration</a></p>',
+        'titre_refus': 'Demande refusée',
+        'refus': '<p>Demande refusée. <a href="{accueil}">Retour à l’accueil</a></p>', 'refus_court': '<p>Demande refusée.</p>',
+        'titre_expire': 'Formulaire expiré',
+        'expire': '<p>Le formulaire a expiré. <a href="{accueil}">Recharger la page d’accueil</a></p>',
+        'titre_volumineux': 'Envoi trop volumineux',
+        'volumineux': '<p>Envoi trop volumineux pour la démonstration (%d Mo au plus).</p>',
+        'titre_interrompue': 'Démonstration interrompue',
+        'interrompue': '<p>Votre démonstration s’est arrêtée ; elle a été effacée. <a href="{accueil}">Recommencer</a></p>',
+        'titre_perdue': 'Votre session de démonstration a été perdue',
+        'perdue': '<p>Votre navigateur n’est plus relié à votre cabinet fictif (lien d’ouverture expiré, cookie effacé ou bloqué). '
+                  'Aucune fenêtre de mot de passe n’est nécessaire : la démonstration n’en demande jamais.</p>',
+        'recommencer': 'Recommencer', 'reprendre': 'Reprendre ma démonstration',
+        'perdue_mention': '« Recommencer » ouvre un cabinet fictif neuf ; « Reprendre ma démonstration » rouvre le vôtre, avec ce que '
+                          'vous y aviez saisi.',
+        'perdue_api': 'Session de démonstration perdue : rechargez la page.',
+    },
+    'en': {
+        'titre_accueil': 'AxiorHub Pilote — demo',
+        'intro': '<p>Discover AxiorHub Pilote in a fictional law firm, “Durand &amp; Martin Solicitors”: matters, emails, deadlines '
+                 'and drafts prepared by a demonstration AI.</p>',
+        'commencer': 'Start the demo', 'langue': 'Demo language', 'langues': 'Page language',
+        'vie_privee': '<strong>Privacy.</strong> Fictional data only; no account to create. What you enter stays in your instance, '
+                      'isolated from other visitors’ instances and without Internet access, and is erased at the end of the session (at '
+                      'the latest after %s of inactivity or %s in total). A technical cookie links you to your instance, nothing else. '
+                      'Your IP address is only used, in memory and without being recorded, to limit the number of starts; the technical '
+                      'log contains neither addresses nor anything you type and is erased after %d days. Do not enter any real data.',
+        'titre_fin': 'Demo ended',
+        'fin': '<p>This demo has ended or expired: everything entered in it has been erased.</p>'
+               '<p><a href="{accueil}">Start a new demo</a></p>',
+        'fin_visiteur': '<p>Your demo has ended: everything you entered in it has been erased.</p>'
+                        '<p><a href="{accueil}">Back to the home page</a></p>',
+        'titre_preparation': 'Preparing your demo',
+        'preparation': '<p>Your fictional firm is being prepared; this page reloads by itself.</p>',
+        'titre_impossible': 'Unable to start',
+        'impossible_instance': '<p>Your demo could not start. <a href="{accueil}">Try again</a></p>',
+        'impossible': '<p>The demo could not start. <a href="{accueil}">Try again</a></p>',
+        'titre_complet': 'Demo full',
+        'complet': '<p><strong>The demo is full, please try again in a few minutes.</strong></p>'
+                   '<p><a href="{accueil}">Back to the home page</a></p>',
+        'titre_trop': 'Too many starts',
+        'trop': '<p>Too many demos have been started from your connection. Try again in %d %s.</p>',
+        'minute': ('minute', 'minutes'),
+        'titre_session': 'Your demo',
+        'session': '<p>Your demo is open. It will be erased in %s at the latest (or after %s without activity).</p>',
+        'revenir': 'Back to the demo', 'recommencer_zero': 'Start over from scratch', 'terminer': 'End and erase everything',
+        'titre_occupee': 'Instance busy',
+        'occupee_ouvrir': '<p>Your demo is not responding yet; <a href="{accueil}">try again</a>.</p>',
+        'occupee': '<p>Your demo is not responding; try again.</p>',
+        'titre_introuvable': 'Page not found',
+        'introuvable': '<p>Page not found. <a href="{accueil}">Demo home page</a></p>',
+        'titre_refus': 'Request refused',
+        'refus': '<p>Request refused. <a href="{accueil}">Back to the home page</a></p>', 'refus_court': '<p>Request refused.</p>',
+        'titre_expire': 'Form expired',
+        'expire': '<p>The form has expired. <a href="{accueil}">Reload the home page</a></p>',
+        'titre_volumineux': 'Upload too large',
+        'volumineux': '<p>Upload too large for the demo (%d MB at most).</p>',
+        'titre_interrompue': 'Demo interrupted',
+        'interrompue': '<p>Your demo has stopped; it has been erased. <a href="{accueil}">Start again</a></p>',
+        'titre_perdue': 'Your demo session has been lost',
+        'perdue': '<p>Your browser is no longer linked to your fictional firm (opening link expired, cookie deleted or blocked). '
+                  'No password window is needed: the demo never asks for one.</p>',
+        'recommencer': 'Start again', 'reprendre': 'Resume my demo',
+        'perdue_mention': '“Start again” opens a new fictional firm; “Resume my demo” reopens yours, with what you had entered.',
+        'perdue_api': 'Demo session lost: reload the page.',
+    },
+    'de': {
+        'titre_accueil': 'AxiorHub Pilote — Demo',
+        'intro': '<p>Entdecken Sie AxiorHub Pilote in einer fiktiven Kanzlei, der „Kanzlei Durand“: Akten, E-Mails, Fristen und '
+                 'Entwürfe, vorbereitet von einer Demo-KI.</p>',
+        'commencer': 'Demo starten', 'langue': 'Sprache der Demo', 'langues': 'Sprache der Seite',
+        'vie_privee': '<strong>Datenschutz.</strong> Nur fiktive Daten; kein Konto erforderlich. Ihre Eingaben bleiben in Ihrer Instanz, '
+                      'getrennt von denen anderer Besucher und ohne Internetzugang, und werden am Ende der Sitzung gelöscht (spätestens '
+                      'nach %s Inaktivität oder %s insgesamt). Ein technisches Cookie verbindet Sie mit Ihrer Instanz, sonst nichts. Ihre '
+                      'IP-Adresse dient nur, im Arbeitsspeicher und ohne gespeichert zu werden, der Begrenzung der Anzahl der Starts; das '
+                      'technische Protokoll enthält weder Adressen noch Eingaben und wird nach %d Tagen gelöscht. Geben Sie keine echten '
+                      'Daten ein.',
+        'titre_fin': 'Demo beendet',
+        'fin': '<p>Diese Demo ist beendet oder abgelaufen: Alle Eingaben wurden gelöscht.</p>'
+               '<p><a href="{accueil}">Neue Demo starten</a></p>',
+        'fin_visiteur': '<p>Ihre Demo ist beendet: Alle Ihre Eingaben wurden gelöscht.</p>'
+                        '<p><a href="{accueil}">Zurück zur Startseite</a></p>',
+        'titre_preparation': 'Ihre Demo wird vorbereitet',
+        'preparation': '<p>Ihre fiktive Kanzlei wird vorbereitet; diese Seite lädt sich selbst neu.</p>',
+        'titre_impossible': 'Start nicht möglich',
+        'impossible_instance': '<p>Ihre Demo konnte nicht starten. <a href="{accueil}">Erneut versuchen</a></p>',
+        'impossible': '<p>Die Demo konnte nicht starten. <a href="{accueil}">Erneut versuchen</a></p>',
+        'titre_complet': 'Demo ausgelastet',
+        'complet': '<p><strong>Die Demo ist ausgelastet, bitte versuchen Sie es in einigen Minuten erneut.</strong></p>'
+                   '<p><a href="{accueil}">Zurück zur Startseite</a></p>',
+        'titre_trop': 'Zu viele Starts',
+        'trop': '<p>Von Ihrer Verbindung wurden zu viele Demos gestartet. Versuchen Sie es in %d %s erneut.</p>',
+        'minute': ('Minute', 'Minuten'),
+        'titre_session': 'Ihre Demo',
+        'session': '<p>Ihre Demo ist geöffnet. Sie wird spätestens in %s gelöscht (oder nach %s ohne Aktivität).</p>',
+        'revenir': 'Zurück zur Demo', 'recommencer_zero': 'Ganz von vorn beginnen', 'terminer': 'Beenden und alles löschen',
+        'titre_occupee': 'Instanz beschäftigt',
+        'occupee_ouvrir': '<p>Ihre Demo antwortet noch nicht; <a href="{accueil}">versuchen Sie es erneut</a>.</p>',
+        'occupee': '<p>Ihre Demo antwortet nicht; versuchen Sie es erneut.</p>',
+        'titre_introuvable': 'Seite nicht gefunden',
+        'introuvable': '<p>Seite nicht gefunden. <a href="{accueil}">Startseite der Demo</a></p>',
+        'titre_refus': 'Anfrage abgelehnt',
+        'refus': '<p>Anfrage abgelehnt. <a href="{accueil}">Zurück zur Startseite</a></p>', 'refus_court': '<p>Anfrage abgelehnt.</p>',
+        'titre_expire': 'Formular abgelaufen',
+        'expire': '<p>Das Formular ist abgelaufen. <a href="{accueil}">Startseite neu laden</a></p>',
+        'titre_volumineux': 'Upload zu groß',
+        'volumineux': '<p>Upload zu groß für die Demo (höchstens %d MB).</p>',
+        'titre_interrompue': 'Demo unterbrochen',
+        'interrompue': '<p>Ihre Demo wurde beendet und gelöscht. <a href="{accueil}">Neu beginnen</a></p>',
+        'titre_perdue': 'Ihre Demo-Sitzung ist verloren gegangen',
+        'perdue': '<p>Ihr Browser ist nicht mehr mit Ihrer fiktiven Kanzlei verbunden (Öffnungslink abgelaufen, Cookie gelöscht oder '
+                  'blockiert). Ein Passwortfenster ist nicht nötig: Die Demo fragt nie nach einem Passwort.</p>',
+        'recommencer': 'Neu beginnen', 'reprendre': 'Meine Demo fortsetzen',
+        'perdue_mention': '„Neu beginnen“ öffnet eine neue fiktive Kanzlei; „Meine Demo fortsetzen“ öffnet Ihre wieder, mit Ihren Eingaben.',
+        'perdue_api': 'Demo-Sitzung verloren: Laden Sie die Seite neu.',
+    },
+    'es': {
+        'titre_accueil': 'AxiorHub Pilote — demostración',
+        'intro': '<p>Descubra AxiorHub Pilote en un despacho ficticio, «Despacho Durand Abogados»: expedientes, correos, plazos y '
+                 'borradores preparados por una IA de demostración.</p>',
+        'commencer': 'Iniciar la demo', 'langue': 'Idioma de la demostración', 'langues': 'Idioma de la página',
+        'vie_privee': '<strong>Privacidad.</strong> Solo datos ficticios; no hay que crear ninguna cuenta. Lo que introduzca permanece en '
+                      'su instancia, aislada de las de los demás visitantes y sin acceso a Internet, y se borra al final de la sesión '
+                      '(como máximo tras %s de inactividad o %s en total). Una cookie técnica le vincula a su instancia, nada más. Su '
+                      'dirección IP solo se utiliza, en memoria y sin registrarse, para limitar el número de inicios; el registro técnico '
+                      'no contiene direcciones ni datos introducidos y se borra al cabo de %d días. No introduzca ningún dato real.',
+        'titre_fin': 'Demostración terminada',
+        'fin': '<p>Esta demostración ha terminado o ha caducado: todo lo que se introdujo se ha borrado.</p>'
+               '<p><a href="{accueil}">Iniciar una nueva demostración</a></p>',
+        'fin_visiteur': '<p>Su demostración ha terminado: todo lo que introdujo se ha borrado.</p>'
+                        '<p><a href="{accueil}">Volver a la página de inicio</a></p>',
+        'titre_preparation': 'Preparando su demostración',
+        'preparation': '<p>Su despacho ficticio se está preparando; esta página se recarga sola.</p>',
+        'titre_impossible': 'No se pudo iniciar',
+        'impossible_instance': '<p>Su demostración no pudo iniciarse. <a href="{accueil}">Volver a intentarlo</a></p>',
+        'impossible': '<p>La demostración no pudo iniciarse. <a href="{accueil}">Volver a intentarlo</a></p>',
+        'titre_complet': 'Demostración completa',
+        'complet': '<p><strong>La demostración está completa, vuelva a intentarlo en unos minutos.</strong></p>'
+                   '<p><a href="{accueil}">Volver a la página de inicio</a></p>',
+        'titre_trop': 'Demasiados inicios',
+        'trop': '<p>Se han iniciado demasiadas demostraciones desde su conexión. Vuelva a intentarlo dentro de %d %s.</p>',
+        'minute': ('minuto', 'minutos'),
+        'titre_session': 'Su demostración',
+        'session': '<p>Su demostración está abierta. Se borrará como máximo dentro de %s (o tras %s sin actividad).</p>',
+        'revenir': 'Volver a la demostración', 'recommencer_zero': 'Empezar de cero', 'terminer': 'Terminar y borrarlo todo',
+        'titre_occupee': 'Instancia ocupada',
+        'occupee_ouvrir': '<p>Su demostración aún no responde; <a href="{accueil}">vuelva a intentarlo</a>.</p>',
+        'occupee': '<p>Su demostración no responde; vuelva a intentarlo.</p>',
+        'titre_introuvable': 'Página no encontrada',
+        'introuvable': '<p>Página no encontrada. <a href="{accueil}">Inicio de la demostración</a></p>',
+        'titre_refus': 'Solicitud rechazada',
+        'refus': '<p>Solicitud rechazada. <a href="{accueil}">Volver a la página de inicio</a></p>',
+        'refus_court': '<p>Solicitud rechazada.</p>',
+        'titre_expire': 'Formulario caducado',
+        'expire': '<p>El formulario ha caducado. <a href="{accueil}">Recargar la página de inicio</a></p>',
+        'titre_volumineux': 'Envío demasiado grande',
+        'volumineux': '<p>Envío demasiado grande para la demostración (%d MB como máximo).</p>',
+        'titre_interrompue': 'Demostración interrumpida',
+        'interrompue': '<p>Su demostración se ha detenido y se ha borrado. <a href="{accueil}">Volver a empezar</a></p>',
+        'titre_perdue': 'Se ha perdido su sesión de demostración',
+        'perdue': '<p>Su navegador ya no está vinculado a su despacho ficticio (enlace de apertura caducado, cookie borrada o '
+                  'bloqueada). No hace falta ninguna ventana de contraseña: la demostración nunca la pide.</p>',
+        'recommencer': 'Volver a empezar', 'reprendre': 'Reanudar mi demostración',
+        'perdue_mention': '«Volver a empezar» abre un despacho ficticio nuevo; «Reanudar mi demostración» reabre el suyo, con lo que '
+                          'había introducido.',
+        'perdue_api': 'Sesión de demostración perdida: recargue la página.',
+    },
+}
+
+
+def lien_accueil(langue):
+    """Accueil dans la langue de la page : « / » en français (adresse de la 5.6.107), « /?langue=xx » sinon."""
+    return '/' if langue == 'fr' else '/?langue=' + langue
+
+
+def texte(langue, cle, *valeurs):
+    """Texte traduit (HTML de confiance, écrit ici) ; valeurs numériques ou déjà échappées."""
+    brut = TRADUCTIONS.get(langue, TRADUCTIONS['fr'])[cle]
+    if valeurs:
+        brut = brut % valeurs
+    return brut.replace('{accueil}', lien_accueil(langue))
+
+
+def langue_du_navigateur(entete):
+    """Langue proposée par défaut : la mieux notée de ``Accept-Language`` parmi la liste fermée, sinon le français."""
+    choix = []
+    for rang, morceau in enumerate((entete or '')[:1000].split(',')[:30]):
+        code, _, parametres = morceau.strip().partition(';')
+        poids = 1.0
+        for p in parametres.split(';'):
+            nom, _, valeur = p.strip().partition('=')
+            if nom.strip().lower() == 'q':
+                try:
+                    poids = float(valeur)
+                except ValueError:
+                    poids = 0.0
+        base = code.strip().lower().split('-')[0]
+        if base in LANGUES and 0 < poids <= 1:
+            choix.append((-poids, rang, base))
+    return min(choix)[2] if choix else 'fr'
+
+
+def langue_demandee(environ):
+    """Langue de la page : ``?langue=`` si elle est dans la liste fermée, sinon celle du navigateur."""
+    demandee = (parse_qs(environ.get('QUERY_STRING', '')).get('langue') or [''])[0]
+    return demandee if demandee in LANGUES else langue_du_navigateur(environ.get('HTTP_ACCEPT_LANGUAGE', ''))
+
+
+def appel_de_script(environ):
+    """Requête d'un script de l'interface (fetch) plutôt qu'une navigation : réponse JSON, jamais de redirection d'ouverture."""
+    mode, accepte = environ.get('HTTP_SEC_FETCH_MODE', ''), environ.get('HTTP_ACCEPT', '')
+    methode = environ.get('REQUEST_METHOD', 'GET').upper()
+    return mode in ('cors', 'no-cors', 'same-origin', 'websocket') or \
+        (mode != 'navigate' and 'text/html' not in accepte and ('json' in accepte or methode not in ('GET', 'HEAD')))
+
+
+def origine_nulle_admise(environ):
+    """« Origin: null » admis pour un formulaire de la démo elle-même : le navigateur l'envoie quand la page applique
+    ``Referrer-Policy: no-referrer`` (Chrome). Seulement avec ``Sec-Fetch-Site: same-origin``, que le navigateur pose lui-même (aucun
+    script ne peut l'écrire) ; un cadre isolé (« sandbox ») ou une page ``data:`` d'un autre site envoie aussi ``Origin: null``, mais
+    avec ``Sec-Fetch-Site: cross-site`` : refusé. Le jeton du formulaire (ou de la session) reste exigé dans tous les cas."""
+    return environ.get('HTTP_ORIGIN', '') == 'null' and environ.get('HTTP_SEC_FETCH_SITE', '') == 'same-origin'
 
 
 class Refus(Exception):
@@ -225,13 +499,16 @@ class Journal:
 
 
 class Instance:
-    __slots__ = ('ident', 'empreinte', 'dossier', 'cree', 'vu', 'etat', 'poignee', 'csrf', 'session')
+    __slots__ = ('ident', 'empreinte', 'dossier', 'cree', 'vu', 'etat', 'poignee', 'csrf', 'session', 'attente', 'langue')
 
-    def __init__(self, ident, empreinte, dossier, t):
+    def __init__(self, ident, empreinte, dossier, t, langue='fr'):
         self.ident, self.empreinte, self.dossier = ident, empreinte, dossier
         self.cree = self.vu = t
         self.etat, self.poignee, self.csrf = 'demarrage', None, secrets.token_urlsafe(24)
-        self.session = False                  # session de l'instance ouverte par jeton de lancement (une fois)
+        # 5.6.108 : ``session`` n'est vrai qu'après un échange réussi du jeton de lancement, constaté sur la réponse de l'instance ;
+        # ``attente`` : date du dernier lien d'ouverture donné au navigateur, tant que l'échange n'a pas été constaté (sinon None).
+        self.session, self.attente = False, None
+        self.langue = langue
 
 
 def empreinte(jeton):
@@ -430,8 +707,10 @@ class Repartiteur:
     def _cle_adresse(self, environ):
         return hmac.new(self.sel, self.adresse(environ).encode('utf-8', 'replace'), hashlib.sha256).hexdigest()[:32]
 
-    def creer(self, environ):
+    def creer(self, environ, langue='fr'):
         """Retourne (jeton, instance) ou lève Plein / LimiteAdresse / EchecCreation."""
+        if langue not in LANGUES:
+            raise ValueError(langue)              # liste fermée : contrôlée par l'appelant, jamais transmise telle quelle
         t = self.horloge()
         cle = self._cle_adresse(environ)
         plafond_disque = self.r['instances_max'] * (self.r['taille_max_mo'] << 20)
@@ -449,12 +728,15 @@ class Repartiteur:
                 self.journal.ecrire('refus-complet')
                 raise Plein()
             jeton, ident = secrets.token_urlsafe(32), secrets.token_hex(8)   # le dossier ne dérive pas du jeton
-            inst = Instance(ident, empreinte(jeton), self.racine / ident, t)
+            inst = Instance(ident, empreinte(jeton), self.racine / ident, t, langue)
             self.instances[inst.empreinte] = inst  # place réservée avant tout effet : le plafond tient sous la concurrence
             dates.append(t)
         try:
             inst.dossier.mkdir(mode=0o700)
-            inst.poignee = self.lanceur.creer(inst.ident, inst.dossier)
+            if langue == 'fr':                    # appel de la 5.6.107, inchangé (lanceurs existants)
+                inst.poignee = self.lanceur.creer(inst.ident, inst.dossier)
+            else:
+                inst.poignee = self.lanceur.creer(inst.ident, inst.dossier, langue=langue)
         except Exception:
             self.detruire(inst, 'echec-demarrage')
             raise EchecCreation()
@@ -472,7 +754,7 @@ class Repartiteur:
     def __call__(self, environ, start):
         chemin = normaliser(environ.get('PATH_INFO', '/') or '/')
         if chemin is None or chemin_refuse(chemin, self.r['chemins_refuses'], self.r['prefixe']):
-            return self._introuvable(start)     # avant toute recherche d'instance : même réponse qu'une adresse inconnue
+            return self._introuvable(start, environ)   # avant toute recherche d'instance : même réponse qu'une adresse inconnue
         methode = environ.get('REQUEST_METHOD', 'GET').upper()
         if chemin == '/healthz' and methode in ('GET', 'HEAD'):
             return self._reponse(start, '200 OK', b'ok\n', 'text/plain; charset=utf-8')
@@ -483,34 +765,36 @@ class Repartiteur:
         cookies = lire_cookies(environ)
         inst = self._instance_de(environ)
         if inst is None:
+            langue = langue_demandee(environ)
             if NOM_COOKIE in cookies:          # jeton inconnu, altéré ou d'une démo terminée : aucune instance, cookie effacé
-                return self._page(start, '200 OK', 'Démonstration terminée', self._texte_fin(), [self._cookie_efface()])
+                return self._ecran(start, '200 OK', langue, 'titre_fin', 'fin', entetes=[self._cookie_efface()])
             if methode in ('GET', 'HEAD'):
                 if chemin == '/':
-                    return self._accueil(start, cookies)
+                    return self._accueil(start, cookies, langue)
                 return self._reponse(start, '303 See Other', b'', 'text/plain', [('Location', '/')])
-            return self._introuvable(start)
+            return self._introuvable(start, environ)
+        langue = inst.langue
         t = self.horloge()
         raison = self._raison_fin(inst, t)
         if raison is None and inst.poignee is not None and self.lanceur.quitter_demande(inst.poignee):
             raison = 'fin-visiteur'               # « Quitter » dans le bandeau du mode Démo : instance arrêtée et effacée
         if raison:
             self.detruire(inst, raison)
-            return self._page(start, '200 OK', 'Démonstration terminée', self._texte_fin(), [self._cookie_efface()])
+            return self._ecran(start, '200 OK', langue, 'titre_fin', 'fin', entetes=[self._cookie_efface()])
         if inst.etat == 'demarrage':
             if not self.lanceur.vivant(inst.poignee):
                 self.detruire(inst, 'echec-demarrage')
-                return self._page(start, '503 Service Unavailable', 'Démarrage impossible',
-                                  '<p>Votre démonstration n’a pas pu démarrer. <a href="/">Réessayer</a></p>', [self._cookie_efface()])
+                return self._ecran(start, '503 Service Unavailable', langue, 'titre_impossible', 'impossible_instance',
+                                   entetes=[self._cookie_efface()])
             if not self.lanceur.pret(inst.poignee):
                 if methode not in ('GET', 'HEAD'):
                     return self._reponse(start, '503 Service Unavailable', b'', 'text/plain', [('Retry-After', '2')])
-                return self._page(start, '200 OK', 'Préparation de votre démonstration',
-                                  '<p>Votre cabinet fictif se prépare ; cette page se recharge toute seule.</p>',
-                                  [], rafraichir=2)
+                return self._ecran(start, '200 OK', langue, 'titre_preparation', 'preparation', rafraichir=2)
             inst.etat = 'pret'
         inst.vu = t
-        if not inst.session and methode in ('GET', 'HEAD'):
+        if not inst.session and inst.attente is None and methode in ('GET', 'HEAD'):
+            if appel_de_script(environ):
+                return self._perdue(start, environ, inst)   # un appel de script ne consomme jamais de lien d'ouverture
             return self._ouvrir(start, inst)        # première page : session de l'instance par jeton à usage unique
         return self._transmettre(environ, start, inst, methode, chemin)
 
@@ -522,27 +806,32 @@ class Repartiteur:
                 return self._reponse(start, '303 See Other', b'', 'text/plain', [('Location', '/')])
             return self._session(start, inst)
         if methode != 'POST' or chemin not in ('/_demo/commencer', '/_demo/terminer', '/_demo/recommencer', '/_demo/ouvrir'):
-            return self._introuvable(start)
+            return self._introuvable(start, environ)
+        inst = self._instance_de(environ)
+        langue = inst.langue if inst is not None else langue_demandee(environ)
         if environ.get('HTTP_ORIGIN', '') != self.r['origine']:
-            return self._page(start, '403 Forbidden', 'Demande refusée', '<p>Demande refusée. <a href="/">Retour à l’accueil</a></p>')
+            if not origine_nulle_admise(environ):   # 5.6.108 : « Origin: null » d'un formulaire de la démo (Sec-Fetch-Site)
+                return self._ecran(start, '403 Forbidden', langue, 'titre_refus', 'refus')
         try:
             longueur = int(environ.get('CONTENT_LENGTH') or 0)
         except ValueError:
             longueur = -1
         if not 0 <= longueur <= 4096:
-            return self._page(start, '413 Payload Too Large', 'Demande refusée', '<p>Demande refusée.</p>')
+            return self._ecran(start, '413 Payload Too Large', langue, 'titre_refus', 'refus_court')
         champs = {k: v[0] for k, v in parse_qs(environ['wsgi.input'].read(longueur).decode('utf-8', 'replace')).items()}
-        inst = self._instance_de(environ)
         if chemin == '/_demo/commencer':
             pre = lire_cookies(environ).get(NOM_PRE, '')
             if not (FORME_JETON.fullmatch(pre) and hmac.compare_digest(pre, champs.get('pre', ''))):
-                return self._page(start, '403 Forbidden', 'Formulaire expiré',
-                                  '<p>Le formulaire a expiré. <a href="/">Recharger la page d’accueil</a></p>')
+                return self._ecran(start, '403 Forbidden', langue, 'titre_expire', 'expire')
             if inst is not None and not self._raison_fin(inst, self.horloge()):
                 return self._reponse(start, '303 See Other', b'', 'text/plain', [('Location', '/')])   # une seule instance par visiteur
-            return self._nouvelle(environ, start)
+            if 'langue' in champs:
+                if champs['langue'] not in LANGUES:     # liste fermée : aucune autre valeur n'atteint l'instance
+                    return self._ecran(start, '400 Bad Request', langue, 'titre_refus', 'refus')
+                langue = champs['langue']
+            return self._nouvelle(environ, start, langue)
         if inst is None or not hmac.compare_digest(inst.csrf, champs.get('csrf', '')):
-            return self._page(start, '403 Forbidden', 'Demande refusée', '<p>Demande refusée. <a href="/">Retour à l’accueil</a></p>')
+            return self._ecran(start, '403 Forbidden', langue, 'titre_refus', 'refus')
         if chemin == '/_demo/ouvrir':
             if inst.etat != 'pret':
                 return self._reponse(start, '303 See Other', b'', 'text/plain', [('Location', '/')])
@@ -550,90 +839,108 @@ class Repartiteur:
             return self._ouvrir(start, inst)
         if chemin == '/_demo/terminer':
             self.detruire(inst, 'fin-visiteur')
-            return self._page(start, '200 OK', 'Démonstration terminée',
-                              '<p>Votre démonstration est terminée : tout ce que vous y aviez saisi a été effacé.</p>'
-                              '<p><a href="/">Revenir à l’accueil</a></p>', [self._cookie_efface()])
+            return self._ecran(start, '200 OK', langue, 'titre_fin', 'fin_visiteur', entetes=[self._cookie_efface()])
         self.detruire(inst, 'recommencement')
-        return self._nouvelle(environ, start)
+        return self._nouvelle(environ, start, langue)
 
-    def _nouvelle(self, environ, start):
+    def _nouvelle(self, environ, start, langue='fr'):
         try:
-            jeton, _inst = self.creer(environ)
+            jeton, _inst = self.creer(environ, langue)
         except Plein:
-            return self._page(start, '503 Service Unavailable', 'Démo complète',
-                              '<p><strong>Démo complète, réessayez dans quelques minutes.</strong></p>'
-                              '<p><a href="/">Revenir à l’accueil</a></p>', [('Retry-After', '300')])
+            return self._ecran(start, '503 Service Unavailable', langue, 'titre_complet', 'complet', entetes=[('Retry-After', '300')])
         except LimiteAdresse as exc:
             minutes = max(1, (exc.secondes + 59) // 60)
-            return self._page(start, '429 Too Many Requests', 'Trop de démarrages',
-                              '<p>Trop de démonstrations ont été démarrées depuis votre connexion. Réessayez dans %d minute%s.</p>'
-                              % (minutes, 's' if minutes > 1 else ''), [('Retry-After', str(exc.secondes))])
+            mot = TRADUCTIONS[langue]['minute'][minutes > 1]
+            return self._ecran(start, '429 Too Many Requests', langue, 'titre_trop', 'trop', (minutes, mot),
+                               entetes=[('Retry-After', str(exc.secondes))])
         except EchecCreation:
-            return self._page(start, '503 Service Unavailable', 'Démarrage impossible',
-                              '<p>La démonstration n’a pas pu démarrer. <a href="/">Réessayer</a></p>', [('Retry-After', '60')])
+            return self._ecran(start, '503 Service Unavailable', langue, 'titre_impossible', 'impossible', entetes=[('Retry-After', '60')])
         cookie = '%s=%s; Path=/; Max-Age=%d; Secure; HttpOnly; SameSite=Lax' % (NOM_COOKIE, jeton, self.r['duree_max_minutes'] * 60)
         return self._reponse(start, '303 See Other', b'', 'text/plain', [('Location', '/'), ('Set-Cookie', cookie)])
 
-    def _accueil(self, start, cookies):
+    def _accueil(self, start, cookies, langue='fr'):
         pre = cookies.get(NOM_PRE, '')
         entetes = []
         if not FORME_JETON.fullmatch(pre):
             pre = secrets.token_urlsafe(32)
             entetes.append(('Set-Cookie', '%s=%s; Path=/; Max-Age=3600; Secure; HttpOnly; SameSite=Lax' % (NOM_PRE, pre)))
-        corps = ('<p>Découvrez AxiorHub Pilote dans un cabinet fictif, le « Cabinet DURAND Avocats » : dossiers, courriels, '
-                 'échéances et brouillons préparés par une IA de démonstration.</p>'
+        t = TRADUCTIONS[langue]
+        liens = ''.join('<a href="%s" lang="%s" hreflang="%s"%s>%s</a>'
+                        % (lien_accueil(code), code, code, ' aria-current="page"' if code == langue else '', e(NOMS_LANGUES[code]))
+                        for code in LANGUES)
+        options = ''.join('<option value="%s" lang="%s"%s>%s</option>'
+                          % (code, code, ' selected' if code == langue else '', e(NOMS_LANGUES[code])) for code in LANGUES)
+        corps = ('<nav class="langues" aria-label="%s">%s</nav>' % (e(t['langues'], quote=True), liens) + t['intro'] +
                  '<form method="post" action="/_demo/commencer"><input type="hidden" name="pre" value="%s">'
-                 '<button type="submit">Commencer la démo</button></form>'
-                 '<p class="mention"><strong>Vie privée.</strong> Données fictives uniquement ; aucun compte à créer. Ce que vous saisissez '
-                 'reste dans votre instance, isolée de celles des autres visiteurs et sans accès à Internet, et est effacé à la fin de la '
-                 'session (au plus tard après %s d’inactivité ou %s au total). Un cookie technique vous relie à votre instance, rien '
-                 'd’autre. Votre adresse IP sert seulement, en mémoire et sans être enregistrée, à limiter le nombre de démarrages ; le '
-                 'journal technique ne contient ni adresse ni saisie et est effacé après %d jours. N’y saisissez aucune donnée réelle.</p>'
-                 % (e(pre, quote=True), _duree(self.r['inactivite_minutes']), _duree(self.r['duree_max_minutes']), self.r['journal_jours']))
-        return self._page(start, '200 OK', 'AxiorHub Pilote — démonstration', corps, entetes)
+                 '<label for="langue">%s</label><select id="langue" name="langue">%s</select><br>'
+                 '<button type="submit">%s</button></form>'
+                 % (e(pre, quote=True), e(t['langue']), options, e(t['commencer'])) +
+                 '<p class="mention">%s</p>' % texte(langue, 'vie_privee', _duree(self.r['inactivite_minutes']),
+                                                     _duree(self.r['duree_max_minutes']), self.r['journal_jours']))
+        return self._page(start, '200 OK', t['titre_accueil'], corps, entetes, langue=langue)
 
     def _session(self, start, inst):
         t = self.horloge()
         reste = min(inst.cree + self.r['duree_max_minutes'] * 60, inst.vu + self.r['inactivite_minutes'] * 60) - t
-        corps = ('<p>Votre démonstration est ouverte. Elle sera effacée dans %s au plus tard (ou après %s sans activité).</p>'
+        tr, csrf = TRADUCTIONS[inst.langue], e(inst.csrf, quote=True)
+        corps = (texte(inst.langue, 'session', _duree(max(1, int(reste // 60))), _duree(self.r['inactivite_minutes'])) +
                  '<form method="post" action="/_demo/ouvrir"><input type="hidden" name="csrf" value="%s">'
-                 '<button type="submit">Revenir à la démonstration</button></form>'
+                 '<button type="submit">%s</button></form>'
                  '<form method="post" action="/_demo/recommencer"><input type="hidden" name="csrf" value="%s">'
-                 '<button type="submit" class="second">Recommencer à zéro</button></form>'
+                 '<button type="submit" class="second">%s</button></form>'
                  '<form method="post" action="/_demo/terminer"><input type="hidden" name="csrf" value="%s">'
-                 '<button type="submit">Terminer et tout effacer</button></form>'
-                 % (_duree(max(1, int(reste // 60))), _duree(self.r['inactivite_minutes']), e(inst.csrf, quote=True), e(inst.csrf, quote=True),
-                    e(inst.csrf, quote=True)))
-        return self._page(start, '200 OK', 'Votre démonstration', corps)
+                 '<button type="submit">%s</button></form>'
+                 % (csrf, e(tr['revenir']), csrf, e(tr['recommencer_zero']), csrf, e(tr['terminer'])))
+        return self._page(start, '200 OK', tr['titre_session'], corps, langue=inst.langue)
+
+    def _perdue(self, start, environ, inst):
+        """5.6.108 : l'instance ne reconnaît plus le navigateur (401) ou l'échange du jeton de lancement a échoué. Jamais de fenêtre
+        « Basic » : page lisible (navigation) ou réponse JSON (appel d'un script de l'interface), sans ``WWW-Authenticate``."""
+        tr = TRADUCTIONS[inst.langue]
+        if appel_de_script(environ):
+            corps = json.dumps({'error': 'session_demo_perdue', 'message': tr['perdue_api']}, ensure_ascii=False).encode('utf-8')
+            return self._reponse(start, '403 Forbidden', corps, 'application/json; charset=utf-8')
+        csrf = e(inst.csrf, quote=True)
+        corps = (tr['perdue'] +
+                 '<form method="post" action="/_demo/recommencer"><input type="hidden" name="csrf" value="%s">'
+                 '<button type="submit">%s</button></form>'
+                 '<form method="post" action="/_demo/ouvrir"><input type="hidden" name="csrf" value="%s">'
+                 '<button type="submit" class="second">%s</button></form>'
+                 '<p class="mention">%s</p>' % (csrf, e(tr['recommencer']), csrf, e(tr['reprendre']), e(tr['perdue_mention'])))
+        return self._page(start, '403 Forbidden', tr['titre_perdue'], corps, langue=inst.langue)
 
     def _ouvrir(self, start, inst):
-        """Redirection vers l'adresse d'ouverture de session de l'instance (jeton à usage unique, deux minutes)."""
+        """Redirection vers l'adresse d'ouverture de session de l'instance (jeton à usage unique, deux minutes). La session n'est
+        marquée ouverte qu'au vu de la réponse de l'instance à cette adresse (``_transmettre``), jamais ici."""
         try:
             lien = self.lanceur.lien_session(inst.poignee)
         except Exception:
-            return self._page(start, '503 Service Unavailable', 'Instance occupée',
-                              '<p>Votre démonstration ne répond pas encore ; <a href="/">réessayez</a>.</p>', [('Retry-After', '2')])
+            return self._ecran(start, '503 Service Unavailable', inst.langue, 'titre_occupee', 'occupee_ouvrir',
+                               entetes=[('Retry-After', '2')])
         if not (lien.startswith('/') and not lien.startswith('//')):
             return self._introuvable(start)        # jamais une redirection hors du domaine de la démo
-        inst.session = True
+        inst.attente = self.horloge()
         return self._reponse(start, '303 See Other', b'', 'text/plain', [('Location', lien)])
 
-    def _texte_fin(self):
-        return ('<p>Cette démonstration est terminée ou a expiré : tout ce qui y avait été saisi a été effacé.</p>'
-                '<p><a href="/">Commencer une nouvelle démonstration</a></p>')
+    def _texte_fin(self, langue='fr'):
+        return texte(langue, 'fin')
 
     def _cookie_efface(self):
         return ('Set-Cookie', '%s=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax' % NOM_COOKIE)
 
-    def _introuvable(self, start):
-        return self._page(start, '404 Not Found', 'Page introuvable', '<p>Page introuvable. <a href="/">Accueil de la démonstration</a></p>')
+    def _introuvable(self, start, environ=None):
+        langue = langue_demandee(environ) if environ else 'fr'   # jamais d'après l'instance : même réponse avec ou sans cookie
+        return self._ecran(start, '404 Not Found', langue, 'titre_introuvable', 'introuvable')
 
-    def _page(self, start, statut, titre, corps, entetes=(), rafraichir=0):
+    def _ecran(self, start, statut, langue, cle_titre, cle_texte, valeurs=(), entetes=(), rafraichir=0):
+        return self._page(start, statut, TRADUCTIONS[langue][cle_titre], texte(langue, cle_texte, *valeurs), entetes, rafraichir, langue)
+
+    def _page(self, start, statut, titre, corps, entetes=(), rafraichir=0, langue='fr'):
         meta = '<meta http-equiv="refresh" content="%d">' % rafraichir if rafraichir else ''
-        html = ('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,'
+        html = ('<!doctype html><html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,'
                 'initial-scale=1">%s<meta name="robots" content="noindex,nofollow"><title>%s</title><style>%s</style></head>'
                 '<body><main><h1>%s</h1><div class="carte">%s</div></main></body></html>'
-                % (meta, e(titre), STYLE, e(titre), corps))
+                % (langue if langue in LANGUES else 'fr', meta, e(titre), STYLE, e(titre), corps))
         return self._reponse(start, statut, html.encode('utf-8'), 'text/html; charset=utf-8',
                              list(entetes) + [('Content-Security-Policy', CSP)])
 
@@ -644,15 +951,15 @@ class Repartiteur:
 
     # ------------------------------------------------------------------ transmission à l'instance
     def _transmettre(self, environ, start, inst, methode, chemin):
+        langue = inst.langue
         if 'chunked' in environ.get('HTTP_TRANSFER_ENCODING', '').lower():
-            return self._page(start, '411 Length Required', 'Demande refusée', '<p>Demande refusée.</p>')
+            return self._ecran(start, '411 Length Required', langue, 'titre_refus', 'refus_court')
         try:
             longueur = int(environ.get('CONTENT_LENGTH') or 0)
         except ValueError:
-            return self._page(start, '400 Bad Request', 'Demande refusée', '<p>Demande refusée.</p>')
+            return self._ecran(start, '400 Bad Request', langue, 'titre_refus', 'refus_court')
         if longueur < 0 or longueur > self.r['corps_max_mo'] << 20:
-            return self._page(start, '413 Payload Too Large', 'Envoi trop volumineux',
-                              '<p>Envoi trop volumineux pour la démonstration (%d Mo au plus).</p>' % self.r['corps_max_mo'])
+            return self._ecran(start, '413 Payload Too Large', langue, 'titre_volumineux', 'volumineux', (self.r['corps_max_mo'],))
         corps = environ['wsgi.input'].read(longueur) if longueur else b''
         entetes = []
         for cle, valeur in environ.items():
@@ -677,14 +984,29 @@ class Repartiteur:
         except (OSError, http.client.HTTPException):
             if not self.lanceur.vivant(inst.poignee):
                 self.detruire(inst, 'arret-processus')
-                return self._page(start, '503 Service Unavailable', 'Démonstration interrompue',
-                                  '<p>Votre démonstration s’est arrêtée ; elle a été effacée. <a href="/">Recommencer</a></p>',
-                                  [self._cookie_efface()])
-            return self._page(start, '502 Bad Gateway', 'Instance occupée', '<p>Votre démonstration ne répond pas ; réessayez.</p>')
+                return self._ecran(start, '503 Service Unavailable', langue, 'titre_interrompue', 'interrompue',
+                                   entetes=[self._cookie_efface()])
+            return self._ecran(start, '502 Bad Gateway', langue, 'titre_occupee', 'occupee')
+        try:
+            code = int(statut[:3])
+        except ValueError:
+            code = 502
+        if inst.attente is not None and chemin == self.r['prefixe'] + '/poste-session':
+            # 5.6.108 : échange du jeton de lancement constaté sur la réponse de l'instance (cookie de session posé, pas d'erreur)
+            if code < 400 and any(n.lower() == 'set-cookie' and not v.split('=', 1)[0].strip().startswith(NOM_COOKIE) for n, v in retour):
+                inst.session, inst.attente = True, None
+            else:
+                _fermer(flux)
+                inst.session, inst.attente = False, None
+                return self._perdue(start, environ, inst)
+        if code == 401:                        # 5.6.108 : jamais de fenêtre « Basic » ; la prochaine page rouvre une session
+            _fermer(flux)
+            inst.session, inst.attente = False, None
+            return self._perdue(start, environ, inst)
         propres = []
         for nom, valeur in retour:
             bas = nom.lower()
-            if bas in SAUT or bas in ('server', 'x-powered-by'):
+            if bas in SAUT or bas in ('server', 'x-powered-by', 'www-authenticate'):
                 continue
             if bas == 'set-cookie' and valeur.split('=', 1)[0].strip().startswith(NOM_COOKIE):
                 continue                       # une instance ne remplace jamais le cookie qui la désigne
@@ -702,12 +1024,22 @@ def securiser(entetes, propre=True):
     sortie = [(n, v) for n, v in entetes if n.lower() not in ('strict-transport-security', 'x-robots-tag')]
     sortie += [('Strict-Transport-Security', 'max-age=31536000'), ('X-Robots-Tag', 'noindex, nofollow')]
     for nom, valeur in (('X-Content-Type-Options', 'nosniff'), ('X-Frame-Options', 'DENY' if propre else 'SAMEORIGIN'),
-                        ('Referrer-Policy', 'no-referrer' if propre else 'same-origin'),
+                        ('Referrer-Policy', 'same-origin'),   # 5.6.108 : « no-referrer » faisait envoyer « Origin: null » (Chrome)
                         ('Cross-Origin-Opener-Policy', 'same-origin'), ('Cross-Origin-Resource-Policy', 'same-origin'),
                         ('Permissions-Policy', 'camera=(), geolocation=(), payment=(), usb=()')):
         if nom.lower() not in presents:
             sortie.append((nom, valeur))
     return sortie
+
+
+def _fermer(flux):
+    """Réponse de l'instance écartée : connexion fermée (générateur de ``_flux``), sans lire la suite."""
+    fermer = getattr(flux, 'close', None)
+    if fermer is not None:
+        try:
+            fermer()
+        except Exception:
+            pass
 
 
 def _duree(minutes):
@@ -818,15 +1150,25 @@ class _ConnexionUnix(http.client.HTTPConnection):
         self.sock = s
 
 
-def _flux(reponse, connexion):
-    try:
-        while True:
-            bloc = reponse.read1(65536)
-            if not bloc:
-                break
-            yield bloc
-    finally:
-        connexion.close()
+class _flux:
+    """Corps de la réponse de l'instance, lu par blocs ; ``close`` ferme la connexion même si le corps n'a jamais été lu (5.6.108 :
+    réponse 401 écartée — un générateur jamais commencé ne passe pas par son ``finally``). Le serveur WSGI appelle ``close``."""
+
+    def __init__(self, reponse, connexion):
+        self.reponse, self.connexion = reponse, connexion
+
+    def __iter__(self):
+        try:
+            while True:
+                bloc = self.reponse.read1(65536)
+                if not bloc:
+                    break
+                yield bloc
+        finally:
+            self.close()
+
+    def close(self):
+        self.connexion.close()
 
 
 class LanceurLocal:
@@ -839,7 +1181,9 @@ class LanceurLocal:
         self.cgroups = cgroups if cgroups is not None else Cgroups()
         self.cgroups.preparer()
 
-    def creer(self, ident, dossier):
+    def creer(self, ident, dossier, langue='fr'):
+        if langue not in LANGUES:
+            raise ValueError(langue)
         dossier = Path(dossier)
         (dossier / 'tmp').mkdir(mode=0o700, exist_ok=True)
         groupe = self.cgroups.creer(ident, self.r['memoire_mo'], self.r['cpu_pourcent'], self.r['processus_max'])
@@ -848,6 +1192,8 @@ class LanceurLocal:
                      '--memoire-mo', str(self.r['memoire_mo']), '--cpu-secondes', str(self.r['cpu_secondes']),
                      '--taille-max-mo', str(self.r['taille_max_mo']), '--fils', str(self.r['fils_instance']),
                      '--corps-max-mo', str(self.r['corps_max_mo']), '--prefixe', self.r['prefixe']] + (['--cgroup', groupe] if groupe else [])
+        if langue != 'fr':                    # 5.6.108 : langue de la démonstration (le français garde la commande de la 5.6.107)
+            commande += ['--langue', langue]
         env = {'PATH': '/usr/local/bin:/usr/bin:/bin', 'LANG': 'C.UTF-8', 'TZ': 'Europe/Paris', 'HOME': str(dossier),
                'TMPDIR': str(dossier / 'tmp'), 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONUTF8': '1', 'PYTHONPATH': str(self.racine),
                'AXIORHUB_DEMO': '1', 'AXIORHUB_DEMO_HOTE': '1'}

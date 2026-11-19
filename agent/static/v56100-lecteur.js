@@ -843,16 +843,16 @@
           else if (etat.totalLocal !== null) etat.totalLocal = Math.max(0, etat.totalLocal - 1);
         }
         afficherTotal();
-        if (suivant) { marquer(suivant); return suivant; }
+        if (suivant) { marquer(suivant); adresse(); return suivant; }   // 5.6.108 (lot A) : l'adresse suit l'élément ouvert (rechargement, Précédent)
         if (etat.curseur) {
           return chargerListe(true).then(function () {
             var premier = lignes()[0];
-            if (premier) { marquer(premier.getAttribute('data-review-id')); return premier.getAttribute('data-review-id'); }
+            if (premier) { marquer(premier.getAttribute('data-review-id')); adresse(); return premier.getAttribute('data-review-id'); }
             return null;
           });
         }
         var reste = lignes()[0];
-        if (reste) { marquer(reste.getAttribute('data-review-id')); return reste.getAttribute('data-review-id'); }
+        if (reste) { marquer(reste.getAttribute('data-review-id')); adresse(); return reste.getAttribute('data-review-id'); }
         return null;
       },
       aucunSuivant: function () {
@@ -863,10 +863,15 @@
         filtre.focus();
       },
       fermer: function () {
+        var cachee = !(zoneListe || liste).getClientRects().length;   // petite largeur : la liste était masquée pendant la lecture
         section.removeAttribute('data-vue');
         var li = etat.courant ? liste.querySelector('li[data-review-id="' + etat.courant + '"] a') : null;
         etat.courant = ''; marquer(''); adresse();
-        if (li) li.focus({ preventScroll: false });
+        // 5.6.108 (lot A) : liste masquée pendant la lecture : son défilement et celui de la page sont restitués tels qu'avant l'ouverture ;
+        // liste restée visible : la personne a pu la faire défiler, la position actuelle est gardée
+        var d = cachee ? etat.defilement : null; etat.defilement = null;
+        if (d) { if (zoneListe) zoneListe.scrollTop = d.zone; liste.scrollTop = d.liste; racine.scrollTo(d.x, d.y); }
+        if (li) li.focus({ preventScroll: !!d });
       },
       reessayer: function (s) { lecteur.voirSection(s); }
     });
@@ -875,6 +880,8 @@
 
     function ouvrirLigne(id, declencheur) {
       var precedent = etat.courant;
+      if (section.getAttribute('data-vue') !== 'detail' || !etat.defilement)   // 5.6.108 (lot A) : position de lecture de la liste, rendue à la fermeture
+        etat.defilement = { zone: zoneListe ? zoneListe.scrollTop : 0, liste: liste.scrollTop, x: racine.scrollX || 0, y: racine.scrollY || 0 };
       marquer(id);
       section.setAttribute('data-vue', 'detail');
       etat.declencheur = declencheur || null;

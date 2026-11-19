@@ -92,6 +92,9 @@
   function compose(mode, m, c) {
     var q = new URLSearchParams({ mode: mode });
     if (m) { q.set('uid', m.uid); if (m.folder || c.folder) q.set('dossier', m.folder || c.folder); }
+    if (m && m.uidvalidity) q.set('uidvalidity', String(m.uidvalidity));   // 5.6.108 (lot C, B02) : génération du message affiché, jamais complétée par le serveur
+    var avant = c.panel.querySelector('form.bx5628-compose');   // 5.6.108 (lot C, B01) : rédaction remplacée : dernières frappes enregistrées d'abord
+    if (avant && avant.axhAuto) avant.axhAuto.quitter();
     c.panel.textContent = '';
     c.panel.appendChild(el('p', { 'class': 'ax-muted ax-pad', text: 'Préparation…' }));
     api('m5628/modele?' + q.toString()).then(function (t) { render(t, c); }).catch(function (e) {
@@ -100,7 +103,7 @@
   }
 
   function render(t, c) {
-    var state = { draftUid: t.draft_uid || '' };   // 5.6.106 (lot R) : brouillon rouvert par « Modifier » : l'enregistrement suivant le remplace
+    var state = { draftUid: t.draft_uid || '', draftValidity: t.draft_uidvalidity || '' };
     var panel = c.panel;
     var R = window.axh56106r || null;              // 5.6.106 (lot R) : dictée, mise en forme étendue, adresses, pièces, modèles (v56106-redaction.js)
     panel.textContent = '';
@@ -220,7 +223,8 @@
       cancel.textContent = 'Annuler';
       cancel.title = 'Fermer la rédaction (le dernier brouillon enregistré reste dans Brouillons)';
       auto = R.auto(form, function () { return enregistrer(true); },
-                    function () { return !inflight.send && !inflight.confirm && confirmBox.hidden; });
+                    function () { return !inflight.save && !inflight.send && !inflight.confirm && confirmBox.hidden; });
+      form.axhAuto = auto;   // 5.6.108 (lot C, B01) : la rédaction qui la remplace fait d'abord enregistrer les dernières frappes
       R.ajuster(form);
     }
     (t.to ? editor : $('input', to)).focus();
@@ -228,8 +232,9 @@
 
     function payload() {
       var base = function (extra) {
-        return Object.assign({ mode: t.mode, source_uid: t.source_uid || '', source_folder: t.source_folder || '', to: $('input', to).value, cc: $('input', cc).value,
-                 bcc: $('input', bcc).value, subject: $('input', subject).value, html: editor.innerHTML, draft_uid: state.draftUid,
+        return Object.assign({ mode: t.mode, source_uid: t.source_uid || '', source_uidvalidity: t.source_uidvalidity || '',
+                 source_folder: t.source_folder || '', to: $('input', to).value, cc: $('input', cc).value,
+                 bcc: $('input', bcc).value, subject: $('input', subject).value, html: editor.innerHTML, draft_uid: state.draftUid, draft_uidvalidity: state.draftValidity,
                  reprise_uid: t.reprise_uid || '' }, extra);
       };
       if (pj) return pj.payload().then(function (x) {   // 5.6.106 (lot R) : keep, files, nextcloud et draft_keep (empreintes du brouillon)
@@ -244,12 +249,14 @@
     }
     function enregistrer(silencieux) {   // bouton « Enregistrer le brouillon » et enregistrement automatique (5.6.106)
       if (inflight.save) return Promise.reject(new Error('Enregistrement déjà en cours.'));
+      var revisionAuto = auto ? auto.revision() : 0;
       inflight.save = true; busy(saveBtn, true);
       return payload().then(function (p) {
         return api('m5628/brouillon', p).then(function (r) {
           state.draftUid = r.uid;
+          state.draftValidity = r.uidvalidity;
           if (pj) pj.apres(r.pieces || [], p.instantane);
-          if (auto) auto.enregistre();
+          if (auto) auto.enregistre(revisionAuto);
           if (!silencieux) toast(r.message);
           return r;
         });
@@ -258,6 +265,7 @@
     }
     cancel.addEventListener('click', function () {
       if (auto && auto.sale() && !window.confirm('Fermer sans enregistrer les dernières modifications ? Le dernier brouillon enregistré reste dans Brouillons.')) return;
+      if (auto) auto.arreter();   // fermeture voulue : rien n'est enregistré après coup
       c.clear();
     });
     saveBtn.addEventListener('click', function () {
@@ -270,6 +278,7 @@
       if (inflight.send) return; inflight.send = true; busy(sendBtn, true);
       payload().then(function (p) { return api('m5628/envoyer', p); }).then(function (r) {
         state.draftUid = (r.draft || {}).uid || state.draftUid;
+        state.draftValidity = (r.draft || {}).uidvalidity || state.draftValidity;
         if (!r.token) { showRefusal(r); return; }
         if (r.confirm_each === false) { sendDirect(r); return; }   // 5.6.36 : réglage « sans seconde confirmation »
         showConfirm(r);
@@ -285,8 +294,8 @@
       if (envoi()) return envoi().confirmer(r, form, { reprendre: reprendre });
       return api('m5628/envoyer/confirmer', { token: r.token });
     }
-    function reprendre() { confirmBox.hidden = true; c.panel.textContent = ''; c.panel.appendChild(form); editor.focus(); }
-    function fini(x) { if (!x.bandeau) toast(x.message); c.clear(); c.reload(); }
+    function reprendre() { confirmBox.hidden = true; c.panel.textContent = ''; c.panel.appendChild(form); if (auto) auto.reprendre(); editor.focus(); }
+    function fini(x) { if (auto) auto.arreter(); if (!x.bandeau) toast(x.message); c.clear(); c.reload(); }   // 5.6.108 : le brouillon en file n'est plus remplacé
     function sendDirect(r) {
       inflight.confirm = true; busy(sendBtn, true);
       toast('Envoi en cours…');

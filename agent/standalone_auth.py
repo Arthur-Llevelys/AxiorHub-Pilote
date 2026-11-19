@@ -94,6 +94,18 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56102/pilote/'):   # 5.6.102 (lot M) : Pilote dans la messagerie (tous les rôles ; réglage : administrateur ; fil et droits relus par le service)
         from .pilote_messagerie56102 import allowed as allowed56102m
         return allowed56102m(role, method, api)
+    if api.startswith('m56108/questionnaire/'):   # 5.6.108 (lot Q) : questionnaire de l'acte (tous les rôles ; publier : avocat ; propriétaire, dossier et révision relus par le service)
+        from .questionnaires56108 import allowed as allowed56108q
+        return allowed56108q(role, method, api)
+    if api.startswith('m56108/signaturepdf/'):   # 5.6.108 (lot Z) : SignaturePDF (réglages et test : administrateur ; dépôt, récupération, clôture : avocat ; dossier, droit « envoyer » et version relus par le service)
+        from .signaturepdf56108 import allowed as allowed56108z
+        return allowed56108z(role, method, api)
+    if api.startswith('m56108/conseil/'):   # 5.6.108 (lot K) : conseil de modèles (lancer : avocat ; réglages : administrateur ; mission, dossier et version relus par le service)
+        from .conseil56108 import allowed as allowed56108k
+        return allowed56108k(role, method, api)
+    if api.startswith('m56108/ia-locale/'):   # 5.6.108 (lot L) : « Configurer l'IA locale » (administrateur seulement ; le service refait le contrôle, GET compris)
+        from .ia_locale56108 import allowed as allowed56108l
+        return allowed56108l(role, method, api)
     if api.startswith('m56106/redaction/'):   # 5.6.106 (lot R) : modèles de réponse (avocat, administrateur ; auteur et version relus par le service)
         from .redaction56106 import allowed as allowed56106r
         return allowed56106r(role, method, api)
@@ -133,9 +145,18 @@ def allowed(role, method, path, action=''):
     if api.startswith('m56103/tableau/'):   # 5.6.103 (lot T) : tableau blanc de la messagerie (tous les rôles ; discussion et droits relus par le service)
         from .tableau56103 import allowed as allowed56103t
         return allowed56103t(role, method, api)
+    if api.startswith('m56108/fichiers-dossier/'):   # 5.6.108 (lot F) : onglet Fichiers du dossier (administrateur, avocat, assistant ; dossier, fichier et version relus par le service)
+        from .pdf_formulaire56108 import allowed as allowed56108f
+        return allowed56108f(role, method, api)
+    if api.startswith('m56108/editeur/'):   # 5.6.108 (lot W) : éditeur intégré et Word du poste (administrateur, avocat, assistant ; réglage : administrateur ; séance et droits relus par le service)
+        from .wordcraft56108 import allowed as allowed56108w
+        return allowed56108w(role, method, api)
     if api.startswith('m56103/fichiers/'):   # 5.6.103 (lot F) : page « Fichiers » (tous les rôles ; réglages du poste : administrateur et avocat ; droits et chemins relus par le service)
         from .fichiers_web56103 import allowed as allowed56103f
         return allowed56103f(role, method, api)
+    if api.startswith('m56108/sync/'):   # 5.6.108 (lot S) : synchronisation des postes (état : tous ; parcours et réglages : administrateur ; partage et conflits : avocat)
+        from .sync56108_web import allowed as allowed56108s
+        return allowed56108s(role, method, api)
     if api.startswith('m56103/liaison/'):   # 5.6.103 (lot L) : liaison entre postes (présence et pièce jointe : tous ; le reste : administrateur)
         from .liaison_web56103 import allowed as allowed56103l
         return allowed56103l(role, method, api)

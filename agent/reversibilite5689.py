@@ -50,7 +50,7 @@ def tables_declarees(racine=None):
 
 def couverture_export(racine=None):
     """Toute table est exportée ou justifiée. ``orphelines`` doit rester vide."""
-    exportees = {t[2] for t in ex.TABLES}
+    exportees = {t[2] for t in ex.tables_exportees()}   # 5.6.108 (lot X) : avec les tables déclarées par les modules (registre complet)
     declarees = tables_declarees(racine)
     return {'exportees': sorted(set(declarees) & exportees), 'exclues': sorted(set(declarees) & set(EXCLUSIONS)), 'orphelines': sorted(set(declarees) - exportees - set(EXCLUSIONS)), 'doublons': sorted(exportees & set(EXCLUSIONS))}
 
@@ -71,7 +71,7 @@ def empreinte_metier(etat):
     db = _ouvrir(etat)
     try:
         out = {}
-        for table in dict.fromkeys(t[2] for t in ex.TABLES):
+        for table in dict.fromkeys(t[2] for t in ex.tables_exportees()):   # 5.6.108 (lot X) : toutes les tables métier exportées
             if not _colonnes(db, table):
                 out[table] = {'lignes': 0, 'sha256': ''}
                 continue
@@ -88,7 +88,7 @@ def references_brisees(etat):
     """Chaque décision, version ou lien doit retrouver sa cible. Rend les lignes orphelines, table par table."""
     db = _ouvrir(etat)
     try:
-        liens = list(LIENS) + [(t[2], t[4][0], t[4][1], t[4][2]) for t in ex.TABLES if isinstance(t[4], tuple)]
+        liens = list(LIENS) + [(t[2], t[4][0], t[4][1], t[4][2]) for t in ex.tables_exportees() if isinstance(t[4], tuple)]
         out = []
         for table, colonne, cible, cle in dict.fromkeys(liens):
             if not _colonnes(db, table) or not _colonnes(db, cible):

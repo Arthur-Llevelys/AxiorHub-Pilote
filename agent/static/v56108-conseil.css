@@ -1,0 +1,29 @@
+/* 5.6.108 (lot K) : conseil de modèles. Préréglages et leur disponibilité, annonce avant le lancement, trace dépliable (réponses
+   individuelles et critiques). Contraste clair et sombre par les jetons de la page ; focus visible ; cibles d'au moins 2.5rem ; pas de
+   défilement horizontal de la page (le tableau défile dans son propre cadre). */
+.k108 { display: grid; gap: .6rem; }
+.k108-table { inline-size: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
+.k108-table caption { text-align: start; font-weight: 600; padding-block: .3rem; }
+.k108-table th, .k108-table td { text-align: start; vertical-align: top; padding: .4rem .5rem;
+  border-block-end: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); }
+.k108-manque { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-style: italic; }
+.k108-etat { display: inline-block; padding: .05rem .45rem; border-radius: 1rem; font-size: .8125rem; border: 1px solid var(--cds-border-strong, #8d8d8d); }
+.k108-disponible { border-color: var(--cds-support-success, #24a148); }
+.k108-partiel { border-color: var(--cds-support-warning, #8e6a00); border-style: dashed; }
+.k108-indisponible, .k108-exclu { border-style: dotted; }
+.k108-form { display: grid; gap: .4rem; max-inline-size: 48rem; }
+.k108-form select, .k108-form textarea { box-sizing: border-box; inline-size: 100%; min-block-size: 2.5rem; font: inherit; }
+.k108-form .ax-btn { min-block-size: 2.5rem; justify-self: start; }
+.k108-perso > summary, .k108-detail > summary { cursor: pointer; min-block-size: 2.5rem; display: flex; align-items: center; font-weight: 600; }
+.k108-perso > summary:focus-visible, .k108-detail > summary:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.k108-texte { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 28rem; overflow: auto; padding: .5rem .6rem; margin: .3rem 0;
+  background: var(--cds-layer-accent, var(--ax-soft, #f4f4f4)); color: var(--cds-text-primary, inherit); border-radius: .25rem; font: inherit; }
+/* Volet de l'assistant et demande de consultation : option discrète, annonce avant tout envoi, reçu de la mission. */
+.k108-volet, .k108-consultation { min-block-size: 2.5rem; margin-inline-start: .4rem; }
+.k108-volet:focus-visible, .k108-consultation:focus-visible, .k108-annonce button:focus-visible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+.k108-annonce { margin: .5rem 0; padding: .6rem .7rem; border: 1px solid var(--cds-border-strong, #8d8d8d); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); overflow-wrap: anywhere; }
+.k108-annonce-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 0; }
+.k108-annonce-actions .ax-btn { min-block-size: 2.5rem; }
+.k108-volet-recu:empty { display: none; }
+.k108-volet[hidden], .k108-consultation[hidden] { display: none !important; }   /* la règle globale des boutons ne doit pas rendre « hidden » inopérant */

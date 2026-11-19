@@ -44,3 +44,51 @@
 :root[data-theme="dark"] .e106-bandeau.bad { background: #520408; color: #ffd7d9; }
 :root[data-theme="dark"] .e106-a_verifier .e106-motif, :root[data-theme="dark"] .e106-echec .e106-motif { color: #ff8389; }
 @media (max-width: 600px) { .e106-bandeau { left: .5rem; right: .5rem; transform: none; max-width: none; flex-wrap: wrap; } }
+/* 5.6.108 (lot C) : envoi retenu (compte revu au départ) et rapprochement d'un départ « à vérifier » */
+.e106-retenu .e106-motif { color: #8a3800; }
+.e108-rapprochement { margin: .5rem 0; padding: .6rem .8rem; border: 1px solid var(--ax-line, #c6c6c6); border-radius: 6px; background: var(--ax-card, #fff); color: inherit; }
+.e108-rapprochement h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.e108-rapprochement h3:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }
+.e108-destinataires { border-collapse: collapse; width: 100%; margin: .3rem 0; font-size: .9rem; }
+.e108-destinataires caption { text-align: left; font-weight: 600; padding: .2rem 0; }
+.e108-destinataires th, .e108-destinataires td { border-bottom: 1px solid var(--ax-line, #c6c6c6); padding: .25rem .4rem; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.e108-refuse td:nth-child(2) { color: #a2191f; font-weight: 600; }
+.e108-accepte td:nth-child(2) { color: #0e6027; font-weight: 600; }
+.e108-inconnu td:nth-child(2) { color: #8a3800; font-weight: 600; }
+.e108-trace { display: grid; grid-template-columns: max-content 1fr; gap: .15rem .8rem; margin: .4rem 0; }
+.e108-trace dt { font-weight: 600; }
+.e108-trace dd { margin: 0; overflow-wrap: anywhere; }
+.e108-doublon { flex-basis: 100%; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .e106-retenu .e106-motif, :root:not([data-theme="light"]) .e108-inconnu td:nth-child(2) { color: #ffb784; }
+  :root:not([data-theme="light"]) .e108-refuse td:nth-child(2) { color: #ff8389; }
+  :root:not([data-theme="light"]) .e108-accepte td:nth-child(2) { color: #6fdc8c; }
+}
+:root[data-theme="dark"] .e106-retenu .e106-motif, :root[data-theme="dark"] .e108-inconnu td:nth-child(2) { color: #ffb784; }
+:root[data-theme="dark"] .e108-refuse td:nth-child(2) { color: #ff8389; }
+:root[data-theme="dark"] .e108-accepte td:nth-child(2) { color: #6fdc8c; }
+@media (max-width: 600px) { .e108-trace { grid-template-columns: 1fr; } .e108-destinataires th:nth-child(4), .e108-destinataires td:nth-child(4) { display: none; } }
+/* 5.6.108 (lot P) : « Mettre l'IA en pause » et « Suspendre les envois programmés », deux commandes distinctes (en-tête d'Aujourd'hui et
+   « Envois programmés ») ; messages retenus par la suspension avec leur heure prévue, décision après la reprise. */
+.p108-pauses { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.p108-retenus { font-weight: 600; color: #8a3800; text-decoration: underline; }
+.p108-retenus[hidden] { display: none; }
+.p108-retenus:focus-visible, .p108-envois:focus-visible, .p108-commandes button:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.p108-commandes { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: 0 0 .6rem; padding-bottom: .5rem; border-bottom: 1px solid var(--ax-line, #e0e0e0); }
+.p108-etat { flex-basis: 100%; margin: .2rem 0 0; display: flex; flex-direction: column; gap: .1rem; font-size: .92em; }
+.p108-retenus-liste { margin: 0 0 .6rem; padding: .5rem .7rem; border: 1px solid #b28600; border-left-width: 4px; border-radius: 6px; }
+.p108-retenus-liste h3 { margin: 0 0 .3rem; font-size: 1rem; }
+.e106-suspendu .e106-motif { color: #8a3800; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .p108-retenus, :root:not([data-theme="light"]) .e106-suspendu .e106-motif { color: #ffb784; }
+  :root:not([data-theme="light"]) .p108-retenus-liste { border-color: #f1c21b; }
+}
+:root[data-theme="dark"] .p108-retenus, :root[data-theme="dark"] .e106-suspendu .e106-motif { color: #ffb784; }
+:root[data-theme="dark"] .p108-retenus-liste { border-color: #f1c21b; }
+@media (max-width: 600px) { .p108-pauses { width: 100%; } .p108-pauses .ax-btn { flex: 1 1 auto; } }
+/* 5.6.108 (lot P) : dans la boîte dense (grille 5.6.106), « Envois programmés » se plaçait dans la colonne étroite des dossiers ; ouvert, il
+   couvre la liste et le lecteur, avec son propre défilement (fermé : rien ne change). */
+#bx5625.bx56106 .e106-liste:not([hidden]) { grid-column: 2 / 4; grid-row: 2 / 4; position: relative; z-index: 3; margin: 0; min-height: 0; overflow: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
+@media (max-width: 1100px) { #bx5625.bx56106 .e106-liste:not([hidden]) { grid-column: 1 / -1; grid-row: 3 / 5; } }
+@media (max-width: 700px) { #bx5625.bx56106 .e106-liste:not([hidden]) { box-shadow: none; } }

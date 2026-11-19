@@ -89,7 +89,10 @@
     var inserer = function (texte) {
       texte = String(texte || '').trim();
       if (!texte) { dire('Aucun texte reconnu.', true); return; }
-      try { opts.inserer(texte); dire('Texte inséré au curseur : relisez-le.'); } catch (e) { dire('Le texte n’a pas pu être inséré.', true); }
+      try {   // 5.6.108 (lot Q) : un texte rendu par inserer() est un avertissement (valeur reconnue non valide, laissée à corriger)
+        var r = opts.inserer(texte);
+        if (typeof r === 'string') dire(r, true); else dire(opts.messageInsere || 'Texte inséré au curseur : relisez-le.');
+      } catch (e) { dire('Le texte n’a pas pu être inséré.', true); }
     };
     function arreter() {
       if (!actif || actif.bouton !== bouton) return;
@@ -108,7 +111,7 @@
         try { localStorage.setItem(WARNING_KEY, 'accepted'); } catch (e) { /* avertissement redemandé la prochaine fois */ }
       }
       var rec = new Speech(), texte = '', debut = Date.now();
-      rec.lang = 'fr-FR'; rec.interimResults = false; rec.continuous = true;
+      rec.lang = 'fr-FR'; rec.interimResults = false; rec.continuous = !opts.silence;   // 5.6.108 (lot Q) : opts.silence, le silence termine la dictée
       var etat = { bouton: bouton, kind: 'browser', recognition: rec };
       actif = etat;
       bouton.classList.add('is-rec'); bouton.setAttribute('aria-pressed', 'true'); bouton.title = 'Arrêter la dictée'; bouton.setAttribute('aria-label', 'Arrêter la dictée');
@@ -143,7 +146,7 @@
         };
         rec.onerror = function () { etat.annule = true; if (rec.state === 'recording') rec.stop(); };
         rec.onstop = function () {
-          clearInterval(horloge); clearTimeout(limite);
+          clearInterval(horloge); clearTimeout(limite); if (etat.silence) etat.silence();
           stream.getTracks().forEach(function (tr) { tr.stop(); });
           if (etat.annule || etat.trop) {
             actif = null; repos(); dire(etat.trop ? ERREURS.dictee_trop_volumineuse : 'Enregistrement interrompu. Votre texte est conservé.', true); return;
@@ -161,6 +164,7 @@
           }).then(function () { etat.chunks.length = 0; actif = null; repos(); });
         };
         rec.start(1000);
+        if (opts.silence) etat.silence = surveillerSilence(stream, rec);
         bouton.disabled = false; bouton.classList.remove('is-busy'); bouton.classList.add('is-rec');
         bouton.setAttribute('aria-pressed', 'true'); bouton.title = 'Arrêter la dictée'; bouton.setAttribute('aria-label', 'Arrêter la dictée');
         dire('● Enregistrement 0:00 (confidentiel, vocal local). Cliquez pour arrêter.' + note);
@@ -184,6 +188,26 @@
       if (lireMode() === 'browser') navigateur(); else local();
     });
     return { arreter: arreter };
+  }
+  /* 5.6.108 (lot Q) : fin de dictée sur silence (après une première parole, 1,8 s sous le seuil), mesurée dans le navigateur ; rend l'arrêt. */
+  function surveillerSilence(stream, rec) {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return function () {};
+    var ctx, timer;
+    try {
+      ctx = new AC();
+      var an = ctx.createAnalyser(); an.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(an);
+      var buf = new Float32Array(an.fftSize), parle = false, calme = 0;
+      timer = setInterval(function () {
+        an.getFloatTimeDomainData(buf);
+        var s = 0; for (var i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+        var rms = Math.sqrt(s / buf.length);
+        if (rms > 0.02) { parle = true; calme = 0; } else if (parle) { calme += 200; }
+        if (parle && calme >= 1800 && rec.state === 'recording') rec.stop();
+      }, 200);
+    } catch (e) { return function () {}; }
+    return function () { clearInterval(timer); try { ctx.close(); } catch (e) { /* déjà fermé */ } };
   }
   window.addEventListener('pagehide', function () {
     if (!actif) return;
@@ -956,32 +980,79 @@
 
   // =================================================================== enregistrement automatique (toutes les 30 s s'il y a un changement)
   var PERIODE = 30000;
+  /* 5.6.108 (lot C, B01) : révisions locales comptées ; une réponse n'acquitte que l'instantané qu'elle a enregistré. États affichés :
+     « Enregistrement du brouillon… » pendant la requête, « Modifications à enregistrer… » dès qu'une frappe suit l'instantané,
+     « Enregistré à … » seulement pour la version courante ; une erreur garde le texte et donne l'heure du prochain essai. Fermer l'onglet
+     avec une saisie non acquittée demande confirmation ; une rédaction remplacée (autre message, changement de vue) enregistre d'abord ses
+     dernières frappes (« quitter »), sauf après un envoi confirmé ou une fermeture voulue sans enregistrer (« arreter »). */
   function auto(form, enregistrer, peut) {
-    var sale = false, en = false, detache = 0;
+    var revision = 0, enregistree = 0, en = false, detache = 0, arrete = false, enErreur = false;
     var etat = el('span', { 'class': 'bx56106r-auto', role: 'status', 'aria-live': 'polite' });
     var actions = $('.bx5628-actions', form);
     if (actions) { var note = $('.ax-muted', actions); if (note) { etat.title = note.textContent; note.replaceWith(etat); } else actions.appendChild(etat); }
-    var marquer = function () { sale = true; };
+    var sale = function () { return revision > enregistree; };
+    var marquer = function () {
+      revision += 1;
+      if (!en && !enErreur) etat.textContent = 'Modifications à enregistrer…';
+    };
     form.addEventListener('input', marquer, true);
     form.addEventListener('change', marquer, true);
-    var heure = function () { var d = new Date(); return d.getHours() + ' h ' + ('0' + d.getMinutes()).slice(-2); };
-    var tour = function () {
-      if (!document.contains(form)) { if (++detache > 20) clearInterval(minuteur); return; }   // rédaction fermée (ou reprise ailleurs)
-      detache = 0;
-      if (!sale || en || !peut()) return;
-      sale = false; en = true; etat.classList.remove('is-bad');
+    var heure = function (d) { d = d || new Date(); return d.getHours() + ' h ' + ('0' + d.getMinutes()).slice(-2); };
+    var minuteur = null;
+    var essai = function () {
+      if (arrete || !sale() || en || !peut()) return;
+      en = true; enErreur = false; etat.classList.remove('is-bad');
       etat.textContent = 'Enregistrement du brouillon…';
       enregistrer().then(function () { /* état posé par enregistre() */ }, function (e) {
-        sale = true; etat.classList.add('is-bad');
-        etat.textContent = 'Brouillon non enregistré (' + (e && e.message ? e.message : 'erreur') + '). Nouvel essai dans 30 s.';
+        clearInterval(minuteur); minuteur = setInterval(tour, PERIODE);   // prochain essai exactement dans PERIODE
+        enErreur = true; etat.classList.add('is-bad');
+        etat.textContent = 'Brouillon non enregistré (' + (e && e.message ? e.message : 'erreur') + '). Votre texte reste ici ; nouvel essai à ' +
+          heure(new Date(Date.now() + PERIODE)) + '.';
       }).then(function () { en = false; });
     };
-    var minuteur = setInterval(tour, PERIODE);
+    var tour = function () {
+      if (!document.contains(form)) {   // rédaction fermée (ou reprise ailleurs) : dernières frappes enregistrées une fois, puis arrêt
+        if (!arrete && sale() && !en) essai();
+        if (++detache > 20 || (!sale() && !en)) { clearInterval(minuteur); }
+        return;
+      }
+      detache = 0;
+      essai();
+    };
+    minuteur = setInterval(tour, PERIODE);
+    var avantFermeture = function (ev) {   // onglet ou fenêtre fermés : avertissement tant que la saisie courante n'est pas acquittée
+      if (arrete || !sale() || !document.contains(form)) return;
+      ev.preventDefault(); ev.returnValue = '';
+      return '';
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('beforeunload', avantFermeture);
+    var surveiller = function () {   // rédaction retirée de la page (changement de message) : dernières frappes enregistrées
+      if (typeof MutationObserver === 'undefined' || !form.parentNode) return;
+      new MutationObserver(function (records, obs) {
+        if (document.contains(form)) return;
+        obs.disconnect(); tour();
+      }).observe(form.parentNode, { childList: true });
+    };
+    surveiller();
     return {
-      enregistre: function () { sale = false; etat.classList.remove('is-bad'); etat.textContent = 'Enregistré à ' + heure(); },
-      sale: function () { return sale; },
+      revision: function () { return revision; },
+      enregistre: function (acquittee) {
+        // Ne jamais acquitter les frappes postérieures à l'instantané envoyé.
+        if (typeof acquittee !== 'number' || acquittee < 0 || acquittee > revision) return;
+        enregistree = Math.max(enregistree, acquittee);
+        enErreur = false; etat.classList.remove('is-bad');
+        etat.textContent = enregistree < revision ? 'Modifications à enregistrer…' : 'Enregistré à ' + heure();
+      },
+      sale: sale,
       marquer: marquer,
-      tour: tour
+      tour: tour,
+      quitter: function () { if (!arrete && sale() && !en) essai(); },   // avant de remplacer la rédaction
+      arreter: function () {   // envoi confirmé ou fermeture voulue sans enregistrer : plus aucun enregistrement automatique
+        arrete = true; clearInterval(minuteur);
+        if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('beforeunload', avantFermeture);
+      },
+      reprendre: function () { if (!arrete) return; arrete = false; detache = 0; minuteur = setInterval(tour, PERIODE); surveiller();
+        if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('beforeunload', avantFermeture); }
     };
   }
 

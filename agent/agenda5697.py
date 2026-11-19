@@ -226,6 +226,11 @@ def _dossier(desk, acteur, matter):
     return matter
 
 
+def _rappels(valeur):
+    from .agenda56108 import rappels
+    return rappels(valeur)
+
+
 def _texte(value, longueur, code):
     text = re.sub(r'\s+', ' ', str(value or '')).strip()
     if len(text) > longueur:
@@ -270,7 +275,7 @@ def normaliser(desk, acteur, data):
         out['evenement'] = {'nature': nature, 'debut': p['debut'].isoformat(), 'fin': p['fin'].isoformat(), 'journee': p['journee'], 'zone': p['zone'],
                             'visio': visio, 'lien': lien_https(data.get('lien')) if visio == 'lien' else '',
                             'speakr': bool(data.get('speakr') in (True, 'true', 'on', '1', 1)) and nature == 'rendez_vous', 'visibilite': visibilite,
-                            'rappels': data.get('rappels') if isinstance(data.get('rappels'), list) else None}
+                            'rappels': _rappels(data['rappels']) if isinstance(data.get('rappels'), list) else None}   # 5.6.108 (lot G) : validés dès la saisie
     if data.get('tache_existante') and objet == 'evenement':   # « Programmer » une tâche existante : bloc relié, échéance inchangée
         from .acces5697 import NEUTRE, peut_lire_dossier
         t = desk.db.execute("SELECT id,matter FROM tasks WHERE id=? AND status='open'", (str(data['tache_existante']),)).fetchone()
@@ -465,6 +470,9 @@ def evenement(desk, acteur, event_id):
                 'source_label': 'Agenda personnel', 'lien_fourni': meta.get('lien', '') if meta.get('visio') == 'lien' else ''})
     if row['all_day']:
         out.update(debut_local=a.date().isoformat(), fin_local=b.date().isoformat())
+    if meta.get('proprietaire'):   # 5.6.108 (lot G) : responsable lisible dans l'éditeur (le compte qui a inscrit l'événement)
+        from .agenda56108 import _nom
+        out['responsable_nom'] = _nom(desk, meta['proprietaire'])
     if out['tache_id']:
         t = desk.db.execute('SELECT t.id,t.title,t.due,t.status,x.priorite FROM tasks t LEFT JOIN taches5697 x ON x.task_id=t.id WHERE t.id=?', (out['tache_id'],)).fetchone()
         out['tache'] = dict(t) if t else None
@@ -493,6 +501,8 @@ def modifier(desk, acteur, data, auth=None):
         changes['description'] = contenu['notes'] = str(data['notes'] or '').strip()[:2000]
     if 'dossier' in data:
         changes['matter'] = contenu['dossier'] = _dossier(desk, a, data['dossier'])
+    if isinstance(data.get('rappels'), list):   # 5.6.108 (lot G) : rappel lisible et modifiable dans l'éditeur (valeurs de agenda5634.REMINDERS)
+        changes['reminders'] = contenu['rappels'] = _rappels(data['rappels'])
     when = None
     if 'debut' in data:
         p = plage(desk, data)

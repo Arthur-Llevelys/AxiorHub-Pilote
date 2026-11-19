@@ -272,7 +272,8 @@ def vue_file_html(desk, prefix, owner, role, filtre='tout', page=1):
         corps = '<p class="f96-vide">%s</p>' % ('Rien dans cette catégorie pour l’instant.' if filtre != 'tout' else 'Rien à décider ni à relire pour l’instant.')
     else:
         corps = ''
-    panne = '' if complet else '<p class="f96-panne" role="status">Une source n’a pas pu être lue : la liste peut être incomplète (ce n’est pas un zéro).</p>'
+    panne = '' if complet else ('<p class="f96-panne" role="status">Une source n’a pas pu être lue : la liste peut être incomplète (ce n’est pas un zéro). '
+                                '<a href="%s">Réessayer</a></p>') % e(suite_href(prefix, filtre, page), quote=True)    # 5.6.108 (lot A) : reprise dans la zone
     pager = ''
     if pages > 1:
         liens = []
@@ -312,7 +313,9 @@ def agenda_html(desk, prefix, owner, role, maintenant=None):
         rows = evenements_en_ligne(desk, (owner or 'cabinet', role or 'administrateur'), debut, debut + timedelta(days=2))
         labels, _m = _labels(desk)
     except Exception:   # noqa: BLE001 — l'accueil s'affiche toujours ; la panne est dite
-        return '<p class="f96-panne" role="status">Agenda : lecture impossible pour l’instant (ce n’est pas un agenda vide).</p>'
+        return ('<p class="f96-panne" role="status">Agenda : lecture impossible pour l’instant (ce n’est pas un agenda vide). '
+                '<a href="%s">Réessayer</a> · <a href="%s">Ouvrir l’agenda</a></p>') % (     # 5.6.108 (lot A) : la reprise est dans la zone
+            e(prefix + '/aujourdhui', quote=True), e(prefix + '/planning?' + urlencode({'vue': 'agenda'}), quote=True))
     instant = now.astimezone(timezone.utc).isoformat()
     a_venir = [r for r in rows if str(r.get('ends') or '') > instant][:AGENDA_MAX]
     lignes = []

@@ -287,11 +287,20 @@ def _garde(desk, acteur, box, cfg, folder, uid, validity=None):
     return selectionner_ecriture(desk, acteur, box, cfg, folder, uid, validity).uidvalidity
 
 
-def _source(desk, acteur, box, cfg, folder, uid, validity=None):
-    """Courriel d'origine d'une réponse ou d'un transfert, lu après le garde (corps seulement s'il est autorisé)."""
+def _source(desk, acteur, box, cfg, folder, uid, validity=None, exiger=False):
+    """Courriel d'origine d'une réponse ou d'un transfert, lu après le garde (corps seulement s'il est autorisé).
+    5.6.108 (lot C, B02) : une génération (UIDVALIDITY) transmise est toujours contrôlée, appel interne compris ; ``exiger`` (requête d'une
+    session) : sans génération, refus lisible ``uidvalidity_requise`` APRÈS le garde (un objet interdit garde son 404 neutre), jamais
+    complétée par la valeur actuelle du serveur."""
     if acteur is None:
-        return box.fetch(folder, uid)
+        mail = box.fetch(folder, uid)
+        if validity and str(mail.uidvalidity) != str(validity):
+            raise Stop('uidvalidity_modifiee')   # autre génération : ni son corps ni ses pièces ne sont repris
+        return mail
     from .acces_courriel56100 import lire_imap
+    if exiger and not str(validity or '').isdigit():
+        lire_imap(desk, acteur, box, cfg, folder, uid, None, headers_only=True)   # objet absent ou interdit : même 404 neutre, corps jamais lu
+        raise Stop('uidvalidity_requise')
     return lire_imap(desk, acteur, box, cfg, folder, uid, validity)[0]
 
 
@@ -446,7 +455,7 @@ def reprendre(desk, uid, acteur=None, validity=None):
     uid = _uid(uid)
     box = _open(desk)
     try:
-        mail = _source(desk, acteur, box, cfg, cfg['drafts'], uid, validity)
+        mail = _source(desk, acteur, box, cfg, cfg['drafts'], uid, validity, exiger=acteur is not None)   # 5.6.108 (B02)
     finally:
         box.close()
     msg = mail.msg
@@ -481,13 +490,14 @@ def template(desk, mode, uid=None, folder=None, acteur=None, validity=None):
     box = _open(desk)
     try:
         folder = _folder(box, cfg, folder)
-        mail = _source(desk, acteur, box, cfg, folder, _uid(uid), validity)   # 5.6.100 (R04) : garde avant le corps cité
+        mail = _source(desk, acteur, box, cfg, folder, _uid(uid), validity, exiger=acteur is not None)   # 5.6.100 (R04) : garde avant le corps cité ; 5.6.108 (B02) : génération exigée
     finally:
         box.close()
     msg = mail.msg
     when = mail.timestamp.astimezone().strftime('%d/%m/%Y à %H:%M')
     original = text_to_html(mail.text[:60000])
-    out = {'mode': mode, 'from': sender, 'source_uid': mail.uid, 'source_folder': folder, 'attachments': [], **extra}
+    out = {'mode': mode, 'from': sender, 'source_uid': mail.uid, 'source_uidvalidity': mail.uidvalidity,
+           'source_folder': folder, 'attachments': [], **extra}
     if mode == 'transferer':
         out.update({'to': '', 'cc': '', 'subject': _prefixed(mail.subject, 'TR :'),
                     'html': ('<p><br></p>%s<p>-------- Message transféré --------<br>De : %s<br>Date : %s<br>Objet : %s<br>À : %s</p><blockquote>%s</blockquote>' % (
@@ -520,6 +530,16 @@ def build(desk, data, acteur=None):
     return msg, stamp
 
 
+def _validite_brouillon(data):
+    """Un UID seul n'identifie pas un message après reconstruction d'une boîte."""
+    if not str(data.get('draft_uid') or '').isdigit():
+        return None
+    value = str(data.get('draft_uidvalidity') or '')
+    if not value.isdigit():
+        raise Stop('uidvalidity_requise')
+    return value
+
+
 def _brouillon_precedent(desk, acteur, cfg, data):
     """5.6.106 (lot R) : brouillon précédent de la rédaction (``draft_uid``), relu dans le dossier Brouillons après le garde, quand il faut
     en reprendre des pièces (``draft_keep`` : empreintes) ou, pour un brouillon repris, les en-têtes de fil (In-Reply-To, References)."""
@@ -531,7 +551,7 @@ def _brouillon_precedent(desk, acteur, cfg, data):
         return None, set()
     box = _open(desk)
     try:
-        return _source(desk, acteur, box, cfg, cfg['drafts'], _uid(previous), None), {str(x) for x in garder}
+        return _source(desk, acteur, box, cfg, cfg['drafts'], _uid(previous), _validite_brouillon(data)), {str(x) for x in garder}
     finally:
         box.close()
 
@@ -568,7 +588,7 @@ def build_detail(desk, data, acteur=None):
         box = _open(desk)
         try:
             source = _source(desk, acteur, box, cfg, _folder(box, cfg, data.get('source_folder')), _uid(data.get('source_uid')),
-                             data.get('source_uidvalidity') or None)   # 5.6.100 (R04) : courriel cité ou transféré contrôlé avant son corps
+                             data.get('source_uidvalidity') or None, exiger=acteur is not None)   # 5.6.100 (R04) : courriel cité ou transféré contrôlé avant son corps ; 5.6.108 (B02) : génération de l'origine exigée
         finally:
             box.close()
         if mode != 'transferer' and source.mid:
@@ -641,33 +661,38 @@ def save(desk, data, owner='cabinet', acteur=None):
     """Dépose le message dans Brouillons et le relit ; remplace le brouillon précédent de la même rédaction."""
     from .drafts440 import _append_uid, _search_uids
     cfg = desk.c['mail']
+    validite = _validite_brouillon(data)
     msg, stamp, pieces = build_detail(desk, data, acteur)   # 5.6.106 (lot R) : pièces du brouillon rendues à la rédaction
     box = _open(desk)
     try:
         folder = cfg['drafts']
-        _select_rw(box, folder)
+        courante = _select_rw(box, folder, validite)
         status, response = box.conn.append(mbx.imap_quote(mbx.modified_utf7(folder)), '(\\Draft)',
                                            imaplib.Time2Internaldate(datetime.now(timezone.utc)), msg.as_bytes(policy=policy.SMTP))
         if status != 'OK':
             raise Stop('append_imap_incertain')
         uid = _append_uid(response)
-        if not uid:
-            _select_rw(box, folder)
+        if not uid:   # APPENDUID absent : nouveau dépôt identifié par son marqueur unique, puis par son Message-ID, dans la MÊME génération
+            _select_rw(box, folder, courante)
             found = _search_uids(box, 'UNDELETED', 'HEADER', 'X-AxiorHub-Compose', mbx.imap_quote(stamp))
-            uid = found[-1] if found else ''
+            if not found and msg.get('Message-ID'):
+                found = _search_uids(box, 'UNDELETED', 'HEADER', 'Message-ID', mbx.imap_quote(str(msg['Message-ID'])))
+            uid = found[-1] if found else ''   # non identifié : erreur ci-dessous, le brouillon précédent reste en place
         if not uid:
             raise Stop('brouillon_enregistre_non_retrouve')
         saved = box.fetch(folder, uid)
+        if str(saved.uidvalidity) != str(courante):
+            raise Stop('introuvable')
         if str(saved.msg.get('X-AxiorHub-Compose', '')).strip() != stamp:
             raise Stop('brouillon_enregistre_non_conforme')
         previous = str(data.get('draft_uid') or '')
         if previous.isdigit() and previous != uid:   # brouillon précédent de cette même rédaction : retiré (il est remplacé)
             try:   # 5.6.100 (R04) : brouillon désigné par le navigateur contrôlé avant tout ; seuls ses en-têtes sont lus
-                controlee = _garde(desk, acteur, box, cfg, folder, previous)
+                controlee = _garde(desk, acteur, box, cfg, folder, previous, validite)
                 old = box.fetch(folder, previous, headers_only=True, **({'expected_validity': controlee} if controlee is not None else {}))
                 reprise = str(data.get('reprise_uid') or '')   # 5.6.106 (lot R) : brouillon rouvert par « Modifier », remplacé quelle que soit son origine
                 if str(old.msg.get('X-AxiorHub-Origine', '')).strip() == ORIGIN or (reprise.isdigit() and reprise == previous):
-                    _select_rw(box, folder, controlee)
+                    _select_rw(box, folder, validite)
                     box.conn.uid('STORE', previous, '+FLAGS.SILENT', '(\\Deleted)')
                     if 'UIDPLUS' in _caps(box):
                         box.conn.uid('EXPUNGE', previous)

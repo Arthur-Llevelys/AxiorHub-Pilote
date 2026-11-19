@@ -435,6 +435,10 @@ def chat(desk,args,dav,model,box=None,return_result=False):
     validate(result,CHAT)
     if any(x not in {s['id'] for s in sources} for x in result['source_ids']):
         raise Stop('source_conversation_invalide')
+    if not voice:   # 5.6.108 (lot R) : petit modèle : barrière après rédaction (une reprise, puis « [référence non vérifiée] »)
+        from .references56108 import verrouiller_reponse
+        result['answer'],_limites56108=verrouiller_reponse(desk,model,result.get('answer'),[question]+[' '.join(str(s.get(k) or '') for k in ('title','reference','excerpt','subject')) for s in sources])
+        result['limits']=list(result.get('limits') or [])+_limites56108
     societe5688.poser_reponse(result,controle)   # 5.6.88 : posé par le logiciel, quoi que le modèle ait écrit
     result=_annoter56106(_vision56106,result,return_result)   # 5.6.106 (lot I) : « Image masquée avant envoi : N zones noircies » ou motif du texte seul
     if juridique5649.summary(legal):result['limits'].append(juridique5649.summary(legal))

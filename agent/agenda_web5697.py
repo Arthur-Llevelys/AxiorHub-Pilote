@@ -32,7 +32,8 @@ MESSAGES = {'introuvable': 'Élément introuvable.', 'cle_idempotence_deja_utili
             'Adresse Speakr refusée : ni identifiant, ni mot de passe, ni paramètre, ni fragment.', 'tache_texte_invalide': 'Le titre de la tâche est trop court.',
             'responsable_inconnu': 'Responsable inconnu.', 'personne_sans_acces_au_dossier': 'Cette personne n’a pas accès au dossier.',
             'participant_inconnu': 'Ce compte n’est pas un membre identifié du cabinet.', 'salon_talk_pas_pret': 'Le salon n’est pas encore prêt.',
-            'confirmation_requise': 'Confirmez l’ajout des participants.', 'preference_agenda_invalide': 'Préférence invalide.', 'fuseau_invalide': 'Fuseau horaire inconnu.'}
+            'confirmation_requise': 'Confirmez l’ajout des participants.', 'preference_agenda_invalide': 'Préférence invalide.', 'fuseau_invalide': 'Fuseau horaire inconnu.',
+            'rappel_invalide': 'Rappel non reconnu : choisissez un rappel proposé.'}   # 5.6.108 (lot G)
 
 
 def allowed(role, route):

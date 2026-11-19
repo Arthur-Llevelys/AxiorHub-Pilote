@@ -203,8 +203,8 @@ def _bouton(action, libelle, aide='', classe='ax-btn ghost'):
     return '<button type="button" class="%s" data-f103="%s"%s>%s</button>' % (classe, action, (' title="%s"' % e(aide, quote=True)) if aide else '', e(libelle))
 
 
-def _volet(n, options):
-    actions = ''.join((
+def _volet(n, options, editeur=''):
+    actions = editeur + ''.join((
         _bouton('dossier', 'Nouveau dossier'),
         _bouton('renommer', 'Renommer par lot', 'Renommer plusieurs éléments avec aperçu, dont la numérotation des pièces'),
         _bouton('copier', 'Copier vers l’autre volet'),
@@ -354,7 +354,21 @@ def page_html(desk, auth, acteur, prefix):
     options = ''.join('<option value="%s">%s</option>' % (e(i, quote=True), e(s.libelle)) for i, s in disponibles.items())
     config = {'api': prefix + '/api440/' + PREFIXE, 'sources': [{'id': i, 'libelle': s.libelle} for i, s in disponibles.items()],
               'favoris': favoris, 'couleurs': F.COULEURS, 'simple': simple}
-    volets = _volet(0, options) + ('' if simple else _volet(1, options))
+    editeur = ''
+    try:   # 5.6.108 (lot W) : un .docx sélectionné s'ouvre dans l'éditeur intégré ou dans Word du poste (pages dédiées, droits relus par elles)
+        from . import wordcraft56108
+        liens = wordcraft56108.liens(desk, auth, prefix, 'nextcloud', 'x.docx', acteur[1])
+        config['editeur'] = {'wordcraft': prefix + '/editeur/wordcraft' if liens.get('wordcraft_url') else '',
+                             'traitement': prefix + '/editeur/traitement' if liens.get('traitement_url') else ''}
+        config['editeur']['application'] = config['editeur']['traitement']   # PDF : application associée du poste (mêmes garanties)
+        editeur = ''.join(_bouton(k, libelle, aide) for k, libelle, aide in (
+            ('wordcraft', 'Modifier dans l’éditeur intégré (WordCraft, version d’essai)', 'Document Word (.docx) : nouvelle version à côté de l’original, après contrôle'),
+            ('traitement', 'Ouvrir dans Word / LibreOffice', 'Poste seulement : copie de travail ouverte dans le traitement de texte, reprise contrôlée'),
+            ('application', 'Ouvrir avec l’application du poste', 'PDF, poste seulement : copie de travail ouverte dans l’application associée, reprise contrôlée'))
+            if config['editeur'][k])
+    except Exception:   # noqa: BLE001 — la page reste utilisable sans ces actions
+        pass
+    volets = _volet(0, options, editeur) + ('' if simple else _volet(1, options, editeur))
     bascule = '' if simple else (
         '<div class="f103-bascule" role="tablist" aria-label="Volets">'
         '<button type="button" role="tab" id="f103-bascule-0" aria-controls="f103-volet-0" aria-selected="true" data-f103-bascule="0">Volet 1</button>'

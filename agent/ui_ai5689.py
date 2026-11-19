@@ -453,6 +453,7 @@ def depuis_mission(m):
     objet = {'nature': str(m.get('kind') or ''), 'titre': str(r.get('location') or r.get('subject') or '')[:300], 'corps': '', 'interne': True, 'depose': bool(preuve), 'destinataire': ''} if (r.get('location') or r.get('path')) else None
     return {'contrat': 'resultat_ia/1', 'etat': etat, 'etat_libelle': ETATS[etat], 'texte': str(r.get('text') or r.get('message') or ''), 'objet': objet, 'sources': sources[:30], 'informations_manquantes': [str(x)[:300] for x in list(r.get('missing') or []) + list(r.get('to_complete') or [])][:30], 'actions_proposees': [],
             'preuve_depot': preuve, 'points_a_decider': [str(x.get('message') or '')[:300] for x in m.get('exceptions') or [] if isinstance(x, dict) and x.get('message')], 'question_regroupee': '', 'reserve': False, 'taches': [], 'limites': [str(x)[:300] for x in synthese.get('limites') or []],
+            'libelles_champs': {}, 'methode_transmise': [],
             'fournisseur': {'nom': str(choix.get('modele') or ''), 'local': None, 'raison': str(choix.get('raison') or '')[:300]} if choix else None}
 
 
@@ -496,6 +497,8 @@ def creer(desk, data, owner, role, prefix=''):
     action = cap.verifier_action(desk, fid, str(data.get('action') or ''), owner, role, ctx)
     if action['circuit'] != 'assistance':
         raise Stop('action_non_disponible')       # les autres passent par l'assistant et ses producteurs, avec leurs propres contrôles
+    from . import conseil56108   # 5.6.108 (lot K) : conseil de modèles, seulement sur demande explicite de l'avocat et pour une question de jugement
+    annonce_conseil = conseil56108.verifier_demande(desk, data, action)
     instruction = ctx['instruction'] or action['instruction']
     mid = ctx['dossier']['id']
     champs = {str(k)[:40]: _texte(v, 300) for k, v in (data.get('champs') or {}).items() if str(k) in CHAMPS_LIBELLES and _texte(v, 300)} if isinstance(data.get('champs'), dict) else {}
@@ -509,6 +512,8 @@ def creer(desk, data, owner, role, prefix=''):
     maintenant = _now()
     desk.db.execute('INSERT INTO assistances5689(mission_id,matter,owner,role,fonction,action,instruction,contexte,champs,taches,etat,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
                     (mission['id'], mid, str(owner), str(role), fid, action['id'], instruction, json.dumps(data.get('context'), ensure_ascii=False), json.dumps(champs, ensure_ascii=False), json.dumps(taches, ensure_ascii=False), etat, maintenant, maintenant))
+    if annonce_conseil:   # 5.6.108 (lot K) : la demande et son annonce restent attachées à la mission (lue par le travail)
+        conseil56108.enregistrer_demande(desk, mission['id'], mid, owner, annonce_conseil)
     _purger(desk)
     desk.db.commit()
     if etat == 'en_cours':
@@ -521,8 +526,9 @@ def creer(desk, data, owner, role, prefix=''):
     return missions567.get(desk, mission['id'], proprietaire, role == 'administrateur', prefix)
 
 
-def _assembler(row, taches, sources, limites, fournisseur):
-    """Résultat de toute la mission : une seule question regroupée, ce qui est fait reste acquis, le manque est dit."""
+def _assembler(row, taches, sources, limites, fournisseur, grille=None):
+    """Résultat de toute la mission : une seule question regroupée, ce qui est fait reste acquis, le manque est dit.
+    5.6.108 : les manques de la grille avant rédaction rejoignent la question regroupée (posés par le serveur, une seule fois)."""
     champs = json.loads(row['champs'])
     faites = [t for t in taches if t.get('sortie')]
     plusieurs = len(taches) > 1
@@ -533,7 +539,11 @@ def _assembler(row, taches, sources, limites, fournisseur):
         for champ in t['requis']:
             if not champs.get(champ) and champ not in manquantes:
                 manquantes.append(champ)
-    libelles = [CHAMPS_LIBELLES.get(c, c) for c in manquantes]
+    libelles_grille = (grille or {}).get('questions') or {}
+    for champ in libelles_grille:
+        if not champs.get(champ) and champ not in manquantes:
+            manquantes.append(champ)
+    libelles = [CHAMPS_LIBELLES.get(c) or libelles_grille.get(c, c) for c in manquantes]
     for t in faites:
         for x in t['sortie']['informations_manquantes']:
             if fold(x) not in {fold(y) for y in libelles}:
@@ -556,7 +566,7 @@ def _assembler(row, taches, sources, limites, fournisseur):
         lignes.append('En attente d’une tâche précédente : %s.' % ', '.join(t['libelle'] for t in attente))
     parties = libelles + questions
     question = ('Pour terminer, précisez : ' + ' ; '.join(parties) + '.') if parties else ''
-    reserve = bool(parties or echecs or attente)
+    reserve = bool(parties or echecs or attente or (grille or {}).get('inconnus'))
     if not faites:
         etat = 'attente_information' if parties and not echecs else 'echec'
     elif reserve:
@@ -565,6 +575,7 @@ def _assembler(row, taches, sources, limites, fournisseur):
         etat = 'pret'
     decisions = list(dict.fromkeys(x for t in faites for x in t['sortie']['points_a_decider']))
     return {'contrat': 'resultat_ia/1', 'etat': etat, 'etat_libelle': ETATS[etat], 'texte': texte, 'objet': objets[0] if objets else None, 'sources': list(vues.values()), 'informations_manquantes': libelles, 'champs_manquants': manquantes,
+            'libelles_champs': {c: CHAMPS_LIBELLES.get(c) or libelles_grille.get(c, c) for c in manquantes},
             'actions_proposees': list({a['id']: a for t in faites for a in t['sortie']['actions_proposees']}.values()), 'preuve_depot': None, 'points_a_decider': decisions, 'question_regroupee': question, 'reserve': reserve,
             'taches': [{k: t[k] for k in ('id', 'libelle', 'etat', 'motif')} for t in taches], 'limites': list(dict.fromkeys(lignes)), 'fournisseur': fournisseur, 'revision': row['revision'] + 1}
 
@@ -572,6 +583,78 @@ def _assembler(row, taches, sources, limites, fournisseur):
 def _clore(desk, ident, etat, motif, limites=()):
     resultat = {'contrat': 'resultat_ia/1', 'etat': etat, 'etat_libelle': ETATS[etat], 'texte': '', 'objet': None, 'sources': [], 'informations_manquantes': [], 'champs_manquants': [], 'actions_proposees': [], 'preuve_depot': None, 'points_a_decider': [], 'question_regroupee': '', 'reserve': False, 'taches': [], 'limites': list(limites), 'fournisseur': None, 'motif': motif}
     _maj(desk, ident, etat=etat, resultat=json.dumps(resultat, ensure_ascii=False))
+
+
+ATTENDUS_REFERENCES56108 = ('analysis', 'document', 'mail_draft')   # analyses et rédactions ; parmi les réponses, la seule recherche citée
+ACTIONS_REFERENCES56108 = ('rechercher_citer',)
+
+
+def _references56108(desk, ident, row, modele, sources, grille, mid, budget, etiquettes):
+    """5.6.108 (lot R) : petit modèle : recherche d'office et besoins de recherche exécutés par le programme (``references56108``), avant la
+    rédaction. ``None`` pour un modèle capable ou un résultat sans analyse ni rédaction ; arrêt, pause, budget et droits traités comme la grille."""
+    from .arret5643 import STOP_CODES
+    from .budget_ledger5689 import ATTENTE_CODES
+    from . import references56108 as R
+    if cap.ACTIONS[row['action']]['attendu'] not in ATTENDUS_REFERENCES56108 and row['action'] not in ACTIONS_REFERENCES56108:
+        return None
+    petit, raison = R.decision_petit(modele, desk=desk)
+    if not petit:   # grand modèle : méthode et outils inchangés ; la barrière seule s'ajoute si le réglage « Barrière des références » la prévoit
+        actif, raison_barriere = R.decision_barriere(modele, desk=desk)
+        return {'raison': raison_barriere, 'barriere_seule': True, 'ajoutees': [], 'limites': [], 'compteurs': {'barriere': 1}} if actif else None
+
+    def besoins(messages, max_tokens, schema=None):
+        return chaine5689.appeler_texte(desk, 'besoins_de_recherche', messages, mid, mission_id=ident, modele=modele, purpose='assistant', max_tokens=max_tokens,
+                                        schema=schema, owner=row['owner'], role=row['role'], budget=budget, labels=etiquettes)
+    try:
+        prep = R.preparer_mission(desk, modele, sources, row['instruction'], (grille or {}).get('grille'), mid, besoins)
+        return {'raison': 'petit modèle (%s)' % raison, **prep, 'compteurs': {**prep['compteurs'], 'barriere': 1}}
+    except Stop as ex:
+        code = str(ex).split(':')[0]
+        if code == 'mission_annulee':
+            _clore(desk, ident, 'annule', code)
+            return {'abstention': {'status': 'abstention', 'message': 'Mission annulée.'}}
+        if code == 'dossier_reserve':
+            _clore(desk, ident, 'refuse', code, ('Ce travail n’est plus autorisé : aucune donnée n’a été transmise au modèle.',))
+            return {'abstention': {'status': 'abstention', 'mission': ident, 'motif': code, 'message': 'Travail non exécuté.'}}
+        _maj(desk, ident, etat='attente_budget' if code in ATTENTE_CODES or code == 'qualite_insuffisante' else 'suspendu' if code in STOP_CODES or code == 'preparation_suspendue' else 'echec')
+        raise
+
+
+def _verrou56108(desk, ident, row, modele, sortie, sources, mid, budget, etiquettes, compteurs):
+    """5.6.108 (lot R) : barrière après rédaction d'une tâche (une reprise bornée par la politique, la pause et le budget, puis marquage)."""
+    from . import references56108 as R
+
+    def reprendre(texte, refs):
+        return chaine5689.appeler_texte(desk, 'reprise_references', R.message_reprise(texte, refs), mid, mission_id=ident, modele=modele, purpose='assistant',
+                                        max_tokens=3000, owner=row['owner'], role=row['role'], budget=budget, labels=etiquettes)
+    sortie, total = R.verrouiller_sortie(sortie, sources, [row['instruction']], reprendre)
+    for cle, valeur in total.items():
+        compteurs[cle] = compteurs.get(cle, 0) + valeur
+    if total['reprises'] and R.caracteristiques(modele)['fournisseur'] != 'ollama' and R.MENTION_COUT not in sortie['limites']:
+        sortie['limites'] = list(sortie['limites']) + [R.MENTION_COUT]   # fournisseur d'API : reprise pseudonymisée, comptée dans le budget
+    return sortie
+
+
+def _grille56108(desk, ident, row, modele, sources, champs, mid, budget, etiquettes):
+    """5.6.108 (lot I, point 5) : grille avant rédaction (``grille56108``) pour une analyse ou une rédaction confiée à un modèle à petit contexte.
+    ``None`` si elle ne s'applique pas ; un arrêt, une pause, un budget ou un refus de droits suit le même traitement que pour une tâche."""
+    from .arret5643 import STOP_CODES
+    from .budget_ledger5689 import ATTENTE_CODES
+    from . import grille56108
+    if not grille56108.active(desk, modele, cap.ACTIONS[row['action']]['attendu']):
+        return None
+    try:
+        return grille56108.preparer(desk, ident, modele, sources, row['instruction'], champs, mid, row['owner'], row['role'], budget, etiquettes)
+    except Stop as ex:
+        code = str(ex).split(':')[0]
+        if code == 'mission_annulee':
+            _clore(desk, ident, 'annule', code)
+            return {'abstention': {'status': 'abstention', 'message': 'Mission annulée.'}}
+        if code == 'dossier_reserve':
+            _clore(desk, ident, 'refuse', code, ('Ce travail n’est plus autorisé : aucune donnée n’a été transmise au modèle.',))
+            return {'abstention': {'status': 'abstention', 'mission': ident, 'motif': code, 'message': 'Travail non exécuté.'}}
+        _maj(desk, ident, etat='attente_budget' if code in ATTENTE_CODES or code == 'qualite_insuffisante' else 'suspendu' if code in STOP_CODES or code == 'preparation_suspendue' else 'echec')
+        raise
 
 
 def executer(desk, args, modele=None):
@@ -593,6 +676,9 @@ def executer(desk, args, modele=None):
             raise
         _clore(desk, ident, 'annule', 'mission_annulee')      # une annulation est terminale : aucun appel, aucune reprise
         return {'status': 'abstention', 'message': 'Mission annulée.'}
+    from . import questionnaires56108   # 5.6.108 (lot Q) : mission liée au questionnaire d'un acte : le contrôleur pose les questions, sections prêtes seulement
+    if row['action'] == questionnaires56108.ACTION and questionnaires56108.mission_liee(desk, ident):
+        return questionnaires56108.executer_mission(desk, ident, row, modele)
     try:
         ctx = contexte(desk, json.loads(row['contexte']), row['owner'], row['role'])
         if any(a['code'] == 'version_perimee' for a in ctx['ambiguites']):
@@ -623,6 +709,27 @@ def executer(desk, args, modele=None):
     charge_commune = {'demande': row['instruction'], 'fonction': ctx['fonction']['libelle'], 'dossier': ctx['dossier']['label'], 'resultat_attendu': cap.ACTIONS[row['action']]['attendu'], 'filtres': ctx['filtres'],
                       'sources': [{k: s.get(k, '') for k in ('id', 'titre', 'version', 'nature')} | {'texte': s['excerpt']} for s in sources], 'actions_possibles': [{'id': a['id'], 'libelle': a['libelle']} for a in fiche_actions], 'champs': champs}
     _maj(desk, ident, etat='en_cours')
+    from . import conseil56108   # 5.6.108 (lot K) : conseil demandé par l'avocat : la délibération remplace l'appel unique (grille et besoins sans objet)
+    conseil = conseil56108.demande(desk, ident)
+    if conseil:
+        fournisseur.update(nom='conseil de modèles', raison='Conseil de modèles demandé par l’avocat')
+    grille = _grille56108(desk, ident, row, modele, sources, champs, mid, budget, etiquettes)   # 5.6.108 (lot I) : grille avant rédaction, petits modèles ; le conseil en reprend les manques
+    if isinstance(grille, dict) and grille.get('abstention'):
+        return grille['abstention']
+    if grille:
+        limites += grille['limites']
+        if grille['grille'] is not None:
+            from .grille56108 import charge_courte
+            charge_commune.update(grille=grille['grille'], sources=charge_courte(sources))   # la rédaction reçoit la grille au lieu du texte brut
+    refs56108 = None if conseil else _references56108(desk, ident, row, modele, sources, grille, mid, budget, etiquettes)   # 5.6.108 (lot R) : petits modèles
+    if isinstance(refs56108, dict) and refs56108.get('abstention'):
+        return refs56108['abstention']
+    if refs56108 and not refs56108.get('barriere_seule'):
+        from .references56108 import CONSIGNE as _consigne56108
+        limites += refs56108['limites']
+        sources = sources + refs56108['ajoutees']        # textes trouvés par le programme : sources numérotées, référence et lien gardés ici
+        charge_commune.update(sources=list(charge_commune['sources']) + [{k: s.get(k, '') for k in ('id', 'titre', 'version', 'nature')} | {'texte': s['excerpt']}
+                                                                        for s in refs56108['ajoutees']], regle_citations=_consigne56108)
     for t in taches:
         if t['etat'] == 'termine':
             continue
@@ -633,9 +740,18 @@ def executer(desk, args, modele=None):
         manquants = [c for c in t['requis'] if not champs.get(c)]
         charge = {**charge_commune, 'tache': t['libelle'], 'champs_manquants': [CHAMPS_LIBELLES.get(c, c) for c in manquants], 'taches_faites': {x['libelle']: x['sortie']['texte'][:2000] for x in taches if x.get('sortie') and x['id'] in t['depend_de']}}
         try:
+            if conseil:   # 5.6.108 (lot K) : réponses indépendantes, revue croisée anonyme, synthèse, barrière des références ; trace du conseil
+                rendu = conseil56108.pour_tache(desk, ident, row, sources, mid, budget, etiquettes, grille=grille)
+                t['sortie'] = normaliser(rendu['brut'], sources, fiche_actions, destinataires)
+                t['sortie']['limites'] = list(dict.fromkeys(rendu['limites'] + t['sortie']['limites']))
+                t.update(etat='partielle' if manquants or (grille or {}).get('questions') else 'termine', motif='')   # même règle que la mission simple
+                _maj(desk, ident, taches=json.dumps(taches, ensure_ascii=False))
+                continue
             sortie = chaine5689.appeler(desk, finalite, SYSTEME, charge, mid, mission_id=ident, modele=modele, purpose='assistant', max_tokens=3000, schema=SCHEMA_SORTIE, consigne=row['instruction'], owner=row['owner'], role=row['role'], budget=budget, labels=etiquettes)
             t['sortie'] = normaliser(sortie, sources, fiche_actions, destinataires)
-            t.update(etat='partielle' if manquants else 'termine', motif='')
+            if refs56108:   # 5.6.108 (lot R) : barrière après rédaction (une reprise, puis « [référence non vérifiée] »)
+                t['sortie'] = _verrou56108(desk, ident, row, modele, t['sortie'], sources, mid, budget, etiquettes, refs56108['compteurs'])
+            t.update(etat='partielle' if manquants or (grille or {}).get('questions') else 'termine', motif='')   # 5.6.108 : question de la grille ouverte : la tâche sera reprise avec la réponse
         except Stop as ex:
             code = str(ex).split(':')[0]
             _maj(desk, ident, taches=json.dumps(taches, ensure_ascii=False))
@@ -653,9 +769,12 @@ def executer(desk, args, modele=None):
                 return {'status': 'abstention', 'mission': ident, 'motif': code, 'message': 'Travail non exécuté.'}
             t.update(etat='echec', motif=code)
         _maj(desk, ident, taches=json.dumps(taches, ensure_ascii=False))
+    if refs56108:
+        from .references56108 import journaliser
+        journaliser(desk, refs56108['compteurs'], budget, ident, finalite, not refs56108.get('barriere_seule'), refs56108['raison'], refs56108['limites'])
     row = _charger(desk, ident)
     # Une tâche qui attendait une autre, échouée entre-temps, reste en attente : elle est dite, pas supposée faite.
-    resultat = _assembler(row, taches, sources, limites, fournisseur)
+    resultat = _assembler(row, taches, sources, limites, fournisseur, grille)
     _maj(desk, ident, etat=resultat['etat'], resultat=json.dumps(resultat, ensure_ascii=False), taches=json.dumps(taches, ensure_ascii=False))
     desk.audit('assistance5689_prete', {'mission': ident, 'dossier': _h(mid) if mid else '', 'etat': resultat['etat'], 'fournisseur': cible})
     emit(desk, 'mission', 'Assistance : ' + ETATS[resultat['etat']], matter=mid)
@@ -675,8 +794,22 @@ def resultat_mission(desk, ident, prefix=''):
     return etat, {'text': r['texte'] or (r['objet'] or {}).get('corps', ''), 'message': r['question_regroupee'] or r['etat_libelle'], 'sources': [{'id': s['id'], 'titre': s['titre'], 'version': s['version'], 'emplacement': s['emplacement']} for s in r['sources']], 'normalise': {**r, 'assistance': ident, 'revision': row['revision']}}
 
 
+def _methode56108(desk, m):
+    """5.6.108 (point 6) : « Méthode transmise : … », lue dans la trace écrite juste avant l'appel au fournisseur ; sans trace, rien n'est affirmé."""
+    from .competences5683 import methode_transmise
+    job = m.get('job') if isinstance(m.get('job'), dict) else {}
+    from .references56108 import lignes_trace   # 5.6.108 (lot R) : références trouvées, reprises, marquées, recherches du programme
+    from .conseil56108 import lignes_trace as _conseil56108   # 5.6.108 (lot K) : membres, étapes, durée, coût, désaccords, références marquées
+    return methode_transmise(desk, job.get('id')) + lignes_trace(desk, job.get('id') or '', m.get('id') or '', 2) + _conseil56108(desk, m.get('id') or '')
+
+
 def pour_carte(desk, m):
     """Contrat normalisé d'une mission, pour la carte de l'assistant. Pendant le travail, l'attente réelle (budget, pause) reste dite : elle n'est ni un échec ni un succès."""
+    out = _pour_carte(desk, m)
+    return {**out, 'methode_transmise': _methode56108(desk, m)} if isinstance(out, dict) else out
+
+
+def _pour_carte(desk, m):
     if m.get('kind') != 'assistance':
         return depuis_mission(m)
     if (m.get('result') or {}).get('normalise'):
@@ -712,12 +845,18 @@ def repondre(desk, data, owner, role, prefix=''):
     row = _charger(desk, ident)
     if row['owner'] != str(owner) and role != 'administrateur':
         raise Stop('mission_absente')
+    from . import questionnaires56108   # 5.6.108 (lot Q) : réponses typées par champ, révision contrôlée dans la transaction, clé d'idempotence
+    if row['action'] == questionnaires56108.ACTION and questionnaires56108.mission_liee(desk, ident):
+        return questionnaires56108.repondre_mission(desk, row, data, owner, role, prefix)
     if str(data.get('revision')) != str(row['revision']):
         raise Stop('version_en_conflit')
     if row['etat'] not in ('partiel', 'attente_information', 'attente_decision'):
         raise Stop('mission_sans_question')
     recus = data.get('champs') if isinstance(data.get('champs'), dict) else {}
-    champs = {**json.loads(row['champs']), **{str(k)[:40]: _texte(v, 300) for k, v in recus.items() if str(k) in CHAMPS_LIBELLES and _texte(v, 300)}}
+    from . import grille56108   # 5.6.108 : les champs de la grille de CETTE mission sont admis ; tout autre champ reste ignoré
+    admis = set(CHAMPS_LIBELLES) | set(grille56108.champs_admis(desk, ident))
+    champs = {**json.loads(row['champs']), **{str(k)[:40]: _texte(v, 300) for k, v in recus.items() if str(k) in admis and _texte(v, 300)}}
+    grille56108.noter_reponses(desk, ident, recus)   # question laissée vide : « inconnue », conservée, jamais reposée
     taches = json.loads(row['taches'])
     for t in taches:
         if t['etat'] in ('partielle', 'attente', 'echec'):

@@ -59,6 +59,24 @@ la page « Premier lancement » crée le compte administrateur avec le code priv
 Pour publier l'interface sur un sous-domaine dédié avec HTTPS, utilisez le modèle `deploy/apache-agent.example.conf`
 puis `sudo certbot --apache -d agent.votre-cabinet.fr --redirect`.
 
+**Modifier les documents dans AxiorHub (5.6.108)** : installez le serveur de documents EuroOffice ou OnlyOffice avec son secret
+JWT en suivant [INSTALLATION-EDITEUR-DOCUMENTS.md](INSTALLATION-EDITEUR-DOCUMENTS.md) (parcours A : Docker, sous-domaine HTTPS,
+Apache, Certbot). Sans lui, les documents Word restent consultables en aperçu (lecture seule) et modifiables dans l'éditeur
+intégré WordCraft (version d'essai, une nouvelle version à chaque enregistrement).
+
+**Faire signer un PDF par lien (5.6.108, facultatif)** : installez SignaturePDF à côté d'AxiorHub en suivant
+[INSTALLATION-SIGNATUREPDF.md](INSTALLATION-SIGNATUREPDF.md), puis réglez-le dans Paramètres › Connexions (cochez « Instance du
+cabinet »). Protégez ses adresses `/cron` et `/api/share/get` comme indiqué à l'étape A7.
+
+**Configurer l’IA locale (5.6.108)** : Paramètres › IA › « Configurer l’IA locale » (administrateur) cherche Ollama à l’adresse
+réglée puis sur `127.0.0.1:11434` ; sur le serveur, il repère `ollama` (PATH, `/usr/bin`, `/usr/local/bin`) et l’unité
+`/etc/systemd/system/ollama.service` sans rien lancer. Absent : installez-le vous-même (`curl -fsSL https://ollama.com/install.sh | sh`) ;
+arrêté : `sudo systemctl start ollama`. L’assistant lit `/proc/meminfo` et `nvidia-smi`/`rocm-smi` s’ils existent, liste les modèles,
+suggère des modèles adaptés à la machine (catalogue vérifié : licence, lien officiel, date du relevé), les télécharge par Ollama
+seulement après confirmation (en mode local strict, refusé tant que `registry.ollama.ai` n’est pas admis au registre des
+prestataires), applique la répartition, le modèle d’embeddings (confirmé à part) et le préréglage du conseil, puis fait un essai court ;
+tout est réversible. Ollama sur une autre machine du réseau : adresse IP privée ou nom `….local`, jamais une adresse publique.
+
 ## 4. Démarrer prudemment
 
 1. Mode **observation** : AxiorHub Pilote analyse sans rien écrire. Contrôlez les rattachements aux dossiers.

@@ -40,16 +40,20 @@ from .erreurs5634 import Qualified
 from . import bibliotheque_fr5639 as _fr
 from . import bibliotheque_intl5639 as _intl
 from . import bibliotheque_cessions5684 as _cessions
+from . import bibliotheque_droits56108 as _droits
 from . import bibliotheque_word5640 as W5
+from . import droits56108 as D
 
-BUILTIN = {t['id']: t for t in _fr.TEMPLATES + _intl.TEMPLATES + _cessions.TEMPLATES}
+BUILTIN = {t['id']: t for t in _fr.TEMPLATES + _intl.TEMPLATES + _cessions.TEMPLATES + _droits.TEMPLATES}
 LANGS = ('fr', 'en', 'de', 'es')
-DROITS = {'FR': 'Droit français', 'DE': 'Droit allemand', 'ES': 'Droit espagnol', 'EN': 'Droit anglais (Angleterre et pays de Galles)'}
+# 5.6.108 (lot B) : systèmes juridiques en liste fermée (droits56108) ; « EN » devient « UK-EAW » par alias explicite des données enregistrées.
+# La langue ne choisit jamais le droit : il n'existe plus de table « langue → droit ».
+DROITS = dict(D.LIBELLES)
 LANGUES = {'fr': 'français', 'de': 'allemand', 'es': 'espagnol', 'en': 'anglais'}
-DROIT_OF_LANG = {'fr': 'FR', 'de': 'DE', 'es': 'ES', 'en': 'EN'}
-LANG_OF_DROIT = {v: k for k, v in DROIT_OF_LANG.items()}
+LANG_OF_DROIT = dict(D.LANGUE_PRINCIPALE)   # langue proposée par défaut pour un modèle ajouté (modifiable)
 CATEGORIES = {'statuts': 'Statuts', 'pacte': 'Pactes d’associés et d’actionnaires', 'operation': 'Opérations : LOI, protocoles, cessions',
-              'contrat': 'Contrats', 'commun': 'Commun', 'fonds': 'Fonds de commerce', 'bail': 'Droit au bail'}   # 5.6.84 : familles de la même bibliothèque
+              'contrat': 'Contrats', 'conseil': 'Conseil : questionnaires, consultations, suivi', 'commun': 'Commun', 'fonds': 'Fonds de commerce',
+              'bail': 'Droit au bail'}   # 5.6.84 : familles de la même bibliothèque ; 5.6.108 : conseil
 MISSING = {'fr': '[À COMPLÉTER : %s]', 'de': '[ZU ERGÄNZEN: %s]', 'es': '[A COMPLETAR: %s]', 'en': '[TO BE COMPLETED: %s]'}
 ARTICLE = {'fr': 'Article %d — %s', 'de': '§ %d %s', 'es': 'Artículo %d. %s', 'en': '%d. %s'}
 NOTICE = {
@@ -108,6 +112,15 @@ def schema(desk):
     for row in desk.db.execute("SELECT jeton, created FROM bibliotheque5639_fichiers WHERE expires_at='' LIMIT 500").fetchall():
         desk.db.execute('UPDATE bibliotheque5639_fichiers SET expires_at=? WHERE jeton=?', (_expiry(row['created']), row['jeton']))
     desk.db.execute('CREATE INDEX IF NOT EXISTS bibliotheque5642_fichiers_expire ON bibliotheque5639_fichiers(expires_at)')
+    # 5.6.108 (lot B) : ancien code « EN » (Angleterre et pays de Galles) → « UK-EAW », par alias explicite ; identifiants, textes, modèles Word et
+    # réglages du cabinet conservés. Les instantanés transmis à l'IA ne sont pas réécrits (preuve) : leur ancien code s'affiche par le même alias.
+    for old, new in D.ALIAS_MIGRATION.items():
+        desk.db.execute('UPDATE bibliotheque5639 SET droit=? WHERE droit=?', (new, old))
+        try:
+            if str(desk.settings(SETTING_DROIT, '') or '') == old:
+                desk.setting(SETTING_DROIT, new)
+        except Exception:   # noqa: BLE001 — bureau sans réglages (outils, essais) : rien à migrer
+            pass
     desk.db.commit()
     _READY.add(key)
 
@@ -158,7 +171,7 @@ def _lang():
 def default_law(desk):
     """E01 : droit applicable proposé par défaut, réglé pour le cabinet (français si rien n'est réglé), jamais déduit de la langue."""
     try:
-        value = str(desk.settings(SETTING_DROIT, 'FR') or 'FR')
+        value = D.migrer(str(desk.settings(SETTING_DROIT, 'FR') or 'FR'))
     except Exception:   # noqa: BLE001
         value = 'FR'
     return value if value in DROITS else 'FR'
@@ -191,7 +204,7 @@ def _build(ident, row):
     base = BUILTIN.get(ident)
     if base is None and row is None:
         raise Stop('modele_bibliotheque_absent')
-    t = dict(base) if base else {'id': ident, 'langue': row['langue'], 'droit': row['droit'], 'categorie': row['categorie'], 'formes': (),
+    t = dict(base) if base else {'id': ident, 'langue': row['langue'], 'droit': D.migrer(row['droit']), 'categorie': row['categorie'], 'formes': (),
                                  'titre': row['titre'], 'resume': {}, 'mots': (), 'variables': [], 'clauses': [], 'fixes': {}, 'texte': []}
     t.update(origine='cabinet' if base is None else 'axiorhub', personnalise=False, word='', version=1, meta={})
     if row is not None:
@@ -411,14 +424,34 @@ def _para_xml(text, style):
     return '<w:p>%s<w:r>%s<w:t xml:space="preserve">%s</w:t></w:r></w:p>' % (ppr, rpr, xml_escape(body))
 
 
-def build_docx(paras, lang='fr', notice=True):
-    """Document Word autonome (Garamond 12, A4, marges usuelles) ; la mention « projet à relire » termine le document."""
-    items = list(paras) + ([(NOTICE.get(lang, NOTICE['fr']), 'note')] if notice else [])
+NOTICE_SYSTEME = {   # 5.6.108 (lot B) : mention finale propre au droit du modèle (un acte en anglais n'est pas forcément anglais)
+    ('CA-QC', 'fr'): 'Projet établi à partir de la bibliothèque de modèles AxiorHub (droit québécois) : trame de travail à faire relire et adapter par '
+                     'un avocat membre du Barreau du Québec.',
+    ('CA-QC', 'en'): 'Draft prepared from the AxiorHub template library (Québec law): to be reviewed and adapted by a member of the Barreau du Québec.',
+    ('CA-ON', 'en'): 'Draft prepared from the AxiorHub template library (Ontario law): to be reviewed and adapted by a lawyer licensed by the Law '
+                     'Society of Ontario.',
+    ('CA', 'fr'): 'Projet établi à partir de la bibliothèque de modèles AxiorHub (droit canadien) : trame de travail à faire relire et adapter par un '
+                  'avocat autorisé à exercer dans la province concernée.',
+    ('CA', 'en'): 'Draft prepared from the AxiorHub template library (Canadian law): to be reviewed and adapted by a lawyer authorized to practise in '
+                  'the relevant province or territory.',
+}
+
+
+def notice_for(lang, systeme=''):
+    systeme = D.migrer(systeme)
+    return NOTICE_SYSTEME.get((systeme, lang)) or (systeme.startswith('CA-') and NOTICE_SYSTEME.get(('CA', lang))) or NOTICE.get(lang, NOTICE['fr'])
+
+
+def build_docx(paras, lang='fr', notice=True, systeme=''):
+    """Document Word autonome (Garamond 12, A4, marges usuelles) ; la mention « projet à relire » termine le document.
+    5.6.108 (lot B) : mention et étiquette de langue selon le droit du modèle (``systeme``), pas seulement selon sa langue."""
+    items = list(paras) + ([(notice_for(lang, systeme), 'note')] if notice else [])
     body = ''.join(_para_xml(x, s) for x, s in items)
     document = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="%s"><w:body>%s<w:sectPr><w:pgSz w:w="11906" '
                 'w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418" w:header="709" w:footer="709" w:gutter="0"/>'
                 '</w:sectPr></w:body></w:document>') % (W, body)
-    lang_tag = {'fr': 'fr-FR', 'de': 'de-DE', 'es': 'es-ES', 'en': 'en-GB'}.get(lang, 'fr-FR')
+    lang_tag = D.TAG_LANGUE.get((lang, 'CA' if D.migrer(systeme).startswith('CA-') else '')) or \
+        {'fr': 'fr-FR', 'de': 'de-DE', 'es': 'es-ES', 'en': 'en-GB'}.get(lang, 'fr-FR')
     styles = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="%s"><w:docDefaults><w:rPrDefault><w:rPr>'
               '<w:rFonts w:ascii="Garamond" w:hAnsi="Garamond" w:cs="Garamond"/><w:sz w:val="24"/><w:lang w:val="%s"/></w:rPr></w:rPrDefault>'
               '</w:docDefaults></w:styles>') % (W, lang_tag)
@@ -456,7 +489,7 @@ def template_docx(t):
         if not line.strip():
             continue
         paras.append((line, 'titre' if line.startswith('# ') else 'texte'))
-    return build_docx(paras, t['langue'], notice=False)
+    return build_docx(paras, t['langue'], notice=False, systeme=t.get('droit', ''))
 
 
 def fill_word(raw, t, values, flags):
@@ -483,6 +516,9 @@ def effective(desk, t, data):
     personnalisé, sinon texte d'origine. Un Word illisible ou mal structuré est refusé avec une explication, jamais remplacé en silence."""
     values = values_for(t, data)
     flags = flags_for(t, data)
+    clash = D.incompatibilites_actives(t, flags)   # 5.6.108 (lot B) : clauses déclarées incompatibles, jamais retenues ensemble
+    if clash:
+        raise Qualified('clauses_incompatibles', precision='Clauses incompatibles cochées ensemble : %s. Décochez l’une des deux.' % ' ; '.join(clash))
     if t.get('word'):
         from .corporate5636 import load_template, check_docx
         try:
@@ -512,7 +548,7 @@ def effective(desk, t, data):
     paras = render(t, values, flags)
     fill = _filler(t, values)
     sections = [fill(line[3:].strip()) for line in apply_conditions(t['texte'], flags) if line.startswith('## ')]
-    return {'docx': build_docx(paras, t['langue']), 'texte': plain_text(paras), 'sections': sections, 'source': 'texte',
+    return {'docx': build_docx(paras, t['langue'], systeme=t.get('droit', '')), 'texte': plain_text(paras), 'sections': sections, 'source': 'texte',
             'empreinte_source': _sha('\n'.join(t['texte'])), 'version': t.get('version', 1), 'values': values, 'flags': flags}
 
 
@@ -886,6 +922,8 @@ def set_labels(desk, data, owner='cabinet'):
 def set_default_law(desk, data, owner='cabinet'):
     """E01 : droit applicable proposé par défaut au cabinet (indépendant de la langue de l'interface)."""
     droit = str(data.get('droit') or '')
+    if droit in D.AMBIGUS:   # 5.6.108 (lot B) : « CA », « UK », « EN » seuls ne désignent pas un droit
+        raise Stop('systeme_juridique_a_preciser')
     if droit not in DROITS:
         raise Stop('modele_categorie_invalide')
     desk.setting(SETTING_DROIT, droit)
@@ -900,7 +938,13 @@ def add(desk, data, owner='cabinet'):
         raise Stop('titre_modele_requis')
     categorie = str(data.get('categorie') or 'contrat')
     droit = str(data.get('droit') or 'FR')
+    if droit in D.AMBIGUS:   # 5.6.108 (lot B) : « CA », « UK », « EN » seuls : système à préciser
+        raise Stop('systeme_juridique_a_preciser')
     if categorie not in CATEGORIES or droit not in DROITS:
+        raise Stop('modele_categorie_invalide')
+    langue = str(data.get('langue') or LANG_OF_DROIT[droit])   # 5.6.108 : langue choisie, indépendante du droit (défaut : langue usuelle du droit)
+    type_acte = str(data.get('type_acte') or '')
+    if langue not in LANGS or (type_acte and type_acte not in D.TYPES):
         raise Stop('modele_categorie_invalide')
     text = str(data.get('texte') or '').strip()
     path = str(data.get('path') or '').strip()
@@ -910,13 +954,18 @@ def add(desk, data, owner='cabinet'):
     schema(desk)
     now = _now()
     desk.db.execute('INSERT INTO bibliotheque5639(id, base, titre, langue, droit, categorie, texte, word, owner, created, updated, meta, version) '
-                    'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', (ident, '', titre, LANG_OF_DROIT[droit], droit, categorie, '', '', owner, now, now, '{}', 1))
+                    'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', (ident, '', titre, langue, droit, categorie, '', '', owner, now, now, '{}', 1))
     desk.db.commit()
     try:
         if text:
             customize(desk, {'modele': ident, 'texte': text}, owner)
         if path:
             set_word(desk, {'modele': ident, 'path': path}, owner)
+        if type_acte:   # 5.6.108 : type d'acte inscrit dans la fiche de la première version (registre modeles5684)
+            from . import modeles5684
+            modeles5684.current(desk, ident)
+            desk.db.execute('UPDATE template_versions5684 SET document_type=? WHERE template_id=? AND version=1', (type_acte, ident))
+            desk.db.commit()
     except Stop:
         desk.db.execute('DELETE FROM bibliotheque5639 WHERE id=?', (ident,))
         desk.db.commit()
@@ -952,27 +1001,117 @@ def _words(text):
     return set(re.findall(r'\w+', fold(str(text or '')).lower()))
 
 
-def match(desk, request, lang=None):
+def match(desk, request, lang=None, **criteres):
     """Modèle désigné par une demande de rédaction : expression caractéristique du modèle entièrement présente dans la demande (mots
     entiers) ; en cas d'égalité, le droit applicable par défaut du cabinet (E01), puis le droit français — jamais la seule langue de
-    l'interface."""
+    l'interface. 5.6.108 (lot B) : filtré d'abord par droit, langue, type, applicabilité et état (``selection``) ; ``lang`` (langue de
+    l'interface) reste sans effet."""
+    return selection(desk, request, **criteres)['modele']
+
+
+def _droit_de_la_demande(desk, request, systeme, matter):
+    """(lecture du droit, origine) : droit demandé, sinon droit explicitement désigné dans la demande, sinon droit de la fiche ou du dossier
+    structuré. Le réglage par défaut du cabinet n'est PAS une désignation : il ne sert qu'à départager (et jamais pour une province canadienne)."""
+    if str(systeme or '').strip():
+        return D.lire(systeme), 'demandé'
+    lu = D.droit_mentionne(request)
+    if lu:
+        return lu, 'demande'
+    if matter:
+        try:
+            from .competences5683 import droit_du_dossier
+            valeur = droit_du_dossier(desk, matter)
+        except Exception:   # noqa: BLE001 — dossier illisible : aucun droit présumé
+            valeur = {}
+        if valeur.get('valeur') and valeur.get('source') in ('fiche du dossier', 'dossier structuré'):
+            return D.lire(valeur['valeur']), 'dossier'
+    return None, ''
+
+
+def _ecart_assiste(t, row, au):
+    """Motif d'exclusion d'un modèle pour une proposition AUTOMATIQUE de trame (projet toujours relu par l'avocat), '' sinon."""
+    etat = row['state'] if row else 'draft'
+    if etat == 'withdrawn':
+        return 'retiré'
+    if etat == 'needs_update':
+        return 'à revoir'
+    if etat == 'draft' and not D.qualification(t)['selection_assistee']:
+        return 'brouillon'
+    if etat == 'validated' and row and D.date_iso(row.get('reexamen_le')) and D.date_iso(row.get('reexamen_le')) < au:
+        return 'date de réexamen dépassée'
+    debut = D.date_iso((row or {}).get('applicable_depuis') or t.get('applicable_depuis'))
+    fin = D.date_iso((row or {}).get('applicable_jusquau') or t.get('applicable_jusquau'))
+    if (debut and au < debut) or (fin and au > fin):
+        return 'hors période d’applicabilité'
+    return ''
+
+
+def selection(desk, request, systeme=None, langue=None, type_acte=None, matter=None, au=None):
+    """5.6.108 (lot B) : trame proposée pour une demande de rédaction, avec sa justification.
+
+    Ordre : (1) expressions caractéristiques présentes dans la demande ; (2) filtres bloquants — état (retiré, à revoir, brouillon d'une trame
+    nouvelle, réexamen dépassé), période d'applicabilité, langue et type d'acte demandés, droit désigné (demande explicite, fiche du dossier) ;
+    (3) départage : droit par défaut du cabinet, droit français, version active désignée. Un droit ambigu (« Canada », « UK », « EN ») ou non
+    couvert ne se replie JAMAIS sur le droit français : la sélection renvoie une question pour l'avocat. Sans désignation, une province
+    canadienne n'est jamais retenue (province et matière à fixer avant le modèle). Lecture seule.
+
+    Renvoie ``{'modele', 'systeme', 'source_droit', 'etat', 'question', 'ecartes'}``."""
+    from . import modeles5684
     words = _words(request)
+    out = {'modele': None, 'systeme': '', 'source_droit': '', 'etat': '', 'question': '', 'ecartes': []}
+    trouves = []
+    for t in catalog(desk):
+        longueur = 0
+        for phrase in t.get('mots') or ():
+            need = _words(phrase)
+            if not need or not need <= words or (len(need) < 2 and next(iter(need)) not in STRONG):
+                continue
+            longueur = max(longueur, len(need))
+        if longueur:
+            trouves.append((longueur, t))
+    if not trouves:
+        return out
+    lu, origine = _droit_de_la_demande(desk, request, systeme, matter)
+    out['source_droit'] = origine
+    if lu is not None and lu['statut'] != 'ok':   # droit désigné mais ambigu ou non couvert : question, jamais de droit présumé
+        out['question'] = '%s Aucune trame n’est retenue d’office : choisissez le modèle dans la bibliothèque ou précisez le droit applicable.' % (
+            lu['precision'] or 'Droit applicable à préciser.')
+        out['ecartes'] = [(t['id'], 'droit à préciser') for _, t in trouves]
+        return out
     try:
         law = default_law(desk)
     except Exception:   # noqa: BLE001
         law = 'FR'
+    etats = modeles5684.etats(desk)
+    actifs = modeles5684.actifs(desk)
+    au = D.date_iso(au) or D.jour_du_cabinet(desk)
     best = None
-    for t in catalog(desk):
-        for phrase in t.get('mots') or ():
-            need = _words(phrase)
-            if not need or not need <= words:
-                continue
-            if len(need) < 2 and next(iter(need)) not in STRONG:
-                continue
-            score = (len(need), t['droit'] == law, t['droit'] == 'FR')
-            if best is None or score > best[0]:
-                best = (score, t)
-    return best[1] if best else None
+    for longueur, t in trouves:
+        row = etats.get(t['id'])
+        motif = _ecart_assiste(t, row, au)
+        if not motif and langue and t['langue'] != langue:
+            motif = 'autre langue'
+        if not motif and type_acte and D.type_acte(t) != type_acte:
+            motif = 'autre type d’acte'
+        if not motif and lu is not None and t['droit'] != lu['code']:
+            motif = 'autre droit (%s)' % t['droit']
+        if not motif and lu is None and t['droit'] in D.EXPLICITES and t['droit'] != law:
+            motif = 'province canadienne à désigner'
+        if motif:
+            out['ecartes'].append((t['id'], motif))
+            continue
+        actif = actifs.get((t['droit'], t['langue'], D.type_acte(t)), ('', 0))[0] == t['id']
+        score = (longueur, t['droit'] == law, t['droit'] == 'FR', actif)
+        if best is None or score > best[0]:
+            best = (score, t, row)
+    if best is None:
+        if lu is not None:
+            out['question'] = ('Aucun modèle utilisable de la bibliothèque pour %s ne correspond à la demande (%s) : choisissez le modèle à la main ou '
+                               'rédigez sans trame.') % (D.libelle(lu['code']), ', '.join('%s : %s' % e_ for e_ in out['ecartes'][:6]))
+        return out
+    t, row = best[1], best[2]
+    out.update(modele=t, systeme=t['droit'], etat=row['state'] if row else 'draft')
+    return out
 
 
 STRONG = {'nda', 'cgv', 'agb', 'satzung', 'gesellschaftsvertrag', 'estatutos', 'gesellschaftervereinbarung', 'anteilskaufvertrag',
@@ -980,10 +1119,12 @@ STRONG = {'nda', 'cgv', 'agb', 'satzung', 'gesellschaftsvertrag', 'estatutos', '
           'beteiligungsvereinbarung', 'abtretungsvertrag', 'vertraulichkeitsvereinbarung', 'unternehmergesellschaft'}
 
 
-def trame_for_request(desk, request):
+def trame_for_request(desk, request, matter=None):
     """Trame transmise à la rédaction : l'instantané choisi dans la bibliothèque ([trame:…], immuable, complet), sinon le modèle effectif
     clairement désigné par la demande. B05 : jamais de coupe silencieuse ; une trame trop longue n'est pas tronquée — ses sections
-    attendues sont transmises et l'omission du texte est signalée."""
+    attendues sont transmises et l'omission du texte est signalée.
+    5.6.108 (lot B) : hors instantané, la trame est choisie par ``selection`` (droit du dossier ``matter`` et de la demande, état, applicabilité) ;
+    un droit ambigu ou non couvert donne une question pour l'avocat, jamais une trame française par défaut."""
     schema(desk)
     m = re.search(r'\[trame:([0-9a-f]{16})\]', str(request or ''))
     if m:
@@ -1000,12 +1141,18 @@ def trame_for_request(desk, request):
                                       'le modèle dans la bibliothèque.')
         if row:
             sections = json.loads(row['sections'] or '[]') if 'sections' in row.keys() else []
-            return {'titre': row['titre'], 'langue': row['langue'], 'droit': DROITS.get(row['droit'], row['droit']) if 'droit' in row.keys() else '',
+            return {'titre': row['titre'], 'langue': row['langue'], 'droit': D.libelle(row['droit']) if 'droit' in row.keys() and row['droit'] else '',
                     'origine': 'choisie par l’avocat dans la bibliothèque', 'source': row['source'] if 'source' in row.keys() else 'texte',
                     'version': row['version'] if 'version' in row.keys() else '', 'empreinte': _sha(row['texte']),
                     'consigne': CONSIGNE, 'sections_attendues': sections, 'texte': row['texte']}
-    t = match(desk, request)
+    choix = selection(desk, request, matter=matter)
+    t = choix['modele']
     if not t:
+        if choix['question']:   # 5.6.108 (lot B) : droit à préciser — la rédaction ne présume aucun droit et le signale
+            return {'titre': '', 'langue': '', 'droit': '', 'origine': 'aucune trame retenue : droit applicable à préciser', 'texte': '',
+                    'sections_attendues': [], 'question_avocat': choix['question'],
+                    'consigne': 'Aucune trame de la bibliothèque n’est retenue. Ne présume pas le droit français ni un autre droit : rédige sans '
+                                'trame et inscris dans a_completer la question suivante pour l’avocat : ' + choix['question']}
         return None
     try:
         eff = effective(desk, t, {})
@@ -1014,7 +1161,10 @@ def trame_for_request(desk, request):
     base = {'titre': t['titre'], 'langue': t['langue'], 'droit': DROITS.get(t['droit'], t['droit']),
             'origine': 'modèle de la bibliothèque correspondant à la demande', 'source': eff['source'], 'version': eff['version'],
             'consigne': CONSIGNE, 'clauses_proposees': [lab for k, lab, _, _ in t['clauses'] if eff['flags'].get(k)],
-            'sections_attendues': eff['sections']}
+            'sections_attendues': eff['sections'], 'etat_modele': D.ETATS.get(choix['etat'], choix['etat']),
+            'origine_du_droit': choix['source_droit'] or 'réglage du cabinet'}
+    if choix['etat'] != 'validated':
+        base['consigne'] = CONSIGNE + ' Ce modèle n’est pas validé (%s) : signale dans a_completer les clauses à vérifier.' % base['etat_modele']
     if len(eff['texte']) > LIMIT_TRAME:
         return {**base, 'texte': '', 'texte_omis': 'trame trop longue pour être transmise en entier (%d caractères) : suivre les sections '
                                                    'attendues et le signaler dans a_completer' % len(eff['texte'])}
@@ -1118,12 +1268,20 @@ def _url(prefix, cid, **q):
 def page_html(desk, prefix, args, cid=''):
     lang = _lang()
     law = default_law(desk)
-    droit = str(args.get('droit') or law)
+    droit = D.migrer(str(args.get('droit') or law))   # 5.6.108 : ancien lien « droit=EN » → UK-EAW
     cat = str(args.get('categorie') or '')
+    etat = str(args.get('etat') or '')
+    if args.get('questionnaire'):   # 5.6.108 (lot Q) : formulaire de l'acte et aperçu à côté (questionnaires56108, lecture seule)
+        from . import questionnaires56108
+        return questionnaires56108.page_html(desk, prefix, args)
     ident = str(args.get('modele') or '')
     if ident:
         return detail_html(desk, prefix, args, ident, cid)
     items = [t for t in catalog(desk) if (droit == 'tous' or t['droit'] == droit) and (not cat or t['categorie'] == cat)]
+    from . import modeles5684
+    etats = {k: v['state'] for k, v in modeles5684.etats(desk).items()}   # 5.6.108 : état de chaque modèle, une lecture, sans écriture
+    if etat in D.ETATS:
+        items = [t for t in items if etats.get(t['id'], 'draft') == etat]
     family = str(args.get('famille') or '')
     if family in ('fonds', 'bail'):       # 5.6.84 : depuis une opération, ses modèles et les modèles communs ; même catalogue, pas de seconde page
         items = [t for t in items if t['categorie'] in ('commun', family)]
@@ -1135,10 +1293,12 @@ def page_html(desk, prefix, args, cid=''):
         company_form = co.company(desk, cid)['forme']
     filters = back_html + ('<form class="b5639-filters" method="get" action="%s/corporate"><input type="hidden" name="vue" value="bibliotheque">%s'
                '<label>Droit<select name="droit">%s</select></label><label>Catégorie<select name="categorie"><option value="">Toutes</option>%s</select>'
-               '</label><button class="ax-btn ghost" type="submit">Afficher</button></form>') % (
+               '</label><label>État<select name="etat"><option value="">Tous</option>%s</select></label>'
+               '<button class="ax-btn ghost" type="submit">Afficher</button></form>') % (
         e(prefix, quote=True), (('<input type="hidden" name="societe" value="%s">' % e(cid, quote=True)) if cid else '') + (('<input type="hidden" name="famille" value="%s"><input type="hidden" name="retour" value="%s">' % (e(family, quote=True), e(back[0], quote=True))) if back else ''),
         ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == droit else '', e(v)) for k, v in list(DROITS.items()) + [('tous', 'Tous les droits')]),
-        ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == cat else '', e(v)) for k, v in CATEGORIES.items()))
+        ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == cat else '', e(v)) for k, v in CATEGORIES.items()),
+        ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == etat else '', e(v)) for k, v in D.ETATS.items()))
     law_form = ('<details class="b5640-law"><summary>Droit applicable par défaut du cabinet : <strong>%s</strong></summary><p class="ax-muted">Le droit '
                 'proposé ne dépend pas de la langue de l’interface : un cabinet français dont l’interface est en anglais garde le droit français. '
                 'Chaque document affiche son droit et sa langue.</p><form class="m5-form m5-inline" data-api="m5636/corporate/bibliotheque/droit" '
@@ -1153,25 +1313,37 @@ def page_html(desk, prefix, args, cid=''):
         rows.sort(key=lambda t: (company_form not in t.get('formes', ()), t['origine'] != 'cabinet', t['titre']))
         groups.append('<h3>%s</h3><ul class="b5639-list">%s</ul>' % (e(label), ''.join(
             '<li><a class="ax-card b5639-item" href="%s"><strong>%s</strong>%s<small>%s</small></a></li>' % (
-                e(_url(prefix, cid, modele=t['id']), quote=True), e(t['titre']), _badges(t, company_form),
+                e(_url(prefix, cid, modele=t['id']), quote=True), e(t['titre']), badge_etat(etats.get(t['id'], 'draft')) + _badges(t, company_form),
                 e(_resume(t, lang) or DROITS.get(t['droit'], ''))) for t in rows)))
     intro = ('<section class="ax-card b5639"><h2>Bibliothèque de modèles</h2><p class="ax-muted">Statuts, pactes, lettres d’intention, protocoles, '
-             'cessions et contrats, en droit français, allemand, espagnol et anglais. Choisissez un modèle, cochez les clauses utiles, complétez '
+             'cessions, contrats, questionnaires, consultations et suivis, par droit applicable (France, Angleterre et pays de Galles, Allemagne, '
+             'Espagne, Québec, Ontario). Le droit d’un modèle ne dépend jamais de sa langue ; un modèle en brouillon n’est jamais proposé '
+             'automatiquement. Choisissez un modèle, cochez les clauses utiles, complétez '
              'les variables (pré-remplies depuis la société choisie) puis déposez le projet dans le dossier, téléchargez-le en Word ou confiez la '
              'rédaction à l’IA, qui suivra la trame. Vous pouvez personnaliser chaque modèle, le remplacer par votre modèle Word ou ajouter les '
              'vôtres.</p>%s%s</section>') % (filters, law_form)
     add_form = ('<section class="ax-card"><details><summary>＋ Ajouter mon modèle</summary><form class="m5-form" data-api="m5636/corporate/bibliotheque/'
                 'ajouter" data-reload="1"><label>Titre<input name="titre" required maxlength="160"></label><label>Catégorie<select name="categorie">%s'
-                '</select></label><label>Droit<select name="droit">%s</select></label><label>Texte du modèle (facultatif si vous importez un modèle '
+                '</select></label><label>Droit<select name="droit">%s</select></label><label>Langue du document<select name="langue">%s</select></label>'
+                '<label>Type d’acte<select name="type_acte"><option value="">— à qualifier —</option>%s</select></label>'
+                '<label>Texte du modèle (facultatif si vous importez un modèle '
                 'Word)<textarea name="texte" rows="10" data-no-dictation placeholder="## Objet&#10;La société {{denomination}}…&#10;[[si '
                 'non_concurrence]]&#10;## Non-concurrence&#10;…&#10;[[fin]]"></textarea></label><label>Modèle Word (facultatif)%s</label>%s'
                 '<button class="ax-btn" type="submit">Ajouter le modèle</button></form></details></section>') % (
         ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in CATEGORIES.items()),
         ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == law else '', e(v)) for k, v in DROITS.items()),
+        ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if k == LANG_OF_DROIT.get(law) else '', e(v)) for k, v in LANGUES.items()),
+        ''.join('<option value="%s">%s</option>' % (k, e(v)) for k, v in D.TYPES.items()),
         _word_input(), _syntax_help())
     from .conseil_ui5689 import playbooks_html
     from .membres5650 import current_author, viewer_hidden, viewer_role
     return intro + (''.join(groups) or '<p class="ax-muted">Aucun modèle pour ce filtre.</p>') + add_form + playbooks_html(desk, current_author() or 'cabinet', viewer_role(), viewer_hidden() or frozenset())   # 5.6.89 : playbooks, à côté des modèles qu'ils complètent
+
+
+def badge_etat(etat):
+    """5.6.108 (lot B) : badge de l'état du modèle (brouillon, à relire, validé, à revoir, retiré), texte lisible sans couleur seule."""
+    return '<span class="b5639-badge%s" title="%s">%s</span>' % (' on' if etat == 'validated' else '', e(D.USAGES.get(etat, ''), quote=True),
+                                                                 e(D.ETATS.get(etat, etat)))
 
 
 def _badges(t, company_form=''):
@@ -1221,8 +1393,9 @@ def _ready_html(desk, args, owner=None):
 
 
 def detail_html(desk, prefix, args, ident, cid=''):
-    from . import modeles5684
-    return modeles5684.panel_html(desk, template(desk, ident)) + _detail_html(desk, prefix, args, ident, cid)
+    from . import modeles5684, questionnaires56108
+    t = template(desk, ident)
+    return modeles5684.panel_html(desk, t) + questionnaires56108.carte_modele_html(desk, prefix, t, cid) + _detail_html(desk, prefix, args, ident, cid)   # 5.6.108 (lot Q) : questionnaire de l'acte
 
 
 def _detail_html(desk, prefix, args, ident, cid=''):
@@ -1399,6 +1572,9 @@ def api_get(desk, route, args, owner='cabinet'):
         return word_template(desk, args.get('modele'))
     if route == 'corporate/bibliotheque':
         lang = _lang()
+        from . import modeles5684
+        etats = {k: v['state'] for k, v in modeles5684.etats(desk).items()}   # 5.6.108 : langue, type d'acte et état, en lecture seule
         return {'modeles': [{'id': t['id'], 'titre': t['titre'], 'droit': t['droit'], 'categorie': t['categorie'], 'resume': _resume(t, lang),
-                             'personnalise': t['personnalise'], 'origine': t['origine']} for t in catalog(desk)]}
+                             'personnalise': t['personnalise'], 'origine': t['origine'], 'langue': t['langue'], 'type_acte': D.type_acte(t),
+                             'etat': etats.get(t['id'], 'draft')} for t in catalog(desk)]}
     return None

@@ -58,6 +58,27 @@ Ces réglages restent modifiables ensuite dans **Paramètres**, page unique à s
 
 ![Paramètres : rubrique Connexions](captures/poste-parametres.png)
 
+### Configurer l’IA locale (5.6.108)
+
+À l’étape « IA » du guide, et à tout moment dans **Paramètres › IA › Configurer l’IA locale** (administrateur), l’assistant :
+
+1. **cherche Ollama** à l’adresse réglée, puis sur `127.0.0.1:11434` et `localhost` ; il indique s’il répond (et sa version), s’il est
+   installé mais arrêté, ou absent. Il ne lance rien : la commande officielle (`curl -fsSL https://ollama.com/install.sh | sh`,
+   `sudo systemctl start ollama`) est affichée pour que vous la lanciez vous-même. Ollama sur une autre machine du cabinet : saisissez
+   son adresse (IP du réseau privé ou nom `….local`) ; une adresse publique est refusée. La variable `OLLAMA_HOST` n’est jamais utilisée
+   d’office : si elle existe, elle est seulement montrée ;
+2. **évalue la machine** d’Ollama (mémoire vive, cœurs, carte graphique et mémoire vidéo via `/proc/meminfo` et `nvidia-smi`/`rocm-smi`
+   s’ils existent ; pour un Ollama distant, modèles chargés et mémoire vidéo que vous saisissez) et la range en classe légère, moyenne ou
+   forte ;
+3. **liste les modèles installés** (taille, paramètres, contexte, capacités) ; un modèle « :cloud » est signalé non local et jamais proposé ;
+4. **suggère** une répartition (rapide, analyse et rédaction, contrôle, embeddings de la recherche, préréglage du conseil de modèles) d’après
+   un catalogue de modèles vérifiés (licence, lien officiel, date du relevé), en privilégiant ce qui est déjà installé ;
+5. **télécharge** un modèle suggéré seulement après votre confirmation (nom, taille, place libre, licence) : c’est Ollama qui accède alors à
+   son registre public ; progression visible, annulation, reprise, un seul téléchargement à la fois ;
+6. **applique** la configuration, puis fait un **essai court** (une question fictive à chaque modèle, durée mesurée). « Revenir aux
+   réglages précédents » défait tout. Un changement du modèle d’embeddings est annoncé et confirmé à part : l’index de recherche est
+   recalculé au fil de l’indexation habituelle.
+
 ## 5. Le premier briefing (1 minute)
 
 Sur **Aujourd’hui**, la barre des routines propose **Briefing › Lancer**. Le briefing du matin s’affiche dans « Routines du cabinet »

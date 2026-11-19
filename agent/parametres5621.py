@@ -43,7 +43,7 @@ KEYWORDS = {'demarrage': 'assistant demarrage profil cabinet identite alias adre
             'documents': 'word onlyoffice collabora brouillon versions procedure role dossier modeles agendas',
             'cabinet': 'compte administrateur identifiant mot de passe utilisateurs confidentialite droits acces securite',
             'interface': 'theme carbon clair sombre accueil aujourdhui ancienne interface retour anciennes vues cockpit essentiel',
-            'poste': 'mobile clavier raccourcis maintenance purge sauvegarde chiffree restauration phrase export reversibilite manifeste webdav s3 diagnostic blocage file etat systeme '
+            'poste': 'mobile telephone smartphone telephones associes qr appareil notification clavier raccourcis maintenance purge sauvegarde chiffree restauration phrase export reversibilite manifeste webdav s3 diagnostic blocage file etat systeme '
                      'charge serveur frequence surveillance documents requetes nextcloud'}
 RUBRIQUE_ALIASES = {'sources': 'recherche', 'veille': 'recherche', 'comptes': 'cabinet'}   # anciennes rubriques fusionnées
 ALIASES = {'/parametres/connexions': 'connexions', '/parametres/assistant': 'voix', '/parametres/proactivite': 'routines',
@@ -147,7 +147,12 @@ def _connexions(desk, auth, prefix, env, cap):
         _af106 = _section('<section class="ax-card" id="avocatfr56106"><h2>Adresse @avocat.fr (CNB)</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
     _i106 = _g103.find('<details class="p5621-section', 1)   # juste après la carte « Mise en service » (première section, seule ouverte), avant Gmail et Microsoft
     _g103 = _g103[:_i106] + _af106 + _g103[_i106:] if _i106 > 0 else _g103 + _af106
-    return (_g103 +_section(_gmail97(desk, prefix, owner, role52, _args52)) +_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
+    try:   # 5.6.108 (lot Z) : SignaturePDF, signature par lien (version serveur) ; aucun appel au service au rendu
+        from .signaturepdf56108 import reglages_html as _signature108
+        _z108 = _section(_signature108(desk, prefix, role52, env.get('axiorhub.auth') if isinstance(env, dict) else None))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        _z108 = _section('<section class="ax-card" id="signaturepdf56108"><h2>SignaturePDF (signature par lien)</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    return (_g103 +_section(_gmail97(desk, prefix, owner, role52, _args52)) +_section(_connexions52(desk, prefix, owner, role52, _args52, _retour52)) + _z108 + (_section(_meteo96(desk, prefix, role52)) if role52 == 'administrateur' else '') +
             _section(html) + _section(_app_nextcloud(desk, prefix, auth)) + _section(_talk(desk, owner, prefix)) + _section(_agenda97(desk, owner, role52, prefix)) + _section(_microsoft(desk, prefix, env)) +
             _section(_links(prefix, (('/mise-en-service', 'Mise en service : contrôles des services réels'),)), 'Vérifier'))
 
@@ -167,6 +172,14 @@ def _ia(desk, auth, prefix, env, cap):
     except Exception:   # noqa: BLE001
         pass
     body += _section(ia540.page(desk, prefix, cap, auth['csrf']))
+    # 5.6.108 (lot L) : assistant « Configurer l'IA locale » (détection, machine, modèles, suggestions, téléchargement confirmé, réglages),
+    # placé après « Intelligence artificielle », qui reste la section ouverte de la page (cartes des fournisseurs, dont Mistral)
+    try:
+        from .ia_locale56108 import section_html as _ia_locale108
+        from .web567 import actor as _actor108l
+        body += _section(_ia_locale108(desk, prefix, _actor108l(env)[1]))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        body += _section('<section class="ax-card" id="ia-locale56108"><h2>Configurer l’IA locale</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
     try:   # 5.6.95 (G04) : routage mesuré (mesures réelles par étape, choix actuel et choix mesuré, mode conseil ou actif)
         from .routage5695 import section_html as _routage5695
         body += _section(_routage5695(desk, prefix, env))
@@ -184,6 +197,12 @@ def _ia(desk, auth, prefix, env, cap):
         body += _section(_ocr106(desk, prefix, _actor106w(env)[1]))
     except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
         body += _section('<section class="ax-card" id="ocr56106"><h2>Lecture des scans (OCR)</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
+    try:   # 5.6.108 (lot K) : conseil de modèles (préréglages détectés en lecture seule, choix de l'administrateur par POST)
+        from .conseil56108 import reglages_html as _conseil108
+        from .web567 import actor as _actor108k
+        body += _section(_conseil108(desk, prefix, _actor108k(env)[1]))
+    except Exception:   # noqa: BLE001 — la rubrique reste utilisable ; l'absence est dite
+        body += _section('<section class="ax-card" id="conseil56108"><h2>Conseil de modèles</h2><p class="ax-alert" role="status">Section indisponible pour le moment.</p></section>')
     try:   # 5.6.102 (lot M) : « Pilote dans la messagerie instantanée » (réglage du cabinet, activé par défaut)
         from .pilote_messagerie56102 import reglage_html as _pilote102
         from .web567 import actor as _actor102
@@ -302,6 +321,11 @@ def _poste(desk, auth, prefix, env, cap):
     try:   # 5.6.103 (lot L) : liaison entre postes du cabinet (poste de travail seulement ; désactivée par défaut)
         from .liaison_web56103 import section_html as _liaison103
         body += _section(_liaison103(desk, auth, prefix, env))
+    except Exception:   # noqa: BLE001 — la page s'affiche toujours
+        pass
+    try:   # 5.6.108 (lot S) : synchronisation des postes (poste de travail seulement ; aucune écoute sans espace et poste appairé)
+        from .sync56108_web import section_html as _sync108
+        body += _section(_sync108(desk, auth, prefix, env))
     except Exception:   # noqa: BLE001 — la page s'affiche toujours
         pass
     from .web567 import actor as _actor88

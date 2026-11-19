@@ -34,6 +34,14 @@ class Base(SendBase):
         super().setUp()
         self.enable()
         self.t0 = time.time()
+        # 5.6.108 (lot C, B05) : le compte qui confirme est revérifié dans l'annuaire juste avant le départ ; « durand » est un compte
+        # actif de la version serveur (annuaire fictif). Sans annuaire, un départ programmé longtemps après la confirmation serait retenu.
+        from agent import connexion5648
+        db = connexion5648.connect(self.f.c['state_dir'])
+        db.execute("INSERT INTO users(ident,email,name,role,salt,hash,active,must_change,created) VALUES('durand','durand@example.test','DURAND',"
+                   "'avocat','00','00',1,0,'2026-01-01T00:00:00+00:00')")
+        db.commit()
+        db.close()
 
     def file(self, quand='', accuse=False, importance=False, owner='durand', role='avocat'):
         p = send490.prepare(self.desk, self.uid, '7')
@@ -410,17 +418,26 @@ class GardeFous(Base):
         self.assertEqual(self.ligne(out['id'])['motif'], '')
 
     def test_G5_pause_generale_bloque_le_depart_et_le_signale(self):
-        out, now = self.file()
+        # 5.6.108 (lot P), demande du cabinet du 18/11/2026 : la pause de l'IA ne retient plus un envoi que l'avocat a validé ; la suspension
+        # des envois programmés (réglage distinct) retient le départ programmé et le signale ; à la reprise, rien ne part sans décision
+        # (détail : test_v56108_pause).
+        texte = (datetime.now(PARIS) + timedelta(days=3)).replace(hour=9, minute=0, second=0, microsecond=0).strftime('%Y-%m-%dT%H:%M')
+        out, now = self.file(texte)
+        depart = self.ligne(out['id'])['depart']
         self.desk.setting('missions567:pause', True)
-        self.assertEqual(E.tick(self.desk, 'b1', now + 11), [(out['id'], 'en_attente')])
+        E.suspendre(self.desk, 'durand', True, now=now)
+        self.assertEqual(E.tick(self.desk, 'b1', depart + 1), [(out['id'], 'suspendu')])
         self.assertEqual(FakeSMTP.sent, [])
-        item = E.etat(self.desk, 'durand', out['id'], now + 12)
-        self.assertEqual(item['motif'], 'automatismes_en_pause')
-        self.assertIn('pause', item['motif_libelle'])
-        self.desk.setting('missions567:pause', False)
-        late = now + 11 + 3600
-        self.assertEqual(E.tick(self.desk, 'b1', late), [(out['id'], 'parti')])
-        self.assertEqual(self.ligne(out['id'])['retard'], 1)
+        item = E.etat(self.desk, 'durand', out['id'], depart + 2)
+        self.assertEqual(item['motif'], 'envois_suspendus')
+        self.assertIn('suspendus', item['motif_libelle'])
+        E.suspendre(self.desk, 'durand', False, now=depart + 3600)
+        self.assertEqual(E.tick(self.desk, 'b1', depart + 3601), [])               # reprise : aucun départ sans décision
+        self.assertEqual(FakeSMTP.sent, [])
+        r = E.maintenant(self.desk, 'durand', out['id'], now=depart + 3602)        # décision explicite, l'IA toujours en pause
+        self.assertEqual(r['version'], self.ligne(out['id'])['version'])
+        self.assertEqual(E.tick(self.desk, 'b1', depart + 3603), [(out['id'], 'parti')])
+        self.assertEqual(self.ligne(out['id'])['prevu'], depart)                   # l'heure prévue d'origine reste affichée
 
     def test_G5_point_de_controle_commun_appele_avant_l_effet(self):
         out, now = self.file()

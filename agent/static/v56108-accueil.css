@@ -1,0 +1,66 @@
+/* AxiorHub 5.6.108 (lot A) — Aujourd'hui et volet de l'assistant.
+   - Aujourd'hui (nouvelle présentation, classe .f100 posée par accueil5689 derrière interface56100) : nom du dossier lisible dans chaque ligne,
+     « À décider / À relire » et « Ma journée » côte à côte dès 80rem (une colonne en dessous : 125 %, tablette, mobile), heure de Ma journée
+     qui ne recouvre plus le titre, dernière valeur connue d'« Actuellement » distinguée d'une valeur fraîche.
+   - Volet de l'assistant (variante flottante) : grille trois zones de reference/layout-local.css raccordée aux sélecteurs du produit ;
+     la ligne d'envoi reste collée au bas du composeur (clavier logiciel ouvert, options dépliées) ; reçu de la demande sur la carte.
+   Couleurs : jetons Carbon avec repli ; clair et sombre suivent les jetons ; la couleur ne porte jamais seule l'information. */
+
+/* ------------------------------------------------------------------ Aujourd'hui : lignes « À décider / À relire » */
+.f100 .f96-ligne-dossier, .f100-vue-file .f96-ligne-dossier {
+  color: var(--cds-text-primary, #161616); font-size: var(--ui-taille-texte, .9375rem); font-weight: 600; letter-spacing: 0; }
+.f100 .f96-ligne-objet, .f100-vue-file .f96-ligne-objet { font-weight: 400; }
+.f100 .f96-ligne-raison, .f100-vue-file .f96-ligne-raison { color: var(--cds-text-secondary, #525252); font-size: .875rem; }
+
+/* « À décider / À relire » | « Ma journée » : deux colonnes 2/3 – 1/3 sur grand écran seulement */
+@media (max-width: 79.99rem) {
+  .f100 .f96-rang { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Ma journée : l'heure prend sa largeur (la règle historique .c530-ev time fixait 46 px : « Aujourd'hui · 18 h 40 » débordait sur le titre) */
+.f100-agenda .f100-ev time { width: auto; }
+
+/* « Actuellement » : valeur gardée pendant qu'une source ne répond pas (v56108-accueil.js) — dite par un texte, pas seulement par la couleur */
+.ax95 li[data-ax108-garde] .ax95-nombre { color: var(--cds-text-secondary, #525252); }
+.ax108-garde { color: var(--cds-text-secondary, #525252); display: inline-block; font-size: .8125rem; margin-left: .5rem; }
+.ax108-reprise { margin-left: .25rem; }
+.f96-panne a, .ax108-reprise a { color: var(--cds-link-primary, #0f62fe); }
+
+/* ------------------------------------------------------------------ volet de l'assistant (variante flottante) */
+/* trois zones : en-tête, historique défilant, saisie ; la saisie garde Envoyer visible même quand elle défile */
+#ws-ai-dock:not([hidden]):not(.ws-ai-dock--embedded) .ws-ai-composeur { overscroll-behavior: contain; }
+#ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-sendrow {
+  background: var(--cds-layer-01, var(--ws-surface, #fff)); bottom: 0; padding: .25rem 0; position: sticky; z-index: 1; }
+@media (max-width: 52rem) {
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-sendrow button { min-height: 44px; }
+}
+/* hauteur très réduite (clavier logiciel ouvert sur un téléphone) : les options repliées et l'aide passent après la ligne d'envoi */
+@media (max-height: 32rem) {
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-options:not([open]) { display: none; }
+  #ws-ai-dock:not(.ws-ai-dock--embedded) .ws-ai-composeur { max-height: calc(var(--ws-ai-vh, 100dvh) - 4.5rem); }
+}
+
+/* reçu d'une demande : numéro identifiable et étape écrite (reçue, en attente, en cours, résultat, échec) */
+.ax108-recu { align-items: baseline; display: flex; flex-wrap: wrap; font-size: .875rem; gap: .25rem .75rem; margin: .25rem 0 .5rem; }
+.ax108-recu { color: var(--cds-text-primary, #161616); }
+.ax108-recu .ax108-recu-numero { color: var(--cds-text-primary, #161616); font-variant-numeric: tabular-nums; font-weight: 600; opacity: 1; }
+.ax108-etapes { display: flex; flex-wrap: wrap; gap: .125rem .375rem; list-style: none; margin: 0; padding: 0; }
+.ax108-etapes li { border: 1px solid var(--cds-border-subtle-01, #c6c6c6); border-radius: 1rem; color: var(--cds-text-secondary, #525252); padding: 0 .5rem; }
+.ax108-etapes li[aria-current="step"] { border-color: currentColor; color: var(--cds-text-primary, #161616); font-weight: 600; }
+.ax108-etapes li[aria-current="step"]::before { content: "● "; }
+.ax108-recu[data-etape="echec"] .ax108-etapes li[aria-current="step"] { color: var(--cds-text-error, #da1e28); }
+.ax108-recu-lien { color: var(--cds-link-primary, #0f62fe); }
+.ax108-recu-absent { color: var(--cds-text-secondary, #525252); }
+.mission567-card.ax108-cible { outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ À relire à hauteur réduite (1366 × 768 à 125 %, petit portable) */
+/* l'en-tête du lecteur et la barre de décision se resserrent : le texte du projet garde la place de le lire, Retenir / Écarter / Reporter restent visibles */
+@media (max-height: 48rem) {
+  .ax100-relecture[data-vue=detail] .ax100-diagnostic { display: none; }
+  .ax100-entete, .ax100-actions { padding-block: .375rem; }
+  .ax100-entete h2 { font-size: 1rem; }
+  .ax100-meta:not(.ax100-meta-ouverte) { -webkit-line-clamp: 1; line-clamp: 1; margin-block-end: .25rem; }
+  .ax100-actions { gap: .375rem; }
+  .ax100-statut:empty { display: none; }
+  .ax100-projet:not([hidden]) { grid-template-rows: auto minmax(8rem, 1fr); }
+}

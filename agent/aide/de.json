@@ -8,7 +8,7 @@
 "Öffnen Sie „Heute“ im Menü.",
 "Klicken Sie unter „Routinen der Kanzlei“ auf „Morgenbriefing“ oder „E-Mail-Sortierung“ und dann auf „Jetzt erstellen“.",
 "Hören Sie die Zusammenfassung mit „Briefing anhören“, wenn die Stimme aktiviert ist.",
-"Mit „Automatismen pausieren“ halten Sie automatische Verarbeitungen an."
+"Mit „Automatismen pausieren“ halten Sie automatische Verarbeitungen an. Von Ihnen freigegebene geplante Sendungen gehen weiterhin hinaus: Um sie anzuhalten, nutzen Sie „Geplante Sendungen aussetzen“."
 ],
 "result": "Ein datiertes Briefing und die Liste der vorbereiteten Arbeit, vor jeder Aktion zu prüfen.",
 "verify": "Der Routinebereich zeigt die Uhrzeit der letzten Erstellung.",
@@ -933,28 +933,34 @@
 "version": "5.6.36"
 },
 "assistance_metier": {
-"objective": "Prüfbare Berechnungen durchführen und die Abrechnungsprüfung vorbereiten.",
-"when": "Für eine Zinsberechnung, eine Indexierung oder eine Abrechnungsprüfung.",
-"prerequisites": "Keine.",
+"objective": "Eine Verhandlung vorbereiten, Argumente prüfen, ein Telefonat vorbereiten, eine prüfbare Berechnung durchführen oder die Abrechnung einer Akte prüfen.",
+"when": "Vor einer Verhandlung oder einem Telefonat, für eine Zinsberechnung, eine Indexierung oder eine Addition von Tagen, oder vor einer Abrechnungsprüfung.",
+"prerequisites": "Eine für Ihr Konto zugängliche Akte; für das Training eine bereits vorbereitete Verhandlung; für die Abrechnung synchronisierte offene Posten.",
 "steps": [
-"Öffnen Sie „Fachliche Unterstützung“.",
-"Wählen Sie die Berechnung, zum Beispiel „Einfache Zinsen berechnen“ oder „Eine Indexierung berechnen“.",
-"Geben Sie Beträge und Daten ein.",
-"Für die Abrechnung nutzen Sie „Abrechnungsprüfung vorbereiten“."
+"Öffnen Sie „Fachliche Unterstützung“ und wählen Sie die Akte in der Liste (Mandant, Partei oder Aktenzeichen).",
+"Wählen Sie einen der fünf Abläufe: „Eine Verhandlung vorbereiten“, „Argumente prüfen“, „Ein Telefonat vorbereiten“, „Eine Berechnung durchführen“ oder „Abrechnung prüfen“.",
+"Füllen Sie nur die verlangten Felder aus; für eine Berechnung zuerst Zinsen, Indexierung oder Addition von Tagen wählen, dann die amtliche Quelle angeben.",
+"Absenden: die Anfrage erhält eine Nummer und einen Status; das Ergebnis erscheint dann mit Vorbehalten und Quellen."
 ],
-"result": "Eine ausführliche und nachvollziehbare Berechnung.",
-"verify": "Die Berechnung wird Zeile für Zeile angezeigt.",
+"result": "Ein interner Entwurf zur Prüfung: Hauptergebnis, Vorbehalte und Quellen, danach Daten ändern, Ablauf fortsetzen oder exportieren.",
+"verify": "Die Anfrage wechselt von „eingegangen“ zu „Ergebnis bereit“, und der Entwurf erscheint unter den letzten Entwürfen.",
 "errors": [
 [
-"Unerwarteter Betrag",
-"Prüfen Sie eingegebene Daten und Zinssatz."
+"„Akte nicht unter Ihren Akten gefunden“",
+"Die Akte ist für Ihr Konto nicht zugänglich oder die Suche findet sie nicht: wählen Sie sie in der Liste."
+],
+[
+"Unerwarteter Betrag oder unerwartetes Datum",
+"Prüfen Sie Daten, Zinssatz oder Indizes; eine Addition von Tagen ist nie eine Verfahrensfrist."
 ]
 ],
-"example": "Fiktive Zinsen auf 10.000 € vom 1. Januar bis 30. Juni 2026.",
+"example": "Fiktive Addition von 30 Tagen ab dem 1. Januar 2026 für die Akte DOS-001: rechnerisches Datum, keine Frist angelegt.",
 "buttons": [
-"Calculer les intérêts simples",
-"Calculer une indexation",
-"Préparer la revue de facturation"
+"Préparer une audience",
+"Examiner les arguments",
+"Préparer un appel",
+"Effectuer un calcul",
+"Revoir la facturation"
 ],
 "version": "5.6.36"
 },
@@ -2086,13 +2092,13 @@
 "version": "5.6.36"
 },
 "mobile": {
-"objective": "Vom Telefon aus freigeben oder prüfen, was auf Ihre Entscheidung wartet, nachdem es per QR-Code verbunden wurde.",
+"objective": "Vom Smartphone aus prüfen und entscheiden, was auf Ihre Entscheidung wartet, mit demselben Leser wie am Computer, nachdem es per QR-Code verbunden wurde.",
 "when": "Unterwegs, bei Gericht oder außerhalb der Kanzlei, wenn eine vorbereitete Antwort oder ein Vorgang auf Ihre Freigabe wartet.",
 "prerequisites": "Die Serverversion von AxiorHub (per HTTPS erreichbar) und ein Konto; ein Telefon mit Kamera.",
 "steps": [
-"Am Computer: Paramètres › Poste et maintenance › Téléphones associés › „Associer un téléphone“.",
+"Am Computer: Paramètres › Confort et maintenance › Téléphones associés › „Associer un téléphone“ (die Seite „Mobiler Zugriff“ führt über „Gekoppelte Telefone einrichten“ dorthin).",
 "Scannen Sie den QR-Code mit der Kamera des Telefons und tippen Sie auf der geöffneten Seite auf „Associer“.",
-"Das Telefon öffnet „À valider“: prüfen, freigeben, eine Antwort „à compléter“ ablegen oder verwerfen.",
+"Das Telefon öffnet „Mobiler Zugriff“: ein Element öffnen, dann behalten, verwerfen, zurückstellen oder speichern, wie am Computer; nichts wird ohne Ihr Zutun gesendet.",
 "Legen Sie die Seite auf den Startbildschirm; aktivieren Sie bei Bedarf die Benachrichtigungen."
 ],
 "result": "Das Telefon bleibt 90 Tage mit Ihrem Konto verbunden, bis Sie es entfernen oder Ihr Passwort ändern.",
@@ -2108,7 +2114,10 @@
 ]
 ],
 "example": "Vom Telefon die Ablage einer Antwort „à compléter“ an den fiktiven Mandanten der Akte DOS-001 freigeben.",
-"buttons": [],
+"buttons": [
+"Configurer les téléphones associés",
+"Ouvrir ma file de relecture"
+],
 "version": "5.6.36"
 },
 "mon_compte": {

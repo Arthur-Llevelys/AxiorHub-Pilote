@@ -137,12 +137,14 @@ def _attente(nom, prefix):
     return attente(nom, prefix)
 
 
-def commande_html(prefix):
-    """Une seule commande IA en tête : elle ouvre le Pilote, qui reprend le contexte de la page. La présence de l'IA est dite par un label écrit, pas par la seule couleur."""
+def commande_html(prefix, recherche=True):
+    """Une seule commande IA en tête : elle ouvre le Pilote, qui reprend le contexte de la page. La présence de l'IA est dite par un label écrit, pas par la seule couleur.
+    5.6.108 (lot A) : avec la nouvelle présentation, « Rechercher dans le cabinet » n'est plus répété ici : la barre du haut porte déjà le même
+    lien (même Ctrl+K) à quelques centimètres ; l'ancienne présentation garde les deux."""
     # 5.6.102 : « Rechercher dans le cabinet » ouvre la fenêtre flottante de recherche (même comportement que Ctrl+K, script v420.js)
-    recherche = ('<a class="ax-btn ghost a89-recherche" href="%s" data-m82-quick aria-keyshortcuts="Control+K">'
-                 '<span>Rechercher dans le cabinet</span> <kbd class="m102-kbd" data-m102-kbd>Ctrl+K</kbd></a>') % e(prefix + '/rechercher', quote=True)
-    return recherche + ('<button type="button" class="ax-btn a89-mission" data-a89-pilote>%s<span>Confier une mission</span></button>' % icone('ia'))
+    lien = ('<a class="ax-btn ghost a89-recherche" href="%s" data-m82-quick aria-keyshortcuts="Control+K">'
+            '<span>Rechercher dans le cabinet</span> <kbd class="m102-kbd" data-m102-kbd>Ctrl+K</kbd></a>') % e(prefix + '/rechercher', quote=True)
+    return (lien if recherche else '') + ('<button type="button" class="ax-btn a89-mission" data-a89-pilote>%s<span>Confier une mission</span></button>' % icone('ia'))
 
 
 def incidents_html(desk, prefix):
@@ -199,11 +201,20 @@ def _item(bloc, html):
     return '<div class="t88-item" data-bloc="%s">%s</div>' % (bloc, html)
 
 
-def pause_html(desk):
-    """5.6.92 : la pause générale de l'IA reste dans l'en-tête, visible même si le bloc Routines est masqué ou replié."""
+def pause_html(desk, prefix='', owner=None):
+    """5.6.92 : la pause générale de l'IA reste dans l'en-tête, visible même si le bloc Routines est masqué ou replié.
+    5.6.108 (lot P) : deux commandes distinctes et leur état : « Mettre l'IA en pause » et « Suspendre les envois programmés » (``envoi56106``)."""
     en_pause = bool(desk.settings('missions567:pause', False))
-    return ('<button type="button" class="ax-btn %s a92-pause" id="a92-pause" data-paused="%s" aria-pressed="%s">%s</button>' % (
-        'warn' if en_pause else 'ghost', '1' if en_pause else '0', 'true' if en_pause else 'false', e('IA en pause — reprendre' if en_pause else 'Pause de l’IA')))
+    ia = ('<button type="button" class="ax-btn %s a92-pause" id="a92-pause" data-paused="%s" aria-pressed="%s">%s</button>' % (
+        'warn' if en_pause else 'ghost', '1' if en_pause else '0', 'true' if en_pause else 'false', e('IA en pause — reprendre' if en_pause else 'Mettre l’IA en pause')))
+    try:
+        from .envoi56106 import commande_html
+        envois = commande_html(desk, prefix, owner)
+    except Exception:   # noqa: BLE001 — la commande de l'IA reste affichée même si la file d'envoi est illisible
+        import logging
+        logging.getLogger(__name__).exception('suspension des envois 5.6.108')
+        envois = ''
+    return '<span class="p108-pauses" role="group" aria-label="Pause de l’IA et envois programmés">%s%s</span>' % (ia, envois)
 
 
 def page(desk, prefix, owner, morceaux):
@@ -246,7 +257,7 @@ def page(desk, prefix, owner, morceaux):
     col = ''.join(_item(k, blocs[k]) + (style + morceaux['composeur'] if k == 'routines' else '') for k in principal)
     if morceaux['composeur'] not in col:
         col = style + morceaux['composeur'] + col
-    pause = pause_html(desk)
+    pause = pause_html(desk, prefix, owner)
     note = ('<p class="c530-note">%d bloc(s) masqué(s) sur cette page. Vous pouvez les rétablir dans « Personnaliser cette page ».</p>' % len(prefs['masques'])) if prefs['masques'] else ''
     bandeau, carte, accueil_js = entete_accueil(desk, prefix, owner, role_courant(), morceaux['date'])     # 5.6.96 (F01-F04, I01) : salutation, heure, météo
     from . import aujourdhui56101     # 5.6.101 (lot P) : bandeau de sécurité du serveur sous l'en-tête (lot S) ; blocs différés et leur script
@@ -256,7 +267,7 @@ def page(desk, prefix, owner, morceaux):
     return ('<div class="c530 a89%s" id="c530" data-prefix="%s"%s><header class="c530-top a89-tete f96-tete"><div class="f96-identite"><h1>Aujourd’hui</h1>%s</div>'
             '<div class="a89-commandes">%s<div class="c530-statusbar" id="c530-header">%s</div>%s</div>%s</header>%s'
             '%s%s<div class="a89-layout"><div class="a89-principal">%s<div class="c530-cols c5657-cols">%s</div></div><div class="a89-cote" role="complementary" aria-label="Journée et activité">%s%s%s</div></div>%s%s%s%s%s%s%s%s</div>') % (
-        ' f100' if nouvelle56100 else '', e(prefix, quote=True), accent, bandeau, pause, morceaux['entete'], commande_html(prefix), carte, securite,
+        ' f100' if nouvelle56100 else '', e(prefix, quote=True), accent, bandeau, pause, morceaux['entete'], commande_html(prefix, recherche=not nouvelle56100), carte, securite,
         tete, rang, travail_carte(desk, prefix, differe=True) + suivi, col, morceaux['matin'], ''.join(_item(k, blocs[k]) for k in cote), bandeaux_html(morceaux['bandeaux']),
         ''.join(_item(k, blocs[k]) for k in bas), note, incidents_html(desk, prefix), tableau5688.panneau(prefs, role_courant(), desk), acces_html(prefix), morceaux['tiroir'], plis_js,
         accueil_js + aujourdhui56101.script_html(prefix))

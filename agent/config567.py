@@ -56,6 +56,7 @@ FIELDS = (
  ('ollama.url','Adresse Ollama (locale ou réseau du cabinet, ex. http://192.168.1.10:11434)','local_url','http://127.0.0.1:11434','Intelligence artificielle'),
  ('ollama.model','Modèle Ollama','text','qwen3:8b','Intelligence artificielle'),
  ('rag.qdrant_url','Index vectoriel Qdrant, facultatif (ex. http://127.0.0.1:6333) ; vide : recherche intégrée','optional_local_url','','Intelligence artificielle'),
+ ('rag.embedding_model','Modèle d’embeddings de la recherche (Ollama) ; le changer fait recalculer l’index sémantique au fil de l’indexation','text','qwen3-embedding:0.6b','Intelligence artificielle'),   # 5.6.108 (lot L) : réglé par l'assistant « Configurer l'IA locale »
  ('ollama.num_ctx','Fenêtre de contexte (tokens)','integer',32768,'Intelligence artificielle'),
  # 5.6.34 (chap. 5) : profil du modèle local ; réglés depuis Paramètres › IA › Modèles locaux
  ('llm.profile','Profil du modèle','llm_profile','juridique','Profil du modèle'),

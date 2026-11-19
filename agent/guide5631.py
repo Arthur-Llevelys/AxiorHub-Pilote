@@ -108,6 +108,8 @@ REGLAGES = {'documents': '/parametres?rubrique=stockage', 'messagerie': '/parame
 REGLAGES['comptes'] = '/parametres?rubrique=connexions#mise56103'   # 5.6.103 (lot G)
 CARTES['avocatfr'] = ('avocatfr56106:carte_guide',)   # 5.6.106 (lot P) : adresse @avocat.fr (CNB), en tête de l'étape « Messagerie »
 REGLAGES['avocatfr'] = '/parametres?rubrique=connexions#avocatfr56106'   # 5.6.106 (lot P)
+CARTES['ia_locale'] = ('ia_locale56108:carte_guide',)   # 5.6.108 (lot L) : « Configurer l'IA locale », en tête de l'étape « IA » (même assistant que Paramètres › IA)
+REGLAGES['ia_locale'] = '/parametres?rubrique=ia#ia-locale56108'   # 5.6.108 (lot L)
 
 
 def _now():
@@ -1158,8 +1160,9 @@ def _cartes_etape(desk, env, prefix, step, data, owner, admin):
         # Paramètres ; un secret déjà présent n'est jamais redemandé ; se connecter n'active rien (mode choisi ensuite, à part).
         chatgpt = ('<details class="g5697-choix"><summary>%s</summary>%s</details>' % (th('w5697.ia_chatgpt'), _carte('chatgpt', desk, env, prefix, admin))
                    if _carte_disponible('chatgpt') else '')
-        return ('<section class="g5631-sub g5696-ia"><h3>%s</h3><p>%s</p><details class="g5697-choix" open><summary>%s</summary>%s</details>%s'
-                '<p class="g5631-later-row">%s</p></section>') % (
+        _l108 = _carte('ia_locale', desk, env, prefix, admin) if _carte_disponible('ia_locale') else ''   # 5.6.108 (lot L) : IA locale d'abord
+        return _l108 + ('<section class="g5631-sub g5696-ia"><h3>%s</h3><p>%s</p><details class="g5697-choix" open><summary>%s</summary>%s</details>%s'
+                        '<p class="g5631-later-row">%s</p></section>') % (
             th('w5697.ia_connect_title'), th('w5697.ia_connect_lead'), th('w5697.ia_mistral'), _carte('ia', desk, env, prefix, admin), chatgpt,
             _plus_tard('ia_connexion'))
     if step in FIELDS or step in ('fonctions', 'fin'):
@@ -1219,6 +1222,9 @@ LINKS = {'voix': (('Kokoro-FastAPI (GitHub)', 'https://github.com/remsky/Kokoro-
          'veille': (('Tavily', 'https://app.tavily.com'),),
          'facturation': (('Invoice Ninja', 'https://invoiceninja.github.io/'),),
          'telephonie': (('Twilio — sécurité des webhooks', 'https://www.twilio.com/docs/usage/webhooks/webhooks-security'),)}
+# 5.6.108 (lot O) : modifier les documents dans AxiorHub — serveur de documents EuroOffice ou OnlyOffice avec son secret JWT (sans lui : aperçu en lecture seule)
+from .office440 import guide_url as _guide_url56108   # noqa: E402
+LINKS['stockage'] += (('Guide : serveur de documents EuroOffice ou OnlyOffice (modifier dans AxiorHub ; sinon aperçu en lecture seule)', _guide_url56108()),)
 # Écrans existants qui réalisent les étapes encore informatives (lots suivants du cahier des charges).
 SCREENS = {'voix': '/parametres?rubrique=voix', 'agenda': '/parametres?rubrique=connexions', 'sources': '/mcp', 'modeles': '/modeles-word', 'veille': '/veille',
            'facturation': '/parametres?rubrique=connexions', 'telephonie': '/accueil-administratif'}

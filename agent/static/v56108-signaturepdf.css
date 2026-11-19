@@ -1,0 +1,24 @@
+/* 5.6.108 (lot Z) : SignaturePDF, signature par lien. Réglage (Paramètres › Connexions), bouton de l'onglet Fichiers, page d'un PDF
+   (demandes, lien à copier, parcours manuel, dépôt du PDF signé). Contraste clair et sombre par les jetons de la page ; focus visible ;
+   cibles d'au moins 2.5rem ; aucun défilement horizontal (le lien se coupe dans son champ). */
+.z108 { display: grid; gap: .6rem; }
+.z108-form, .z108-depot { display: grid; gap: .4rem; max-inline-size: 48rem; }
+.z108-form input:not([type=checkbox]), .z108-form select, .z108-depot input[type=file] { box-sizing: border-box; inline-size: 100%;
+  min-block-size: 2.5rem; font: inherit; }
+.z108-form .ax-btn, .z108-depot .ax-btn, .z108-bouton { min-block-size: 2.5rem; justify-self: start; }
+.z108-etat { margin: .2rem 0; font-weight: 600; }
+.z108-etat.z108-ok { color: var(--cds-support-success, #198038); }
+.z108-etat.z108-ko { color: var(--cds-text-error, #da1e28); }
+.z108-etat.z108-non { color: var(--cds-text-secondary, var(--ax-muted, #525252)); font-weight: 400; }
+.z108-etapes { margin: .2rem 0 .4rem; padding-inline-start: 1.2rem; }
+.z108-etapes li.z108-ko { color: var(--cds-text-error, #da1e28); }
+.z108-etapes li.z108-info { color: var(--cds-text-secondary, var(--ax-muted, #525252)); }
+.z108-demande { padding: .6rem .7rem; border: 1px solid var(--cds-border-subtle, var(--ax-line, #c6c6c6)); border-radius: .375rem;
+  background: var(--cds-layer, var(--ax-card, #fff)); color: var(--cds-text-primary, inherit); display: grid; gap: .4rem; overflow-wrap: anywhere; }
+.z108-lien-ligne { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: 0; }
+.z108-lien-ligne label { flex-basis: 100%; }
+.z108-lien { flex: 1 1 16rem; min-inline-size: 0; min-block-size: 2.5rem; font: inherit; box-sizing: border-box; }
+.z108-etapes-manuelles { margin: 0; padding-inline-start: 1.4rem; display: grid; gap: .35rem; }
+.z108 .m5-status.z108-erreur { color: var(--cds-text-error, #da1e28); }
+.z108 a:focus-visible, .z108 button:focus-visible, .z108 input:focus-visible, .z108 select:focus-visible, .z108-bouton:focus-visible {
+  outline: 2px solid var(--cds-focus, #0f62fe); outline-offset: 2px; }

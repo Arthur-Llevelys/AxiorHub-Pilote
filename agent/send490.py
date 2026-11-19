@@ -9,7 +9,10 @@ Garde-fous (tous vérifiés côté serveur, jamais seulement dans le navigateur)
   - brouillon « À VÉRIFIER » ou sans dossier identifié : refus ;
   - un même contenu n'est jamais envoyé deux fois (journal écrit AVANT l'envoi) ; plafond horaire ;
   - copie dans le dossier Envoyés ; si la copie échoue, l'avocat en est averti explicitement ;
-  - le journal des envois ne contient ni texte ni objet : dossier, empreinte, nombre de destinataires, issue.
+  - le journal des envois ne contient ni texte ni objet : dossier, empreinte, nombre de destinataires, issue ; 5.6.108 (lot C, B03, B04) :
+    plus le Message-ID et la décision de l'avocat ; le retour du serveur par destinataire (adresse, accepté ou refusé, code et date)
+    n'est gardé que pour une acceptation partielle ou un résultat incertain, le temps du rapprochement : la décision de l'avocat
+    retire les adresses (``sans_adresses``). Un départ complet ou un échec franc n'y laissent aucune adresse.
 """
 from .common import matter_display
 from datetime import datetime, timedelta, timezone
@@ -42,15 +45,23 @@ CREATE TABLE IF NOT EXISTS send_pending490(
   created REAL NOT NULL, used INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS send_log490(
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, matter TEXT NOT NULL, fingerprint TEXT NOT NULL,
-  recipients INTEGER NOT NULL, status TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '');
+  recipients INTEGER NOT NULL, status TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '', message_id TEXT NOT NULL DEFAULT '',
+  destinataires TEXT NOT NULL DEFAULT '', decision TEXT NOT NULL DEFAULT '');
 CREATE INDEX IF NOT EXISTS send_log490_fp ON send_log490(fingerprint,at);
 '''
 
 smtp_factory = None        # remplaçable dans les tests
 
 
+JOURNAL = (('message_id', "TEXT NOT NULL DEFAULT ''"), ('destinataires', "TEXT NOT NULL DEFAULT ''"), ('decision', "TEXT NOT NULL DEFAULT ''"))
+
+
 def ensure_schema(desk):
     desk.db.executescript(SCHEMA)
+    colonnes = {r[1] for r in desk.db.execute('PRAGMA table_info(send_log490)')}   # 5.6.108 : ajoutées au démarrage ; ici, filet de sécurité
+    for nom, decl in JOURNAL:
+        if nom not in colonnes:
+            desk.db.execute('ALTER TABLE send_log490 ADD COLUMN %s %s' % (nom, decl))
     desk.db.commit()
 
 
@@ -301,9 +312,32 @@ def _outgoing(msg, from_cfg, message_id=None, extra_headers=None):
     return out
 
 
+def _reponse_smtp(value):
+    """(code, texte) d'un retour SMTP, borné et sans saut de ligne (le texte du serveur peut citer l'adresse, jamais le message)."""
+    try:
+        code, text = value
+    except (TypeError, ValueError):
+        return None, ''
+    if isinstance(text, bytes):
+        text = text.decode('utf-8', 'replace')
+    return (int(code) if str(code).isdigit() else None), re.sub(r'\s+', ' ', str(text or '')).strip()[:200]
+
+
+class ArretSmtp(Stop):
+    """5.6.108 (lot C) : arrêt du SMTP qui porte les refus par adresse (``refuses`` : {adresse: (code, texte)}) ; le message reste le code."""
+
+    def __init__(self, code, refuses=None):
+        super().__init__(code)
+        self.refuses = dict(refuses or {})
+
+
 def _smtp_send(smtp_cfg, message, envelope_from, recipients):
+    """5.6.108 (lot C, B03, B04) : un refus de certains destinataires seulement lève ``smtp_envoi_partiel``, une rupture pendant la
+    transmission ``smtp_envoi_incertain`` (jamais un échec certain) ; les refus par adresse accompagnent l'arrêt (``ArretSmtp.refuses``)."""
+    trace = {'refuses': {}}
     password = read_secret(smtp_cfg['password_file'])
     factory = smtp_factory
+    transmission = False
     try:
         if factory is not None:
             client = factory(smtp_cfg)
@@ -315,16 +349,24 @@ def _smtp_send(smtp_cfg, message, envelope_from, recipients):
             if factory is None and smtp_cfg['security'] == 'starttls':
                 client.starttls(context=ssl.create_default_context())
             client.login(smtp_cfg['username'], password)
+            transmission = True
             refused = client.send_message(message, from_addr=envelope_from, to_addrs=recipients)
         finally:
             try:
                 client.quit()
             except (smtplib.SMTPException, OSError):
                 pass
-    except (smtplib.SMTPException, OSError):
+    except smtplib.SMTPRecipientsRefused as ex:
+        raise ArretSmtp('smtp_destinataire_refuse', {str(k): _reponse_smtp(v) for k, v in (getattr(ex, 'recipients', None) or {}).items()}) from None
+    except (smtplib.SMTPSenderRefused, smtplib.SMTPDataError):
         raise Stop('smtp_echec') from None
+    except (smtplib.SMTPException, OSError):
+        raise Stop('smtp_envoi_incertain' if transmission else 'smtp_echec') from None
     if refused:
-        raise Stop('smtp_destinataire_refuse')
+        trace['refuses'] = {str(k): _reponse_smtp(v) for k, v in dict(refused).items()}
+        if not {k.lower() for k in trace['refuses']} >= {str(r).lower() for r in recipients}:
+            raise ArretSmtp('smtp_envoi_partiel', trace['refuses'])
+        raise ArretSmtp('smtp_destinataire_refuse', trace['refuses'])   # dictionnaire couvrant tous les destinataires : aucun n'a été accepté
 
 
 def _copy_to_sent(desk, message, draft_msg):
@@ -373,30 +415,70 @@ def _claim(desk, token, now):
     return mail, matter, recipients, fp
 
 
-def _duplicate_check(desk, fp):
+def _duplicate_check(desk, fp, relance_de=None):
+    """Doublons : déjà envoyé (ou confirmé parti par l'avocat, 5.6.108) dans les 24 h ; départ incertain ou partiel non rapproché.
+    ``relance_de`` (5.6.108, B03) : seule la tentative partielle que l'avocat a décidé de compléter est écartée du contrôle."""
     window = (datetime.now(timezone.utc) - timedelta(hours=DUPLICATE_WINDOW_HOURS)).isoformat()
-    if desk.db.execute("SELECT 1 FROM send_log490 WHERE fingerprint=? AND at>=? AND status IN ('envoye','envoye_copie_manquante')",
+    if desk.db.execute("SELECT 1 FROM send_log490 WHERE fingerprint=? AND at>=? AND status IN ('envoye','envoye_copie_manquante','envoye_confirme')",
                        (fp, window)).fetchone():
         raise Stop('deja_envoye')
     uncertain = (datetime.now(timezone.utc) - timedelta(hours=UNCERTAIN_WINDOW_HOURS)).isoformat()
-    if desk.db.execute("SELECT 1 FROM send_log490 WHERE fingerprint=? AND at>=? AND status='en_cours'", (fp, uncertain)).fetchone():
+    if desk.db.execute("SELECT 1 FROM send_log490 WHERE fingerprint=? AND id<>? AND (status IN ('a_verifier','partiel') OR (at>=? AND status='en_cours'))",
+                       (fp, int(relance_de or 0), uncertain)).fetchone():
         raise Stop('envoi_incertain_verifiez_les_envoyes')
 
 
-def _deliver(desk, mail, matter, recipients, fp, message_id=None, extra_headers=None, before_effect=None, on_log=None, on_sent=None):
+def sans_adresses(destinataires):
+    """Retour par destinataire sans les adresses (résultat, code, date) : ce qui reste au journal après la décision de l'avocat."""
+    try:
+        data = json.loads(destinataires or '[]')
+    except ValueError:
+        return ''
+    if not isinstance(data, list):
+        return ''
+    return json.dumps([{k: v for k, v in x.items() if k in ('etat', 'code', 'date')} for x in data if isinstance(x, dict)], ensure_ascii=False)
+
+
+def _detail_destinataires(recipients, trace, issue):
+    """5.6.108 (B03, B04) : retour du serveur par destinataire : ``accepte``, ``refuse`` (code, texte), ``inconnu`` (réponse perdue) ou
+    ``non_transmis`` (refus avant la transmission)."""
+    quand = now_iso()
+    refuses = {str(k).lower(): v for k, v in (trace.get('refuses') or {}).items()}
+    out = []
+    for adresse in recipients:
+        code, texte = refuses.get(str(adresse).lower(), (None, ''))
+        if str(adresse).lower() in refuses:
+            etat = 'refuse'
+        elif issue in ('envoye', 'partiel'):
+            etat = 'accepte'
+        elif issue == 'a_verifier':
+            etat = 'inconnu'
+        else:
+            etat = 'non_transmis'
+        out.append({'adresse': str(adresse)[:320], 'etat': etat, 'code': code, 'reponse': texte, 'date': quand})
+    return json.dumps(out, ensure_ascii=False)
+
+
+def _deliver(desk, mail, matter, recipients, fp, message_id=None, extra_headers=None, before_effect=None, on_log=None, on_sent=None,
+             relance_de=None):
     """Départ réel : doublons, plafond horaire (compté au départ), journal écrit AVANT l'envoi, SMTP, copie dans Envoyés, brouillon retiré.
     5.6.106 (lot E) : appelé aussi par le travailleur pour la file d'envoi (``envoi56106``) : ``message_id`` fixé à l'avance (pour retrouver
     le message dans Envoyés après une interruption), en-têtes d'options, contrôle de la pause juste avant l'effet (``before_effect``),
-    étape notée dans la même transaction que le journal (``on_log``) puis juste après le SMTP (``on_sent``)."""
-    _duplicate_check(desk, fp)
+    étape notée dans la même transaction que le journal (``on_log``) puis juste après le SMTP (``on_sent``).
+    5.6.108 (lot C) : Message-ID et retour par destinataire écrits au journal ; ``relance_de`` : renvoi aux seuls refusés d'une tentative
+    partielle (``recipients`` réduit à ces adresses), qui close la tentative d'origine quand il aboutit."""
+    if relance_de:
+        _duplicate_check(desk, fp, relance_de)
+    else:
+        _duplicate_check(desk, fp)
     if _hourly_count(desk) >= MAX_PER_HOUR:
         raise Stop('plafond_horaire_envois')
     if before_effect is not None:
         before_effect()
     smtp_cfg = smtp_config(desk)
     message = _outgoing(mail.msg, desk.c['mail'], message_id=message_id, extra_headers=extra_headers)   # construit avant le journal : une erreur ici n'envoie rien
-    cur = desk.db.execute('INSERT INTO send_log490(at,matter,fingerprint,recipients,status) VALUES(?,?,?,?,?)',
-                          (now_iso(), matter, fp, len(recipients), 'en_cours'))
+    cur = desk.db.execute('INSERT INTO send_log490(at,matter,fingerprint,recipients,status,message_id) VALUES(?,?,?,?,?,?)',
+                          (now_iso(), matter, fp, len(recipients), 'en_cours', str(message['Message-ID'] or '')[:300]))
     log_id = cur.lastrowid
     if on_log is not None:
         on_log(log_id)   # même transaction que la ligne du journal : une interruption ne sépare jamais les deux
@@ -404,11 +486,24 @@ def _deliver(desk, mail, matter, recipients, fp, message_id=None, extra_headers=
     try:
         _smtp_send(smtp_cfg, message, desk.c['mail']['from_address'], recipients)
     except Stop as ex:
-        desk.db.execute("UPDATE send_log490 SET status='echec', detail=? WHERE id=?", (str(ex), log_id))
+        trace = {'refuses': getattr(ex, 'refuses', {})}
+        status_ = {'smtp_envoi_incertain': 'a_verifier', 'smtp_envoi_partiel': 'partiel'}.get(str(ex), 'echec')
+        desk.db.execute("UPDATE send_log490 SET status=?, detail=?, destinataires=? WHERE id=?",   # adresses : rapprochement seulement
+                        (status_, str(ex), _detail_destinataires(recipients, trace, status_) if status_ != 'echec' else '', log_id))
+        if relance_de and status_ != 'echec':   # le renvoi lui-même est à vérifier : la tentative d'origine est relayée par celui-ci
+            desk.db.execute("UPDATE send_log490 SET status='partiel_relance' WHERE id=? AND status='partiel'", (int(relance_de),))
         desk.db.commit()
         raise
     if on_sent is not None:
         on_sent()
+    if relance_de:   # tentative d'origine complétée : ses adresses ne sont plus nécessaires
+        try:
+            row = desk.db.execute('SELECT destinataires FROM send_log490 WHERE id=?', (int(relance_de),)).fetchone()
+            desk.db.execute("UPDATE send_log490 SET status='partiel_complete', destinataires=? WHERE id=? AND status='partiel'",
+                            (sans_adresses(row[0] if row else ''), int(relance_de)))
+            desk.db.commit()
+        except Exception:   # noqa: BLE001 — le départ a eu lieu : la suite (copie, brouillon) continue
+            desk.db.rollback()
     copy_saved = False
     try:
         copy_saved = _copy_to_sent(desk, message, mail.msg)
@@ -455,16 +550,41 @@ def sender_address(desk, msg):
     return found if re.fullmatch(r'[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+', found or '') else ''
 
 
-def deliver_queued(desk, uid, validity, fp, matter, message_id, extra_headers=None, before_effect=None, on_log=None, on_sent=None):
+def deliver_queued(desk, uid, validity, fp, matter, message_id, extra_headers=None, before_effect=None, on_log=None, on_sent=None,
+                   seuls=None, relance_de=None):
     """Départ d'un message de la file (travailleur seulement) : le brouillon est relu et doit être EXACTEMENT celui confirmé (empreinte) ;
-    l'envoi doit toujours être activé et permis ; puis le départ ordinaire (doublons, plafond horaire, journal, SMTP, Envoyés)."""
+    l'envoi doit toujours être activé et permis ; puis le départ ordinaire (doublons, plafond horaire, journal, SMTP, Envoyés).
+    5.6.108 (lot C, B03) : ``seuls`` + ``relance_de`` : renvoi décidé par l'avocat ; les adresses doivent être des destinataires du message
+    ET avoir été refusées par la tentative partielle ``relance_de`` (toujours « partiel », même empreinte, même Message-ID)."""
     ensure_schema(desk)
     mail = _load(desk, uid, validity)
     current, recipients = _check_sendable(desk, mail)
     if fingerprint(mail.msg) != fp or current != matter:
         raise Stop('brouillon_modifie_depuis_confirmation')
+    if seuls or relance_de:
+        recipients = _seuls_refuses(desk, recipients, fp, message_id, seuls, relance_de)
     return _deliver(desk, mail, matter, recipients, fp, message_id=message_id, extra_headers=extra_headers,
-                    before_effect=before_effect, on_log=on_log, on_sent=on_sent)
+                    before_effect=before_effect, on_log=on_log, on_sent=on_sent, relance_de=relance_de)
+
+
+def _seuls_refuses(desk, recipients, fp, message_id, seuls, relance_de):
+    """Destinataires d'un renvoi partiel, contrôlés contre le message ET contre le journal de la tentative d'origine."""
+    try:
+        log_id = int(relance_de)
+    except (TypeError, ValueError):
+        raise Stop('relance_invalide') from None
+    row = desk.db.execute('SELECT * FROM send_log490 WHERE id=?', (log_id,)).fetchone()
+    if not row or row['status'] != 'partiel' or row['fingerprint'] != fp or (row['message_id'] and row['message_id'] != str(message_id or '')):
+        raise Stop('relance_invalide')
+    try:
+        refuses = {str(x.get('adresse')).lower() for x in json.loads(row['destinataires'] or '[]') if isinstance(x, dict) and x.get('etat') == 'refuse'}
+    except ValueError:
+        refuses = set()
+    voulus = [str(x) for x in (seuls or [])]
+    du_message = {str(r).lower(): r for r in recipients}
+    if not voulus or any(v.lower() not in refuses or v.lower() not in du_message for v in voulus):
+        raise Stop('relance_invalide')
+    return list(dict.fromkeys(du_message[v.lower()] for v in voulus))
 
 
 # ---------------------------------------------------------------------------- alternative sans envoi

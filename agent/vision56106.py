@@ -103,7 +103,7 @@ MOTIFS = {
     'ocr_trop_incertain': 'lecture OCR trop incertaine pour garantir le masquage : rien n’est envoyé à l’externe',
     'masquage_en_echec': 'le masquage a échoué : rien n’est envoyé à l’externe',
     'outil_rendu_absent': 'outil de rendu des pages absent (Poppler) : image non préparée',
-    'image_illisible': 'image ou page illisible',
+    'image_illisible': 'image illisible ou incohérente : l’original est gardé',
     'image_trop_lourde': 'image trop lourde, même réduite',
     'images_trop_lourdes': 'poids total des images dépassé : images en trop retirées',
     'trop_d_images': 'trop d’images pour une demande',
@@ -121,7 +121,7 @@ MESSAGES = {
     'format_image_non_pris_en_charge': 'Format non pris en charge : PDF, PNG ou JPEG seulement.',
     'page_invalide': 'Numéro de page invalide.', 'fichier_trop_volumineux': 'Fichier trop volumineux pour être joint.',
     'outil_rendu_absent': 'Outil de rendu des pages absent (Poppler) : installez-le pour joindre une page de PDF.',
-    'image_illisible': 'Image ou page illisible.', 'image_trop_lourde': 'Image trop lourde, même réduite.',
+    'image_illisible': 'Image illisible ou incohérente : l’original est gardé, rien n’a été transmis.', 'image_trop_lourde': 'Image trop lourde, même réduite.',
     'trop_d_images': 'Quatre images au plus par demande.', 'image_sans_dossier': 'Choisissez d’abord un dossier : les images viennent des fichiers du dossier.',
     'cle_requise': 'Demande incomplète : rechargez la page.', 'cle_reutilisee': 'Cette demande a déjà servi pour une autre action : rechargez la page.',
     'version_perimee': 'Les réglages ont changé depuis l’affichage : rechargez la page. Rien n’a été modifié.',
@@ -282,8 +282,12 @@ def png_lire(raw):
         n = struct.unpack('>I', raw[pos:pos + 4])[0]
         kind, data = raw[pos + 4:pos + 8], raw[pos + 8:pos + 8 + n]
         pos += 12 + n
+        if len(data) != n:   # 5.6.108 (lot C, B06) : fichier tronqué au milieu d'un bloc
+            raise Stop('image_illisible')
         if kind == b'IHDR':
-            ihdr = struct.unpack('>IIBBBBB', data[:13])
+            if len(data) != 13 or ihdr is not None:
+                raise Stop('image_illisible')
+            ihdr = struct.unpack('>IIBBBBB', data)
         elif kind == b'PLTE':
             palette = data
         elif kind == b'IDAT':
@@ -295,15 +299,22 @@ def png_lire(raw):
     w, h, prof, type_, _, _, entrelace = ihdr
     if entrelace or w <= 0 or h <= 0 or w * h > MAX_PIXELS_PNG or type_ not in (0, 2, 3, 4, 6) or prof not in (1, 2, 4, 8, 16):
         raise Stop('image_illisible')
+    # 5.6.108 (lot C, B06) : combinaisons de la norme PNG seulement ; une palette est exigée (au plus 256 couleurs, triplets complets)
+    if prof not in {0: (1, 2, 4, 8, 16), 2: (8, 16), 3: (1, 2, 4, 8), 4: (8, 16), 6: (8, 16)}[type_]:
+        raise Stop('image_illisible')
+    if type_ == 3 and (not palette or len(palette) % 3 or len(palette) > 768):
+        raise Stop('image_illisible')
     echantillons = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[type_]
     bits = prof * echantillons
     pas = max(1, bits // 8)
     ligne = (w * bits + 7) // 8
     try:
-        data = zlib.decompress(bytes(idat))
+        attendu = (ligne + 1) * h
+        flux = zlib.decompressobj()
+        data = flux.decompress(bytes(idat), attendu + 1)
     except zlib.error:
         raise Stop('image_illisible') from None
-    if len(data) < (ligne + 1) * h:
+    if len(data) != attendu or not flux.eof or flux.unconsumed_tail or flux.unused_data:
         raise Stop('image_illisible')
     prec = bytearray(ligne)
     lignes = []

@@ -1,4 +1,4 @@
-# Composants tiers et compatibilité — AxiorHub 5.6.107
+# Composants tiers et compatibilité — AxiorHub 5.6.108
 
 Date de l’audit direct : 6 octobre 2026. Identifiant de licence du code
 AxiorHub : `AGPL-3.0-or-later`.
@@ -122,3 +122,13 @@ Fichiers copiés sans modification, servis par AxiorHub depuis `agent/static/` ;
   - Les deux modèles ont été téléchargés une fois, aux révisions et empreintes figées par le manifeste du paquet, pour être copiés dans l'arbre ; Alkove vérifie de nouveau leur sha256 dans le navigateur.
 
 Compatibilité : Apache-2.0, MIT et Unicode License v3 sont compatibles avec l'AGPL-3.0-or-later pour une distribution conjointe ; CC BY 4.0 (voix, dictionnaire) impose l'attribution, l'indication des modifications et le lien vers la licence, assurés ici et sur la page Voix. La marque Alkove n'est pas utilisée pour désigner AxiorHub.
+
+## Éditeur intégré WordCraft (5.6.108)
+
+**WordCraft** 0.18.1, édition web (ArtCraft Team et contributeurs, https://github.com/storytold/wordcraft), « alpha » selon ses auteurs : archive `wordcraft-web-0.18.1.zip` (sha256 `3daa7c2d1f209a7eeb2527fcefa3fe31e875848fb1970d68f54edae55fe0bc9f`, conforme au `SHA256SUMS.txt` signé de la publication), copiée sans modification dans `agent/static/wordcraft-0.18.1/` et servie par AxiorHub ; aucun CDN ni service de l'éditeur n'est contacté à l'usage (audit des requêtes : `docs/WORDCRAFT-FIDELITE-5.6.108.md`). Seuls trois fichiers sont servis (colle JavaScript, extrait `snippets/eframe-…/inline0.js`, module WebAssembly) ; empreintes dans `agent/wordcraft56108.py` (`FICHIERS`), vérifiées par `tests/test_v56108_editeur.py`. Facultatif : réglage administrateur dans Réglages de l'atelier.
+
+- Code : **MIT OR Apache-2.0** au choix (`agent/static/wordcraft-0.18.1/LICENSE-MIT`, `LICENSE-APACHE`, `NOTICE`).
+- Matériel embarqué dans le module WebAssembly, listé fichier par fichier dans `agent/static/wordcraft-0.18.1/ATTRIBUTION.md` et `NOTICE` : polices sous **SIL Open Font License 1.1** (Source Sans 3, Source Serif 4, Inter, JetBrains Mono, polices japonaises, coréennes, chinoises, arabe, hébreu, thaï, géorgien, dévanagari et symboles ; textes `OFL-*.txt` dans le même dossier), dictionnaires et listes de mots (SCOWL, notices d'origine reproduites dans `NOTICE`), motifs de césure (LPPL 1.3 ou MIT, CC0), données publiques ; aucune licence à réciprocité (GPL, LGPL, MPL) relevée dans `NOTICE` ni `ATTRIBUTION.md`.
+- Le nom, la marque et les logos ArtCraft ne sont pas couverts par la licence du code : ils restent tels quels, dans l'éditeur non modifié, et ne désignent jamais AxiorHub.
+
+Compatibilité : MIT, Apache-2.0, OFL-1.1 (polices distribuées avec le logiciel, non vendues seules), BSD et LPPL-ou-MIT sont compatibles avec l'AGPL-3.0-or-later pour une distribution conjointe.

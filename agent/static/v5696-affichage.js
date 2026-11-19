@@ -5,7 +5,7 @@
    - une fenêtre d'action <dialog> déjà ouverte : le volet s'y loge le temps de la conversation (une seule fenêtre modale à la fois) ;
    - Ctrl+Entrée dans l'instruction : un seul envoi (touche maintenue ignorée ; aucun autre raccourci de la page ne reçoit la touche) ;
    - champ Instruction qui grandit jusqu'à sa hauteur maximale (CSS), puis défile ;
-   - brouillon gardé pour l'onglet, par compte, dossier et courriel : jamais repris dans un autre dossier ;
+   - brouillon gardé pour l'onglet, par compte, dossier et courriel : jamais repris dans un autre dossier ; effacé au reçu seulement (5.6.108) ;
    - en-tête : dossier et courriel réellement repris, « Changer le contexte » mène au choix du dossier sans effacer le texte ;
    - clavier logiciel : hauteur utile suivie par visualViewport (variables CSS, aucun style injecté).
    Rien ici n'envoie de demande au modèle ; l'envoi reste celui de v567.js. Tout texte passe par textContent. */
@@ -70,7 +70,9 @@
   var dossierCourant = matter ? matter.value : '';
   if (question && !question.value) { question.value = lire(cle(dossierCourant)); if (question.value) ajuster(); }
   if (question) question.addEventListener('input', function () { ecrire(cle(dossierCourant), question.value); });
-  if (send) send.addEventListener('click', function () { ecrire(cle(dossierCourant), ''); }, true);   // demande partie : plus de brouillon
+  // 5.6.108 (lot A) : le brouillon n'est effacé qu'au reçu du serveur (v567.js, « ax108:recu ») : un envoi refusé, coupé ou incertain le garde,
+  // fermer puis rouvrir le volet, ou changer de page, le restitue. Un texte retouché pendant l'envoi reste le brouillon.
+  dock.addEventListener('ax108:recu', function () { if (question) ecrire(cle(dossierCourant), question.value.trim() ? question.value : ''); });
   function libelleDossier() {
     var o = matter && matter.options[matter.selectedIndex];
     return o && o.value ? 'Dossier : ' + o.textContent : 'Aucun dossier';

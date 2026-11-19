@@ -1,0 +1,41 @@
+/* AxiorHub 5.6.108 (lot W) — éditeur intégré (WordCraft, version d'essai) et « Ouvrir dans Word / LibreOffice ». */
+.w108 { max-width: 1400px; }
+.w108 [hidden], .w108-chargement[hidden] { display: none !important; }   /* les blocs en flex restent masqués par l'attribut hidden */
+.w108-doc { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .25rem 0 .75rem; }
+.w108-nom { font-weight: 600; overflow-wrap: anywhere; }
+.w108-badge { font-size: .8rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--ax-border, #8d8d8d); background: var(--ax-surface-2, #f2f4f8); color: var(--ax-text, #161616); }
+.w108-note, .w108-aide { color: var(--ax-text-2, #393939); max-width: 72rem; }
+.w108-garde, .w108-controle { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; padding: .75rem 1rem; margin: .75rem 0; background: var(--ax-surface, #fff); }
+.w108-constats { margin: .25rem 0 .5rem 1.25rem; padding: 0; }
+.w108-constats li { margin: .15rem 0; }
+.w108-c-risque { color: var(--ax-danger, #a2191f); }
+.w108-c-prudence { color: var(--ax-warning-text, #6f4b00); }
+.w108-avertissement { border-left: 4px solid var(--ax-danger, #a2191f); padding: .5rem .75rem; margin: .5rem 0; background: var(--ax-danger-bg, #fff1f1); color: var(--ax-text, #161616); }
+.w108-prudence { border-left: 4px solid var(--ax-warning, #b28600); padding: .5rem .75rem; margin: .5rem 0; background: var(--ax-warning-bg, #fcf4d6); color: var(--ax-text, #161616); }
+.w108-avertissement h2 { font-size: 1rem; margin: 0 0 .25rem; }
+.w108-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.w108-confirmer { display: flex; gap: .4rem; align-items: flex-start; margin-top: .5rem; }
+.w108-etat { min-height: 1.4em; }
+.w108-erreur, .w108-alerte { color: var(--ax-danger, #a2191f); font-weight: 600; }
+.w108-ok { color: var(--ax-success-text, #0e6027); }
+.w108-zone { border: 1px solid var(--ax-border, #c6c6c6); border-radius: 6px; overflow: hidden; }
+.w108-iframe { display: block; width: 100%; height: 78vh; min-height: 480px; border: 0; background: #e6e6e6; }
+.w108-resume { font-weight: 600; }
+.w108-attention { color: var(--ax-danger, #a2191f); }
+.w108-pertes { margin: .25rem 0 .5rem 1.25rem; }
+.w108-details li { margin: .3rem 0; overflow-wrap: anywhere; }
+.w108-avant, .w108-apres { display: block; }
+.w108 button:focus-visible, .w108 a:focus-visible, .w108 input:focus-visible { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+.w108-controle h2:focus { outline: 2px solid var(--ax-focus, #0f62fe); outline-offset: 2px; }
+/* cadre de l'éditeur (page à part, sans gabarit) */
+.w108-cadre-corps { margin: 0; width: 100%; height: 100vh; overflow: hidden; background: #e6e6e6; }
+.w108-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.w108-chargement { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; color: #393939; font: 14px system-ui, sans-serif; pointer-events: none; }
+@media (prefers-color-scheme: dark) {
+  .w108-avertissement { background: var(--ax-danger-bg, #2d0709); color: var(--ax-text, #f4f4f4); }
+  .w108-prudence { background: var(--ax-warning-bg, #302400); color: var(--ax-text, #f4f4f4); }
+  .w108-c-risque, .w108-erreur, .w108-alerte, .w108-attention { color: var(--ax-danger, #ff8389); }
+  .w108-c-prudence { color: var(--ax-warning-text, #f1c21b); }
+  .w108-ok { color: var(--ax-success-text, #42be65); }
+}
+@media (max-width: 600px) { .w108-iframe { height: 70vh; min-height: 360px; } }

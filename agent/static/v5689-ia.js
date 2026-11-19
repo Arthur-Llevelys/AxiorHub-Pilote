@@ -112,11 +112,24 @@
     const manquants = r.champs_manquants || [];
     if (r.question_regroupee && r.assistance) {
       const f = el('form', undefined, 'ia89-question'); f.append(el('p', r.question_regroupee));
-      manquants.forEach(nom => {const l = el('label', (window.axiorhubIa5689.libelles[nom] || nom) + ' '), i = el('input'); i.name = nom; l.append(i); f.append(l);});
+      const types = r.types_champs || {};   // 5.6.108 (lot Q) : champ typé du questionnaire de l'acte (date, montant, choix, oui/non)
+      manquants.forEach(nom => {
+        const l = el('label', ((r.libelles_champs || {})[nom] || window.axiorhubIa5689.libelles[nom] || nom) + ' '), t = types[nom] || {};
+        let i;
+        if (t.type === 'choix' || t.type === 'booleen') {
+          i = el('select'); i.append(new Option('— laisser vide —', ''));
+          (t.type === 'booleen' ? [['true', 'Oui'], ['false', 'Non']] : (t.options || []).map(o => [o, o])).forEach(([v, x]) => i.append(new Option(x, v)));
+        } else {i = el('input'); if (t.type === 'date') i.type = 'date'; if (t.type === 'montant') {i.inputMode = 'decimal'; i.placeholder = t.devise || 'EUR';}}
+        i.name = nom; l.append(i); f.append(l);
+        if (i.tagName === 'INPUT' && window.axiorhubDictee108) window.axiorhubDictee108.monter(i, {type: t.type === 'date' || t.type === 'montant' ? t.type : 'texte'});   // 5.6.108 (lot Q) : « Dicter la réponse »
+      });   // 5.6.108 : questions de la grille avec leur libellé
+      if (r.questionnaire && r.questionnaire.url) {const a = el('a', 'Ouvrir le formulaire de l’acte et son aperçu'); a.href = prefix + r.questionnaire.url; f.append(el('p', '', 'ia89-questionnaire')); f.lastChild.append(a);}
       const b = el('button', 'Reprendre avec ces réponses'); b.type = 'submit'; f.append(b);
       f.addEventListener('submit', async ev => {
         ev.preventDefault(); b.disabled = true;
-        try {window.axiorhubPilot?.show(await poster('ui/mission/repondre', {id: r.assistance, revision: r.revision, champs: Object.fromEntries(new FormData(f))}));}
+        const champs = {};
+        new FormData(f).forEach((v, k) => {if (String(v).trim() === '') return; champs[k] = (types[k] || {}).type === 'booleen' ? v === 'true' : v;});   // un champ laissé vide n'est pas une réponse
+        try {window.axiorhubPilot?.show(await poster('ui/mission/repondre', {id: r.assistance, revision: r.revision, champs, cle: jeton().slice(0, 64)}));}
         catch (e) {note(e.message); b.disabled = false;}
       });
       c.append(f);

@@ -3,6 +3,9 @@
 Mêmes conventions que bibliotheque_fr5639 (« ## » article numéroté, {{variable}}, [[si cle]] … [[fin]]). Chaque modèle est rédigé dans la
 langue de son droit ; il porte l'avertissement « à faire valider par un conseil local » : ce sont des trames de travail, non des avis
 sur un droit étranger. Aucune donnée réelle.
+
+5.6.108 (lot B) : le droit anglais porte le code « UK-EAW » (Angleterre et pays de Galles) ; l'ancien code « EN » est migré par un alias explicite
+(``droits56108.ALIAS_MIGRATION``) ; les identifiants ``en_*`` des modèles sont conservés.
 """
 
 _R = lambda fr, en, de, es: {'fr': fr, 'en': en, 'de': de, 'es': es}   # noqa: E731
@@ -507,7 +510,7 @@ def _en_articles():
 
 
 TEMPLATES += [
-    {'id': 'en_articles_ltd', 'langue': 'en', 'droit': 'EN', 'categorie': 'statuts', 'formes': ('Ltd',), 'titre': 'Articles of Association (private limited company)',
+    {'id': 'en_articles_ltd', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'statuts', 'formes': ('Ltd',), 'titre': 'Articles of Association (private limited company)',
      'resume': _R('Statuts de private limited company anglaise (Companies Act 2006, Model Articles) : pre-emption, tag/drag-along, leavers.',
                   'English Ltd articles based on the Model Articles, with pre-emption, tag-along, drag-along and leaver provisions.',
                   'Satzung einer englischen Ltd.', 'Estatutos de una Ltd inglesa.'),
@@ -516,7 +519,7 @@ TEMPLATES += [
                  ('tag_along', 'Tag-along', True, ''), ('drag_along', 'Drag-along', True, ''), ('leaver', 'Good / bad leaver', False, ''),
                  ('investor_director', 'Investor director', False, '')],
      'fixes': {}, 'texte': _en_articles()},
-    {'id': 'en_shareholders_agreement', 'langue': 'en', 'droit': 'EN', 'categorie': 'pacte', 'formes': ('Ltd',), 'titre': 'Shareholders’ Agreement',
+    {'id': 'en_shareholders_agreement', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'pacte', 'formes': ('Ltd',), 'titre': 'Shareholders’ Agreement',
      'resume': _R('Pacte d’actionnaires de droit anglais.', 'Shareholders’ agreement (English law): reserved matters, information, transfers, deadlock.',
                   'Gesellschaftervereinbarung (englisches Recht).', 'Pacto de socios (derecho inglés).'),
      'mots': ('shareholders agreement', 'shareholders’ agreement'),
@@ -543,7 +546,7 @@ TEMPLATES += [
          '## Confidentiality', 'Each party shall keep confidential the terms of this agreement and information relating to the Company.',
          '## Governing law', 'This agreement and any non-contractual obligations arising out of it are governed by the law of England and Wales; the '
          'courts of England have exclusive jurisdiction.']},
-    {'id': 'en_spa', 'langue': 'en', 'droit': 'EN', 'categorie': 'operation', 'formes': ('Ltd',), 'titre': 'Share Purchase Agreement',
+    {'id': 'en_spa', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'operation', 'formes': ('Ltd',), 'titre': 'Share Purchase Agreement',
      'resume': _R('Cession d’actions de Ltd anglaise : prix, completion, warranties, limitations, stamp duty.', 'Share purchase agreement (English law).',
                   'Anteilskaufvertrag (englisches Recht).', 'Compraventa de acciones (derecho inglés).'),
      'mots': ('share purchase agreement', 'spa'),
@@ -567,7 +570,7 @@ TEMPLATES += [
          '[[si restrictive]]', '## Restrictive covenants', 'The Seller shall not compete with the business of the Company for [24] months after '
          'completion.', '[[fin]]',
          '## Governing law', 'This agreement is governed by the law of England and Wales; the courts of England have exclusive jurisdiction.']},
-    {'id': 'en_heads_of_terms', 'langue': 'en', 'droit': 'EN', 'categorie': 'operation', 'formes': (), 'titre': 'Letter of Intent / Heads of Terms',
+    {'id': 'en_heads_of_terms', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'operation', 'formes': (), 'titre': 'Letter of Intent / Heads of Terms',
      'resume': _R('Lettre d’intention de droit anglais (subject to contract).', 'Heads of terms, subject to contract, with binding exclusivity.',
                   'Absichtserklärung (englisches Recht).', 'Carta de intenciones (derecho inglés).'),
      'mots': ('heads of terms', 'letter of intent', 'term sheet'),
@@ -583,7 +586,7 @@ TEMPLATES += [
          '## Status', 'Save for the paragraphs stated to be binding, costs and governing law, these heads of terms are not intended to create legally '
          'binding obligations. English law does not imply a general duty to negotiate in good faith.',
          '## Governing law', 'Law of England and Wales.']},
-    {'id': 'en_services_agreement', 'langue': 'en', 'droit': 'EN', 'categorie': 'contrat', 'formes': (), 'titre': 'Services Agreement',
+    {'id': 'en_services_agreement', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'contrat', 'formes': (), 'titre': 'Services Agreement',
      'resume': _R('Contrat de prestation de services de droit anglais.', 'Business-to-business services agreement (English law).',
                   'Dienstleistungsvertrag (englisches Recht).', 'Contrato de servicios (derecho inglés).'),
      'mots': ('services agreement', 'service agreement', 'consultancy agreement'),
@@ -605,7 +608,7 @@ TEMPLATES += [
          '## Term and termination', 'Either party may terminate on three months’ written notice, or immediately for material breach not remedied '
          'within 30 days.',
          '## Governing law', 'Law of England and Wales; exclusive jurisdiction of the English courts.']},
-    {'id': 'en_nda', 'langue': 'en', 'droit': 'EN', 'categorie': 'contrat', 'formes': (), 'titre': 'Non-Disclosure Agreement',
+    {'id': 'en_nda', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'contrat', 'formes': (), 'titre': 'Non-Disclosure Agreement',
      'resume': _R('Accord de confidentialité de droit anglais.', 'Mutual non-disclosure agreement (English law).', 'Geheimhaltungsvereinbarung (englisches Recht).',
                   'Acuerdo de confidencialidad (derecho inglés).'),
      'mots': ('non-disclosure agreement', 'nda', 'confidentiality agreement'),
@@ -619,7 +622,7 @@ TEMPLATES += [
          'disclose it, or is independently developed.',
          '## Term', 'The obligations last for {{term}} from the date of this agreement.', '## Remedies', 'Damages alone may not be an adequate remedy; '
          'the discloser may seek injunctive relief.', '## Governing law', 'Law of England and Wales.']},
-    {'id': 'en_terms_sale', 'langue': 'en', 'droit': 'EN', 'categorie': 'contrat', 'formes': (), 'titre': 'Terms and Conditions of Sale (B2B)',
+    {'id': 'en_terms_sale', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'contrat', 'formes': (), 'titre': 'Terms and Conditions of Sale (B2B)',
      'resume': _R('Conditions générales de vente B2B de droit anglais.', 'B2B terms and conditions of sale (English law).',
                   'Verkaufsbedingungen B2B (englisches Recht).', 'Condiciones generales de venta (derecho inglés).'),
      'mots': ('terms and conditions', 'terms of sale', 't&cs'),
@@ -634,7 +637,7 @@ TEMPLATES += [
          '[[si retention]]', '## Title', 'Title to the goods shall not pass until the Seller has received payment in full.', '[[fin]]',
          '## Liability', 'The Seller’s liability is limited to the price of the goods, save for liability which cannot be limited by law; these '
          'limitations are subject to the Unfair Contract Terms Act 1977.', '## Governing law', 'Law of England and Wales.']},
-    {'id': 'en_shareholder_loan', 'langue': 'en', 'droit': 'EN', 'categorie': 'contrat', 'formes': ('Ltd',), 'titre': 'Shareholder Loan Agreement',
+    {'id': 'en_shareholder_loan', 'langue': 'en', 'droit': 'UK-EAW', 'categorie': 'contrat', 'formes': ('Ltd',), 'titre': 'Shareholder Loan Agreement',
      'resume': _R('Prêt d’actionnaire de droit anglais.', 'Shareholder loan agreement (English law).', 'Gesellschafterdarlehen (englisches Recht).',
                   'Préstamo de socio (derecho inglés).'),
      'mots': ('shareholder loan', 'loan agreement'),

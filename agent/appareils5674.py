@@ -3,7 +3,7 @@
 Inspiré de l'association d'appareils de Row-Bot (invitation à usage unique valable 10 minutes, session révocable par appareil) ;
 code propre à AxiorHub, appuyé sur les comptes et sessions de 5.6.48.
 
-- **Associer** (Paramètres › Poste et maintenance › Téléphones associés, ordinateur déjà connecté) : « Associer un téléphone »
+- **Associer** (Paramètres › Confort et maintenance › Téléphones associés, ordinateur déjà connecté) : « Associer un téléphone »
   affiche un QR code. Il contient une adresse d'invitation à usage unique, valable 10 minutes, liée au compte connecté (seule
   l'empreinte du jeton est conservée).
 - **Sur le téléphone** : l'appareil photo ouvre la page « Associer ce téléphone » (compte affiché, nom de l'appareil), le bouton
@@ -151,7 +151,7 @@ def pairing(db, env, auth, prefix, secure, form=None, query=None):
     row = _invitation(db, token)
     if row is None:
         cx._attempt(db, 'appareil:' + client)
-        body = ('<p class="cx48-note">Ce code a expiré ou a déjà servi. Sur l’ordinateur, ouvrez Paramètres › Poste et maintenance › '
+        body = ('<p class="cx48-note">Ce code a expiré ou a déjà servi. Sur l’ordinateur, ouvrez Paramètres › Confort et maintenance › '
                 'Téléphones associés, puis « Associer un téléphone » pour en afficher un nouveau.</p>')
         return cx._html(cx._page(prefix, 'Associer un téléphone', body), '410 Gone', headers)
     account = _account_label(db, auth, row['user_id'])
@@ -240,7 +240,7 @@ def remove(state_dir, user, device_id):
 
 
 def settings_html(state_dir, auth, user):
-    """Paramètres › Poste et maintenance : téléphones associés au compte connecté."""
+    """Paramètres › Confort et maintenance : téléphones associés au compte connecté."""
     if not available(auth):
         return ('<section class="ax-card" id="appareils5674"><h2>Téléphones associés</h2><p class="ax-muted">L’association d’un téléphone par QR '
                 'code se fait sur la version serveur d’AxiorHub (accessible en HTTPS) ; un poste Windows ou Ubuntu n’est pas joignable depuis '
@@ -261,19 +261,42 @@ def settings_html(state_dir, auth, user):
         DEVICE_DAYS, INVITE_MINUTES, rows or '<li class="ax-muted">Aucun téléphone associé.</li>')
 
 
-def mobile_page(desk, prefix, args, env):
-    """Page « À valider » : la file du compte, en grand, pour le téléphone."""
-    from . import file5651
+def mobile_page(desk, prefix, args, env, auth=None):
+    """Accès mobile : aide de configuration puis lecteur commun du compte."""
+    from . import file5651, interface56100, relecture56100
     from .membres5650 import viewer_hidden
     from .web567 import actor
     owner, role = actor(env)
-    hidden = viewer_hidden() or frozenset()
-    queue = file5651.html(desk, prefix, None, str(args.get('file') or ''), hidden, 40, True, owner, role)
+    settings = e(prefix + '/parametres?rubrique=poste#s-telephones-associes', quote=True)
+    user = env.get('axiorhub.user')
+    supported = available(auth)
+    linked = bool(devices(desk.c['state_dir'], user)) if supported and user else False
+    intro = ('<section class="ap74-mobile"><h2>Accès mobile</h2>'
+             '<p>Depuis un smartphone, retrouvez les éléments à relire et à décider '
+             'du compte connecté. Cette fonction ne reçoit ni ne passe d’appel téléphonique.</p>'
+             '<p><a class="ax-btn" href="%s">Configurer les téléphones associés</a></p>') % settings
+    if not supported:
+        intro += ('<p class="notice">Sur cette installation locale, l’association par QR code '
+                  'n’est pas disponible. Elle exige une instance HTTPS accessible au téléphone. '
+                  'Les applications locales continuent de fonctionner sans serveur.</p>')
+    elif not linked:
+        intro += '<p class="notice">Aucun téléphone associé à ce compte. La configuration est facultative.</p>'
+    # Un accès direct non configuré explique son usage au lieu de montrer une
+    # seconde file historique. Les anciens liens vers un élément restent utiles.
+    show = linked or args.get('vue') == 'file' or any(args.get(k) for k in ('item', 'source', 'uid', 'file'))
+    if not show:
+        return intro + ('<p><a class="ax-btn ghost" href="%s/mobile?vue=file">'
+                        'Ouvrir ma file de relecture</a></p></section>') % e(prefix, quote=True)
+    if interface56100.active(desk, owner):
+        queue = relecture56100.page_html(desk, prefix, (owner, role), args)
+    else:
+        hidden = viewer_hidden() or frozenset()
+        queue = file5651.html(desk, prefix, None, str(args.get('file') or ''), hidden, 40, True, owner, role)
     welcome = ''
-    if args.get('associe'):
+    if linked and args.get('associe'):
         welcome = ('<p class="notice ap74-ok">Téléphone associé. Pour l’avoir sous la main : menu du navigateur › « Ajouter à l’écran '
-                   'd’accueil ». Les notifications (en nombres seulement) s’activent dans Paramètres › Poste et maintenance.</p>')
-    return ('<section class="ap74-mobile">%s<p class="ax-muted">Ce qui attend votre décision ou votre relecture. Les boutons agissent comme '
+                   'd’accueil ». Les notifications (en nombres seulement) s’activent dans Paramètres › Confort et maintenance.</p>')
+    return intro + ('%s<p class="ax-muted">Ce qui attend votre décision ou votre relecture. Les boutons agissent comme '
             'à l’ordinateur ; rien n’est envoyé sans votre action.</p>%s<p><a class="ax-btn ghost" href="%s/aujourdhui">Ouvrir AxiorHub</a></p>'
             '</section>') % (welcome, queue, e(prefix, quote=True))
 

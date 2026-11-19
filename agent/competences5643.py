@@ -47,7 +47,11 @@ KIND_PHASE = {
 GENERAL_SETTING = 'competences5686:generale'
 GENERAL_DEFAULT = 'assistant juridique'
 GENERAL_KINDS = frozenset(('prepare_reply', 'prepare_draft', 'maildraft5613', 'assistant_answer', 'docrequest520', 'prepare_document_project', 'prepare_word_project',
-                           'prepare_legal_opinion', 'prepare_cabinet_letter', 'task5614', 'initiative5636', 'routine520', 'recit5651'))
+                           'prepare_legal_opinion', 'prepare_cabinet_letter', 'task5614', 'initiative5636', 'routine520', 'recit5651',
+                           # 5.6.108 (lot I, décision du cabinet n° 4) : travaux d'analyse, Assistant juridique d'office (pas le tri, la météo ni l'extraction simple)
+                           'legal_research', 'prepare_hearing', 'analyser_dossier5624', 'fiche_dossier5627', 'attachment_review', 'digest_pieces5632', 'refresh_brief',
+                           # contrôles d'un projet (constat du banc d'essai du lot E : un contrôle sans mot-clé ne recevait aucune méthode)
+                           'verify_deliverable420', 'verify_official_decision'))
 CHAT_BUDGET = 12_000
 TASK_TYPE_PHASE = (('controle', 'controle'), ('verif', 'controle'), ('relecture', 'controle'), ('analyse', 'analyse'),
                    ('recherche', 'analyse'), ('courriel', 'redaction_courriel'), ('mail', 'redaction_courriel'),
@@ -117,7 +121,10 @@ def general_skill(desk, rows):
 def select(desk, text, phase, owner='cabinet', manual=None, auto=None, kind=''):
     """Méthode de phase (une au plus) puis spécialisation par mots-clés (une au plus). Le choix manuel de l'avocat prime.
 
-    5.6.86 : une méthode qui déclare sa phase passe d'abord, puis la compétence générale pour les travaux demandés par l'avocat, puis une phase déduite des mots-clés. Avant, une
+    Proposition : la compétence générale choisie (Assistant juridique par défaut)
+    prime en sélection automatique pour les travaux concernés. Le choix manuel,
+    les désactivations et les spécialisations complémentaires restent respectés.
+    5.6.86 : une méthode qui déclare sa phase passait d'abord. Avant, une
     compétence spécialisée (comptes annuels) pouvait servir de méthode à des travaux sans rapport, et une compétence générale ne servait jamais aux réponses ni à la discussion."""
     from . import competences5632 as c
     if manual:
@@ -135,16 +142,20 @@ def select(desk, text, phase, owner='cabinet', manual=None, auto=None, kind=''):
                 if phase in (manifest.get('phases') or []):
                     declared.add(s['id'])   # une méthode qui déclare sa phase prime sur une phase déduite des mots-clés
         general = general_skill(desk, rows) if kind in GENERAL_KINDS else None
-        if declared:
-            method = sorted(declared)[0]
-        elif general:
+        if general:
             method = general['id']
             methods.add(method)
+        elif declared:
+            method = sorted(declared)[0]
         else:
             method = sorted(methods)[0] if methods and phase != 'decision' else None     # décider quoi préparer : uniquement une méthode faite pour cela
         if method:
             s = next(x for x in rows if x['id'] == method)
             chosen.append({'id': s['id'], 'version': s['version'], 'mode': 'phase', 'reason': 'Méthode de la phase « %s »' % PHASE_LABELS[phase]})
+        complement = sorted(declared - {method})[0] if general and declared - {method} else None
+        if complement:   # 5.6.108 : la compétence générale prime ; une méthode qui déclare cette phase peut la compléter (MAX_SELECTED = 2)
+            s = next(x for x in rows if x['id'] == complement)
+            chosen.append({'id': s['id'], 'version': s['version'], 'mode': 'phase', 'reason': 'Méthode de la phase « %s », en complément de la compétence générale' % PHASE_LABELS[phase]})
     for extra in c.resolve(desk, text, owner, auto=True):
         if extra['id'] in methods or any(x['id'] == extra['id'] for x in chosen):
             continue     # pas une deuxième méthode de phase
@@ -162,7 +173,12 @@ def _blocks(text):
 
 def assemble(legacy, selected, budget=UNIFIED_BUDGET):
     """Une seule chaîne d'instructions : compétences retenues d'abord, puis extensions historiques ; doublons retirés ; blocs entiers
-    seulement, dans un budget unique ; les blocs non transmis sont signalés (jamais coupés au milieu de leurs limites ou contrôles)."""
+    seulement, dans un budget unique ; les blocs non transmis sont signalés (jamais coupés au milieu de leurs limites ou contrôles).
+
+    5.6.108 (point 6) : appelé juste avant l'envoi (``model._leaf``) avec la place réelle : la méthode du travail en cours y est recalculée pour
+    cette place et tracée (``competences5632.pour_envoi``) ; tout autre texte passe inchangé."""
+    from .competences5632 import pour_envoi
+    selected = pour_envoi(selected, budget)
     out, used, seen, skipped = [], 0, set(), 0
     for block in _blocks(selected) + _blocks(legacy):
         key = re.sub(r'\s+', ' ', fold(block))[:4000]

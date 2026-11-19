@@ -359,6 +359,14 @@
       return confirmer('Déplacer ' + (c.length > 1 ? c.length + ' éléments' : '« ' + c[0].nom + ' »') + ' vers « ' + (onglet(cible).titre || onglet(cible).chemin || '?') + ' » ?')
         .then(function (oui) { if (oui) { transferer(v, cible, c, 'deplacer'); } });
     }
+    if (nom === 'wordcraft' || nom === 'traitement' || nom === 'application') {   // 5.6.108 (lot W) : page dédiée (droits, garde et contrôle relus par le serveur)
+      var doc = unSeul(v, true); if (!doc) { return; }
+      if (nom === 'application' && !/\.pdf$/i.test(doc.nom)) { dire(v.etat, 'Cette action porte sur un PDF.'); return; }
+      if (nom !== 'application' && !/\.docx$/i.test(doc.nom)) { dire(v.etat, 'Cette action porte sur un document Word (.docx).'); return; }
+      var cible108 = (cfg.editeur || {})[nom];
+      if (cible108) { location.href = cible108 + '?s=' + encodeURIComponent(o.source) + '&p=' + encodeURIComponent(doc.chemin); }
+      return;
+    }
     if (nom === 'zip') { return zip(v); }
     if (nom === 'extraire') { return extraire(v); }
     if (nom === 'proprietes') { return proprietes(v); }

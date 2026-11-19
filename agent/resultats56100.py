@@ -186,7 +186,7 @@ def rattraper(desk, limite=300, pause=None):
             try:
                 if nom == 'livrables':
                     from .livrables5689 import NATURES
-                    publier(desk, r['dossier'], 'livrable', r['objet'], r['version'], r['quand'], NATURES.get(r['kind'], 'Document') + ' prêt', 'rattrapage')
+                    publier(desk, r['dossier'], 'livrable', r['objet'], r['version'], r['quand'], 'Document prêt : ' + NATURES.get(r['kind'], 'document'), 'rattrapage')   # 5.6.108 (lot G) : « Note prêt » → accord neutre
                 elif nom == 'fiches':
                     publier(desk, r['dossier'], 'analyse', 'fiche5627:%s:%s' % (r['dossier'], r['version']), str(r['version']), r['quand'],
                             'Fiche du dossier', 'rattrapage')
@@ -391,20 +391,31 @@ def recents(desk, acteur, limite=3):
 
 def dernier_du_dossier(desk, acteur, dossier_id):
     """Dernier résultat autorisé d'un dossier (en-tête de la fiche, « Dernier changement ») ; aucun : None."""
+    out = du_dossier(desk, acteur, dossier_id, 1)
+    return out[0] if out else None
+
+
+def du_dossier(desk, acteur, dossier_id, limite=5):
+    """5.6.108 (lot G) : derniers résultats autorisés d'un dossier, chacun avec le lien vers le résultat exact (fiche › « Travail récent de
+    l'IA »). Mêmes contrôles que les cartes de Dossiers : droit sur le dossier puis sur l'objet ; échec, remplacé ou illisible : écarté."""
     from . import acces5697
     a = acces5697.acteur_de(acteur)
     caches = acces5697.masques(desk, a)
     canon = _resolutions(desk, [str(dossier_id)]).get(str(dossier_id)) or str(dossier_id)
     if canon in caches or str(dossier_id) in caches:
-        return None
+        return []
+    limite = max(1, min(int(limite or 5), 20))
     try:
-        rows = desk.db.execute('SELECT * FROM dossier56100_resultats WHERE cabinet=? AND dossier_canonique IN (?,?) ORDER BY finished DESC, id DESC LIMIT 20',
-                               (_cabinet_lu(desk), canon, str(dossier_id))).fetchall()
+        rows = desk.db.execute('SELECT * FROM dossier56100_resultats WHERE cabinet=? AND dossier_canonique IN (?,?) ORDER BY finished DESC, id DESC LIMIT ?',
+                               (_cabinet_lu(desk), canon, str(dossier_id), max(20, limite * 4))).fetchall()
     except sqlite3.Error:
-        return None
+        return []
+    out = []
     for r in rows:
         lien = _lien_objet(desk, a, caches, None, dict(r), canon)
         if lien:
-            return {'type': r['type'], 'libelle': r['libelle'] or GENRES[r['type']], 'finished': r['finished'],
-                    'date_locale': date_locale(desk, r['finished']), 'lien': lien}
-    return None
+            out.append({'type': r['type'], 'libelle': r['libelle'] or GENRES[r['type']], 'finished': r['finished'],
+                        'date_locale': date_locale(desk, r['finished']), 'lien': lien})
+            if len(out) >= limite:
+                break
+    return out

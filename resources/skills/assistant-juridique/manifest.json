@@ -1,7 +1,7 @@
 {
   "id": "builtin.assistant_juridique",
   "name": "Assistant juridique",
-  "version": "7.4.0+axiorhub.1",
+  "version": "7.4.0+axiorhub.2",
   "origin": "builtin",
   "scope": "cabinet",
   "author": "Christophe Quézel-Ambrunaz (œuvre d’origine) ; adaptation AxiorHub",
@@ -10,6 +10,7 @@
   "archive_sha256": "02574345d439365822ad7f5b7bc568b7e34b76dcc03f07f08a64c3ff9993633a",
   "instructions": ["origine/SKILL.md", "ADAPTATION.md"],
   "references": "origine/references",
+  "axiorhub": {"plan": "PLAN-AXIORHUB.json", "version_courte": "ESSENTIEL.md", "version_courte_statut": "adaptation courte, à relire par l’avocat"},
   "jurisdictions": ["FR", "UE", "CEDH"],
   "description": "Recherche juridique, consultation, rédaction d’actes, analyse de pièces et de contrats, contre-argumentaire, veille, vérification et harmonisation des références, avec la règle « Chercher → Trouver → Lire → Vérifier → Citer ».",
   "situations": ["question juridique", "recherche juridique", "consultation", "rédaction d’un acte", "analyse d’un contrat", "analyse de pièces", "contre-argumentaire", "vérification de références", "jurisprudence", "article de code"],

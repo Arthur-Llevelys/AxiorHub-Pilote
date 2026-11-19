@@ -8,7 +8,7 @@
 "Ouvrez Aujourd’hui dans le menu.",
 "Dans « Routines du cabinet », cliquez sur « Briefing du matin » ou « Tri des courriels », puis sur « Générer maintenant ».",
 "Écoutez le résumé avec « Écouter le briefing » si la voix est activée.",
-"Utilisez « Pause de l’IA » pour suspendre les appels à l’IA et les traitements automatiques ; « IA en pause — reprendre » les relance."
+"Utilisez « Pause de l’IA » pour suspendre les appels à l’IA et les traitements automatiques ; « IA en pause — reprendre » les relance. Les envois programmés que vous avez validés continuent de partir : pour les retenir, utilisez « Suspendre les envois programmés »."
 ],
 "result": "Un briefing daté et la liste du travail préparé, à relire avant toute action.",
 "verify": "Le cadre de la routine indique l’heure de la dernière génération.",
@@ -933,28 +933,34 @@
 "version": "5.6.36"
 },
 "assistance_metier": {
-"objective": "Faire des calculs contrôlables et préparer la revue de facturation.",
-"when": "Pour un calcul d’intérêts, une indexation ou une revue de facturation.",
-"prerequisites": "Aucun.",
+"objective": "Préparer une audience, examiner des arguments, préparer un appel, faire un calcul contrôlable ou revoir la facturation d’un dossier.",
+"when": "Avant une audience ou un appel, pour un calcul d’intérêts, une indexation ou une addition de jours, ou avant une revue de facturation.",
+"prerequisites": "Un dossier accessible à votre compte ; pour l’entraînement, une audience déjà préparée ; pour la facturation, les impayés synchronisés.",
 "steps": [
-"Ouvrez Assistance métier.",
-"Choisissez le calcul, par exemple « Calculer les intérêts simples » ou « Calculer une indexation ».",
-"Renseignez les montants et dates.",
-"Pour la facturation, utilisez « Préparer la revue de facturation »."
+"Ouvrez Assistance métier et choisissez le dossier dans la liste (client, partie ou référence).",
+"Choisissez l’un des cinq parcours : « Préparer une audience », « Examiner les arguments », « Préparer un appel », « Effectuer un calcul » ou « Revoir la facturation ».",
+"Renseignez seulement les champs demandés ; pour un calcul, choisissez d’abord intérêts, indexation ou addition de jours, puis indiquez la source officielle.",
+"Envoyez : la demande reçoit un numéro et un état ; le résultat s’affiche ensuite avec ses réserves et ses sources."
 ],
-"result": "Un calcul détaillé et traçable.",
-"verify": "Le détail du calcul est affiché ligne par ligne.",
+"result": "Un projet interne à relire : résultat principal, réserves et sources, puis « Modifier les données », « Reprendre le parcours » ou « Exporter ».",
+"verify": "La demande passe de « Reçue » à « Résultat prêt » et le projet figure dans « Projets récents ».",
 "errors": [
 [
-"Montant inattendu",
-"Contrôlez les dates et le taux saisis."
+"« Dossier introuvable parmi vos dossiers »",
+"Le dossier n’est pas accessible à votre compte ou la recherche ne le trouve pas : choisissez-le dans la liste."
+],
+[
+"Montant ou date inattendus",
+"Contrôlez les dates, le taux ou les indices saisis ; une addition de jours n’est jamais un délai de procédure."
 ]
 ],
-"example": "Intérêts fictifs sur 10 000 € du 1er janvier au 30 juin 2026.",
+"example": "Addition fictive de 30 jours à partir du 1er janvier 2026 pour le dossier DOS-001 : date arithmétique, sans échéance créée.",
 "buttons": [
-"Calculer les intérêts simples",
-"Calculer une indexation",
-"Préparer la revue de facturation"
+"Préparer une audience",
+"Examiner les arguments",
+"Préparer un appel",
+"Effectuer un calcul",
+"Revoir la facturation"
 ],
 "version": "5.6.36"
 },
@@ -2086,13 +2092,13 @@
 "version": "5.6.36"
 },
 "mobile": {
-"objective": "Valider ou relire depuis votre téléphone ce qui attend votre décision, après l’avoir associé par QR code.",
+"objective": "Relire et décider depuis votre smartphone ce qui attend votre décision, avec le même lecteur qu’à l’ordinateur, après l’avoir associé par QR code.",
 "when": "En déplacement, à l’audience ou hors du bureau, quand une réponse préparée ou une opération attend votre accord.",
 "prerequisites": "La version serveur d’AxiorHub (accessible en HTTPS) et un compte ; un téléphone avec appareil photo.",
 "steps": [
-"Sur l’ordinateur : Paramètres › Poste et maintenance › Téléphones associés › « Associer un téléphone ».",
+"Sur l’ordinateur : Paramètres › Confort et maintenance › Téléphones associés › « Associer un téléphone » (la page « Accès mobile » y mène par « Configurer les téléphones associés »).",
 "Scannez le QR code avec l’appareil photo du téléphone et touchez « Associer » sur la page qui s’ouvre.",
-"Le téléphone arrive sur « À valider » : relisez, autorisez, déposez une réponse « à compléter » ou écartez.",
+"Le téléphone arrive sur « Accès mobile » : ouvrez un élément, puis « Retenir », « Écarter », « Reporter » ou « Enregistrer », comme à l’ordinateur ; rien n’est envoyé sans votre action.",
 "Pour l’avoir sous la main, ajoutez la page à l’écran d’accueil ; activez les notifications si vous le souhaitez."
 ],
 "result": "Le téléphone reste connecté à votre compte 90 jours, jusqu’à ce que vous le retiriez ou changiez de mot de passe.",
@@ -2108,7 +2114,10 @@
 ]
 ],
 "example": "Autoriser depuis le téléphone le dépôt d’une réponse « à compléter » au client fictif du dossier DOS-001.",
-"buttons": [],
+"buttons": [
+"Configurer les téléphones associés",
+"Ouvrir ma file de relecture"
+],
 "version": "5.6.36"
 },
 "mon_compte": {

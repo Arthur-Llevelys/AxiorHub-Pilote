@@ -1,0 +1,375 @@
+# EuroOffice or OnlyOffice document server: step-by-step installation (5.6.108)
+
+This guide installs the **document server** that lets you **edit** a Word, Excel or PowerPoint file **inside AxiorHub**,
+with several people, with controlled saving (the saved file is read back; a safety copy is made on conflict). Three paths:
+
+- [A. Server version](#a-server-version-ubuntu-2404-with-apache) (Ubuntu 24.04 with Apache, as in [INSTALLATION-SERVEUR.md](INSTALLATION-SERVEUR.md));
+- [B. Windows 11 workstation](#b-windows-11-workstation) (Docker Desktop);
+- [C. Ubuntu 24.04 workstation](#c-ubuntu-2404-workstation) (Docker Engine).
+
+Then: [settings in AxiorHub](#d-configure-axiorhub-and-test), [update and stop](#e-update-stop-uninstall),
+[troubleshooting](#f-troubleshooting). French version: [INSTALLATION-EDITEUR-DOCUMENTS.md](INSTALLATION-EDITEUR-DOCUMENTS.md).
+
+> **AxiorHub works without a document server.** Word documents are shown as a **read-only preview** in AxiorHub (matter
+> documents, deliverables, reader) and, on a workstation, open in **Word** (or LibreOffice). The document server is only needed
+> to **edit inside AxiorHub**, with several people, with controlled saving. You do not need it to read a .docx.
+
+## Before you start
+
+| Item | EuroOffice | OnlyOffice Docs Community |
+|---|---|---|
+| Docker image | `ghcr.io/euro-office/documentserver` | `onlyoffice/documentserver` |
+| Licence | AGPL-3.0 (derived from OnlyOffice Docs) | AGPL-3.0 |
+| Limit | — | limited number of simultaneous connections in the Community edition, according to the vendor's documentation (check it before choosing) |
+| Tried with AxiorHub 5.6.108 | **yes** (Windows 11, Docker Desktop) | no: same public interface; commands verified with EuroOffice |
+
+**Pin a version** rather than `latest`, so that updates happen when you decide. For EuroOffice, pin the image **digest** (the
+registry does not always publish a version number); the one tried with AxiorHub 5.6.108:
+
+```text
+ghcr.io/euro-office/documentserver@sha256:2fadc1b3dc99250d6576fc0c0f34349db6725b752b08e91db9831fbb803fc5c2
+```
+
+For OnlyOffice, pick a version number published by the vendor and replace the EuroOffice image in the commands with
+`onlyoffice/documentserver:<version>`. Settings (`JWT_ENABLED`, `JWT_SECRET`, port 80 inside the container) are the same.
+
+**The JWT secret.** A long random string shared by the document server and AxiorHub: each signs its requests with it and refuses
+unsigned ones. Rules:
+
+- generate it yourself (`openssl rand -hex 32` or the PowerShell command of path B); **never reuse an example**;
+- it is stored in a file only you can read, then pasted into AxiorHub, which never displays it again;
+- it must never appear in **any log, screenshot, e-mail or export**. If in doubt, generate a new one (redo the "secret" and
+  "run" steps), then save it in AxiorHub.
+
+**Memory and disk** (measured with EuroOffice): **7.2 GB** image on disk; the container used **2.5 GB of RAM** with one document
+open. Plan at least 8 GB of RAM on a workstation (16 GB if it also runs a local AI model) and 10 GB of free disk space.
+
+---
+
+## A. Server version (Ubuntu 24.04 with Apache)
+
+Example: AxiorHub already answers at `https://agent.example.test/agent-courriel`; the document server gets its own subdomain
+`https://documents.example.test`. Replace these names with yours.
+
+**A1. Domain name.** At your DNS provider, create an `A` record (and `AAAA` if you use IPv6) for `documents.example.test`
+pointing to the server's public address.
+*Expected*: `getent hosts documents.example.test` shows the server address.
+
+**A2. Install Docker.**
+
+```bash
+sudo apt update && sudo apt install -y docker.io
+```
+
+*Expected*: `sudo docker version` shows a "Server" part.
+
+**A3. Create the JWT secret** (file readable by root only).
+
+```bash
+sudo install -d -m 700 /etc/axiorhub-documents && sudo sh -c 'umask 077; printf "JWT_ENABLED=true\nJWT_SECRET=%s\n" "$(openssl rand -hex 32)" > /etc/axiorhub-documents/documents.env'
+```
+
+*Expected*: `sudo ls -l /etc/axiorhub-documents/documents.env` shows `-rw-------  root root`.
+
+**A4. Download the pinned image** (once, about 7 GB).
+
+```bash
+sudo docker pull ghcr.io/euro-office/documentserver@sha256:2fadc1b3dc99250d6576fc0c0f34349db6725b752b08e91db9831fbb803fc5c2
+```
+
+**A5. Run the document server**, reachable **only** from the server itself (127.0.0.1); Apache will publish it.
+
+```bash
+sudo docker run -d --name axiorhub-documents --restart unless-stopped -p 127.0.0.1:8080:80 --env-file /etc/axiorhub-documents/documents.env ghcr.io/euro-office/documentserver@sha256:2fadc1b3dc99250d6576fc0c0f34349db6725b752b08e91db9831fbb803fc5c2
+```
+
+*Expected*: after one or two minutes, `curl -s http://127.0.0.1:8080/healthcheck` answers `true`.
+
+**A6. Enable the Apache modules** (proxy, WebSocket, headers).
+
+```bash
+sudo a2enmod proxy proxy_http proxy_wstunnel headers ssl
+```
+
+**A7. Create the virtual host** `/etc/apache2/sites-available/documents.example.test.conf`:
+
+```apache
+<VirtualHost *:80>
+    ServerName documents.example.test
+    ProxyPreserveHost On
+    ProxyRequests Off
+    RequestHeader set X-Forwarded-Proto expr=%{REQUEST_SCHEME}
+    ProxyPass        / http://127.0.0.1:8080/ upgrade=websocket timeout=300
+    ProxyPassReverse / http://127.0.0.1:8080/
+</VirtualHost>
+```
+
+(`upgrade=websocket` carries live co-editing; Apache 2.4.58 in Ubuntu 24.04 supports it.)
+
+```bash
+sudo a2ensite documents.example.test && sudo apache2ctl configtest && sudo systemctl reload apache2
+```
+
+*Expected*: `Syntax OK`, then `curl -s http://documents.example.test/healthcheck` answers `true`.
+
+**A8. HTTPS certificate** (Certbot, as for AxiorHub).
+
+```bash
+sudo certbot --apache -d documents.example.test --redirect
+```
+
+*Expected*: `curl -s https://documents.example.test/healthcheck` answers `true`.
+
+**A9. Copy the secret** to paste it into AxiorHub (it is shown in your terminal only; do not copy it anywhere else).
+
+```bash
+sudo sed -n 's/^JWT_SECRET=//p' /etc/axiorhub-documents/documents.env
+```
+
+**A10. Configure AxiorHub**: see [D](#d-configure-axiorhub-and-test), with:
+
+- document server address: `https://documents.example.test`;
+- address of this interface as seen by the document server: **leave empty** (the document server reaches AxiorHub at its public
+  address `https://agent.example.test/agent-courriel`).
+
+> **Troubleshooting (server)**
+> - `502 Proxy Error`: the container is still starting (wait two minutes) or stopped (`sudo docker ps -a`).
+> - The editor stays grey or "reconnects": the `upgrade=websocket` line is missing, or `proxy_wstunnel` is not enabled.
+> - "The document server reaches AxiorHub" fails: from the container,
+>   `sudo docker exec axiorhub-documents curl -s -o /dev/null -w '%{http_code}\n' https://agent.example.test/agent-courriel/office/file/essai-de-connexion-0000`
+>   must print `403` (AxiorHub answers and refuses this fake token). `000`: the name is not reachable from the container.
+>   If `agent.example.test` resolves to a private address on your network, add `-e ALLOW_PRIVATE_IP_ADDRESS=true` to command A5
+>   (after `docker stop` and `docker rm`, see E).
+
+---
+
+## B. Windows 11 workstation
+
+On a workstation, AxiorHub only listens on `127.0.0.1:8769`. The document server runs in **Docker Desktop** and reaches AxiorHub
+through the special name `host.docker.internal`, which version 5.6.108 accepts for the document server's two addresses only
+(file and callback, protected by a short token and by the JWT secret).
+
+**B1. Install Docker Desktop** from Docker's website, with the **WSL 2** option (the default). Restart if asked. In Docker
+Desktop › Settings › General, tick **Start Docker Desktop when you sign in**: the document server only starts with Docker Desktop.
+*Expected*: in PowerShell, `docker version` shows a "Server" part.
+
+**B2. Open PowerShell** (Start menu › PowerShell) and choose the secret's folder:
+
+```powershell
+$dossier = "$env:LOCALAPPDATA\AxiorHub Pilote\documents"; New-Item -ItemType Directory -Force $dossier | Out-Null
+```
+
+**B3. Create the JWT secret** (64 random characters written to `documents.env`, never displayed):
+
+```powershell
+$o = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($o); $s = -join ($o | ForEach-Object { $_.ToString('x2') }); [IO.File]::WriteAllText("$dossier\documents.env", "JWT_ENABLED=true`nJWT_SECRET=$s`n"); Remove-Variable s, o
+```
+
+*Expected*: no output; `documents.env` exists in the folder.
+
+**B4. Download the pinned image** (once, about 7 GB):
+
+```powershell
+docker pull ghcr.io/euro-office/documentserver@sha256:2fadc1b3dc99250d6576fc0c0f34349db6725b752b08e91db9831fbb803fc5c2
+```
+
+**B5. Run the document server**, published on `127.0.0.1:8080` only:
+
+```powershell
+docker run -d --name axiorhub-documents --restart unless-stopped -p 127.0.0.1:8080:80 --env-file "$dossier\documents.env" ghcr.io/euro-office/documentserver@sha256:2fadc1b3dc99250d6576fc0c0f34349db6725b752b08e91db9831fbb803fc5c2
+```
+
+*Expected*: after one or two minutes, `curl.exe -s http://127.0.0.1:8080/healthcheck` answers `true`.
+
+**B6. Copy the secret to the clipboard** (without displaying it):
+
+```powershell
+((Get-Content "$dossier\documents.env") -match '^JWT_SECRET=') -replace '^JWT_SECRET=', '' | Set-Clipboard
+```
+
+**B7. Configure AxiorHub**: see [D](#d-configure-axiorhub-and-test), with:
+
+- document server address: `http://127.0.0.1:8080`;
+- JWT secret: paste (Ctrl+V), then clear the clipboard (copy some other text);
+- address of this interface as seen by the document server: `http://host.docker.internal:8769/agent-courriel`
+  (8769: the workstation port; use yours if it was changed).
+
+> **Troubleshooting (Windows)**
+> - `docker` unknown or "cannot connect": Docker Desktop is not running; open it and wait for "Engine running".
+> - `curl.exe` does not answer `true` after three minutes: `docker logs axiorhub-documents --tail 50`.
+> - "The document server reaches AxiorHub" fails: check the address `http://host.docker.internal:8769/agent-courriel` and
+>   AxiorHub's port (`poste.py --status`), then
+>   `docker exec axiorhub-documents curl -s -o /dev/null -w "%{http_code}" http://host.docker.internal:8769/agent-courriel/office/file/essai-de-connexion-0000`
+>   must print `403`. If the test says the document server "could not download", re-create its container with
+>   `-e ALLOW_PRIVATE_IP_ADDRESS=true` (after `docker stop` and `docker rm`); it was not needed with EuroOffice in our test.
+
+---
+
+## C. Ubuntu 24.04 workstation
+
+Same principle as Windows, with **Docker Engine**. On Linux, `host.docker.internal` does not exist by default: it is declared
+(`--add-host host.docker.internal:host-gateway`, the Docker gateway address). Since AxiorHub only listens on `127.0.0.1`, a
+**small local relay** shipped with Ubuntu (`systemd-socket-proxyd`) forwards to `127.0.0.1:8769` only the connections arriving
+through the Docker interface. AxiorHub then sees source address `127.0.0.1` and the name `host.docker.internal`, which it accepts
+for the document server's two addresses only.
+
+Why not `--network host`? With it the container shares the workstation's network: besides the editor (port 80), its internal
+services (RabbitMQ message queue, document service on port 8000) would listen on every interface of the workstation, local
+network included. This guide does not recommend it.
+
+**C1. Install Docker Engine** and add yourself to the `docker` group (then log out and back in).
+
+```bash
+sudo apt update && sudo apt install -y docker.io && sudo usermod -aG docker "$USER"
+```
+
+*Expected*: after logging in again, `docker version` shows a "Server" part.
+
+**C2. Create the JWT secret** (file readable by you only).
+
+```bash
+install -d -m 700 ~/.config/axiorhub-documents && (umask 077; printf 'JWT_ENABLED=true\nJWT_SECRET=%s\n' "$(openssl rand -hex 32)" > ~/.config/axiorhub-documents/documents.env)
+```
+
+*Expected*: `ls -l ~/.config/axiorhub-documents/documents.env` shows `-rw-------`.
+
+**C3. Download the pinned image** (once, about 7 GB).
+
+```bash
+docker pull ghcr.io/euro-office/documentserver@sha256:2fadc1b3dc99250d6576fc0c0f34349db6725b752b08e91db9831fbb803fc5c2
+```
+
+**C4. Run the document server** (published on `127.0.0.1:8080`, `host.docker.internal` declared):
+
+```bash
+docker run -d --name axiorhub-documents --restart unless-stopped -p 127.0.0.1:8080:80 --add-host host.docker.internal:host-gateway --env-file ~/.config/axiorhub-documents/documents.env ghcr.io/euro-office/documentserver@sha256:2fadc1b3dc99250d6576fc0c0f34349db6725b752b08e91db9831fbb803fc5c2
+```
+
+*Expected*: after one or two minutes, `curl -s http://127.0.0.1:8080/healthcheck` answers `true`.
+
+**C5. Note the Docker gateway address** (used by the relay):
+
+```bash
+docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'
+```
+
+*Expected*: an address, written `ADRESSE_PASSERELLE` below.
+
+**C6. Create the relay**: two systemd files. Replace `ADRESSE_PASSERELLE` with the address from C5 (and 8769 with your port if
+it was changed).
+
+`/etc/systemd/system/axiorhub-relais-documents.socket`:
+
+```ini
+[Unit]
+Description=Relais du serveur de documents (Docker) vers AxiorHub poste
+After=docker.service
+
+[Socket]
+ListenStream=ADRESSE_PASSERELLE:8769
+BindToDevice=docker0
+FreeBind=true
+
+[Install]
+WantedBy=sockets.target
+```
+
+`/etc/systemd/system/axiorhub-relais-documents.service`:
+
+```ini
+[Unit]
+Description=Relais du serveur de documents vers 127.0.0.1:8769
+Requires=axiorhub-relais-documents.socket
+After=axiorhub-relais-documents.socket
+
+[Service]
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd 127.0.0.1:8769
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+```
+
+(`BindToDevice=docker0`: only connections coming from containers are relayed, never those from the local network.)
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now axiorhub-relais-documents.socket
+```
+
+*Expected* (AxiorHub running): `docker exec axiorhub-documents curl -s -o /dev/null -w '%{http_code}\n' http://host.docker.internal:8769/agent-courriel/office/file/essai-de-connexion-0000`
+prints `403` (AxiorHub answers and refuses this fake token).
+
+**C7. Copy the secret** to paste it into AxiorHub:
+
+```bash
+sed -n 's/^JWT_SECRET=//p' ~/.config/axiorhub-documents/documents.env
+```
+
+**C8. Configure AxiorHub**: see [D](#d-configure-axiorhub-and-test), with the same values as Windows:
+`http://127.0.0.1:8080` and `http://host.docker.internal:8769/agent-courriel`.
+
+> **Troubleshooting (Ubuntu)**
+> - `permission denied ... docker.sock`: you did not log in again after C1.
+> - C6 prints `000`: `systemctl status axiorhub-relais-documents.socket`; check the address from C5 and that the container was
+>   run with `--add-host host.docker.internal:host-gateway`. `400`: AxiorHub refuses the name; it is older than 5.6.108.
+> - Firewall (`ufw`) enabled: allow the Docker interface to the relay: `sudo ufw allow in on docker0 to any port 8769 proto tcp`.
+> - If the test says the document server "could not download", re-create its container with
+>   `-e ALLOW_PRIVATE_IP_ADDRESS=true` (after `docker stop` and `docker rm`).
+
+---
+
+## D. Configure AxiorHub and test
+
+1. Open AxiorHub › **Paramètres** (Settings) › **Documents et procédure**, section **"1 · Modifier les documents dans l'interface"**.
+2. **Moteur** (engine): Euro-Office or ONLYOFFICE Document Server.
+3. **Document server address**: the one of your path (A10, B7 or C8).
+4. **JWT secret**: paste the secret. The field is cleared on save and never shows the secret again.
+5. **Address of this interface as seen by the document server**: the one of your path (empty on a server).
+6. Click **Enregistrer** (Save), then **Tester la connexion** (Test the connection). The result is shown step by step:
+
+| Step | What is checked |
+|---|---|
+| Server reachable (healthcheck) | the document server answers |
+| api.js library | the editor script is reachable |
+| Format discovery | server answer (404 accepted: WOPI disabled, no effect) |
+| Embedding in this page | the server accepts being shown inside AxiorHub |
+| JWT secret and command API | the server accepts the secret |
+| The document server reaches AxiorHub | the document server downloads a **fixed test file** from AxiorHub (no matter data) |
+
+7. Every line must be ticked ✔. Then open **Documents** › a matter › **Modifier** on a .docx: the editor opens and the status
+   says "Prêt" (ready); Ctrl+S saves (otherwise saving happens when the editor is closed).
+
+The **Retirer le secret** (remove the secret) button erases the secret stored in AxiorHub.
+
+## E. Update, stop, uninstall
+
+Close open documents first (changes are saved on close). Commands are the same everywhere (add `sudo` on the server; on an Ubuntu
+workstation keep `--add-host host.docker.internal:host-gateway`).
+
+- **Stop**: `docker stop axiorhub-documents`; **restart**: `docker start axiorhub-documents`.
+- **Update**: download the new pinned version (`docker pull <image>@sha256:<new digest>`), then `docker stop axiorhub-documents`,
+  `docker rm axiorhub-documents`, run the run command again (A5, B5 or C4) with the new reference, and redo **Tester la
+  connexion**. The secret stays the same (`documents.env` file).
+- **Uninstall**: `docker stop axiorhub-documents`, `docker rm axiorhub-documents`, then `docker image rm <image>`; on an Ubuntu
+  workstation, `sudo systemctl disable --now axiorhub-relais-documents.socket`; in AxiorHub, empty the server address and click
+  **Retirer le secret**. Documents remain readable as a preview.
+
+## F. Troubleshooting
+
+| Message in AxiorHub | Likely cause | What to do |
+|---|---|---|
+| Server reachable: connection impossible | container stopped or still starting | `docker ps -a`, wait two minutes, `docker logs axiorhub-documents --tail 50` |
+| JWT secret: "Le serveur refuse la signature" | different secrets | copy the secret again (A9, B6, C7), save, test again |
+| The document server reaches AxiorHub: "could not download" | callback address unreachable from the container | check the callback address; Ubuntu: relay C6; if needed `ALLOW_PRIVATE_IP_ADDRESS=true` |
+| The editor says the document security token is not correctly formed | different secret in AxiorHub and in the container | as above |
+| Embedding in this page: frame-ancestors | the server's proxy forbids display inside AxiorHub | allow AxiorHub's address in `frame-ancestors` |
+| HTTP address while the interface uses HTTPS | AxiorHub server on HTTPS, editor on HTTP | publish the editor over HTTPS (path A) |
+
+The secret never appears in a log: do not send the `documents.env` file, or the output of A9, B6 or C7, to a support desk or a ticket.
+
+*Real test (5.6.108)*: EuroOffice (digest above, version 9.3.7.37 reported by the server) in Docker Desktop on Windows 11, test
+AxiorHub workstation, a fictitious .docx opened, text typed, Ctrl+S, file changed and callback accepted; with a wrong secret, the
+test reports it and the editor refuses the document. Commands B3, B5 and B6 were run as written, except for the
+test folder, name and ports (Windows PowerShell 5.1); the C6
+relay was checked on its own (Ubuntu 24.04 `systemd-socket-proxyd` in a container: AxiorHub sees source address 127.0.0.1 and the
+name `host.docker.internal`). Not tried: OnlyOffice, a real Ubuntu workstation, a real server with Apache and Certbot (commands
+written from those tools' documentation).

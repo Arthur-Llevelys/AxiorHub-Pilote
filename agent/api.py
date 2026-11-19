@@ -554,7 +554,9 @@ def dispatch(desk, path, method, payload=None, query=None):
       '/assistance/calculations':'calculate35','/assistance/billing':'billing_review35',
       '/assistance/comparables':'classify_comparable35'}
     if method=='POST' and path in practice_jobs:
-        return {'job_id':desk.enqueue(practice_jobs[path],payload,priority=0),'status':'queued',
+        from .assistance35 import soumettre   # 5.6.108 (lot T, M02) : objet résolu dans le périmètre de l'appelant, auteur noté, reçu
+        recu=soumettre(desk,practice_jobs[path],payload,priority=0)
+        return {'job_id':recu['job_id'],'recu':recu['recu'],'status':'queued',
           'warning':'Projet interne supervisé : contrôler sources, paramètres et résultat ; aucune action externe.'}
     if path=='/capabilities' and method=='GET':return {
       'version':__version__,'mode':'local_first_business_learning','draft_folder':desk.c['mail']['drafts'],

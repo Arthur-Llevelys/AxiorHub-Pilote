@@ -1,0 +1,59 @@
+{
+  "_": "AxiorHub 5.6.108 (lot L) : catalogue déclaratif des modèles Ollama suggérés par l'assistant « Configurer l'IA locale ». Seuls des modèles dont la fiche officielle et la licence ont été lues figurent ici ; en cas de doute, rien n'est inscrit.",
+  "releve_le": "2026-11-19",
+  "methode": "Fiches lues sur ollama.com/library (nom exact de l'étiquette, taille de téléchargement, nombre de paramètres, couche « license » de l'image) et, pour les modèles d'embeddings dont l'image ne porte pas de licence, sur la fiche Hugging Face de l'éditeur. Aucun téléchargement.",
+  "memoire": "Mémoire nécessaire : estimation (poids du fichier téléchargé + environ 20 % pour un contexte de 8 000 jetons), en Go de mémoire vidéo, ou de mémoire vive sans carte graphique (réponses alors nettement plus lentes).",
+  "classes": {
+    "legere": {"libelle": "légère", "budget_min_go": 0, "explication": "moins de 10 Go utilisables par les modèles : modèles de 3 à 9 milliards de paramètres."},
+    "moyenne": {"libelle": "moyenne", "budget_min_go": 10, "explication": "de 10 à 20 Go utilisables : modèles jusqu'à 14 milliards de paramètres."},
+    "forte": {"libelle": "forte", "budget_min_go": 20, "explication": "20 Go ou plus de mémoire vidéo : modèles de 24 à 32 milliards de paramètres pour l'analyse et la rédaction."}
+  },
+  "licences": {
+    "Apache-2.0": {"libelle": "Apache 2.0 (licence libre)", "libre": true},
+    "MIT": {"libelle": "MIT (licence libre)", "libre": true},
+    "Gemma": {"libelle": "Gemma Terms of Use (conditions de Google, pas une licence libre)", "libre": false},
+    "Llama-3.1": {"libelle": "Llama 3.1 Community License (conditions de Meta, pas une licence libre)", "libre": false}
+  },
+  "modeles": [
+    {"nom": "qwen3:4b", "famille": "qwen", "parametres_md": 4.0, "telechargement_go": 2.5, "memoire_go": 3.5, "contexte": 262144, "capacites": ["completion", "tools", "thinking"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3:4b", "source_licence": "https://ollama.com/library/qwen3:4b", "releve_le": "2026-11-19"},
+    {"nom": "qwen3:8b", "famille": "qwen", "parametres_md": 8.2, "telechargement_go": 5.2, "memoire_go": 6.5, "contexte": 40960, "capacites": ["completion", "tools", "thinking"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3:8b", "source_licence": "https://ollama.com/library/qwen3:8b", "releve_le": "2026-11-19"},
+    {"nom": "qwen3:14b", "famille": "qwen", "parametres_md": 14.8, "telechargement_go": 9.3, "memoire_go": 11.5, "contexte": 40960, "capacites": ["completion", "tools", "thinking"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3:14b", "source_licence": "https://ollama.com/library/qwen3:14b", "releve_le": "2026-11-19"},
+    {"nom": "qwen3:32b", "famille": "qwen", "parametres_md": 32.8, "telechargement_go": 20.0, "memoire_go": 23.5, "contexte": 40960, "capacites": ["completion", "tools", "thinking"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3:32b", "source_licence": "https://ollama.com/library/qwen3:32b", "releve_le": "2026-11-19"},
+    {"nom": "qwen3.5:4b", "famille": "qwen", "parametres_md": 4.2, "telechargement_go": 3.3, "memoire_go": 4.5, "contexte": 262144, "capacites": ["completion", "tools", "thinking", "vision"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3.5:4b", "source_licence": "https://ollama.com/library/qwen3.5:4b", "releve_le": "2026-11-19"},
+    {"nom": "qwen3.5:9b", "famille": "qwen", "parametres_md": 9.0, "telechargement_go": 6.6, "memoire_go": 8.0, "contexte": 262144, "capacites": ["completion", "tools", "thinking", "vision"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3.5:9b", "source_licence": "https://ollama.com/library/qwen3.5:9b", "releve_le": "2026-11-19"},
+    {"nom": "qwen3.5:27b", "famille": "qwen", "parametres_md": 26.9, "telechargement_go": 17.0, "memoire_go": 20.5, "contexte": 262144, "capacites": ["completion", "tools", "thinking", "vision"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3.5:27b", "source_licence": "https://ollama.com/library/qwen3.5:27b", "releve_le": "2026-11-19"},
+    {"nom": "ministral-3:3b", "famille": "mistral", "parametres_md": 3.85, "telechargement_go": 3.0, "memoire_go": 4.0, "contexte": 262144, "capacites": ["completion", "tools", "vision"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/ministral-3:3b", "source_licence": "https://ollama.com/library/ministral-3:3b", "releve_le": "2026-11-19"},
+    {"nom": "ministral-3:8b", "famille": "mistral", "parametres_md": 8.9, "telechargement_go": 6.0, "memoire_go": 7.5, "contexte": 262144, "capacites": ["completion", "tools", "vision"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/ministral-3:8b", "source_licence": "https://ollama.com/library/ministral-3:8b", "releve_le": "2026-11-19"},
+    {"nom": "ministral-3:14b", "famille": "mistral", "parametres_md": 13.9, "telechargement_go": 9.1, "memoire_go": 11.5, "contexte": 262144, "capacites": ["completion", "tools", "vision"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/ministral-3:14b", "source_licence": "https://ollama.com/library/ministral-3:14b", "releve_le": "2026-11-19"},
+    {"nom": "mistral-small3.2:24b", "famille": "mistral", "parametres_md": 24.0, "telechargement_go": 15.0, "memoire_go": 18.0, "contexte": null, "capacites": ["completion", "tools", "vision"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/mistral-small3.2:24b", "source_licence": "https://ollama.com/library/mistral-small3.2:24b", "releve_le": "2026-11-19"},
+    {"nom": "gemma3:12b", "famille": "gemma", "parametres_md": 11.8, "telechargement_go": 8.2, "memoire_go": 10.0, "contexte": 131072, "capacites": ["completion", "vision"], "licence": "Gemma", "fiche": "https://ollama.com/library/gemma3:12b", "source_licence": "https://ollama.com/library/gemma3:12b", "releve_le": "2026-11-19"},
+    {"nom": "gemma3:27b", "famille": "gemma", "parametres_md": 27.0, "telechargement_go": 17.0, "memoire_go": 20.5, "contexte": 131072, "capacites": ["completion", "vision"], "licence": "Gemma", "fiche": "https://ollama.com/library/gemma3:27b", "source_licence": "https://ollama.com/library/gemma3:27b", "releve_le": "2026-11-19"},
+    {"nom": "llama3.1:8b", "famille": "llama", "parametres_md": 8.0, "telechargement_go": 4.9, "memoire_go": 6.5, "contexte": 131072, "capacites": ["completion", "tools"], "licence": "Llama-3.1", "fiche": "https://ollama.com/library/llama3.1:8b", "source_licence": "https://ollama.com/library/llama3.1:8b", "releve_le": "2026-11-19"},
+    {"nom": "qwen3-embedding:0.6b", "famille": "qwen", "parametres_md": 0.6, "telechargement_go": 0.64, "memoire_go": 1.0, "contexte": 32768, "capacites": ["embedding"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3-embedding:0.6b", "source_licence": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B", "releve_le": "2026-11-19"},
+    {"nom": "qwen3-embedding:4b", "famille": "qwen", "parametres_md": 4.0, "telechargement_go": 2.5, "memoire_go": 3.5, "contexte": 40960, "capacites": ["embedding"], "licence": "Apache-2.0", "fiche": "https://ollama.com/library/qwen3-embedding:4b", "source_licence": "https://huggingface.co/Qwen/Qwen3-Embedding-4B", "releve_le": "2026-11-19"},
+    {"nom": "bge-m3", "famille": "bge", "parametres_md": 0.57, "telechargement_go": 1.2, "memoire_go": 1.5, "contexte": 8192, "capacites": ["embedding"], "licence": "MIT", "fiche": "https://ollama.com/library/bge-m3", "source_licence": "https://huggingface.co/BAAI/bge-m3", "releve_le": "2026-11-19"}
+  ],
+  "roles": {
+    "rapide": {
+      "legere": ["qwen3:4b", "ministral-3:3b", "qwen3.5:4b"],
+      "moyenne": ["qwen3:8b", "ministral-3:8b", "qwen3:4b"],
+      "forte": ["qwen3:8b", "ministral-3:8b", "qwen3.5:9b"]
+    },
+    "analyse": {
+      "legere": ["qwen3:8b", "ministral-3:8b", "qwen3.5:9b", "qwen3:4b"],
+      "moyenne": ["qwen3:14b", "ministral-3:14b", "qwen3.5:9b", "gemma3:12b"],
+      "forte": ["qwen3:32b", "qwen3.5:27b", "mistral-small3.2:24b", "gemma3:27b"]
+    },
+    "controle": {
+      "legere": ["ministral-3:8b", "llama3.1:8b", "qwen3:8b", "ministral-3:3b"],
+      "moyenne": ["ministral-3:14b", "gemma3:12b", "qwen3:14b", "llama3.1:8b"],
+      "forte": ["mistral-small3.2:24b", "gemma3:27b", "qwen3.5:27b", "ministral-3:14b"]
+    },
+    "embeddings": {
+      "legere": ["qwen3-embedding:0.6b", "bge-m3"],
+      "moyenne": ["qwen3-embedding:0.6b", "bge-m3", "qwen3-embedding:4b"],
+      "forte": ["qwen3-embedding:0.6b", "qwen3-embedding:4b", "bge-m3"]
+    }
+  },
+  "conseil": {"legere": "local_leger", "moyenne": "local_leger", "forte": "local_equilibre"}
+}

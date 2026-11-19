@@ -23,7 +23,14 @@ def route(cfg, auth, prefix, path, args):
         mid, file_path = str(args.get('matter') or ''), str(args.get('path') or '')
         try:
             if path == '/dossier/apercu':
-                return json_out(apercu5679.preview(desk, prefix, mid, file_path))
+                vue = apercu5679.preview(desk, prefix, mid, file_path)
+                try:   # 5.6.108 (lot W) : « Modifier dans l'éditeur intégré » et « Ouvrir dans Word / LibreOffice » pour un .docx (droits relus par la page)
+                    from . import wordcraft56108
+                    from .i18n5631 import role as _role108
+                    vue.update(wordcraft56108.liens(desk, auth, prefix, 'nextcloud', vue.get('path') or '', _role108()))
+                except Exception:   # noqa: BLE001 — l'aperçu reste affiché sans ces boutons
+                    pass
+                return json_out(vue)
             return apercu5679.file_response(desk, mid, file_path, download=str(args.get('dl') or '') == '1')
         except Stop as ex:
             code = str(ex).split(':')[0]

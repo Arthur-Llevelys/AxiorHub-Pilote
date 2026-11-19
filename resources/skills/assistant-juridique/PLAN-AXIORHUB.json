@@ -1,0 +1,100 @@
+{
+  "format": "axiorhub-plan-competence/1",
+  "objet": "Ordre de chargement réservé de l’Assistant juridique dans AxiorHub (décision du cabinet du 18 novembre 2026). Lu par competences5683 : aucun titre de section n’est écrit dans le code ; une nouvelle version du paquet d’origine s’adapte ici. Les formes courtes ci-dessous sont des adaptations AxiorHub dérivées de l’œuvre d’origine (AGPL-3.0), à relire par l’avocat.",
+  "instructions": "origine/SKILL.md",
+  "adaptation": "ADAPTATION.md",
+  "fiches": "origine/references",
+  "version_courte": {
+    "fichier": "ESSENTIEL.md",
+    "seuil_caracteres": 16000,
+    "libelle": "adaptation courte, à relire par l’avocat"
+  },
+  "sections": {
+    "s0": "§0 —", "s1": "§1 —", "s2": "§2 —", "s3": "§3 —", "s4": "§4 —", "s5": "§5 —", "s6": "§6 —",
+    "s7": "§7 —", "s8": "§8 —", "s9": "§9 —", "s10": "§10 —", "s11": "§11 —",
+    "workflow": "Workflow général"
+  },
+  "decouper": ["workflow", "s5"],
+  "sans_objet": {
+    "motif": "Passage sans objet dans AxiorHub : environnement Cowork, scripts, chemins de fichiers ou outils non connectés.",
+    "sections": ["s0", "s4", "s6", "s5/Données jurimétriques", "s5/Articulation avec les autres compétences",
+                 "workflow/Étape 1 —", "workflow/Étape 2 —", "workflow/Étape 4 —", "workflow/Étape 11 —"],
+    "fiches": ["guide-themia.md", "guide-hal.md"],
+    "lignes": ["> **Pré-requis environnement**", "- **Minimum 10 sources doctrinales**"],
+    "lignes_contenant": ["scripts/", "COWORK", "CHAT_CU", "/mnt/user-data", "web_search", "via HAL", "(HAL"]
+  },
+  "petit_modele": {
+    "objet": "5.6.108 (lot R) : appel vers un petit modèle (fenêtre de 16 384 jetons ou moins, ou 14 B de paramètres ou moins) : le programme fait la recherche et numérote les sources ; aucun nom d’outil, de script ni de connecteur n’est transmis. Les mentions sont d’abord retirées dans la ligne (la règle de fond reste), puis les lignes qui en contiennent encore sont retirées, dans tout ce qui part (adaptation, version courte, sections, fiches).",
+    "remplacer": [
+      ["\\s*\\([^()\\n]*(?:OpenLegi|Themia|LegalDataHunter|HAL|web_search|scripts/)[^()\\n]*\\)", ""],
+      ["identifiant HAL, ", ""],
+      [" / HAL / ", " / "]
+    ],
+    "lignes_contenant": ["OpenLegi", "Themia", "themia", "LegalDataHunter", "Legal Data Hunter", "JusticeLibre", "GoodLegal", "LibreJustice", "Judilibre", "HAL",
+                         "web_search", "COWORK", "Cowork", "CHAT_CU", "computer use", "scripts/", ".py", "MCP", "OpenAlex", "Isidore", "Crossref", "/mnt/user-data"],
+    "ajout": "### Citations\nCite une source seulement par son numéro entre crochets, tel qu’il figure dans les sources fournies (par exemple [S2]). N’écris de mémoire aucun numéro d’article, de pourvoi ni de décision : seule une référence présente dans les sources fournies peut être citée ; sinon, une formulation impersonnelle."
+  },
+  "formes_courtes": {
+    "s6_document": {
+      "remplace": "s6",
+      "titre": "§6 — Format de sortie (adaptation AxiorHub pour un document)",
+      "texte": "Le document est produit par AxiorHub avec les modèles Word validés du cabinet : ne pas décrire de fichier, de dossier ni de chemin. Structure type : synthèse en tête (jamais « synthèse exécutive »), plan, développement avec le raisonnement, puis « Notes et références » en fin de document. Notes de fin à numérotation continue, jamais de notes de bas de page. Chaque référence porte le lien officiel trouvé dans la source (Légifrance, HUDOC, Curia, EUR-Lex). Citation textuelle entre guillemets français « … », suivie d’une phrase qui en reprend le contenu. Un acte suit la structure et le style de son modèle ; les justifications restent dans la fiche interne."
+    },
+    "s6_courriel": {
+      "remplace": "s6",
+      "titre": "§6 — Format de sortie (forme courte pour un courriel, adaptation AxiorHub)",
+      "texte": "Réponse directe au destinataire, en français clair et dans le ton du cabinet : pas de document Word, pas de plan universitaire, pas de section « Notes et références ». Une référence n’apparaît que si elle est utile au destinataire et a été lue dans une source fournie ; citation textuelle entre guillemets français « … ». Le raisonnement détaillé et les justifications restent dans la note interne."
+    }
+  },
+  "fiches_courtes": {
+    "tache-1-recherches.md": {"texte": "Recherche juridique (forme courte). Exposer d’abord l’état actuel du droit, puis ses évolutions. Ordre de recherche : textes (version applicable), jurisprudence des cours suprêmes, décisions du fond qui l’illustrent, doctrine avec identifiant vérifiable. Chaque référence vient d’une source lue ; dire combien de références ont été réellement trouvées plutôt que d’en inventer. Structure : synthèse, plan, développement, notes et références."},
+    "tache-2-cas-pratique.md": {"texte": "Consultation (forme courte). 1. Chronologie des faits avec leur source (pièce ou déclaration) ; repérer lacunes et contradictions. 2. Délais : prescription, recours, délais contractuels, calculés depuis les dates établies ; risque signalé en tête ; jamais de délai de mémoire. 3. Qualifier personnes, choses et situations ; si un fait indispensable manque, poser la question. 4. Question juridique reformulée, réponse directe en tête. 5. Pour chaque question : MAJEURE (règle applicable, texte et jurisprudence, dans sa rédaction à la date des faits), MINEURE (application aux faits de l’espèce), CONCLUSION (solution), avec forces et faiblesses de chaque argument. Structure : synthèse, rappel des faits, délais, qualification, analyse, conclusion, notes et références."},
+    "tache-3-redaction-acte.md": {"texte": "Rédaction d’un acte (forme courte). Suivre le modèle du cabinet quand il existe ; tirer des pièces les données (parties, dates, montants), sans en inventer. Identifier le type d’acte et son régime ; vérifier mentions obligatoires, délais et formes, conditions de validité, clauses obligatoires ou interdites. Langage adapté au destinataire ; visa des textes applicables. Conclusions : faits, discussion par moyens avec un syllogisme par moyen, dispositif. Contrat : parties identifiées, objet et prix déterminés ou déterminables, clauses essentielles et protectrices du régime. Une donnée absente reste [À COMPLÉTER]."},
+    "tache-4-analyse-pieces.md": {"texte": "Analyse de pièces (forme courte). Les pièces sont la matière première : bordereau (numéro, date, nature, auteur, objet), chronologie des faits avec la pièce qui les établit, délais juridiques calculés depuis des dates établies (hypothèses dites si une date manque), synthèse factuelle distinguant faits prouvés, allégations et lacunes, puis analyse juridique préliminaire et questions à poser."},
+    "tache-5-contre-argumentaire.md": {"texte": "Contre-argumentaire (forme courte). Lire le document adverse en entier ; chronologie et délais depuis les pièces. Vérifier chaque référence adverse : existante et conforme, existante mais mal attribuée ou dépassée, ou non trouvée (jamais « fausse »). Analyser la structure de l’argumentation, ses faiblesses de fait et de droit, puis construire chaque moyen de réponse par la séquence textes, jurisprudence, doctrine, avec un syllogisme par moyen."},
+    "tache-6-analyse-contrat.md": {"texte": "Analyse de contrat (forme courte). Lire le contrat et ses documents connexes ; déterminer le régime applicable (droit commun et régime spécial). Analyser clause par clause : validité, équilibre, clauses abusives ou interdites, clauses manquantes, rédaction ambiguë. Synthèse des risques globaux par niveau, propositions de rédaction ; les justifications restent dans la fiche interne."},
+    "tache-9-verification-references.md": {"preferer": true, "texte": "Vérification des références (forme courte, adaptation AxiorHub). Le contrôle des références d’AxiorHub fait la recherche ; la méthode reste celle-ci. Extraire toutes les références du document (corps, notes, annexes), les dédoublonner et les classer par priorité : P1 référence fondant une majeure ou citée plus de trois fois, P2 référence citée une à trois fois, P3 bibliographie seule. Pour chacune, une seule issue : conforme (trouvée, métadonnées concordantes : juridiction, date, numéro), erreur de citation (trouvée mais divergente : dire l’écart), non trouvée. Source non trouvée ne veut pas dire source fausse. Vérifier aussi que le contenu soutient l’assertion et que la rédaction citée est celle applicable à la date utile. Restituer le résultat sur le document lui-même, référence par référence, jamais dans un rapport séparé qui remplacerait le texte."}
+  },
+  "etapes": {
+    "analyse": {"sections": ["s2", "s7", "s8", "s9", "s10"], "fiche_defaut": "tache-2-cas-pratique.md"},
+    "redaction_document": {"sections": ["s2", "s8"], "formes_courtes": ["s6_document"], "fiche_defaut": "tache-3-redaction-acte.md"},
+    "redaction_courriel": {"sections": ["s2"], "formes_courtes": ["s6_courriel"], "fiche_defaut": "", "complements_max": 8000},
+    "controle": {"sections": ["s2", "s7"], "fiche_defaut": "tache-9-verification-references.md"},
+    "decision": {"sections": ["s2", "s11"], "fiche_defaut": "", "complements_max": 8000},
+    "defaut": {"sections": ["s2"], "fiche_defaut": ""}
+  },
+  "choix_fiche": [
+    {"fiche": "tache-9-verification-references.md", "types": ["verify_deliverable420", "verify_official_decision"],
+     "livrables": ["verification des references", "controle des citations"],
+     "mots": ["verifie les references", "verifier les references", "controle les citations", "verification des references"]},
+    {"fiche": "tache-10-harmonisation-references.md", "livrables": ["harmonisation des references"],
+     "mots": ["harmonise les references", "harmoniser les references", "harmonisation des references"]},
+    {"fiche": "tache-5-contre-argumentaire.md", "livrables": ["contre-argumentaire", "contre argumentaire", "replique"],
+     "mots": ["contre-argumentaire", "argumentation adverse", "conclusions adverses", "repondre aux conclusions"]},
+    {"fiche": "tache-6-analyse-contrat.md", "livrables": ["analyse de contrat", "audit de contrat", "revue de contrat"],
+     "mots": ["analyse ce contrat", "analyser le contrat", "clauses abusives", "risques du contrat", "relire le contrat"]},
+    {"fiche": "tache-4-analyse-pieces.md", "types": ["attachment_review", "digest_pieces5632", "analyser_dossier5624", "fiche_dossier5627", "refresh_brief", "prepare_hearing"],
+     "livrables": ["bordereau", "analyse de pieces", "synthese des pieces", "chronologie"],
+     "mots": ["analyse ces pieces", "bordereau", "organise ce dossier", "synthese des pieces"]},
+    {"fiche": "tache-8-analyse-article.md", "livrables": ["analyse d'article", "fiche technique"],
+     "mots": ["analyse l'article", "que dit l'article", "fiche technique sur l'article"]},
+    {"fiche": "tache-7-veille-juridique.md", "livrables": ["veille"], "mots": ["veille juridique", "actualite juridique", "changements recents"]},
+    {"fiche": "tache-1-recherches.md", "types": ["legal_research"], "livrables": ["recherche juridique", "note de recherche", "etat du droit"],
+     "mots": ["recherche juridique", "etat du droit", "synthese sur"]},
+    {"fiche": "tache-2-cas-pratique.md", "types": ["prepare_legal_opinion"], "livrables": ["consultation", "cas pratique", "note juridique", "avis juridique"],
+     "mots": ["consultation", "cas pratique", "quelle solution juridique"]},
+    {"fiche": "tache-3-redaction-acte.md", "types": ["docrequest520", "prepare_document_project", "prepare_word_project", "prepare_cabinet_letter", "corporate5636"],
+     "livrables": ["contrat", "assignation", "conclusions", "requete", "mise en demeure", "acte", "statuts", "protocole", "courrier", "lettre", "sommation"],
+     "mots": ["redige un contrat", "rediger un contrat", "mise en demeure", "assignation", "redige des conclusions"]}
+  ],
+  "droit_etranger": {
+    "francais": ["fr", "france", "francais", "droit francais", "ue", "union europeenne", "droit de l'union", "cedh", "eu"],
+    "juridictions": {
+      "DE": ["landgericht", "amtsgericht", "oberlandesgericht", "bundesgerichtshof", "arbeitsgericht"],
+      "ES": ["juzgado", "audiencia provincial", "tribunal supremo"],
+      "EN": ["high court", "county court", "crown court", "court of appeal"],
+      "CA-QC": ["cour du quebec", "cour superieure du quebec"]
+    },
+    "mention": "Ce dossier relève d’un autre droit que le droit français (%s). Seule la méthode générale ci-dessous est transmise : les références françaises ne sont pas le droit de ce dossier, et les sources de ce droit restent à trouver et à vérifier."
+  }
+}

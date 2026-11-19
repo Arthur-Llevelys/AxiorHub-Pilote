@@ -309,7 +309,8 @@ def _fonctions(banc, s, serveur):
     # reprise du brouillon : « Modifier » depuis le dossier Brouillons
     barre = p.evaluate("() => Array.from(window.axh5628.toolbar({uid: '1'}, {role: 'drafts', folders: []}).querySelectorAll('button')).map(b => b.textContent)")
     verifier(any('Modifier' in x for x in barre), '« Modifier » absent de la barre d’un brouillon')
-    p.evaluate("(uid) => window.axh5628.compose('brouillon', {uid: uid, folder: 'Drafts'}, window.axh5625Ctx())", uid)
+    p.evaluate("([uid, v]) => window.axh5628.compose('brouillon', {uid: uid, folder: 'Drafts', uidvalidity: v}, window.axh5625Ctx())",   # 5.6.108 (B02) : génération transmise
+               [uid, str(serveur.boites['Drafts']['validite'])])
     p.wait_for_selector('form.bx5628-compose .bx5628-editor', timeout=15000)
     form = p.locator('form.bx5628-compose')
     verifier('Brouillon' in form.locator('h2').inner_text(), 'titre du brouillon rouvert')

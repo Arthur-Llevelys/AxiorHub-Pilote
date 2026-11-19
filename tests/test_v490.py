@@ -131,12 +131,12 @@ class FakeSMTP:
         pass
 
     def login(self, user, password):
+        if FakeSMTP.fail:
+            import smtplib
+            raise smtplib.SMTPAuthenticationError(535, b'authentification fictive refusee')
         self.user = user
 
     def send_message(self, message, from_addr=None, to_addrs=None):
-        if FakeSMTP.fail:
-            import smtplib
-            raise smtplib.SMTPServerDisconnected('boom')
         FakeSMTP.sent.append({'message': message, 'from': from_addr, 'to': list(to_addrs)})
         return {}
 

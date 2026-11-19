@@ -58,9 +58,27 @@ def appeler(desk, etape, systeme, charge, matter, mission_id='', modele=None, pu
     cible, local = destination(modele)
     dp.exiger(desk.c, 'llm', cible, finalite=etape, dossiers=(matter,) if matter else (), labels=labels if matter else (), acteur=owner, role=role, local=local, mission=str(budget or ''))
     messages = [{'role': 'system', 'content': systeme}, {'role': 'user', 'content': json.dumps(charge, ensure_ascii=False)}]
-    with competences5632.pour_etape(desk, budget or mission_id, etape, consigne or etape, owner):
+    with competences5632.pour_etape(desk, budget or mission_id, etape, consigne or etape, owner, matter=matter):   # 5.6.108 : droit applicable du dossier
         reponse = modele.complete(messages, temperature=temperature, max_tokens=max_tokens, json_schema=schema)
     data = extraire_json(reponse)
     missions567.check_authority(desk, {'mission_id': mission_id} if mission_id else {})
     pause5629.checkpoint(desk)
     return data
+
+
+def appeler_texte(desk, etape, messages, matter, mission_id='', modele=None, purpose='legal_analysis', max_tokens=3000, schema=None, owner='cabinet', role='avocat', budget='', labels=('dossier',)):
+    """5.6.108 (lot R) : même ordre que ``appeler`` (autorité, pause, politique des données ; budget et routage dans ``Model``), pour une étape
+    auxiliaire d'un petit modèle (besoins de recherche, reprise après la barrière) : messages fournis tels quels, réponse rendue en texte, sans
+    méthode jointe (seule la rédaction la reçoit) et sans JSON imposé à un texte rédigé."""
+    from . import data_policy5689 as dp, missions567, pause5629
+    from .references56108 import sans_methode
+    missions567.check_authority(desk, {'mission_id': mission_id} if mission_id else {})
+    pause5629.checkpoint(desk)
+    modele = modele or modele_pour(desk, matter, purpose, budget)
+    cible, local = destination(modele)
+    dp.exiger(desk.c, 'llm', cible, finalite=etape, dossiers=(matter,) if matter else (), labels=labels if matter else (), acteur=owner, role=role, local=local, mission=str(budget or ''))
+    with sans_methode():
+        reponse = modele.complete(messages, temperature=0, max_tokens=max_tokens, json_schema=schema)
+    missions567.check_authority(desk, {'mission_id': mission_id} if mission_id else {})
+    pause5629.checkpoint(desk)
+    return str(reponse or '')

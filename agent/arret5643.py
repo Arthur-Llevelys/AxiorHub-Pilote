@@ -44,6 +44,10 @@ PAUSE_MOTIFS = ('pause', 'pause_dossier', PAUSE_HORAIRE)
 # fichiers, dépôts déjà validés, conservation des courriels et des pièces).
 DETERMINISTIC = frozenset({'synchro_livrables5689', 'controle_livrable5689', 'export_livrable5689', 'sauvegarde5688', 'export5688', 'controle5688', 'maj_local5661', 'automation_setting', 'live_calendar430', 'live_documents430', 'deposit_draft', 'archive_correspondence5643',
                            'file_mail_attachments5643', 'verify_deliverable420'})
+# 5.6.108 (lot T) : outils d'Assistance métier (coaching lexical, fiche d'appel, compte rendu, calculs, revue de facturation, comparaison
+# qualifiée) : aucun appel au modèle ; ils restent utilisables pendant la pause de l'IA.
+DETERMINISTIC = DETERMINISTIC | frozenset({'coach_hearing35', 'prepare_call35', 'record_call35', 'calculate35', 'billing_review35',
+                                           'classify_comparable35'})
 # 5.6.89 : travaux que la pause programmée laisse passer ; le contrôle de santé lit l'état des services sans inférence.
 SANS_MODELE = DETERMINISTIC | {'health'}
 POLL_SECONDS = 1.0

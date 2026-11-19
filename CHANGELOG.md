@@ -3,6 +3,111 @@
 AxiorHub — créé par Timo RAINIO. Les notes détaillées des versions antérieures à la publication ouverte ne sont pas
 reprises ici ; seules les grandes étapes le sont.
 
+## 5.6.108 — correctifs de l'audit 5.6.107, IA mieux guidée pour les petits modèles, banc d'essai, Assistance métier en cinq parcours
+
+Cahier des charges du cabinet du 18/11/2026 (audit de la 5.6.107).
+
+**Courriels**
+- B01 : l'enregistrement automatique d'un brouillon n'acquitte plus que la version réellement envoyée ; une frappe pendant la sauvegarde
+  reste « Modifications à enregistrer », la fermeture avertit tant que la saisie n'est pas enregistrée, une erreur garde le texte.
+- B02 : un brouillon IMAP n'est remplacé que dans la même génération de boîte (UIDVALIDITY) ; l'original reste tant que le nouveau
+  dépôt n'est pas identifié ; une ancienne fenêtre reçoit un refus compréhensible et garde son texte.
+- B03 et B04 : un envoi accepté pour certains destinataires seulement, ou dont la réponse SMTP s'est perdue, n'est plus présenté comme
+  un échec : état « À vérifier », écran de rapprochement (destinataires acceptés et refusés, Message-ID, Envoyés) et décisions
+  explicites (renvoyer aux seuls refusés, confirmer, renvoyer quand même) ; aucune reprise automatique.
+- B05 : un envoi programmé relit le compte (actif, rôle, droit d'envoi, dossier) juste avant de partir ; compte désactivé ou annuaire
+  illisible : message retenu, motif visible, reprise explicite seulement.
+- B06 : décodage des images PNG borné à la taille annoncée ; image incohérente refusée, original gardé.
+- B07 : l'export déclare par domaine les lignes attendues, exportées et exclues ; modèles de réponse, routines sur message et
+  décisions de relecture exportés ; un export qui ne couvre pas toutes les données le dit (« Export INCOMPLET »).
+
+**Accès mobile et Assistance métier**
+- M01 : la page `/mobile` (« Accès mobile ») explique son usage et sa configuration, utilise le lecteur commun d'À relire et reste
+  utilisable clavier ouvert ; aucun jeton ni QR dans un journal ou un export.
+- M02 : un projet d'Assistance métier d'un dossier réservé n'apparaît plus pour un autre compte (liste filtrée avant la limite, aperçu,
+  API, lien direct, source, export) ; les travaux relisent les droits de leur auteur avant d'écrire.
+- Assistance métier en cinq parcours lisibles (audience, arguments, appel, calcul, facturation) : dossiers et audiences choisis par
+  leur nom, résultat lisible, calculs disponibles avec l'IA en pause ; ancienne présentation derrière l'interrupteur d'interface.
+
+**IA pour les petits modèles**
+- IA01 : les 19 fiches de l'« Assistant juridique » sont enregistrées et transmises (paquet `7.4.0+axiorhub.2`, fichiers du paquet
+  seulement, aucun script).
+- Plan de chargement déclaré dans le paquet (`PLAN-AXIORHUB.json`) : adaptation AxiorHub, méthode de l'étape (dont qualification et
+  application de la loi dans le temps), fiche de la tâche, puis compléments ; les passages sans objet dans AxiorHub ne sont plus
+  transmis.
+- Version courte `ESSENTIEL.md` (adaptation dérivée, attribution et licence AGPL conservées, « à relire par l'avocat ») pour les
+  modèles à petit contexte.
+- Assistant juridique appliqué d'office aux analyses, recherches, audiences et contrôles ; dossier d'un autre droit : méthode sans
+  références françaises, avec mention explicite.
+- Grille faits / allégations / preuves / manques avant la rédaction pour les petits contextes ; les manques deviennent des questions à
+  l'avocat ; sources citées vérifiées.
+- « Méthode transmise » dans le suivi de chaque mission : ce qui est réellement parti vers le modèle.
+
+- Petits modèles locaux (16 384 jetons de contexte ou moins, ou 14 milliards de paramètres ou moins ; réglage automatique / oui / non) :
+  sources numérotées `[S1]`… remplacées par la référence et son lien ; barrière après rédaction (références absentes des sources :
+  une reprise, puis « [référence non vérifiée] ») ; recherche juridique faite par le programme avant la rédaction ; besoins de
+  recherche à format fixe au lieu d'appels d'outils et de MCP ; aucun nom d'outil ni de script transmis. Grands modèles inchangés.
+
+**Pause et envois** : « Mettre l'IA en pause » ne retient plus les envois programmés validés ; commande distincte « Suspendre les envois
+programmés », réglage migré, messages retenus visibles, décision explicite à la reprise.
+
+**Aujourd'hui et À relire** : décisions et Ma journée côte à côte sur grand écran ; dernière valeur connue gardée pendant une panne ;
+projet suivant après une décision ; brouillon de l'assistant conservé ; reçu numéroté de chaque instruction.
+
+**Agenda, Produire, Dossiers** : fenêtre de création avec durée, rappel, fuseau, responsable, récurrence ; dates extraites à vérifier
+à part ; livrables et dossiers plus denses ; résultats réellement enregistrés par l'IA dans la fiche du dossier.
+
+**Export** : couverture complète des données métier, dossiers réservés filtrés ligne par ligne ; profil « Préparer un départ vers un
+autre logiciel » (originaux, EML, ICS, vCard, sommaire et dictionnaire des données).
+
+**Questionnaires des actes (« Demander »)** : questionnaire par modèle, préremplissage sourcé, « Je ne sais pas » / « Répondre plus
+tard », brouillon partiel « non prêt pour signature », questions posées par le programme pour un petit modèle.
+
+**Bibliothèque par droit applicable** : FR, Angleterre et pays de Galles, Allemagne, Espagne, Québec, Ontario et autres provinces ;
+métadonnées, cycle de vie (brouillon, à relire, validé, à revoir, retiré ; jamais validé par l'IA), sélection filtrée par droit ;
+ancien « EN » → « UK-EAW » ; 24 trames nouvelles à l'état brouillon.
+
+**Synchronisation des postes sans serveur** : dossiers, tâches, agenda et fichiers entre postes du même réseau local ; journal
+d'opérations signées, conflits conservés, dossiers réservés limités aux personnes autorisées ; une seule exécution par mission ou
+routine ; disponible par défaut, sans port ouvert tant qu'aucun espace partagé n'est créé ou rejoint.
+
+**Conseil de modèles** (facultatif, déclenché par l'avocat) : pour les questions de jugement, deux ou trois modèles répondent sur les
+mêmes sources, se relisent sans savoir qui a écrit quoi, puis un président fait la synthèse en gardant les désaccords ; annonce des
+membres, de la durée et du coût avant lancement ; barrière des références ; préréglages détectés (Local équilibré, Mixte, Local
+léger, API). Aucune bibliothèque d'agents. Le livrable garde sa forme (consultation, acte, réponse) avec « Argument adverse le plus
+sérieux », « Points de désaccord du conseil » (vérifiés contre les critiques réelles) et « Informations à obtenir » (manques de la grille
+et des membres) ; le texte exact des critiques reste dans la trace.
+
+**Barrière des références réglable** : petits modèles seulement / tous les modèles locaux (défaut) / tous, y compris les fournisseurs
+d'API.
+
+**Dicter la réponse** : icône micro sur chaque question (questionnaires d'actes, questions regroupées des missions, informations à
+obtenir du conseil) ; dates et montants remplis seulement si la valeur dictée est valide.
+
+**Configurer l'IA locale** (guide de démarrage et Paramètres › IA) : détection d'Ollama (poste ou adresse privée du réseau), classe de
+la machine, modèles installés (« cloud » signalé non local), suggestions d'un catalogue vérifié (taille, mémoire, licence), téléchargement
+par Ollama seulement après confirmation (progression, annulation), réglages appliqués avec essai court et retour en arrière.
+
+**Documents Word** : guide pas à pas du serveur de documents EuroOffice ou OnlyOffice avec son secret (version serveur, postes
+Windows 11 et Ubuntu 24.04) ; le rappel du serveur de documents dans Docker n'est plus refusé sur un poste (deux routes à jeton
+seulement) ; « Tester la connexion » étape par étape. Éditeur intégré **WordCraft** (version d'essai, MIT/Apache-2.0, sans serveur) :
+nouvelle version à chaque enregistrement, garde avant ouverture, contrôle des pertes avant de garder. « Ouvrir dans Word /
+LibreOffice » et « Ouvrir avec l'application du poste » (PDF) sur les postes, copie de travail reprise en nouvelle version.
+
+**Onglet Fichiers et PDF** : « Nouveau document » et « Ajouter un fichier » (glisser-déposer) dans l'onglet Fichiers ; remplissage de
+tout PDF à champs (copie, original intact) ; boîte à outils PDF : annoter, fusionner, découper, réorganiser, numéroter, caviarder
+réellement (pages refaites en image, contrôle obligatoire que rien ne subsiste), compresser.
+
+**Signature par lien** : connecteur facultatif SignaturePDF (instance du cabinet ou tierce, avertissement et refus des dossiers
+réservés vers un tiers), guide d'installation serveur et poste, PDF signé repris en nouvelle version.
+
+**Banc d'essai de l'IA** (`scripts/banc-ia.py`) : 57 situations fictives ; comparaison de deux versions de ce que reçoit le modèle et,
+en option, de ce qu'il produit avec des modèles Ollama du poste ou du réseau privé (jamais un modèle « cloud »).
+
+**Démo en ligne** : bouton « Commencer » compatible avec la politique de référent des navigateurs ; exemple Apache pour un serveur qui
+héberge aussi AxiorHub ; plus de fenêtre de mot de passe après une session perdue ; garde réseau compatible avec waitress 2.x ; page de
+secours ; choix de la langue (français, anglais, allemand, espagnol) ; test fumée plus juste.
+
 ## 5.6.107 — mode Démo (dans l'application et en ligne, quatre langues), interface traduite, alerte de fraude discrète, vidéo de démonstration
 
 Demandes du cabinet des 16 et 17/11/2026.

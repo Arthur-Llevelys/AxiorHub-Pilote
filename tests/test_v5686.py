@@ -455,7 +455,7 @@ class CompetenceGenerale(Base):
     def test_specialisee_plus_methode_de_decision(self):
         self.assertEqual(self.chosen('proactive34_cycle'), [])
 
-    def test_methode_declaree_prime(self):
+    def test_competence_generale_prime_sur_phase_declaree(self):
         with patch.object(c43, 'skill_phases', lambda m: ['redaction_courriel'] if m.get('name') == 'Approbation des comptes' else []):
             real = json.loads
             row = competences5632._row(self.desk, self.other)
@@ -463,7 +463,7 @@ class CompetenceGenerale(Base):
             manifest['phases'] = ['redaction_courriel']
             self.desk.db.execute('UPDATE skills5632 SET manifest=? WHERE id=?', (json.dumps(manifest), self.other))
             self.desk.db.commit()
-            self.assertEqual(self.chosen('prepare_reply')[0], self.other)
+            self.assertEqual(self.chosen('prepare_reply')[0], self.general)
 
     def test_choix_du_cabinet_et_desactivation(self):
         self.desk.setting(c43.GENERAL_SETTING, self.other)

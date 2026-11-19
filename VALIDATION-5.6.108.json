@@ -1,0 +1,56 @@
+{
+  "version": "5.6.108",
+  "base": "5.6.107",
+  "date_utc": "2026-11-18T00:00:00+00:00",
+  "demande": "Audit de la 5.6.107 : correctifs B01-B07, M01, M02, Assistance métier, démo en ligne ; IA pour petits modèles ; banc d’essai avant/après (cabinet, 18/11/2026).",
+  "regression": {
+    "command": "scripts/tests-paralleles.py -j 12, PYTHONUTF8=1",
+    "platform": "Windows 11, Python 3.12, shim fcntl/grp local",
+    "total": 8223,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 161
+  },
+  "lots": [
+    "C courriels B01-B07",
+    "T Accès mobile, M02, Assistance métier",
+    "I IA petits modèles",
+    "E banc d’essai IA",
+    "D démo en ligne",
+    "R références et outils des petits modèles",
+    "P pause IA / envois",
+    "A Aujourd’hui et À relire",
+    "G agenda, Produire, Dossiers",
+    "X export complet",
+    "Q questionnaires des actes",
+    "B bibliothèque par droit applicable",
+    "S synchronisation des postes",
+    "K conseil de modèles",
+    "O éditeur de documents (guide, garde d’hôte)",
+    "W WordCraft et application du poste",
+    "F onglet Fichiers, PDF à champs, boîte à outils PDF",
+    "Z SignaturePDF",
+    "L configurer l’IA locale"
+  ],
+  "linux": "Windows 8 223 tests (161 ignorés) ; une erreur de charge à -j 12 (test_v56108_demo D5, connexion locale coupée), module relancé seul : 45 OK. Linux local : modules nouveaux lancés par lot dans Docker python:3.12 quand la permission l'a permis ; recette GitHub (Ubuntu) à suivre",
+  "navigateur": "Chromium 70/70 parcours (scripts/parcours-navigateur.py -j 4 ; P96k et les 6 parcours de Paramètres › Modèles d'IA relancés après le correctif de l'ordre des sections)",
+  "banc_ia": "Mode chaîne, 62 situations fictives, modèles Ollama du réseau privé : références absentes des sources ministral 3B 139 -> 25 (non signalées 9), qwen 3.5 9B 80 -> 11 (7), llama 3.1 8B 12 -> 0 ; différences significatives (test du signe). qwen 3.8 27B avec la barrière par défaut, 16 situations : 29 -> 2 (deux références allemandes, barrière limitée au droit français). Conseil de modèles : livrable de la forme attendue 100 %, argument adverse 100 %, informations à obtenir 3 situations sur 4, environ 3 fois plus lent. Statique : Assistant juridique 72 % -> 100 %, passages sans objet 58 % -> 0 %.",
+  "exapp": {
+    "version": "0.1.67",
+    "moteur": "5.6.108"
+  },
+  "nextcloud_app": {
+    "version": "0.4.4",
+    "change": "aucun"
+  },
+  "limites": [
+    "ESSENTIEL.md et les formes courtes des fiches sont des adaptations à relire par l’avocat.",
+    "Banc d’essai : situations fictives, mesures automatiques, aucun avis d’avocat ; gain de justesse juridique non établi.",
+    "Aucune vraie messagerie IMAP/SMTP ; vrais téléphones et vrai clavier virtuel non essayés.",
+    "Démo en ligne : vrai serveur non réessayé avec cette version ; traductions non relues par un humain.",
+    "Synchronisation : essayée avec des postes simulés (instances locales, conteneurs) ; vrais PC, pare-feu Windows, Wi-Fi isolant et veille réelle non essayés.",
+    "Trames étrangères livrées à l’état brouillon : relecture par un juriste de chaque droit nécessaire avant validation.",
+    "WordCraft : version alpha de ses auteurs ; fidélité mesurée dans Chromium seulement ; champs de date, objets importés et macros abîmés (garde avant ouverture).",
+    "OnlyOffice non essayé (EuroOffice essayé réellement sous Windows) ; SignaturePDF : aucun dépôt réel ; caviardage essayé sous Windows seulement."
+  ]
+}

@@ -150,8 +150,9 @@ def _href(prefix, chemin, **params):
     return prefix + chemin + ('?' + urlencode(params) if params else '')
 
 
-def carte_html(desk, prefix, row, card, vue, versions, export_row, pause, retour):
-    """Une carte compacte : type, dossier, titre, version, état réel, puis les actions permises, dans l'ordre du cahier (§ 23.2)."""
+def carte_html(desk, prefix, row, card, vue, versions, export_row, pause, retour, communes=()):
+    """Une carte compacte : type, dossier, titre, version, état réel, puis les actions permises, dans l'ordre du cahier (§ 23.2).
+    5.6.108 (lot G) : ``communes`` — limites dites une seule fois au-dessus de la liste (pas répétées sur chaque ligne)."""
     doc, vid = row['document_id'], row['version_id']
     code, libelle = etat_reel(row)
     detail = _href(prefix, '/livrables/' + doc, version=vid, return_to=retour)
@@ -160,6 +161,14 @@ def carte_html(desk, prefix, row, card, vue, versions, export_row, pause, retour
     if actions['editor']:
         from .fiche460 import doc_href
         boutons.append('<a class="ax-btn ghost" href="%s">Modifier<span class="sr-only"> : %s</span></a>' % (e(prefix + doc_href(row['path'], row['matter_id']), quote=True), e(row['title'])))
+    if actions.get('preview', True) and row.get('lifecycle') == 'current' and row.get('path') and not row.get('protected') and \
+            row.get('production_state') in ('verified', 'published'):   # « Aperçu » est toujours proposé : pas de clé imposée dans ``actions``   # 5.6.108 (lot W) : .docx modifiable sans serveur de documents (nouvelle version à côté)
+        try:
+            from . import wordcraft56108
+            from .i18n5631 import role as _role108
+            boutons.append(wordcraft56108.boutons_html(desk, None, prefix, 'nextcloud', row['path'], _role108(), row['title']))
+        except Exception:   # noqa: BLE001 — la carte reste affichée sans ces boutons
+            pass
     if actions['ai_edit']:
         attente = '<p class="p100-note">L’IA est en pause : la demande sera enregistrée et traitée à la reprise. Rien n’est modifié sans votre décision.</p>' if pause else \
             '<p class="p100-note">Le texte avant/après et les sources seront montrés pour décision ; rien n’est modifié sans vous.</p>'
@@ -202,13 +211,17 @@ def carte_html(desk, prefix, row, card, vue, versions, export_row, pause, retour
             e(PRODUCTION.get(row['production_state'], 'En préparation')), (' — ' + e(row['state_reason'])) if row.get('state_reason') else '')
     elif code == 'echec' and row.get('state_reason'):
         progression = '<p class="p100-progression">%s</p>' % e(str(row['state_reason']).replace('_', ' '))
-    limites = [r for r in vue['unavailable_reasons'] if 'téléchar' in r or 'export' in r.lower() or 'Éditeur' in r]
+    limites = [r for r in limites_carte(vue) if r not in communes]
     return ('<li class="p100-carte" data-livrable="%s" data-version="%s" data-etat="%s"><div class="p100-tete"><span class="p100-type">%s</span><span class="p100-dossier">%s</span></div>'
             '<h3 class="p100-titre"><a href="%s">%s</a></h3><p class="p100-meta"><span>Version %d</span><span>%s</span>%s</p>%s'
             '<div class="p100-actions" role="group" aria-label="%s">%s</div>%s</li>') % (
         e(doc, quote=True), e(vid, quote=True), code, e(card['nature']), e(card['matter_label']), e(detail, quote=True), e(row['title']), row['version_number'],
         e(_date(card['updated_at'])), ''.join(marques), progression, e('Actions sur ' + row['title'], quote=True), ''.join(boutons),
         ('<p class="p100-limites">%s</p>' % e(' '.join(limites[:2]))) if limites else '')
+
+
+def limites_carte(vue):
+    return [r for r in vue['unavailable_reasons'] if 'téléchar' in r or 'export' in r.lower() or 'Éditeur' in r]
 
 
 def section_html(desk, prefix, owner, role, args, retour=None):
@@ -241,16 +254,19 @@ def section_html(desk, prefix, owner, role, args, retour=None):
     exports = _exports(desk, [c['version_id'] for c in data['items']])
     caps = apercu.capacites(desk)
     pause = ia_en_pause(desk)
-    cartes = []
+    cartes, lus = [], []
     for c in data['items']:
         row = rows.get(c['id'])
-        if not row:
-            continue
-        cartes.append(carte_html(desk, prefix, row, c, apercu.vue(desk, row, owner, role, caps), versions, exports.get(row['version_id']), pause, retour))
+        if row:
+            lus.append((c, row, apercu.vue(desk, row, owner, role, caps)))
+    # 5.6.108 (lot G) : une limite vraie pour toutes les lignes affichées (éditeur non relié…) est dite une fois, au-dessus de la liste
+    communes = [r for r in (limites_carte(lus[0][2]) if len(lus) > 1 else ()) if all(r in limites_carte(v) for _c, _r, v in lus)]
+    for c, row, vue in lus:
+        cartes.append(carte_html(desk, prefix, row, c, vue, versions, exports.get(row['version_id']), pause, retour, communes))
     onglets = ''.join('<a href="%s"%s>%s <span class="q51-n">%d</span></a>' % (
         e(_href(prefix, '/production', docs=k), quote=True), ' aria-current="true"' if k == onglet else '', e(lib), comptes.get(k, 0)) for k, lib in ONGLETS)
     if cartes:
-        corps = '<ul class="p100-cartes">%s</ul>' % ''.join(cartes)
+        corps = ''.join('<p class="p108-limites">%s</p>' % e(r) for r in communes[:2]) + '<ul class="p100-cartes">%s</ul>' % ''.join(cartes)
     elif data['complet']:
         corps = '<p class="ax-muted">%s</p>' % {'pret': 'Aucun document prêt pour l’instant. Les documents en préparation sont dans l’onglet suivant.',
                                                  'en_cours': 'Aucun document en préparation.', 'echec': 'Aucun échec ni document à compléter.',

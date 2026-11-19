@@ -463,7 +463,7 @@
  "fn.agents_documents.label": "Resultados de los agentes",
  "fn.apprentissage.desc": "Reglas profesionales, referencias fiables y correcciones",
  "fn.apprentissage.label": "Aprendizaje profesional",
- "fn.assistance_metier.desc": "Cálculos controlables, llamadas preparadas, revisión de facturación",
+ "fn.assistance_metier.desc": "Audiencia, argumentos, llamada, cálculo y facturación: cinco recorridos guiados",
  "fn.assistance_metier.label": "Asistencia profesional",
  "fn.assistant.desc": "Conversación con el asistente e historial",
  "fn.assistant.label": "Asistente",
@@ -1424,8 +1424,8 @@
  "vj.queued": "Recogida en cola: empieza en cuanto el agente esté disponible.",
  "vj.running": "Recogida en curso…",
  "vj.queue_refused": "Puesta en cola rechazada (cola llena): nuevo intento en el próximo ciclo, o pulse «Actualiser».",
- "fn.mobile.label": "Por validar (teléfono)",
- "fn.mobile.desc": "Lo que espera su decisión, en grande para el teléfono vinculado por código QR",
+ "fn.mobile.label": "Acceso móvil (smartphone)",
+ "fn.mobile.desc": "Revisar y decidir desde un smartphone; vinculación y ajustes accesibles aquí",
  "fn.navigateur.label": "Navegador supervisado",
  "fn.navigateur.desc": "El agente consulta portales y registros en una ventana visible; usted aprueba pagos, envíos y presentaciones",
  "fn.savoir_faire.label": "Saber hacer del despacho",
@@ -1538,5 +1538,12 @@
  "js.5694.fallback": "La voz del navegador no pudo iniciarse ({raison}). Lectura con la voz de reserva del servidor ({voix}).",
  "js.5694.error": "Lectura imposible: {raison}",
  "js.5694.alkove_off": "(aislamiento de voz no disponible: dictado sin tratamiento)",
- "js.5694.alkove_on": "Voz aislada por Alkove."
+ "js.5694.alkove_on": "Voz aislada por Alkove.",
+ "js.56108q.dicter": "Dictar la respuesta",
+ "js.56108q.indisponible": "Micrófono no disponible en este equipo o en este navegador.",
+ "js.56108q.desactivee": "Dictado desactivado en Ajustes (voz local): pida al administrador que lo active.",
+ "js.56108q.refuse": "Micrófono rechazado: autorice el micrófono para este sitio en el navegador y vuelva a cargar la página.",
+ "js.56108q.insere": "Texto insertado en el cursor: revíselo antes de guardar.",
+ "js.56108q.a_corriger": "Reconocido: «{texte}» — valor no válido para este campo: corríjalo a mano.",
+ "js.56108q.trop_long": "Texto demasiado largo para este campo: no se ha cortado nada, acorte la entrada."
 }

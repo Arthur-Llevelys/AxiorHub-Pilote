@@ -5,9 +5,16 @@ from .assistance35 import comparables, preview, recent
 from .common import Stop
 
 
-def page(desk,e,link,form,args):
+def page(desk,e,link,form,args,url=None):
+    # 5.6.108 (lot T) : nouvelle interface : un écran d'entrée et cinq parcours (``assistance56108``) ; ancienne présentation conservée
+    # derrière l'interrupteur ``interface56100``. Les contrôles de droits (liste, aperçu, enfilage) sont dans le service, communs aux deux.
+    from . import interface56100
+    from .membres5650 import current_author
+    if url is not None and interface56100.active(desk,current_author() or 'cabinet'):
+        from .assistance56108 import page as parcours
+        return parcours(desk,e,link,form,args,url)
     matter=str(args.get('matter',''))
-    out='<section class="daily-hero"><div><p class="eyebrow">VERSION 3.5.0 · ASSISTANCE MÉTIER</p><h2>Préparer, comparer et contrôler</h2><p>Plaidoirie et coaching, simulations contradictoires sourcées, appels, calculs et facturation à relire. Aucun appel téléphonique, dépôt, facture ou envoi n’est effectué ici.</p></div></section>'
+    out='<section class="daily-hero"><div><p class="eyebrow">ASSISTANCE MÉTIER</p><h2>Préparer, comparer et contrôler</h2><p>Plaidoirie et coaching, simulations contradictoires sourcées, appels, calculs et facturation à relire. Aucun appel téléphonique, dépôt, facture ou envoi n’est effectué ici.</p></div></section>'
     out+='<section><h2>Plaidoirie et coaching</h2><p>'+link('/audiences-word','Préparer la plaidoirie et ses plans 5, 10 et 20 minutes')+'</p>'
     out+=form('coach_hearing35','Évaluer mon entraînement',extra='<label>Identifiant du projet d’audience validable<input required name="hearing_project_id" pattern="[a-f0-9]{32}" maxlength="32"></label><label>Transcription relue de l’entraînement<textarea required name="speech" maxlength="20000" rows="5"></textarea></label><label>Durée réelle en secondes<input type="number" required name="duration_seconds" min="30" max="7200"></label><label>Plan ciblé<select name="target_minutes"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="20">20 minutes</option></select></label>')
     out+='<p class="notice">La couverture en % est un repérage lexical du plan ; elle ne mesure ni la qualité juridique ni une chance de succès.</p></section>'

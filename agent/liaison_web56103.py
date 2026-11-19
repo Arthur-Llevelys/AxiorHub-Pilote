@@ -301,7 +301,7 @@ def section_html(desk, auth, prefix, env):
     actif = L.est_active(desk)
     intro = ('<p>Relie directement les postes AxiorHub du cabinet sur le réseau local, <strong>sans serveur</strong> : messages et discussions, '
              'pièces jointes (25 Mo au plus), présence, et réglages partagés par un poste administrateur. Les dossiers, l’agenda et les tâches '
-             'ne passent pas par la liaison. Tout est chiffré et signé ; rien ne sort du réseau local. Un message pour un poste éteint attend '
+             'se partagent par la « Synchronisation des postes » (rubrique suivante), sur votre choix. Tout est chiffré et signé ; rien ne sort du réseau local. Un message pour un poste éteint attend '
              'sur ce poste et part à son retour.</p>')
     bascule = ('<form class="m5-form" data-api="m56103/liaison/activer" data-reload>%s<label class="m50-check"><input type="checkbox" name="actif"%s%s> '
                'Activer la liaison entre postes sur ce poste</label>%s<p role="status" class="m5-status"></p></form>') % (

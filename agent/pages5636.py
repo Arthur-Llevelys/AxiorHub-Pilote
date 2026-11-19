@@ -23,7 +23,7 @@ PAGES = {
     '/securite-ia': 'Sécurité de l’IA',   # 5.6.59 : instructions cachées dans les sources
     '/navigateur': 'Navigateur supervisé',   # 5.6.73 : poste Windows ou Ubuntu
     '/mes-taches': 'Mes tâches',   # 5.6.88 : responsable, échéance, rappel, statut
-    '/mobile': 'À valider',   # 5.6.74 : page du téléphone associé
+    '/mobile': 'Accès mobile',   # URL conservée, usage et réglages expliqués
     '/mon-compte': 'Mon compte',   # 5.6.88 : double authentification et jetons d'API de la personne
     '/parametres/journal-audit': 'Journal d’audit',   # 5.6.88 (administrateur)
     '/parametres/ia-visible': 'Ce que l’IA peut voir',   # 5.6.88 (administrateur)
@@ -59,7 +59,7 @@ def page(desk, auth, prefix, env, args, path, shell):
         body = web5650.droits_page(desk, auth, prefix, env, args)
     elif path == '/mobile':   # 5.6.74
         from . import appareils5674
-        body = appareils5674.mobile_page(desk, prefix, args, env)
+        body = appareils5674.mobile_page(desk, prefix, args, env, auth=auth)
     elif path == '/mes-taches':   # 5.6.88
         from . import agenda5688
         body = agenda5688.mes_taches_page(desk, auth, prefix, env, args)
@@ -134,6 +134,11 @@ def page(desk, auth, prefix, env, args, path, shell):
     else:
         from . import office5636
         body = office5636.page_html(desk, prefix, args, env)
+    if path == '/mobile':
+        from . import interface56100, relecture56100
+        from .web567 import actor
+        head = relecture56100.tete_html(prefix) if interface56100.active(desk, actor(env)[0]) else ''
+        return shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path, head=head)
     html = shell(title, '<div class="p5636">' + body + '</div>', prefix, auth['csrf'], path)
     if path == '/messagerie' and 'data-t103-config' in body:   # 5.6.103 (lot T) : tableau blanc ouvert dans cette page (img-src data: blob:, rien d'externe)
         return {'status': '200 OK', 'kind': 'text/html; charset=utf-8', 'body': html, 'csp_img': 'data: blob:'}
